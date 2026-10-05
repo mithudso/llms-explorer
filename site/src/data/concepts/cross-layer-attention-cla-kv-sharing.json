@@ -1,0 +1,169 @@
+{
+  "slug": "cross-layer-attention-cla-kv-sharing",
+  "concept": "Cross-layer attention (CLA) KV sharing",
+  "generated": "2026-10-05",
+  "summary": "CLA saves KV capacity but not per-step KV read bandwidth. Each layer still has to read the shared K and V from memory when it attends, so the memory traffic of the attention step in decode is unchanged. The benefit arrives as larger batch, longer context and longer cache persistence. On a Mac, wh...",
+  "facets": [
+    {
+      "title": "Facts",
+      "facts": [
+        {
+          "text": "CLA saves KV capacity but not per-step KV read bandwidth. Each layer still has to read the shared K and V from memory when it attends, so the memory traffic of the attention step in decode is unchanged. The benefit arrives as larger batch, longer context and longer cache persistence. On a Mac, where decode is bandwidth-bound, this means CLA lowers the KV memory footprint without making attention reads cheaper.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Under pipeline parallelism, layers that share a KV cache must sit in the same pipeline stage or the KV activations must be sent between stages. A multi-Mac pipeline split must not cut between a producer and its consumers, or it pays inter-node KV transfer (inferred application).",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "CLA slightly reduces parameter and FLOP counts, because fewer KV projection blocks exist.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "mlx-lm's Gemma 4 text model sets the first `num_hidden_layers - num_kv_shared_layers` layers as producers (default `num_kv_shared_layers` 20), maps each shared layer to the last producer of the same layer type (sliding or full), and gives shared layers no cache object: the cache list is padded with `None`, so shared layers allocate no KV memory. Shared layers receive the producer's keys and values as `shared_kv` and still compute their own queries.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Gemma 4 gives its shared layers extra capacity: with `use_double_wide_mlp` true (the default in mlx-lm) the MLP intermediate size of every KV-shared layer is doubled. Weight memory therefore does not fall in proportion to KV memory.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Gemma 4 has a second, separate KV saver: with `attention_k_eq_v` true, non-sliding (global) layers reuse the key tensor as the value (`values = keys`) and skip the V projection. It is distinct from cross-layer sharing.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "vLLM's hybrid KV cache manager handles sharing by ignoring shared layers when allocating cache and patching the model runner to point shared layers at the allocation; its documentation names gemma-3n as the example, so cross-layer KV sharing predates Gemma 4 in production models.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "2024-05: CLA paper (arXiv 2405.12981, NeurIPS 2024).",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "2025: a NAACL short paper (Wu, Wu, Tu) puts LCKV, YOCO and CLA in one framework and tests every configuration, including new ones.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Gemma-3n then Gemma 4 E2B/E4B put the technique in widely used models.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Which layers produce matters. When many layers depend on shared KVs, configurations that compute the KVs at the bottom layers lose the most quality. In the paper's non-uniform 11-KV-layer MQA+CLA2 test, perplexity was 13.62 (keep first and last layers' own KV), 13.75 (dense front) and 14.03 (dense back); putting the unshared layers at the back was worst.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Configurations that compute KVs at the top layers lose throughput on long prompts (prefill must run the whole stack before the top-layer KV exists).",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Pairing queries with KVs from upper layers helps quality at heavy compression but costs extra training and prefill latency.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "CLA at sharing factors above two degrades faster: in the paper's 1B table perplexity rose from 13.60 (CLA2) to 13.77 (CLA3) to 13.95 (CLA4) with KV bytes per token falling from 5,120 to 3,584 to 2,560.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Is CLA a throughput win? Side A (NAACL study): at a 2x KV reduction most configurations reach higher throughput than a standard transformer, because the cache fits more batch or context. Side B (original paper): CLA has no direct effect on per-step attention memory bandwidth and so no direct effect on core attention latency. Both are consistent only if the throughput gain comes from batching and capacity, which does not help a single-stream Mac decode.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Does any Mac runtime save or restore KV caches (disk tiers, `llama-swap` slot save) with producer-only layouts, and does the file size reflect the sharing? Not found in these sources.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Does quantizing a producer's KV (KV-cache quantization) hurt shared consumers more than an unshared layer? Existing dossier says inferred only; no measurement found.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "The CLA paper reports that combining CLA with multi-query attention gives a 2x KV-cache reduction against plain MQA at 1B and 3B scale with minimal perplexity loss, and recommends CLA between pairs of consecutive layers, most robustly with MQA.",
+          "source": "https://arxiv.org/html/2405.12981v1",
+          "note": null
+        },
+        {
+          "text": "In the 1B table, H128-MQA has 20 KV layers, 10,240 KV bytes per token and perplexity 13.54, while H128-MQA-CLA2 has 10 KV layers, 5,120 bytes and perplexity 13.60.",
+          "source": "https://arxiv.org/html/2405.12981v1",
+          "note": null
+        },
+        {
+          "text": "At the same 5,120 bytes per token, H64-MQA reaches perplexity 13.81 against 13.60 for H128-MQA-CLA2, and at 2,560 bytes H32-MQA reaches 14.37 against 13.95 for H128-MQA-CLA4.",
+          "source": "https://arxiv.org/html/2405.12981v1",
+          "note": null
+        },
+        {
+          "text": "The paper states CLA has no direct effect on the memory bandwidth consumed by attention in each decoding step, because shared KV layers are re-read from main memory in every attention layer.",
+          "source": "https://arxiv.org/html/2405.12981v1",
+          "note": null
+        },
+        {
+          "text": "Under pipeline parallelism, layers sharing a KV cache must be in the same stage or KV activations must be communicated between stages.",
+          "source": "https://arxiv.org/html/2405.12981v1",
+          "note": null
+        },
+        {
+          "text": "The paper found preliminary evidence that CLA models benefit from training with higher learning rates than comparable non-CLA models.",
+          "source": "https://arxiv.org/html/2405.12981v1",
+          "note": null
+        },
+        {
+          "text": "Wu, Wu and Tu (NAACL 2025) find that at a 2x KV-cache reduction most cross-layer sharing configurations beat a standard transformer on throughput with competitive performance, and that further reduction favors pairing all layers' queries with KVs from upper layers at the cost of training and prefilling latency.",
+          "source": "https://aclanthology.org/2025.naacl-short.34.pdf",
+          "note": null
+        },
+        {
+          "text": "The same study finds that with long prompts the throughput of configurations that compute KVs at the top layers degrades dramatically, and that when more layers depend on shared KVs, configurations computing KVs at the bottom layers lose the most quality.",
+          "source": "https://aclanthology.org/2025.naacl-short.34.pdf",
+          "note": null
+        },
+        {
+          "text": "In mlx-lm's Gemma 4 text model, layers at index `num_hidden_layers - num_kv_shared_layers` and above are KV-shared, `num_kv_shared_layers` defaults to 20, and each shared layer reads the keys and values saved from the last producer of its own layer type.",
+          "source": "https://raw.githubusercontent.com/ml-explore/mlx-lm/main/mlx_lm/models/gemma4_text.py",
+          "note": null
+        },
+        {
+          "text": "mlx-lm pads the per-layer cache list with `None` for shared layers, so only producer layers hold cache objects.",
+          "source": "https://raw.githubusercontent.com/ml-explore/mlx-lm/main/mlx_lm/models/gemma4_text.py",
+          "note": null
+        },
+        {
+          "text": "mlx-lm doubles the MLP intermediate size on KV-shared layers when `use_double_wide_mlp` is true, and that field defaults to true.",
+          "source": "https://raw.githubusercontent.com/ml-explore/mlx-lm/main/mlx_lm/models/gemma4_text.py",
+          "note": null
+        },
+        {
+          "text": "mlx-lm's Gemma 4 attention sets `use_k_eq_v` when `attention_k_eq_v` is true and the layer is not sliding, and then reuses the key tensor as the value instead of applying a V projection.",
+          "source": "https://raw.githubusercontent.com/ml-explore/mlx-lm/main/mlx_lm/models/gemma4_text.py",
+          "note": null
+        },
+        {
+          "text": "vLLM's hybrid KV cache manager documents KV sharing (example gemma-3n) as ignoring shared layers when allocating cache and applying the allocation to them through model-runner patches.",
+          "source": "https://docs.vllm.ai/en/stable/design/hybrid_kv_cache_manager/",
+          "note": null
+        },
+        {
+          "text": "A KV-footprint estimate for a Gemma 4 E2B or E4B session on a Mac must count only producer layers, not all layers, and must also account for the doubled MLP weights on shared layers when sizing total memory.",
+          "source": "asserted",
+          "note": null
+        }
+      ]
+    }
+  ],
+  "related": []
+}

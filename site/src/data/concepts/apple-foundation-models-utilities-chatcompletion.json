@@ -1,0 +1,369 @@
+{
+  "slug": "apple-foundation-models-utilities-chatcompletion",
+  "concept": "Apple foundation-models-utilities ChatCompletionsLanguageModel",
+  "generated": "2026-10-05",
+  "summary": "Platform floor in Package.swift: macOS, iOS, visionOS, watchOS 27.0; swift-tools-version 6.2; Swift 6 language mode. The README says \"select Linux distributions like Ubuntu\"; the source guards CoreImage and FoundationNetworking with `canImport`. Use needs the Xcode 27 SDK.",
+  "facets": [
+    {
+      "title": "Facts",
+      "facts": [
+        {
+          "text": "Platform floor in Package.swift: macOS, iOS, visionOS, watchOS 27.0; swift-tools-version 6.2; Swift 6 language mode. The README says \"select Linux distributions like Ubuntu\"; the source guards CoreImage and FoundationNetworking with `canImport`. Use needs the Xcode 27 SDK.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Initializer: `ChatCompletionsLanguageModel(name:url:additionalHeaders:supportsGuidedGeneration:urlSessionConfiguration:)`. `additionalHeaders` (for `Authorization`) and `urlSessionConfiguration` (timeouts, proxy) are absent from the README examples. When `urlSessionConfiguration` is nil the executor makes a fresh ephemeral URLSession per request.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Endpoint rule: if any URL path component matches `v<digits>`, it appends `/chat/completions`; else `/v1/chat/completions`. So `http://localhost:8000` and `http://localhost:8000/v1` both work; the README's `http://localhost/v1:8000` does not.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Capabilities declared: `.vision`, `.toolCalling`, `.reasoning` always; `.guidedGeneration` only if `supportsGuidedGeneration` (default true). A server with no `response_format` support must set it false.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Request body: always `stream: true` and `stream_options.include_usage: true`; `messages` from the transcript (instructions to system, prompt to user, response to assistant, tool calls to assistant `tool_calls`, tool output to `tool` with `tool_call_id`); `tools` as function definitions; `tool_choice` auto/required/none from `toolCallingMode`; `response_format` json_schema when a schema is set; `temperature`; `max_completion_tokens`; `top_p`.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Sampling mapping: greedy sends `top_p` 0; `.randomProbabilityThreshold` sends its value as `top_p`; top-K sampling and any seed throw `RequestError.invalidRequest`. There is no top_k, min_p, repetition penalty or seed path, so local-model sampler tuning is not reachable.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Response parsing: `delta.content` to response, `delta.reasoning_content` to reasoning, `delta.tool_calls[i]` to tool calls (id/name latched per index), `usage` to cumulative `updateUsage` including `prompt_tokens_details.cached_tokens` and `completion_tokens_details.reasoning_tokens`. Any server that reports cached tokens therefore surfaces KV prefix-cache hits in `response.usage`. Reasoning text is echoed back as `reasoning_content` on the next assistant message.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "The tool-call branch is `if toolCalls ... else if content`, so a chunk carrying both tool call deltas and content drops the content.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Images: each image attachment is JPEG-encoded and inlined as a base64 `data:image/jpeg` URL. Structured segments are sent as JSON text. Other attachment kinds throw `LanguageModelError.unsupportedTranscriptContent`.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Errors: non-200 gives `RequestError.httpError(statusCode:data:)`; a mid-stream `{\"error\":...}` gives `APIError(message:type:param:code:)`; bad SSE gives `invalidStreamData`.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Non-Darwin builds do not stream: they call `session.data` and parse the whole body as SSE lines after it finishes.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Executor cache key (`Configuration`) is `name`, `url`, `additionalHeaders` only; the `URLSession` is excluded from equality and hash.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Skills: `Skills(activations:toolName:toolDescription:strictSchema:instructions:)` synthesizes one tool, named `activate_skill`, or `toggle_skill` when any instructions skill allows deactivation, with a single `skill` argument constrained by `anyOf` to eligible names. Only name and description sit in the prompt until activation. Callbacks `onActivate`/`onDeactivate` exist. `SkillActivations` is `Observable` and `Sendable`; hold one per session.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Prompt-based skill activation still adds a tool-call and tool-output pair to the transcript, so each activation costs one extra model round trip.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "History modifiers (`droppingCompletedToolCalls`, `rollingWindow(entries:)`, `summarizeHistory(entryThreshold:model:instructions:summaryPostamble:)`) apply outside-in: the last written runs first. `droppingCompletedToolCalls` keeps only the most recent tool pair. `rollingWindow` is `history.suffix(n)`. `summarizeHistory` replaces the whole transcript with one prompt entry (summary then latest prompt), runs a separate `LanguageModelSession` on `model` (default `SystemLanguageModel()`), and fires every prompt after the threshold. It does nothing unless the trailing entry is a prompt.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Since beta 5 the first two moved from `@SessionProperty(\\.history)` plus `onPrompt` to the `historyTransform` pattern.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "The repo ships two agent skills for coding agents in `skills/`: `foundation-models-utilities` and `foundation-models-language-model-protocol`.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Initial commit \"Hello foundation-models-utilities\" at WWDC26 (State of the Union session 102 introduced it with the Tiimo example; Dynamic Profiles named as its foundation).",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Xcode 27 beta 3: `.top` renamed `.randomTopK`, `.nucleus` renamed `.randomProbabilityThreshold`; `.model(any LanguageModel)` modifier removed (now in the framework); `SkillActivations` lost `RandomAccessCollection` (now `activeSkillNames`, `isActive(_:)`); added `urlSessionConfiguration`, a `Skills` instructions override, and default skill-activation wording (\"silently activate\"); observation bug fixed.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Xcode 27 beta 5: history modifiers moved to `historyTransform`; `Transcript.CustomSegment` handling removed from the chat client; URL versioning accepts any `v<digits>`; label-less `LanguageModelCapabilities` init.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "2026-09-21 commit \"Update to accompany Xcode 27.2 beta 1\": only the language-model-protocol skill file changed.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Apple said the Foundation Models framework itself would be open-sourced \"later this summer\"; the utilities package is separate and was the only open piece at WWDC time.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Prefix-cache effect (inferred from the source): the chat client resends the whole transcript every call and does not set any cache field, so reuse depends on the server's automatic prefix cache (mlx_lm.server, llama.cpp slots, Ollama, LM Studio). `rollingWindow` and `summarizeHistory` rewrite the head of the transcript, so a server prefix cache misses from the first changed token on every turn once the window slides or the summary replaces history. `droppingCompletedToolCalls` also changes mid-transcript bytes. Prompt-based skills append only, so the prefix is preserved; instructions-based skills change the first entry and force a full re-prefill.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "`summarizeHistory` thresholds on entry count, not tokens, so a few huge entries never trip it; the README wording about \"5000 tokens\" is aspirational (a known-issue test exists). Add `rollingWindow` as a fallback bound.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Summarization on a local model server doubles load: the summarizer call competes for the same server and sits on the user-visible path.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "`supportsGuidedGeneration` defaults true; on a server that ignores `response_format` the framework still allows typed `respond(generating:)` and you get unconstrained text.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "The utilities repo's own SKILL.md is stale versus main: it describes SwiftPM traits `ChatCompletions`, `Skills`, `History`, `SkillActivations` as a `RandomAccessCollection`, a four-parameter initializer, and a `.model(model)` profile call. The tagged Package.swift has no traits and the commit log removed the collection conformance and `.model(...)`. Trust the source and commit log.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "No client-side retry, no cancellation of server generation beyond task cancel, and no request timeout other than URLSession defaults unless you pass a configuration.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "An OpenAI-compatible local server that rejects `stream_options`, `max_completion_tokens` or `tool_choice` will return HTTP 400 surfaced as `httpError`; these fields are sent unconditionally.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Existing dossier (and README) examples show only `name`, `url`, `supportsGuidedGeneration`; the source has two more parameters. The source wins.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Blake Crosley's post says the adapter can point at a local MLX-LM Server; nothing in Apple's repo documents mlx_lm.server, Ollama, LM Studio or `fm serve` compatibility. That pairing is the post's inference, not a tested claim.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "README says summarization runs when a window \"exceeds 5000 tokens\"; the SKILL.md and a known-issue test say it counts entries.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Whether `mlx_lm.server`, Ollama, LM Studio and `fm serve` accept the exact request (`stream_options`, `max_completion_tokens`, `reasoning_content` echo) without HTTP 400; untested in any source.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Whether the Linux build actually streams (non-Darwin branch buffers the whole response).",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Whether the final Xcode 27.2 release changes the package floor or tags a 1.x version beyond the 4 tags seen.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "foundation-models-utilities is Apache-2.0 with 513 stars, 33 forks, 4 commits, 4 tags and one branch.",
+          "source": "https://github.com/apple/foundation-models-utilities",
+          "note": null
+        },
+        {
+          "text": "Package.swift declares platforms macOS, iOS, visionOS and watchOS 27.0, swift-tools-version 6.2 and Swift 6 language mode, with one library product FoundationModelsUtilities.",
+          "source": "https://raw.githubusercontent.com/apple/foundation-models-utilities/main/Package.swift",
+          "note": null
+        },
+        {
+          "text": "The README says the package supports Apple platforms and select Linux distributions such as Ubuntu and ships coding-agent skills in `skills/`.",
+          "source": "https://github.com/apple/foundation-models-utilities",
+          "note": null
+        },
+        {
+          "text": "The repo describes its contents as \"emerging and experimental patterns\".",
+          "source": "https://github.com/apple/foundation-models-utilities",
+          "note": null
+        },
+        {
+          "text": "ChatCompletionsLanguageModel.init takes name, url, additionalHeaders, supportsGuidedGeneration and urlSessionConfiguration.",
+          "source": "https://raw.githubusercontent.com/apple/foundation-models-utilities/main/Sources/FoundationModelsUtilities/LanguageModels/ChatCompletionsLanguageModel.swift",
+          "note": null
+        },
+        {
+          "text": "With a nil urlSessionConfiguration the executor builds a new ephemeral URLSession per request.",
+          "source": "https://raw.githubusercontent.com/apple/foundation-models-utilities/main/Sources/FoundationModelsUtilities/LanguageModels/ChatCompletionsLanguageModel.swift",
+          "note": null
+        },
+        {
+          "text": "The client appends `/chat/completions` when any path component matches `v<digits>` and `/v1/chat/completions` otherwise.",
+          "source": "https://raw.githubusercontent.com/apple/foundation-models-utilities/main/Sources/FoundationModelsUtilities/LanguageModels/ChatCompletionsLanguageModel.swift",
+          "note": null
+        },
+        {
+          "text": "The model always declares vision, tool-calling and reasoning capabilities and adds guided generation only when supportsGuidedGeneration is true.",
+          "source": "https://raw.githubusercontent.com/apple/foundation-models-utilities/main/Sources/FoundationModelsUtilities/LanguageModels/ChatCompletionsLanguageModel.swift",
+          "note": null
+        },
+        {
+          "text": "Every request is a POST with `stream: true` and `stream_options: {include_usage: true}`; default headers are Content-Type application/json, Accept text/event-stream and User-Agent set to the bundle id; custom headers override.",
+          "source": "https://raw.githubusercontent.com/apple/foundation-models-utilities/main/Sources/FoundationModelsUtilities/LanguageModels/ChatCompletionsLanguageModel.swift",
+          "note": null
+        },
+        {
+          "text": "The client sends max_completion_tokens (not max_tokens), top_p, temperature, tools, tool_choice and a json_schema response_format; it has no top_k, min_p, penalty or seed field.",
+          "source": "https://raw.githubusercontent.com/apple/foundation-models-utilities/main/Sources/FoundationModelsUtilities/LanguageModels/ChatCompletionsLanguageModel.swift",
+          "note": null
+        },
+        {
+          "text": "Greedy sampling is sent as top_p 0; top-K sampling and seeded sampling throw RequestError.invalidRequest.",
+          "source": "https://raw.githubusercontent.com/apple/foundation-models-utilities/main/Sources/FoundationModelsUtilities/LanguageModels/ChatCompletionsLanguageModel.swift",
+          "note": null
+        },
+        {
+          "text": "tool_choice maps allowed and none to auto, required to required, and disallowed to none.",
+          "source": "https://raw.githubusercontent.com/apple/foundation-models-utilities/main/Sources/FoundationModelsUtilities/LanguageModels/ChatCompletionsLanguageModel.swift",
+          "note": null
+        },
+        {
+          "text": "Usage chunks populate input total, cached_tokens, output total and reasoning_tokens, so server-reported prefix-cache hits appear in response.usage.",
+          "source": "https://raw.githubusercontent.com/apple/foundation-models-utilities/main/Sources/FoundationModelsUtilities/LanguageModels/ChatCompletionsLanguageModel.swift",
+          "note": null
+        },
+        {
+          "text": "delta.reasoning_content becomes reasoning entries and is echoed back as reasoning_content on the following assistant message.",
+          "source": "https://raw.githubusercontent.com/apple/foundation-models-utilities/main/Sources/FoundationModelsUtilities/LanguageModels/ChatCompletionsLanguageModel.swift",
+          "note": null
+        },
+        {
+          "text": "In stream processing, a chunk with tool_call deltas does not also forward delta.content (if/else-if).",
+          "source": "https://raw.githubusercontent.com/apple/foundation-models-utilities/main/Sources/FoundationModelsUtilities/LanguageModels/ChatCompletionsLanguageModel.swift",
+          "note": null
+        },
+        {
+          "text": "Images are sent as base64 JPEG data URLs in image_url blocks; non-image attachments throw unsupportedTranscriptContent.",
+          "source": "https://raw.githubusercontent.com/apple/foundation-models-utilities/main/Sources/FoundationModelsUtilities/LanguageModels/ChatCompletionsLanguageModel.swift",
+          "note": null
+        },
+        {
+          "text": "On non-Darwin platforms the client reads the whole response with session.data before parsing SSE lines, so it does not stream.",
+          "source": "https://raw.githubusercontent.com/apple/foundation-models-utilities/main/Sources/FoundationModelsUtilities/LanguageModels/ChatCompletionsLanguageModel.swift",
+          "note": null
+        },
+        {
+          "text": "Errors are RequestError.httpError(statusCode:data:), RequestError.invalidStreamData, RequestError.invalidRequest and APIError with message, type, param and code.",
+          "source": "https://raw.githubusercontent.com/apple/foundation-models-utilities/main/Sources/FoundationModelsUtilities/LanguageModels/ChatCompletionsLanguageModel.swift",
+          "note": null
+        },
+        {
+          "text": "The executor Configuration equality and hash use only modelName, url and additionalHeaders.",
+          "source": "https://raw.githubusercontent.com/apple/foundation-models-utilities/main/Sources/FoundationModelsUtilities/LanguageModels/ChatCompletionsLanguageModel.swift",
+          "note": null
+        },
+        {
+          "text": "The Skills tool is named activate_skill, or toggle_skill when an instructions skill allows deactivation, takes one `skill` argument constrained by anyOf, and has an optional strictSchema that excludes skills already in the target state.",
+          "source": "https://raw.githubusercontent.com/apple/foundation-models-utilities/main/skills/foundation-models-utilities/SKILL.md",
+          "note": null
+        },
+        {
+          "text": "Until a skill is activated only its name and description are in the prompt; prompt-based skills return their body as tool output, instructions-based skills edit the first instructions entry.",
+          "source": "https://github.com/apple/foundation-models-utilities",
+          "note": null
+        },
+        {
+          "text": "Instructions-based skills may opt into model deactivation with allowsDeactivation: true, which a later dropCompletedToolCalls can then clean up.",
+          "source": "https://github.com/apple/foundation-models-utilities",
+          "note": null
+        },
+        {
+          "text": "Beta 3 replaced SkillActivations' RandomAccessCollection conformance with activeSkillNames and isActive(_:).",
+          "source": "https://github.com/apple/foundation-models-utilities/commits/main/",
+          "note": null
+        },
+        {
+          "text": "Beta 3 added the urlSessionConfiguration parameter and a Skills `instructions` override with a default \"silently activate\" leading instruction.",
+          "source": "https://github.com/apple/foundation-models-utilities/commits/main/",
+          "note": null
+        },
+        {
+          "text": "Beta 5 moved dropCompletedToolCalls and rollingWindow to the historyTransform pattern and made URL versioning accept any v<digits> segment.",
+          "source": "https://github.com/apple/foundation-models-utilities/commits/main/",
+          "note": null
+        },
+        {
+          "text": "The 2026-09-21 commit for Xcode 27.2 beta 1 only updated the language-model-protocol skill.",
+          "source": "https://github.com/apple/foundation-models-utilities",
+          "note": null
+        },
+        {
+          "text": "History modifiers apply outside-in; droppingCompletedToolCalls keeps only the latest tool pair; rollingWindow keeps the last N entries; summarizeHistory runs a separate session on a summarizer model (default SystemLanguageModel) once entry count exceeds the threshold and needs a trailing prompt entry.",
+          "source": "https://raw.githubusercontent.com/apple/foundation-models-utilities/main/skills/foundation-models-utilities/SKILL.md",
+          "note": null
+        },
+        {
+          "text": "summarizeHistory counts entries, not tokens, and the README's token wording is aspirational.",
+          "source": "https://raw.githubusercontent.com/apple/foundation-models-utilities/main/skills/foundation-models-utilities/SKILL.md",
+          "note": null
+        },
+        {
+          "text": "At WWDC26 the Platforms State of the Union (session 102) introduced the package with Dynamic Profiles as its building block, and said the framework would be open source later in summer.",
+          "source": "https://blakecrosley.com/blog/foundation-models-open-source",
+          "note": null
+        },
+        {
+          "text": "A WWDC26 lab panel (paraphrased) said the summarization modifier checks transcript size at each prompt and that utilities work with any backend conforming to the language model protocol; the on-device context is 4096 tokens shared and Private Cloud Compute is 32K.",
+          "source": "https://blakecrosley.com/blog/foundation-models-open-source",
+          "note": null
+        },
+        {
+          "text": "Anthropic ships ClaudeForFoundationModels, an Apache-2.0 LanguageModel conformer, as another backend for the same session API.",
+          "source": "https://blakecrosley.com/blog/foundation-models-open-source",
+          "note": null
+        },
+        {
+          "text": "Because the client resends the full transcript each call, rollingWindow, summarizeHistory and droppingCompletedToolCalls change the transcript head or middle and defeat a server's automatic prefix cache from the first changed token.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Prompt-based skills append only and keep the server prefix cache valid; instructions-based skills change the first entry and force a full re-prefill.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Pointing ChatCompletionsLanguageModel at mlx_lm.server, Ollama or LM Studio is plausible because they expose /v1/chat/completions, but request-field acceptance (stream_options, max_completion_tokens, reasoning_content) was not verified.",
+          "source": "asserted",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Corrections and disagreements",
+      "facts": [
+        {
+          "text": "CONTRADICTS the repo's SKILL.md (stale): it describes traits ChatCompletions, Skills and History and a `.model(...)` profile call; Package.swift has no traits and beta 3 removed `.model(...)`.",
+          "source": "https://raw.githubusercontent.com/apple/foundation-models-utilities/main/Package.swift",
+          "note": null
+        }
+      ]
+    }
+  ],
+  "related": []
+}

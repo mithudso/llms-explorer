@@ -1,0 +1,254 @@
+{
+  "slug": "dense-vs-moe-mlx-vs-llama-cpp-decode-on-apple-si",
+  "concept": "Dense vs MoE MLX vs llama.cpp decode on Apple silicon",
+  "generated": "2026-10-05",
+  "summary": "MLX MoE decode path (mlx-lm switch_layers.py): SwitchGLU makes three separate mx.gather_qmm calls per layer (up_proj, gate_proj, down_proj), then the activation. Each call takes the routed expert indices as a runtime input, so only routed experts are read.",
+  "facets": [
+    {
+      "title": "Facts",
+      "facts": [
+        {
+          "text": "MLX MoE decode path (mlx-lm switch_layers.py): SwitchGLU makes three separate mx.gather_qmm calls per layer (up_proj, gate_proj, down_proj), then the activation. Each call takes the routed expert indices as a runtime input, so only routed experts are read.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "At decode, indices.size is top-k (8 for Qwen3-30B-A3B), below the do_sort threshold of 64, so tokens are not sorted. Sorting by expert (_gather_sort) only starts at 64 or more routed rows, i.e. prefill or batched decode. So single-stream decode runs unsorted gather matvecs, and prefill gets the sorted, expert-grouped path.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "llama.cpp Metal MoE path (ggml-metal-ops.cpp, ggml_metal_op_mul_mat_id): two branches. Large token counts use a matrix-matrix path with a map0 kernel that groups tokens per expert (tpe/ids buffers) and then mul_mm_id. Small token counts (decode) use mul_mv_id, a matrix-vector kernel indexed by expert ids. The two projects therefore both avoid reading unrouted experts at decode; the difference is kernel quality and per-token launch count, not an algorithmic \"reads all experts\" bug.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Contrast case where the gather did read everything: Apple Core AI lowered MoE FFN through a GatherMM op that ran a dense matmul reading every expert (8.8 GB read per token for a 1.5B-active model); a custom Metal gather_qmm that indexes only routed experts gave 2.1-3.6x decode (Qwen3.6-35B-A3B 30.9 to 64.9 tok/s). This is Core AI, not MLX or llama.cpp, but it names the failure mode that makes MoE look slow in any framework.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Bandwidth model: at 4-bit a 3B-active MoE reads about 1.7-2 GB per token. At 83 tok/s that is under 170 GB/s, far below an M1 Ultra's 800 GB/s, so MoE decode is not bandwidth-bound; it is dominated by per-layer kernel launches, routing and dispatch overhead. Dense 27B at 4-bit reads about 15 GB per token and is bandwidth-bound (30.9 tok/s is about 460 GB/s). This is why launch-overhead differences between engines surface on MoE and format-decode cost surfaces on dense. [asserted, arithmetic on the cited figures]",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Dequantization cost is a second confound. Rattner shows Ollama 27B at 20.4 tok/s at Q8_0 vs 21.9 at Q4_K_M (7% slower for 76% more bytes), pointing at Q4_K_M unpacking, while MLX falls 30.9 to 19.5. So the dense \"MLX +41%\" is mostly a Q4_K_M-vs-MLX-4bit format effect and vanishes at 8-bit; the engine is not the cause.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "The BaseRT paper attributes engine gaps to per-token CPU dispatch overhead and kernel launches (fusion), largest on small and MoE-light-per-layer models, shrinking where decode is bandwidth-bound.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Rattner's page is dated by Ollama 0.33.2 shipping both runners; every Ollama number there is the llama.cpp runner, because Q4_K_M/Q8_0 GGUF cannot load in Ollama's MLX runner. The author explicitly did not run Ollama's MLX runner on the same MoE weights.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Same Rattner page: its own earlier run measured Ollama faster on MoE by a different margin than this run; the author notes the discrepancy and keeps the verdict \"stay on Ollama for MoE\".",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Different chip, same model, no reversal: Apple M4 Pro 24 GB, Qwen3-30B-A3B Q4 decode (tg128) llama.cpp b9630 80.7 vs mlx-lm 0.31.2 83.1 tok/s (MLX +3%), and BaseRT native Metal 84.1. Gemma-4-26B-A4B Q4: llama.cpp 58.0 vs MLX 69.3 (MLX +19%).",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Same M4 Pro paper, dense Q4: Qwen3-0.6B 297.4 vs 343.6 (MLX +16%), Llama-3.2-1B 230.4 vs 257.8 (+12%), Llama-3.2-3B 102.4 vs 112.1 (+9%); at Q8 the MLX edge is +16%, -1%, +1% (0.6B, 1B, 3B: 219.8 vs 255.3; 160.7 vs 159.2; 65.1 vs 65.5).",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "M5 Max 64 GB, same runtime (Atomic Chat) for both formats, Qwen3-30B-A3B: GGUF Q4_K_M 131 tok/s vs MLX 4-bit 125 (GGUF +5%, near tie). Wall-clock: classification 1.0 s GGUF vs 2.2 s MLX, JSON extraction 0.7 vs 0.9, code generation 5.0 vs 4.9, 300-token explanation 16.4 vs 7.1 (output length varied; directional).",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "MoE prefill at short prompts favours llama.cpp and native-Metal runtimes over MLX: BaseRT leads llama.cpp by up to 1.81x and MLX by up to 1.78x on Qwen3-30B-A3B at pp128 (M4 Pro), margin shrinking toward parity by pp2048. On dense models all three engines are within a few percent on prefill and MLX leads from pp512.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Zachrattner's Ollama prefill chunk is 512 tokens vs mlx-lm 2,048; at 500 tokens that is a single chunk, so the short-prompt MoE prefill win is a startup-overhead effect, and the crossover to MLX at 4K-16K on dense is chunk-size.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Hybrid-attention MoE (Qwen3.5-35B-A3B, Nemotron-3 Nano) is a separate regime where MLX is often faster; famstack showed the Qwen3.5-35B-A3B MLX-vs-GGUF gap was \"the model, not the engine\" (caching bug, bf16 on M1).",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Third-party tags can be different weights: Ollama qwen3:30b-a3b is the original; MLX builds are often the 2507 refresh. Check the checkpoint before attributing a gap to the engine.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Side A (llama.cpp wins MoE): Rattner M1 Ultra, Qwen3-30B-A3B, Ollama 83.3 vs MLX 68.1 (+22%); Ollama over Rapid-MLX by 20-22% at every length. Also Rapid-MLX's own raw numbers on M2 Pro show llama-bench winning prefill on MoE (460 vs 277 pp512) while MLX wins decode (61.7 vs 39.1).",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Side B (MLX wins or ties MoE): M4 Pro paper 83.1 vs 80.7 (MLX +3%); vllm-mlx paper M4 Max 107.4 vs 89.9 (+19%); Rapid-MLX M2 Pro Qwen3.6-35B-A3B 61.7 vs 39.1 (+58%, hybrid model); Atomic M5 Max 125 vs 131 (llama.cpp +5%, same runtime); famstack M1 Max Qwen3-30B-A3B 55-56 MLX vs 58 GGUF (tie).",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Reading: llama.cpp's MoE decode lead appears only at Ultra-class bandwidth (M1 Ultra) with Q4_K_M and the Ollama server; on 24-64 GB laptop chips it is a tie within +-5%. Whether the M1 Ultra gap is chip-specific (800 GB/s, 64 GPU cores favouring a launch-light path) or harness-specific (Rattner's Python-vs-Go startup) is unresolved; no source ran both engines on both chips with identical weights.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "No primary source isolates the MoE kernel: no profile of mx.gather_qmm vs kernel_mul_mv_id at batch 1, so the \"dispatch overhead\" explanation is inferred from launch counts and bandwidth arithmetic, not measured.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "The ggml-metal threshold at which mul_mat_id switches from mul_mv_id to the map0+mul_mm_id path was not read (use_mm helper not in the fetched file).",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Rattner's untested follow-up: same weights in MLX format through Ollama's own MLX runner on 30B-A3B.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Whether MLX 4-bit g32/g128 or mixed-precision quants change the MoE ordering (not measured on this model).",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Dense, 4-bit, 8B-32B, decode-heavy, M-Pro/Max/Ultra: MLX 4-bit, expect +5% (8B) to +40% (27B vs Q4_K_M on Ultra); the larger numbers are partly Q4_K_M unpack cost.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Dense at 8-bit: engine is a tie; pick on features.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "MoE 30B-A3B on M4 Pro/Max/M5 Max class: tie within +-5% to MLX +20%; pick on prefill and server behaviour, not decode.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "MoE 30B-A3B on M1/M2 Ultra via Ollama GGUF: llama.cpp can lead by about 20% and also leads short-prompt prefill; stay on GGUF unless you test.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Short prompts (<1K tokens) and tool-call style tasks: GGUF/llama.cpp wins wall-clock even at equal decode; long prompts or long outputs: MLX.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Hybrid-attention/SSM MoE (Qwen3.5/3.6-A3B, Nemotron-3): MLX usually wins decode, but verify caching.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Always compare same quant bits, same checkpoint, same chat template, and measure prefill separately.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "mlx-lm SwitchGLU makes three mx.gather_qmm calls (up_proj, gate_proj, down_proj) per MoE layer.",
+          "source": "https://raw.githubusercontent.com/ml-explore/mlx-lm/main/mlx_lm/models/switch_layers.py",
+          "note": null
+        },
+        {
+          "text": "mlx-lm SwitchGLU sorts routed rows by expert only when indices.size >= 64 (do_sort), so single-stream decode with top-8 routing is unsorted.",
+          "source": "https://raw.githubusercontent.com/ml-explore/mlx-lm/main/mlx_lm/models/switch_layers.py",
+          "note": null
+        },
+        {
+          "text": "gather_qmm takes rhs_indices (routed expert ids) and a sorted_indices flag.",
+          "source": "https://raw.githubusercontent.com/ml-explore/mlx-lm/main/mlx_lm/models/switch_layers.py",
+          "note": null
+        },
+        {
+          "text": "llama.cpp's Metal backend has two MoE branches in ggml_metal_op_mul_mat_id: a matrix-matrix path with a map0 expert-grouping kernel (tpe/ids buffers, optional amax) followed by mul_mm_id, and a matrix-vector mul_mv_id path.",
+          "source": "https://raw.githubusercontent.com/ggml-org/llama.cpp/master/ggml/src/ggml-metal/ggml-metal-ops.cpp",
+          "note": null
+        },
+        {
+          "text": "Apple Core AI's GatherMM lowering read every expert's weights per token (8.8 GB read per token for LFM2.5-8B-A1B) and a custom routed-only Metal gather_qmm kernel gave 2.1-3.6x decode: LFM2.5-8B-A1B 39 to 141 tok/s, GLM-4.7-Flash 20.3 to 52.4, Qwen3.6-35B-A3B 30.9 to 64.9.",
+          "source": "https://rockyshikoku.medium.com/one-metal-kernel-made-apple-core-ais-moe-decode-2-3-6-faster-same-quality-6ac6b600a777",
+          "note": null
+        },
+        {
+          "text": "M4 Pro 24 GB decode tg128, llama.cpp b9630 vs MLX 0.31.2 vs BaseRT: Qwen3-30B-A3B Q4 80.7 / 83.1 / 84.1 tok/s; Gemma-4-26B-A4B Q4 58.0 / 69.3 / 62.2.",
+          "source": "https://arxiv.org/html/2607.00501v1",
+          "note": null
+        },
+        {
+          "text": "Same paper dense decode Q4 llama.cpp vs MLX: Qwen3-0.6B 297.4 vs 343.6, Llama-3.2-1B 230.4 vs 257.8, Llama-3.2-3B 102.4 vs 112.1; Q8: 219.8 vs 255.3, 160.7 vs 159.2, 65.1 vs 65.5.",
+          "source": "https://arxiv.org/html/2607.00501v1",
+          "note": null
+        },
+        {
+          "text": "Same paper: BaseRT's MoE decode lead over llama.cpp narrows to 1.04-1.07x \"as decode becomes increasingly memory-bandwidth-bound\", and its advantage is largest where fixed per-token overhead is a larger share of latency.",
+          "source": "https://arxiv.org/html/2607.00501v1",
+          "note": null
+        },
+        {
+          "text": "Same paper prefill on MoE: BaseRT leads llama.cpp up to 1.59x (Gemma-4-26B-A4B) and 1.81x (Qwen3-30B-A3B) at pp128, and leads MLX up to 1.42x and 1.78x, converging by pp2048; on dense models the three engines are within a few percent, with MLX ahead from pp512.",
+          "source": "https://arxiv.org/html/2607.00501v1",
+          "note": null
+        },
+        {
+          "text": "Atomic Chat, MacBook Pro M5 Max 64 GB, Qwen3-30B-A3B same runtime: generation 131 tok/s GGUF vs 125 MLX; wall-clock classification 1.0 vs 2.2 s, JSON 0.7 vs 0.9 s, code 5.0 vs 4.9 s, 300-token explanation 16.4 vs 7.1 s.",
+          "source": "https://atomic.chat/blog/guides/gguf-vs-mlx",
+          "note": null
+        },
+        {
+          "text": "Rattner attributes the 4-bit dense MLX lead mainly to Q4_K_M unpack cost: Ollama 27B decodes 21.9 tok/s at 4-bit and 20.4 at 8-bit (7% slower for 76% more bytes) while MLX drops 30.9 to 19.5.",
+          "source": "https://zachrattner.com/projects/ai-mac-cluster/mlx-vs-ollama",
+          "note": null
+        },
+        {
+          "text": "Rattner states every Ollama figure came from the llama.cpp runner (0.33.2 also ships an MLX runner) and that Ollama-MLX on the 30B-A3B MoE was not run.",
+          "source": "https://zachrattner.com/projects/ai-mac-cluster/mlx-vs-ollama",
+          "note": null
+        },
+        {
+          "text": "Rattner's Qwen3-30B-A3B decode at 83 tok/s vs dense 27B at 22 tok/s with MoE peak RAM 17.8-20.3 GB vs dense 27B about 30-34 GB.",
+          "source": "https://zachrattner.com/projects/ai-mac-cluster/mlx-vs-ollama",
+          "note": null
+        },
+        {
+          "text": "spicyneuron (Mac Studio, 6-month report) states MLX is \"consistently 10-25% faster\" than llama.cpp in 2026 and runs Qwen3.5-35B-A3B MLX 4.8-bit as its daily model.",
+          "source": "https://spicyneuron.substack.com/p/a-mac-studio-for-local-ai-6-months",
+          "note": null
+        },
+        {
+          "text": "promptquorum.com claims MLX is 15-25% faster than Ollama with no per-model-type breakdown (low-quality aggregate, \"early benchmarks\").",
+          "source": "https://www.promptquorum.com/local-llms/mlx-vs-ollama-vs-llama-cpp-mac",
+          "note": null
+        },
+        {
+          "text": "Rapid-MLX measured MoE decode 0.79x Ollama but dense 1.40-1.53x on the M1 Ultra, so the MoE reversal holds for a second MLX-based server on that chip.",
+          "source": "https://zachrattner.com/projects/ai-mac-cluster/mlx-vs-ollama",
+          "note": null
+        },
+        {
+          "text": "Single-stream 3B-active MoE decode at 83 tok/s reads under 200 GB/s of weights, far below an M1 Ultra's 800 GB/s, so it is overhead-bound, not bandwidth-bound.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "The M1 Ultra MoE reversal is not reproduced on M4 Pro (MLX +3%) or M5 Max (llama.cpp +5% on same runtime), so it is best treated as chip- or harness-specific until an Ollama-MLX run on the same weights exists.",
+          "source": "asserted",
+          "note": null
+        }
+      ]
+    }
+  ],
+  "related": []
+}

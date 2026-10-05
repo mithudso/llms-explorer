@@ -1,0 +1,439 @@
+{
+  "slug": "mlx-quantized-matmul-small-m-verify-kernels",
+  "concept": "MLX quantized_matmul small-M verify kernels",
+  "generated": "2026-10-05",
+  "summary": "Stock `qmv` streams the weight matrix once per input row, so cost is about linear in M. `qmm` uses simdgroup MMA tiles and amortizes the weight read, but only wins from M of about 13 on large matrices. The window M=2..12 falls between them (issue 4265).",
+  "facets": [
+    {
+      "title": "Facts",
+      "facts": [
+        {
+          "text": "Stock `qmv` streams the weight matrix once per input row, so cost is about linear in M. `qmm` uses simdgroup MMA tiles and amortizes the weight read, but only wins from M of about 13 on large matrices. The window M=2..12 falls between them (issue 4265).",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "The qmv/qmm switch is `get_qmv_batch_limit(D,O,d)`, which returns 13 when D and O both exceed 4096. A forced-path sweep on M5 Max and M4 Pro found no M where the current constant picks the slower path; crossover is between 12 and 13 on both. Retuning the constant cannot recover the window.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Fix family 1, upstream `qmv_wide` (PR 3764, merged 26 Jun 2026, in mlx 0.32.0): dequantizes each weight group once into registers and reuses it across the M rows of a tile; adapted from llama.cpp `kernel_mul_mv_ext`. Selected for M in [2, vector_limit). Covers affine, nvfp4, mxfp4, mxfp8. FP modes use it on all GPU generations; affine is gated to gen-15+ (M3 and later), so M1/M2 stay on plain `qmv` for affine.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Fix family 2, MMA kernels outside MLX: an 8x8 `simdgroup_matrix` tile covers M<=8 exactly; dequantize per quantization group (64 elements) not per MMA tile (8) which halved time at M=8 (0.29 to 0.15 ms); split K across the 8 simdgroups of a threadgroup; load A straight from device bf16. Variants: avlp12 `fast_qmm.py` (split-K MMA via `mx.fast.metal_kernel`, gated to M in [6,8], N>=4096, 4-bit gs64), mlx-dspark `skinny_qmm` (weights as matrix operand, shared by up to 16 rows).",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Why a naive multi-row qmv fails: staging R rows in registers raised register pressure and cut occupancy (correct but slower). A scalar-loop kernel with threadgroup staging was 2.6-3.3x worse than stock in absolute time.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "qmv_wide tuning: folding the per-group scale out of the dequantize loop (multiply the accumulated dot product once) gave 1.0-1.25x more on fp modes; reviewer measured mxfp4 Qwen 9B batch 4 going from 253 to 295 tok/s on M5 Max.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Bit-width sensitivity: on a downstream fork, 2-bit breaks even at M=2 and wins from M>=3; 1-bit is faster on specialized `qmv` and regresses under `qmv_wide`. A 1-bit MLX kernel that re-reads the full weight per verified token made spec decoding lose (0.71-0.77x) at every draft cap.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Group-size mechanism: 4-bit g32 carries 4 B scale+bias per 16 B weights (20%), g64 11%, g128 5.9%, so g32 costs 3.4x the metadata traffic of g128. In `QuantizedBlockLoader::next()` scales advance every iteration at g32 but every 4 iterations at g128 (group_steps = group_size / BCOLS).",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Apr 2025: PR 1861 \"faster small batch qmv\" (swapped batch/block grid dims) and PR 2031 \"tune quant dispatch\" (architecture-specific qmv batch limit, 6 up to 32 by GPU and matrix size; conservative, routes to qmm unless clearly slower).",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "14-17 Mar 2026: issue 3251 (g32 mixed models 7-14% slower decode, up to 2x slower prefill on MLX 0.29.3, M2 Ultra). The reporter retested on 0.31.2 built from main and closed it as largely resolved.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "24-26 Jun 2026: PR 3764 qmv_wide by jessegross; reviewed by angeloskath who found a scale-multiply hoist; merged as commit 548dd80, shipped in v0.32.0.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "13 Jul 2026: issue 3839 (residual 1.5-2.7x at m=4-8 on M4 Pro, 0.32.0) closed by a maintainer on 4 Aug as not actionable; vllm-metal bumped its pin to 0.32.0 (PR 503 closed as duplicate of 501).",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "15-16 Aug 2026: issue 4265 filed (M3 Ultra, 0.31.2 and 0.32.0); maintainer zcbenz closed it 16 Aug: \"For small M we currently rely on qmv_wide (3764), PRs are welcomed if you can optimize it.\" No in-core fix merged as of the cached page; avlp12 offered a PR and asked whether it should be a split-K variant in the steel qmm dispatch or a separate kernel.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Jul-Aug 2026: downstream backports of qmv_wide: maclocal-api (batch B=4 +32%, B=8 +29%), PrismML-Eng/mlx (bit-width-aware routing), Layr-Labs/mlx, spokvulcan/mlx (DFlash2 bs5 18.3 to 26.4-27.9 tok/s; 27B 4-bit verify at M=5 from about 5 weight streams to 1.5 on M3 Max).",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "mlx-dspark: v0.12.0 vendored avlp12's kernel; 2026-09 engine pass replaced it with its own `skinny_qmm`.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Benchmark artifact: queue-batched or independent matmuls (many ops per `mx.eval`) hide the effect or invert it. A kernel that beat stock 1.13x that way made the real model 26% slower and measured 0.52x as a dependent chain. Per-call `mx.eval` puts every entry near a 0.25 ms sync floor and also hides it. Decode is a dependent chain, so measure dependent chains.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Wins only inside a narrow window: avlp12's kernel is 0.62x of stock at M=1, 0.98x at M=4, 1.16x at M=6, 1.57x at M=8.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Architecture gating: affine qmv_wide is off on M1/M2 (gen-14); mlx-dspark `skinny_qmm` is force-disabled on M5 and newer (`applegpu_g17`+) because a sustained generation stalled about 105 s even though microbenchmarks won (override `MLX_DSPARK_FORCE_SMALL_M=1`); it is also probe-gated per shape.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Numerics: qmv_wide error against an fp32 reference is about 3x smaller than per-row qmv, and on a 4-bit Qwen3-8B target it restored byte-exact greedy spec==nospec output that 0.31.2 lost to batch-shape logit ties. Batched quantized targets still differ from single-sequence decode (about 0.5% of near-tie tokens flip at the qmv-to-qmm knee).",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Whole-model view: Qwen3.8-27B 4-bit forward at S=1/4/7/8 costs 29.7/45.4/62.5/77.1 ms on M3 Ultra (stock), vs 1.41x/2.15x/2.96x/3.65x of roofline; it recovers at S=32 (1.44x) and S=128 (1.19x). The GatedDeltaNet kernel alone is flat from T=1 to T=64, so the linear-attention layers are not the cause.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Attention is a separate cost: with 2-8 query rows Metal's attention re-reads the KV cache per row, and has a cliff at 6-15 rows. Fixed cap-7 configs fell from 1.17-1.41x at 2k context to 0.53-0.97x at 32k on Qwen3.8-27B 4-bit; cap 3 still gave 1.48x at 32k.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Scale-caching patch (register caching plus simd_shuffle in QuantizedBlockLoader and both QMV paths) regressed 20-30% on all group sizes and was abandoned.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Pre-dequantizing g32 layers to FP16 helped prefill (+10%) but cost 14.7% decode because weights become 4x larger.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Microbench, M3 Ultra 512 GB, mlx 0.31.2 and 0.32.0 (identical), `(M,5120)@(17408,5120)^T`, 4-bit g64, queue-batched: relative to M=1 stock cost is 1.83x/3.26x/5.28x/6.12x/6.32x at M=2/4/7/8/16; roofline (677 GB/s) puts M=7 at 0.074 ms vs 0.204-0.218 measured (2.75x off).",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Dependent-chain, same shape: stock 0.060 ms at M=1,4; 0.077 at M=6; 0.094 at M=8. Forced qmv vs qmm, M5 Max ms: M=8 0.200 vs 0.308; M=12 0.297 vs 0.306; M=13 0.345 vs 0.306; M=16 0.390 vs 0.312. M4 Pro: M=8 0.568 vs 0.915; M=13 1.051 vs 0.918; M=16 1.125 vs 0.921.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "qmv_wide speedup over per-vector qmv (Gemma-4-12B gate/up 15360x3840, bf16 act): int4 M=8 1.4x (M3 Ultra, M4 Pro) and 1.6x (M5 Max); int8 M=8 1.7-1.8x; nvfp4 1.7-2.0x; mxfp4 1.2-1.3x; mxfp8 1.8-2.2x. At M=2 int4 only 1.1-1.3x.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Residual after qmv_wide, M4 Pro 0.32.0 affine 4-bit g64, cost vs m=1 at m=2/3/4/6/8: 4096x24576 1.03/1.22/1.47/2.07/2.69; 4096x4096 1.20/1.35/1.57/1.99/2.01; 12288x4096 1.18/1.40/1.52/2.05/2.46; 4096x6144 1.25/1.48/1.14/1.47/1.73. On 0.31.2 the 4096x24576 shape was 1.89x at m=4 and 3.44x at m=8.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "End-to-end vllm-metal, Qwen3-0.6B draft plus Qwen3-8B-4bit, 8k prefix, K=3, M4 Pro: verify-side step 87.1 to 73.0 ms (warm) and 115.8 to 97.7 ms (hot) going 0.31.2 to 0.32.0; nospec decode unchanged at about 34.1 ms/token.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "With avlp12's MMA kernel, 27B 4-bit forward at S=6/7/8: 62.5/70.5/77.1 ms to 44.5/44.6/43.3 ms. Speculative results: external drafter 34.7 tok/s (0.92x) to 62.2 (1.65x, 1.91x on English/code); MTP k=2 49.3 to 50.4 tok/s (1.32x to 1.34x); plain 37.6 tok/s. Lossless (token-identical on four prompts).",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "mlx-dspark: skinny_qmm gives 1.1-1.8x per matmul over stock, flat across its window (widths 5-16 at 4-bit, 6-16 at 8-bit). Verify at widths 6-8 dropped to about width-5 cost. Gemma-4 12B 2.82x to 3.25x (cap 4 to 7), Qwen3-4B 1.91x to 1.98x, Qwen3-8B 2.13x to 2.19x. On mlx 0.31.2 Gemma-4 12B verify slope was about +14 ms per token (about 2.2x ceiling); on 0.32 the same model measured 2.11x at cap 2. mlx 0.32 widened the cheap verify region to width 5 for 8-bit weights, so the old hard-coded cap 2 left 10-35% unused.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "mlx-dspark Bonsai 2-bit: verify cost climbs from width 2; best cap 2 (cap 1 1.00x, cap 3 1.06x); chat content about break-even because verify rows are compute-bound.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Issue 3251 original (MLX 0.29.3, M2 Ultra, mixed g32/64/128 vs uniform g128, same size): decode Qwen3-30B-A3B 91.1 to 84.7 tok/s, Mixtral-8x7B 69.6 to 60.2, Llama-4-Scout 45.7 to 40.1; prefill 1.8-2.2x slower.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Same reporter's retest on MLX 0.31.2 (M2 Ultra, 4-bit kernel level): g32/g128 decode ratio 1.01-1.10x (about 4% average; 4096x4096 worst at 1.10x, larger matrices 1.01-1.05x); g64/g128 1.00x; prefill g32 and g64 about 1.00x. The residual g32 gap is attributed to metadata bandwidth, judged fundamental.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "No cited measurement of g32 versus g64 specifically at M=2..8 (the verify window), and none for qmv_wide's dequantize-once loop vs group size.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Is 0.32.0 a small-M fix? PR 3764 and vllm-metal measure large gains (verify side -14 to -18 ms/step; M=8 int4 1.4-1.6x per matmul), and maintainers call qmv_wide the answer for small M. Issue 4265's author measured identical numbers on 0.31.2 and 0.32.0 on M3 Ultra (stock 4-bit 5.28x at M=7), and issue 3839 measured residual 1.5-2.7x. Both are true at different layers: qmv_wide is a partial fix (1.4-2x), not flat-in-M. The 4265 microbench was queue-batched which may mask or differ from the kernel-time numbers in the PR.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "OptiQ \"depth 1 only\" (stock kernels) vs MTPLX/mlx-dspark depth 3-7: AirRunner (mlx-lm PR 990) reports that with qmv_wide on 0.32.0+ a preliminary re-check has depth 2 edging out depth 1 for the first time, so the depth-1 verdict is version-dependent.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Maintainers (zcbenz) treat benchmark-only issues as not actionable and want PRs; kernel authors (avlp12, mlx-dspark) argue a dedicated window kernel is the only fix. Dispatch-constant tuning was tested and refuted.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Whether a merged upstream kernel for M=2..12 (split-K MMA or steel-qmm variant) will land after avlp12's offer; no PR was found in the cached pages.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Whether `skinny_qmm`'s M5 stall (105 s sustained) is a Metal 4 / NAX interaction; MTPLX uses NAX verify kernels on M5 with no such reported stall.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "g32 vs g64 vs g128 cost at M=2..8 for dense and MoE (gather_qmm) verify; MoE expert-union cost per verify row has no independent study.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Whether `qmv_wide` gen-15 gating for affine will be extended to M1/M2 (gen-14), where users get no gain.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Stock `mx.quantized_matmul` cost rises about linearly with M for M=2..8 and saturates near M=13-16; bf16 matmul is flat from M=2.",
+          "source": "https://github.com/ml-explore/mlx/issues/4265",
+          "note": null
+        },
+        {
+          "text": "4-bit g64 (M,5120)@(17408,5120)^T on M3 Ultra, queue-batched: 1.83x/3.26x/5.28x/6.12x/6.32x of M=1 at M=2/4/7/8/16; 8-bit shows M=16 cheaper than M=8 (0.264 vs 0.378 ms).",
+          "source": "https://github.com/ml-explore/mlx/issues/4265",
+          "note": null
+        },
+        {
+          "text": "The roofline cost at M=7 for that shape is about 0.074 ms at 677 GB/s; measured 0.204-0.218 ms.",
+          "source": "https://github.com/ml-explore/mlx/issues/4265",
+          "note": null
+        },
+        {
+          "text": "Qwen3.8-27B 4-bit full forward on M3 Ultra costs 29.7/45.4/62.5/77.1/105.4/347.9 ms at S=1/4/7/8/32/128.",
+          "source": "https://github.com/ml-explore/mlx/issues/4265",
+          "note": null
+        },
+        {
+          "text": "The GatedDeltaNet linear-attention kernel is flat from T=1 to T=64 (0.28-0.37 ms) so it does not explain the small-S cost.",
+          "source": "https://github.com/ml-explore/mlx/issues/4265",
+          "note": null
+        },
+        {
+          "text": "avlp12's simdgroup_matrix kernel (dequantize per group, split K across 8 simdgroups) is 0.62x/0.98x/1.16x/1.57x of stock at M=1/4/6/8 as a dependent chain.",
+          "source": "https://github.com/ml-explore/mlx/issues/4265",
+          "note": null
+        },
+        {
+          "text": "With that kernel the 27B forward at S=6/7/8 drops from 62.5/70.5/77.1 ms to 44.5/44.6/43.3 ms with token-identical output.",
+          "source": "https://github.com/ml-explore/mlx/issues/4265",
+          "note": null
+        },
+        {
+          "text": "An external drafter on Qwen3.8-27B 4-bit went from 0.92x (34.7 tok/s) to 1.65x (62.2 tok/s) of plain 37.6 tok/s after the kernel; MTP k=2 moved only 1.32x to 1.34x.",
+          "source": "https://github.com/ml-explore/mlx/issues/4265",
+          "note": null
+        },
+        {
+          "text": "A queue-batched microbenchmark showed a kernel winning 1.13x that made the real model 26% slower; the same kernel measured 0.52x as a dependent chain.",
+          "source": "https://github.com/ml-explore/mlx/issues/4265",
+          "note": null
+        },
+        {
+          "text": "`get_qmv_batch_limit(D, O, d)` returns 13 for D and O above 4096; forced-path sweeps on M5 Max and M4 Pro show qmv wins below 13 and qmm at 13 and above, so the dispatch constant is correct.",
+          "source": "https://github.com/ml-explore/mlx/issues/4265",
+          "note": null
+        },
+        {
+          "text": "Independent-call timing shows a spurious step down at M=13 (M=12 0.3757 ms vs M=13 0.2331 ms on M5 Max) that disappears in a dependent chain (0.2967 vs 0.3062).",
+          "source": "https://github.com/ml-explore/mlx/issues/4265",
+          "note": null
+        },
+        {
+          "text": "Maintainer zcbenz closed issue 4265 on 16 Aug 2026 saying small M relies on qmv_wide (PR 3764) and PRs to optimize it are welcome.",
+          "source": "https://github.com/ml-explore/mlx/issues/4265",
+          "note": null
+        },
+        {
+          "text": "avlp12's production kernel is a Python `mx.fast.metal_kernel` split-K MMA path gated to M in [6,8], N>=4096, 4-bit gs64 affine only, in `mlx_lm/fast_qmm.py`, also extended to tensor-parallel sharded linears.",
+          "source": "https://github.com/ml-explore/mlx/issues/4265",
+          "note": null
+        },
+        {
+          "text": "PR 3764 qmv_wide dequantizes each weight group once and reuses it across the tile, adapted from llama.cpp `kernel_mul_mv_ext`, selected for M in [2, vector_limit).",
+          "source": "https://github.com/ml-explore/mlx/pull/3764",
+          "note": null
+        },
+        {
+          "text": "qmv_wide covers affine, nvfp4, mxfp4, mxfp8; fp modes use it on all GPU generations, affine only on gen-15+.",
+          "source": "https://github.com/ml-explore/mlx/pull/3764",
+          "note": null
+        },
+        {
+          "text": "qmv_wide int4 speedup over qmv at M=8 on Gemma-4-12B gate/up (15360x3840) is 1.4x on M3 Ultra and M4 Pro and 1.6x on M5 Max; M2 Pro affine stays on qmv.",
+          "source": "https://github.com/ml-explore/mlx/pull/3764",
+          "note": null
+        },
+        {
+          "text": "PR 3764 was merged 26 Jun 2026 as commit 548dd80 and appears in the v0.32.0 release notes.",
+          "source": "https://github.com/ml-explore/mlx/releases/tag/v0.32.0",
+          "note": null
+        },
+        {
+          "text": "Moving the per-group scale multiply after the dot product in the fp qmv_wide gave 1.0-1.25x extra on nvfp4/mxfp4/mxfp8.",
+          "source": "https://github.com/ml-explore/mlx/pull/3764",
+          "note": null
+        },
+        {
+          "text": "Residual after qmv_wide on M4 Pro (mlx 0.32.0): 4096x24576 costs 1.47x of m=1 at m=4 and 2.69x at m=8, down from 1.89x and 3.44x on 0.31.2.",
+          "source": "https://github.com/ml-explore/mlx/issues/3839",
+          "note": null
+        },
+        {
+          "text": "A naive multi-row qmv with R rows staged in registers was correct but slower because register pressure killed occupancy.",
+          "source": "https://github.com/ml-explore/mlx/issues/3839",
+          "note": null
+        },
+        {
+          "text": "In vllm-metal on Qwen3-8B-4bit with a 0.6B draft, 8k prefix, K=3, M4 Pro, mlx 0.32.0 cut the verify-side step by 14 ms (warm) and 18 ms (hot) and left nospec decode unchanged.",
+          "source": "https://github.com/vllm-project/vllm-metal/pull/503",
+          "note": null
+        },
+        {
+          "text": "qmv_wide's error against an fp32 reference is about 3x smaller than per-row qmv, restoring byte-exact greedy spec==nospec output on a 4-bit target.",
+          "source": "https://github.com/vllm-project/vllm-metal/pull/503",
+          "note": null
+        },
+        {
+          "text": "A downstream fork gates affine qmv_wide by bit width: 2-bit only at M>=3, 1-bit stays on qmv because per-row register dequant dominates.",
+          "source": "https://github.com/PrismML-Eng/mlx/pull/5",
+          "note": null
+        },
+        {
+          "text": "Backporting qmv_wide to an older mlx raised DFlash2 batch-5 from 18.3 to 26.4-27.9 tok/s and cut a 27B 4-bit verify at M=5 from about 5 weight streams to about 1.5 on M3 Max.",
+          "source": "https://github.com/ml-explore/mlx/pull/3764",
+          "note": null
+        },
+        {
+          "text": "mlx-dspark's `skinny_qmm` serves widths 5-16 at 4-bit and 6-16 at 8-bit with 1.1-1.8x per matmul over stock, gated by a one-time per-shape probe, and is force-disabled on `applegpu_g17`+ (M5 and newer) because of a roughly 105 s sustained-generation stall.",
+          "source": "https://github.com/ARahim3/mlx-dspark",
+          "note": null
+        },
+        {
+          "text": "mlx-dspark derives its draft cap from measured verify and depth-slope curves; an M5 Max may pick cap 2 where an M4 Pro picks 7, and forcing 7 there is a small net loss.",
+          "source": "https://github.com/ARahim3/mlx-dspark",
+          "note": null
+        },
+        {
+          "text": "mlx 0.32 widened the cheap verify region to width 5 for 8-bit, so the old cap 2 left 10-35% unused on 8-bit targets; Gemma-4 12B went 2.82x to 3.25x and Qwen3-4B/8B 1.91x/2.13x to 1.98x/2.19x with the small-M kernel and cap 7.",
+          "source": "https://github.com/ARahim3/mlx-dspark",
+          "note": null
+        },
+        {
+          "text": "On mlx 0.31.2 Gemma-4 12B verify slope was about +14 ms per token (about 2.2x ceiling); 0.32 measured 2.11x at cap 2.",
+          "source": "https://github.com/ARahim3/mlx-dspark",
+          "note": null
+        },
+        {
+          "text": "The MLX 1-bit Bonsai kernel re-reads full weights per verified token so spec decoding loses (0.71-0.77x) at every cap.",
+          "source": "https://github.com/ARahim3/mlx-dspark",
+          "note": null
+        },
+        {
+          "text": "A batched quantized target is not bit-identical to single-sequence decode: about 0.5% of near-tie tokens flip at the qmv-to-qmm knee.",
+          "source": "https://github.com/ARahim3/mlx-dspark",
+          "note": null
+        },
+        {
+          "text": "With context, fixed cap-7 verify on Qwen3.8-27B 4-bit fell from 1.17-1.41x at 2k to 0.53-0.97x at 32k while cap 3 held 1.48x at 32k; Metal attention has a cliff at 6-15 query rows.",
+          "source": "https://github.com/ARahim3/mlx-dspark",
+          "note": null
+        },
+        {
+          "text": "MTPLX ships `verify_qmv`, a small-M quantized matvec for M=3..6 verify shapes, and credits its 2.6x on 27B to verify cost being dominated by small-M qmv.",
+          "source": "https://vinoth12940.github.io/blog/articles/genai-20260519-local-mtp-speculative-decoding/",
+          "note": null
+        },
+        {
+          "text": "Per mlx-lm PR 990, with qmv_wide (mlx 0.32.0+) a preliminary re-check has MTP depth 2 edging out depth 1 for the first time; earlier depth 2 lost because small-M verify cost grew faster than acceptance.",
+          "source": "https://github.com/ml-explore/mlx-lm/pull/990",
+          "note": null
+        },
+        {
+          "text": "Issue 3251 original: mixed g32/64/128 vs uniform g128 on MLX 0.29.3 M2 Ultra lost 7-14% decode and 1.8-2.2x prefill.",
+          "source": "https://github.com/ml-explore/mlx/issues/3251",
+          "note": null
+        },
+        {
+          "text": "Issue 3251 follow-up on MLX 0.31.2: g32/g128 decode ratio 1.01-1.10x (about 4% average), g64/g128 1.00x, prefill about 1.00x, thanks to PR 1861 and PR 2031.",
+          "source": "https://github.com/ml-explore/mlx/issues/3251",
+          "note": null
+        },
+        {
+          "text": "4-bit scale+bias overhead is 20% at g32, 11% at g64, 5.9% at g128; a register-caching scale patch regressed 20-30% and was abandoned.",
+          "source": "https://github.com/ml-explore/mlx/issues/3251",
+          "note": null
+        },
+        {
+          "text": "PR 2031 tuned the qmv/qmm dispatch per machine and matrix size, conservatively preferring qmm unless qmv is clearly faster.",
+          "source": "https://github.com/ml-explore/mlx/pull/2031",
+          "note": null
+        },
+        {
+          "text": "How to benchmark: time a dependent chain of calls (each output feeds the next), not independent ops per `mx.eval`, and not one `mx.eval` per call; compare against M=1 and a bf16 control; then confirm with an end-to-end loop.",
+          "source": "https://github.com/ml-explore/mlx/issues/4265",
+          "note": null
+        },
+        {
+          "text": "`mlx-dspark benchmark --model <repo> --trials 3 [--json]` measures verify and drafter cost curves on the local Mac and `--max-draft auto` derives the cap from them.",
+          "source": "https://github.com/ARahim3/mlx-dspark",
+          "note": null
+        },
+        {
+          "text": "Implication for draft depth: on stock kernels depth 1-2 (verify width 2-3) is the safe choice; with qmv_wide (0.32.0+, M3+ affine) depth 2-3 is viable; with a window kernel and short context depth up to 7 pays on 8-bit; at 16-32k context shrink width.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Implication for group size: g64 and g128 cost the same decode on 0.31+; g32 costs about 4% on average, so the group-size choice should follow quality, and spec-decode depth choice should be re-measured per quant, not copied. Whether g32 shifts the verify curve is unmeasured.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Implication for hardware: on M1/M2 affine quants get no qmv_wide gain, so verify width stays costly; fp-format quants (mxfp4/nvfp4/mxfp8) get qmv_wide on all generations.",
+          "source": "asserted",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Corrections and disagreements",
+      "facts": [
+        {
+          "text": "CONTRADICTS: quantization-formats-for-apple-silicon-gguf-vs-mlx.md and data-driven-mixed-precision-mlx-quants-oq-optiq-jang.md (7-14% g32 decode penalty, issue 3251 as current): the issue's own author retested on MLX 0.31.2 and reports about 4% average g32 decode penalty and no prefill penalty; the 7-14% figure is MLX 0.29.3. The oMLX measurement in the second file (-10% / -14% for mixed oQ4) is a different comparison and not shown to be the group-size effect alone.",
+          "source": "asserted",
+          "note": null
+        }
+      ]
+    }
+  ],
+  "related": []
+}

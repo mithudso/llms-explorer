@@ -1,0 +1,179 @@
+{
+  "slug": "exo-deepseek-v4-expert-sharding-shardedmoev4-as",
+  "concept": "exo DeepSeek V4 expert sharding (ShardedMoEV4) as EP substitute",
+  "generated": "2026-10-05",
+  "summary": "`ShardedMoEV4` is a wrapper class in exo's `auto_parallel.py` that does for `DeepseekV4MoE` what `ShardedMoE` does for other MoE layers, with one signature difference: the V4 MoE call takes `(x, input_ids)`, since the V4 MoE call also receives `input_ids`.",
+  "facets": [
+    {
+      "title": "Facts",
+      "facts": [
+        {
+          "text": "`ShardedMoEV4` is a wrapper class in exo's `auto_parallel.py` that does for `DeepseekV4MoE` what `ShardedMoE` does for other MoE layers, with one signature difference: the V4 MoE call takes `(x, input_ids)`, since the V4 MoE call also receives `input_ids`.",
+          "source": "https://raw.githubusercontent.com/exo-explore/exo/main/src/exo/worker/engines/mlx/auto_parallel.py",
+          "note": null
+        },
+        {
+          "text": "The wrapper applies `sum_gradients(group)` to the input and `mx.distributed.all_sum(y, group)` to the output of the whole MoE block, then returns `y`. In inference `sum_gradients` is an identity in the forward pass (its all-sum is only in the backward rule), so each V4 MoE layer costs one all_sum.",
+          "source": "https://raw.githubusercontent.com/exo-explore/exo/main/src/exo/worker/engines/mlx/auto_parallel.py",
+          "note": null
+        },
+        {
+          "text": "`DeepseekV4ShardingStrategy` slices `ffn.switch_mlp.gate_proj` and `up_proj` all-to-sharded and `down_proj` sharded-to-all in place, and does the same for `shared_experts` when present. In place means each rank holds a slice of the intermediate dimension of every expert, not a subset of whole experts.",
+          "source": "https://raw.githubusercontent.com/exo-explore/exo/main/src/exo/worker/engines/mlx/auto_parallel.py",
+          "note": null
+        },
+        {
+          "text": "No `all_to_all` call and no expert-to-rank placement table exists in this file; its only gather calls are for pipeline output and the MiniMax q/k norm.",
+          "source": "https://raw.githubusercontent.com/exo-explore/exo/main/src/exo/worker/engines/mlx/auto_parallel.py",
+          "note": null
+        },
+        {
+          "text": "V4 attention is head-parallel with interleaved-per-group sharding: V4 reshapes the flat head dimension into `(o_groups, heads_per_group, head_dim)`, so each rank takes `heads_per_group / N` heads from every group, kept in group-major order. A contiguous block split would put heads in the wrong `wo_a` group.",
+          "source": "https://raw.githubusercontent.com/exo-explore/exo/main/src/exo/worker/engines/mlx/auto_parallel.py",
+          "note": null
+        },
+        {
+          "text": "The code asserts `n_heads % o_groups == 0` and `heads_per_group % world_size == 0`, then slices `wq_b` rows (stride `head_dim`) and `attn_sink`, and sets `attn.n_heads = o_groups * heads_per_group_per_rank`.",
+          "source": "https://raw.githubusercontent.com/exo-explore/exo/main/src/exo/worker/engines/mlx/auto_parallel.py",
+          "note": null
+        },
+        {
+          "text": "The attention output uses `wo_a` sharded-to-all in place (a block split on the input dimension) and `wo_b` wrapped in `_AllSumLinear`, which all-sums the partial `wo_a` output on every rank and then runs the unsharded `wo_b` replicated.",
+          "source": "https://raw.githubusercontent.com/exo-explore/exo/main/src/exo/worker/engines/mlx/auto_parallel.py",
+          "note": null
+        },
+        {
+          "text": "The `_AllSumLinear` docstring explains the choice: one collective per layer on the smaller of `n_groups * o_lora_rank` and hidden size; replicating `wo_b` costs about 30M FLOPs per layer at batch 1, less than \"61 extra all_gathers/token\".",
+          "source": "https://raw.githubusercontent.com/exo-explore/exo/main/src/exo/worker/engines/mlx/auto_parallel.py",
+          "note": null
+        },
+        {
+          "text": "So a V4 layer makes two all_sums (attention via `_AllSumLinear`, MoE via `ShardedMoEV4`), which is about 122 per token for 61 layers.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Loading is layer by layer with `mx.eval(layer)` and `mx.clear_cache()` after each, and `_slice_head_major_flat` makes a contiguous copy because a view would keep the full unsharded weight resident (\"OOM on large V4\").",
+          "source": "https://raw.githubusercontent.com/exo-explore/exo/main/src/exo/worker/engines/mlx/auto_parallel.py",
+          "note": null
+        },
+        {
+          "text": "exo depends on a fork for V4: `pyproject.toml` pins `mlx-lm` to `rltakashige/mlx-lm` branch `leo/deepseek-v4`, and pins `mlx` 0.32.0 on macOS to `rltakashige/mlx-jaccl-fix-small-recv` branch `address-rdma-gpu-locks`.",
+          "source": "https://raw.githubusercontent.com/exo-explore/exo/main/pyproject.toml",
+          "note": null
+        },
+        {
+          "text": "Upstream `ml-explore/mlx-lm` had no `mlx_lm/models/deepseek_v4.py` on main when fetched on 2026-10-04 (HTTP 404), so exo's V4 tensor parallelism depends on the fork.",
+          "source": "https://raw.githubusercontent.com/ml-explore/mlx-lm/main/mlx_lm/models/deepseek_v4.py",
+          "note": null
+        },
+        {
+          "text": "Placement and load disagree: exo's placement test exempts V4 from the KV-head divisibility rule, but the V4 loader needs `heads_per_group % N == 0`, so a node count that passes placement can still fail at load with an assertion.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Rank-count limits follow `heads_per_group`, so the largest TP size is set by that number and not by hidden size or KV heads.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "The replicated `wo_b` costs compute on every rank and grows with batch size, so the batch-1 saving may reverse for batched serving.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Because every rank reads a slice of every active expert, a V4 model that fits one Mac loses decode speed when sharded, as for other sliced-expert TP (see tensor-vs-pipeline-vs-expert-parallelism-for-moe.md).",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Label versus mechanism. The concept's name treats the wrapper as expert sharding that stands in for expert parallelism. The code shows sliced-expert tensor parallelism. A source that says V4 \"shards experts\" (exo-cluster-software.md) means the slice, not whole-expert placement.",
+          "source": "https://raw.githubusercontent.com/exo-explore/exo/main/src/exo/worker/engines/mlx/auto_parallel.py",
+          "note": null
+        },
+        {
+          "text": "exo versus ds4 on the same model family. exo slices every expert on every rank and all-sums; ds4 gives each rank a contiguous half of the routed experts and exchanges partials. Neither source compares them on one machine pair.",
+          "source": "https://raw.githubusercontent.com/antirez/ds4/main/ds4_tp.h",
+          "note": null
+        },
+        {
+          "text": "Whether exo will add a true EP path for V4 now that the model has many small experts.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "How large a share of V4 decode time the roughly 122 all_sums per token take under exo; no source read reports a V4 tensor-parallel benchmark through exo.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "exo's `ShardedMoEV4` wraps `DeepseekV4MoE`, calls it with `(x, input_ids)`, applies `sum_gradients` before and `all_sum` after.",
+          "source": "https://raw.githubusercontent.com/exo-explore/exo/main/src/exo/worker/engines/mlx/auto_parallel.py",
+          "note": null
+        },
+        {
+          "text": "exo's `auto_parallel.py` has no `all_to_all` call.",
+          "source": "https://raw.githubusercontent.com/exo-explore/exo/main/src/exo/worker/engines/mlx/auto_parallel.py",
+          "note": null
+        },
+        {
+          "text": "In MLX's `sum_gradients` the forward pass is an identity and the all-sum is only in the vjp.",
+          "source": "https://raw.githubusercontent.com/ml-explore/mlx/main/python/mlx/nn/layers/distributed.py",
+          "note": null
+        },
+        {
+          "text": "exo shards V4 attention heads interleaved per output group so that `wo_a`'s grouped weight mapping stays valid.",
+          "source": "https://raw.githubusercontent.com/exo-explore/exo/main/src/exo/worker/engines/mlx/auto_parallel.py",
+          "note": null
+        },
+        {
+          "text": "exo's V4 shard code asserts `heads_per_group % world_size == 0`.",
+          "source": "https://raw.githubusercontent.com/exo-explore/exo/main/src/exo/worker/engines/mlx/auto_parallel.py",
+          "note": null
+        },
+        {
+          "text": "exo's `_AllSumLinear` replicates `wo_b` on every rank to avoid 61 extra all_gathers per token.",
+          "source": "https://raw.githubusercontent.com/exo-explore/exo/main/src/exo/worker/engines/mlx/auto_parallel.py",
+          "note": null
+        },
+        {
+          "text": "exo shards V4 one layer at a time and copies sliced attention rows contiguously to free the full weight.",
+          "source": "https://raw.githubusercontent.com/exo-explore/exo/main/src/exo/worker/engines/mlx/auto_parallel.py",
+          "note": null
+        },
+        {
+          "text": "exo pins mlx-lm to the `leo/deepseek-v4` branch of `rltakashige/mlx-lm`.",
+          "source": "https://raw.githubusercontent.com/exo-explore/exo/main/pyproject.toml",
+          "note": null
+        },
+        {
+          "text": "Upstream mlx-lm main returned 404 for `deepseek_v4.py` on 2026-10-04.",
+          "source": "https://raw.githubusercontent.com/ml-explore/mlx-lm/main/mlx_lm/models/deepseek_v4.py",
+          "note": null
+        },
+        {
+          "text": "A V4 layer in exo makes two all_sums, one after attention and one after the MoE block.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "exo's V4 placement exemption and the loader's `heads_per_group` assertion can disagree.",
+          "source": "asserted",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Corrections and disagreements",
+      "facts": [
+        {
+          "text": "CONTRADICTS: the concept label \"as EP substitute\" and the \"shards experts\" wording in exo-cluster-software.md: `ShardedMoEV4` slices the intermediate dimension of every expert on every rank in place; it places no whole experts on ranks.",
+          "source": "https://raw.githubusercontent.com/exo-explore/exo/main/src/exo/worker/engines/mlx/auto_parallel.py",
+          "note": null
+        }
+      ]
+    }
+  ],
+  "related": []
+}

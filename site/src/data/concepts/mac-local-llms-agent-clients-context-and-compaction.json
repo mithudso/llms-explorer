@@ -1,0 +1,389 @@
+{
+  "slug": "mac-local-llms-agent-clients-context-and-compaction",
+  "concept": "Mac local LLMs: Agent clients, context and compaction",
+  "generated": "2026-10-05",
+  "summary": "Needs only ANTHROPIC_BASE_URL + ANTHROPIC_AUTH_TOKEN and a /v1/messages server: Ollama >=0.14 (`ollama launch claude --model <m>`), LM Studio >=0.4.1, oMLX, Rapid-MLX, llama-server; no proxy needed.",
+  "facets": [
+    {
+      "title": "Connect Claude Code to a local server",
+      "facts": [
+        {
+          "text": "Needs only ANTHROPIC_BASE_URL + ANTHROPIC_AUTH_TOKEN and a /v1/messages server: Ollama >=0.14 (`ollama launch claude --model <m>`), LM Studio >=0.4.1, oMLX, Rapid-MLX, llama-server; no proxy needed.",
+          "source": "https://docs.ollama.com/integrations/claude-code",
+          "note": null
+        },
+        {
+          "text": "404 mid-session = background call used the haiku alias: map ANTHROPIC_DEFAULT_HAIKU/SONNET/OPUS_MODEL (and ANTHROPIC_MODEL) to the local id.",
+          "source": "https://michaelwolfinger.com/blog/2026/claude-code-local-llm-apple-silicon/",
+          "note": null
+        },
+        {
+          "text": "Set CLAUDE_CODE_ATTRIBUTION_HEADER=0 (settings.json env or --settings; old builds ignored shell export) so the billing line stops busting the KV prefix cache.",
+          "source": "https://lmstudio.ai/docs/integrations/claude-code",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Subagent model routing (Claude Code)",
+      "facts": [
+        {
+          "text": "Order: per-invocation `model`, then definition frontmatter (`inherit` = main model), then CLAUDE_CODE_SUBAGENT_MODEL, then main model. Before v2.1.251 the variable came first and beat both. Value `inherit` = unset (before v2.1.196 it forced the main model).",
+          "source": "https://code.claude.com/docs/en/sub-agents",
+          "note": null
+        },
+        {
+          "text": "The variable alone does not move built-in Explore/Plan; Explore runs on the `opus` alias model under a gateway via ANTHROPIC_BASE_URL. A user subagent named `Explore` with `model: haiku` overrides it.",
+          "source": "https://code.claude.com/docs/en/sub-agents",
+          "note": null
+        },
+        {
+          "text": "CLAUDE_CODE_SUBAGENT_MODEL_FORCE=1 ignores definition `model` and blocks per-call models; forks and `inherit` skills stay on the main model. blocked values (availableModels) fall back to the inherited model with a warning.",
+          "source": "https://code.claude.com/docs/en/sub-agents",
+          "note": null
+        },
+        {
+          "text": "CLAUDE_CODE_GATEWAY_HINT_HEADERS=1 (v2.1.273+) sends x-claude-code-request-class (main, subagent, workflow, compaction, auxiliary), -agent-type, -prompt-id for router policy.",
+          "source": "https://code.claude.com/docs/en/llm-gateway-protocol",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Windows and compaction (Claude Code)",
+      "facts": [
+        {
+          "text": "Unknown model ID: Claude Code assumes 200k and compacts there. Fix: CLAUDE_CODE_MAX_CONTEXT_TOKENS=<real window>; or CLAUDE_CODE_DISABLE_UNKNOWN_MODEL_WINDOW_ENFORCEMENT=1 (v2.1.223+, compact only after a recognised too-long error). With `[1m]` in the ID also set CLAUDE_CODE_DISABLE_1M_CONTEXT=1.",
+          "source": "https://code.claude.com/docs/en/model-config",
+          "note": null
+        },
+        {
+          "text": "CLAUDE_CODE_AUTO_COMPACT_WINDOW: plain integer 100000-1000000; `500k` reads as 500, clamped to 100K. Below 100K use CLAUDE_AUTOCOMPACT_PCT_OVERRIDE (1-100, only lowers).",
+          "source": "https://code.claude.com/docs/en/env-vars",
+          "note": null
+        },
+        {
+          "text": "Reactive recovery fires only on `Prompt is too long`, `Input is too long for requested model` (>=2.1.217), `capability_rejected: prompt_too_long` (>=2.1.228). Gateway `ContextWindowExceededError` and llama-server `exceed_context_size_error` are not recognised, so no auto-compact. Ollama truncates, never rejects.",
+          "source": "https://code.claude.com/docs/en/errors",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Server overflow behaviour",
+      "facts": [
+        {
+          "text": "Ollama (v0.33.1): default num_ctx by VRAM (262144 at >=47 GiB, 32768 at >=23, 4096 below); /v1 cannot set num_ctx, only Modelfile PARAMETER or OLLAMA_CONTEXT_LENGTH.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "llama-server: HTTP 400 `request (N tokens) exceeds the available context size (M tokens), try increasing it`; n_ctx is per slot. `Context size has been exceeded.` is a mid-stream KV failure. --no-context-shift rejects instead of dropping tokens.",
+          "source": "https://raw.githubusercontent.com/ggml-org/llama.cpp/master/tools/server/server-context.cpp",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Slimming the first request",
+      "facts": [
+        {
+          "text": "Claude Code 2.1.289 first request: default 14.0k; `--tools \"Bash,Read,Edit,Write,Grep,Glob\"` 3.9k; plus short --system-prompt 2.7k.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Heavy profile (170-222 MCP tools) sends 66k-96k; `--strict-mcp-config --tools <6>` 10.2k. Env: CLAUDE_CODE_DISABLE_{GIT_INSTRUCTIONS,CLAUDE_MDS,AUTO_MEMORY,NONESSENTIAL_TRAFFIC}=1; CLAUDE_CODE_SIMPLE_SYSTEM_PROMPT=1 keeps tools.",
+          "source": "https://code.claude.com/docs/en/env-vars",
+          "note": null
+        },
+        {
+          "text": "Non-Anthropic base URL: tool search off, every MCP tool loads; ENABLE_TOOL_SEARCH=true fails if the proxy drops tool_reference blocks.",
+          "source": "https://code.claude.com/docs/en/env-vars",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "OpenCode",
+      "facts": [
+        {
+          "text": "First request 6.7k clean, 102.6k with ~/.claude skills (~90k <available_skills>); +89 MCP tools 55.2k.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Kill skills with per-agent `tools.skill false` or `permission.skill {\"*\":\"deny\"}`; global `tools.skill false` and experimental.mcp_lazy did nothing in 1.18.34.",
+          "source": "https://opencode.ai/docs/skills/",
+          "note": null
+        },
+        {
+          "text": "`\"tools\": {\"*\": false}` plus per-agent enables gives 9 tools, 3,260 tokens. Compaction V2: keep.tokens 15000, buffer 10%; reserved/prune are V1. Set limit.context to real n_ctx.",
+          "source": "https://opencode.ai/v2/docs/compaction/",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Codex",
+      "facts": [
+        {
+          "text": "Unknown slug warns `Model metadata for <slug> not found`; set model_context_window and model_catalog_json. Auto-compact at 90% of window.",
+          "source": "https://developers.openai.com/codex/config-reference",
+          "note": null
+        },
+        {
+          "text": "Symptom: session shows no `mcp__*` tools and no `tool_search` though `codex mcp list` is fine. Cause: catalog entry `supports_search_tool: true` (DeepSeek's setup script hardcodes it with `tool_mode: null`) defers every MCP tool, and `tool_mode: null` has no code-mode exec to hold them. Fix: set it false in ~/.codex/models.json (3 reports, 0.145-0.147).",
+          "source": "https://github.com/openai/codex/issues/36382",
+          "note": null
+        },
+        {
+          "text": "Correction: earlier claim that deferral needs `supports_search_tool` AND provider `namespace_tools` is wrong on main (2026-10-05): spec_plan.rs gates on `supports_search_tool` alone, and the string `namespace_tools` appears in no provider file; `ToolSpec::Namespace` serializes with no provider condition.",
+          "source": "https://raw.githubusercontent.com/openai/codex/main/codex-rs/core/src/tools/spec_plan.rs",
+          "note": null
+        },
+        {
+          "text": "Other exposure rules: false makes MCP tools direct unless listed in per-server `omit_tools_from`; a registered tool named `tool_search` is removed; v1 `spawn_agent` and multi_agent_version \"v1\" tools go Deferred when true, so a model that never calls `tool_search` cannot reach them.",
+          "source": "https://raw.githubusercontent.com/openai/codex/main/codex-rs/core/src/tools/spec_plan.rs",
+          "note": null
+        },
+        {
+          "text": "Via LiteLLM, `type: \"tool_search\"` gives `400: Field required ... tools[13].function`; rewriting it gives `tool_search handler received unsupported payload`; false still hid MCP tools. Dropped `reasoning_content` gives `400: The reasoning_content in the thinking mode must be passed back to the API`.",
+          "source": "https://github.com/openai/codex/issues/36382",
+          "note": null
+        },
+        {
+          "text": "Provider capabilities (codex-model-provider): `remote_compaction` defaults `Unsupported` (local compaction); `V2` (sends `compaction_trigger` items) is set only for OpenAI/Azure Responses providers. Config may override only `external_web_access` and `remote_compaction` (unknown fields rejected);",
+          "source": "https://raw.githubusercontent.com/openai/codex/main/codex-rs/model-provider/src/capabilities.rs",
+          "note": null
+        },
+        {
+          "text": "Responses `tool_search` is gpt-5.4+ only. Hosted: `execution: \"server\"`, `call_id: null`. Client: tool with `execution: \"client\"`; answer with `tool_search_output` (`execution: \"client\"`, `call_id`, `status: completed`, `tools`). A local model needs a proxy emulating the items.",
+          "source": "https://developers.openai.com/api/docs/guides/tools-tool-search",
+          "note": null
+        },
+        {
+          "text": "MCP as `namespace` tools: llama.cpp skips silently, LM Studio rejects, flat names fail `unsupported call`; codex-universal-proxy (formerly codex-ollama-proxy) flattens.",
+          "source": "https://github.com/openai/codex/issues/23186",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Open questions",
+      "facts": [
+        {
+          "text": "Unmeasured: success vs tool count on 9B-35B models; which llama-server error text Claude Code recovers from; which Codex commit removed `namespace_tools` and whether a Chat-Completions bridge gate exists.",
+          "source": "asserted",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Corrections and disagreements",
+      "facts": [
+        {
+          "text": "Ollama default context: Aider docs still say Ollama defaults to 2k; Ollama FAQ/ existing playbook say 4k/32k/256k by VRAM; Kulman saw 32768 on 48 GB. CONTRADICTS: aider.chat/docs/llms/ollama.html vs existing local-llm-troubleshooting-playbook.md section 2.1 (the playbook is right for current Ollama).",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "CONTRADICTS: claude-code-system-prompt-and-tool-schema-slimming-for-local-models.md says `OPENCODE_DISABLE_CLAUDE_CODE=1` alone did not remove the 90k listing and that disabling the `skill` tool did. Both are true here but incomplete: skills were also read from `~/.agents/skills` and `~/.config/opencode/skills`, which that flag does not cover (the first 3 listed paths in the request were `~/.agents/skills/...`), and the disable that works is per-agent `tools.skill false` or `permission.skill \"*\":\"deny\"`; the global `tools` key is ignored for this purpose in 1.18.34.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "CONTRADICTS: claude-code-context-window-mismatch-against-local-servers.md lists reserved and prune as the compaction config; that is the V1 schema, and a V2 install uses keep.tokens and buffer.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "This CONTRADICTS the inferred claim in codex-responses-api-compatibility-on-local-serve.md that it is unknown which functions a skipped `namespace` carries: Codex wraps each configured MCP server as `{\"type\":\"namespace\",\"name\":\"mcp__<server>__\",\"tools\":[function, ...]}`, so skipping it removes every tool of that MCP server.",
+          "source": "https://github.com/openai/codex/issues/23186",
+          "note": null
+        },
+        {
+          "text": "CONTRADICTS: codex-namespace-and-hosted-tool-types-skipped-by.md on the proxy's name: `codex-ollama-proxy` is now `codex-universal-proxy`; the first universal command migrates `~/.codex/ollama-shape-proxy` to `~/.codex/codex-universal-proxy`, copies legacy catalog and reference files forward, and replaces legacy service registrations.",
+          "source": "https://github.com/bharat2808/codex-ollama-proxy",
+          "note": null
+        },
+        {
+          "text": "This CONTRADICTS the unqualified wording in local-router-policy-keyed-on-x-claude-code-reque.md that the variable sets the default for subagents with a short override note: the full order is per-invocation `model`, then definition `model` frontmatter (`inherit` selects the main model), then `CLAUDE_CODE_SUBAGENT_MODEL`, then the main conversation's model.",
+          "source": "https://code.claude.com/docs/en/sub-agents",
+          "note": null
+        },
+        {
+          "text": "CONTRADICTS: codex-tool-search-deferred-mcp-tools-and-the-sup.md (line 10, `search_tool_enabled` computed in spec_plan.rs as `supports_search_tool && provider.capabilities().namespace_tools`): on main fetched 2026-10-05 `spec_plan.rs` contains no `namespace_tools` and gates MCP deferral on `model_info.supports_search_tool` alone.",
+          "source": "https://raw.githubusercontent.com/openai/codex/main/codex-rs/core/src/tools/spec_plan.rs",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Concepts in this cluster",
+      "facts": [
+        {
+          "text": "Local LLM server as a coding-agent backend on Mac",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Claude Code context-window mismatch against local servers",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Claude Code system-prompt and tool-schema slimming for local models",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "claude-code-router Anthropic-to-OpenAI translation over a local gateway",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Agent skill-listing injection cost",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Claude Code unknown-model context window handling",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Task-success versus tool count and prompt size for small local models",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Claude Code helper-model request to custom base URL",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Claude Code skill listing budget formula",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Hook additional-context injection into the first message",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "MCP tool-definition token cost in OpenCode",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Multi-root skill discovery and duplicated skill directories",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Claude Code compaction floor of 100K versus small local windows",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "OpenCode compaction config for local providers",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "mcp-compressor wrapper proxy in front of a local-model agent",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Claude Code effort levels forwarded to local Anthropic-compatible servers",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Client-side compaction thresholds for hybrid-model local servers",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Claude Code gateway hint headers for local routers",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Claude Code reactive compaction error-wording recognition",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Codex auto-compaction body_after_prefix scope",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Codex namespace and hosted tool types skipped by local servers",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "llama.cpp normalisation of Claude Code billing header cch",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Codex model catalog JSON (model_catalog_json) for local model slugs",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Flattening proxies for Codex namespace tools (codex-ollama-proxy and similar)",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Local router policy keyed on x-claude-code-request-class",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Rewriting llama-server overflow errors to Claude Code's recognised wording",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Codex tool_search deferred MCP tools and the supports_search_tool catalog flag",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Responses API client-executed tool_search support in local servers",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Router session keying when subagents reuse metadata.user_id",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "CLAUDE_CODE_SUBAGENT_MODEL routing of subagents to a small local model",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Codex model-visible tool exposure rules (spec_plan.rs namespace_tools capability",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Codex provider capabilities struct and where namespace serialization is gated",
+          "source": "asserted",
+          "note": null
+        }
+      ]
+    }
+  ],
+  "related": []
+}

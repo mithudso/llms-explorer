@@ -1,0 +1,419 @@
+{
+  "slug": "mcp-tool-definition-token-cost-in-opencode",
+  "concept": "MCP tool-definition token cost in OpenCode",
+  "generated": "2026-10-05",
+  "summary": "OpenCode names MCP tools `<server>_<tool>` (server name as written in `mcp`, tool name verbatim, e.g. `context7_query-docs`, `global_ai_hub_hub_ask`) and sends the whole list sorted alphabetically by that name, MCP and built-in tools interleaved (bash, context7_*, edit, glob, global_ai_hub_*, ......",
+  "facets": [
+    {
+      "title": "Facts",
+      "facts": [
+        {
+          "text": "OpenCode names MCP tools `<server>_<tool>` (server name as written in `mcp`, tool name verbatim, e.g. `context7_query-docs`, `global_ai_hub_hub_ask`) and sends the whole list sorted alphabetically by that name, MCP and built-in tools interleaved (bash, context7_*, edit, glob, global_ai_hub_*, ... write). Measured: the 89-tool array equals its own sorted order.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "OpenCode adds three generic resource tools (`list_mcp_resources`, `list_mcp_resource_templates`, `read_mcp_resource`, 301 tokens together) as soon as at least one MCP server is connected. They survive `\"tools\": {\"*\": false}`.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "The cost is mostly JSON Schema, not prose. In the 89-tool capture, top-level tool `description` fields are only about 11% of MCP tokens (5.3k of 50.1k); the bulk is `parameters`, including nested per-parameter descriptions. Stele's tools use a discriminated `anyOf` of one object per action, repeating `project_slug`, `action` and per-action `description` inside each branch, so one tool (`stele_destructive`) is 3,939 tokens of which top-level description is 118 and parameter text 1,933.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Per-server cost is dominated by schema design, not by tool count: 17 tools of one server cost 30.6k tokens (1,797 per tool) while 30 tools of another cost 5.8k (194 per tool).",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Measured locally, full 89-tool request (skills denied): 55,211 tool tokens, system 7,013. Built-in 9 tools 4,772 (bash 1,285, task 854, todowrite 645, edit 449, read 437, webfetch 314, grep 298, glob 253, write 237), resource tools 301, MCP server tools 50,138 (91% of the tools array).",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Per server, measured in the same capture (tokens, tools): stele 30,554 (17), mongodb 11,711 (20), global_ai_hub 5,813 (30), context7 1,046 (2), mcp-mermaid 381 (1), napmem 353 (4), skills-relay 280 (3). Servers alone, each with the 9 built-ins and 3 resource tools: global_ai_hub 42 tools 10,886, mongodb 32 tools 16,784, stele 29 tools 35,627.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "The server-side prefill penalty: at the rates in the existing dossiers (174, 435, 1,000, 1,500, 3,300 tokens/s) 55.2k tokens cost 317 s, 127 s, 55 s, 37 s, 17 s on a cold start before the quadratic attention penalty; stele's 30.6k alone costs 176 s, 70 s, 31 s, 20 s, 9 s.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "OpenCode sends the title agent's request separately with no tools (the first body captured is that request); the tool cost applies to the main agent's request only.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "OpenCode docs carry a Caveats note since early on: MCP servers add to the context, the GitHub MCP server \"tends to add a lot of tokens and can easily exceed the context limit\".",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "OpenCode issue 8625 (opened 2026-01-15, 76+ thumbs up) asked for Claude Code's MCPSearch-style deferral; duplicates 8277 (lazy/dynamic loading), 7406 (MCP-CLI on-demand) and 2418 (tool to list and manage MCP servers). A community implementation (PR 8771, rebased as 12520, later a commit referencing the issue on 2026-04-05) added `experimental.mcp_lazy: true` replacing all MCP schemas with one `mcp_search` tool (about 620 tokens, operations list/search/describe/call); one commenter reported about 21k tokens saved with 9 servers and better behavior on local models. The issue was closed against PR 34677.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Third-party plugins fill the gap: `opencode-mcp-tool-search` (npm, v1.0.0, 2026-08-31; one `mcp_tool_search` meta-tool plus `mcp_call_tool`, claims ~67k to ~500 tokens for 50+ tools) and `opencode-toolbox`.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Claude Code shipped MCP tool search in January 2026 (on by default when MCP descriptions exceed 10% of context), then made deferral the default for all MCP tools; `alwaysLoad` and `auto:N` arrived later; since v2.1.221 Google Cloud Agent Platform models from the 4.5 generation on defer by default.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Cline's `disabledTools`/`enabledTools` per-tool control was a feature request (discussion 8855, 2026-01-24) and Cline only supports whole-server `disabled`.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Atlassian published mcp-compressor (blog 2026-03-30, open source) after Rovo Dev found tool metadata consumed a large fraction of prompt budget.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Setting `experimental.mcp_lazy: true` in OpenCode 1.18.34 changes nothing: the first request still carried 89 tools and 55,211 tokens. The flag is not in the released binary (no string match); it was a PR/fork feature. Use a plugin or a proxy instead.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "The documented OpenCode disable patterns all work, but they differ in effect: `\"tools\": {\"stele_*\": false}`, `\"permission\": {\"stele_*\": \"deny\"}` and `mcp.stele.enabled: false` each gave the same 72-tool, 24,657-token request (stele's 17 tools and 30.6k tokens gone, nothing else changed).",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "`enabled: false` also avoids starting the process; the glob and permission forms still start the server (slow npx or ssh servers still cost startup time, and OpenCode's default tools-fetch `timeout` is 5,000 ms).",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Per-agent re-enable works as documented: `\"tools\": {\"stele_*\": false}` globally plus `\"agent\": {\"build\": {\"tools\": {\"stele_*\": true}}}` restored all 17 stele tools for the default build agent (89 tools). Only agents that opt in pay.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "`\"tools\": {\"*\": false}` plus an agent `tools` map enabling bash, edit, read, write, glob, grep gave 9 tools and 3,260 tokens (6 built-ins plus the 3 resource tools); the resource tools are the floor that remains while any MCP server is configured and connected. They are removed only by disabling every server (`enabled: false` or no `mcp` block).",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Running opencode captures in parallel against the same default data directory hangs at init (no request is sent); give each run its own `XDG_DATA_HOME`, not just `XDG_CONFIG_HOME`. A first run with a fresh data dir also took about 30 to 40 s with slow MCP servers connecting.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Claude Code: with a non-first-party `ANTHROPIC_BASE_URL` MCP tool search is off and every MCP tool loads on every request; `ENABLE_TOOL_SEARCH=true` forces it on but the request fails if the proxy drops `tool_reference` blocks, so on a local Anthropic-compatible server (llama.cpp, LM Studio, oMLX) the safe choice is to reduce tools, not to enable search. Local servers do not implement tool search or `defer_loading`.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Claude Code bug: tool search did not defer HTTP/streamable-HTTP MCP tools in v2.1.85-86 (120k tokens loaded upfront from one gateway exposing about 250 tools; stdio tools deferred); issue 40314 was closed as not planned by the stale bot on 2026-04-28. Possible root cause cited: API error when `defer_loading=true` and `cache_control` are both set (issue 30920).",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "A server that connects after startup, or a server with a slow tools fetch that times out, changes the tool array between sessions and therefore the cached prefix.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Tool-count accuracy: reported ceilings are about 20 tools for 96%+ selection accuracy, 76% at 80+ (BFCL v3), and Anthropic and OpenAI both recommend fewer than 20 tools; attention dilution persists with prompt caching (cost, not accuracy, is what caching fixes).",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Over-compression hurts selection: at mcp-compressor's `high` level a tool has only name and parameter names, so near-duplicate parameter sets (`title`, `description`, `project`) make Jira-versus-Confluence style choices a guess.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "\"Tool search / lazy loading is the fix\" (Anthropic: 77k to 8.7k tokens, Opus 4 accuracy 49% to 74%, Opus 4.5 79.5% to 88.1%; Claude Code docs say adding servers then has minimal impact) versus \"it needs model and proxy support that local setups lack\": on a custom `ANTHROPIC_BASE_URL` Claude Code turns it off by default, and the accuracy gains were measured on Claude models that were trained for `tool_search`; no source here measured a local model doing meta-tool discovery. Open-model behavior on `mcp_search` was reported only anecdotally (\"local models finally work much better\" in issue 8625).",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "\"Schema compression is a drop-in win\" (mcp-compressor: GitHub MCP, 94 tools, 17.6k tokens to about 3.3k at medium, 2.2k at high, about 500 at max) versus \"it trades accuracy and adds round trips\" (StackOne: about 50% more round trips per tool call with search-first designs; compressed descriptions blur similar tools). For a local model each extra round trip is a decode pass over a longer context, so the saving in prefill is partly paid back in latency.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "\"Prompt caching makes the fixed prefix free\" versus \"cost is not the problem, attention is\" (issue 8625 research comment): a cached 55k-token prefix still costs the first-request prefill and a reduced-quality attention budget; on a local server the cache is also lost on every model swap or restart.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "No measurement here of Claude Code's per-server MCP token cost on a custom base URL (existing dossier gives totals only), nor of Cline's, whose MCP prompt text sits in the system prompt rather than a `tools` array.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Whether mcp-compressor in front of the Stele server drops 30.6k to under 1k with a local Qwen or Gemma model still choosing the right action; not run.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Whether the `opencode-mcp-tool-search` plugin works with a local model's tool-call parser; not run.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Which OpenCode release, if any, merged lazy MCP loading (issue 8625 was closed against PR 34677); the installed 1.18.34 does not honor `experimental.mcp_lazy`.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Token counts use cl100k_base; the Qwen3 tokenizer will give different totals for JSON schema punctuation.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Measured locally: OpenCode 1.18.34 with 7 connected MCP servers and skills denied sends 89 tools totalling 55,211 tokens and a 7,013-token system message",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Measured locally: of those 89 tools, 9 built-ins are 4,772 tokens, 3 MCP resource tools 301 and 77 server tools 50,138, so MCP server tools are 91% of the tools array",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Measured locally: per-server tokens in the 89-tool request are stele 30,554 (17 tools), mongodb 11,711 (20), global_ai_hub 5,813 (30), context7 1,046 (2), mcp-mermaid 381 (1), napmem 353 (4), skills-relay 280 (3)",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Measured locally: one MCP server's 17 tools cost 1,797 tokens each on average while another server's 30 tools cost 194 each, so tool count is a poor predictor of cost",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Measured locally: top-level `description` fields are about 5.3k of 50.1k MCP tokens; most of the rest is JSON Schema `parameters`, including nested per-parameter descriptions",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Measured locally: the largest single tools are stele_destructive 3,939, stele_node 3,350, mongodb_export 3,135, mongodb_explain 3,132, stele_task 3,008 tokens",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Measured locally: Stele's tool schemas are a per-action `anyOf` that repeats `project_slug` and a description in every branch, which is why one tool reaches 3.9k tokens",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Measured locally: OpenCode sorts the tools array alphabetically by name with MCP tools (`<server>_<tool>`) interleaved with built-ins",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Measured locally: OpenCode adds `list_mcp_resources`, `list_mcp_resource_templates` and `read_mcp_resource` (301 tokens) whenever an MCP server is connected, and `\"tools\": {\"*\": false}` does not remove them",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Measured locally: `\"tools\": {\"stele_*\": false}`, `\"permission\": {\"stele_*\": \"deny\"}` and `mcp.stele.enabled: false` each reduced the request to 72 tools and 24,657 tokens",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Measured locally: global `\"tools\": {\"stele_*\": false}` with `agent.build.tools {\"stele_*\": true}` restores the 17 stele tools for the build agent (89 tools, 55,211 tokens)",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Measured locally: `\"tools\": {\"*\": false}` with the six core tools enabled under `agent.build.tools` leaves 9 tools and 3,260 tokens",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Measured locally: `experimental.mcp_lazy: true` has no effect in OpenCode 1.18.34 (89 tools, 55,211 tokens, no `mcp_search` tool)",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Measured locally: capturing from several opencode processes sharing one `XDG_DATA_HOME` produced no request from some processes; separate `XDG_DATA_HOME` per run fixed it",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Measured locally: global_ai_hub alone gives 42 tools and 10,886 tokens, mongodb alone 32 tools and 16,784, stele alone 29 tools and 35,627, each including the 9 built-ins and 3 resource tools",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Derived: at 174, 435, 1,000, 1,500 and 3,300 prefill tokens/s the 55.2k-token tool array costs 317 s, 127 s, 55 s, 37 s and 17 s on a cold start; the 3.3k-token minimal set costs 19 s, 7.6 s, 3.3 s, 2.2 s, 1.0 s",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "OpenCode docs: MCP servers are defined under `mcp` with `type` local or remote, `enabled`, `timeout` (default 5000 ms for fetching tools) and optional `environment`, `headers`, `oauth`",
+          "source": "https://opencode.ai/docs/mcp-servers/",
+          "note": null
+        },
+        {
+          "text": "OpenCode docs: MCP tools are managed like any tool, so `\"tools\": {\"my-mcp*\": false}` disables all matching tools globally; the glob uses `*` for zero or more characters and `?` for one",
+          "source": "https://opencode.ai/docs/mcp-servers/",
+          "note": null
+        },
+        {
+          "text": "OpenCode docs: to scope MCP per agent, disable the tools globally and enable them under `agent.<name>.tools` with a glob such as `\"my-mcp*\": true`",
+          "source": "https://opencode.ai/docs/mcp-servers/",
+          "note": null
+        },
+        {
+          "text": "OpenCode docs caveat: MCP servers add to context and the GitHub MCP server can easily exceed the context limit",
+          "source": "https://opencode.ai/docs/mcp-servers/",
+          "note": null
+        },
+        {
+          "text": "OpenCode agents docs: wildcards in agent `tools` entries disable all tools from an MCP server, e.g. `\"mymcp_*\": false` with `write` and `edit` false for a read-only agent",
+          "source": "https://opencode.ai/docs/agents/",
+          "note": null
+        },
+        {
+          "text": "OpenCode issue 8625 asked for Claude Code style MCP search; it drew 76 thumbs up, was assigned to a maintainer, and was closed against PR 34677",
+          "source": "https://github.com/anomalyco/opencode/issues/8625",
+          "note": null
+        },
+        {
+          "text": "An OpenCode community implementation adds `experimental.mcp_lazy: true` and one `mcp_search` tool of about 620 tokens with operations list, search, describe and call; one user reported about 21k tokens saved across 9 servers",
+          "source": "https://github.com/anomalyco/opencode/issues/8625",
+          "note": null
+        },
+        {
+          "text": "A commenter on issue 8625 reports that a smaller initial context made local models work much better with lazy MCP loading",
+          "source": "https://github.com/anomalyco/opencode/issues/8625",
+          "note": null
+        },
+        {
+          "text": "A commenter on issue 8625 cites BFCL v3 tool-count accuracy of 96%+ at 20 or fewer tools, about 88% at 40 and 76% at 80 or more, and that caching does not remove the attention-dilution loss",
+          "source": "https://github.com/anomalyco/opencode/issues/8625",
+          "note": null
+        },
+        {
+          "text": "`opencode-mcp-tool-search` (npm 1.0.0, 2026-08-31) replaces MCP tools with `mcp_tool_search` and `mcp_call_tool` and claims about 67k to about 500 tokens for 50+ tools",
+          "source": "https://lobehub.com/mcp/francisco-m001-opencode-mcp-tool-search",
+          "note": null
+        },
+        {
+          "text": "Claude Code: tool search defers MCP tool definitions by default and loads only names and server instructions at session start; `ENABLE_TOOL_SEARCH` values are unset, `true`, `auto` (defer at 10% of context), `auto:N` and `false`",
+          "source": "https://code.claude.com/docs/en/mcp",
+          "note": null
+        },
+        {
+          "text": "Claude Code: `\"permissions\": {\"deny\": [\"ToolSearch\"]}` disables only the ToolSearch tool",
+          "source": "https://code.claude.com/docs/en/mcp",
+          "note": null
+        },
+        {
+          "text": "Claude Code: `alwaysLoad: true` on a server config (or `anthropic/alwaysLoad` in a tool's `_meta`) exempts it from deferral and makes startup wait up to 5 s for its tools",
+          "source": "https://code.claude.com/docs/en/mcp",
+          "note": null
+        },
+        {
+          "text": "Claude Code: without tool search (custom `ANTHROPIC_BASE_URL`, `ENABLE_TOOL_SEARCH=false`, pre-4.5 Google models) Claude uses `WaitForMcpServers` and is not told about failed server connections",
+          "source": "https://code.claude.com/docs/en/mcp",
+          "note": null
+        },
+        {
+          "text": "Claude Agent SDK docs: 50 tools can use 10-20K tokens, selection accuracy degrades above 30-50 tools, tool search returns up to five tools per search and supports up to 10,000 tools",
+          "source": "https://code.claude.com/docs/en/agent-sdk/tool-search",
+          "note": null
+        },
+        {
+          "text": "Claude Code issue 40314 (v2.1.86, WSL): HTTP/streamable-HTTP MCP tools were not deferred despite `ENABLE_TOOL_SEARCH=auto:5`, loading 120.2k tokens (60% of a 200K window) from one gateway of about 250 tools; stdio MCP tools were deferred; closed not planned by the stale bot",
+          "source": "https://github.com/anthropics/claude-code/issues/40314",
+          "note": null
+        },
+        {
+          "text": "Anthropic: a five-server setup (GitHub 35 tools about 26K, Slack 11 about 21K, Sentry 5 about 3K, Grafana 5 about 3K, Splunk 2 about 2K) is 58 tools and about 55K tokens, Jira alone about 17K, and Anthropic saw 134K tokens of definitions before optimization",
+          "source": "https://www.anthropic.com/engineering/advanced-tool-use",
+          "note": null
+        },
+        {
+          "text": "Anthropic: with Tool Search Tool loading drops from about 77K to about 8.7K tokens (85% reduction), Opus 4 MCP-eval accuracy rises 49% to 74% and Opus 4.5 79.5% to 88.1%",
+          "source": "https://www.anthropic.com/engineering/advanced-tool-use",
+          "note": null
+        },
+        {
+          "text": "Anthropic API: tools marked `defer_loading: true` are discoverable on demand and a server-level `default_config` can defer a whole MCP server with per-tool overrides",
+          "source": "https://www.anthropic.com/engineering/advanced-tool-use",
+          "note": null
+        },
+        {
+          "text": "Cline discussion 8855: Cline can disable a whole MCP server (`disabled: true`) but not individual tools; `disabledTools`/`enabledTools` was requested for context and noise reduction",
+          "source": "https://github.com/cline/cline/discussions/8855",
+          "note": null
+        },
+        {
+          "text": "Cline MCP docs: servers are toggled on or off without deleting them via the MCP panel or `\"disabled\"` in the settings JSON",
+          "source": "https://docs.cline.bot/mcp/mcp-overview",
+          "note": null
+        },
+        {
+          "text": "Measured by a third party: seven AWS and other MCP servers cost 32k+ tokens of tool descriptions (AWS Cost Explorer 9.1k for 7 tools, Playwright 9.7k for 21, AWS Terraform 6.4k for 7); single tools range 387 to 2.7k tokens and disabling one tool (Terragrunt) saves 1.1k",
+          "source": "https://smcleod.net/2025/08/stop-polluting-context-let-users-disable-individual-mcp-tools/",
+          "note": null
+        },
+        {
+          "text": "mcp-compressor (Atlassian Labs, open source) is a proxy exposing `get_tool_schema` and `invoke_tool` (plus `list_tools` at max) with levels low, medium, high, max; on GitHub's 94-tool server it measured 17,600 tokens to about 3,900, 3,300, 2,200 and 500",
+          "source": "https://www.stackone.com/blog/mcp-token-optimization/",
+          "note": null
+        },
+        {
+          "text": "mcp-compressor also offers tool filters, TOON output, CLI and Code Mode generated clients, remote streamable-HTTP backends and OAuth, usable as `mcp-compressor -c medium -- <server command>`",
+          "source": "https://atlassian-labs.github.io/mcp-compressor/",
+          "note": null
+        },
+        {
+          "text": "Atlassian says its compressed interface is stable across turns, which helps prompt-cache behavior, and that the full schema stays available through `get_tool_schema` before a call",
+          "source": "https://www.atlassian.com/blog/development/mcp-compression-preventing-tool-bloat-in-ai-agents",
+          "note": null
+        },
+        {
+          "text": "StackOne comparison: search-first discovery adds about 50% more round trips per tool call; Speakeasy dynamic toolsets cut 400 tools from over 400,000 tokens to about 6,000 on a simple task and about 35,000 on a complex one",
+          "source": "https://www.stackone.com/blog/mcp-token-optimization/",
+          "note": null
+        },
+        {
+          "text": "Code-execution designs (Anthropic, Cloudflare Code Mode, StackOne) replace tool schemas and raw responses with one sandboxed code tool and are the only approach that cuts both schema and response bloat",
+          "source": "https://www.stackone.com/blog/mcp-token-optimization/",
+          "note": null
+        },
+        {
+          "text": "Inferred: because OpenCode sorts tools alphabetically and chat templates render tools before messages, removing or adding any one MCP server invalidates the server-side prompt cache from that server's first tool position onward, so the tool set should be fixed per profile rather than toggled per session",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Inferred: on a local server that implements neither tool search nor `defer_loading`, the only levers that work are fewer tools (per-agent scoping, `enabled: false`), a wrapper proxy that exposes a few meta-tools, or a plugin meta-tool, and wrapper meta-tools should be tried only with models whose tool calling is reliable",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Recommended minimal OpenCode profile for a local model: global `\"tools\": {\"*\": false}` is too blunt for MCP resource tools (301 tokens remain); better global `\"tools\": {\"<each server>_*\": false}` plus `agent.<name>.tools` enabling only the server that agent needs, and set `enabled: false` for servers not used at all",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Recommended core set measured at 3,260 tokens: bash, edit, read, write, glob, grep; adding task (854) and todowrite (645) costs 1.5k more and is worth it only when the model uses subagents or plans",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Recommended measuring method: set a separate `XDG_CONFIG_HOME` and `XDG_DATA_HOME`, point a provider at a capture server that returns HTTP 500, run `opencode run hi`, take the largest `tools` array in the captured bodies (the first body is the tool-less title request), and count tokens per name prefix",
+          "source": "asserted",
+          "note": null
+        }
+      ]
+    }
+  ],
+  "related": []
+}

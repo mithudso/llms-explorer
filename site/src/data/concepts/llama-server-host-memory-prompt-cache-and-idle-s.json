@@ -1,0 +1,204 @@
+{
+  "slug": "llama-server-host-memory-prompt-cache-and-idle-s",
+  "concept": "llama-server host-memory prompt cache and idle sleep unload",
+  "generated": "2026-10-05",
+  "summary": "On sleep, `handle_sleeping_state(true)` calls `destroy()`, which resets model, contexts and speculative state but leaves `prompt_cache` allocated.",
+  "facets": [
+    {
+      "title": "Facts",
+      "facts": [
+        {
+          "text": "On sleep, `handle_sleeping_state(true)` calls `destroy()`, which resets model, contexts and speculative state but leaves `prompt_cache` allocated.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "On wake, `handle_sleeping_state(false)` calls `load_model()`, which builds a fresh `server_prompt_cache(params_base.cache_ram_mib, n_ctx)`. The old object and every saved state in it are dropped.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Net effect in master as of 2026-09-23: RAM is held for the whole sleep and then discarded, so every client returning after the idle timeout re-prefills its whole prompt on top of the model reload.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "PR 29408 changes this: before `destroy()` it saves each live slot into the cache with `slot.prompt_save(*prompt_cache)` and `prompt_cache->update()`, and on wake it keeps the original cache instance.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "The cache itself (PR 16391) behaves like extra slots: the server computes prefix similarity against cached prompts and hot-swaps one into the `llama_context` when that reduces processing. It has two limits, a byte limit (`--cache-ram`) and a token limit that defaults to the context size.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "2025-10 (PR 16391, its base branch merged into master on 2025-10-08): host-memory prompt cache introduced; the same PR bumped default context checkpoints from 3 to 8 (master default is now 32).",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "2025-12 (PR 18228): `--sleep-idle-seconds` introduced.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "2026-09-23: issue 29322 reports the sleep/wake cache loss; 2026-09-24 a contributor claims it; 2026-09-25 PR 29408 opens (still open at fetch on 2026-10-04).",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Hybrid (Gated DeltaNet) models make each cache entry carry a large fixed state (about 300 MiB per entry in the report), so memory held during sleep is substantial.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "In router mode (`--models-preset`) each preset resolves to its own llama-server command line; the report's preset used `--cache-idle-slots --cache-ram -1 --sleep-idle-seconds 900`, so an unlimited cache was retained during every sleep.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "The README says sleep unloads \"the model and its associated memory (including the KV cache)\". The host prompt cache is not freed by that path.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Reporter's suggested fix: keep the existing cache across `load_model()` (valid because saved states are host buffers from `llama_state_seq_get_data_ext` for the same model and parameters), or at minimum release it in `destroy()` to free RAM during sleep.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "PR 29408's fix: keep the instance and also push live slot state into it before teardown. The two differ on whether live slots survive; the reporter's version would keep only what was already cached.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Whether PR 29408 merges, and whether a restored hybrid state is validated against changed parameters after a router-mode reload with different flags.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Whether on Apple Silicon a retained cache during sleep is acceptable: the cache lives in the same unified pool the unloaded weights would have returned (inferred, untested).",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Issue 29322 (opened 2026-09-23, build 11064, commit a894dae, Windows, RTX 5090, Qwen3.8-27B hybrid `qwen35`) reports that `handle_sleeping_state(true)` calls `destroy()` without resetting `prompt_cache`.",
+          "source": "https://github.com/ggml-org/llama.cpp/issues/29322",
+          "note": null
+        },
+        {
+          "text": "The same issue reports that `handle_sleeping_state(false)` calls `load_model()`, which runs `prompt_cache = std::make_unique<server_prompt_cache>(params_base.cache_ram_mib, n_ctx)` and drops the previous cache and all saved states.",
+          "source": "https://github.com/ggml-org/llama.cpp/issues/29322",
+          "note": null
+        },
+        {
+          "text": "Minimal repro in 29322 is `llama-server -m <model>.gguf --cache-ram 8192 --sleep-idle-seconds 60`.",
+          "source": "https://github.com/ggml-org/llama.cpp/issues/29322",
+          "note": null
+        },
+        {
+          "text": "In the 29322 log, two prompts returned from the cache with 4 tokens processed before sleep and with 3974 and 3624 tokens processed after the wake.",
+          "source": "https://github.com/ggml-org/llama.cpp/issues/29322",
+          "note": null
+        },
+        {
+          "text": "The 29322 log marks the cycle with `srv handle_sleep: server is entering sleeping state`, `srv handle_sleep: server is exiting sleeping state` and `srv load_model: loading model '...'`.",
+          "source": "https://github.com/ggml-org/llama.cpp/issues/29322",
+          "note": null
+        },
+        {
+          "text": "The 29322 reporter estimates a full re-prefill of a 100k-token agent session costs about a minute on an RTX 5090, plus the model reload.",
+          "source": "https://github.com/ggml-org/llama.cpp/issues/29322",
+          "note": null
+        },
+        {
+          "text": "With hybrid models each prompt-cache entry carries about 300 MiB of fixed state in the 29322 setup.",
+          "source": "https://github.com/ggml-org/llama.cpp/issues/29322",
+          "note": null
+        },
+        {
+          "text": "The 29322 router-mode preset used `--parallel 4 --kv-unified --kv-unified-per-slot 49152 --ctx-size 196608 --cache-type-k q8_0 --cache-type-v q8_0 --cache-idle-slots --cache-ram -1 --sleep-idle-seconds 900`.",
+          "source": "https://github.com/ggml-org/llama.cpp/issues/29322",
+          "note": null
+        },
+        {
+          "text": "The 29322 reporter proposes `if (!prompt_cache && params_base.cache_ram_mib != 0) prompt_cache = std::make_unique<...>(...)` in `load_model()`, or releasing the cache in `destroy()` to free RAM while asleep.",
+          "source": "https://github.com/ggml-org/llama.cpp/issues/29322",
+          "note": null
+        },
+        {
+          "text": "PR 29408 \"server: save prompt cache when server enters sleep mode\" (fixes 29322, opened 2026-09-25) saves each live slot into the prompt cache before `destroy()` and retains the cache instance on wake.",
+          "source": "https://github.com/ggml-org/llama.cpp/pull/29408",
+          "note": null
+        },
+        {
+          "text": "PR 29408 adds a unit test named `test_server_sleep_prompt_cache` in `test_sleep.py`.",
+          "source": "https://github.com/ggml-org/llama.cpp/pull/29408",
+          "note": null
+        },
+        {
+          "text": "Issue 29322 was labelled bug-unconfirmed and a contributor stated on 2026-09-24 that they were working on it.",
+          "source": "https://github.com/ggml-org/llama.cpp/issues/29322",
+          "note": null
+        },
+        {
+          "text": "PR 16391 describes the host-memory prompt cache as \"extra slots\" used to compute prefix similarity and hot-swap into the `llama_context` when it reduces processing, stored in regular RAM.",
+          "source": "https://github.com/ggml-org/llama.cpp/pull/16391",
+          "note": null
+        },
+        {
+          "text": "PR 16391 gives the cache two limits: a size in bytes via `--cache-ram`/`-cram`, and a maximum cached token count that defaults to `--context-size`.",
+          "source": "https://github.com/ggml-org/llama.cpp/pull/16391",
+          "note": null
+        },
+        {
+          "text": "PR 16391 documents `-cram -1` as \"as much host RAM as is available\" and `-cram 0` as disabling the RAM cache.",
+          "source": "https://github.com/ggml-org/llama.cpp/pull/16391",
+          "note": null
+        },
+        {
+          "text": "PR 16391 raised the default number of context checkpoints from 3 to 8.",
+          "source": "https://github.com/ggml-org/llama.cpp/pull/16391",
+          "note": null
+        },
+        {
+          "text": "PR 16391 states that mtmd workarounds make `server_tokens` non-copyable, so prompt caching was incompatible with mtmd at the time of the PR.",
+          "source": "https://github.com/ggml-org/llama.cpp/pull/16391",
+          "note": null
+        },
+        {
+          "text": "The PR 16391 author said a single slot can now serve an agent without thrashing the prompt cache, and asked for testing with agents that interleave auxiliary calls (keyword extraction, summarization) between large-context requests.",
+          "source": "https://github.com/ggml-org/llama.cpp/pull/16391",
+          "note": null
+        },
+        {
+          "text": "A b9354 server log prints `prompt cache is enabled, size limit: 2048 MiB`, `use --cache-ram 0 to disable the prompt cache` and `idle slots will be saved to prompt cache and cleared upon starting a new task`.",
+          "source": "https://github.com/ggml-org/llama.cpp/issues/24055",
+          "note": null
+        },
+        {
+          "text": "Each prompt-cache update logs `cache state: N prompts, X MiB (limits: <bytes> MiB, <tokens> tokens, <bytes> est)`, for example `0 prompts, 0.000 MiB (limits: 2048.000 MiB, 32768 tokens, 2147483648 est)`.",
+          "source": "https://github.com/ggml-org/llama.cpp/issues/24055",
+          "note": null
+        },
+        {
+          "text": "Inferred: on a Mac, `--sleep-idle-seconds` combined with a large `--cache-ram` keeps host RAM pinned while the weights are unloaded, so the sleep frees less memory than the README implies until the cache is also released.",
+          "source": "asserted",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Corrections and disagreements",
+      "facts": [
+        {
+          "text": "CONTRADICTS: prompt-cache-survival-across-model-unload-swap-and-restart.md line \"sleep unloads the model and its KV cache\" implies host cache is freed; in master the `prompt_cache` object stays allocated during sleep and is discarded only on wake.",
+          "source": "https://github.com/ggml-org/llama.cpp/issues/29322",
+          "note": null
+        }
+      ]
+    }
+  ],
+  "related": []
+}

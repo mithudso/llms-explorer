@@ -1,0 +1,404 @@
+{
+  "slug": "continuous-batching-on-mlx",
+  "concept": "Continuous batching on MLX",
+  "generated": "2026-10-05",
+  "summary": "Decode is bandwidth-bound at batch 1; each added sequence reuses the same weight reads, so aggregate throughput scales sub-linearly and saturates when compute or bandwidth is full.",
+  "facets": [
+    {
+      "title": "Facts",
+      "facts": [
+        {
+          "text": "Decode is bandwidth-bound at batch 1; each added sequence reuses the same weight reads, so aggregate throughput scales sub-linearly and saturates when compute or bandwidth is full.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "vllm-mlx scheduler: pending queue, active batch with a max batch size M; new requests are admitted at token boundaries; completed requests exit immediately (Algorithm 1 of the paper).",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "llama-server slot model: `--parallel N` is a slot count; each slot has its own KV region and decode state; decode steps from different slots merge into one forward pass; a single request gains nothing from more slots.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "`--batch-size` (logical) and `--ubatch-size` (physical, one Metal dispatch) govern prefill; ubatch is the one that most often moves Apple prefill throughput.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Memory per slot in llama-server: weights + slots x ctx_per_slot x bytes_per_token + activations + DeltaNet state. For hybrid Qwen3.6-27B attention KV is about 64 KB per token (about 4 GB per 64K-context slot); Qwen3.5-9B about 32 KB per token. DeltaNet recurrent state is a small fixed per-slot allocation that does not grow with length.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "vllm-mlx memory knobs: `--max-num-seqs` (default 256, which the author says would blow up KV), `--max-cache-blocks` (64-token blocks; 16384 blocks = about 30 GB pool), `--cache-memory-mb`, `--kv-cache-quantization-bits 8`.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "vllm-mlx has two prefix caches by engine: text models use the paged cache (sized by `--max-cache-blocks`, ignores `--cache-memory-mb`); multimodal models use a memory-aware cache sized by `--cache-memory-mb`, 30 GB per resident multimodal engine.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "oMLX: BatchedEngine over mlx-lm BatchGenerator, FCFS scheduler, `--max-concurrent-requests` default 8, PagedCacheManager (GPU, block, copy-on-write, prefix sharing) plus PagedSSDCacheManager.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "oMLX started from vllm-mlx v0.1.0; Rapid-MLX is the renamed vllm-mlx lineage (renamed 2026-03-13 per its README) and is a separate project from waybarrios/vllm-mlx; the vllm-mlx maintainers' paper is arXiv 2601.19139.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "mlx-lm server batching existed by v0.31.0 (issue 965 reproduces on it, Mar 2026); a late-binding checkpoint bug (PR 976, closed 2026-03-10, shipped v0.31.2) caused cross-request contamination.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "mlx-examples issue 1198 (Jan 2025) asked mlx-lm for Ollama-v0.2-style concurrent requests; still open, cited in Mar 2026 by a user who put a priority-queue proxy (sluice) in front of mlx-lm servers after Metal resource-limit errors from concurrent requests.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "LM Studio's own parallel-requests doc page still says \"MLX coming soon\" while its changelog shows MLX batching in 0.4.2; the page is stale.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "mlx-lm 0.31.0 issue 965: with 16 concurrent tool-calling requests (Qwen3.5-0.8B-8bit, M3 Ultra 192 GB) answers leaked between prompts; restraint score fell from 1.000 sequential to 0.400, agent score 0.727 to 0.456, while throughput looked like 1,300 tok/s. Fixed by PR 976. Lesson: throughput numbers do not prove output correctness; check outputs after upgrades.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "mlx_lm.server is deterministic: identical prompt and params give byte-identical output, sequential or concurrent. A per-request `seed` does not help because `mx.random.seed()` is process-global, a batch shares it, and a seeded request is excluded from batching. Workaround for maj@k sampling: vary a system preamble per sample (batch survives).",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "vllm-mlx `--enable-mtp` under batching: the draft head samples greedily regardless of temperature, and acceptance is all-or-nothing across the batch, so one request's disagreement discards every other request's drafts and hit rate falls as fan-out widens; `--mtp-optimistic` skips checks.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "vllm-mlx MTP for multimodal batched scheduler is greedy-only and used only when the active batch has one request, temperature 0, top_p 1.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Default vllm-mlx mode is \"simple\": one request at a time; `--continuous-batching` must be passed explicitly.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Ollama on MLX: the safe released workaround for concurrency is a GGUF tag on the llama.cpp path, verified by checking that two requests overlap in wall clock; raising OLLAMA_NUM_PARALLEL from 4 to 8 proves nothing. Env vars set in a terminal do not reach the Ollama macOS app (use launchctl and restart).",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "llama-server explicit `--parallel N` with static partition: `--ctx-size 32768 --parallel 8` leaves 4,096 tokens per slot; an 8,000-token system prompt then truncates or fails every request.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Multi-process llama-server on one Mac contends for the same bandwidth and GPU; one process with sensible slots beats it. When a single node saturates, scale by nodes with sticky-session routing so prefix caches hit.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "llama-server `id_slot` request parameter pins a prompt template to a slot for guaranteed cache hits after pre-warming; `--cache-ram` (default 8 GB, PR 16391) spills prefixes to host RAM.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "vllm-mlx registry `memory_budget_gb` counts weights only; multimodal prefix caches add on top (see macos-wired-memory-limit file for the OOM consequence).",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "vllm-mlx scaling at 16 concurrent. Paper (M4 Max 128 GB, 4-bit): Qwen3-0.6B 441 to 1642 tok/s = 3.7x; Qwen3-8B 2.6x. A Towards AI summary and the paper's own contributions line state 4.3x at 16 concurrent. Same project, two figures; the paper's measured table gives 3.7x for the smallest model, so 4.3x is not reproduced in the body text.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "oMLX vs mlx-lm batching. Hannecke (M4 Max 64 GB, gemma-4-31b-it-4bit, mlx-lm 0.31.3, oMLX 0.4.4, single run): mlx-lm 2.12x at 4 requests vs oMLX 1.23x. Rapid-MLX project bench (M4 Pro 48 GB, Qwen3.5-9B-4bit, vendor-run): oMLX 97.1 vs mlx-lm 96.6 tok/s at 4 streams, Rapid-MLX 68.3 third. Different models, hardware, versions; neither shows oMLX beating mlx-lm on batching, and oMLX's measured advantage is restart resilience (SSD cache), not batching.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "MLX vs llama.cpp as a multi-slot server. Hannecke (Apr-2026-era article, 64 GB M4 Max): MLX ecosystem \"less mature\" than llama-server for multi-slot continuous batching, benchmark per model. LM Studio-adjacent writer (Hannecke router article): since MLX batching in 0.4.2 \"the concurrency advantage llama.cpp held is neutralized for most\" workloads. Both from the same author at different times.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Is plain Rapid-MLX good at concurrency? Vendor's own compare page reports it losing at 4 streams on 48 GB (68.3 vs 97.1) while its README headline is 3.0x Ollama at 8 streams; the comparator differs (Ollama serial vs oMLX batched).",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "No independent measurement found of per-slot memory growth for mlx-lm BatchGenerator at long context (only llama-server arithmetic and LM Studio's -82% idle-cache result).",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Whether Ollama PR 17317 shipped in a release after 2026-08-14 is unverified here.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Aggregate-vs-per-request curves for MoE models under mlx-lm batching beyond oMLX DeepSeek-V4-Flash are not published in sources read.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Continuous batching on MLX lets new requests join at token boundaries and finished ones exit without blocking the batch (vllm-mlx Algorithm 1).",
+          "source": "https://arxiv.org/html/2601.19139v2",
+          "note": null
+        },
+        {
+          "text": "vllm-mlx on M4 Max 128 GB, 4-bit, single stream: Qwen3-0.6B 525.5, Qwen3-4B 159.0, Qwen3-8B 93.3, Qwen3-30B-A3B 109.7, Nemotron-30B-A3B 121.8 tok/s versus llama.cpp 281.5, 118.2, 76.9, 89.9, 85.1.",
+          "source": "https://arxiv.org/html/2601.19139v2",
+          "note": null
+        },
+        {
+          "text": "In that paper's table mlx-lm and vllm-metal are close to vllm-mlx on the 30B-A3B MoE (107.4 and 110.3 versus 109.7 tok/s), so the advantage there is mostly vs llama.cpp (1.17x).",
+          "source": "https://arxiv.org/html/2601.19139v2",
+          "note": null
+        },
+        {
+          "text": "vllm-mlx Qwen3-0.6B scales from 441 tok/s single to 1642 tok/s at 16 concurrent (3.7x) and handles over 25 requests per second; Qwen3-8B scales 2.6x; the authors attribute the weaker scaling to memory-bandwidth saturation.",
+          "source": "https://arxiv.org/html/2601.19139v2",
+          "note": null
+        },
+        {
+          "text": "The paper's stated limitations include no speculative decoding, no distributed inference and no energy profiling in the evaluated version.",
+          "source": "https://arxiv.org/html/2601.19139v2",
+          "note": null
+        },
+        {
+          "text": "vllm-mlx default serve mode processes one request at a time; batching requires `--continuous-batching`, and the docs call per-request overhead in batch mode \"small\".",
+          "source": "https://github.com/waybarrios/vllm-mlx/blob/main/docs/guides/continuous-batching.md",
+          "note": null
+        },
+        {
+          "text": "vllm-mlx `--use-paged-cache` adds memory-efficient prefix sharing on top of continuous batching.",
+          "source": "https://github.com/waybarrios/vllm-mlx/blob/main/docs/guides/continuous-batching.md",
+          "note": null
+        },
+        {
+          "text": "vllm-mlx ships `vllm-mlx bench-serve --concurrency N` for load tests.",
+          "source": "https://github.com/waybarrios/vllm-mlx",
+          "note": null
+        },
+        {
+          "text": "vllm-mlx `--max-num-seqs` default is 256, which the user-facing guide says would explode KV; one 128 GB Mac Studio config used 16.",
+          "source": "https://danmackinlay.name/notebook/local_llm_mac.html",
+          "note": null
+        },
+        {
+          "text": "vllm-mlx paged cache blocks are 64 tokens; 16384 blocks give about a 30 GB pool; the author had earlier set 80 GB and risked OOM.",
+          "source": "https://danmackinlay.name/notebook/local_llm_mac.html",
+          "note": null
+        },
+        {
+          "text": "vllm-mlx text models use the paged prefix cache and ignore `--cache-memory-mb`; multimodal models use a memory-aware cache sized by `--cache-memory-mb`, once per resident multimodal engine, which the 0.4.1 startup memory check does not count.",
+          "source": "https://danmackinlay.name/notebook/local_llm_mac.html",
+          "note": null
+        },
+        {
+          "text": "vllm-mlx registry contention policies are fail, wait, preempt, wait_then_fail, wait_then_preempt, with lazy model load and LRU eviction under `memory_budget_gb`.",
+          "source": "https://danmackinlay.name/notebook/local_llm_mac.html",
+          "note": null
+        },
+        {
+          "text": "vllm-mlx `--enable-mtp` draft head samples greedily at any temperature and acceptance is all-or-nothing across the batch, so hit rate falls as fan-out widens.",
+          "source": "https://danmackinlay.name/notebook/local_llm_mac.html",
+          "note": null
+        },
+        {
+          "text": "vllm-mlx MLLM MTP is used only when the active batch has exactly one request, temperature 0 and top_p 1.",
+          "source": "https://github.com/waybarrios/vllm-mlx/blob/main/docs/guides/continuous-batching.md",
+          "note": null
+        },
+        {
+          "text": "mlx-lm server on VibeThinker-3B-8bit: 58 tok/s at k=1, 146 tok/s aggregate at k=4 using `--decode-concurrency` and `--prompt-concurrency` (about 2.5x).",
+          "source": "https://danmackinlay.name/notebook/local_llm_mac.html",
+          "note": null
+        },
+        {
+          "text": "mlx_lm.server outputs are deterministic across sequential and concurrent runs; per-request seed does not help because `mx.random.seed()` is process-global and a seeded request is excluded from batching.",
+          "source": "https://danmackinlay.name/notebook/local_llm_mac.html",
+          "note": null
+        },
+        {
+          "text": "mlx_lm.server has no `--ctx` flag and grows KV to fit whatever is sent, so harness-side context caps are needed.",
+          "source": "https://danmackinlay.name/notebook/local_llm_mac.html",
+          "note": null
+        },
+        {
+          "text": "mlx-lm issue 965 (v0.31.0, M3 Ultra 192 GB, Qwen3.5-0.8B-8bit): 16 concurrent tool-calling requests cross-contaminated answers; restraint score 1.000 sequential versus 0.400 concurrent, agent score 0.727 to 0.456 while throughput read about 1,300 tok/s.",
+          "source": "https://github.com/ml-explore/mlx-lm/issues/965",
+          "note": null
+        },
+        {
+          "text": "Issue 965 was closed as completed by PR 976 on 2026-03-10 (\"Late binding caused incorrect cache checkpoint\"), released in mlx-lm v0.31.2.",
+          "source": "https://github.com/ml-explore/mlx-lm/issues/965",
+          "note": null
+        },
+        {
+          "text": "mlx-examples issue 1198 (opened 2025-01-09, still open) asks for graceful concurrent requests; a 2026-03-01 commenter running two mlx-lm servers on a Mac mini M4 Pro saw `[metal::malloc] Resource limit exceeded` or kernel panic under concurrent load and fixed it by serializing through a priority-queue proxy (sluice) for 30 days.",
+          "source": "https://github.com/ml-explore/mlx-examples/issues/1198",
+          "note": null
+        },
+        {
+          "text": "oMLX default `--max-concurrent-requests` is 8; its scheduler is FCFS over mlx-lm BatchGenerator, and VLMs share the same continuous batching and tiered KV stack as text LLMs.",
+          "source": "https://github.com/jundot/omlx",
+          "note": null
+        },
+        {
+          "text": "oMLX KV blocks are paged with prefix sharing and copy-on-write across a GPU tier and an SSD tier.",
+          "source": "https://github.com/jundot/omlx",
+          "note": null
+        },
+        {
+          "text": "oMLX cluster profiles (interactive, balanced, throughput) expose coalesced batching, prompt-cache affinity and rotating-KV limits for pipeline-sharded multi-Mac serving.",
+          "source": "https://github.com/jundot/omlx",
+          "note": null
+        },
+        {
+          "text": "Hannecke test (Mac Studio M4 Max 64 GB, gemma-4-31b-it-4bit, mlx-lm 0.31.3, oMLX 0.4.4, single run): warm prefill TTFT 3.45 s vs 3.65 s and decode 22 vs 25 tok/s are ties; at 4 concurrent requests mlx-lm scaled 2.12x and oMLX 1.23x.",
+          "source": "https://medium.com/macoclock/mlx-lm-vs-omlx-i-was-wrong-about-the-winner-8f36be328069",
+          "note": null
+        },
+        {
+          "text": "In that test oMLX true cold start was slower than mlx-lm (64 s vs 32 s) but its post-restart latency was much better; the oMLX SSD cache persists across benchmark runs so `~/.omlx/cache` must be cleared for a true cold measurement.",
+          "source": "https://medium.com/macoclock/mlx-lm-vs-omlx-i-was-wrong-about-the-winner-8f36be328069",
+          "note": null
+        },
+        {
+          "text": "Rapid-MLX matrix: LM Studio and oMLX and Rapid-MLX use continuous batching; mlx-lm batches only without a quantized KV cache; Ollama exposes parallel slots \"not for every architecture\".",
+          "source": "https://github.com/raullenchai/Rapid-MLX",
+          "note": null
+        },
+        {
+          "text": "Rapid-MLX 3.0x claim was measured on a 32 GB M2 Pro Mac mini (Rapid-MLX 0.12.11 vs Ollama 0.32.7); including prefill the whole-batch gain was 1.6x, single-stream decode about 1.5x, and a dense 12B model was no faster.",
+          "source": "https://github.com/raullenchai/Rapid-MLX",
+          "note": null
+        },
+        {
+          "text": "Rapid-MLX project's own 4-stream test on M4 Pro 48 GB ranked oMLX 97.1, mlx-lm 96.6, Rapid-MLX 68.3, Ollama 37.4 tok/s (serial); its first published version wrongly said Ollama's four streams ran in parallel.",
+          "source": "https://rapidmlx.com/compare",
+          "note": null
+        },
+        {
+          "text": "Rapid-MLX run 1 (18 GB) was withdrawn after review found thinking off by default for Rapid-MLX only, fixed engine order, and an overlapping server shutdown.",
+          "source": "https://rapidmlx.com/compare",
+          "note": null
+        },
+        {
+          "text": "Rapid-MLX's quantized live KV cache (int4/int8, TurboQuant K8V4) is documented on its continuous-batching cache, and it keeps DeltaNet RNN snapshots in its radix prefix cache.",
+          "source": "https://github.com/raullenchai/Rapid-MLX",
+          "note": null
+        },
+        {
+          "text": "llama-server `--parallel N` is a slot count; each slot has its own KV region, decode state and optional persisted history; more slots help only when concurrent traffic exists.",
+          "source": "https://medium.com/@michael.hannecke/tuning-llama-server-on-apple-silicon-9b3e778ab100",
+          "note": null
+        },
+        {
+          "text": "llama-server `--ubatch-size` is the physical Metal dispatch size and is frequently the flag that moves Apple prefill throughput; `--batch-size` is the logical prefill chunk.",
+          "source": "https://medium.com/@michael.hannecke/tuning-llama-server-on-apple-silicon-9b3e778ab100",
+          "note": null
+        },
+        {
+          "text": "llama-server's `--kv-unified` default is on only when slots are auto; recommended practice is to set `--parallel` explicitly and choose static partition or unified deliberately.",
+          "source": "https://medium.com/@michael.hannecke/tuning-llama-server-on-apple-silicon-9b3e778ab100",
+          "note": null
+        },
+        {
+          "text": "Hybrid Qwen3.6-27B at about 64 KB per token attention KV costs about 4 GB per 64K-context slot (roughly eight such slots in a 56 GB working budget on a 64 GB M4 Max); Qwen3.5-9B at 32 KB per token allows more.",
+          "source": "https://medium.com/@michael.hannecke/tuning-llama-server-on-apple-silicon-9b3e778ab100",
+          "note": null
+        },
+        {
+          "text": "Qwen3-32B dense at `--parallel 8` with 16k context would need about 32 GB KV; the 27B hybrid at 16 slots needs about 16 GB, so on hybrids KV is no longer the binding constraint and bandwidth is.",
+          "source": "https://medium.com/@michael.hannecke/tuning-llama-server-on-apple-silicon-9b3e778ab100",
+          "note": null
+        },
+        {
+          "text": "Starved-slot symptoms are evictions or refused requests; a bandwidth-bound server shows flat high GPU utilization with plateaued aggregate throughput (check `powermetrics --samplers gpu_power`).",
+          "source": "https://medium.com/@michael.hannecke/tuning-llama-server-on-apple-silicon-9b3e778ab100",
+          "note": null
+        },
+        {
+          "text": "Smaller models saturate bandwidth later and serve more aggregate tokens per second (9B beats 27B on aggregate; 27B gives stronger responses per token).",
+          "source": "https://medium.com/@michael.hannecke/tuning-llama-server-on-apple-silicon-9b3e778ab100",
+          "note": null
+        },
+        {
+          "text": "Spec decoding on hybrids needs DeltaNet recurrent state to roll back on rejected drafts, an active area in llama.cpp.",
+          "source": "https://medium.com/@michael.hannecke/tuning-llama-server-on-apple-silicon-9b3e778ab100",
+          "note": null
+        },
+        {
+          "text": "LM Studio docs page \"Parallel Requests\" still says MLX is \"coming soon\" and requires llama.cpp runtime 2.0.0, which is stale relative to the 0.4.2 changelog.",
+          "source": "https://lmstudio.ai/docs/app/advanced/parallel-requests",
+          "note": null
+        },
+        {
+          "text": "On LM Studio 0.4.0 or 0.4.1 the MLX backend processes requests sequentially; 0.4.2 (Feb 2026) adds MLX continuous batching, and VLM batching may lag text.",
+          "source": "https://medium.com/@michael.hannecke/the-same-router-better-backend-multi-model-routing-with-lm-studio-and-apples-mlx-78f53b2aabbb",
+          "note": null
+        },
+        {
+          "text": "LM Studio's mlx-engine concurrency benchmark is vendor-run on four short chat requests at parallel=4; \"active sequences still need to stay resident\", only inactive prompt-cache records move out of RAM.",
+          "source": "https://lmstudio.ai/blog/mlx-engine-agentic-workloads",
+          "note": null
+        },
+        {
+          "text": "Ollama documents that parallel requests raise memory use because effective context allocation grows with the parallel count.",
+          "source": "https://www.popularai.org/p/ollama-num-parallel-mac-mlx",
+          "note": null
+        },
+        {
+          "text": "Ollama PR 17317 gates MLX completions with a semaphore, adds MultiSeq caches, and a follow-up commit extends fused decode to rotating and recurrent caches (Qwen3.5-style hybrids) with a coarser load-fit check; prefills stay single-sequence.",
+          "source": "https://github.com/ollama/ollama/pull/17317",
+          "note": null
+        },
+        {
+          "text": "Issue 17280's reporter ran Qwen3 MoE mxfp8 on a 128 GB Mac with OLLAMA_NUM_PARALLEL=8 and saw wall time about N x single-request time, while a GGUF embedding model on the same server did batch.",
+          "source": "https://github.com/ollama/ollama/issues/17280",
+          "note": null
+        },
+        {
+          "text": "WWDC26 session 232 frames the use case: an agent spawns several subagents in parallel, and MLX groups incoming requests into batches that new requests can join in progress.",
+          "source": "https://developer.apple.com/videos/play/wwdc2026/232/",
+          "note": null
+        },
+        {
+          "text": "Recommended settings synthesis (single user, one agent): leave batching on but expect no gain; for 4 to 16 subagents use mlx-lm server, oMLX or LM Studio 0.4.2+ with 4 to 8 slots, cap context per request, avoid `--kv-bits` and draft models since they disable batching in mlx-lm.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "When the hardware is bandwidth-bound and the model is small, concurrency is nearly free aggregate throughput; for large dense models gains flatten near 2 to 3x.",
+          "source": "asserted",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Corrections and disagreements",
+      "facts": [
+        {
+          "text": "CONTRADICTS: Towards AI and the paper's contribution list say 4.3x aggregate at 16 concurrent, while the paper's measured Figure 2 text gives 3.7x (0.6B) and 2.6x (8B); existing dossiers hold only the 87 to 215 tok/s (2.6x) figure.",
+          "source": "https://pub.towardsai.net/i-ran-claude-code-on-my-macbook-with-vllm-mlx-it-embarrassed-llama-cpp-by-87-093e8c777826",
+          "note": null
+        }
+      ]
+    }
+  ],
+  "related": []
+}

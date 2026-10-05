@@ -1,0 +1,219 @@
+{
+  "slug": "ollama-qwen3-5-mtp-loader-and-selfdraft-path",
+  "concept": "Ollama qwen3_5 MTP loader and SelfDraft path",
+  "generated": "2026-10-05",
+  "summary": "MLX loader: the Qwen3.5 loader keeps the `mtp.*` tensors instead of freeing them and implements `Draft` to propose one token per step. The head is enabled only by the tensors being present. A model whose head ships inline with the target weights is its own draft through `SelfDraft`, which returns...",
+  "facets": [
+    {
+      "title": "Facts",
+      "facts": [
+        {
+          "text": "MLX loader: the Qwen3.5 loader keeps the `mtp.*` tensors instead of freeing them and implements `Draft` to propose one token per step. The head is enabled only by the tensors being present. A model whose head ships inline with the target weights is its own draft through `SelfDraft`, which returns the head or nil when the checkpoint shipped none.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Interfaces (`mlxrunner/model/model.go`): `Model.Forward` returns both the hidden state to unembed and the \"draft-conditioning\" state (plain models return the final hidden for both); `DraftModel` has `LoadWeights`, `NewCaches`, `Forward(b, targetCaches, draftCaches)` and `Unembed`; `BlockDraft` adds block length and mask token for block-diffusion drafters; drafts register by architecture name and unsupported ones fail with `unsupported draft architecture`.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "MTP drafting: a persistent `mtpDrafter` is built at model load and opens a session per request. The draft KV pairs slot S with the look-ahead token at S+1 fused with the target hidden at S, so a pair completes only when the next token arrives. Pending pairs flush in batches of up to 256 tokens.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Prefix cache: the cache trie is keyed by token pairs (look-ahead 1) so a prefix match also verifies the paired token, and a restored prefix arrives with draft caches already written.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Depth control: a controller picks the draft depth that maximizes committed tokens per wall-clock second from live per-position acceptance and per-width forward cost, with depth 0 (plain decode) as the floor; it probes one past its choice every 4 rounds, backing off to every 512, and keeps its state across requests.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Verification: one target forward per decode step over the current token plus drafts, and one host sync per round; sampling honors any temperature, penalty and top-k/p/min-p, with logprobs the only gated feature.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "GGUF launcher: MTP turns on automatically when no draft model path is set and the GGUF has `nextn_predict_layers > 0` or (legacy) architecture `qwen35`/`qwen35moe` with `mtp.`-prefixed tensors. Flags: `--spec-type draft-mtp`, `--spec-draft-n-max <DraftNumPredict>` only when above zero, `--spec-draft-backend-sampling` for MTP only.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "0.32.6 (early August 2026): MLX engine uses the Qwen3.5 MTP head automatically (existing dossier).",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "July 2026 commit series on the MLX runner: unify greedy and sampled MTP paths, one target forward per step, one host sync per round, depth controller replacing the heuristic schedule and removing the `OLLAMA_MLX_MTP_*` environment variables, flush cap raised to 256, trie keyed by token pairs, conv boundary states computed from one pass, qwen3_5 image input with the head scattering image features.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "A cancelled stream used to panic with a slice-bounds error in `close()` because the accepted run was streamed before being recorded in `session.outputs`; the fix records the whole run first. The same bug existed on main.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Recurrent conv boundary slices pinned the whole forward buffer, so recurrent cache memory piled up across requests and eviction could not reclaim it (issue 16698); boundary states are now compacted.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "A draft that reuses its embedding as output projection (the gemma4 assistant) read a 537 MB bf16 tensor every step; quantizing the draft output head lifted `gemma4:26b-mlx` MTP code decode from 148 to 157 tok/s on an M5 Max.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Quantization or conversion that shifts the head's norms twice gives near-zero acceptance (existing dossier).",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Where the qwen3_5 model implementation lives on main: `model/models/qwen3_5`, `x/models/qwen3_5`, `mlxrunner/models` and `models` all return 404 in the cached tree pages.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Whether `SelfDraft` is wired for the GGUF path (no; that path delegates to llama-server).",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Acceptance and speed on Qwen3.5 MLX versus llama-server `draft-mtp` on the same Mac.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "`SelfDraft` is an interface with one method, `SelfDraft() DraftModel`, implemented by \"models whose draft head ships inline with the target weights\"; it \"returns the head, or nil when the checkpoint shipped none\".",
+          "source": "https://raw.githubusercontent.com/ollama/ollama/main/mlxrunner/model/model.go",
+          "note": null
+        },
+        {
+          "text": "`Model.Forward` returns `(hidden, auxHidden)` where aux is \"the state a draft model conditions on\" and \"plain models return the final hidden for both\".",
+          "source": "https://raw.githubusercontent.com/ollama/ollama/main/mlxrunner/model/model.go",
+          "note": null
+        },
+        {
+          "text": "`DraftModel.LoadWeights` does nothing for an inline head because \"its weights load with the target's\".",
+          "source": "https://raw.githubusercontent.com/ollama/ollama/main/mlxrunner/model/model.go",
+          "note": null
+        },
+        {
+          "text": "`NewDraft` reads the draft config from the manifest (default path `draft/config.json`), takes the architecture from `root.Draft.Architecture`, then `architectures[0]`, then `model_type`, and errors with `unsupported draft architecture` when none is registered.",
+          "source": "https://raw.githubusercontent.com/ollama/ollama/main/mlxrunner/model/model.go",
+          "note": null
+        },
+        {
+          "text": "The PR 17203 commit list contains \"qwen3_5: load and run the MTP head as a speculative draft\": it loads the head from `mtp.*` tensors instead of freeing them, implements `Draft` to propose one token per step, gates \"solely on the tensors being present\", and says a model whose head ships inline is its own draft \"via base.SelfDraft\".",
+          "source": "https://github.com/ollama/ollama/pull/17203",
+          "note": null
+        },
+        {
+          "text": "PR 17203's page is titled as an agent skills-system pull request but carries a long list of merged commits, including the MTP runner series.",
+          "source": "https://github.com/ollama/ollama/pull/17203",
+          "note": null
+        },
+        {
+          "text": "`mtpPendingFlushTokens` is 256, the draft limit of the MTP drafter is unbounded (`draftLimit()` returns 0), and the MTP head makes one call per draft token.",
+          "source": "https://raw.githubusercontent.com/ollama/ollama/main/mlxrunner/mtp.go",
+          "note": null
+        },
+        {
+          "text": "The MTP draft KV pairs slot S with the look-ahead token at S+1 fused with the target hidden at S, and a restored prefix resumes pairing from the draft caches' absolute offset.",
+          "source": "https://raw.githubusercontent.com/ollama/ollama/main/mlxrunner/mtp.go",
+          "note": null
+        },
+        {
+          "text": "The depth controller drafts `argmax_N committed(N)/cost(N)` from depth 0 (plain decode) up to one past the acceptance frontier, probes one deeper every 4 rounds (`depthProbeInterval`), and backs off to at most 512 rounds.",
+          "source": "https://raw.githubusercontent.com/ollama/ollama/main/mlxrunner/speculate_depth.go",
+          "note": null
+        },
+        {
+          "text": "The depth controller's cost curve, per-position acceptance, probe cadence and scheduled depth persist across requests.",
+          "source": "https://raw.githubusercontent.com/ollama/ollama/main/mlxrunner/speculate_depth.go",
+          "note": null
+        },
+        {
+          "text": "The commit \"choose the speculative draft length to maximize throughput\" replaced a heuristic schedule that grew toward a fixed cap, removed the `OLLAMA_MLX_MTP_*` environment variables, and fixes a regression below no speculation on a steep-forward target.",
+          "source": "https://github.com/ollama/ollama/pull/17203",
+          "note": null
+        },
+        {
+          "text": "The commit \"unify the MTP decode paths\" makes MTP honor any temperature, penalty and top-k, top-p and min-p setting, leaving logprobs as the only gated feature.",
+          "source": "https://github.com/ollama/ollama/pull/17203",
+          "note": null
+        },
+        {
+          "text": "The commit \"run one target forward per MTP decode step\" fuses the base-logits pass and the validation pass into one forward over `[current, draft_0..draft_{N-1}]`, and another commit resolves each round with one host sync.",
+          "source": "https://github.com/ollama/ollama/pull/17203",
+          "note": null
+        },
+        {
+          "text": "The commit \"raise the MTP pending-flush cap to 256 tokens\" says 256 is the smallest cap past the NAX matmul tile and segmented MoE gather thresholds, at a cost of up to 2.5 MiB of pinned hiddens per request.",
+          "source": "https://github.com/ollama/ollama/pull/17203",
+          "note": null
+        },
+        {
+          "text": "The commit \"key the cache trie by token pairs for draft caches\" says matching k keys verifies k+1 tokens, so every match is a valid restore point and a stale pair cannot silently lower acceptance.",
+          "source": "https://github.com/ollama/ollama/pull/17203",
+          "note": null
+        },
+        {
+          "text": "The commit \"record committed MTP drafts before streaming them\" fixes a slice-bounds panic in `close()` when a stream was cancelled partway through an accepted run.",
+          "source": "https://github.com/ollama/ollama/pull/17203",
+          "note": null
+        },
+        {
+          "text": "The commit \"stop recurrent conv state from pinning the forward buffer\" fixes issue 16698, where cached slices of the forward-sized convolution buffer made recurrent cache memory pile up and eviction unable to reclaim it.",
+          "source": "https://github.com/ollama/ollama/pull/17203",
+          "note": null
+        },
+        {
+          "text": "The commit \"qwen3_5: image input support\" lets the MTP head scatter delivered image features and apply the same position tables, so speculative decoding keeps working on image prompts.",
+          "source": "https://github.com/ollama/ollama/pull/17203",
+          "note": null
+        },
+        {
+          "text": "With the gemma4 assistant draft output head quantized, `gemma4:26b-mlx` on an M5 Max went from 148 to 157 tok/s on MTP code decode (+26% to +37% over plain decode) and prose from roughly zero to +2-5%.",
+          "source": "https://github.com/ollama/ollama/pull/17203",
+          "note": null
+        },
+        {
+          "text": "The Nemotron 3 Nano Omni MLX commit serves that model's MTP head as a self-draft speculator, so speculation needs no separate draft model.",
+          "source": "https://github.com/ollama/ollama/pull/17203",
+          "note": null
+        },
+        {
+          "text": "The GGUF launcher sets `config.EnableMTP` when no draft model path is given and the GGUF has `nextn_predict_layers > 0`, or has architecture `qwen35` or `qwen35moe` with tensors prefixed `mtp.`.",
+          "source": "https://raw.githubusercontent.com/ollama/ollama/main/llm/llama_server.go",
+          "note": null
+        },
+        {
+          "text": "For an external draft model, the launcher picks `draft-dflash` when the draft GGUF architecture is `dflash` and `draft-mtp` otherwise.",
+          "source": "https://raw.githubusercontent.com/ollama/ollama/main/llm/llama_server.go",
+          "note": null
+        },
+        {
+          "text": "The launcher passes `--spec-type`, `--spec-draft-n-max` (only when `DraftNumPredict > 0`), `--spec-draft-backend-sampling` (MTP only) and `--spec-draft-model` (only when a draft path exists).",
+          "source": "https://raw.githubusercontent.com/ollama/ollama/main/llm/llama_server.go",
+          "note": null
+        },
+        {
+          "text": "The `mlxrunner` directory contains `mtp.go`, `dflash.go`, `speculate.go`, `speculate_depth.go`, `speculate_stats.go` and `verify.go`.",
+          "source": "https://github.com/ollama/ollama/tree/main/mlxrunner",
+          "note": null
+        },
+        {
+          "text": "Inference: the same Qwen3.5 checkpoint can run MTP through two different engines in one Ollama install (MLX runner for safetensors, llama-server for GGUF), with different draft-length control: an adaptive controller on MLX, a fixed `DraftNumPredict` on GGUF.",
+          "source": "asserted",
+          "note": null
+        }
+      ]
+    }
+  ],
+  "related": []
+}

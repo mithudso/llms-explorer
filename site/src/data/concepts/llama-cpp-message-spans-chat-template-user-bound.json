@@ -1,0 +1,144 @@
+{
+  "slug": "llama-cpp-message-spans-chat-template-user-bound",
+  "concept": "llama.cpp message_spans chat-template user-boundary detection for checkpoints",
+  "generated": "2026-10-05",
+  "summary": "Template analysis builds the delimiters: in the differential autoparser branch of `common_chat_templates_apply`, `assistant_start` and `user_start` strings found by the autoparser become role delimiters (`delimiters.add(COMMON_CHAT_ROLE_ASSISTANT, ...)`, `delimiters.add(COMMON_CHAT_ROLE_USER, ......",
+  "facets": [
+    {
+      "title": "Facts",
+      "facts": [
+        {
+          "text": "Template analysis builds the delimiters: in the differential autoparser branch of `common_chat_templates_apply`, `assistant_start` and `user_start` strings found by the autoparser become role delimiters (`delimiters.add(COMMON_CHAT_ROLE_ASSISTANT, ...)`, `delimiters.add(COMMON_CHAT_ROLE_USER, ...)`), stored in `common_chat_params::message_delimiters`.",
+          "source": "https://raw.githubusercontent.com/ggml-org/llama.cpp/master/common/chat.cpp",
+          "note": null
+        },
+        {
+          "text": "The OAI-compat conversion writes them into the request as `llama_params[\"message_delimiters\"]`, a JSON array of `{role, delimiter}` objects.",
+          "source": "https://raw.githubusercontent.com/ggml-org/llama.cpp/master/tools/server/server-common.cpp",
+          "note": null
+        },
+        {
+          "text": "The completion handler reads `message_delimiters` back (`common_chat_msg_delimiters_parse`), tokenizes each delimiter string with `common_tokenize(vocab, delimiter, false, true)`, and calls `task.tokens.find_message_spans(delimiters)` per task.",
+          "source": "https://raw.githubusercontent.com/ggml-org/llama.cpp/master/tools/server/server-context.cpp",
+          "note": null
+        },
+        {
+          "text": "`split()` scans the prompt tokens left to right, tests every delimiter's token sequence at each index with `std::equal`, records the first match as (role, index), and closes each span at the next match; media chunks are jumped over through a skip map built from `map_idx_to_media`.",
+          "source": "https://raw.githubusercontent.com/ggml-org/llama.cpp/master/common/chat.cpp",
+          "note": null
+        },
+        {
+          "text": "The result is `common_chat_msg_spans` with `is_user_start(pos)` (exact position match on a user span) and `last_user_message_pos()` (last user span, or -1).",
+          "source": "https://raw.githubusercontent.com/ggml-org/llama.cpp/master/common/chat.h",
+          "note": null
+        },
+        {
+          "text": "`message_spans` lives in the task params struct (`server-task.h`, field `message_spans`).",
+          "source": "https://raw.githubusercontent.com/ggml-org/llama.cpp/master/tools/server/server-task.h",
+          "note": null
+        },
+        {
+          "text": "In `update_slots`, the batch-fill loop breaks right after pushing a token when `do_checkpoint && spans.is_user_start(n_tokens)` and either the position is the last user message, or no checkpoint exists, or the position is more than `checkpoint_min_step` past the newest checkpoint.",
+          "source": "https://raw.githubusercontent.com/ggml-org/llama.cpp/master/tools/server/server-context.cpp",
+          "note": null
+        },
+        {
+          "text": "A checkpoint is then created if the batch started at a user start or is near prompt end (`task.n_tokens() < n_tokens + n_ubatch`); other mid-prompt checkpoints are skipped.",
+          "source": "https://raw.githubusercontent.com/ggml-org/llama.cpp/master/tools/server/server-context.cpp",
+          "note": null
+        },
+        {
+          "text": "PR 22929 first computed the position by text (byte offsets); PR 24176 moved to a direct token scan, and PR 25420 (merged 2026-07-09) made the batch split respect min-step.",
+          "source": "https://github.com/ggml-org/llama.cpp/pull/25420",
+          "note": null
+        },
+        {
+          "text": "Delimiters travel in the request JSON, so a client or proxy that builds a raw `/completion` call can supply its own `message_delimiters`.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Only the differential-autoparser path sets delimiters in the code read; the other branches that return early (a plain generation-prompt template, specialized templates) leave `message_delimiters` empty, so no user boundary is found and only near-end checkpoints are made.",
+          "source": "https://raw.githubusercontent.com/ggml-org/llama.cpp/master/common/chat.cpp",
+          "note": null
+        },
+        {
+          "text": "A delimiter that tokenizes differently in context than alone (BPE merge across a newline) would not match `std::equal` on the token ids.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Multimodal prompts: spans skip media chunks, and `do_checkpoint` is turned off for the batch that follows an mtmd chunk.",
+          "source": "https://raw.githubusercontent.com/ggml-org/llama.cpp/master/tools/server/server-context.cpp",
+          "note": null
+        },
+        {
+          "text": "The two end-of-prompt checkpoints (offsets `4 + n_ubatch` and `4`) exist independently of spans; see llama-cpp-slot-state-trimming-when-the-template.md.",
+          "source": "https://raw.githubusercontent.com/ggml-org/llama.cpp/master/tools/server/server-context.cpp",
+          "note": null
+        },
+        {
+          "text": "None found between sources on the data path; the earlier PR text says \"extract from chat templates\" and the code agrees, with the template analysis, not the Jinja source, supplying the strings.",
+          "source": "https://raw.githubusercontent.com/ggml-org/llama.cpp/master/common/chat.cpp",
+          "note": null
+        },
+        {
+          "text": "Which shipped model templates yield non-empty `user_start` (Qwen3.5/3.6 are reported to benefit; no list exists).",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Whether a tool-result message (role tool) ever starts a span that is treated as a user boundary: only `COMMON_CHAT_ROLE_USER` counts in `is_user_start`.",
+          "source": "https://raw.githubusercontent.com/ggml-org/llama.cpp/master/common/chat.h",
+          "note": null
+        },
+        {
+          "text": "`common_chat_msg_delimiters` holds a list of (role, delimiter string, tokens) entries and exposes `tokenize(vocab)`, `split(tokens, skips)` and `to_json()`.",
+          "source": "https://raw.githubusercontent.com/ggml-org/llama.cpp/master/common/chat.h",
+          "note": null
+        },
+        {
+          "text": "`common_chat_params` has a `message_delimiters` member.",
+          "source": "https://raw.githubusercontent.com/ggml-org/llama.cpp/master/common/chat.h",
+          "note": null
+        },
+        {
+          "text": "The role enum includes system, assistant, user, tool and unknown, and `find_message_spans` is a `server_tokens` method.",
+          "source": "https://raw.githubusercontent.com/ggml-org/llama.cpp/master/common/chat.cpp",
+          "note": null
+        },
+        {
+          "text": "`server_tokens::find_message_spans` builds a skip map from media chunk start indices to `mtmd_input_chunk_get_n_tokens` and delegates to `delims.split`.",
+          "source": "https://raw.githubusercontent.com/ggml-org/llama.cpp/master/tools/server/server-common.cpp",
+          "note": null
+        },
+        {
+          "text": "The completion path attaches `message_spans` to every task right after `eval_llama_cmpl_schema`.",
+          "source": "https://raw.githubusercontent.com/ggml-org/llama.cpp/master/tools/server/server-context.cpp",
+          "note": null
+        },
+        {
+          "text": "The last span is closed with an unknown-role sentinel at `tokens.size()`, so the final message length runs to the end of the prompt.",
+          "source": "https://raw.githubusercontent.com/ggml-org/llama.cpp/master/common/chat.cpp",
+          "note": null
+        },
+        {
+          "text": "Checkpoint creation requires `slot.task->type == SERVER_TASK_TYPE_COMPLETION` and a model whose seq_rm type is FULL or RS, or `n_swa > 0`.",
+          "source": "https://raw.githubusercontent.com/ggml-org/llama.cpp/master/tools/server/server-context.cpp",
+          "note": null
+        },
+        {
+          "text": "A user-start break does not by itself create a checkpoint; the checkpoint also needs `pos_min >= 0`, no mtmd chunk in the batch, and (empty list, last user message, or beyond min-step).",
+          "source": "https://raw.githubusercontent.com/ggml-org/llama.cpp/master/tools/server/server-context.cpp",
+          "note": null
+        },
+        {
+          "text": "PR 25420 states the old logic \"breaks on every user message start, which does not respect --checkpoint-min-step\".",
+          "source": "https://github.com/ggml-org/llama.cpp/pull/25420",
+          "note": null
+        }
+      ]
+    }
+  ],
+  "related": []
+}

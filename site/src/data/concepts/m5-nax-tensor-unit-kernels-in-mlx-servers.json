@@ -1,0 +1,179 @@
+{
+  "slug": "m5-nax-tensor-unit-kernels-in-mlx-servers",
+  "concept": "M5 NAX tensor-unit kernels in MLX servers",
+  "generated": "2026-10-05",
+  "summary": "NAX is used only for large-M work. Decode (M=1) uses gemv and qmv; the few-row verify window uses `gemv_wide` (dense bf16/fp16) and `qmv_wide` (quantized); none of these have NAX variants in the fetched source. NAX serves prefill chunks, large-batch matmul, and quantized qmm at or above the qmv b...",
+  "facets": [
+    {
+      "title": "Facts",
+      "facts": [
+        {
+          "text": "NAX is used only for large-M work. Decode (M=1) uses gemv and qmv; the few-row verify window uses `gemv_wide` (dense bf16/fp16) and `qmv_wide` (quantized); none of these have NAX variants in the fetched source. NAX serves prefill chunks, large-batch matmul, and quantized qmm at or above the qmv batch limit. So a server's decode tokens/s on M5 is not changed by NAX, only time to first token and batched throughput.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Attention splits the same way: the vector attention kernel handles query length up to 8 (and requires query length times GQA factor at most 32); the full attention kernel handles longer queries and is the one with a NAX variant. A speculative-decoding verify of 2-8 rows therefore uses the non-NAX vector kernel; a prefill chunk uses NAX attention.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Operator-visible levers found in source and issue threads: `MLX_ENABLE_TF32=0` (fp32 only, latches at first op); `MLX_METAL_GPU_ARCH=<name>` (overrides the architecture string read by every dispatch predicate, so `applegpu_g16s` on an M5 disables NAX everywhere at once); build flag `MLX_METAL_NO_NAX` (removes NAX at compile time); `MLX_SDPA_PAD_HEAD_DIM` (per-call override of head-dim padding).",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Head-dim padding: on main, head dims 72 and 80 are zero-padded to 96 so they can reach the NAX attention kernel, enabled by default only for half precision, qL >= 512, kL >= 512, no causal flag, no mask, no sinks, and no logsumexp request.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Head dim 512 on the full attention kernel exists only on NAX GPUs (and for fp32 only with TF32 on); non-NAX GPUs have a separate special case for causal 512 attention with query length >= 1024 in half precision.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Run-time requirement: NAX needs macOS 26.2 or later (`__builtin_available`), so a server on macOS 26.0 or 26.1 silently runs the non-NAX path on an M5 with no error.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "2025-11-14: MLX PR 2772 started NAX with \"Init NAX matmuls\", \"Init NAX attention\" and quantized matmul commits.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "2026-03-10: maintainer states TF32 is NAX-only (issue 3235).",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "0.30.0 (spring 2026) is the first release where M5 fp32 numerics changed (issue 3534).",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "2026-07: mlx 0.32 wheels described as \"NAX-class wheels\" by a downstream commit message; mlx-lm PR 1595 pins TF32 off in its model tests.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Silent numerics change: the same mlx version gives different logits on M5 than on M3/M4 for fp32 GEMM and for masked half-precision attention; batched serving with padding diverges from single-sequence by about 1/32 logprob while argmax is stable. Test suites that assert batch equals single at rtol 1e-5 fail on M5 only.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Shape-dependent precision: a server mixing gemv-shaped and GEMM-shaped fp32 contractions sees exact results for one and TF32 for the other.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "A downstream fork's M5 sustained-generation stall (105 s) on `skinny_qmm` is not a NAX kernel in MLX itself; MLX's own NAX kernels have no reported stall in the sources read.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Which quantized shapes reach NAX is narrower than \"prefill\": see the gating dossier (K multiple of 64, tf32 gate for fp32 activations, and the split-K override).",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Whether NAX gains reach the server: Apple reports up to 4x TTFT on M5 for MLX, while third-party measurements show benefits shrinking at long context and for MoE; this dossier takes no side, only notes decode is NAX-free in source. Existing dossiers hold the numbers.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "No independent measurement of the speed cost of forcing `MLX_METAL_GPU_ARCH` to a pre-gen-17 name on a production server.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Whether mlx-lm's server sets or recommends `MLX_ENABLE_TF32`; not found in sources read.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Whether LM Studio's nax pack and oMLX pin the same NAX gating as upstream mlx.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "`is_nax_available()` requires macOS 26.2 or later and architecture generation 17 or later (18 or later when the architecture suffix is 'p'); it is cached in a static after the first call and compiled out with `MLX_METAL_NO_NAX`.",
+          "source": "https://raw.githubusercontent.com/ml-explore/mlx/main/mlx/backend/metal/device.cpp",
+          "note": null
+        },
+        {
+          "text": "MLX reads the GPU architecture from `env::metal_gpu_arch()` first and from the Metal device name only when that is empty; generation is parsed from the characters at size-3 and size-2 of the name.",
+          "source": "https://raw.githubusercontent.com/ml-explore/mlx/main/mlx/backend/metal/device.cpp",
+          "note": null
+        },
+        {
+          "text": "Forcing `MLX_METAL_GPU_ARCH=applegpu_g16s` on an M5 Max moved fp16/bf16 attention numerics to the M3 Max values, so the override disables NAX attention.",
+          "source": "https://github.com/ml-explore/mlx/issues/3897",
+          "note": null
+        },
+        {
+          "text": "The full attention kernel is used for query length above 8; the vector attention kernel is used otherwise and requires query length times GQA factor at most 32.",
+          "source": "https://raw.githubusercontent.com/ml-explore/mlx/main/mlx/backend/metal/scaled_dot_product_attention.cpp",
+          "note": null
+        },
+        {
+          "text": "On main, full attention reaches the NAX kernel for head dims 64, 96, 128, 256 and 512 when NAX is available and (TF32 on or dtype is not fp32).",
+          "source": "https://raw.githubusercontent.com/ml-explore/mlx/main/mlx/backend/metal/scaled_dot_product_attention.cpp",
+          "note": null
+        },
+        {
+          "text": "On main, head dims 72 and 80 are padded to 96 for NAX attention when half precision, qL >= 512, kL >= 512 and no causal flag, mask or sinks; `MLX_SDPA_PAD_HEAD_DIM` overrides the default per call.",
+          "source": "https://raw.githubusercontent.com/ml-explore/mlx/main/mlx/backend/metal/scaled_dot_product_attention.cpp",
+          "note": null
+        },
+        {
+          "text": "The non-NAX special case for head dim 512 requires half precision, query length between 1024 and key length, a causal flag, and no array mask or sinks.",
+          "source": "https://raw.githubusercontent.com/ml-explore/mlx/main/mlx/backend/metal/scaled_dot_product_attention.cpp",
+          "note": null
+        },
+        {
+          "text": "Head dim 512 in the full attention kernel is supported only on NAX GPUs, and for float32 only with TF32 on.",
+          "source": "https://raw.githubusercontent.com/ml-explore/mlx/main/mlx/backend/metal/scaled_dot_product_attention.cpp",
+          "note": null
+        },
+        {
+          "text": "`gemv_wide`, `qmv_wide`, `qmv` and `qmm_splitk` have no NAX branch in the fetched matmul.cpp and quantized.cpp.",
+          "source": "https://raw.githubusercontent.com/ml-explore/mlx/main/mlx/backend/metal/quantized.cpp",
+          "note": null
+        },
+        {
+          "text": "mlx-lm PR 1595 describes mlx >= 0.32 NAX-class wheels running fp32 GEMMs on the M5 Neural Accelerator at TF32 precision by default.",
+          "source": "https://github.com/ml-explore/mlx-lm/pull/1595",
+          "note": null
+        },
+        {
+          "text": "M1-M4 are described as unaffected by the TF32 default because they have no NAX and their fp32 GEMM is already exact.",
+          "source": "https://github.com/ml-explore/mlx-lm/pull/1595",
+          "note": null
+        },
+        {
+          "text": "A batched padded decode step on M5 differs from single-sequence decode by about 0.031-0.039 max abs logprob with argmax unchanged.",
+          "source": "https://github.com/ml-explore/mlx/issues/3897",
+          "note": null
+        },
+        {
+          "text": "MLX NAX work began in PR 2772 on 2025-11-14.",
+          "source": "https://github.com/ml-explore/mlx/pull/2772",
+          "note": null
+        },
+        {
+          "text": "A server on macOS older than 26.2 gets the non-NAX path on M5 with no error.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "NAX affects time to first token and batched throughput in MLX servers, not single-stream decode tokens/s.",
+          "source": "asserted",
+          "note": null
+        }
+      ]
+    }
+  ],
+  "related": []
+}

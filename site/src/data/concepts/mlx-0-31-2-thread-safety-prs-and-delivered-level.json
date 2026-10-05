@@ -1,0 +1,179 @@
+{
+  "slug": "mlx-0-31-2-thread-safety-prs-and-delivered-level",
+  "concept": "MLX 0.31.2 thread-safety PRs and delivered levels",
+  "generated": "2026-10-05",
+  "summary": "The 0.31.2 release notes headline \"MLX can be used by multiple threads for independent computations\" and name four PRs: 3405, 3348, 3281 and 3423.",
+  "facets": [
+    {
+      "title": "Facts",
+      "facts": [
+        {
+          "text": "The 0.31.2 release notes headline \"MLX can be used by multiple threads for independent computations\" and name four PRs: 3405, 3348, 3281 and 3423.",
+          "source": "https://github.com/ml-explore/mlx/releases/tag/v0.31.2",
+          "note": null
+        },
+        {
+          "text": "PR 3281 (merged 2026-03-25) moves stream management out of the scheduler and stores default streams in thread-local storage. Every thread gets a different stream from `get_default_stream()`, with lock-free reads. Streams are still visible to all threads, with locks around creation. Each device has its own default stream.",
+          "source": "https://github.com/ml-explore/mlx/pull/3281",
+          "note": null
+        },
+        {
+          "text": "PR 3316 (merged 2026-03-31) decouples `CommandEncoder` from `Device` so encoders need not be shared across threads.",
+          "source": "https://github.com/ml-explore/mlx/pull/3316",
+          "note": null
+        },
+        {
+          "text": "PR 3348 (merged 2026-04-01) moves synchronization into `~CommandEncoder` and stores each `CommandEncoder` in thread-local storage. Accessing a stream that was not created on the current thread throws. This is the source of `There is no Stream(gpu, N) in current thread`.",
+          "source": "https://github.com/ml-explore/mlx/pull/3348",
+          "note": null
+        },
+        {
+          "text": "PR 3280 (merged 2026-03-19) makes the frontend `mx.compile` cache thread local; the backend compile cache stays shared and locked.",
+          "source": "https://github.com/ml-explore/mlx/pull/3280",
+          "note": null
+        },
+        {
+          "text": "PR 3355 (merged 2026-04-02) adds a Python convenience for thread-local streams and fixes teardown. It notes that correct use requires either manual cleanup or all threads joining the main thread before exit, because thread-local objects destruct at thread exit and the main thread's may run after the interpreter is gone.",
+          "source": "https://github.com/ml-explore/mlx/pull/3355",
+          "note": null
+        },
+        {
+          "text": "PR 3405 (merged 2026-04-15, approved by angeloskath) adds `ThreadLocalStream` to the C++ API and a Python `new_thread_local_stream` that replaces the Python `ThreadLocalStream` constructor.",
+          "source": "https://github.com/ml-explore/mlx/pull/3405",
+          "note": null
+        },
+        {
+          "text": "PR 3423 (merged 2026-04-20) fixes a race in `Scheduler::enqueue`, which read `threads_` without a lock while another thread could update it; the report is a SIGSEGV in the scheduler test \"test thread local stream\".",
+          "source": "https://github.com/ml-explore/mlx/pull/3423",
+          "note": null
+        },
+        {
+          "text": "The 0.31.2 notes also list PR 3395 (`clear_streams` API for cleanup before exit), PR 3388 (avoid joining threads on exit), PR 3167 (crashes in multi-threaded teardown), PR 3264 (merge `DeviceStream` into `CommandEncoder`) and PR 3367 (CUDA thread safety).",
+          "source": "https://github.com/ml-explore/mlx/releases/tag/v0.31.2",
+          "note": null
+        },
+        {
+          "text": "2026-04-12 to 2026-04-15: PR 3398 (TheTom) proposed `register_stream(Stream)` so one stream could run on several threads, for Swift concurrency where tasks hop threads at each await. zcbenz suggested `make_stream_thread_local` instead (PR 3408). PR 3398 and PR 3408 were both closed on 2026-04-14 and 2026-04-15 without merging.",
+          "source": "https://github.com/ml-explore/mlx/pull/3398",
+          "note": null
+        },
+        {
+          "text": "angeloskath objected to 3408: a stream is a sequence of commands, and `eval` uses that fact to synchronize across streams and evals, so a stream whose behavior depends on the current thread breaks ordering. zcbenz agreed, reopened 3405 and proposed a stream that is thread-unsafe by design with user locks.",
+          "source": "https://github.com/ml-explore/mlx/pull/3408",
+          "note": null
+        },
+        {
+          "text": "2026-06-17: PR 3578 `new_thread_unsafe_stream` merged, after 0.31.2. A stream that can be passed to and evaluated on any thread, with no MLX synchronization; users must lock. The PR says full thread-safe streams \"might not come any time soon\".",
+          "source": "https://github.com/ml-explore/mlx/pull/3578",
+          "note": null
+        },
+        {
+          "text": "2026-04-22: the day after the release, mlx-lm issues 1179 and 1181 and mlx-vlm issue 1049 reported `There is no Stream(gpu, N) in current thread` because module-level streams made at import were used from worker threads. angeloskath said the fix arrives with a new mlx-lm release after mlx-lm PR 1090 (thread-local generation stream) is merged.",
+          "source": "https://github.com/ml-explore/mlx-lm/issues/1179",
+          "note": null
+        },
+        {
+          "text": "The mlx-vlm 1049 stack ends in `mx.synchronize(s)` inside a `wired_limit` context manager, so even a synchronize on a stream created on another thread throws.",
+          "source": "https://github.com/Blaizzy/mlx-vlm/issues/1049",
+          "note": null
+        },
+        {
+          "text": "A lazy array built on thread A with a thread-A stream still cannot be evaluated on thread B. That is the oMLX 1558 crash in the existing dossier.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "The compile cache change means a function wrapped in `mx.compile` is traced once per thread, so a side effect inside it runs once per thread (angeloskath's review comment).",
+          "source": "https://github.com/ml-explore/mlx/pull/3280",
+          "note": null
+        },
+        {
+          "text": "Early in review of 3281 a contributor saw a fused attention regression on the thread-local branch and later withdrew it as a stale Metal JIT cache from switching branches.",
+          "source": "https://github.com/ml-explore/mlx/pull/3281",
+          "note": null
+        },
+        {
+          "text": "A Metal completion-handler error crash (SIGABRT from a C++ throw on a dispatch queue) was split off as a separate cause of mlx issue 3216; PRs 3318 and 3519 for it do not appear in the 0.31.2 notes.",
+          "source": "https://github.com/ml-explore/mlx/releases/tag/v0.31.2",
+          "note": null
+        },
+        {
+          "text": "Level labels. zcbenz called \"evaluable in any thread, no cross-thread dependencies\" (2-ii) the ideal target in issue 3078 (existing dossier). The merged design is narrower: a stream and its encoder belong to the creating thread and other threads throw. Closing issue 2133 with \"thread-safety support in 0.31.2\" is true for independent per-thread work only.",
+          "source": "https://github.com/ml-explore/mlx/pull/3348",
+          "note": null
+        },
+        {
+          "text": "Cross-thread streams. TheTom: Swift tasks need one stream usable across threads (PR 3398). angeloskath: a thread-dependent stream breaks eval synchronization (PR 3408). The outcome was neither; the later `new_thread_unsafe_stream` leaves locking to users.",
+          "source": "https://github.com/ml-explore/mlx/pull/3578",
+          "note": null
+        },
+        {
+          "text": "MLX 0.31.2 was released 2026-04-21 and lists PRs 3405, 3348, 3281 and 3423 as its multi-thread highlight.",
+          "source": "https://github.com/ml-explore/mlx/releases/tag/v0.31.2",
+          "note": null
+        },
+        {
+          "text": "The v0.31.1 release notes mention no thread-safety or stream changes.",
+          "source": "https://github.com/ml-explore/mlx/releases/tag/v0.31.1",
+          "note": null
+        },
+        {
+          "text": "PR 3281 gives each thread its own default stream via thread-local storage, with lock-free reads and locked creation.",
+          "source": "https://github.com/ml-explore/mlx/pull/3281",
+          "note": null
+        },
+        {
+          "text": "PR 3348 stores `CommandEncoder` in thread-local storage and throws when a stream is used from a thread that did not create it.",
+          "source": "https://github.com/ml-explore/mlx/pull/3348",
+          "note": null
+        },
+        {
+          "text": "PR 3280 makes only the frontend compile cache thread local.",
+          "source": "https://github.com/ml-explore/mlx/pull/3280",
+          "note": null
+        },
+        {
+          "text": "PR 3405 exposes `ThreadLocalStream` in C++ and renames the Python entry point `new_thread_local_stream`.",
+          "source": "https://github.com/ml-explore/mlx/pull/3405",
+          "note": null
+        },
+        {
+          "text": "PR 3423 locks `Scheduler::enqueue`'s read of `threads_`.",
+          "source": "https://github.com/ml-explore/mlx/pull/3423",
+          "note": null
+        },
+        {
+          "text": "PR 3355 documents that thread-local objects need manual cleanup or all threads joined before main exits.",
+          "source": "https://github.com/ml-explore/mlx/pull/3355",
+          "note": null
+        },
+        {
+          "text": "The auto-register idea was proposed as PR 3398 `register_stream` and closed unmerged on 2026-04-15.",
+          "source": "https://github.com/ml-explore/mlx/pull/3398",
+          "note": null
+        },
+        {
+          "text": "PR 3408 `make_stream_thread_local` was closed unmerged on 2026-04-14 after angeloskath's objection about eval synchronization.",
+          "source": "https://github.com/ml-explore/mlx/pull/3408",
+          "note": null
+        },
+        {
+          "text": "PR 3578 (merged 2026-06-17) adds `new_thread_unsafe_stream` for any-thread evaluation with user-supplied locking.",
+          "source": "https://github.com/ml-explore/mlx/pull/3578",
+          "note": null
+        },
+        {
+          "text": "On 2026-04-22 mlx-lm 1179, mlx-lm 1181 and mlx-vlm 1049 reported the `There is no Stream(gpu, N) in current thread` crash on 0.31.2 from module-level streams used in worker threads.",
+          "source": "https://github.com/Blaizzy/mlx-vlm/issues/1049",
+          "note": null
+        },
+        {
+          "text": "0.31.2 delivers per-thread isolation (separate default stream and encoder per thread) rather than a stream shareable across threads.",
+          "source": "asserted",
+          "note": null
+        }
+      ]
+    }
+  ],
+  "related": []
+}

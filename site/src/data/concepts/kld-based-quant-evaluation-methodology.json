@@ -1,0 +1,434 @@
+{
+  "slug": "kld-based-quant-evaluation-methodology",
+  "concept": "KLD-based quant evaluation methodology",
+  "generated": "2026-10-05",
+  "summary": "llama.cpp workflow (`llama-perplexity`, formerly `perplexity`): run the reference once with `--kl-divergence-base <file>` (saves all logits), then run each quant with `--kl-divergence-base <file> --kl-divergence`. The quant run ignores `-f`; tokens come from the saved file, which guarantees ident...",
+  "facets": [
+    {
+      "title": "Facts",
+      "facts": [
+        {
+          "text": "llama.cpp workflow (`llama-perplexity`, formerly `perplexity`): run the reference once with `--kl-divergence-base <file>` (saves all logits), then run each quant with `--kl-divergence-base <file> --kl-divergence`. The quant run ignores `-f`; tokens come from the saved file, which guarantees identical tokens. The file is huge (README: 11 GiB LLaMA 2, 37 GiB LLaMA 3 on Wikitext-2) because it stores all n_vocab logits; logits are stored as scaled 16-bit integers, so an FP16 model scored against its own base shows a nonzero floor (4e-6 in PR #5076; 2.5e-5 for BF16 vs FP16 on LLaMA 3 8B).",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "llama-perplexity statistics from `--kl-divergence`: mean KLD with uncertainty (Gaussian assumption), max KLD, 99.9% / 99.0% / 90% / median KLD, ln(PPL(Q)/PPL(base)) and its ratio, PPL correlation, mean Δp and percentiles of Δp for the correct token, RMS Δp, and Same top p with binomial uncertainty.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "llama.cpp scores only the second half of each context window (n_ctx/2 onward), so each scored token has at least n_ctx/2 of context. PR #5076 reviewer ikawrakow measured that including early positions (a Python script did) shifted mean KLD by about 7 standard deviations.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "The KLD in llama.cpp is the mean of per-token KLs, not the KL of averaged distributions (ikawrakow, PR #5076).",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "mlx-kld (sammcj, fork of TipKnuckle/mlx-kld; MLX-native): two stages. Stage 1 caches the reference as sparse top-K log-probs (K=256 default, ~420-1000x smaller than dense) plus one tail-mass scalar. Stage 2 feeds each quant the reference's cached token IDs verbatim (never re-tokenised). Sparse K=256 underestimates KLD by about 4% (K=64: -6.6%, K=1024: -2.3%), rank-preserving. Forward passes chunked with a shared KV cache (`--chunk-tokens 2048`), numerically equivalent. Self-comparison must give KL 0 (his cached reference once silently re-tokenised under differing chat-template settings).",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "mlx-kld modes: `--short` (about 50 bundled prompts, chat template applied, first 8 tokens skipped) and `--long` (WikiText-2 test, 32 chunks x 2048 tokens = 65,536 tokens, second half scored, llama.cpp convention). Reports mean, median, std, P95, P99, max, prefill tok/s, effective bpw, per-tensor override counts by role.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "mlx-eval (deepsweet): `mlx_eval.reference <ref> 16 8192` stores reference data, `mlx_eval.compare <target> 16`. Uses mlx-vlm to convert (affine uniform baseline) and runs 16 windows x 8192 tokens of an all-in-one prompt derived from AesSedai's `combined_all_micro.txt`; window boundaries are deliberately left as abrupt domain breaks. Reports KLD mean/p95/p99, PPL and ΔPPL, Acc@1 and ΔAcc@1, and RAM of loaded text-only weights (not disk size). Author's rule: compare only quants of the same model within the same test; never compare absolute numbers across models.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Unsloth's MLX KLD table reports Mean, Median, P90, P99.9 KLD plus PPL; its 27B reference PPL is about 4.8 (Wiki-style text), versus mlx-eval's 8.80 on the same model.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Why KLD tracks behaviour: \"Accuracy is Not All You Need\" (arXiv 2407.09141) shows KLD correlates with answer flips (Spearman about 0.96-0.97 in the charts quoted by rishiraj's HF post) while accuracy can stay flat; a flip is a correct-to-wrong or wrong-to-correct change.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "2023-11-17: kalomaze opens llama.cpp discussion #4110 proposing KL divergence of top token probabilities as a better quantization-loss measure than PPL.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "2024-01-22: PR #5076 (Kawrakow) merges native `--kl-divergence`; Ggerganov prefers adding top-1 match and max/q99 stats in follow-up PRs (they later appear as Same top p and the percentile rows).",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Reviewer disagreement in that PR: Kawrakow argues PPL and KLD are \"basically the same thing\" (ln PPL ratio vs KLD, Mistral-7B k-quants nearly overlap); another reviewer's bagel-34B plot shows no clear correlation.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "2026-02-27: community Qwen3.5-35B-A3B Q4 sweep (via banandre write-up) shows the same \"Q4_K_M\" label spanning KLD 0.0102 (AesSedai) to 0.0328 (lmstudio) and 0.0524 (an Unsloth UD-Q4_K_XL with misapplied MXFP4), a 5x spread; introduces an efficiency score sqrt(normSize^2 + normKLD^2) against AesSedai Q4_K_M = 1.0.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "2026-04-27/28: sammcj mlx-kld and blog; 2026-04/05: deepsweet mlx-eval; 2026-06-09 mlx-eval results README final form; 2026-07-22 open issue #6 \"Enhanced quantization (oQe)\".",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Same quant, three harnesses (Qwen3.6-27B UD-MLX-4bit): Unsloth Wiki-style, PPL 4.82, mean 0.0227, median 0.0053, P90 0.0293, P99.9 2.339; sammcj WikiText-2 2048-ctx 65k tokens, mean 0.0592, median 0.00733, P95 0.0834, P99 0.531, max 26.4; deepsweet mixed 131k tokens, mean 0.1683, p95 0.159, p99 4.48. Medians agree within 1.4x (0.0053 vs 0.0073); means differ 2.6x and 7.4x. Reading: the bulk of the distribution is stable across harnesses, the mean is set by tail tokens and by corpus, so the conflict is mostly corpus/harness, not a different quant.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Same check on uniform 8-bit of that model: Unsloth 8-bit mean 0.0028 (median 0.0003); sammcj mlx-community 8-bit mean 0.01388 (median 0.00063, P95 0.0045, P99 0.0296, max 21.2); mlx-eval Q8 mean 0.0573 (p95 0.082). A 20x spread for a nominally identical uniform 8-bit shows the harness floor, not UD's algorithm, dominates absolute means at the high-fidelity end. Mean/median ratio of 22 in sammcj's 8-bit row means a few tail tokens dominate the mean.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Ratios survive better than absolutes: UD-4bit / 8-bit mean ratio is 8.1 (Unsloth), 4.3 (sammcj, vs mlx-community 8-bit), 2.9 (mlx-eval, vs Q8). Use within-harness ratios or ranks, never cross-harness numbers.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Hypothesised causes of mlx-eval's inflated 27B numbers [asserted]: (a) abrupt domain switches at every 8192 window boundary create low-context positions that dense Qwen3.6-27B handles badly (reference PPL 8.80 vs 4.59 on WikiText-2 per the author); (b) tails are heavy (p99 about 9.5-15 nats for Q3-Q4 Qwen3.6-27B), so mean is dominated by a few catastrophic tokens; (c) the reported p95/p99 values sit on a coarse low-precision grid (for example 0.250000, 0.718750, 10.250000 are exact bf16 values), consistent with logits/KL computed in bf16, which adds noise. (a) is stated by the author; (b) is visible in his table; (c) is an inference from number patterns.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Per-quant disk size differs from mlx-eval's RAM column for ParoQuant (lm_head/embed unquantised on disk, quantised to Q4 at load); mlx-eval reports RAM as loaded, so size-vs-KLD comparisons mix definitions unless the same column is used for every row.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "UD-MLX-4bit size confound: sammcj's tensor audit shows 258 overrides (4-bit x189, 5-bit x3, 8-bit x66) and an effective 8.60 bpw for the \"4-bit\" 27B (26.19 GB), more than RTN 6-bit (22.78 GB, 7.48 bpw). So the 27B UD \"4-bit\" competes with 6-8 bit quants, not 4-bit. mlx-eval flags the same cause (\"noticeably large disk size\"). A fair read puts it on a KLD-vs-GB Pareto, where it loses.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Reference choice error: sammcj's MoE runs use mlx-community 8-bit as the reference (understating KLD from bf16); his README claims 8-bit vs bf16 KLD is about 1e-4, but his own blog's long-mode measurement of the 27B 8-bit vs bf16 is 0.0139 (short mode 0.0016). The 1e-4 claim is not supported by his long-mode data.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Short eval modes mislead: short prompts score early-context positions where predictions are easy, so 8-bit looked 9x better in short mode than long (1.6e-3 vs 1.39e-2) and several 4-bit rankings moved (oQ4 vs RTN 16% in short mode, 3% in long mode; MoE RTN-4bit P99 1.97 short vs 0.63 long).",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Corpus contamination: if a quantiser's imatrix/calibration used WikiText-2 (many do), WikiText KLD/PPL rewards it; a commenter cited in banandre advises a fresh corpus the model and imatrix never saw. Unsloth makes the same point from the other side (its imatrix is chat/tool data, so Wiki-based KLD understates it) and uses Calibration_v3/v5 for benchmarking.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Chat template: instruct models fed raw text (no template) give a different KLD than templated prompts; mlx-kld exposes `--no-chat-template` and short mode applies it by default, long mode streams raw Wikipedia.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Prefill-only blind spot (sammcj, Unsloth): all of these measure teacher-forced next-token divergence; none measures compounding drift in sampled generation. Divergence-300 @32 and exact-match length are the only generation-style metrics found.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Sparse top-K or low-precision logits bias KLD low or add a floor; always run the self-comparison (must be 0) and, where possible, a BF16-vs-FP16 or 8-bit-vs-BF16 floor measurement.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Quant rankings do not transfer between dense and MoE: sammcj on Qwen3.6-35B-A3B finds DWQ-4bit mean KLD 0.0266 beats oQ4 0.0402 beats RTN-4bit 0.0742 (reference = 8-bit), while on the dense 27B oQ4 beats RTN-4bit by only 3% (0.110 vs 0.113). DWQ keeps routers and shared experts higher precision; oQ4 left routers at 4-bit.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "DWQ: mlx-lm's LEARNED_QUANTS.md says DWQ fine-tunes scales/biases against the unquantised teacher, works best for 2-4 bit, and does not help at 6-8 bit because the loss starts too low. Its training objective is a divergence to the teacher, so low KLD for DWQ is partly by construction on its calibration text.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "PPL vs KLD: Kawrakow (PR #5076): PPL and KLD are \"basically the same thing\" on k-quants; counter: another commenter's bagel-34B plot shows no clear correlation; Unsloth: \"Using perplexity is incorrect\" because token errors cancel; mlx-eval: PPL is for spotting anomalies, not fidelity; banandre/benchmark author: PPL \"can be gamed by luck\", KLD is not dataset-dependent (contradicted by the corpus evidence above: KLD means move 2.6-7x with corpus).",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Does a KLD tail metric or the mean decide? sammcj ranks by mean KLD and calls oQ6 vs RTN-6bit \"a draw\" (RTN wins mean/P99, oQ6 wins median/P95/max). Unsloth targets 99.9% and then Max KLD (Qwen3.5 March update). mlx-eval shows both and warns the dense model's p99 about 10 dominates. No source shows which tail statistic best predicts agentic/coding failure.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "4-bit perceptibility: sammcj's scale labels mean KLD 1e-2 to 5e-2 \"typical 4-bit territory\" with perceptibility \"not well-established\" and >1e-1 as \"sampled outputs likely to differ obviously\"; yet he recommends 4-bit RTN (0.113) at \"within 3% of oQ4\" for tight memory, i.e. above his own 0.1 line. The bands are rules of thumb, not validated thresholds.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Unsloth UD-MLX vs independent MLX evaluators: Unsloth reports it as best-in-class on its tables for GGUF and publishes a good MLX KLD ladder (4-bit mean 0.0227); sammcj says skip the 27B UD-MLX-4bit (effective 8.6 bpw, 2x worse than 6-bit); mlx-eval says the 27B UD is \"really that off\" on the dense model but UD4 is near-best on the 35B-A3B MoE (0.0293 vs OptiQ 0.0285). The three are not incompatible once size is controlled.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "No harness runs GGUF and MLX quants of one BF16 base on one token stream; the only candidate is to take the reference token IDs and log-probs from one engine and compute KLD per engine, because llama.cpp's `.kld` file is a private binary format and mlx-kld's cache is `.npz` top-K.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Whether MLX evaluators and llama.cpp compute reference logits at the same numerical precision (BF16 compute on Metal vs CUDA/CPU) is unreported; reference-engine mismatch is an uncontrolled error source.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Bootstrapped confidence intervals: mlx-kld does not provide them (author lists as a to-do); llama-perplexity gives Gaussian-assumption uncertainty only for the mean.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "No source correlates KLD tails with agentic/tool-call success on Mac quants.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Compare quants only inside one harness, one reference, one corpus, one model; report ranks and size-adjusted position.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Treat mean KLD differences under about 10-15% between recipes as noise unless medians and tails agree; sammcj saw short-vs-long mode flip such gaps from 14-16% to 3%.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Use a size-vs-KLD frontier (or the efficiency score above), and compute effective bpw from tensors, because \"4-bit\" names hide 6-9 bpw files.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Prefer within-harness 8-bit as a floor sanity check; if your 8-bit is above about 0.02 on a 27B-class model the harness, not the quant, is the likely cause.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "For models whose p99 is far above p95 (dense Qwen3.6-27B Q3-Q4: p95 0.3-1.7 vs p99 10-15 in mlx-eval), look at median and p95, then confirm with a task benchmark; mean alone is misleading.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Pick separately for dense and MoE; do not transfer \"oQ4 beats RTN-4\" or \"UD-MLX wins\" across architectures.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "On Mac for Qwen3.6, the independent evidence supports: 27B dense, uniform or oQ 6-bit is near-lossless (sammcj mean 0.029) and 4-bit sits at 0.11; 35B-A3B MoE, DWQ-4bit (0.027 vs 8-bit reference) or UD/OptiQ 4-bit (about 0.029 vs bf16 in mlx-eval) are the strongest 4-bit choices (different references, so not directly comparable).",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "llama-perplexity `--kl-divergence-base <file>` records the reference model's logits to a binary file; the quant run adds `--kl-divergence` and reuses tokens from that file, ignoring `-f`.",
+          "source": "https://github.com/ggml-org/llama.cpp/pull/5076",
+          "note": null
+        },
+        {
+          "text": "The llama.cpp perplexity README says the logit file is 11 GiB for LLaMA 2 and 37 GiB for LLaMA 3 on Wikitext-2, stores logits as scaled 16-bit unsigned integers, and that an FP16 model scored against it shows only the downcast difference.",
+          "source": "https://github.com/ggml-org/llama.cpp/blob/master/tools/perplexity/README.md",
+          "note": null
+        },
+        {
+          "text": "`--kl-divergence` also reports ln(PPL ratio), PPL correlation, mean and percentile Δp, RMS Δp, Max/99.9%/99.0%/median KLD and Same top p.",
+          "source": "https://github.com/ggml-org/llama.cpp/blob/master/tools/perplexity/README.md",
+          "note": null
+        },
+        {
+          "text": "The README notes that symmetric Δp percentiles indicate noise, while larger negative than positive percentiles indicate real degradation.",
+          "source": "https://github.com/ggml-org/llama.cpp/blob/master/tools/perplexity/README.md",
+          "note": null
+        },
+        {
+          "text": "LLaMA 3 8B scoreboard: q4_K_M mean KLD 0.0313, Same top p 91.9%; q6_K 0.00545, 96.0%; q8_0 0.001355, 97.7%; q2_K 0.445, 71.1%; BF16 vs FP16 mean KLD 2.5e-5.",
+          "source": "https://github.com/ggml-org/llama.cpp/blob/master/tools/perplexity/README.md",
+          "note": null
+        },
+        {
+          "text": "The README states that more Wikitext tokens in the imatrix gave no consistent improvement and that llama.cpp perplexity numbers are not comparable with other projects' numbers.",
+          "source": "https://github.com/ggml-org/llama.cpp/blob/master/tools/perplexity/README.md",
+          "note": null
+        },
+        {
+          "text": "PR #5076: the implemented KLD is the mean of per-token KLs; llama.cpp scores only the second half of each window; a Python script that scored all positions differed by about 7 standard deviations.",
+          "source": "https://github.com/ggml-org/llama.cpp/pull/5076",
+          "note": null
+        },
+        {
+          "text": "PR #5076: stored 16-bit logits give a 4e-6 mean KLD for the FP16 model against its own base; Kawrakow argues PPL and KLD are \"basically the same thing\" on k-quants.",
+          "source": "https://github.com/ggml-org/llama.cpp/pull/5076",
+          "note": null
+        },
+        {
+          "text": "Ggerganov asked for top-1 match and max/q99 stats to be added in follow-up PRs after #5076.",
+          "source": "https://github.com/ggml-org/llama.cpp/pull/5076",
+          "note": null
+        },
+        {
+          "text": "llama.cpp discussion #4110 (kalomaze, 2023-11-17) first proposed top-token probability divergence as a quantization-loss metric over PPL.",
+          "source": "https://github.com/ggml-org/llama.cpp/discussions/4110",
+          "note": null
+        },
+        {
+          "text": "mlx-eval usage: `mlx_eval.reference <ref> <window_count> <max_tokens>` then `mlx_eval.compare <target> <window_count>`; default 16 windows x 8192 tokens.",
+          "source": "https://github.com/deepsweet/mlx-eval",
+          "note": null
+        },
+        {
+          "text": "The mlx-eval prompt is derived from AesSedai's `combined_all_micro.txt`; window-boundary context breaks are intentionally kept.",
+          "source": "https://github.com/deepsweet/mlx-eval",
+          "note": null
+        },
+        {
+          "text": "mlx-eval reports KLD (mean, p95, p99 in nats), PPL, ΔPPL, Acc@1 and RAM of text-only loaded weights; the author warns against comparing absolute numbers across models.",
+          "source": "https://github.com/deepsweet/mlx-eval/blob/main/results/README.md",
+          "note": null
+        },
+        {
+          "text": "mlx-eval says PPL mixes intrinsic uncertainty with quantization damage and is for spotting anomalies, and that negative ΔPPL values are \"regularization filter\" noise.",
+          "source": "https://github.com/deepsweet/mlx-eval/blob/main/results/README.md",
+          "note": null
+        },
+        {
+          "text": "mlx-eval notes on dense Qwen3.6-27B reference PPL 8.80, WikiText-2 4.59 with ΔPPL +0.0625, Edgar Poe prose 1.36, and Gemma-4-31B base under 4 on the same prompt.",
+          "source": "https://github.com/deepsweet/mlx-eval/blob/main/results/README.md",
+          "note": null
+        },
+        {
+          "text": "mlx-eval Qwen3.6-27B tail shape: Q4 mean 0.299, p95 0.369, p99 10.375; Q8 mean 0.0573, p95 0.0820, p99 0.396; UD4 mean 0.1683, p95 0.159, p99 4.477; UD3 p99 9.69.",
+          "source": "https://github.com/deepsweet/mlx-eval/blob/main/results/README.md",
+          "note": null
+        },
+        {
+          "text": "mlx-eval Qwen3.6-35B-A3B Q8 mean KLD 0.0138 with p95 0.0874 and p99 0.127; p95/p99 for several rows are exact bf16-grid values.",
+          "source": "https://github.com/deepsweet/mlx-eval/blob/main/results/README.md",
+          "note": null
+        },
+        {
+          "text": "mlx-eval ParoQuant RAM is below disk size because lm_head and embed_tokens are quantised at load; issue #5 was closed with a README fix on 2026-06-09.",
+          "source": "https://github.com/deepsweet/mlx-eval/issues/5",
+          "note": null
+        },
+        {
+          "text": "Unsloth's MLX KLD table for Qwen3.6-27B includes median and P90: 4-bit median 0.0053, P90 0.0293; 8-bit median 0.0003, P90 0.0019; PPL 4.81-4.82 for both.",
+          "source": "https://unsloth.ai/docs/models/qwen3.6",
+          "note": null
+        },
+        {
+          "text": "Unsloth's \"8-bit\" Qwen3.6-27B MLX repo is named Qwen3.6-27B-MLX-8bit (not UD), so its 0.0028 mean KLD is for an essentially plain 8-bit quant.",
+          "source": "https://unsloth.ai/docs/models/qwen3.6",
+          "note": null
+        },
+        {
+          "text": "sammcj mlx-kld long mode: WikiText-2 raw test, 32 chunks x 2048 tokens (65,536 tokens), scores only the second half, matching llama.cpp; short mode is about 50 bundled prompts.",
+          "source": "https://smcleod.net/2026/04/measuring-model-quantisation-quality-with-kl-divergence/",
+          "note": null
+        },
+        {
+          "text": "sammcj Qwen3.6-27B vs bf16 (M5 Max): mlx-community 8-bit mean 0.01388 (P99 0.0296, max 21.2); 6-bit 0.02869; oQ6 0.02956; UD-MLX-4bit 0.05922 (median 0.00733, P95 0.0834, P99 0.531, max 26.4, 26.19 GB, 8.60 bpw); oQ4 0.11004 (16.69 GB); RTN 4-bit 0.11324 (16.05 GB).",
+          "source": "https://smcleod.net/2026/04/measuring-model-quantisation-quality-with-kl-divergence/",
+          "note": null
+        },
+        {
+          "text": "sammcj UD-MLX-4bit 27B tensor audit: 258 overrides (4-bit x189, 5-bit x3, 8-bit x66), 8-bit on roughly every fourth attention layer; he recommends skipping it.",
+          "source": "https://smcleod.net/2026/04/measuring-model-quantisation-quality-with-kl-divergence/",
+          "note": null
+        },
+        {
+          "text": "sammcj Qwen3.6-35B-A3B vs the mlx-community 8-bit (not bf16): oQ6 0.01039, RTN-6bit 0.01189, DWQ-4bit 0.02663, oQ4 0.04024, RTN-4bit 0.07418; DWQ's config has an 8-bit base with 4-bit downcasts on most tensors and protects routers and shared experts.",
+          "source": "https://smcleod.net/2026/04/measuring-model-quantisation-quality-with-kl-divergence/",
+          "note": null
+        },
+        {
+          "text": "sammcj says short-mode scores were noisy: 8-bit about 1.6e-3 in short mode versus 1.39e-2 in long mode; oQ4 led RTN-4bit by about 16% in short mode but 3% in long mode.",
+          "source": "https://smcleod.net/2026/04/measuring-model-quantisation-quality-with-kl-divergence/",
+          "note": null
+        },
+        {
+          "text": "sammcj lists caveats: prefill-only (no generation drift), no confidence intervals, WikiText-2 mostly Wikipedia prose so no code/JSON/math/non-English signal.",
+          "source": "https://smcleod.net/2026/04/measuring-model-quantisation-quality-with-kl-divergence/",
+          "note": null
+        },
+        {
+          "text": "sammcj's KLD bands: below 1e-4 identical, 1e-3 to 5e-3 typical 6-bit, 1e-2 to 5e-2 typical 4-bit (perceptibility not well established), above 1e-1 substantial divergence; calibrated to long mode only.",
+          "source": "https://smcleod.net/2026/04/measuring-model-quantisation-quality-with-kl-divergence/",
+          "note": null
+        },
+        {
+          "text": "sammcj mlx-kld README says an 8-bit reference differs from bf16 by about 1e-4 KL, which conflicts with the 0.0139 his blog measures for the 27B 8-bit in long mode.",
+          "source": "https://github.com/sammcj/mlx-kld",
+          "note": null
+        },
+        {
+          "text": "mlx-kld flags: `--long-corpus`, `--long-ctx 2048`, `--long-chunks 32`, `--top-k-cache 256`, `--save-reference`, `--load-reference`, `--chunk-tokens`, `--no-chat-template`.",
+          "source": "https://github.com/sammcj/mlx-kld",
+          "note": null
+        },
+        {
+          "text": "mlx-kld records effective bpw, quant family and per-tensor override counts so size-adjusted comparisons are possible.",
+          "source": "https://github.com/sammcj/mlx-kld",
+          "note": null
+        },
+        {
+          "text": "mlx-lm's DWQ fine-tunes scales and biases against the unquantised model as teacher, works best at 2-4 bit and often fails to help at 6-8 bit.",
+          "source": "https://github.com/ml-explore/mlx-lm/blob/main/mlx_lm/LEARNED_QUANTS.md",
+          "note": null
+        },
+        {
+          "text": "oQ sensitivity is relative MSE of layer outputs, MSE(float, quantized)/mean(float^2), measured on a built-in calibration set; it is not a KLD criterion.",
+          "source": "https://github.com/jundot/omlx/blob/main/docs/oQ_Quantization.md",
+          "note": null
+        },
+        {
+          "text": "Community Qwen3.5-35B-A3B Q4 sweep: Q4_K_M KLD ranged 0.0102 (AesSedai, 20.62 GiB) to 0.0189 (bartowski) to 0.0234 (unsloth) to 0.0329 (lmstudio); the Unsloth UD-Q4_K_XL at 0.0524 was caused by MXFP4 applied to attention and expert tensors.",
+          "source": "https://www.banandre.com/blog/quantization-fidelity-benchmarking-kld-and-ppl-as-metrics-for-gguf-model-selection",
+          "note": null
+        },
+        {
+          "text": "That benchmark used wikitext2_test.txt at 512 context with `-ngl 999` and `-ncmoe 22`; a commenter warned that imatrix files using wikitext2 contaminate Wiki-based KLD and advised a fresh corpus.",
+          "source": "https://www.banandre.com/blog/quantization-fidelity-benchmarking-kld-and-ppl-as-metrics-for-gguf-model-selection",
+          "note": null
+        },
+        {
+          "text": "The benchmark's efficiency score is sqrt(normalised size^2 + normalised KLD^2), baseline AesSedai Q4_K_M = 1.0; AesSedai IQ4_XS (16.40 GiB, KLD 0.0240) ranked first.",
+          "source": "https://www.banandre.com/blog/quantization-fidelity-benchmarking-kld-and-ppl-as-metrics-for-gguf-model-selection",
+          "note": null
+        },
+        {
+          "text": "\"Accuracy is Not All You Need\" reports that KLD correlates with answer flips (Spearman about 0.96-0.97) while accuracy can stay flat.",
+          "source": "https://huggingface.co/blog/rishiraj/kld-guided-quantization",
+          "note": null
+        },
+        {
+          "text": "The sammcj and Unsloth long-corpus KLD both feed identical tokens to reference and quant; mlx-eval and llama.cpp likewise reuse reference-side data.",
+          "source": "https://github.com/sammcj/mlx-kld",
+          "note": null
+        },
+        {
+          "text": "Three-harness spread for UD-MLX-4bit on Qwen3.6-27B (0.0227 / 0.0592 / 0.1683) with medians 0.0053 vs 0.0073 suggests the means are tail- and corpus-driven, not a different quant.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "The 20x spread for uniform 8-bit (0.0028 / 0.0139 / 0.0573) across Unsloth, sammcj and mlx-eval shows a harness floor that dwarfs recipe differences at the high-fidelity end.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Mixing mlx-eval's heavy-tailed windows (abrupt domain shifts, reference PPL 8.8) with bf16-grid percentiles likely inflates its dense-27B means; Unsloth's near-Wikipedia text (PPL 4.8) likely deflates them.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "No one tool measures GGUF and MLX quants on one token stream; cross-format comparison needs per-engine KLD against a shared reference token list and compare ranks, medians and tails.",
+          "source": "asserted",
+          "note": null
+        }
+      ]
+    }
+  ],
+  "related": []
+}

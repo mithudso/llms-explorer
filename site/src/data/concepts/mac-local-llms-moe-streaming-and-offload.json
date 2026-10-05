@@ -1,0 +1,364 @@
+{
+  "slug": "mac-local-llms-moe-streaming-and-offload",
+  "concept": "Mac local LLMs: MoE streaming and offload",
+  "generated": "2026-10-05",
+  "summary": "If the model fits RAM, run it resident: Qwen3.6-35B-A3B 4-bit 48.4 tok/s on GPU vs 14.1 streamed (M6 32 GB); mlx-lm offload on a model that fits costs ~5x decode, 8-12x prefill, so enable it only when the model cannot load.",
+  "facets": [
+    {
+      "title": "Stream or stay resident",
+      "facts": [
+        {
+          "text": "If the model fits RAM, run it resident: Qwen3.6-35B-A3B 4-bit 48.4 tok/s on GPU vs 14.1 streamed (M6 32 GB); mlx-lm offload on a model that fits costs ~5x decode, 8-12x prefill, so enable it only when the model cannot load.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Streaming 397B at ~4-6 tok/s suits batch/overnight work; 122B at higher quant gives better quality per second than 397B streamed.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "ds4 sizing: 64 GB Mac = Flash Q2 `--ssd-streaming` start; 96 GB resident Q2; 128 GB Flash Q2 or GLM 5.3 Flash Q2; 256 GB Q4/MXFP4.",
+          "source": "https://raw.githubusercontent.com/antirez/ds4/main/docs/METAL.md",
+          "note": null
+        },
+        {
+          "text": "Hygiene: model on internal SSD, out of Time Machine and Spotlight; near-full disk, external drive or thermals show as token latency. Cap context (8K): KV competes with expert pages.",
+          "source": "asserted",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Runtimes and flags",
+      "facts": [
+        {
+          "text": "ds4: `--ssd-streaming`, `--ssd-streaming-cache-experts 32GB` (byte target; plain number = dynamic slots), `--ssd-streaming-full-layers N`, `--ssd-streaming-cold` and `--ssd-streaming-preload-experts N` for measurement only. 128 GB M5 Max: GLM 5.3 Flash Q4 (177.77 GiB) 11.9-14.9 tok/s, DeepSeek Flash MXFP4 11.9-19.3.",
+          "source": "https://github.com/antirez/ds4/blob/main/docs/SSD_STREAMING.md",
+          "note": null
+        },
+        {
+          "text": "ds4 keeps non-routed weights resident; an oversized expert cache displaces them and slows decode. Generation is more miss-sensitive than prefill: test a short generation first.",
+          "source": "https://raw.githubusercontent.com/antirez/ds4/main/docs/SSD_STREAMING.md",
+          "note": null
+        },
+        {
+          "text": "ds4 caches are seeded from compiled hotlists (priority 1+31*remaining/total, not pins); `DS4_METAL_DISABLE_STREAMING_EXPERT_HOTLIST` turns it off.",
+          "source": "https://raw.githubusercontent.com/antirez/ds4/main/ds4.c",
+          "note": null
+        },
+        {
+          "text": "SwiftLM `--stream-experts`, `SWIFTLM_TOP_K`: 122B 0.58 to 5.91 tok/s, ~10 GB resident. Do not add `--draft-model` (5x I/O fan-out, slower than solo). `--gpu-layers N` on MoE is OOM avoidance only (~3 s/token).",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Flash-MoE (danveloper, Qwen3.5-397B, M3 Max 48 GB): 4.36 tok/s at 4-bit; 5.74 at 2-bit, which breaks JSON tool calls.",
+          "source": "https://github.com/danveloper/flash-moe",
+          "note": null
+        },
+        {
+          "text": "Anemll fork (branch m5-nax, M5 Max 128 GB): Q3 GGUF experts + `--cache-io-split 4` 12.9 tok/s; split 8 worse; re-sweep on other chips. Like-for-like 4-bit is 9.5 tok/s, not the \"3.3x\" headline (2-bit).",
+          "source": "https://github.com/Anemll/flash-moe",
+          "note": null
+        },
+        {
+          "text": "mlx-lm: `load(lazy=True)` avoids the 18.2 GB load spike; PR 1588 adds opt-in `enable_offload(resident_slots, fetch_fn)`.",
+          "source": "https://github.com/ml-explore/mlx-lm/pull/1588",
+          "note": null
+        },
+        {
+          "text": "llama.cpp: `--no-mmap`/`--mlock` merged into `-lm, --load-mode`; old flags give `error: invalid argument`. `--n-cpu-moe N` is for discrete-GPU VRAM.",
+          "source": "https://openclawdc.com/blog/llama-cpp-moe-offload-flags-explained/",
+          "note": null
+        },
+        {
+          "text": "JangPress (mmap + `MADV_DONTNEED`, Kimi-K2.6 JANGTQ): `JANGPRESS_PRESTACK` (~150 GB overlay), `KIMI_LOW_RAM=1`, `pct=100` on 128 GB.",
+          "source": "https://raw.githubusercontent.com/jjang-ai/jangq/main/scripts/jangpress/README.md",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Cache and I/O rules",
+      "facts": [
+        {
+          "text": "Trust the OS page cache: app-level LRUs lost (Metal LRU 3.14 to 1.99 tok/s as it grew, SwiftLM 4.84 to 4.01). A 9.8 GB Metal cache wired memory and left ~25 GB not ~35 GB for page cache.",
+          "source": "https://raw.githubusercontent.com/Anemll/flash-moe/m5-nax/docs/io-and-gpu-exploration.md",
+          "note": null
+        },
+        {
+          "text": "Use parallel `pread`, not mmap: cold mmap 5x slower (240 faults per 3.9 MB expert). 4 parallel preads gave 9.2x. `F_NOCACHE` only helps 2-bit (+3%).",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Read hints fail: `MADV_RANDOM` harmful, `F_RDADVISE` -8%/-4%, `F_RDAHEAD` 0%.",
+          "source": "https://raw.githubusercontent.com/Anemll/flash-moe/m5-nax/docs/io-and-gpu-exploration.md",
+          "note": null
+        },
+        {
+          "text": "Policy: per-layer LRU hits 0.80-0.87 at 30% capacity; pinning hot experts lost 6-30 points; adjacent-layer prefetch has no signal. SpecMD Least-Stale beats LRU but was tested on an A100, not Apple SSD.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Layout: mbolt reorder+interleave 1.55x end-to-end under explicit reads; Flash-MoE clustering 0%. Warm decode is serial: SSD DMA and GPU do not overlap.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Prefill touches nearly all experts, so a 30% cache refetches the table; warm prefill is no faster than cold.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Benchmark SSD with `F_NOCACHE`: BlackMagic and AmorphousDiskMark skip it and may be inflated by RAM cache on big-memory Macs (author claim; a reply disputes it, SATA and HDD looked device-true). DiskTruth (beta 2026-04-16) sets F_NOCACHE on every fd, measures random 4K QD1 (10,000 ops, avg and p99) and QD1/4/16/32 scaling; it claims Apple NVMe has \"extraordinary QD1 latency\" but gives no numbers.",
+          "source": "https://forums.macrumors.com/threads/beta-disktruth-f_nocache-mac-disk-benchmark-slc-cliff-detection-negotiated-interface-speed-testflight-now-open.2481094/",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Failure modes",
+      "facts": [
+        {
+          "text": "`broadcast_shapes` fatal on first request: SwiftLM b769/b773 quantized MoE; fixed in SharpAI/mlx-swift-lm PRs 69, 71.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "`insufficient memory: model requires ≈234 GB peak`: set `VMLX_MEMORY_BUDGET_OVERRIDE`. `Unsupported model type: kimi_k25`: needs shadow config.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "`Qwen n-grams must follow page-aligned weights`: repack with `gguf-tools/qwen4_native_ngrams.py`.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Ollama default load of a 35B on 16 GB: 4.3 M swapouts, no token in 10 min; llama.cpp mmap on the 13 GB IQ3_XXS gave 17.3 tok/s.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Long context kills streaming: DeepSeek-V4-Flash 126 GB 4.65 tok/s at 512 to 0.32 at 40K; TurboQuant KV holds 4.16.",
+          "source": "https://github.com/SharpAI/SwiftLM",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Top-k reduction",
+      "facts": [
+        {
+          "text": "Flash-MoE runs K=4 of 10 (K=3 collapses). llama.cpp: `--override-kv llama.expert_used_count=int:N`. SwiftLM: top-k 8 4.95, 6 5.20, 4 5.91, 2 6.52 tok/s (GPU-bound). Apple PHDS: safe to ~25% cut; training-time, so no runtime flag helps.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Stacking K=4 with 2-bit breaks tools; evaluate the combination.",
+          "source": "asserted",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Bandwidth: numbers to trust",
+      "facts": [
+        {
+          "text": "Apple peak 14.5 GB/s (M5 Max 8 TB, FIO), up to 2x M4. Third-party M4 Max reads 5-7 GB/s; speed follows NAND package count, not capacity. Zero-cache ceiling, 397B: 8.9 tok/s at 4-bit, 11.1 at Q3 (14.5 GB/s); 3.4 and 4.2 at cold 5.5 GB/s.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Corrections: 17.5 GB/s (M3 Max) and Anemll \"36 GB/s\" (0.74 ms/27 MB) exceed Apple's ceiling and include page-cache hits. Flash-MoE 1.6 GB at 17.5 GB/s is 10.8 tok/s; 18.6 is the 2-bit figure.",
+          "source": "https://github.com/Anemll/flash-moe",
+          "note": null
+        },
+        {
+          "text": "Correction: JangPress \"167 GB Kimi on 128 GB\" is load-validated only; no coherent token reported (~130 GB footprint before token 1).",
+          "source": "https://raw.githubusercontent.com/jjang-ai/jangq/main/scripts/jangpress/README.md",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Clusters and Engram",
+      "facts": [
+        {
+          "text": "Flash-MoE paper: session cache avoids ~98% of reprocessing in a 10-turn chat; speculative decoding with a 35B draft was a 4.5x net slowdown.",
+          "source": "https://raw.githubusercontent.com/danveloper/flash-moe/main/paper/flash_moe.pdf",
+          "note": null
+        },
+        {
+          "text": "ds4 TP (2 Macs, RDMA, `iogpu.wired_limit_mb=120000`) is resident: omit `--ssd-streaming`. Metal validator does not reject the pair (correction), but no command or tok/s is documented.",
+          "source": "https://raw.githubusercontent.com/antirez/ds4/main/ds4_tp.c",
+          "note": null
+        },
+        {
+          "text": "optiq pipeline: 20.5 tok/s resident on two Macs vs 4.9 streamed on one; residency cliff ~73% of RAM.",
+          "source": "https://mlx-optiq.com/docs/cluster",
+          "note": null
+        },
+        {
+          "text": "Engram/n-gram tables (189 GiB) stay on disk in every mode; prefill overlaps reads (2,048-token chunks, prompts of 1,024+ tokens), decode does not. They are read row by row, `F_NOCACHE`, 264 B rows, 48 reads/token, latency-bound; no hot-row cache exists.",
+          "source": "asserted",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Open",
+      "facts": [
+        {
+          "text": "No SSD wear data, no measured ds4 QD16 stall latency, no sequential-read numbers from DiskTruth, no Apple-SSD Engram latency, no head-to-head of own cache vs page cache.",
+          "source": "asserted",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Corrections and disagreements",
+      "facts": [
+        {
+          "text": "CONTRADICTS: the jangq README headline and the two existing dossiers say a 167 GB Kimi-K2.6 bundle serves from a 128 GB Mac. The runtime-scripts README in the same repo says: \"Small and Med can load to /health, but neither has produced a single coherent token through vmlxctl serve. First prefill reaches ~130 GB process footprint and severe system memory pressure before token 1. Do not start MMLU until a one-token probe returns content.\" The JangPress guide's own validation section says only that the bundles \"load-validate\" and have a post-load footprint of about 0.7 GB. So the validated claim is loadable, not runnable; the \"runnable\" claim in the guide's introduction is not backed by any measured token.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "CONTRADICTS: moe-expert-offload-to-ssd-on-macos.md reads the Anemll 0.74 ms per layer for 27 MB as roughly 36 GB/s of \"effective\" SSD read; the Anemll docs state those timings come from warm-cache runs, so they overstate raw SSD speed on M5 Max.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "CONTRADICTS: ssd-expert-streaming-and-cluster-sharding-for-mo.md (reading that TP and streaming are exclusive): ds4's Metal validator does not reject `--ssd-streaming` with `--tensor-parallel`; only network CUDA TP rejects it. The docs simply show no combined command.",
+          "source": "https://raw.githubusercontent.com/antirez/ds4/main/ds4_tp.c",
+          "note": null
+        },
+        {
+          "text": "CONTRADICTS: moe-expert-offload-to-ssd-on-macos.md (4-bit \"about 1.6 GB per token ... ceiling of about 18.6 tok/s at 17.5 GB/s\"): 1.6 GB at 17.5 GB/s is about 93 ms or 10.8 tok/s; the 18.6 tok/s ceiling is the paper's 2-bit figure for 943 MB.",
+          "source": "https://raw.githubusercontent.com/danveloper/flash-moe/main/paper/flash_moe.pdf",
+          "note": null
+        },
+        {
+          "text": "CONTRADICTS: flash-moe-paper-flash-moe-pdf-90-plus-experiment.md and the Flash-MoE README, which describe a 1 TB M3 Max with \"17.5 GB/s sequential read (measured)\". Apple's own peak for the newer M5 Max with 8 TB is 14.5 GB/s, and third-party M4 Max Blackmagic reads are 5 to 7 GB/s. A 17.5 GB/s figure on an M3 Max 1 TB is above every first-party and third-party raw rate found, so it likely includes page-cache hits. The same repo's cold rate on that machine (5.5 GB/s with `F_NOCACHE`) is consistent with the raw rates.",
+          "source": "https://github.com/Anemll/flash-moe",
+          "note": null
+        },
+        {
+          "text": "CONTRADICTS: moe-expert-offload-to-ssd-on-macos.md, which reads the Anemll 0.74 ms per 27 MB layer as \"about 36 GB/s effective\" and treats it as an M5-generation SSD gain. The Anemll table also lists 0.44 ms for 21.8 MB at Q3, which is about 50 GB/s. Both exceed Apple's 14.5 GB/s raw ceiling by 2.5x to 3.4x and can only be cache-served reads. (The Anemll docs already say these runs are warm; this adds the Apple ceiling as a hard bound.)",
+          "source": "https://github.com/Anemll/flash-moe",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Concepts in this cluster",
+      "facts": [
+        {
+          "text": "MoE expert offload to SSD on macOS",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Expert-cache policy and on-disk layout for MoE streaming",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Expert-count reduction at inference top-k override",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Flash-MoE SSD-streamed MoE expert runtime",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "JangPress cold-expert eviction for MoE larger than RAM",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "MoE expert SSD streaming and page-cache residency",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "SSD expert streaming and cluster sharding for MoE on Mac",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "ds4 antirez SSD streaming runtime",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Aggregate SSD bandwidth when each cluster node streams experts",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Engram and n-gram embedding tables read from disk per token",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Flash-MoE paper flash_moe.pdf 90+ experiment log",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "MoE-PHDS post-hoc declared sparsity fine-tune",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "rustane warm-page-cache pread fanout (ncdrone/rustane)",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Engram row prefetch overlapped with preceding transformer blocks in Mac runtimes",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "SSD bandwidth growth per Apple chip generation and 397B projection",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Zipfian hot-row cache tier for n-gram tables (DRAM over NVMe)",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Apple SSD speed dependence on NAND capacity and package count",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "ds4 decode-time Engram read latency on Apple SSD (48 random reads per token)",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Apple NVMe small random read latency under F_NOCACHE at queue depth 16",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Sequential read throughput of expert-sized reads by Apple SSD configuration",
+          "source": "asserted",
+          "note": null
+        }
+      ]
+    }
+  ],
+  "related": []
+}

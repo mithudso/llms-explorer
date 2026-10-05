@@ -1,0 +1,434 @@
+{
+  "slug": "anemll-ane-llm-conversion-pipeline",
+  "concept": "ANEMLL ANE LLM conversion pipeline",
+  "generated": "2026-10-05",
+  "summary": "Model rewrite for ANE: Conv2d in place of Linear, static shapes, KV cache as Core ML state, FP16 only; ANEMLL's own \"Anemll-style\" RMSNorm hack replaces the standard op (0.3.4 added a precise RMSNorm built from ANE ops).",
+  "facets": [
+    {
+      "title": "Facts",
+      "facts": [
+        {
+          "text": "Model rewrite for ANE: Conv2d in place of Linear, static shapes, KV cache as Core ML state, FP16 only; ANEMLL's own \"Anemll-style\" RMSNorm hack replaces the standard op (0.3.4 added a precise RMSNorm built from ANE ops).",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Prefill batch default 64 (Panaro's design: fixed Q of 64 rows, so every call takes the same time; K cache is a 512-wide sliding window of 448 old + 64 new tokens; a secondary cache-sliding model runs when the ANE is idle).",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Quantization is LUT palettization per component: `--lut1` embeddings (default none), `--lut2` FFN/prefill (default 4), `--lut3` LM head (default 6). Syntax `--lut2 6,4` = 6 bits, per-channel group size 4 (default group 8). Monolithic script adds `--lut-embeddings`, `--lut-lmhead`. Empty strings give plain FP16.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Chunking: `--chunk N` or `--chunk auto`; auto reads config.json, applies the LUT compression ratio (LUT6 = 37.5% of FP16), adds 10% overhead, picks the smallest N where the largest chunk fits `--max-chunk-mb` (default 950). Site text: model splits target iOS (1 GB) and macOS (2 GB) per-file limits. Example: Qwen3-4B LUT6 -> 4 chunks. DeepSeek R1 8B example uses 8 chunks.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "In-model argmax (`--argmax`): LM head returns per-chunk argmax index (int32) and value (fp16) instead of the full vocab logits (Gemma 3 262K vocab splits into 16 chunks); host merges. Flag recorded as `com.anemll.argmax_in_model` metadata. Top-k sampling in-model is future work.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Monolithic mode (convert_monolith.sh): embeddings+FFN+head in one .mlmodelc with functions infer and prefill (Gemma 3 adds infer_rotate and prefill_rotate); suited to models up to ~3B; whole model resident at once.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Gemma 3 handling: split KV (local sliding window 512 on 15 of 18 layers in 1B, global layer every 6th), `--fp16-scale auto` weight scaling (alpha 0.48 for 270M, 0.82 for 1B, 0.1875 for 4B QAT) because BF16-trained activations peak at 104K, 61K, 293K versus FP16 max 65,504; `--clamp 55000` is the runtime alternative; fp16_preflight.sh runs the sweep first.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "ANEMLL-Dedup: CoreML's own dedup compares raw bytes and misses palettized weights with different LUT order; Dedup normalizes LUT/index form, saves with PassPipeline.EMPTY; Qwen2.5-0.5B monolithic LUT6 ctx2048 862 -> 472 MB; accept gate cosine >= 0.9999 and MAE <= 0.001.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Tooling: anemll-profile (Objective-C, brew tap anemll/tap/anemll-profile, v0.4.1 2026-04-09; MLComputePlan + Espresso CostModel logs, reports ops falling off ANE, \"interruption islands\", measured weight GB/s; macOS 14+), ANE_PROFILER.py in the main repo (needs coremltools 9+, macOS 15+), anemll-bench (ANE weight-read bandwidth), lm-evaluation-harness runner (0.3.4), HF \"On-Device LLM Throughput Calculator\" space.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Inference: Python (chat.py, chat_full.py), Swift CLI `anemllcli` (Swift 6, macOS 15+/iOS 18+), SwiftUI ANEMLL Chat (TestFlight, source in repo). Swift stability fixes in 0.3.5: IOSurface-backed output buffers, serial prediction queue, ping-pong buffers across FFN chunks, 16-deep ring buffer for monolithic outputs.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Install: Python 3.9 strongly recommended (3.9-3.11 supported), coremltools >= 9.0, PyTorch 2.5.0 (3.13+ fails), native arm64 Python (x86_64 Python under Rosetta silently loses the ANE), `./create_uv_env.sh` then `./install_dependencies.sh`. README system requirement: macOS Sequoia, 16 GB RAM minimum, 32 GB for 8B.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "2025-02-08 initial 0.1.0; 0.1.2 alpha added troubleshooting and DeepSeek/DeepHermes; roadmap once referenced WWDC25.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "2025-03 anemll-bench launched on Reddit to measure ANE bandwidth because Apple publishes nothing; \"A in ANEMLL stands for Artificial\", not affiliated with Apple.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "2025-05 HN launch thread; author: ANE limited to 64 GB/s before M3 Max / M4 Pro, M4 Max about 120 GB/s for ANE vs 500+ for GPU, so GPU is 3-4x faster beyond 1-3B; ANE likely as fast for prefill; M4/A17 accelerated INT8 at 2x FP16; context 2000-4000 possible.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "2025-07-07 0.3.4 (lm-eval, RMSNorm, RoPE overflow fix: pre-0.3.4 models must be re-converted).",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "2026-02-14 0.3.5 Beta (Gemma 3, monolithic, argmax, Dedup, profiler). Last commit to the main repo as of 2026-10-03.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "2026-03 to 2026-10: development energy moved to sibling repos: anemll-profile (Mar-Apr 2026), Flash-MoE family (anemll-flash-llama.cpp: SSD-streamed MoE experts for GGUF, Qwen3.5-397B-A17B; Flash-iOS \"400B on iPhone\"; most active project on the site), ANEMLL Claw, and Forge. HF org has a \"Core AI\" collection (Forge model updated 2026-10-02).",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "2026-09-24 and 2026-09-30 anemll-bench added M5 Pro and M6 results; M6 (Mac18,5) on macOS 27.0.1.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Roadmap (unchanged since 0.3.5) lists as not done: native ANE quantization, int4 linear quantization, KV-cache quantization, LoRA, MoE, an AFM-like Swift API, an ANE server. Quantization is the flagged weak spot: README says LUT4 quality is \"fairly low due to lack of block quantization on ANE\"; GPTQ/SpinQuant \"should greatly improve\" it. Pip-installable Swift package was never released (local package only, \"from 1.0.0\" promised).",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "M1/A14: ANE cannot compile non-uniform state shapes, so Gemma 3 is limited to 512-ctx monolithic models there. iOS: weight files > 1 GB may fail to load on iPhone and non-M iPads. Multi-turn chat re-runs prefill for the whole history each turn.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Qwen 3 multi-chunk bug (fixed 0.3.5): final RMSNorm applied on every FFN chunk instead of only the last corrupted hidden states.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Open issues (Oct 2026): #58 \"Transfer to CoreAI\" (2026-09-01), #52/#53 install and HF login breakage, #39 M4/M5 on OS 26.0.1 error in chat loop, #36 Qwen3 0.6B/4B repetition and runaway think tags on iPhone 16e, #33 \"performance not at all great compared to mlx_lm\", #35 improve ANE utilization, #40 Qwen3-VL, #34 TTS/STT.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Forge numerics: native fp16 softplus overflows on ANE; native SiLU has large relative error at small inputs (use 0.5*x*(1+tanh(x/2)); the compiler fuses x*sigmoid(x) back to native SiLU); subnormal loss in small recurrent-state products; fluent output hid large recurrent-layer errors that cosine similarity missed.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Forge memory: Core ML multifunction packages did not share resident weights across functions while Core AI did; compile mode 2 (\"bonded\", undocumented) cut program overhead; a sandboxed launch produced a cached specialization that put all 12 chunk entries on GPU (5.7 s stall) despite ANE requested; a server was killed for low swap after 160 8K/16K context switches (~120 GiB discarded KV allocations from IOSurface/autorelease retention). M5-family cold-compile can crash with a topological-sort failure (cache pre-warm workaround).",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Placement is not guaranteed by `CPU_AND_NE`; check per-op placement (anemll-profile or MLComputePlan). Vector LUT keeps ANE placement only for widths up to 16 and codebooks up to 256 values on tested paths; per-group vector LUTs and vectors along input channels lost ANE placement.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "ANE bandwidth ceiling. anemll-bench: ANE weight-read plateaus about 150 GB/s on M5 Pro/Max/Ultra and M6 (M4 Max 119, M3 Ultra 120, base M1-M4 55-64), regardless of system bandwidth (13% of M5 Ultra's 1.2 TB/s). Forge's own estimate of the 27B verifier traffic peaks near 92-93 GB/s and the document says that is not a hardware ceiling. Both are effective-traffic estimates; the M6 16 GB report says end-to-end predict() reads 134 GB/s while firmware timestamps suggest ~150 GB/s.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Two ANE clusters. Dual-model runs on M3 Ultra, M5 Max, M5 Pro, M5 Ultra, M6 sum to the same ~120-150 GB/s as one model (each parallel model gets half), so a second ANE cluster adds no bandwidth in this benchmark; the project had earlier suspected only one cluster was used on Ultra and \"bonded\" compile mode 2 later enabled both clusters for Core AI.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Value of Core AI vs Core ML for ANE. Forge notes Core ML and Core AI use different lowering pipelines; Core AI shared weights across functions and Core ML did not; larger Qwen Core AI chunks failed where Core ML chunks worked. Existing dossier's Core AI-vs-MLX parity finding concerns GPU/iPhone-0.6B; no source compares Forge's ANE 27B decode against MLX on the same M6.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "No power, thermal or battery measurement exists for either line; the ~2 W vs ~20 W figure is from 2025 community runs of 1B. Forge says \"No power/thermal conclusion is included\".",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Will the classic Core ML pipeline get another release? Issue #58 asks for a Core AI port; maintainers' own effort moved to Forge and Flash-MoE.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Forge quality evidence is short-trace KL (mean 0.185 nats vs BF16 teacher, top-1 agreement 86.0%) and a one-trial-per-case NIAH pilot; no coding/reasoning benchmark. Context entries up to 64K \"do not establish long-context quality\".",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Whether M5 gets comparable decode: Forge says M5/M5 Pro/M5 Max run \"roughly half the M6 throughput\" (approximate, unmatched) and the reported mixed-bit bandwidth benefit saturates under ~2 bits on M6 but did not appear on M5 Max.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "ANEMLL stands for Artificial Neural Engine Machine Learning Library and the team states it is not affiliated with Apple.",
+          "source": "https://www.reddit.com/r/LocalLLM/comments/1j6mejr/help_us_benchmark_the_apple_neural_engine_for_the/",
+          "note": null
+        },
+        {
+          "text": "The main repo has about 1.7k stars, 80 forks, 28 branches and 7 tags, and its last commit is 2026-02-14 (0.3.5 Beta).",
+          "source": "https://github.com/anemll/anemll",
+          "note": null
+        },
+        {
+          "text": "convert_model.sh runs eight steps: embeddings, LM head, FFN, prefill, combine, compile, tokenizer plus meta.yaml, test; `--restart` and `--only` select steps.",
+          "source": "https://github.com/Anemll/Anemll/blob/main/docs/convert_model.md",
+          "note": null
+        },
+        {
+          "text": "Defaults are context 512, batch 64, lut1 none, lut2 4, lut3 6, chunk 2, max chunk 950 MB.",
+          "source": "https://github.com/Anemll/Anemll/blob/main/docs/convert_model.md",
+          "note": null
+        },
+        {
+          "text": "LUT syntax `--lut2 6,4` means 6-bit quantization with per-channel group size 4; default group size is 8.",
+          "source": "https://github.com/Anemll/Anemll/blob/main/docs/convert_model.md",
+          "note": null
+        },
+        {
+          "text": "`--chunk auto` applies the LUT compression ratio (LUT6 = 37.5% of FP16) plus 10% overhead and picks the fewest chunks under the max-chunk size; Qwen3-4B at LUT6 gives 4 chunks.",
+          "source": "https://github.com/Anemll/Anemll/blob/main/docs/convert_model.md",
+          "note": null
+        },
+        {
+          "text": "The README system requirements are macOS Sequoia, 16 GB RAM minimum (32 GB for 8B), Python 3.9-3.11 (3.9 recommended), coremltools >= 9.0.",
+          "source": "https://github.com/anemll/anemll",
+          "note": null
+        },
+        {
+          "text": "Spec table (0.3.5): Llama 3.1/3.2 1B and 8B at 512-2048; DeepSeek R1 8B and DeepHermes 3B/8B at 512-1024; Qwen 3 0.6B/1.7B/8B at 512-4096; Qwen 2.5 0.5B/1.5B/3B/7B at 512-2048; Gemma 3 270M/1B/4B QAT at 512-4096. Recommended context is 512-1024 for best ANE performance.",
+          "source": "https://github.com/anemll/anemll",
+          "note": null
+        },
+        {
+          "text": "Pre-converted release sizes: Gemma 3 270M 512-ctx 0.5 GB, 270M 4K 0.9 GB, 1B 4K 1.5 GB, 4B QAT 4K 2.5 GB, Llama 3.2 1B 1K 1.2 GB, Qwen 3 1.7B 2K 1.6 GB, Qwen 2.5 0.5B 2K 0.5 GB.",
+          "source": "https://github.com/Anemll/Anemll/blob/main/docs/RELEASE_NOTES_0.3.5.md",
+          "note": null
+        },
+        {
+          "text": "The README states LUT4 quality is fairly low due to lack of block quantization on the ANE, and that GPTQ and SpinQuant should improve it.",
+          "source": "https://github.com/anemll/anemll",
+          "note": null
+        },
+        {
+          "text": "ANEMLL's FP16 vs Hugging Face FP16 (MPS) parity on lm-eval averaged 56.60% vs 55.89% across ARC, BoolQ, PIQA, WinoGrande (0.3.4 report).",
+          "source": "https://github.com/anemll/anemll",
+          "note": null
+        },
+        {
+          "text": "Gemma 3 BF16 activations exceed FP16 range (peak 104,162 for 270M, 61,040 for 1B, 292,969 for 4B QAT); ANEMLL fixes this with weight scaling alpha 0.48, 0.82, 0.1875 respectively or runtime clamping at 55000.",
+          "source": "https://github.com/Anemll/Anemll/blob/main/docs/RELEASE_NOTES_0.3.5.md",
+          "note": null
+        },
+        {
+          "text": "Gemma 3 on M1 and A14 cannot use the split KV cache because their ANE fails to compile non-uniform state shapes; those chips are limited to 512-context monolithic Gemma 3.",
+          "source": "https://github.com/Anemll/Anemll/blob/main/docs/RELEASE_NOTES_0.3.5.md",
+          "note": null
+        },
+        {
+          "text": "In-model argmax makes each LM-head chunk return an int32 index and fp16 value, shrinking Gemma 3's 262K-logit output to 2x16 scalars.",
+          "source": "https://github.com/Anemll/Anemll/blob/main/docs/RELEASE_NOTES_0.3.5.md",
+          "note": null
+        },
+        {
+          "text": "Monolithic conversion is best for models up to about 3B parameters and loads the whole model into memory at once.",
+          "source": "https://github.com/Anemll/Anemll/blob/main/docs/RELEASE_NOTES_0.3.5.md",
+          "note": null
+        },
+        {
+          "text": "Core ML's built-in weight dedup compares raw bytes and misses semantically identical palettized weights (15-40% bloat in multifunction models); ANEMLL-Dedup normalizes LUT/index form first and saves with PassPipeline.EMPTY; Qwen2.5-0.5B 862 -> 472 MB, VibeThinker 1.5B chunk 523 -> 309 MB.",
+          "source": "https://github.com/Anemll/Anemll/blob/main/docs/RELEASE_NOTES_0.3.5.md",
+          "note": null
+        },
+        {
+          "text": "Known 0.3.5 constraints: multi-turn re-runs prefill for the whole history; iOS weight files over 1 GB may fail to load on iPhone and non-M iPads; macOS 15+ required.",
+          "source": "https://github.com/Anemll/Anemll/blob/main/docs/RELEASE_NOTES_0.3.5.md",
+          "note": null
+        },
+        {
+          "text": "A variable-context demo grows context 512 -> 1024 -> 2048 -> 3072 -> 4096 by copying KV state into larger tensors (VibeThinker 1.5B), with a shift-refill sliding window at the cap.",
+          "source": "https://github.com/Anemll/Anemll/blob/main/docs/RELEASE_NOTES_0.3.5.md",
+          "note": null
+        },
+        {
+          "text": "The Roadmap lists native ANE quantization, variable context, Gemma 3N and faster quantization as in progress, and KV-cache quantization, int4 linear quantization, LoRA, an ANE server, an AFM-like Swift API and MoE support as upcoming.",
+          "source": "https://github.com/Anemll/Anemll/blob/main/Roadmap.MD",
+          "note": null
+        },
+        {
+          "text": "Panaro's ANE KV-cache design fixes Q at 64 rows so every call costs the same, uses a 512-wide sliding K window (448 old + 64 new), and requires static shapes and no branching.",
+          "source": "https://stephenpanaro.com/blog/kv-cache-for-neural-engine",
+          "note": null
+        },
+        {
+          "text": "Panaro on HN: conv2d beats linear on ANE, shapes are static so KV needs creativity, and compute is float16 (not bfloat16) so activation overflow can occur.",
+          "source": "https://news.ycombinator.com/item?id=43879702",
+          "note": null
+        },
+        {
+          "text": "ANEMLL author on HN (May 2025): ANE was limited to ~64 GB/s before M3 Max/M4 Pro; M4 Max ANE ~120 GB/s vs GPU 500+; GPU 3-4x faster beyond 1-3B models; ANE likely as fast for prefill; M4/A17 added INT8 at 2x FP16 speed.",
+          "source": "https://news.ycombinator.com/item?id=43879702",
+          "note": null
+        },
+        {
+          "text": "The same author said Apple's coremltools failed on attention-activation quantization, and a commenter noted ANEMLL cannot steer compute units directly because Core ML orchestrates placement.",
+          "source": "https://news.ycombinator.com/item?id=43879702",
+          "note": null
+        },
+        {
+          "text": "A commenter reproduced R1-8B on M4 Max: ANEMLL 9.3 tok/s vs MLX 8-bit ~50 and llama.cpp 8-bit ~41 tok/s.",
+          "source": "https://news.ycombinator.com/item?id=43879702",
+          "note": null
+        },
+        {
+          "text": "anemll-bench ANE weight-read bandwidth (llama_lm_head): M1 61, M2 60, M3 63, M4 64, M5 70, M1/M2 Pro-Max-Ultra 55-62, M3 Ultra 120, M4 Max 119, M4 Pro 126, M5 Max 148, M5 Pro 150, M5 Ultra 150, M6 152 GB/s.",
+          "source": "https://github.com/Anemll/anemll-bench/blob/main/Results.MD",
+          "note": null
+        },
+        {
+          "text": "The bench groups ANE tiers as 55 GB/s (M1 Pro/Max/Ultra), 60-70 GB/s (base M1-M5, M2 family) and 120-152 GB/s (M3 Ultra, M4 Pro/Max, M5 Pro/Max/Ultra, M6).",
+          "source": "https://github.com/Anemll/anemll-bench/blob/main/Results.MD",
+          "note": null
+        },
+        {
+          "text": "Running two models in parallel on one chip gives the same combined throughput as one (M3 Ultra 120.29, M5 Max 147.62, M5 Pro 149, M5 Ultra 150.07 GB/s), so extra ANE clusters add no bandwidth in this test.",
+          "source": "https://github.com/Anemll/anemll-bench/blob/main/Results.MD",
+          "note": null
+        },
+        {
+          "text": "ANE bandwidth as a share of system memory bandwidth: M1 89%, M4 53%, M4 Max 22%, M5 Max 24%, M3 Ultra 15%, M5 Ultra 13%.",
+          "source": "https://github.com/Anemll/anemll-bench/blob/main/Results.MD",
+          "note": null
+        },
+        {
+          "text": "On M6 16 GB the bench measures 7.85 ms for llama_lm_head (1050.67 MB) and 3.27 ms for the LUT6 variant (396 MB); firmware timestamps imply ~150 GB/s weight read and end-to-end predict() shows 134 GB/s.",
+          "source": "https://github.com/Anemll/anemll-bench/blob/main/Results.MD",
+          "note": null
+        },
+        {
+          "text": "anemll-bench needs macOS 15 and native arm64 Python 3.9-3.11; x86_64 Python under Rosetta reports \"ANE Hardware Available: False\" and runs CPU-only.",
+          "source": "https://github.com/Anemll/anemll-bench",
+          "note": null
+        },
+        {
+          "text": "anemll-profile reports per-op placement, \"ANE graph interruptions\" (non-ANE islands, CPU or GPU) ranked by estimated switch penalty (default 300 ms heuristic), CPU/GPU fallback reasons, and measured weight-only DRAM bandwidth; v0.4.1 released 2026-04-09, MIT, 35 stars.",
+          "source": "https://github.com/Anemll/anemll-profile",
+          "note": null
+        },
+        {
+          "text": "Third-party ecosystem: anemll-server (alexgusevski) is the only listed open-source integration; ANEMLL Claw is an iOS coding assistant TestFlight app.",
+          "source": "https://github.com/anemll/anemll",
+          "note": null
+        },
+        {
+          "text": "The site's most active project (727 clones in 14 days) is anemll-flash-llama.cpp, a llama.cpp fork that streams MoE experts from SSD (Qwen3.5-397B-A17B, Kimi-K2 experimental); Flash-iOS claims a 400B model on iPhone.",
+          "source": "https://www.anemll.com/",
+          "note": null
+        },
+        {
+          "text": "The main-repo issue tracker has open items on CoreAI transfer (#58), Qwen3 repetition/think-tag problems on iPhone 16e (#36), M4/M5 OS 26.0.1 chat-loop error (#39) and poor speed vs mlx_lm (#33).",
+          "source": "https://github.com/Anemll/Anemll/issues",
+          "note": null
+        },
+        {
+          "text": "ANEMLL Forge targets the M6 ANE with macOS 27 / Xcode 27 Core AI SDK, recommends 32 GB or more, ~15 GB bundle, 11-14 GB cold-compile cache; M5, M5 Pro and M5 Max are supported at roughly half M6 throughput (approximate).",
+          "source": "https://github.com/Anemll/anemll-forge",
+          "note": null
+        },
+        {
+          "text": "Forge's Qwen3.8-27B target is 16 four-layer Core AI chunks, mixed 2-bit vector LUT and 4-bit scalar LUT GPTQ, rank-64 residual correction, FP16 host embeddings, LUT4 head; 38 MLP layers use 2-bit vector LUTs and 26 use LUT4.",
+          "source": "https://github.com/Anemll/anemll-forge/blob/main/docs/SESSION_LESSONS.md",
+          "note": null
+        },
+        {
+          "text": "Forge decode on M6 (FP16 KV): 57.17, 47.43, 42.21, 37.13, 31.38 tok/s at 8K, 16K, 32K, 48K, 64K; with V-only INT8 KV: 55.37, 51.99, 48.00, 39.55, 38.86; prefill 181.8 to 99.8 tok/s (FP16) across the same range.",
+          "source": "https://huggingface.co/anemll/anemll-forge-qwen3.8-27B",
+          "note": null
+        },
+        {
+          "text": "V-only INT8 KV (keys stay FP16, per token-per-head FP16 scales) cuts logical KV payload 24.8% (64 to 48.125 KiB per position); total resident memory savings are unmeasured.",
+          "source": "https://github.com/Anemll/anemll-forge/blob/342fbe295380b4258918f92e30303a09459f166c/docs/research/KV_CACHE_QUANTIZATION_2026-10-02.md",
+          "note": null
+        },
+        {
+          "text": "Forge quality evidence: mean KL 0.1846 vs BF16 teacher over 64 sequences and 40,023 positions, top-1 agreement 86.05%; the NIAH pilot passed at four placements with one trial each.",
+          "source": "https://huggingface.co/anemll/anemll-forge-qwen3.8-27B",
+          "note": null
+        },
+        {
+          "text": "Reported wired memory above idle for target plus drafter: 19.3 GB at 8K and 22.6 GB at 64K (25.4 GB total system wired).",
+          "source": "https://github.com/Anemll/anemll-forge/blob/main/docs/SESSION_LESSONS.md",
+          "note": null
+        },
+        {
+          "text": "A reported 201-run serving session (9K-47K context) averaged 18.7 tok/s (peak 44.4, min 11.2) with verifier medians 134 to 181 ms; this conflicts in level with the 31-57 tok/s benchmark above, which uses a synthetic prompt and a 3 ms draft gap.",
+          "source": "https://github.com/Anemll/anemll-forge/blob/main/docs/PERFORMANCE_SESSION.md",
+          "note": null
+        },
+        {
+          "text": "Verifier effective traffic is modeled at 10.61 GB of weights per forward plus 64 KiB of KV per history token; implied rate peaks about 92-93 GB/s and the document states this is not a hardware ceiling.",
+          "source": "https://github.com/Anemll/anemll-forge/blob/main/docs/PERFORMANCE_SESSION.md",
+          "note": null
+        },
+        {
+          "text": "The speculative verifier checks an anchor plus seven drafted tokens (T=8); output per cycle depends on acceptance, so eight rows do not mean eight tokens.",
+          "source": "https://github.com/Anemll/anemll-forge/blob/main/docs/SPECULATIVE_DECODING.md",
+          "note": null
+        },
+        {
+          "text": "Vector LUT on ANE keeps placement for vector width up to 16 and codebooks up to 256 values on tested paths; per-group vector LUTs and input-channel vectors lost placement; the M6 bandwidth benefit saturated below roughly 2 bits per weight and M5 Max did not show the same decode gain.",
+          "source": "https://github.com/Anemll/anemll-forge/blob/main/docs/TECHNIQUES.md",
+          "note": null
+        },
+        {
+          "text": "On the ANE path native fp16 softplus overflows and native SiLU has large relative error for small inputs; the compiler fuses x*sigmoid(x) back into native SiLU, so tanh form is used.",
+          "source": "https://github.com/Anemll/anemll-forge/blob/main/docs/TECHNIQUES.md",
+          "note": null
+        },
+        {
+          "text": "Core ML multifunction packages did not give the runtime weight sharing that Core AI did; a Swift bridge with reusable buffers replaced a leaking Python Core AI binding; undocumented compile mode 2 selects a bonded ANE variant that cut program overhead.",
+          "source": "https://github.com/Anemll/anemll-forge/blob/main/docs/SESSION_LESSONS.md",
+          "note": null
+        },
+        {
+          "text": "A cached specialization created under a sandboxed launch placed all 12 entries on GPU despite ANE being requested, causing a 5.7 s stall; per-entry placement evidence is needed because `CPU_AND_NE` and bonded-driver activity do not prove placement.",
+          "source": "https://github.com/Anemll/anemll-forge/blob/main/docs/SESSION_LESSONS.md",
+          "note": null
+        },
+        {
+          "text": "Forge states no power or thermal conclusion is included in its measurements.",
+          "source": "https://huggingface.co/anemll/anemll-forge-qwen3.8-27B",
+          "note": null
+        },
+        {
+          "text": "When the ANE wins, by ANEMLL's own numbers: memory footprint (8B in ~500 MB vs ~8 GB MLX), iOS-class devices where the GPU is shared with UI, and prefill (ANE FLOPs high); it loses on decode on Macs where the GPU has 3-4x the bandwidth, except for the Forge result where a 27B ANE path with speculative decoding reaches 30-57 tok/s.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "ANEMLL's trajectory aligns with Apple's Core AI: the project's newest model release is a Core AI .aimodel bundle, Core ML conversion code is retained \"for reproduction\", and the Core ML pipeline has had no release since 0.3.5.",
+          "source": "asserted",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Corrections and disagreements",
+      "facts": [
+        {
+          "text": "Whether ANE LLMs are limited to small models and short context. CONTRADICTS core-ml-and-apple-neural-engine-for-llms.md (\"models <=8B tested ... context 512-4K\"): Forge reports a 27B dense model at 8K-64K context on M6 ANE via Core AI (decode 57.2 tok/s at 8K down to 31.4 at 64K with FP16 KV; 55.4 to 38.9 with V-only INT8 KV; speculative acceptance 85-91%). Side by side, not averaged: the classic Core ML pipeline stays short-context/small-model; the Core AI line is single-vendor research, M6/macOS 27 beta only, one paired trial per cell, no power or thermal data, and uses a 7-token speculative drafter so speed is partly drafter acceptance.",
+          "source": "asserted",
+          "note": null
+        }
+      ]
+    }
+  ],
+  "related": []
+}

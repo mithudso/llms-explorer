@@ -1,0 +1,379 @@
+{
+  "slug": "llama-swap-lifecycle-hooks-and-wrapper-based-kv",
+  "concept": "llama-swap lifecycle hooks and wrapper-based KV save restore",
+  "generated": "2026-10-05",
+  "summary": "Hook route (proposed, not shipped): `afterHealthy` and `beforeStop` per model, each a shell string with `${PORT}` expansion, running curl against `/slots/N?action=restore|save`. Users' working config pattern: one `.bin` filename per model in a shared `--slot-save-path` (`${cache_dir}`), slot 1 ha...",
+  "facets": [
+    {
+      "title": "Facts",
+      "facts": [
+        {
+          "text": "Hook route (proposed, not shipped): `afterHealthy` and `beforeStop` per model, each a shell string with `${PORT}` expansion, running curl against `/slots/N?action=restore|save`. Users' working config pattern: one `.bin` filename per model in a shared `--slot-save-path` (`${cache_dir}`), slot 1 hard-coded, `ttl: 0`, q4_0 KV, `--flash-attn on`, `--no-context-shift`.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Wrapper route: wrapper starts llama-server on a private port, waits for health, restores, then exposes `/health` (503 until restore done) so llama-swap sees \"ready\" only afterward. Wrapper catches SIGTERM, saves, then stops the child.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "llama-swap kill timing: default stop is SIGTERM then forced kill after `unloadTimeout` (global default 10 s, overridable per model; docs say \"5 seconds\" in the cmdStop comment, \"10\" in the unloadTimeout entry). A multi-GB save that exceeds this loses the file. Raise `unloadTimeout` per model for wrapped models.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Alternative stop hook: `cmdStop` (with `${PID}`) can run a script instead of SIGTERM, which is the only built-in pre-kill hook slot.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Server-side alternatives in llama.cpp (all open as of 2026-10-04): PR 28092 `--cache-disk` (persistent prompt cache with hybrid/SWA checkpoints, automatic restore across restarts, corrupt-entry cleanup, disk-bounded LRU; closes issue 20697); issue 29678 / PR 29738 (2026-09-29/10-01) session-keyed automatic slot save/restore.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "2026-03-14 llama.cpp discussion 20572: tutorial doing save-after-response and restore-before-message with shell hooks from the orchestration layer, `--swa-full` required for SWA models (Qwen 3.5).",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "2026-03-20 llama-swap PR 595 opened by chand1012 (author co-written with Copilot agent). 2026-03-26 candrews asks for review. 2026-04-03 maintainer says he is sketching a more generic hook design inside the `proxy.Process` state machine. 2026-04-05 author says feel free to close. 2026-07-10 maintainer closes it: \"no progress and not currently planned now. It never made it past the design phase after I rewrote the backend.\" Branch deleted 2026-09-03. Still getting +1 comments on 2026-09-24.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "2026-07-11 WinPooh32 publishes a gist patch (0001-add-simple-on-load-stop-hooks.patch, \"llama-swap save/restore prompt cache on swapping models\") as a private-fork workaround.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "2026-05-01 discussion 724 proposes four events (`on_will_start`, `on_startup`, `on_will_stop`, `on_stopped`) with http or cmd actions; the author later wrote the wrapper himself (2026-08-09) and another user (chrispaulm) was writing their own wrapper server the same day.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "2026-09 PRs 20819 and 24028 (sidecar `.ckpt` files) superseded by PR 26004's single-file appendix; 24028's sidecar was magic `LSCKPT2` with per-checkpoint `size_tgt` and `size_dft`.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "PR 595 verdict: CLOSED UNMERGED. No `afterHealthy`/`beforeStop` in current llama-swap. Current `docs/config.example.yaml` `hooks:` supports only `on_startup`, and its only action is `profile:` (selects a profile at startup/reload); it is an application hook, not a per-model hook. This resolves the existing dossier's open question.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "First load always fails a restore (no file yet). Author's view: keep failure non-fatal; reviewer Stebalien: make the hook exit 0 in that case. A wrapper must treat missing file as normal (\"only slots with existing cache files are restored\" in llama-save-wrapper).",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Hook timeout: PR 595 added a 30 s limit after CodeRabbit flagged unbounded `curl` hangs. With a wrapper there is no such limit, only llama-swap's health-check timeout (default `healthCheckTimeout` 500 s).",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Multimodal models: save was rejected (HTTP 501, issue 19466, closed \"not planned\"/stale) so hook users add `--no-mmproj`. PR 26645 (mtmd chunk save/load) is merged; PR 26640 builds the packed `server_tokens` payload (version 1) on it so media slots can save, and also reworked the same SLOT_SAVE/SLOT_RESTORE handlers that PR 26004 touches (26004 was rebased onto it). Treat 26640 status as unconfirmed; read-only evidence shows 26645 merged.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Save slot id hard-coded to 1 or 0 misses other slots; candrews suggests a for-loop over a slot-count macro. llama-save-wrapper derives slot count from `-np` (default 4) and restores only slots with an existing `{slot_id}.bin`.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "One filename per model means a second concurrent session overwrites the first; no per-session keying in any wrapper found. Only PR 29738 proposes keying (`llama-session-<id>.bin`, `--slot-save-max-sessions` default 128, ids validated by `fs_validate_filename()`).",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Pinning `id_slot` for restore bypasses the host prompt cache (3,211-token prompt: 0 reused pinned vs 3,207 unpinned). A proxy-reported test: with slot management turned OFF, new agent session re-prefill dropped from 14,199 tokens (22.5 s) to 4 tokens (0.45 s) because `--cache-ram` already handles cross-session prefix reuse. So save/restore pays only across process death, not across slots in one process.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Speculative decoding: neither save nor restore persists the draft model's own KV (`ctx_dft`); a restored short conversation restarts the draft model empty. Complementary `<file>.dft` patch described by dgabehar; follow-up draft issue exists (\"/slots save/restore never persists the draft-model context\").",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "`n_written`/`n_read` in the save/restore responses under-reported file size once PR 26004 appended checkpoints after the file closed; the author fixed it. A caller copying files by `n_written` would truncate the appendix, and the loader then warns, drops checkpoints and returns 200 anyway.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Files portable across machines only as far as the base payload is: CUDA-to-Metal restore worked on a 314-token test (cache_n 0 to 310, output matched CUDA, not Metal's own output hash). Save files from Vulkan and CPU builds differ byte-for-byte for identical input unless `-ngl 0`.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Wrapper handling of second SIGINT: skips save (llama-save-wrapper). SIGKILL from llama-swap after timeout also skips save.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Wrapper max payload: llama-save-wrapper commit 2026-08-20 \"Increase max payload size\" (aiohttp default client body limit would otherwise reject large proxied requests).",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Hybrid restore is not a full hit even after the fix: 58,202-token prefix restored with 516 tokens re-prefilled (checkpoint-granularity rollback) with `--ctx-checkpoints 128 --checkpoint-min-step 128`.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Where it belongs. llama-swap maintainer: outside core, as a wrapper (in 615 he named `cmd/llama-server-cache-intercept/main.go`; in 724 he pointed at the `cmd/vllm-wrapper` style). Users (Stebalien, candrews, chrispaulm): hooks in llama-swap are simpler and avoid the readiness race. Neither side has shipped code in llama-swap.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Whether to persist at all. A proxy author found slot save/restore slower than leaving the host prompt cache alone for multi-session switching in one live process; the 26004 reporters measure 20-150x gains after process restarts or evictions. Different scenarios, not a conflict.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Does the maintainer's rewritten backend ship any per-model hook? No design was published; check llama-swap release notes after 2026-10.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Is PR 26004 merged in a tagged build? Not as of the 2026-10-04 fetch (still open in the page; its commit message says \"Not yet merged\").",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Which of 28092 (`--cache-disk`), 29738 (session-keyed) or 26004 (appendix) wins; they overlap.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "No Apple Silicon wall-clock for a wrapper-driven swap (save time + restore time of a several-GB file) was found; the only Metal evidence is the cross-machine 310-token restore and the M5 Pro 0.12 s restore already held.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "llama-swap PR 595 (afterHealthy/beforeStop per-model hooks) was closed by the maintainer on 2026-07-10 without merging.",
+          "source": "https://github.com/mostlygeek/llama-swap/pull/595",
+          "note": null
+        },
+        {
+          "text": "The maintainer's stated reason on 2026-07-10: no progress and not currently planned; it never made it past the design phase after he rewrote the backend.",
+          "source": "https://github.com/mostlygeek/llama-swap/pull/595",
+          "note": null
+        },
+        {
+          "text": "On 2026-04-03 the maintainer said he was sketching a more generic hook design built on the proxy.Process state machine and calling external scripts.",
+          "source": "https://github.com/mostlygeek/llama-swap/pull/595",
+          "note": null
+        },
+        {
+          "text": "PR 595's author said on 2026-04-05 he opened it because it helped his use case and invited closure.",
+          "source": "https://github.com/mostlygeek/llama-swap/pull/595",
+          "note": null
+        },
+        {
+          "text": "Current llama-swap `docs/config.example.yaml` `hooks:` documents only `on_startup`, whose only key is `profile` (profile activated at startup and after a config reload).",
+          "source": "https://raw.githubusercontent.com/mostlygeek/llama-swap/main/docs/config.example.yaml",
+          "note": null
+        },
+        {
+          "text": "Current example config documents `unloadTimeout` (default 10 s, per-model override, \"graceful timeout in seconds when unloading a model (manual, API, or ttl expiry)\") used before force-killing the process.",
+          "source": "https://raw.githubusercontent.com/mostlygeek/llama-swap/main/docs/config.example.yaml",
+          "note": null
+        },
+        {
+          "text": "Default cmdStop behavior in the example config: SIGTERM on POSIX, taskkill on Windows, \"5 seconds to shutdown until forceful termination\", while the separate unloadTimeout entry says 10.",
+          "source": "https://raw.githubusercontent.com/mostlygeek/llama-swap/main/docs/config.example.yaml",
+          "note": null
+        },
+        {
+          "text": "A PR 595 user posted a working config using per-model `afterHealthy`/`beforeStop` curl commands against `http://localhost:${PORT}/slots/1?action=restore|save` with `{\"filename\": \"<model>.bin\"}`, `--slot-save-path ${cache_dir}` and `ttl: 0`.",
+          "source": "https://github.com/mostlygeek/llama-swap/pull/595",
+          "note": null
+        },
+        {
+          "text": "That user reported it did not work for multimodal models; another user said `--no-mmproj` makes it work.",
+          "source": "https://github.com/mostlygeek/llama-swap/pull/595",
+          "note": null
+        },
+        {
+          "text": "candrews said hook-based restore \"allow[s] model switching to happen a lot faster\" and suggested a for-loop over slots with a slot-count macro.",
+          "source": "https://github.com/mostlygeek/llama-swap/pull/595",
+          "note": null
+        },
+        {
+          "text": "PR 595's afterHealthy failure on first load (no cache file yet) was raised as a reason not to make the hook required; reviewer Stebalien replied the hook can exit 0 in that case.",
+          "source": "https://github.com/mostlygeek/llama-swap/pull/595",
+          "note": null
+        },
+        {
+          "text": "CodeRabbit flagged that PR 595's hook ran with no timeout, and a 30 s timeout commit was added.",
+          "source": "https://github.com/mostlygeek/llama-swap/pull/595",
+          "note": null
+        },
+        {
+          "text": "In discussion 615 the maintainer named `cmd/llama-server-cache-intercept/main.go` as the home for a wrapper that forwards args, starts llama-server, and POSTs the save on SIGINT/SIGTERM.",
+          "source": "https://github.com/mostlygeek/llama-swap/discussions/615",
+          "note": null
+        },
+        {
+          "text": "In discussion 615 Stebalien listed the shim's required steps: random port, wait for health, restore the cache, then start proxying; otherwise llama-swap forwards requests before restore completes.",
+          "source": "https://github.com/mostlygeek/llama-swap/discussions/615",
+          "note": null
+        },
+        {
+          "text": "In discussion 615 Stebalien proposed per-model synchronous post-start (after health check, before forwarding) and pre-stop hooks, and noted cmdStop could technically serve as pre-stop.",
+          "source": "https://github.com/mostlygeek/llama-swap/discussions/615",
+          "note": null
+        },
+        {
+          "text": "A gist by WinPooh32 (2026-07-11) offers a patch adding simple on-load/stop hooks to llama-swap for save/restore of the prompt cache on model swap.",
+          "source": "https://gist.github.com/WinPooh32/3741ca478a32a93965e2204c4cb6bc2a",
+          "note": null
+        },
+        {
+          "text": "Discussion 724 (opened 2026-05-01) proposed events `on_will_start`, `on_startup`, `on_will_stop`, `on_stopped` per model with http or cmd actions.",
+          "source": "https://github.com/mostlygeek/llama-swap/discussions/724",
+          "note": null
+        },
+        {
+          "text": "llama-save-wrapper is Python 3.13+ managed with uv, takes `--port` and `--slot-save-path` as required args, forwards all other args to llama-server, reads the llama-server binary path from `LLAMA_BINARY` in `.env` (default /usr/local/bin/llama-server), has 17 commits, 1 star, MIT license, last commit 2026-08-20.",
+          "source": "https://github.com/dinerburger/llama-save-wrapper",
+          "note": null
+        },
+        {
+          "text": "llama-save-wrapper derives slot count from `-np`/`--parallel` (default 4) and restores only slots whose `{slot_id}.bin` exists.",
+          "source": "https://github.com/dinerburger/llama-save-wrapper",
+          "note": null
+        },
+        {
+          "text": "llama-save-wrapper's example command is `./.venv/bin/python -u main.py --port 12872 -m /path/to/model.gguf --slot-save-path /path/to/cache/dir -c 32768`.",
+          "source": "https://github.com/dinerburger/llama-save-wrapper",
+          "note": null
+        },
+        {
+          "text": "The wrapper's author (dinerburger) described the use case as persisting the \"master\" LLM's KV state while another model such as a RAG stack runs, then recovering it on return.",
+          "source": "https://github.com/mostlygeek/llama-swap/discussions/724",
+          "note": null
+        },
+        {
+          "text": "llama.cpp discussion 20572 (2026-03-14) shows save-slot.sh/restore-slot.sh called around each chat request with a per-session file `slot_<SESSION_ID>.bin` and `--swa-full` for SWA models, claiming 5-15 s prefill saved per message on a 27B model.",
+          "source": "https://github.com/ggml-org/llama.cpp/discussions/20572",
+          "note": null
+        },
+        {
+          "text": "llama.cpp PR 28092 (opened 2026-08-31, open) implements a `--cache-disk` persistent prompt cache with hybrid/SWA checkpoint support, automatic restore across restarts, corrupt-entry cleanup and disk-size-bounded LRU eviction, and closes issue 20697.",
+          "source": "https://github.com/ggml-org/llama.cpp/pull/28092",
+          "note": null
+        },
+        {
+          "text": "PR 28092's description discloses the implementation was written by Codex and the tests by Claude.",
+          "source": "https://github.com/ggml-org/llama.cpp/pull/28092",
+          "note": null
+        },
+        {
+          "text": "llama.cpp issue 29678 (2026-09-29) and PR 29738 (open, 2026-10-01 reviewer engaged) propose session-keyed automatic slot save/restore: accepts `session_id` in the body or `x-session-id`, `session_id`, `x-session-affinity` headers, saves the victim session on slot eviction, restores on return, files `llama-session-<id>.bin` under `--slot-save-path`, cap `--slot-save-max-sessions` default 128.",
+          "source": "https://github.com/ggml-org/llama.cpp/issues/29678",
+          "note": null
+        },
+        {
+          "text": "Issue 29678 lists non-goals including no persistence of the draft (speculative) context, which existing save/restore also does not persist.",
+          "source": "https://github.com/ggml-org/llama.cpp/issues/29678",
+          "note": null
+        },
+        {
+          "text": "PR 29738 reports tests with the pi coding agent using `sendSessionAffinityHeaders`.",
+          "source": "https://github.com/ggml-org/llama.cpp/pull/29738",
+          "note": null
+        },
+        {
+          "text": "PR 26004's appended checkpoint payload added 156,894,416 bytes to one test file (336,407,384 vs 179,512,968): 60 bytes of framing plus one 149.62 MiB checkpoint blob.",
+          "source": "https://github.com/ggml-org/llama.cpp/pull/26004",
+          "note": null
+        },
+        {
+          "text": "PR 26004's `n_written`/`n_read` response fields initially under-reported the appended bytes for every save file, not only SWA/hybrid ones; the author fixed it.",
+          "source": "https://github.com/ggml-org/llama.cpp/pull/26004",
+          "note": null
+        },
+        {
+          "text": "The 26004 loader tolerates a truncated checkpoint appendix by warning, dropping the checkpoints and still returning a successful restore.",
+          "source": "https://github.com/ggml-org/llama.cpp/pull/26004",
+          "note": null
+        },
+        {
+          "text": "Save files are byte-comparable only within one backend (Vulkan and CPU builds of the same model, prompt and seed differ; `-ngl 0` makes them match).",
+          "source": "https://github.com/ggml-org/llama.cpp/pull/26004",
+          "note": null
+        },
+        {
+          "text": "A restored CUDA slot on a Metal M3 Ultra produced the CUDA completion hash rather than Metal's own hash for the same prompt (314 tokens, one restore).",
+          "source": "https://github.com/ggml-org/llama.cpp/pull/26004",
+          "note": null
+        },
+        {
+          "text": "wagi-sho's Vulkan test (58,202-token prefix, cold prefill about 185 s) showed multi-turn after restore turn 1 at 524 tokens / 5.5 s versus 58,210 tokens / 181.4 s on master, with no checkpoint eviction loop over 10 turns.",
+          "source": "https://github.com/ggml-org/llama.cpp/pull/26004",
+          "note": null
+        },
+        {
+          "text": "The 26004 reviewer asked for a divergent follow-up test rather than a longer straight-ahead one, because restore-then-continue works even without checkpoints; only a mid-state divergence needs them.",
+          "source": "https://github.com/ggml-org/llama.cpp/pull/26004",
+          "note": null
+        },
+        {
+          "text": "A proxy author using slot save/restore on Qwen3.8-27B found that pinning `id_slot` bypasses the host prompt cache (3,211-token prompt: 0 reused pinned, 3,207 unpinned).",
+          "source": "https://github.com/ggml-org/llama.cpp/pull/26004",
+          "note": null
+        },
+        {
+          "text": "The same author measured a new agent session re-prefilling 14,199 tokens in 22.5 s with slot management on versus 4 tokens in 0.45 s with it off, because the host prompt cache handled cross-session prefix reuse.",
+          "source": "https://github.com/ggml-org/llama.cpp/pull/26004",
+          "note": null
+        },
+        {
+          "text": "On a speculative-decoding deployment (`--spec-type draft-mtp`), SLOT_SAVE and SLOT_RESTORE do not persist the draft model's `ctx_dft` except for data attached to an existing checkpoint; a short conversation's draft model restarts empty.",
+          "source": "https://github.com/ggml-org/llama.cpp/pull/26004",
+          "note": null
+        },
+        {
+          "text": "PR 26640 packs `server_tokens` (tokens, media start positions, serialized media chunks) into a versioned payload (version 1) so slots with media can be saved; before it, saving a media slot returned HTTP 501.",
+          "source": "https://github.com/ggml-org/llama.cpp/pull/26640",
+          "note": null
+        },
+        {
+          "text": "Issue 19466 (save fails for vision models, 2026-02-09) is closed as not planned/stale.",
+          "source": "https://github.com/ggml-org/llama.cpp/issues/19466",
+          "note": null
+        },
+        {
+          "text": "PR 24028's sidecar format `LSCKPT2` stores per-checkpoint `pos_min`, `pos_max`, `n_tokens`, `size_tgt` and `size_dft`, and was superseded by 26004's single-file appendix.",
+          "source": "https://github.com/ggml-org/llama.cpp/pull/24028",
+          "note": null
+        },
+        {
+          "text": "llama.cpp router mode (multi-process, one process per model, `--models-dir`) was announced by ggml-org with no mention of KV persistence across load/unload.",
+          "source": "https://huggingface.co/blog/ggml-org/model-management-in-llamacpp",
+          "note": null
+        },
+        {
+          "text": "Lemonade issue 2962 notes llama.cpp's automatic disk offload (`--cache-disk`, issue 20697) was unimplemented, so orchestration-side save/restore was the only available path.",
+          "source": "https://github.com/lemonade-sdk/lemonade/issues/2962",
+          "note": null
+        },
+        {
+          "text": "A wrapped llama-server should get a per-model `unloadTimeout` large enough to finish a multi-GB slot save, since llama-swap kills the process when the timeout elapses.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "For a Mac with llama-swap today the least risky setup is the external wrapper route with per-model `--slot-save-path` directories, `-np 1`, `--cache-ram 0` during validation, and hybrid models treated as full re-prefill until 26004 or 28092 lands.",
+          "source": "asserted",
+          "note": null
+        }
+      ]
+    }
+  ],
+  "related": []
+}

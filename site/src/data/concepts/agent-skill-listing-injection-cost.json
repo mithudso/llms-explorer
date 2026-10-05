@@ -1,0 +1,359 @@
+{
+  "slug": "agent-skill-listing-injection-cost",
+  "concept": "Agent skill-listing injection cost",
+  "generated": "2026-10-05",
+  "summary": "Claude Code: the listing is a `<system-reminder>` text block inside the first user message (\"The following skills are available for use with the Skill tool:\" then `- name: description` lines). It is not in `system` or in `tools`. Each entry's description plus `when_to_use` is capped at 1,536 char...",
+  "facets": [
+    {
+      "title": "Facts",
+      "facts": [
+        {
+          "text": "Claude Code: the listing is a `<system-reminder>` text block inside the first user message (\"The following skills are available for use with the Skill tool:\" then `- name: description` lines). It is not in `system` or in `tools`. Each entry's description plus `when_to_use` is capped at 1,536 characters; a total character budget scales with the model's context window (docs say 1%); on overflow the least-invoked skills lose descriptions first and keep only the name.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "OpenCode: the listing is in the system message as an `<available_skills>` XML block, one `<skill>` with `<name>`, `<description>` and a `<location>` file path per skill, and there is no total budget. Description limit is 1,024 characters per skill. The `skill` tool itself is a 161-token tool definition; the weight is in the system text.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "OpenCode scans six roots: `.opencode/skills`, `~/.config/opencode/skills`, `.claude/skills` and `~/.claude/skills` (Claude-compatible), `.agents/skills` and `~/.agents/skills` (agent-compatible), and walks up from cwd to the git root for project paths. Cline stores skills as a menu of enabled skills and loads one via a `use_skill` tool.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Per-skill cost: docs of both Anthropic and Cline say about 100 tokens of metadata per skill. Measured on this machine, descriptions are far longer than that average: OpenCode 441 skills, 381,046 characters, 91,976 tokens, about 208 tokens and 864 characters per entry; Claude Code 195 entries, 51.5k characters, 11,986 tokens, about 264 characters per entry after its budget trimmed 19 entries to name-only.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Claude Code listing size by control (same session, 195 entries, unknown model name `qwen-local`, cl100k):",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "default: 51,544 chars, 11,986 tokens, 19 name-only entries; first message 22.8k tokens in total (the rest is hook output and instruction files);",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "`SLASH_COMMAND_TOOL_CHAR_BUDGET=2000`: 7,461 chars, 1,997 tokens, 184 name-only, first message 12.6k tokens;",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "`skillListingBudgetFraction=0.002` through `--settings`: identical to the 2000-char result (7,461 chars, 184 name-only), so about 7.5k characters (about 2.0k tokens for 195 skills, about 38 characters each) is the floor of an all-name-only listing;",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "`CLAUDE_CODE_MAX_CONTEXT_TOKENS=32768` with `--model qwen-local` and `CLAUDE_CODE_DISABLE_UNKNOWN_MODEL_WINDOW_ENFORCEMENT=1`: 12,088 chars, 3,052 tokens, 168 of 195 name-only;",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "`--disable-slash-commands`: the whole skill section disappears and the first message falls from 22.8k to 10.6k tokens.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "OpenCode listing size by control (user's real config, model context declared 32,768, 90 tools from MCP):",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "default: 441 skills, system 96.6k tokens, tools 56.9k, first request about 156k tokens in all;",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "`OPENCODE_DISABLE_CLAUDE_CODE_SKILLS=1`: system 96.0k, 441 to 439 skills (almost no change);",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "`OPENCODE_DISABLE_CLAUDE_CODE=1`: system 94.9k, 439 skills;",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "top-level `\"permission\":{\"skill\":{\"*\":\"deny\"}}`: system 4.6k, `skill` tool removed, tools 56.8k (89 tools);",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "per-agent `\"agent\":{\"build\":{\"tools\":{\"skill\":false}}}` and per-agent `permission.skill \"*\":\"deny\"`: both system 4.6k;",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "top-level `\"tools\":{\"skill\":false}`: no effect, system 96.8k and the listing still sent;",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "`\"permission\":{\"skill\":{\"*\":\"deny\",\"git-*\":\"allow\"}}`: system 4.9k, `skill` tool kept (161-token description), no skill matched so the list was empty.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "After the skill listing is removed from OpenCode, the next heavy item is the 89 MCP tool definitions (56.8k tokens, 64% of what remains), not the system text (4.6k).",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Claude Code before v2.1.196 reported the `/context` Skills row at the full uncapped description size, \"several times larger\" than the budgeted listing; from v2.1.196 it reports the budgeted size. `/skill-doctor` (v2.1.252+) lists per-skill context cost and invocation counts, and `/doctor` estimates the listing's context cost. Settings `skillListingBudgetFraction` and `skillListingMaxDescChars` exist next to the `SLASH_COMMAND_TOOL_CHAR_BUDGET` environment variable.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "OpenCode added Claude-compatible and agent-compatible skill roots, then documented `OPENCODE_DISABLE_CLAUDE_CODE`, `OPENCODE_DISABLE_CLAUDE_CODE_PROMPT` and `OPENCODE_DISABLE_CLAUDE_CODE_SKILLS` as environment flags; an `available_skills` empty-list bug (issue 7069, Jan 2026) shows the section is rendered inside the `skill` tool description in that version, while 1.18.34 renders it in the system message.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Skill folders are duplicated across roots (this machine: 165 in `~/.claude/skills`, 534 in `~/.agents/skills`); OpenCode's docs require unique names across locations, and the measured list held 441 distinct names, so a skill sync tool that mirrors skills into `~/.agents/skills` multiplies exposure to every agent that reads that root.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Claude Code `skillOverrides` does not apply to plugin skills, and `\"off\"` skills still appear if installed through a plugin; `disable-model-invocation: true` removes a skill's description from context entirely, `user-invocable: false` does not.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "With a 32k window the entire all-name-only list (7.5k characters, about 2.0k tokens for 195 skills) is already 6% of the window; budgets that scale by a percentage of the window do not guarantee a small listing for a large skill count, because the name-only floor is fixed.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "A first Claude Code request on this setup is preceded by a haiku-class helper request (model `claude-haiku-4-5-20251001`, 27 tools, a 13-entry bundled-skill listing, about 1.4k tokens) sent to the same base URL; a local server with one slot sees this unrelated prefix first.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Hook output (SessionStart and UserPromptSubmit additional context) sits in the same first message as the listing; in the default capture the message was 22.8k tokens of which the skill section was 12.0k, so a listing cut shows up only partly in the totals.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "\"Skills cost nothing until used\" (Anthropic overview and Cline docs: about 100 tokens per skill, \"no context penalty\") versus measurement here: 208 tokens per skill in OpenCode and 61 tokens per skill in Claude Code after budget trimming (11,986 / 195); a user with several hundred skills pays 90k tokens in OpenCode. The statement holds per skill, not per library.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Whether Claude Code's budget protects a small-window local model: docs say budget is 1% of the context window; measured listing of 12.1k characters at a declared 32k window suggests a floor or multiplier beyond 1% of tokens, not explained by the docs.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Exact formula behind Claude Code's budget (default capture 51.5k characters for an unknown-model window; 12.1k at 32,768; 7.5k floor).",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Whether `skillListingMaxDescChars` lowers a listing with a budget already applied (the capture for 120 characters sent the helper request first and the main request was not inspected).",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Real Qwen/Gemma/GLM token counts of the same listings (cl100k proxy only).",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Whether Cline's `use_skill` listing is subject to any cap; its docs state ~100 tokens per skill only.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Task-success effect of name-only listings on a 9B-35B model.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "OpenCode renders skills as an `<available_skills>` XML block in the system message, one `<skill>` per entry with name, description and file location, and imposes no total budget",
+          "source": "https://opencode.ai/docs/skills/",
+          "note": null
+        },
+        {
+          "text": "OpenCode docs: descriptions are limited to 1-1024 characters and skill names must match `^[a-z0-9]+(-[a-z0-9]+)*$`",
+          "source": "https://opencode.ai/docs/skills/",
+          "note": null
+        },
+        {
+          "text": "OpenCode docs: skills are discovered in `.opencode/skills`, `~/.config/opencode/skills`, `.claude/skills`, `~/.claude/skills`, `.agents/skills` and `~/.agents/skills`, walking up to the git worktree for project paths",
+          "source": "https://opencode.ai/docs/skills/",
+          "note": null
+        },
+        {
+          "text": "OpenCode docs: `permission.skill` takes patterns with `allow`, `deny` (hidden from the agent) and `ask`; `tools.skill false` per agent omits `<available_skills>` entirely",
+          "source": "https://opencode.ai/docs/skills/",
+          "note": null
+        },
+        {
+          "text": "OpenCode CLI docs list `OPENCODE_DISABLE_CLAUDE_CODE` (no `.claude` prompt or skills), `OPENCODE_DISABLE_CLAUDE_CODE_PROMPT` (no `~/.claude/CLAUDE.md`) and `OPENCODE_DISABLE_CLAUDE_CODE_SKILLS` (no `.claude/skills`); the `--permissions` flag (alias `--tools`) lists allowed capabilities including `skill` and denies the rest",
+          "source": "https://opencode.ai/docs/cli/",
+          "note": null
+        },
+        {
+          "text": "Claude Code docs: the skill listing always has every name; when it overflows its character budget, descriptions are dropped starting with the least-invoked skills; budget scales at 1% of the model's context window",
+          "source": "https://code.claude.com/docs/en/skills",
+          "note": null
+        },
+        {
+          "text": "Claude Code docs: raise or tune the listing with `skillListingBudgetFraction` (for example 0.02), a fixed character count in `SLASH_COMMAND_TOOL_CHAR_BUDGET`, and `skillListingMaxDescChars`; each entry's `description` plus `when_to_use` is capped at 1,536 characters by default",
+          "source": "https://code.claude.com/docs/en/skills",
+          "note": null
+        },
+        {
+          "text": "Claude Code docs: `skillOverrides` states are `on` (name and description), `name-only`, `user-invocable-only` (hidden from Claude, in `/` menu) and `off` (hidden everywhere); plugin skills are not affected",
+          "source": "https://code.claude.com/docs/en/skills",
+          "note": null
+        },
+        {
+          "text": "Claude Code docs: `disable-model-invocation: true` removes the description from context; `user-invocable: false` keeps it",
+          "source": "https://code.claude.com/docs/en/skills",
+          "note": null
+        },
+        {
+          "text": "Claude Code docs: `/doctor` estimates the listing's context cost and biggest contributors; `/skill-doctor` (v2.1.252+) reports each skill's cost and use; the `/context` Skills row shows the listing after budget (since v2.1.196); a debug-log warning appears when the budget is exceeded",
+          "source": "https://code.claude.com/docs/en/skills",
+          "note": null
+        },
+        {
+          "text": "Claude Code docs: `CLAUDE_CODE_DISABLE_BUNDLED_SKILLS=1` removes bundled skills and workflows; skills from plugins, `.claude/skills/` and `.claude/commands/` stay",
+          "source": "https://code.claude.com/docs/en/env-vars",
+          "note": null
+        },
+        {
+          "text": "Anthropic and Cline docs state skill metadata costs about 100 tokens per skill, with bodies under 5k tokens loaded on demand",
+          "source": "https://docs.cline.bot/customization/skills",
+          "note": null
+        },
+        {
+          "text": "Cline exposes skills through a `use_skill` tool and a Skills menu; description maximum 1024 characters; rules are always active, skills load on demand",
+          "source": "https://docs.cline.bot/customization/skills",
+          "note": null
+        },
+        {
+          "text": "Measured locally: OpenCode 1.18.34 with 441 distinct skills sent a first system message of 96.6k tokens, of which the `<available_skills>` block was 381,046 characters and 91,976 tokens (about 208 tokens, 864 characters per skill) and the rest 4,662 tokens",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Measured locally: the first OpenCode request with MCP configured carried 90 tools totalling 56.9k tokens, so the first request was about 156k tokens before the user's prompt",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Measured locally: `OPENCODE_DISABLE_CLAUDE_CODE_SKILLS=1` changed the OpenCode listing from 441 to 439 skills and system from 96.6k to 96.0k tokens, because the same skills were also under `~/.agents/skills` and `~/.config/opencode/skills`",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Measured locally: `OPENCODE_DISABLE_CLAUDE_CODE=1` gave 439 skills and 94.9k system tokens",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Measured locally: OpenCode `permission.skill {\"*\":\"deny\"}` cut system from 96.6k to 4.6k tokens and removed the `skill` tool (89 tools left, 56.8k tokens)",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Measured locally: OpenCode per-agent `tools.skill false` and per-agent `permission.skill {\"*\":\"deny\"}` each cut system to 4.6k tokens",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Measured locally: OpenCode top-level `\"tools\":{\"skill\":false}` left the 96.8k-token listing in place",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Measured locally: OpenCode `permission.skill {\"*\":\"deny\",\"git-*\":\"allow\"}` gave system 4.9k tokens and kept the `skill` tool definition (161 tokens) with no listed skills",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Measured locally: Claude Code default listing for 195 entries was 51,544 characters and 11,986 tokens (19 entries name-only, about 264 characters per entry), inside a first message of 22.8k tokens",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Measured locally: Claude Code with `SLASH_COMMAND_TOOL_CHAR_BUDGET=2000` or `skillListingBudgetFraction=0.002` produced the same 7,461-character, 1,997-token listing with 184 of 195 entries name-only, a floor of about 38 characters per skill; the first message fell from 22.8k to 12.6k tokens",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Measured locally: Claude Code with `CLAUDE_CODE_MAX_CONTEXT_TOKENS=32768` and an unknown model name listed 195 skills in 12,088 characters, 3,052 tokens, 168 name-only",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Measured locally: Claude Code `--disable-slash-commands` removed the skill section; the first message fell from 22.8k to 10.6k tokens",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Measured locally: Claude Code sends a helper request to model `claude-haiku-4-5-20251001` to the same custom base URL, with 27 tools and a 13-entry skill listing of about 1.4k tokens",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Measured locally: this machine holds 165 skill folders in `~/.claude/skills`, 534 in `~/.agents/skills` and 15 in `~/.config/opencode/skills`",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Derived cold-start cost of OpenCode's 92k-token listing alone, tokens / prefill rate with the rates in the existing dossiers (174, 435, 1,000, 1,500, 3,300 tokens/s): 529 s, 211 s, 92 s, 61 s, 28 s; the whole 156k first request: 15 min, 6.0 min, 156 s, 104 s, 47 s, before the quadratic attention penalty; at the 12.0k-token Claude Code listing: 69 s, 28 s, 12 s, 8 s, 3.6 s; at the 2.0k name-only listing: 11.5 s, 4.6 s, 2 s, 1.3 s, 0.6 s",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Inferred: a listing is paid at the same fixed rate on every cold start (new session, compaction, restart, slot eviction) and is invisible in the transcript, so a model that \"sits\" for minutes before the first token on a fresh OpenCode session with many skills is spending the time on the listing",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Measurement method: point the agent's base URL at a local capture server that writes each POST body and returns HTTP 500; count tokens in `system`, `tools` and the message block that contains the listing (Claude Code: first user message block starting \"The following skills are available\"; OpenCode: system message between `<available_skills>` and `</available_skills>`); count entries by `- ` lines or `<skill>` tags; the first request of a session is the cold cost",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Server-side check without a capture proxy: the llama.cpp or MLX server's own per-request log of prompt tokens for the first request gives the same total; subtract a run with the listing disabled to isolate the listing",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Minimal OpenCode profile for a local model: `{\"permission\":{\"skill\":{\"*\":\"deny\"}}}` in opencode.json (or `agent.<name>.tools.skill false` for one agent), plus MCP tools disabled or scoped; clean-HOME total was 6.7k tokens in the existing dossier",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Minimal Claude Code profile for a local model when skills are wanted: `skillOverrides` `name-only` for all but a few skills, or `SLASH_COMMAND_TOOL_CHAR_BUDGET=2000` (about 2.0k tokens for 195 skills); when skills are not wanted: `--disable-slash-commands` (about -12k tokens measured) and `CLAUDE_CODE_DISABLE_BUNDLED_SKILLS=1`",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Recommended: keep a dedicated small skill root for local sessions (a clean HOME or `--add-dir` free project) instead of the full library, because OpenCode and Claude Code both scan several roots and the same skills can be present in more than one",
+          "source": "asserted",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Corrections and disagreements",
+      "facts": [
+        {
+          "text": "CONTRADICTS: claude-code-system-prompt-and-tool-schema-slimming-for-local-models.md says `OPENCODE_DISABLE_CLAUDE_CODE=1` alone did not remove the 90k listing and that disabling the `skill` tool did. Both are true here but incomplete: skills were also read from `~/.agents/skills` and `~/.config/opencode/skills`, which that flag does not cover (the first 3 listed paths in the request were `~/.agents/skills/...`), and the disable that works is per-agent `tools.skill false` or `permission.skill \"*\":\"deny\"`; the global `tools` key is ignored for this purpose in 1.18.34.",
+          "source": "asserted",
+          "note": null
+        }
+      ]
+    }
+  ],
+  "related": []
+}

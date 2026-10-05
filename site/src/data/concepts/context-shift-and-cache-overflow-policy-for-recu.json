@@ -1,0 +1,119 @@
+{
+  "slug": "context-shift-and-cache-overflow-policy-for-recu",
+  "concept": "Context shift and cache-overflow policy for recurrent models",
+  "generated": "2026-10-05",
+  "summary": "llama.cpp classifies a context by `llama_memory_seq_rm`: partial removal works (no checkpoint needed), whole-sequence only (checkpoint needed), or bounded rollback for recurrent state (checkpoint needed past the bound).",
+  "facets": [
+    {
+      "title": "Facts",
+      "facts": [
+        {
+          "text": "llama.cpp classifies a context by `llama_memory_seq_rm`: partial removal works (no checkpoint needed), whole-sequence only (checkpoint needed), or bounded rollback for recurrent state (checkpoint needed past the bound).",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Recurrent layers keep one running state overwritten each step; a short ring of per-token snapshots allows rollback only within `n_rs_seq` tokens.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Hence shifting or dropping the head of a prompt cannot be expressed for a hybrid model; `--context-shift` is off by default and `--cache-reuse` is disabled for such contexts.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "2023-11 (issue 3969, attention models): a context-shift loop when `n_keep` left almost no room; reporters proposed capping discards.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "2026: hybrid models make the overflow policy a client concern (compaction), not a server feature.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "A request larger than the slot context is rejected and the conversation can lose its slot, evicting its own warm state.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "When context fills and the cache limit forces eviction, a hybrid slot reprocesses the whole history.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Speculative decoding with partial acceptance can need a rollback beyond `n_rs_seq`; PR 24797 makes that fall through to normal cell removal rather than fail.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Operators disable shifting (`--no-context-shift`) for correctness with hybrid models; some Qwen3.6 reporters kept it on and never reached a diagnosis (23030, held elsewhere).",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Whether any llama.cpp change plans a recurrent-aware shift; none was found in the sources.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "The server README lists `--context-shift` as \"whether to use context shift on infinite text generation\" with default disabled (env `LLAMA_ARG_CONTEXT_SHIFT`).",
+          "source": "https://github.com/ggml-org/llama.cpp/blob/master/tools/server/README.md",
+          "note": null
+        },
+        {
+          "text": "Particula's source reading classifies contexts as `SEQ_RM_TYPE_NO`, `PART` (arbitrary partial rollback, no checkpoint), `FULL` (whole sequences only, checkpoint needed) and `RS` (partial rollback bounded by `n_rs_seq`, checkpoint needed past the bound).",
+          "source": "https://particula.tech/blog/prompt-reprocessing-swa-hybrid-models-kv-cache",
+          "note": null
+        },
+        {
+          "text": "The recurrent rewind succeeds only when `cell.pos - (p0 - 1)` lies between 1 and `n_rs_seq`, via a ring of per-token snapshots.",
+          "source": "https://particula.tech/blog/prompt-reprocessing-swa-hybrid-models-kv-cache",
+          "note": null
+        },
+        {
+          "text": "Checkpoint creation is gated on the context being `FULL` or `RS`, or the model having `n_swa > 0`.",
+          "source": "https://particula.tech/blog/prompt-reprocessing-swa-hybrid-models-kv-cache",
+          "note": null
+        },
+        {
+          "text": "A Qwen3.6-27B hybrid load logs `cache_reuse is not supported by this context, it will be disabled` and `swa_full is not supported by this model, it will be disabled`.",
+          "source": "https://github.com/ggml-org/llama.cpp/issues/24055",
+          "note": null
+        },
+        {
+          "text": "That same load logs `speculative decoding will use checkpoints` for the MTP-enabled hybrid model.",
+          "source": "https://github.com/ggml-org/llama.cpp/issues/24055",
+          "note": null
+        },
+        {
+          "text": "A working 24055 server line for Qwen3.6-27B uses `--no-context-shift` with `--parallel 1`.",
+          "source": "https://github.com/ggml-org/llama.cpp/issues/24055",
+          "note": null
+        },
+        {
+          "text": "Particula advises compacting before the slot limit because an oversized request that gets rejected can leave the conversation without its slot, evicting its warm state.",
+          "source": "https://particula.tech/blog/prompt-reprocessing-swa-hybrid-models-kv-cache",
+          "note": null
+        },
+        {
+          "text": "PR 24797 changes hybrid `seq_rm`: when speculative decoding accepts part of a draft and the rollback distance exceeds `n_rs_seq`, the recurrent cache now falls through to normal cell removal instead of returning false, so attention KV is trimmed correctly but the recurrent state loses exact snapshot restoration.",
+          "source": "https://github.com/ggml-org/llama.cpp/pull/24797",
+          "note": null
+        },
+        {
+          "text": "Issue 3969 (b1492, 2023, deepseek-coder 33B, `-c 6120`) logged repeated `context shift - n_keep = 2224, n_left = 3894, n_discard = 1947` without progress; a reporter's patch capped `n_discard = std::min(n_left, 32)`.",
+          "source": "https://github.com/ggml-org/llama.cpp/issues/3969",
+          "note": null
+        },
+        {
+          "text": "Inferred: for hybrid models on a Mac, the overflow policy is client-side compaction before the context limit plus `--no-context-shift`; the server cannot drop the prompt head without a full re-prefill.",
+          "source": "asserted",
+          "note": null
+        }
+      ]
+    }
+  ],
+  "related": []
+}

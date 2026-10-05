@@ -1,0 +1,99 @@
+{
+  "slug": "engram-row-prefetch-overlapped-with-preceding-tr",
+  "concept": "Engram row prefetch overlapped with preceding transformer blocks in Mac runtimes",
+  "generated": "2026-10-05",
+  "summary": "ds4 V4.1 prefill starts a reader pthread per Engram table that reads rows through `ds4_engram_read_batch` in 2,048-token chunks and publishes a completed-row counter with release semantics.",
+  "facets": [
+    {
+      "title": "Facts",
+      "facts": [
+        {
+          "text": "ds4 V4.1 prefill starts a reader pthread per Engram table that reads rows through `ds4_engram_read_batch` in 2,048-token chunks and publishes a completed-row counter with release semantics.",
+          "source": "https://raw.githubusercontent.com/antirez/ds4/main/ds4.c",
+          "note": null
+        },
+        {
+          "text": "The prefill consumer waits on that counter, polling with a 1 ms nanosleep, so a chunk's Engram layer can start before later chunks have been read.",
+          "source": "https://raw.githubusercontent.com/antirez/ds4/main/ds4.c",
+          "note": null
+        },
+        {
+          "text": "ds4 enables the Engram overlap only when the prompt has at least 1,024 tokens, and offers environment switches to disable the prefetch, the pipelined wait, or the batched read.",
+          "source": "https://raw.githubusercontent.com/antirez/ds4/main/ds4.c",
+          "note": null
+        },
+        {
+          "text": "ds4 V4.1 Engram layers are indices 1 and 14; table 0's prefetch starts before the layer loop and table 1's starts at layer 2, with a code comment saying it fills the buffer for layer 14 while the intervening encoder layers run.",
+          "source": "https://raw.githubusercontent.com/antirez/ds4/main/ds4.c",
+          "note": null
+        },
+        {
+          "text": "Both prefetch starts write to the same `engram_prefetch` GPU-visible buffer.",
+          "source": "https://raw.githubusercontent.com/antirez/ds4/main/ds4.c",
+          "note": null
+        },
+        {
+          "text": "ds4's decode step (`ds41_graph_step`) reads both tables' rows synchronously with `ds4_engram_read_batch` before it begins the GPU command buffer on Apple platforms.",
+          "source": "https://raw.githubusercontent.com/antirez/ds4/main/ds4.c",
+          "note": null
+        },
+        {
+          "text": "ds4's Qwen n-gram path reads each 256-token chunk's rows synchronously, sorted by row id, with up to 16 readers via `dispatch_apply_f`, before the forward pass.",
+          "source": "https://raw.githubusercontent.com/antirez/ds4/main/ds4.c",
+          "note": null
+        },
+        {
+          "text": "ds4's Engram constants are 2 layers, n-gram size 4, 8 heads, 24 columns per token per layer, 256 dimensions and 264 bytes per row.",
+          "source": "https://raw.githubusercontent.com/antirez/ds4/main/ds4_engram.h",
+          "note": null
+        },
+        {
+          "text": "`ds4_engram_hash` builds, for each of n-gram orders 2 to 4, 8 head ids per token per layer from a multiplicative hash modulo per-head primes, so 24 row ids per token per layer.",
+          "source": "https://raw.githubusercontent.com/antirez/ds4/main/ds4_engram.c",
+          "note": null
+        },
+        {
+          "text": "The V4.1 GGUF metadata in ds4 names Engram row counts 384,006,168 and 384,016,682, the encoding `e4m3_e8m0_32_row264` and a compressed vocabulary of 99,092.",
+          "source": "https://raw.githubusercontent.com/antirez/ds4/main/ds4.c",
+          "note": null
+        },
+        {
+          "text": "One ds4 decode token issues 2 tables times 24 rows = 48 random 264-byte reads (12,672 bytes) before deduplication.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "The two V4.1 tables total about 769 million rows times 264 bytes, roughly 189 GiB, which matches the 189 GiB of Engram tables in ds4's model documentation.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "The paper's prefetch window is the compute of the blocks before the Engram layer, and the paper places the module at specific layers to use that buffer.",
+          "source": "https://arxiv.org/html/2601.07372v1",
+          "note": null
+        },
+        {
+          "text": "llama.cpp PR 27794 has a reviewer remark that qwen4 gives n-grams to the second layer, not the first, which can hide the lazy read.",
+          "source": "https://github.com/ggml-org/llama.cpp/pull/27794",
+          "note": null
+        },
+        {
+          "text": "A downstream fork's note on PR 27794 states upstream's own commit measured MADV_RANDOM without batched row prefetch at 94.4 s, an untouched mapping at 36.7 s, and MADV_RANDOM plus prefetch at 34.1 s.",
+          "source": "https://github.com/ggml-org/llama.cpp/pull/27794",
+          "note": null
+        },
+        {
+          "text": "The same fork measured its lazy-read default at pp512 352 tok/s versus 99 tok/s with lazy reading off, and tg128 33.4 versus 26.1 tok/s, on an AMD gfx1151 machine with a 95 GiB table and 62 GB RAM; the numbers are not Apple Silicon.",
+          "source": "https://github.com/ggml-org/llama.cpp/pull/27794",
+          "note": null
+        },
+        {
+          "text": "No source found overlaps Engram or n-gram reads with preceding blocks during decode on a Mac, and none reports a per-token stall for it.",
+          "source": "asserted",
+          "note": null
+        }
+      ]
+    }
+  ],
+  "related": []
+}

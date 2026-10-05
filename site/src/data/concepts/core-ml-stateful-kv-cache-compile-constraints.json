@@ -1,0 +1,214 @@
+{
+  "slug": "core-ml-stateful-kv-cache-compile-constraints",
+  "concept": "Core ML stateful KV-cache compile constraints",
+  "generated": "2026-10-05",
+  "summary": "Conversion: register each KV buffer on the torch module, trace, then pass `states=[ct.StateType(wrapped_type=ct.TensorType(shape=...), name=...)]` with `minimum_deployment_target=ct.target.iOS18`. At run time `mlmodel.make_state()` makes a state object that `predict(..., state=s)` mutates in plac...",
+  "facets": [
+    {
+      "title": "Facts",
+      "facts": [
+        {
+          "text": "Conversion: register each KV buffer on the torch module, trace, then pass `states=[ct.StateType(wrapped_type=ct.TensorType(shape=...), name=...)]` with `minimum_deployment_target=ct.target.iOS18`. At run time `mlmodel.make_state()` makes a state object that `predict(..., state=s)` mutates in place; the state is passed by reference and is not saved into the model.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "A MIL pass (`canonicalize_inplace_pattern`) reorders `read_state -> op -> coreml_update_state`; CoreML-LLM notes the alternative is explicit KV tensors copied back by the host (copyBack, 1.9 ms of a 70.6 ms E4B step).",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "ANE-compatible stateful LLMs that run in practice use KV-only states (SqueezeBits: one K and one V state spanning all layers; CoreML-LLM Qwen3-VL: MLState with `slice_update`); mask-based updates (`cache*(1-mask)+new*mask`) are used when `torch.jit.trace` cannot express index assignment.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "2026-04-13 CoreML-LLM tries `StateType` for Gemma 4 E2B (kv_sliding and kv_full states) and rejects it: error -14 \"Failed to build the model execution plan\" on Mac ANE and iPhone 17 Pro.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "2026-04-15 padding KV heads from 1 to 32 reproduces the same -14 at save time, ruling out a 32-alignment cause.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "2026-04-28 LFM2.5 conversion finds a second failure shape: two MLStates compile but fail at predict with status 0x1d on macOS 26.0.1.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "By 2026-06-07 the same repo ships ANE stateful decode for Qwen3-VL 2B (v1.5.0), 4B and 8B (confirmed on iPhone 17 Pro 2026-06-07) and Qwen3.5 0.8B/2B (KV in MLState, public since v1.9.0), using MLState and `slice_update`; the repo does not state the state count for these.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Docs drift: CoreML-LLM's CONVERSION.md still says MLState is shipping and \"13x faster\", while HANDOFF.md and REJECTED_APPROACHES.md list it as rejected on ANE; its HANDOFF flags CONVERSION.md as stale.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Error -14 at conversion/save time with Core ML status \"Failed to build the model execution plan\" (Gemma 4 E2B, two states of different shapes).",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Error `ANEProgramProcessRequestDirect() Failed with status=0x1d : statusType=0x9: Program Inference error` at predict time, after a successful compile (LFM2.5, kv_cache_0 plus conv_cache_0).",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Output-backing trap: an IOSurface-backed MLMultiArray used as a model input is locked and cannot be reused as an output backing; Core ML silently allocates a fresh IOSurface each step (1129 ms/step vs 71 ms, 16x). This kills double-buffered explicit KV as an alternative to MLState.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "ANE padding by shape: `L_pad=16` zero-padded depthwise taps collapsed output (\"kingkingking\") and `L_pad=3` fixed both speed and correctness in LFM2.5.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Does MLState run on the ANE? CoreML-LLM (Apr 2026, Gemma 4 E2B): no, `coreml_update_state` yields no valid ANE plan, GPU-only as of iOS 26 / coremltools 9. The same repo (Jun 2026): Qwen3-VL 4B/8B stateful with MLState + slice_update runs on ANE on iPhone 17 Pro. SqueezeBits (2025, iPhone 15 Pro, iOS 18.6.1): stateful Qwen3-0.6B and Llama-3.2-1B prefill/decode on ANE with two states (key_cache, value_cache) on iPhone 15 Pro. Side by side, not averaged: failing cases had two states of different shape or role (kv_sliding + kv_full; kv + conv), working cases are KV-only (one state, or a K and a V state of identical shape); CoreML-LLM does not state the state count for its working Qwen3-VL builds.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Why does it fail? CoreML-LLM's EXPERIMENTS says MLState is \"GPU-only\"; its ARCHITECTURE says MLState \"introduces int64 state indices that break ANE placement\". These are different mechanisms and neither was tested against the KV-only successes.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Which exact property separates failing multi-state graphs from working ones: state count, differing shapes, role (conv vs KV), or index dtype?",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Does the macOS 27 / Core AI path remove the state limits? Forge keeps KV writes on the host because in-graph update expressions lost placement, which suggests not.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Core ML stateful models require iOS 18 / macOS 15 and the `mlprogram` type; states are declared with `register_buffer` and `ct.StateType` and need `minimum_deployment_target=ct.target.iOS18`.",
+          "source": "https://apple.github.io/coremltools/docs-guides/source/stateful-models.html",
+          "note": null
+        },
+        {
+          "text": "`make_state()` creates a state object passed by reference to `predict`, so several independent states can be alternated and the state is not saved to the model.",
+          "source": "https://apple.github.io/coremltools/docs-guides/source/stateful-models.html",
+          "note": null
+        },
+        {
+          "text": "Apple's docs warn that comparing torch and stateful Core ML outputs is only valid if the state is reset, since each run mutates it; `read_state` and `write_state` on the State object read and set values from Python.",
+          "source": "https://apple.github.io/coremltools/docs-guides/source/stateful-models.html",
+          "note": null
+        },
+        {
+          "text": "In MIL a stateful program uses `mb.read_state` and `mb.coreml_update_state`, and Apple's documented LM example (Mistral 7B, WWDC24) targets a GPU on a MacBook Pro.",
+          "source": "https://apple.github.io/coremltools/docs-guides/source/stateful-models.html",
+          "note": null
+        },
+        {
+          "text": "CoreML-LLM's Gemma 4 E2B MLState trial (StatefulChunk2, kv_sliding (10,1,512,512), kv_full) failed with error code -14 on both Mac ANE and iPhone 17 Pro, and the repo concluded `coreml_update_state` is not supported by the ANE compiler as of iOS 26 / coremltools 9.0.",
+          "source": "https://raw.githubusercontent.com/john-rocky/CoreML-LLM/main/docs/EXPERIMENTS.md",
+          "note": null
+        },
+        {
+          "text": "Padding num_kv_heads from 1 to 32 still gave error -14 at save time while Mac CPU_ONLY predict returned finite outputs in 49 ms, so the graph is runtime-valid on CPU and 32-alignment is not the cause.",
+          "source": "https://raw.githubusercontent.com/john-rocky/CoreML-LLM/main/docs/EXPERIMENTS.md",
+          "note": null
+        },
+        {
+          "text": "CoreML-LLM's architecture note says it uses explicit KV input/output tensors because MLState introduces int64 state indices that break ANE placement on the model sizes it ships.",
+          "source": "https://raw.githubusercontent.com/john-rocky/CoreML-LLM/main/docs/ARCHITECTURE.md",
+          "note": null
+        },
+        {
+          "text": "CoreML-LLM's HANDOFF lists MLState as error -14 / GPU-only, confirmed still broken on iOS 26, and flags its own CONVERSION.md (\"Shipping\") as stale.",
+          "source": "https://raw.githubusercontent.com/john-rocky/CoreML-LLM/main/docs/HANDOFF.md",
+          "note": null
+        },
+        {
+          "text": "With two MLStates (kv_cache_0 and conv_cache_0) LFM2.5 compiles but fails at predict with `ANEProgramProcessRequestDirect() Failed with status=0x1d : statusType=0x9: Program Inference error` on macOS 26.0.1.",
+          "source": "https://raw.githubusercontent.com/john-rocky/CoreML-LLM/main/docs/LFM2_CONVERSION_FINDINGS.md",
+          "note": null
+        },
+        {
+          "text": "LFM2.5's bisect shows one state works even with conv layers skipped or fed zeros, while every two-state variant failed (read-only conv state, per-layer conv states, slice_update, shift-matmul update, padded innermost dim, rank-3, iOS18 target); passing the conv state as an input/output tensor worked.",
+          "source": "https://raw.githubusercontent.com/john-rocky/CoreML-LLM/main/docs/LFM2_CONVERSION_FINDINGS.md",
+          "note": null
+        },
+        {
+          "text": "CoreML-LLM's Gemma 4 SWA stateful converter carries the same dual-state warning and collapses the sliding and full KV into one unified buffer.",
+          "source": "https://raw.githubusercontent.com/john-rocky/CoreML-LLM/main/docs/LFM2_CONVERSION_FINDINGS.md",
+          "note": null
+        },
+        {
+          "text": "Qwen3-VL 4B and 8B ship on ANE with MLState and `slice_update` KV across 6 chunks (36 layers), INT4 per-grouped-channel (group size 64) decode chunks, an fp16 embed sidecar, and an explicit I/O-KV conversion path kept as the correctness gate.",
+          "source": "https://raw.githubusercontent.com/john-rocky/CoreML-LLM/main/docs/QWEN3_VL_4B_8B_HANDOFF.md",
+          "note": null
+        },
+        {
+          "text": "CoreML-LLM v1.5.0 reports Qwen3-VL 2B stateful at 24 tok/s with 256 MB phys_footprint on iPhone 17 Pro versus 7.5 tok/s and 1.7 GB for the prior recurrent build.",
+          "source": "https://github.com/john-rocky/CoreML-LLM",
+          "note": null
+        },
+        {
+          "text": "CoreML-LLM v1.6.0 adds cross-turn KV reuse with LCP-matched MLState resume, taking same-prompt second TTFT from 4 s to 125 ms.",
+          "source": "https://github.com/john-rocky/CoreML-LLM",
+          "note": null
+        },
+        {
+          "text": "The M4 Max bench runs Qwen3.5 0.8B and 2B on ANE with KV in MLState (Qwen35MLKVGenerator) at 58.2 and 35.0 tok/s with 221 and 230 MB peak memory.",
+          "source": "https://github.com/john-rocky/apple-silicon-llm-bench",
+          "note": null
+        },
+        {
+          "text": "CoreML-LLM measured copy-back of explicit KV at 1.9 ms of a 70.6 ms E4B step, capping any gain from removing it at about 2.7%.",
+          "source": "https://raw.githubusercontent.com/john-rocky/CoreML-LLM/main/docs/CPU_BOTTLENECK_INVESTIGATION.md",
+          "note": null
+        },
+        {
+          "text": "Double-buffering KV through `outputBackings` failed because an input IOSurface-backed MLMultiArray is locked and cannot become an output backing; Core ML then allocated fresh IOSurfaces per step (1129 ms vs 71 ms).",
+          "source": "https://raw.githubusercontent.com/john-rocky/CoreML-LLM/main/docs/CPU_BOTTLENECK_INVESTIGATION.md",
+          "note": null
+        },
+        {
+          "text": "CoreML-LLM's conversion guide uses mask-based cache updates (`cache * (1 - update_mask) + new_value * update_mask`) because direct index assignment creates untraceable int ops under `torch.jit.trace`.",
+          "source": "https://raw.githubusercontent.com/john-rocky/CoreML-LLM/main/docs/CONVERSION.md",
+          "note": null
+        },
+        {
+          "text": "Forge keeps KV writes on the host in its Core AI graph because particular in-graph update expressions lost ANE placement.",
+          "source": "https://github.com/Anemll/anemll-forge/blob/main/docs/TECHNIQUES.md",
+          "note": null
+        },
+        {
+          "text": "LFM2.5's depthwise short-conv (groups equal to channels at width 1024) is rejected by the ANE and runs on CPU, leaving 97.8% ANE residency (970 of 992 ops) and making CPU-only 57 tok/s faster than CPU+ANE 42.3 tok/s on a Mac.",
+          "source": "https://raw.githubusercontent.com/john-rocky/CoreML-LLM/main/docs/LFM2_CONVERSION_FINDINGS.md",
+          "note": null
+        },
+        {
+          "text": "Whether a model uses one or several states, the safe verification step is per-op placement (Xcode performance report or MLComputePlan), because a model that compiles can still fall back; CoreML-LLM's audit gate is at most 5% non-ANE ops.",
+          "source": "https://raw.githubusercontent.com/john-rocky/CoreML-LLM/main/docs/CHUNK_CONSOLIDATION_BENCH.md",
+          "note": null
+        },
+        {
+          "text": "Inference: the failing-versus-working split is best explained by multi-state graphs with non-identical state shapes or roles, not by `coreml_update_state` as such, because KV-only `slice_update` MLState graphs run on ANE in the same repo.",
+          "source": "asserted",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Corrections and disagreements",
+      "facts": [
+        {
+          "text": "Apple's own Llama 3.1 recipe: CoreML-LLM's EXPERIMENTS says Apple's on-device Llama 3.1 uses stateless explicit-I/O KV; Apple's article (existing dossier) uses a stateful KV input and ran on GPU. CONTRADICTS core-ml-and-apple-neural-engine-for-llms.md only if CoreML-LLM meant a different Apple sample; unresolved.",
+          "source": "asserted",
+          "note": null
+        }
+      ]
+    }
+  ],
+  "related": []
+}

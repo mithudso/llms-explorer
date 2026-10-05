@@ -1,0 +1,119 @@
+{
+  "slug": "jaccl-rtr-sgid-index-hard-coded-to-1",
+  "concept": "JACCL RTR sgid_index hard-coded to 1",
+  "generated": "2026-10-05",
+  "summary": "In JACCL's `Connection::queue_pair_rtr`, the source GID index sent to the verbs driver is the literal `1`, independent of which GID table entry `Connection::info()` selected for the peer.",
+  "facets": [
+    {
+      "title": "Facts",
+      "facts": [
+        {
+          "text": "In JACCL's `Connection::queue_pair_rtr`, the source GID index sent to the verbs driver is the literal `1`, independent of which GID table entry `Connection::info()` selected for the peer.",
+          "source": "https://raw.githubusercontent.com/ml-explore/mlx/main/mlx/distributed/jaccl/lib/jaccl/rdma.cpp",
+          "note": null
+        },
+        {
+          "text": "`info()` loops over `gid_tbl_len` entries and keeps the first whose first 8 bytes and bytes 8-9 are zero and bytes 10-11 are `0xffff` (an IPv4-mapped GID), then `break`s; if none is found it throws the \"No IPv4-mapped GID\" error. The chosen GID is advertised to the peer as the destination GID.",
+          "source": "https://raw.githubusercontent.com/ml-explore/mlx/main/mlx/distributed/jaccl/lib/jaccl/rdma.cpp",
+          "note": null
+        },
+        {
+          "text": "The local GID that the RTR transition names as source is looked up by `sgid_index = 1` inside the driver. The two choices agree only when the first IPv4-mapped entry is at index 1.",
+          "source": "https://raw.githubusercontent.com/ml-explore/mlx/main/mlx/distributed/jaccl/lib/jaccl/rdma.cpp",
+          "note": null
+        },
+        {
+          "text": "ds4 does not have this coupling: its RTR passes `r->gid_index`, the index it scanned or the operator gave with `--rdma-gid-index`. On an explicit index ds4 calls `query_gid` on just that index and does not check that the entry is IPv4-mapped.",
+          "source": "https://raw.githubusercontent.com/antirez/ds4/main/ds4_tp.c",
+          "note": null
+        },
+        {
+          "text": "Exo issue 1390 (Feb 2026, before the April JACCL refactor) already reports `Changing queue pair to RTR failed with errno 22` on two nodes whose `en2` to `en7` had no IPv4 address, and an exo maintainer replies that those interfaces \"need to have reachable IP addresses, but after macOS 26.2 they do not self-assign by default\".",
+          "source": "https://github.com/exo-explore/exo/issues/1390",
+          "note": null
+        },
+        {
+          "text": "No entry in the cached MLX release notes for v0.30.4 through v0.32.3 mentions a change to RTR GID selection or to PR 4191's \"usable GID\" report.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "If the first IPv4-mapped entry is at index N other than 1, JACCL advertises the GID at N and routes from GID 1. A table whose entry 1 is zero or stale is the case the issue 3467 thread links to errno 96.",
+          "source": "https://github.com/ml-explore/mlx/issues/3467",
+          "note": null
+        },
+        {
+          "text": "No fetched issue or pull request proposes making `sgid_index` follow the scanned index. Two targeted searches found nothing.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Is the hard-coded 1 a bug? On every table reported in the sources the IPv4-mapped entry is at index 1 (index 0 is `fe80::`), so the literal works there. ds4's author chose the scanned index anyway. No source shows a failing table that has the mapped entry at another index and a verified cause.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Whether the Apple driver honours an `sgid_index` other than 1, which would make the hard-coded value harmless or harmful in a real table.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Whether JACCL will follow ds4 and pass the chosen index.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "JACCL's `queue_pair_rtr` sets `grh.sgid_index = 1` as a literal, verified in main as fetched on 2026-10-04.",
+          "source": "https://raw.githubusercontent.com/ml-explore/mlx/main/mlx/distributed/jaccl/lib/jaccl/rdma.cpp",
+          "note": null
+        },
+        {
+          "text": "JACCL's `info()` stops at the first IPv4-mapped GID and then advertises it; it does not store its index.",
+          "source": "https://raw.githubusercontent.com/ml-explore/mlx/main/mlx/distributed/jaccl/lib/jaccl/rdma.cpp",
+          "note": null
+        },
+        {
+          "text": "The JACCL source GID index and advertised GID agree only when the first IPv4-mapped entry sits at index 1.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "ds4's RTR uses the scanned or operator-given index as `sgid_index`.",
+          "source": "https://raw.githubusercontent.com/antirez/ds4/main/ds4_tp.c",
+          "note": null
+        },
+        {
+          "text": "With `--rdma-gid-index`, ds4 queries only that index and does not verify it is IPv4-mapped.",
+          "source": "https://raw.githubusercontent.com/antirez/ds4/main/ds4_tp.c",
+          "note": null
+        },
+        {
+          "text": "RTR errno 22 on Thunderbolt ports without IPv4 addresses was reported in exo issue 1390 in February 2026, before MLX PR 3412.",
+          "source": "https://github.com/exo-explore/exo/issues/1390",
+          "note": null
+        },
+        {
+          "text": "An exo maintainer said in February 2026 that macOS 26.2 and later no longer self-assigns addresses to the Thunderbolt RDMA interfaces by default.",
+          "source": "https://github.com/exo-explore/exo/issues/1390",
+          "note": null
+        },
+        {
+          "text": "No fetched source proposes making JACCL's `sgid_index` follow the selected GID.",
+          "source": "asserted",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Corrections and disagreements",
+      "facts": [
+        {
+          "text": "CONTRADICTS jaccl-gid-selection-regression-and-rtr-errno-22.md in framing only: errno 22 with no IPv4 address predates the April refactor (issue 1390, Feb 2026), so the refactor changed the symptom path (uninitialised GID instead of an absent index 1) and did not create the underlying missing-address condition.",
+          "source": "https://github.com/exo-explore/exo/issues/1390",
+          "note": null
+        }
+      ]
+    }
+  ],
+  "related": []
+}

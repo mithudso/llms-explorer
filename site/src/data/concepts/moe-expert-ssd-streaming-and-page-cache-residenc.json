@@ -1,0 +1,239 @@
+{
+  "slug": "moe-expert-ssd-streaming-and-page-cache-residenc",
+  "concept": "MoE expert SSD streaming and page-cache residency",
+  "generated": "2026-10-05",
+  "summary": "The Flash-MoE authors' expert-read benchmark on an M3 Max: sequential warm page cache 32.1 GB/s (0.49 ms for 4 experts), parallel 4-thread warm 29.2 GB/s, parallel 4-thread cold with `F_NOCACHE` 5.5 GB/s (2.84 ms), sequential cold 4.5 GB/s (3.46 ms), and `mmap` plus `memcpy` cold 0.12 GB/s. They ...",
+  "facets": [
+    {
+      "title": "Facts",
+      "facts": [
+        {
+          "text": "The Flash-MoE authors' expert-read benchmark on an M3 Max: sequential warm page cache 32.1 GB/s (0.49 ms for 4 experts), parallel 4-thread warm 29.2 GB/s, parallel 4-thread cold with `F_NOCACHE` 5.5 GB/s (2.84 ms), sequential cold 4.5 GB/s (3.46 ms), and `mmap` plus `memcpy` cold 0.12 GB/s. They conclude the warm-to-cold gap (about 6x) is \"the entire optimization story\". This also means the 17.5 GB/s sequential figure in the existing dossier is not the random-expert read rate.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "`mmap` was 5x slower than `pread` because a 3.9 MB expert spans 240 16 KB pages and each cold page takes its own fault, while one `pread` issues one large NVMe command. mmap is for already cached data; use `pread` for bulk reads of possibly uncached data.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Metal buffer caches wire memory. A 9.8 GB application cache wired 9.8 GB and left about 25 GB for the OS page cache instead of about 35 GB. With the Metal cache active, `vm_stat` showed the memory compressor doing 60,000-130,000 decompressions per second; without it, near zero.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "The authors credit macOS page-cache policy (they call it CLOCK-Pro, an adaptive replacement algorithm balancing recency and frequency) for beating an LRU, and a cache \"hit\" is a plain memory access with no hash lookup. The CLOCK-Pro attribution is the authors' assertion; no Apple source is cited.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "`fs_usage` showed 45,414 `pread` calls produced 260,845 disk read operations (5.7 per pread). A 3.9 MB pread breaks into mostly 512 KB commands plus 8-16 KB pieces because the page cache stores data in scattered 16 KB virtual pages that map to non-contiguous physical pages. That adds about 46 microseconds of kernel overhead per pread (about 11 ms per token at 240 preads).",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Destination buffer alignment matters for warm data: 2 MB-aligned `posix_memalign` buffers read at 16.8 GB/s (234 microseconds) against 4.7 GB/s (836 microseconds) for default 16 KB-aligned Metal buffers, a 3.6x gap that shrank to about 5% in the full pipeline because most reads were cold. `posix_memalign` plus `newBufferWithBytesNoCopy` is free to adopt.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Four parallel `pread` threads gave 9.2x over sequential reads, which the authors call superlinear due to NVMe command queuing.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "A tiered design with two file descriptors per layer file (`F_NOCACHE` for first reads, cached for repeats, tracked by a 3.8 KB bitset) gave marginally better tok/s with identical `vm_stat` pressure; memory pressure came from Metal buffers and weights, not from page-cache behavior.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Anemll's `cachebench` (warm-page-cache `pread` over packed expert files, no model) measured effective cached bandwidth on an M5 Max 128 GB: Q3 GGUF experts 19.49 GB/s with 1 thread, 62.46 GB/s with 8 threads, 72.07 GB/s with 8 threads and split 4; 4-bit 71.08 GB/s; 2-bit 76.92 GB/s. These are cached-read rates, not raw NAND rates.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "The Anemll fork's \"expert I/O ms per token\" figures (Q3 26.7-27.5 ms, 4-bit 44.7 ms) come from warm-cache 200-token runs, so they blend page-cache hits with SSD reads and do not equal SSD bandwidth.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "ds4 does the opposite of \"trust the OS\": on Metal it runs an explicit GPU expert cache with seeded priorities and keeps non-routed weights resident. Its only use of `F_NOCACHE`/`F_RDAHEAD 0` is for the Qwen n-gram table, where single-row reads would pollute the page cache.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "JangPress combines mmap-backed safetensors with `madvise(MADV_DONTNEED)` on routed-expert pages, so the kernel drops expert pages on request while the file mapping stays addressable and a re-fault re-reads from disk. After load, resident set size is about 1 GB while virtual size is about 600 GB, so Activity Monitor's large number is mmap reservation, not RAM use.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "2026-03-19: Flash-MoE last commit (\"Q4 optimization: FMA kernel +12%, 58 experiments documented\"). 2026-03-20: Anemll adds `--cache-io-split`. 2026-03-21: Anemll fork's last commit. Neither repo shows later commits at the 2026-10-04 fetch.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "With a custom Metal LRU the 2-bit decode fell below the cache-less baseline once the cache grew: 2.86 tok/s with no cache, 3.14 with a 500-entry (3.5 GB, 35% hit) cache, 2.24 with 1,000 entries (7.1 GB, 44%), 2.24 with 2,500 (9.8 GB, 55%), 1.99 with 3,000 (21 GB, 55%), and 2.10 for a malloc zero-copy cache of 2,581 entries (18 GB, 52%). Removing the cache gave 5.74 tok/s. These were intermediate builds, not the final engine.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "`MADV_RANDOM` was harmful (it fragments 3.9 MB reads into 5.7 x 512 KB disk operations); `MADV_SEQUENTIAL` and `MADV_WILLNEED` gave 0% on steady state; `F_RDAHEAD` gave 0%; `F_RDADVISE` hurt (-8% immediate, -4% with one token of lead time, because 65-80% of predictions were wrong).",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "At the first prefill under JangPress on a 128 GB Mac, the process footprint reached about 130 GB before the first token and caused severe system memory pressure (see jangpress-cold-expert-eviction-for-moe-larger-th.md).",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "The articles that repeat \"5.74 tok/s on a 397B streamed model\" cite the 2-bit configuration, which the README says breaks JSON tool calling; the production 4-bit figure is 4.36.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Explicit cache versus page cache. Flash-MoE/Anemll (48 GB and 128 GB M-series) and SwiftLM (64 GB) found any application-level cache slower than the OS page cache, with wired GPU memory as the stated mechanism. ds4 (128 GB M5 Max) ships a GPU expert cache of up to 86.2 GiB and reports 11.9-19.3 tok/s from 145-178 GiB models. Different engines, model scales and reserved-memory policy; no source runs both designs on one model.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "`F_RDADVISE`. The Flash-MoE README (already held) records a net 0% result with SSD DMA slowing the GPU 73%; this I/O write-up records -8% and -4% for the same call. The two are different experiments and neither reproduces the other.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Is the macOS page-cache policy the reason? The authors credit CLOCK-Pro; the cache-fragmentation, wired-memory and compressor measurements point to memory pressure as an equally sufficient cause.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "No source measures page-cache hit rate for ds4, JangPress or SwiftLM directly (SwiftLM reports about 90%, Flash-MoE 71%, with different models and capacities).",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "The authors' proposed mitigation for fragmentation (`mincore()` to detect cached pages, `memcpy` from mmap for hits, `pread` for misses) was not implemented.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Whether the 5.7 operations per pread persist on macOS 26 and M5 SSDs.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "On an M3 Max the Flash-MoE authors measured expert reads at 32.1 GB/s sequential warm, 29.2 GB/s 4-thread warm, 5.5 GB/s 4-thread cold with `F_NOCACHE`, 4.5 GB/s sequential cold and 0.12 GB/s for mmap plus memcpy cold.",
+          "source": "https://raw.githubusercontent.com/Anemll/flash-moe/m5-nax/docs/io-and-gpu-exploration.md",
+          "note": null
+        },
+        {
+          "text": "A 3.9 MB expert spans 240 16 KB pages, so cold mmap takes 240 faults where one pread issues one large NVMe command, giving 0.56 tok/s for the mmap build (5x slower).",
+          "source": "https://raw.githubusercontent.com/Anemll/flash-moe/m5-nax/docs/io-and-gpu-exploration.md",
+          "note": null
+        },
+        {
+          "text": "Custom Metal expert caches wire physical memory: a 9.8 GB cache left about 25 GB for the OS page cache instead of about 35 GB.",
+          "source": "https://raw.githubusercontent.com/Anemll/flash-moe/m5-nax/docs/io-and-gpu-exploration.md",
+          "note": null
+        },
+        {
+          "text": "With the custom Metal cache active the memory compressor ran 60,000-130,000 decompressions per second and near zero without it.",
+          "source": "https://raw.githubusercontent.com/Anemll/flash-moe/m5-nax/docs/io-and-gpu-exploration.md",
+          "note": null
+        },
+        {
+          "text": "Flash-MoE's custom cache sweep reads 2.86 tok/s with no cache, 3.14 with Metal LRU 500, 2.24 with 1000, 2.24 with 2500, 1.99 with 3000, 2.10 with a malloc zero-copy cache, and 5.74 with no cache and the OS page cache.",
+          "source": "https://raw.githubusercontent.com/Anemll/flash-moe/m5-nax/docs/io-and-gpu-exploration.md",
+          "note": null
+        },
+        {
+          "text": "Flash-MoE's authors say macOS manages the page cache with CLOCK-Pro, an adaptive replacement algorithm, and that a page-cache hit is a plain MMU memory access with no lookup overhead; no Apple source is cited.",
+          "source": "https://raw.githubusercontent.com/Anemll/flash-moe/m5-nax/docs/io-and-gpu-exploration.md",
+          "note": null
+        },
+        {
+          "text": "`fs_usage` showed 45,414 pread calls issuing 260,845 disk reads (5.7 per pread), mostly 512 KB blocks, costing about 46 microseconds per pread of kernel overhead.",
+          "source": "https://raw.githubusercontent.com/Anemll/flash-moe/m5-nax/docs/io-and-gpu-exploration.md",
+          "note": null
+        },
+        {
+          "text": "Flash-MoE found `MADV_RANDOM` harmful, `MADV_SEQUENTIAL`, `MADV_WILLNEED` and `F_RDAHEAD` neutral, and `F_RDADVISE` negative (-8% immediate, -4% with lead time because 65-80% of next-token predictions were wrong).",
+          "source": "https://raw.githubusercontent.com/Anemll/flash-moe/m5-nax/docs/io-and-gpu-exploration.md",
+          "note": null
+        },
+        {
+          "text": "A 2 MB-aligned destination buffer read at 16.8 GB/s against 4.7 GB/s for a 16 KB-aligned Metal buffer on warm data, but gave only about 5% in the full pipeline.",
+          "source": "https://raw.githubusercontent.com/Anemll/flash-moe/m5-nax/docs/io-and-gpu-exploration.md",
+          "note": null
+        },
+        {
+          "text": "Four parallel pread threads gave a 9.2x speedup over sequential reads.",
+          "source": "https://raw.githubusercontent.com/Anemll/flash-moe/m5-nax/docs/io-and-gpu-exploration.md",
+          "note": null
+        },
+        {
+          "text": "Flash-MoE's 2-bit I/O floor was computed as 60 layers x about 2.6 cache misses x 3.9 MB = 608 MB per token, or 110 ms at 5.5 GB/s (9.1 tok/s), and the measured 5.5 tok/s was 82% of that floor.",
+          "source": "https://raw.githubusercontent.com/Anemll/flash-moe/m5-nax/docs/io-and-gpu-exploration.md",
+          "note": null
+        },
+        {
+          "text": "A two-file-descriptor tiered I/O design (`F_NOCACHE` for first reads) gave marginal gains and unchanged `vm_stat` pressure.",
+          "source": "https://raw.githubusercontent.com/Anemll/flash-moe/m5-nax/docs/io-and-gpu-exploration.md",
+          "note": null
+        },
+        {
+          "text": "Anemll's `cachebench` on an M5 Max 128 GB reports 72.07 GB/s effective cached pread for Q3 GGUF experts with 8 threads and split 4, 71.08 GB/s for 4-bit and 76.92 GB/s for 2-bit, and says these are effective cached bandwidth, not raw NAND bandwidth.",
+          "source": "https://raw.githubusercontent.com/Anemll/flash-moe/m5-nax/docs/cache-pread-microbench.md",
+          "note": null
+        },
+        {
+          "text": "Anemll's cached-read scaling for Q3 experts is 19.49 GB/s with 1 thread, 33.91 with 2, 44.95 with 4 and 62.46 with 8 (split 1).",
+          "source": "https://raw.githubusercontent.com/Anemll/flash-moe/m5-nax/docs/cache-pread-microbench.md",
+          "note": null
+        },
+        {
+          "text": "Anemll's \"expert I/O ms\" figures come from warm-cache 200-token runs and combine page-cache hits with SSD reads.",
+          "source": "https://raw.githubusercontent.com/Anemll/flash-moe/m5-nax/docs/cache-io-split-results.md",
+          "note": null
+        },
+        {
+          "text": "ds4 opens its Qwen n-gram table with `F_NOCACHE` and `F_RDAHEAD 0` on macOS so single-row reads do not pollute the page cache.",
+          "source": "https://raw.githubusercontent.com/antirez/ds4/main/ds4.c",
+          "note": null
+        },
+        {
+          "text": "JangPress uses mmap-backed safetensors, `MADV_DONTNEED` on routed-expert pages and an optional router-aware hot set, and reports idle resident set of about 1 GB against about 600 GB virtual size.",
+          "source": "https://raw.githubusercontent.com/jjang-ai/jangq/main/docs/JANGPRESS.md",
+          "note": null
+        },
+        {
+          "text": "An explainer says the streamed 397B starting baseline of 0.28 tok/s reached 5.74 tok/s after 90+ optimization rounds on an M3 Max 48 GB, which is the 2-bit configuration, not the production 4-bit one.",
+          "source": "https://www.qwe.edu.pl/tutorial/run-80b-qwen-4gb-ram-mac-iphone-guide/",
+          "note": null
+        },
+        {
+          "text": "The same explainer says to cap context (for example 8K) because the KV cache competes with expert pages for RAM.",
+          "source": "https://www.qwe.edu.pl/tutorial/run-80b-qwen-4gb-ram-mac-iphone-guide/",
+          "note": null
+        },
+        {
+          "text": "Warm-versus-cold read rates, not compute, explain most measured differences between expert-streaming designs on macOS.",
+          "source": "asserted",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Corrections and disagreements",
+      "facts": [
+        {
+          "text": "CONTRADICTS: moe-expert-offload-to-ssd-on-macos.md reads the Anemll 0.74 ms per layer for 27 MB as roughly 36 GB/s of \"effective\" SSD read; the Anemll docs state those timings come from warm-cache runs, so they overstate raw SSD speed on M5 Max.",
+          "source": "asserted",
+          "note": null
+        }
+      ]
+    }
+  ],
+  "related": []
+}

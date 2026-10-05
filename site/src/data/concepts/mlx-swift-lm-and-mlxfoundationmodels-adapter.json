@@ -1,0 +1,429 @@
+{
+  "slug": "mlx-swift-lm-and-mlxfoundationmodels-adapter",
+  "concept": "mlx-swift-lm and MLXFoundationModels adapter",
+  "generated": "2026-10-05",
+  "summary": "Library layout (10 SwiftPM libraries, 1 macro): MLXLMCommon (shared API), MLXLLM, MLXVLM, MLXEmbedders, MLXHuggingFace (macros), MLXGuidedGeneration, MLXFoundationModels. Core loading API is `loadModel(from: Downloader|URL, using: TokenizerLoader, id:)` then `ChatSession(model)`; the 3.x line rem...",
+  "facets": [
+    {
+      "title": "Facts",
+      "facts": [
+        {
+          "text": "Library layout (10 SwiftPM libraries, 1 macro): MLXLMCommon (shared API), MLXLLM, MLXVLM, MLXEmbedders, MLXHuggingFace (macros), MLXGuidedGeneration, MLXFoundationModels. Core loading API is `loadModel(from: Downloader|URL, using: TokenizerLoader, id:)` then `ChatSession(model)`; the 3.x line removed the hard dependency on the Hugging Face Hub and tokenizer packages.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Loading a Hugging Face MLX model without the FoundationModels layer: add `swift-huggingface` (>= 0.9.0) and `swift-transformers` (>= 1.3.0), link `HuggingFace`, `Tokenizers`, `MLXLLM`, `MLXLMCommon`, `MLXHuggingFace`, then `try await #huggingFaceLoadModelContainer(configuration: LLMRegistry.gemma3_1B_qat_4bit)`. The explicit form is `loadModelContainer(from: #hubDownloader(), using: #huggingFaceTokenizerLoader(), configuration:)`. Local-only weights need no Downloader.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Loading through `LanguageModelSession` (macOS 27 SDK): `#huggingFaceLanguageModel(configuration: LLMRegistry.qwen3_0_6b_4bit, capabilities: [.reasoning])` expands to `MLXLanguageModel(configuration:capabilities:weightsLocation:load:)`. `weightsLocation:` resolves the on-disk snapshot from the same `HubCache`/`HubClient` cache the downloader writes to, so `availability` reports a downloaded model correctly (fixed in the PR; before that the macro looked in a different cache). Pass your own `weightsLocation:` and `load:` to use a custom directory, downloader or tokenizer.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Guided generation inside the adapter is automatic: a `@Generable` type or `GenerationSchema` passed to `respond` is enforced by masking token logits each step (JSON Schema, EBNF, or XGrammar structural tags). The engine is a vendored, namespace-renamed copy of XGrammar compiled in-repo so it cannot collide with another XGrammar in the same binary.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "`MLXGuidedGeneration` also works standalone on any MLX model back to macOS 14 / iOS 17 (`GrammarTokenizer`, `GrammarConstraint`, `GuidedGenerationLoop.run`).",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "The PR that added the adapter lists two default-on traits (`FoundationModelsIntegration`, `GuidedGenerationSupport`); the shipped README documents only `FoundationModelsIntegration` and says the C++ is compiled when `MLXGuidedGeneration` is linked, directly or via that trait.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Compile gate is two-part: the trait plus `canImport(FoundationModels, _version: 2)`. On the macOS 26 SDK (FoundationModels 1.x) the whole adapter compiles to an empty module. Platform floors for the package are unchanged: macOS 14, iOS 17, tvOS 17, visionOS 1. The adapter types are `@available(iOS/macOS/visionOS 27.0)`.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Adapter image input: images can carry a name that is placed directly before its picture in the prompt, as in FoundationModels. A name containing any of `< > | [ ]`, or whose bracketed form the tokenizer reads as a special token, is refused with a typed error on the FoundationModels path and dropped (with a log line) when MLXLMCommon is used directly. Reason: on Mistral3 a name like `IMG` rendered `[IMG]`, doubled the image tokens and aborted the process.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Logging goes through `MLXLogger` (OSLog subsystem `mlx-swift`), which marks every message public, so a rejected tool call name and a token-stream protocol error text now log in public.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "AnyLanguageModel (github.com/huggingface/AnyLanguageModel, now under the huggingface org; v0.15.1 on 2026-10-02): `import AnyLanguageModel` instead of `import FoundationModels`. Providers: system model, PCC, any FoundationModels `LanguageModel` conformer via `FoundationLanguageModel { try await MyModel(resourcesAt:) }` with `unload()`, Core ML, MLX, llama.cpp (GGUF), Ollama HTTP, Anthropic, Gemini, OpenAI Chat Completions and Responses, Open Responses. Backends are SwiftPM traits (`CoreML`, `MLX`, `Llama`), all off by default.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "AnyLanguageModel MLX specifics: `MLXLanguageModel(modelId: \"mlx-community/...\", gpuMemory: .automatic)`; per-call `MLXLanguageModel.CustomGenerationOptions` with `kvCache` (maxSize, bits, groupSize, quantizedStart), `userInputProcessing: .resize(to:)`, `additionalContext` for chat templates, and sampler overrides (topP, topK, minP, repetitionPenalty). Llama options include contextSize, batchSize, threads, mirostat, `assistantPrefill`, and `mmprojPath:` for multimodal. Ollama default endpoint `http://localhost:11434`; options pass as JSON values (`num_ctx`, `seed`). Image input is model-dependent on MLX, llama.cpp and Ollama.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "AnyLanguageModel also tracks the FoundationModels 27 API without needing macOS 27: `DynamicInstructions`, `Usage`, `Transcript.Entry.reasoning`, `ToolExecutionDelegate` (observe, stop or bypass tool calls). `SystemLanguageModel` dynamic instructions need Swift 6.4+ and OS 27+, else `SystemLanguageModel.Error.dynamicInstructionsUnavailable`.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Core AI via AnyLanguageModel: Apple's `apple/coreai-models` package exports `CoreAILanguageModel`, wrapped by `FoundationLanguageModel`; it requires an OS 27 deployment target, with a community xcframework recipe to lower the floor.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Apple's `apple/foundation-models-utilities` (SwiftPM product `FoundationModelsUtilities`, from 1.0.0, Apple platforms plus select Linux) provides `ChatCompletionsLanguageModel(name:url:supportsGuidedGeneration:)` for any chat-completions server, history modifiers (`summarizeHistory`, `rollingWindow`, `droppingCompletedToolCalls`) and `Skills`/`SkillActivations`. A prompt-based skill adds its content as tool output and keeps the KV cache; an instructions-based skill edits the first instructions entry and invalidates it. That is the first-party client for `fm serve`, Ollama, LM Studio or `mlx_lm.server`.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "2025-11-20: AnyLanguageModel launched (pre-1.0, repo under mattt) with tool calling, MCP and guided generation listed as not yet available on all adapters; image input added as an extension beyond FoundationModels.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "2026-07-15: adapter PR #334 (author ctymoszek, with a `#huggingFaceLanguageModel` macro added by thechriswebb) merged; the README commit is dated that day.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "2026-08 (Xcode 27 betas 4 and 5): adapter broke against SDK changes: `LanguageModelCapabilities.init` lost its `capabilities:` label, 28 metadata parameters became `[String: any ConvertibleToGeneratedContent]`, and `Generation.rejectedToolCall` made switches non-exhaustive.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "2026-09-30: mlx-swift-lm 3.32.3 is the first tag containing the adapter (also pulls mlx-swift 0.32.3, draft-model and KV-cache work, tool handling fixes). Repo: 512 commits, 20 tags, 3.x is main.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "2026-10-02: AnyLanguageModel 0.15.0 requires Swift 6.3 (Xcode 26.4+) because mlx-swift 0.32.3 declares swift-tools-version 6.3, and supports mlx-swift-lm 3.32.3; 0.15.1 fixes MLX session-cache prefix handling. LiteRT-LM backend was added in 0.10.0 and removed in 0.11.0.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Open issue #543 (opened 2026-08-16): `MLXFoundationModels` did not compile against Xcode 27 beta 5; two spots (`MLXLanguageModel.swift:565` label, `:718` metadata type) not covered by PR #538. Status at release 3.32.3 not verified.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Open issue #539: a test bundle built against the 27 SDK crashes the XCTest runner at startup on a macOS 26 host (`FoundationModels` is weak-linked, metadata for `GenerationEvent` is null). The same shape can bite a shipping app that links the adapter and runs on 26: any realizable class whose metadata instantiates a weak-linked type.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Guided generation: the first call for a schema/tokenizer pair compiles the grammar and can block for hundreds of milliseconds without yielding. Do not call from `@MainActor`; pre-warm with a throwaway `GrammarConstraint`.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "A trait-off consumer (`.disableDefaultTraits`) gets no adapter; an older SDK with the trait on also gets an empty module, so `MLXLanguageModel` is simply missing, not a runtime error.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "SwiftPM bug 9286: enabling traits can fail dependency resolution (\"exhausted attempts to resolve the dependencies graph\"); the workaround is to add each trait's underlying package as a direct dependency. Xcode projects cannot declare traits; use a local shim package that re-exports `AnyLanguageModel` with `@_exported import`.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "AnyLanguageModel MLX tests must run under `xcodebuild`, not `swift test`, because of Metal library loading.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "AnyLanguageModel code that uses its extensions does not compile with Foundation Models on OS 26. Not yet implemented there: `SystemLanguageModel.supportedLanguages`, `supportsLocale`, `tokenCount(for:)`, `logFeedbackAttachment`, `DynamicGenerationSchema.null`.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Behavior difference: AnyLanguageModel records a structured response in the transcript as JSON text, not a structured segment.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Upgrading mlx-swift-lm 2.x to 3.x is breaking: `hub:` became `from:`, `HubApi` became `HubClient`, `ModelConfiguration` in MLXEmbedders became `EmbedderRegistry`, `loadModelContainer(configuration:)` alone no longer compiles.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "CI note: the repo pins swift-format 603.0.0 and local test runs need `-skipPackagePluginValidation`.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Version numbers: a macOS 27 Medium article shows `.upToNextMinor(from: \"1.0.0\")` and `.macOS(.v27)` for mlx-swift-lm; the repo shows 3.32.3 and platform floor macOS 14, with 27 only as an `@available`/SDK requirement. The article is wrong on both. The AnyLanguageModel README itself still lists `mlx-swift-lm from: \"2.25.5\"` in its trait workaround although 0.15.0 targets 3.32.3.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "AnyLanguageModel is called \"pre-27 equivalent\" in the round-1 dossier; the 0.15.x README shows it is still maintained for OS 27 (wraps any 27 `LanguageModel`, mirrors 27 APIs) and plans an \"AnyLanguageModel 2.0\" to match 27 prompt attachments. Both its `LanguageModel` protocol and Apple's differ, so a type conforming to one does not conform to the other.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Constructor name clash: AnyLanguageModel uses `MLXLanguageModel(modelId:)`; the Apple-protocol adapter uses `MLXLanguageModel(configuration:capabilities:weightsLocation:load:)` or the macro. Articles that show `modelID:` mix the two or use Apple's placeholder.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "AnyLanguageModel README \"Package Traits\" says tool calling is supported by all providers (llama.cpp depends on the chat format); the launch blog listed tool calling and guided generation as future work. The README is later and wins.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "The PR body says two default-on traits; the shipped README documents one. README is authoritative for the tagged state.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Whether 3.32.3 compiles on the final Xcode 27.0/27.2 SDK (issue #543 status unknown); whether `FoundationModelsIntegration` trait still defaults on in the tag.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Throughput and memory of `MLXLanguageModel` through `LanguageModelSession` versus plain `ChatSession` (no first-party numbers found).",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Whether MLXFoundationModels reuses KV cache across turns via the executor transcript diff (AnyLanguageModel 0.15.1 does session-cache prefix handling; the adapter's behavior is not documented).",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Whether `fm serve` can be used as a backend for `ChatCompletionsLanguageModel` given its streaming-by-default and tool-call quirks (not tested in sources).",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Apple's example `URL(string: \"http://localhost/v1:8000\")` in the utilities README is malformed (port after path); the intended form is `http://localhost:8000/v1`.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "mlx-swift-lm is MIT-licensed, has 512 commits, 20 tags, 10 libraries and 1 macro, and its main branch is major version 3.x.",
+          "source": "https://swiftpackageindex.com/ml-explore/mlx-swift-lm",
+          "note": null
+        },
+        {
+          "text": "Tag 3.32.3 (2026-09-30) is the latest release and its notes list \"add MLXFoundationModels and MLXGuidedGeneration\" and mlx-swift 0.32.3.",
+          "source": "https://github.com/ml-explore/mlx-swift-lm/releases",
+          "note": null
+        },
+        {
+          "text": "The recommended dependency is `.upToNextMinor(from: \"3.32.3\")` plus swift-huggingface from 0.9.0 and swift-transformers from 1.3.0.",
+          "source": "https://github.com/ml-explore/mlx-swift-lm",
+          "note": null
+        },
+        {
+          "text": "The repo's library list is MLXLMCommon, MLXLLM, MLXVLM, MLXEmbedders, MLXGuidedGeneration and MLXFoundationModels, plus MLXHuggingFace macros.",
+          "source": "https://github.com/ml-explore/mlx-swift-lm",
+          "note": null
+        },
+        {
+          "text": "Plain (non-FoundationModels) usage is `#huggingFaceLoadModelContainer(configuration: LLMRegistry.gemma3_1B_qat_4bit)` then `ChatSession(model).respond(to:)`.",
+          "source": "https://github.com/ml-explore/mlx-swift-lm",
+          "note": null
+        },
+        {
+          "text": "3.x requires the caller to supply a Downloader and a Tokenizer implementation (or use the MLXHuggingFace macros); `Downloader` is not needed for local weights.",
+          "source": "https://github.com/ml-explore/mlx-swift-lm/blob/main/Libraries/MLXLMCommon/Documentation.docc/using.md",
+          "note": null
+        },
+        {
+          "text": "Upgrading from 2.x changes `hub:` to `from:`, `HubApi` to `HubClient`, and MLXEmbedders to `EmbedderRegistry` and `EmbedderModelFactory`.",
+          "source": "https://github.com/ml-explore/mlx-swift-lm/blob/main/Libraries/MLXLMCommon/Documentation.docc/upgrade.md",
+          "note": null
+        },
+        {
+          "text": "The `#huggingFaceLanguageModel` macro synthesizes `weightsLocation:` and `load:` (Hugging Face download plus tokenizer loading).",
+          "source": "https://github.com/ml-explore/mlx-swift-lm/blob/main/Libraries/MLXFoundationModels/README.md",
+          "note": null
+        },
+        {
+          "text": "The direct initializer's `weightsLocation:` closure resolves the snapshot path through `HubCache.default`, falling back to the repo directory.",
+          "source": "https://github.com/ml-explore/mlx-swift-lm/blob/main/Libraries/MLXFoundationModels/README.md",
+          "note": null
+        },
+        {
+          "text": "With trait off (`.disableDefaultTraits`) nothing is compiled, which suits iOS-17-era consumers wanting MLXLLM/MLXLMCommon only.",
+          "source": "https://github.com/ml-explore/mlx-swift-lm/blob/main/Libraries/MLXFoundationModels/README.md",
+          "note": null
+        },
+        {
+          "text": "The adapter PR states platform floors are unchanged (.macOS(.v14), .iOS(.v17), .tvOS(.v17), .visionOS(.v1)) and the adapter is `@available(iOS 27.0, macOS 27.0, visionOS 27.0)`.",
+          "source": "https://github.com/ml-explore/mlx-swift-lm/pull/334",
+          "note": null
+        },
+        {
+          "text": "The adapter's source is gated on both the trait and `canImport(FoundationModels, _version: 2)`, so the macOS 26 SDK (FoundationModels 1.x) compiles it out.",
+          "source": "https://github.com/ml-explore/mlx-swift-lm/pull/334",
+          "note": null
+        },
+        {
+          "text": "The adapter PR describes MLXLanguageModel as supporting chat, tool calling and guided generation through a vendored xgrammar copy, behind default-on traits FoundationModelsIntegration and GuidedGenerationSupport.",
+          "source": "https://github.com/ml-explore/mlx-swift-lm/pull/334",
+          "note": null
+        },
+        {
+          "text": "MLXGuidedGeneration constrains output to a JSON Schema, an EBNF grammar or an XGrammar structural tag by masking logits at every step and runs on macOS 14 / iOS 17 and later.",
+          "source": "https://github.com/ml-explore/mlx-swift-lm/blob/main/Libraries/MLXGuidedGeneration/README.md",
+          "note": null
+        },
+        {
+          "text": "The first `GuidedGenerationLoop.run` for a schema/tokenizer pair compiles the grammar and can block for hundreds of milliseconds, so it must not run on `@MainActor`; pre-warm with a throwaway `GrammarConstraint`.",
+          "source": "https://github.com/ml-explore/mlx-swift-lm/blob/main/Libraries/MLXGuidedGeneration/README.md",
+          "note": null
+        },
+        {
+          "text": "XGrammar is vendored in the repo with its C++ namespace renamed to avoid collisions with another XGrammar in the same binary.",
+          "source": "https://github.com/ml-explore/mlx-swift-lm/blob/main/Libraries/MLXGuidedGeneration/README.md",
+          "note": null
+        },
+        {
+          "text": "Image names in MLXLMCommon prompts are refused (Foundation Models path) or dropped with a log (direct path) when they contain `< > | [ ]` or a tokenizer-special label, because Mistral3 once doubled image tokens and aborted.",
+          "source": "https://github.com/ml-explore/mlx-swift-lm",
+          "note": null
+        },
+        {
+          "text": "MLXFoundationModels logs through `MLXLogger` (OSLog subsystem mlx-swift), which marks every message public.",
+          "source": "https://github.com/ml-explore/mlx-swift-lm",
+          "note": null
+        },
+        {
+          "text": "Issue #543 reports MLXFoundationModels did not compile on Xcode 27 beta 5 because `LanguageModelCapabilities.init` lost its label and 28 metadata parameters became `[String: any ConvertibleToGeneratedContent]`.",
+          "source": "https://github.com/ml-explore/mlx-swift-lm/issues/543",
+          "note": null
+        },
+        {
+          "text": "Issue #539 reports a test bundle built against the macOS 27 SDK segfaults at startup on a macOS 26 host because weak-linked FoundationModels metadata is null.",
+          "source": "https://github.com/ml-explore/mlx-swift-lm/issues/539",
+          "note": null
+        },
+        {
+          "text": "AnyLanguageModel now lives at github.com/huggingface/AnyLanguageModel (943 stars, 33 tags) and requires Swift 6.3+ (Xcode 26.4+) and iOS 17 / macOS 14 / visionOS 1 / Linux.",
+          "source": "https://github.com/mattt/AnyLanguageModel",
+          "note": null
+        },
+        {
+          "text": "AnyLanguageModel 0.15.0 raised the Swift floor to 6.3 because mlx-swift 0.32.3 declares swift-tools-version 6.3, even with the MLX trait off.",
+          "source": "https://github.com/huggingface/AnyLanguageModel/releases",
+          "note": null
+        },
+        {
+          "text": "AnyLanguageModel 0.15.0 moved MLX support to mlx-swift-lm 3.32.3; 0.15.1 fixed MLX session-cache prefix slicing and prewarmed-cache reuse.",
+          "source": "https://github.com/huggingface/AnyLanguageModel/releases",
+          "note": null
+        },
+        {
+          "text": "AnyLanguageModel traits are `CoreML` (swift-transformers), `MLX` (mlx-swift-lm) and `Llama` (mattt/llama.swift), all off by default.",
+          "source": "https://github.com/mattt/AnyLanguageModel",
+          "note": null
+        },
+        {
+          "text": "SwiftPM bug 9286 can make trait resolution fail with \"exhausted attempts to resolve the dependencies graph\"; the workaround is to add each trait's package as a direct dependency.",
+          "source": "https://github.com/mattt/AnyLanguageModel",
+          "note": null
+        },
+        {
+          "text": "AnyLanguageModel MLX models are built as `MLXLanguageModel(modelId: \"mlx-community/Qwen3.5-4B-MLX-4bit\", gpuMemory: .automatic)` and tuned per call through `MLXLanguageModel.CustomGenerationOptions` (kvCache, userInputProcessing, additionalContext, topP/topK/minP/repetitionPenalty).",
+          "source": "https://github.com/mattt/AnyLanguageModel",
+          "note": null
+        },
+        {
+          "text": "AnyLanguageModel's Ollama provider defaults to `http://localhost:11434` and takes custom endpoints and options such as `num_ctx` and `seed`.",
+          "source": "https://github.com/mattt/AnyLanguageModel",
+          "note": null
+        },
+        {
+          "text": "AnyLanguageModel's llama.cpp provider takes `LlamaLanguageModel(modelPath:)` and options (contextSize, batchSize, threads, mirostat, assistantPrefill) and needs `mmprojPath:` for multimodal.",
+          "source": "https://github.com/mattt/AnyLanguageModel",
+          "note": null
+        },
+        {
+          "text": "AnyLanguageModel states tool calling is supported by all providers (llama.cpp depends on the model's chat format) and guided generation by all on-device and cloud providers.",
+          "source": "https://github.com/mattt/AnyLanguageModel",
+          "note": null
+        },
+        {
+          "text": "The AnyLanguageModel launch post (2025-11-20) listed tool calling, MCP integration, guided generation and local-inference performance as future work and called the package pre-1.0.",
+          "source": "https://huggingface.co/blog/anylanguagemodel",
+          "note": null
+        },
+        {
+          "text": "AnyLanguageModel's LiteRT-LM backend was added in 0.10.0 and removed in 0.11.0 because the dependency could block builds even when disabled.",
+          "source": "https://github.com/mattt/AnyLanguageModel",
+          "note": null
+        },
+        {
+          "text": "AnyLanguageModel's session initializers require an explicit `model:` argument, and it plans an \"AnyLanguageModel 2.0\" to match Foundation Models 27 prompt attachments.",
+          "source": "https://github.com/mattt/AnyLanguageModel",
+          "note": null
+        },
+        {
+          "text": "AnyLanguageModel does not yet implement `SystemLanguageModel.supportedLanguages`, `supportsLocale(_:)` or `tokenCount(for:)`.",
+          "source": "https://github.com/mattt/AnyLanguageModel",
+          "note": null
+        },
+        {
+          "text": "AnyLanguageModel's MLX tests must be run with `xcodebuild`, not `swift test`, because of Metal library loading.",
+          "source": "https://github.com/mattt/AnyLanguageModel",
+          "note": null
+        },
+        {
+          "text": "AnyLanguageModel's `ToolExecutionDelegate` can stop tool execution or supply tool output in place of running the tool.",
+          "source": "https://github.com/mattt/AnyLanguageModel",
+          "note": null
+        },
+        {
+          "text": "Apple's `apple/foundation-models-utilities` (SwiftPM from 1.0.0; last commit 2026-09-21 \"accompany Xcode 27.2 beta 1\") provides `ChatCompletionsLanguageModel(name:url:supportsGuidedGeneration:)` for any chat-completions server.",
+          "source": "https://github.com/apple/foundation-models-utilities",
+          "note": null
+        },
+        {
+          "text": "The utilities package's history modifiers are `summarizeHistory`, `rollingWindow(entries:)` and `droppingCompletedToolCalls`; `Skills` activate through tool calls and a prompt-based skill preserves the KV cache while an instructions-based skill invalidates it.",
+          "source": "https://github.com/apple/foundation-models-utilities",
+          "note": null
+        },
+        {
+          "text": "Apple's utilities README example uses the malformed URL `http://localhost/v1:8000`.",
+          "source": "https://github.com/apple/foundation-models-utilities",
+          "note": null
+        },
+        {
+          "text": "Apple's LanguageModel documentation tells provider authors to distribute with Swift Package Manager and shows `LanguageModelSession(model: MyCustomServerLanguageModel())`.",
+          "source": "https://developer.apple.com/documentation/foundationmodels/languagemodel",
+          "note": null
+        },
+        {
+          "text": "Practical stack choice on a Mac today is inferred: use mlx-swift-lm 3.32.3 directly (ChatSession) for macOS 14+ apps, MLXFoundationModels when the app already targets the 27 SDK and wants one session API, AnyLanguageModel when it must also support macOS 14-26 or needs llama.cpp/Ollama backends.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "This box runs macOS 27.2, so the 27 SDK path is testable locally but the adapter's compile status against Xcode 27.x final was not verified in this research.",
+          "source": "asserted",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Corrections and disagreements",
+      "facts": [
+        {
+          "text": "CONTRADICTS apple-foundation-models-framework.md (soft): that dossier calls AnyLanguageModel a \"pre-27\" package; v0.15.1 (2026-10-02) is still maintained and mirrors the 27 API (DynamicInstructions, Usage, reasoning entries) and wraps any 27 `LanguageModel` with `FoundationLanguageModel`.",
+          "source": "https://github.com/huggingface/AnyLanguageModel",
+          "note": null
+        },
+        {
+          "text": "CONTRADICTS a macOS 27 Medium article: its Package.swift uses `.upToNextMinor(from: \"1.0.0\")` and `.macOS(.v27)` for mlx-swift-lm, but the repo is at 3.32.3 with macOS 14 floors.",
+          "source": "https://medium.com/@nuthalapativarun/mlx-is-now-a-first-class-citizen-in-apples-ai-stack-run-any-hugging-face-model-through-foundation-9dfb8dad2191",
+          "note": null
+        }
+      ]
+    }
+  ],
+  "related": []
+}

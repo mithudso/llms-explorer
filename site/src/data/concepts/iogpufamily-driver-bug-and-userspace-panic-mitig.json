@@ -1,0 +1,379 @@
+{
+  "slug": "iogpufamily-driver-bug-and-userspace-panic-mitig",
+  "concept": "IOGPUFamily driver bug and userspace panic mitigations such as MetalGuard",
+  "generated": "2026-10-05",
+  "summary": "Evidence the bug is in the driver and not in MLX or in memory exhaustion: (1) the kernel panics, a process-level OOM would not; (2) every memory-bounding arm of the controlled test (rotating KV cache, wired cap 5 GiB under recommended, `MLX_MAX_OPS_PER_BUFFER/MB=200`) ended in an ordinary userspa...",
+  "facets": [
+    {
+      "title": "Facts",
+      "facts": [
+        {
+          "text": "Evidence the bug is in the driver and not in MLX or in memory exhaustion: (1) the kernel panics, a process-level OOM would not; (2) every memory-bounding arm of the controlled test (rotating KV cache, wired cap 5 GiB under recommended, `MLX_MAX_OPS_PER_BUFFER/MB=200`) ended in an ordinary userspace `kIOGPUCommandBufferCallbackErrorOutOfMemory` and never panicked; (3) the panic reproduced with 10 GB headroom, at ~20% cache use, and idle after the last request; (4) the panic string names IOGPU reference counts, and the author of the controlled test places the underflow on the synchronous command-buffer completion path, because disabling the IOGPU wired collector and Metal4 async mapping changed nothing (109.6 s vs 102-108 s).",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "The controlled test's discriminating variable: the per-buffer MTLResidencySet wire/unwire plus commit traffic that `mx.set_wired_limit` switches on. Removing only that (R1) protects; removing only `clear_cache` destroy bursts (R2) does not. Concurrency matters because completion handling overlaps residency mutation; single-stream traffic with identical flags never panicked.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "The no-op shim: assign `mx.set_wired_limit` a function returning 0 at `mlx.core` module level before `mlx_lm.server` starts. mlx_lm shares that module object, so one assignment covers all 7 call sites in the package, including `server.py` which calls it unconditionally in 0.31.3. Toggle name `MLX_LM_DISABLE_WIRED_LIMIT=1` belongs to the shim, not to mlx-lm. The shim also offers a capped variant (`MLX_LM_WIRED_HEADROOM_GB`, cap = recommended working set minus N GiB; mutually exclusive with the no-op), `MLX_LM_NO_CLEAR_CACHE`, `MLX_LM_CACHE_LIMIT_GB`.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Cost of the shim, sequential probes, 2 cycles each, M4 mini 32 GB: prefill 8192 19,915 -> 19,282 t/s (-3.2%); prefill 16384 33,067 -> 32,427 t/s (-1.9%); generation 29.6-31.0 -> 29.6-31.8 t/s (-1.3% to +6.9%). Reporter's summary: at most 3% sequential cost. Caveat: weights become pageable, so under external memory pressure macOS may evict them and throughput dips until re-touched; not observed in 9 h of soak with ~24 GB resident on 32 GB.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Wiring vs rate: a 27.1 GiB 6-bit model panicked in 60.9 s wired and ran 76 GPU-active min unwired; the author's reading is \"pressure accelerates the trigger; wiring causes it\".",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Install: `pip install metal-guard` (or `pipx install metal-guard`); stdlib-only since 1.1.0 (requests and psutil dropped); MIT; macOS Apple silicon. Current version per README 1.1.0 (CHANGELOG dates 1.1.0 as 2026-05-15 and 1.0.0 as 2026-05-19, so the log is not chronological).",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "First-run flow: run `metal-guard` with no arguments after a panic. It reads the panic report, names the driver bug in plain words, and offers to install a shell guard.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "CLI: `metal-guard diagnose` (scan only), `guard install|uninstall|status`, `panic-gate` (exit 0 proceed, 2 cooldown, 3 or more gate broken), `ack` (clear lockout), `status`, `status-write [--once|--interval 30]`, `orphan-scan`, `postmortem <dir>`; fallback `python3 -m metal_guard_cli panic-gate` if the script is not on PATH.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Shell guard: one delimited block added to `~/.zshrc` or `~/.bashrc` routes interactive `python`/`python3` through `mlx-safe-python`; during a panic cooldown MLX runs pause, otherwise pass through. It does not cover launchd jobs or scripts. Off switch: `METALGUARD_SHELL_GUARD_DISABLED=1`.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Layers L1-L13: L1 thread registry (`register_thread`, `wait_for_threads`); L2 ordered `safe_cleanup` (wait, gc, flush, cooldown) targeting the \"main thread frees while worker still generates\" race; L3 `oom_protected` turns C++ Metal OOM into `MetalOOMError`; L4 pre-load `can_fit`/`require_fit`; L5 watchdog and KV-growth monitor, `ensure_headroom` at 67%; L6 defensive vs observer mode (`METALGUARD_MODE=observer` relaxes layers once a fixed MLX is installed); L7 `MLXSubprocessRunner` isolating MLX in a child, `SpawnRefused` for panic-tier models; L8 file lock under `MLX_LOCK_PATH` (`acquire_mlx_lock`, `MLXLockConflict`); L9 `CadenceGuard`/`require_cadence_clear` (180 s min between loads of one model), `parse_panic_reports`, `CircuitBreaker(window 3600 s, threshold 2)`; L10 panic cooldown gate; L11 orphan monitor (SUBPROC_PRE without POST after 90 s means Metal is stuck; kill the worker before the kernel acts); L12 postmortem bundle; L13 JSON status snapshot at `~/.cache/metal-guard/status.json`.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Also: `KNOWN_PANIC_MODELS` community registry (`check_known_panic_model`), with the explicit warning that absence is not a safety certificate; `check_version_advisories`; `audit_wired_limit` flags dangerous `iogpu.wired_limit_mb` overrides (cites mlx-lm#1047); `read_gpu_driver_version` returns the IOGPUFamily version; `estimate_prefill_peak_alloc_gb`/`require_prefill_fit` refuse a prefill before a ~30 GB single allocation; `KVGrowthTracker`; `format_panic_for_apple_feedback` builds a Feedback Assistant report.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "`detect_panic_signature` classes: `prepare_count_underflow`, `pending_memory_set`, `remove_memory_object`, `ctxstore_timeout`, `metal_oom`. Embedding path: depend on `metal-guard>=1.1,<2`, call `require_cadence_clear()` before a load and `safe_cleanup()` after an unload, catch `SpawnRefused`/`MLXLockConflict`.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Self-reported effect: M1 Ultra 64 GB pipeline with 90+ load/unload cycles per batch went from 9 panics/week to zero; the vendor says it \"narrows the race window but does NOT eliminate panic\" on some models (registry advisory text for gemma-4-31b 8-bit). No independent test exists. The controlled-test author did not use MetalGuard.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "2026-03-12: a MacBook M5 32 GB with 5-bit Qwen3 Coder reports consistent panics at large token counts on mlx 3186 (not M4 Max only).",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "2026-04-12: Harperbot comment on 3186 names two trigger paths found by fsync'd breadcrumbs: daemon-thread race and two Python processes generating at once.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "mlx 3186 reporter's request: a prefill token-count guard in mlx-lm that splits prefill into safe segments, to avoid the panic without a macOS fix. Another reporter calls MLX \"unusable\" for long agent sessions.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Apple-side status per the gist (July): bug open as of 26.5.2 \"CVE-2026-43743-era kexts\"; the CVE link is the gist author's phrase, unverified here.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "2026-10-03: oMLX issue 4224 (below) opens, showing a different GPU-hang class on macOS 27.0 (26A428).",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Panic reproduced: macOS 26.3 (25D125) with IOGPUFamily 129.3.2; 26.4 (25E246); 26.4.1 (25E253) with 130.13; 26.5.2 (25F84) with 130.15.2.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "macOS 27: the only data is workaround-works. 27.0 beta 26A5421a (Darwin 27.0.0, xnu-13432.1.9~3, T6031) with IOGPUFamily 162.11: shim served 663 requests over 2 days; author states he never ran wired on 162.11, so a fix is neither shown nor excluded. The oMLX 4224 reporter on release-numbered 27.0 (26A428) saw a different failure (GPU hang, not prepare-count panic), with `iogpu.wired_limit_mb` at 506880 and wiring heavily used (503.6 GB wired, 0.22 GB free) without any prepare-count panic; this is weak circumstantial evidence only, because that process uses mlx 0.32.2 and wires through MLX.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "No report found of a fixed IOGPUFamily version on macOS 26.x.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "A hang class distinct from the panic: oMLX 4224 (M3 Ultra 512 GB, mlx 0.32.2, macOS 27.0 at 8 of 10 events, 26.5.1 at 2). Two LLM engines busy in one oMLX process (one thread and one MLX stream and thus one Metal command queue per engine since PR 1304) gave `kIOGPUCommandBufferCallbackErrorHang` and `...InnocentVictim`. Rate: 9 hangs in 6.9 dual-engine hours (about 1.3 per hour, 95% CI 0.6-2.5), 0 in 35.9 single-engine hours. macOS report: `gpuEvent-*.ips`, `restart_reason 4` \"firmware-detected lockup\", `signature 579`, `guilty_dm 3`; kernel log `GPURestartSignaled stampIdx=23 type=1`; restart completes in 11-12 ms; the process recovers in place. Ruled out by the reporter: memory or wiring (149 GB or more under the wired limit at three events), other GPU clients (oMLX 94.7-98.8% GPU time), macOS 27 alone, paged SSD cache, a custom kernel defect. Association is not causation (no controlled test yet); the inferred mechanism is a failed compute context switch between two queues.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Proposed mitigation on 4224: opt-in `OMLX_SERIALIZE_ENGINE_GPU=1` (or `scheduler.serialize_engine_gpu`), a process-wide first-come re-entrant \"GPU turn\" held for one decode burst, with a stream drain before handoff. Cost is roughly what PR 1304 gained, which measured two concurrent models at 1.12-1.14x sequential throughput versus 0.93-1.00x for the old shared executor (PR 86). Not yet tested; the reporter plans an A/B and a pure-MLX two-thread reproduction.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Observability bug on 4224: `omlx/utils/metal_sync.py:77-81` swallows Hang, InnocentVictim and Timeout from `mx.synchronize` without a log line (only `SubmissionsIgnored` exits), so an engine may keep using KV produced by discarded buffers, and may save it to the SSD cache. MLX 0.32.0 dropped a stored command-buffer error at the next encoder open; mlx PR 3742 made it raise in 0.32.1.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Related oMLX issues: 3706 (macOS 27, Timeout then SubmissionsIgnored with two processes submitting Metal work), 15 (driver memory leak after GPU Hang, reboot needed), 25 (Hang during SSD cache startup scan).",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Counting GPU events: count `gpuEvent-*.ips` reports or the AGX `recoveryCount` in `ioreg` PerformanceStatistics, not app logs; two recoveries had no report and no app log.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Shell guard and launchd: MetalGuard's shell guard does not protect launchd-run servers; use `metal-guard panic-gate` in the launch script, since launchd respawns KeepAlive jobs about 14 min after a panic reboot.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Cause: maintainer (angeloskath) and Hannecke say wired limit too high plus unbounded KV; the controlled test says the residency wire/unwire traffic under concurrency, not memory. Side by side, not reconciled.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "MetalGuard author: thread-lifetime and cross-process races are the triggers; the controlled test: concurrency of request streams plus prompt-cache eviction churn. Both point at concurrent GPU activity, but the shim test did not use threads that outlive `clear_cache`.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Is the shim safe long term: author says \"probabilistic mitigation, not a fix\"; \"zero panics at more than 300x baseline time-to-crash\" on one machine, one model (a 3:1 GatedDeltaNet hybrid), one macOS build.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Is any macOS build fixed (FB22091885 status, IOGPUFamily 162.x with wiring on)?",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Does the shim help on IOGPUFamily 162.x, and does it generalize to non-hybrid models and other chips (single machine tested)?",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Does the 4224 two-engine hang respond to serialization?",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Does MetalGuard's panic-rate reduction hold in an independent test?",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "The 883-class panic string is `completeMemory() prepare count underflow` at `IOGPUMemory.cpp:550` (also seen at `:492` in MetalGuard's README).",
+          "source": "https://github.com/ml-explore/mlx/issues/3186",
+          "note": null
+        },
+        {
+          "text": "Apple Feedback FB22091885 is the filed report for the IOGPUMemory.cpp:550 panic, cross-referenced as mlx issue 3186, opened 2026-03-01 on an M4 Max 36 GB with macOS 26.3 (25D125) and IOGPUFamily 129.3.2.",
+          "source": "https://github.com/ml-explore/mlx/issues/3186",
+          "note": null
+        },
+        {
+          "text": "The 3186 reporter proposes an mlx-lm prefill token-count guard that raises or splits prefill below roughly 173K tokens on a 36 GB M4 Max.",
+          "source": "https://github.com/ml-explore/mlx/issues/3186",
+          "note": null
+        },
+        {
+          "text": "A MacBook M5 32 GB with 5-bit Qwen3 Coder reports consistent panics at large token counts on 2026-03-12.",
+          "source": "https://github.com/ml-explore/mlx/issues/3186",
+          "note": null
+        },
+        {
+          "text": "The controlled test reports the bug \"open as of 26.5.2\" kexts and as an Apple kernel bug; it does not show a fix on any build.",
+          "source": "https://gist.github.com/ronm92130/9bf97b300175be8e4f578c6e295feeaa",
+          "note": null
+        },
+        {
+          "text": "In the controlled test, arm R4 (`iogpu.disable_wired_collector=1` plus `metal4_disable_async_mapping=1`) panicked at 109.6 s against a baseline of 102-108 s, so the author places the underflow on the synchronous command-buffer completion path.",
+          "source": "https://gist.github.com/ronm92130/9bf97b300175be8e4f578c6e295feeaa",
+          "note": null
+        },
+        {
+          "text": "Arm R3 (`MLX_MAX_OPS_PER_BUFFER` and `MLX_MAX_MB_PER_BUFFER` at 200) ended in a Metal OOM and not a panic.",
+          "source": "https://gist.github.com/ronm92130/9bf97b300175be8e4f578c6e295feeaa",
+          "note": null
+        },
+        {
+          "text": "Arm R2 (`clear_cache` no-op with wiring intact) panicked at 99.9 s; R1 (`set_wired_limit` no-op) passed 10 of 10 runs (4.2 h); R1+R2 passed 10 of 10 (5.0 h).",
+          "source": "https://gist.github.com/ronm92130/9bf97b300175be8e4f578c6e295feeaa",
+          "note": null
+        },
+        {
+          "text": "The author states the per-buffer MTLResidencySet wire/unwire plus commit traffic enabled by `set_wired_limit` is the discriminating trigger.",
+          "source": "https://gist.github.com/ronm92130/9bf97b300175be8e4f578c6e295feeaa",
+          "note": null
+        },
+        {
+          "text": "The no-op shim assigns a function returning 0 to `mx.set_wired_limit` at `mlx.core` module level before importing `mlx_lm.server`; mlx_lm shares the module so all call sites are covered.",
+          "source": "https://gist.github.com/ronm92130/9bf97b300175be8e4f578c6e295feeaa",
+          "note": null
+        },
+        {
+          "text": "Shim cost: prefill 8192 tokens 19,915 to 19,282 t/s (-3.2%), prefill 16384 33,067 to 32,427 t/s (-1.9%), generation -1.3% to +6.9%; reporter summary \"at most 3%\".",
+          "source": "https://gist.github.com/ronm92130/9bf97b300175be8e4f578c6e295feeaa",
+          "note": null
+        },
+        {
+          "text": "Unwired weights are pageable, so throughput may dip under external memory pressure; this was not observed in 9 h of soak.",
+          "source": "https://gist.github.com/ronm92130/9bf97b300175be8e4f578c6e295feeaa",
+          "note": null
+        },
+        {
+          "text": "The shim run as a LaunchAgent on macOS 27.0 beta 26A5421a with IOGPUFamily 162.11 served 663 requests with no panic; the author never ran wired on 162.11, so it is not evidence of a fix.",
+          "source": "https://github.com/ml-explore/mlx/issues/3186",
+          "note": null
+        },
+        {
+          "text": "Precursor signal under wiring: system-wide sluggishness growing with context length; with wiring off, free memory dips to about 44% and returns to about 86%.",
+          "source": "https://github.com/ml-explore/mlx/issues/3186",
+          "note": null
+        },
+        {
+          "text": "MetalGuard is installed with `pip install metal-guard` (or pipx), has zero third-party runtime dependencies since 1.1.0 and is MIT licensed.",
+          "source": "https://raw.githubusercontent.com/Harperbot/metal-guard/main/README.md",
+          "note": null
+        },
+        {
+          "text": "Running `metal-guard` with no arguments reads the latest panic report, explains it and offers to install the shell guard.",
+          "source": "https://raw.githubusercontent.com/Harperbot/metal-guard/main/README.md",
+          "note": null
+        },
+        {
+          "text": "`metal-guard guard install` adds a delimited block to `~/.zshrc` or `~/.bashrc` routing interactive python through `mlx-safe-python`; it does not cover launchd jobs or scripts; `METALGUARD_SHELL_GUARD_DISABLED=1` disables it.",
+          "source": "https://raw.githubusercontent.com/Harperbot/metal-guard/main/README.md",
+          "note": null
+        },
+        {
+          "text": "MetalGuard describes itself as \"a workaround, not a cure\" because the root bug is inside Apple's driver.",
+          "source": "https://raw.githubusercontent.com/Harperbot/metal-guard/main/README.md",
+          "note": null
+        },
+        {
+          "text": "MetalGuard is organised as defence layers L1-L13: thread registry, safe cleanup, OOM recovery, pre-load fit check, watchdog and KV monitor, defensive/observer mode, subprocess isolation, cross-process lock, cadence plus circuit breaker, panic cooldown gate, orphan monitor, postmortem, status snapshot.",
+          "source": "https://raw.githubusercontent.com/Harperbot/metal-guard/main/README.md",
+          "note": null
+        },
+        {
+          "text": "`require_cadence_clear` refuses a second load of the same model within 180 s by default; `CircuitBreaker` defaults to 2 panics in 3600 s.",
+          "source": "https://raw.githubusercontent.com/Harperbot/metal-guard/main/README.md",
+          "note": null
+        },
+        {
+          "text": "A `SUBPROC_PRE` breadcrumb without a matching `SUBPROC_POST` after 90 s is treated as a stuck-Metal pre-panic signal by layer L11.",
+          "source": "https://raw.githubusercontent.com/Harperbot/metal-guard/main/README.md",
+          "note": null
+        },
+        {
+          "text": "`METALGUARD_MODE=observer` relaxes the defensive layers once a fixed MLX runtime is installed; `check_version_advisories()` tracks upstream mitigations such as mlx PR 3348.",
+          "source": "https://raw.githubusercontent.com/Harperbot/metal-guard/main/README.md",
+          "note": null
+        },
+        {
+          "text": "MetalGuard ships a `KNOWN_PANIC_MODELS` registry and states that a model's absence is not a safety certificate.",
+          "source": "https://raw.githubusercontent.com/Harperbot/metal-guard/main/README.md",
+          "note": null
+        },
+        {
+          "text": "`read_gpu_driver_version()` returns the IOGPUFamily kext version, `audit_wired_limit()` flags dangerous `iogpu.wired_limit_mb` overrides, and `format_panic_for_apple_feedback()` produces a paste-ready Feedback Assistant report.",
+          "source": "https://raw.githubusercontent.com/Harperbot/metal-guard/main/README.md",
+          "note": null
+        },
+        {
+          "text": "`metal-guard panic-gate` returns exit 0 (proceed), 2 (cooldown) or 3 and above (gate broken), for use in launchd or CI scripts.",
+          "source": "https://raw.githubusercontent.com/Harperbot/metal-guard/main/README.md",
+          "note": null
+        },
+        {
+          "text": "MetalGuard's author reports going from 9 panics per week to zero on an M1 Ultra 64 GB pipeline with 90+ model load/unload cycles per batch (self-reported, not independently tested).",
+          "source": "https://github.com/ml-explore/mlx/issues/3186",
+          "note": null
+        },
+        {
+          "text": "MetalGuard 1.1.0's CHANGELOG entry is dated 2026-05-15 and 1.0.0 is dated 2026-05-19.",
+          "source": "https://raw.githubusercontent.com/Harperbot/metal-guard/main/CHANGELOG.md",
+          "note": null
+        },
+        {
+          "text": "oMLX issue 4224 (opened 2026-10-03, M3 Ultra 512 GB, mlx 0.32.2, oMLX 0.7.0) reports GPU hangs (`kIOGPUCommandBufferCallbackErrorHang` with `...InnocentVictim` victims) while two LLM engines are busy in one process.",
+          "source": "https://github.com/jundot/omlx/issues/4224",
+          "note": null
+        },
+        {
+          "text": "On 4224, 9 hangs occurred in 6.9 dual-engine hours (about 1.3 per hour, 95% CI 0.6-2.5) against 0 hangs in 35.9 single-engine hours on mlx 0.32.2.",
+          "source": "https://github.com/jundot/omlx/issues/4224",
+          "note": null
+        },
+        {
+          "text": "The 4224 reporter states the association is strong but causation is not shown by a controlled test, and the mechanism is inferred.",
+          "source": "https://github.com/jundot/omlx/issues/4224",
+          "note": null
+        },
+        {
+          "text": "macOS records the 4224 events as `gpuEvent-*.ips` with `restart_reason 4` (\"firmware-detected lockup\"), `signature 579`, `guilty_dm 3`; the kernel logs `GPURestartSignaled stampIdx=23 type=1` and the restart finishes in 11-12 ms.",
+          "source": "https://github.com/jundot/omlx/issues/4224",
+          "note": null
+        },
+        {
+          "text": "The 4224 reporter found no memory or wiring link (149 GB or more under the wired limit at three events; 503.6 GB wired with 0.22 GB free passed without a hang) and oMLX held 94.7-98.8% of GPU time at each hang.",
+          "source": "https://github.com/jundot/omlx/issues/4224",
+          "note": null
+        },
+        {
+          "text": "The 4224 reporter infers that firmware has to time-share two busy compute queues of one process and that a context switch occasionally fails; the firmware criterion is undocumented.",
+          "source": "https://github.com/jundot/omlx/issues/4224",
+          "note": null
+        },
+        {
+          "text": "The 4224 reporter requests an opt-in `OMLX_SERIALIZE_ENGINE_GPU=1` serialization of engine GPU work, and a log line when `omlx/utils/metal_sync.py` swallows Hang, InnocentVictim or Timeout errors.",
+          "source": "https://github.com/jundot/omlx/issues/4224",
+          "note": null
+        },
+        {
+          "text": "oMLX PR 1304 (per-engine threads) measured two concurrent models at 1.12-1.14x sequential throughput versus 0.93-1.00x with the earlier shared executor (PR 86).",
+          "source": "https://github.com/jundot/omlx/issues/4224",
+          "note": null
+        },
+        {
+          "text": "mlx PR 3742 made a stored command-buffer error raise from MLX 0.32.1; MLX 0.32.0 dropped it when the next compute encoder opened.",
+          "source": "https://github.com/jundot/omlx/issues/4224",
+          "note": null
+        },
+        {
+          "text": "To count GPU recoveries, use `gpuEvent-*.ips` reports under `/Library/Logs/DiagnosticReports` or the AGX `recoveryCount` in `ioreg` PerformanceStatistics, since some events leave no app log line.",
+          "source": "https://github.com/jundot/omlx/issues/4224",
+          "note": null
+        },
+        {
+          "text": "Panic classification from a log: `prepare count underflow` means the IOGPUMemory refcount bug; `fPendingMemorySet` means IOGPUGroupMemory.cpp:219; `remove_memory_object` means IOGPUGroupMemory.cpp:323; `kIOGPUCommandBufferCallbackErrorOutOfMemory` with no panic is the ordinary userspace OOM and not this bug.",
+          "source": "https://raw.githubusercontent.com/Harperbot/metal-guard/main/README.md",
+          "note": null
+        },
+        {
+          "text": "A kernel panic under macOS 27 with wiring enabled on a fixed IOGPUFamily is not documented anywhere found; macOS 27 beta fix status is unknown.",
+          "source": "asserted",
+          "note": null
+        }
+      ]
+    }
+  ],
+  "related": []
+}

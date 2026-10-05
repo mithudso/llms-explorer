@@ -1,0 +1,284 @@
+{
+  "slug": "mtp-head-norm-convention-and-double-shifted-trun",
+  "concept": "MTP head norm-convention and double-shifted trunk detection",
+  "generated": "2026-10-05",
+  "summary": "mlx-lm's `qwen3_5` sanitize shifts norm gains when `should_shift_norm_weights = has_mtp_weights or has_unsanitized_conv1d`. The conv1d test is value-based (a conv1d weight whose last dimension is not 1 means a raw Hugging Face export). The MTP test is a bare presence check.",
+  "facets": [
+    {
+      "title": "Facts",
+      "facts": [
+        {
+          "text": "mlx-lm's `qwen3_5` sanitize shifts norm gains when `should_shift_norm_weights = has_mtp_weights or has_unsanitized_conv1d`. The conv1d test is value-based (a conv1d weight whose last dimension is not 1 means a raw Hugging Face export). The MTP test is a bare presence check.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "An MLX build that already stores absolute gains and still embeds its `mtp.*` keys trips the presence check, so every trunk norm gets +1.0 a second time.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "mlx-lm drops the `mtp.*` keys on the next line, so an MTP head never receives the shift that the trunk gets. A raw Hugging Face head loaded as a sidecar therefore stays delta-encoded.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "MTPLX's remedy is a value-based, once-per-tensor-set decision plus a post-load trunk sanity check that refuses to serve a double-shifted trunk.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "2.2.0 (19 Jul 2026): the engine detects a raw zero-centred head fingerprint and restores the convention at load; the Qwen3.5 4B zero-acceptance defect (issue 176) is root-caused.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "19-20 Aug 2026: issue 301 (Forge adds +1.0 to three norm tensors) and issue 306 (embedded MTP keys make mlx-lm shift the trunk) are filed as separate causes.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "25 Aug 2026, 2.9.2: Forge decides the convention once per tensor set, and the runtime refuses a double-shifted trunk.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "18 Sep 2026, in 2.12.0: PR 511 restores the convention on sidecars Forge did not build.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "mlx-lm PR 990 changed sanitize to gate the shift on unsanitized conv1d instead of on MTP presence.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "A wrong-convention head does not degrade; it inverts. The correct token ranks near the bottom of the vocabulary.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Nothing warns: the MTPLX loader logs \"native head bound\" and the validation passes while decode runs slower than plain decoding.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Applying the shift to an already-absolute head degrades it, so the detector gate matters.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Pruning `model.safetensors.index.json` does not stop the embedded `mtp.*` keys from triggering the shift, because mlx-lm loads every `model*.safetensors` and ignores the index.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "BF16 rounding is a separate hazard: adding 1 in BF16 and storing the result loses the small offset.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "A head loaded with the wrong hidden-state stage or concat order also gives about 0% acceptance and looks the same as a norm bug.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Quantizing the MTP head: one mlx-lm PR 990 commenter reports BF16 MTP weights give 79-85% acceptance on 4-bit Qwen3.5 MoE (35B-A3B and 122B-A10B) and quantized MTP weights near 5-11%, and recommends excluding all `mtp.` weights from quantization. Another commenter re-extracted BF16 MTP weights, applied the shift, re-quantized to match the backbone, and measured the same acceptance as the original quantized head (4B 4-bit 44.9% vs 43.8%; 122B 5-bit 47.3% vs 47.3%), while fully unquantized BF16 plus the shift gave 0% on every model. Both sets are first-hand and unreconciled.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Which layer owns the shift: Ollama's loader keeps sole ownership of the +1 shift and passes conversion tensors through verbatim; MTPLX Forge shifts at build time and also heals at load; mlx-lm gates on conv1d. These are different contracts, so a checkpoint converted by one tool can break in another.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "How the detector behaves for non-Qwen families (GLM, DeepSeek-V3.2, MiMo heads that Forge now extracts) is not stated.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Whether mlx-lm main still shifts on MTP presence after PR 990's merge status changes is not confirmed in the cached pages (the PR was open with no maintainer review at the time of its comments).",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "The \"healthy fleet band\" for trunk q-norm means (1.74-1.83) is Qwen3.5/3.8-specific and not documented for other families.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "mlx-lm's `qwen3_5` sanitize sets `should_shift_norm_weights = has_mtp_weights or has_unsanitized_conv1d`, where `has_unsanitized_conv1d` is value-based (`conv1d.weight` with `shape[-1] != 1`) and `has_mtp_weights` is a bare presence check.",
+          "source": "https://github.com/youssofal/MTPLX/issues/306",
+          "note": null
+        },
+        {
+          "text": "In MTPLX issue 306, a forged MLX artifact with 29 embedded `mtp.*` keys had trunk `layers.0.input_layernorm.weight` at 0.9666 on disk and 1.9666 after `mlx_lm.utils.load`, a delta of exactly +1.0.",
+          "source": "https://github.com/youssofal/MTPLX/issues/306",
+          "note": null
+        },
+        {
+          "text": "That artifact verified at 15.04 tok/s plain, with depth-1 acceptance 6.7% (0.895x), depth-2 0.763x and depth-3 0.743x, verdict `mtp_acceptance_collapsed`; a control with the same quantization but no embedded `mtp.*` keys reached 97.8% acceptance and 2.271x at depth 1 and 3.140x at depth 3.",
+          "source": "https://github.com/youssofal/MTPLX/issues/306",
+          "note": null
+        },
+        {
+          "text": "Contract calibration on the broken artifact tested 64 candidates and returned `best_agreement: 0.0` with status `no_agreement_signal`, while the control returned 1.0.",
+          "source": "https://github.com/youssofal/MTPLX/issues/306",
+          "note": null
+        },
+        {
+          "text": "In issue 306 delta-encoded Qwen3.5/3.8 q/k norms sit near 0.78 and absolute ones near 1.78, and MTPLX's two-signal predicate (`qk_max >= 1.25 or low_min >= 0.5` means already absolute) classifies both conventions with wide margins.",
+          "source": "https://github.com/youssofal/MTPLX/issues/306",
+          "note": null
+        },
+        {
+          "text": "MTPLX's runtime guard checks one trunk q-norm mean after the mlx-lm load: the healthy fleet band is 1.74-1.83, a double shift lands near 2.79, and the refusal threshold is 2.4; the commit message says \"refuse-loud over serve-slow\".",
+          "source": "https://github.com/youssofal/MTPLX/issues/306",
+          "note": null
+        },
+        {
+          "text": "The MTPLX maintainer confirmed that `mtplx serve` also loads the trunk through mlx-lm, so a forged artifact with embedded absolute `mtp.*` keys double-shifts its own trunk, and that the artifact-side fix (omitting `mtp.*` from written shards when a sidecar exists) was left as a follow-up.",
+          "source": "https://github.com/youssofal/MTPLX/issues/306",
+          "note": null
+        },
+        {
+          "text": "MTPLX issue 306 notes that pruning the safetensors index does not help, because mlx-lm globs `model*.safetensors` and ignores the index.",
+          "source": "https://github.com/youssofal/MTPLX/issues/306",
+          "note": null
+        },
+        {
+          "text": "Forge's old shift had two tiers: `self_attn.q_norm.weight`, `self_attn.k_norm.weight` and `mtp.norm.weight` were shifted unconditionally, while the two layernorms and two pre-fc norms were shifted only when the tensor mean was below 0.5.",
+          "source": "https://github.com/youssofal/MTPLX/issues/301",
+          "note": null
+        },
+        {
+          "text": "In issue 301 an absolute-convention 6-bit Qwen3.8-27B MLX checkpoint with embedded MTP keys produced a sidecar in which exactly those three tensors were the source plus 1.0 (q_norm mean 1.7906 to 2.7906, k_norm 1.7795 to 2.7795, `mtp.norm` 2.2520 to 3.2520), acceptance was 0-2%, and base decode stayed healthy at 12.67-12.89 tok/s.",
+          "source": "https://github.com/youssofal/MTPLX/issues/301",
+          "note": null
+        },
+        {
+          "text": "The 2.9.2 fix decides delta versus absolute once for the whole tensor set using the same two-signal test as the loader's heal path, instead of blind-shifting three tensors.",
+          "source": "https://github.com/youssofal/MTPLX/issues/301",
+          "note": null
+        },
+        {
+          "text": "MTPLX 2.9.2 (25 Aug 2026) notes that packs extracted from absolute-encoded sources no longer ship with acceptance collapsed to 0-2%.",
+          "source": "https://mtplx.com/releases/2.9.2/",
+          "note": null
+        },
+        {
+          "text": "Issue 176 root cause: the shipped Qwen3.5 4B sidecar stored MTP RMSNorm weights raw zero-centred (`pre_fc_norm_embedding` had mean -0.41), the trunk got +1.0 at load while the separately loaded MTP tensors did not, and every head norm scaled features wrongly.",
+          "source": "https://github.com/youssofal/MTPLX/issues/176",
+          "note": null
+        },
+        {
+          "text": "The 2.2.0 fix detects the raw-norm fingerprint and restores the convention at load, which took the exact broken file from 0.0 acceptance to 228.5 tok/s at depth 3 without a re-download.",
+          "source": "https://github.com/youssofal/MTPLX/issues/176",
+          "note": null
+        },
+        {
+          "text": "The suspected tied 4-bit draft `lm_head` in issue 176 turned out to be innocent once the norms were right.",
+          "source": "https://github.com/youssofal/MTPLX/issues/176",
+          "note": null
+        },
+        {
+          "text": "PR 511 (merged in 2.12.0) applies the same detector-gated restoration in `_load_mtp_weights` for sidecars that did not come from Forge, so an absolute-convention head passes through byte for byte and nothing is shifted twice.",
+          "source": "https://github.com/youssofal/MTPLX/pull/511",
+          "note": null
+        },
+        {
+          "text": "In PR 511, a head extracted from a raw Hugging Face checkpoint had 0.0% held-out top-1 agreement and median correct-token rank 247,513 of 248,320 before the fix, and 75.2% agreement at rank 0 after it.",
+          "source": "https://github.com/youssofal/MTPLX/pull/511",
+          "note": null
+        },
+        {
+          "text": "PR 511 explains the inversion: `pre_fc_norm_embedding` is uniformly negative in the delta convention, so applying it as `x * w` instead of `x * (1 + w)` flips the sign of the head's output.",
+          "source": "https://github.com/youssofal/MTPLX/pull/511",
+          "note": null
+        },
+        {
+          "text": "PR 511 shows the gate is necessary: shifting an already-absolute head dropped agreement from 79.6% to 58.6%.",
+          "source": "https://github.com/youssofal/MTPLX/pull/511",
+          "note": null
+        },
+        {
+          "text": "Before PR 511 nothing flagged the mistake: `inject_qwen3_5_mtp_support` logged \"native head bound\", `validate_qwen3_5_mtp_support` passed, and decode ran at about 0% acceptance.",
+          "source": "https://github.com/youssofal/MTPLX/pull/511",
+          "note": null
+        },
+        {
+          "text": "mlx-lm PR 990 changes `qwen3_5.py` so the norm +1 shift triggers only on raw Hugging Face checkpoints (unsanitized conv1d), not on the presence of MTP weights, and moves `self.norm` to `TextModel` so pre-norm hidden states reach the MTP head.",
+          "source": "https://github.com/ml-explore/mlx-lm/pull/990",
+          "note": null
+        },
+        {
+          "text": "A PR 990 commenter reports BF16 MTP weights gave 79-85% acceptance (1.18x) on Qwen3.5-35B-A3B 4-bit and 77-78% (1.12x) on 122B-A10B 4-bit, against 5-11% for quantized MTP weights, and about 0% for a head dequantized from 4-bit back to BF16.",
+          "source": "https://github.com/ml-explore/mlx-lm/pull/990",
+          "note": null
+        },
+        {
+          "text": "A second PR 990 commenter measured that re-quantizing the BF16-source head to match the backbone gives the same acceptance as the original quantized head, and that raw BF16 plus the norm shift gives 0% on every model tested.",
+          "source": "https://github.com/ml-explore/mlx-lm/pull/990",
+          "note": null
+        },
+        {
+          "text": "mlx-lm issue 872's fork notes that preserving MTP weights in `sanitize()` also fixes a missing +1 norm shift for `mtp.pre_fc_norm_hidden`, `mtp.pre_fc_norm_embedding` and `mtp.norm`, and a vllm-mlx maintainer calls it the Hugging Face to MLX RMSNorm convention and keeps the norms and `fc` projection in fp16.",
+          "source": "https://github.com/ml-explore/mlx-lm/issues/872",
+          "note": null
+        },
+        {
+          "text": "A reporter in mlx-lm issue 1292 measured the Unsloth MTP variant of Qwen3.6-35B-A3B at -56% to -79% decode tok/s against the non-MTP base under mlx-lm on M4 Pro and M5 Max (19 May 2026), and a commenter proposed that `should_shift_norm_weights` being true whenever MTP weights exist re-shifts MLX-converted checkpoints at every load.",
+          "source": "https://github.com/ml-explore/mlx-lm/issues/1292",
+          "note": null
+        },
+        {
+          "text": "oMLX's loader comment states that stock mlx-lm sanitize shifts +1 whenever it sees `mtp.*` keys, which double-shifts an already-converted MLX model and yields garbage tokens, so oMLX applies the MTP patch whenever a model has MTP heads even with `mtp_enabled` false, for sanitize correctness.",
+          "source": "https://raw.githubusercontent.com/jundot/omlx/main/omlx/utils/model_loading.py",
+          "note": null
+        },
+        {
+          "text": "oMLX release notes list \"Qwen3.6 MXFP4 mixed norm conventions and MTP preservation are handled more safely\".",
+          "source": "https://github.com/jundot/omlx/releases?page=5",
+          "note": null
+        },
+        {
+          "text": "Ollama's Qwen3.5 MTP loader keeps sole ownership of the +1 RMSNorm shift (conversion passes tensors through verbatim) and shifts the head's norms under the same original-format detection as the main stack, so nothing shifts twice.",
+          "source": "https://github.com/ollama/ollama/pull/17203",
+          "note": null
+        },
+        {
+          "text": "mlx-lm PR 1469 found two MTPHead bugs that gave about 0% agreement: `[hidden, embedding]` concatenated before `fc` where the DeepSeek-V3-style order is `[embedding, hidden]`, and the post-final-norm hidden state fed in where the pre-final-norm residual is needed; fixing both took acceptance from 0% to about 66% on Qwen3.6-27B.",
+          "source": "https://github.com/ml-explore/mlx-lm/pull/1469",
+          "note": null
+        },
+        {
+          "text": "MTPLX Forge's calibration keeps a head's declared hidden-state variant (`pre_norm` or post-norm) unless the evidence is clear: a switch now needs at least 4 prompts, 48 draft rounds per option and a lead of 0.25 accepted tokens per round, after one earlier switch was made on one prompt and six tokens.",
+          "source": "https://github.com/youssofal/MTPLX/blob/main/CHANGELOG.md",
+          "note": null
+        },
+        {
+          "text": "MTPLX 2.12.1 fixed draft heads with fused MoE experts (`gate_up_proj`, `down_proj`) that the loader dropped and left at random values; on one Forge pack of Qwen3.6-35B-A3B depth-2 acceptance went from 0.69 and 0.37 to 0.95 and 0.85.",
+          "source": "https://mtplx.com/releases/2.12.1/",
+          "note": null
+        },
+        {
+          "text": "A FreeToken forum post found a separate convention bug: Qwen stores a centred BF16 offset w with effective multiplier 1 + w, and the engine's loader added one in BF16 and stored the rounded effective scale (stored offset 0.0011367798), which the fix replaced by widening to FP32 before adding one at runtime.",
+          "source": "https://forum.level1techs.com/t/why-your-local-llm-feels-dumber-than-it-is/253917",
+          "note": null
+        },
+        {
+          "text": "The mlx-optiq Gemma speculative-decoding write-up records the same class of error for Gemma: Gemma 1-3 use `x_normed * (1 + weight)`, and a plus-one assumption was wrongly copied onto Gemma 4's `layer_scalar`, whose real operation is `h * scalar`.",
+          "source": "https://mlx-optiq.com/blog/gemma-spec-decoding",
+          "note": null
+        },
+        {
+          "text": "Hugging Face's llama.cpp-kernels post lists a `ggml-norm` kernel that fuses the zero-centred RMSNorm used by Qwen3.5 and Qwen3.8.",
+          "source": "https://huggingface.co/blog/transformers-llama-cpp-quants",
+          "note": null
+        }
+      ]
+    }
+  ],
+  "related": []
+}

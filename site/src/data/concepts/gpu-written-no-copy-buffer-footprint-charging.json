@@ -1,0 +1,84 @@
+{
+  "slug": "gpu-written-no-copy-buffer-footprint-charging",
+  "concept": "GPU-written no-copy buffer footprint charging",
+  "generated": "2026-10-05",
+  "summary": "Buffers MLX allocates (not no-copy wraps) and fills by GPU eval are charged to phys_footprint in full. A 60-iteration loop of ~500 MB alloc, eval, drop left 60.19 GB footprint, which matched active + cache within 0.14 GB.",
+  "facets": [
+    {
+      "title": "Facts",
+      "facts": [
+        {
+          "text": "Buffers MLX allocates (not no-copy wraps) and fills by GPU eval are charged to phys_footprint in full. A 60-iteration loop of ~500 MB alloc, eval, drop left 60.19 GB footprint, which matched active + cache within 0.14 GB.",
+          "source": "https://github.com/ml-explore/mlx/issues/3896",
+          "note": null
+        },
+        {
+          "text": "Freed MLX buffers stay in the allocator pool, remain live Metal allocations and stay in phys_footprint; get_peak_memory tracks only active memory.",
+          "source": "https://github.com/ml-explore/mlx/issues/3896",
+          "note": null
+        },
+        {
+          "text": "clear_cache returns memory but phys_footprint trails the call by about 4 seconds (15.14 GB immediately, 0.02 GB at the next sample).",
+          "source": "https://github.com/ml-explore/mlx/issues/3896",
+          "note": null
+        },
+        {
+          "text": "A first reading right after clear_cache looked like a leak and was retracted by its author as a sampling artifact.",
+          "source": "https://github.com/ml-explore/mlx/issues/3896",
+          "note": null
+        },
+        {
+          "text": "Real incidents: a hard reboot and a Metal command-buffer GPU timeout on M5 Max 128 GB when the gate used get_peak_memory (46 GB reported, 110 GB real).",
+          "source": "https://github.com/ml-explore/mlx/issues/3896",
+          "note": null
+        },
+        {
+          "text": "A commenter reports a kernel panic (watchdogd 90 s timeout, 123.2 GiB resident, 50.1 GiB compressor) running Ollama 0.33.x MLX on an M5 Max 128 GB.",
+          "source": "https://github.com/ml-explore/mlx/issues/3896",
+          "note": null
+        },
+        {
+          "text": "GPU-written MLX allocator buffers are charged to phys_footprint as IOAccelerator (graphics) dirty memory.",
+          "source": "https://github.com/ml-explore/mlx/issues/3896",
+          "note": null
+        },
+        {
+          "text": "A 60 x 500 MB churn showed get_peak_memory 1.00 GB, active 0, cache 60.06 GB, footprint 60.19 GB.",
+          "source": "https://github.com/ml-explore/mlx/issues/3896",
+          "note": null
+        },
+        {
+          "text": "With cache_limit=0 the same churn ended at 1.14 GB footprint.",
+          "source": "https://github.com/ml-explore/mlx/issues/3896",
+          "note": null
+        },
+        {
+          "text": "The pool reuse window is [size, size + 2 pages), so varying request sizes grow the pool (cited as mlx issue 3886).",
+          "source": "https://github.com/ml-explore/mlx/issues/3896",
+          "note": null
+        },
+        {
+          "text": "The mlx maintainer's position: get_peak_memory is for single-model runs where cache hit rate is near 100 percent; for long-running or parallel serving use active + cache.",
+          "source": "https://github.com/ml-explore/mlx/issues/3896",
+          "note": null
+        },
+        {
+          "text": "After clear_cache, phys_footprint falls over a few seconds, not instantly.",
+          "source": "https://github.com/ml-explore/mlx/issues/3896",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Corrections and disagreements",
+      "facts": [
+        {
+          "text": "CONTRADICTS (partly): iokit-mapped-metal-buffer-accounting-in-phys-foo.md measured a GPU-blit-filled untouched no-copy region at 0.12 GB footprint. Here GPU-written MLX-allocated buffers (not no-copy wraps) are charged in full as IOAccelerator dirty memory. The difference is plausibly allocation type (device allocation vs wrapped anonymous pages), but no source tests a GPU-written no-copy buffer directly.",
+          "source": "asserted",
+          "note": null
+        }
+      ]
+    }
+  ],
+  "related": []
+}

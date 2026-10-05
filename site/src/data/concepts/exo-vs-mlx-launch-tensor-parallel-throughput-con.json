@@ -1,0 +1,279 @@
+{
+  "slug": "exo-vs-mlx-launch-tensor-parallel-throughput-con",
+  "concept": "exo vs mlx.launch tensor-parallel throughput controlled comparison",
+  "generated": "2026-10-05",
+  "summary": "Sharding math. exo's `tensor_auto_parallel` (src/exo/worker/engines/mlx/auto_parallel.py) imports `shard_linear`, `shard_inplace`, `sum_gradients` from `mlx.nn.layers.distributed`, the same primitives mlx-lm uses. exo's `DeepSeekShardingStrategy` is line-for-line the same layout as mlx-lm `Deepse...",
+  "facets": [
+    {
+      "title": "Facts",
+      "facts": [
+        {
+          "text": "Sharding math. exo's `tensor_auto_parallel` (src/exo/worker/engines/mlx/auto_parallel.py) imports `shard_linear`, `shard_inplace`, `sum_gradients` from `mlx.nn.layers.distributed`, the same primitives mlx-lm uses. exo's `DeepSeekShardingStrategy` is line-for-line the same layout as mlx-lm `DeepseekV3LM.shard`: q_proj/q_b_proj all-to-sharded, o_proj sharded-to-all, `num_heads //= N`, per-rank slice of `embed_q`/`unembed_out`, dense MLP gate/up all-to-sharded and down sharded-to-all, MoE `switch_mlp` and `shared_experts` sharded in place, then one `all_sum` over the MoE output.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "MoE sync count. exo wraps each MoE layer in `ShardedMoE` (sum_gradients on input, `mx.distributed.all_sum` on output). mlx-lm does the same through `layer.mlp.sharding_group`. So both pay about 2 all_sum per MoE layer per token (attention o_proj plus MoE).",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Decode loop. exo's generate.py says it is \"designed to match mlx_lm's stream_generate exactly\" and calls mlx_lm `stream_generate` / `GenerationBatch`. Kimi K2.5 mlx-lm model (`kimi_k25.py`) delegates `shard` to `DeepseekV3LM.shard`.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Comms library. exo uses MLX distributed (JACCL) and its README says so.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "2025-12-18: Awni Hannun (MLX) asks Geerling what context length the exo tokens/s were taken at, says \"in my own benchmarks mlx-lm should be faster at context length 1\", and gives the command `mlx.launch --backend jaccl --hostfile ... --env MLX_METAL_FAST_SYNCH=1 -- python -m mlx_lm benchmark --model mlx-community/DeepSeek-R1-0528-4bit -p 128 -g 128`. Geerling replied he would try it after Christmas; the thread (open to Apr 2026) contains no mlx_lm distributed numbers.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "2026-01-12: discussion #2990 publishes the only public mlx-lm TP/PP numbers on Kimi K2 Thinking and says the exo authors \"even invented an inter-node P2P all-reduce solution\".",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "2026-02-18: exo dev files #3142; 2026-04-27 closed wontfix for FAST_SYNCH.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Without FAST_SYNCH, each tiny all_sum pays a GPU to CPU hand-off. With it, deadlock risk on stock MLX (#3142). So a fair \"stock vs exo\" run has two stock arms.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "exo bench defaults ban EOS and disable the prefix cache; mlx_lm.benchmark has neither issue but reports its own generation tokens/s; the two tools' definitions of generation rate must be aligned (exo: (completion_tokens-1)/(last_token_time-first_token_time), server-side).",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "TP needs head/dim divisibility (Kimi 12288/5 fails in #2990); exo placement hides this by only offering valid node counts.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Memory: TP4 peak 185.7 GB/node in #2990 (stock load then shard) vs exo shards layer by layer with `mx.eval(layer.parameters())` before sharding \"to avoid FAST_SYNCH deadlock\".",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "exo/Geerling: TP over RDMA speeds up as nodes are added (Kimi K2 Thinking 28 tok/s at 4 nodes; exo README: 1.8x on 2, 3.2x on 4). mlx-lm via #2990: TP4 14.82 vs TP2 13.15 (1.13x) and PP4 14.49 (TP only 2.3% above PP). Awni: mlx-lm \"should be faster\" than exo at context 1. These cannot all hold on the same workload; no source runs both on one cluster.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Docs say leave FAST_SYNCH unset; Apple's WWDC26 sample and Awni's advice set it to 1.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Does stock mlx-lm + `MLX_METAL_FAST_SYNCH=1` on stock MLX 0.32.0 reach about 28 tok/s on 4x M3 Ultra for Kimi K2 Thinking? (Unrun.)",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Was #2990 run with FAST_SYNCH? Which MLX commit was the \"custom build\"?",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "What context length did the 28 tok/s refer to?",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "exo's TP4 scaling numbers (3.2x) were for Qwen3-235B, DeepSeek and Kimi collectively; is the 28 tok/s per-model figure at context near zero?",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "A. stock mlx 0.32.0 + mlx-lm, `MLX_METAL_FAST_SYNCH` unset.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "B. same as A with `--env MLX_METAL_FAST_SYNCH=1` (watch for fence_wait hang, GPU at 100%).",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "C. mlx-lm run on exo's pinned MLX fork (`rltakashige/mlx-jaccl-fix-small-recv`, branch `address-rdma-gpu-locks`) with FAST_SYNCH=1: isolates the fork.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "D. exo (`uv run exo`, `--instance-meta jaccl --sharding tensor`) with `EXO_FAST_SYNCH` on, then off.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "A/B/C: `mlx.launch --backend jaccl --hostfile hosts.json [--env MLX_METAL_FAST_SYNCH=1] -- /path/python -m mlx_lm.benchmark --model <repo> -p 512 -g 256 -n 5` (same -p/-g as exo bench).",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "D: `cd bench && uv run python exo_bench.py --model <repo> --instance-meta jaccl --sharding tensor --min-nodes 4 --max-nodes 4 --pp 512 --tg 256 --repeat 5 --warmup 1`.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "No fetched primary source reports exo and mlx-lm or mlx.launch distributed on the same model, quant and cluster",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "exo tensor_auto_parallel builds its sharding from mlx.nn.layers.distributed shard_linear, shard_inplace and sum_gradients",
+          "source": "https://raw.githubusercontent.com/exo-explore/exo/main/src/exo/worker/engines/mlx/auto_parallel.py",
+          "note": null
+        },
+        {
+          "text": "exo DeepSeekShardingStrategy shards q or q_b projection all-to-sharded, o_proj sharded-to-all, halves num_heads per rank and slices embed_q and unembed_out per rank",
+          "source": "https://raw.githubusercontent.com/exo-explore/exo/main/src/exo/worker/engines/mlx/auto_parallel.py",
+          "note": null
+        },
+        {
+          "text": "mlx-lm DeepseekV3LM.shard uses the same layout including shared_experts and switch_mlp sharded in place with sharding_group all_sum",
+          "source": "https://raw.githubusercontent.com/ml-explore/mlx-lm/main/mlx_lm/models/deepseek_v3.py",
+          "note": null
+        },
+        {
+          "text": "mlx-lm kimi_k25 delegates shard to DeepseekV3LM.shard",
+          "source": "https://raw.githubusercontent.com/ml-explore/mlx-lm/main/mlx_lm/models/kimi_k25.py",
+          "note": null
+        },
+        {
+          "text": "exo ShardedMoE applies sum_gradients to the input and all_sum to the output of each MoE layer",
+          "source": "https://raw.githubusercontent.com/exo-explore/exo/main/src/exo/worker/engines/mlx/auto_parallel.py",
+          "note": null
+        },
+        {
+          "text": "exo generate.py states it is designed to match mlx_lm stream_generate exactly and divides prefill_step_size by min(4, group size)",
+          "source": "https://raw.githubusercontent.com/exo-explore/exo/main/src/exo/worker/engines/mlx/generator/generate.py",
+          "note": null
+        },
+        {
+          "text": "exo patch_tensor_model adds mx.depends between the last cache entry's keys and the logits so distributed ops are evaluated",
+          "source": "https://raw.githubusercontent.com/exo-explore/exo/main/src/exo/worker/engines/mlx/auto_parallel.py",
+          "note": null
+        },
+        {
+          "text": "exo forces mx.eval(layer.parameters()) before sharding each layer with the comment \"to avoid FAST_SYNCH deadlock\"",
+          "source": "https://raw.githubusercontent.com/exo-explore/exo/main/src/exo/worker/engines/mlx/auto_parallel.py",
+          "note": null
+        },
+        {
+          "text": "exo pyproject pins mlx==0.32.0 and resolves mlx on darwin from git rltakashige/mlx-jaccl-fix-small-recv branch address-rdma-gpu-locks",
+          "source": "https://raw.githubusercontent.com/exo-explore/exo/main/pyproject.toml",
+          "note": null
+        },
+        {
+          "text": "The fork main branch was 562 commits behind ml-explore/mlx main when fetched (last upstream commit Apr 16 2026)",
+          "source": "https://github.com/rltakashige/mlx-jaccl-fix-small-recv",
+          "note": null
+        },
+        {
+          "text": "exo documents EXO_FAST_SYNCH as controlling MLX_METAL_FAST_SYNCH for the JACCL backend, default Auto",
+          "source": "https://github.com/exo-explore/exo",
+          "note": null
+        },
+        {
+          "text": "MLX issue #3142 (Feb 18 2026, exo developer) reports a GPU stuck in fence_wait with FAST_SYNCH=1 and JACCL, seen in exo with stream_generate on tensor or pipeline sharded models, more likely on 4 nodes than 2",
+          "source": "https://github.com/ml-explore/mlx/issues/3142",
+          "note": null
+        },
+        {
+          "text": "A commenter on #3142 measured 4x M3 Ultra TP GLM-5 8-bit decode 23.8 tok/s (untracked) vs 23.6 (default hazard tracking) at 0 tokens, 16.1 at 50K",
+          "source": "https://github.com/ml-explore/mlx/issues/3142",
+          "note": null
+        },
+        {
+          "text": "On #3142 a commenter found upstream PR #3144 alone deadlocked on the first request and needed DSB SY after the fence store as in PR #3141",
+          "source": "https://github.com/ml-explore/mlx/issues/3142",
+          "note": null
+        },
+        {
+          "text": "MLX maintainer zcbenz closed #3142 as wontfix on Apr 27 2026, citing no CPU/GPU atomic coherence guarantee from the Metal team",
+          "source": "https://github.com/ml-explore/mlx/issues/3142",
+          "note": null
+        },
+        {
+          "text": "MLX distributed docs say MLX_METAL_FAST_SYNCH=1 can deadlock and wedge the GPU, so it is off by default and best left unset",
+          "source": "https://ml-explore.github.io/mlx/build/html/usage/distributed.html",
+          "note": null
+        },
+        {
+          "text": "WWDC26 session 233 sample passes --env MLX_METAL_FAST_SYNCH=1 to mlx.distributed_config",
+          "source": "https://developer.apple.com/videos/play/wwdc2026/233/",
+          "note": null
+        },
+        {
+          "text": "Awni Hannun on Dec 18 2025 asked at what context length Geerling's exo and llama.cpp tokens/s were taken and said mlx-lm should be faster than exo at context length 1 in his own benchmarks",
+          "source": "https://github.com/geerlingguy/beowulf-ai-cluster/issues/17",
+          "note": null
+        },
+        {
+          "text": "Awni gave Geerling an mlx.launch jaccl mlx_lm benchmark command with --env MLX_METAL_FAST_SYNCH=1 marked important for DeepSeek-R1-0528-4bit -p 128 -g 128; the thread has no reply with distributed mlx_lm results",
+          "source": "https://github.com/geerlingguy/beowulf-ai-cluster/issues/17",
+          "note": null
+        },
+        {
+          "text": "Geerling's blog compares exo against llama.cpp RPC only; he says he could not get Apple's MLX mpirun wrapper working in time",
+          "source": "https://www.jeffgeerling.com/blog/2025/15-tb-vram-on-mac-studio-rdma-over-thunderbolt-5/",
+          "note": null
+        },
+        {
+          "text": "Geerling reports exo reaching 32 tok/s on Qwen3 235B on the full cluster and about 30 tok/s on Kimi K2 Thinking",
+          "source": "https://www.jeffgeerling.com/blog/2025/15-tb-vram-on-mac-studio-rdma-over-thunderbolt-5/",
+          "note": null
+        },
+        {
+          "text": "exo README states TP gives up to 1.8x on 2 devices and 3.2x on 4 devices and cites Geerling's charts as its benchmarks",
+          "source": "https://github.com/exo-explore/exo",
+          "note": null
+        },
+        {
+          "text": "MLX discussion #2990 (5x M3 Ultra, \"custom MLX build\", batch 1, fixed context, not using exo) found TP4 14.82 vs PP4 14.49 tok/s for Kimi K2 Thinking Q4 and does not state FAST_SYNCH",
+          "source": "https://github.com/ml-explore/mlx/discussions/2990",
+          "note": null
+        },
+        {
+          "text": "exo bench measures generation tps server-side as (completion_tokens-1)/(last_token_time-first_token_time), bans EOS, disables the KV prefix cache by default, and builds exact-length prompts by binary search",
+          "source": "https://raw.githubusercontent.com/exo-explore/exo/main/bench/METHODOLOGY.md",
+          "note": null
+        },
+        {
+          "text": "exo bench example for TP over JACCL: exo_bench.py --instance-meta jaccl --sharding tensor --min-nodes 2 --max-nodes 2 --pp 512 4096 --tg 128 --repeat 3 --warmup 1",
+          "source": "https://raw.githubusercontent.com/exo-explore/exo/main/bench/METHODOLOGY.md",
+          "note": null
+        },
+        {
+          "text": "exo bench aggregate tps for concurrency N is max per-request generation tps times N",
+          "source": "https://raw.githubusercontent.com/exo-explore/exo/main/bench/METHODOLOGY.md",
+          "note": null
+        },
+        {
+          "text": "Gap arithmetic: 28.3 tok/s is 35.3 ms per token and 14.82 tok/s is 67.5 ms, a 32 ms difference; with about 122 TP all_sum per token on a 61-layer MoE (two per layer) that is about 0.26 ms per collective, the scale of a GPU-CPU sync cost that FAST_SYNCH removes",
+          "source": "asserted",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Corrections and disagreements",
+      "facts": [
+        {
+          "text": "CONTRADICTS tensor-vs-pipeline-vs-expert-parallelism-for-moe.md and exo-cluster-software.md framing that framework differences are an open black box: the shard layout and decode loop are shown identical in source, so remaining differences are the MLX build, FAST_SYNCH and measurement conditions",
+          "source": "asserted",
+          "note": null
+        }
+      ]
+    }
+  ],
+  "related": []
+}

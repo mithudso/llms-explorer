@@ -107,7 +107,8 @@ def test_every_node_page_is_the_node_it_claims():
     wrong = []
     for slug, node in TREE["nodes"].items():
         html = (DIST / "tree" / slug / "index.html").read_text()
-        if f"<h1>{_html.escape(node['concept'])}</h1>" not in html:
+        # Astro writes an apostrophe as &#39;, Python's html.escape as &#x27;.
+        if f"<h1>{_html.escape(node['concept']).replace('&#x27;', '&#39;')}</h1>" not in html:
             wrong.append(slug)
     assert not wrong, wrong[:5]
 

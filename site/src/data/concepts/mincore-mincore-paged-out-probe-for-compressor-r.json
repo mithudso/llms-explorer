@@ -1,0 +1,109 @@
+{
+  "slug": "mincore-mincore-paged-out-probe-for-compressor-r",
+  "concept": "mincore MINCORE_PAGED_OUT probe for compressor residency of Metal buffers",
+  "generated": "2026-10-05",
+  "summary": "A page is reported either present (INCORE) or, only if absent, queried in the compressor pager; the code breaks out of the loop as soon as `vm_page_lookup` returns a page, so INCORE and PAGED_OUT never both appear for one page.",
+  "facets": [
+    {
+      "title": "Facts",
+      "facts": [
+        {
+          "text": "A page is reported either present (INCORE) or, only if absent, queried in the compressor pager; the code breaks out of the loop as soon as `vm_page_lookup` returns a page, so INCORE and PAGED_OUT never both appear for one page.",
+          "source": "https://raw.githubusercontent.com/apple-oss-distributions/xnu/main/osfmk/vm/vm_map.c",
+          "note": null
+        },
+        {
+          "text": "The compressor query runs only for internal objects that are alive, not terminating and pager-ready, so file-backed pages never report PAGED_OUT.",
+          "source": "https://raw.githubusercontent.com/apple-oss-distributions/xnu/main/osfmk/vm/vm_map.c",
+          "note": null
+        },
+        {
+          "text": "Measured: for a 4 GiB anonymous region written with memset on a pressured 64 GB host, one run reported 204,200 INCORE and 57,944 PAGED_OUT, a total of 262,144 pages (all of them). Five sweeps gave 188 k to 204 k INCORE and 58 k to 74 k PAGED_OUT, so about 22 to 28 percent of freshly written pages were already in the compressor. [asserted] (measured locally 2026-10-04, Apple M5 Max 64 GB, macOS 27.2)",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Measured: `mincore` over the `contents` pointer of a 2 GiB `MTLResourceStorageModeShared` buffer reported 0 INCORE before the CPU touched it, all 131,072 pages INCORE after memset, and ANONYMOUS set for every page; PAGED_OUT was 0 because nothing had been compressed yet. [asserted] (same host)",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Measured: a cached 4 GiB file-backed mapping reported all pages INCORE and 0 PAGED_OUT. [asserted] (same host)",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "The probe reads the pager state only; it does not decompress, so it does not itself bring pages back.",
+          "source": "https://raw.githubusercontent.com/apple-oss-distributions/xnu/main/osfmk/vm/vm_map.c",
+          "note": null
+        },
+        {
+          "text": "Not documented in sources read.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "The Metal buffer test could not show a nonzero PAGED_OUT for a Metal buffer because the host was not under pressure at that moment; the anonymous-region run shows the probe sees compressor state on this OS, and the `contents` pointer of a shared MTLBuffer is anonymous memory by the ANONYMOUS flag. Inference: the same probe will count compressed pages of such buffers once they are compressed.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "A GPU-only private buffer has no CPU pointer, so the probe cannot be used on it.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Counts are a snapshot; pages can be compressed or decompressed between the call and the next GPU kernel.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "A buffer's compressor share can be non-trivial even while `kern.memorystatus_vm_pressure_level` is Normal (see the 22 to 28 percent above), so Normal pressure does not mean fully resident.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "None found.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "A run on a live MLX or llama.cpp process after a long idle period, with vm_stat decompress counts, is still unpublished.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Whether wired shared buffers can ever report PAGED_OUT (a wired page should not be compressed).",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "INCORE and PAGED_OUT are mutually exclusive per page.",
+          "source": "https://raw.githubusercontent.com/apple-oss-distributions/xnu/main/osfmk/vm/vm_map.c",
+          "note": null
+        },
+        {
+          "text": "PAGED_OUT can only appear for internal (anonymous) objects.",
+          "source": "https://raw.githubusercontent.com/apple-oss-distributions/xnu/main/osfmk/vm/vm_map.c",
+          "note": null
+        },
+        {
+          "text": "On an M5 Max under mild pressure 22 to 28 percent of a freshly written 4 GiB anonymous region was already compressed when probed.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "The contents pointer of a shared MTLBuffer reports ANONYMOUS and fills INCORE as the CPU touches pages.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "A sweep costs about 20 ms per GiB (see cost-of-a-mincore-sweep-per-gb-on-apple-silicon.md).",
+          "source": "asserted",
+          "note": null
+        }
+      ]
+    }
+  ],
+  "related": []
+}

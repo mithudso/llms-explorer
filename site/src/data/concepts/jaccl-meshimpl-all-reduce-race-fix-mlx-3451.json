@@ -1,0 +1,169 @@
+{
+  "slug": "jaccl-meshimpl-all-reduce-race-fix-mlx-3451",
+  "concept": "JACCL MeshImpl all_reduce race fix mlx 3451",
+  "generated": "2026-10-05",
+  "summary": "mlx PR 3451, \"[jaccl] Fix race on local_staging in MeshImpl::all_reduce\", by kernelpool, fixes a data race that PR 3412 (the JACCL refactor) introduced in the fully connected \"mesh\" all_reduce. A wrong partial sum, not a connection error, is the symptom. It was merged on 2026-05-11 as commit 1322...",
+  "facets": [
+    {
+      "title": "Facts",
+      "facts": [
+        {
+          "text": "mlx PR 3451, \"[jaccl] Fix race on local_staging in MeshImpl::all_reduce\", by kernelpool, fixes a data race that PR 3412 (the JACCL refactor) introduced in the fully connected \"mesh\" all_reduce. A wrong partial sum, not a connection error, is the symptom. It was merged on 2026-05-11 as commit 1322065 after approval by angeloskath.",
+          "source": "https://github.com/ml-explore/mlx/pull/3451",
+          "note": null
+        },
+        {
+          "text": "`MeshImpl::all_reduce` is a pipelined fully connected reduction with a fixed reduction order: it copies rank 0's data to the output and then reduces each later rank into the output in place. Its own data goes to a staging buffer so it can be reduced into the output at the right step. `PIPELINE` is 2, so it double-buffers.",
+          "source": "https://raw.githubusercontent.com/ml-explore/mlx/main/mlx/distributed/jaccl/lib/jaccl/mesh_impl.h",
+          "note": null
+        },
+        {
+          "text": "The bug: the SEND-completion handler refilled `local_staging(buff)` as soon as all peers had acknowledged the previous send, whether or not the own-rank reduction step had consumed that chunk. Whether it did depended on RDMA timing, so the sum was wrong only sometimes, and only for messages that span more than one pipeline chunk.",
+          "source": "https://github.com/ml-explore/mlx/pull/3451",
+          "note": null
+        },
+        {
+          "text": "The fix: SEND completion refills only `send_buffer` (free once the data is on the wire) and posts the next send. `local_staging(b)` is refilled inside the reduce loop right after the own-rank reduction has read it, and that refill also bumps `recv_end[rank_]`, which gates the next step.",
+          "source": "https://github.com/ml-explore/mlx/pull/3451",
+          "note": null
+        },
+        {
+          "text": "The diff is 15 additions and 8 deletions in `mesh_impl.h` only. The ring backend does not use this code path.",
+          "source": "https://github.com/ml-explore/mlx/commit/1322065f78b1f2d52e104a22a6a778fbe49b6764",
+          "note": null
+        },
+        {
+          "text": "A single-chunk message (a decode-sized all_sum) cannot hit the race, which matches the symptom appearing only for prompts above about 170 tokens and not during decode.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "2026-04-15: PR 3412 (JACCL refactor) merged. 2026-04-25: PR 3451 opened against it. 2026-05-11: merged. 2026-05-18: guruswami-ai linked it from exo issue 1847. 2026-07-14: an exo fork commit says PyPI mlx 0.32.0 contains it.",
+          "source": "https://github.com/ml-explore/mlx/pull/3451",
+          "note": null
+        },
+        {
+          "text": "The reporter's setup was MiniMax-M2.7-8bit tensor parallel on 2x M3 Ultra over jaccl with mlx 0.31.2, mlx-lm 0.31.3 and macOS 26.4. Generation degenerated into sentence loops or token-level garbage for prompts above about 170 tokens.",
+          "source": "https://github.com/ml-explore/mlx/pull/3451",
+          "note": null
+        },
+        {
+          "text": "A fork commit (p41l, 2026-07-14) dropped exo's git override of mlx because the fork \"predates the upstream fix for the jaccl RDMA all_reduce race (ml-explore/mlx#3451)\" and said PyPI mlx 0.32.0 has that fix plus the ring-backend prefill deadlock fix (#3654).",
+          "source": "https://github.com/ml-explore/mlx/pull/3451",
+          "note": null
+        },
+        {
+          "text": "On 2026-04-26 the author wrote that he was \"not sure this completely addresses the issue\": Kimi-K2.6 still showed repetitive output at longer context on mlx 0.31.2, which he had not seen on mlx 0.31.1 with mlx-lm 0.31.2. The thread never shows a confirmed before-and-after for the original symptom.",
+          "source": "https://github.com/ml-explore/mlx/pull/3451",
+          "note": null
+        },
+        {
+          "text": "The reviewer (angeloskath) approved it as \"a great catch\", said he was not sure it was the bug the author hit, but that it is \"a race condition indeed\", never seen in his tests and likely to show up \"especially in non-homogenous cluster setups\".",
+          "source": "https://github.com/ml-explore/mlx/pull/3451",
+          "note": null
+        },
+        {
+          "text": "The PR added no test (the tests checkbox is empty).",
+          "source": "https://github.com/ml-explore/mlx/pull/3451",
+          "note": null
+        },
+        {
+          "text": "Corruption from this race is silent: no error status, no exception, only wrong sums, which is why output \"degenerates\" rather than fails.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "The mesh path has a hard limit of 8 peers (`MESH_MAX_PEERS = 8`) and uses multiple wires only for messages of at least 512 KiB (`MESH_MULTI_WIRE_MIN_BYTES`).",
+          "source": "https://raw.githubusercontent.com/ml-explore/mlx/main/mlx/distributed/jaccl/lib/jaccl/mesh_impl.h",
+          "note": null
+        },
+        {
+          "text": "The ring prefill deadlock (#3654) is a separate bug: `RingImpl::recv` compared a relative chunk count with an absolute region end, so small point-to-point receives on a rank with more than one wire per direction spun forever. The fix compares against `limits[lw] - write_offset[lw]`.",
+          "source": "https://github.com/ml-explore/mlx/pull/3654",
+          "note": null
+        },
+        {
+          "text": "Does #3451 explain the reboot-only RTR errno 22/60 failures? guruswami-ai's comment on exo issue 1847 calls it \"the single biggest contributor\" to ending them after a daemon kill. The PR changes only the all_reduce data path and nothing in queue-pair setup. The comment's evidence is a stack of five changes applied together (#3451, #3459 barrier, #3152 status check, a Metal hazard workaround and a fence barrier), so no single patch is isolated.",
+          "source": "https://github.com/exo-explore/exo/issues/1847",
+          "note": null
+        },
+        {
+          "text": "The same comment lists macOS 15.4 as its environment, although RDMA over Thunderbolt needed macOS 26.2 per issue 2990. It is likely a typo, but it lowers confidence in the rest of the environment details.",
+          "source": "https://github.com/ml-explore/mlx/discussions/2990",
+          "note": null
+        },
+        {
+          "text": "Whether the repetition the author still saw on Kimi-K2.6 after the fix was a second race, a different corruption, or a model-side effect.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Whether exo's darwin mlx pin (a fork branch, fetched 2026-10-04) contains #3451, because the fork commit says an earlier fork did not.",
+          "source": "https://raw.githubusercontent.com/exo-explore/exo/main/pyproject.toml",
+          "note": null
+        },
+        {
+          "text": "The race is in `MeshImpl` (the fully connected backend), introduced by PR 3412, and fixed by commit 1322065 (+15, -8, one file).",
+          "source": "https://github.com/ml-explore/mlx/commit/1322065f78b1f2d52e104a22a6a778fbe49b6764",
+          "note": null
+        },
+        {
+          "text": "The SEND-completion handler used to refill `local_staging` before the own-rank reduction had read it.",
+          "source": "https://github.com/ml-explore/mlx/pull/3451",
+          "note": null
+        },
+        {
+          "text": "The race only affects messages that span more than one pipeline chunk.",
+          "source": "https://github.com/ml-explore/mlx/pull/3451",
+          "note": null
+        },
+        {
+          "text": "The observed symptom was sentence loops or token-level garbage for prompts above about 170 tokens in tensor-parallel generation.",
+          "source": "https://github.com/ml-explore/mlx/pull/3451",
+          "note": null
+        },
+        {
+          "text": "The author could not confirm the fix fully cured the symptom (Kimi-K2.6 repetition on 2026-04-26).",
+          "source": "https://github.com/ml-explore/mlx/pull/3451",
+          "note": null
+        },
+        {
+          "text": "The reviewer said the race \"can show up especially in non-homogenous cluster setups\".",
+          "source": "https://github.com/ml-explore/mlx/pull/3451",
+          "note": null
+        },
+        {
+          "text": "mlx 0.32.0 on PyPI is stated, in an exo fork commit message, to contain #3451 and #3654.",
+          "source": "https://github.com/ml-explore/mlx/pull/3451",
+          "note": null
+        },
+        {
+          "text": "MeshImpl's all_reduce uses `PIPELINE = 2` double buffering and a fixed reduction order starting from rank 0.",
+          "source": "https://raw.githubusercontent.com/ml-explore/mlx/main/mlx/distributed/jaccl/lib/jaccl/mesh_impl.h",
+          "note": null
+        },
+        {
+          "text": "PR 3654 fixed a multi-wire ring `recv` prefill that posted receives past the wire's region, which hung small pipeline-parallel sends over 3 Thunderbolt links between two Macs.",
+          "source": "https://github.com/ml-explore/mlx/pull/3654",
+          "note": null
+        },
+        {
+          "text": "A decode-sized single-chunk all_sum cannot hit the #3451 race.",
+          "source": "asserted",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Corrections and disagreements",
+      "facts": [
+        {
+          "text": "CONTRADICTS (causal reading): distributed-inference-across-macs.md line \"#3451 ... removed most reboot-needing RTR errno 22/60 failures\": that is one operator's attribution in a five-patch stack; the PR describes only a wrong-sum race in `MeshImpl::all_reduce`.",
+          "source": "https://github.com/ml-explore/mlx/pull/3451",
+          "note": null
+        }
+      ]
+    }
+  ],
+  "related": []
+}

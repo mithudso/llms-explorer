@@ -1,0 +1,174 @@
+{
+  "slug": "llama-cpp-spec-default-and-low-acceptance-streak",
+  "concept": "llama.cpp --spec-default and low-acceptance streak reset (PRs 22223 and 22168)",
+  "generated": "2026-10-05",
+  "summary": "`--spec-default` pushes `COMMON_SPECULATIVE_TYPE_NGRAM_MOD` and sets `ngram_mod.n_match = 24`, `n_min = 48`, `n_max = 64`; a commented-out `ngram-map-k4v` block (size_n 8, size_m 24, min_hits 2) shows the author has not yet chosen to add a second type.",
+  "facets": [
+    {
+      "title": "Facts",
+      "facts": [
+        {
+          "text": "`--spec-default` pushes `COMMON_SPECULATIVE_TYPE_NGRAM_MOD` and sets `ngram_mod.n_match = 24`, `n_min = 48`, `n_max = 64`; a commented-out `ngram-map-k4v` block (size_n 8, size_m 24, min_hits 2) shows the author has not yet chosen to add a second type.",
+          "source": "https://raw.githubusercontent.com/ggml-org/llama.cpp/master/common/arg.cpp",
+          "note": null
+        },
+        {
+          "text": "The flag is registered for the server and CLI examples only.",
+          "source": "https://raw.githubusercontent.com/ggml-org/llama.cpp/master/common/arg.cpp",
+          "note": null
+        },
+        {
+          "text": "A source comment on the flag reads \"not sure if this is a good config - explore more settings\".",
+          "source": "https://raw.githubusercontent.com/ggml-org/llama.cpp/master/common/arg.cpp",
+          "note": null
+        },
+        {
+          "text": "Each sequence keeps `i_last`, the last prompt position already inserted into the shared n-gram table, plus `n_draft_last` and `n_low`.",
+          "source": "https://raw.githubusercontent.com/ggml-org/llama.cpp/master/common/speculative.cpp",
+          "note": null
+        },
+        {
+          "text": "During drafting, new n-grams are added in chunks only when `i_last + 32 < cur_len`, so the table lags the context by up to 32 tokens.",
+          "source": "https://raw.githubusercontent.com/ggml-org/llama.cpp/master/common/speculative.cpp",
+          "note": null
+        },
+        {
+          "text": "On each accept call, a round counts as low when accepted tokens divided by drafted tokens is below 0.25; five low rounds in a row trigger `mod.reset()`, `n_low = 0` and `i_last = 0`, and any round at or above 0.25 sets `n_low = 0`.",
+          "source": "https://raw.githubusercontent.com/ggml-org/llama.cpp/master/common/speculative.cpp",
+          "note": null
+        },
+        {
+          "text": "Setting `i_last = 0` is the PR 22168 change: after the reset, the next draft call re-adds every n-gram of the current context. Before the PR the table was emptied but `i_last` kept its old value, so only text generated after the reset was indexed.",
+          "source": "https://github.com/ggml-org/llama.cpp/pull/22168",
+          "note": null
+        },
+        {
+          "text": "The `accept` hook returns early when `is_other` is true, so rounds credited to another speculator type do not change `n_low`.",
+          "source": "https://raw.githubusercontent.com/ggml-org/llama.cpp/master/common/speculative.cpp",
+          "note": null
+        },
+        {
+          "text": "`begin()` also resets the table when its occupancy after indexing a prompt exceeds 0.25 of 4M entries (`4*1024*1024`), and warns when `n_match` is too small.",
+          "source": "https://raw.githubusercontent.com/ggml-org/llama.cpp/master/common/speculative.cpp",
+          "note": null
+        },
+        {
+          "text": "20 Apr 2026: treo opens PR 22168 (one line, \"Reset i_last when low acceptance streak occurs\", AI-assisted to understand the ngram-mod flow).",
+          "source": "https://github.com/ggml-org/llama.cpp/pull/22168",
+          "note": null
+        },
+        {
+          "text": "21 Apr 2026: ggerganov asks for the speculative parameters used; treo supplies `--draft-max 128 --spec-ngram-size-n 48 --draft-min 2 --spec-type ngram-mod` with `--reasoning off`. ggerganov approves and merges the same day (commit 72d693e).",
+          "source": "https://github.com/ggml-org/llama.cpp/pull/22168",
+          "note": null
+        },
+        {
+          "text": "21 Apr 2026: ggerganov opens and merges PR 22223 (`arg : add --spec-default`) within hours; pwilkin and danbev approve; 46 of 49 checks passed at merge (commit 84652b8).",
+          "source": "https://github.com/ggml-org/llama.cpp/pull/22223",
+          "note": null
+        },
+        {
+          "text": "27 Apr 2026: the reset is ported to ik_llama.cpp as PR 1701 and merged.",
+          "source": "https://github.com/ikawrakow/ik_llama.cpp/pull/1701",
+          "note": null
+        },
+        {
+          "text": "By October 2026 the source has `n_match 24, n_min 48, n_max 64`, whereas the PR 22168 benchmarks used n 48, min 2, max 128; the flag names changed from `--spec-ngram-size-n` to `--spec-ngram-mod-n-match`.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "The gain is small and model dependent: treo says \"the effect isn't huge but at 3% to 9% it is still measurable\".",
+          "source": "https://github.com/ggml-org/llama.cpp/pull/22168",
+          "note": null
+        },
+        {
+          "text": "The cost is a moment of table repopulation on every reset.",
+          "source": "https://github.com/ggml-org/llama.cpp/pull/22168",
+          "note": null
+        },
+        {
+          "text": "Reset repopulation scans the whole context, so its cost grows with context length; no measurement at 100k tokens was published.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "A low streak often precedes a long run of full acceptance (code reproduction), which is why a table that was never re-indexed lost the benefit.",
+          "source": "https://github.com/ggml-org/llama.cpp/pull/22168",
+          "note": null
+        },
+        {
+          "text": "Smoke tests on an M5 Max with turbo4 KV showed no regression, but a CUDA user on the same fork with a draft model (not ngram) reported about 0.4 tok/s, roughly 130 times slower, at 100% draft acceptance; the issue was closed \"not planned\" as stale.",
+          "source": "https://github.com/TheTom/llama-cpp-turboquant/issues/143",
+          "note": null
+        },
+        {
+          "text": "The PR 22168 text says the old behaviour \"skips the current context\". The code comment on `i_last` says it is \"the last position in the prompt that was added to the ngram container\". Both agree once read together: skipping applied only to text before the reset point.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "`--spec-default` enables `ngram-mod` with n_match 24, n_min 48, n_max 64.",
+          "source": "https://raw.githubusercontent.com/ggml-org/llama.cpp/master/common/arg.cpp",
+          "note": null
+        },
+        {
+          "text": "The flag's author marks the configuration as unproven in a source comment.",
+          "source": "https://raw.githubusercontent.com/ggml-org/llama.cpp/master/common/arg.cpp",
+          "note": null
+        },
+        {
+          "text": "A round is low when accepted/drafted is below 0.25, and five consecutive low rounds reset the `ngram-mod` table.",
+          "source": "https://raw.githubusercontent.com/ggml-org/llama.cpp/master/common/speculative.cpp",
+          "note": null
+        },
+        {
+          "text": "The reset also sets `i_last = 0` so the whole current context is re-indexed.",
+          "source": "https://github.com/ggml-org/llama.cpp/pull/22168",
+          "note": null
+        },
+        {
+          "text": "New n-grams are indexed only when the context is more than 32 tokens past `i_last`.",
+          "source": "https://raw.githubusercontent.com/ggml-org/llama.cpp/master/common/speculative.cpp",
+          "note": null
+        },
+        {
+          "text": "On Gemma 4 26B-A4B, PR 22168's benchmark gave 97.57 tok/s baseline, 141.08 without the reset and 155.10 with it.",
+          "source": "https://github.com/ggml-org/llama.cpp/pull/22168",
+          "note": null
+        },
+        {
+          "text": "On Qwen 3.6 35B-A3B, the same benchmark gave 112.54 baseline, 148.56 without and 153.65 with the reset.",
+          "source": "https://github.com/ggml-org/llama.cpp/pull/22168",
+          "note": null
+        },
+        {
+          "text": "The benchmark used `vllm bench serve` on the vdaita/edit_5k_char dataset at concurrency 1 with 96 prompts and `--reasoning off` for repeatability.",
+          "source": "https://github.com/ggml-org/llama.cpp/pull/22168",
+          "note": null
+        },
+        {
+          "text": "treo reports 3x to 7x over baseline for agentic coding with `--spec-ngram-size-n 32 --draft-max 64 --draft-min 32` at contexts above 100k tokens.",
+          "source": "https://github.com/ggml-org/llama.cpp/pull/22168",
+          "note": null
+        },
+        {
+          "text": "The ik_llama.cpp port measured 95.11 tok/s baseline, 130.4 without and 142.82 with the reset on 2x RTX 4000 Ada with Qwen 3.6 35B-A3B, about 9%.",
+          "source": "https://github.com/ikawrakow/ik_llama.cpp/pull/1701",
+          "note": null
+        },
+        {
+          "text": "PR 22223 has no description beyond \"Add `--spec-default` flag for enabling default configuration for speculative decoding\".",
+          "source": "https://github.com/ggml-org/llama.cpp/pull/22223",
+          "note": null
+        },
+        {
+          "text": "`ngram-mod` resets its table at prompt start when occupancy exceeds 0.25.",
+          "source": "https://raw.githubusercontent.com/ggml-org/llama.cpp/master/common/speculative.cpp",
+          "note": null
+        }
+      ]
+    }
+  ],
+  "related": []
+}

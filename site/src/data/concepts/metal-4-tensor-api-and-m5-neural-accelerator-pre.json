@@ -1,0 +1,299 @@
+{
+  "slug": "metal-4-tensor-api-and-m5-neural-accelerator-pre",
+  "concept": "Metal 4 tensor API and M5 Neural Accelerator prefill in llama.cpp",
+  "generated": "2026-10-05",
+  "summary": "TensorOps is portable by design: Apple says the same code runs M1 to M5, and on GPUs without Neural Accelerators it falls back to optimised shader implementations. That is why upstream could ship one tensor kernel and then merely disable it by chip name on pre-M5 (it was slower on M2 Ultra), rath...",
+  "facets": [
+    {
+      "title": "Facts",
+      "facts": [
+        {
+          "text": "TensorOps is portable by design: Apple says the same code runs M1 to M5, and on GPUs without Neural Accelerators it falls back to optimised shader implementations. That is why upstream could ship one tensor kernel and then merely disable it by chip name on pre-M5 (it was slower on M2 Ultra), rather than needing a separate code path per chip.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Neural Accelerators are a hardware block inside every shader core, so capacity scales with GPU core count (M5 Pro/Max/Ultra scale the prefill gain with cores). Apple's pitch: GEMMs 4-8x faster depending on precision; prefill compute-bound, decode bandwidth-bound.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "The kernel structure matters, not just the API: the first PR (#16634) gave roughly parity with the simdgroup kernel because it kept the legacy data layout. Apple's Developer-Ecosystem-Engineering team (PR #20962, opened 2026-03-24, merged 2026-04-25, commit d164904) split the tensor path into its own `kernel_mul_mm`: tile size configurable at compile time, default NRA x NRB = 64x128 versus the legacy 64x32; matrix B read straight from device memory (no threadgroup staging copy); threadgroup memory holds only dequantised A (NRA x NK_TOTAL x sizeof(fp16)); output written per element through cooperative-tensor accessors (`get_multidimensional_index`).",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Gains from #20962 depend on quant and model type, because only dequant-heavy dense matmul benefited. Author's M5 Max table: overall geomean +26.4% across 13 dense models; F16 8B +80.6%; Q6_K 7B +46.9%; Q4_0 7B only +6.8% (pp512 to pp4096). Independent M5 Max run vs master c46758d (Llama-2 7B): F16 pp512 1601.6 to 3129.6 (+95%), Q8_0 1909 to 3102 (+62%), Q4_0 2052 to 3246 (+58%); tg128 within -3% to +1%; perplexity unchanged to the 4th decimal (Q4_0 5.9618 vs 5.9622).",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "MoE kernel was not covered by #20962. Maintainer's 2026-04-25 M5 Max compare-commits run (llama-bench -fa 1 -ub 2048 -p 512,2048): dense 27B-31B Q8_0 +48-57% (e.g. qwen35 27B Q8_0 pp2048 427 to 648), Q4_0 +25-31%; MoE (gemma4 26B-A4B, qwen35 35B-A3B) only 1.00-1.08x. The author opened a follow-up to try the same layout in `kernel_mul_mm_id` (2026-04-27). So the \"2-3x from the tensor API\" figure applies to the on/off toggle on a 2025-2026 build, and any post-#20962 dense or MoE gain is much smaller; MoE had not been rewritten at the time of that thread.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Early PR #16634 A/B (Oct 2025, build 9fce244 branch vs 5cca254 master, M5, ubatch 2048 -fa 1): llama 8B Q4_0 pp512 609 vs 257 (2.37x), pp2048 540 vs 248 (2.18x); gpt-oss 20B MXFP4 pp512 847 vs 415 (2.04x); qwen3 0.6B F16 pp512 4936 vs 3073 (1.6x). Maintainer's own estimate at that point: about 2.5x, short of Apple's ~3.5x marketing figure; he warned an 8k prompt makes the M4 Max thermally throttle.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Maintainer M4 Max 32-core vs M5 Max 40-core, after #20962, pp2048, build 5605dd6: mistral3 8B Q8_0 631 to 2695 (4.27x); gemma3 4B Q4_0 1572 to 6044 (3.85x). These are hardware-plus-kernel ratios, not API-only.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "TensorOps API evolution, which gates what llama.cpp can do per macOS version (Apple tech talk 111432): 26.1 added bfloat tensors; 26.3 added cooperative tensors as matmul inputs (ggml can dequant straight into registers, no threadgroup barrier); 26.4 added int4/int8 tensors; macOS/iOS 27 adds fp4/fp8/int2 and block-scaled MX formats via a scales auxiliary plane (E8M0, block 32x1), plus passing a cooperative tensor directly into a second matmul (FlashAttention without a threadgroup round trip). Apple says llama.cpp, MLX and PyTorch \"already leverage neural accelerators under the hood\".",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "MPP constraint added by the SDK: `matmul2d_descriptor` needs at least one of M or N to be a multiple of 16, enforced by static_assert.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "2025-10: #16634 initial Metal4 tensor support, written without M5 hardware (maintainer \"looking for volunteers\"); first volunteers measured 2x on M5. On iPhone 17 Pro Max (iOS 26.0.1, Mistral-7B Q4_0, a third-party harness) tensor path measured 13.66 vs 11.08 t/s decode (+23%) but TTFT 0.472 vs 0.322 s (worse); one anecdote, not repeatable here.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "macOS 26.0 MPP headers lacked bfloat support; workaround disabled BF16 when the tensor API was detected; later replaced by a bfloat probe (fix \"metal : fix check for bfloat tensor support\"). On M2 Ultra, bfloat tensor kernels compiled but segfaulted at run because `maxTotalThreadsPerThreadgroup` reported 0.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "2025-11-14/19: MLX began NAX kernels (PR #2772, \"Init NAX matmuls / attention / QMMs\"), merged for macOS 26.2.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "2026-03-26/27: PR #21048 (merged) fixed the test probe `matmul2d_descriptor(8, 8, dynamic_extent)` which violated the new multiple-of-16 rule on macOS 26.4; before it `has tensor = false` on an M5 MacBook Air 24 GB macOS 26.4 Xcode 26.4 with prebuilt b8533. A parallel fix was in #20962.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "2026-04-25: #20962 merged (dense kernel rewrite). 2026-09-01: #27461 (languageVersion) merged.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Three distinct M5 probe/compile failures, not two: (A) `undeclared identifier 'mpp'` (languageVersion unset, fixed #27461); (B) `static_assert ... __is_same_v<bfloat, half> \"Input types must match cooperative tensor types\"` (Ollama 0.20.7 on M5 16 GB macOS 26.3.1, issue #15594 open, models fail to load with `exit status 2`, CPU library setting does not help, reports across qwen3.5, gemma4, ministral-3, llama3.2 and image models); (C) `static_assert ... \"At least one of M or N must be a multiple of 16\"` (macOS 26.4, fixed #21048/#20962). The existing dossier attributes all March-2026 reports to (A); the March reports on 26.4 were (C), which predates the 2026-08-21 root-cause finding.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Ollama's failure mode is stronger than \"no speedup\": the embedded Metal library fails at init and the runner exits, so the model does not load, versus LM Studio's llama.cpp runtime, which logs \"disabling\" and continues at non-accelerated speed.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "An M4 reports `MTLGPUFamilyMetal4 (5002)` and `MTLGPUFamilyApple9` yet `has tensor = false` (\"tensor API disabled for pre-M5 and pre-A19 devices\"); an M5 reports `MTLGPUFamilyApple10 (1010)`. So Metal 4 family membership does not imply Neural Accelerators; do not use the family line to judge.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Old MPP framework builds (MetalPerformancePrimitives Info.plist version 1.0 on 26.0) lack bfloat in MPPTensorOpsMatMul2dImpl.h.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "The 8k-token prefill test used in Apple marketing is where M4 Max heat-throttles; maintainer recommends shorter -p when benchmarking.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Prefill gain size. Side A (Apple): up to ~4x TTFT M5 vs M4, M5 GEMM 4-8x. Side B (llama.cpp maintainer, Oct 2025): ~2.5x, below the 3.5x marketing; tensor on vs off on one chip is 2.0-2.4x (LM Studio issue; PR volunteers); post-#20962 kernel gain only +6.8% to +95% depending on quant. All three can be true because they compare different baselines (M4 vs M5; tensor off vs on; old vs new tensor kernel).",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Whether the tensor path helps older chips. Maintainer: ~5% slower on M2 Ultra, no gain on M4/M4 Max. Apple: portable with fallback. Not reconciled; TensorOps on pre-M5 is \"supported\" but not faster.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Whether `kernel_mul_mm_id` (MoE) was later ported to the #20962 layout; no merged PR found in the fetched pages.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Whether any Ollama release now bundles a ggml that passes the probe on M5 (issue #15594 was open in the fetched copy).",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Effect of macOS 27 FP8/MX tensors and cooperative-tensor-as-input on llama.cpp's flash attention.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Metal Performance Primitives TensorOps is an MSL API for matmul and convolution that accelerates tensor operations and uses Neural Accelerators on M5 and A19.",
+          "source": "https://developer.apple.com/videos/play/wwdc2026/330/",
+          "note": null
+        },
+        {
+          "text": "Apple states TensorOps code is portable across the whole Apple GPU family from M1 to M5 and falls back to optimised shader implementations on GPUs without Neural Accelerators.",
+          "source": "https://developer.apple.com/videos/play/tech-talks/111432",
+          "note": null
+        },
+        {
+          "text": "Apple states the Neural Accelerator is in each shader core and its capacity scales with core count; M5 GEMM rates are up to 4-8x higher depending on precision.",
+          "source": "https://developer.apple.com/videos/play/tech-talks/111432",
+          "note": null
+        },
+        {
+          "text": "Apple names llama.cpp, MLX and PyTorch as open-source tools that already leverage the Neural Accelerators.",
+          "source": "https://developer.apple.com/videos/play/tech-talks/111432",
+          "note": null
+        },
+        {
+          "text": "TensorOps added bfloat in 26.1, cooperative tensors as matmul inputs in 26.3, and 4-bit and 8-bit integer tensors in 26.4; fp8/fp4/int2 and MX scale planes (E8M0, block 32x1) arrive in macOS and iOS 27.",
+          "source": "https://developer.apple.com/videos/play/tech-talks/111432",
+          "note": null
+        },
+        {
+          "text": "In macOS and iOS 27 a cooperative tensor can be passed directly as matmul input (check `is_compatible_as_left_input`), removing the threadgroup-memory round trip that macOS 26 required.",
+          "source": "https://developer.apple.com/videos/play/wwdc2026/330/",
+          "note": null
+        },
+        {
+          "text": "Apple says contributors to llama.cpp or MLX should write Metal kernels with TensorOps rather than SIMD-group matrix APIs.",
+          "source": "https://developer.apple.com/videos/play/wwdc2026/330/",
+          "note": null
+        },
+        {
+          "text": "MPP static_asserts that at least one of M or N in a matmul2d_descriptor is a multiple of 16.",
+          "source": "https://github.com/ggml-org/llama.cpp/pull/21048",
+          "note": null
+        },
+        {
+          "text": "Before PR #21048 an M5 MacBook Air (24 GB, macOS 26.4, Xcode 26.4, prebuilt b8533) logged `has tensor = false`; after it `has tensor = true`.",
+          "source": "https://github.com/ggml-org/llama.cpp/pull/21048",
+          "note": null
+        },
+        {
+          "text": "PR #21048 was merged by ggerganov on 2026-03-27, and Apple's Developer-Ecosystem-Engineering account said a fix was also in PR #20962.",
+          "source": "https://github.com/ggml-org/llama.cpp/pull/21048",
+          "note": null
+        },
+        {
+          "text": "The maintainer said the first tensor-API implementation (#16634) probably performed the same as the simdgroup kernel and that he had no M5 hardware to test it.",
+          "source": "https://github.com/ggml-org/llama.cpp/pull/16634",
+          "note": null
+        },
+        {
+          "text": "In #16634 volunteer runs on M5, llama 8B Q4_0 (-ub 2048 -fa 1) gave pp512 609 vs 257 t/s and pp2048 540 vs 248 t/s (branch 9fce244 vs master 5cca254); gpt-oss 20B MXFP4 pp512 847 vs 415 t/s.",
+          "source": "https://github.com/ggml-org/llama.cpp/pull/16634",
+          "note": null
+        },
+        {
+          "text": "The maintainer estimated the M5 tensor path at about 2.5x prefill versus Apple's ~3.5x marketing claim, and warned 8k-token prefill makes an M4 Max heat-throttle.",
+          "source": "https://github.com/ggml-org/llama.cpp/pull/16634",
+          "note": null
+        },
+        {
+          "text": "On M2 Ultra the bfloat tensor kernels compiled but segfaulted at runtime because maxTotalThreadsPerThreadgroup reported 0.",
+          "source": "https://github.com/ggml-org/llama.cpp/pull/16634",
+          "note": null
+        },
+        {
+          "text": "Old MPP framework builds lack bfloat in MPPTensorOpsMatMul2dImpl.h; the interim workaround logged \"disabling bfloat support as a workaround for tensor API incompatibility\".",
+          "source": "https://github.com/ggml-org/llama.cpp/pull/16634",
+          "note": null
+        },
+        {
+          "text": "A third-party iPhone 17 Pro Max harness reported Metal-4 tensor at 13.66 t/s vs 11.08 t/s legacy Metal (+23%) with worse TTFT (0.472 vs 0.322 s).",
+          "source": "https://github.com/ggml-org/llama.cpp/pull/16634",
+          "note": null
+        },
+        {
+          "text": "PR #20962 (Apple Developer-Ecosystem-Engineering, merged 2026-04-25, d164904) moved the tensor matmul into a standalone kernel_mul_mm with 64x128 default tiles, direct device reads of matrix B, and threadgroup memory only for dequantised A.",
+          "source": "https://github.com/ggml-org/llama.cpp/pull/20962",
+          "note": null
+        },
+        {
+          "text": "PR #20962 reported an overall geomean +26.4% pp across 13 dense models on an M5 Max, from +6.8% (Q4_0 7B) to +80.6% (DeepSeek-8B F16).",
+          "source": "https://github.com/ggml-org/llama.cpp/pull/20962",
+          "note": null
+        },
+        {
+          "text": "On M5 Max vs master c46758d, #20962 gave Llama-2 7B F16 pp512 1601.6 to 3129.6 t/s, Q8_0 1909.2 to 3101.6, Q4_0 2052.2 to 3246.2, with tg128 within -3% to +1% and unchanged perplexity.",
+          "source": "https://github.com/ggml-org/llama.cpp/pull/20962",
+          "note": null
+        },
+        {
+          "text": "On M5 Max, #20962 sped dense gemma4 31B and qwen35 27B Q8_0 by 1.48-1.57x and Q4_0 by 1.25-1.31x but MoE models (gemma4 26B-A4B, qwen35 35B-A3B) by only 1.00-1.08x.",
+          "source": "https://github.com/ggml-org/llama.cpp/pull/20962",
+          "note": null
+        },
+        {
+          "text": "The maintainer asked why kernel_mul_mm_id (MoE) was not given the same implementation; the author opened a follow-up investigation on 2026-04-27.",
+          "source": "https://github.com/ggml-org/llama.cpp/pull/20962",
+          "note": null
+        },
+        {
+          "text": "After #20962, pp2048 M4 Max 32-core to M5 Max 40-core was 631 to 2695 t/s (mistral3 8B Q8_0, 4.27x) and 1572 to 6044 t/s (gemma3 4B Q4_0, 3.85x), build 5605dd6.",
+          "source": "https://github.com/ggml-org/llama.cpp/pull/20962",
+          "note": null
+        },
+        {
+          "text": "Ollama 0.20.7 on an M5 16 GB macOS 26.3.1 fails every model load with `static_assert failed ... __is_same_v<bfloat, half> \"Input types must match cooperative tensor types\"` and `llama runner terminated exit status 2`; OLLAMA_LLM_LIBRARY=cpu does not avoid it.",
+          "source": "https://github.com/ollama/ollama/issues/15594",
+          "note": null
+        },
+        {
+          "text": "An M4 Pro (macOS 26.3, build 8200) logged `GPU family: MTLGPUFamilyApple9`, `MTLGPUFamilyMetal4 (5002)`, `tensor API disabled for pre-M5 and pre-A19 devices` and `has tensor = false`.",
+          "source": "https://github.com/ggml-org/llama.cpp/issues/20141",
+          "note": null
+        },
+        {
+          "text": "An M5 reports MTLGPUFamilyApple10 (1010) in the llama.cpp init log.",
+          "source": "https://modelfit.io/blog/m5-mac-metal-tensor-api-llama-cpp-fix/",
+          "note": null
+        },
+        {
+          "text": "The LM Studio runtime package names are `llama.cpp-mac-arm64-apple-metal-advsimd` (no tensor API on M5) and `mlx-llm-mac-arm64-apple-metal-nax-advsimd` (M5-targeted, uses the accelerators).",
+          "source": "https://github.com/lmstudio-ai/lmstudio-bug-tracker/issues/2040",
+          "note": null
+        },
+        {
+          "text": "Upstream stock release b9592 on M5 Max macOS 26.5 logged `has tensor = true`, so a prebuilt upstream binary passes the probe where LM Studio's own build fails.",
+          "source": "https://github.com/lmstudio-ai/lmstudio-bug-tracker/issues/2040",
+          "note": null
+        },
+        {
+          "text": "MLX gates NAX on macOS 26.2 or later and a GPU architecture generation of at least 17, or at least 18 when the architecture suffix is 'p'; a build flag MLX_METAL_NO_NAX removes it.",
+          "source": "https://raw.githubusercontent.com/ml-explore/mlx/main/mlx/backend/metal/device.cpp",
+          "note": null
+        },
+        {
+          "text": "MLX routes matmul to steel_gemm_fused_nax and a NAX split-K kernel when NAX is available, and for float32 inputs only when the tf32 environment option is enabled.",
+          "source": "https://raw.githubusercontent.com/ml-explore/mlx/main/mlx/backend/metal/matmul.cpp",
+          "note": null
+        },
+        {
+          "text": "MLX NAX work started in PR #2772 on 2025-11-14 with \"Init NAX matmuls\", \"Init NAX attention\" and quantised matmul commits; Apple's MLX post says M5 acceleration requires macOS 26.2 or later.",
+          "source": "https://github.com/ml-explore/mlx/pull/2772",
+          "note": null
+        },
+        {
+          "text": "Apple's MLX post says MLX uses TensorOps and Metal Performance Primitives from Metal 4 for the Neural Accelerators.",
+          "source": "https://machinelearning.apple.com/research/exploring-llms-mlx-m5",
+          "note": null
+        },
+        {
+          "text": "The existing dossier's March-2026 M5 probe failures on macOS 26.4 were the multiple-of-16 static_assert fixed by #21048, not the languageVersion bug found 2026-08-21.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "To verify the tensor path is live, read the llama.cpp device init log for `has tensor = true` with no `error compiling source`, and compare pp with GGML_METAL_TENSOR_DISABLE=1 on the same file.",
+          "source": "asserted",
+          "note": null
+        }
+      ]
+    }
+  ],
+  "related": []
+}

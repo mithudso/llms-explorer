@@ -1,0 +1,384 @@
+{
+  "slug": "llama-cpp-fit-auto-memory-fitting",
+  "concept": "llama.cpp --fit auto memory fitting",
+  "generated": "2026-10-05",
+  "summary": "Projection is a virtual load: the model is loaded with `no_alloc = true` and `load_mode = NONE`, a context is created, and the \"memory breakdown\" (model, context, compute) is read per buffer type. No weights are read, so a fit takes 0.3 to 20 s (0.26 s on an 18 GB M3 Pro; 8.8 s on 2x RTX 4090 wit...",
+  "facets": [
+    {
+      "title": "Facts",
+      "facts": [
+        {
+          "text": "Projection is a virtual load: the model is loaded with `no_alloc = true` and `load_mode = NONE`, a context is created, and the \"memory breakdown\" (model, context, compute) is read per buffer type. No weights are read, so a fit takes 0.3 to 20 s (0.26 s on an 18 GB M3 Pro; 8.8 s on 2x RTX 4090 with a 120B model).",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Free memory on Metal = `recommendedMaxWorkingSetSize - currentAllocatedSize`, total = `recommendedMaxWorkingSetSize` (`ggml_metal_device_get_memory`, ggml-metal-device.m). `currentAllocatedSize` is the Metal allocations of this process only; other apps' RAM use is invisible to fit. If allocated exceeds total, free is clamped to 0.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "The Metal device is a GPU-type device, so Metal is the single device (nd = 1). A GPU device that reports 0/0 memory is skipped with \"device ... did not report memory; --fit will not use it\". Non-GPU accelerators reporting 0/0 (BLAS) borrow host memory.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Order of steps in `common_params_fit_impl`: (1) measure at initial params; if projected free >= margin, log \"no changes needed\" and return; (2) reduce context; (3) fill dense layers back-to-front; (4) for MoE, convert dense-only layers to full layers front-to-back; layers may \"overflow\" (attention on device, up/gate/down experts on CPU) via generated `-ot blk\\.N\\.ffn_(up|down|gate)_(ch|)exps=CPU` patterns.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Context reduction only runs if `n_ctx` was unset (0). It linearly interpolates between the minimum context (default 4096, times n_streams) and the model's trained context using two measured points, rounds down to a multiple of 256 x n_streams, never goes below the minimum. With one device, if context reduction alone meets the target, fit returns without touching layers.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "MoE: step 3 first puts all expert tensors (`blk.N.ffn_(up|down|gate_up|gate)_(ch|)exps`) in system memory, logs \"with only dense weights in device memory there is a total surplus of X MiB\", then fills experts back onto the device. So dense/attention weights get priority over experts.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Layer counts per device are found with the method of false position (interpolating memory per layer between a low and a high measurement) until the difference is one layer.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Draft model or MTP context is measured and added to every projection (`extra`), re-measured when context changes. This is why speculative decoding shrinks the fitted context.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "`-c 0` given explicitly sets `fit_params_min_ctx = UINT32_MAX`, which disables context reduction; leaving `-c` out also means 0 = trained context but still allows reduction.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Explicit `-c N` (N != 0): context left alone. Explicit `-ngl` (anything but auto): fit throws \"n_gpu_layers already set by user to N, abort\" only if changes are needed (the early \"no changes needed\" return comes first). `-ngl auto` = -1 (the default), `all` = -2. Explicit `-ot`/`--cpu-moe`/`--n-cpu-moe` also lock placement; all-or-nothing, no partial automation.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "`--fit-target` takes a comma list `MiB0,MiB1,...`; a single value is broadcast to all devices. `-fitp/--fit-print` (env `LLAMA_ARG_FIT_ESTIMATE`, tool-only) prints the estimate. `llama-fit-params` prints the fitted `-c -ngl -ts -ot` flags for reuse; the discussion's recipe for llama-bench pipes its output because llama-bench lacks `-fit`.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Fit failures never abort the program: `common_params_fit_exception` is logged as a warning and loading continues with the unfitted values; other runtime errors are logged as errors with status ERROR. `SPLIT_MODE_TENSOR` is unsupported (throws). If nd == 0 (CPU only) and the model does not fit host memory after context reduction, it throws.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "`common_init_result` calls fit when `params.fit_params`; the draft/MTP context is fitted jointly.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "PR 16653 by JohannesGaessler, merged Dec 15, 2025; the author's announcement is discussion 18049 of the same date. Original PR text named the margin flag `--fit-margin`; current master has `-fitt/--fit-target` (rename; the PR text is stale). The same PR changed default context from 4096 to 0 (trained max) so fit has something to shrink; a later PR had to fix a lookahead/n_seq_max bug that this activated.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Design intent in the PR: optimistic defaults that need lots of memory, then cut down. Author says it is generic for any ggml backend with working memory breakdown and CPU+GPU hybrid support. It replaced heuristics like Ollama's and KoboldCpp's, which were conservative.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Fit now also counts mmproj weights and compute buffers (older builds did not; a CUDA user reports needing a newer build and more headroom for vision).",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Passing `-ngl 99` (long-standing advice) turns fit off. Issue 27309 (b9960, M5 24 GB, macOS 26.5.1): log `common_fit_params: failed to fit params to free device memory: n_gpu_layers already set by user to 99, abort`, then `-c 262144` projected 19005 MiB against Metal total 18186 MiB, giving 15 `kIOGPUCommandBufferCallbackErrorOutOfMemory` errors at init.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "The same issue shows a server bug: after the fatal init OOM `llama-server` still logs \"model loaded\", listens, `/health` returns `{\"status\":\"ok\"}`, and every completion returns HTTP 500 (\"backend is in error state from a previous command buffer failure\"). A fix PR 28242 is open; as of the issue the health check is unconditional. A readiness probe must send a real completion.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Fit can say \"fits\" and Metal can still OOM. Issue 19224 (b7896, M3 Pro 18 GB, `-ngl 24 -fa on -c 4096`, gpt-oss-20b): fit logged `projected 11033 MiB vs 12287 MiB free ... no changes needed`, then decode OOMed. The reporter's fix was `--no-mmap`. A second reporter (32 GB M4, Qwen3.5-35B-A3B UD-Q4_K_XL, b8280) saw OOM and screen corruption; his breakdown row showed a corrupted free column (17592186042610 MiB, an unsigned underflow) and projected 22025 MiB vs total 21845 MiB.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Mmap span mismatch (issue 24510, b9607, M1 Pro 16 GB, Qwen3-30B-A3B Q8_0, closed not planned): with partial offload Metal maps one contiguous span `[min_offset, max_offset]` of all tensors on the backend. If `output.weight` is stored at the file start and offloaded blocks at the end, `-ngl 2` (947 MiB of tensors) maps 30973 MiB, which is wired via a residency set. The fit estimator counts only the 947 MiB. Rewriting the GGUF with output tensors last drops the mapped size to 947 MiB.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Same effect with expert offload (issue 27822, M5 Pro 64 GB and M2 Max 64 GB, Qwen3.8-Flash-Next UD-IQ1_S 67-73 GB, b10714): `-ot`/`--cpu-moe` do not reduce what Metal maps because the span is per file. `-ngl <= 25` works; 26-30 clean Metal OOM; >= 32 intermittent `EXC_BAD_ACCESS` in `ggml_compute_forward_mul_mat_id` after the Metal command buffer fails first; later builds exit 0 at 0.0 tok/s. Lowering `-b` or `-c` does not help. Workarounds: `-ot \"^output=CPU\"` shrank the mapped region from 47674 MiB to 11 MiB and gave 28 tok/s at `-ngl 48`; `--load-mode none` avoids the crash. Closed as not planned (stale).",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Unified-memory blind spot (inference from fit.cpp): fit constrains only GPU devices; tensors that fit moves \"to CPU\" still sit in the same physical RAM that Metal budgets from, so moving experts to CPU on a Mac does not free anything for the GPU and can only reduce the Metal-mapped share.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Because free memory ignores other processes, a browser or second llama-server running alongside can push real use past the working set even when fit reports margin. [asserted from the free-memory formula]",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Not a regression: issue 21655 (3.8x slower on M4 16 GB Gemma 4 26B-A4B) was closed by its author after bisect and interleaved A/B runs showed no regression.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Hand-tuning: one MoE guide says use `-fit off` while tweaking offload so you can see exactly when memory runs out. A CUDA guide reports a target below ~512 MiB caused OOM mid-session rather than at startup; 2048 MiB stable with a projector.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Whether `-ngl 99` is still needed: community posts treat it as mandatory; the code/README treat auto as default and issue 27309 shows `-ngl 99` makes fit abort. Code side wins for current builds.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Whether mmap or no-mmap is safer on Mac: 19224 reporter fixed OOM with `--no-mmap`; the existing MoE-offload dossier credits mmap with larger-than-RAM operation. Both are close-to-limit observations; neither isolates the cause.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Does fit ever account for the file-span mapping (issue 24510 closed not planned; unknown whether fixed under another PR)?",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Is `LLAMA_ARG_FIT_TARGET` honored for the Metal device with one-device broadcast only, or does a Mac with a second (RPC) device change target semantics? Not tested.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "No source gives a measured Mac recommendation for `-fitt` by RAM size.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Whether PR 28242 (health after fatal init) has merged.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Any Mac: omit `-ngl` and `-c`; run `llama-server -m MODEL.gguf -fa auto -fit on`; read the `llama_params_fit_impl` lines and the `MTL0` memory breakdown row to confirm \"no changes needed\" or the fitted `-c`.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "16-18 GB: raise `-fitt` to about 2048 (or use `--no-mmap` if you hit the 19224 pattern), since only about 12 GB of working set is available and headroom matters; prefer models <= 9 GB.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "24-36 GB: default 1024 MiB target is fine for single use; pin `-c` only if you want a fixed context, knowing this stops context auto-reduction.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "64 GB and larger with models near the budget: raise `iogpu.wired_limit_mb` (see macos-wired-memory-limit dossier) before relying on fit, because fit reads `recommendedMaxWorkingSetSize`; whether that value tracks the sysctl is not verified in the cited logs.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "To freeze a result: `llama-fit-params -m MODEL.gguf | tee args.txt`, then `cat args.txt | xargs llama-server -m MODEL.gguf`.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Fit lives in common/fit.cpp as `common_params_fit_impl`, called from `common_init_result` when `params.fit_params` is true.",
+          "source": "https://raw.githubusercontent.com/ggml-org/llama.cpp/master/common/fit.cpp",
+          "note": null
+        },
+        {
+          "text": "Fit projects memory with a dry run that loads the model with `no_alloc = true` and `load_mode = LLAMA_LOAD_MODE_NONE`.",
+          "source": "https://raw.githubusercontent.com/ggml-org/llama.cpp/master/common/fit.cpp",
+          "note": null
+        },
+        {
+          "text": "Metal free memory is `recommendedMaxWorkingSetSize - currentAllocatedSize`, clamped at 0, and total is `recommendedMaxWorkingSetSize`.",
+          "source": "https://raw.githubusercontent.com/ggml-org/llama.cpp/master/ggml/src/ggml-metal/ggml-metal-device.m",
+          "note": null
+        },
+        {
+          "text": "`currentAllocatedSize` counts only the allocations of the calling process's Metal device, so fit does not see other applications' memory.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "The Metal backend reports device type GPU.",
+          "source": "https://raw.githubusercontent.com/ggml-org/llama.cpp/master/ggml/src/ggml-metal/ggml-metal.cpp",
+          "note": null
+        },
+        {
+          "text": "A GPU device reporting 0 free and 0 total memory is skipped by fit with a warning.",
+          "source": "https://raw.githubusercontent.com/ggml-org/llama.cpp/master/common/fit.cpp",
+          "note": null
+        },
+        {
+          "text": "Fit step 1 returns \"no changes needed\" when projected free is at least the margin, before any check of user-set `-ngl`.",
+          "source": "https://raw.githubusercontent.com/ggml-org/llama.cpp/master/common/fit.cpp",
+          "note": null
+        },
+        {
+          "text": "Context reduction runs only when `n_ctx` is auto (0), linearly interpolates between the minimum and trained context, and rounds down to a multiple of 256 x n_streams.",
+          "source": "https://raw.githubusercontent.com/ggml-org/llama.cpp/master/common/fit.cpp",
+          "note": null
+        },
+        {
+          "text": "With a single device, fit returns after context reduction if that alone meets the target (\"entire model can be fit by reducing context\").",
+          "source": "https://raw.githubusercontent.com/ggml-org/llama.cpp/master/common/fit.cpp",
+          "note": null
+        },
+        {
+          "text": "For MoE models fit first moves all expert tensors to system memory, then fills dense-only layers back-to-front, then converts them to full layers front-to-back, letting the first partial layer overflow.",
+          "source": "https://raw.githubusercontent.com/ggml-org/llama.cpp/master/common/fit.cpp",
+          "note": null
+        },
+        {
+          "text": "Fit finds layers per device with the method of false position and stops when the bounds differ by one layer.",
+          "source": "https://raw.githubusercontent.com/ggml-org/llama.cpp/master/common/fit.cpp",
+          "note": null
+        },
+        {
+          "text": "If `n_gpu_layers` was set by the user and changes are needed, fit throws \"n_gpu_layers already set by user to N, abort\", which `common_fit_params` logs as a warning before loading continues.",
+          "source": "https://raw.githubusercontent.com/ggml-org/llama.cpp/master/common/fit.cpp",
+          "note": null
+        },
+        {
+          "text": "Fit is not implemented for `LLAMA_SPLIT_MODE_TENSOR` and throws.",
+          "source": "https://raw.githubusercontent.com/ggml-org/llama.cpp/master/common/fit.cpp",
+          "note": null
+        },
+        {
+          "text": "A draft model or MTP context is measured and added to the projection, and re-measured when the context changes.",
+          "source": "https://raw.githubusercontent.com/ggml-org/llama.cpp/master/common/fit.cpp",
+          "note": null
+        },
+        {
+          "text": "`--fit-target` accepts a comma list of MiB values (one value is broadcast to all devices), with env `LLAMA_ARG_FIT_TARGET`; the default is 1024 MiB.",
+          "source": "https://raw.githubusercontent.com/ggml-org/llama.cpp/master/common/arg.cpp",
+          "note": null
+        },
+        {
+          "text": "`-ngl` accepts a number, `auto` (-1, default) or `all` (-2).",
+          "source": "https://raw.githubusercontent.com/ggml-org/llama.cpp/master/common/arg.cpp",
+          "note": null
+        },
+        {
+          "text": "Explicitly passing `-c 0` sets the minimum fit context to UINT32_MAX, which disables context reduction.",
+          "source": "https://raw.githubusercontent.com/ggml-org/llama.cpp/master/common/arg.cpp",
+          "note": null
+        },
+        {
+          "text": "`--cpu-moe`, `--n-cpu-moe N` (first N layers) and `--n-cpu-ffn N` add tensor buffer overrides, and any user override locks placement against fit.",
+          "source": "https://raw.githubusercontent.com/ggml-org/llama.cpp/master/common/arg.cpp",
+          "note": null
+        },
+        {
+          "text": "`-fitp/--fit-print` (env `LLAMA_ARG_FIT_ESTIMATE`) belongs to the llama-fit-params example and prints the estimated memory.",
+          "source": "https://raw.githubusercontent.com/ggml-org/llama.cpp/master/common/arg.cpp",
+          "note": null
+        },
+        {
+          "text": "`llama-fit-params` prints `-c`, `-ngl`, `-ts` and `-ot` arguments that can be piped to llama-server with xargs.",
+          "source": "https://raw.githubusercontent.com/ggml-org/llama.cpp/master/tools/fit-params/README.md",
+          "note": null
+        },
+        {
+          "text": "PR 16653 was merged Dec 15, 2025, announced in discussion 18049, and set the default context to 0 (trained maximum).",
+          "source": "https://github.com/ggml-org/llama.cpp/discussions/18049",
+          "note": null
+        },
+        {
+          "text": "The PR description named the margin flag `--fit-margin`; current master names it `--fit-target`.",
+          "source": "https://github.com/ggml-org/llama.cpp/pull/16653",
+          "note": null
+        },
+        {
+          "text": "Fit design is \"optimistic defaults then cut down\", and the author says it works for any ggml backend with a correct memory breakdown.",
+          "source": "https://github.com/ggml-org/llama.cpp/pull/16653",
+          "note": null
+        },
+        {
+          "text": "llama-bench has no `-fit` support; the workaround pipes llama-fit-params output into llama-bench.",
+          "source": "https://github.com/ggml-org/llama.cpp/discussions/18049",
+          "note": null
+        },
+        {
+          "text": "Setting `-ngl 99` on an M5 24 GB made fit abort and a 262144 context needing 19005 MiB overran a Metal total of 18186 MiB.",
+          "source": "https://github.com/ggml-org/llama.cpp/issues/27309",
+          "note": null
+        },
+        {
+          "text": "llama-server on b9960 starts, reports \"model loaded\" and `/health` ok after a fatal Metal OOM during init, then returns HTTP 500 per request; fix PR 28242 is open.",
+          "source": "https://github.com/ggml-org/llama.cpp/issues/27309",
+          "note": null
+        },
+        {
+          "text": "On an 18 GB M3 Pro, fit logged 11033 MiB projected vs 12287 MiB free and \"no changes needed\", and decode still raised `kIOGPUCommandBufferCallbackErrorOutOfMemory`; `--no-mmap` fixed it for the reporter.",
+          "source": "https://github.com/ggml-org/llama.cpp/issues/19224",
+          "note": null
+        },
+        {
+          "text": "A 32 GB M4 run showed a free-memory column of 17592186042610 MiB and a projected 22025 MiB vs 21845 MiB total, then OOM and screen corruption.",
+          "source": "https://github.com/ggml-org/llama.cpp/issues/19224",
+          "note": null
+        },
+        {
+          "text": "Metal maps one contiguous mmap span per backend covering min to max tensor offset; non-contiguous offloaded tensors map the whole file (30973 MiB for a 947 MiB offload) and the span is wired via a residency set, while fit counts only the offloaded tensors.",
+          "source": "https://github.com/ggml-org/llama.cpp/issues/24510",
+          "note": null
+        },
+        {
+          "text": "Moving output tensors with `-ot \"^output=CPU\"` shrank a mapped shard from 47674 MiB to 11 MiB and let `-ngl 48` run at 28 tok/s on an M5 Pro 64 GB.",
+          "source": "https://github.com/ggml-org/llama.cpp/issues/27822",
+          "note": null
+        },
+        {
+          "text": "Expert offload (`--cpu-moe`, `-ot ffn_.*_exps=CPU`) does not reduce what Metal maps because the span is per file; high `-ngl` with expert offload gave Metal OOM or intermittent `EXC_BAD_ACCESS` in `ggml_compute_forward_mul_mat_id`.",
+          "source": "https://github.com/ggml-org/llama.cpp/issues/27822",
+          "note": null
+        },
+        {
+          "text": "Lowering `-b` or `-c` did not prevent the OOM in the oversized-MoE Metal case.",
+          "source": "https://github.com/ggml-org/llama.cpp/issues/27822",
+          "note": null
+        },
+        {
+          "text": "A reported 3.8x Gemma 4 generation slowdown on an M4 16 GB was closed by the author as not a regression.",
+          "source": "https://github.com/ggml-org/llama.cpp/issues/21655",
+          "note": null
+        },
+        {
+          "text": "Fit includes mmproj weights and compute buffers in current builds; too small a target caused mid-session OOM on CUDA.",
+          "source": "https://carteakey.dev/blog/local-inference/local-llm-optimization/",
+          "note": null
+        },
+        {
+          "text": "One MoE offload guide recommends `-fit off` while hand-tuning offload.",
+          "source": "https://huggingface.co/blog/Doctor-Shotgun/llamacpp-moe-offload-guide",
+          "note": null
+        },
+        {
+          "text": "Observed Metal working-set totals are 12287 MiB (18 GB M3 Pro), 18186 MiB (24 GB M5) and 21845 MiB (32 GB).",
+          "source": "https://github.com/ggml-org/llama.cpp/issues/19224",
+          "note": null
+        },
+        {
+          "text": "Moving experts to CPU on Apple silicon frees no physical RAM for the GPU because both draw from one pool; fit constrains only GPU devices.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "For 16-18 GB Macs a fit target near 2048 MiB is a sensible start; no source measures this.",
+          "source": "asserted",
+          "note": null
+        }
+      ]
+    }
+  ],
+  "related": []
+}

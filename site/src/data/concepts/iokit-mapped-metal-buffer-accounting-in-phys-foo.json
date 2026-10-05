@@ -1,0 +1,129 @@
+{
+  "slug": "iokit-mapped-metal-buffer-accounting-in-phys-foo",
+  "concept": "IOKit-mapped Metal buffer accounting in phys_footprint",
+  "generated": "2026-10-05",
+  "summary": "`alternate_accounting` is \"the number of internal dirty pages which are part of IOKit mappings\"; they are counted in both internal and iokit_mapped, so they are subtracted from the footprint sum.",
+  "facets": [
+    {
+      "title": "Facts",
+      "facts": [
+        {
+          "text": "`alternate_accounting` is \"the number of internal dirty pages which are part of IOKit mappings\"; they are counted in both internal and iokit_mapped, so they are subtracted from the footprint sum.",
+          "source": "https://raw.githubusercontent.com/apple-oss-distributions/xnu/main/osfmk/kern/task.c",
+          "note": null
+        },
+        {
+          "text": "A map entry gets the IOKit charge only when the entry is created with the iokit_acct flag AND its object is internal (anonymous). The code sets `iokit_acct = TRUE`, `use_pmap = FALSE` and calls `vm_map_iokit_mapped_region` with the entry size.",
+          "source": "https://raw.githubusercontent.com/apple-oss-distributions/xnu/main/osfmk/vm/vm_map.c",
+          "note": null
+        },
+        {
+          "text": "Therefore a file-backed (external) object mapped through the same path takes the plain pmap branch and is not charged to `iokit_mapped`.",
+          "source": "https://raw.githubusercontent.com/apple-oss-distributions/xnu/main/osfmk/vm/vm_map.c",
+          "note": null
+        },
+        {
+          "text": "Page queries treat non-purgeable internal IOKit memory as present and dirty across its whole virtual range (\"phys_footprint includes the entire virtual mapping\").",
+          "source": "https://raw.githubusercontent.com/apple-oss-distributions/xnu/main/osfmk/vm/vm_map.c",
+          "note": null
+        },
+        {
+          "text": "Objects flagged `vo_no_footprint` are excluded from the footprint entirely (\"does not count in footprint\").",
+          "source": "https://raw.githubusercontent.com/apple-oss-distributions/xnu/main/osfmk/vm/vm_map.c",
+          "note": null
+        },
+        {
+          "text": "Measured: a 2 GiB `MTLResourceStorageModeShared` buffer from `newBufferWithLength:` added 0 to `phys_footprint` and `internal` when created, and 2.15 GB to both only after the CPU wrote the pages with memset; `resident_size` tracked the same. [asserted] (measured locally 2026-10-04, Apple M5 Max, macOS 27.2, via TASK_VM_INFO)",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Measured: a 2 GiB anonymous mmap that was touched, then wrapped with `newBufferWithBytesNoCopy:`, added nothing at wrap time (4.30 GB before and after); footprint rose only by the touched pages. Releasing the Metal buffer left the anon pages. [asserted] (same host)",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Measured: a 2 GiB shared file mapping written and msynced, then wrapped with `newBufferWithBytesNoCopy:`, showed `phys_footprint` 0.01 GB, `external` 2.16 GB and `resident_size` 2.16 GB before and after wrapping. [asserted] (same host)",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Measured: wrapping an untouched anonymous 2 GiB region as a no-copy buffer then filling it with a GPU blit raised `phys_footprint` only to 0.12 GB and left `resident_size` at 0.01 GB, so GPU-written pages in that case were not charged to the task as dirty internal pages in the way CPU writes were. [asserted] (same host; one run, cause unexplained)",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Not documented in sources read.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "The vmlx 130 GB footprint at first prefill therefore needs another explanation (touched or GPU-written pages, wired memory, or a different allocation path). The test here cannot show which.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "A `phys_footprint` reading stays small for a file-backed no-copy buffer even when the whole file is resident, so tools reporting footprint hide mmap'd weights; `resident_size` and `external` show them.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Kernel-source reading (the whole IOKit mapping is charged at map time) versus measurement (Metal shared buffers charged by touched page). Both are shown side by side; the kernel path charges only entries created with iokit_acct on internal objects, and Metal's shared-storage allocation evidently does not use that path in this macOS build.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Which allocation path (IOSurface, IOGPU, or plain vm_allocate) backs `MTLResourceStorageModeShared` buffers, and whether private-storage buffers are charged by size.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Why a GPU-written no-copy buffer left the CPU-side footprint near zero.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Behavior of wired no-copy buffers under `MTLResourceHazardTracking` or `setPurgeableState`.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "The IOKit mapping charge applies only to internal (anonymous) objects in entries created with iokit_acct.",
+          "source": "https://raw.githubusercontent.com/apple-oss-distributions/xnu/main/osfmk/vm/vm_map.c",
+          "note": null
+        },
+        {
+          "text": "`alternate_accounting` exists to avoid counting IOKit internal dirty pages twice in phys_footprint.",
+          "source": "https://raw.githubusercontent.com/apple-oss-distributions/xnu/main/osfmk/kern/task.c",
+          "note": null
+        },
+        {
+          "text": "`vo_no_footprint` objects are excluded from footprint.",
+          "source": "https://raw.githubusercontent.com/apple-oss-distributions/xnu/main/osfmk/vm/vm_map.c",
+          "note": null
+        },
+        {
+          "text": "On M5 Max macOS 27.2 a shared MTLBuffer's footprint grows with touched pages, not at allocation.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "On the same host a no-copy buffer over file-backed pages adds nothing to `phys_footprint` and shows as `external` plus `resident_size`.",
+          "source": "asserted",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Corrections and disagreements",
+      "facts": [
+        {
+          "text": "CONTRADICTS: jangpress-rss-accounting-after-expert-deactivati.md line 21 (\"If a runtime wraps mmap pages as no-copy Metal buffers ... `phys_footprint` would be charged the full mapped size at map time\"). On macOS 27.2 / M5 Max neither a shared MTLBuffer nor a no-copy wrapper over anonymous or file-backed pages was charged at map time. Footprint followed touched pages (internal) or stayed near zero (file-backed, counted as `external`).",
+          "source": "asserted",
+          "note": null
+        }
+      ]
+    }
+  ],
+  "related": []
+}

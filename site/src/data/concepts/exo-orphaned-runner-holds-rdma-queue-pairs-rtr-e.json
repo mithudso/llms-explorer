@@ -1,0 +1,134 @@
+{
+  "slug": "exo-orphaned-runner-holds-rdma-queue-pairs-rtr-e",
+  "concept": "exo orphaned runner holds RDMA queue pairs (RTR errno 16)",
+  "generated": "2026-10-05",
+  "summary": "An orphaned exo runner is a model-runner child whose parent worker was hard-killed; it keeps running and holds Metal memory and, for multi-node instances, RDMA queue pairs, so the next runner on that node cannot finish JACCL setup.",
+  "facets": [
+    {
+      "title": "Facts",
+      "facts": [
+        {
+          "text": "An orphaned exo runner is a model-runner child whose parent worker was hard-killed; it keeps running and holds Metal memory and, for multi-node instances, RDMA queue pairs, so the next runner on that node cannot finish JACCL setup.",
+          "source": "https://github.com/exo-explore/exo/pull/2205",
+          "note": null
+        },
+        {
+          "text": "Besides the queue-pair crash loop, the orphan makes the node report low `ramAvailable`, so placements fail with a 503 \"likely does not fit\" for models that fit.",
+          "source": "https://github.com/exo-explore/exo/pull/2205",
+          "note": null
+        },
+        {
+          "text": "The PR author checked that killing an orphan by hand returned the memory within seconds, and states that exiting is what releases the memory and the queue pairs.",
+          "source": "https://github.com/exo-explore/exo/pull/2205",
+          "note": null
+        },
+        {
+          "text": "The PR's unit tests cover only the wiring (escape hatch, thread start, `entrypoint()` call). An end-to-end kill-and-reparent test was dropped because a launchd-managed runner reparents to pid 1 while a pytest-spawned child does not.",
+          "source": "https://github.com/exo-explore/exo/pull/2205",
+          "note": null
+        },
+        {
+          "text": "A downstream fork that cherry-picked the PR wrote that an orphan holding queue pairs is \"plausibly a root cause\" of the stale queue-pair state its own RDMA watchdog was built to recover from.",
+          "source": "https://github.com/exo-explore/exo/pull/2205",
+          "note": null
+        },
+        {
+          "text": "PR 2205 was opened by a user (aidiffuser) and cherry-picked by at least two downstream forks; its upstream branch was deleted when it was closed.",
+          "source": "https://github.com/exo-explore/exo/pull/2205",
+          "note": null
+        },
+        {
+          "text": "A different launcher shows an orphan that `ppid==1` does not find. With `mlx.launch` over SSH, rank processes on peers have `sshd` as parent; when `mlx.launch` dies the rank and its sshd can both stick in uninterruptible sleep (`Us+`), keep their pid relationship and survive `kill -9`. A five-Mac-Studio cluster counted over 100 such ranks on one peer.",
+          "source": "https://valensas.com/blog/how-we-fixed-a-silent-killer-in-our-mac-studio-llm-cluster",
+          "note": null
+        },
+        {
+          "text": "In that cluster the failure after the pool filled was `RuntimeError: Couldn't allocate protection domain` at `mx.distributed.init()`, not RTR errno 16; the fix was a pre-start sweep that kills matching rank processes whatever their parent, and reboots were still the only cure for ranks already in `Us+`.",
+          "source": "https://valensas.com/blog/how-we-fixed-a-silent-killer-in-our-mac-studio-llm-cluster",
+          "note": null
+        },
+        {
+          "text": "The same write-up found `mlx.launch`'s remote teardown running `ssh ... kill $pid` with a pid-file path `tmp.None`, so remote ranks were never killed after a crash.",
+          "source": "https://valensas.com/blog/how-we-fixed-a-silent-killer-in-our-mac-studio-llm-cluster",
+          "note": null
+        },
+        {
+          "text": "Errno 16 is also the result of exceeding the device's queue-pair limit: apple-libthunderboltrdma-tbt-post-recv-sigsegv.md records 10 queue pairs per device with errno 16 on the 11th. So an orphan is one cause of errno 16, and creating more than 10 queue pairs in a live process is another.",
+          "source": "https://github.com/ml-explore/mlx/pull/4530",
+          "note": null
+        },
+        {
+          "text": "Does an exit release the queue pairs? PR 2205 says yes, killing the orphan frees them within seconds. MLX PR 4530's test says no queue pair or memory region leaked across a clean exit, `_exit` or SIGKILL. The two agree if \"exit\" means the process is actually gone. The Valensas write-up and mlx-lm issue 955 (as quoted there) say protection domains are not fully released on teardown and only a reboot reclaims them, which disagrees with both.",
+          "source": "https://valensas.com/blog/how-we-fixed-a-silent-killer-in-our-mac-studio-llm-cluster",
+          "note": null
+        },
+        {
+          "text": "Is `ps ... $2==1` a sufficient orphan test? PR 2205 uses it for exo's multiprocessing runners (launchd parent). The Valensas case shows `mlx.launch`-over-SSH orphans with a non-1 parent.",
+          "source": "https://valensas.com/blog/how-we-fixed-a-silent-killer-in-our-mac-studio-llm-cluster",
+          "note": null
+        },
+        {
+          "text": "Whether PR 2205 or an equivalent ever merged into exo main. The cached page shows closed with forks only.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Whether the `Us+` state is a driver wait on the Thunderbolt RDMA stack, as the Valensas author says, or an sshd issue. No kernel trace is shown.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "An orphaned exo runner also makes the node report low `ramAvailable` and causes 503 \"likely does not fit\" placement failures.",
+          "source": "https://github.com/exo-explore/exo/pull/2205",
+          "note": null
+        },
+        {
+          "text": "Killing an orphaned runner by hand returned its memory within seconds, per the PR author.",
+          "source": "https://github.com/exo-explore/exo/pull/2205",
+          "note": null
+        },
+        {
+          "text": "A downstream fork judged the orphan a plausible root cause of its stale queue-pair state.",
+          "source": "https://github.com/exo-explore/exo/pull/2205",
+          "note": null
+        },
+        {
+          "text": "PR 2205 tests cover wiring only; the end-to-end reparent test could not run reliably under pytest.",
+          "source": "https://github.com/exo-explore/exo/pull/2205",
+          "note": null
+        },
+        {
+          "text": "`mlx.launch` over SSH can leave peer rank processes with an `sshd` parent in `Us+` that `kill -9` does not remove.",
+          "source": "https://valensas.com/blog/how-we-fixed-a-silent-killer-in-our-mac-studio-llm-cluster",
+          "note": null
+        },
+        {
+          "text": "A five-node Mac Studio cluster accumulated over 100 orphaned ranks on one peer and then failed init with \"Couldn't allocate protection domain\".",
+          "source": "https://valensas.com/blog/how-we-fixed-a-silent-killer-in-our-mac-studio-llm-cluster",
+          "note": null
+        },
+        {
+          "text": "`mlx.launch`'s remote teardown used a pid-file path `tmp.None` and so never killed remote ranks after a crash, per the same write-up.",
+          "source": "https://valensas.com/blog/how-we-fixed-a-silent-killer-in-our-mac-studio-llm-cluster",
+          "note": null
+        },
+        {
+          "text": "Errno 16 at RTR has two causes in the sources: a queue pair held by a live orphan, and the 10-queue-pair device limit.",
+          "source": "https://github.com/ml-explore/mlx/pull/4530",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Corrections and disagreements",
+      "facts": [
+        {
+          "text": "CONTRADICTS application-level-no-progress-watchdog-and-group.md as a general fingerprint: `ps -axo pid,ppid,command | awk '$2==1 && /spawn_main/'` finds exo runners reparented to launchd but misses `mlx.launch` SSH orphans, whose parent is a stuck `sshd`.",
+          "source": "https://valensas.com/blog/how-we-fixed-a-silent-killer-in-our-mac-studio-llm-cluster",
+          "note": null
+        }
+      ]
+    }
+  ],
+  "related": []
+}

@@ -1,0 +1,194 @@
+{
+  "slug": "vllm-xml-tool-call-emitted-inside-think-block-lo",
+  "concept": "vLLM XML tool_call emitted inside think block loses tool calls",
+  "generated": "2026-10-05",
+  "summary": "Old path: the reasoning parser moved all text before `</think>` into `reasoning`, and the tool parser read only `content`, so the call was lost.",
+  "facets": [
+    {
+      "title": "Facts",
+      "facts": [
+        {
+          "text": "Old path: the reasoning parser moved all text before `</think>` into `reasoning`, and the tool parser read only `content`, so the call was lost.",
+          "source": "https://api.github.com/repos/vllm-project/vllm/issues/39055/comments?per_page=50",
+          "note": null
+        },
+        {
+          "text": "Current path: a single `Qwen3Parser` engine in `vllm/parser/qwen3.py` handles reasoning and tool calls in one state machine. A `<tool_call>` token seen in the REASONING state is a transition to the tool-call state that emits a reasoning-end event and a tool-call-start event.",
+          "source": "https://raw.githubusercontent.com/vllm-project/vllm/main/vllm/parser/qwen3.py",
+          "note": null
+        },
+        {
+          "text": "In the same grammar, a bare `<function=` in the content state starts a call without `<tool_call>`, a duplicate `</think>` in the content state is dropped, and a second `<tool_call>` without a closing tag is accepted.",
+          "source": "https://raw.githubusercontent.com/vllm-project/vllm/main/vllm/parser/qwen3.py",
+          "note": null
+        },
+        {
+          "text": "Both names `qwen3_coder` and `qwen3_xml` now resolve to the same adapter class, `Qwen3EngineToolParser`.",
+          "source": "https://raw.githubusercontent.com/vllm-project/vllm/main/vllm/tool_parsers/__init__.py",
+          "note": null
+        },
+        {
+          "text": "The engine reads `enable_thinking` from `chat_template_kwargs`, defaulting to true. When thinking is off, it starts in the content state and `extract_reasoning` returns no reasoning.",
+          "source": "https://raw.githubusercontent.com/vllm-project/vllm/main/vllm/parser/qwen3.py",
+          "note": null
+        },
+        {
+          "text": "Parameter values are taken from `<parameter=NAME>VALUE</parameter>`; one leading and one trailing newline are trimmed; the arguments object is built with `json.dumps(..., ensure_ascii=False)`.",
+          "source": "https://raw.githubusercontent.com/vllm-project/vllm/main/vllm/parser/qwen3.py",
+          "note": null
+        },
+        {
+          "text": "2026-04-06: PR 39055 opened to promote XML calls from reasoning to content in `qwen3_reasoning_parser`, non-streaming only.",
+          "source": "https://api.github.com/repos/vllm-project/vllm/pulls/39055",
+          "note": null
+        },
+        {
+          "text": "2026-04-25: a commenter judged it superseded by PR 40783, a broader Qwen3 reasoning-parser fix; the later comments named streaming as covered there.",
+          "source": "https://api.github.com/repos/vllm-project/vllm/issues/39055/comments?per_page=50",
+          "note": null
+        },
+        {
+          "text": "2026-06-23: PR 39055 was closed unmerged. Maintainer bbrowning wrote that the Qwen3 parser was rewritten from scratch in a new streaming parser engine, released in vLLM 0.24, which \"specifically handles\" extracting tool calls from thinking sections.",
+          "source": "https://api.github.com/repos/vllm-project/vllm/issues/39055/comments?per_page=50",
+          "note": null
+        },
+        {
+          "text": "vLLM v0.30.0 (2026-09-22) is the latest release listed; its notes mention `is_reasoning_end` derived from the grammar (#56200) and full-history reasoning scans eliminated (#55223).",
+          "source": "https://api.github.com/repos/vllm-project/vllm/releases?per_page=6",
+          "note": null
+        },
+        {
+          "text": "The old files `vllm/reasoning/qwen3_reasoning_parser.py` and `vllm/tool_parsers/qwen3coder_tool_parser.py` return 404 on main; the reasoning and tool-parser directories now list `qwen3_engine_reasoning_parser.py` and `qwen3_engine_tool_parser.py`.",
+          "source": "https://api.github.com/repos/vllm-project/vllm/contents/vllm/reasoning",
+          "note": null
+        },
+        {
+          "text": "Backport result on the old code (Qwen3.6-35B-A3B-FP8, `enable_thinking=false`, vLLM 0.19.2rc1, n=20): the PR 39055 helper raised the clean-tool-call rate from about 20 percent to about 40 percent; the author explained that with thinking off the model mostly omits `</think>`, so a second fix for the missing-`</think>` case was needed.",
+          "source": "https://api.github.com/repos/vllm-project/vllm/issues/39055/comments?per_page=50",
+          "note": null
+        },
+        {
+          "text": "On 0.18.x, streaming stayed broken even with PR 39055 because `serving.py` switched to the tool parser only when `is_reasoning_end(output_token_ids)` saw a `</think>`. A commenter proposed a per-request promoted flag overriding `is_reasoning_end`.",
+          "source": "https://api.github.com/repos/vllm-project/vllm/issues/39055/comments?per_page=50",
+          "note": null
+        },
+        {
+          "text": "Review catch: promoted calls must be appended after existing content, because the old `qwen3_coder` parser used `content.find(\"<tool_call>\")` and dropped text that came after a leading call.",
+          "source": "https://api.github.com/repos/vllm-project/vllm/issues/39055/comments?per_page=50",
+          "note": null
+        },
+        {
+          "text": "The grammar treats the first `<tool_call>` in reasoning as the end of reasoning even if the model was only discussing the tag; the source shows the transition but no guard.",
+          "source": "https://raw.githubusercontent.com/vllm-project/vllm/main/vllm/parser/qwen3.py",
+          "note": null
+        },
+        {
+          "text": "vLLM's own convention now: model-specific fixes live in `vllm/parser/<model>.py`, adapters in `tool_parsers/` stay thin, and the legacy `ToolParser` interface is frozen for out-of-tree plugins.",
+          "source": "https://raw.githubusercontent.com/vllm-project/vllm/main/vllm/tool_parsers/AGENTS.md",
+          "note": null
+        },
+        {
+          "text": "Whether a server should recover a call from reasoning. vLLM (grammar transition) and Ollama (injects `</think>`) recover it. aldehir's earlier statement about sglang, held in reasoning-parser-versus-tool-parser-interaction.md, takes the opposite reference behaviour. Not re-argued here.",
+          "source": "https://raw.githubusercontent.com/vllm-project/vllm/main/vllm/parser/qwen3.py",
+          "note": null
+        },
+        {
+          "text": "Whether vLLM 0.24 shipped the Qwen3 engine as default for `qwen3` and `qwen3_coder` names, or behind a flag; the release notes read did not say, and main shows it as the registered class.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "The state of PR 40783 (merged or closed); the cached page was truncated before the merge fields.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Whether any Apple Silicon vLLM variant (vllm-metal, vllm-mlx) uses the engine parser; vllm-mlx has its own parser per existing dossier.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "vLLM PR 39055 \"Fix Qwen3.5 reasoning tool calls embedded inside think\" was closed on 2026-06-23 with merged = false.",
+          "source": "https://api.github.com/repos/vllm-project/vllm/pulls/39055",
+          "note": null
+        },
+        {
+          "text": "Maintainer bbrowning closed it by saying the Qwen3 parser was rewritten in a streaming parser engine released in vLLM 0.24 that extracts tool calls from thinking sections.",
+          "source": "https://api.github.com/repos/vllm-project/vllm/issues/39055/comments?per_page=50",
+          "note": null
+        },
+        {
+          "text": "`vllm/parser/qwen3.py` defines a transition from REASONING on `<tool_call>` to the tool-call state emitting reasoning-end and tool-call-start events.",
+          "source": "https://raw.githubusercontent.com/vllm-project/vllm/main/vllm/parser/qwen3.py",
+          "note": null
+        },
+        {
+          "text": "`vllm/parser/qwen3.py` accepts a `<function=` with no `<tool_call>` wrapper, drops a duplicate `</think>`, and accepts consecutive calls without a closing `</tool_call>`.",
+          "source": "https://raw.githubusercontent.com/vllm-project/vllm/main/vllm/parser/qwen3.py",
+          "note": null
+        },
+        {
+          "text": "`qwen3_coder` and `qwen3_xml` both map to `Qwen3EngineToolParser` in `vllm/tool_parsers/__init__.py`.",
+          "source": "https://raw.githubusercontent.com/vllm-project/vllm/main/vllm/tool_parsers/__init__.py",
+          "note": null
+        },
+        {
+          "text": "`Qwen3EngineToolParser` sets `structural_tag_model = \"qwen_3_coder\"`.",
+          "source": "https://raw.githubusercontent.com/vllm-project/vllm/main/vllm/tool_parsers/qwen3_engine_tool_parser.py",
+          "note": null
+        },
+        {
+          "text": "The Qwen3 engine reads `enable_thinking` from `chat_template_kwargs` (default true) and returns no reasoning when it is false.",
+          "source": "https://raw.githubusercontent.com/vllm-project/vllm/main/vllm/parser/qwen3.py",
+          "note": null
+        },
+        {
+          "text": "vLLM's `tool_parsers/AGENTS.md` says new models should implement a unified `Parser` in `vllm/parser/` and expose it through a thin adapter, and that the legacy `ToolParser` interface must not change.",
+          "source": "https://raw.githubusercontent.com/vllm-project/vllm/main/vllm/tool_parsers/AGENTS.md",
+          "note": null
+        },
+        {
+          "text": "On vLLM main the files `qwen3_reasoning_parser.py` and `qwen3coder_tool_parser.py` no longer exist (404).",
+          "source": "https://raw.githubusercontent.com/vllm-project/vllm/main/vllm/reasoning/qwen3_reasoning_parser.py",
+          "note": null
+        },
+        {
+          "text": "A backport of PR 39055 raised clean tool calls from about 20 to about 40 percent (n=20) on Qwen3.6-35B-A3B-FP8 with thinking disabled.",
+          "source": "https://api.github.com/repos/vllm-project/vllm/issues/39055/comments?per_page=50",
+          "note": null
+        },
+        {
+          "text": "A commenter reported 0.18.x streaming stayed broken because the switch to the tool parser depended on `is_reasoning_end` seeing `</think>`.",
+          "source": "https://api.github.com/repos/vllm-project/vllm/issues/39055/comments?per_page=50",
+          "note": null
+        },
+        {
+          "text": "vLLM v0.30.0 was released 2026-09-22 and its notes list `is_reasoning_end` derived from the grammar.",
+          "source": "https://api.github.com/repos/vllm-project/vllm/releases?per_page=6",
+          "note": null
+        },
+        {
+          "text": "An agent stack on vLLM 0.24 or later no longer needs a tool-call-in-think workaround for Qwen3.5 and Qwen3.6; one on 0.18 to 0.23 still does.",
+          "source": "asserted",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Corrections and disagreements",
+      "facts": [
+        {
+          "text": "CONTRADICTS: reasoning-parser-versus-tool-parser-interaction.md, which states for vLLM that \"reasoning extraction runs first and the tool parser reads only content; a call left in reasoning is lost\" and that PR 39055's merge state was not confirmed. PR 39055 closed unmerged on 2026-06-23, and on current main a call inside reasoning is recovered by grammar. The statement holds only for vLLM before the engine parser (0.18 to 0.23).",
+          "source": "https://api.github.com/repos/vllm-project/vllm/pulls/39055",
+          "note": null
+        },
+        {
+          "text": "CONTRADICTS: tool-call-parser-and-chat-template-mismatch.md line 74-75, which treats `qwen3_coder` and `qwen3_xml` as different parsers with different robustness. On main they share one engine. Third-party comparisons of their regex versus expat internals describe the older code.",
+          "source": "https://raw.githubusercontent.com/vllm-project/vllm/main/vllm/tool_parsers/__init__.py",
+          "note": null
+        }
+      ]
+    }
+  ],
+  "related": []
+}

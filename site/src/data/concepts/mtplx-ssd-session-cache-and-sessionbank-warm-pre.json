@@ -1,0 +1,224 @@
+{
+  "slug": "mtplx-ssd-session-cache-and-sessionbank-warm-pre",
+  "concept": "MTPLX SSD session cache and SessionBank warm-prefix reuse",
+  "generated": "2026-10-05",
+  "summary": "Warm-prefix reuse in RAM plus an SSD session cache are described among the earliest entries of the changelog.",
+  "facets": [
+    {
+      "title": "Facts",
+      "facts": [
+        {
+          "text": "Warm-prefix reuse in RAM plus an SSD session cache are described among the earliest entries of the changelog.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "2.11.2 (6 Sep 2026): later conversations are admitted to the bank again (issue 454); AR-only runtimes restore again (issue 465).",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "2.11.3 (17 Sep 2026): the SSD store reconciles itself; eviction yields to requests; per-session cap follows the memory plan (PR 496).",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "2.12.1 (2 Oct 2026): screenshots keep restore points; queued SSD saves are budgeted (issue 536).",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "2.11.4: an SSD write-only spill for oversized snapshots is queued.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Orphaned blob files grew without bound (394,155 files and 44.1 GB against 17 live entries).",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "A 48 GB Mac cannot bank a 27B session past about 95k tokens, so every turn prefills cold.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "A near-prefix restore with a 1-8 token gap once restored the wrong recurrent state on hybrid models.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Unstable key order in tool declarations made every turn diverge near token 58-116 and prefill from the start.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "A restore through the reference path depends on one live lease that memory pressure can release.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "None between sources. One internal tension: docs/server.md lists five `MTPLX_SESSION_BANK_*` variables and not `MTPLX_SESSION_BANK_PER_SESSION_MAX_ENTRIES`, which an earlier release note describes with default 3, so that setting may be superseded.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Committed MTPLX sessions are written to `~/.mtplx/session-bank/` (or `--ssd-session-cache-dir`) in a content-addressed store: `entries/` holds one `payload.json` per snapshot naming the `blobs/` files that make it up, `manifest.sqlite` lists the entries a restore may use, and a blob shared by several snapshots of one conversation is stored once.",
+          "source": "https://github.com/youssofal/MTPLX/blob/main/docs/server.md",
+          "note": null
+        },
+        {
+          "text": "`--ssd-session-cache` takes `on`, `write-only` or `off`.",
+          "source": "https://github.com/youssofal/MTPLX/blob/main/docs/server.md",
+          "note": null
+        },
+        {
+          "text": "`--ssd-session-cache-max-size` defaults to 100GB (32GB on 64 GB Macs unless the disk has 150 GiB free, 24GB on 32 GB, 16GB on 16 GB), caps the whole directory including orphans, is further limited to a quarter of free disk, and writes stop below 10 GiB free; over the cap, garbage is reclaimed before least-recently-used entries are evicted.",
+          "source": "https://github.com/youssofal/MTPLX/blob/main/docs/server.md",
+          "note": null
+        },
+        {
+          "text": "`MTPLX_SSD_WRITE_BUDGET_PER_HOUR` defaults to 128G as a rolling one-hour write budget for SSD wear, and `MTPLX_SSD_WRITER_BACKLOG_BYTES` defaults to 4G with larger single entries streaming to disk.",
+          "source": "https://github.com/youssofal/MTPLX/blob/main/docs/server.md",
+          "note": null
+        },
+        {
+          "text": "The RAM warm tier uses `MTPLX_SESSION_BANK_IDLE_TTL_S` (3600 s; 0 disables the sweep), `MTPLX_SESSION_BANK_ACTIVE_PIN_TTL_S` (600 s; recently touched sessions are evicted last), `MTPLX_SESSION_BANK_MAX_BYTES` (auto: half the RAM left after weights, floor 1 GiB, cap 48 GiB) and `MTPLX_SESSION_BANK_MAX_ENTRIES` (24, or 48 on Macs with 96 GB or more).",
+          "source": "https://github.com/youssofal/MTPLX/blob/main/docs/server.md",
+          "note": null
+        },
+        {
+          "text": "`MTPLX_SESSION_BANK_PER_SESSION_BYTES` auto is two thirds of the total budget held under half the engine budget left after weights and 3 GiB of transients, because a restore holds the snapshot next to its banked copy: 13.2 GiB on a 64 GB Mac with the 27B, 32 GiB on 128 GB with the 27B, 10.5 GiB on 128 GB with Flash-Next.",
+          "source": "https://github.com/youssofal/MTPLX/blob/main/docs/server.md",
+          "note": null
+        },
+        {
+          "text": "A conversation over its per-session budget is not copied: the cache keeps a lease on the live KV that holds real memory, counts against the total budget, is limited to one per conversation, can be released by memory pressure (the conversation then restores from SSD or prefills), and lowering the per-session budget to save memory only moves more conversations onto this path.",
+          "source": "https://github.com/youssofal/MTPLX/blob/main/docs/server.md",
+          "note": null
+        },
+        {
+          "text": "A long conversation that restarts after a pause is a cache miss, not an expiry: `/health` shows `session_bank.last_miss_reason` and `last_prefix_diagnostic` right after the slow turn.",
+          "source": "https://github.com/youssofal/MTPLX/blob/main/docs/server.md",
+          "note": null
+        },
+        {
+          "text": "Three people reported the SSD store holding hundreds of thousands of blob files the manifest no longer named (394,155 files and 44.1 GB against 17 live entries after three weeks; 471,541 files and 67 GB on a 60 GB cap after three days).",
+          "source": "https://mtplx.com/releases/2.11.3/",
+          "note": null
+        },
+        {
+          "text": "The orphan reconciliation existed but ran only when a write found the store near its cap, and the size check assumed every unaccounted byte was gone although files shared by a later snapshot stay on disk after the entry that paid for them is evicted.",
+          "source": "https://mtplx.com/releases/2.11.3/",
+          "note": null
+        },
+        {
+          "text": "Since 2.11.3 the daemon reconciles the store every time it opens the cache, in the background and without blocking boot, and logs one `mtplx_ssd_session_cache_reconcile` line; `mtplx gc` (PR 502) reports live entries and orphans, with `--apply`, `--force`, `--json` and `--dir`, using the same walk as the daemon (`mtplx/cache_bank/reconcile.py`).",
+          "source": "https://github.com/youssofal/MTPLX/blob/main/CHANGELOG.md",
+          "note": null
+        },
+        {
+          "text": "`/health` reports the store under `ssd_session_cache` with `entries`, `managed_disk_bytes`, `orphan_disk_bytes`, `orphan_cleanup_runs` and `startup_reconcile`.",
+          "source": "https://github.com/youssofal/MTPLX/blob/main/docs/server.md",
+          "note": null
+        },
+        {
+          "text": "Before 2.11.3 a 66-entry SSD eviction ran about 89 s while holding the store lock and re-reading every surviving payload for every victim, alongside two app replies at 33.5 and 42.3 tok/s; entries are now removed under short lock sections and files are reclaimed in a paced pass that yields every 64 deletion candidates.",
+          "source": "https://mtplx.com/releases/2.11.3/",
+          "note": null
+        },
+        {
+          "text": "A 12 GiB warm snapshot (Qwen3.8-27B, Q8 KV, past 100k tokens) hit the old flat 8 GiB per-session cap on Macs under 96 GB, so such conversations never reached the SSD tier and came back cold after a restart; PR 496 made the cap follow the memory plan, and a 64 GB Mac with 150 GiB free disk defaults its SSD cap to 100 GiB.",
+          "source": "https://mtplx.com/releases/2.11.3/",
+          "note": null
+        },
+        {
+          "text": "On a 48 GB Mac the 27B packs cannot bank a session past about 95k tokens (the cap is half the bank, 7.4 GB, and a 142k-token snapshot is 11 GB), so each later turn prefills cold at 325-390 s for 142k tokens on an M5 Max with the budget forced to 48 GB; the turn reports `cache_miss_reason: oversized_snapshot_skipped` with the size in `last_oversized_skip`.",
+          "source": "https://mtplx.com/releases/2.11.3/",
+          "note": null
+        },
+        {
+          "text": "The 2.11.3 notes queue an SSD write-only spill for oversized snapshots and a restore that rebuilds the draft head's history over the restored trunk for 2.11.4; issue 499's SSD copy lands without the draft head's history and is refused on restore.",
+          "source": "https://mtplx.com/releases/2.11.3/",
+          "note": null
+        },
+        {
+          "text": "A session banked to the SSD tier survives a daemon restart: the next turn restored 1,552 of 1,597 prompt tokens from disk in 43 ms with first token in 0.58 s against 2.40 s cold, and its seeded text differed from the cold text at one token where the two candidates sit 0.125 nats apart.",
+          "source": "https://mtplx.com/releases/2.11.3/",
+          "note": null
+        },
+        {
+          "text": "Before 2.11.3 a near-prefix restore whose gap to the banked turn was 1 to 8 tokens trimmed the attention cache but kept the recurrent state of the longer sequence, so a hybrid model decoded on a state its prompt never produced; every partial restore of a recurrent entry now lands on a stored recurrent boundary at or below the match point.",
+          "source": "https://mtplx.com/releases/2.11.3/",
+          "note": null
+        },
+        {
+          "text": "The app's JSON encoder wrote tool-declaration keys in a different order on every request, so a conversation diverged between token 58 and 116 and an 18,776-token turn took 14.7 s to first token with 0 cached; the server now fixes the key order once at its boundary, and follow-ups answer in 0.6 s instead of 15 s.",
+          "source": "https://mtplx.com/releases/2.11.3/",
+          "note": null
+        },
+        {
+          "text": "A turn that closes a web-search round with `tool_choice: none` used to drop the tool declarations and change the cache identity; declarations now stay in the prompt while calls stay disabled.",
+          "source": "https://mtplx.com/releases/2.11.3/",
+          "note": null
+        },
+        {
+          "text": "A background-task heuristic (short answer plus a different system prompt) classified every conversation-continuing short turn as a title job and served it sessionless, so only the first conversation after a restart was banked; only the task shape (system prompt plus one user turn) now infers a background task, and sessions two to four went from 0% to 100% cached on their third turn.",
+          "source": "https://github.com/youssofal/MTPLX/blob/main/CHANGELOG.md",
+          "note": null
+        },
+        {
+          "text": "An earlier restore path installed the entry's own KV state objects into the borrowing request's cache, so a neighbour's suffix writes could poison banked pages (issue 247); restores now install fresh zero-copy views and the borrower pays one deferred copy on its first divergent write.",
+          "source": "https://github.com/youssofal/MTPLX/blob/main/CHANGELOG.md",
+          "note": null
+        },
+        {
+          "text": "The pre-prefill memory guard once estimated reusable prefix by exact match only and cleared a session's own restorable entry, so a 41,901-token turn re-prefilled cold in 54 s with a 41,391-token restore available; it now asks `SessionBank.longest_shared_prefix_tokens` (block-aligned) and pins such entries.",
+          "source": "https://github.com/youssofal/MTPLX/blob/main/CHANGELOG.md",
+          "note": null
+        },
+        {
+          "text": "Four agent clients opening new sessions pushed memory from 83.4 to 104.1 GB in four minutes on 2.12.0 because queued SSD saves held memory the cache had given back; 2.12.1 budgets such saves at a thirty-second of RAM (4 GiB on 128 GB, at least 512 MiB) via `MTPLX_PERSISTENCE_MAX_PENDING_BYTES`, never cancels a save whose entry is still in RAM, and moves a conversation's own saved entry to SSD first under memory pressure.",
+          "source": "https://mtplx.com/releases/2.12.1/",
+          "note": null
+        },
+        {
+          "text": "2.12.1's SSD cache reads a saved conversation's description before its tensors and skips one that cannot be restored, instead of reading gigabytes for nothing (4.17 GB in one case), then tries the next candidate.",
+          "source": "https://mtplx.com/releases/2.12.1/",
+          "note": null
+        },
+        {
+          "text": "In 2.12.1 the session cache matches an image conversation by image content, never restores to a point inside an image, and keeps restore points between and after images; a Pi session on Flash-Next grew to 204,981 tokens with 12 screenshots and restored 86 of 87 turns from RAM with 99.2% of prompt tokens reused.",
+          "source": "https://mtplx.com/releases/2.12.1/",
+          "note": null
+        },
+        {
+          "text": "2.12.1's known issues state that `mtplx serve` ignores `MTPLX_SSD_SESSION_CACHE=off` because it passes its own `--ssd-session-cache on`, so the flag must be used instead.",
+          "source": "https://mtplx.com/releases/2.12.1/",
+          "note": null
+        },
+        {
+          "text": "Flash-Next's reasoning history is preserved by default; before the fix every agent round's postcommit aborted with `reasoning_history_scoping_mismatch` and re-prefilled the whole assistant turn, and with preserve on a mid-session agent turn costs about 20 new prefill tokens at 0.11 s to first token.",
+          "source": "https://github.com/youssofal/MTPLX/blob/main/CHANGELOG.md",
+          "note": null
+        },
+        {
+          "text": "Idle `/health` and dashboard polls used to open `session-bank/manifest.sqlite` about eight times per check and run a full-table aggregate; the aggregate is now cached against the store's mutation generation with a 5-second staleness bound.",
+          "source": "https://github.com/youssofal/MTPLX/blob/main/CHANGELOG.md",
+          "note": null
+        },
+        {
+          "text": "An earlier release adds newest-K per-session snapshot retention (`MTPLX_SESSION_BANK_PER_SESSION_MAX_ENTRIES`, default 3), an active-session eviction pin of 600 s and a postcommit foreground grace of 2 s so a nearly finished cache commit lands instead of being preempted.",
+          "source": "https://github.com/youssofal/MTPLX/blob/main/CHANGELOG.md",
+          "note": null
+        },
+        {
+          "text": "`--generation-mode ar` (and `--no-mtp`) joined the session bank in issue 246, so an AR control arm restores warm prefixes and reports real `cached_tokens`, `cache_source` and `cache_miss_reason`.",
+          "source": "https://github.com/youssofal/MTPLX/blob/main/CHANGELOG.md",
+          "note": null
+        }
+      ]
+    }
+  ],
+  "related": []
+}

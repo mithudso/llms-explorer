@@ -1,0 +1,154 @@
+{
+  "slug": "reasoning-token-cache-invalidation-across-turns",
+  "concept": "Reasoning-token cache invalidation across turns",
+  "generated": "2026-10-05",
+  "summary": "oMLX tracks the condition per request. `needs_think_prefix` is true when the prompt ends with an open think tag (found within the last three or so prompt tokens; a think-open followed by a think-close, the disabled-thinking pattern, returns false). `preserve_reasoning` on the request says the nex...",
+  "facets": [
+    {
+      "title": "Facts",
+      "facts": [
+        {
+          "text": "oMLX tracks the condition per request. `needs_think_prefix` is true when the prompt ends with an open think tag (found within the last three or so prompt tokens; a think-open followed by a think-close, the disabled-thinking pattern, returns false). `preserve_reasoning` on the request says the next turn keeps the reasoning.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Rule (scheduler `_output_tokens_cacheable`): output tokens are storable if the request did not need a think prefix, or if `preserve_reasoning` is true. Otherwise only the prompt tokens are stored.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Effect on storage: the stored token count is `num_tokens` (prompt plus output) when output is cacheable, else the prompt length. The fallback store after a parser-side stop (for example a tool-call end marker) uses the same rule and rounds down to a whole block. Logs label the store \"prompt + output\" or \"prompt only\".",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Where `preserve_reasoning` comes from (api/utils.py `cache_reasoning_output`): the model setting `cache_reasoning_output` if set; else false when `preserve_thinking` in the merged kwargs is false; else true when the model is a \"native reasoning\" family or `preserve_thinking` is true. oMLX auto-sets `preserve_thinking=true` for any model whose template text contains that name (see omlx-per-model-chat-template-kwargs-and-cache-ke.md), so Qwen3.6 and Qwen3.8 are cached with their reasoning by default.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "History rebuild: for templates that read `message.reasoning_content` (Qwen 3.6+, the \"native\" case), oMLX keeps content clean and passes reasoning separately, and when the client sent `<think>...</think>` inline it extracts it into `reasoning_content`. For non-native templates it inlines the reasoning back as `<think>\\n{reasoning}\\n</think>\\n\\n{text}`. Void assistant messages (no content, no tool calls, no reasoning) are dropped before rendering.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Qwen3.8 template side: with `preserve_thinking` undefined the template keeps every historical think block, so a thinking-mode turn replayed with its `reasoning_content` is byte-stable. If the client drops `reasoning_content`, each such turn renders `<think>\\n\\n</think>\\n\\n` in place of the real reasoning, a mismatch at the first reasoning token and a change to what the model sees (froggeric reports an 80%+ premature-turn-abort rate from this empty-think pattern in earlier templates).",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Non-thinking turns: the generation prompt already ends with `<think>\\n\\n</think>\\n\\n`, so the replayed empty block matches the cached prompt.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Qwen3.6 default dropped history reasoning (held); Qwen3.8 reversed the default (see qwen-3-8-chat-template-fixes-and-reasoning-level.md).",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "oMLX's `cache_reasoning_output` setting and the `preserve_reasoning` request field are on main as of 2026-10-04; their introduction dates were not found.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "With `preserve_thinking=false` set per model, oMLX stores prompt-only blocks, so the next turn matches the system, history and prompt blocks and re-prefills only the reasoning-free replay of the last answer. The cost is bounded by one turn's tokens, unlike a chain-hash break at the head.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "On a hybrid model the prompt-only store must still land on a block boundary with a snapshot; skipped captures (the boundary-snapshot failures held in the oMLX dossiers) lose the entire turn.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "A client that echoes reasoning but strips it on one code path (for example after compaction) alternates between preserved and unpreserved renders and defeats both modes.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "`needs_think_prefix` is a token-window test on the prompt tail; a template that ends the generation prompt with something other than the think token (for example text after it) is not detected and its reasoning is cached as if reusable.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Preserve versus drop: Qwen's model card says preserving thinking can save tokens and improve cache use; Unsloth says it increases tokens used (both held). oMLX's design takes the cache side by default and stores only prompt tokens when the user turns preservation off.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Whether llama.cpp trims or drops the unusable reasoning tokens from a slot's stored state when the template will omit them (no code read that does so).",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Whether LM Studio's MLX engine stores prompt-only state the way oMLX does; the held lm-studio-mlx-engine.md records its checkpoint-based answer (PR #308: tail checkpoints so sliding-window models keep cache when reasoning is stripped), and LM Studio's blog describes the rewind-and-append-without-reasoning sequence, but neither states a prompt-only store.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Measured before/after cache-hit tokens for oMLX with `cache_reasoning_output` on versus off.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "oMLX's _output_tokens_cacheable returns true when the request did not need a think prefix or when preserve_reasoning is set",
+          "source": "https://raw.githubusercontent.com/jundot/omlx/main/omlx/scheduler.py",
+          "note": null
+        },
+        {
+          "text": "oMLX stores prompt plus output tokens when output is cacheable and prompt tokens only otherwise, and logs which it did",
+          "source": "https://raw.githubusercontent.com/jundot/omlx/main/omlx/scheduler.py",
+          "note": null
+        },
+        {
+          "text": "oMLX marks a request as needing a think prefix when the prompt tail holds an open think token not followed by a close, and not for the empty think-open think-close pattern",
+          "source": "https://raw.githubusercontent.com/jundot/omlx/main/omlx/scheduler.py",
+          "note": null
+        },
+        {
+          "text": "Request.preserve_reasoning is documented as \"history keeps the think output, so output tokens are cacheable\"",
+          "source": "https://raw.githubusercontent.com/jundot/omlx/main/omlx/request.py",
+          "note": null
+        },
+        {
+          "text": "cache_reasoning_output prefers the model setting, then false when preserve_thinking is false, then true for native-reasoning models or preserve_thinking true",
+          "source": "https://raw.githubusercontent.com/jundot/omlx/main/omlx/api/utils.py",
+          "note": null
+        },
+        {
+          "text": "The model setting cache_reasoning_output is documented as \"Cache think output for the next turn (None = auto: when history keeps it)\"",
+          "source": "https://raw.githubusercontent.com/jundot/omlx/main/omlx/model_settings.py",
+          "note": null
+        },
+        {
+          "text": "For native-reasoning templates oMLX keeps reasoning in reasoning_content and extracts inline think text out of content; for others it inlines reasoning as a think block ahead of the answer",
+          "source": "https://raw.githubusercontent.com/jundot/omlx/main/omlx/api/utils.py",
+          "note": null
+        },
+        {
+          "text": "oMLX drops assistant messages that have no content, tool calls, tool responses or reasoning before rendering",
+          "source": "https://raw.githubusercontent.com/jundot/omlx/main/omlx/api/utils.py",
+          "note": null
+        },
+        {
+          "text": "froggeric attributes an 80%+ premature turn-abort rate in earlier templates to empty think blocks followed by an imperative tool prompt",
+          "source": "https://huggingface.co/froggeric/Qwen-Fixed-Chat-Templates",
+          "note": null
+        },
+        {
+          "text": "A thinking-mode turn replayed without its reasoning renders an empty think block on the Qwen3.8 template, mismatching the cached reasoning tokens at the first reasoning token",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Storing only prompt tokens when reasoning will be dropped bounds the loss to one turn's tokens",
+          "source": "asserted",
+          "note": null
+        }
+      ]
+    }
+  ],
+  "related": []
+}

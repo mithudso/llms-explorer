@@ -1,0 +1,209 @@
+{
+  "slug": "llama-cpp-context-checkpoints-and-swa-hybrid-pro",
+  "concept": "llama.cpp context checkpoints and SWA hybrid prompt re-processing",
+  "generated": "2026-10-05",
+  "summary": "For a Gated DeltaNet hybrid the checkpoint holds one recurrent position: logs show `pos_min == pos_max == n_tokens - 1`.",
+  "facets": [
+    {
+      "title": "Facts",
+      "facts": [
+        {
+          "text": "For a Gated DeltaNet hybrid the checkpoint holds one recurrent position: logs show `pos_min == pos_max == n_tokens - 1`.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "On a new request the server tries to restore the nearest checkpoint at or before the shared prefix; the cost is the distance from that checkpoint to the new tail.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Before PR 24411, checkpoints positioned beyond the resume point were erased; if the new prompt was shorter than all of them, all were erased and the whole prompt was reprocessed.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "PR 24411 skips such checkpoints instead of erasing them.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Root cause of the inflated restore test, per PR 24797: `llama_memory_hybrid::seq_pos_min()` took `std::max()` of the attention and recurrent minimum positions; the recurrent cache's `pos_min` is always the current position, so the max made it look as if no prefix was cached.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "2026-03 (issue 21831, b8025 and b8769): two-turn curl test shows full reprocessing on Qwen3.5-35B-A3B and Gemma-4-26B-A4B; a transformer (Qwen2.5-Coder-14B) is unaffected. Closed not planned (stale).",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "2026-06-02 (issue 24055): after PR 22929 the checkpoint is created at the last message, and agent runs regress.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "2026-06-10/11: PR 24411 merged (skip checkpoints beyond `pos_next`).",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "2026-06-15 to 06-24: PR 24176 merged (checkpoint at every user message).",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "2026-07-09: PR 25472 merged (evict checkpoints within min-step of an earlier one, tracked by task id).",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "2026-06-19: PR 24797 opened to fix `seq_pos_min()`; draft/open at fetch.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Shorter-than-checkpoint prompt: Qwen3.6-27B on a 96 GB card, after ~25 normal turns, a 19,340-token request met 32 checkpoints at 39k to 71k, all rejected, three consecutive reprocessings of 67,608, 71,211 and 71,105 tokens at 38.4 s, 41.0 s and 41.4 s.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Cache eviction cascade: when the host prompt cache hit its size limit and dropped a cached prompt, the slot reloaded for that prompt had no valid checkpoints (121,035 tokens reprocessed in about 19 s on b9784).",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Gemma 4 SWA: before 24411 a repeated first message after several turns could return a corrupted answer after cache reuse; the fix made the repro pass.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Reporters of 24055 see a server regression from 22929; the 21831 reporter sees a hybrid-architecture limitation older than 22929; maintainers earlier (22384) attributed misses to client prefix mutation. All three held for different logs.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Whether 24797 merges and removes the remaining misses reported after 24411 and 24176.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Whether a Mac (Metal, single slot) hits the cache-limit eviction cascade at typical `--cache-ram` sizes.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Issue 21831 (Windows, RTX 5060 Ti, b8025 and b8769) shows `forcing full prompt re-processing` on the second request even at 45 tokens of context with Qwen3.5-35B-A3B and Gemma-4-26B-A4B.",
+          "source": "https://github.com/ggml-org/llama.cpp/issues/21831",
+          "note": null
+        },
+        {
+          "text": "In 21831 an A/B test on build b8791 shows the hybrid `qwen35moe` model reprocessing on turn 2 and the pure transformer `qwen2` (Qwen2.5-Coder-14B) logging `memory_seq_rm [219, end)` with no forced reprocessing.",
+          "source": "https://github.com/ggml-org/llama.cpp/issues/21831",
+          "note": null
+        },
+        {
+          "text": "Issue 24055 (opened 2026-06-02, Qwopus3.6-27B MTP Q4_K_M, `server-cuda12-b9354`) reports full reprocessing every turn and `erased invalidated context checkpoint (pos_min = 2799, ..., n_swa = 0, pos_next = 0, size = 149.626 MiB)`.",
+          "source": "https://github.com/ggml-org/llama.cpp/issues/24055",
+          "note": null
+        },
+        {
+          "text": "The 24055 b9309 log restores `context checkpoint (pos_min = 2299, n_tokens = 2300, n_past = 2300)` for a prompt that shared 2,609 tokens with the cached one and erases the later checkpoint at 2811, so the cost is the gap from the nearest earlier checkpoint.",
+          "source": "https://github.com/ggml-org/llama.cpp/issues/24055",
+          "note": null
+        },
+        {
+          "text": "A 24055 commenter measured three consecutive full reprocessings of 67,608, 71,211 and 71,105 tokens taking 38.4 s, 41.0 s and 41.4 s on an RTX PRO 6000 with `--parallel 1 --cache-ram 8192`, after all 32 checkpoints sat beyond the new 19,340-token prompt.",
+          "source": "https://github.com/ggml-org/llama.cpp/issues/24055",
+          "note": null
+        },
+        {
+          "text": "On 2026-06-24 a 24055 commenter reports the problem fixed on latest master by PR 24411 (\"skip checkpoints beyond pos_next instead of erasing them\") and PR 24176 (\"create checkpoints at every user message\").",
+          "source": "https://github.com/ggml-org/llama.cpp/issues/24055",
+          "note": null
+        },
+        {
+          "text": "PR 24411 merged as commit db94854 on 2026-06-11.",
+          "source": "https://github.com/ggml-org/llama.cpp/pull/24411",
+          "note": null
+        },
+        {
+          "text": "PR 24411 also fixes Gemma 4 (12B and 26B) answering \"forgetful\" or corrupted after a second identical first message following several turns, a symptom absent with `cache_prompt = false`; its repro script moves from FAIL to PASS.",
+          "source": "https://github.com/ggml-org/llama.cpp/pull/24411",
+          "note": null
+        },
+        {
+          "text": "PR 24176 scans for user-message boundaries directly on tokens instead of translating from byte offsets, and creates checkpoints at the start of every user message rather than only the last.",
+          "source": "https://github.com/ggml-org/llama.cpp/pull/24176",
+          "note": null
+        },
+        {
+          "text": "PR 25472 (fixes issue 25023) evicts any checkpoint within min-step of an earlier one when a new one is created, and records the task id in each checkpoint so the two checkpoints made near the end of one prompt do not evict each other.",
+          "source": "https://github.com/ggml-org/llama.cpp/pull/25472",
+          "note": null
+        },
+        {
+          "text": "The author of PR 25472 noted a near-end checkpoint was not created when within min-step, which he did not think was intended, and opened PR 25420 for prefill issues.",
+          "source": "https://github.com/ggml-org/llama.cpp/pull/25472",
+          "note": null
+        },
+        {
+          "text": "PR 24797 states hybrid memory has two caches with different semantics: attention `pos_min` is the earliest cached position, recurrent `pos_min == pos_max ==` current position.",
+          "source": "https://github.com/ggml-org/llama.cpp/pull/24797",
+          "note": null
+        },
+        {
+          "text": "PR 24797 says the old `seq_pos_min()` used `std::max()` of both caches' minimum positions, which inflated `pos_min` and forced full reprocessing on any minor prompt variation; the fix returns only the attention cache's `pos_min` and keeps intersection semantics for `seq_pos_max`.",
+          "source": "https://github.com/ggml-org/llama.cpp/pull/24797",
+          "note": null
+        },
+        {
+          "text": "PR 24797 lists related issues 21831, 23013, 22746, 24714 and 24055, and was still a draft/open when fetched on 2026-10-04.",
+          "source": "https://github.com/ggml-org/llama.cpp/pull/24797",
+          "note": null
+        },
+        {
+          "text": "A 24055 commenter posted a diff that forces a checkpoint whenever the gap since the last one reaches `2 * checkpoint_min_step`, as a mitigation for rare misses after 24411 and 24176.",
+          "source": "https://github.com/ggml-org/llama.cpp/issues/24055",
+          "note": null
+        },
+        {
+          "text": "A 24055 commenter on b9784 (ROCm gfx1201, 262144 context, `--checkpoint-min-step 16384 --ctx-checkpoints 16 --cache-ram 8192`) reports 121,035 tokens reprocessed in about 19 s whenever the prompt cache hit its size limit and dropped a cached prompt.",
+          "source": "https://github.com/ggml-org/llama.cpp/issues/24055",
+          "note": null
+        },
+        {
+          "text": "Checkpoint sizes seen in 24055 are 149.626 MiB (2,800 tokens), 151.055 MiB (364 tokens), 175.502 MiB (6,592 tokens) and 254.797 MiB (26,793 tokens, Q8_0 variant), so size depends on the variant more than on position.",
+          "source": "https://github.com/ggml-org/llama.cpp/issues/24055",
+          "note": null
+        },
+        {
+          "text": "The working server line one 24055 commenter used after the fixes was `--parallel 1 --flash-attn on --no-context-shift --no-mmap --spec-type draft-mtp --spec-draft-n-max 3 --spec-draft-p-min 0.75 --ctx-size 262144`.",
+          "source": "https://github.com/ggml-org/llama.cpp/issues/24055",
+          "note": null
+        },
+        {
+          "text": "The ik_llama.cpp fork (issue 1762) shows the same pattern: all 18 existing checkpoints erased every turn and rebuilt from 4095 upward, `kv cache rm [p0, end) | p0=0`.",
+          "source": "https://github.com/ikawrakow/ik_llama.cpp/issues/1762",
+          "note": null
+        },
+        {
+          "text": "Inferred: on a Mac, treat a log line pair `restored context checkpoint` with a small `prompt eval` token count as the only proof of reuse, and watch for `erased invalidated context checkpoint` bursts that follow a prompt-cache eviction.",
+          "source": "asserted",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Corrections and disagreements",
+      "facts": [
+        {
+          "text": "CONTRADICTS: hybrid-and-sliding-window-attention-kv-cache-rewinding.md date line for `--checkpoint-every-nb`: 21831 reports `error: invalid argument: --checkpoint-every-nb` on release b8218 and from-master builds, so the flag was unreachable well before PR 22929 deleted anything.",
+          "source": "https://github.com/ggml-org/llama.cpp/issues/21831",
+          "note": null
+        }
+      ]
+    }
+  ],
+  "related": []
+}
