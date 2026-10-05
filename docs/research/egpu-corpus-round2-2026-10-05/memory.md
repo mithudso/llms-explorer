@@ -1,7 +1,7 @@
 # Continuation memory
 
-Version: 1.2.1
-Delta: Correct Markdown whitespace before final staged diff verification and publication.
+Version: 1.3.0
+Delta: Local review validation is complete; point Git continuation at the separate final publication receipt.
 
 Task: TASK-597. Scope decision: KNOW-598. Current qualification parent: TASK-482.
 
@@ -24,4 +24,5 @@ Private raw discovery: /Users/mitch/.cache/claude-egpu/experiments/egpu-corpus-r
 
 Verified: all six JSON artifacts parse, all 42 local source hashes remain unchanged, actual maximum error and failing position recompute, corpus counts and capture byte arithmetic agree, and scoped artifacts contain no obvious credential literals. No new unit tests or physical acceptance runs were added.
 
-Remaining in this review: commit explicit paths, push a draft PR, wait for required CI, merge, copy published artifacts into the protected primary checkout without changing its index, remove only the review worktree/branch, and complete TASK-597 with the publication receipt. Remaining physical qualification is outside this review and remains incomplete.
+Publication progress and final status are tracked in /Users/mitch/.cache/claude-egpu/experiments/egpu-corpus-round2-20261005/PUBLICATION.json. Draft PR: https://github.com/mithudso/llms-explorer/pull/152
+Read that receipt and live PR state before any Git action. Do not repeat completed publication steps. The publication workflow is: required CI, ready and merge, verify published bytes, copy this record into the protected primary checkout without changing its index, and remove only the review worktree/branch. When the receipt records merge, cleanup and TASK-597 completion, this review is complete. The original physical qualification remains incomplete and is outside this review. The private receipt also lists all persistent files created in this turn.
