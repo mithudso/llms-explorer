@@ -1,6 +1,6 @@
 # Continuation memory
 
-Version: 1.0.1
+Version: 1.0.2
 Delta: one actual cold start and first request completed; original numerical gate failed; F32 diagnostic compiled offline; final cold-source audit passed; hub corpus review added.
 
 ## Objective and constraints
@@ -83,3 +83,13 @@ TASK-561 reviews the local concept facts without GPU or embedding activity. Inve
 /Users/mitch/.cache/claude-egpu/experiments/hub-local-llm-corpus-review-v100/SOURCE-INVENTORY.json
 
 The current pinned Qwen template reads preserve_thinking, not generic preserve_reasoning. Do not alter the sealed first numerical request. Add measured cache/tool round-trip observations to later coding acceptance. The pinned Claude 2.1.286 is above the documented 2.1.181 stable attribution-header boundary, so do not blame that old bug without captures. Preserve full skills/MCP tools rather than use --bare as a qualification shortcut.
+
+## Publication handle
+
+The review/evidence PR is:
+https://github.com/mithudso/llms-explorer/pull/145
+
+The authoritative local publication receipt records CI, merge and local materialization status after shipment:
+/Users/mitch/.cache/claude-egpu/experiments/hub-local-llm-corpus-review-v100/PUBLICATION.json
+
+Do not infer physical acceptance from a merged documentation PR. The primary checkout remains protected from branch synchronization because it has unrelated staged changes and divergent history. Any local copies of new merged documentation must preserve that index and history.

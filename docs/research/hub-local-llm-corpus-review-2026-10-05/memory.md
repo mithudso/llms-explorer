@@ -1,6 +1,6 @@
 # Hub corpus review continuation
 
-Version: 1.0.2
+Version: 1.0.3
 Delta: Finish corpus review; preserve applicability findings, corrected assumptions and publication state.
 
 TASK-561 reviews /Users/mitch/.global-ai-hub/llms-concepts/ for parent TASK-482. The inventory has 4114 real-directory files, 661 fact dossiers, 339 name/title candidates and 293 content hits. The external document-extraction alias is excluded. Counts do not establish an atomic snapshot or validated findings. All screens used local files without embeddings. The original .llms suffix caused an overbroad title screen; version 1.0.1 removed it. Version 1.0.3 clarifies traversal/alias scope rather than claiming the corpus expanded.
@@ -23,3 +23,13 @@ Publication uses the isolated codex/qwen36-cold-evidence-20261005 branch. Preser
 ## Close reconciliation
 
 KNOW-157, KNOW-382, KNOW-404 and KNOW-139 remain true as scoped decisions. No runtime or model-cleanup re-verification is claimed. KNOW-124 was updated because its old owner and no-download restrictions were stale after the October 5 candidate trial. The update preserves historical coding/research results and adds the current numerical gap. TASK-554 completed static preparation only; TASK-482 and TASK-129 remain unfinished.
+
+## Publication handle
+
+The review/evidence PR is:
+https://github.com/mithudso/llms-explorer/pull/145
+
+The authoritative local publication receipt records CI, merge and local materialization status after shipment:
+/Users/mitch/.cache/claude-egpu/experiments/hub-local-llm-corpus-review-v100/PUBLICATION.json
+
+Do not infer physical acceptance from a merged documentation PR. The primary checkout remains protected from branch synchronization because it has unrelated staged changes and divergent history. Any local copies of new merged documentation must preserve that index and history.
