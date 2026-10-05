@@ -1,0 +1,529 @@
+{
+  "slug": "apple-silicon-unified-memory-and-llm-sizing",
+  "concept": "Apple silicon unified memory and LLM sizing",
+  "generated": "2026-10-05",
+  "summary": "Apple's own figures (Metal Compute on MacBook Pro tech talk): M1 Pro/Max 32 GB -> GPU can access 21 GB; M1 Max 64 GB -> 48 GB. Apple publishes no per-size rule beyond that.",
+  "facets": [
+    {
+      "title": "Facts",
+      "facts": [
+        {
+          "text": "Apple's own figures (Metal Compute on MacBook Pro tech talk): M1 Pro/Max 32 GB -> GPU can access 21 GB; M1 Max 64 GB -> 48 GB. Apple publishes no per-size rule beyond that.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "The rule is not universal: an M4 Max 128 GB log shows 115,448.73 MB (107.5 GiB, 84%), so \"3/4\" is a floor on some newer parts.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "llama.cpp prints the value at init as `ggml_metal_init: recommendedMaxWorkingSetSize = <n> MB`. Builds before b2000 divided bytes by 1024^2 (b1400 labelled it \"MB\", b1600 \"MiB\"); from b2000 it divides by 10^6. Compare logs only within the same build era.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "llama.cpp's `ggml_metal_device_get_memory` reports total = recommendedMaxWorkingSetSize and free = total - currentAllocatedSize. Its source comment says it is possible to allocate more than the limit; going over only logs `warning: current allocated size is greater than the recommended max working set size`. The limit is a recommendation apps follow, not a wall (modelvram.com summary of ggml-metal-device.m).",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "MLX uses the same number as the \"system wired limit\": `mx.device_info()[\"max_recommended_working_set_size\"]` is the system wired limit and `[\"memory_size\"]` is total RAM.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "`mx.set_wired_limit(bytes)` (MLX 0.32.3 docs): only useful on macOS 15.0+; the value must stay strictly below total memory; default 0; it is the total size of memory kept resident; a value above the system wired limit is an error; the doc names `sudo sysctl iogpu.wired_limit_mb=<MB>` as the way to raise the system limit; returns the previous limit.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "mlx-lm: for a model large relative to RAM it wires model+cache memory (macOS 15+ only) and prints `[WARNING] Generating with a model that requires ...` when slow; fix is `iogpu.wired_limit_mb=N` with N above the model size in MB and below machine memory.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "llama.cpp uses Metal residency sets only on macOS >= 15.0 (`GGML_METAL_HAS_RESIDENCY_SETS`; disable with env `GGML_METAL_NO_RESIDENCY`). A background thread re-requests residency; default keep-alive 3 minutes (`GGML_METAL_RESIDENCY_KEEP_ALIVE_S`). A dummy GPU op is issued to work around residency memory not being released when no GPU work occurs (Apple forum thread 839089, llama.cpp issue 25937).",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Apple documents a residency set as a way to make resources resident ahead of time, keep them resident indefinitely, and mark them as candidates to become non-resident.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Sysctl name by macOS version: Ventura/Monterey `debug.iogpu.wired_limit` (value in BYTES); Sonoma 14+ `iogpu.wired_limit_mb` (value in MiB). One source says the MB form is documented as 15.0+ only and does not cover older keys. Units are MiB: 24576 on a 32 GB Mac moved the reported limit from 22,906.50 MB to 25,769.80 MB (24 GiB).",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Verify: (1) `sysctl iogpu.wired_limit_mb` prints the override, 0 = default; it does NOT show the effective default, so trust the Metal-reported number. (2) llama.cpp/Ollama log line above, or `python3 -c \"import mlx.core as mx; print(mx.device_info())\"`. (3) Activity Monitor Memory Pressure (green/yellow/red), Memory tab wired figure and Swap Used, GPU History (Cmd+4). (4) `ollama ps` should say `100% GPU`. (5) `memory_pressure` CLI prints pages wired down, swapins/swapouts and system-wide free percentage.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Persistence: the sysctl resets to 0 on reboot. Options in sources: `/etc/sysctl.conf` line `iogpu.wired_limit_mb=<MB>` (one source says editing may need SIP disabled) or a LaunchDaemon plist running `/usr/sbin/sysctl iogpu.wired_limit_mb=<MB>` with `sudo launchctl load`. Revert: set to 0, unload and remove the daemon. A reboot clearing a bad value is the safety net, so persistence is the riskier choice.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Another consumer: PyTorch MPS watermark ratios are multiples of recommendedMaxWorkingSetSize, not of RAM: default high 1.7, upper bound 2.0, low 1.4. `PYTORCH_MPS_HIGH_WATERMARK_RATIO=0.0` removes the ceiling. An MPS OOM therefore means about 1.7x the recommended set was reached.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "vllm-mlx `--gpu-memory-utilization` multiplies the wired limit, not physical RAM (0.88 x 112 GB wired = 98.6 GB, not 112).",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Ventura/Monterey: `debug.iogpu.wired_limit` in bytes. Sonoma 14: renamed `iogpu.wired_limit_mb` in MiB. macOS 15: MTLResidencySet and `mx.set_wired_limit` become usable; llama.cpp and mlx-lm start wiring.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "llama.cpp mmap loading (PR 613, 2023) let a 20 GB file evaluate with little resident memory; commenters later showed the weights are streamed from disk each token when RAM is short, and mmap is a measurement artifact for steady-state RAM use.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "2026: Ollama's MLX engine (0.19 preview, March 2026) enforces a fixed context at startup, unlike `mlx_lm.server` 0.31.2 which has no `--max-kv-size`.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Past the budget, three outcomes are reported, not one: (a) llama.cpp partial CPU offload (slower); (b) over-budget Metal allocations log the warning and continue, until the driver errors `Insufficient Memory (00000008:kIOGPUCommandBufferCallbackErrorOutOfMemory)` (observed on a 24 GB M3 Air at the 16,384 MiB default with an 18 GiB Q4_K_M 32B GGUF; worked at 20 GiB limit); (c) swap, with reported 10x or larger throughput loss.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Wired memory cannot be compressed or swapped. A runaway wire can leave macOS with no memory for the window server: beachballs, app kills, hard freeze (64 GB machine set to 62 GB). Reported kernel panics: M4 Pro 24 GB at `iogpu.wired_limit_mb=22000` running large MoE models with swap (llama.cpp issue 19825); a laptop that hung then rebooted when mlx-lm and llama.cpp were both resident at a 20 GiB limit on a 24 GB M3 Air.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "`mlx_lm.server` wires about 75% of RAM at startup via `mx.set_wired_limit`; with unbounded KV growth the GPU driver hit a refcount underflow in `IOGPUMemory.cpp` and kernel-panicked with `memoryPressure: false` in the panic report, because Jetsam cannot reclaim wired memory (mlx-lm issue 883). Workaround: `mx.metal.set_memory_limit(48 * 1024**3)` before importing the server so MLX raises a Python exception instead.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "LM Studio guardrail error: `Model loading aborted due to insufficient system resources. Overloading the system will likely cause it to freeze.` It does not use swap past total RAM; one 24 GB M4 Pro user set guardrails to Custom at 23 GB.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Ollama MLX runner can stay resident after `ollama stop` (issue 17792, 0.32.9/0.32.13): `ollama ps` empty, RAM still held; kill the `ollama.*runner` process. Models stay loaded 5 min by default (`OLLAMA_KEEP_ALIVE`); `OLLAMA_MAX_LOADED_MODELS` default 3.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "KV cache, not weights, is the usual cause of mid-session collapse. Gemma 4 26B-A4B at Q4_K_M is ~17 GB of weights but its 10 global-attention layers push KV past 20 GB at full context (hybrid 50 sliding / 10 global).",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Llama 3.1 70B Q4 (~40-43 GB) does not fit the 36 GB default of a 48 GB Mac but fits the 48 GB default of a 64 GB Mac only at short context; a 32B Q4 with large context (~24-28 GB) is tight against the 27 GB default of a 36 GB Mac.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Over-raising: sources' safe values leave 8-16 GB (128 GB), ~8 GB (64 GB), 4-6 GB at 16-32 GB. Table from thinkdifferent.blog: 36 GB -> 30720; 48 GB -> 40960; 64 GB -> 57344; 128 GB -> 118784. modelvram \"raised\" rule of thumb: leave 4 GB up to 24 GB RAM, 8 GB above. Real values from issues: 22000 (24 GB), 117760 and 122880 (128 GB).",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "mmap/`--mlock`: `--mlock` pins model and cache; one source says if model+KV+OS exceeds ~70% of unified memory it makes the rest of the system thrash. `--no-mmap` is the workaround for a load that hangs near 75%. Without mlock, a larger-than-RAM model re-reads weights from SSD per token (no swap writes, extremely slow).",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Memory Used in Activity Monitor is not committed memory; green/yellow/red pressure and `vm_stat` pages purgeable/compressed measure availability.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Default fraction: \"~75% of RAM\" (stencel.io, devnote, hannecke, existing file) vs \"2/3 up to 32 GB, 3/4 from 36 GB\" (danmackinlay, modelvram with logged values) vs \"~65-70% at 36 GB or less\" (thinkdifferent). Logged data support the 2/3 and 3/4 split; the 36 GB row is 3/4 (27 GiB) in the log, so thinkdifferent's \"36 GB or less\" boundary is off by one tier. M4 Max 128 GB shows 84%, so newer parts can exceed 3/4.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Is it a hard cap? stencel.io: \"functions as a hard cap\", hard-coded in drivers. llama.cpp source and Apple tech talk: a recommendation; allocation beyond it is possible (an encoder has the limit, but Metal can allocate further resources across encoders). modelvram treats it as soft; the OOM string above shows a hard failure at some point.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Persisting the setting: one source says `/etc/sysctl.conf` needs SIP off; others show a LaunchDaemon or sysctl.conf without that; hannecke runs it at login. localaimaster calls persistence the riskier choice.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Whether to raise at all: localaimaster ranks the sysctl as the LEAST likely fix (KV growth first, quant level second); hannecke calls it the single most important tuning step. Both agree on 64 GB+ being where it pays.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Apple's \"70% guidance\" (hannecke, \"Apple's own guidance\") is not backed by any Apple page found; treat as unverified.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "MoE offload to SSD: llama.cpp issue 19825 argues macOS swap cannot handle expert routing; no maintainer fix reported.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Unified: model + KV + runtime buffers must fit under the wired/working-set budget, and macOS and apps share the same pool. Discrete: same arithmetic against dedicated VRAM, with offload crossing PCIe. Budgets used by the calculator sites: discrete ~90% of VRAM; Mac 70-85% (tiered) or 2/3-3/4 by logged default.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Same-capacity comparison from one calculator: 32 GB Mac ~22.4 GB model budget vs 32 GB RTX 5090 ~28.8 GB; decode is memory-bandwidth-bound, so bandwidth/model-size gives the upper bound: RTX 5090 1,792 GB/s vs M-series Max 400-600 GB/s. One estimate: ~5x tok/s for same 26B-A4B model (estimates, not measurements). Effective bandwidth is typically 60-80% of peak.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Reported chip bandwidths in sources: M3 Pro 150, M3 Max 400, M4 Max 546, M5 Pro 300, M5 Max 600, M5 Ultra 1200 GB/s, M5 base 120. (One source corrected a \"28% gain\" claim to 7-10% for M5 Max vs M4 Max decode, bandwidth-bound; M5 gains are mostly prompt processing.)",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Capacity case for Mac: 64 GB at default fits Llama 3.1 70B Q4 at 8K context (~47 GB with 8K); 96/128 GB reach 120B-class MoE; a 128 GB Mac set to 120 GB runs 70B at 8-bit.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Whether macOS 26 (Tahoe) changed default fractions or the sysctl name: no first-party source found; all sources cite Sonoma/Sequoia-era behavior.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Apple publishes no official statement of the 2/3 vs 3/4 rule or of `iogpu.wired_limit_mb`; all sysctl guidance is community plus MLX/mlx-lm docs.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Why M4 Max 128 GB shows 84%: unknown.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Measured tok/s cost of being over budget (swap) per SSD/chip: only anecdotal (\"10x or more\", 2 vs 9-10 tok/s).",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "The default Metal GPU budget on Apple silicon is about 2/3 of RAM for Macs up to 32 GB and about 3/4 for 36 GB and up.",
+          "source": "https://modelvram.com/llm-vram-calculator/mac-unified-memory/",
+          "note": null
+        },
+        {
+          "text": "danmackinlay states the default is ~67% on Macs <=36 GB and ~75% on larger ones.",
+          "source": "https://danmackinlay.name/notebook/local_llm_mac.html",
+          "note": null
+        },
+        {
+          "text": "thinkdifferent.blog states ~65-70% of RAM at 36 GB or less and ~75% above, with a 36 GB Mac giving ~27 GB.",
+          "source": "https://www.thinkdifferent.blog/blog/the-macbook-pro-setting-that-doubles-your-ai-performance/",
+          "note": null
+        },
+        {
+          "text": "Apple's Metal Compute on MacBook Pro tech talk says an M1 Pro/Max with 32 GB gives the GPU 21 GB and an M1 Max with 64 GB gives 48 GB.",
+          "source": "https://developer.apple.com/videos/play/tech-talks/10580/",
+          "note": null
+        },
+        {
+          "text": "Apple's tech talk says a single command encoder has the working-set limit, but Metal can allocate resources beyond it across multiple encoders.",
+          "source": "https://developer.apple.com/videos/play/tech-talks/10580/",
+          "note": null
+        },
+        {
+          "text": "Apple documents recommendedMaxWorkingSetSize as the memory the GPU can allocate without affecting runtime performance, and keeping the footprint below it helps performance; available macOS 10.12+.",
+          "source": "https://developer.apple.com/documentation/metal/mtldevice/recommendedmaxworkingsetsize",
+          "note": null
+        },
+        {
+          "text": "Logged llama.cpp limit for 16 GB is 10,922.67 (old-build \"MB\" = MiB) i.e. 10.67 GiB.",
+          "source": "https://modelvram.com/llm-vram-calculator/mac-unified-memory/",
+          "note": null
+        },
+        {
+          "text": "Logged limit for 24 GB is 17,179.89 MB = 16 GiB.",
+          "source": "https://modelvram.com/llm-vram-calculator/mac-unified-memory/",
+          "note": null
+        },
+        {
+          "text": "Logged limit for 32 GB is 22,906.50 MB = 21.33 GiB.",
+          "source": "https://modelvram.com/llm-vram-calculator/mac-unified-memory/",
+          "note": null
+        },
+        {
+          "text": "Logged limits for 64, 128, 192, 256 GB are 48, 96, 144, 192 GiB.",
+          "source": "https://modelvram.com/llm-vram-calculator/mac-unified-memory/",
+          "note": null
+        },
+        {
+          "text": "An M4 Max 128 GB log shows `recommendedMaxWorkingSetSize = 115448.73 MB`, about 84% of RAM.",
+          "source": "https://github.com/ggml-org/llama.cpp/issues/17608",
+          "note": null
+        },
+        {
+          "text": "llama.cpp builds before b2000 divide the bytes by 1024^2 in that log line; from b2000 they divide by 10^6.",
+          "source": "https://modelvram.com/llm-vram-calculator/mac-unified-memory/",
+          "note": null
+        },
+        {
+          "text": "llama.cpp reports Metal free memory as recommendedMaxWorkingSetSize minus currentAllocatedSize, with a source comment that allocating more than the limit is possible.",
+          "source": "https://raw.githubusercontent.com/ggml-org/llama.cpp/master/ggml/src/ggml-metal/ggml-metal-device.m",
+          "note": null
+        },
+        {
+          "text": "llama.cpp uses Metal residency sets only on macOS >= 15.0; env `GGML_METAL_NO_RESIDENCY` disables them.",
+          "source": "https://raw.githubusercontent.com/ggml-org/llama.cpp/master/ggml/src/ggml-metal/ggml-metal-device.m",
+          "note": null
+        },
+        {
+          "text": "llama.cpp keeps residency sets wired for 3 minutes after the last graph compute by default, overridable by `GGML_METAL_RESIDENCY_KEEP_ALIVE_S`.",
+          "source": "https://raw.githubusercontent.com/ggml-org/llama.cpp/master/ggml/src/ggml-metal/ggml-metal-device.m",
+          "note": null
+        },
+        {
+          "text": "llama.cpp issues a dummy GPU op as a workaround for residency-set memory not being released if no GPU operation occurs.",
+          "source": "https://raw.githubusercontent.com/ggml-org/llama.cpp/master/ggml/src/ggml-metal/ggml-metal-device.m",
+          "note": null
+        },
+        {
+          "text": "Apple describes residency sets as letting an app make allocations resident ahead of time, keep them resident indefinitely, and mark them as candidates to become non-resident.",
+          "source": "https://developer.apple.com/documentation/metal/simplifying-gpu-resource-management-with-residency-sets",
+          "note": null
+        },
+        {
+          "text": "`mx.set_wired_limit` is only useful on macOS 15.0 or higher, takes bytes, defaults to 0, must stay strictly below total memory, and errors if above the system wired limit.",
+          "source": "https://ml-explore.github.io/mlx/build/html/python/_autosummary/mlx.core.set_wired_limit.html",
+          "note": null
+        },
+        {
+          "text": "MLX's docs name `sudo sysctl iogpu.wired_limit_mb=<size_in_megabytes>` to raise the system wired limit and `device_info()[\"max_recommended_working_set_size\"]` plus `[\"memory_size\"]` to query it.",
+          "source": "https://ml-explore.github.io/mlx/build/html/python/_autosummary/mlx.core.set_wired_limit.html",
+          "note": null
+        },
+        {
+          "text": "mlx-lm wires model and cache memory for large models on macOS 15+, warns when slow, and says N must exceed the model size in MB and stay below machine memory.",
+          "source": "https://github.com/ml-explore/mlx-lm",
+          "note": null
+        },
+        {
+          "text": "On macOS 14 Sonoma and later the key is `iogpu.wired_limit_mb` (MiB); on Ventura/Monterey it was `debug.iogpu.wired_limit` (bytes).",
+          "source": "https://stencel.io/posts/apple-silicon-limitations-with-usage-on-local-llm%20.html",
+          "note": null
+        },
+        {
+          "text": "0 means the macOS default split; `sudo sysctl iogpu.wired_limit_mb=0` reverts.",
+          "source": "https://github.com/ivanopcode/devnote-override-macos-metal-vram-cap",
+          "note": null
+        },
+        {
+          "text": "The sysctl takes effect immediately without a reboot and resets to 0 on reboot.",
+          "source": "https://stencel.io/posts/apple-silicon-limitations-with-usage-on-local-llm%20.html",
+          "note": null
+        },
+        {
+          "text": "`sysctl iogpu.wired_limit_mb` reports the override, not the effective default, so the Metal-reported number is the authority.",
+          "source": "https://localaimaster.com/blog/mac-memory-pressure-local-llm",
+          "note": null
+        },
+        {
+          "text": "Units are MiB: 24576 moved a 32 GB Mac's reported limit from 22,906.50 MB to 25,769.80 MB.",
+          "source": "https://modelvram.com/llm-vram-calculator/mac-unified-memory/",
+          "note": null
+        },
+        {
+          "text": "Persistence via `/etc/sysctl.conf` is claimed to possibly require disabling SIP.",
+          "source": "https://stencel.io/posts/apple-silicon-limitations-with-usage-on-local-llm%20.html",
+          "note": null
+        },
+        {
+          "text": "Persistence via a LaunchDaemon plist running `/usr/sbin/sysctl iogpu.wired_limit_mb=<MB>` is documented as an alternative.",
+          "source": "https://www.thinkdifferent.blog/blog/the-macbook-pro-setting-that-doubles-your-ai-performance/",
+          "note": null
+        },
+        {
+          "text": "Raising to 22000 MB on a 24 GB M4 Pro while running large MoE models led to macOS kernel panics with swap.",
+          "source": "https://github.com/ggml-org/llama.cpp/issues/19825",
+          "note": null
+        },
+        {
+          "text": "On a 24 GB M3 Air, a 18.01 GiB Q4_K_M 32B GGUF failed at the 16,384 MiB default with `kIOGPUCommandBufferCallbackErrorOutOfMemory` and ran with the limit at 20,480 MB.",
+          "source": "https://github.com/ggml-org/llama.cpp/discussions/15372",
+          "note": null
+        },
+        {
+          "text": "The same user's laptop hung ~30 s and then rebooted after running mlx-lm and llama.cpp together at the raised limit.",
+          "source": "https://github.com/ggml-org/llama.cpp/discussions/15372",
+          "note": null
+        },
+        {
+          "text": "ggerganov advised that with Metal one should always add `-fa` and that big models need the raised memory limit.",
+          "source": "https://github.com/ggml-org/llama.cpp/discussions/15372",
+          "note": null
+        },
+        {
+          "text": "llama.cpp warns `current allocated size is greater than the recommended max working set size` when over budget.",
+          "source": "https://localaimaster.com/blog/mac-memory-pressure-local-llm",
+          "note": null
+        },
+        {
+          "text": "Wired memory cannot be compressed or swapped.",
+          "source": "https://medium.com/@rajveer.rathod1301/is-your-mac-really-running-out-of-memory-a-deep-dive-into-macos-memory-pressure-257302fd5ed9",
+          "note": null
+        },
+        {
+          "text": "`mlx_lm.server` wires ~75% of RAM at startup, has no `--max-kv-size` as of 0.31.2, and unbounded KV growth caused a kernel panic with `memoryPressure: false` because Jetsam cannot reclaim wired memory.",
+          "source": "https://medium.com/@michael.hannecke/how-my-local-coding-agent-crashed-my-mac-and-what-i-learned-about-mlx-memory-management-e0cbad01553c",
+          "note": null
+        },
+        {
+          "text": "Setting `mx.metal.set_memory_limit(48 * 1024**3)` before starting the server makes MLX raise a Python exception instead of panicking.",
+          "source": "https://medium.com/@michael.hannecke/how-my-local-coding-agent-crashed-my-mac-and-what-i-learned-about-mlx-memory-management-e0cbad01553c",
+          "note": null
+        },
+        {
+          "text": "Gemma 4 26B-A4B at Q4_K_M is ~17 GB of weights, with 50 sliding-window and 10 global layers pushing KV above 20 GB at full context.",
+          "source": "https://medium.com/@michael.hannecke/how-my-local-coding-agent-crashed-my-mac-and-what-i-learned-about-mlx-memory-management-e0cbad01553c",
+          "note": null
+        },
+        {
+          "text": "Setting a 64 GB Mac to 62 GB and loading a model using it caused a UI freeze needing a forced reboot.",
+          "source": "https://www.thinkdifferent.blog/blog/the-macbook-pro-setting-that-doubles-your-ai-performance/",
+          "note": null
+        },
+        {
+          "text": "Safe raised values from one source: 36 GB -> 30720, 48 GB -> 40960, 64 GB -> 57344, 128 GB -> 118784 MB; minimum 8 GB left to macOS.",
+          "source": "https://www.thinkdifferent.blog/blog/the-macbook-pro-setting-that-doubles-your-ai-performance/",
+          "note": null
+        },
+        {
+          "text": "Values set in public issues cluster near 90% of RAM: 22000 (24 GB), 117760 (128 GB), 122880 (128 GB).",
+          "source": "https://localaimaster.com/blog/mac-memory-pressure-local-llm",
+          "note": null
+        },
+        {
+          "text": "modelvram's raised-limit rule of thumb leaves 4 GB to macOS up to 24 GB RAM and 8 GB above.",
+          "source": "https://modelvram.com/llm-vram-calculator/mac-unified-memory/",
+          "note": null
+        },
+        {
+          "text": "Largest Q4_K_M model by default budget at 8K context: 16 GB -> Gemma 4 12B class; 24 GB -> gpt-oss-20b class (14.8 GB); 32 GB -> ~30B-A3B MoE (20 GB); 64 GB -> Llama 3.1 70B (47 GB); 96 GB -> gpt-oss-120b (67.7 GB).",
+          "source": "https://modelvram.com/llm-vram-calculator/mac-unified-memory/",
+          "note": null
+        },
+        {
+          "text": "PyTorch MPS watermark ratios are multiples of recommendedMaxWorkingSetSize: high 1.7 (max 2.0), low 1.4; ratio 0.0 removes the limit.",
+          "source": "https://localaimaster.com/blog/mac-memory-pressure-local-llm",
+          "note": null
+        },
+        {
+          "text": "vllm-mlx `--gpu-memory-utilization` multiplies the wired limit, not physical RAM.",
+          "source": "https://danmackinlay.name/notebook/local_llm_mac.html",
+          "note": null
+        },
+        {
+          "text": "Ollama keeps models for 5 minutes by default (`OLLAMA_KEEP_ALIVE`), loads up to `OLLAMA_MAX_LOADED_MODELS` (default 3) and an open MLX-engine bug (#17792) leaves the runner holding RAM after `ollama stop`.",
+          "source": "https://localaimaster.com/blog/mac-memory-pressure-local-llm",
+          "note": null
+        },
+        {
+          "text": "LM Studio refuses oversize loads with `Model loading aborted due to insufficient system resources. Overloading the system will likely cause it to freeze.` and a user set Custom guardrails at 23 GB on a 24 GB Mac.",
+          "source": "https://github.com/lmstudio-ai/lmstudio-bug-tracker/issues/484",
+          "note": null
+        },
+        {
+          "text": "When the model exceeds the GPU budget, llama.cpp may offload layers/KV to CPU and slow down; extreme overflow leads to swap and severe slowdown.",
+          "source": "https://stencel.io/posts/apple-silicon-limitations-with-usage-on-local-llm%20.html",
+          "note": null
+        },
+        {
+          "text": "Past a 24 GB machine's RAM, swap throughput drops 10x or more in community reports (M2 Max, NVMe).",
+          "source": "https://www.sitepoint.com/local-llms-apple-silicon-mac-2026/",
+          "note": null
+        },
+        {
+          "text": "With mmap, a model larger than RAM is re-read from disk each token with no swap writes and is extremely slow; mmap does not reduce steady-state RAM use.",
+          "source": "https://github.com/ggml-org/llama.cpp/discussions/638",
+          "note": null
+        },
+        {
+          "text": "`--mlock` can make the system thrash if model+KV+OS exceeds ~70% of unified memory (claimed Apple guidance, no Apple source found).",
+          "source": "https://medium.com/@michael.hannecke/tuning-llama-cpp-on-apple-silicon-843f37a6c3dc",
+          "note": null
+        },
+        {
+          "text": "Activity Monitor \"Memory Used\" is not committed RAM; the green/yellow/red pressure graph and `vm_stat` pages purgeable/compressed measure availability.",
+          "source": "https://danmackinlay.name/notebook/local_llm_mac.html",
+          "note": null
+        },
+        {
+          "text": "`memory_pressure` prints pages wired down, swapins, swapouts and system-wide free percentage.",
+          "source": "https://medium.com/@rajveer.rathod1301/is-your-mac-really-running-out-of-memory-a-deep-dive-into-macos-memory-pressure-257302fd5ed9",
+          "note": null
+        },
+        {
+          "text": "Verification during load: Swap Used should stay flat while Memory Used rises; `ollama ps` should show `100% GPU`.",
+          "source": "https://www.thinkdifferent.blog/blog/the-macbook-pro-setting-that-doubles-your-ai-performance/",
+          "note": null
+        },
+        {
+          "text": "Calculator sites budget ~90% of VRAM for a discrete card and 70-85% (tiered) of unified memory for a Mac; 32 GB Mac ~22.4 GB vs 32 GB card ~28.8 GB.",
+          "source": "https://modelfit.io/ram-vs-vram-for-llms/",
+          "note": null
+        },
+        {
+          "text": "Decode speed is bound by memory bandwidth: RTX 5090 1,792 GB/s vs Mac unified memory far lower; one estimate gives ~5x tokens/s for the same 26B-A4B model (estimate, not measured).",
+          "source": "https://modelfit.io/ram-vs-vram-for-llms/",
+          "note": null
+        },
+        {
+          "text": "Effective bandwidth during LLM inference is typically 60-80% of theoretical peak.",
+          "source": "https://www.sitepoint.com/local-llm-hardware-requirements-mac-vs-pc-2026/",
+          "note": null
+        },
+        {
+          "text": "Token generation is memory-bandwidth-bound and prompt processing is compute-bound; both slow as context grows.",
+          "source": "https://blog.6nok.org/experimenting-with-local-llms-on-macos/",
+          "note": null
+        },
+        {
+          "text": "M5 Max decode is estimated only ~7-10% faster than M4 Max (600 vs 546 GB/s); the larger M5 gain is prompt processing.",
+          "source": "https://llmcheck.net/blog/apple-silicon-m5-max-local-ai-guide/",
+          "note": null
+        },
+        {
+          "text": "No Apple page documents the 2/3 vs 3/4 rule or `iogpu.wired_limit_mb`; the \"Apple's 70% guidance\" claim is unsourced.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "The default fractions on macOS 26 are unverified; all cited sources predate or do not address it.",
+          "source": "asserted",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Corrections and disagreements",
+      "facts": [
+        {
+          "text": "The default budget is not a flat 75%. It is about 2/3 of RAM up to 32 GB and about 3/4 from 36 GB up (CONTRADICTS the existing file's single \"~75%\"). Logged `recommendedMaxWorkingSetSize` values: 16 GB = 10,922.67 MB(MiB-labelled, old build) i.e. 10.67 GiB; 24 GB = 17,179.89 MB (16 GiB); 32 GB = 22,906.50 MB (21.33 GiB); 36 GB = 27 GiB; 48 GB = 36 GiB; 64 GB = 48 GiB; 96 GB = 72 GiB; 128 GB = 96 GiB; 192 GB = 144 GiB; 256 GB = 192 GiB.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "CONTRADICTS on-device-local-llm-runtimes.md section 10: the default is not a single ~75%; it is about 2/3 up to 32 GB.",
+          "source": "https://modelvram.com/llm-vram-calculator/mac-unified-memory/",
+          "note": null
+        }
+      ]
+    }
+  ],
+  "related": []
+}

@@ -1,0 +1,204 @@
+{
+  "slug": "ssd-expert-streaming-and-cluster-sharding-for-mo",
+  "concept": "SSD expert streaming and cluster sharding for MoE on Mac",
+  "generated": "2026-10-05",
+  "summary": "ds4 tensor parallelism is a 50/50 split with exactly one worker: routed experts are sharded, attention partitioning depends on the model, and both GPUs work on the same token and exchange partial results. It targets lower per-token latency for resident inference, \"but the gain depends on the mode...",
+  "facets": [
+    {
+      "title": "Facts",
+      "facts": [
+        {
+          "text": "ds4 tensor parallelism is a 50/50 split with exactly one worker: routed experts are sharded, attention partitioning depends on the model, and both GPUs work on the same token and exchange partial results. It targets lower per-token latency for resident inference, \"but the gain depends on the model, link, and comparison setup.\"",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "ds4 pipeline parallelism gives each process a complete layer range (inclusive, `N:output` includes the output head) and sends activations over TCP; each process maps only its slice and keeps that slice's KV. It exists to fit larger models and overlap long prefills; one generation stream cannot use the overlap because each token must finish the route before the next is sampled.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "The two are exclusive with streaming in the documented commands: for V4.1 Flash Q2 on two 128 GB Macs the instructions say to pass the GGUF with `-m` on both ranks and \"omit `--ssd-streaming`\"; each rank holds about 81 GiB of main weights, and both machines need the complete GGUF on disk. On two Sparks the docs say not to add `--ssd-streaming` or `--cuda-tensor-parallel` because those select different memory and execution modes.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Engram tables (189 GiB) stay on disk in every mode, including two-Mac TP (\"disk-only Engram tables\"), so even a sharded run reads part of the model from SSD.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Capacity fit decides the route: Flash Q4/MXFP4 and GLM 5.3 Flash Q4 (178 GiB) are listed as useful on two 128 GB Macs resident, GLM 5.2 IQ2_XXS as another tested capacity setup, V4.1 Flash Q4 \"does not fit resident TP across two 128 GB Macs\" and needs streaming on smaller machines or a 512 GB Mac, and full PRO Q4 uses a pipeline over two 512 GB Mac Studios with per-stage split artifacts (layers 00-30 and 31-output).",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Link requirements for Mac TP: Thunderbolt cable, an active RDMA verbs device with an IPv4-mapped GID (`rdma_ctl status`, `ibv_devinfo -v`; a working ping is not enough), addresses on the cabled member interfaces rather than the bridge, and `sudo sysctl iogpu.wired_limit_mb=120000` on both 128 GB machines for the large tested shards. `--transport tcp` is the fallback.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Pipeline tuning: `--dist-prefill-window N` (chunks in flight), `--dist-prefill-chunk N`, and `--dist-activation-bits 16` or `8` to halve or shrink wire payload (32-bit default), which changes numerics on the wire, not weights or KV.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Failure behavior: a disconnected worker invalidates the route, in-flight work can fail, and the coordinator can replay the saved token prefix to rebuild worker state; TP disk-cache restore rebuilds the saved prefix on both ranks.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Batching: Metal RDMA TP for V4.1 Flash decodes natively for 3-8 sessions with an ordered fallback for two; the Metal SSD-streaming path uses ordered fallback; two-Spark TP batches across both GPUs only with five or more ready sessions.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "2026-05 (about): antirez lists distributed inference, serial and parallel, as a next goal for ds4 (news 165). Later docs describe two-Mac TP over RDMA and layer pipelines as shipped.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "The README (fetched 2026-10-04) describes two-128 GB-Mac RDMA TP for 4-bit DeepSeek Flash or GLM 5.3 Flash, and pipeline parallelism \"to sum their RAM\".",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "ds4's network protocols have no authentication or encryption; peers must run the same commit and model artifacts and be updated together.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Pipeline startup is expensive because each side must make its model slice resident.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Repeated handshake or RDMA timeouts should not be treated as passing QA merely because a retry works.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Do not probe a waiting TP coordinator with `curl` or `nc`: it may treat the connection as a worker handshake.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Splitting experts across Macs does not lower SSD use by itself: Engram rows and any non-resident weights still read from each machine's disk.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Stream or shard? One 128 GB M5 Max streams GLM 5.3 Flash Q4 (177.77 GiB) at 11.9-14.9 tok/s generation (existing dossier). Two 128 GB Macs hold the same model resident via RDMA TP. ds4's DISTRIBUTED.md gives no tok/s for that TP setup and says the gain \"depends on the model, link, and comparison setup\", and its performance guide warns that comparing resident Q4 on two machines with streamed Q4 on one \"measures capacity benefits as well as parallelism\". No like-for-like number exists in these sources.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "MLX versus ds4 sharding model. mlx-lm TP (existing dossier) slices every expert across ranks so every rank reads 1/N of each active expert; ds4 shards routed experts 50/50 between two machines. Neither source says which gives the better decode on a small-active MoE; mlx-lm has no expert-parallel path and its PR was closed.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "No source tests SSD streaming on each node of a TP or pipeline cluster, or measures aggregate SSD bandwidth when N machines each stream a share of experts.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "No source gives ds4 two-Mac TP tok/s for GLM 5.3 Flash Q4 or DeepSeek Flash Q4, so the break-even versus one-Mac streaming is unknown.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Whether exo or mlx-lm will add expert-streaming plus TP (the mlx-optiq 20 tok/s cluster number is held elsewhere) is unstated.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "ds4 tensor parallelism between two Macs is a 50/50 split with exactly one worker, shards routed experts, partitions attention depending on the model, and exchanges partial results for the same token.",
+          "source": "https://raw.githubusercontent.com/antirez/ds4/main/docs/DISTRIBUTED.md",
+          "note": null
+        },
+        {
+          "text": "ds4 pipeline parallelism assigns inclusive layer ranges per machine, `N:output` includes the final layer and head, and activations move over TCP; it is for capacity and long-prefill throughput, not guaranteed decode speedup.",
+          "source": "https://raw.githubusercontent.com/antirez/ds4/main/docs/DISTRIBUTED.md",
+          "note": null
+        },
+        {
+          "text": "ds4 network protocols have no authentication or encryption and require the same commit and matching artifacts on every peer.",
+          "source": "https://raw.githubusercontent.com/antirez/ds4/main/docs/DISTRIBUTED.md",
+          "note": null
+        },
+        {
+          "text": "RDMA for ds4 TP requires an active verbs device with an IPv4-mapped GID, addresses on cabled member interfaces, and `iogpu.wired_limit_mb=120000` on 128 GB machines for the large tested shards; `--transport tcp` is the fallback.",
+          "source": "https://raw.githubusercontent.com/antirez/ds4/main/docs/DISTRIBUTED.md",
+          "note": null
+        },
+        {
+          "text": "ds4 pipeline tuning flags are `--dist-prefill-window N`, `--dist-prefill-chunk N` and `--dist-activation-bits 16|8` (32 default).",
+          "source": "https://raw.githubusercontent.com/antirez/ds4/main/docs/DISTRIBUTED.md",
+          "note": null
+        },
+        {
+          "text": "In ds4 a disconnected pipeline worker invalidates the route and the coordinator can replay the saved token prefix to rebuild worker state; pipeline snapshots serialize all layer slices into one payload.",
+          "source": "https://raw.githubusercontent.com/antirez/ds4/main/docs/DISTRIBUTED.md",
+          "note": null
+        },
+        {
+          "text": "ds4's full PRO Q4 pipeline uses two 512 GB Mac Studios with split artifacts `pro-q4-layers00-30` and `pro-q4-layers31-output`, and startup is expensive because each side makes its slice resident.",
+          "source": "https://raw.githubusercontent.com/antirez/ds4/main/docs/DISTRIBUTED.md",
+          "note": null
+        },
+        {
+          "text": "ds4 TP for V4.1 Flash Q2 on two Macs or Sparks passes the GGUF with `-m` on both ranks and omits `--ssd-streaming`, with each rank holding about 81 GiB of main weights and both needing the full GGUF on disk.",
+          "source": "https://raw.githubusercontent.com/antirez/ds4/main/docs/MODELS.md",
+          "note": null
+        },
+        {
+          "text": "ds4's V4.1 Flash Q4 does not fit resident TP across two 128 GB Macs and needs SSD streaming on smaller Macs or a 512 GB Mac.",
+          "source": "https://raw.githubusercontent.com/antirez/ds4/main/docs/MODELS.md",
+          "note": null
+        },
+        {
+          "text": "ds4's two-Spark TP docs say not to add `--ssd-streaming` or `--cuda-tensor-parallel`, that Engram tables stay on disk, that the transport stages CUDA results through host memory (RoCE, not GPUDirect), and that decode batches across both GPUs only with five or more ready sessions.",
+          "source": "https://raw.githubusercontent.com/antirez/ds4/main/docs/DISTRIBUTED.md",
+          "note": null
+        },
+        {
+          "text": "ds4's session-batching table lists Metal RDMA TP for V4.1 Flash as native for 3-8 sessions with ordered fallback for two, and Metal SSD streaming as ordered fallback.",
+          "source": "https://raw.githubusercontent.com/antirez/ds4/main/docs/SERVER.md",
+          "note": null
+        },
+        {
+          "text": "ds4's README says an eight-L40S CUDA setup reached about 126 t/s aggregate generation with 16 sessions.",
+          "source": "https://raw.githubusercontent.com/antirez/ds4/main/README.md",
+          "note": null
+        },
+        {
+          "text": "ds4's README describes two 128 GB Macs over RDMA running 4-bit DeepSeek Flash or GLM 5.3 Flash with tensor parallelism, and pipeline parallelism as a way to sum RAM across systems.",
+          "source": "https://github.com/antirez/ds4",
+          "note": null
+        },
+        {
+          "text": "ds4's benchmarking guide warns that comparing resident Q4 on two machines with streamed Q4 on one measures capacity benefits as well as parallelism, and says to keep quantization and prompt equal for TP comparisons.",
+          "source": "https://raw.githubusercontent.com/antirez/ds4/main/docs/PERFORMANCE.md",
+          "note": null
+        },
+        {
+          "text": "ds4 TP disk-cache restore rebuilds the saved token prefix on both ranks rather than restoring the coordinator alone.",
+          "source": "https://raw.githubusercontent.com/antirez/ds4/main/docs/DISTRIBUTED.md",
+          "note": null
+        },
+        {
+          "text": "No source compares one-Mac SSD streaming with two-Mac resident TP on the same model at the same quantization.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Sharding experts across Macs reduces per-node resident bytes but does not remove SSD reads for tables kept on disk, such as Engram rows.",
+          "source": "asserted",
+          "note": null
+        }
+      ]
+    }
+  ],
+  "related": []
+}

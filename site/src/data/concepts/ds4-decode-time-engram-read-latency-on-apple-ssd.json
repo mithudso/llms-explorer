@@ -1,0 +1,159 @@
+{
+  "slug": "ds4-decode-time-engram-read-latency-on-apple-ssd",
+  "concept": "ds4 decode-time Engram read latency on Apple SSD (48 random reads per token)",
+  "generated": "2026-10-05",
+  "summary": "\"Decode-time Engram read latency\" is the time the V4.1 decode step waits for the Engram rows of the new token to arrive from the SSD before the GPU command buffer starts.",
+  "facets": [
+    {
+      "title": "Facts",
+      "facts": [
+        {
+          "text": "\"Decode-time Engram read latency\" is the time the V4.1 decode step waits for the Engram rows of the new token to arrive from the SSD before the GPU command buffer starts.",
+          "source": "https://raw.githubusercontent.com/antirez/ds4/main/ds4.c",
+          "note": null
+        },
+        {
+          "text": "Per decode token `ds41_graph_step` hashes the token, then for each of 2 Engram tables (i = 0, 1) calls `ds4_engram_read_batch(&g->table[i], ids[i], 1, DS4_ENGRAM_COLS, g->rows[i])` on macOS. The calls are sequential, table 0 then table 1, and both finish before `ds4_gpu_begin_commands`.",
+          "source": "https://raw.githubusercontent.com/antirez/ds4/main/ds4.c",
+          "note": null
+        },
+        {
+          "text": "Image positions skip the read (`!ds41_image_at(g, g->pos)`).",
+          "source": "https://raw.githubusercontent.com/antirez/ds4/main/ds4.c",
+          "note": null
+        },
+        {
+          "text": "Each call carries 24 row ids. The batch reader sorts them by row id with `qsort`, then because 24 is at least `ENGRAM_PARALLEL_MIN_ROWS` (8 on Apple, 256 elsewhere) it splits them across `ENGRAM_READERS = 16` workers by integer partition `count * part / readers`, so each worker gets 1 or 2 rows.",
+          "source": "https://raw.githubusercontent.com/antirez/ds4/main/ds4_engram.c",
+          "note": null
+        },
+        {
+          "text": "On Apple the workers run through `dispatch_apply_f` on the global queue at QOS_CLASS_USER_INITIATED, reusing the GCD pool; on other platforms the code creates pthreads per batch (a comment says this is why the non-Apple threshold is 256).",
+          "source": "https://raw.githubusercontent.com/antirez/ds4/main/ds4_engram.c",
+          "note": null
+        },
+        {
+          "text": "Each row is read with one `pread` of 264 bytes (`DS4_ENGRAM_ROW_BYTES`) at `offset + row * 264`, then decoded from E4M3 with E8M0 scales into floats. The decode is part of the same worker, so each row costs one read plus about 256 `ldexpf` operations.",
+          "source": "https://raw.githubusercontent.com/antirez/ds4/main/ds4_engram.c",
+          "note": null
+        },
+        {
+          "text": "The Engram table's descriptor is opened with `F_NOCACHE` and `F_RDAHEAD 0`. Every `pread` therefore goes to the SSD, with no page-cache hit and no read-ahead.",
+          "source": "https://raw.githubusercontent.com/antirez/ds4/main/ds4_engram.c",
+          "note": null
+        },
+        {
+          "text": "Duplicate row ids inside one worker's slice are collapsed with a `memcpy` of the previous row only when two consecutive entries in that slice match; duplicates that land in different workers' slices are read twice.",
+          "source": "https://raw.githubusercontent.com/antirez/ds4/main/ds4_engram.c",
+          "note": null
+        },
+        {
+          "text": "Dependent-read depth per token on Apple: the two table calls are serial, and inside each call a worker with two rows does two preads one after another. The longest chain per token is therefore about 4 serial reads (2 tables times 2 rows), not 48, provided the SSD serves the 16 parallel requests at near single-read latency.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "On non-Apple builds the decode path calls `ds4_engram_read` directly for each table, one row after another, so the chain is 48 serial reads.",
+          "source": "https://raw.githubusercontent.com/antirez/ds4/main/ds4.c",
+          "note": null
+        },
+        {
+          "text": "The read fan-out is in the decode critical path: the next token's ids are known only after sampling, so nothing overlaps these reads with GPU work on the previous token.",
+          "source": "https://raw.githubusercontent.com/antirez/ds4/main/ds4.c",
+          "note": null
+        },
+        {
+          "text": "Prefill reads differ: a reader pthread per table runs ahead in 2,048-token chunks and overlaps with the layer sweep (see engram-row-prefetch-overlapped-with-preceding-tr.md). Decode never got this overlap.",
+          "source": "https://raw.githubusercontent.com/antirez/ds4/main/ds4.c",
+          "note": null
+        },
+        {
+          "text": "Latency-versus-bandwidth question: 12,672 bytes per token is tiny against SSD bandwidth, so decode Engram cost is latency-bound by the longest dependent chain, not bandwidth-bound.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Cost estimate shape (not a measurement): stall per token is about (number of serial reads in the longest chain) times (the SSD's QD-16 read latency) plus dispatch overhead of two `dispatch_apply_f` calls and 48 float decodes. No source gives the Apple SSD's small-read latency under `F_NOCACHE`, so the estimate cannot be completed.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "`F_NOCACHE` blocks the OS page cache from absorbing hot n-gram rows across tokens. A hot-row cache tier is the remedy discussed in zipfian-hot-row-cache-tier-for-n-gram-tables-dra.md; ds4 has none.",
+          "source": "https://raw.githubusercontent.com/antirez/ds4/main/ds4_engram.c",
+          "note": null
+        },
+        {
+          "text": "A short pread or error aborts the token: `read_row` returns false on a zero or negative read and the batch returns the saved errno, which the graph step turns into a failed step.",
+          "source": "https://raw.githubusercontent.com/antirez/ds4/main/ds4_engram.c",
+          "note": null
+        },
+        {
+          "text": "Resident-model decode figures in ds4's performance doc (39.35 t/s at 2048 context for Flash Q2 on an M5 Max 128 GB) already include these reads; the doc does not separate them.",
+          "source": "https://raw.githubusercontent.com/antirez/ds4/main/docs/PERFORMANCE.md",
+          "note": null
+        },
+        {
+          "text": "The paper's 2.8% worst-case penalty is for host-DRAM tables prefetched over PCIe, with a block of compute to hide the fetch. The ds4 decode path has no prefetch and reads from SSD, so the figure does not transfer. A model card and the ds4 code both treat the tables as \"read from the file\", and neither reports a Mac decode number.",
+          "source": "https://arxiv.org/pdf/2601.07372",
+          "note": null
+        },
+        {
+          "text": "The measured decode stall per token on any Apple SSD, with `F_NOCACHE`, at 16-way concurrency of 264-byte reads. Two searches (Apple SSD QD1 latency, M-series NVMe random-read benchmarks) returned no usable measurement.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Whether the 16-reader fan-out helps at 24 rows per call or costs more in GCD dispatch than it saves; the threshold of 8 rows is a ds4 choice with no stated measurement.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "On macOS each decode token makes two sequential `ds4_engram_read_batch` calls of 24 rows, one per Engram table.",
+          "source": "https://raw.githubusercontent.com/antirez/ds4/main/ds4.c",
+          "note": null
+        },
+        {
+          "text": "Each Apple decode call splits its 24 sorted rows over 16 GCD workers, giving each worker 1 or 2 rows.",
+          "source": "https://raw.githubusercontent.com/antirez/ds4/main/ds4_engram.c",
+          "note": null
+        },
+        {
+          "text": "`ENGRAM_PARALLEL_MIN_ROWS` is 8 on Apple and 256 on other platforms.",
+          "source": "https://raw.githubusercontent.com/antirez/ds4/main/ds4_engram.c",
+          "note": null
+        },
+        {
+          "text": "Every Engram row read is one 264-byte `pread` on a descriptor with `F_NOCACHE` and `F_RDAHEAD 0`.",
+          "source": "https://raw.githubusercontent.com/antirez/ds4/main/ds4_engram.c",
+          "note": null
+        },
+        {
+          "text": "Only consecutive equal row ids inside the same worker slice share a read; equal ids in different slices are read twice.",
+          "source": "https://raw.githubusercontent.com/antirez/ds4/main/ds4_engram.c",
+          "note": null
+        },
+        {
+          "text": "On non-Apple builds decode reads the 48 rows serially through `ds4_engram_read`.",
+          "source": "https://raw.githubusercontent.com/antirez/ds4/main/ds4.c",
+          "note": null
+        },
+        {
+          "text": "The longest dependent read chain per decode token on Apple is about 4 reads, if the SSD serves the 16 parallel reads at near single-read latency.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Decode Engram reads are latency-bound: about 12.7 KB per token is far below SSD bandwidth.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "No fetched source measures the per-token Engram stall on an Apple SSD.",
+          "source": "asserted",
+          "note": null
+        }
+      ]
+    }
+  ],
+  "related": []
+}

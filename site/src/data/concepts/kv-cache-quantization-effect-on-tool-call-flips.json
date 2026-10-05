@@ -1,0 +1,204 @@
+{
+  "slug": "kv-cache-quantization-effect-on-tool-call-flips",
+  "concept": "KV-cache quantization effect on tool-call flips (int8 vs int4)",
+  "generated": "2026-10-05",
+  "summary": "Token role matters more than position for KV quantization sensitivity. A Cambridge and Imperial study of agentic prefills reports per-token sensitivity spanning more than an order of magnitude, explained by three axes: recency, modality and semantic role.",
+  "facets": [
+    {
+      "title": "Facts",
+      "facts": [
+        {
+          "text": "Token role matters more than position for KV quantization sensitivity. A Cambridge and Imperial study of agentic prefills reports per-token sensitivity spanning more than an order of magnitude, explained by three axes: recency, modality and semantic role.",
+          "source": "https://arxiv.org/html/2605.17170v1",
+          "note": null
+        },
+        {
+          "text": "In that study the system prompt and tool schemas are the most sensitive tag. The authors attribute BFCL failures under uniform 2-bit to errors in the cached keys of function signatures that the model must reproduce verbatim.",
+          "source": "https://arxiv.org/html/2605.17170v1",
+          "note": null
+        },
+        {
+          "text": "Sensitivity is measured by quantizing only the tokens of one tag at one bit width, replaying attention, and recording the output mean squared error against full precision, taking the maximum across heads.",
+          "source": "https://arxiv.org/html/2605.17170v1",
+          "note": null
+        },
+        {
+          "text": "Quantization damage can concentrate by content type, not spread evenly. In one independent llama.cpp KL benchmark, Qwen models at q4_0 KV scored 0.581 on long documents but 0.086 on tool calls, so a tool-call-only suite would have passed the cache while long documents degraded about seven times more.",
+          "source": "https://particula.tech/blog/kv-cache-quantization-accuracy-loss-benchmarks",
+          "note": null
+        },
+        {
+          "text": "The same benchmark shows model dependence at the same q8_0 flag: Gemma 4 31B dense 0.108, Gemma 4 26B A4B MoE 0.377, both Qwen 3.6 models under 0.04.",
+          "source": "https://particula.tech/blog/kv-cache-quantization-accuracy-loss-benchmarks",
+          "note": null
+        },
+        {
+          "text": "That benchmark published neither the llama.cpp version nor the context length, so its ordering is usable and its absolute values are not portable.",
+          "source": "https://particula.tech/blog/kv-cache-quantization-accuracy-loss-benchmarks",
+          "note": null
+        },
+        {
+          "text": "Not every long-context failure is quantization error: a Hopper FP8 attention accumulation defect dropped a 128k needle score from 91% to 13% and a two-level accumulation fix restored 89%; B200 did not need it. A KV-dtype comparison on a buggy kernel measures the kernel.",
+          "source": "https://particula.tech/blog/kv-cache-quantization-accuracy-loss-benchmarks",
+          "note": null
+        },
+        {
+          "text": "Reading of the Level1Techs int8-versus-int4 result: it is one prompt on one 27B hybrid model with CUDA/vLLM kernels; it shows int4 can fail to recover after flips and int8 can, not what fraction of tool calls fail.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "2025-05: Outlier Tokens Tracing proposes excluding outlier-key tokens from 2-bit quantization, reporting 6.4x memory and 2.3x throughput.",
+          "source": "https://arize.com/blog/accurate-kv-cache-quantization-with-outlier-tokens-tracing/",
+          "note": null
+        },
+        {
+          "text": "2026-04-01: llama.cpp mainline merges a Hadamard rotation of Q, K and V before caching, so any llama.cpp KV benchmark is valid only for builds on one side of that date.",
+          "source": "https://particula.tech/blog/kv-cache-quantization-accuracy-loss-benchmarks",
+          "note": null
+        },
+        {
+          "text": "2026-05-16: TriAxialKV publishes BFCL Memory and OSWorld results for INT4, INT2 and mixed KV on SGLang.",
+          "source": "https://arxiv.org/html/2605.17170v1",
+          "note": null
+        },
+        {
+          "text": "Same-label comparisons mislead: SGLang FP4 KV scored higher than BF16 on Falcon3-10B (+4.22 points) and lower on Qwen3-14B (-7.11), so one model's gain does not carry over.",
+          "source": "https://arxiv.org/html/2605.17170v1",
+          "note": null
+        },
+        {
+          "text": "BFCL Memory baselines are low (about 24 to 26%), and score steps of 0.222 points imply about 450 items, so a single-item change is 0.22 points; differences under about 1 point are within noise.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "String similarity to f16 is a divergence measure, not a score: on a 12-prompt, 256-token greedy harness (7B coder at Q4_K_M weights, 16 GB NVIDIA card) f16 to q8_0 gave 81.6% output similarity and q4_0 gave 8.3%, while decode speed stayed within 76 to 82 tok/s.",
+          "source": "https://particula.tech/blog/kv-cache-quantization-accuracy-loss-benchmarks",
+          "note": null
+        },
+        {
+          "text": "So even q8_0 changed about 18% of the output by that measure on that harness, which the source's author called lossless; this is the strongest reason to use rollout flips and task scores, not similarity.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Speed and memory results do not transfer: the 92.5% prompt-processing collapse for q4_0 at 64K (and q4_0 using more RSS than f16) from a DGX Spark thread is superseded by the author's corrected numbers (prompt throughput unchanged at 110K) held in kv-cache-quantization-tradeoffs-on-apple-gpus.md.",
+          "source": "https://forums.developer.nvidia.com/t/kv-cache-quantization-benchmarks-on-dgx-spark-q4-0-vs-q8-0-vs-f16-llama-cpp-nemotron-30b-128k-context/365138",
+          "note": null
+        },
+        {
+          "text": "Hybrid models with few attention layers have little KV to quantize, so flips from KV dtype may be smaller there (existing dossier) while weight flips dominate.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Is int8 KV safe for tool calls? Level1Techs: int8 recovered, int4 did not (one prompt). TriAxialKV: its tag-based INT4 setting lost 0.22 to 2.00 points on BFCL Memory across four models, while SGLang FP4 KV lost up to 7.11 and 2-bit KIVI up to 4.44; the study did not test a uniform int8 cache. The sources agree 4-bit and below is where damage appears and disagree on how large it is, because the schemes differ (per-token INT4 with tags versus FP4 versus KIVI).",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Does rotation change the verdict at q4? The llama.cpp maintainer's AIME25 table (existing dossier) says rotated q4_0 still loses about 16 points, while a PPL-only reading says near-lossless. No source runs a tool-call benchmark on rotated q4_0.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "A controlled BFCL or agent-loop run varying only `-ctk/-ctv` or mlx-lm kv-bits on a fixed weight quant, on Metal. None found.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Whether the BFCL Memory numbers below transfer from SGLang INT4/FP4 KV to llama.cpp q4_0 or mlx-lm 4-bit KV.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Branch-and-follow outcomes (recover or not) per KV dtype with more than one prompt.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "On BFCL Memory, BF16 KV scored 24.00, 25.11, 25.78 and 23.78 on Falcon3-10B-Instruct, Qwen3-14B, Qwen3-32B and Qwen3-235B-A22B-Instruct-2507.",
+          "source": "https://arxiv.org/html/2605.17170v1",
+          "note": null
+        },
+        {
+          "text": "On the same four models SGLang FP4 KV changed the score by +4.22, -7.11, -5.56 and -0.22 points.",
+          "source": "https://arxiv.org/html/2605.17170v1",
+          "note": null
+        },
+        {
+          "text": "On the same four models KIVI 2-bit changed the score by -1.11, -4.44, -4.22 and -0.45 points.",
+          "source": "https://arxiv.org/html/2605.17170v1",
+          "note": null
+        },
+        {
+          "text": "On the same four models TriAxialKV INT4 changed the score by -2.00, -0.22, -1.11 and -0.67 points.",
+          "source": "https://arxiv.org/html/2605.17170v1",
+          "note": null
+        },
+        {
+          "text": "Removing the semantic-role axis from TriAxialKV dropped BFCL Memory to 18.00 on Qwen3-14B and 20.89 on Qwen3-32B, against 24.22 and 25.11 for the full method.",
+          "source": "https://arxiv.org/html/2605.17170v1",
+          "note": null
+        },
+        {
+          "text": "In the study's calibration sweep the system-prompt and tool-schema tag is the most sensitive tag, and removing the semantic axis costs about three times as much BFCL Memory accuracy (6.22 and 4.22 points) as removing the temporal axis.",
+          "source": "https://arxiv.org/html/2605.17170v1",
+          "note": null
+        },
+        {
+          "text": "A memory-budget sweep on Qwen3-14B BFCL Memory gives 16.22, 19.56 and 24.22 at average 2.5, 2.6 and 2.7 KV bits, so the score moves 8 points over a 0.2-bit change.",
+          "source": "https://arxiv.org/html/2605.17170v1",
+          "note": null
+        },
+        {
+          "text": "At q4_0 KV, one llama.cpp KL benchmark measured Qwen long-document KL 0.581 versus tool-call KL 0.086, and Gemma 4 26B A4B at q4_0 KL 1.088 with 68.0% top-1 agreement.",
+          "source": "https://particula.tech/blog/kv-cache-quantization-accuracy-loss-benchmarks",
+          "note": null
+        },
+        {
+          "text": "A June 2026 preprint, not peer reviewed, is cited as reporting that low-bit KV quantization degrades safety-alignment behavior while perplexity stays acceptable.",
+          "source": "https://particula.tech/blog/kv-cache-quantization-accuracy-loss-benchmarks",
+          "note": null
+        },
+        {
+          "text": "Level1Techs' KV result: BF16 KV had no tool-call failures, int8 KV diverged and recovered, int4 KV diverged and did not recover, on a 100k-token tool workload with vLLM on one RTX PRO 6000.",
+          "source": "https://mer.vin/news/local-llm-quantization-benchmarks-reveal-silent-tool-call-failures/",
+          "note": null
+        },
+        {
+          "text": "That run used eager execution with prefix caching, CUDA graphs and MTP disabled, so kernels and caching were held fixed while KV dtype changed.",
+          "source": "https://mer.vin/news/local-llm-quantization-benchmarks-reveal-silent-tool-call-failures/",
+          "note": null
+        },
+        {
+          "text": "Outlier Tokens Tracing excludes tokens with unusually small key magnitude from 2-bit quantization and reports 6.4x memory savings.",
+          "source": "https://arize.com/blog/accurate-kv-cache-quantization-with-outlier-tokens-tracing/",
+          "note": null
+        },
+        {
+          "text": "Per-tag KV quantization sensitivity is plausibly transferable to llama.cpp and mlx-lm by keeping the cache of the system prompt and tool schemas at q8_0 and quantizing the rest, but no Mac runtime exposes a per-token precision control.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "For a Mac test, report weight quant, KV dtype, rotation state (llama.cpp build date), prompt length, flips per 10k positions, and branch outcomes, because a single KL or similarity number hid a sevenfold content-type spread.",
+          "source": "asserted",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Corrections and disagreements",
+      "facts": [
+        {
+          "text": "TriAxialKV (arXiv 2605.17170) is the first source found that reports a tool-call benchmark (BFCL Memory) for a KV-cache quantization variant against a BF16 cache with weights held fixed. CONTRADICTS: kv-cache-quantization-degrading-tool-call-accura.md, which says no controlled measurement exists; the study is CUDA/SGLang, so the Metal gap remains.",
+          "source": "https://arxiv.org/html/2605.17170v1",
+          "note": null
+        }
+      ]
+    }
+  ],
+  "related": []
+}

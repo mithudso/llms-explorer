@@ -1,0 +1,189 @@
+{
+  "slug": "prefix-stability-regression-testing-of-chat-temp",
+  "concept": "Prefix-stability regression testing of chat templates",
+  "generated": "2026-10-05",
+  "summary": "`scripts/test_v22.py::run_prefix_test`: for k from 1 to n, renders `messages[:k]` with `add_generation_prompt=False` and requires each render to start with the previous one. On failure it prints the first differing character index and 80 characters either side of it for both strings.",
+  "facets": [
+    {
+      "title": "Facts",
+      "facts": [
+        {
+          "text": "`scripts/test_v22.py::run_prefix_test`: for k from 1 to n, renders `messages[:k]` with `add_generation_prompt=False` and requires each render to start with the previous one. On failure it prints the first differing character index and 80 characters either side of it for both strings.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Boundary rule shared by both scripts: a k that would split a run of consecutive `system` messages or consecutive `tool` messages is skipped, because a server never generates between them.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Test cases 92 and 93 run one scripted agentic session (system, user, assistant with think text plus tool call, tool, assistant, tool, assistant, user) with default settings and with tools plus `reasoning_effort=\"xhigh\"`. Test 94 checks that the minified one-line template renders byte-identically to the multi-line file.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "`scripts/fuzz_template.py`: a seeded generator (default 500 cases) of structurally valid conversations, asserting nine invariants: render succeeds, jinja/oneline parity, `<|im_start|>`/`<|im_end|>` balance, content appears verbatim, XML parameter fidelity, JSON validity, error-warning precision, prefix stability, and the empty-think prefill when thinking is off. It exits non-zero and prints a JSON repro per failure.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "The fuzz prefix check has two parts: each history render must start with the previous one, and the render with `add_generation_prompt=True` at turn k-1 must be a prefix of the history render at turn k whenever message k-1 is an assistant. It exempts one case: a non-thinking prompt (ends `<think>\\n\\n</think>\\n\\n`) followed by history that has real reasoning, because the generator injects reasoning there.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Generation-prompt check is the closest template-level model of what the server cached: the cached tokens are the prompt plus the generated text, so the generation-prompt render is what must prefix the next request.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Server-side check, llama.cpp: `n_past` is the token-level common prefix of the stored slot tokens and the new prompt tokens. With env `LLAMA_SERVER_SLOTS_DEBUG` set and `LLAMA_SERVER_SLOTS_N_DIFF` giving a window size, the server logs four warning lines at the mismatch: old text, new text, old token ids, new token ids, separated at `n_past` by \" | \".",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Server-side check, oMLX: the scheduler logs \"closest stored sequence ... shares the first N of M comparable tokens\". The prefix match is `_common_prefix_len(prompt, seq)` over token sequences, and reuse is floored to the paged-cache block size.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Method used by an oMLX reporter and a reviewer (issue 3608, 2026-09): tokenise the two consecutive request bodies, take the first differing index, compare it with the index the server reports, and share only the index plus about 40 tokens either side. The reviewer's point: compare rendered prompts, not request JSON, because the conversion from Anthropic messages to the template input can be position-dependent.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "oMLX unit-test pattern for template capability probes: a `StrictLeadingSystemTokenizer` test double that accepts `[user, system]` and raises on a system message after a leading system block, used to show the probe returns false with a leading block and true without one (PR 1991).",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "From 2026-08-13 (v22) onward: froggeric grows the suite from 44 to 101 cells (v22.3, which adds the fuzz harness, credited to a contributor); the repo page later cites 105 cells.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "2026-09: oMLX issue 3608 shows the tokenise-and-diff method applied by a user against a server.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Both scripts test only template idempotence on message lists. They cannot detect drift between model-generated tokens and the re-render (whitespace, tool-argument formatting) because they never tokenise or generate.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "The scripted session writes reasoning inline in `content` as `<think>...</think>`, not in `reasoning_content`, so it exercises the template's own extraction path and not the client-echo path.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Skipping boundary-splitting prefixes can hide a real failure if a client does send partial tool-result batches; the scripts state they never occur in real serving.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "The fuzz exemption for non-thinking prompts followed by reasoning hides one genuine cache break (a thinking-mode turn replayed after a non-thinking prompt).",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Block flooring makes server logs misleading: a \"reused 24576\" repeated across different depths comes from rounding down to 2048-token blocks, not from a cap. [src: omlx issue 3608]",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "froggeric presents passing run_prefix_test as \"the direct verification of the 100% prefix KV cache claim\". The server-side evidence in other dossiers (checkpoint thresholds, client mutation, slot eviction) shows a template pass is necessary but not sufficient. The two statements do not conflict, but the first overstates what the test covers.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "A reusable harness that takes real captured requests, applies the server's own template path (including its message normaliser), tokenises, and reports first-diff token index; none was found for llama.cpp or oMLX.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Whether any Mac runtime exposes the reused-token count per request in the response (llama.cpp reports cached tokens in timings; the field names were not re-read here).",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "test_v22.py run_prefix_test renders messages[:k] for each k and requires each render to start with the previous one, printing the first differing index with 80 characters of context",
+          "source": "https://huggingface.co/froggeric/Qwen-Fixed-Chat-Templates/raw/main/scripts/test_v22.py",
+          "note": null
+        },
+        {
+          "text": "The prefix test skips k values that would split consecutive system or tool messages",
+          "source": "https://huggingface.co/froggeric/Qwen-Fixed-Chat-Templates/raw/main/scripts/test_v22.py",
+          "note": null
+        },
+        {
+          "text": "Tests 92 and 93 run an eight-message agentic session with default settings and with tools plus xhigh effort; test 94 checks one-line template parity",
+          "source": "https://huggingface.co/froggeric/Qwen-Fixed-Chat-Templates/raw/main/scripts/test_v22.py",
+          "note": null
+        },
+        {
+          "text": "fuzz_template.py asserts nine invariants over seeded generated conversations and exits non-zero with a JSON repro on failure",
+          "source": "https://huggingface.co/froggeric/Qwen-Fixed-Chat-Templates/raw/main/scripts/fuzz_template.py",
+          "note": null
+        },
+        {
+          "text": "The fuzz prefix invariant also requires the generation-prompt render at turn k-1 to prefix the history render at turn k when message k-1 is an assistant",
+          "source": "https://huggingface.co/froggeric/Qwen-Fixed-Chat-Templates/raw/main/scripts/fuzz_template.py",
+          "note": null
+        },
+        {
+          "text": "The fuzz harness exempts a non-thinking generation prompt followed by history that carries injected reasoning",
+          "source": "https://huggingface.co/froggeric/Qwen-Fixed-Chat-Templates/raw/main/scripts/fuzz_template.py",
+          "note": null
+        },
+        {
+          "text": "llama-server computes n_past as the token-level common prefix of the slot's stored tokens and the new prompt",
+          "source": "https://raw.githubusercontent.com/ggml-org/llama.cpp/master/tools/server/server-context.cpp",
+          "note": null
+        },
+        {
+          "text": "With LLAMA_SERVER_SLOTS_DEBUG set, llama-server logs the old and new text and token ids around the mismatch, windowed by LLAMA_SERVER_SLOTS_N_DIFF",
+          "source": "https://raw.githubusercontent.com/ggml-org/llama.cpp/master/tools/server/server-context.cpp",
+          "note": null
+        },
+        {
+          "text": "oMLX's prefix match compares token sequences with _common_prefix_len and floors reuse to the paged-cache block size, so a repeated \"reused 24576\" reflects 2048-token blocks",
+          "source": "https://github.com/jundot/omlx/issues/3608",
+          "note": null
+        },
+        {
+          "text": "An oMLX reviewer advised diffing the rendered, tokenised prompt rather than the request JSON, and sharing only the first-diff index with about 40 tokens either side",
+          "source": "https://github.com/jundot/omlx/issues/3608",
+          "note": null
+        },
+        {
+          "text": "oMLX PR 1991 tests its mid-system capability probe with a strict test-double tokenizer that rejects a system message after a leading system block",
+          "source": "https://github.com/jundot/omlx/pull/1991",
+          "note": null
+        },
+        {
+          "text": "A template-level prefix test cannot reveal drift between generated tokens and the re-rendered text",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "A passing render-twice test is necessary but not sufficient for a server-side cache hit",
+          "source": "asserted",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Corrections and disagreements",
+      "facts": [
+        {
+          "text": "CONTRADICTS: chat-template-patching-for-cache-stability.md (open question \"no source documents a render-twice-and-diff procedure\"). froggeric's repo ships exactly that, in two scripts.",
+          "source": "asserted",
+          "note": null
+        }
+      ]
+    }
+  ],
+  "related": []
+}

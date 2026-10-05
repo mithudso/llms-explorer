@@ -1,0 +1,179 @@
+{
+  "slug": "per-expert-coverage-and-per-expert-kld-attributi",
+  "concept": "per-expert coverage and per-expert KLD attribution for MoE quants",
+  "generated": "2026-10-05",
+  "summary": "llama-imatrix's `--show-statistics` does not report per-expert numbers: compute_statistics averages each expert's sums by that expert's count, silently skips any expert with count 0 (debug log only), and concatenates the remaining experts' channels into one vector, giving one row per tensor. The ...",
+  "facets": [
+    {
+      "title": "Facts",
+      "facts": [
+        {
+          "text": "llama-imatrix's `--show-statistics` does not report per-expert numbers: compute_statistics averages each expert's sums by that expert's count, silently skips any expert with count 0 (debug log only), and concatenates the remaining experts' channels into one vector, giving one row per tensor. The N column is therefore the channel count times the number of experts that received tokens, so N divided by the row size is a coverage count recoverable from that table.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Per-expert counts live only in the GGUF imatrix (`<tensor>.counts`); no stock llama.cpp command prints them as a histogram.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Quantization granularity is the whole merged tensor: llama-quantize assigns one ggml type per tensor, and the 3D `ffn_*_exps` tensor holds every expert, so all experts of a layer share one type and one block layout. Expert-wise mixed precision (the router-norm ranking line, the DynaExq hotness line) cannot be written as a GGUF recipe; the only per-expert levers in llama-quantize are the imatrix slices.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "llama-perplexity's `--kl-divergence` computes KLD per token over the vocabulary and reports mean, percentile and Same-top-p statistics; it carries no expert index, so attributing loss to an expert would need a second pass that logs the routed expert ids for the same tokens (imatrix's MUL_MAT_ID hook already reads those ids) and a join by token position.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Published substitutes for attribution are proxies: expert activation frequency, router-gate probability mass (EMA hotness), weight outlier ratio, and block-output cosine similarity. QuantMoE-Bench scores them by downstream accuracy under GPTQ, not by KLD.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Calibration imbalance is the cause the literature points to: on the first MoE layer of DeepSeek-MoE-16B the sample distribution across experts is strongly skewed for both C4 and WikiText-2 (128 x 4096 tokens each), and EAQuant's fix is to resample until under-used experts reach their expected activation counts.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "2024-06: QuantMoE-Bench (arXiv 2406.08155) benchmarks MoE structure-aware bit allocation with GPTQ on Mixtral-8x7B and DeepSeek-MoE-16B-base.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "2025-06: EAQuant (arXiv 2506.13329) adds expert-level calibration balancing and routing-consistency alignment for W4A4 and W3A4.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "2025-11: DynaExq (arXiv 2511.15015) moves expert precision to runtime using an EMA of router probabilities per expert.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "2026-06: VSRAQ (arXiv 2606.05688) adds a per-layer expert-selection Jaccard diagnostic (see the router top-k dossier).",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "A frequency heuristic is only as good as routing imbalance: QuantMoE-Bench finds it clearly beats random on DeepSeek-MoE-16B (unbalanced routing) but only marginally on Mixtral-8x7B (balanced routing).",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Frequency measured on a chat-style imatrix set is a statement about that set, not the model's use: an expert that is rare in calibration is not rare in every workload, and a flat-weighted expert (count 0) is quantized as if no imatrix existed.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Bits above a point stop paying: giving the top-k most-used experts 8 instead of 4 bits adds little over 4 bits on DeepSeek-MoE-16B when the rest sit at 2 bits.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "The QuantMoE-Bench HTML table shows identical Random-15 and Random-20 rows for DeepSeek-MoE-16B-base (67.25, 84.50, 40.00, 71.79, 76.85, 35.71 and an average of 62.68 in both), which looks like a duplicated row, so the 20-expert comparison should not be trusted.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Activation frequency (QuantMoE-Bench, EAQuant, DynaExq's hotness EMA) versus router-weight change during training (the expert-wise router-norm paper in the sibling dossier): the second says rarely-activated experts are the most sensitive, the first gives frequent experts more bits. They are not compared on one model.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Per-expert versus per-tensor protection: papers assign bits per expert, but a GGUF or an MLX SwitchGLU stack has one type per merged tensor, so what is practical on a Mac is per-layer-per-role protection (down vs gate/up, boundary layers) and not per-expert protection.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "compute_statistics in llama-imatrix divides each expert's accumulated values by that expert's count, skips experts whose count is 0 (logging only at debug level), and appends the remaining experts' values into one activations vector per tensor.",
+          "source": "https://raw.githubusercontent.com/ggml-org/llama.cpp/master/tools/imatrix/imatrix.cpp",
+          "note": null
+        },
+        {
+          "text": "show_statistics prints one row per tensor with sum of squared activations, min, max, mean, standard deviation, percent active, element count N, entropy, normalized entropy, ZD and cosine similarity to the previous layer, with no per-expert breakdown.",
+          "source": "https://raw.githubusercontent.com/ggml-org/llama.cpp/master/tools/imatrix/imatrix.cpp",
+          "note": null
+        },
+        {
+          "text": "The imatrix collector's MUL_MAT_ID hook documents `ids -> [n_experts_used, n_tokens]` and reads the routed expert ids for each token, so routing ids are available to a collector-style tool.",
+          "source": "https://raw.githubusercontent.com/ggml-org/llama.cpp/master/tools/imatrix/imatrix.cpp",
+          "note": null
+        },
+        {
+          "text": "llama-perplexity `--kl-divergence` reports ratio and difference of PPL, mean and percentile change in the correct-token probability, RMS change in probability, and Same top p, and no statistic indexed by expert.",
+          "source": "https://github.com/ggml-org/llama.cpp/tree/master/tools/perplexity",
+          "note": null
+        },
+        {
+          "text": "QuantMoE-Bench Q1 finds expert usage frequency \"fairly good\" as a bit-allocation heuristic, markedly better than random on DeepSeek-MoE-16B-base because its routing is unbalanced and less significant on Mixtral-8x7B whose routing is more balanced.",
+          "source": "https://arxiv.org/html/2406.08155v1",
+          "note": null
+        },
+        {
+          "text": "QuantMoE-Bench Mixtral-8x7B at 2.54 average bits: 4-bit for the 2 most frequent experts gives an average of 54.20 against 49.10 plus or minus 7.73 for 2 random experts over 3 trials; at 3.03 bits with 4 experts it is 63.82 versus 63.70 plus or minus 0.49.",
+          "source": "https://arxiv.org/html/2406.08155v1",
+          "note": null
+        },
+        {
+          "text": "QuantMoE-Bench DeepSeek-MoE-16B-base with shared experts at 8 bits, attention at 4 bits and other experts at 2 bits: the 10 most frequent experts at higher bits average 62.99 versus 62.86 plus or minus 0.60 random, the 15 most frequent 63.80 versus 62.68 plus or minus 0.71, and the 20 most frequent 64.01.",
+          "source": "https://arxiv.org/html/2406.08155v1",
+          "note": null
+        },
+        {
+          "text": "QuantMoE-Bench's appendix says raising the top-k frequent experts from 4 to 8 bits gives minimal further gain (all other experts at 2 bits, shared experts and attention at 8 bits).",
+          "source": "https://arxiv.org/html/2406.08155v1",
+          "note": null
+        },
+        {
+          "text": "QuantMoE-Bench Q3 finds the first MoE blocks deserve more bits than the last, and Q4 finds shared experts always deserve more bits than random non-shared experts at equal average bits, because shared experts see every token.",
+          "source": "https://arxiv.org/html/2406.08155v1",
+          "note": null
+        },
+        {
+          "text": "QuantMoE-Bench proposes a linear-weight outlier scorer (maximum-ratio of weight magnitude) and an MoE-block scorer based on cosine similarity before and after the FFN, and reports the outlier scorer beating random selection at 25% and 50% of linear layers on both models except for HellaSwag and MMLU.",
+          "source": "https://arxiv.org/html/2406.08155v1",
+          "note": null
+        },
+        {
+          "text": "EAQuant plots the per-expert sample distribution on the first MoE layer of DeepSeek-MoE-16B for C4 and WikiText-2 (128 x 4096 tokens) and reports an imbalance on both; its fix augments data so underutilized experts reach activation counts matching computed expectations.",
+          "source": "https://arxiv.org/html/2506.13329v2",
+          "note": null
+        },
+        {
+          "text": "EAQuant lists three ingredients (smoothing aggregation, router logit alignment, expert-level calibration balance) and reports average accuracy gains of 1.37%, 1.15% and 1.15% over DuQuant on W4A4 for its three models, with the router layer kept at W8A8.",
+          "source": "https://arxiv.org/html/2506.13329v2",
+          "note": null
+        },
+        {
+          "text": "DynaExq keeps per-expert exponential-moving-average hotness S_i of router probabilities, promotes experts above a threshold to high precision and demotes the rest, and reports up to 4.03 accuracy points over static low-precision baselines on Qwen3-30B and Qwen3-80B on single RTX 5090 and A6000 GPUs.",
+          "source": "https://arxiv.org/html/2511.15015v1",
+          "note": null
+        },
+        {
+          "text": "llama-quantize assigns one ggml type per tensor name, and merged expert tensors are single tensors with an expert dimension ne[2], so one type covers all experts of a layer's gate, up or down projection.",
+          "source": "https://raw.githubusercontent.com/ggml-org/llama.cpp/master/src/llama-quant.cpp",
+          "note": null
+        },
+        {
+          "text": "A coverage count per expert can be recovered from `llama-imatrix --show-statistics` by dividing the N column by the tensor's input width, because zero-count experts contribute no channels.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "A per-expert KLD attribution would need three steps with stock tools: log routed expert ids per token and layer for the quantized model, compute per-token KLD with llama-perplexity against the BF16 logits file, and join on token position; no published tool does this.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Because GGUF cannot type experts individually, the practical output of a coverage study is a calibration-set change (balance tokens until the lowest-count experts reach a floor) rather than a per-expert bit plan.",
+          "source": "asserted",
+          "note": null
+        }
+      ]
+    }
+  ],
+  "related": []
+}

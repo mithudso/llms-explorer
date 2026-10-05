@@ -1,0 +1,234 @@
+{
+  "slug": "long-running-mlx-server-oom-recovery-and-process",
+  "concept": "Long-running MLX server OOM recovery and process recycling",
+  "generated": "2026-10-05",
+  "summary": "Three failure classes reach the server as ordinary Python exceptions: (1) memory exhaustion (`kIOGPUCommandBufferCallbackErrorOutOfMemory`, now catchable since MLX 0.32); (2) the descriptor cap, `RuntimeError: [metal::malloc] Resource limit (499000) exceeded`, which occurs with flat memory use; (...",
+  "facets": [
+    {
+      "title": "Facts",
+      "facts": [
+        {
+          "text": "Three failure classes reach the server as ordinary Python exceptions: (1) memory exhaustion (`kIOGPUCommandBufferCallbackErrorOutOfMemory`, now catchable since MLX 0.32); (2) the descriptor cap, `RuntimeError: [metal::malloc] Resource limit (499000) exceeded`, which occurs with flat memory use; (3) per-request errors in tokenizing or loading. A fourth class, the kernel panic in IOGPUMemory, is not an exception and no process logic can recover it (existing dossiers).",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "In mlx-lm main the generation loop runs in its own thread. If that thread raises, `_run_generate` logs \"mlx_lm.server generation thread died\", sets a failed flag and the thread ends. The HTTP server keeps running.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "After that, `GET /health` returns HTTP 503 with `{\"status\":\"unavailable\"}`; new requests raise \"generation thread died\"; waiting requests poll their queue once a second and give up when the thread is dead. The process does not exit.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "A launchd job with plain KeepAlive therefore does not restart a server whose generation thread died: KeepAlive restarts on exit only. A supervisor must probe `/health` and kill or `launchctl kickstart -k` the job on 503.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Request-level failures (tokenize, model load, generation setup) are returned to that request as an error body without ending the thread; setup failures in the HTTP handler come back as status 404 with a JSON error.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Model switching inside the server calls `gc.collect()` and `mx.clear_cache()` after dropping the old model, because dropping references returns weights to MLX's buffer pool and not to the OS (source comment).",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Prompt-cache growth is bounded by `--prompt-cache-size` (default 10 caches) and optionally `--prompt-cache-bytes` (decimal M or G suffix), trimmed to the byte budget minus the active batch's bytes while generating.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "At startup main() calls `mx.set_wired_limit(max_recommended_working_set_size)`, so the server wires up to the GPU's recommended working set before serving.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Descriptor failures accumulate with work, not bytes: in issue 1185 (LoRA training, M4 Max 128 GB, mlx 0.31.1, mlx-lm 0.31.2) peak memory stayed near 60 GB while the descriptor cap was hit at iteration 60, 150 and 220 depending on `clear_cache_threshold` 10 or 25. A second Metal process on the same GPU halved the survival window, pointing to a shared descriptor pool.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Issue 831 showed the same error in serving: GLM-4.7-Flash-8bit under distributed mlx_lm.server with OpenCode, raised inside the `_generate` thread; a maintainer reproduced it and fixed it in PR 839 within two days (2026-02-04).",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "2026-02-01: issue 831 opened (descriptor cap in serving); 2026-02-04 fixed by PR 839.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "2026-03-17: issue 1015 (fragmentation theory, 14 h crash, recycling every 24 h), existing dossier.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "2026-04-23: issue 1185 reopens the same error signature in training on qwen3_5, with the device cap of 499000.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "By 2026-10-04 main contains the generation-thread health flag and the 503 `/health`; the version that introduced them was not identified.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "A dead generation thread with a live HTTP port looks healthy to a TCP check and to launchd; only `/health` shows it.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "`mx.clear_cache()` frees the buffer cache but, per 1185, aggressive thresholds do not cure a descriptor leak and a threshold of 1 wedged training at 100% CPU for over 20 minutes.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Lowering `iogpu.wired_limit_mb` or MLX's memory limit does nothing for the descriptor class because memory stays flat.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Restart latency is a model reload from disk plus the loss of the prompt cache; prompt caches do not survive restart (prompt-cache-survival-across-model-unload-swap-and-r.md).",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "launchd ThrottleInterval defaults to 10 seconds, so a crash loop restarts every 10 seconds.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Issue 1015's reporter blames cache fragmentation for a 14-hour SIGABRT and recycles daily. Issues 831 and 1185 show a different cause with the same recycling remedy: a resource-descriptor cap. The two causes are not separated by evidence; both leave periodic or health-triggered restart as the workaround.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Hannecke (April 2026) says `mlx_lm.server` has no `--max-kv-size`; the server in main exposes `--prompt-cache-size` and `--prompt-cache-bytes` and no `--max-kv-size`, which is consistent, though that article's cited 0.31.2 predates the `/health` behavior.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Which release added the generation-thread health flag.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Whether the descriptor count is per process or system-wide (1185's co-tenant result suggests shared).",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Whether PR 839's fix covers the qwen3_5 training path (1185 says it did not) or other serving paths.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "In mlx-lm main, `ResponseGenerator._run_generate` catches any exception from the generation loop, logs \"mlx_lm.server generation thread died\", sets `_generation_failed` and exits the thread.",
+          "source": "https://raw.githubusercontent.com/ml-explore/mlx-lm/main/mlx_lm/server.py",
+          "note": null
+        },
+        {
+          "text": "`ResponseGenerator.is_healthy` is true only while the generation thread is alive and not failed, and `GET /health` answers 200 `{\"status\":\"ok\"}` when healthy and 503 `{\"status\":\"unavailable\"}` otherwise.",
+          "source": "https://raw.githubusercontent.com/ml-explore/mlx-lm/main/mlx_lm/server.py",
+          "note": null
+        },
+        {
+          "text": "A request waiting on a dead generation thread raises RuntimeError(\"generation thread died\") after polling its response queue at 1.0 second intervals, and new requests raise it immediately.",
+          "source": "https://raw.githubusercontent.com/ml-explore/mlx-lm/main/mlx_lm/server.py",
+          "note": null
+        },
+        {
+          "text": "The HTTP server loop catches only KeyboardInterrupt, so a dead generation thread does not stop `serve_forever()` or exit the process.",
+          "source": "https://raw.githubusercontent.com/ml-explore/mlx-lm/main/mlx_lm/server.py",
+          "note": null
+        },
+        {
+          "text": "A failure while creating the generator for a request returns HTTP 404 with a JSON body {\"error\": <message>}.",
+          "source": "https://raw.githubusercontent.com/ml-explore/mlx-lm/main/mlx_lm/server.py",
+          "note": null
+        },
+        {
+          "text": "Loading a different model resets the provider, runs `gc.collect()` and `mx.clear_cache()`, with a comment that dropping references returns weights to MLX's pool and not to the OS.",
+          "source": "https://raw.githubusercontent.com/ml-explore/mlx-lm/main/mlx_lm/server.py",
+          "note": null
+        },
+        {
+          "text": "`--prompt-cache-size` defaults to 10 distinct KV caches, `--prompt-cache-bytes` accepts decimal sizes with M, G, MB or GB suffixes, and the cache is trimmed to the byte budget minus the active batch's bytes.",
+          "source": "https://raw.githubusercontent.com/ml-explore/mlx-lm/main/mlx_lm/server.py",
+          "note": null
+        },
+        {
+          "text": "`--kv-bits` disables batching so requests are served one at a time.",
+          "source": "https://raw.githubusercontent.com/ml-explore/mlx-lm/main/mlx_lm/server.py",
+          "note": null
+        },
+        {
+          "text": "mlx_lm.server's main() calls `maybe_set_recommended_wired_limit()` which sets the wired limit to `max_recommended_working_set_size`, and emits a warning that the server is not recommended for production.",
+          "source": "https://raw.githubusercontent.com/ml-explore/mlx-lm/main/mlx_lm/server.py",
+          "note": null
+        },
+        {
+          "text": "`mx.clear_cache()` clears the memory cache and afterwards `get_cache_memory()` should return 0; `mx.get_peak_memory()` reports the maximum since program start or the last `reset_peak_memory()`.",
+          "source": "https://ml-explore.github.io/mlx/build/html/python/_autosummary/mlx.core.clear_cache.html",
+          "note": null
+        },
+        {
+          "text": "Issue 831 (opened 2026-02-01) reproduced `RuntimeError: [metal::malloc] Resource limit (499000) exceeded` in the `_generate` thread of a distributed mlx_lm.server with GLM-4.7-Flash-8bit, and was fixed in PR 839 by 2026-02-04.",
+          "source": "https://github.com/ml-explore/mlx-lm/issues/831",
+          "note": null
+        },
+        {
+          "text": "Issue 1185 (opened 2026-04-23) reports the same descriptor-cap error in LoRA training of Qwen3.5-27B-4bit with flat peak memory near 60 GB, a crash iteration of 60 to 220 depending on `clear_cache_threshold`, and half the survival time with a second Metal process on the GPU.",
+          "source": "https://github.com/ml-explore/mlx-lm/issues/1185",
+          "note": null
+        },
+        {
+          "text": "In issue 1185 a `clear_cache_threshold` of 1 left the training process at 100% CPU for over 20 minutes without progress.",
+          "source": "https://github.com/ml-explore/mlx-lm/issues/1185",
+          "note": null
+        },
+        {
+          "text": "The MLX Metal allocator throws the resource-limit error from `malloc` when its live resource count reaches `resource_limit_` taken from the device info.",
+          "source": "https://raw.githubusercontent.com/ml-explore/mlx/main/mlx/backend/metal/allocator.cpp",
+          "note": null
+        },
+        {
+          "text": "launchd's KeepAlive key keeps a job running, and a dictionary form restarts on SuccessfulExit (exit status zero or not) or Crashed (death by crash-type signals such as SIGILL or SIGSEGV); jobs that exit quickly and often are throttled.",
+          "source": "https://keith.github.io/xcode-man-pages/launchd.plist.5.html",
+          "note": null
+        },
+        {
+          "text": "launchd's ResidentSetSize resource limit asks the system to prefer taking memory from processes exceeding it when memory is tight, and is not stated to kill them.",
+          "source": "https://keith.github.io/xcode-man-pages/launchd.plist.5.html",
+          "note": null
+        },
+        {
+          "text": "The measured device cap on live Metal resources is 499000 on the M3 Ultra and M4 Max machines in issues 831 and 1185.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "A supervisor for a long-running mlx_lm.server should poll `/health` and restart on 503, because neither the process exit nor the TCP port reflects a dead generation thread.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Recycling on a request or inference count addresses the descriptor class, recycling on RSS or wired growth addresses the cache class, and neither helps a kernel panic.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "The server's orderly shutdown (httpd.shutdown, stop_and_join, model and prompt cache destroyed in the generation thread) runs only on KeyboardInterrupt, so SIGINT reaches it while a default SIGTERM ends the Python process without it; either is acceptable for a recycle because the OS reclaims all GPU memory at exit.",
+          "source": "asserted",
+          "note": null
+        }
+      ]
+    }
+  ],
+  "related": []
+}

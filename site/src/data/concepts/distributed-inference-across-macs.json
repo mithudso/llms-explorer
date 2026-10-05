@@ -1,0 +1,514 @@
+{
+  "slug": "distributed-inference-across-macs",
+  "concept": "Distributed inference across Macs",
+  "generated": "2026-10-05",
+  "summary": "Stack layers (Apple WWDC26 233): RDMA over Thunderbolt 5 (transport, macOS 26.2+) -> JACCL (Apple collective-comms library, C++ API, \"Jack and Angelos' Collective Communication Library\") -> MLX / mlx-lm -> mlx_lm.server.",
+  "facets": [
+    {
+      "title": "Facts",
+      "facts": [
+        {
+          "text": "Stack layers (Apple WWDC26 233): RDMA over Thunderbolt 5 (transport, macOS 26.2+) -> JACCL (Apple collective-comms library, C++ API, \"Jack and Angelos' Collective Communication Library\") -> MLX / mlx-lm -> mlx_lm.server.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "MLX backends: MPI, ring (TCP sockets, always available, usually faster than MPI), JACCL (RDMA; \"necessary for things like tensor parallelism\"), NCCL (CUDA). init(backend=) accepts any/ring/jaccl/mpi/nccl.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "JACCL needs a FULL MESH (cable between every pair). Ring backend (jaccl-ring / thunderbolt ring) needs only neighbours, so 5+ nodes possible but higher latency; JACCL picks mesh for small latency-bound messages, ring for large bandwidth-bound ones when connected as mesh.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Four Macs fully meshed = 6 cables, 3 TB5 ports used per Mac (TN3205). RDMA cannot route; app must forward over rings.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Tensor parallelism = default in mlx-lm distributed; speeds decode but all-reduces every layer every token, so needs mesh + RDMA. Pipeline parallelism (`--pipeline` flag on mlx_lm commands) splits layers, does not speed single-stream decode, only exchanges activations at stage boundaries; not all models support it.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Launch: `mlx.launch --hostfile hosts.json [--backend jaccl|jaccl-ring] -- /remote/path/to/mlx_lm.chat|mlx_lm.server|mlx_lm.lora ...` run from any machine (e.g. a MacBook); it SSHes to each node. Executable and MLX must exist at the same path on every node; model cached on every node.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Hostfile = JSON array, one entry per node: \"ssh\" (hostname), \"ips\" (rank 0 IP reachable by all; others []), \"rdma\" (list per peer of rdma_enX device, null for self).",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "`mlx.distributed_config --verbose --hosts h1,h2,.. --backend jaccl|ring --output file.json [--auto-setup] [--env MLX_METAL_FAST_SYNCH=1]` probes TB topology over SSH, builds hostfile; --auto-setup (needs passwordless sudo) disables Thunderbolt Bridge and configures each link for RDMA; without it, prints commands to review.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "MLX_METAL_FAST_SYNCH=1 is \"critical\" for distributed (compute on GPU, comms on CPU); exo exposes EXO_FAST_SYNCH.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Serving: `mlx.launch --hostfile hosts.json --backend jaccl /remote/path/to/mlx_lm.server --model mlx-community/Qwen-3.5-122B-A3B-8bit` shards automatically; distributed also parallelizes prompt processing across nodes.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Python: `group = mx.distributed.init(strict=True, backend=\"jaccl\")`, `sharded_load` from mlx_lm.utils; Swift and C++ (jaccl::init, all_sum) APIs exist.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Data-parallel fine-tuning: mlx_lm.lora under mlx.launch, scale --batch-size by node count.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "exo: auto-discovers peers (zenoh replaced libp2p June 2026), dashboard + API on http://localhost:52415, OpenAI/Claude Messages/Responses/Ollama-compatible APIs, topology-aware auto parallel, placement filters (--max-nodes default 4, ring|jaccl, pipeline|tensor), MLX backend; install from source needs `uv sync --extra mlx`.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "llama.cpp RPC: `ggml-rpc-server` on each worker (build -DGGML_RPC=ON), `llama-cli/llama-server --rpc host:port,host:port`; splits layers + KV cache proportional to device memory (override --tensor-split); local tensor cache `-c`; README labels it proof-of-concept, fragile and insecure, never on an open network. Optional RDMA transport (PR #26421, merged Aug 2026): negotiated in handshake, falls back to TCP unless both peers support it; connect using the peer's Thunderbolt IP in --rpc; GGML_RPC_NO_RDMA=1 forces TCP; GGML_RPC_DEBUG=1 for logs.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "vllm-metal: Ray executor, pipeline parallel across two Macs over TB validated only on Qwen3-0.6B; needs RAY_ENABLE_WINDOWS_OR_OSX_CLUSTER=1; ring ports 32323/32324 (VLLM_METAL_RING_BASE_PORT).",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "RDMA Verbs limits (TN3205): send/receive only, max 10 UC queue pairs, max message 16,773,120 bytes, 4095 outstanding work requests. IP over TB and RDMA coexist; interfaces rdma_enX map to enX GIDs.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "macOS 26.2 (Dec 2025): RDMA over TB5 ships; exo 1.0 and Jeff Geerling's 4x M3 Ultra (1.5 TB, ~$40k) review launch day; ring backend and MPI predate.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "2026: JACCL stability patches landed upstream (mlx #3451 race in MeshImpl::all_reduce merged 2026-05-11; #3459 JACCL barrier merged 2026-04-28; #3152 wc_status check still open as of 2026-05-18 over ~10% small all_reduce cost).",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Aug 25 2026: llama.cpp RPC gains Apple RDMA transport.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "WWDC26 (June 2026): sessions 232 (agents + distributed) and 233 (distributed inference/training with MLX) make mlx.launch/JACCL the official path.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Source of the claim: WWDC26 232: \"distributed inference with MLX has seen significant speed-ups: up to three times with four nodes\" (no model, baseline or metric given in that session). The quantified evidence is WWDC26 233: Qwen3.6-27B (dense) tensor-parallel on 4x M3 Ultra \"nearly three times the token generation rate of a single machine\"; separately fine-tuning 180 -> ~600 tok/s (\"more than 3x\") data-parallel. So 3x = best case, dense mid-size model, 4 nodes, full mesh, RDMA, Apple's own demo. Not general.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Independent data (Geerling via AppleInsider, M3 Ultra, tok/s decode 1/2/4 nodes): exo+RDMA Qwen3-235B 19.5 / 26.2 / 31.9 (1.6x at 4); DeepSeek V3.1 671B 21.1 / 27.8 / 32.5 (1.5x); Kimi K2 Thinking 2-node 21.6, 4-node 28.3. llama.cpp RPC over TCP: Qwen3-235B 20.4 / 17.2 / 15.2 (gets slower); Kimi 2-node 18.5.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "exo's own README claims tensor-parallel speedup up to 1.8x on 2 devices and 3.2x on 4 devices (vendor claim, model unspecified); \"99% latency reduction\". Geerling: latency 300 us -> <50 us with RDMA.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "llama.cpp RPC RDMA PR author numbers (M3 Ultra, Qwen3-0.6B layer-parallel, decode tok/s TCP -> RDMA): 2 nodes 115.6 -> 261.3 (2.26x); 3 nodes 101.1 -> 164.2 (1.62x); 4 nodes 87.7 -> 133.5 (1.52x). Even with RDMA the 4-node number is below the 2-node number; tiny model, RPC-call-dominated (via modelfit.io secondary).",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Pipeline concurrency (guruswami-ai, Kimi K2.6 q4, M3 Ultras, May 2026): PP2 single-stream 0.152 tok/s, 4 concurrent 0.567 (3.73x aggregate); PP3 0.189 -> 0.498 (2.64x). Pipeline helps aggregate throughput, not single-stream latency.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "RDMA bulk transfer (mlx_lm.share): 597 GB in 1:58 = 5.4 GB/s sustained; 3.5-3.8 GB/s file-transfer demo vs rsync 10GbE 100-200 MB/s.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Verdict on the claim: supported as a best-case figure for a dense ~27B model on 4 M3 Ultras; contradicted as a general figure by independent runs of huge MoE models (1.5-1.6x). Apple 232 gives no baseline.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Low-quality source warning: contracollective.com blog (MPI-only, \"M5 Ultra\", \"macOS 16.2\", 14.2 tok/s) contradicts primary docs (ring and JACCL exist) and conflicts with released hardware naming; do not use. gkservis case study (\"M4 Ultra\", 28 tok/s) likewise unverified marketing.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Weights exceed one Mac's RAM: Kimi K2 Thinking (600+ GB), Kimi K2.6 (1T params, ~1 TB at 8-bit; \"does not fit on a single M3 Ultra, fits across four\", Apple 233), DeepSeek V3.1 671B 8-bit, a 1.6T-parameter DeepSeek model needing >800 GB (Apple 232). Qwen3-235B and 27-122B models fit on one Ultra; distributing them is for speed/prompt processing only.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Apple's demo models: Qwen3.6-27B, Qwen3.5-122B-A3B-8bit (server), Kimi-K2.6.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "jaccl errors: `[jaccl] Changing queue pair to RTR failed with errno 22` (most frequent; hits all nodes at once), `Recv failed with errno=2`, errno=60 timeout. Reported on 3x M3 Ultra, macOS 26.3.1, ~10 load/unload cycles per day; can fire after 23 min idle on the next ConnectToGroup; full reboot of all nodes was the only recovery (exo issue 1847, Apr 2026).",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Protection-domain exhaustion: `Couldn't allocate protection domain` after ~60 init/teardown cycles; every failed mx.distributed.init() leaks a kernel RDMA PD; reboot-only (mlx #3207, exo #1847). Mitigation: one JACCL session for many operations; cap restart loops.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "SIGSEGV in `libthunderboltrdma.dylib tbt_post_recv` via jaccl RingImpl::all_reduce: worker dies silently, exo main process survives holding a 1-node topology; undetected unless /state topology diffed.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Metal command-buffer timeout: `[METAL] Command buffer execution failed: Caused GPU Timeout Error` when send/recv run on the GPU stream (~5 s); workaround stream=mx.cpu for send/recv (mlx discussion 3481; mlx #3142 WONTFIX upstream). Separate ~60 s per-kernel limit caps long-context pipeline prefill: Kimi K2.6 q4 PP2 ~7-8K tokens, PP3 ~5-6K, while single-node mlx_lm.server handled 24K+ (chunked prefill).",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Init barrier: use all_sum(mx.ones(10)), not ones(1), after init before p2p ops (single-element does not reliably sync).",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "`RTR errno 22 (EINVAL)` on every device pair = Thunderbolt Bridge still active.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "mlx.launch hides stderr of non-zero ranks (\"rank N exited with code 255\").",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Plain TCP over Thunderbolt under HPL crashed and rebooted two Macs (Geerling).",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "TB5 has no switch; full mesh limits RDMA clusters to 4 Macs in practice (Mac Studio 5 RDMA-capable ports per Apple, untested per Geerling); ring forwarding for more.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Mixed macOS versions break RDMA discovery; sleep drops Thunderbolt reachability.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Prefill memory is uneven across ranks (first node holds embeddings/KV init) (secondary source, unverified).",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "llama.cpp RPC over TCP: scales memory, not speed; throughput falls as nodes are added.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "exo trust note: developers went quiet for a stretch before 1.0 (Geerling).",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "3x claim (Apple, one dense model) vs 1.5-1.6x measured on 235B/671B MoE (Geerling) vs exo's own 3.2x claim.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "RDMA enablement: Recovery `rdma_ctl enable` (TN3205, exo, MLX docs, llama.cpp README) vs System Settings toggle (WWDC26 233, OS version unstated).",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Reliability: Apple presents it as \"easy\" vs production reports of reboot-only recovery (exo #1847); guruswami-ai says a patch stack (#3451 etc.) removed reboots by May 2026.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "modelfit.io says set `GGML_RDMA_DEV` for llama.cpp RDMA; the README says device is chosen automatically by matching GID of the --rpc address. README is primary.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Exact macOS version that moved enablement to System Settings.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Whether mlx 0.32.2 includes #3451/#3459 and any wc_status fix.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Real 4-node numbers for mlx-lm (not exo) tensor parallel on MoE models; 233 gives only Qwen3.6-27B.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Prefill scaling numbers for MLX JACCL (232 says it parallelizes; no figure).",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Whether M5-generation Macs with TB5 improve scaling.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "MLX distributed supports backends MPI, ring, JACCL, NCCL; ring is TCP and usually faster than MPI",
+          "source": "https://ml-explore.github.io/mlx/build/html/usage/distributed.html",
+          "note": null
+        },
+        {
+          "text": "JACCL gives latency an order of magnitude lower than the ring backend",
+          "source": "https://ml-explore.github.io/mlx/build/html/usage/distributed.html",
+          "note": null
+        },
+        {
+          "text": "JACCL supports only fully connected (mesh) Thunderbolt topologies in the MLX docs",
+          "source": "https://ml-explore.github.io/mlx/build/html/usage/distributed.html",
+          "note": null
+        },
+        {
+          "text": "WWDC26 233 states JACCL picks mesh for latency-bound and ring for bandwidth-bound operations when machines are meshed",
+          "source": "https://developer.apple.com/videos/play/wwdc2026/233/",
+          "note": null
+        },
+        {
+          "text": "JACCL stands for Jack and Angelos' Collective Communication Library",
+          "source": "https://ml-explore.github.io/mlx/build/html/usage/distributed.html",
+          "note": null
+        },
+        {
+          "text": "mlx.launch runs from any machine with SSH to all nodes and takes --hostfile hosts.json and --backend jaccl or jaccl-ring",
+          "source": "https://developer.apple.com/videos/play/wwdc2026/233/",
+          "note": null
+        },
+        {
+          "text": "Hostfile entries have ssh, ips (rank 0 only), and rdma (per-peer rdma_enX or null) fields",
+          "source": "https://developer.apple.com/videos/play/wwdc2026/233/",
+          "note": null
+        },
+        {
+          "text": "mlx.distributed_config --auto-setup disables Thunderbolt Bridge and configures links for RDMA, and writes the hostfile",
+          "source": "https://developer.apple.com/videos/play/wwdc2026/233/",
+          "note": null
+        },
+        {
+          "text": "MLX_METAL_FAST_SYNCH=1 is critical for distributed because compute is on the GPU and communication on the CPU",
+          "source": "https://developer.apple.com/videos/play/wwdc2026/233/",
+          "note": null
+        },
+        {
+          "text": "Tensor parallelism is the mlx-lm default; --pipeline selects pipeline parallelism and not all models support it",
+          "source": "https://developer.apple.com/videos/play/wwdc2026/233/",
+          "note": null
+        },
+        {
+          "text": "Pipeline parallelism does not speed single-token latency; tensor parallelism does but communicates every layer per token",
+          "source": "https://developer.apple.com/videos/play/wwdc2026/233/",
+          "note": null
+        },
+        {
+          "text": "Apple's 4x M3 Ultra demo ran Qwen3.6-27B at nearly 3x single-machine token rate",
+          "source": "https://developer.apple.com/videos/play/wwdc2026/233/",
+          "note": null
+        },
+        {
+          "text": "Apple's 4x M3 Ultra fine-tune went from about 180 to about 600 tokens/s",
+          "source": "https://developer.apple.com/videos/play/wwdc2026/233/",
+          "note": null
+        },
+        {
+          "text": "WWDC26 232 says \"up to three times with four nodes\" without naming model or baseline",
+          "source": "https://developer.apple.com/videos/play/wwdc2026/232/",
+          "note": null
+        },
+        {
+          "text": "Kimi K2.6 is 1T parameters, about 1 TB at 8-bit, fits across four M3 Ultras but not one",
+          "source": "https://developer.apple.com/videos/play/wwdc2026/233/",
+          "note": null
+        },
+        {
+          "text": "A 1.6T-parameter DeepSeek model needs more than 800 GB for weights (Apple 232)",
+          "source": "https://developer.apple.com/videos/play/wwdc2026/232/",
+          "note": null
+        },
+        {
+          "text": "WWDC26 233 shows enabling RDMA via System Settings \"Enable RDMA over Thunderbolt\" then reboot",
+          "source": "https://developer.apple.com/videos/play/wwdc2026/233/",
+          "note": null
+        },
+        {
+          "text": "TN3205 and MLX docs enable RDMA only from Recovery with rdma_ctl enable; not remotely possible",
+          "source": "https://developer.apple.com/documentation/technotes/tn3205-low-latency-communication-with-rdma-over-thunderbolt",
+          "note": null
+        },
+        {
+          "text": "RDMA over Thunderbolt requires Apple silicon with Thunderbolt 5 and macOS 26.2+",
+          "source": "https://developer.apple.com/documentation/technotes/tn3205-low-latency-communication-with-rdma-over-thunderbolt",
+          "note": null
+        },
+        {
+          "text": "RDMA Verbs over TB: send/recv only, max 10 UC queue pairs, 16,773,120-byte messages, 4095 work requests",
+          "source": "https://developer.apple.com/documentation/technotes/tn3205-low-latency-communication-with-rdma-over-thunderbolt",
+          "note": null
+        },
+        {
+          "text": "RDMA cannot route; a 4-Mac mesh uses 6 cables; 5 Macs need a ring with application forwarding",
+          "source": "https://developer.apple.com/documentation/technotes/tn3205-low-latency-communication-with-rdma-over-thunderbolt",
+          "note": null
+        },
+        {
+          "text": "Apple recommends disabling idle sleep, enabling auto-login and start-after-power-failure for clusters",
+          "source": "https://developer.apple.com/documentation/technotes/tn3205-low-latency-communication-with-rdma-over-thunderbolt",
+          "note": null
+        },
+        {
+          "text": "exo caveats: all-to-all cabling, TB5 cables, avoid Mac Studio TB port beside Ethernet, matching macOS versions including beta",
+          "source": "https://github.com/exo-explore/exo",
+          "note": null
+        },
+        {
+          "text": "exo claims 1.8x on 2 devices and 3.2x on 4 devices tensor-parallel speedup",
+          "source": "https://github.com/exo-explore/exo",
+          "note": null
+        },
+        {
+          "text": "exo replaced libp2p with zenoh in June 2026",
+          "source": "https://github.com/exo-explore/exo",
+          "note": null
+        },
+        {
+          "text": "Geerling: RDMA drops memory access latency from ~300 us to under 50 us",
+          "source": "https://www.jeffgeerling.com/blog/2025/15-tb-vram-on-mac-studio-rdma-over-thunderbolt-5/",
+          "note": null
+        },
+        {
+          "text": "Geerling: HPL over plain TCP on Thunderbolt crashed and rebooted both Macs",
+          "source": "https://www.jeffgeerling.com/blog/2025/15-tb-vram-on-mac-studio-rdma-over-thunderbolt-5/",
+          "note": null
+        },
+        {
+          "text": "Geerling 4x M3 Ultra decode tok/s: exo Qwen3-235B 19.5/26.2/31.9 at 1/2/4 nodes; llama.cpp 20.4/17.2/15.2",
+          "source": "https://forums.appleinsider.com/discussion/242810/ai-calculations-on-mac-cluster-get-big-boosts-from-new-rdma-support-on-thunderbolt-5",
+          "note": null
+        },
+        {
+          "text": "Geerling DeepSeek V3.1 671B exo 21.1/27.8/32.5 tok/s at 1/2/4 nodes; Kimi K2 Thinking exo 21.6 (2 nodes), 28.3 (4 nodes)",
+          "source": "https://forums.appleinsider.com/discussion/242810/ai-calculations-on-mac-cluster-get-big-boosts-from-new-rdma-support-on-thunderbolt-5",
+          "note": null
+        },
+        {
+          "text": "llama.cpp RPC has an RDMA transport (macOS TB5 via librdma, Linux RoCEv2), negotiated at handshake with TCP fallback; GGML_RPC_NO_RDMA=1 disables",
+          "source": "https://github.com/ggml-org/llama.cpp/blob/master/tools/rpc/README.md",
+          "note": null
+        },
+        {
+          "text": "llama.cpp RPC README calls the backend proof-of-concept, fragile and insecure",
+          "source": "https://github.com/ggml-org/llama.cpp/blob/master/tools/rpc/README.md",
+          "note": null
+        },
+        {
+          "text": "llama.cpp RPC splits weights and KV cache in proportion to device memory, overridable with --tensor-split",
+          "source": "https://github.com/ggml-org/llama.cpp/blob/master/tools/rpc/README.md",
+          "note": null
+        },
+        {
+          "text": "llama.cpp RPC RDMA PR measured 2.26x/1.62x/1.52x decode gain at 2/3/4 M3 Ultra nodes on Qwen3-0.6B",
+          "source": "https://modelfit.io/blog/llama-cpp-0-4-0-on-mac-lazy-tensors-rdma-sparse-attention/",
+          "note": null
+        },
+        {
+          "text": "jaccl crash errors errno 2, 60, 22 on 3x M3 Ultra require full reboot (exo issue 1847)",
+          "source": "https://github.com/exo-explore/exo/issues/1847",
+          "note": null
+        },
+        {
+          "text": "SIGSEGV in tbt_post_recv leaves exo node silently ejected from topology",
+          "source": "https://github.com/exo-explore/exo/issues/1847",
+          "note": null
+        },
+        {
+          "text": "mlx #3451 (MeshImpl all_reduce race) merged 2026-05-11 and #3459 (JACCL barrier) merged 2026-04-28 and removed most reboot-needing RTR errno 22/60 failures for one operator",
+          "source": "https://github.com/exo-explore/exo/issues/1847",
+          "note": null
+        },
+        {
+          "text": "Metal per-kernel 60 s timeout caps PP2 Kimi K2.6 q4 prefill near 7-8K tokens; single node handles 24K+",
+          "source": "https://github.com/exo-explore/exo/issues/1847",
+          "note": null
+        },
+        {
+          "text": "PP2 concurrency scaling 3.73x aggregate at 4 streams; PP3 2.64x",
+          "source": "https://github.com/exo-explore/exo/issues/1847",
+          "note": null
+        },
+        {
+          "text": "mlx_lm.share moved 597 GB at 5.4 GB/s over RDMA",
+          "source": "https://github.com/exo-explore/exo/issues/1847",
+          "note": null
+        },
+        {
+          "text": "GPU-stream send/recv hits `Caused GPU Timeout Error`; use stream=mx.cpu",
+          "source": "https://github.com/ml-explore/mlx/discussions/3481",
+          "note": null
+        },
+        {
+          "text": "Init barrier must be all_sum(mx.ones(10))",
+          "source": "https://github.com/ml-explore/mlx/discussions/3481",
+          "note": null
+        },
+        {
+          "text": "Protection-domain exhaustion `Couldn't allocate protection domain` after ~60 init cycles requires reboot",
+          "source": "https://github.com/ml-explore/mlx/discussions/3481",
+          "note": null
+        },
+        {
+          "text": "Thunderbolt Bridge left on gives `RTR errno 22 (EINVAL)` and macOS re-enables it each reboot/update",
+          "source": "https://github.com/ml-explore/mlx/discussions/3481",
+          "note": null
+        },
+        {
+          "text": "vllm-metal multi-Mac pipeline serving validated only for Qwen3-0.6B over a Thunderbolt link, needs RAY_ENABLE_WINDOWS_OR_OSX_CLUSTER=1",
+          "source": "https://docs.vllm.ai/projects/vllm-metal/en/latest/distributed/",
+          "note": null
+        },
+        {
+          "text": "contracollective.com distributed-MLX article conflicts with primary MLX docs and is unreliable",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Distributing a model that fits on one Mac mainly helps speed only with tensor parallel plus RDMA; over TCP it usually slows decode (llama.cpp RPC data)",
+          "source": "asserted",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Corrections and disagreements",
+      "facts": [
+        {
+          "text": "\"Only exo supports RDMA\" (Geerling Dec 2025, AppleInsider) vs llama.cpp RPC RDMA transport merged Aug 2026 (README). CONTRADICTS any claim in existing materials that RPC is TCP-only.",
+          "source": "asserted",
+          "note": null
+        }
+      ]
+    }
+  ],
+  "related": []
+}

@@ -1,0 +1,204 @@
+{
+  "slug": "mlx-distributed-error-propagation-via-event-pois",
+  "concept": "mlx distributed error propagation via event poisoning (PR 3523, 3742)",
+  "generated": "2026-10-05",
+  "summary": "A GPU error reaches a collective through events: the failed command buffer poisons the events it signals, and a CPU-stream task that waits on such an event inherits the error, so an error in one stream reaches other streams.",
+  "facets": [
+    {
+      "title": "Facts",
+      "facts": [
+        {
+          "text": "A GPU error reaches a collective through events: the failed command buffer poisons the events it signals, and a CPU-stream task that waits on such an event inherits the error, so an error in one stream reaches other streams.",
+          "source": "https://github.com/ml-explore/mlx/pull/3523",
+          "note": null
+        },
+        {
+          "text": "On a ring group, an orderly peer close (a killed rank) makes `recv()` return 0 and leave `errno` untouched, so the error test `errno != EAGAIN` reads a stale `EAGAIN`, `error_count` never grows, and the worker spins on the dead socket at 100% CPU with no log line.",
+          "source": "https://github.com/ml-explore/mlx/pull/4060",
+          "note": null
+        },
+        {
+          "text": "Even when the error threshold is reached the worker only returned, so every queued task's promise stayed unsatisfied; the `SocketThread` outlives its worker, so no `broken_promise` is delivered and every `.wait()` blocks forever.",
+          "source": "https://github.com/ml-explore/mlx/pull/4060",
+          "note": null
+        },
+        {
+          "text": "PR 4060 treats `r == 0` as an error on both send and recv and exits the process once the threshold is hit; the nccl backend already treats a result of 0 or below as a failure.",
+          "source": "https://github.com/ml-explore/mlx/pull/4060",
+          "note": null
+        },
+        {
+          "text": "Before PR 3742, throwing from a ring task could not work: `StreamThread::thread_fn` called `task()` with no try/catch, so an exception unwound out of the thread entry point into `std::terminate`.",
+          "source": "https://github.com/ml-explore/mlx/pull/4060",
+          "note": null
+        },
+        {
+          "text": "PR 3742 supplies the missing catch: `Scheduler::enqueue` wraps each task, and the exception moves into the stream's error state where poisoned events deliver it.",
+          "source": "https://github.com/ml-explore/mlx/pull/3742",
+          "note": null
+        },
+        {
+          "text": "PR 4060 and PR 3742 both appear in the 0.32.1 release notes, so a 0.32.1 or later ring group shows the catchable form.",
+          "source": "https://github.com/ml-explore/mlx/releases/tag/v0.32.1",
+          "note": null
+        },
+        {
+          "text": "2026-08-08: PR 4060 (erwinzhang7) opened; zcbenz reviewed the same day and asked to set an exception on the promise at 10 errors instead of aborting, \"Aborting the process is not the best choice in this case\".",
+          "source": "https://github.com/ml-explore/mlx/pull/4060",
+          "note": null
+        },
+        {
+          "text": "The author had built that alternative first and rejected it for two reasons: resolving the pending promises lets survivors continue but the collectives complete without the dead rank's contribution and silently return wrong results (got=2552 where 4600 was expected, still running); and rejecting with `set_exception` switched to `.get()` throws on the stream thread and terminates the process.",
+          "source": "https://github.com/ml-explore/mlx/pull/4060",
+          "note": null
+        },
+        {
+          "text": "2026-08-15: issue 4278 (erwinzhang7) records that JACCL never detects a lost peer, labels bug, distributed, low priority, state open at fetch time.",
+          "source": "https://github.com/ml-explore/mlx/issues/4278",
+          "note": null
+        },
+        {
+          "text": "2026-09-18: a commenter points to PR 4530, which polls the TCP side channel in every completion wait and raises `[jaccl] peer is gone: side channel to rank N closed while waiting in <op>` in about 0.25 s, measured on 5 M3 Ultras over Thunderbolt 5 with macOS 26.6.1.",
+          "source": "https://github.com/ml-explore/mlx/issues/4278",
+          "note": null
+        },
+        {
+          "text": "Fault-injection method: `mlx.launch` kills the surviving ranks the moment any rank exits and so hides the survivors' behaviour; PR 4060's test launches ranks directly (`python/tests/test_ring_peer_loss.py`, three-rank loopback ring, one rank killed with SIGKILL), fails after 61 s against 0.32.0 with the survivors still running and passes in about one second with the fix.",
+          "source": "https://github.com/ml-explore/mlx/pull/4060",
+          "note": null
+        },
+        {
+          "text": "Four-rank loopback ring, `all_sum` in a loop, SIGKILL on one rank: before the fix 3 of 3 survivors stayed frozen indefinitely (the spinning one logging 0 lines at 100% CPU); after, 3 of 3 logged the error and exited (the spinning one 11 lines).",
+          "source": "https://github.com/ml-explore/mlx/pull/4060",
+          "note": null
+        },
+        {
+          "text": "Four M4 Pro minis, full mesh over Thunderbolt RDMA, 16 MB `all_sum` in a loop: SIGSTOP on rank 2 froze the other three at the same iteration at 99-100% CPU in state `Rs+` (busy-waiting, not blocked on a descriptor), and SIGCONT let all four resume with no corruption, so a transient stall is survivable while a death is indistinguishable from it.",
+          "source": "https://github.com/ml-explore/mlx/issues/4278",
+          "note": null
+        },
+        {
+          "text": "Taking the Thunderbolt interfaces down (`ifconfig en2 en3 en4 down`, 100% IP ping loss) did not stop the collective: once RDMA queue pairs exist the traffic bypasses the IP stack, and the /30 addresses only bootstrap the side channel, so that is not a valid fault injection for JACCL.",
+          "source": "https://github.com/ml-explore/mlx/issues/4278",
+          "note": null
+        },
+        {
+          "text": "A ring peer loss now ends the process with a log line (4060) or, with 3742, an exception; code that wants to keep serving must still decide whether the rank set is intact, because continuing with fewer ranks returns wrong numbers, as PR 4060's experiment showed.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "After 0.32.1 a `try/except` around a collective is only reliable on the ring backend; the JACCL branch had no equivalent until PR 4530, which was not merged at the time of the fetch.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Maintainer against PR author on the ring failure mode: zcbenz wants the error carried to the main thread through the promise; the author argues that continuing silently corrupts results and that throwing on the stream thread terminates the process; PR 3742 later made the second objection moot, since it catches on the stream thread.",
+          "source": "https://github.com/ml-explore/mlx/pull/4060",
+          "note": null
+        },
+        {
+          "text": "Issue 4278 was labelled low priority by zcbenz while its reporter shows a four-node mesh that hangs without any signal; the maintainer label and the reporter's severity differ.",
+          "source": "https://github.com/ml-explore/mlx/issues/4278",
+          "note": null
+        },
+        {
+          "text": "Whether PR 4060's exit path or 3742's catchable error is what a 0.32.3 ring group gives when both are present; the PR 3742 thread reports exit 134 on main and a catchable error with 3742, but no source re-tests 0.32.3.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Whether PR 4530 merged and in which release.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Whether the Metal watchdog kill (`kIOGPUCommandBufferCallbackErrorTimeout`) on a distributed pipeline stage now arrives as a catchable error on every rank.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "A GPU command-buffer error reaches CPU-stream collectives because poisoned events pass their error to every stream that waits on them.",
+          "source": "https://github.com/ml-explore/mlx/pull/3523",
+          "note": null
+        },
+        {
+          "text": "In the ring backend an orderly peer close returns 0 from `recv()` without setting `errno`, so the stale-`EAGAIN` test skipped the failure and the worker spun at 100% CPU silently.",
+          "source": "https://github.com/ml-explore/mlx/pull/4060",
+          "note": null
+        },
+        {
+          "text": "Reaching the ring abort path left every queued promise unsatisfied and every `.wait()` blocked, because the `SocketThread` outlives its worker.",
+          "source": "https://github.com/ml-explore/mlx/pull/4060",
+          "note": null
+        },
+        {
+          "text": "Resolving the ring's pending promises made surviving ranks continue and return wrong collective results (got=2552, want=4600).",
+          "source": "https://github.com/ml-explore/mlx/pull/4060",
+          "note": null
+        },
+        {
+          "text": "Before PR 3742 `StreamThread::thread_fn` ran tasks without try/catch, so a thrown error became `std::terminate`.",
+          "source": "https://github.com/ml-explore/mlx/pull/4060",
+          "note": null
+        },
+        {
+          "text": "zcbenz asked on 2026-08-08 for the ring error to be passed to the main thread through the promise instead of aborting.",
+          "source": "https://github.com/ml-explore/mlx/pull/4060",
+          "note": null
+        },
+        {
+          "text": "`test_ring_peer_loss.py` (3 ranks, one SIGKILLed) fails after 61 s on 0.32.0 and passes in about 1 s with PR 4060.",
+          "source": "https://github.com/ml-explore/mlx/pull/4060",
+          "note": null
+        },
+        {
+          "text": "With PR 4060 three of three surviving ranks of a four-rank ring logged the error and exited where before they froze.",
+          "source": "https://github.com/ml-explore/mlx/pull/4060",
+          "note": null
+        },
+        {
+          "text": "PR 4060 and PR 3742 are both in the 0.32.1 release notes.",
+          "source": "https://github.com/ml-explore/mlx/releases/tag/v0.32.1",
+          "note": null
+        },
+        {
+          "text": "`mlx.launch` terminates surviving ranks when one exits, so peer-loss tests must launch ranks directly or suspend a rank.",
+          "source": "https://github.com/ml-explore/mlx/issues/4278",
+          "note": null
+        },
+        {
+          "text": "Suspending one rank of a four-node JACCL mesh with SIGSTOP froze the others at 99-100% CPU, and SIGCONT resumed them without corruption.",
+          "source": "https://github.com/ml-explore/mlx/issues/4278",
+          "note": null
+        },
+        {
+          "text": "Bringing the Thunderbolt IP interfaces down does not interrupt established JACCL queue pairs.",
+          "source": "https://github.com/ml-explore/mlx/issues/4278",
+          "note": null
+        },
+        {
+          "text": "Issue 4278 carries the labels bug, distributed and low priority and was open at fetch time.",
+          "source": "https://github.com/ml-explore/mlx/issues/4278",
+          "note": null
+        },
+        {
+          "text": "PR 4530 reports a lost JACCL peer in about 0.25 s via the TCP side channel, measured on 5 M3 Ultras over Thunderbolt 5.",
+          "source": "https://github.com/ml-explore/mlx/issues/4278",
+          "note": null
+        },
+        {
+          "text": "PR 3742's `Scheduler::enqueue` try/catch is what turns a stream-thread throw into stored stream state instead of `std::terminate`.",
+          "source": "https://github.com/ml-explore/mlx/pull/3742",
+          "note": null
+        },
+        {
+          "text": "Continuing with fewer ranks after a peer loss returns wrong collective results unless the job rebuilds its group.",
+          "source": "asserted",
+          "note": null
+        }
+      ]
+    }
+  ],
+  "related": []
+}

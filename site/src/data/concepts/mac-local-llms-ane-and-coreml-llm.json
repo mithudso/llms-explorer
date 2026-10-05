@@ -1,0 +1,334 @@
+{
+  "slug": "mac-local-llms-ane-and-coreml-llm",
+  "concept": "Mac local LLMs: ANE and Core ML LLMs",
+  "generated": "2026-10-05",
+  "summary": "GPU wins decode speed, context and stability (2-5x faster in community ANEMLL runs; ANE ~1/10 power). ANE wins for <=1-2B always-on battery use, tight memory (8B ~500 MB vs ~8 GB) or leaving the GPU free.",
+  "facets": [
+    {
+      "title": "Decide: ANE or GPU on a Mac",
+      "facts": [
+        {
+          "text": "GPU wins decode speed, context and stability (2-5x faster in community ANEMLL runs; ANE ~1/10 power). ANE wins for <=1-2B always-on battery use, tight memory (8B ~500 MB vs ~8 GB) or leaving the GPU free.",
+          "source": "https://insiderllm.com/guides/apple-neural-engine-llm-inference/",
+          "note": null
+        },
+        {
+          "text": "M5 \"Neural Accelerators\" sit in the GPU, not the ANE; TTFT up to 4.06x vs M4, MLX needs macOS 26.2+.",
+          "source": "https://machinelearning.apple.com/research/exploring-llms-mlx-m5",
+          "note": null
+        },
+        {
+          "text": "M4 Max Qwen3.5 2B: ANE 35.0 tok/s, 230 MB vs MLX-Swift 291.9, 1223 MB; Gemma 4 E2B 0.48 J/token vs MLX 0.24.",
+          "source": "https://github.com/john-rocky/apple-silicon-llm-bench",
+          "note": null
+        },
+        {
+          "text": "Llama-3.1-8B Core ML, M1 Max GPU: 0.19 tok/s, flexible shapes 1.25, stateful KV 16.26, +block-32 int4 33.67; stateful KV needs macOS Sequoia+.",
+          "source": "https://machinelearning.apple.com/research/core-ml-on-device-llama",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Core AI (macOS/iOS 27 beta)",
+      "facts": [
+        {
+          "text": "`coreai.llm.export qwen3-0.6b --platform iOS`; iOS needs AOT (`xcrun coreai-build compile ... --preferred-compute neural-engine`) or load fails with NSPOSIXErrorDomain Code=2. Export shape picks the unit (static -> ANE, dynamic -> GPU); wrong engine gives unsupportedEngineVariant.",
+          "source": "https://rockyshikoku.medium.com/i-benchmarked-apples-new-framework-against-mlx-for-on-device-llms-e52a769494b1",
+          "note": null
+        },
+        {
+          "text": "Correction: \"Core AI GPU 181 vs MLX 112 tok/s\" was retracted (MLX 112 Debug-contaminated); newer: MLX 178.8, Core AI ANE ~117-122. Compare cells only within one session.",
+          "source": "https://github.com/john-rocky/apple-silicon-llm-bench",
+          "note": null
+        },
+        {
+          "text": "Correction: \"ANE LLMs are <=8B, 512-4K ctx\" holds only for classic Core ML. Forge runs a 27B at 8K-64K on M6: 57.17 -> 31.38 tok/s (FP16 KV), 55.37 -> 38.86 (V-only INT8 KV); single trial, no power data, M5 ~half.",
+          "source": "https://huggingface.co/anemll/anemll-forge-qwen3.8-27B",
+          "note": null
+        },
+        {
+          "text": "A sandboxed launch cached a specialization that put all 12 entries on GPU (5.7 s stall) despite ANE requested; `CPU_AND_NE` is not proof of placement.",
+          "source": "https://github.com/Anemll/anemll-forge/blob/main/docs/SESSION_LESSONS.md",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "ANEMLL conversion (Core ML path)",
+      "facts": [
+        {
+          "text": "Install: Python 3.9 (3.9-3.11), coremltools >=9, PyTorch 2.5.0 (3.13+ fails), native arm64 only (Rosetta: \"ANE Hardware Available: False\", 100-500 ms vs 7-20); `./create_uv_env.sh`, `./install_dependencies.sh`; macOS 15+, 16 GB (32 for 8B).",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "`convert_model.sh` defaults: ctx 512, batch 64, lut1 none, lut2 4, lut3 6, chunk 2, max chunk 950 MB; `--lut2 6,4` = 6 bit, group 4; `--chunk auto` (LUT6 = 37.5% of FP16, +10%; Qwen3-4B -> 4 chunks).",
+          "source": "https://github.com/Anemll/Anemll/blob/main/docs/convert_model.md",
+          "note": null
+        },
+        {
+          "text": "0.3.5: `--argmax` in-model (Gemma 3 262K logits -> 2x16 scalars); monolithic best <=3B; Dedup Qwen2.5-0.5B 862 -> 472 MB. Gemma 3 on M1/A14: 512 ctx only; iOS files >1 GB may fail.",
+          "source": "https://github.com/Anemll/Anemll/blob/main/docs/RELEASE_NOTES_0.3.5.md",
+          "note": null
+        },
+        {
+          "text": "Qwen3 multi-chunk garbage: final RMSNorm must run only on the last chunk (fixed 0.3.5). Pre-0.3.4 models: re-convert.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "LUT4 quality \"fairly low\" (no ANE block quantization); use ctx 512-1024.",
+          "source": "https://github.com/anemll/anemll",
+          "note": null
+        },
+        {
+          "text": "Check placement with `brew tap anemll/tap/anemll-profile` (lists ops off ANE). Core ML pipeline: no release since 0.3.5; issue #58 asks for Core AI.",
+          "source": "https://github.com/Anemll/anemll-profile",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "FP16 numerics and silent failures",
+      "facts": [
+        {
+          "text": "ANE is FP16-only; BF16 activations above 65,504 become inf then NaN. Gemma 3 overflows via residual accumulation (270M layer 7, 4B QAT layer 5, 1B peak 0.93x); Llama 3.2 1B and Qwen3 1.7B are safe.",
+          "source": "https://github.com/Anemll/Anemll/blob/main/docs/GEMMA3_FP16_SCALING.md",
+          "note": null
+        },
+        {
+          "text": "Fix: `--fp16-scale auto` (alpha 0.48/0.82/0.1875 for 270M/1B/4B QAT; 0.5 for 4B non-QAT) or clamp 55000; run `fp16_preflight.sh --model <id>` first. Clamping at 65504 cannot undo inf.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Llama-3.2-1B emitted only newlines until RMSNorm `pow` became `mul(x,x)`, epsilon folded into rsqrt.",
+          "source": "https://blog.squeezebits.com/disaggregated-inference-on-apple-silicon-npu-prefill-and-gpu-decode-67176",
+          "note": null
+        },
+        {
+          "text": "Forge: native fp16 softplus overflows; native SiLU inaccurate (use `0.5*x*(1+tanh(x/2))`).",
+          "source": "https://github.com/Anemll/anemll-forge/blob/main/docs/TECHNIQUES.md",
+          "note": null
+        },
+        {
+          "text": "Orion direct-MIL: SDPA causal mask silently ignored; concat, gelu, 32K-channel conv rejected; multi-IOSurface inputs uniform and alphabetical; ~119 compiles per process.",
+          "source": "https://arxiv.org/html/2603.06728v1",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Core ML compile errors and KV state",
+      "facts": [
+        {
+          "text": "\"Unable to compute the prediction using ML Program\": state dim not a power of two (80 -> pad 128). \"Failed to build the model execution plan using a model architecture file\": add `torch.finfo(float32).smallest_normal` to the prefill value-cache update, or apply MIL pass `scaled_dot_product_attention_sliced_q` at max seq 1024-2048. Too many states: concat KV into 2 (56 -> 2).",
+          "source": "https://blog.squeezebits.com/disaggregated-inference-on-apple-silicon-npu-prefill-and-gpu-decode-67176",
+          "note": null
+        },
+        {
+          "text": "MLState: error -14 on Gemma 4 E2B (two shapes); `ANEProgramProcessRequestDirect() Failed with status=0x1d : statusType=0x9: Program Inference error` with two states on LFM2.5; yet KV-only `slice_update` MLState runs on ANE for Qwen3-VL. Likely multi-state graphs (unresolved).",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "CoreML-LLM v1.7.0 on iPhone 17 Pro: Gemma 4 E2B 34.2 tok/s (3-chunk), E4B 15.7. ANEMLL 16-way LM-head split: -4.6% at vocab 262,144.",
+          "source": "https://github.com/john-rocky/CoreML-LLM",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Bandwidth, SRAM, dispatch",
+      "facts": [
+        {
+          "text": "anemll-bench ANE weight-read: 55 GB/s (M1 Pro/Max/Ultra), 60-70 (base M1-M5), 120-152 (M3 Ultra, M4 Pro/Max, M5 Pro/Max/Ultra, M6). Two parallel models split the same total; one project only.",
+          "source": "https://github.com/Anemll/anemll-bench/blob/main/Results.MD",
+          "note": null
+        },
+        {
+          "text": "Dispatch ~0.095 ms (256x256 matmul 0.101 ms, compute 0.006): chain 16-64 ops, use 1x1 conv (~3x matmul), skip ops under 1 ms.",
+          "source": "https://maderix.substack.com/p/inside-the-m4-apple-neural-engine-615",
+          "note": null
+        },
+        {
+          "text": "SRAM ~32 MB: 2048^2 matmul 5.7 TFLOPS, 4096^2 4.0. Decode tensors are far below it; Forge 1x1 convs track weight streaming (~137 GB/s).",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Orion GPT-2 124M M4 Max: ANE decode 170 tok/s < CPU 283 (~2.3 ms IOSurface round trip per dispatch).",
+          "source": "https://arxiv.org/html/2603.06728v1",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Speculative decoding",
+      "facts": [
+        {
+          "text": "Forge: verify anchor + 7 drafts (T=8), DFlash2 drafter must match target hidden/vocab/tap order (mismatch fails silently as low acceptance), `DRAFT_GAP_MS=3` avoids 300-700 ms stalls; acceptance 85-91%.",
+          "source": "https://github.com/Anemll/anemll-forge/blob/main/docs/SPECULATIVE_DECODING.md",
+          "note": null
+        },
+        {
+          "text": "Small targets: separate drafters failed on Gemma 4 E2B (0-18% vs 50% GPU / 70% ANE bar); drafts written to KV before acceptance contaminate it; ANE driver serializes models; LookAhead is opt-in (`LLM_LOOKAHEAD_ENABLE=1`).",
+          "source": "asserted",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Hybrid ANE prefill + GPU decode",
+      "facts": [
+        {
+          "text": "Correction: \"not shipped\" wrong only for SqueezeBits Yetter (iPhone 15 Pro, <=2B, 512 padded; no public code, checked 2026-10-04); no mainstream runtime has it. M5 GPU already gives ~4x TTFT.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "NPUMoE 1.32-5.55x faster prefill, Core ML baselines only. ANE+GPU pipeline regressed 23-25%; KV hand-off cost unmeasured.",
+          "source": "https://arxiv.org/html/2604.18788v1",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Orion and open questions",
+      "facts": [
+        {
+          "text": "Orion (private `_ANEClient`): delta reload ~8-9 ms/kernel; M4 Max only.",
+          "source": "https://arxiv.org/html/2603.06728v1",
+          "note": null
+        },
+        {
+          "text": "Open: Core AI dispatch cost, Mac power vs GPU, KV hand-off latency, macOS 27 stability.",
+          "source": "asserted",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Corrections and disagreements",
+      "facts": [
+        {
+          "text": "CONTRADICTS the 181-vs-112 claim: the same author's repo later states the MLX 112 value was retracted (2026-07-13) as Debug-contaminated, and lists MLX 178.8, LiteRT-LM 122.1, Core AI ANE 116.9-122.4 warm (different sessions) for that phone and model.",
+          "source": "https://github.com/john-rocky/apple-silicon-llm-bench",
+          "note": null
+        },
+        {
+          "text": "Whether ANE LLMs are limited to small models and short context. CONTRADICTS core-ml-and-apple-neural-engine-for-llms.md (\"models <=8B tested ... context 512-4K\"): Forge reports a 27B dense model at 8K-64K context on M6 ANE via Core AI (decode 57.2 tok/s at 8K down to 31.4 at 64K with FP16 KV; 55.4 to 38.9 with V-only INT8 KV; speculative acceptance 85-91%). Side by side, not averaged: the classic Core ML pipeline stays short-context/small-model; the Core AI line is single-vendor research, M6/macOS 27 beta only, one paired trial per cell, no power or thermal data, and uses a 7-token speculative drafter so speed is partly drafter acceptance.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Hybrid shipped or not. core-ml-and-apple-neural-engine-for-llms.md: ANE prefill + GPU decode \"not shipped in mainstream stacks\". SqueezeBits Yetter engine (Aug 2025) does exactly this. CONTRADICTS core-ml-and-apple-neural-engine-for-llms.md. Unreleased at time of post (they intend to open-source); mainstream status unverified.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "\"Not shipped in mainstream stacks\" (contracollective Mar 2026: coordination plus CoreML conversion tax outweighs the win at typical prompt lengths; \"an engineering trade, not a hardware wall\") vs Yetter, which did ship a working engine in a blog. Both true: it exists as a private engine, no mainstream runtime (MLX, llama.cpp, Ollama, LM Studio) has it. CONTRADICTS the unqualified wording in core-ml-and-apple-neural-engine-for-llms.md only in that a research-grade implementation exists.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Apple's own Llama 3.1 recipe: CoreML-LLM's EXPERIMENTS says Apple's on-device Llama 3.1 uses stateless explicit-I/O KV; Apple's article (existing dossier) uses a stateful KV input and ran on GPU. CONTRADICTS core-ml-and-apple-neural-engine-for-llms.md only if CoreML-LLM meant a different Apple sample; unresolved.",
+          "source": "asserted",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Concepts in this cluster",
+      "facts": [
+        {
+          "text": "Core ML and Apple Neural Engine for LLMs",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "ANEMLL ANE LLM conversion pipeline",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "ANE numerics hazards in FP16",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "ANE weight-read bandwidth by chip",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Speculative decoding with ANE-resident drafter",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "ANE dispatch and IOSurface round-trip overhead in small decode graphs",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "ANE-prefill plus GPU decode hybrid inference",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Orion direct-ANE runtime via private ANEClient",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "maderix reverse-engineered ANE hardware profile",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "ANE SRAM 32 MB cliff and graph-depth utilization",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Core ML stateful KV-cache compile constraints",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Core ML to MLX KV cache hand-off cost and layout",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "CoreML-LLM john-rocky ANE LLM runtime",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Orion ANE constraint catalog and direct-ANE programming",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Speculative decoding verify batches to amortize ANE dispatch",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "SqueezeBits Yetter disaggregated ANE-prefill GPU-decode engine",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "ANE SRAM cliff for 1x1 conv and decode-shaped tensors",
+          "source": "asserted",
+          "note": null
+        }
+      ]
+    }
+  ],
+  "related": []
+}

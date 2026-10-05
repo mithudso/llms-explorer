@@ -1,0 +1,184 @@
+{
+  "slug": "ds4-layer-pipeline-parallelism-over-tcp-with-act",
+  "concept": "ds4 layer pipeline parallelism over TCP with activation quantization",
+  "generated": "2026-10-05",
+  "summary": "In ds4's pipeline mode each machine runs a contiguous layer range and passes the hidden-state buffer (the \"HC\" state, `hidden_hc` in the code) to the next stage over TCP. Activation quantization packs that buffer to 16 or 8 bits on the wire and unpacks it to float32 before the next slice runs.",
+  "facets": [
+    {
+      "title": "Facts",
+      "facts": [
+        {
+          "text": "In ds4's pipeline mode each machine runs a contiguous layer range and passes the hidden-state buffer (the \"HC\" state, `hidden_hc` in the code) to the next stage over TCP. Activation quantization packs that buffer to 16 or 8 bits on the wire and unpacks it to float32 before the next slice runs.",
+          "source": "https://raw.githubusercontent.com/antirez/ds4/main/ds4_distributed.c",
+          "note": null
+        },
+        {
+          "text": "The source comment says graph-slice APIs exchange float buffers, transport can leave them as 32-bit floats or pack them to 16 or 8 bits, and workers \"decode back to float before executing the next slice\". Weights and KV are not touched.",
+          "source": "https://raw.githubusercontent.com/antirez/ds4/main/ds4_distributed.c",
+          "note": null
+        },
+        {
+          "text": "The valid widths are exactly 32, 16 and 8; the default is `DS4_DIST_ACTIVATION_BITS_DEFAULT = 32`; any other value fails with \"must be 32, 16, or 8\".",
+          "source": "https://raw.githubusercontent.com/antirez/ds4/main/ds4_distributed.c",
+          "note": null
+        },
+        {
+          "text": "16-bit transport converts through an IEEE half-precision routine (`dist_f32_to_f16`).",
+          "source": "https://raw.githubusercontent.com/antirez/ds4/main/ds4_distributed.c",
+          "note": null
+        },
+        {
+          "text": "8-bit transport is an FP8 E4M3-style code with no scale or per-block statistics: 1 sign bit, 4 exponent bits (bias 7), 3 mantissa bits, a subnormal step of 1/512 (0.001953125), and saturation at magnitude 240 (byte 0x77).",
+          "source": "https://raw.githubusercontent.com/antirez/ds4/main/ds4_distributed.c",
+          "note": null
+        },
+        {
+          "text": "The 8-bit encoder maps any non-finite input (NaN or infinity) to sign plus 240, so a numerical failure upstream turns into a finite large value on the wire.",
+          "source": "https://raw.githubusercontent.com/antirez/ds4/main/ds4_distributed.c",
+          "note": null
+        },
+        {
+          "text": "A WORK frame carries `input_hc_bytes` (the wire size) and `input_hc_bits`; the receiver derives the value count as bytes divided by bytes per value and rejects a size that is not a multiple.",
+          "source": "https://raw.githubusercontent.com/antirez/ds4/main/ds4_distributed.c",
+          "note": null
+        },
+        {
+          "text": "When a middle worker forwards work to the next stage it copies the same bit width into `forwarded.input_hc_bits` and recomputes the wire size, so each hop decodes and re-encodes.",
+          "source": "https://raw.githubusercontent.com/antirez/ds4/main/ds4_distributed.c",
+          "note": null
+        },
+        {
+          "text": "Each hop re-encodes, so rounding error is added once per stage boundary, not once per token.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "The message set is HELLO, ERROR, WORK, RESULT and five SNAPSHOT types, framed with magic `DS4D`; WORK flags are INPUT_HC, OUTPUT_LOGITS, RESET_SESSION and ACK_ONLY; RESULT kinds are ACK, HIDDEN_STATE and LOGITS. Header fields use network byte order.",
+          "source": "https://raw.githubusercontent.com/antirez/ds4/main/ds4_distributed.c",
+          "note": null
+        },
+        {
+          "text": "The coordinator accepts a worker only if layer count matches and the worker's routed-expert quant profile is Q2 or Q4; otherwise it sends an ERROR frame (\"unsupported worker quant profile\").",
+          "source": "https://raw.githubusercontent.com/antirez/ds4/main/ds4_distributed.c",
+          "note": null
+        },
+        {
+          "text": "Saved sessions use the normal DSV4 payload format; the coordinator gathers or pushes remote layer shards, so a saved file does not depend on the topology.",
+          "source": "https://raw.githubusercontent.com/antirez/ds4/main/ds4_distributed.h",
+          "note": null
+        },
+        {
+          "text": "ds4_distributed.c versions its saved-session payloads but defines no wire-protocol version constant that I found, while the tensor-parallel transport defines `DS4_TP_PROTOCOL_VERSION` 14, so the docs' rule to run the same commit on every peer is the only pipeline compatibility guard.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "`--dist-activation-bits`, `--dist-prefill-chunk` and `--dist-prefill-window` are accepted only with `--role coordinator`; a worker that passes any of them gets an error. The window is capped at 64.",
+          "source": "https://raw.githubusercontent.com/antirez/ds4/main/ds4_distributed.c",
+          "note": null
+        },
+        {
+          "text": "Both roles require `--layers`; a coordinator needs `--listen HOST PORT` and must not pass `--coordinator`; a worker needs `--coordinator HOST PORT`. Distributed options without a role are rejected.",
+          "source": "https://raw.githubusercontent.com/antirez/ds4/main/ds4_distributed.c",
+          "note": null
+        },
+        {
+          "text": "The 8-bit code has 3 mantissa bits, so its worst-case rounding error is about 6% of a value's magnitude, against about 0.05% for half precision. Values below about 0.002 collapse to a coarse subnormal grid.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Because the encoding has no scale, activations whose outliers exceed 240 clip silently at 8 bits. Whether DeepSeek V4 or GLM hidden states reach that range is not stated in any source read.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "A `--dist-replay-check` flag exists in the parser, and the docs do not describe it.",
+          "source": "https://raw.githubusercontent.com/antirez/ds4/main/ds4_distributed.c",
+          "note": null
+        },
+        {
+          "text": "The docs call 16-bit a halving of payload and 8-bit \"more aggressive\" and say to validate output. No source gives a measured perplexity, logit-drift or task-score cost for either width, so the safe default of 32 and the speed gain of 8 are unweighed against each other.",
+          "source": "https://raw.githubusercontent.com/antirez/ds4/main/docs/DISTRIBUTED.md",
+          "note": null
+        },
+        {
+          "text": "What the quality and speed trade is for 16-bit and 8-bit transport on a two-Mac Thunderbolt TCP link, where the hop payload is small next to prefill chunks.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Whether the RESULT frame that returns a hidden state or logits to the coordinator also uses the packed width.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "ds4 pipeline workers decode packed activations back to float32 before executing the next layer slice.",
+          "source": "https://raw.githubusercontent.com/antirez/ds4/main/ds4_distributed.c",
+          "note": null
+        },
+        {
+          "text": "ds4's valid activation widths are 32, 16 and 8 with 32 as the default.",
+          "source": "https://raw.githubusercontent.com/antirez/ds4/main/ds4_distributed.c",
+          "note": null
+        },
+        {
+          "text": "ds4's 16-bit wire format is IEEE half precision.",
+          "source": "https://raw.githubusercontent.com/antirez/ds4/main/ds4_distributed.c",
+          "note": null
+        },
+        {
+          "text": "ds4's 8-bit wire format is an unscaled E4M3-style byte with bias 7, subnormal step 1/512 and saturation at 240.",
+          "source": "https://raw.githubusercontent.com/antirez/ds4/main/ds4_distributed.c",
+          "note": null
+        },
+        {
+          "text": "ds4's 8-bit encoder turns NaN and infinity into plus or minus 240.",
+          "source": "https://raw.githubusercontent.com/antirez/ds4/main/ds4_distributed.c",
+          "note": null
+        },
+        {
+          "text": "ds4's forwarding worker re-encodes the hidden state at the same width for the next stage.",
+          "source": "https://raw.githubusercontent.com/antirez/ds4/main/ds4_distributed.c",
+          "note": null
+        },
+        {
+          "text": "ds4's WORK frame has INPUT_HC, OUTPUT_LOGITS, RESET_SESSION and ACK_ONLY flags and RESULT frames are ACK, HIDDEN_STATE or LOGITS.",
+          "source": "https://raw.githubusercontent.com/antirez/ds4/main/ds4_distributed.c",
+          "note": null
+        },
+        {
+          "text": "ds4's coordinator rejects a worker whose routed-expert quant profile is not Q2 or Q4, or whose layer count differs.",
+          "source": "https://raw.githubusercontent.com/antirez/ds4/main/ds4_distributed.c",
+          "note": null
+        },
+        {
+          "text": "ds4's activation-bits, prefill-chunk and prefill-window options are coordinator-only, and the prefill window is at most 64.",
+          "source": "https://raw.githubusercontent.com/antirez/ds4/main/ds4_distributed.c",
+          "note": null
+        },
+        {
+          "text": "ds4's saved distributed sessions are topology-neutral because the coordinator gathers the remote layer shards into the normal DSV4 payload.",
+          "source": "https://raw.githubusercontent.com/antirez/ds4/main/ds4_distributed.h",
+          "note": null
+        },
+        {
+          "text": "ds4's DISTRIBUTED.md says to validate output when changing the activation width and gives no measured cost.",
+          "source": "https://raw.githubusercontent.com/antirez/ds4/main/docs/DISTRIBUTED.md",
+          "note": null
+        },
+        {
+          "text": "The 8-bit code has no scale, so values above 240 clip and values below about 0.002 lose precision.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Re-encoding at every hop means a pipeline of S stages adds S-1 rounding steps to the activation.",
+          "source": "asserted",
+          "note": null
+        }
+      ]
+    }
+  ],
+  "related": []
+}

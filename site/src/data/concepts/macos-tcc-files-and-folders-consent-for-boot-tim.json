@@ -1,0 +1,169 @@
+{
+  "slug": "macos-tcc-files-and-folders-consent-for-boot-tim",
+  "concept": "macOS TCC Files and Folders consent for boot-time daemons",
+  "generated": "2026-10-05",
+  "summary": "TCC applies to LaunchDaemons as well as LaunchAgents. Root does not bypass it. A daemon has no GUI session, so macOS cannot show a consent prompt for it; the access is silently denied.",
+  "facets": [
+    {
+      "title": "Facts",
+      "facts": [
+        {
+          "text": "TCC applies to LaunchDaemons as well as LaunchAgents. Root does not bypass it. A daemon has no GUI session, so macOS cannot show a consent prompt for it; the access is silently denied.",
+          "source": "https://chrispaynter.medium.com/what-to-do-when-your-macos-daemon-gets-blocked-by-tcc-dialogues-d3a1b991151f",
+          "note": null
+        },
+        {
+          "text": "A grant belongs to the program, not to the launchd domain. If the same executable runs once as a LaunchAgent in the user session and the user approves the prompt, the later daemon run of that executable holds the same permission (companion-agent pattern, tested on macOS Big Sur 11.0.1 for Input Monitoring; the guide's own code was not run as written).",
+          "source": "https://chrispaynter.medium.com/what-to-do-when-your-macos-daemon-gets-blocked-by-tcc-dialogues-d3a1b991151f",
+          "note": null
+        },
+        {
+          "text": "The denial is visible in Console as a kernel \"System Policy: <proc> deny(1) file-read-data <path>\" line, or as \"TCC deny <service>\" for non-file resources.",
+          "source": "https://apple.stackexchange.com/questions/479465/personal-launchagent-no-longer-works-correctly-in-macos-15-x-appears-to-be-due",
+          "note": null
+        },
+        {
+          "text": "The symptom for a protected folder is silent: `ls ~/Desktop` from a LaunchAgent lists nothing instead of failing, and the same script works from Terminal.",
+          "source": "https://apple.stackexchange.com/questions/479465/personal-launchagent-no-longer-works-correctly-in-macos-15-x-appears-to-be-due",
+          "note": null
+        },
+        {
+          "text": "For a launchd job that is a shell script, the responsible executable is the interpreter (for example /bin/bash). One accepted-by-asker fix on Catalina added /bin/bash to Full Disk Access, changed the shebang from `/usr/bin/env bash` to `/bin/bash`, and removed StandardOutPath and StandardErrorPath from the plist.",
+          "source": "https://stackoverflow.com/questions/58677123/launchagent-script-cant-write-to-external-drive",
+          "note": null
+        },
+        {
+          "text": "External and network volumes are covered: an agent writing to /Volumes/nas_1 got \"PermissionError: [Errno 1] Operation not permitted\" although the path had mode 777; writing to the home folder worked.",
+          "source": "https://stackoverflow.com/questions/58677123/launchagent-script-cant-write-to-external-drive",
+          "note": null
+        },
+        {
+          "text": "The same \"operation not permitted\" appeared for rclone writing to /Volumes/Expansion from both a user LaunchAgent and a plist in /Library/LaunchAgents, while the same script worked from Terminal.",
+          "source": "https://forum.rclone.org/t/local-file-system-permissions-via-launchd-daemon/47946",
+          "note": null
+        },
+        {
+          "text": "Catalina (macOS 10.15, 2019) introduced the privacy protections for launchd daemons and agents that the SO asker cited from Apple release notes.",
+          "source": "https://stackoverflow.com/questions/58677123/launchagent-script-cant-write-to-external-drive",
+          "note": null
+        },
+        {
+          "text": "On macOS 15.x a ten-year-old LaunchAgent that cleaned ~/Desktop stopped seeing files; the asker tied it to an iCloud-shared Desktop, and a respondent said Desktop is TCC-protected.",
+          "source": "https://apple.stackexchange.com/questions/479465/personal-launchagent-no-longer-works-correctly-in-macos-15-x-appears-to-be-due",
+          "note": null
+        },
+        {
+          "text": "Granting access can need a signed application bundle, not a bare binary: one respondent says it must be a code-signed application provisioned for Desktop access (not Full Disk Access) and that the only grant path is its own prompt. This is a single-commenter claim.",
+          "source": "https://apple.stackexchange.com/questions/479465/personal-launchagent-no-longer-works-correctly-in-macos-15-x-appears-to-be-due",
+          "note": null
+        },
+        {
+          "text": "Workaround for a user-session job: run the work through the Shortcuts app, which holds Files and Folders (and optionally Full Disk Access) consent, and trigger the shortcut from a LaunchAgent. It is documented for LaunchAgents, not daemons.",
+          "source": "https://apple.stackexchange.com/questions/479465/personal-launchagent-no-longer-works-correctly-in-macos-15-x-appears-to-be-due",
+          "note": null
+        },
+        {
+          "text": "Log files can be a TCC victim too: removing StandardOutPath and StandardErrorPath fixed one Catalina case where writing logs was denied. For a model server, put logs under /var/log or the service account's home, not ~/Desktop or ~/Documents.",
+          "source": "https://stackoverflow.com/questions/58677123/launchagent-script-cant-write-to-external-drive",
+          "note": null
+        },
+        {
+          "text": "Model directories on an external SSD are the LLM-specific exposure: a boot-time llama-server or Ollama daemon reading models from /Volumes/<ssd> is a candidate for the same \"operation not permitted\" (inferred from the external-drive reports; no source tests an LLM server).",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Model files under ~/Documents, ~/Desktop or ~/Downloads, or in an iCloud-synced home folder, are the second exposure (inferred).",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Apple's own Terminal guide recommends launchd for shell-script daemons and says other start mechanisms may be removed; it does not mention TCC. Community answers say a LaunchAgent cannot overcome TCC directly and needs an entitled GUI app. Both stand: launchd is the supported mechanism, and consent still has to come from a GUI-capable grant.",
+          "source": "https://support.apple.com/guide/terminal/script-management-with-launchd-apdc6c1077b-5d5d-4d35-9c19-60f2397b2369/mac",
+          "note": null
+        },
+        {
+          "text": "Fix preference: Full Disk Access for /bin/bash (Catalina answer) versus a scoped Files and Folders grant through an app (2025 answer). The first is broader than needed; the second adds a moving part.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Whether a root LaunchDaemon with a model path on an external APFS volume is blocked on macOS 26/27 without a grant is untested in any source read.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Whether MDM-pushed PPPC profiles (Privacy Preferences Policy Control) can pre-grant Files and Folders access to a daemon's binary was not covered by any fetched source.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "No fetched source says which program TCC treats as responsible for a LaunchDaemon that exec's a Homebrew binary (the binary, its parent script, or launchd).",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "TCC applies to launchd daemons even when they run as root, and a daemon cannot show a consent prompt because it has no GUI session.",
+          "source": "https://chrispaynter.medium.com/what-to-do-when-your-macos-daemon-gets-blocked-by-tcc-dialogues-d3a1b991151f",
+          "note": null
+        },
+        {
+          "text": "Consent granted to a program while it ran as a user-session agent also covers the same program when it runs as a daemon (companion-agent pattern).",
+          "source": "https://chrispaynter.medium.com/what-to-do-when-your-macos-daemon-gets-blocked-by-tcc-dialogues-d3a1b991151f",
+          "note": null
+        },
+        {
+          "text": "The Console message for a protected-folder denial reads \"System Policy: ls(<pid>) deny(1) file-read-data <path>\".",
+          "source": "https://apple.stackexchange.com/questions/479465/personal-launchagent-no-longer-works-correctly-in-macos-15-x-appears-to-be-due",
+          "note": null
+        },
+        {
+          "text": "A TCC-denied directory read from launchd returns an empty listing, not an error.",
+          "source": "https://apple.stackexchange.com/questions/479465/personal-launchagent-no-longer-works-correctly-in-macos-15-x-appears-to-be-due",
+          "note": null
+        },
+        {
+          "text": "A respondent states a LaunchAgent cannot overcome TCC directly and must trigger an entitled application that the user has granted Desktop and Documents access.",
+          "source": "https://apple.stackexchange.com/questions/479465/personal-launchagent-no-longer-works-correctly-in-macos-15-x-appears-to-be-due",
+          "note": null
+        },
+        {
+          "text": "Running a script through the Shortcuts app (granted Files and Folders access) from a LaunchAgent bypasses TCC and local-network restrictions for that script.",
+          "source": "https://apple.stackexchange.com/questions/479465/personal-launchagent-no-longer-works-correctly-in-macos-15-x-appears-to-be-due",
+          "note": null
+        },
+        {
+          "text": "A LaunchAgent write to an external or network volume failed with Errno 1 \"Operation not permitted\" despite 777 permissions on macOS Catalina.",
+          "source": "https://stackoverflow.com/questions/58677123/launchagent-script-cant-write-to-external-drive",
+          "note": null
+        },
+        {
+          "text": "The Catalina fix added /bin/bash to Full Disk Access, used `/bin/bash` in the shebang, and dropped StandardOutPath and StandardErrorPath from the plist.",
+          "source": "https://stackoverflow.com/questions/58677123/launchagent-script-cant-write-to-external-drive",
+          "note": null
+        },
+        {
+          "text": "rclone run from a launchd job (user agent or /Library/LaunchAgents) failed with \"operation not permitted\" opening files on /Volumes/Expansion, while the same script succeeded from Terminal.",
+          "source": "https://forum.rclone.org/t/local-file-system-permissions-via-launchd-daemon/47946",
+          "note": null
+        },
+        {
+          "text": "Apple's Terminal guide lists /Library/LaunchDaemons as the location for third-party system daemons and says other daemon-start mechanisms are subject to removal at Apple's discretion.",
+          "source": "https://support.apple.com/guide/terminal/script-management-with-launchd-apdc6c1077b-5d5d-4d35-9c19-60f2397b2369/mac",
+          "note": null
+        },
+        {
+          "text": "Existing coverage: the ~/Desktop daemon \"failed with error 1 until login\" case is already in launchd-service-setup-for-local-llm-servers.md and is not restated.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "A boot-time LLM daemon should keep binaries, models and logs outside Desktop, Documents, Downloads, iCloud-synced folders and external volumes unless a grant exists (inferred from the reports above).",
+          "source": "asserted",
+          "note": null
+        }
+      ]
+    }
+  ],
+  "related": []
+}

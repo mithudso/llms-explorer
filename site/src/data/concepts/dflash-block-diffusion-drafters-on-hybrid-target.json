@@ -1,0 +1,254 @@
+{
+  "slug": "dflash-block-diffusion-drafters-on-hybrid-target",
+  "concept": "DFlash block-diffusion drafters on hybrid targets in llama.cpp (PR 22105)",
+  "generated": "2026-10-05",
+  "summary": "A DFlash drafter has several transformer layers and emits a whole block in one draft pass, where EAGLE-3 uses one transformer layer and one token per draft pass.",
+  "facets": [
+    {
+      "title": "Facts",
+      "facts": [
+        {
+          "text": "A DFlash drafter has several transformer layers and emits a whole block in one draft pass, where EAGLE-3 uses one transformer layer and one token per draft pass.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "The drafter reads hidden states from the target, which is why llama.cpp needed a cleaner way to expose target hidden states (reviewer am17an, 18 Apr) and why the drafter context requires a paired target context (\"dflash requires ctx_other to be set\").",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "The converter takes `--target-model-dir` so the drafter GGUF reuses the target tokenizer.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "On a hybrid target (Qwen3.5/3.6) verification writes recurrent state for the whole block before acceptance is known. The PR first used snapshot, restore and replay of the accepted prefix, and later switched to llama.cpp's speculative checkpointing (PRs 19493 and 22227) as the fallback for hybrid state.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "The drafter graph originally rebuilt every iteration because the accumulated target context grew; the PR marks this resolved by K/V cache copy injection.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "18 Apr 2026: PR opened as a full-numerical-equivalence port, single-slot only, CUDA build in the example.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "24 Apr 2026: rebased onto upstream speculative checkpointing; hybrid performance numbers updated.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "27 Apr 2026: author says full support waits for the EAGLE-3 PR and a unified speculative API; `n_parallel` above 1 is not implemented yet.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Jul 2026: after merge, users report multimodal and multi-device failures; follow-up PRs 25110 and 25246 are named in a downstream sync commit.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Aug 2026: a downstream fork's squash commit lists \"DFlash v2\" support and per-layer sliding-window attention via `layer_types`.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "MoE targets gain less because a parallel verify block activates more experts than one decode step (gpt-oss-20b at 0.61x to 1.27x in the PR's own table).",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "With thinking on, acceptance collapses on open prose (Qwen3-8B \"Plan a 1 day trip\" 4.9% acceptance, 1.09x).",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Image input: the drafter's `process()` skips batches that carry embeddings, so after an image the draft context sits at position 10 or 12 while the next text batch starts at 84 or 86; `llama_decode(ctx_dft)` then returns -1 and the request fails with \"failed to process speculative batch\".",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Mixed backends: Vulkan plus CUDA needed `--device Vulkan0,Cuda0 --tensor-split 1,0` because the scheduler did not handle cross-device buffers for this feature.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Speculators-format drafts (Red Hat Gemma-4 31B) failed conversion at PR time: no `d2t` and `t2d` handling, and no TOKEN_EMBD or OUTPUT tensors in the DFLASH arch for the draft's own 32,000-token vocabulary.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "DFlash against MTP: on 2x V100 the paired sweep found MTP ahead of DFlash at every draft length (thc1006, 6 Jul). On an RTX PRO 6000 Blackwell, DFlash beat MTP at every draft length tested (lukaLLM, 7 Jul). The reports use different GPUs, quantizations and drafters, and no source reconciles them.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Draft length: the PR example uses `--spec-draft-n-max 15` for a block size 16 drafter; the V100 sweep found speedup peaks near 2 to 4 and the MoE turns net-negative by n=8.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Whether DFlash on a Metal build reaches the PR's CUDA and Spark speedups; the thread has no Apple data.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Whether the vision-position gap was fixed after 23 Jul 2026.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Whether target-side deferred commit (the SGLang approach the PR names) has landed in llama.cpp.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "PR 22105 was opened on 18 Apr 2026 by ruixiang63 and was approved by ggerganov.",
+          "source": "https://github.com/ggml-org/llama.cpp/pull/22105",
+          "note": null
+        },
+        {
+          "text": "The PR's run command uses `--spec-type draft-dflash --spec-draft-n-max 15 --temp 0 --top-k 1 -np 1` with a drafter passed by `-md`.",
+          "source": "https://github.com/ggml-org/llama.cpp/pull/22105",
+          "note": null
+        },
+        {
+          "text": "The drafter GGUF is converted with `convert_hf_to_gguf.py --target-model-dir <target HF dir>`, so it carries the target's tokenizer.",
+          "source": "https://github.com/ggml-org/llama.cpp/pull/22105",
+          "note": null
+        },
+        {
+          "text": "Hybrid-target fallback moved from the PR's own snapshot and replay to llama.cpp speculative checkpointing (PRs 19493 and 22227), and the original snapshot-and-replay text is struck through in the PR body.",
+          "source": "https://github.com/ggml-org/llama.cpp/pull/22105",
+          "note": null
+        },
+        {
+          "text": "The PR names SGLang's target-side deferred commit, which computes temporary recurrent states and commits only the accepted prefix, as the more fundamental fix and says it needs deeper changes to llama.cpp's recurrent-state update flow.",
+          "source": "https://github.com/ggml-org/llama.cpp/pull/22105",
+          "note": null
+        },
+        {
+          "text": "The PR notes that the hybrid limitation applies to every speculative method with a hybrid target, not only DFlash.",
+          "source": "https://github.com/ggml-org/llama.cpp/pull/22105",
+          "note": null
+        },
+        {
+          "text": "The drafter graph rebuild every iteration (`graphs reused = 0`) was caused by the growing target context and is marked resolved by K/V cache copy injection.",
+          "source": "https://github.com/ggml-org/llama.cpp/pull/22105",
+          "note": null
+        },
+        {
+          "text": "On a DGX Spark with Q4_K_M Qwen3.6-27B and its Q4_K_M DFlash drafter, SpeedBench gives 2.69x overall decode speedup (12.57 to 33.76 tok/s) at 0.2516 accept rate.",
+          "source": "https://github.com/ggml-org/llama.cpp/pull/22105",
+          "note": null
+        },
+        {
+          "text": "In that run coding reaches 3.11x, rag 4.07x, humanities 2.25x and qa 2.20x.",
+          "source": "https://github.com/ggml-org/llama.cpp/pull/22105",
+          "note": null
+        },
+        {
+          "text": "Qwen3-8B bf16 with thinking enabled: \"quicksort\" 1.77x at 12.0% accept, \"Pythagorean theorem\" 1.85x, \"plan a trip\" 1.09x at 4.9%; with thinking disabled the same prompts reach 8.08x at 93.3% accept, 2.59x and 1.49x.",
+          "source": "https://github.com/ggml-org/llama.cpp/pull/22105",
+          "note": null
+        },
+        {
+          "text": "gpt-oss-20b with a block-8 drafter ran at 0.98x, 0.85x and 0.61x with thinking and 1.27x, 1.03x and 0.70x without.",
+          "source": "https://github.com/ggml-org/llama.cpp/pull/22105",
+          "note": null
+        },
+        {
+          "text": "The PR author attributes the smaller MoE gain to more experts activating during parallel verification than in single-token decode, the same observation as the EAGLE-3 PR 18039 for gpt-oss.",
+          "source": "https://github.com/ggml-org/llama.cpp/pull/22105",
+          "note": null
+        },
+        {
+          "text": "Qwen3.5-4B bf16 reaches 3.57x on the quicksort prompt without thinking and 0.93x on the trip-planning prompt; Qwen3.5-9B reaches 2.77x and 1.10x on the same two.",
+          "source": "https://github.com/ggml-org/llama.cpp/pull/22105",
+          "note": null
+        },
+        {
+          "text": "The PR's first version supported `llama-cli` and `llama-server` only with `n_parallel = 1`, and its author deferred multi-slot batching until the unified speculative API landed.",
+          "source": "https://github.com/ggml-org/llama.cpp/pull/22105",
+          "note": null
+        },
+        {
+          "text": "A 20 Apr 2026 comment reports speculators-format drafts fail conversion with \"Can not map tensor 'model.d2t'\" and then 'model.embed_tokens.weight', because the DFLASH arch had no TOKEN_EMBD, OUTPUT or d2t handling for a drafter with its own 32,000-token vocabulary (Red Hat Gemma-4 31B draft against Gemma's about 300K).",
+          "source": "https://github.com/ggml-org/llama.cpp/pull/22105",
+          "note": null
+        },
+        {
+          "text": "A paired `--spec-draft-n-max` sweep on 2x V100 found speedup peaks at about 2 to 4 for dense Qwen3.6-27B and MoE 35B-A3B, dense returns to about break-even by n=15, and the MoE reaches 0.83x at n=8 and 0.68x at n=15, with acceptance near-identical between the two.",
+          "source": "https://github.com/ggml-org/llama.cpp/pull/22105",
+          "note": null
+        },
+        {
+          "text": "On those V100s MTP stayed ahead of DFlash across the whole sweep.",
+          "source": "https://github.com/ggml-org/llama.cpp/pull/22105",
+          "note": null
+        },
+        {
+          "text": "On a single RTX PRO 6000 Blackwell, a Docker benchmark found DFlash speedup grows with context from 1.44x at 512 tokens to 4.44x at about 37k (DFlash 97 to 273 tok/s while baseline drifts 68 to 61), and DFlash beat MTP at every draft length tested.",
+          "source": "https://github.com/ggml-org/llama.cpp/pull/22105",
+          "note": null
+        },
+        {
+          "text": "The same benchmark found MATH-500 pass@1 of 87/100 baseline against 86/100 with DFlash, which the poster reads as within noise for greedy speculative decoding.",
+          "source": "https://github.com/ggml-org/llama.cpp/pull/22105",
+          "note": null
+        },
+        {
+          "text": "A Strix Halo (Ryzen AI Max+ 395, unified memory) report gives Qwen3.6-35B-A3B UD-Q4_K_XL 48 tok/s plain and 91 to 95 tok/s with `draft-dflash` on code and reasoning at 64 to 74% acceptance, about 54 tok/s on prose at 31%, and says draft-simple, EAGLE-3 style and MTP all lost to drafting overhead on that machine.",
+          "source": "https://github.com/ggml-org/llama.cpp/discussions/21569",
+          "note": null
+        },
+        {
+          "text": "The same Strix Halo report adds an unreproduced anecdote that the published DFlash draft ran at about 98% acceptance on a same-lineage Qwen3.5-MoE fine-tune.",
+          "source": "https://github.com/ggml-org/llama.cpp/discussions/21569",
+          "note": null
+        },
+        {
+          "text": "A user combining DFlash with `--mmproj` saw \"dflash requires ctx_other to be set\", and another user said that message is normal during memory fitting and that vision worked in their build.",
+          "source": "https://github.com/ggml-org/llama.cpp/pull/22105",
+          "note": null
+        },
+        {
+          "text": "On 4 Jul 2026 a ROCm user reported that image requests to Qwen3.6 27B and 35B-A3B crash DFlash prediction in build b9871.",
+          "source": "https://github.com/ggml-org/llama.cpp/pull/22105",
+          "note": null
+        },
+        {
+          "text": "On 23 Jul 2026 a user traced the image failure to `process()` skipping batches with `embd` set, which leaves the draft context at position 10 or 12 while the next text batch begins at 84 or 86 and makes `llama_decode(ctx_dft)` return -1.",
+          "source": "https://github.com/ggml-org/llama.cpp/pull/22105",
+          "note": null
+        },
+        {
+          "text": "On 15 Jul 2026 ggerganov reported that converting a Gemma-4 26B-A4B DFlash drafter failed with \"BPE pre-tokenizer was not recognized\" and a missing `tokenizer.model` in the target directory, and the PR author said they had found the root cause.",
+          "source": "https://github.com/ggml-org/llama.cpp/pull/22105",
+          "note": null
+        },
+        {
+          "text": "A downstream sync commit lists DFlash support as PRs 22105, 25110 and 25246, and a later squash commit lists \"DFlash v2\" support and per-layer sliding-window attention from `layer_types`.",
+          "source": "https://github.com/ggml-org/llama.cpp/pull/22105",
+          "note": null
+        },
+        {
+          "text": "Mixing Vulkan and CUDA devices for DFlash needed `--device Vulkan0,Cuda0 --tensor-split 1,0`, and a tensor-split ROCm user said splitting the DFlash layer across two GPUs made it slower than turning DFlash off.",
+          "source": "https://github.com/ggml-org/llama.cpp/pull/22105",
+          "note": null
+        },
+        {
+          "text": "A Medium write-up of the merge puts DFlash's extra memory at about 5 GB for the drafter against 2 to 3 GB for MTP heads and says DFlash starts very fast and may decay.",
+          "source": "https://xhinker.medium.com/dflash-just-landed-in-llama-cpp-worth-to-upgrade-to-get-speed-boost-a20db434e8f7",
+          "note": null
+        }
+      ]
+    }
+  ],
+  "related": []
+}

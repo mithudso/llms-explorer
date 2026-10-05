@@ -1,0 +1,94 @@
+{
+  "slug": "kv-cache-quantization-4-bit-and-8-bit-memory-pri",
+  "concept": "KV cache quantization (4-bit and 8-bit) memory pricing and NaN failures in MTPLX",
+  "generated": "2026-10-05",
+  "summary": "The #526 failure was NaN for every logit and an HTTP 500 when a long answer ran with 8-bit or 4-bit KV on the 27B.",
+  "facets": [
+    {
+      "title": "Facts",
+      "facts": [
+        {
+          "text": "The #526 failure was NaN for every logit and an HTTP 500 when a long answer ran with 8-bit or 4-bit KV on the 27B.",
+          "source": "https://mtplx.com/releases/2.12.1/",
+          "note": null
+        },
+        {
+          "text": "The root cause was a compiled-verifier paged cache sized once for the prompt plus 16,384 tokens that never grew, so longer answers wrote across heads and past the buffers.",
+          "source": "https://github.com/youssofal/MTPLX/blob/main/CHANGELOG.md",
+          "note": null
+        },
+        {
+          "text": "The 2.12.1 fix reserves each forward's window where its mask is built, reserves before any replay, checks growth against the Mac's memory and refuses with a 507 before a row moves, and reads capacity from the live buffers.",
+          "source": "https://github.com/youssofal/MTPLX/blob/main/CHANGELOG.md",
+          "note": null
+        },
+        {
+          "text": "The reproduction counted to 4,000 in an 18,893-token answer on the 27B; it failed on 2.12.0 at 8-bit KV and finished correctly at both 8-bit and 4-bit on 2.12.1, with no M3 run.",
+          "source": "https://mtplx.com/releases/2.12.1/",
+          "note": null
+        },
+        {
+          "text": "The fix costs about 3% of 8-bit decode below the old capacity (57.42 against 59.25 tok/s on alternating boots, 27 Sep).",
+          "source": "https://github.com/youssofal/MTPLX/blob/main/CHANGELOG.md",
+          "note": null
+        },
+        {
+          "text": "A second, independent NaN path is fixed in 2.12.1: FP16 queries keep attention's unnormalized partials in float32 in every split attention kernel, so large scores cannot overflow to infinity before the division.",
+          "source": "https://github.com/youssofal/MTPLX/blob/main/CHANGELOG.md",
+          "note": null
+        },
+        {
+          "text": "BF16 outputs are bit-identical to 2.12.0 across 108 of 108 outputs in 11 kernel families, and FP16 partial buffers double from 25 to 50 MB per 27B layer call at 32K, with no M1 or M2 run.",
+          "source": "https://github.com/youssofal/MTPLX/blob/main/CHANGELOG.md",
+          "note": null
+        },
+        {
+          "text": "A request that returns non-finite logits ends with `finish_reason: error` and code `non_finite_logits`, its cached state is dropped and the daemon stays up.",
+          "source": "https://github.com/youssofal/MTPLX/blob/main/CHANGELOG.md",
+          "note": null
+        },
+        {
+          "text": "The 2.12.1 log names the cache, attention route, offset and capacity of the first layer involved in a non-finite answer, and `MTPLX_KV_ATTENTION_TRACE=nonfinite` checks every call and prints only the bad ones (`=1` prints every full-attention call).",
+          "source": "https://mtplx.com/releases/2.12.1/",
+          "note": null
+        },
+        {
+          "text": "In the 2.9.3 build, enabling q8 or q4 KV crashed serving at warmup, q4 re-dequantized the whole prefix every round, and the compiled verify bank refused quantized caches.",
+          "source": "https://github.com/youssofal/MTPLX/blob/main/CHANGELOG.md",
+          "note": null
+        },
+        {
+          "text": "After that fix, 16k decode on an M5 Max costs about 4% with q8 and about 19% with q4 against KV quantization off, down from a crash and a 50% loss, and the feature stays opt-in.",
+          "source": "https://github.com/youssofal/MTPLX/blob/main/CHANGELOG.md",
+          "note": null
+        },
+        {
+          "text": "A q4 numerics defect at head_dim 128 is fenced fail-closed, and the shipped head_dim 256 family is reported exact.",
+          "source": "https://github.com/youssofal/MTPLX/blob/main/CHANGELOG.md",
+          "note": null
+        },
+        {
+          "text": "In 2.8.0 the q8 dequant mirror became offset-sized with geometric growth and is released once a request latches onto the kernel path, q4 never allocates a mirror, and a q8 request that starts below the kernel threshold stays on dequant math for its whole life.",
+          "source": "https://github.com/youssofal/MTPLX/blob/main/CHANGELOG.md",
+          "note": null
+        },
+        {
+          "text": "Until 2.7.1 the app's KV toggle displayed q8 for Qwen 3.8 while the launch gate listed only `qwen3_5` and `qwen3_6`, so a 3.8 launch exported nothing.",
+          "source": "https://github.com/youssofal/MTPLX/blob/main/CHANGELOG.md",
+          "note": null
+        },
+        {
+          "text": "The quantized KV lane is wired to the dense-27B attention call sites and not to Flash-Next's QSA layers, whose hybrid design keeps KV on 12 of 48 layers at about 24 KB per token, and a quantized QSA lane has no validation receipts.",
+          "source": "https://github.com/youssofal/MTPLX/blob/main/CHANGELOG.md",
+          "note": null
+        },
+        {
+          "text": "The 2.12.1 `/health` text and `--kv-quant` help now describe the KV routes that actually run.",
+          "source": "https://mtplx.com/releases/2.12.1/",
+          "note": null
+        }
+      ]
+    }
+  ],
+  "related": []
+}

@@ -1,0 +1,404 @@
+{
+  "slug": "qwen3-6-preserve-thinking-chat-template-flag-and",
+  "concept": "Qwen3.6 preserve_thinking chat-template flag and prompt-cache reuse",
+  "generated": "2026-10-05",
+  "summary": "Default template behaviour: reasoning is dropped from history except in the current tool-use turn. Between request N and N+1 the rendered prompt for turn N's assistant message therefore loses its `<think>...</think>` text. The tokens the server cached (prompt plus generated reasoning) no longer m...",
+  "facets": [
+    {
+      "title": "Facts",
+      "facts": [
+        {
+          "text": "Default template behaviour: reasoning is dropped from history except in the current tool-use turn. Between request N and N+1 the rendered prompt for turn N's assistant message therefore loses its `<think>...</think>` text. The tokens the server cached (prompt plus generated reasoning) no longer match the next prompt, so the shared prefix ends where the first dropped think block began.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Qwen's own explanation of the cache problem (maintainer reply on QwenLM/Qwen3.8 #131): stripping past thinking changes the prefix; a planned option to preserve thinking, even empty blocks in non-thinking mode, fixes cause 1; cause 2 is whitespace normalisation differences of thinking and tool-call blocks between model output and template re-render, which has no perfect fix because token-level generation and message-level templating are separate.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "On hybrid models (Qwen3.5/3.6 delta-net layers) a mismatch is far costlier than on pure attention, because the recurrent state cannot be trimmed back to the divergence point; llama.cpp must restore a checkpoint at or before it or reprocess from zero. That is why the flag matters more here than for dense Qwen3.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Second, template-level cache bug: the stock template emits an empty `<think>\\n\\n</think>` wrapper on past assistant turns that had no reasoning (tool-call-only turns). Qwen3.8 #131 proposes guarding with `and reasoning_content`. LM Studio's froggeric MLX card calls this \"empty preserve_thinking spam\" and ships a rewritten template that emits think blocks only when reasoning is non-empty.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Client side contract: the server must receive reasoning back. llama-server returns it as `reasoning_content`; the client must echo it on the assistant message. If the client drops it, preserve_thinking has nothing to render. pi's `qwen-chat-template` thinkingFormat set only `enable_thinking`; the reported fix was to also send `preserve_thinking: true`.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "llama.cpp naming split: the server-side generic flag `--reasoning-preserve` / `--no-reasoning-preserve` (env `LLAMA_ARG_REASONING_PRESERVE`) sets the template kwarg `preserve_reasoning`, not `preserve_thinking`. arg.cpp (master) injects `preserve_reasoning=true` by default after argument parsing if the user did not set it, and logs a deprecation warning when `preserve_reasoning` is set through `--chat-template-kwargs`. The Qwen template variable is `preserve_thinking`; a template that does not alias the two will not see the generic flag.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Template-side fix: froggeric's Qwen-Fixed-Chat-Templates added `preserve_reasoning` as an alias beside `preserve_thinking` (announced for v22, 2026-08-13), and its template treats an undefined `preserve_thinking` as true, so reasoning is preserved by default.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "llama.cpp: `--chat-template-kwargs '{\"preserve_thinking\":true}'` (Unsloth and Qwen documented form); `--jinja` required; env `LLAMA_ARG_CHAT_TEMPLATE_KWARGS`; or per request in `chat_template_kwargs`. Router-mode `.ini` presets accept `chat-template-kwargs = {\"preserve_thinking\": true}`. Newer: `--reasoning-preserve` (see naming caveat).",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Per request (any OpenAI-compatible server that forwards kwargs): `extra_body={\"chat_template_kwargs\": {\"preserve_thinking\": True}}` (Qwen model card). Alibaba Cloud Model Studio instead takes top-level `preserve_thinking: true`.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "vLLM: `--default-chat-template-kwargs '{\"preserve_thinking\": true}'` (from Hermes #56004, held elsewhere).",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "LM Studio: no flag was found. The pi #3325 reporter used LM Studio with the stock Unsloth GGUF template and had to send the kwarg from the client; froggeric's MLX 8-bit build bakes a fixed template into the model instead.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "oMLX: per-model settings in the admin panel include \"chat template kwargs\" (README), applied without restart; saved profiles can be exposed as `<model>:<profile>`. That is the place to set `{\"preserve_thinking\": true}`; no oMLX source was found naming the key.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Ollama: the library page (qwen3.6) advertises \"Thinking Preservation\" but no Ollama setting for it was found.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "mlx_lm.server: no source found documenting chat_template_kwargs support or preserve_thinking.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Unsloth Studio: exposes \"Think\" and \"Preserved Thinking\" toggles for Qwen3.6 and Qwen3.8.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Agent harness example: OpenCode provider config with `\"options\": {\"chat_template_kwargs\": {\"enable_thinking\": true, \"preserve_thinking\": true}, \"parallel_tool_calls\": true}` (dzx.fr local coding guide).",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "2026-04-09: Qwen3.8 #131 filed for empty historical think blocks; Qwen maintainer reply explains the two prefix-cache causes.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "2026-04-16 to 04-17: pi #3325 (LM Studio + Qwen3.6): tool calls loop with empty `{}` arguments after 2-3 turns until preserve_thinking is passed.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "2026-04-26: ggerganov on llama.cpp #22384 points to the model card. Reporter Tongas replies that with preserve_thinking=true turn 1 created no checkpoint (64-token floor) and turn 2 reprocessed; with the checkpoint patch turn 2 restored a checkpoint and processed 51 tokens.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "2026-05: ik_llama.cpp #1762 reporter notes mainline closed #22384 with \"just enable preserve thinking\" and asks whether that holds for ik_llama; a commenter lists the three prerequisites (client preserves thinking traces, requests pass `preserve_thinking: true` or `clear_thinking: false` for GLM-5.1, or set kwargs at server start).",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "2026-07: llama.cpp adds generic `--reasoning-preserve` (default enabled, applies to templates with `supports_preserve_reasoning`); froggeric discussion #54 (2026-07-03) notes it does not map onto the stock Qwen key; froggeric adds the alias on 2026-08-13.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "2026-08: Qwen3.8 keeps the feature (\"reasoning context from historical messages is retained via preserve_thinking\"; llama-server logs \"chat template supports preserving reasoning, consider enabling it via --reasoning-preserve\" for Qwen3.8-27B). Unsloth Studio exposes the toggle for 3.8.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "2026-08-04: llama.cpp #25913 commenters list preserve_thinking or `--reasoning-preserve` as one of three things to check (with `--cache-ram` sizing and harness mutation such as `CLAUDE_CODE_ATTRIBUTION_HEADER=0`); one reporter replies it was not needed before a regression and would not fix it.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Setting the flag does not create a checkpoint the server never made. On hybrid models the first-turn checkpoint can be skipped (64-token minimum) and a repeated prompt can still reprocess; llama.cpp #22746 shows a healthy run with the flag (`restored context checkpoint ... n_past = 8887`, 400 tokens evaluated at 168 t/s of a 9,287-token prompt) next to a bad request later in the same log.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Qwen3.6-27B Q3_K_M run on llama.cpp #22746 used `--chat-template-kwargs '{\"enable_thinking\": true, \"preserve_thinking\": true}'` plus `--cache-ram 18432 --ctx-checkpoints 64 --checkpoint-every-n-tokens 8192 --parallel 2`; its log shows \"reasoning-budget: re-activated on new start tag\" repeatedly, so multiple think blocks per turn are normal under preserve_thinking.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Token cost: Unsloth says preserving thinking increases tokens used; Qwen's card says it can reduce overall tokens by avoiding redundant re-reasoning and improves KV cache utilisation. Qwen advises at least 128K context to keep thinking capability.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Interleaved-thinking rule from Qwen (#131 reply): in a tool chain after the last user message, think blocks (even empty) are kept; a message history of user, assistant, tool, assistant with no final tool call in the latest turn does not preserve historical blocks under the default template.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Disabling thinking (`enable_thinking: false` / `-rea off`) does not avoid churn: particula reports the assistant turn still emits two empty thinking tokens that are stripped next turn.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Client think-tag stripping: clients that do not echo `reasoning_content` (Hermes strips it for non-DeepSeek/Kimi/MiMo providers, held elsewhere) defeat the flag. A DeepSeek-style space pad would break prefix caching.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Parent-level mlx-lm interaction (not preserve_thinking-specific): mlx_lm.server tokenises prompts without prior reasoning, so cached key P+R+A+EOS diverges from next prompt P+A (mlx-lm #903, held in kv-cache-and-long-context-on-mac.md). No source shows whether passing preserve_thinking via mlx-lm fixes this.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Is `preserve_thinking` the fix for hybrid reprocessing?",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "For: ggerganov (llama.cpp #22384, 2026-04-26): \"nothing to fix in llama-server\"; Qwen model card says preserving thinking improves KV cache utilisation; Qwen's #131 reply says stripped traces alter the prefix; froggeric template notes claim 100% prefix KV hit when preserved (claim made in template documentation, unmeasured).",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Against: Tongas (#22384) and #23030 reporter reproduced full reprocessing with the flag on; ik_llama.cpp #1762 thread questions it; a #25913 reporter says it \"wouldn't fix the problem\" after a regression; OpenCode #19081 commenter saw checkpoints erased with the flag set (held elsewhere).",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Resolution suggested by the evidence: the flag removes one cause (template-dropped think text) only; checkpoint creation thresholds, client mutation and slot eviction remain independent causes. The two sides address different causes.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Whether the generic `--reasoning-preserve` suffices for Qwen: arg.cpp sets `preserve_reasoning` (default true); the Qwen template reads `preserve_thinking`. Commenters on froggeric #54 say the two names are different keys and were unaliased in the stock template; a repo-hosted alias exists only in the froggeric template. No source tested stock Qwen3.6 GGUF with only `--reasoning-preserve`.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Does stock Qwen3.6 GGUF template honour `preserve_reasoning`, or is `preserve_thinking` still required? Not tested in any source found.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Does mlx_lm.server (any release) forward `chat_template_kwargs`? Does oMLX apply its per-model kwargs before computing the cache key?",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Is there any Ollama Modelfile or API control for preserve_thinking?",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Is there a published before/after measurement of cache-hit tokens with the flag on a Mac (Metal) build?",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Does the froggeric \"100% prefix KV cache\" claim survive whitespace normalisation of tool-call blocks (Qwen #131 cause 2)?",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "llama.cpp: pass `--jinja --chat-template-kwargs '{\"enable_thinking\": true, \"preserve_thinking\": true}'`; also pass `--reasoning-preserve`; use `--parallel 1`, raise `--ctx-checkpoints` and `--cache-ram`, lower the checkpoint interval (the #22746 reporter used 8192 and 64 checkpoints at about 150 MiB each); keep client prefix stable (`CLAUDE_CODE_ATTRIBUTION_HEADER=0`).",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Ensure the client echoes `reasoning_content` back; verify with the server log (restored checkpoint line, `n_past` close to prompt length) rather than assuming.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "oMLX: set `{\"preserve_thinking\": true}` in per-model chat template kwargs; keep SSD cache on.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Do not rely on the stock LM Studio GGUF template to receive the flag unless the client sends it.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Qwen3.6 keeps only the thinking from the latest user turn by default and was trained to use historical thinking when preserve_thinking is set",
+          "source": "https://huggingface.co/unsloth/Qwen3.6-35B-A3B-GGUF",
+          "note": null
+        },
+        {
+          "text": "The model card says preserve_thinking can reduce overall token use in agent scenarios and can improve KV cache utilisation in thinking and non-thinking modes",
+          "source": "https://huggingface.co/unsloth/Qwen3.6-27B-MLX-8bit",
+          "note": null
+        },
+        {
+          "text": "The model card recommends at least 128K context to preserve thinking capabilities",
+          "source": "https://huggingface.co/unsloth/Qwen3.6-27B-MLX-8bit",
+          "note": null
+        },
+        {
+          "text": "Per request the kwarg is `chat_template_kwargs: {\"preserve_thinking\": true}` in `extra_body`; Alibaba Cloud Model Studio uses a top-level `preserve_thinking`",
+          "source": "https://huggingface.co/unsloth/Qwen3.6-27B-MLX-8bit",
+          "note": null
+        },
+        {
+          "text": "Unsloth documents `--chat-template-kwargs '{\"preserve_thinking\":true}'` for llama.cpp and says it increases tokens used but could raise accuracy in continued conversations",
+          "source": "https://unsloth.ai/docs/models/qwen3.6",
+          "note": null
+        },
+        {
+          "text": "Unsloth Studio has Think and Preserved Thinking toggles for Qwen3.6 and Qwen3.8",
+          "source": "https://unsloth.ai/docs/models/qwen3.8",
+          "note": null
+        },
+        {
+          "text": "A Qwen maintainer reply on Qwen3.8 #131 names two prefix-cache causes: stripped past thinking, and whitespace normalisation differences in thinking and tool-call blocks",
+          "source": "https://github.com/QwenLM/Qwen3.8/issues/131",
+          "note": null
+        },
+        {
+          "text": "The same reply says the interleaved-thinking rule keeps think blocks (even empty) in the active tool-call chain after the last user message",
+          "source": "https://github.com/QwenLM/Qwen3.8/issues/131",
+          "note": null
+        },
+        {
+          "text": "Qwen3.8 #131 reports the stock template emits empty historical think blocks and proposes guarding on `reasoning_content`",
+          "source": "https://github.com/QwenLM/Qwen3.8/issues/131",
+          "note": null
+        },
+        {
+          "text": "LM Studio's froggeric Qwen3.6-27B MLX 8-bit build ships a rewritten template that emits think blocks only with real reasoning content and adds a `<|think_on|>`/`<|think_off|>` toggle",
+          "source": "https://lmstudio.ai/froggeric/qwen3.6-27b-mlx-8bit",
+          "note": null
+        },
+        {
+          "text": "pi #3325: under LM Studio with `thinkingFormat: \"qwen-chat-template\"` Qwen3.6 emitted tool calls with empty `{}` arguments after 2-3 turns; the cause given is missing `preserve_thinking`, and the proposed fix sets `chat_template_kwargs {enable_thinking, preserve_thinking: true}`",
+          "source": "https://github.com/earendil-works/pi/issues/3325",
+          "note": null
+        },
+        {
+          "text": "llama.cpp master defines `--reasoning-preserve` / `--no-reasoning-preserve` (env LLAMA_ARG_REASONING_PRESERVE), default enabled, for templates with `supports_preserve_reasoning`",
+          "source": "https://github.com/ggml-org/llama.cpp/blob/master/tools/server/README.md",
+          "note": null
+        },
+        {
+          "text": "llama.cpp arg.cpp writes the key `preserve_reasoning` (not `preserve_thinking`) into default template kwargs and sets it to true when unspecified",
+          "source": "https://raw.githubusercontent.com/ggml-org/llama.cpp/master/common/arg.cpp",
+          "note": null
+        },
+        {
+          "text": "llama.cpp logs a deprecation warning when `preserve_reasoning` or `enable_thinking` is passed through `--chat-template-kwargs`",
+          "source": "https://raw.githubusercontent.com/ggml-org/llama.cpp/master/common/arg.cpp",
+          "note": null
+        },
+        {
+          "text": "A commenter on froggeric #54 says `preserve_thinking` is only a template argument and `--reasoning-preserve` is a generic server flag meant to work on all templates that implement it",
+          "source": "https://huggingface.co/froggeric/Qwen-Fixed-Chat-Templates/discussions/54",
+          "note": null
+        },
+        {
+          "text": "froggeric (2026-08-13) added `preserve_reasoning` as an alias of `preserve_thinking` in template v22",
+          "source": "https://huggingface.co/froggeric/Qwen-Fixed-Chat-Templates/discussions/54",
+          "note": null
+        },
+        {
+          "text": "The froggeric template treats an undefined `preserve_thinking` as true",
+          "source": "https://huggingface.co/froggeric/Qwen-Fixed-Chat-Templates/discussions/1",
+          "note": null
+        },
+        {
+          "text": "The froggeric template documentation claims preserving all past think blocks gives a 100% prefix KV cache hit rate on local engines (documentation claim, no measurement shown)",
+          "source": "https://huggingface.co/froggeric/Qwen-Fixed-Chat-Templates/discussions/50/files",
+          "note": null
+        },
+        {
+          "text": "A llama.cpp #22384 reporter measured, with preserve_thinking=true and no checkpoint patch: turn 1 no checkpoint, turn 2 \"forcing full prompt re-processing\" of 75 tokens; with the patch: turn 2 restored a checkpoint and processed 51 tokens",
+          "source": "https://github.com/ggml-org/llama.cpp/issues/22384",
+          "note": null
+        },
+        {
+          "text": "On llama.cpp #22746 (Qwen3.6-27B Q3_K_M, preserve_thinking true, `--ctx-checkpoints 64`, `--checkpoint-every-n-tokens 8192`, `--cache-ram 18432`) a turn restored a 149.626 MiB checkpoint at n_past 8887 and processed 400 of 9,287 tokens at 168.49 t/s",
+          "source": "https://github.com/ggml-org/llama.cpp/issues/22746",
+          "note": null
+        },
+        {
+          "text": "Under preserve_thinking the same log shows llama.cpp's reasoning budget re-activating on each new start tag within one request",
+          "source": "https://github.com/ggml-org/llama.cpp/issues/22746",
+          "note": null
+        },
+        {
+          "text": "ik_llama.cpp #1762 lists three prerequisites for preserved thinking: client keeps thinking traces, requests pass `preserve_thinking: true` (or `clear_thinking: false` for GLM-5.1), or server-start kwargs",
+          "source": "https://github.com/ikawrakow/ik_llama.cpp/issues/1762",
+          "note": null
+        },
+        {
+          "text": "llama.cpp #25913 commenters list preserve_thinking or `--reasoning-preserve` as one check among `--cache-ram` sizing and harness mutation; one reporter says it would not fix their regression",
+          "source": "https://github.com/ggml-org/llama.cpp/issues/25913",
+          "note": null
+        },
+        {
+          "text": "particula reports `-rea off` still emits two empty thinking tokens per assistant turn that are stripped next turn, so it does not avoid context churn",
+          "source": "https://particula.tech/blog/prompt-reprocessing-swa-hybrid-models-kv-cache",
+          "note": null
+        },
+        {
+          "text": "particula recommends `--reasoning-preserve` as the real flag for templates advertising `supports_preserve_reasoning`, with `--parallel 1` and a raised checkpoint count (~150 MiB per checkpoint per slot)",
+          "source": "https://particula.tech/blog/prompt-reprocessing-swa-hybrid-models-kv-cache",
+          "note": null
+        },
+        {
+          "text": "llama-server logs \"chat template supports preserving reasoning, consider enabling it via --reasoning-preserve\" for Qwen3.8-27B",
+          "source": "https://huggingface.co/Qwen/Qwen3.8-27B/discussions/150",
+          "note": null
+        },
+        {
+          "text": "Qwen3.8 retains `preserve_thinking` and adds `reasoning_effort`",
+          "source": "https://huggingface.co/unsloth/Qwen3.8-27B-GGUF",
+          "note": null
+        },
+        {
+          "text": "llama.cpp router-mode preset files accept `chat-template-kwargs = {\"preserve_thinking\": true}`",
+          "source": "https://github.com/ggml-org/llama.cpp/issues/23230",
+          "note": null
+        },
+        {
+          "text": "OpenCode provider options can carry `chat_template_kwargs: {enable_thinking: true, preserve_thinking: true}`",
+          "source": "https://dzx.fr/blog/local-ai-coding/",
+          "note": null
+        },
+        {
+          "text": "oMLX per-model settings include chat template kwargs, applied immediately without restart, and profiles exposable as `<model>:<profile>`",
+          "source": "https://github.com/jundot/omlx",
+          "note": null
+        },
+        {
+          "text": "Ollama's Qwen3.6 library page lists \"Thinking Preservation\" as a model feature but shows no setting for it",
+          "source": "https://ollama.com/library/qwen3.6",
+          "note": null
+        },
+        {
+          "text": "A llama.cpp PR benchmark run of Qwen3.6 Q8_0 with MTP speculative decoding used preserve_thinking true throughout",
+          "source": "https://github.com/ggml-org/llama.cpp/pull/22673",
+          "note": null
+        },
+        {
+          "text": "No source found documents mlx_lm.server, Ollama or LM Studio's own UI exposing preserve_thinking; the mlx-lm and LM Studio gaps are an absence in the sources read",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "The flag removes only one of several independent causes of hybrid reprocessing (template-dropped reasoning), so it is necessary but not sufficient for cache reuse on Qwen3.5/3.6",
+          "source": "asserted",
+          "note": null
+        }
+      ]
+    }
+  ],
+  "related": []
+}

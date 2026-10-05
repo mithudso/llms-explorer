@@ -1,0 +1,169 @@
+{
+  "slug": "mincore-residency-probing-of-mmap-d-model-weight",
+  "concept": "mincore residency probing of mmap'd model weights on macOS",
+  "generated": "2026-10-05",
+  "summary": "The Apple man page documents only residency: \"a value of 1 meaning that the page is in-core\". It does not document the other bits.",
+  "facets": [
+    {
+      "title": "Facts",
+      "facts": [
+        {
+          "text": "The Apple man page documents only residency: \"a value of 1 meaning that the page is in-core\". It does not document the other bits.",
+          "source": "https://developer.apple.com/library/archive/documentation/System/Conceptual/ManPages_iPhoneOS/man2/mincore.2.html",
+          "note": null
+        },
+        {
+          "text": "`<sys/mman.h>` defines eight flags: `MINCORE_INCORE` 0x1, `MINCORE_REFERENCED` 0x2, `MINCORE_MODIFIED` 0x4, `MINCORE_REFERENCED_OTHER` 0x8, `MINCORE_MODIFIED_OTHER` 0x10, `MINCORE_PAGED_OUT` 0x20, `MINCORE_COPIED` 0x40, `MINCORE_ANONYMOUS` 0x80.",
+          "source": "https://raw.githubusercontent.com/apple-oss-distributions/xnu/main/bsd/sys/mman.h",
+          "note": null
+        },
+        {
+          "text": "The kernel loop sets `INCORE` from \"page present\", `REFERENCED` from \"page reference\", `MODIFIED` from \"page dirty\", `PAGED_OUT`, `COPIED`, and `ANONYMOUS` when the page is not external. It never sets the two `_OTHER` flags.",
+          "source": "https://raw.githubusercontent.com/apple-oss-distributions/xnu/main/bsd/kern/kern_mman.c",
+          "note": null
+        },
+        {
+          "text": "\"Present\" is decided by `vm_page_lookup` on the page's vm_object, walking the shadow chain, under a shared object lock. It does not consult the process's pmap, so a page that is resident in the file's memory object counts as in-core even if this process never faulted it in. A source comment says a pmap-based view \"would under count as only faulted-in mappings would show up\".",
+          "source": "https://raw.githubusercontent.com/apple-oss-distributions/xnu/main/osfmk/vm/vm_map.c",
+          "note": null
+        },
+        {
+          "text": "Consequence: a runtime can probe a freshly mapped weight file and see page-cache hits left by an earlier run or by another process mapping the same file, before touching a byte.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "For anonymous (internal) objects, a page held by the compressor pager is reported `PAGED_OUT` and not `INCORE`. The probe distinguishes resident from compressed-or-swapped, but not compressed from swapped.",
+          "source": "https://raw.githubusercontent.com/apple-oss-distributions/xnu/main/osfmk/vm/vm_map.c",
+          "note": null
+        },
+        {
+          "text": "`REFERENCED` is true when the page's reference bit or the pmap reference state is set. `MADV_DONTNEED` clears both (existing dossier), so after a deactivation sweep a still-resident page reads `INCORE` set and `REFERENCED` clear until the scan frees it.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "The kernel queries in chunks of at most `MAX_PAGE_RANGE_QUERY` bytes, allocating a `vm_page_info_basic` array and a one-byte-per-page vector for each chunk, and copies each chunk out separately.",
+          "source": "https://raw.githubusercontent.com/apple-oss-distributions/xnu/main/bsd/kern/kern_mman.c",
+          "note": null
+        },
+        {
+          "text": "The vector has one byte per effective page; the kernel uses the kernel page size unless the map's page shift is smaller. On Apple silicon the page is 16 KiB (existing dossiers), so a 100 GB weight file needs a vector of about 6.1 million bytes (derived).",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Errors: an invalid or unsanitizable range returns EINVAL, allocation failure ENOMEM, a failed copyout EFAULT.",
+          "source": "https://raw.githubusercontent.com/apple-oss-distributions/xnu/main/bsd/kern/kern_mman.c",
+          "note": null
+        },
+        {
+          "text": "The man page text is the archived Mac OS X page and has not tracked the flags added since; the header has carried the eight flags with the `_OTHER` pair unused by the kernel loop read.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "The result is a snapshot. Between the call and the next read the scan can steal the page, so a hit is a hint, not a guarantee; `mincore` and a following `memcpy` race.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "`INCORE` does not mean cheap: an inactive clean page is still `INCORE` and can be freed at any time. Only `REFERENCED` hints at recency.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "The probe covers only the calling process's map. It cannot test a file that is not mapped; for those, a runtime must map it first (mapping a range does not fault pages).",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Scanning is not free: each chunk takes the vm_map read lock and an object lock per map entry, so probing every token over tens of gigabytes would add measurable kernel time; no benchmark of that cost was found.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Compression state for file-backed pages is not reported: clean file pages are dropped, not compressed, so a missing page reads not-in-core with no `PAGED_OUT` bit.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "None between sources; the Flash-MoE proposal and the XNU implementation agree that `mincore` can detect cache hits. The open point is cost and race behavior, which no source measures.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Cost per GB of a `mincore` sweep on an M-series Mac and whether it is cheap enough to run per layer per token.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Whether the Flash-MoE hit-or-miss routing proposal (memcpy for hits, pread for misses) beats plain `pread` on warm data; Flash-MoE's own numbers say warm `pread` already reaches 29-32 GB/s.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "The value of `MAX_PAGE_RANGE_QUERY`; the defining header was not in the files read.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "macOS `mincore` is implemented in `bsd/kern/kern_mman.c` through `vm_map_page_range_info_internal` with `VM_PAGE_INFO_BASIC`.",
+          "source": "https://raw.githubusercontent.com/apple-oss-distributions/xnu/main/bsd/kern/kern_mman.c",
+          "note": null
+        },
+        {
+          "text": "The Apple man page documents only the in-core bit, \"a value of 1 meaning that the page is in-core\".",
+          "source": "https://developer.apple.com/library/archive/documentation/System/Conceptual/ManPages_iPhoneOS/man2/mincore.2.html",
+          "note": null
+        },
+        {
+          "text": "`<sys/mman.h>` defines `MINCORE_INCORE`, `REFERENCED`, `MODIFIED`, `REFERENCED_OTHER`, `MODIFIED_OTHER`, `PAGED_OUT`, `COPIED` and `ANONYMOUS`.",
+          "source": "https://raw.githubusercontent.com/apple-oss-distributions/xnu/main/bsd/sys/mman.h",
+          "note": null
+        },
+        {
+          "text": "The kernel's `mincore` loop never sets `MINCORE_REFERENCED_OTHER` or `MINCORE_MODIFIED_OTHER`.",
+          "source": "https://raw.githubusercontent.com/apple-oss-distributions/xnu/main/bsd/kern/kern_mman.c",
+          "note": null
+        },
+        {
+          "text": "`mincore` residency is decided by `vm_page_lookup` on the vm_object, not by the process pmap, so pages cached by an earlier run or another mapper count as in-core.",
+          "source": "https://raw.githubusercontent.com/apple-oss-distributions/xnu/main/osfmk/vm/vm_map.c",
+          "note": null
+        },
+        {
+          "text": "A kernel comment says a pmap-based answer \"would under count as only faulted-in mappings would show up\".",
+          "source": "https://raw.githubusercontent.com/apple-oss-distributions/xnu/main/osfmk/vm/vm_map.c",
+          "note": null
+        },
+        {
+          "text": "For internal objects, a page whose compressor-pager state exists is reported `MINCORE_PAGED_OUT`.",
+          "source": "https://raw.githubusercontent.com/apple-oss-distributions/xnu/main/osfmk/vm/vm_map.c",
+          "note": null
+        },
+        {
+          "text": "`mincore` sets `MINCORE_ANONYMOUS` when the page's disposition lacks the external flag.",
+          "source": "https://raw.githubusercontent.com/apple-oss-distributions/xnu/main/bsd/kern/kern_mman.c",
+          "note": null
+        },
+        {
+          "text": "After a `MADV_DONTNEED` sweep, a resident page should read in-core with the referenced bit clear until the pageout scan frees it.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "`mincore` on a mapped weight file can reveal page-cache warmth before any fault, because it reads the shared file object, not this process's page tables.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "The kernel returns EINVAL for a bad range, ENOMEM on allocation failure and EFAULT when copyout fails.",
+          "source": "https://raw.githubusercontent.com/apple-oss-distributions/xnu/main/bsd/kern/kern_mman.c",
+          "note": null
+        }
+      ]
+    }
+  ],
+  "related": []
+}

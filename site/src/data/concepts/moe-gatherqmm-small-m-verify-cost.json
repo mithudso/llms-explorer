@@ -1,0 +1,189 @@
+{
+  "slug": "moe-gatherqmm-small-m-verify-cost",
+  "concept": "MoE GatherQMM small-M verify cost",
+  "generated": "2026-10-05",
+  "summary": "mlx-lm's `SwitchGLU` and `SwitchMLP` expand the activation to shape `[..., 1, 1, K]` before the gather, so every row handed to `gather_qmm` has M = 1 and the pair count appears as the batch dimension.",
+  "facets": [
+    {
+      "title": "Facts",
+      "facts": [
+        {
+          "text": "mlx-lm's `SwitchGLU` and `SwitchMLP` expand the activation to shape `[..., 1, 1, K]` before the gather, so every row handed to `gather_qmm` has M = 1 and the pair count appears as the batch dimension.",
+          "source": "https://raw.githubusercontent.com/ml-explore/mlx-lm/main/mlx_lm/models/switch_layers.py",
+          "note": null
+        },
+        {
+          "text": "The layers sort pairs by expert, and pass `sorted_indices=True`, only when `indices.size >= 64` (tokens times top-k); with top-k 8 a window of fewer than 8 tokens is never sorted.",
+          "source": "https://raw.githubusercontent.com/ml-explore/mlx-lm/main/mlx_lm/models/switch_layers.py",
+          "note": null
+        },
+        {
+          "text": "`GatherQMM::eval_gpu` computes `B = out.size() / M / N` and `E` (number of experts in the weight tensor) and uses `vector_limit = get_qmv_batch_limit(K, N)` for transposed weights. It tries, in order: `gather_qmm_rhs` when `M == 1 && B >= 16 && right_sorted && B / E >= 4`; `gather_qmm` when `M >= vector_limit`; `gather_qmv` when the weights are transposed; `gather_qvm` otherwise.",
+          "source": "https://raw.githubusercontent.com/ml-explore/mlx/main/mlx/backend/metal/quantized.cpp",
+          "note": null
+        },
+        {
+          "text": "With M = 1 the second branch never fires for expert matmuls, so a MoE verify window reaches either the sorted grouped path (`gather_qmm_rhs`) or `gather_qmv`; it does not reach `qmm_splitk`, `qmv_wide` or the plain `qmm`.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "For a 256-expert model the sorted path needs `B >= 1024` pairs (about 128 tokens at 8 experts per token) and for 128 experts `B >= 512`, so verify windows of 2 to 16 tokens always run `gather_qmv`, even when mlx-lm sorted them.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "`gather_qmv` is the per-pair vector kernel: the file has no multi-row weight-reuse variant for it (`qmv_wide` is called only from the dense `QuantizedMatmul` path under `M >= 2 && use_qmv_wide(...)`), so each (token, expert) pair streams its expert's weight block separately unless the cache catches repeats.",
+          "source": "https://raw.githubusercontent.com/ml-explore/mlx/main/mlx/backend/metal/quantized.cpp",
+          "note": null
+        },
+        {
+          "text": "Derived cost: a window of T tokens at top-k k reads `T*k` expert blocks on the `gather_qmv` path, against `u` distinct blocks (u at most the smaller of E and `T*k`) if experts were deduplicated, so the weight traffic of verification grows about linearly with T for a MoE where dense layers cost nearly one weight read; expert overlap between draft tokens is the only discount.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Tiles of the grouped path: non-NAX `gather_qmm_rhs` uses `bm = 16, bn = 32, bk = 32` with a \"TODO: Tune the block sizes\" comment; `gather_qmm_rhs_nax` uses `bm = 32` when `M / E < 64` (\"Use smaller bm for many experts and few tokens\") else 64, with `bn = bk = 64`; non-NAX `gather_qmm` uses 32 by 32 tiles.",
+          "source": "https://raw.githubusercontent.com/ml-explore/mlx/main/mlx/backend/metal/quantized.cpp",
+          "note": null
+        },
+        {
+          "text": "`gather_qmm` takes the NAX route when NAX is available, the weights are transposed, `K % 64 == 0` and (TF32 on or activations not float32); `gather_qmm_rhs` takes it without the K condition.",
+          "source": "https://raw.githubusercontent.com/ml-explore/mlx/main/mlx/backend/metal/quantized.cpp",
+          "note": null
+        },
+        {
+          "text": "2026-09-26 (0.32.3): PR 4567 \"[Metal] Gather mm improvement\" changed how `gather_mm` assigns thread-group tiles: old tiles were cut from the sorted rows regardless of expert boundaries and did \"as many matmuls as possible\" per tile (BM = 16, expert row counts 13, 8, 2, 10 gave tiles [13,3][5,2,9][1] and 6 expert passes); a scheduler built from the expert offsets does 4. MoE layer timings on an M5 Ultra at 512 to 16384 tokens: glm-5.3-flash 33.16 to 21.30 ms (1.56x) at 512 and 1.16x at 16384; glm-5.3 1.57x at 512 and 1.14x at 16384; qwen3.5-35b-a3b 1.36x at 512 and 1.24x at 2048.",
+          "source": "https://github.com/ml-explore/mlx/pull/4567",
+          "note": null
+        },
+        {
+          "text": "2026-09-28 (0.32.3): PR 4572 \"[Metal] gather_qmm improvement\" repeats the change for quantized weights; Qwen3.5-397B-A17B layer, 512 to 16384 tokens: affine 8.08 to 6.24 ms (1.30x) at 512, 1.19x at 2048, 1.22x at 16384; nvfp4 1.17x to 1.32x; mxfp8 1.32x to 1.44x.",
+          "source": "https://github.com/ml-explore/mlx/pull/4572",
+          "note": null
+        },
+        {
+          "text": "The 0.32.3 notes list PR 4567, PR 4572, PR 3922 (sorted `gather_qmm` NAX row overflow above 32K tokens) and PR 4009 (sorted `gather_qmm` on ragged K).",
+          "source": "https://github.com/ml-explore/mlx/releases/tag/v0.32.3",
+          "note": null
+        },
+        {
+          "text": "2026-08 to 2026-09 correctness reports on the sorted path: issue 3887 (sorted-rhs `gather_qmm` corrupt for K % 64 != 0 on M5 NAX, affine and mxfp4; closed 2026-09-07) and issue 3856 (silent corruption in a single long forward of quantized MoE when sequence length % 32 != 0, Qwen3-Coder-30B-A3B 8-bit on M5; closed 2026-08-26).",
+          "source": "https://github.com/ml-explore/mlx/issues?q=is%3Aissue+gather_qmm+verify",
+          "note": null
+        },
+        {
+          "text": "PR 4567 and 4572 report sequence lengths of 512 or more tokens, so they describe prefill, not verification: below the sorted-path thresholds (B / E >= 4) a 2-to-16-token window uses `gather_qmv` and does not use the tile scheduler.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "The corruption fixes (3887, 3856, 3922, 4009) concern the sorted grouped path, which is the path a long prompt, a prefix replay or a large speculative tree reaches; a short single-sequence verify does not use it.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "The whole-model sweep in the PR 3791 thread forced every quantized matmul down the vector or the matrix path by a bench-only override of `get_qmv_batch_limit`; the same function feeds `GatherQMM`, but with M = 1 the override cannot move expert matmuls, so that sweep tells about the dense layers (attention, shared experts, `lm_head`) of a MoE model.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Expert overlap between draft tokens is workload dependent and no source reports it; a verify window of unrelated tokens approaches the worst case of `T*k` blocks, while a repetitive continuation (code, templates) may reuse the same experts.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "The PR 3120 commenter argued that split-K helps 5-bit MoE MTP verification at M = 8-16 on an M2 Ultra; the dispatch shows expert matmuls cannot reach `qmm_splitk` (M is 1, `GatherQMM` has no split-K call), so any gain on a MoE comes from its dense layers.",
+          "source": "https://raw.githubusercontent.com/ml-explore/mlx/main/mlx/backend/metal/quantized.cpp",
+          "note": null
+        },
+        {
+          "text": "The reporter in the PR 3791 thread found, on an M5 Max with whole-model sweeps, that DeepSeek-V2-Lite-4bit stays faster on the vector path at every M tested up to 24 (vector over matrix cost 0.41 at M = 12, median 0.40 for M of 12 and above, crossover beyond 24), whereas dense models cross at about 11 to 13 (K2-V2-70B 4-bit about 13, Llama-3.3-70B 8-bit about 11) and Qwen3-0.6B 4-bit at 20 to 24; he explains the MoE result as \"expert-gather rows grow with tokens x top_k\", which conflicts with the M = 1 reading above (MLA layers are dense) and is unresolved.",
+          "source": "https://github.com/ml-explore/mlx/pull/3791",
+          "note": null
+        },
+        {
+          "text": "Measured verify-step cost against T for a MoE target (for example Qwen3.5-35B-A3B or GLM-5.3-flash) on stock 0.32.3, with the draft tokens' expert overlap recorded; none found.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Whether a multi-row `gather_qmv_wide` (weights reused across the rows that hit the same expert) is planned; none found in the PR lists.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Whether `B / E >= 4` and `B >= 16` still suit the sorted path after PR 4572.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "mlx-lm's MoE layers call `gather_qmm` with activations shaped `[..., 1, 1, K]`, so M is 1 for every expert row.",
+          "source": "https://raw.githubusercontent.com/ml-explore/mlx-lm/main/mlx_lm/models/switch_layers.py",
+          "note": null
+        },
+        {
+          "text": "mlx-lm sorts MoE pairs by expert only when `indices.size >= 64`.",
+          "source": "https://raw.githubusercontent.com/ml-explore/mlx-lm/main/mlx_lm/models/switch_layers.py",
+          "note": null
+        },
+        {
+          "text": "`GatherQMM::eval_gpu` routes to `gather_qmm_rhs` only when `M == 1 && B >= 16 && right_sorted && B / E >= 4`.",
+          "source": "https://raw.githubusercontent.com/ml-explore/mlx/main/mlx/backend/metal/quantized.cpp",
+          "note": null
+        },
+        {
+          "text": "`GatherQMM::eval_gpu` otherwise sends `M >= vector_limit` to `gather_qmm`, transposed small M to `gather_qmv`, and non-transposed small M to `gather_qvm`.",
+          "source": "https://raw.githubusercontent.com/ml-explore/mlx/main/mlx/backend/metal/quantized.cpp",
+          "note": null
+        },
+        {
+          "text": "`qmv_wide` and `qmm_splitk` are called only from the dense `QuantizedMatmul` path.",
+          "source": "https://raw.githubusercontent.com/ml-explore/mlx/main/mlx/backend/metal/quantized.cpp",
+          "note": null
+        },
+        {
+          "text": "Non-NAX `gather_qmm_rhs` uses 16 by 32 by 32 tiles with a tuning TODO, and `gather_qmm_rhs_nax` uses 32 rows when `M / E < 64`.",
+          "source": "https://raw.githubusercontent.com/ml-explore/mlx/main/mlx/backend/metal/quantized.cpp",
+          "note": null
+        },
+        {
+          "text": "PR 4567 reduced expert passes by scheduling tiles from expert offsets (6 passes to 4 in its example) and reports 1.08x to 1.79x MoE-layer speedups at 512 to 16384 tokens on an M5 Ultra, with the gain shrinking at 8192 and 16384 tokens.",
+          "source": "https://github.com/ml-explore/mlx/pull/4567",
+          "note": null
+        },
+        {
+          "text": "PR 4572 reports 1.17x to 1.44x for quantized `gather_qmm` (affine, nvfp4, mxfp8) on a Qwen3.5-397B-A17B layer at 512 to 16384 tokens.",
+          "source": "https://github.com/ml-explore/mlx/pull/4572",
+          "note": null
+        },
+        {
+          "text": "The 0.32.3 release notes list PRs 4567, 4572, 3922 and 4009.",
+          "source": "https://github.com/ml-explore/mlx/releases/tag/v0.32.3",
+          "note": null
+        },
+        {
+          "text": "Issue 3887 reported sorted-rhs `gather_qmm` corruption for K % 64 != 0 on M5 NAX (closed 2026-09-07) and issue 3856 silent MoE corruption at sequence length % 32 != 0 on M5 (closed 2026-08-26).",
+          "source": "https://github.com/ml-explore/mlx/issues?q=is%3Aissue+gather_qmm+verify",
+          "note": null
+        },
+        {
+          "text": "On an M5 Max a DeepSeek-V2-Lite 4-bit whole-model sweep stayed faster on the vector path to M = 24 while dense 70B models crossed at about 11 to 13.",
+          "source": "https://github.com/ml-explore/mlx/pull/3791",
+          "note": null
+        },
+        {
+          "text": "A MoE verify window of 2 to 16 tokens reaches `gather_qmv` for its expert matmuls, never `qmm_splitk`, `qmv_wide` or plain `qmm`.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "On the `gather_qmv` path the expert weight traffic of a verify window grows roughly linearly with tokens times top-k.",
+          "source": "asserted",
+          "note": null
+        }
+      ]
+    }
+  ],
+  "related": []
+}

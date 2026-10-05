@@ -1,0 +1,94 @@
+{
+  "slug": "omlx-fatal-teardown-watchdog-and-wired-memory-st",
+  "concept": "oMLX fatal teardown watchdog and wired memory stranding (issues 2334 and 2184)",
+  "generated": "2026-10-05",
+  "summary": "Issue 2334 is open as of 2026-10-05 with no maintainer reply in the cached copy, and `omlx/utils/fatal.py` on main still sets `FATAL_TEARDOWN_TIMEOUT_S = 60.0` as a constant and `FATAL_EXIT_CODE = 70`.",
+  "facets": [
+    {
+      "title": "Facts",
+      "facts": [
+        {
+          "text": "Issue 2334 is open as of 2026-10-05 with no maintainer reply in the cached copy, and `omlx/utils/fatal.py` on main still sets `FATAL_TEARDOWN_TIMEOUT_S = 60.0` as a constant and `FATAL_EXIT_CODE = 70`.",
+          "source": "https://raw.githubusercontent.com/jundot/omlx/main/omlx/utils/fatal.py",
+          "note": null
+        },
+        {
+          "text": "`fatal_exit` logs `%s; exiting process so the supervisor can restart with a clean state`, dumps all thread tracebacks with `faulthandler`, and calls `os._exit(exit_code)`; `exit_if_gpu_submissions_ignored` also calls it when an error contains `kIOGPUCommandBufferCallbackErrorSubmissionsIgnored`.",
+          "source": "https://raw.githubusercontent.com/jundot/omlx/main/omlx/utils/fatal.py",
+          "note": null
+        },
+        {
+          "text": "In issue 2334 the unload of a GLM-5.2 mxfp4 engine (about 420 GB wired, oMLX 0.5.2, mlx 0.32.0, macOS 26.5.2, `--memory-guard-gb 470`) logged `Unloading model: ... (immediate abort)` and `Engine stopped`, then 60 s later the CRITICAL teardown timeout line, with the server idle for about 90 s beforehand.",
+          "source": "https://github.com/jundot/omlx/issues/2334",
+          "note": null
+        },
+        {
+          "text": "The faulthandler dump in issue 2334 showed the API thread inside `engine_core.close` (line 1037) called from `engine/batched.py` `stop` and `engine_pool.py` `_unload_engine`, while a pool worker was in `scheduler._cleanup_finished`, so the teardown was waiting on a slow but live cleanup.",
+          "source": "https://github.com/jundot/omlx/issues/2334",
+          "note": null
+        },
+        {
+          "text": "The reporter's 40 GB Qwen3.6-35B engine unloaded through the same path in about 26 s on the same day, so the 60 s budget fits 40 GB and not 420 GB.",
+          "source": "https://github.com/jundot/omlx/issues/2334",
+          "note": null
+        },
+        {
+          "text": "After the watchdog exit, launchd restarted oMLX, the new process began reloading the pinned model, and wired memory climbed to the iogpu ceiling (about 486 GB) for about a minute with the GUI frozen, then settled at 381 GB wired with zero oMLX processes for more than 30 minutes.",
+          "source": "https://github.com/jundot/omlx/issues/2334",
+          "note": null
+        },
+        {
+          "text": "The reporter proposed scaling the teardown timeout per GB or making it configurable, releasing Metal buffers before `os._exit`, and running cleanup with a deadline once an unload is pending.",
+          "source": "https://github.com/jundot/omlx/issues/2334",
+          "note": null
+        },
+        {
+          "text": "A 2026-07-23 comment on issue 2334 recorded a post-idle scheduler wedge on 0.5.3 where `/health` and `/api/status` stayed healthy for about 14 hours, a `sample` showed the inference thread parked in `mlx::core::eval_impl` on a condition variable, and request threads waited on a Python lock held by it.",
+          "source": "https://github.com/jundot/omlx/issues/2334",
+          "note": null
+        },
+        {
+          "text": "That comment suggests `/health` should reflect scheduler liveness, not only the HTTP loop and model residency, and says the reporter now probes a real tiny completion.",
+          "source": "https://github.com/jundot/omlx/issues/2334",
+          "note": null
+        },
+        {
+          "text": "Issue 2184 measured wired memory after a jetsam kill with no oMLX process at 414 GiB, after a graceful `launchctl bootout` of a healthy server at 5 GiB, and after `bootout` of a wedged server at 404 GiB.",
+          "source": "https://github.com/jundot/omlx/issues/2184",
+          "note": null
+        },
+        {
+          "text": "Issue 2184 identifies amplifiers: v0.5.0 preloaded pinned models before binding the HTTP port so a 424 GiB preload kept the port closed for minutes, `launchctl kickstart -k` is a hard kill, and a wired limit near physical RAM (522240 MB) made jetsam during load more likely on a 512 GiB box while 499712 was stable.",
+          "source": "https://github.com/jundot/omlx/issues/2184",
+          "note": null
+        },
+        {
+          "text": "The maintainer reproduced issue 2184, saying killing a wedged server stranded about 410 GB while graceful SIGTERM released everything, and that once memory is stranded even plain mlx-lm hangs on prefill until reboot.",
+          "source": "https://github.com/jundot/omlx/issues/2184",
+          "note": null
+        },
+        {
+          "text": "Two commits on 2026-07-11 answered issue 2184: fa9a770 clamps the wired-limit recommendation below physical RAM (RAM minus 5%, 498073 MB on a 512 GB box) and 91af04a binds the HTTP port before pinned preload so `/health` answers 503 while loading.",
+          "source": "https://github.com/jundot/omlx/issues/2184",
+          "note": null
+        },
+        {
+          "text": "A healthy idle rc1 server at 7 h 44 min uptime wrote no shutdown log line within launchd's default 5 s after SIGTERM and was SIGKILLed, stranding about 390 to 408 GB; earlier graceful stops at 2 to 3 h uptime completed teardown in 2.7 to 4.1 s.",
+          "source": "https://github.com/jundot/omlx/issues/2184",
+          "note": null
+        },
+        {
+          "text": "The reporter recommends `ExitTimeOut` of 180 in the launchd plist, a log line at SIGTERM receipt, a no-progress watchdog during load that aborts with an explicit error, and calling `POST /v1/models/{id}/unload` before `launchctl bootout` for upgrades.",
+          "source": "https://github.com/jundot/omlx/issues/2184",
+          "note": null
+        },
+        {
+          "text": "Issue 2184 is open as of 2026-10-05, and the stranded-wired effect is on a kernel path the reporter attributes to Apple, not to oMLX code.",
+          "source": "https://github.com/jundot/omlx/issues/2184",
+          "note": null
+        }
+      ]
+    }
+  ],
+  "related": []
+}

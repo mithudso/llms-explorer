@@ -1,0 +1,184 @@
+{
+  "slug": "ane-sram-cliff-for-1x1-conv-and-decode-shaped-te",
+  "concept": "ANE SRAM cliff for 1x1 conv and decode-shaped tensors",
+  "generated": "2026-10-05",
+  "summary": "For decode-shaped 1x1 convs the measured bound is weight streaming, not SRAM spill: weights are compiled into the program and re-read from DRAM on every call, so per-layer time tracks weight bytes at about 125-165 GB/s on M6 (Forge).",
+  "facets": [
+    {
+      "title": "Facts",
+      "facts": [
+        {
+          "text": "For decode-shaped 1x1 convs the measured bound is weight streaming, not SRAM spill: weights are compiled into the program and re-read from DRAM on every call, so per-layer time tracks weight bytes at about 125-165 GB/s on M6 (Forge).",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Derived check: 16 dense FP16 4096x4096 layers (268 M weights, about 536 MB) run in 3.91 ms, which is about 137 GB/s, consistent with DRAM streaming and not with weights resident in SRAM.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "The activation footprint of the 512-channel 64x64 deep-graph conv test is about 4 MB (512x64x64x2 bytes), also far below 32 MB.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "The activation working set of a decode step is tiny (a [1, C, 1, 16] FP16 tensor is 64 KB at C=2048), so decode tensors sit far below 32 MB; the SRAM cliff is a prefill/large-tensor effect.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "The large-tensor SRAM limit shows up instead as compile-time size limits: SDPA at max sequence 1024-2048 fails to build an execution plan, and Forge's 64K-context entry exposes 65,472 usable history rows because the builder reserves a 64-row block to stay inside an observed 65,536-element compile boundary.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "2026-02-28 maderix Part 2 publishes the matmul SRAM sweep and the \"1x1 conv is about 3x matmul\" rule on M4 Mac mini (direct _ANEClient).",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "2026-03 Orion repeats the 32 MB figure for M4 Max without a new measurement, and its README says a 73 MB GPT-2 embedding/logit matrix is \"too large for ANE SRAM\" and stays on the CPU.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "2026-04-28 CoreML-LLM tests ANEMLL's SRAM-tiling rationale for splitting the LM head and finds it does not transfer at vocab 262,144.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "2026-09-25/29 Forge's vector-LUT notes give the first decode-shaped per-layer slopes (C=2048 and C=4096, 2x2 spatial) on M6.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "An op-level cliff can be hidden by Core ML: a 262,144-wide Conv2d is \"already ANE-optimal\" through Core ML on A19 Pro, while Orion's direct-compile path reports 32K-channel convolutions rejected outright. The two stacks use different compilers, so a limit seen on one is not evidence for the other.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Placement cliffs masquerade as SRAM cliffs: the CoreML-LLM depthwise-conv case and the Forge per-group vector LUT case both fall off the ANE and slow down for reasons unrelated to SRAM.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Over-allocated multi-input IOSurfaces are read as a flat packed [1,C,1,S] buffer from byte 0 (Orion constraint 20), so padding can silently change what the ANE reads regardless of SRAM fit.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Is decode dispatch-limited or compute-limited? maderix: ops under about 1 ms are dominated by 0.095 ms dispatch. CoreML-LLM (iPhone 17 Pro, Gemma 4 E2B): peak utilization 0.07% and \"dispatch count is the constraint\", yet the same repo measures the ANE busy 97% of step time (E4B: 68.7 ms of 70.6 ms) and later found chunk consolidation 4 to 2 gave only +1 tok/s (\"dispatch-overhead theory refuted\"). Side by side: low utilization and high busy time are both true if each dispatch is long and sparse; neither number is an SRAM measurement.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Should a large LM head be split to fit SRAM? ANEMLL splits the 128K-vocab head into 16 convs, claiming the unsplit kernel does not tile in SRAM. CoreML-LLM measured the opposite at vocab 262,144 (single Conv2d 2304 to 262144 is faster; 16-way split costs 4.6% end-to-end and 9.3% chunk latency). Both are single-device results.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "No source measures a conv-formulation SRAM sweep (C x S grid) on any chip, or any M1-M3/M5 SRAM size.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "No source says whether compiled weights count against the 32 MB working set; the 137 GB/s derivation suggests they stream, but it is not a direct test.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Whether the 65,536-element compile boundary is an SRAM-derived limit or a compiler indexing limit is unknown; Forge itself says it is not proof of a permanent architectural limit.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Forge measured per-layer 1x1 conv slopes on M6 at C=2048, 2x2 spatial: dense FP16 57.6 us/layer (146 GB/s effective), scalar 4-bit 15.2 us (138 GB/s), scalar 2-bit 8.2 us (127 GB/s), vector 2x16 7.7 us (136 GB/s), vector 4x16 8.4 us (63 GB/s).",
+          "source": "https://raw.githubusercontent.com/Anemll/anemll-forge/main/docs/history/VECTOR_LUT_README.md",
+          "note": null
+        },
+        {
+          "text": "Forge found that at C=4096 the sub-2-bit per-layer time grows about 4x (30-42 us), so the floor is a weight-decode rate of about 0.4-0.57 T weights/s and not a fixed per-layer cost.",
+          "source": "https://raw.githubusercontent.com/Anemll/anemll-forge/main/docs/history/VECTOR_LUT_README.md",
+          "note": null
+        },
+        {
+          "text": "Forge's LLM-shaped test (16 layers of 4096x4096 nn.Linear, 268 M weights, 4 tokens, Core AI to ANE) took 3.91 ms dense FP16 and 0.71-0.73 ms for vector 2x16.",
+          "source": "https://raw.githubusercontent.com/Anemll/anemll-forge/main/docs/history/VECTOR_LUT_README.md",
+          "note": null
+        },
+        {
+          "text": "The Core AI compiled package shrinks with index bits (268 MB dense to 4 MB for 16x16), showing the compiled ANE program keeps weights compressed and streams them.",
+          "source": "https://raw.githubusercontent.com/Anemll/anemll-forge/main/docs/history/VECTOR_LUT_README.md",
+          "note": null
+        },
+        {
+          "text": "Forge's stated rule is that a measured 256-value codebook boundary is not proof of a 256-byte SRAM; 256 FP16 values (512 bytes) pass while 512 INT8 values fail, so the limit is a value count.",
+          "source": "https://raw.githubusercontent.com/Anemll/anemll-forge/main/docs/history/VECTOR_LUT_README.md",
+          "note": null
+        },
+        {
+          "text": "maderix's repo README reports 128 chained 512-channel 64x64 convolutions at 18.6 TOPS FP16 (14.8 ms), a conv-formulation deep-graph result.",
+          "source": "https://github.com/maderix/ANE",
+          "note": null
+        },
+        {
+          "text": "maderix replied on his Part 2 post that a full KV cache for any decent-size model cannot stay in SRAM, which is why decode on CPU/GPU makes more sense.",
+          "source": "https://maderix.substack.com/p/inside-the-m4-apple-neural-engine-615",
+          "note": null
+        },
+        {
+          "text": "CoreML-LLM reports ANE peak utilization of 0.07% on iPhone 17 Pro decode and says compute and bandwidth are not the constraint, dispatch count is.",
+          "source": "https://raw.githubusercontent.com/john-rocky/CoreML-LLM/main/docs/HANDOFF.md",
+          "note": null
+        },
+        {
+          "text": "CoreML-LLM measured Gemma 4 E4B decode with ANE wait 68.7 ms, copy-back 1.9 ms and CPU active 3.0 ms per 70.6 ms step, so the ANE is busy 97% of the step.",
+          "source": "https://raw.githubusercontent.com/john-rocky/CoreML-LLM/main/docs/CPU_BOTTLENECK_INVESTIGATION.md",
+          "note": null
+        },
+        {
+          "text": "CoreML-LLM found a single Conv2d(2304 to 262144) already ANE-optimal on iPhone 17 Pro; ANEMLL's 16-way LM-head split cost 4.6% end-to-end tok/s and 9.3% chunk3 latency, and the head is about 54% of chunk3 weight bytes (302 of 562 MB).",
+          "source": "https://raw.githubusercontent.com/john-rocky/CoreML-LLM/main/docs/SESSION_2026_04_28_LMSPLIT_FINALISE.md",
+          "note": null
+        },
+        {
+          "text": "Orion's README keeps the GPT-2 logits projection on the CPU because the 73 MB embedding matrix is \"too large for ANE SRAM\".",
+          "source": "https://github.com/mechramc/Orion",
+          "note": null
+        },
+        {
+          "text": "Orion's paper lists \"32K-channel convolutions rejected\" as constraint 16 and keeps the classifier backward on the CPU for that reason, yet its Table 11 reports the classifier forward 10.2x faster on ANE (1.06 ms vs 10.77 ms) on Stories110M.",
+          "source": "https://arxiv.org/html/2603.06728v1",
+          "note": null
+        },
+        {
+          "text": "Forge's builder reserves a 64-row block so [history | block] stays within an observed 65,536-element compile boundary, giving 65,472 usable history rows in the 64K entry.",
+          "source": "https://github.com/Anemll/anemll-forge/blob/main/docs/SPECULATIVE_DECODING.md",
+          "note": null
+        },
+        {
+          "text": "Forge measured one chunk needing 151 MB more scratch for the 8K-64K Core AI package than for the 16K/24K package, so the largest context entry sets the scratch allocation.",
+          "source": "https://github.com/Anemll/anemll-forge/blob/main/docs/SPECULATIVE_DECODING.md",
+          "note": null
+        },
+        {
+          "text": "SqueezeBits reports that compiling stateful Qwen3-0.6B with max sequence 1024 or 2048 fails with \"Failed to build the model execution plan\" unless SDPA is sliced over Q, which they attribute to SDPA memory at long sequence.",
+          "source": "https://blog.squeezebits.com/disaggregated-inference-on-apple-silicon-npu-prefill-and-gpu-decode-67176",
+          "note": null
+        },
+        {
+          "text": "Maynard Handley's patent-based ANE description is published as volume 7 (\"vol7 ANE.nb\", version 0.9.3) of the name99-org/AArch64-Explore repository.",
+          "source": "https://github.com/name99-org/AArch64-Explore",
+          "note": null
+        },
+        {
+          "text": "Handley commented on maderix's Part 1 post that the ANE has zero similarity to SME and that the original A11 unit was more like a Lattice FPGA than the later \"real\" ANE.",
+          "source": "https://maderix.substack.com/p/inside-the-m4-apple-neural-engine",
+          "note": null
+        }
+      ]
+    }
+  ],
+  "related": []
+}

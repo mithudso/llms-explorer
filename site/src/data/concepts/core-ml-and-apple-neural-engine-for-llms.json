@@ -1,0 +1,329 @@
+{
+  "slug": "core-ml-and-apple-neural-engine-for-llms",
+  "concept": "Core ML and Apple Neural Engine for LLMs",
+  "generated": "2026-10-05",
+  "summary": "Core ML LLM path: export with torch.jit.trace (torch.export beta), then three optimizations: fused SDPA op, KV cache as Core ML \"state\" (macOS Sequoia+) with flexible-shape inputs, and block-wise int4 weight quantization (block 32). Apple's reference run targeted the GPU, not the ANE, because dec...",
+  "facets": [
+    {
+      "title": "Facts",
+      "facts": [
+        {
+          "text": "Core ML LLM path: export with torch.jit.trace (torch.export beta), then three optimizations: fused SDPA op, KV cache as Core ML \"state\" (macOS Sequoia+) with flexible-shape inputs, and block-wise int4 weight quantization (block 32). Apple's reference run targeted the GPU, not the ANE, because decode is memory-bandwidth bound.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "ANE-targeted path (ANEMLL): converts HF models to chunked, ANE-shaped Core ML bundles with FP16 handling, monolithic or chunked modes, IOSurface buffers; context is short (up to ~4K).",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Core AI path: `coreai.llm.export <model>` -> .aimodel (MLIR IR). macOS JIT-compiles at load; iOS cannot JIT and needs AOT (`xcrun coreai-build compile ... --preferred-compute neural-engine`). The compute unit is chosen by export shape, not a runtime flag: static-shape (iOS platform) export -> chunked-static engine -> ANE; dynamic export -> pipelined engine -> GPU. KV cache is a stateful input (register_buffer, `state_names`, MutableViews at inference). First load \"specializes\" the model for device/OS (compile + executable artifacts) and caches it; SpecializationOptions, an AIModelCache, and app-group cache sharing exist.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Compression for Core AI: coreai-optimization offers quantization and palettization. Core ML tools: palettization helps ANE latency/memory, block-wise quantization is GPU-optimized.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "2022: Apple ml-ane-transformers (reference PyTorch, claims up to 10x faster and 14x lower peak memory for distilbert-class models on A14/M1+). Repo is dormant (code last touched Aug 2022).",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Nov 2024: Apple \"On Device Llama 3.1 with Core ML\" (8B on M1 Max, GPU, ~33 tok/s).",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "2025: ANEMLL (open-source ANE LLM pipeline); reverse-engineering of private ANE APIs (maderix) measuring M4 ANE.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Mar 2026 (reported by Gurman, secondary): Core AI to replace Core ML. WWDC26 session 324 \"Meet Core AI\" confirms Core AI exists as \"next evolution of on-device AI execution\", powers Apple Intelligence, Python libraries plus Swift API, Core AI models repository, Instruments profiling, AOT compilation.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "InfoQ (2026-06-20) calls Core AI the \"official successor to Core ML\" supporting reasoning models up to 70B; Apple's own positioning (per HN-sourced reading) keeps Core ML for classic non-neural ML, Core AI for neural nets/transformers, MLX for custom weights.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Core ML baseline (static padded inputs, no KV cache) on Llama-3.1-8B, M1 Max: 0.19 tok/s; flexible shapes 1.25 tok/s; KV cache as stateful input 16.26 tok/s; plus int4 33.67 tok/s (TTFT 51.9 ms). Copying KV in/out costs up to ~1 GB per step at 8192 context.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "ANE: static shapes needed; KV growth needs padding or recompile; ANE weight working set above ~32 MB on-chip SRAM loses throughput (measured 2048^2 5.7 TFLOPS, 4096^2 down ~30%); INT8 runs at FP16 rate (dequantized); marketed 38 TOPS vs measured ~19 TFLOPS FP16 on M4.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Core AI first run is slower (kernel compile, pipeline fill); iOS requires AOT or load fails with NSPOSIXErrorDomain Code=2.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Core AI ANE bundle can use ~1.1 GB RAM for a 0.6B model versus 184 MB for a stateful INT4 ANE-chunked Core ML build (iPhone; single-author benchmark).",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "ANE-path LLMs: short context (512-4K), models <=8B tested, beta software, private-API fragility.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "ANE usefulness. Side A (Contra Collective, InsiderLLM): general-purpose LLMs should go on the GPU (MLX/llama.cpp); ANE is idle in every mainstream runtime; ANE wins only for small fixed models, battery-constrained always-on use, or tight memory. Side B (Apple research and ANEMLL): ANE-optimized transformers can be far more efficient (10x faster / 14x less memory in 2022 claim; ANEMLL 8B in ~500 MB vs ~8 GB MLX). Not averaged: the speed claim is contradicted by every community number below; the memory/power claim is supported only by ANEMLL self-reports.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Core AI vs MLX speed. Medium post (2026-06-10): Core AI GPU 181 vs MLX 112 tok/s, iPhone 17 Pro Qwen3-0.6B. The author's own repo later retracted the MLX 112 value as Debug-contaminated; newer sessions show MLX 178.8 and Core AI ANE ~117-122 on the same phone and model, and warns cross-session ratios are not measurements. On M4 Max, Apple's llm-benchmark protocol: Core AI 94.1 vs MLX 90.0 tok/s (Qwen3-8B 4-bit), 503 vs 432 (0.6B); another 30B-class text decoder: Core AI 27.43, MLX 27.36, ExecuTorch Metal 24.00. Net: roughly parity on Mac, not a large Core AI win.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Core AI scope. Pre-WWDC reporting (ModelFit, March) described Core AI as plugging in third-party LLMs with GPU Neural Accelerators plus ANE; WWDC26 session says GPU/CPU/ANE under one API. Only pre-release speculation claims \"Core ML = ANE only\".",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "No independent Mac-class power (watts per token) measurement of Core AI ANE vs GPU; the 2 W vs 20 W figure is from community ANEMLL runs on M4-series, pre-Core AI.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Whether Core AI ANE path supports dynamic KV growth beyond chunked-static, and what model size ceiling it has on Mac.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Core AI minimum OS: iOS/macOS 27 (beta as of benchmarks); production stability unknown.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Whether ANE prefill + GPU decode hybrids ship; described as possible but not shipped in mainstream stacks.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "The existing reference file has no Core ML, ANE, coremltools, swift-transformers or Core AI content; ExecuTorch coverage mentions only that the MPS backend is deprecated in favor of Metal, MLX and Core ML.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Core AI was presented at WWDC26 session 324 \"Meet Core AI\" as Apple's new framework for on-device AI model deployment and as the inference framework powering on-device Apple Intelligence.",
+          "source": "https://developer.apple.com/videos/play/wwdc2026/324/",
+          "note": null
+        },
+        {
+          "text": "Core AI provides inference across CPU, GPU and Neural Engine.",
+          "source": "https://developer.apple.com/videos/play/wwdc2026/324/",
+          "note": null
+        },
+        {
+          "text": "Core AI tooling comprises Python packages (coreai-torch, coreai core, coreai-optimization), a Swift API (AIModel from a .aimodel URL, InferenceFunction, NDArray), Xcode ahead-of-time compilation, Core AI Instruments, and a visual debugger.",
+          "source": "https://developer.apple.com/videos/play/wwdc2026/324/",
+          "note": null
+        },
+        {
+          "text": "Apple's session targets models from small diarization models up to a 70B-parameter LLM agent.",
+          "source": "https://developer.apple.com/videos/play/wwdc2026/324/",
+          "note": null
+        },
+        {
+          "text": "Converting PyTorch to Core AI uses torch.export then `coreai_torch.TorchConverter().add_exported_program(...).to_coreai()` and `save_asset(\"X.aimodel\")`.",
+          "source": "https://developer.apple.com/videos/play/wwdc2026/324/",
+          "note": null
+        },
+        {
+          "text": "A KV cache is added in Core AI by register_buffer in the PyTorch module and re-converting with state names; the app passes MutableViews of cache buffers at inference.",
+          "source": "https://developer.apple.com/videos/play/wwdc2026/324/",
+          "note": null
+        },
+        {
+          "text": "Core AI specialization compiles (segment, plan, optimize compute) then generates executable artifacts tied to device and OS version; compilation is most of the latency and can be done ahead of time on the dev machine.",
+          "source": "https://developer.apple.com/videos/play/wwdc2026/324/",
+          "note": null
+        },
+        {
+          "text": "Core AI is the \"official successor to Core ML\" per InfoQ and only runs on Apple Silicon.",
+          "source": "https://www.infoq.com/news/2026/06/apple-core-ai-wwdc/",
+          "note": null
+        },
+        {
+          "text": "Core AI composite ops include attention, RoPE, RMSNorm and gather-matmul, and custom Metal kernels are supported.",
+          "source": "https://www.infoq.com/news/2026/06/apple-core-ai-wwdc/",
+          "note": null
+        },
+        {
+          "text": "Apple's apparent guidance: Core ML for classic non-neural ML, Core AI for neural networks and transformers, MLX for custom weights, with MLX possibly lower performance (forum-derived, not an Apple statement).",
+          "source": "https://www.infoq.com/news/2026/06/apple-core-ai-wwdc/",
+          "note": null
+        },
+        {
+          "text": "Core AI was reported before WWDC (Gurman, March 2026) as the Core ML replacement for iOS 27.",
+          "source": "https://modelfit.io/blog/apple-core-ai-framework-wwdc-2026/",
+          "note": null
+        },
+        {
+          "text": "Core ML Llama-3.1-8B-Instruct on M1 Max GPU: baseline 0.19 tok/s (TTFT 5374 ms, 2048 context).",
+          "source": "https://machinelearning.apple.com/research/core-ml-on-device-llama",
+          "note": null
+        },
+        {
+          "text": "Same model with flexible shapes and KV cache as I/O: 1.25 tok/s; with stateful KV cache: 16.26 tok/s; with block-wise int4 (block 32): 33.67 tok/s, TTFT 51.9 ms; weights shrink about 4x to 4.2 GB.",
+          "source": "https://machinelearning.apple.com/research/core-ml-on-device-llama",
+          "note": null
+        },
+        {
+          "text": "Core ML stateful KV cache requires macOS Sequoia or later.",
+          "source": "https://machinelearning.apple.com/research/core-ml-on-device-llama",
+          "note": null
+        },
+        {
+          "text": "Apple's Core ML Llama study targeted the GPU because LLM decode is memory-bandwidth bound.",
+          "source": "https://machinelearning.apple.com/research/core-ml-on-device-llama",
+          "note": null
+        },
+        {
+          "text": "Core ML tools also support torch.export, including via an ExecuTorch Core ML backend with a custom Llama export path.",
+          "source": "https://machinelearning.apple.com/research/core-ml-on-device-llama",
+          "note": null
+        },
+        {
+          "text": "ExecuTorch builds its Core ML backend with -DEXECUTORCH_BUILD_COREML=ON to validate the Llama runner on Mac.",
+          "source": "https://github.com/pytorch/executorch/blob/main/examples/models/llama/README.md",
+          "note": null
+        },
+        {
+          "text": "Apple's ml-ane-transformers claims up to 10x faster and 14x lower peak memory vs baseline for transformers on A14+/M1+, demonstrated on distilbert; the code has not changed since 2022.",
+          "source": "https://github.com/apple/ml-ane-transformers",
+          "note": null
+        },
+        {
+          "text": "In Activity Monitor, an 8B model decoding on M5 Max pins the GPU while the Neural Engine stays at zero under llama.cpp, MLX, Ollama and LM Studio.",
+          "source": "https://contracollective.com/blog/gpu-vs-apple-neural-engine-local-llm-inference-m5-max-2026",
+          "note": null
+        },
+        {
+          "text": "ANE reasons for poor decode fit: static shapes, awkward KV growth (needs padding or recompile), narrow quantization (palettization), Core ML as the only door; and decode is bandwidth-bound so ANE compute density per watt does not become tok/s.",
+          "source": "https://contracollective.com/blog/gpu-vs-apple-neural-engine-local-llm-inference-m5-max-2026",
+          "note": null
+        },
+        {
+          "text": "A hybrid with ANE prefill and GPU decode is possible in principle but not shipped in mainstream local stacks (source's assessment).",
+          "source": "https://contracollective.com/blog/gpu-vs-apple-neural-engine-local-llm-inference-m5-max-2026",
+          "note": null
+        },
+        {
+          "text": "Source's recommended ANE use cases: small fixed models (embeddings, rerankers, classifiers, speech, vision encoders) and battery-constrained always-on inference.",
+          "source": "https://contracollective.com/blog/gpu-vs-apple-neural-engine-local-llm-inference-m5-max-2026",
+          "note": null
+        },
+        {
+          "text": "M4 ANE measured via private APIs: ~19 TFLOPS FP16 (marketed 38 TOPS), INT8 same rate as FP16, ~2.8 W peak, zero idle power, ~6.6 TFLOPS/W, ~32 MB SRAM.",
+          "source": "https://insiderllm.com/guides/apple-neural-engine-llm-inference/",
+          "note": null
+        },
+        {
+          "text": "ANE SRAM cliff: 2048x2048 matmul hits 5.7 TFLOPS, 4096x4096 drops about 30%.",
+          "source": "https://insiderllm.com/guides/apple-neural-engine-llm-inference/",
+          "note": null
+        },
+        {
+          "text": "ANEMLL (0.3.5 Beta) community numbers on M4-series: Llama 3.2 1B 47-62 tok/s at ~2 W vs MLX ~204 tok/s at ~20 W on M4 Max; DeepSeek R1 8B ~9.3 tok/s ANE vs ~50 tok/s MLX; ANE 8B memory ~500 MB vs ~8 GB.",
+          "source": "https://insiderllm.com/guides/apple-neural-engine-llm-inference/",
+          "note": null
+        },
+        {
+          "text": "GPU is 2-5x faster than ANE in generation in those community numbers; ANE draws about one tenth of the power.",
+          "source": "https://insiderllm.com/guides/apple-neural-engine-llm-inference/",
+          "note": null
+        },
+        {
+          "text": "ANEMLL 0.3.5 supports Llama, Qwen 2.5/3, Gemma 3 (270M-4B) with up to 4K context, monolithic and chunked conversion, ANEMLL-Dedup (~50% size reduction for multifunction models); its last commit was 2026-02-14.",
+          "source": "https://github.com/anemll/anemll",
+          "note": null
+        },
+        {
+          "text": "ANE LLM limits: context typically 512-4096 tokens, tested up to 8B parameters, relies partly on private APIs that may break on macOS updates.",
+          "source": "https://insiderllm.com/guides/apple-neural-engine-llm-inference/",
+          "note": null
+        },
+        {
+          "text": "Core AI LLM export command: `coreai.llm.export qwen3-0.6b --platform iOS`; AOT via `xcrun coreai-build compile`.",
+          "source": "https://rockyshikoku.medium.com/i-benchmarked-apples-new-framework-against-mlx-for-on-device-llms-e52a769494b1",
+          "note": null
+        },
+        {
+          "text": "Core AI compute unit is determined by export shape (static -> ANE engine, dynamic -> GPU pipelined engine), not a runtime flag; forcing the pipelined engine onto a static model gives unsupportedEngineVariant.",
+          "source": "https://rockyshikoku.medium.com/i-benchmarked-apples-new-framework-against-mlx-for-on-device-llms-e52a769494b1",
+          "note": null
+        },
+        {
+          "text": "iPhone 17 Pro Qwen3-0.6B decode (June 2026 blog): Core AI GPU 181 (first run 71), MLX 112, Core AI ANE 49, Core ML ANE 39 tok/s; peak RAM 524/539/1166/184 MB.",
+          "source": "https://rockyshikoku.medium.com/i-benchmarked-apples-new-framework-against-mlx-for-on-device-llms-e52a769494b1",
+          "note": null
+        },
+        {
+          "text": "M4 Max, Apple llm-benchmark protocol (512 prompt, 1024 gen): Qwen3-8B 4-bit Core AI 94.1 vs MLX 90.0 tok/s; Qwen3-0.6B Core AI 503.1 vs MLX 432.3 (different sessions).",
+          "source": "https://github.com/john-rocky/apple-silicon-llm-bench",
+          "note": null
+        },
+        {
+          "text": "M4 Max 30B-class text decoder, interleaved arms: Core AI 27.43, MLX 27.36, ExecuTorch Metal 24.00 tok/s.",
+          "source": "https://github.com/john-rocky/apple-silicon-llm-bench",
+          "note": null
+        },
+        {
+          "text": "The benchmark repo's rule: compare cells only within one session because device thermal state moves results; its Core AI numbers are from macOS 27 beta.",
+          "source": "https://github.com/john-rocky/apple-silicon-llm-bench",
+          "note": null
+        },
+        {
+          "text": "Hybrid-architecture models decode faster on MLX than llama.cpp on M4 Max (Nemotron-3 Nano 30B-A3B 159.7 vs 86.2 tok/s; Granite-4.0-H-Tiny 202.2 vs 117.3).",
+          "source": "https://github.com/john-rocky/apple-silicon-llm-bench",
+          "note": null
+        },
+        {
+          "text": "Decision heuristic (one author): built-in model -> Foundation Models; your model on iOS -> Core ML; your model on Mac -> MLX; tensor-level control on iOS -> Core AI; Core ML is the only path with first-class ANE dispatch before Core AI.",
+          "source": "https://blakecrosley.com/blog/core-ml-vs-mlx-vs-foundation-models",
+          "note": null
+        },
+        {
+          "text": "Early (M1/M2) ANE is judged unlikely to suit modern low-bit LLM inference because of its focus on statically scheduled FP16/INT8 MADDs; M3/M4 unknown at the time (forum opinion, May 2025).",
+          "source": "https://news.ycombinator.com/item?id=43879702",
+          "note": null
+        },
+        {
+          "text": "M5 Neural Accelerators sit in the GPU, not the ANE; Apple's route to LLM acceleration is GPU-side.",
+          "source": "https://insiderllm.com/guides/apple-neural-engine-llm-inference/",
+          "note": null
+        },
+        {
+          "text": "When ANE beats GPU for LLM-class workloads: small (<=1-2B) always-on models on battery, tight unified memory, and background agents; otherwise the GPU wins on speed, context length and stability.",
+          "source": "asserted",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Corrections and disagreements",
+      "facts": [
+        {
+          "text": "CONTRADICTS the 181-vs-112 claim: the same author's repo later states the MLX 112 value was retracted (2026-07-13) as Debug-contaminated, and lists MLX 178.8, LiteRT-LM 122.1, Core AI ANE 116.9-122.4 warm (different sessions) for that phone and model.",
+          "source": "https://github.com/john-rocky/apple-silicon-llm-bench",
+          "note": null
+        }
+      ]
+    }
+  ],
+  "related": []
+}

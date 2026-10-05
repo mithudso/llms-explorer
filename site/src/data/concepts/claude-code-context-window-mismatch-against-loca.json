@@ -1,0 +1,339 @@
+{
+  "slug": "claude-code-context-window-mismatch-against-loca",
+  "concept": "Claude Code context-window mismatch against local servers",
+  "generated": "2026-10-05",
+  "summary": "Client side, current docs: for an ID Claude Code does not recognize, it compacts at the window it assumes for that ID. `CLAUDE_CODE_MAX_CONTEXT_TOKENS` corrects that assumed window and keeps proactive compaction. `CLAUDE_CODE_DISABLE_UNKNOWN_MODEL_WINDOW_ENFORCEMENT=1` instead disables proactive ...",
+  "facets": [
+    {
+      "title": "Facts",
+      "facts": [
+        {
+          "text": "Client side, current docs: for an ID Claude Code does not recognize, it compacts at the window it assumes for that ID. `CLAUDE_CODE_MAX_CONTEXT_TOKENS` corrects that assumed window and keeps proactive compaction. `CLAUDE_CODE_DISABLE_UNKNOWN_MODEL_WINDOW_ENFORCEMENT=1` instead disables proactive compaction and compacts only after the API returns a recognized too-long error.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Resolution rules for CLAUDE_CODE_MAX_CONTEXT_TOKENS depend on the ID: an unresolved custom ID without `[1m]` takes it directly; an unresolved ID containing `[1m]` is assumed 1M and the variable needs `CLAUDE_CODE_DISABLE_1M_CONTEXT=1` too; an ID that resolves to a known Claude model (for example `anthropic/claude-opus-4-8`) takes it only if `DISABLE_COMPACT` is also set.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Auto-compact window controls (precedence high to low): `CLAUDE_CODE_AUTO_COMPACT_WINDOW` (plain integer 100000-1000000; `500k` is misread as 500), `--autocompact` flag, `/autocompact` per-model value in `modelSettings`, `autoCompactWindow` in settings.json. The effective window is capped at the model's context window and the minimum is 100K.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Consequence: the 100K floor means no Claude Code compaction window can be set below 100,000 tokens through these controls. A 32K or 64K local server therefore cannot be protected by AUTO_COMPACT_WINDOW; only `CLAUDE_AUTOCOMPACT_PCT_OVERRIDE` (percent of the window, 1-100, can only lower the threshold) or `CLAUDE_CODE_MAX_CONTEXT_TOKENS` can make compaction fire early. [inferred from the two docs]",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "The status line `used_percentage` measures against the model's full window, so after AUTO_COMPACT_WINDOW is set it no longer shows when compaction will run.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "`CLAUDE_CODE_MAX_OUTPUT_TOKENS` raises reduce the effective window before compaction; unknown IDs default to 32000 output with cap 128000.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Ollama truncation has two layers (v0.33.1 source): layer 1 `chatPrompt` drops whole messages from the front, re-prepending system messages, always keeping the newest message; logged only at DEBUG. Layer 2 (llm/llama_server.go) with context shift enabled keeps the first NumKeep tokens (4, or 5 with a BOS tokenizer) and the tail, cutting to `numCtx - max((numCtx-numKeep)/2, 1)`: about half the window; logged at WARN as `truncating input prompt`.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Layer 2 consequence for agents: after a shift the prompt is a different token string from the first token after position 5, so the whole cached prefix is invalid and the next request re-evaluates from near zero. At num_ctx 16384 a shift leaves about 8,195 tokens, below Claude Code's own ~20k system prompt plus tools, so the system prompt is cut mid-text. [inferred]",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Ollama defaults changed: since commit 0334ffa6 (2026-02-02) default num_ctx is chosen from VRAM: 262144 at 47 GiB or more, 32768 at 23 GiB or more, 4096 below; `OLLAMA_CONTEXT_LENGTH` defaults to 0 (unset). Startup logs `vram-based default context`.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "The OpenAI-compatible `/v1` route cannot set num_ctx, truncate or shift; the field is dropped. Native `/api/chat` accepts `options.num_ctx`, `truncate:false`, `shift:false`. `/v1` gets only Modelfile `PARAMETER num_ctx` or the server env var.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Ollama silently reduces a requested num_ctx above the runner's loaded context, and caps at the GGUF trained length; setting `OLLAMA_NUM_PARALLEL` multiplies the allocated context by the slot count.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "llama-server: a prompt that cannot fit returns HTTP 400 \"the request exceeds the available context size, try increasing it\" (slot log `n_ctx_slot = 16384 ... task.n_tokens = 15953`). `--no-context-shift` makes the server reject instead of discarding oldest tokens; without it llama.cpp shifts the window.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "LM Studio: default load context is often 4096; \"Stop at Limit\" policy errors (\"Trying to keep the first N tokens when context overflows. However, the model is loaded with context length of only M\"), \"Rolling Window\" drops oldest messages, \"Truncate Middle\" is the third policy. Claude Code against LM Studio gets a 400 naming a token or context limit when too small. LM Studio guidance: at least 25K; one guide says 32K floor, 64K if memory allows.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Rejected requests can also wipe llama.cpp state: one rejected request on a slot discarded 15 context checkpoints (about 2.19 GiB) and the next request re-processed from token zero while still returning 200. The message `forcing full prompt re-processing due to lack of cache data` is trace-level (verbosity 4) and never prints at default `-lv 3`.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "OpenCode: set `provider.<id>.models.<model>.limit.context` and `.limit.output` for custom providers, otherwise OpenCode does not know the real window and its automatic compaction misjudges. `compaction` config has `auto`, `prune` (default false) and `reserved` (token buffer so compaction itself does not overflow).",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Cline: the context-window value in Cline's provider settings drives auto-condense; auto-compact can fail on some llama-server models (GPT OSS 120B, GLM 4.5 Air at -c 131072) so the conversation runs past the window, and manual compaction then fails with \"too many tokens\"; Qwen3 Next at 262144 worked (issue closed not planned).",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Compaction invalidates the whole prefix by construction (history is replaced), so on a slow-prefill Mac a compaction is one full cold prefill of the summary plus system prompt and tools. The mismatch case is worse: no compaction ever fires, and every request pays a layer-2 truncation re-prefill.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "2026-01: Claude Code 2.1.42 logs `effectiveWindow=180000` for unknown models (existing dossier). By 2.1.193 `CLAUDE_CODE_MAX_CONTEXT_TOKENS` semantics depend on how the ID resolves; 2.1.223 adds `CLAUDE_CODE_DISABLE_UNKNOWN_MODEL_WINDOW_ENFORCEMENT`; 2.1.259 changed provider-spelling ID handling.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "2026-02-02: Ollama replaces the flat 4096 default with VRAM tiers; the FAQ still says 4096. Earlier, 2025-04-22 raised 2048 to 4096.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "2026-07: Ollama issue 17427 (0.32.1, gpt-oss:20b): measured prompt limit exactly num_ctx/2 + 2 (16384 gives 8194, 40960 gives 20482, 49152 gives 24578, 65536 gives 32770), independent of num_parallel and num_predict. This is the layer-2 formula, not a bug in llama-server.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Layer 1 guard protects only the last message; in an agent tool loop the last message is a tool result, so the user turn that started the loop can be dropped (Qwen shows \"no user query found in messages\").",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "A single huge message never exercises layer 1 (`len(messages) <= 1` returns), so a one-message canary test proves nothing.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Setting both explicit `num_ctx` in API calls and the app context length can fail to load (existing dossier cites this); explicit num_ctx also disables Ollama's OOM step-down 262144 to 32768 to 4096.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "A caller that sets a different num_ctx than the loaded runner forces unload and reload on each alternation.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "CLAUDE_AUTOCOMPACT_PCT_OVERRIDE \"applies only in sessions that compact before the model's context limit\", so it may not apply to unknown-model sessions; test with the log line rather than assuming. [inferred from env-vars wording]",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Claude Code's reactive recovery works only if the server's error text matches a too-long wording Claude Code recognizes; a rewritten gateway error defeats it. llama-server's 400 wording is not documented as recognized.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "LM Studio Claude Code failures: 404 mid-session means a background call used the haiku alias.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Proactive vs reactive: set `CLAUDE_CODE_MAX_CONTEXT_TOKENS` to the server window (compact before overflow) versus `DISABLE_UNKNOWN_MODEL_WINDOW_ENFORCEMENT=1` (let the server reject first). The first avoids a rejected request; the second depends on error-text recognition and cannot work against Ollama, which truncates instead of rejecting.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Ollama FAQ says default 4096; shipping source (v0.33.1) says VRAM-tiered.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Whether `--no-context-shift` is the right llama-server default for agents: fails loudly (session dies at the limit) versus silently losing the system prompt. One guide calls the error safer; same guide notes the session becomes unusable until restart.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Does Claude Code's 100K floor on the compaction window apply when MAX_CONTEXT_TOKENS is set below 100K (e.g. 32768)? The skill-listing dossier used 32768 successfully for sizing; compaction behavior below 100K is untested here.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Which exact error strings from llama-server and LM Studio Claude Code treats as recoverable too-long errors.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Whether LM Studio's Anthropic endpoint reports its loaded context to the client (oMLX does, per existing dossier).",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Claude Code compacts unknown-model sessions at the window it assumes for the ID",
+          "source": "https://code.claude.com/docs/en/model-config",
+          "note": null
+        },
+        {
+          "text": "CLAUDE_CODE_MAX_CONTEXT_TOKENS corrects the assumed window; for an unresolved ID containing [1m] it also needs CLAUDE_CODE_DISABLE_1M_CONTEXT=1",
+          "source": "https://code.claude.com/docs/en/model-config",
+          "note": null
+        },
+        {
+          "text": "For an ID that resolves to a known Claude model, CLAUDE_CODE_MAX_CONTEXT_TOKENS takes effect only with DISABLE_COMPACT set",
+          "source": "https://code.claude.com/docs/en/model-config",
+          "note": null
+        },
+        {
+          "text": "CLAUDE_CODE_DISABLE_UNKNOWN_MODEL_WINDOW_ENFORCEMENT=1 (v2.1.223+) skips proactive compaction and compacts only after a recognized too-long API error",
+          "source": "https://code.claude.com/docs/en/env-vars",
+          "note": null
+        },
+        {
+          "text": "CLAUDE_CODE_AUTO_COMPACT_WINDOW accepts plain integers 100000 to 1000000 only, is capped at the model window, and outranks /autocompact, --autocompact and autoCompactWindow",
+          "source": "https://code.claude.com/docs/en/env-vars",
+          "note": null
+        },
+        {
+          "text": "With AUTO_COMPACT_WINDOW set, status line used_percentage no longer indicates when compaction runs",
+          "source": "https://code.claude.com/docs/en/env-vars",
+          "note": null
+        },
+        {
+          "text": "CLAUDE_AUTOCOMPACT_PCT_OVERRIDE (1-100) can only lower the threshold and applies only to sessions that compact before the model limit",
+          "source": "https://code.claude.com/docs/en/env-vars",
+          "note": null
+        },
+        {
+          "text": "CLAUDE_CODE_MAX_OUTPUT_TOKENS defaults to 32000 for unknown IDs, and larger values shrink the window before compaction",
+          "source": "https://code.claude.com/docs/en/env-vars",
+          "note": null
+        },
+        {
+          "text": "Claude Code shows \"Context limit reached · /compact or /clear to continue\" for Prompt is too long",
+          "source": "https://code.claude.com/docs/en/errors",
+          "note": null
+        },
+        {
+          "text": "Ollama default num_ctx is 262144 at 47 GiB VRAM or more, 32768 at 23 GiB or more, else 4096, since commit 0334ffa6 on 2026-02-02",
+          "source": "https://particula.tech/blog/ollama-num-ctx-silent-prompt-truncation",
+          "note": null
+        },
+        {
+          "text": "Ollama logs `vram-based default context` at startup and `ollama ps` / `/api/ps` show the real context",
+          "source": "https://particula.tech/blog/ollama-num-ctx-silent-prompt-truncation",
+          "note": null
+        },
+        {
+          "text": "The OpenAI-compatible /v1 route in Ollama drops num_ctx, truncate and shift; they work only on native endpoints",
+          "source": "https://particula.tech/blog/ollama-num-ctx-silent-prompt-truncation",
+          "note": null
+        },
+        {
+          "text": "Ollama layer 1 truncation drops whole messages from the front, keeps system messages and the last message, and logs only at DEBUG",
+          "source": "https://particula.tech/blog/ollama-num-ctx-silent-prompt-truncation",
+          "note": null
+        },
+        {
+          "text": "Ollama layer 2 context shift keeps NumKeep (4, or 5 with BOS) head tokens plus the tail, cutting to about half the window, logged at WARN as `truncating input prompt`",
+          "source": "https://particula.tech/blog/ollama-num-ctx-silent-prompt-truncation",
+          "note": null
+        },
+        {
+          "text": "`shift:false` on /api/chat turns the overflow into a 400 \"the prompt is longer than the context length currently available to the model\"",
+          "source": "https://particula.tech/blog/ollama-num-ctx-silent-prompt-truncation",
+          "note": null
+        },
+        {
+          "text": "`_debug_render_only` returns rendered_template after layer 1 and before layer 2, and needs a multi-message probe",
+          "source": "https://particula.tech/blog/ollama-num-ctx-silent-prompt-truncation",
+          "note": null
+        },
+        {
+          "text": "Ollama truncation limit measured at exactly num_ctx/2 + 2 on 0.32.1 (16384 to 8194, 65536 to 32770)",
+          "source": "https://github.com/ollama/ollama/issues/17427",
+          "note": null
+        },
+        {
+          "text": "OLLAMA_NUM_PARALLEL multiplies allocated context; a differing num_ctx per caller forces runner reload; explicit num_ctx disables the OOM step-down",
+          "source": "https://particula.tech/blog/ollama-num-ctx-silent-prompt-truncation",
+          "note": null
+        },
+        {
+          "text": "llama-server returns 400 \"the request exceeds the available context size, try increasing it\" when n_tokens exceeds n_ctx_slot",
+          "source": "https://github.com/continuedev/continue/issues/9797",
+          "note": null
+        },
+        {
+          "text": "llama-server `--no-context-shift` rejects instead of discarding oldest tokens, and a Claude Code session then stops accepting prompts until restart with a larger -c",
+          "source": "https://stevenpg.com/posts/running-claude-code-locally-on-apple-silicon/",
+          "note": null
+        },
+        {
+          "text": "llama.cpp `forcing full prompt re-processing due to lack of cache data` is trace-level and absent at default verbosity; one rejected request discarded 15 checkpoints (~2.19 GiB)",
+          "source": "https://particula.tech/blog/prompt-reprocessing-swa-hybrid-models-kv-cache",
+          "note": null
+        },
+        {
+          "text": "LM Studio \"Stop at Limit\" logs \"Trying to keep the first N tokens when context overflows. However, the model is loaded with context length of only M\"",
+          "source": "https://www.aiqnahub.com/lm-studio-context-window-overflow-fix/",
+          "note": null
+        },
+        {
+          "text": "LM Studio Rolling Window drops oldest messages; default load context is 4096",
+          "source": "https://www.aiqnahub.com/lm-studio-context-window-overflow-fix/",
+          "note": null
+        },
+        {
+          "text": "LM Studio and Claude Code: a 400 naming a token or context limit means the loaded context is too small; `lms ps` shows it in force; use `lms load --context-length 32768`",
+          "source": "https://michaelwolfinger.com/blog/2026/claude-code-local-llm-apple-silicon/",
+          "note": null
+        },
+        {
+          "text": "LM Studio recommends at least 25K context for Claude Code",
+          "source": "https://lmstudio.ai/blog/claudecode",
+          "note": null
+        },
+        {
+          "text": "OpenCode custom-provider models need `limit.context` and `limit.output` set or auto-compaction lacks the real window",
+          "source": "https://medium.com/@donmahsu/opencode-ide-adjusting-context-limits-and-reasoning-levels-for-custom-api-providers-39fbbf59de1b",
+          "note": null
+        },
+        {
+          "text": "OpenCode `compaction` options: auto, prune (default false), reserved",
+          "source": "https://opencode.ai/docs/config/",
+          "note": null
+        },
+        {
+          "text": "Cline auto-compact failed to trigger on GPT OSS 120B and GLM 4.5 Air via llama-server at -c 131072, then manual compaction failed with too many tokens",
+          "source": "https://github.com/cline/cline/issues/7772",
+          "note": null
+        },
+        {
+          "text": "A user reports OpenCode automatic compaction on local models not reliable and context length tuning still open",
+          "source": "https://www.invisiblefriends.net/running-opencode-with-local-llms-on-an-m3-ultra-512gb/",
+          "note": null
+        },
+        {
+          "text": "Compaction replaces history so the whole prefix is cold afterward; the mismatch case never compacts and re-prefills on every truncation",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Detection order: grep server log for `truncating input prompt` (Ollama) or HTTP 400 exceed (llama-server); compare `ollama ps` CONTEXT or `lms ps` against Claude Code's `/context` total; check prompt_eval_count equals about half num_ctx",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Correct settings per runtime: Ollama set OLLAMA_CONTEXT_LENGTH (or Modelfile) at least 32768 and CLAUDE_CODE_MAX_CONTEXT_TOKENS equal to it; llama-server -c N with CLAUDE_CODE_MAX_CONTEXT_TOKENS=N and prefer shift off; LM Studio load with --context-length N and Stop at Limit; OpenCode limit.context=N; Cline context window=N",
+          "source": "asserted",
+          "note": null
+        }
+      ]
+    }
+  ],
+  "related": []
+}

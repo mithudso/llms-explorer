@@ -1,0 +1,199 @@
+{
+  "slug": "aggregate-ssd-bandwidth-when-each-cluster-node-s",
+  "concept": "Aggregate SSD bandwidth when each cluster node streams experts",
+  "generated": "2026-10-05",
+  "summary": "If N Macs each read experts from their own SSD in the same token step, the bytes read per node per token fall and the cluster's combined read rate rises, but the time per token is set by the slowest node plus the per-layer exchange.",
+  "facets": [
+    {
+      "title": "Facts",
+      "facts": [
+        {
+          "text": "If N Macs each read experts from their own SSD in the same token step, the bytes read per node per token fall and the cluster's combined read rate rises, but the time per token is set by the slowest node plus the per-layer exchange.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "ds4 sets `tp_shard` (resident half-expert shard per rank) only when TP is on and `ssd_streaming` is off, so a TP run with streaming takes a different memory path from resident TP.",
+          "source": "https://raw.githubusercontent.com/antirez/ds4/main/ds4.c",
+          "note": null
+        },
+        {
+          "text": "ds4's TP option validator rejects `ssd_streaming` only for the CUDA backend; for Metal it checks the backend, the distributed role and layer slices, and lets `--ssd-streaming` pass.",
+          "source": "https://raw.githubusercontent.com/antirez/ds4/main/ds4_tp.c",
+          "note": null
+        },
+        {
+          "text": "ds4 has a TP gate schedule written for streaming GLM: resident GLM splits attention and FFN on sparse layers, while with streaming \"attention replicated and exchanges only the routed FFN partial\", so one gate per sparse layer instead of two.",
+          "source": "https://raw.githubusercontent.com/antirez/ds4/main/ds4.c",
+          "note": null
+        },
+        {
+          "text": "ds4's non-GLM schedule fires two gates (attention, FFN) on every layer: `per_token = DS4_N_LAYER * 2`.",
+          "source": "https://raw.githubusercontent.com/antirez/ds4/main/ds4.c",
+          "note": null
+        },
+        {
+          "text": "ds4's V4.1 prefill code treats a two-rank TP run and a streaming run as separate cases (TP small-prefill threshold 32 tokens on Apple, 1024 when at least half the experts are cached), so TP and streaming flags can be set together in code.",
+          "source": "https://raw.githubusercontent.com/antirez/ds4/main/ds4.c",
+          "note": null
+        },
+        {
+          "text": "The ds4 docs show no command that combines `--tensor-parallel` with `--ssd-streaming` on Metal, and ds4 publishes no tok/s for the combination.",
+          "source": "https://raw.githubusercontent.com/antirez/ds4/main/docs/DISTRIBUTED.md",
+          "note": null
+        },
+        {
+          "text": "Pipeline parallelism with streaming cuts bytes per node per token by the stage share, but one stream still visits every stage in turn, so per-token I/O time stays near the single-node figure. Only concurrent requests overlap the stages.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "With mlx-lm style sliced-expert TP, each rank reads 1/N of every active expert, so the per-rank bytes are balanced. At Flash-MoE's 943 MB per token (2-bit), two nodes would each read about 471 MB, a floor of about 27 ms at 17.5 GB/s against 53.9 ms for one node, before any all-reduce cost.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "With ds4-style contiguous expert halves, each node reads only the experts the router sends to its half, so the critical path is the larger half. With 4 active experts per layer and uniform routing, the expected larger half is 2.75 experts against an ideal 2, about 37% more bytes on the critical path.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "mlx-optiq's cluster mode (pipeline over Thunderbolt) was built as the alternative to single-Mac streaming: Qwen3.5-122B-A10B 2-bit (42.8 GiB) runs at 20.5 tok/s resident across a 36 GB M3 Max and a 24 GB M4, against 4.9 tok/s streaming on one Mac, 4.2 times faster.",
+          "source": "https://mlx-optiq.com/docs/cluster",
+          "note": null
+        },
+        {
+          "text": "The Flash-MoE paper (March 2026) lists multi-device as future work: two M3 Max laptops \"each handle 30 layers, halving per-device I/O and potentially doubling throughput\". It gives no measurement.",
+          "source": "https://raw.githubusercontent.com/danveloper/flash-moe/main/paper/flash_moe.pdf",
+          "note": null
+        },
+        {
+          "text": "optiq's cluster path holds layers resident and refuses to load rather than swap or stream, so it is a capacity route, not a streaming cluster.",
+          "source": "https://mlx-optiq.com/docs/cluster",
+          "note": null
+        },
+        {
+          "text": "optiq documents a residency ceiling: past about 73% of RAM in resident weights a Mac's GPU throughput collapses with no error. On a 24 GB M4: 16.6 GiB resident 23.3 tok/s, 17.3 GiB 15.1 tok/s, 18.1 GiB 0.1 tok/s, 19.6 GiB 0.05 tok/s with swap.",
+          "source": "https://mlx-optiq.com/docs/cluster",
+          "note": null
+        },
+        {
+          "text": "Raising `iogpu.wired_limit_mb` from 20480 to 22528 did not move optiq's cliff: 18.1 GiB gave 0.1 tok/s at both limits.",
+          "source": "https://mlx-optiq.com/docs/cluster",
+          "note": null
+        },
+        {
+          "text": "A node's wired limit and page cache compete in a streaming cluster just as on one Mac, so a small node that holds the same number of cached experts as a large one is the slow node.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Paper versus RDMA record. The Flash-MoE paper says unified memory \"extends across Thunderbolt-connected devices via the Apple Fabric bus\". Apple's TN3205 describes verbs send and receive over unreliable-connection queue pairs (at most 10, message limit 16,773,120 bytes), not a shared address space. The TN3205 reading is the primary source.",
+          "source": "https://developer.apple.com/documentation/technotes/tn3205-low-latency-communication-with-rdma-over-thunderbolt",
+          "note": null
+        },
+        {
+          "text": "No source reports tok/s for ds4 TP with `--ssd-streaming` on two Macs, or the SSD read rate per node in that mode.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Whether the per-layer exchange on a streaming TP run (one gate per sparse layer for GLM) is cheaper than the saved read time at 128 GB-class Macs.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "ds4 enables the resident expert shard for TP only when SSD streaming is off (`tp_shard = tp.role != NONE && !ssd_streaming`).",
+          "source": "https://raw.githubusercontent.com/antirez/ds4/main/ds4.c",
+          "note": null
+        },
+        {
+          "text": "The ds4_tp.h header comment says the validator rejects SSD streaming, distributed mode, MTP drafting and the CPU backend, but the code allows leader-side MTP and DSpark and rejects streaming only on CUDA, so the comment is stale.",
+          "source": "https://raw.githubusercontent.com/antirez/ds4/main/ds4_tp.h",
+          "note": null
+        },
+        {
+          "text": "ds4's GLM TP gate schedule in streaming mode starts at the first sparse layer's FFN gate, steps by two slots and fires `sparse_layers` gates per token.",
+          "source": "https://raw.githubusercontent.com/antirez/ds4/main/ds4.c",
+          "note": null
+        },
+        {
+          "text": "ds4's resident GLM-5.3 schedule uses a bit mask: sparse layers fire an FFN gate, and an attention gate only on non-KDA layers.",
+          "source": "https://raw.githubusercontent.com/antirez/ds4/main/ds4.c",
+          "note": null
+        },
+        {
+          "text": "ds4's DeepSeek-family schedule fires attention and FFN gates on every layer.",
+          "source": "https://raw.githubusercontent.com/antirez/ds4/main/ds4.c",
+          "note": null
+        },
+        {
+          "text": "ds4's resident GLM attention split is skipped when `ssd_streaming` is set (`tp_split_attn` requires `!g->ssd_streaming`).",
+          "source": "https://raw.githubusercontent.com/antirez/ds4/main/ds4.c",
+          "note": null
+        },
+        {
+          "text": "ds4's DISTRIBUTED.md documents no TP-plus-streaming command and gives no throughput for it.",
+          "source": "https://raw.githubusercontent.com/antirez/ds4/main/docs/DISTRIBUTED.md",
+          "note": null
+        },
+        {
+          "text": "optiq's cluster mode keeps layers resident and refuses to load a model that does not fit the cluster's currently free memory.",
+          "source": "https://mlx-optiq.com/docs/cluster",
+          "note": null
+        },
+        {
+          "text": "optiq measured 20.5 tok/s resident across two Macs against 4.9 tok/s streaming on one Mac (4.2 times) and says the gain is against the streaming path, not against a model that fits in RAM.",
+          "source": "https://mlx-optiq.com/docs/cluster",
+          "note": null
+        },
+        {
+          "text": "optiq's 24 GB M4 residency cliff sits near 17.5 GiB (about 73% of RAM) and does not move with `iogpu.wired_limit_mb`.",
+          "source": "https://mlx-optiq.com/docs/cluster",
+          "note": null
+        },
+        {
+          "text": "optiq's pipeline hop carries about 12 KB per token because the last rank returns a hidden state, not about 1 MB of vocabulary logits.",
+          "source": "https://mlx-optiq.com/docs/cluster",
+          "note": null
+        },
+        {
+          "text": "The Flash-MoE paper reads 943 MB per token at 2-bit (4 experts x 60 layers x 3.93 MB), with an I/O floor of 53.9 ms (18.6 tok/s) at 17.5 GB/s.",
+          "source": "https://raw.githubusercontent.com/danveloper/flash-moe/main/paper/flash_moe.pdf",
+          "note": null
+        },
+        {
+          "text": "The Flash-MoE paper proposes two M3 Max laptops with 30 layers each as future work and reports no measurement.",
+          "source": "https://raw.githubusercontent.com/danveloper/flash-moe/main/paper/flash_moe.pdf",
+          "note": null
+        },
+        {
+          "text": "No source measures the aggregate SSD read rate of a multi-Mac cluster in which each node streams experts.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Streaming experts in a pipeline cluster lowers per-node bytes but not single-stream per-token read time.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "With contiguous expert halves and 4 active experts per layer, the expected critical-path reads are 2.75 experts against an ideal 2.",
+          "source": "asserted",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Corrections and disagreements",
+      "facts": [
+        {
+          "text": "CONTRADICTS: ssd-expert-streaming-and-cluster-sharding-for-mo.md (reading that TP and streaming are exclusive): ds4's Metal validator does not reject `--ssd-streaming` with `--tensor-parallel`; only network CUDA TP rejects it. The docs simply show no combined command.",
+          "source": "https://raw.githubusercontent.com/antirez/ds4/main/ds4_tp.c",
+          "note": null
+        }
+      ]
+    }
+  ],
+  "related": []
+}

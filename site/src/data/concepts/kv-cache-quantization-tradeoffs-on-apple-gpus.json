@@ -1,0 +1,499 @@
+{
+  "slug": "kv-cache-quantization-tradeoffs-on-apple-gpus",
+  "concept": "KV cache quantization tradeoffs on Apple GPUs",
+  "generated": "2026-10-05",
+  "summary": "llama.cpp now applies an optional Hadamard rotation (Q, K, V rotated, attention run in rotated space, output rotated back) before quantizing cached K/V. It adds no new cache type and works with all existing types, which is why `-ctk q4_0` gets better without a flag change.",
+  "facets": [
+    {
+      "title": "Facts",
+      "facts": [
+        {
+          "text": "llama.cpp now applies an optional Hadamard rotation (Q, K, V rotated, attention run in rotated space, output rotated back) before quantizing cached K/V. It adds no new cache type and works with all existing types, which is why `-ctk q4_0` gets better without a flag change.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "The rotation exploits that rotation preserves dot products and that attention output is a linear combination of cached vectors; outliers are spread across dimensions so block quantization loses less.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Rotation is skipped when preconditions fail (variable per-layer GQA dims, non power-of-two head dim, MLA); the load log prints `llama_kv_cache: attn_rot_k = N` / `attn_rot_v = N` so you can see whether it is active, and `LLAMA_ATTN_ROT_DISABLE` turns it off.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "mlx-lm quantizes with `mx.quantize` in groups (default 64); attention over a `QuantizedKVCache` is not a fused kernel, so peak memory depends on the prefill step. Measured: smaller `--prefill-step-size` lowers the quantized-KV peak.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "TurboQuant-style forks quantize with rotation plus codebooks (Lloyd-Max). Where the fork has no fused kernel the cache is expanded to fp16 before standard SDPA each decode step; that dequant materialization, not attention math, is the speed wall at long context.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Decode cost of dequant scales with per-token KV size times context, so quantization can be faster than fp16 when KV is big (MHA, many KV heads, very long context) and slower when KV is small (hybrid MoE with few full-attention layers).",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "vllm-mlx takes a different design: it quantizes only entries stored in its prefix cache and dequantizes on fetch, while the live batch stays full precision, so batching and generation quality are untouched.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "2026-03-25: ggerganov opens llama.cpp PR #21038 (attention rotation) explicitly as a better baseline ahead of \"vibe generated\" TurboQuant PRs; ik_llama.cpp merges a V-cache Hadamard PR (#1527) about the same time.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "2026-03-27 to 03-29: PR reworked to rotate V with 64x64 blocks (Metal matmul kernels need ne00 at least 64); a request for an opt-out flag was rejected by maintainer CISC on the grounds that a quality-reducing option makes no sense when quantizing is only about saving memory.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "2026-04-03: builds b8634 to b8644 briefly disabled KV quantization on SWA models (fixed in b8644); Gemma 4 SWA cache handling then shows `attn_rot_k = 0` in issue #21394.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "2026-07-18/19: issue #25900 treats the post-#21038 rotated cache as llama.cpp's \"current baseline\" for any new KV-quant proposal (KLD/PPL evidence required, no new ggml_type).",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "2026-02-11: vllm-mlx PR #67 adds `--kv-cache-bits {4,8}` for its prefix cache.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "2026-09-03 to 09-09: mlx-lm PR #1832 reworked by the reviewer and merged as commit a1ae4f4.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Mixed K/V types: Metal flash attention requires K.type == V.type (ggml-metal-device.m support check for GGML_OP_FLASH_ATTN_EXT, per issue #25900). A V cache quantized below f16 needs FA, so on Metal the \"K=q8_0, V=q4_0\" mix recommended generically cannot use the fused kernel; treat it as untested on Mac and use symmetric `q8_0/q8_0`.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Models with sliding-window layers: llama.cpp keeps the Gemma 4 SWA cache at full precision (#21332), so the KV cache is mixed precision and rotation reported `attn_rot_k = 0` even with q8_0 on both caches (b8660); resolution not read.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Silent no-op: Ollama's quantized KV falls back to f16 on unsupported architectures with no error; and the variable is read by the server process, so exporting it in the terminal that runs `ollama run` does nothing.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Ollama panics at model load if flash attention is auto-disabled but a quantized V cache is requested (open issue per one secondary source).",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "mlx-lm quantization with a rotating cache: `RotatingKVCache.to_quantized()` raised NotImplementedError until PR #1584 (open as of July 2026) added `RotatingQuantizedKVCache`; `to_quantized()` still raises when `keep > 0`, and `make_prompt_cache(model, max_kv_size=N)` hardcodes `keep=4` (cache.py:37), so `max_kv_size` plus KV quantization stays unquantizable for models without their own `make_cache`. Gemma 4 passes `keep=0`.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Behaviour on layers with no quantized variant: as of #1353 they were skipped silently (Gemma 4 26B: 25 of 30 layers), so the flag over-promises memory; #1618 proposed failing loudly. Which behaviour merged in #1832 was not read.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Prefill peak with mlx-lm KV4 can exceed fp16: in the #1832 benchmark 4-bit peak was +13.2% at prefill step 2048, but -16.8% at 1024, -24.0% at 512, -26.2% at 256.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "M5 numerics: eight tests in mlx-lm tests/test_generate.py fail on an M5 because TF32 is used in fp32 GEMM on Apple GPU gen 17 (`MLX_ENABLE_TF32=0` makes all 31 pass); batched (padded/masked) attention diverges from single-sequence on M5, not on M3 Max (mlx#3897). This matters when testing quantized KV on the batched path.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "3-bit KV on top of 3-bit weights compounds error: TurboQuant-MLX saw total output collapse past about 800 tokens with K3/V3 on tq3 weights on GPT-OSS-20B, while K8/V3 was clean and K3/V3 was fine on fp16 weights.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Memory-ceiling panic (M5 Pro 48 GB, Qwen3.6-35B-A3B, 63K prefill): fp16 KV peaked at 30.8 GB and panicked the watchdog (AppleARMWatchdogTimer); K8/V3 peaked at 28.7 GB and ran. The cited cause is allocation rate of a fast-growing KV, not peak.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Stock TurboQuant implementations returned 0% needle-in-haystack at every context on an M1 Pro 16 GB until the QJL math was fixed (orthogonal projection, sqrt(d) scale) and Metal kernels added.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Fork build gotchas: Metal JIT silently falls back to CPU if `ggml-metal.metal` includes custom headers, so \"Metal optimization\" benchmarks may measure the CPU path.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Is q4_0 KV near-lossless? Side A (llama.cpp PR #21038 PPL, WikiText, base models): after rotation q4_0 is +2.5% on Qwen3 8B (7.5012 vs f16 7.3203), +1.3% on Gemma3 4B, +0.2% on Qwen3.5 4B; before rotation Qwen3 8B was +4.4%. Side B (on-device runtimes section 10): \"~0.5-1.1% perplexity\". Side C (openclawdc, citing a llama.cpp issue): q4_0 lossless on hybrid Qwen 3.5, real degradation on full-attention Llama/Mistral. Side D (level1techs, vLLM CUDA, existing dossier): int4 KV broke tool calls on hybrid Qwen3.6-27B near 100K. Different int4 schemes and tasks; not reconciled.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Small models: Qwen3 0.6B q4_0 PPL is 62.0 on master and 46.25 with rotation against 13.67 f16; q8_0 is fine (13.91 to 13.67). Small models are the failure case for 4-bit KV.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Which of K or V is more fragile: now three sources side with K more sensitive (openclawdc, TurboQuant thread norms 4-182x, TurboQuant-MLX default K8/V3); Hannecke (existing dossier) says V. TurboQuant-MLX and the TurboQuant thread agree on \"K8, V low\".",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Does KV quantization speed up or slow Apple decode? mlx discussion #3134 (M4 Pro 64 GB, mlx-lm 0.30.7) says kv4 is free or faster on Phi-3.5-mini (71.4 fp16 vs 72.2 kv4) while TurboQuant-MLX shows 3x slower on GPT-OSS-20B and 6.6x slower at 63K on Qwen3.6-35B-A3B. Reconciled by KV geometry: Phi-3.5-mini is MHA with 32 KV heads; the slow cases have small KV.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Flat decode for a Metal TurboQuant fork? TheTom's first Metal numbers (M5 Max, Qwen3.5-35B-A3B): q8_0 85.5 tok/s vs turbo3 10.7 (8x gap); after a dequant unroll fix turbo3 was 0.987-0.995x of q8_0 decode from 2K to 32K. TurboQuant-MLX (no fused kernel) on M5 Pro shows fp16 decode 1.14x to 6.6x faster than K8/V3 as context grows.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Ollama/q8_0 \"no noticeable impact\": Ollama's FAQ says high-GQA models (it names Qwen2) may see larger quantization impact than low-GQA ones. Most guides say the opposite for GQA (smaller cache so less to lose); no benchmark settles it.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Does `--cache-type-k q8_0 --cache-type-v q4_0` run, error, or run unfused on current Metal builds?",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Did mlx-lm #1832 merge the loud-fail guard (#1618) or the silent skip?",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Is #1584 (rotating-cache quantization) merged, and does batching plus KV quant exist in mlx_lm.server on 0.32.0?",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Is rotation active on Metal for Qwen3.6 hybrids and Gemma 4 (log shows attn_rot_k)?",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Any measured tool-call or agentic-task accuracy for mlx `--kv-bits 4` or llama.cpp q4_0 on a Mac? None found; only vLLM CUDA evidence.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Does the Ollama MLX runner support `OLLAMA_KV_CACHE_TYPE`? Still unmeasured.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "llama.cpp PR #21038 (ggerganov, 2026-03-26) rotates Q, K and V with a normalized Hadamard matrix, stores rotated K/V in the cache, runs attention rotated and rotates the output back; it adds four matmul ops, no new types, and MLA is unsupported.",
+          "source": "https://github.com/ggml-org/llama.cpp/pull/21038",
+          "note": null
+        },
+        {
+          "text": "PR #21038 base-model WikiText PPL, Qwen3 8B (f16 7.3203): q8_0 7.3172 to 7.3195, q5_0 7.3793 to 7.3323, q4_0 7.6451 to 7.5012 (master to PR).",
+          "source": "https://github.com/ggml-org/llama.cpp/pull/21038",
+          "note": null
+        },
+        {
+          "text": "PR #21038 PPL, Gemma3 4B Q8_0 (f16 7.6905): q4_0 7.8535 to 7.7928, q4_1 7.8095 to 7.7531, q5_0 7.7544 to 7.7182.",
+          "source": "https://github.com/ggml-org/llama.cpp/pull/21038",
+          "note": null
+        },
+        {
+          "text": "PR #21038 PPL, Qwen3.5 4B (f16 8.3266): q4_0 8.3475 to 8.3448, q8_0 8.3272 to 8.3261.",
+          "source": "https://github.com/ggml-org/llama.cpp/pull/21038",
+          "note": null
+        },
+        {
+          "text": "PR #21038 PPL, Qwen3 0.6B (f16 13.6711): q8_0 13.9115 to 13.6713, q5_1 61.70 to 14.15, q4_1 212.5 to 22.28, q4_0 62.02 to 46.25.",
+          "source": "https://github.com/ggml-org/llama.cpp/pull/21038",
+          "note": null
+        },
+        {
+          "text": "The PR author found V could be rotated with 64x64 blocks (chosen because Metal matmul kernels need ne00 at least 64) and later suggested Q/K could also use smaller blocks; the PR notes \"randomized Hadamard matrices\" as a follow-up.",
+          "source": "https://github.com/ggml-org/llama.cpp/pull/21038",
+          "note": null
+        },
+        {
+          "text": "The rotation has a measurable speed cost on CUDA (Qwen3-30B-A3B Q4_0, `-ctk q4_0 -ctv q4_0 -fa 1`): tg128 229.42 to 202.37 tok/s (0.88x) at depth 0, 0.93x at 32K; pp512 0.97-0.98x.",
+          "source": "https://github.com/ggml-org/llama.cpp/pull/21038",
+          "note": null
+        },
+        {
+          "text": "On CPU (Qwen3.5-35B-A3B Q4_0, EPYC 9975) q4_0/q4_0 PPL went 6.6148 to 6.5962 against f16 6.5788 while prompt speed fell from 703.9 to 540.6 tok/s with rotation.",
+          "source": "https://github.com/ggml-org/llama.cpp/pull/21038",
+          "note": null
+        },
+        {
+          "text": "Maintainer CISC rejected an opt-out flag for the rotation: \"the only reason to quantize kv-cache is to save memory, if that comes at the cost of speed, so be it\".",
+          "source": "https://github.com/ggml-org/llama.cpp/pull/21038",
+          "note": null
+        },
+        {
+          "text": "No Apple Silicon timing for rotated q4_0/q8_0 appears in the PR thread; Metal speed impact of rotation is unmeasured there.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "llama.cpp logs `llama_kv_cache: attn_rot_k = N` and `attn_rot_v = N` per cache at load; Gemma 4 31B on b8643 and b8660 (CUDA) showed 0 with q8_0 on both caches.",
+          "source": "https://github.com/ggml-org/llama.cpp/issues/21394",
+          "note": null
+        },
+        {
+          "text": "llama.cpp builds b8634 to b8644 disabled KV-cache quantization when SWA was used; b8644 and later fixed it.",
+          "source": "https://github.com/ggml-org/llama.cpp/issues/21394",
+          "note": null
+        },
+        {
+          "text": "A commenter states the Gemma 4 SWA cache is kept at full precision (llama.cpp #21332), making the KV cache mixed precision so rotation cannot apply.",
+          "source": "https://github.com/ggml-org/llama.cpp/issues/21394",
+          "note": null
+        },
+        {
+          "text": "Issue #25900 (2026-07-19, opener closed it 07-20, no maintainer reply shown) says Metal's FLASH_ATTN_EXT support check requires `src[1]->type == src[2]->type`, so asymmetric K/V precision schemes cannot use Metal flash attention while CUDA appears to allow some pairs.",
+          "source": "https://github.com/ggml-org/llama.cpp/issues/25900",
+          "note": null
+        },
+        {
+          "text": "The same issue describes the post-#21038 rotated cache as the baseline new KV-quant schemes must beat, with KLD/PPL evidence per CONTRIBUTING.md, not a new ggml_type.",
+          "source": "https://github.com/ggml-org/llama.cpp/issues/25900",
+          "note": null
+        },
+        {
+          "text": "llama.cpp `--cache-type-k/v` accepts f32, f16, bf16, q8_0, q4_0, q4_1, iq4_nl, q5_0, q5_1; `--no-kv-offload` on Apple Silicon forces the cache out of Metal-friendly buffers and slows attention, so drop it.",
+          "source": "https://medium.com/@michael.hannecke/tuning-llama-cpp-on-apple-silicon-843f37a6c3dc",
+          "note": null
+        },
+        {
+          "text": "On an M1 Ultra (MTLGPUFamilyApple7) the llama.cpp Metal init log reports `has bfloat = true` and `tensor API disabled for pre-M5 and pre-A19 devices`.",
+          "source": "https://github.com/ggml-org/llama.cpp/discussions/20969",
+          "note": null
+        },
+        {
+          "text": "Unsloth's Claude Code guide runs llama-server with `--cache-type-k q8_0 --cache-type-v q8_0` for lower memory, offers `bf16/bf16` for full precision (\"slightly slower on some machines\"), and its Qwen3.5 guide suggests bf16 KV when output is gibberish.",
+          "source": "https://unsloth.ai/docs/basics/claude-code",
+          "note": null
+        },
+        {
+          "text": "Corrected numbers from that author (DGX Spark GB10, CUDA, Nemotron-3-Nano-30B-A3B Q4_K_XL, 128K ctx): KV buffer f16 768 MiB, q8_0 408 MiB (-47%), q4_0 216 MiB (-72%); prompt throughput unchanged (815/810/813 tok/s at 110K); decode f16 vs q4_0 +0.7% at 6K, -11.9% at 24K, -36.8% at 110K. Not Apple hardware.",
+          "source": "https://github.com/ggml-org/llama.cpp/discussions/20969",
+          "note": null
+        },
+        {
+          "text": "One secondary source repeats the 37% figure as \"q4_0 decode about 37% slower at 110K\" and states \"f16 is faster than q8_0 whenever it fits\".",
+          "source": "https://openclawdc.com/blog/kv-cache-quantization-q8-vs-q4-vram/",
+          "note": null
+        },
+        {
+          "text": "TheTom's turboquant_plus fork (Metal) defines turbo3 (3.25 bits/value, 4.9x) and turbo4 (4.25 bits/value, 3.8x) and later raised turbo3 compression from 4.57x to 5.12x with block size 128.",
+          "source": "https://github.com/ggml-org/llama.cpp/discussions/20969",
+          "note": null
+        },
+        {
+          "text": "First Metal numbers (M5 Max 128 GB): Qwen3.5-35B-A3B q8_0 85.5 tok/s vs turbo3 10.7; Qwopus 27B dense 17.6 vs 5.3.",
+          "source": "https://github.com/ggml-org/llama.cpp/discussions/20969",
+          "note": null
+        },
+        {
+          "text": "The author later found the bottleneck was Metal dequant re-reading shared `qs` and `signs` bytes per element (the custom O(d log d) WHT op gave identical speed to the dense matmul); after the fix turbo3/q8_0 decode was 0.987x at 2K, 0.995x at 8K, 0.989x at 16K, 0.995x at 32K, PPL +1.1% (5.471 vs 5.414).",
+          "source": "https://github.com/ggml-org/llama.cpp/discussions/20969",
+          "note": null
+        },
+        {
+          "text": "A CUDA user later found turbo2 decode on DeepSeek-Coder-V2-Lite MoE had fallen to 0.45x of f16 (108 vs 241.5 tok/s) after upstream MoE flash-attention improvements, so turbo types lag as upstream f16 paths improve; value becomes memory only.",
+          "source": "https://github.com/ggml-org/llama.cpp/discussions/20969",
+          "note": null
+        },
+        {
+          "text": "M1 Pro 16 GB evaluation (Qwen2.5-3B-Instruct): stock TurboQuant forks scored 0% needle retrieval at 2K-16K; after fixes the MLX hybrid K5/V4 scored 100%, KV at 16K fell 562 MB to 140 MB, but decode was about 1.1 tok/s (Python-bound dequant).",
+          "source": "https://github.com/ggml-org/llama.cpp/discussions/20969",
+          "note": null
+        },
+        {
+          "text": "Aaryan-Kapoor's CPU `tq3_0` (3.5 bpw) measured PPL 6.6911 vs q4_0 6.6148 and f16 6.5788 on Qwen3.5-35B-A3B, at 481 tok/s vs 689-704 for f16/q4_0 on that CPU.",
+          "source": "https://github.com/ggml-org/llama.cpp/pull/21038",
+          "note": null
+        },
+        {
+          "text": "mlx-lm PR #1832 (merged 2026-09-09 as a1ae4f4, approved by michalk8) mirrors `generate.py` KV quantization in the server and closes #1308, #1043 and #615; related #934 was closed unmerged for capacity and #1804 was broader and not reviewed.",
+          "source": "https://github.com/ml-explore/mlx-lm/pull/1832",
+          "note": null
+        },
+        {
+          "text": "PR #1832 memory benchmark (Qwen1.5-0.5B-Chat-4bit, ~800 repeats prompt): cache 786.6 MB fp16 vs 226.5 MB 4-bit; peak 1877.5 MB fp16 vs 2126.2 (+13.2%) at prefill step 2048, 1561.6 (-16.8%) at 1024, 1427.2 (-24.0%) at 512, 1385.8 (-26.2%) at 256.",
+          "source": "https://github.com/ml-explore/mlx-lm/pull/1832",
+          "note": null
+        },
+        {
+          "text": "Issue #1308 (2026-05-24) reporter on a 48 GB Mac running Qwen3.6-35B with VS Code assistants said the server's fp16 KV saturated the macOS GPU limit and caused swap paging and hangs.",
+          "source": "https://github.com/ml-explore/mlx-lm/issues/1308",
+          "note": null
+        },
+        {
+          "text": "As of #1353 (comment 2026-07-26) layers whose cache has no quantized variant were skipped silently, so a sliding-window or hybrid model returns far less memory than the flag implies (Gemma 4 26B: 25 of 30 layers); Qwen3.6-35B-A3B is full-attention throughout per that commenter.",
+          "source": "https://github.com/ml-explore/mlx-lm/issues/1308",
+          "note": null
+        },
+        {
+          "text": "PR #1584 adds `RotatingQuantizedKVCache` and `BatchRotatingQuantizedKVCache`, threads `kv_bits/kv_group_size/quantized_kv_start` into `BatchGenerator`, and rejects `quantized_kv_start > 0` on the batching path; its author reports no regression on a 13-question agentic bench with Qwen3.6-35B-A3B and Ministral 3 14B and about 1.88x KV compression.",
+          "source": "https://github.com/ml-explore/mlx-lm/pull/1584",
+          "note": null
+        },
+        {
+          "text": "In #1584, `to_quantized()` raises for `keep > 0` and `make_prompt_cache(model, max_kv_size=N)` builds `RotatingKVCache(max_size=N, keep=4)` at cache.py:37, leaving `max_kv_size` + KV quantization unusable for models without their own `make_cache`.",
+          "source": "https://github.com/ml-explore/mlx-lm/pull/1584",
+          "note": null
+        },
+        {
+          "text": "On M5 (Apple GPU gen 17) 8 of 31 mlx-lm tests/test_generate.py cases fail due to TF32 in fp32 GEMM and pass with `MLX_ENABLE_TF32=0`; tracked as mlx#3897 (batched attention diverges from single-sequence on M5, not M3 Max).",
+          "source": "https://github.com/ml-explore/mlx-lm/pull/1584",
+          "note": null
+        },
+        {
+          "text": "mlx discussion #3134 (M4 Pro 64 GB, mlx-lm 0.30.7, `kv_bits` in generate_step, 4096 tokens): Phi-3.5-mini (MHA, 32 KV heads) none 1.60 GB / 404 MB per 1K tokens / 71.4 tok/s, kv8 0.91 GB / 67.9 (-4.9%), kv4 0.51 GB / 72.2 (+1.1%). One author, AI-assisted, no replies.",
+          "source": "https://github.com/ml-explore/mlx/discussions/3134",
+          "note": null
+        },
+        {
+          "text": "Same discussion: Qwen2.5-14B (4:1 GQA, 8 KV heads) has half the per-token KV of the 3.8B MHA Phi-3.5-mini, and at 32K tokens used 14 GB of 64 GB while TPS had fallen about 30%; the author concludes KV-head count matters more than parameter count for long-context sizing.",
+          "source": "https://github.com/ml-explore/mlx/discussions/3134",
+          "note": null
+        },
+        {
+          "text": "TurboQuant-MLX (Hadamard + Lloyd-Max KV, MLX): recommended mixed K8/V3 with the first 128 tokens kept fp16 as attention-sink protection (`--kv-k-bits 8 --kv-v-bits 3 --kv-min-tokens 128`, group size 64); roundtrip cosine vs fp16 is 0.983 at 3-bit and 0.995 at 4-bit.",
+          "source": "https://github.com/manjunathshiva/turboquant-mlx",
+          "note": null
+        },
+        {
+          "text": "TurboQuant-MLX decode, M4 Max: GPT-OSS-20B fp16 KV 90.6 tok/s vs TQ 3-bit 29.9 (3x slower); GPT-OSS-120B 6.4 vs 8.7 (faster) and TQ 4-bit 16.0; Qwen3.5-122B 5.4 vs 5.7 short prompt, but fully resident with a raised wired cap fp16 beats K8/V3 at every context (1.07x at 256 tokens to 1.20x at 4096).",
+          "source": "https://github.com/manjunathshiva/turboquant-mlx",
+          "note": null
+        },
+        {
+          "text": "TurboQuant-MLX on M5 Pro 48 GB, Qwen3.6-35B-A3B tq3 weights: fp16 KV vs K8/V3 decode 52.0 vs 45.7 tok/s at 65 tokens, 51.5 vs 38.2 at 2.5K, 46.0 vs 16.7 at 14.5K, 34.5 vs 5.2 at 63K; prompt 47.8 vs 76.1 tok/s at 65 tokens, equal by 2.5K. Memory saved was 0.01 GB at 65 tokens, 0.56 GB at 14.5K, 2.08 GB at 63K because only 10 of 40 layers carry KV.",
+          "source": "https://github.com/manjunathshiva/turboquant-mlx",
+          "note": null
+        },
+        {
+          "text": "TurboQuant-MLX's experimental fused decode+attend Metal kernel reads packed K/V directly (online-softmax, rotate query once); end-to-end speedup over its dequant+SDPA path was 1.49x on Llama-3.2-1B at 4.2K and 1.09x on Qwen3.6-35B-A3B at 2.1K; decode only, batch 1, `--kv-min-tokens 0`, head dims multiple of 32.",
+          "source": "https://github.com/manjunathshiva/turboquant-mlx",
+          "note": null
+        },
+        {
+          "text": "TurboQuant-MLX says its caches lack the cross-request `merge` that mlx_lm.server's batch generator needs, so any `--kv-*` flag serves requests sequentially.",
+          "source": "https://github.com/manjunathshiva/turboquant-mlx",
+          "note": null
+        },
+        {
+          "text": "On the M5 Pro 48 GB tier a 63K-token prefill on Qwen3.6-35B-A3B panicked with fp16 KV (30.8 GB peak) and ran with K8/V3 (28.7 GB peak); contexts up to about 14.5K were safe with either.",
+          "source": "https://github.com/manjunathshiva/turboquant-mlx",
+          "note": null
+        },
+        {
+          "text": "TurboQuant-MLX observed total output collapse past about 800 tokens with K3/V3 KV on 3-bit weights (GPT-OSS-20B) while K8/V3 was clean and K3/V3 was fine on fp16 weights.",
+          "source": "https://github.com/manjunathshiva/turboquant-mlx",
+          "note": null
+        },
+        {
+          "text": "vllm-mlx (waybarrios): its prefix cache stored fp16 entries and grew RAM fast; the fix was a memory-aware cache (default 20% of RAM; `--cache-memory-mb`, `--cache-memory-percent`, `--disable-prefix-cache`), and PR #67 (janhilgard, 2026-02-11) adds `--kv-cache-bits {4,8}` and `--kv-cache-group-size` that quantize entries when stored and dequantize on fetch while BatchGenerator keeps full precision (~75% savings at 4-bit, ~50% at 8-bit).",
+          "source": "https://github.com/waybarrios/vllm-mlx/discussions/17",
+          "note": null
+        },
+        {
+          "text": "Ollama FAQ: `OLLAMA_KV_CACHE_TYPE` is global (all models), default f16; q8_0 uses about 1/2 the memory with \"very small loss\", q4_0 about 1/4 with \"small-medium loss that may be more noticeable at higher context sizes\"; works only with flash attention, which Ollama enables automatically when supported; models with a high GQA count (e.g. Qwen2) may see larger impact.",
+          "source": "https://docs.ollama.com/faq",
+          "note": null
+        },
+        {
+          "text": "Ollama issue #9683 (Gemma 3 4B/12B very slow with KV quantization, Windows RTX 4090, v0.6.0) was caused by flash attention executing on the CPU for some model and cache-type combinations (missing CUDA kernels), fixed by #12245; the evidence is not from Apple hardware.",
+          "source": "https://github.com/ollama/ollama/issues/9683",
+          "note": null
+        },
+        {
+          "text": "One secondary guide says Ollama panics at model load instead of falling back when flash attention is off and a quantized cache type is set, that quantized KV silently falls back to f16 on unsupported architectures, and that Ollama has no per-model cache type (two servers or llama.cpp).",
+          "source": "https://openclawdc.com/blog/kv-cache-quantization-q8-vs-q4-vram/",
+          "note": null
+        },
+        {
+          "text": "Same guide, citing a llama.cpp issue on per-head adaptive KV quantization: q4_0 was lossless (BLEU 1.000 over ten configs) on hybrid Qwen 3.5 (8 of 32 layers full-attention) but degrades Llama/Mistral; \"sink heads\" (lowest ~2% entropy) are fragile and keeping 3 of 144 heads unquantized beat spreading bits evenly. Secondary and unverified.",
+          "source": "https://openclawdc.com/blog/kv-cache-quantization-q8-vs-q4-vram/",
+          "note": null
+        },
+        {
+          "text": "A secondary Ollama guide reports 5-10% slower generation from KV quantization on Metal and gives macOS-app setup via `launchctl setenv`; no measurement shown.",
+          "source": "https://modelpiper.com/blog/ollama-kv-cache-quantization",
+          "note": null
+        },
+        {
+          "text": "LM Studio SDK load config exposes `llamaKCacheQuantizationType` and `llamaVCacheQuantizationType` (4-bit or 8-bit, or false); the V option requires flash attention; there is also `useFp16ForKVCache`; these are llama.cpp-engine only and no MLX-engine KV quantization is documented.",
+          "source": "https://lmstudio.ai/docs/typescript/api-reference/llm-load-model-config",
+          "note": null
+        },
+        {
+          "text": "LM Studio's 0.3-series dropped the K/V quant controls (issue #70, 2024-08-30, still open on the pages read), with a user reporting 4x memory use for a 128K context on 16 GB; a 2026 user guide shows a \"K Cache Quantization Type\" and \"V Cache Quantization Type\" setting in the model load panel (Q8_0 and Q4_0 chosen).",
+          "source": "https://github.com/lmstudio-ai/lms/issues/70",
+          "note": null
+        },
+        {
+          "text": "Rapid-MLX documents a quantized live KV cache (int4/int8) on its continuous-batching cache plus a TurboQuant K8V4 codec; its comparison table lists mlx-lm as \"one request at a time with a quantized KV cache\".",
+          "source": "https://github.com/raullenchai/Rapid-MLX",
+          "note": null
+        },
+        {
+          "text": "Recommended per-tier settings (synthesis): 8-16 GB Mac with 7-9B Q4: llama.cpp `-fa on -ctk q8_0 -ctv q8_0` (halves KV) and cap context; use mlx-lm `--kv-bits 8` before 4; avoid q4_0 on models under about 4B.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Recommended 24-32 GB: use q8_0 only when fp16 KV would push weights + KV past about 75% of RAM; prefer hybrid models (small KV) and a smaller context to q4_0; if 4-bit KV is needed use rotated llama.cpp q4_0 and test your task.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Recommended 48-64 GB and up: keep fp16 KV by default (fastest, no quality risk, no batching loss); quantize only to stretch beyond about 64K context or to avoid the wired-limit panic; 128 GB and up rarely benefits.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Multi-agent or batched serving on MLX: skip `--kv-bits` (sequential serving) and use a server that quantizes only stored prefix-cache entries (vllm-mlx) or LM Studio/oMLX style paging instead.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "For tool-calling agents, treat int4 KV as untested on Apple: the only failure evidence is vLLM/CUDA int4 near 100K (existing dossier) and the only hybrid-lossless evidence is a single secondary BLEU result; use q8_0/8-bit for coding agents and compare tool-call parse rates before adopting 4-bit.",
+          "source": "asserted",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Corrections and disagreements",
+      "facts": [
+        {
+          "text": "CONTRADICTS on-device-local-llm-runtimes.md section 10 (\"q4_0 costs ~0.5-1.1% perplexity\"): measured q4_0 cost is model dependent, +4.4% on Qwen3 8B before rotation and +2.5% after.",
+          "source": "https://github.com/ggml-org/llama.cpp/pull/21038",
+          "note": null
+        },
+        {
+          "text": "CONTRADICTS kv-cache-and-long-context-on-mac.md (\"Q4_0 KV can be up to 92% slower at 64K\"): the 92.5% prompt-throughput collapse and \"q4_0 uses more memory than f16\" came from a post that its author retracted on 2026-04-01 (silent request failures, RSS instead of GPU memory).",
+          "source": "https://github.com/ggml-org/llama.cpp/discussions/20969",
+          "note": null
+        },
+        {
+          "text": "CONTRADICTS kv-cache-and-long-context-on-mac.md secondary claim \"Gemma 3 with even q8_0 KV drops GPU use to 20-30% on Ollama\": that was a CUDA kernel-coverage bug closed in October 2025, not an Apple Metal property.",
+          "source": "https://github.com/ollama/ollama/issues/9683",
+          "note": null
+        }
+      ]
+    }
+  ],
+  "related": []
+}

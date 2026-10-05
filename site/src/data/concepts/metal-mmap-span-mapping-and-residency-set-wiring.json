@@ -1,0 +1,279 @@
+{
+  "slug": "metal-mmap-span-mapping-and-residency-set-wiring",
+  "concept": "Metal mmap span mapping and residency-set wiring for partial offload",
+  "generated": "2026-10-05",
+  "summary": "2026-05-11 PR 22941 (frozename) found the same span effect for MTP heads: the MTP head reopens the same GGUF with an override arch that registers `tok_embd` near the file start and `output`/`nextn.*` near the end, so Metal mapped a buffer as big as the main model (two identical `MTL0_Mapped` line...",
+  "facets": [
+    {
+      "title": "Facts",
+      "facts": [
+        {
+          "text": "2026-05-11 PR 22941 (frozename) found the same span effect for MTP heads: the MTP head reopens the same GGUF with an override arch that registers `tok_embd` near the file start and `output`/`nextn.*` near the end, so Metal mapped a buffer as big as the main model (two identical `MTL0_Mapped` lines, 18760.13 MiB each on Qwen3.6 27B Q5_K_M, M4 Pro 48 GB). His fix forced `use_mmap=false` for the MTP head load, dropping its buffer to 1425 MiB (Q5_K_M) and 1719 MiB (Q8_0 from 28213 MiB). Maintainer 0cc4m closed it as a one-line change that belonged in the MTP PR 22673 discussion.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "2026-06-12 issue 24510 filed (b9607) with the root cause analysis; marked stale 2026-07-12; closed not planned 2026-07-26 by the stale bot with no maintainer comment.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "2026-07-04 PR 25309 \"loader: map sparse mmap tensor ranges\" (Takinggg): replaces the single idx-to-buffer map with range-aware entries, coalesces tensor spans across gaps smaller than 64 MiB, creates one backend mmap buffer per coalesced range, resolves each tensor by (file idx, offset, size). Came from an Apple Silicon MoE offload experiment where large routed experts were overridden away. As of the cached page it is unmerged, awaiting review (code-owner reviews not yet requested, 2 approvals required). A commenter (Xjs, 2026-08-31, M5 Max 128 GB) says it let him fit Qwen3.8-Flash-Next Q4_K_XL at full context when patched onto unsloth's llama.cpp.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "2026-09-26 issue 29465 (datanerdie, still open): same span problem, now with a CPU-resident lazy-read table in the middle of the file (see Edge cases). States `get_mapping_range` and its caller are unchanged on master d834d44e6 (2026-09-26).",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "2026-10-01 issue 27822 closed not planned (already covered elsewhere).",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Interior CPU tensor inflates the Metal map (issue 29465, M4 Max 128 GB, build 11049, `iogpu.wired_limit_mb=114688`, recommendedMaxWorkingSetSize 120259.08 MB): unsloth Qwen3.8-Flash-Next-UD-Q4_K_XL (4 shards, 103.7 GiB) stores `per_layer_token_embd.weight` (27465 MiB, lazy-read on CPU) fifth in the first shard, with GPU tensors on both sides. As shipped: MTL0_Mapped 47549.79 + 47088.71 + 11527.99 = 106166 MiB. With that table moved to the end of the file (bit-identical, per-tensor sha256 verified): 47417.16 + 31283.38 = 78701 MiB. Difference 27466 MiB equals the table size.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Symptoms in 29465: `ggml_metal_synchronize: error: command buffer 0 failed with status 5`, `Insufficient Memory (00000008:kIOGPUCommandBufferCallbackErrorOutOfMemory)`, `failed to load draft model` with f16 KV at `-c 262144` plus MTP; with q8_0 KV it starts but every request fails (HTTP 500) while process RSS is only ~85 GiB. UD-IQ4_XS has the same layout: 89332 MiB mapped, just under the limit.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "`--lazy-mode off` does not help (table becomes resident and is still inside the Metal range). `--tensor-read-lazy on` also did not change the mapped size in issue 27822.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Default-limit arithmetic (commenter 159753a52 on 29465): macOS gives the GPU about 3/4 of RAM by default, so 96 GiB = 98304 MiB on a 128 GB Mac (llama.cpp logs 103079 MB). As-shipped Q4_K_XL (106166 MiB) is over that before any KV cache; repacked 78701 + 6144 (256K f16 KV, 12 of 48 layers, 24 KiB/token) + ~3940 (MTP head) is about 88800 MiB and fits with ~9 GiB left. Their summary: file layout, more than quant, decides whether a 128 GB Mac runs this model at full context.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Two parts of the same problem: (a) GPU tensors at opposite ends (24510, output.weight first) and (b) CPU tensors between GPU tensors (29465, 27822). Any `-ot ...=CPU` or `--cpu-moe` that leaves a CPU tensor between GPU tensors does not shrink the span; only the tensor's file position matters, not its size (27822: `-ot \"^output=CPU\"` moved 348 MiB and collapsed a shard's mapped region from 47674 MiB to 11 MiB).",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "With `-ngl N` the offload set is the output layer plus the top N-1 blocks, so `output.weight` (stored first in many GGUFs) plus the last block (stored last) always straddle the file unless the file is reordered. Deterministic over-allocation printed at every load, independent of free RAM; the OOM itself is pressure-dependent (24510: default n_ctx=262144 gave a 24 GB CPU KV cache in addition).",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Failure inside the Metal command buffer is not fatal at load: allocation succeeds (NoCopy wrap of mmap does not fault pages) and the OOM appears at the first decode or at the first synchronize.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Related, separate residency bug (issue 25937, closed via PR 26082): wired memory is not released after `llama_model_free` if no GPU work ever ran, a Metal behaviour reported to Apple; llama.cpp now submits a dummy GPU command buffer at device init (`ggml_metal_dummy_work`, comment cites Apple forum thread 839089). `GGML_METAL_NO_RESIDENCY=1` hides it but costs performance. This is about release, not span size.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Intel Mac with discrete AMD GPU (issue 26949, open): `GGML_ASSERT(buf_src)` in `ggml_metal_buffer_set_tensor` because `newBufferWithBytesNoCopy` returns nil for non-page-aligned pointers; the path is skipped on Apple Silicon because `is_shared` memcpys first. Documents the page-alignment contract of NoCopy.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Fix location: 24510 and 29465 want the loader to split mapping per contiguous run or per large gap, or skip CPU/lazy tensors; PR 25309 coalesces ranges across gaps under 64 MiB; PR 22941 (closed) instead disabled mmap for the affected load; 29465 also offers a converter-side mitigation (write large CPU-destined tensors last). No maintainer has chosen. Not averaged.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Whether it is a bug: 24510 was labeled bug-unconfirmed and auto-closed, 27822/29465 call it an inherent per-file mapping property. No maintainer statement either way found.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Whether PR 25309 will merge, and whether its 64 MiB coalescing threshold changes the interleaved-PLE case in 29465 (a 27 GiB gap would be split, so it should, but untested on that model).",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Whether the fit estimator will ever count the mapped span; no PR found that changes `common_fit_params` for it.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Whether wired residency of an untouched span is the exact trigger or just allocated-size accounting; no Apple documentation read.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Exact GGUF reorder tooling is community scripts only (a Reddit repack script for Qwen3.8-Flash-Next was linked in 29465; site unsupported by the fetch helper, not read).",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "llama.cpp creates one Metal host-pointer buffer per mmap'd file index, spanning the lowest to highest offset of any tensor assigned to that backend context.",
+          "source": "https://raw.githubusercontent.com/ggml-org/llama.cpp/master/src/llama-model.cpp",
+          "note": null
+        },
+        {
+          "text": "`llama_model_loader::get_mapping_range` computes `first=min(weight->offs)` and `last=max(weight->offs+ggml_nbytes)` over the context's tensors with no gap handling.",
+          "source": "https://raw.githubusercontent.com/ggml-org/llama.cpp/master/src/llama-model-loader.cpp",
+          "note": null
+        },
+        {
+          "text": "`load_tensors` calls `ggml_backend_dev_buffer_from_host_ptr(dev, addr+first, last-first, max_size)` and skips the file when `first >= last`.",
+          "source": "https://raw.githubusercontent.com/ggml-org/llama.cpp/master/src/llama-model.cpp",
+          "note": null
+        },
+        {
+          "text": "The in-source comment says mapping only the tensor region lets partial offload work when the model exceeds the Metal buffer size but not RAM.",
+          "source": "https://raw.githubusercontent.com/ggml-org/llama.cpp/master/src/llama-model.cpp",
+          "note": null
+        },
+        {
+          "text": "`ggml_metal_buffer_map` page-aligns the pointer down, rounds the length up to a page, and wraps the range with `newBufferWithBytesNoCopy` in `MTLResourceStorageModeShared` with a nil deallocator.",
+          "source": "https://raw.githubusercontent.com/ggml-org/llama.cpp/master/ggml/src/ggml-metal/ggml-metal-device.m",
+          "note": null
+        },
+        {
+          "text": "When the aligned span exceeds `max_buffer_size`, the Metal code splits it into views of `max_buffer_size` stepped by `max_buffer_size - overlap`, overlap being the largest tensor rounded up plus two pages.",
+          "source": "https://raw.githubusercontent.com/ggml-org/llama.cpp/master/ggml/src/ggml-metal/ggml-metal-device.m",
+          "note": null
+        },
+        {
+          "text": "`ggml_metal_buffer_rset_init` adds every view to one MTLResidencySet, then commits and calls `requestResidency` immediately at buffer creation.",
+          "source": "https://raw.githubusercontent.com/ggml-org/llama.cpp/master/ggml/src/ggml-metal/ggml-metal-device.m",
+          "note": null
+        },
+        {
+          "text": "Each mapped buffer's residency set is also registered with a device-level collection whose background thread periodically calls `requestResidency` on all sets; `GGML_METAL_RESIDENCY_KEEP_ALIVE_S` sets the keep-alive and `GGML_METAL_NO_RESIDENCY` disables residency sets.",
+          "source": "https://raw.githubusercontent.com/ggml-org/llama.cpp/master/ggml/src/ggml-metal/ggml-metal-device.m",
+          "note": null
+        },
+        {
+          "text": "After loading, the loader unmaps the file fragments before the first and after the last used mmap offset (`mmaps_used`), which trims address space but not the interior gap.",
+          "source": "https://raw.githubusercontent.com/ggml-org/llama.cpp/master/src/llama-model-loader.cpp",
+          "note": null
+        },
+        {
+          "text": "In 24510 the log shows the 30973.40 MiB span split into 9093.12, 9093.12, 9093.12 and 4639.97 MiB views, cumulative 31919.72 MiB against a 12124.17 MiB working set, three \"allocated size is greater than the recommended max working set size\" warnings, and then `kIOGPUCommandBufferCallbackErrorOutOfMemory` at decode.",
+          "source": "https://github.com/ggml-org/llama.cpp/issues/24510",
+          "note": null
+        },
+        {
+          "text": "The 24510 reorder was lossless (move `output_norm.weight` and `output.weight` to the end; tensors are looked up by name) and was the only variable between 30973 MiB and 947.45 MiB mapped.",
+          "source": "https://github.com/ggml-org/llama.cpp/issues/24510",
+          "note": null
+        },
+        {
+          "text": "24510 recommends `-fit off` plus `-v` to pin `-ngl` and compare `offloaded N/M layers` against `MTL0_Mapped model buffer size`; the fit estimator counts only the offloaded tensors (~947 MiB), not the span.",
+          "source": "https://github.com/ggml-org/llama.cpp/issues/24510",
+          "note": null
+        },
+        {
+          "text": "24510 suggests the fix is one backend buffer per contiguous run of tensor offsets in `load_tensors`; it was auto-closed not planned on 2026-07-26 after the stale label with no maintainer comment.",
+          "source": "https://github.com/ggml-org/llama.cpp/issues/24510",
+          "note": null
+        },
+        {
+          "text": "Issue 29465 (open, 2026-09-26) shows an interior CPU-resident lazy table, `per_layer_token_embd.weight` (27465 MiB), inflating the Metal map from 78701 MiB to 106166 MiB for unsloth Qwen3.8-Flash-Next-UD-Q4_K_XL; the difference is exactly the table size.",
+          "source": "https://github.com/ggml-org/llama.cpp/issues/29465",
+          "note": null
+        },
+        {
+          "text": "In 29465 a plain gguf-py rewrite moving the table to the end (no requantisation, per-tensor sha256 identical) made f16 KV at 262144 context plus the MTP head load and serve at ~87 GiB RSS idle and ~110 GiB at 200K tokens with unchanged speed and output.",
+          "source": "https://github.com/ggml-org/llama.cpp/issues/29465",
+          "note": null
+        },
+        {
+          "text": "In 29465 `--lazy-mode off` does not help because the table becomes resident and remains inside the Metal range.",
+          "source": "https://github.com/ggml-org/llama.cpp/issues/29465",
+          "note": null
+        },
+        {
+          "text": "29465 states `get_mapping_range` and its caller are unchanged on master d834d44e6 (2026-09-26).",
+          "source": "https://github.com/ggml-org/llama.cpp/issues/29465",
+          "note": null
+        },
+        {
+          "text": "On a 128 GB Mac at the default GPU limit (~96 GiB = 98304 MiB), as-shipped UD-Q4_K_XL maps 106166 MiB and cannot load, while the repacked file (78701 MiB + 6144 MiB f16 KV at 256K + ~3940 MiB MTP head) fits.",
+          "source": "https://github.com/ggml-org/llama.cpp/issues/29465",
+          "note": null
+        },
+        {
+          "text": "Issue 27822 comment: the mmap span lever is tensor position in the file, not tensor size; `-ot \"^output=CPU\"` moved 348 MiB off Metal and collapsed one shard's mapped region from 47674 MiB to 11 MiB.",
+          "source": "https://github.com/ggml-org/llama.cpp/issues/27822",
+          "note": null
+        },
+        {
+          "text": "Issue 27822 states `--tensor-read-lazy on` does not change the mapped region.",
+          "source": "https://github.com/ggml-org/llama.cpp/issues/27822",
+          "note": null
+        },
+        {
+          "text": "PR 25309 \"loader: map sparse mmap tensor ranges\" coalesces tensor spans only across gaps under 64 MiB, builds one backend mmap buffer per coalesced range and resolves each tensor by (file idx, offset, size); it was unmerged and awaiting review at fetch time.",
+          "source": "https://github.com/ggml-org/llama.cpp/pull/25309",
+          "note": null
+        },
+        {
+          "text": "A commenter on PR 25309 (M5 Max 128 GB) reports the patch let Qwen3.8-Flash-Next Q4_K_XL load with full context on unsloth's llama.cpp build.",
+          "source": "https://github.com/ggml-org/llama.cpp/pull/25309",
+          "note": null
+        },
+        {
+          "text": "PR 22941 (closed 2026-05-11 by maintainer 0cc4m as a one-line change belonging in the MTP PR) found MTP-head loads mapped a Metal buffer the size of the main model (two identical 18760.13 MiB `MTL0_Mapped` lines) because the MTP arch registers `tok_embd` at file start and `output` at file end.",
+          "source": "https://github.com/ggml-org/llama.cpp/pull/22941",
+          "note": null
+        },
+        {
+          "text": "PR 22941 proposed forcing `use_mmap=false` for the MTP head load, reducing its Metal buffer from 18760 MiB to 1425 MiB (Q5_K_M) and from 28213 MiB to 1719 MiB (Q8_0) on an M4 Pro 48 GB, at the cost of reading ~1-2 GB directly at load.",
+          "source": "https://github.com/ggml-org/llama.cpp/pull/22941",
+          "note": null
+        },
+        {
+          "text": "Non-mmap loading sizes the backend buffer to the registered tensors rather than the mmap range, which is why `--no-mmap` avoids the span effect.",
+          "source": "https://github.com/ggml-org/llama.cpp/pull/22941",
+          "note": null
+        },
+        {
+          "text": "Issue 25937 (closed via PR 26082): memory wired via residency sets stays wired after `llama_model_free` unless some GPU work ran in the process; the fix submits a dummy blit command buffer at device init, and the author reported the underlying bug to Apple.",
+          "source": "https://github.com/ggml-org/llama.cpp/issues/25937",
+          "note": null
+        },
+        {
+          "text": "Issue 25937 reproduced the leak with 16 GB wired during a 20 s sleep after `llama_model_free` dropping to ~3 GB only at process exit, and `GGML_METAL_NO_RESIDENCY=1` hid it.",
+          "source": "https://github.com/ggml-org/llama.cpp/issues/25937",
+          "note": null
+        },
+        {
+          "text": "Issue 26949: on Intel Macs with a discrete AMD GPU, `ggml_metal_buffer_set_tensor` wraps unaligned tensor pointers with `newBufferWithBytesNoCopy`, which returns nil and trips `GGML_ASSERT(buf_src)`; the path is not reached on Apple Silicon because `is_shared` buffers memcpy first.",
+          "source": "https://github.com/ggml-org/llama.cpp/issues/26949",
+          "note": null
+        },
+        {
+          "text": "gguf-py ships `gguf_new_metadata.py`, `gguf_set_metadata.py`, `gguf_dump.py`, `gguf_hash.py`, `gguf_convert_endian.py` and `gguf_editor_gui.py`; none is a tensor reorder tool.",
+          "source": "https://github.com/ggml-org/llama.cpp/tree/master/gguf-py/gguf/scripts",
+          "note": null
+        },
+        {
+          "text": "`gguf_new_metadata.py` copies tensors in `reader.tensors` order with `add_tensor_info` then writes data in the same loop, so it preserves the source file order.",
+          "source": "https://raw.githubusercontent.com/ggml-org/llama.cpp/master/gguf-py/gguf/scripts/gguf_new_metadata.py",
+          "note": null
+        },
+        {
+          "text": "A reorder is therefore a small custom gguf-py script that iterates `reader.tensors` in the desired order (CPU-destined or output tensors last), writes the same metadata and alignment, and can be verified with per-tensor hashes via `gguf_hash.py`.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Diagnosis recipe: run with `-v` (and `-fit off` to pin layers), compare `offloaded N/M layers` with every `MTL0_Mapped model buffer size` line and with `recommendedMaxWorkingSetSize`; a mapped size far above the offloaded tensor bytes, or any `allocated size is greater than the recommended max working set size` warning, indicates span inflation. [asserted from the 24510 and 29465 logs]",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Workarounds ranked by evidence: reorder the GGUF so the offload set is a contiguous file suffix (24510, 29465), move the single straddling tensor to CPU with `-ot` (27822 `^output=CPU`), `--no-mmap` (hurts large-model RAM headroom; MTP head case 22941), raise the GPU wired limit (`iogpu.wired_limit_mb` was 114688 in 29465), or apply PR 25309 locally. [asserted from cited issues]",
+          "source": "asserted",
+          "note": null
+        }
+      ]
+    }
+  ],
+  "related": []
+}

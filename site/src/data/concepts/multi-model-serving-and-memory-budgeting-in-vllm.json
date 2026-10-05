@@ -1,0 +1,99 @@
+{
+  "slug": "multi-model-serving-and-memory-budgeting-in-vllm",
+  "concept": "Multi-model serving and memory budgeting in vllm-mlx and oMLX registries",
+  "generated": "2026-10-05",
+  "summary": "`--models-config` cannot be combined with a positional model argument or `--served-model-name` in vllm-mlx.",
+  "facets": [
+    {
+      "title": "Facts",
+      "facts": [
+        {
+          "text": "`--models-config` cannot be combined with a positional model argument or `--served-model-name` in vllm-mlx.",
+          "source": "https://waybarrios.com/vllm-mlx/guides/model-registry/",
+          "note": null
+        },
+        {
+          "text": "In vllm-mlx 0.4.0 `manager.memory_budget_gb` was required from the YAML and had no CLI or environment override; absent, `model_registry._parse_memory_budget_bytes` raised `models-config manager.memory_budget_gb is required`.",
+          "source": "https://github.com/waybarrios/vllm-mlx/issues/627",
+          "note": null
+        },
+        {
+          "text": "In issue 627 the fit-check was `projected_bytes + required_bytes <= memory_budget_bytes` at three call sites and never referenced `gpu_memory_utilization`, `cache_memory_mb` or the wired limit; the reproduction used a 68 GB budget with two ~32 GB models and a ~79 GB ceiling.",
+          "source": "https://github.com/waybarrios/vllm-mlx/issues/627",
+          "note": null
+        },
+        {
+          "text": "A vllm-mlx collaborator confirmed issue 627 on 2026-07-10 and argued against auto-clamping, because activation and KV headroom are workload-dependent and a derived number would still mislead; the shipped path was a startup warning plus a CLI override.",
+          "source": "https://github.com/waybarrios/vllm-mlx/issues/627",
+          "note": null
+        },
+        {
+          "text": "PR 640 adds `--memory-budget-gb`: it overrides `manager.memory_budget_gb` and the legacy `manager.memory_budget`, accepts only positive finite numbers, rejects zero, negative, NaN, infinity and non-numeric values, and is rejected outside `--models-config` registry mode.",
+          "source": "https://github.com/waybarrios/vllm-mlx/pull/640",
+          "note": null
+        },
+        {
+          "text": "Commit 95140a3 (danmackinlay fork, 2026-08-09) removed a fixed `cache_memory_mb` subtraction from the budget diagnostic because `_clone_scheduler_config` applies `cache_memory_mb` per resident BatchedEngine and SimpleEngine gets none.",
+          "source": "https://github.com/waybarrios/vllm-mlx/issues/627",
+          "note": null
+        },
+        {
+          "text": "Issue 712 reports that the startup report prints `prefix-cache maximum none configured` under `--use-paged-cache` although multimodal engines still build a `MemoryAwarePrefixCache` from `--cache-memory-mb` (30,720 MB in the log), because `mllm_scheduler.py` never checks `use_paged_cache`; it was closed by PR 713.",
+          "source": "https://github.com/waybarrios/vllm-mlx/issues/712",
+          "note": null
+        },
+        {
+          "text": "The registry guide recommends `wait_then_preempt` for a shared internal service, `wait_then_fail` for a user-facing low-latency API, and `wait` for strict isolation.",
+          "source": "https://waybarrios.com/vllm-mlx/guides/model-registry/",
+          "note": null
+        },
+        {
+          "text": "The registry guide lists `loaded`, `loading`, `unloaded` and `preempting` as states in `/v1/models`, and returns 404 with the configured ids for an unregistered model.",
+          "source": "https://waybarrios.com/vllm-mlx/guides/model-registry/",
+          "note": null
+        },
+        {
+          "text": "The registry guide lists failure modes: too many `preload: true` entries cause a startup load storm, an aggressive `preempt` policy cancels active requests during swaps, and a budget too large for `--gpu-memory-utilization` causes MLX out-of-memory instead of eviction.",
+          "source": "https://waybarrios.com/vllm-mlx/guides/model-registry/",
+          "note": null
+        },
+        {
+          "text": "The registry guide recommends per-model overrides only for `continuous_batching`, `enable_mtp`, `mllm`, `prefill_step_size` and `stream_interval`, and keeping auth and similar settings global.",
+          "source": "https://waybarrios.com/vllm-mlx/guides/model-registry/",
+          "note": null
+        },
+        {
+          "text": "Issue 3956's log shows oMLX computing three sizes for one load: `actual: 97.12GB, local estimate: 105.23GB, full model: 181.64GB`.",
+          "source": "https://github.com/jundot/omlx/issues/3956",
+          "note": null
+        },
+        {
+          "text": "With the memory guard disabled oMLX 0.7.0rc1 logged `Loading ... past the static memory ceiling with the memory guard disabled (projected 197.54GB > ceiling 124.00GB, current baseline) and nothing left to evict` and then failed the load with Metal Insufficient Memory.",
+          "source": "https://github.com/jundot/omlx/issues/3956",
+          "note": null
+        },
+        {
+          "text": "After a failed load oMLX caches the failure 'until next discovery refresh' (commit 84f14e37), which stops retry loops on corrupt files but also froze a transient resource failure with no targeted UI recovery.",
+          "source": "https://github.com/jundot/omlx/issues/3956",
+          "note": null
+        },
+        {
+          "text": "Issue 3737 logs `Settle barrier timed out ... freed=879.91MB (need>=13.70GB)` and `Emergency reclaim failed ... active_memory=16.45GB exceeds safe threshold (5.00GB)` after unloading a VLM with an MTP drafter, leaving about 16 GB allocated until restart; commit c8d565b released VLM MTP target references on unload.",
+          "source": "https://github.com/jundot/omlx/issues/3737",
+          "note": null
+        },
+        {
+          "text": "Issue 3959 shows the accuracy benchmark's `Unloading model ... (immediate abort)` followed by a forced reload killing the oMLX process outright on a 256 GB M3 Ultra, with the guard enabled.",
+          "source": "https://github.com/jundot/omlx/issues/3959",
+          "note": null
+        },
+        {
+          "text": "PR 3933 refuses a model load, under `safe` or `balanced`, when less than the tier reserve would stay free; main loaded the same 10.5 GB model at every tier on a 16 GB Mac with 1.1-1.8 GB of swap.",
+          "source": "https://github.com/jundot/omlx/pull/3933",
+          "note": null
+        }
+      ]
+    }
+  ],
+  "related": []
+}

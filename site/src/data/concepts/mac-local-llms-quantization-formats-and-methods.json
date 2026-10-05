@@ -1,0 +1,344 @@
+{
+  "slug": "mac-local-llms-quantization-formats-and-methods",
+  "concept": "Mac local LLMs: Quantization formats and methods",
+  "generated": "2026-10-05",
+  "summary": "MLX affine 4-bit group 64 = ~4.5 bpw; Q4_K = 4.5 bpw but Q4_K_M files are 4.89 bpw (Q6_K on half of attn v/ffn down). MXFP4 4.25.",
+  "facets": [
+    {
+      "title": "Format basics and choice",
+      "facts": [
+        {
+          "text": "MLX affine 4-bit group 64 = ~4.5 bpw; Q4_K = 4.5 bpw but Q4_K_M files are 4.89 bpw (Q6_K on half of attn v/ffn down). MXFP4 4.25.",
+          "source": "https://github.com/ggml-org/llama.cpp/pull/1684",
+          "note": null
+        },
+        {
+          "text": "No GGUF-to-MLX path without dequantizing: convert from HF safetensors. GGUF path: `convert_hf_to_gguf.py` to bf16/f16, then `llama-quantize <in> <out> Q4_K_M`; keep the `--mmproj` projector at Q8_0.",
+          "source": "https://github.com/ggml-org/llama.cpp/blob/master/tools/quantize/README.md",
+          "note": null
+        },
+        {
+          "text": "llama.cpp reads GGUF; Ollama 0.19+ (2026-03-31) on Apple silicon runs MLX with NVFP4; mlx-lm, mlx-vlm, oMLX, LM Studio MLX engine read MLX safetensors.",
+          "source": "https://gingter.org/2026/04/23/ollama-goes-mlx/",
+          "note": null
+        },
+        {
+          "text": "gpt-oss-20b-MXFP4-Q8 (11,516 MB) exceeds the 10,922 MB Metal working set on a 16 GB M4 and OOMs with \"[METAL] Command buffer execution failed: Insufficient Memory\"; llama.cpp ran the GGUF at ~26 tok/s with `--n-cpu-moe 12 --no-mmap`.",
+          "source": "https://github.com/ml-explore/mlx-lm/issues/644",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "mlx-lm recipes and flags",
+      "facts": [
+        {
+          "text": "`--quant-predicate` recipes: mixed_2_6, mixed_3_4, mixed_3_6, mixed_4_6 give v_proj, down_proj and lm_head high bits in the first/last 1/8 of layers and every third between. MLX maintainers will not add exact Q4_K_M; they suggest mixed_3_6, `--q-group-size 32`, or 6-bit.",
+          "source": "https://github.com/ml-explore/mlx-lm/blob/main/mlx_lm/convert.py",
+          "note": null
+        },
+        {
+          "text": "Errors: ValueError \"Quant predicates only support 'affine' quantization.\" with mxfp4/nvfp4/mxfp8; \"Model does not have expected keys for mixed quant\" when down_proj names are absent.",
+          "source": "https://github.com/ml-explore/mlx-lm/blob/main/mlx_lm/convert.py",
+          "note": null
+        },
+        {
+          "text": "Group size 32 costs 7-14% decode and up to 2x prefill on Metal.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "`mlx_lm.dynamic_quant` defaults 4/5 bits (achievable BPW only 4.5-5.5), supports `--target-bpw`, `--sensitivities`; DWQ defaults 1024 samples, 4 bits, useful only at 2-4 bit; run dynamic_quant then DWQ.",
+          "source": "https://github.com/ml-explore/mlx-lm/blob/main/mlx_lm/LEARNED_QUANTS.md",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "fp16 vs bf16 on M1/M2",
+      "facts": [
+        {
+          "text": "M1/M2 emulate bf16 in the Metal compiler. Scalar benchmark M2 Max 38c: FP32 2602, BF16 2600, FP16 4253 GFLOPS; M3+ show BF16 ~ FP16, so there fp16 gains nothing.",
+          "source": "https://github.com/deepsweet/metal-fp32-bf16-fp16",
+          "note": null
+        },
+        {
+          "text": "Fix: reconvert from source with `mlx_lm.convert --hf-path <src> --mlx-path <dst> -q --dtype float16` (casts non-quantized tensors and scales/biases; default is config torch_dtype, usually bf16). M1 Pro 9B oQ4: prefill 138.6 to 232.6 tok/s, decode 27.2 to 31.2.",
+          "source": "https://github.com/jundot/omlx/issues/604",
+          "note": null
+        },
+        {
+          "text": "Gemma 3 fp16 overflows (activations ~800,000 vs max 65,504, between decoder layers). Gemma 4 31B/26B-A4B vision tower overflows in `(h - std_bias) * std_scale`, output only `<pad>` (vLLM #40290); gate on `vision_config.standardize`, E2B/E4B false. Keep bf16.",
+          "source": "https://github.com/vllm-project/vllm/issues/40290",
+          "note": null
+        },
+        {
+          "text": "Rule: M1/M2 use fp16 unless overflow-prone, test for NaN/gibberish, keep bf16 fallback; M3+ keep bf16.",
+          "source": "asserted",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Unsloth Dynamic and GGUF recipes",
+      "facts": [
+        {
+          "text": "Dynamic keeps high-leverage tensors at 4-6 bit, experts at 1.5-2 bit; v3.0 (Qwen3.8-27B) is PTQ, GGUF-only. KLD sweep: ffn_up/gate_exps tolerate ~3 bit; ssm_out and attn_* are fragile; MXFP4 on attn_gate/attn_q/ssm_* is worse than Q4_K.",
+          "source": "https://unsloth.ai/docs/models/qwen3.5/gguf-benchmarks",
+          "note": null
+        },
+        {
+          "text": "1-bit and 2-bit UD: looping (presence_penalty 1.5+), empty replies, failing tool calls; UD-Q2_K_XL is the floor for agent work.",
+          "source": "https://unsloth.ai/docs/basics/dynamic-3.0-ggufs",
+          "note": null
+        },
+        {
+          "text": "llama-quantize: `--tensor-type regex=type`, `--tensor-type-file` (whitespace tokens, patterns lowercased, no `#` comments, first match wins, substring match), `--dry-run` previews sizes. Routers (ffn_gate_inp) stay at source precision; shared experts get no protection unless overridden; `ffn_down` also matches `ffn_down_shexp`, so order specific lines first (no warning).",
+          "source": "https://raw.githubusercontent.com/ggml-org/llama.cpp/master/src/llama-quant.cpp",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "MoE protection and data-driven MLX quants",
+      "facts": [
+        {
+          "text": "Stock mlx-lm pins routers at 8-bit group 64 for Qwen3 MoE, Qwen3-Next (also shared_expert_gate), Gemma 4, gpt-oss; Mixtral router gets base bits. A user `--quant-predicate` replaces that rule, dropping router protection, and mixed recipes lift routed down_proj to 6-bit.",
+          "source": "https://raw.githubusercontent.com/ml-explore/mlx-lm/main/mlx_lm/utils.py",
+          "note": null
+        },
+        {
+          "text": "Independent KLD (mlx-eval, Qwen3.6-35B-A3B): Q4 0.0883, oQ4 0.0471, UD4 0.0293, OptiQ 0.0285, uniform Q6 0.0211, Q8 0.0138; dense 27B: mixed barely beats Q4 (0.2993 vs 0.2758).",
+          "source": "https://github.com/deepsweet/mlx-eval/blob/main/results/README.md",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Gemma 4 QAT",
+      "facts": [
+        {
+          "text": "Gemma 4 QAT to GGUF Q4_0 loses accuracy: llama.cpp uses F16 scales vs BF16 QAT and scales are not optimal. Unsloth's dynamic remedy forces the Q4_0 lattice to match. KLD vs QAT BF16: E2B 0.00173 (2.62 GB) vs naive Q4_0 0.05109 (3.35 GB); 26B A4B 0.09788, top-1 85.63% vs 0.36094, 70.20%; 12B 0.13288, still lossy. 8-bit for small models, Dynamic 4-bit for larger.",
+          "source": "https://unsloth.ai/docs/models/gemma-4/qat",
+          "note": null
+        },
+        {
+          "text": "Mobile-mixture QAT E2B/E4B become UD-Q2_K_XL via TQ2_0 plus a negative scaler: E2B 2.19 GB (61 TQ2_0 tensors, KLD 0.00409), E4B 3.22 GB (KLD 0.00102).",
+          "source": "https://unsloth.ai/docs/models/gemma-4/qat",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Ternary Bonsai (Prism) GGUF",
+      "facts": [
+        {
+          "text": "Stock llama.cpp and Ollama cannot run Ternary Bonsai 2: a `Q2_0` file \"loads without a warning and outputs gibberish\" (no Hadamard activation runtime); PQ2_0=142 and PTQ1_0=143 packs are refused; Ollama 0.33.2 `ollama create` fails `size overflow`. Use Prism fork binaries `prism-b10658` or newer; dev `Q2_0` lives in `Ternary-Bonsai-2-27B-gguf-dev`.",
+          "source": "https://docs.prismml.com/download/formats",
+          "note": null
+        },
+        {
+          "text": "Legacy `*-Q2_0.gguf` (no `g64`) is g128 under the id now meaning g64, readable only by old `prism-v5`; use `Ternary-Bonsai-27B-Q2_g64.gguf`. The MLX package (2-bit g128) runs on stock MLX.",
+          "source": "https://huggingface.co/prism-ml/Ternary-Bonsai-27B-gguf/discussions/59",
+          "note": null
+        },
+        {
+          "text": "Upstreaming (README, 2026-09-25): llama.cpp PRs 27779, 29094, 29095 merged (F16 FWHT op, no model-side path), 29096, 29243 open; PQ2_0/PTQ1_0 stay fork-specific, no upstream promise.",
+          "source": "https://github.com/PrismML-Eng/Bonsai-demo",
+          "note": null
+        },
+        {
+          "text": "Fork with a folded model plus `--spec-type draft-mtp` errors `Hadamard-latent table 'token_embd.weight' is read without the inverse transform` (fixed in commit 422590f5, 2026-09-21). Sizes differ page vs card: PQ2_0 2.16 bpw 7.25 GB vs 2.13, 7.21 GB.",
+          "source": "https://github.com/ggml-org/llama.cpp/issues/29058",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Re-uploads and cache hygiene",
+      "facts": [
+        {
+          "text": "A same-name re-upload keeps old snapshots and blobs: use `hf cache ls --revisions`, `hf cache rm`, `hf cache verify`; pin `hf download --revision <commit>`; `LLAMA_CACHE` moves llama.cpp's cache.",
+          "source": "https://huggingface.co/docs/huggingface_hub/en/guides/manage-cache",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Corrections to earlier claims",
+      "facts": [
+        {
+          "text": "\"I-quants slower on Metal\" holds only for 2-3-bit codebook types; IQ4_XS tg 77.5 vs Q4_K_M 71.9 on non-Mac hardware.",
+          "source": "https://github.com/ggml-org/llama.cpp/discussions/5617",
+          "note": null
+        },
+        {
+          "text": "OptiQ \"~3% more disk\" was wrong: the Qwen3.6-35B-A3B card is 22.1 vs 19.0 GB (+16%), 392 layers at 8-bit, lower MMLU/GSM8K than uniform 4-bit.",
+          "source": "https://huggingface.co/mlx-community/Qwen3.6-35B-A3B-OptiQ-4bit",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Open questions",
+      "facts": [
+        {
+          "text": "No same-corpus KLD of Q4_K_M/UD vs MLX mixed quants; I-quant cost on M3-M5 unmeasured; fp16 Gemma MLX untested; Q4_0 BF16-scale gap unfixed; no router 4 vs 8-bit ablation.",
+          "source": "asserted",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Corrections and disagreements",
+      "facts": [
+        {
+          "text": "I-quants on Metal: \"slower on Apple silicon\" (existing file, llama.cpp thread) holds for 2-3-bit codebook quants, but a thread commenter reports IQ4_NL as fast as Q4_K and ikawrakow's README table (non-Mac hardware, unnamed) shows IQ4_XS tg 77.5 vs Q4_K_M 71.9 tok/s. See CONTRADICTS list in Claims.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "CONTRADICTS on-device-local-llm-runtimes.md sec 10 / quantization-format-comparison.md decision tree (Mac -> \"GGUF Q4_K (Ollama; Metal)\"): Ollama 0.19 (2026-03-31) runs Apple silicon inference on MLX instead of llama.cpp Metal.",
+          "source": "https://gingter.org/2026/04/23/ollama-goes-mlx/",
+          "note": null
+        },
+        {
+          "text": "CONTRADICTS existing sec 10 \"I-quants slower than K-quants on CPU and Metal\" as a blanket rule: IQ4_XS and IQ4_NL are not slower than Q4_K_M in llama.cpp's table, and a user reports IQ4_NL as fast as Q4_K on Apple silicon; the slowdown is for 2-3-bit codebook I-quants.",
+          "source": "https://github.com/ggml-org/llama.cpp/discussions/5617",
+          "note": null
+        },
+        {
+          "text": "Vendor cost claims vs vendor card. OptiQ site says \"drop-in 4-bit quants at the same size\" and \"+3.5 vs U4\" for gemma-4-31B, and the existing dossier records ~3% more disk. CONTRADICTS quantization-formats-for-apple-silicon-gguf-vs-mlx.md (\"OptiQ ... ~3% more disk\"): the Qwen3.6-35B-A3B-OptiQ-4bit card shows 22.1 GB vs 19.0 GB uniform (+3.1 GB, +16%), 392 of 510 quantized layers at 8-bit; the independent run measures 19.67 vs 18.17 GiB (+8%). The card also says it \"beats stock uniform 4-bit on every benchmark\" while its own table shows MMLU 83.7 vs 84.6, GSM8K 87.9 vs 89.4, IFEval 72.6 vs 73.0 lower; the +1.28 Capability Score comes from BFCL +2.5 and HashHop +8.0 (long-context retrieval, 52.0 vs 44.0), HumanEval tied.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Unsloth KLD for Qwen3.6-27B UD-MLX-4bit: mean 0.0227 at 26.2 GB. CONTRADICTS (in magnitude) data-driven-mixed-precision-mlx-quants-oq-optiq-jang.md, where mlx-eval measures UD4 on the same model at KLD 0.1683 / 23.53 GiB. Different corpus (Unsloth Wiki-style vs mlx-eval 8192-token mixed-domain), different eval harness, and 0.0227 vs 0.1683 is a 7x gap; no reconciliation found.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Unsloth's earlier unsloth-mlx project (fine-tuning on Mac) is distinct from UD-MLX quant uploads, but the quant uploads are real as of Qwen3.6 (2026-04); CONTRADICTS the quantization-formats dossier claim that Unsloth \"is not an MLX-quant publisher\".",
+          "source": "https://unsloth.ai/docs/models/qwen3.6",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Concepts in this cluster",
+      "facts": [
+        {
+          "text": "Quantization formats for Apple silicon (GGUF vs MLX)",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Data-driven mixed-precision MLX quants (oQ, OptiQ, JANG)",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Unsloth Dynamic GGUF methodology",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "GGUF re-upload versioning and stale cache hygiene",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "M1/M2 software-emulated bfloat16 and FP16 conversion",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Mixed-precision quantization for MoE experts 4-bit attention 8-bit",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "ParoQuant pairwise-rotation quantization for MLX",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "TQ4_1S Hadamard-rotated weight quantization in llama.cpp fork",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "TurboQuant Hadamard-rotation codebook weight quantization",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "UD-IQ4_NL_XL and legacy Q4_NL Q5_1 types on Metal kernels",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Vector LUT and mixed 2/4-bit GPTQ quantization for ANE",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Gemma 3/4 float16 activation overflow handling across runtimes",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "MoE router and shared-expert precision protection in quant recipes",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Gemma 4 float16 conversion guard for M1/M2 MLX",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "llama-quantize --tensor-type-file recipes for MoE shared experts",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "llama-quantize --tensor-type-file role-aware policies (attention/FFN/boundary)",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "oMLX custom quantization loader dispatcher (maybe_load_custom_quantization)",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Gemma 4 QAT GGUF conversion: F16 versus BF16 scales in llama.cpp Q4_0",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Gemma 4 mobile-mixture QAT with TQ2_0 2-bit layers (UD-Q2_K_XL for E2B/E4B)",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Ternary GGUF packings PTQ1_0 and PQ2_0 in the Prism llama.cpp fork",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Upstreaming Prism ternary types 142/143 into llama.cpp and Ollama",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Silent wrong-output loading of Hadamard-rotated F16 GGUF in stock llama.cpp",
+          "source": "asserted",
+          "note": null
+        }
+      ]
+    }
+  ],
+  "related": []
+}

@@ -1,0 +1,154 @@
+{
+  "slug": "ds4-own-verbs-layer-versus-jaccl",
+  "concept": "ds4 own verbs layer versus JACCL",
+  "generated": "2026-10-05",
+  "summary": "ds4 and JACCL are two separate userspace clients of the same Apple verbs library. JACCL is an MLX collective library for any rank count (mesh and ring). ds4's `ds4_tp.c` is a two-rank exchange of per-layer partial results through a registered slab.",
+  "facets": [
+    {
+      "title": "Facts",
+      "facts": [
+        {
+          "text": "ds4 and JACCL are two separate userspace clients of the same Apple verbs library. JACCL is an MLX collective library for any rank count (mesh and ring). ds4's `ds4_tp.c` is a two-rank exchange of per-layer partial results through a registered slab.",
+          "source": "https://raw.githubusercontent.com/antirez/ds4/main/ds4_tp.c",
+          "note": null
+        },
+        {
+          "text": "Both load the verbs library at run time with `dlopen` and resolve each symbol by name, so neither links against it. JACCL opens `librdma.dylib` with `RTLD_NOW | RTLD_GLOBAL`; ds4 opens `/usr/lib/librdma.dylib`.",
+          "source": "https://raw.githubusercontent.com/ml-explore/mlx/main/mlx/distributed/jaccl/lib/jaccl/rdma.cpp",
+          "note": null
+        },
+        {
+          "text": "ds4's source comment says its INIT, RTR and RTS steps use \"the exact recipe the driver accepts (same as JACCL): MTU 1024 and GRH via the IPv4-mapped GID\".",
+          "source": "https://raw.githubusercontent.com/antirez/ds4/main/ds4_tp.c",
+          "note": null
+        },
+        {
+          "text": "JACCL's RTR sets `grh.sgid_index = 1` as a literal and turns on `is_global` only when the peer GID has a non-zero interface id. ds4's RTR always sets `is_global = 1` and passes `r->gid_index`, the index it scanned or the user gave. Both set `hop_limit = 1`.",
+          "source": "https://raw.githubusercontent.com/antirez/ds4/main/ds4_tp.c",
+          "note": null
+        },
+        {
+          "text": "JACCL sends a fixed packet sequence number, 7. ds4 derives it from the process id, the object address and the setup attempt (`+ setup_attempt * 0x1000`, masked to 24 bits), so each re-created queue pair gets a different one.",
+          "source": "https://raw.githubusercontent.com/antirez/ds4/main/ds4_tp.c",
+          "note": null
+        },
+        {
+          "text": "ds4 has operator overrides for the device and the GID index (`--rdma-device`, `--rdma-gid-index`). The fetched `rdma.cpp` contains no `getenv` call, so JACCL has no equivalent override.",
+          "source": "https://raw.githubusercontent.com/ml-explore/mlx/main/mlx/distributed/jaccl/lib/jaccl/rdma.cpp",
+          "note": null
+        },
+        {
+          "text": "ds4 checks `wc.status != IBV_WC_SUCCESS` at four completion-poll sites and reports a numeric \"wc status N\" string.",
+          "source": "https://raw.githubusercontent.com/antirez/ds4/main/ds4_tp.c",
+          "note": null
+        },
+        {
+          "text": "ds4 asks for 1024 send and 1024 receive work requests, then records the depths the driver actually granted (it falls back to 64 receive and 256 send when the driver reports zero) and prints them in its warm-up success line.",
+          "source": "https://raw.githubusercontent.com/antirez/ds4/main/ds4_tp.c",
+          "note": null
+        },
+        {
+          "text": "ds4 splits each gate payload into 16384-byte messages (`chunks_per_gate = ceil(vec_bytes / 16384)`) and keeps a lookahead window of 16 gates of posted receives during decode.",
+          "source": "https://raw.githubusercontent.com/antirez/ds4/main/ds4_tp.c",
+          "note": null
+        },
+        {
+          "text": "ds4 keeps one TCP control socket for the whole session. It carries the engine identity, the RDMA info frame (slab base, rkey, queue pair number, packet sequence number, lid, GID), the READY barrier, the POSTED barrier and the WARM status exchange, and it is also the TCP fallback path.",
+          "source": "https://raw.githubusercontent.com/antirez/ds4/main/ds4_tp.c",
+          "note": null
+        },
+        {
+          "text": "JACCL's coordinator, which carries its connection info over TCP, became optional in mlx v0.32.1 (PR 3899).",
+          "source": "https://github.com/ml-explore/mlx/releases",
+          "note": null
+        },
+        {
+          "text": "The fetched `rdma.cpp` has no warm-up round and no receives-posted barrier; ds4 has both (see uc-queue-pair-one-direction-drop-warm-up-check.md).",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "ds4's TP verbs layer has Linux RC support, with RoCEv2 GID scoring that prefers the GID matching the control socket's local address; JACCL's file is macOS-only (it loads `librdma.dylib`).",
+          "source": "https://raw.githubusercontent.com/antirez/ds4/main/ds4_tp.c",
+          "note": null
+        },
+        {
+          "text": "A fix in one layer does not reach the other. The `tbt_post_recv` SIGSEGV and the silent hang on peer loss are reported against JACCL users; no fetched source reports ds4 hitting either, and ds4's gate timeout bounds each wait.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "A queue pair that drops one direction hangs a JACCL run with no completions, because JACCL has no warm-up check and no re-creation path.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "\"Same recipe\": ds4's comment calls its queue-pair setup the same as JACCL's. The code agrees on UC, MTU 1024, GRH and hop limit and differs on `sgid_index` (scanned versus literal 1), packet sequence number (varying versus 7) and `is_global` (always versus conditional). Both are accepted by the driver on the reported setups because the IPv4-mapped GID sits at index 1 there.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Whether the Apple driver honours an `sgid_index` other than 1. No fetched source runs ds4 with a different index.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Whether ds4's warm-up and re-create logic would also remove JACCL's dead-direction hang if ported.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "ds4 and JACCL both dlopen Apple's verbs library instead of linking it.",
+          "source": "https://raw.githubusercontent.com/ml-explore/mlx/main/mlx/distributed/jaccl/lib/jaccl/rdma.cpp",
+          "note": null
+        },
+        {
+          "text": "ds4's source states its queue-pair recipe is \"the same as JACCL\" (MTU 1024, GRH via the IPv4-mapped GID).",
+          "source": "https://raw.githubusercontent.com/antirez/ds4/main/ds4_tp.c",
+          "note": null
+        },
+        {
+          "text": "JACCL's RTR hard-codes `sgid_index = 1`; ds4's RTR passes the scanned index.",
+          "source": "https://raw.githubusercontent.com/ml-explore/mlx/main/mlx/distributed/jaccl/lib/jaccl/rdma.cpp",
+          "note": null
+        },
+        {
+          "text": "JACCL uses packet sequence number 7 for every queue pair; ds4 varies it per process and per setup attempt.",
+          "source": "https://raw.githubusercontent.com/antirez/ds4/main/ds4_tp.c",
+          "note": null
+        },
+        {
+          "text": "ds4 exposes `--rdma-device` and `--rdma-gid-index`; JACCL's `rdma.cpp` has no override.",
+          "source": "https://raw.githubusercontent.com/antirez/ds4/main/ds4_tp.c",
+          "note": null
+        },
+        {
+          "text": "ds4 checks work-completion status at four poll sites.",
+          "source": "https://raw.githubusercontent.com/antirez/ds4/main/ds4_tp.c",
+          "note": null
+        },
+        {
+          "text": "ds4 chunks each gate into 16384-byte messages and keeps 16 gates of receives posted in decode.",
+          "source": "https://raw.githubusercontent.com/antirez/ds4/main/ds4_tp.c",
+          "note": null
+        },
+        {
+          "text": "ds4 runs a TCP control socket for identity, RDMA info, READY, POSTED and WARM frames.",
+          "source": "https://raw.githubusercontent.com/antirez/ds4/main/ds4_tp.c",
+          "note": null
+        },
+        {
+          "text": "JACCL's TCP coordinator became optional in mlx v0.32.1 (PR 3899).",
+          "source": "https://github.com/ml-explore/mlx/releases",
+          "note": null
+        },
+        {
+          "text": "JACCL has no warm-up or posted-receive barrier in `rdma.cpp`.",
+          "source": "asserted",
+          "note": null
+        }
+      ]
+    }
+  ],
+  "related": []
+}

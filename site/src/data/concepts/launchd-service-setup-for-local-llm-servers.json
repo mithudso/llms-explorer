@@ -1,0 +1,419 @@
+{
+  "slug": "launchd-service-setup-for-local-llm-servers",
+  "concept": "launchd service setup for local LLM servers",
+  "generated": "2026-10-05",
+  "summary": "LaunchDaemons are scanned and loaded at system start; per-user agents are loaded only when that user logs in. A loaded job starts unconditionally only when RunAtLoad or KeepAlive is set.",
+  "facets": [
+    {
+      "title": "Facts",
+      "facts": [
+        {
+          "text": "LaunchDaemons are scanned and loaded at system start; per-user agents are loaded only when that user logs in. A loaded job starts unconditionally only when RunAtLoad or KeepAlive is set.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "KeepAlive true restarts the job when it exits, waiting ThrottleInterval seconds between restarts. ExitTimeOut defaults to 20 s (SIGTERM, then SIGKILL).",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Modern syntax: `sudo launchctl bootstrap system /Library/LaunchDaemons/x.plist`, `bootout`, and `launchctl bootstrap gui/<uid> ~/Library/LaunchAgents/x.plist`; `load`/`unload` still work but are legacy.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "A daemon plist without UserName runs as root, so HOME must be set explicitly or models land in root's home. Working daemon examples set UserName/GroupName, or use a dedicated service account (hidden user `_svcuser`, shell /usr/bin/false, HOME /var/svcuser).",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Env vars from a shell profile are not seen by a launchd job; they must be in the plist EnvironmentVariables dict (or in a wrapper script).",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Brew-managed plist for Ollama on this box (`sh.brew.ollama`) carries EnvironmentVariables (OLLAMA_FLASH_ATTENTION, OLLAMA_KV_CACHE_TYPE), KeepAlive, RunAtLoad, one combined log file, and LimitLoadToSessionType listing Aqua, Background, LoginWindow, StandardIO, System.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Persisting a `launchctl setenv`: a LaunchAgent with ProgramArguments `/bin/launchctl setenv OLLAMA_HOST <value>` and RunAtLoad re-applies it at every login (present on this box as com.mitch.ollama-host-env.plist). It is a per-login workaround, not a boot-time setting.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "A second Ollama instance runs from its own LaunchAgent with a different OLLAMA_HOST port (127.0.0.1:11435), OLLAMA_MAX_LOADED_MODELS and OLLAMA_NUM_PARALLEL in the plist (com.mitch.llmsx-ollama.plist).",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "oMLX as a daemon: ProgramArguments `/bin/bash -c \"exec /opt/homebrew/bin/omlx serve --model-dir ... --host 127.0.0.1 --port ... --paged-ssd-cache-dir ... --hot-cache-max-size 8GB --api-key $(cat <secret file>)\"`, ProcessType Interactive, KeepAlive, RunAtLoad, log paths under the service account.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "oMLX via Homebrew: `brew services start omlx` (auto-restart on crash); service log `$(brew --prefix)/var/log/omlx.log`, app log `~/.omlx/logs/server.log`; `omlx start|stop|restart` wrap brew services. The formula sets OMLX_SUPERVISED=launchd so the dashboard restart button works under brew services.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "oMLX evicts idle models after 5 minutes unless a model is pinned in settings.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Ollama: OLLAMA_KEEP_ALIVE in the plist keeps models loaded (24h in a WoL setup; -1 for a dedicated machine); the default unload is 5 minutes.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "mlx_lm.server: the example plist launches a wrapper shell script (ProgramArguments) with RunAtLoad, KeepAlive, a PATH that includes pyenv shims and /opt/homebrew/bin, as a LaunchAgent.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "LM Studio headless: llmster installs with `curl -fsSL https://lmstudio.ai/install.sh | bash`, starts with `lms daemon up`; the official startup-task doc is for Linux (systemctl). The desktop app has a \"run LLM server on login\" setting that minimizes it to the tray. JIT model loading and TTL auto-evict apply to both modes.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Ollama issue 2955 (Mar 2024) asked for a pre-login daemon; the thread produced a working LaunchDaemon (Apr 2024) with UserName, GroupName, EnvironmentVariables OLLAMA_HOST, ExitTimeOut 30, KeepAlive, loaded with `sudo launchctl load`.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Ollama issue 3581 (Apr 2024) shows the documented sequence: quit app, `launchctl setenv`, restart app, check ~/.ollama/logs for \"Listening on [::]:11434\".",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "A daemon launched from a script under ~/Desktop (TCC-protected folder) logged \"failed with error 1\" until the user logged in; moving the binary to /Applications fixed it. Commenter attributes it to the Files and Folders consent system. Keep binaries and models outside Desktop/Documents/Downloads for boot-time daemons.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "`brew upgrade ollama` creates a new Cellar dir with a fresh plist, dropping hand edits; copy the plist to ~/Library/LaunchAgents instead (and stop the brew service first) or keep a backup of the EnvironmentVariables block.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "metal-guard's shell guard covers interactive shells only, never launchd jobs; launchd scripts must call `metal-guard panic-gate` themselves.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "lms daemon: starting the daemon binary and then calling `lms` before it is fully up spawns a second daemon; the two race for llmster-pid.lock and the loser exits 0, which looks like a restart loop under KeepAlive. A wedged auth state was fixed by moving aside ~/.lmstudio/.internal, credentials and settings.json.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "A kernel panic reboot plus a plain KeepAlive plist can relaunch the same workload that caused the panic; launchd has no dependency ordering, so a sysctl daemon and the server daemon can race at boot (inferred) [asserted].",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Wake-on-LAN wakes a sleeping Mac only over Ethernet; wake takes 4-7 s, then Ollama needs 3-5 s.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Clamshell/closed-lid laptop dropped to sleep after about an hour despite `pmset sleep 0`; a dummy HDMI plug and a keep-awake app fixed it.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Pre-login daemon on Ollama: issue 2955 reporter could not get anything to run pre-login and suspected disk encryption; another commenter's LaunchDaemon \"should start on boot\". Both stand: boot start works, but with FileVault on nothing runs until the volume is unlocked.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Sleep prevention: one guide uses `sudo pmset -a sleep 0` plus disksleep 0, tcpkeepalive 1, womp 1, powernap 0; another uses `sudo pmset -a disablesleep 1` for lid-closed laptops. The Astropad guide uses the System Settings energy option instead of pmset.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "FileVault on headless Macs: Astropad recommends FileVault off plus auto-login for home use; keep it on in shared spaces; alternatives are `fdesetup authrestart` before planned reboots, an encrypted sparsebundle for secrets, or splitting machines.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Daemon vs agent: Ollama community and the rdner guide use a LaunchDaemon with a service account; the jgoodwill, Hannecke and riclib guides use brew services or LaunchAgents (login required).",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Whether a LaunchDaemon with UserName can reach the GPU/Metal pre-login on Apple Silicon is not tested in any source read.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Whether `fdesetup authrestart` survives a kernel-panic reboot (it covers only the next planned reboot per the source).",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "No source gives the ThrottleInterval default; launchd.info documents the key but only shows 30 as an example. The known default of 10 s is not confirmed here.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "A LaunchDaemon from /Library/LaunchDaemons is loaded by the root launchd at system start; LaunchAgents load when the user logs in.",
+          "source": "https://www.launchd.info/",
+          "note": null
+        },
+        {
+          "text": "launchd starts a loaded job unconditionally only when RunAtLoad or KeepAlive is set.",
+          "source": "https://www.launchd.info/",
+          "note": null
+        },
+        {
+          "text": "KeepAlive true makes launchd wait ThrottleInterval seconds between restarts.",
+          "source": "https://www.launchd.info/",
+          "note": null
+        },
+        {
+          "text": "ExitTimeOut defaults to 20 seconds before SIGKILL.",
+          "source": "https://www.launchd.info/",
+          "note": null
+        },
+        {
+          "text": "A job's Disabled key can be overridden in /var/db/com.apple.xpc.launchd/disabled.plist; `launchctl print-disabled gui/<uid>` shows it, and bootstrap fails with \"Bootstrap failed: 5: Input/output error\" if the job is disabled or already loaded.",
+          "source": "https://www.launchd.info/",
+          "note": null
+        },
+        {
+          "text": "Use `launchctl bootstrap system <plist>` and `launchctl bootout system <plist>` for daemons, and the gui/<uid> domain for agents.",
+          "source": "https://www.launchd.info/",
+          "note": null
+        },
+        {
+          "text": "`launchctl kickstart` restarts a service and `launchctl debug` applies one-shot debug properties that clear after one run.",
+          "source": "https://ss64.com/mac/launchctl.html",
+          "note": null
+        },
+        {
+          "text": "Setting OLLAMA_HOST in .zshrc does not reach a launchd service; it must go in the plist EnvironmentVariables.",
+          "source": "https://medium.com/@michael.hannecke/sharing-ollama-across-your-lan-with-auto-wake-one-mac-studio-whole-team-cbf09eab8f48",
+          "note": null
+        },
+        {
+          "text": "In issue 2955 a commenter could not get anything to execute pre-login and attributed it to disk encryption (decryption on login).",
+          "source": "https://github.com/ollama/ollama/issues/2955",
+          "note": null
+        },
+        {
+          "text": "A third-party guide runs Ollama from /Library/LaunchDaemons/com.ollama.plist (no UserName), with HOME, PATH, LANG, OLLAMA_HOST in EnvironmentVariables, logs in /var/log/ollama, owner root:wheel, mode 644, tested on macOS 15.2.",
+          "source": "https://medium.com/@anand34577/setting-up-ollama-as-a-background-service-on-macos-66f7492b5cc8",
+          "note": null
+        },
+        {
+          "text": "A daemon plist with no UserName runs as root, so ~/.ollama resolves to root's home unless HOME is set (inferred from the guide's explicit HOME key).",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "A LaunchDaemon with UserName whose binary sat in ~/Desktop failed at boot with open() error 1 until login; installing to /Applications fixed it.",
+          "source": "https://stackoverflow.com/questions/74664759/launchdaemon-service-on-macos-not-running-until-user-signs-in",
+          "note": null
+        },
+        {
+          "text": "A commenter attributed that failure to the Files and Folders (TCC) protection of Desktop, Documents and Downloads.",
+          "source": "https://stackoverflow.com/questions/74664759/launchdaemon-service-on-macos-not-running-until-user-signs-in",
+          "note": null
+        },
+        {
+          "text": "brew services keeps Ollama's plist in the Cellar; `brew upgrade ollama` replaces it and drops edits, so back up the EnvironmentVariables block.",
+          "source": "https://www.jgoodwill.org/building-a-local-llm-dev-environment-on-apple-silicon-part-1/",
+          "note": null
+        },
+        {
+          "text": "Copying homebrew.mxcl.ollama.plist to ~/Library/LaunchAgents survives `brew upgrade`, after stopping the brew service.",
+          "source": "https://medium.com/@michael.hannecke/sharing-ollama-across-your-lan-with-auto-wake-one-mac-studio-whole-team-cbf09eab8f48",
+          "note": null
+        },
+        {
+          "text": "`launchctl setenv` values do not survive reboot; plist EnvironmentVariables do.",
+          "source": "https://www.jgoodwill.org/building-a-local-llm-dev-environment-on-apple-silicon-part-1/",
+          "note": null
+        },
+        {
+          "text": "On this box a LaunchAgent (com.mitch.ollama-host-env.plist) runs `/bin/launchctl setenv OLLAMA_HOST http://127.0.0.1:11434` with RunAtLoad to re-apply the variable each login. [src: local ~/Library/LaunchAgents/com.mitch.ollama-host-env.plist]",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "On this box the brew Ollama plist `sh.brew.ollama` sets LimitLoadToSessionType to Aqua, Background, LoginWindow, StandardIO, System, and OLLAMA_FLASH_ATTENTION=1 and OLLAMA_KV_CACHE_TYPE=q8_0. [src: local /opt/homebrew/Cellar/ollama/*/sh.brew.ollama.plist]",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "On this box a second Ollama LaunchAgent serves on 127.0.0.1:11435 with OLLAMA_MAX_LOADED_MODELS=1 and OLLAMA_NUM_PARALLEL=2. [src: local ~/Library/LaunchAgents/com.mitch.llmsx-ollama.plist]",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "On this box an unrelated server runs as a LaunchDaemon with UserName mitch, GroupName staff, explicit PATH and HOME, RunAtLoad and KeepAlive, logs in the user's home. [src: local /Library/LaunchDaemons/com.openviking.server.plist]",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "On this box (macOS 27.2) `pmset -g` shows sleep 0 held by sharingd, Claude, powerd, caffeinate and Amphetamine, womp 1, powernap 1, disksleep 10; `sysctl iogpu.wired_limit_mb` returns 0 and FileVault is On. [src: local pmset/sysctl/fdesetup]",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "A self-hosted oMLX stack runs oMLX, Docling and Open Web UI as LaunchDaemons under a hidden service account `_svcuser` (UID 451, shell /usr/bin/false, HOME /var/svcuser, created with dscl), so services start before login.",
+          "source": "https://rdner.de/posts/tech/self-hosted-ai-chatbot/",
+          "note": null
+        },
+        {
+          "text": "That guide's service account needs a password set (\"required for launchd\") and all installs run through `sudo -u _svcuser`.",
+          "source": "https://rdner.de/posts/tech/self-hosted-ai-chatbot/",
+          "note": null
+        },
+        {
+          "text": "The oMLX daemon plist uses `/bin/bash -c \"exec omlx serve ... --api-key $(cat /var/svcuser/.config/secrets/omlx)\"`, ProcessType Interactive, KeepAlive, RunAtLoad, and plists are mode 644 in /Library/LaunchDaemons, loaded with `sudo launchctl load`.",
+          "source": "https://rdner.de/posts/tech/self-hosted-ai-chatbot/",
+          "note": null
+        },
+        {
+          "text": "oMLX evicts models after 5 minutes idle unless the model is pinned in Model Settings.",
+          "source": "https://rdner.de/posts/tech/self-hosted-ai-chatbot/",
+          "note": null
+        },
+        {
+          "text": "The oMLX Homebrew formula's brew services job writes both logs to var/log/omlx.log, and since commit 6b2b490 sets OMLX_SUPERVISED=launchd so the admin restart endpoint works under launchd instead of returning 503.",
+          "source": "https://github.com/jundot/omlx/commit/6b2b49015a2cc239affe71f7728796597ef75f4a",
+          "note": null
+        },
+        {
+          "text": "`omlx start|stop|restart` delegate to brew services on Homebrew installs; defaults are ~/.omlx/models and port 8000, and `omlx serve --model-dir X` once persists settings to ~/.omlx/settings.json.",
+          "source": "https://github.com/jundot/omlx",
+          "note": null
+        },
+        {
+          "text": "OLLAMA_KEEP_ALIVE=-1 keeps a model loaded indefinitely on a dedicated machine; 24h is used in a wake-on-LAN setup because the default 5-minute unload makes each wake pay 30-60 s model reload.",
+          "source": "https://www.jgoodwill.org/building-a-local-llm-dev-environment-on-apple-silicon-part-1/",
+          "note": null
+        },
+        {
+          "text": "Wake-on-LAN works only over Ethernet on Macs; measured wake on an M2 Ultra Mac Studio was 4-7 s plus 3-5 s for Ollama.",
+          "source": "https://medium.com/@michael.hannecke/sharing-ollama-across-your-lan-with-auto-wake-one-mac-studio-whole-team-cbf09eab8f48",
+          "note": null
+        },
+        {
+          "text": "An MLX server LaunchAgent plist runs a start script with RunAtLoad, KeepAlive, a PATH with pyenv shims and /opt/homebrew/bin, separate stdout and stderr log paths, loaded with `launchctl load`.",
+          "source": "https://github.com/riclib/thymer-synchub/blob/master/agenthub/RUNNING_LOCAL.md",
+          "note": null
+        },
+        {
+          "text": "llmster (LM Studio headless daemon) installs via `curl -fsSL https://lmstudio.ai/install.sh | bash` and starts with `lms daemon up`; the official startup-task doc covers Linux systemctl only.",
+          "source": "https://lmstudio.ai/docs/developer/core/headless",
+          "note": null
+        },
+        {
+          "text": "LM Studio's desktop-app headless mode is a login setting that keeps the server running from the tray; `lms server start` restores the last server state programmatically; JIT-loaded models auto-unload after a TTL.",
+          "source": "https://lmstudio.ai/docs/developer/core/headless",
+          "note": null
+        },
+        {
+          "text": "With llmster, calling `lms` before the daemon has finished booting spawns a second daemon, and the two race for llmster-pid.lock; the loser exits 0 (\"Exiting due to PID lock loss\"), which looks like a restart loop in a supervisor.",
+          "source": "https://github.com/lmstudio-ai/lmstudio-bug-tracker/issues/1566",
+          "note": null
+        },
+        {
+          "text": "llmster auth state wedged after daemon churn; moving aside ~/.lmstudio/.internal, credentials and settings.json fixed it while keeping models and extensions.",
+          "source": "https://github.com/lmstudio-ai/lmstudio-bug-tracker/issues/1566",
+          "note": null
+        },
+        {
+          "text": "metal-guard's shell guard covers interactive terminals only and never launchd jobs or scripts; `metal-guard panic-gate` is the command meant for launchd scripts.",
+          "source": "https://github.com/Harperbot/metal-guard",
+          "note": null
+        },
+        {
+          "text": "metal-guard's L10 and L12 layers handle recovery after a panic and reboot, and a persistent MLX worker subprocess respawns on crash.",
+          "source": "https://github.com/Harperbot/metal-guard",
+          "note": null
+        },
+        {
+          "text": "With FileVault on, a headless Mac needs a password at the pre-boot screen before the network is up, so after a power flicker, update or kernel panic it is unreachable until someone types it locally.",
+          "source": "https://astropad.com/blog/filevault-headless-mac-mini/",
+          "note": null
+        },
+        {
+          "text": "Astropad's guidance for a home headless Mac mini is FileVault off and Automatic login on, so it recovers after a power outage.",
+          "source": "https://astropad.com/blog/headless-mac-mini-setup-guide/",
+          "note": null
+        },
+        {
+          "text": "`sudo fdesetup authrestart` before a planned reboot unlocks the disk once on next boot; the guide adds that on macOS 26 with Ethernet one can SSH in at the pre-boot stage to unlock.",
+          "source": "https://astropad.com/blog/filevault-headless-mac-mini/",
+          "note": null
+        },
+        {
+          "text": "The login keychain stays encrypted with the user password even with FileVault off.",
+          "source": "https://astropad.com/blog/filevault-headless-mac-mini/",
+          "note": null
+        },
+        {
+          "text": "Automatic login does not work with FileVault enabled.",
+          "source": "https://travis.media/blog/running-openclaw-headless-mac/",
+          "note": null
+        },
+        {
+          "text": "`sudo pmset -a autorestart 1` restarts the Mac after a power failure.",
+          "source": "https://travis.media/blog/running-openclaw-headless-mac/",
+          "note": null
+        },
+        {
+          "text": "A headless sleep-prevention set is `pmset -a sleep 0`, `disksleep 0`, `tcpkeepalive 1`, `womp 1`, `powernap 0`; `pmset -g` may show \"sleep 0\" with a note naming what holds sleep off rather than a SleepDisabled line.",
+          "source": "https://travis.media/blog/running-openclaw-headless-mac/",
+          "note": null
+        },
+        {
+          "text": "A MacBook Pro in closed-lid mode still slept after about an hour with `sleep 0`; a dummy HDMI display emulator and a keep-awake app fixed it.",
+          "source": "https://travis.media/blog/running-openclaw-headless-mac/",
+          "note": null
+        },
+        {
+          "text": "`sudo pmset -a disablesleep 1` prevents sleep with the lid closed; undo with `disablesleep 0`; closed-lid running needs airflow.",
+          "source": "https://blitzmetrics.com/how-to-keep-your-macbook-running-24-7-for-ai-agents-even-with-the-lid-closed/",
+          "note": null
+        },
+        {
+          "text": "The Astropad guide sets \"Prevent automatic sleeping when the display is off\" in Energy Saver rather than pmset.",
+          "source": "https://astropad.com/blog/headless-mac-mini-setup-guide/",
+          "note": null
+        },
+        {
+          "text": "A launchd watchdog pattern for 24/7 agents: a script run every 2 minutes and at load, PID-file lock, a kill-switch file, memory-pressure check, heartbeat-staleness zombie detection.",
+          "source": "https://dev.to/whoffagents/how-to-build-a-crash-tolerant-ai-agent-with-launchd-on-macos-454",
+          "note": null
+        },
+        {
+          "text": "launchd has no ordering between independent jobs, so a boot-time sysctl daemon and a server daemon can start in either order; a server wrapper should run `sysctl` itself or wait on it.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "A server job under launchd after a panic reboot should call a panic gate before starting the model, otherwise KeepAlive relaunches the same workload (extends the 14-minute respawn claim).",
+          "source": "asserted",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Corrections and disagreements",
+      "facts": [
+        {
+          "text": "CONTRADICTS: ollama-on-macos.md line 28 and 77. A working Ollama LaunchDaemon exists in issue 2955 (UserName, GroupName, OLLAMA_HOST in EnvironmentVariables, ExitTimeOut 30, KeepAlive, `/opt/homebrew/bin/ollama serve`, installed with `sudo cp ollama.plist /Library/LaunchDaemons/`) and is reported to start on boot.",
+          "source": "https://github.com/ollama/ollama/issues/2955",
+          "note": null
+        }
+      ]
+    }
+  ],
+  "related": []
+}

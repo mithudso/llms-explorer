@@ -1,0 +1,209 @@
+{
+  "slug": "cross-engine-reference-logits-precision-and-toke",
+  "concept": "Cross-engine reference logits precision and tokenizer parity",
+  "generated": "2026-10-05",
+  "summary": "Two sources of cross-engine error are separate: (1) tokenization/BOS differences change the input; (2) kernel arithmetic differences change the logits for identical input.",
+  "facets": [
+    {
+      "title": "Facts",
+      "facts": [
+        {
+          "text": "Two sources of cross-engine error are separate: (1) tokenization/BOS differences change the input; (2) kernel arithmetic differences change the logits for identical input.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Kernel arithmetic: attention is computed in groups; each group has its own local max, the partial sums round weights to bfloat16, and rounding does not commute with rescaling. A different group boundary therefore gives a different final bf16 value even though the real-number result is identical.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "FlashAttention 2 picks the number of groups from the GPU's SM count, so the same weights and prompt produce different arithmetic on different GPUs. Worked example in the source (27,525-token decode, 4 KV heads): H200 132 SMs gives 54 groups of up to 512 tokens; B200 148 SMs gives 62 groups (448 tokens); SM120 188 SMs gives 87 groups (320 tokens).",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Each hardware/software coordinate is bit-reproducible, so the difference is a stable property of the arithmetic program, not run-to-run noise. This makes a captured reference a valid fixed target only for the exact stack that produced it.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Capture and compare recipe used by the one harness that publishes it: store full-vocabulary logits in BF16, convert to float64, apply log_softmax, then compute directional KL, reverse KL and Jensen-Shannon per token, and summarise per output range rather than as one global mean.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "2025-03-27: a Medium test of Llama 2 7B finds HF, llama.cpp server and llama-cpp-python produce identical token IDs on 150,000 snippets, apart from BOS handling.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "llama-cpp-python 0.2.77/0.2.78 (issue 1537): the Llama 3 chat formatter stopped emitting BOS to avoid a double BOS, which users saw as degraded quality in code that called the formatter directly; the fix was an `added_special` flag.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "2026-08-15 to 2026-08-24: Level1Techs series (thr3e) measures top-1 disagreement across attention backends, GPUs and quants with bit-identical captures.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "BOS asymmetry: `llama.cpp` server `/tokenize` returns IDs without BOS by default; HF and llama-cpp-python include BOS by default. Feeding one engine's IDs to another without checking BOS gives a one-token shift or a double BOS.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Double BOS or missing BOS changes logits on every position, so it can masquerade as quant error in a KLD run.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "The same model on three attention backends in one engine (FlashAttention 2, FlashInfer, Triton) agrees for the first several thousand tokens and then diverges in clusters that depend on prompt content, not smoothly with length.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Tensor-parallel degree changes arithmetic: the same tool call succeeded at TP1, failed at TP2 and succeeded at TP4 in one capture.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "A low KLD on a model card is uninterpretable unless the author discloses reference checkpoint, runtime environment, evaluation text, calibration data, context lengths, sampled positions, KL direction, any vocabulary truncation and aggregation method.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "A published reference cannot come from the model vendor: no lab publishes \"the logits your setup should produce\" for a prompt.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "\"Tokenization is identical across engines\" (Medium Llama 2 test, 150k snippets) versus \"tokenizer differences are a live bug source\" (llama-cpp-python 0.2.77 BOS change; llama.cpp discussions on server vs HF). Both hold: IDs match for the same text once BOS is aligned; the defects are in prompt assembly (BOS, chat template), not the vocabulary. The Llama 2 test did not cover Gemma, Qwen or Llama 3 tokenizers.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Which engine is the reference: the Level1Techs author argues there is no objective right answer and measures relative distance of each stack to a centroid of stacks; kld-based-quant-evaluation-methodology.md's recipe assumes a BF16 reference run on one engine. Neither side has Apple Silicon data.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "No source measures MLX-versus-llama.cpp logit error on Apple GPUs for BF16 weights. All kernel-level evidence is CUDA (H200, B200, RTX PRO 6000 Blackwell).",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Whether Metal's flash-attention kernels in llama.cpp and MLX partition by a hardware-dependent heuristic (as FA2 does by SM count) and therefore differ across M-series chips is untested in the sources found.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Token-ID parity between `mlx_lm` tokenizers and llama.cpp for Gemma 4 and Qwen3.x has no published test.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "The Level1Techs harness captured full-vocabulary BF16 logits every 32 prompt tokens and computed KLD afterward in FP64 from the stored logits.",
+          "source": "https://forum.level1techs.com/t/why-your-local-llm-feels-dumber-than-it-is/253917",
+          "note": null
+        },
+        {
+          "text": "The same harness converts captured logits to float64, applies log_softmax and computes directional KL(P_BF16 || P_candidate), reverse KL and Jensen-Shannon divergence, keeping per-token values and summarising per output range.",
+          "source": "https://forum.level1techs.com/t/why-your-local-llm-feels-dumber-than-it-is/253917",
+          "note": null
+        },
+        {
+          "text": "On Qwen3.6-27B BF16 with a roughly 100k-token agent prompt on an RTX PRO 6000 Blackwell, FlashAttention 2, FlashInfer and Triton attention backends agreed for the first several thousand tokens and then disagreed on top-1 in clusters that varied with prompt content.",
+          "source": "https://forum.level1techs.com/t/why-your-local-llm-feels-dumber-than-it-is/253917",
+          "note": null
+        },
+        {
+          "text": "Repeating the same backend gave logits that were bit-for-bit identical at every hidden state, so the backend differences come from the arithmetic of prefill.",
+          "source": "https://forum.level1techs.com/t/why-your-local-llm-feels-dumber-than-it-is/253917",
+          "note": null
+        },
+        {
+          "text": "H200 results were byte-identical across two cloud providers, and B200 and local SM120 repeats were also byte-identical.",
+          "source": "https://forum.level1techs.com/t/why-your-local-llm-feels-dumber-than-it-is/253917",
+          "note": null
+        },
+        {
+          "text": "FlashAttention 2 chooses 54, 62 or 87 key/value groups for a 27,525-token decode on H200 (132 SMs), B200 (148 SMs) and SM120 (188 SMs).",
+          "source": "https://forum.level1techs.com/t/why-your-local-llm-feels-dumber-than-it-is/253917",
+          "note": null
+        },
+        {
+          "text": "The FlashAttention 2 split heuristic scores a candidate split count as work ratio 4 x splits / (2 x SM count), efficiency = ratio / ceil(ratio), and picks the smallest count within 85% of the best.",
+          "source": "https://forum.level1techs.com/t/why-your-local-llm-feels-dumber-than-it-is/253917",
+          "note": null
+        },
+        {
+          "text": "In the author's scalar teaching simulation the exact result 1.325056137248 rounds to bf16 1.3203125 with H200 grouping and to 1.3281250 with B200 and SM120 grouping; the author states the example was chosen to expose a rounding boundary.",
+          "source": "https://forum.level1techs.com/t/why-your-local-llm-feels-dumber-than-it-is/253917",
+          "note": null
+        },
+        {
+          "text": "Rounding exp(x - c) to bfloat16 does not equal exp(-c) times the rounded exp(x), so changing a group boundary changes the partial sums.",
+          "source": "https://forum.level1techs.com/t/why-your-local-llm-feels-dumber-than-it-is/253917",
+          "note": null
+        },
+        {
+          "text": "A tensor-parallel comparison on one Qwen tool call succeeded at TP1, failed at TP2 and succeeded at TP4; the author attributes this usually to NCCL.",
+          "source": "https://forum.level1techs.com/t/why-your-local-llm-feels-dumber-than-it-is/253917",
+          "note": null
+        },
+        {
+          "text": "The author lists what a model-card KLD must disclose to be interpretable: reference checkpoints, runtime environment, evaluation text, calibration data, context lengths, sampled positions, KL direction, vocabulary truncation and aggregation.",
+          "source": "https://forum.level1techs.com/t/why-your-local-llm-feels-dumber-than-it-is/253917",
+          "note": null
+        },
+        {
+          "text": "The author states KLD is directional and that lower KLD means closer to the chosen baseline, not \"smarter\".",
+          "source": "https://forum.level1techs.com/t/why-your-local-llm-feels-dumber-than-it-is/253917",
+          "note": null
+        },
+        {
+          "text": "The author states the model vendor publishes no per-prompt reference logits, so there is no objective right answer and distances are only relative among stacks.",
+          "source": "https://forum.level1techs.com/t/why-your-local-llm-feels-dumber-than-it-is/253917",
+          "note": null
+        },
+        {
+          "text": "A forum reply notes softmax must be applied to logits before KL, and that KL measures change from baseline with no measure of correctness.",
+          "source": "https://forum.level1techs.com/t/why-your-local-llm-feels-dumber-than-it-is/253917",
+          "note": null
+        },
+        {
+          "text": "A 150,000-snippet test (20 to 10,000 tokens) found HF, llama.cpp server and llama-cpp-python give identical token IDs for Llama 2 7B, and that 2-bit versus ternary GGUF quantization does not change the tokenizer.",
+          "source": "https://gndp.medium.com/huggingface-vs-llama-cpp-tokenizers-91a72a8f09b9",
+          "note": null
+        },
+        {
+          "text": "Per that test, HF and llama-cpp-python include a BOS token by default and the llama.cpp server `/tokenize` endpoint does not.",
+          "source": "https://gndp.medium.com/huggingface-vs-llama-cpp-tokenizers-91a72a8f09b9",
+          "note": null
+        },
+        {
+          "text": "llama-cpp-python 0.2.77/0.2.78 removed BOS from the Llama 3 chat-formatter output to avoid a double BOS, which users reported as lower quality when they called the formatter directly.",
+          "source": "https://github.com/abetlen/llama-cpp-python/issues/1537",
+          "note": null
+        },
+        {
+          "text": "The llama-cpp-python fix exposes an `added_special` property that callers must check before choosing `add_bos` at tokenization time.",
+          "source": "https://github.com/abetlen/llama-cpp-python/issues/1537",
+          "note": null
+        },
+        {
+          "text": "Before any GGUF-versus-MLX KLD run, compare the two tokenizers' ID arrays on the whole corpus with BOS handled explicitly, and abort if they differ at any position.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "On Apple Silicon, treat a captured reference as valid only for the same chip family and engine build, since GPU-dependent attention partitioning on CUDA is evidence the same can occur on Metal.",
+          "source": "asserted",
+          "note": null
+        }
+      ]
+    }
+  ],
+  "related": []
+}

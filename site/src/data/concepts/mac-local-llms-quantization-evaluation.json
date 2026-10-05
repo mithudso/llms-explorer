@@ -1,0 +1,344 @@
+{
+  "slug": "mac-local-llms-quantization-evaluation",
+  "concept": "Mac local LLMs: Quantization evaluation",
+  "generated": "2026-10-05",
+  "summary": "Run reference once: `llama-perplexity -m ref --kl-divergence-base f.kld -f corpus`; then each quant with `--kl-divergence-base f.kld --kl-divergence` (ignores `-f`, same tokens). Reuse the reference `-c`; keep `-b` equal.",
+  "facets": [
+    {
+      "title": "llama.cpp KLD workflow",
+      "facts": [
+        {
+          "text": "Run reference once: `llama-perplexity -m ref --kl-divergence-base f.kld -f corpus`; then each quant with `--kl-divergence-base f.kld --kl-divergence` (ignores `-f`, same tokens). Reuse the reference `-c`; keep `-b` equal.",
+          "source": "https://github.com/ggml-org/llama.cpp/pull/5076",
+          "note": null
+        },
+        {
+          "text": "Output: mean/max/99.9/99/90/median KLD, Δp, Same top p. Only the second half of each window is scored; scoring early positions shifted KLD ~7 sigma. KLD is the mean of per-token KLs.",
+          "source": "https://github.com/ggml-org/llama.cpp/blob/master/tools/perplexity/README.md",
+          "note": null
+        },
+        {
+          "text": "LLaMA 3 8B scoreboard: q4_K_M KLD 0.0313 / top-p 91.9%; q6_K 0.00545 / 96.0%; q8_0 0.001355 / 97.7%; q2_K 0.445 / 71.1%; BF16 vs FP16 2.5e-5. Baseline file is 37 GiB for LLaMA 3 Wikitext; Q8_0 baseline if BF16 will not fit.",
+          "source": "https://github.com/ggml-org/llama.cpp/blob/master/tools/perplexity/README.md",
+          "note": null
+        },
+        {
+          "text": "Confidence-conditioned flip rate is not computed by llama-perplexity (only `n_same_top`); decode the .kld file and join with a candidate argmax dump.",
+          "source": "asserted",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "MLX harnesses",
+      "facts": [
+        {
+          "text": "mlx-kld (sammcj): sparse top-K=256 reference (underestimates KLD ~4%, rank-preserving), `--short` (~50 prompts) or `--long` (WikiText-2, 32x2048 tokens, second half scored). mlx-eval (deepsweet): `mlx_eval.reference <ref> 16 8192` then `mlx_eval.compare <target> 16`.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Same Qwen3.6-27B UD-MLX-4bit gave mean KLD 0.0227 (Unsloth), 0.0592 (sammcj), 0.1683 (mlx-eval); uniform 8-bit spread 20x. Use within-harness ratios or ranks only.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Dense vs MoE rankings differ: MoE 35B-A3B DWQ-4bit 0.0266 < oQ4 0.0402 < RTN-4bit 0.0742 (8-bit ref); dense 27B oQ4 beats RTN only by 3%. DWQ trains toward the teacher, so low KLD is partly by construction. 27B dense: 6-bit near-lossless (0.029), 4-bit ~0.11.",
+          "source": "asserted",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Size and bits confounds",
+      "facts": [
+        {
+          "text": "mlx-lm prints `Quantized model with X bits per weight.`; affine bpw = bits + 32/g (g64 +0.5, g128 +0.25, g32 +1.0); mxfp4 4.25, nvfp4 4.5, mxfp8 8.25. Modules whose last dim is not divisible by group size stay unquantized.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "UD-MLX \"4-bit\" 27B is 26.19 GB, 8.60 bpw (258 overrides): it competes with 6-8 bit. A BF16 vision tower inflates size (gemma-4-31b-it-4bit 18.4 GB). mlx-eval RAM column is text weights only.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Same-size GGUF pairs: q5_0 vs q5_K_S 5.21 GiB, KLD 0.022239 vs 0.016595; q4_0 4.34 GiB 0.071940 vs q4_K_S 4.37 GiB 0.043136; q4_1 is 2.29x worse than q4_K_M.",
+          "source": "https://github.com/ggml-org/llama.cpp/blob/master/tools/perplexity/README.md",
+          "note": null
+        },
+        {
+          "text": "Elasticity: LLaMA 3 8B slope about -6 to -7 (3% size gap ~20% KLD); Qwen3.5-35B-A3B about -3.3 (3% ~10%). Report KLD with size gap in percent; a KLD gap under elasticity x size gap is explained by size. Same \"Q4_K_M\" label: 18.49 GB 0.0192 (Unsloth) vs 20.62 GB 0.0096 (AesSedai).",
+          "source": "https://unsloth.ai/docs/models/qwen3.5/gguf-benchmarks",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Calibration and imatrix",
+      "facts": [
+        {
+          "text": "Above ~4 bpw imatrix corpus choice showed no predictable effect; at Q2_K, no imatrix cost ~28 BFCL points (82 to 54), best vs worst corpus ~10%. Chat-templated data was the largest MoE change; 18 of 512 experts in Qwen3-Next-80B-A3B stayed untouched on English tool data even at 3126 chunks.",
+          "source": "https://huggingface.co/blog/bartowski/imatrix-dataset",
+          "note": null
+        },
+        {
+          "text": "Log lines: `entry '<name>' has partial data (xx.xx%)`, `has no data - skipping`, `storing only N out of M entries`. Zero-count experts get flat weight. IQ1/IQ2/IQ3_XXS/Q2_K_S abort with `Missing importance matrix for tensor ... in a very low-bit quantization`; Q4_K/IQ4 silently quantize without.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "WikiText-in-calibration contaminates WikiText KLD; use a corpus neither saw. Per-expert counts live only in the GGUF imatrix; GGUF cannot mix precision per expert (3D tensor, one type).",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "MoE router: top-k is a cliff; llama-quantize keeps routers at source precision. Free-form generation shows routing damage that multiple choice hides (Solar-Open-100B NVFP4 73.62 to 61.78 vs 76.92 to 75.59).",
+          "source": "asserted",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Tail and flip metrics",
+      "facts": [
+        {
+          "text": "Top-1 is a winner test; KL sees the whole distribution. Keep both, plus 99.9% KLD and worst-range p95 KLD. Mean top-1 hides clustering (flips under 1% to several percent by workload). BF16 is a fidelity reference, not a correctness label.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Three \"flips\" must not be pooled: answer-level, teacher-forced top-1, first divergent token. Answer-level: up to 13.6% flips at 2% or less accuracy change. FDT = one pass on the base greedy rollout, report median and share without divergence. Branch-and-follow continues past the flip to classify recover / meaning change / malformed.",
+          "source": "https://arxiv.org/html/2407.09141v1",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Determinism and cross-engine parity",
+      "facts": [
+        {
+          "text": "llama-server: `cache_prompt` defaults true and breaks bit-identity; set `cache_prompt: false`, send token arrays (no auto BOS; add BOS yourself), `return_tokens: true`. mlx_lm.server returns logprobs. Measure the reference self-flip floor: rerun the reference with different `-b` (nonzero KLD or top-p under 100% is the floor).",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "BOS mismatch (llama.cpp `/tokenize` omits BOS; HF includes it) mimics quant error. Non-canonical tokenization costs 23.7% (Llama-3.1-8B), 11.4% (Qwen3-8B), 9.9% (Gemma-3-12B) in 27 languages.",
+          "source": "https://arxiv.org/html/2607.26831v1",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "BFCL and tool calls",
+      "facts": [
+        {
+          "text": "`bfcl generate --skip-server-setup` against llama-server/mlx-lm/Ollama; set `LOCAL_SERVER_ENDPOINT`, `LOCAL_SERVER_PORT` or `REMOTE_OPENAI_BASE_URL`. Unevaluated categories count zero. Qwen3.6-27B 400 samples: BF16 63.25, Q8_0 63.00, Q4_K_M 63.00, HumanEval 56.10 to 50.61.",
+          "source": "https://heyneo.com/blog/evaluating-qwen-3-6-27b-benchmarking-case-study",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "localbench top-40 benchmarks (Gemma 4 31B, Qwen3.6 27B)",
+      "facts": [
+        {
+          "text": "Method: `/v1/completions` with `echo: true`, `logprobs: 40` on a patched llama.cpp fork (TextGen); official-release chat template, not GGUF metadata; ~250k tokens, six categories, inputs up to ~30k tokens. Values run higher than Wikipedia KLD; do not compare with Q4_K_M 0.01-0.03 elsewhere. A mainline build cannot reproduce them.",
+          "source": "https://localbench.substack.com/p/gguf-benchmark-methodology",
+          "note": null
+        },
+        {
+          "text": "Top-40 error bound is claimed negligible, never measured; the \"min minus 2\" floor may rank the tail differently from full-vocabulary KLD. Mainline llama.cpp has no top-k option, so no head-to-head exists.",
+          "source": "https://raw.githubusercontent.com/ggml-org/llama.cpp/master/tools/perplexity/README.md",
+          "note": null
+        },
+        {
+          "text": "Gemma 4 31B (7 Apr 2026): 53 quants; ggml-org and lmstudio quants off frontier except Q8_0; Unsloth QAT UD Q4 KLD 0.01403 vs naive Q4_0 0.09349.",
+          "source": "https://localbench.substack.com/p/gguf-benchmark-methodology",
+          "note": null
+        },
+        {
+          "text": "Qwen3.6 27B (25 Apr): 87 quants, 7 uploaders, BF16 reference. Frontier spots: bartowski 12, mradermacher 12, unsloth 10, Jackrong 0, lmstudio 0; pick by size, not uploader. Q8_0 KL 0.075; IQ2_XXS 8.4 GB keeps 77.5% top-1.",
+          "source": "https://localbench.substack.com/p/qwen-3-6-27b-gguf-quality-benchmark",
+          "note": null
+        },
+        {
+          "text": "Long documents carry the loss (UD-Q8_K_XL: 0.001 coding, 0.373 long docs); tool calling is second worst at every size. ik_llama.cpp-only IQ5_KS (19.9 GB, 0.128) and IQ4_KS (15.8 GB, 0.209) will not run on stock Metal llama.cpp.",
+          "source": "https://localbench.substack.com/p/qwen-3-6-27b-gguf-quality-benchmark",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Corrections",
+      "facts": [
+        {
+          "text": "Spearman KLD vs flips is 0.981 in the paper, not 0.96-0.97 (secondary charts). Clamped tokens are dropped, not coarsened. Cliff row is `floor(32/gqa)`, not a fixed 6. No Unsloth 27B KLD table exists.",
+          "source": "asserted",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Corrections and disagreements",
+      "facts": [
+        {
+          "text": "That paper's text reports a Spearman correlation of 0.981 between KL divergence and flips on MMLU. CONTRADICTS (in value only): kld-based-quant-evaluation-methodology.md, which gives about 0.96 to 0.97 from charts quoted in a secondary post.",
+          "source": "https://arxiv.org/html/2407.09141v1",
+          "note": null
+        },
+        {
+          "text": "CONTRADICTS (partly): metal-attention-multi-row-verify-cliff-at-6-15-q.md says no source explains why the cliff starts near 6 rows and that past rows times GQA above 32 attention falls to an unfused path. The source shows two regimes: for query length 8 or less the limit is rows times GQA at most 32 (so the cliff row is `floor(32 / gqa)`, and it moves with the model's GQA factor), and for query length above 8 supported head dims (64, 72, 80, 96, 128) go to the fused full kernel, not the unfused path. A 6-to-15 range is what several GQA factors produce together.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "CONTRADICTS: llama-cpp-kld-reference-file-binary-layout-and-e.md Edge cases line \"reference-side precision for extreme tails is limited by the clamp\": the clamped tokens are dropped by the reader guard, so they contribute zero rather than a coarsened value.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "CONTRADICTS: log-log-size-to-kld-elasticity-of-k-quants-acros.md Open questions line \"Qwen3.5-27B has an Unsloth table not read here\": the cached 2026-10-04 page has no 27B KLD rows to read.",
+          "source": "https://unsloth.ai/docs/models/qwen3.5/gguf-benchmarks",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Concepts in this cluster",
+      "facts": [
+        {
+          "text": "KLD-based quant evaluation methodology",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Tail-risk quant metrics 99.9% KLD max KLD top-1 agreement",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Calibration-set contamination and held-out evaluation corpora",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Cross-engine reference logits precision and tokenizer parity",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Effective bits-per-weight and size confounds in MLX N-bit quant names",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Generation-drift metrics beyond prefill KLD",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "BFCL and tool-calling evals for quantized local models",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "MoE expert coverage in imatrix calibration",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Branch-and-follow flip analysis harness for Mac GGUF and MLX quants",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Confidence-conditioned top-1 flip rate for literal-copy tokens",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Metal flash-attention kernel partitioning differences across M-series chips",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "per-expert coverage and per-expert KLD attribution for MoE quants",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "router top-k agreement under quantization as a diagnostic",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "size-matched KLD reporting for local quants",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "First Divergent Token metric rollouts on GGUF and MLX quants",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Importance-matrix presence as a second axis in equal-size KLD comparisons",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Log-log size-to-KLD elasticity of K-quants across model families",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Non-canonical tokenization robustness of instruction-tuned models",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Reference self-flip floor from cache_prompt and batch-size nondeterminism",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "llama.cpp .kld reference file binary layout and external reader",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Effect of the 16-nat logit clamp in the .kld encoder on tail KLD",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Gemma 4 31B GGUF quants ranked by KL divergence",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Qwen3.5-27B dense Unsloth KLD table for dense versus MoE elasticity",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "localbench top-40 union KL estimator versus .kld full-vocab KLD",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Qwen 3.6 27B GGUF quality benchmark per-quant KL (localbench, 87 quants)",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Head-to-head top-40 versus full-vocabulary KLD on one model and text",
+          "source": "asserted",
+          "note": null
+        }
+      ]
+    }
+  ],
+  "related": []
+}

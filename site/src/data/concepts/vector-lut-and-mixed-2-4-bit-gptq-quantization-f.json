@@ -1,0 +1,229 @@
+{
+  "slug": "vector-lut-and-mixed-2-4-bit-gptq-quantization-f",
+  "concept": "Vector LUT and mixed 2/4-bit GPTQ quantization for ANE",
+  "generated": "2026-10-05",
+  "summary": "Format rule: `w[o*cd + j, i] = lut[idx[o, i], j]`, bits per weight = n_bits / cd, LUT values = 2^n_bits x cd and must be at most 256 on the ANE; vectors run along output channels only; the LUT is per tensor.",
+  "facets": [
+    {
+      "title": "Facts",
+      "facts": [
+        {
+          "text": "Format rule: `w[o*cd + j, i] = lut[idx[o, i], j]`, bits per weight = n_bits / cd, LUT values = 2^n_bits x cd and must be at most 256 on the ANE; vectors run along output channels only; the LUT is per tensor.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Apple API: palettization supports n in {1,2,3,4,6,8} bits, `per_tensor` or `per_grouped_channel` (iOS 18) granularity, `cluster_dim` greater than 1 for 2-D or longer vector centroids along the output channel, optional per-channel scale normalization, and an 8-bit LUT; MIL op `constexpr_lut_to_dense` takes `vector_axis` and indices uint1/2/3/4/6/8 (no 5 or 7).",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Native decode evidence: a 16x16 vector LUT whose 256 distinct values would need 8 bits/weight as a scalar LUT (1.17 ms) ran in 0.44 ms, and the compiled program shrinks with index width (268 MB dense to 4 MB), so weights stay compressed in memory.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Speed law (M6): down to about 2 bits/weight the ANE streams weights at about 125-165 GB/s so fewer bits is faster; below 2 bits it hits a lookup-decode ceiling of about 0.4-0.7 T weights/s; 3-bit and 6-bit indices are read like 4-bit and 8-bit.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "The rest of the recipe: scalar per-tensor LUT with a per-output-channel fp16 scale (`pcs`, free on the ANE, LUT fit on w/row_RMS); GPTQ; online block Hadamard (1024) on MLP input and down input; mixed-bit plan from per-layer WikiText sensitivity sweeps; rank-64 fp16 SVD residual on DeltaNet and attention projections; block reconstruction that keeps indices fixed and trains LUT entries and scales.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "2018 and 2024 Apple patents (US11120327B2 and US20260073181A1) describe a kernel-extract circuit with LUT storage; the newer one adds vector entries; neither fixes when a chip gained the capability or the LUT capacity.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "2024-09 VPTQ (arXiv 2409.17066) is the GPU-side vector post-training quantization lineage (second-order optimization, residual and outlier quantization, 2-bit results on LLaMA-2/3 and Mistral); Forge's notes do not cite it.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "2026-09-25 Forge's first M6 vector-LUT investigation (macOS 27.0, coremltools 9.0, coreai-opt 0.2.1) finds hardware vector decode; 2026-09-26/27 GPTQ options (in-domain calibration mixes, diag(H)-weighted k-means) and grouped-LUT latency costs; 2026-09-29 notes imported \"historical\" with later sections superseding earlier ones.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Compile and placement walls: vector size 32 runs on CPU even at 128 LUT values; 512+ LUT values fail with `ANECCompile() FAILED` (validation failure in `BuildLayerGraph`); vector along Cin and per-group vector LUTs leave the ANE; 3x3 stride 2 is native but dilation 2 is slow; INT8/FP8 LUT values leave the ANE in Core AI (FP8 gives NaN there) while MIL via Core ML keeps them on ANE.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "No FP8 magic: the ANE does not decode FP8 LUT entries at run time; the compiler converts the small table to fp16, and codes above 240 become inf on the native FP8 weight path.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "coreai-opt 0.2.1 bug: its cluster-dim check reads conv2d `.groups`, which the OpView lacks, raising AttributeError (patched by a shape-only check).",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "The intermediate export is not bit-packed: `.safetensors` stores `uint8` indices, so file size is not the packed footprint; packed vector 2x16 storage is about C_out x C_in / 4 + 64 + 2 x C_out bytes.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "`KV_FMT=\"INT8 per-channel\"` names the K/V projection weight format, not an INT8 KV cache; runtime K/V buffers are FP16.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Block quantization on the ANE. ANEMLL's README says LUT4 quality is \"fairly low due to lack of block quantization on ANE\". Forge shows per-group scalar LUTs do run on ANE (about +19-21% latency versus per-tensor, +47% for group-8), CoreML-LLM ships INT4 per-grouped-channel (group 32-64) bundles on iPhone ANE, and Apple's API supports per-grouped-channel. What is unavailable is per-group vector LUTs, not grouping as such.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Is 2-bit viable? CoreML-LLM: post-training W2/W3 palettization produces gibberish and only W2-QAT could work. Forge: 2-bit vector MLPs with GPTQ, Hadamard and mixed bits run a 27B model, but its historical deployed export had mean KL 0.619, top-1 72.8%, ppl 3.09 against bf16 ppl 2.136 and the later release quotes KL 0.1846 / top-1 86.05%; neither source has coding or reasoning benchmarks.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Which plan shipped? The historical notebook's deployed export used vector 2x16 in 47 MLP layers and LUT4 in 17; the release guide lists 38 vector and 26 LUT4 MLP layers. The release is a later recipe, not a replication.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Does compression speed up M5? Forge M6: 2-bit about 4.6-7x dense FP16 per layer. M5 Max: every LUT format runs at the INT8-dense rate (about 0.15 T weights/s), so LUT gives no speedup there.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Joint compression: CoreML-LLM found INT8-LUT entries drop ops off the iPhone ANE (92.9% to 86.7%) and sparse plus palettized bloated bundles; Forge found INT8-valued LUTs fine via MIL on M6 and failing only via Core AI.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Does 2x16 vector LUT keep its accuracy edge (+0.4 to +1.6 dB SNR over scalar at equal bits, measured on ResNet50 and Gaussian weights) on real LLM weights and downstream tasks? Forge's own note flags real LLM weights as unmeasured for SNR.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Vector LUT combined with FP8 activations (f8f8) is untested; whether per-group vector layouts can be recovered by splitting layers is untested.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Is the sub-2-bit ceiling a decode throughput or a clock limit? Forge suggests reading `_ANEPerformanceStats` counters.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Apple's palettization supports n-bit LUTs with N in {1,2,3,4,6,8}, `per_tensor` and (from iOS 18) `per_grouped_channel` granularity, per-channel scale normalization, and 8-bit LUT values.",
+          "source": "https://apple.github.io/coremltools/docs-guides/source/opt-palettization-overview.html",
+          "note": null
+        },
+        {
+          "text": "In Apple's API `cluster_dim` greater than 1 enables vector palettization in which each `cluster_dim` length of weight vectors along the output channel shares one multi-dimensional centroid.",
+          "source": "https://apple.github.io/coremltools/docs-guides/source/opt-palettization-overview.html",
+          "note": null
+        },
+        {
+          "text": "coremltools' post-training palettizer takes `n_bits`, `lut_dtype` (int8/uint8), `granularity`, `group_size`, `channel_axis`, `cluster_dim` and `enable_per_channel_scale`, and a Sensitive K-Means mode needs calibration data and a loss function.",
+          "source": "https://apple.github.io/coremltools/docs-guides/source/opt-palettization-api.html",
+          "note": null
+        },
+        {
+          "text": "VPTQ reports perplexity reductions of 0.01-0.34 (LLaMA-2), 0.38-0.68 (Mistral-7B) and 4.41-7.34 (LLaMA-3) at 2 bits over prior state of the art, using 10.4-18.6% of the quantization time.",
+          "source": "https://arxiv.org/abs/2409.17066",
+          "note": null
+        },
+        {
+          "text": "Forge's M6 test found vector sizes 2, 4, 8 and 16 and LUTs of 256 values (4x64, 16x16) run on the ANE, vector size 32 falls to CPU even at 128 values, and 512+ values (2x256, 8x64, 16x64) fail `ANECCompile()`.",
+          "source": "https://raw.githubusercontent.com/Anemll/anemll-forge/main/docs/history/VECTOR_LUT_README.md",
+          "note": null
+        },
+        {
+          "text": "Forge found vectors along Cin and per-group vector LUTs (2, 4, 16, 64 groups) leave the ANE while per-group scalar LUTs are fine, and 1x1 conv, 3x3 conv, `linear` and `matmul` all decode natively.",
+          "source": "https://raw.githubusercontent.com/Anemll/anemll-forge/main/docs/history/VECTOR_LUT_README.md",
+          "note": null
+        },
+        {
+          "text": "On a 16-layer 4096x4096 chain (4 tokens) dense FP16 took 3.91 ms, scalar 8-bit 2.12 ms (1.8x), scalar 4-bit 1.11-1.38 ms (2.8-3.5x), scalar 2-bit 0.71-0.84 ms (4.6-5.5x), vector 2x16 0.71-0.73 ms (5.4x), vector 4x16 0.69-0.71 ms (5.5x), vector 8x16 0.71 ms (5.5x), vector 16x16 0.80-1.13 ms (3.5-4.9x).",
+          "source": "https://raw.githubusercontent.com/Anemll/anemll-forge/main/docs/history/VECTOR_LUT_README.md",
+          "note": null
+        },
+        {
+          "text": "Forge states vector LUTs match scalar LUTs in speed at equal index bits (scalar 2-bit equals vector 2x16, scalar 1-bit equals vector 4x16), so vectors buy accuracy per bit and sub-1-bit rates, not extra throughput.",
+          "source": "https://raw.githubusercontent.com/Anemll/anemll-forge/main/docs/history/VECTOR_LUT_README.md",
+          "note": null
+        },
+        {
+          "text": "In a weight-bound test (4096-wide 1x1 convs, 33.5 MB FP16 per layer) FP16 took 0.206 ms/layer, FP8 dense 0.107 (1.92x), FP8-LUT scalar 4-bit 0.051 (4.07x), vector 2x16 0.029 (7.15x), and 1 and 0.5 bits/weight no faster (about 0.030 ms, a 0.55-0.58 T weights/s decode ceiling).",
+          "source": "https://raw.githubusercontent.com/Anemll/anemll-forge/main/docs/history/VECTOR_LUT_README.md",
+          "note": null
+        },
+        {
+          "text": "Weight SNR from k-means (per-tensor LUT) on Gaussian weights is LUT4 20.12 dB, vector 2x64 (3 bits) 15.24, scalar 3-bit 14.54, vector 2x16 (2 bits) 9.67, scalar 2-bit 9.28, and the ResNet50 layers show the same +0.4 to +1.6 dB vector advantage.",
+          "source": "https://raw.githubusercontent.com/Anemll/anemll-forge/main/docs/history/VECTOR_LUT_README.md",
+          "note": null
+        },
+        {
+          "text": "Forge found the ANE does not decode FP8 LUT entries at run time (the compiler dequantizes the table to fp16), codes above 240 become inf on the native FP8 weight path, and FP8 LUTs run at FP16-LUT speed with FP8-sized storage.",
+          "source": "https://raw.githubusercontent.com/Anemll/anemll-forge/main/docs/history/VECTOR_LUT_README.md",
+          "note": null
+        },
+        {
+          "text": "Forge's patent notes cite US11120327B2 (2018, kernel extract circuit with LUT and sparse mask) and US20260073181A1 (2024, vector entries) and caution that the patents do not state LUT capacity or the chip generation.",
+          "source": "https://raw.githubusercontent.com/Anemll/anemll-forge/main/docs/history/VECTOR_LUT_README.md",
+          "note": null
+        },
+        {
+          "text": "Forge's 27B MLP-block timings (1 token) are INT8 1.63 ms, LUT4 per-group-8 1.19 ms, LUT4 per-tensor plus pcs 0.83-0.85 ms and 2-bit vector 2x16 (or ternary) plus pcs 0.43 ms, so each MLP layer moved from 2 to 4 bits costs about 0.4 ms per call.",
+          "source": "https://raw.githubusercontent.com/Anemll/anemll-forge/main/QUANTIZATION_NOTES.md",
+          "note": null
+        },
+        {
+          "text": "Any grouping of scalar LUT4 at the 27B MLP shape costs about 20% (1024-row groups 1.025 ms, 512-row 1.026, 128-row 1.008, group-8 1.244 ms (+47%) versus 0.847 ms per-tensor plus pcs).",
+          "source": "https://raw.githubusercontent.com/Anemll/anemll-forge/main/QUANTIZATION_NOTES.md",
+          "note": null
+        },
+        {
+          "text": "The historical deployed export `full_mix25_mixer4_head4` is 9.06 GiB with vector 2x16 MLP in 47 layers and LUT4 in 17, K/V projections INT8 per-channel and mean KL 0.619 (median 0.168, p99 5.48, top-1 72.8%, ppl 3.09 against bf16 2.136).",
+          "source": "https://raw.githubusercontent.com/Anemll/anemll-forge/main/QUANTIZATION_NOTES.md",
+          "note": null
+        },
+        {
+          "text": "KL ablations on that export show MLP-only 0.477, DeltaNet projections only 0.170, attention only 0.044, lm_head only 0.028, MLP layers 0-23 only 0.066 versus layers 24-63 only 0.453, and a rank-64 SVD correction cuts DeltaNet KL from 0.170 to 0.024 (top-1 87.9% to 95.0%) but barely helps MLP (0.477 to 0.453).",
+          "source": "https://raw.githubusercontent.com/Anemll/anemll-forge/main/QUANTIZATION_NOTES.md",
+          "note": null
+        },
+        {
+          "text": "Forge's export pipeline runs per-layer WikiText sensitivity sweeps, a bit-plan script for a size budget, GPTQ export (about 85 min on an M3 Ultra), a 9-minute KL eval (64 sequences, 40K tokens) and the ANE build; GPTQ options add in-domain calibration rows (self-generated chat, rendered agent sessions) and diag(H)-weighted k-means.",
+          "source": "https://raw.githubusercontent.com/Anemll/anemll-forge/main/QUANTIZATION_NOTES.md",
+          "note": null
+        },
+        {
+          "text": "The release guide says `KV_FMT=\"INT8 per-channel\"` names K/V projection weights and not an INT8 KV cache, the intermediate `.safetensors` export stores `uint8` indices (one byte per pair for 2x16), and packed vector 2x16 storage is C_out x C_in / 4 + 64 + 2 x C_out bytes.",
+          "source": "https://raw.githubusercontent.com/Anemll/anemll-forge/main/docs/QUANTIZATION.md",
+          "note": null
+        },
+        {
+          "text": "The release guide states the release model card describes KL divergence evaluation only, with instruction, coding and reasoning tests only planned.",
+          "source": "https://raw.githubusercontent.com/Anemll/anemll-forge/main/docs/QUANTIZATION.md",
+          "note": null
+        },
+        {
+          "text": "Forge's coreai-opt example notes an AttributeError bug in coreai-opt 0.2.1's cluster-dim check on conv2d `.groups`, worked around by a shape-only check, and that INT8/FP8 LUT values and per-group vector LUTs leave the ANE in Core AI.",
+          "source": "https://raw.githubusercontent.com/Anemll/anemll-forge/main/docs/history/VECTOR_LUT_README.md",
+          "note": null
+        },
+        {
+          "text": "CoreML-LLM's iPhone Qwen3-VL 4B/8B bundles use INT4 per-grouped-channel palettization (group size 64) on the ANE, showing grouped scalar LUTs run on iPhone ANE.",
+          "source": "https://raw.githubusercontent.com/john-rocky/CoreML-LLM/main/docs/QWEN3_VL_4B_8B_HANDOFF.md",
+          "note": null
+        },
+        {
+          "text": "CoreML-LLM's rejected-approach ledger says joint INT8-LUT entries drop 73 dequant ops off the ANE (92.9% to 86.7%) on its Mac probe and post-training W2/W3 palettization gives gibberish.",
+          "source": "https://raw.githubusercontent.com/john-rocky/CoreML-LLM/main/docs/REJECTED_APPROACHES.md",
+          "note": null
+        }
+      ]
+    }
+  ],
+  "related": []
+}

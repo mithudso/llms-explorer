@@ -1,0 +1,204 @@
+{
+  "slug": "confidence-conditioned-top-1-flip-rate-for-liter",
+  "concept": "Confidence-conditioned top-1 flip rate for literal-copy tokens",
+  "generated": "2026-10-05",
+  "summary": "llama-perplexity does not compute this. Its `--kl-divergence` pass counts one number, `n_same_top`, over all scored positions, and its other per-position statistic, Δp, is the candidate probability minus the reference probability of the corpus's actual next token, not of the reference's top-1 token.",
+  "facets": [
+    {
+      "title": "Facts",
+      "facts": [
+        {
+          "text": "llama-perplexity does not compute this. Its `--kl-divergence` pass counts one number, `n_same_top`, over all scored positions, and its other per-position statistic, Δp, is the candidate probability minus the reference probability of the corpus's actual next token, not of the reference's top-1 token.",
+          "source": "https://raw.githubusercontent.com/ggml-org/llama.cpp/master/tools/perplexity/perplexity.cpp",
+          "note": null
+        },
+        {
+          "text": "The saved base file does contain what is needed. It begins with the 8 bytes `_logits_`, then uint32 n_ctx, int32 n_vocab, int32 n_chunk, then n_ctx times n_chunk token ids, then one record per scored position.",
+          "source": "https://raw.githubusercontent.com/ggml-org/llama.cpp/master/tools/perplexity/perplexity.cpp",
+          "note": null
+        },
+        {
+          "text": "Each position record is nv = 2*((n_vocab+1)/2) + 4 values of uint16. The first four uint16 hold two float32 values, `scale` and `min_log_prob`, and each later value decodes as log-prob = scale * u16 + min_log_prob.",
+          "source": "https://raw.githubusercontent.com/ggml-org/llama.cpp/master/tools/perplexity/perplexity.cpp",
+          "note": null
+        },
+        {
+          "text": "The encoder sets min_log_prob = min_logit - max_logit - log_sum_exp and scale = (max_logit - min_logit) / 65535, and rounds to the nearest integer, so the resolution of every stored log-prob is one scale step.",
+          "source": "https://raw.githubusercontent.com/ggml-org/llama.cpp/master/tools/perplexity/perplexity.cpp",
+          "note": null
+        },
+        {
+          "text": "Only the second half of each chunk is scored: the record count per chunk is n_ctx - 1 - n_ctx/2.",
+          "source": "https://raw.githubusercontent.com/ggml-org/llama.cpp/master/tools/perplexity/perplexity.cpp",
+          "note": null
+        },
+        {
+          "text": "A small external reader can therefore decode each record, take argmax and its probability as the reference confidence, and join it with the candidate's argmax. The candidate's argmax is not saved by llama-perplexity, so the candidate pass needs its own dump (or a patched copy of the loop that records `imax == imax_base` per position and the base top-1 probability).",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "KLD in the llama.cpp loop sums only over vocabulary entries whose reference log-prob is above -16, so reference probabilities below about 1.1e-7 are dropped from the KLD sum.",
+          "source": "https://raw.githubusercontent.com/ggml-org/llama.cpp/master/tools/perplexity/perplexity.cpp",
+          "note": null
+        },
+        {
+          "text": "Resolution check: with a logit range of about 30 nats, one step is about 4.6e-4 nats. A top-1 probability of 0.99996 has 1-p of 4e-5, so p must be taken as one minus the summed probability of all other entries, not from the top entry's stored value.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "A flip needs a minimum logit-gap swing. If the reference top-1 probability is p1, any rival has probability at most 1 - p1, so the log-odds gap is at least ln(p1 / (1 - p1)): about 7.0 nats at p1 = 0.9991 and about 2.4 nats at p1 = 0.9158. High-confidence flips therefore mean large errors, not near-tie noise.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "The answer-level literature measures confidence as \"top margin\", the probability gap between the best and second-best answer option, and finds flips are likelier at low margin.",
+          "source": "https://arxiv.org/html/2407.09141v1",
+          "note": null
+        },
+        {
+          "text": "In that paper Llama2-70b chat has mean top margin on MMLU of 0.758 when the answer is correct and 0.434 when wrong; Llama2-7b chat gives 0.715 and 0.493.",
+          "source": "https://arxiv.org/html/2407.09141v1",
+          "note": null
+        },
+        {
+          "text": "The same paper reports answers that were incorrect change at least twice as often as answers that were correct, which explains why correct-to-incorrect and incorrect-to-correct flips roughly cancel and accuracy stays flat.",
+          "source": "https://arxiv.org/html/2407.09141v1",
+          "note": null
+        },
+        {
+          "text": "Reporting rule: give the count of positions in each bin next to the flip rate, with a Wilson interval. The top bin holds the fewest positions, so its rate is the noisiest and the one that matters most for tool calls.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "2024-01 (PR 5076 era): llama.cpp stores reference logits as scaled 16-bit values to make KLD runs practical (existing dossier).",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "2024-07: answer-level flip paper introduces \"top margin\" as the explanation for flips.",
+          "source": "https://arxiv.org/html/2407.09141v1",
+          "note": null
+        },
+        {
+          "text": "2026-08: Level1Techs reports high-confidence flips (p above 0.9) on literal tokens for weight-edited derivatives (existing dossier).",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Margin in the paper is a probability difference (p1 - p2). Log-odds is more sensitive near p1 = 1; use one convention and name it.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "\"Confidence\" is the reference's, not the candidate's; a candidate that is confidently wrong is a separate, calibration measurement.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Positions where the candidate and reference share the argmax but differ in probability (the Δp tail) are invisible to a flip rate.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Teacher-forced positions inside a repeated string (a port seen earlier in the prompt) are the copy cases; wikitext-style corpora contain few, so a wikitext flip rate by bin can understate tool-call risk.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "The `.kld` file is a private format tied to n_vocab and the exact token ids; the candidate run must use the same tokens, which llama-perplexity guarantees by reading them from the file.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Do flips happen where the model is unsure, or where it is sure? The answer-level paper finds flips concentrate at low margin under quantization noise. The Level1Techs derivative comparison finds the two worst models also overturned strongly preferred tokens (existing dossier), while the two best did not. The sources differ in perturbation type (quantization noise versus weight edits), so both can hold.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "No source reports a binned, confidence-conditioned flip rate for any GGUF or MLX quant.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Whether copy tokens are better isolated by a span selector (tokens that also occur earlier in the prompt) than by a probability threshold.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Whether the 16-bit quantization of stored log-probs shifts which positions land in the top bin (the f16-versus-own-base KLD of about 4e-6 suggests not much, existing dossier).",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "llama-perplexity's `--kl-divergence` pass counts argmax agreement as one total, n_same_top, and has no per-confidence breakdown.",
+          "source": "https://raw.githubusercontent.com/ggml-org/llama.cpp/master/tools/perplexity/perplexity.cpp",
+          "note": null
+        },
+        {
+          "text": "llama-perplexity's Δp is computed on the corpus token's probability under the candidate and under the reference, not on the reference's top-1 token.",
+          "source": "https://raw.githubusercontent.com/ggml-org/llama.cpp/master/tools/perplexity/perplexity.cpp",
+          "note": null
+        },
+        {
+          "text": "The base logits file starts with `_logits_`, n_ctx, n_vocab, n_chunk and the evaluation token ids, followed by per-position records of 2*((n_vocab+1)/2)+4 uint16 values.",
+          "source": "https://raw.githubusercontent.com/ggml-org/llama.cpp/master/tools/perplexity/perplexity.cpp",
+          "note": null
+        },
+        {
+          "text": "Each stored log-prob decodes as scale times a uint16 plus min_log_prob, where scale is the logit range divided by 65535.",
+          "source": "https://raw.githubusercontent.com/ggml-org/llama.cpp/master/tools/perplexity/perplexity.cpp",
+          "note": null
+        },
+        {
+          "text": "The llama.cpp KLD sum skips reference entries with log-prob at or below -16.",
+          "source": "https://raw.githubusercontent.com/ggml-org/llama.cpp/master/tools/perplexity/perplexity.cpp",
+          "note": null
+        },
+        {
+          "text": "The llama.cpp README defines \"Same top p\" as the percentage of positions where both models give the highest probability to the same token.",
+          "source": "https://github.com/ggml-org/llama.cpp/blob/master/tools/perplexity/README.md",
+          "note": null
+        },
+        {
+          "text": "The answer-level flip paper defines top margin as the probability difference between the best and second-best answer option.",
+          "source": "https://arxiv.org/html/2407.09141v1",
+          "note": null
+        },
+        {
+          "text": "That paper finds answers are more likely to change when top margin is low and that incorrect answers change at least twice as often as correct ones.",
+          "source": "https://arxiv.org/html/2407.09141v1",
+          "note": null
+        },
+        {
+          "text": "A confidence-conditioned flip rate can be built from llama.cpp's saved reference file plus a per-position candidate dump, with no new reference run.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "A flip at reference top-1 probability p1 needs at least ln(p1/(1-p1)) nats of logit-gap change.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "At p1 above 0.9999 the confidence must be computed as one minus the sum of the other entries because the 16-bit step is coarser than 1-p.",
+          "source": "asserted",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Corrections and disagreements",
+      "facts": [
+        {
+          "text": "That paper's text reports a Spearman correlation of 0.981 between KL divergence and flips on MMLU. CONTRADICTS (in value only): kld-based-quant-evaluation-methodology.md, which gives about 0.96 to 0.97 from charts quoted in a secondary post.",
+          "source": "https://arxiv.org/html/2407.09141v1",
+          "note": null
+        }
+      ]
+    }
+  ],
+  "related": []
+}

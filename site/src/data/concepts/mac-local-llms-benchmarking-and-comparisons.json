@@ -1,0 +1,319 @@
+{
+  "slug": "mac-local-llms-benchmarking-and-comparisons",
+  "concept": "Mac local LLMs: Benchmarking and comparisons",
+  "generated": "2026-10-05",
+  "summary": "Controlled 2026-09 single-stream data: MLX 1.0x-1.5x, MoE and hybrid at the top. Re-measure before quoting rules",
+  "facets": [
+    {
+      "title": "Decision rules: MLX vs llama.cpp",
+      "facts": [
+        {
+          "text": "Controlled 2026-09 single-stream data: MLX 1.0x-1.5x, MoE and hybrid at the top. Re-measure before quoting rules",
+          "source": "https://github.com/john-rocky/apple-silicon-llm-bench",
+          "note": null
+        },
+        {
+          "text": "Dense 4-bit decode: MLX +5% (8B) to +40% (27B, M1 Ultra); at 8-bit a tie (MLX 19.5 vs Ollama 20.4); lead is partly Q4_K_M unpack cost",
+          "source": "https://zachrattner.com/projects/ai-mac-cluster/mlx-vs-ollama",
+          "note": null
+        },
+        {
+          "text": "M4 Max plain mlx-lm vs llama.cpp: 0.6B 356 vs 282, 4B 129 vs 118, 8B 79.9 vs 76.9, 30B-A3B 107 vs 90; Gemma 3 4B reversed 105 vs 123",
+          "source": "https://arxiv.org/html/2601.19139v1",
+          "note": null
+        },
+        {
+          "text": "MoE 30B-A3B: M4 Pro MLX +3%, M5 Max GGUF +5% (131 vs 125), M1 Ultra Ollama +22%. Chip- or harness-specific; pick on prefill and server behavior",
+          "source": "https://arxiv.org/html/2607.00501v1",
+          "note": null
+        },
+        {
+          "text": "Hybrid models (Qwen3.5/3.6, Nemotron-3, Granite-4.0-H): MLX up to 1.4-1.8x on M4 Max; check caching (mlx-lm#903)",
+          "source": "https://github.com/john-rocky/apple-silicon-llm-bench",
+          "note": null
+        },
+        {
+          "text": "Use llama.cpp for short prompts (<1K), cold long prompts, agents without prompt cache, grammars, 16 GB Macs. Use MLX for dense/hybrid interactive output and long outputs. Repeated-prefix agents: cache reuse decides, not engine",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Prefill: Ollama batch 512 vs mlx-lm step 2048; llama.cpp wins ~500-token and cold-MoE prefill, MLX wins dense 4K-16K",
+          "source": "https://zachrattner.com/projects/ai-mac-cluster/mlx-vs-ollama",
+          "note": null
+        },
+        {
+          "text": "\"MLX loses long-context decode\" rests on one LM Studio report (mlx-lm#763: 146K 5.95 vs 12.12 t/s, unreproduced)",
+          "source": "https://github.com/ml-explore/mlx-lm/issues/763",
+          "note": null
+        },
+        {
+          "text": "Ollama routes per checkpoint: MLX runner only for MLX-format tags; OLLAMA_LLM_LIBRARY=mlx on a GGUF tag is ignored. Ollama 0.32.6+ MLX uses the Qwen3.5 MTP head (speculation included)",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Ollama blobs are not portable GGUFs; upstream llama.cpp errors `unknown model architecture: gptoss`, `key qwen35.rope.dimension_sections has wrong array length; expected 4, got 3`",
+          "source": "https://terminalbytes.com/ollama-vs-llama-cpp-vs-mlx-mac-2026/",
+          "note": null
+        },
+        {
+          "text": "M1/M2: mlx-community bf16 weights are emulated. Convert to fp16 for ~1.7x prefill, decode 28 to 33 tok/s; hurts oMLX 8K prefill",
+          "source": "asserted",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Memory failure modes",
+      "facts": [
+        {
+          "text": "Ollama loads Qwen3.5 at 262,144 context: 15 GB resident GGUF, 9 GB MLX tag, mlx-lm peak 5.24 GB",
+          "source": "https://terminalbytes.com/ollama-vs-llama-cpp-vs-mlx-mac-2026/",
+          "note": null
+        },
+        {
+          "text": "16 GB Mac: mlx-lm hits `kIOGPUCommandBufferCallbackErrorOutOfMemory` until `sudo sysctl iogpu.wired_limit_mb=14000`; llama.cpp ran with `--n-cpu-moe 12` (~26 tok/s)",
+          "source": "asserted",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Methodology: what to do",
+      "facts": [
+        {
+          "text": "llama-bench: `llama-bench -m MODEL.gguf -p 512,4096 -n 128 -d 0,8192,32768 -fa 1 -ngl 99 -r 5 --delay 30 -o json`; `-ncmoe N` for MoE. Excludes tokenization/sampling (upper bound)",
+          "source": "https://raw.githubusercontent.com/ggml-org/llama.cpp/master/tools/llama-bench/README.md",
+          "note": null
+        },
+        {
+          "text": "mlx-lm: `mlx_lm.benchmark --model mlx-community/MODEL-4bit -p 512 -g 256 -n 5 --delay 30`; random tokens, EOS off, prints mean only (read per-trial lines). Defaults -g 1024 vs -n 128: equalize",
+          "source": "https://raw.githubusercontent.com/ml-explore/mlx-lm/main/mlx_lm/benchmark.py",
+          "note": null
+        },
+        {
+          "text": "Rules: pin llama.cpp commit and mlx-lm version; same quant bpw and checkpoint; greedy batch 1; median of N>=3 (never best-of); trial spread within a few percent; cooldown >=100 s; interleave arms A/B/A/B; log charging, Low Power Mode, thermals; keep failed rows",
+          "source": "https://raw.githubusercontent.com/john-rocky/apple-silicon-llm-bench/main/methodology/fairness-rules.md",
+          "note": null
+        },
+        {
+          "text": "Block-ordered runs fail: heat from arm A depresses arm B (true 27.4 read 15.6-20.7) and the spread check misses it. Contention halves decode",
+          "source": "https://raw.githubusercontent.com/john-rocky/apple-silicon-llm-bench/main/methodology/fairness-rules.md",
+          "note": null
+        },
+        {
+          "text": "Cache artifacts: Ollama showed 19,071 then 25,596 t/s prefill on a repeated prompt (impossible). Salt first tokens for cold runs",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Fanless: median of 3 overstates ~20%. exo_bench defaults `--repeat 1 --warmup 0` (one cold sample)",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Never mix thinking, MTP or max_tokens semantics across arms; quant label is not a spec",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Dependent chains, not queue-batched loops, price decode kernels: M=1 0.041 ms batched vs 0.060 ms chained; rankings flip (1.13x vs 0.52x)",
+          "source": "https://github.com/ml-explore/mlx/issues/4265",
+          "note": null
+        },
+        {
+          "text": "A number without a stored per-run JSONL is not a measurement; re-measure an anchor cell each session",
+          "source": "https://raw.githubusercontent.com/john-rocky/apple-silicon-llm-bench/main/CLAUDE.md",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "TTFT and token-count parity",
+      "facts": [
+        {
+          "text": "TTFT edges differ by harness (generate call vs HTTP send; first token vs first content delta); thinking models read late. Compare only within one harness",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Ollama usage fields: `prompt_eval_count` (total), `prompt_eval_cached_count`, `prompt_eval_duration` (uncached only). Prefill rate = (count - cached) / duration",
+          "source": "https://docs.ollama.com/api/usage",
+          "note": null
+        },
+        {
+          "text": "llama-server: `timings.prompt_n` is processed-only, `usage.prompt_tokens` and `tokens_evaluated` include cached; mlx_lm.server `prompt_tokens` is full length and streams usage only with `stream_options.include_usage`",
+          "source": "https://raw.githubusercontent.com/ggml-org/llama.cpp/master/tools/server/README.md",
+          "note": null
+        },
+        {
+          "text": "Parity check: render once, tokenize with one tokenizer, compare each runtime's total on a cold cache (`cache_prompt: false`); off by 1 means BOS",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "llm-benchpacks: `benchpack run runtime-sweep --adapter openai-chat --endpoint http://localhost:11434/v1 --openai-stream-usage omit`; prefill_tps printed only when prompt and cached counts agree",
+          "source": "https://github.com/ephes/llm-benchpacks",
+          "note": null
+        },
+        {
+          "text": "llm-benchpacks M5 Max, Qwen3.6-35B-A3B: MLX ~103, llama.cpp ~92, Ollama ~47-50 tok/s; every runtime failed patch-from-failure, so tok/s alone misleads",
+          "source": "https://raw.githubusercontent.com/ephes/llm-benchpacks/main/docs/qwen36-m4-m5-benchmark-summary.md",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Build drift and artifacts",
+      "facts": [
+        {
+          "text": "llama.cpp discussion 4167 mixes builds 1493 to 10621; M5+ rows pin c1d0e7a00 (2026-08-25), so old and new rows are incomparable; same-commit noise up to 10%",
+          "source": "https://github.com/ggml-org/llama.cpp/discussions/4167",
+          "note": null
+        },
+        {
+          "text": "macOS 27 beta broke `xcrun coreai-build compile` with `LLVM ERROR: cannot unwrap empty odiec_module_t`; fix coreai-torch 0.4.1; `uv run` resyncs to 0.4.0. Record OS build",
+          "source": "https://raw.githubusercontent.com/john-rocky/apple-silicon-llm-bench/main/methodology/coreai-build-regression-2026-07.md",
+          "note": null
+        },
+        {
+          "text": "guruswami-ai/mlx-benchmarks: 5-node M3 Ultra dataset, CC BY-ND 4.0, unreplicated; TP5 fails head divisibility",
+          "source": "https://github.com/guruswami-ai/mlx-benchmarks",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Distributed (exo vs mlx.launch)",
+      "facts": [
+        {
+          "text": "exo and mlx-lm share shard layout and decode loop; differences are MLX build, FAST_SYNCH, measurement. Docs say leave `MLX_METAL_FAST_SYNCH` unset (deadlock, #3142 wontfix); Awni and WWDC26 set it to 1",
+          "source": "https://ml-explore.github.io/mlx/build/html/usage/distributed.html",
+          "note": null
+        },
+        {
+          "text": "Kimi K2 Thinking: stock TP4 14.82 vs PP4 14.49 tok/s (#2990, single run, no maintainer reply) vs exo ~28-30; no source runs both on one cluster",
+          "source": "https://github.com/ml-explore/mlx/discussions/2990",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Corrections",
+      "facts": [
+        {
+          "text": "Earlier: Qwen3-8B \"93.3 vs 76.9, +21%\". Primary paper: 93.3 is vllm-mlx; plain mlx-lm 79.9 (+4%); \"20-87%\" is vllm-mlx, plain range -14% to +27%",
+          "source": "https://arxiv.org/html/2601.19139v1",
+          "note": null
+        },
+        {
+          "text": "Earlier: \"MLX 3x faster until 40K\". 2-3x mlxcel claims shrank to 1.3x on rerun",
+          "source": "https://blog.kubesimplify.com/mlxcel-rust-native-inference-engine-tested-on-m1-max",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Open",
+      "facts": [
+        {
+          "text": "Ollama MLX runner on 30B-A3B untested; MoE kernel unprofiled; llama-bench vs llama-server agreement unmeasured",
+          "source": "asserted",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Corrections and disagreements",
+      "facts": [
+        {
+          "text": "CONTRADICTS: apple-silicon-memory-bandwidth-and-decode-speed.md line \"Qwen3-8B 4-bit decodes at 93.3 tok/s with MLX versus 76.9 with llama.cpp\" (via starmorph). In the primary paper (arXiv 2601.19139, Table 1) 93.3 is the paper's own vllm-mlx server; plain mlx-lm is 79.9, so the plain MLX lead at 8B is +4%, not +21%. The \"20-87%\" headline range is vllm-mlx over llama.cpp, not mlx-lm over llama.cpp (plain mlx-lm range in that table is -14% to +27%).",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "CONTRADICTS: existing \"MLX 3x faster until 40K\" framing. The only same-model controlled 3x-type gaps found are single sessions that did not reproduce (mlxcel 2-3x on M1 Max collapsed to 1.3x); Ollama's own 130 vs 43 is MoE on M4 Pro with an Ollama llama.cpp build of that time. Controlled 2026-09 data on M3 Ultra/M4 Pro/M1 Ultra show 1.0x-1.5x single-stream, with MoE and hybrid models at the top.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "CONTRADICTS tensor-vs-pipeline-vs-expert-parallelism-for-moe.md and exo-cluster-software.md framing that framework differences are an open black box: the shard layout and decode loop are shown identical in source, so remaining differences are the MLX build, FAST_SYNCH and measurement conditions",
+          "source": "asserted",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Concepts in this cluster",
+      "facts": [
+        {
+          "text": "MLX vs llama.cpp decode and prefill by model size and context",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Benchmark methodology pitfalls for local LLM runtimes",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "exo vs mlx.launch tensor-parallel throughput controlled comparison",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "guruswami-ai mlx-benchmarks cluster dataset",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "llama.cpp build-number drift in published Mac benchmarks",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Dense vs MoE MLX vs llama.cpp decode on Apple silicon",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Dependent-chain versus queue-batched MLX kernel benchmarking",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Time-to-first-token measurement artifacts",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "apple-silicon-llm-bench fairness rules and interleaved-arm protocol",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "llm-benchpacks workload-level agent benchmarks",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "MLX discussion 2990 five-node M3 Ultra RDMA benchmark thread",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Prefill-parity gating of prefill tokens-per-second in cross-runtime reports",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Prompt-token counting parity across runtimes",
+          "source": "asserted",
+          "note": null
+        }
+      ]
+    }
+  ],
+  "related": []
+}

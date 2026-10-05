@@ -1,0 +1,444 @@
+{
+  "slug": "anthropic-compatible-local-endpoints-and-mid-con",
+  "concept": "Anthropic-compatible local endpoints and mid-conversation role system messages",
+  "generated": "2026-10-05",
+  "summary": "Anthropic contract: a system message with content cannot be first in `messages`; it must directly follow a user turn (a user turn carrying tool_result counts) or an assistant turn ending in a server tool result, and must be last or be followed by an assistant turn; it cannot sit between a tool_us...",
+  "facets": [
+    {
+      "title": "Facts",
+      "facts": [
+        {
+          "text": "Anthropic contract: a system message with content cannot be first in `messages`; it must directly follow a user turn (a user turn carrying tool_result counts) or an assistant turn ending in a server tool result, and must be last or be followed by an assistant turn; it cannot sit between a tool_use and its tool_result; otherwise 400. It may carry text, `tool_addition`/`tool_removal` blocks (beta `inline-tools-2026-09-15`) and `output_config.effort` (beta `mid-conversation-output-config-2026-07-01`). Turn-scoped `clear_at` needs beta `mid-conversation-system-clear-at-2026-08-21`.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "What Claude Code puts in them (measured, one reporter, llama.cpp discussion 27281): 50 of 55 requests in a real session carried system turns in `messages`; the count grew by one per user turn (indices 1, 4, 7, 10, ...), always appended at the tail, history never rewritten; in 34 of 50 increments the block was the 49-char `<total_tokens>N tokens left</total_tokens>` with a new N each turn. A LiteLLM reporter (Claude Code 2.1.220) saw a second system message holding the \"Available agent types for the Agent tool\" and \"skills are available for use with the Skill tool\" listings after the user message. Claude Code docs describe the trailing block as \"system context ... such as file-change notices\". No source shows the environment block (cwd, platform, date) moving into a role:system entry; changelog 2.1.268 says Bedrock/Vertex/Foundry now deliver \"environment, model and settings details as attachments\", and 2.1.42 moved the date out of the system prompt.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "llama-server: `server_chat_convert_anthropic_to_oai()` (tools/server/server-chat.cpp, per a commenter reading the source) first pushes the top-level `system` as OpenAI message 0, then copies each `messages` item keeping its role. A request with top-level `system` plus any `role:system` in `messages` therefore yields two system messages, and the second trips the template guard `raise_exception('System message must be at the beginning.')`. The same message appears as HTTP 500 (llama-server) or 400 (LM Studio engine, LiteLLM->vLLM).",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Ollama: same root cause in the Qwen 3.8 renderer (error text `system message must be at the beginning`, log `chat prompt error`). Position inside `messages` does not decide it; the top-level `system` becomes message 0, so a role:system entry even at index 0 of `messages` still fails.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "LiteLLM: Anthropic /v1/messages -> Responses adapter -> Chat Completions bridge (`transform_responses_api_input_to_messages`) emits `system, user, system`; no normalisation of system placement.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "2025-12 to 2026-01: Anthropic compat added to Ollama 0.14, LM Studio 0.4.1, llama-server (PR 17570, HF blog 2026-01-19). No mid-conversation system messages then.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Claude Code 2.1.211/2.1.212: changelog \"the mid-conversation system block now works behind LLM gateways and custom base URLs\"; a 2.1.211 fix for a Bedrock/Vertex regression that billed \"the trailing system context block\" as fresh input.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Claude Code 2.1.280: \"Fixed conversations failing on every turn with a role 'system' must precede an 'assistant' message API error\".",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "2026-06-02: LM Studio 0.4.15+2, Claude Code 2.1.160, qwen3.6-35b-a3b: Jinja \"System message must be at the beginning\" (lmstudio-bug-tracker 1999, still open in the cached page); reporters see it only with some Qwen builds (Gemma 4 and original Qwen3.6-27B-MTP work).",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "2026-08-14: Qwen 3.8 release; Ollama issue 17754 (0.32.12, Claude Code 2.1.229); fixed by Ollama PR 17757 (merged 2026-08-14, ships in 0.32.14): non-leading system turns pass through the raw ChatML path with a WARN `non-leading system message` (renderer qwen3.8). Reviewer drifkin: choices are replace-the-leading-system (wrecks cache, confuses model) or pass-through (may be out of distribution); \"probably model-by-model\".",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "2026-08-17..21: llama.cpp discussion 27281: workarounds (patched template, `anthropic-system-merge.patch` v1/v2) and a measured prefix-cache cost analysis.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "2026-09-11: LiteLLM issue 40693 (1.100.0, Claude Code 2.1.220); fix PR 40726 open.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Anthropic-compat advertised on a runtime does not mean Claude Code's request shape works; the 2.1.2xx mid-conversation system entries break any engine whose template forbids non-leading system messages.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Ollama 0.32.14-rc0 follow-on: `500 no user query found in messages`. Cause (one reporter): Claude Code's first request is about 36k tokens (62 tool schemas plus system), over the default 32,768 num_ctx; truncation drops the user message but keeps the trailing system message. Workaround: a Modelfile with `PARAMETER num_ctx 49152`. Overflow is otherwise silent (usage showed about 16k for a 40k request).",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Hoisting all system content to offset 0 (llama.cpp patch v1) re-prefills the whole context on about 76% of turns (39 of 51 simulated); measured 380k prefill tokens in place vs about 2.6M hoisted over 55 requests, about +150 s TTFT per affected turn on ROCm at about 440 t/s. Patch v2 folds a non-leading system turn into the next message; a trailing system turn has no next message, so it falls back to the leading system message, and v1's cost returns for tail-appending clients (commenter's analysis). Template patches that render the system turn in place keep the prefix stable.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Deleting only the raise_exception in Qwen 3.8's template silently drops the second system message (the main-loop system branch writes nothing); write it out instead, e.g. `<|im_start|>system\\n...<|im_end|>`.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "LM Studio: editing the Jinja template in the model's Inference tab did not take effect on load (reporter); one reporter patched the GGUF metadata with the gguf Python package.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Unsloth UD quants shipped the correct template; non-UD quants and the model-card template did not, until Unsloth updated them 2026-08-14 (unsloth Qwen3.8-27B-GGUF discussion 10); users still reported the error on UD-Q5_K_XL, Q8_0 and BF16.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Claude Code retry behavior: if the upstream rejects `thinking`, a mid-conversation system message, or cache_control on one, Claude Code retries and disables that capability for the rest of the conversation (gateway-protocol page). A 500 from a template exception is not a recognised capability rejection in the cited text.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Gateways must keep the `system` array unchanged; merging or reordering defeats Anthropic-side attribution stripping and prompt caching and, with preserved thinking, can raise `bound to a different conversation`.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Anthropic path vs OpenAI path in LiteLLM: setting `use_chat_completions_api: true` did not fix it; the bug is in the shared Responses->Chat bridge.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Hoist vs in-place vs replace: llama.cpp patch authors favor merging into the leading system message (template-agnostic, also fixes the OpenAI path); the cache-cost measurer and a template author favor rendering in place (prefix-safe); Ollama's maintainer favors pass-through now and a model-by-model decision later. Nobody has shown which gives better model quality.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Ollama docs list `thinking` as supported and `output_config.effort` as supported, but the same page's partial-support table says extended thinking is basic with `budget_tokens` not enforced (compatible: effort and enabled/disabled work, budgets do not). The same page lists `error` among supported stream events and \"Server-sent errors\" as unsupported.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Whether Claude Code is \"using system role messages mid flow\" or \"Qwen updated its template to throw\" (LM Studio issue comment): the 2026 Qwen 3.8 timeline and Anthropic docs favor the first for cause, the template for the failure.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Quality of thinking vs no thinking on Qwen 3.8 (one reporter: thinking off gave fewer C# errors; another: depends on task).",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "How oMLX, Rapid-MLX and vllm-mlx handle non-leading system entries in /v1/messages; no cached README documents it (greps for system message, non-leading, merge returned nothing).",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Whether mlx_lm.server gained /v1/messages (cached mlx-lm README mentions only the server command; the Rapid-MLX comparison says OpenAI only).",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Whether /v1/messages/count_tokens exists in LM Studio, oMLX, Rapid-MLX (docs list only /v1/messages for LM Studio; oMLX table lists no count_tokens).",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Upstream llama.cpp status of a converter-level fix (only attachments to a discussion, no merged PR seen).",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Whether `CLAUDE_CODE_DISABLE_EXPERIMENTAL_BETAS=1` stops the role:system entries on custom base URLs; the caching page says it only makes that block uncached, not absent.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "claude-code-router behavior with these entries (no source read).",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Exact Claude Code version that first emitted role:system entries (2.1.211 changelog implies by then).",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Claude Code's gateway protocol page lists `/v1/messages` and optional `/v1/messages/count_tokens` as the endpoints for the Anthropic Messages format",
+          "source": "https://code.claude.com/docs/en/llm-gateway-protocol",
+          "note": null
+        },
+        {
+          "text": "If the gateway lacks count_tokens, Claude Code falls back to a character-based estimate and `/context` shows approximate counts, with no error",
+          "source": "https://code.claude.com/docs/en/llm-gateway-protocol",
+          "note": null
+        },
+        {
+          "text": "Claude Code attaches cache_control markers to system blocks and to messages entries, including `role: \"system\"` entries appended mid-conversation",
+          "source": "https://code.claude.com/docs/en/llm-gateway-protocol",
+          "note": null
+        },
+        {
+          "text": "When an upstream rejects the `thinking` field, a mid-conversation system message, or cache_control on one, Claude Code retries and disables that capability for the rest of the conversation",
+          "source": "https://code.claude.com/docs/en/llm-gateway-protocol",
+          "note": null
+        },
+        {
+          "text": "Claude Code sends `thinking: {\"type\":\"adaptive\"}` for Claude 4.6 and later and treats unrecognised model names such as gateway aliases as current models that receive that field",
+          "source": "https://code.claude.com/docs/en/llm-gateway-protocol",
+          "note": null
+        },
+        {
+          "text": "Claude Code can query `GET /v1/models?limit=1000` (3 s default timeout, redirects treated as failure) to fill /model when `CLAUDE_CODE_ENABLE_GATEWAY_MODEL_DISCOVERY=1`",
+          "source": "https://code.claude.com/docs/en/llm-gateway-protocol",
+          "note": null
+        },
+        {
+          "text": "Claude Code sends the tool-search beta header, defer_loading fields and tool_reference blocks through an ANTHROPIC_BASE_URL gateway even with CLAUDE_CODE_DISABLE_EXPERIMENTAL_BETAS=1",
+          "source": "https://code.claude.com/docs/en/llm-gateway-protocol",
+          "note": null
+        },
+        {
+          "text": "Claude Code appends system context mid-conversation (such as file-change notices) and marks that block for caching on every provider unless CLAUDE_CODE_DISABLE_EXPERIMENTAL_BETAS is set, in which case the block is sent uncached",
+          "source": "https://code.claude.com/docs/en/prompt-caching",
+          "note": null
+        },
+        {
+          "text": "Claude Code changelog 2.1.212 (2.1.211 era): \"the mid-conversation system block now works behind LLM gateways and custom base URLs (Bedrock, Vertex, 1P)\"",
+          "source": "https://code.claude.com/docs/en/changelog",
+          "note": null
+        },
+        {
+          "text": "Claude Code changelog 2.1.280: fixed conversations failing on every turn with a \"role 'system' must precede an 'assistant' message\" API error",
+          "source": "https://code.claude.com/docs/en/changelog",
+          "note": null
+        },
+        {
+          "text": "Claude Code changelog 2.1.268: Bedrock, Vertex and Foundry now get environment, model and settings details as attachments, matching first-party sessions",
+          "source": "https://code.claude.com/docs/en/changelog",
+          "note": null
+        },
+        {
+          "text": "Claude Code changelog 2.1.42: date moved out of the system prompt to improve cache hit rates",
+          "source": "https://code.claude.com/docs/en/changelog",
+          "note": null
+        },
+        {
+          "text": "Anthropic: a mid-conversation system message is appended as `{\"role\":\"system\"}` in `messages` so the cached prefix stays unchanged",
+          "source": "https://platform.claude.com/docs/en/build-with-claude/mid-conversation-system-messages",
+          "note": null
+        },
+        {
+          "text": "Anthropic: a system message with content cannot be the first entry in `messages` and must directly follow a user turn (including one with tool_result blocks) and precede an assistant turn or end the array; other placement returns 400",
+          "source": "https://platform.claude.com/docs/en/build-with-claude/mid-conversation-system-messages",
+          "note": null
+        },
+        {
+          "text": "Anthropic: `tool_addition` and `tool_removal` blocks inside a role:system message need beta header `inline-tools-2026-09-15`",
+          "source": "https://platform.claude.com/docs/en/build-with-claude/mid-conversation-system-messages",
+          "note": null
+        },
+        {
+          "text": "Anthropic: editing or removing an already-sent mid-conversation system message invalidates the cache from that point",
+          "source": "https://platform.claude.com/docs/en/build-with-claude/mid-conversation-system-messages",
+          "note": null
+        },
+        {
+          "text": "llama-server serves POST /v1/messages (streaming, tool use needs --jinja), POST /v1/messages/count_tokens (max_tokens not required) and states \"no strong claims of compatibility with the Anthropic API spec\"",
+          "source": "https://github.com/ggml-org/llama.cpp/blob/master/tools/server/README.md",
+          "note": null
+        },
+        {
+          "text": "llama-server's HF post lists token counting, vision (base64 or URL), extended thinking via the `thinking` parameter and Anthropic SSE event types; count_tokens example returns `{\"input_tokens\": 10}`",
+          "source": "https://huggingface.co/blog/ggml-org/anthropic-messages-api-in-llamacpp",
+          "note": null
+        },
+        {
+          "text": "llama-server converts Anthropic requests to OpenAI format internally and reuses the existing pipeline",
+          "source": "https://huggingface.co/blog/ggml-org/anthropic-messages-api-in-llamacpp",
+          "note": null
+        },
+        {
+          "text": "llama-server README: `--reasoning-budget N` (-1 unrestricted, 0 immediate end, N>0 budget), `--reasoning-budget-message`, and per-request `chat_template_kwargs` such as `{\"enable_thinking\": false}`",
+          "source": "https://github.com/ggml-org/llama.cpp/blob/master/tools/server/README.md",
+          "note": null
+        },
+        {
+          "text": "llama-server converter puts the top-level `system` at OpenAI index 0 then copies each messages item with its role, so top-level system plus a role:system entry gives two system messages",
+          "source": "https://github.com/ggml-org/llama.cpp/discussions/27281",
+          "note": null
+        },
+        {
+          "text": "Qwen3.8-27B's chat_template.jinja raises `System message must be at the beginning.` for any system message that is not the first",
+          "source": "https://github.com/ggml-org/llama.cpp/discussions/27281",
+          "note": null
+        },
+        {
+          "text": "`curl -s localhost:8080/props | jq -r .chat_template > tpl.jinja` extracts the GGUF's template; `llama-server --jinja --chat-template-file tpl.jinja` loads a patched one; `-lv 4` logs messages so system entries can be counted",
+          "source": "https://github.com/ggml-org/llama.cpp/discussions/27281",
+          "note": null
+        },
+        {
+          "text": "Measured Claude Code session (55 requests, Qwen3.8-27B, ctx 180224): 50 carried a system turn in messages, one more per user turn at the tail, and 34 of 50 increments were `<total_tokens>N tokens left</total_tokens>`",
+          "source": "https://github.com/ggml-org/llama.cpp/discussions/27281",
+          "note": null
+        },
+        {
+          "text": "Simulated hoist-to-front patch raises prefill from 380k to about 2.6M tokens across those 55 requests (about 7x)",
+          "source": "https://github.com/ggml-org/llama.cpp/discussions/27281",
+          "note": null
+        },
+        {
+          "text": "A template that renders non-leading system turns in place keeps the prefix stable; the froggeric/jschmied Qwen-Fixed-Chat-Templates also merge a leading run of system/developer turns and default reasoning to medium",
+          "source": "https://github.com/ggml-org/llama.cpp/discussions/27281",
+          "note": null
+        },
+        {
+          "text": "Same \"System message must be at the beginning\" error occurs from Codex and oh-my-pi sending multiple developer/system messages mid-conversation, and the official Qwen template has the same check",
+          "source": "https://huggingface.co/froggeric/Qwen-Fixed-Chat-Templates/discussions/1",
+          "note": null
+        },
+        {
+          "text": "LM Studio 0.4.15+2 on macOS 26.5 with Claude Code 2.1.160 and qwen3.6-35b-a3b returned an api_error \"Engine protocol predict request returned 400 ... Unable to generate parser for this template ... System message must be at the beginning\"",
+          "source": "https://github.com/lmstudio-ai/lmstudio-bug-tracker/issues/1999",
+          "note": null
+        },
+        {
+          "text": "In that LM Studio issue, gemma-4-31b worked while some Qwen builds failed, and editing the template in the Inference tab did not apply on load",
+          "source": "https://github.com/lmstudio-ai/lmstudio-bug-tracker/issues/1999",
+          "note": null
+        },
+        {
+          "text": "LM Studio's Anthropic docs list `/v1/messages` as the only supported endpoint, with streaming SSE events and a tools example using `tool_choice: {\"type\":\"any\"}`; auth accepts x-api-key or Bearer when required",
+          "source": "https://lmstudio.ai/docs/developer/anthropic-compat",
+          "note": null
+        },
+        {
+          "text": "Ollama issue 17754: `ollama launch claude --model qwen3.8:27b` on 0.32.12/0.32.13 with Claude Code 2.1.229 returned `API Error: 500 system message must be at the beginning` from POST /v1/messages?beta=true",
+          "source": "https://github.com/ollama/ollama/issues/17754",
+          "note": null
+        },
+        {
+          "text": "Ollama PR 17757 (merged 2026-08-14) passes non-leading system turns through raw ChatML and logs `non-leading system message` renderer=qwen3.8; released after 0.32.13, reported working on 0.32.14-rc0",
+          "source": "https://github.com/ollama/ollama/pull/17757",
+          "note": null
+        },
+        {
+          "text": "On Ollama 0.32.13 a top-level `system` plus a role:system entry at any position in `messages` returns 500; dropping the top-level system makes it succeed",
+          "source": "https://github.com/ollama/ollama/issues/17754",
+          "note": null
+        },
+        {
+          "text": "Ollama 0.32.14-rc0 returned `500 no user query found in messages` when a ~40k-token request overflowed the 32,768 default context, because truncation dropped the user turn but kept the trailing system turn; `PARAMETER num_ctx 49152` worked around it",
+          "source": "https://github.com/ollama/ollama/issues/17754",
+          "note": null
+        },
+        {
+          "text": "Ollama's Anthropic compatibility does not support `/v1/messages/count_tokens`, `tool_choice`, `metadata`, prompt caching, Batches, citations or PDF documents",
+          "source": "https://docs.ollama.com/api/anthropic-compatibility",
+          "note": null
+        },
+        {
+          "text": "Ollama's Anthropic compatibility reports token counts that are approximations based on the model's tokenizer, and accepts `system` as string or array, `thinking`, and `output_config.effort` (model-defined names)",
+          "source": "https://docs.ollama.com/api/anthropic-compatibility",
+          "note": null
+        },
+        {
+          "text": "Ollama on a model with metadata applies supported effort names exactly and maps unsupported ones to the model default; models without metadata lowercase the name and map `xhigh` to `high`",
+          "source": "https://docs.ollama.com/api/anthropic-compatibility",
+          "note": null
+        },
+        {
+          "text": "Ollama streams message_start, content_block_start/delta (text_delta, input_json_delta, thinking_delta), content_block_stop, message_delta, message_stop, ping and error events",
+          "source": "https://docs.ollama.com/api/anthropic-compatibility",
+          "note": null
+        },
+        {
+          "text": "`ollama cp qwen3-coder claude-3-5-sonnet` lets tools that hard-code Anthropic model names work against a local model",
+          "source": "https://docs.ollama.com/api/anthropic-compatibility",
+          "note": null
+        },
+        {
+          "text": "LiteLLM issue 40693: Anthropic /v1/messages -> Responses adapter -> Chat Completions bridge produced `system, user, system` and a vLLM Qwen3.8 backend returned 400 \"System message must be at the beginning\" with LiteLLM 1.100.0 and Claude Code 2.1.220; `use_chat_completions_api: true` did not change it",
+          "source": "https://github.com/BerriAI/litellm/issues/40693",
+          "note": null
+        },
+        {
+          "text": "The LiteLLM reporter's proposed fix merges all system messages into one leading message in `transform_responses_api_input_to_messages`; fix PR 40726 is open",
+          "source": "https://github.com/BerriAI/litellm/issues/40693",
+          "note": null
+        },
+        {
+          "text": "The second system message in that LiteLLM trace held Claude Code's agent-type and skill listings",
+          "source": "https://github.com/BerriAI/litellm/issues/40693",
+          "note": null
+        },
+        {
+          "text": "Qwen3.8 has three reasoning levels (low, medium, xhigh; default xhigh); Ollama maps unknown levels such as \"high\" or \"max\" to medium silently and LM Studio ignores the reasoning setting",
+          "source": "https://medium.com/@anubhavgoyal101/qwen-3-8-is-the-most-broken-model-release-of-2026-heres-what-works-where-cce7d412088f",
+          "note": null
+        },
+        {
+          "text": "oMLX serves `POST /v1/messages` and advertises streaming usage stats and \"Anthropic adaptive thinking\"; its API table lists no count_tokens endpoint",
+          "source": "https://github.com/jundot/omlx",
+          "note": null
+        },
+        {
+          "text": "oMLX ignores `thinking_budget` when a bare JSON, EBNF or regex grammar constrains output; a compatible reasoning_parser is needed to combine them",
+          "source": "https://github.com/jundot/omlx",
+          "note": null
+        },
+        {
+          "text": "vllm-mlx (waybarrios) README lists `/v1/messages` with \"streaming, tool use, system prompts\" and sets ANTHROPIC_BASE_URL=http://localhost:8000 with ANTHROPIC_API_KEY=not-needed",
+          "source": "https://github.com/waybarrios/vllm-mlx",
+          "note": null
+        },
+        {
+          "text": "Rapid-MLX README lists /v1/messages and its comparison table shows Ollama's and LM Studio's Anthropic support; none of the cached oMLX, Rapid-MLX or vllm-mlx READMEs mention count_tokens or non-leading system messages",
+          "source": "https://github.com/raullenchai/Rapid-MLX",
+          "note": null
+        },
+        {
+          "text": "Unsloth's Qwen3.8-27B-GGUF reports of \"System message must be at the beginning\" on llama.cpp persisted across UD-Q5_K_XL, Q8_0 and BF16; Unsloth said UD quants had the correct template and updated non-UD ones on 2026-08-14",
+          "source": "https://huggingface.co/unsloth/Qwen3.8-27B-GGUF/discussions/10",
+          "note": null
+        },
+        {
+          "text": "Compatibility matrix, Mac runtimes (docs-based, not run here): Ollama native /v1/messages, no count_tokens, no cache_control, no tool_choice, mid-system tolerated for qwen3.8 from 0.32.14; LM Studio native /v1/messages only, count_tokens undocumented, Qwen templates can reject mid-system; llama-server native /v1/messages + /v1/messages/count_tokens, thinking param, mid-system depends on --chat-template-file; oMLX native /v1/messages, count_tokens undocumented; Rapid-MLX and vllm-mlx native /v1/messages, count_tokens undocumented; mlx_lm.server no /v1/messages per Rapid-MLX comparison; LiteLLM and claude-code-router are translating proxies",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Test 1, does the server accept the Claude Code shape (system array plus trailing role:system): `curl -s -w '\\nHTTP %{http_code}\\n' http://localhost:PORT/v1/messages -H 'Content-Type: application/json' -H 'anthropic-version: 2023-06-01' -d '{\"model\":\"M\",\"max_tokens\":50,\"system\":\"You are an assistant.\",\"messages\":[{\"role\":\"user\",\"content\":\"hi\"},{\"role\":\"system\",\"content\":\"extra\"}]}'`; 200 passes, 400/500 naming \"System message must be at the beginning\" fails",
+          "source": "https://github.com/ollama/ollama/issues/17754",
+          "note": null
+        },
+        {
+          "text": "Test 2, count_tokens: `curl -s -w '\\nHTTP %{http_code}\\n' http://localhost:PORT/v1/messages/count_tokens -H 'Content-Type: application/json' -d '{\"model\":\"M\",\"messages\":[{\"role\":\"user\",\"content\":\"Hello world\"}]}'`; llama-server returns input_tokens, Ollama documents it as unsupported",
+          "source": "https://huggingface.co/blog/ggml-org/anthropic-messages-api-in-llamacpp",
+          "note": null
+        },
+        {
+          "text": "Test 3, model listing for gateway discovery: `curl -s http://localhost:PORT/v1/models` should answer within 3 s without redirect",
+          "source": "https://code.claude.com/docs/en/llm-gateway-protocol",
+          "note": null
+        },
+        {
+          "text": "A trailing role:system entry plus top-level system exercises both converter paths; testing only a single system string hides the bug (LiteLLM reporter: \"A simple test ... worked\" while the full harness failed)",
+          "source": "https://github.com/BerriAI/litellm/issues/40693",
+          "note": null
+        },
+        {
+          "text": "LiteLLM and claude-code-router, when a backend is chat-only, translate Anthropic to OpenAI; LiteLLM's Anthropic-to-Chat path inherits the placement bug above",
+          "source": "asserted",
+          "note": null
+        }
+      ]
+    }
+  ],
+  "related": []
+}

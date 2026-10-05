@@ -1,0 +1,154 @@
+{
+  "slug": "gemma-4-float16-conversion-guard-for-m1-m2-mlx",
+  "concept": "Gemma 4 float16 conversion guard for M1/M2 MLX",
+  "generated": "2026-10-05",
+  "summary": "Both converters cast through the same hook: a model class may define `cast_predicate(name)`, otherwise the default is `lambda _: True`, so every floating parameter is cast. Neither the mlx-vlm Gemma 4 files nor the mlx-lm Gemma 4 text file defines `cast_predicate` at fetch time. Without a change,...",
+  "facets": [
+    {
+      "title": "Facts",
+      "facts": [
+        {
+          "text": "Both converters cast through the same hook: a model class may define `cast_predicate(name)`, otherwise the default is `lambda _: True`, so every floating parameter is cast. Neither the mlx-vlm Gemma 4 files nor the mlx-lm Gemma 4 text file defines `cast_predicate` at fetch time. Without a change, `--dtype float16` therefore casts `std_bias` and `std_scale` too.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "mlx-vlm's `skip_multimodal_module` (names such as `vision`, `vision_tower`, `audio_tower`) is applied inside the quantization predicates only. The dtype cast does not consult it, so quantizing a VLM with `--dtype float16` leaves the vision tower un-quantized but still converts it to fp16.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "The unguarded operation is the last line of the mlx-vlm vision tower: `hidden_states = (hidden_states - self.std_bias) * self.std_scale`, executed in whatever dtype `hidden_states` has. The tower's RMSNorms compute in float32 and cast back to the input dtype, so under an fp16 conversion the tensor reaching the subtraction is fp16.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "The mlx-lm Gemma 4 text decoder contains no `astype` call and no float32 upcast, so under fp16 weights its residual stream also runs in fp16 with no guard. No source says whether Gemma 4 text activations exceed 65,504; Gemma 3's did.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "A minimal guard, inferred from the code: (a) at conversion time read `vision_config.standardize` and refuse or warn on `--dtype float16` when it is true, or (b) define a `cast_predicate` that returns False for `std_bias` and `std_scale` and patch the standardize line to upcast to float32. Option (b) needs the code change because of the next point.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "MLX promotes mixed fp16 and bf16 operands to float32 (inferred from MLX's documented promotion table, not fetched). If so, keeping `std_bias` in bf16 while `hidden_states` is fp16 would silently run the subtraction in float32 and avoid the overflow, but the result would then be float32 entering an fp16 language model unless cast back. Verify on a real checkpoint before relying on it.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "A runtime-level alternative is to skip fp16 entirely for Gemma 4: mlx-vlm's Gemma 4 draft-model (assistant) examples and the four-size table all use bf16 checkpoints.",
+          "source": "https://github.com/Blaizzy/mlx-vlm",
+          "note": null
+        },
+        {
+          "text": "2026-04-02: Gemma 4 released; mlx-lm and mlx-vlm 0.4.3 supported it on launch day.",
+          "source": "https://github.com/ml-explore/mlx-swift/issues/389",
+          "note": null
+        },
+        {
+          "text": "By 2026-10-04 the mlx-vlm README documents Gemma 4 only with bf16 weights and bf16 assistant drafters (E2B, E4B, 26B-A4B, 31B).",
+          "source": "https://github.com/Blaizzy/mlx-vlm",
+          "note": null
+        },
+        {
+          "text": "Text-only use of a Gemma 4 VLM checkpoint never touches the vision tower, so an fp16 conversion can look healthy on text prompts and fail only on the first image prompt (the failure is silent, per the existing dossier). A conversion smoke test must include an image prompt.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "The E4B and E2B checkpoints have `standardize` false, so a blanket \"refuse fp16 on Gemma 4\" rule over-blocks them; gate on the config flag, not the model family.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "`mlx_lm.convert` and `mlx_vlm.convert` read `torch_dtype` from the config when `--dtype` is absent, so the default for an official Gemma 4 source is bf16 and the hazard needs an explicit fp16 request.",
+          "source": "https://raw.githubusercontent.com/Blaizzy/mlx-vlm/main/mlx_vlm/convert.py",
+          "note": null
+        },
+        {
+          "text": "None new. Side A (existing M1/M2 file): fp16 gives +52-68% prefill on M1/M2. Side B (this file, inference only): Gemma 4 31B/26B-A4B has no measured fp16-safe MLX path, so the speed gain is unavailable for those two checkpoints until a guard exists. Both stand.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Does a stock mlx-vlm fp16 conversion of Gemma 4 31B or 26B-A4B produce `<pad>` or NaN on an image prompt on M1/M2? No source reports a run.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Does mlx-lm's Gemma 4 text path overflow in fp16 on long prompts? No source.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Does MLX actually promote fp16 with bf16 to float32 in `mx.subtract`? Not fetched.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "`mlx_vlm.convert` casts parameters with `cast_predicate = getattr(model, \"cast_predicate\", lambda _: True)` and `mx.issubdtype(v.dtype, mx.floating)`, taking the dtype from `--dtype`, then `torch_dtype`, then `text_config.dtype`.",
+          "source": "https://raw.githubusercontent.com/Blaizzy/mlx-vlm/main/mlx_vlm/convert.py",
+          "note": null
+        },
+        {
+          "text": "`mlx_vlm.convert` accepts `float16`, `bfloat16` and `float32` as conversion dtypes.",
+          "source": "https://raw.githubusercontent.com/Blaizzy/mlx-vlm/main/mlx_vlm/utils.py",
+          "note": null
+        },
+        {
+          "text": "In `mlx_vlm.convert`, `skip_multimodal_module(path)` is called inside the quantization predicates (base and mixed), not inside the dtype `set_dtype` function.",
+          "source": "https://raw.githubusercontent.com/Blaizzy/mlx-vlm/main/mlx_vlm/convert.py",
+          "note": null
+        },
+        {
+          "text": "mlx-vlm's `skip_multimodal_module` matches path fragments including `vision`, `vision_tower`, `audio_tower`, `aligner` and `vl_connector`.",
+          "source": "https://raw.githubusercontent.com/Blaizzy/mlx-vlm/main/mlx_vlm/utils.py",
+          "note": null
+        },
+        {
+          "text": "The string `cast_predicate` does not occur in mlx-vlm `models/gemma4/vision.py`, mlx-vlm `models/gemma4/gemma4.py`, mlx-lm `models/gemma4.py` or mlx-lm `models/gemma4_text.py` at fetch time (2026-10-04).",
+          "source": "https://raw.githubusercontent.com/Blaizzy/mlx-vlm/main/mlx_vlm/models/gemma4/vision.py",
+          "note": null
+        },
+        {
+          "text": "mlx-vlm's Gemma 4 `RMSNorm` classes compute in float32 and cast the result back to the input dtype.",
+          "source": "https://raw.githubusercontent.com/Blaizzy/mlx-vlm/main/mlx_vlm/models/gemma4/vision.py",
+          "note": null
+        },
+        {
+          "text": "mlx-vlm's Gemma 4 vision tower applies `(hidden_states - self.std_bias) * self.std_scale` with no dtype cast when `config.standardize` is true; `std_bias` is initialized as `mx.zeros` and `std_scale` as `mx.ones` before weights load.",
+          "source": "https://raw.githubusercontent.com/Blaizzy/mlx-vlm/main/mlx_vlm/models/gemma4/vision.py",
+          "note": null
+        },
+        {
+          "text": "mlx-vlm's Gemma 4 vision config defaults `standardize` to False and `use_clipped_linears` to False, so the checkpoint's `config.json` decides whether the standardize path exists.",
+          "source": "https://raw.githubusercontent.com/Blaizzy/mlx-vlm/main/mlx_vlm/models/gemma4/config.py",
+          "note": null
+        },
+        {
+          "text": "mlx-lm's `gemma4_text.py` has no `astype` or float32 call outside the logit softcap (`tanh(x / 30) * 30` by default), so its decoder runs in the weight dtype.",
+          "source": "https://raw.githubusercontent.com/ml-explore/mlx-lm/main/mlx_lm/models/gemma4_text.py",
+          "note": null
+        },
+        {
+          "text": "mlx-vlm's README pairs `gemma-4-E2B-it-bf16`, `E4B`, `26B-A4B` and `31B` with `-assistant-bf16` drafter checkpoints and shows no fp16 Gemma 4 example.",
+          "source": "https://github.com/Blaizzy/mlx-vlm",
+          "note": null
+        },
+        {
+          "text": "A conversion script for Gemma 4 on M1/M2 should read `vision_config.standardize` from `config.json` and treat true as \"bf16 only\" until a guarded standardize step exists.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Any fp16 Gemma 4 conversion should be accepted only after an image prompt returns real text, not only after a text prompt does.",
+          "source": "asserted",
+          "note": null
+        }
+      ]
+    }
+  ],
+  "related": []
+}

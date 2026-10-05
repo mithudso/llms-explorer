@@ -1,0 +1,169 @@
+{
+  "slug": "llama-cpp-prompt-cache-eviction-when-cache-ram-l",
+  "concept": "llama.cpp prompt-cache eviction when cache-ram limit is hit",
+  "generated": "2026-10-05",
+  "summary": "`alloc()` skips a new entry when an existing entry already contains the whole new prompt as a prefix (log `prompt is already in the cache, skipping`).",
+  "facets": [
+    {
+      "title": "Facts",
+      "facts": [
+        {
+          "text": "`alloc()` skips a new entry when an existing entry already contains the whole new prompt as a prefix (log `prompt is already in the cache, skipping`).",
+          "source": "https://raw.githubusercontent.com/ggml-org/llama.cpp/master/tools/server/server-task.cpp",
+          "note": null
+        },
+        {
+          "text": "`alloc()` sizes the new entry as target state plus draft state plus the summed size of the prompt's checkpoints; if that alone exceeds `limit_size` the entry is skipped with `prompt state size ... exceeds cache size limit ..., skipping` and the cache is left undisturbed.",
+          "source": "https://raw.githubusercontent.com/ggml-org/llama.cpp/master/tools/server/server-task.cpp",
+          "note": null
+        },
+        {
+          "text": "`alloc()` then removes every cached entry that is a prefix of the new prompt (`removing obsolete cached prompt with length N`).",
+          "source": "https://raw.githubusercontent.com/ggml-org/llama.cpp/master/tools/server/server-task.cpp",
+          "note": null
+        },
+        {
+          "text": "To make room it pops from the front while `size() + state_size_new > limit_size` (`making room for prompt cache entry, removing oldest entry`). Eviction is oldest-first by insertion order; a load that hits does not refresh an entry's age, because a loaded entry is erased from the list.",
+          "source": "https://raw.githubusercontent.com/ggml-org/llama.cpp/master/tools/server/server-task.cpp",
+          "note": null
+        },
+        {
+          "text": "If allocating the byte vectors throws `std::bad_alloc`, the cache sets `limit_size = max(1, 0.4 * size())`, logs `cache size limit reduced to N MiB`, calls `update()` and returns no entry.",
+          "source": "https://raw.githubusercontent.com/ggml-org/llama.cpp/master/tools/server/server-task.cpp",
+          "note": null
+        },
+        {
+          "text": "`update()` pops oldest entries while `size() > limit_size`, then derives `size_per_token = size() / n_tokens()` and raises the token limit to `max(limit_tokens, limit_size / size_per_token)`; it pops again while `n_tokens() > limit_tokens_cur`. So the token limit is a floor that grows with memory headroom.",
+          "source": "https://raw.githubusercontent.com/ggml-org/llama.cpp/master/tools/server/server-task.cpp",
+          "note": null
+        },
+        {
+          "text": "`load()` picks a cached entry only if its `f_keep` (lcp / cached length) is at least 0.25 (\"don't trash large prompts\") and both `f_keep` and `f_sim` (lcp / new length) beat the current slot's; the chosen entry's data is moved into the slot and the entry is erased.",
+          "source": "https://raw.githubusercontent.com/ggml-org/llama.cpp/master/tools/server/server-task.cpp",
+          "note": null
+        },
+        {
+          "text": "Per-entry log lines after every update read `prompt 0x...: N tokens, checkpoints: K, X MiB`.",
+          "source": "https://raw.githubusercontent.com/ggml-org/llama.cpp/master/tools/server/server-task.cpp",
+          "note": null
+        },
+        {
+          "text": "The caller saves the finished slot, loads the best entry for the next prompt, and runs `update()` only for completion tasks (`SERVER_TASK_TYPE_COMPLETION`).",
+          "source": "https://raw.githubusercontent.com/ggml-org/llama.cpp/master/tools/server/server-context.cpp",
+          "note": null
+        },
+        {
+          "text": "With `--cache-idle-slots`, every idle slot is saved into the cache when a new task launches, and with `kv_unified` the idle slot is then cleared.",
+          "source": "https://raw.githubusercontent.com/ggml-org/llama.cpp/master/tools/server/server-context.cpp",
+          "note": null
+        },
+        {
+          "text": "PR 25649 (merged 2026-07-14, ggerganov) moved the KV bytes out of `server_prompt` into a `server_prompt_cache_state` owned by the cache, and made a slot's checkpoints clear when its prompt clears.",
+          "source": "https://github.com/ggml-org/llama.cpp/pull/25649",
+          "note": null
+        },
+        {
+          "text": "PR 24649 (opened 2026-06-15, closed unmerged 2026-08-17) proposed storing empty checkpoints in cache entries, because checkpoints \"are session-internal rollback points\" and accumulate to the cache-ram limit on top of the slot's own checkpoint budget. Master still copies `prompt.checkpoints` into each entry.",
+          "source": "https://github.com/ggml-org/llama.cpp/pull/24649",
+          "note": null
+        },
+        {
+          "text": "Issue 26216 (closed) reports a SIGSEGV under sustained unique-prompt vision load where the prompt cache exceeded its own `--cache-ram` cap.",
+          "source": "https://github.com/ggml-org/llama.cpp/pull/24649",
+          "note": null
+        },
+        {
+          "text": "A single entry larger than `--cache-ram` is never stored, so a long hybrid session with many checkpoints silently gets no host-cache fallback: slot checkpoints at 149.626 MiB each can put one entry over a 2048 MiB limit by themselves.",
+          "source": "https://raw.githubusercontent.com/ggml-org/llama.cpp/master/tools/server/server-task.cpp",
+          "note": null
+        },
+        {
+          "text": "Oldest-first eviction can drop the entry for a long-running conversation that is idle but warm while keeping newer short-lived entries.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "An entry evicted from the cache takes its checkpoints with it, so the next request for it re-prefills fully (see the 121,035-token report in the existing dossier).",
+          "source": "https://raw.githubusercontent.com/ggml-org/llama.cpp/master/tools/server/server-task.cpp",
+          "note": null
+        },
+        {
+          "text": "A hit removes the entry, so two conversations that alternate need the cache to re-save the slot each switch; the save cost is a memcpy of the whole state.",
+          "source": "https://raw.githubusercontent.com/ggml-org/llama.cpp/master/tools/server/server-task.cpp",
+          "note": null
+        },
+        {
+          "text": "In a 7-prompt log on b9642 each small entry held a 39 to 44 MiB checkpoint even for prompts of 51 to 478 tokens.",
+          "source": "https://github.com/ggml-org/llama.cpp/issues/24714",
+          "note": null
+        },
+        {
+          "text": "PR 24649 author: checkpoints inside cache entries are wasted RAM and cause OOM; a user porting the \"prompt-cache RAM fix\" says it is separate from the checkpoint fix. Against that, restoring a cached prompt with no checkpoints on a hybrid model forces full reprocessing, which the existing eviction-cascade report shows is the costly case. Both are right for different RAM budgets.",
+          "source": "https://github.com/ggml-org/llama.cpp/pull/25592",
+          "note": null
+        },
+        {
+          "text": "Whether a recency-refresh or size-aware policy is planned upstream; the code has a TODO in `try_clear_idle_slots` asking for LRU or longest-prompt logic.",
+          "source": "https://raw.githubusercontent.com/ggml-org/llama.cpp/master/tools/server/server-context.cpp",
+          "note": null
+        },
+        {
+          "text": "Measured cost of the 0.4 shrink after `bad_alloc` on a Mac where unified memory pressure shows as a swap, not an allocation failure.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Cache eviction in master is oldest-first (`states.pop_front()`) in both `alloc()` and `update()`.",
+          "source": "https://raw.githubusercontent.com/ggml-org/llama.cpp/master/tools/server/server-task.cpp",
+          "note": null
+        },
+        {
+          "text": "`alloc()` refuses entries bigger than the whole size limit instead of evicting everything.",
+          "source": "https://raw.githubusercontent.com/ggml-org/llama.cpp/master/tools/server/server-task.cpp",
+          "note": null
+        },
+        {
+          "text": "On `std::bad_alloc` the cache lowers its own size limit to 40 percent of current size.",
+          "source": "https://raw.githubusercontent.com/ggml-org/llama.cpp/master/tools/server/server-task.cpp",
+          "note": null
+        },
+        {
+          "text": "The token limit is raised dynamically to `limit_size / size_per_token` when memory allows.",
+          "source": "https://raw.githubusercontent.com/ggml-org/llama.cpp/master/tools/server/server-task.cpp",
+          "note": null
+        },
+        {
+          "text": "`load()` ignores cached entries with `f_keep < 0.25`.",
+          "source": "https://raw.githubusercontent.com/ggml-org/llama.cpp/master/tools/server/server-task.cpp",
+          "note": null
+        },
+        {
+          "text": "A cache hit erases the entry from the list and clears its data vectors.",
+          "source": "https://raw.githubusercontent.com/ggml-org/llama.cpp/master/tools/server/server-task.cpp",
+          "note": null
+        },
+        {
+          "text": "`try_clear_idle_slots` carries a TODO listing LRU or longest-prompt selection and a level-2 cache as open ideas.",
+          "source": "https://raw.githubusercontent.com/ggml-org/llama.cpp/master/tools/server/server-context.cpp",
+          "note": null
+        },
+        {
+          "text": "PR 24649 was closed by its author on 2026-08-17 without merging.",
+          "source": "https://github.com/ggml-org/llama.cpp/pull/24649",
+          "note": null
+        },
+        {
+          "text": "A b9642 log shows `cache state: 7 prompts, 285.314 MiB (limits: 8192.000 MiB, 262144 tokens, 262144 est)` and `saving prompt with length 178, total state size = 21.356 MiB`.",
+          "source": "https://github.com/ggml-org/llama.cpp/issues/24714",
+          "note": null
+        },
+        {
+          "text": "The same log's slot selection line reads `selected slot by LCP similarity, sim_best = 0.500 (> 0.100 thold), f_keep = 0.056`.",
+          "source": "https://github.com/ggml-org/llama.cpp/issues/24714",
+          "note": null
+        }
+      ]
+    }
+  ],
+  "related": []
+}

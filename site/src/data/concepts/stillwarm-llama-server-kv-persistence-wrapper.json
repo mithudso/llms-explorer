@@ -1,0 +1,184 @@
+{
+  "slug": "stillwarm-llama-server-kv-persistence-wrapper",
+  "concept": "stillwarm llama-server KV persistence wrapper",
+  "generated": "2026-10-05",
+  "summary": "Every save writes a metadata sidecar next to the `.bin` slot file, and a restore consults it: incompatible files are refused with a stated reason rather than loaded.",
+  "facets": [
+    {
+      "title": "Facts",
+      "facts": [
+        {
+          "text": "Every save writes a metadata sidecar next to the `.bin` slot file, and a restore consults it: incompatible files are refused with a stated reason rather than loaded.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "The compatibility table is measured, not guessed: flash-attention on or off refuses (restore returns HTTP 400 both directions); KV cache type change (f16/q8_0/q4_0) refuses; a different model file refuses; a different `--swa-full` setting on an SWA model refuses and also arms a runtime guard; a server context smaller than the saved token count refuses; `-ngl` changes are allowed and not in the key; llama.cpp build changes of about 5 weeks are advisory only.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "The ineffective-restore guard watches the server-reported `prompt_n` after a \"successful\" restore: a near-full re-prefill triggers a loud warning instead of a silent cold start.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "`verify` saves the slot file first, so the file holds the pre-probe state, then generates a 64-token pinned-greedy probe and stores its hash in the sidecar. `restore(..., verify=True)` restores, re-runs the probe, compares hashes, and then restores again so the served state is exactly the restored state.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "`verify` costs about 2x restore time plus one 64-token decode (about 1.5 s on an 8B model).",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "`verify` is a determinism check against the save-time probe, not a cold-equivalence check, because different prefill batch splits flip marginal tokens and quantized caches amplify that (q4_0: 5 of 5 divergent at 8K).",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Writes use `os.replace` for atomic replacement, pruning tolerates `PermissionError`, and path handling is `pathlib` throughout; the maintainer audited these for Windows portability but has not tested Windows.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "The CLI has `stillwarm list DIR` (sessions, sizes, ages), `stillwarm inspect FILE` and `stillwarm prune DIR --budget-gb N [--dry-run]`; the library entry point is `Session(server, profile, cache_dir, server_build_tag, disk_budget_gb)` and `Session.ask(name, prompt, n_predict)`. `cache_dir` must be the directory passed to `--slot-save-path`.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Sizing rule from the README: slot files are about 128 KiB per token for an 8B model, so a 32K-token session is about 4.3 GB.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "2026-07-06: stillwarm 0.1.1 released on PyPI the same day as the Hugging Face write-up.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "2026-07-07: the last commit on the repo (\"untrack bytecode and build metadata, add gitignore\"); the repo has 4 commits in total. As of the 2026-10-04 fetch there is no later activity.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "stillwarm is scoped to `llama-server` and one machine: no multi-machine cache sharing, no vLLM (LMCache owns that), no compression work. Ollama and LM Studio do not expose the slot endpoints it needs.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Only macOS (Apple Silicon, M3 Max, llama.cpp b9871) is in the measured matrix; Linux is \"expected to work\" and Windows is untested.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Because the sidecar key does not include the llama.cpp build, a future slot-file format change would surface only as a restore failure, not as a refusal.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "The repo's integration tests need a `llama-server` binary and a small GGUF (default SmolLM2-135M-Instruct Q8_0, about 145 MB) and skip when absent.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Slot-file stability. The wrapper treats the build tag as a warning because files from builds about 5 weeks apart restored in both directions, while llama.cpp PRs 26004 and 26640 (see disk-and-ssd-tiered-kv-cache-servers.md) rework the save format. A file written before those PRs may not be restorable after them; no source tests this.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Whether stillwarm works with llama.cpp builds after PR 26640 (packed `server_tokens::serialize()` format). No source states it.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "The \"CachyLlama\" llama.cpp fork with persistent KV (a LocalLLaMA post whose page could not be fetched) is a competing approach; its design is unknown here.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Whether the project stays maintained: one release and four commits in the first two days, nothing after.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "stillwarm writes a metadata sidecar per saved slot file and refuses incompatible restores with a reason instead of silently loading them.",
+          "source": "https://raw.githubusercontent.com/vimalnakrani08/stillwarm/main/README.md",
+          "note": null
+        },
+        {
+          "text": "stillwarm's compatibility contract refuses on flash-attention change, KV cache type change, model file change, `--swa-full` change on SWA models and server context smaller than the saved tokens, allows `-ngl` changes, and treats llama.cpp build differences of about 5 weeks as advisory.",
+          "source": "https://raw.githubusercontent.com/vimalnakrani08/stillwarm/main/README.md",
+          "note": null
+        },
+        {
+          "text": "stillwarm's silently-ineffective guard warns when a restore succeeds but the server re-prefills anyway.",
+          "source": "https://raw.githubusercontent.com/vimalnakrani08/stillwarm/main/README.md",
+          "note": null
+        },
+        {
+          "text": "stillwarm `verify` writes the slot file before a 64-token pinned-greedy probe, stores the probe hash in the sidecar, and on restore compares probe hashes and then re-restores so the served state equals the restored state.",
+          "source": "https://raw.githubusercontent.com/vimalnakrani08/stillwarm/main/README.md",
+          "note": null
+        },
+        {
+          "text": "stillwarm `verify` costs about 2x restore time plus one 64-token decode (about 1.5 s on an 8B model).",
+          "source": "https://raw.githubusercontent.com/vimalnakrani08/stillwarm/main/README.md",
+          "note": null
+        },
+        {
+          "text": "stillwarm `verify` is explicitly a determinism check, not a cold-equivalence check, because batch-split differences and quantized caches make cold-equivalence fail without any corruption.",
+          "source": "https://raw.githubusercontent.com/vimalnakrani08/stillwarm/main/README.md",
+          "note": null
+        },
+        {
+          "text": "stillwarm uses atomic `os.replace` writes, tolerates `PermissionError` when pruning on Windows and has not been tested on Windows.",
+          "source": "https://raw.githubusercontent.com/vimalnakrani08/stillwarm/main/README.md",
+          "note": null
+        },
+        {
+          "text": "stillwarm slot files are about 128 KiB per token for an 8B model, which makes a 32K-token session about 4.3 GB.",
+          "source": "https://raw.githubusercontent.com/vimalnakrani08/stillwarm/main/README.md",
+          "note": null
+        },
+        {
+          "text": "stillwarm's v1 non-goals are being a serving framework, multi-machine sharing, vLLM support and compression research.",
+          "source": "https://raw.githubusercontent.com/vimalnakrani08/stillwarm/main/README.md",
+          "note": null
+        },
+        {
+          "text": "The stillwarm CLI provides `list`, `inspect` and `prune --budget-gb N [--dry-run]`, and the Python API is `Session(server, profile, cache_dir, server_build_tag, disk_budget_gb)` with `ask(name, prompt, n_predict)`.",
+          "source": "https://raw.githubusercontent.com/vimalnakrani08/stillwarm/main/README.md",
+          "note": null
+        },
+        {
+          "text": "stillwarm 0.1.1 was released on PyPI on 2026-07-06 as a 23.3 kB source distribution and an 18.9 kB wheel.",
+          "source": "https://pypi.org/project/stillwarm/",
+          "note": null
+        },
+        {
+          "text": "The stillwarm GitHub repo has 4 commits, the latest on 2026-07-07, and a `dist`, `src/stillwarm` and `tests` layout.",
+          "source": "https://github.com/vimalnakrani08/stillwarm",
+          "note": null
+        },
+        {
+          "text": "stillwarm's integration tests default to SmolLM2-135M-Instruct Q8_0 (about 145 MB) with `STILLWARM_TEST_SERVER_BIN` and `STILLWARM_TEST_MODEL` overrides and skip when no server binary is present.",
+          "source": "https://raw.githubusercontent.com/vimalnakrani08/stillwarm/main/README.md",
+          "note": null
+        },
+        {
+          "text": "stillwarm's published benchmark repo records the SWA-without-`--swa-full` result in a dedicated results CSV (blockE) and its portability taxonomy in Block D.",
+          "source": "https://github.com/vimalnakrani08/stillwarm-bench",
+          "note": null
+        },
+        {
+          "text": "A future llama.cpp slot-file format change would surface as a restore failure rather than a stillwarm refusal, because the build tag is only a warning.",
+          "source": "asserted",
+          "note": null
+        }
+      ]
+    }
+  ],
+  "related": []
+}

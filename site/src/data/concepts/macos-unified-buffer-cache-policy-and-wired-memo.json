@@ -1,0 +1,169 @@
+{
+  "slug": "macos-unified-buffer-cache-policy-and-wired-memo",
+  "concept": "macOS unified buffer cache policy and wired memory interaction",
+  "generated": "2026-10-05",
+  "summary": "Policy is a queue scheme with reference bits, not CLOCK-Pro: pages sit on active, inactive and speculative queues; the scan checks the hardware reference bit, reactivates referenced inactive pages (bounded), and steals unreferenced ones. Clean file pages are freed; dirty ones are written to their...",
+  "facets": [
+    {
+      "title": "Facts",
+      "facts": [
+        {
+          "text": "Policy is a queue scheme with reference bits, not CLOCK-Pro: pages sit on active, inactive and speculative queues; the scan checks the hardware reference bit, reactivates referenced inactive pages (bounded), and steals unreferenced ones. Clean file pages are freed; dirty ones are written to their file; anonymous pages are compressed.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "A file-cache floor protects file pages: vm_page_filecache_min = AVAILABLE_NON_COMPRESSED_MEMORY * 10 / divisor, with divisor 27 in the non-JETSAM build (about 37% of available uncompressed memory) and 70 in the JETSAM build (about 14%). While external pageable pages are below the floor, the scan reactivates file pages (99 of every 100) and takes anonymous pages instead. The floor is 0 when the compressor is out of space or free pages are very low.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "AVAILABLE_NON_COMPRESSED_MEMORY counts active, inactive, free and speculative pages; wired pages are not in it. Every GB wired removes a GB from the base of the floor, from the swap trigger (see macos-swap-and-compressed-memory-write-behavior.md) and from the pool the page cache can use.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Order of events under rising pressure for a mapped weight file plus other apps: free pages run low, the scan steals inactive file pages (clean, free to drop) while external pages exceed the floor, then once below the floor it switches to compressing anonymous pages, which raises compressor activity before swap writes.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "A second knob (vm_page_xpmapped_min, divisor 36 on macOS) protects file pages mapped executable; mapped model data is not executable so it does not get this protection.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "F_NOCACHE on a descriptor bypasses this cache for read(2)/pread(2): no read-ahead, no page reference, pages dumped after the copy (details in the Engram dossier).",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "A wired Metal buffer cache of N GB lowers the file-cache floor and the usable page cache by about N GB, which can turn a warm mapped-expert workload into a compressor-bound one. This is a second explanation for the Anemll observation, alongside \"CLOCK-Pro\".",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "When the floor stops protecting file pages, a hot weight file competes with anonymous pages by reference bit only; a weight page touched once per token stays referenced, a rarely routed expert page does not.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "The wire limit (vm.global_user_wire_limit) is separate from this floor; it caps mlock, not the page cache.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Whether shipping macOS 26 and 27 use the divisor 27 floor.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Page-cache hit rate for a mapped 100 GB weight file at 128 GB RAM with wired GPU memory.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Whether Metal's no-copy buffers over mapped pages count as wired, external, or both.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "AVAILABLE_NON_COMPRESSED_MEMORY is vm_page_active_count + vm_page_inactive_count + vm_page_free_count + vm_page_speculative_count, which excludes wired pages.",
+          "source": "https://raw.githubusercontent.com/apple-oss-distributions/xnu/main/osfmk/vm/vm_page.h",
+          "note": null
+        },
+        {
+          "text": "vps_calculate_filecache_min sets vm_page_filecache_min to AVAILABLE_NON_COMPRESSED_MEMORY * 10 / divisor and sets it to 0 if the compressor is out of space, the divisor is 0, or free pages are below one quarter of the free reserve.",
+          "source": "https://raw.githubusercontent.com/apple-oss-distributions/xnu/main/osfmk/vm/vm_pageout.c",
+          "note": null
+        },
+        {
+          "text": "vm_page_filecache_min_divisor defaults to 70 when CONFIG_JETSAM is set and 27 otherwise; vm_page_xpmapped_min_divisor defaults to 40 and 36 respectively.",
+          "source": "https://raw.githubusercontent.com/apple-oss-distributions/xnu/main/osfmk/vm/vm_pageout.c",
+          "note": null
+        },
+        {
+          "text": "A comment says that with the compressor active the filecache floor should not fall below 15% of available memory on JETSAM systems.",
+          "source": "https://raw.githubusercontent.com/apple-oss-distributions/xnu/main/osfmk/vm/vm_pageout.c",
+          "note": null
+        },
+        {
+          "text": "When external pageable pages are below the floor, the inactive-queue scan reactivates the file page it found for all but every 100th time and prefers anonymous pages.",
+          "source": "https://raw.githubusercontent.com/apple-oss-distributions/xnu/main/osfmk/vm/vm_pageout.c",
+          "note": null
+        },
+        {
+          "text": "While the compressor can accept pages and external pageable pages exceed the floor with enough inactive file pages, the scan defers throttling and keeps stealing file pages.",
+          "source": "https://raw.githubusercontent.com/apple-oss-distributions/xnu/main/osfmk/vm/vm_pageout.c",
+          "note": null
+        },
+        {
+          "text": "The inactive-queue scan checks the pmap reference bit (pmap_get_refmod with VM_MEM_REFERENCED) to decide whether to reactivate a page.",
+          "source": "https://raw.githubusercontent.com/apple-oss-distributions/xnu/main/osfmk/vm/vm_pageout.c",
+          "note": null
+        },
+        {
+          "text": "VM_PAGE_INACTIVE_TARGET is one half of the available page count.",
+          "source": "https://raw.githubusercontent.com/apple-oss-distributions/xnu/main/osfmk/vm/vm_pageout.c",
+          "note": null
+        },
+        {
+          "text": "With VNOCACHE_DATA (set by F_NOCACHE) the cluster read path sets IO_NOCACHE, disables read-ahead, skips taking a page reference and aborts the pages with UPL_ABORT_DUMP_PAGES.",
+          "source": "https://raw.githubusercontent.com/apple-oss-distributions/xnu/main/bsd/vfs/vfs_cluster.c",
+          "note": null
+        },
+        {
+          "text": "Apple's archived guide says wired memory holds kernel code and data that must never be paged out, that applications cannot allocate it directly, and that it grows with installed RAM because page and map tables scale with RAM.",
+          "source": "https://developer.apple.com/library/archive/documentation/Performance/Conceptual/ManagingMemory/Articles/AboutMemory.html",
+          "note": null
+        },
+        {
+          "text": "Apple's archived guide says each VM region maps to a VM object served by the default pager (anonymous backing store) or the vnode pager (memory-mapped files).",
+          "source": "https://developer.apple.com/library/archive/documentation/Performance/Conceptual/ManagingMemory/Articles/AboutMemory.html",
+          "note": null
+        },
+        {
+          "text": "No fetched XNU source file contains the text CLOCK-Pro; the pageout scan is reference-bit based.",
+          "source": "https://raw.githubusercontent.com/apple-oss-distributions/xnu/main/osfmk/vm/vm_pageout.c",
+          "note": null
+        },
+        {
+          "text": "If macOS builds without CONFIG_JETSAM, a Mac protects roughly 37% of its available uncompressed memory as file cache before it begins compressing anonymous pages in preference to stealing file pages.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Wiring GPU memory (mlock, Metal residency sets, an application buffer cache) lowers the file-cache floor and the page-cache ceiling by the wired amount, so mapped-expert streaming slows as wired memory rises even when total RAM is unchanged.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "The Anemll observation of compressor decompressions beside a wired Metal cache is explained by the floor logic plus reduced page cache without needing a CLOCK-Pro effect.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "A model file read with F_NOCACHE gets no page-cache residency, so a runtime that wants warm reads must use buffered pread or mmap.",
+          "source": "asserted",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Corrections and disagreements",
+      "facts": [
+        {
+          "text": "Flash-MoE authors: macOS \"manages the page cache with CLOCK-Pro\". XNU vm_pageout.c: queue and reference-bit scan with a file-cache floor; the text CLOCK-Pro appears in no fetched kernel source. Both stated; the kernel source is the stronger evidence for the shipping algorithm but is main-branch code. CONTRADICTS: moe-expert-ssd-streaming-and-page-cache-residenc.md line 13 (authors' attribution).",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Archived Apple guide: applications cannot allocate wired memory. XNU kern_mman.c: mlock wires user pages up to vm_per_task_user_wire_limit. CONTRADICTS: the archived guide for current macOS.",
+          "source": "asserted",
+          "note": null
+        }
+      ]
+    }
+  ],
+  "related": []
+}

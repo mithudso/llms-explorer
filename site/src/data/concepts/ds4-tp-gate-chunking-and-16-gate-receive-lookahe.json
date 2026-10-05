@@ -1,0 +1,199 @@
+{
+  "slug": "ds4-tp-gate-chunking-and-16-gate-receive-lookahe",
+  "concept": "ds4 TP gate chunking and 16-gate receive lookahead window",
+  "generated": "2026-10-05",
+  "summary": "A \"gate\" is one per-layer exchange of a partial result between the two ds4 TP ranks. Decode sends one fixed-size vector per gate; the receive side is pre-posted for the next 16 gates by sequence number.",
+  "facets": [
+    {
+      "title": "Facts",
+      "facts": [
+        {
+          "text": "A \"gate\" is one per-layer exchange of a partial result between the two ds4 TP ranks. Decode sends one fixed-size vector per gate; the receive side is pre-posted for the next 16 gates by sequence number.",
+          "source": "https://raw.githubusercontent.com/antirez/ds4/main/ds4_tp.c",
+          "note": null
+        },
+        {
+          "text": "\"Chunking\" splits a gate vector that is larger than the driver's 16384-byte message cap into two or more consecutive send and receive work requests that land contiguously in one slab slot.",
+          "source": "https://raw.githubusercontent.com/antirez/ds4/main/ds4_tp.c",
+          "note": null
+        },
+        {
+          "text": "The constants are `DS4_TP_RDMA_MAX_MSG 16384`, `DS4_TP_RDMA_RECV_WINDOW 16` and `DS4_TP_RDMA_BULK_SLOTS 64`.",
+          "source": "https://raw.githubusercontent.com/antirez/ds4/main/ds4_tp.c",
+          "note": null
+        },
+        {
+          "text": "Receive for sequence number s lands in slab in-slot `(s-1) % slots`; the completion of that receive is the arrival signal for the gate.",
+          "source": "https://raw.githubusercontent.com/antirez/ds4/main/ds4_tp.c",
+          "note": null
+        },
+        {
+          "text": "A gate vector may be at most two chunks. Setup fails with \"gate vector N bytes exceeds twice the driver's 16384 message limit\" above 32768 bytes, and prints \"rdma gate vectors ride as 2 chunked messages\" when the vector is above 16384 bytes.",
+          "source": "https://raw.githubusercontent.com/antirez/ds4/main/ds4_tp.c",
+          "note": null
+        },
+        {
+          "text": "A source comment in `ds4.c` sizes the Metal TP routed-FFN partial at 24 KB, so the V4-family gate vector rides as two chunks (16384 plus 8192 bytes).",
+          "source": "https://raw.githubusercontent.com/antirez/ds4/main/ds4.c",
+          "note": null
+        },
+        {
+          "text": "In one posted receive chain only the final chunk carries the sequence number as `wr_id`; earlier chunks carry 0. The arrival watermark therefore advances only when the whole slot is filled.",
+          "source": "https://raw.githubusercontent.com/antirez/ds4/main/ds4_tp.c",
+          "note": null
+        },
+        {
+          "text": "Correct chunk matching rests on two properties named in the source comment: UC delivery is in order, and both ranks post and send strictly in sequence order, so the k-th send matches the k-th receive.",
+          "source": "https://raw.githubusercontent.com/antirez/ds4/main/ds4_tp.c",
+          "note": null
+        },
+        {
+          "text": "Setup leaves the receive queue empty on purpose, for an initial bulk prefill. The first decode gate arms the window: it posts receives for sequence numbers seq to seq+15, then crosses a one-byte barrier on the batch TCP socket with tag 0xD1, then sets `recv_window_active`.",
+          "source": "https://raw.githubusercontent.com/antirez/ds4/main/ds4_tp.c",
+          "note": null
+        },
+        {
+          "text": "The barrier exists because \"UC does not retry a send that arrives before the peer posts its receive\"; the source says it is needed once per window, not at every decode gate.",
+          "source": "https://raw.githubusercontent.com/antirez/ds4/main/ds4_tp.c",
+          "note": null
+        },
+        {
+          "text": "Every decode gate then posts its own send chain (SIGNALED, one work request per chunk), spins on the completion queue until `recv_done >= seq`, and finally posts one new receive for `seq + 16`, which keeps the window at 16 outstanding gates.",
+          "source": "https://raw.githubusercontent.com/antirez/ds4/main/ds4_tp.c",
+          "note": null
+        },
+        {
+          "text": "The wait uses the gate timeout (default `DS4_TP_DEFAULT_GATE_TIMEOUT_MS` 750 ms; `DS4_TP_GATE_TIMEOUT_MS` accepts 1 to 60000) and checks every 16384 polls whether the peer's TCP socket closed.",
+          "source": "https://raw.githubusercontent.com/antirez/ds4/main/ds4_tp.c",
+          "note": null
+        },
+        {
+          "text": "A gate whose layer and gate index do not map to the expected slot for the sequence number aborts with \"gate order broke: layer L gate G vs seq S\".",
+          "source": "https://raw.githubusercontent.com/antirez/ds4/main/ds4_tp.c",
+          "note": null
+        },
+        {
+          "text": "The slot for a sequence number is `(seq-1) % gates_per_token` mapped through a bit mask for GLM (which skips dense layers and the attention slots) or through start and step for the DS4 identity schedule, so the 16 lookahead receives span a token boundary at the end of a token.",
+          "source": "https://raw.githubusercontent.com/antirez/ds4/main/ds4_tp.c",
+          "note": null
+        },
+        {
+          "text": "Environment switches: `DS4_TP_GATE_PROFILE` prints per-gate post and peer-wait microseconds every 430 samples for gates 0 and 1; `DS4_TP_GATE_TRACE` prints every gate's layer, gate and slot.",
+          "source": "https://raw.githubusercontent.com/antirez/ds4/main/ds4_tp.c",
+          "note": null
+        },
+        {
+          "text": "Prefill and speculative-verify rows do not use the decode window. They use the \"big gate\" exchange in windows of up to the granted receive depth (at most 256), each window posting receives, crossing a tagged barrier, then sending in sub-batches of at most 64 (send depth up to 256).",
+          "source": "https://raw.githubusercontent.com/antirez/ds4/main/ds4_tp.c",
+          "note": null
+        },
+        {
+          "text": "Big-gate chunks are 16384 bytes too and post in chains of 64, \"the chain length the driver is known to accept\".",
+          "source": "https://raw.githubusercontent.com/antirez/ds4/main/ds4_tp.c",
+          "note": null
+        },
+        {
+          "text": "Big-gate payloads that sit outside the registered slab are staged through the slab, because \"Apple's verbs provider rejects direct registration of these buffers\".",
+          "source": "https://raw.githubusercontent.com/antirez/ds4/main/ds4_tp.c",
+          "note": null
+        },
+        {
+          "text": "The decode window and a bulk exchange cannot coexist on the latency queue pair. If `recv_window_active` is set, `tp_rdma_big_gate_exchange` refuses with \"big gate unavailable or decode window still active\".",
+          "source": "https://raw.githubusercontent.com/antirez/ds4/main/ds4_tp.c",
+          "note": null
+        },
+        {
+          "text": "Before a later prompt reuses the queue pair for bulk rows, `tp_rdma_drain_decode_window` consumes the 16 outstanding gate receives (16 times chunks-per-gate work requests) with dummy sends from both ranks, under the same gate timeout, and clears `recv_window_active`. The TCP big-gate header exchange is the barrier that guarantees both ranks reach this transition together.",
+          "source": "https://raw.githubusercontent.com/antirez/ds4/main/ds4_tp.c",
+          "note": null
+        },
+        {
+          "text": "A drain that times out reports \"timeout draining RDMA receive window (recv_done/nwr)\"; a closed peer reports \"peer disconnected while draining RDMA receives\".",
+          "source": "https://raw.githubusercontent.com/antirez/ds4/main/ds4_tp.c",
+          "note": null
+        },
+        {
+          "text": "Apple's provider also completes unsignaled sends. The code requests and counts a completion for every send, and its comment warns that counting those completions as finished batches would free staging memory while later sends still read it.",
+          "source": "https://raw.githubusercontent.com/antirez/ds4/main/ds4_tp.c",
+          "note": null
+        },
+        {
+          "text": "Because the drain-and-rearm cycle happens at each switch between decode and prefill, the one-time barrier and the 16 receive posts are paid per switch, not per token.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "None found. The one comment that could be read two ways, \"keeps a lookahead window of 16 gates\", counts gates, not work requests: with a two-chunk vector the window holds 32 receive work requests.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Why 16. No source gives the reason; the larger send and receive depths (up to 4096) are granted by the driver, so 16 is a ds4 choice.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Per-gate post and wait times (`DS4_TP_GATE_PROFILE`) on a real two-Mac run were not found in any fetched source.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "ds4 TP defines `DS4_TP_RDMA_MAX_MSG` as 16384 bytes, `DS4_TP_RDMA_RECV_WINDOW` as 16 and `DS4_TP_RDMA_BULK_SLOTS` as 64.",
+          "source": "https://raw.githubusercontent.com/antirez/ds4/main/ds4_tp.c",
+          "note": null
+        },
+        {
+          "text": "A ds4 gate vector larger than 16384 bytes rides as two chunked messages, and one larger than 32768 bytes is refused at setup.",
+          "source": "https://raw.githubusercontent.com/antirez/ds4/main/ds4_tp.c",
+          "note": null
+        },
+        {
+          "text": "Only the last chunk of a chunked receive carries the sequence number as `wr_id`, so the arrival watermark moves when the slot is whole.",
+          "source": "https://raw.githubusercontent.com/antirez/ds4/main/ds4_tp.c",
+          "note": null
+        },
+        {
+          "text": "The first decode gate posts receives for sequence numbers seq to seq+15, then runs a one-byte TCP barrier tagged 0xD1 before any send.",
+          "source": "https://raw.githubusercontent.com/antirez/ds4/main/ds4_tp.c",
+          "note": null
+        },
+        {
+          "text": "After each decode gate completes, ds4 posts one more receive for `seq + 16` to hold the window at 16 gates.",
+          "source": "https://raw.githubusercontent.com/antirez/ds4/main/ds4_tp.c",
+          "note": null
+        },
+        {
+          "text": "The window barrier exists because a UC send that reaches a peer with no receive posted is not retried.",
+          "source": "https://raw.githubusercontent.com/antirez/ds4/main/ds4_tp.c",
+          "note": null
+        },
+        {
+          "text": "The default gate wait is 750 ms and `DS4_TP_GATE_TIMEOUT_MS` accepts 1 to 60000 ms.",
+          "source": "https://raw.githubusercontent.com/antirez/ds4/main/ds4_tp.c",
+          "note": null
+        },
+        {
+          "text": "A big-gate (prefill) exchange is refused while the decode receive window is active; `tp_rdma_drain_decode_window` clears it using 16 times chunks-per-gate dummy send and receive pairs.",
+          "source": "https://raw.githubusercontent.com/antirez/ds4/main/ds4_tp.c",
+          "note": null
+        },
+        {
+          "text": "Big-gate windows use up to 256 receives, post in chains of 64 and stage non-slab buffers through the registered slab.",
+          "source": "https://raw.githubusercontent.com/antirez/ds4/main/ds4_tp.c",
+          "note": null
+        },
+        {
+          "text": "`DS4_TP_GATE_PROFILE` and `DS4_TP_GATE_TRACE` are the two ds4 TP debug switches for gate timing and gate order.",
+          "source": "https://raw.githubusercontent.com/antirez/ds4/main/ds4_tp.c",
+          "note": null
+        },
+        {
+          "text": "The Metal TP routed-FFN partial in ds4 is described in a source comment as 24 KB, which means two chunks per gate.",
+          "source": "https://raw.githubusercontent.com/antirez/ds4/main/ds4.c",
+          "note": null
+        }
+      ]
+    }
+  ],
+  "related": []
+}

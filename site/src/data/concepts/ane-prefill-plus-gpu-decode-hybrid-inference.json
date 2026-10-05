@@ -1,0 +1,284 @@
+{
+  "slug": "ane-prefill-plus-gpu-decode-hybrid-inference",
+  "concept": "ANE-prefill plus GPU decode hybrid inference",
+  "generated": "2026-10-05",
+  "summary": "Yetter packaging: one converter turns any Hugging Face LM into a single multifunction Core ML package, built either stateful (pure-ANE path) or stateless (disaggregated path, KV tensors returned as outputs). The stateless prefill costs a little extra latency versus the stateful Core ML prefill be...",
+  "facets": [
+    {
+      "title": "Facts",
+      "facts": [
+        {
+          "text": "Yetter packaging: one converter turns any Hugging Face LM into a single multifunction Core ML package, built either stateful (pure-ANE path) or stateless (disaggregated path, KV tensors returned as outputs). The stateless prefill costs a little extra latency versus the stateful Core ML prefill because the KV is copied out rather than updated in place.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Yetter fixed-shape setup: input padded to max sequence 512, Core ML weights INT4 per-channel, FP16 activations; MLX side INT4 per-group (group size 64), FP16 or BF16 activations. Prefill and decode therefore run at different weight quantization granularities, and SqueezeBits lists \"different numerical precision per stage\" as future work.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "NPUMoE splits work three ways: ANE gets dense attention and grouped expert FFNs; CPU does layernorm, masking, top-k routing, scatter/gather; GPU is deliberately left free for foreground work. It uses chunked prefill (chunk 256/512/1024), static expert-capacity tiers per layer (from offline routing calibration), grouped expert graphs (group 4 or 8), and a resident working set of hot-expert graphs on the ANE with cold experts on CPU. A compiled graph above about 1.2 GB on M2 Ultra is not efficient, so all 16 PhiMoE experts in one graph is rejected.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Overflow tokens (more tokens than static capacity) are dropped by lowest activation L2-norm saliency; Core ML fixes placement at compile time so they cannot spill to CPU/GPU.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Academic precedent on phone SoCs (not Apple): llm.npu (arXiv 2407.05858) offloads prefill to the NPU with fixed-size prompt chunks, outliers on CPU/GPU, and out-of-order block scheduling; HeteroInfer (arXiv 2501.14794, \"Characterizing Mobile SoC...\") runs GPU and NPU concurrently using unified memory and a fast cross-processor sync.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "2025-08-26 SqueezeBits post \"Disaggregated Inference on Apple Silicon: NPU prefill and GPU decode\"; engine announced, open-source \"intended\", no repo link in the post.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "2025-09 HN (Experimenting with Local LLMs on macOS): consensus that NPUs are too weak for serious LLM inference and that Apple should add matmul hardware to the GPU instead; llama.cpp has no NPU backend because NPUs have no common standard and break across generations.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "2025-10 M5 GPU Neural Accelerators (\"tensor cores in the GPU\") ship; MLX and llama.cpp use them via Metal 4 TensorOps. This is the route Apple took for prefill speed.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "2026-04 NPUMoE (UVA group): MoE prefill on ANE on M2 Max / M2 Ultra.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "2026-10 state: john-rocky CoreML-LLM (194 stars, v1.9.0, active) ships ANE-only LLMs for iPhone; its README frames the ANE as the choice when the GPU must stay free, and MLX as the choice for max GPU throughput. No hybrid mode in it.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Yetter's headline benefit was measured only on iPhone 15 Pro (iOS 18.6.1), 0.5B-2B models, 512-token padded context. Nothing is published for a Mac, for 7B+ models, or for contexts above 512.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Padding to 512 means short prompts pay full ANE prefill cost; this is a fixed-shape tax.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "KV hand-off is by tensor outputs (stateless prefill); cost for long context is unquantified.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "NPUMoE attention is slower on the NPU path: attention latency rose about 27.6% versus the CPU backend, with the gain coming from the MoE block; Core ML naive dispatch spends over 60% of MoE block time in CPU-NPU dispatch.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "NPUMoE accuracy cost is from token dropping (overflow pruning), under 1.1% on its test sets; it is an approximation, not exact inference.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Sustained-load effect (iPhone 17 Pro, Gemma 4 E2B 4-bit, CoreML-LLM bench): CoreML/ANE 33 tok/s burst, 22 sustained over 10 min (67% retained); MLX/GPU 48 burst, 18 sustained (38%); LiteRT-LM/GPU 56 burst, 27 sustained (48%). Measured Mac power at full decode 12.7 W ANE vs about 24.7 W GPU. Source is the repo author's own bench; phone thermals, not a Mac result.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "\"ANE prefill is faster\" (SqueezeBits: Core ML wins TTFT in prefill-heavy, MLX wins TPOT) vs M5 data: Apple reports TTFT up to 4x vs M4 from the GPU NAX alone (Qwen3-14B-4bit 4.06x, Qwen3-30B-A3B 3.52x, 4096-token prompt, TTFT under 10 s for dense 14B and under 3 s for the 30B MoE). The Yetter comparison is against M-series/A-series GPU without NAX, so it does not transfer to M5.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "NPUMoE \"1.32-5.55x faster\" vs reader assumption of beating the GPU: all three baselines are Core ML configurations (CPU-only, naive Core ML, ANEMLL). No GPU or MLX baseline appears in its evaluation. Do not read the speedup as ANE beating the GPU.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Yetter numbers: the TTFT/TPOT figures are charts only; no tokens/s table exists in the text. A Yetter repo is not visible: the SqueezeBits GitHub org page lists yetter-client (a Python client for a different product) and no Apple-silicon engine.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Whether ANE+GPU hybrid prefill beats M5 GPU-NAX-only prefill on any model size; no source tests it. (Derived expectation: no for dense models above about 3B, because M5 NAX gives about 3.5-4x TTFT versus M4 with no conversion step.)",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "The ANE-vs-GPU power split during prefill on a Mac at 7B+ is unmeasured.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "KV hand-off cost and layout compatibility between Core ML KV tensors and MLX KV cache at long context.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "SqueezeBits Yetter's converter emits one multifunction Core ML package that is stateful for pure-ANE inference and stateless (KV as outputs) for disaggregated prefill.",
+          "source": "https://blog.squeezebits.com/disaggregated-inference-on-apple-silicon-npu-prefill-and-gpu-decode-67176",
+          "note": null
+        },
+        {
+          "text": "Yetter benchmarks use a prefill-heavy scenario of 448 input plus 64 output tokens and a decode-heavy scenario of 64 plus 448, with Core ML inputs padded to max sequence 512.",
+          "source": "https://blog.squeezebits.com/disaggregated-inference-on-apple-silicon-npu-prefill-and-gpu-decode-67176",
+          "note": null
+        },
+        {
+          "text": "Yetter measurements ran on iPhone 15 Pro with iOS 18.6.1; Core ML used INT4 per-channel weights with FP16 activations and MLX used INT4 group-size-64 weights.",
+          "source": "https://blog.squeezebits.com/disaggregated-inference-on-apple-silicon-npu-prefill-and-gpu-decode-67176",
+          "note": null
+        },
+        {
+          "text": "SqueezeBits states Yetter's prefill latency is only slightly above Core ML's (stateless versus stateful), its decode is nearly identical to MLX's, and it beats both in prefill-heavy cases while matching MLX in decode-heavy ones; the underlying numbers are in images, not text.",
+          "source": "https://blog.squeezebits.com/disaggregated-inference-on-apple-silicon-npu-prefill-and-gpu-decode-67176",
+          "note": null
+        },
+        {
+          "text": "SqueezeBits' Yetter post lists three future directions: per-stage numerical precision, dynamic GPU/ANE routing by task and device condition, and open-sourcing the engine.",
+          "source": "https://blog.squeezebits.com/disaggregated-inference-on-apple-silicon-npu-prefill-and-gpu-decode-67176",
+          "note": null
+        },
+        {
+          "text": "The SqueezeBits GitHub organization page lists 32 repositories and shows only a \"yetter-client\" Python client among the visible ones, no Apple-silicon Yetter engine (checked 2026-10-04).",
+          "source": "https://github.com/SqueezeBits",
+          "note": null
+        },
+        {
+          "text": "SqueezeBits states the engine's authors judged MLX the better choice for easy deployment on Apple silicon, with Core ML on ANE justified only for TTFT in prefill-heavy cases.",
+          "source": "https://blog.squeezebits.com/disaggregated-inference-on-apple-silicon-npu-prefill-and-gpu-decode-67176",
+          "note": null
+        },
+        {
+          "text": "NPUMoE was evaluated on Phi-3.5-MoE (42.6B params, 83.75 GB, 16 experts top-2, 150 MB per expert), Phi-tiny-MoE (3.8B, 7.51 GB) and Qwen3-30B-A3B (28.64 GB, 128 experts, 48 layers) on an M2 Max (64 GB, 16-core ANE) and an M2 Ultra (192 GB, 32-core ANE).",
+          "source": "https://arxiv.org/html/2604.18788v1",
+          "note": null
+        },
+        {
+          "text": "NPUMoE's three baselines are all Core ML based: Core ML (CPU), Core ML naive scheduling, and ANEMLL; no GPU or MLX baseline is reported.",
+          "source": "https://arxiv.org/html/2604.18788v1",
+          "note": null
+        },
+        {
+          "text": "NPUMoE speedups by model: PhiMoE 1.32-5.55x, PhiMoE-tiny 1.11-1.87x, Qwen3-MoE 1.19-3.86x TTFT; energy-efficiency gains 1.81-7.37x, 1.70-2.68x and 1.84-3.89x.",
+          "source": "https://arxiv.org/html/2604.18788v1",
+          "note": null
+        },
+        {
+          "text": "NPUMoE at prompt length 1024 cuts TTFT 2.07x (chunk 256) and 1.32x (chunk 512) versus Core ML (CPU), and 1.95x and 1.33x versus ANEMLL; at 4096 it is 1.58x/3.85x/1.50x (chunk 512) versus CPU/naive/ANEMLL.",
+          "source": "https://arxiv.org/html/2604.18788v1",
+          "note": null
+        },
+        {
+          "text": "NPUMoE's energy per token is about 52-137 mJ/token, and Core ML naive spends 4.44-5.69x more energy on data communication alone.",
+          "source": "https://arxiv.org/html/2604.18788v1",
+          "note": null
+        },
+        {
+          "text": "NPUMoE end-to-end speedup is up to 3.86x versus Core ML naive, 1.26x versus Core ML CPU and 1.19x versus ANEMLL, on workloads averaging 8 decode tokens, so it is a long-prompt short-answer result.",
+          "source": "https://arxiv.org/html/2604.18788v1",
+          "note": null
+        },
+        {
+          "text": "In NPUMoE's microbenchmark on M2 Ultra the ANE is 1.4-2.3x faster than CPU on dense matmul, with less benefit for very small (M=64) or very large matrices.",
+          "source": "https://arxiv.org/html/2604.18788v1",
+          "note": null
+        },
+        {
+          "text": "NPUMoE's attention latency increases about 27.6% relative to CPU/NPU backend choice while the MoE block drives the TTFT win.",
+          "source": "https://arxiv.org/html/2604.18788v1",
+          "note": null
+        },
+        {
+          "text": "NPUMoE argues the GPU should not be the default accelerator because it is shared with rendering and interactive work, and states Apple advocates leaving the GPU for non-ML work.",
+          "source": "https://arxiv.org/html/2604.18788v1",
+          "note": null
+        },
+        {
+          "text": "NPUMoE chunk sizes tested were 256/512/1024, prompt lengths 1024/4096, expert capacities 32/64/128, group sizes 4/8; datasets HellaSwag, BoolQ, RULER; energy measured with Zeus.",
+          "source": "https://arxiv.org/html/2604.18788v1",
+          "note": null
+        },
+        {
+          "text": "llm.npu (arXiv 2407.05858) is a phone-NPU prefill offload system reporting 22.4x average faster prefill and 30.7x energy savings versus its baselines and over 1,000 tokens/s prefill for a billion-parameter model; it targets mobile NPUs, not Apple's ANE.",
+          "source": "https://arxiv.org/abs/2407.05858",
+          "note": null
+        },
+        {
+          "text": "HeteroInfer (arXiv 2501.14794) runs GPU and NPU concurrently on mobile SoCs with a unified-memory sync mechanism and reports 1.34-6.02x end-to-end speedup over GPU-only and NPU-only engines; it targets a mobile SoC, not Apple silicon.",
+          "source": "https://arxiv.org/abs/2501.14794",
+          "note": null
+        },
+        {
+          "text": "Apple's M5 MLX post reports TTFT speedups versus M4 at 4096-token prompts of 3.57x (Qwen3-1.7B bf16), 3.62x (8B bf16), 3.97x (8B 4-bit), 4.06x (14B 4-bit), 3.33x (gpt-oss-20b MXFP4) and 3.52x (Qwen3-30B-A3B 4-bit), with generation speedups of only 1.19-1.27x tracking bandwidth (120 to 153 GB/s).",
+          "source": "https://machinelearning.apple.com/research/exploring-llms-mlx-m5",
+          "note": null
+        },
+        {
+          "text": "Apple's M5 post puts TTFT under 10 s for a dense 14B and under 3 s for a 30B MoE at 4096 tokens, and MLX needs macOS 26.2 or later for the Neural Accelerators.",
+          "source": "https://machinelearning.apple.com/research/exploring-llms-mlx-m5",
+          "note": null
+        },
+        {
+          "text": "The M5 \"Neural Accelerator\" is a matrix unit inside the GPU shader cores, not the ANE; HN commenters confirmed this when asked whether frameworks use the \"neural engine\" for M5 prefill.",
+          "source": "https://news.ycombinator.com/item?id=47232730",
+          "note": null
+        },
+        {
+          "text": "contracollective (Mar 2026) states no mainstream local runtime ships ANE-prefill plus GPU-decode because coordinating two accelerators and paying the Core ML conversion cost outweighs the speedup at typical prompt lengths, calling it an engineering trade rather than a hardware limit.",
+          "source": "https://contracollective.com/blog/gpu-vs-apple-neural-engine-local-llm-inference-m5-max-2026",
+          "note": null
+        },
+        {
+          "text": "HN (Sept 2025) commenters explain llama.cpp has no NPU backend because there is no NPU standard and vendors' NPUs change between generations; one argues models are obsolete by the time vendor NPU support lands.",
+          "source": "https://news.ycombinator.com/item?id=45169945",
+          "note": null
+        },
+        {
+          "text": "CoreML-LLM (john-rocky, 194 stars, v1.9.0, last commit 2026-10-02) ships ANE-only LLMs (Gemma 4 E2B 34.2 tok/s, E4B 15.7, Qwen3.5 2B ~27, 0.8B ~48 on iPhone 17 Pro at 2048 context) with batched prefill functions (prefill_b8, T=32); it documents no GPU-decode hybrid.",
+          "source": "https://github.com/john-rocky/CoreML-LLM",
+          "note": null
+        },
+        {
+          "text": "CoreML-LLM's sustained-decode bench on iPhone 17 Pro (Gemma 4 E2B 4-bit): CoreML/ANE 33 to 22 tok/s over 10 min (67% retained), MLX/GPU 48 to 18 (38%), LiteRT-LM/GPU 56 to 27 (48%); ANE draws about 12.7 W versus about 24.7 W for GPU at full decode on a Mac.",
+          "source": "https://github.com/john-rocky/CoreML-LLM",
+          "note": null
+        },
+        {
+          "text": "laya-apple (tc3oliver) runs MLX-GPU and ANE concurrently for typed-decision (non-generative) models, reporting up to 4.57x throughput over GPU-only on one M4 Max under a mixed workload, and with a 27B local LLM saturating the GPU its short-decision P99 was 41.7 ms (auto) versus 79.5 ms (GPU-only); this shows ANE as an offload lane beside a GPU LLM, not a prefill engine.",
+          "source": "https://github.com/tc3oliver/laya-apple",
+          "note": null
+        },
+        {
+          "text": "Practical availability for a Mac user (as of 2026-10-04): no installable ANE-prefill + GPU-decode hybrid is documented; ANE-only LLMs are available via ANEMLL and CoreML-LLM, GPU prefill acceleration via MLX/llama.cpp on M5.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "For M5 and later, ANE prefill adds a conversion pipeline, FP16-only numerics and fixed shapes to offset a prefill gain that the GPU NAX already delivers at about 3.5-4x versus M4, so the hybrid's value there is limited to power/thermal or leaving the GPU free.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "On M1-M4 (no GPU NAX) the hybrid's rationale is strongest in principle, but the only evidence is sub-2B models on iPhone and Core ML-only baselines for MoE on M2, so the size at which it pays off on a Mac is unknown.",
+          "source": "asserted",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Corrections and disagreements",
+      "facts": [
+        {
+          "text": "\"Not shipped in mainstream stacks\" (contracollective Mar 2026: coordination plus CoreML conversion tax outweighs the win at typical prompt lengths; \"an engineering trade, not a hardware wall\") vs Yetter, which did ship a working engine in a blog. Both true: it exists as a private engine, no mainstream runtime (MLX, llama.cpp, Ollama, LM Studio) has it. CONTRADICTS the unqualified wording in core-ml-and-apple-neural-engine-for-llms.md only in that a research-grade implementation exists.",
+          "source": "asserted",
+          "note": null
+        }
+      ]
+    }
+  ],
+  "related": []
+}

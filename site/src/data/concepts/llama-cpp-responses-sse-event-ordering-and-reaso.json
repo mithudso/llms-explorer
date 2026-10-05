@@ -1,0 +1,89 @@
+{
+  "slug": "llama-cpp-responses-sse-event-ordering-and-reaso",
+  "concept": "llama.cpp Responses SSE event ordering and reasoning items",
+  "generated": "2026-10-05",
+  "summary": "On master, the final-result builder emits `response.output_item.done` for the reasoning item first (only if `reasoning_content` is non-empty), then `response.output_text.done`, `response.content_part.done` and `response.output_item.done` for the message (only if `content` is non-empty), then one ...",
+  "facets": [
+    {
+      "title": "Facts",
+      "facts": [
+        {
+          "text": "On master, the final-result builder emits `response.output_item.done` for the reasoning item first (only if `reasoning_content` is non-empty), then `response.output_text.done`, `response.content_part.done` and `response.output_item.done` for the message (only if `content` is non-empty), then one `response.output_item.done` per tool call, and last `response.completed`.",
+          "source": "https://raw.githubusercontent.com/ggml-org/llama.cpp/master/tools/server/server-task.cpp",
+          "note": null
+        },
+        {
+          "text": "The streaming path emits `response.created`, then `response.in_progress` twice in the source order seen, then `response.output_item.added` plus `response.reasoning_text.delta` for reasoning, and `response.output_item.added`, `response.content_part.added` and `response.output_text.delta` for message text.",
+          "source": "https://raw.githubusercontent.com/ggml-org/llama.cpp/master/tools/server/server-task.cpp",
+          "note": null
+        },
+        {
+          "text": "The server generates one response id (`resp_...`), one reasoning id (`rs_...`) and one message id (`msg_...`) per response, and prefixes function-call item ids with `fc_` and call ids with `call_`.",
+          "source": "https://raw.githubusercontent.com/ggml-org/llama.cpp/master/tools/server/server-task.cpp",
+          "note": null
+        },
+        {
+          "text": "The source contains no `sequence_number` field in any Responses event.",
+          "source": "https://raw.githubusercontent.com/ggml-org/llama.cpp/master/tools/server/server-task.cpp",
+          "note": null
+        },
+        {
+          "text": "A streamed reasoning item has `summary: []`, `content: [{type: \"reasoning_text\", text: ...}]` and `encrypted_content: \"\"`, so local reasoning arrives as raw text in `content`, not as a summary.",
+          "source": "https://raw.githubusercontent.com/ggml-org/llama.cpp/master/tools/server/server-task.cpp",
+          "note": null
+        },
+        {
+          "text": "The PR 18486 trace for `codex 'Explain this repo in one sentence'` shows `output_item.added` (reasoning), reasoning deltas, `output_item.added` (function_call `shell`), then the two `output_item.done` events after the arguments, then `response.completed`; the PR marks the reasoning `done` as the delayed one.",
+          "source": "https://github.com/ggml-org/llama.cpp/pull/18486",
+          "note": null
+        },
+        {
+          "text": "PR 18486's first listed caveat, no `response.output_item.added` for later consecutive function calls, is struck through in the final description, so it was fixed before merge.",
+          "source": "https://github.com/ggml-org/llama.cpp/pull/18486",
+          "note": null
+        },
+        {
+          "text": "PR 18486 merged on 2026-01-21 as commit fbbf3ad1900bbaa97cd3c8de4c764afb0f6d8972; the commit list includes \"Feed reasoning texts to chat template\", \"Make output_item.added events consistent\" and \"Match ID of output_item.added and .done events\".",
+          "source": "https://github.com/ggml-org/llama.cpp/pull/18486",
+          "note": null
+        },
+        {
+          "text": "The PR author says Codex ran gpt-oss with the same `prompt_cache_key` across the turns shown, and the converted chat request carried the earlier reasoning as `reasoning_content` on the assistant `tool_calls` message.",
+          "source": "https://github.com/ggml-org/llama.cpp/pull/18486",
+          "note": null
+        },
+        {
+          "text": "In the PR's multi-turn example, reasoning from a previous turn is excluded on the next user turn by the chat template, so a replayed reasoning item survives only until the next user message.",
+          "source": "https://github.com/ggml-org/llama.cpp/pull/18486",
+          "note": null
+        },
+        {
+          "text": "A reviewer notes that llama.cpp already sends reasoning to chat clients as `reasoning_content` and accepts it back there, copying it to the gpt-oss template's `thinking` field only when the assistant message also has tool calls, and calls this a deviation from the `reasoning` field recommended for Chat Completions that llama.cpp and vLLM have settled on.",
+          "source": "https://github.com/ggml-org/llama.cpp/pull/18486",
+          "note": null
+        },
+        {
+          "text": "A commenter reports that for the Responses path Codex replays received `ResponseItem` values unchanged and the schema allows `summary`, `content` (raw reasoning text) and `encrypted_content` in one reasoning item, with encrypted reasoning requested only for hosted OpenAI models.",
+          "source": "https://github.com/ggml-org/llama.cpp/pull/18486",
+          "note": null
+        },
+        {
+          "text": "The PR discussion records that OpenAI's closed models do not expose raw reasoning (only encrypted content and optional summaries), while open models such as gpt-oss use the `content` field, so an app built for hosted models may ignore `content` when replaying.",
+          "source": "https://github.com/ggml-org/llama.cpp/pull/18486",
+          "note": null
+        },
+        {
+          "text": "Inferred: a stateless Responses client against llama-server keeps its prefix cache only if the client replays the reasoning item exactly as emitted and the template renders it the same way each turn.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Inferred: a strict client that pairs each `added` with the next `done` would mis-order reasoning items on any turn that ends in a tool call.",
+          "source": "asserted",
+          "note": null
+        }
+      ]
+    }
+  ],
+  "related": []
+}

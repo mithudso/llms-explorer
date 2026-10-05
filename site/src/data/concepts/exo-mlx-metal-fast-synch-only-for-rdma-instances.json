@@ -1,0 +1,144 @@
+{
+  "slug": "exo-mlx-metal-fast-synch-only-for-rdma-instances",
+  "concept": "exo MLX_METAL_FAST_SYNCH only for RDMA instances (exo PR 2377)",
+  "generated": "2026-10-05",
+  "summary": "exo PR 2377 (\"fix(worker): use MLX fast synch only for RDMA instances\", opened by AlexCheema on 2026-10-01) changes the default for `MLX_METAL_FAST_SYNCH`: when neither `--fast-synch` nor `--no-fast-synch` is given, a runner uses fast synch only for an RDMA (JACCL) instance, and ring instances ru...",
+  "facets": [
+    {
+      "title": "Facts",
+      "facts": [
+        {
+          "text": "exo PR 2377 (\"fix(worker): use MLX fast synch only for RDMA instances\", opened by AlexCheema on 2026-10-01) changes the default for `MLX_METAL_FAST_SYNCH`: when neither `--fast-synch` nor `--no-fast-synch` is given, a runner uses fast synch only for an RDMA (JACCL) instance, and ring instances run without it. Both flags still override the choice.",
+          "source": "https://github.com/exo-explore/exo/pull/2377",
+          "note": null
+        },
+        {
+          "text": "Before the PR, every runner set `MLX_METAL_FAST_SYNCH=1` unless exo started with `--no-fast-synch`, and the runner logged `Fast synch flag: 1`; with the PR a ring runner logs `Fast synch flag: 0`.",
+          "source": "https://github.com/exo-explore/exo/pull/2377",
+          "note": null
+        },
+        {
+          "text": "Fast synch makes MLX wait for the GPU by spinning on shared memory instead of on Metal events. The PR text cites MLX PR 4005 (MLX warns it is unreliable with more than one stream) and MLX PR 4552 (a deadlock fixed only in 0.32.3).",
+          "source": "https://github.com/exo-explore/exo/pull/2377",
+          "note": null
+        },
+        {
+          "text": "The reason RDMA instances keep it: each JACCL collective hands work between the CPU and the GPU, and fast synch speeds up exactly that hand-over. A TCP ring instance gets no measurable single-model speed change from it.",
+          "source": "https://github.com/exo-explore/exo/pull/2377",
+          "note": null
+        },
+        {
+          "text": "The test file is `test_fast_synch.py`; it checks the choice for ring and RDMA instances with and without each override.",
+          "source": "https://github.com/exo-explore/exo/pull/2377",
+          "note": null
+        },
+        {
+          "text": "MLX v0.32.1 (2026-08-17) lists PR 4005, \"docs: Do not pass MLX_METAL_FAST_SYNCH=1 by default\". This is the upstream docs change the exo PR cites.",
+          "source": "https://github.com/ml-explore/mlx/releases",
+          "note": null
+        },
+        {
+          "text": "exo PR 1594 (2026-02-23, per mlx-metal-fast-synch-and-jaccl-fence-wait-deadlock.md) had turned fast synch on for Ring and pipeline instances; PR 2377 reverses that for ring and keeps it for RDMA.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Two runners sharing one Mac's GPU break fast synch. Setup in the PR: two Mac Studios (96 GB), Qwen3.8-27B as a 2-node pipeline plus Llama-3.2-3B on one node, 8 streaming clients per model. Alone, main did 17.7 and 95.7 requests per minute; with both busy it fell to 2.2 and 7.2 with 14 and 8 failed requests, and afterwards Llama completed 0.0 in the next 6 minutes (24 failed).",
+          "source": "https://github.com/exo-explore/exo/pull/2377",
+          "note": null
+        },
+        {
+          "text": "With the PR the same phases gave Qwen alone 18.2, Llama alone 99.5, both loaded 16.2 and 61.7, then 55.7 (Llama only) and 14.5 (Qwen only).",
+          "source": "https://github.com/exo-explore/exo/pull/2377",
+          "note": null
+        },
+        {
+          "text": "On a build that notices the ring giving up (exo PR 2367), the Qwen ring between the two ranks failed with `errno 14` (EFAULT) and the instance restarted over and over.",
+          "source": "https://github.com/exo-explore/exo/pull/2377",
+          "note": null
+        },
+        {
+          "text": "With upstream MLX 0.32.3 and fast synch on, both runners on that Mac deadlocked on the GPU during warm-up and stayed stuck for hours.",
+          "source": "https://github.com/exo-explore/exo/pull/2377",
+          "note": null
+        },
+        {
+          "text": "Chaos runs (Qwen3.8-27B ring pipeline plus Llama-3.2-1B, faults every 1 to 2.5 minutes, 3 hours each): with fast synch on, exo's 90-second stuck-runner watchdog (PR 2370) fired 5 times; with it off for ring instances it fired 0 times in each of two runs. The runs had 5 and 3 nodes, so the author calls it support, not replacement, for the A/B.",
+          "source": "https://github.com/exo-explore/exo/pull/2377",
+          "note": null
+        },
+        {
+          "text": "Keep or drop fast synch. The PR author's RDMA measurement says keep it for JACCL (halves step time); MLX's own docs change (PR 4005) says do not pass it by default. They do not conflict: one is about a RDMA collective loop, the other about a default for everyone.",
+          "source": "https://github.com/exo-explore/exo/pull/2377",
+          "note": null
+        },
+        {
+          "text": "The PR body first says \"I haven't measured RDMA instances\"; a later comment on the same day adds a measurement.",
+          "source": "https://github.com/exo-explore/exo/pull/2377",
+          "note": null
+        },
+        {
+          "text": "Whether PR 2377 merged. The cached page (fetched 2026-10-04) shows no review, one participant and no merge event.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "The RDMA result is a standalone script, not an exo end-to-end run, and the RDMA case with two models sharing one GPU was not tested.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "exo PR 2377 makes fast synch default-on only for RDMA (JACCL) instances; `--fast-synch` and `--no-fast-synch` still override.",
+          "source": "https://github.com/exo-explore/exo/pull/2377",
+          "note": null
+        },
+        {
+          "text": "Before PR 2377 every exo runner used `MLX_METAL_FAST_SYNCH=1` unless `--no-fast-synch` was passed.",
+          "source": "https://github.com/exo-explore/exo/pull/2377",
+          "note": null
+        },
+        {
+          "text": "On two Mac Studios, two models on one node under load fell from 17.7 and 95.7 to 2.2 and 7.2 requests per minute on main, and Llama then completed 0 requests in 6 minutes.",
+          "source": "https://github.com/exo-explore/exo/pull/2377",
+          "note": null
+        },
+        {
+          "text": "With fast synch off for the ring instance, the same load kept 16.2 and 61.7 requests per minute.",
+          "source": "https://github.com/exo-explore/exo/pull/2377",
+          "note": null
+        },
+        {
+          "text": "Over the TCP ring, fast synch gives no measurable single-model speed change.",
+          "source": "https://github.com/exo-explore/exo/pull/2377",
+          "note": null
+        },
+        {
+          "text": "With upstream MLX 0.32.3 and fast synch on, two runners sharing a Mac's GPU deadlocked during warm-up for hours.",
+          "source": "https://github.com/exo-explore/exo/pull/2377",
+          "note": null
+        },
+        {
+          "text": "The 90-second stuck-runner watchdog fired 5 times in 3-hour chaos runs with fast synch on and 0 times with it off for ring instances.",
+          "source": "https://github.com/exo-explore/exo/pull/2377",
+          "note": null
+        },
+        {
+          "text": "On 2 Mac Studio M3 Ultra 512 GB over Thunderbolt 5 with JACCL, a loop of 8 bf16 matmul plus `all_sum` of 16x5120 values per step took 3.2 ms with fast synch off and 1.56 ms on with exo's pinned MLX, and 3.2 ms off and 1.57 ms on with upstream MLX main 0.32.4.dev (2,000 steps, 3 runs, no hangs).",
+          "source": "https://github.com/exo-explore/exo/pull/2377",
+          "note": null
+        },
+        {
+          "text": "MLX v0.32.1 includes PR 4005, a docs change telling users not to pass `MLX_METAL_FAST_SYNCH=1` by default.",
+          "source": "https://github.com/ml-explore/mlx/releases",
+          "note": null
+        },
+        {
+          "text": "The first measured fast-synch saving per matmul-plus-all_sum round on JACCL is about 0.2 ms (0.40 to 0.195 ms), which is the same order as the unconfirmed 0.26 ms figure in the existing dossier.",
+          "source": "asserted",
+          "note": null
+        }
+      ]
+    }
+  ],
+  "related": []
+}

@@ -1,0 +1,199 @@
+{
+  "slug": "mixed-precision-quantization-for-moe-experts-4-b",
+  "concept": "Mixed-precision quantization for MoE experts 4-bit attention 8-bit",
+  "generated": "2026-10-05",
+  "summary": "Stock mlx-lm: every model class may expose a quant_predicate property; nn.quantize calls it per module path and uses the returned {group_size, bits} dict. For Qwen3 MoE the only special case is the router (mlp.gate, 8-bit, group 64); attention and experts get the global bits.",
+  "facets": [
+    {
+      "title": "Facts",
+      "facts": [
+        {
+          "text": "Stock mlx-lm: every model class may expose a quant_predicate property; nn.quantize calls it per module path and uses the returned {group_size, bits} dict. For Qwen3 MoE the only special case is the router (mlp.gate, 8-bit, group 64); attention and experts get the global bits.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "A user-supplied --quant-predicate recipe (mixed_2_6, mixed_3_4, mixed_3_6, mixed_4_6) replaces the model's own predicate, so router protection disappears under those recipes; the recipe itself returns low bits for everything not v_proj, down_proj or lm_head.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Because the recipe tests the substring 'down_proj' in the module path, routed-expert down projections (switch_mlp.down_proj) also match, so on MoE models the high-bit rule lifts the bulk expert down_proj to 6 bits in about half the layers.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "llama.cpp llama-quantize applies the Q4_K_M-style 'more bits' rule (first and last eighth of layers and every third layer between) to attn_v and ffn_down by tensor category, plus special cases when n_expert is 8 (Mixtral): attn_v and attn_k go to Q8_0 and attn_output to Q5_K for several file types.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Expert-wise research line: assign bits per expert, not per tensor class. A 2026 paper ranks experts by change in router L2 norm during training and breaks ties with maximum intra-neuron variance, and beats activation-frequency and activation-weight heuristics on Switch Transformer and Mixtral.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "2024: llama.cpp Mixtral support added 8-expert special cases to llama-quantize (attn_v/attn_k Q8_0 'trades just ~128MB').",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "2025-2026: MLX third parties (OptiQ, oQ, JANG) add data-driven or tier-based MoE splits; stock mlx-lm keeps a simple predicate-per-model mechanism (Qwen3 MoE, Qwen3-Next, Gemma 4, gpt-oss routers at 8-bit g64).",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "2026-04: arXiv 2604.06515 formalizes expert-wise mixed precision with router-norm ranking.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "quant-predicate mixed_* on a MoE silently drops the model-level 8-bit router rule (precedence is `quant_predicate or model.quant_predicate`).",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Mixtral's router is an nn.Linear and has no model predicate in mlx-lm, so default conversion quantizes it at the base bit width; DeepSeek-V3's MoEGate is a plain module with a raw weight and no to_quantized, so it stays unquantized.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Modules whose last weight dimension is not divisible by the group size are silently skipped by nn.quantize (left in source dtype), which is how tiny routers or odd-shaped tensors can end up unquantized.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Expert-wise ranking by router-norm change needs the pre-finetuning router, which a released checkpoint does not provide.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Tier by name (JANG) vs measure by KL (OptiQ) vs tier-by-category (llama.cpp): existing dossier covers these; new here is that llama.cpp's Mixtral rule is a hard-coded n_expert==8 heuristic, not a measurement.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Uniform bits plus rotation vs mixed bits: the PolarQuant paper reports uniform Q5 with Hadamard rotation (PPL 6.39) beat its mixed-bit Q3-Q6 plus AWQ run (6.43) on Qwen3.5-9B, an N=1 result on one dense-class model.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Does mixed_4_6 on a MoE (which lifts expert down_proj to 6 bits in about half the layers) buy more quality per byte than OptiQ/oQ at equal size? No same-size independent comparison was found.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Do router weights at 4-bit versus 8-bit measurably change expert selection on stock mlx-community 4-bit MoE conversions of Mixtral-class models?",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "mlx-lm resolves the per-layer quantization rule as `quant_predicate or getattr(model, 'quant_predicate', None)`, so a user-passed predicate replaces the model's built-in one.",
+          "source": "https://raw.githubusercontent.com/ml-explore/mlx-lm/main/mlx_lm/utils.py",
+          "note": null
+        },
+        {
+          "text": "mlx-lm's quantization wrapper returns False (no quantization) for any module whose weight.shape[-1] is not divisible by the group size.",
+          "source": "https://raw.githubusercontent.com/ml-explore/mlx-lm/main/mlx_lm/utils.py",
+          "note": null
+        },
+        {
+          "text": "mlx-lm's qwen3_moe model class quantizes mlp.gate (the router) at 8 bits with group size 64 and everything else at the global setting.",
+          "source": "https://raw.githubusercontent.com/ml-explore/mlx-lm/main/mlx_lm/models/qwen3_moe.py",
+          "note": null
+        },
+        {
+          "text": "mlx-lm's qwen3_next model class quantizes both mlp.gate and shared_expert_gate at 8 bits, group size 64.",
+          "source": "https://raw.githubusercontent.com/ml-explore/mlx-lm/main/mlx_lm/models/qwen3_next.py",
+          "note": null
+        },
+        {
+          "text": "mlx-lm's gemma4_text model class quantizes router.proj at 8 bits, group size 64, and gpt_oss quantizes its router at 8 bits, group size 64.",
+          "source": "https://raw.githubusercontent.com/ml-explore/mlx-lm/main/mlx_lm/models/gemma4_text.py",
+          "note": null
+        },
+        {
+          "text": "mlx-lm's mixtral model file defines the router as nn.Linear and has no quant_predicate, so the router is quantized at the global bit width.",
+          "source": "https://raw.githubusercontent.com/ml-explore/mlx-lm/main/mlx_lm/models/mixtral.py",
+          "note": null
+        },
+        {
+          "text": "mlx-lm's DeepSeek-V3 MoEGate is a plain nn.Module holding a raw weight array, so it has no to_quantized path and stays unquantized.",
+          "source": "https://raw.githubusercontent.com/ml-explore/mlx-lm/main/mlx_lm/models/deepseek_v3.py",
+          "note": null
+        },
+        {
+          "text": "mixed_quant_predicate_builder returns high bits for v_proj, down_proj and lm_head and low bits for every other path, with no router rule.",
+          "source": "https://raw.githubusercontent.com/ml-explore/mlx-lm/main/mlx_lm/convert.py",
+          "note": null
+        },
+        {
+          "text": "The mixed recipe tests `'down_proj' in path`, so routed-expert paths such as switch_mlp.down_proj also match; the 'use more bits' rule covers the first eighth, last eighth and every third layer between.",
+          "source": "https://raw.githubusercontent.com/ml-explore/mlx-lm/main/mlx_lm/convert.py",
+          "note": null
+        },
+        {
+          "text": "On a MoE where routed experts are about equal thirds across gate, up and down, lifting expert down_proj from 4 to 6 bits in about half the layers adds about 0.33 bits per expert weight.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "llama-quantize special-cases n_expert == 8: attn_v and attn_k go to Q8_0 ('trades just ~128MB'), and attn_output goes to Q5_K for Q2_K, IQ3_XS/XXS/S/M, Q3_K_S/M, IQ4_NL, IQ4_XS, Q4_K_S and Q4_K_M.",
+          "source": "https://raw.githubusercontent.com/ggml-org/llama.cpp/master/src/llama-quant.cpp",
+          "note": null
+        },
+        {
+          "text": "llama-quantize raises attn_v to Q4_K for the IQ2/IQ1 file types when n_gqa >= 4 or n_expert >= 4.",
+          "source": "https://raw.githubusercontent.com/ggml-org/llama.cpp/master/src/llama-quant.cpp",
+          "note": null
+        },
+        {
+          "text": "The expert-wise mixed-precision paper ranks experts by change in router L2 norm during training, then reorders by maximum intra-neuron variance (zeta 3, affecting 4-5% of experts), and assigns two or three bit levels by rank.",
+          "source": "https://arxiv.org/html/2604.06515v1",
+          "note": null
+        },
+        {
+          "text": "On Mixtral 8x7B and 8x22B with GPTQ the router-norm method beats the PMQ expert-wise baseline above 2.0 average bits per expert, and needs no calibration forward pass over all experts (PMQ needs about 110 GB and 2227 s for 8x7B).",
+          "source": "https://arxiv.org/html/2604.06515v1",
+          "note": null
+        },
+        {
+          "text": "The same paper finds that assigning precision by router-norm change beats activation frequency and activation-weight heuristics, and treats below 2.0 bits per expert as too aggressive for Mixtral 8x7B.",
+          "source": "https://arxiv.org/html/2604.06515v1",
+          "note": null
+        },
+        {
+          "text": "The paper tests only Switch Transformer (fine-tuned) and Mixtral 8x7B/8x22B with GPTQ, not MLX or GGUF pipelines and not fine-grained many-expert MoE.",
+          "source": "https://arxiv.org/html/2604.06515v1",
+          "note": null
+        },
+        {
+          "text": "The TQ4_1S weight policy keeps the first and last 2 layers (or 4+4 for Llama Premium) at native types because boundary layers are disproportionately sensitive, a rule carried over from KV-cache Boundary V work.",
+          "source": "https://github.com/TheTom/turboquant_plus/blob/main/docs/papers/weight-compression-tq4.md",
+          "note": null
+        },
+        {
+          "text": "In the TQ4_1S study, all attention tensors of a layer had to share one quant type because the in-place WHT kernel rotated the hidden state for the layer's attention matmuls, while FFN tensors could be mixed freely.",
+          "source": "https://github.com/TheTom/turboquant_plus/blob/main/docs/papers/weight-compression-tq4.md",
+          "note": null
+        },
+        {
+          "text": "A commenter quoted in ik_llama.cpp discussion 258 describes a custom DeepSeek quant with BF16 for the MLA low-rank _a and _b attention tensors, Q6_K and Q5_K for non-shared-expert down and up/gate projections, and Q8_0 for everything else, and says its story generation matched the official served models (anecdote).",
+          "source": "https://github.com/ikawrakow/ik_llama.cpp/discussions/258",
+          "note": null
+        },
+        {
+          "text": "Nota AI describes a router-logits alignment loss (NMQ) that preserves top-expert scores, ordering and margins through quantization, and claims some standard methods make MoE models more than five times worse on benchmarks (vendor claim).",
+          "source": "https://blog.nota.ai/insights/edge-insights-31-nmq-pascal-moe-optimization",
+          "note": null
+        },
+        {
+          "text": "The router is the smallest tensor in a MoE block (hidden size by expert count), so keeping it at 8-bit or fp16 costs under 0.01 bits per weight on a 35B MoE.",
+          "source": "asserted",
+          "note": null
+        }
+      ]
+    }
+  ],
+  "related": []
+}

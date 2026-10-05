@@ -1,0 +1,169 @@
+{
+  "slug": "llama-cpp-jinja-input-marking-is-input-special-t",
+  "concept": "llama.cpp Jinja input marking is_input special-token injection defence",
+  "generated": "2026-10-05",
+  "summary": "`common/chat-auto-parser.h` defaults `mark_input = true` and `common/chat.cpp` passes it to `global_from_json`, so the Jinja side marks input strings.",
+  "facets": [
+    {
+      "title": "Facts",
+      "facts": [
+        {
+          "text": "`common/chat-auto-parser.h` defaults `mark_input = true` and `common/chat.cpp` passes it to `global_from_json`, so the Jinja side marks input strings.",
+          "source": "https://api.github.com/repos/ggml-org/llama.cpp/issues/26532",
+          "note": null
+        },
+        {
+          "text": "`tools/server/` has no reference to `is_input` or `mark_input`, and all `tokenize_input_prompts` calls pass `parse_special = true`, so a user message containing a ChatML header tokenizes to the same ids as a real system turn.",
+          "source": "https://api.github.com/repos/ggml-org/llama.cpp/issues/26532",
+          "note": null
+        },
+        {
+          "text": "On current master the multimodal path still builds `mtmd_input_text` with `parse_special` set to true.",
+          "source": "https://raw.githubusercontent.com/ggml-org/llama.cpp/master/tools/server/server-common.cpp",
+          "note": null
+        },
+        {
+          "text": "The wiring plan is issue 28249 (opened 2026-09-02, open, assigned to the maintainer). Its checklist is: add `mtmd_tokenize_from_parts` (done), refactor `chat.cpp` to output parts instead of one string, wire it to the server.",
+          "source": "https://api.github.com/repos/ggml-org/llama.cpp/issues/28249",
+          "note": null
+        },
+        {
+          "text": "PR 28250 added `mtmd_tokenize_from_parts()` for per-segment tokenization, where one segment may use `parse_special` and another may not; it merged on 2026-09-02.",
+          "source": "https://api.github.com/repos/ggml-org/llama.cpp/pulls/28250",
+          "note": null
+        },
+        {
+          "text": "2026-06-09, issue 24382: `{\"role\":\"user\",\"content\":\"A<|turn>B\"}` on a Gemma 4 GGUF produced token 105 (`<|turn>`) from user text. Maintainer ngxson said the Jinja infrastructure came after `chat.cpp`, and that regex replacements `chat.cpp` applies to some templates make sanitisation tricky.",
+          "source": "https://api.github.com/repos/ggml-org/llama.cpp/issues/24382",
+          "note": null
+        },
+        {
+          "text": "2026-07-29, issue 26273: a request for `--escape-special-in-input` described models that copy injected special tokens into reasoning and confuse the auto-parser, producing generation that ends mid-thought, reasoning leaking into the answer, or malformed tool calls. It closed as stale on 2026-09-12.",
+          "source": "https://api.github.com/repos/ggml-org/llama.cpp/issues/26273",
+          "note": null
+        },
+        {
+          "text": "2026-08-03, issue 26532: the missing server wiring was reported; maintainer CISC said it is still on ngxson's list but \"not trivial (if at all 100% feasible) so not high priority\".",
+          "source": "https://api.github.com/repos/ggml-org/llama.cpp/issues/26532",
+          "note": null
+        },
+        {
+          "text": "2026-09-02: issue 24382 was closed as replaced by issue 28249.",
+          "source": "https://api.github.com/repos/ggml-org/llama.cpp/issues/24382",
+          "note": null
+        },
+        {
+          "text": "2026-09-21: a commenter on issue 26273 reproduced on Qwen3.8-27B (Unsloth Q4_K_S, `--jinja`): a tool result containing the literal `<|im_end|>` stopped generation at that point and the text after it was never reproduced; building the string from fragments `\"<\" + \"|im_end|\" + \">\"` was fine.",
+          "source": "https://api.github.com/repos/ggml-org/llama.cpp/issues/26273",
+          "note": null
+        },
+        {
+          "text": "Agent tool output routinely contains tokenizer metadata, configs and code with special-token strings, so injection through tool results is more likely than through user typing.",
+          "source": "https://api.github.com/repos/ggml-org/llama.cpp/issues/26273",
+          "note": null
+        },
+        {
+          "text": "Input marking cannot protect a token the model itself writes. Maintainer aldehir (issue 27661, 2026-08-24): Qwen 3 models do not mark the `</think>` token as special, so even sanitised input tokenizes to the same id, and a model that writes `</think>` inside its reasoning ends the reasoning early in the parser; the only fix would break streaming.",
+          "source": "https://api.github.com/repos/ggml-org/llama.cpp/issues/27661",
+          "note": null
+        },
+        {
+          "text": "Turning escaping on would change the token ids of any prompt that contains a special-token string, so cached prefixes holding such text would stop matching on the first request after the change.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Template-built special tokens such as `'<|' + role + '|>'` stop working once marking is consumed (README caveat held in the existing dossier).",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Python `transformers` has no equivalent: `apply_chat_template(tokenize=True)` lets content forge turns, and a split-special flag on the two-step path also strips the template's own delimiters. This is the issue 26532 author's claim.",
+          "source": "https://api.github.com/repos/ggml-org/llama.cpp/issues/26532",
+          "note": null
+        },
+        {
+          "text": "Feasibility. The 26532 author and the 26273 requester treat a flag as small work (the latter attached a Codex-written patch adding `--escape-special-in-input`). CISC and ngxson call full coverage hard because `chat.cpp` rewrites template text with regexes before rendering. Both positions are stated in the threads and not resolved.",
+          "source": "https://api.github.com/repos/ggml-org/llama.cpp/issues/26273",
+          "note": null
+        },
+        {
+          "text": "When the `chat.cpp` parts refactor in issue 28249 lands, and whether input-marked tokenization will be default-on.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Whether the llama-server completion endpoint will honour parts for non-multimodal prompts, since the first merged piece is in the multimodal library.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "On the 26532 report (commit 3581ba0), `mark_input` defaults to true in `common/chat-auto-parser.h` and `common/chat.cpp` passes it to `global_from_json`.",
+          "source": "https://api.github.com/repos/ggml-org/llama.cpp/issues/26532",
+          "note": null
+        },
+        {
+          "text": "On the 26532 report, `tools/server/` has zero references to `is_input` or `mark_input`.",
+          "source": "https://api.github.com/repos/ggml-org/llama.cpp/issues/26532",
+          "note": null
+        },
+        {
+          "text": "On the 26532 report, all four `tokenize_input_prompts` calls in `server-context.cpp` pass `parse_special = true`.",
+          "source": "https://api.github.com/repos/ggml-org/llama.cpp/issues/26532",
+          "note": null
+        },
+        {
+          "text": "On master read 2026-10-04, `server-common.cpp` builds the multimodal `mtmd_input_text` with `parse_special` true.",
+          "source": "https://raw.githubusercontent.com/ggml-org/llama.cpp/master/tools/server/server-common.cpp",
+          "note": null
+        },
+        {
+          "text": "Issue 28249 \"wiring up jinja input marking\" is open and lists two unchecked items: refactor `chat.cpp` to output parts, and wire it to the server.",
+          "source": "https://api.github.com/repos/ggml-org/llama.cpp/issues/28249",
+          "note": null
+        },
+        {
+          "text": "PR 28250 `mtmd_tokenize_from_parts()` merged 2026-09-02 as the first step of input marking.",
+          "source": "https://api.github.com/repos/ggml-org/llama.cpp/pulls/28250",
+          "note": null
+        },
+        {
+          "text": "Issue 24382 showed user text `A<|turn>B` tokenizing to Gemma 4 special token 105.",
+          "source": "https://api.github.com/repos/ggml-org/llama.cpp/issues/24382",
+          "note": null
+        },
+        {
+          "text": "ngxson said regex replacements in `chat.cpp` for certain templates make sanitisation of input tricky.",
+          "source": "https://api.github.com/repos/ggml-org/llama.cpp/issues/24382",
+          "note": null
+        },
+        {
+          "text": "CISC called the server wiring \"not trivial (if at all 100% feasible)\" and low priority on 2026-08-04.",
+          "source": "https://api.github.com/repos/ggml-org/llama.cpp/issues/26532",
+          "note": null
+        },
+        {
+          "text": "A Qwen3.8-27B tool result containing literal `<|im_end|>` ended generation at that position under llama-server `--jinja`.",
+          "source": "https://api.github.com/repos/ggml-org/llama.cpp/issues/26273",
+          "note": null
+        },
+        {
+          "text": "aldehir stated Qwen 3 models do not mark `</think>` as special, so input sanitisation could not disambiguate a model-written `</think>` from the real one.",
+          "source": "https://api.github.com/repos/ggml-org/llama.cpp/issues/27661",
+          "note": null
+        },
+        {
+          "text": "Existing open question answered: input marking is produced by the Jinja engine by default but not enabled in llama-server tokenization as of 2026-10-04.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Enabling input-escape tokenization would invalidate cached prefixes that contain special-token strings.",
+          "source": "asserted",
+          "note": null
+        }
+      ]
+    }
+  ],
+  "related": []
+}

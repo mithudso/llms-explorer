@@ -1,0 +1,129 @@
+{
+  "slug": "exact-tool-call-replay-for-byte-stable-agent-pre",
+  "concept": "Exact tool-call replay for byte-stable agent prefixes",
+  "generated": "2026-10-05",
+  "summary": "The model's generated text is parsed by a PEG parser into a tool call with a JSON arguments string; the server returns it as `function.arguments` (a string) in the OAI-compatible message.",
+  "facets": [
+    {
+      "title": "Facts",
+      "facts": [
+        {
+          "text": "The model's generated text is parsed by a PEG parser into a tool call with a JSON arguments string; the server returns it as `function.arguments` (a string) in the OAI-compatible message.",
+          "source": "https://raw.githubusercontent.com/ggml-org/llama.cpp/master/common/chat.cpp",
+          "note": null
+        },
+        {
+          "text": "On the next request, `func_args_not_string` runs when the template's original caps say `supports_object_arguments`: every string `arguments` value is `json::parse`d into an object before the template renders, and a parse failure throws `Failed to parse tool call arguments as JSON`.",
+          "source": "https://raw.githubusercontent.com/ggml-org/llama.cpp/master/common/chat.cpp",
+          "note": null
+        },
+        {
+          "text": "The template then re-renders the object (typically with `tojson` or per-key loops in the model's native syntax). The bytes it emits need not equal the bytes the model generated: whitespace, key order, number formatting and escape style are all decided by the template and JSON writer, not by the client's string.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "The slot stores the sampled tokens, so the prefix comparison is between the model's original tool-call tokens and the template's re-rendered tokens; the first difference sets `n_past`.",
+          "source": "https://raw.githubusercontent.com/ggml-org/llama.cpp/master/tools/server/server-context.cpp",
+          "note": null
+        },
+        {
+          "text": "Messages with `tool_calls` and no `content` get `content = \"\"` when the template supports tool calls (`requires_non_null_content`), which adds or changes tokens versus a message with no content field.",
+          "source": "https://raw.githubusercontent.com/ggml-org/llama.cpp/master/common/chat.cpp",
+          "note": null
+        },
+        {
+          "text": "Developer role is mapped to system unless the template source contains `<|channel|>`, and a template without a system role gets the system message merged into the next message with a single newline; both alter early bytes and so the whole prefix.",
+          "source": "https://raw.githubusercontent.com/ggml-org/llama.cpp/master/common/chat.cpp",
+          "note": null
+        },
+        {
+          "text": "On hybrid models a divergence inside an old assistant turn costs a restore from the nearest checkpoint before it, which may be many turns back (checkpoints sit at user-message starts and the prompt end).",
+          "source": "https://raw.githubusercontent.com/ggml-org/llama.cpp/master/tools/server/server-context.cpp",
+          "note": null
+        },
+        {
+          "text": "Tool-argument handling moved from client-supplied objects to server-side string parsing as templates diverged; the workaround functions are named `workaround::func_args_not_string` and `requires_non_null_content`.",
+          "source": "https://raw.githubusercontent.com/ggml-org/llama.cpp/master/common/chat.cpp",
+          "note": null
+        },
+        {
+          "text": "PR 22929 and 24176 added user-message-boundary checkpoints, which limit the cost of a mid-history divergence to the span since the last boundary.",
+          "source": "https://github.com/ggml-org/llama.cpp/pull/24176",
+          "note": null
+        },
+        {
+          "text": "A client that re-serializes arguments (pretty-prints, reorders keys, converts floats) changes bytes before the server sees them; the server's own parse and re-render then sets the final bytes.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "If the template sorts keys, the first rendered call differs from the generated one unless the model also emitted sorted keys, so the history misses at that call on every later request, because the slot keeps the sampled tokens and never the re-rendered form.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Parallel tool calls: the order of calls in the array is preserved by the client, and a client that sorts them breaks the prefix.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Tool-call ids: a template that renders ids needs the client to return the id unchanged; the serializer adds an id only when one is non-empty.",
+          "source": "https://raw.githubusercontent.com/ggml-org/llama.cpp/master/common/chat.cpp",
+          "note": null
+        },
+        {
+          "text": "Fix location. Template side: patch `tojson(sort_keys=True)` (existing dossier). Server side: store and replay the exact generated tool-call text by id. Client side: preserve the arguments string untouched. The upstream code only parses and re-renders; none of the three is implemented as a replay.",
+          "source": "https://raw.githubusercontent.com/ggml-org/llama.cpp/master/common/chat.cpp",
+          "note": null
+        },
+        {
+          "text": "Whether a fork stores the raw generated tool-call text keyed by tool-call id and substitutes it at render time. No source.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "How much drift real clients introduce versus the template: no measurement in the sources.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Whether the PEG parser round-trips whitespace inside argument values exactly.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "llama-server parses string tool-call arguments into JSON objects before rendering when the template declares object-argument support.",
+          "source": "https://raw.githubusercontent.com/ggml-org/llama.cpp/master/common/chat.cpp",
+          "note": null
+        },
+        {
+          "text": "Invalid argument JSON raises `Failed to parse tool call arguments as JSON` with the parser's message.",
+          "source": "https://raw.githubusercontent.com/ggml-org/llama.cpp/master/common/chat.cpp",
+          "note": null
+        },
+        {
+          "text": "`requires_non_null_content` sets an empty string content on any message that has `tool_calls` and no `content` key, when the template supports tool calls.",
+          "source": "https://raw.githubusercontent.com/ggml-org/llama.cpp/master/common/chat.cpp",
+          "note": null
+        },
+        {
+          "text": "The OAI-compat serializer emits `arguments` as a JSON string and adds `id` only when it is non-empty; a code comment says some templates generate and require an id and that any generated id is \"all for the client\".",
+          "source": "https://raw.githubusercontent.com/ggml-org/llama.cpp/master/common/chat.cpp",
+          "note": null
+        },
+        {
+          "text": "The server stores sampled tokens in the slot, so a re-rendered history is compared with generated tokens, not with a prior rendering.",
+          "source": "https://raw.githubusercontent.com/ggml-org/llama.cpp/master/tools/server/server-context.cpp",
+          "note": null
+        },
+        {
+          "text": "No source read here describes storing generated tool-call text for replay.",
+          "source": "asserted",
+          "note": null
+        }
+      ]
+    }
+  ],
+  "related": []
+}

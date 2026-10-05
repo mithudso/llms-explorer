@@ -1,0 +1,649 @@
+{
+  "slug": "disk-and-ssd-tiered-kv-cache-servers",
+  "concept": "Disk and SSD-tiered KV cache servers",
+  "generated": "2026-10-05",
+  "summary": "oMLX: block-based cache modeled on vLLM with prefix sharing and copy-on-write; hot tier is RAM (write-back), cold tier is `PagedSSDCacheManager` writing safetensors blocks; the stack is PagedCacheManager (GPU) -> hot cache -> SSD manager. A changed byte spoils only the block it lands in and later...",
+  "facets": [
+    {
+      "title": "Facts",
+      "facts": [
+        {
+          "text": "oMLX: block-based cache modeled on vLLM with prefix sharing and copy-on-write; hot tier is RAM (write-back), cold tier is `PagedSSDCacheManager` writing safetensors blocks; the stack is PagedCacheManager (GPU) -> hot cache -> SSD manager. A changed byte spoils only the block it lands in and later blocks; earlier blocks are still restored from disk, which is why shifting agent prefixes still hit.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "oMLX default SSD limit `auto` = 50% of (free disk + existing cache files, including GDN sidecars); the budget is refreshed during use and does not shrink merely because the cache grows or the server restarts. Fixed cap: `--paged-ssd-cache-max-size 20GB`. Settings persist in `~/.omlx/settings.json`; CLI flags override. The \"GDN sidecars\" mean hybrid (Gated DeltaNet) recurrent state is stored alongside the blocks.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "oMLX other defaults: `--max-concurrent-requests` 8; memory guard tiers (`--memory-guard safe|balanced|aggressive`, or `--memory-guard-gb N`), default ceiling is total RAM minus 8 GB (on 24 GB the ceiling was 18.8 GB, effective working set 11-13 GB); LRU model eviction, pinning and per-model TTL.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "oMLX is built on mlx-lm's BatchGenerator; mlx-lm still does the token generation. What oMLX adds is serving, caching, pooling and operations, not faster decode.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "llama.cpp disk path: `--slot-save-path DIR` enables `POST /slots/{id}?action=save|restore|erase` with body `{\"filename\":\"x.bin\"}`; without the flag the endpoints return 501. The server provides mechanism, not policy: the client decides when to save and which file name (key) to use.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "llama.cpp save format is `llama_state_seq_save_file` of the token list plus the sequence's KV cells. It never contained context checkpoints, and restore calls `slot->prompt.clear()`, which discards them (server-context.cpp:2529-2531 and 2576-2577 per issue #25913).",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "stillwarm (zero-dependency wrapper around llama-server) restores before each request and saves after the response; its cache key is model SHA, flash-attention setting, KV cache types, SWA mode and prefix hash; build tag is recorded as a warning only; LRU prune under a disk budget.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Rapid-MLX: radix prefix cache in RAM with RNN/DeltaNet state snapshots for hybrids; at shutdown it saves to disk only if the predicted write time fits a short budget (3.5 s minus 0.4 s commit headroom), and reloads at start.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Ollama (llama.cpp GGUF runner and MLX runner): in-memory only. MLX runner caches in a trie (`x/mlxrunner/cache_trie.go`) with an 8 GiB paged-out bound; \"paged out\" is RAM, not disk.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "LM Studio mlx-engine: records are safetensors blobs packed into one anonymous `/tmp` scratch file with an in-memory offset table and free list; metadata is model-lifetime only. Wall-clock effect: it removes RAM pressure and enables hybrid/SWA rewinding within a session, not cross-restart persistence.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Per-agent Q4 persistent cache (arXiv 2603.04428): 256-token blocks organised by agent ID, each layer stored as uint32-packed Q4 data plus bfloat16 scales/biases in safetensors; loaded via `mx.load()`; deletion of an agent's file erases its state (privacy angle); a ConcurrentScheduler interleaves prefill (512-token chunks) with decode on one thread because MLX is not thread-safe.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "2025-05-02 llama.cpp slot save/restore payload last changed substantively (commit 1d36b3670); 2025-10-03 PR #16382 made checkpoints mandatory for hybrid/recurrent rewinding, which silently broke the disk path.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "2025-11-08 feature request #17107 (web UI KV persistence) closed \"not planned\" (stale); auto-persist is explicitly left to clients.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "2026-02 oMLX launched (Show-and-tell mlx#3203, 2026-03-04 post; claim: TTFT 30-90 s down to 1-3 s on long contexts). By 2026-08 release 0.6.3rc1 (118th tagged release); 0.6.0 added experimental multi-Mac pipeline-parallel inference; 0.6.3rc1 fixed a regression that had broken prefix-cache reuse in long Claude Code sessions; 0.7.0rc1 benchmarked 2026-09-30.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "2026-03-14 llama.cpp discussion #20572 tutorial (pre/post-message hooks around slot save/restore); 2026-03-17 issue #20697 `--cache-disk` for UMA machines; 2026-03-28 issue #21133 (mmproj loaded blocks slot save and `auto_save_slots()` for text-only chats; closed not planned, stale).",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "2026-07-06 stillwarm benchmark (b9871, M3 Max 36 GB). 2026-07-20 issue #25913 (hybrid restore reports success but reuses nothing). 2026-07-22 PR #26004 persists checkpoints inside the slot file (single-file appendix); PR #26640 reworked SLOT_SAVE/SLOT_RESTORE to write packed `server_tokens::serialize()` with media chunks.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Ollama MLX runner regression #16698 (date not read) appeared in v0.30.8 (\"improved prompt caching, decoupled from context shift\" plus \"MLX runner snapshots during prompt processing\").",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "llama.cpp hybrid restore is a silent no-op (issue #25913, Apple M5 Pro, Metal, build 10068, Qwen3.6-35B-A3B MXFP4_MOE, `--slot-save-path ./kv`): restore returns `n_restored` = full count and `/slots` shows the tokens, but the next identical-prefix request has `cache_n = 0`. 14,906-token prefix: restore 0.12 s versus 75.9 s recompute, then all 14,914 tokens recomputed anyway. Cause: restore leaves `slot.prompt.checkpoints` empty, so `do_reset` is always true (server-context.cpp around :3300-3317). Evidence only at `-lv 4`.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Draft-model state is not saved either: `ctx_dft` is not persisted, so `--model-draft`/draft-MTP setups desync after restore (separate open issue named in #25913 and PR #26004).",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Synthesising a checkpoint at `pos_min = 0` on restore is NOT a valid shortcut: it makes the matcher decode over a recurrent state that already consumed that token, giving silently corrupt output.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Restore can be \"successful but useless\" on sliding-window models: Gemma-3 without `--swa-full` returned correct answers while re-prefilling almost the whole document. Always check `prompt_n` (or `cache_n`) after a restore.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Where you save matters: saving after generation bakes sampled answer tokens into the file, so a new question may not extend it cleanly and SWA models fall back to full re-prefill; saving right after document prefill gives a strict prefix of any future question.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Quantized-KV restores are deterministic but not equal to a fresh recompute: q4_0 KV diverged from a same-config cold recompute in 5/5 reps (first different token near position 47), q8_0 in 1/5, f16 in 0/5; the restored q4 output matched the f16 baseline.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Invalidators measured on M3 Max (46-cell matrix): flash-attention on versus off refuses cleanly in both directions; KV cache type is matched; saved state larger than the new context window refuses; changing `-ngl` still works; files from a build about five weeks older restore both ways (no format guarantee).",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "`--mmproj` loaded: `has_mtmd` is a capability flag and blocks slot save/restore, cache reuse and context shift for text-only chats (issue #21133, closed not planned); PR #26640 later added media-aware slot save/restore.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "llama.cpp save files scale linearly: about 219 MB for ~4K tokens on a hybrid Qwen3.6-27B, ~2.7 GB extrapolated at 50K; a GLM-4.6 64K context file was 36 GB; Llama-3.1-8B f16 is ~128 KiB/token (q8_0 0.531x, q4_0 0.281x). No built-in pruning: stillwarm adds LRU under a disk budget.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "oMLX cold-benchmark trap: SSD cache persists across benchmark runs, so \"cold\" is falsely fast unless `rm -rf ~/.omlx/cache`; and oMLX lazy-loads the model, so first-request TTFT includes model load.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "oMLX memory guard refuses large prefills on small Macs (18 GB, ~16k tokens: \"Prefill would require ~9.08 GB peak ... dynamic ceiling is 9.00 GB\"); on a 24 GB M4 Pro a deleted model folder still listed in `settings.json` caused an infinite HTTP 500 retry loop with ~100-line tracebacks per attempt (issue #2063, open, v0.4.4).",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Rapid-MLX 0.15.2 on 18 GB: prefix cache sized itself to 0.86 GB and each ~0.96 GB session entry was \"too large\", so every agent turn was a full prefill and the shutdown save skipped the session (first turn after restart 69.1 s). 0.15.3 (commit 1394f16, #3794) gives a minimum agent-session budget: 13.0 s on 18 GB, 12.3 s on 48 GB. Save is still not guaranteed: one of four 18 GB shutdowns skipped it (predicted 3.1 s write vs 3.5 s budget).",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Ollama MLX runner v0.30.8 regression (#16698, M4 Max 64 GB, qwen3.6:35b-mlx): over a 7-request sequence of 1K to 131K prompts (~259K tokens total) RSS grew from ~24 GB to 75 GB with 31.6 GB swap and stayed ~68 GB idle; pp131072 decode fell from 58.7 to 13.35 tok/s and TTFT 177 s to 317 s; v0.30.7 was flat; only an Ollama restart recovers. A commenter localised it to `cache.go:32` `maxPagedOutBytes = 8<<30` bounding only paged-out snapshots, not the live trie path.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "LM Studio 0.3.35 (2025-12-19, issue #1319): MLX prompt cache stopped working on an M3 Ultra 512 GB (GLM-4.6 6.5-bit, also MiniMax): every request fully re-processed; reverting to 0.3.31 fixed it. In 0.4.2+2 the log `Tried to trim '3195' tokens from the prompt cache, but could not: Cache is not trimmable. Clearing the cache instead.` appeared every turn with Claude Code. A commenter on 2026-04-15 suggested MLX runtime 1.6.0 fixed it (unconfirmed).",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "mlx-lm issue #980 (2026-03-10, M3 Ultra 512 GB, LM Studio 0.4.6): prefix caching works only for pure full-attention models: MiniMax M2.5 cold 29.33 s, warm 6.15 s then 2.79 s; GPT-OSS 120B (sliding + full attention) shows no caching.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Does llama.cpp slot restore work on hybrid models? ai-muninn (hybrid Qwen3.6-27B on an RTX 2080 Ti 22 GB, proxy over `--slot-save-path`): save 211 ms / 219 MB, restore 87 ms with no crash; 5K chat 9.9 s to 1.4 s. Issue #25913 (Metal, Qwen3.6-35B-A3B): restore succeeds but yields zero reuse. PR #26004 author reports a fix across CUDA/Metal/Vulkan. Reconcile: ai-muninn only checked that restore did not crash and a timed turn; #25913 shows reuse depends on checkpoints being present when the new prompt diverges from the stored one (a strict extension may still reuse). Treat hybrid disk restore as unreliable until #26004 (open at fetch time) or an equivalent lands.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Restore versus recompute cost, speed claims. stillwarm (Apple M3 Max 36 GB, Llama-3.1-8B Q4_K_M): 8K cold 18.995 s vs resume 0.266 s (71x), 32K 157.42 s vs 0.989 s (159x), 64K 441.58 s vs 2.197 s (201x); wrong first headline of 1191x then 225x were corrected. The issue #20697 author's estimate of 10-20 ms per 50-100 MiB checkpoint was challenged as spec-sheet arithmetic; observed checkpoints are 60-214 MiB. The two measured sets agree on sub-second to ~2 s restores for 8K-64K but are on different models, so do not extrapolate between them.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Is oMLX's SSD tier a speed win or an operations win? oMLX site claims \"5 seconds, not 90\". macoclock (M4 Max 64 GB, Gemma 4 31B 4-bit, 8k prefix): warm in-memory ties mlx-lm, oMLX's benefit appears only after restart or eviction; oMLX true cold is slower (64 s vs 32 s). Rapid-MLX benchmark: cold first turn on a 22.8K-token Claude-Code-shaped request was 63.1 s on oMLX, i.e. no cold benefit; restart turn 0.27 s. Vendor (Rapid-MLX) bias disclosed on the benchmark page.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "SSD wear. The Medium piece \"Is oMLX worth installing\" (Sep 19, 2026, paywalled) frames the SSD write load as the cost nobody examined; the llama.cpp #20697 thread notes some users avoid heavy SSD writes though modern TB-class drives make the fear \"often overblown\". No measured write volume for oMLX was found.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Is PR #26004 merged, and in which llama.cpp build? (Open when fetched; two earlier companion-file PRs #20819 and #24028 conflict with master.)",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "What does oMLX's cold tier actually write per request (GB per 10K tokens, TBW per day of Claude Code use)? Nothing measured found.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Do oMLX safetensors blocks use the quantized KV format or fp16, and what is the on-disk size versus llama.cpp's 128 KiB/token f16?",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Does Ollama plan any disk tier? No source found; stillwarm says Ollama and LM Studio do not expose slot endpoints, while one #26004 reporter lists an \"Ollama integration\" without detail.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Cross-machine portability of llama.cpp slot files is only anecdotal: one CUDA GB10 to Metal M3 Ultra restore reported working (cache_n 0 to 310, SHA-256-identical output) with the #26004 patch.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "oMLX is a block-based, vLLM-inspired KV cache with prefix sharing and copy-on-write across a hot RAM tier and a cold SSD tier.",
+          "source": "https://github.com/jundot/omlx",
+          "note": null
+        },
+        {
+          "text": "oMLX cold-tier blocks are safetensors files and are restored after a server restart when a prefix matches.",
+          "source": "https://github.com/jundot/omlx",
+          "note": null
+        },
+        {
+          "text": "oMLX default SSD cache limit `auto` is 50% of free disk plus existing cache files, including GDN sidecars; it refreshes during use and does not shrink as the cache grows; fixed cap via `--paged-ssd-cache-max-size 20GB`.",
+          "source": "https://github.com/jundot/omlx",
+          "note": null
+        },
+        {
+          "text": "oMLX stores settings in `~/.omlx/settings.json`, with CLI flags taking precedence; it refuses to start on a non-loopback address without a main API key.",
+          "source": "https://github.com/jundot/omlx",
+          "note": null
+        },
+        {
+          "text": "oMLX `--max-concurrent-requests` defaults to 8 and memory guard tiers are safe/balanced/aggressive with `--memory-guard-gb` for a custom ceiling.",
+          "source": "https://github.com/jundot/omlx",
+          "note": null
+        },
+        {
+          "text": "oMLX's architecture stack is PagedCacheManager (GPU, block-based, CoW) over a write-back hot cache over PagedSSDCacheManager.",
+          "source": "https://github.com/jundot/omlx",
+          "note": null
+        },
+        {
+          "text": "oMLX writes the cache in chunks so a changed byte invalidates only its chunk and later chunks, not the whole prompt.",
+          "source": "https://medium.com/data-science-collective/is-omlx-worth-installing-on-your-mac-in-2026-ab99d0bd0a9f",
+          "note": null
+        },
+        {
+          "text": "The oMLX creator's stated motivation is that coding agents send requests with shifting prefixes and existing MLX servers invalidate the whole cache.",
+          "source": "https://github.com/ml-explore/mlx/discussions/3203",
+          "note": null
+        },
+        {
+          "text": "oMLX was announced in the MLX discussions on 2026-03-04 with a claimed TTFT drop from 30-90 s to 1-3 s on long contexts.",
+          "source": "https://github.com/ml-explore/mlx/discussions/3203",
+          "note": null
+        },
+        {
+          "text": "oMLX release 0.6.3rc1 (Aug 2026) fixed a regression that broke prefix-cache reuse in long Claude Code sessions; 0.6.1 restored reasoning-effort compatibility while preserving prefix-cache reuse.",
+          "source": "https://pinggy.io/blog/omlx_local_llm_server_pinggy/",
+          "note": null
+        },
+        {
+          "text": "oMLX 0.6.0 added experimental distributed inference across Macs using MLX pipeline parallelism over Thunderbolt.",
+          "source": "https://pinggy.io/blog/omlx_local_llm_server_pinggy/",
+          "note": null
+        },
+        {
+          "text": "oMLX `--memory-guard` defaults to total RAM minus 8 GB.",
+          "source": "https://pinggy.io/blog/omlx_local_llm_server_pinggy/",
+          "note": null
+        },
+        {
+          "text": "oMLX requires macOS 15.0 or newer.",
+          "source": "https://pinggy.io/blog/omlx_local_llm_server_pinggy/",
+          "note": null
+        },
+        {
+          "text": "oMLX 0.7.0rc1 with SSD cache on, M4 Pro 48 GB, Qwen3.5-9B 4-bit, 22,819-token Claude-Code-shaped session: turn 1 cold 63.1 s, turns 2-10 median 0.49 s, total 67.6 s, first turn after restart 0.27 s, turns 2-10 after restart 0.27 s.",
+          "source": "https://rapidmlx.com/compare",
+          "note": null
+        },
+        {
+          "text": "Same test on M3 Pro 18 GB: turn 1 cold 67.0 s, turns 2-10 median 0.66 s, total 73.0 s, after restart 0.56 s then 0.44 s median.",
+          "source": "https://rapidmlx.com/compare",
+          "note": null
+        },
+        {
+          "text": "In that benchmark mlx-lm 0.31.3 and Ollama 0.34.3 reused cache within a session as well as oMLX but lost it on restart; on 18 GB mlx-lm's server died with Metal OOM on turn 4 and again on turn 3 after restart.",
+          "source": "https://rapidmlx.com/compare",
+          "note": null
+        },
+        {
+          "text": "For Ollama in that benchmark, \"restart\" means `ollama stop` (unloading the model), which drops its KV cache.",
+          "source": "https://rapidmlx.com/compare",
+          "note": null
+        },
+        {
+          "text": "Rapid-MLX 0.15.3 first turn after restart restored 18,944 of 22,819 prompt tokens and prefilled 3,875, taking 12.3 s on 48 GB and 13.0 s on 18 GB.",
+          "source": "https://rapidmlx.com/compare",
+          "note": null
+        },
+        {
+          "text": "Rapid-MLX 0.15.2 on 18 GB sized its prefix cache at 0.86 GB; each ~0.96 GB session entry was \"too large\", so every turn paid full prefill (70.0 s median) and turn 1 after restart was 69.1 s.",
+          "source": "https://rapidmlx.com/compare",
+          "note": null
+        },
+        {
+          "text": "Rapid-MLX shutdown save is budgeted: one 18 GB shutdown skipped the save because predicted write time 3.1 s did not fit 3.5 s minus 0.4 s headroom; commit 1394f16 (#3794) set a minimum agent-session cache budget.",
+          "source": "https://rapidmlx.com/compare",
+          "note": null
+        },
+        {
+          "text": "Cold prefill at ~16K tokens was close for all engines, 41.7 s (oMLX, fastest) to 49.4 s, on M4 Pro 48 GB.",
+          "source": "https://rapidmlx.com/compare",
+          "note": null
+        },
+        {
+          "text": "Rapid-MLX's comparison table lists LM Studio's cache as in-memory and Ollama's as in-memory per loaded model.",
+          "source": "https://rapidmlx.com/compare",
+          "note": null
+        },
+        {
+          "text": "Rapid-MLX describes its cache as a radix prefix cache with state snapshots for hybrid models, saved to disk on shutdown and restored at startup.",
+          "source": "https://skillsllm.com/skill/rapid-mlx",
+          "note": null
+        },
+        {
+          "text": "macoclock (M4 Max 64 GB, Gemma 4 31B 4-bit, 8k prefix): after a restart mlx-lm was ~5x slower than its warm path and recovered about half the way from cold; oMLX came back at 7.2 s, 97% of the way from its 64 s cold prefill to warm.",
+          "source": "https://medium.com/macoclock/mlx-lm-vs-omlx-i-was-wrong-about-the-winner-8f36be328069",
+          "note": null
+        },
+        {
+          "text": "A valid cold test of oMLX requires `omlx stop && rm -rf ~/.omlx/cache/` before starting, because SSD blocks persist across runs.",
+          "source": "https://medium.com/macoclock/mlx-lm-vs-omlx-i-was-wrong-about-the-winner-8f36be328069",
+          "note": null
+        },
+        {
+          "text": "oMLX on a 24 GB M4 Pro in aggressive tier showed ceiling=18.8 GB, soft 17.0, hard 19.0, Metal wired limit 20.0 GB, leaving ~11-13 GB for model plus KV.",
+          "source": "https://github.com/jundot/omlx/issues/2063",
+          "note": null
+        },
+        {
+          "text": "oMLX issue #2063 (open, v0.4.4): a model folder deleted from disk but still in `settings.json` causes every request to retry a VLM-then-LLM load and return HTTP 500 with a ~100-line traceback in `server.log`.",
+          "source": "https://github.com/jundot/omlx/issues/2063",
+          "note": null
+        },
+        {
+          "text": "Interrupted model downloads leave corrupt safetensors that oMLX reports only as \"invalid data offsets ... Perhaps an incomplete download or corrupt file?\".",
+          "source": "https://github.com/jundot/omlx/issues/2063",
+          "note": null
+        },
+        {
+          "text": "A reported Ollama issue measured a 65,303-token prompt on an M5 Max at 104.3 s first time, 0.3 s unchanged, and 17.5 s after one byte changed.",
+          "source": "https://medium.com/data-science-collective/is-omlx-worth-installing-on-your-mac-in-2026-ab99d0bd0a9f",
+          "note": null
+        },
+        {
+          "text": "oMLX had 21,820 GitHub stars about seven months after its February 2026 launch.",
+          "source": "https://medium.com/data-science-collective/is-omlx-worth-installing-on-your-mac-in-2026-ab99d0bd0a9f",
+          "note": null
+        },
+        {
+          "text": "llama-server with `--slot-save-path DIR` exposes `POST /slots/<id>?action=save` and `?action=restore` with `{\"filename\":\"x.bin\"}`; without the flag it returns 501.",
+          "source": "https://ai-muninn.com/en/blog/kv-cache-disk-restore-7x",
+          "note": null
+        },
+        {
+          "text": "llama.cpp feature request #17107 for automatic disk KV persistence was closed as not planned, so the server leaves save/restore policy to the client.",
+          "source": "https://ai-muninn.com/en/blog/kv-cache-disk-restore-7x",
+          "note": null
+        },
+        {
+          "text": "A 60-line stdlib reverse proxy (kvproxy.py) that restores before and saves after each request cut a 5K-token chat from 9.9 s to 1.4 s (7x) on an RTX 2080 Ti 22 GB with hybrid Qwen3.6-27B; the 28K 25-40x figure is an estimate.",
+          "source": "https://ai-muninn.com/en/blog/kv-cache-disk-restore-7x",
+          "note": null
+        },
+        {
+          "text": "On that hybrid model a ~4K-token slot saved in 211 ms to a 219 MB file and restored in 87 ms with `/health` ok.",
+          "source": "https://ai-muninn.com/en/blog/kv-cache-disk-restore-7x",
+          "note": null
+        },
+        {
+          "text": "The same author stayed on the RAM cache for daily use because restarts are rare, one slot (`--parallel 1`) causes contention between conversations, and each ~244 MB save file needs LRU pruning.",
+          "source": "https://ai-muninn.com/en/blog/kv-cache-disk-restore-7x",
+          "note": null
+        },
+        {
+          "text": "With a purge-free warm page cache restore beats recompute beyond about 30 tokens; with `sudo purge` before each rep it wins beyond about 132-295 tokens.",
+          "source": "https://huggingface.co/blog/vimalnakrani/stillwarm-kv-cache-persistence",
+          "note": null
+        },
+        {
+          "text": "stillwarm M3 Max 36 GB, Llama-3.1-8B Q4_K_M, llama.cpp b9871, flash attention on: 8K cold 18.995 s vs 0.266 s restore+TTFT (71x), 32K 157.42 s vs 0.989 s (159x), 64K 441.58 s vs 2.197 s (201x).",
+          "source": "https://huggingface.co/blog/vimalnakrani/stillwarm-kv-cache-persistence",
+          "note": null
+        },
+        {
+          "text": "Purged-page-cache restores read at 5.27 GB/s versus 6.40 GB/s raw `dd` (84-95% of SSD speed).",
+          "source": "https://huggingface.co/blog/vimalnakrani/stillwarm-kv-cache-persistence",
+          "note": null
+        },
+        {
+          "text": "A cold 64K restart on that M3 Max took more than seven minutes before the first token.",
+          "source": "https://huggingface.co/blog/vimalnakrani/stillwarm-kv-cache-persistence",
+          "note": null
+        },
+        {
+          "text": "All 15 supervised restores were byte-identical to recompute with f16 KV; decode speed after restore was unchanged.",
+          "source": "https://huggingface.co/blog/vimalnakrani/stillwarm-kv-cache-persistence",
+          "note": null
+        },
+        {
+          "text": "Energy: a 32K cold prefill took 116.5 s at ~33.8 W (1.102 Wh); resume from disk ~0.021 Wh (upper bound), about 50x less.",
+          "source": "https://huggingface.co/blog/vimalnakrani/stillwarm-kv-cache-persistence",
+          "note": null
+        },
+        {
+          "text": "Thermal drift on a laptop changed prefill from ~473 tok/s cool to ~310 tok/s after about an hour of load; purged-but-cool 64K restores (1.50-1.69 s) beat page-cached-but-hot (1.78-1.86 s); `dd` read 21.2 GB/s warm vs 6.4 GB/s cold.",
+          "source": "https://huggingface.co/blog/vimalnakrani/stillwarm-kv-cache-persistence",
+          "note": null
+        },
+        {
+          "text": "Restoring a llama.cpp slot file saved with flash attention on and loaded with it off (or the reverse) is refused; larger-than-context state is refused; changing `-ngl` works; files from builds ~5 weeks apart restore in both directions.",
+          "source": "https://huggingface.co/blog/vimalnakrani/stillwarm-kv-cache-persistence",
+          "note": null
+        },
+        {
+          "text": "Gemma-3 without `--swa-full`: restore reports success and the answer is correct but almost the whole document is re-prefilled; the stillwarm reuse warning detects this.",
+          "source": "https://huggingface.co/blog/vimalnakrani/stillwarm-kv-cache-persistence",
+          "note": null
+        },
+        {
+          "text": "Saving after document prefill only (strict prefix) allows partial reuse; saving after generation can force full re-prefill on SWA models.",
+          "source": "https://huggingface.co/blog/vimalnakrani/stillwarm-kv-cache-persistence",
+          "note": null
+        },
+        {
+          "text": "Quantized KV restore vs cold recompute divergence: q4_0 5/5 reps, q8_0 1/5, f16 0/5; restores are deterministic against saved state, so stillwarm `--verify` compares to a probe hash captured at save time.",
+          "source": "https://huggingface.co/blog/vimalnakrani/stillwarm-kv-cache-persistence",
+          "note": null
+        },
+        {
+          "text": "stillwarm states Ollama and LM Studio do not expose the slot save/restore endpoints; downloading a pre-built 471 MB 8K Qwen2.5-7B cache beats recompute only above ~215 Mbps.",
+          "source": "https://huggingface.co/blog/vimalnakrani/stillwarm-kv-cache-persistence",
+          "note": null
+        },
+        {
+          "text": "llama.cpp slot-save files are ~128 KiB/token at f16 for Llama-3.1-8B; q8_0 is exactly 0.531x and q4_0 0.281x.",
+          "source": "https://github.com/vimalnakrani08/stillwarm-bench",
+          "note": null
+        },
+        {
+          "text": "A GLM-4.6 64K-context slot file was 36 GB; a restore across llama.cpp updates kept working as long as the KV logic did not change, and the same model, quant and flash-attention setting are required.",
+          "source": "https://github.com/ggml-org/llama.cpp/discussions/18244",
+          "note": null
+        },
+        {
+          "text": "llama-cli supports `--prompt-cache FILE` and `--prompt-cache-ro`, but llama-server has no equivalent; slot endpoints are the server route.",
+          "source": "https://github.com/ggml-org/llama.cpp/discussions/18244",
+          "note": null
+        },
+        {
+          "text": "`mlx_lm.cache_prompt --prompt-cache-file X.safetensors` precomputes a prompt cache that `mlx_lm.generate --prompt-cache-file` reuses (offline route, not the server).",
+          "source": "https://github.com/ml-explore/mlx-lm",
+          "note": null
+        },
+        {
+          "text": "llama.cpp issue #25913 (open, Jul 20 2026): on hybrid/recurrent models `/slots` restore returns full `n_restored` but the next identical-prefix request has `cache_n = 0`; on a 14,906-token prefix restore took 0.12 s vs 75.9 s recompute, then everything was recomputed.",
+          "source": "https://github.com/ggml-org/llama.cpp/issues/25913",
+          "note": null
+        },
+        {
+          "text": "Root cause per #25913: the save file holds only tokens plus KV cells, restore calls `slot->prompt.clear()` which clears checkpoints, so `do_reset` is true at server-context.cpp:3300 and `n_past` becomes 0 at :3317; the in-memory prompt cache (#16391) stores whole `server_prompt` including checkpoints, which is why RAM reuse works.",
+          "source": "https://github.com/ggml-org/llama.cpp/issues/25913",
+          "note": null
+        },
+        {
+          "text": "Control experiment in #25913: with `--ctx-checkpoints 0` and no save/restore, two identical-prefix requests also both show `cache_n = 0`, confirming checkpoints are the load-bearing mechanism.",
+          "source": "https://github.com/ggml-org/llama.cpp/issues/25913",
+          "note": null
+        },
+        {
+          "text": "`--no-kv-unified` is ignored while the slot count is auto; `kv_unified` stays true until `--parallel` is set explicitly.",
+          "source": "https://github.com/ggml-org/llama.cpp/issues/25913",
+          "note": null
+        },
+        {
+          "text": "Synthesising a pos_min = 0 checkpoint on restore would silently corrupt output; the draft context `ctx_dft` is also not saved.",
+          "source": "https://github.com/ggml-org/llama.cpp/issues/25913",
+          "note": null
+        },
+        {
+          "text": "PR #26004 appends a tagged `SCKP` payload (magic, version, count, per-checkpoint pos fields and state blobs) after the llama state payload; old files restore as before and new files load on older servers; count capped at 1024, per-blob size capped, truncation aborts cleanly.",
+          "source": "https://github.com/ggml-org/llama.cpp/pull/26004",
+          "note": null
+        },
+        {
+          "text": "PR #26004 reported results: Vulkan Radeon 8050S Qwen3.5-35B-A3B 181.9 s to 4.7 s (58,202 to 516 tokens); CUDA GB10 to Metal M3 Ultra cross-machine restore cache_n 0 to 310 with identical output; RTX 5070 Ti 4,460 to 30 tokens; a 36K-token agent session resumed with 13 tokens processed.",
+          "source": "https://github.com/ggml-org/llama.cpp/pull/26004",
+          "note": null
+        },
+        {
+          "text": "Companion-file approaches (#20819 `.checkpoints`, #24028 `.ckpt`) conflict with master and can drift out of sync with the state file; #26004 keeps one file.",
+          "source": "https://github.com/ggml-org/llama.cpp/pull/26004",
+          "note": null
+        },
+        {
+          "text": "PR #26640 reworked slot save/restore to write a packed `server_tokens::serialize()` payload with media chunks and restore with a two-pass load plus `validate()`.",
+          "source": "https://github.com/ggml-org/llama.cpp/pull/26004",
+          "note": null
+        },
+        {
+          "text": "llama.cpp issue #20697 asks for `--cache-disk <path>` and `--cache-disk-max <MiB>` because on UMA systems `--cache-ram` competes with weights for the same pool; it proposes ~10-20 ms restore of 50-100 MiB checkpoints from 5-7 GB/s NVMe, and was challenged in the thread; last activity 2026-07-17 per another source.",
+          "source": "https://github.com/ggml-org/llama.cpp/issues/20697",
+          "note": null
+        },
+        {
+          "text": "Observed llama.cpp checkpoints reach 213.707 MiB, larger than the 50-100 MiB premise in #20697.",
+          "source": "https://particula.tech/blog/prompt-reprocessing-swa-hybrid-models-kv-cache",
+          "note": null
+        },
+        {
+          "text": "Slot save/restore writes the full sequence state, whereas context checkpoints store only the partial (non-reconstructible) state.",
+          "source": "https://particula.tech/blog/prompt-reprocessing-swa-hybrid-models-kv-cache",
+          "note": null
+        },
+        {
+          "text": "llama.cpp issue #21133 (closed not planned): with `--mmproj` loaded, `has_mtmd` is set for every slot, blocking slot save/restore, context shift and cache reuse for text-only chats and crashing `auto_save_slots()` on shutdown.",
+          "source": "https://github.com/ggml-org/llama.cpp/issues/21133",
+          "note": null
+        },
+        {
+          "text": "Ollama 0.19 blog lists three cache changes: cross-conversation reuse (less memory, more hits with a shared Claude Code system prompt), intelligent checkpoints at locations in the prompt, and smarter eviction so shared prefixes survive longer; it does not mention disk.",
+          "source": "https://ollama.com/blog/mlx",
+          "note": null
+        },
+        {
+          "text": "Ollama issue #16698 (v0.30.8, M4 Max 64 GB, qwen3.6:35b-mlx): over 7 requests (1K to 131K, ~259K total tokens) SIZE grew from ~24 GB to 56-75 GB, swap hit 31.6 GB, idle memory stayed ~68 GB, pp131072 tgTPS fell 58.7 to 13.35 and TTFT 177 s to 317 s; v0.30.7 stayed at ~33 GB.",
+          "source": "https://github.com/ollama/ollama/issues/16698",
+          "note": null
+        },
+        {
+          "text": "A commenter traced it to `x/mlxrunner/cache.go:32` (`maxPagedOutBytes = 8 << 30`, `enforceEvictionPolicy` at L505) bounding only paged-out snapshots, with live trie branches from unique-prefix requests never pruned until the next request.",
+          "source": "https://github.com/ollama/ollama/issues/16698",
+          "note": null
+        },
+        {
+          "text": "Ollama on M-series with Gemma 4 and a ~5,000-token system prompt: cold ~7 s (~690 tok/s), warm ~20 ms to first token.",
+          "source": "https://simonpcouch.com/blog/2026-04-16-local-agents-2/",
+          "note": null
+        },
+        {
+          "text": "LM Studio's disk-backed cache is one `/tmp` scratch file of safetensors records with an in-memory offset table and free list; the file shrinks when free space reaches its end and is released on model unload or process exit.",
+          "source": "https://lmstudio.ai/blog/mlx-engine-agentic-workloads",
+          "note": null
+        },
+        {
+          "text": "LM Studio's cache keeps only local-attention KV on disk and evicts it from memory, so footprint scales with active sequences; for a single ever-growing conversation earlier local KV is evicted to make room for global KV.",
+          "source": "https://lmstudio.ai/blog/mlx-engine-agentic-workloads",
+          "note": null
+        },
+        {
+          "text": "LM Studio's own post says its disk cache is \"temporary and will not leave persistent files\".",
+          "source": "https://lmstudio.ai/blog/mlx-engine-agentic-workloads",
+          "note": null
+        },
+        {
+          "text": "LM Studio 0.3.35 (Dec 2025) on M3 Ultra 512 GB with GLM-4.6 MLX 6.5-bit re-processed every prompt; 0.3.31 worked.",
+          "source": "https://github.com/lmstudio-ai/lmstudio-bug-tracker/issues/1319",
+          "note": null
+        },
+        {
+          "text": "LM Studio 0.4.2+2 logged `Tried to trim '3195' tokens from the prompt cache, but could not: Cache is not trimmable. Clearing the cache instead.` every Claude Code turn.",
+          "source": "https://github.com/lmstudio-ai/lmstudio-bug-tracker/issues/1319",
+          "note": null
+        },
+        {
+          "text": "mlx-lm issue #980 (closed): prefix reuse works only for pure full-attention models; MiniMax M2.5 on LM Studio 0.4.6 went 29.33 s, 6.15 s, 2.79 s over three requests; GPT-OSS 120B (sliding + full) got no speedup.",
+          "source": "https://github.com/ml-explore/mlx-lm/issues/980",
+          "note": null
+        },
+        {
+          "text": "arXiv 2603.04428 Table 3 (M4 Pro 24 GB, Q4 weights and Q4 KV): Gemma 3 12B cold 3,964 ms at 1K to 172,096 ms at 32K, warm 475 to 1,819 ms, hot 683 to 1,264 ms; DeepSeek-Coder-V2-Lite cold 1,043 to 47,315 ms, warm 234 to 633 ms; Llama 3.1 8B cold 2,500 to 47,629 ms at 16K, warm 260 to 431 ms.",
+          "source": "https://arxiv.org/html/2603.04428v1",
+          "note": null
+        },
+        {
+          "text": "In that paper warm beats hot by 40-55% at 1K-8K because the warm path uses one `mx.load()` sequential read while the hot path does per-layer hash lookups; Gemma warm is 93x faster than cold at 16K, DeepSeek 45x, Llama 111x.",
+          "source": "https://arxiv.org/html/2603.04428v1",
+          "note": null
+        },
+        {
+          "text": "Paper head-to-head vs vllm-mlx 0.2.6 (FP16 prefix cache, Llama 8B): vllm-mlx cold 4K is 4,394 ms vs 10,235 ms, but warm TTFT converges (260/274/290 ms at 1/2/4K vs vllm-mlx 273/204/290); vllm-mlx FP16 (~128 KB/token) exhausted a 9.6 GB cache budget and failed at 16K, while the Q4 pipeline completed to 32K.",
+          "source": "https://arxiv.org/html/2603.04428v1",
+          "note": null
+        },
+        {
+          "text": "Paper capacity maths on a 24 GB M4 Pro with ~16 GB free: FP16 fits ~7 agents at 16K, Q4 about 30; at 8K Q4 fits 12 agents in 10.2 GB.",
+          "source": "https://arxiv.org/html/2603.04428v1",
+          "note": null
+        },
+        {
+          "text": "Paper estimates a 5-agent round-robin hides the ~500 ms disk reload behind the 1-3 s decode of the active agent; an internal SSD reads ~7 GB/s into 273 GB/s unified memory (SSD-to-UMA ratio ~2.6%).",
+          "source": "https://arxiv.org/html/2603.04428v1",
+          "note": null
+        },
+        {
+          "text": "Paper perplexity with Q4 KV: Gemma 3 -0.10 (-0.7%), Llama 3.1 8B +0.12 (+2.8%), DeepSeek-V2-Lite +0.19 (+3.0%), measured on 512-token windows (shorter than Gemma's 1024 window) with no confidence intervals.",
+          "source": "https://arxiv.org/html/2603.04428v1",
+          "note": null
+        },
+        {
+          "text": "Paper 25-turn multi-phase test: persistent mode cut Phase 5 TTFT 1.9x on Gemma and 1.3x on DeepSeek and total wall time 23% and 17%; Wikipedia-expert routing: priming 20.5 s/expert on Gemma, queries 847 ms warm (24.2x).",
+          "source": "https://arxiv.org/html/2603.04428v1",
+          "note": null
+        },
+        {
+          "text": "The paper notes MLX is not thread-safe (mlx issues #2067, #2133, #3078), so inference runs on one scheduler thread with an RLock serialising disk saves; and that LM Studio mlx-engine did not persist cache to disk and hit type-mismatch errors with Gemma 3 prompts beyond the window before release 0.15.1.",
+          "source": "https://arxiv.org/html/2603.04428v1",
+          "note": null
+        },
+        {
+          "text": "Per-agent cache deletion is file deletion, giving a targeted erasure path relevant to GDPR/HIPAA data-handling arguments.",
+          "source": "https://arxiv.org/html/2603.04428v1",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Corrections and disagreements",
+      "facts": [
+        {
+          "text": "Does LM Studio persist KV across restarts? rapidmlx.com comparison table lists LM Studio as \"In-memory\". The LM Studio blog describes a disk-backed cache that is intentionally temporary (`/tmp` scratch file, cleared on model unload). Both are consistent: disk is used as overflow inside a model lifetime, not as a restart tier. CONTRADICTS prompt-processing-versus-decode-on-apple-gpus-and-neural-accelerators.md line 23 (\"appear to survive restarts and evictions\" for LM Studio mlx-engine 1.8.5); the survivors are oMLX and, partially, Rapid-MLX.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "CONTRADICTS prompt-processing-versus-decode-on-apple-gpus-and-neural-accelerators.md line 23: mlx-engine 1.8.5's disk cache does not survive restarts.",
+          "source": "https://lmstudio.ai/blog/mlx-engine-agentic-workloads",
+          "note": null
+        }
+      ]
+    }
+  ],
+  "related": []
+}

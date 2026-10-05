@@ -1,0 +1,99 @@
+{
+  "slug": "omlx-vlm-versus-text-engine-selection-and-per-mo",
+  "concept": "oMLX VLM versus text engine selection and per-model settings",
+  "generated": "2026-10-05",
+  "summary": "oMLX README's architecture lists EnginePool with BatchedEngine (LLMs, continuous batching), VLMEngine (vision-language models), EmbeddingEngine and RerankerEngine, and a per-model `Model type override` that sets a model as LLM or VLM regardless of auto-detection.",
+  "facets": [
+    {
+      "title": "Facts",
+      "facts": [
+        {
+          "text": "oMLX README's architecture lists EnginePool with BatchedEngine (LLMs, continuous batching), VLMEngine (vision-language models), EmbeddingEngine and RerankerEngine, and a per-model `Model type override` that sets a model as LLM or VLM regardless of auto-detection.",
+          "source": "https://github.com/jundot/omlx",
+          "note": null
+        },
+        {
+          "text": "oMLX README says VLMs run on the same continuous batching and tiered KV cache stack as text LLMs, with multi-image chat, base64/URL/file images and tool calling with vision context.",
+          "source": "https://github.com/jundot/omlx",
+          "note": null
+        },
+        {
+          "text": "Issue 3959 states `glm5_next` (GLM-5.3-Flash) checkpoints are VLM-only with no LM path, and the accuracy benchmark hardcodes `force_lm=True` at `omlx/admin/accuracy_benchmark.py:440`, so its unload then forced-LM reload fails with `Model type glm5_next not supported` and falls back to a 181.82 GB VLM reload.",
+          "source": "https://github.com/jundot/omlx/issues/3959",
+          "note": null
+        },
+        {
+          "text": "In issue 3959 the benchmark's unload-then-reload killed the whole server process on 4 of 4 GLM attempts over two days with no traceback or crash report, even with the prefill memory guard enabled at `aggressive` (M3 Ultra 256 GB).",
+          "source": "https://github.com/jundot/omlx/issues/3959",
+          "note": null
+        },
+        {
+          "text": "Issue 3956 logs `VLM loading failed for GLM-5.3-Flash-MLX-oQ2-MTP, falling back to LLM: ... Insufficient Memory` then `LLM fallback also failed: Model type glm5_next not supported`, with both models set `model_type_override = vlm`.",
+          "source": "https://github.com/jundot/omlx/issues/3956",
+          "note": null
+        },
+        {
+          "text": "Issue 3956 reports the prefill memory guard did not propagate to `VLMBatchedEngine`, and the cached 409 load-failure entry from commit 84f14e37 was also applied to a transient Metal resource failure with no targeted recovery in the UI.",
+          "source": "https://github.com/jundot/omlx/issues/3956",
+          "note": null
+        },
+        {
+          "text": "0.7.0.dev4 notes include 'Fixed text-only VLM checkpoint loading': checkpoints without vision weights no longer create a nonexistent vision tower (PR 3698), and 0.7.0 'forced LM loads skip model families that only mlx-vlm implements'.",
+          "source": "https://github.com/jundot/omlx/releases",
+          "note": null
+        },
+        {
+          "text": "Qwen3.8 checkpoints with channels-first vision patch-embedding weights fell back to text-only inference until PR 2754 normalized the weights at load, preserving vision and Lightning MTP.",
+          "source": "https://github.com/jundot/omlx/releases?page=2",
+          "note": null
+        },
+        {
+          "text": "PR 3955 found the vision feature cache never engaged on qwen4_exp because the model was missing from `_QWEN_VISION_MODELS` in `omlx/engine/vlm.py`, so every turn re-encoded all historical images (about 0.6-0.7 s per megapixel, a 17-18 s TTFT floor on a 21-24 screenshot session).",
+          "source": "https://github.com/jundot/omlx/pull/3955",
+          "note": null
+        },
+        {
+          "text": "PR 3955 fixes it with partial-miss encoding of only uncached images (any guard failure falls back to compute-all) and a byte-budgeted memory LRU of 4 GiB (about 1,000 screenshots at 3.8 MB each) replacing a 20-entry cap; the 0.7.0 notes quote a 1 GiB budget and 0.33 s versus 3.32 s for a text follow-up.",
+          "source": "https://github.com/jundot/omlx/pull/3955",
+          "note": null
+        },
+        {
+          "text": "Issue 3737 (0.7.0.dev4, Qwen3.8-27B-4bit loaded as VLM with an external MTP drafter) measured verify rounds 25-70% slower than dev1 with identical acceptance (62.8%, 57.1%, 75.5%) and drafter benefit falling from +62% to +23% at 1K and from +186% to 0% at 16K.",
+          "source": "https://github.com/jundot/omlx/issues/3737",
+          "note": null
+        },
+        {
+          "text": "In issue 3737 the VLM MTP drafter raised the loaded footprint to 28.37 GB against 15.70 GB for the model alone; commits c8d565b (release VLM MTP target references on unload) and PR 3789 (restore external VLM MTP decode performance) answered it.",
+          "source": "https://github.com/jundot/omlx/issues/3737",
+          "note": null
+        },
+        {
+          "text": "Issue 3683 reports an out-of-memory error from attaching one image at about 160K context on Qwen3.8-Flash-Next with Lightning MTP and SSD n-gram offload, and PR 3933 lists vision encoding as not priced by the memory guard.",
+          "source": "https://github.com/jundot/omlx/issues/3683",
+          "note": null
+        },
+        {
+          "text": "In 0.6.x structured output on VLM engines used the composite model vocabulary and rejected tokens repeatedly until grammar masks were sized from the language model's vocabulary (PR 3551).",
+          "source": "https://github.com/jundot/omlx/releases",
+          "note": null
+        },
+        {
+          "text": "Responses API tool-result images for VLMs now travel the multimodal path, while text-only engines receive a placeholder instead of tokenized base64.",
+          "source": "https://github.com/jundot/omlx/releases",
+          "note": null
+        },
+        {
+          "text": "In issue 4224 the Qwen3.8-27B engine that failed as a victim ran through `qwen35_vlm_runtime.py:403` and GLM through `glm5_next_vlm_runtime.py`, so both Lightning-MTP LLMs in that report run in VLM runtime modules.",
+          "source": "https://github.com/jundot/omlx/issues/4224",
+          "note": null
+        },
+        {
+          "text": "Issue 4175's Qwen3.8-27B-4bit (`qwen3_5`) is shown as 'VLM engine type' in its setup, so a text-only workload can be served on the VLM engine.",
+          "source": "https://github.com/jundot/omlx/issues/4175",
+          "note": null
+        }
+      ]
+    }
+  ],
+  "related": []
+}

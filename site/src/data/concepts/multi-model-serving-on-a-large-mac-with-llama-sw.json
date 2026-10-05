@@ -1,0 +1,569 @@
+{
+  "slug": "multi-model-serving-on-a-large-mac-with-llama-sw",
+  "concept": "Multi-model serving on a large Mac with llama-swap",
+  "generated": "2026-10-05",
+  "summary": "It reads `model` from the request, replaces a wrong upstream with the right one, and proxies. `cmd` is the only required model field and `${PORT}` is auto-assigned. Any OpenAI/Anthropic-compatible server works; llama-server is best supported. `models.*.proxy` defaults to `http://localhost:${PORT}`.",
+  "facets": [
+    {
+      "title": "Facts",
+      "facts": [
+        {
+          "text": "It reads `model` from the request, replaces a wrong upstream with the right one, and proxies. `cmd` is the only required model field and `${PORT}` is auto-assigned. Any OpenAI/Anthropic-compatible server works; llama-server is best supported. `models.*.proxy` defaults to `http://localhost:${PORT}`.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Routing is now under `routing.router.use: group | matrix` (default `group`). Group flags: `swap` (default true, one member at a time inside the group), `exclusive` (default true, running a member unloads every other group), `persistent` (default false, other groups can never unload it). A model can be in only one group. Models in no group are handled by the default engine, one at a time.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "`matrix` is a newer solver: `sets` are boolean expressions (`&`, `|`, parentheses, `+name`) of models allowed to co-run; on a request for X it collects sets containing X, sums `evict_costs` (default 1) of running models outside each set, picks the cheapest set (ties by definition order), evicts the rest and starts X. Subsets of a set are allowed; only the requested model is started; a model in no set runs alone. `vars` give short aliases.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "`globalTTL` default 0 (never unload); `models.*.ttl` -1 inherits, 0 never unloads, N>0 idle seconds; the timer measures inactivity and resets per request. `unloadTimeout` (default 10 s) is the graceful-exit wait before force kill for TTL, manual and swap unloads. `healthCheckTimeout` default 120 s, minimum 15 s. `startPort` default 5800.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "`globalConcurrencyLimit` (shared semaphore) and `models.*.concurrencyLimit` reject over-limit requests immediately with HTTP 429 instead of queuing. The router serializes swaps and queues requests until the target is ready; queue order is FIFO with optional per-model `priority`.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "`profiles` pin virtual model IDs to real targets and switch at runtime (`hooks.on_startup.profile` picks the boot profile); `selectors` resolve a virtual ID per request with strategy `warm` (first ready target, else a starting one, else cold-start the first), `pin`, or `spillover`. `setParams`, `setParamsByID` (`<id>:think`) and `stripParams` filters rewrite requests so one resident process serves two sampling recipes.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "`hooks.on_startup.preload` with several models and no group makes them load and swap each other out; define a group first. `-watch-config` hot-reloads; `-validate` checks a file. `/running`, `/unload`, `POST /api/models/unload[/<id>]`, `/upstream/<id>/...` (loads a model without generating), `/logs/stream/<id>`, `/metrics`, `/ui` are the ops surface. `peers` fold another server (for example Osaurus) behind the same address as `<peer>/<model>`; llama-swap does not manage a peer's process.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Mac install is `brew install mostlygeek/llama-swap/llama-swap`. llama-swap's docs recommend Docker for Python servers so SIGTERM works; Metal is not available in macOS containers, so Mac users run `mlx_lm.server`, `vllm-mlx serve`, `omlx serve` or llama-server natively under it.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Each model runs in its own child process, so one crash leaves the others up. Sources: `LLAMA_CACHE`, `--models-dir`, `--models-preset` (INI). `--models-max N` default 4, 0 = unlimited; at the cap the least-recently-used model unloads. `--models-autoload` default on; `?autoload=true|false` per request. Children inherit the router's CLI args and env.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Preset precedence: CLI args, then the model's section, then `[*]`. Preset-only keys: `load-on-startup`, `stop-timeout` (default 10 s), `dedup-cache-models`. `load-on-startup` applies only at server start; a model added by `?reload=1` is listed but not loaded. `GET /models?reload=1` unloads running models whose source changed or vanished.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "`--sleep-idle-seconds` (default -1, off; PR 18228) unloads the model and its KV cache; `GET /health`, `/props`, `/models`, `/metrics` neither wake it nor reset the idle timer. `/props?model=<id>` reports `is_sleeping`.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "There is no documented unload-all endpoint; `POST /models/unload` takes one model. `status.value` is `loaded`, `unloaded`, `loading` or downloading; a `last_used` field was proposed for `/models` (discussion 19425).",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "EnginePool holds BatchedEngine (LLMs), VLMEngine, EmbeddingEngine and RerankerEngine in one FastAPI process with LRU eviction, per-model TTL, manual load/unload, and pinning. ProcessMemoryEnforcer applies a total limit (default system RAM minus 8 GB; `--memory-guard safe|balanced` tiers or `--memory-guard-gb N`). Settings persist in `~/.omlx/settings.json` and CLI flags override them for that run. TTL does not unload a model mid-request. Per-model alias, TTL, sampling, chat-template kwargs and type override change without restart; named profiles can be exposed as `<model>:<profile>` on the same engine with no extra memory.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Idle timers start at lease completion (fix PR 4125), not at request start.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "`manager.memory_budget_gb` is weights-only; `--memory-budget-gb` overrides it per launch (PR 640 merged, 2026-09). Startup logs the budget against the Metal ceiling and warns on conflict (PR 696) but does not clamp. `contention_policy.strategy` is `fail`, `wait`, `preempt`, `wait_then_fail` or `wait_then_preempt` (with `wait_timeout_s`, `preempt_after_s`). `idle_unload_seconds` unloads idle models. Per-entry `preload`, `continuous_batching`, `mllm`, `enable_mtp`, `estimated_memory_gb`. A non-local source without `estimated_memory_gb` is rejected at startup. `/v1/models` states: loaded, loading, unloaded, preempting; `/v1/status` shows the effective idle timeout.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Docs recommend a 80-100 GB budget as a starting point on 128 GB and name three roles: small low-latency chat, larger reasoning/coding, multimodal.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "llama.cpp router mode arrived late 2025 (HF blog, Dec 2025); sleep-idle PR 18228 followed; the macOS app moved to it on 15 Jan 2026.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "llama-swap moved groups from top-level `groups:` (still shown in 2026 tutorials) to `routing.router.settings.groups` and added the `matrix` engine, profiles, selectors, a Docs agent and MCP endpoint `/api/mcp` by Sept 2026; v261 and v262 shipped 2026-10-01 and 2026-10-03; v262 added routing for llama.cpp's `/v1/systemone` endpoint and a fix for an Apple M6 darwin/arm64 startup crash (gopsutil CPU frequency probe).",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "vllm-mlx issue 627 (opened 2026-07-03) closed 2026-09-29 once PR 696 and PR 640 merged; issue 712 (MLLM prefix caches missing from the startup report under `--use-paged-cache`) closed 2026-09-05 via PR 713.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "llama-swap commit 783c323 (2026-10-03, PR 1199) records oMLX `usage.prompt_tokens_per_second` and `generation_tokens_per_second` in its Activity view.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Router `--models-max` counts models, not bytes. In llama.cpp discussion 18939 a second model too big for free VRAM failed with an allocation error instead of evicting the first; the fix that worked was `--models-max 1` on the router command line. Setting it in the INI file did not work for the reporter (the parent process reads it before the INI).",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "llama.cpp router has no memory-based eviction; discussion 19425 proposes a watchdog polling `/models` for `last_used` and VRAM and unloading the LRU model through `/models/unload`.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Sleep or unload discards the KV cache with the model; a swap in llama-swap kills the upstream process, so its in-memory prompt cache goes too. mlx_lm.server keeps prefixes in memory only, so a long agentic turn after any swap re-prefills in full. [inferred from process-per-model design; Mackinlay says \"presumably\"]",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "On a 512 GB Mac Studio the 3-model llama-swap group (about 465 GB weights plus 10 GB KV set aside per model) was near the maximum; macOS wired limit was raised to total minus 6144 MB via a launch daemon.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Backend-per-model memory is measurable: `footprint -p <pid>` shows the Metal allocation under `IOAccelerator (graphics)`; a 4.7 GB on-disk model showed 5.2 GB RSS and 5510 MB footprint. One process owning nine models made per-model memory unmeasurable, which forced hand-kept `estimated_memory_gb` values.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Co-resident models share bandwidth: with three models loaded the machine is effectively one concurrent user for large models.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Cold starts under llama-swap with mlx_lm.server: 2.4 s for a 3 GB model, 7.7 s for a 20 GB one (author's machine); `/upstream/<id>/v1/models` loads without generating (1.4 s for 3 GB).",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Entry names matter: llama-swap `useModelName` passes mlx_lm.server a filesystem path, so responses echo the path, not the nickname; Rapid-MLX `--served-model-name` avoids this. A `warm` selector avoids a 20 GB swap when the other driver is already loaded.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Do not put locally managed models under `peers`; it leads to duplicate resident copies.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "LM Studio bug 2051 (0.4.16/0.4.17 beta, Mac Studio M4 Max 36 GB): models loaded by the Locally mobile app via LM Link bypass Auto-Evict and \"Only Keep Last JIT Loaded Model\" and accumulate to RAM exhaustion; suspected cause is explicit-load registration, which the same docs exempt. Related openclaw issue 75921.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "vllm-mlx: the Metal ceiling is installed only by continuous-batching entries (`mx.set_memory_limit`), lowest effective utilization wins; a registry of simple-mode entries has no ceiling. `--cache-memory-mb` is a per-engine maximum cloned per resident engine and is not subtracted from the ceiling. `--gpu-memory-utilization` multiplies the wired limit, not physical RAM. The registry cannot include or merge configs, so one file per memory profile.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "llama.cpp idle sleep may not free all GPU memory (one HN commenter's report, unverified).",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Router vs proxy. For llama-server-only boxes: \"stick to llama-server alone; llama-swap adds complexity and its only real doc is the example config\" (HN, 2026-08) vs \"router mode and matrix are early; llama-swap still better for juggling several models, mixed backends, UI, per-PR builds\" (same thread). Mackinlay (Mac, MLX) moved from vllm-mlx registry to llama-swap because one process owning nine models gave one temperature, one reasoning parser, one cache size and a budget needing its own eviction policy.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Idle timeouts. One HN user sees no value in time-based eviction (adds cold-start penalty; same two models sit resident); llama-swap's guide says short TTL is expensive for slow loaders and suggests 300-900 s only when several models are resident.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Whether groups are still valid top-level. 2026 tutorials (Glukhov, Spicyneuron) use top-level `groups:`; the current example file nests them under `routing.router.settings.groups` and says `group` is the default engine. Not verified whether the old form still loads.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Does llama-swap still accept top-level `groups:`, and does it warn?",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Does a llama.cpp router child honor `--cache-ram` per child (so N resident models hold N x 8 GiB host cache on unified memory)? Docs say children inherit args; no measurement found.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Does oMLX's SSD KV cache survive a TTL or LRU model unload (not only a server restart)? Docs say blocks restore \"even after a server restart\"; per-model unload is unstated.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Whether `--sleep-idle-seconds` frees Metal memory fully on macOS.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "No source measured prompt-cache hit rate across a llama-swap swap-away-and-back cycle on a Mac.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Which oMLX flag sets the default memory ceiling: README shows `--memory-guard` tiers (default balanced) while a third-party guide says RAM minus 8 GB.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "llama-swap v262 was released 2026-10-03 and the repo had about 5.8k stars and 82 contributors.",
+          "source": "https://github.com/mostlygeek/llama-swap",
+          "note": null
+        },
+        {
+          "text": "llama-swap needs only `cmd` per model, assigns `${PORT}` automatically and swaps the upstream when the request names a different model.",
+          "source": "https://github.com/mostlygeek/llama-swap",
+          "note": null
+        },
+        {
+          "text": "llama-swap's basic mode runs one model at a time; the `matrix` engine lets multiple models load concurrently.",
+          "source": "https://github.com/mostlygeek/llama-swap",
+          "note": null
+        },
+        {
+          "text": "In llama-swap's current config the swap engine is chosen at `routing.router.use` with values `group` (default) or `matrix`.",
+          "source": "https://raw.githubusercontent.com/mostlygeek/llama-swap/main/docs/config.example.yaml",
+          "note": null
+        },
+        {
+          "text": "Group fields: `swap` default true, `exclusive` default true, `persistent` default false; a model may belong to one group only and members must be defined model IDs.",
+          "source": "https://raw.githubusercontent.com/mostlygeek/llama-swap/main/docs/kb/guides/routing/groups-and-matrix.md",
+          "note": null
+        },
+        {
+          "text": "A persistent group's members cannot be unloaded by other groups, and the persistent flag does not change swapping inside the group.",
+          "source": "https://raw.githubusercontent.com/mostlygeek/llama-swap/main/docs/config.example.yaml",
+          "note": null
+        },
+        {
+          "text": "The matrix solver sums `evict_costs` of running models outside each candidate set, picks the lowest-cost set (ties by definition order), evicts models outside it, then starts the requested model.",
+          "source": "https://raw.githubusercontent.com/mostlygeek/llama-swap/main/docs/config.example.yaml",
+          "note": null
+        },
+        {
+          "text": "A matrix set also permits any subset of itself, only the requested model is started, and a model in no set can only run alone.",
+          "source": "https://raw.githubusercontent.com/mostlygeek/llama-swap/main/docs/kb/guides/routing/groups-and-matrix.md",
+          "note": null
+        },
+        {
+          "text": "`evict_costs` defaults to 1 and should be high for slow cold-start backends such as vLLM or a 70B model.",
+          "source": "https://raw.githubusercontent.com/mostlygeek/llama-swap/main/docs/kb/guides/routing/groups-and-matrix.md",
+          "note": null
+        },
+        {
+          "text": "llama-swap `globalTTL` defaults to 0 and per-model `ttl` -1 inherits it, 0 never unloads and N>0 unloads after N idle seconds.",
+          "source": "https://raw.githubusercontent.com/mostlygeek/llama-swap/main/docs/kb/guides/model-runtime/ttl-and-unloading.md",
+          "note": null
+        },
+        {
+          "text": "llama-swap `unloadTimeout` defaults to 10 s and applies to TTL, manual and swap unloads before force-kill.",
+          "source": "https://raw.githubusercontent.com/mostlygeek/llama-swap/main/docs/config.example.yaml",
+          "note": null
+        },
+        {
+          "text": "A llama-swap TTL idle window starts when a model becomes ready (commit 21bc145, PR 1095).",
+          "source": "https://github.com/mostlygeek/llama-swap/releases",
+          "note": null
+        },
+        {
+          "text": "llama-swap `healthCheckTimeout` defaults to 120 s with a 15 s minimum and `startPort` defaults to 5800.",
+          "source": "https://raw.githubusercontent.com/mostlygeek/llama-swap/main/docs/config.example.yaml",
+          "note": null
+        },
+        {
+          "text": "llama-swap's `globalConcurrencyLimit` is one semaphore across all models and over-limit requests get HTTP 429 immediately rather than queuing.",
+          "source": "https://raw.githubusercontent.com/mostlygeek/llama-swap/main/docs/kb/guides/routing/capacity-and-queues.md",
+          "note": null
+        },
+        {
+          "text": "llama-swap serializes model swaps and queues requests until the selected model is ready; the scheduler is FIFO with optional per-model priority.",
+          "source": "https://raw.githubusercontent.com/mostlygeek/llama-swap/main/docs/kb/guides/routing/capacity-and-queues.md",
+          "note": null
+        },
+        {
+          "text": "Preloading several models through `hooks.on_startup.preload` without a group makes them swap each other out.",
+          "source": "https://raw.githubusercontent.com/mostlygeek/llama-swap/main/docs/config.example.yaml",
+          "note": null
+        },
+        {
+          "text": "llama-swap `selectors` support strategies `warm`, `pin` and `spillover`; selector targets cannot be other selectors and selectors are unsupported on `/upstream/<model>` paths.",
+          "source": "https://raw.githubusercontent.com/mostlygeek/llama-swap/main/docs/config.example.yaml",
+          "note": null
+        },
+        {
+          "text": "llama-swap `profiles` repoint virtual model IDs at runtime and the active profile is not persisted across restart or reload.",
+          "source": "https://raw.githubusercontent.com/mostlygeek/llama-swap/main/docs/config.example.yaml",
+          "note": null
+        },
+        {
+          "text": "llama-swap exposes its documentation as an MCP endpoint at `/api/mcp` and a Help page agent.",
+          "source": "https://github.com/mostlygeek/llama-swap",
+          "note": null
+        },
+        {
+          "text": "llama-swap v262 fixed a startup crash on macOS 27 with Apple M6 by patching gopsutil's CPU frequency probe.",
+          "source": "https://github.com/mostlygeek/llama-swap/releases",
+          "note": null
+        },
+        {
+          "text": "llama-swap commit 783c323 (2026-10-03) records oMLX token-rate fields in its Activity view.",
+          "source": "https://github.com/mostlygeek/llama-swap",
+          "note": null
+        },
+        {
+          "text": "On a 512 GB M3 Mac Studio, a llama-swap config with `groups.default.swap: false` kept Qwen3.5-35B-A3B, Qwen3.5-397B-A17B and Kimi K2.5 loaded together, about 465 GB total with 10 GB of KV set aside per model.",
+          "source": "https://spicyneuron.substack.com/p/a-mac-studio-for-local-ai-6-months",
+          "note": null
+        },
+        {
+          "text": "That setup runs one `mlx_lm.server` (or `mlx_vlm.server` for the vision model) per model, names entries `local_haiku`, `local_sonnet`, `local_opus`, defaults each to non-thinking via `chat_template_kwargs` and adds `<id>:think` through `setParamsByID`.",
+          "source": "https://spicyneuron.substack.com/p/a-mac-studio-for-local-ai-6-months",
+          "note": null
+        },
+        {
+          "text": "The same setup sets `iogpu.wired_limit_mb` to total memory minus 6144 MB and persists it with a Launch Daemon because modern macOS ignores `/etc/sysctl.conf`.",
+          "source": "https://spicyneuron.substack.com/p/a-mac-studio-for-local-ai-6-months",
+          "note": null
+        },
+        {
+          "text": "Claude Code needs `/v1/messages`, so that author fronts llama-swap with claude-code-router mapping default, background, think, longContext, webSearch and image roles to the three tiers.",
+          "source": "https://spicyneuron.substack.com/p/a-mac-studio-for-local-ai-6-months",
+          "note": null
+        },
+        {
+          "text": "The same author states `mlx_lm.server` has its own model switching but the goal was several models loaded in parallel behind one endpoint, and that with large models the machine is effectively one concurrent user.",
+          "source": "https://spicyneuron.substack.com/p/a-mac-studio-for-local-ai-6-months",
+          "note": null
+        },
+        {
+          "text": "Mackinlay moved from a vllm-mlx registry to llama-swap with one `mlx_lm.server` per model because per-model sampling, parsers and cache sizes were compromised in a shared process.",
+          "source": "https://danmackinlay.name/notebook/local_llm_mac.html",
+          "note": null
+        },
+        {
+          "text": "Under llama-swap one process per model makes memory measurable with `footprint -p <pid>`; a 4.7 GB on-disk model showed 5.2 GB RSS and 5510 MB footprint.",
+          "source": "https://danmackinlay.name/notebook/local_llm_mac.html",
+          "note": null
+        },
+        {
+          "text": "Cold starts under llama-swap with mlx_lm.server were 2.4 s for a 3 GB model and 7.7 s for a 20 GB model on the author's Mac.",
+          "source": "https://danmackinlay.name/notebook/local_llm_mac.html",
+          "note": null
+        },
+        {
+          "text": "Moving to llama-swap gives up mlx_lm.server-era SSD prefix caching; mlx_lm.server holds prefixes in memory only, and a swap presumably discards them.",
+          "source": "https://danmackinlay.name/notebook/local_llm_mac.html",
+          "note": null
+        },
+        {
+          "text": "A llama-swap `peers` entry forwards to another server (Osaurus on :1337 becomes `osaurus/<model>`) without managing its process; peer defects such as ignored `model` on embeddings remain.",
+          "source": "https://danmackinlay.name/notebook/local_llm_mac.html",
+          "note": null
+        },
+        {
+          "text": "Osaurus Model Management defaults to Strict (loading one model evicts the other); Flexible keeps two resident.",
+          "source": "https://danmackinlay.name/notebook/local_llm_mac.html",
+          "note": null
+        },
+        {
+          "text": "vllm-mlx's multi-model server loads models lazily, evicts idle ones LRU under a weights-only memory budget, and supports contention strategies fail, wait, preempt, wait_then_fail and wait_then_preempt.",
+          "source": "https://raw.githubusercontent.com/waybarrios/vllm-mlx/main/docs/guides/model-registry.md",
+          "note": null
+        },
+        {
+          "text": "vllm-mlx registry sizing uses the summed on-disk `.safetensors`/`.gguf` size for local models and `estimated_memory_gb` otherwise; a non-local source without it is rejected at startup.",
+          "source": "https://raw.githubusercontent.com/waybarrios/vllm-mlx/main/docs/guides/model-registry.md",
+          "note": null
+        },
+        {
+          "text": "vllm-mlx docs suggest a 80-100 GB weights budget as a starting point on a 128 GB Mac and give the invariant budget <= gpu_memory_utilization x RAM minus KV/activation headroom minus resident prefix cache.",
+          "source": "https://raw.githubusercontent.com/waybarrios/vllm-mlx/main/docs/guides/model-registry.md",
+          "note": null
+        },
+        {
+          "text": "vllm-mlx's startup check is a diagnostic, not a clamp, and is necessary but not sufficient because KV, prefix cache and activations come out of the same ceiling.",
+          "source": "https://raw.githubusercontent.com/waybarrios/vllm-mlx/main/docs/guides/model-registry.md",
+          "note": null
+        },
+        {
+          "text": "vllm-mlx's Metal ceiling is installed only by continuous-batching entries; with the lowest effective utilization winning, and a registry with none gets no attributed ceiling.",
+          "source": "https://raw.githubusercontent.com/waybarrios/vllm-mlx/main/docs/guides/model-registry.md",
+          "note": null
+        },
+        {
+          "text": "vllm-mlx `--cache-memory-mb` is a per-engine maximum cloned into each resident continuous-batching engine and is not subtracted from the ceiling.",
+          "source": "https://raw.githubusercontent.com/waybarrios/vllm-mlx/main/docs/guides/model-registry.md",
+          "note": null
+        },
+        {
+          "text": "vllm-mlx `--memory-budget-gb` (PR 640) and the startup budget-vs-ceiling report (PR 696) are merged; issue 627 closed 2026-09-29.",
+          "source": "https://github.com/waybarrios/vllm-mlx/issues/627",
+          "note": null
+        },
+        {
+          "text": "Mackinlay reports vllm-mlx's `model_registry.py` is 1195 lines against 185 in a fork that dropped multi-model management, and that his registry workaround is one YAML per memory profile (now partly superseded by `--memory-budget-gb`).",
+          "source": "https://danmackinlay.name/notebook/local_llm_mac.html",
+          "note": null
+        },
+        {
+          "text": "oMLX serves LLMs, VLMs, embedding and reranker models in one server with LRU eviction, manual load/unload, pinning, per-model TTL and a process-memory limit defaulting to system RAM minus 8 GB.",
+          "source": "https://github.com/jundot/omlx",
+          "note": null
+        },
+        {
+          "text": "oMLX CLI memory limits are `--memory-guard safe|balanced` (default balanced) and `--memory-guard-gb N`; `--max-concurrent-requests` defaults to 8.",
+          "source": "https://github.com/jundot/omlx",
+          "note": null
+        },
+        {
+          "text": "oMLX CLI flags override `~/.omlx/settings.json` for that run, and TTL does not unload a model mid-request.",
+          "source": "https://jacar.es/en/omlx-model-management-memory/",
+          "note": null
+        },
+        {
+          "text": "oMLX recommended combination is pin the everyday small model, short TTL on large occasional ones, LRU for the rest.",
+          "source": "https://jacar.es/en/omlx-model-management-memory/",
+          "note": null
+        },
+        {
+          "text": "oMLX profiles can be exposed as `<model>:<profile>` on the same engine with no extra memory or reload.",
+          "source": "https://github.com/jundot/omlx",
+          "note": null
+        },
+        {
+          "text": "oMLX's default SSD cache limit `auto` is 50% of free disk plus existing cache files, and the fix for idle timers starting at lease completion is PR 4125.",
+          "source": "https://github.com/jundot/omlx",
+          "note": null
+        },
+        {
+          "text": "oMLX's author Jun Kim joined Hugging Face in September 2026; oMLX remains MLX-only.",
+          "source": "https://danmackinlay.name/notebook/local_llm_mac.html",
+          "note": null
+        },
+        {
+          "text": "llama.cpp router `--models-max` defaults to 4 (0 = unlimited) and `--models-autoload` defaults on.",
+          "source": "https://raw.githubusercontent.com/ggml-org/llama.cpp/master/tools/server/README.md",
+          "note": null
+        },
+        {
+          "text": "Router mode runs each model in its own process so a crash in one leaves others running, and LRU eviction applies at `--models-max`.",
+          "source": "https://huggingface.co/blog/ggml-org/model-management-in-llamacpp",
+          "note": null
+        },
+        {
+          "text": "llama.cpp preset precedence is CLI args, then model section, then `[*]`; router-controlled keys (host, port, API key, HF repo, alias) are removed or overwritten at load.",
+          "source": "https://raw.githubusercontent.com/ggml-org/llama.cpp/master/tools/server/README.md",
+          "note": null
+        },
+        {
+          "text": "Preset `stop-timeout` defaults to 10 s and `load-on-startup` applies only at server start.",
+          "source": "https://raw.githubusercontent.com/ggml-org/llama.cpp/master/tools/server/README.md",
+          "note": null
+        },
+        {
+          "text": "`--sleep-idle-seconds` unloads the model and its KV cache; `/health`, `/props`, `/models` and `/metrics` do not wake it or reset the timer.",
+          "source": "https://raw.githubusercontent.com/ggml-org/llama.cpp/master/tools/server/README.md",
+          "note": null
+        },
+        {
+          "text": "`GET /models?reload=1` unloads running models whose source changed or was removed.",
+          "source": "https://raw.githubusercontent.com/ggml-org/llama.cpp/master/tools/server/README.md",
+          "note": null
+        },
+        {
+          "text": "llama.cpp router has no documented unload-all endpoint; `POST /models/unload` takes one model, so unload-all is a loop over `/models`.",
+          "source": "https://www.glukhov.org/llm-hosting/llama-cpp/unload-llama-cpp-router-models/",
+          "note": null
+        },
+        {
+          "text": "In a router with two models whose weights cannot co-fit in VRAM, the second load failed with an allocation error; `--models-max 1` on the command line (not in the INI) gave eviction.",
+          "source": "https://github.com/ggml-org/llama.cpp/discussions/18939",
+          "note": null
+        },
+        {
+          "text": "A community proposal exposes `last_used` on router `/models` (2-line patch) so an external watchdog can unload the least recently used model on VRAM pressure.",
+          "source": "https://github.com/ggml-org/llama.cpp/discussions/19425",
+          "note": null
+        },
+        {
+          "text": "Users report router mode \"kind-of works\" with a hard-to-set default model; clients must name the model on every request.",
+          "source": "https://news.ycombinator.com/item?id=49267928",
+          "note": null
+        },
+        {
+          "text": "LM Studio TTL doc: Auto-Evict (default on) keeps at most one JIT-loaded model and does not affect non-JIT loaded models; `lms load` models have no TTL unless `--ttl`.",
+          "source": "https://lmstudio.ai/docs/developer/core/ttl-and-auto-evict",
+          "note": null
+        },
+        {
+          "text": "LM Studio 0.4.16/0.4.17 beta on a 36 GB M4 Max let LM Link-loaded models bypass Auto-Evict until RAM was exhausted (bug 2051, open).",
+          "source": "https://github.com/lmstudio-ai/lmstudio-bug-tracker/issues/2051",
+          "note": null
+        },
+        {
+          "text": "OpenCode PR 28352 is a client fix for empty `reasoning_content` on assistant turns; its test against llama-swap reported turn-by-turn cache hits of 0%, 52.6% and 91.0%, and its own 97.2% vs 0% line is worded ambiguously.",
+          "source": "https://github.com/anomalyco/opencode/pull/28352",
+          "note": null
+        },
+        {
+          "text": "PR 28352 does not measure per-model cache slots or cross-model eviction; it measures prefix matching within one upstream.",
+          "source": "https://github.com/anomalyco/opencode/pull/28352",
+          "note": null
+        },
+        {
+          "text": "Matrix routing's \"evict as few running models as possible, preferring to keep the costliest\" is how llama-swap decides which resident model survives a request for a non-resident one.",
+          "source": "https://raw.githubusercontent.com/mostlygeek/llama-swap/main/docs/config.example.yaml",
+          "note": null
+        },
+        {
+          "text": "Ollama on the same Mac pattern: `OLLAMA_MAX_LOADED_MODELS=1` forces evict-on-switch and left unbounded the pool can tank the machine.",
+          "source": "https://danmackinlay.name/notebook/local_llm_mac.html",
+          "note": null
+        },
+        {
+          "text": "Under a router that keeps N llama-server children resident, each child pays its own weights, KV and host prompt cache, so total footprint is the sum, not the max.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Budgeting rule for any registry: charge weights plus per-model KV (context x slots) plus a per-engine prefix cache plus OS headroom, then compare to the wired limit, not to physical RAM.",
+          "source": "asserted",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Corrections and disagreements",
+      "facts": [
+        {
+          "text": "LM Studio pinning. Hannecke (2026-03-06) says Auto-Evict \"doesn't distinguish pinned from JIT-loaded models\", so turn it off when pinning with `ttl=0`. CONTRADICTS lm-studio-on-mac.md and LM Studio's own TTL doc: Auto-Evict affects only JIT-loaded models and \"non-JIT loaded models are not affected\"; bug 2051 shows the reverse failure (manually loaded models never evicted).",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "OpenCode PR 28352 evidence. CONTRADICTS the framing that it measures per-model cache slot eviction, and sharpens prompt-cache-invalidation-by-agent-clients.md: the PR is a client-side fix (stop sending `reasoning_content: \"\"` on assistant turns without reasoning) tested against llama-swap in front of llama-server. Its own verification line reads \"WITH reasoning_content -> 97.2% cache hit, WITHOUT -> 0%\", which is the opposite wording of its description (the empty string breaks prefix matching); read it as field-present-with-text vs the pre-fix path, not as slot behavior. Additional measured numbers: multi-turn 0% on turn 1, 52.6% on turn 2, 91.0% on turn 3; 0% hits on 196K-token prompts in production captures. The PR linked issue 19081 and was opened 2026-05-19. Nothing in it measures eviction between models.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "CONTRADICTS continuous-batching-on-mlx.md: the startup memory report now includes MLLM engines' memory-aware prefix cache (issue 712 closed via PR 713 on 2026-09-05) rather than ignoring it.",
+          "source": "https://github.com/waybarrios/vllm-mlx/issues/712",
+          "note": null
+        },
+        {
+          "text": "CONTRADICTS the LM Studio TTL doc: Hannecke claims Auto-Evict evicts pinned models as well and advises turning it off when pinning with `ttl=0`.",
+          "source": "https://medium.com/@michael.hannecke/the-same-router-better-backend-multi-model-routing-with-lm-studio-and-apples-mlx-78f53b2aabbb",
+          "note": null
+        }
+      ]
+    }
+  ],
+  "related": []
+}

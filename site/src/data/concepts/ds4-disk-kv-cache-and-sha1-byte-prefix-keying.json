@@ -1,0 +1,254 @@
+{
+  "slug": "ds4-disk-kv-cache-and-sha1-byte-prefix-keying",
+  "concept": "ds4 disk KV cache and SHA1 byte-prefix keying",
+  "generated": "2026-10-05",
+  "summary": "File name is `<sha1-hex-of-rendered-prefix-bytes>.kv`. The hash answers one question, \"does this checkpoint represent the bytes at the front of the incoming prompt?\" The payload still carries the exact token history and graph state; the key is the bytes, not the tokens.",
+  "facets": [
+    {
+      "title": "Facts",
+      "facts": [
+        {
+          "text": "File name is `<sha1-hex-of-rendered-prefix-bytes>.kv`. The hash answers one question, \"does this checkpoint represent the bytes at the front of the incoming prompt?\" The payload still carries the exact token history and graph state; the key is the bytes, not the tokens.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Fixed 48-byte header: bytes 0-2 magic `K` `V` `C`, byte 3 format version (1), byte 4 routed-expert quant bits, byte 5 save reason, byte 6 extension flags, byte 7 model id (Flash = 0 for backward compatibility), bytes 8-11 token count, 12-15 hit count, 16-19 context size, byte 20 payload ABI (2), bytes 24-31 created time, 32-39 last-used time, 40-47 payload byte count (little-endian). A 4-byte text length then the prompt bytes follow the header, then the payload.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Header byte 20 (payload ABI) is separate from the outer version because the envelope can stay stable while serialized session internals become unsafe to restore across runtime changes; a mismatch makes the header read fail.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Save reasons are cold, continued, evict, shutdown, agent-system and agent-session. Extension flags mark a tool-id map, visible responses, visible thinking and a session title.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Supported quant bits for keying are 2, 4, 5, 6 and 8 (routed-expert quantization). By default checkpoints from a different quant can be reused; `--kv-cache-reject-different-quant` makes the quant part of the match.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Defaults compiled into ds4_kvstore.c: minimum 512 tokens, cold checkpoint cap 30,000 tokens, continued checkpoint every 10,000 tokens, boundary trim 32 tokens, boundary align 2,048 tokens. The continued step is rounded up to a multiple of the alignment (10,240 tokens). The default disk budget in the header is 4096 MiB (the docs example uses 8192).",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Stored length rule: trim 32 tokens off the live prefix (tokenizers can merge across the boundary), then round down to a multiple of 2,048 so the backend prefill chunk schedule and compressor row finalization match a cold full prompt; if that falls under the minimum, the full length is stored.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Cold checkpoints are cut at the last user marker before the first assistant marker so independent agent sessions can share the stable system and scaffolding prefix; the marker must sit at or beyond the minimum token count.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Lookup scans all indexed entries and keeps the longest entry whose stored text is a byte prefix of the prompt, confirmed by recomputing SHA1 over that many prompt bytes. The entry must have the same model id, token count at least the minimum, a stored context size no larger than the current context, and (optionally) the same quant. Ties go to more tokens.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "On a hit ds4 loads the payload, checks the loaded token count equals the header, builds the effective prompt from the exact stored token history plus a tokenization of only the text suffix, runs any trailer loader, then rewrites the 48-byte header in place with hits+1 and the current time. A payload whose token count disagrees with its header is unlinked as corrupt.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Saving writes `<name>.kv.tmp.<pid>`, writes header, text length, text, staged payload and trailer, `fflush`es, checks the final size against the budget, then `rename`s into place. The file shows no `fsync` call.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Eviction score per entry is `(effective_hits + 1) * tokens / file_size`, where effective hits decay with a 6 hour half-life and fall to zero under 0.01. Cold, evict and shutdown checkpoints get a 2.0 multiplier as intentional anchors. A continued checkpoint that is a strict byte prefix of the incoming store is a \"routine waypoint\" and is scaled by 0.05 + 0.45 * hits/(hits+1). The lowest score is evicted first.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "The shared `ds4_kvstore` module hosts the file layout and helpers for both ds4-server and ds4-agent; protocol extras (tool-id to exact DSML trailer) attach through trailer hooks that live with the protocol code.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "The agent's `/save`, `/list` and `/switch <sha>` commands address sessions by this hash, which makes saved KV-backed working state portable between switch commands.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "dwarfstar.sh's architecture notes (updated 2026-09-17) describe a RAM and SSD hierarchy where \"hot state stays resident, cold state streams back on demand\" and keys are SHA1 of the rendered prefix.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Byte keys mean any difference in rendering (a re-serialized tool call, a changed system line) misses the whole checkpoint at that point, so exact DSML replay is needed to keep histories aligned; if exact replay is unavailable, canonical rendering may rebuild part of the prefix.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "A smaller-context checkpoint can be loaded by a larger context, but not the reverse; an incoming checkpoint supersedes a continued waypoint only if it is at least as widely reusable.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Every cache hit performs a small in-place write to the checkpoint's header (hit count and last-used time), so a read-mostly cache still issues writes.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Checkpoint size is roughly the payload plus the prompt text; the text copy is why the directory leaks prompt content to anyone who can read it.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Rejecting different quants costs reuse when the same model is served in more than one quant.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Interchange. ds4 documents the format as an implementation detail (a stable version byte and payload ABI exist but the docs promise nothing). The oMLX issue 3612 proposal (already noted elsewhere) asks for a versioned manifest. These are opposite stances; the header does carry a version and a payload ABI byte, which is closer to the oMLX ask than the docs imply.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Whether SHA1 keying is brittle. dwarfstar.sh frames exact byte identity as a feature (\"the cache is not whatever conversation looked similar\"); the lookup code adds a token-level path (trim and align) and a text-level path to tolerate tokenization drift, which implies byte identity alone is not enough in practice.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "No source measures disk read time for restoring a long ds4 checkpoint on Apple Silicon, or checkpoint sizes per token for DeepSeek Flash.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "It is unknown whether `fsync` omission matters for crash safety; the rename pattern protects against partial files but not against power loss ordering.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "SHA1 collision handling is absent from the lookup code; only the equal-hash check is used.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "ds4 checkpoint files are named by the 40-hex SHA1 of the rendered byte prefix plus `.kv`, and the payload still carries the exact tokens and graph state.",
+          "source": "https://raw.githubusercontent.com/antirez/ds4/main/ds4_kvstore.h",
+          "note": null
+        },
+        {
+          "text": "The ds4 KVC header is 48 bytes with magic K V C, version 1, quant bits, reason, extension flags and model id in bytes 3-7.",
+          "source": "https://raw.githubusercontent.com/antirez/ds4/main/ds4_kvstore.c",
+          "note": null
+        },
+        {
+          "text": "The ds4 header stores token count at byte 8, hit count at 12, context size at 16, payload ABI at 20, created time at 24, last-used time at 32 and payload bytes at 40, little-endian.",
+          "source": "https://raw.githubusercontent.com/antirez/ds4/main/ds4_kvstore.c",
+          "note": null
+        },
+        {
+          "text": "ds4 payload ABI is 2 and is separate from the file version because serialized session internals can become unsafe to restore across runtime changes while the envelope stays stable.",
+          "source": "https://raw.githubusercontent.com/antirez/ds4/main/ds4_kvstore.c",
+          "note": null
+        },
+        {
+          "text": "Header byte 7 is the model id and Flash is 0 so older cache files remain readable.",
+          "source": "https://raw.githubusercontent.com/antirez/ds4/main/ds4_kvstore.h",
+          "note": null
+        },
+        {
+          "text": "ds4 save reasons are unknown, cold, continued, evict, shutdown, agent-system and agent-session, and extension flags are tool map, responses visible, thinking visible and session title.",
+          "source": "https://raw.githubusercontent.com/antirez/ds4/main/ds4_kvstore.h",
+          "note": null
+        },
+        {
+          "text": "ds4 keys checkpoints on routed-expert quant bits 2, 4, 5, 6 and 8.",
+          "source": "https://raw.githubusercontent.com/antirez/ds4/main/ds4_kvstore.c",
+          "note": null
+        },
+        {
+          "text": "ds4 default KV disk cache options are a 512-token minimum, 30,000-token cold maximum, 10,000-token continued interval, 32-token boundary trim and 2,048-token boundary alignment.",
+          "source": "https://raw.githubusercontent.com/antirez/ds4/main/ds4_kvstore.c",
+          "note": null
+        },
+        {
+          "text": "ds4's default disk cache budget constant is 4096 MiB.",
+          "source": "https://raw.githubusercontent.com/antirez/ds4/main/ds4_kvstore.h",
+          "note": null
+        },
+        {
+          "text": "ds4 rounds the continued interval up to a multiple of the boundary alignment, and only stores when live tokens are an exact multiple of that step and exceed the last stored count.",
+          "source": "https://raw.githubusercontent.com/antirez/ds4/main/ds4_kvstore.c",
+          "note": null
+        },
+        {
+          "text": "ds4 trims 32 tokens then rounds down to a multiple of 2,048 so prefill chunk schedules match a cold full prompt, because compressor row finalization depends on that alignment.",
+          "source": "https://raw.githubusercontent.com/antirez/ds4/main/ds4_kvstore.c",
+          "note": null
+        },
+        {
+          "text": "ds4 cuts cold checkpoints at the last user token before the first assistant token so independent agent sessions can reuse the stable prefix.",
+          "source": "https://raw.githubusercontent.com/antirez/ds4/main/ds4_kvstore.c",
+          "note": null
+        },
+        {
+          "text": "ds4 text-prefix lookup picks the longest matching stored text by comparing SHA1 of the prompt's first N bytes, requiring same model id, entry context no larger than the session's, and optional same quant.",
+          "source": "https://raw.githubusercontent.com/antirez/ds4/main/ds4_kvstore.c",
+          "note": null
+        },
+        {
+          "text": "ds4 builds the effective prompt on a hit from the stored exact token history plus a rendered-chat tokenization of only the text suffix.",
+          "source": "https://raw.githubusercontent.com/antirez/ds4/main/ds4_kvstore.c",
+          "note": null
+        },
+        {
+          "text": "ds4 discards and unlinks a checkpoint whose loaded token count disagrees with its header.",
+          "source": "https://raw.githubusercontent.com/antirez/ds4/main/ds4_kvstore.c",
+          "note": null
+        },
+        {
+          "text": "ds4 rewrites the 48-byte header in place on every cache hit to increment hits and set last-used.",
+          "source": "https://raw.githubusercontent.com/antirez/ds4/main/ds4_kvstore.c",
+          "note": null
+        },
+        {
+          "text": "ds4 writes checkpoints to a `.tmp.<pid>` file, flushes, checks the final size against the budget and renames into place; the fetched source shows `fflush` and `rename` but no `fsync`.",
+          "source": "https://raw.githubusercontent.com/antirez/ds4/main/ds4_kvstore.c",
+          "note": null
+        },
+        {
+          "text": "ds4 eviction scores entries as (hits decayed with a 6 hour half-life + 1) times tokens divided by file size, doubles the score for cold, evict and shutdown anchors, and cuts continued waypoints that the incoming store supersedes to between 5% and 50%.",
+          "source": "https://raw.githubusercontent.com/antirez/ds4/main/ds4_kvstore.c",
+          "note": null
+        },
+        {
+          "text": "The ds4 agent shares the durable KVC format and uses its own policy in ds4_agent.c, with `/save`, `/list` and `/switch <sha>` as its session commands.",
+          "source": "https://dwarfstar.sh/blog/why-kv-cache-belongs-on-disk/",
+          "note": null
+        },
+        {
+          "text": "DwarfStar's architecture notes (updated 2026-09-17) say tool-id to exact DSML mappings persist inside KV cache files and survive restarts, with a deterministic JSON to DSML rendering and a KV rewind as fallback.",
+          "source": "https://dwarfstar.sh/docs/architecture/",
+          "note": null
+        },
+        {
+          "text": "ds4 states disk KV is not a universal answer: it does not make tiny machines run huge contexts, does not make unrelated prompts reusable, and adds correctness requirements around rendering, tokenization and tool-call replay.",
+          "source": "https://dwarfstar.sh/blog/why-kv-cache-belongs-on-disk/",
+          "note": null
+        },
+        {
+          "text": "ds4 KV store lookup iterates all indexed entries and recomputes SHA1 per candidate, so lookup cost grows with entry count times prefix length.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "The ds4 header's separate payload ABI byte is closer to a versioned manifest than the \"implementation detail\" documentation suggests.",
+          "source": "asserted",
+          "note": null
+        }
+      ]
+    }
+  ],
+  "related": []
+}

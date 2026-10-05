@@ -1,0 +1,174 @@
+{
+  "slug": "speculative-decoding-with-ane-resident-drafter",
+  "concept": "Speculative decoding with ANE-resident drafter",
+  "generated": "2026-10-05",
+  "summary": "Forge's DFlash2 drafter is conditioned on target hidden states: it taps target layers [5, 19, 33, 47, 61] (five features concatenate to 25,600 values per position at hidden size 5120), runs five layers (32 attention heads, 8 KV heads, head dim 128), and a candidate selector (rank 256, top-k 16, p...",
+  "facets": [
+    {
+      "title": "Facts",
+      "facts": [
+        {
+          "text": "Forge's DFlash2 drafter is conditioned on target hidden states: it taps target layers [5, 19, 33, 47, 61] (five features concatenate to 25,600 values per position at hidden size 5120), runs five layers (32 attention heads, 8 KV heads, head dim 128), and a candidate selector (rank 256, top-k 16, predecessor and successor codebooks in `selector.safetensors`) proposes tokens.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Interfaces: draft width 8, new-context capacity 8, prefill-context update width 64, a sliding ring of 2,048 rows (slot = position mod 2048) that is independent of the target's 8K-64K context entries; the target's prepared FP16 embedding table supplies the anchor embedding.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Drafter package: `dflash2_lut4_gptq.aimodel` (LUT4 GPTQ, mask scale 0.7) with a sidecar JSON referencing the target export and its `lm_head.safetensors`; the upstream checkpoint is ProCreations/Ternary-Bonsai-2-27B-DFlash2 under Apache 2.0.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Scheduling: drafter and target run on the same ANE through the Swift bridge in Core AI bonded compile mode 2; the drafter fixes the host PyTorch thread count to one and waits `DRAFT_GAP_MS=3` after each verification before submitting.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Matching rule: the drafter must match the target on hidden size, vocabulary (248,320), tap order, tokenizer and head identity; a stale head reduced acceptance while appearing to agree with a reference using the same stale head.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "2026-04-14/17 CoreML-LLM's drafter attempts on Gemma 4 E2B (EAGLE-3 0% live, MTP Path A 0%, Path C 17%, Qwen 2.5 0.5B cross-vocab 1.8 tok/s) lead to \"drafter dead for E2B\"; the repo then records that MTP heads inside the target, as used by LiteRT-LM at 56 tok/s, are not covered by that verdict.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "2026-04-27 an H1 probe finds the HF Gemma 4 E2B base has no usable multi-token signal (linear K=2 11.7%, K=3 6.9%), bounding any retrain.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "2026-09-29 Forge pairs the 27B target with the DFlash2 drafter as a release contract; an earlier Core ML drafter package (RTN quantized) is labeled not to be substituted.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "The drafter must beat the target's speed by 5-10x and reach about 50% live acceptance on GPU verify (about 70% on ANE verify) simultaneously; for a 4.6B Gemma 4 E2B target no same-family 1B drafter exists.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "A cross-vocab 0.5B drafter was too slow on ANE: the Qwen forward cost swamped the verify gain.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "ANE driver serialization (distinct models from one process do not overlap) means a drafter on the same ANE adds latency, not parallelism; Mirror-style cost hiding does not work ANE-only.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Mismatched drafter/target pairs fail silently as low acceptance, which is why Forge verifies identities and shapes, not filenames.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Do separate drafters work on small targets? CoreML-LLM: \"no published spec-decoding success with a separate drafter on a 4-7B base\", best self-trained drafter 17% live versus 50% required. Forge: a 27B target with a conditioned drafter reaches 85-91% acceptance and 31-57 tok/s on the ANE. The two disagree by model size and by drafter design (a feature-conditioned DFlash2 drafter with a 5-feature tap versus self-trained 35-80 M parameter MTP modules and n-gram drafters); CoreML-LLM's size argument predicts the 27B success, but no source tests a conditioned drafter on a 2-4B ANE target.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Is the ANE a viable second drafter host at all? CoreML-LLM's own spike shows the ANE driver serializes submissions and that ANE+GPU overlap is real (0.87-0.99); Forge runs drafter and target on the same ANE with a mandatory gap. Placing a drafter on GPU or CPU while the ANE verifies is untested in either project.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Would a feature-conditioned drafter (EAGLE/DFlash style, taps from the target) on a 2-4B ANE target clear 70% acceptance? No source.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "What is the drafter's actual per-round latency on M6? Forge sets a 3 ms gap but its pages give no standalone drafter ms.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Does the 2,048-row drafter ring cap acceptance at long target context? Forge says it must be measured separately.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Forge's drafter contract is target hidden 5120 and vocabulary 248,320, tap order [5, 19, 33, 47, 61] giving 25,600 features per position, a five-layer drafter with 32 attention heads, 8 KV heads, head dim 128, selector rank 256 and candidate top-k 16.",
+          "source": "https://github.com/Anemll/anemll-forge/blob/main/docs/SPECULATIVE_DECODING.md",
+          "note": null
+        },
+        {
+          "text": "Draft width is 8 with new-context capacity 8 and prefill-context update width 64; the drafter's 2,048-row ring is reused as slot position mod 2048 and is not the target's context length.",
+          "source": "https://github.com/Anemll/anemll-forge/blob/main/docs/SPECULATIVE_DECODING.md",
+          "note": null
+        },
+        {
+          "text": "The deployed drafter is `dflash2_lut4_gptq.aimodel` with sidecar metadata referencing the target export and its `lm_head.safetensors`, calibration `drafter_lut4_gptq_q7_cal` and mask scale 0.7; a later recalibration is not evidence of what shipped.",
+          "source": "https://github.com/Anemll/anemll-forge/blob/main/docs/SPECULATIVE_DECODING.md",
+          "note": null
+        },
+        {
+          "text": "The upstream drafter checkpoint is ProCreations/Ternary-Bonsai-2-27B-DFlash2 at commit 4cfb6ad, with its Apache 2.0 LICENSE and NOTICE preserved in the bundle.",
+          "source": "https://github.com/Anemll/anemll-forge/blob/main/docs/SPECULATIVE_DECODING.md",
+          "note": null
+        },
+        {
+          "text": "A stale target head previously reduced acceptance while appearing to agree with a reference using the same stale head, so identities and shapes must match, not filenames alone.",
+          "source": "https://github.com/Anemll/anemll-forge/blob/main/docs/SPECULATIVE_DECODING.md",
+          "note": null
+        },
+        {
+          "text": "The Core AI path uses the Swift bridge, bonded compile mode 2 and `DRAFT_GAP_MS=3`, and the drafter fixes PyTorch's host threads to one because multithreaded host top-k delayed target dispatch.",
+          "source": "https://github.com/Anemll/anemll-forge/blob/main/docs/SPECULATIVE_DECODING.md",
+          "note": null
+        },
+        {
+          "text": "Forge states the DFlash2 drafter is part of the fast release (verifier anchor plus seven proposals as T=8) and plain decoding is a diagnostic mode that isolates target behavior.",
+          "source": "https://github.com/Anemll/anemll-forge/blob/main/docs/TECHNIQUES.md",
+          "note": null
+        },
+        {
+          "text": "CoreML-LLM measured live drafter acceptance on Gemma 4 E2B of 0% (EAGLE-3 trained on `use_cache=False` states), 0% (MTP Path A against a LiteRT W4A8 target), 17% (MTP Path C), under 1% and 1.8 tok/s (cross-vocab Qwen 2.5 0.5B) and 18% (SuffixDecoding), with the union of all at 15-21 tok/s versus 32 baseline.",
+          "source": "https://raw.githubusercontent.com/john-rocky/CoreML-LLM/main/docs/DRAFTER_DEAD_FOR_E2B.md",
+          "note": null
+        },
+        {
+          "text": "CoreML-LLM's two-constraint rule says a drafter must be 5-10x faster than the target and reach about 50% live per-position acceptance on GPU verify (about 70% on ANE verify), and a same-family 1B Gemma 4 drafter does not exist.",
+          "source": "https://raw.githubusercontent.com/john-rocky/CoreML-LLM/main/docs/DRAFTER_DEAD_FOR_E2B.md",
+          "note": null
+        },
+        {
+          "text": "CoreML-LLM claims no published separate-drafter speculative decoding success on a 4-7B base model, citing 7B-70B EAGLE results and attributing LiteRT-LM's 56 tok/s on Gemma 4 E2B to MTP heads inside the same forward.",
+          "source": "https://raw.githubusercontent.com/john-rocky/CoreML-LLM/main/docs/DRAFTER_DEAD_FOR_E2B.md",
+          "note": null
+        },
+        {
+          "text": "CoreML-LLM's H1 probe on the HF Gemma 4 E2B base found linear K=2 accuracy 11.7% and K=3 6.9% and concluded retrain variants are information-theoretically bounded because the base lacks an MTP-aware imprint.",
+          "source": "https://raw.githubusercontent.com/john-rocky/CoreML-LLM/main/docs/REJECTED_APPROACHES.md",
+          "note": null
+        },
+        {
+          "text": "CoreML-LLM's escape clauses for reopening the drafter question are Google shipping a Gemma 4 1B/0.5B, a new scheme needing under 100 M drafter parameters at 50%+ acceptance, or switching to a base with an established drafter ecosystem.",
+          "source": "https://raw.githubusercontent.com/john-rocky/CoreML-LLM/main/docs/DRAFTER_DEAD_FOR_E2B.md",
+          "note": null
+        },
+        {
+          "text": "CoreML-LLM notes Mirror-style speculative decoding hides drafter cost by running the drafter concurrently with target verify, but the ANE driver serializes submissions, so the cost-hiding model does not recover the expected concurrency on the ANE alone.",
+          "source": "https://raw.githubusercontent.com/john-rocky/CoreML-LLM/main/docs/PHASE_B_DECISION.md",
+          "note": null
+        },
+        {
+          "text": "An ANE chunk and a `.cpuAndGPU` chunk dispatched concurrently overlapped at 0.87-0.99 in CoreML-LLM's spike.",
+          "source": "https://raw.githubusercontent.com/john-rocky/CoreML-LLM/main/docs/PHASE_D_COMPUTE_UNIT_SPLIT_SPIKE.md",
+          "note": null
+        },
+        {
+          "text": "Inference: a drafter placed on the GPU or CPU while the ANE verifies could run concurrently, but neither project tested it.",
+          "source": "asserted",
+          "note": null
+        }
+      ]
+    }
+  ],
+  "related": []
+}

@@ -1,0 +1,219 @@
+{
+  "slug": "maderix-reverse-engineered-ane-hardware-profile",
+  "concept": "maderix reverse-engineered ANE hardware profile",
+  "generated": "2026-10-05",
+  "summary": "Method: class discovery with `dyld_info -objc` on AppleNeuralEngine.framework (40+ private classes), method swizzling of Core ML's calls into the private frameworks, binary analysis of compiled E5 bundles, and scaling sweeps over matrix size, graph depth and channel count to infer topology.",
+  "facets": [
+    {
+      "title": "Facts",
+      "facts": [
+        {
+          "text": "Method: class discovery with `dyld_info -objc` on AppleNeuralEngine.framework (40+ private classes), method swizzling of Core ML's calls into the private frameworks, binary analysis of compiled E5 bundles, and scaling sweeps over matrix size, graph depth and channel count to infer topology.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Stack: Core ML or direct `_ANEClient` -> `_ANECompiler` (MIL text to an E5 binary) -> IOKit kernel driver. Direct sequence: `sharedConnection`, model reference, `compileModel`, `loadModel` (queue depth 127), IOSurface I/O wrapped as `_ANEIOSurfaceObject`, `_ANERequest`, `evaluateWithModel`, all at qos 21.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "The in-memory path (`_ANEInMemoryModelDescriptor`) avoids disk but needs three non-obvious inputs: MIL as `NSData` not `NSString`, weights as an `NSDictionary` of name to blob not a single `NSData`, and a writable temp directory because the \"in-memory\" path still writes one internally.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "E5 binary: a FlatBuffer; a 1024x1024 matmul compiles to 2,688 bytes and a 128x128 to 2,680, so the \"microcode\" is a parameterized descriptor program over a small set of fixed primitives (convolution, matmul, elementwise), not an unrolled algorithm.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Dynamic-weights trick in the training code: pack activations and weights into one spatial input dimension and slice inside the MIL kernel so weights can change without recompiling.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "2026-02-28 Part 1 (reverse engineering) and Part 2 (benchmarks) published; repo first release.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "2026-03-03 benchmarks fixed for macOS 26 by replacing file-based Core ML compile with in-memory MIL compile (sram_bench.m, sram_probe.m, inmem_bench.m).",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "2026-03-07 Part 3 (training) and the multi-model dashboard; 2026-03-10 INT8 W8A8, GQA/Qwen3-0.6B and the GPU-to-ANE pipeline added.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "2026-03-06 Orion (arXiv 2603.06728) builds on it; the README later added an \"On The Hype\" section correcting press coverage.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Silent failures: SDPA `attn_mask` is ignored by the hardware (causal attention is decomposed into Q@K^T on ANE, mask plus softmax on CPU, scores@V on ANE); about 119 compiles per process before the compiler leaks resources (worked around with `exec()` restart); multi-input ANE requests produce error 0x1d, so inputs are packed into the spatial dimension.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "FP16 gradient underflow in backward matmuls needs global loss scaling (256 x number of layers).",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Many element-wise ops still fall back to CPU and training utilization is only about 5-9% of peak.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Apple can break any of this: the repo disclaims private APIs \"may change or break with any macOS update\".",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Peak FP16 throughput. Part 2 reports 19 TFLOPS FP16 as 100% of a theoretical 16 cores x about 1.2 TFLOPS, with 94% reached at 32+ layer depth. The repo README describes the ANE as \"15.8 TFLOPS FP16 (M4)\" in its intro. Same author, same chip; the 15.8 figure is unexplained.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "INT8. Part 2: INT8 and FP16 run at the same speed because the ANE dequantizes INT8 weights to FP16, so INT8 saves only bandwidth (\"38 TOPS is misleading\"). The README: INT8 W8A8 gives 1.88x (35.1 vs 18.6 TOPS on 128 chained 512-channel 64x64 convs) by caching INT8 activations between layers in L2 SRAM through `quantize`/`dequantize` MIL ops and `constexpr_affine_dequantize` weights. Existing dossiers record the pair but not that they are in the same repo; CoreML-LLM adds that the iPhone ANE compiler rejects quantize/dequantize ops outright.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Concat. Orion lists the concat MIL op as rejected by the ANE compiler (constraint 1) while maderix's training kernels expose Q, K, V, scores and hidden states through \"forward taps via concat outputs\". The paths differ (Orion compiles through a different MIL pipeline) or the constraint is version-dependent; unresolved.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "What is the ANE? A commenter claimed it is \"mostly a functional SME2 unit\"; Maynard Handley, who documents the ANE from patents in volume 7 of his AArch64-Explore notes, replied it has zero similarity to SME and that the A11 unit resembled a Lattice FPGA. Handley says the patent reading is a best effort; this is second-hand to hardware.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Exact ISA, core-to-op assignment, clock, SRAM topology (banked, unified or per-core) and whether hardware perf counters are accessible: all listed as unknown by the authors.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Whether `_ANEChainingRequest` (chaining several compiled models in one dispatch) or `_ANESharedEvents` (GPU-ANE fences) work; unexplored in the series.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Whether the numbers hold on M1-M3, M5 or M6: Part 2 is M4 Mac mini only, Orion confirmed on M4 Max only.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "The series is written by maderix with Claude Opus 4.6 as a named co-author, and its test hardware is an M4 Mac mini (10-core CPU, 16-core ANE) on macOS 15.x with direct `_ANEClient`, `mach_absolute_time()`, 100+ iterations, median reported.",
+          "source": "https://maderix.substack.com/p/inside-the-m4-apple-neural-engine-615",
+          "note": null
+        },
+        {
+          "text": "Part 1 describes the ANE as a graph execution engine that executes a compiled network as one atomic operation, with 16 cores, queue depth 127, independent DVFS and hard power gating to 0 mW.",
+          "source": "https://maderix.substack.com/p/inside-the-m4-apple-neural-engine",
+          "note": null
+        },
+        {
+          "text": "maderix discovered 40+ private classes in AppleNeuralEngine.framework including `_ANEClient`, `_ANEModel`, `_ANERequest`, `_ANEIOSurfaceObject` and `_ANEInMemoryModel`.",
+          "source": "https://maderix.substack.com/p/inside-the-m4-apple-neural-engine",
+          "note": null
+        },
+        {
+          "text": "A 1024x1024 matmul compiles to a 2,688-byte E5 binary and a 128x128 matmul to 2,680 bytes, which the author reads as a parameterized program driven by tensor descriptors at run time.",
+          "source": "https://maderix.substack.com/p/inside-the-m4-apple-neural-engine",
+          "note": null
+        },
+        {
+          "text": "Compiled E5 programs are cached under `~/Library/Caches/<app>/com.apple.e5rt.e5bundlecache/<build>/<hash>/` with an `H16G.bundle/H16G.e5` file; first compile takes about 20-40 ms and cache hits are effectively free.",
+          "source": "https://maderix.substack.com/p/inside-the-m4-apple-neural-engine",
+          "note": null
+        },
+        {
+          "text": "IOReport exposes ANE DVFS trigger channels (ANE_ADCLK_TRIG, ANE_ADHWTRG, ANE_ADSWTRG, ANE_DITHR_TRIG, ANE_PPT_TRIG, ANE_PPT_SWTRG, ANE_PPT_HWTRG, ANE_EXT_TRIG0-3), indicating adaptive clocking and independent power management.",
+          "source": "https://maderix.substack.com/p/inside-the-m4-apple-neural-engine",
+          "note": null
+        },
+        {
+          "text": "The in-memory MIL path requires MIL as NSData (a string fails silently), weights as an NSDictionary of name to NSData, and a writable temp directory because it writes internally.",
+          "source": "https://maderix.substack.com/p/inside-the-m4-apple-neural-engine",
+          "note": null
+        },
+        {
+          "text": "The tensor layout is NCDHW plus interleave, so a 1024x1024 matrix becomes [1, 1024, 1, 1024], and ANECompiler exports show Conv as the primary compute primitive.",
+          "source": "https://maderix.substack.com/p/inside-the-m4-apple-neural-engine",
+          "note": null
+        },
+        {
+          "text": "Unexplored classes the author flags are `_ANEChainingRequest` (chain compiled models in one dispatch), `_ANESharedEvents`/`_ANESharedSignalEvent`/`_ANESharedWaitEvent` (Metal-style fences), `_ANEPerformanceStats` and `_ANEVirtualClient`.",
+          "source": "https://maderix.substack.com/p/inside-the-m4-apple-neural-engine",
+          "note": null
+        },
+        {
+          "text": "The author lists as unknown the ANE ISA, core assignment inside a graph, clock frequency, perf-counter access and SRAM topology.",
+          "source": "https://maderix.substack.com/p/inside-the-m4-apple-neural-engine",
+          "note": null
+        },
+        {
+          "text": "Part 1 names prior art: hollance/neural-engine, mdaiter/ane, eiln/ane (the Asahi Linux ANE driver) and apple/ml-ane-transformers (channel-first layout, 1x1 conv preference).",
+          "source": "https://maderix.substack.com/p/inside-the-m4-apple-neural-engine",
+          "note": null
+        },
+        {
+          "text": "The repo README lists 7.3k stars and 954 forks and states the project is a research proof of concept, \"not a maintained framework\", and that coverage overstated it: training utilization is about 5-9% of peak and many element-wise ops fall back to CPU.",
+          "source": "https://github.com/maderix/ANE",
+          "note": null
+        },
+        {
+          "text": "Training results are Stories110M at 91 ms/step (6 kernels per layer) and Qwen3-0.6B at 412 ms/step (10 kernels per layer for GQA) on M4 with a dynamic no-recompile pipeline; dW gradients run on CPU with cblas and Adam on CPU.",
+          "source": "https://github.com/maderix/ANE",
+          "note": null
+        },
+        {
+          "text": "The README states multi-input ANE requests cause error 0x1d so inputs are packed into the spatial dimension, and fp16 direct I/O is about 37% faster than fp32 I/O.",
+          "source": "https://github.com/maderix/ANE",
+          "note": null
+        },
+        {
+          "text": "The README's INT8 W8A8 test reaches 35.1 TOPS versus 18.6 TOPS FP16 (1.88x) on 128 convs of 512 channels at 64x64, and 34.1 vs 18.4 TOPS (1.85x) on 64 convs.",
+          "source": "https://github.com/maderix/ANE",
+          "note": null
+        },
+        {
+          "text": "The README intro calls the ANE a \"15.8 TFLOPS FP16 (M4)\" accelerator while Part 2 reports 19 TFLOPS FP16 as 100% of theoretical.",
+          "source": "https://github.com/maderix/ANE",
+          "note": null
+        },
+        {
+          "text": "The repo includes a GPU-prefill to ANE-decode demo (gpu_prefill_ane_decode.m) sharing IOSurfaces zero-copy, with M4 seq=256 totals of 8.8 ms (Stories110M) and 12.0 ms (Qwen3-0.6B).",
+          "source": "https://github.com/maderix/ANE",
+          "note": null
+        },
+        {
+          "text": "The repo's SDPA limitation: the hardware ignores `attn_mask`, forcing a Q@K^T (ANE), mask plus softmax (CPU), scores@V (ANE) split.",
+          "source": "https://github.com/maderix/ANE",
+          "note": null
+        },
+        {
+          "text": "On the Part 1 thread Handley said he has described the ANE \"in substantial detail (100s of pages)\" from patents in volume 7 and that the first A11 unit was \"something like a Lattice FPGA\".",
+          "source": "https://maderix.substack.com/p/inside-the-m4-apple-neural-engine",
+          "note": null
+        },
+        {
+          "text": "Josh Morgan commented he believes the ANE is \"just a mostly functional SME2 unit\" and shared an ane repo, which Handley's reply disputes.",
+          "source": "https://maderix.substack.com/p/inside-the-m4-apple-neural-engine",
+          "note": null
+        },
+        {
+          "text": "An HN reader (FL33TW00D) called the Part 1/2 write-up \"Unreadable Claude slop\", a reminder that the series is agent-co-written.",
+          "source": "https://news.ycombinator.com/item?id=47208573",
+          "note": null
+        }
+      ]
+    }
+  ],
+  "related": []
+}

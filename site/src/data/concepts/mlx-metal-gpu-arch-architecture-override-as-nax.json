@@ -1,0 +1,234 @@
+{
+  "slug": "mlx-metal-gpu-arch-architecture-override-as-nax",
+  "concept": "MLX_METAL_GPU_ARCH architecture override as NAX kill switch",
+  "generated": "2026-10-05",
+  "summary": "The environment page documents it as: \"Override the Metal GPU architecture string reported to MLX. This affects architecture-specific kernel and scheduling choices, but does not change the capabilities of the physical GPU. Forcing an architecture that does not match the GPU can select incompatibl...",
+  "facets": [
+    {
+      "title": "Facts",
+      "facts": [
+        {
+          "text": "The environment page documents it as: \"Override the Metal GPU architecture string reported to MLX. This affects architecture-specific kernel and scheduling choices, but does not change the capabilities of the physical GPU. Forcing an architecture that does not match the GPU can select incompatible kernels and produce incorrect results.\"",
+          "source": "https://ml-explore.github.io/mlx/build/html/usage/environment_variables.html",
+          "note": null
+        },
+        {
+          "text": "The `Device` constructor reads `env::metal_gpu_arch()` and falls back to the Metal device's own architecture name only when it is empty; the generation is `10 * digit(size-3) + digit(size-2)` with any non-digit counted as 0, and the class is the last character.",
+          "source": "https://raw.githubusercontent.com/ml-explore/mlx/main/mlx/backend/metal/device.cpp",
+          "note": null
+        },
+        {
+          "text": "A malformed value degrades silently instead of failing: `applegpu_g16` (no class letter) parses as generation 1 with class '6', which falls to the oldest tables and the default command-buffer limits.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "`is_nax_available()` needs macOS 26.2 or later and generation 17 or later (18 or later for class 'p'), and its answer is cached in a function-level static on first call, so the variable has to be set before the first Metal operation of the process.",
+          "source": "https://raw.githubusercontent.com/ml-explore/mlx/main/mlx/backend/metal/device.cpp",
+          "note": null
+        },
+        {
+          "text": "The class letter also sets the command-buffer limits: 'p' 20 operations and 40 MB, 'g' 40 and 40, 's' 50 and 50, 'd' 50 and 50, any other letter 40 and 40; `MLX_MAX_OPS_PER_BUFFER` and `MLX_MAX_MB_PER_BUFFER` override them.",
+          "source": "https://raw.githubusercontent.com/ml-explore/mlx/main/mlx/backend/metal/device.cpp",
+          "note": null
+        },
+        {
+          "text": "The qmv-versus-qmm switch row count comes from `get_qmv_batch_limit(D, O)` by generation and class: generation 17 and later, non-'d': 33 (both dims at most 2048), 25 (at most 4096), 13 (larger); generation 15 and 16, non-'d': 13, 15, 13.",
+          "source": "https://raw.githubusercontent.com/ml-explore/mlx/main/mlx/backend/metal/quantized.cpp",
+          "note": null
+        },
+        {
+          "text": "Forcing a generation-16 name on an M5 therefore also lowers the small and mid matrix qmv limits from 33 and 25 to 13 and 15, moving small-M quantized matmul between `qmv_wide` and `qmm`, besides removing NAX.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "The NVFP4 narrow-qmv route requires generation 17, class 's' and mode nvfp4, so a forced pre-17 name disables it too.",
+          "source": "https://raw.githubusercontent.com/ml-explore/mlx/main/mlx/backend/metal/quantized.cpp",
+          "note": null
+        },
+        {
+          "text": "The SDPA 2-pass routing and block tables read the class letter, so a forced class letter changes attention partitioning as well (see metal-flash-attention-kernel-partitioning-differ.md).",
+          "source": "https://raw.githubusercontent.com/ml-explore/mlx/main/mlx/backend/metal/scaled_dot_product_attention.cpp",
+          "note": null
+        },
+        {
+          "text": "An M5 Pro reports `applegpu_g17s`, so it is class 's' with generation 17.",
+          "source": "https://github.com/ml-explore/mlx/pull/3295",
+          "note": null
+        },
+        {
+          "text": "An M5 Max also reports `applegpu_g17s`.",
+          "source": "https://github.com/ml-explore/mlx/pull/4237",
+          "note": null
+        },
+        {
+          "text": "An M4 Pro reports `applegpu_g16s`, not the `g18p` that the PR author had assumed.",
+          "source": "https://github.com/ml-explore/mlx/pull/3474",
+          "note": null
+        },
+        {
+          "text": "An M3 Max reports `applegpu_g15s`.",
+          "source": "https://github.com/ml-explore/mlx/issues/4022",
+          "note": null
+        },
+        {
+          "text": "2026-03-22: PR 3295 used `MLX_METAL_GPU_ARCH=applegpu_g17g` on an M5 Pro to exercise a 'g'-class NAX GEMM route without owning such a device (addmm 0.3620 to 0.3132 ms, matmul 0.3495 to 0.3208 ms with its tuned tiles); the PR was closed unmerged on 2026-03-31.",
+          "source": "https://github.com/ml-explore/mlx/pull/3295",
+          "note": null
+        },
+        {
+          "text": "2026-05-01 to 2026-05-02: a user's PRs 3470 and 3474 added an `MLX_DISABLE_NAX` runtime gate plus `mx.metal.is_nax_available()` and `mx.metal.nax_arch_flavor()` to measure NAX on M3 and M4 (\"g16\") and found NAX at parity or worse there; both were closed, and the fetched `device.cpp` has no `MLX_DISABLE_NAX` check.",
+          "source": "https://github.com/ml-explore/mlx/pull/3470",
+          "note": null
+        },
+        {
+          "text": "0.32.1 (2026-08-17) added a configure-time warning when NAX kernels are disabled in a build (PR 3824).",
+          "source": "https://github.com/ml-explore/mlx/releases/tag/v0.32.1",
+          "note": null
+        },
+        {
+          "text": "Issue 3897 (closed 2026-08-09) used the override as the control that attributed the M5-only masked-attention drift to NAX (already recorded in m5-gpu-tf32-numerics-and-batched-attention-diver.md).",
+          "source": "https://github.com/ml-explore/mlx/issues?q=is%3Aissue+MLX_METAL_GPU_ARCH",
+          "note": null
+        },
+        {
+          "text": "In `device.cpp` NAX is removed at compile time by `MLX_METAL_NO_NAX` and is off at run time on macOS older than 26.2 or below generation 17; `is_nax_available()` has no environment check, so the architecture override is the only runtime switch, and the environment page lists no NAX-disable variable.",
+          "source": "https://raw.githubusercontent.com/ml-explore/mlx/main/mlx/backend/metal/device.cpp",
+          "note": null
+        },
+        {
+          "text": "Measured NAX on versus off for one shape: on an M5 Max a bf16 4096 by 4096 by 4096 GEMM takes 2.4 to 2.6 ms with NAX compiled in and about 9 ms when NAX is gated out.",
+          "source": "https://github.com/ml-explore/mlx/pull/3838",
+          "note": null
+        },
+        {
+          "text": "The PR 3838 testers built with `MACOSX_DEPLOYMENT_TARGET=26.2` \"so the NAX kernels are compiled in\" and used a GEMM timing canary to prove NAX was active before comparing.",
+          "source": "https://github.com/ml-explore/mlx/pull/3838",
+          "note": null
+        },
+        {
+          "text": "A wheel or source build with a lower deployment target is silently non-NAX on an M5, so a missing NAX speedup can come from the build rather than the override.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Forcing a class letter that does not match the chip is the documented danger: tile and block choices tuned for another class can pick kernels that are slow or wrong for the real GPU; the sources show the numerics change (issue 3897) but no incorrect-result case from the class letter alone.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "`mx.device_info(mx.gpu)` exposes the architecture string, and PR 4596's benchmark script uses it to label each shape as 1-pass, generic 2-pass or GQA-specialized; the same call is the quickest check that an override took effect.",
+          "source": "https://github.com/ml-explore/mlx/pull/4596",
+          "note": null
+        },
+        {
+          "text": "For fp32 activations the override also removes the TF32 NAX GEMM, so fp32 matmuls go back to exact arithmetic on the classic kernels; fp16 and bf16 activations lose NAX speed but keep their dtype.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Whether the override is a supported lever: the docs page lists it under \"Advanced tuning\" as intended for development, diagnostics and experiments and warns of incorrect results; issue threads use it as a numerics control and PR 3295 as an emulator. No source recommends it for production.",
+          "source": "https://ml-explore.github.io/mlx/build/html/usage/environment_variables.html",
+          "note": null
+        },
+        {
+          "text": "Whether NAX helps on M3 and M4 at all: the closed PRs 3470 and 3474 measured NAX at parity or worse on an M4 Pro, while the gate (generation 17) keeps NAX off those chips anyway.",
+          "source": "https://github.com/ml-explore/mlx/pull/3470",
+          "note": null
+        },
+        {
+          "text": "Whole-model cost of running an M5 server under a forced generation-16 name (prefill time to first token, small-M verify, batch throughput); only the single 4096-cubed GEMM figure exists.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Whether class 'g' M5 chips (base M5) report `applegpu_g17g` and how NAX gating treats them; PR 3295 could not test it on a real device.",
+          "source": "https://github.com/ml-explore/mlx/pull/3295",
+          "note": null
+        },
+        {
+          "text": "Whether a runtime NAX-disable variable will be added upstream; none exists in main as fetched.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "The environment-variables page warns that forcing an architecture that does not match the GPU can select incompatible kernels and produce incorrect results.",
+          "source": "https://ml-explore.github.io/mlx/build/html/usage/environment_variables.html",
+          "note": null
+        },
+        {
+          "text": "The architecture string comes from `env::metal_gpu_arch()` first, and the generation is parsed from the two characters before the class letter, with non-digits counted as 0.",
+          "source": "https://raw.githubusercontent.com/ml-explore/mlx/main/mlx/backend/metal/device.cpp",
+          "note": null
+        },
+        {
+          "text": "`is_nax_available()` is computed once and cached in a static, and requires macOS 26.2 plus generation 17 (18 for class 'p').",
+          "source": "https://raw.githubusercontent.com/ml-explore/mlx/main/mlx/backend/metal/device.cpp",
+          "note": null
+        },
+        {
+          "text": "Command-buffer limits are 20/40, 40/40, 50/50 and 50/50 (operations/MB) for classes 'p', 'g', 's' and 'd', overridable by `MLX_MAX_OPS_PER_BUFFER` and `MLX_MAX_MB_PER_BUFFER`.",
+          "source": "https://raw.githubusercontent.com/ml-explore/mlx/main/mlx/backend/metal/device.cpp",
+          "note": null
+        },
+        {
+          "text": "`get_qmv_batch_limit` returns 33, 25 and 13 for generation 17 non-'d' small, mid and large matrices, and 13, 15 and 13 for generation 15 and 16 non-'d'.",
+          "source": "https://raw.githubusercontent.com/ml-explore/mlx/main/mlx/backend/metal/quantized.cpp",
+          "note": null
+        },
+        {
+          "text": "The NVFP4 narrow qmv route needs generation 17, class 's' and nvfp4.",
+          "source": "https://raw.githubusercontent.com/ml-explore/mlx/main/mlx/backend/metal/quantized.cpp",
+          "note": null
+        },
+        {
+          "text": "SDPA 2-pass routing and block counts read the class letter.",
+          "source": "https://raw.githubusercontent.com/ml-explore/mlx/main/mlx/backend/metal/scaled_dot_product_attention.cpp",
+          "note": null
+        },
+        {
+          "text": "An M5 Pro reports `applegpu_g17s`.",
+          "source": "https://github.com/ml-explore/mlx/pull/3295",
+          "note": null
+        },
+        {
+          "text": "PR 3295 emulated an `applegpu_g17g` device on an M5 Pro with the override and measured addmm 13.5% and matmul 8.2% faster with its tuned 'g' route; it was closed on 2026-03-31.",
+          "source": "https://github.com/ml-explore/mlx/pull/3295",
+          "note": null
+        },
+        {
+          "text": "PRs 3470 and 3474 added an `MLX_DISABLE_NAX` gate and found NAX at parity or worse on an M4 Pro (median 0.46x on split-K, 0.49x on SDPA prefill, 0.70x on fused GEMM), and were closed.",
+          "source": "https://github.com/ml-explore/mlx/pull/3470",
+          "note": null
+        },
+        {
+          "text": "A bf16 4096-cubed GEMM on an M5 Max takes 2.4 to 2.6 ms with NAX and about 9 ms without.",
+          "source": "https://github.com/ml-explore/mlx/pull/3838",
+          "note": null
+        },
+        {
+          "text": "Release 0.32.1 lists a configure-time warning for builds with NAX disabled (PR 3824).",
+          "source": "https://github.com/ml-explore/mlx/releases/tag/v0.32.1",
+          "note": null
+        },
+        {
+          "text": "`mx.device_info(mx.gpu)` returns the architecture and is used to label dispatch in PR 4596's benchmark script.",
+          "source": "https://github.com/ml-explore/mlx/pull/4596",
+          "note": null
+        },
+        {
+          "text": "A malformed override string (for example `applegpu_g16`) parses to generation 1 and a nonsense class instead of raising.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Forcing a generation-16 name on an M5 lowers the small and mid qmv limits from 33 and 25 to 13 and 15 in addition to removing NAX.",
+          "source": "asserted",
+          "note": null
+        }
+      ]
+    }
+  ],
+  "related": []
+}

@@ -1,0 +1,184 @@
+{
+  "slug": "prompt-token-counting-parity-across-runtimes",
+  "concept": "Prompt-token counting parity across runtimes",
+  "generated": "2026-10-05",
+  "summary": "llama-server OpenAI-style responses carry a `usage` object with `prompt_tokens` and `prompt_tokens_details.cached_tokens`, and a separate `timings` object with `cache_n` (prompt tokens reused from cache) and `prompt_n` (prompt tokens being processed).",
+  "facets": [
+    {
+      "title": "Facts",
+      "facts": [
+        {
+          "text": "llama-server OpenAI-style responses carry a `usage` object with `prompt_tokens` and `prompt_tokens_details.cached_tokens`, and a separate `timings` object with `cache_n` (prompt tokens reused from cache) and `prompt_n` (prompt tokens being processed).",
+          "source": "https://raw.githubusercontent.com/ggml-org/llama.cpp/master/tools/server/README.md",
+          "note": null
+        },
+        {
+          "text": "In llama-server, `prompt_n` is the processed count only: the README's example has cache_n 236 and prompt_n 1, with prompt_per_second 32.3 for one token in 30.958 ms. The README states total context equals prompt_n + cache_n + predicted_n.",
+          "source": "https://raw.githubusercontent.com/ggml-org/llama.cpp/master/tools/server/README.md",
+          "note": null
+        },
+        {
+          "text": "The llama-server native `/completion` response uses different names: `tokens_evaluated` is \"number of tokens evaluated in total from the prompt\" and `tokens_cached` is the reused part, so `tokens_evaluated` includes cached tokens while `timings.prompt_n` excludes them.",
+          "source": "https://raw.githubusercontent.com/ggml-org/llama.cpp/master/tools/server/README.md",
+          "note": null
+        },
+        {
+          "text": "mlx_lm.server sets `usage.prompt_tokens` to the full prompt length, `len(ctx.prompt)`, and `usage.prompt_tokens_details.cached_tokens` to the cache-hit count, so its prompt_tokens includes cached tokens.",
+          "source": "https://raw.githubusercontent.com/ml-explore/mlx-lm/main/mlx_lm/server.py",
+          "note": null
+        },
+        {
+          "text": "mlx_lm.server emits a streamed usage chunk only when the request sets `stream_options.include_usage`; without it a streaming client sees no token counts.",
+          "source": "https://raw.githubusercontent.com/ml-explore/mlx-lm/main/mlx_lm/server.py",
+          "note": null
+        },
+        {
+          "text": "Ollama's native API defines `prompt_eval_count` as the number of tokens in the prompt, `prompt_eval_cached_count` as prompt tokens read from the cache, and `prompt_eval_duration` as time evaluating uncached prompt tokens.",
+          "source": "https://raw.githubusercontent.com/ollama/ollama/main/docs/api.md",
+          "note": null
+        },
+        {
+          "text": "Rate formula that follows: the prefill rate is (total prompt tokens - cached tokens) divided by prefill time. For Ollama, `prompt_eval_count / prompt_eval_duration` overstates the rate whenever the cache hits, because the numerator includes cached tokens and the denominator does not. For mlx-lm, `prompt_tokens` has the same property. For llama-server, `timings.prompt_per_second` is already per processed token.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "The three servers therefore disagree on what a bare \"prompt tokens\" number means: processed-only (llama-server `timings.prompt_n`), total (llama-server `usage.prompt_tokens` and `tokens_evaluated`, mlx-lm `prompt_tokens`, Ollama `prompt_eval_count`). A parity check must read the cached count from each server too.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "llama-server `/tokenize` does not add BOS by default (`add_special` false) and parses special tokens by default (`parse_special` true). A cross-check that tokenizes the rendered prompt with defaults can differ by one from the server's own count when the model adds BOS.",
+          "source": "https://raw.githubusercontent.com/ggml-org/llama.cpp/master/tools/server/README.md",
+          "note": null
+        },
+        {
+          "text": "llama-server adds BOS to a `/completion` prompt only when the prompt is a string (or starts with a string) and the model metadata `tokenizer.ggml.add_bos_token` is true.",
+          "source": "https://raw.githubusercontent.com/ggml-org/llama.cpp/master/tools/server/README.md",
+          "note": null
+        },
+        {
+          "text": "Ollama's Anthropic-compatible endpoint reports token counts as approximations based on the model's tokenizer (existing dossier), so it is not a parity source.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Parity procedure: render the prompt once (llama-server `/apply-template`, or the HF template), tokenize it with one tokenizer under both BOS settings, then send the same request to every runtime and compare each runtime's total prompt count with that reference. A difference of exactly 1 points to BOS; a larger difference points to template or tool-schema rendering (for example Ollama's RENDERER versus a GGUF Jinja template).",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Run parity on a cold cache (`cache_prompt: false` on llama-server, a fresh process or unique prefix elsewhere) so cached counts are zero and the processed-only and total counts coincide.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Counts also differ by what is in the prompt, not only how it is counted: thinking defaults, tool-schema rendering and system-message placement change the rendered text (existing dossiers), so identical API requests can still produce different token totals.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "The sources do not date when each server added its cached-token field; the three field families (llama-server `tokens_cached`, `timings.cache_n`, `usage...cached_tokens`; Ollama `prompt_eval_cached_count`; mlx-lm `cached_tokens`) coexist in current documentation and source.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "A request that hits a full prefix cache can show prompt_n of 1 in llama-server (the last token is still processed), giving a \"prefill rate\" for one token; gate on processed tokens above a minimum, not just on parity.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Clients that read `usage.prompt_tokens` as processed tokens double-count cache reuse across a long session: summing prompt_tokens for an agent loop counts the reused prefix on every turn.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "A server that rejects `stream_options.include_usage` returns no counts for streamed runs (existing benchpacks dossier), which leaves parity unverifiable for that arm.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Hybrid-model checkpoint restores can re-process tokens beyond the prefix (existing dossiers), so `cached_tokens` can be lower than the visible common prefix.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Whether a cross-runtime report should use the server-reported count or a count recomputed with one tokenizer: server counts reflect what was actually processed (cache, truncation), recomputed counts expose template differences. Report both and flag any difference.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "No measured table of prompt-token totals for one conversation across llama-server, mlx_lm.server, LM Studio and Ollama on Qwen3.x or Gemma 4 was found.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Whether LM Studio's OpenAI-compatible server reports cached tokens in `usage`; a Reddit thread on LM Studio context caching could not be fetched.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Whether llama-server's `llamacpp:prompt_tokens_total` metric counts cached tokens; the README says \"number of prompt tokens processed\".",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "llama-server returns `usage.prompt_tokens` with `prompt_tokens_details.cached_tokens` and a `timings` object with `cache_n` and `prompt_n`.",
+          "source": "https://raw.githubusercontent.com/ggml-org/llama.cpp/master/tools/server/README.md",
+          "note": null
+        },
+        {
+          "text": "In the llama-server README example, cache_n is 236, prompt_n is 1 and prompt_per_second is 32.3, and the README states total context is prompt_n + cache_n + predicted_n.",
+          "source": "https://raw.githubusercontent.com/ggml-org/llama.cpp/master/tools/server/README.md",
+          "note": null
+        },
+        {
+          "text": "llama-server `/completion` documents `tokens_evaluated` as the total number of prompt tokens evaluated and `tokens_cached` as the number reused from a previous completion.",
+          "source": "https://raw.githubusercontent.com/ggml-org/llama.cpp/master/tools/server/README.md",
+          "note": null
+        },
+        {
+          "text": "llama-server's Prometheus metric `llamacpp:prompt_tokens_total` is described as the number of prompt tokens processed.",
+          "source": "https://raw.githubusercontent.com/ggml-org/llama.cpp/master/tools/server/README.md",
+          "note": null
+        },
+        {
+          "text": "mlx_lm.server reports `prompt_tokens` as the length of the full prompt and `cached_tokens` as `prompt_cache_count`, the part found in its prompt cache.",
+          "source": "https://raw.githubusercontent.com/ml-explore/mlx-lm/main/mlx_lm/server.py",
+          "note": null
+        },
+        {
+          "text": "mlx_lm.server sends a usage chunk in streaming mode only when `stream_options.include_usage` is set.",
+          "source": "https://raw.githubusercontent.com/ml-explore/mlx-lm/main/mlx_lm/server.py",
+          "note": null
+        },
+        {
+          "text": "Ollama documents `prompt_eval_count` as tokens in the prompt, `prompt_eval_cached_count` as prompt tokens read from the cache, and `prompt_eval_duration` as time spent evaluating uncached prompt tokens.",
+          "source": "https://raw.githubusercontent.com/ollama/ollama/main/docs/api.md",
+          "note": null
+        },
+        {
+          "text": "Dividing Ollama's `prompt_eval_count` by `prompt_eval_duration` overstates prefill speed on a cache hit; the correct numerator is `prompt_eval_count - prompt_eval_cached_count`.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "The same total-versus-processed distinction applies to mlx-lm's `prompt_tokens` and llama-server's `usage.prompt_tokens`, while llama-server's `timings.prompt_n` is already processed-only.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Tokenizing a rendered prompt with llama-server `/tokenize` defaults omits BOS, so the result can be one lower than the server's own count for BOS-adding models.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "A parity check needs three numbers per runtime and request: total prompt tokens, cached tokens, and prefill time; compare totals to a one-tokenizer reference and require cached counts to match before printing a prefill rate.",
+          "source": "asserted",
+          "note": null
+        }
+      ]
+    }
+  ],
+  "related": []
+}

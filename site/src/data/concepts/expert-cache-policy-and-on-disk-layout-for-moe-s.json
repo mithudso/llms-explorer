@@ -1,0 +1,239 @@
+{
+  "slug": "expert-cache-policy-and-on-disk-layout-for-moe-s",
+  "concept": "Expert-cache policy and on-disk layout for MoE streaming",
+  "generated": "2026-10-05",
+  "summary": "SpecMD (Apple, arXiv 2602.03921, ICML 2026) benchmarks routing, prefetch, miss-handling and eviction policies under emulated hardware and finds MoE expert access violates the temporal-locality assumption behind LRU and LFU: experts are accessed in a deterministic layer 0 to N sequence, so once a ...",
+  "facets": [
+    {
+      "title": "Facts",
+      "facts": [
+        {
+          "text": "SpecMD (Apple, arXiv 2602.03921, ICML 2026) benchmarks routing, prefetch, miss-handling and eviction policies under emulated hardware and finds MoE expert access violates the temporal-locality assumption behind LRU and LFU: experts are accessed in a deterministic layer 0 to N sequence, so once a layer is passed its experts are not needed until the next forward pass, and LRU treats the most recently used (earlier-layer) experts as the safest to keep while evicting the next layer's experts.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "SpecMD proposes Least-Stale: the cache is split into a stale queue (experts last touched in an earlier forward pass) and a current queue (touched, or prefetch-selected, in this pass). Stale experts are evicted first, current ones only to avoid out-of-memory, and each queue is FIFO by layer position. This minimizes \"collision misses\" (an expert evicted and needed again in the same pass).",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "On OLMoE-1B-7B with a 5% cache (0.6 GB) Least-Stale cut collision misses to 1.6-1.9% against 4.5-12.6% for LRU and 42.6-60.9% for a score-based (gate-score history) eviction, reached 88-92% hit rates, and cut time-to-first-token 10.7-34.7% as a drop-in eviction swap under other approaches' prefetch and routing. At 1% capacity it reduced collision misses up to 85x versus LRU.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "SpecMD's prefetch result: score-based prefetching (prefetch every expert above the 80th percentile of the next layer's softmax score) beats fixed top-k prefetch on hit rate and synchronous stall despite lower prediction accuracy, because it adapts the prefetch count per layer to the bandwidth available. Mixtral is the exception: with 336 MB experts bandwidth is the limit and simple top-k stays competitive.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "SpecMD's miss-handling result: dropping a missing expert is the fastest option but costs quality, -5% to -15% on the wide OLMoE (64 experts, top-8) and -25% to -30% on Qwen1.5-MoE at 4-bit (60 experts, top-4), so fewer active experts means each miss matters more.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "ds4 seeds its GPU expert cache from per-model compiled hotlists and a runtime profiler (see ds4-antirez-ssd-streaming-runtime.md); entries become priorities scaled 1..32 on Apple rather than pins, and a `reset_route_hotness` hook exists. The SSD_STREAMING doc says DeepSeek's latest numbers use \"updated eviction priorities\".",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "By default ds4 GLM allocates cache budget to selected experts across all layers; `--ssd-streaming-full-layers N` instead reserves complete routed prefix layers, which is a layer-granular placement choice rather than an LRU choice.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Anemll's `--cache-io-split N` fans each expert read into N page-aligned chunks (16 KiB boundaries, clamped 1 to 8) over a persistent pool of 8 I/O workers. On an M5 Max split 4 was best in every clean sweep and split 8 was worse: Q3 GGUF 11.71 to 12.52 tok/s (about +7%), expert I/O 32.9 to 27.5 ms per token, plain 4-bit 9.81 to 10.95 tok/s, full GGUF stack 8.79 to 9.41. Part of the early win was reduced scheduling overhead: the persistent pool raised split=1 too, and in a 3-run old-vs-new average split 4 on the new path gave 12.17 versus 11.61 tok/s.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Flash-MoE's packed layout stores one file per layer with all experts contiguous (for example `packed_experts_Q3/layer_00.bin`); at 4-bit an expert is about 6.75 MB, at 2-bit about 3.9 MB, and 2-bit repacking cut expert I/O from 2.6 to 1.5 ms per layer.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "JANG bundles pack routed experts as JANGTQ tiles aligned for direct mmap (no stacked materialization); a \"prestack\" overlay of about 150 GB per Kimi variant wires that layout to the shape Metal expects without making weights resident.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "ds4 requires Qwen n-gram tables to follow page-aligned weights (repack script `gguf-tools/qwen4_native_ngrams.py`), and reads Engram rows straight from the file on demand in every mode.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "2023-12: Apple's \"LLM in a Flash\" (windowing, row-column bundling) is the layout/policy ancestor already cited elsewhere.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "2026-02 (v1) and 2026-05 (ICML): SpecMD, Apple's policy benchmarking framework. 2025-12: MoE-PHDS (see expert-count-reduction dossier).",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "2026-03-20: Anemll adds `--cache-io-split` following \"rustane\" warm-cache fanout experiments.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "SpecMD ran on a single A100 with software-limited GPU caches of 1%, 5% and 25% of model size and a measured 5 GB/s host-to-device bandwidth, via PyTorch forward hooks; it did not run on Apple Silicon, NVMe streaming or a mmap page cache. Its headline speed metric is time-to-first-token, not sustained decode on a Mac.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Policy rankings shift with capacity (1% versus 5% versus 25%); bandwidth-limited and capacity-limited regimes favor different policies.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Cache-I/O split is machine-specific: Anemll says not to assume split 4 is best on M3 Max or M4 Max without rerunning the sweep.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Applying a global (cross-layer) LRU to an in-order layer walk causes collision misses; a per-layer LRU does not have that failure because each layer only competes with itself.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "LRU. SpecMD says LRU and LFU \"perform quite poorly\" on MoE and Least-Stale reduces collisions up to 85x; mlx-lm issue 1438 measured plain per-layer LRU at 0.80-0.87 decode hit rate against a 0.90-0.94 Belady ceiling. The two are compatible if SpecMD's LRU is global across layers and 1438's is per layer (an inference neither source states), and neither reports the other's metric.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Prefetch. SpecMD finds adaptive score-based prefetch useful; mlx-lm 1438 found adjacent-layer prefetch had no signal (Jaccard 0.017 versus 0.016 uniform) and Flash-MoE measured speculative routing at -38% and temporal prediction at -18%. SpecMD predicts the next layer from the current hidden state and gate; the others predict from previous-token or adjacent-layer routing.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Layout. mbolt reports a 2.23x I/O gain from co-activation reorder and up/gate/down interleave; Flash-MoE measured 0% from expert clustering at 7 MB expert granularity; Anemll measures gains from splitting reads, not from reordering.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "No source runs Least-Stale or score-based prefetch against a real SSD on Apple Silicon.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "No source gives the profiling workload behind ds4's hotlists or tests them across prompt domains.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "No source compares ds4's priority-seeded cache to a per-layer LRU on the same model.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "SpecMD finds MoE expert access is deterministic and layer-sequential, not recency-based, so LRU and LFU perform poorly.",
+          "source": "https://arxiv.org/html/2602.03921",
+          "note": null
+        },
+        {
+          "text": "Least-Stale eviction splits the cache into stale and current queues, evicts stale experts first, orders each queue FIFO by layer position, and evicts current experts only to prevent out-of-memory.",
+          "source": "https://arxiv.org/html/2602.03921",
+          "note": null
+        },
+        {
+          "text": "At 5% cache capacity Least-Stale has 1.6-1.9% collision misses versus 4.5-12.6% for LRU and 42.6-60.9% for score-based eviction, and reduces collision misses up to 85x versus LRU at 1% capacity.",
+          "source": "https://arxiv.org/html/2602.03921",
+          "note": null
+        },
+        {
+          "text": "Least-Stale reaches 88-92% hit rates and 10.7-34.7% TTFT reduction on OLMoE-1B-7B at 5% cache capacity (0.6 GB) when swapped into other approaches.",
+          "source": "https://machinelearning.apple.com/research/specmd-expert-prefetching",
+          "note": null
+        },
+        {
+          "text": "SpecMD's default score-based prefetch takes every expert above the 80th percentile of the next layer's softmax scores and outperforms fixed top-k prefetch on hit rate despite lower prediction accuracy, except on Mixtral where 336 MB experts make bandwidth the limit.",
+          "source": "https://arxiv.org/html/2602.03921",
+          "note": null
+        },
+        {
+          "text": "SpecMD's top-k prefetch with an overfetch factor of 1.5 prefetches 12 experts instead of 8 for OLMoE.",
+          "source": "https://arxiv.org/html/2602.03921",
+          "note": null
+        },
+        {
+          "text": "In SpecMD dropping a missing expert costs -5% to -15% on OLMoE and -25% to -30% on 4-bit Qwen1.5-MoE.",
+          "source": "https://arxiv.org/html/2602.03921",
+          "note": null
+        },
+        {
+          "text": "SpecMD was evaluated on one A100 80 GB with caches software-limited to 1%, 5% and 25% of model size and 5 GB/s host-to-device bandwidth, using PyTorch forward hooks on OLMoE-1B-7B, Mixtral-8x7B, Qwen1.5-MoE-A2.7B and Phi-3.5-MoE.",
+          "source": "https://arxiv.org/html/2602.03921",
+          "note": null
+        },
+        {
+          "text": "SpecMD's model table lists OLMoE-1B-7B at 16 layers, 64 experts, top-8, 12 MB per expert; Mixtral-8x7B at 32 layers, 8 experts, top-2, 336 MB per expert; Qwen1.5-MoE-A2.7B at 24 layers, 60 experts, top-4, 16.5 MB per expert.",
+          "source": "https://arxiv.org/html/2602.03921",
+          "note": null
+        },
+        {
+          "text": "Anemll `--cache-io-split N` splits each routed expert read into N page-aligned chunks at 16 KiB boundaries, clamps N to 1-8, runs on a persistent pool of 8 I/O workers, and defaults to 1.",
+          "source": "https://raw.githubusercontent.com/Anemll/flash-moe/m5-nax/docs/cache-io-split-experiment.md",
+          "note": null
+        },
+        {
+          "text": "On an M5 Max, split 4 beat split 1 and split 8 in warm-cache sweeps: Q3 GGUF experts 12.52 versus 11.71 tok/s with split 8 at 12.02, and expert I/O 27.5 versus 32.9 ms per token.",
+          "source": "https://raw.githubusercontent.com/Anemll/flash-moe/m5-nax/docs/cache-io-split-experiment.md",
+          "note": null
+        },
+        {
+          "text": "Anemll's repeated A/B (3 runs each, alternating order) gave old-implementation split 4 11.61 tok/s and new persistent-pool split 4 12.17 tok/s, and the pool also lifted split 1 from 11.33 to 11.80.",
+          "source": "https://raw.githubusercontent.com/Anemll/flash-moe/m5-nax/docs/cache-io-split-results.md",
+          "note": null
+        },
+        {
+          "text": "Anemll says the best split value should not be assumed on M3 Max or M4 Max without rerunning the sweep.",
+          "source": "https://raw.githubusercontent.com/Anemll/flash-moe/m5-nax/docs/cache-io-split-experiment.md",
+          "note": null
+        },
+        {
+          "text": "Flash-MoE-style packed experts live in one file per layer such as `packed_experts_Q3/layer_00.bin`.",
+          "source": "https://raw.githubusercontent.com/Anemll/flash-moe/m5-nax/docs/cache-pread-microbench.md",
+          "note": null
+        },
+        {
+          "text": "At 2-bit a Flash-MoE expert is about 3.9 MB and 2-bit repacking cut expert I/O from 2.6 to 1.5 ms per layer.",
+          "source": "https://raw.githubusercontent.com/Anemll/flash-moe/m5-nax/docs/io-and-gpu-exploration.md",
+          "note": null
+        },
+        {
+          "text": "JANG bundles pack routed experts as JANGTQ tiles aligned for direct mmap and use a prestack overlay (about 150 GB per Kimi variant) to match the tile layout to the shape Metal expects.",
+          "source": "https://raw.githubusercontent.com/jjang-ai/jangq/main/docs/JANGPRESS.md",
+          "note": null
+        },
+        {
+          "text": "ds4 hotlist rank maps to cache priority 1 + 31*remaining/total on Apple, and the hotlist is skipped in cold mode.",
+          "source": "https://raw.githubusercontent.com/antirez/ds4/main/ds4.c",
+          "note": null
+        },
+        {
+          "text": "ds4 states DeepSeek's latest streaming measurement uses an 86.2 GiB expert cache and updated eviction priorities and is not directly comparable to the earlier 64-token measurement.",
+          "source": "https://raw.githubusercontent.com/antirez/ds4/main/docs/SSD_STREAMING.md",
+          "note": null
+        },
+        {
+          "text": "Apple's research index lists MoE-PHDS (December 2025) and SpecMD (May 2026) as adjacent MoE efficiency papers alongside RoE (January 2026).",
+          "source": "https://machinelearning.apple.com/research/roe",
+          "note": null
+        },
+        {
+          "text": "A global LRU across layers evicts next-layer experts first in an in-order layer walk, while a per-layer LRU does not.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Policy results from GPU-VRAM studies like SpecMD transfer to Mac mmap streaming only if the access stream and miss cost are similar, which no source has tested.",
+          "source": "asserted",
+          "note": null
+        }
+      ]
+    }
+  ],
+  "related": []
+}

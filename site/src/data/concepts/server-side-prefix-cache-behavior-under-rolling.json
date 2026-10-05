@@ -1,0 +1,164 @@
+{
+  "slug": "server-side-prefix-cache-behavior-under-rolling",
+  "concept": "Server-side prefix cache behavior under rolling-window transcripts",
+  "generated": "2026-10-05",
+  "summary": "llama-server, base reuse: `n_past` is the token-level common prefix of the slot's stored tokens and the new prompt. Everything after the first differing token is recomputed unless chunk reuse applies.",
+  "facets": [
+    {
+      "title": "Facts",
+      "facts": [
+        {
+          "text": "llama-server, base reuse: `n_past` is the token-level common prefix of the slot's stored tokens and the new prompt. Everything after the first differing token is recomputed unless chunk reuse applies.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "llama-server, chunk reuse (`n_cache_reuse` > 0): after the common prefix, two cursors scan the stored tokens (`head_c`) and the new prompt (`head_p`). When the next run of equal tokens is at least `n_cache_reuse` long, the server removes the KV cells between the cursors, shifts that run's positions by `head_p - head_c`, copies the token ids across and counts the run into `n_past`. Shorter matches advance `head_c` by one. This recovers the tail after a dropped middle block on pure-attention models only.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Chunk reuse is gated: it needs `llama_memory_can_shift` and a prompt without multimodal tokens. Otherwise the server logs \"cache reuse is not supported - ignoring n_cache_reuse = N\".",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Slot choice: with `slot_prompt_similarity` non-zero, the idle slot with the highest ratio (common prefix length divided by the new prompt length) above the threshold wins; otherwise the least recently used idle slot is taken. `f_keep` is the share of the chosen slot's stored tokens that survive. If `f_keep` is below 0.5, or the slot came from LRU, the server saves the slot's old state to the host-memory prompt cache first and then tries to load the best stored match for the new prompt.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Head-drop effect: when the window drops the oldest messages, the common prefix with the stored slot is only the system prompt; the similarity ratio collapses, an LRU or low-similarity pick follows, and the old long state is parked in the prompt cache where a later request that restores the longer history can still use it.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "oMLX: block hashes chain from the first block (each hash covers the parent hash and one block of tokens), so a head change makes every later block miss. The scheduler reports the \"closest stored sequence\" and how many leading tokens agree. There is no source showing an oMLX equivalent of llama.cpp's chunk shifting.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Middle deletion by Claude Code (oMLX issue 2333, owner comment 2026-07-22): recent Claude Code versions silently delete old tool results when context use is high, without a full compact. The owner's log read showed the conversation shrink from about 110.8k to 106.9k tokens between two consecutive requests, followed by a re-prefill from the edit point. oMLX's SSD prefix cache survived every memory-pressure event in that log.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Compaction setting interaction (same issue): the owner says `CLAUDE_AUTOCOMPACT_PCT_OVERRIDE=95` makes it worse on a local server because it keeps the session at the ceiling where the deletion fires repeatedly, and said he would add a README note. Whether the README was changed was not checked.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Hybrid and sliding-window models cannot use chunk shifting (held); a mid-history edit costs a checkpoint restore at or before the edit, or a full reprocess.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "2026-07-22: oMLX issue 2333 diagnosed as client-side tool-result deletion. [src: issue 2333]",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "2026-09-12 to 09-28: oMLX issue 3608 first read as a 25k-token cap, then as block flooring plus a system-message hoist (see prefix-cache-safe-handling-of-non-leading-system.md).",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "A window that drops whole turns from the head and a client that deletes tool results in the middle look the same in server logs (a large re-prefill with no memory event) but have different cures: head drop can be softened with chunk reuse on attention-only models; middle deletion cannot be cached around on any server.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "A prompt cache at host RAM (`--cache-ram`) keeps the pre-edit state, so alternating between a trimmed and an untrimmed transcript (for example an agent that retries with and without a tool result) can hit the saved copy.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Moving the compaction trigger lower keeps the session away from the ceiling where silent deletion fires; the trade is earlier summarisation.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "oMLX owner: nothing a server cache can do survives a client mid-conversation edit. llama.cpp's chunk reuse is a counter-example for pure-attention models, at the cost of byte-exact matching of the surviving chunks of at least `n_cache_reuse` tokens. The two statements concern different model classes.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Whether oMLX or LM Studio's MLX engine have any positional-shift reuse path for dense models.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Whether Claude Code exposes a setting that disables silent tool-result deletion (the oMLX owner found none in current builds).",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Measured savings of `--cache-reuse` on a head-dropped agent transcript on Apple Silicon.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "llama-server sets n_past to the token-level common prefix of the slot's stored tokens and the new prompt when cache_prompt is on",
+          "source": "https://raw.githubusercontent.com/ggml-org/llama.cpp/master/tools/server/server-context.cpp",
+          "note": null
+        },
+        {
+          "text": "With n_cache_reuse set, llama-server scans for later equal runs of at least that length, removes the gap in KV, shifts the run's positions by head_p minus head_c, and counts the run into n_past",
+          "source": "https://raw.githubusercontent.com/ggml-org/llama.cpp/master/tools/server/server-context.cpp",
+          "note": null
+        },
+        {
+          "text": "llama-server ignores n_cache_reuse and logs \"cache reuse is not supported\" when the memory cannot shift or the prompt has multimodal tokens",
+          "source": "https://raw.githubusercontent.com/ggml-org/llama.cpp/master/tools/server/server-context.cpp",
+          "note": null
+        },
+        {
+          "text": "Slot similarity is the common prefix length divided by the new prompt length, and a chosen slot with f_keep below 0.5 has its state saved to the prompt cache before the best stored match is loaded",
+          "source": "https://raw.githubusercontent.com/ggml-org/llama.cpp/master/tools/server/server-context.cpp",
+          "note": null
+        },
+        {
+          "text": "When no slot passes the similarity threshold llama-server takes the least recently used idle slot and updates the prompt cache for completion tasks",
+          "source": "https://raw.githubusercontent.com/ggml-org/llama.cpp/master/tools/server/server-context.cpp",
+          "note": null
+        },
+        {
+          "text": "The oMLX owner attributes periodic full re-prefills to Claude Code deleting old tool results when context usage is high, shown by the conversation shrinking from about 110.8k to 106.9k tokens between requests",
+          "source": "https://github.com/jundot/omlx/issues/2333",
+          "note": null
+        },
+        {
+          "text": "The oMLX owner says its SSD prefix cache survived every memory-pressure event in the reporter's log",
+          "source": "https://github.com/jundot/omlx/issues/2333",
+          "note": null
+        },
+        {
+          "text": "The oMLX owner says CLAUDE_AUTOCOMPACT_PCT_OVERRIDE=95 worsens the effect on a local server by keeping the session near the context ceiling",
+          "source": "https://github.com/jundot/omlx/issues/2333",
+          "note": null
+        },
+        {
+          "text": "The oMLX owner says no Claude Code setting disables the deletion in current builds as far as he can tell",
+          "source": "https://github.com/jundot/omlx/issues/2333",
+          "note": null
+        },
+        {
+          "text": "oMLX block hashes chain through the parent hash, so a changed head invalidates all later blocks",
+          "source": "https://raw.githubusercontent.com/jundot/omlx/main/omlx/cache/paged_cache.py",
+          "note": null
+        },
+        {
+          "text": "A head-dropped transcript leaves only the system prompt as shared prefix, so slot similarity falls and an LRU slot is chosen",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "No server cache can recover a mid-conversation edit on a hybrid model without a checkpoint at or before the edit",
+          "source": "asserted",
+          "note": null
+        }
+      ]
+    }
+  ],
+  "related": []
+}

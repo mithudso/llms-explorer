@@ -1,0 +1,119 @@
+{
+  "slug": "llama-cpp-ngram-mod-and-ngram-map-k4v-drafter-in",
+  "concept": "llama.cpp ngram-mod and ngram-map-k4v drafter internals",
+  "generated": "2026-10-05",
+  "summary": "ngram-mod stores one `int32` per slot and has no key check. A slot is chosen by `res = res*6364136223846793005 + token` over the n tokens, then `% size`. A lookup returns whatever token was last written to that slot, so two different n-grams that hash to one slot overwrite each other and can retu...",
+  "facets": [
+    {
+      "title": "Facts",
+      "facts": [
+        {
+          "text": "ngram-mod stores one `int32` per slot and has no key check. A slot is chosen by `res = res*6364136223846793005 + token` over the n tokens, then `% size`. A lookup returns whatever token was last written to that slot, so two different n-grams that hash to one slot overwrite each other and can return a wrong token. The draft is then only a guess that the target verifies.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "In the source, the draft tokens are copied from `inp[match_pos + n + i]` (the most recent matching position), not from the winning slot's stored `value_idx`. When the latest occurrence differs from the dominant value, the draft is the latest continuation, not the dominant one.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "ngram-map structures come from PR 18471 and `ngram-mod` from PR 19164 (header comments).",
+          "source": "https://raw.githubusercontent.com/ggml-org/llama.cpp/master/common/ngram-map.h",
+          "note": null
+        },
+        {
+          "text": "`common_ngram_mod` hashes n tokens with the multiplier 6364136223846793005, takes the value modulo the table size, and stores a single `int32` next token per slot with EMPTY = -1.",
+          "source": "https://raw.githubusercontent.com/ggml-org/llama.cpp/master/common/ngram-mod.cpp",
+          "note": null
+        },
+        {
+          "text": "`common_ngram_mod::add` increments `used` only when the slot was EMPTY and overwrites the slot unconditionally, and `get` returns the slot content without checking the key.",
+          "source": "https://raw.githubusercontent.com/ggml-org/llama.cpp/master/common/ngram-mod.cpp",
+          "note": null
+        },
+        {
+          "text": "The ngram-mod drafter allocates `4*1024*1024` entries and asserts `sizeof(llama_token) == sizeof(entry_t)`.",
+          "source": "https://raw.githubusercontent.com/ggml-org/llama.cpp/master/common/speculative.cpp",
+          "note": null
+        },
+        {
+          "text": "ngram-mod indexes new prompt tokens only when `i_last + 32 < cur_len`.",
+          "source": "https://raw.githubusercontent.com/ggml-org/llama.cpp/master/common/speculative.cpp",
+          "note": null
+        },
+        {
+          "text": "ngram-mod returns no draft when the first EMPTY slot appears before `n_min` tokens were found, and otherwise returns the tokens found so far.",
+          "source": "https://raw.githubusercontent.com/ggml-org/llama.cpp/master/common/speculative.cpp",
+          "note": null
+        },
+        {
+          "text": "`begin()` for ngram-mod resets the shared table when occupancy exceeds 0.25 after re-indexing the new prompt.",
+          "source": "https://raw.githubusercontent.com/ggml-org/llama.cpp/master/common/speculative.cpp",
+          "note": null
+        },
+        {
+          "text": "A code comment in `seq_info` says \"< 0.5\" for the low-acceptance fraction while the code compares against 0.25.",
+          "source": "https://raw.githubusercontent.com/ggml-org/llama.cpp/master/common/speculative.cpp",
+          "note": null
+        },
+        {
+          "text": "The ngram-mod `accept()` returns early when `is_other` is true.",
+          "source": "https://raw.githubusercontent.com/ggml-org/llama.cpp/master/common/speculative.cpp",
+          "note": null
+        },
+        {
+          "text": "`COMMON_NGRAM_MAX_VALUES` is 4 and `COMMON_NGRAM_HASH_MAP_SIZE` is 262144, and `key_map` holds `uint32` history indices.",
+          "source": "https://raw.githubusercontent.com/ggml-org/llama.cpp/master/common/ngram-map.h",
+          "note": null
+        },
+        {
+          "text": "Each ngram-map value slot stores `value_idx`, `value_num` and `n_accepted` (initial -1, set to m when a slot is created).",
+          "source": "https://raw.githubusercontent.com/ggml-org/llama.cpp/master/common/ngram-map.h",
+          "note": null
+        },
+        {
+          "text": "The ngram-map key hash is a 32-bit LCG with factor 2654435761, and a `key_map` hit is verified token by token before use.",
+          "source": "https://raw.githubusercontent.com/ggml-org/llama.cpp/master/common/ngram-map.cpp",
+          "note": null
+        },
+        {
+          "text": "A k4v draft is made only when `key_num >= min_hits` and either no other value was seen or the top count is at least twice the sum of the others.",
+          "source": "https://raw.githubusercontent.com/ggml-org/llama.cpp/master/common/ngram-map.cpp",
+          "note": null
+        },
+        {
+          "text": "The k4v draft length is `min(m, n_accepted)` of the chosen value slot, and `common_ngram_map_accept` stores the new accepted count.",
+          "source": "https://raw.githubusercontent.com/ggml-org/llama.cpp/master/common/ngram-map.cpp",
+          "note": null
+        },
+        {
+          "text": "The k4v draft tokens are copied from `inp[match_pos + n + i]`, not from the dominant slot's `value_idx`.",
+          "source": "https://raw.githubusercontent.com/ggml-org/llama.cpp/master/common/ngram-map.cpp",
+          "note": null
+        },
+        {
+          "text": "Value counts and key counts saturate at 16380 (`COMMON_NGRAM_MAX_VALUE_COUNT`).",
+          "source": "https://raw.githubusercontent.com/ggml-org/llama.cpp/master/common/ngram-map.cpp",
+          "note": null
+        },
+        {
+          "text": "`common_ngram_map_begin` deletes stale keys, values and hash entries when the new prompt is shorter than the previous one, for reasoning chats whose earlier thinking is dropped.",
+          "source": "https://raw.githubusercontent.com/ggml-org/llama.cpp/master/common/ngram-map.cpp",
+          "note": null
+        },
+        {
+          "text": "The docs state `--spec-ngram-map-k-min-hits` defaults to 1, and the k4v example uses size-n 8, size-m 8, min-hits 2, draft-n-max 64.",
+          "source": "https://raw.githubusercontent.com/ggml-org/llama.cpp/master/docs/speculative.md",
+          "note": null
+        },
+        {
+          "text": "When a draft model is combined with a draftless type, the draftless type has higher precedence.",
+          "source": "https://raw.githubusercontent.com/ggml-org/llama.cpp/master/docs/speculative.md",
+          "note": null
+        }
+      ]
+    }
+  ],
+  "related": []
+}

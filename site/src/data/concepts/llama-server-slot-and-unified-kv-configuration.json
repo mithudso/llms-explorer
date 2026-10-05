@@ -1,0 +1,144 @@
+{
+  "slug": "llama-server-slot-and-unified-kv-configuration",
+  "concept": "llama-server slot and unified-KV configuration",
+  "generated": "2026-10-05",
+  "summary": "`-np` defaults to -1 (auto). With auto slots the server picked 4 slots and `kv_unified = true` in a b9354 log.",
+  "facets": [
+    {
+      "title": "Facts",
+      "facts": [
+        {
+          "text": "`-np` defaults to -1 (auto). With auto slots the server picked 4 slots and `kv_unified = true` in a b9354 log.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Under unified KV every slot reports the full pool size (`n_ctx = 32768` for four slots on `--ctx-size 32768`), because any one request can use the whole pool.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "`--kv-unified-per-slot N` is a newer flag: it sets a per-slot context limit; with no `-c` it sizes the shared pool as `n_parallel * N`.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Slot choice for a new task: LRU when nothing matches, otherwise the slot with the best longest-common-prefix similarity above `--slot-prompt-similarity` (0.10).",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Context checkpoints (`-ctxcp`) are per slot, so checkpoint memory scales with the slot count.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "2026-02 (issue 19523): unified KV with several slots found to slow decode on CUDA; Vulkan had a regression fixed within two days.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "2026-08 (PR 27496): `--fit` made aware of `n_streams` so non-unified KV with several slots gets full per-slot context; draft/MTP context now follows the target context.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "With `-kvu --parallel 4`, inactive slots that still hold a populated prompt slowed token generation of the active slot on CUDA; prompt processing was unaffected; slowdown persisted until restart.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Under `--fit -no-kvu -np 4` before PR 27496, each slot got `n_ctx_train / 4`; a draft context sized from `n_ctx_train / n_streams` could overflow when a slot filled, returning HTTP 500.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Maintainer position (19523): unified KV is poorly supported on CUDA, so either disable it and pay the memory, or run `-np 1`. Router-mode users still run `--parallel 4 --kv-unified` with a per-slot limit (29322). Neither side has Metal measurements.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Whether Metal flash attention skips masked blocks under unified KV, i.e. whether the 19523 slowdown exists on Apple GPUs.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Whether `--kv-unified-per-slot` changes fit or checkpoint accounting on a Mac.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "The server README lists `-np, --parallel N` as number of server slots with default -1 meaning auto.",
+          "source": "https://github.com/ggml-org/llama.cpp/blob/master/tools/server/README.md",
+          "note": null
+        },
+        {
+          "text": "The server README documents `--kv-unified-per-slot N` (env `LLAMA_ARG_KV_UNIFIED_PER_SLOT`): context limit per parallel slot, default unset, and when set without `-c` the shared KV pool is sized `n_parallel*N`.",
+          "source": "https://github.com/ggml-org/llama.cpp/blob/master/tools/server/README.md",
+          "note": null
+        },
+        {
+          "text": "The README states `-ctxcp` is the maximum number of context checkpoints created per slot and also answers to the alias `--swa-checkpoints`.",
+          "source": "https://github.com/ggml-org/llama.cpp/blob/master/tools/server/README.md",
+          "note": null
+        },
+        {
+          "text": "A b9354 server log reads `n_parallel is set to auto, using n_parallel = 4 and kv_unified = true`.",
+          "source": "https://github.com/ggml-org/llama.cpp/issues/24055",
+          "note": null
+        },
+        {
+          "text": "In that log, all four slots print `new slot, n_ctx = 32768` while `--ctx-size 32768` was the whole pool, so under unified KV each slot reports the pool size.",
+          "source": "https://github.com/ggml-org/llama.cpp/issues/24055",
+          "note": null
+        },
+        {
+          "text": "The same log shows slot choice `selected slot by LRU, t_last = -1` for the first request and `selected slot by LCP similarity, sim_best = 0.928 (> 0.100 thold), f_keep = 0.911` for the follow-up.",
+          "source": "https://github.com/ggml-org/llama.cpp/issues/24055",
+          "note": null
+        },
+        {
+          "text": "Issue 19523 (b7974, Windows, `-kvu --parallel 4 --ctx-size 196608`, Qwen3-VL-30B-A3B) reports that populated inactive slots (`is_processing: false`) lower token-generation speed of the active slot, that prompt processing is unaffected, and that the slowdown grows over the first four requests as blank slots fill and stays until restart.",
+          "source": "https://github.com/ggml-org/llama.cpp/issues/19523",
+          "note": null
+        },
+        {
+          "text": "In 19523 ggerganov answers that the unified KV cache is not well supported by the CUDA backend and offers two options: disable unified KV and accept the memory cost, or use one slot (`-np 1`).",
+          "source": "https://github.com/ggml-org/llama.cpp/issues/19523",
+          "note": null
+        },
+        {
+          "text": "In 19523 the Vulkan case (AMD Strix Halo, Windows) was a regression from mask-loading changes (PR 19281) that stopped skipping masked -INF blocks in `-kvu` mode; PR 19582 restored it and the reporter confirmed the fix on 2026-02-14.",
+          "source": "https://github.com/ggml-org/llama.cpp/issues/19523",
+          "note": null
+        },
+        {
+          "text": "A 2026-07-23 comment on 19523 says a four-A100 host serving a Qwen3.6-27B GGUF with llama-server hangs and performs poorly under multiple connections.",
+          "source": "https://github.com/ggml-org/llama.cpp/issues/19523",
+          "note": null
+        },
+        {
+          "text": "PR 27496 (merged 2026-08-22 as commit 2fb989b) changes `--fit -no-kvu -np 4` so `n_ctx` becomes `n_ctx_train * 4` (524288 in the tinygemma3 test) and each slot gets 131072 instead of 32768.",
+          "source": "https://github.com/ggml-org/llama.cpp/pull/27496",
+          "note": null
+        },
+        {
+          "text": "The same commit makes the server's draft context follow the target context: with non-unified KV the target held `n_ctx_train` per sequence while the draft context fell back to `n_ctx_train / n_streams`, and a slot filled past that made the draft batch fail to decode and the server answer 500.",
+          "source": "https://github.com/ggml-org/llama.cpp/tree/master/tools/fit-params",
+          "note": null
+        },
+        {
+          "text": "The same commit makes fit measure a draft or MTP model's memory at the largest context the target can take, because that memory grows with context and a fixed byte margin cannot express it.",
+          "source": "https://github.com/ggml-org/llama.cpp/tree/master/tools/fit-params",
+          "note": null
+        },
+        {
+          "text": "Inferred: for a single-user agent on a Mac, `--parallel 1` removes slot-selection, per-slot checkpoint multiplication and unified-KV tradeoffs at once; two of the working 24055 configurations use `--parallel 1`.",
+          "source": "asserted",
+          "note": null
+        }
+      ]
+    }
+  ],
+  "related": []
+}

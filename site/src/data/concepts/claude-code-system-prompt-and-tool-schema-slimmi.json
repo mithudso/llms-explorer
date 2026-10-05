@@ -1,0 +1,349 @@
+{
+  "slug": "claude-code-system-prompt-and-tool-schema-slimmi",
+  "concept": "Claude Code system-prompt and tool-schema slimming for local models",
+  "generated": "2026-10-05",
+  "summary": "Default: 14.0k tokens (system 1.26k, 20 tool definitions 10.7k, env/agent-list/reminder message 2.1k). With telemetry/network left on, 23 tools and 18.2k tokens.",
+  "facets": [
+    {
+      "title": "Facts",
+      "facts": [
+        {
+          "text": "Default: 14.0k tokens (system 1.26k, 20 tool definitions 10.7k, env/agent-list/reminder message 2.1k). With telemetry/network left on, 23 tools and 18.2k tokens.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "`CLAUDE_CODE_SIMPLE_SYSTEM_PROMPT=1`: no change at all (14.0k vs 14.0k; system 1,267 vs 1,264 tokens, tools byte-identical) with the custom base URL and API-key auth, with and without `CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC`. The docs say it shortens the system prompt and abbreviates tool descriptions \"on any model\"; in this build that did not happen.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "`--tools \"Bash,Read,Edit,Write,Grep,Glob\"`: 3.9k tokens (tools 2.4k, system 1.23k). Removing 14 tools removes about 8.3k tokens; the system prompt text does not shrink.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Same plus `CLAUDE_CODE_DISABLE_GIT_INSTRUCTIONS=1`, `DISABLE_BUNDLED_SKILLS=1`, `DISABLE_EXPLORE_PLAN_AGENTS=1`, `DISABLE_CRON=1`: 3.7k (messages 304 to 149 tokens, Bash definition smaller).",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "`--tools` (same six) plus `--system-prompt \"<one sentence>\"`: 2.7k (system 33 tokens). The custom prompt is the only way found to remove the 1.2k default system prompt short of `--bare`.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "`--bare` (or `CLAUDE_CODE_SIMPLE=1`): 0.75k total. System is two blocks totalling 34 tokens (\"You are a Claude agent, built on Anthropic's Claude Agent SDK.\" plus `CWD: <dir>` and `Date: <today>`), tools are Bash, Edit, Read at 685 tokens (the same three tools cost 1,275 in non-bare mode, so bare also abbreviates tool descriptions), no env message, no skills, no CLAUDE.md. `--bare --tools \"Bash,Edit,Read\"` is identical.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "`--exclude-dynamic-system-prompt-sections` with six tools: system 737 tokens versus 1,230 (saves about 490) but the moved text reappears in the first message (messages 820 vs 304), so total 4.0k vs 3.9k. It is a cache-layout change, not a size reduction.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "`--strict-mcp-config`: removes the user's MCP tools but not the 23 built-ins.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Claude Code's system prompt has moved toward small, server-delivered fragments; Piebald-AI's extraction (v2.1.289) lists per-fragment token counts and \"compact\" tool descriptions \"served to newer models\" (Grep compact, Glob compact, ReadFile compact 285 vs 578). Which variant a local-model session receives is not stated anywhere found.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "In 2.1.289 the system prompt itself is date- and cwd-free (static ~1.26k tokens); environment data (cwd, platform, date, git status, agent types) sits in a `role: \"system\"` entry inside `messages`. In `--bare` mode the opposite holds: cwd and today's date are in the second system block, so a bare prefix changes at midnight and per directory.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Earlier-era numbers (Spicyneuron, \"over 20,000\" with skills and commands; Wolfinger \"roughly 20K\") describe heavier profiles than the clean 2.1.289 default measured here (14-18k); they agree once skills, commands and MCP are counted.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "`--bare` and auth: documented as ignoring OAuth/keychain, requiring `ANTHROPIC_API_KEY` or `apiKeyHelper`. Measured: `--bare` with only `ANTHROPIC_AUTH_TOKEN=lmstudio` (the Unsloth and LM Studio pattern) and no API key still sent its request.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Unknown model names: with `ANTHROPIC_MODEL=qwen-local` Claude Code prints that the name \"isn't described by this version's model catalog\", assumes a 200k window for auto-compact, and names `CLAUDE_CODE_MAX_CONTEXT_TOKENS` (set the real window), `[1m]` suffix, and `CLAUDE_CODE_DISABLE_UNKNOWN_MODEL_WINDOW_ENFORCEMENT=1`. This replaces the \"effectiveWindow=180000 hardcoded\" picture in the existing dossier for 2.1.289.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Aider's repo map needs scipy/networkx: on this machine the default path crashed with an `ImportError: dlopen(... scipy/sparse/linalg/_propack/_spropack...)`; the `--map-tokens 0` path worked. A broken optional import turns the default Aider path off without a clear message.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "OpenCode injects every skill from `~/.claude/skills` and `~/.claude/CLAUDE.md` (Claude-compat loading): this user's default first request was 97.9k system tokens, of which about 90k was the `<available_skills>` list. `OPENCODE_DISABLE_CLAUDE_CODE=1` alone did not remove it (92.9k); disabling the `skill` tool did (system 1.87k). A clean HOME gave 6.7k total.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "OpenCode tool-disable aliasing: `\"patch\": false` removed `edit` and `write` too (remaining tools bash, glob, grep, read); disable `webfetch`, `task`, `todowrite`, `skill` instead to keep edit and write.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "OpenCode sends a second request per session for the title agent (small model; 515 tokens, no tools) with an unrelated prefix; with one local server slot it competes with the main prefix. `small_model` in config picks the model for it.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Two OpenCode processes sharing the default data dir hung at init (second one never sent a request); measure or run them serially.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Capability loss is the cost: `--bare` leaves only Bash, Read, Edit (no Write, Grep, Glob, no subagents, no MCP, no skills, no hooks, no memory, no CLAUDE.md); Cline's compact prompt loses MCP, Focus Chain and MTP per Cline's blog; Aider's default has no tool-calling at all (edit-format text blocks).",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Does `CLAUDE_CODE_SIMPLE_SYSTEM_PROMPT=1` slim the prompt? Docs (env-vars page): shorter system prompt and abbreviated tool descriptions on any model. Measured 2.1.289 with custom base URL: byte-identical tools, system +2 tokens. Possible reasons (unverified): the switch is gated by a server-side experiment, or it only affects Anthropic-resolved model IDs; the docs sentence \"on models where the experiment or server configuration would otherwise enable it\" hints at gating.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Is \"20k to 8k\" right? Spicyneuron's own endpoint (custom prompt plus six tools plus env/tree) is under 8k; measured here, the same recipe with a one-sentence prompt is 2.7k and with Claude Code's own system prompt 3.9k. 8k is an upper bound of what is achievable, not a floor, and the 20k side depends on skills/commands.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Source claim that `CLAUDE_CODE_EFFORT_LEVEL=low` slims the prompt is not tested here; capture showed `output_config.effort` as a separate request field, not prompt text.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Whether `CLAUDE_CODE_SIMPLE_SYSTEM_PROMPT` takes effect under any combination of model ID, auth and fetched flags.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Real Qwen3.5/3.6, Gemma 4 and GLM token counts of the same payloads (cl100k is a proxy).",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Task-success impact of 3 or 6 tools versus 20 on a 9B-35B local model: no controlled measurement found; only anecdotes (Rallo: 9B \"chokes\" on 259 tools).",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Cline's full vs compact prompt token counts (only \"about 10%\" stated; extension not measured).",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Whether a llama.cpp or MLX Anthropic-compatible endpoint renders the `role: \"system\"` mid-conversation entry in place, hoists it, or rejects it.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Measured locally (Claude Code 2.1.289, clean HOME, API-key auth, custom base URL, cl100k proxy): default first request is 14.0k tokens: system 1,264, 20 tools 10,679, messages 2,052",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Measured locally: the same default with network features on carries 23 tools and totals 18.2k tokens",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Measured locally: `CLAUDE_CODE_SIMPLE_SYSTEM_PROMPT=1` produced tools JSON byte-identical in size to default and a system prompt 3 tokens larger on 2.1.289 with a custom base URL",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Measured locally: `--tools \"Bash,Read,Edit,Write,Grep,Glob\"` gives 3.9k tokens total (system 1,230, tools 2,404, messages 304)",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Measured locally: adding `--system-prompt \"<one sentence>\"` to the six-tool set gives 2.7k tokens total (system 33)",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Measured locally: `--bare` gives 746-762 tokens total: system 34, tools Bash/Edit/Read 685, messages 27-43",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Measured locally: the three tools Bash, Read, Edit cost 1,275 tokens in normal mode and 685 in `--bare` mode, so bare abbreviates tool descriptions",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Measured locally: `--exclude-dynamic-system-prompt-sections` moves about 490 tokens from the system prompt into the first message and does not change the total",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Measured locally: five tools (SendMessage, Workflow, ScheduleWakeup, CronCreate, EnterWorktree) are about 24k of the 46k characters of default tool JSON",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Measured locally: a heavy real profile (170-222 MCP/plugin tools, large CLAUDE.md, many skills) sends 66k-96k tokens before the first prompt; `--strict-mcp-config --tools <6>` cuts it to 10.2k and adding CLAUDE.md/auto-memory/git-instruction/slash-command disables cuts it to 4.2k",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Measured locally: in 2.1.289 the static system prompt has no date or cwd; the environment block is a `role: \"system\"` entry in the messages array; in `--bare` the cwd and date are in the system block",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Measured locally: `--bare` with `ANTHROPIC_AUTH_TOKEN` set and no `ANTHROPIC_API_KEY` still issued a request to the custom base URL",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Measured locally: an unknown model name produces a startup notice assuming a 200k window and pointing to `CLAUDE_CODE_MAX_CONTEXT_TOKENS` and `CLAUDE_CODE_DISABLE_UNKNOWN_MODEL_WINDOW_ENFORCEMENT=1`",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Claude Code env-vars page: `CLAUDE_CODE_SIMPLE_SYSTEM_PROMPT=1` uses a shorter system prompt and abbreviated tool descriptions on any model while keeping the full tool set, hooks, MCP and CLAUDE.md; `0`, `false`, `no`, `off` opt out where an experiment or server config would enable it",
+          "source": "https://code.claude.com/docs/en/env-vars",
+          "note": null
+        },
+        {
+          "text": "Claude Code env-vars page: `CLAUDE_CODE_SIMPLE` equals `--bare`, leaves Bash, file read and file edit, skips OAuth and keychain so auth must come from `ANTHROPIC_API_KEY` or `apiKeyHelper`",
+          "source": "https://code.claude.com/docs/en/env-vars",
+          "note": null
+        },
+        {
+          "text": "Claude Code env-vars page: `CLAUDE_CODE_DISABLE_GIT_INSTRUCTIONS=1` removes commit/PR workflow instructions and the git status snapshot; `CLAUDE_CODE_DISABLE_CLAUDE_MDS=1` stops all CLAUDE.md loading; `CLAUDE_CODE_DISABLE_BUNDLED_SKILLS=1` removes bundled skills and workflows; `CLAUDE_CODE_DISABLE_EXPLORE_PLAN_AGENTS=1` removes Explore and Plan",
+          "source": "https://code.claude.com/docs/en/env-vars",
+          "note": null
+        },
+        {
+          "text": "Claude Code env-vars page: with a non-first-party `ANTHROPIC_BASE_URL`, MCP tool search is off by default and `ENABLE_TOOL_SEARCH=true` re-enables it only if the proxy forwards `tool_reference` blocks",
+          "source": "https://code.claude.com/docs/en/env-vars",
+          "note": null
+        },
+        {
+          "text": "Claude Code CLI reference: `--disallowedTools \"mcp__*\"` removes every MCP tool from context, and a bare tool name in `--disallowedTools` removes it from Claude's context; `--tools` does not affect MCP tools; the default tool set on macOS omits Glob and Grep",
+          "source": "https://code.claude.com/docs/en/cli-reference",
+          "note": null
+        },
+        {
+          "text": "Claude Code CLI reference: `--safe-mode` disables customizations but keeps built-in tools and normal auth, unlike `--bare`; `--disable-slash-commands` disables all skills and commands",
+          "source": "https://code.claude.com/docs/en/cli-reference",
+          "note": null
+        },
+        {
+          "text": "Piebald-AI extraction of v2.1.289 gives per-fragment token counts, e.g. TodoWrite tool description 2,037 tokens, Agent usage notes 1,934, Bash git-commit instructions 1,477, EnterPlanMode 1,296, Bash PR instructions 864, Grep 437, ReadFile 578 versus a compact 285",
+          "source": "https://github.com/Piebald-AI/claude-code-system-prompts",
+          "note": null
+        },
+        {
+          "text": "Inferred: git-instruction removal saves about 2.3k tokens on harnesses that include both Bash git fragments (1,477 plus 864 from Piebald's list)",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Spicyneuron replaced Claude Code's system message (over 20,000 tokens including skills, commands and tool definitions) with a ~25-line prompt plus a shell-built `<env>` block (platform, date, cwd, `tree -L 2`, git branch and last five commits) passed through claude-code-router's `--system-prompt`, and says the combination with the six-tool list reaches under 8k",
+          "source": "https://spicyneuron.substack.com/p/a-mac-studio-for-local-ai-6-months",
+          "note": null
+        },
+        {
+          "text": "Measured locally on OpenCode 1.18.34 (clean HOME, OpenAI-compatible provider): default first request is 6.7k tokens (system 2,022, 10 tools 4,698); tools bash, edit, glob, grep, read, skill, task, todowrite, webfetch, write",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Measured locally: OpenCode with `tools` set false for webfetch, task, todowrite, skill gives 4.7k tokens (6 tools 2,833); adding an agent `prompt` of one sentence gives 2.9k (system 104)",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Measured locally: with this user's `~/.claude` present, OpenCode's default first request was 102.6k tokens, system 97.9k, because every Claude skill is listed; disabling the `skill` tool dropped system to 1.87k",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Measured locally: OpenCode `\"patch\": false` in `tools` also removes edit and write",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Measured locally: OpenCode's title-generation request is a separate 515-token call with no tools",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "OpenCode docs: `tools` config disables tools by name; per-agent `tools` and `prompt` (including `{file:./prompts/build.txt}`) override; `small_model` selects the title/lightweight-task model; `lsp` and `formatter` are off unless configured",
+          "source": "https://opencode.ai/docs/config/",
+          "note": null
+        },
+        {
+          "text": "OpenCode docs: per-agent `prompt` replaces the agent's system prompt with a file and per-agent `tools` restricts tools",
+          "source": "https://opencode.ai/docs/agents/",
+          "note": null
+        },
+        {
+          "text": "Measured locally on Aider: with `--map-tokens 0` and the default edit format for an unknown model the first request is 591 tokens (system about 253, plus a 223-token in-context example); Aider sends no tool schemas",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Aider repo map default budget is 1,024 tokens (log line `Repo-map: using 1024 tokens`), with `map_multiplier_no_files` 2 when no files are in chat",
+          "source": "https://github.com/Aider-AI/aider/issues/2491",
+          "note": null
+        },
+        {
+          "text": "Cline's \"Use compact prompt\" setting is about 10% the size of the full system prompt, aimed at local models, at the cost of MCP tools, Focus Chain and MTP; Cline's guidance pairs it with KV cache quantization off in LM Studio",
+          "source": "https://cline.bot/blog/local-models",
+          "note": null
+        },
+        {
+          "text": "Cline on Ollama fails most often because the default context truncates Cline's system prompt and file context; raise num_ctx to 16K-32K",
+          "source": "https://llmconfigurator.com/en/guides/coding-agents/cline-with-local-llms",
+          "note": null
+        },
+        {
+          "text": "Third-party budget table for local agents: harness system prompt 2,000-10,000 tokens, tool/MCP schemas 500-25,000+, rules file 300-1,500, repo map 1,000-5,000; seven typical MCP servers about 25k+ tokens, three lean ones about 6k; rule of thumb: cut if tools plus system exceed a quarter of the window",
+          "source": "https://llmconfigurator.com/en/guides/coding-agents/mcp-local-coding-agents",
+          "note": null
+        },
+        {
+          "text": "LM Studio's Claude Code guide recommends at least 25K context",
+          "source": "https://lmstudio.ai/blog/claudecode",
+          "note": null
+        },
+        {
+          "text": "Scott Spence measured one MCP server at 710 tokens per tool on average (20 tools, 14.1k tokens) and 82k tokens for a seven-server `/context` warning, and cut descriptions to shrink them",
+          "source": "https://scottspence.com/posts/optimising-mcp-server-context-usage-in-claude-code",
+          "note": null
+        },
+        {
+          "text": "Derived cold-start TTFT = tokens / prefill rate, using rates already in the existing dossiers (174 t/s M4 24 GB 9B; 435 t/s M1 Max 35B-A3B; about 1,000 t/s M5 Max 27B dense estimate; 1,500 t/s M4 Max 35B-A3B; 3,300 t/s M5 Max 7B). 14.0k tokens: 80 s, 32 s, 14 s, 9.3 s, 4.2 s. 3.9k: 22 s, 9.0 s, 3.9 s, 2.6 s, 1.2 s. 0.75k: 4.3 s, 1.7 s, 0.75 s, 0.5 s, 0.23 s. 66k (heavy real profile): about 380 s, 152 s, 66 s, 44 s, 20 s, before the quadratic attention penalty",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Inferred: because Claude Code's request grows the prefix by tool results every turn, the saving from slimming is a fixed per-miss amount (about 10k tokens for 14k to 3.9k), so its value scales with how often misses happen (new session, restart, compaction, subagent, slot eviction)",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Recommended minimal config for a 24-48 GB Mac, tool use needed: `CLAUDE_CODE_ATTRIBUTION_HEADER=0 CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC=1 CLAUDE_CODE_DISABLE_GIT_INSTRUCTIONS=1 CLAUDE_CODE_DISABLE_CLAUDE_MDS=1 CLAUDE_CODE_DISABLE_AUTO_MEMORY=1 CLAUDE_CODE_MAX_CONTEXT_TOKENS=<server window> claude --strict-mcp-config --tools \"Bash,Read,Edit,Write,Grep,Glob\" --disable-slash-commands --system-prompt-file <your 25-line prompt>` (about 2.7-4.2k tokens)",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Recommended floor config: `claude --bare` with `ANTHROPIC_AUTH_TOKEN` or API key and `CLAUDE_CODE_MAX_CONTEXT_TOKENS` (about 0.75k tokens, Bash/Read/Edit only)",
+          "source": "asserted",
+          "note": null
+        }
+      ]
+    }
+  ],
+  "related": []
+}

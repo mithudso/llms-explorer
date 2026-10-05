@@ -1,0 +1,199 @@
+{
+  "slug": "ollama-multimodal-projector-offload-disable-poli",
+  "concept": "Ollama multimodal projector offload disable policy",
+  "generated": "2026-10-05",
+  "summary": "Decision order in `mmprojOffloadDisabled()`: first `requiresMMProjGPUOffload()` (gemma3n with a GPU in use) forces offload on; then `forceNoMMProjOffload` (set by the OOM retry) forces it off with reason `startup-oom-retry`; then `shouldDisableMMProjOffload`.",
+  "facets": [
+    {
+      "title": "Facts",
+      "facts": [
+        {
+          "text": "Decision order in `mmprojOffloadDisabled()`: first `requiresMMProjGPUOffload()` (gemma3n with a GPU in use) forces offload on; then `forceNoMMProjOffload` (set by the OOM retry) forces it off with reason `startup-oom-retry`; then `shouldDisableMMProjOffload`.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "`shouldDisableMMProjOffload` applies three tests in order. `NumGPU == 0` gives `cpu-only`. `NumGPU > 0`, model layers known and `NumGPU` below the layer count gives `partial-text-offload`; the layer count is the GGUF block count plus one. Otherwise, for each GPU in the list, memory is its free memory (its total memory if free is zero or total is smaller than free); if any GPU has a nonzero value below projector bytes plus 1 GiB, the result is `limited-vram`.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Projector bytes (`mmprojMemory`) are the summed size of tensors whose names start with `v.`, `mm.` or `a.` in the model file when the projector is inline, or the whole tensor size of a separate projector file. A file with zero such bytes makes the launch fail with \"no projector tensors found\".",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "When offload stays on and `mmprojMemory` is nonzero, Ollama also raises llama.cpp's fit target: it sets `LLAMA_ARG_FIT_TARGET` to the projector bytes plus 1 GiB, rounded up to MiB. It adds that to a target already set in the launch config and leaves an inherited user environment value alone. This makes `--fit` leave room for the projector.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Startup OOM retry: if `llama-server` fails to start with an out-of-memory error, a projector exists, the model is not gemma3n-on-GPU, offload was still on and no retry has happened, Ollama stops the process, clears its load accounting and starts again once with `--no-mmproj-offload`. The code comment says `--fit` can pick a text-layer placement that fits before mtmd/CLIP allocates the projector.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "The code comment calls the size estimate \"a stopgap until fit accounts for mmproj memory directly\".",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Per the issue 16496 reporter, Ollama 0.24.0 offloaded the projector whenever VRAM allowed.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Ollama 0.30 (released by 2026-06-03, after the 2026-05-29 switch to llama-server) introduced a blanket floor, `limitedMMProjOffloadMemory = 10<<30`, so any GPU with less than 10 GiB disabled projector offload.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "2026-06-03 to 06-05: issue 16496 reports Gemma3 projector offload disabled with `reason=limited-vram` on an AMD ROCm card with about 5.3 GB free and a 933 MiB projector.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "2026-06-22/23: PR 16866 (dhiltgen) replaces the floor with projector size plus 1 GiB headroom and closes issues 16496 and 16570 (a Qwen3.5 vision hang on a 7.5 GiB RTX 5050 with 6.4 GiB free and a 962 MiB projector).",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "One small GPU in a multi-GPU list is enough to disable projector offload for the whole model, because the loop returns on the first GPU below the threshold.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Partial offload (`num_gpu` below the layer count) always puts the projector on the CPU, even when a GPU has room; image encoding then runs at CPU speed. A user in issue 16496 saw a server at 100% CPU for camera frames that took 2 to 4 seconds on the GPU under 0.24.0.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "llama.cpp itself estimates \"worst-case memory usage of mmproj\" and logs it at load (933.04 MiB in the report); Ollama does not use that number, it uses tensor bytes plus 1 GiB.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "The retry happens once; a second failure surfaces as `llama-server startup failed after projector CPU offload retry`.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "What `FreeMemory` and `TotalMemory` the Metal backend reports on Apple silicon (the device struct says \"total memory the device can use for loading models\"); if it is the recommended working-set size, the 1 GiB headroom matters only on small Macs.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Whether Metal runs ever hit `limited-vram`; no Mac report found.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Whether newer builds will drop the estimate once `--fit` counts the projector (llama.cpp already counts mmproj weights in fit, per llama-cpp-fit-auto-memory-fitting.md).",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "The launcher defines `mmprojOffloadHeadroom = 1 << 30` with the comment \"leaves 1 GiB for backend buffers beyond projector weights\".",
+          "source": "https://raw.githubusercontent.com/ollama/ollama/main/llm/llama_server.go",
+          "note": null
+        },
+        {
+          "text": "`mmprojOffloadDisabled()` returns false when `requiresMMProjGPUOffload()` is true, then returns `startup-oom-retry` when `forceNoMMProjOffload` is set, then defers to `shouldDisableMMProjOffload`.",
+          "source": "https://raw.githubusercontent.com/ollama/ollama/main/llm/llama_server.go",
+          "note": null
+        },
+        {
+          "text": "`requiresMMProjGPUOffload()` is true only for `modelArch == \"gemma3n\"` with `NumGPU != 0` and at least one GPU.",
+          "source": "https://raw.githubusercontent.com/ollama/ollama/main/llm/llama_server.go",
+          "note": null
+        },
+        {
+          "text": "`shouldDisableMMProjOffload` returns `cpu-only` when `opts.NumGPU == 0` and `partial-text-offload` when `opts.NumGPU > 0`, `modelLayers > 0` and `NumGPU < modelLayers`.",
+          "source": "https://raw.githubusercontent.com/ollama/ollama/main/llm/llama_server.go",
+          "note": null
+        },
+        {
+          "text": "For `limited-vram`, each GPU's memory is `FreeMemory`, replaced by `TotalMemory` when free is zero or total is smaller; the function disables offload if memory is above zero and below `mmprojMemory + mmprojOffloadHeadroom` for any GPU.",
+          "source": "https://raw.githubusercontent.com/ollama/ollama/main/llm/llama_server.go",
+          "note": null
+        },
+        {
+          "text": "`modelLayers` is set to the GGUF `BlockCount()` plus one.",
+          "source": "https://raw.githubusercontent.com/ollama/ollama/main/llm/llama_server.go",
+          "note": null
+        },
+        {
+          "text": "`mmprojMemoryRequirement` sums tensors with prefixes `v.`, `mm.` and `a.` for an inline projector and the full tensor size for a separate projector file, and returns an error if the size is zero.",
+          "source": "https://raw.githubusercontent.com/ollama/ollama/main/llm/llama_server.go",
+          "note": null
+        },
+        {
+          "text": "`extraEnvsForStart` sets `LLAMA_ARG_FIT_TARGET` to `(mmprojMemory + 1 GiB)` rounded up to MiB when offload is enabled, adds it to an existing launch-config target, and preserves an inherited environment override.",
+          "source": "https://raw.githubusercontent.com/ollama/ollama/main/llm/llama_server.go",
+          "note": null
+        },
+        {
+          "text": "`shouldRetryMMProjCPUOffload` allows one retry only when the error is out-of-memory, a projector exists, the retry has not run, the model does not need GPU offload and offload is not already disabled.",
+          "source": "https://raw.githubusercontent.com/ollama/ollama/main/llm/llama_server.go",
+          "note": null
+        },
+        {
+          "text": "The retry stops the failed process, resets load accounting, sets `forceNoMMProjOffload` and restarts; a second startup failure returns \"llama-server startup failed after projector CPU offload retry\".",
+          "source": "https://raw.githubusercontent.com/ollama/ollama/main/llm/llama_server.go",
+          "note": null
+        },
+        {
+          "text": "The code comment on `mmprojMemoryRequirement` reads \"a stopgap until fit accounts for mmproj memory directly\".",
+          "source": "https://raw.githubusercontent.com/ollama/ollama/main/llm/llama_server.go",
+          "note": null
+        },
+        {
+          "text": "Issue 16496 reports that Ollama 0.30 on ROCm logged `disabling multimodal projector offload reason=limited-vram` for a Gemma3 projector llama-server estimated at 933.04 MiB with about 5305 MB free, a regression from 0.24.0.",
+          "source": "https://github.com/ollama/ollama/issues/16496",
+          "note": null
+        },
+        {
+          "text": "A collaborator in issue 16496 identified the cause as a hard-coded `limitedMMProjOffloadMemory = 10<<30` reservation (10 GiB) for projector offload.",
+          "source": "https://github.com/ollama/ollama/issues/16496",
+          "note": null
+        },
+        {
+          "text": "Commit 8365073 (PR 16866, 2026-06-22/23) replaced the blanket 10 GiB cutoff with a projector tensor-size estimate plus backend headroom and fixed issues 16496 and 16570.",
+          "source": "https://github.com/ollama/ollama/pull/16866",
+          "note": null
+        },
+        {
+          "text": "The PR 16866 description cites a Qwen3.5 vision hang report where `--no-mmproj-offload` was passed on a 7.5 GiB RTX 5050 with about 6.4 GiB free and an inline projector estimated at about 962 MiB.",
+          "source": "https://github.com/ollama/ollama/pull/16866",
+          "note": null
+        },
+        {
+          "text": "A user in issue 16496 reported that without GPU projector offload their camera-recognition server sat at constant 100% CPU, while 0.24.0 handled the same job on the GPU in 2 to 4 seconds.",
+          "source": "https://github.com/ollama/ollama/issues/16496",
+          "note": null
+        },
+        {
+          "text": "llama-server's `--mmproj-offload` / `--no-mmproj-offload` option defaults to enabled and has the environment variable `LLAMA_ARG_MMPROJ_OFFLOAD`.",
+          "source": "https://raw.githubusercontent.com/ggml-org/llama.cpp/master/tools/server/README.md",
+          "note": null
+        },
+        {
+          "text": "Ollama's Metal device reserves `MinimumMemory()` of 512 MiB (457 MiB for other backends), but the projector test does not use that value.",
+          "source": "https://raw.githubusercontent.com/ollama/ollama/main/ml/device.go",
+          "note": null
+        },
+        {
+          "text": "On a Mac running a vision model with default `num_gpu`, projector offload stays on unless the reported Metal memory is under projector size plus 1 GiB.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Setting `num_gpu` below the model's layer count on a Mac silently moves image encoding to the CPU.",
+          "source": "asserted",
+          "note": null
+        }
+      ]
+    }
+  ],
+  "related": []
+}

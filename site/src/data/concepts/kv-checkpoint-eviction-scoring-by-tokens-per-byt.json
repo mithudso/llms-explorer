@@ -1,0 +1,149 @@
+{
+  "slug": "kv-checkpoint-eviction-scoring-by-tokens-per-byt",
+  "concept": "KV checkpoint eviction scoring by tokens per byte with hit decay",
+  "generated": "2026-10-05",
+  "summary": "Upstream `create_checkpoint()` runs three steps in order: (1) when the list is full or one short of full, erase checkpoints that sit within `checkpoint_min_step` tokens after an earlier kept one, unless the current task created them; (2) while the list is still full, erase the front (oldest) chec...",
+  "facets": [
+    {
+      "title": "Facts",
+      "facts": [
+        {
+          "text": "Upstream `create_checkpoint()` runs three steps in order: (1) when the list is full or one short of full, erase checkpoints that sit within `checkpoint_min_step` tokens after an earlier kept one, unless the current task created them; (2) while the list is still full, erase the front (oldest) checkpoint with the log `erasing old context checkpoint`; (3) erase any checkpoint at the same `n_tokens` as the new one (log `superseding context checkpoint`).",
+          "source": "https://raw.githubusercontent.com/ggml-org/llama.cpp/master/tools/server/server-context.cpp",
+          "note": null
+        },
+        {
+          "text": "The checkpoint struct carries only `id_task`, `pos_min`, `pos_max`, `n_tokens` and state data; no hit counter, byte-efficiency field or decay timestamp appears in the creation path.",
+          "source": "https://raw.githubusercontent.com/ggml-org/llama.cpp/master/tools/server/server-context.cpp",
+          "note": null
+        },
+        {
+          "text": "The restore search walks checkpoints newest to oldest and takes the first whose `pos_max <= pos_next` and (`pos_min < pos_min_thold` or `pos_min == 0`). The first match wins, so no hit is recorded.",
+          "source": "https://raw.githubusercontent.com/ggml-org/llama.cpp/master/tools/server/server-context.cpp",
+          "note": null
+        },
+        {
+          "text": "Checkpoints beyond the resume point are erased right after the search (`erased invalidated context checkpoint`, condition `pos_max > pos_next`).",
+          "source": "https://raw.githubusercontent.com/ggml-org/llama.cpp/master/tools/server/server-context.cpp",
+          "note": null
+        },
+        {
+          "text": "Hybrid checkpoints are nearly constant size (149.626 MiB at 364 and 2,800 tokens), so any tokens-per-byte score would rank mostly by position for a hybrid model.",
+          "source": "https://github.com/ggml-org/llama.cpp/issues/24055",
+          "note": null
+        },
+        {
+          "text": "Before PR 25472 the loop erased only the front. PR 25472 (2026-07-09) added min-step proximity eviction.",
+          "source": "https://github.com/ggml-org/llama.cpp/pull/25472",
+          "note": null
+        },
+        {
+          "text": "PR 25592 (opened 2026-07-12 by krim404, still open) originally proposed \"eviction drops the checkpoint closest to its neighbor instead of the oldest one so early anchors survive edited/compacted histories\". After rebase on 2026-07-14 it states PRs 25472 and 25649 landed the min-step eviction and near-end checkpointing upstream, and it carries only exact-position restore, prefix-based restore and stale-checkpoint invalidation.",
+          "source": "https://github.com/ggml-org/llama.cpp/pull/25592",
+          "note": null
+        },
+        {
+          "text": "PR 25420 (merged 2026-07-09 as 64c8b7d) made prompt-batch splitting at user messages respect min-step; it fixes issues 25213 and 25320 (prefill slowdowns).",
+          "source": "https://github.com/ggml-org/llama.cpp/pull/25420",
+          "note": null
+        },
+        {
+          "text": "Issue 25023 (opened 2026-06-25): with `--ctx-checkpoints 8 --checkpoint-min-step 8192` and ~138K context, the `is_last_user_message` bypass created a checkpoint every turn at about 1K spacing, so eight checkpoints clustered in 74K to 83K; a later request at 30,646 tokens erased all of them and reprocessed 40K tokens in 18.2 s. PR 25472 closed it.",
+          "source": "https://github.com/ggml-org/llama.cpp/issues/25023",
+          "note": null
+        },
+        {
+          "text": "Oldest-first removal drops the early anchor that survives a compaction or an edit near the start, which is the case the 25592 neighbor-distance idea targeted.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Position-based (upstream) versus value-based (fork claim): oldest-first favors recency; a tokens-per-byte score favors long, cheap checkpoints. Both are valid for different workloads and neither has a measurement in the sources.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Whether a fork implements tokens-per-byte with hit decay, and its decay constant.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Whether the bypass in step (1), which skips checkpoints created by the current task, can leave two near-end checkpoints (n_ubatch+4 and 4 tokens before the end) both alive by design; the code comment says yes.",
+          "source": "https://raw.githubusercontent.com/ggml-org/llama.cpp/master/tools/server/server-context.cpp",
+          "note": null
+        },
+        {
+          "text": "Upstream checkpoint eviction removes min-step-adjacent entries first, then the oldest entry, then any entry with the same `n_tokens`.",
+          "source": "https://raw.githubusercontent.com/ggml-org/llama.cpp/master/tools/server/server-context.cpp",
+          "note": null
+        },
+        {
+          "text": "The log strings of the three paths are `erasing context checkpoint too close to an earlier one`, `erasing old context checkpoint` and `superseding context checkpoint at n_tokens`.",
+          "source": "https://raw.githubusercontent.com/ggml-org/llama.cpp/master/tools/server/server-context.cpp",
+          "note": null
+        },
+        {
+          "text": "The min-step proximity pass runs only when `checkpoints.size() + 1 >= n_ctx_checkpoints`, with the comment that otherwise short prompts would keep just the oldest checkpoint.",
+          "source": "https://raw.githubusercontent.com/ggml-org/llama.cpp/master/tools/server/server-context.cpp",
+          "note": null
+        },
+        {
+          "text": "A checkpoint created by the same task id is exempt from the proximity pass.",
+          "source": "https://raw.githubusercontent.com/ggml-org/llama.cpp/master/tools/server/server-context.cpp",
+          "note": null
+        },
+        {
+          "text": "A new checkpoint at an existing `n_tokens` replaces the old one instead of adding a duplicate.",
+          "source": "https://raw.githubusercontent.com/ggml-org/llama.cpp/master/tools/server/server-context.cpp",
+          "note": null
+        },
+        {
+          "text": "The master code still carries a TODO tag `[TAG_CHECKPOINTS_FIX_POS_MIN]` saying the saved checkpoint is wrongly assumed to cover `[pos_min, pos_max]`, untrue for SWA models (PR 24411 comment).",
+          "source": "https://raw.githubusercontent.com/ggml-org/llama.cpp/master/tools/server/server-context.cpp",
+          "note": null
+        },
+        {
+          "text": "PR 25592 listed neighbor-distance eviction in its first design and dropped it after PRs 25472 and 25649 landed overlapping work.",
+          "source": "https://github.com/ggml-org/llama.cpp/pull/25592",
+          "note": null
+        },
+        {
+          "text": "PR 25592 exempts end-of-prompt checkpoints from `--checkpoint-min-step` in its first design because the next agent request diverges right at the end of the previous prompt.",
+          "source": "https://github.com/ggml-org/llama.cpp/pull/25592",
+          "note": null
+        },
+        {
+          "text": "On a 38.5K-token prompt, creating a 230.431 MiB checkpoint took about 0.5 to 0.7 s and the restore cut a 40.8 s prefill to 0.1 to 0.3 s.",
+          "source": "https://github.com/ggml-org/llama.cpp/pull/25592",
+          "note": null
+        },
+        {
+          "text": "A reporter ran `--ctx-checkpoints 128` with 149.626 MiB checkpoints, so a slot may hold about 18.7 GiB of checkpoint state at the limit.",
+          "source": "https://github.com/ggml-org/llama.cpp/pull/25592",
+          "note": null
+        },
+        {
+          "text": "PR 25420 reads: \"The server checkpoint logic breaks on every user message start, which does not respect --checkpoint-min-step and negatively impacts prefill speed.\"",
+          "source": "https://github.com/ggml-org/llama.cpp/pull/25420",
+          "note": null
+        },
+        {
+          "text": "No upstream source read here defines a tokens-per-byte or hit-decay checkpoint score.",
+          "source": "https://raw.githubusercontent.com/ggml-org/llama.cpp/master/tools/server/server-context.cpp",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Corrections and disagreements",
+      "facts": [
+        {
+          "text": "Premise check, CONTRADICTS the concept name: no upstream file read here scores checkpoints by tokens per byte or decays a hit count. Upstream uses oldest-first plus min-step proximity. If such a scorer exists it is in a fork (the batch brief links it to CachyLlama), and no readable source documents it.",
+          "source": "https://raw.githubusercontent.com/ggml-org/llama.cpp/master/tools/server/server-context.cpp",
+          "note": null
+        }
+      ]
+    }
+  ],
+  "related": []
+}

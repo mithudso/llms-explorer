@@ -1,0 +1,139 @@
+{
+  "slug": "rewriting-llama-server-overflow-errors-to-claude",
+  "concept": "Rewriting llama-server overflow errors to Claude Code's recognised wording",
+  "generated": "2026-10-05",
+  "summary": "llama-server sends errors through `res->error()`, which sets the HTTP status to the object's `code` and the body to `{\"error\": <object>}`.",
+  "facets": [
+    {
+      "title": "Facts",
+      "facts": [
+        {
+          "text": "llama-server sends errors through `res->error()`, which sets the HTTP status to the object's `code` and the body to `{\"error\": <object>}`.",
+          "source": "https://raw.githubusercontent.com/ggml-org/llama.cpp/master/tools/server/server-context.cpp",
+          "note": null
+        },
+        {
+          "text": "For `ERROR_TYPE_EXCEED_CONTEXT_SIZE` the error object is `{\"code\": 400, \"message\": ..., \"type\": \"exceed_context_size_error\"}` plus two extra integer fields, `n_prompt_tokens` and `n_ctx`.",
+          "source": "https://raw.githubusercontent.com/ggml-org/llama.cpp/master/tools/server/server-task.cpp",
+          "note": null
+        },
+        {
+          "text": "`n_ctx` in that body is the slot's context (`send_error(slot, ...)` passes `slot.n_ctx`), so with `--parallel` slots sharing `-c` it is the per-request share, not the server total.",
+          "source": "https://raw.githubusercontent.com/ggml-org/llama.cpp/master/tools/server/server-context.cpp",
+          "note": null
+        },
+        {
+          "text": "A captured body reads `{\"error\":{\"code\":400,\"message\":\"request (131088 tokens) exceeds the available context size (131072 tokens), try increasing it\",\"type\":\"exceed_context_size_error\",\"n_prompt_tokens\":131088,\"n_ctx\":131072}}`, about 240 characters.",
+          "source": "https://api.github.com/repos/autonomous-ai/autonomous-grid/issues/118",
+          "note": null
+        },
+        {
+          "text": "llama-server has two prompt-size wordings, both typed `exceed_context_size_error`: \"input (%d tokens) is larger than the max context size (%d tokens). skipping\" (a prompt that cannot be split and exceeds `n_ctx`) and \"request (%d tokens) exceeds the available context size (%d tokens), try increasing it\" (splittable prompt at or above `n_ctx`).",
+          "source": "https://raw.githubusercontent.com/ggml-org/llama.cpp/master/tools/server/server-context.cpp",
+          "note": null
+        },
+        {
+          "text": "A third, different failure reads \"Context size has been exceeded.\" and comes from a failed decode when the batch size is 1; it is reported mid-stream and means the KV pool ran out, not that the prompt was too long.",
+          "source": "https://raw.githubusercontent.com/ggml-org/llama.cpp/master/tools/server/server-context.cpp",
+          "note": null
+        },
+        {
+          "text": "One user hit the KV-pool failure with `-c 262144` and automatic `--parallel` (four slots sharing one unified pool) when a main stream of about 200 messages ran alongside judge calls, and llama.cpp then failed every in-flight slot.",
+          "source": "https://api.github.com/repos/RinRin-32/pebble/issues/39",
+          "note": null
+        },
+        {
+          "text": "Rewriting the KV-pool message to \"prompt is too long\" would send Claude Code compacting a prompt that was not the problem.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "When the first result of a streaming request is an error, llama-server returns it as an ordinary non-streamed HTTP error, matching OpenAI behaviour, so a proxy sees a plain JSON 400 for prompt overflow even on a streaming request.",
+          "source": "https://raw.githubusercontent.com/ggml-org/llama.cpp/master/tools/server/server-context.cpp",
+          "note": null
+        },
+        {
+          "text": "A mid-stream error on the Anthropic route is sent as `event: error` with the flat error object as data, while the OpenAI route wraps it as `{\"error\": ...}`; neither is Anthropic's `{\"type\":\"error\",\"error\":{...}}` shape.",
+          "source": "https://raw.githubusercontent.com/ggml-org/llama.cpp/master/tools/server/server-context.cpp",
+          "note": null
+        },
+        {
+          "text": "llama-server's Anthropic route has a `/v1/messages/count_tokens` handler as well as `/v1/messages`.",
+          "source": "https://raw.githubusercontent.com/ggml-org/llama.cpp/master/tools/server/server-context.cpp",
+          "note": null
+        },
+        {
+          "text": "Anthropic-style overflow text has the form `prompt is too long: 205000 tokens > 200000 maximum allowed`, which LiteLLM PR 43301 (open) adds, with `context_length_exceeded`, to its context-window error checks.",
+          "source": "https://api.github.com/repos/BerriAI/litellm/pulls/43301",
+          "note": null
+        },
+        {
+          "text": "Claude Code v2.1.142 made the first reactive-compaction summary seed \"from the original request's overflow size\", avoiding a wasted near-full-context retry.",
+          "source": "https://raw.githubusercontent.com/anthropics/claude-code/main/CHANGELOG.md",
+          "note": null
+        },
+        {
+          "text": "Claude Code v2.1.288 fixed long conversations failing with \"Prompt is too long\" instead of auto-compacting when the last reply reported zero token usage, which matters for local servers that return zero usage.",
+          "source": "https://raw.githubusercontent.com/anthropics/claude-code/main/CHANGELOG.md",
+          "note": null
+        },
+        {
+          "text": "Claude Code v2.1.274 fixed hook-driven sessions ending with \"Prompt is too long\" when overflow recurred after a reactive compaction, and v2.1.284 made a still-too-long compacted request compact once more with less recent conversation kept.",
+          "source": "https://raw.githubusercontent.com/anthropics/claude-code/main/CHANGELOG.md",
+          "note": null
+        },
+        {
+          "text": "Claude Code v2.1.285 made sessions behind a custom `ANTHROPIC_BASE_URL` use the 1M window of models that have one, with `/autocompact 200k` as the fix for a gateway that stops at 200K.",
+          "source": "https://raw.githubusercontent.com/anthropics/claude-code/main/CHANGELOG.md",
+          "note": null
+        },
+        {
+          "text": "A relay that cut engine error bodies at 200 characters broke the JSON mid-object (`\"n_ctx\":13107`), so OpenAI SDKs raised a type-validation error instead of the overflow 400 that opencode answers by compacting; the fix keeps a JSON body whole up to 4 KiB.",
+          "source": "https://api.github.com/repos/autonomous-ai/autonomous-grid/issues/118",
+          "note": null
+        },
+        {
+          "text": "The same report found a server started without `--ctx-size` advertises no `context_window`, and reads `/props` `default_generation_settings.n_ctx` as the per-request window.",
+          "source": "https://api.github.com/repos/autonomous-ai/autonomous-grid/issues/118",
+          "note": null
+        },
+        {
+          "text": "Skulk maps llama-server's `exceed_context_size_error` type, or a message naming the context size, to an API 400 `context_length_exceeded` by prefixing a sentinel to the message.",
+          "source": "https://api.github.com/repos/Foxlight-Foundation/Skulk/issues/1014",
+          "note": null
+        },
+        {
+          "text": "zorp reads `n_ctx` and `n_prompt_tokens` from the body wherever they sit in nested or escaped JSON, also accepts \"exceeds the available context size (N tokens)\" and \"maximum context length is N tokens\", adopts the stated window, compacts and retries once.",
+          "source": "https://api.github.com/repos/aviskaar/zorp/issues/164",
+          "note": null
+        },
+        {
+          "text": "claude-mem classifies vLLM's \"maximum context length\", llama.cpp's `exceed_context_size_error`, OpenAI's `context_length_exceeded` and HTTP 413 as context overflow and recycles the generation instead of finalising the session.",
+          "source": "https://api.github.com/repos/thedotmack/claude-mem/issues/4317",
+          "note": null
+        },
+        {
+          "text": "pebble recognises llama.cpp, LM Studio and TGI wording and structured bodies (`exceed_context_size_error`, `context_length_exceeded`), compacts once and retries, and lowers its window to a reported `n_ctx`.",
+          "source": "https://api.github.com/repos/RinRin-32/pebble/issues/39",
+          "note": null
+        },
+        {
+          "text": "The gateway protocol page says Claude Code reads `x-should-retry` (true marks a response retryable, false not) and `retry-after`, and asks gateways to forward error bodies unmodified so its recovery can match the upstream's wording.",
+          "source": "https://code.claude.com/docs/en/llm-gateway-protocol",
+          "note": null
+        },
+        {
+          "text": "A server window under 100,000 cannot be matched with `CLAUDE_CODE_AUTO_COMPACT_WINDOW`, because Claude Code clamps it to at least 100,000, so for a 32K or 64K local slot a rewritten overflow error is the only automatic recovery.",
+          "source": "https://code.claude.com/docs/en/llm-gateway-connect",
+          "note": null
+        },
+        {
+          "text": "Inferred rewrite recipe: match `error.type == \"exceed_context_size_error\"` on a 400, keep status 400, set message to `prompt is too long: <n_prompt_tokens> tokens > <n_ctx> maximum`, add no `x-should-retry: true`, pass every other error through whole, and never rewrite \"Context size has been exceeded.\"",
+          "source": "asserted",
+          "note": null
+        }
+      ]
+    }
+  ],
+  "related": []
+}

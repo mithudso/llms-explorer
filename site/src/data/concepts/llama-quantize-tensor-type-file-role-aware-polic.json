@@ -1,0 +1,214 @@
+{
+  "slug": "llama-quantize-tensor-type-file-role-aware-polic",
+  "concept": "llama-quantize --tensor-type-file role-aware policies (attention/FFN/boundary)",
+  "generated": "2026-10-05",
+  "summary": "Built-in role table: tensor_get_category sorts every tensor into one of TOKEN_EMBD, ATTENTION_Q, ATTENTION_V, ATTENTION_K, ATTENTION_QKV, ATTENTION_KV_B, ATTENTION_OUTPUT, FFN_UP, FFN_GATE, FFN_DOWN, OUTPUT or OTHER. Anything else is OTHER and receives the file type's base type with no depth rule.",
+  "facets": [
+    {
+      "title": "Facts",
+      "facts": [
+        {
+          "text": "Built-in role table: tensor_get_category sorts every tensor into one of TOKEN_EMBD, ATTENTION_Q, ATTENTION_V, ATTENTION_K, ATTENTION_QKV, ATTENTION_KV_B, ATTENTION_OUTPUT, FFN_UP, FFN_GATE, FFN_DOWN, OUTPUT or OTHER. Anything else is OTHER and receives the file type's base type with no depth rule.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Blind spots of the built-in table: Gated DeltaNet and Mamba tensors (`attn_gate`, `ssm_out`, `ssm_alpha`, `ssm_beta`) and MLA low-rank tensors (`attn_q_a`, `attn_q_b`, `attn_k_b`) are OTHER, so Q4_K_M quantizes them at plain Q4_K. The tensors Unsloth found most damaging in hybrid models therefore get no protection from stock llama-quantize, which is the gap a role-aware file fills.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Depth rule: use_more_bits(i, n) is true for the first n/8 layers, the last n/8 layers, and every third layer between (about half of all layers). For MoE models (n_expert > 1) the layer index is parsed from the tensor name (`blk.N.`), so the rule is by layer; for dense models it uses a running counter.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "In Q4_K_M and Q5_K_M that rule lifts attention-v-like tensors (attn_v, attn_qkv, attn_kv_b) and every ffn_down-category tensor to Q6_K. On a MoE this includes the routed `ffn_down_exps` and `ffn_down_shexp` tensors, so about half the layers' routed down projections become Q6_K without any user line.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Counter caveat: attention-v-like depth uses a running counter of such tensors (n_attention_wv counts them), so on a hybrid model with attention in one layer of four the \"boundary\" is the first and last eighth of the attention layers, not of the network. In the IQ1/IQ2 branch the ffn_down boundary test uses a raw per-tensor counter against n_layer/8, so a MoE with both exps and shexp tensors per layer reaches the limit after about half as many layers as intended.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Built-in output and embedding roles: with no override the output head goes to Q6_K for most K-quant and IQ4 file types (Q5_K for the IQ2/IQ1 ones), Q8_0 when the row length is not a multiple of the block size, and tied embeddings follow the output rule; --output-tensor-type and --token-embedding-type override these.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Other built-in role guards: GLM5-NEXT keeps `attn_q_a`, `attn_q_b` and `nextn.eh_proj` at Q8_0 unless they are floats; MXFP4_MOE sends routed experts to MXFP4 and everything else to Q8_0.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "A role-aware file therefore has three jobs: raise roles the stock table ignores (SSM, MLA, shared experts), pin boundary layers explicitly (layer-list regex before the all-layer line), and lower the bulk role (routed experts) where the stock table would have raised it.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "2023-06: K-quants (PR 1684) define the mixes by role: Q4_K_M uses Q6_K for half of attention.wv and feed_forward.w2, and every variant moves output.weight to 6-bit, which lowered Q4_0's perplexity by about 0.03 at 7B.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "2025-04: --tensor-type arrives; EAddario's tensor-wise (TWQ) and layer-wise (LWQ) experiments on DeepSeek-R1-Distill-Llama-8B give a Q4_K_M LWQ file 10.4% smaller than naive with a 0.83% drop in rho-PPL.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "2025-2026: whole-model role recipes (attention, dense, shared, routed, MTP, embeddings, head each on its own line) become the publication format for ik_llama.cpp quants.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Pure mode: `--pure` disables the category mixtures, so `--pure` plus a role file gives exactly the file and nothing else; without `--pure` any tensor the file does not name still gets the stock table.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Requantizing a Q8_0 source (as the TQ4_1S recipes do) needs `--allow-requantize`; error compounds, so recipes should start from BF16 where disk allows.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Boundary lines must come first: `blk\\.(0|1|2)\\.attn_q.*=q8_0` placed after `blk\\..*\\.attn_q.*=iq5_ks` never fires because the first matching pattern wins.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Over-broad role regexes: `attn_q.*` catches `attn_q_a`/`attn_q_b` on MLA models; `attn_k.*` catches `attn_k_b`; `ffn_.*` catches shexp and exps together.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "ddh0's per-class stress test shows role order of damage on dense models: crushing FFN tensors raised deviation from BF16 most (3.42 average mean-squared deviation versus 1.06 for attention and 0.18 for embeddings), with only two models and no MoE.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Stock llama-quantize raises attn_v and ffn_down (K-quant era evidence from dense Llama) versus Unsloth's Qwen3.5 hybrid sweep, which found attention and ssm_out tensors the most sensitive and ffn_up/gate_exps tolerant of about 3 bits: the stock role table was tuned on dense models and under-protects hybrid roles.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Boundary-layer protection: llama.cpp's use_more_bits (first and last eighth plus every third layer) versus TQ4_1S Config I (exactly 2+2 native layers) versus ubergarm's recipes (layers 0-2 at q8_0, the dense-FFN lead-in): three different depth rules, none ablated against the others.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "tensor_get_category defines TOKEN_EMBD, ATTENTION_Q, ATTENTION_V, ATTENTION_K, ATTENTION_QKV, ATTENTION_KV_B, ATTENTION_OUTPUT, FFN_UP, FFN_GATE, FFN_DOWN, OUTPUT and OTHER and uses substring matches on the tensor name.",
+          "source": "https://raw.githubusercontent.com/ggml-org/llama.cpp/master/src/llama-quant.cpp",
+          "note": null
+        },
+        {
+          "text": "category_is_attn_v groups ATTENTION_V, ATTENTION_QKV and ATTENTION_KV_B as \"attention-v-like tensors (more sensitive to quantization)\".",
+          "source": "https://raw.githubusercontent.com/ggml-org/llama.cpp/master/src/llama-quant.cpp",
+          "note": null
+        },
+        {
+          "text": "use_more_bits(i_layer, n_layers) is `i_layer < n_layers/8 || i_layer >= 7*n_layers/8 || (i_layer - n_layers/8)%3 == 2`.",
+          "source": "https://raw.githubusercontent.com/ggml-org/llama.cpp/master/src/llama-quant.cpp",
+          "note": null
+        },
+        {
+          "text": "For n_expert > 1, layer_info parses the layer from the tensor name with sscanf `blk.%d.`, because Mixtral experts \"are not consecutive, but occasionally randomly sprinkled in the model\", and throws if the name has no layer or the layer is out of range.",
+          "source": "https://raw.githubusercontent.com/ggml-org/llama.cpp/master/src/llama-quant.cpp",
+          "note": null
+        },
+        {
+          "text": "In the FFN_DOWN branch, Q4_K_M on non-Falcon models sets Q6_K whenever use_more_bits is true, with no test on tensor shape or expert count, so merged `ffn_down_exps` tensors are included.",
+          "source": "https://raw.githubusercontent.com/ggml-org/llama.cpp/master/src/llama-quant.cpp",
+          "note": null
+        },
+        {
+          "text": "Q4_K_M and Q5_K_M raise attention-v-like tensors to Q6_K when use_more_bits(i_attention_wv, n_attention_wv) holds, using a running counter of such tensors.",
+          "source": "https://raw.githubusercontent.com/ggml-org/llama.cpp/master/src/llama-quant.cpp",
+          "note": null
+        },
+        {
+          "text": "Q4_K_S raises the first four attention-v tensors to Q5_K and, outside Falcon, ffn_down in the first eighth of layers to Q5_K.",
+          "source": "https://raw.githubusercontent.com/ggml-org/llama.cpp/master/src/llama-quant.cpp",
+          "note": null
+        },
+        {
+          "text": "For IQ4_NL and IQ4_XS without an imatrix, ffn_down in the first eighth of layers is raised to Q5_K; with Q4_0 or Q5_0 plus an imatrix the first-eighth ffn_down goes to Q4_1 or Q5_1 as a \"guard against craziness\".",
+          "source": "https://raw.githubusercontent.com/ggml-org/llama.cpp/master/src/llama-quant.cpp",
+          "note": null
+        },
+        {
+          "text": "In the IQ2/IQ1 branch, the ffn_down test is `qs.i_ffn_down < qs.n_ffn_down/8` on a running counter that is incremented once per ffn_down-category tensor, and n_ffn_down is initialised to the model's layer count.",
+          "source": "https://raw.githubusercontent.com/ggml-org/llama.cpp/master/src/llama-quant.cpp",
+          "note": null
+        },
+        {
+          "text": "For LLM_ARCH_GLM5_NEXT, attn_q_a, attn_q_b and nextn.eh_proj are forced to Q8_0 unless the type is already F32, BF16 or F16.",
+          "source": "https://raw.githubusercontent.com/ggml-org/llama.cpp/master/src/llama-quant.cpp",
+          "note": null
+        },
+        {
+          "text": "The output and tied-embedding rule gives MXFP4_MOE files Q8_0, Falcon or non-256-divisible rows Q8_0, the IQ2/IQ1 family Q5_K, and otherwise Q6_K unless the type is already Q8_0.",
+          "source": "https://raw.githubusercontent.com/ggml-org/llama.cpp/master/src/llama-quant.cpp",
+          "note": null
+        },
+        {
+          "text": "llama-quantize has no category for `attn_gate`, `ssm_out`, `ssm_alpha`, `ssm_beta`, `attn_q_a`, `attn_q_b` or `attn_k_b`, so those names fall to OTHER (attn_k_b and attn_q_b contain neither `attn_k.weight` nor `attn_q.weight`).",
+          "source": "https://raw.githubusercontent.com/ggml-org/llama.cpp/master/src/llama-quant.cpp",
+          "note": null
+        },
+        {
+          "text": "tensor_allows_quantization skips `ssm_conv1d`, `shortconv.conv.weight`, MiniMax indexer projections, `altup`, `laurel`, `per_layer_model_proj`, RWKV `time_mix_*` weights and, for GLM5-NEXT, a list of hc_, indexer and ssm_f/g/beta tensors.",
+          "source": "https://raw.githubusercontent.com/ggml-org/llama.cpp/master/src/llama-quant.cpp",
+          "note": null
+        },
+        {
+          "text": "The quantize README documents `--pure` as \"disable k-quant mixtures and quantizes all tensors to the same type\", `--output-tensor-type`, `--keep-split` and `--tensor-type`, with examples that combine `--tensor-type attn_v=q5_k --tensor-type ffn_down=q5_k` and `--prune-layers 20,21,22`.",
+          "source": "https://github.com/ggml-org/llama.cpp/blob/master/tools/quantize/README.md",
+          "note": null
+        },
+        {
+          "text": "PR 1684 (K-quants) lists Q4_K_M as Q6_K for half of attention.wv and feed_forward.w2 and Q4_K elsewhere, and states every variant uses 6-bit for output.weight, lowering Q4_0 perplexity by about 0.03 at 7B.",
+          "source": "https://github.com/ggml-org/llama.cpp/pull/1684",
+          "note": null
+        },
+        {
+          "text": "EAddario's 2025-04-07 results on DeepSeek-R1-Distill-Llama-8B report Q4_K_M LWQ at 4.41 GB versus naive 4.92 GB (10.4% smaller) with rho-PPL 98.04% versus 98.85%, and TWQ at 4.44 GB and 98.02%.",
+          "source": "https://github.com/ggml-org/llama.cpp/discussions/12741",
+          "note": null
+        },
+        {
+          "text": "ddh0's 2025-04-03 mean-squared-deviation test (Llama 3.2 3B and Qwen2.5-14B) puts crushed FFN tensors at 3.42 average, attention at 1.06, output at 0.921 (one model), embeddings at 0.18 and Q2_K at 1.44, and advises staying within Q3_K to Q8_0.",
+          "source": "https://github.com/ggml-org/llama.cpp/discussions/12741",
+          "note": null
+        },
+        {
+          "text": "ubergarm's GLM-4.5 recipes separate seven roles on their own lines (attention, first-3 dense FFN, shared experts, routed experts, NextN/MTP embed and head, token embedding, output head) and keep `nextn.eh_proj` at q8_0 in the IQ5_K, IQ4_K and IQ4_KSS recipes (lower tiers were not read).",
+          "source": "https://huggingface.co/ubergarm/GLM-4.5-GGUF",
+          "note": null
+        },
+        {
+          "text": "ubergarm's IQ4_KSS GLM-4.5 recipe puts layers 0-2 attention at q8_0 and the remaining layers at iq5_ks (q, output) and iq6_k (k, v), with output head iq6_k and token embedding iq4_k.",
+          "source": "https://huggingface.co/ubergarm/GLM-4.5-GGUF",
+          "note": null
+        },
+        {
+          "text": "The ik_llama.cpp DeepSeek-R1 recipe thread reports BF16 for the MLA `_a` and `_b` low-rank attention tensors with Q6_K/Q5_K routed down and gate/up, and says changing only the `_b` tensors to Q8_0 had measurable negative effects (author's notes, anecdotal).",
+          "source": "https://github.com/ikawrakow/ik_llama.cpp/discussions/258",
+          "note": null
+        },
+        {
+          "text": "Stock Q4_K_M therefore protects roles by what a 2023 dense Llama needed (attn_v, ffn_down) and not by what hybrid or MLA MoE models need, so its \"Q4_K_M\" label on a Gated DeltaNet MoE is not the same protection level as on a dense model.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "A role file that only lists the roles stock llama-quantize ignores (shexp, SSM, MLA, nextn) and leaves the rest to the file type keeps the file small and keeps the stock boundary rule, at the cost of a Q6_K routed `ffn_down_exps` in half the layers that the user may not want.",
+          "source": "asserted",
+          "note": null
+        }
+      ]
+    }
+  ],
+  "related": []
+}

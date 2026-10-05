@@ -1,0 +1,264 @@
+{
+  "slug": "paroquant-pairwise-rotation-quantization-for-mlx",
+  "concept": "ParoQuant pairwise-rotation quantization for MLX",
+  "generated": "2026-10-05",
+  "summary": "Transform: T = S then a product of K=8 independent rotations R(P_t, Theta_t). Each rotation is a set of non-overlapping channel pairs (a channel appears in at most one pair per rotation), so all pairs run in parallel with no ordering dependency.",
+  "facets": [
+    {
+      "title": "Facts",
+      "facts": [
+        {
+          "text": "Transform: T = S then a product of K=8 independent rotations R(P_t, Theta_t). Each rotation is a set of non-overlapping channel pairs (a channel appears in at most one pair per rotation), so all pairs run in parallel with no ordering dependency.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Why pairs: a full n x n rotation is a product of up to n(n-1)/2 Givens rotations, but optimizing only the top 10% of pairs (largest magnitude difference) matches a full rotation on a k_proj weight of LLaMA-3-8B; channel-wise scaling alone plateaus at higher error. Scaling and rotations are complementary.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Optimization: layer-wise, minimizing the output error of each decoder layer against the original input, fed by the already-quantized earlier layers; stage 1 trains rotations and scales, stage 2 is an EfficientQAT-style fine-tune of weights and quantization parameters. 10 epochs per stage, AdamW.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Kernel: a single fused CUDA kernel, parallel across tokens, channel groups and pairs; a 128-channel group fits in shared memory and rotation parameters fit in registers. The paper reports under 10% overhead versus AWQ. On MLX the rotation is applied in the loader's own path before mlx affine quantized matmul.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Apple Silicon loader: the official MLX backend quantizes lm_head and embed_tokens at load time with mlx nn.quantize (affine, group size and bits read from config, default 128 and 4) using an is-I/O-layer predicate. Cold start is slow as a result.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "2025-11-13: arXiv 2511.10645v1. 2026-03-10: feature request to add ParoQuant to mlx-lm (issue 977); z-lab offered native support; the issue is still open with no assignee in the cached copy.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "2026-03: oMLX PR 209 adds a custom-quantization loader dispatcher for paroquant; maintainer merged it in May 2026 after a bench on Qwen3.6-27B-PARO, with a follow-up to route all load call sites through the dispatcher.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "2026-05: z-lab releases larger PARO checkpoints (gemma-4-31B-it, Qwen3.6-27B, Qwen3.5-27B, later Qwen3.6-35B-A3B, Qwen3.8-27B); paroquant 0.1.15 adds Gemma 4 and MoE optimization; 0.1.16 on 2026-07-01.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "mlx-swift-lm gained ParoQuant support (PR 164) and a follow-up extending it to MoE and speeding the path (PR 471).",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Gemma 4 MoE: paroquant's MoE stacking emitted expert weights under the Qwen-style switch_mlp namespace while the MLX Gemma 4 module is experts.switch_glu, so stacked weights were silently dropped by load_weights(strict=False), leaving 128 experts as unquantized float32 and inflating the load peak about 4x (93.5 GB for gemma-4-26B-A4B-it-PARO). A fix aligns the namespace; a regression issue on oMLX stayed open.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "vLLM tensor-parallel: row-parallel layers (o_proj, down_proj) allocate rotation parameters per partition but the checkpoint holds the full input size, which aborted loading at TP > 1 until a TP-aware loader landed.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "VLM checkpoints store the vision tower in original precision, so the file is larger than a fully quantized model; the card advises not loading VLM components for text-only use.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Load time: users report slow model loading and a slower prefill than oQ4 on M1 Max.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Vendor and contributor evals vs independent KLD: Qwen3.5-9B scores on MLX (ivanfioravanti, limited max-tokens) show PARO far above stock 4-bit (MMLU 0.794 vs 0.652, GSM8K 0.770 vs 0.605), while mlx-eval KLD on Qwen3.6-35B-A3B puts PARO (0.0592) behind UD4 (0.0293) and OptiQ (0.0285) and ahead of uniform Q4 (0.0883). Both sides use different metrics and baselines (stock mlx-community 4bit g64 versus calibrated mixed quants).",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Speed: one M1 Max report calls it a 70% token-generation speedup over other setups; the oMLX bench on the same chip has PARO about 10% slower than oQ4 at decode (17 vs 19 tok/s) and slower at prefill (83 vs 139 tok/s).",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "No independent same-bit-width speed comparison of PARO against stock mlx 4-bit g64 at equal checkpoint size on M-series.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Whether upstream mlx-lm will take a native ParoQuant path (issue 977 still open).",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Whether 8-bit I/O layers (a one-line loader change) are worth the extra RAM; the z-lab author judged the gain marginal.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "ParoQuant is weight-only INT4 post-training quantization using scaled pairwise rotation, with 4-bit weights and group size 128 in the paper.",
+          "source": "https://arxiv.org/html/2511.10645v1",
+          "note": null
+        },
+        {
+          "text": "Scaled pairwise rotation chains K=8 independent Givens rotations per 128-channel group, each with up to 64 non-overlapping channel pairs, plus per-channel scaling.",
+          "source": "https://arxiv.org/html/2511.10645v1",
+          "note": null
+        },
+        {
+          "text": "Keeping only the 10% of channel pairs with the largest magnitude difference matches a full rotation on LLaMA-3-8B layer-1 k_proj, while channel-wise scaling alone plateaus higher.",
+          "source": "https://z-lab.ai/projects/paroquant/",
+          "note": null
+        },
+        {
+          "text": "An n x n orthogonal matrix decomposes into at most n(n-1)/2 Givens rotations, and one independent rotation carries only n/2 parameters, a fraction 1/(n-1) of a full matrix, hence the stack of 8.",
+          "source": "https://arxiv.org/html/2511.10645v1",
+          "note": null
+        },
+        {
+          "text": "Independent pairs remove all ordering dependencies between rotations, so the transform parallelizes over tokens, channel groups and pairs in one fused CUDA kernel.",
+          "source": "https://arxiv.org/html/2511.10645v1",
+          "note": null
+        },
+        {
+          "text": "The paper reports less than 10% transform overhead versus AWQ, while QTIP (Hadamard plus trellis vector quantization) is about 30% slower than AWQ.",
+          "source": "https://z-lab.ai/projects/paroquant/",
+          "note": null
+        },
+        {
+          "text": "Optimization is layer-wise against the output of already-quantized earlier layers, then a second EfficientQAT-style stage fine-tunes weights and quantization parameters; 10 epochs per stage.",
+          "source": "https://arxiv.org/html/2511.10645v1",
+          "note": null
+        },
+        {
+          "text": "ParoQuant reaches strong accuracy with as few as 128 training samples, and accuracy improves with the number of rotations up to 8.",
+          "source": "https://arxiv.org/html/2511.10645v1",
+          "note": null
+        },
+        {
+          "text": "On 4-bit Qwen3-4B (RTX A6000) the reasoning averages are FP16 64.7, AWQ 59.0, EfficientQAT 51.8, QTIP 62.9, ParoQuant 65.1, with AIME-24 at 73.3 for ParoQuant against 62.2 for AWQ and 75.6 for FP16.",
+          "source": "https://z-lab.ai/projects/paroquant/",
+          "note": null
+        },
+        {
+          "text": "The paper reports ParoQuant averages 0.9% below FP16 on reasoning tasks and gains 6.5%, 2.4% and 0.9% over EfficientQAT, AWQ and QTIP.",
+          "source": "https://arxiv.org/html/2511.10645v1",
+          "note": null
+        },
+        {
+          "text": "The paper attributes AWQ's drop on long chain-of-thought tasks to quantization error accumulating at each decoding step; AWQ takes Qwen3-4B MMLU-Pro from 71.0 to 68.2.",
+          "source": "https://arxiv.org/html/2511.10645v1",
+          "note": null
+        },
+        {
+          "text": "Paper decode throughput on RTX A6000 (batch 1, Transformers): AWQ 2.3x and ParoQuant 2.1x over FP16 on the Qwen3-4B table, QTIP 1.5x.",
+          "source": "https://z-lab.ai/projects/paroquant/",
+          "note": null
+        },
+        {
+          "text": "The paper evaluates only up to LLaMA-3 70B and Qwen3 14B and compares against AWQ, EfficientQAT and QTIP baselines on CUDA; no Apple Silicon numbers are in the paper.",
+          "source": "https://arxiv.org/html/2511.10645v1",
+          "note": null
+        },
+        {
+          "text": "The official repo supports vLLM and Transformers on NVIDIA and an MLX backend, and recommends serving ParoQuant models on Apple Silicon through oMLX.",
+          "source": "https://github.com/z-lab/paroquant",
+          "note": null
+        },
+        {
+          "text": "The ParoQuant MLX path is a lightweight transform before the MLX-native quantized matmul, so the oMLX integration needs a custom loader but no engine kernel changes.",
+          "source": "https://github.com/jundot/omlx/pull/209",
+          "note": null
+        },
+        {
+          "text": "mlx-lm issue 977 (opened 2026-03-10) asks for native ParoQuant support; z-lab's Zhijian Liu replied they would like to bring native support to MLX, and the issue was still open with no assignee in the cached copy.",
+          "source": "https://github.com/ml-explore/mlx-lm/issues/977",
+          "note": null
+        },
+        {
+          "text": "ivanfioravanti's Qwen3.5-9B MLX evals (some with limited max-tokens, same limits on both): ParoQuant vs mlx 4-bit gave ARC-C 0.956 vs 0.919, GSM8K 0.770 vs 0.605, HumanEval 0.933 vs 0.905, IFEval 0.382 vs 0.172, HellaSwag 0.816 vs 0.792, MMLU 0.794 vs 0.652, GPQA 0.730 vs 0.580.",
+          "source": "https://github.com/ml-explore/mlx-lm/issues/977",
+          "note": null
+        },
+        {
+          "text": "With a 16K max-token limit, Qwen3.5-9B GSM8K was 0.922 for PARO against 0.823 for mlx-community 4bit, run through a branch that added a --paroquant backend to mlx_lm evaluate.",
+          "source": "https://github.com/ml-explore/mlx-lm/issues/977",
+          "note": null
+        },
+        {
+          "text": "A user on M1 Max reported a 70% token-generation speedup for Qwen3.6-27B ParoQuant versus other setups, with no baseline named.",
+          "source": "https://github.com/ml-explore/mlx-lm/issues/977",
+          "note": null
+        },
+        {
+          "text": "oMLX PR 209 was merged in May 2026 as a dispatcher slot beside the existing pre-load patch hook; the maintainer planned to gate MTP, SpecPrefill and IndexCache toggles for paroquant models because compatibility was not verified.",
+          "source": "https://github.com/jundot/omlx/pull/209",
+          "note": null
+        },
+        {
+          "text": "oMLX bench on M1 Max, Qwen3.6-27B-PARO (18.4 GB) vs Qwen3.6-27B-oQ4-FP16 with a 3354-token prompt: generation 17 vs 19 tok/s, prefill 83 vs 139 tok/s, time to first token 40.31 vs 24.13 s; the PARO file is about 3 GB larger and loading is very slow.",
+          "source": "https://github.com/jundot/omlx/pull/209",
+          "note": null
+        },
+        {
+          "text": "z-lab's checkpoints keep lm_head and embed_tokens unquantized on disk but the MLX loader quantizes them at load with mlx nn.quantize, group size and bits from config, which makes cold start slow on Qwen3.6-35B-A3B.",
+          "source": "https://github.com/jundot/omlx/pull/209",
+          "note": null
+        },
+        {
+          "text": "deepsweet measured Qwen3.6-27B PARO with 8-bit lm_head and embed_tokens (group 64, via a one-line loader change): KLD -0.010487 nats, PPL -0.079159, RAM +1.25 GiB; z-lab's author called the gain relatively marginal and kept the 4-bit handling.",
+          "source": "https://github.com/jundot/omlx/pull/209",
+          "note": null
+        },
+        {
+          "text": "mlx-eval measures weight RAM in text-only mode through mlx.core active memory, so PARO's vision tower (about 1 GB extra with VL on 27B) is excluded from its RAM column.",
+          "source": "https://github.com/jundot/omlx/pull/209",
+          "note": null
+        },
+        {
+          "text": "The Qwen3.6-35B-A3B-PARO card says the vision components are stored in original precision and only the language components are quantized to 4 bits, and advises not loading VLM components for text-only efficiency.",
+          "source": "https://huggingface.co/z-lab/Qwen3.6-35B-A3B-PARO",
+          "note": null
+        },
+        {
+          "text": "The PARO checkpoint tensors are int32 (packed 4-bit), fp16 and int16 types; the int16 and fp16 entries are the rotation indices and parameters and scales.",
+          "source": "https://huggingface.co/z-lab/Qwen3.6-35B-A3B-PARO",
+          "note": null
+        },
+        {
+          "text": "z-lab's repo fixed gemma-4 MoE experts loading as unquantized float32 (switch_mlp vs experts.switch_glu namespace mismatch), which had inflated the load peak about 4x to 93.5 GB for gemma-4-26B-A4B-it-PARO.",
+          "source": "https://github.com/z-lab/paroquant",
+          "note": null
+        },
+        {
+          "text": "z-lab's repo added a vLLM tensor-parallel-aware rotation weight loader after loading aborted at TP > 1 for row-parallel layers because rotation parameters were allocated per partition.",
+          "source": "https://github.com/z-lab/paroquant",
+          "note": null
+        },
+        {
+          "text": "paroquant 0.1.15 (2026-05-15) updated the optimization pipeline for Gemma 4 and refactored MoE optimization support; the repo reached v0.1.16 on 2026-07-01.",
+          "source": "https://github.com/z-lab/paroquant",
+          "note": null
+        },
+        {
+          "text": "mlx-swift-lm release notes list 'feat: add ParoQuant (pairwise rotation quantization) support' (PR 164) and a later 'ParoQuant: extend to MoE and make the whole path fast' (PR 471).",
+          "source": "https://swiftpackageindex.com/ml-explore/mlx-swift-lm",
+          "note": null
+        },
+        {
+          "text": "ParoQuant models in oMLX and z-lab's own MLX backend need paroquant-aware loaders, so stock mlx_lm.load cannot read them without the paroquant package.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Producing a PARO checkpoint needs the CUDA optimization pipeline; an oMLX reviewer noted in March 2026 that quantization was possible only on CUDA, which limited mid-to-large model coverage until z-lab uploaded them.",
+          "source": "https://github.com/jundot/omlx/pull/209",
+          "note": null
+        }
+      ]
+    }
+  ],
+  "related": []
+}

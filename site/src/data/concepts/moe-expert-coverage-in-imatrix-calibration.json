@@ -1,0 +1,174 @@
+{
+  "slug": "moe-expert-coverage-in-imatrix-calibration",
+  "concept": "MoE expert coverage in imatrix calibration",
+  "generated": "2026-10-05",
+  "summary": "Collection: the callback intercepts GGML_OP_MUL_MAT_ID, copies the routing ids to host, and for each token adds the squared activations only to the experts in that token's top-k; a per-expert counts vector records tokens seen. Non-finite values abort the run, checked only for touched experts.",
+  "facets": [
+    {
+      "title": "Facts",
+      "facts": [
+        {
+          "text": "Collection: the callback intercepts GGML_OP_MUL_MAT_ID, copies the routing ids to host, and for each token adds the squared activations only to the experts in that token's top-k; a per-expert counts vector records tokens seen. Non-finite values abort the run, checked only for touched experts.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Saving: the collector scans the counts; a tensor with some zero counts logs `entry '<name>' has partial data (xx.xx%)`; a tensor with all zero counts logs `has no data - skipping`; the summary line `storing only N out of M entries` appears if any were dropped.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Legacy .dat format: zero-count experts are written with value 1 and count 1, a neutral entry; GGUF format stores `*.in_sum2` and `*.counts` per tensor so files can be merged with --in-file.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Quantize time (GGUF imatrix): per-expert sums are divided by per-expert counts; an expert with count 0 receives weight 1 for every channel, which is the flat (non-imatrix) weighting for that expert. The imatrix slice for each expert is applied separately and chunks never cross an expert boundary.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Required-imatrix types: IQ1_S, IQ1_M, IQ2_XXS, IQ2_XS, IQ2_S, IQ3_XXS and Q2_K inside a Q2_K_S file refuse to quantize without an imatrix entry for a tensor and abort with 'Missing importance matrix for tensor ... in a very low-bit quantization'. A tensor skipped for 'no data' therefore aborts a low-bit run rather than falling back silently.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "2024-01: ikawrakow's PR 4861 introduces imatrix (CPU only at first; ~10 minutes for 50k tokens on a 7B on a 32-core CPU).",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "2024-09: compilade's PR 9400 moves imatrix files to GGUF with in_sum2 and counts, adds merge support, and adds the partial-data warning 'to help guess dataset coverage'; the legacy writer is made to emit neutral values for missing data to match read-time behavior of the new format.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "2026: Nota AI describes expert-coverage-balanced synthetic calibration (PASCAL-MoE) for NVIDIA's Nemotron hackathon; vendor blog only.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "An all-zero tensor is dropped from the imatrix file; at IQ2/IQ1 file types the quantizer then aborts, but at Q4_K/IQ4 types it quantizes that tensor with no imatrix.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Partial data is accepted silently in the file and only logged as a warning; partial coverage cannot be detected after the fact from the file alone except by inspecting per-expert counts in the GGUF imatrix.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Old Mixtral imatrix files made for split per-expert tensors do not match the merged 3D layout; llama-quantize throws 'imatrix size ... is different from tensor size' and stops (since the error otherwise hides most of the model being quantized without an imatrix).",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "process-output defaults to false; the output.weight is normally quantized without importance data.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Unsloth (chat/tool-call/long-context calibration, 300K-1.5M tokens) vs Wikipedia-style imatrix sets: Unsloth argues text-only calibration is ineffective for instruct models; existing dossier covers this. New here: neither side reports per-expert coverage numbers.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Whether a flat weighting for an unrouted expert is harmless or harmful is unmeasured: a rarely routed expert is by definition rarely used, yet 'rarely activated' experts are exactly those the MoE-quant literature calls sensitive.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "What fraction of experts per tensor is left at count zero by a standard 300K-token chat imatrix on fine-grained many-expert models such as Qwen3.6-35B-A3B? No published per-expert coverage histogram was found.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Whether KLD loss concentrates in under-covered experts (needs a per-expert KLD attribution, not found).",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "llama-imatrix collects data for MoE through GGML_OP_MUL_MAT_ID, copies the routing ids to host, and keeps one sums vector and one token-count entry per expert for each merged expert tensor.",
+          "source": "https://raw.githubusercontent.com/ggml-org/llama.cpp/master/tools/imatrix/imatrix.cpp",
+          "note": null
+        },
+        {
+          "text": "llama-imatrix adds a token's squared activations only to the experts in that token's top-k and checks non-finite values only for experts that were touched.",
+          "source": "https://raw.githubusercontent.com/ggml-org/llama.cpp/master/tools/imatrix/imatrix.cpp",
+          "note": null
+        },
+        {
+          "text": "When saving, llama-imatrix logs `entry '<name>' has partial data (xx.xx%)` for any tensor with some zero-count experts and `has no data - skipping` for tensors with all-zero counts, then `storing only N out of M entries`.",
+          "source": "https://raw.githubusercontent.com/ggml-org/llama.cpp/master/tools/imatrix/imatrix.cpp",
+          "note": null
+        },
+        {
+          "text": "In the legacy imatrix.dat writer, zero-count experts are stored with value 1 and count 1 (a neutral entry), matching what the new format does at read time.",
+          "source": "https://raw.githubusercontent.com/ggml-org/llama.cpp/master/tools/imatrix/imatrix.cpp",
+          "note": null
+        },
+        {
+          "text": "The GGUF imatrix format stores `<tensor>.in_sum2` (per-channel sums of squared activations, F32) and `<tensor>.counts` (activation counts) so that imatrix files can be merged with --in-file.",
+          "source": "https://github.com/ggml-org/llama.cpp/pull/9400",
+          "note": null
+        },
+        {
+          "text": "llama-quantize loading a GGUF imatrix divides each expert's sums by that expert's count and sets every channel weight to 1 for an expert whose count is 0.",
+          "source": "https://raw.githubusercontent.com/ggml-org/llama.cpp/master/tools/quantize/quantize.cpp",
+          "note": null
+        },
+        {
+          "text": "llama-quantize applies the imatrix slice per expert (global row index divided by rows per expert), and chunks never cross an expert boundary.",
+          "source": "https://raw.githubusercontent.com/ggml-org/llama.cpp/master/src/llama-quant.cpp",
+          "note": null
+        },
+        {
+          "text": "llama-quantize aborts with 'Missing importance matrix for tensor X in a very low-bit quantization' when a tensor targeted at IQ1_S, IQ1_M, IQ2_XXS, IQ2_XS, IQ2_S or IQ3_XXS (or Q2_K inside Q2_K_S) has no imatrix entry.",
+          "source": "https://raw.githubusercontent.com/ggml-org/llama.cpp/master/src/llama-quant.cpp",
+          "note": null
+        },
+        {
+          "text": "IQ4_NL, IQ4_XS and the K-quants other than Q2_K_S do not require an imatrix, so zero-data or missing entries only lose quality for those types and do not stop the run.",
+          "source": "https://raw.githubusercontent.com/ggml-org/llama.cpp/master/src/llama-quant.cpp",
+          "note": null
+        },
+        {
+          "text": "llama-quantize throws 'imatrix size ... is different from tensor size' for a size mismatch, except for token_embd; the code comment says this happened when quantizing an old Mixtral with split tensors against a newer incompatible imatrix.",
+          "source": "https://raw.githubusercontent.com/ggml-org/llama.cpp/master/src/llama-quant.cpp",
+          "note": null
+        },
+        {
+          "text": "PR 9400's commit message says imatrix now 'warns when writing partial data, to help guess dataset coverage'; the legacy format is made to store neutral values for missing data to give the same quality.",
+          "source": "https://github.com/ggml-org/llama.cpp/pull/9400",
+          "note": null
+        },
+        {
+          "text": "The llama-imatrix README documents --process-output (default false, because the importance matrix is usually not used for output.weight), --chunk/--chunks, --no-ppl, --show-statistics, --in-file merging and --parse-special.",
+          "source": "https://github.com/ggml-org/llama.cpp/tree/master/tools/imatrix",
+          "note": null
+        },
+        {
+          "text": "ikawrakow's original imatrix PR argues per-row diagonal weights w_j proportional to squared activations are enough, ignoring off-diagonal terms, and notes that instruct models may need instruction-formatted data split by entry instead of fixed chunks.",
+          "source": "https://github.com/ggml-org/llama.cpp/pull/4861",
+          "note": null
+        },
+        {
+          "text": "Nota AI states that experts rarely activated by calibration data receive sparse activation statistics and unreliable quantization parameters, and its PASCAL-MoE pipeline generates synthetic calibration samples to balance expert coverage (a Nemotron-3-Super-120B agent finds the tokens that trigger under-used experts).",
+          "source": "https://blog.nota.ai/insights/edge-insights-31-nmq-pascal-moe-optimization",
+          "note": null
+        },
+        {
+          "text": "For a 256-expert model with top-8 routing, a calibration set of T tokens gives an average of 8T/256 = T/32 tokens per expert, so a 300K-token set averages about 9.4K tokens per expert with large variance by expert popularity.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Because an unrouted expert is quantized with flat weights, its quality equals non-imatrix quantization of that expert, which at 4 bits is usually close (Q4_K/IQ4 do not need an imatrix) and at 2 bits can be badly worse.",
+          "source": "asserted",
+          "note": null
+        }
+      ]
+    }
+  ],
+  "related": []
+}

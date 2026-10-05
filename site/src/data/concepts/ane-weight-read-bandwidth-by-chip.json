@@ -1,0 +1,304 @@
+{
+  "slug": "ane-weight-read-bandwidth-by-chip",
+  "concept": "ANE weight-read bandwidth by chip",
+  "generated": "2026-10-05",
+  "summary": "Method: anemll-bench loads prebuilt ANEMLL Core ML bundles (llama_lm_head 1050.67 MB, llama_lm_head_lut6 396 MB, DeepHermes_lm_head), runs N predict() calls (300 in recent reports) and reports size / mean latency as \"throughput\". It only works on ANEMLL-converted models, not arbitrary Hugging Fac...",
+  "facets": [
+    {
+      "title": "Facts",
+      "facts": [
+        {
+          "text": "Method: anemll-bench loads prebuilt ANEMLL Core ML bundles (llama_lm_head 1050.67 MB, llama_lm_head_lut6 396 MB, DeepHermes_lm_head), runs N predict() calls (300 in recent reports) and reports size / mean latency as \"throughput\". It only works on ANEMLL-converted models, not arbitrary Hugging Face models; only memory bandwidth is benchmarked (no compute or latency suite).",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Single-model figure uses llama_lm_head only; dual-model tests run two bundles concurrently on separate Core ML instances and sum their throughput.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Measurement artefact (Oct 2026): on M6 16 GB the published 133.9 GB/s is wall-clock predict() throughput. ANE firmware task timestamps put actual weight read near ~150 GB/s. When ANE task duration falls to about 350 microseconds, the waiting CPU drops into a deeper idle state, which delays driver completion and user-space wake-up, so wall-clock throughput understates ANE bandwidth. The 16 GB vs 32 GB M6 gap (134 vs 152) is therefore not a memory-config ANE deficit.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Apple's own primary description (June 2022, ane_transformers article, Principle 4): many Transformer configs are bandwidth-bound on the ANE at short sequence length because large parameter tensors are fetched from memory and applied to too few inputs; latency stayed roughly constant across sequence 32/64/128 while compute quadrupled. Apple's remedies: raise batch size or shrink parameters via quantization or pruning.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Why a flat ~150 GB/s ceiling is plausible (inference, not measured): the ANE is a fixed-function graph engine fed through its own DMA path, not through the GPU's wide fabric; its figure tracked the generation (ANE tier), not the SoC's memory controller count.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Dispatch cost is separate from bandwidth: direct _ANEClient dispatch is ~0.095 ms (XPC + IOKit); Orion measures ~2.3 ms IOSurface round trip per dispatch on GPT-2 124M and ~5.78 ms gap per token across 12 layers on M4 Max. This is why small decode graphs cannot reach the weight-read ceiling.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "2022-06: Apple ml-ane-transformers article states bandwidth-boundness on the ANE as a design principle.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "2025-05 (HN, smpanaro, ANEMLL/ANE tinkerer): \"ANE has a much lower ceiling than CPU/GPU (yes, despite unified memory)\"; chunking is fine as long as chunks fit the ANE cache; M1 cache limit 3-4 GB, higher on M2+.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "2026-02/03: maderix reverse-engineering series and the Orion arXiv paper (2603.06728) measure M4/M4 Max ANE compute, SRAM, dispatch; neither publishes a DRAM bandwidth figure.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "2026-09: anemll-bench README adds M5, M5 Pro, M5 Ultra and M6 rows; Results.MD drops a historical latency column (mixed lut6 and full model artifacts) and separates end-to-end predict() from firmware weight-read.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "x86_64 Python under Rosetta silently loses the ANE: \"ANE Hardware Available: False\", 100-500 ms inference vs 7-20 ms native; the bench now fails early with \"ANE ACCESS BLOCKED\".",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Several rows are single contributor reports without run count or warmup (M5 Pro, M5 Ultra, M6 32 GB); M5 Ultra (36C CPU / 80C GPU / 256 GB) and M6 32 GB latency rows are flagged \"run count and warmup policy not stated\".",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Only the M3 Pro and M3 Max rows are missing from the matrix (as of the Results.MD banner).",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Core ML overhead: maderix measures Core ML adding 2-4x over direct _ANEClient on small ops, so predict()-based figures through Core ML can understate hardware.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "ANE bakes weights at compile time (Orion), so \"weight read\" is a stream of compiled constants from DRAM, not a general tensor load.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Dual clusters. Results.MD prose for M5 Max says near-identical combined throughput (147.62 vs ~147 GB/s) \"demonstrat[es] efficient bandwidth utilization across both ANE clusters\". The same numbers show no gain over one model (each parallel model gets half: 74 + 74), which supports a shared ceiling, not two usable clusters. README still frames dual testing as \"essential to evaluate the dual ANE clusters\" on M1-M3 Ultra. Both framings sit side by side in the source; the table supports only \"no aggregate gain\".",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "INT8: HN ANEMLL author said M4/A17 INT8 runs at 2x FP16; maderix measured INT8 = FP16 compute (INT8 only saves weight bytes). Different claims (op rate vs memory); not averaged.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Hybrid strategy: maderix suggested ANE prefill + SME (CPU) decode; a reader (Evan R., Mar 2026) argued decode belongs on the GPU because KV cache lives in DRAM and GPU has more DRAM bandwidth; the author replied that full KV cache cannot stay in SRAM, so decode on CPU/GPU makes sense.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "zozbot234 (HN): ANE benefit is prefill and power, not speed, because padding low-bit LLM weights to FP16/INT8 wastes the bandwidth that sets token rate; smpanaro: bandwidth ceiling, not padding, is the binding limit.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "No independent (non-ANEMLL) measurement of ANE DRAM bandwidth exists in sources read; all per-chip figures come from one project's bundles on contributor machines.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Whether the ~150 GB/s plateau is an ANE DMA limit, a fabric limit or a firmware QoS cap is not documented.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Whether Pro/Max/Ultra ANEs have more than one cluster that Core ML can schedule onto is unresolved by the bench; M3 Pro/Max rows would help.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Why GPU decode on Pro/Max/Ultra beats ANE: stated cause is bandwidth (GPU 307-1200 GB/s vs ANE ~150), but no source ran both engines on the same model with power logging on M5 Pro/Max/Ultra.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "anemll-bench measures throughput as model size divided by predict() time on prebuilt ANEMLL LM-head bundles and benchmarks only memory bandwidth in its current release.",
+          "source": "https://github.com/Anemll/anemll-bench",
+          "note": null
+        },
+        {
+          "text": "anemll-bench works only with ANEMLL-converted models (llama_lm_head, llama_lm_head_lut6, DeepHermes_lm_head), not generic Hugging Face models.",
+          "source": "https://github.com/Anemll/anemll-bench",
+          "note": null
+        },
+        {
+          "text": "anemll-bench recent reports use 300 runs; the M6 16 GB report is from 2026-09-30, repo ffc68fc, macOS 27.0.1.",
+          "source": "https://github.com/Anemll/anemll-bench/blob/main/Results.MD",
+          "note": null
+        },
+        {
+          "text": "On M6 16 GB the bench shows llama_lm_head 7.85 ms / 133.92 GB/s, lut6 3.27 ms / 120.96 GB/s, DeepHermes 7.69 ms / 136.66 GB/s, all labelled end-to-end predict() throughput.",
+          "source": "https://github.com/Anemll/anemll-bench/blob/main/Results.MD",
+          "note": null
+        },
+        {
+          "text": "Results.MD says ANE firmware task timestamps put M6 weight-read near ~150 GB/s, and that around 350 microseconds of ANE task duration the waiting CPU enters a deeper idle state that slows driver completion and wake-up.",
+          "source": "https://github.com/Anemll/anemll-bench/blob/main/Results.MD",
+          "note": null
+        },
+        {
+          "text": "Results.MD states the 16 GB vs 32 GB M6 gap is not a 10-12% ANE deficit versus the 32 GB part.",
+          "source": "https://github.com/Anemll/anemll-bench/blob/main/Results.MD",
+          "note": null
+        },
+        {
+          "text": "M6 16 GB dual-model run: solo 133.47 and 131.79 GB/s, parallel 70.84 and 68.09, combined 135.94 GB/s.",
+          "source": "https://github.com/Anemll/anemll-bench/blob/main/Results.MD",
+          "note": null
+        },
+        {
+          "text": "M5 Max dual-model run: solo 148.39/148.57 GB/s, parallel 74.06/73.94, combined 147.62; M3 Ultra parallel 60.15/61.17, combined 120.29.",
+          "source": "https://github.com/Anemll/anemll-bench/blob/main/Results.MD",
+          "note": null
+        },
+        {
+          "text": "Solo llama_lm_head latencies: M3 Ultra 8.74 ms, M5 Max 7.08, M5 Pro 7.00, M5 Ultra 6.99, M6 32 GB 6.91, M6 16 GB 7.85 (1050.67 MB model).",
+          "source": "https://github.com/Anemll/anemll-bench/blob/main/Results.MD",
+          "note": null
+        },
+        {
+          "text": "Results.MD removed its historical cross-chip latency column because it mixed llama_lm_head_lut6 and full llama_lm_head artifacts; a matching-model campaign is required for a valid latency chart.",
+          "source": "https://github.com/Anemll/anemll-bench/blob/main/Results.MD",
+          "note": null
+        },
+        {
+          "text": "Results.MD tiers: Tier 1 ~120-152 GB/s (M6, M5 Ultra/Pro/Max, M4 Pro, M3 Ultra, M4 Max); Tier 2 ~60-70 (M5, M4, M3, M2 family, M1); Tier 3 ~55 (M1 Pro/Max/Ultra, no scaling across variants).",
+          "source": "https://github.com/Anemll/anemll-bench/blob/main/Results.MD",
+          "note": null
+        },
+        {
+          "text": "Results.MD states the ANE does not scale linearly with system memory bandwidth, and that substantial ANE architectural improvement began with M3 Ultra / M4 Pro-Max.",
+          "source": "https://github.com/Anemll/anemll-bench/blob/main/Results.MD",
+          "note": null
+        },
+        {
+          "text": "anemll-bench auto-detects chip and recommends dual-model testing for M1/M2/M3 Ultra (\"to evaluate the dual ANE clusters\") and recommends it for M4 Pro/Max.",
+          "source": "https://github.com/Anemll/anemll-bench",
+          "note": null
+        },
+        {
+          "text": "The README ANE-utilization table: M6 32 GB 152 of 170 GB/s (89%), M5 Pro 150 of 307 (49%), M4 Pro 126 of 273 (46%), M5 46%, M3 63%, M2 Pro 31%, M2 Ultra 8%, M1 Ultra 7%.",
+          "source": "https://github.com/Anemll/anemll-bench",
+          "note": null
+        },
+        {
+          "text": "The matrix of requested submissions marks M3 Pro and M3 Max as still missing.",
+          "source": "https://github.com/Anemll/anemll-bench",
+          "note": null
+        },
+        {
+          "text": "Results.MD prose for M5 Max claims the unchanged combined throughput demonstrates efficient bandwidth utilization \"across both ANE clusters\"; the table itself shows each parallel model at half the solo rate.",
+          "source": "https://github.com/Anemll/anemll-bench/blob/main/Results.MD",
+          "note": null
+        },
+        {
+          "text": "Apple's 2022 ane_transformers article says many Transformer configs are bandwidth-bound on the ANE at short sequence lengths, with latency constant across sequence 32/64/128 at batch 1 while compute quadruples.",
+          "source": "https://machinelearning.apple.com/research/neural-engine-transformers",
+          "note": null
+        },
+        {
+          "text": "Apple's recommended escapes from ANE bandwidth-boundness are larger batch, or smaller parameter tensors via quantization or pruning.",
+          "source": "https://machinelearning.apple.com/research/neural-engine-transformers",
+          "note": null
+        },
+        {
+          "text": "Apple states the last axis of an ANE buffer is unpacked, contiguous and 64-byte aligned, so a singleton last axis is padded to 64 bytes.",
+          "source": "https://machinelearning.apple.com/research/neural-engine-transformers",
+          "note": null
+        },
+        {
+          "text": "Apple's M5 release describes a \"faster 16-core Neural Engine\" without giving ANE TOPS or memory bandwidth; the AI speedup headline (over 4x peak GPU compute) is the GPU Neural Accelerators.",
+          "source": "https://www.apple.com/newsroom/2025/10/apple-unleashes-m5-the-next-big-leap-in-ai-performance-for-apple-silicon/",
+          "note": null
+        },
+        {
+          "text": "Apple's MLX-on-M5 note gives M4 120 GB/s and M5 153 GB/s system memory bandwidth and says token generation is bandwidth-bound while TTFT is compute-bound.",
+          "source": "https://machinelearning.apple.com/research/exploring-llms-mlx-m5",
+          "note": null
+        },
+        {
+          "text": "M5 base: ANE weight-read 70 GB/s vs 153 GB/s system bandwidth in Apple's figure (about 46%), so the base-chip ANE can use roughly half the DRAM stream the GPU sees.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Orion (arXiv 2603.06728) measures on M4 Max: ANE GPT-2 124M decode 170 tok/s vs CPU decode 283 tok/s, because of ~2.3 ms per-dispatch IOSurface round trip.",
+          "source": "https://arxiv.org/html/2603.06728v1",
+          "note": null
+        },
+        {
+          "text": "Orion states the GPU via MLX or Metal currently achieves higher absolute LLM throughput than the ANE on M4 Max, and lists zero idle power, GPU/CPU left free, and 33.8x faster large-vocabulary softmax than CPU as ANE advantages.",
+          "source": "https://arxiv.org/html/2603.06728v1",
+          "note": null
+        },
+        {
+          "text": "Orion states the ANE bakes weights into the compiled program at compile time and that its results were validated on M4 Max only.",
+          "source": "https://arxiv.org/html/2603.06728v1",
+          "note": null
+        },
+        {
+          "text": "Orion reports ANE evaluation queue depth 127 and dispatch overhead ~0.095 ms (XPC + IOKit) for M4 Max (H16).",
+          "source": "https://arxiv.org/html/2603.06728v1",
+          "note": null
+        },
+        {
+          "text": "maderix measured Core ML adding 2-4x overhead over direct _ANEClient calls on small ops, with the gap narrowing when ANE compute time dominates.",
+          "source": "https://maderix.substack.com/p/inside-the-m4-apple-neural-engine-615",
+          "note": null
+        },
+        {
+          "text": "maderix measured a single matmul using only ~30% of ANE peak, and recommends 16-64-op deep graphs and 1x1 conv over matmul (matmul ~3x slower).",
+          "source": "https://maderix.substack.com/p/inside-the-m4-apple-neural-engine-615",
+          "note": null
+        },
+        {
+          "text": "maderix states the ANE's M4 codename is H16G, with independent DVFS channels (ANE_ADCLK_TRIG, ANE_PPT_TRIG and others in IOReportLegend) and hard power gating to 0 mW idle.",
+          "source": "https://maderix.substack.com/p/inside-the-m4-apple-neural-engine",
+          "note": null
+        },
+        {
+          "text": "maderix's measured ANE efficiency: ~6.6 TFLOPS/W peak versus ~1.0 for the M4 GPU (GPU figure stated approximate).",
+          "source": "https://maderix.substack.com/p/inside-the-m4-apple-neural-engine-615",
+          "note": null
+        },
+        {
+          "text": "maderix's series was written as a human plus Claude Opus 4.6 collaboration on an M4 Mac Mini, and publishes no DRAM-bandwidth number for the ANE.",
+          "source": "https://maderix.substack.com/p/inside-the-m4-apple-neural-engine",
+          "note": null
+        },
+        {
+          "text": "maderix's repo includes an sram_bench.m probe for ANE SRAM bandwidth and notes INT8 activations halve L2 SRAM bandwidth between tiles, while int8 weights are dequantized to fp16 at compile time.",
+          "source": "https://github.com/maderix/ANE",
+          "note": null
+        },
+        {
+          "text": "HN (smpanaro, May 2025): the main bottleneck for transformers is memory bandwidth and the ANE \"has a much lower ceiling than CPU/GPU (yes, despite unified memory)\"; chunking is beneficial while chunks fit the ANE cache, which is 3-4 GB on M1 and higher on M2+.",
+          "source": "https://news.ycombinator.com/item?id=43879702",
+          "note": null
+        },
+        {
+          "text": "HN (zozbot234, May 2025): padding low-bit LLM weights to FP16/INT8 for the ANE slashes effective memory-bandwidth use, so ANE benefit is prefill power, not speed.",
+          "source": "https://news.ycombinator.com/item?id=43879702",
+          "note": null
+        },
+        {
+          "text": "smpanaro more-ane-transformers discussion: at GPT-2 scale the ANE bottleneck is weight-loading memory bandwidth, so Apple's split-softmax speedup did not show up.",
+          "source": "https://github.com/smpanaro/more-ane-transformers/discussions/3",
+          "note": null
+        }
+      ]
+    }
+  ],
+  "related": []
+}

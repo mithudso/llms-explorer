@@ -1,0 +1,169 @@
+{
+  "slug": "routed-expert-ownership-split-under-ds4-streamin",
+  "concept": "Routed-expert ownership split under ds4 streaming TP",
+  "generated": "2026-10-05",
+  "summary": "Under ds4 TP each rank computes only the routed experts whose global id falls in its half of the 256-expert range (rank 0 low half, rank 1 high half, rank 1 taking any odd remainder) and exchanges the partial FFN sums at one gate per sparse layer.",
+  "facets": [
+    {
+      "title": "Facts",
+      "facts": [
+        {
+          "text": "Under ds4 TP each rank computes only the routed experts whose global id falls in its half of the 256-expert range (rank 0 low half, rank 1 high half, rank 1 taking any odd remainder) and exchanges the partial FFN sums at one gate per sparse layer.",
+          "source": "https://raw.githubusercontent.com/antirez/ds4/main/ds4_metal.m",
+          "note": null
+        },
+        {
+          "text": "In a streaming TP run the split is the same by expert id, but it is enforced inside the kernels, not by mapping only half of the file.",
+          "source": "https://raw.githubusercontent.com/antirez/ds4/main/ds4_metal.m",
+          "note": null
+        },
+        {
+          "text": "Resident (non-streaming) TP: `tp_shard` is true and `weights_model_map_sharded_spans` maps only this rank's contiguous expert range of each gate, up and down tensor, so the kernels see a blob that starts at the first owned expert. `tp_expert_base` rebases expert ids to that blob.",
+          "source": "https://raw.githubusercontent.com/antirez/ds4/main/ds4.c",
+          "note": null
+        },
+        {
+          "text": "Streaming TP: `tp_shard = role != DS4_TP_NONE && !e->ssd_streaming` is false, so no sharded map is built. The Metal routed-MoE binders set `streaming_tp = g_ssd_streaming_mode && g_tp_split_world == 2` and then reset `first_expert = 0` and `n_bind_expert = n_total_expert`.",
+          "source": "https://raw.githubusercontent.com/antirez/ds4/main/ds4.c",
+          "note": null
+        },
+        {
+          "text": "The binders' own comment gives the reason: streaming address tables are indexed by global expert id, so model offsets stay global and \"the kernels enforce rank ownership before dereferencing the selected address\".",
+          "source": "https://raw.githubusercontent.com/antirez/ds4/main/ds4_metal.m",
+          "note": null
+        },
+        {
+          "text": "The ownership test lives in `metal/moe.metal`: with `tp_world <= 1` every expert is owned; otherwise `first = tp_rank * (n_total / tp_world)` and `last` is `n_total` for the last rank, else `first + n_total / tp_world`. Many kernels begin with `if (!owned) return` (or `continue` inside loops) and index weights with `expert - args.tp_expert_base`.",
+          "source": "https://raw.githubusercontent.com/antirez/ds4/main/metal/moe.metal",
+          "note": null
+        },
+        {
+          "text": "The split is carried by `tp_rank`, `tp_world`, `tp_expert_base` and `tp_addend` fields added to the mul-mv-id kernel argument structs.",
+          "source": "https://raw.githubusercontent.com/antirez/ds4/main/ds4_metal.m",
+          "note": null
+        },
+        {
+          "text": "The host function `ds4_gpu_tp_expert_range` implements the contiguous split: `low_experts = n_total / 2`; rank 1 starts at `low_experts` and owns the remainder.",
+          "source": "https://raw.githubusercontent.com/antirez/ds4/main/ds4_metal.m",
+          "note": null
+        },
+        {
+          "text": "Consequence for streaming: each rank selects the same 6 routed experts per token (the router runs on both ranks, replicated), but only the experts that land in its half are fetched and computed; experts owned by the peer are skipped before any address is dereferenced. A rank therefore needs the SSD stream only for its own half of each layer's experts.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "The ownership split is mandatory on the decode path. A guard in `ds4_metal.m` fails with \"tensor-parallel routed MoE requires the fused pair+sum6 decode path\" when `tp_world > 1` and the fused pair-SwiGLU plus direct sum6 route is not in use, because \"every other routed variant would silently compute full sums on both ranks and double the combine\".",
+          "source": "https://raw.githubusercontent.com/antirez/ds4/main/ds4_metal.m",
+          "note": null
+        },
+        {
+          "text": "The pair-SwiGLU matmul kernel route is skipped under TP (`g_tp_split_world != 2` guard, with the comment \"pair-swiglu mm kernel lacks expert ownership\").",
+          "source": "https://raw.githubusercontent.com/antirez/ds4/main/ds4_metal.m",
+          "note": null
+        },
+        {
+          "text": "Load balance across ranks: the shared expert is split by lanes, and the split shifts toward the rank that owns fewer of the selected routed experts. The GPU decides this from the selected ids each token; the shift is routed-expert bytes over twice the shared-expert bytes. `DS4_TP_STATIC_SHARED_SPLIT=1` keeps fixed halves.",
+          "source": "https://raw.githubusercontent.com/antirez/ds4/main/ds4.c",
+          "note": null
+        },
+        {
+          "text": "For V4.1 the alternative is \"shared-owner\": ranks alternate (`il & 1`) which one computes the whole shared expert, and the V4.1 TP fast-decode path is off when streaming.",
+          "source": "https://raw.githubusercontent.com/antirez/ds4/main/ds4.c",
+          "note": null
+        },
+        {
+          "text": "A source comment in `ds4.c` still says \"TP always maps one contiguous routed-expert half per rank\", written before the streaming guard; the code now maps a half only when not streaming. That is a comment-versus-code mismatch, not a bug.",
+          "source": "https://raw.githubusercontent.com/antirez/ds4/main/ds4.c",
+          "note": null
+        },
+        {
+          "text": "CUDA TP has a separate expert-parallel design (\"cuda_tp_ep\"): home half `[0,128)` and partner half `[128,256)` resident, with `ds4_gpu_routed_moe_one_owned_tensor` for the partner side. The CUDA V4.1 decode batching condition is `(streaming && tp_world == 1) || (!streaming && tp_world == 2)`, so CUDA excludes streaming plus TP.",
+          "source": "https://raw.githubusercontent.com/antirez/ds4/main/ds4.c",
+          "note": null
+        },
+        {
+          "text": "The GLM validation that every routed-expert tensor type has an ownership-aware kernel (`glm_tp_validate_ownership_kernels`) runs only under `tp_shard`, so a streaming GLM TP run never runs it. An expert type without an ownership-aware kernel would hit the fused-path guard instead at the first token.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Because streaming TP keeps the global file offsets, both ranks open the full model file; neither node's disk holds only half. Any SSD saving from TP therefore comes from each rank reading half of the routed experts per token, not from smaller files.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Both ranks run the router identically, so ownership can leave a rank with zero or all six of a token's experts; the shared-expert lane rebalancing exists to smooth that.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "The streaming expert-cache threshold for short appends, `DS4_N_LAYER * DS4_N_EXPERT / 2`, is a count of half the experts and is not the TP half. It applies to single-Mac streaming.",
+          "source": "https://raw.githubusercontent.com/antirez/ds4/main/ds4.c",
+          "note": null
+        },
+        {
+          "text": "Docs versus code. The ds4 docs list tested TP setups without the streaming flag, and the CUDA section forbids streaming plus TP; the Metal code contains an explicit `streaming_tp` ownership path. The code path exists, but no source shows it benchmarked.",
+          "source": "https://raw.githubusercontent.com/antirez/ds4/main/docs/DISTRIBUTED.md",
+          "note": null
+        },
+        {
+          "text": "Whether the expert cache (GPU-side) is also split per rank, or each rank caches only experts it owns by use. The binder comment implies a global-id address table per rank, but the cache sizing under TP was not read.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Measured speed of streaming TP versus single-Mac streaming. No benchmark found.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "In a ds4 streaming TP run, expert ownership is enforced in the Metal kernels by global expert id: rank 0 owns `[0, n/2)` and the last rank owns the rest.",
+          "source": "https://raw.githubusercontent.com/antirez/ds4/main/metal/moe.metal",
+          "note": null
+        },
+        {
+          "text": "`streaming_tp` is `g_ssd_streaming_mode && g_tp_split_world == 2`, and when true the host sets `first_expert = 0` and `n_bind_expert = n_total_expert`, keeping model offsets global.",
+          "source": "https://raw.githubusercontent.com/antirez/ds4/main/ds4_metal.m",
+          "note": null
+        },
+        {
+          "text": "Without streaming, ds4 maps only the rank's contiguous half of each expert tensor and rebases ids with `tp_expert_base`.",
+          "source": "https://raw.githubusercontent.com/antirez/ds4/main/ds4.c",
+          "note": null
+        },
+        {
+          "text": "`tp_shard` is `opt->tp.role != DS4_TP_NONE && !e->ssd_streaming`, so streaming TP never builds the sharded map.",
+          "source": "https://raw.githubusercontent.com/antirez/ds4/main/ds4.c",
+          "note": null
+        },
+        {
+          "text": "A Metal TP routed-MoE call that does not use the fused pair-SwiGLU plus sum6 decode path fails with \"tensor-parallel routed MoE requires the fused pair+sum6 decode path\".",
+          "source": "https://raw.githubusercontent.com/antirez/ds4/main/ds4_metal.m",
+          "note": null
+        },
+        {
+          "text": "The ownership predicate in `moe.metal` splits `n_total / tp_world` experts per rank and gives the last rank the remainder.",
+          "source": "https://raw.githubusercontent.com/antirez/ds4/main/metal/moe.metal",
+          "note": null
+        },
+        {
+          "text": "The Metal TP shared-expert lane split shifts toward the rank that owns fewer of a token's selected routed experts, unless `DS4_TP_STATIC_SHARED_SPLIT` is set.",
+          "source": "https://raw.githubusercontent.com/antirez/ds4/main/ds4.c",
+          "note": null
+        },
+        {
+          "text": "The `ds4.c` comment \"TP always maps one contiguous routed-expert half per rank\" is stale for streaming runs.",
+          "source": "https://raw.githubusercontent.com/antirez/ds4/main/ds4.c",
+          "note": null
+        },
+        {
+          "text": "CUDA V4.1 TP and streaming are mutually exclusive in the batched-row decision, while the Metal code has a dedicated streaming TP ownership path.",
+          "source": "https://raw.githubusercontent.com/antirez/ds4/main/ds4.c",
+          "note": null
+        }
+      ]
+    }
+  ],
+  "related": []
+}

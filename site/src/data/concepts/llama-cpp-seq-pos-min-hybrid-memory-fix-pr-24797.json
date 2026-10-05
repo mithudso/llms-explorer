@@ -1,0 +1,184 @@
+{
+  "slug": "llama-cpp-seq-pos-min-hybrid-memory-fix-pr-24797",
+  "concept": "llama.cpp seq_pos_min hybrid memory fix PR 24797",
+  "generated": "2026-10-05",
+  "summary": "Master still reads `seq_pos_min` as `std::max(mem_attn->seq_pos_min(seq_id), mem_recr->seq_pos_min(seq_id))` with the comment \"the min of the total cache is the max of the two caches' min values\", and `seq_pos_max` as the `std::min` of both.",
+  "facets": [
+    {
+      "title": "Facts",
+      "facts": [
+        {
+          "text": "Master still reads `seq_pos_min` as `std::max(mem_attn->seq_pos_min(seq_id), mem_recr->seq_pos_min(seq_id))` with the comment \"the min of the total cache is the max of the two caches' min values\", and `seq_pos_max` as the `std::min` of both.",
+          "source": "https://raw.githubusercontent.com/ggml-org/llama.cpp/master/src/llama-memory-hybrid.cpp",
+          "note": null
+        },
+        {
+          "text": "The reason ggerganov gave for rejecting the change: \"the recurrent state is valid only for the latest position and using it with any other position is incorrect\".",
+          "source": "https://github.com/ggml-org/llama.cpp/pull/24797",
+          "note": null
+        },
+        {
+          "text": "The rejected change also let a rollback that exceeded `n_rs_seq` fall through to normal cell removal, which keeps attention KV trimmed but leaves a recurrent state at the wrong position.",
+          "source": "https://github.com/ggml-org/llama.cpp/pull/24797",
+          "note": null
+        },
+        {
+          "text": "The replacement PR 25592 states the invariant instead: recurrent state is only restored at the exact position it was saved at. It records checkpoint validity at save time (`pos_min = pos_max` for hybrid and recurrent memory), restores a checkpoint only when its exact position lies inside the common prefix of the new prompt, and erases checkpoints that cover diverged content instead of trimming them.",
+          "source": "https://github.com/ggml-org/llama.cpp/pull/25592",
+          "note": null
+        },
+        {
+          "text": "PR 25592 makes no change to `llama_memory_hybrid`; `seq_rm` still fails cleanly on impossible rollbacks, now with a debug log.",
+          "source": "https://github.com/ggml-org/llama.cpp/pull/25592",
+          "note": null
+        },
+        {
+          "text": "The master server code carries the open marker: `[TAG_CHECKPOINTS_FIX_POS_MIN]` TODO \"here we incorrectly determine that the saved checkpoint data covers the [pos_min, pos_max] range\", plus a restore-side workaround that rejects a checkpoint with `pos_max > pos_next`.",
+          "source": "https://raw.githubusercontent.com/ggml-org/llama.cpp/master/tools/server/server-context.cpp",
+          "note": null
+        },
+        {
+          "text": "PR 24110 changed `pos_min_thold` so the `-1` margin applies only when no new tokens exist (`has_new_tokens = n_past < task.n_tokens()`); this avoids restoring a checkpoint when the slot already holds the prefix. Master has it.",
+          "source": "https://raw.githubusercontent.com/ggml-org/llama.cpp/master/tools/server/server-context.cpp",
+          "note": null
+        },
+        {
+          "text": "2026-06-19: PR 24797 opened. 2026-06-26/27: a tester reports most invalidations gone on b9820 with the patch, still seeing `clearing stale recurrent state beyond n_past = 10047 (recr_pos_max = 15932)` under many parallel sessions.",
+          "source": "https://github.com/ggml-org/llama.cpp/pull/24797",
+          "note": null
+        },
+        {
+          "text": "2026-06-27: ggerganov calls the change \"obviously wrong\" and closes the PR.",
+          "source": "https://github.com/ggml-org/llama.cpp/pull/24797",
+          "note": null
+        },
+        {
+          "text": "2026-07-12: krim404 opens PR 25592 as \"a reimplementation of #24797\" and states that 24797 \"was rejected because it could reuse recurrent state at positions it was never valid for\".",
+          "source": "https://github.com/ggml-org/llama.cpp/pull/25592",
+          "note": null
+        },
+        {
+          "text": "2026-07-14: the PR is rebased after PRs 25472 and 25649 landed; a second commit drops the bounded `n_rs_seq` rollback fast path because those snapshots are valid only for tokens decoded in the last ubatch.",
+          "source": "https://github.com/ggml-org/llama.cpp/pull/25592",
+          "note": null
+        },
+        {
+          "text": "2026-07 to 2026-08: testers report 150 to 400 times faster turns on restored checkpoints; the newest comment on the cached page is dated 2026-08-26 and no merge event appears.",
+          "source": "https://github.com/ggml-org/llama.cpp/pull/25592",
+          "note": null
+        },
+        {
+          "text": "Speculative decoding can loop on hybrid models: PR 25819 (WIP mitigation, 2026-07-17) logs `STUCK speculative loop: 4 consecutive checkpoint restores with no progress` for ngram-mod drafts after a restore. A 2026-08-25 commenter says the bug \"happens often enough to be noticeable\" with 25592 and 26004.",
+          "source": "https://github.com/ggml-org/llama.cpp/issues/25819",
+          "note": null
+        },
+        {
+          "text": "PR 24785, a different approach (recurrent shrink/expand ported from BeeLlama), was also proposed for the same symptoms.",
+          "source": "https://github.com/ggml-org/llama.cpp/pull/24785",
+          "note": null
+        },
+        {
+          "text": "Contributor view: the max() inflates `pos_min`, so the fix is to report the attention minimum. Maintainer view: positions other than the latest are invalid for recurrent state, so the fix belongs in checkpoint metadata and restore rules. They disagree on where the invariant is enforced; the maintainer view decided the outcome.",
+          "source": "https://github.com/ggml-org/llama.cpp/pull/24797",
+          "note": null
+        },
+        {
+          "text": "Testers of 24797 reported working caches; the closure reason says the cache hits could rest on invalid state. Whether any corruption occurred is unmeasured; 25592 reports byte-identical output at temperature 0 against a cold prefill.",
+          "source": "https://github.com/ggml-org/llama.cpp/pull/25592",
+          "note": null
+        },
+        {
+          "text": "Whether PR 25592 merges, and whether upstream adopts its `pos_min = pos_max` bookkeeping or a different one.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Whether Metal behaves like the CUDA, ROCm and Vulkan logs; every cited test is on those backends.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "PR 24797 was closed by ggerganov on 2026-06-27 and is not merged.",
+          "source": "https://github.com/ggml-org/llama.cpp/pull/24797",
+          "note": null
+        },
+        {
+          "text": "ggerganov's closing comment is \"This change is obviously wrong - the recurrent state is valid only for the latest position and using it with any other position is incorrect.\"",
+          "source": "https://github.com/ggml-org/llama.cpp/pull/24797",
+          "note": null
+        },
+        {
+          "text": "Master `llama_memory_hybrid::seq_pos_min` still returns the max of the attention and recurrent minimums.",
+          "source": "https://raw.githubusercontent.com/ggml-org/llama.cpp/master/src/llama-memory-hybrid.cpp",
+          "note": null
+        },
+        {
+          "text": "PR 25592 describes itself as a reimplementation of 24797 that keeps the exact-position invariant.",
+          "source": "https://github.com/ggml-org/llama.cpp/pull/25592",
+          "note": null
+        },
+        {
+          "text": "PR 25592 resolves the `[TAG_CHECKPOINTS_FIX_POS_MIN]` TODO for hybrid and recurrent memory.",
+          "source": "https://github.com/ggml-org/llama.cpp/pull/25592",
+          "note": null
+        },
+        {
+          "text": "PR 25592 logs checkpoint create, restore and erase at INFO so they show without `-lv`.",
+          "source": "https://github.com/ggml-org/llama.cpp/pull/25592",
+          "note": null
+        },
+        {
+          "text": "PR 25592's author tested on Qwen3.6-35B-A3B Q4_K_M on Vulkan; a repeated 22.8k-token request went from about 96 s to a 4-token cache hit.",
+          "source": "https://github.com/ggml-org/llama.cpp/pull/25592",
+          "note": null
+        },
+        {
+          "text": "A tester on an RTX 3090 with Qwen3.8-27B IQ4_NL measured a 38.5K-token prefill of 40.8 s falling to 0.1 to 0.3 s after restore.",
+          "source": "https://github.com/ggml-org/llama.cpp/pull/25592",
+          "note": null
+        },
+        {
+          "text": "A third-party report says reusing an equivalent checkpoint instead of saving a new one cut a 1156-token warm request from about 122 ms to 43 ms on a Radeon 780M.",
+          "source": "https://github.com/ggml-org/llama.cpp/pull/25592",
+          "note": null
+        },
+        {
+          "text": "Issue 22746 (Qwen 3.6 27B full re-processing, opened 2026-05-06) is marked Closed.",
+          "source": "https://github.com/ggml-org/llama.cpp/issues/22746",
+          "note": null
+        },
+        {
+          "text": "Issue 23589 traced a cache drop of one batch (`-b`) worth of tokens per turn to commit ccee426 (PR 23280).",
+          "source": "https://github.com/ggml-org/llama.cpp/issues/23589",
+          "note": null
+        },
+        {
+          "text": "The author of PR 24110 said it might also fix issue 23589, and ggerganov called the change technically correct but asked for a repro on master.",
+          "source": "https://github.com/ggml-org/llama.cpp/pull/24110",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Corrections and disagreements",
+      "facts": [
+        {
+          "text": "CONTRADICTS: llama-cpp-context-checkpoints-and-swa-hybrid-pro.md (\"2026-06-19: PR 24797 opened to fix seq_pos_min(); draft/open at fetch\") and its open question \"Whether 24797 merges\": it was closed unmerged on 2026-06-27.",
+          "source": "https://github.com/ggml-org/llama.cpp/pull/24797",
+          "note": null
+        },
+        {
+          "text": "CONTRADICTS: hybrid-gateddeltanet-state-rollback-and-checkpoi.md (PR 24797 \"draft\", \"targets the `seq_pos_min()` root cause\") and its claims that the `std::max()` is a bug to fix; the maintainer treats the recurrent state's single valid position as the invariant.",
+          "source": "https://github.com/ggml-org/llama.cpp/pull/24797",
+          "note": null
+        },
+        {
+          "text": "CONTRADICTS: context-shift-and-cache-overflow-policy-for-recu.md (\"PR 24797 makes that fall through to normal cell removal\"): that behavior never merged.",
+          "source": "https://github.com/ggml-org/llama.cpp/pull/24797",
+          "note": null
+        }
+      ]
+    }
+  ],
+  "related": []
+}

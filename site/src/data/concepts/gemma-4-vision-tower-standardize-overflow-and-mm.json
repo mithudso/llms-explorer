@@ -1,0 +1,149 @@
+{
+  "slug": "gemma-4-vision-tower-standardize-overflow-and-mm",
+  "concept": "Gemma 4 vision tower standardize overflow and mmproj dtype on Metal",
+  "generated": "2026-10-05",
+  "summary": "The llama.cpp graph order is: vision transformer blocks, 2-D average pool, a scale by `sqrt(n_embd)`, then the standardize `ggml_sub` and `ggml_mul` when both tensors exist, then the multimodal embedder. The pooled values are multiplied by `sqrt(n_embd)` before `std_bias` is subtracted.",
+  "facets": [
+    {
+      "title": "Facts",
+      "facts": [
+        {
+          "text": "The llama.cpp graph order is: vision transformer blocks, 2-D average pool, a scale by `sqrt(n_embd)`, then the standardize `ggml_sub` and `ggml_mul` when both tensors exist, then the multimodal embedder. The pooled values are multiplied by `sqrt(n_embd)` before `std_bias` is subtracted.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "`std_bias` and `std_scale` are optional tensors in the loader (`get_tensor(..., false)`); a checkpoint with `standardize` false simply lacks them and the step is skipped.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "The loader also reads four per-linear scalars (`input_min`, `input_max`, `output_min`, `output_max`) for Gemma 4's clippable linears and stores them in `clamp_info_map`, defaulting to plus or minus `FLT_MAX` (no clamp) when absent. This is the architecture's own clamp mechanism, separate from standardize.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "The helper that reads scalar/vector tensors throws `\"%s: %s must be %s, was %s\"` unless the tensor type is F32. Any F16 or BF16 mmproj converter must therefore keep these scalars F32 or loading fails loudly (the failure is a load error, not silent corruption).",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Flash attention in the mtmd vision graph casts K, V and the mask to F16 and sets F32 accumulation; the non-flash path leaves F32 accumulation commented out with the note \"F32 may not needed for vision encoders?\". The attention softmax therefore does not run the unprotected-fp16 risk path when flash attention is on, but the standardize subtraction sits outside attention.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Flash attention for the vision encoder is chosen by a warm-up: `AUTO` first tries `ENABLED`, and if the backend lacks support logs \"flash attention not supported by <backend>, memory usage will increase\" and falls back to `DISABLED`.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Whether the Metal backend runs the `ggml_sub` of the standardize step in F32 or F16 is not stated in the files read; the raw image input tensor is F32 and activation dtype is a backend and graph property. No report of the Gemma 4 overflow on Metal exists in any source found.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "On the MLX side, `VisionModel.__call__` ends with the same standardize line in the dtype of the pooled tensor, after an average pool and RMSNorm that computes in float32 and returns the input dtype. The attention mask fill is -1e4 (chosen in a code comment to avoid all-masked-row NaN in backward), which fp16 can represent.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "The mtmd Gemma 4 vision graph is `clip_graph_gemma4v`; later projector types `GEMMA4UV`, `GEMMA4A` (audio conformer) and `GEMMA4UA` share the same file, so the mmproj family grew past the standardize-bearing tower within the 2026-04 to 2026-10 window.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "A GGUF vision projector that lacks `std_bias` and `std_scale` does not error; it silently skips standardize. A conversion that drops those two tensors from a standardize=true model would give wrong-scale image embeddings without an error (inferred from the optional load).",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "A converter that stores all mmproj floats as F16 and does not special-case the clamp scalars would hit the F32 check above at load.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "The Unsloth guidance to prefer `mmproj-BF16` for Gemma 4 does not by itself tell a Mac user which is faster: Unsloth says BF16 may be slower on Mac, and the existing M1/M2 file shows the slowdown is a pre-M3 property. A Mac M3-or-later user has no evidence-based reason to prefer F16.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "None new beyond the existing split between Unsloth's BF16 mmproj and the FP16-if-no-BF16 advice.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Which published Gemma 4 mmproj GGUFs store `std_bias` as F32 versus F16 or BF16? Checking needs `gguf-dump` on each file; not done.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Does the F16 mmproj of Gemma 4 31B or 26B-A4B overflow on Metal? No source.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Does `Gemma4ClippableLinear` clamping (when scalars are present) bound the pre-standardize activations enough to prevent the overflow? No source tests this.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "In llama.cpp's `clip_graph_gemma4v`, the Gemma 4 vision pooler averages 2-D patches, scales by `sqrtf(n_embd)`, and then, only if `model.std_bias && model.std_scale` are set, applies `ggml_sub` with `std_bias` and `ggml_mul` with `std_scale`, naming the result `std_scaled`.",
+          "source": "https://raw.githubusercontent.com/ggml-org/llama.cpp/master/tools/mtmd/models/gemma4v.cpp",
+          "note": null
+        },
+        {
+          "text": "The Gemma 4 vision loader reads `std_bias` and `std_scale` with `get_tensor(TN_STD_BIAS, false)` and `get_tensor(TN_STD_SCALE, false)`, so both are optional.",
+          "source": "https://raw.githubusercontent.com/ggml-org/llama.cpp/master/tools/mtmd/clip.cpp",
+          "note": null
+        },
+        {
+          "text": "For each `.weight` tensor the Gemma 4 vision loader reads `.input_max`, `.input_min`, `.output_max` and `.output_min` scalars into `clamp_info_map`, with defaults `FLT_MAX` and `-FLT_MAX`.",
+          "source": "https://raw.githubusercontent.com/ggml-org/llama.cpp/master/tools/mtmd/clip.cpp",
+          "note": null
+        },
+        {
+          "text": "The clip loader's scalar/vector reader throws `must be F32, was <type>` when the stored tensor type is not `GGML_TYPE_F32`.",
+          "source": "https://raw.githubusercontent.com/ggml-org/llama.cpp/master/tools/mtmd/clip.cpp",
+          "note": null
+        },
+        {
+          "text": "With flash attention enabled in clip, K, V and the mask are cast to F16 and `ggml_prec_set_acc(cur, GGML_PREC_F32)` is set; in the non-flash branch the F32 precision line is commented out with \"F32 may not needed for vision encoders?\".",
+          "source": "https://raw.githubusercontent.com/ggml-org/llama.cpp/master/tools/mtmd/clip.cpp",
+          "note": null
+        },
+        {
+          "text": "clip's warm-up tries flash attention when set to `AUTO` and, if the backend does not support it, logs a warning that memory usage will increase and sets it to `DISABLED`.",
+          "source": "https://raw.githubusercontent.com/ggml-org/llama.cpp/master/tools/mtmd/clip.cpp",
+          "note": null
+        },
+        {
+          "text": "clip allocates the raw image input tensor as `GGML_TYPE_F32` before the patch embedding.",
+          "source": "https://raw.githubusercontent.com/ggml-org/llama.cpp/master/tools/mtmd/clip.cpp",
+          "note": null
+        },
+        {
+          "text": "mlx-vlm's Gemma 4 vision attention mask uses a -1e4 fill instead of -inf, with a comment that all-masked padded query rows would otherwise give NaN in backward.",
+          "source": "https://raw.githubusercontent.com/Blaizzy/mlx-vlm/main/mlx_vlm/models/gemma4/vision.py",
+          "note": null
+        },
+        {
+          "text": "mlx-vlm's Gemma 4 vision tower runs the standardize subtraction after an average pool, in the pooled tensor's dtype, with no float32 cast.",
+          "source": "https://raw.githubusercontent.com/Blaizzy/mlx-vlm/main/mlx_vlm/models/gemma4/vision.py",
+          "note": null
+        },
+        {
+          "text": "llama.cpp's mtmd code defines separate projector types `GEMMA4V`, `GEMMA4UV`, `GEMMA4A` and `GEMMA4UA`, each with its own graph builder.",
+          "source": "https://raw.githubusercontent.com/ggml-org/llama.cpp/master/tools/mtmd/clip.cpp",
+          "note": null
+        },
+        {
+          "text": "A user checking whether a Gemma 4 mmproj is safe on Metal should read `std_bias`, `std_scale` and the clamp scalars with `gguf-dump` before trusting an F16 file.",
+          "source": "asserted",
+          "note": null
+        }
+      ]
+    }
+  ],
+  "related": []
+}

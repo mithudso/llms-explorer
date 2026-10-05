@@ -1,0 +1,484 @@
+{
+  "slug": "mac-local-llms-speculative-decoding-and-mtp",
+  "concept": "Mac local LLMs: Speculative decoding and MTP",
+  "generated": "2026-10-05",
+  "summary": "llama.cpp (lowest friction): `llama-server -m Qwen3.6-35B-A3B-Q8_0.gguf --spec-type draft-mtp --spec-draft-n-max 3 -ngl 999 -fa on -c 65536 --parallel 1 --jinja`; the MTP GGUF runs normally without the flag.",
+  "facets": [
+    {
+      "title": "Which engine, what to run",
+      "facts": [
+        {
+          "text": "llama.cpp (lowest friction): `llama-server -m Qwen3.6-35B-A3B-Q8_0.gguf --spec-type draft-mtp --spec-draft-n-max 3 -ngl 999 -fa on -c 65536 --parallel 1 --jinja`; the MTP GGUF runs normally without the flag.",
+          "source": "https://github.com/stared/benching-local-llms-on-apple-silicon",
+          "note": null
+        },
+        {
+          "text": "MTPLX (MLX, Apache-2.0): `brew install youssofal/mtplx/mtplx` (or `python3 -m pip install mtplx`), `mtplx pull Youssofal/Qwen3.6-27B-MTPLX-Optimized-Speed`, `mtplx serve --profile sustained --reasoning off --mtp --depth 3`. Serves OpenAI and Anthropic APIs on 127.0.0.1:8000.",
+          "source": "https://github.com/youssofal/MTPLX",
+          "note": null
+        },
+        {
+          "text": "OptiQ: `pip install mlx-optiq`; `optiq serve --model mlx-community/Qwen3.5-9B-OptiQ-4bit --mtp`; `--drafter <repo>`; `--ngram-draft 16`. `--mtp` and `--drafter` are exclusive; n-gram combines only with `--mtp`.",
+          "source": "https://mlx-optiq.com/docs/speculative",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Expected speedups (all Mac, from reports)",
+      "facts": [
+        {
+          "text": "Dense Qwen3.6-27B Q8: 18.4 to 31.7 t/s (+75%) on M5 Max; MoE 35B-A3B Q8: 92.9 to 104.6 (+12%).",
+          "source": "https://github.com/stared/benching-local-llms-on-apple-silicon/blob/main/NOTES.md",
+          "note": null
+        },
+        {
+          "text": "Stock-kernel MLX (OptiQ, M4 Pro 24 GB): 27B 1.40x greedy, 1.30x sampled; 9B 1.32x; 4B 1.20x. oMLX Lightning 1.88x; MTPLX 2.0-3.0x. 2x+ needs MTPLX custom verify kernels.",
+          "source": "https://mlx-optiq.com/docs/speculative",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "When it loses",
+      "facts": [
+        {
+          "text": "Skip it for targets under about 4B (0.8B 0.7x) and for bf16 targets (roughly 2x cost cliff at verify width 2 until mlx 0.32.1 `gemv_wide`).",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "llama.cpp MTP cuts prompt processing (-17% on M2 Ultra, 1015 to about 842 t/s). Batching and speculation are substitutes on Mac.",
+          "source": "asserted",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Draft depth",
+      "facts": [
+        {
+          "text": "Use depth 1-3 on Metal: the K-token verify costs about K single-token forwards. OptiQ Qwen3.6-27B greedy K=1 1.36x, K=2 1.34x, K=3 0.94x, K=4 0.74x; MTPLX default 3 (Qwen), Bonsai 1, 9B on 16 GB M4 mini 1. Retune with `mtplx tune --model <m> --retune`.",
+          "source": "https://mlx-optiq.com/blog/mtp-on-apple-silicon",
+          "note": null
+        },
+        {
+          "text": "Draft and verify must use identical top-p/top-k truncation: OptiQ 9B acceptance 32% to 63%, 1.00x to 1.28x after fixing. Qwen3.6 sampler: temp 1.0, top-p 0.95, top-k 20.",
+          "source": "https://mlx-optiq.com/blog/mtp-on-apple-silicon",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Failure modes and fixes",
+      "facts": [
+        {
+          "text": "`ValueError: Model type qwen3_5_mtp not supported` from `mlx_lm.server --draft-model <...-MTP-bf16>`: MTP heads are not peer models; use MTPLX, OptiQ or oMLX. Gemma: `ValueError: Model type gemma4_assistant not supported` (LM Studio mlx-engine issue 323).",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Converted model has no MTP: default mlx-lm converters strip tensors; oMLX warns \"Config declares MTP layers but the weight files contain neither mtp.* tensors nor native nextn layers\". Convert with `mtplx forge`; check with `mtplx inspect`.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Acceptance 0-2%: wrong MTP norm convention (fixed in MTPLX 2.9.2; 2.12.0 restores it on foreign sidecars) or a double-shifted trunk, which the runtime now refuses.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "llama.cpp: quantizing target KV (`-ctk q8_0 -ctv q8_0`) gave 0% acceptance with Gemma-4 drafters until the Hadamard fix in PR 23398; multi-GPU needs `--spec-draft-device` with `-sm layer`.",
+          "source": "https://github.com/ggml-org/llama.cpp/pull/23398",
+          "note": null
+        },
+        {
+          "text": "Hybrid targets log `speculative decoding not supported by this context without checkpoints`; checkpoint restore is slower than `seq_rm`. Stuck loop: `STUCK speculative loop: 4 consecutive checkpoint restores with no progress`, mitigated in PR 25819.",
+          "source": "https://github.com/ggml-org/llama.cpp/pull/19493",
+          "note": null
+        },
+        {
+          "text": "MTPLX: flash route is M5-class and macOS 26.2+ only after wrong output on M1-M4 (2.11.2); `MTPLX_NAX_FLASH_ROUTE=1`.",
+          "source": "https://github.com/youssofal/MTPLX/blob/main/CHANGELOG.md",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Drafter families (llama.cpp)",
+      "facts": [
+        {
+          "text": "DFlash: `--spec-type draft-dflash --spec-draft-n-max 15 --temp 0 --top-k 1 -np 1 -md <drafter>`, converted with `--target-model-dir`.",
+          "source": "https://github.com/ggml-org/llama.cpp/pull/22105",
+          "note": null
+        },
+        {
+          "text": "EAGLE-3: `-md <eagle3>.gguf --spec-type draft-eagle3`. DSpark: `--spec-type draft-dspark --spec-draft-n-max 7 -fa on --jinja`; `--spec-draft-conf-min P` truncates low-confidence blocks. `-hfd` picks sidecars mtp, then dflash, then eagle3; sharded drafts need explicit `--spec-type`.",
+          "source": "https://github.com/ggml-org/llama.cpp/blob/master/docs/speculative.md",
+          "note": null
+        },
+        {
+          "text": "N-gram: `--spec-default` = `ngram-mod` n_match 24, n_min 48, n_max 64; `--spec-type` takes a comma list. DFlash wins code/math, DSpark/MTP wins chat; verdict flips by version.",
+          "source": "https://raw.githubusercontent.com/ggml-org/llama.cpp/master/common/arg.cpp",
+          "note": null
+        },
+        {
+          "text": "ngram-mod resets its table after 5 consecutive rounds with accepted/drafted below 0.25; PR 22168 also re-indexes the whole context. Gain 3-9%: Gemma 4 26B-A4B 141.08 to 155.10 t/s (base 97.57), Qwen 3.6 35B-A3B 148.56 to 153.65 (base 112.54).",
+          "source": "https://github.com/ggml-org/llama.cpp/pull/22168",
+          "note": null
+        },
+        {
+          "text": "ngram-mod internals: one `int32` per slot in 4M entries, no key check, so hash collisions return a wrong token (target verifies it); draft copies the latest match, not the dominant value; no draft if an empty slot appears before `n_min`.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "ngram-map k4v: `--spec-ngram-map-k-min-hits` defaults 1, docs example size-n 8, size-m 8, min-hits 2, draft-n-max 64; it drafts only when the top value count is at least 2x the others; a draftless type outranks a draft model when combined.",
+          "source": "https://raw.githubusercontent.com/ggml-org/llama.cpp/master/docs/speculative.md",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "MLX verify kernels (why MLX gains vary)",
+      "facts": [
+        {
+          "text": "`quantized_matmul` re-reads weights per row for M=2..12; `qmm` wins only from about M=13. `qmv_wide` (PR 3764) ships in mlx 0.32.0, affine gated to M3+; `gemv_wide` in 0.32.1.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "MoE verify via `gather_qmm` has M=1 per row, so it never reaches the wide kernels; windows under 8 tokens are never expert-sorted.",
+          "source": "https://raw.githubusercontent.com/ml-explore/mlx-lm/main/mlx_lm/models/switch_layers.py",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Structured output and grammars (llama.cpp)",
+      "facts": [
+        {
+          "text": "Grammar and reasoning-budget state advance per token inside one verify pass; a grammar-invalid draft token ends acceptance there and the sampler emits a valid one. A lazy grammar is skipped inside a think block, so drafts there are checked only against the target. No drafter (draft model top_k 10, or the five n-gram types) applies a grammar, so acceptance drops in constrained regions. Grammar requests always sample on CPU.",
+          "source": "https://raw.githubusercontent.com/ggml-org/llama.cpp/master/common/sampling.cpp",
+          "note": null
+        },
+        {
+          "text": "vLLM: Qwen3 Coder with reasoning can silently disable structured outputs (v0.11.2+); `--structured-outputs-config.enable_in_reasoning=True` re-enables.",
+          "source": "https://docs.vllm.ai/en/latest/features/structured_outputs/",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Batched serving (not single-user Mac)",
+      "facts": [
+        {
+          "text": "D-cut (arXiv 2607.14647, vLLM PR 47131) prunes DFlash verified depth to a global budget chosen from drafter confidence; 1.26x to 1.65x over DFlash 16 in 29 of 30 configs, and DFlash block 16 at concurrency 32 averages 0.94x. Barely applies to batch-1 Mac.",
+          "source": "https://arxiv.org/html/2607.14647v1",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Corrections to earlier claims",
+      "facts": [
+        {
+          "text": "\"draft-mtp net loss at every setting on Metal\" is wrong: wins on M5 Max, M2 Ultra, M4 Pro; loss is model-specific.",
+          "source": "https://github.com/stared/benching-local-llms-on-apple-silicon/blob/main/NOTES.md",
+          "note": null
+        },
+        {
+          "text": "\"Draft length 5-6\" is wrong for Metal; use 1-3.",
+          "source": "https://mlx-optiq.com/blog/mtp-on-apple-silicon",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Open questions",
+      "facts": [
+        {
+          "text": "Do MTPLX 2-3x gains reproduce on third-party hardware beyond M4 Pro 2.6x and M5 Max 55.4 vs 29.7 tok/s? No Mac benchmark of `ngram-mod` exists.",
+          "source": "asserted",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Corrections and disagreements",
+      "facts": [
+        {
+          "text": "CONTRADICTS: llama-cpp-metal-backend-on-mac.md and moe-active-parameter-decode-on-unified-memory.md (llama.cpp draft-mtp \"net loss at every setting on Metal\"): it is a net win on M5 Max (dense Qwen3.6-27B Q8 18.4 to 31.7 t/s, MoE 35B-A3B Q8 92.9 to 104.6), M2 Ultra (+7-14%), M1 Max with Gemma-4 26B-A4B (+24%) and M4 Pro (+50%); the loss is specific to issue 23752 (M1 Max, Qwen3.5-9B) and a few comments.",
+          "source": "https://github.com/stared/benching-local-llms-on-apple-silicon/blob/main/NOTES.md",
+          "note": null
+        },
+        {
+          "text": "CONTRADICTS: llama-cpp-metal-backend-on-mac.md (\"Issue 23752 is closed with no fix recorded\"): it was closed by the MTP author as \"not a bug\" on 26 May 2026, not as fixed, and the maintainer declined to debug the setup.",
+          "source": "https://github.com/ggml-org/llama.cpp/issues/23752",
+          "note": null
+        },
+        {
+          "text": "CONTRADICTS: continuous-batching-on-mlx.md line \"Spec decoding on hybrids needs DeltaNet recurrent state to roll back ... an active area in llama.cpp\": it is merged in llama.cpp (PR 22400 partial seq_rm for GDN, PR 22673 MTP 16 May 2026, PR 25589 Qwen3-Next MTP 3 Aug 2026), and has working MLX implementations (MTPLX, ddtree-mlx, OptiQ n-gram, mlx-dspark checkpoint/rungs).",
+          "source": "https://mtplx.com/compare/mtplx-vs-llama-cpp/",
+          "note": null
+        },
+        {
+          "text": "CONTRADICTS: mlx-vs-llama-cpp-decode-and-prefill-by-model-size-and-context.md (\"mlx-lm 0.31.3 has no MTP path\" is correct) but its implication that MLX has no MTP path outside Ollama/Rapid-MLX: MTPLX, OptiQ `--mtp`, oMLX Lightning MTP/VLM MTP and mlx-dspark all run MTP or drafter speculation on MLX today.",
+          "source": "https://mlx-optiq.com/docs/speculative",
+          "note": null
+        },
+        {
+          "text": "CONTRADICTS: moe-active-parameter-decode-on-unified-memory.md (\"MTPLX reports 2.2-2.6x on dense Qwen3.6-27B\" as the MLX counterpoint): the stock-kernel MLX path (OptiQ on M4 Pro 24 GB) gets only 1.30-1.40x on the same model, so the 2x+ figures depend on MTPLX's custom verify kernels.",
+          "source": "https://mlx-optiq.com/docs/speculative",
+          "note": null
+        },
+        {
+          "text": "CONTRADICTS: mlx-and-mlx-lm-on-apple-silicon.md (vendor blog \"default draft length: blog recommends 5-6\"; server default 3): on Metal several measurements say depth 1-3 is optimal and 4+ regresses (OptiQ depth 1; Gemma gamma 3 0.96x; mlx-dspark caps 2-7 by chip).",
+          "source": "https://mlx-optiq.com/blog/mtp-on-apple-silicon",
+          "note": null
+        },
+        {
+          "text": "CONTRADICTS: quantization-formats-for-apple-silicon-gguf-vs-mlx.md and data-driven-mixed-precision-mlx-quants-oq-optiq-jang.md (7-14% g32 decode penalty, issue 3251 as current): the issue's own author retested on MLX 0.31.2 and reports about 4% average g32 decode penalty and no prefill penalty; the 7-14% figure is MLX 0.29.3. The oMLX measurement in the second file (-10% / -14% for mixed oQ4) is a different comparison and not shown to be the group-size effect alone.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "CONTRADICTS: mlx-quantized-matmul-small-m-verify-kernels.md (\"bf16 matmul is flat from M=2\"): mlx-dspark reports MLX's unquantized matmul paid a cost cliff of about 2x at verify width 2 until mlx 0.32.1 added `gemv_wide`. Issue 4265's bf16 control and mlx-dspark's sweep may differ by shape or mlx version; neither is retracted.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "README: \"Forge ... convert to MLX, train the MTP adapter, verify\". PR 489's changelog entry: a speculative conversion \"cannot create the missing trained head\". CONTRADICTS: mtplx-forge-and-mtp-preserving-mlx-conversion.md, whose Definition says Forge \"keeps or trains an MTP head\": the cached changelog shows Forge cannot train a head where none exists. The README's \"train\" may mean fitting or calibrating an existing head, but no cached page says so explicitly.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "CONTRADICTS: moe-gatherqmm-small-m-verify-cost.md lines 30 and 37, which say no source reports overlap between draft tokens and that none was found for a measured verify cost against window size. Cohere's blog reports overlap by step, unique experts per window, and a measured T(1)/T(4) of 0.80 at BS=1, though on vLLM and a GPU, not MLX.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "CONTRADICTS: training-an-mtp-adapter-for-a-model-with-no-nati.md Mechanism line \"a fine-tune of a base model (MiMo-V2.6 distilled from Qwen3.5 9B) ships with the base model's MTP head\". The changelog says the checkpoint ships none and MTPLX adds the Qwen3.5-9B draft head to its pack.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "CONTRADICTS: grafting-a-base-model-s-mtp-head-onto-a-fine-tun.md Open question \"draft acceptance of the MiMo pack\": the 2.12.0 release notes do publish acceptance (78.5 and 56.5 percent); only speed is unmeasured.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "CONTRADICTS: mtplx-flash-decoding-verify-attention-kernel-sdp.md line \"the README names compiled verify only for the Turbo preset\" as implying Sustained packs never compile: 2.12.0 says Bonsai uses compiled verify, so compile status is per pack and not purely per preset.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "CONTRADICTS: llama-cpp-pr-25592-exact-position-hybrid-checkpo.md lines 22 and 41 (an MTP-only run without loops \"points at ngram-mod rather than MTP\"). A commenter on PR 25819 reports loops on Nemotron-3.5-Lightning-30B-A3B \"even with only MTP\" that the PR's changes fix, and the issue thread shows loops with `draft-mtp,ngram-map-k4v` and no ngram-mod. The two single-user observations (no loop with MTP-only on a Qwen3.x setup; loop with MTP-only on Nemotron) are held side by side; the targets differ.",
+          "source": "https://github.com/ggml-org/llama.cpp/pull/25819",
+          "note": null
+        },
+        {
+          "text": "CONTRADICTS (partly): llama-cpp-pr-25592-exact-position-hybrid-checkpo.md line 21, which presents issue 23268 as the open stuck-loop issue. Issue 23268 is closed since 22 May 2026 and its original ngram-mod plus draft-mtp hang was fixed by d14ce3d; PR 25819 borrows the number for its logs. Whether the July loop is a separate bug is not stated by the PR.",
+          "source": "https://github.com/ggml-org/llama.cpp/issues/23268",
+          "note": null
+        },
+        {
+          "text": "CONTRADICTS: draft-length-tuning-spec-draft-n-max-for-block-d.md Open questions line \"the sources show no PR\" for adaptive scheduling. D-cut (arXiv 2607.14647, vLLM PR 47131) schedules verified depth per request from drafter confidence and a startup cost table, using DFlash block 16 drafters with D = 15.",
+          "source": "https://arxiv.org/html/2607.14647v1",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Concepts in this cluster",
+      "facts": [
+        {
+          "text": "Speculative decoding and MTP on Apple silicon",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Gemma-4 assistant drafters on MLX and llama.cpp",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Hybrid GatedDeltaNet state rollback and checkpoint prefix caching",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "MLX quantized_matmul small-M verify kernels",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "MTPLX Forge and MTP-preserving MLX conversion",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "N-gram and prompt-lookup self-speculation for coding agents",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Metal attention multi-row verify cliff at 6-15 query rows",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "MTP head norm-convention and double-shifted trunk detection",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "MTPLX flash-decoding verify attention kernel (sdpa_nax_flash)",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "MoE GatherQMM small-M verify cost",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Training an MTP adapter for a model with no native head",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "llama.cpp EAGLE-3 and DSpark speculator drafters",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "mlx gemv_wide bf16 small-M kernel in mlx 0.32.1",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "DFlash and DDTree speculative decoding drafters",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "DFlash block-diffusion drafters on hybrid targets in llama.cpp (PR 22105)",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Expert overlap between draft tokens in MoE speculative verification",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Grafting a base model's MTP head onto a fine-tuned trunk (MiMo-V2.6 distill)",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "MLX 0.32.2 tensor-unit expert-sorted quantized matmul row-limit bug on M5",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "MTPLX compiled verifier (GraphBank) windows and eager fallback by context length",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Acceptance drift of a base MTP head on a distilled trunk",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "DFlash image-input position gap in llama.cpp draft context",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Depth policy that measures draft and verify cost per depth",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Draft length tuning (spec-draft-n-max) for block-diffusion drafters",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Expert-deduplicating gather kernels for verify windows on Metal",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "MTPLX Sustained versus Turbo presets and which use compiled verify",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "MoESD analysis of MoE speculative decoding batch-size regimes",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Target-side deferred commit for recurrent state (SGLang DFlash worker)",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Ternary Bonsai 2 27B on MTPLX with grafted Qwen3.8 draft head",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Tree attention verification on hybrid recurrent targets",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "llama.cpp ngram-mod speculative stuck loop (issue 23268, PR 25819)",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "llama.cpp speculative checkpointing for hybrid models (PRs 19493 and 22227)",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "llama.cpp --spec-default and low-acceptance streak reset (PRs 22223 and 22168)",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Hardware-calibrated verification budget for batch-wide tree speculation",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Adaptive block-size scheduling for DFlash at inference",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Speculative decoding with structured-output grammar at reasoning boundaries",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Grammar-aware draft filtering for ngram and draft-model drafters",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "llama.cpp ngram-mod and ngram-map-k4v drafter internals",
+          "source": "asserted",
+          "note": null
+        }
+      ]
+    }
+  ],
+  "related": []
+}

@@ -1,0 +1,364 @@
+{
+  "slug": "ollama-mlx-backend-and-nvfp4-on-apple-silicon",
+  "concept": "Ollama MLX backend and NVFP4 on Apple silicon",
+  "generated": "2026-10-05",
+  "summary": "Routing is per model architecture and checkpoint format; from 0.40.0-rc0 it is automatic on Apple silicon for every architecture the MLX runtime supports (no user switch found).",
+  "facets": [
+    {
+      "title": "Facts",
+      "facts": [
+        {
+          "text": "Routing is per model architecture and checkpoint format; from 0.40.0-rc0 it is automatic on Apple silicon for every architecture the MLX runtime supports (no user switch found).",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "MLX tags are shown in the library with an \"MLX\" badge and a `-mlx` suffix (qwen3.6:27b-mlx 19 GB, qwen3.6:35b-mlx 24 GB, both 256K context, text+image); the untagged `qwen3.6:latest`/`:35b` is a 23-24 GB non-MLX build.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "The runner keeps a prefix-snapshot trie (x/mlxrunner/cache.go, prefix_cache.go); snapshots are taken at branch points, at intervals during long prefills and just before the response; eviction counts only paged-out snapshot bytes.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "All MLX CGO calls must run on one locked OS thread (x/internal/mlxthread, PR 15845).",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Requests are serialised through one slot; OLLAMA_NUM_PARALLEL is not passed to the runner.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "0.19.0 (2026-03-30): MLX preview; release notes also list \"MLX runner will now create periodic snapshots during prompt processing\" and \"Fixed KV cache snapshot memory leak in MLX runner\".",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "0.23.0 to 0.23.1 (May 2026): `ollama create --experimental --quantize` regressed (panic: mlx: There is no Stream(gpu, 1) in current thread) after PR 15845; issue 16070 closed completed 2026-07-07 (still reproducing on 0.30.10 on 2026-06-22).",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "2026-06-11 engine blog: JIT-fused Metal kernels, GPU sampling, NVFP4 perplexity result, snapshot system.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "0.30.8 (2026-06-12): snapshots during prompt processing and speculative decoding, hardened linear/embedding layers, per-boundary recurrent states. Issue 16698 reports a regression from here.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "0.32.11: fix for recurrent conv-state pinning (PR 17077) in releases.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "0.33.3: Gemma 4 images and audio on the MLX engine. 0.34.0: faster structured output on Apple silicon. 0.34.1: `ollama create` from MLX safetensors no longer experimental; GGUF creation now needs llama.cpp tooling for conversion/quantization; improved MLX memory handling. 0.34.2: fixed excessive memory growth in long MLX speculative-decoding generations. 0.34.3: Nemotron H vision on MLX. 0.35.0 (2026-09-28): fixed stalled MLX model downloads. 0.35.1 (2026-09-29): MLX engine update; ships a linux-amd64-mlx tarball.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "0.40.0-rc0 (pre-release, 2026-09-25): \"Models run on MLX on Apple Silicon by default\"; more models enabled during the pre-release.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Issue 16698 (opened 2026-06-12, v0.30.8, M4 Max 64 GB, qwen3.6:35b-mlx): across 7 independent requests (1k to 131k tokens) RSS went 24 GB to 75 GB with 32 GB swap, and a standalone 131k request fell from 58.7 to 13.35 tok/s (TTFT 182 s to 317 s). Peak memory per request: 20.8, 22.2, 23.4, 26.1, 31.2, 41.0, 60.6 GiB. Closed completed 2026-07-14 via commit 4e96f4d.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Root cause per a commenter: recurrent/Gated-DeltaNet boundary snapshots were slices of the forward conv buffer, so each slice pinned the whole parent buffer while eviction counted only the slice size. Fixed by compacting snapshots (PR 17077, commit d0c1fb5).",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "A second path (close() not pruning dead full-miss trie nodes) was raised on 2026-08-29 as unaddressed for dense models; this led to 17875 (dense qwen3.8:27b-mlx).",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Agentic data point in 16698: SIZE 24 GB fresh, 38 GB at about 80k tokens with 94-99% cache hit rate.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "OLLAMA_FLASH_ATTENTION and OLLAMA_KV_CACHE_TYPE are read only in the non-MLX branch of server/sched.go, so they do nothing for MLX models (answers the open question held in kv-cache-and-long-context-on-mac.md).",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "OLLAMA_KEEP_ALIVE=0 is the only env workaround that fixed the 16698 collapse (46.6 tok/s standalone 131k afterwards, model fully unloaded between requests); it drops the prefix cache and forces a reload each request.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "32 GB hosts: issue 18131 (M1 Max 32 GB, 0.32.14, qwen3.8:27b-mlx, OpenCode): runner 18 to 28 GB, swap 3.2 to 10.1 GB, with only 12.6K tokens of context; attributed to the bounded 8 GiB prefix cache, not a leak. Requests an OLLAMA_MLX_PREFIX_CACHE_BYTES setting or memory-scaled budget (suggested 16-32 GB host about 2 GiB, 48-64 GB about 4-8 GiB); duplicates 18132 and 18133. No such variable exists in released builds as far as found.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Issue 17924 (M4 Pro 48 GB, 0.32.14/0.32.15): resident grows 20.5 to 28.5 GiB over about 55-60 short requests then stays flat for 1,790; reporter retracted the leak claim, closed not planned 2026-08-21. Per-request growth in its table: qwen3.8:27b-mlx 0.31 GiB, qwen3.6:35b-mlx-64k 0.147, nemotron-3.5-lightning 30b-a3b-nvfp4 0.12, GGUF qwen3.6:35b-a3b 0.00.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Concurrency: on the MLX runner OLLAMA_NUM_PARALLEL has no effect (issue 17280, 2026-07-21; 5 concurrent identical requests had a 4.0 to 75.0 s latency spread). PR 17317 (continuous batching for plain KV caches; rotating and recurrent caches fall back to serial decode) was still open as of 2026-08-14.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Separate scheduler blocklist: qwen35 and qwen35moe force Parallel:1 with the log line \"model architecture does not currently support parallel requests\"; PR 17144 to remove it was open, tested on CUDA only.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "MLX and Metal GPU is not the only place MLX is touched: create-time quantization (`ollama create --experimental --quantize int4|int8|mxfp4|mxfp8|nvfp4`) runs through MLX and panicked on all formats; `q4_K_M` is rejected as unsupported on that path.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Other open MLX bugs named in 16070: SparseMoE.Forward panic on mlx-lm mixed-precision NVFP4 MoE imports (15746, open at filing); inference panic on qwen3.6:35b-a3b-coding-nvfp4 and 27b-coding-mxfp8 (15775, closed).",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "On 0.19, 16 GB hosts are not a supported target for the preview; a 16 GB M3 Air reporter could create int4 on 0.23.0 but a BF16 create OOMed at load.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "In the repo, https://github.com/ollama/ollama/tree/main/x/mlxrunner returned 404 on 2026-10-04 while 16698 cites it; the runner appears to have moved out of x/ (not verified).",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "NVFP4 accuracy: Ollama 2026-06-11 blog (Gemma 4 12B perplexity BF16 17.54, NVFP4 17.95, q4_K_M 18.36, so \"roughly halves the quality loss\") vs the Unsloth per-tensor KLD view held in quantization-formats-for-apple-silicon-gguf-vs-mlx.md (MXFP4 worse than Q4_K). Different formats, one vendor perplexity table, model-optimized NVFP4 checkpoint vs generic q4_K_M; not reconciled.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Speed: Ollama blog says NVFP4 on the updated engine is about 20% faster than q4_K_M (55 vs 46 tok/s, Gemma 4 12B, M5 Max, 8,300-token prompt, mean of 10 runs). This is a smaller gap than the March 112 vs 58 headline and than the third-party 1.5x-3x claims held elsewhere.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Leak vs by-design: 16698 closed as a fixed leak; 17924 retracted as by-design; 17875 maintainer says expected. Whether growth past the 8 GiB bound still happens on dense models is unresolved.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Is there any documented env var, flag or Modelfile option to opt out of MLX or force llama.cpp for an MLX-capable architecture once 0.40 defaults land? None found in the release notes or FAQ.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Final 0.40.0 behavior and which architectures are enabled; only the rc0 note exists.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Whether PR 17317 or an OLLAMA_MLX_PREFIX_CACHE_BYTES-style setting shipped.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Minimum chip generation for the MLX path (bundle ships mlx_metal_v3 and mlx_metal_v4 dirs per ollama-on-macos.md); no primary statement found.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Ollama 0.19.0 release notes (2026-03-30) list \"MLX runner will now create periodic snapshots during prompt processing\" and \"Fixed KV cache snapshot memory leak in MLX runner\" among its changes.",
+          "source": "https://github.com/ollama/ollama/releases/tag/v0.19.0",
+          "note": null
+        },
+        {
+          "text": "Ollama v0.30.8 (2026-06-12) notes: snapshots during prompt processing and speculative decoding, hardened MLX linear/embedding layers, per-boundary recurrent states from gated-delta kernels.",
+          "source": "https://github.com/ollama/ollama/releases/tag/v0.30.8",
+          "note": null
+        },
+        {
+          "text": "Ollama v0.33.3 added images and audio for gemma4 on the MLX engine.",
+          "source": "https://github.com/ollama/ollama/releases",
+          "note": null
+        },
+        {
+          "text": "Ollama v0.34.0 improves structured-output performance on Apple Silicon.",
+          "source": "https://github.com/ollama/ollama/releases",
+          "note": null
+        },
+        {
+          "text": "Ollama v0.34.1 made MLX safetensors `ollama create` non-experimental and requires llama.cpp tooling for GGUF conversion and quantization.",
+          "source": "https://github.com/ollama/ollama/releases",
+          "note": null
+        },
+        {
+          "text": "Ollama v0.34.2 fixed excessive memory growth during long MLX speculative-decoding generations.",
+          "source": "https://github.com/ollama/ollama/releases",
+          "note": null
+        },
+        {
+          "text": "Ollama v0.34.3 added Nemotron H vision models on Apple Silicon with MLX.",
+          "source": "https://github.com/ollama/ollama/releases",
+          "note": null
+        },
+        {
+          "text": "Ollama v0.34.4 (2026-09-23) made Qwen 3.8 prompt processing faster on Apple Silicon and updated MLX.",
+          "source": "https://github.com/ollama/ollama/releases",
+          "note": null
+        },
+        {
+          "text": "Ollama v0.35.0 (2026-09-28) fixed stalled MLX model downloads; v0.35.1 (2026-09-29) updated llama.cpp and the MLX engine.",
+          "source": "https://github.com/ollama/ollama/releases",
+          "note": null
+        },
+        {
+          "text": "Ollama v0.40.0-rc0 (pre-release, 2026-09-25) states that on Apple Silicon, model architectures supported by the MLX runtime run on MLX automatically, with more models to be enabled during the pre-release.",
+          "source": "https://github.com/ollama/ollama/releases",
+          "note": null
+        },
+        {
+          "text": "The Ollama blog of 2026-06-11 says the MLX engine supports NVFP4 and that datacenter-optimized NVFP4 models can be imported and run, and that NVFP4 \"roughly halves\" the quality loss of 4-bit versus q4_K_M.",
+          "source": "https://ollama.com/blog/mlx-performance",
+          "note": null
+        },
+        {
+          "text": "Blog perplexity for Gemma 4 12B: BF16 17.54, NVFP4 17.95, Q4_K_M 18.36 (lower is better).",
+          "source": "https://ollama.com/blog/mlx-performance",
+          "note": null
+        },
+        {
+          "text": "Blog speed: NVFP4 55 tok/s vs Q4_K_M 46 tok/s (about 20%), mean of 10 runs with an 8,300-token prompt; gains attributed to MLX JIT-fused Metal kernels and reworked GPU sampling.",
+          "source": "https://ollama.com/blog/mlx-performance",
+          "note": null
+        },
+        {
+          "text": "The blog's snapshot system saves state at branches, at intervals through long prompts and just before each response, to cover sliding-window and recurrent layers whose state cannot be rewound.",
+          "source": "https://ollama.com/blog/mlx-performance",
+          "note": null
+        },
+        {
+          "text": "Documented run commands for MLX tags: `ollama run gemma4:12b-mlx` and `ollama launch pi --model gemma4:12b-mlx`.",
+          "source": "https://ollama.com/blog/mlx-performance",
+          "note": null
+        },
+        {
+          "text": "ollama.com/library/qwen3.6 lists qwen3.6:27b-mlx at 19 GB and qwen3.6:35b-mlx at 24 GB, both 256K context with text and image input, next to non-MLX 18-24 GB tags.",
+          "source": "https://ollama.com/library/qwen3.6",
+          "note": null
+        },
+        {
+          "text": "docs.ollama.com/import describes safetensors import with `FROM /path/to/safetensors/directory` plus `ollama create`, and states Ollama does not quantize GGUF models during import.",
+          "source": "https://docs.ollama.com/import",
+          "note": null
+        },
+        {
+          "text": "Issue 16698 (v0.30.8, M4 Max 64 GB, qwen3.6:35b-mlx) reported RSS 24 GB to 75.2 GB, swap 31.6 GB, idle 68.6 GB after the run, and standalone pp131072 tgTPS 13.35 vs 58.7 baseline.",
+          "source": "https://github.com/ollama/ollama/issues/16698",
+          "note": null
+        },
+        {
+          "text": "In 16698, v0.30.7 and earlier were unaffected per the reporter.",
+          "source": "https://github.com/ollama/ollama/issues/16698",
+          "note": null
+        },
+        {
+          "text": "16698 was closed as completed on 2026-07-14 by commit 4e96f4d (PR 17077, \"cache: stop recurrent conv state from pinning the forward buffer\"); a later comment says the fix shipped by v0.32.11.",
+          "source": "https://github.com/ollama/ollama/issues/16698",
+          "note": null
+        },
+        {
+          "text": "A commenter traced that OLLAMA_FLASH_ATTENTION and OLLAMA_KV_CACHE_TYPE are only read in the `!req.model.IsMLX()` branch of server/sched.go and have no references in x/mlxrunner/.",
+          "source": "https://github.com/ollama/ollama/issues/16698",
+          "note": null
+        },
+        {
+          "text": "OLLAMA_KEEP_ALIVE=0 kills the mlxrunner process after each request; with it the 16698 repro showed 54.48 tok/s sequence and 46.61 tok/s standalone pp131072.",
+          "source": "https://github.com/ollama/ollama/issues/16698",
+          "note": null
+        },
+        {
+          "text": "Issue 18131 (M1 Max 32 GB, 0.32.14, qwen3.8:27b-mlx via OpenCode, num_ctx 73728): process 20.41, 24.35, 28.16 GB; swap 3.19, 6.56, 10.10 GB; decode MLX 16.58 vs GGUF+MTP 11.08 tok/s; a repo-analysis task took 696 s on MLX vs 1341 s on GGUF.",
+          "source": "https://github.com/ollama/ollama/issues/18131",
+          "note": null
+        },
+        {
+          "text": "18131 proposes OLLAMA_MLX_PREFIX_CACHE_BYTES or a memory-scaled default for the hard-coded 8 GiB budget.",
+          "source": "https://github.com/ollama/ollama/issues/18131",
+          "note": null
+        },
+        {
+          "text": "Issue 17924 table: per-request growth qwen3.8:27b-mlx 0.31 GiB, qwen3.6:35b-mlx-64k 0.147, nemotron-3.5-lightning:30b-a3b-nvfp4 0.12, GGUF qwen3.6:35b-a3b 0.00; plateau at 28.5 GiB over 1,790 requests on 48 GB.",
+          "source": "https://github.com/ollama/ollama/issues/17924",
+          "note": null
+        },
+        {
+          "text": "17924 notes the MLX runner serialises requests through a single slot so OLLAMA_NUM_PARALLEL has no effect, with a 4.0 to 75.0 s spread at concurrency 5.",
+          "source": "https://github.com/ollama/ollama/issues/17924",
+          "note": null
+        },
+        {
+          "text": "PR 17317 wires OLLAMA_NUM_PARALLEL into the MLX runner (`--parallel`), adds MultiSeq caches and a continuous-batch decode loop; prefills stay single-sequence and rotating/recurrent caches fall back to serial decode (later commit extends to hybrids).",
+          "source": "https://github.com/ollama/ollama/pull/17317",
+          "note": null
+        },
+        {
+          "text": "As of 2026-08-14 PR 17317 and PR 17144 (remove qwen35/qwen35moe from the scheduler's no-parallel list) were open.",
+          "source": "https://www.popularai.org/p/ollama-num-parallel-mac-mlx",
+          "note": null
+        },
+        {
+          "text": "The scheduler logs \"model architecture does not currently support parallel requests\" for qwen35moe and sets Parallel:1 regardless of OLLAMA_NUM_PARALLEL.",
+          "source": "https://www.popularai.org/p/ollama-num-parallel-mac-mlx",
+          "note": null
+        },
+        {
+          "text": "Diagnostic for which runner is active: grep ~/.ollama/logs/server.log for `--mlx-engine`; with OLLAMA_DEBUG=1 look for `Parallel:`.",
+          "source": "https://www.popularai.org/p/ollama-num-parallel-mac-mlx",
+          "note": null
+        },
+        {
+          "text": "Issue 16070: `ollama create --experimental --quantize <int4|int8|mxfp4|mxfp8|nvfp4>` panics \"mlx: There is no Stream(gpu, 1) in current thread\" from 0.23.1 (works on 0.23.0), because x/create/client calls MLX outside mlxthread.Thread; still reproduced on 0.30.10 on 2026-06-22; closed completed 2026-07-07.",
+          "source": "https://github.com/ollama/ollama/issues/16070",
+          "note": null
+        },
+        {
+          "text": "In 16070 `q4_K_M` as a --quantize value is rejected as unsupported, and a 16 GB M3 Air could not load a BF16 gemma-4-E4B-it create.",
+          "source": "https://github.com/ollama/ollama/issues/16070",
+          "note": null
+        },
+        {
+          "text": "The MLX runner's launch command is `ollama runner --mlx-engine --model <model> --port <port>`, confirmed in a 32 GB M1 Max process list.",
+          "source": "https://github.com/ollama/ollama/issues/18131",
+          "note": null
+        },
+        {
+          "text": "An environment note: 16698 workaround variables must be set with `launchctl setenv` for the macOS app.",
+          "source": "https://github.com/ollama/ollama/issues/16698",
+          "note": null
+        },
+        {
+          "text": "https://github.com/ollama/ollama/tree/main/x/mlxrunner and its README returned 404 on 2026-10-04.",
+          "source": "https://github.com/ollama/ollama/tree/main/x/mlxrunner",
+          "note": null
+        },
+        {
+          "text": "The 0.40 \"MLX by default\" change means GGUF tags of MLX-supported architectures may switch runner after upgrade; no opt-out documented in the release note.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "On a 32 GB Mac an 18-19 GB 27B MLX model plus up to 8 GiB of snapshot cache reaches about 27-28 GB resident before OS and apps, so swap is expected; 48 GB and larger hosts plateau without swap.",
+          "source": "asserted",
+          "note": null
+        }
+      ]
+    }
+  ],
+  "related": []
+}

@@ -1,0 +1,99 @@
+{
+  "slug": "omlx-trailing-partial-block-and-restore-latency",
+  "concept": "oMLX trailing partial block and restore-latency limits",
+  "generated": "2026-10-05",
+  "summary": "Issue 1578's original example is a 10,000-token request with 2,048-token blocks: four blocks persist and the 1,808-token remainder is re-prefilled each message, about 6 s at 300 tok/s and about 3 s on average.",
+  "facets": [
+    {
+      "title": "Facts",
+      "facts": [
+        {
+          "text": "Issue 1578's original example is a 10,000-token request with 2,048-token blocks: four blocks persist and the 1,808-token remainder is re-prefilled each message, about 6 s at 300 tok/s and about 3 s on average.",
+          "source": "https://github.com/jundot/omlx/issues/1578",
+          "note": null
+        },
+        {
+          "text": "In June 2026 the maintainer listed what made partial-tail reuse expensive (from PR 1149 review): cache layout checks, hybrid-cache safety, rollback on splice failure, eviction and memory accounting, and cache-clear behavior.",
+          "source": "https://github.com/jundot/omlx/issues/1578",
+          "note": null
+        },
+        {
+          "text": "PR 3835 captures one extra prefill snapshot in front of the chat template's generation prompt (the region the next turn renders differently, such as Qwen's empty think block) and stores it as a short tail terminal block; raw prompts fall back to the prefill end.",
+          "source": "https://github.com/jundot/omlx/pull/3835",
+          "note": null
+        },
+        {
+          "text": "PR 3835 hashes tail blocks in their own domain, indexes them by chain parent in `PagedCacheManager._tail_index`, verifies them on every lookup, and rebuilds them from SSD metadata (`parent_hash`, `tail_terminal`) after a restart.",
+          "source": "https://github.com/jundot/omlx/pull/3835",
+          "note": null
+        },
+        {
+          "text": "In PR 3835 a request that reused a tail re-lays its own store from the last full block so the grid never drifts, rotating models drop superseded tails through the existing tip lineage, and templates that strip the generation prompt from history (Qwen, GLM, DeepSeek, gpt-oss) stop snapshot selection at that marker.",
+          "source": "https://github.com/jundot/omlx/pull/3835",
+          "note": null
+        },
+        {
+          "text": "PR 3835 measured a Qwen3.6-35B-A3B 13.4K-token prompt at block 4096: next-turn prefill fell from 1,174 tokens (cached 12,288) to 37 (cached 13,425) and TTFT from 0.83 s to 0.42 s.",
+          "source": "https://github.com/jundot/omlx/pull/3835",
+          "note": null
+        },
+        {
+          "text": "PR 3835's validation: tail restore was bit-identical to a cold forward of the same chunk shape (Qwen3.5-0.8B, 8.2K tokens, block 2,048, max logit diff 0.000), and 100K-164K-token ten-turn needle conversations with Lightning MTP on Qwen3.8-27B, Flash-Next and DeepSeek-V4.1 reused the previous prompt minus the generation prompt every turn.",
+          "source": "https://github.com/jundot/omlx/pull/3835",
+          "note": null
+        },
+        {
+          "text": "PR 3835 also caps a fitted prefill chunk at the requested slice in the memory guard so a shrunken chunk under context priority cannot run past a boundary or tail position, and fixes `pooling_delta` deriving the delta start from block_size for an unaligned snapshot.",
+          "source": "https://github.com/jundot/omlx/pull/3835",
+          "note": null
+        },
+        {
+          "text": "The 0.7.0rc1 release notes headline the change as 'Less Waiting Between Messages - Partial Block Caching' with the 1,174-to-37 token and 0.83 s-to-0.42 s figures.",
+          "source": "https://github.com/jundot/omlx/releases",
+          "note": null
+        },
+        {
+          "text": "Issue 3064 (M2 Max 64 GB, 0.6.3rc2) measured a byte-identical 8,420-token repeat at 2,044 ms through oMLX against 391 ms for an 8,972-token repeat on mtplx 2.9.1's resident snapshot clone, with fresh-prompt times equal at about 40-45 s.",
+          "source": "https://github.com/jundot/omlx/issues/3064",
+          "note": null
+        },
+        {
+          "text": "Issue 3064 was narrowed on 2026-08-23 to restore speed only; the trailing-block half moved to issue 1578, and a 7,358-token repeat with about a 1,214-token tail took 9.6 s as a partial hit.",
+          "source": "https://github.com/jundot/omlx/issues/3064",
+          "note": null
+        },
+        {
+          "text": "A 3064 commenter on 0.6.4 / M5 Max 128 GB saw a warm-hit floor of about 0.8 s on Qwen3.6-35B-A3B-8bit (cold prefill 2.51 s) against 0.22 s exact and 0.31 s new-tail from mlx_lm.server's in-RAM trie on the same machine, and `hot_cache_max_size: 16GB` changed nothing for the hybrid.",
+          "source": "https://github.com/jundot/omlx/issues/3064",
+          "note": null
+        },
+        {
+          "text": "A 3064 commenter's log counter test: if `cached=` climbs by a block whenever a turn crosses a 2,048 boundary, restores are healthy; if it stays pinned (14,336 across turns at about 16K on an M5 Pro) it is the trailing-block walk-back of issue 2876.",
+          "source": "https://github.com/jundot/omlx/issues/3064",
+          "note": null
+        },
+        {
+          "text": "Issue 4175 (M4 Max 36 GB, Qwen3.8-27B-4bit, 82,500-token prefix) logged `lookup` 2.4-4.7 ms in both configs, while `reconstruct` was 98.9 ms with hot cache off and 1,766, 3,877, 1,845 and 7,236 ms over four repeats with `--hot-cache-max-size 4GB`.",
+          "source": "https://github.com/jundot/omlx/issues/4175",
+          "note": null
+        },
+        {
+          "text": "Issue 4175's reporter suspects the open enforcer double count (issue 1833) but did not instrument `_reconstruct_cache_data`, so lock contention in the hot-cache tier remains an alternative explanation.",
+          "source": "https://github.com/jundot/omlx/issues/4175",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Corrections and disagreements",
+      "facts": [
+        {
+          "text": "CONTRADICTS: omlx-per-model-ssd-cache-isolation-quotas-and-stale-block-eviction.md (claim that issue 1578 records a maintainer position against partial-tail snapshots for hybrid GDN): the maintainer later closed 1578 as completed via PR 3835 (commit 8288884, 2026-09-22), which stores a prefix tail block.",
+          "source": "https://github.com/jundot/omlx/pull/3835",
+          "note": null
+        }
+      ]
+    }
+  ],
+  "related": []
+}

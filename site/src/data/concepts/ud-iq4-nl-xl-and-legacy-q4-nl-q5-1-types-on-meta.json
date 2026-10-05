@@ -1,0 +1,179 @@
+{
+  "slug": "ud-iq4-nl-xl-and-legacy-q4-nl-q5-1-types-on-meta",
+  "concept": "UD-IQ4_NL_XL and legacy Q4_NL Q5_1 types on Metal kernels",
+  "generated": "2026-10-05",
+  "summary": "IQ4_NL Metal mat-vec kernel: each simdgroup copies the 16-entry non-linear table into threadgroup memory (shmem[tiisg] = kvalues_iq4nl_f[tiisg % 16]) and runs a threadgroup barrier, then every 4-bit code is decoded by an indexed threadgroup-memory read (8 reads per 8 weights) before a float multi...",
+  "facets": [
+    {
+      "title": "Facts",
+      "facts": [
+        {
+          "text": "IQ4_NL Metal mat-vec kernel: each simdgroup copies the 16-entry non-linear table into threadgroup memory (shmem[tiisg] = kvalues_iq4nl_f[tiisg % 16]) and runs a threadgroup barrier, then every 4-bit code is decoded by an indexed threadgroup-memory read (8 reads per 8 weights) before a float multiply-add with the activations.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Q4_0 kernel for comparison: no table; it multiplies activations by masked nibbles without shifting (activations pre-scaled for the missing shift) and subtracts 8 x sum(y) once, so decode is arithmetic only.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Small-batch mat-vec (mul_mv_ext, batch 2-8 for speculative or MTP verification): present for F32, F16, BF16, Q1_0, Q2_0, Q4_0, Q4_1, Q5_0, Q5_1, Q8_0, MXFP4 and IQ4_NL when ne00 is a multiple of 128; K-quants Q2_K-Q6_K only for batch 4-8; other i-quants (including IQ4_XS) are not in the list.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "llama-quantize type rules: IQ4_NL and IQ4_XS without an imatrix get Q5_K for the first n_layer/8 ffn_down layers; Q4_0 and Q5_0 with an imatrix get Q4_1 and Q5_1 for those layers ('Q4_1/Q5_1 do go crazy on ffn_down without an imatrix'). That rule is where Q4_1/Q5_1 tensors in 'Q4_0' files come from.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "2024-02-19: ikawrakow's PR 5590 adds IQ4_NL ('4-bit quantization type usable when 256-wide blocks are unavailable'); Metal kernels written but about 8% (prompt) and 20% (token generation) slower than Q4_0.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "2025-04-24: Unsloth Dynamic v2.0 adds Q4_NL/Q5_1/Q5_0/Q4_1/Q4_0 types for Apple Silicon and ARM; later Q4_0/Q4_1 were deprecated for accuracy loss.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "2026-04-20: UD-IQ4_NL_XL added to Qwen3.6-35B-A3B GGUFs (19.5 GB).",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "IQ4_NL on Metal pays a threadgroup-memory gather plus barrier that Q4_0 and K-quants do not, so it can be slower even though its bytes per token equal Q4_0's.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Without an imatrix, IQ4_NL gets Q5_K bumps on early ffn_down layers; with an imatrix it does not, so UD-IQ4_NL files (always imatrix-calibrated) are pure IQ4_NL there by default.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "FA KV-cache kernels on Metal exist for F16/BF16/Q4_0/Q4_1/Q5_0/Q5_1/Q8_0 only; IQ4_NL is not among the fa_* kernel variants, though IQ4_NL appears in the copy/set-rows destination type lists.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "IQ4_NL does not require an imatrix to quantize (unlike IQ3_XXS and below), so it is usable without calibration data.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Old measurement (M2 Max, 2024): IQ4_NL tg128 51.0 vs Q4_0 61.8 tok/s (about 17.5% slower), vs a thread comment that IQ4_NL is as fast as Q4_K and ikawrakow's non-Mac table. The kernel has been rewritten since (mul_mv with function constants, NR0 tuning), so the 2024 number is a lower bound on history, not a current measurement.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Unsloth markets UD-IQ4_NL_XL as best KLD per size for Qwen3.6-35B-A3B (vendor claim: UD top in 21 of 22 sizes); no source measures its Metal decode speed against UD-Q4_K_XL or MLX 4-bit on the same Mac.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Current tg and pp of IQ4_NL versus Q4_K and Q4_0 on M3/M4/M5 with the rewritten Metal kernels.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Whether UD-IQ4_NL_XL's extra size (19.5 GB vs 18.0 GB for UD-IQ4_NL) is spent on tensors that also have slower kernels.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "IQ4_NL (PR 5590, 2024-02-19) uses blocks of 32 weights with an fp16 scale like Q4_0, so a model quantized to IQ4_NL is exactly the size of Q4_0 and Q4_K_S, with a non-linear code-to-value mapping.",
+          "source": "https://github.com/ggml-org/llama.cpp/pull/5590",
+          "note": null
+        },
+        {
+          "text": "The IQ4_NL PR says its main purpose is to give a 4-bit type for tensors whose column count is not a multiple of 256, where K-quants and 256-wide i-quants cannot be used.",
+          "source": "https://github.com/ggml-org/llama.cpp/pull/5590",
+          "note": null
+        },
+        {
+          "text": "Without an imatrix at 512 context, PR 5590 gives LLaMA-v2-7B PPL 5.7891 (fp16), 5.8855 (Q4_K_S), 5.9633 (Q4_0) and 5.8842 (IQ4_NL), so IQ4_NL matches Q4_K_S and beats Q4_0.",
+          "source": "https://github.com/ggml-org/llama.cpp/pull/5590",
+          "note": null
+        },
+        {
+          "text": "PR 5590's Table 5 for a 7B LLaMA: Metal on an M2 Max 30-core GPU, pp512 508.75 t/s for IQ4_NL versus 547.27 for Q4_0, and tg128 51.01 versus 61.84; on ARM NEON, CUDA and AVX2 the two are within about 2%.",
+          "source": "https://github.com/ggml-org/llama.cpp/pull/5590",
+          "note": null
+        },
+        {
+          "text": "The PR states IQ4_NL inference is almost the same as Q4_0 except on Metal, where it is 8% (prompt processing) or 20% (token generation) slower.",
+          "source": "https://github.com/ggml-org/llama.cpp/pull/5590",
+          "note": null
+        },
+        {
+          "text": "The current IQ4_NL Metal mat-vec copies a 16-entry float table into threadgroup memory per simdgroup behind a barrier and decodes every nibble with indexed threadgroup reads, while the Q4_0 kernel decodes with masks and activation pre-scaling and no table.",
+          "source": "https://raw.githubusercontent.com/ggml-org/llama.cpp/master/ggml/src/ggml-metal/kernels/mul_mv.metal",
+          "note": null
+        },
+        {
+          "text": "The Q4_0 Metal dot product is d * (sumy * -8 + sum of activation x masked nibble) with activations pre-scaled for the missing bit shifts, i.e. dequantization happens inside the dot product.",
+          "source": "https://raw.githubusercontent.com/ggml-org/llama.cpp/master/ggml/src/ggml-metal/kernels/mul_mv.metal",
+          "note": null
+        },
+        {
+          "text": "Metal's small-batch mat-vec (mul_mv_ext) handles batch sizes 2-8 for F32, F16, BF16, Q1_0, Q2_0, Q4_0, Q4_1, Q5_0, Q5_1, Q8_0, MXFP4 and IQ4_NL when src1 is F32 and ne00 is a multiple of 128; Q2_K-Q6_K are accepted only for batch 4-8.",
+          "source": "https://raw.githubusercontent.com/ggml-org/llama.cpp/master/ggml/src/ggml-metal/ggml-metal-ops.cpp",
+          "note": null
+        },
+        {
+          "text": "In the cached Metal ops file IQ4_XS and the other i-quants are absent from the mul_mv_ext type list, so speculative or MTP verification batches on those types take the general path.",
+          "source": "https://raw.githubusercontent.com/ggml-org/llama.cpp/master/ggml/src/ggml-metal/ggml-metal-ops.cpp",
+          "note": null
+        },
+        {
+          "text": "Metal flash-attention has kernel variants fa_f16, fa_f32, fa_q4_0, fa_q4_1, fa_q5_0, fa_q5_1 and fa_q8_0 (and fa_vec equivalents), with no IQ4_NL variant.",
+          "source": "https://raw.githubusercontent.com/ggml-org/llama.cpp/master/ggml/src/ggml-metal/ggml-metal-device.m",
+          "note": null
+        },
+        {
+          "text": "llama-quantize rule: IQ4_NL and IQ4_XS file types without an imatrix give the first n_layer/8 ffn_down layers Q5_K; Q4_0 and Q5_0 with an imatrix give those layers Q4_1 and Q5_1 because Q4_1/Q5_1 'do go crazy on ffn_down without an imatrix'.",
+          "source": "https://raw.githubusercontent.com/ggml-org/llama.cpp/master/src/llama-quant.cpp",
+          "note": null
+        },
+        {
+          "text": "For IQ4_NL file types with n_expert == 8, llama-quantize raises attn_output to Q5_K, and IQ4_NL appears in the list of Mixtral-specific attn_output bumps alongside Q4_K_S, Q4_K_M and IQ4_XS.",
+          "source": "https://raw.githubusercontent.com/ggml-org/llama.cpp/master/src/llama-quant.cpp",
+          "note": null
+        },
+        {
+          "text": "IQ4_NL is not in llama-quantize's requires-imatrix list (which holds IQ3_XXS, IQ2_*, IQ1_* and Q2_K inside Q2_K_S), so it quantizes without calibration data.",
+          "source": "https://raw.githubusercontent.com/ggml-org/llama.cpp/master/src/llama-quant.cpp",
+          "note": null
+        },
+        {
+          "text": "The kernel_mul_mv_id_iq4_nl_f32 variant exists, so MoE expert matvec with IQ4_NL is supported on Metal.",
+          "source": "https://raw.githubusercontent.com/ggml-org/llama.cpp/master/ggml/src/ggml-metal/kernels/mul_mv.metal",
+          "note": null
+        },
+        {
+          "text": "Qwen3.6-35B-A3B UD files by size: UD-IQ4_XS 17.7 GB, UD-IQ4_NL 18.0 GB, UD-IQ4_NL_XL 19.5 GB, UD-Q4_K_S 20.9 GB, UD-Q4_K_M 22.1 GB, UD-Q4_K_XL 22.4 GB; the XL IQ4_NL mix adds 1.5 GB over UD-IQ4_NL.",
+          "source": "https://huggingface.co/unsloth/Qwen3.6-35B-A3B-GGUF",
+          "note": null
+        },
+        {
+          "text": "A llama.cpp tool-call failure report (issue 20837, March 2026) was reproduced with unsloth Qwen3.5-35B-A3B-UD-IQ4_NL and also with Q4_K_M, i.e. the bug was not specific to the IQ4_NL type.",
+          "source": "https://github.com/ggml-org/llama.cpp/issues/20837",
+          "note": null
+        },
+        {
+          "text": "A 4.5 bpw type with a threadgroup-memory table lookup can run below Q4_0 speed on Metal even with equal bytes, because per-nibble decode cost rather than bandwidth is the limit on higher-bandwidth chips; whether that still holds on M3-M5 is unmeasured.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "UD-IQ4_NL tensors that Unsloth lifts to Q5_1, Q8_0 or Q6_K go through the other kernels; only the IQ4_NL tensors carry the table-lookup cost.",
+          "source": "asserted",
+          "note": null
+        }
+      ]
+    }
+  ],
+  "related": []
+}

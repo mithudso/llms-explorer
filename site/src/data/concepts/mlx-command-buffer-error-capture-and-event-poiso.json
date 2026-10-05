@@ -1,0 +1,199 @@
+{
+  "slug": "mlx-command-buffer-error-capture-and-event-poiso",
+  "concept": "MLX command-buffer error capture and event poisoning in 0.32.0",
+  "generated": "2026-10-05",
+  "summary": "The old failure signature was `libc++abi: terminating due to uncaught exception of type std::runtime_error: [METAL] Command buffer execution failed: ...` with the stack `mlx::core::gpu::check_error(MTL::CommandBuffer*)` called from a completion block in `-[_MTLCommandBuffer didCompleteWithStartTi...",
+  "facets": [
+    {
+      "title": "Facts",
+      "facts": [
+        {
+          "text": "The old failure signature was `libc++abi: terminating due to uncaught exception of type std::runtime_error: [METAL] Command buffer execution failed: ...` with the stack `mlx::core::gpu::check_error(MTL::CommandBuffer*)` called from a completion block in `-[_MTLCommandBuffer didCompleteWithStartTime:endTime:error:]`, ending in `__cxa_throw`, `_objc_terminate` and `abort`.",
+          "source": "https://github.com/ml-explore/mlx/pull/3519",
+          "note": null
+        },
+        {
+          "text": "Field cases before the fix: issue 3317 (M2 Ultra, Qwen3.5-122B, about 3.5 hours of sustained inference) and an M4 Max running a four-server mlx-lm 0.31.3 pool where prompt-cache growth raised `kIOGPUCommandBufferCallbackErrorOutOfMemory` and aborted one pool member.",
+          "source": "https://github.com/ml-explore/mlx/pull/3519",
+          "note": null
+        },
+        {
+          "text": "PR 3523 first handled the error \"in same thread\", then on 2026-05-20 was rewritten as \"Catch error in CommandBuffer and poison the events\": the error is set on every `Event` the failed buffer signals, and when a poisoned `Event` is waited on, the error passes to the waiting `CommandEncoder` and to the events that encoder signals, so an error in one stream reaches other streams through events.",
+          "source": "https://github.com/ml-explore/mlx/pull/3523",
+          "note": null
+        },
+        {
+          "text": "At the time of 3523 the CPU stream was excluded: its errors \"currently just throw and crash\"; that gap is what PR 3742 closed in 0.32.1.",
+          "source": "https://github.com/ml-explore/mlx/pull/3523",
+          "note": null
+        },
+        {
+          "text": "In current main `CommandEncoder::get_command_encoder()` calls `error_.check()` before it opens a compute encoder, which is the \"before encoding\" check point named in the PR description.",
+          "source": "https://raw.githubusercontent.com/ml-explore/mlx/main/mlx/backend/metal/device.cpp",
+          "note": null
+        },
+        {
+          "text": "The throw is delayed to the next check point, so the exception does not point at the failing op; the author likened it to CUDA.",
+          "source": "https://github.com/ml-explore/mlx/pull/3523",
+          "note": null
+        },
+        {
+          "text": "PR 3318 (defer the error to the next user-thread `eval()`) ran unattended for 5 days on Qwen3.5-122B and overnight on an M3 Ultra, then was rejected and closed by its author. zcbenz on issue 3317: \"We can not simply transfer the error: MLX code is not exception-safe so when the exception is thrown the process would be in a stale state that will likely fail later in a much weirder way.\" awni on issue 2670: no guarantee the state is sane after an exception during eval.",
+          "source": "https://github.com/ml-explore/mlx/pull/3519",
+          "note": null
+        },
+        {
+          "text": "PR 3519 (2026-05-10, closed 2026-05-11, +148/-6 over two files) answered the state-safety objection with per-stream poisoning: the handler never throws, it saves the message in a `StreamThread` slot; the next `eval`, `finalize` or `synchronize` on that stream re-throws once and then refuses every call with \"[METAL] Stream is in error state from a prior failure. Call mx.clear_streams() ...\"; `mx.clear_streams()` resets the slots. Maintainers did not take it; zcbenz opened 3523 the next day with event poisoning instead.",
+          "source": "https://github.com/ml-explore/mlx/pull/3519",
+          "note": null
+        },
+        {
+          "text": "PR 3523 reviews: angeloskath on 2026-05-19 noted `check_error` in `Event` and `Fence` wait was ineffective because the waiting thread is practically never the scheduling thread; 2026-05-21 he called the event-based rewrite \"an awesome cleanup\", especially the fence cleanup.",
+          "source": "https://github.com/ml-explore/mlx/pull/3523",
+          "note": null
+        },
+        {
+          "text": "2026-06-12: approved by angeloskath and merged by zcbenz as commit a025496 with 16 checks passed; the issue it closes is 2670 (\"when it crashed in the background, can not catch the exception\", opened 2025-09-29).",
+          "source": "https://github.com/ml-explore/mlx/pull/3523",
+          "note": null
+        },
+        {
+          "text": "2026-06-04: tseylerd ported 3523 to mlx v0.31.1 so mlx-swift and mlx-swift-lm could use it (tseylerd/mlx pull 1).",
+          "source": "https://github.com/ml-explore/mlx/pull/3523",
+          "note": null
+        },
+        {
+          "text": "2026-06-13 (opened; listed in the 0.32.1 notes): PR 3675 \"Fix state corruption when a primitive throws during eval\" repaired the other half of exception safety: an exception out of `eval_cpu` or `eval_gpu` unwound `eval_impl` before its per-stream epilogue, so earlier arrays in the same batch were marked evaluated while their kernels sat in a command buffer never committed (later reads returned unwritten memory) and events attached to the failed eval were never signaled (later reads hung in `array::wait`). The fix signals every event created for the eval, synchronizes every touched stream and re-throws.",
+          "source": "https://github.com/ml-explore/mlx/pull/3675",
+          "note": null
+        },
+        {
+          "text": "The 0.32.1 release notes list \"Propagate CPU errors to events\" (PR 3742) and \"Fix state corruption when a primitive throws during eval\" (PR 3675); this confirms that 3742 shipped in 0.32.1.",
+          "source": "https://github.com/ml-explore/mlx/releases/tag/v0.32.1",
+          "note": null
+        },
+        {
+          "text": "PR 3675's trigger is extension code: `mx.fast.metal_kernel` whose source fails to JIT-compile (it compiles lazily at eval) or a custom primitive that throws in `eval_gpu`; built-in ops validate at graph construction, so pure built-in code rarely reaches it; before the fix a caught exception left a bystander array unwritten in about half of runs.",
+          "source": "https://github.com/ml-explore/mlx/pull/3675",
+          "note": null
+        },
+        {
+          "text": "A caught Metal error says nothing about whether arrays and KV state produced by the discarded command buffers are valid; PR 3523 and PR 3675 only keep the process alive and the streams consistent.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "The 3523 author could not unit-test it (\"no good way to test it\") and used `mlx.launch --verbose -n 32 python python/tests/ring_test_distributed.py`, which reliably timed out before the change.",
+          "source": "https://github.com/ml-explore/mlx/pull/3523",
+          "note": null
+        },
+        {
+          "text": "PR 3519's author had the same testing limit: the pre-flight allocation check in `metal::malloc` intercepts most synthetic out-of-memory repros, so a real command-buffer failure is needed.",
+          "source": "https://github.com/ml-explore/mlx/pull/3519",
+          "note": null
+        },
+        {
+          "text": "Design: PR 3519 (per-stream \"poisoned\" state, explicit reset with `mx.clear_streams()`) against PR 3523 (error rides on events, no explicit reset call); the maintainers merged the event design.",
+          "source": "https://github.com/ml-explore/mlx/pull/3519",
+          "note": null
+        },
+        {
+          "text": "Overhead: the 3523 author argued event waits add overhead while fewer completion handlers remove some; his benchmark could not separate the two (see Claims).",
+          "source": "https://github.com/ml-explore/mlx/pull/3523",
+          "note": null
+        },
+        {
+          "text": "Whether PR 3675's recovery covers errors that arrive asynchronously from the command-buffer handler (it handles exceptions thrown inside eval, a different path); no source tests the combination.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Which release first carried a025496: the 0.32.0 notes were not re-read in this batch.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "PR 3523 was approved by angeloskath on 2026-06-12 and merged as commit a025496 with 16 checks passed.",
+          "source": "https://github.com/ml-explore/mlx/pull/3523",
+          "note": null
+        },
+        {
+          "text": "Before PR 3523 a failed Metal command buffer aborted the process through an exception thrown in a completion handler (`check_error` under `didCompleteWithStartTime:endTime:error:`).",
+          "source": "https://github.com/ml-explore/mlx/pull/3519",
+          "note": null
+        },
+        {
+          "text": "Issue 3317 reported that abort on an M2 Ultra after about 3.5 hours of Qwen3.5-122B inference.",
+          "source": "https://github.com/ml-explore/mlx/pull/3519",
+          "note": null
+        },
+        {
+          "text": "PR 3318 (defer the error to the next eval) was rejected by maintainers on state-safety grounds (\"MLX code is not exception-safe\").",
+          "source": "https://github.com/ml-explore/mlx/pull/3519",
+          "note": null
+        },
+        {
+          "text": "PR 3519 proposed per-stream poisoning with `mx.clear_streams()` as the reset and was closed on 2026-05-11.",
+          "source": "https://github.com/ml-explore/mlx/pull/3519",
+          "note": null
+        },
+        {
+          "text": "PR 3523 was retitled on 2026-05-20 to \"Catch error in CommandBuffer and poison the events\" and propagates the error from the command buffer to its signaled events and from a waited event to the encoder.",
+          "source": "https://github.com/ml-explore/mlx/pull/3523",
+          "note": null
+        },
+        {
+          "text": "At 3523's merge the CPU stream still threw and crashed on errors.",
+          "source": "https://github.com/ml-explore/mlx/pull/3523",
+          "note": null
+        },
+        {
+          "text": "PR 3523's author tested with `mlx.launch -n 32 python python/tests/ring_test_distributed.py`, which reliably timed out before the change.",
+          "source": "https://github.com/ml-explore/mlx/pull/3523",
+          "note": null
+        },
+        {
+          "text": "A Llama-3.1-8B-Instruct benchmark (`mlx_lm.benchmark -n 10 -p 64 -g 512`) gave main 363.322 prompt and 24.238 generation tokens per second and the 3523 branch 360.728 and 24.239, with peak memory 16.176 GB on both.",
+          "source": "https://github.com/ml-explore/mlx/pull/3523",
+          "note": null
+        },
+        {
+          "text": "tseylerd ported 3523 to mlx v0.31.1 for mlx-swift users on 2026-06-04.",
+          "source": "https://github.com/ml-explore/mlx/pull/3523",
+          "note": null
+        },
+        {
+          "text": "`CommandEncoder::get_command_encoder()` calls `error_.check()` before opening a compute encoder.",
+          "source": "https://raw.githubusercontent.com/ml-explore/mlx/main/mlx/backend/metal/device.cpp",
+          "note": null
+        },
+        {
+          "text": "PR 3675 fixes unwritten-buffer reads and hung `array::wait` calls after an exception escapes `eval_gpu` or `eval_cpu`, by signaling events, synchronizing streams and re-throwing.",
+          "source": "https://github.com/ml-explore/mlx/pull/3675",
+          "note": null
+        },
+        {
+          "text": "The 0.32.1 release notes list PR 3742 and PR 3675.",
+          "source": "https://github.com/ml-explore/mlx/releases/tag/v0.32.1",
+          "note": null
+        },
+        {
+          "text": "PR 2983 \"Fix scheduler exception propagation to Python\" was an earlier attempt, closed on 2026-01-19.",
+          "source": "https://github.com/ml-explore/mlx/pulls?q=is%3Apr+poison",
+          "note": null
+        },
+        {
+          "text": "PR 4356 stopped a failed CUDA graph commit from poisoning the CUDA encoder (merged 2026-08-23), the CUDA counterpart of the poison design.",
+          "source": "https://github.com/ml-explore/mlx/pulls?q=is%3Apr+poison",
+          "note": null
+        },
+        {
+          "text": "A caught Metal error does not certify the contents of arrays from discarded command buffers.",
+          "source": "asserted",
+          "note": null
+        }
+      ]
+    }
+  ],
+  "related": []
+}

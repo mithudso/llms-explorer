@@ -1,0 +1,214 @@
+{
+  "slug": "metal-gpu-hangs-with-multiple-concurrent-engines",
+  "concept": "Metal GPU hangs with multiple concurrent engines in one process",
+  "generated": "2026-10-05",
+  "summary": "MLX creates one `MTLCommandQueue` per stream (`mlx/backend/metal/device.cpp:309-324`), so one engine's GPU work mostly goes through one queue; embedding models share a separate `mlx-global` executor thread.",
+  "facets": [
+    {
+      "title": "Facts",
+      "facts": [
+        {
+          "text": "MLX creates one `MTLCommandQueue` per stream (`mlx/backend/metal/device.cpp:309-324`), so one engine's GPU work mostly goes through one queue; embedding models share a separate `mlx-global` executor thread.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Working guess (inferred, not proven): the firmware time-shares or preempts between two busy compute queues of one process, a compute context switch occasionally fails to complete, and the firmware declares a lockup against the compute buffer it finds stuck. The firmware criterion is undocumented.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Supporting observation: with two engines busy each slows by an order of magnitude. GLM singleton verify cycles ran 0.75-0.79 s just before the 12:17 hang against a 53 ms daily median at that context length; a DeepSeek decode that hung had run 15.3 s against about 1.2 s for identical requests.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "The cross-process variant (oMLX 3706) fits the same picture: concurrency of submission, not co-residence, is the common variable. The error class differs (Timeout, then SubmissionsIgnored, versus Hang with in-place recovery).",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "oMLX PR 86 serialized MLX work through a shared executor; issue 1248 asked for per-engine threads once mlx-lm 0.31.3 supported per-instance streams; PR 1304 implemented them. The `_engine_loop` docstring still claims the executor guarantees no concurrent GPU operations, which since PR 1304 holds only within one engine.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "2026-08-27: events 1-2 (DeepSeek-V4-Flash plus Qwen3.8-27B, oMLX 0.6.2, macOS 26.5.1). 2026-09-28: event 3 (oMLX 0.7.0rc1). 2026-10-02: events 4-9 within 7 h (oMLX 0.7.0, GLM-5.3-Flash plus Qwen3.8-27B). Event 10 at 18:04.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "2026-10-03: a second M3 Ultra owner on issue 3706 reports the same trigger in one process and offers the same two-model reproduction.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Host: Mac Studio Mac15,14, M3 Ultra, 80-core GPU (`applegpu_g15d`, no NAX), 512 GB, `iogpu.wired_limit_mb` 506880; MLX 0.32.2 at all ten events; default caps `MLX_MAX_OPS_PER_BUFFER` and `MLX_MAX_MB_PER_BUFFER` both 50 on an Ultra; a GLM decode step spans about 170 command buffers, with 2-12 in flight per queue at the resets.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Which engine is blamed: GLM-5.3 in six of the nine attributed events, DeepSeek-V4 two, Qwen one; event 4 is unattributed because its owner logged nothing. By blamed engine, GLM alone 6.9 h with 0 hangs, GLM with Qwen busy 5.5 h with 5; DeepSeek alone 4.5 h with 0, with Qwen busy 1.3 h with 2.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Heavy load on both sides is not required: the blamed engine's own context was 471, 29,962 and 210 tokens in events 1-3. A chunked prefill was in flight somewhere in the process at all ten events, and that is not separated from two-engine exposure.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Statistics caveats: if hangs fell uniformly over LLM-busy time, all nine landing in the dual-engine share has probability 7.5e-8; with retry-driven dependence the figure lies between about 3e-6 and 4e-3; within 10-02 alone the association is not significant (P about 0.13-0.16) because both engines were busy for 63-71% of that day.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Exposure table (MLX 0.32.2): two busy each with a 32K+ request, 5.2 h and 6 hangs; one engine busy with a 32K+ request, 23.4 h and 0. MLX 0.32.0 (08-30 to 09-27) had 2.7 dual hours and no hang, on light load.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Ruled out or not required: memory and wiring (149 GB, at least 241 GB and 98 GB left under the wired limit at three events); other GPU clients (oMLX 94.7-98.8% of GPU time, WindowServer at most 2.8%, terminal at most 2.5%); multi-request Lightning MTP transitions; the paged SSD cache; a custom-kernel defect (source of every non-stock kernel read, no spin-waits or inter-threadgroup sync found); macOS 27 alone; one over-packed command buffer is not excluded.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "A hang makes clients retry with long re-prefills, which keeps both engines busy and clusters later hangs, so events are not independent.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Concurrency (oMLX reporter) versus unrelated long single dispatches such as fused D=256 prefill attention at 100K-230K keys; the reporter says the second is not excluded.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Same-process queues versus cross-process: 4224 sees Hang with in-place recovery and no macOS 27 requirement; 3706 sees Timeout and SubmissionsIgnored, macOS 27 only. Whether one mechanism explains both is open.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Does serializing engine GPU work (`OMLX_SERIALIZE_ENGINE_GPU=1`) stop the Hang class? The reporter's A/B is planned, not run.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Does a pure-MLX two-thread, two-stream reproduction hang? Written, not run (needs the server stopped).",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Does the same happen with two llama.cpp processes or llama-swap with two models loaded? No source found.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "oMLX gives each loaded LLM engine its own thread and MLX stream (`omlx/engine_core.py:345-352`), requested in issue 1248 and implemented by PR 1304, first shipped in v0.4.0; embedding models share the single `mlx-global` executor thread (`:210-224`).",
+          "source": "https://github.com/jundot/omlx/issues/4224",
+          "note": null
+        },
+        {
+          "text": "MLX creates one MTLCommandQueue per stream (`mlx/backend/metal/device.cpp:309-324`).",
+          "source": "https://github.com/jundot/omlx/issues/4224",
+          "note": null
+        },
+        {
+          "text": "The 4224 host is a Mac Studio (Mac15,14) with an M3 Ultra, 80-core GPU (`applegpu_g15d`, no NAX), 512 GB, `iogpu.wired_limit_mb` 506880 at the eight events since 09-28.",
+          "source": "https://github.com/jundot/omlx/issues/4224",
+          "note": null
+        },
+        {
+          "text": "On an Ultra-class GPU MLX commits at 50 ops and 50 MB per command buffer by default, and a GLM decode step spans about 170 command buffers, with 2-12 in flight per queue at the resets.",
+          "source": "https://github.com/jundot/omlx/issues/4224",
+          "note": null
+        },
+        {
+          "text": "Hang attribution across the ten 4224 events: GLM-5.3 six times, DeepSeek-V4 twice, Qwen once, and one event unattributed because the hung queue's owner logged nothing.",
+          "source": "https://github.com/jundot/omlx/issues/4224",
+          "note": null
+        },
+        {
+          "text": "GLM-5.3 alone ran 6.9 h with 0 hangs and 5.5 h with 5 hangs while Qwen was busy; DeepSeek-V4 alone ran 4.5 h with 0 and 1.3 h with 2 while Qwen was busy.",
+          "source": "https://github.com/jundot/omlx/issues/4224",
+          "note": null
+        },
+        {
+          "text": "Two engines busy, each with a 32K+ token request, accounted for 5.2 h and 6 hangs; exactly one engine busy with a 32K+ request accounted for 23.4 h and 0 hangs.",
+          "source": "https://github.com/jundot/omlx/issues/4224",
+          "note": null
+        },
+        {
+          "text": "If hangs fell uniformly over LLM-busy time, the chance that all nine land in the dual-engine share is 7.5e-8, but under retry-driven dependence it lies between about 3e-6 and 4e-3.",
+          "source": "https://github.com/jundot/omlx/issues/4224",
+          "note": null
+        },
+        {
+          "text": "Within 2026-10-02 alone the dual-engine association is not significant (P about 0.13-0.16) because both engines were busy for 63-71% of that day's LLM-busy time.",
+          "source": "https://github.com/jundot/omlx/issues/4224",
+          "note": null
+        },
+        {
+          "text": "MLX 0.32.0 (2026-08-30 to 09-27, oMLX 0.6.4) shows 2.7 dual-engine hours and no reported hang, on light dual load.",
+          "source": "https://github.com/jundot/omlx/issues/4224",
+          "note": null
+        },
+        {
+          "text": "GLM singleton verify cycles ran 0.75-0.79 s just before the 12:17 hang against a 53 ms daily median at that context length, and a DeepSeek decode that hung had run 15.3 s against about 1.2 s for identical requests.",
+          "source": "https://github.com/jundot/omlx/issues/4224",
+          "note": null
+        },
+        {
+          "text": "The blamed engine's own context was 471, 29,962 and 210 tokens in events 1-3, and a chunked prefill was in flight somewhere in the process at all ten events.",
+          "source": "https://github.com/jundot/omlx/issues/4224",
+          "note": null
+        },
+        {
+          "text": "The 4224 reporter read the source of every non-stock kernel selected on the host for the 10-02 models and found no spin-waits, inter-threadgroup synchronization, divergent barriers or data-dependent loop bounds.",
+          "source": "https://github.com/jundot/omlx/issues/4224",
+          "note": null
+        },
+        {
+          "text": "At the 4224 hang intervals oMLX held 94.7-98.8% of GPU time, WindowServer at most 2.8% and the terminal emulator at most 2.5%; in the 30 s before event 10 the figures were 25.6 s, 0.16 s and 0.03 s.",
+          "source": "https://github.com/jundot/omlx/issues/4224",
+          "note": null
+        },
+        {
+          "text": "The 4224 reporter's draft patch is a process-wide, re-entrant, first-come \"GPU turn\" held for one decode burst, with the holder synchronizing its engine stream and default stream before handing over, and drain errors raised instead of swallowed.",
+          "source": "https://github.com/jundot/omlx/issues/4224",
+          "note": null
+        },
+        {
+          "text": "For the planned A/B, a serialized run with no hang reaches p < 0.05 after about 2.7 dual-engine hours and p < 0.01 after about 4.6; bounding the reduction at 5x needs 11.5-14 lockup-free dual-engine hours.",
+          "source": "https://github.com/jundot/omlx/issues/4224",
+          "note": null
+        },
+        {
+          "text": "The 4224 reporter says a hang makes clients retry with long re-prefills, which keeps both engines busy, so 14:22 followed 13:52 and 16:00 followed 15:47.",
+          "source": "https://github.com/jundot/omlx/issues/4224",
+          "note": null
+        },
+        {
+          "text": "A second M3 Ultra 512 GB owner reports the same concurrent-submission trigger inside one oMLX process, about 1.3 hangs per dual-engine hour as Hang, not Timeout, and recovery in place with seven GPU restarts in one process lifetime.",
+          "source": "https://github.com/jundot/omlx/issues/3706",
+          "note": null
+        },
+        {
+          "text": "The 3706 cross-process fault needed a second process actively submitting Metal work; a resident idle co-host gave 1.5 h with 0 faults.",
+          "source": "https://github.com/jundot/omlx/issues/3706",
+          "note": null
+        },
+        {
+          "text": "oMLX commit `5941f68` adds `exit_if_gpu_submissions_ignored` in `omlx/utils/fatal.py`, called from `engine_core.py` and `metal_sync.py`, so a process in the SubmissionsIgnored penalty box exits for supervisor restart.",
+          "source": "https://github.com/jundot/omlx/commit/5941f683fe6ffa89b76518a3f41a94b59435fbed",
+          "note": null
+        },
+        {
+          "text": "Serialization across engines is an inference-driven mitigation with no result yet; whether it removes the Hang class is unknown.",
+          "source": "asserted",
+          "note": null
+        }
+      ]
+    }
+  ],
+  "related": []
+}

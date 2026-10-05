@@ -1,0 +1,119 @@
+{
+  "slug": "hybrid-and-recurrent-model-checkpoint-handling-i",
+  "concept": "Hybrid and recurrent model checkpoint handling in oMLX",
+  "generated": "2026-10-05",
+  "summary": "PR 3288 fixes a store-side drop: when the speculative-decode skew guard skips every decode-time boundary capture, `_cleanup_finished` raised `_BoundaryStoreUnavailable` in scheduler.py and discarded the recurrent state, so a growing agent context stored no reusable prefix and showed `served cache...",
+  "facets": [
+    {
+      "title": "Facts",
+      "facts": [
+        {
+          "text": "PR 3288 fixes a store-side drop: when the speculative-decode skew guard skips every decode-time boundary capture, `_cleanup_finished` raised `_BoundaryStoreUnavailable` in scheduler.py and discarded the recurrent state, so a growing agent context stored no reusable prefix and showed `served cached_tokens=0`.",
+          "source": "https://github.com/jundot/omlx/pull/3288",
+          "note": null
+        },
+        {
+          "text": "PR 3288 adds `_verify_live_boundary_aligned(request_id, uid, boundary_tokens)`: when `len(cacheable_sequence) % block_size == 0` it stores the live cache only if the leaf cache offset equals the boundary token count, otherwise it keeps the old drop.",
+          "source": "https://github.com/jundot/omlx/pull/3288",
+          "note": null
+        },
+        {
+          "text": "PR 3288 trusts the live cache offset rather than the emitted token length because the MTP emit queue can make the emitted length misleading.",
+          "source": "https://github.com/jundot/omlx/pull/3288",
+          "note": null
+        },
+        {
+          "text": "The 0.7.0.dev1 release notes list PR 3288 among the changes behind 'restored hybrid GDN boundary storage', next to PRs 3327, 3369, 3355, 3428, 3367, 3447 and 3525.",
+          "source": "https://github.com/jundot/omlx/releases",
+          "note": null
+        },
+        {
+          "text": "PR 3288 is listed in the notes as authored by contributor apcooley; PR 3314's reporter was cross-linked to it on 2026-08-30.",
+          "source": "https://github.com/jundot/omlx/releases",
+          "note": null
+        },
+        {
+          "text": "0.6.3rc3 hardened recurrent-state correctness: storage no longer attaches end-of-prompt recurrent state to an earlier full block when a partial tail was skipped, pre-call GDN state is restored before stock fallback, shared-prefix hashes are verified on acquisition, and blocks whose stored KV lengths disagree with the declared token count are rejected (PRs 3085, 3086, 3087, 3094).",
+          "source": "https://github.com/jundot/omlx/releases",
+          "note": null
+        },
+        {
+          "text": "0.6.3rc3 PR 3066 stops prefix caching from splitting a 4,096-token forward into two 2,048-token forwards on validated classic-Metal Qwen3.8 configurations; the split had caused agent sessions to repeat completed tool calls only when prefix caching was on.",
+          "source": "https://github.com/jundot/omlx/releases",
+          "note": null
+        },
+        {
+          "text": "NAX-capable and smaller-memory systems keep the validated 2,048-token cache geometry after PR 3066.",
+          "source": "https://github.com/jundot/omlx/releases",
+          "note": null
+        },
+        {
+          "text": "A 0.6.4 fix (PR 3227) makes ArraysCache hybrids such as GLM-5.3 materialize recurrent state periodically, release boundary snapshots and paged-cache blocks on failures, and skip unnecessary hot-cache payloads, to avoid Metal resource-count exhaustion in long decode.",
+          "source": "https://github.com/jundot/omlx/releases",
+          "note": null
+        },
+        {
+          "text": "A 0.6.4 fix (PR 3283) makes Qwen4 QSA boundary snapshots store incremental slices instead of complete prefixes; on a 64 GB system the clean-prefill ceiling rose from about 43K to 96K-100K tokens.",
+          "source": "https://github.com/jundot/omlx/releases",
+          "note": null
+        },
+        {
+          "text": "A 0.6.4 fix (PR 3232) rolls Qwen4 PLE n-gram history and short-convolution state back to the committed prefix together with QSA and GDN state after rejected Lightning MTP drafts, with fail-closed validation of incomplete snapshots.",
+          "source": "https://github.com/jundot/omlx/releases",
+          "note": null
+        },
+        {
+          "text": "0.6.4 added warm-prefix restoration for Lightning MTP prompt history: a matching prefix-cache entry restores the MTP sidecar instead of replaying the reusable prompt head.",
+          "source": "https://github.com/jundot/omlx/releases",
+          "note": null
+        },
+        {
+          "text": "0.7.0rc1 PRs 3842 and 3840 preserve recurrent draft state at cache boundaries and restore positions from attention layers so hybrid SpecPrefill draft prefixes can hit; 0.7.0 PR 3908 adds exact prefix reuse for split-GDN SpecPrefill so stable system and tool prefixes are not re-prefilled.",
+          "source": "https://github.com/jundot/omlx/releases",
+          "note": null
+        },
+        {
+          "text": "The `gdn_snapshot_storage` model setting has at least two values, `embedded` (snapshots held in RAM) and `ssd_sidecar` (snapshots streamed to SSD; `auto` selects the sidecar on the reporter's default).",
+          "source": "https://github.com/jundot/omlx/issues/3284",
+          "note": null
+        },
+        {
+          "text": "On Qwen3.8-Flash-Next (qwen4_exp, 61 layers of which 48 are ArraysCache-GDN and 12 are KVCache) one boundary snapshot is stored per 2,048-token block across all stateful layers.",
+          "source": "https://github.com/jundot/omlx/issues/3284",
+          "note": null
+        },
+        {
+          "text": "On DeepSeek-V4-Flash (PoolingCache family, block size forced to 2,048) the log line `Walk-back truncation: dropped 1 trailing block(s) with placeholder non-sliceable state` appeared 704 times over 345 requests, on almost every reload.",
+          "source": "https://github.com/jundot/omlx/issues/2876",
+          "note": null
+        },
+        {
+          "text": "In issue 2876's accounting 2,205,345 prefix tokens were shareable and 1,468,928 were reused, so 736k (33%) were re-prefilled; the mean loss was 2,166 tokens per request (median 341, max 19,968).",
+          "source": "https://github.com/jundot/omlx/issues/2876",
+          "note": null
+        },
+        {
+          "text": "Issue 2876's reporter measured block size 512 on DeepSeek-V4-Flash (M3 Ultra 512 GB): cold prefill fell to 190-228 tok/s from 504-560 tok/s at block 2048, which confirms the code comment that prefill kernels need 2,048-token chunks.",
+          "source": "https://github.com/jundot/omlx/issues/2876",
+          "note": null
+        },
+        {
+          "text": "Issue 2876 proposes persisting a boundary snapshot for the last full block of a stored sequence, or making the trailing non-sliceable state recomputable at load, which the reporter estimates would recover about half of the 33% loss.",
+          "source": "https://github.com/jundot/omlx/issues/2876",
+          "note": null
+        },
+        {
+          "text": "Issue 2876 is open in the cached copy fetched 2026-10-04 and shows no maintainer fix.",
+          "source": "https://github.com/jundot/omlx/issues/2876",
+          "note": null
+        },
+        {
+          "text": "Issue 3317 (0.6.4 `boundary_snapshot_unavailable`) is still open in the cached copy; no fix commit is cited on the page.",
+          "source": "https://github.com/jundot/omlx/issues/3317",
+          "note": null
+        }
+      ]
+    }
+  ],
+  "related": []
+}

@@ -1,0 +1,434 @@
+{
+  "slug": "mac-local-llms-memory-and-wired-limits",
+  "concept": "Mac local LLMs: Memory and wired limits",
+  "generated": "2026-10-05",
+  "summary": "Default Metal budget is about 2/3 of RAM up to 32 GB, 3/4 from 36 GB (correction: was a flat ~75%). Logged: 16 GB=10.67 GiB, 24=16, 32=21.33, 36=27, 48=36, 64=48, 96=72, 128=96, 256=192.",
+  "facets": [
+    {
+      "title": "GPU budget (default)",
+      "facts": [
+        {
+          "text": "Default Metal budget is about 2/3 of RAM up to 32 GB, 3/4 from 36 GB (correction: was a flat ~75%). Logged: 16 GB=10.67 GiB, 24=16, 32=21.33, 36=27, 48=36, 64=48, 96=72, 128=96, 256=192.",
+          "source": "https://modelvram.com/llm-vram-calculator/mac-unified-memory/",
+          "note": null
+        },
+        {
+          "text": "A recommendation, not a wall: llama.cpp only warns `current allocated size is greater than the recommended max working set size`, then fails with `Insufficient Memory (00000008:kIOGPUCommandBufferCallbackErrorOutOfMemory)`.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Read the real number from the log line `ggml_metal_init: recommendedMaxWorkingSetSize` (builds before b2000 divide by 1024^2, later by 10^6) or `mx.device_info()[\"max_recommended_working_set_size\"]`.",
+          "source": "asserted",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Raising the limit",
+      "facts": [
+        {
+          "text": "Sonoma 14+: `sudo sysctl iogpu.wired_limit_mb=<MiB>` (Ventura/Monterey: `debug.iogpu.wired_limit`, bytes). 0 = default. Takes effect at once, resets on reboot. 24576 on a 32 GB Mac moved 22,906.50 to 25,769.80 MB.",
+          "source": "https://stencel.io/posts/apple-silicon-limitations-with-usage-on-local-llm%20.html",
+          "note": null
+        },
+        {
+          "text": "Persist via a LaunchDaemon running `/usr/sbin/sysctl iogpu.wired_limit_mb=<MB>`; `/etc/sysctl.conf` may need SIP off. A bad persisted value also applies on the repair boot.",
+          "source": "https://www.thinkdifferent.blog/blog/the-macbook-pro-setting-that-doubles-your-ai-performance/",
+          "note": null
+        },
+        {
+          "text": "Leave 4 GB to macOS up to 24 GB RAM, 8 GB above. Safe MB: 36 GB=30720, 48=40960, 64=57344, 128=118784. A 64 GB Mac set to 62 GB froze; 22000 on 24 GB panicked with swap.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Raise only on 64 GB+ or when a model fails at default; fix KV growth and quant first. A 24 GB M3 Air ran an 18 GiB Q4_K_M only at 20,480 MiB.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Other consumers: MLX `mx.set_wired_limit` (macOS 15+, bytes, below RAM); PyTorch MPS high watermark is 1.7x the recommended set (`PYTORCH_MPS_HIGH_WATERMARK_RATIO=0.0` removes it); vllm-mlx `--gpu-memory-utilization` multiplies the wired limit.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "LM Studio refuses with `Model loading aborted due to insufficient system resources`; set guardrails Custom. Ollama `OLLAMA_KEEP_ALIVE` default 5 min; the MLX runner can outlive `ollama stop` (kill it).",
+          "source": "asserted",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Wired memory, panics, Jetsam",
+      "facts": [
+        {
+          "text": "Wired memory cannot be compressed or swapped. `mlx_lm.server` wires the recommended set at start and can panic in `IOGPUMemory.cpp:550` with `memoryPressure: false` (mlx-lm issue 883, mlx issues 3186, 3346); headroom does not protect.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "32 GB M4 mini: stock panicked in 102-108 s; never calling `mx.set_wired_limit` gave 10/10 clean runs at under 3% cost, but weights become pageable (a 27.1 GiB model thrashed below 0.25 t/s). Shim: `mx.set_wired_limit = lambda *a, **k: 0` before importing `mlx_lm.server`.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "`--max-kv-size` and an 8 GiB `--prompt-cache-bytes` did not prevent it; PR 906 (v0.31.0) added byte-based cache limits. Cause unconfirmed.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Precursor: slowdown as context grows. Check `footprint -p <pid>` (IOAccelerator line). oMLX 0.7.0: `omlx serve --memory-guard safe|balanced|aggressive` (default balanced) or `--memory-guard-gb 48`.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Correction: macOS memorystatus kills only idle-band processes (plus zone-map exhaustion); on low swap it shows \"Out of Application Memory\" and the Mac stays degraded until reboot. Wired memory explains the panic, not the missing kill.",
+          "source": "asserted",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "MLX allocator pool and footprint",
+      "facts": [
+        {
+          "text": "`footprint` lists MLX Metal allocations as \"IOAccelerator (graphics)\", all DIRTY, 0 reclaimable: 109 GB there, phys_footprint 110 GB on an M5 Max, MLX 0.32.0. IOSurface underneath is unconfirmed.",
+          "source": "https://github.com/ml-explore/mlx/issues/3896",
+          "note": null
+        },
+        {
+          "text": "GPU-written MLX buffers are charged to phys_footprint in full. Freed buffers stay in the pool and stay charged: a 60 x 500 MB churn gave get_peak_memory 1.00 GB, active 0, cache 60.06 GB, footprint 60.19 GB.",
+          "source": "https://github.com/ml-explore/mlx/issues/3896",
+          "note": null
+        },
+        {
+          "text": "Gate on active + cache, not `get_peak_memory` (maintainer: peak is for single-model runs). A gate on peak (46 GB reported, 110 GB real) ended in a hard reboot and a Metal command-buffer GPU timeout on M5 Max 128 GB. `mx.set_cache_limit(0)` ended that churn at 1.14 GB.",
+          "source": "https://github.com/ml-explore/mlx/issues/3896",
+          "note": null
+        },
+        {
+          "text": "After `clear_cache` footprint trails by about 4 s (15.14 GB then 0.02 GB); a reading right after looked like a leak and was retracted.",
+          "source": "https://github.com/ml-explore/mlx/issues/3896",
+          "note": null
+        },
+        {
+          "text": "Pool reuse window is [size, size + 2 pages) above about 32 KB, so varying sizes (a growing KV concatenate) grow the pool; later workloads ran 10-35% slower until exit. Appending per step at ctx 4096: 3.12 ms growing, 1.96 constant-size, 0.35 preallocated `slice_update`. mlx-lm KVCache preallocates in 256-step chunks. Issue 3886 closed won't fix.",
+          "source": "https://github.com/ml-explore/mlx/issues/3886",
+          "note": null
+        },
+        {
+          "text": "Correction: earlier note said a GPU-blit-filled no-copy region cost 0.12 GB; MLX-allocated buffers are charged in full. No source tests a GPU-written no-copy wrap.",
+          "source": "asserted",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "mmap, mlock, load modes",
+      "facts": [
+        {
+          "text": "On Metal the weights are file cache pages; under pressure they refault from SSD each prefill. `--mlock` or `--no-mmap` stops that. mmap does not speed steady-state compute.",
+          "source": "https://github.com/ggml-org/llama.cpp/discussions/29347",
+          "note": null
+        },
+        {
+          "text": "Dense model over RAM under mmap runs at SSD read rate; MoE can work. Load hangs near 75%: `-lm none`. Model under about 60% of RAM: default.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "llama.cpp `-lm/--load-mode auto|none|mmap|mlock|mmap+mlock|dio` (PR 20834; correction: merge 2026-07-23, not 09-15). `--no-mmap` = `-lm none`, `--mlock` = `-lm mlock`. `dio` showed no gain on macOS.",
+          "source": "https://github.com/ggml-org/llama.cpp/pull/26135",
+          "note": null
+        },
+        {
+          "text": "`--lazy-mode on|auto|off` (`-lzm`) reads tensors over 4 GiB on demand; a net loss if the model fits. It works even with mmap off (correction). `--tensor-read-lazy` does not exist.",
+          "source": "https://raw.githubusercontent.com/ggml-org/llama.cpp/master/common/arg.cpp",
+          "note": null
+        },
+        {
+          "text": "mlock failure: `failed to mlock N-byte buffer ... Cannot allocate memory` hints at `vm.user_wire_limit`, `vm.global_user_wire_limit`, `ulimit -l`; the hint may not print. MLX has no mmap mode. Ollama `use_mmap` is a request option; LM Studio `tryMmap`.",
+          "source": "asserted",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Mapped span over-allocation",
+      "facts": [
+        {
+          "text": "llama.cpp maps one Metal buffer from the lowest to highest offloaded tensor offset per file, so tensors at opposite file ends map the whole span and OOM at first decode (issue 24510: 30973 MiB mapped vs 947 MiB offloaded).",
+          "source": "https://github.com/ggml-org/llama.cpp/issues/29465",
+          "note": null
+        },
+        {
+          "text": "Diagnose with `-v -fit off`: compare `offloaded N/M layers` to each `MTL0_Mapped model buffer size`. Fixes: reorder the GGUF with gguf-py; `-ot \"^output=CPU\"`; `--no-mmap`. `--lazy-mode off` does not help. PR 25309 is an unmerged draft.",
+          "source": "asserted",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Accounting and pressure",
+      "facts": [
+        {
+          "text": "Activity Monitor, `ps`, `footprint` read different ledgers. File-backed pages show in `resident_size`, not `phys_footprint`; measured Metal buffers were charged by touched page, not at map time (correction).",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "`MADV_DONTNEED` only deactivates pages; RSS falls when the scan steals them. Pressure Warning when uncompressed available < compressor pages; Critical near 0.52x.",
+          "source": "asserted",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "SSD wear",
+      "facts": [
+        {
+          "text": "Weights read from a file add no wear; swap, KV checkpoints and downloads do. Measure: `smartctl -a`, Data Units Written delta x 512,000 B.",
+          "source": "asserted",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Open",
+      "facts": [
+        {
+          "text": "Whether mlocked Metal mappings count against `vm.user_wire_limit`; mmap vs `-lm none` benchmarks; GPU-written no-copy wrap charging.",
+          "source": "asserted",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Corrections and disagreements",
+      "facts": [
+        {
+          "text": "The default budget is not a flat 75%. It is about 2/3 of RAM up to 32 GB and about 3/4 from 36 GB up (CONTRADICTS the existing file's single \"~75%\"). Logged `recommendedMaxWorkingSetSize` values: 16 GB = 10,922.67 MB(MiB-labelled, old build) i.e. 10.67 GiB; 24 GB = 17,179.89 MB (16 GiB); 32 GB = 22,906.50 MB (21.33 GiB); 36 GB = 27 GiB; 48 GB = 36 GiB; 64 GB = 48 GiB; 96 GB = 72 GiB; 128 GB = 96 GiB; 192 GB = 144 GiB; 256 GB = 192 GiB.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "CONTRADICTS on-device-local-llm-runtimes.md section 10: the default is not a single ~75%; it is about 2/3 up to 32 GB.",
+          "source": "https://modelvram.com/llm-vram-calculator/mac-unified-memory/",
+          "note": null
+        },
+        {
+          "text": "CONTRADICTS: moe-expert-offload-to-ssd-on-macos.md dates the load-mode merge 2026-09-15; openclawdc dates it 2026-07-23 with removal in a later PR.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "JangPress documentation, as recorded in moe-expert-ssd-streaming-and-page-cache-residenc.md: DONTNEED lets \"the kernel drop expert pages\", with idle RSS of about 1 GB for a roughly 600 GB virtual size. XNU source: DONTNEED only deactivates. CONTRADICTS: moe-expert-ssd-streaming-and-page-cache-residenc.md line 21 and jangpress-cold-expert-eviction-for-moe-larger-th.md line 33 on mechanism. The two can both hold if the 1 GB RSS comes from reclaim under pressure rather than from DONTNEED itself, which the sources do not settle.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Flash-MoE authors: macOS \"manages the page cache with CLOCK-Pro\". XNU vm_pageout.c: queue and reference-bit scan with a file-cache floor; the text CLOCK-Pro appears in no fetched kernel source. Both stated; the kernel source is the stronger evidence for the shipping algorithm but is main-branch code. CONTRADICTS: moe-expert-ssd-streaming-and-page-cache-residenc.md line 13 (authors' attribution).",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Archived Apple guide: applications cannot allocate wired memory. XNU kern_mman.c: mlock wires user pages up to vm_per_task_user_wire_limit. CONTRADICTS: the archived guide for current macOS.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "CONTRADICTS: llama-cpp-lazy-mode-lazy-tensor-reading-of-overs.md, which treats `--tensor-read-lazy` versus `--lazy-mode` as unresolved: the current argument table has only `--lazy-mode`/`-lzm`.",
+          "source": "https://raw.githubusercontent.com/ggml-org/llama.cpp/master/common/arg.cpp",
+          "note": null
+        },
+        {
+          "text": "CONTRADICTS: llama-cpp-lazy-mode-lazy-tensor-reading-of-overs.md (\"with mmap off there is nothing to read lazily\"): `init_mappings` creates mappings when `use_mmap || lazy.any()`, with the comment that this keeps lazy reading usable \"even when --load-mode is not set to mmap\".",
+          "source": "https://raw.githubusercontent.com/ggml-org/llama.cpp/master/src/llama-model-loader.cpp",
+          "note": null
+        },
+        {
+          "text": "CONTRADICTS (in part): macos-wired-memory-limit-and-gpu-kernel-panics.md, local-llm-server-as-a-coding-agent-backend-on-mac.md and mlx-and-mlx-lm-on-apple-silicon.md say wired memory \"evades Jetsam\" or \"cannot be Jetsam-killed\". The kernel source shows a broader fact: on macOS memorystatus kills only idle-band processes (outside zone-map exhaustion and a possible sustained-pressure policy), so an unwired large process would also not be jetsam-killed. The wired-memory part explains the panic, not the absence of a kill.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "CONTRADICTS: jangpress-rss-accounting-after-expert-deactivati.md line 21 (\"If a runtime wraps mmap pages as no-copy Metal buffers ... `phys_footprint` would be charged the full mapped size at map time\"). On macOS 27.2 / M5 Max neither a shared MTLBuffer nor a no-copy wrapper over anonymous or file-backed pages was charged at map time. Footprint followed touched pages (internal) or stayed near zero (file-backed, counted as `external`).",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "CONTRADICTS (partly): iokit-mapped-metal-buffer-accounting-in-phys-foo.md measured a GPU-blit-filled untouched no-copy region at 0.12 GB footprint. Here GPU-written MLX-allocated buffers (not no-copy wraps) are charged in full as IOAccelerator dirty memory. The difference is plausibly allocation type (device allocation vs wrapped anonymous pages), but no source tests a GPU-written no-copy buffer directly.",
+          "source": "asserted",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Concepts in this cluster",
+      "facts": [
+        {
+          "text": "Apple silicon unified memory and LLM sizing",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "macOS wired memory limit and GPU kernel panics",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "mmap mlock and no-mmap on Apple silicon",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Metal mmap span mapping and residency-set wiring for partial offload",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Metal newBufferWithBytesNoCopy file-cache-backed weights refault",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "SSD endurance and wear under local LLM inference",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "llama.cpp lazy-mode lazy tensor reading of oversized embedding tables",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "macOS vm.user_wire_limit and RLIMIT_MEMLOCK for mlock",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "GGUF tensor reordering script with gguf-py plus hash verification",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "llama.cpp PR 25309 sparse mmap tensor range coalescing",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Apple Silicon SSD SMART telemetry and Percentage Used interpretation",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "MADV_DONTNEED on file-backed mmap semantics on macOS",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "XNU vm_per_task_user_wire_limit and global wire sysctl defaults on Apple silicon",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "macOS swap and compressed memory write behavior under memory pressure",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "macOS unified buffer cache policy and wired memory interaction",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "JangPress RSS accounting after expert deactivation on macOS",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "llama-server --load-mode dio and lazy-mode on Apple silicon",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "macOS memory compressor thrashing from GPU-visible buffers",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "macOS memorystatus and jetsam behavior on non-iOS Macs under memory pressure",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "mincore residency probing of mmap'd model weights on macOS",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "mlx-optiq residency ceiling near 73 percent of RAM",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Cost of a mincore sweep per GB on Apple silicon",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "IOKit-mapped Metal buffer accounting in phys_footprint",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "MTLResidencySet requestResidency postponement under cross-app pressure",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Throughput cliff versus vm_stat decompressions on 24 GB M4",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "macOS no_paging_space_action Out of Application Memory dialog",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "macOS vm pressure level thresholds kVMPressureWarning and kVMPressureCritical",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "mincore MINCORE_PAGED_OUT probe for compressor residency of Metal buffers",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "task_info TASK_VM_INFO resident_size versus phys_footprint accounting",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Allocation path behind MTLResourceStorageModeShared buffers (IOGPU vs IOSurface)",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "GPU-written no-copy buffer footprint charging",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "MLX buffer pool reuse window and cache sizing (mlx issue 3886)",
+          "source": "asserted",
+          "note": null
+        }
+      ]
+    }
+  ],
+  "related": []
+}

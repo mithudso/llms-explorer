@@ -1,0 +1,189 @@
+{
+  "slug": "token-level-generation-versus-render-drift-measu",
+  "concept": "Token-level generation-versus-render drift measurement harness",
+  "generated": "2026-10-05",
+  "summary": "Capture G with llama-server's `return_tokens: true`, which returns raw generated token ids in the `tokens` field, or with mlx_lm.server, which can return token ids with its log-probability structure.",
+  "facets": [
+    {
+      "title": "Facts",
+      "facts": [
+        {
+          "text": "Capture G with llama-server's `return_tokens: true`, which returns raw generated token ids in the `tokens` field, or with mlx_lm.server, which can return token ids with its log-probability structure.",
+          "source": "https://raw.githubusercontent.com/ggml-org/llama.cpp/master/tools/server/README.md",
+          "note": null
+        },
+        {
+          "text": "Build R in three server calls: `/apply-template` converts messages to the model's template string without inference; `/tokenize` converts that string to ids; `/detokenize` converts ids back to text.",
+          "source": "https://raw.githubusercontent.com/ggml-org/llama.cpp/master/tools/server/README.md",
+          "note": null
+        },
+        {
+          "text": "`/tokenize` defaults to `add_special: false` and `parse_special: true`, so rendered text containing `<|im_start|>`-style markers tokenizes to the special ids, and BOS is not added unless asked. The harness must set `add_special` to match how the server tokenizes real prompts.",
+          "source": "https://raw.githubusercontent.com/ggml-org/llama.cpp/master/tools/server/README.md",
+          "note": null
+        },
+        {
+          "text": "Two kinds of drift separate cleanly. Text drift: `detokenize(G)` differs from the rendered assistant text (a trim, a re-wrap, a re-serialized argument). Retokenization drift: the text is identical but G is not the canonical tokenization of it (the model emitted a different split of the same string). Compare strings first, then ids.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Tokenizers give one canonical id sequence per string, but the same string has many valid non-canonical sequences, and their number grows exponentially with length; a sampled model can emit a non-canonical split that the template round trip then canonicalizes.",
+          "source": "https://arxiv.org/html/2506.19004v1",
+          "note": null
+        },
+        {
+          "text": "The cost of drift is the tokens after the first mismatch. Report, per assistant turn, m (first mismatch index in the assistant span), L = len(G) - m (tokens that must be reprocessed from that turn), and L divided by prefill tokens-per-second as seconds lost.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "llama-server reports reuse per request as `tokens_cached` and `tokens_evaluated`, and in `timings` as `cache_n` and `prompt_n`; a harness can confirm the predicted reuse (prefix length) against the server's actual `cache_n` on the next request.",
+          "source": "https://raw.githubusercontent.com/ggml-org/llama.cpp/master/tools/server/README.md",
+          "note": null
+        },
+        {
+          "text": "mlx_lm.server looks up its prompt cache by token ids, `fetch_nearest_cache(model_key, prompt)`, and reports the cached count as the prompt length minus the remaining tokens, so a one-id render difference is a miss on the same terms as in llama-server.",
+          "source": "https://raw.githubusercontent.com/ml-explore/mlx-lm/main/mlx_lm/server.py",
+          "note": null
+        },
+        {
+          "text": "Classify every mismatch into a small set: whitespace at a turn edge, think-block wrapper, tool-call serialization (key order, spacing, number formatting), special-token handling, retokenization-only. The classification, not the average m, tells you which template or parser to patch.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Run the harness on at least three shapes of turn: plain content, content plus tool call, and reasoning plus tool call. Drift in the existing Qwen template analysis is predicted at the tool-call and think-block edges, so those shapes are where the measurement can falsify it.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Use a fixed seed and greedy sampling for the first pass so retokenization drift can be separated from sampling noise; repeat at the production temperature to see whether sampling raises non-canonical splits.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "2025-06: \"Broken Tokens?\" shows models handle non-canonical tokenizations of their input.",
+          "source": "https://arxiv.org/html/2506.19004v1",
+          "note": null
+        },
+        {
+          "text": "2026-04: Qwen3.8 issue 131 documents trim-driven prefix mismatches (existing dossier).",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "2026-08: froggeric adds template-level prefix and fuzz tests that do not tokenize model output (existing dossier).",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Quality and cost are different questions. Instruction-tuned Qwen-2.5-7B-Instruct kept up to 93.4% of benchmark performance on random non-canonical tokenizations and 90.8% on character-level ones, so retokenization drift probably costs cache, not answer quality; the paper's base models degraded and tried to imitate imagined misspellings.",
+          "source": "https://arxiv.org/html/2506.19004v1",
+          "note": null
+        },
+        {
+          "text": "The paper's robustness claim covers input context. It says nothing about whether a model's own generated non-canonical tokens re-rendered as canonical change later output, so that effect is unmeasured.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "`/apply-template` renders the template the server loaded; a client that uses a different template (Ollama's RENDERER, per the existing parser dossier) will see different drift, so run the harness against the exact serving path.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "If the server's reasoning parser trims text before the template trims again, drift appears only for outputs with edge whitespace (existing dossier), so a small sample of clean outputs can show zero drift while the real traffic does not. Sample long, messy outputs.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Hybrid and sliding-window models turn a mismatch into a checkpoint restore or full reprocess (existing dossiers), so seconds lost per mismatch are model-specific.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Is template idempotence enough? The froggeric tests render message lists twice and compare strings (existing dossier); the position here is that this cannot detect generation-versus-render drift because generated ids never enter the test. Both are needed: idempotence is necessary, not sufficient.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Is drift worth fixing at the template or at the client? A template fix (remove trims) risks changing model behavior; a client fix (send back generated tokens or text verbatim) risks an API that has no field for it. The Qwen maintainer response in the existing dossier says there is no perfect fix.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "No measured G versus R diff for Qwen3.x, Gemma 4 or gpt-oss on llama-server, mlx-lm, LM Studio or Ollama was found.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "How often a model emits a non-canonical split in tool-call JSON at temperature 0 versus production temperature.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Whether `/apply-template` output equals the string `/v1/chat/completions` renders internally for tool-bearing requests; the README documents the endpoint for messages only, while `tools` is documented for the chat endpoint.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "llama-server `/apply-template` converts messages to the model's chat-template string and returns it in a `prompt` field without running inference.",
+          "source": "https://raw.githubusercontent.com/ggml-org/llama.cpp/master/tools/server/README.md",
+          "note": null
+        },
+        {
+          "text": "llama-server `/tokenize` has `add_special` default false, `parse_special` default true and an optional `with_pieces` that returns each token's piece.",
+          "source": "https://raw.githubusercontent.com/ggml-org/llama.cpp/master/tools/server/README.md",
+          "note": null
+        },
+        {
+          "text": "llama-server provides `/detokenize` to convert token ids to text.",
+          "source": "https://raw.githubusercontent.com/ggml-org/llama.cpp/master/tools/server/README.md",
+          "note": null
+        },
+        {
+          "text": "llama-server `/completion` returns `tokens_cached` and `tokens_evaluated`, and its `timings` object returns `cache_n` and `prompt_n`.",
+          "source": "https://raw.githubusercontent.com/ggml-org/llama.cpp/master/tools/server/README.md",
+          "note": null
+        },
+        {
+          "text": "mlx_lm.server fetches its prompt cache by token ids and derives the cached-token count from the prompt length and the remaining tokens.",
+          "source": "https://raw.githubusercontent.com/ml-explore/mlx-lm/main/mlx_lm/server.py",
+          "note": null
+        },
+        {
+          "text": "Tokenizers produce one canonical token sequence per string, yet the number of non-canonical tokenizations of the same string grows exponentially with its length.",
+          "source": "https://arxiv.org/html/2506.19004v1",
+          "note": null
+        },
+        {
+          "text": "Instruction-tuned models retain up to 93.4% of original benchmark performance under a randomly sampled non-canonical tokenization and 90.8% under character-level tokenization (Qwen-2.5-7B-Instruct, 20 benchmarks).",
+          "source": "https://arxiv.org/html/2506.19004v1",
+          "note": null
+        },
+        {
+          "text": "The paper finds this robustness arises in instruction tuning, and base models given non-canonical tokens degrade into nonsensical output.",
+          "source": "https://arxiv.org/html/2506.19004v1",
+          "note": null
+        },
+        {
+          "text": "A drift harness should compare detokenized strings before ids to separate text drift from retokenization drift.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "The per-turn drift cost is L = len(G) - m tokens, converted to seconds with the server's prefill rate.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Retokenization-only drift costs prefix-cache reuse but probably not answer quality for instruction-tuned models.",
+          "source": "asserted",
+          "note": null
+        }
+      ]
+    }
+  ],
+  "related": []
+}

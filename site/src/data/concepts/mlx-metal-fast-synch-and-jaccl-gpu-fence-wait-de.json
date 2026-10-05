@@ -1,0 +1,304 @@
+{
+  "slug": "mlx-metal-fast-synch-and-jaccl-gpu-fence-wait-de",
+  "concept": "MLX_METAL_FAST_SYNCH and JACCL GPU fence_wait deadlock",
+  "generated": "2026-10-05",
+  "summary": "Env var gate (fence.cpp FenceImpl): fast mode only if the device supports Metal3 family AND macOS 15+/iOS 18+ AND env::metal_fast_synch(); otherwise a normal Event (MTLSharedEvent) is used. Default 0.",
+  "facets": [
+    {
+      "title": "Facts",
+      "facts": [
+        {
+          "text": "Env var gate (fence.cpp FenceImpl): fast mode only if the device supports Metal3 family AND macOS 15+/iOS 18+ AND env::metal_fast_synch(); otherwise a normal Event (MTLSharedEvent) is used. Default 0.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Fast `Fence::wait` on a CPU stream enqueues `while (f.cpu_value()[0] < value) {}`; on a GPU stream it encodes the `fence_wait` kernel into the current open command encoder (no end_encoding) and registers the output array.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Fast `Fence::update` on the CPU writes cpu_value()[0]=count; on the GPU, with cross_device, first runs an `input_coherent` kernel over the array, then `fence_update`.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Failure class 1, write visibility: seq_cst store on ARM64 compiles to STLR + DMB ISH; ISH orders CPU cores only, so a GPU/DMA observer may keep a stale value and fence_wait spins forever (GPU pinned at 100%, machine reboot needed). Fix in mlx PR #3141 / exo fork: `DSB SY` (`__dsb(0xF)`) after the store, plus a GPU-side two-tier wait (up to 1M volatile iterations then a system-scope `__metal_atomic_load_explicit`). DSB ST was found insufficient on M3 Ultra.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Failure class 2, read visibility (vskiwi, Mar 8): `Fence::wait` CPU loop has no barrier; hung process `sample` showed 271/271 samples in Fence::wait read loop, GPU idle. Proposed one-line `__dsb(0xF)` inside the loop.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Failure class 3, buffer lifetime: with allocator resource option HazardTrackingModeUntracked, fence completion handlers capture only the fence, not data buffers, so clear_cache()/buffer reuse can free a buffer an in-flight command buffer still reads. Symptom: SIGABRT in gpu::check_error from addCompletedHandler on 50K+ token contexts (3 of 4 attempts crashed within 1 minute pre-fix). Related trigger: mx.set_wired_limit wired collector; angeloskath said disabling it avoids deadlocks. On macOS 26.2 the same race gave silent corruption (AMCC interrupts in dmesg); 26.3 added an assert that makes it crash.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Failure class 4, cross-stream ordering (aidiffuser, Sep 10 2026): GPU stream A producing and GPU stream B consuming in one eval are ordered by a fence_wait spin on queue B polling a fence_update on queue A. Two command buffers on two queues are not guaranteed to run concurrently, so if B runs first the spin never sees the update: unbounded hang on upstream main, a ~10 s stall per handoff on the exo fork (bounded 30 rounds). Seen as a fixed 9-14 s pause on about 1 in 7 vision-model image turns on 2x M3 Ultra, macOS 26.6, never on text turns. Fix: per-fence MTLSharedEvent for same-device cross-stream handoffs, spin only across CPU/GPU (rltakashige/mlx-jaccl-fix-small-recv PR #4).",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Failure class 5, scheduling-thread block (same PR #4 text): the fork tip commit e983561 \"Prevent GPU timeouts\" adds a CPU-side gate in Fence::wait that blocks the scheduling thread and deadlocks `MLX_METAL_FAST_SYNCH=1 python -m unittest test_eval` (test_eval_slow_fast_multi_stream). exo's uv.lock resolves to cc3f3e6, so nothing in the field runs the tip.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Not JACCL-specific (mlx #3830, Jul 10 2026): the fence layer is transport-independent. Pipeline generation over the plain TCP ring backend deadlocks with the flag on (M2 Ultra + M5 Max over 10 GbE, loopback 2-rank ring, M3 Max independent repro on first iteration). Orphaned fence_wait kernel can keep the GPU occupied after kill -9: on one M2 Ultra every later mx.eval hung until reboot, once escalating to a userspace freeze; on an M3 Max the GPU recovered.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "With the flag unset, #3830 reports a different failure: macOS ~5 s GPU watchdog kills committed command buffers parked on encodeWait (kIOGPUCommandBufferCallbackErrorTimeout) at about 7,300 tokens on DeepSeek-V2.5-1210-4bit 2 ranks. Users pick between a silent deadlock and a watchdog crash; reporter's workaround: flag unset, cap generations at ~6,500 tokens, continue via prompt cache.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "exo's mitigations: PR #1429 (Feb 9) evals distributed ops only during prefill and raises prefill step to 8192 (no GPU timeout at 100K tokens on MiniMax); PR #1489/#1515 (Feb 16-17) switch to the fork; PR #1594 (Feb 23) turns FAST_SYNCH on for Ring/pipeline (\"Large models + large prompts + pipeline RING = 0.2tps; pipeline JACCL = 15 tps\"; author could not find why). Author admitted in mlx #3142 (Apr 28) that the fork bounds the spin loop with an iteration cap, \"which can cause slightly incorrect outputs\" but is preferred to an irrecoverable lock.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Feb 16-17 2026: exo PRs #1489/#1515 first DSB SY fork. Feb 18: mlx #3142 opened, PR #3141 (DSB SY + fence.metal fallback) proposed; its author states it reduces but does not eliminate locks. Feb 18-19: awni's PR #3144 \"fix fence synchronization across command buffers\" (fence race across 2+ command buffers); vskiwi found #3144 alone deadlocks on the first request (4 runners at 100% CPU, GPU ~40 W idle), #3144 + DSB SY passed 50K, 70K and 94K token prompts.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Upstream docs wording (distributed.html, fetched): \"It is however not reliable that can lead to deadlock and leave the GPU wedged (see #3142), so it is off by default and best left unset.\" The environment_variables page gives only \"Enable the faster Metal CPU/GPU synchronization path. The default is 0. Requires Metal 3.2+ (macOS 15+)\". The same distributed page still shows an `mlx.distributed_config --env MLX_METAL_FAST_SYNCH=1` pattern in WWDC26 session 233, where Apple says it is \"critical\" for distributed work, so Apple's own guidance contradicts.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Aug 6 2026: third-party commits in katlun-lgtm's mlx fork reword the docs to \"not reliable ... see #3142 and #3830\" and drop the `<--- important` flag from the Deepseek example. That is a fork commit, not upstream; check upstream docs before citing it.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Sep 10 2026: aidiffuser's cross-stream MTLSharedEvent fix, with Claude as co-author, on the fork, branch for main offered; production data: 2 days, ~650 requests, 3 models, zero give-ups; repro 2/7 stalls -> 0/23; warm prefill 450-467 -> 491-506 tok/s, decode steady 25 tok/s.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Signature to recognise: GPU gauge pegged near 100% with no output (spin kernel), or all runners at 100% CPU with GPU ~40 W idle (CPU-side spin). `sample` shows Fence::wait lambda / IOGPUMetalBuffer::contents on StreamThread.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Likelihood scales: more nodes (4 worse than 2), two big models in parallel, per-layer mx.eval during sharding (about 78 rapid fence cycles shortly after JACCL init gave 100% repro through exo on vskiwi's setup; vanilla 0.31.0 standalone ~3%), long context, model load while a large request arrives.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "A wedged GPU can survive process death; recovery may need a reboot of the node (and sometimes the cluster, since peers sit at 100% CPU on all-reduce).",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Hangs: stock main fence_wait is `while(1)` with no timeout; the exo fork bounds it (see above), trading hangs for stalls or wrong output.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Distinct adjacent bug, mlx PR #3152 (Feb 21): JACCL polling never checked ibv_wc.status in 9 loops (5 ring.cpp, 4 mesh.cpp), so failed RDMA ops under memory pressure silently used stale receive buffers; observed on a 612 GB MoE (306 GB per rank, 2 nodes) as corrupt output after ~22 tokens. Per the existing file, #3152 was still open at 2026-05-18.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Apple WWDC26 233 and Awni's Dec 2025 example: FAST_SYNCH=1 is \"critical/important\" for distributed. Upstream docs and zcbenz: unreliable, leave unset, wontfix.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "exo (rltakashige): on by default everywhere (\"GPU locks are old news\", PR #1594), mitigated by fork. #3830 reporters: flag on deadlocks plain TCP ring and the stock tip; flag off avoids the deadlock but hits the watchdog.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "vskiwi: switching allocator HazardTrackingModeUntracked to Default fixed SIGABRT with 0.2-0.8% decode cost (GLM-5 4x M3 Ultra: 23.8 -> 23.6 tok/s at 0 ctx, 21.3 -> 21.2 at 10K, 16.1 -> 16.1 at 50K). zcbenz/Metal team did not take it; Untracked chosen for performance, single-node cost unmeasured.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Exact per-collective latency saving of FAST_SYNCH: the figure of about 0.26 ms per all_sum was not found in any fetched source; not confirmed here. Measured end-to-end effects found: exo pipeline JACCL 15 tps vs 0.2 tps ring when flag on (confounded by transport), aidiffuser prefill +8% from the event patch with flag on (decode unchanged at 25 tok/s), and rltakashige's 267 vs 269 tok/s on Llama 3.2 1B for the DSB SY patch (cost of barrier only).",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "No published A/B of mlx.launch TP decode with FAST_SYNCH 0 vs 1 on the same stock build.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Whether upstream will ever merge a bounded-wait or event-ordered variant: no sign as of 2026-10-04.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Stock MLX single node: leave unset. Stock MLX distributed: unset is the only upstream-supported setting; expect higher latency and, on long pipeline generations over ~5 s of waiting, GPU watchdog kills (#3830).",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "If you set it (JACCL TP, as in Apple's --env pattern), use the exo-style fork at cc3f3e6 (not tip e983561), keep prefill chunked, avoid concurrent large models and mid-load requests, monitor for a pegged GPU, and treat a node reboot as the recovery.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "MLX_METAL_FAST_SYNCH selects a spin-on-shared-word Fence only when Metal3 family, macOS 15+ and env true, otherwise MTLSharedEvent",
+          "source": "https://github.com/ml-explore/mlx/blob/main/mlx/backend/metal/fence.cpp",
+          "note": null
+        },
+        {
+          "text": "The environment variables page documents the flag as default 0 and requiring Metal 3.2 or later",
+          "source": "https://ml-explore.github.io/mlx/build/html/usage/environment_variables.html",
+          "note": null
+        },
+        {
+          "text": "Upstream distributed docs say the flag \"can lead to deadlock and leave the GPU wedged (see #3142), so it is off by default and best left unset\"",
+          "source": "https://ml-explore.github.io/mlx/build/html/usage/distributed.html",
+          "note": null
+        },
+        {
+          "text": "mlx issue 3142 was opened Feb 18 2026 by rltakashige, carries labels bug, distributed, wontfix, and shows state Open",
+          "source": "https://github.com/ml-explore/mlx/issues/3142",
+          "note": null
+        },
+        {
+          "text": "zcbenz said on Apr 27 2026 that per the Metal team there is no supported CPU/GPU atomic coherence or guaranteed GPU spinlock, so the flag is not guaranteed to work",
+          "source": "https://github.com/ml-explore/mlx/issues/3142",
+          "note": null
+        },
+        {
+          "text": "rltakashige said on Apr 28 2026 that exo's fork exits the spin loop after a fixed iteration count, which can give slightly incorrect outputs",
+          "source": "https://github.com/ml-explore/mlx/issues/3142",
+          "note": null
+        },
+        {
+          "text": "DMB ISH from seq_cst stores orders CPU cores only; PR 3141 added DSB SY after the fence store and a two-tier GPU wait, and DSB ST was insufficient on M3 Ultra",
+          "source": "https://github.com/ml-explore/mlx/pull/3141",
+          "note": null
+        },
+        {
+          "text": "PR 3141 tested on 4x M3 Ultra GLM-5 8-bit: 6 of 6 runs passed (short, 10K, 50K) after the CPU-side fix and a 54-collective RDMA integrity stress passed bit-perfect",
+          "source": "https://github.com/ml-explore/mlx/pull/3141",
+          "note": null
+        },
+        {
+          "text": "3 of 4 pre-fix 50K-token attempts crashed with SIGABRT in gpu::check_error within a minute",
+          "source": "https://github.com/ml-explore/mlx/pull/3141",
+          "note": null
+        },
+        {
+          "text": "On macOS 26.2 the fence race caused silent corruption and macOS 26.3 added an assert turning it into a crash",
+          "source": "https://github.com/ml-explore/mlx/pull/3141",
+          "note": null
+        },
+        {
+          "text": "mlx PR 3144 alone (without DSB SY) deadlocked on the first request; 3144 plus DSB SY passed 50K, 70K and 94K prompts",
+          "source": "https://github.com/ml-explore/mlx/issues/3142",
+          "note": null
+        },
+        {
+          "text": "Allocator HazardTrackingModeDefault eliminated SIGABRT with decode deltas of -0.8%, -0.5%, -0.2% at 0, 10K, 50K context",
+          "source": "https://github.com/ml-explore/mlx/issues/3142",
+          "note": null
+        },
+        {
+          "text": "Capturing data_shared_ptr in fence completion handlers deadlocked with about 2 GB headroom on a 190 GB model",
+          "source": "https://github.com/ml-explore/mlx/issues/3142",
+          "note": null
+        },
+        {
+          "text": "A CPU-side read-loop without a barrier in Fence::wait was found stuck with 271 of 271 samples and an idle GPU",
+          "source": "https://github.com/ml-explore/mlx/issues/3142",
+          "note": null
+        },
+        {
+          "text": "Same-device cross-stream fast fences can hang or stall because two queues are not guaranteed to overlap; an MTLSharedEvent fix removed 9-14 s stalls (2/7 to 0/23)",
+          "source": "https://github.com/rltakashige/mlx-jaccl-fix-small-recv/pull/4",
+          "note": null
+        },
+        {
+          "text": "Fork tip e983561 \"Prevent GPU timeouts\" hangs test_eval_slow_fast_multi_stream with the flag on; exo's lock resolves to cc3f3e6",
+          "source": "https://github.com/rltakashige/mlx-jaccl-fix-small-recv/pull/4",
+          "note": null
+        },
+        {
+          "text": "The fork branch is 562 commits behind ml-explore/mlx main",
+          "source": "https://github.com/rltakashige/mlx-jaccl-fix-small-recv",
+          "note": null
+        },
+        {
+          "text": "The flag deadlocks the plain TCP ring pipeline backend, reproducing on M2 Ultra, M5 Max and M3 Max, so the bug is transport-independent",
+          "source": "https://github.com/ml-explore/mlx/issues/3830",
+          "note": null
+        },
+        {
+          "text": "With the flag unset, distributed pipeline generation hits the ~5 s GPU watchdog (kIOGPUCommandBufferCallbackErrorTimeout) at about 7,300 tokens",
+          "source": "https://github.com/ml-explore/mlx/issues/3830",
+          "note": null
+        },
+        {
+          "text": "An orphaned fence_wait kernel can leave an M2 Ultra GPU unusable until reboot, while an M3 Max recovered",
+          "source": "https://github.com/ml-explore/mlx/issues/3830",
+          "note": null
+        },
+        {
+          "text": "exo PR 1594 turned FAST_SYNCH on for all instances after pipeline Ring ran at 0.2 tps versus 15 tps for pipeline JACCL",
+          "source": "https://github.com/exo-explore/exo/pull/1594",
+          "note": null
+        },
+        {
+          "text": "exo PR 1429 evals distributed ops only during prefill and raised prefill step size to 8192 to avoid GPU timeouts",
+          "source": "https://github.com/exo-explore/exo/pull/1429",
+          "note": null
+        },
+        {
+          "text": "DSB SY patch cost 267 vs 269 tok/s on Llama 3.2 1B at about 10K context",
+          "source": "https://github.com/exo-explore/exo/pull/1489",
+          "note": null
+        },
+        {
+          "text": "JACCL polling ignored ibv_wc.status in 9 loops; a 612 GB MoE produced corrupt output after about 22 tokens",
+          "source": "https://github.com/ml-explore/mlx/pull/3152",
+          "note": null
+        },
+        {
+          "text": "WWDC26 session 233 calls MLX_METAL_FAST_SYNCH=1 critical for distributed because compute runs on the GPU and communication on the CPU",
+          "source": "https://developer.apple.com/videos/play/wwdc2026/233/",
+          "note": null
+        },
+        {
+          "text": "A third-party fork commit rewords the docs to \"not reliable\" and removes the \"important\" marker; it is not upstream",
+          "source": "https://github.com/katlun-lgtm/mlx/commit/e031f073882c5d59e93b9dbbcc73e7a50d9fadef",
+          "note": null
+        },
+        {
+          "text": "No fetched source gives a per-collective all_sum latency of 0.26 ms for FAST_SYNCH",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Safe practice: leave unset on stock MLX; if used for JACCL TP, pin the fork at cc3f3e6, not the tip",
+          "source": "asserted",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Corrections and disagreements",
+      "facts": [
+        {
+          "text": "Mar 3 label bug; Mar 18 label distributed; Apr 27 zcbenz labels wontfix: per the Metal team there is no supported CPU/GPU atomic coherence, nor any public guaranteed GPU spinlock, so the flag cannot be guaranteed. Issue page still shows state Open with labels bug, distributed, wontfix (fetched 2026-10-04). CONTRADICTS exo-vs-mlx-launch-tensor-parallel-throughput-comparison.md, which says #3142 was \"closed ... wontfix\": it is labelled wontfix but not closed. #3141 itself was closed unmerged.",
+          "source": "asserted",
+          "note": null
+        }
+      ]
+    }
+  ],
+  "related": []
+}

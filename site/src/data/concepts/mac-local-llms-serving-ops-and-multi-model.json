@@ -1,0 +1,334 @@
+{
+  "slug": "mac-local-llms-serving-ops-and-multi-model",
+  "concept": "Mac local LLMs: Serving ops and multi-model",
+  "generated": "2026-10-05",
+  "summary": "LaunchDaemon (/Library/LaunchDaemons) loads at system start; LaunchAgent only at user login; a job starts only with RunAtLoad or KeepAlive. Use `sudo launchctl bootstrap system x.plist` / `bootout`, `gui/<uid>` for agents.",
+  "facets": [
+    {
+      "title": "launchd and boot",
+      "facts": [
+        {
+          "text": "LaunchDaemon (/Library/LaunchDaemons) loads at system start; LaunchAgent only at user login; a job starts only with RunAtLoad or KeepAlive. Use `sudo launchctl bootstrap system x.plist` / `bootout`, `gui/<uid>` for agents.",
+          "source": "https://www.launchd.info/",
+          "note": null
+        },
+        {
+          "text": "Env vars from .zshrc never reach launchd: put OLLAMA_HOST etc. in plist EnvironmentVariables. `launchctl setenv` does not survive reboot.",
+          "source": "https://www.jgoodwill.org/building-a-local-llm-dev-environment-on-apple-silicon-part-1/",
+          "note": null
+        },
+        {
+          "text": "ExitTimeOut: launchd.plist(5) says the default is system-defined (corrects \"20 s\" and an issue reporter's \"5 s\"); 0 means infinity and can stall shutdown forever. Set it explicitly for a 400 GB-class MLX server so teardown finishes.",
+          "source": "https://keith.github.io/xcode-man-pages/launchd.plist.5.html",
+          "note": null
+        },
+        {
+          "text": "Daemon without UserName runs as root: set HOME or models land in root's home. Ollama LaunchDaemon with UserName/GroupName/ExitTimeOut 30 works (issue 2955; corrects the earlier \"no pre-login daemon\" claim).",
+          "source": "https://github.com/ollama/ollama/issues/2955",
+          "note": null
+        },
+        {
+          "text": "`brew upgrade ollama` replaces the Cellar plist and drops edits; copy it to ~/Library/LaunchAgents after stopping the brew service.",
+          "source": "https://medium.com/@michael.hannecke/sharing-ollama-across-your-lan-with-auto-wake-one-mac-studio-whole-team-cbf09eab8f48",
+          "note": null
+        },
+        {
+          "text": "oMLX: `brew services start omlx`; idle eviction 5 min unless pinned; defaults ~/.omlx/models, port 8000. OLLAMA_KEEP_ALIVE=-1 pins on a dedicated box (default 5 min).",
+          "source": "https://github.com/jundot/omlx",
+          "note": null
+        },
+        {
+          "text": "llmster: calling `lms` before `lms daemon up` finishes spawns a second daemon; loser exits 0 (\"Exiting due to PID lock loss\"), looking like a KeepAlive loop.",
+          "source": "https://github.com/lmstudio-ai/lmstudio-bug-tracker/issues/1566",
+          "note": null
+        },
+        {
+          "text": "launchd has no job ordering (sysctl vs server daemon can race); KeepAlive after a panic relaunches the workload that caused it; metal-guard's shell guard skips launchd, call `metal-guard panic-gate`.",
+          "source": "https://github.com/Harperbot/metal-guard",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Pre-login, FileVault, TCC, headless",
+      "facts": [
+        {
+          "text": "FileVault on: nothing runs after an unplanned reboot until unlock. `sudo fdesetup authrestart` is one-use, planned reboots only, not after OS updates. macOS 26+ on Apple silicon: SSH unlock with Remote Login on. Only Secure Token users can unlock.",
+          "source": "https://support.apple.com/guide/security/managing-filevault-sec8447f5049/web",
+          "note": null
+        },
+        {
+          "text": "Astropad: FileVault off plus auto-login for home use; `sudo pmset -a autorestart 1`; sleep off via `pmset -a sleep 0`, `disksleep 0`, `womp 1`, `powernap 0`; lid-closed `disablesleep 1`.",
+          "source": "https://travis.media/blog/running-openclaw-headless-mac/",
+          "note": null
+        },
+        {
+          "text": "TCC binds daemons even as root, with no prompt: denial is silent (empty `ls`, Console \"System Policy: ... deny(1) file-read-data\", Errno 1 \"Operation not permitted\"). Keep binaries, models, logs out of ~/Desktop, Documents, Downloads, iCloud, /Volumes.",
+          "source": "https://apple.stackexchange.com/questions/479465/personal-launchagent-no-longer-works-correctly-in-macos-15-x-appears-to-be-due",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Health and liveness",
+      "facts": [
+        {
+          "text": "llama-server `/health`: 503 \"Loading model\", then 200 `{\"status\":\"ok\"}`; public even with `--api-key`.",
+          "source": "https://github.com/ggml-org/llama.cpp/blob/master/tools/server/README.md",
+          "note": null
+        },
+        {
+          "text": "Poisoned backend (issue 27309): after Metal OOM `/health` stays 200, completions return 500 \"Compute error.\" (\"backend is in error state\"), process stays alive, so KeepAlive never fires. Probe with `max_tokens:1` completion (send the key), SIGKILL on failure; router children ignore SIGTERM, `kill -9` autoloads a fresh child. PR 28242 (fail init) unreviewed.",
+          "source": "https://github.com/ggml-org/llama.cpp/issues/27309",
+          "note": null
+        },
+        {
+          "text": "mlx_lm.server: dead generation thread logs \"mlx_lm.server generation thread died\", `/health` gives 503 but process keeps serving; poll `/health` and restart. `--kv-bits` disables batching. Error `[metal::malloc] Resource limit (499000) exceeded` is a live-resource cap; recycle by request count.",
+          "source": "https://raw.githubusercontent.com/ml-explore/mlx-lm/main/mlx_lm/server.py",
+          "note": null
+        },
+        {
+          "text": "`--sleep-idle-seconds`: `/health`, `/props`, `/models`, `/metrics` neither wake nor reset it; issue 29689: a request arriving as it sleeps hangs or SIGSEGVs; a 1-token completion first held 123/123.",
+          "source": "https://github.com/ggml-org/llama.cpp/issues/29689",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Routers and multi-model",
+      "facts": [
+        {
+          "text": "llama.cpp router: `--models-max` default 4 (0 unlimited) counts models not bytes, includes sleeping; on current master unload precedes load so peak is models_max (corrects the earlier \"three models\" claim). Set it on the CLI, not the INI.",
+          "source": "https://raw.githubusercontent.com/ggml-org/llama.cpp/master/tools/server/server-models.cpp",
+          "note": null
+        },
+        {
+          "text": "Router presets: CLI > model section > `[*]`; `stop-timeout` 10 s; `GET /models?reload=1`.",
+          "source": "https://raw.githubusercontent.com/ggml-org/llama.cpp/master/tools/server/README.md",
+          "note": null
+        },
+        {
+          "text": "llama-swap (v262, 2026-10-03): `routing.router.use: group|matrix`; groups `swap` true, `exclusive` true, `persistent` false; matrix sums `evict_costs`. `globalTTL` 0, `unloadTimeout` 10 s, `healthCheckTimeout` 120 s, concurrency limit gives 429. Preload without a group makes models evict each other.",
+          "source": "https://raw.githubusercontent.com/mostlygeek/llama-swap/main/docs/config.example.yaml",
+          "note": null
+        },
+        {
+          "text": "One mlx_lm.server per model under llama-swap keeps memory measurable; cold start 2.4 s (3 GB), 7.7 s (20 GB); swaps lose in-memory prefix caches.",
+          "source": "https://danmackinlay.name/notebook/local_llm_mac.html",
+          "note": null
+        },
+        {
+          "text": "oMLX: one process, LRU, pinning, per-model TTL, `--memory-guard safe|balanced` (default) or `--memory-guard-gb N`, `--max-concurrent-requests` 8.",
+          "source": "https://github.com/jundot/omlx",
+          "note": null
+        },
+        {
+          "text": "vllm-mlx registry: `--memory-budget-gb` (PR 640) overrides weights-only `manager.memory_budget_gb`; budget error \"models-config manager.memory_budget_gb is required\"; 80-100 GB suggested on 128 GB; `wait_then_fail` for user-facing.",
+          "source": "https://waybarrios.com/vllm-mlx/guides/model-registry/",
+          "note": null
+        },
+        {
+          "text": "LM Studio: Auto-Evict affects only JIT models per its doc (a blog says otherwise); bug 2051 LM Link models bypass it.",
+          "source": "https://lmstudio.ai/docs/developer/core/ttl-and-auto-evict",
+          "note": null
+        },
+        {
+          "text": "Budget rule: weights + KV (ctx x slots) + prefix cache + OS headroom vs the wired limit, not RAM; `footprint -p <pid>` shows IOAccelerator, undercounts mmapped GGUF.",
+          "source": "https://keith.github.io/xcode-man-pages/footprint.1.html",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Concurrency and batching",
+      "facts": [
+        {
+          "text": "vllm-mlx default serves one request at a time: pass `--continuous-batching`; `--max-num-seqs` default 256 too high (16 used on 128 GB). 16 concurrent: 3.7x (0.6B), 2.6x (8B), not the 4.3x summaries claim.",
+          "source": "https://arxiv.org/html/2601.19139v2",
+          "note": null
+        },
+        {
+          "text": "llama-server `--parallel N` splits ctx: `--ctx-size 32768 --parallel 8` leaves 4,096 per slot; Qwen3.6-27B KV about 4 GB per 64K slot.",
+          "source": "https://medium.com/@michael.hannecke/tuning-llama-server-on-apple-silicon-9b3e778ab100",
+          "note": null
+        },
+        {
+          "text": "mlx-lm 0.31.0 issue 965: 16 concurrent requests cross-contaminated answers (fixed v0.31.2); throughput does not prove correctness. LM Studio 0.4.2+ batches MLX.",
+          "source": "https://github.com/ml-explore/mlx-lm/issues/965",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Security",
+      "facts": [
+        {
+          "text": "llama-server default has no key. Prefer `--api-key-file` (env LLAMA_ARG_API_KEY_FILE) over argv; with a key `/metrics` returns 401 \"Invalid API Key\" (PR 28915 open).",
+          "source": "https://github.com/ggml-org/llama.cpp/blob/master/tools/server/README.md",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Open questions",
+      "facts": [
+        {
+          "text": "Does `--sleep-idle-seconds` free Metal memory? Untested. Headless virtual display on M1+ (Astropad) vs empty `screencapture` until BetterDisplay (jock.pl): unresolved.",
+          "source": "asserted",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Corrections and disagreements",
+      "facts": [
+        {
+          "text": "CONTRADICTS: Towards AI and the paper's contribution list say 4.3x aggregate at 16 concurrent, while the paper's measured Figure 2 text gives 3.7x (0.6B) and 2.6x (8B); existing dossiers hold only the 87 to 215 tok/s (2.6x) figure.",
+          "source": "https://pub.towardsai.net/i-ran-claude-code-on-my-macbook-with-vllm-mlx-it-embarrassed-llama-cpp-by-87-093e8c777826",
+          "note": null
+        },
+        {
+          "text": "LM Studio pinning. Hannecke (2026-03-06) says Auto-Evict \"doesn't distinguish pinned from JIT-loaded models\", so turn it off when pinning with `ttl=0`. CONTRADICTS lm-studio-on-mac.md and LM Studio's own TTL doc: Auto-Evict affects only JIT-loaded models and \"non-JIT loaded models are not affected\"; bug 2051 shows the reverse failure (manually loaded models never evicted).",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "OpenCode PR 28352 evidence. CONTRADICTS the framing that it measures per-model cache slot eviction, and sharpens prompt-cache-invalidation-by-agent-clients.md: the PR is a client-side fix (stop sending `reasoning_content: \"\"` on assistant turns without reasoning) tested against llama-swap in front of llama-server. Its own verification line reads \"WITH reasoning_content -> 97.2% cache hit, WITHOUT -> 0%\", which is the opposite wording of its description (the empty string breaks prefix matching); read it as field-present-with-text vs the pre-fix path, not as slot behavior. Additional measured numbers: multi-turn 0% on turn 1, 52.6% on turn 2, 91.0% on turn 3; 0% hits on 196K-token prompts in production captures. The PR linked issue 19081 and was opened 2026-05-19. Nothing in it measures eviction between models.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "CONTRADICTS continuous-batching-on-mlx.md: the startup memory report now includes MLLM engines' memory-aware prefix cache (issue 712 closed via PR 713 on 2026-09-05) rather than ignoring it.",
+          "source": "https://github.com/waybarrios/vllm-mlx/issues/712",
+          "note": null
+        },
+        {
+          "text": "CONTRADICTS the LM Studio TTL doc: Hannecke claims Auto-Evict evicts pinned models as well and advises turning it off when pinning with `ttl=0`.",
+          "source": "https://medium.com/@michael.hannecke/the-same-router-better-backend-multi-model-routing-with-lm-studio-and-apples-mlx-78f53b2aabbb",
+          "note": null
+        },
+        {
+          "text": "CONTRADICTS: ollama-on-macos.md line 28 and 77. A working Ollama LaunchDaemon exists in issue 2955 (UserName, GroupName, OLLAMA_HOST in EnvironmentVariables, ExitTimeOut 30, KeepAlive, `/opt/homebrew/bin/ollama serve`, installed with `sudo cp ollama.plist /Library/LaunchDaemons/`) and is reported to start on boot.",
+          "source": "https://github.com/ollama/ollama/issues/2955",
+          "note": null
+        },
+        {
+          "text": "Does a headless Apple silicon Mac have a working display by default? Side A (Astropad): M1 and later Mac minis create a virtual display automatically, no hardware needed, default 1920 by 1080. Side B (jock.pl): on his headless Mac mini `screencapture` returned empty files and UI automation failed until a BetterDisplay virtual screen existed. The existing dossier windowserver-gpu-contention-and-display-sleep-mi.md asserts Side A (\"A headless Apple silicon Mac still runs WindowServer against a virtual display\"). CONTRADICTS (partly): windowserver-gpu-contention-and-display-sleep-mi.md. The two accounts can both be true if the automatic display exists for remote-desktop sessions but not for `screencapture` of the console session; neither source says which Mac model or macOS version the second account used.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "CONTRADICTS: two-llama-cpp-or-llama-swap-models-loaded-concur.md (\"Peak memory during a swap can therefore be three models, not --models-max\") for current master: the source serializes unload and load, so peak is `models_max` children; the cited report gives no router build.",
+          "source": "https://raw.githubusercontent.com/ggml-org/llama.cpp/master/tools/server/server-models.cpp",
+          "note": null
+        },
+        {
+          "text": "CONTRADICTS launchd-service-setup-for-local-llm-servers.md line 53 (ExitTimeOut defaults to 20 s): launchd.plist(5) says only that the default value is system-defined.",
+          "source": "https://keith.github.io/xcode-man-pages/launchd.plist.5.html",
+          "note": null
+        },
+        {
+          "text": "CONTRADICTS omlx-fatal-teardown-watchdog-and-wired-memory-st.md (\"default 5 s launchd kill window\"): the man page names no 5 s default; the figure is the issue reporter's observation, not a documented value.",
+          "source": "https://keith.github.io/xcode-man-pages/launchd.plist.5.html",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Concepts in this cluster",
+      "facts": [
+        {
+          "text": "Continuous batching on MLX",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Multi-model serving on a large Mac with llama-swap",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "launchd service setup for local LLM servers",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Continuous batching and aggregate throughput on MoE",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Continuous batching and concurrent-request serving on Apple silicon",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Multi-model serving and memory budgeting in vllm-mlx and oMLX registries",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Per-model memory measurement with footprint and IOAccelerator",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Service accounts and API-key hardening for LAN-exposed local LLM servers",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "fdesetup authrestart and FileVault pre-boot unlock for headless Macs",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "llama-server readiness and health semantics after fatal Metal init OOM",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "macOS TCC Files and Folders consent for boot-time daemons",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Headless Apple silicon Mac virtual display and the interactivity watchdog",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Long-running MLX server OOM recovery and process recycling",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Supervisor-side liveness probes for llama-server (completion probe plus SIGKILL)",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "llama-server router mode child instance exposure and auth",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "router --models-max swap ordering (unload before load) peak memory",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "llama.cpp --sleep-idle-seconds router sleeping state keeps its models-max slot",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "launchd ExitTimeOut and graceful stop discipline for large MLX models",
+          "source": "asserted",
+          "note": null
+        }
+      ]
+    }
+  ],
+  "related": []
+}

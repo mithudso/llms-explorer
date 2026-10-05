@@ -1,0 +1,224 @@
+{
+  "slug": "osaurus-vmlx-swift-lm-runtime-and-vmlxctl",
+  "concept": "osaurus vmlx-swift-lm runtime and vmlxctl",
+  "generated": "2026-10-05",
+  "summary": "vmlx-swift-lm adds, on top of upstream mlx-swift-lm: continuous batching (`BatchEngine`) with per-slot KV isolation and SSM-state merge for hybrid models; a three-tier cache; TurboQuant KV compression; speculative decoding; JANG mixed precision; and MoE or hybrid dispatch reduction.",
+  "facets": [
+    {
+      "title": "Facts",
+      "facts": [
+        {
+          "text": "vmlx-swift-lm adds, on top of upstream mlx-swift-lm: continuous batching (`BatchEngine`) with per-slot KV isolation and SSM-state merge for hybrid models; a three-tier cache; TurboQuant KV compression; speculative decoding; JANG mixed precision; and MoE or hybrid dispatch reduction.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Cache tiers: L1 is an in-memory paged block pool (64-token blocks by default, SHA-256 chain hashing); L2 is SQLite plus safetensors keyed by prompt hash and survives process restarts; a third SSM-companion tier holds Mamba or similar state per layer and is disk-paged for hybrids when L2 is on. The cache key combines `modelKey`, a `cacheScopeSalt` (reasoning mode plus media) and, if set, the MoE top-k override, so requests at different reasoning modes never alias.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "TurboQuant KV compression stores the cache at 3 key bits and 3 value bits in the documented example, claims 4.7 to 5.0 times smaller cache using a randomized Hadamard rotation, a Lloyd-Max codebook and (keys only) QJL residual correction, and skips non-KV layers (Mamba, rotating sliding-window caches, ZayaCCA).",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Speculative decoding has three strategies selected by `GenerateParameters.draftStrategy`: classic autoregressive drafter, DFlash and DDTree. At temperature 0 the output is byte-identical to plain greedy decode; drafters load from `z-lab/<model>-DFlash` snapshots.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "`VMLX_MOE_TOPK_OVERRIDE=<n>` lowers the routed-expert top-k at load time for supported MoE families, never raises it, leaves top-1 families (ZAYA) alone, and is folded into the cache key; a legacy `VMLINUX_` prefix is accepted.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Osaurus serves one local endpoint set on 127.0.0.1:1337: OpenAI `/v1/chat/completions`, Anthropic `/anthropic/v1/messages` and Ollama `/api/chat`. Its CLI is `osaurus serve --port 1337` (add `--expose` for the LAN), `osaurus ui`, `osaurus status`, `osaurus stop`; `osaurus mcp` is a stdio MCP bridge to the local server.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "When an agent delegates to a different local model, Osaurus does a \"single-residency handoff\": it unloads the chat model, runs the job, then reloads, so two large models are never resident together; same-model children reuse the resident model, and an experimental RAM-safe coexistence mode can keep both when admitted.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Osaurus stores models in `~/MLXModels` (override `OSU_MODELS_DIR`) and ships two DMGs per release: a standard build of about 70 MB and a full build of about 4 GB with a bundled model (Raptor 0.6 4B JANG). Install is `brew install --cask osaurus`.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "2025-09: the Osaurus project was published by Dinoki Labs (repo then `dinoki-ai/osaurus`), requiring macOS 15.5+, with a default port of 8080 and OpenAI and Ollama endpoints only.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "By 2026-10 the project lives at `osaurus-ai/osaurus` (3,898 commits, latest 2026-10-02), adds Anthropic and MCP endpoints, a sandbox, agents and memory, and serves on 1337.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "2026-05: the vmlx-swift-lm fork reached 715 commits; its last commit on the cached page is 2026-05-15, so the engine fork had been quiet for about 4.5 months by 2026-10-04 while the Osaurus app kept shipping.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Osaurus commit messages show it pins vmlx-swift-lm and \"repins\" it for fixes, so engine fixes reach users only through Osaurus releases.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Gemma 4 audio is not implemented: `Gemma4.prepare` throws `VLMError.processing` on audio input although Gemma 4 supports audio natively.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Speculative decoding needs trimmable caches and does not work after a rotating (sliding-window) cache wraps.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Raw Hugging Face checkpoints with fused `gate_up_proj` must be converted first; JANG and pre-converted mlx-community models load.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Known regressions recorded in its own table: Ling-2.6-flash MXFP4 decodes at 10.8 tok/s against 57.5 tok/s for its JANGTQ2 build; Hy3-preview is \"functional, speed-open\" at 14.9 tok/s; MiniMax M2.7 shows TurboQuant cross-slot drift at batch size 2, which gates its multi-slot production claim.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "The README does not mention `vmlxctl`; its flags are documented only in the jangq runtime README, so treat `vmlxctl` as an unversioned internal tool.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "The pip-installed vMLX (`vmlx serve`) is a different program from `vmlxctl`; instructions for one do not apply to the other.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Speed claims are vendor-measured and use unlike hardware. The fork's table shows Qwen 3.5-35B-A3B at 103 tok/s on an M4 Max 128 GB against Python `mlx_lm` at 94 tok/s, but the README states the Python baselines ran on an M3 Ultra 256 GB with about 1.5 times the memory bandwidth, and that the multi-turn Python decode (122 tok/s turn 1) is faster than the fork's (106). The README's own conclusion is that the fork trails Python by about 10% on long-context decode and leads on cold-start TTFT. Side by side: \"+151% vs upstream Swift\" and \"-10% vs Python on long context\".",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "The vmlx.net comparison table claims SSD prefix cache, native Anthropic API and a built-in GGUF-to-MLX converter as features LM Studio and Ollama lack, but publishes no benchmark: its TTFT table says \"benchmark pending\". The fork README publishes numbers but compares against omlx and LM Studio builds it ran itself. Neither is independent.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Does the current Osaurus release still pin a vmlx-swift-lm revision with Gemma 4 and JangPress support? The cached pages do not state the pinned revision.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Does `vmlxctl serve` expose the same endpoints as Osaurus, and is it used by Osaurus or only by the jangq scripts? Not documented in the pages read.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "vmlx-swift-lm is \"mlx-swift-lm (Osaurus fork)\", maintained by Osaurus, a fork of ml-explore/mlx-swift-lm, and \"the inference engine for Osaurus\", with 715 commits and a latest commit dated 2026-05-15.",
+          "source": "https://github.com/osaurus-ai/vmlx-swift-lm",
+          "note": null
+        },
+        {
+          "text": "On an M4 Max 128 GB the fork's single-stream decode is Qwen 3.5-35B-A3B 103 tok/s (upstream Swift 41, Python mlx_lm 94 measured on M3 Ultra 256 GB), Gemma 4 26B-A4B 87 (upstream 27), Gemma 4 E2B 121 (upstream 120, Python 128).",
+          "source": "https://github.com/osaurus-ai/vmlx-swift-lm",
+          "note": null
+        },
+        {
+          "text": "The README attributes the gains to cutting graph-level `AsType` ops by 71 to 95% on MoE, MLA and hybrid-SSM families, and says dense models like Gemma 4 E2B were already near-optimal upstream.",
+          "source": "https://github.com/osaurus-ai/vmlx-swift-lm",
+          "note": null
+        },
+        {
+          "text": "In the Gemma 4 26B-A4B multi-turn table, decode on turn 1 is 98.2 tok/s for the fork, 71.6 for Python mlx_lm 0.31.2 and 77.7 for omlx 0.3.2.",
+          "source": "https://github.com/osaurus-ai/vmlx-swift-lm",
+          "note": null
+        },
+        {
+          "text": "On Llama 3.2 1B 4-bit all four compared runtimes land within 8% of each other, which the README uses to show the gains are specific to MoE, MLA and hybrid models.",
+          "source": "https://github.com/osaurus-ai/vmlx-swift-lm",
+          "note": null
+        },
+        {
+          "text": "Throughput scales near-linearly to about 6 to 8 concurrent slots for routed-MoE bundles, and the stress harness ran 199 of 199 mixed concurrent requests through the BatchEngine and cache stack.",
+          "source": "https://github.com/osaurus-ai/vmlx-swift-lm",
+          "note": null
+        },
+        {
+          "text": "The L1 cache uses 64-token blocks with SHA-256 chain hashing, the L2 cache is SQLite plus safetensors per prompt hash, and the cache key includes `modelKey`, `cacheScopeSalt` and the optional MoE top-k suffix.",
+          "source": "https://github.com/osaurus-ai/vmlx-swift-lm",
+          "note": null
+        },
+        {
+          "text": "TurboQuant compresses the KV cache 4.7 to 5.0 times with 3-bit keys and values in the example and skips MambaCache, RotatingKVCache and ZayaCCA.",
+          "source": "https://github.com/osaurus-ai/vmlx-swift-lm",
+          "note": null
+        },
+        {
+          "text": "`VMLX_MOE_TOPK_OVERRIDE` is lower-only, per-load, folded into the cache `modelKey`, and covers MiniMax, Hy3, NemotronH, Qwen3 through 3.6, BailingHybrid and Gemma 4.",
+          "source": "https://github.com/osaurus-ai/vmlx-swift-lm",
+          "note": null
+        },
+        {
+          "text": "Known limitations include no Gemma 4 audio encoder (`Gemma4.prepare` throws `VLMError.processing` on audio), speculative decoding incompatible with a wrapped RotatingKVCache, and raw HF checkpoints with fused `gate_up_proj` needing conversion.",
+          "source": "https://github.com/osaurus-ai/vmlx-swift-lm",
+          "note": null
+        },
+        {
+          "text": "Ling-2.6-flash MXFP4 decodes at 10.8 tok/s (labelled a known regression) against 57.5 tok/s for JANGTQ2, and MiniMax M2.7 shows a TurboQuant cross-slot drift at B=2.",
+          "source": "https://github.com/osaurus-ai/vmlx-swift-lm",
+          "note": null
+        },
+        {
+          "text": "The vmlx-swift-lm README page contains no mention of `vmlxctl`.",
+          "source": "https://github.com/osaurus-ai/vmlx-swift-lm",
+          "note": null
+        },
+        {
+          "text": "The jangq runtime README says `VMLXCTL` is the path to \"the JangPress-aware vmlxctl\" to be built from `osaurus-ai/vmlx-swift-lm`, at `.build/arm64-apple-macosx/release/vmlxctl`.",
+          "source": "https://raw.githubusercontent.com/jjang-ai/jangq/main/scripts/jangpress/README.md",
+          "note": null
+        },
+        {
+          "text": "Osaurus is MIT licensed, installed with `brew install --cask osaurus`, offers a roughly 70 MB standard DMG and a roughly 4 GB full DMG with Raptor 0.6, and stores models in `~/MLXModels`.",
+          "source": "https://github.com/osaurus-ai/osaurus",
+          "note": null
+        },
+        {
+          "text": "Osaurus serves OpenAI, Anthropic and Ollama endpoints at `http://127.0.0.1:1337` and its CLI has `serve --port 1337`, `serve --expose`, `ui`, `status` and `stop`.",
+          "source": "https://github.com/osaurus-ai/osaurus",
+          "note": null
+        },
+        {
+          "text": "On a different-local-model delegation Osaurus unloads the chat model, runs the job, then reloads it (single-residency handoff), with an experimental RAM-safe coexistence mode.",
+          "source": "https://github.com/osaurus-ai/osaurus",
+          "note": null
+        },
+        {
+          "text": "Osaurus on macOS 26 and later runs agent sandboxes in a Linux VM and falls back to a `sandbox-exec` Seatbelt sandbox on earlier macOS.",
+          "source": "https://github.com/osaurus-ai/osaurus",
+          "note": null
+        },
+        {
+          "text": "A September 2025 article describes Osaurus by Dinoki Labs requiring macOS 15.5+, an Apple Silicon Mac, a default port of 8080 and OpenAI and Ollama endpoints.",
+          "source": "https://medium.com/coding-nexus/osaurus-a-native-local-llm-server-for-apple-silicon-0d6ebe1df7c7",
+          "note": null
+        },
+        {
+          "text": "vMLX at vmlx.net is a separate MIT project (`jjang-ai/vmlx`), installed with `pip install vmlx` and `vmlx serve <model>`, serving OpenAI, Anthropic and Ollama APIs on 127.0.0.1:8000 for macOS 14 and later on M1 through M5.",
+          "source": "https://vmlx.net/",
+          "note": null
+        },
+        {
+          "text": "vmlx.net publishes no benchmark: its time-to-first-token section reads \"benchmark pending\" with numbers \"deliberately absent\".",
+          "source": "https://vmlx.net/",
+          "note": null
+        }
+      ]
+    }
+  ],
+  "related": []
+}
