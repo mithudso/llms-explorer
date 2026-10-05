@@ -1,8 +1,8 @@
 # Eleven-agent continuation
 
-Version: 1.0.1
+Version: 1.0.2
 Date: 2026-10-05
-Delta: 1.0.0 to 1.0.1; all eleven definitions authored and installed in Claude/Codex; source/parser parity and fifteen mechanical tests pass.
+Delta: 1.0.1 to 1.0.2; record both delivery pull requests and final verification boundaries.
 Parent: TASK-569. Phases: TASK-570 design, TASK-571 author/verify, TASK-572 installation, TASK-573 publication. KNOW-574 defines the mapping of all eleven opportunities and scope.
 
 The source catalog is /Users/mitch/dev/llms-explorer/agents/workflows/catalog.json. It holds eleven distinct agent workflows, shared constraints and positive/boundary/near-miss evaluation cases. The portable renderer will emit Claude Markdown and Codex TOML without model overrides. Installation must preserve unrelated assets and configuration and reject any differing existing target.
@@ -13,4 +13,4 @@ Completed: portable source catalog, renderer/validator, fifteen tests, thirty-th
 
 Limitation: behavioral model evaluations have not run. The current conversation advertises roles from before installation; file/parser parity does not prove it has reloaded. Fresh sessions must discover the newly installed definitions. No application/physical/research workflow was executed for a smoke test.
 
-Remaining: publish the owned Claude definitions through /private/tmp/claude-eleven-workflow-agents-20261005 in mithudso/claude-config; publish source/verification records through the isolated Explorer checkout after CI; preserve all concurrent edits in both primary repositories. Consult TASK-569 for final delivery receipts.
+Delivery: source bundle https://github.com/mithudso/llms-explorer/pull/146 and global Claude definitions https://github.com/mithudso/claude-config/pull/7. This record is committed before the final CI/merge gate. Consult TASK-569 for canonical final check outcomes and merge receipts. TASK-573 tracks this gate, primary-checkout read-back and isolated-worktree cleanup. The Claude repository has no CI workflow; local parser and parity validation provide its scoped checks. Preserve all concurrent edits in both primary repositories. No remaining agent-authoring or installation work is pending; behavioral model evaluation is separate, unrequested work.
