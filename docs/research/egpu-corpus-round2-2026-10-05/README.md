@@ -1,7 +1,7 @@
 # Refreshed llms corpus review for the next physical eGPU round
 
-Version: 1.0.1  
-Reviewed: 2026-10-05  
+Version: 1.0.1
+Reviewed: 2026-10-05
 Delta: Add repeatability controls, raw first-token captures, exact-position cache correctness, and the MLX CUDA versus macuda control distinction.
 
 The review changes the diagnostic plan. It does not establish a working, fully qualified eGPU model. The next useful experiment should localize the first-token numerical difference before another broad coding or research run. Keep the original selected-token error limit of 0.05.

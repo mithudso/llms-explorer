@@ -1,7 +1,7 @@
 # Continuation memory
 
-Version: 1.2.0
-Delta: Finish local artifact verification; Git publication remains.
+Version: 1.2.1
+Delta: Correct Markdown whitespace before final staged diff verification and publication.
 
 Task: TASK-597. Scope decision: KNOW-598. Current qualification parent: TASK-482.
 
