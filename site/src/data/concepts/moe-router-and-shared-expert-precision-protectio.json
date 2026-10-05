@@ -1,0 +1,159 @@
+{
+  "slug": "moe-router-and-shared-expert-precision-protectio",
+  "concept": "MoE router and shared-expert precision protection in quant recipes",
+  "generated": "2026-10-05",
+  "summary": "llama-quantize: tensor_allows_quantization rejects any tensor whose name contains ffn_gate_inp.weight (the router), norm weights, 1D tensors and several small tensors; those are copied at source precision. Nothing in the file matches shexp or 'shared', so a shared expert (ffn_*_shexp) is typed by...",
+  "facets": [
+    {
+      "title": "Facts",
+      "facts": [
+        {
+          "text": "llama-quantize: tensor_allows_quantization rejects any tensor whose name contains ffn_gate_inp.weight (the router), norm weights, 1D tensors and several small tensors; those are copied at source precision. Nothing in the file matches shexp or 'shared', so a shared expert (ffn_*_shexp) is typed by the same category rules as ordinary FFN tensors.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Quantization error reaches the router in two ways: perturbed router logits flip top-k expert choices, and a changed expert set changes the output nonlinearly, so the effect is a divergence in outputs rather than small numerical drift.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Why the shared expert is protected by Unsloth/JANG/OptiQ: it is exercised by every token, so its error is applied to every token instead of the fraction routed to a given expert.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "MLX: routers (mlp.gate, router.proj, router) are returned as {group_size 64, bits 8} by the model's quant_predicate; the Qwen3-Next class also covers shared_expert_gate. Stock Mixtral has no such rule, and DeepSeek's gate is not quantizable at all.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "llama.cpp router exclusion predates the MoE generations (Mixtral-era) and is enforced by name match in llama-quant.cpp today.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "2026: third-party MLX recipes (oQ, OptiQ, JANG) add router and shared-expert protection as named rules; stock mlx-lm adds per-model predicates for routers on newer MoE classes.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "llama-quantize leaves ffn_gate_inp.weight at source precision even for Q2/IQ1 file types; only experts and attention shrink, so router size is a fixed cost.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Shared experts have no default protection in llama-quantize: they follow ffn_down/up/gate typing, so protecting them in a GGUF needs --tensor-type overrides (as Unsloth does).",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "A user --quant-predicate in mlx-lm removes the model's built-in router rule.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "An imatrix entry missing for the router is irrelevant because the router is not quantized; an imatrix entry missing for a shared expert tensor behaves like any other tensor (flat weights).",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Is router protection necessary at 8-bit or is fp16 required? Vendors (oQ, JANG) pin 8-bit or fp16; mlx-lm pins 8-bit; llama.cpp leaves it at source precision (16-bit or 32-bit); no ablation of 4-bit vs 8-bit router on Apple Silicon was found.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Vendor blog (Nota AI) argues protecting router precision is not enough and that router logit ordering and margins need an explicit loss; no independent check was found.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "How much router quantization noise changes top-k expert agreement for stock 4-bit MLX Mixtral conversions.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Whether shared-expert protection matters at 4-bit as much as at 1.5-2-bit where Unsloth reported failure.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "llama-quantize's tensor_allows_quantization refuses to quantize any tensor whose name contains ffn_gate_inp.weight (the MoE router), alongside norms, 1D tensors, altup/laurel and per_layer_model_proj tensors.",
+          "source": "https://raw.githubusercontent.com/ggml-org/llama.cpp/master/src/llama-quant.cpp",
+          "note": null
+        },
+        {
+          "text": "llama-quantize's tensor selection has no match for 'shexp' or 'shared', so shared-expert tensors get the same category-based type rules as ordinary FFN tensors.",
+          "source": "https://raw.githubusercontent.com/ggml-org/llama.cpp/master/src/llama-quant.cpp",
+          "note": null
+        },
+        {
+          "text": "llama-quantize also never quantizes the DeepSeek-V4 token-id to expert-id routing table (ffn_gate_tid2eid.weight).",
+          "source": "https://raw.githubusercontent.com/ggml-org/llama.cpp/master/src/llama-quant.cpp",
+          "note": null
+        },
+        {
+          "text": "llama-quantize exposes --tensor-type tensor_name=type and --tensor-type-file for per-tensor overrides, --leave-output-tensor, --output-tensor-type and --token-embedding-type, which is how third-party recipes pin shared experts.",
+          "source": "https://raw.githubusercontent.com/ggml-org/llama.cpp/master/tools/quantize/quantize.cpp",
+          "note": null
+        },
+        {
+          "text": "llama-quantize's tensor-type override mechanism supports --exclude-weights to skip imatrix use for chosen tensors, and --include-weights to restrict imatrix use; the two cannot be combined.",
+          "source": "https://raw.githubusercontent.com/ggml-org/llama.cpp/master/tools/quantize/quantize.cpp",
+          "note": null
+        },
+        {
+          "text": "mlx-lm's Qwen3-Next class pins both mlp.gate and shared_expert_gate to 8 bits with group size 64.",
+          "source": "https://raw.githubusercontent.com/ml-explore/mlx-lm/main/mlx_lm/models/qwen3_next.py",
+          "note": null
+        },
+        {
+          "text": "mlx-lm's Qwen3 MoE class pins mlp.gate to 8 bits with group size 64, and the Gemma 4 text class pins router.proj the same way.",
+          "source": "https://raw.githubusercontent.com/ml-explore/mlx-lm/main/mlx_lm/models/qwen3_moe.py",
+          "note": null
+        },
+        {
+          "text": "mlx-lm's MoE router predicates apply only when no explicit quant_predicate is passed, because the explicit one replaces the model's own.",
+          "source": "https://raw.githubusercontent.com/ml-explore/mlx-lm/main/mlx_lm/utils.py",
+          "note": null
+        },
+        {
+          "text": "mlx-lm's Mixtral model keeps its router as nn.Linear without a quant_predicate, so stock conversion quantizes it at the global bits, whereas DeepSeek-V3's MoEGate is a raw-weight module that is not quantizable.",
+          "source": "https://raw.githubusercontent.com/ml-explore/mlx-lm/main/mlx_lm/models/mixtral.py",
+          "note": null
+        },
+        {
+          "text": "Nota AI's description: quantization can perturb router logits enough to change which experts a token is routed to, so the failure is a sharp divergence in outputs and not graceful degradation.",
+          "source": "https://blog.nota.ai/insights/edge-insights-31-nmq-pascal-moe-optimization",
+          "note": null
+        },
+        {
+          "text": "Nota AI states frequently activated and rarely activated experts develop a statistical gap in calibration data, and under-covered quantization-sensitive experts compound degradation.",
+          "source": "https://blog.nota.ai/insights/edge-insights-31-nmq-pascal-moe-optimization",
+          "note": null
+        },
+        {
+          "text": "The NMQ method adds a Router Logits Alignment Loss that preserves top-expert scores, rank order among top experts and the margin to just-missed experts (vendor description, no independent evaluation).",
+          "source": "https://blog.nota.ai/insights/edge-insights-31-nmq-pascal-moe-optimization",
+          "note": null
+        },
+        {
+          "text": "The expert-wise paper finds experts whose router weights changed less during training capture rarer but critical features and are the most sensitive to quantization, so they get more bits.",
+          "source": "https://arxiv.org/html/2604.06515v1",
+          "note": null
+        },
+        {
+          "text": "A router has hidden-size by expert-count weights per layer, so across all layers it is well under 0.1% of a 35B MoE and lifting it from 4 bits to fp16 costs under 0.01 bits per weight overall.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Because llama-quantize copies the router at source precision, a GGUF 'Q4_K_M' MoE has a 16-bit router, whereas an MLX 4-bit MoE conversion for Qwen3 has an 8-bit router; neither has a 4-bit router unless the model class lacks a rule (Mixtral).",
+          "source": "asserted",
+          "note": null
+        }
+      ]
+    }
+  ],
+  "related": []
+}

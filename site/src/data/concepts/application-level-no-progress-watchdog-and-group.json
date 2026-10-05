@@ -1,0 +1,254 @@
+{
+  "slug": "application-level-no-progress-watchdog-and-group",
+  "concept": "Application-level no-progress watchdog and group re-formation for JACCL clusters",
+  "generated": "2026-10-05",
+  "summary": "An application-level watchdog is code outside the MLX/JACCL library that decides a collective is stuck (no completion within a deadline, or a dead process) and tears the group down. Group re-formation is the later step that builds a new group (new processes, new queue pairs, new ConnectToGroup) f...",
+  "facets": [
+    {
+      "title": "Facts",
+      "facts": [
+        {
+          "text": "An application-level watchdog is code outside the MLX/JACCL library that decides a collective is stuck (no completion within a deadline, or a dead process) and tears the group down. Group re-formation is the later step that builds a new group (new processes, new queue pairs, new ConnectToGroup) from the survivors or from restarted ranks.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "exo's worker plan is an ordered chain: cancel tasks, kill runner, create runner, download model, init distributed backend (ConnectToGroup), load model, warm up, pending tasks. The first step that returns a task wins each tick.",
+          "source": "https://raw.githubusercontent.com/exo-explore/exo/main/src/exo/worker/plan.py",
+          "note": null
+        },
+        {
+          "text": "exo's `_kill_runner` returns a Shutdown for a runner when its instance is gone, when its own status is RunnerFailed, or when any peer runner of the same instance is RunnerFailed, so one failure tears down every rank of the instance.",
+          "source": "https://raw.githubusercontent.com/exo-explore/exo/main/src/exo/worker/plan.py",
+          "note": null
+        },
+        {
+          "text": "exo's `_create_runner` waits while any remote runner of the instance is failed, unless this node failed before, and also waits for the per-instance backoff.",
+          "source": "https://raw.githubusercontent.com/exo-explore/exo/main/src/exo/worker/plan.py",
+          "note": null
+        },
+        {
+          "text": "exo's worker logs \"exceeded {EXO_MAX_INSTANCE_RETRIES} retries, requesting deletion\" and sends DeleteInstance for an instance that passes `EXO_MAX_INSTANCE_RETRIES = 5`.",
+          "source": "https://raw.githubusercontent.com/exo-explore/exo/main/src/exo/shared/constants.py",
+          "note": null
+        },
+        {
+          "text": "exo processes a Shutdown task with `fail_after(3)` on the runner's start_task and then always calls `runner.shutdown()`; a timeout marks the task TimedOut.",
+          "source": "https://raw.githubusercontent.com/exo-explore/exo/main/src/exo/worker/main.py",
+          "note": null
+        },
+        {
+          "text": "exo's RunnerSupervisor detects a dead runner by polling `runner_process.is_alive()` every 5 s. A runner that is alive but wedged in a collective passes this check.",
+          "source": "https://raw.githubusercontent.com/exo-explore/exo/main/src/exo/worker/runner/supervisor.py",
+          "note": null
+        },
+        {
+          "text": "On a dead runner exo sets RunnerFailed with parsed stderr diagnostics (Metal GPU timeout, ring socket errno, ring transport abort) and sends an error chunk to every in-progress generation request.",
+          "source": "https://raw.githubusercontent.com/exo-explore/exo/main/src/exo/worker/runner/supervisor.py",
+          "note": null
+        },
+        {
+          "text": "exo's supervisor file defines `PREFILL_TIMEOUT_SECONDS = 60` and `DECODE_TIMEOUT_SECONDS = 5` and a default `initialize_timeout` of 400 s. No code in the supervisor, generator or batch_generate files fetched here references the first two.",
+          "source": "https://raw.githubusercontent.com/exo-explore/exo/main/src/exo/worker/runner/supervisor.py",
+          "note": null
+        },
+        {
+          "text": "exo had an in-process evaluation watchdog in April 2026. A log from issue 1826 reads `auto_parallel:watchdog:99 mlx_item evaluation timed out after 10s ... Terminating process`, and the loader had logged \"Evaluating model parameters with timeout of 608s (model size: 308.5GB)\".",
+          "source": "https://github.com/exo-explore/exo/issues/1826",
+          "note": null
+        },
+        {
+          "text": "ds4's two-Mac TP is a second, simpler design: a 750 ms gate deadline (`DS4_TP_GATE_TIMEOUT_MS`, 1 to 60000; on the TCP exchange path it restarts whenever bytes move), a one-byte `MSG_PEEK` of the control socket every 16384 completion-queue polls in the verify-block gate wait to see a closed peer, and a check of every completion status. Failure latches `tp->failed`.",
+          "source": "https://raw.githubusercontent.com/antirez/ds4/main/ds4_tp.c",
+          "note": null
+        },
+        {
+          "text": "ds4 states the reason for 750 ms: once both ranks are in a Metal gate a live exchange takes microseconds, so it must \"fail well before Metal's command-buffer watchdog if the peer stalls while keeping its sockets open\".",
+          "source": "https://raw.githubusercontent.com/antirez/ds4/main/ds4_tp.c",
+          "note": null
+        },
+        {
+          "text": "ds4's startup uses a warm-up exchange on the UC queue pair: up to 20 attempts of 100 ms each, with both sides reporting over the TCP control socket whether they received. If it fails it recreates the queue pair (new queue pair number) and exchanges info again.",
+          "source": "https://raw.githubusercontent.com/antirez/ds4/main/ds4_tp.c",
+          "note": null
+        },
+        {
+          "text": "2026-03-12: exo issue 1712 proposed detecting jaccl failure because `ibv_devinfo` hangs when the errors occur, and showing a dashboard warning with cable and reboot advice. It is open with no linked PR.",
+          "source": "https://github.com/exo-explore/exo/issues/1712",
+          "note": null
+        },
+        {
+          "text": "2026-07-05: exo PR 2205 added a runner-side parent-death watchdog (below). It is closed, not merged. A fork cherry-picked it.",
+          "source": "https://github.com/exo-explore/exo/pull/2205",
+          "note": null
+        },
+        {
+          "text": "2026-08-05 to 08-13: mlx PR 3933 (jaccl and ring crash fixes, including a `wc.status` check on the ring and wide offsets) got a change request from zcbenz asking for stack traces, and was closed unmerged on 2026-08-13.",
+          "source": "https://github.com/ml-explore/mlx/pull/3933",
+          "note": null
+        },
+        {
+          "text": "A hard-killed exo worker orphans its runner (reparented to pid 1), which keeps Metal allocations and RDMA queue pairs. In the reported case a 465 GB model's orphan showed 6 GB RSS and 313 GB footprint (`footprint(1)`).",
+          "source": "https://github.com/exo-explore/exo/pull/2205",
+          "note": null
+        },
+        {
+          "text": "Replacement runners for an orphaned node crash-loop with `[jaccl] Changing queue pair to RTR failed with errno 16` on that node and `Recv failed errno=2` on its peer, while ping and the link look healthy.",
+          "source": "https://github.com/exo-explore/exo/pull/2205",
+          "note": null
+        },
+        {
+          "text": "The fingerprint for an orphan is `ps -axo pid,ppid,command | awk '$2==1 && /spawn_main/'`.",
+          "source": "https://github.com/exo-explore/exo/pull/2205",
+          "note": null
+        },
+        {
+          "text": "PR 2205's fix is a daemon thread that records the parent pid, polls `os.getppid()` every 5 s and calls `os._exit(1)` on change, with `EXO_DISABLE_ORPHAN_WATCHDOG=1` as the escape hatch.",
+          "source": "https://github.com/exo-explore/exo/pull/2205",
+          "note": null
+        },
+        {
+          "text": "Re-formation can deadlock: in issue 1934 one MlxJacclInstance on 4x M3 Ultra (EXO.app 1.0.70, macOS 26.3) held 16 runners (9 ShuttingDown, 6 Ready, 1 Connected) and 98 pending CreateRunner tasks with no state change for over 2 minutes, workers idle rather than spinning.",
+          "source": "https://github.com/exo-explore/exo/issues/1934",
+          "note": null
+        },
+        {
+          "text": "A 480B model sharded four ways cannot serve from the 6 Ready runners, because a partial set of shards cannot degrade gracefully.",
+          "source": "https://github.com/exo-explore/exo/issues/1934",
+          "note": null
+        },
+        {
+          "text": "EXO.app forks workers with stdout and stderr on /dev/null, so tracebacks from a stuck re-formation were invisible in issue 1934.",
+          "source": "https://github.com/exo-explore/exo/issues/1934",
+          "note": null
+        },
+        {
+          "text": "Re-formation can pick the wrong transport: in issue 1723, after a crash and LaunchAgent restart two Mac Studios reconnected over Tailscale instead of the Thunderbolt link, latency rose from under 1 ms to 40-70 ms and throughput fell from 24 to 2.5-7.9 tok/s.",
+          "source": "https://github.com/exo-explore/exo/issues/1723",
+          "note": null
+        },
+        {
+          "text": "A new UC queue pair can silently drop every send in one direction right after a working run and after role swaps, so a re-formed group needs a delivery check before use.",
+          "source": "https://raw.githubusercontent.com/antirez/ds4/main/ds4_tp.c",
+          "note": null
+        },
+        {
+          "text": "A watchdog deadline that is longer than the Metal command-buffer limit lets the GPU time out first; issue 2990 describes that limit as about 60 s.",
+          "source": "https://github.com/ml-explore/mlx/discussions/2990",
+          "note": null
+        },
+        {
+          "text": "Detect-and-die versus keep-going. exo's design kills the whole instance when one runner fails and rebuilds all ranks. The rejected JACCL liveness patch (PR 4530) wanted a catchable exception on survivors. mlx PR 4060 chose process exit on the ring because continuing gives wrong sums. Both sides agree survivors must not continue silently; they differ on whether the library or the application owns the exit.",
+          "source": "https://github.com/ml-explore/mlx/pull/4060",
+          "note": null
+        },
+        {
+          "text": "Deadline length. ds4 uses 750 ms because its gate is a microsecond operation. The JACCL patch used 600 s because collectives can include long prefill chunks. Neither is tested against the other's workload.",
+          "source": "https://raw.githubusercontent.com/antirez/ds4/main/ds4_tp.c",
+          "note": null
+        },
+        {
+          "text": "Whether exo will wire its `PREFILL_TIMEOUT_SECONDS` and `DECODE_TIMEOUT_SECONDS` constants to a hung-but-alive runner check.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Whether `ibv_devinfo` hanging is a reliable probe on macOS 26.5 and later (only the issue text says it hangs).",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "exo's worker plan returns the first non-empty step from cancel, kill, create, download, ConnectToGroup, load, warm-up and pending tasks.",
+          "source": "https://raw.githubusercontent.com/exo-explore/exo/main/src/exo/worker/plan.py",
+          "note": null
+        },
+        {
+          "text": "exo kills every runner of an instance when any one runner of that instance is RunnerFailed.",
+          "source": "https://raw.githubusercontent.com/exo-explore/exo/main/src/exo/worker/plan.py",
+          "note": null
+        },
+        {
+          "text": "exo's `EXO_MAX_INSTANCE_RETRIES` is 5 and the worker requests DeleteInstance after that.",
+          "source": "https://raw.githubusercontent.com/exo-explore/exo/main/src/exo/shared/constants.py",
+          "note": null
+        },
+        {
+          "text": "exo's runner supervisor checks `is_alive()` every 5 s, so it sees death but not a live runner stuck in a collective.",
+          "source": "https://raw.githubusercontent.com/exo-explore/exo/main/src/exo/worker/runner/supervisor.py",
+          "note": null
+        },
+        {
+          "text": "exo's supervisor defines PREFILL_TIMEOUT_SECONDS 60 and DECODE_TIMEOUT_SECONDS 5 with no use found in the fetched runner and generator files.",
+          "source": "https://raw.githubusercontent.com/exo-explore/exo/main/src/exo/worker/runner/supervisor.py",
+          "note": null
+        },
+        {
+          "text": "exo's `auto_parallel.py` on main no longer contains the evaluation watchdog that issue 1826 logged in April 2026.",
+          "source": "https://raw.githubusercontent.com/exo-explore/exo/main/src/exo/worker/engines/mlx/auto_parallel.py",
+          "note": null
+        },
+        {
+          "text": "exo PR 2205 (orphaned runner watchdog) is closed without merge.",
+          "source": "https://github.com/exo-explore/exo/pull/2205",
+          "note": null
+        },
+        {
+          "text": "An orphaned exo runner holds RDMA queue pairs and gives RTR errno 16 to its replacement.",
+          "source": "https://github.com/exo-explore/exo/pull/2205",
+          "note": null
+        },
+        {
+          "text": "exo issue 1934 shows 98 pending CreateRunner tasks and zero progress over 2 minutes during re-formation.",
+          "source": "https://github.com/exo-explore/exo/issues/1934",
+          "note": null
+        },
+        {
+          "text": "exo issue 1723 shows a post-crash reconnect over Tailscale that cut throughput to 10-33% of baseline.",
+          "source": "https://github.com/exo-explore/exo/issues/1723",
+          "note": null
+        },
+        {
+          "text": "exo issue 1712 proposes `ibv_devinfo` hanging as a detection signal for jaccl failure.",
+          "source": "https://github.com/exo-explore/exo/issues/1712",
+          "note": null
+        },
+        {
+          "text": "mlx PR 3933 is closed unmerged (2026-08-13) after zcbenz asked for stack traces and noted `wr_id` is undefined on a failed completion.",
+          "source": "https://github.com/ml-explore/mlx/pull/3933",
+          "note": null
+        },
+        {
+          "text": "ds4's TP gate deadline defaults to 750 ms, resets on byte progress on the TCP path, and is settable through `DS4_TP_GATE_TIMEOUT_MS` between 1 and 60000.",
+          "source": "https://raw.githubusercontent.com/antirez/ds4/main/ds4_tp.c",
+          "note": null
+        },
+        {
+          "text": "ds4's TP handshake timeout defaults to 300 s (`DS4_TP_TIMEOUT_SEC`).",
+          "source": "https://raw.githubusercontent.com/antirez/ds4/main/ds4_tp.c",
+          "note": null
+        },
+        {
+          "text": "ds4's TP drains the completion queue with a status check on every completion and treats any error as failure.",
+          "source": "https://raw.githubusercontent.com/antirez/ds4/main/ds4_tp.c",
+          "note": null
+        },
+        {
+          "text": "ds4's RDMA warm-up on a UC queue pair tries up to 20 times at 100 ms and recreates the queue pair when one direction drops everything.",
+          "source": "https://raw.githubusercontent.com/antirez/ds4/main/ds4_tp.c",
+          "note": null
+        },
+        {
+          "text": "ds4 has no code path that re-dials a failed TP worker; failure latches and the data plane stops.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "A re-formed JACCL group needs a bidirectional delivery test and a transport check before it is declared healthy.",
+          "source": "asserted",
+          "note": null
+        }
+      ]
+    }
+  ],
+  "related": []
+}

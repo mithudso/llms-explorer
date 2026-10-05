@@ -1,0 +1,179 @@
+{
+  "slug": "router-top-k-agreement-under-quantization-as-a-d",
+  "concept": "router top-k agreement under quantization as a diagnostic",
+  "generated": "2026-10-05",
+  "summary": "Why top-k is a cliff: the router picks experts with a hard top-k on scores, so a small perturbation of hidden state or router logits flips an expert only when it moves the k-th and (k+1)-th scores across each other. The change in computation is then a different expert, not a small numeric error. ...",
+  "facets": [
+    {
+      "title": "Facts",
+      "facts": [
+        {
+          "text": "Why top-k is a cliff: the router picks experts with a hard top-k on scores, so a small perturbation of hidden state or router logits flips an expert only when it moves the k-th and (k+1)-th scores across each other. The change in computation is then a different expert, not a small numeric error. Margin between the k-th selected and nearest non-selected score is therefore what makes a token fragile.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Two perturbation routes: the router's own weights (quantization error in the gate matrix) and the router's input (hidden states already perturbed by quantized attention, earlier experts and shared experts). With llama-quantize the router is copied at source precision, so GGUF disagreements come only from the second route; with an MLX 4-bit conversion the gate is 8-bit g64 on newer model classes (and 4-bit on Mixtral), so both routes act.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Metric used by VSRAQ: Jaccard(T_fp, T_q) = |T_fp intersect T_q| / |T_fp union T_q| per token and MoE layer, over 616,759 tokens drawn from the stem, chat, math and code subsets of Nemotron-Post-Training-Dataset-v2, plotted layer by layer under W4A16.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Other agreement forms in use: overlap of the selected set under teacher forcing; rank order among the selected experts; margin to the first non-selected expert; and the divergence between full-precision and quantized routing probability distributions (EAQuant uses KL on routing probabilities as a training loss).",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Teacher forcing is required: both models must read the same BF16-chosen token stream (as KLD runs do), otherwise free-running text diverges and agreement is undefined.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Where to hook on a Mac: llama.cpp's imatrix collector already copies the routed `ids` of every MUL_MAT_ID (expert matmul) node to the host, so a two-model comparison tool can reuse that callback; MLX has no stock hook and needs a patched gate module that records its argpartition indices.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "2025-06: EAQuant (arXiv 2506.13329) adds router-logit distribution alignment (logit reconstruction plus KL between full-precision and quantized routing probabilities) and keeps the router at W8A8.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "2025: EAC-MoE (ACL 2025) calibrates routers and uses a top-n-k \"TopK-MSE\" loss on the originally selected experts.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "2026-06-04: VSRAQ (arXiv 2606.05688) adds sensitivity-aware value alignment plus structure alignment (selected-expert ordering and top-k boundary margins) as an AutoRound auxiliary loss, and introduces the per-layer Jaccard figure.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "The agreement number is not reported as an absolute value in the VSRAQ text: only a relative gain (more than 11.29% at the largest margin over the baseline) is given, and the layer-wise values sit in a figure. A reader cannot say how much a stock 4-bit file loses.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Benchmarks that score likelihood of a fixed answer hide routing damage; free-form generation shows it because each step reroutes and errors compound. On Solar-Open-100B NVFP4, the generation-extraction average falls from 73.62 to 61.78 with plain AutoRound while the multiple-choice average falls only from 76.92 to 75.59.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Evidence is 4-bit only (W4A16, NVFP4); the authors expect larger routing effects at 2-3 bits but did not test them.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Both router-aware methods are training-time calibration objectives for AutoRound-style PTQ on CUDA stacks; none targets llama-quantize, mlx-lm or JANG/oQ/OptiQ pipelines, so for a Mac user the metric is an audit of an existing quant and not a fix.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Hybrid models change the baseline: Nemotron-3-Nano-30B-A3B (Mamba-Transformer MoE) gains less from routing alignment (PPL 10.79 to 10.70) than Solar-Open-100B (7.22 to 6.90 under NVFP4).",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Agreement of the top-k set says nothing about gate weights: two models can choose the same experts with different mixing weights, so a complete diagnostic reports weight L1 as well.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Align the values (EAQuant, full-dimensional logit and distribution matching) versus align only what decides the top-k (EAC-MoE focuses on top-n-k experts; VSRAQ argues full-dimensional alignment spends effort on low-ranked experts that rarely matter and adds ordering and margin terms). All three are validated by different models, bit-widths and baselines, with no head-to-head on one setup beyond VSRAQ versus TopK-MSE.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Router precision (vendors pin 8-bit or fp16) versus router-input precision: NMQ and VSRAQ locate the problem in the logit ordering, not in router weight bits; no ablation separates the two routes.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "VSRAQ computes the Jaccard similarity between the top-k expert sets chosen by the full-precision and the quantized model for each token and each MoE layer, over 616,759 tokens from the stem, chat, math and code subsets of Nemotron-Post-Training-Dataset-v2.",
+          "source": "https://arxiv.org/html/2606.05688v1",
+          "note": null
+        },
+        {
+          "text": "VSRAQ reports more than an 11.29% relative improvement in expert-selection agreement over the baseline at the largest margin, shown as layer-wise Jaccard under W4A16, and gives no absolute agreement values in the text.",
+          "source": "https://arxiv.org/html/2606.05688v1",
+          "note": null
+        },
+        {
+          "text": "VSRAQ adds value alignment (sigmoid-aware, emphasising sensitive regions of the routing function) and structure alignment (selected-expert ordering and the margin between the k-th selected and nearby non-selected experts) to AutoRound's block reconstruction loss, with no inference-time overhead.",
+          "source": "https://arxiv.org/html/2606.05688v1",
+          "note": null
+        },
+        {
+          "text": "VSRAQ's setup uses AutoRound as the base, 512 samples from OpenCodeReasoning, OpenScienceReasoning-2 and OpenMathReasoning, maximum calibration length 2,048 tokens for Solar-Open-100B and 1,024 for Nemotron-3-Nano-30B-A3B, and router-loss coefficients of 0.01 and 0.1 respectively.",
+          "source": "https://arxiv.org/html/2606.05688v1",
+          "note": null
+        },
+        {
+          "text": "On Solar-Open-100B W4A16, WikiText-2 PPL is 6.06 unquantized, 7.12 AutoRound, 6.87 TopK-MSE and 6.81 VSRAQ; under NVFP4 it is 7.22, 7.10 and 6.90 for the three methods.",
+          "source": "https://arxiv.org/html/2606.05688v1",
+          "note": null
+        },
+        {
+          "text": "On Solar-Open-100B NVFP4, the generation-based extraction average is 73.62 unquantized, 61.78 AutoRound, 63.86 TopK-MSE and 64.43 VSRAQ, while the likelihood multiple-choice average is 76.92, 75.59, 75.21 and 75.63.",
+          "source": "https://arxiv.org/html/2606.05688v1",
+          "note": null
+        },
+        {
+          "text": "On Nemotron-3-Nano-30B-A3B NVFP4, PPL is 10.36 unquantized, 10.79 AutoRound, 10.78 TopK-MSE and 10.70 VSRAQ, and generation-extraction is 73.64, 69.10, 69.47 and 70.92.",
+          "source": "https://arxiv.org/html/2606.05688v1",
+          "note": null
+        },
+        {
+          "text": "The VSRAQ authors say routing mismatches compound over long generations because each step's expert choice shapes later hidden states, and that their 4-bit tests may understate the benefit expected at 2-3 bits.",
+          "source": "https://arxiv.org/html/2606.05688v1",
+          "note": null
+        },
+        {
+          "text": "VSRAQ's related-work section says EAQuant aligns router logits and expert-selection probabilities but may spend effort on low-ranked experts that rarely affect top-k decisions, whereas EAC-MoE focuses calibration on the top-n-k experts.",
+          "source": "https://arxiv.org/html/2606.05688v1",
+          "note": null
+        },
+        {
+          "text": "EAQuant minimizes both logit reconstruction error and the KL divergence between full-precision and quantized routing probabilities to keep top-k activation stable, and its W4A4 experiments quantize the router layer at W8A8.",
+          "source": "https://arxiv.org/html/2506.13329v2",
+          "note": null
+        },
+        {
+          "text": "EAQuant states that even minor deviations in gate scores can disrupt the top-k expert assignment and cause misrouted tokens, and that rarely activated experts receive too little calibration coverage.",
+          "source": "https://arxiv.org/html/2506.13329v2",
+          "note": null
+        },
+        {
+          "text": "The llama-imatrix collector reads the expert ids of each MUL_MAT_ID node (`ids -> [n_experts_used, n_tokens]`) on the host, so per-token routing is observable with a callback of the same kind.",
+          "source": "https://raw.githubusercontent.com/ggml-org/llama.cpp/master/tools/imatrix/imatrix.cpp",
+          "note": null
+        },
+        {
+          "text": "llama-quantize's tensor_allows_quantization rejects any tensor name containing `ffn_gate_inp.weight`, so in a GGUF MoE the router matrix is bit-identical to the source and top-k disagreement can only come from drift in its input.",
+          "source": "https://raw.githubusercontent.com/ggml-org/llama.cpp/master/src/llama-quant.cpp",
+          "note": null
+        },
+        {
+          "text": "llama-perplexity's KLD run reports Same top p, the percentage of tokens where both models give the highest probability to the same token, which measures agreement at the final softmax and not at any router.",
+          "source": "https://github.com/ggml-org/llama.cpp/tree/master/tools/perplexity",
+          "note": null
+        },
+        {
+          "text": "A Mac-side audit recipe: run BF16 and quant under identical teacher-forced tokens, record top-k ids per MoE layer, report per-layer Jaccard, top-1 match, rank-order agreement and mean weight L1, and correlate each layer's loss of agreement with the drop in layer-output cosine; none of these has been published for GGUF or MLX files.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Because agreement is measured per layer, it can localise where rerouting starts (for instance after the first MoE layer or at boundary layers), which mean KLD cannot; this supports layer-targeted `--tensor-type-file` lines over a global bit increase.",
+          "source": "asserted",
+          "note": null
+        }
+      ]
+    }
+  ],
+  "related": []
+}

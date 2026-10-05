@@ -1,0 +1,379 @@
+{
+  "slug": "mac-local-llms-llama-cpp-internals",
+  "concept": "Mac local LLMs: llama.cpp internals",
+  "generated": "2026-10-05",
+  "summary": "Metal is ON by default on Apple (GGML_METAL_DEFAULT ON); plain `cmake -B build && cmake --build build --config Release`; `-DGGML_METAL=OFF` or `-ngl 0` disables.",
+  "facets": [
+    {
+      "title": "Build, defaults, install",
+      "facts": [
+        {
+          "text": "Metal is ON by default on Apple (GGML_METAL_DEFAULT ON); plain `cmake -B build && cmake --build build --config Release`; `-DGGML_METAL=OFF` or `-ngl 0` disables.",
+          "source": "https://raw.githubusercontent.com/ggml-org/llama.cpp/master/docs/build.md",
+          "note": null
+        },
+        {
+          "text": "Server README defaults: -fa auto, -ngl auto, -fit on (target 1024 MiB, min ctx 4096), -b 2048, -ub 512, -t -1, --cache-ram 8192 MiB. Correction: a 2026-04 post said -b default 512; only -ub (512) is the lever.",
+          "source": "https://raw.githubusercontent.com/ggml-org/llama.cpp/master/tools/server/README.md",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Metal runtime, residency, M5 tensor API",
+      "facts": [
+        {
+          "text": "Weights are mmap-wrapped zero-copy; residency sets need macOS 15+, off with `GGML_METAL_NO_RESIDENCY`. A 5 ms heartbeat keeps sets resident 180 s after each graph compute (`GGML_METAL_RESIDENCY_KEEP_ALIVE_S`; non-numeric or <=0 falls back to 180).",
+          "source": "https://raw.githubusercontent.com/ggml-org/llama.cpp/master/ggml/src/ggml-metal/ggml-metal-device.m",
+          "note": null
+        },
+        {
+          "text": "Why: macOS unwires GPU memory after ~1 s idle; `sudo sysctl iogpu.disable_wired_collector=1` also fixes it.",
+          "source": "https://github.com/ggml-org/llama.cpp/pull/10119",
+          "note": null
+        },
+        {
+          "text": "Tensor API (Metal 4) auto-enables only on M5/M6/A19/A20 (M2 Ultra 5% slower); override `GGML_METAL_TENSOR_ENABLE` / `GGML_METAL_TENSOR_DISABLE=1`. Prefill only.",
+          "source": "https://github.com/lmstudio-ai/lmstudio-bug-tracker/issues/2040",
+          "note": null
+        },
+        {
+          "text": "M5 failures: \"error compiling source\" / \"undeclared identifier 'mpp'\" (#27473; fixed by PR 27461 in b10734; LM Studio runtimes 2.21-2.28.2 still hit it, 2-3x prefill loss). `static_assert failed ... Input types must match cooperative tensor types` is NOT fixed: use GGML_METAL_TENSOR_DISABLE=1.",
+          "source": "https://modelfit.io/blog/m5-mac-metal-tensor-api-llama-cpp-fix/",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "--fit and llama-fit-params",
+      "facts": [
+        {
+          "text": "Fit does a no-alloc virtual load, 0.3-20 s. Order: reduce context (only if -c unset; floor 4096, steps of 256), then dense layers, then MoE experts. Free memory = recommendedMaxWorkingSetSize minus this process's currentAllocatedSize, so other apps are invisible.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Any explicit `-ngl`, `-ot`, `--cpu-moe`, `--n-cpu-moe` locks placement: `n_gpu_layers already set by user to 99, abort`, then OOM (#27309: `kIOGPUCommandBufferCallbackErrorOutOfMemory`). On a Mac omit -ngl and -c; `-c 0` disables ctx reduction.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Fit can say \"no changes needed\" and still OOM: #19224 (18 GB M3 Pro, fix `--no-mmap`); Metal maps one contiguous file span, so `-ngl 2` mapped 30973 MiB (#24510) and `-ot`/`--cpu-moe` do not shrink it (#27822).",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Freeze: `llama-fit-params -m M.gguf | tee args.txt`; use the same -fa, -ctk/-ctv, -np, --kv-unified, -fitt as the server; stale if wired limit or KV flags change.",
+          "source": "https://github.com/ggml-org/llama.cpp/pull/16653",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Slots, context window, router",
+      "facts": [
+        {
+          "text": "`-np` default auto (4 slots, kv_unified in b9354); checkpoints (`-ctxcp`) are per slot; slot pick = best LCP above `--slot-prompt-similarity` 0.10, else LRU. One user on a Mac: `--parallel 1`.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Per-slot window: `llama_n_ctx_seq`. Unified KV: whole pool. Not unified: n_ctx / n_seq_max padded to 256; if n_ctx not divisible, `n_ctx is not divisible by n_seq_max - rounding down to %u`.",
+          "source": "https://raw.githubusercontent.com/ggml-org/llama.cpp/master/src/llama-context.cpp",
+          "note": null
+        },
+        {
+          "text": "`/props` `default_generation_settings.n_ctx` is that window, capped by `--kv-unified-per-slot`, then n_ctx_train. Logs: `capping per-slot context (%d) to --kv-unified-per-slot (%d)`, `the slot context (%d) exceeds the training context of the model (%d) - capping`. If the flag exceeds the pool it does nothing: raise `-c` or unset it. `POST /props` needs `--props`.",
+          "source": "https://raw.githubusercontent.com/ggml-org/llama.cpp/master/tools/server/server-context.cpp",
+          "note": null
+        },
+        {
+          "text": "Router mode (`--models-dir`, `--models-max`) needs LLAMA_SUBPROCESS; Ollama builds it OFF, so its llama-server exits `failed to initialize router models: subprocess is not enabled on this build`. Use Homebrew or upstream llama-server. Query per model: `/props?model=<name>`.",
+          "source": "https://raw.githubusercontent.com/ollama/ollama/main/llama/server/CMakeLists.txt",
+          "note": null
+        },
+        {
+          "text": "Children bind 127.0.0.1 only (earlier \"LAN-reachable keyless children\" claim is wrong). Router multimodal: own subdir, projector named `mmproj*.gguf`.",
+          "source": "https://raw.githubusercontent.com/ggml-org/llama.cpp/master/tools/server/server-models.cpp",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Context checkpoints (hybrid/SWA models)",
+      "facts": [
+        {
+          "text": "Hybrid (Qwen3.5/3.6/3.8, Gemma 4) cannot rewind KV, so prefix reuse needs a checkpoint at or before the divergence. Healthy: `restored context checkpoint` plus small prompt eval; bad: `erased invalidated context checkpoint`, full re-prefill (67-71k tokens, ~40 s, #24055).",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Placement: at each user message (PR 24176), min spacing `-cms/--checkpoint-min-step` (0 = none), plus two end-of-prompt ones at n-4 and n-(4+n_ubatch) so reasoning never enters a checkpoint. `-ub 4096` makes resume cost ~4100 tokens.",
+          "source": "https://github.com/ggml-org/llama.cpp/pull/20288",
+          "note": null
+        },
+        {
+          "text": "Correction: PR 24797 (seq_pos_min std::max fix) was CLOSED unmerged 2026-06-27, not pending. PR 25592 (exact-position restore) is still open: 37.3K prefill ~35 s then 1.3 s restores. PR 26004 persists checkpoints in slot save files. Stock llama-server and Ollama b11232 lack both.",
+          "source": "https://github.com/ggml-org/llama.cpp/pull/25592",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Jinja runtime and templates",
+      "facts": [
+        {
+          "text": "Engine in common/jinja (PR 18462). Unsupported: `tojson(sort_keys=true)` throws; string/object join, array unique, replace with count, map filter-mapping. Errors: `Unknown (built-in) filter '<name>' for type <type>`, `selectattr: unknown test '<name>'`.",
+          "source": "https://raw.githubusercontent.com/ggml-org/llama.cpp/master/common/jinja/value.cpp",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Multimodal",
+      "facts": [
+        {
+          "text": "mmproj error `load_hparams: unknown projector type: gemma4uv` then `failed to load multimodal model` means runtime older than file: update llama.cpp.",
+          "source": "https://huggingface.co/ggml-org/gemma-4-12B-it-GGUF/discussions/3",
+          "note": null
+        },
+        {
+          "text": "Video: `type: \"input_video\"` (`input_video.data` or `.url`); `--video-fps` 4.0, `--video-timestamp-interval` 5000 ms, `--video-ffmpeg-dir` (else PATH); local file needs `--media-path` and `file://`.",
+          "source": "https://raw.githubusercontent.com/ggml-org/llama.cpp/master/tools/server/README.md",
+          "note": null
+        },
+        {
+          "text": "Webp decodes via ffmpeg (PR 27520, merged 2026-08-21); MTMD_VIDEO is off when LLAMA_SUBPROCESS is off. Review risks, unreproduced: animated webp yields one frame; still webp may fail `failed to decode webp buffer`.",
+          "source": "https://github.com/ggml-org/llama.cpp/pull/27520",
+          "note": null
+        },
+        {
+          "text": "Batching: `--mtmd-batch-max-tokens` 1024 (env LLAMA_ARG_MTMD_BATCH_MAX_TOKENS), not a hard limit (first image always added); consecutive images with equal nx, ny batch into one encode; audio not. Non-causal projectors (Gemma 3, Gemma 4 UV, DeepSeek 4 V) need image max tokens <= n_ubatch.",
+          "source": "https://raw.githubusercontent.com/ggml-org/llama.cpp/master/tools/mtmd/mtmd.h",
+          "note": null
+        },
+        {
+          "text": "Tokenize: `number of media markers in text (%zu) does not match number of bitmaps (%zu)` (returns 1). `mtmd_tokenize_from_parts` skips markers, sets parse_special per text part, ignores per-part add_special. Qwen-VL frame merging needs `mtmd_bitmap_set_mergeable(true)` on every frame (merge <= 2). Lazy bitmaps (`mtmd_bitmap_init_lazy`) callback returns -1 EOF, -2 error.",
+          "source": "https://raw.githubusercontent.com/ggml-org/llama.cpp/master/tools/mtmd/mtmd.cpp",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Open questions",
+      "facts": [
+        {
+          "text": "Does -fit use the sysctl-raised wired limit? Is Metal MTP fixed? No source gives a tuning rule for batch-max-tokens vs n_ubatch.",
+          "source": "asserted",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Corrections and disagreements",
+      "facts": [
+        {
+          "text": "Default `-b`: a 2026-04 tuning post says default 512 (and recommends `-b 2048 -ub 2048`, citing Apple's gpt-oss guide); the current server README says `-b` default 2048 and `-ub` default 512. So only `-ub` is the lever; CONTRADICTS the post. Its claim \"A 4K prompt drops from 8 s to ~3 s with -ub 2048\" is a single anecdote.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "CONTRADICTS: hybrid-and-sliding-window-attention-kv-cache-rewinding.md date line for `--checkpoint-every-nb`: 21831 reports `error: invalid argument: --checkpoint-every-nb` on release b8218 and from-master builds, so the flag was unreachable well before PR 22929 deleted anything.",
+          "source": "https://github.com/ggml-org/llama.cpp/issues/21831",
+          "note": null
+        },
+        {
+          "text": "CONTRADICTS: llama-cpp-context-checkpoints-and-swa-hybrid-pro.md (\"2026-06-19: PR 24797 opened to fix seq_pos_min(); draft/open at fetch\") and its open question \"Whether 24797 merges\": it was closed unmerged on 2026-06-27.",
+          "source": "https://github.com/ggml-org/llama.cpp/pull/24797",
+          "note": null
+        },
+        {
+          "text": "CONTRADICTS: hybrid-gateddeltanet-state-rollback-and-checkpoi.md (PR 24797 \"draft\", \"targets the `seq_pos_min()` root cause\") and its claims that the `std::max()` is a bug to fix; the maintainer treats the recurrent state's single valid position as the invariant.",
+          "source": "https://github.com/ggml-org/llama.cpp/pull/24797",
+          "note": null
+        },
+        {
+          "text": "CONTRADICTS: context-shift-and-cache-overflow-policy-for-recu.md (\"PR 24797 makes that fall through to normal cell removal\"): that behavior never merged.",
+          "source": "https://github.com/ggml-org/llama.cpp/pull/24797",
+          "note": null
+        },
+        {
+          "text": "CONTRADICTS: llama-server-router-mode-child-instance-exposure.md, last claim (\"anyone who can reach a child port can call it with no key\" on a LAN-bound router): a child port is reachable only from the router host itself, so the keyless exposure is local.",
+          "source": "https://raw.githubusercontent.com/ggml-org/llama.cpp/master/tools/server/server-models.cpp",
+          "note": null
+        },
+        {
+          "text": "CONTRADICTS: llama-cpp-seq-pos-min-hybrid-memory-fix-pr-24797.md (\"newest comment on the cached page is dated 2026-08-26 and no merge event appears\"): the page fetched 2026-10-04 has comments through 2026-09-04 and fork references through 2026-09-23; it is still open.",
+          "source": "https://github.com/ggml-org/llama.cpp/pull/25592",
+          "note": null
+        },
+        {
+          "text": "None found. The existing CONTRADICTS note in llama-cpp-reasoning-preserve-vs-qwen-preserve-thinking-aliasing.md stands; nothing read here changes it.",
+          "source": "asserted",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Concepts in this cluster",
+      "facts": [
+        {
+          "text": "llama.cpp Metal backend on Mac",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Metal residency sets and llama.cpp Metal internals",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "llama.cpp --fit auto memory fitting",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "llama-fit-params tool and freezing fitted flags into a launch script",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "llama-server slot and unified-KV configuration",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "llama.cpp context checkpoint 64-token minimum tuning",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "llama.cpp jinja capability probes chat_template_caps",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "llama.cpp context checkpoints and SWA hybrid prompt re-processing",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "llama.cpp Jinja runtime (minja replacement) tojson and filter semantics",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "llama.cpp message_spans chat-template user-boundary detection for checkpoints",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "llama.cpp seq_pos_min hybrid memory fix PR 24797",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "llama.cpp slot state trimming when the template will drop reasoning",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "mmproj versioning and mismatch errors for multimodal GGUFs",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Jinja templates failing on llama.cpp engine but passing in Python",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "llama-server router child bind address versus router --host",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "llama.cpp Jinja input marking is_input special-token injection defence",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "llama.cpp PR 25592 exact-position hybrid checkpoint restore",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "llama.cpp gemma4uv projector type support and first supporting build",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "llama.cpp reasoning-preserve flag and template support detection",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "llama-server router subprocess build option (subprocess is not enabled on this b",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "llama.cpp causal_attn flag scheduler re-reserve cost per image (PR 28751)",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "llama.cpp chat.cpp per-template regex rewrites versus Jinja input marking",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "llama-server /props n_ctx as the per-slot window to advertise to clients",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "mtmd_tokenize_from_parts per-segment tokenization for marked input",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "llama.cpp mtmd video and webp input via ffmpeg subprocess (MTMD_VIDEO, PR 27520)",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "llama.cpp mtmd batching of consecutive image chunks into one non-causal decode",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "llama_n_ctx_seq semantics with and without unified KV",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "mtmd mergeable bitmaps and temporal frame merging for Qwen-VL video",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "llama-server --video-fps, --video-timestamp-interval and --video-ffmpeg-dir flag",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "llama.cpp mtmd lazy bitmaps for frame-by-frame video",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "llama.cpp --mtmd-batch-max-tokens tuning against n_ubatch for non-causal project",
+          "source": "asserted",
+          "note": null
+        }
+      ]
+    }
+  ],
+  "related": []
+}

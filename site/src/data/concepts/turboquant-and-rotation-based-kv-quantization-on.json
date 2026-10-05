@@ -1,0 +1,594 @@
+{
+  "slug": "turboquant-and-rotation-based-kv-quantization-on",
+  "concept": "TurboQuant and rotation-based KV quantization on Metal",
+  "generated": "2026-10-05",
+  "summary": "Stage 1 (MSE quantizer): random rotation makes each coordinate follow a concentrated Beta distribution (near N(0,1/d) in high d) with near-independent coordinates, so independent per-coordinate scalar quantizers are near-optimal. Codebooks are solved once by continuous 1-D k-means (Max-Lloyd) and...",
+  "facets": [
+    {
+      "title": "Facts",
+      "facts": [
+        {
+          "text": "Stage 1 (MSE quantizer): random rotation makes each coordinate follow a concentrated Beta distribution (near N(0,1/d) in high d) with near-independent coordinates, so independent per-coordinate scalar quantizers are near-optimal. Codebooks are solved once by continuous 1-D k-means (Max-Lloyd) and stored per bit-width.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Stage 2 (inner-product quantizer): MSE-optimal quantizers are biased for inner products, so the paper quantizes with b-1 bits, then applies 1-bit QJL to the residual, giving an unbiased estimator.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Proven bounds: MSE distortion at most (sqrt(3)*pi/2) ~ 2.7 times the information-theoretic lower bound 1/4^b; about 1.45 times at b=1. Numeric MSE for b=1,2,3,4 is 0.36, 0.117, 0.03, 0.009; inner-product distortion about 1.57/d, 0.56/d, 0.18/d, 0.047/d.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Fractional bit rates come from an outlier split: in the 2.5-bit KV setup, 32 outlier channels use 3 bits and 96 use 2 bits ((32*3+96*2)/128 = 2.5).",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Paper quantizes streaming-generated tokens too, unlike KIVI and PolarQuant which leave generated tokens unquantized.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Practitioner pipeline (turboquant_plus, SwiftLM, vLLM): extract norm, randomized Walsh-Hadamard transform (WHT) with sign flips, Lloyd-Max centroids (turbo4 16, turbo3 8, turbo2 4), store indices plus per-block norm. Rotation is an orthogonal map, so dot products are preserved and the query is rotated once per step instead of dequantizing K.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Fused kernels: (a) mlx-swift-lm PR #232 (JIT Metal via MLXFast.metalKernel): fused encode plus a two-pass SIMD-parallel online-softmax flash decode with three K-load variants (turbo-packed, raw fp16, 8-bit affine) and an inline sparse value pass; raw fp16 during prefill, compression begins at the first decode step. (b) mlx PR #3328 `sdpa_vector_turbo`: reads 3-bit packed K with codebook dequant and a pre-rotated query (no WHT in the inner loop). (c) arozanov mlx-lm branch: fused quantize/dequantize kernels, 10 three-bit values packed per uint32, layer-adaptive fp16 first/last N layers. (d) llama.cpp fork Metal: SET_ROWS, dequant and flash-attention kernels, plus Sparse V.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Sparse V dequant (Metal): skip V dequantization where softmax weight is below 1e-6; at long context 90%+ of positions qualify, roughly halving dequant cost; +22.8% decode at 32K on MoE (0.76x to 0.93x of q8_0), also +5% on plain q8_0; opt-out `TURBO_SPARSE_V=0`.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Boundary V: first 2 and last 2 layers keep q8_0 V while the rest use turbo2 V, recovering 37-91% of the quality gap; auto on with `-ctv turbo2`; opt-out `TURBO_LAYER_ADAPTIVE=0`.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Per-dimension key calibration (mlx-swift-lm): scale from post-rotation key variance of the prefill cache, folded into the query side so score kernels are unchanged; without it symmetric turbo4 KLD is 2.65 on Qwen3-1.7B and 2.76 on Phi-4-mini, with it 0.008-0.15.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "SwiftLM `--turbo-kv`: K = 3-bit Lloyd-Max after WHT plus 1-bit QJL (4.25 bits/dim); V = 3-bit without QJL (3.125 bits/dim); about 3.5x vs FP16; activates only after 2,048 tokens; server-wide flag.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "2024: QJL paper (arXiv 2406.03482) gives the 1-bit sketch; Apr 2025: TurboQuant v1 posted; Jan 2026: ICLR 2026 poster (OpenReview tO3ASKZlok); Mar 2026: Google blog drives a wave of ports.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "2026-03-25: TheTom posts first Metal turbo3/turbo4 in llama.cpp discussion #20969; CISC (maintainer) points to CONTRIBUTING rules for adding new data types.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "2026-03-26..28: mlx-lm discussion #1064 asks for support; arozanov opens mlx-lm PR #1067 and mlx PR #3328.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "2026-03-31: zcbenz (MLX) says a generic quantized SDPA kernel should land first and TurboQuant should be a custom kernel/extension, not a builtin.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "2026-04-22: TheTom opens mlx-swift-lm PR #232; turboquant_plus README (commit dated 2026-07-20) says it merged into Apple's mlx-swift-lm.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "2026-04: vLLM PR #38479 (`--kv-cache-dtype turboquant_k8v4` etc.) reported merged.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "2026-04-21: Gao et al. technical note disputes TurboQuant-vs-RaBitQ claims.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "2026-08-21: zcbenz closes mlx-lm PR #1067 as non-essential because PR volume exceeds review capacity.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "turbo4 history: Metal turbo4 first read PPL 679; seven bugs found; a QJL ablation led to dropping QJL, giving PPL +0.23% vs q8_0.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "head_dim=64 (e.g. GPT-OSS-120B): turbo V may crash or degrade because WHT needs dimension for CLT convergence; fall back to q8_0/q8_0. Paper validated at 128 and 256. Non-power-of-two head dims use a dense QR rotation fallback in mlx-swift-lm.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Symmetric turbo3/turbo3 on Qwen2.5 with Q4_K_M weights: catastrophic PPL. Safe default is `-ctk q8_0 -ctv turbo4`.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Pre-M5 Apple GPUs: turbo3 decode regression (-37.9% vs q8_0 on M1 Max at 38.6K tokens) attributed to an L2 cache wall; turbo4 was +33.9%. On M1/M2 an auto-detected 4-mag LUT adds +38-45% decode at long context.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Metal JIT silently falls back to CPU if custom headers are `#include`d in ggml-metal.metal; inline everything.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Graph-side WHT through ggml gave PPL 23.5 instead of 6.2 because column-major storage silently transposed the rotation matrix.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "SwiftLM: `--turbo-kv` only applies to KVCacheSimple; `--ctx-size` switches attention layers to RotatingKVCache so the flag then does nothing. SwiftLM earlier published `--turbo-kv` columns that were really vanilla runs and later retracted them.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "SwiftLM bug #175: past 2,048 tokens attention saw only the recent hot window and positions restarted, so exact lookups failed on Qwen3.8-27B-4bit. Fixed (SharpAI/mlx-swift-lm#65); the fix made `--turbo-kv` slower (97 s vs 72 s on an 11.8K-token prompt, M6).",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Gemma-family sliding-window layers stay fp16 in mlx-swift-lm; only global layers compress.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "kipanshi reported garbage output on GLM-4.7-Flash-REAP (MLA/SSM-style) with the arozanov branch; the branch later raised ValueError for MLA and SSM models in make_prompt_cache.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "mlx-turboquant (pythongiant) needs MLX 0.31.3+ (thread-local streams) or `RuntimeError: no Stream(gpu, 0)`.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "On CUDA with upstream MoE optimizations, turbo2 decode fell to 0.45x of f16 (108 vs 241.5 tok/s, RTX 3080 Ti), so turbo's value on MoE became memory only (CUDA, not Metal).",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Rotation cost: Hadamard rotation costs 0.88x tg on CUDA (existing dossier); WHT as O(d log d) butterfly gave the same speed as dense matmul on Metal, so rotation was not the Metal bottleneck, dequant byte re-reads were.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Is QJL useful? Side A (paper; pythongiant mlx_turboquant; SwiftLM K-cache): keep QJL for unbiased scores. mlx_turboquant on Qwen3-1.7B: 3-bit KV ppl 77.5 without QJL vs 4.82 with; 4-bit 3.16 vs 3.03. Side B (TheTom turboquant_plus, Aaryan-Kapoor CPU port, \"five independent groups\"): production drops QJL on K and V; QJL removes bias but amplifies variance which softmax turns into attention noise; turbo4 improved after its removal; CUDA PPL drift with QJL grew from -0.28% at 2K to +3.69% at 64K. mlx_turboquant itself shows QJL halves decode speed (27.6 vs 56.6 tok/s). Not reconciled: Side A measures a 0.6-1.7B model at 509 tokens; Side B measures 27-104B models at long context.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Does KV compression speed up Apple decode? SwiftLM on M5 Pro 64 GB (Gemma 4 26B-A4B 4-bit): vanilla 27.5 tok/s at 100K vs vanilla+TurboQuant 66.9 (2.43x), RAM 48.5 GB vs 21 GB; Qwen-class 8-bit run 14.9 vs 48.3 (3.24x). The gain coincides with vanilla using about 49 GB of a 64 GB machine, so memory pressure rather than bandwidth may explain it; unverified. mlx-swift-lm PR #232 reports decode 0.68-0.81x fp16 (Qwen3-1.7B, M5 Max); arozanov reports 0.98x on Qwen2.5-32B (M4 Pro 48 GB); turboquant_plus reports turbo4 0.93x and turbo3 0.78x of q8_0 at 24K (M5 Max).",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "QVAC (Tether) describes TurboQuant as polar-coordinate \"PolarQuant\" plus QJL totaling about 4 bits; the arXiv v1 text describes random rotation plus Lloyd-Max on a Beta marginal and does not describe polar coordinates. Forks use the word PolarQuant for the rotation plus codebook stage.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Merge status is contested by what \"merged\" means. llama.cpp: rotation merged (PR #21038 plus WHT kernels CPU #22631, CUDA #23615, Vulkan #23687), TurboQuant types not merged. mlx-lm and mlx core: closed or declined. mlx-swift-lm: merged. vLLM: merged (second-hand). LM Studio mlx-engine #300 and vllm-mlx #233: closed.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Paper credibility: Gao et al. (RaBitQ authors) claim TurboQuant does not consistently beat RaBitQ, several reported runtime and recall numbers are not reproducible from the released code, and RaBitQ's theory is mischaracterized (RaBitQ: log log(1/delta) bit scaling; TurboQuant: log(1/delta)). The note itself is an interested party; TurboQuant authors reply on OpenReview (not read).",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Which of K or V is fragile: turboquant_plus and mlx-swift-lm both say keys; mlx-swift-lm adds a mechanism (softmax amplifies key error, value error averages out). Consistent with existing dossier majority; mlx-swift-lm also says V 2-bit is nearly free only with K precision kept.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Does `kvScheme` turbo8v3 in mlx-swift-lm keep decode near 0.76x fp16 at 32K+ on M-series, and does it beat affine8 in tok/s?",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Where exactly did llama.cpp maintainers decide on TQ types; is there a live PR (the existing dossier says none as of 2026-08-12)?",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Does SwiftLM's 2.43x at 100K survive when vanilla fits comfortably in RAM?",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Is the 1.7B-model QJL benefit (mlx_turboquant) present on 30B+ models?",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "TurboQuant authors' reply to the RaBitQ note.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "TurboQuant is online and data-oblivious: it needs no calibration data or retraining.",
+          "source": "https://arxiv.org/html/2504.19874v1",
+          "note": null
+        },
+        {
+          "text": "The paper's MSE quantizer randomly rotates the vector so each coordinate follows a Beta distribution, then applies a per-coordinate optimal Lloyd-Max scalar quantizer solved as a continuous k-means problem.",
+          "source": "https://arxiv.org/html/2504.19874v1",
+          "note": null
+        },
+        {
+          "text": "The paper's inner-product quantizer applies the MSE quantizer at b-1 bits and then a 1-bit QJL transform on the residual to make the estimator unbiased.",
+          "source": "https://arxiv.org/html/2504.19874v1",
+          "note": null
+        },
+        {
+          "text": "Proven MSE distortion is at most (sqrt(3)*pi/2) ~ 2.7 times the lower bound 1/4^b, and about 1.45 times at 1 bit.",
+          "source": "https://arxiv.org/html/2504.19874v1",
+          "note": null
+        },
+        {
+          "text": "Numeric MSE distortion for b=1,2,3,4 is about 0.36, 0.117, 0.03, 0.009.",
+          "source": "https://arxiv.org/html/2504.19874v1",
+          "note": null
+        },
+        {
+          "text": "Non-integer bit rates in the paper come from splitting channels into outlier and non-outlier sets with two TurboQuant instances; the 2.5-bit setup uses 32 outlier channels at 3 bits and 96 at 2 bits.",
+          "source": "https://arxiv.org/html/2504.19874v1",
+          "note": null
+        },
+        {
+          "text": "Paper LongBench-V1 on Llama-3.1-8B-Instruct: full cache 50.06, TurboQuant 3.5-bit 50.06, 2.5-bit 49.44, KIVI 5-bit 50.16, KIVI 3-bit 48.50, PolarQuant 3.9-bit 49.78.",
+          "source": "https://arxiv.org/html/2504.19874v1",
+          "note": null
+        },
+        {
+          "text": "Paper needle-in-a-haystack on Llama-3.1-8B-Instruct: TurboQuant 0.997 equals full precision 0.997 at more than 4x compression; PolarQuant 0.995, KIVI 0.981, SnapKV 0.858.",
+          "source": "https://arxiv.org/html/2504.19874v1",
+          "note": null
+        },
+        {
+          "text": "Paper evaluates only Llama-3.1-8B-Instruct and Ministral-7B-Instruct for KV; its 4-bit quantization time at d=1536 is 0.0013 s versus 2267.59 s for RaBitQ and 239.75 s for product quantization.",
+          "source": "https://arxiv.org/html/2504.19874v1",
+          "note": null
+        },
+        {
+          "text": "The paper was an ICLR 2026 poster (OpenReview tO3ASKZlok, posted 26 Jan 2026).",
+          "source": "https://openreview.net/forum?id=tO3ASKZlok",
+          "note": null
+        },
+        {
+          "text": "Gao et al. (arXiv 2604.19528, 21 Apr 2026) report TurboQuant does not consistently improve on RaBitQ in comparable settings and that some TurboQuant runtime and recall results could not be reproduced from its released implementation.",
+          "source": "https://arxiv.org/html/2604.19528v1",
+          "note": null
+        },
+        {
+          "text": "Gao et al. state RaBitQ and TurboQuant share random rotation preprocessing, differ in codebook (uniform shifted grid vs k-means non-uniform) and that RaBitQ's guarantee scales as log log(1/delta) bits versus log(1/delta) for TurboQuant.",
+          "source": "https://arxiv.org/html/2604.19528v1",
+          "note": null
+        },
+        {
+          "text": "Gao et al. cite DRIVE and EDEN (federated learning) as prior work on random rotation followed by quantization.",
+          "source": "https://arxiv.org/html/2604.19528v1",
+          "note": null
+        },
+        {
+          "text": "QVAC SDK 0.12.0 ships TurboQuant as Vulkan kernels in qvac-fabric-llm.cpp for NVIDIA, AMD and Intel GPUs; Apple Silicon (Metal) and mobile are listed as roadmap, not shipped.",
+          "source": "https://qvac.tether.io/blog/turboquant-in-qvac-sdk-0-12-0-kv-cache-quantization-for-production-local-ai",
+          "note": null
+        },
+        {
+          "text": "QVAC benchmark on Qwen3.5-4B Q8: f16/f16 RULER 96.2, tbq3_0/pq3_0 (3.75 bpw) 93.7, tbq4_0/pq4_0 (4.75 bpw) 94.8, tbq4_0/q4_0 (4.88 bpw) 96.0, q4_0/q4_0 (4.5 bpw) 97.5.",
+          "source": "https://qvac.tether.io/blog/turboquant-in-qvac-sdk-0-12-0-kv-cache-quantization-for-production-local-ai",
+          "note": null
+        },
+        {
+          "text": "QVAC describes stage 1 as PolarQuant in polar coordinates and stage 2 as QJL, a framing that the arXiv v1 text does not use.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "A llama.cpp fork by jesusmb1995 supports mixed K/V from types tbq, pq, q8_0, f16 with flash attention (e.g. `--cache-type-k pq4_0 --cache-type-v tbq4_0 -fa on`); on a slower laptop tbq4_0/pq4_0 PPL was 6.8159 (-1.19% vs f16) at 1.7x the run time of q8_0/pq3_0.",
+          "source": "https://github.com/ggml-org/llama.cpp/discussions/20969",
+          "note": null
+        },
+        {
+          "text": "Aaryan-Kapoor's CPU-only llama.cpp port (`--cache-type-k tq3_0 --cache-type-v tq3_0`, block size 32, 4.4x) has no GPU kernels, dequantizes fully per block, and omits QJL; output matched f16 at temperature 0 on the 35B model.",
+          "source": "https://github.com/ggml-org/llama.cpp/discussions/20969",
+          "note": null
+        },
+        {
+          "text": "TheTom reports the llama.cpp Metal fork's rotation was moved from dequant into the ggml graph, giving 0.78x of q8_0 prefill (2095 vs 2694 tok/s) at that time.",
+          "source": "https://github.com/ggml-org/llama.cpp/discussions/20969",
+          "note": null
+        },
+        {
+          "text": "A graph-side WHT in ggml gave PPL 23.5 instead of 6.2 because column-major storage transposed the rotation matrix.",
+          "source": "https://github.com/ggml-org/llama.cpp/discussions/20969",
+          "note": null
+        },
+        {
+          "text": "Metal JIT silently falls back to CPU if a custom header is included in ggml-metal.metal, so \"Metal optimizations\" may benchmark the CPU path.",
+          "source": "https://github.com/ggml-org/llama.cpp/discussions/20969",
+          "note": null
+        },
+        {
+          "text": "A custom O(d log d) WHT butterfly gave the same speed as dense matmul rotation on Metal, so the context-scaling regression came from per-element byte re-reads in the dequant, not the rotation.",
+          "source": "https://github.com/ggml-org/llama.cpp/discussions/20969",
+          "note": null
+        },
+        {
+          "text": "On CUDA (RTX 3080 Ti) with upstream MoE optimizations, f16 decode rose to 241.5 tok/s while turbo2 stayed near 108, i.e. 0.45x; turbo's MoE value became memory compression only.",
+          "source": "https://github.com/ggml-org/llama.cpp/discussions/20969",
+          "note": null
+        },
+        {
+          "text": "The turboquant_plus README lists llama.cpp as \"upstream, rotation merged\" via PR #21038 plus WHT kernels CPU #22631, CUDA #23615, Vulkan #23687, with the PolarQuant codec only in the fork.",
+          "source": "https://github.com/TheTom/turboquant_plus",
+          "note": null
+        },
+        {
+          "text": "The same README says rotation plus the stock q4_0 cache is essentially turbo4's rotation stage.",
+          "source": "https://github.com/TheTom/turboquant_plus",
+          "note": null
+        },
+        {
+          "text": "The same README says vLLM merged TurboQuant KV in April 2026 (PR #38479, `--kv-cache-dtype turboquant_k8v4`), with fused Triton store/decode kernels.",
+          "source": "https://github.com/TheTom/turboquant_plus",
+          "note": null
+        },
+        {
+          "text": "vLLM PR #38479 presets on Qwen3-4B: turboquant_k8v4 2.6x GSM8K 0.860, turboquant_4bit_nc 3.8x 0.840, turboquant_k3v4_nc 4.3x 0.780, turboquant_3bit_nc 4.9x 0.720 against baseline 0.900; throughput 65-84% of baseline in decode-heavy scenarios on RTX PRO 6000 Blackwell.",
+          "source": "https://github.com/vllm-project/vllm/pull/38479",
+          "note": null
+        },
+        {
+          "text": "mlx-swift-lm PR #232 (TheTom, 2026-04-22) adds `kvScheme` values turbo0v2/3/4, turbo8v2/3/4 and symmetric turbo4/3/2 via JIT Metal kernels, with 60 CI tests and no Package.swift change.",
+          "source": "https://github.com/ml-explore/mlx-swift-lm/pull/232",
+          "note": null
+        },
+        {
+          "text": "mlx-swift-lm usage is `parameters.kvScheme = \"turbo8v3\"` on GenerateParameters; turbo8v3 (K 8-bit affine, V 3-bit TurboQuant) gives 2.72x KV compression versus 1.88x for affine8 at comparable KLD across six families.",
+          "source": "https://github.com/ml-explore/mlx-swift-lm/pull/232",
+          "note": null
+        },
+        {
+          "text": "mlx-swift-lm PR #232 KLD vs fp16 cache on M5 Max: turbo8v3 Qwen3-1.7B 0.0387, Qwen2.5-7B 0.0455, Mistral-7B 0.0093, Qwen3-30B-A3B 0.0195, Qwen2.5-32B 0.0373; affine8 Qwen2.5-7B is 0.0406.",
+          "source": "https://github.com/ml-explore/mlx-swift-lm/pull/232",
+          "note": null
+        },
+        {
+          "text": "mlx-swift-lm PR #232 decode on Qwen3-1.7B: fp16 150 tok/s, turbo0v4 102 (0.68x), turbo0v2 111 (0.74x), turbo8v3 114 (0.76x), calibrated turbo4 122 (0.81x).",
+          "source": "https://github.com/ml-explore/mlx-swift-lm/pull/232",
+          "note": null
+        },
+        {
+          "text": "mlx-swift-lm PR #232 keeps raw fp16 during prefill (zero prefill overhead), compresses on the first decode step, and protects the first and last two attention layers with 8-bit affine for fragile schemes.",
+          "source": "https://github.com/ml-explore/mlx-swift-lm/pull/232",
+          "note": null
+        },
+        {
+          "text": "A single-dispatch merged flash-decode kernel gave no end-to-end win at 4K context or below because MLX pipelines the two dispatches without a sync and the merged kernel has fewer threadgroups; it was parked.",
+          "source": "https://github.com/ml-explore/mlx-swift-lm/pull/232",
+          "note": null
+        },
+        {
+          "text": "mlx-swift-lm PR #232 notes Gemma-family sliding-window layers stay fp16 and Qwen2.5 has large key outliers in boundary layers, so scores are computed in f32.",
+          "source": "https://github.com/ml-explore/mlx-swift-lm/pull/232",
+          "note": null
+        },
+        {
+          "text": "mlx-swift-lm PR #232 was merged into ml-explore/mlx-swift-lm (commit fd0f13b, merged by davidkoski).",
+          "source": "https://github.com/ml-explore/mlx-swift-lm/pull/232",
+          "note": null
+        },
+        {
+          "text": "mlx-lm PR #1067 (arozanov, 2026-03-28) adds `generate_step(prompt, model, turbo_kv_bits=3)` with 4.6x compression and 0.98x FP16 speed on Qwen2.5-32B (M4 Pro 48 GB); 16K context KV went 4.2 GB to 897 MB.",
+          "source": "https://github.com/ml-explore/mlx-lm/pull/1067",
+          "note": null
+        },
+        {
+          "text": "mlx-lm PR #1067 was closed unmerged on 2026-08-21 by zcbenz with the reason that PR count exceeds review capacity and non-essential PRs are being closed.",
+          "source": "https://github.com/ml-explore/mlx-lm/pull/1067",
+          "note": null
+        },
+        {
+          "text": "The mlx-lm PR #1067 install path is `pip install git+https://github.com/arozanov/mlx-lm.git@feature/turboquant-kv-cache`, with later flags `--turbo-v-bits` and a BatchSparseKVCache so the server runs without `--no-batch`.",
+          "source": "https://github.com/ml-explore/mlx-lm/pull/1067",
+          "note": null
+        },
+        {
+          "text": "The related PRs mlx #3328, mlx-lm #1037, vllm-mlx #233 and lmstudio mlx-engine #300 are shown closed.",
+          "source": "https://github.com/ml-explore/mlx-lm/pull/1067",
+          "note": null
+        },
+        {
+          "text": "mlx PR #3328 added `mx.fast.turboquant_sdpa()` and a `sdpa_vector_turbo` kernel; on M4 Pro 48 GB (28 query heads, 4 KV heads, D=128) kernel time stayed near 0.1 ms from 1K to 16K context against Apple SDPA 0.161 ms to 0.511 ms (4.9x at 16K).",
+          "source": "https://github.com/ml-explore/mlx/pull/3328",
+          "note": null
+        },
+        {
+          "text": "MLX maintainer zcbenz replied that a generic quantized SDPA kernel should come first and that MLX does not add builtin kernels for each new technique; users should use custom extensions or custom kernels.",
+          "source": "https://github.com/ml-explore/mlx/pull/3328",
+          "note": null
+        },
+        {
+          "text": "The mlx-lm discussion #1064 notes a separate `mlx_turboquant` adapter (pythongiant, Jul 2026) and a flovflo Hugging Face KV repo.",
+          "source": "https://github.com/ml-explore/mlx-lm/discussions/1064",
+          "note": null
+        },
+        {
+          "text": "mlx-turboquant installs with `pip install mlx-turboquant`, converts with `turboquant convert --model mlx-community/Qwen3-0.6B-bf16 --out ./qwen3-tq4 --bits 4`, and serves with `turboquant serve --model ./qwen3-tq4 --port 8080 --kv-bits 4 --qjl`.",
+          "source": "https://github.com/pythongiant/mlx_turboquant",
+          "note": null
+        },
+        {
+          "text": "mlx-turboquant (Qwen3-1.7B, 509 tokens, fp16 ppl 2.93): 4-bit plain affine KV ppl 31.39, TurboQuant KV 3.16, with QJL 3.03; 3-bit affine 4625, TurboQuant 77.5, with QJL 4.82.",
+          "source": "https://github.com/pythongiant/mlx_turboquant",
+          "note": null
+        },
+        {
+          "text": "mlx-turboquant throughput (Qwen3-1.7B, ShareGPT median): bf16 26.6 tok/s, TurboQuant 4-bit weights plus KV4 56.6 tok/s, plus QJL 27.6 tok/s; KV at 2K context 0.23 GB to 0.066 GB.",
+          "source": "https://github.com/pythongiant/mlx_turboquant",
+          "note": null
+        },
+        {
+          "text": "mlx-turboquant needs MLX 0.31.3+ because older MLX raised `RuntimeError: no Stream(gpu, 0)` with its threading.",
+          "source": "https://github.com/pythongiant/mlx_turboquant",
+          "note": null
+        },
+        {
+          "text": "The turboquant-mlx package installs as `pip install turboquant-mlx-full` (extras `[eval]`, `[vlm]`, `[kimi]`) or from source with `pip install -e .`.",
+          "source": "https://github.com/manjunathshiva/turboquant-mlx",
+          "note": null
+        },
+        {
+          "text": "turboquant_plus lists community Apple-silicon or Metal integrations: vllm-swift (OpenAI-compatible, no Python in hot path), Atlas (Rust, Metal, turbo4 append/decode kernels), mlxcel (Rust MLX port), and an experimental MLX Python fork `TurboKVCache`.",
+          "source": "https://github.com/TheTom/turboquant_plus",
+          "note": null
+        },
+        {
+          "text": "turboquant_plus quality table (M5 Max, wikitext-2, 512 ctx): f16 6.121, q8_0 6.111, turbo4 6.125 (+0.23%, 4.25 bits, 3.8x), q4_0 6.142 (+0.52%), turbo3 6.176 (+1.06%, 4.6x at block 32 or 5.12x at block 128), turbo2 6.507 (+6.48%, 6.4x).",
+          "source": "https://github.com/TheTom/turboquant_plus",
+          "note": null
+        },
+        {
+          "text": "turboquant_plus states production drops QJL on both K and V because QJL removes bias but amplifies variance that softmax turns into attention noise, and that five independent groups confirmed it.",
+          "source": "https://github.com/TheTom/turboquant_plus",
+          "note": null
+        },
+        {
+          "text": "turboquant_plus findings: V compression is nearly free when K precision is kept; quality loss comes from K compression; boundary layers are disproportionately sensitive.",
+          "source": "https://github.com/TheTom/turboquant_plus",
+          "note": null
+        },
+        {
+          "text": "turboquant_plus claims 104B at 128K context on a MacBook with turbo3 (PPL 4.024, 74 GB peak).",
+          "source": "https://github.com/TheTom/turboquant_plus",
+          "note": null
+        },
+        {
+          "text": "turbo4 on Metal first measured PPL 679.27 because SET_ROWS wrote turbo3-format data into turbo4 blocks; seven bugs were found and the QJL ablation led to a 4-bit PolarQuant-only design.",
+          "source": "https://github.com/TheTom/turboquant_plus/blob/main/docs/papers/turbo4-resurrection.md",
+          "note": null
+        },
+        {
+          "text": "On CUDA (buun fork) QJL-based turbo4 PPL drifted from -0.28% at 2K to +3.69% at 64K and prefill was 51.9% of q8_0.",
+          "source": "https://github.com/TheTom/turboquant_plus/blob/main/docs/papers/turbo4-resurrection.md",
+          "note": null
+        },
+        {
+          "text": "Build for the Metal fork: `git clone https://github.com/TheTom/llama-cpp-turboquant`, `git checkout feature/turboquant-kv-cache`, `cmake -B build -DGGML_METAL=ON -DCMAKE_BUILD_TYPE=Release`, `cmake --build build -j`.",
+          "source": "https://github.com/TheTom/turboquant_plus/blob/main/docs/getting-started.md",
+          "note": null
+        },
+        {
+          "text": "Run recommendations: safe default `-ctk q8_0 -ctv turbo4 -fa on`; more compression `-ctk q8_0 -ctv turbo3` (5.12x V, +1-2% PPL); maximum `-ctk turbo3 -ctv turbo3` only on validated large models and never on Qwen2.5 with Q4_K_M weights.",
+          "source": "https://github.com/TheTom/turboquant_plus/blob/main/docs/getting-started.md",
+          "note": null
+        },
+        {
+          "text": "Models with head_dim=64 (e.g. GPT-OSS-120B) may crash or degrade with turbo V; fall back to q8_0/q8_0.",
+          "source": "https://github.com/TheTom/turboquant_plus/blob/main/docs/getting-started.md",
+          "note": null
+        },
+        {
+          "text": "Sparse V (Metal only) and Boundary V are on by default in recent builds; opt-outs are `TURBO_SPARSE_V=0` and `TURBO_LAYER_ADAPTIVE=0`.",
+          "source": "https://github.com/TheTom/turboquant_plus/blob/main/docs/getting-started.md",
+          "note": null
+        },
+        {
+          "text": "Sparse V skips V dequant where attention weight is below 1e-6, gives +22.8% decode at 32K on MoE (0.76x to 0.93x of q8_0) and +5% on q8_0 KV; dense models gain less because attention is under 5% of decode.",
+          "source": "https://github.com/TheTom/turboquant_plus/blob/main/docs/benchmarks.md",
+          "note": null
+        },
+        {
+          "text": "A 24K-token PDF server run on M5 Max: q8_0 decode 68.2 tok/s, turbo4 63.7 (0.93x), turbo3 53.3 (0.78x); prefill 1449.9, 1405.9 and 1417.8 tok/s.",
+          "source": "https://github.com/TheTom/turboquant_plus/blob/main/docs/benchmarks.md",
+          "note": null
+        },
+        {
+          "text": "Community M1 Max 64 GB, Qwen3.5-35B-A3B Q8_0 at 38,596 tokens: q8_0 decode 12.4 tok/s, turbo2 10.8, turbo3 7.7 (-37.9%), turbo4 16.6 (+33.9%); the turbo3 loss is attributed to an M1 L2 cache wall; on M1/M2 a 4-mag LUT adds +38-45% decode at long context.",
+          "source": "https://github.com/TheTom/turboquant_plus/blob/main/docs/benchmarks.md",
+          "note": null
+        },
+        {
+          "text": "On M5 Max 128 GB turbo3 prefill beat q8_0 at 32K on 70B (80.8 vs 75.2 tok/s) and 104B (64.5 vs 62.3 tok/s).",
+          "source": "https://github.com/TheTom/turboquant_plus/blob/main/docs/benchmarks.md",
+          "note": null
+        },
+        {
+          "text": "The llama-cpp-turboquant fork branch `feature/turboquant-kv-cache` was 539 commits ahead and 1,075 behind ggml-org master on 2026-10-03, with 2.4k stars, 415 forks and a latest commit on 2026-09-28.",
+          "source": "https://github.com/TheTom/llama-cpp-turboquant",
+          "note": null
+        },
+        {
+          "text": "The same fork also ships TQ3_1S/TQ4_1S weight formats and prebuilt Mac (Metal) binaries; TQ4_1S applies WHT plus Lloyd-Max to weights of a Q8_0 GGUF with no calibration.",
+          "source": "https://github.com/TheTom/turboquant_plus",
+          "note": null
+        },
+        {
+          "text": "SwiftLM builds with `git clone --recursive https://github.com/SharpAI/SwiftLM && cd SwiftLM && ./build.sh`, then `.build/release/SwiftLM --model mlx-community/gemma-4-26b-a4b-it-4bit --port 5413`.",
+          "source": "https://github.com/sharpai/swiftlm",
+          "note": null
+        },
+        {
+          "text": "SwiftLM `--turbo-kv` is server-wide, activates after 2,048 tokens, and is separate from the per-request `kv_bits` (4 or 8) that uses MLX QuantizedKVCache from token 0.",
+          "source": "https://github.com/sharpai/swiftlm",
+          "note": null
+        },
+        {
+          "text": "SwiftLM's `--turbo-kv` K path is 3-bit Lloyd-Max centroids after WHT plus a 1-bit QJL sign sketch (4.25 bits/dim) and V path is 3-bit without QJL (3.125 bits/dim), with Lloyd-Max codebooks in the native encoder and fused ggml-metal dequant shaders.",
+          "source": "https://github.com/sharpai/swiftlm",
+          "note": null
+        },
+        {
+          "text": "SwiftLM M5 Pro 64 GB Gemma 4 26B-A4B 4-bit decode (512/40K/100K): vanilla 77.5/44.3/27.5 tok/s; vanilla+TurboQuant 77.3/70.1/66.9; RAM at 40K 48.7 GB vs 18.2 GB.",
+          "source": "https://github.com/sharpai/swiftlm",
+          "note": null
+        },
+        {
+          "text": "SwiftLM MTP+TurboQuant reached 72.1/65.2/62.1 tok/s (1.02x/1.90x/2.41x of baseline 70.8/34.3/25.8) but TurboQuant alone beats TQ+MTP at 8-bit and at 40K, because compressed KV removes the bandwidth bottleneck MTP relied on.",
+          "source": "https://github.com/sharpai/swiftlm",
+          "note": null
+        },
+        {
+          "text": "SwiftLM 8-bit Gemma-class run at 100K: vanilla 14.9 tok/s, TurboQuant 48.3 (3.24x), MTP 22.5.",
+          "source": "https://github.com/sharpai/swiftlm",
+          "note": null
+        },
+        {
+          "text": "SwiftLM streams experts and measured a 126 GB DeepSeek-V4-Flash only in SSD modes (see existing dossier); its Mac mini M6 32 GB table has no TurboQuant columns after a correction.",
+          "source": "https://github.com/sharpai/swiftlm",
+          "note": null
+        },
+        {
+          "text": "HN thread on SwiftLM (47604354) criticizes many \"vibecoded\" TurboQuant ports and notes llama.cpp's attn-rot, a lightweight variant by the llama.cpp author, was merged instead of outside TurboQuant PRs.",
+          "source": "https://news.ycombinator.com/item?id=47604354",
+          "note": null
+        },
+        {
+          "text": "LinkedIn-reported claim that llama.cpp PR #21089 CPU-only TQ types were closed is already in the existing dossier; no live llama.cpp TurboQuant-type PR was found in this research.",
+          "source": "asserted",
+          "note": null
+        }
+      ]
+    }
+  ],
+  "related": []
+}

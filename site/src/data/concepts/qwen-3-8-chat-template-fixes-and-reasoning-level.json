@@ -1,0 +1,244 @@
+{
+  "slug": "qwen-3-8-chat-template-fixes-and-reasoning-level",
+  "concept": "Qwen 3.8 chat-template fixes and reasoning-level mapping",
+  "generated": "2026-10-05",
+  "summary": "Effort handling (template lines 46-57): inside `enable_thinking is undefined or true`, effort resolves to `reasoning_effort|default('xhigh')`. Accepted values are `xhigh`, `medium`, `low`. Any other value calls `raise_exception('Unexpected reasoning effort ... Supported types are xhigh (default),...",
+  "facets": [
+    {
+      "title": "Facts",
+      "facts": [
+        {
+          "text": "Effort handling (template lines 46-57): inside `enable_thinking is undefined or true`, effort resolves to `reasoning_effort|default('xhigh')`. Accepted values are `xhigh`, `medium`, `low`. Any other value calls `raise_exception('Unexpected reasoning effort ... Supported types are xhigh (default), medium, and low.')`. `xhigh` and `low` set a one-sentence instruction; `medium` sets none.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Where the instruction goes: it is placed at the very start of the system turn, before the `# Tools` block and before the user's system text. With no tools and no system message, a non-empty instruction still creates a system turn. Because the default is `xhigh`, every thinking request with no kwarg carries an extra system turn that the Qwen3.6 template never produced.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Validation only runs when thinking is enabled. With `enable_thinking=false` an unsupported effort value is never checked and the instruction is empty.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Cache consequence (inferred from the line order above): changing effort between requests changes bytes at offset 0 of the prompt, so the whole prefix is re-prefilled. `medium` leaves the prompt byte-identical to a template with no effort support.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Preserve default (line 117): the condition `preserve_thinking is undefined or preserve_thinking is true or loop.index0 > ns.last_query_index` keeps every historical `<think>` block unless a caller passes `preserve_thinking=false`. In Qwen3.6 the condition required `preserve_thinking is defined and is true`.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Dropped extraction: Qwen3.6 had a branch that, when `reasoning_content` was missing and the content held `</think>`, split reasoning out of the content. Qwen3.8 removes it. A client that sends reasoning inline in `content` therefore gets an empty `<think>\\n\\n</think>\\n\\n` block rendered ahead of the inline text.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Empty system: Qwen3.8 emits a system turn for the user's system text only if the text is non-empty after trim; Qwen3.6 emitted `<|im_start|>system\\n<|im_end|>` for an empty one.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Empty arguments: `tool_call.arguments != ''` is now required before iterating `arguments|items`, which stops the crash on an empty-string argument.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "llama-server mapping (server-common.cpp): a top-level OpenAI `reasoning_effort` of \"none\" sets `enable_thinking=false` and removes `reasoning_effort` from the kwargs; any other non-empty string is forwarded verbatim as the `reasoning_effort` kwarg. A bare \"high\" or \"max\" therefore reaches the Qwen3.8 template and raises. The Responses-API path copies `reasoning.effort` to `reasoning_effort`. The Anthropic converter in server-chat.cpp contains no `output_config` or effort handling in the file read, so a client that sends only an Anthropic effort field gets the template default `xhigh`.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "oMLX mapping (omlx/reasoning_effort.py): it renders with the value lower-cased. If the template raises, it retries once with an alias (`off`, `none`, `minimal` become `low`; `moderate` becomes `medium`; `medium` becomes `high`; `high` becomes `xhigh`; `xhigh` and `maximum` and `ultra` become `max`; `max` becomes `xhigh`), then renders without the kwarg so the template default applies. For Qwen3.8 this yields: `high` and `max` render as `xhigh`; `none`, `off`, `minimal` render as `low` (thinking stays on); `medium`, `low`, `xhigh` pass unchanged.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "froggeric template v22.5 mapping: `high`, `max`, `ultracode`, `extreme` map to `xhigh`; `minimal` maps to `low`; `none` and `off` disable thinking; default is `medium` (no injected text); inline tags `<|think_low|>`, `<|think_medium|>`, `<|think_xhigh|>`, `<|think_ultracode|>`, `<|think_off|>` are sticky across later turns; `_default_reasoning_effort` at the top of the file sets the default for UIs that cannot pass kwargs.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Inline tags and cache: froggeric pre-scans the whole conversation for control tags before it builds the system turn, and the last tag wins. A tag added in a new user message can therefore change the system turn and invalidate the full prefix (inferred from the documented pre-scan; not measured).",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "2026-08-13: froggeric v22 adds Qwen3.8 support, effort aliases and the `medium` default (changelog). [src: froggeric repo]",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "2026-08-14: Unsloth updates its Qwen3.8 GGUF templates after the strict-system-message errors (held in anthropic-compatible-local-endpoints-and-role-system-messages.md).",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "2026-08-19: froggeric v22.2 adds `ultracode` and `extreme` aliases and merges consecutive leading system and developer messages.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Sending `reasoning_effort: \"high\"` straight to llama-server with the stock Qwen3.8 template raises the template exception; the request fails rather than falling back.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Through oMLX, `reasoning_effort: \"none\"` on the stock Qwen3.8 template renders `low` effort, not no-thinking, unless the client also sends `enable_thinking=false`.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "froggeric states the official 2.4T-A95B template throws when `enable_thinking=false` while the 27B template accepts it; the 27B template read here does accept it (the generation prompt closes `<think>\\n\\n</think>\\n\\n`). The 2.4T template was not read.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "froggeric states the official `xhigh` default can exhaust the token budget on reasoning and return empty content; no measurement is given.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Meaning of `none`/`off`: llama-server and froggeric treat it as thinking off; oMLX's alias table maps it to `low` for templates that reject it. Both are documented in source; the two paths give different prompts for the same client value.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Default level: Qwen's template defaults to `xhigh`; froggeric changes it to `medium` for token safety and cache parity. Neither side offers a measured accuracy or token comparison.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Whether oMLX converts `none` to `enable_thinking=false` elsewhere before the template call (reasoning_effort.py alone does not).",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "The exact Qwen3.8-2.4T-A95B template text for the `enable_thinking=false` exception.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Whether any runtime other than llama-server forwards Anthropic `output_config.effort` into the Qwen3.8 `reasoning_effort` kwarg.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "The Qwen3.8-27B template defaults reasoning effort to xhigh when enable_thinking is undefined or true and no reasoning_effort is given",
+          "source": "https://huggingface.co/Qwen/Qwen3.8-27B/raw/main/chat_template.jinja",
+          "note": null
+        },
+        {
+          "text": "The template raises \"Unexpected reasoning effort ... Supported types are xhigh (default), medium, and low.\" for any other effort value",
+          "source": "https://huggingface.co/Qwen/Qwen3.8-27B/raw/main/chat_template.jinja",
+          "note": null
+        },
+        {
+          "text": "Effort xhigh and low each add one instruction sentence; medium adds none",
+          "source": "https://huggingface.co/Qwen/Qwen3.8-27B/raw/main/chat_template.jinja",
+          "note": null
+        },
+        {
+          "text": "The effort instruction is written at the start of the system turn, before the tools block and the user system text, and creates a system turn on its own when no system message exists",
+          "source": "https://huggingface.co/Qwen/Qwen3.8-27B/raw/main/chat_template.jinja",
+          "note": null
+        },
+        {
+          "text": "Effort validation sits inside the enable_thinking branch, so it is skipped when enable_thinking is false",
+          "source": "https://huggingface.co/Qwen/Qwen3.8-27B/raw/main/chat_template.jinja",
+          "note": null
+        },
+        {
+          "text": "Line 117 treats an undefined preserve_thinking as true; the Qwen3.6-27B template required preserve_thinking to be defined and true",
+          "source": "https://huggingface.co/Qwen/Qwen3.8-27B/raw/main/chat_template.jinja",
+          "note": null
+        },
+        {
+          "text": "The Qwen3.6-27B template extracts reasoning from content containing </think> when reasoning_content is absent; the Qwen3.8-27B template has no such branch",
+          "source": "https://huggingface.co/Qwen/Qwen3.6-27B/raw/main/chat_template.jinja",
+          "note": null
+        },
+        {
+          "text": "The Qwen3.8 template emits a system turn for user system text only when the trimmed text is non-empty; the Qwen3.6 template emitted one unconditionally",
+          "source": "https://huggingface.co/Qwen/Qwen3.8-27B/raw/main/chat_template.jinja",
+          "note": null
+        },
+        {
+          "text": "The Qwen3.8 template skips tool-call arguments equal to the empty string, avoiding the items filter on a string",
+          "source": "https://huggingface.co/Qwen/Qwen3.8-27B/raw/main/chat_template.jinja",
+          "note": null
+        },
+        {
+          "text": "llama-server maps a body reasoning_effort of \"none\" to enable_thinking=false and removes the kwarg, and forwards any other non-empty string unchanged",
+          "source": "https://raw.githubusercontent.com/ggml-org/llama.cpp/master/tools/server/server-common.cpp",
+          "note": null
+        },
+        {
+          "text": "llama-server's Responses-API conversion copies reasoning.effort into reasoning_effort and states only effort is handled",
+          "source": "https://raw.githubusercontent.com/ggml-org/llama.cpp/master/tools/server/server-chat.cpp",
+          "note": null
+        },
+        {
+          "text": "llama-server's Anthropic conversion passes temperature, top_p, top_k, stream and chat_template_kwargs through and converts thinking.type \"enabled\" into thinking_budget_tokens, with no effort field handled in the file",
+          "source": "https://raw.githubusercontent.com/ggml-org/llama.cpp/master/tools/server/server-chat.cpp",
+          "note": null
+        },
+        {
+          "text": "oMLX lower-cases the effort, retries a failed render once with an alias, then retries without the kwarg",
+          "source": "https://raw.githubusercontent.com/jundot/omlx/main/omlx/reasoning_effort.py",
+          "note": null
+        },
+        {
+          "text": "oMLX's alias table maps off, none and minimal to low, high to xhigh, max to xhigh, and medium to high",
+          "source": "https://raw.githubusercontent.com/jundot/omlx/main/omlx/reasoning_effort.py",
+          "note": null
+        },
+        {
+          "text": "oMLX forwards an API reasoning effort into chat_template_kwargs with setdefault, so an explicit chat_template_kwargs value wins",
+          "source": "https://raw.githubusercontent.com/jundot/omlx/main/omlx/api/utils.py",
+          "note": null
+        },
+        {
+          "text": "froggeric v22.5 defaults reasoning effort to medium, which injects no system text, and maps high, max, ultracode and extreme to xhigh, minimal to low, and none and off to thinking disabled",
+          "source": "https://huggingface.co/froggeric/Qwen-Fixed-Chat-Templates",
+          "note": null
+        },
+        {
+          "text": "froggeric's inline tags <|think_low|>, <|think_medium|>, <|think_xhigh|>, <|think_ultracode|> and <|think_off|> are sticky: the last tag found in the whole conversation wins",
+          "source": "https://huggingface.co/froggeric/Qwen-Fixed-Chat-Templates",
+          "note": null
+        },
+        {
+          "text": "froggeric pre-scans the conversation for control tags before the system turn is built so effort text is not injected into non-reasoning turns",
+          "source": "https://huggingface.co/froggeric/Qwen-Fixed-Chat-Templates",
+          "note": null
+        },
+        {
+          "text": "froggeric v22.5 adds a top-of-file _default_reasoning_effort variable for UIs that cannot pass chat_template_kwargs",
+          "source": "https://huggingface.co/froggeric/Qwen-Fixed-Chat-Templates",
+          "note": null
+        },
+        {
+          "text": "froggeric states the official Qwen3.8-2.4T-A95B template throws when enable_thinking is false while the Qwen3.8-27B template accepts it",
+          "source": "https://huggingface.co/froggeric/Qwen-Fixed-Chat-Templates",
+          "note": null
+        },
+        {
+          "text": "Changing reasoning effort between requests changes the first bytes of the prompt on the official template, so the prefix cache cannot be reused across the change",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "A client that sends reasoning inline in assistant content gets a blank think block rendered ahead of it by the stock Qwen3.8 template",
+          "source": "asserted",
+          "note": null
+        }
+      ]
+    }
+  ],
+  "related": []
+}

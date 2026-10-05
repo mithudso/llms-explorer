@@ -1,0 +1,689 @@
+{
+  "slug": "reasoning-parser-versus-tool-parser-interaction",
+  "concept": "Reasoning-parser versus tool-parser interaction",
+  "generated": "2026-10-05",
+  "summary": "vLLM: reasoning extraction runs first and the tool parser reads only `content`; a call left in `reasoning` is lost. vLLM PR #39055 (merge state not confirmed; non-streaming only) makes `qwen3_reasoning_parser` promote complete XML tool-call blocks from `reasoning` into `content` so `qwen3_coder` ...",
+  "facets": [
+    {
+      "title": "Facts",
+      "facts": [
+        {
+          "text": "vLLM: reasoning extraction runs first and the tool parser reads only `content`; a call left in `reasoning` is lost. vLLM PR #39055 (merge state not confirmed; non-streaming only) makes `qwen3_reasoning_parser` promote complete XML tool-call blocks from `reasoning` into `content` so `qwen3_coder` can parse them.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "llama.cpp: a lazy grammar trigger is separate from the reasoning parser. pwilkin (2026-03-21): the trigger sees `<tool_call>` inside thinking, the grammar forces end-of-generation after the call, and the model cannot go on to close the think block and redo the call. markqvist: tool-call parsing runs after, and separately from, reasoning parsing.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "llama.cpp fix direction: the reasoning-budget sampler (PR #20297, opened 2026-03-09) tracks IDLE, COUNTING, FORCING, WAITING_UTF8 and DONE states; a lazy tool grammar stays dormant while the sampler is in COUNTING (inside `<think>`), so a literal `<tool_call>` in thinking does not arm it.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "llama.cpp parser reference debate: aldehir (2026-03-22) says llama.cpp and vLLM emit a tool call found in reasoning as a real call, while sglang's reasoning parser consumes those tokens so the tool parser never sees them, and he takes sglang as the reference behaviour.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "mlx_lm.server (main branch): one text state machine with states normal, reasoning and tool. `make_text_state_machine` adds transitions think_start to reasoning, think_end to normal, and tool_call_start to tool from both normal and reasoning, so a call opened inside thinking is collected as a tool call. The response carries `message.reasoning` and `message.tool_calls`; `finish_reason` becomes `tool_calls` after a call.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "mlx_lm.server picks the initial state from the rendered prompt: if the last think-start token comes after the last think-end token, generation starts in `reasoning` (covers templates that pre-open `<think>`).",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Rapid-MLX: its docs say the parser strips thinking content before extracting tool calls, including implicit-think prompts that contain only `</think>`; a call written inside thinking is therefore discarded, not recovered.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "vllm-mlx: reasoning parser is text-based and stateless over accumulated output; the `deepseek_v4` reasoning parser exists because DeepSeek V4 Flash can end an implicit reasoning block by opening a DSML tool call with no `</think>`, and must be paired with `--tool-call-parser deepseek_v4`.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "LM Studio: closed-source parser matches tool markers inside thinking (parent dossier); its \"separate reasoning_content and content\" toggle has paired failure modes, and in 0.4.11 enabling it was reported to wrap JSON output in `think`.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Ollama: its model parsers split thinking from content, and since v0.34.4 each parser also declares `ThinkingClose()` strings so a structured-output grammar can leave thinking free and constrain only what follows.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "llama-server: `message.reasoning_content` (also accepted on input, PR #18994).",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "vLLM: renamed `reasoning_content` to `reasoning`; clients reading the old key silently get empty.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "mlx_lm.server and vllm-mlx: `reasoning`. Rapid-MLX: `reasoning_content` only, and the key is omitted when there was no reasoning.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Ollama native API: `message.thinking`; Ollama OpenAI-compatible API: `reasoning` (Hermes issue #46131 reports empty `content` with the text in `reasoning`).",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "LM Studio chat-completions for gpt-oss: `message.reasoning` (existing lm-studio-on-mac.md), versus `reasoning_content` for the separate-fields toggle.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "2025-08: gpt-oss launch. llama.cpp guide #15396: use `--reasoning-format auto`; `none` is no longer recommended (aldehir, 2025-08-19). OpenAI's gpt-oss compatibility test passed on LM Studio and failed on llama-server because llama-server used `reasoning_content` where the test expected `reasoning`.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "2025-08-22: DeepSeek V3.1 in llama.cpp #15496: thinking mode needed a new chat-format handler; non-thinking mode worked with no change; tool-call text appeared after `</think>`.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "2026-03-05 to 03-11: llama.cpp autoparser. PR #20424 (2026-03-11) removes FORCED_OPEN and FORCED_CLOSED reasoning formats, reads the assistant prefill for think markers and feeds them to parser and grammar; it cleared the ground for disabling grammar triggers inside reasoning.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "2026-03-09: PR #20297 adds `--reasoning on|off`, `--reasoning-budget`, `--reasoning-budget-message`; first version changed grammar code, reviewers (ggerganov, aldehir) asked for a dedicated reasoning sampler, author rewrote it.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "2026-03-21: llama.cpp #20837 (Qwen3.5 prints XML tool call inside thinking and stops). First bad build 8255; enable_thinking false avoids it; pwilkin: affects every model that \"prepares\" a tool call in thinking.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "2026-04: LM Studio 0.4.10 still showed the symptom on llama.cpp runtime 2.12.0 while bare llama.cpp build 8670 worked; 0.4.11 reported worse.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "2026-04-05: vLLM PR #39055 opened for the Qwen3.5 regression seen on vLLM 0.18 and 0.19 (0.17 worked).",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "2026-04: Gemma 4 support lands in mlx-lm (v0.31.2: Gemma 4 parser #1105, \"multi-token think/tool start/end\" #1114); v0.31.3 fixes a NoneType think-token check (#1167) and Gemma 4 parser edge cases (#1150).",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "2026-05-07: llama.cpp #22786 \"Gemma 4 tool call returned as content\" closed as user error: the request had no `tools` field.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "2026-06-05: llama.cpp #24181: Step 3.7 Flash loops in reasoning after the autoparser change; bisected to commit 566059a; closed as superseded by #25238.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "2026-09-23: Ollama v0.34.4 ships single-pass structured outputs on thinking models.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "oMLX 0.7.0rc1: \"keep truncated thinking out of answer content, decode untyped Qwen tool parameters, recognize the VLM Qwen parser\" (#3809); an earlier release fixed thinking-control handling (#3559).",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "llama-server now also has `/v1/chat/completions/control` with action `reasoning_end` (needs `reasoning_control: true` on the original request) to end a running reasoning block early.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Tool call inside thinking, thinking on: call text lands in the reasoning field, `tool_calls` empty, `finish_reason` stop, agent loop ends silently. Seen on llama.cpp (build 8255 onward), LM Studio, vLLM 0.18/0.19 and Ollama.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Request has no `tools` field: no tool parser is active; Gemma 4 `<|tool_call>call:...<tool_call|>` text appears in `content` while `reasoning_content` is filled separately (llama.cpp #22786, build 8919).",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Custom grammar plus tools: llama-server rejects it with HTTP 400 \"Cannot use custom grammar constraints with tools.\"; a community patch adds a pre-trigger grammar that applies only during reasoning, but its author reverted it in production because compressed reasoning raised hallucination.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Reasoning-budget state must see the pre-opened think marker. A StepFun template pre-opens `<think>\\n`; the autoparser exposed trimmed tags `<think>` to the budget sampler, and an unarmed sampler let a literal `<tool_call>` in reasoning trigger the grammar (a GPT-5.5 hypothesis in #24181; pwilkin showed the tokenizer does not merge `<think>` with newlines, so the cause was not confirmed).",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Reasoning budget without a message hurts: pwilkin measured Qwen3.5-9B Q8_0 humaneval at about 93% full, about 88% with thinking off, about 89% with budgets 400 and 1000 plus a budget message, and 79% with a budget and no message.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Thinking off does not always mean no thinking block: Gemma 4 12B/26B/31B templates pre-fill an empty `<|channel>thought\\n<channel|>` when thinking is off; E2B/E4B do not.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "DeepSeek V3.1: tool calling works only in non-thinking mode (vLLM table and llama.cpp #15496); vLLM lists `deepseek_r1` and `deepseek_v3` reasoning parsers as having no tool-calling support.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "gpt-oss tool calls sit in the commentary channel inside the chain of thought; Harmony fragments in `reasoning_content` mean the call was not extracted. A missing reasoning replay from the previous tool call is an open cross-client problem (aldehir, #15396).",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Cline and Roo Code (non-native tool calling) fail with gpt-oss-20b on llama-server; a custom GBNF grammar that forbids native tool calls (`root ::= analysis? start final .+`) is the workaround.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Rapid-MLX streaming: `reasoning_content` and `content` deltas can interleave for many bytes after the first content delta; buffer them separately.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "vLLM PR #39055 review: promoted tool calls must be appended after existing content, because `Qwen3CoderToolParser` keeps only text before the first call marker.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Ollama gemma4 tool parser logs `gemma4 tool call parsing failed` on malformed calls (missing `<|\"|>` quotes); maintainer drifkin (2026-04-05): the model emitted invalid calls, a repair step may be added.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Should the server recover a tool call written inside thinking? For: vLLM PR #39055 and mlx_lm.server's reasoning-to-tool transition recover it; users report agent loops stopping otherwise. Against: aldehir takes sglang as reference (reasoning parser consumes the tokens, tool parser never sees them); markqvist doubts such model behaviour should bend the parser. Both positions stay open.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Cause attribution for llama.cpp #20837: pwilkin names the independent grammar trigger and forced EOG (a parser/sampler design fault); the parent dossier's reading (model emits calls in `<think>`) is the trigger, not the cause of the stop.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "LM Studio versus llama.cpp: user shanevcantwell (2026-04-12) says llama.cpp \"has nailed this\" with PEG while LM Studio's own parser still failed; slonopotamus asks whether llama.cpp's parser could be used inside LM Studio. No maintainer answer was found.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Which llama.cpp build or PR merged the \"no grammar trigger inside reasoning\" behaviour, and whether #25238 changed it.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Whether PR #39055 merged or a different vLLM fix shipped; the page showed it unmerged with a CI gate on first-time contributors.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "In which mlx-lm release the text state machine with the `reasoning` key and the `chat_template_kwargs` request field first appeared (v0.31.2 release notes show #1114; earlier introduction not found).",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Ollama v0.34.4: article claims a tool call after thinking can no longer get out on 5 of 6 parsers when `format` and `tools` are sent together; only the lead was readable, the test script and fix were behind the paywall.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Whether Rapid-MLX or oMLX recover tool calls written in thinking at all; Rapid-MLX docs say thinking is stripped first.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "vLLM's reasoning outputs doc says tool calling parses functions only from `content`, never from `reasoning`",
+          "source": "https://docs.vllm.ai/en/latest/features/reasoning_outputs/",
+          "note": null
+        },
+        {
+          "text": "vLLM renamed the field `reasoning_content` to `reasoning` and warns clients can silently read an empty `reasoning_content`",
+          "source": "https://docs.vllm.ai/en/latest/features/reasoning_outputs/",
+          "note": null
+        },
+        {
+          "text": "vLLM reasoning-parser table maps Gemma 4 to `gemma4`, GLM-4.5 to `glm45`, Qwen3 to `qwen3`, Step-3.5/3.7 Flash to `step3p5`, DeepSeek R1 to `deepseek_r1`",
+          "source": "https://docs.vllm.ai/en/latest/features/reasoning_outputs/",
+          "note": null
+        },
+        {
+          "text": "vLLM lists DeepSeek R1 and DeepSeek-V3.1 reasoning parsers with tool calling unsupported and says V3.1 tool calling works in non-thinking mode",
+          "source": "https://docs.vllm.ai/en/latest/features/reasoning_outputs/",
+          "note": null
+        },
+        {
+          "text": "vLLM Gemma 4 reasoning is off by default; `enable_thinking=True` or any `reasoning_effort` turns it on; Qwen3 is on by default; Granite 3.2 and DeepSeek-V3.1 need `thinking=True`",
+          "source": "https://docs.vllm.ai/en/latest/features/reasoning_outputs/",
+          "note": null
+        },
+        {
+          "text": "vLLM `--default-chat-template-kwargs` sets server-wide thinking defaults and request-level `chat_template_kwargs` override them",
+          "source": "https://docs.vllm.ai/en/latest/features/reasoning_outputs/",
+          "note": null
+        },
+        {
+          "text": "vLLM `thinking_token_budget` forces `reasoning_end_str` once the budget is hit, configured by `--reasoning-config`",
+          "source": "https://docs.vllm.ai/en/latest/features/reasoning_outputs/",
+          "note": null
+        },
+        {
+          "text": "vLLM has an `hf` reasoning parser and `hf` tool parser that read a checkpoint's `response_template` from `tokenizer_config.json`; the `hf` parser cannot be combined with other parsers",
+          "source": "https://docs.vllm.ai/en/latest/features/tool_calling/",
+          "note": null
+        },
+        {
+          "text": "vLLM PR #39055 promotes XML tool-call blocks from reasoning to content in the qwen3 reasoning parser, non-streaming only",
+          "source": "https://github.com/vllm-project/vllm/pull/39055",
+          "note": null
+        },
+        {
+          "text": "A reviewer on vLLM PR #39055 said promoted calls must be appended, not prepended, or `Qwen3CoderToolParser` drops the response text",
+          "source": "https://github.com/vllm-project/vllm/pull/39055",
+          "note": null
+        },
+        {
+          "text": "vLLM issue #39056 commenters report the Qwen3.5 regression appears on vLLM 0.18 and 0.19 and not 0.17, with both `qwen3_coder` and `qwen3_xml`",
+          "source": "https://github.com/vllm-project/vllm/issues/39056",
+          "note": null
+        },
+        {
+          "text": "One #39056 commenter reports using the Anthropic API instead of the OpenAI API against vLLM avoided the stalls with Claude Code and OpenCode, with no explanation",
+          "source": "https://github.com/vllm-project/vllm/issues/39056",
+          "note": null
+        },
+        {
+          "text": "A third-party OpenAI-compatible proxy, qwen-toolcall-fixer, was offered as a stopgap for malformed Qwen tool calls",
+          "source": "https://github.com/vllm-project/vllm/issues/39056",
+          "note": null
+        },
+        {
+          "text": "llama.cpp #20837: pwilkin says the grammar trigger is independent of the reasoning parser and the grammar forces end-of-generation after a tool call inside thinking",
+          "source": "https://github.com/ggml-org/llama.cpp/issues/20837",
+          "note": null
+        },
+        {
+          "text": "llama.cpp #20837: pwilkin says the problem affects all models that put tool calls inside thinking blocks",
+          "source": "https://github.com/ggml-org/llama.cpp/issues/20837",
+          "note": null
+        },
+        {
+          "text": "llama.cpp #20837: first bad build reported as 8255; `chat-template-kwargs {\"enable_thinking\":false}` made consecutive tool calls work",
+          "source": "https://github.com/ggml-org/llama.cpp/issues/20837",
+          "note": null
+        },
+        {
+          "text": "llama.cpp #20837: aldehir says llama.cpp and vLLM emit tool calls found in reasoning as real calls while sglang's reasoning parser consumes those tokens",
+          "source": "https://github.com/ggml-org/llama.cpp/issues/20837",
+          "note": null
+        },
+        {
+          "text": "llama.cpp #20837: markqvist says tool-call parsing is invoked after and separately from reasoning parsing",
+          "source": "https://github.com/ggml-org/llama.cpp/issues/20837",
+          "note": null
+        },
+        {
+          "text": "A bot-listed set of related llama.cpp issues includes #20809 (Qwen3-Instruct-2507 false thinking detection capturing tool calls in reasoning_content), #20754 (autoparser classifies all output as reasoning for /no_think templates) and #20789 (tags injected despite reasoning_format=none)",
+          "source": "https://github.com/ggml-org/llama.cpp/issues/20837",
+          "note": null
+        },
+        {
+          "text": "llama.cpp PR #20424 removed FORCED_OPEN and FORCED_CLOSED reasoning formats and reads think markers from the assistant prefill for parser and grammar",
+          "source": "https://github.com/ggml-org/llama.cpp/pull/20424",
+          "note": null
+        },
+        {
+          "text": "PR #20424 says it clears the ground for disabling grammar triggers inside reasoning, which would resolve #20260",
+          "source": "https://github.com/ggml-org/llama.cpp/pull/20424",
+          "note": null
+        },
+        {
+          "text": "llama.cpp PR #20297 adds `--reasoning on|off`, `--reasoning-budget-message` and a real `--reasoning-budget` token limit via a reasoning sampler",
+          "source": "https://github.com/ggml-org/llama.cpp/pull/20297",
+          "note": null
+        },
+        {
+          "text": "PR #20297 setting a budget of 0 differs from disabling reasoning and may make reasoning-only models try to open an extra think block",
+          "source": "https://github.com/ggml-org/llama.cpp/pull/20297",
+          "note": null
+        },
+        {
+          "text": "PR #20297 early test on Qwen3.5 9B Q8_0: humaneval about 93% full, 88% non-reasoning, about 89% with budgets 1000 and 400 plus message, 79% without the message",
+          "source": "https://github.com/ggml-org/llama.cpp/pull/20297",
+          "note": null
+        },
+        {
+          "text": "llama.cpp reasoning-budget.h defines states IDLE, COUNTING, FORCING, WAITING_UTF8, DONE and can be manually forced into FORCING",
+          "source": "https://raw.githubusercontent.com/ggml-org/llama.cpp/master/common/reasoning-budget.h",
+          "note": null
+        },
+        {
+          "text": "A commenter on llama.cpp #22408 says `grammar_should_apply()` returns false during COUNTING (inside `<think>`), so the lazy tool grammar is dormant during thinking",
+          "source": "https://github.com/ggml-org/llama.cpp/discussions/22408",
+          "note": null
+        },
+        {
+          "text": "llama-server returns HTTP 400 \"Cannot use custom grammar constraints with tools.\" when `tools` and `grammar` are both sent",
+          "source": "https://github.com/ggml-org/llama.cpp/discussions/22408",
+          "note": null
+        },
+        {
+          "text": "A pre-trigger-grammar patch for llama.cpp applied a user grammar only during reasoning; the author reverted it in production because compressed reasoning raised hallucination",
+          "source": "https://github.com/ggml-org/llama.cpp/discussions/22408",
+          "note": null
+        },
+        {
+          "text": "llama-server README: `--reasoning-format` values none, deepseek, deepseek-legacy, default auto (env LLAMA_ARG_THINK)",
+          "source": "https://raw.githubusercontent.com/ggml-org/llama.cpp/master/tools/server/README.md",
+          "note": null
+        },
+        {
+          "text": "llama-server README: `-rea/--reasoning on|off|auto`, `--reasoning-effort`, `--reasoning-budget N` (-1 unlimited, 0 immediate end), `--reasoning-budget-message`, `--reasoning-preserve`",
+          "source": "https://raw.githubusercontent.com/ggml-org/llama.cpp/master/tools/server/README.md",
+          "note": null
+        },
+        {
+          "text": "llama-server README: `--skip-chat-parsing` forces a pure content parser so reasoning and tool calls stay in `content`",
+          "source": "https://raw.githubusercontent.com/ggml-org/llama.cpp/master/tools/server/README.md",
+          "note": null
+        },
+        {
+          "text": "llama-server request fields `reasoning_effort` (none disables thinking), `reasoning_format` and `reasoning_control` exist per request",
+          "source": "https://raw.githubusercontent.com/ggml-org/llama.cpp/master/tools/server/README.md",
+          "note": null
+        },
+        {
+          "text": "llama-server `POST /v1/chat/completions/control` with action `reasoning_end` ends a running reasoning block and requires `reasoning_control: true`",
+          "source": "https://raw.githubusercontent.com/ggml-org/llama.cpp/master/tools/server/README.md",
+          "note": null
+        },
+        {
+          "text": "llama.cpp PR #18994 lets `/chat/completions` accept `reasoning_content` on assistant messages, reports `supports_preserve_reasoning` in `/props`, and forces `clear_thinking=false` for GLM 4.7 when unset",
+          "source": "https://github.com/ggml-org/llama.cpp/pull/18994",
+          "note": null
+        },
+        {
+          "text": "llama.cpp #22786: a Gemma 4 call appeared in `content` because the request omitted `tools`; the same response showed `chat_format: peg-gemma4`, `reasoning_format: deepseek` and filled `reasoning_content`",
+          "source": "https://github.com/ggml-org/llama.cpp/issues/22786",
+          "note": null
+        },
+        {
+          "text": "llama.cpp #24181: with a lazy tool grammar the reasoning-budget sampler is initialized even at unlimited budget to suppress grammar triggers inside thinking",
+          "source": "https://github.com/ggml-org/llama.cpp/issues/24181",
+          "note": null
+        },
+        {
+          "text": "llama.cpp #24181: the Step 3.7 Flash template pre-opens `<think>\\n` and loops of \"Let me search... Actually\" reasoning began at commit 566059a after the autoparser change",
+          "source": "https://github.com/ggml-org/llama.cpp/issues/24181",
+          "note": null
+        },
+        {
+          "text": "llama.cpp #24181: pwilkin showed StepFun tokenizes `<think>` and newlines separately, so the proposed tag-trimming cause was not confirmed",
+          "source": "https://github.com/ggml-org/llama.cpp/issues/24181",
+          "note": null
+        },
+        {
+          "text": "llama.cpp #15496: DeepSeek V3.1 with `--chat-template-kwargs '{\"thinking\": true}'` produced text then `</think>` then `<function=...>` tool text, and CISC said thinking mode needs a new chat-format handler",
+          "source": "https://github.com/ggml-org/llama.cpp/issues/15496",
+          "note": null
+        },
+        {
+          "text": "llama.cpp gpt-oss guide: aldehir says use `--reasoning-format auto`; `none` is no longer recommended",
+          "source": "https://github.com/ggml-org/llama.cpp/discussions/15396",
+          "note": null
+        },
+        {
+          "text": "llama.cpp gpt-oss guide: gpt-oss calls arrive in the commentary channel as `<|channel|>commentary to=functions.get_weather <|constrain|>json<|message|>{...}` and the server must parse them",
+          "source": "https://github.com/ggml-org/llama.cpp/discussions/15396",
+          "note": null
+        },
+        {
+          "text": "llama.cpp gpt-oss guide: OpenAI's compatibility test passed on LM Studio and failed on llama-server (build 6190) because the response uses `reasoning_content` instead of `reasoning`",
+          "source": "https://github.com/ggml-org/llama.cpp/discussions/15396",
+          "note": null
+        },
+        {
+          "text": "llama.cpp gpt-oss guide: a missing or mismatched reasoning field for a past tool call is an open issue across clients and servers with gpt-oss",
+          "source": "https://github.com/ggml-org/llama.cpp/discussions/15396",
+          "note": null
+        },
+        {
+          "text": "llama.cpp gpt-oss guide: a GBNF grammar `root ::= analysis? start final .+` blocks native tool calls so Cline and Roo Code (non-native) work with gpt-oss-20b",
+          "source": "https://github.com/ggml-org/llama.cpp/discussions/15396",
+          "note": null
+        },
+        {
+          "text": "Unsloth says gpt-oss tool-call thoughts must carry the `analysis` channel, not `final`, and that jinja templates differed from Harmony until fixed",
+          "source": "https://unsloth.ai/docs/models/gpt-oss-how-to-run-and-fine-tune",
+          "note": null
+        },
+        {
+          "text": "mlx_lm.server main branch builds a text state machine with reasoning and tool states and a reasoning-to-tool transition on the tool-call start marker",
+          "source": "https://raw.githubusercontent.com/ml-explore/mlx-lm/main/mlx_lm/generate.py",
+          "note": null
+        },
+        {
+          "text": "mlx_lm.server main branch returns reasoning text under `message.reasoning` and sets `finish_reason` to `tool_calls` after a call",
+          "source": "https://raw.githubusercontent.com/ml-explore/mlx-lm/main/mlx_lm/server.py",
+          "note": null
+        },
+        {
+          "text": "mlx_lm.server chooses the initial state `reasoning` when the prompt's last think-start token is after its last think-end token",
+          "source": "https://raw.githubusercontent.com/ml-explore/mlx-lm/main/mlx_lm/server.py",
+          "note": null
+        },
+        {
+          "text": "mlx-lm `TokenizerWrapper` infers thinking markers `<think>`, `<longcat_think>`, `<|think:start|>`, Gemma 4 `<|channel>thought`/`<channel|>` and an xtml format, and passes `enable_thinking` (or `thinking` for custom renderers) defaulting to whether the model has thinking",
+          "source": "https://raw.githubusercontent.com/ml-explore/mlx-lm/main/mlx_lm/tokenizer_utils.py",
+          "note": null
+        },
+        {
+          "text": "mlx-lm v0.31.2 release notes list \"Gemma4 final fixes and multi-token think/tool start/end\" (#1114) and the Gemma 4 tool parser (#1105)",
+          "source": "https://github.com/ml-explore/mlx-lm/releases",
+          "note": null
+        },
+        {
+          "text": "mlx-lm v0.31.3 release notes list a NoneType think-token fix (#1167), parallel tool-call fixes (#1170, #1171) and Gemma 4 parser fixes for hyphenated names (#1150)",
+          "source": "https://github.com/ml-explore/mlx-lm/releases",
+          "note": null
+        },
+        {
+          "text": "vllm-mlx `--reasoning-parser qwen3` needs both think tags and treats untagged output as content; `deepseek_r1` accepts an implicit opening tag",
+          "source": "https://raw.githubusercontent.com/waybarrios/vllm-mlx/main/docs/guides/reasoning.md",
+          "note": null
+        },
+        {
+          "text": "vllm-mlx `deepseek_v4` reasoning parser handles DeepSeek V4 Flash ending implicit reasoning by opening a DSML tool call and must be combined with `--tool-call-parser deepseek_v4` and `--enable-auto-tool-choice`",
+          "source": "https://raw.githubusercontent.com/waybarrios/vllm-mlx/main/docs/guides/reasoning.md",
+          "note": null
+        },
+        {
+          "text": "vllm-mlx returns reasoning under `reasoning`, not `reasoning_content`, and without the flag leaves think tags in `content`",
+          "source": "https://raw.githubusercontent.com/waybarrios/vllm-mlx/main/docs/guides/reasoning.md",
+          "note": null
+        },
+        {
+          "text": "Rapid-MLX returns `reasoning_content` only (no `reasoning` key), omits it when empty, and warns deltas of `reasoning_content` and `content` can interleave",
+          "source": "https://raw.githubusercontent.com/raullenchai/Rapid-MLX/main/docs/guides/reasoning.md",
+          "note": null
+        },
+        {
+          "text": "Rapid-MLX reasoning parser registry: qwen3, deepseek_r1, deepseek_r1_distill, deepseek_v4, gemma4, glm4, gpt_oss, harmony, hy3, minimax, muse, ui_tars, vibethinker; aliases carry their parser",
+          "source": "https://raw.githubusercontent.com/raullenchai/Rapid-MLX/main/docs/guides/reasoning.md",
+          "note": null
+        },
+        {
+          "text": "Rapid-MLX `reasoning_max_tokens` caps thinking only; `reasoning_effort` none sets `enable_thinking=false`, and other levels map to caps minimal 256, low 512, medium 2048, high 8192, xhigh 24000 unless the template has its own effort vocabulary (Qwen3.8)",
+          "source": "https://raw.githubusercontent.com/raullenchai/Rapid-MLX/main/docs/guides/reasoning.md",
+          "note": null
+        },
+        {
+          "text": "Rapid-MLX tool-calling doc says the parser strips thinking content before extracting tool calls, so think tags never interfere, including implicit-think prompts",
+          "source": "https://raw.githubusercontent.com/raullenchai/Rapid-MLX/main/docs/guides/tool-calling.md",
+          "note": null
+        },
+        {
+          "text": "Rapid-MLX removes a complete call block to an undeclared tool from the response text only when tools were declared, it is outside code fences, and no earlier tool markup exists",
+          "source": "https://raw.githubusercontent.com/raullenchai/Rapid-MLX/main/docs/guides/tool-calling.md",
+          "note": null
+        },
+        {
+          "text": "Rapid-MLX README says Qwen3.5 and 3.6 default to thinking on and `--no-think` skips chain-of-thought; `rapid-mlx chat` has `--think` and `--no-think`; tool calls arriving as text need an explicit `--tool-call-parser`",
+          "source": "https://github.com/raullenchai/Rapid-MLX",
+          "note": null
+        },
+        {
+          "text": "oMLX README: with a bare JSON, EBNF or regex grammar `thinking_budget` is ignored because the grammar constrains from the first token; a compatible `reasoning_parser` combines constrained output with a budgeted reasoning phase",
+          "source": "https://raw.githubusercontent.com/jundot/omlx/main/README.md",
+          "note": null
+        },
+        {
+          "text": "oMLX README: tool-enabled streaming emits assistant text incrementally, suppresses tool-call markup, and emits structured calls after the turn completes",
+          "source": "https://raw.githubusercontent.com/jundot/omlx/main/README.md",
+          "note": null
+        },
+        {
+          "text": "oMLX 0.7.0rc1 release notes: keep truncated thinking out of answer content, decode untyped Qwen tool parameters, recognize the VLM Qwen parser (#3809)",
+          "source": "https://github.com/jundot/omlx/releases",
+          "note": null
+        },
+        {
+          "text": "oMLX release notes: a fix preserves top-level `enable_thinking`, rejects contradictory thinking controls, and stops a zero thinking budget implicitly enabling thinking (#3559)",
+          "source": "https://github.com/jundot/omlx/releases",
+          "note": null
+        },
+        {
+          "text": "oMLX release notes: unsupported `reasoning_effort` values are retried through a bounded fallback in the distributed path",
+          "source": "https://github.com/jundot/omlx/releases",
+          "note": null
+        },
+        {
+          "text": "Ollama thinking docs: `/api/show` returns a `thinking` object with `values` (booleans or level names) and `default`; `think` accepts true, false, null or a listed string; chat returns `message.thinking` and `message.content`",
+          "source": "https://github.com/ollama/ollama/blob/main/docs/capabilities/thinking.mdx",
+          "note": null
+        },
+        {
+          "text": "Ollama v0.34.4 (2026-09-23) release notes: structured outputs on thinking models apply in a single pass",
+          "source": "https://github.com/ollama/ollama/releases/tag/v0.34.4",
+          "note": null
+        },
+        {
+          "text": "Ollama commit 5a0ff311 removes the two-pass structured-output path; `CompletionRequest.ThinkingClose` holds strings that end the thinking a response begins with, which `Format` leaves free",
+          "source": "https://github.com/ollama/ollama/commit/5a0ff311",
+          "note": null
+        },
+        {
+          "text": "Ollama issue #10929 (2025-05-31): `think: true` with `format` produced invalid JSON (doubled `{\"`) on qwen3:0.6b",
+          "source": "https://github.com/ollama/ollama/issues/10929",
+          "note": null
+        },
+        {
+          "text": "An article on Ollama 0.34.4 reports ThinkingClose is `</think>` for Qwen 3.5, DeepSeek, GLM and Nemotron, `<channel|>` for Gemma 4 and six message headers for gpt-oss, and claims tool calls after thinking get blocked on 5 of 6 parsers when `format` and `tools` are sent together",
+          "source": "https://pub.towardsai.net/ollama-0-34-4-lets-qwen-think-before-json-then-blocks-the-tool-call-5-of-6-parsers-tested-8313c8dfb089",
+          "note": null
+        },
+        {
+          "text": "Ollama gemma4 parser logged `gemma4 tool call parsing failed` for missing `<|\"|>` quotes on 0.20.1 and 0.20.2 (macOS M2 Max included); maintainer says the model emitted invalid calls",
+          "source": "https://github.com/ollama/ollama/issues/15315",
+          "note": null
+        },
+        {
+          "text": "Hermes issue #46131 reports Ollama's OpenAI-compatible API returns empty `content` with the text in `reasoning` for thinking models, and sending `reasoning_effort: none` disables thinking",
+          "source": "https://github.com/NousResearch/hermes-agent/issues/46131",
+          "note": null
+        },
+        {
+          "text": "LM Studio issue 1592: on 0.4.6 the parser exited thinking mid-sentence in one run and never exited in another, leaving `content` empty and `reasoning_content` at 8,043 characters",
+          "source": "https://github.com/lmstudio-ai/lmstudio-bug-tracker/issues/1592",
+          "note": null
+        },
+        {
+          "text": "LM Studio issue 1592: 0.4.10 (llama.cpp runtime 2.12.0) still failed while bare llama.cpp build 8670 worked",
+          "source": "https://github.com/lmstudio-ai/lmstudio-bug-tracker/issues/1592",
+          "note": null
+        },
+        {
+          "text": "LM Studio issue 1592: in 0.4.11 enabling \"separate reasoning_content and content\" reportedly wrapped JSON output in `think`",
+          "source": "https://github.com/lmstudio-ai/lmstudio-bug-tracker/issues/1592",
+          "note": null
+        },
+        {
+          "text": "Gemma 4 official doc: 12B/26B/31B with thinking off pre-fill `<|channel>thought\\n<channel|>` in the generation prompt; E2B/E4B do not",
+          "source": "https://ai.google.dev/gemma/docs/capabilities/thinking",
+          "note": null
+        },
+        {
+          "text": "Gemma 4 official doc: thoughts from previous turns must be stripped from history, except that thoughts must not be removed between function calls inside one model turn",
+          "source": "https://ai.google.dev/gemma/docs/core/prompt-formatting-gemma4",
+          "note": null
+        },
+        {
+          "text": "Gemma 4 official agentic example orders output as thought channel, then `<channel|>`, then `<|tool_call>...<tool_call|>`, so the call follows a closed thought block",
+          "source": "https://ai.google.dev/gemma/docs/core/prompt-formatting-gemma4",
+          "note": null
+        },
+        {
+          "text": "Gemma 4 official doc: thinking should be set at conversation level, in one system turn together with tool declarations",
+          "source": "https://ai.google.dev/gemma/docs/core/prompt-formatting-gemma4",
+          "note": null
+        },
+        {
+          "text": "Gemma 4 official doc: a `parse_response` helper returns `thinking`, `answer` and `tool_calls` keys",
+          "source": "https://ai.google.dev/gemma/docs/capabilities/function-calling",
+          "note": null
+        },
+        {
+          "text": "Unsloth's GLM-4.7-Flash vLLM example pairs `--tool-call-parser glm47` with `--reasoning-parser glm45`",
+          "source": "https://unsloth.ai/docs/models/tutorials/glm-4.7-flash",
+          "note": null
+        },
+        {
+          "text": "Qwen's llama.cpp doc recommends `--jinja --reasoning-format deepseek` for thinking and tool parsing in llama-server",
+          "source": "https://qwen.readthedocs.io/en/latest/run_locally/llama.cpp.html",
+          "note": null
+        },
+        {
+          "text": "Inferred test recipe: send one trivial tool with thinking on and a prompt that makes the model reason about XML, then check three fields at once (`tool_calls`, `finish_reason`, and whether the call text appears in the reasoning field); repeat with thinking off and with `tools` omitted to separate template, parser and request faults",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Inferred rule: when one runtime fails, run the same request against bare llama-server at a current build, since LM Studio 0.4.10 failed where build 8670 worked",
+          "source": "asserted",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Corrections and disagreements",
+      "facts": [
+        {
+          "text": "CONTRADICTS qwen3-6-preserve-thinking-chat-template-flag-and-prompt-cache-reuse.md (line \"mlx_lm.server: no source found\"): mlx_lm.server has a `--chat-template-args` JSON flag and a per-request `chat_template_kwargs` field merged over it",
+          "source": "https://raw.githubusercontent.com/ml-explore/mlx-lm/main/mlx_lm/server.py",
+          "note": null
+        },
+        {
+          "text": "CONTRADICTS tool-call-parser-and-chat-template-mismatch.md (line 79, \"hard enable_thinking switch is not exposed by llama.cpp CLI flags\"): current llama-server has `-rea on|off|auto` and per-request `reasoning_effort` none",
+          "source": "https://raw.githubusercontent.com/ggml-org/llama.cpp/master/tools/server/README.md",
+          "note": null
+        }
+      ]
+    }
+  ],
+  "related": []
+}

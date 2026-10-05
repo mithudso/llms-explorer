@@ -1,0 +1,194 @@
+{
+  "slug": "expert-count-reduction-at-inference-top-k-overri",
+  "concept": "Expert-count reduction at inference top-k override",
+  "generated": "2026-10-05",
+  "summary": "llama.cpp exposes the active-expert count as GGUF metadata, so it can be changed at load with `--override-kv <arch>.expert_used_count=int:N`. A January 2024 llama.cpp discussion (#5114) shows `--override-kv llama.expert_used_count=int:3` on a Mixtral GGUF printing `n_expert = 8` and `n_expert_use...",
+  "facets": [
+    {
+      "title": "Facts",
+      "facts": [
+        {
+          "text": "llama.cpp exposes the active-expert count as GGUF metadata, so it can be changed at load with `--override-kv <arch>.expert_used_count=int:N`. A January 2024 llama.cpp discussion (#5114) shows `--override-kv llama.expert_used_count=int:3` on a Mixtral GGUF printing `n_expert = 8` and `n_expert_used = 3`; the key prefix is the model architecture name. Exllamav2 exposed the same knob as \"Number of experts per token\".",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "In streaming runtimes the override changes I/O directly: SwiftLM reads fewer experts per layer at lower top-k and Flash-MoE hard-codes K=4. SSD bytes per token scale with K (Flash-MoE: 4 experts x about 6.75 MB x 60 layers at 4-bit).",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Published evidence on tolerance (Apple, MoE-PHDS, arXiv 2509.23012): pretrained OLMoE-1B-7B-0125 loses 1.2% relative multiple-choice accuracy and gains 6.4% wikitext perplexity when k drops from 8 to 6, and Qwen1.5-MoE-A2.7B loses 0.43% accuracy and gains 1.2% perplexity from k=4 to k=3. Reducing k by up to 25% keeps relative QA drop at or under 1-2%; \"below k_pre/2 degradation becomes more pronounced\".",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "MoE-PHDS is a short supervised fine-tune that mixes training across sparsity levels with a curriculum anchored at a low k, turning one checkpoint into a \"dial k\" control surface; it matched or exceeded checkpoints trained at each k on OLMoE, Qwen1.5-MoE and internal models, and improved cross-sparsity agreement by up to 22%.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Ada-K routing (ICLR 2025) replaces fixed top-k with learned per-token allocators trained with PPO; on four baseline models it cut FLOPs more than 25% and sped inference more than 20% while improving benchmark scores, and found harder tasks, middle layers and content words activate more experts.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Roster of Experts (Apple, January 2026) goes the other direction: it is training-free, injects controlled stochasticity into routing and aggregates several expert samples per token to raise quality at inference, i.e. it spends extra expert compute rather than saving it.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "SpecMD's miss-handling experiment (a \"drop priority\" policy that skips missing experts) is effectively a per-miss top-k cut: -5% to -15% on 64-expert top-8 OLMoE but -25% to -30% on 4-bit Qwen1.5-MoE (60 experts, top-4).",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "2024-01: llama.cpp `--override-kv` for expert_used_count documented in a community answer.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "2025: Ada-K (ICLR 2025 poster, January 2025 submission) and MoE-PHDS (arXiv 2509.23012; Apple page December 2025).",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "2026-03: Flash-MoE ships K=4 for a K=10 model; 2026: SwiftLM exposes `SWIFTLM_TOP_K`.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "A small base k leaves little room: models with fewer active experts degrade faster per dropped expert (SpecMD Qwen -25 to -30% versus OLMoE -5 to -15%).",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Flash-MoE's author found K=4 holds quality on a K=10 model and K=3 collapses immediately; under the PHDS rule of thumb K=4 of 10 is already below k_pre/2 = 5, so the K=4 result runs against the paper's guidance (different model, 2-bit/4-bit expert quantization and an author-run quality check rather than a benchmark suite).",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Top-k override combined with expert quantization stacks error: Flash-MoE's 2-bit plus K=4 breaks JSON tool calls, while a Hacker News commenter reports a 2.46 bpw llama.cpp run of the full-K model calling tools reliably (existing dossier).",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Router normalization differs by model: PHDS renormalizes masked probabilities for normalized softmax-k routers and leaves unnormalized top-k-softmax routers alone; a bare metadata override uses whatever the architecture code does.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "A speculative-decoding draft against a streamed MoE interacts badly with lower k: verify passes route to a union of experts, so SSD I/O scales with draft length (existing SwiftLM note).",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "How far can k drop? PHDS (OLMoE, Qwen1.5-MoE): safe to about 25% reduction, worse below half. Flash-MoE: 60% reduction (10 to 4) acceptable. SwiftLM: default 6 of 8 (25%) and \"turbo\" 2 of 8 (75%) \"still coherent\". These use different models, metrics (benchmarks, perplexity, anecdotal coherence) and quants; no source measures the same model across the full range on a task suite.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Static versus adaptive k. PHDS and the override approaches fix one global k; Ada-K reports that quality can rise while FLOPs fall when k is allocated per token, which a global override cannot capture. Ada-K requires training allocators, so it cannot be applied to an off-the-shelf GGUF.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "No source measures perplexity or task accuracy versus k for Qwen3.5-397B-A17B, DeepSeek V4 Flash or GLM 5.x, the models that matter for Mac streaming.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "No source tests a llama.cpp `expert_used_count` override on current Qwen3-MoE or hybrid (GatedDeltaNet) models.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Whether a per-layer or per-token adaptive k could be added to a streaming runtime without retraining is untested.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "llama.cpp can override the number of active experts at load with `--override-kv` on the `expert_used_count` metadata key; `--override-kv llama.expert_used_count=int:3` on a Mixtral GGUF prints `n_expert_used = 3`.",
+          "source": "https://github.com/ggml-org/llama.cpp/discussions/5114",
+          "note": null
+        },
+        {
+          "text": "In January 2024 Exllamav2 exposed a \"Number of experts per token\" setting for Mixtral that the llama.cpp loader in text-generation-webui did not.",
+          "source": "https://github.com/ggml-org/llama.cpp/discussions/5114",
+          "note": null
+        },
+        {
+          "text": "For OLMoE-1B-7B-0125, reducing k at runtime from 8 to 6 lowers multiple-choice accuracy by 1.2% relative and raises wikitext perplexity by 6.4%.",
+          "source": "https://arxiv.org/html/2509.23012",
+          "note": null
+        },
+        {
+          "text": "For Qwen1.5-MoE-A2.7B, reducing k from 4 to 3 lowers accuracy by 0.43% and raises perplexity by 1.2%.",
+          "source": "https://arxiv.org/html/2509.23012",
+          "note": null
+        },
+        {
+          "text": "MoE-PHDS keeps relative QA drop at 1-2% or less when k is cut by up to 25%, and says degradation becomes more pronounced below half of the pretraining k.",
+          "source": "https://arxiv.org/html/2509.23012",
+          "note": null
+        },
+        {
+          "text": "MoE-PHDS trains one checkpoint across sparsity levels with a curriculum anchored at a low k so practitioners can \"dial k\" at inference without swapping checkpoints.",
+          "source": "https://machinelearning.apple.com/research/moe-phds",
+          "note": null
+        },
+        {
+          "text": "MoE-PHDS reports up to 22% better cross-sparsity agreement than well-specified oracle models and tests OLMoE-1B-7B-0125, Qwen1.5-MoE-A2.7B and proprietary models.",
+          "source": "https://machinelearning.apple.com/research/moe-phds",
+          "note": null
+        },
+        {
+          "text": "For normalized softmax-k routers MoE-PHDS renormalizes masked probabilities, while unnormalized top-k-softmax routers stay unnormalized.",
+          "source": "https://arxiv.org/html/2509.23012",
+          "note": null
+        },
+        {
+          "text": "Ada-K routing uses pluggable learnable allocators trained with PPO, reports over 25% FLOPs reduction and over 20% inference speedup with improved benchmark performance versus top-k on four baselines, and trained Mixtral-8x22B in 8 hours.",
+          "source": "https://openreview.net/forum?id=9CqkpQExe2",
+          "note": null
+        },
+        {
+          "text": "Ada-K's analysis finds harder tasks, middle layers and content words activate more experts.",
+          "source": "https://openreview.net/forum?id=9CqkpQExe2",
+          "note": null
+        },
+        {
+          "text": "Roster of Experts is training-free, injects stochasticity into expert routing and aggregates multiple samples per token to improve quality at inference.",
+          "source": "https://machinelearning.apple.com/research/roe",
+          "note": null
+        },
+        {
+          "text": "SpecMD's expert-drop miss policy costs -5% to -15% on OLMoE and -25% to -30% on 4-bit Qwen1.5-MoE, indicating more active experts dilute the impact of any one miss.",
+          "source": "https://arxiv.org/html/2602.03921",
+          "note": null
+        },
+        {
+          "text": "SwiftLM's streaming README lists top-k 8 at 4.95, top-k 6 (default) at 5.20, top-k 4 at 5.91 and top-k 2 at 6.52 tok/s on a 122B-class model.",
+          "source": "https://github.com/SharpAI/SwiftLM",
+          "note": null
+        },
+        {
+          "text": "Halving k from 8 to 4 raised SwiftLM decode only 19% (4.95 to 5.91 tok/s), far below 2x, which is consistent with its statement that GPU compute is about 190 of 200 ms per token at steady state.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "A bare metadata override is only as good as the model's tolerance, and reported tolerance is model-specific (PHDS 25%, Flash-MoE 60%, SwiftLM 75% \"coherent\").",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Top-k override is a quality-for-speed trade that stacks with expert quantization, so evaluate the combination, not each alone.",
+          "source": "asserted",
+          "note": null
+        }
+      ]
+    }
+  ],
+  "related": []
+}

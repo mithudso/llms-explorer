@@ -1,0 +1,349 @@
+{
+  "slug": "mac-local-llms-omlx-and-rapid-mlx-internals",
+  "concept": "Mac local LLMs: oMLX, Rapid-MLX and related internals",
+  "generated": "2026-10-05",
+  "summary": "oMLX (Apache-2.0, macOS 15+, Python 3.11-3.13, M1-M5): multi-model EnginePool, menu-bar app, /admin dashboard, persistent SSD cache, embeddings and rerank on one endpoint. Install: signed DMG, `brew install jundot/omlx/omlx` (CLI only; `brew tap jundot/omlx` first).",
+  "facets": [
+    {
+      "title": "Choose and install",
+      "facts": [
+        {
+          "text": "oMLX (Apache-2.0, macOS 15+, Python 3.11-3.13, M1-M5): multi-model EnginePool, menu-bar app, /admin dashboard, persistent SSD cache, embeddings and rerank on one endpoint. Install: signed DMG, `brew install jundot/omlx/omlx` (CLI only; `brew tap jundot/omlx` first).",
+          "source": "https://github.com/jundot/omlx",
+          "note": null
+        },
+        {
+          "text": "Rapid-MLX: one model served headless on port 8000, Ollama-style verbs. `brew install rapid-mlx`, `uv tool install rapid-mlx@latest` or `pip install rapid-mlx`; extras `[vision]` `[audio]` `[all]`. `rapid-mlx launch claude-code` patches ~/.claude/settings.json.",
+          "source": "https://github.com/raullenchai/Rapid-MLX",
+          "note": null
+        },
+        {
+          "text": "Both ship several releases a week with fresh regressions (oMLX 0.7.0 memory guard and MiniMax-M3; Rapid-MLX 0.15.5 wedge): pin a version, keep the previous one. No independent oMLX vs Rapid-MLX benchmark exists.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "oMLX custom kernels (GLM-5.2, MiniMax M3, Qwen3.5) are precompiled only in the DMG; source builds need full Xcode, else GLM-5.2 prefill is ~29 vs 845 tok/s.",
+          "source": "https://github.com/jundot/omlx",
+          "note": null
+        },
+        {
+          "text": "oMLX 0.7.0 (2026-09-30): `server.gpu_keep_warm_interval` (saves ~1-1.5 s TTFT), live `max_concurrent_requests`, MoE expert SSD offload.",
+          "source": "https://github.com/jundot/omlx/releases",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "oMLX memory guard and pressure levels",
+      "facts": [
+        {
+          "text": "Tiers keep memory free for other apps: safe 20% of RAM (6-16 GB), balanced 8% (3-8 GB), aggressive 2% (1.5-4 GB); admission = min(hard limit, watermark, hard x headroom 90/92/97%).",
+          "source": "https://github.com/jundot/omlx/pull/3933",
+          "note": null
+        },
+        {
+          "text": "Failure: #4213 prefill rejected \"~78.05 GB peak ... dynamic ceiling is 77.82 GB\". Raise `memory_guard_tier` safe -> balanced -> aggressive.",
+          "source": "https://github.com/jundot/omlx/issues/4213",
+          "note": null
+        },
+        {
+          "text": "Guard does not price vision encoding (#3683 OOM); `aggressive` cannot beat the Metal cap (0.95 x `iogpu.wired_limit_mb`).",
+          "source": "https://github.com/jundot/omlx/pull/3933",
+          "note": null
+        },
+        {
+          "text": "ProcessMemoryEnforcer: soft pressure evicts idle LRU models only while >1 loaded and pauses admission; hard unloads even the last idle model, or aborts a sole busy model's requests (unload only on emergency: over ceiling by 2 GiB or 2 polls).",
+          "source": "https://raw.githubusercontent.com/jundot/omlx/main/omlx/process_memory_enforcer.py",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "oMLX store-cache gate and stalled admission",
+      "facts": [
+        {
+          "text": "Stores run on one worker thread (`omlx-store-cache`, max_workers=1), gated by `_StoreCacheGate`; its cap steps up toward `max_num_seqs` at ok pressure and down to 1 at soft/hard, one step per poll tick. A slot frees when cache references are released, not when the write finishes.",
+          "source": "https://raw.githubusercontent.com/jundot/omlx/main/omlx/scheduler.py",
+          "note": null
+        },
+        {
+          "text": "Gate full: admission defers (debug `Admission deferred: store-cache pipeline full`). After 60 s the request fails with `finish_reason=\"error\"`, `error_code=\"store_cache_admission_stalled\"` (\"store-cache cleanup stayed full ... retry after the cache writer drains\"); at the memory limit the code is `memory_admission_stalled`. Fix: retry or shrink `ssd_cache_max_size`.",
+          "source": "https://raw.githubusercontent.com/jundot/omlx/main/omlx/scheduler.py",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "oMLX SSD and hot cache",
+      "facts": [
+        {
+          "text": "Eviction is global LRU, size-driven; no per-model quota (#2663, #3612 unanswered).",
+          "source": "https://github.com/jundot/omlx/issues/2662",
+          "note": null
+        },
+        {
+          "text": "Set `ssd_cache_max_size` explicitly on small disks: `auto` = 50% of (free disk + existing cache) since 0faa19c. Clear via `POST /admin/api/ssd-cache/clear` only on 0.7.0rc1+.",
+          "source": "https://github.com/jundot/omlx/issues/3829",
+          "note": null
+        },
+        {
+          "text": "`hot_cache_max_size 4GB` made reconstruct 18x-73x slower (#4175, M4 Max 36 GB). For single-user chats use `--hot-cache-write-through` / `OMLX_HOT_CACHE_WRITE_THROUGH` (default off).",
+          "source": "https://github.com/jundot/omlx/issues/4175",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Hybrid GDN, MTP and boundary snapshots",
+      "facts": [
+        {
+          "text": "Non-sliceable state is stored only at block boundaries. Log `reason=boundary_snapshot_unavailable ... available_boundaries=0` counts only the current request; judge reuse by `cached_tokens`. On 0.6.4 qwen3_5 with Lightning MTP, #3317 re-prefilled 76K prompts (496 s reply); 0.6.3 is clean. Use 0.7.0+.",
+          "source": "https://github.com/jundot/omlx/issues/3317",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "oMLX engines and Metal stream clears",
+      "facts": [
+        {
+          "text": "Glm5_next is VLM-only: forced-LM reload fails `Model type glm5_next not supported` (#3959). MiniMax-M3 0.7.0 fails `'KVCache' object has no attribute 'keys_and_values'` (#4228).",
+          "source": "https://github.com/jundot/omlx/issues/3959",
+          "note": null
+        },
+        {
+          "text": "Clears must drain the engine's own stream: PR 2412/2413 pass `self._stream` to `_sync_and_clear_cache` (bare `mx.synchronize()` drains Stream 0 and left ~70 ms in flight). Still bare on main: `engine/base.py` after every non-streaming request, engine_pool, dflash, vlm, oq.",
+          "source": "https://raw.githubusercontent.com/jundot/omlx/main/omlx/engine_pool.py",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "oMLX pressure reclaim and executors",
+      "facts": [
+        {
+          "text": "Hard pressure sets `_pending_pressure_clear`: it drains at the next step boundary even under load (idle reclaim waits for no requests), and prefill clears after each chunk since one step can last minutes.",
+          "source": "https://raw.githubusercontent.com/jundot/omlx/main/omlx/scheduler.py",
+          "note": null
+        },
+        {
+          "text": "`OMLX_DISABLE_PRESSURE_RECLAIM=1` turns off the hard-level reclaim request; grace gate is 5 polls. Unknown: whether 5 polls cover a slow prefill chunk.",
+          "source": "https://raw.githubusercontent.com/jundot/omlx/main/omlx/process_memory_enforcer.py",
+          "note": null
+        },
+        {
+          "text": "Two executors: global `mlx-global` thread (keep-warm, default stream) and per-engine `mlx-engine-<id8>` thread with its own stream; they can overlap on GPU, so \"serialized\" holds only among global users. Decode burst: `OMLX_DECODE_BURST_MAX_STEPS=64`, `_BUDGET_SINGLE_S=0.1`, `_BUDGET_S=0.03` (~80 vs ~74 tok/s sync vs async). Engine close() reclaims on its own thread; timeout means `fatal_exit`.",
+          "source": "https://raw.githubusercontent.com/jundot/omlx/main/omlx/engine_core.py",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "oMLX health, teardown and wedges",
+      "facts": [
+        {
+          "text": "`/health` is unauthenticated and returns 200 `healthy`, or 503 `loading` until pinned preload finishes; it reads no scheduler state, so it stayed green ~14 h in a 0.5.3 wedge. Probe a tiny real completion.",
+          "source": "https://raw.githubusercontent.com/jundot/omlx/main/omlx/server.py",
+          "note": null
+        },
+        {
+          "text": "Unload must finish in 60 s or the process exits with code 70. A 420 GB GLM-5.2 unload hit it (#2334, open); a 40 GB model took ~26 s.",
+          "source": "https://raw.githubusercontent.com/jundot/omlx/main/omlx/utils/fatal.py",
+          "note": null
+        },
+        {
+          "text": "Killing a wedged server strands wired memory (#2184, open): 404 GiB after `bootout` of a wedged server vs 5 GiB after a healthy one;. Use `POST /v1/models/{id}/unload` before `launchctl bootout`, launchd `ExitTimeOut` 180, never `kickstart -k`. Since 2026-07-11 the port binds before preload.",
+          "source": "https://github.com/jundot/omlx/issues/2184",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Rapid-MLX, MTPLX, Osaurus",
+      "facts": [
+        {
+          "text": "Rapid-MLX 0.15.5 wedge (#4108): Metal memory climbs ~25-36 GB over 19 Claude Code requests, then HTTP 503 \"max concurrent requests\" until restart. PFlash `always` silently drops ~80% of the middle of no-tools prompts above ~11.5K tokens (#4092).",
+          "source": "https://github.com/raullenchai/Rapid-MLX/issues/4108",
+          "note": null
+        },
+        {
+          "text": "MTPLX memory guard: default 75% of RAM; over-limit requests get HTTP 507 before prefill. 2.12.1 over-refused small Macs; use 2.12.2. Codex's hosted `web_search` gets a 400 unless removed. Osaurus: 127.0.0.1:1337, `brew install --cask osaurus`.",
+          "source": "asserted",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Corrections to earlier claims",
+      "facts": [
+        {
+          "text": "Default oMLX ceiling is not RAM minus 8 GB: balanced reserves 8% clamped to 3-8 GB, so 16 and 24 GB Macs get the 3 GB floor.",
+          "source": "asserted",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Open",
+      "facts": [
+        {
+          "text": "Whether #4213 is tier calibration or a bug; whether any release closed #3317, #2624, #2334, #2184; MTPLX exactness unverified.",
+          "source": "asserted",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Corrections and disagreements",
+      "facts": [
+        {
+          "text": "CONTRADICTS: disk-and-ssd-tiered-kv-cache-servers.md (lines 12 and 73, default ceiling is total RAM minus 8 GB): from PR 3933 numbers `balanced` reserves 8% of RAM clamped to 3-8 GB, so RAM minus 8 GB holds only at about 100 GB or more, and on 16 GB and 24 GB Macs the reserve is the 3 GB floor.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "CONTRADICTS prompt-cache-survival-across-model-unload-swap-and-restart.md (lines 13, 76): incompatible blocks are not \"not evicted\"; they are LRU-evicted when over cap at startup and on writes needing space, but not deleted on scan.",
+          "source": "https://github.com/jundot/omlx/issues/2662",
+          "note": null
+        },
+        {
+          "text": "CONTRADICTS: omlx-per-model-ssd-cache-isolation-quotas-and-stale-block-eviction.md (claim that issue 1578 records a maintainer position against partial-tail snapshots for hybrid GDN): the maintainer later closed 1578 as completed via PR 3835 (commit 8288884, 2026-09-22), which stores a prefix tail block.",
+          "source": "https://github.com/jundot/omlx/pull/3835",
+          "note": null
+        },
+        {
+          "text": "CONTRADICTS: omlx-store-cache-admission-gate-and-60-s-admissi.md only in timing granularity: the cap walk runs per enforcement tick (1 s under pressure, but 10 s or 30 s when idle and ok), not per pressure transition.",
+          "source": "https://raw.githubusercontent.com/jundot/omlx/main/omlx/process_memory_enforcer.py",
+          "note": null
+        },
+        {
+          "text": "CONTRADICTS: omlx-metal-cache-clears-wait-for-the-owning-stre.md open question implies the sites may have been converted; on main only the `vlm_mtp.py` and GLM decode sites are, and the engine, engine_pool, dflash, vlm and oq sites are not.",
+          "source": "https://raw.githubusercontent.com/jundot/omlx/main/omlx/engine_pool.py",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Concepts in this cluster",
+      "facts": [
+        {
+          "text": "oMLX and Rapid-MLX runtimes",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "MTPLX MTP self-drafting Mac server",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "oMLX VLM versus text engine selection and per-model settings",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "oMLX memory guard tiers and prefill ceiling on 16-24 GB Macs",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Hybrid and recurrent model checkpoint handling in oMLX",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "oMLX per-model SSD cache isolation quotas and stale-block eviction",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "oMLX GDN sidecar and rotating-window snapshot size",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "oMLX hybrid GDN boundary snapshot capture regression",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "oMLX trailing partial block and restore-latency limits",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "MTPLX memory guard and request pricing on 8-128 GB Macs",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "osaurus vmlx-swift-lm runtime and vmlxctl",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Osaurus inference scheduler, model leases and single-residency handoff",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "oMLX issue 2624: engine stops dispatching for 6 hours with every thread idle",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "oMLX boundary snapshot store serialization and async cache-store worker locking",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "oMLX issue 2330: scheduler never dispatches after two identical cached prefills",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "oMLX store-cache admission gate and 60 s admission stall error",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "oMLX fatal teardown watchdog and wired memory stranding (issues 2334 and 2184)",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "oMLX Metal cache clears wait for the owning stream (PRs 2412 and 2413)",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "oMLX ProcessMemoryEnforcer pressure levels and adjust_store_cache_cap",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "oMLX /health liveness versus scheduler wedge",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "oMLX remaining ad-hoc mx.clear_cache sites needing stream analysis",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "oMLX OMLX_DISABLE_PRESSURE_RECLAIM and request_pressure_reclaim scheduler path",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "oMLX shared MLX executor thread versus per-engine streams",
+          "source": "asserted",
+          "note": null
+        }
+      ]
+    }
+  ],
+  "related": []
+}

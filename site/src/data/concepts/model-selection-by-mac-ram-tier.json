@@ -1,0 +1,534 @@
+{
+  "slug": "model-selection-by-mac-ram-tier",
+  "concept": "Model selection by Mac RAM tier",
+  "generated": "2026-10-05",
+  "summary": "Usable-budget rule of thumb: 70-75% of RAM for model plus context (32 GB -> ~22-24 GB; 64 GB -> ~48 GB; 128 GB -> ~96 GB). macOS and apps take 8-12 GB on a 64 GB Mac.",
+  "facets": [
+    {
+      "title": "Facts",
+      "facts": [
+        {
+          "text": "Usable-budget rule of thumb: 70-75% of RAM for model plus context (32 GB -> ~22-24 GB; 64 GB -> ~48 GB; 128 GB -> ~96 GB). macOS and apps take 8-12 GB on a 64 GB Mac.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Default GPU wired cap is not a flat 75%: ~65-70% at <=36 GB, ~75% above. `iogpu.wired_limit_mb` raises it live (no reboot, resets at reboot). Safe raised values: 36 GB -> 30720, 48 GB -> 40960, 64 GB -> 57344, 128 GB -> 118784; leave >=8 GB (12 GB with a heavy browser). Over-setting freezes the UI. Large boxes use total-6 GB (512 GB machine) via a LaunchDaemon since /etc/sysctl.conf is ignored.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Decode speed ~ bandwidth / bytes read per token. Bandwidth by chip: M1 68, M2/M3 100, M4 120, M5 153, M6 170 (only on 24/32 GB configs; 16 GB M6 stays 153) GB/s; Pro: M4 273, M5 307; Max: M1-M3 400, M4 546, M5 460-614; Ultra: M1/M2 800, M3 819, M5 1.2 TB/s. Pro roughly 2x base, Max 2x Pro, Ultra 2x Max. M3 Pro (150) is slower than M2 Pro (200).",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "MoE keeps all weights resident but reads only active parameters (A3B ~ 2 GB read per token at 4-bit). Above ~550 GB/s a 3B-active MoE becomes compute-limited, so Ultra/Max gains flatten for MoE and show mostly for dense models.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Prefill (prompt processing) is compute-bound and the real pain on Macs for agentic use; decode tok/s is misleading. M5/M6 Neural Accelerators in GPU cores target prefill.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "KV cache: dense 70B at fp16 costs ~10 GB per 32k tokens. Hybrid linear-attention Qwen3.5/3.6/Qwen3-Next cache only sparse full-attention layers: Qwen3.6-35B-A3B costs ~0.3 GB at 16k and ~2.5 GB at 131k. A q8_0 KV cache roughly halves KV.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "2026-03-27 Ollama 0.19 moved Apple Silicon safetensors models to an MLX engine (58 -> 112 tok/s claimed); GGUF files still run on llama.cpp.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Spring 2026 reference stack: Qwen3.5 (9B, 27B, 35B-A3B, 122B-A10B, 397B-A17B), Gemma 4 (2026-04), gpt-oss 20B/120B, Qwen3-Coder-Next 80B-A3B.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Summer-Sep 2026: Qwen3.6 (27B dense, 35B-A3B), Qwen3.8 27B (Extra Reasoning mode, 256K ctx), Qwen3.8-Flash-Next (~125B MoE), Poolside Laguna S 2.1 (118B, 8B active), Gemma 4 updates fixing tool calls, Gemma 4 12B.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "2026-08-25 Apple announced M6 (2 nm, base) and M5 Ultra (quad-die, up to 512 GB, 1.2 TB/s; 256 GB shipped 2026-09-22, 512 GB late Oct). M5 Pro Mac mini caps at 64 GB; M6 mini at 32 GB; M5 Max Studio 36-128 GB. DRAM price surge raised Apple prices in June 2026 (14\" MBP M5 Pro 64 GB +$700).",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "\"Technically fits\" is not \"usable\": jola.dev on a 24 GB M4 found Qwen3.6 Q3, gpt-oss-20B and Devstral Small 24B unusable with 64K+ context and normal apps open; Qwen3.5-9B Q4_K_S (~40 tok/s, 128K ctx, thinking, tool use) was the working pick.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "24 GB: a ~20 GB-loaded model stutters the moment a few browser tabs open.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "8 GB: Gemma 4 E2B Q4 is 4.7 GB and leaves little; LFM2.5-2.6B (1.7 GB Q4) is the headroom pick; both hallucinate and fail tool calls more.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "32 GB, 30B model, 100K context runs out of memory; 20B at 30K is fine.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "64 GB \"dead zone\": Llama 3.3 70B Q4 is 43 GB, leaving ~5 GB; 32k ctx needs ~10 GB; gpt-oss-120b (65 GB) and 70B Q8 (75 GB) do not fit. Real 64 GB value is Q8 35B-class MoE with full context.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "48 GB: 70B Q4 (~42 GB) exceeds the default 36 GB GPU window; without the sysctl Ollama splits CPU/GPU (~2 tok/s with swap) vs 9-10 tok/s on GPU after raising to 40 GB. Check `ollama ps` for \"100% GPU\".",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Low Power Mode halves throughput; High Power Mode (Max MacBook Pros) avoids 15-25% thermal sag; clamshell mode reduces cooling (~10%).",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Fanless MacBook Air heat-soaks on long runs.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Agentic prefill: 16K-token system prompt took ~90 s TTFT on a 512 GB M3 Ultra; 48 GB M4 Pro Qwen3.6-35B had ~20 s cold TTFT and ~60 s after ~100 messages. KV-cache prefix reuse and conversation compression mitigate.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Uniform MLX 4-bit loses more quality than GGUF Q4_K_M (Q4_K_M ~4.7x lower perplexity degradation); M1/M2 choke on bf16 MLX weights (convert to fp16).",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "3-bit squeezes: dense models degrade more gracefully than MoE.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "8 B/ 27B dense on M2 32 GB: Qwen3.6-27B Q6 ~1 tok/s reported vs ~30 tok/s for 35B-A3B Q4 on an M1 Max 32 GB.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Default GPU cap: ~75% flat (existing ref, stencel.io) vs ~65-70% at <=36 GB and ~75% above (thinkdifferent; stencel itself says 32 GB gives only ~21-24 GB).",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "32 GB pick: MoE (Qwen3.6-35B-A3B, Gemma 4 26B-A4B, Qwen3-Coder 30B) per MacSales/Analytics Vidhya/ModelFit vs dense Qwen3.8 27B per Micro Center (\"not a close call\", 16.9-18.3 GB Q4 with ~32K ctx). Trade: MoE ~3x faster, dense better quality per GB; Micro Center tested on non-Mac AMD hardware.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "24 GB pick: gpt-oss-20B (14 GB) as daily driver (trends24, Analytics Vidhya) vs jola.dev finding it unusable at 64K+ ctx. Resolved only by context budget.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "64 GB: \"practical floor for serious use\" (r/LocalLLM via MacSales) vs \"stop at 48 GB if you target 27-35B at Q4/Q5\" (ModelFit).",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "48-64 GB model gap: Micro Center says nothing between 27B and 100B beats Qwen3.8 27B; Analytics Vidhya/Forbes still list Llama 3.3 70B (Dec-2024 vintage) and Qwen3-Coder-Next 80B (47 GB Q4) as picks for these tiers.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Quality of local vs cloud: HN reports Gemma 4 31B / Qwen3.6 27B reliable for agentic work; another user found 35B-A3B \"needed handholding\" and 27B took 55 min vs 15 min for Claude.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "MLX vs GGUF: MLX 10-25% faster (spicyneuron) vs GGUF faster on short tasks (1.0 s vs 2.2 s classification on M5 Max); runtime matters more than format (Ollama 37% slower than LM Studio on same GGUF; oMLX 2.2x LM Studio MLX).",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "No measured (non-estimated) tok/s table per chip x model for Sept-2026 models; ModelFit/MacSales numbers are estimates.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Whether macOS 26/27 changed the default wired cap formula (no Apple doc).",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Qwen3.8-Flash-Next on 64 GB (4.27 bpw, MTP, 168K ctx, 30-40 tok/s reported) is paywalled; setup details unverified.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "96 GB tier on M5 Ultra (new base config) has little real-user data.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Roughly 70-75% of unified memory is usable by a model plus context on a Mac; a 32 GB Mac gives ~22-24 GB.",
+          "source": "https://eshop.macsales.com/blog/99008-the-best-mac-for-local-ai-how-to-choose-the-right-ram-and-specs/",
+          "note": null
+        },
+        {
+          "text": "Default GPU wired limit is ~65-70% of RAM on machines with 36 GB or less and ~75% on higher-memory machines (36 GB -> ~27 GB, 48 -> ~36, 64 -> ~48).",
+          "source": "https://www.thinkdifferent.blog/blog/the-macbook-pro-setting-that-doubles-your-ai-performance/",
+          "note": null
+        },
+        {
+          "text": "Safe raised `iogpu.wired_limit_mb` values: 36 GB -> 30720, 48 GB -> 40960, 64 GB -> 57344, 128 GB -> 118784, keeping at least 8 GB for macOS (12 GB with heavy apps).",
+          "source": "https://www.thinkdifferent.blog/blog/the-macbook-pro-setting-that-doubles-your-ai-performance/",
+          "note": null
+        },
+        {
+          "text": "The sysctl takes effect immediately, resets on reboot, and `sudo sysctl iogpu.wired_limit_mb=0` reverts to default.",
+          "source": "https://www.thinkdifferent.blog/blog/the-macbook-pro-setting-that-doubles-your-ai-performance/",
+          "note": null
+        },
+        {
+          "text": "On older macOS the key was `debug.iogpu.wired_limit`.",
+          "source": "https://www.thinkdifferent.blog/blog/the-macbook-pro-setting-that-doubles-your-ai-performance/",
+          "note": null
+        },
+        {
+          "text": "A 512 GB M3 Ultra user set wired_limit_mb = total minus 6144 and wired_lwm_mb = total minus 10240, persisted by a /Library/LaunchDaemons plist because modern macOS ignores /etc/sysctl.conf.",
+          "source": "https://spicyneuron.substack.com/p/a-mac-studio-for-local-ai-6-months",
+          "note": null
+        },
+        {
+          "text": "A user set a 64 GB Mac to 62 GB, loaded a model that used it all, and had to hard-reboot after UI freeze.",
+          "source": "https://www.thinkdifferent.blog/blog/the-macbook-pro-setting-that-doubles-your-ai-performance/",
+          "note": null
+        },
+        {
+          "text": "Verify placement with `ollama ps` showing \"100% GPU\" and flat Swap Used in Activity Monitor.",
+          "source": "https://www.thinkdifferent.blog/blog/the-macbook-pro-setting-that-doubles-your-ai-performance/",
+          "note": null
+        },
+        {
+          "text": "Low Power Mode can halve inference speed; High Power Mode on Max MacBook Pros avoids 15-25% sustained-throughput sag; clamshell mode costs ~10%.",
+          "source": "https://www.thinkdifferent.blog/blog/the-macbook-pro-setting-that-doubles-your-ai-performance/",
+          "note": null
+        },
+        {
+          "text": "Expect at least 32K context for real use, and context adds to the footprint beyond weights.",
+          "source": "https://www.microcenter.com/site/mc-news/article/best-local-llms-8gb-16gb-32gb-memory-guide.aspx",
+          "note": null
+        },
+        {
+          "text": "Context competes with weights for the same memory: a 32 GB Mac with a 30B model at 100K context runs out of memory, while a 20B at 30K is fine.",
+          "source": "https://eshop.macsales.com/blog/99008-the-best-mac-for-local-ai-how-to-choose-the-right-ram-and-specs/",
+          "note": null
+        },
+        {
+          "text": "Memory bandwidth GB/s: M1 68, M2 100, M3 100, M4 120, M5 153, M6 170; M1/M2 Pro 200, M3 Pro 150, M4 Pro 273, M5 Pro 307; M1-M3 Max 400, M4 Max 546, M5 Max 460-614; M1/M2 Ultra 800, M3 Ultra 819, M5 Ultra 1200.",
+          "source": "https://eshop.macsales.com/blog/99008-the-best-mac-for-local-ai-how-to-choose-the-right-ram-and-specs/",
+          "note": null
+        },
+        {
+          "text": "M6 reaches 170 GB/s only with 24 or 32 GB; the 16 GB M6 stays at 153 GB/s.",
+          "source": "https://eshop.macsales.com/blog/99008-the-best-mac-for-local-ai-how-to-choose-the-right-ram-and-specs/",
+          "note": null
+        },
+        {
+          "text": "M3 Pro has lower bandwidth than M2 Pro, so a used M2 Pro can beat it for local AI.",
+          "source": "https://eshop.macsales.com/blog/99008-the-best-mac-for-local-ai-how-to-choose-the-right-ram-and-specs/",
+          "note": null
+        },
+        {
+          "text": "Used M1/M2/M3 Max share 400 GB/s, so a used M1 Max is a cheap entry to the 30B tier; M1/M2 Ultra at 800 GB/s stay competitive for 70B generation.",
+          "source": "https://eshop.macsales.com/blog/99008-the-best-mac-for-local-ai-how-to-choose-the-right-ram-and-specs/",
+          "note": null
+        },
+        {
+          "text": "Past ~550 GB/s, MoE decode becomes compute-limited and speed stops scaling with bandwidth.",
+          "source": "https://eshop.macsales.com/blog/99008-the-best-mac-for-local-ai-how-to-choose-the-right-ram-and-specs/",
+          "note": null
+        },
+        {
+          "text": "Apple announced M6 (2 nm, base chip) and M5 Ultra (quad-die, 36-core CPU, 80-core GPU, up to 512 GB, 1.2 TB/s, +50% over M3 Ultra) in August 2026.",
+          "source": "https://eshop.macsales.com/blog/99008-the-best-mac-for-local-ai-how-to-choose-the-right-ram-and-specs/",
+          "note": null
+        },
+        {
+          "text": "Mac Studio M5 Max starts at $2,499 with 36 GB and up to 614 GB/s; M5 Ultra starts at $5,499 with 96 GB; 256 GB Ultra is $9,499; 128 GB Max about $4,800; 512 GB Ultra ships late October 2026, price unannounced.",
+          "source": "https://www.forbes.com/sites/johnkoetsier/2026/08/25/can-apples-new-mac-ultra-replace-your-200month-ai-coding-bill/",
+          "note": null
+        },
+        {
+          "text": "Mac mini M6 caps at 32 GB ($899 base, 170 GB/s); Mac mini M5 Pro caps at 64 GB (307 GB/s).",
+          "source": "https://www.forbes.com/sites/johnkoetsier/2026/08/25/can-apples-new-mac-ultra-replace-your-200month-ai-coding-bill/",
+          "note": null
+        },
+        {
+          "text": "M6 mini claimed up to 4.8x faster LLM prompt processing vs M4 mini via GPU Neural Accelerators, with only ~10% more bandwidth, so generation gains are marginal.",
+          "source": "https://eshop.macsales.com/blog/99008-the-best-mac-for-local-ai-how-to-choose-the-right-ram-and-specs/",
+          "note": null
+        },
+        {
+          "text": "Apple silicon prompt processing is compute-bound; an M3 Ultra has roughly a quarter of a DGX Spark's FP16 throughput.",
+          "source": "https://www.forbes.com/sites/johnkoetsier/2026/08/25/can-apples-new-mac-ultra-replace-your-200month-ai-coding-bill/",
+          "note": null
+        },
+        {
+          "text": "Apple raised Mac prices in June 2026 on DRAM costs (14-inch MacBook Pro M5 Pro 64 GB/1 TB from $2,999 to $3,699); memory cannot be upgraded after purchase.",
+          "source": "https://modelfit.io/blog/64gb-mac-local-llm-dead-zone/",
+          "note": null
+        },
+        {
+          "text": "Estimated 4-bit decode for a 27B-class dense model (MacSales, estimates): M4 Pro ~11, M5 Pro ~13, M4 Max ~23, M5 Max ~26, M3 Ultra ~35, M5 Ultra ~51 tok/s; 70B dense on those: ~4, 5, 9, 10, 13, 20 tok/s.",
+          "source": "https://eshop.macsales.com/blog/99008-the-best-mac-for-local-ai-how-to-choose-the-right-ram-and-specs/",
+          "note": null
+        },
+        {
+          "text": "Rule: above ~10 tok/s feels conversational; above 30 tok/s feels instant; below 5 you are waiting.",
+          "source": "https://eshop.macsales.com/blog/99008-the-best-mac-for-local-ai-how-to-choose-the-right-ram-and-specs/",
+          "note": null
+        },
+        {
+          "text": "8 GB: Gemma 4 E2B Q4 (4.73 GB) is the reliable pick; LFM2.5-2.6B Q4 (1.67 GB) the headroom wildcard; both hallucinate and miss tool calls more than larger models.",
+          "source": "https://www.microcenter.com/site/mc-news/article/best-local-llms-8gb-16gb-32gb-memory-guide.aspx",
+          "note": null
+        },
+        {
+          "text": "Gemma 4 12B runs in 8 GB at 4-bit (14 GB at 8-bit); Gemma 4 E2B/E4B need ~5 GB at 4-bit.",
+          "source": "https://unsloth.ai/docs/models/gemma-4",
+          "note": null
+        },
+        {
+          "text": "16 GB: Gemma 4 E4B (~6-7.8 GB Q4, multimodal, 128K ctx) per Micro Center; Qwen3.5-9B Q8 (~11 GB) per ModelFit; gpt-oss-20B (14 GB, 128K ctx) is \"compelling\" for a 16 GB mini but tight with context.",
+          "source": "https://www.microcenter.com/site/mc-news/article/best-local-llms-8gb-16gb-32gb-memory-guide.aspx",
+          "note": null
+        },
+        {
+          "text": "16 GB can keep a 4B resident beside a 9-14B model; 24 GB comfortably.",
+          "source": "https://medium.com/@trends24/i-tried-130-llms-on-my-m4-mac-mini-these-9-are-actually-insane-03e6226540c3",
+          "note": null
+        },
+        {
+          "text": "24 GB: Qwen3.5-9B Q4_K_S at ~40 tok/s with 128K context and tool use is the working daily pick; larger \"fitting\" models were unusable once apps and 64K+ context were counted.",
+          "source": "https://jola.dev/posts/running-local-models-on-m4",
+          "note": null
+        },
+        {
+          "text": "24 GB ceiling for comfort is roughly 20-32B; a ~20 GB-loaded model stutters when other apps open.",
+          "source": "https://medium.com/@trends24/i-tried-130-llms-on-my-m4-mac-mini-these-9-are-actually-insane-03e6226540c3",
+          "note": null
+        },
+        {
+          "text": "24 GB options: Gemma 4 26B-A4B (~16-18 GB Q4, 25.2B total, 3.8B active, 256K ctx), Qwen3.6 27B (~18 GB), Qwen3-Coder 30B-A3B (~19 GB).",
+          "source": "https://www.analyticsvidhya.com/blog/2026/09/best-local-llms-mac-mini-2026/",
+          "note": null
+        },
+        {
+          "text": "Gemma 4 31B dense needs ~17-20 GB at Q4 and 34-38 GB at 8-bit; 26B-A4B needs 16-18 GB at Q4 and 28-30 GB at 8-bit; max context 256K for 12B/26B/31B, 128K for E2B/E4B.",
+          "source": "https://unsloth.ai/docs/models/gemma-4",
+          "note": null
+        },
+        {
+          "text": "Gemma 4 31B on M5 Max 128 GB with full 256K context peaks around 70 GB RAM; a user guessed 32 GB (27.5 GB usable) might hold it at 32K ctx.",
+          "source": "https://news.ycombinator.com/item?id=48089091",
+          "note": null
+        },
+        {
+          "text": "32 GB: Qwen3.6-35B-A3B Q4 (~22-23 GB, 256K ctx, text+image), Qwen3-Coder 30B, Gemma 4 26B (MoE route) per MacSales/Analytics Vidhya/ModelFit; Qwen3.8 27B Q4 (16.9-18.3 GB) per Micro Center.",
+          "source": "https://www.analyticsvidhya.com/blog/2026/09/best-local-llms-mac-mini-2026/",
+          "note": null
+        },
+        {
+          "text": "A 35B-A3B model on an M1 Max 32 GB read ~300-500 tok/s and wrote ~30 tok/s (llama.cpp defaults), while 27B dense read ~70 and wrote ~5 tok/s.",
+          "source": "https://news.ycombinator.com/item?id=48210951",
+          "note": null
+        },
+        {
+          "text": "A user on M2 32 GB got ~1 tok/s from Qwen3.6-27B Q6_K in llama.cpp and LM Studio.",
+          "source": "https://news.ycombinator.com/item?id=48210951",
+          "note": null
+        },
+        {
+          "text": "36 GB: caps ~27 GB GPU by default; Qwen3.6 35B-A3B Q4 and Gemma 4 31B Q4 fit.",
+          "source": "https://www.thinkdifferent.blog/blog/the-macbook-pro-setting-that-doubles-your-ai-performance/",
+          "note": null
+        },
+        {
+          "text": "48 GB: Qwen3.6-35B-A3B (~20 GB) with OpenCode on an M4 Pro MacBook Pro had ~20 s cold TTFT, ~60 s deep into a session; judged fine for spec-driven work, not for hundreds of low-latency interactions.",
+          "source": "https://www.looming.tech/post/local-agentic-coding-mac",
+          "note": null
+        },
+        {
+          "text": "48 GB: 70B Q4 (~42 GB) does not fit the default 36 GB GPU window; after raising to 40 GB it ran 9-10 tok/s on GPU versus ~2 tok/s with swap.",
+          "source": "https://www.thinkdifferent.blog/blog/the-macbook-pro-setting-that-doubles-your-ai-performance/",
+          "note": null
+        },
+        {
+          "text": "48-64 GB users are underserved: most local models are 20-40B and few of 40-100B beat Qwen3.8 27B; use spare memory for 6/8-bit quants and long context (128K = 31.75 GB, 256K = 45.41 GB for Qwen3.8 27B Q4).",
+          "source": "https://www.microcenter.com/site/mc-news/article/best-local-llms-8gb-16gb-32gb-memory-guide.aspx",
+          "note": null
+        },
+        {
+          "text": "64 GB: Qwen3.6-35B-A3B Q8 (38.7 GB) fits with full 131K context (~2.5 GB KV); Gemma 4 26B-A4B Q8 (28.1 GB); Qwen3.6-27B Q8 (30 GB; 77.2 SWE-Bench Verified per model card).",
+          "source": "https://modelfit.io/blog/64gb-mac-local-llm-dead-zone/",
+          "note": null
+        },
+        {
+          "text": "64 GB: Llama 3.3 70B Q4 (43 GB) leaves ~5 GB; 32k ctx costs ~10 GB; est. ~19 tok/s; gpt-oss-120b (65 GB) and 70B Q8 (75 GB) do not fit.",
+          "source": "https://modelfit.io/blog/64gb-mac-local-llm-dead-zone/",
+          "note": null
+        },
+        {
+          "text": "64 GB Mac mini M5 Pro: Qwen3-Coder-Next 80B-A3B at ~47 GB Q4 (46 GB RAM needed per Unsloth) is the listed max.",
+          "source": "https://www.forbes.com/sites/johnkoetsier/2026/08/25/can-apples-new-mac-ultra-replace-your-200month-ai-coding-bill/",
+          "note": null
+        },
+        {
+          "text": "64 GB M4 Max: Qwen3.8-Flash-Next at a 4.27 bpw quant with a separate MTP head and 168K context reportedly gives 30-40 tok/s decode; needs raised GPU cap.",
+          "source": "https://xhinker.medium.com/qwen3-8-flash-next-40-tokens-second-on-an-m4-max-macbook-4-27-bpw-quant-168k-context-a8e594e0bb87",
+          "note": null
+        },
+        {
+          "text": "96 GB: ModelFit rates 70B Q4 \"OK\" with real context headroom; gpt-oss-120b (63-65 GB) fits; Qwen3.5-122B-A10B Q4 (~72 GB) is its 96 GB pick.",
+          "source": "https://modelfit.io/guides/best-llm-for-macbook/",
+          "note": null
+        },
+        {
+          "text": "128 GB: gpt-oss-120b (~63-65 GB), Qwen3-Coder-Next 80B (~47 GB), Qwen3.8 27B Q8 with max context, Poolside Laguna S 2.1 (118B, 8B active; 66.3 GB Q4, 78.5 GB at 256K ctx); Qwen3.5-122B and gpt-oss-120b described as \"ancient\" but still good.",
+          "source": "https://www.microcenter.com/site/mc-news/article/best-local-llms-8gb-16gb-32gb-memory-guide.aspx",
+          "note": null
+        },
+        {
+          "text": "128 GB with 1 GPU-cap raise is also the tier where a 20B-A3B + 120B pair can be resident together.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "192-256 GB: DeepSeek-V4-Flash 284B (~188 GB) fits 256 GB; Qwen3 235B-A22B Q4 (~130 GB) est. ~14 tok/s on M5 Ultra; a 256 GB M3 Ultra user ran Qwen3-VL 235B Q4_K_M at ~30 tok/s and GLM-4.7 358B Q3 at ~15 tok/s with 128K ctx.",
+          "source": "https://news.ycombinator.com/item?id=46907001",
+          "note": null
+        },
+        {
+          "text": "512 GB: Qwen3.5-397B-A17B at 2.6-bit, Kimi K2.5 (1T, 32B active) at 2.5-bit and Qwen3.5-35B-A3B 4.8-bit loaded together behind llama-swap; Kimi runs ~2x slower than Qwen 397B per active-parameter ratio; GLM-5 (744B, 40B active) ~20% slower than Kimi.",
+          "source": "https://spicyneuron.substack.com/p/a-mac-studio-for-local-ai-6-months",
+          "note": null
+        },
+        {
+          "text": "Frontier open models (Kimi K3 2.8T ~1.4 TB MXFP4, DeepSeek V4-Pro 893 GB, Qwen3.8 flagship 2.4T, GLM-5.1 754B ~420 GB at 4-bit) do not fit any single Mac, including the 512 GB Studio.",
+          "source": "https://www.forbes.com/sites/johnkoetsier/2026/08/25/can-apples-new-mac-ultra-replace-your-200month-ai-coding-bill/",
+          "note": null
+        },
+        {
+          "text": "Local models on a 128 GB Mac are a tier below cloud frontier: Qwen3-Coder-Next via Claude Code scored 30.9% on Terminal-Bench 2.0 vs Opus 4.5 53.9%.",
+          "source": "https://www.forbes.com/sites/johnkoetsier/2026/08/25/can-apples-new-mac-ultra-replace-your-200month-ai-coding-bill/",
+          "note": null
+        },
+        {
+          "text": "A 512 GB M3 Ultra user judges best open models comparable to API models from 6-12 months earlier.",
+          "source": "https://spicyneuron.substack.com/p/a-mac-studio-for-local-ai-6-months",
+          "note": null
+        },
+        {
+          "text": "MoE name suffix A3B means 3B of 35B active; all weights stay in RAM but ~2 GB is read per token, so MoE offsets low bandwidth on base/Pro chips; a dense 27B on a base chip is slow, a 30B-A3B snappy.",
+          "source": "https://eshop.macsales.com/blog/99008-the-best-mac-for-local-ai-how-to-choose-the-right-ram-and-specs/",
+          "note": null
+        },
+        {
+          "text": "MoE costs quality per gigabyte versus dense; choose by whether memory or patience is the binding constraint.",
+          "source": "https://eshop.macsales.com/blog/99008-the-best-mac-for-local-ai-how-to-choose-the-right-ram-and-specs/",
+          "note": null
+        },
+        {
+          "text": "Tier capability jumps: 8B->14B is large (14B is the minimum for reliable multi-step agents), 14B->30B smaller, 30B->70B modest.",
+          "source": "https://eshop.macsales.com/blog/99008-the-best-mac-for-local-ai-how-to-choose-the-right-ram-and-specs/",
+          "note": null
+        },
+        {
+          "text": "Speed is proportional to active parameters, not total; memory capacity picks which MoE you can load.",
+          "source": "https://spicyneuron.substack.com/p/a-mac-studio-for-local-ai-6-months",
+          "note": null
+        },
+        {
+          "text": "Gemma 4 31B dense is called the strongest Gemma 4 and a new local baseline; 26B-A4B is faster but a bit lower quality.",
+          "source": "https://unsloth.ai/docs/models/gemma-4",
+          "note": null
+        },
+        {
+          "text": "Gemma 4 31B Q6_K_XL at 128K ctx with q8 KV ran ~800 tok/s read and 16 tok/s write on a GPU workstation.",
+          "source": "https://news.ycombinator.com/item?id=48089091",
+          "note": null
+        },
+        {
+          "text": "4-bit and 8-bit are the GPU-optimized sweet spots on Apple Silicon; larger models tolerate sub-4-bit, small models should stay at 4+; use dynamic/mixed-precision quants with published benchmarks.",
+          "source": "https://spicyneuron.substack.com/p/a-mac-studio-for-local-ai-6-months",
+          "note": null
+        },
+        {
+          "text": "Uniform MLX 4-bit shows ~4.7x higher perplexity degradation than GGUF Q4_K_M at similar size.",
+          "source": "https://atomic.chat/blog/guides/gguf-vs-mlx",
+          "note": null
+        },
+        {
+          "text": "MLX is faster for long outputs; GGUF wins short tasks (1.0 s vs 2.2 s classification on M5 Max); on M1/M2 convert bf16 MLX weights to fp16 to recover 40-70% of prefill penalty.",
+          "source": "https://atomic.chat/blog/guides/gguf-vs-mlx",
+          "note": null
+        },
+        {
+          "text": "Runtime dominates format: Ollama 37% slower than LM Studio on same GGUF; oMLX 2.2x faster than LM Studio on MLX; MLX ~10-25% faster than llama.cpp in 2026 on a 512 GB Studio.",
+          "source": "https://atomic.chat/blog/guides/gguf-vs-mlx",
+          "note": null
+        },
+        {
+          "text": "Ollama 0.19 (2026-03-27) routes safetensors/NVFP4 models to MLX (58 -> 112 tok/s claimed); pulled GGUF models still use llama.cpp and see no gain.",
+          "source": "https://levelup.gitconnected.com/ollama-mlx-nearly-doubles-llm-speed-on-your-mac-58-to-112-tok-s-and-your-old-models-get-none-of-fd1a9ec531fb",
+          "note": null
+        },
+        {
+          "text": "New models appear as GGUF within hours but as MLX days to weeks later.",
+          "source": "https://atomic.chat/blog/guides/gguf-vs-mlx",
+          "note": null
+        },
+        {
+          "text": "Unsloth QAT variants of Gemma 4 cut memory ~3x.",
+          "source": "https://unsloth.ai/docs/models/gemma-4",
+          "note": null
+        },
+        {
+          "text": "Sizing shortcut: ~0.6 GB per billion parameters at Q4 and budget ~70% of RAM (rising to 85% on 128 GB+).",
+          "source": "https://modelfit.io/mac-studio/",
+          "note": null
+        },
+        {
+          "text": "Multiple resident models (small/medium/large) behind llama-swap with per-model thinking toggles is the multi-tier agent pattern on large Macs.",
+          "source": "https://spicyneuron.substack.com/p/a-mac-studio-for-local-ai-6-months",
+          "note": null
+        },
+        {
+          "text": "Buying guidance: 16 GB is a toe-dip, 32 GB reaches 30B-class via MoE, 64 GB for dense 70B/large agentic context, 128 GB+ for largest MoE or multi-model.",
+          "source": "https://eshop.macsales.com/blog/99008-the-best-mac-for-local-ai-how-to-choose-the-right-ram-and-specs/",
+          "note": null
+        },
+        {
+          "text": "Mac mini M4 draws ~12-15 W idle and ~30 W under inference.",
+          "source": "https://medium.com/@trends24/i-tried-130-llms-on-my-m4-mac-mini-these-9-are-actually-insane-03e6226540c3",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Corrections and disagreements",
+      "facts": [
+        {
+          "text": "CONTRADICTS on-device-local-llm-runtimes.md s10 (\"GPU gets ~75% of RAM by default\"): the cap is lower, ~65-75%, on 32 GB and smaller Macs; a 32 GB Mac gets ~21-24 GB for the GPU.",
+          "source": "https://stencel.io/posts/apple-silicon-limitations-with-usage-on-local-llm%20.html",
+          "note": null
+        }
+      ]
+    }
+  ],
+  "related": []
+}

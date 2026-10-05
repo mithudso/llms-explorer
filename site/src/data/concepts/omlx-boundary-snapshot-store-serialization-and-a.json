@@ -1,0 +1,239 @@
+{
+  "slug": "omlx-boundary-snapshot-store-serialization-and-a",
+  "concept": "oMLX boundary snapshot store serialization and async cache-store worker locking",
+  "generated": "2026-10-05",
+  "summary": "Engine thread, boundary capture: `Scheduler._on_prefill_boundary_snapshot` calls `BoundarySnapshotSSDStore.save()` on the engine (owner) thread. `save()` extracts per-layer state, compacts pooling and DeepSeek-V4.1 deltas, then `_serialize_extracted()` runs `mx.eval(*arrays.values())` and copies ...",
+  "facets": [
+    {
+      "title": "Facts",
+      "facts": [
+        {
+          "text": "Engine thread, boundary capture: `Scheduler._on_prefill_boundary_snapshot` calls `BoundarySnapshotSSDStore.save()` on the engine (owner) thread. `save()` extracts per-layer state, compacts pooling and DeepSeek-V4.1 deltas, then `_serialize_extracted()` runs `mx.eval(*arrays.values())` and copies each array to raw bytes with `_extract_tensor_bytes`. The MLX container is deleted right after, so only raw bytes are retained.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Pending buffer: raw bytes sit in `_pending_writes` (key `(request_id, token_count)`) for zero-I/O read-back, bounded by `pending_max_bytes` (default 512 MiB; the scheduler passes `gdn_ssd_pending_max_bytes`). A single checkpoint may exceed the cap when the buffer is empty so wide recurrent states make progress.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Backpressure: if the cap would be exceeded, `save()` waits on a condition variable for up to 2.0 s; on timeout, or when the 128-entry write queue is full, it writes the snapshot inline on the engine thread and returns only when it is on disk. Time spent waiting accumulates in `backpressure_ms`.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Writer: a daemon thread `boundary-snapshot-writer` drains the queue and writes safetensors without MLX (`_write_safetensors_no_mx`). A lock `_writer_busy` is held while it processes one item.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Locks in the store: `_pending_lock` (with `_pending_cond`), `_registry_lock`, `_cancelled_lock`, `_gdn_dequant_lock` and `_writer_busy`. None of them is the MLX buffer lock. `cleanup_request` takes `_writer_busy` with a 2.0 s timeout (5.0 s for `cleanup_all`); on timeout it falls back to a counter rescue and may leave an orphan file until the next constructor cleanup.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Registry publication happens while the pending lock is held, so `cleanup_request` cannot remove the pending marker and then race the registration.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Async store worker: the scheduler creates a `ThreadPoolExecutor(max_workers=1, thread_name_prefix=\"omlx-store-cache\")`, so stores run one at a time and never race on the paged SSD index.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Preconditions for the worker: the engine thread has already run a full blocking `mx.eval` on all KV arrays of the finished request, because MLX streams are thread-local and a lazy array bound to the engine's stream would abort the worker with \"There is no Stream(gpu, N) in current thread\".",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "The MLX buffer lock `_mx_buffer_access_lock` is a process-wide `threading.RLock` in `omlx/utils/metal_sync.py`. The worker holds it across `_safe_sync_stream(self._stream)` (a cross-thread `mx.synchronize` of the engine stream) and the whole `store_cache` call, which reads bytes through the Python buffer protocol.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "The engine thread takes the same lock in `_sync_and_clear_cache` (around `mx.synchronize` and `mx.clear_cache`) and in `_materialize_cache_storage` (around `mx.eval` of restored prefix arrays).",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "The lock exists to stop a SIGABRT: `mx.clear_cache` reclaiming a Metal buffer while the worker reads it (issue 1106, which first showed `_extract_tensor_bytes` aborting on a hybrid model).",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Admission backpressure: `_StoreCacheGate(cap=max_num_seqs)` counts in-flight store jobs and `_schedule_waiting` stops admitting new prefills while it is full; a head-of-line request that stays blocked for 60 s is failed with error code `store_cache_admission_stalled`.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Teardown: a fatal watchdog waits `FATAL_TEARDOWN_TIMEOUT_S` (60 s) for in-flight store futures and logs \"timed out after 60s waiting for N async store_cache future(s)\" before exiting.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Issue 1106 (2026-05-07) introduces the need for the buffer lock; the lock's comment cites it.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Cross-stream fixes before 2330: prefill chunk views (`69ea88d`, issue 2183, in the 0.5.1 build) and batch KV mutations on abort (`31c3c10`, issue 2235, released as 0.5.2.dev1).",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "2026-07-22: commit 386e654 (issue 2330) moves prefix-cache reconstruction onto the engine stream and also wraps the boundary-snapshot `save()` call in `mx.stream(self._stream)`, labelled \"#2330 hardening\".",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Without the stream wrapper, `save()` slices live cache state and calls `mx.eval` on the engine thread under the default stream (`gpu,0`), splitting one prefill graph across two streams; a cross-stream fence can wedge under `MLX_METAL_FAST_SYNCH=1`.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Lock-holding hazard: the worker holds the RLock while waiting for the engine stream to drain. The engine thread needs that same lock for `mx.clear_cache`/`_materialize_cache_storage`. If the stream's pending work cannot finish until the engine thread proceeds, the two wait on each other. This matches the shape the maintainer proposed for issue 2624.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "In the 2026-08-14 py-spy dump the store worker thread `omlx-store-cache_0` sat in the executor's idle loop (`concurrent/futures/thread.py:90`, the same frame as the unrelated `mlx-global_0` pool thread, both labelled \"active\" by py-spy), so it was not running `_async_store_cache_worker` and could not have held the buffer lock. The engine thread was inside `_serialize_extracted`, which on main ends in `mx.eval` on the engine thread. [asserted] A stuck GPU event inside that `mx.eval` would show one thread in `Event::wait`, as all 21 native captures did. The four Python-mutex waiters are not explained by the store's locks, because the store takes none of the MLX buffer lock.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "An aborted request can leave an orphan snapshot directory if `cleanup_request` hits its 2 s lock timeout.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Maintainer (issue 2624): the store worker holds the buffer lock while syncing and blocks the inference thread. Reporter's later stacks: no store job running, the engine thread stuck inside snapshot serialization. For that episode the maintainer's candidate is not supported: a worker outside `_async_store_cache_worker` holds no buffer lock. The source does not show what the four parked Python threads wait on.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Which mutex the four `_PyParkingLot_Park` threads in the 2624 captures wait on.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Whether the `mx.stream(self._stream)` wrapper from 386e654 is enough for the snapshot path, since issue 2624 recurred on 0.6.1 after it shipped.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "The module docstring says tensors are serialized to raw bytes on the inference thread (\"Metal-safe\"), buffered in `_pending_writes` for instant read-back and flushed by a background writer via `_write_safetensors_no_mx`.",
+          "source": "https://raw.githubusercontent.com/jundot/omlx/main/omlx/cache/boundary_snapshot_store.py",
+          "note": null
+        },
+        {
+          "text": "`_MAX_PENDING_WRITES = 128`, `_DEFAULT_PENDING_MAX_BYTES = 512 * 1024 * 1024` and `_PENDING_RESERVATION_TIMEOUT_S = 2.0` are module constants.",
+          "source": "https://raw.githubusercontent.com/jundot/omlx/main/omlx/cache/boundary_snapshot_store.py",
+          "note": null
+        },
+        {
+          "text": "`save()` falls back to `_write_inline` when the reservation wait times out or the write queue is full, and returns only after the snapshot is on disk.",
+          "source": "https://raw.githubusercontent.com/jundot/omlx/main/omlx/cache/boundary_snapshot_store.py",
+          "note": null
+        },
+        {
+          "text": "`_serialize_extracted` calls `mx.eval(*arrays.values())` (\"Materialize lazy tensors on inference thread\") and then `_extract_tensor_bytes` for each array.",
+          "source": "https://raw.githubusercontent.com/jundot/omlx/main/omlx/cache/boundary_snapshot_store.py",
+          "note": null
+        },
+        {
+          "text": "The store creates a daemon thread named `boundary-snapshot-writer` and a `_writer_busy` lock held for each item.",
+          "source": "https://raw.githubusercontent.com/jundot/omlx/main/omlx/cache/boundary_snapshot_store.py",
+          "note": null
+        },
+        {
+          "text": "`_CLEANUP_ALL_TIMEOUT_S = 5.0` and `_CLEANUP_REQUEST_TIMEOUT_S = 2.0` bound how long cleanup waits for `_writer_busy`, with an orphan file as the worst case.",
+          "source": "https://raw.githubusercontent.com/jundot/omlx/main/omlx/cache/boundary_snapshot_store.py",
+          "note": null
+        },
+        {
+          "text": "The scheduler's `gdn_ssd_pending_max_bytes` defaults to `512 * 1024 * 1024` and is passed to the store as `pending_max_bytes`.",
+          "source": "https://raw.githubusercontent.com/jundot/omlx/main/omlx/scheduler.py",
+          "note": null
+        },
+        {
+          "text": "The store-cache executor is `ThreadPoolExecutor(max_workers=1, thread_name_prefix=\"omlx-store-cache\")`, commented as serializing submissions so two stores never race on the paged SSD index.",
+          "source": "https://raw.githubusercontent.com/jundot/omlx/main/omlx/scheduler.py",
+          "note": null
+        },
+        {
+          "text": "`_async_store_cache_worker` holds `_mx_buffer_access_lock` across `_safe_sync_stream(self._stream)` and `block_aware_cache.store_cache(...)`.",
+          "source": "https://raw.githubusercontent.com/jundot/omlx/main/omlx/scheduler.py",
+          "note": null
+        },
+        {
+          "text": "The worker's docstring says the inference thread ran a full blocking `mx.eval` first because MLX streams are thread-local and a lazy array would abort the worker with \"There is no Stream(gpu, N) in current thread\".",
+          "source": "https://raw.githubusercontent.com/jundot/omlx/main/omlx/scheduler.py",
+          "note": null
+        },
+        {
+          "text": "`_safe_sync_stream` calls `mx.synchronize` on the target stream and swallows only the \"no Stream\" `RuntimeError`.",
+          "source": "https://raw.githubusercontent.com/jundot/omlx/main/omlx/scheduler.py",
+          "note": null
+        },
+        {
+          "text": "`_materialize_cache_storage` runs `mx.eval` on restored cache arrays under `_mx_buffer_access_lock`.",
+          "source": "https://raw.githubusercontent.com/jundot/omlx/main/omlx/scheduler.py",
+          "note": null
+        },
+        {
+          "text": "`_mx_buffer_access_lock = threading.RLock()` is defined in `omlx/utils/metal_sync.py` to serialize buffer-protocol access from the store worker against `mx.clear_cache` and `mx.synchronize`, citing issue 1106.",
+          "source": "https://raw.githubusercontent.com/jundot/omlx/main/omlx/utils/metal_sync.py",
+          "note": null
+        },
+        {
+          "text": "`_sync_and_clear_cache` runs `mx.synchronize` on the target stream, `mx.synchronize()` on the default stream and `mx.clear_cache()` while holding `_mx_buffer_access_lock`.",
+          "source": "https://raw.githubusercontent.com/jundot/omlx/main/omlx/utils/metal_sync.py",
+          "note": null
+        },
+        {
+          "text": "`boundary_snapshot_store.py` contains no reference to `_mx_buffer_access_lock`.",
+          "source": "https://raw.githubusercontent.com/jundot/omlx/main/omlx/cache/boundary_snapshot_store.py",
+          "note": null
+        },
+        {
+          "text": "Commit 386e654 wraps `self._boundary_snapshot_store.save(...)` in `with mx.stream(self._stream)` so the extraction and serialization eval stay on the per-engine stream, noting that unwrapped the ops bind to `gpu,0` and split the prefill graph across streams (\"#2330 hardening\").",
+          "source": "https://github.com/jundot/omlx/commit/386e654d8eac7bed1ed2afc8a62fa1955ba5c98a",
+          "note": null
+        },
+        {
+          "text": "The same commit wraps `_prepare_prefix_cache_for_request` in `mx.stream(self._stream)` and its comment says the cross-stream fence can wedge permanently under `MLX_METAL_FAST_SYNCH=1` while the async store-cache worker keeps `gpu,0` busy.",
+          "source": "https://github.com/jundot/omlx/commit/386e654d8eac7bed1ed2afc8a62fa1955ba5c98a",
+          "note": null
+        },
+        {
+          "text": "`_StoreCacheGate(cap=self.config.max_num_seqs)` bounds in-flight store jobs, admission is deferred while the gate is full, and `_STORE_CACHE_ADMISSION_STALL_TIMEOUT_S = 60.0` fails a stalled head-of-line request with `store_cache_admission_stalled`.",
+          "source": "https://raw.githubusercontent.com/jundot/omlx/main/omlx/scheduler.py",
+          "note": null
+        },
+        {
+          "text": "Issue 1106 (opened 2026-05-07) reported `_extract_tensor_bytes` SIGABRT in `_async_store_cache_worker` on a hybrid Qwen3.6-35B-A3B with the SSD cache on, with idle `boundary-snapshot-writer` and `ssd-cache-writer` threads present at crash time.",
+          "source": "https://github.com/jundot/omlx/issues/1106",
+          "note": null
+        },
+        {
+          "text": "The 2026-08-14 py-spy dump in issue 2624 lists thread `omlx-store-cache_0` at `_worker (concurrent/futures/thread.py:90)` with no `_async_store_cache_worker` frame, while `mlx-engine-2e734a52_0` is inside `_serialize_extracted` and `ssd-cache-writer` and `boundary-snapshot-writer` are idle in `queue.get`.",
+          "source": "https://github.com/jundot/omlx/issues/2624",
+          "note": null
+        },
+        {
+          "text": "On main, the engine thread inside `_serialize_extracted` is waiting in `mx.eval` and not on any lock owned by the boundary snapshot store, so the 2624 engine-thread stack points at a GPU event, not at a store lock.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "To rule the store worker in or out, a py-spy dump must show whether `omlx-store-cache_0` sits inside `with _mx_buffer_access_lock` at the time of the wedge.",
+          "source": "asserted",
+          "note": null
+        }
+      ]
+    }
+  ],
+  "related": []
+}

@@ -1,0 +1,139 @@
+{
+  "slug": "q4-k-m-dequantization-cost-vs-mlx-affine-g64-on",
+  "concept": "Q4_K_M dequantization cost vs MLX affine g64 on dense decode",
+  "generated": "2026-10-05",
+  "summary": "Q4_K Metal mat-vec: per 256-weight super-block a simdgroup loads 4 groups of activations (32 weights each) pre-summed for the minimum correction; per row it unpacks the 12 scale bytes with three masks (0x3f3f, 0x0f0f, 0xc0c0) into 8 scale and min values, accumulates nibble products without shifti...",
+  "facets": [
+    {
+      "title": "Facts",
+      "facts": [
+        {
+          "text": "Q4_K Metal mat-vec: per 256-weight super-block a simdgroup loads 4 groups of activations (32 weights each) pre-summed for the minimum correction; per row it unpacks the 12 scale bytes with three masks (0x3f3f, 0x0f0f, 0xc0c0) into 8 scale and min values, accumulates nibble products without shifting (corrected by 1/256 and 1/16 factors), then returns dh[0]*(sum scale-weighted accumulators) - dh[1]*(sum sumy*min).",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "MLX affine qdot: activations are pre-scaled by 1/16, 1/256, 1/4096 so masked nibbles can be multiplied directly; per group of 64 weights the result is scale * accum + sum(x) * bias with one 16-bit scale and one 16-bit bias read from memory; no packed-scale decode. Each threadgroup has 2 simdgroups of 4 output rows (8 rows).",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Q4_0 and IQ4_NL for context: Q4_0 is arithmetic-only with one fp16 scale per 32 weights; IQ4_NL adds a threadgroup-memory table.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Mixed file effect: Q4_K_M sends half of attn_v and ffn_down to Q6_K, a second kernel with its own unpack, so Q4_K_M decode is a blend of two kernels; MLX uniform 4-bit uses one kernel for every linear layer.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "2023-2024: K-quants (ikawrakow) become the llama.cpp default file types.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "2025-2026: MLX gains mixed recipes (mixed_4_6) and third-party mixed quants that copy Q4_K_M's rule, which brings MLX's one-kernel advantage partly back to two kernels.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Group size confound: Q4_K sub-blocks are 32 weights, MLX default is 64; at equal 4.5 bpw Q4_K spends its metadata bits on finer groups with 6-bit scales and mins, MLX on coarser groups with 16-bit scale and bias.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "File-size confound: Q4_K_M is about 4.85-4.89 bpw average, so it moves about 8% more bytes per token than uniform MLX 4-bit g64 (4.5 bpw) before any arithmetic difference.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Chip confound: ALU limits matter more on high-bandwidth Ultra/Max parts where decode approaches a bandwidth ceiling; 2024 data show a table-lookup kernel losing 17.5% of Q4_0 decode on an M2 Max at equal bytes.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Rattner-style inference (existing dossier): Q8_0 decode only 7% slower than Q4_K_M at 76% more bytes, so Q4_K_M unpacking costs a lot. Counter-reading: Q8_0 on llama.cpp may run a better-optimized path, and the bandwidth ceiling may differ; no isolated kernel microbenchmark (same bytes, different arithmetic) was found for Q4_K versus MLX qmv.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "A microbenchmark of mul_mv_q4_K versus MLX qmv on one chip at matched bits per weight, isolating ALU from bandwidth.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Whether Q4_K_S (single kernel) closes more of the dense MLX gap than Q4_K_M.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "The Q4_K Metal mat-vec unpacks each row's 12 packed scale bytes with masks 0x3f3f, 0x0f0f and 0xc0c0 into eight scale/min values per 256-weight super-block, and applies dh[0] (d) to scale-weighted nibble sums and dh[1] (dmin) to sum(y) times the mins.",
+          "source": "https://raw.githubusercontent.com/ggml-org/llama.cpp/master/ggml/src/ggml-metal/kernels/mul_mv.metal",
+          "note": null
+        },
+        {
+          "text": "The Q4_K kernel processes activations in four 32-wide slices per super-block and accumulates nibble products without shifting, correcting with 1/256 and 1/16 factors, with FOR_UNROLL on the inner loop.",
+          "source": "https://raw.githubusercontent.com/ggml-org/llama.cpp/master/ggml/src/ggml-metal/kernels/mul_mv.metal",
+          "note": null
+        },
+        {
+          "text": "MLX's quantized.h qdot returns scale * accum + sum * bias, where x_thread is pre-scaled (for 4 bits x/16, x/256, x/4096) so masked nibbles multiply directly; scale and bias are loaded per quantization group.",
+          "source": "https://raw.githubusercontent.com/ml-explore/mlx/main/mlx/backend/metal/kernels/quantized.h",
+          "note": null
+        },
+        {
+          "text": "MLX's quantized mat-vec kernel uses 2 simdgroups with 4 output rows each (8 rows per threadgroup), 2 packs per thread for bit widths above 2, and a group-wise scale and bias.",
+          "source": "https://raw.githubusercontent.com/ml-explore/mlx/main/mlx/backend/metal/kernels/quantized.h",
+          "note": null
+        },
+        {
+          "text": "llama.cpp's Q4_K block stores d and dmin (fp16), 12 bytes of 6-bit scales and mins for 8 sub-blocks of 32, and 128 bytes of nibbles per 256 weights, 144 bytes or 4.5 bpw.",
+          "source": "https://raw.githubusercontent.com/ggml-org/llama.cpp/master/ggml/src/ggml-common.h",
+          "note": null
+        },
+        {
+          "text": "mlx-lm's affine default is group size 64 with a scale and a bias per group, so 4-bit g64 is 4 + 32/64 = 4.5 bpw when scale and bias are 16-bit.",
+          "source": "https://raw.githubusercontent.com/ml-explore/mlx-lm/main/mlx_lm/utils.py",
+          "note": null
+        },
+        {
+          "text": "mlx-lm's mixed recipes copy the Q4_K_M 'use more bits' rule (v_proj and down_proj in the first and last eighth of layers and every third layer in between at 6 bits), so a mixed MLX file also needs a second kernel for its 6-bit layers.",
+          "source": "https://raw.githubusercontent.com/ml-explore/mlx-lm/main/mlx_lm/convert.py",
+          "note": null
+        },
+        {
+          "text": "llama-quantize gives Q4_K_M the Q6_K type for half of attn_v and ffn_down (via the use_more_bits layer rule), which is why the Q4_K_M kernel mix includes Q6_K.",
+          "source": "https://raw.githubusercontent.com/ggml-org/llama.cpp/master/src/llama-quant.cpp",
+          "note": null
+        },
+        {
+          "text": "The 2024 IQ4_NL PR measured on an M2 Max (7B, 4.5 bpw both) pp512 508.75 vs 547.27 t/s and tg128 51.01 vs 61.84 t/s for IQ4_NL versus Q4_0: equal bytes per weight, 17.5% less decode speed from a kernel difference alone.",
+          "source": "https://github.com/ggml-org/llama.cpp/pull/5590",
+          "note": null
+        },
+        {
+          "text": "Metal small-batch mat-vec accepts Q4_K/Q5_K/Q6_K only at batch 4-8 but legacy Q4_0/Q4_1/Q5_0/Q5_1/Q8_0 at batch 2-8.",
+          "source": "https://raw.githubusercontent.com/ggml-org/llama.cpp/master/ggml/src/ggml-metal/ggml-metal-ops.cpp",
+          "note": null
+        },
+        {
+          "text": "At equal nominal 4.5 bpw the Q4_K kernel does more integer-to-float conversion and scale unpacking per byte than MLX qdot, so on a bandwidth-rich chip the per-token cost can differ even when bytes moved are equal; no isolated measurement was found.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Because Q4_K_M averages about 4.85 bpw against 4.5 for uniform MLX g64, Q4_K_M moves about 8% more bytes per decoded token, which on a purely bandwidth-bound decode predicts Q4_K_M about 7% slower before arithmetic effects.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Dense decode comparisons across engines at a nominal 4-bit label mix three differences: file size (Q4_K_M 4.85 vs 4.5 bpw), kernel arithmetic (two-level scales vs scale+bias) and engine overheads; attributing a gap to dequant cost alone is not supported by any isolated source.",
+          "source": "asserted",
+          "note": null
+        }
+      ]
+    }
+  ],
+  "related": []
+}

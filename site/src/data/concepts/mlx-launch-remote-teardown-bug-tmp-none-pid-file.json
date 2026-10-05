@@ -1,0 +1,124 @@
+{
+  "slug": "mlx-launch-remote-teardown-bug-tmp-none-pid-file",
+  "concept": "mlx.launch remote teardown bug (tmp.None pid file)",
+  "generated": "2026-10-05",
+  "summary": "The bug is in `RemoteProcess.terminate` in `mlx/_distributed_utils/launch.py`: it builds a remote kill script from `self._pidfile`, which is only set after the first chunk of rank output has been read. If it was never set properly, the script reads a missing file and the rank is not killed.",
+  "facets": [
+    {
+      "title": "Facts",
+      "facts": [
+        {
+          "text": "The bug is in `RemoteProcess.terminate` in `mlx/_distributed_utils/launch.py`: it builds a remote kill script from `self._pidfile`, which is only set after the first chunk of rank output has been read. If it was never set properly, the script reads a missing file and the rank is not killed.",
+          "source": "https://raw.githubusercontent.com/ml-explore/mlx/main/python/mlx/_distributed_utils/launch.py",
+          "note": null
+        },
+        {
+          "text": "The launch script created by `make_launch_script` runs `pidfile=$(mktemp); echo $$ > $pidfile; printf \"%s\\n\" $pidfile;` and ends with `exec \"${cmd[@]}\"`, so `$$` is the pid of the rank itself and the pid file path is the first line printed.",
+          "source": "https://raw.githubusercontent.com/ml-explore/mlx/main/python/mlx/_distributed_utils/launch.py",
+          "note": null
+        },
+        {
+          "text": "`RemoteProcess.__init__` sets `self._pidfile = None`. `preprocess_output` takes the first newline-terminated line of the first data chunk it receives as the pid file path, and it does this for stdout and stderr alike because the caller passes both through it.",
+          "source": "https://raw.githubusercontent.com/ml-explore/mlx/main/python/mlx/_distributed_utils/launch.py",
+          "note": null
+        },
+        {
+          "text": "`terminate` first calls `self._process.terminate()` and waits, then runs `make_kill_script(self._pidfile)` through `ssh <host>`; the script is `pid=$(cat <pidfile>); if ps -p $pid ...; then kill $pid; echo 1; else echo 0; fi; rm <pidfile>`.",
+          "source": "https://raw.githubusercontent.com/ml-explore/mlx/main/python/mlx/_distributed_utils/launch.py",
+          "note": null
+        },
+        {
+          "text": "The kill call uses `check=True`. When the pid file is missing, `cat` fails, `ps -p` with an empty pid fails, `echo 0` prints, and the last command `rm <pidfile>` exits 1, so the ssh command returns 1 and Python raises `CalledProcessError`, matching the traceback in the write-up.",
+          "source": "https://valensas.com/blog/how-we-fixed-a-silent-killer-in-our-mac-studio-llm-cluster",
+          "note": null
+        },
+        {
+          "text": "Because the error is raised inside the launcher's stop path, `exit_codes[rank]` is never recorded for that rank and later ranks in the loop may not be torn down.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "The write-up quotes the code as `from mlx/_distributed_utils/launch.py` with a pid file path ending `tmp.None`; the current main branch fetched on 2026-10-04 still has the same structure (no guard for `_pidfile is None`, no timeout on the ssh kill).",
+          "source": "https://raw.githubusercontent.com/ml-explore/mlx/main/python/mlx/_distributed_utils/launch.py",
+          "note": null
+        },
+        {
+          "text": "The literal text `tmp.None` is not what Python's f-string would give for a `None` pid file (that would print `None`); the write-up shows a `/var/folders/.../tmp.None` path, so the exact value is unexplained by the source. One plausible route is that the first output line is not the `mktemp` path, for example a stderr warning or an ssh banner arriving first.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "The kill sends SIGTERM (`kill $pid`), never SIGKILL, and only to the one rank pid. A rank that is already in uninterruptible sleep in the RDMA driver ignores it.",
+          "source": "https://raw.githubusercontent.com/ml-explore/mlx/main/python/mlx/_distributed_utils/launch.py",
+          "note": null
+        },
+        {
+          "text": "The pid file lives in the remote user's `$TMPDIR` (`mktemp` default, a `/var/folders/...` path on macOS) and is removed only by this kill script, so a launcher crash that skips it leaves a pid file behind.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "The same path is used for the local rank when the host is `127.0.0.1`: `terminate` then runs the kill script without ssh.",
+          "source": "https://raw.githubusercontent.com/ml-explore/mlx/main/python/mlx/_distributed_utils/launch.py",
+          "note": null
+        },
+        {
+          "text": "Remote ranks are launched with `ssh -tt -o LogLevel=QUIET`; the forced tty means stderr and stdout share one stream on the remote side and `stty -echo` is run first.",
+          "source": "https://raw.githubusercontent.com/ml-explore/mlx/main/python/mlx/_distributed_utils/launch.py",
+          "note": null
+        },
+        {
+          "text": "None between sources; the write-up reports the symptom and the source shows the mechanism. The explanation for the exact string `tmp.None` is the only unresolved point.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Whether an upstream issue or PR exists for the `_pidfile is None` case; none was found in the cached pages.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Whether `ssh -tt` hangup alone (SIGHUP to the remote session) would stop a healthy rank, making the explicit kill redundant in the clean case.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "`launch.py` stores `self._pidfile = None` at construction and fills it from the first output chunk's first line.",
+          "source": "https://raw.githubusercontent.com/ml-explore/mlx/main/python/mlx/_distributed_utils/launch.py",
+          "note": null
+        },
+        {
+          "text": "`preprocess_output` is applied to both stdout and stderr, so a first stderr line would be taken as the pid file path.",
+          "source": "https://raw.githubusercontent.com/ml-explore/mlx/main/python/mlx/_distributed_utils/launch.py",
+          "note": null
+        },
+        {
+          "text": "The remote script `exec`s the rank command, so the stored pid is the rank's own pid.",
+          "source": "https://raw.githubusercontent.com/ml-explore/mlx/main/python/mlx/_distributed_utils/launch.py",
+          "note": null
+        },
+        {
+          "text": "The kill script ends with `rm <pidfile>`, so a missing pid file makes the whole ssh command exit 1 and `check=True` raises `CalledProcessError`.",
+          "source": "https://valensas.com/blog/how-we-fixed-a-silent-killer-in-our-mac-studio-llm-cluster",
+          "note": null
+        },
+        {
+          "text": "The teardown sends SIGTERM only.",
+          "source": "https://raw.githubusercontent.com/ml-explore/mlx/main/python/mlx/_distributed_utils/launch.py",
+          "note": null
+        },
+        {
+          "text": "The ssh kill call has no timeout and no fallback to SIGKILL on main as fetched on 2026-10-04.",
+          "source": "https://raw.githubusercontent.com/ml-explore/mlx/main/python/mlx/_distributed_utils/launch.py",
+          "note": null
+        },
+        {
+          "text": "The write-up's `tmp.None` text is not reproduced by `f\"cat {None}\"`; the origin of that string is unexplained.",
+          "source": "asserted",
+          "note": null
+        }
+      ]
+    }
+  ],
+  "related": []
+}

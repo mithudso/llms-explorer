@@ -1,0 +1,144 @@
+{
+  "slug": "mlx-python-scalar-weak-typing-with-half-precisio",
+  "concept": "MLX Python scalar weak typing with half-precision arrays",
+  "generated": "2026-10-05",
+  "summary": "`to_arrays(a, b)` has four cases: two arrays keep their dtypes; an array and a non-array treat the non-array as a weak Python type; the mirror case; and two non-arrays are converted without a target dtype.",
+  "facets": [
+    {
+      "title": "Facts",
+      "facts": [
+        {
+          "text": "`to_arrays(a, b)` has four cases: two arrays keep their dtypes; an array and a non-array treat the non-array as a weak Python type; the mirror case; and two non-arrays are converted without a target dtype.",
+          "source": "https://raw.githubusercontent.com/ml-explore/mlx/main/python/src/utils.cpp",
+          "note": null
+        },
+        {
+          "text": "For an array and a scalar it calls `to_array(scalar, array.dtype())`, so the scalar is built with the array's dtype as the requested dtype.",
+          "source": "https://raw.githubusercontent.com/ml-explore/mlx/main/python/src/utils.cpp",
+          "note": null
+        },
+        {
+          "text": "A Python float with a requested floating dtype is cast to C `float` and stored with that dtype. With a half-precision array the result is a float16 or bfloat16 scalar, so the operation stays in half precision.",
+          "source": "https://raw.githubusercontent.com/ml-explore/mlx/main/python/src/utils.cpp",
+          "note": null
+        },
+        {
+          "text": "If the requested dtype is not floating (an integer or bool array) a Python float becomes float32, so int32 array times 0.5 follows normal int32-with-float32 promotion to float32.",
+          "source": "https://raw.githubusercontent.com/ml-explore/mlx/main/python/src/utils.cpp",
+          "note": null
+        },
+        {
+          "text": "A Python int is built as int32 (int64 beyond the int32 range) unless a dtype is requested. With a half-precision array the requested dtype is the half type, so the integer does not promote the array.",
+          "source": "https://raw.githubusercontent.com/ml-explore/mlx/main/python/src/utils.cpp",
+          "note": null
+        },
+        {
+          "text": "For integer target dtypes narrower than 8 bytes the code range-checks the value and throws \"Converting N to <dtype> would result in overflow.\" The float branch has no range check.",
+          "source": "https://raw.githubusercontent.com/ml-explore/mlx/main/python/src/utils.cpp",
+          "note": null
+        },
+        {
+          "text": "The scalar-with-array path in the Python layer ends in the C++ op, where `promote_types` then sees two equal half dtypes and keeps the half type.",
+          "source": "https://raw.githubusercontent.com/ml-explore/mlx/main/python/src/utils.cpp",
+          "note": null
+        },
+        {
+          "text": "Two Python scalars with no array use default types (int32, float32) and are not weak.",
+          "source": "https://raw.githubusercontent.com/ml-explore/mlx/main/python/src/utils.cpp",
+          "note": null
+        },
+        {
+          "text": "PR 2861 earlier fixed `python/src/convert.cpp` so that `mx.array(v, dtype=mx.float64)` casts to double.",
+          "source": "https://github.com/ml-explore/mlx/pull/4181",
+          "note": null
+        },
+        {
+          "text": "2026-08-12: PR 4173 (merged by zcbenz) changed `to_array` to cast a Python float straight to double when the resolved dtype is float64, because `float64_array * 0.1` had used `float32(0.1)`. The PR states that weak promotion is untouched and that nothing changes for float16, bfloat16 or float32. PR 4181, a duplicate, was closed.",
+          "source": "https://github.com/ml-explore/mlx/pull/4173",
+          "note": null
+        },
+        {
+          "text": "The same PR notes `mx.pad` resolves `constant_values` in the input dtype after it, so an out-of-range Python int now raises instead of wrapping.",
+          "source": "https://github.com/ml-explore/mlx/pull/4173",
+          "note": null
+        },
+        {
+          "text": "A large Python float is cast to the half dtype without a range check, so `x_fp16 * 1e5` uses an fp16 scalar of inf. A scalar above 65,504 therefore turns an fp16 operation into inf or NaN, whereas the same scalar against a bf16 array stays finite.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "A Python float's digits are rounded to float32 first, then to the half type, so a scalar like 1e-8 against an fp16 array becomes 0 (below fp16's smallest subnormal about 6e-8).",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Because the scalar is weak, `x_fp16 * mx.array(0.5)` (a 0-d float32 array) behaves differently from `x_fp16 * 0.5`: the first promotes to float32, the second stays fp16.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Wrapping a constant in `mx.array(...)` or `mx.float32(...)` in model code therefore silently widens activations to float32 and doubles memory traffic; passing the bare Python number does not.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "MLX's `to_arrays` treats a non-array operand as a weak Python type when the other operand is an array.",
+          "source": "https://raw.githubusercontent.com/ml-explore/mlx/main/python/src/utils.cpp",
+          "note": null
+        },
+        {
+          "text": "`to_array(scalar, array.dtype())` builds a Python float as the array's floating dtype, so fp16 and bf16 arrays keep their dtype under scalar arithmetic.",
+          "source": "https://raw.githubusercontent.com/ml-explore/mlx/main/python/src/utils.cpp",
+          "note": null
+        },
+        {
+          "text": "A Python float against an integer or bool array becomes float32 because a non-floating requested dtype is replaced by float32.",
+          "source": "https://raw.githubusercontent.com/ml-explore/mlx/main/python/src/utils.cpp",
+          "note": null
+        },
+        {
+          "text": "A Python int is int32, or int64 outside the int32 range, when no dtype is requested.",
+          "source": "https://raw.githubusercontent.com/ml-explore/mlx/main/python/src/utils.cpp",
+          "note": null
+        },
+        {
+          "text": "Integer scalars requested as an integer dtype narrower than 8 bytes raise an overflow error when out of range; the floating-point branch has no such check.",
+          "source": "https://raw.githubusercontent.com/ml-explore/mlx/main/python/src/utils.cpp",
+          "note": null
+        },
+        {
+          "text": "Two Python scalars with no array operand are converted with default types and are not weak.",
+          "source": "https://raw.githubusercontent.com/ml-explore/mlx/main/python/src/utils.cpp",
+          "note": null
+        },
+        {
+          "text": "PR 4173 (merged 2026-08-12) makes `to_array` cast Python floats to double for a float64 target and leaves float16, bfloat16 and float32 behavior unchanged.",
+          "source": "https://github.com/ml-explore/mlx/pull/4173",
+          "note": null
+        },
+        {
+          "text": "PR 4173 states that a Python float still does not promote a float32 array.",
+          "source": "https://github.com/ml-explore/mlx/pull/4173",
+          "note": null
+        },
+        {
+          "text": "PR 4181 duplicated the same fix and was closed as a duplicate.",
+          "source": "https://github.com/ml-explore/mlx/pull/4181",
+          "note": null
+        },
+        {
+          "text": "A Python float larger than 65,504 against an fp16 array becomes inf in the operand, with no warning.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "A 0-d float32 `mx.array` operand is not weak and promotes an fp16 array to float32, unlike the bare Python number.",
+          "source": "asserted",
+          "note": null
+        }
+      ]
+    }
+  ],
+  "related": []
+}

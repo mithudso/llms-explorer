@@ -1,0 +1,194 @@
+{
+  "slug": "ollama-native-tool-call-parser-extraction-for-qw",
+  "concept": "Ollama native tool-call parser extraction for Qwen function XML",
+  "generated": "2026-10-05",
+  "summary": "`Qwen3CoderParser` is a two-state machine: looking for `<tool_call>`, then collecting until `</tool_call>`. It parses a call only after it sees the closing tag, and it streams no partial tool content.",
+  "facets": [
+    {
+      "title": "Facts",
+      "facts": [
+        {
+          "text": "`Qwen3CoderParser` is a two-state machine: looking for `<tool_call>`, then collecting until `</tool_call>`. It parses a call only after it sees the closing tag, and it streams no partial tool content.",
+          "source": "https://raw.githubusercontent.com/ollama/ollama/main/model/parsers/qwen3coder.go",
+          "note": null
+        },
+        {
+          "text": "While looking for the open tag it withholds a possible partial tag and any trailing whitespace (including Unicode spaces such as non-breaking and ideographic space) so a tag split across chunks is not leaked as content.",
+          "source": "https://raw.githubusercontent.com/ollama/ollama/main/model/parsers/qwen3coder_test.go",
+          "note": null
+        },
+        {
+          "text": "`transformToXML` rewrites `<tag=abc>` into `<tag name=\"abc\">` with the value XML-escaped, then escapes `&`, `<` and `>` in the character data between the `function` and `parameter` tags, leaving newlines and tabs intact.",
+          "source": "https://raw.githubusercontent.com/ollama/ollama/main/model/parsers/qwen3coder.go",
+          "note": null
+        },
+        {
+          "text": "Go `xml.Unmarshal` then reads `<function name>` with `<parameter name>` children. A tag the regex does not recognise stays unescaped, and an unclosed or mismatched element fails with the XML syntax error; the parser logs \"qwen tool call parsing failed\" and returns the error.",
+          "source": "https://raw.githubusercontent.com/ollama/ollama/main/model/parsers/qwen3coder.go",
+          "note": null
+        },
+        {
+          "text": "Each value is looked up against the matched tool's schema. With a declared type, the order is null, boolean, integer, number, array, object, string; with `anyOf`, all member types are pooled; with no schema entry, the value stays a string.",
+          "source": "https://raw.githubusercontent.com/ollama/ollama/main/model/parsers/qwen3coder.go",
+          "note": null
+        },
+        {
+          "text": "Type fallbacks: an invalid boolean becomes false when boolean is the only type; an invalid integer, number, array or object falls back to the raw string; the source comments that the reference Python parser also tries a Python literal parse and Ollama deliberately does not.",
+          "source": "https://raw.githubusercontent.com/ollama/ollama/main/model/parsers/qwen3coder.go",
+          "note": null
+        },
+        {
+          "text": "`Qwen35Parser` wraps it. It collects thinking until `</think>`, then hands all later text to a `Qwen3CoderParser`.",
+          "source": "https://raw.githubusercontent.com/ollama/ollama/main/model/parsers/qwen35.go",
+          "note": null
+        },
+        {
+          "text": "Registry names in `parsers.go`: `qwen3` and `qwen3-thinking` (Hermes-style), `qwen3.5` (two cases mapped to `Qwen35Parser`), `qwen3-coder`, `qwen3-vl-instruct` and `qwen3-vl-thinking`.",
+          "source": "https://raw.githubusercontent.com/ollama/ollama/main/model/parsers/parsers.go",
+          "note": null
+        },
+        {
+          "text": "The existing dossier records the Feb 2026 mis-wiring where `qwen3.5` used the Hermes JSON parser (issue 14493). The parser source now shows the fix: a dedicated `Qwen35Parser` delegating to the coder XML parser.",
+          "source": "https://raw.githubusercontent.com/ollama/ollama/main/model/parsers/qwen35.go",
+          "note": null
+        },
+        {
+          "text": "The Qwen3.5 parser carries a comment that qwen3.5:9b sometimes forgets `</think>` before `<tool_call>`, and a test named `TestQwen35ParserToolCallEmittedInThinkingIsParsed`.",
+          "source": "https://raw.githubusercontent.com/ollama/ollama/main/model/parsers/qwen35_test.go",
+          "note": null
+        },
+        {
+          "text": "The injection fires on the first `<tool_call>` seen while collecting thinking, including when the model merely quotes the tag in its reasoning; the code has no guard, and a test covers only a \"fakeout\" of a partial tag followed by `</think>`.",
+          "source": "https://raw.githubusercontent.com/ollama/ollama/main/model/parsers/qwen35_test.go",
+          "note": null
+        },
+        {
+          "text": "One malformed call drops the whole turn: `Add` returns an empty content, empty thinking, nil calls and the error, so earlier valid calls and content in the same chunk are lost, though the HTTP status stays 200 per the existing dossier.",
+          "source": "https://raw.githubusercontent.com/ollama/ollama/main/model/parsers/qwen3coder.go",
+          "note": null
+        },
+        {
+          "text": "If generation ends while collecting a call (`done` true in the collecting state), the unfinished text is emitted back as content prefixed with `<tool_call>`.",
+          "source": "https://raw.githubusercontent.com/ollama/ollama/main/model/parsers/qwen3coder.go",
+          "note": null
+        },
+        {
+          "text": "With thinking enabled and an assistant prefill present, the parser starts in content mode; with `think` false it passes content through, and a stray `</think>` is then treated as content.",
+          "source": "https://raw.githubusercontent.com/ollama/ollama/main/model/parsers/qwen35_test.go",
+          "note": null
+        },
+        {
+          "text": "Values containing `&`, `<` or `>` are escaped before unmarshalling so they survive; a value that contains a literal `</parameter>` or a `<function=` line would still end the parameter early.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "`Qwen3CoderParser` reports no thinking support, so using the bare `qwen3-coder` parser with a model that thinks leaves the thinking text in content.",
+          "source": "https://raw.githubusercontent.com/ollama/ollama/main/model/parsers/qwen3coder.go",
+          "note": null
+        },
+        {
+          "text": "Parameters absent from the tool's schema default to strings, so a numeric argument for an undeclared parameter reaches the tool as text.",
+          "source": "https://raw.githubusercontent.com/ollama/ollama/main/model/parsers/qwen3coder_test.go",
+          "note": null
+        },
+        {
+          "text": "Source versus reference parser on type coercion. The Go comments say Ollama follows the Python reference for newline trimming, null and boolean handling, but intentionally differs on Python-literal parsing and on union types (the reference does no union-aware coercion).",
+          "source": "https://raw.githubusercontent.com/ollama/ollama/main/model/parsers/qwen3coder.go",
+          "note": null
+        },
+        {
+          "text": "Which Ollama release first contained `Qwen35Parser` with the inject-`</think>` branch; the existing dossier dates the fixes to PR 14603 and later but the source read has no blame data.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Whether the remaining reports of \"element <parameter> closed by </function>\" (issue 17276, Ollama 0.32.1) are model output that is really malformed or an escaping gap; the existing dossier closes it as a duplicate.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Ollama `Qwen3CoderParser` parses a tool call only after seeing `</tool_call>` and does not stream partial tool content.",
+          "source": "https://raw.githubusercontent.com/ollama/ollama/main/model/parsers/qwen3coder.go",
+          "note": null
+        },
+        {
+          "text": "Ollama converts `<function=NAME>` and `<parameter=KEY>` tags to `name` attributes, escapes `&`, `<`, `>` in character data, and parses the result with Go `encoding/xml`.",
+          "source": "https://raw.githubusercontent.com/ollama/ollama/main/model/parsers/qwen3coder.go",
+          "note": null
+        },
+        {
+          "text": "A parse error returns empty content, thinking and calls plus the error, and logs \"qwen tool call parsing failed\".",
+          "source": "https://raw.githubusercontent.com/ollama/ollama/main/model/parsers/qwen3coder.go",
+          "note": null
+        },
+        {
+          "text": "Ollama types parameter values by the tool schema in the order null, boolean, integer, number, array, object, string, with `anyOf` types pooled.",
+          "source": "https://raw.githubusercontent.com/ollama/ollama/main/model/parsers/qwen3coder.go",
+          "note": null
+        },
+        {
+          "text": "Ollama strips one leading and one trailing newline from parameter values, as the reference implementation does.",
+          "source": "https://raw.githubusercontent.com/ollama/ollama/main/model/parsers/qwen3coder.go",
+          "note": null
+        },
+        {
+          "text": "Ollama does not support the reference parser's Python-literal fallback.",
+          "source": "https://raw.githubusercontent.com/ollama/ollama/main/model/parsers/qwen3coder.go",
+          "note": null
+        },
+        {
+          "text": "`Qwen3CoderParser` declares `HasThinkingSupport` false and preserves `<tool_call>` and `</tool_call>` as tokens.",
+          "source": "https://raw.githubusercontent.com/ollama/ollama/main/model/parsers/qwen3coder.go",
+          "note": null
+        },
+        {
+          "text": "`Qwen35Parser` delegates post-thinking content, including XML tool calls, to `Qwen3CoderParser`.",
+          "source": "https://raw.githubusercontent.com/ollama/ollama/main/model/parsers/qwen35.go",
+          "note": null
+        },
+        {
+          "text": "`Qwen35Parser` injects `</think>` when it finds `<tool_call>` while still collecting thinking, with a comment naming qwen3.5:9b.",
+          "source": "https://raw.githubusercontent.com/ollama/ollama/main/model/parsers/qwen35.go",
+          "note": null
+        },
+        {
+          "text": "`Qwen35Parser` strips at most one leading `<think>` tag when the prompt already opened thinking.",
+          "source": "https://raw.githubusercontent.com/ollama/ollama/main/model/parsers/qwen35.go",
+          "note": null
+        },
+        {
+          "text": "`Qwen35Parser.ThinkingClose` returns `</think>` only while it is collecting thinking.",
+          "source": "https://raw.githubusercontent.com/ollama/ollama/main/model/parsers/qwen35.go",
+          "note": null
+        },
+        {
+          "text": "The Ollama parser registry maps `qwen3.5` to `Qwen35Parser`, `qwen3-coder` to `Qwen3CoderParser` and has separate qwen3 and qwen3-vl parsers.",
+          "source": "https://raw.githubusercontent.com/ollama/ollama/main/model/parsers/parsers.go",
+          "note": null
+        },
+        {
+          "text": "The qwen3coder test file covers split tags, character-by-character streaming, Arabic, emoji, non-breaking and ideographic whitespace, ampersands and angle brackets in values, and about 40 value-typing cases.",
+          "source": "https://raw.githubusercontent.com/ollama/ollama/main/model/parsers/qwen3coder_test.go",
+          "note": null
+        },
+        {
+          "text": "A tool call placed inside thinking is recovered on current Ollama main and is not recovered on builds that predate the injection branch.",
+          "source": "asserted",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Corrections and disagreements",
+      "facts": [
+        {
+          "text": "CONTRADICTS: reasoning-parser-versus-tool-parser-interaction.md line 45, which lists Ollama among runtimes where a tool call inside thinking lands in the reasoning field with `tool_calls` empty. On current main `Qwen35Parser` detects `<tool_call>` inside thinking, injects `</think>` before it, and parses the call. The symptom applies to builds before that code.",
+          "source": "https://raw.githubusercontent.com/ollama/ollama/main/model/parsers/qwen35.go",
+          "note": null
+        }
+      ]
+    }
+  ],
+  "related": []
+}

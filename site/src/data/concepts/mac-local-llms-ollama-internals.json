@@ -1,0 +1,289 @@
+{
+  "slug": "mac-local-llms-ollama-internals",
+  "concept": "Mac local LLMs: Ollama internals",
+  "generated": "2026-10-05",
+  "summary": "0.40.0-rc0 (pre-release, 2026-09-25): models on MLX-supported architectures run on MLX automatically on Apple silicon; GGUF tags may switch runner; no opt-out found; final 0.40.0 unknown (release URL 404 on 2026-10-04).",
+  "facets": [
+    {
+      "title": "Runner choice and diagnosis",
+      "facts": [
+        {
+          "text": "0.40.0-rc0 (pre-release, 2026-09-25): models on MLX-supported architectures run on MLX automatically on Apple silicon; GGUF tags may switch runner; no opt-out found; final 0.40.0 unknown (release URL 404 on 2026-10-04).",
+          "source": "https://github.com/ollama/ollama/releases",
+          "note": null
+        },
+        {
+          "text": "Which runner is live: grep ~/.ollama/logs/server.log for `--mlx-engine`; with OLLAMA_DEBUG=1 look for `Parallel:`. MLX tags carry `-mlx` (qwen3.6:27b-mlx 19 GB, 35b-mlx 24 GB, 256K ctx); run `ollama run gemma4:12b-mlx`.",
+          "source": "https://www.popularai.org/p/ollama-num-parallel-mac-mlx",
+          "note": null
+        },
+        {
+          "text": "GGUF models go through an upstream llama-server subprocess on main (CGO engines removed 2026-05-29); 2025 \"Ollama engine\" claims describe old builds.",
+          "source": "https://raw.githubusercontent.com/ollama/ollama/main/llm/server.go",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "MLX memory and concurrency (act on these)",
+      "facts": [
+        {
+          "text": "OLLAMA_FLASH_ATTENTION and OLLAMA_KV_CACHE_TYPE are read only in the non-MLX branch of server/sched.go: no effect on MLX models.",
+          "source": "https://github.com/ollama/ollama/issues/16698",
+          "note": null
+        },
+        {
+          "text": "OLLAMA_NUM_PARALLEL has no effect on MLX (single slot; 5 concurrent requests spread 4.0-75.0 s). PR 17317 (continuous batching) open 2026-08-14. qwen35/qwen35moe log \"model architecture does not currently support parallel requests\" and force Parallel:1.",
+          "source": "https://www.popularai.org/p/ollama-num-parallel-mac-mlx",
+          "note": null
+        },
+        {
+          "text": "Issue 16698 (0.30.8, M4 Max 64 GB, qwen3.6:35b-mlx): RSS 24 to 75.2 GB, swap 31.6 GB, 131k request 58.7 to 13.35 tok/s; 0.30.7 and earlier unaffected. Cause: recurrent conv-state slices pinned the forward buffer. Fixed by PR 17077 (commit 4e96f4d), shipped by 0.32.11: upgrade.",
+          "source": "https://github.com/ollama/ollama/issues/16698",
+          "note": null
+        },
+        {
+          "text": "Workaround before the fix: OLLAMA_KEEP_ALIVE=0 (46.61 tok/s standalone 131k) kills the runner after each request, dropping the prefix cache.",
+          "source": "https://github.com/ollama/ollama/issues/16698",
+          "note": null
+        },
+        {
+          "text": "32 GB hosts: 18131 (M1 Max, 0.32.14, qwen3.8:27b-mlx, num_ctx 73728) process 20.41 to 28.16 GB, swap up to 10.10 GB; MLX 16.58 vs GGUF+MTP 11.08 tok/s. Attributed to the hard-coded 8 GiB prefix cache; proposed OLLAMA_MLX_PREFIX_CACHE_BYTES not found in releases. 48 GB plateaus (17924: 28.5 GiB).",
+          "source": "https://github.com/ollama/ollama/issues/18131",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Create, quantize, import",
+      "facts": [
+        {
+          "text": "`ollama create --experimental --quantize int4|int8|mxfp4|mxfp8|nvfp4` panicked \"mlx: There is no Stream(gpu, 1) in current thread\" from 0.23.1 (0.23.0 worked); issue 16070 closed 2026-07-07; `q4_K_M` rejected there.",
+          "source": "https://github.com/ollama/ollama/issues/16070",
+          "note": null
+        },
+        {
+          "text": "0.34.1: safetensors create no longer experimental; GGUF conversion/quantization needs llama.cpp tooling. Import: `FROM /path/to/safetensors/directory` then `ollama create`; Ollama does not quantize GGUF on import.",
+          "source": "https://docs.ollama.com/import",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Context length",
+      "facts": [
+        {
+          "text": "Docs tiers: under 24 GiB VRAM 4k, 24-48 GiB 32k, 48 GiB or more 256k. Correction: an earlier dossier cited 23/47 GiB from commit 0334ffa6; use the docs.",
+          "source": "https://docs.ollama.com/context-length",
+          "note": null
+        },
+        {
+          "text": "Agents/coding/web search: set at least 64000 tokens; keep `ollama ps` PROCESSOR at 100% GPU; changing num_ctx reloads the model.",
+          "source": "https://docs.ollama.com/context-length",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "mmap",
+      "facts": [
+        {
+          "text": "Metal rule (\"mmap has issues with partial offloading on metal\"): use_mmap off when 0 < NumGPU < block_count+1, so a split model cannot exceed RAM; no env var forces mmap.",
+          "source": "https://raw.githubusercontent.com/ollama/ollama/v0.6.2/llm/server.go",
+          "note": null
+        },
+        {
+          "text": "Per request/Modelfile: `{\"options\":{\"use_mmap\":false}}` cured thrashing (3940; some crashes unless num_gpu lowered); `use_mmap:true` forces on. On main, false gives `--load-mode none`. OLLAMA_NO_MMAP (PR 6854) was not merged as far as seen.",
+          "source": "https://github.com/ollama/ollama/issues/10104",
+          "note": null
+        },
+        {
+          "text": "Compat-translated GGUFs load fully into RAM; `OLLAMA_LLAMA_CPP_COMPAT=0` disables hooks.",
+          "source": "https://raw.githubusercontent.com/ollama/ollama/main/llama/compat/README.md",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "llama-server launcher and bundled llama.cpp",
+      "facts": [
+        {
+          "text": "Flags always set: `--model --port --host 127.0.0.1 --no-webui --offline -c NumCtx*numParallel -np`, `--log-verbosity 4`. `-ngl` only if num_gpu set; `-b/-ub` from NumBatch; `--flash-attn on|off|auto`; `--cache-type-k/v` from OLLAMA_KV_CACHE_TYPE (default f16); `--context-shift --keep N`; `-t`; `--split-mode none --main-gpu`. Other llama-server flags are unreachable.",
+          "source": "https://raw.githubusercontent.com/ollama/ollama/main/llm/llama_server.go",
+          "note": null
+        },
+        {
+          "text": "Metal startup failure (\"failed to initialize ggml backend device: metal\", \"failed to allocate context\") retries with GGML_METAL_TENSOR_DISABLE=1.",
+          "source": "https://raw.githubusercontent.com/ollama/ollama/main/llm/metal_retry.go",
+          "note": null
+        },
+        {
+          "text": "OLLAMA_KV_ROTATE does not exist (0 issue/PR hits, absent from envconfig/config.go); do not recommend it. KV rotation, if any, is inherited from llama-server; LLAMA_ATTN_ROT_DISABLE opts out only if it reaches the subprocess.",
+          "source": "https://raw.githubusercontent.com/ollama/ollama/main/envconfig/config.go",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Renderer, parser, Modelfile (undocumented)",
+      "facts": [
+        {
+          "text": "PR 18786: GGUF import auto-sets renderer `qwen3.8` + parser `qwen3.5` for arch qwen35/qwen35moe only if the embedded chat template contains both `resolved_reasoning_effort` and `preserve_thinking`. Detection runs only when Renderer or Parser is empty; values set in the request or Modelfile win.",
+          "source": "https://github.com/ollama/ollama/pull/18786",
+          "note": null
+        },
+        {
+          "text": "Modelfile accepts `RENDERER` and `PARSER`, absent from docs/modelfile.mdx. Setting either (or harmony, or a Go template) makes Ollama render the prompt and sets DisableJinja, so PARSER alone also bypasses the GGUF Jinja template.",
+          "source": "https://raw.githubusercontent.com/ollama/ollama/main/server/routes.go",
+          "note": null
+        },
+        {
+          "text": "Names do not pair 1:1: renderer `qwen3.8` has no parser (use `qwen3.5`); `deepseek3.1` renders, parser is `deepseek3`; `harmony`, `ministral`, `passthrough` are parser-only. Unknown renderer errors `unknown renderer %q`; unknown parser silently returns nil.",
+          "source": "https://raw.githubusercontent.com/ollama/ollama/main/model/parsers/parsers.go",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Template selection (Go TEMPLATE vs GGUF Jinja)",
+      "facts": [
+        {
+          "text": "OLLAMA_GO_TEMPLATE (\"Enable Modelfile TEMPLATE based rendering when available\"; an unparseable value counts as true): 1 forces Go TEMPLATE rendering, 0 the native llama-server GGUF chat template.",
+          "source": "https://raw.githubusercontent.com/ollama/ollama/main/envconfig/config.go",
+          "note": null
+        },
+        {
+          "text": "Unset: Ollama prefers the GGUF template only if it has strictly more capabilities and the Go template lacks a tool round trip; never when a Renderer, Parser or harmony (gptoss with `<|start|>`/`<|end|>`) applies. Log \"model is missing tokenizer.chat_template and Go TEMPLATE support is unavailable; chat responses may be poorly formatted\": set OLLAMA_GO_TEMPLATE=1. Release that added PreferChatTemplate unknown.",
+          "source": "https://raw.githubusercontent.com/ollama/ollama/main/server/images.go",
+          "note": null
+        },
+        {
+          "text": "Native path posts to 127.0.0.1:<port>/v1/chat/completions and maps think to enable_thinking/reasoning_effort; Go-rendered prompts add `--no-jinja --chat-template chatml`.",
+          "source": "https://raw.githubusercontent.com/ollama/ollama/main/llm/llama_server.go",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Speculative decoding (MLX and GGUF)",
+      "facts": [
+        {
+          "text": "MLX picks DFlash if the draft implements BlockDraft (draft limit blockSize-1), else MTP (unbounded); depth is adaptive and the old OLLAMA_MLX_MTP_* variables were removed. gemma4:26b-mlx M5 Max 148-157 tok/s.",
+          "source": "https://github.com/ollama/ollama/pull/17203",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Open questions",
+      "facts": [
+        {
+          "text": "Final 0.40.0 architecture list, MLX opt-out, and whether PR 17317 or a prefix-cache setting shipped; dense-model growth past 8 GiB unresolved; minimum chip for MLX unknown.",
+          "source": "asserted",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Corrections and disagreements",
+      "facts": [
+        {
+          "text": "CONTRADICTS claude-code-context-window-mismatch-against-local-servers.md on thresholds: docs.ollama.com/context-length lists under 24 GiB as 4k, 24-48 GiB as 32k and 48 GiB or more as 256k, while that dossier cites 23 GiB and 47 GiB from commit 0334ffa6.",
+          "source": "https://docs.ollama.com/context-length",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Concepts in this cluster",
+      "facts": [
+        {
+          "text": "Ollama MLX backend and NVFP4 on Apple silicon",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Ollama runner no-mmap default on Metal and use_mmap option",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "ollama create from safetensors with MLX quantization",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Ollama default 262144 context and num_ctx memory cost on Mac",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Ollama VRAM-tiered default num_ctx and v1 num_ctx dropping",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Ollama KV rotation port (OLLAMA_KV_ROTATE)",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Ollama engine vs llama engine loader split and mmap support",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Ollama launcher flag set passed to llama-server",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Ollama qwen3_5 MTP loader and SelfDraft path",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "llama.cpp bundled revision inside Ollama releases",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Ollama DFlash block-diffusion draft model in mlxrunner",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Ollama llama/compat patch layer for llama.cpp",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Ollama mlxrunner speculative depth controller (committed tokens per second)",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Ollama multimodal projector offload disable policy",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Ollama GGUF import renderer detection (qwen3.8 renderer selection)",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Ollama Modelfile RENDERER and PARSER directives and the renderer/parser registri",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Ollama usesOllamaRenderedChat versus native llama-server Jinja chat path",
+          "source": "asserted",
+          "note": null
+        }
+      ]
+    }
+  ],
+  "related": []
+}

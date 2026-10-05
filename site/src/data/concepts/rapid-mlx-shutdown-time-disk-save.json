@@ -1,0 +1,84 @@
+{
+  "slug": "rapid-mlx-shutdown-time-disk-save",
+  "concept": "Rapid-MLX shutdown-time disk save",
+  "generated": "2026-10-05",
+  "summary": "Before commit 1394f16 the shutdown flush assumed 150 MB/s when it had no write sample, which predicted 6.4 s for a 1 GB entry and skipped it under the 3.5 s SIGTERM budget although the SSD writes it in about 1 s.",
+  "facets": [
+    {
+      "title": "Facts",
+      "facts": [
+        {
+          "text": "Before commit 1394f16 the shutdown flush assumed 150 MB/s when it had no write sample, which predicted 6.4 s for a 1 GB entry and skipped it under the 3.5 s SIGTERM budget although the SSD writes it in about 1 s.",
+          "source": "https://github.com/raullenchai/Rapid-MLX/commit/1394f16960d51e5d619c1aa45f1aa173454eb8c8",
+          "note": null
+        },
+        {
+          "text": "Since commit 1394f16 a budgeted (shutdown) save first measures a 16 MiB fsynced write, halves the result to cover serialization overhead, and bounds the first prediction to 150-600 MB/s; later entries use the throughput observed on real writes.",
+          "source": "https://github.com/raullenchai/Rapid-MLX/commit/1394f16960d51e5d619c1aa45f1aa173454eb8c8",
+          "note": null
+        },
+        {
+          "text": "The decision record argues a page-cache-speed probe cannot over-promise because real 1 GB entry writes measured 700-1,300 MB/s; the 3.5 s SIGTERM budget is unchanged.",
+          "source": "https://github.com/raullenchai/Rapid-MLX/commit/1394f16960d51e5d619c1aa45f1aa173454eb8c8",
+          "note": null
+        },
+        {
+          "text": "A hybrid entry's recurrent-state checkpoints are written to an `entry_K_ckpt.safetensors` sidecar; on load the sidecar is re-attached only if every array matches its layer's state slot in shape and dtype, every position lies inside the entry, and every recurrent layer is covered.",
+          "source": "https://github.com/raullenchai/Rapid-MLX/commit/1394f16960d51e5d619c1aa45f1aa173454eb8c8",
+          "note": null
+        },
+        {
+          "text": "If a checkpoint sidecar mismatches, including a truncated file, Rapid-MLX drops the checkpoints and keeps the entry.",
+          "source": "https://github.com/raullenchai/Rapid-MLX/commit/1394f16960d51e5d619c1aa45f1aa173454eb8c8",
+          "note": null
+        },
+        {
+          "text": "After a restart a session replayed from its first turn snaps to the newest checkpoint below the shared prefix; checkpoints were recorded at 2,048-token prefill strides with at most 4 kept, so a 22,819-token prefix resumed at 18,944 and re-prefilled 3,875 tokens.",
+          "source": "https://github.com/raullenchai/Rapid-MLX/issues/3796",
+          "note": null
+        },
+        {
+          "text": "Issue 3796 measured that replay at 13.2 s on an M3 Pro 18 GB and 12.3 s on an M4 Pro 48 GB (Qwen3.5-9B-4bit, scenario c `after_restart` turn 1) against oMLX's 0.27 s; before PR 3794 it took 65-69 s, and resuming the same session with a new message already hit at 0.4-0.8 s.",
+          "source": "https://github.com/raullenchai/Rapid-MLX/issues/3796",
+          "note": null
+        },
+        {
+          "text": "Issue 3796 names two fixes: anchor checkpoints at message boundaries (stride and thinning must keep at least the oldest boundary, the end of system plus tools), or take a separate snapshot at the end of system plus tools.",
+          "source": "https://github.com/raullenchai/Rapid-MLX/issues/3796",
+          "note": null
+        },
+        {
+          "text": "PR 3836 records recurrent state at each real message-boundary snapshot and marks the first cold-session boundary as a protected anchor that occupies one slot of `RAPID_MLX_HYBRID_CHECKPOINT_MAX`, while stride and later boundary samples compete for the rest; sidecar metadata persists the anchor across restart and internal N-1 snapshots stay ordinary checkpoints.",
+          "source": "https://github.com/raullenchai/Rapid-MLX/pull/3836",
+          "note": null
+        },
+        {
+          "text": "PR 3836 validation on an M3 Pro 18 GB (Qwen3.5-9B-4bit, BF16 KV, MTP, PFlash off, 30 tool schemas): cold turn 1 at 17,220 tokens took 50.3 s, live turns 2-3 prefilled 38-41 tokens in 0.4 s, and a replayed turn 1 after SIGTERM and restart had 17,205 cached with 15 remaining and took 0.7 s.",
+          "source": "https://github.com/raullenchai/Rapid-MLX/pull/3836",
+          "note": null
+        },
+        {
+          "text": "PR 3836's restart log line is `LCP snapped to checkpoint: shared=17216 entry_len=17231 resumed_at=17205`, and its author notes this is a smaller synthetic prompt rather than the unpublished 22,819-token issue harness.",
+          "source": "https://github.com/raullenchai/Rapid-MLX/pull/3836",
+          "note": null
+        },
+        {
+          "text": "Issue 3796 was closed as completed by PR 3836 on 2026-09-28.",
+          "source": "https://github.com/raullenchai/Rapid-MLX/issues/3796",
+          "note": null
+        },
+        {
+          "text": "The Rapid-MLX 0.15.3 changelog lists 'fix(cache): anchor hybrid checkpoints at message boundaries (#3836)' in its all-changes list.",
+          "source": "https://github.com/raullenchai/Rapid-MLX/releases",
+          "note": null
+        },
+        {
+          "text": "Rapid-MLX's decision record says an exact turn-1 hit like oMLX's block-level SSD cache would need either a boundary snapshot at the end of system plus tools or checkpoints at message boundaries, because stride checkpoints cannot hit exactly.",
+          "source": "https://github.com/raullenchai/Rapid-MLX/commit/1394f16960d51e5d619c1aa45f1aa173454eb8c8",
+          "note": null
+        }
+      ]
+    }
+  ],
+  "related": []
+}

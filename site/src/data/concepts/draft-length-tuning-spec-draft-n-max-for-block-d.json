@@ -1,0 +1,174 @@
+{
+  "slug": "draft-length-tuning-spec-draft-n-max-for-block-d",
+  "concept": "Draft length tuning (spec-draft-n-max) for block-diffusion drafters",
+  "generated": "2026-10-05",
+  "summary": "Drafting cost is nearly flat in length: DFlash's paper says that for moderate block sizes the draft time is largely insensitive to gamma, so shortening the block saves verify cost, not draft cost.",
+  "facets": [
+    {
+      "title": "Facts",
+      "facts": [
+        {
+          "text": "Drafting cost is nearly flat in length: DFlash's paper says that for moderate block sizes the draft time is largely insensitive to gamma, so shortening the block saves verify cost, not draft cost.",
+          "source": "https://arxiv.org/html/2602.06036v2",
+          "note": null
+        },
+        {
+          "text": "The paper trained drafters at block sizes 8 and 16 on the same data. A drafter trained at 16 and run at 8 reaches acceptance lengths close to a drafter trained and run at 8; the reverse does not hold. Block-size scheduling at inference is therefore possible with a large-block drafter, and the authors leave adaptive scheduling to future work.",
+          "source": "https://arxiv.org/html/2602.06036v2",
+          "note": null
+        },
+        {
+          "text": "Large blocks raise verification cost under compute-bound conditions (large batches); the paper says reducing the block size there can give a better overall speedup.",
+          "source": "https://arxiv.org/html/2602.06036v2",
+          "note": null
+        },
+        {
+          "text": "Training weights block positions by `w_k = exp(-(k-1)/gamma_loss)`, so early positions dominate, with `gamma_loss` of 7 for block 16, 5 for block 10 and 4 for block 8; the tail positions of a long block are trained with little weight and are the ones a verifier reaches least often.",
+          "source": "https://docs.nvidia.com/nemo/automodel/recipes-e2e-examples/dflash-speculative-decoding",
+          "note": null
+        },
+        {
+          "text": "llama.cpp now lets `--spec-draft-p-min` apply to DFlash: it truncates the draft at the first token whose confidence falls below the threshold, which does not shorten the drafter's single pass but does cut the tokens the target must verify.",
+          "source": "https://github.com/ggml-org/llama.cpp/pull/25246",
+          "note": null
+        },
+        {
+          "text": "On a quantized target or drafter under MLX, z-lab's guidance is `block_size <= 5` because MLX's quantized matmul kernel becomes less efficient at larger verify widths; its example runs a 4-bit target and 4-bit drafter at `--block-size 5`.",
+          "source": "https://github.com/z-lab/dflash",
+          "note": null
+        },
+        {
+          "text": "Feb 2026: the DFlash paper (arXiv 2602.06036) trains block 16 drafters for most Qwen3 targets (block 10 for LLaMA 3.1, 5 layers, 8 for Qwen3 Coder) and publishes the block-size ablation.",
+          "source": "https://arxiv.org/html/2602.06036v2",
+          "note": null
+        },
+        {
+          "text": "3 Jul 2026: llama.cpp PR 25246 (ruixiang63) is merged as commit 152d337 with approvals from pwilkin and gaugarg-nv; follow-up commits add guards on both `n_min` and `n_max`.",
+          "source": "https://github.com/ggml-org/llama.cpp/pull/25246",
+          "note": null
+        },
+        {
+          "text": "15 Jun 2026: the SGLang announcement benchmarks Qwen3.5-397B-A17B with \"Draft token/block counts selected for maximum throughput (MTP: 7 steps; DFlash: block size 16)\" at concurrency 1, yet its sample launch command (32 running requests) passes `--speculative-dflash-block-size 8`.",
+          "source": "https://www.lmsys.org/blog/2026-06-15-next-generation-speculative-decoding-dflash-v2/",
+          "note": null
+        },
+        {
+          "text": "Aug 2026: z-lab's README lists DFlash 2 checkpoints (Muse-Glimmer-30B, Qwen3.8-27B) beside the DFlash collection and gives the MLX quantized block-size rule.",
+          "source": "https://github.com/z-lab/dflash",
+          "note": null
+        },
+        {
+          "text": "A block-8 drafter often fully accepts its whole block (35.7% of Math500 rounds), so block 8 is underused on predictable math and code; the block-16 drafter's acceptance distribution is more spread out and its mean acceptance length is higher.",
+          "source": "https://arxiv.org/html/2602.06036v2",
+          "note": null
+        },
+        {
+          "text": "Quantized verification on MLX has a width ceiling near 5; wider blocks fall back to less efficient kernels (the existing verify-cliff dossier covers attention at 6 to 15 rows and a long cache).",
+          "source": "https://github.com/z-lab/dflash",
+          "note": null
+        },
+        {
+          "text": "The NeMo recipe warns that `mask_token_id` must be a reserved, rarely used token, not `pad`, which is often aliased to `eos`, and that the inference runtime must fill block slots with the same id; a mismatch quietly erodes acceptance.",
+          "source": "https://docs.nvidia.com/nemo/automodel/recipes-e2e-examples/dflash-speculative-decoding",
+          "note": null
+        },
+        {
+          "text": "A llama.cpp DFlash log line shows `n_max=8, n_min=0, p_min=0.00, block_size=16, mask_token_id=248077, n_extract=8`, which confirms `n_max` below the trained block size is accepted at runtime.",
+          "source": "https://github.com/ggml-org/llama.cpp/pull/22105",
+          "note": null
+        },
+        {
+          "text": "Training for the \"re-draft behind a partly accepted block\" regime is a separate objective (D2SD VP-Drafter, arXiv 2606.04446): the NeMo recipe's `variable_prefix` loss draws a visible-prefix length from a truncated geometric prior with base 0.9 and supervises only the masked suffix.",
+          "source": "https://docs.nvidia.com/nemo/automodel/recipes-e2e-examples/dflash-speculative-decoding",
+          "note": null
+        },
+        {
+          "text": "Which length is best depends on the regime, and the sources do not agree on a number. The paper's headline settings use block 16 (4.64x on Math500 at 16 to 16 against 3.97x at 8 to 8 for an 8-layer drafter) and the llama.cpp PR example uses `n_max` 15, while the V100 sweep in the existing dossier finds a peak near 2 to 4 and the MLX guidance is 5 for quantized models. The differences track hardware (HBM GPU, V100, Apple GPU), batch and quantization; no source runs one drafter across all three.",
+          "source": "https://arxiv.org/html/2602.06036v2",
+          "note": null
+        },
+        {
+          "text": "SGLang's own materials use block 16 for the concurrency-1 benchmark and block 8 for a 32-request sample command, which reads as a regime-dependent choice, but the post does not say so.",
+          "source": "https://www.lmsys.org/blog/2026-06-15-next-generation-speculative-decoding-dflash-v2/",
+          "note": null
+        },
+        {
+          "text": "A measured `--spec-draft-n-max` sweep on a Metal build of llama.cpp for a block-16 drafter on a dense and on a MoE target; none was found.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Whether `--spec-draft-p-min` improves net speed on DFlash, and at what threshold; PR 25246 states the idea but shows no numbers.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Whether llama.cpp will schedule block size adaptively; the paper leaves it to future work and the sources show no PR.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Table 8 of the DFlash paper (8-layer drafters, 5 target hidden features): trained and tested at block 16, Math500 reaches 4.64x with acceptance length 6.33, HumanEval 3.96x with 5.29 and MT-Bench 2.23x with 3.50.",
+          "source": "https://arxiv.org/html/2602.06036v2",
+          "note": null
+        },
+        {
+          "text": "In the same table a block-8 model tested at block 16 reaches 3.78x (5.02), 3.24x (4.28) and 2.09x (3.09) on Math500, HumanEval and MT-Bench, and tested at block 8 reaches 3.97x (5.21), 3.53x (4.61) and 2.22x (3.29).",
+          "source": "https://arxiv.org/html/2602.06036v2",
+          "note": null
+        },
+        {
+          "text": "The paper states that a model trained with a larger block size generalizes well to smaller inference block sizes and that the reverse does not hold.",
+          "source": "https://arxiv.org/html/2602.06036v2",
+          "note": null
+        },
+        {
+          "text": "The paper's loss decay gamma is 7 for block 16, 5 for block 10 and 4 for block 8.",
+          "source": "https://arxiv.org/html/2602.06036v2",
+          "note": null
+        },
+        {
+          "text": "The paper's DFlash drafters use 5 layers (8 for Qwen3 Coder) and block size 16 (10 for LLaMA 3.1); the EAGLE-3 comparison uses a tree size of 16 for a matched drafting budget and 60 for maximum acceptance.",
+          "source": "https://arxiv.org/html/2602.06036v2",
+          "note": null
+        },
+        {
+          "text": "z-lab's README says to use `block_size <= 5` for quantized targets or drafts on MLX because the current quantized matmul kernel is less efficient at larger verify widths.",
+          "source": "https://github.com/z-lab/dflash",
+          "note": null
+        },
+        {
+          "text": "z-lab's README lists DFlash checkpoints for Qwen3.6 (27B, 35B-A3B), Qwen3.5 (4B to 397B-A17B), Gemma 4, MiniMax M2.5 and M2.7, Kimi K2.5 to K2.7-Code, GPT-OSS 20B and 120B, Llama-3.1-8B and GLM 5.1, and says the MLX backend supports DFlash 2 for Qwen3.8-27B and DFlash for Qwen3, Qwen3.5, Qwen3.6 and Gemma 4.",
+          "source": "https://github.com/z-lab/dflash",
+          "note": null
+        },
+        {
+          "text": "llama.cpp PR 25246 argues that although DFlash is not autoregressive, `--spec-draft-p-min` still helps because truncating the draft at a confidence threshold reduces target verification time.",
+          "source": "https://github.com/ggml-org/llama.cpp/pull/25246",
+          "note": null
+        },
+        {
+          "text": "PR 25246's commits are \"spec: support spec-draft-p-min in DFlash\", \"dflash: add n_min guard\" and \"dflash: guard both n_min and n_max\", and it merged on 3 Jul 2026.",
+          "source": "https://github.com/ggml-org/llama.cpp/pull/25246",
+          "note": null
+        },
+        {
+          "text": "The SGLang post's benchmark chart for Qwen3.5-397B-A17B on 8x B200 reports more than 4.3x baseline throughput and 1.5x MTP throughput at concurrency 1 on HumanEval with DFlash block size 16 against 7 MTP steps.",
+          "source": "https://www.lmsys.org/blog/2026-06-15-next-generation-speculative-decoding-dflash-v2/",
+          "note": null
+        },
+        {
+          "text": "In the SGLang post's ablation on Qwen3-4B (5-layer drafters), full DFlash with KV injection reached acceptance length 4.2 on GSM8K against 3.5 for the diffusion-only variant, and matched a 5-layer EAGLE-3's 4.2 while running at 3.3x against 2.1x.",
+          "source": "https://www.lmsys.org/blog/2026-06-15-next-generation-speculative-decoding-dflash-v2/",
+          "note": null
+        },
+        {
+          "text": "NeMo's AutoModel recipe lists four variants on the DFlash backbone: DFlash, DFlash 2 (two-tap in-block convolution and a pairwise path selector), Domino (serial GRU correction head) and JetSpec (causal in-block attention with forward-KL distillation).",
+          "source": "https://docs.nvidia.com/nemo/automodel/recipes-e2e-examples/dflash-speculative-decoding",
+          "note": null
+        }
+      ]
+    }
+  ],
+  "related": []
+}

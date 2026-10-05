@@ -1,0 +1,109 @@
+{
+  "slug": "reference-self-flip-floor-from-cache-prompt-and",
+  "concept": "Reference self-flip floor from cache_prompt and batch-size nondeterminism",
+  "generated": "2026-10-05",
+  "summary": "A llama.cpp user running 8 server slots with temperature 0, a fixed seed and cache_prompt false got 5 to 8 distinct completions from the same prompt on an H100, reproduced on an M1 MacBook Pro and an A100, and always one completion with one slot but still small logit variations.",
+  "facets": [
+    {
+      "title": "Facts",
+      "facts": [
+        {
+          "text": "A llama.cpp user running 8 server slots with temperature 0, a fixed seed and cache_prompt false got 5 to 8 distinct completions from the same prompt on an H100, reproduced on an M1 MacBook Pro and an A100, and always one completion with one slot but still small logit variations.",
+          "source": "https://github.com/ggml-org/llama.cpp/issues/7052",
+          "note": null
+        },
+        {
+          "text": "A llama.cpp maintainer's answer: bit-identical floating point output needs the exact same operations in the same order, and multiple slots are faster precisely because they do not run that way; multi-slot output stayed not fully deterministic on master, and a per-slot RNG fix (PR 6835) was needed because slots first shared one RNG state.",
+          "source": "https://github.com/ggml-org/llama.cpp/issues/7052",
+          "note": null
+        },
+        {
+          "text": "The issue was closed by the stale bot after 14 days with no root-cause fix.",
+          "source": "https://github.com/ggml-org/llama.cpp/issues/7052",
+          "note": null
+        },
+        {
+          "text": "vLLM documents \"batch invariance\" as an opt-in beta (VLLM_BATCH_INVARIANT=1) that makes output independent of batch size and request order, supported on NVIDIA GPUs of compute capability 8.0 or higher and Intel XPUs with Triton; Apple GPUs are not listed.",
+          "source": "https://docs.vllm.ai/en/latest/features/batch_invariance/",
+          "note": null
+        },
+        {
+          "text": "No llama.cpp or MLX switch with the vLLM guarantee was found, so on a Mac the floor has to be measured, not configured away.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "KLD analogue: llama-perplexity derives n_seq from n_batch / n_ctx and runs sequences together, so the reference pass and each candidate pass use batch shapes set by -b and -c; the candidate pass must reuse the reference's -c, and equal -b is the only way to keep batch composition equal.",
+          "source": "https://raw.githubusercontent.com/ggml-org/llama.cpp/master/tools/perplexity/perplexity.cpp",
+          "note": null
+        },
+        {
+          "text": "A direct floor measurement: run the reference file's own model through the --kl-divergence pass with a different -b and read mean KLD and Same-top p; any nonzero KLD or Same-top p under 100% is the batch-shape floor.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "2024-05: issue 7052 reports the multi-slot effect. 2025-2026: vLLM adds batch invariance (docs read 2026-10-04).",
+          "source": "https://docs.vllm.ai/en/latest/features/batch_invariance/",
+          "note": null
+        },
+        {
+          "text": "Single-slot variation in logits does not necessarily change argmax, but a near-tie position can flip, so the floor concentrates on low-margin positions, the same positions a quant flips.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "The issue's hardware was CUDA plus one M1 report; Metal reduction order differs, so the size of the floor on Apple GPUs is unknown.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "\"Greedy plus cache_prompt false is deterministic enough\" (implied by the harness recipe in the covering file) versus the 7052 evidence of 5 to 8 distinct outputs across slots. The issue used many slots; one slot gave one completion.",
+          "source": "https://github.com/ggml-org/llama.cpp/issues/7052",
+          "note": null
+        },
+        {
+          "text": "Self-flip rate of a Metal llama-server with one slot, cache_prompt on versus off, and across -ub values, on a 1,000-position token stream.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Whether MLX has a batch-size-dependent reduction order that makes mlx_lm.server self-flip.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Issue 7052 reports 5 to 8 unique completions from 8 slots at temperature 0 with cache_prompt false, and one completion with a single slot.",
+          "source": "https://github.com/ggml-org/llama.cpp/issues/7052",
+          "note": null
+        },
+        {
+          "text": "The same issue reports the effect on an M1 MacBook Pro as well as an H100 and an A100.",
+          "source": "https://github.com/ggml-org/llama.cpp/issues/7052",
+          "note": null
+        },
+        {
+          "text": "The llama.cpp maintainer attributes the multi-slot variation to differing floating-point operation order across slots.",
+          "source": "https://github.com/ggml-org/llama.cpp/issues/7052",
+          "note": null
+        },
+        {
+          "text": "vLLM batch invariance is beta, opt-in, and listed for NVIDIA compute capability 8.0 or higher and Intel XPU only.",
+          "source": "https://docs.vllm.ai/en/latest/features/batch_invariance/",
+          "note": null
+        },
+        {
+          "text": "llama-perplexity sets n_seq from n_batch divided by n_ctx, so batch settings shape how sequences are grouped in both reference and candidate passes.",
+          "source": "https://raw.githubusercontent.com/ggml-org/llama.cpp/master/tools/perplexity/perplexity.cpp",
+          "note": null
+        },
+        {
+          "text": "No measurement of a Metal llama-server or mlx_lm.server self-flip floor was found.",
+          "source": "asserted",
+          "note": null
+        }
+      ]
+    }
+  ],
+  "related": []
+}

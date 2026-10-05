@@ -1,0 +1,139 @@
+{
+  "slug": "llama-cpp-chat-cpp-per-template-regex-rewrites-v",
+  "concept": "llama.cpp chat.cpp per-template regex rewrites versus Jinja input marking",
+  "generated": "2026-10-05",
+  "summary": "On master (read 2026-10-04) `common/chat.cpp` has zero occurrences of the word `regex`; its template-specific edits are `string_replace_all` on the template source, `src.find(...)` substring detection, and C++ `workaround::` functions.",
+  "facets": [
+    {
+      "title": "Facts",
+      "facts": [
+        {
+          "text": "On master (read 2026-10-04) `common/chat.cpp` has zero occurrences of the word `regex`; its template-specific edits are `string_replace_all` on the template source, `src.find(...)` substring detection, and C++ `workaround::` functions.",
+          "source": "https://raw.githubusercontent.com/ggml-org/llama.cpp/master/common/chat.cpp",
+          "note": null
+        },
+        {
+          "text": "Two template-source patches exist, both marked temporary: a GPT-OSS patch (template contains `<|channel|>` and `in message.content or`) that replaces the `<|channel|>analysis<|message|>` membership test with `{%- if false %}`, and a Mistral patch (template contains `[TOOL_CALLS]` and `if (message['content'] is none or`) that replaces its empty-content condition with `{%- if false %}`, pending Minja changes.",
+          "source": "https://raw.githubusercontent.com/ggml-org/llama.cpp/master/common/chat.cpp",
+          "note": null
+        },
+        {
+          "text": "The message-level `workaround::` functions are `map_developer_role_to_system` (skipped for `<|channel|>` templates), `system_message_not_supported`, `requires_non_null_content`, `func_args_not_string`, `trim_all_content` and `convert_tool_responses_gemma4`.",
+          "source": "https://raw.githubusercontent.com/ggml-org/llama.cpp/master/common/chat.cpp",
+          "note": null
+        },
+        {
+          "text": "`system_message_not_supported` merges a leading system message into the next message as `system + \"\\n\" + next` when the template lacks a system role, and drops it if it is the only message.",
+          "source": "https://raw.githubusercontent.com/ggml-org/llama.cpp/master/common/chat.cpp",
+          "note": null
+        },
+        {
+          "text": "`func_args_not_string` parses JSON-string tool-call arguments into objects for templates that want object arguments and throws \"Failed to parse tool call arguments as JSON: ...\" when it cannot.",
+          "source": "https://raw.githubusercontent.com/ggml-org/llama.cpp/master/common/chat.cpp",
+          "note": null
+        },
+        {
+          "text": "`trim_all_content` runs on the messages for StepFun templates (detected by \"You have access to the following functions in JSONSchema format\") because leftover whitespace drove the model into reasoning loops (issue 24181), and it must run before rendering because string-only-content templates concatenate content parts.",
+          "source": "https://raw.githubusercontent.com/ggml-org/llama.cpp/master/common/chat.cpp",
+          "note": null
+        },
+        {
+          "text": "An older Gemma 4 template (one lacking the marker `{#- OpenAI Chat Completions:`) gets a logged warning \"detected an outdated gemma4 chat template, applying compatibility workarounds\" and `convert_tool_responses_gemma4`.",
+          "source": "https://raw.githubusercontent.com/ggml-org/llama.cpp/master/common/chat.cpp",
+          "note": null
+        },
+        {
+          "text": "`common_chat_try_specialized_template` detects by substring: Ministral and Magistral Large 3 (`[SYSTEM_PROMPT]`, `[TOOL_CALLS]`, `[ARGS]`, no `[CALL_ID]`), LLM-jp Harmony (`chat_format=llm-jp-harmony-v1`), GPT-OSS (`<|channel|>`), Gemma 4 (`'<|tool_call>call:'`), MiniCPM5 and Qwen3-Coder, and further handlers for Muse Glimmer, Functionary v3.2, Kimi K2 and K3, Ling 3, Cohere 2 MoE, LFM2, GigaChat v3, MiniMax M3 and DeepSeek V3.2.",
+          "source": "https://raw.githubusercontent.com/ggml-org/llama.cpp/master/common/chat.cpp",
+          "note": null
+        },
+        {
+          "text": "The Qwen3-Coder handler fires when the template has `<tool_call>`, `<function=` and `<parameter=` and does not have `'<tool_call><function=' ~ tool_call.name ~ '>'`, and its source comment says it also serves Nemotron Nano 3, Qwen3.5 and StepFun-3.5-Flash.",
+          "source": "https://raw.githubusercontent.com/ggml-org/llama.cpp/master/common/chat.cpp",
+          "note": null
+        },
+        {
+          "text": "A Qwen3.8 template that keeps those three markers would take the Qwen3-Coder handler and skip the autoparser.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "`docs/autoparser.md` says specialised handling covers Ministral and Magistral Large 3, GPT-OSS and Functionary v3.2, and that everything else goes to the autoparser, so it understates the handler list in `chat.cpp`.",
+          "source": "https://raw.githubusercontent.com/ggml-org/llama.cpp/master/docs/autoparser.md",
+          "note": null
+        },
+        {
+          "text": "The autoparser has its own post-analysis workaround lambdas in `common/chat-diff-analyzer.cpp` for old Qwen and DeepSeek thinking templates, Granite 3.3, Cohere Command R+, Functionary 3.1 and DeepSeek-R1-Distill-Qwen, each keyed on a unique template substring.",
+          "source": "https://raw.githubusercontent.com/ggml-org/llama.cpp/master/docs/autoparser.md",
+          "note": null
+        },
+        {
+          "text": "The docs tell contributors to add a workaround lambda when differential analysis extracts wrong markers, and a dedicated handler in `chat.cpp` only when a format needs fundamentally different handling.",
+          "source": "https://raw.githubusercontent.com/ggml-org/llama.cpp/master/docs/autoparser.md",
+          "note": null
+        },
+        {
+          "text": "Rendering runs `jinja::global_from_json(ctx, inp, inputs.mark_input)`, then `gather_string_parts` and `parts->as_string().str()`, so the per-part `is_input` flags are collapsed into one string at the end of `common_chat_template_direct_apply_impl`.",
+          "source": "https://raw.githubusercontent.com/ggml-org/llama.cpp/master/common/chat.cpp",
+          "note": null
+        },
+        {
+          "text": "That collapse is the \"refactor `chat.cpp` to output parts instead of a single string\" item still unchecked in issue 28249.",
+          "source": "https://api.github.com/repos/ggml-org/llama.cpp/issues/28249",
+          "note": null
+        },
+        {
+          "text": "Before rendering, `chat.cpp` also applies `preserve_reasoning` through `jinja::caps_apply_preserve_reasoning` and a non-empty string `reasoning_effort` through `jinja::caps_apply_reasoning_effort`.",
+          "source": "https://raw.githubusercontent.com/ggml-org/llama.cpp/master/common/chat.cpp",
+          "note": null
+        },
+        {
+          "text": "The generation prompt is found by rendering twice, with `add_generation_prompt` false and true, and keeping what follows the common prefix.",
+          "source": "https://raw.githubusercontent.com/ggml-org/llama.cpp/master/common/chat.cpp",
+          "note": null
+        },
+        {
+          "text": "The Jinja README says user-origin strings carry `is_input = true`, one-to-one string operations keep the flag, one-to-many operations (such as split) mark the result only if all inputs are marked, and concatenation keeps each part's flag.",
+          "source": "https://raw.githubusercontent.com/ggml-org/llama.cpp/master/common/jinja/README.md",
+          "note": null
+        },
+        {
+          "text": "The README states \"workarounds are applied to input data before entering the runtime (see `common/chat.cpp`)\", so message-level rewrites precede marking.",
+          "source": "https://raw.githubusercontent.com/ggml-org/llama.cpp/master/common/jinja/README.md",
+          "note": null
+        },
+        {
+          "text": "The README's two caveats are that special tokens built from user input (`'<|' + message['role'] + '|>'`) will not work as special tokens, and that a template-added leading space (`' ' + message['content']`) is tokenised as a standalone token.",
+          "source": "https://raw.githubusercontent.com/ggml-org/llama.cpp/master/common/jinja/README.md",
+          "note": null
+        },
+        {
+          "text": "Because `system_message_not_supported` concatenates operator system text into a user message before `global_from_json`, that merged text is marked as input along with the user's words.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "`message_delimiters` are assigned only inside the autoparser branch, after the specialised-handler early return, so specialised handlers (including Qwen3-Coder) set none.",
+          "source": "https://raw.githubusercontent.com/ggml-org/llama.cpp/master/common/chat.cpp",
+          "note": null
+        },
+        {
+          "text": "Issue 24382 (the Gemma 4 `A<|turn>B` injection) was closed by the stale bot on 2026-07-25 and ngxson replaced it with 28249 on 2026-09-02; 28249 is assigned and says contributors should not take it.",
+          "source": "https://api.github.com/repos/ggml-org/llama.cpp/issues/24382/comments?per_page=30",
+          "note": null
+        },
+        {
+          "text": "`common/` holds `chat-auto-parser*.cpp`, `chat-diff-analyzer.cpp`, `chat-peg-parser.*`, `peg-parser.*`, a `parsers/` directory and a `jinja/` directory with `lexer`, `parser`, `runtime`, `value` and `caps` sources.",
+          "source": "https://api.github.com/repos/ggml-org/llama.cpp/contents/common",
+          "note": null
+        },
+        {
+          "text": "Inferred: input marking cannot be wired to the server until every specialised handler and `workaround::` function either keeps part boundaries or is proven not to need them, which is why the 28249 refactor is listed before the server wiring.",
+          "source": "asserted",
+          "note": null
+        }
+      ]
+    }
+  ],
+  "related": []
+}

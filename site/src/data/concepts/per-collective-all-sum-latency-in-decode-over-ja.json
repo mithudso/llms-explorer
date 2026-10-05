@@ -1,0 +1,74 @@
+{
+  "slug": "per-collective-all-sum-latency-in-decode-over-ja",
+  "concept": "Per-collective all_sum latency in decode over JACCL RDMA",
+  "generated": "2026-10-05",
+  "summary": "Existing coverage: tensor-vs-pipeline-vs-expert-parallelism-for-moe.md has TB5 RDMA about 50 us vs about 300 us TCP and 25 GbE about 200 us; mlx-metal-fast-synch dossier says the 0.26 ms FAST_SYNCH saving is unconfirmed; exo-cluster-software.md has the exo tweet of 3 us. This file reconciles them",
+  "facets": [
+    {
+      "title": "Facts",
+      "facts": [
+        {
+          "text": "Existing coverage: tensor-vs-pipeline-vs-expert-parallelism-for-moe.md has TB5 RDMA about 50 us vs about 300 us TCP and 25 GbE about 200 us; mlx-metal-fast-synch dossier says the 0.26 ms FAST_SYNCH saving is unconfirmed; exo-cluster-software.md has the exo tweet of 3 us. This file reconciles them",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "PR 4530 is likewise closed unmerged, so no JACCL liveness check or progress timeout exists in mainline MLX or in the exo pin",
+          "source": "https://github.com/ml-explore/mlx/pull/4530",
+          "note": null
+        },
+        {
+          "text": "The same guruswami INTERCONNECTS page gives two different TB5 RDMA latencies: 'about 50 us per op' in the speed hierarchy table and 'about 100 us per all-reduce' in the Llama 405B TP2 table, so the author's own figure is 2x apart depending on the table",
+          "source": "https://github.com/guruswami-ai/mlx-benchmarks/blob/main/docs/INTERCONNECTS.md",
+          "note": null
+        },
+        {
+          "text": "Per-collective figures now stand at about 3 us (exo tweet, Dec 2025), about 50 us and about 100 us (guruswami, Mar 2026), and 1.9 ms for a 16 MB all_sum on a 2-node mesh (PR 4530 clean-path test); these differ by payload size and by what is timed, so none is a decode-sized collective measurement",
+          "source": "https://github.com/ml-explore/mlx/pull/4530",
+          "note": null
+        },
+        {
+          "text": "angeloskath measured about 1 us (about 10 percent) added by the wc_status check on a 16 KB 4-way all-reduce, which implies a baseline of about 10 us for that small collective on JACCL mesh",
+          "source": "https://github.com/ml-explore/mlx/pull/3152",
+          "note": null
+        },
+        {
+          "text": "The guruswami Llama 405B TP2 model counts 126 all-reduces per token (one per layer) and gets 12.6 ms of sync at 100 us each against a stated 35 ms token time; standard TP needs about two all-reduces per layer (after attention output and after MLP down projection), so the true count is likely near 252",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "The page's own measured TP2 for Llama 405B Q4 is 4.3 tok/s, about 233 ms per token, so the '35 ms token gen time' row cannot be the measured value and the 36 percent overhead figure is a model, not a measurement",
+          "source": "https://github.com/guruswami-ai/mlx-benchmarks/blob/main/docs/CHAKRA_CLUSTER.md",
+          "note": null
+        },
+        {
+          "text": "At the author's 100 us and 126 collectives, sync is 12.6 ms of about 233 ms measured, about 5 percent, which would not explain the observed 4.3 vs 3.0 tok/s TP2 scaling; compute and memory effects dominate",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "The guruswami page says Q8 Qwen 32B at 54 ms per token has 23 percent sync overhead and Q2 at 21 ms has 60 percent, both computed from the same 12.6 ms; this is the arithmetic behind its 'TP scaling is quant-dependent' finding, not a per-quant measurement",
+          "source": "https://github.com/guruswami-ai/mlx-benchmarks/blob/main/docs/INTERCONNECTS.md",
+          "note": null
+        },
+        {
+          "text": "No fetched source reports a per-layer all_sum latency measured during decode on JACCL (for example with an 8 KB tensor); the model-free loop proposed in exo-vs-mlx-launch-tensor-parallel-throughput-comparison.md remains the way to get it",
+          "source": "asserted",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Corrections and disagreements",
+      "facts": [
+        {
+          "text": "CONTRADICTS distributed-inference-across-macs.md and apple-libthunderboltrdma-tbt-post-recv-sigsegv.md on PR status: MLX PR 3152 and PR 4530 are both closed unmerged by zcbenz (3152 on 2026-10-02, 4530 on 2026-09-29); both pages in the cache show the 'closed this' event and no merge",
+          "source": "https://github.com/ml-explore/mlx/pull/3152",
+          "note": null
+        }
+      ]
+    }
+  ],
+  "related": []
+}

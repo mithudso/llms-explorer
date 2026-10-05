@@ -1,0 +1,144 @@
+{
+  "slug": "llama-cpp-context-checkpoint-64-token-minimum-tu",
+  "concept": "llama.cpp context checkpoint 64-token minimum tuning",
+  "generated": "2026-10-05",
+  "summary": "A prompt shorter than 64 tokens gets no checkpoint, so a follow-up that extends it has nothing to restore on a hybrid model.",
+  "facets": [
+    {
+      "title": "Facts",
+      "facts": [
+        {
+          "text": "A prompt shorter than 64 tokens gets no checkpoint, so a follow-up that extends it has nothing to restore on a hybrid model.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Real agent prompts run to thousands of tokens, so the 64 floor is not what breaks them; spacing and boundary placement are.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Since the PR 22929 / 24176 / 25472 line of work, the tunable that controls how many checkpoints survive is `-cms/--checkpoint-min-step`, where 0 means no minimum.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "2026-04-26: issue 22384 proposed lowering the minimum to 4 tokens for recurrent and hybrid models; the issue was closed as completed the same day while the maintainer said no server change was needed (use `preserve_thinking`).",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "2026-05: PR 22929 moved creation to the position before the latest user message and avoided periodic mid-prompt checkpoints when that position is known.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Build b9309 still logged cadence-style creation (\"512 tokens since last checkpoint\"); b9354 (first bad commit e98cb51) created one checkpoint at the end of the prompt.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "On a 2,800-token prompt, b9309 made checkpoints at 2047, 2299 and 2811 tokens; b9354 made one at 2800, which became invalid when the next prompt was shorter than that position.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "A user tuning `--checkpoint-min-step 512` found it did nothing to prevent full re-processing in b9354; removing the flag did not help either.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Maintainer reading: no checkpoint change needed, enable `preserve_thinking` (22384). Reporter reading: a short first turn gets no checkpoint even with `preserve_thinking=true`, so a separate bug exists (22384, Tongas test). The test used tiny prompts, so it does not show the floor matters at agent scale.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Whether the literal `>= 64` test still exists in current master `server-context.cpp`; the 2026-06-25 diff context in issue 24055 shows the min-spacing check but not the 64 test.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "No source gives a measured optimum for `-cms` on a Mac.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "In the 22384 test with `preserve_thinking=true` and no patch, turn 1 created 0 checkpoints because the 64-token threshold was not met, and turn 2 logged `forcing full prompt re-processing` with 75 tokens processed.",
+          "source": "https://github.com/ggml-org/llama.cpp/issues/22384",
+          "note": null
+        },
+        {
+          "text": "With the patch, turn 1 created a checkpoint and turn 2 logged `restored context checkpoint` and processed 51 tokens.",
+          "source": "https://github.com/ggml-org/llama.cpp/issues/22384",
+          "note": null
+        },
+        {
+          "text": "The 22384 maintainer reply was \"The fix is incorrect. There is nothing to fix in llama-server\" and pointed to `preserve_thinking`; the issue state is closed as completed (2026-04-26).",
+          "source": "https://github.com/ggml-org/llama.cpp/issues/22384",
+          "note": null
+        },
+        {
+          "text": "The README documents `-cms, --checkpoint-min-step N` as minimum spacing between context checkpoints in tokens, default 8192, 0 meaning no minimum, with env `LLAMA_ARG_CHECKPOINT_MIN_SPACING_NT`.",
+          "source": "https://github.com/ggml-org/llama.cpp/blob/master/tools/server/README.md",
+          "note": null
+        },
+        {
+          "text": "A b9354 startup line reads `context checkpoints enabled, max = 64, min spacing = 512` for `--ctx-checkpoints 64 --checkpoint-min-step 512`.",
+          "source": "https://github.com/ggml-org/llama.cpp/issues/24055",
+          "note": null
+        },
+        {
+          "text": "A b9309 log line reads `512 tokens since last checkpoint at 0, creating new checkpoint during processing at position 2300`, with checkpoints created at n_tokens 2048, 2300 and 2812.",
+          "source": "https://github.com/ggml-org/llama.cpp/issues/24055",
+          "note": null
+        },
+        {
+          "text": "In b9354 the same prompt produced one checkpoint at n_tokens 2800 (`pos_min = 2799, pos_max = 2799, size = 149.626 MiB`), which was erased on the next request.",
+          "source": "https://github.com/ggml-org/llama.cpp/issues/24055",
+          "note": null
+        },
+        {
+          "text": "Issue 24055 names commit e98cb51 as the first bad commit for this change of behavior.",
+          "source": "https://github.com/ggml-org/llama.cpp/issues/24055",
+          "note": null
+        },
+        {
+          "text": "A commenter on 24055 attributes the change to PR 22929: checkpoints are created only at the last message, so any edit before it forces a full reprocess.",
+          "source": "https://github.com/ggml-org/llama.cpp/issues/24055",
+          "note": null
+        },
+        {
+          "text": "PR 22929 lists its design as: extract `message_spans` from chat templates, find the prompt token position before the latest user message, split prompt batching there, create a checkpoint before the latest user input, and avoid periodic mid-prompt checkpoints when that position is known.",
+          "source": "https://github.com/ggml-org/llama.cpp/pull/22929",
+          "note": null
+        },
+        {
+          "text": "The author of PR 22929 tested with `--ctx-checkpoints 24 --cache-ram 65536 --keep 4096 -b 8192 --parallel 1 --checkpoint-min-step 256 --chat-template-kwargs '{\"preserve_thinking\":true}'`, a min-step far below the 8192 default.",
+          "source": "https://github.com/ggml-org/llama.cpp/pull/22929",
+          "note": null
+        },
+        {
+          "text": "The diff posted on 24055 on 2026-06-25 shows the creation guard `slot.prompt.checkpoints.empty() || is_last_user_message || n_tokens_start > slot.prompt.checkpoints.back().n_tokens + params_base.checkpoint_min_step`.",
+          "source": "https://github.com/ggml-org/llama.cpp/issues/24055",
+          "note": null
+        },
+        {
+          "text": "The ik_llama.cpp fork uses `--ctx-checkpoints-interval 1024` and shares the same two bugs (hybrid restore test and the 64-token creation floor) in issue 1762.",
+          "source": "https://github.com/ikawrakow/ik_llama.cpp/issues/1762",
+          "note": null
+        },
+        {
+          "text": "ik_llama.cpp issue 1762 (Qwen3.6-27B Q8_0, 8 RTX 2080 Ti, 66,293-token turns) measured 195 s of prompt eval per turn at 339.70 tokens per second.",
+          "source": "https://github.com/ikawrakow/ik_llama.cpp/issues/1762",
+          "note": null
+        },
+        {
+          "text": "Inferred: for agent prompts above a few hundred tokens the 64-token floor is irrelevant; tune `-cms` toward the median turn length and keep `-ctxcp` large enough that checkpoints are not all evicted.",
+          "source": "asserted",
+          "note": null
+        }
+      ]
+    }
+  ],
+  "related": []
+}

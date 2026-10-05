@@ -1,0 +1,514 @@
+{
+  "slug": "data-driven-mixed-precision-mlx-quants-oq-optiq",
+  "concept": "Data-driven mixed-precision MLX quants (oQ, OptiQ, JANG)",
+  "generated": "2026-10-05",
+  "summary": "OptiQ `optiq` method: for each (layer, candidate bits) quantize one layer in simulation, forward calibration data, measure logit KL against a reference, then greedy knapsack: start all layers at the lowest candidate bits, repeatedly upgrade the layer with the largest KL reduction per extra bit un...",
+  "facets": [
+    {
+      "title": "Facts",
+      "facts": [
+        {
+          "text": "OptiQ `optiq` method: for each (layer, candidate bits) quantize one layer in simulation, forward calibration data, measure logit KL against a reference, then greedy knapsack: start all layers at the lowest candidate bits, repeatedly upgrade the layer with the largest KL reduction per extra bit until target BPW. Protected always at the top bit width: lm_head, embed_tokens, first and last attention block. Output goes to mlx_lm.convert as a quant_predicate. Candidate bits default 4 and 8.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "OptiQ `static` method (added 0.2.5, 2026-06): no measurement, no forward passes; ranks tensors by architecture priors (embedding/head highest; first/last block; attention and MoE router; dense MLP and routed experts lowest). Same allocator. On Qwen3.5-0.8B it matched `optiq` (GSM8K 34.5% both) at 7.2 s vs 899 s, achieved BPW 5.15 vs 5.59. It exists because exact KL on a 122B MoE would take days and needs bf16 resident.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "OptiQ reference modes: `bf16` reference if bf16 fits in ~70% of RAM (about 10B params on a 36 GB Mac), else `uniform_4bit` reference with bf16 layers streamed from disk (weaker signal, lets 27B+ run).",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "OptiQ calibration: 40 samples x 6 domains (prose, reasoning with think blocks, code, multi-turn agent loops, function-calling traces, constraint-bearing instructions), chat samples rendered through the model's chat template; override with --calibration-mix.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "OptiQ MoE rules: fused expert tensor is one knapsack entry per (block, projection); router projections (Qwen mlp.gate, Gemma mlp.router) and shared experts are protected at the high bit width.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "OptiQ also measures per-layer KV-cache sensitivity (Qwen3-0.6B: layer 0 KV 56x the average; uniform 4-bit KV perplexity 21.2 -> 507.5 while keeping 7 of 28 layers at 8-bit recovers quality) and sets sensitivity-scaled LoRA rank. Weight and KV sensitivity are coupled: 10 of 28 layers change KV allocation when the weight quantization changes.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "oQ: sensitivity = MSE(float_out, quant_out) / mean(float_out^2), normalized by output magnitude. Boost tiers by ratio to max: >=50% of max gets base+4 bits, >=20% base+2, else base+1. Boosts apply only to non-expert tensors; routed experts (93-98% of MoE params) stay at base bits because the budget optimizer finds them poor value. Mandatory protection: lm_head 8-bit, MoE router 8-bit, shared_expert_gate 8-bit, vision encoder fp16, SSM state params fp32. oQ8 has no budget plan (heuristics only; lm_head 6-bit, SSM output 8-bit, embedding base+2, first/last 12.5% layers base+1).",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "oQ levels beyond the existing list: oQ2.5 (~3.2 bpw) and oQ2.7 (~3.3 bpw) add code-preserving routed down-projection boosts; oQ3.5 ~3.8 bpw. oQ+ runs GPTQ (Frantar et al.) before quantizing; for MoE all experts in a layer share one Hessian (same input hidden states) so the column-by-column compensation runs batched across experts. oQ built-in calibration set: 600 samples, 7 categories (code 200, en 150, ko 60, ja 60, zh 50, tool_calling 40, reasoning 40). Calibration memory admission is Metal-aware: above 75% of the Metal working set a temporary uniform 4-bit proxy is used.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "JANG tiers (FORMAT.md v2): CRITICAL (full softmax attention q/k/v/o, lm_head, MoE routers, MLA projections, SSM state), IMPORTANT (embeddings, linear attention/GatedDeltaNet, shared experts), COMPRESS (MLP gate/up/down, MoE experts, vision FFN, SSM projections). A profile is a triple (CRITICAL, IMPORTANT, COMPRESS) bits, e.g. JANG_4M = 8-bit attention, 4-bit experts; JANG_2L ~2.3 bpw; JANG_1L ~2.1 bpw; K-profiles (JANG_4K, 3K) mimic uniform size \"with smarter allocation\". The tier assignment is by tensor name, not a calibration measurement, even though the config calls the method \"jang-importance\".",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "JANG v2 stores MLX-native uint32 weights plus fp16 scales and biases; bit width is not stored but inferred from tensor shapes (actual_bits = weight.shape[-1]*32 // (scales.shape[-1]*group_size)). config.json \"quantization.bits\" holds the COMPRESS-tier bits only; the loader corrects each QuantizedLinear afterward. Rules added in 2.1.x: per-tensor group size (router 64, experts 128 for 150+ expert models), gate_proj 4-bit floor and down_proj 3-bit floor for 512+ expert models, bfloat16 auto-detect to avoid float16 overflow at the shared-expert down_proj.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "JANGTQ (TurboQuant): routed experts stored as indices into a 2^b Lloyd-Max codebook after a randomized Hadamard rotation, with a per-row norm; at inference the input is rotated once per layer and dot products run against centroids with custom Metal kernels (never dequantized to affine). Everything else is affine 8-bit (attention, embed, lm_head, shared expert) or fp16 (router, norms, vision). Requires jang-tools loader; stock mlx_lm.load cannot parse `.tq_packed`.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "JangPress (vmlx-swift-lm): mmap safetensors plus per-token router-aware MADV_DONTNEED on routed-expert pages so routed-MoE bundles larger than RAM serve from one Mac (Kimi-K2.6 153-167 GB bundles on 128 GB, post-load RSS ~0.7-1 GB).",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "mlx-optiq SSD expert streaming: attention, router, embeddings, scales stay resident and experts are read by byte range per token (Qwen3.5-122B-A10B 2-bit: 44 GB on disk, 12 GB resident on a 36 GB Mac, about 5 tok/s; sharded over a 36+24 GB Mac pair over Thunderbolt about 20 tok/s).",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Unsloth's KLD-derived per-tensor recipe has an MLX port (mlx-node, Brooooooklyn, 2026-03): gate/up_proj 3-bit, down_proj 4-bit, q/k/v and in_proj 5-bit plus AWQ pre-scaling, embed 5, lm_head 6, o_proj and linear-attn out_proj bf16 (KLD up to 6.0). Unsloth ships its own UD-MLX 3/4/6/8-bit, MXFP4 and NVFP4 uploads for Qwen3.6 and says its MLX algorithm \"is still evolving\".",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "2026-03-18/21: JANG v2.1.x releases (MLP asymmetry floors, Nemotron-H loader, bfloat16 auto-detect). 2026-03-20 OptiQ research post. 2026-03-21/24 oMLX issue #339 and PR #364 request/implement JANG loading; oMLX's maintainer had signalled he did not want this kind of custom-loader integration, a reviewer proposed a plugin system; the JANG README later states oMLX \"has added JANG integration (PR #364)\".",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "2026-04: oMLX adds an oQ dtype toggle (bfloat16 default, float16 option, output suffix -fp16) after issue #604.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "2026-05/06: OptiQ 0.2.5 adds `static` method and SSD expert streaming; independent mlx-eval (deepsweet) publishes KLD tables that include oQ, JANGTQ, OptiQ, UD-MLX, PARO.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "2026-09/10: mlx-optiq 0.5.19 (2026-09-30, MIT, PyPI) is a full stack (serve, Lab UI, coding agent, cloud \"Boost\"); JANG tools 2.5.49 (2026-10-01); JANG ships JANGH profiles and a signed JANG Studio macOS DMG. JANG repo has 229 stars and 2 contributors (one is Claude), oMLX 22.5k stars.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "JANGTQ and JANGH checkpoints are not mlx-lm loadable; the HF card says \"All JANG models are meant to be run in vMLX\" and the repo About line says \"YOU MUST USE JANG_Q RUNTIME\". LM Studio, Ollama and Inferencer do not support JANG (per the JANG README). Non-TQ JANG v2 files are standard MLX tensors but still need per-layer bit correction at load.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "oQ and OptiQ checkpoints load in stock mlx-lm, but OptiQ's own FAQ says mlx-vlm per-layer mixed-precision handling and Gemma-4 shared-KV support lag, so image input and new architectures can fail in LM Studio, mlx-vlm and oMLX while text works. Some OptiQ quants (vendored architectures) need `import optiq`.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "mlx-vlm 0.6.3 has no dynamic_quant, DWQ, AWQ or GPTQ entry points; it excludes vision/audio encoders from weight quantization by default and offers a first/last-layer mixed-bit option.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "HF-format AWQ/GPTQ checkpoints do not load in mlx-lm: loading Qwen/Qwen3-4B-AWQ raises \"ValueError: Received 756 parameters not in model: model.layers.0.mlp.down_proj.qweight ... qzeros ... scales\" (mlx-lm issue #727, closed). mlx-lm's AWQ/GPTQ are converters (`mlx_lm.awq`, `mlx_lm.gptq`), not loaders for existing AutoAWQ/AutoGPTQ files.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "mlx-lm defaults: AWQ --num-samples 32, --n-grid 10; DWQ --num-samples 1024, --batch-size 8, --bits 4; dynamic_quant default range 4/5 bits gives achievable BPW only in [4.5, 5.5] unless bits change.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "DWQ and dynamic_quant stack: running dynamic_quant first then DWQ is the documented cascade.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Strongest evidence that a bf16 float16 overflow exists is vendor-only: JANG says MLX 2/3-bit of 397B gives NaN and attributes it to float16 overflow in a 512-expert model's shared-expert down_proj (fixed by bfloat16 compute). mlx_lm.convert crashing on Nemotron mtp.* weights is also vendor-reported.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Mixed quants are sensitive to weights shifting in a model family: on dense Qwen3.6-27B oQ4 and oQ5 report identical PPL 8.048206 and oQ8 equals uniform Q8 exactly (KLD 0.057327, 26.62 GiB), so oQ8 adds nothing over uniform 8-bit there.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Perplexity can mislead: the independent evaluator warns that quantization noise acts as a \"regularization filter\" producing negative PPL deltas, and on dense Qwen3.6-27B reference PPL is 8.80 (expected <5) on his mixed-domain text, while WikiText-2 gives 4.59.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Cheap quants have a RAM-vs-disk accounting gap: ParoQuant keeps lm_head and embed_tokens unquantized on disk but quantizes them to 4-bit at load, so its measured RAM (17.37 GiB) is below its disk size.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Independent KLD (mlx-eval; 16 windows x 8192 tokens of mixed-domain text, bf16 reference, mlx-vlm 0.4.4 uniform affine as baseline) vs vendor MMLU/capability claims. Qwen3.6-35B-A3B MoE, KLD / RAM GiB: uniform Q4 0.0883 / 18.17; oQ4 0.0471 / 18.83; JANGTQ4 0.0346 / 17.50; UD4 0.0293 / 19.32; OptiQ 0.0285 / 19.67; PARO 0.0592 / 17.37. Three-bit class: Q3 0.2858 / 14.14; oQ3 0.2169 / 14.77; UD3 0.0719 / 15.35. Two-bit class: Q2 3.075 / 10.10; oQ2 0.318 / 11.40; JANGTQ2 0.2404 / 10.00. So on the MoE, all calibrated/mixed quants beat uniform 4-bit on KLD, OptiQ and UD4 best, oQ4 about half of uniform; at 2 bits mixed quants are an order of magnitude better than uniform (3.08 -> 0.24-0.32) but still far from usable by this metric. Mean KLD is not the vendors' metric, so this does not confirm any vendor MMLU delta.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Dense Qwen3.6-27B, KLD / RAM: Q4 0.2993 / 14.09 (p99 10.4); oQ4 0.2758 / 14.72; OptiQ 0.2776 / 15.34; UD4 0.1683 / 23.53; PARO 0.2357 / 13.42; UD3 0.3155 / 21.54. The mixed methods barely beat uniform 4-bit on the dense model; the large p99 for all (about 9.5-10) shows tail outliers dominate. The evaluator marks the 27B methodology as stressed. MoE benefit is much larger than dense benefit in this data, consistent with the MoE-specific rationale but with calibration-free UD winning both.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "\"MLX breaks on MoE at all bit levels\" (JANG README: MiniMax-M2.5 MLX 4/3/2-bit MMLU 26.5/24.5/25%, JANG_2L 74% at 63 GB, \"JANG wins at every size point\") vs the same README's own tables: at similar size JANG often ties (Qwen3.5-35B 77.5 vs 77.0; Nemotron-Cascade-2 JANG_4M 93.0 vs MLX 4-bit 92.5; Super-120B JANG_4M 93.0 vs MLX 93.5; 397B JANG_2L 92.0 vs MLX 4-bit 94.0). The breakage claims are single-vendor, 200-question MMLU, and run in a JANG-controlled harness. Independent third-party: an oMLX PR author benchmarking JANG vs MLX vs oQ (MMLU 1000, TruthfulQA 817, HumanEval 164, LiveCodeBench 100, MBPP 200) says JANG 4K beats MLX 4-bit on Qwen3.5-35B but \"on MiniMax 2.5 MLX 3-bit vs JANG 2L the story is not as consistent\", and says the Nemotron JANG variants beat the oQ variant; the tables are images, not recoverable.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "OptiQ vendor \"Capability\" (80.03 vs 78.75) disagrees in kind with the same card's \"KL vs uniform-4-bit reference 0.2231 mean / 0.9779 p95\", which is distance from uniform-4, not from bf16; do not read it as fidelity.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "The OptiQ \"56x KV layer 0\" and \"+17 pp GSM8K\" results come from Qwen3-0.6B (a tiny model, 100 questions) and should not be extrapolated to 30B+ models; the cleaner large-model evidence is the mlx-eval table above.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Whether data-driven sensitivity is needed: OptiQ's own static-vs-measured test (Qwen3.5-0.8B, GSM8K 200 q) says architecture priors recover the same result 125x faster, i.e. the calibration pass may add little over a rule (JANG's approach); mlx-eval puts calibration-free Unsloth UD4 level with OptiQ on the MoE and far ahead of both on the dense 27B only in KLD terms at 67% more RAM, so no clear winner.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "No independent benchmark (MMLU/HumanEval/agentic) of oQ vs OptiQ vs JANG vs uniform on the same checkpoint; the only independent data is KLD/PPL/Acc@1 on one mixed-domain 131k-token text, for two Qwen3.6 models.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "No same-eval KLD for GGUF Q4_K_M/UD-Q4_K_XL vs these MLX quants; Unsloth's GGUF KLD figures use a different corpus (Wiki-style 512 ctx, 99.9% KLD) and cannot be compared. The Q4_K_M-vs-MLX-mixed question therefore remains unanswered numerically.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Does JANG's rule tier (8-bit attention) beat KL-driven allocation at equal size on non-hybrid MoE? Untested independently.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Reddit launch threads (oQ, OptiQ, JANG \"MLX said no to mixed precision\") were not retrievable.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "OptiQ's default `optiq` method measures per-layer logit KL by quantizing one layer at a time, then runs a greedy knapsack that upgrades the layer with the largest KL reduction per extra bit until the target BPW; candidate bits default to 4 and 8.",
+          "source": "https://mlx-optiq.com/docs/sensitivity",
+          "note": null
+        },
+        {
+          "text": "OptiQ always protects lm_head, embed_tokens, the first attention block and the last attention block at the highest bit width regardless of the knapsack.",
+          "source": "https://mlx-optiq.com/docs/sensitivity",
+          "note": null
+        },
+        {
+          "text": "OptiQ's `static` method assigns bits from architecture alone, matched the measured method's GSM8K (34.5%, Qwen3.5-0.8B, 200 questions, 3-shot) in 7.2 s vs 899 s, with achieved BPW 5.15 vs 5.59.",
+          "source": "https://mlx-optiq.com/docs/sensitivity",
+          "note": null
+        },
+        {
+          "text": "OptiQ sensitivity reference is bf16 when it fits in about 70% of RAM (about 10B params on 36 GB) and a uniform-4-bit model with bf16 layers streamed from disk otherwise.",
+          "source": "https://mlx-optiq.com/docs/sensitivity",
+          "note": null
+        },
+        {
+          "text": "OptiQ's calibration mix is 40 samples across 6 domains rendered through the target chat template, replaceable with --calibration-mix.",
+          "source": "https://mlx-optiq.com/docs/sensitivity",
+          "note": null
+        },
+        {
+          "text": "OptiQ treats each fused MoE expert tensor as a single knapsack entry per block and projection, and protects router projections and shared experts at the high bit width.",
+          "source": "https://mlx-optiq.com/docs/sensitivity",
+          "note": null
+        },
+        {
+          "text": "OptiQ hands the bit map to mlx_lm.convert as quant_predicate, so the output is a standard MLX checkpoint with some layers at 8-bit and others at 4-bit.",
+          "source": "https://mlx-optiq.com/docs/sensitivity",
+          "note": null
+        },
+        {
+          "text": "`optiq convert Qwen/Qwen3.5-9B --target-bpw 5.0 --candidate-bits 4,8` produces an OptiQ quant; `optiq convert <large-moe> --method static --candidate-bits 2,4 --target-bpw 2.5` is the fast path for big MoE.",
+          "source": "https://pypi.org/project/mlx-optiq/",
+          "note": null
+        },
+        {
+          "text": "mlx-optiq 0.5.19 was released 2026-09-30 under MIT, requires Python 3.11+, quantizing needs Apple silicon (M1+), and the published quants load with stock mlx-lm.",
+          "source": "https://pypi.org/project/mlx-optiq/",
+          "note": null
+        },
+        {
+          "text": "mlx-optiq pre-built quants are published under mlx-community with the OptiQ-4bit suffix for Nemotron 3, MiniCPM5, Qwen3.5 (0.8B to 35B-A3B), Qwen3.6 (27B, 35B-A3B) and Gemma-4 (e2b to 31B); mlx-optiq's site claims 200+ models and 1M+ downloads per month (vendor).",
+          "source": "https://mlx-optiq.com/docs/faq",
+          "note": null
+        },
+        {
+          "text": "Qwen3-0.6B experiment: uniform 4-bit 4.0 bpw perplexity 19.2 GSM8K 34%; mixed 4/8-bit at 4.5 bpw perplexity 17.4 GSM8K 51% (100 questions); mixed 3/4-bit at 3.5 bpw perplexity 32.7 GSM8K 9%.",
+          "source": "https://mlx-optiq.com/blog/not-all-layers-are-equal",
+          "note": null
+        },
+        {
+          "text": "On Qwen3-0.6B lm_head is 8x median sensitivity, last-block layers up to 6.8x, early amplifying layers 10.4x, q/k projections 1.0x.",
+          "source": "https://mlx-optiq.com/blog/not-all-layers-are-equal",
+          "note": null
+        },
+        {
+          "text": "Uniform 4-bit KV cache raised Qwen3-0.6B perplexity from 21.2 to 507.5; layer 0's KV is 56x more sensitive; keeping 7 of 28 layers at 8-bit costs 7% more KV memory than uniform 4-bit with 16x better quality.",
+          "source": "https://mlx-optiq.com/blog/not-all-layers-are-equal",
+          "note": null
+        },
+        {
+          "text": "mlx-optiq SSD expert streaming runs a 2-bit Qwen3.5-122B-A10B (44 GB on disk) with 12 GB resident on a 36 GB Mac at about 5 tok/s; the bit map used 4-bit for router, attention and protected blocks and 2-bit experts (2.5 bpw average).",
+          "source": "https://mlx-optiq.com/blog/stream-122b-on-a-mac",
+          "note": null
+        },
+        {
+          "text": "mlx-optiq cluster serve shards a 2-bit Qwen3.5-122B-A10B (42.8 GiB) across a 36 GB and a 24 GB Mac at about 20 tok/s versus 4.9 tok/s streaming experts on one Mac (vendor).",
+          "source": "https://pypi.org/project/mlx-optiq/",
+          "note": null
+        },
+        {
+          "text": "OptiQ MTP speculative decoding is reported at 1.20x (Qwen3.5-4B), 1.32x (9B), 1.40x (27B) greedy decode on Apple silicon when the checkpoint ships mtp.safetensors (vendor).",
+          "source": "https://mlx-optiq.com/docs/faq",
+          "note": null
+        },
+        {
+          "text": "mlx-community/Qwen3.6-35B-A3B-OptiQ-4bit has 392 layers at 8-bit and 118 at 4-bit, group size 64, and is 22.1 GB versus 19.0 GB for uniform 4-bit.",
+          "source": "https://huggingface.co/mlx-community/Qwen3.6-35B-A3B-OptiQ-4bit",
+          "note": null
+        },
+        {
+          "text": "That card's scores versus uniform 4-bit: MMLU 83.7 vs 84.6, GSM8K 87.9 vs 89.4, IFEval 72.6 vs 73.0, BFCL-V3 simple 92.5 vs 90.0, HumanEval 91.5 vs 91.5, HashHop 52.0 vs 44.0; Capability Score 80.03 vs 78.75.",
+          "source": "https://huggingface.co/mlx-community/Qwen3.6-35B-A3B-OptiQ-4bit",
+          "note": null
+        },
+        {
+          "text": "OptiQ's FAQ says other front-ends (mlx-vlm, LM Studio, oMLX) may fail on OptiQ image input or newer architectures because mlx-vlm's per-layer mixed-precision handling and Gemma-4 shared-KV support lag; text usually works.",
+          "source": "https://mlx-optiq.com/docs/faq",
+          "note": null
+        },
+        {
+          "text": "oQ sensitivity is MSE(float_out, quant_out)/mean(float_out^2), boosting top-sensitivity tensors (>=50% of max) by +4 bits, >=20% by +2, others +1, only on non-expert tensors.",
+          "source": "https://github.com/jundot/omlx/blob/main/docs/oQ_Quantization.md",
+          "note": null
+        },
+        {
+          "text": "oQ keeps routed experts (93-98% of MoE parameters) at base bits and always protects lm_head and MoE router at 8-bit, vision encoder fp16, SSM state params fp32.",
+          "source": "https://github.com/jundot/omlx/blob/main/docs/oQ_Quantization.md",
+          "note": null
+        },
+        {
+          "text": "oQ+ applies GPTQ (Hessian error compensation) before quantizing, batching all experts of a layer because they share one input Hessian.",
+          "source": "https://github.com/jundot/omlx/blob/main/docs/oQ_Quantization.md",
+          "note": null
+        },
+        {
+          "text": "oQ ships a built-in 600-sample calibration set: code 200, en 150, ko 60, ja 60, zh 50, tool_calling 40, reasoning 40.",
+          "source": "https://github.com/jundot/omlx/blob/main/docs/oQ_Quantization.md",
+          "note": null
+        },
+        {
+          "text": "oQ levels include oQ2.5 (~3.2 bpw), oQ2.7 (~3.3 bpw) and oQ3.5 (~3.8 bpw) beyond the oQ2/3/4/6/8 set.",
+          "source": "https://github.com/jundot/omlx/blob/main/docs/oQ_Quantization.md",
+          "note": null
+        },
+        {
+          "text": "oMLX added a dtype toggle to the oQ quantizer (bfloat16 default, float16 output named ...-oQ4-fp16) in commit 4fd6389 after issue #604.",
+          "source": "https://github.com/jundot/omlx/issues/604",
+          "note": null
+        },
+        {
+          "text": "oQ-quantized models are published by community accounts (for example deepsweet/Qwen3.6-27B-MLX-oQ4/5/6/8 with VL and FP16 variants, TensorFold/Qwen3.8-27B-oQ4) and run in mlx-vlm and oMLX; Qwen3.8-27B-oQ4 is 16.65 GB with 160 modules at 5-bit and 1 at 6-bit, 37.76 tok/s decode on an M3 Ultra.",
+          "source": "https://huggingface.co/Vontra/Qwen3.8-27B-oQ4",
+          "note": null
+        },
+        {
+          "text": "deepsweet publishes oQ quants as a 4x4 table: text-only or Vision-Language crossed with bfloat16 or FP16, where the FP16 builds target M1/M2.",
+          "source": "https://huggingface.co/deepsweet/Qwen3.6-27B-MLX-oQ5-FP16",
+          "note": null
+        },
+        {
+          "text": "JANG v2 stores MLX-native uint32 packed weights with fp16 scales and biases and infers each layer's bit width from tensor shapes.",
+          "source": "https://github.com/jjang-ai/jangq/blob/main/FORMAT.md",
+          "note": null
+        },
+        {
+          "text": "JANG tiers: CRITICAL (softmax attention, lm_head, MoE routers, MLA projections, SSM state), IMPORTANT (embeddings, linear attention, shared experts), COMPRESS (MLP and MoE experts); a profile is a (CRITICAL, IMPORTANT, COMPRESS) bit triple.",
+          "source": "https://github.com/jjang-ai/jangq/blob/main/FORMAT.md",
+          "note": null
+        },
+        {
+          "text": "JANG profiles: JANG_4K (K-quant 4.0 bit), JANG_4M (8-bit attention, 4-bit experts), JANG_4S (dense), JANG_3K, JANG_2L (~2.3), JANG_1L (~2.1).",
+          "source": "https://github.com/jjang-ai/jangq",
+          "note": null
+        },
+        {
+          "text": "JANG commands: `pip install \"jang[mlx]>=2.5.18\"`, `jang convert Qwen/Qwen3.5-35B-A3B -p 4`, `jang convert model -p JANG_2L`; load with jang_tools.loader.load_jang_model.",
+          "source": "https://github.com/jjang-ai/jangq",
+          "note": null
+        },
+        {
+          "text": "JANG README states JANG models are standard MLX safetensors detectable by jang_config.json, but the repo About text says the JANG_Q runtime is required, and LM Studio, Ollama and Inferencer do not support JANG.",
+          "source": "https://github.com/jjang-ai/jangq",
+          "note": null
+        },
+        {
+          "text": "JANG vendor MMLU (200 questions): Qwen3.5-397B JANG_1L 86.5% at 112 GB, 36 tok/s; MiniMax-M2.5 MLX 4-bit 26.5%, 3-bit 24.5%, 2-bit 25% vs JANG_2L 74% at 63 GB; Qwen3.5-35B JANG_4K 77.5% (16.7 GB) vs MLX 4-bit 77.0% (18 GB); Qwen3.5-122B 2-bit MLX 56.5% vs JANG_2S 79%.",
+          "source": "https://github.com/jjang-ai/jangq",
+          "note": null
+        },
+        {
+          "text": "JANG attributes MLX failure on high-expert-count MoE at low bits to MLX compressing attention to the same bits as experts, and says MLX 2/3-bit of the 397B gives NaN from float16 overflow, fixed by bfloat16.",
+          "source": "https://github.com/jjang-ai/jangq",
+          "note": null
+        },
+        {
+          "text": "Mistral Small 4 119B-A6B JANG_2L (30 GB) is reported at 82 tok/s gen and 216 tok/s prefill versus 84 and 43 for the mlx-community 4-bit (63 GB), i.e. decode on par, prefill 5x (vendor, hardware not stated).",
+          "source": "https://github.com/jjang-ai/jangq",
+          "note": null
+        },
+        {
+          "text": "JANG 2.1.5 changelog: MLP asymmetry floors (gate_proj 4-bit, down_proj 3-bit for 512+ experts), Nemotron-H loader, per-tensor group size (router 64, experts 128), bfloat16 auto-detect.",
+          "source": "https://github.com/jjang-ai/jangq",
+          "note": null
+        },
+        {
+          "text": "JANGTQ stores routed experts as Lloyd-Max codebook indices after a Hadamard rotation, keeps attention/embed/lm_head/shared-expert at 8-bit affine and router at fp16, and needs jang-tools (stock mlx_lm.load cannot parse .tq_packed).",
+          "source": "https://huggingface.co/JANGQ-AI/Qwen3.6-35B-A3B-JANGTQ",
+          "note": null
+        },
+        {
+          "text": "JANGQ-AI Qwen3.6-35B-A3B JANGTQ2 is 11.63 GB on disk and the HF card says all JANG models are meant to run in vMLX.",
+          "source": "https://huggingface.co/JANGQ-AI/Qwen3.6-35B-A3B-JANGTQ",
+          "note": null
+        },
+        {
+          "text": "JANGPress runs routed-MoE bundles larger than RAM (Kimi-K2.6 153-167 GB on 128 GB, post-load RSS under 1 GB) using mmap and per-token router-aware MADV_DONTNEED.",
+          "source": "https://github.com/jjang-ai/jangq",
+          "note": null
+        },
+        {
+          "text": "A JANG v2.5.x GitHub release 2.5.49 shipped 2026-10-01; the repo has 229 stars, 29 forks and 2 contributors.",
+          "source": "https://github.com/jjang-ai/jangq",
+          "note": null
+        },
+        {
+          "text": "oMLX issue #339 asked for JANG support; PR #364 (jang.py JANGLoader, 675 lines) was opened 2026-03-24 with 25 thumbs-up; a tester reported 53-60 tok/s with a 32k context for a JANG Qwen3.5-35B in oMLX.",
+          "source": "https://github.com/jundot/omlx/pull/364",
+          "note": null
+        },
+        {
+          "text": "Independent mlx-eval method: 16 windows x 8192 tokens of a mixed-domain prompt, KLD, PPL, Acc@1 versus a bf16 reference, mlx-vlm 0.4.4; Qwen3.6-35B-A3B reference PPL 5.791247, Acc@1 0.628037.",
+          "source": "https://github.com/deepsweet/mlx-eval/blob/main/results/README.md",
+          "note": null
+        },
+        {
+          "text": "mlx-eval Qwen3.6-35B-A3B uniform affine: Q2 KLD 3.075; Q3 0.2858; Q4 0.0883 (18.17 GiB); Q5 0.0380; Q6 0.0211; Q8 0.0138.",
+          "source": "https://github.com/deepsweet/mlx-eval/blob/main/results/README.md",
+          "note": null
+        },
+        {
+          "text": "mlx-eval Qwen3.6-35B-A3B oQ: oQ2 0.3182, oQ3 0.2169, oQ4 0.0471 (18.83 GiB), oQ5 0.0235, oQ6 0.0198, oQ8 0.0143 (oQ8 PPL 5.7687 below the 5.7912 reference, noise).",
+          "source": "https://github.com/deepsweet/mlx-eval/blob/main/results/README.md",
+          "note": null
+        },
+        {
+          "text": "mlx-eval Qwen3.6-35B-A3B other mixed quants: Unsloth UD3 0.0719 (15.35 GiB), UD4 0.0293 (19.32); OptiQ 0.0285 (19.67); JANGTQ2 0.2404 (10.00), JANGTQ4 0.0346 (17.50); ParoQuant 0.0592 (17.37).",
+          "source": "https://github.com/deepsweet/mlx-eval/blob/main/results/README.md",
+          "note": null
+        },
+        {
+          "text": "mlx-eval dense Qwen3.6-27B: Q4 KLD 0.2993 / 14.09 GiB, oQ4 0.2758 / 14.72, OptiQ 0.2776 / 15.34, Unsloth UD4 0.1683 / 23.53, PARO 0.2357 / 13.42; oQ8 equals Q8 (0.057327, 26.62 GiB).",
+          "source": "https://github.com/deepsweet/mlx-eval/blob/main/results/README.md",
+          "note": null
+        },
+        {
+          "text": "The mlx-eval author notes Unsloth UD-MLX is \"really that off\" on the dense 27B because its files are much larger, while shining on the MoE, and Unsloth states its MLX algorithm is still evolving.",
+          "source": "https://github.com/deepsweet/mlx-eval/blob/main/results/README.md",
+          "note": null
+        },
+        {
+          "text": "Unsloth publishes Qwen3.6 UD-MLX 3-bit, 4-bit, 6-bit, 8-bit, MXFP4 and NVFP4 for 27B and 3/4-bit (and others) for 35B-A3B, runnable via mlx_vlm.chat or Unsloth Studio.",
+          "source": "https://unsloth.ai/docs/models/qwen3.6",
+          "note": null
+        },
+        {
+          "text": "A mlx-node port of Unsloth Dynamic 2.0 for Qwen3.5 uses gate/up 3-bit, down 4-bit, q/k/v 5-bit with AWQ pre-scaling, embed 5, lm_head 6, o_proj and linear-attn out_proj bf16, targeting about 3 bits average.",
+          "source": "https://github.com/ml-explore/mlx-lm/discussions/1062",
+          "note": null
+        },
+        {
+          "text": "M1/M2 have no native bf16 on the GPU: a scalar Metal benchmark shows BF16 GFLOPS equal to FP32 and FP16 1.66x (M1 Pro 885 vs 1467; M2 Max 30c 2056 vs 3399); on M3 and M4 BF16 is within noise of FP16.",
+          "source": "https://github.com/deepsweet/metal-fp32-bf16-fp16",
+          "note": null
+        },
+        {
+          "text": "oMLX benchmark on M2 Max with Qwen3.5-35B-A3B: oQ4 bf16 pp1024 497.5 tok/s, tg 73.2; oQ4-FP16 pp1024 811.9, tg 81.1; pp8192 560.2 vs 853.5 (about +63% and +52%) with decode roughly equal or slightly higher.",
+          "source": "https://github.com/jundot/omlx/issues/604",
+          "note": null
+        },
+        {
+          "text": "Same issue, MXFP4 g32: bf16 pp1024 544.0, tg 79.3; FP16 pp1024 712.4, tg 83.4; at pp32768 the FP16 build's tg fell to 32.8 vs 44.1 for bf16.",
+          "source": "https://github.com/jundot/omlx/issues/604",
+          "note": null
+        },
+        {
+          "text": "Same issue, speed cost of mixed oQ4 versus uniform-ish MXFP4 g32 on the same M2 Max (bf16 builds): decode 71.6 vs 79.3 tok/s at pp1024 (-10%) and 38.0 vs 44.1 at pp32768 (-14%); pp1024 527.2 vs 544.0.",
+          "source": "https://github.com/jundot/omlx/issues/604",
+          "note": null
+        },
+        {
+          "text": "The oMLX maintainer says float16 oQ gives about +20% prefill on M2 Max with decode roughly a wash and slightly higher peak memory.",
+          "source": "https://github.com/jundot/omlx/issues/604",
+          "note": null
+        },
+        {
+          "text": "Public JANG/oQ/OptiQ checkpoints rarely ship a perplexity table in mlx-lm's own eval; vendors instead report MMLU/HumanEval/GSM8K samples of 100-1000 questions.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "mlx-lm learned-quant docs: DWQ fine-tunes scales and biases against the unquantized teacher; dynamic quant saves a reusable sensitivities JSON; AWQ and GPTQ scripts exist; cascading dynamic_quant then DWQ is the supported combination.",
+          "source": "https://github.com/ml-explore/mlx-lm/blob/main/mlx_lm/LEARNED_QUANTS.md",
+          "note": null
+        },
+        {
+          "text": "mlx-lm cannot load HF AutoAWQ/AutoGPTQ checkpoints: Qwen/Qwen3-4B-AWQ fails with \"ValueError: Received 756 parameters not in model: ... qweight ... qzeros ... scales\" (issue closed).",
+          "source": "https://github.com/ml-explore/mlx-lm/issues/727",
+          "note": null
+        },
+        {
+          "text": "mlx-vlm 0.6.3 lacks DWQ, dynamic_quant, AWQ and GPTQ commands, excludes vision/audio encoders from weight quantization by default, and has a first/last-layer mixed-bit option; mlx-optiq and JANG in vmlx are described as bringing knapsack mixed precision to VLMs but \"young\".",
+          "source": "https://medium.com/@michael.hannecke/mlx-quantization-on-apple-silicon-dynamic-quant-vs-awq-vs-gptq-vs-dwq-8b2a5af2b53f",
+          "note": null
+        },
+        {
+          "text": "A secondary aggregator reports AWQ 4-bit perplexity +1.7% vs Q4_K_M +1.9% and GPTQ +2.5% on Llama 4 8B (CUDA-style tooling, aggregated from threads, no method); not Mac or MLX evidence.",
+          "source": "https://presenc.ai/research/local-llm-quantization-quality-benchmarks-2026",
+          "note": null
+        },
+        {
+          "text": "Per-layer mixed-precision weight/KV quantization in mlx-optiq is compared by its own site to llama.cpp's \"block-wise K-quant\" and group-wise int8 KV, a vendor framing, not a measured result.",
+          "source": "https://mlx-optiq.com/",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Corrections and disagreements",
+      "facts": [
+        {
+          "text": "Vendor cost claims vs vendor card. OptiQ site says \"drop-in 4-bit quants at the same size\" and \"+3.5 vs U4\" for gemma-4-31B, and the existing dossier records ~3% more disk. CONTRADICTS quantization-formats-for-apple-silicon-gguf-vs-mlx.md (\"OptiQ ... ~3% more disk\"): the Qwen3.6-35B-A3B-OptiQ-4bit card shows 22.1 GB vs 19.0 GB uniform (+3.1 GB, +16%), 392 of 510 quantized layers at 8-bit; the independent run measures 19.67 vs 18.17 GiB (+8%). The card also says it \"beats stock uniform 4-bit on every benchmark\" while its own table shows MMLU 83.7 vs 84.6, GSM8K 87.9 vs 89.4, IFEval 72.6 vs 73.0 lower; the +1.28 Capability Score comes from BFCL +2.5 and HashHop +8.0 (long-context retrieval, 52.0 vs 44.0), HumanEval tied.",
+          "source": "asserted",
+          "note": null
+        }
+      ]
+    }
+  ],
+  "related": []
+}

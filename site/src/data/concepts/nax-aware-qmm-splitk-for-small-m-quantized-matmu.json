@@ -1,0 +1,214 @@
+{
+  "slug": "nax-aware-qmm-splitk-for-small-m-quantized-matmu",
+  "concept": "NAX-aware qmm_splitk for small-M quantized matmul on M5",
+  "generated": "2026-10-05",
+  "summary": "`qmm_splitk` is reached when M is at or above `get_qmv_batch_limit`, the weights are transposed and the batch is 1; it uses 32 by 32 tiles and `split_k = max(1, 512 / (ceil(N/32) * ceil(M/32)))`, and falls back to `qmm` (NAX on M5) only when `split_k` ends at 1 or less.",
+  "facets": [
+    {
+      "title": "Facts",
+      "facts": [
+        {
+          "text": "`qmm_splitk` is reached when M is at or above `get_qmv_batch_limit`, the weights are transposed and the batch is 1; it uses 32 by 32 tiles and `split_k = max(1, 512 / (ceil(N/32) * ceil(M/32)))`, and falls back to `qmm` (NAX on M5) only when `split_k` ends at 1 or less.",
+          "source": "https://raw.githubusercontent.com/ml-explore/mlx/main/mlx/backend/metal/quantized.cpp",
+          "note": null
+        },
+        {
+          "text": "Issue 4198's measurement on an M5 Max (macOS 26.5.2, 4-bit group 64, bf16, chained 64 dependent ops, K = 6656): N = 6656 costs 252-258 us per op for M = 24 to 32 on the non-NAX split-K kernel and 194-205 us for M = 33 to 40 on NAX `qmm_t`, a ratio of 0.79 at the 32-to-33 boundary; the control N = 8224 (initial `split_k` 1 at every M) is flat at about 201 us, and at M of 32 or less the N = 8224 op (about 212 us) is faster than the smaller N = 6656 op.",
+          "source": "https://github.com/ml-explore/mlx/issues/4198",
+          "note": null
+        },
+        {
+          "text": "On M5 main the vector limit for generation 17 non-'d' chips is 33 for matrices with both dims at most 2048, 25 up to 4096 and 13 above, so the split-K path is reached from M = 33, 25 and 13 respectively.",
+          "source": "https://raw.githubusercontent.com/ml-explore/mlx/main/mlx/backend/metal/quantized.cpp",
+          "note": null
+        },
+        {
+          "text": "The pre-emption therefore bites mainly on large matrices (a dimension above 4096) at M from 13 to 32 with N up to 8192, and on narrow-N layers at larger M (N = 2048 reaches `split_k = 2` up to M = 128).",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "PR 4171 (merged 2026-08-21) gives `qmm_t_nax` a 32-row block when M is 32 or less (main: `bm = (transpose && M <= 32) ? 32 : 64`) because one 64-row block wastes half its rows; on a base M5 (10-core) fp16 4-bit group 64 at K = 5120, N = 13824 it measured 1011.0 to 833.1 us at M = 14 (1.21x) and 980.7 to 804.2 us at M = 32 (1.22x).",
+          "source": "https://github.com/ml-explore/mlx/pull/4171",
+          "note": null
+        },
+        {
+          "text": "A 32-row block is only a win while one block covers all of M: each row block re-reads the weights it touches, and forcing BM = 32 at M = 128 measured 13% slower; BM = 16 was dropped for a further 6% at M = 14 on one shape.",
+          "source": "https://github.com/ml-explore/mlx/pull/4171",
+          "note": null
+        },
+        {
+          "text": "The same PR notes that up to 256 column tiles the split-K path serves small M, so only N above 8192 reaches `qmm_t_nax` at M of 32 or less, and it fixes the fp-mode NAX instantiation macros that did not forward tile-size arguments (a new tile would have compiled as a mislabelled 64-row kernel); the metallib grows by 4.02%.",
+          "source": "https://github.com/ml-explore/mlx/pull/4171",
+          "note": null
+        },
+        {
+          "text": "2026-01-26: PR 3018 added a NAX split-K GEMM for large-K dense matmul; 2026-04-19 PR 3422 (angeloskath) sped up NAX split-K with better tuning and routing and fixed NAX addmm; 2026-07-07 PR 3810 fixed a wrong type parameter passed to `gemm_splitk_nax`. These are the dense GEMM path; the quantized `qmm_splitk` has no NAX counterpart in the PR list.",
+          "source": "https://github.com/ml-explore/mlx/pulls?q=is%3Apr+split-k+nax",
+          "note": null
+        },
+        {
+          "text": "2026-05-23: issue 3584 (M5 Max `applegpu_g17s`, macOS 26.5, MLX 0.31.2) reported `quantized_matmul` 1.58x slower than fp16 at M = 96 and 1.79x at M = 128 for N = 2048, K = 8192 (split_k 2), parity from M = 160, and proposed raising the 512 target to 128, bypassing split-K when NAX is available, or retuning per shape.",
+          "source": "https://github.com/ml-explore/mlx/issues/3584",
+          "note": null
+        },
+        {
+          "text": "2026-07-07: a retest on source builds (0.32.0.dev, M2 `applegpu_g14g`, M3 Pro `applegpu_g15s`, M5 Max) with a bench-only override of the 512 target could not reproduce it: on the M5 Max split-K beat no-split by 16.1% at M = 64, 5.7% at M = 96 and 7.9% at M = 128 (qmm to fp16 ratios 0.80, 0.97 and 0.98); an M3 Max commenter had also seen no regression; zcbenz closed it as \"very likely no longer relevant\".",
+          "source": "https://github.com/ml-explore/mlx/issues/3584",
+          "note": null
+        },
+        {
+          "text": "2026-08-02: PR 3863 (BM = 16 `qmm` tile for M of 16 or less, affine only) was closed; its M3 Max data showed `qmm` flat at 0.51 ms for M = 10 to 32 then +95% at M = 33 (one 32-row tile per step), a 1.63-1.68x gain with BM = 16 on 5120 to 17408 and lm_head shapes, neutral below about 58M weight elements, and the author opened PR 3987 on the qmv limit separately (also closed).",
+          "source": "https://github.com/ml-explore/mlx/pull/3863",
+          "note": null
+        },
+        {
+          "text": "2026-08-08: PR 3791 merged with the generation-17 qmv limits now in main (33, 25, 13; the first draft had raised only the large bucket from 10 to 16 after an M5 Max sweep that put the 4-bit large-matrix crossover at about 13 and the 8-bit one at about 11).",
+          "source": "https://github.com/ml-explore/mlx/pull/3791",
+          "note": null
+        },
+        {
+          "text": "2026-08-12 to 2026-08-16: issue 4198 and PR 4237 (\"Fix M5 split-K NAX dispatch cliff\", PhilipJohnBasile) were filed and closed by zcbenz on 2026-08-16: \"currently we are only focusing on real cases happened during inference otherwise we wouldn't be able to review all the improvements\".",
+          "source": "https://github.com/ml-explore/mlx/issues/4198",
+          "note": null
+        },
+        {
+          "text": "2026-08-21: PR 4171 merged. When issue 4198 was filed (2026-08-12) `quantized.cpp` was byte-identical between v0.32.0 and main commit 36fde27, so the pre-emption was present in 0.32.0.",
+          "source": "https://github.com/ml-explore/mlx/issues/4198",
+          "note": null
+        },
+        {
+          "text": "PR 4237's gate shows how narrow a safe bypass is: only the `applegpu_g17s` M5 Max class, single batch, transposed affine 4-bit group 64, one M tile, N from 6656 to 8192, K divisible by 128 and a finalized split count of two; elsewhere split-K still wins.",
+          "source": "https://github.com/ml-explore/mlx/pull/4237",
+          "note": null
+        },
+        {
+          "text": "Its M5 Max ABBA sweep gave 1.22x to 1.49x over 33 affected M of 32 or less cells (median 1.37x) and 0.992x to 1.012x over 24 controls, and removed the cliff (M = 33 to M = 32 ratio from 0.68-0.78 to about 1.00).",
+          "source": "https://github.com/ml-explore/mlx/pull/4237",
+          "note": null
+        },
+        {
+          "text": "A blanket NAX bypass would remove the useful split-K wins at M = 64 to 128 that the July sweep measured on M3 and M5, which is why the 3584 retest advised against it.",
+          "source": "https://github.com/ml-explore/mlx/issues/3584",
+          "note": null
+        },
+        {
+          "text": "NAX `qmm` is available for transposed weights in every quantization mode and, for non-transposed weights, only for affine with N divisible by 64; fp32 activations also need TF32 on.",
+          "source": "https://raw.githubusercontent.com/ml-explore/mlx/main/mlx/backend/metal/quantized.cpp",
+          "note": null
+        },
+        {
+          "text": "A speculative verify window of 13 to 32 rows on a 70B-class MLP (N of 8192 gives 256 tiles, so `split_k` 2 at M of 32 or less) therefore runs the non-NAX kernel on M5, while the same model's wider layers (N = 28672, 896 tiles, `split_k` 1) already reach NAX `qmm_t_nax`.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Reporter against maintainers on whether to bypass split-K on NAX: issue 3584 shows 1.6x to 1.8x slowdowns and issue 4198 a 1.27x step (M = 33 faster than M = 32 by 21%) on specific shapes at specific M, and PR 4237 a 1.22x to 1.49x fix; maintainers closed all three as outside \"real cases happened during inference\" (4198, 4237) or \"no longer relevant\" (3584), and a retest in between showed split-K helpful on the same machine class. The data are shape-specific and mutually compatible; the disagreement is about whether shape-level wins justify new dispatch code.",
+          "source": "https://github.com/ml-explore/mlx/issues/4198",
+          "note": null
+        },
+        {
+          "text": "The M5 Max retest in the 3584 thread (0.97x at M = 96, 0.98x at M = 128 against fp16) conflicts with the original report on the same chip (1.58x and 1.79x slower) at MLX 0.31.2; the retest author suggested a version or toolchain difference and asked for a 0.31.2 against main comparison on one machine, which nobody posted.",
+          "source": "https://github.com/ml-explore/mlx/issues/3584",
+          "note": null
+        },
+        {
+          "text": "Whether `qmm_splitk` will get a NAX kernel or a NAX-eligibility predicate; nothing in the PR lists, and the maintainers' stated rule (changes tied to real inference cases) leaves a bypass unlikely until a model-level regression is shown.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Whole-model effect of PR 4171 and of the 13-to-32-row split-K pre-emption on a speculative-decoding verify step on M5; both PRs report kernel timings only.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Whether the 0.31.2 report in issue 3584 was a real regression fixed between 0.31.2 and 0.32.0 or a toolchain artifact.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "On an M5 Max, N = 6656 4-bit group-64 `quantized_matmul` costs 252-258 us at M = 24 to 32 on non-NAX split-K and 194-205 us at M = 33 to 40 on NAX `qmm_t`.",
+          "source": "https://github.com/ml-explore/mlx/issues/4198",
+          "note": null
+        },
+        {
+          "text": "The control shape N = 8224, where split-K never engages, costs about 201 us at every M from 32 to 40.",
+          "source": "https://github.com/ml-explore/mlx/issues/4198",
+          "note": null
+        },
+        {
+          "text": "`quantized.cpp` was byte-identical between v0.32.0 and main at commit 36fde27 when issue 4198 was filed.",
+          "source": "https://github.com/ml-explore/mlx/issues/4198",
+          "note": null
+        },
+        {
+          "text": "zcbenz closed issue 4198 and PR 4237 on 2026-08-16, saying MLX focuses on real cases that happen during inference.",
+          "source": "https://github.com/ml-explore/mlx/pull/4237",
+          "note": null
+        },
+        {
+          "text": "PR 4237 bypassed split-K only on the M5 Max class for N 6656 to 8192, and measured 1.22x to 1.49x on 33 cells against 0.992x to 1.012x on 24 controls.",
+          "source": "https://github.com/ml-explore/mlx/pull/4237",
+          "note": null
+        },
+        {
+          "text": "PR 4171 (merged 2026-08-21) uses a 32-row `qmm_t_nax` block for M of 32 or less and gained 1.21x at M = 14 and 1.22x at M = 32 on a base M5 at K = 5120, N = 13824.",
+          "source": "https://github.com/ml-explore/mlx/pull/4171",
+          "note": null
+        },
+        {
+          "text": "A forced 32-row NAX block measured 13% slower at M = 128, and a 16-row block gave only 6% more at M = 14.",
+          "source": "https://github.com/ml-explore/mlx/pull/4171",
+          "note": null
+        },
+        {
+          "text": "PR 4171 notes that only N above 8192 reaches `qmm_t_nax` at M of 32 or less, because split-K serves up to 256 column tiles.",
+          "source": "https://github.com/ml-explore/mlx/pull/4171",
+          "note": null
+        },
+        {
+          "text": "Issue 3584 reported `quantized_matmul` 1.58x and 1.79x slower than fp16 at M = 96 and 128 (N = 2048, K = 8192) on an M5 Max with MLX 0.31.2.",
+          "source": "https://github.com/ml-explore/mlx/issues/3584",
+          "note": null
+        },
+        {
+          "text": "The 2026-07-07 retest on source builds found split-K 16.1%, 5.7% and 7.9% faster than no-split at M = 64, 96 and 128 on an M5 Max, 7.8% faster at M = 64 on an M3 Pro and about 2% faster at M = 64 and 96 on an M2.",
+          "source": "https://github.com/ml-explore/mlx/issues/3584",
+          "note": null
+        },
+        {
+          "text": "zcbenz closed issue 3584 on 2026-07-07 as very likely no longer relevant.",
+          "source": "https://github.com/ml-explore/mlx/issues/3584",
+          "note": null
+        },
+        {
+          "text": "PR 3863's M3 Max data shows `qmm` time flat from M = 10 to 32 and +95% at M = 33 on a 5120-to-17408 4-bit shape, and a 1.5x win from a 16-row tile only for layers above about 58M weight elements.",
+          "source": "https://github.com/ml-explore/mlx/pull/3863",
+          "note": null
+        },
+        {
+          "text": "PR 3791 merged on 2026-08-08, and main's generation-17 non-'d' qmv limits are 33, 25 and 13.",
+          "source": "https://raw.githubusercontent.com/ml-explore/mlx/main/mlx/backend/metal/quantized.cpp",
+          "note": null
+        },
+        {
+          "text": "The dense NAX split-K GEMM arrived in PR 3018 (2026-01-26) and was retuned in PR 3422 (2026-04-19).",
+          "source": "https://github.com/ml-explore/mlx/pulls?q=is%3Apr+split-k+nax",
+          "note": null
+        },
+        {
+          "text": "No NAX variant or NAX-eligibility check of `qmm_splitk` exists in main, and no open or merged PR in the fetched lists adds one.",
+          "source": "https://github.com/ml-explore/mlx/pulls?q=is%3Apr+splitk",
+          "note": null
+        },
+        {
+          "text": "On M5 the non-NAX split-K kernel serves large-matrix verify windows of 13 to 32 rows with N up to 8192, and wider layers already reach NAX.",
+          "source": "asserted",
+          "note": null
+        }
+      ]
+    }
+  ],
+  "related": []
+}

@@ -1,0 +1,159 @@
+{
+  "slug": "effective-bits-per-weight-and-size-confounds-in",
+  "concept": "Effective bits-per-weight and size confounds in MLX N-bit quant names",
+  "generated": "2026-10-05",
+  "summary": "mlx-lm reports bits per weight itself: compute_bits_per_weight is total tensor bytes times 8 divided by parameter count, where a quantized module's parameter count is weight.size * 32 // bits (plus bias size); convert prints '[INFO] Quantized model with X bits per weight.' The figure includes sca...",
+  "facets": [
+    {
+      "title": "Facts",
+      "facts": [
+        {
+          "text": "mlx-lm reports bits per weight itself: compute_bits_per_weight is total tensor bytes times 8 divided by parameter count, where a quantized module's parameter count is weight.size * 32 // bits (plus bias size); convert prints '[INFO] Quantized model with X bits per weight.' The figure includes scales, biases, norms and unquantized tensors.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Group size sets the metadata cost: 16-bit scale and bias per group add 32/g bits; g=64 gives +0.5, g=128 gives +0.25, g=32 gives +1.0. Bits are therefore bits + 32/g for affine modes; mxfp4 (group 32, 8-bit scale) is 4.25, nvfp4 (group 16, 8-bit scale) 4.5 and mxfp8 8.25.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Skipped modules: nn.quantize skips any module whose last weight dimension is not divisible by the group size, leaving it in source dtype; model predicates can also force 8-bit (routers) or return custom group sizes.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Per-layer configs: when a model is already partially quantized or a predicate returns dicts, config.json stores per-path {group_size, bits}; JANG-style loaders infer bit width from tensor shapes (bits = weight.shape[-1]*32 // (scales.shape[-1]*group_size)).",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "2024-2025: 'Q4_K_M' becomes the reference label for GGUF, with bpw visible in llama-quantize's file-type table and in file sizes; MLX labels remain bit-only.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "2026: third-party mixed quants (OptiQ, oQ, JANG, PARO, UD-MLX) ship under 'mlx 4-bit' compatible names but differ in size from stock mlx-community 4-bit, making same-label comparisons size-confounded.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "RAM column in mlx-eval is text-only weight memory via mlx.core, not disk size and not RSS; a PARO checkpoint with its vision tower is about 1 GiB larger than the number reported on 27B.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Group size 128 checkpoints (AWQ/PARO-style) are 4.25 bpw nominal, below MLX g64 (4.5), but PARO adds rotation parameters and quantizes I/O layers at load time, so disk and RAM both differ from the label.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "GGUF names carry bpw only loosely: UD 'Q4_K_M' of Qwen3.6-35B-A3B is 22.1 GB (about 5.1 bpw) because Unsloth lifts tensors.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "A vision tower in BF16 inside a 'text 4-bit' mlx-vlm conversion inflates size (gemma-4-31b-it-4bit is 18.4 GB).",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Vendors compare at the same '4-bit' label (OptiQ 'same size as uniform 4-bit', existing dossier: actually +8% to +16%); independent KLD tables report RAM so the cost is visible but the label is not.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "GGUF-vs-MLX quality claims at 'similar size' (3.80 GB vs 3.50 GB on a 7B, +8%) treat the two as equal size; at equal bytes the gap would be smaller than the old 4.7x perplexity-ratio claim implies.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "A same-size, same-eval KLD comparison of MLX g64 (4.5 bpw) against Q4_K_S (4.5 bpw) and IQ4_XS (4.25 bpw) on one BF16 base.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Whether mlx_lm.convert's printed bits-per-weight should be recorded in model cards to prevent same-label comparisons.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "mlx-lm computes bits per weight as total array bytes times 8 divided by total parameters, counting a quantized module's parameters as weight.size * 32 // bits (plus any linear bias), and prints '[INFO] Quantized model with X bits per weight.' after quantization.",
+          "source": "https://raw.githubusercontent.com/ml-explore/mlx-lm/main/mlx_lm/utils.py",
+          "note": null
+        },
+        {
+          "text": "mlx-lm's quantization wrapper skips any module whose weight.shape[-1] is not divisible by the group size, leaving it unquantized.",
+          "source": "https://raw.githubusercontent.com/ml-explore/mlx-lm/main/mlx_lm/utils.py",
+          "note": null
+        },
+        {
+          "text": "mlx-lm's mode defaults are affine group 64 / 4 bits, mxfp4 group 32 / 4 bits, nvfp4 group 16 / 4 bits and mxfp8 group 32 / 8 bits.",
+          "source": "https://raw.githubusercontent.com/ml-explore/mlx-lm/main/mlx_lm/utils.py",
+          "note": null
+        },
+        {
+          "text": "mlx-lm's per-model predicates return dicts such as {group_size: 64, bits: 8} for routers, and the config stores per-path quantization entries for any layer whose parameters differ from the global setting.",
+          "source": "https://raw.githubusercontent.com/ml-explore/mlx-lm/main/mlx_lm/models/qwen3_moe.py",
+          "note": null
+        },
+        {
+          "text": "mlx-lm's loader can recover group size, bits and mode from tensor shapes and dtypes (for example (4, 16) is nvfp4 and (4, 32) is mxfp4 when scales are uint8).",
+          "source": "https://raw.githubusercontent.com/ml-explore/mlx-lm/main/mlx_lm/utils.py",
+          "note": null
+        },
+        {
+          "text": "For affine modes the stored bits per weight are bits + 32/group_size when scale and bias are 16-bit: 4-bit g64 is 4.5, g128 is 4.25, g32 is 5.0; 8-bit g64 is 8.5 and 2-bit g64 is 2.5.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "llama-quantize's help table labels types with their bits per weight, for example Q1_0 1.125 bpw, Q2_0 2.25 bpw (group 64), TQ1_0 1.69 bpw and TQ2_0 2.06 bpw, whereas MLX N-bit names carry no such number.",
+          "source": "https://raw.githubusercontent.com/ggml-org/llama.cpp/master/tools/quantize/quantize.cpp",
+          "note": null
+        },
+        {
+          "text": "Unsloth extended llama.cpp's IQ1_S from 1.5625 bits per weight to 1.1875 bpw by reducing codebook entries, for large models, and says the new types are fine for post-training quantization without QAT or QAD.",
+          "source": "https://unsloth.ai/docs/models/qwen3.8",
+          "note": null
+        },
+        {
+          "text": "Qwen3.6-35B-A3B GGUF sizes labelled near 4-bit span UD-IQ4_XS 17.7 GB, UD-IQ4_NL 18.0, UD-IQ4_NL_XL 19.5, UD-Q4_K_S 20.9, MXFP4_MOE 21.7, UD-Q4_K_M 22.1 and UD-Q4_K_XL 22.4 GB against BF16 69.4 GB.",
+          "source": "https://huggingface.co/unsloth/Qwen3.6-35B-A3B-GGUF",
+          "note": null
+        },
+        {
+          "text": "With BF16 at 69.4 GB (34.7B parameters), the near-4-bit Qwen3.6-35B-A3B files above are about 4.08, 4.15, 4.50, 4.82, 5.00, 5.10 and 5.16 bits per weight, a 26% spread under the same '4-bit' label; the mlx-community uniform 4-bit at 19.0 GB is about 4.38 and the OptiQ 4-bit at 22.1 GB about 5.10.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "mlx-community/gemma-4-31b-it-4bit is 18.4 GB with U32 and BF16 tensors; 31B parameters at 4.5 bpw would be about 17.4 GB, so the file is about 6% heavier than the nominal figure, consistent with unquantized embeddings and a vision tower.",
+          "source": "https://huggingface.co/mlx-community/gemma-4-31b-it-4bit",
+          "note": null
+        },
+        {
+          "text": "Against mlx-eval's uniform Q4 RAM of 18.17 GiB, the size-matched view of its KLD table is: oQ4 +3.6%, UD4 +6.3%, OptiQ +8.3%, JANGTQ4 -3.7% and PARO -4.4% bytes, so 'KLD beats uniform 4-bit' always spends or saves bytes, and only JANGTQ4 and PARO also save RAM.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "ParoQuant with its vision tower measures 14.28 GiB of weights on Qwen3.6-27B versus about 13.4 GiB text-only, while the checkpoint on disk is 17.5-18.4 GB because lm_head and embed_tokens are stored unquantized and quantized at load.",
+          "source": "https://github.com/jundot/omlx/pull/209",
+          "note": null
+        },
+        {
+          "text": "The ParoQuant MLX loader reads group size and bits from the checkpoint config for its I/O layers (default 128 and 4), so the paper's group-128 setting gives 4.25 nominal bpw for the quantized body before rotation parameters and the unquantized-on-disk I/O layers.",
+          "source": "https://github.com/z-lab/paroquant",
+          "note": null
+        },
+        {
+          "text": "A 'size-matched' MLX comparison should report mlx-lm's printed bits per weight or file size, not the N-bit label; comparisons that only match labels can differ by 10% or more in bytes per token and hence in bandwidth-bound decode speed.",
+          "source": "asserted",
+          "note": null
+        }
+      ]
+    }
+  ],
+  "related": []
+}

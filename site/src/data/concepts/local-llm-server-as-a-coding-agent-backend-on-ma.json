@@ -1,0 +1,644 @@
+{
+  "slug": "local-llm-server-as-a-coding-agent-backend-on-ma",
+  "concept": "Local LLM server as a coding-agent backend on Mac",
+  "generated": "2026-10-05",
+  "summary": "Claude Code needs only ANTHROPIC_BASE_URL + a credential (ANTHROPIC_AUTH_TOKEN) pointing at a server that speaks /v1/messages. Direct Anthropic-compatible servers on Mac: Ollama (>=0.14), LM Studio (>=0.4.1), oMLX, Rapid-MLX (ex vllm-mlx), llama-server. No LiteLLM shim needed for these.",
+  "facets": [
+    {
+      "title": "Facts",
+      "facts": [
+        {
+          "text": "Claude Code needs only ANTHROPIC_BASE_URL + a credential (ANTHROPIC_AUTH_TOKEN) pointing at a server that speaks /v1/messages. Direct Anthropic-compatible servers on Mac: Ollama (>=0.14), LM Studio (>=0.4.1), oMLX, Rapid-MLX (ex vllm-mlx), llama-server. No LiteLLM shim needed for these.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Claude Code sends ~20K tokens of system prompt + 30ish tool schemas on turn 1; every later turn resends the same prefix, so correct prefix caching decides usability.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Claude Code prepends a per-request changing attribution line (x-anthropic-billing-header: cc_version=...; cch=...) to the system prompt. That changes the prefix every request and invalidates local KV prefix caches; set CLAUDE_CODE_ATTRIBUTION_HEADER=0 (via env block in settings.json, or --settings JSON; older builds ignored the shell export).",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Claude Code resolves haiku/sonnet/opus aliases and background calls to Anthropic model names; against a local server that returns 404 mid-session unless ANTHROPIC_DEFAULT_{HAIKU,SONNET,OPUS}_MODEL (and ANTHROPIC_MODEL) all map to the local model id. settings.json env beats shell exports; /status shows the effective base URL and credential.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Aider does not use native tool calling (edit formats), so tool-parser bugs affect Claude Code/OpenCode/Codex but not Aider; Aider with Ollama must use the ollama_chat/ prefix and sets num_ctx per request.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "OpenCode uses an openai-compatible provider (npm @ai-sdk/openai-compatible, baseURL .../v1) with per-model limit.context; the harness-side context cap is the only guard when the server has none.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "mlx-lm tool parsing is driven by tokenizer_config.json: a `tool_parser_type` key (e.g. \"qwen3_coder\") is needed; mlx-community 4-bit Qwen3-Coder ships without it and the client sees raw XML tool-call text. Edit a local copy (hf download --local-dir), not the HF cache (hash change triggers a 17 GB re-download).",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "2025-12: guides said a translation proxy (LiteLLM / Claude Code Router) was mandatory for Claude Code on local models.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "2026-01-16 Ollama 0.14 added Anthropic Messages API; LM Studio 0.4.1 added /v1/messages (Jan 2026). The proxy requirement is obsolete for those runtimes.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "2026-03-30 Ollama 0.19 MLX preview (Apple Silicon, needs >32 GB unified memory) with cross-conversation cache reuse and cache checkpoints for shared system prompts.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "2026-02/04 mlx-lm server kernel-panic issue (#883) and byte-limited prompt cache PR #906.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "2026-09 oMLX has SSD-tiered KV cache; Rapid-MLX 0.15.3 fixed small-RAM agent-session cache.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "mlx_lm.server kernel panic: wires ~75% of RAM at start (mx.set_wired_limit), unbounded KV growth in agentic sessions (~58k tokens on 96 GB M3 Ultra with Qwen3-Coder-30B-A3B 8-bit), panic string \"completeMemory() prepare count underflow\" @IOGPUMemory.cpp:550, memoryPressure false because wired memory is not reclaimable by Jetsam. Hard reboot, not a process kill.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Related Metal error: \"METAL Command buffer execution failed: Insufficient Memory (kIOGPUCommandBufferCallbackErrorOutOfMemory)\" from mlx_lm.server after a few turns, on 48 GB with Qwen3.6-27B 4-bit and MoE 8-bit; --prompt-cache-size 0 / --prompt-cache-bytes 0 only helped slightly.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "On an 18 GB M3 Pro, mlx_lm.server 0.31.3 died with Metal OOM on turn 4 of a 23k-token agent session; Ollama, oMLX, Rapid-MLX survived.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "oMLX refuses oversized prefill with a guard (\"Prefill would require ~9.08 GB peak ... dynamic ceiling is 9.00 GB\") on 18 GB for ~16k-token requests.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Workaround for mlx_lm.server: wrapper script calling mx.metal.set_memory_limit(N) (or mx.set_wired_limit) before `from mlx_lm.server import main`; or sudo sysctl iogpu.wired_limit_mb. Default wired cap is ~67% on Macs <=36 GB, ~75% above; setting wired limit to full RAM can panic the machine.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Gemma 4 26B-A4B hybrid attention (50 sliding + 10 global layers) gives >20 GB KV at full context, a poor fit for agent sessions on 64 GB; standard GQA (Qwen3 family) has predictable KV.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Ollama on Mac: default OLLAMA_KEEP_ALIVE 5m unloads the model, next request waits ~2 min to reload; set 24h for agent use. Ollama pulled GGUF Q4_K_M of qwen3.6:27b with presence_penalty 1.5 in its params (hurt code quality); a Modelfile with presence_penalty 0 fixed it; the -mxfp8 / -nvfp4 / -mlx tags are the Apple-optimised variants.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "LM Studio 0.3.21: qwen3-coder-30b emitted <function=...><parameter=...> XML tool calls that OpenCode/Continue/Crush did not recognise (issue #825); a later report says LM Studio's parser silently broke Qwen3.5 tool calls. Qwen3.5 long-task silent tool-call failures were reported fixed on vLLM by a chat-template fix plus --tool-call-parser qwen3_xml instead of qwen3_coder.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Ollama Anthropic compat gaps: no prompt caching (cache_control ignored/unsupported), no tool_choice forcing, URL images unsupported, thinking budget_tokens accepted but not enforced; cloud endpoint needs Authorization: Bearer (x-api-key alone refused); local server ignores keys. Claude Code docs: Anthropic does not support routing Claude Code to non-Claude models through a gateway.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Ollama binds localhost; Docker/LAN clients need OLLAMA_HOST=0.0.0.0:11434.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Having both ANTHROPIC_API_KEY and ANTHROPIC_AUTH_TOKEN set triggers an auth-conflict warning; use one. ANTHROPIC_API_KEY=\"\" is used in Ollama's own examples.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Cold first turn 63-73 s on every engine (oMLX 63.1, Rapid-MLX 65.1, mlx-lm 65.7, Ollama 73.4); on M3 Pro 18 GB 67-78 s.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Follow-up turns 0.27-0.49 s (Ollama 0.41, mlx-lm 0.47) once the prefix is cached.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "After server restart: oMLX 0.27 s (SSD cold tier), Rapid-MLX 12.3 s (disk restore), mlx-lm 65.7 s and Ollama 73.1 s (full re-prefill).",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Cold prefill ~16k tokens: 41.7-49.4 s (about 330-390 tok/s on this model); ~2k prompt 5.3-6.4 s.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Decode: Rapid-MLX 66.1, oMLX 51.2, mlx-lm 47.7, Ollama 38.4 tok/s single stream; 4 concurrent: oMLX 97.1, mlx-lm 96.6, Rapid-MLX 68.3, Ollama 37.4 (serial).",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "30/30 single-call tool prompts on all four engines; multi-step tool use not tested.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Rapid-MLX PFlash (default on for Qwen3.5/3.6) keeps ~20% of prompt tokens: 16k TTFT 8.2 s vs 42.8 s, but the model does not see every token and it does not engage when requests carry tools.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Rapid-MLX 0.15.2 on 18 GB paid full prefill every turn (70 s) because prefix cache sized to 0.86 GB; fixed in 0.15.3. Cache sizing on small-RAM Macs can silently disable reuse.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Rapid-MLX README, M3 Ultra 256 GB B=1: qwen3.8-27b-4bit TTFT 24.7 s, prefill 331 tok/s, decode 43 tok/s (32K).",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Unsloth: the attribution header made inference ~90% slower on llama.cpp until disabled.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Ollama 0.19 MLX: Qwen3.5-35B-A3B NVFP4 prefill 1154 -> 1810 tok/s, decode 58 -> 112 tok/s vs 0.18 (Ollama-run, M5-class).",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Slow first answer (~1 min) from the ~20K-token system prompt is normal; context under ~25K tokens fails or truncates (LM Studio recommends >=25K; Ollama docs 64k for agents).",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Ollama: Ollama API, OpenAI, Anthropic (subset). Cache in-memory per loaded model; reuses prior request cache. Fixed context at load (bounded KV).",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "LM Studio: OpenAI + Anthropic /v1/messages; GGUF and MLX engines; `lms load --context-length`, `lms server start`, `lms load --estimate-only`; in-memory cache.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "mlx_lm.server: OpenAI only, no /v1/messages; tool parser from tokenizer chat template; memory-risky.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "oMLX (menu bar app, Apache-2.0): OpenAI + Anthropic; hot RAM + SSD cold KV tier surviving restarts; auto-detected tool formats; one-click config for OpenCode/OpenClaw/Codex; reports model's real context window so Claude Code auto-compact works; SSE keep-alive to avoid read timeouts during long prefill; Metal toolchain needed when building from source.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Rapid-MLX / vllm-mlx: OpenAI, /v1/responses, Anthropic; radix prefix cache; 27 tool-parser modules; `rapid-mlx launch claude-code` patches ~/.claude/settings.json to point at localhost:8000.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "llama-server: Anthropic Messages-compatible chat completions, assistant prefill, function calling via Jinja.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "LiteLLM shim (LM Studio + Qwen3-Coder-30B): needs alias `claude-haiku-4-5-20251001` mapped to the local model, plus `drop_params: true`, and a clean model alias without slashes. Now only needed for chat-only backends.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Rapid-MLX installer tiers: 8-15 GB lfm2.5-2.6b-4bit; 16-17 GB qwen3.5-4b-4bit; 18-23 GB qwen3.5-9b-4bit; 24-31 GB bonsai-27b-2bit; 32 GB+ qwen3.8-27b-4bit.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "LM Studio guide: 16 GB small models only (granite-4-micro for simple edits); gpt-oss-20b ~14 GB needs 16 GB plus context; qwen3-coder-30b (3B active, ~19 GB at 4-bit) best balance at 32 GB; 32K context floor, 64K if memory allows.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "48 GB: qwen3.6:35b-a3b-mxfp8 (37 GB, 16K ctx) stable via Ollama + OpenCode; Qwen3.6-27B reported 77.2% SWE-bench Verified.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "64 GB: Qwen3-Coder-30B-A3B 4-bit (~17.5 GB) with native qwen3_coder parser preferred over Gemma 4 26B for agent sessions.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Ollama MLX preview requires >32 GB unified memory; Unsloth says Gemma 4 / Qwen3.5 agentic coding works on 24 GB.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "A 20-30B local model is competent for scripts/refactors, not a substitute for frontier models on large multi-file tasks. Keep tasks small and concrete.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Proxy needed vs not: Dec 2025 guide (Hannecke) says Claude Code cannot talk to Ollama/LM Studio without a proxy; Ollama 0.14 and LM Studio 0.4.1 docs (Jan 2026) say native /v1/messages works. Resolved by date; the proxy claim is stale for those runtimes. LiteLLM guide of Mar 2026 (substack) still says Ollama on Apple Silicon lacks MLX, also superseded by Ollama 0.19 MLX preview.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Is mlx_lm.server fixed? PR #906 (Feb 2026) added byte-limited LRUPromptCache and closed #883; Hannecke (Apr 2026, v0.31.2) and Kulman (May 2026, 0.31.3) say --max-kv-size still absent from the server and crashes persist; Rapid-MLX bench (Sep 2026, 0.31.3) shows OOM on 18 GB. Treat as unfixed for agent sessions; no source shows a later fixed release.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Ollama prefix reuse: Rapid-MLX bench shows Ollama reusing cache within session (0.41 s turns), while Ollama's own docs list cache_control (Anthropic prompt caching) as unsupported; these are different mechanisms (server-side KV prefix reuse vs API-level cache blocks).",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Vendor bias: speed benchmarks are by the Rapid-MLX authors (disclosed); oMLX's \"5 seconds not 90\" claim is only half-confirmed (restart case yes, cold turn still ~63 s).",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Whether any mlx-lm release after 0.31.3 bounds KV per request in the server.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Multi-step tool-call reliability by model/parser (existing benchmarks are single-call, 8 tools).",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Whether LM Studio's MLX engine preserves prompt cache across Claude Code turns (not measured).",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Claude Code behaviour with non-Claude models is unsupported by Anthropic; no source on feature degradation (thinking, subagents, count_tokens) beyond Ollama's gap list.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Claude Code works against any server exposing /v1/messages by setting ANTHROPIC_BASE_URL and ANTHROPIC_AUTH_TOKEN",
+          "source": "https://docs.ollama.com/integrations/claude-code",
+          "note": null
+        },
+        {
+          "text": "Ollama has been compatible with the Anthropic Messages API since v0.14.0 (2026-01-16)",
+          "source": "https://ollama.com/blog/claude",
+          "note": null
+        },
+        {
+          "text": "Ollama recommended local models for Claude Code at launch were gpt-oss:20b and qwen3-coder",
+          "source": "https://ollama.com/blog/claude",
+          "note": null
+        },
+        {
+          "text": "`ollama launch claude --model <m>` configures Claude Code for a local or cloud model; `--yes` requires --model and passes args after -- to Claude Code",
+          "source": "https://docs.ollama.com/integrations/claude-code",
+          "note": null
+        },
+        {
+          "text": "Ollama docs say set 64k+ context for larger repositories with Claude Code",
+          "source": "https://docs.ollama.com/integrations/claude-code",
+          "note": null
+        },
+        {
+          "text": "Ollama's Anthropic compatibility does not support prompt caching (cache_control), tool_choice forcing, or PDF document blocks",
+          "source": "https://docs.ollama.com/api/anthropic-compatibility",
+          "note": null
+        },
+        {
+          "text": "Ollama accepts thinking budget_tokens but does not enforce it; URL images are unsupported",
+          "source": "https://docs.ollama.com/api/anthropic-compatibility",
+          "note": null
+        },
+        {
+          "text": "Ollama's cloud /v1/messages requires Authorization: Bearer and rejects x-api-key alone; the local server ignores keys",
+          "source": "https://docs.ollama.com/api/anthropic-compatibility",
+          "note": null
+        },
+        {
+          "text": "Ollama 0.19 MLX preview needs a Mac with more than 32 GB unified memory",
+          "source": "https://ollama.com/blog/mlx",
+          "note": null
+        },
+        {
+          "text": "Ollama 0.19 reuses cache across conversations, stores cache checkpoints in the prompt and evicts shared prefixes last, aimed at Claude Code's shared system prompt",
+          "source": "https://ollama.com/blog/mlx",
+          "note": null
+        },
+        {
+          "text": "Ollama 0.19 MLX measured prefill 1154 tok/s (0.18) vs 1810 tok/s and decode 58 vs 112 tok/s on Qwen3.5-35B-A3B NVFP4",
+          "source": "https://ollama.com/blog/mlx",
+          "note": null
+        },
+        {
+          "text": "LM Studio 0.4.1 added an Anthropic-compatible /v1/messages endpoint with streaming and tool use",
+          "source": "https://lmstudio.ai/blog/claudecode",
+          "note": null
+        },
+        {
+          "text": "LM Studio recommends context of at least ~25K tokens for Claude Code",
+          "source": "https://lmstudio.ai/docs/integrations/claude-code",
+          "note": null
+        },
+        {
+          "text": "LM Studio accepts x-api-key and Authorization: Bearer when Require Authentication is on",
+          "source": "https://lmstudio.ai/docs/developer/anthropic-compat",
+          "note": null
+        },
+        {
+          "text": "LM Studio's integration page recommends CLAUDE_CODE_ATTRIBUTION_HEADER=0",
+          "source": "https://lmstudio.ai/docs/integrations/claude-code",
+          "note": null
+        },
+        {
+          "text": "Claude Code background work uses the haiku alias; unmapped, LM Studio returns 404 mid-session, so map ANTHROPIC_DEFAULT_HAIKU/SONNET/OPUS_MODEL to the local model",
+          "source": "https://michaelwolfinger.com/blog/2026/claude-code-local-llm-apple-silicon/",
+          "note": null
+        },
+        {
+          "text": "A settings.json env value overrides a shell export of the same variable",
+          "source": "https://code.claude.com/docs/en/llm-gateway-connect",
+          "note": null
+        },
+        {
+          "text": "Claude Code's system prompt plus tool definitions is roughly 20K tokens before the first user word",
+          "source": "https://michaelwolfinger.com/blog/2026/claude-code-local-llm-apple-silicon/",
+          "note": null
+        },
+        {
+          "text": "LM Studio's default context is often 4K and Claude Code fails on the first request at that size",
+          "source": "https://michaelwolfinger.com/blog/2026/claude-code-local-llm-apple-silicon/",
+          "note": null
+        },
+        {
+          "text": "`lms load --estimate-only <model> --context-length N` previews memory; `lms ps` shows loaded context",
+          "source": "https://michaelwolfinger.com/blog/2026/claude-code-local-llm-apple-silicon/",
+          "note": null
+        },
+        {
+          "text": "Anthropic does not support routing Claude Code to non-Claude models through any gateway",
+          "source": "https://code.claude.com/docs/en/llm-gateway",
+          "note": null
+        },
+        {
+          "text": "Claude Code's per-request attribution header at the start of the system prompt invalidates the KV cache and slowed local inference ~90%",
+          "source": "https://unsloth.ai/docs/basics/claude-code",
+          "note": null
+        },
+        {
+          "text": "Older Claude Code builds ignored the shell CLAUDE_CODE_ATTRIBUTION_HEADER; the --settings JSON or settings.json env form is reliable",
+          "source": "https://unsloth.ai/docs/basics/claude-code",
+          "note": null
+        },
+        {
+          "text": "A LiteLLM proxy config for Claude Code on LM Studio needs the claude-haiku-4-5-20251001 alias mapped to the local model and drop_params: true",
+          "source": "https://todatabeyond.substack.com/p/run-claude-code-locally-on-apple",
+          "note": null
+        },
+        {
+          "text": "mlx_lm.server wires ~75% of RAM at startup via mx.set_wired_limit and had no KV size cap in agentic use",
+          "source": "https://github.com/ml-explore/mlx-lm/issues/883",
+          "note": null
+        },
+        {
+          "text": "mlx-lm issue #883: kernel panic \"completeMemory() prepare count underflow\" @IOGPUMemory.cpp:550 at ~58k tokens on M3 Ultra 96 GB with Qwen3-Coder-30B-A3B 8-bit under OpenCode",
+          "source": "https://github.com/ml-explore/mlx-lm/issues/883",
+          "note": null
+        },
+        {
+          "text": "mlx-lm PR #906 added byte-limited LRUPromptCache (max_bytes) to address #883",
+          "source": "https://github.com/ml-explore/mlx-lm/pull/906",
+          "note": null
+        },
+        {
+          "text": "As of mlx-lm 0.31.2 mlx_lm.server still lacked --max-kv-size, which exists for mlx_lm.generate",
+          "source": "https://medium.com/@michael.hannecke/how-my-local-coding-agent-crashed-my-mac-and-what-i-learned-about-mlx-memory-management-e0cbad01553c",
+          "note": null
+        },
+        {
+          "text": "mx.metal.set_memory_limit before importing mlx_lm.server turns the panic into a Python exception",
+          "source": "https://medium.com/@michael.hannecke/how-my-local-coding-agent-crashed-my-mac-and-what-i-learned-about-mlx-memory-management-e0cbad01553c",
+          "note": null
+        },
+        {
+          "text": "mlx-lm tool parsing requires \"tool_parser_type\" in tokenizer_config.json; mlx-community Qwen3-Coder-30B-A3B 4-bit lacks it and OpenCode printed raw XML",
+          "source": "https://medium.com/@michael.hannecke/how-my-local-coding-agent-crashed-my-mac-and-what-i-learned-about-mlx-memory-management-e0cbad01553c",
+          "note": null
+        },
+        {
+          "text": "Editing tokenizer_config.json in the HF cache triggers a full model re-download; edit a --local-dir copy",
+          "source": "https://medium.com/@michael.hannecke/how-my-local-coding-agent-crashed-my-mac-and-what-i-learned-about-mlx-memory-management-e0cbad01553c",
+          "note": null
+        },
+        {
+          "text": "Gemma 4 26B-A4B has 50 sliding-window and 10 global layers and >20 GB KV at full context",
+          "source": "https://medium.com/@michael.hannecke/how-my-local-coding-agent-crashed-my-mac-and-what-i-learned-about-mlx-memory-management-e0cbad01553c",
+          "note": null
+        },
+        {
+          "text": "mlx_lm.server crashed with \"METAL Command buffer execution failed: Insufficient Memory\" on 48 GB for Qwen3.6-27B 4-bit and MoE 8-bit within a few messages",
+          "source": "https://blog.kulman.sk/running-local-llm-coding-server/",
+          "note": null
+        },
+        {
+          "text": "Ollama unloads models after 5 minutes by default and a reload takes ~2 minutes for a 37 GB model; OLLAMA_KEEP_ALIVE=24h avoids it",
+          "source": "https://blog.kulman.sk/running-local-llm-coding-server/",
+          "note": null
+        },
+        {
+          "text": "ollama pull qwen3.6:27b returned Q4_K_M with presence_penalty 1.5; a Modelfile with presence_penalty 0 fixed quality",
+          "source": "https://blog.kulman.sk/running-local-llm-coding-server/",
+          "note": null
+        },
+        {
+          "text": "qwen3.6:35b-a3b-mxfp8 uses 37 GB at 32K context on 48 GB, 100% GPU, stable under OpenCode via openai-compatible provider",
+          "source": "https://blog.kulman.sk/running-local-llm-coding-server/",
+          "note": null
+        },
+        {
+          "text": "Default Metal wired limit is ~67% of RAM on Macs <=36 GB and ~75% above; `sudo sysctl iogpu.wired_limit_mb=N` changes it and setting it to full RAM can kernel-panic",
+          "source": "https://danmackinlay.name/notebook/local_llm_mac.html",
+          "note": null
+        },
+        {
+          "text": "mlx_lm.server has no context flag, so the harness (OpenCode limit.context) must cap context",
+          "source": "https://danmackinlay.name/notebook/local_llm_mac.html",
+          "note": null
+        },
+        {
+          "text": "mlx-lm README documents --max-kv-size (rotating cache), --prefill-step-size (default 2048, smaller lowers peak memory) and mlx_lm.cache_prompt",
+          "source": "https://github.com/ml-explore/mlx-lm",
+          "note": null
+        },
+        {
+          "text": "Cold prefill of a 22.8k-token Claude-Code-shaped request took 63-73 s on M4 Pro 48 GB across Ollama, mlx-lm, oMLX, Rapid-MLX",
+          "source": "https://rapidmlx.com/compare",
+          "note": null
+        },
+        {
+          "text": "Follow-up turns took 0.27-0.49 s once the prefix was cached on all four engines",
+          "source": "https://rapidmlx.com/compare",
+          "note": null
+        },
+        {
+          "text": "After a server restart only oMLX (SSD tier, 0.27 s) and Rapid-MLX (disk restore, 12.3 s) avoided a full re-prefill; Ollama and mlx-lm needed 73 s and 66 s",
+          "source": "https://rapidmlx.com/compare",
+          "note": null
+        },
+        {
+          "text": "mlx_lm.server 0.31.3 died with Metal OOM on turn 4 of the agent session on an 18 GB M3 Pro",
+          "source": "https://rapidmlx.com/compare",
+          "note": null
+        },
+        {
+          "text": "oMLX refused a ~16k-token prefill on 18 GB with a memory guard error",
+          "source": "https://rapidmlx.com/compare",
+          "note": null
+        },
+        {
+          "text": "All four engines passed 30/30 single-call tool prompts with Qwen3.5-9B; multi-step tool use was not tested",
+          "source": "https://rapidmlx.com/compare",
+          "note": null
+        },
+        {
+          "text": "Rapid-MLX PFlash prefill compression keeps ~20% of tokens, cuts 16k TTFT from 42.8 s to 8.2 s, and does not engage on requests carrying tools",
+          "source": "https://rapidmlx.com/compare",
+          "note": null
+        },
+        {
+          "text": "Rapid-MLX 0.15.2 re-prefilled every turn on 18 GB because its prefix cache sized to 0.86 GB; 0.15.3 fixed it",
+          "source": "https://rapidmlx.com/compare",
+          "note": null
+        },
+        {
+          "text": "Single-stream decode on M4 Pro 48 GB, Qwen3.5-9B 4-bit: Rapid-MLX 66.1, oMLX 51.2, mlx-lm 47.7, Ollama 38.4 tok/s",
+          "source": "https://rapidmlx.com/compare",
+          "note": null
+        },
+        {
+          "text": "Rapid-MLX serves OpenAI, /v1/responses and Anthropic /v1/messages and `rapid-mlx launch claude-code` patches ~/.claude/settings.json",
+          "source": "https://github.com/raullenchai/Rapid-MLX",
+          "note": null
+        },
+        {
+          "text": "mlx_lm.server does not expose /v1/messages; Ollama (v0.14) and LM Studio (0.4.1) do",
+          "source": "https://rapidmlx.com/compare",
+          "note": null
+        },
+        {
+          "text": "oMLX keeps hot (RAM) and cold (SSD) KV tiers with prefix sharing and survives restarts",
+          "source": "https://github.com/jundot/omlx",
+          "note": null
+        },
+        {
+          "text": "oMLX reports the model's real context window to Claude Code auto-compact and sends SSE keep-alives during long prefill",
+          "source": "https://github.com/jundot/omlx",
+          "note": null
+        },
+        {
+          "text": "oMLX serves /v1/messages and auto-detects tool-call formats per model family",
+          "source": "https://github.com/jundot/omlx",
+          "note": null
+        },
+        {
+          "text": "oMLX building from source needs the Metal toolchain (full Xcode), else \"xcrun: error: unable to find utility metal\"",
+          "source": "https://github.com/jundot/omlx",
+          "note": null
+        },
+        {
+          "text": "LM Studio qwen3-coder-30b emitted <function=...><parameter=...> XML tool calls that OpenCode, Continue and Crush did not recognise (LM Studio 0.3.21)",
+          "source": "https://github.com/lmstudio-ai/lmstudio-bug-tracker/issues/825",
+          "note": null
+        },
+        {
+          "text": "A Qwen3.5 long-task tool-call failure was reported fixed by a chat-template change plus --tool-call-parser qwen3_xml instead of qwen3_coder",
+          "source": "https://forums.developer.nvidia.com/t/qwen3-5-tool-calling-finally-fixed-possibly/366451",
+          "note": null
+        },
+        {
+          "text": "Aider recommends the ollama_chat/ prefix and sets Ollama num_ctx to request size plus 8k unless a model settings file fixes num_ctx",
+          "source": "https://aider.chat/docs/llms/ollama.html",
+          "note": null
+        },
+        {
+          "text": "Aider's Ollama page still states Ollama defaults to a 2k context window",
+          "source": "https://aider.chat/docs/llms/ollama.html",
+          "note": null
+        },
+        {
+          "text": "Ollama binds localhost by default; Docker clients need OLLAMA_HOST=0.0.0.0:11434",
+          "source": "https://medium.com/@michael.hannecke/connecting-claude-code-to-local-llms-two-practical-approaches-faa07f474b0f",
+          "note": null
+        },
+        {
+          "text": "Claude Code Router can route default, think and background requests to different local models (30B for main, 8B for background)",
+          "source": "https://medium.com/@michael.hannecke/connecting-claude-code-to-local-llms-two-practical-approaches-faa07f474b0f",
+          "note": null
+        },
+        {
+          "text": "Rapid-MLX's installer RAM tiers: 8-15 GB lfm2.5-2.6b, 16-17 GB qwen3.5-4b, 18-23 GB qwen3.5-9b, 24-31 GB bonsai-27b-2bit, 32 GB+ qwen3.8-27b-4bit",
+          "source": "https://github.com/raullenchai/Rapid-MLX",
+          "note": null
+        },
+        {
+          "text": "On M3 Ultra 256 GB qwen3.8-27b-4bit measured TTFT 24.66 s, prefill 331 tok/s, decode 43.4 tok/s through 32K",
+          "source": "https://github.com/raullenchai/Rapid-MLX",
+          "note": null
+        },
+        {
+          "text": "qwen3-coder-30b (3B active, ~19 GB at 4-bit) is the best balance for agentic work at 32 GB; gpt-oss-20b needs 16 GB plus context",
+          "source": "https://michaelwolfinger.com/blog/2026/claude-code-local-llm-apple-silicon/",
+          "note": null
+        },
+        {
+          "text": "Unsloth reports Gemma 4 and Qwen3.5 agentic coding works on 24 GB unified memory devices",
+          "source": "https://unsloth.ai/docs/basics/claude-code",
+          "note": null
+        },
+        {
+          "text": "A model with no working tool calling explains edits but never touches files",
+          "source": "https://michaelwolfinger.com/blog/2026/claude-code-local-llm-apple-silicon/",
+          "note": null
+        },
+        {
+          "text": "Both ANTHROPIC_API_KEY and ANTHROPIC_AUTH_TOKEN set yields an auth-conflict startup warning",
+          "source": "https://michaelwolfinger.com/blog/2026/claude-code-local-llm-apple-silicon/",
+          "note": null
+        },
+        {
+          "text": "Anthropic-format local servers make LiteLLM unnecessary except for chat-only backends",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Unbounded-KV servers on Macs fail by kernel panic because wired memory evades Jetsam, while fixed-context servers fail by OOM error or truncation",
+          "source": "asserted",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Corrections and disagreements",
+      "facts": [
+        {
+          "text": "Ollama default context: Aider docs still say Ollama defaults to 2k; Ollama FAQ/ existing playbook say 4k/32k/256k by VRAM; Kulman saw 32768 on 48 GB. CONTRADICTS: aider.chat/docs/llms/ollama.html vs existing local-llm-troubleshooting-playbook.md section 2.1 (the playbook is right for current Ollama).",
+          "source": "asserted",
+          "note": null
+        }
+      ]
+    }
+  ],
+  "related": []
+}

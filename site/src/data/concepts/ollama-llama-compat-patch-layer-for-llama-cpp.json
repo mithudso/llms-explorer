@@ -1,0 +1,229 @@
+{
+  "slug": "ollama-llama-compat-patch-layer-for-llama-cpp",
+  "concept": "Ollama llama/compat patch layer for llama.cpp",
+  "generated": "2026-10-05",
+  "summary": "The directory holds four C++ files (`llama-ollama-compat.h/.cpp` for entry points and per-architecture handlers, `llama-ollama-compat-util.h/.cpp` for KV edits, tensor renames, skip-prefix tracking, load operations and repack helpers), `compat.cmake`, `001-llama-cpp-hooks.patch` and, on main, `00...",
+  "facets": [
+    {
+      "title": "Facts",
+      "facts": [
+        {
+          "text": "The directory holds four C++ files (`llama-ollama-compat.h/.cpp` for entry points and per-architecture handlers, `llama-ollama-compat-util.h/.cpp` for KV edits, tensor renames, skip-prefix tracking, load operations and repack helpers), `compat.cmake`, `001-llama-cpp-hooks.patch` and, on main, `002-clef.patch`.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Ollama's own C++ files are not copied into the fetched llama.cpp tree. CMake adds them to the `llama` target with `target_sources`; files under `compat/models/*.cpp` go into the `llama` target only, not the mtmd library. The patch contains only call sites.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "The patch is applied by a `FetchContent` `PATCH_COMMAND` that runs `cmake/apply-git-patches.cmake`. It applies every `*.patch` in numeric filename order and skips one that `git apply --reverse --check` says is already applied, so reconfiguring is safe.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Five hook points:",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "A monolithic vision GGUF is passed as both `--model` and `--mmproj`; each loader applies its own translation. The clip loader logs `translate_clip_metadata: detected Ollama-format gemma3 GGUF used as mmproj; translating`.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "`OLLAMA_LLAMA_CPP_COMPAT=0` turns the hook bodies off, for create-time validation and for models already known to be llama.cpp-compatible.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Handled architectures (README table): gemma3, gemma3 embedding (embeddinggemma), bert Snowflake arctic embed 2, gemma3n, gemma4, gptoss, lfm2, olmo3, mistral3, qwen35 and qwen35moe (including embedded MTP tensors), qwen3next, qwen25vl, qwen3vl and qwen3vlmoe, deepseekocr, glmocr, glm4moelite, laguna, nemotron_h_moe, nemotron_h_omni, llama 3 tokenizer fix, llama4, and a clip projector with no `clip.projector_type` (defaults to `mlp`).",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Adding an architecture means writing `handle_<arch>()` and, for vision, `handle_<arch>_clip()` in `llama-ollama-compat.cpp`, dispatching them, and adding the architecture to the `compatClipArches` allowlist in `llm/llama_server.go`.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "2026-05-29: Ollama removes its CGO engines and starts using llama-server; the compat layer is the bridge for existing blobs.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "2026-06-02: Laguna (Poolside) architecture added as a llama.cpp patch under `llama/compat`; 06-03 \"fix gemma4 patch wiring\".",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "2026-06-24: Qwen2.5-VL window attention metadata defaulted in the layer.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "2026-07-02: \"compat: use UTF-8-safe file open\".",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "2026-07-21 and 07-23: Laguna v8 chat support with a Metal inference fix, then \"align Laguna with upstream llama.cpp\".",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "2026-08-26: patch application made idempotent.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "2026-09-01 (b10729): slab reads replace whole-tensor `load_data_for`, so a single-slot cache `maybe_load_text_tensor_range` was added; 09-15 (b10969): compat code moved into libllama to avoid duplicate symbols; 09-22: Laguna Metal patch dropped as fixed upstream.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "2026-10-01: \"models: add clef support\" (PR 18741) adds `002-clef.patch` and a `llama/clef` directory.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "A model whose architecture is not in the table loads unchanged; if it also has inline vision tensors and is not in `compatClipArches`, Ollama does not pass `--mmproj`, because the upstream clip loader would abort on untranslated tensor names.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Handlers that rewrite tensor data need writable backend buffers, so they request `use_mmap = false`. On a Mac this means such a model is read into memory instead of mapped.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "If a llama.cpp bump moves the patched lines, the patch no longer applies and the build fails until `001-llama-cpp-hooks.patch` is regenerated with `git diff` on the two patched files.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "The layer relies on implementation details: direct writes to `ggml_tensor::type`, `ne[]` and `nb[]`, a `const_cast` on GGUF tensor names for renaming, and a forward declaration of `llama_model_loader` used as an opaque registry key.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "A developer who sets `OLLAMA_LLAMA_CPP_SOURCE` gets neither the patch nor the linked compat sources unless they also turn on `OLLAMA_LLAMA_CPP_SKIP_COMPAT_PATCH` and apply the patch by hand.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Which of the table's architectures matter on Apple Silicon (gemma3, gemma4, qwen35 and qwen3vl blobs) and how much extra load time the `use_mmap = false` path adds; no measurement found.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Whether new Ollama model pushes now use llama.cpp-native layouts, which would let handlers be deleted; the README gives no timeline.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "The compat README describes the layer as a temporary in-process compatibility layer for published Ollama GGUFs that translates metadata and tensor layout in memory at load time.",
+          "source": "https://raw.githubusercontent.com/ollama/ollama/main/llama/compat/README.md",
+          "note": null
+        },
+        {
+          "text": "The README states the intended end state is llama.cpp-compatible layouts on disk with the directory removed.",
+          "source": "https://raw.githubusercontent.com/ollama/ollama/main/llama/compat/README.md",
+          "note": null
+        },
+        {
+          "text": "`001-llama-cpp-hooks.patch` touches `src/llama-model-loader.cpp` and `tools/mtmd/clip.cpp` only.",
+          "source": "https://raw.githubusercontent.com/ollama/ollama/main/llama/compat/001-llama-cpp-hooks.patch",
+          "note": null
+        },
+        {
+          "text": "In the patch, `translate_metadata(...)` returning true sets `this->use_mmap = false` in the model loader constructor.",
+          "source": "https://raw.githubusercontent.com/ollama/ollama/main/llama/compat/001-llama-cpp-hooks.patch",
+          "note": null
+        },
+        {
+          "text": "The patch calls `should_skip_tensor` at two tensor-name loops, `maybe_load_text_tensor_range` in the range read, `maybe_load_text_tensor` in `load_all_data`, `translate_clip_metadata` and `maybe_load_tensor` in the clip loader, and `maybe_clip_mmproj_embd` in `clip_encode`.",
+          "source": "https://raw.githubusercontent.com/ollama/ollama/main/llama/compat/001-llama-cpp-hooks.patch",
+          "note": null
+        },
+        {
+          "text": "The README says `maybe_load_text_tensor_range` keeps a single-slot cache of one op tensor so quantize memory stays at one op tensor, after llama.cpp b10729 replaced `load_data_for` with slab reads.",
+          "source": "https://raw.githubusercontent.com/ollama/ollama/main/llama/compat/README.md",
+          "note": null
+        },
+        {
+          "text": "`OLLAMA_LLAMA_CPP_COMPAT=0` disables the hook bodies.",
+          "source": "https://raw.githubusercontent.com/ollama/ollama/main/llama/compat/README.md",
+          "note": null
+        },
+        {
+          "text": "Passing the same monolithic GGUF as `--model` and `--mmproj` works because each loader applies its own translation.",
+          "source": "https://raw.githubusercontent.com/ollama/ollama/main/llama/compat/README.md",
+          "note": null
+        },
+        {
+          "text": "The README dispatch table has 22 rows of architecture markers, including `qwen35`/`qwen35moe` with embedded MTP translation, `nemotron_h_omni` (audio \"remains disabled\"), `laguna` and `glm4moelite`.",
+          "source": "https://raw.githubusercontent.com/ollama/ollama/main/llama/compat/README.md",
+          "note": null
+        },
+        {
+          "text": "The README says new architectures need `handle_<arch>()`, `handle_<arch>_clip()` for vision, and an update to the `compatClipArches` allowlist in `llm/llama_server.go`.",
+          "source": "https://raw.githubusercontent.com/ollama/ollama/main/llama/compat/README.md",
+          "note": null
+        },
+        {
+          "text": "Three dependencies on implementation details are listed: direct writes to `ggml_tensor::type/ne/nb`, `const_cast<char *>(gguf_get_tensor_name(...))` in `rename_tensor`, and the `llama_model_loader` forward declaration.",
+          "source": "https://raw.githubusercontent.com/ollama/ollama/main/llama/compat/README.md",
+          "note": null
+        },
+        {
+          "text": "`reclaim_slot_as` repurposes an orphaned tensor slot when a clip handler splits one tensor into several, because clip metadata loading allocates exactly the source file's tensor slots.",
+          "source": "https://raw.githubusercontent.com/ollama/ollama/main/llama/compat/README.md",
+          "note": null
+        },
+        {
+          "text": "`compat.cmake` exposes `OLLAMA_LLAMA_CPP_COMPAT_PATCH_COMMAND` which runs `cmake/apply-git-patches.cmake` with `-DPATCH_DIR` and `-DPATCH_LABEL=llama/compat`.",
+          "source": "https://raw.githubusercontent.com/ollama/ollama/main/llama/compat/compat.cmake",
+          "note": null
+        },
+        {
+          "text": "`apply-git-patches.cmake` applies every `*.patch` in numeric filename order and skips a patch when `git apply --reverse --check` succeeds.",
+          "source": "https://raw.githubusercontent.com/ollama/ollama/main/cmake/apply-git-patches.cmake",
+          "note": null
+        },
+        {
+          "text": "`llama/server/CMakeLists.txt` links `llama/compat/*.cpp` into the `llama` target and `llama/compat/models/*.cpp` into `llama` only, and does so when `OLLAMA_LLAMA_CPP_SKIP_COMPAT_PATCH` is on or `OLLAMA_LLAMA_CPP_SOURCE` is unset.",
+          "source": "https://raw.githubusercontent.com/ollama/ollama/main/llama/server/CMakeLists.txt",
+          "note": null
+        },
+        {
+          "text": "The `llama/compat` directory on main holds `001-llama-cpp-hooks.patch`, `002-clef.patch`, `README.md`, `compat.cmake` and the four `llama-ollama-compat*` source files.",
+          "source": "https://github.com/ollama/ollama/tree/main/llama/compat",
+          "note": null
+        },
+        {
+          "text": "The commit history of `llama/compat` includes \"llama: add laguna (poolside) arch via a llama.cpp patch\" (2026-06-02), \"llama-server: fix gemma4 patch wiring\" (06-03), \"llama: default qwen2.5vl window attention metadata\" (06-24), \"compat: use UTF-8-safe file open\" (07-02), \"cmake: make external compat patches idempotent\" (08-26) and \"models: add clef support (#18741)\" (10-01).",
+          "source": "https://github.com/ollama/ollama/commits/main/llama/compat",
+          "note": null
+        },
+        {
+          "text": "PR 18741 (\"models: add clef support\") was opened by jmorganca on 2026-10-01 with 16 commits and no description.",
+          "source": "https://github.com/ollama/ollama/pull/18741",
+          "note": null
+        },
+        {
+          "text": "Ollama's log line `translate_clip_metadata: detected Ollama-format gemma3 GGUF used as mmproj; translating` shows the clip hook firing at runtime.",
+          "source": "https://github.com/ollama/ollama/issues/16496",
+          "note": null
+        },
+        {
+          "text": "Because translated models run with mmap off, their load time and resident memory on a Mac exceed those of the same weights loaded natively.",
+          "source": "asserted",
+          "note": null
+        }
+      ]
+    }
+  ],
+  "related": []
+}

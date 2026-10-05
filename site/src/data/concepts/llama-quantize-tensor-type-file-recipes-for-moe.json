@@ -1,0 +1,224 @@
+{
+  "slug": "llama-quantize-tensor-type-file-recipes-for-moe",
+  "concept": "llama-quantize --tensor-type-file recipes for MoE shared experts",
+  "generated": "2026-10-05",
+  "summary": "File grammar: the file is read as whitespace-separated tokens (`file >> arg`), so one `pattern=type` token per line or several per line; each token must contain `=`; the text before the first `=` is the pattern and is lowercased; the text after is parsed as a ggml type name. A token without `=`, ...",
+  "facets": [
+    {
+      "title": "Facts",
+      "facts": [
+        {
+          "text": "File grammar: the file is read as whitespace-separated tokens (`file >> arg`), so one `pattern=type` token per line or several per line; each token must contain `=`; the text before the first `=` is the pattern and is lowercased; the text after is parsed as a ggml type name. A token without `=`, an empty name, an empty type or an unknown type aborts the run with \"malformed tensor type\", \"missing tensor name\", \"missing quantization type\" or \"invalid quantization type\".",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Consequences of that grammar: a pattern cannot contain whitespace, a `#` comment token fails as malformed, and a regex containing `=` (such as a lookahead) is split at its first `=`. Lowercasing the pattern also turns escapes such as `\\S`, `\\D` or `\\W` into their opposites.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Matching: each pattern is compiled with std::regex and tested with regex_search (substring semantics, not full match) against the full tensor name such as `blk.12.ffn_down_shexp.weight`. Patterns are tried in the order they were given and the first match wins.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "A matching override replaces the file-type's category rule for that tensor (no use_more_bits, no n_expert==8 rule), but it is still passed through tensor_type_fallback, so a type whose block size does not divide the row length is demoted (Q4_K to Q5_0, Q5_K to Q5_1, Q6_K to Q8_0, then F16 as the last resort).",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Overrides apply only when the base type of the run is a quantized type. With an F16, BF16 or F32 output type the override branch is skipped. A tensor that tensor_allows_quantization rejects (router, norms, 1D tensors) returns its source type before any pattern is consulted, so a pattern cannot force the router to a type.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Substring pitfall for shared experts: `ffn_down` also matches `ffn_down_exps` and `ffn_down_shexp`; `ffn_gate` and `ffn_up` likewise; `attn_q` also matches MLA `attn_q_a` and `attn_q_b`. A shared-expert-only line needs the specific token (`ffn_down_shexp`) and must appear before any broader `ffn_down` line, or must be anchored (`ffn_down\\.weight` matches only the dense FFN).",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Preview: `--dry-run` prints a per-tensor \"size = A MiB -> B MiB (type)\" line and the total without quantizing, so a recipe's size and per-tensor typing can be checked before the long run; with a type that requires an imatrix and none supplied, dry-run records that need and continues instead of aborting.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "2025-04: llama.cpp PR 12511 adds --tensor-type; a 2025-04-03 discussion (ddh0) tests aggressive quantization per tensor class on dense models; 2025-05-03 the PR author confirms the option takes regex, for example a layer-list pattern with attn_k.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "2025: ik_llama.cpp users publish whole-model recipes as a comma-joined `--custom-q` string (regex=type) instead of a file; the 2025-03 DeepSeek-R1 recipe lists the shared experts layer by layer at q8_0.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "2025-2026: ubergarm's GLM-4.5 recipes make \"shared expert = Q8_0 or one step above routed experts\" an explicit, named block of the recipe.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Order matters: a broad `ffn_down=q4_k` placed before `ffn_down_shexp=q8_0` silently wins for the shared expert because the first match breaks the loop; the shexp line never fires and there is no warning.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "A pattern that matches nothing produces no error and no log line; only matched tensors whose type changes print \"applying manual override: A -> B\". An override equal to the type the rules already chose logs nothing.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "On a hybrid (Gated DeltaNet) MoE the shared-expert line does not touch `attn_gate`, `ssm_out`, `ssm_alpha` or `ssm_beta`, which fall in category OTHER and keep the base type in stock recipes; they need their own lines.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Mainline lacks ik_llama.cpp's IQ4_K/IQ5_K/IQ6_K/IQ4_KS/IQ4_KSS types, so the published ubergarm GLM-4.5 recipes cannot be replayed with mainline llama-quantize or run on mainline llama.cpp; only the structure transfers.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Shared experts are small: a model with one shared expert beside 256 routed experts (DeepSeek-R1 layout) holds about 0.4% of its expert parameters in the shexp tensors, so moving them from Q4_K to Q8_0 adds on the order of 0.02 bits per weight overall.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Qwen-style shared-expert gate: the one-column gate vector (`ffn_gate_inp_shexp`) is 1D to ggml, so tensor_allows_quantization skips it and it stays at source precision without any line.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "\"Shared expert at Q8_0\" (ubergarm, R1 recipe author) versus \"one step above routed experts\" (ubergarm's lower-bpw recipes: IQ6_K gate/up with Q8_0 down at the IQ4_K tier, IQ5_KS/IQ4_KS at the IQ4_KSS tier). The recipes are not ablated against each other for shared-expert type alone.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Mainline `--tensor-type-file` users (whitespace list) versus ik_llama.cpp `--custom-q` users (one comma-joined string): the same regex=type idea, different transport; neither documents first-match order, but the recipes rely on it.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "quantize.cpp reads --tensor-type-file with `while (file >> arg)` and passes each whitespace-separated token to the same parser as --tensor-type, so tokens may be separated by spaces or newlines.",
+          "source": "https://raw.githubusercontent.com/ggml-org/llama.cpp/master/tools/quantize/quantize.cpp",
+          "note": null
+        },
+        {
+          "text": "parse_tensor_type splits at the first `=`, rejects a missing `=`, an empty name or an empty type, lowercases the name part with std::transform(tolower), and rejects an unknown ggml type.",
+          "source": "https://raw.githubusercontent.com/ggml-org/llama.cpp/master/tools/quantize/quantize.cpp",
+          "note": null
+        },
+        {
+          "text": "The --tensor-type-file help text says the file uses the same `tensor_name=ggml_type` format \"separated by spaces or newlines\" and that it is for selectively quantizing a long list of tensors.",
+          "source": "https://raw.githubusercontent.com/ggml-org/llama.cpp/master/tools/quantize/quantize.cpp",
+          "note": null
+        },
+        {
+          "text": "The quantizer compiles each override pattern with std::regex once and tests it with std::regex_search against the tensor name, applying the first matching pattern and then breaking.",
+          "source": "https://raw.githubusercontent.com/ggml-org/llama.cpp/master/src/llama-quant.cpp",
+          "note": null
+        },
+        {
+          "text": "A manual override logs \"applying manual override: <old> -> <new>\" only when the type differs from the type already chosen, sets manual=true, and skips the category mixture logic (llama_tensor_get_type_impl) for that tensor.",
+          "source": "https://raw.githubusercontent.com/ggml-org/llama.cpp/master/src/llama-quant.cpp",
+          "note": null
+        },
+        {
+          "text": "After a manual override the result still goes through tensor_type_fallback, which maps Q4_K to Q5_0, Q5_K to Q5_1, Q6_K to Q8_0 and Q2_K/Q3_K to Q4_0 when the row length does not fit the block size, and uses F16 when even that does not fit.",
+          "source": "https://raw.githubusercontent.com/ggml-org/llama.cpp/master/src/llama-quant.cpp",
+          "note": null
+        },
+        {
+          "text": "Override and category logic run only inside `if (ggml_is_quantized(default_type))`, so a run whose base type is not quantized does not apply --tensor-type overrides.",
+          "source": "https://raw.githubusercontent.com/ggml-org/llama.cpp/master/src/llama-quant.cpp",
+          "note": null
+        },
+        {
+          "text": "llama_tensor_get_type returns the source tensor type immediately when tensor_allows_quantization is false, before consulting any override, so the router cannot be given a type by --tensor-type.",
+          "source": "https://raw.githubusercontent.com/ggml-org/llama.cpp/master/src/llama-quant.cpp",
+          "note": null
+        },
+        {
+          "text": "tensor_get_category matches by substring, so `ffn_down`, `ffn_up` and `ffn_gate` categories include the `_exps` and `_shexp` tensors, while attn_q, attn_k and attn_v need the full `attn_q.weight`-style name and so exclude MLA `attn_q_a` and `attn_q_b`.",
+          "source": "https://raw.githubusercontent.com/ggml-org/llama.cpp/master/src/llama-quant.cpp",
+          "note": null
+        },
+        {
+          "text": "tensor_allows_quantization rejects tensors with fewer than 2 dims (ggml_n_dims < 2), which is why one-column vectors are never quantized.",
+          "source": "https://raw.githubusercontent.com/ggml-org/llama.cpp/master/src/llama-quant.cpp",
+          "note": null
+        },
+        {
+          "text": "llama-quantize --dry-run calculates and prints the final quantization size per tensor without quantizing, and flags whether an imatrix would be required.",
+          "source": "https://raw.githubusercontent.com/ggml-org/llama.cpp/master/src/llama-quant.cpp",
+          "note": null
+        },
+        {
+          "text": "The llama-quantize README documents --tensor-type as accepting regex syntax, usable several times, and gives an example that sets odd layers' attn_k to q5_k and even layers' attn_q to q3_k with `\\.(\\d*[13579])\\.attn_k=q5_k`.",
+          "source": "https://github.com/ggml-org/llama.cpp/blob/master/tools/quantize/README.md",
+          "note": null
+        },
+        {
+          "text": "A 2025-05-03 reply in llama.cpp discussion 12741 by the --tensor-type author says the option supports regex and shows `\\.([0-9]|1[01257]|31)\\.attn_k=q4_k` for a layer list, and that the tensor name must be given in full at that version.",
+          "source": "https://github.com/ggml-org/llama.cpp/discussions/12741",
+          "note": null
+        },
+        {
+          "text": "The discussion opener reports PR 12511 as the change that lets users set quantization by tensor type, and its blog source describes a personal per-tensor scheme.",
+          "source": "https://github.com/ggml-org/llama.cpp/discussions/12741",
+          "note": null
+        },
+        {
+          "text": "ubergarm's GLM-4.5 IQ5_K recipe (6.000 BPW, 250.296 GiB, PPL 3.1690) sets attention q/k/v/output to q8_0, dense FFN to q8_0, `ffn_down_shexp` and `ffn_(gate|up)_shexp` to q8_0, routed `ffn_down_exps` to iq6_k and `ffn_(gate|up)_exps` to iq5_k.",
+          "source": "https://huggingface.co/ubergarm/GLM-4.5-GGUF",
+          "note": null
+        },
+        {
+          "text": "ubergarm's GLM-4.5 IQ4_K recipe (4.932 BPW, 205.756 GiB, PPL 3.2189) sets `ffn_down_shexp` to q8_0 and `ffn_(gate|up)_shexp` to iq6_k while routed experts are iq5_k (down) and iq4_k (gate/up).",
+          "source": "https://huggingface.co/ubergarm/GLM-4.5-GGUF",
+          "note": null
+        },
+        {
+          "text": "ubergarm's GLM-4.5 IQ4_KSS recipe (4.164 BPW, 173.726 GiB, PPL 3.3261) sets shared experts to iq5_ks (down) and iq4_ks (gate/up) against routed iq4_ks and iq4_kss, and lists layers 0-2 attention at q8_0 before the all-layer attention lines so the first-listed pattern takes the boundary layers.",
+          "source": "https://huggingface.co/ubergarm/GLM-4.5-GGUF",
+          "note": null
+        },
+        {
+          "text": "ubergarm's recipes anchor the dense-FFN line as `ffn_down\\.weight` and give shared and routed experts separate lines (`ffn_down_shexp\\.weight` versus `ffn_down_exps\\.weight`) so one line does not catch the other.",
+          "source": "https://huggingface.co/ubergarm/GLM-4.5-GGUF",
+          "note": null
+        },
+        {
+          "text": "The ubergarm GLM-4.5 page says the collection requires the ik_llama.cpp fork and will not run on vanilla llama.cpp, ollama, LM Studio or KoboldCpp, and it passes the recipe as `--custom-q \"$custom\"`.",
+          "source": "https://huggingface.co/ubergarm/GLM-4.5-GGUF",
+          "note": null
+        },
+        {
+          "text": "The ubergarm GLM-4.5 page reports Cor(ln(PPL(Q)), ln(PPL(base))) of 99.90% for Q8_0, 99.85% IQ5_K, 99.78% IQ4_K and 99.59% IQ4_KSS, and notes perplexity was not well behaved because IQ5_K scored below the BF16 baseline.",
+          "source": "https://huggingface.co/ubergarm/GLM-4.5-GGUF",
+          "note": null
+        },
+        {
+          "text": "An ik_llama.cpp DeepSeek-R1 recipe in discussion 258 lists the shared experts layer by layer (`blk\\.3\\.ffn_.*shexp\\.weight=q8_0`, `blk\\.[4-9]\\.`, `blk\\.[1-5][0-9]\\.`, `blk\\.60\\.`) as q8_0 for MoE layers 3-60, and builds the final string by stripping comment lines and joining lines with commas.",
+          "source": "https://github.com/ikawrakow/ik_llama.cpp/discussions/258",
+          "note": null
+        },
+        {
+          "text": "llama-quantize with the MXFP4_MOE file type is a built-in shared-expert policy: tensors with ne[2] > 1 (the routed experts) become MXFP4 and every other quantizable tensor, including the 2D shared experts and attention, becomes Q8_0.",
+          "source": "https://raw.githubusercontent.com/ggml-org/llama.cpp/master/src/llama-quant.cpp",
+          "note": null
+        },
+        {
+          "text": "The ubergarm and ik_llama.cpp recipes are mainline-incompatible in their type names (iq4_k, iq5_k, iq6_k, iq4_ks, iq4_kss are ik_llama.cpp types), so only the tensor-role structure can be copied to a mainline llama.cpp run on a Mac.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "A first-match-wins list means a safe shared-expert recipe orders lines from most specific (`ffn_down_shexp`) to least specific (`ffn_down`), the opposite of how a sed-style \"default then exceptions\" file would be written.",
+          "source": "asserted",
+          "note": null
+        }
+      ]
+    }
+  ],
+  "related": []
+}

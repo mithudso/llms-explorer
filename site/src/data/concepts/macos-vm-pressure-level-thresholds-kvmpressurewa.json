@@ -1,0 +1,134 @@
+{
+  "slug": "macos-vm-pressure-level-thresholds-kvmpressurewa",
+  "concept": "macOS vm pressure level thresholds kVMPressureWarning and kVMPressureCritical",
+  "generated": "2026-10-05",
+  "summary": "Definitions: `AVAILABLE_NON_COMPRESSED_MEMORY` = active + inactive + free + speculative pages (N); `VM_PAGE_COMPRESSOR_COUNT` = resident pages of the compressor object (C, \"Pages occupied by compressor\" in vm_stat); `AVAILABLE_MEMORY` = N + C.",
+  "facets": [
+    {
+      "title": "Facts",
+      "facts": [
+        {
+          "text": "Definitions: `AVAILABLE_NON_COMPRESSED_MEMORY` = active + inactive + free + speculative pages (N); `VM_PAGE_COMPRESSOR_COUNT` = resident pages of the compressor object (C, \"Pages occupied by compressor\" in vm_stat); `AVAILABLE_MEMORY` = N + C.",
+          "source": "https://raw.githubusercontent.com/apple-oss-distributions/xnu/main/osfmk/vm/vm_page.h",
+          "note": null
+        },
+        {
+          "text": "Normal to Warning (compressor active): N < VM_PAGE_COMPRESSOR_COMPACT_THRESHOLD = AVAILABLE_MEMORY x 10 / minorcompact_divisor.",
+          "source": "https://raw.githubusercontent.com/apple-oss-distributions/xnu/main/osfmk/vm/vm_pageout.c",
+          "note": null
+        },
+        {
+          "text": "On macOS with more than 3 GB of RAM the divisors are minorcompact 20, majorcompact 25, unthrottle 35, catchup 50; with 3 GB or less they are 11, 13, 20, 35.",
+          "source": "https://raw.githubusercontent.com/apple-oss-distributions/xnu/main/osfmk/vm/vm_compressor.c",
+          "note": null
+        },
+        {
+          "text": "So for a Mac above 3 GB, Normal to Warning fires when N < (N + C) x 10/20, that is N < C. Derived.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Warning to Critical: `vm_compressor_low_on_space()` OR N < 1.2 x AVAILABLE_MEMORY x 10 / 35. That is about N < 0.52 C. Derived.",
+          "source": "https://raw.githubusercontent.com/apple-oss-distributions/xnu/main/osfmk/vm/vm_pageout.c",
+          "note": null
+        },
+        {
+          "text": "Hysteresis, down: Warning to Normal needs N > 1.2 x the warning threshold, which is N > 0.6 (N + C), about N > 1.5 C. Critical to Warning needs N > 1.4 x the unthrottle threshold, about N > 0.67 C.",
+          "source": "https://raw.githubusercontent.com/apple-oss-distributions/xnu/main/osfmk/vm/vm_pageout.c",
+          "note": null
+        },
+        {
+          "text": "If the compressor is not active the thresholds are page-count based: warning below `memorystatus_get_soft_memlimit_page_shortage_threshold`, critical below the critical page shortage threshold, and recovery needs 115 percent of the threshold.",
+          "source": "https://raw.githubusercontent.com/apple-oss-distributions/xnu/main/osfmk/vm/vm_pageout.c",
+          "note": null
+        },
+        {
+          "text": "The non-compressor percentages (iOS style) are listed in kern_memorystatus.c by DRAM size: 6 GB and up is critical 4 percent, idle 8, pressure 12, reaper 16, freeze 50; 0 to 3 GB is 5, 10, 15, 20, 50. On a compressor-active Mac these are not what drives the level.",
+          "source": "https://raw.githubusercontent.com/apple-oss-distributions/xnu/main/bsd/kern/kern_memorystatus.c",
+          "note": null
+        },
+        {
+          "text": "`vm_pressure_response` also sets `memorystatus_level` = available x 100 / total pages (the sysctl `kern.memorystatus_level`), but the level transitions above do not use that percentage.",
+          "source": "https://raw.githubusercontent.com/apple-oss-distributions/xnu/main/osfmk/vm/vm_pageout.c",
+          "note": null
+        },
+        {
+          "text": "The level re-broadcasts after sitting in a non-normal level for 30 minutes (`vm_pressure_level_transition_threshold`).",
+          "source": "https://raw.githubusercontent.com/apple-oss-distributions/xnu/main/osfmk/vm/vm_pageout.c",
+          "note": null
+        },
+        {
+          "text": "Measured: N was 1,910,295 pages and C was 746,105 pages (N/C about 2.56) with `kern.memorystatus_vm_pressure_level` = 1 (Normal) and `kern.memorystatus_level` = 46 at the same moment, consistent with the N versus C rule. [asserted] (measured locally 2026-10-04, Apple M5 Max 64 GB, macOS 27.2; vm_stat, sysctl)",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Not documented in sources read.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Wired memory (1,477,245 pages on the measured host) is excluded from N, so a large wired GPU allocation shrinks N without growing C, and the Warning line N < C is reached when active + inactive + free fall below the compressor's own footprint.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "`kern.memorystatus_level` can read 46 percent while pressure is Normal and a \"low\" percentage does not imply Warning.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "The Warning line moves as C grows: heavy compression raises C and so raises the N needed to stay Normal.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Common folklore ties the Activity Monitor memory-pressure colors to a free-percentage (for example 10 percent / 5 percent). The source read shows a compressor-relative rule on macOS instead. No Apple document confirming the folklore percentages was found.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "The numeric enum values of kVMPressureUrgent and kVMPressureCritical were not found in the files read.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Whether VM_CONFIG_COMPRESSOR_IS_ACTIVE is true on every Apple silicon Mac build; macOS defaults to compressor-with-swap, so it should be.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "The long-run behavior of Activity Monitor's graph versus this level.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "On Macs above 3 GB the Warning threshold is N < C (non-compressed available pages below the compressor's resident pages).",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Critical is low-on-space or N below about half of C.",
+          "source": "https://raw.githubusercontent.com/apple-oss-distributions/xnu/main/osfmk/vm/vm_pageout.c",
+          "note": null
+        },
+        {
+          "text": "Hysteresis uses 120 percent (warning to normal) and 140 percent (critical to warning) multipliers.",
+          "source": "https://raw.githubusercontent.com/apple-oss-distributions/xnu/main/osfmk/vm/vm_pageout.c",
+          "note": null
+        },
+        {
+          "text": "The compressor divisors differ for 3 GB or less versus larger Macs.",
+          "source": "https://raw.githubusercontent.com/apple-oss-distributions/xnu/main/osfmk/vm/vm_compressor.c",
+          "note": null
+        },
+        {
+          "text": "A stuck non-normal level re-notifies every 30 minutes.",
+          "source": "https://raw.githubusercontent.com/apple-oss-distributions/xnu/main/osfmk/vm/vm_pageout.c",
+          "note": null
+        }
+      ]
+    }
+  ],
+  "related": []
+}

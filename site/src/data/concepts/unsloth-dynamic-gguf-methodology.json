@@ -1,0 +1,309 @@
+{
+  "slug": "unsloth-dynamic-gguf-methodology",
+  "concept": "Unsloth Dynamic GGUF methodology",
+  "generated": "2026-10-05",
+  "summary": "Origin (Jan 2025, DeepSeek-R1 1.58-bit): study the architecture, then keep few-weight, high-leverage tensors at 4-6 bit and push the bulk (MoE experts, about 88% of weights) to 1.5-2 bit. Listed split: first 3 dense layers (0.5% of weights) at 4 or 6 bit; MoE shared experts (1.5%) at 6 bit; MLA a...",
+  "facets": [
+    {
+      "title": "Facts",
+      "facts": [
+        {
+          "text": "Origin (Jan 2025, DeepSeek-R1 1.58-bit): study the architecture, then keep few-weight, high-leverage tensors at 4-6 bit and push the bulk (MoE experts, about 88% of weights) to 1.5-2 bit. Listed split: first 3 dense layers (0.5% of weights) at 4 or 6 bit; MoE shared experts (1.5%) at 6 bit; MLA attention (<5%) at 4 or 6 bit. Naively quantizing every layer to 1.58 bit gave endless repetition and scored 0 on their Flappy Bird test; the 131 GB dynamic version scored 6.92/10. The first three R1 sizes used an llama.cpp imatrix; the 212 GB Q2_K_XL did not.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Dynamic v2.0 (2025-04-24): selective layer typing extended from MoE-only to all models, chosen per layer and per model (Gemma 3 layers quantized differently from Llama 4); calibration set 300K to 1.5M tokens of hand-curated chat-oriented data; adds Q4_NL, Q5_1, Q5_0, Q4_1, Q4_0 types \"especially for Apple Silicon and ARM\". Later (Qwen3.5 era) Q4_0/Q4_1 were deprecated because they cost accuracy.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Selection signal is measured, not published as code: for Qwen3.5-35B-A3B Unsloth ran 121 tensor-type x bit-width configs (150+ KLD runs, 9 TB of artifacts on Hugging Face) scoring 99.9th-percentile KLD against BF16. Findings beyond those already held: ffn_up_exps/ffn_gate_exps tolerate ~3 bit; leaving all ffn_* near IQ3_XXS is the best size/KLD compromise and 2-bit is worse; imatrix cuts the 2-bit ssm_out penalty sharply.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "2026-03-05 Qwen3.5 MoE update targeted Maximum KLD directly (outliers), not just 99.9% KLD: UD-Q4_K_XL max KLD 5.894 -> 2.877 (-51%) for +7.8% size (19.2 -> 20.7 GB); UD-Q5_K_XL 5.536 -> 3.210 (-42%) for +6%; UD-Q2_K_XL and Q3_K_XL got smaller (12.0 -> 11.3, 16.1 -> 15.5 GB) with slight max-KLD gains.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Dynamic v3.0 (Qwen3.8-27B, 2026-08): new imatrix set refined for agentic coding, chat, multilingual; \"improved layer selection and many more quantization techniques\"; pure PTQ, no QAT/QAD, imatrix file published. Applied only to the smaller quants: on unseen Wikitext and code the bigger quants improved little, so Unsloth keeps UD-2 recipes for the larger quants.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Divergence-300 @32 is not KL divergence: 300 held-out prompts (Terminal-Bench 2.1, DeepSWE, Harbor, MathArena 2025-26, non-Latin and long-doc prompts), greedy decode 32 tokens, score = agreement of the quant's token trajectory with BF16. It extends top-1 agreement over 32 steps. Figures: a sharp drop between UD-Q2_K_XL (~25%) and UD-IQ2_S (under 8-10%).",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "MTP head handling: from Qwen3.8 on, UD quants at or below UD-Q2_K_XL (8.37 GB and smaller) drop the MTP module to save ~500 MB; a separate `MTPQ4_0` file (1.37 GB) is shipped and MTP needs 1-2 GB extra headroom.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "2025-01-27 R1 dynamic 1.58-bit; 2025-04-24 Dynamic v2.0 (Gemma 3 QAT comparison, Llama 4 bug fixes: RoPE scaling, QK-norm epsilon 1e-5 not 1e-6); 2025-09-10 Aider Polyglot post (UD 3-bit DeepSeek V3.1 scores 75.6%); 2026-02-27 Qwen3.5 benchmarks and tool-calling chat-template fix (affects all uploaders); 2026-03-05 re-upload with max-KLD method; 2026-04-16 Qwen3.6 GGUFs plus first UD-MLX; 2026-04-20 new UD-IQ4_NL_XL and Q6_K update; 2026-08-19 Dynamic v3.0 Qwen3.8; Unsloth Desktop/Studio ships macOS app running GGUF and MLX.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Unsloth Dynamic was described by its own KLD post as \"SOTA on nearly all bits\" on 2026-02-27; an HN commenter says the Mar 5 re-upload was a bugfix for Q4_K_XL tensors wrongly set to MXFP4, Unsloth replies that only the old Q4_K_XL had slightly higher perplexity.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Same filename, different bytes: Unsloth re-uploads without version numbers. For Qwen3.8-27B-UD-Q8_K_XL.gguf a user shows two sha256 sums (pre- and post-Dynamic-3.0), and Unsloth's pinned HF thread denies any breakage (\"purely an update\"). Mac consequence: LM Studio/`-hf` caches can hold stale UD files; re-pull with `hf download` and prune with `hf cache prune`.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Re-download notices: Qwen3.5 35B/27B/122B/397B (Mar 5) needed re-pulls; ssm/attn tensors previously mis-typed in the first XL files.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "1-bit and low 2-bit UD quants: excessive looping (use presence_penalty 1.5+), empty replies if thinking is off, tool calling fails or never fires; use UD-Q2_K_XL as the floor for agent work. A user reports UD-Q2_K_XL dense 27B still loops on AMD.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Metal build note: llama.cpp on Mac needs no flag; Metal is on by default (`-DGGML_CUDA=OFF` instruction in Unsloth guides is only to stop the CUDA default).",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Unsloth reports KLD on a Wikipedia-style 512-context set while its imatrix is chat/tool/long-context, so its own PPL can look worse than Wiki-calibrated competitors; it argues PPL/KLD can mislead (MiniMax M2.5: Unsloth IQ2_XXS beat AesSedai IQ3_S on LiveCodeBench v6 and MMLU Pro despite losing on PPL and KLD, per Benjamin Marie).",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "MTP speculative decoding via llama.cpp on Metal is a net loss (see speculative-decoding-and-mtp-on-apple-silicon.md); a Mac user on Qwen3.8-27B M4 Max got ~20 tok/s and disabled MTP.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Unsloth vs critics on Qwen3.5-35B-A3B Q4_K_M: Unsloth table: Unsloth Q4_K_M 18.49 GB, KLD99.9 0.5478, mean 0.0192; bartowski Q4_K_M 19.77 GB, 0.5771, mean 0.0182. A commenter notes bartowski wins on mean KLD. Unsloth answers: compare at equal size (Unsloth Q4_K_XL 19.17 GB, 0.4097 / 0.0137 beats bartowski Q4_K_M). Both are true; the UD advantage is in the tail (99.9% and max KLD) more than in mean KLD at 4-bit. All numbers are Unsloth-run.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "'Imatrix is free quality' (Unsloth) vs speed cost: Unsloth says imatrix itself costs 5-10% inference; the Unsloth table it cites is about I-quants (iq3_xxs/iq2_* tg128 ~85 vs ~90.5), not imatrix per se; imatrix only changes values, not the kernel.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Third-party comparison on tensors: ubergarm (ik_llama.cpp quants) notes Unsloth UD-Q4_K_XL for DeepSeek-V3-0324 uses lower-precision attention than his full-q8_0 attention and expects some degradation; Unsloth uses lower precision for attention in some models while its hybrid-model research says attention should stay high. Unresolved; DeepSeek MLA vs Qwen hybrid differ.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "No independent KLD/perplexity table that includes UD, bartowski and an MLX quant on one BF16 base and one corpus (carried over from the existing dossiers).",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "No published Metal tok/s comparison UD-Q4_K_XL vs Q4_K_M vs bartowski on one Mac; speed differences come only from file size (bandwidth-bound decode) [asserted].",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Unsloth's MLX algorithm is undocumented (\"still evolving\"); no open recipe for UD-MLX 3/4/6/8-bit selection, and no UD-MLX uploads were listed for Qwen3.8 (HN users ask \"waiting for MLX version\").",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Whether Q4_NL/Q5_1-style legacy types (added \"for Apple Silicon\") help or hurt on Metal in UD files.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Unsloth Dynamic quants are standard GGUF files readable by llama.cpp, Ollama, LM Studio, Open WebUI; Unsloth Dynamic v2.0 added Q4_NL, Q5.1, Q5.0, Q4.1 and Q4.0 formats \"especially on Apple Silicon and ARM\".",
+          "source": "https://unsloth.ai/docs/basics/dynamic-3.0-ggufs",
+          "note": null
+        },
+        {
+          "text": "Unsloth's Q4_0 and Q4_1 were deprecated because tests showed they reduced accuracy a lot despite their promise of faster inference; Daniel Han says Q4_K_M and UD-Q4_K_XL are structurally the same recipe, with XL slightly bigger, and naming order is XL > L > M > S > XS.",
+          "source": "https://news.ycombinator.com/item?id=47295692",
+          "note": null
+        },
+        {
+          "text": "R1 dynamic 1.58-bit kept the first 3 dense layers (0.5% of weights) at 4 or 6 bit, MoE shared experts (1.5%) at 6 bit and MLA attention (<5%) at 4 or 6 bit, leaving about 88% of weights to shrink.",
+          "source": "https://huggingface.co/unsloth/DeepSeek-R1-GGUF/discussions/21",
+          "note": null
+        },
+        {
+          "text": "R1 1.58-bit dynamic (131 GB, IQ1_S) scored 6.92/10 on Unsloth's Flappy Bird pass@3 test versus 0 for a naive same-size quant; a naive 2.06-bit 175 GB quant scored 6.17 versus 9.17 for the 183 GB dynamic quant.",
+          "source": "https://unsloth.ai/blog/deepseekr1-dynamic",
+          "note": null
+        },
+        {
+          "text": "The first three R1 dynamic GGUFs used an llama.cpp imatrix; the 212 GB Q2_K_XL (MoE 2.51-bit, down_proj 3.5/2.5-bit) did not.",
+          "source": "https://unsloth.ai/blog/deepseekr1-dynamic",
+          "note": null
+        },
+        {
+          "text": "A forum reader summarizes UD as the same quant types as other GGUF providers with different per-layer, per-matrix choices than default llama-quantize.",
+          "source": "https://huggingface.co/unsloth/DeepSeek-R1-GGUF/discussions/21",
+          "note": null
+        },
+        {
+          "text": "Dynamic v2.0 calibration set is 300K-1.5M tokens of curated chat-oriented data (blog says 300K-1.5M; docs say >1.5M); Unsloth benchmarks KLD with Calibration_v3/v5 style Wikipedia-containing sets and not its own calibration data, to avoid measuring overfit.",
+          "source": "https://unsloth.ai/blog/dynamic-v2",
+          "note": null
+        },
+        {
+          "text": "Unsloth argues text-only imatrix calibration is ineffective for instruct models with chat templates, and that Wikipedia-calibrated imatrix files overfit Wikipedia perplexity.",
+          "source": "https://unsloth.ai/blog/dynamic-v2",
+          "note": null
+        },
+        {
+          "text": "Unsloth cites \"Accuracy is Not All You Need\" (arXiv 2407.09141): KLD correlates with answer \"flips\", perplexity can hide cancelling errors.",
+          "source": "https://unsloth.ai/docs/basics/dynamic-3.0-ggufs",
+          "note": null
+        },
+        {
+          "text": "Gemma 3 27B Unsloth Q4_K_XL (15.64 GB) scored 71.47 on 5-shot MMLU versus 70.64 for Google's 17.2 GB Q4_0 QAT; BF16 is 71.5 (Unsloth harness, vendor).",
+          "source": "https://unsloth.ai/blog/dynamic-v2",
+          "note": null
+        },
+        {
+          "text": "Gemma 3 12B KLD v1 -> v2.0 (baseline -> new, GB): IQ1_S 1.0357 -> 0.9729 (5.83 -> 6.06), Q2_K_XL 0.2297 -> 0.2209 (9.78 -> 9.95), Q3_K_XL 0.0878 -> 0.0806 (12.51 -> 12.76), Q4_K_XL 0.02492 -> 0.02370 (15.41 -> 15.64); gains came with ~2% more disk.",
+          "source": "https://unsloth.ai/blog/dynamic-v2",
+          "note": null
+        },
+        {
+          "text": "Unsloth Efficiency metric = (MMLU 5-shot - 25) / disk GB.",
+          "source": "https://unsloth.ai/blog/dynamic-v2",
+          "note": null
+        },
+        {
+          "text": "Qwen3.5-35B-A3B full benchmark (Unsloth-run, PPL / KLD99.9 / mean KLD / GB): UD-Q4_K_XL 6.5918 / 0.4097 / 0.0137 / 19.17; Unsloth Q4_K_M 6.6053 / 0.5478 / 0.0192 / 18.49; bartowski Q4_K_M 6.6097 / 0.5771 / 0.0182 / 19.77; bartowski IQ4_XS 6.6234 / 0.7265 / 0.0234 / 17.42; AesSedai Q4_K_M 6.5665 / 0.3171 / 0.0096 / 20.62; Unsloth UD-Q3_K_XL 6.7245 / 0.9539 / 0.0308 / 16.06; bartowski Q3_K_XL 6.8245 / 1.7516 / 0.0627 / 15.97; Unsloth MXFP4_MOE 6.60 / 0.7789 / 0.0272 / 18.17; Unsloth UD-Q2_K_XL 7.0438 / 2.9092 / 0.097 / 12.04 vs bartowski Q2_K_L 7.5504 / 3.8095 / 0.1559 / 11.98.",
+          "source": "https://unsloth.ai/docs/models/qwen3.5/gguf-benchmarks",
+          "note": null
+        },
+        {
+          "text": "In that table AesSedai Q4_K_M (20.62 GB) has lower KLD than every Unsloth Q4 at 18.5-19.2 GB, i.e. UD is on the Pareto frontier by size-adjusted score but not best at a fixed larger size; Unsloth Q5_K_XL (23.22 GB) 0.236 equals AesSedai Q5_K_M (24.45 GB) 0.21 within about 1 GB.",
+          "source": "https://unsloth.ai/docs/models/qwen3.5/gguf-benchmarks",
+          "note": null
+        },
+        {
+          "text": "Qwen3.5-35B-A3B Mar 5 update: UD-Q4_K_XL max KLD 5.894 -> 2.877 (19.2 -> 20.7 GB), UD-Q5_K_XL 5.536 -> 3.210 (23.2 -> 24.6 GB), UD-Q3_K_XL 5.505 -> 5.146 (16.1 -> 15.5 GB), UD-Q2_K_XL 8.237 -> 8.155 (12.0 -> 11.3 GB).",
+          "source": "https://unsloth.ai/docs/models/qwen3.5/gguf-benchmarks",
+          "note": null
+        },
+        {
+          "text": "Unsloth says all-provider benchmark shows UD top in 21 of 22 sizes for Qwen3.6-35B-A3B mean KLD; only Q6_K was updated and a new UD-IQ4_NL_XL quant was added (vendor claim).",
+          "source": "https://unsloth.ai/docs/models/qwen3.6",
+          "note": null
+        },
+        {
+          "text": "Qwen3.6-35B-A3B UD file sizes: UD-IQ2_XXS 10.8 GB, UD-Q2_K_XL 12.3, UD-IQ3_XXS 13.2, UD-Q3_K_XL 16.8, UD-IQ4_XS 17.7, UD-IQ4_NL 18.0, UD-IQ4_NL_XL 19.5, UD-Q4_K_S 20.9, MXFP4_MOE 21.7, UD-Q4_K_M 22.1, UD-Q4_K_XL 22.4, UD-Q5_K_XL 26.6, UD-Q6_K 29.3, UD-Q8_K_XL 38.5, BF16 69.4 GB.",
+          "source": "https://huggingface.co/unsloth/Qwen3.6-35B-A3B-GGUF",
+          "note": null
+        },
+        {
+          "text": "Qwen3.8-27B UD file sizes: UD-IQ1_S 6.19 GB, UD-IQ2_XXS 7.27, UD-Q2_K_XL 9.83, UD-IQ3_XXS 10.9, UD-Q3_K_XL 13.1, UD-IQ4_XS 14.3, UD-Q4_K_S 15.4, UD-Q4_K_M 16.5, UD-Q4_K_XL 17.6, UD-Q5_K_XL 20.9, UD-Q6_K_XL 25.3, UD-Q8_K_XL 31.5, BF16 54.7 GB.",
+          "source": "https://huggingface.co/unsloth/Qwen3.8-27B-GGUF",
+          "note": null
+        },
+        {
+          "text": "Unsloth memory guidance: Qwen3.6-27B needs 15/18/24/30/55 GB at 3/4/6/8-bit/BF16, 35B-A3B needs 17/23/30/38/70 GB; Qwen3.8-27B 4-bit \"works on a Mac with 24 GB RAM\"; its Qwen3.5 guides say Dynamic 4-bit of 35B-A3B \"works great on a 24 GB RAM / Mac\" and 27B on 18 GB; rule: unified memory should exceed the file size, MTP adds 1-2 GB.",
+          "source": "https://unsloth.ai/docs/models/qwen3.6",
+          "note": null
+        },
+        {
+          "text": "Gemma 4 guidance: 12B 8 GB at 4-bit; 26B-A4B 18 GB (4-bit) or 28 GB (8-bit); 31B 20 GB (4-bit); recommended default is 8-bit for small models and Dynamic 4-bit for larger ones.",
+          "source": "https://unsloth.ai/docs/models/gemma-4",
+          "note": null
+        },
+        {
+          "text": "Unsloth Qwen3.6-27B UD-MLX Mean KLD / P99.9 KLD / size: 8-bit 0.0028 / 0.192 / 34.7 GB; 6-bit 0.0037 / 0.343 / 30.5; 4-bit 0.0227 / 2.339 / 26.2; NVFP4 0.0325 / 3.693 / 26.2; MXFP4 0.0479 / 4.035 / 25.6; 3-bit 0.0734 / 5.529 / 24.1 (vendor, Wiki-style corpus). In Unsloth's own table UD-MLX 4-bit beats its NVFP4 and MXFP4 uploads at the same size.",
+          "source": "https://unsloth.ai/docs/models/qwen3.6",
+          "note": null
+        },
+        {
+          "text": "Unsloth UD-MLX uploads: Qwen3.6-27B 3/4/6/8-bit, MXFP4, NVFP4; 35B-A3B 3/4/8-bit; Gemma 4 26B-A4B 4-bit and 8-bit with vision; run with `mlx_vlm.chat --model unsloth/Qwen3.6-27B-UD-MLX-4bit` after an install script; Unsloth Studio runs them. The page calls them \"dynamic 4bit and 8bit quants ... as a first trial for MacOS\".",
+          "source": "https://unsloth.ai/docs/models/gemma-4",
+          "note": null
+        },
+        {
+          "text": "Unsloth Desktop (macOS, Windows, Linux) runs GGUF, MLX and safetensors models and uses MLX and llama.cpp for fast CPU+GPU inference.",
+          "source": "https://unsloth.ai/docs/models/qwen3.8",
+          "note": null
+        },
+        {
+          "text": "Qwen3.8 has no UD-MLX uploads listed on the Unsloth page; HN readers asked for MLX versions and use mlx-community/Qwen3.8-27B-4bit instead (36 tok/s with mlx_vlm MTP on an M3 Max 36 GB, 36.4 tok/s generation, peak memory 17.4 GB).",
+          "source": "https://news.ycombinator.com/item?id=49365443",
+          "note": null
+        },
+        {
+          "text": "Dynamic v3.0 retains ~72% top-1 at UD-IQ1_S but Divergence-300 @32 of ~8%; UD-Q2_K_XL is ~+8% top-1 over the next best at 9.83 GB; UD-IQ2_S is under 8-10% on Divergence-300 @32 and UD-Q2_K_XL ~25%.",
+          "source": "https://unsloth.ai/docs/basics/dynamic-3.0-ggufs",
+          "note": null
+        },
+        {
+          "text": "Unsloth 1-bit mitigations: presence_penalty 1.5 or higher against looping, enable thinking at least low, do not use for tool calling.",
+          "source": "https://unsloth.ai/docs/basics/dynamic-3.0-ggufs",
+          "note": null
+        },
+        {
+          "text": "A user reports Qwen3.8-27B-UD-Q2_K_XL falling into repeated-question loops, and sha256 differences between the pre- and post-Dynamic-3.0 UD-Q8_K_XL files of the same name.",
+          "source": "https://news.ycombinator.com/item?id=49365443",
+          "note": null
+        },
+        {
+          "text": "Daniel Han says the Dynamic v3.0 re-upload \"was purely an update to make them EVEN BETTER\", nothing was broken.",
+          "source": "https://huggingface.co/unsloth/Qwen3.8-27B-GGUF/discussions/74",
+          "note": null
+        },
+        {
+          "text": "Mac user speeds on Qwen3.8-27B (anecdotal, quant often unstated): M4 Max 128 GB 59.5 tok/s; M5 Max 64 GB ~25 tok/s with Unsloth Desktop and Q6_K_XL; M4 Max laptop 20 tok/s with llama.cpp GGUF and MTP off; M4 Pro 48 GB 13-20 tok/s; M3 Max 36 GB 30-40 tok/s on Ollama MLX build; M3 Pro 36 GB 17 tok/s with MTPLX; an M1 Max user prefers Qwen3.6 MoE at ~30 tok/s typical to 3.8 dense at 4-9 tok/s.",
+          "source": "https://news.ycombinator.com/item?id=49402232",
+          "note": null
+        },
+        {
+          "text": "A 36 GB M3 Pro is described as the sweet spot for Qwen3.6-35B-A3B UD-Q4_K_S (20.9 GB), a 32 GB M2 Pro as marginal for agentic use, and IQ2_M (~10.6 GB) as the 16 GB option; Simon Willison ran that Unsloth quant in LM Studio on an M5 MacBook Pro.",
+          "source": "https://medium.com/@borislavbankov/your-mac-just-became-a-frontier-ai-workstation-again-51696ea6a014",
+          "note": null
+        },
+        {
+          "text": "Unsloth guides use `-hf unsloth/<model>-GGUF:UD-Q4_K_XL` with llama.cpp or `ollama run hf.co/unsloth/<model>-GGUF:UD-Q4_K_XL`; files above 50 GB are split.",
+          "source": "https://unsloth.ai/docs/models/gemma-4",
+          "note": null
+        },
+        {
+          "text": "ubergarm contrasts: his ik_llama.cpp quants use full q8_0 for all attention tensors and ik-only repacked types, while Unsloth UD-Q4_K_XL for DeepSeek-V3-0324 quantizes attention more; on a CUDA+Xeon box a UD-Q2_K_XL (233 GB) was ~4% faster than ubergarm IQ2_K_R4 (227 GB).",
+          "source": "https://huggingface.co/ubergarm/DeepSeek-V3-0324-GGUF/discussions/2",
+          "note": null
+        },
+        {
+          "text": "Unsloth released its Qwen3.6 imatrix as a file (imatrix_unsloth.gguf_file) in the GGUF repo (commit of 2026-04-16), so others can quantize with it.",
+          "source": "https://huggingface.co/unsloth/Qwen3.6-35B-A3B-GGUF/commits/main/imatrix_unsloth.gguf_file",
+          "note": null
+        },
+        {
+          "text": "Unsloth's pitch beyond quant selection is bug-fixing in model implementations (Llama 4 RoPE scaling and QK-norm epsilon, Gemma, Phi-4, Qwen tool-calling templates); the Qwen3.5 template fix is universal across uploaders.",
+          "source": "https://unsloth.ai/docs/basics/dynamic-3.0-ggufs",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Corrections and disagreements",
+      "facts": [
+        {
+          "text": "Unsloth KLD for Qwen3.6-27B UD-MLX-4bit: mean 0.0227 at 26.2 GB. CONTRADICTS (in magnitude) data-driven-mixed-precision-mlx-quants-oq-optiq-jang.md, where mlx-eval measures UD4 on the same model at KLD 0.1683 / 23.53 GiB. Different corpus (Unsloth Wiki-style vs mlx-eval 8192-token mixed-domain), different eval harness, and 0.0227 vs 0.1683 is a 7x gap; no reconciliation found.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Unsloth's earlier unsloth-mlx project (fine-tuning on Mac) is distinct from UD-MLX quant uploads, but the quant uploads are real as of Qwen3.6 (2026-04); CONTRADICTS the quantization-formats dossier claim that Unsloth \"is not an MLX-quant publisher\".",
+          "source": "https://unsloth.ai/docs/models/qwen3.6",
+          "note": null
+        }
+      ]
+    }
+  ],
+  "related": []
+}

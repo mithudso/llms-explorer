@@ -1,0 +1,624 @@
+{
+  "slug": "prompt-cache-invalidation-by-agent-clients",
+  "concept": "Prompt-cache invalidation by agent clients",
+  "generated": "2026-10-05",
+  "summary": "Claude Code attribution block, first system block: `x-anthropic-billing-header: cc_version=<ver>.<3-char hash>; cc_entrypoint=cli; cch=00000;`. In v2.1.37 the hash suffix changed between calls in one session (.981 vs .fbe). Current docs: from v2.1.181 the block is stable for a conversation on a c...",
+  "facets": [
+    {
+      "title": "Facts",
+      "facts": [
+        {
+          "text": "Claude Code attribution block, first system block: `x-anthropic-billing-header: cc_version=<ver>.<3-char hash>; cc_entrypoint=cli; cch=00000;`. In v2.1.37 the hash suffix changed between calls in one session (.981 vs .fbe). Current docs: from v2.1.181 the block is stable for a conversation on a custom base URL; before that it carried a per-request token.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Claude Code tool block: with a custom ANTHROPIC_BASE_URL, MCP tool search is disabled by default, so all MCP tool definitions load upfront (one report counts 259 tool definitions with plugins). Adding or removing a definition mid-session changes the prefix.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "OpenCode and similar harness env block: `<env>` with working directory, platform and date, then a `<files>` section that changes after the agent writes a file, capping the common prefix there.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Date or time template at the top of a custom system prompt (Home Assistant case: qwen3:4b reply 5 s to under 2 s after moving or removing it).",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Mid-history rewrites: OpenCode moves `<system-reminder>` between messages; OpenCode wraps queued user messages only for one step; harness truncates old tool results when persisting; harness drops `reasoning_content` on replay or sends `reasoning_content: \"\"`.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Template rendering of history: Qwen3.5 template emits `<think>` only for assistant turns after the last user message, and emits an empty `<think>\\n\\n</think>` for non-reasoning assistant turns, so the same assistant message renders differently once a newer user message arrives.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Server policy: context overflow truncation (Ollama num_ctx smaller than the client's window), compaction (replaces history by design), and background or parallel requests that take over a slot.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "2026-02-06 llama.cpp #19394 (Qwen3-Coder-Next, OpenCode) is the first widely cited \"forcing full prompt re-processing\" thread; 16,550 tokens took 22.3 s at 742 tok/s.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "2026-03-25 OpenCode #19081 (reasoning_content stripped on replay) filed; 2026-04-08 #21518 (queued-message wrapper) filed; 2026-04-20 #23595 (`<system-reminder>` moves) filed; all later closed \"not planned\".",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "2026-03-11 spicyneuron opens mlx-lm PR #982 (speculative cache warmup); author closes it 2026-05-06 unmerged; the fork `spicyneuron/mlx-lm@cache-warmup` with `--prompt-cache-warmup` remains the only source.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "2026-04-09 Qwen3.8 repo issue #131 (empty historical think blocks) filed; 2026-05-19 OpenCode PR #28352 fixes the empty `reasoning_content: \"\"` case.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "2026-04-17 llama.cpp PR #22031 adds per-request prompt dumps (`--log-prompts-dir`), written to diagnose OpenCode's `<system-reminder>` movement.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "2026-06-03 Claude Code docs now state the attribution block is conversation-stable on custom base URLs since v2.1.181, and that classifier requests may keep the block even when set to 0 on direct Anthropic connections.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "2026-06 mykolaaleksandrov.dev confirms the fix on llama.cpp: `sim_best` rising to 0.996 and `restored context checkpoint` replacing `forcing full prompt re-processing`.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "CLAUDE_CODE_ATTRIBUTION_HEADER=0 does not fix everything: the block is only the first-position mutator, and other mutators (tool block changes, history rewrites, template think rendering) still cause misses after it is off.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "With the header on and Claude Code at or above v2.1.181, a single conversation can already cache; the header still differs across conversations and across subagents (own system prompt, own fingerprint), so cross-conversation system-prompt reuse breaks.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "A background or helper request with a different prefix (token counting, session title, haiku-alias calls, auto-mode classifier) lands in a slot and displaces or competes with the main prefix. One user saw Claude Code start 3 parallel full-context requests, some with `stream: false`.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "llama.cpp slot selection by LCP similarity can pick a poor slot: sim_best 0.122 (just over the 0.100 threshold) forced a restore from a checkpoint at token 156 of 12,378, discarding 8 other checkpoints (Gemma 4, OpenCode, Windows, HIP/Vulkan).",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Gemma 4 and Qwen 3.5 reprocess from just after the system prompt with llama-server but not with LM Studio in one OpenCode report, which points to engine policy, not the client alone.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "An update to AGENTS.md during a session changes a prefix-adjacent block and forces a 100% reprocess (OpenCode #32246, 300 s at 200k context on Windows/CUDA); the reporter's llama.cpp flags (`--cache-reuse 1024`, `--ctx-checkpoints 24`, `--keep 4096`, `--slot-prompt-similarity 0.1`) did not help.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Ollama silent truncation: when the client believes in a 180,000-token window but Ollama serves 16,384, the context grows past num_ctx and Ollama truncates, so every request pays; Claude Code hardcodes effectiveWindow=180000 for unknown models and compaction fires at 167,000.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "LM Studio 0.3.35 MLX: every prompt processed from the beginning (GLM-4.6 6.5-bit, M3 Ultra 512 GB, Cline); rolling back to 0.3.31 restored caching. In 0.4.2 the log shows `Tried to trim '3195' tokens from the prompt cache, but could not: Cache is not trimmable. Clearing the cache instead.` each turn with Claude Code. A commenter asked whether MLX runtime 1.6.0 fixed it; no confirmation read.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Claude Code, via Anthropic's own docs, also invalidates on: model switch, effort change on most models, MCP add/remove with tools loaded upfront, deny rules on a whole tool, compaction, version upgrade, a changed `--append-system-prompt`. These matter for local only because custom base URLs load MCP tools upfront.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Who owns the OpenCode cache misses. Reporters (jacekpoplawski, michal-zurkowski, 0x62ash, vpavlin) say OpenCode mutates history; llama.cpp maintainer ggerganov (held in the hybrid dossier) says client mutation or missing `preserve_thinking`; OpenCode's issue bot flags duplicates and then auto-closes after 60 days of inactivity. The \"not planned\" state on #19081, #21518, #23595, #22474 and #32246 is that stale-bot closure, not a recorded maintainer rejection; #23595's `bug` label was removed on 2026-05-03 by thdxr without comment. PR #21535 and #28352 are linked fixes; merge state was not visible in the pages read.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Qwen's view versus reporters on the template. Qwen contributor jklj077 (2026-04-10) says there should be no `<think>` blocks after template formatting except for the latest turn and asks for the messages structure and how apply_chat_template was called. Reporter latent-variable (oMLX + OpenCode/Pi on Apple Silicon, also llama.cpp) shows historical assistant turns re-rendered with empty `<think></think>` and proposes guarding on `reasoning_content`. Several users confirm that guard fixes caching on Qwen3.5-27B in llama.cpp. No Qwen reply after the repro was read.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "What `--exclude-dynamic-system-prompt-sections` does. Unsloth says it shrinks the prompt and improves local KV reuse. Claude Code CLI reference says it moves per-user context (auto memory location) from the system prompt into the first user message to improve reuse across users and machines, and it is ignored when `--system-prompt` or `--system-prompt-file` is set. It moves tokens, it does not shrink them, and within one local session the auto-memory path is already stable.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Does shell export work? Mykola and Rallo set the shell variable and report success; Unsloth says recent releases honor the export and older ones ignored it, and recommends settings.json env or `--settings`. Both can be true by version.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Claim that `CLAUDE_CODE_EFFORT_LEVEL=low` \"reduces the system prompt size\" (vijay.eu) is the author's assertion with no measurement; the docs do not say effort changes the system prompt.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Is the cure the harness, the template or the server? spicyneuron: patch the template (`tojson(sort_keys=True)`, `dictsort`) or the server, since the model's think placement cannot change. Ollama and mlx-engine: add snapshots and checkpoints. OpenCode reporters: harness must stop mutating. All three have working fixes for different cases; none is sufficient alone.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Which Claude Code versions bundled with `ollama launch claude` or LM Studio docs are below v2.1.181, i.e. still need the env var.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Whether the Claude Code classifier request exception (block kept when set to 0 on direct Anthropic) can reach a local gateway; docs say no for gateways and third-party providers.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Merge status of OpenCode PR #28352 and #21535 and whether current OpenCode still moves `<system-reminder>`.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Whether Aider breaks local prefix caches at all: no source read shows it; its documented caching is Anthropic/DeepSeek `cache_control` only.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Whether `ENABLE_TOOL_SEARCH=true` works against any local /v1/messages server (needs `tool_reference` block support).",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "LM Studio per-request cache-hit visibility: no source shows a log line for a hit.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Claude Code builds the attribution block as `x-anthropic-billing-header: cc_version=${VERSION}.${hash}; cc_entrypoint=${entrypoint}; cch=00000;` and puts it first in the system content array",
+          "source": "https://github.com/anthropics/claude-code/issues/24168",
+          "note": null
+        },
+        {
+          "text": "In Claude Code v2.1.37 the hash suffix of cc_version changed between requests in the same session (cc_version=2.1.37.981 then 2.1.37.fbe)",
+          "source": "https://github.com/anthropics/claude-code/issues/24168",
+          "note": null
+        },
+        {
+          "text": "Claude Code writes a debug line `attribution header x-anthropic-billing-header: cc_version=...` to ~/.claude/debug/<session>.txt, so the block can be seen client-side",
+          "source": "https://github.com/anthropics/claude-code/issues/24168",
+          "note": null
+        },
+        {
+          "text": "Claude Code prepends a block with the client version and a fingerprint derived from the conversation; api.anthropic.com strips it only if it arrives unchanged as its own first system array entry",
+          "source": "https://code.claude.com/docs/en/llm-gateway-protocol",
+          "note": null
+        },
+        {
+          "text": "Any upstream other than api.anthropic.com receives the attribution block as part of the prompt",
+          "source": "https://code.claude.com/docs/en/llm-gateway-protocol",
+          "note": null
+        },
+        {
+          "text": "From Claude Code v2.1.181 the attribution block is stable for a conversation on a custom base URL; before v2.1.181 it included a per-request token that changed the system prompt start on every request",
+          "source": "https://code.claude.com/docs/en/llm-gateway-protocol",
+          "note": null
+        },
+        {
+          "text": "CLAUDE_CODE_ATTRIBUTION_HEADER=0 is documented for gateway and third-party caching compatibility, not as a privacy control",
+          "source": "https://code.claude.com/docs/en/llm-gateway-protocol",
+          "note": null
+        },
+        {
+          "text": "With the variable at 0, Claude Code still keeps the block on auto-mode classifier requests when the request goes to api.anthropic.com with a non-profile credential; through a gateway or third-party provider the block is removed from classifier requests too",
+          "source": "https://code.claude.com/docs/en/llm-gateway-protocol",
+          "note": null
+        },
+        {
+          "text": "A LiteLLM bug (BerriAI/litellm #29572) shows a proxy that strips the billing-header system block breaks Claude Code's tool-safety classifier on Anthropic OAuth with 429 rate_limit_error",
+          "source": "https://github.com/BerriAI/litellm/issues/29572",
+          "note": null
+        },
+        {
+          "text": "Anthropic's Bedrock rejects the block text with `400 x-anthropic-billing-header is a reserved keyword and may not be used in the system prompt`",
+          "source": "https://github.com/anthropics/claude-code/issues/24168",
+          "note": null
+        },
+        {
+          "text": "A llama.cpp user on Qwen3.6-27B Q4_K_XL (RTX 4090, MTP, 170k context) saw `forcing full prompt re-processing due to lack of cache data` often with Claude Code; tuning `--cache-ram 15000 --ctx-checkpoints 128 --checkpoint-min-step 128` helped only a little; CLAUDE_CODE_ATTRIBUTION_HEADER=0 fixed it",
+          "source": "https://mykolaaleksandrov.dev/posts/2026/06/claude-code-llamacpp-prompt-cache-fix/",
+          "note": null
+        },
+        {
+          "text": "After the fix llama-server logged `selected slot by LCP similarity, sim_best = 0.996`, `restored context checkpoint` and `prompt eval time = 511.40 ms / 212 tokens`",
+          "source": "https://mykolaaleksandrov.dev/posts/2026/06/claude-code-llamacpp-prompt-cache-fix/",
+          "note": null
+        },
+        {
+          "text": "Rallo reports the header turned 2-second follow-ups into 30-second waits on a Qwen3.5-9B 4-bit local setup, fixed by CLAUDE_CODE_ATTRIBUTION_HEADER=0",
+          "source": "https://medium.com/@vito.rallo/running-claude-code-with-local-llms-all-lies-until-now-3e9a0084dfe1",
+          "note": null
+        },
+        {
+          "text": "Unsloth says recent Claude Code releases honor `export CLAUDE_CODE_ATTRIBUTION_HEADER=0` and older ones ignored it",
+          "source": "https://unsloth.ai/docs/basics/claude-code",
+          "note": null
+        },
+        {
+          "text": "Unsloth documents `claude --bare --exclude-dynamic-system-prompt-sections` as an optional prompt-shrinking step for local models",
+          "source": "https://unsloth.ai/docs/basics/claude-code",
+          "note": null
+        },
+        {
+          "text": "Claude Code CLI reference: `--exclude-dynamic-system-prompt-sections` moves per-user context such as the auto-memory location from the system prompt to the first user message, targets reuse across users and machines, and is ignored when --system-prompt or --system-prompt-file is set",
+          "source": "https://code.claude.com/docs/en/cli-reference",
+          "note": null
+        },
+        {
+          "text": "Claude Code CLI reference: `--bare` skips auto-discovery of hooks, skills, commands, subagents, plugins, MCP servers, auto memory and CLAUDE.md and leaves Bash, file read and file edit tools; it sets CLAUDE_CODE_SIMPLE",
+          "source": "https://code.claude.com/docs/en/cli-reference",
+          "note": null
+        },
+        {
+          "text": "CLAUDE_CODE_SIMPLE_SYSTEM_PROMPT=1 selects a shorter system prompt and abbreviated tool descriptions on any model while keeping tools, hooks, MCP and CLAUDE.md",
+          "source": "https://code.claude.com/docs/en/env-vars",
+          "note": null
+        },
+        {
+          "text": "`--tools \"Bash,Edit,Read\"` restricts the built-in tool set and `--strict-mcp-config` ignores other MCP configs; Rallo says the two together cut a 259-tool request to 8 built-ins",
+          "source": "https://medium.com/@vito.rallo/running-claude-code-with-local-llms-all-lies-until-now-3e9a0084dfe1",
+          "note": null
+        },
+        {
+          "text": "`--system-prompt-snapshot off` makes Claude Code rebuild the system prompt on every request instead of reusing the prompt recorded on the conversation's first request (v2.1.257 or later)",
+          "source": "https://code.claude.com/docs/en/cli-reference",
+          "note": null
+        },
+        {
+          "text": "Claude Code disables MCP tool search when ANTHROPIC_BASE_URL points to a non-first-party host (most proxies drop tool_reference blocks), so MCP tools load into the prefix upfront unless ENABLE_TOOL_SEARCH is set explicitly",
+          "source": "https://code.claude.com/docs/en/mcp",
+          "note": null
+        },
+        {
+          "text": "With tools loaded upfront, connecting an MCP server or removing a tool invalidates the cache, while with tool search active Claude Code keeps the first request's tool list for the whole conversation",
+          "source": "https://code.claude.com/docs/en/prompt-caching",
+          "note": null
+        },
+        {
+          "text": "Claude Code appends plugin skills, commands, agents and hooks content after the existing conversation instead of rewriting the prefix",
+          "source": "https://code.claude.com/docs/en/prompt-caching",
+          "note": null
+        },
+        {
+          "text": "Claude Code docs: compaction replaces the message history and so invalidates the conversation layer by design; a new Claude Code version changes the system prompt or tools, so the first conversation after an upgrade builds its cache from scratch",
+          "source": "https://code.claude.com/docs/en/prompt-caching",
+          "note": null
+        },
+        {
+          "text": "Claude Code delivers CLAUDE.md, working directory, platform, shell, OS version and a git status snapshot in the conversation, not the system prompt; the system prompt embeds the auto-memory path, so sessions in different directories do not share a prefix",
+          "source": "https://code.claude.com/docs/en/prompt-caching",
+          "note": null
+        },
+        {
+          "text": "Claude Code attaches cache_control markers to system blocks and to messages, including role \"system\" entries appended mid-conversation",
+          "source": "https://code.claude.com/docs/en/llm-gateway-protocol",
+          "note": null
+        },
+        {
+          "text": "Spicyneuron measured Claude Code at over 20,000 system tokens and cut it to under 8,000 with a hand-written ~25-line system prompt plus `--tools \"Bash,Glob,Grep,Read,Edit,Write\"` through claude-code-router",
+          "source": "https://spicyneuron.substack.com/p/a-mac-studio-for-local-ai-6-months",
+          "note": null
+        },
+        {
+          "text": "Spicyneuron saw Claude Code with a moderate ~16,000-token system prompt take about 90 seconds per request on an M3 Ultra 512 GB Mac Studio running mlx-lm",
+          "source": "https://spicyneuron.substack.com/p/a-mac-studio-for-local-ai-6-months",
+          "note": null
+        },
+        {
+          "text": "Spicyneuron's mlx-lm fork `cache-warmup` (`--prompt-cache-warmup`) precomputes the next turn's stable prefix while the server is idle by tokenizing history with two placeholder user messages and comparing overlap through the model's own chat template",
+          "source": "https://github.com/ml-explore/mlx-lm/pull/982",
+          "note": null
+        },
+        {
+          "text": "mlx-lm PR #982 was closed by its author on 2026-05-06 without merge",
+          "source": "https://github.com/ml-explore/mlx-lm/pull/982",
+          "note": null
+        },
+        {
+          "text": "PR #982 also fixed tool arguments arriving as dicts instead of strings in process_message_content for Qwen 3.5 and Kimi 2.5, and make_prompt_cache using the last loaded model instead of the batch's model",
+          "source": "https://github.com/ml-explore/mlx-lm/pull/982",
+          "note": null
+        },
+        {
+          "text": "mlx-lm issue #1178 (open) asks for `--prompt-cache-file` in mlx_lm.server so a harness's fixed system prompt can be pregenerated; the flag exists only in mlx_lm.generate",
+          "source": "https://github.com/ml-explore/mlx-lm/issues/1178",
+          "note": null
+        },
+        {
+          "text": "OpenCode moves the `<system-reminder>` (plan-to-build mode switch text) from one user message to the next, so thousands of tokens between turns are reprocessed (OpenCode 1.14.19, Qwen3.6-35B-A3B, llama.cpp)",
+          "source": "https://github.com/anomalyco/opencode/issues/23595",
+          "note": null
+        },
+        {
+          "text": "OpenCode #23595 gathered 15 thumbs-up, was reassigned from thdxr to rekram1-node to kitlangton, lost its bug, perf and core labels on 2026-05-03 and ended closed \"not planned\"",
+          "source": "https://github.com/anomalyco/opencode/issues/23595",
+          "note": null
+        },
+        {
+          "text": "A user on ik_llama.cpp with DeepSeek V4 Flash at 300k context saw OpenCode build mode roll the cache back to the same ~40,986 tokens at every step, reprocessing about 25k tokens each time, after a long plan-mode run",
+          "source": "https://github.com/anomalyco/opencode/issues/23595",
+          "note": null
+        },
+        {
+          "text": "OpenCode wraps a user message queued during a running turn in `<system-reminder>` via an in-memory mutation at prompt.ts:1483-1499 that is not persisted, so the same message serializes differently on later turns",
+          "source": "https://github.com/anomalyco/opencode/issues/21518",
+          "note": null
+        },
+        {
+          "text": "OpenCode PR #21535 moves the queued-message wrapping into toModelMessages with a `remind` option so serialization is deterministic",
+          "source": "https://github.com/anomalyco/opencode/pull/21535",
+          "note": null
+        },
+        {
+          "text": "OpenCode strips reasoning_content from assistant messages on replay, so llama-server rolls back to the first differing token; the reporter's log shows 37,013 tokens sent at prompt 2b, 36,995 at prompt 3 (18 fewer, the stripped `<think>` block), and 75,166 ms to evaluate 18,993 tokens",
+          "source": "https://github.com/anomalyco/opencode/issues/19081",
+          "note": null
+        },
+        {
+          "text": "In the same OpenCode report a non-thinking Qwen3.5 still produced an empty `<think>\\n\\n</think>` that was stripped and forced reprocessing; Qwen3.5 122B, 35B and GPT-OSS 120B/20B all showed it",
+          "source": "https://github.com/anomalyco/opencode/issues/19081",
+          "note": null
+        },
+        {
+          "text": "A commenter on OpenCode #19081 saw `restored context checkpoint (pos_min = 23111 ...)` followed by dozens of `erased invalidated context checkpoint` lines (62.813 MiB each, n_swa = 0) on Qwen3.6 even with `preserve_thinking: true`",
+          "source": "https://github.com/anomalyco/opencode/issues/19081",
+          "note": null
+        },
+        {
+          "text": "OpenCode PR #28352 stops forwarding `reasoning_content: \"\"` for assistant messages without reasoning; the author measured 97.2% cache hit with the field absent versus 0% with an empty string on llama-swap, and 0% hits on 196K-token prompts in production captures",
+          "source": "https://github.com/anomalyco/opencode/pull/28352",
+          "note": null
+        },
+        {
+          "text": "A third-party patch commit \"preserveInterruptedResponse option for KV cache consistency\" referenced OpenCode #19081 (MulverineX fork)",
+          "source": "https://github.com/anomalyco/opencode/issues/19081",
+          "note": null
+        },
+        {
+          "text": "OpenCode's GitHub bot closes inactive issues automatically after 60 days; #32246 closed \"not planned\" on 2026-08-12 by that bot",
+          "source": "https://github.com/anomalyco/opencode/issues/32246",
+          "note": null
+        },
+        {
+          "text": "OpenCode #32246: updating AGENTS.md with Qwen3.6-27B Q5_K_XL on llama.cpp (b9568) always triggered 100% prompt processing, 300 s at 200k context; before that edit the reporter said OpenCode rarely triggered re-reads",
+          "source": "https://github.com/anomalyco/opencode/issues/32246",
+          "note": null
+        },
+        {
+          "text": "The opener of OpenCode #23595 judged the #32246 behavior expected because AGENTS.md sits early in the prompt",
+          "source": "https://github.com/anomalyco/opencode/issues/23595",
+          "note": null
+        },
+        {
+          "text": "In a llama.cpp coding-agent discussion a user dumped raw inputs and found the agent system prompt contains `<env>` with working directory, git-repo flag, platform and date plus a `<files>` block that changes after the agent writes a file, capping the common prefix",
+          "source": "https://github.com/ggml-org/llama.cpp/discussions/14758",
+          "note": null
+        },
+        {
+          "text": "In that discussion a user observed Claude Code sometimes starting 3 parallel requests with full context, some with stream:false, and proposed disk save/restore of slots over adding small slots",
+          "source": "https://github.com/ggml-org/llama.cpp/discussions/14758",
+          "note": null
+        },
+        {
+          "text": "llama.cpp PR #22031 writes each prompt to a numbered text file so two requests can be compared with diff/fc; it was written after the author found OpenCode reorders `<system-reminder>`",
+          "source": "https://github.com/ggml-org/llama.cpp/pull/22031",
+          "note": null
+        },
+        {
+          "text": "The llama-server README documents `--log-prompts-dir PATH` (debug only), `--cache-idle-slots` (default enabled, requires cache-ram), `--kv-unified` (default enabled when slots are auto), `-cms/--checkpoint-min-step` default 8192 and `-sps/--slot-prompt-similarity` default 0.10",
+          "source": "https://github.com/ggml-org/llama.cpp/blob/master/tools/server/README.md",
+          "note": null
+        },
+        {
+          "text": "llama-server's /completion response timings give `cache_n` (tokens reused from cache) and `prompt_n` (tokens processed), with total context equal to prompt_n + cache_n + predicted_n",
+          "source": "https://github.com/ggml-org/llama.cpp/blob/master/tools/server/README.md",
+          "note": null
+        },
+        {
+          "text": "Hannecke: for an agent with a stable system prompt `cache_n` should approach the system-prompt length on every request after the first; if not, it is prefix invalidation, not cache configuration",
+          "source": "https://medium.com/@michael.hannecke/tuning-llama-server-on-apple-silicon-9b3e778ab100",
+          "note": null
+        },
+        {
+          "text": "Hannecke: `--cache-reuse` needs byte-equal matched chunks; a trailing space, regenerated UUID or injected timestamp forces full re-prefill",
+          "source": "https://medium.com/@michael.hannecke/tuning-llama-server-on-apple-silicon-9b3e778ab100",
+          "note": null
+        },
+        {
+          "text": "A llama.cpp member said `--cache-reuse` and `--swa-full` do nothing for recurrent models such as Qwen3-Next and suggested chunking the client's prompt so the server can checkpoint shared prefixes; a user who tried chunking found the cache rebuilt when the trailing instruction changed",
+          "source": "https://github.com/ggml-org/llama.cpp/issues/18497",
+          "note": null
+        },
+        {
+          "text": "llama.cpp member pwilkin: the problem is the recurrent state, which is a single state updated per token, so reuse needs snapshot checkpoints taken during prompt processing every N tokens",
+          "source": "https://github.com/ggml-org/llama.cpp/issues/18497",
+          "note": null
+        },
+        {
+          "text": "A Gemma 4 31B run in llama-server under OpenCode logged `sim_best = 0.122`, `f_keep = 0.113`, a prompt cache of 2 prompts using 4020 MiB (limit 8196 MiB), and restored a 263.493 MiB checkpoint at pos 1504 of 12,378 tokens",
+          "source": "https://github.com/anomalyco/opencode/issues/22474",
+          "note": null
+        },
+        {
+          "text": "The same Gemma 4 reporter said LM Studio as backend did not show the full reprocessing with the same OpenCode",
+          "source": "https://github.com/anomalyco/opencode/issues/22474",
+          "note": null
+        },
+        {
+          "text": "Qwen3.5's template renders `<think>` for assistant turns only when `loop.index0 > ns.last_query_index`, and emits an empty `<think>\\n</think>` there even without reasoning_content; adding `and reasoning_content` to that condition removes the empty block",
+          "source": "https://github.com/QwenLM/Qwen3.8/issues/131",
+          "note": null
+        },
+        {
+          "text": "Qwen contributor jklj077 replied that after template formatting there should be no `<think>...</think>` blocks except in the latest turn, and asked how messages and apply_chat_template were passed",
+          "source": "https://github.com/QwenLM/Qwen3.8/issues/131",
+          "note": null
+        },
+        {
+          "text": "The Qwen3.8 #131 reporter reproduced with oMLX on Apple Silicon serving Qwen3.5 under OpenCode and Pi.dev and said llama.cpp-style backends behaved the same",
+          "source": "https://github.com/QwenLM/Qwen3.8/issues/131",
+          "note": null
+        },
+        {
+          "text": "Hermes Agent #56004: on vLLM 0.23.1rc1 with Qwen3.6-35B-A3B-FP8, vLLM returns reasoning under `reasoning`, drops incoming `reasoning_content` on assistant messages, and renders historical thinking only under `reasoning` with `chat_template_kwargs: {\"preserve_thinking\": true}` (verified with /tokenize); Hermes strips reasoning on replay for non-DeepSeek/Kimi/MiMo providers",
+          "source": "https://github.com/NousResearch/hermes-agent/issues/56004",
+          "note": null
+        },
+        {
+          "text": "Hermes #56004 notes that the server side is configurable with `--default-chat-template-kwargs '{\"preserve_thinking\": true}'` and that a DeepSeek-style `\" \"` pad would hurt prefix caching",
+          "source": "https://github.com/NousResearch/hermes-agent/issues/56004",
+          "note": null
+        },
+        {
+          "text": "Qwen3.6 requires `--chat-template-kwargs '{\"preserve_thinking\":true}'` for thinking preservation per a Mac setup guide quoting the model card",
+          "source": "https://github.com/dmitryryabkov/local-ai-mac",
+          "note": null
+        },
+        {
+          "text": "The local-ai-mac guide gives a client-side test for LM Studio and llama.cpp prompt cache: paste a long text, ask for a one-sentence summary, then a follow-up; if the second \"Processing...\" is as long as the first, caching fails",
+          "source": "https://github.com/dmitryryabkov/local-ai-mac",
+          "note": null
+        },
+        {
+          "text": "A community Qwen template repo (froggeric/Qwen-Fixed-Chat-Templates) claims \"enforced chronological history\" for a 100% KV cache hit rate and merges consecutive leading system messages; a struck-through claim that `--reasoning-preserve` gives 100% prefix retention was withdrawn in the diff",
+          "source": "https://huggingface.co/froggeric/Qwen-Fixed-Chat-Templates/discussions/50/files",
+          "note": null
+        },
+        {
+          "text": "LM Studio's MLX KV cache regressed in 0.3.35 (GLM-4.6 MLX 6.5-bit, M3 Ultra 512 GB, Cline): every prompt reprocessed, Cline timed out; 0.3.31 worked",
+          "source": "https://github.com/lmstudio-ai/lmstudio-bug-tracker/issues/1319",
+          "note": null
+        },
+        {
+          "text": "LM Studio 0.4.2 logs `[cache_wrapper][WARNING]: Tried to trim '3195' tokens from the prompt cache, but could not: Cache is not trimmable. Clearing the cache instead.` on each Claude Code turn with MLX gemma-3-4b",
+          "source": "https://github.com/lmstudio-ai/lmstudio-bug-tracker/issues/1319",
+          "note": null
+        },
+        {
+          "text": "vijay.eu on Ollama with Claude Code v2.1.42 and qwen3-coder-next on an M4 Pro 64 GB Mac mini: a 66-minute session spent about 50 minutes in prompt evaluation across 57 requests, waits growing from 15 s at 17k tokens to 194 s at 34,566 tokens",
+          "source": "https://vijay.eu/co-authored/80b-coding-model-locally-claude-code-ollama/",
+          "note": null
+        },
+        {
+          "text": "In that session Claude Code logged `autocompact: tokens=34566 threshold=167000 effectiveWindow=180000` while Ollama's num_ctx was 16,384, so context exceeded the server window; setting Ollama context to 256K fixed it",
+          "source": "https://vijay.eu/co-authored/80b-coding-model-locally-claude-code-ollama/",
+          "note": null
+        },
+        {
+          "text": "CLAUDE_AUTOCOMPACT_PCT_OVERRIDE = (ollama_num_ctx / 180000) * 100 forces earlier compaction on small contexts",
+          "source": "https://vijay.eu/co-authored/80b-coding-model-locally-claude-code-ollama/",
+          "note": null
+        },
+        {
+          "text": "That session also had a failed haiku-model request after nearly every call (streaming 404 then non-streaming 404), fixed by ANTHROPIC_DEFAULT_HAIKU_MODEL=<local model>",
+          "source": "https://vijay.eu/co-authored/80b-coding-model-locally-claude-code-ollama/",
+          "note": null
+        },
+        {
+          "text": "That author's Ollama env: OLLAMA_FLASH_ATTENTION=1, OLLAMA_KV_CACHE_TYPE=q8_0, OLLAMA_KEEP_ALIVE=60m, OLLAMA_NUM_BATCH=2048 (undocumented), set on the Mac app via launchctl setenv; and Context Length 256K in app settings, with no num_ctx in API calls because both together fail to load",
+          "source": "https://vijay.eu/co-authored/80b-coding-model-locally-claude-code-ollama/",
+          "note": null
+        },
+        {
+          "text": "qwen3-coder-next is hybrid DeltaNet with only 12 of 48 layers needing conventional KV, so 256K context takes about 3 GB of KV at q8_0",
+          "source": "https://vijay.eu/co-authored/80b-coding-model-locally-claude-code-ollama/",
+          "note": null
+        },
+        {
+          "text": "Ollama FAQ: default context is 4096 (OLLAMA_CONTEXT_LENGTH), OLLAMA_NUM_PARALLEL default 1 and required RAM scales with NUM_PARALLEL x CONTEXT_LENGTH",
+          "source": "https://docs.ollama.com/faq",
+          "note": null
+        },
+        {
+          "text": "Ollama's OLLAMA_DEBUG=1 did not print prompt or response text in v0.9.0 logs in one issue (still tokenized or absent), so prompt dumps need a proxy",
+          "source": "https://github.com/ollama/ollama/issues/10950",
+          "note": null
+        },
+        {
+          "text": "A developer-agent measurement: moving `date.today()` from the top of a rebuilt system prompt and not truncating old tool results before persisting were two independent mistakes that each forced full recompute every turn",
+          "source": "https://xhinker.medium.com/one-change-to-massively-improve-my-ai-agent-speed-e7cd27c70078",
+          "note": null
+        },
+        {
+          "text": "Home Assistant llama.cpp case: a date/time template at the top of the base prompt matched only a tiny cached fraction; removing it or moving it down cut qwen3:4b replies from about 5 s to under 2 s",
+          "source": "https://community.home-assistant.io/t/improve-local-llm-performance-with-llama-cpp-and-custom-conversation/935476",
+          "note": null
+        },
+        {
+          "text": "Measured on an M4 Pro 48 GB MacBook with Gemma 4 via Ollama: a ~5,000-token system prompt took ~7 s to first token cold (~690 tok/s) and ~20 ms with a warm prefix cache",
+          "source": "https://simonpcouch.com/blog/2026-04-16-local-agents-2/",
+          "note": null
+        },
+        {
+          "text": "Aider's documented caching (`--cache-prompts`) orders system prompt, read-only files, repo map and editable files for Anthropic and DeepSeek provider caches, and shows no stats while streaming",
+          "source": "https://aider.chat/docs/usage/caching.html",
+          "note": null
+        },
+        {
+          "text": "Aider's repo map refresh is controlled by `--map-refresh` (auto, always, files, manual; default auto) and size by `--map-tokens` (0 disables); the repo map is disabled by default for weaker models",
+          "source": "https://aider.chat/docs/config/options.html",
+          "note": null
+        },
+        {
+          "text": "llama.cpp issue #19394 baseline: with OpenCode on Qwen3-Coder-Next, `selected slot by LCP similarity, sim_best = 0.979` was followed by `n_swa = 1` and `forcing full prompt re-processing`, 16,550 tokens in 22,316 ms",
+          "source": "https://github.com/ggml-org/llama.cpp/issues/19394",
+          "note": null
+        },
+        {
+          "text": "oMLX's maker frames the agent pattern as a shifting prefix that most local servers treat as a total mismatch and discard, turning two-second replies into ninety-second ones at about 20,000 tokens",
+          "source": "https://pub.towardsai.net/omlx-is-quietly-becoming-the-best-way-to-run-local-ai-agents-on-a-mac-3394c4ad0969",
+          "note": null
+        },
+        {
+          "text": "A Claude Code on oMLX setup guide sets CLAUDE_CODE_ATTRIBUTION_HEADER=0 in ~/.claude/settings.json env and hot cache 10% / cold SSD cache 10% in oMLX",
+          "source": "https://gist.github.com/DiegoRBaquero/f53ab22ae978226c86158a60dad8199d",
+          "note": null
+        },
+        {
+          "text": "Inferred detection recipe per runtime: llama-server (`sim_best`, `restored context checkpoint` vs `forcing full prompt re-processing`, `timings.cache_n`/`prompt_n`, `--log-prompts-dir` plus diff); LM Studio (`Cache is not trimmable` in debug log, or the paste-and-follow-up test); Ollama (client-side time-to-first-token and ollama ps context, no prompt dump); mlx_lm.server (response usage prompt_tokens only reports tokens processed per SERVER.md, so a hit shows as a small number)",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Inferred diagnostic order: first diff two consecutive dumped prompts for the first differing token, then check the first-position blocks (attribution, env/date, tool block), then history serialization (reasoning fields, reminders), then template think rendering, then server truncation and slot choice",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Inferred: because `--tools` and `--bare` shrink the tool block and a stable block keeps one prefix, slimming and caching are separate levers; slimming cuts cold TTFT linearly with tokens removed (20k to 8k is 60% at a fixed prefill rate) while caching removes it on later turns",
+          "source": "asserted",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Corrections and disagreements",
+      "facts": [
+        {
+          "text": "Is the attribution block per-request or per-conversation? Unsloth (and Rallo, Mykola) describe a value that changes every request and cost \"90% slower\", \"2-second follow-ups into 30-second waits\". Claude Code docs say stable per conversation since v2.1.181 and per-request before. Reporters do not state their version. CONTRADICTS: local-llm-server-as-a-coding-agent-backend-on-mac.md which says the line changes every request without a version bound.",
+          "source": "asserted",
+          "note": null
+        }
+      ]
+    }
+  ],
+  "related": []
+}

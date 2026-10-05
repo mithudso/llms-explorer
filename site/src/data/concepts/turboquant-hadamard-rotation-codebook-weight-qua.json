@@ -1,0 +1,174 @@
+{
+  "slug": "turboquant-hadamard-rotation-codebook-weight-qua",
+  "concept": "TurboQuant Hadamard-rotation codebook weight quantization",
+  "generated": "2026-10-05",
+  "summary": "Why it works: a random or Hadamard rotation turns weight blocks with outliers into approximately i.i.d. Gaussian coordinates, for which the MSE-optimal scalar quantizer (Lloyd-Max) is known in closed form; the mismatch between the true weight distribution and the quantizer's design distribution i...",
+  "facets": [
+    {
+      "title": "Facts",
+      "facts": [
+        {
+          "text": "Why it works: a random or Hadamard rotation turns weight blocks with outliers into approximately i.i.d. Gaussian coordinates, for which the MSE-optimal scalar quantizer (Lloyd-Max) is known in closed form; the mismatch between the true weight distribution and the quantizer's design distribution is what rotation removes.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Block layout in PolarQuant weights: split into 128-element blocks, extract the L2 norm (stored fp16, +0.125 bit per weight), normalize to the unit sphere, apply a normalized WHT, scale by sqrt(d) to unit variance, snap to Lloyd-Max centroids stored as int8 codes; dequantization is the exact inverse.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "At inference, rotation need not be applied to weights: because H is orthogonal, rotate the activation once per matmul (Metal simd_shuffle_xor butterfly, CUDA warp shuffles) and take dot products against centroid values.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "QJL is dropped for weights: the turbo4 KV work found plain 16-centroid PolarQuant better than 3-bit plus a 1-bit QJL correction; weights have no streaming-online constraint.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "2025-04-28: TurboQuant paper (arXiv 2504.19874) for KV cache and vector search with proven near-optimal distortion bounds.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "2026-03: weight adaptations appear independently: Caio Vicentino's PolarQuant (arXiv 2603.29078, EOQ repo) on Qwen3.5-9B, David Y. Tan's TQ3_1S for llama.cpp, then TheTom's TQ4_1S and JANG's JANGTQ.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "2026: ParoQuant (ICLR 2026) argues a fixed Hadamard cannot adapt per layer and costs speed; proposes learned pairwise rotations instead.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "On CUDA the nonlinear codebook lookup blocks integer dot-product instructions, so decode is slower than Q4_0 (see TQ4_1S dossier); on Metal there is no such penalty because it has no dp4a equivalent in use for q4 kernels.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Rotation-only gains dominate at 5 bits: Hadamard alone gave 98% of the improvement and Lloyd-Max centroids were roughly neutral; centroids matter at 2-3 bits.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Effective bits exceed the name: PolarQuant adds 0.125 bpw for fp16 norms per 128 weights; TQ4_1S is 5.0 bpw.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Single-author preprints on one model family (Qwen3.5-9B) with PPL on WikiText-2 only; no calibration-free KLD against Q4_K_M or MLX 4-bit.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Fixed Hadamard (TurboQuant lineage) vs learned pairwise rotations (ParoQuant): ParoQuant's authors say Hadamard still makes QTIP about 30% slower than AWQ and cannot adapt to each layer; TurboQuant-weight authors report +1-2% PPL at 5 bpw on Metal with no learning. Different bit widths and baselines.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Uniform bits plus rotation vs mixed bits: PolarQuant reports uniform Q5 rotation beats mixed-bit Q3-Q6 plus AWQ; JANG and OptiQ rely on mixed bits with affine quantization. No same-model, same-size comparison exists.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Does rotation plus codebook at 4 bits beat Q4_K_M or IQ4_NL at equal size by KLD on a MoE? (no data)",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Does the Metal no-penalty finding hold on M1/M2 (TQ4_1S decode 63% on M1 Max suggests bandwidth or ALU limits there)?",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "TurboQuant (arXiv 2504.19874, submitted 2025-04-28) randomly rotates input vectors so coordinates follow a concentrated Beta distribution and applies optimal scalar quantizers per coordinate; it adds a 1-bit QJL transform of the residual for unbiased inner products and proves information-theoretic lower bounds.",
+          "source": "https://arxiv.org/abs/2504.19874",
+          "note": null
+        },
+        {
+          "text": "TurboQuant is described as data-oblivious and suitable for online applications, with distortion within a small constant factor of the lower bound at all bit-widths and dimensions.",
+          "source": "https://arxiv.org/abs/2504.19874",
+          "note": null
+        },
+        {
+          "text": "PolarQuant (Vicentino, arXiv 2603.29078v1, 2026-03-30) quantizes weights in 128-element blocks: normalize to the unit sphere, apply a normalized Walsh-Hadamard matrix, quantize to N(0,1) Lloyd-Max centroids, and store int8 codes, fp16 norms and a shared fp32 centroid table.",
+          "source": "https://arxiv.org/html/2603.29078v1",
+          "note": null
+        },
+        {
+          "text": "PolarQuant's fp16 block norm adds 16/128 = 0.125 bits per weight, and the Hadamard matrix needs no storage because it is its own inverse.",
+          "source": "https://arxiv.org/html/2603.29078v1",
+          "note": null
+        },
+        {
+          "text": "PolarQuant ablation on Qwen3.5-9B Q5: absmax 6.9030 PPL (+0.53 over FP16 6.37), Hadamard only 6.4010 (98% of the gain), Lloyd-Max only 6.9139 (slightly worse), both 6.3909, plus AWQ scales 6.43, plus torchao INT4 6.56.",
+          "source": "https://arxiv.org/html/2603.29078v1",
+          "note": null
+        },
+        {
+          "text": "At 5 bits the Lloyd-Max centroids add almost nothing over uniform levels after rotation; the paper says centroids should matter more at 2-3 bits and derives a 54% MSE reduction versus absmax for N(0,1).",
+          "source": "https://arxiv.org/html/2603.29078v1",
+          "note": null
+        },
+        {
+          "text": "PolarQuant reports uniform Q5 with rotation (6.39) beating its mixed-bit Q3-Q6 plus AWQ result (6.43), and PolarQuant Q5 re-quantized by torchao INT4 reaching 6.56 against 6.68 for plain absmax INT4 and about 6.7 for bitsandbytes NF4.",
+          "source": "https://arxiv.org/html/2603.29078v1",
+          "note": null
+        },
+        {
+          "text": "PolarQuant runs at FP16 speed when dequantized to FP16 (45.9 tok/s, 18.1 GB), i.e. it is a storage and distribution format in that mode; the one Apple Silicon row is Mac mini M4 16 GB, MLX Q4, 19.7 tok/s, 4.8 GB, PPL 6.90.",
+          "source": "https://arxiv.org/html/2603.29078v1",
+          "note": null
+        },
+        {
+          "text": "The PolarQuant paper's evaluation uses only Qwen3.5-9B with WikiText-2 sliding-window perplexity (2048 window, stride 512) and compares to torchao INT4 and bitsandbytes NF4, not to GGUF K-quants or MLX.",
+          "source": "https://arxiv.org/html/2603.29078v1",
+          "note": null
+        },
+        {
+          "text": "The EOQ repository reports a 35B-A3B MoE PolarQuant+AWQ compression from 69.3 GB to 15.6 GB (4.44x) at PPL 5.36 and ships a llama.cpp integration folder and CUDA kernels.",
+          "source": "https://github.com/caiovicentino/eoq-quantization",
+          "note": null
+        },
+        {
+          "text": "David Y. Tan's original TQ3_1S combined WHT rotation, dual half-block scales and 8 Lloyd-Max centroids for llama.cpp, with an early Qwen3.5-27B PPL of 7.257 reported near Q4_0 at a smaller size, and a later TQ3_4S format.",
+          "source": "https://github.com/TheTom/turboquant_plus/blob/main/docs/papers/weight-compression-tq4.md",
+          "note": null
+        },
+        {
+          "text": "The TQ4_1S study reports that, on Apple Silicon, GPU utilization at decode is dominated by occupancy and memory-latency hiding rather than raw compute, which is why a zero-threadgroup-memory kernel beat designs that cache rotated data.",
+          "source": "https://github.com/TheTom/turboquant_plus/blob/main/docs/papers/weight-compression-tq4.md",
+          "note": null
+        },
+        {
+          "text": "On CUDA the rotation-plus-centroid kernels were limited by float32 activation bandwidth (4x q8_1) and float FMA density (1x versus dp4a's 4x), and Q4_K_M reached nearly equivalent quality (+0.05 PPL) at 3.6x the CUDA decode speed.",
+          "source": "https://github.com/TheTom/turboquant_plus/blob/main/docs/papers/weight-compression-tq4.md",
+          "note": null
+        },
+        {
+          "text": "ParoQuant's authors state the Hadamard transform is the same for every layer, cannot adapt to weight distribution, and still makes QTIP about 30% slower than AWQ.",
+          "source": "https://z-lab.ai/projects/paroquant/",
+          "note": null
+        },
+        {
+          "text": "The PolarQuant paper positions TurboQuant as KV-cache quantization and adapts the polar-quantization idea to weights, with SpinQuant's learned rotations noted as better than fixed Hadamard in related work.",
+          "source": "https://arxiv.org/html/2603.29078v1",
+          "note": null
+        },
+        {
+          "text": "Because rotations are orthogonal, rotating activations once per matmul and keeping weights in the rotated basis is exact apart from quantization error, which is why the llama.cpp Metal kernels pre-rotate activations instead of un-rotating weights.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "No source compares a rotation-plus-codebook weight format to Q4_K_M, IQ4_NL or MLX affine 4-bit by KLD at equal size on the same model; claims of 'near-lossless' are PPL deltas versus FP16 or Q8_0 on one benchmark.",
+          "source": "asserted",
+          "note": null
+        }
+      ]
+    }
+  ],
+  "related": []
+}

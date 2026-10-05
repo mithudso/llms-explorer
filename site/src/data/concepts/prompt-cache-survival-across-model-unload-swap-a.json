@@ -1,0 +1,444 @@
+{
+  "slug": "prompt-cache-survival-across-model-unload-swap-a",
+  "concept": "Prompt cache survival across model unload swap and server restart",
+  "generated": "2026-10-05",
+  "summary": "llama.cpp offers three tiers. Live slot KV; the host-memory prompt cache (`--cache-ram`, default 8192 MiB, `--cache-idle-slots` default on, saves idle slots to it when a new task arrives); and manual disk files via `--slot-save-path` plus `POST /slots/{id}?action=save|restore`. The first two die ...",
+  "facets": [
+    {
+      "title": "Facts",
+      "facts": [
+        {
+          "text": "llama.cpp offers three tiers. Live slot KV; the host-memory prompt cache (`--cache-ram`, default 8192 MiB, `--cache-idle-slots` default on, saves idle slots to it when a new task arrives); and manual disk files via `--slot-save-path` plus `POST /slots/{id}?action=save|restore`. The first two die with the process; sleep mode unloads \"the model and its associated memory (including the KV cache)\".",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "The disk path restores KV and token list but, on SWA and hybrid/recurrent models, not the context checkpoints those models need to reuse any prefix. PR 26004 appends a tagged checkpoint payload (magic `SCKP`, version, count, per-checkpoint pos fields and blobs) after the llama state payload so one file carries both; old servers stop reading at the end of their payload and old files restore as before.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "llama-swap kills the upstream process on swap, so a persistence layer has to live outside it: a wrapper that restores after the health check and saves on SIGTERM, or lifecycle hooks (`afterHealthy` runs after the health check and before the model accepts requests; `beforeStop` runs before the kill; both proposed in PR 595). The wrapper must make `/health` return 503 until restore finishes, otherwise llama-swap routes the first request before the cache is back.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "oMLX keys cold-tier blocks by a layer-cache signature (layer count and cache-type mix), not just by prefix hash. Loading a model with a different signature makes the previous model's blocks incompatible: they are skipped, reported in one startup log line, and not evicted.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "LM Studio mlx-engine's disk tier is temporary by design (cleared at model unload); ds4 persists by SHA1 of the rendered byte prefix and survives restarts.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "2026-03-30 llama-swap discussion 615 asks for automatic save/restore on unload/load; maintainer says it does not belong in core and suggests a small wrapper binary; PR 595 (2026-03-20) adds per-model hooks; discussion 724 (2026-05-01, per-model bring-up/tear-down hooks) is still asked about on 2026-08-09; maintainer then prefers \"a wrapper written in Go\" in the style of `cmd/vllm-wrapper`.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "2026-05-21 llama-save-wrapper (Python, 1 star) published; last commit 2026-08-20.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "2026-07-22 PR 26004 opened; 2026-08-31 PR 28074 (alternative: register one PARTIAL_ONLY checkpoint over the restored range) opened and later closed; 2026-09-27 last verified report on 26004; still unmerged in the page fetched 2026-10-04.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "2026-08-07 Lemonade issue 2962 proposes the same save-on-evict/restore-on-load as a router feature.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "2026-08-15 oMLX issues 2662 and 2663 filed; 2026-09-12 oMLX issue 3612 (agent-owned export/import).",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Restore that reports success but reuses nothing on hybrid models (issue 25913, M5 Pro Metal): restore 0.12 s versus 75.9 s recompute on a 14,906-token prefix, then all 14,914 tokens recomputed anyway.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "The warning \"forcing full prompt re-processing due to lack of cache data\" is emitted at trace level (verbosity 4); default `-lv 3` never prints it. One rejected request on one slot erased 15 checkpoints (149.626 MiB each, about 2.19 GiB) and the next request re-prefilled from token zero while returning HTTP 200.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "A restore test must set `--cache-ram 0`: the host prompt cache otherwise masks the disk path (the 26004 test fixture does this; wagi-sho's Vulkan run also used `--cache-ram 0` with a full server restart between measurements).",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "oMLX stale blocks: after model switches a 55 GB cap held 54.94 GB with 427 incompatible blocks (about the whole cache); a separate report saw 83 GB against a 64 GB cap because limits were not enforced against pre-existing files at restart (issue 2064, v0.4.4).",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "oMLX hybrid models: hot RAM tier never populated for an ArraysCache hybrid (hot_cache_promotions 0, clear reports 0 entries), so all reuse came from SSD; one multi-turn report saw a \"placeholder in last matched block\" guard reject a 99% matching prefix on every turn (issue 3481, closed).",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "A permanently resident auxiliary model can eat the shared SSD tier: 7B aux 152.6 GB (49%), 14.3% hit rate, 30,976 prefix tokens saved versus 27B main 159.7 GB, 83.3% hit rate, 21,164,032 tokens saved (about 680:1) over about 3.1 days.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "oMLX SSD full-hit restore costs about 2.0 s versus about 0.4 s for a RAM-resident clone on an M2 Max (issue 3064, as cited in issue 3612).",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Prometheus-style health scraping of llama-server can count as activity and keep a sleep-idle model awake (the llama.cpp docs say `/health`, `/props`, `/models`, `/metrics` do not reset the timer; the 2026-08-21 Medium author observed the problem in practice).",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Same prompt repeated is a benchmark trap in both directions: Ollama's impossible 19-31k t/s is already held; a new case below (SSE role-marker chunk) gives an impossible 15 ms.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Is disk persistence worth building at all? PR 26004's author and nine reporters: yes (hybrid restores 4,460 to 30 tokens, 181.9 s to 4.7 s). The ai-muninn author (held elsewhere) stayed on RAM cache for daily use because restarts are rare. Both are consistent with a swap-heavy router being the case where it pays.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Is mlx-lm's in-memory cache enough? macoclock (held elsewhere) says it ties oMLX warm. Echalupa (M3 Ultra 96 GB, Qwen3-Coder-Next 6-bit on oMLX) says raw prefill is fast enough that prefix caching becomes irrelevant (below).",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Who should own save/restore for llama-swap: issue 615 reporter wants it in llama-swap; maintainer says wrapper outside core.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Did PR 595 (afterHealthy/beforeStop) merge? Current main `docs/config.example.yaml` shows only `hooks.on_startup` and `cmdStop`, which suggests not, but this was not confirmed against release notes.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Does an oMLX per-model TTL unload (no process exit, no architecture change) keep that model's SSD blocks reusable on reload? Issues show incompatibility on architecture change; nothing found for same-model unload/reload.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Is PR 26004 merged in a tagged llama.cpp build, and does it work on Metal beyond the cross-machine CUDA-to-M3 Ultra report?",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "No source measured hit rate across a llama-swap swap-away-and-back cycle on a Mac (still open from the existing dossier).",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Ollama: no source states what happens to the mlx runner's prompt cache at keep_alive expiry; the only evidence is the held rapidmlx.com note that `ollama stop` drops it.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "llama-server `--cache-ram` default is 8192 MiB (-1 no limit, 0 disable) and `--cache-idle-slots` (default enabled, requires cache-ram) saves idle slots to the prompt cache on a new task and clears them when using unified KV.",
+          "source": "https://github.com/ggml-org/llama.cpp/blob/master/tools/server/README.md",
+          "note": null
+        },
+        {
+          "text": "llama.cpp `--sleep-idle-seconds` unloads the model and its associated memory including the KV cache, and any new task triggers a reload.",
+          "source": "https://github.com/ggml-org/llama.cpp/blob/master/tools/server/README.md",
+          "note": null
+        },
+        {
+          "text": "`--ctx-checkpoints` defaults to 32 per slot and `--checkpoint-min-step` to 8192 tokens in the current server README.",
+          "source": "https://github.com/ggml-org/llama.cpp/blob/master/tools/server/README.md",
+          "note": null
+        },
+        {
+          "text": "PR 28074's author states `--cache-ram` does not survive restart or idle unload, and that `--cache-reuse` is disabled for that hybrid model because `get_can_shift()` is false, so disk save/restore is the only mechanism there.",
+          "source": "https://github.com/ggml-org/llama.cpp/pull/28074",
+          "note": null
+        },
+        {
+          "text": "PR 28074 registers one PARTIAL_ONLY checkpoint over the restored range [0, token_count-1] in 17 lines of `SLOT_RESTORE`; its author measured 561 ms/317 tokens full re-prefill versus 188 ms/28 tokens tail only on a Qwen3.8-27B hybrid, and it was later closed.",
+          "source": "https://github.com/ggml-org/llama.cpp/pull/28074",
+          "note": null
+        },
+        {
+          "text": "PR 26004 appends the checkpoints after the llama state payload with `SCKP` magic, caps count at 1024 plus a per-blob size cap, aborts cleanly on truncation, and leaves files byte-identical when the slot holds no checkpoints.",
+          "source": "https://github.com/ggml-org/llama.cpp/pull/26004",
+          "note": null
+        },
+        {
+          "text": "PR 26004's regression test `test_slot_restore_preserves_context_checkpoints` fails on master with `assert 210 == 31` and sets `cache_ram = 0` and `n_ubatch = 32`.",
+          "source": "https://github.com/ggml-org/llama.cpp/pull/26004",
+          "note": null
+        },
+        {
+          "text": "PR 26004 is a single-file design chosen over companion-file PRs 20819 and 24028, which conflict with master and can drift out of sync with the state file.",
+          "source": "https://github.com/ggml-org/llama.cpp/pull/26004",
+          "note": null
+        },
+        {
+          "text": "PR 26004 reports: Vulkan Radeon 8050S Qwen3.5-35B-A3B 58,202 tokens 181.9 s to 4.7 s (38.7x); Radeon 780M Qwen3.8-27B with draft-MTP about 71 s to about 3 s (23.7x); Windows CUDA RTX 5070 Ti Qwen3.6-35B-A3B erase-then-restore 4,460 to 30 tokens (149x), a 36k-token agent session resumed with 13 tokens re-processed; Radeon 8060S prefill 2,991 ms to 109 ms (27x).",
+          "source": "https://github.com/ggml-org/llama.cpp/pull/26004",
+          "note": null
+        },
+        {
+          "text": "One 26004 reporter used an Ollama integration with Anthropic-style caching and avoided the full prefill after a process restart.",
+          "source": "https://github.com/ggml-org/llama.cpp/pull/26004",
+          "note": null
+        },
+        {
+          "text": "Issue 25913's text states restore returned in 0.12 s versus 75.9 s to recompute a 14,906-token prefix on an Apple M5 Pro, after which all 14,914 tokens were recomputed.",
+          "source": "https://github.com/ggml-org/llama.cpp/issues/25913",
+          "note": null
+        },
+        {
+          "text": "Issue 25913's later comments record PR 28074 as closed by its author and say 26004 was mergeable with a test but not yet merged, apparently for maintainer review bandwidth.",
+          "source": "https://github.com/ggml-org/llama.cpp/issues/25913",
+          "note": null
+        },
+        {
+          "text": "llama.cpp logs \"forcing full prompt re-processing due to lack of cache data\" at trace level (verbosity 4) while the default verbosity is 3, so default servers never print it.",
+          "source": "https://particula.tech/blog/prompt-reprocessing-swa-hybrid-models-kv-cache",
+          "note": null
+        },
+        {
+          "text": "A llama.cpp context checkpoint stores only non-reconstructible partial state (SWA KV and recurrent state via `LLAMA_STATE_SEQ_FLAGS_PARTIAL_ONLY`), not a copy of the full-attention KV.",
+          "source": "https://particula.tech/blog/prompt-reprocessing-swa-hybrid-models-kv-cache",
+          "note": null
+        },
+        {
+          "text": "One rejected request on one slot erased 15 checkpoints of 149.626 MiB each (about 2.19 GiB) and the next request re-prefilled from token zero while returning HTTP 200.",
+          "source": "https://particula.tech/blog/prompt-reprocessing-swa-hybrid-models-kv-cache",
+          "note": null
+        },
+        {
+          "text": "Useful grep for checkpoint behaviour: `forcing full prompt|context checkpoint|Checking checkpoint|n_past =` with `-lv 4`; the lines `restored context checkpoint (...)` and `erased invalidated context checkpoint (...)` mark the good and bad cases.",
+          "source": "https://particula.tech/blog/prompt-reprocessing-swa-hybrid-models-kv-cache",
+          "note": null
+        },
+        {
+          "text": "llama.cpp issue 20697 requests `--cache-disk <path>` and `--cache-disk-max <MiB>` because on unified-memory systems `--cache-ram` competes with weights for the same pool; it was still an open request when Lemonade cited it (2026-08-07).",
+          "source": "https://github.com/ggml-org/llama.cpp/issues/20697",
+          "note": null
+        },
+        {
+          "text": "The host-memory prompt cache (PR 16391) is on by default at 8 GB; one Mac Studio 128 GB user running a model that nearly filled memory saw RAM climb toward swap as conversations accumulated, and a llama.cpp member advised `-cram 0` or a smaller size.",
+          "source": "https://github.com/ggml-org/llama.cpp/discussions/18488",
+          "note": null
+        },
+        {
+          "text": "Lemonade (router, `max_loaded_models` default 1) kills the llama.cpp subprocess on eviction and reload \"can take 30-60 seconds\" before the first request re-prefills the full history.",
+          "source": "https://github.com/lemonade-sdk/lemonade/issues/2962",
+          "note": null
+        },
+        {
+          "text": "Lemonade issue 2962 proposes per-model per-backend-pin directories for `--slot-save-path`, save inside `evict_server` after the idle wait, restore after `wait_for_ready` with meta checks on model, backend pin and `ctx_size`, a `kv_snapshot_max_gb` default 8 and `kv_snapshot_min_tokens` default 2048, and a best-effort restore that never fails a load.",
+          "source": "https://github.com/lemonade-sdk/lemonade/issues/2962",
+          "note": null
+        },
+        {
+          "text": "Lemonade issue 2962 states a Llama-3.1-8B-class f16 KV is about 128 KiB/token (about 2 GiB at 16k tokens, 4 GiB at 32k) and that restore into a mismatched build fails with \"Unable to restore slot, no available space in KV cache or invalid slot save file\".",
+          "source": "https://github.com/lemonade-sdk/lemonade/issues/2962",
+          "note": null
+        },
+        {
+          "text": "A llama-swap user (Stebalien) said a shell wrapper that restores the cache races the first request because llama-swap treats llama-server as ready once the health check passes.",
+          "source": "https://github.com/mostlygeek/llama-swap/discussions/615",
+          "note": null
+        },
+        {
+          "text": "The llama-swap maintainer said save/restore does not belong in core and proposed a wrapper binary that forwards arguments, starts llama-server as a child, and on SIGINT/SIGTERM posts the save before terminating it, noting llama-swap sends SIGKILL after its stop timeout.",
+          "source": "https://github.com/mostlygeek/llama-swap/discussions/615",
+          "note": null
+        },
+        {
+          "text": "llama-swap PR 595 adds per-model `afterHealthy` (runs after the health check, blocks the model from accepting requests, failure is a warning) and `beforeStop` (runs before kill, process killed regardless of outcome), with `${PORT}` macro expansion and a 30 s hook timeout.",
+          "source": "https://github.com/mostlygeek/llama-swap/pull/595",
+          "note": null
+        },
+        {
+          "text": "On 2026-08-09 llama-swap discussion 724 was still asking for per-model bring-up/tear-down hooks; the maintainer said a Go wrapper in the style of `cmd/vllm-wrapper` is his preferred route.",
+          "source": "https://github.com/mostlygeek/llama-swap/discussions/724",
+          "note": null
+        },
+        {
+          "text": "llama-save-wrapper runs llama-server on a random internal port behind an aiohttp proxy, restores each slot from `{slot_id}.bin` before `/health` returns 200 (503 until then), and saves all slots on SIGINT/SIGTERM/SIGHUP; a second interrupt skips the save.",
+          "source": "https://github.com/dinerburger/llama-save-wrapper",
+          "note": null
+        },
+        {
+          "text": "Current llama-swap `docs/config.example.yaml` documents `cmdStop` (with `${PID}`) and a `hooks` dictionary whose only supported event is `on_startup`; no `afterHealthy` entry was found there.",
+          "source": "https://raw.githubusercontent.com/mostlygeek/llama-swap/main/docs/config.example.yaml",
+          "note": null
+        },
+        {
+          "text": "llama-swap's `/api/models/unload` unloads all models and `/api/models/unload/<model>` one model; a legacy `GET /unload` remains.",
+          "source": "https://www.glukhov.org/llm-hosting/llama-swap/",
+          "note": null
+        },
+        {
+          "text": "oMLX keys SSD blocks by a layer-cache signature: a 64-layer ArraysCache hybrid stores under \"64 layers, 2 unique types\", switching to a 40-layer MoE re-signs the cache to \"40 layers, 2 unique types\", and the old blocks are logged as `skipped_incompatible=427 blocks (54.94 GB)`.",
+          "source": "https://github.com/jundot/omlx/issues/2663",
+          "note": null
+        },
+        {
+          "text": "In oMLX issue 2663 the stale blocks are not evicted, so on a 128 GiB M4 Max with `ssd_cache_max_size=55GB` the cache sat at 54.94 GB with 427 incompatible files, and `existing_files` dropped to 0 on nearly every load after a model swap.",
+          "source": "https://github.com/jundot/omlx/issues/2663",
+          "note": null
+        },
+        {
+          "text": "The issue 2663 reporter says cross-architecture KV reuse is not feasible because layouts differ and asks only for per-model cache namespaces, reclaim-on-unload and per-model telemetry; it was open on 2026-10-04.",
+          "source": "https://github.com/jundot/omlx/issues/2663",
+          "note": null
+        },
+        {
+          "text": "oMLX `cache.hot_cache_only`, `cache.enabled`, `cache.ssd_cache_dir` and `cache.ssd_cache_max_size` are instance-global in 0.6.4; there is no per-request cache opt-out and no per-model SSD flag, so the workaround is a second oMLX instance with `hot_cache_only: true` or manual file deletion.",
+          "source": "https://github.com/jundot/omlx/issues/2663",
+          "note": null
+        },
+        {
+          "text": "Measured via `GET /admin/api/stats` (`runtime_cache.models[]`) after about 3.1 days on oMLX 0.6.4, a pinned 7B auxiliary model held 152.6 GB (49%) of the SSD tier in 10,390 files (256-token blocks) with a 14.3% prefix hit rate and 30,976 tokens saved, against 159.7 GB in 596 files (4,096-token blocks), 83.3% hit rate and 21,164,032 tokens saved for the 27B main model.",
+          "source": "https://github.com/jundot/omlx/issues/2663",
+          "note": null
+        },
+        {
+          "text": "On a 128 GiB M4 Max with oMLX 0.6.0.dev1 and a 64-layer ArraysCache hybrid, an identical ~6,000-token prompt gave TTFT 2.688 s cold, 0.021 s warm and 0.019 s warm after hot-cache clear; hot_cache_promotions stayed 0 and the clear reported 0 entries, so all reuse came from SSD.",
+          "source": "https://github.com/jundot/omlx/issues/2662",
+          "note": null
+        },
+        {
+          "text": "The same oMLX test with `hot_cache_only=true` (RAM only) gave 2.818 s, 0.022 s and 0.020 s.",
+          "source": "https://github.com/jundot/omlx/issues/2662",
+          "note": null
+        },
+        {
+          "text": "oMLX auto-enlarges the paged cache block size from 256 to 2048 (4,096 seen later) for ArraysCache hybrid models to reduce boundary snapshot overhead.",
+          "source": "https://github.com/jundot/omlx/issues/2662",
+          "note": null
+        },
+        {
+          "text": "oMLX issue 3481 (0.6.4, Qwen3.8-27B MTPLX hybrid, ~23-24K-token LibreChat sessions) logged \"partial prefix match detected (placeholder in last matched block). Rejecting cache to prevent stale GDN state\" on every multi-turn request, so each turn re-prefilled in about 100-160 s; the issue is closed.",
+          "source": "https://github.com/jundot/omlx/issues/3481",
+          "note": null
+        },
+        {
+          "text": "oMLX issue 2064 (v0.4.4, Mac mini M4 Pro 24 GB) reports the SSD cache at 83 GB against `ssd_cache_max_size=64GB` because eviction only runs when writing new blocks and pre-existing files are accepted on restart without a size check.",
+          "source": "https://github.com/jundot/omlx/issues/2064",
+          "note": null
+        },
+        {
+          "text": "oMLX maintainer measured on 0.7.0dev2 a repeated 440K-token prompt re-prefilling 1,745 tokens, a restore after restart of 460,017 input tokens re-prefilling 1,265 and a repeated 480K prompt re-prefilling 785; the reporter replied that such load/unload tests are not real agent traffic.",
+          "source": "https://github.com/jundot/omlx/issues/3704",
+          "note": null
+        },
+        {
+          "text": "oMLX issue 3612 requests agent-owned export/import of prefix cache artifacts because the engine-managed tier is hash-keyed, LRU-bounded and wiped by cache clears, upgrades and reinstalls; it cites issue 3064 (SSD full-hit restore about 2.0 s versus about 0.4 s for a RAM-resident clone, M2 Max, 0.6.3rc2) and says oMLX's cluster snapshot store already keys by hash(model, prefix tokens).",
+          "source": "https://github.com/jundot/omlx/issues/3612",
+          "note": null
+        },
+        {
+          "text": "oMLX per-model TTL, pinning and LRU eviction coexist with the SSD tier, whose blocks \"are restored from disk instead of recomputed from scratch, even after a server restart\"; the jacar.es walkthrough (oMLX 0.6.4, 2026-08-19) does not say what happens to a model's blocks on TTL unload.",
+          "source": "https://jacar.es/en/omlx-model-management-memory/",
+          "note": null
+        },
+        {
+          "text": "macoclock lists four benchmark controls for oMLX: mlx-lm's server buffers the whole completion so inter-token timing is impossible, oMLX lazy-loads the model so a throwaway request is needed, oMLX's SSD cache persists across benchmark runs so `~/.omlx/cache` must be cleared for a true cold run, and mlx-lm already caches prompts in memory so a cold/warm test cannot separate the engines.",
+          "source": "https://medium.com/macoclock/mlx-lm-vs-omlx-i-was-wrong-about-the-winner-8f36be328069",
+          "note": null
+        },
+        {
+          "text": "mlx-lm issue 1178 (opened 2026-04-21, still open) asks for `--prompt-cache-file` support in `mlx_lm.server`; the flag exists only in `mlx_lm.generate`, so the server has no startup or on-disk prompt cache, and a contributor on 2026-05-27 asked whether a mismatched prefix should fall back to recompute or error.",
+          "source": "https://github.com/ml-explore/mlx-lm/issues/1178",
+          "note": null
+        },
+        {
+          "text": "LM Studio defaults: JIT Idle TTL 60 minutes, models loaded with `lms load` have no TTL unless `--ttl` is passed, and Auto-Evict (default on) keeps at most one JIT-loaded model.",
+          "source": "https://lmstudio.ai/docs/developer/core/ttl-and-auto-evict",
+          "note": null
+        },
+        {
+          "text": "LM Studio bug 2051 (0.4.16/0.4.17 beta, Mac Studio M4 Max 36 GB): models loaded through the Locally app over LM Link bypass Auto-Evict and \"Only Keep Last JIT Loaded Model\" because explicit-load clients register models as manually loaded.",
+          "source": "https://github.com/lmstudio-ai/lmstudio-bug-tracker/issues/2051",
+          "note": null
+        },
+        {
+          "text": "Ollama keeps a model loaded 5 minutes by default; `keep_alive` accepts duration, 0 (unload right after the response) or -1 (forever), and `OLLAMA_KEEP_ALIVE` sets the server default.",
+          "source": "https://docs.ollama.com/faq",
+          "note": null
+        },
+        {
+          "text": "Ollama's MLX preview blog (2026-03) lists \"intelligent checkpoints\" (cache snapshots at intelligent locations in the prompt) and \"smarter eviction\" (shared prefixes survive longer when older branches are dropped), both in-process features with no mention of persistence across unload or restart.",
+          "source": "https://ollama.com/blog/mlx",
+          "note": null
+        },
+        {
+          "text": "ds4-server's disk KV cache (`--kv-disk-dir`, `--kv-disk-space-mb`, e.g. 8192) saves prefixes \"across slot reuse and server restarts\"; the server tries the live token prefix first, then compatible rendered-text prefixes from disk, and prefills only the suffix.",
+          "source": "https://github.com/antirez/ds4/blob/main/docs/SERVER.md",
+          "note": null
+        },
+        {
+          "text": "ds4 disk cache tuning flags are `--kv-cache-min-tokens`, `--kv-cache-cold-max-tokens`, `--kv-cache-continued-interval-tokens`, `--kv-cache-boundary-trim-tokens`, `--kv-cache-boundary-align-tokens`, and `--kv-cache-reject-different-quant` for same-quant reuse only; cache files contain prompt text and model state and the directory is disposable but must be cleared with the server stopped.",
+          "source": "https://github.com/antirez/ds4/blob/main/docs/SERVER.md",
+          "note": null
+        },
+        {
+          "text": "ds4 keys disk KV entries by the SHA1 of the rendered byte prefix and keeps the exact sampled DSML tool-call text so a replayed history stays byte-aligned.",
+          "source": "https://dwarfstar.sh/blog/why-kv-cache-belongs-on-disk/",
+          "note": null
+        },
+        {
+          "text": "ds4 on an M3 Max 128 GB (reported 62,000-token coding session) ran 14-15 t/s with an 8 GB disk cache at a 100,000-token window, and the tester's biggest complaint was \"about 1 min per 10k context\" for a fresh prefill after every compaction.",
+          "source": "https://ailocal.substack.com/p/local-ai-on-a-mac-is-actually-working",
+          "note": null
+        },
+        {
+          "text": "Echalupa's M3 Ultra 96 GB bench (oMLX) first showed Qwen3-Coder-Next about 15 ms prefill for a 28K-token prompt; the cause was oMLX sending a role-marker SSE chunk before real prefill, so the harness was timing the first byte, not the first content token.",
+          "source": "https://echalupa.com/blog/local-llm-benchmark-mac-studio-m3-ultra",
+          "note": null
+        },
+        {
+          "text": "Echalupa's fix was a differential method (total time on small versus large prompts at the same output budget), giving about 7,500 tokens/s prefill for Coder-Next and about 300 tokens/s for DS4.",
+          "source": "https://echalupa.com/blog/local-llm-benchmark-mac-studio-m3-ultra",
+          "note": null
+        },
+        {
+          "text": "Echalupa's 3-turn multi-turn test on the same bench: DS4 V4 Flash TTFT 2.77 s cold, 0.73 s turn 2 (75% cached), 0.70 s turn 3 (84% cached); Coder-Next sat at 14-15 ms every turn, which the author read as prefix caching being irrelevant when raw prefill is that fast.",
+          "source": "https://echalupa.com/blog/local-llm-benchmark-mac-studio-m3-ultra",
+          "note": null
+        },
+        {
+          "text": "Only one model could load at a time on that 96 GB Mac Studio, so each comparison stopped the live lane (including a `launchctl bootout` of the DS4 daemon) and loaded the next model fresh.",
+          "source": "https://echalupa.com/blog/local-llm-benchmark-mac-studio-m3-ultra",
+          "note": null
+        },
+        {
+          "text": "Medium 2026-08-21: llama-server `--sleep-idle-seconds` unloads the model on idle, and a Prometheus scraper polling `/metrics` every few seconds could count as activity and block sleep.",
+          "source": "https://medium.com/@PowerUpSkills/my-local-llm-server-can-finally-sleep-without-going-blind-ccbdcabe17c4",
+          "note": null
+        },
+        {
+          "text": "On a multi-model Mac, the practical rule that follows from the sources is: persistence belongs outside the process (wrapper or client), keyed by model identity, build and flash-attention/KV-type settings.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "A restore-based swap strategy only pays when the dormant prefix is large and the swap is frequent; for Qwen3-Coder-Next-class prefill (about 7,500 t/s) re-prefilling 28K tokens costs under 4 s, so persistence matters mainly for slow-prefill hybrids and 100K+ contexts.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "llama.cpp on a Mac with llama-swap: run `--slot-save-path` per model directory with `--cache-ram 0` while validating restores, check restored hits with `cache_n`/`prompt_n` in the response timings, and expect hybrid models to re-prefill fully until PR 26004 (or equivalent) lands.",
+          "source": "asserted",
+          "note": null
+        }
+      ]
+    }
+  ],
+  "related": []
+}

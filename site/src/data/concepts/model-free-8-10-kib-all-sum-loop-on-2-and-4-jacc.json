@@ -1,0 +1,109 @@
+{
+  "slug": "model-free-8-10-kib-all-sum-loop-on-2-and-4-jacc",
+  "concept": "Model-free 8-10 KiB all_sum loop on 2 and 4 JACCL nodes",
+  "generated": "2026-10-05",
+  "summary": "The concept is a loop of one matmul-free `mx.distributed.all_sum` per step on an 8 to 10 KiB payload (a batch-1 decode partial at `n_embd` 4096 to 5120 in bf16), run on 2 and 4 JACCL nodes with `MLX_METAL_FAST_SYNCH` on and off.",
+  "facets": [
+    {
+      "title": "Facts",
+      "facts": [
+        {
+          "text": "The concept is a loop of one matmul-free `mx.distributed.all_sum` per step on an 8 to 10 KiB payload (a batch-1 decode partial at `n_embd` 4096 to 5120 in bf16), run on 2 and 4 JACCL nodes with `MLX_METAL_FAST_SYNCH` on and off.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "No cached source runs that exact experiment on JACCL; the per-collective latency at that size on Thunderbolt RDMA is still unmeasured in the sources.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "The nearest model-free loops use other sizes: 256 floats (1 KiB) in a bare C++ loop in issue 4192, 16 MB on 4 M4 Pro minis in issue 4278, and unique 256 MiB `uint8` every 60 s on 4 M3 Ultras in issue 4319.",
+          "source": "https://github.com/ml-explore/mlx/issues/4192",
+          "note": null
+        },
+        {
+          "text": "The nearest data at about 10 KB is not JACCL: issue 3830's `fence_stress.py` uses a TCP ring on 2 ranks (one machine loopback, or two Macs over 10 GbE), and with `MLX_METAL_FAST_SYNCH=1` and `--rows 1` (10 KB messages) it ran clean for 2,000,000 iterations, while `--rows 256` (2.6 MB messages) deadlocked within seconds.",
+          "source": "https://github.com/ml-explore/mlx/issues/3830",
+          "note": null
+        },
+        {
+          "text": "A single-process fence stress on one M3 Ultra measured 8 KB arrays at 12 ms per iteration with a worst case of 361 ms on fork commit `cc3f3e6` with fast synch on, and 1.9 ms per iteration with the cross-stream event patch (2.3 ms with fast synch off). It is GPU-to-GPU and CPU-to-GPU handoffs in one eval, not an inter-node all_sum.",
+          "source": "https://github.com/rltakashige/mlx-jaccl-fix-small-recv/pull/4",
+          "note": null
+        },
+        {
+          "text": "The 8 to 10 KiB size comes from the per-token activation arithmetic in the existing dossier (about 10 KiB at `n_embd = 5120` bf16), not from a published benchmark.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Small messages do not guarantee safety: another commenter on issue 3830 saw the wedge even at `rows=1` (about 20 KB) once a per-step scalar `all_sum` was added next to the pipeline send, recv and all_gather, and concluded that the fence handoff, not message size, is the trigger.",
+          "source": "https://github.com/ml-explore/mlx/issues/3830",
+          "note": null
+        },
+        {
+          "text": "A tight model-free loop can also test the failure of a peer: issue 3910's two-rank `all_sum` loop with SIGKILL on rank 1 hung the survivor before the error-propagation fix. That tests teardown, not latency.",
+          "source": "https://github.com/ml-explore/mlx/issues/3910",
+          "note": null
+        },
+        {
+          "text": "Whether message size drives the fence deadlock. The 3830 author's 10 KB run was clean for 2,000,000 iterations while 2.6 MB wedged in seconds, and a second commenter's harness wedged at about 20 KB with a scalar all_sum in the loop; the two used different loop shapes.",
+          "source": "https://github.com/ml-explore/mlx/issues/3830",
+          "note": null
+        },
+        {
+          "text": "Per-call latency of an 8 to 10 KiB JACCL `all_sum` on 2 versus 4 nodes, fast synch on versus off.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Whether the 4-node ring versus mesh choice changes the small-message latency; no source compares them at this size.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "No fetched source reports a model-free 8 to 10 KiB `all_sum` loop on 2 or 4 JACCL nodes.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Issue 3830's TCP-ring stress with fast synch on ran 2,000,000 clean iterations at about 10 KB messages and deadlocked within seconds at about 2.6 MB.",
+          "source": "https://github.com/ml-explore/mlx/issues/3830",
+          "note": null
+        },
+        {
+          "text": "A second reporter's harness wedged at about 20 KB when a scalar all_sum was added to the loop, which points at the fence handoff rather than size.",
+          "source": "https://github.com/ml-explore/mlx/issues/3830",
+          "note": null
+        },
+        {
+          "text": "On one M3 Ultra, 8 KB cross-stream fence handoffs with fast synch on ran at 12 ms per iteration (worst 361 ms) on fork `cc3f3e6`, 1.9 ms with the cross-stream event patch, 2.3 ms with fast synch off.",
+          "source": "https://github.com/rltakashige/mlx-jaccl-fix-small-recv/pull/4",
+          "note": null
+        },
+        {
+          "text": "Issue 4192's bare loop moves 256 floats (1 KiB) per all_sum with no model.",
+          "source": "https://github.com/ml-explore/mlx/issues/4192",
+          "note": null
+        },
+        {
+          "text": "Issue 4278's model-free loop moves 16 MB per all_sum on four M4 Pro minis.",
+          "source": "https://github.com/ml-explore/mlx/issues/4278",
+          "note": null
+        },
+        {
+          "text": "Issue 4319's model-free loop moves a unique 256 MiB `uint8` buffer once per 60 s on four M3 Ultras with fast synch off and died on the eighth cycle with SIGSEGV in `tbt_post_recv`.",
+          "source": "https://github.com/ml-explore/mlx/issues/4319",
+          "note": null
+        },
+        {
+          "text": "A usable test for the open question is a loop of `mx.eval(mx.distributed.all_sum(x))` with `x` of 4096 to 5120 bf16 elements, timed per iteration, run with the flag unset and set, on 2 and 4 nodes.",
+          "source": "asserted",
+          "note": null
+        }
+      ]
+    }
+  ],
+  "related": []
+}

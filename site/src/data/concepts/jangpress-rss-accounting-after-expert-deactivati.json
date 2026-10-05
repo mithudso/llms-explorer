@@ -1,0 +1,124 @@
+{
+  "slug": "jangpress-rss-accounting-after-expert-deactivati",
+  "concept": "JangPress RSS accounting after expert deactivation on macOS",
+  "generated": "2026-10-05",
+  "summary": "`TASK_VM_INFO.resident_size` is read from the `phys_mem` ledger, and `external` and `internal` are separate ledgers read next to it. The `phys_mem` ledger is the pmap-resident total, so it includes clean file-backed pages that a process has faulted in.",
+  "facets": [
+    {
+      "title": "Facts",
+      "facts": [
+        {
+          "text": "`TASK_VM_INFO.resident_size` is read from the `phys_mem` ledger, and `external` and `internal` are separate ledgers read next to it. The `phys_mem` ledger is the pmap-resident total, so it includes clean file-backed pages that a process has faulted in.",
+          "source": "https://raw.githubusercontent.com/apple-oss-distributions/xnu/main/osfmk/kern/task.c",
+          "note": null
+        },
+        {
+          "text": "`phys_footprint` is documented in the kernel as the sum of (internal - alternate_accounting), (internal_compressed - alternate_accounting_compressed), iokit_mapped, purgeable_nonvolatile, purgeable_nonvolatile_compressed and page_table. It has no term for `external` (file-backed) pages.",
+          "source": "https://raw.githubusercontent.com/apple-oss-distributions/xnu/main/osfmk/kern/task.c",
+          "note": null
+        },
+        {
+          "text": "Consequence for a mmap safetensors bundle: clean expert pages that stay mapped appear in `resident_size` (RSS) and never in `phys_footprint`. A tool that reports footprint shows a small idle number for a mapped bundle even if no page was ever dropped.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Consequence for `MADV_DONTNEED`: the call leaves pmap entries in place (existing dossier), so `resident_size` should not fall at the call; it falls only when the pageout scan steals the deactivated pages. `phys_footprint` is unaffected either way.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "`iokit_mapped` counts the whole size of every IOKit mapping in the task \"regardless of clean/dirty or internal/external state\", and `vm_map_iokit_mapped_region` credits both `iokit_mapped` and `phys_footprint` with the full byte count at map time.",
+          "source": "https://raw.githubusercontent.com/apple-oss-distributions/xnu/main/osfmk/vm/vm_map.c",
+          "note": null
+        },
+        {
+          "text": "In the page-query code, non-purgeable IOKit internal memory is reported as present and dirty for its entire virtual range (\"phys_footprint includes the entire virtual mapping\").",
+          "source": "https://raw.githubusercontent.com/apple-oss-distributions/xnu/main/osfmk/vm/vm_map.c",
+          "note": null
+        },
+        {
+          "text": "No dated history for JangPress accounting claims was found beyond the 2026-05-04 guide date already in jangpress-cold-expert-eviction-for-moe-larger-th.md.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "If a runtime wraps mmap pages as no-copy Metal buffers and those buffers are counted as IOKit mappings, `phys_footprint` would be charged the full mapped size at map time. That would explain a footprint near 130 GB at first prefill, but no source states how vMLX's no-copy buffers are accounted.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "The Kimi runtime README reports \"~130 GB process footprint\" before token 1 and \"about 1 GB\" idle RSS for the same bundle. The two numbers can both be correct only if they come from different ledgers or from different moments; the README does not name its tool.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Activity Monitor, `ps` and `footprint` read different ledgers, so a before-and-after comparison of JangPress must use one tool throughout.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Reading of \"idle RSS about 1 GB\". Reading A: the kernel dropped the cold experts after `MADV_DONTNEED`. Reading B: the reported number is a footprint-style figure that never counted clean mapped file pages. The kernel source supports B as sufficient and A only under reclaim pressure; no source measures both ledgers on a JangPress run.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Which tool and ledger produced the jangq \"about 1 GB\" and \"130 GB\" figures?",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Whether vmlx-swift-lm's no-copy `MTLBuffer` over mmap pages is accounted as `external`, `iokit_mapped` or neither.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "A direct test: run a JangPress load and read `TASK_VM_INFO` (`resident_size`, `external`, `phys_footprint`) plus `mincore` before and after a DONTNEED sweep. No such test is published.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "`TASK_VM_INFO.resident_size` is read from the `phys_mem` task ledger, with separate `external`, `internal`, `internal_compressed` and `reusable` ledgers returned alongside it.",
+          "source": "https://raw.githubusercontent.com/apple-oss-distributions/xnu/main/osfmk/kern/task.c",
+          "note": null
+        },
+        {
+          "text": "The kernel comment defines `phys_footprint` as (internal - alternate_accounting) + (internal_compressed - alternate_accounting_compressed) + iokit_mapped + purgeable_nonvolatile + purgeable_nonvolatile_compressed + page_table.",
+          "source": "https://raw.githubusercontent.com/apple-oss-distributions/xnu/main/osfmk/kern/task.c",
+          "note": null
+        },
+        {
+          "text": "The ledger comment defines `internal` as the task's anonymous memory and `internal_compressed` as internal memory held by the compressor, \"no longer actually resident for the task\".",
+          "source": "https://raw.githubusercontent.com/apple-oss-distributions/xnu/main/osfmk/kern/task.c",
+          "note": null
+        },
+        {
+          "text": "`iokit_mapped` is the total size of all IOKit mappings in the task regardless of clean, dirty, internal or external state.",
+          "source": "https://raw.githubusercontent.com/apple-oss-distributions/xnu/main/osfmk/kern/task.c",
+          "note": null
+        },
+        {
+          "text": "`vm_map_iokit_mapped_region` adds the mapped byte count to both the `iokit_mapped` and `phys_footprint` ledgers.",
+          "source": "https://raw.githubusercontent.com/apple-oss-distributions/xnu/main/osfmk/vm/vm_map.c",
+          "note": null
+        },
+        {
+          "text": "Because `phys_footprint` has no `external` term, clean file-backed mapped pages count toward `resident_size` but not toward `phys_footprint`.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "A `MADV_DONTNEED` sweep changes neither ledger at call time; `resident_size` falls only after the pageout scan frees the deactivated pages.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "The jangq \"about 1 GB idle RSS\" and \"about 130 GB footprint\" figures are not tied to a named ledger, so they cannot be compared with each other.",
+          "source": "asserted",
+          "note": null
+        }
+      ]
+    }
+  ],
+  "related": []
+}

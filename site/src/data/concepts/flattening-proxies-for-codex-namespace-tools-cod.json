@@ -1,0 +1,149 @@
+{
+  "slug": "flattening-proxies-for-codex-namespace-tools-cod",
+  "concept": "Flattening proxies for Codex namespace tools (codex-ollama-proxy and similar)",
+  "generated": "2026-10-05",
+  "summary": "`codex-universal-proxy` is installed with `npm install -g codex-universal-proxy`, then `codex-universal-proxy init` and `install`, and runs as a launchd service on macOS, a systemd user service on Linux, or a Task Scheduler job on Windows.",
+  "facets": [
+    {
+      "title": "Facts",
+      "facts": [
+        {
+          "text": "`codex-universal-proxy` is installed with `npm install -g codex-universal-proxy`, then `codex-universal-proxy init` and `install`, and runs as a launchd service on macOS, a systemd user service on Linux, or a Task Scheduler job on Windows.",
+          "source": "https://github.com/bharat2808/codex-ollama-proxy",
+          "note": null
+        },
+        {
+          "text": "Its README lists the failure strings it cures: \"unsupported call\", \"MCP tools are visible but never invoked\", \"tool_search aborts\", \"namespace tools are rejected\" and \"apply_patch uses the wrong format\".",
+          "source": "https://github.com/bharat2808/codex-ollama-proxy",
+          "note": null
+        },
+        {
+          "text": "It exposes `mcp__storefront_builder.list_storefront_build_sessions` to the model as `mcp__storefront_builder__list_storefront_build_sessions` and translates the returned call back to the namespace and tool name Codex expects.",
+          "source": "https://github.com/bharat2808/codex-ollama-proxy",
+          "note": null
+        },
+        {
+          "text": "When a provider cannot call Codex's managed `tool_search`, the proxy exposes a plain function shim and maps the result back into a native `tool_search_call`; tools discovered by `tool_search` are made callable on the following request.",
+          "source": "https://github.com/bharat2808/codex-ollama-proxy",
+          "note": null
+        },
+        {
+          "text": "For `apply_patch`, which Codex may expose as a custom or freeform tool, the proxy keeps the format Codex requires while making the surrounding tool list acceptable to custom providers.",
+          "source": "https://github.com/bharat2808/codex-ollama-proxy",
+          "note": null
+        },
+        {
+          "text": "It supports Ollama-compatible Responses servers, OpenRouter, native OpenAI Responses, any `POST /v1/responses` server and, through a built-in adaptor, Chat Completions servers; Anthropic is reached through its OpenAI-compatible Chat Completions API, not native Messages.",
+          "source": "https://github.com/bharat2808/codex-ollama-proxy",
+          "note": null
+        },
+        {
+          "text": "Its stated limits: unofficial and experimental, Codex tool schemas may change between releases, and web search falls back from Ollama cloud search to local Ollama search to DuckDuckGo HTML.",
+          "source": "https://github.com/bharat2808/codex-ollama-proxy",
+          "note": null
+        },
+        {
+          "text": "The proxy writes a model picker catalog, and its README says the Windows Codex Desktop app may fail to load it, with `codex-universal-proxy run <preset> --model-override \"<model>\"` as a workaround that writes a hardcoded top-level `model`.",
+          "source": "https://github.com/bharat2808/codex-ollama-proxy",
+          "note": null
+        },
+        {
+          "text": "Debug logging is off by default (`verbose_tools = false`, `log_upstream_body = false`), and its README warns that body logging may capture prompts and tool arguments.",
+          "source": "https://github.com/bharat2808/codex-ollama-proxy",
+          "note": null
+        },
+        {
+          "text": "A Python \"Codex-Ollama Protocol Bridge\" (`proxy.py`, 807 lines, v1.1.0) targets Codex 0.130.0 or later with `--oss --local-provider ollama`, translates `/v1/responses` to `/v1/chat/completions`, and calls Ollama non-streaming while synthesising the SSE event sequence itself.",
+          "source": "https://huggingface.co/Sheikylife/codex-ollama-protocol-bridge/blob/main/README.md",
+          "note": null
+        },
+        {
+          "text": "The same bridge cuts Codex's tool schemas from about 4,100 tokens to about 800 by keeping ten tools (`exec_command`, `write_stdin`, `spawn_agent`, `view_image`, `update_plan`, `request_user_input`, `send_input`, `resume_agent`, `wait_agent`, `close_agent`) with only essential parameters.",
+          "source": "https://huggingface.co/Sheikylife/codex-ollama-protocol-bridge/blob/main/README.md",
+          "note": null
+        },
+        {
+          "text": "That bridge's README does not mention `namespace` tools, so it does not flatten MCP namespaces; its author rates qwen3:14b \"stable\" for tool calls and llama3.1:8b \"weak\".",
+          "source": "https://huggingface.co/Sheikylife/codex-ollama-protocol-bridge/blob/main/README.md",
+          "note": null
+        },
+        {
+          "text": "A Palantir community post (2026-07-08) describes an LLM proxy returning a plain `function_call` for an MCP tool Codex had sent inside `{\"type\":\"namespace\",\"name\":\"mcp__codestrap_local_dev\",...}`, which Codex rejected as \"unsupported call: palantir_broker\".",
+          "source": "https://community.palantir.com/t/tool-calling-is-broken-for-codex-with-llm-proxies/6911",
+          "note": null
+        },
+        {
+          "text": "The post's fix is bidirectional: add `namespace` to the returned `function_call`, and remove `namespace` from the next request, because the upstream rejected it with `unrecognizedProperty=namespace`.",
+          "source": "https://community.palantir.com/t/tool-calling-is-broken-for-codex-with-llm-proxies/6911",
+          "note": null
+        },
+        {
+          "text": "Codex resolves MCP calls with strict equality on `ToolName` structs, so a flat name such as `mcp__tilth__search` returned without a namespace fails with \"unsupported call\" or \"unsupported payload\"; the issue proposes splitting on `__` when a direct match fails.",
+          "source": "https://api.github.com/repos/openai/codex/issues/20652",
+          "note": null
+        },
+        {
+          "text": "Codex 42488 reports the same miss for dotted names: a custom provider returned `multi_agent_v1.spawn_agent` with `namespace: None`, giving \"unsupported call: multi_agent_v1.spawn_agent\"; the proposed fix splits at the first dot only when no explicit namespace is present.",
+          "source": "https://api.github.com/repos/openai/codex/issues/42488",
+          "note": null
+        },
+        {
+          "text": "Flattened names can break provider limits: Meta Muse Spark 1.3 through OpenRouter returned HTTP 400 \"`name` must be at most 64 characters, got 66\" when Codex Apps were enabled, and `-c 'features.apps=false'` removed the failure.",
+          "source": "https://api.github.com/repos/openai/codex/issues/46358",
+          "note": null
+        },
+        {
+          "text": "Codex Desktop 26.909.12148 against a DeepSeek endpoint serialised each namespace definition once per tool, giving \"Duplicate namespace name 'codex_app' in input[N].tools[0]. Namespace names must be unique.\"",
+          "source": "https://api.github.com/repos/openai/codex/issues/44710",
+          "note": null
+        },
+        {
+          "text": "A cc-switch issue titled \"Native Responses disables tool_search and sends 744 flattened tools, exceeding xAI's 350-tool limit\" shows that flattening every deferred tool can overrun a provider's tool-count cap.",
+          "source": "https://api.github.com/search/issues?q=codex+namespace+flatten+proxy+mcp+responses&per_page=20",
+          "note": null
+        },
+        {
+          "text": "Ollama's Responses handler builds the model's tool list from the request's own `tools` array, so functions loaded by a client-executed `tool_search` (delivered in `tool_search_output` items) are readable as text but not callable; the issue was open on 2026-10-04.",
+          "source": "https://api.github.com/repos/ollama/ollama/issues/18306",
+          "note": null
+        },
+        {
+          "text": "llama.cpp issue 24295 (open) proposes flattening each nested function into a Chat Completions tool and converting `web_search` into a fixed function, but its patch discards the namespace.",
+          "source": "https://api.github.com/repos/ggml-org/llama.cpp/issues/24295",
+          "note": null
+        },
+        {
+          "text": "llama.cpp issue 25193 proposed reversible flattening (encode namespace and name into one flat function name, decode on the Responses output) in a fork branch, and was closed by the stale bot on 2026-08-15 without a merge.",
+          "source": "https://api.github.com/repos/ggml-org/llama.cpp/issues/25193",
+          "note": null
+        },
+        {
+          "text": "Other gateways have the same gap: the Bifrost, ai-dynamo and cursor-api-proxy trackers each carry an open item about flattening or accepting OpenAI `namespace` tool groups.",
+          "source": "https://api.github.com/search/issues?q=codex+namespace+flatten+proxy+mcp+responses&per_page=20",
+          "note": null
+        },
+        {
+          "text": "Inferred: a correct flattening proxy must keep a per-request map from flat name to `{namespace, name}`, return the bare name plus `namespace`, remove `namespace` from echoed history if the upstream rejects it, and cap joined names at 64 characters.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Inferred: a proxy that groups tools by namespace should de-duplicate namespace entries before flattening, because Codex Desktop builds have sent the same namespace once per tool.",
+          "source": "asserted",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Corrections and disagreements",
+      "facts": [
+        {
+          "text": "CONTRADICTS: codex-namespace-and-hosted-tool-types-skipped-by.md on the proxy's name: `codex-ollama-proxy` is now `codex-universal-proxy`; the first universal command migrates `~/.codex/ollama-shape-proxy` to `~/.codex/codex-universal-proxy`, copies legacy catalog and reference files forward, and replaces legacy service registrations.",
+          "source": "https://github.com/bharat2808/codex-ollama-proxy",
+          "note": null
+        }
+      ]
+    }
+  ],
+  "related": []
+}

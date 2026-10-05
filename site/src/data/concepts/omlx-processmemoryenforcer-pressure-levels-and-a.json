@@ -1,0 +1,99 @@
+{
+  "slug": "omlx-processmemoryenforcer-pressure-levels-and-a",
+  "concept": "oMLX ProcessMemoryEnforcer pressure levels and adjust_store_cache_cap",
+  "generated": "2026-10-05",
+  "summary": "Pressure levels are ok below the soft mark, soft between soft and hard, and hard at or above the hard mark, both marks being fractions of the recomputed hard-limit ceiling; the ceiling moves every tick with system availability.",
+  "facets": [
+    {
+      "title": "Facts",
+      "facts": [
+        {
+          "text": "Pressure levels are ok below the soft mark, soft between soft and hard, and hard at or above the hard mark, both marks being fractions of the recomputed hard-limit ceiling; the ceiling moves every tick with system availability.",
+          "source": "https://raw.githubusercontent.com/jundot/omlx/main/omlx/process_memory_enforcer.py",
+          "note": null
+        },
+        {
+          "text": "At soft pressure the enforcer evicts idle non-pinned LRU models only while more than one is loaded, pauses new admissions, and leaves in-flight requests alone.",
+          "source": "https://raw.githubusercontent.com/jundot/omlx/main/omlx/process_memory_enforcer.py",
+          "note": null
+        },
+        {
+          "text": "At hard pressure it unloads even the last idle non-pinned model, aborting its requests first, since an idle model holds no KV worth keeping.",
+          "source": "https://raw.githubusercontent.com/jundot/omlx/main/omlx/process_memory_enforcer.py",
+          "note": null
+        },
+        {
+          "text": "At hard pressure with a sole busy non-pinned victim it aborts that model's requests and keeps the model loaded unless emergency pressure holds, in which case it marks a pending unload.",
+          "source": "https://raw.githubusercontent.com/jundot/omlx/main/omlx/process_memory_enforcer.py",
+          "note": null
+        },
+        {
+          "text": "At hard pressure with nothing evictable it first flags in-progress model loads to abort, and only if none exist does it abort active requests (emergency only) or call `request_idle_reclaim` on each scheduler.",
+          "source": "https://raw.githubusercontent.com/jundot/omlx/main/omlx/process_memory_enforcer.py",
+          "note": null
+        },
+        {
+          "text": "Emergency pressure is not the hard watermark: it requires usage at or above the real ceiling and either 2 GiB over it or 2 consecutive polls over it (`_EMERGENCY_OVER_CEILING_MARGIN_BYTES`, `_EMERGENCY_OVER_CEILING_POLLS`).",
+          "source": "https://raw.githubusercontent.com/jundot/omlx/main/omlx/process_memory_enforcer.py",
+          "note": null
+        },
+        {
+          "text": "Before pausing admission or evicting, a tick at or above soft calls `clear_image_decode_cache` and re-measures usage.",
+          "source": "https://raw.githubusercontent.com/jundot/omlx/main/omlx/process_memory_enforcer.py",
+          "note": null
+        },
+        {
+          "text": "When the level is not ok and not emergency, `request_pressure_reclaim` is sent to every resolvable scheduler and enforcement is deferred for at most `_PRESSURE_RECLAIM_GRACE_POLLS_MAX = 5` consecutive polls per pressure episode; the counter resets when the level returns to ok.",
+          "source": "https://raw.githubusercontent.com/jundot/omlx/main/omlx/process_memory_enforcer.py",
+          "note": null
+        },
+        {
+          "text": "The reclaim request is skipped unless the MLX buffer pool exceeds `_POOL_RECLAIM_FLOOR` (2 GiB) or a hot-cache shrink just freed references.",
+          "source": "https://raw.githubusercontent.com/jundot/omlx/main/omlx/process_memory_enforcer.py",
+          "note": null
+        },
+        {
+          "text": "The enforcer never touches Metal itself: it sets a GIL-atomic flag and the scheduler clears the cache on the inference thread at the next step boundary, even under load, unlike `request_idle_reclaim` which waits for idle.",
+          "source": "https://raw.githubusercontent.com/jundot/omlx/main/omlx/process_memory_enforcer.py",
+          "note": null
+        },
+        {
+          "text": "After a hot-cache shrink at hard pressure the level is recomputed, and the enforcer can drop from hard to soft or ok without evicting a model.",
+          "source": "https://raw.githubusercontent.com/jundot/omlx/main/omlx/process_memory_enforcer.py",
+          "note": null
+        },
+        {
+          "text": "`_walk_store_cache_caps` calls `scheduler.adjust_store_cache_cap(pressure_level)` on every tick, including deferred ticks and ok ticks, so the cap moves at most one step per poll; at ok it recovers toward `max_num_seqs`.",
+          "source": "https://raw.githubusercontent.com/jundot/omlx/main/omlx/process_memory_enforcer.py",
+          "note": null
+        },
+        {
+          "text": "Poll interval is 1.0 s while pressure is not ok, an activity hint is live, a model is loading, or any engine has active requests (or cannot report them); 10 s when models are loaded and idle; 30 s when none are loaded.",
+          "source": "https://raw.githubusercontent.com/jundot/omlx/main/omlx/process_memory_enforcer.py",
+          "note": null
+        },
+        {
+          "text": "`wake()` sets an event so the loop re-checks early and extends an activity hint of at least 2 s.",
+          "source": "https://raw.githubusercontent.com/jundot/omlx/main/omlx/process_memory_enforcer.py",
+          "note": null
+        },
+        {
+          "text": "The adaptive prefill chunk sizer uses fractions of the hard ceiling of 0.90 safe, 0.92 balanced, 0.97 aggressive and 0.95 custom; the pre-chunk abort margin uses 0.90, 0.93, 0.97 and 0.95.",
+          "source": "https://raw.githubusercontent.com/jundot/omlx/main/omlx/process_memory_enforcer.py",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Corrections and disagreements",
+      "facts": [
+        {
+          "text": "CONTRADICTS: omlx-store-cache-admission-gate-and-60-s-admissi.md only in timing granularity: the cap walk runs per enforcement tick (1 s under pressure, but 10 s or 30 s when idle and ok), not per pressure transition.",
+          "source": "https://raw.githubusercontent.com/jundot/omlx/main/omlx/process_memory_enforcer.py",
+          "note": null
+        }
+      ]
+    }
+  ],
+  "related": []
+}

@@ -1,0 +1,174 @@
+{
+  "slug": "omlx-per-model-chat-template-kwargs-and-cache-ke",
+  "concept": "oMLX per-model chat template kwargs and cache-key construction",
+  "generated": "2026-10-05",
+  "summary": "Merge order, lowest to highest (model_settings.py `merge_chat_template_kwargs`): (1) the model's stored `chat_template_kwargs`; (2) the dedicated model fields `enable_thinking` and `preserve_thinking` when not None; (3) request `chat_template_kwargs`, except keys listed in the model's `forced_ct_...",
+  "facets": [
+    {
+      "title": "Facts",
+      "facts": [
+        {
+          "text": "Merge order, lowest to highest (model_settings.py `merge_chat_template_kwargs`): (1) the model's stored `chat_template_kwargs`; (2) the dedicated model fields `enable_thinking` and `preserve_thinking` when not None; (3) request `chat_template_kwargs`, except keys listed in the model's `forced_ct_kwargs`; (4) `enable_thinking=true` when a thinking budget is active and the key is still unset; (5) `preserve_thinking=true` when the model's detected default is true, `enable_thinking` is not false, and the key is still unset.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "`forced_ct_kwargs` is a per-model list of keys a request may not override; request values for those keys are dropped silently.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Detection of the preserve default (model_discovery.py `detect_preserve_thinking`): read `chat_template.jinja` from the model directory, else the `chat_template` string in `tokenizer_config.json`; if the text contains the substring `preserve_thinking`, the model's default is true. This is a plain substring test, so a template that mentions the name only in a comment also qualifies. The default is stored in the model entry as `preserve_thinking_default`.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Consequence: for Qwen3.6 and Qwen3.8 templates oMLX turns preserved thinking on by itself, which is what the held dossiers listed as an open question. The same code sets the output-caching flag (see reasoning-token-cache-invalidation-across-turns.md).",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "API reasoning effort enters through `merge_reasoning_effort_chat_template_kwargs` with `setdefault`, so an explicit kwarg in settings or request wins over the API field.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Render call: `tokenizer.apply_chat_template(messages, tokenize=False, add_generation_prompt=True, [tools], **kwargs)`. If it raises `TypeError`, oMLX removes every key the user supplied, `tools`, and `enable_thinking`, and renders again; a template with strict signature therefore silently loses the user's kwargs on the retry. The reasoning-effort path has its own retry (see qwen-3-8-chat-template-fixes-and-reasoning-level.md).",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Cache key (omlx/cache/paged_cache.py `compute_block_hash`): SHA-256 over the model name (when given), the parent block hash (or the constant `omlx-root` for the first block), the block's token ids rendered as a tuple string, and optional `extra_keys` (used for LoRA and multimodal feature hashes). Chat-template kwargs, effort, profile name and `cache_control` markers are not inputs.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Because each block hash includes its parent's hash, one changed token invalidates that block and every later block of the same prefix chain.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Prefix matching in the scheduler compares token sequences (`_common_prefix_len`) and floors reuse to the paged block size (a reviewer cites 2048 for a Qwen3.8 27B hybrid).",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Admin UI: a saved profile template matches a profile by its `chat_template_kwargs` regardless of nested key order, and a changed value breaks the match (tests/test_admin_model_settings_template.py).",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Per-model kwargs, profiles and `forced_ct_kwargs` are on main as of 2026-10-04; introduction dates were not found.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Two profiles of one model that render the same tokens share cache blocks only if `model_name` in the hash is the base model name; whether it is the base name or the profile alias was not read.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Setting `preserve_thinking=false` per model overrides the auto default and also turns off output caching, so the setting changes both the prompt bytes and what oMLX stores.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "A template mentioning `preserve_thinking` only in a comment gets preserved-thinking forced on; a template using a differently named key (for example `clear_thinking` or `drop_thinking`, the other names llama.cpp aliases) gets no auto default.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "The TypeError retry drops all user kwargs, not just the one that failed, so a typo in one kwarg can silently disable `enable_thinking` and `preserve_thinking` and change the prompt.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Because the cache key ignores kwargs, switching `enable_thinking` between requests does not need explicit invalidation: the changed generation prompt changes the token ids at the tail only, and earlier blocks stay shared.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Whether `model_name` in the block hash is the base model or the profile alias.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Whether the Anthropic route and the OpenAI route pass identical merged kwargs (both call `merge_chat_template_kwargs`, but the Anthropic adapter was not read line by line).",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Whether profiles saved through the admin panel are applied to API-key-scoped requests differently from the default profile.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "oMLX merges model chat_template_kwargs, then dedicated enable_thinking and preserve_thinking toggles, then request kwargs except forced keys, then a thinking-budget enable_thinking default, then the detected preserve_thinking default",
+          "source": "https://raw.githubusercontent.com/jundot/omlx/main/omlx/model_settings.py",
+          "note": null
+        },
+        {
+          "text": "ModelSettings has a forced_ct_kwargs list of chat-template keys that API requests cannot override",
+          "source": "https://raw.githubusercontent.com/jundot/omlx/main/omlx/model_settings.py",
+          "note": null
+        },
+        {
+          "text": "detect_preserve_thinking reads chat_template.jinja, else tokenizer_config.json, and returns true when the text contains the substring preserve_thinking",
+          "source": "https://raw.githubusercontent.com/jundot/omlx/main/omlx/model_discovery.py",
+          "note": null
+        },
+        {
+          "text": "oMLX sets preserve_thinking=true automatically when the model's detected default is true, enable_thinking is not false and the key is unset",
+          "source": "https://raw.githubusercontent.com/jundot/omlx/main/omlx/model_settings.py",
+          "note": null
+        },
+        {
+          "text": "merge_reasoning_effort_chat_template_kwargs uses setdefault so explicit kwargs override the API reasoning effort",
+          "source": "https://raw.githubusercontent.com/jundot/omlx/main/omlx/api/utils.py",
+          "note": null
+        },
+        {
+          "text": "On TypeError from apply_chat_template oMLX removes all user kwargs, tools and enable_thinking and renders again",
+          "source": "https://raw.githubusercontent.com/jundot/omlx/main/omlx/engine/batched.py",
+          "note": null
+        },
+        {
+          "text": "compute_block_hash hashes model name, parent block hash (or omlx-root), the block's token ids and optional extra keys with SHA-256",
+          "source": "https://raw.githubusercontent.com/jundot/omlx/main/omlx/cache/paged_cache.py",
+          "note": null
+        },
+        {
+          "text": "A reviewer on 3608 reads cache_control as unused by oMLX's prefix comparison, which works on token sequences",
+          "source": "https://github.com/jundot/omlx/issues/3608",
+          "note": null
+        },
+        {
+          "text": "compute_block_hash takes no chat-template kwargs, effort or profile argument",
+          "source": "https://raw.githubusercontent.com/jundot/omlx/main/omlx/cache/paged_cache.py",
+          "note": null
+        },
+        {
+          "text": "A reviewer on 3608 reads the scheduler as flooring reused prefix length to the paged block size, 2048 for the reporter's Qwen3.8 27B model",
+          "source": "https://github.com/jundot/omlx/issues/3608",
+          "note": null
+        },
+        {
+          "text": "oMLX's mid-system probe cache key includes the frozen chat-template kwargs",
+          "source": "https://raw.githubusercontent.com/jundot/omlx/main/omlx/api/utils.py",
+          "note": null
+        },
+        {
+          "text": "Chain hashing means one changed token invalidates every later block of that prefix",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "The substring test for preserve_thinking cannot tell a live use of the variable from a mention in a comment",
+          "source": "asserted",
+          "note": null
+        }
+      ]
+    }
+  ],
+  "related": []
+}

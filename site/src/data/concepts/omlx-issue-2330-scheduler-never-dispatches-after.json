@@ -1,0 +1,234 @@
+{
+  "slug": "omlx-issue-2330-scheduler-never-dispatches-after",
+  "concept": "oMLX issue 2330: scheduler never dispatches after two identical cached prefills",
+  "generated": "2026-10-05",
+  "summary": "Prefix-cache reconstruction (restoring cached KV blocks into arrays) ran on the default GPU stream (`gpu,0`). The incremental prefill then consumed those arrays inside the engine's own thread-local stream. Mixing two streams in one graph inserts a cross-stream fence.",
+  "facets": [
+    {
+      "title": "Facts",
+      "facts": [
+        {
+          "text": "Prefix-cache reconstruction (restoring cached KV blocks into arrays) ran on the default GPU stream (`gpu,0`). The incremental prefill then consumed those arrays inside the engine's own thread-local stream. Mixing two streams in one graph inserts a cross-stream fence.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "The fence normally resolves at once. In the report it wedged forever because the previous request pair's asynchronous cache store was still draining on the default stream, and `MLX_METAL_FAST_SYNCH=1` was set.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Once the scheduler step stuck in `mx.eval`, nothing else ran: aborts are processed only at the start of the next scheduler step, so cancelled requests stayed as one phantom `waiting_requests: 1` with `active_requests: 0`, a fresh request was never admitted, `POST /v1/models/{id}/unload` hung, and SIGTERM could not run teardown.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "The fix keeps reconstruction on the engine stream: the call to `_prepare_prefix_cache_for_request(request)` in `_schedule_waiting` is wrapped in `with mx.stream(self._stream)`. The same commit wraps boundary-snapshot `save()` in the same context.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "2026-07-22 11:00 local: two identical 8.3k-token, about 99% cached requests (`max_tokens=1`) arrive right after a previous identical pair finished, plus a third; 11 minutes with zero log lines, then client kills.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "2026-07-22: the maintainer replies with the root cause and lands commit 386e654 (\"fix: keep prefix cache reconstruction on the per-engine stream (#2330)\") the same day.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "2026-07-23: the reporter's host wedged again 13 minutes after a reboot on 0.5.3, with strictly sequential traffic and a lock preventing twins; the failure came at the first idle after a prewarm cycle. The reporter rolled back to 0.5.2-final, then ran a source build at 386e654 on top of 0.5.3 and everything passed.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "2026-08-02: release 0.5.4 lists \"Prefix-cache reconstruction stays on the engine stream. Fully cached concurrent prefills no longer wedge during restore\" crediting issue 2330.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "2026-08-17: on 0.6.0 the reporter's twin reproducer no longer wedges.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Same bug class, earlier fixes: issue 2183 (prefill chunk views split across two streams; commit 69ea88d, in 0.5.1) and issue 2235 (batch KV mutations on the wrong stream after a mid-decode abort; commit 31c3c10, in 0.5.2.dev1 and listed in the 0.5.3 notes).",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "The twins were never necessary. Any request admitted while the previous request's async cache store is still draining on the default stream creates the same cross-stream wait; the twins only raised the odds. A prewarm cycle that re-materializes about 8k cached tokens each tick followed by an idle gap hit the same wedge.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Two resident models can reintroduce a wedge on an older build: 0.5.2 with GLM-5.2 alone ran 4 days stable, but wedged about an hour after boot once a second small model had been auto-loaded beside it.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "The wedge leaves `/health` green and HTTP up; the only signals are zero log lines and `active: 0, waiting: 1` in `/api/status`.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Exit without teardown strands the model's wired memory (about 405 GB here), recoverable only by reboot (issue 2184); issue 2334 adds that the 60 s fatal teardown watchdog can itself exit mid-teardown on a 420 GB engine.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "The reporter's first reading (twins racing on one cached block chain) versus the maintainer's: a fence class bug, with per-block locking ruled out because the refcount and copy-on-write path is bounded with no lock cycle.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "The reporter on 0.6.0 wondered whether the fix was a side effect of the decode-fairness rework; the maintainer's commit and the 0.5.4 notes show it was the targeted change.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "The maintainer first suspected that 0.5.3 newly enabled native MTP; the reporter's log grep showed identical MTP patch lines on 0.5.2 and 0.5.3 and the maintainer withdrew the idea.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Whether the residual hazard the maintainer later named in issue 2624 (store worker syncing the engine stream while holding the buffer lock) is a separate bug from the fence fixed here; 2624 recurred on 0.5.4 and 0.6.1.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "The cached copy of 2330 hides 2 comments (\"2 remaining items\"); their content is unread.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Whether `MLX_METAL_FAST_SYNCH` is needed at all outside distributed runs (see mlx-metal-fast-synch dossiers).",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Issue 2330 was opened on 2026-07-22 on oMLX 0.5.2 with GLM-5.2 mxfp4 plus native MTP on an M3 Ultra 512 GB, launched with `--memory-guard-gb 470 --max-concurrent-requests 4 --hot-cache-max-size 128GB` and `MLX_METAL_FAST_SYNCH=1`.",
+          "source": "https://github.com/jundot/omlx/issues/2330",
+          "note": null
+        },
+        {
+          "text": "The trigger was two byte-identical 8.3k-token requests, about 99% prefix-cached, admitted right after an identical pair completed; the twins then showed `active_requests: 2` with no log lines for 11 minutes.",
+          "source": "https://github.com/jundot/omlx/issues/2330",
+          "note": null
+        },
+        {
+          "text": "After the client kills, `/api/status` stayed at `active: 0, waiting: 1`, a new `max_tokens: 5` request never returned, unload hung beyond 60 s, and SIGTERM exited with no teardown lines and about 405 GB wired stranded.",
+          "source": "https://github.com/jundot/omlx/issues/2330",
+          "note": null
+        },
+        {
+          "text": "The maintainer's diagnosis: reconstruction built KV arrays on the default stream while the incremental prefill consumed them on the per-engine stream, and the resulting fence wedged forever under `MLX_METAL_FAST_SYNCH=1` while the previous pair's async cache store drained on the default stream.",
+          "source": "https://github.com/jundot/omlx/issues/2330",
+          "note": null
+        },
+        {
+          "text": "The maintainer called the phantom waiting entry and the blocked teardown downstream symptoms, because aborts are processed only at the start of the next scheduler step, which never ran.",
+          "source": "https://github.com/jundot/omlx/issues/2330",
+          "note": null
+        },
+        {
+          "text": "The maintainer checked the per-block locking theory and reported that the refcount and copy-on-write path is bounded and has no lock cycle.",
+          "source": "https://github.com/jundot/omlx/issues/2330",
+          "note": null
+        },
+        {
+          "text": "The maintainer placed this bug in the same class as issues 2183 and 2235 and said this spot was missed by those fixes.",
+          "source": "https://github.com/jundot/omlx/issues/2330",
+          "note": null
+        },
+        {
+          "text": "Commit 386e654 wraps `self._prepare_prefix_cache_for_request(request)` in `with mx.stream(self._stream)` and wraps boundary-snapshot `save()` in the same context, with a new test class `TestPrefixCacheReconstructStream` in `tests/test_per_engine_threads.py`.",
+          "source": "https://github.com/jundot/omlx/commit/386e654d8eac7bed1ed2afc8a62fa1955ba5c98a",
+          "note": null
+        },
+        {
+          "text": "The commit's code comment says reconstruction ops otherwise bind to the thread's default stream (`gpu,0`) and the prefill forward consumes them inside `mx.stream(self._stream)`, inserting a cross-stream fence.",
+          "source": "https://github.com/jundot/omlx/commit/386e654d8eac7bed1ed2afc8a62fa1955ba5c98a",
+          "note": null
+        },
+        {
+          "text": "The reporter hit the wedge again on 0.5.3 thirteen minutes after a reboot with sequential traffic, at the first idle after a prewarm cycle that re-loaded about 8k cached tokens.",
+          "source": "https://github.com/jundot/omlx/issues/2330",
+          "note": null
+        },
+        {
+          "text": "The maintainer's answer: any request admitted while the prewarm cycle's async cache store is still draining on the default stream sets up the same cross-stream wait; the twins only raised the odds.",
+          "source": "https://github.com/jundot/omlx/issues/2330",
+          "note": null
+        },
+        {
+          "text": "The reporter's grep showed the MTP patch lines identical on 0.5.2 and 0.5.3, and the maintainer withdrew the MTP hypothesis.",
+          "source": "https://github.com/jundot/omlx/issues/2330",
+          "note": null
+        },
+        {
+          "text": "The maintainer gave two ways to get the fix before a release: `OMLX_WITH_CUSTOM_KERNEL=1 pip install git+https://github.com/jundot/omlx@386e654d`, noting the custom kernels matter because the generic fallback is roughly 30 times slower on GLM-5.2's DSA prefill, or the 0.5.4.dev1 beta DMG.",
+          "source": "https://github.com/jundot/omlx/issues/2330",
+          "note": null
+        },
+        {
+          "text": "The reporter's verification on a source build at 386e654 over 0.5.3: both concurrent twins completed in 113 s, post-idle probes took 5 s and 4 s, and throughput was 17 to 23 tokens per second with MTP acceptance 58 to 86%.",
+          "source": "https://github.com/jundot/omlx/issues/2330",
+          "note": null
+        },
+        {
+          "text": "The reporter saw 0.5.2 wedge about one hour after boot once a second small model was auto-loaded beside GLM-5.2, and then isolated the server to a single-model directory with `--no-hf-cache`.",
+          "source": "https://github.com/jundot/omlx/issues/2330",
+          "note": null
+        },
+        {
+          "text": "On 2026-08-17 on v0.6.0 the reporter's twin reproducer completed in 16.1 s and 14.3 s after a 74 s cold prime with no phantom waiting request.",
+          "source": "https://github.com/jundot/omlx/issues/2330",
+          "note": null
+        },
+        {
+          "text": "The v0.5.4 release notes (2026-08-02) say \"Prefix-cache reconstruction stays on the engine stream. Fully cached concurrent prefills no longer wedge during restore\" and credit issue 2330.",
+          "source": "https://github.com/jundot/omlx/releases/tag/v0.5.4",
+          "note": null
+        },
+        {
+          "text": "The v0.5.4 notes also list \"Metal cache clears wait for the owning stream\" (PRs 2412 and 2413) for prefill cleanup, GLM decode and VLM MTP.",
+          "source": "https://github.com/jundot/omlx/releases/tag/v0.5.4",
+          "note": null
+        },
+        {
+          "text": "The v0.5.3 notes list the issue 2235 fix: lazy batch KV cache operations stay on the owning engine's Metal stream.",
+          "source": "https://github.com/jundot/omlx/releases/tag/v0.5.3",
+          "note": null
+        },
+        {
+          "text": "The maintainer attributed issue 2183 to splitting each prefill chunk across two streams, whose sync fence never completes on macOS 26, fixed in commit 69ea88d.",
+          "source": "https://github.com/jundot/omlx/issues/2183",
+          "note": null
+        },
+        {
+          "text": "The maintainer attributed issue 2235 to trimming the shared KV cache on the wrong GPU stream when a request is aborted mid-decode, fixed in commit 31c3c10 without a local reproduction (44 aborted requests all survived).",
+          "source": "https://github.com/jundot/omlx/issues/2235",
+          "note": null
+        },
+        {
+          "text": "Issue 2334 reports the 60 s fatal teardown watchdog firing on a normal unload of a 420 GB engine and stranding about 381 GB wired.",
+          "source": "https://github.com/jundot/omlx/issues/2334",
+          "note": null
+        },
+        {
+          "text": "The client-side mitigation the reporter used was an `flock` around keep-warm and prewarm requests so identical prompts never overlap.",
+          "source": "https://github.com/jundot/omlx/issues/2330",
+          "note": null
+        },
+        {
+          "text": "For a Mac server running oMLX with `MLX_METAL_FAST_SYNCH=1`, builds before 0.5.4 are exposed to this wedge on any cached prefill that follows a store; 0.5.4 or later removes this specific path.",
+          "source": "asserted",
+          "note": null
+        }
+      ]
+    }
+  ],
+  "related": []
+}

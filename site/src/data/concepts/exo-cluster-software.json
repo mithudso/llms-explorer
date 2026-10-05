@@ -1,0 +1,599 @@
+{
+  "slug": "exo-cluster-software",
+  "concept": "exo cluster software",
+  "generated": "2026-10-05",
+  "summary": "Source on macOS: needs Xcode (Metal toolchain), brew, uv, node, rust nightly and a pinned macmon fork (Homebrew macmon 0.6.1 crashes on M5). Steps: clone, `cd exo/dashboard && npm install && npm run build`, `uv sync --extra mlx`, `uv run exo`. Nix alternative `nix run .#exo`.",
+  "facets": [
+    {
+      "title": "Facts",
+      "facts": [
+        {
+          "text": "Source on macOS: needs Xcode (Metal toolchain), brew, uv, node, rust nightly and a pinned macmon fork (Homebrew macmon 0.6.1 crashes on M5). Steps: clone, `cd exo/dashboard && npm install && npm run build`, `uv sync --extra mlx`, `uv run exo`. Nix alternative `nix run .#exo`.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "App: `EXO-latest.dmg` or `brew install --cask exo`; requires macOS 26.2+. It installs a network profile / LaunchDaemon and an \"exo\" network location; uninstall via menu bar, Advanced, Uninstall, or `sudo ./app/EXO/uninstall-exo.sh`.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Linux runs on CPU only; extras `mlx-cpu`, `mlx-cuda12`, `mlx-cuda13`. `--no-worker` makes a coordinator-only node; `--legacy-daemon` is for SysV init scripts.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Version numbers: GitHub releases latest page shows v1.0.71 (Apr 23 2026), pyproject says 0.3.70, and the repo head is Aug 25 2026 (about 2,354 commits, 47.7k stars). The cached releases list may lag the main branch.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "pyproject pins a patched MLX: `mlx==0.32.0` taken from rltakashige/mlx-jaccl-fix-small-recv branch `address-rdma-gpu-locks` on darwin, and `mlx-lm` from rltakashige/mlx-lm branch `leo/deepseek-v4`. So exo does not run stock MLX.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Env vars: EXO_DEFAULT_MODELS_DIR (~/.exo/models on macOS), EXO_MODELS_DIRS (extra writable, first with space wins), EXO_MODELS_READ_ONLY_DIRS (NFS), EXO_OFFLINE, EXO_ENABLE_IMAGE_MODELS, EXO_FAST_SYNCH, EXO_TRACING_ENABLED, and the cluster-isolation namespace.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Logs rotate into ~/.exo/exo_logs (v1.0.68); event log lives in ~/.exo/event_log.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "libp2p was replaced by zenoh (PR #2132, merged Jun 3 2026). The README still documents EXO_LIBP2P_NAMESPACE; PR #2303 (docs) says it was renamed EXO_ZENOH_NAMESPACE, and PR #2319 (\"honour EXO_ZENOH_NAMESPACE so clusters can be isolated again\") implies isolation was broken after the swap. EXO_ZENOH_CONNECT (PR #2243, open) dials peers by unicast.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Before zenoh, v1.0.69 added `--bootstrap-peers` and `--libp2p-port` for static peers when mDNS is unavailable.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Open PRs Sep 27-28 2026 by AlexCheema target post-zenoh discovery faults: #2346 (stale sessions after stall caused permanent one-way splits), #2328 (election heartbeat so split clusters converge and a crashed master is replaced), #2327 (rediscover peers after a stall), #2326 (one stalled node froze event delivery for the whole cluster), #2322 (catch up lagging nodes from a state snapshot instead of replaying the full event log).",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Open PR #2254 (abendrothj) would measure link latency and prefer low-latency paths for ring hosts; bandwidth-aware shard assignment PR #1088 was closed unmerged (Jul 26 2026). The shipped placement does not use measured link bandwidth.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "The master takes `topology.get_cycles()`, keeps cycles with at least `min_nodes`, optionally requires a subset of node ids (v1.0.65 changed filter to subset matching), then filters by available memory against the model's storage_size.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Tensor sharding is allowed only if the model card has `supports_tensor`, `hidden_size % len(cycle) == 0` and `num_key_value_heads % len(cycle) == 0` (the code comments that this check is \"not correct, but good enough\"). DeepSeek V4 is exempt from the KV-head test because it head-parallelises wq_b/wo_a and shards experts.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Pipeline is rejected for DeepSeek V3.1 8-bit and Gemma 4 (Gemma 4 pipeline allowed only on single-node cycles).",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Backend filter: MlxRing works on MlxMetal, MlxCuda, MlxCpu backends; MlxJaccl only on MlxMetal. A model card's `backends` list must intersect (PR #2071 \"node backends in model cards\").",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "JACCL placement additionally requires an RDMA-connected cycle and `rdma_ctl` enabled on every node in it; otherwise it raises \"Requested RDMA (MlxJaccl) but no RDMA-connected cycles available\".",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Selection: take the smallest cycles; prefer cycles that contain a leaf node; then max by (sum of download fractions of the model across the cycle, total available RAM). A single-node cycle is forced to Pipeline + MlxRing.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Nodes with more of the model already downloaded are preferred (PRs #1767, #1795).",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Rank 0 of a JACCL instance is the coordinator; the runner gets a hosts JSON in a temp dir via MLX_IBV_DEVICES and MLX_JACCL_COORDINATOR (v1.0.69 moved the file to tmpdir to avoid local-network-permission prompts).",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Endpoints: /v1/chat/completions, /v1/messages (Claude), /v1/responses (OpenAI Responses), /ollama/api/chat and /ollama/api/tags, /v1/models alias of /models, /models/add, /models/search, /models/custom/{id}, /state, /state/paths (v1.0.70), /instance/previews, /instance/placement, POST /instance (create, async), \"place instance\" using server logic, /instance/await (SSE, emits `ready` or `timeout`), DELETE /instance/{id}, POST /v1/cancel/{command_id} (v1.0.69), /bench/chat/completions.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Claude Messages and Responses APIs arrived in v1.0.68 (#1167) and Ollama API in v1.0.68 (#1560). Claude headers are stripped to raise prefix-cache hit rate (#1552).",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Custom HF models need explicit enabling for trust_remote_code; global HF search, not only mlx-community, since v1.0.69.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Integration helpers for OpenCode, n8n, OpenClaw (v1.0.70) and a Pi tab (v1.0.71); a user in Geerling's thread reported using port 8000 with OpenWebUI (older build; current default is 52415).",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Model cards are TOML in resources/inference_model_cards (migrated from JSON in v1.0.68). The cached listing (Jun 22 2026 head) includes DeepSeek V3.1/V3.2/V4 Flash/V4 Pro, GLM 4.5 Air/4.7/4.7 Flash/5/5.1, Kimi K2 Instruct/K2 Thinking/K2.5/K2.6 DQ3_K_M-q8 and K2.7-Code, MiniMax M2.1/M2.5/M2.7, Nemotron 3 Nano, Qwen3 (0.6B, 30B-A3B, 235B-A22B, Coder-480B, Coder-Next, Next-80B), Qwen3.5-122B, Qwen3.6 27B, Gemma 4, Step 3.5 Flash. Llama 3.x also present.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Model-support timeline: Kimi K2.5 and MiniMax M2.1 tensor sharding (v1.0.67); Qwen3-Coder-Next, Step 3.5 Flash, GLM 5, MiniMax M2.5, custom HF models (v1.0.68); Qwen3.5, Nemotron sharding, DeepSeek V3.2 (v1.0.69); Gemma 4, MiniMax M2.7, Qwen3.6, vision for Qwen3.5/Kimi K2.5/Gemma 4 (v1.0.70); Kimi K2.6 with vision, GLM 5.1 (v1.0.71).",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Image generation (mflux, FLUX.1-Kontext-dev, Qwen image with parallel CFG) is experimental behind EXO_ENABLE_IMAGE_MODELS.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Continuous batching on by default from v1.0.69, including RDMA instances. Pipeline prefill chunking overlaps compute and comms, \"up to 1.98x faster on 2 nodes\" (vendor claim).",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "v1.0.70 added Flash Attention for Qwen3.5 and Gemma 4 (peak memory cut 3-6x, vendor claim), KV cache garbage collection and better prefix hit rates.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "v1.0.70 also fixed zombie processes that held RDMA resources (#1889); v1.0.71 fixed \"JACCL all_sum corrupting output\" (#1952).",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Prefill/decode disaggregation: an exo blog showed prefill on an NVIDIA DGX Spark and decode on an M3 Ultra, with KV streamed layer by layer, 4x faster total than either alone (Llama-3.1 8B FP16, 8k prompt, 32 tokens: DGX Spark 4.34 s, M3 Ultra 6.42 s alone). Exo \"MLX P/D\" landed in placement_utils (PR #1993, Apr 28 2026).",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Dashboard at http://localhost:52415 shows topology, model picker with fits-in-available vs fits-in-total memory, downloads as a model x node table, prefill progress bar, logprob visualizer, traces, macOS-version mismatch warning, RDMA debug mode.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Benchmark tool: `uv run bench/exo_bench.py --model M --pp 128,512 --tg 128 --max-nodes 2 --sharding tensor --repeat 3 --json-out f.json`; reports prompt_tps, generation_tps, peak memory; v1.0.69 added power usage.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Operators must detect dead RDMA workers themselves: the main process may survive with a 1-node topology. Diff `topology.nodes` across nodes' /state (issue #1847).",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Author ryan5rdx opened Aug 1 2026 and said it was written with Claude assistance; rgerganov approved Aug 25 and ggerganov merged the same day as commit b114b47. Maintainers said none of them owns an RDMA Mac, so review was slow; ryan5rdx was offered RPC-backend maintainership.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Design differences from the Linux RDMA path: UC (unreliable connection) queue pairs on Apple (lossless in practice) vs RC on Linux; fixed 128 KiB stride vs variable chunks; Apple hardware credit flow control instead of RNR NAK retries. A SEND and its RECV must cover the same number of 4 KiB Thunderbolt frames, so each send posts a full 128 KiB stride. 128 KiB beat 32, 64 and 256 KiB in testing.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Explicit flush matters: flushing every send gave 21.17 tok/s (tg2048) vs 22.41 with manual flush; without manual flush about two extra empty TB frames go out per RPC command. A set_tensor micro-optimization and socket pinning were removed in review as not helping.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Author benchmark 1, Qwen3-0.6B UD-Q4_K_XL, M3 Ultra layer-parallel, 1 node baseline prefill 7620, decode 304.8: TCP 2/3/4 nodes decode 115.6/101.1/87.7, prefill 5296/4498/4007; RDMA decode 261.3/164.2/133.5, prefill 7227/7233/6250.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Benchmark 2, Qwen3.6 27B MTP UD-Q4_K_XL (llama-cli, -c 100000, -fa on, -ub 512, -b 4096, worker `-d MTL0 -c -t 12`), 1 node prefill 245.2 decode 24.4: TCP decode 18/17.3/17.7 for 2/3/4 nodes; RDMA decode 22.5/20.5/19.8, prefill 237.5/232.2/227.8. RDMA gain over TCP is 125/118.5/111.9 percent decode. Even with RDMA, no node count beats the single node on a model that fits one Mac.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Benchmark 3, DeepSeek-V4-Flash-0731 GGUF, 2 nodes: RDMA prefill 290 decode 22.37, TCP prefill 275.1 decode 14.7, single node baseline (from PR #25893) prefill 408.93 decode 27.6. RDMA is 152% of TCP decode. 3 and 4 RPC backends failed to init with DeepSeek V4.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Contradicts earlier guess: the PR text says on workers with several active TB interfaces, pass the one facing the client via `GGML_RDMA_DEV=rdma_en7` (example `ggml-rpc-server --host 0.0.0.0 --port 50052 -d MTL0 -c`); final README says the device is chosen by matching the GID of the `--rpc` address and says nothing of GGML_RDMA_DEV. The user must put the Thunderbolt peer address in `--rpc`; a connection over another interface stays TCP. Debug with `GGML_RPC_DEBUG=1`.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Regression after merge: macOS Sequoia users got `dyld: Library not loaded: /usr/lib/librdma.dylib` from libggml-rpc (release b10628) on `llama-server --list-devices`; fixed by PR #27815 (\"fix pre-rdma macOS versions\") merged by Aug 27 2026.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Follow-ups: PR #26610 (open) adds RPC `-sm tensor` with async graph_compute, custom all_reduce (F32 to BF16 cast when ne >= 32768), a graph uid cache and set/get_tensor_2d; first numbers on 2x DGX Spark over RDMA, DeepSeek-4 MXFP4 (145.63 GiB, 284B): pp2048 619.36, tg128 19.75. Not Mac-measured. The author also plans a polled-release fence for lower Apple TB RPC latency.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Net: llama.cpp RPC+RDMA helps memory scaling and cuts the TCP penalty, but is still layer-parallel over a client-orchestrated RPC loop, so it is not a decode speed-up.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Apr 2025: issue #819 \"Exo Project Status\" collects 20 thumbs-up on a stall in commits (Geerling later cites it as a trust issue).",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Dec 19 2025: exo 1.0 open-sourced under Apache 2.0 with RDMA day-0; exo labs' tweet claims latency 300 us to 3 us (Geerling's own figure was <50 us), Kimi K2 Thinking at 28 tok/s, 1.8x on 2 and 3.2x on 4 Macs.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "v1.0.65 to v1.0.66 (Jan 2026): RDMA stability, subset placement, EXO shard instead of upstream shard \"load layer by layer\" to fix models stuck in LOADING and leaked memory.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "v1.0.68 (Feb 2026): biggest release; Claude/Responses/Ollama APIs, `MLX_METAL_FAST_SYNCH` GPU-lock fixes (nodes stuck at 100% GPU needing reboot, #1429, #1489, #1515), FAST_SYNCH turned on for Ring (#1594).",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "v1.0.69 (Mar 26 2026): continuous batching, M5 Pro/Max support via a macmon fix, master re-election race fix for `IOConnectUnmapMemory failed: kr=0xe00002bc` (#1801).",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "v1.0.70/71 (Apr 17/23 2026): multimodality, flash attention, Kimi K2.6.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Jun 3 2026: libp2p to zenoh. Sep 2026: open discovery/election hardening PRs show zenoh-era instability.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Issue #1973 (Apr 24 2026, v1.0.71, 2 nodes, Qwen3.6 27B 8-bit TP): after an overnight idle the first prompt failed the cluster with `[jaccl] Changing queue pair to RTR failed with errno 96` (a new errno beside 22/2/60), and restart did not recover. `Fast synch flag: 1` was on.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Issue #2176 (Jun 24 2026, v1.0.71, macOS 26.5.1, mlx 0.31.2, 4x M3 Ultra 256 GB, Kimi-K2.6 DQ3_K_M-q8 TP4, 126 GB resident per node, swap 0): first real request after a 30 minute idle gave SIGSEGV (signal 11) on one runner within 2-3 s. exo's cleanup then raised `RuntimeError: dictionary changed size during iteration` inside nested TaskGroups, shut down that node's whole exo, the master re-elected and the instance disappeared (topology 4 to 3). Two defects: native crash, plus exo cleanup race.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Issue #1726 (Mar 14 2026, closed): M5 Max 128 GB + M2 Ultra 192 GB, Qwen3.5-397B-A17B 4-bit, only Pipeline + TCP + MlxRing was semi-stable, failed after a few prompts with \"peer queues full, broken pipe, worker teardown\".",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "MLX issue #4319 and exo #1847 comment (Aug 16 2026, mlx 0.32.0, macOS 26.6.1, FAST_SYNCH=0): a no-model loop of 256 MiB `all_sum` every 60 s passed 7 cycles, then rank 1 exited 255 with SIGSEGV in `tbt_post_recv` via `jaccl::RingImpl::all_reduce<2,unsigned char,SumOp>`; all ports still PORT_ACTIVE; `mlx.launch` printed exit 0 anyway. Proves the fault needs neither exo nor a model; Apple Feedback FB24371487 filed. Same trace seen in `MeshImpl::all_gather`. Do not run `distributed_config --auto-setup` twice per boot after a death.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Issue #1847 operator tips: `mlx.launch` swallows non-rank-0 stderr; PP2 concurrency scaling and the 60 s Metal kernel timeout limits on long prefill are in the existing files.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "v1.0.70: the macOS app lets users edit env vars; failed-instance retry loops were removed (#1763).",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "exo \"up to 1.8x on 2, 3.2x on 4 Macs\" (vendor) vs Awni Hannun (HN, Dec 2025): mlx-lm gets \"as much as 3.5x for token generation at batch size 1 over 4 machines\" because sharding model and KV cache 4 ways cuts per-node memory reads; same person says PP gives no speedup. Measured third-party: Geerling exo 1.5-1.6x at 4 nodes on 235B/671B MoE; mlx-lm discussion #2990 TP4 14.8 tok/s on Kimi K2 Thinking. Not averaged: these are different models, quantizations and batch conditions.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "\"exo TP is about 2x faster than mlx.launch TP\": not found in any fetched primary source. The nearest data are exo's 28 tok/s (4x M3 Ultra 512 GB, Kimi K2 Thinking native 4-bit, tweet) vs mlx-lm TP4 14.8 on 5x M3 Ultra (#2990, Q4). Candidate causes, all unverified: exo's own sharding code (EXO shard, v1.0.66), its patched MLX fork with RDMA GPU-lock and small-recv fixes, the author of #2990 saying exo \"invented an inter-node P2P all-reduce\", batch/quant differences, FAST_SYNCH setting.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "README says RDMA device auto-selected by GID; PR author said set GGML_RDMA_DEV when several TB interfaces are active. README is newer and primary, but the PR author is the implementer.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Geerling (Dec 2025): exo the only stack with RDMA. Since Aug 25 2026 llama.cpp RPC also has it, and MLX distributed JACCL always had it (existing files); only exo bundles discovery, placement and API.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Where the \"2x exo vs mlx.launch tensor-parallel\" figure originates; a controlled run (same model, quant, nodes, FAST_SYNCH, mlx version) is missing.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Whether the zenoh-era discovery and election PRs (#2322-#2346) are merged and release in a numbered exo version after v1.0.71.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "The current exo release number after Apr 2026 (cached pages show v1.0.71 as Latest; pyproject says 0.3.70).",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Whether llama.cpp RPC+RDMA numbers on 27B and larger models scale in `-sm tensor` mode on Macs (only Spark data exists).",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Whether the `errno 96` RTR failure is the same family as errno 22.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "exo is Apache 2.0, runs election, worker, master, download coordinator and API on every node, and serves dashboard and API at port 52415",
+          "source": "https://github.com/exo-explore/exo",
+          "note": null
+        },
+        {
+          "text": "exo from source on macOS needs Xcode, brew, uv, node, rust nightly and a pinned macmon fork because Homebrew macmon 0.6.1 crashes on M5",
+          "source": "https://github.com/exo-explore/exo",
+          "note": null
+        },
+        {
+          "text": "exo source install is `uv sync --extra mlx` then `uv run exo` after `npm run build` in dashboard",
+          "source": "https://github.com/exo-explore/exo",
+          "note": null
+        },
+        {
+          "text": "exo macOS app needs macOS 26.2+, installs via `brew install --cask exo` or EXO-latest.dmg, and adds a network profile and LaunchDaemon",
+          "source": "https://github.com/exo-explore/exo",
+          "note": null
+        },
+        {
+          "text": "exo on Linux runs CPU-only, with extras mlx-cpu, mlx-cuda12 and mlx-cuda13, and `--no-worker` makes a coordinator-only node",
+          "source": "https://github.com/exo-explore/exo",
+          "note": null
+        },
+        {
+          "text": "exo pyproject requires Python 3.13 and pins mlx 0.32.0 from the rltakashige/mlx-jaccl-fix-small-recv fork branch address-rdma-gpu-locks on darwin",
+          "source": "https://github.com/exo-explore/exo/blob/main/pyproject.toml",
+          "note": null
+        },
+        {
+          "text": "exo pins mlx-lm to the rltakashige/mlx-lm branch leo/deepseek-v4",
+          "source": "https://github.com/exo-explore/exo/blob/main/pyproject.toml",
+          "note": null
+        },
+        {
+          "text": "exo env vars include EXO_MODELS_DIRS, EXO_MODELS_READ_ONLY_DIRS, EXO_OFFLINE, EXO_ENABLE_IMAGE_MODELS, EXO_FAST_SYNCH and EXO_TRACING_ENABLED",
+          "source": "https://github.com/exo-explore/exo",
+          "note": null
+        },
+        {
+          "text": "exo replaced libp2p with zenoh in PR 2132 merged 2026-06-03",
+          "source": "https://github.com/exo-explore/exo/pulls?q=zenoh",
+          "note": null
+        },
+        {
+          "text": "The exo README still documents EXO_LIBP2P_NAMESPACE while PR 2303 says it was renamed EXO_ZENOH_NAMESPACE",
+          "source": "https://github.com/exo-explore/exo/pulls?q=zenoh",
+          "note": null
+        },
+        {
+          "text": "exo PR 2319 restores EXO_ZENOH_NAMESPACE so clusters can be isolated, implying the swap broke isolation",
+          "source": "https://github.com/exo-explore/exo/pulls?q=zenoh",
+          "note": null
+        },
+        {
+          "text": "Open exo PRs 2322, 2326, 2327, 2328 and 2346 of Sep 27-28 2026 fix stalled-node event freezes, one-way discovery splits and election convergence after zenoh",
+          "source": "https://github.com/exo-explore/exo/pulls?q=zenoh",
+          "note": null
+        },
+        {
+          "text": "exo PR 2254 for link-latency-aware ring ordering is open and bandwidth-aware shard assignment PR 1088 was closed unmerged",
+          "source": "https://github.com/exo-explore/exo/pulls?q=zenoh",
+          "note": null
+        },
+        {
+          "text": "exo v1.0.69 added --bootstrap-peers and --libp2p-port for static peer discovery when mDNS is unavailable",
+          "source": "https://github.com/exo-explore/exo/releases",
+          "note": null
+        },
+        {
+          "text": "exo placement keeps topology cycles with at least min_nodes, filters by memory, then picks the smallest cycles",
+          "source": "https://github.com/exo-explore/exo/blob/main/src/exo/master/placement.py",
+          "note": null
+        },
+        {
+          "text": "exo tensor placement requires model supports_tensor, hidden_size divisible by node count and num_key_value_heads divisible by node count, except DeepSeek V4",
+          "source": "https://github.com/exo-explore/exo/blob/main/src/exo/master/placement.py",
+          "note": null
+        },
+        {
+          "text": "exo rejects pipeline sharding for DeepSeek V3.1 8-bit and for Gemma 4 on multi-node cycles",
+          "source": "https://github.com/exo-explore/exo/blob/main/src/exo/master/placement.py",
+          "note": null
+        },
+        {
+          "text": "exo MlxJaccl instances require an RDMA cycle with rdma_ctl enabled on every node and run on the MlxMetal backend only; MlxRing also supports MlxCuda and MlxCpu",
+          "source": "https://github.com/exo-explore/exo/blob/main/src/exo/master/placement.py",
+          "note": null
+        },
+        {
+          "text": "exo chooses among cycles preferring leaf-containing cycles, then highest model download fraction, then most available RAM",
+          "source": "https://github.com/exo-explore/exo/blob/main/src/exo/master/placement.py",
+          "note": null
+        },
+        {
+          "text": "exo forces Pipeline plus MlxRing when the chosen cycle has one node",
+          "source": "https://github.com/exo-explore/exo/blob/main/src/exo/master/placement.py",
+          "note": null
+        },
+        {
+          "text": "exo exposes /v1/messages (Claude), /v1/responses, /ollama/api/chat, /ollama/api/tags, /instance/await (SSE ready or timeout), /instance/placement and /v1/cancel/{command_id}",
+          "source": "https://github.com/exo-explore/exo",
+          "note": null
+        },
+        {
+          "text": "exo Claude Messages and Responses APIs shipped in v1.0.68 and the Ollama API also in v1.0.68",
+          "source": "https://github.com/exo-explore/exo/releases",
+          "note": null
+        },
+        {
+          "text": "exo strips Claude headers to improve prefix cache hit rates",
+          "source": "https://github.com/exo-explore/exo/releases",
+          "note": null
+        },
+        {
+          "text": "exo continuous batching is on by default from v1.0.69, including RDMA instances",
+          "source": "https://github.com/exo-explore/exo/releases",
+          "note": null
+        },
+        {
+          "text": "exo v1.0.69 pipeline prefill chunking is claimed up to 1.98x faster on 2 nodes",
+          "source": "https://github.com/exo-explore/exo/releases",
+          "note": null
+        },
+        {
+          "text": "exo v1.0.70 added Flash Attention for Qwen3.5 and Gemma 4 with claimed 3-6x lower peak memory",
+          "source": "https://github.com/exo-explore/exo/releases",
+          "note": null
+        },
+        {
+          "text": "exo v1.0.71 released 2026-04-23 added Kimi K2.6 and fixed JACCL all_sum corrupting output",
+          "source": "https://github.com/exo-explore/exo/releases",
+          "note": null
+        },
+        {
+          "text": "exo v1.0.68 fixed MLX_METAL_FAST_SYNCH GPU locks that left nodes at 100 percent GPU needing reboot, and enabled FAST_SYNCH for Ring instances",
+          "source": "https://github.com/exo-explore/exo/releases",
+          "note": null
+        },
+        {
+          "text": "exo v1.0.69 fixed a master re-election race causing `IOConnectUnmapMemory failed: kr=0xe00002bc` node hangs",
+          "source": "https://github.com/exo-explore/exo/releases",
+          "note": null
+        },
+        {
+          "text": "exo v1.0.66 switched to exo's own shard loader (layer by layer) to fix models stuck in LOADING and memory not released on instance delete",
+          "source": "https://github.com/exo-explore/exo/releases",
+          "note": null
+        },
+        {
+          "text": "exo model cards are TOML files in resources/inference_model_cards and cover DeepSeek V3.1/V3.2/V4, GLM 4.7/5/5.1, Kimi K2 to K2.7-Code, MiniMax M2.x, Qwen3/3.5/3.6 and Nemotron",
+          "source": "https://github.com/exo-explore/exo/tree/main/resources/inference_model_cards",
+          "note": null
+        },
+        {
+          "text": "exo demonstrated prefill on a DGX Spark and decode on an M3 Ultra with layer-wise KV streaming, 4.34 s vs 6.42 s total for Llama-3.1 8B at 8k context",
+          "source": "https://blog.exolabs.net/nvidia-dgx-spark/",
+          "note": null
+        },
+        {
+          "text": "exo labs tweet of 2025-12-19 states RDMA reduces latency from 300 microseconds to 3 microseconds and Kimi K2 Thinking runs at 28 tok/s on 4 M3 Ultra",
+          "source": "https://x.com/exolabs/status/2001817749744476256",
+          "note": null
+        },
+        {
+          "text": "exo issue 1973 reports `[jaccl] Changing queue pair to RTR failed with errno 96` after overnight idle on v1.0.71 with 2 nodes",
+          "source": "https://github.com/exo-explore/exo/issues/1973",
+          "note": null
+        },
+        {
+          "text": "exo issue 2176 reports SIGSEGV on the first inference after a 30 minute idle on 4x M3 Ultra TP4 Kimi-K2.6, followed by a `dictionary changed size during iteration` cleanup race that shut down the whole node",
+          "source": "https://github.com/exo-explore/exo/issues/2176",
+          "note": null
+        },
+        {
+          "text": "exo issue 1726 reports a 2-node M5 Max plus M2 Ultra cluster stable only with Pipeline, TCP and MlxRing",
+          "source": "https://github.com/exo-explore/exo/issues/1726",
+          "note": null
+        },
+        {
+          "text": "MLX issue 4319 reproduces a tbt_post_recv SIGSEGV with a model-free 256 MiB all_sum loop on 4x M3 Ultra, failing at the eighth 60 s cycle with all ports active",
+          "source": "https://github.com/ml-explore/mlx/issues/4319",
+          "note": null
+        },
+        {
+          "text": "mlx.launch prints exit 0 even when a rank exits 255",
+          "source": "https://github.com/ml-explore/mlx/issues/4319",
+          "note": null
+        },
+        {
+          "text": "Awni Hannun states MLX tensor parallelism gives up to 3.5x decode speedup at batch 1 on 4 machines and pipeline parallelism gives none",
+          "source": "https://news.ycombinator.com/item?id=46249258",
+          "note": null
+        },
+        {
+          "text": "No fetched primary source states an \"exo is 2x faster than mlx.launch tensor parallel\" figure",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "The author of mlx discussion 2990 credits exo with an inter-node P2P all-reduce that avoided problems he hit with plain MLX",
+          "source": "https://github.com/ml-explore/mlx/discussions/2990",
+          "note": null
+        },
+        {
+          "text": "llama.cpp PR 26421 merged 2026-08-25 as commit b114b47 adds Apple RDMA to the RPC transport",
+          "source": "https://github.com/ggml-org/llama.cpp/pull/26421",
+          "note": null
+        },
+        {
+          "text": "llama.cpp Apple RDMA uses UC queue pairs with a fixed 128 KiB stride and hardware credit flow control, unlike Linux RC with variable chunks and RNR retries",
+          "source": "https://github.com/ggml-org/llama.cpp/pull/26421",
+          "note": null
+        },
+        {
+          "text": "llama.cpp Apple RDMA requires each SEND and RECV to cover the same number of 4 KiB Thunderbolt frames; 128 KiB beat 32, 64 and 256 KiB",
+          "source": "https://github.com/ggml-org/llama.cpp/pull/26421",
+          "note": null
+        },
+        {
+          "text": "Manual flush in llama.cpp RPC RDMA gave 22.41 tok/s vs 21.17 flushing every send on tg2048",
+          "source": "https://github.com/ggml-org/llama.cpp/pull/26421",
+          "note": null
+        },
+        {
+          "text": "llama.cpp RPC RDMA on Qwen3.6 27B Q4_K_XL decode is 22.5/20.5/19.8 tok/s at 2/3/4 M3 Ultra nodes vs TCP 18/17.3/17.7 and single node 24.4",
+          "source": "https://github.com/ggml-org/llama.cpp/pull/26421",
+          "note": null
+        },
+        {
+          "text": "llama.cpp RPC RDMA on DeepSeek-V4-Flash 2 nodes gives 22.37 tok/s decode vs TCP 14.7 and single node 27.6, and 3-4 RPC backends failed to initialise",
+          "source": "https://github.com/ggml-org/llama.cpp/pull/26421",
+          "note": null
+        },
+        {
+          "text": "llama.cpp PR 26421 text recommends GGML_RDMA_DEV=rdma_en7 on workers with several Thunderbolt interfaces while the final README selects the device by GID match",
+          "source": "https://github.com/ggml-org/llama.cpp/pull/26421",
+          "note": null
+        },
+        {
+          "text": "llama.cpp RPC RDMA only engages when --rpc uses the Thunderbolt peer address, otherwise the connection stays TCP, and GGML_RPC_DEBUG=1 enables server debug output",
+          "source": "https://github.com/ggml-org/llama.cpp/blob/master/tools/rpc/README.md",
+          "note": null
+        },
+        {
+          "text": "llama.cpp release b10628 crashed on macOS Sequoia with `Library not loaded: /usr/lib/librdma.dylib`, fixed by PR 27815",
+          "source": "https://github.com/ggml-org/llama.cpp/pull/26421",
+          "note": null
+        },
+        {
+          "text": "llama.cpp PR 26610 adds RPC `-sm tensor` and measured pp2048 619.36 and tg128 19.75 for DeepSeek-4 MXFP4 on 2 DGX Spark over RDMA",
+          "source": "https://github.com/ggml-org/llama.cpp/pull/26610",
+          "note": null
+        },
+        {
+          "text": "llama.cpp maintainers said none of them owns an RDMA Mac cluster, so Apple RDMA review depended on the contributor",
+          "source": "https://github.com/ggml-org/llama.cpp/pull/26421",
+          "note": null
+        }
+      ]
+    }
+  ],
+  "related": []
+}

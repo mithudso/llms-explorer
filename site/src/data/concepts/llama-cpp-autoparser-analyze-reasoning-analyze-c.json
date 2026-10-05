@@ -1,0 +1,114 @@
+{
+  "slug": "llama-cpp-autoparser-analyze-reasoning-analyze-c",
+  "concept": "llama.cpp autoparser analyze_reasoning, analyze_content and analyze_tools diff p",
+  "generated": "2026-10-05",
+  "summary": "`analyze_template` sets `reasoning`, `content` and `tools` in that order from `analyze_reasoning(tmpl, supports_tool_calls)`, `analyze_content(tmpl, reasoning)`, and, when the template supports tool calls, `analyze_tools(tmpl, caps, reasoning)`; otherwise an empty `analyze_tools()`.",
+  "facets": [
+    {
+      "title": "Facts",
+      "facts": [
+        {
+          "text": "`analyze_template` sets `reasoning`, `content` and `tools` in that order from `analyze_reasoning(tmpl, supports_tool_calls)`, `analyze_content(tmpl, reasoning)`, and, when the template supports tool calls, `analyze_tools(tmpl, caps, reasoning)`; otherwise an empty `analyze_tools()`.",
+          "source": "https://raw.githubusercontent.com/ggml-org/llama.cpp/master/common/chat-diff-analyzer.cpp",
+          "note": null
+        },
+        {
+          "text": "The probe sentinels are `FFF_FIRST_FUN_F`, `SSS_SECOND_FUN_S`, `AA_ARG_FST_AA`, `BB_ARG_SND_BB`, `U_USER_MSG Hello END_U`, `V_USER_MSG Hello END_V`, `A_ASST_MSG I can help END_A`, `REASON_PART I am thinking END_R`, and call ids `call00001`, `call00002`, `call99999`.",
+          "source": "https://raw.githubusercontent.com/ggml-org/llama.cpp/master/common/chat-diff-analyzer.cpp",
+          "note": null
+        },
+        {
+          "text": "`reasoning_mode` has NONE, TAG_BASED and TOOLS_ONLY; `content_mode` has PLAIN, ALWAYS_WRAPPED and WRAPPED_WITH_REASONING; `tool_format` has NONE, JSON_NATIVE, TAG_WITH_JSON and TAG_WITH_TAGGED; `call_id_position` has NONE, PRE_FUNC_NAME, BETWEEN_FUNC_AND_ARGS and POST_ARGS.",
+          "source": "https://raw.githubusercontent.com/ggml-org/llama.cpp/master/common/chat-auto-parser.h",
+          "note": null
+        },
+        {
+          "text": "Reasoning presence probe: render user plus assistant without reasoning vs with `reasoning_content`, with `enable_thinking` true and no generation prompt; it first tries a \"wrapped\" PEG (marker, text, marker) and falls back to a delimiter PEG (text then closing marker), and sets TAG_BASED with start and end, or end only.",
+          "source": "https://raw.githubusercontent.com/ggml-org/llama.cpp/master/common/chat-diff-analyzer.cpp",
+          "note": null
+        },
+        {
+          "text": "Thinking-enabled probe: render a user turn with a generation prompt at `enable_thinking` false vs true. If only the true side adds text and the output ends with it, that text becomes the reasoning start; if only the false side adds text (a closed empty think block), it becomes the reasoning end and the preceding marker becomes start.",
+          "source": "https://raw.githubusercontent.com/ggml-org/llama.cpp/master/common/chat-diff-analyzer.cpp",
+          "note": null
+        },
+        {
+          "text": "If both sides differ (for example SmolLM3 edits the system message when the flag flips), the probe falls back to tail anchoring: it takes the last 64 characters of one output, finds them in the other, and accepts the extra text only if it is exactly two markers.",
+          "source": "https://raw.githubusercontent.com/ggml-org/llama.cpp/master/common/chat-diff-analyzer.cpp",
+          "note": null
+        },
+        {
+          "text": "A reasoning mode of NONE with an empty start and a non-empty end is promoted to TAG_BASED.",
+          "source": "https://raw.githubusercontent.com/ggml-org/llama.cpp/master/common/chat-diff-analyzer.cpp",
+          "note": null
+        },
+        {
+          "text": "The scope probe runs only when the template supports tool calls; if the reasoning text appears only in the variant with tool calls, mode becomes TOOLS_ONLY, and if no markers can be extracted the mode falls back to NONE.",
+          "source": "https://raw.githubusercontent.com/ggml-org/llama.cpp/master/common/chat-diff-analyzer.cpp",
+          "note": null
+        },
+        {
+          "text": "Content probe: it diffs a content-only assistant against an assistant with tool calls and against an assistant with reasoning only, with `enable_thinking` true. If the diff equals the response text (plus at most one stray end-of-generation marker), content mode is PLAIN; otherwise it extracts a marker before and after the response and sets ALWAYS_WRAPPED when either is found.",
+          "source": "https://raw.githubusercontent.com/ggml-org/llama.cpp/master/common/chat-diff-analyzer.cpp",
+          "note": null
+        },
+        {
+          "text": "`analyze_content` carries TODO comments for WRAPPED_WITH_REASONING and END_DELIMITED, so those modes are not produced by the diff path (only by workaround lambdas such as Granite).",
+          "source": "https://raw.githubusercontent.com/ggml-org/llama.cpp/master/common/chat-diff-analyzer.cpp",
+          "note": null
+        },
+        {
+          "text": "Tool probe: format is JSON_NATIVE if the function sentinel sits inside quotes after `{` or `:`; TAG_WITH_JSON if only the argument sentinel does; otherwise TAG_WITH_TAGGED. Reasoning start and end markers are first cut out of the tool section.",
+          "source": "https://raw.githubusercontent.com/ggml-org/llama.cpp/master/common/chat-diff-analyzer.cpp",
+          "note": null
+        },
+        {
+          "text": "For JSON_NATIVE the analyzer parses the first `{` to last `}` as JSON, finds the id field by the value containing `call0000`, the name field by the function sentinel, the args field by the argument sentinel, and a generated-id field by a key containing `id`; a key equal to the function name sets `fun_name_is_key`.",
+          "source": "https://raw.githubusercontent.com/ggml-org/llama.cpp/master/common/chat-diff-analyzer.cpp",
+          "note": null
+        },
+        {
+          "text": "A JSON call wrapped in `[` and `]` sets `tools_array_wrapped`, and a trailing `]` is then cleared from the section end.",
+          "source": "https://raw.githubusercontent.com/ggml-org/llama.cpp/master/common/chat-diff-analyzer.cpp",
+          "note": null
+        },
+        {
+          "text": "Parallel-call probe for JSON_NATIVE: it diffs one call against two; if the second call repeats the section start, the section markers move to per-call markers.",
+          "source": "https://raw.githubusercontent.com/ggml-org/llama.cpp/master/common/chat-diff-analyzer.cpp",
+          "note": null
+        },
+        {
+          "text": "Non-JSON formats find the function marker with a PEG that accepts `<...name...>` or `[...name...]`, then read up to two leading markers as section and call start; two closing markers mean per-call and section ends, one means section end only.",
+          "source": "https://raw.githubusercontent.com/ggml-org/llama.cpp/master/common/chat-diff-analyzer.cpp",
+          "note": null
+        },
+        {
+          "text": "After extraction, `section_end` and `per_call_end` are whitespace-trimmed because ending markers do not affect content.",
+          "source": "https://raw.githubusercontent.com/ggml-org/llama.cpp/master/common/chat-diff-analyzer.cpp",
+          "note": null
+        },
+        {
+          "text": "For non-JSON formats `analyze_tools` runs `check_per_call_markers` only if the template reports parallel tool-call support, then function, argument-name, argument-value, separator, args and call-id extraction; `analyze_arguments` runs only for TAG_WITH_TAGGED.",
+          "source": "https://raw.githubusercontent.com/ggml-org/llama.cpp/master/common/chat-diff-analyzer.cpp",
+          "note": null
+        },
+        {
+          "text": "`detect_assistant_start_marker` diffs a user turn against user plus assistant, takes the text before the assistant sentinel and cuts it at any reasoning start or end marker.",
+          "source": "https://raw.githubusercontent.com/ggml-org/llama.cpp/master/common/chat-diff-analyzer.cpp",
+          "note": null
+        },
+        {
+          "text": "`detect_user_start_marker` diffs an empty conversation against one user message and, if the template rejects empty messages, a user-assistant pair against user-assistant-user; it drops leading marker segments containing \"end\" or \"close\" and leading blank text.",
+          "source": "https://raw.githubusercontent.com/ggml-org/llama.cpp/master/common/chat-diff-analyzer.cpp",
+          "note": null
+        },
+        {
+          "text": "Every analyzer reports failure by a debug log line and returns, so a template that throws on a probe input silently yields no reasoning, plain content or no tool format.",
+          "source": "https://raw.githubusercontent.com/ggml-org/llama.cpp/master/common/chat-diff-analyzer.cpp",
+          "note": null
+        }
+      ]
+    }
+  ],
+  "related": []
+}

@@ -1,0 +1,164 @@
+{
+  "slug": "macos-memorystatus-and-jetsam-behavior-on-non-io",
+  "concept": "macOS memorystatus and jetsam behavior on non-iOS Macs under memory pressure",
+  "generated": "2026-10-05",
+  "summary": "A kernel comment in the macOS branch states the design: \"we have a very limited jetsam that is only invoked under extreme conditions where we have no more swap / compressor space OR are under critical pressure\". It disables the system-process and application aging bands on macOS (`system_procs_ag...",
+  "facets": [
+    {
+      "title": "Facts",
+      "facts": [
+        {
+          "text": "A kernel comment in the macOS branch states the design: \"we have a very limited jetsam that is only invoked under extreme conditions where we have no more swap / compressor space OR are under critical pressure\". It disables the system-process and application aging bands on macOS (`system_procs_aging_band`, `applications_aging_band` set to 0).",
+          "source": "https://raw.githubusercontent.com/apple-oss-distributions/xnu/main/bsd/kern/kern_memorystatus.c",
+          "note": null
+        },
+        {
+          "text": "Without `CONFIG_JETSAM` the system counts as unhealthy only for: zone map exhausted, compressor exhausted or low on space, swap exhausted or low on space, vm pressure level critical, or pressure level warning (the macOS health check tests `msh_vm_pressure_warning` as well as critical).",
+          "source": "https://raw.githubusercontent.com/apple-oss-distributions/xnu/main/bsd/kern/kern_memorystatus_policy.c",
+          "note": null
+        },
+        {
+          "text": "The macOS action table, in order: zone-map exhaustion kills the top process; compressor or swap exhaustion kills the top process only if `kill_on_no_paging_space` is set (it is false in release builds); compressor or swap low on space first kills all idle processes, then runs the no-paging-space action at most once per throttle interval; at critical pressure it kills long-idle and idle processes if configured, then purges caches; at warning pressure it reaps long-idle daemons only.",
+          "source": "https://raw.githubusercontent.com/apple-oss-distributions/xnu/main/bsd/kern/kern_memorystatus_policy.c",
+          "note": null
+        },
+        {
+          "text": "The no-paging-space action does not kill a foreground process. It sends an \"out-of-application memory\" knote that puts up the \"Out of Application Memory\" dialog, where \"the user will be prompted to select applications to Force Quit\".",
+          "source": "https://raw.githubusercontent.com/apple-oss-distributions/xnu/main/bsd/kern/kern_memorystatus.c",
+          "note": null
+        },
+        {
+          "text": "The throttle default is 5 seconds (`no_paging_space_action_throttle_delay_ns`), and a header comment says macOS must keep the behavior that \"we kill no more than 1 process every 5 seconds\".",
+          "source": "https://raw.githubusercontent.com/apple-oss-distributions/xnu/main/bsd/kern/kern_memorystatus_internal.h",
+          "note": null
+        },
+        {
+          "text": "When memorystatus does pick a victim on macOS (`victim_pid == -1`), the highest band it may take is `JETSAM_PRIORITY_IDLE`, unless `kill_on_no_paging_space` is set, the cause is zone-map exhaustion (then `JETSAM_PRIORITY_MAX`), or the cause is sustained pressure (then `memstat_sustained_pressure_max_pri`).",
+          "source": "https://raw.githubusercontent.com/apple-oss-distributions/xnu/main/bsd/kern/kern_memorystatus.c",
+          "note": null
+        },
+        {
+          "text": "`kill_on_no_paging_space` is a boot argument (`-kill_on_no_paging_space`) honored only in DEVELOPMENT or DEBUG kernels; release kernels hard-code it false.",
+          "source": "https://raw.githubusercontent.com/apple-oss-distributions/xnu/main/bsd/kern/kern_memorystatus.c",
+          "note": null
+        },
+        {
+          "text": "A \"sustained pressure\" kill exists as a policy bit (`MEMSTAT_WARNING_KILL_SUSTAINED`, \"kill when at kVMPressureWarning for a prolonged period\") toggled by a DEVELOPMENT or DEBUG boot argument. Its default state on a release macOS is not visible in the files read.",
+          "source": "https://raw.githubusercontent.com/apple-oss-distributions/xnu/main/bsd/kern/kern_memorystatus_internal.h",
+          "note": null
+        },
+        {
+          "text": "The macOS-only \"no paging space\" path is named as macOS-only in a header comment (\"only on macOS right now\"), which confirms the macOS build is the non-`CONFIG_JETSAM` branch that xnu-vm-per-task-user-wire-limit-and-global-wire.md inferred.",
+          "source": "https://raw.githubusercontent.com/apple-oss-distributions/xnu/main/bsd/kern/kern_memorystatus_internal.h",
+          "note": null
+        },
+        {
+          "text": "Kill-cause strings in the kernel include \"vm-compressor-thrashing\" and \"vm-compressor-space-shortage\"; `memorystatus_kill_on_VM_compressor_space_shortage` exists and can run async or sync.",
+          "source": "https://raw.githubusercontent.com/apple-oss-distributions/xnu/main/bsd/kern/kern_memorystatus.c",
+          "note": null
+        },
+        {
+          "text": "A source comment on `jetsam_kill_on_low_swap` says kills on low swap are \"currently off until we can allocate more swap space (rdar://87800902)\"; this tunable is in the `CONFIG_JETSAM` branch only.",
+          "source": "https://raw.githubusercontent.com/apple-oss-distributions/xnu/main/bsd/kern/kern_memorystatus.c",
+          "note": null
+        },
+        {
+          "text": "Why a runaway local-LLM process on a Mac is not \"jetsammed\": a large foreground process is in a non-idle band, and the macOS kill ceiling is the idle band except for zone-map exhaustion. The mechanism is the band ceiling and the dialog route, not a special exemption for wired memory.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Wired memory still matters through the health inputs: wired pages shrink the pool the compressor and swap can use, which only makes the \"low on space\" branch fire sooner. The branch then kills idle processes and shows the dialog.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "No macOS path in the files read kills the biggest process automatically on release builds, so a swap-exhausted Mac stays degraded until the user acts or reboots (the mlx-optiq docs say a Mac with full swap \"stays degraded until it reboots\").",
+          "source": "https://mlx-optiq.com/docs/cluster",
+          "note": null
+        },
+        {
+          "text": "A process with a per-process memory limit set through `memorystatus_cmd_set_jetsam_memory_limit` can be killed for exceeding it on any build, but ordinary command-line inference servers have none set.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Default value of `memstat_pressure_config` and `memstat_sustained_pressure_max_pri` on release macOS 26-27; they are initialized outside the files read.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "The page-count thresholds that map to `kVMPressureWarning` and `kVMPressureCritical` on macOS.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "What process sets the idle band for a long-running CLI server (idle-exit and sudden-termination policy).",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "XNU's macOS memorystatus comment calls its jetsam \"very limited\", invoked only when there is no more swap or compressor space or under critical pressure.",
+          "source": "https://raw.githubusercontent.com/apple-oss-distributions/xnu/main/bsd/kern/kern_memorystatus.c",
+          "note": null
+        },
+        {
+          "text": "On macOS the aging bands for system processes and applications are set to 0, disabling the 10-second demotion protection used on iOS.",
+          "source": "https://raw.githubusercontent.com/apple-oss-distributions/xnu/main/bsd/kern/kern_memorystatus.c",
+          "note": null
+        },
+        {
+          "text": "The non-CONFIG_JETSAM health check counts zone-map exhaustion, compressor or swap exhaustion or low space, and vm pressure warning or critical as unhealthy.",
+          "source": "https://raw.githubusercontent.com/apple-oss-distributions/xnu/main/bsd/kern/kern_memorystatus_policy.c",
+          "note": null
+        },
+        {
+          "text": "On compressor or swap low space, the macOS policy kills idle processes first and then performs the no-paging-space action, throttled to once per interval.",
+          "source": "https://raw.githubusercontent.com/apple-oss-distributions/xnu/main/bsd/kern/kern_memorystatus_policy.c",
+          "note": null
+        },
+        {
+          "text": "The no-paging-space action shows the \"Out of Application Memory\" dialog and asks the user to pick applications to Force Quit, rather than killing a process.",
+          "source": "https://raw.githubusercontent.com/apple-oss-distributions/xnu/main/bsd/kern/kern_memorystatus.c",
+          "note": null
+        },
+        {
+          "text": "The no-paging-space throttle defaults to 5 seconds and the header says macOS kills no more than one process every 5 seconds.",
+          "source": "https://raw.githubusercontent.com/apple-oss-distributions/xnu/main/bsd/kern/kern_memorystatus_internal.h",
+          "note": null
+        },
+        {
+          "text": "`kill_on_no_paging_space` can be enabled only on DEVELOPMENT or DEBUG kernels via the `-kill_on_no_paging_space` boot argument and is false on release kernels.",
+          "source": "https://raw.githubusercontent.com/apple-oss-distributions/xnu/main/bsd/kern/kern_memorystatus.c",
+          "note": null
+        },
+        {
+          "text": "On macOS the kill ceiling for an unspecified victim is the idle band, except for zone-map exhaustion (all bands) and sustained pressure (a configured maximum band).",
+          "source": "https://raw.githubusercontent.com/apple-oss-distributions/xnu/main/bsd/kern/kern_memorystatus.c",
+          "note": null
+        },
+        {
+          "text": "At critical vm pressure the macOS policy kills long-idle and idle processes if configured, then purges caches at most once per backoff interval; at warning it reaps long-idle daemons only.",
+          "source": "https://raw.githubusercontent.com/apple-oss-distributions/xnu/main/bsd/kern/kern_memorystatus_policy.c",
+          "note": null
+        },
+        {
+          "text": "A large foreground local-LLM server is not killed by memorystatus on a release macOS; it is protected by the idle-band ceiling, not by being wired.",
+          "source": "asserted",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Corrections and disagreements",
+      "facts": [
+        {
+          "text": "CONTRADICTS (in part): macos-wired-memory-limit-and-gpu-kernel-panics.md, local-llm-server-as-a-coding-agent-backend-on-mac.md and mlx-and-mlx-lm-on-apple-silicon.md say wired memory \"evades Jetsam\" or \"cannot be Jetsam-killed\". The kernel source shows a broader fact: on macOS memorystatus kills only idle-band processes (outside zone-map exhaustion and a possible sustained-pressure policy), so an unwired large process would also not be jetsam-killed. The wired-memory part explains the panic, not the absence of a kill.",
+          "source": "asserted",
+          "note": null
+        }
+      ]
+    }
+  ],
+  "related": []
+}

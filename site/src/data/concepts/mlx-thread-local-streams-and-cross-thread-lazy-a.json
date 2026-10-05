@@ -1,0 +1,84 @@
+{
+  "slug": "mlx-thread-local-streams-and-cross-thread-lazy-a",
+  "concept": "MLX thread-local streams and cross-thread lazy array evaluation crashes",
+  "generated": "2026-10-05",
+  "summary": "MLX issue 2133 (opened 2025-04-28 by awni) tracked three thread-safety items: StreamContext sets the global default stream, the compile cache needs thread safety (issue 2086), and eval of independent graphs is not thread safe (issue 2067).",
+  "facets": [
+    {
+      "title": "Facts",
+      "facts": [
+        {
+          "text": "MLX issue 2133 (opened 2025-04-28 by awni) tracked three thread-safety items: StreamContext sets the global default stream, the compile cache needs thread safety (issue 2086), and eval of independent graphs is not thread safe (issue 2067).",
+          "source": "https://github.com/ml-explore/mlx/issues/2133",
+          "note": null
+        },
+        {
+          "text": "zcbenz closed issue 2133 on 2026-04-23, stating MLX has thread-safety support in 0.31.2.",
+          "source": "https://github.com/ml-explore/mlx/issues/2133",
+          "note": null
+        },
+        {
+          "text": "A vllm-mlx user in issue 2133 reported the abort `-[_MTLCommandBuffer addCompletedHandler:]: failed assertion 'Completed handler provided after commit call'` during a 46,831-token prefill.",
+          "source": "https://github.com/ml-explore/mlx/issues/2133",
+          "note": null
+        },
+        {
+          "text": "Issue 3078 reported on MLX 0.30.3 that two threads using `StreamContext` race on the global `Scheduler::default_streams_` unordered_map, and that two threads on the default stream race on `DeviceStream::buffer` and `encoder`.",
+          "source": "https://github.com/ml-explore/mlx/issues/3078",
+          "note": null
+        },
+        {
+          "text": "The 3078 reporter saw `Scheduled handler provided after commit call` and `A command encoder is already encoding to this command buffer`.",
+          "source": "https://github.com/ml-explore/mlx/issues/3078",
+          "note": null
+        },
+        {
+          "text": "awni's answer on 2026-01-29 was to use `with mx.stream(stream_1)` and `with mx.stream(stream_2)` blocks and one combined `mx.eval`, or multiple processes.",
+          "source": "https://github.com/ml-explore/mlx/issues/3078",
+          "note": null
+        },
+        {
+          "text": "zcbenz described five thread-safety levels and judged sharing one stream across threads (level 1) as disastrous without redesigning the command encoder.",
+          "source": "https://github.com/ml-explore/mlx/issues/3078",
+          "note": null
+        },
+        {
+          "text": "zcbenz named \"arrays can be evaluated in any thread but cannot depend on each other across threads\" (level 2-ii) as the ideal target and said a thread-local default stream matches how the CUDA backend handles the current device.",
+          "source": "https://github.com/ml-explore/mlx/issues/3078",
+          "note": null
+        },
+        {
+          "text": "zcbenz's step list for level 2-ii: move unsafe `Device` methods to `DeviceStream`, optionally merge `DeviceStream` into `CommandEncoder`, make `get_command_encoder` thread safe via a thread-local static, make `Event` and `Fence` creation thread safe without locks, and keep `eval` free of shared global state.",
+          "source": "https://github.com/ml-explore/mlx/issues/3078",
+          "note": null
+        },
+        {
+          "text": "A commenter proposed making `get_command_encoder` create an encoder on demand instead of throwing `There is no Stream(gpu, N) in current thread`, because module-level streams created on another thread leave arrays pointing at unregistered streams.",
+          "source": "https://github.com/ml-explore/mlx/issues/3078",
+          "note": null
+        },
+        {
+          "text": "oMLX issue 1558 gives the stack for the crash: `mlx::core::metal::get_command_encoder` called from `gpu::eval` from `array::eval` from `PyMemoryView_FromObject` in `_extract_tensor_bytes` of `omlx/cache/paged_ssd_cache.py`.",
+          "source": "https://github.com/jundot/omlx/issues/1558",
+          "note": null
+        },
+        {
+          "text": "The reporter's proposed fix changes `mx.async_eval(*pre_eval_arrays)` to `mx.eval(*pre_eval_arrays)` under the generation stream so the worker thread does a pure CPU copy.",
+          "source": "https://github.com/jundot/omlx/issues/1558",
+          "note": null
+        },
+        {
+          "text": "A second oMLX reporter on 0.3.8 to 0.3.12 saw exit code -6 at 50K to 140K context with Qwen3.5 and Qwen3.6 models and later struck out an Activity Monitor theory.",
+          "source": "https://github.com/jundot/omlx/issues/1558",
+          "note": null
+        },
+        {
+          "text": "Lazy-array handles passed to a worker thread must be materialized with `mx.eval` on the owning thread first, or the worker's implicit eval can crash the process.",
+          "source": "asserted",
+          "note": null
+        }
+      ]
+    }
+  ],
+  "related": []
+}

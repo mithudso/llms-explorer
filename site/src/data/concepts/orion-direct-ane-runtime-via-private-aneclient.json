@@ -1,0 +1,189 @@
+{
+  "slug": "orion-direct-ane-runtime-via-private-aneclient",
+  "concept": "Orion direct-ANE runtime via private ANEClient",
+  "generated": "2026-10-05",
+  "summary": "Private API surface (Table 2), loaded at run time with `dlopen()` and `objc_getClass()` from `/System/Library/PrivateFrameworks/AppleNeuralEngine.framework`: `_ANEClient` (singleton daemon connection), `_ANECompiler` (MIL to E5 microcode), `_ANEInMemoryModel` and `_ANEInMemoryModelDescriptor` (MI...",
+  "facets": [
+    {
+      "title": "Facts",
+      "facts": [
+        {
+          "text": "Private API surface (Table 2), loaded at run time with `dlopen()` and `objc_getClass()` from `/System/Library/PrivateFrameworks/AppleNeuralEngine.framework`: `_ANEClient` (singleton daemon connection), `_ANECompiler` (MIL to E5 microcode), `_ANEInMemoryModel` and `_ANEInMemoryModelDescriptor` (MIL plus weight blobs, no filesystem model), `_ANEModel` (compiled-program handle), `_ANERequest` and `_ANEIOSurfaceObject`.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Layers: CLI (`infer`, `train`, `bench`), model layer (configs, BPE/SentencePiece tokenizers, BLOBFILE weight loading), compiler plus kernel layer (graph IR, five passes, MIL codegen, weight-dict builders, program cache with store/lookup/evict), core runtime (`orion_compile_mil` to `OrionProgram`, `orion_eval` with IOSurface I/O, delta reload).",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Program cache: composite key (model name, layer index, sequence length, weight version); a hit skips the per-program compile cost.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Delta compilation: `_ANEModel` exposes `unloadWithQoS:` and `loadWithQoS:`; unloading lets the backing BLOBFILEs on disk be rewritten and a reload (qos 21) picks up new weights without calling `ANECCompile()`. The program keeps its `hexStringIdentifier` (a composite of three SHA-256 hashes) because MIL text and weight-dict keys are unchanged, so the old and new program share a temp directory whose ownership must be transferred before release.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "LoRA adapter-as-input: the base weight W is baked in as a BLOBFILE and adapter matrices A and B are IOSurface inputs, so hot-swapping adapters needs no recompilation; two frontends exist (single linear and full attention with 8 adapter matrices for Q, K, V, O).",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "CPU/ANE split (Table 5): transformer forward and dx backward on ANE; sampling, Adam, dW accumulation (cblas via GCD), NLL loss with gather, classifier backward and embedding lookup on CPU.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Inference: tokenize and embed on CPU; bucketed ANE prefill with sequence-length buckets 32, 64, 128, 256, 512, 1024; per-token decode on ANE with minimum sequence 16; logits and sampling on CPU. Three CLI modes: full ANE, `--ane-prefill` (ANE prefill then CPU decode) and CPU only.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "v1.0 recompiled all 60 weight-bearing kernels per training step and restarted the process with `exec()` after each step (4,200 ms recompile, about 85 min for 1,000 steps).",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "v2.0 (2026-03-06) replaced that with delta reload and 72 programs compiled once at start (about 4.5 s); numbers were re-measured on 1,000 steps and revised from 7.8x/3.6x to 8.5x/3.8x.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "2026-08-23 latest commit; 49 commits, 128 stars, 15 forks; roadmap stages continue in the README.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Orion depends on private APIs and says they may change without notice; it is validated on M4 Max only.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Delta compilation is still 36.8% of step time, dominated by disk BLOBFILE writes (about 8 ms per kernel times 60 kernels); in-memory patching is unexplored.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "LoRA is implemented in compiler frontends and the adapter loader but not wired into the full Stories110M pipeline; INT8/INT4 quantization and LR schedules are not implemented.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Ownership bug: freeing the old program deletes the shared temp directory and breaks the next reload unless ownership is transferred.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Compile cost. Orion's runtime text says a cache hit skips about 11 ms per program; its own breakdown of full compilation gives about 3 ms MIL parse, 30-80 ms `ANECCompile()` and about 30 ms to load a new identity per kernel; and 24 programs take about 1015 ms first-call (about 42 ms each); maderix measured first compile at 20-40 ms per program. These are per-kernel figures on different programs and chips, not one number.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Role of the ANE for decode. Orion's measured result is that ANE full-forward decode (170 tok/s) is slower than its CPU decode (283 tok/s) on GPT-2 124M, yet its README headline is \"170+ tok/s inference\" and it lists power gating and freeing the GPU as the benefit; the paper concedes MLX/Metal has higher absolute throughput.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Training speedup claims differ by section: abstract and Table 6 say 8.5x (recompile) and 3.8x (step); the earlier commit said 7.8x and 3.6x from estimated 541 ms.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Does the delta-reload path work for models large enough to matter (billions of parameters), where BLOBFILE writes would dominate? Only 110M-scale tested.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Can LoRA adapters as IOSurface inputs keep ANE placement and speed at LLM scale, and do the uniform-size and alphabetical-order input rules limit the adapter count?",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Does `_ANEChainingRequest` or `_ANESharedEvents` (unexplored by maderix) offer a cheaper multi-program decode than per-program dispatch?",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Orion's private classes are `_ANEClient` (singleton connection to the ANE daemon), `_ANECompiler` (MIL to E5 microcode), `_ANEInMemoryModel`, `_ANEInMemoryModelDescriptor` (accepts MIL plus weight blobs), `_ANEModel` (compiled program handle), `_ANERequest` and `_ANEIOSurfaceObject`, loaded via dlopen and objc_getClass.",
+          "source": "https://arxiv.org/html/2603.06728v1",
+          "note": null
+        },
+        {
+          "text": "Compiled programs are cached under a composite key of model name, layer index, sequence length and weight version, and a hit skips about 11 ms of compilation per program.",
+          "source": "https://arxiv.org/html/2603.06728v1",
+          "note": null
+        },
+        {
+          "text": "Full recompilation costs about 3 ms of MIL parsing, 30-80 ms in `ANECCompile()` and about 30 ms to load a new model identity per kernel (about 70 ms/kernel), whereas delta reload is about 8-9 ms per kernel.",
+          "source": "https://arxiv.org/html/2603.06728v1",
+          "note": null
+        },
+        {
+          "text": "Delta compilation unloads an `_ANEModel`, rewrites its BLOBFILEs, and reloads with `loadWithQoS(21)`; programs with identical MIL and weight-dict keys keep the same `hexStringIdentifier` (a composite of three SHA-256 hashes).",
+          "source": "https://arxiv.org/html/2603.06728v1",
+          "note": null
+        },
+        {
+          "text": "The paper's Table 6 gives compute 908 ms (v1.0) vs 849 ms (v2.0), recompile or reload 4,200 vs 494 ms (8.5x), total step 5,108 vs 1,345 ms (3.8x), recompile share 83.9% vs 36.8%, 1,000-step wall time about 85 vs 22.4 min, and 72 compiles per step vs 0.",
+          "source": "https://arxiv.org/html/2603.06728v1",
+          "note": null
+        },
+        {
+          "text": "LoRA is implemented as Y = XW_base + (XA)B with W_base baked and A, B as IOSurface inputs, giving hot-swap with zero recompilation and no program-cache invalidation.",
+          "source": "https://arxiv.org/html/2603.06728v1",
+          "note": null
+        },
+        {
+          "text": "The Orion paper lists as limitations: private APIs may change, delta reload is still 36.8% of step time, validation on M4 Max only, no downstream-task evaluation, no INT8/INT4, no LR schedule, and LoRA not wired into the Stories110M inference pipeline.",
+          "source": "https://arxiv.org/html/2603.06728v1",
+          "note": null
+        },
+        {
+          "text": "Orion's compiler has 27 graph-IR ops, five passes (DCE, identity elimination, cast fusion, SRAM annotation, constraint validation), and 13 verified frontends including LoRA-fused variants.",
+          "source": "https://arxiv.org/html/2603.06728v1",
+          "note": null
+        },
+        {
+          "text": "Inference uses prefill sequence-length buckets of 32, 64, 128, 256, 512 and 1024 with the KV cache populated on ANE and per-token decode padded to sequence 16.",
+          "source": "https://arxiv.org/html/2603.06728v1",
+          "note": null
+        },
+        {
+          "text": "Training compiles 72 ANE programs once (60 weight-bearing plus 12 static SDPA backward kernels, 6 per layer) and never again, and the CPU handles Adam, NLL loss, embedding lookup, dW via cblas and the classifier backward.",
+          "source": "https://arxiv.org/html/2603.06728v1",
+          "note": null
+        },
+        {
+          "text": "The README offers three inference modes (`--ane`, `--ane-prefill`, CPU default) and a benchmark suite (`orion bench kernels|inference|training`) with a saved baseline where a drift above 15% warns.",
+          "source": "https://github.com/mechramc/Orion",
+          "note": null
+        },
+        {
+          "text": "The README quotes startup compilation of 72 programs in about 4.5 s and 1,000 training steps in 22 minutes with loss 12.3 to 8.9, 0 NaN and no memory leak.",
+          "source": "https://github.com/mechramc/Orion",
+          "note": null
+        },
+        {
+          "text": "The README's comparison table lists MLX, MLC-LLM, Ollama and llama.cpp as GPU/CPU runtimes and Orion as the only listed framework that trains and infers on the ANE directly (models: GPT-2 124M and Stories110M).",
+          "source": "https://github.com/mechramc/Orion",
+          "note": null
+        },
+        {
+          "text": "Orion's table of related work says ANEgpt had no program cache, hardcoded MIL generation and NaN divergence on resume, and Orion adds a compiler, program cache with eviction, delta compilation, LoRA and a 4-mode benchmark suite.",
+          "source": "https://github.com/mechramc/Orion",
+          "note": null
+        },
+        {
+          "text": "Orion's Table 1 lists queue depth 127, about 0.095 ms dispatch, 32 MB SRAM and generation H16 under the heading M4 Max while citing maderix's measurements, which were taken on an M4 Mac mini (H16G).",
+          "source": "https://arxiv.org/html/2603.06728v1",
+          "note": null
+        }
+      ]
+    }
+  ],
+  "related": []
+}

@@ -1,0 +1,289 @@
+{
+  "slug": "macos-tahoe-gpu-command-buffer-hangs",
+  "concept": "macOS Tahoe GPU command-buffer hangs",
+  "generated": "2026-10-05",
+  "summary": "The interactivity check is enforced by the OS/driver, not by MLX or llama.cpp; the env var is a driver hint read at Metal init, so it is process-local and must be set before Metal initialises.",
+  "facets": [
+    {
+      "title": "Facts",
+      "facts": [
+        {
+          "text": "The interactivity check is enforced by the OS/driver, not by MLX or llama.cpp; the env var is a driver hint read at Metal init, so it is process-local and must be set before Metal initialises.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Trigger is GPU contention with WindowServer: long individual kernels (about 1.2 s each in the LoRA repro) or large prefill ubatches while a display is active. With the display off or asleep the check has nothing to protect and does not fire.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "llama.cpp error cascade after the first failure: `ggml_metal_synchronize: error: command buffer 0 failed with status 5`, then repeated `InnocentVictim` lines, then `ggml_metal_graph_compute: backend is in error state from a previous command buffer failure - recreate the backend to recover`, `llama_decode: failed to decode, ret = -3`, `srv send_error: ... Compute error.`. The server stays alive but every later request fails until llama-server is restarted.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "llama.cpp registers the workaround with `setenv(\"AGX_RELAX_CDM_CTXSTORE_TIMEOUT\", \"1\", true)`; the third argument `true` means it overwrites a user-set value, so the user cannot set it to 0 to opt out.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "2026-03-05 llama.cpp #20141 filed on macOS 26.3 (reporter upgraded 26.2 to 26.3); the original failure was a plain `Caused GPU Hang Error (0x03)` on any `-ngl > 0`, even a 1.5B model with `-c 256 -b 32 -ub 32`.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "2026-03-16/17 mlx #3267 (MacBook Pro M2 Pro 16 GB, macOS 26.2 and 26.3.1, mlx 0.31.1): LoRA training dies with `[METAL] Command buffer execution failed: Impacting Interactivity`. MLX maintainer zcbenz suggested the env var; reporter confirmed \"completely resolved\". zcbenz labelled it wontfix: the behaviour is OS-controlled, re-submitting command buffers would be complicated and might not work for larger work.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "2026-04-10 llama-server on M1 Max, macOS 26.4, Qwen3 Coder Next: `Impacting Interactivity` at about 71k context. 2026-04-18 ggerganov recalled seeing it for large contexts and pointed at mlx#3267.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "2026-04-18 reporter result: Qwen3.6 35B failed at 69,360 context without the var and reached 97,237 with it.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "2026-04-21 PR #22216 \"metal : workaround macOS GPU interactivity watchdog\" (commit 7fc1c4e) merged; closed #20141 and #22214. ggerganov noted he had no repro, so the fix was unverified when merged.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "2026-04-22 two users confirmed on 26.4.1: M2 Max 96 GB, Qwen3.6 35B-A3B Q8, n_ctx 252144 works; M2 MacBook Pro, Qwen3.6-35B-A3B IQ4_XS, crash at 114,688 of a long prompt in opencode no longer seen (#22214).",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "2026-05-14 a user on M1 Max 64 GB, 26.4.1, with the workaround build reported the original `InnocentVictim` cascade again at the first 2048-token ubatch of a 212k-token prompt (`-c 262144 -ub 2048 -b 2048 -fa on --no-mmap --mlock`). So the workaround is not a guarantee.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Release b10000 is listed as containing the fix.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "2026-04-19 and 2026-05-22 forks added defaults of the env var (mlx-side commit \"default AGX_RELAX_CDM_CTXSTORE_TIMEOUT=1\"; another \"relax CDM context-store timeout\"). Harperbot metal-guard sets it at import (v0.11.6, Apr 27-28) and classifies a `ctxstore_timeout` panic signature (`IOGPUCommandQueue ... context store timeout`).",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Escalation on M5 Max (Mac17,7, macOS 26.5.1, 128 GB): sustained FLUX.2 LoRA training turned the process kill into a full system `panic ... watchdog timeout: no checkins from watchdogd in 90 seconds` (also 93 s), top frames `AppleARMWatchdogTimer` / `AppleInterruptControllerV3`. With the env var set and display active it still rebooted at step 0 after about 11 min; powermetrics went silent about 3 min before the panic, thermal pressure stayed Nominal, GPU at 1592 MHz / 97% / 24.4 W, busiest thread WindowServer.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Same config with `pmset displaysleepnow` (display asleep, lid open) plus the env var: reached step 302/600, up 5 h 20 min, no panic. Env var alone is necessary but not sufficient on that machine.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "`caffeinate -s` alone does not sleep the display, so it does not help unless the lid is closed.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Things reported not to work for interactivity kills: subprocess isolation (kill is above the process boundary), `mx.metal.set_memory_limit()`, smaller batch size, `MLX_MAX_OPS_PER_BUFFER=1`, `MLX_MAX_MB_PER_BUFFER=10`, and in llama.cpp `-b/-ub` 16-512, `-c` 256-16384, `-fa`, `-kvu`, `--no-mmap`, `--no-warmup`, `GGML_METAL_GRAPH_REUSE=0`, `GGML_METAL_USE_RSET=0`, `GGML_METAL_N_CB=1`, `GGML_METAL_SYNC=1` (these on the hard Hang variant in #20141).",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "A claim that context sizes should be 2^n minus 1 to avoid \"overflow\" was tried and withdrawn by its author.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Disabling `GGML_METAL_TENSOR_DISABLE`, `GGML_METAL_BF16_DISABLE`, `GGML_METAL_NO_RESIDENCY` together is not a fix and costs performance (already in existing file).",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Downstream projects treat the env var as a trade-off: ltx-2-mlx documents it as trading UI responsiveness for run stability, process-local, never set automatically, and also mentions a distinct ~10 s command-buffer deadline in that pipeline.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "When MLX aborts through libc++abi from a completion-handler thread, no in-process handler can catch it, so apps cannot recover gracefully.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Workaround sufficiency. zcbenz/ggerganov/reporters: env var resolves it (LoRA 100% fixed; llama-server 69k to 97k+ and 252k n_ctx). atomantic (M5 Max): insufficient with an active display; display-off is the only reliably complete fix. Both stand.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Where to fix. MLX maintainer: won't fix, OS-controlled, no env default in MLX. llama.cpp: forces it unconditionally in the backend. ltx-2-mlx: refuses to set it silently.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Mechanism label. mlx#3267 and metal-guard describe a watchdog policy that is Apple-side; the metal-guard classifier maps the same env var to a kernel-panic signature, which the existing wired-memory dossier treats as a separate IOGPUMemory fault.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Which macOS 26.x releases introduced or fixed the interactivity watchdog: evidence only shows it on 26.2, 26.3, 26.3.1, 26.4, 26.4.1 and 26.5.1; no release was found that fixes it.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "What exactly the env var changes in the AGX driver (the name suggests relaxing the compute data master context-store timeout); no Apple documentation found.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Whether macOS 27 changes anything: no source found testing `ImpactingInteractivity` or the env var on macOS 27 (only a wired-limit report on 27.0 beta 26A5421a, IOGPUFamily 162.11, in mlx#3186, which says it is not evidence of a driver fix). llama.cpp v0.5.0 only fixes macOS 27 SDK deprecation warnings.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "No source found showing that smaller `-ub` or `--prefill-step-size` prevents the interactivity kill; the sole llama.cpp datapoint with `-ub 2048` failed both with and without the workaround at different depths.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Whether the ~60 s `kIOGPUCommandBufferCallbackErrorTimeout` is separate from the interactivity watchdog (existing dossier has the pipeline-parallel numbers).",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "kIOGPUCommandBufferCallbackErrorImpactingInteractivity is code 0x0e, InnocentVictim is 0x05, Hang is 0x03 and Timeout is 0x02.",
+          "source": "https://github.com/ml-explore/mlx/issues/3267",
+          "note": null
+        },
+        {
+          "text": "mlx #3267 reproduced the interactivity kill 4 of 4 times with the display on (macOS 26.2 and 26.3.1, M2 Pro 16 GB, mlx 0.31.1) and 0 of 1 with the lid closed under caffeinate -s.",
+          "source": "https://github.com/ml-explore/mlx/issues/3267",
+          "note": null
+        },
+        {
+          "text": "The LoRA workload that crashed used about 2.75 GB peak with kernels around 1.2 s each; 40-token examples did not crash and 256-token examples did.",
+          "source": "https://github.com/ml-explore/mlx/issues/3267",
+          "note": null
+        },
+        {
+          "text": "MLX_MAX_OPS_PER_BUFFER=1 and MLX_MAX_MB_PER_BUFFER=10 did not prevent the interactivity kill.",
+          "source": "https://github.com/ml-explore/mlx/issues/3267",
+          "note": null
+        },
+        {
+          "text": "AGX_RELAX_CDM_CTXSTORE_TIMEOUT=1 fully resolved the mlx #3267 LoRA crash.",
+          "source": "https://github.com/ml-explore/mlx/issues/3267",
+          "note": null
+        },
+        {
+          "text": "MLX maintainer zcbenz marked mlx #3267 wontfix because the behaviour is OS-controlled and re-submitting command buffers would be complicated and may not work for larger work.",
+          "source": "https://github.com/ml-explore/mlx/issues/3267",
+          "note": null
+        },
+        {
+          "text": "Harperbot reports subprocess isolation, mx.metal.set_memory_limit and lower batch size do not help the interactivity kill; caffeinate -s, display sleep, SSH from another machine and brightness 0 (partial) do.",
+          "source": "https://github.com/ml-explore/mlx/issues/3267",
+          "note": null
+        },
+        {
+          "text": "On an M5 Max (Mac17,7, macOS 26.5.1, 128 GB) FLUX.2 LoRA training hard-rebooted with \"watchdog timeout: no checkins from watchdogd in 90 seconds\" (also 93 s).",
+          "source": "https://github.com/ml-explore/mlx/issues/3267",
+          "note": null
+        },
+        {
+          "text": "With the env var set and display active the M5 Max still panicked at about 11 min; with display asleep via pmset displaysleepnow it passed step 302 of 600 in 5 h 20 min uptime.",
+          "source": "https://github.com/ml-explore/mlx/issues/3267",
+          "note": null
+        },
+        {
+          "text": "The failed M5 Max run had Nominal thermal pressure, GPU at about 1592 MHz and 24.4 W, a powermetrics log silent about 3 min before the panic, and WindowServer as the busiest thread.",
+          "source": "https://github.com/ml-explore/mlx/issues/3267",
+          "note": null
+        },
+        {
+          "text": "ltx-2-mlx decided never to set AGX_RELAX_CDM_CTXSTORE_TIMEOUT automatically because it trades UI responsiveness for stability, is process-local, and is not sufficient on every machine.",
+          "source": "https://github.com/ml-explore/mlx/issues/3267",
+          "note": null
+        },
+        {
+          "text": "metal-guard sets AGX_RELAX_CDM_CTXSTORE_TIMEOUT=1 at import if unset and classifies a `ctxstore_timeout` panic signature.",
+          "source": "https://github.com/ml-explore/mlx/issues/3267",
+          "note": null
+        },
+        {
+          "text": "ggml-metal.cpp calls setenv(\"AGX_RELAX_CDM_CTXSTORE_TIMEOUT\",\"1\",true), overwriting any user value, before creating the Metal registry.",
+          "source": "https://raw.githubusercontent.com/ggml-org/llama.cpp/master/ggml/src/ggml-metal/ggml-metal.cpp",
+          "note": null
+        },
+        {
+          "text": "ggerganov said on 2026-04-21 he had no repro for the interactivity error when merging the workaround.",
+          "source": "https://github.com/ggml-org/llama.cpp/issues/20141",
+          "note": null
+        },
+        {
+          "text": "Without the env var a Qwen3.6 35B llama-server on M1 Max failed at 69,360 context; with it, it reached 97,237 without error.",
+          "source": "https://github.com/ggml-org/llama.cpp/issues/20141",
+          "note": null
+        },
+        {
+          "text": "On 26.4.1 an M2 Max 96 GB ran Qwen3.6 35B-A3B Q8 at n_ctx 252144 after the workaround build 8882.",
+          "source": "https://github.com/ggml-org/llama.cpp/issues/20141",
+          "note": null
+        },
+        {
+          "text": "After the workaround, a May 2026 report on M1 Max 64 GB, macOS 26.4.1, hit InnocentVictim errors at the first 2048-token ubatch of a 212,017-token prompt with -ub 2048 -b 2048.",
+          "source": "https://github.com/ggml-org/llama.cpp/issues/20141",
+          "note": null
+        },
+        {
+          "text": "#22214 (M2 MacBook Pro, Qwen3.6-35B-A3B-UD-IQ4_XS, opencode) showed Impacting Interactivity at 114,688 of a long prompt with 2048-token batches, and the reporter confirmed it gone on the fixed build.",
+          "source": "https://github.com/ggml-org/llama.cpp/issues/22214",
+          "note": null
+        },
+        {
+          "text": "After the first command-buffer failure llama.cpp logs \"backend is in error state from a previous command buffer failure - recreate the backend to recover\", fails with llama_decode ret = -3, and needs a llama-server restart.",
+          "source": "https://github.com/ggml-org/llama.cpp/issues/22214",
+          "note": null
+        },
+        {
+          "text": "In #20141 the plain Hang variant persisted for -b/-ub 16-512, -c 256-16384, -fa on/off, -kvu, --no-mmap, --no-warmup, GGML_METAL_GRAPH_REUSE=0, GGML_METAL_USE_RSET=0, GGML_METAL_N_CB=1 and GGML_METAL_SYNC=1, and passed only with -ngl 0.",
+          "source": "https://github.com/ggml-org/llama.cpp/issues/20141",
+          "note": null
+        },
+        {
+          "text": "llama.cpp PR #22216 was merged 2026-04-21 as commit 7fc1c4e and the issue lists release b10000 as containing it.",
+          "source": "https://github.com/ggml-org/llama.cpp/pull/22216",
+          "note": null
+        },
+        {
+          "text": "mlx-lm's DEFAULT_PREFILL_STEP_SIZE is 2048 and `--prefill-step-size` is documented as lowering peak memory during prefill, not as a watchdog mitigation.",
+          "source": "https://raw.githubusercontent.com/ml-explore/mlx-lm/main/mlx_lm/generate.py",
+          "note": null
+        },
+        {
+          "text": "MLX sets per-device default max ops and MB per command buffer (20/40, 40/40, 50/50 by device class) overridable by MLX_MAX_OPS_PER_BUFFER and MLX_MAX_MB_PER_BUFFER.",
+          "source": "https://raw.githubusercontent.com/ml-explore/mlx/main/mlx/backend/metal/device.cpp",
+          "note": null
+        },
+        {
+          "text": "The only macOS 27 evidence found is a wired-limit panic-mitigation report on 27.0 beta (26A5421a, IOGPUFamily 162.11), which does not cover the interactivity watchdog.",
+          "source": "https://github.com/ml-explore/mlx/issues/3186",
+          "note": null
+        },
+        {
+          "text": "No source found that a macOS 26.x release fixed the interactivity watchdog.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "The env var is read at Metal init, so it must be exported before the first Metal call in the process.",
+          "source": "asserted",
+          "note": null
+        }
+      ]
+    }
+  ],
+  "related": []
+}

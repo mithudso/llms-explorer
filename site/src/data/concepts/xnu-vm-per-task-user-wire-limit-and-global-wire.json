@@ -1,0 +1,174 @@
+{
+  "slug": "xnu-vm-per-task-user-wire-limit-and-global-wire",
+  "concept": "XNU vm_per_task_user_wire_limit and global wire sysctl defaults on Apple silicon",
+  "generated": "2026-10-05",
+  "summary": "The defaults are computed once at boot in kmem_init by kmem_set_user_wire_limits. The per-task limit is set equal to the global limit.",
+  "facets": [
+    {
+      "title": "Facts",
+      "facts": [
+        {
+          "text": "The defaults are computed once at boot in kmem_init by kmem_set_user_wire_limits. The per-task limit is set equal to the global limit.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "The global limit is a percentage of physical RAM taken from a table indexed by floor(log2(RAM)) minus 32, clamped to the table's 10 entries. On macOS (no CONFIG_JETSAM, inferred) the table is 70, 73, 76, 79, 82, 85, 88, 91, 94, 97 percent; with CONFIG_JETSAM it is 80, 80, 80, 80, 82, 85, 88, 91, 94, 97.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "The unlockable remainder is capped: if RAM minus the limit exceeds 32 GiB (VM_NOT_USER_WIREABLE_MAX), the limit becomes RAM minus 32 GiB.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "With the boot-arg serverperfmode set and RAM of 32 GiB or more the limit is 95% of RAM.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "On macOS the RAM figure used is max_mem_actual (installed memory), not the post-carve-out usable amount.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "vm.global_no_user_wire_amount holds no state: reads return RAM minus the global limit and writes (rejected with EINVAL if larger than RAM) set the global limit to RAM minus the written value. This is why llama.cpp's hint tells users to lower it.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "The limit counts all wired memory system-wide (kernel, GPU, other processes), so the room actually left for mlock is the limit minus current vm_page_wire_count (existing dossier).",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "A 512 GiB machine gets exactly RAM minus 32 GiB; machines above 256 GiB are limited by the 32 GiB cap and not the table.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Raising vm.user_wire_limit alone does nothing if vm.global_user_wire_limit is lower, and the reverse holds, because the check ANDs both.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "The per-task default is not lower than the global default, so a single process can take the whole global budget on a stock Mac.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Kernel callers that gate on wire budget (mach_vm_wire_level_monitor) use the same global limit.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Community guidance reports the GPU default as roughly 2/3 of RAM up to 32 GB and 3/4 from 36 GB (apple-silicon-unified-memory-and-llm-sizing.md). The mlock default computed here is higher at every size (for example 76% versus 67% at 16 GB, 79% versus 75% at 36 GB). The two limits govern different operations and are not alternatives.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Real `sysctl vm.global_user_wire_limit` readings on Apple-silicon Macs to confirm the computed table.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Whether Metal buffers wrapping mlocked pages draw from vm.global_user_wire_limit, from iogpu.wired_limit_mb, or from both.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Whether serverperfmode can be set on a Mac that does not run macOS Server.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "kmem_set_user_wire_limits sets vm_global_user_wire_limit from a RAM-scaled percentage and sets vm_per_task_user_wire_limit equal to it, and kmem_init calls it at boot.",
+          "source": "https://raw.githubusercontent.com/apple-oss-distributions/xnu/main/osfmk/vm/vm_kern.c",
+          "note": null
+        },
+        {
+          "text": "The percentage table is indexed by floor(log2(RAM)) minus VM_USER_WIREABLE_MIN_CONFIG (32), clamped to the table length of 10.",
+          "source": "https://raw.githubusercontent.com/apple-oss-distributions/xnu/main/osfmk/vm/vm_kern.c",
+          "note": null
+        },
+        {
+          "text": "Without CONFIG_JETSAM the table is 70, 73, 76, 79, 82, 85, 88, 91, 94, 97 percent; with CONFIG_JETSAM it is 80, 80, 80, 80, 82, 85, 88, 91, 94, 97.",
+          "source": "https://raw.githubusercontent.com/apple-oss-distributions/xnu/main/osfmk/vm/vm_kern.c",
+          "note": null
+        },
+        {
+          "text": "The source comment says the table values \"were picked for mac\" and that larger-memory ARM devices may need a revisit because kernel overhead is smaller with the larger page size.",
+          "source": "https://raw.githubusercontent.com/apple-oss-distributions/xnu/main/osfmk/vm/vm_kern.c",
+          "note": null
+        },
+        {
+          "text": "With serverperfmode set and log2(RAM) of at least 35 the limit is 95% of RAM.",
+          "source": "https://raw.githubusercontent.com/apple-oss-distributions/xnu/main/osfmk/vm/vm_kern.c",
+          "note": null
+        },
+        {
+          "text": "On XNU_TARGET_OS_OSX the RAM figure is max_mem_actual, otherwise max_mem.",
+          "source": "https://raw.githubusercontent.com/apple-oss-distributions/xnu/main/osfmk/vm/vm_kern.c",
+          "note": null
+        },
+        {
+          "text": "If RAM minus the computed limit exceeds VM_NOT_USER_WIREABLE_MAX, the limit is set to RAM minus that value, and VM_NOT_USER_WIREABLE_MAX is 32 GiB.",
+          "source": "https://raw.githubusercontent.com/apple-oss-distributions/xnu/main/osfmk/vm/vm_page.h",
+          "note": null
+        },
+        {
+          "text": "bit_floor in XNU's bits.h returns the index of the highest set bit (floor of log2), so the table index uses log2 of RAM and not RAM itself.",
+          "source": "https://raw.githubusercontent.com/apple-oss-distributions/xnu/main/osfmk/kern/bits.h",
+          "note": null
+        },
+        {
+          "text": "kern_sysctl.c declares vm_global_user_wire_limit and vm_per_task_user_wire_limit as vm_map_size_t in bytes and exports them as vm.global_user_wire_limit and vm.user_wire_limit with CTLFLAG_RW.",
+          "source": "https://raw.githubusercontent.com/apple-oss-distributions/xnu/main/bsd/kern/kern_sysctl.c",
+          "note": null
+        },
+        {
+          "text": "vm.global_no_user_wire_amount is a procedure sysctl that reads as RAM minus vm_global_user_wire_limit, and a write sets vm_global_user_wire_limit to RAM minus the new value, returning EINVAL if the new value exceeds RAM.",
+          "source": "https://raw.githubusercontent.com/apple-oss-distributions/xnu/main/bsd/kern/kern_sysctl.c",
+          "note": null
+        },
+        {
+          "text": "A source comment says vm_global_no_user_wire_limit was dropped because vm_global_user_wire_limit is the real limit, and the sysctl is kept for backwards compatibility with user space.",
+          "source": "https://raw.githubusercontent.com/apple-oss-distributions/xnu/main/bsd/kern/kern_sysctl.c",
+          "note": null
+        },
+        {
+          "text": "vm_page.h documents vm_global_user_wire_limit as defaulting to vm_per_task_user_wire_limit and says both can be overridden by sysctl.",
+          "source": "https://raw.githubusercontent.com/apple-oss-distributions/xnu/main/osfmk/vm/vm_page.h",
+          "note": null
+        },
+        {
+          "text": "The sysctl comment block for these limits says the wire limits exist to prevent user processes from wiring so much memory that the system deadlocks.",
+          "source": "https://raw.githubusercontent.com/apple-oss-distributions/xnu/main/osfmk/vm/vm_page.h",
+          "note": null
+        },
+        {
+          "text": "On a stock Apple-silicon Mac with 16 GiB the default global and per-task mlock limit is about 12.16 GiB, with 64 GiB about 52.48 GiB and with 128 GiB about 108.8 GiB.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "On Macs above 256 GiB the 32 GiB unlockable cap, not the percentage table, sets the limit.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "To let mlock cover a model of M bytes on a machine with R bytes of RAM, set vm.global_user_wire_limit and vm.user_wire_limit to at least M plus current wired bytes, or lower vm.global_no_user_wire_amount to R minus that value.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "The mlock default limits are larger than the default Metal GPU working-set limits at every RAM size, so mlock of a mapped model rarely fails for the limit alone unless other wired memory is large.",
+          "source": "asserted",
+          "note": null
+        }
+      ]
+    }
+  ],
+  "related": []
+}

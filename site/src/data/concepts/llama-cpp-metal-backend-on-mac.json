@@ -1,0 +1,519 @@
+{
+  "slug": "llama-cpp-metal-backend-on-mac",
+  "concept": "llama.cpp Metal backend on Mac",
+  "generated": "2026-10-05",
+  "summary": "Build/install: Metal is on by default when `APPLE` (`GGML_METAL_DEFAULT ON`, also `GGML_BLAS_DEFAULT ON` with vendor Apple), so plain `cmake -B build && cmake --build build --config Release` is the Mac build; there is no `-DGGML_METAL=ON` step. `-DGGML_METAL=OFF` disables it; `--n-gpu-layers 0` d...",
+  "facets": [
+    {
+      "title": "Facts",
+      "facts": [
+        {
+          "text": "Build/install: Metal is on by default when `APPLE` (`GGML_METAL_DEFAULT ON`, also `GGML_BLAS_DEFAULT ON` with vendor Apple), so plain `cmake -B build && cmake --build build --config Release` is the Mac build; there is no `-DGGML_METAL=ON` step. `-DGGML_METAL=OFF` disables it; `--n-gpu-layers 0` disables GPU inference at runtime on a Metal build; `--device none` forces CPU. `GGML_METAL_EMBED_LIBRARY` defaults to follow `GGML_METAL` (shaders embedded in the binary; log line \"using embedded metal library\"). Other cmake knobs: `GGML_METAL_NDEBUG`, `GGML_METAL_SHADER_DEBUG` (-fno-fast-math), `GGML_METAL_MACOSX_VERSION_MIN`, `GGML_METAL_STD`, `GGML_METAL_TARGET_OS`.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Packaging: official install matrix lists Homebrew (`brew install llama.cpp`), MacPorts, Nix and conda-forge (with an Apple Metal build) for Mac. Homebrew formula is 0.5.0 stable with bottles for Sequoia, Tahoe and \"golden gate\" (macOS 27) on Apple silicon; it depends on a separate `ggml` formula (0.25.3) and openssl@3, and ships about 40 binaries (llama-server, llama-cli, llama-completion, llama-bench, llama-fit-params, llama-quantize, llama-imatrix ...). Prebuilt zip binaries also exist on GitHub releases for macOS arm64.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "A menu-bar app now exists: ggml-org/Llama-macOS (`brew install --cask llama-app`, llama.app). It runs a local server on `http://localhost:9931/v1`, uses an installed llama.cpp if present (otherwise installs a prebuilt binary), loads models on request and unloads when idle, and stores models in the shared Hugging Face cache. Linux CLI variant: `curl -LsSf https://llama.app/install.sh | sh`.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Weight loading: with mmap, the model file mapping is page-aligned and wrapped zero-copy as `MTLResourceStorageModeShared` buffers via `newBufferWithBytesNoCopy`. If the file exceeds `maxBufferLength`, it is split into overlapping views (overlap = max tensor size rounded up by 2 pages) so each tensor fits in one view. Non-mmap buffers on unified-memory devices use host-malloc'd memory also wrapped no-copy (shared); on non-unified devices they use private storage.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Residency sets (macOS 15+ only): residency sets are on unless `GGML_METAL_NO_RESIDENCY` is set. A background thread calls `requestResidency` on every set every 5 ms while a keep-alive counter is positive; the keep-alive is 180 s by default and is reset by each graph compute (`GGML_METAL_RESIDENCY_KEEP_ALIVE_S`, values <= 0 fall back to 180). After idle for keep-alive seconds, the heartbeat stops and macOS may unwire the memory; the next request re-wires it (a cold-start cost for servers idle >3 min).",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Tensor API (Metal 4, M5/A19 and later): `has_tensor` needs MTLGPUFamilyMetal4. It is then force-disabled by chip name for everything except M5, M6, A19, A20 (\"tensor API disabled for pre-M5 and pre-A19 devices\"), because on M2 Ultra it was ~5% slower and on M4/M4 Max no different. `GGML_METAL_TENSOR_ENABLE` overrides the name guard, `GGML_METAL_TENSOR_DISABLE` forces off. At init the backend compiles two dummy kernels (f16 and bf16) from source to probe the API; failure logs \"the tensor API is not supported in this environment - disabling\" (f16) or disables bfloat (bf16). The cmake build compiles a separate `ggml-tensor.metallib` only if the Xcode SDK is >= 26.0.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Tensor-API effect is on prefill only: M5 Max, gpt-oss-120b MXFP4 pp2048 877 -> 1833 t/s (2.09x), Step-3.7-Flash IQ3_XXS pp2048 342 -> 833 t/s (2.44x); tg128 unchanged (105 vs 105; 58 vs 56), because decode is bandwidth-bound.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Other runtime env vars in source: `GGML_METAL_FUSION_DISABLE`, `GGML_METAL_FUSION_DEBUG`, `GGML_METAL_CONCURRENCY_DISABLE`, `GGML_METAL_GRAPH_OPTIMIZE_DISABLE`, `GGML_METAL_GRAPH_DEBUG`, `GGML_METAL_CAPTURE_COMPUTE` (GPU frame capture), `GGML_METAL_PATH_RESOURCES`, `GGML_METAL_SHARED_BUFFERS_DISABLE/ENABLE`, `GGML_OP_OFFLOAD_MIN_BATCH` (default 32), `GGML_METAL_BF16_DISABLE` (mentioned by a user, not seen in the fetched source files).",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Flash attention on Metal: supported head sizes are 32, 40, 48, 64, 72, 80, 96, 112, 128, 192, 256, 320, 512, 576; K and V must have the same type; supported KV types are f32, f16, q8_0, q4_0, q4_1, q5_0, q5_1 (bf16 only if the device has bfloat). `iq4_nl` is NOT in the Metal FA kernel list although `--cache-type-k/v` accepts it. FA also requires simdgroup matmul (Apple7+, i.e. M1 and later).",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Server defaults (current README): `-fa` default `auto`; `-ngl` default `auto` (accepts a number, `auto`, `all`); `-fit` default on with 1024 MiB margin (adjusts unset args to fit device memory; `-fitt`, `-fitc` min ctx 4096); `-b` 2048, `-ub` 512; `-t` default -1; `--cache-ram` default 8192 MiB; `--kv-unified` on when slots are auto; `--lazy-mode` auto (tensors > 4 GiB read on demand, needs mmap); `--prio` -1..3 default 0. The `-hf` download cache is `LLAMA_CACHE`; on macOS the default is `~/Library/Caches/llama.cpp/` (files named `<org>_<repo>_<file>.gguf`).",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Wired/working-set sizing as printed by llama.cpp (`recommendedMaxWorkingSetSize`, bytes/1e6 labelled MB): M1 Max 32 GB = 22,906.50 (21.33 GiB, 2/3 of RAM); M4 Pro 48 GB = 40,200.90 (37.4 GiB, ~78%); M4 64 GB = 55,662.79 (51.8 GiB, ~81%).",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Metal 4 tensor API support landed via PR #16634 (Oct 2025, ggerganov, \"metal : initial Metal4 tensor API support\", reworked mul_mm/mul_mm_id); the runtime tensor-API self-test came with it.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "M5 startup failure: from ~March 2026 M5-family Macs on macOS 26.2-26.4 reported the tensor probe failing (\"error compiling source\", \"undeclared identifier 'mpp'\"). Root cause (issue #27473, 2026-08-21): `MTLCompileOptions.languageVersion` was never set, so the compiler defaulted to a Metal language version without `metal_tensor`. Fixed by PR #27461 (merged 2026-09-01, commit d5d993a09, shipped in b10734): requests Metal 4.0 when `has_tensor`, loads tensor kernels from a separate metallib, and clears `has_tensor` when an external precompiled `default.metallib` is used.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Residency-set memory bug: issue #25937 (2026-07-20) wired memory not released after `llama_model_free` unless some GPU work ran; reporter concluded it is a macOS Metal bug (Apple Feedback FB23959296, forum thread 839089). llama.cpp now submits a dummy blit command at residency-set init as a workaround.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "GPU command-buffer errors on Tahoe: issue #20141 (2026-03-05; M4 Pro, macOS 26.3, `kIOGPUCommandBufferCallbackErrorHang` / `...InnocentVictim`; later reports of `...ImpactingInteractivity` at ~71k context on M1 Max). ggerganov pointed to an MLX workaround, and the backend now calls `setenv(\"AGX_RELAX_CDM_CTXSTORE_TIMEOUT\",\"1\")` at Metal registration (closed via PR #22216).",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "v0.5.0 (this window) changelog includes \"metal : fix deprecation warnings from macOS 27 SDK\" (#29136); the discussion #4167 table later rows use \"v0.3.0\" tags, i.e. version naming on Mac benchmarks changed from b-numbers.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Prebuilt/bundled runtimes can miss the tensor API: LM Studio llama.cpp runtime 2.21 through 2.28.2 (issue lmstudio-bug-tracker #2040, open) was built with minos 14.0 / SDK 14.5, so the runtime shader compile defaulted to Metal 3.2 and the M5 probe failed. MLX nax pack unaffected. Check the log for `has tensor = true`.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Second M5 signature (Ollama #15594, whisper.cpp #3722): `static_assert failed ... Input types must match cooperative tensor types` at the bfloat/half step; not fixed by #27461. Workaround `GGML_METAL_TENSOR_DISABLE=1`.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "A failed tensor-probe compile can leave the GPU in a bad state: `ggml_metal_synchronize: error: command buffer 0 failed with status 5` then no output (Prism ML issue 93 on b9591, M5 24 GB, macOS 26.3.1).",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Issue #22800 (M1 Max 32 GB, macOS 13, release b9049 zip): some models crash at launch while another loads; the log shows Apple7 + Metal3 family. Old macOS releases (13) are a risk for prebuilt binaries.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Reported env vars from a user's #20141 triage list (`GGML_METAL_USE_RSET`, `GGML_METAL_GRAPH_REUSE`, `GGML_METAL_N_CB`, `GGML_METAL_SYNC`) were not found in the fetched Metal source; the working residency switch is `GGML_METAL_NO_RESIDENCY`. Treat tutorial env var names as unverified.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "GPU in containers: Docker on Apple silicon has no Metal. Podman with libkrun/krunkit exposes Vulkan via host GPU; on an M2 Max it ran ~40% slower than native llama.cpp, 3x faster pp and 25% faster tg than a CPU container (2025 data, Fedora-only patched mesa).",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Metal 4 SDK needed at build time for the tensor kernels; building with an older Xcode silently skips `ggml-tensor.metallib` (\"Metal SDK x does not support the tensor API\").",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Speculative decoding on Metal: llama.cpp MTP speculative decoding (`--spec-type draft-mtp`) was a net loss at every setting on an M1 Max (Qwen3.5-9B Q4_K_M, b9330: baseline 25.3 t/s vs 22.4 at n-max 0, 21.9 at 2, 19.3 at 6); the existing file lists the spec flags with no Mac caveat. Issue #23752 is closed with no fix recorded in the fetched page; MLX tools (MTPLX, DFlash-MLX) report 1.6-2.6x on the same class of hardware (secondary source).",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "`-ngl 99` as \"mandatory\": the same post (and the existing file's example) treat it as required; the README default is `auto` with `-fit on`, which should offload without the flag. Not tested on Mac here.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "`-fa on` vs `auto`: post says leave it on; README default is `auto` (resolves per model/backend). Both agree there is no downside on Metal for supported KV types.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Default GPU memory share: Medium post says 64 GB Mac gets ~48 GB (75%); the llama.cpp log from an M4 64 GB machine shows 55,662.79 MB (~51.8 GiB). Sibling dossier lists 48 GiB for 64 GB. Unresolved (macOS version or chip may differ).",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "`-t` guidance: post says more threads than P-cores hurts and Apple's gpt-oss guide uses `-t 1` since the GPU does the work; README default is -1 (auto). No primary source measured it.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "MLX vs llama.cpp long context: a 2026-04 post cites Groundy: M1 Max Qwen3.5-35B at 8.5K context, MLX UI 51 t/s but wall-clock throughput ~3 t/s with prefill, llama.cpp `--flash-attn` finished 9 s faster (43.4 s vs 52.3 s). Sibling dossiers cite MLX leading by 20-87% on short context decode; both can hold (decode vs prefill-dominated).",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Whether llama.cpp MTP/draft speculative decoding on Metal has been fixed since #23752 closed (May 2026 data, b9330).",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Whether `-ngl auto`/`-fit` accounts for `recommendedMaxWorkingSetSize` or the sysctl-raised wired limit on Mac (not verified in source).",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Exact semantics of `--load-mode mlock` on macOS after regression #26110 (existing file) for Metal; no Mac report found.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Whether Ollama's default and LM Studio's llama.cpp runtime now track upstream tensor-API fixes.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Independent M5 tensor-API prefill numbers beyond one user's llama-bench.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Metal is enabled by default in the ggml cmake build on Apple platforms (GGML_METAL_DEFAULT ON when APPLE); no -DGGML_METAL=ON is needed.",
+          "source": "https://raw.githubusercontent.com/ggml-org/llama.cpp/master/ggml/CMakeLists.txt",
+          "note": null
+        },
+        {
+          "text": "docs/build.md: on macOS Metal is enabled by default; -DGGML_METAL=OFF disables it at compile time; `--n-gpu-layers 0` disables GPU inference on a Metal build.",
+          "source": "https://raw.githubusercontent.com/ggml-org/llama.cpp/master/docs/build.md",
+          "note": null
+        },
+        {
+          "text": "GGML_BLAS defaults to ON on Apple with vendor \"Apple\" (Accelerate); benchmark logs show backend \"MTL,BLAS\".",
+          "source": "https://raw.githubusercontent.com/ggml-org/llama.cpp/master/ggml/CMakeLists.txt",
+          "note": null
+        },
+        {
+          "text": "GGML_METAL_EMBED_LIBRARY defaults to the value of GGML_METAL; startup logs \"using embedded metal library\".",
+          "source": "https://raw.githubusercontent.com/ggml-org/llama.cpp/master/ggml/CMakeLists.txt",
+          "note": null
+        },
+        {
+          "text": "Other Metal cmake options: GGML_METAL_NDEBUG, GGML_METAL_SHADER_DEBUG, GGML_METAL_MACOSX_VERSION_MIN, GGML_METAL_STD, GGML_METAL_TARGET_OS.",
+          "source": "https://raw.githubusercontent.com/ggml-org/llama.cpp/master/ggml/CMakeLists.txt",
+          "note": null
+        },
+        {
+          "text": "The cmake Metal build compiles ggml-tensor.metallib only when the SDK version is >= 26.0.",
+          "source": "https://raw.githubusercontent.com/ggml-org/llama.cpp/master/ggml/src/ggml-metal/CMakeLists.txt",
+          "note": null
+        },
+        {
+          "text": "Official install docs list Homebrew, MacPorts, Nix and conda-forge for Mac; conda-forge provides an Apple Metal build.",
+          "source": "https://raw.githubusercontent.com/ggml-org/llama.cpp/master/docs/install.md",
+          "note": null
+        },
+        {
+          "text": "Homebrew llama.cpp formula stable is 0.5.0 with bottles for Apple silicon Sequoia, Tahoe and macOS 27, depending on a separate ggml formula (0.25.3) and openssl@3.",
+          "source": "https://formulae.brew.sh/formula/llama.cpp",
+          "note": null
+        },
+        {
+          "text": "The Homebrew formula installs about 40 binaries including llama-server, llama-completion, llama-bench, llama-fit-params, llama-imatrix and llama-quantize.",
+          "source": "https://formulae.brew.sh/formula/llama.cpp",
+          "note": null
+        },
+        {
+          "text": "Homebrew analytics: 15,937 installs in 30 days and 315,148 in 365 days (as of 2026-10-04).",
+          "source": "https://formulae.brew.sh/formula/llama.cpp",
+          "note": null
+        },
+        {
+          "text": "ggml-org ships a macOS menu-bar app (Llama-macOS, `brew install --cask llama-app`) that serves an OpenAI-compatible API on http://localhost:9931/v1 and unloads idle models.",
+          "source": "https://github.com/ggml-org/Llama-macOS",
+          "note": null
+        },
+        {
+          "text": "The Llama app uses an existing llama.cpp install if found, otherwise downloads a prebuilt binary, and shares the Hugging Face model cache with llama.cpp.",
+          "source": "https://github.com/ggml-org/Llama-macOS",
+          "note": null
+        },
+        {
+          "text": "llama.app also offers a Linux CLI installer: `curl -LsSf https://llama.app/install.sh | sh`.",
+          "source": "https://llama.app",
+          "note": null
+        },
+        {
+          "text": "Metal device init prints: GPU family lines, simdgroup reduction, simdgroup matrix mul., has unified memory, has bfloat, has tensor, use residency sets, use shared buffers, recommendedMaxWorkingSetSize.",
+          "source": "https://raw.githubusercontent.com/ggml-org/llama.cpp/master/ggml/src/ggml-metal/ggml-metal-device.m",
+          "note": null
+        },
+        {
+          "text": "simdgroup reduction and simdgroup matmul require MTLGPUFamilyApple7 (M1 or later).",
+          "source": "https://raw.githubusercontent.com/ggml-org/llama.cpp/master/ggml/src/ggml-metal/ggml-metal-device.m",
+          "note": null
+        },
+        {
+          "text": "bfloat support requires Metal3 or Apple6 family; use_shared_buffers equals has_unified_memory (overridable with GGML_METAL_SHARED_BUFFERS_DISABLE/ENABLE).",
+          "source": "https://raw.githubusercontent.com/ggml-org/llama.cpp/master/ggml/src/ggml-metal/ggml-metal-device.m",
+          "note": null
+        },
+        {
+          "text": "With mmap, Metal wraps the model mapping with newBufferWithBytesNoCopy (shared storage), page-aligned, and splits files larger than maxBufferLength into overlapping views.",
+          "source": "https://raw.githubusercontent.com/ggml-org/llama.cpp/master/ggml/src/ggml-metal/ggml-metal-device.m",
+          "note": null
+        },
+        {
+          "text": "Residency sets are only created on macOS >= 15 and are disabled by setting GGML_METAL_NO_RESIDENCY.",
+          "source": "https://raw.githubusercontent.com/ggml-org/llama.cpp/master/ggml/src/ggml-metal/ggml-metal-device.m",
+          "note": null
+        },
+        {
+          "text": "A background thread re-requests residency for all sets every 5 ms while the keep-alive counter is positive; default keep-alive 180 s, set by GGML_METAL_RESIDENCY_KEEP_ALIVE_S (<=0 falls back to 180 s).",
+          "source": "https://raw.githubusercontent.com/ggml-org/llama.cpp/master/ggml/src/ggml-metal/ggml-metal-device.m",
+          "note": null
+        },
+        {
+          "text": "Each graph compute resets the residency keep-alive counter (ggml_metal_device_rsets_keep_alive).",
+          "source": "https://raw.githubusercontent.com/ggml-org/llama.cpp/master/ggml/src/ggml-metal/ggml-metal-device.m",
+          "note": null
+        },
+        {
+          "text": "Metal init submits a dummy blit command as a workaround for residency-set memory not being released if no GPU op occurs (Apple forum 839089, issue #25937).",
+          "source": "https://raw.githubusercontent.com/ggml-org/llama.cpp/master/ggml/src/ggml-metal/ggml-metal-device.m",
+          "note": null
+        },
+        {
+          "text": "Issue #25937: after llama_model_free, wired memory stayed (16G vs 3G wired) until process exit when no prompt ran; GGML_METAL_NO_RESIDENCY=1 hid the problem; the reporter filed Apple Feedback FB23959296 calling it a Metal bug.",
+          "source": "https://github.com/ggml-org/llama.cpp/issues/25937",
+          "note": null
+        },
+        {
+          "text": "The tensor API is disabled by device-name guard for every chip except M5, M6, A19 and A20, because it was ~5% slower on M2 Ultra and no different on M4/M4 Max.",
+          "source": "https://raw.githubusercontent.com/ggml-org/llama.cpp/master/ggml/src/ggml-metal/ggml-metal-device.m",
+          "note": null
+        },
+        {
+          "text": "GGML_METAL_TENSOR_ENABLE overrides the pre-M5 guard; GGML_METAL_TENSOR_DISABLE disables the tensor API.",
+          "source": "https://raw.githubusercontent.com/ggml-org/llama.cpp/master/ggml/src/ggml-metal/ggml-metal-device.m",
+          "note": null
+        },
+        {
+          "text": "Metal init compiles dummy f16 and bf16 tensor-API kernels at startup; a bf16 failure disables only bfloat support.",
+          "source": "https://raw.githubusercontent.com/ggml-org/llama.cpp/master/ggml/src/ggml-metal/ggml-metal-device.m",
+          "note": null
+        },
+        {
+          "text": "Other Metal env vars: GGML_METAL_FUSION_DISABLE, GGML_METAL_FUSION_DEBUG, GGML_METAL_CONCURRENCY_DISABLE, GGML_METAL_GRAPH_OPTIMIZE_DISABLE, GGML_METAL_GRAPH_DEBUG, GGML_METAL_CAPTURE_COMPUTE, GGML_METAL_PATH_RESOURCES, GGML_METAL_DEVICES, GGML_OP_OFFLOAD_MIN_BATCH (default 32).",
+          "source": "https://raw.githubusercontent.com/ggml-org/llama.cpp/master/ggml/src/ggml-metal/ggml-metal-context.m",
+          "note": null
+        },
+        {
+          "text": "GGML_METAL_DEVICES sets the number of Metal devices registered; registration also sets AGX_RELAX_CDM_CTXSTORE_TIMEOUT=1 to work around kIOGPUCommandBufferCallbackErrorImpactingInteractivity (issue #20141).",
+          "source": "https://raw.githubusercontent.com/ggml-org/llama.cpp/master/ggml/src/ggml-metal/ggml-metal.cpp",
+          "note": null
+        },
+        {
+          "text": "Metal flash attention supports head sizes 32, 40, 48, 64, 72, 80, 96, 112, 128, 192, 256, 320, 512 and 576.",
+          "source": "https://raw.githubusercontent.com/ggml-org/llama.cpp/master/ggml/src/ggml-metal/ggml-metal-device.m",
+          "note": null
+        },
+        {
+          "text": "Metal flash attention requires K and V of the same type among f32, f16, q8_0, q4_0, q4_1, q5_0, q5_1 (bf16 if the device has bfloat); iq4_nl KV is not supported by the Metal FA path.",
+          "source": "https://raw.githubusercontent.com/ggml-org/llama.cpp/master/ggml/src/ggml-metal/ggml-metal-device.m",
+          "note": null
+        },
+        {
+          "text": "The Metal FA kernels are built per KV type (fa_f16, fa_f32, fa_q4_0, fa_q4_1, fa_q5_0, fa_q5_1, fa_q8_0 and vec variants).",
+          "source": "https://raw.githubusercontent.com/ggml-org/llama.cpp/master/ggml/src/ggml-metal/CMakeLists.txt",
+          "note": null
+        },
+        {
+          "text": "Server README defaults: -fa auto, -ngl auto (number|auto|all), -fit on, fit target 1024 MiB, fit min ctx 4096, -b 2048, -ub 512, -t -1, --cache-ram 8192 MiB, --prio 0 (range -1..3).",
+          "source": "https://raw.githubusercontent.com/ggml-org/llama.cpp/master/tools/server/README.md",
+          "note": null
+        },
+        {
+          "text": "`--load-mode auto` means mmap unless the device does not support it; `--lazy-mode auto` reads tensors larger than 4 GiB on demand and requires mmap.",
+          "source": "https://raw.githubusercontent.com/ggml-org/llama.cpp/master/tools/server/README.md",
+          "note": null
+        },
+        {
+          "text": "llama-server model sources are the LLAMA_CACHE cache, --models-dir and --models-preset; `-hf user/model:tag` adds to the cache.",
+          "source": "https://raw.githubusercontent.com/ggml-org/llama.cpp/master/tools/server/README.md",
+          "note": null
+        },
+        {
+          "text": "On macOS the -hf cache is ~/Library/Caches/llama.cpp/ with files named org_repo_file.gguf.",
+          "source": "https://github.com/ggml-org/llama.cpp/issues/20141",
+          "note": null
+        },
+        {
+          "text": "llama.cpp logs on M1 Max 32 GB: recommendedMaxWorkingSetSize 22906.50 MB; M4 Pro 48 GB: 40200.90 MB; M4 64 GB: 55662.79 MB (values are bytes/1e6).",
+          "source": "https://github.com/ggml-org/llama.cpp/issues/22800",
+          "note": null
+        },
+        {
+          "text": "M4 64 GB log shows recommendedMaxWorkingSetSize 55662.79 MB, i.e. about 51.8 GiB or 81% of RAM, which does not match a flat 75%.",
+          "source": "https://discourse.nixos.org/t/llama-cpp-on-apple-silicon-native-build-much-faster-than-nixpkgs/75309",
+          "note": null
+        },
+        {
+          "text": "PR #16634 (Oct 2025) added initial Metal 4 tensor API support and reworked mul_mm and mul_mm_id; it required confirming no regression on M4 and earlier.",
+          "source": "https://github.com/ggml-org/llama.cpp/pull/16634",
+          "note": null
+        },
+        {
+          "text": "M5 Max A/B (llama-bench -fa 1 -p 2048 -n 128): gpt-oss-120b MXFP4 pp2048 877 -> 1833 t/s with tensor API; tg128 104.9 vs 105.1.",
+          "source": "https://github.com/lmstudio-ai/lmstudio-bug-tracker/issues/2040",
+          "note": null
+        },
+        {
+          "text": "Same A/B: Step-3.7-Flash IQ3_XXS pp2048 342 -> 833 t/s (2.44x); tg128 58.2 vs 56.0.",
+          "source": "https://github.com/lmstudio-ai/lmstudio-bug-tracker/issues/2040",
+          "note": null
+        },
+        {
+          "text": "LM Studio's llama.cpp runtime (2.21.0 through 2.28.2) built with minos 14.0 / SDK 14.5 fails the M5 tensor probe and loses 2-3x prefill; the MLX nax runtime is unaffected; issue still open.",
+          "source": "https://github.com/lmstudio-ai/lmstudio-bug-tracker/issues/2040",
+          "note": null
+        },
+        {
+          "text": "Upstream cause of the M5 probe failure (issue #27473): MTLCompileOptions.languageVersion unset, so metal_tensor and MetalPerformancePrimitives headers were hidden; setting 4.0 passes while 3.2 fails.",
+          "source": "https://modelfit.io/blog/m5-mac-metal-tensor-api-llama-cpp-fix/",
+          "note": null
+        },
+        {
+          "text": "PR #27461 (merged 2026-09-01, commit d5d993a09, in b10734) requests Metal 4.0 when has_tensor, builds tensor kernels in a separate metallib and clears has_tensor for external precompiled metallib builds.",
+          "source": "https://github.com/ggml-org/llama.cpp/pull/27461",
+          "note": null
+        },
+        {
+          "text": "With an external default.metallib (GGML_METAL_EMBED_LIBRARY=OFF) and has_tensor live, MUL_MAT returned garbage on M5 Max (9/11 tests, ERR = inf) before the guard.",
+          "source": "https://github.com/ggml-org/llama.cpp/pull/27461",
+          "note": null
+        },
+        {
+          "text": "A second M5 failure signature (static_assert \"Input types must match cooperative tensor types\", Ollama #15594, whisper.cpp #3722) is not fixed by #27461; workaround GGML_METAL_TENSOR_DISABLE=1.",
+          "source": "https://modelfit.io/blog/m5-mac-metal-tensor-api-llama-cpp-fix/",
+          "note": null
+        },
+        {
+          "text": "Failed tensor-probe compile can cascade to \"ggml_metal_synchronize: error: command buffer 0 failed with status 5\" and no output on M5 (Prism ML issue 93, b9591, macOS 26.3.1).",
+          "source": "https://modelfit.io/blog/m5-mac-metal-tensor-api-llama-cpp-fix/",
+          "note": null
+        },
+        {
+          "text": "Issue #20141: on M4 Pro macOS 26.3 any -ngl > 0 hit kIOGPUCommandBufferCallbackErrorHang (GPU hang) regardless of -c, -b/-ub, -fa, --no-mmap, --no-warmup.",
+          "source": "https://github.com/ggml-org/llama.cpp/issues/20141",
+          "note": null
+        },
+        {
+          "text": "Issue #20141 follow-up: M1 Max on Tahoe 26.4 hit kIOGPUCommandBufferCallbackErrorImpactingInteractivity near 71k context; ggerganov suggested AGX_RELAX_CDM_CTXSTORE_TIMEOUT=1 from ml-explore/mlx#3267.",
+          "source": "https://github.com/ggml-org/llama.cpp/issues/20141",
+          "note": null
+        },
+        {
+          "text": "Users on Tahoe 26.4.1 tried GGML_METAL_TENSOR_DISABLE, GGML_METAL_BF16_DISABLE and GGML_METAL_NO_RESIDENCY together and reported they destroy performance without fixing the crash.",
+          "source": "https://github.com/ggml-org/llama.cpp/issues/20141",
+          "note": null
+        },
+        {
+          "text": "Issue #22800: M1 Max 32 GB on macOS 13 with release zip b9049 crashed at launch for gpt-oss/Qwen models; labelled Apple Metal and macos.",
+          "source": "https://github.com/ggml-org/llama.cpp/issues/22800",
+          "note": null
+        },
+        {
+          "text": "A 2026-04 tuning post claims `-b 2048 -ub 2048` speeds prefill on Apple silicon and a 4K prompt went 8 s to ~3 s (single anecdote); it also states default -b is 512, contradicting the current README.",
+          "source": "https://medium.com/@michael.hannecke/tuning-llama-cpp-on-apple-silicon-843f37a6c3dc",
+          "note": null
+        },
+        {
+          "text": "Same post: KV q8_0 requires -fa, v-cache quantization is more quality-sensitive than k, and --no-kv-offload is counterproductive on unified memory.",
+          "source": "https://medium.com/@michael.hannecke/tuning-llama-cpp-on-apple-silicon-843f37a6c3dc",
+          "note": null
+        },
+        {
+          "text": "Same post: NUMA, --main-gpu, --tensor-split, --split-mode and CPU-affinity flags are no-ops or placebo on Apple silicon.",
+          "source": "https://medium.com/@michael.hannecke/tuning-llama-cpp-on-apple-silicon-843f37a6c3dc",
+          "note": null
+        },
+        {
+          "text": "Same post (secondary): a hang near 75% while loading on some Apple silicon setups has --no-mmap as workaround (flag is now --load-mode none).",
+          "source": "https://medium.com/@michael.hannecke/tuning-llama-cpp-on-apple-silicon-843f37a6c3dc",
+          "note": null
+        },
+        {
+          "text": "Groundy figures via a 2026-04 post: M1 Max, Qwen3.5-35B, 8.5K context, MLX UI 51 t/s but ~3 t/s wall-clock with prefill; llama.cpp --flash-attn finished 9 s sooner (43.4 vs 52.3 s).",
+          "source": "https://medium.com/@michael.hannecke/llama-cpp-vs-mlx-on-apple-mx-775ee59df0ee",
+          "note": null
+        },
+        {
+          "text": "The same post says llama.cpp has native GBNF/JSON-schema constrained decoding and IQ-quants+imatrix that MLX lacks in core.",
+          "source": "https://medium.com/@michael.hannecke/llama-cpp-vs-mlx-on-apple-mx-775ee59df0ee",
+          "note": null
+        },
+        {
+          "text": "GPU access from containers on Apple silicon works through Podman+libkrun/krunkit Vulkan; on M2 Max ~40% slower than native, 3x faster pp and 25% faster tg than CPU-only container (Apr 2025).",
+          "source": "https://github.com/ggml-org/llama.cpp/discussions/12985",
+          "note": null
+        },
+        {
+          "text": "Discussion #4167 Apple silicon table: same M2 Ultra rose from 94.27 to 125.21 t/s Q4_0 tg128 between build 8e672ef (Nov 2023) and c1d0e7a (Aug 2026), i.e. Metal kernel work still yields ~33% decode gain.",
+          "source": "https://github.com/ggml-org/llama.cpp/discussions/4167",
+          "note": null
+        },
+        {
+          "text": "llama.cpp v0.5.0 release notes include \"metal : fix deprecation warnings from macOS 27 SDK (#29136)\" and ggml 0.25.0.",
+          "source": "https://github.com/ggml-org/llama.cpp/releases/latest",
+          "note": null
+        },
+        {
+          "text": "Inference: with `--load-mode none` on a unified-memory Mac, weights go through host-malloc shared buffers and are copied once at load, instead of wrapping the file mapping, so load is slower and RSS higher.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Inference: after 180 s idle the residency heartbeat stops, so a server idle longer than that may see higher first-token latency until memory is re-wired; raising GGML_METAL_RESIDENCY_KEEP_ALIVE_S trades background wakeups for warmth.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Inference: on pre-M5 chips `GGML_METAL_TENSOR_ENABLE` is an opt-in experiment, since the upstream author measured no gain on M4/M4 Max and ~5% loss on M2 Ultra.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Issue #23752 (2026-05-26, M1 Max 32 GB, macOS 26.4.1, b9330): `--spec-type draft-mtp` on Metal with Qwen3.5-9B-MTP Q4_K_M gave 22.4 t/s at --spec-draft-n-max 0 (100% acceptance), 21.9 at 2 (76%), 19.3 at 6 (44%) vs 25.3 t/s non-MTP baseline; n-min had no effect.",
+          "source": "https://github.com/ggml-org/llama.cpp/issues/23752",
+          "note": null
+        },
+        {
+          "text": "The same reporter saw a 5-14x regression for Qwen3.6-35B-A3B-MTP on Metal and noted the same symptom class on SYCL (#23533, #23203).",
+          "source": "https://github.com/ggml-org/llama.cpp/issues/23752",
+          "note": null
+        },
+        {
+          "text": "MTP spec decoding reserves an extra context: the server log added 1808.02 MiB to fit_params_target on MTL0 for Qwen3.5-9B.",
+          "source": "https://github.com/ggml-org/llama.cpp/issues/23752",
+          "note": null
+        },
+        {
+          "text": "Secondary: MLX-based MTPLX reports 2.24x decode on Qwen 3.6 27B and 1.6x on a 16 GB M4 mini; an M4 Pro 48 GB reviewer measured 7 -> 18.3 t/s vs llama.cpp MTP 10.5 t/s.",
+          "source": "https://modelfit.io/blog/speculative-decoding-mac-llm/",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Corrections and disagreements",
+      "facts": [
+        {
+          "text": "Default `-b`: a 2026-04 tuning post says default 512 (and recommends `-b 2048 -ub 2048`, citing Apple's gpt-oss guide); the current server README says `-b` default 2048 and `-ub` default 512. So only `-ub` is the lever; CONTRADICTS the post. Its claim \"A 4K prompt drops from 8 s to ~3 s with -ub 2048\" is a single anecdote.",
+          "source": "asserted",
+          "note": null
+        }
+      ]
+    }
+  ],
+  "related": []
+}

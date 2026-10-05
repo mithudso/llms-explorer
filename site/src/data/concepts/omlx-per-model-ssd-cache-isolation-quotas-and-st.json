@@ -1,0 +1,429 @@
+{
+  "slug": "omlx-per-model-ssd-cache-isolation-quotas-and-st",
+  "concept": "oMLX per-model SSD cache isolation quotas and stale-block eviction",
+  "generated": "2026-10-05",
+  "summary": "Directory layout seen in a 0.6.4 cache dir: 16 hex shard dirs `0-f` (KV blocks, `<hash>.safetensors`), `_boundary_snapshots/` (with `_promote/`), `_gdn_sidecars/<signature-hash>/` (recurrent state), `response-state/`, `vision_features/`. Sidecars and boundary snapshots count toward the cap separa...",
+  "facets": [
+    {
+      "title": "Facts",
+      "facts": [
+        {
+          "text": "Directory layout seen in a 0.6.4 cache dir: 16 hex shard dirs `0-f` (KV blocks, `<hash>.safetensors`), `_boundary_snapshots/` (with `_promote/`), `_gdn_sidecars/<signature-hash>/` (recurrent state), `response-state/`, `vision_features/`. Sidecars and boundary snapshots count toward the cap separately from the hex dirs.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Fix for 2064 (commit 28fe5cb, in v0.4.5.dev1): a second index, `_incompatible_index`, holds blocks that fail the signature check. `_tracked_ssd_size()` = compatible index size + incompatible index size; the startup scan enforces the cap against that total; a write that needs space triggers `_enforce_size_limit_for_new_block`; when a block hash is rewritten it is removed from the incompatible index. Log line gained `incompatible_files=N`.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Maintainer policy (issue 2662, 2026-08-15): incompatible blocks are counted against `max_size` and LRU-evicted at startup if the directory is over the limit and on every save that needs space. They are deliberately not deleted on scan because that \"would wipe valid cache for other models sharing the directory\". So a cache full of dead blocks at 54.94 of 55 GB was within budget; nothing is reclaimed until a new write needs room.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Consequence (inference from the two statements above): isolation today is by signature plus global LRU, not by namespace. A model that writes often evicts a quieter model's valid blocks, because LRU is global across models.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "`auto` cap (commit 0faa19c, 2026-09-22, issue 3829): limit = (free disk + existing SSD cache incl. GDN sidecars) x 50%; refreshed during use, does not shrink because the cache grows or the server restarts. Shipped in the 0.7.0rc1 note \"Safer automatic SSD-cache sizing\". Before it, the default `auto` on a 10 GB-free M2 Max 32 GB wrote 6.5 GB for four 8,192-token unique-prefix requests (about 1.6 GB per request, half in `_gdn_sidecars`) with no warning.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Manual clear (`POST /admin/api/ssd-cache/clear`, dashboard trash icon): issue 3883 (2026-09-23) reports that with no model loaded the dashboard gauge counted only hex dirs (9.2 GB shown vs 28.6 GiB real) and \"Phase 2\" clear deleted only `[0-9a-f]/*.safetensors`, leaving 19.36 GB of `_gdn_sidecars`. 0.7.0rc1 says GDN sidecars are now included in cache maintenance. Workaround before the fix was loading a model so `PagedSSDCacheManager.clear()` iterates the sidecar index, or deleting `~/.omlx/cache` by hand.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Orphan growth path: one client-aborted 203k-token prefill left 126 GB in `_gdn_sidecars/<hash>/` (27 files up to 5.1 GB, fp32 state) on a 128 GB M5 Max with a 130 GB cap, because `cleanup_request` did not run when the engine died in an immediate-abort unload (issue 2647 comment, 2026-08-29).",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "LRU, global across models, size-driven only (no TTL on blocks). Triggered on startup scan (if over cap) and on writes that need space. Not triggered on model unload or model switch.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "The per-model controls that do exist (pinning, per-model TTL, EnginePool LRU) govern loaded engines, not their SSD blocks.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Requested but not implemented as of 2026-10-04: per-model namespace (2663, 2064), reclaim-on-unload (2663), per-model `cache.ssd_tier: off|on` and `ssd_quota_bytes` (2663 comment, 2026-09-19), request-level no-write or TTL control (issue 1499, May 2026, no maintainer reply), configurable snapshot stride (2647).",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Non-sliceable state (GDN recurrent state, rotating windows) cannot be cut from a live cache at an arbitrary token, so oMLX stores it only at block boundaries (\"boundary snapshots\") and fails closed otherwise. Log text: `Skipping cache store for <id>: reason=boundary_snapshot_unavailable tokens=N block_size=4096 available_boundaries=0; storing live non-sliceable state would corrupt later prefix hits`.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Issue 3317 (opened 2026-08-30, still open on 2026-10-04): on 0.6.4 qwen3_5 / qwen4_exp hybrids with Lightning MTP stop capturing boundaries; 0.6.2 stored up to 113K, 0.6.3 is clean, 0.6.4 regressed (104 skips on 2026-08-30, 97 on 2026-08-31 for one reporter; 0 on 0.6.3 before and after rollback). Symptom: `reused` pinned (8,192 or a stale value) so a 76K prompt re-prefilled about 68K every turn; one reply took 496 s. Related reports 3314 (corrupt or truncated replies near 128K, `finish_reason=stop`, recovered after a rebuild) and 3539 (empty `_boundary_snapshots/` on M3 Max).",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Reporter hypothesis (Marian2110, M1 Max): with MTP on, the decode-time capture path is skipped by a speculative-decode skew guard in `_extract_boundary_snapshot`, and prefill-time capture only fires when prefill crosses a boundary, so after the first store neither path fires. A control run with `dflash_enabled` instead of `mtp_enabled` kept its cache (turn 2 5.3 s vs 18.4 s). Not confirmed by the maintainer, who could not reproduce on exact 0.6.4 with oQ4e Lightning MTP, SSD-only, block 4096 (boundaries 4096/8192/12288 stored) and asked for DEBUG logs.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Maintainer clarification: `available_boundaries=0` counts only snapshots captured during the current request; a request that does not reach the next block boundary legitimately reports 0. Judge reuse from `cached_tokens` or `reused`, not from that line.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "A second signature on 3317 (salazr, M3 Ultra 96 GB, 0.6.4): cache hit then `ArraysCache layer 0: partial prefix match detected (placeholder in last matched block). Rejecting cache to prevent stale GDN state.` and `(0 saved to tiered cache)` on 3 of 4 stores; one persisted block listed 24 layers, half of 48 GDN layers (reporter's guess, unverified).",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Issue 3481 closed 2026-09-06 by the reporter; a production fleet (three M3 Ultra, 0.6.4, block 2048, sticky-session routing) saw zero placeholder rejections and 78-83% engine-side hit over 72 h. The commenter's reading: warm routing avoids the cold or partial-match reconstruction path where the guard bites. Suggested fix shape: reject only the partial last block and serve the preceding full blocks.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Fixes by release: 0.6.4 added hybrid-cache boundary diagnostics (#3249, reports capture, SSD fallback, restore, fail-closed skip and re-prefill reasons without prompt content) and #3227 (hybrid models release boundary snapshots on failures). 0.7.0.dev1 \"restored hybrid GDN boundary storage\" (#3288, #3327 among others). 0.7.0.dev2 fixed an SSD prefix-cache write race that could discard recurrent boundary snapshots while another write was queued (#3563). 0.7.0.dev4 fixed batched Lightning MTP corruption at cache boundaries (#3724) and GLM cumulative-KV snapshot growth (#3290, #3710). 0.7.0 (2026-09-30) is latest stable. Whether 3317 itself was closed by those was not confirmed.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Snapshot cost on rotating-window models (issue 2647, Gemma4-31B 8-bit VLM, 60 layers, 10 KVCache + 50 rotating at 1024, block aligned 256 to 1024): each boundary file about 850 MB (820 MB rotating state plus about 160 MB sliceable KV); 2.5-4.6 GB written per turn; a 148 GB quota filled in one day (about 43 turns). `gdn_sidecar_state_dtype: rht_int8` cut one Qwen3.8-Flash-Next boundary bundle 5.1 GB to about 57 MB (96% prefix restored, 3 s vs 50 s) but bytes written per token stayed about 0.6 MB because bundles are cumulative re-bundles. Proposed: boundary stride of 2 or 4, delta encoding.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Issue 2384: a single 12K-token conversation on Qwen3.5-122B-A10B 5-bit produced one roughly 190 MB hot entry per turn (20 entries, 3.8 GB), SSD at 125 of 150 GB; boundary_snapshot_save time grew 463 ms to 544 ms over turns.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Restore speed, not just hit rate: full-hit restore about 2.0 s vs 0.39 s for a RAM clone (issue 3064, M2 Max 64 GB, 0.6.3rc2); median re-prefilled remainder past the last 2,048-token snapshot was 2,049 tokens (p90 16,385) over 520 activations (beaglemoo, M5 Pro 64 GB); the maintainer position in issue 1578 rejects partial-tail snapshots for hybrid GDN models.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Hot-cache write-through (0.6.3rc3, default off; `--hot-cache-write-through` or `OMLX_HOT_CACHE_WRITE_THROUGH`) keeps blocks in RAM and also writes SSD, and clearing the hot cache flushes dirty blocks. 0.6.0rc1 added `hot_cache_promotion_failures` to `/admin/api/stats`; the maintainer could not confirm the 2662 `_extract_tensor_bytes` theory and asked whether the server was restarted after flipping `hot_cache_only`.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Issue 3612 manifest proposal: `POST /api/cache/export` returns a manifest (`format_version`, `model`, `quant`, `engine_version`, `prefix_digest`, `restorable_tokens`, `size_bytes`) plus a blob; 409 if the prefix was evicted; `POST /api/cache/import` returns `restored_tokens` or 422 on any manifest, digest, model or version mismatch, fail-closed with no partial reuse. Digest commits to model identity and exact prefix tokens. Success is observed via a `cached_tokens`-style usage field. Open questions it lists: client API vs cluster-store-only, budget (shared `ssd_cache_max_size` or separate), `format_version` stability, and whether 3317-class capture gaps are a prerequisite. No maintainer reply and no participants besides the author as of 2026-10-04.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Existing code it would generalise: `omlx/cluster/prompt_snapshot_cache.py` (hash(model, prefix tokens) keys, atomic manifest, boundary chains, bounded LRU, serialises KV, rotating and GDN state through mlx-lm `save_prompt_cache`/`load_prompt_cache`, wired only to the distributed rank), `omlx/cache/paged_ssd_cache.py`, and `POST /api/cache/probe` (reports hot, warm or cold location without prefill).",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Sizes and portability constraints stated there: a few GB for 60-120K context on a 27B hybrid with 8-bit KV; portable only between identical model file, quant and oMLX version; KV-quant parameters (TurboQuant 8-bit) must be in the manifest; MTP draft state need not persist.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Confidentiality: the artifact is conversation-derived data. The request asks the engine only to scope it to one client, model and digest and says encryption is the agent's job. Cache files hold KV tensors and boundary/sidecar state derived from the prompt; the existing dossier already records that ds4 cache files contain prompt text. For oMLX the default cache directory `~/.omlx/cache` is world-readable by the user's other processes and is not encrypted (inferred; no source says it is). Issue 2250 (a compaction summary full of another project's content) was a scare, not a leak: the maintainer said oMLX is purely local with no telemetry or shared state, suspected KV corruption, and the reporter later concluded it was an OpenCode bug after clearing both caches.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "A cache dir shared between two oMLX instances or two users (the proposed 2663 workaround uses a second instance) is also unauthenticated at file level: any process that can write a block with a matching signature and hash can feed state into a later restore (inferred, no source).",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Run 0.7.0 or later, not 0.6.4, if you use qwen3_5 / qwen4_exp hybrids with Lightning MTP and rely on SSD reuse. [src: 3317, release notes]",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Set `ssd_cache_max_size` explicitly instead of `auto` on a small boot disk; `auto` is 50% of (free + existing cache).",
+          "source": "3829",
+          "note": null
+        },
+        {
+          "text": "For a main model plus an auxiliary model (compression, titles) either run a second instance with `hot_cache_only: true` or hand-prune the aux model's files after unloading; no per-model flag exists.",
+          "source": "2663",
+          "note": null
+        },
+        {
+          "text": "Check `GET /admin/api/stats` `runtime_cache.models[]` for per-model bytes, files, hit rate and `prefix_tokens_saved` before trusting the cache.",
+          "source": "2663",
+          "note": null
+        },
+        {
+          "text": "After switching architectures, expect `skipped_incompatible` in the startup scan; clear with `POST /admin/api/ssd-cache/clear` only on 0.7.0rc1 or later, otherwise delete `_gdn_sidecars` yourself.",
+          "source": "3883",
+          "note": null
+        },
+        {
+          "text": "Stop the server before deleting cache files (ds4 states this for its own cache; applied here by inference).",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "For single-user multi-turn work use hot-cache write-through so the same process hits RAM (about 0.4 s) and restarts still hit SSD. [src: 0.6.3rc3 notes, 3064]",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "2026-07-02 issue 2064 fixed on main (28fe5cb), pre-release v0.4.5.dev1; a user with a 300 GB cache against a 101 GB cap reported no cleanup after installing it, unanswered.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "2026-08-15 2662 (maintainer reply) and 2663 filed; 2026-08-30 3317 and 3314; 2026-09-12 3612; 2026-09-19 aux-model measurement on 2663; 2026-09-22 auto cap rewritten; 2026-09-30 0.7.0.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "The cap is a budget, not a cleaner: a full cache of incompatible blocks is \"within budget\".",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Gauge and clear ignored `_gdn_sidecars` when no model was loaded (3883).",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Aborted long prefills can orphan sidecar bundles (2647 comment).",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "File counts mislead: 10,390 aux files vs 596 main files was a 50:50 split by bytes (2663).",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Block size differs per model (256 vs 4,096 vs 2,048 vs auto-enlarged for hybrids), so per-model file counts and sizes are not comparable.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Delete incompatible blocks on scan (reporters on 2064 and 2662) vs keep them because other models share the directory (maintainer, 2662). Both stated; the maintainer's rule is current behaviour.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Whether the 3317 regression is in oMLX capture (three reporters, version bisect 0.6.3 to 0.6.4) or not reproducible (maintainer on exact 0.6.4). Unresolved.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Did any release after 0.6.4 close 3317, 3314 and 3539? Not confirmed.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Will 3612 export/import or per-model quotas be accepted? No maintainer response as of 2026-10-04.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Does 28fe5cb reclaim a pre-fix oversized directory? One user said no (2064, 2026-07-04).",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "oMLX's SSD tier is one instance-global directory with shard dirs `0-f`, `_boundary_snapshots/`, `_gdn_sidecars/`, `response-state/` and `vision_features/`.",
+          "source": "https://github.com/jundot/omlx/issues/3539",
+          "note": null
+        },
+        {
+          "text": "Commit 28fe5cb added `_incompatible_index` and `_tracked_ssd_size()` so incompatible blocks count toward the cap and global LRU, and shipped in v0.4.5.dev1.",
+          "source": "https://github.com/jundot/omlx/issues/2064",
+          "note": null
+        },
+        {
+          "text": "The maintainer declined to delete incompatible blocks on scan because it would wipe valid cache for other models sharing the directory.",
+          "source": "https://github.com/jundot/omlx/issues/2662",
+          "note": null
+        },
+        {
+          "text": "Eviction is global LRU across models, so a busy model can evict a quiet model's valid blocks.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "`auto` SSD cap is (free disk + existing SSD cache incl. GDN sidecars) x 50% since commit 0faa19c on 2026-09-22.",
+          "source": "https://github.com/jundot/omlx/issues/3829",
+          "note": null
+        },
+        {
+          "text": "Before that, `auto` wrote 6.5 GB in four 8,192-token unique requests on a 10 GB-free disk, half in `_gdn_sidecars`.",
+          "source": "https://github.com/jundot/omlx/issues/3829",
+          "note": null
+        },
+        {
+          "text": "Dashboard SSD gauge and manual clear ignored `_gdn_sidecars` when no model was loaded (28.6 GiB real vs 9.2 GB shown, 19.36 GB left after clear).",
+          "source": "https://github.com/jundot/omlx/issues/3883",
+          "note": null
+        },
+        {
+          "text": "0.7.0rc1 notes: automatic SSD sizing based on available disk and GDN sidecars included in cache maintenance.",
+          "source": "https://github.com/jundot/omlx/releases",
+          "note": null
+        },
+        {
+          "text": "One client-aborted 203k-token prefill left 126 GB in `_gdn_sidecars/<hash>/` (27 files up to 5.1 GB).",
+          "source": "https://github.com/jundot/omlx/issues/2647",
+          "note": null
+        },
+        {
+          "text": "`gdn_sidecar_state_dtype: rht_int8` shrank a boundary bundle from 5.1 GB to about 57 MB with 96% prefix restore.",
+          "source": "https://github.com/jundot/omlx/issues/2647",
+          "note": null
+        },
+        {
+          "text": "On Gemma4-31B 8-bit (10 KVCache + 50 rotating layers) each boundary file was about 850 MB and a 148 GB quota filled in about 43 turns.",
+          "source": "https://github.com/jundot/omlx/issues/2647",
+          "note": null
+        },
+        {
+          "text": "A request with no per-request cache opt-out: issue 1499 asks for no-persist, TTL and read-only modes and has no maintainer reply.",
+          "source": "https://github.com/jundot/omlx/issues/1499",
+          "note": null
+        },
+        {
+          "text": "Issue 3317 (open): 0.6.4 on qwen3_5 / qwen4_exp hybrids logs `boundary_snapshot_unavailable ... available_boundaries=0` on every store at 24-31K tokens where 0.6.2 stored up to 113K and 0.6.3 is clean.",
+          "source": "https://github.com/jundot/omlx/issues/3317",
+          "note": null
+        },
+        {
+          "text": "A reporter's counts: 0 skips on 0.6.3 (27-29 Aug), 104 on 30 Aug and 97 on 31 Aug on 0.6.4, 0 after rollback to 0.6.3.",
+          "source": "https://github.com/jundot/omlx/issues/3317",
+          "note": null
+        },
+        {
+          "text": "With a 0.6.4 skip, `reused` stayed at 8,192 so a 76K prompt re-prefilled about 68K every turn and one reply took 496 s.",
+          "source": "https://github.com/jundot/omlx/issues/3317",
+          "note": null
+        },
+        {
+          "text": "A control run using `dflash_enabled` instead of `mtp_enabled` kept its prefix cache (5.3 s vs 18.4 s on turn 2).",
+          "source": "https://github.com/jundot/omlx/issues/3317",
+          "note": null
+        },
+        {
+          "text": "The maintainer could not reproduce 3317 on exact 0.6.4 (boundaries 4096, 8192, 12288 stored) and asked for DEBUG logs.",
+          "source": "https://github.com/jundot/omlx/issues/3317",
+          "note": null
+        },
+        {
+          "text": "`available_boundaries=0` counts only snapshots captured in the current request and is not evidence that a stored prefix was lost.",
+          "source": "https://github.com/jundot/omlx/issues/3317",
+          "note": null
+        },
+        {
+          "text": "On a plain mlx-community Qwen3.8-27B-4bit (M4 Pro 48 GB, block 2048, 30 GB cap) 0.6.4 gave 33 skips vs 5 stores in one day; rolling back to 0.6.3 gave zero skips.",
+          "source": "https://github.com/jundot/omlx/issues/3317",
+          "note": null
+        },
+        {
+          "text": "Issue 3314 (Qwen3.8-Flash-Next 8-bit MTP, 0.6.4) correlated repeated `boundary_snapshot_unavailable` near 128K with role-confused, truncated replies that still returned `finish_reason=stop`, recovering after a prefix rebuild (`storing 131072/132819 tokens`).",
+          "source": "https://github.com/jundot/omlx/issues/3314",
+          "note": null
+        },
+        {
+          "text": "Issue 3539 (M3 Max 128 GB, macOS 15, 0.6.4, 9,890-token prompt, block 4096) shows `available_boundaries=0` and an empty `_boundary_snapshots/` while `_gdn_sidecars` held 147 MB.",
+          "source": "https://github.com/jundot/omlx/issues/3539",
+          "note": null
+        },
+        {
+          "text": "0.6.4 added hybrid-cache boundary diagnostics (#3249) and release of boundary snapshots on failures for ArraysCache hybrids (#3227).",
+          "source": "https://github.com/jundot/omlx/releases",
+          "note": null
+        },
+        {
+          "text": "0.7.0.dev1 \"restored hybrid GDN boundary storage\" (#3288 among others); 0.7.0.dev2 fixed an SSD write race that could discard recurrent boundary snapshots (#3563); 0.7.0.dev4 fixed batched Lightning MTP corruption at cache boundaries (#3724).",
+          "source": "https://github.com/jundot/omlx/releases",
+          "note": null
+        },
+        {
+          "text": "0.7.0 was released 2026-09-30 and is the latest stable as of 2026-10-04.",
+          "source": "https://github.com/jundot/omlx/releases",
+          "note": null
+        },
+        {
+          "text": "0.6.3rc3 added optional hot-cache write-through (default off, `--hot-cache-write-through`, `OMLX_HOT_CACHE_WRITE_THROUGH`) and flush-before-atomic-rename for SSD blocks, sidecars, boundary snapshots and vision features.",
+          "source": "https://github.com/jundot/omlx/releases",
+          "note": null
+        },
+        {
+          "text": "0.6.0rc1 added `hot_cache_promotion_failures` to `/admin/api/stats` and a throttled warning on failed promotions.",
+          "source": "https://github.com/jundot/omlx/issues/2662",
+          "note": null
+        },
+        {
+          "text": "Median re-prefilled remainder past the last 2,048-token snapshot was 2,049 tokens (p90 16,385) over 520 activations on an M5 Pro 64 GB.",
+          "source": "https://github.com/jundot/omlx/issues/3064",
+          "note": null
+        },
+        {
+          "text": "Issue 1578 records a maintainer position against partial-tail snapshots for hybrid GDN models as disproportionate plumbing.",
+          "source": "https://github.com/jundot/omlx/issues/3064",
+          "note": null
+        },
+        {
+          "text": "Issue 3612 proposes `POST /api/cache/export` (manifest with format_version, model, quant, engine_version, prefix_digest, restorable_tokens, size_bytes; 409 if evicted) and `POST /api/cache/import` (422 on any mismatch, fail closed), with no maintainer reply.",
+          "source": "https://github.com/jundot/omlx/issues/3612",
+          "note": null
+        },
+        {
+          "text": "Issue 3612 says the artifact is conversation-derived data, asks for strict per-client/model/digest scoping, and leaves encryption to the agent.",
+          "source": "https://github.com/jundot/omlx/issues/3612",
+          "note": null
+        },
+        {
+          "text": "`omlx/cluster/prompt_snapshot_cache.py` already serialises KV, rotating and GDN state via mlx-lm save/load keyed by hash(model, prefix tokens) but is wired only to the distributed rank.",
+          "source": "https://github.com/jundot/omlx/issues/3612",
+          "note": null
+        },
+        {
+          "text": "Issue 2250 (compaction summary of an unrelated project) was answered by the maintainer as local-only with no shared state and suspected KV corruption; the reporter concluded it was an OpenCode bug after clearing both caches.",
+          "source": "https://github.com/jundot/omlx/issues/2250",
+          "note": null
+        },
+        {
+          "text": "oMLX cache files are unencrypted and readable by any process running as the same user.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "The README states the SSD tier restores blocks \"even after a server restart\" and the `auto` limit formula.",
+          "source": "https://github.com/jundot/omlx",
+          "note": null
+        },
+        {
+          "text": "A production fleet (three M3 Ultra, 0.6.4, block 2048, sticky routing) saw zero placeholder rejections and 78-83% engine-side hit over 72 h on Qwen3.8-Flash-Next oQ4e.",
+          "source": "https://github.com/jundot/omlx/issues/3481",
+          "note": null
+        },
+        {
+          "text": "Issue 3481 was closed by its reporter on 2026-09-06.",
+          "source": "https://github.com/jundot/omlx/issues/3481",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Corrections and disagreements",
+      "facts": [
+        {
+          "text": "CONTRADICTS prompt-cache-survival-across-model-unload-swap-and-restart.md (lines 13, 76): incompatible blocks are not \"not evicted\"; they are LRU-evicted when over cap at startup and on writes needing space, but not deleted on scan.",
+          "source": "https://github.com/jundot/omlx/issues/2662",
+          "note": null
+        }
+      ]
+    }
+  ],
+  "related": []
+}

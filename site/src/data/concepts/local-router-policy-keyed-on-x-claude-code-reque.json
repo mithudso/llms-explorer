@@ -1,0 +1,149 @@
+{
+  "slug": "local-router-policy-keyed-on-x-claude-code-reque",
+  "concept": "Local router policy keyed on x-claude-code-request-class",
+  "generated": "2026-10-05",
+  "summary": "A MITM capture of 1,173 `/v1/messages` requests had class `auxiliary` 471, `main` 371, `subagent` 330 and `compaction` 1, so side and subagent traffic outnumbered main turns.",
+  "facets": [
+    {
+      "title": "Facts",
+      "facts": [
+        {
+          "text": "A MITM capture of 1,173 `/v1/messages` requests had class `auxiliary` 471, `main` 371, `subagent` 330 and `compaction` 1, so side and subagent traffic outnumbered main turns.",
+          "source": "https://api.github.com/repos/agoodkind/clyde/issues/363",
+          "note": null
+        },
+        {
+          "text": "The same capture showed 60 ordinary requests containing the compaction prompt text \"Your task is to create a detailed summary of\", while the one real compaction began it at byte 379 of the last user message, so the prompt substring is not a safe discriminator.",
+          "source": "https://api.github.com/repos/agoodkind/clyde/issues/363",
+          "note": null
+        },
+        {
+          "text": "In that capture a manual `/compact` and an automatic compaction both carried class `compaction`; the manual one had `x-claude-code-compaction: manual` and the automatic one (PreCompact trigger `auto`) was labelled `reactive`.",
+          "source": "https://api.github.com/repos/agoodkind/clyde/issues/363",
+          "note": null
+        },
+        {
+          "text": "shunt's routing ADR defines delegated work as class `subagent` or `workflow`, falls back to a non-blank `x-claude-code-agent-id` when the header is absent (Claude Code 2.1.139 or later), and treats the class as authoritative when sent, so `main` with an agent id is main traffic.",
+          "source": "https://api.github.com/repos/pleaseai/shunt/issues/593",
+          "note": null
+        },
+        {
+          "text": "shunt's `[models.subagents]` overlay routes a delegated request to a `by_type` target keyed on the literal `x-claude-code-agent-type` value (`Explore`, `fork`, `teammate`, `custom`) else a default `target`, and `compaction` and `auxiliary` never take the overlay.",
+          "source": "https://api.github.com/repos/pleaseai/shunt/issues/593",
+          "note": null
+        },
+        {
+          "text": "shunt treats `compaction` and `auxiliary` as read-only for its stage router, so a title-generation call cannot advance a dwell counter or evict a pin and lands on the session's current tier.",
+          "source": "https://api.github.com/repos/pleaseai/shunt/issues/593",
+          "note": null
+        },
+        {
+          "text": "A shunt review found that a delegated turn with no agent id hashes onto the parent's judge-budget key (`(session, None)` and `(session, Some(\"\"))` give the same digest), so a wide fan-out can spend the parent's whole `max_judge_calls`.",
+          "source": "https://api.github.com/repos/pleaseai/shunt/issues/649",
+          "note": null
+        },
+        {
+          "text": "A capture of CLI 2.1.287 found `x-claude-code-agent-id` on subagent requests without the hint flag, while `x-claude-code-request-class`, `-agent-type` and `-prompt-id` appeared only with `CLAUDE_CODE_GATEWAY_HINT_HEADERS=1`.",
+          "source": "https://api.github.com/repos/rynfar/meridian/issues/1231",
+          "note": null
+        },
+        {
+          "text": "That capture also found subagents send the parent's `metadata.user_id` session id while running a multi-turn conversation of their own, and background subagents overlap the parent's turns, so a router keyed on session id replays history and queues them on one lease (waits of 3.9 to 189 seconds).",
+          "source": "https://api.github.com/repos/rynfar/meridian/issues/1231",
+          "note": null
+        },
+        {
+          "text": "Auto-mode permission-classifier requests carry the conversation's own `metadata.user_id`, have `tools=0`, `stream=false`, one or two messages and stop sequences, and in meridian they overwrote the conversation's stored mapping and queued behind the running turn (105 seconds for a classifier call).",
+          "source": "https://api.github.com/repos/rynfar/meridian/issues/1211",
+          "note": null
+        },
+        {
+          "text": "Meridian detects them by header when present (only `auxiliary` counts), otherwise by shape: a session key, no tools, not streamed, and a stop sequence.",
+          "source": "https://api.github.com/repos/rynfar/meridian/issues/1211",
+          "note": null
+        },
+        {
+          "text": "Clauduct's loopback capture found classifier requests without an `X-Claude-Code-Request-Class` header, and recorded that with `CLAUDE_CODE_AUTO_MODE_SERVER=0` the client sends its own two-stage non-streaming classifier requests with `stop_sequences`.",
+          "source": "https://api.github.com/repos/wotjr1649/Clauduct/issues/149",
+          "note": null
+        },
+        {
+          "text": "A gateway that requires the class header returned 400 on every turn for clients older than 2.1.273, with no diagnostic naming the cause.",
+          "source": "https://api.github.com/repos/wotjr1649/Clauduct/issues/58",
+          "note": null
+        },
+        {
+          "text": "One wrapper sets `CLAUDE_CODE_GATEWAY_HINT_HEADERS=1` so a router can send classifier and side requests apart from main turns, and sets `CLAUDE_CODE_AUTO_MODE_SERVER=0`; its issue states releases after 2026-10-23 drop the local classifier fallback.",
+          "source": "https://api.github.com/repos/tylerwagler/ai-portal/issues/2",
+          "note": null
+        },
+        {
+          "text": "The same project stores `request_class` on each usage event, and reads client version and entrypoint from the attribution block header `x-anthropic-billing-header: cc_version=...; cc_entrypoint=...;`.",
+          "source": "https://api.github.com/repos/tylerwagler/ai-portal/issues/3",
+          "note": null
+        },
+        {
+          "text": "anthropic-lb logs `request_class`, `agent_type`, `compaction`, `context_compacted` and `prompt_id` on its proxied line and logs caller-controlled values as escaped plain fields, because header values come from the client.",
+          "source": "https://api.github.com/repos/27b-io/anthropic-lb/issues/246",
+          "note": null
+        },
+        {
+          "text": "The gateway protocol page says inference posts to `/v1/messages?beta=true`, a `HEAD /api/hello` connection-warming probe may arrive, and token counting is the only optional endpoint (Claude Code falls back to a character-based estimate without it).",
+          "source": "https://code.claude.com/docs/en/llm-gateway-protocol",
+          "note": null
+        },
+        {
+          "text": "Auto-mode classifier requests skip the rest of Claude Code's system prompt, so the attribution block is the only marker in the body that identifies them as Claude Code traffic, and `CLAUDE_CODE_ATTRIBUTION_HEADER=0` removes it from them under a gateway or third-party provider (v2.1.229 and later).",
+          "source": "https://code.claude.com/docs/en/llm-gateway-protocol",
+          "note": null
+        },
+        {
+          "text": "`CLAUDE_CODE_SUBAGENT_MODEL` sets the default model for subagents, teammates and workflow agents (overridden by a model passed at spawn and by an agent definition's `model`), and `CLAUDE_CODE_SUBAGENT_MODEL_FORCE=1` (v2.1.257 or later) forces one model onto all of them.",
+          "source": "https://code.claude.com/docs/en/env-vars",
+          "note": null
+        },
+        {
+          "text": "`ANTHROPIC_DEFAULT_HAIKU_MODEL` is also the model used for background functionality, so subagent and helper traffic can be split by model name without any hint header.",
+          "source": "https://code.claude.com/docs/en/env-vars",
+          "note": null
+        },
+        {
+          "text": "Claude Code's cache TTL has two buckets: the main conversation (turns plus inline helpers) and \"everything else\" (subagents, workflows, teammates, forks, compaction, session titles).",
+          "source": "https://code.claude.com/docs/en/prompt-caching",
+          "note": null
+        },
+        {
+          "text": "llama-swap picks the upstream by the `model` value in the request and offers a `matrix` for concurrent models, with request `filters` (`stripParams`, `setParams`, `setParamsByID`) but no header-keyed routing in its README.",
+          "source": "https://github.com/mostlygeek/llama-swap",
+          "note": null
+        },
+        {
+          "text": "LiteLLM does not forward client headers to providers by default, auto-detects any `x-<vendor>-session-id` header such as `x-claude-code-session-id` as a session id, and its `tag_regex` matches only `User-Agent` (for example `^User-Agent: claude-code\\/`).",
+          "source": "https://docs.litellm.ai/docs/proxy/request_headers",
+          "note": null
+        },
+        {
+          "text": "LiteLLM warns that client-supplied headers such as `User-Agent` are spoofable and that header-based routing is a traffic classifier, not an access control.",
+          "source": "https://docs.litellm.ai/docs/proxy/tag_routing",
+          "note": null
+        },
+        {
+          "text": "Claude Code Router's README lists routing conditions on headers and bodies, rewrites, retries and ordered fallbacks.",
+          "source": "https://github.com/musistudio/claude-code-router",
+          "note": null
+        },
+        {
+          "text": "Inferred policy: pin a warm KV slot for `main`; give `subagent` and `workflow` their own slot or a smaller model keyed on agent id; treat `compaction` as a one-shot long prompt with no pin; send `auxiliary` to a small model or a spare slot and never let it update router state.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Inferred: a router should key sessions on `(session id, agent id)` and never on session id alone, because subagents and classifier requests reuse the parent's session id.",
+          "source": "asserted",
+          "note": null
+        }
+      ]
+    }
+  ],
+  "related": []
+}

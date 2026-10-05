@@ -1,0 +1,134 @@
+{
+  "slug": "expert-deduplicating-gather-kernels-for-verify-w",
+  "concept": "Expert-deduplicating gather kernels for verify windows on Metal",
+  "generated": "2026-10-05",
+  "summary": "llama.cpp's Metal `GGML_OP_MUL_MAT_ID` (routed-expert matmul) has two branches. The matrix-matrix branch runs only if `has_simdgroup_mm && ne00 >= 64 && ne21 >= 32`, where `ne21` is the number of tokens in the ids tensor. Otherwise the matrix-vector branch `mul_mv_id` runs.",
+  "facets": [
+    {
+      "title": "Facts",
+      "facts": [
+        {
+          "text": "llama.cpp's Metal `GGML_OP_MUL_MAT_ID` (routed-expert matmul) has two branches. The matrix-matrix branch runs only if `has_simdgroup_mm && ne00 >= 64 && ne21 >= 32`, where `ne21` is the number of tokens in the ids tensor. Otherwise the matrix-vector branch `mul_mv_id` runs.",
+          "source": "https://raw.githubusercontent.com/ggml-org/llama.cpp/master/ggml/src/ggml-metal/ggml-metal-common.cpp",
+          "note": null
+        },
+        {
+          "text": "The matrix-matrix branch is expert-grouped by design. A `map0` kernel (one threadgroup, one thread per expert) builds a per-expert token count `tpe` and a per-expert token list `ids`. The `mul_mm_id` kernel is then dispatched on a grid of `(ne21 + 31) / 32` by `(ne01 + 63) / 64` by `ne02` (experts) threadgroups, so each expert's weight tile is processed once per block of up to 32 of that expert's tokens.",
+          "source": "https://raw.githubusercontent.com/ggml-org/llama.cpp/master/ggml/src/ggml-metal/ggml-metal-ops.cpp",
+          "note": null
+        },
+        {
+          "text": "The matrix-vector branch is per pair. The `mul_mv_id` grid has `ne20 * ne21` threadgroups in its third dimension (experts used per token times tokens), with one row of the src1 batch per threadgroup (`_ne1 = 1`), so a window of T tokens at top-k k launches T*k expert matvecs and nothing merges two tokens that picked the same expert.",
+          "source": "https://raw.githubusercontent.com/ggml-org/llama.cpp/master/ggml/src/ggml-metal/ggml-metal-ops.cpp",
+          "note": null
+        },
+        {
+          "text": "Dense `mul_mat` switches to its matrix-matrix kernel at `ne11 > 8` tokens, so the dense layers of a hybrid MoE target leave the matvec path 24 tokens before its routed experts do.",
+          "source": "https://raw.githubusercontent.com/ggml-org/llama.cpp/master/ggml/src/ggml-metal/ggml-metal-common.cpp",
+          "note": null
+        },
+        {
+          "text": "A speculative verify window of 2 to 16 tokens (any DFlash block, MTP chain, or a tree budget below 32) therefore reads each selected expert once per pair on llama.cpp Metal, and only a window of 32 or more tokens reaches the grouped kernel.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "The 32-token threshold is a batch-size property of the whole `ubatch`, not a per-expert property, so a window whose tokens all pick the same experts still takes the per-pair branch below 32 tokens.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "The MLX analogue (`gather_qmm_rhs`) needs `B >= 16` pairs with `B / E >= 4`, which for 128 to 256 experts means about 64 to 128 tokens; both stacks therefore leave the verify window range on a per-pair kernel.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Metal 4 tensor-API work (PR 16634, PR 20962) reworked `mul_mm` and `mul_mm_id` layouts for prefill; the existing dossiers hold that history and no source ties it to verify-window deduplication.",
+          "source": "https://github.com/ggml-org/llama.cpp/pull/20962",
+          "note": null
+        },
+        {
+          "text": "The current `ggml_metal_op_mul_mat_id` also carries a PR 26223 branch that computes src1 rescale factors (`amax`) before the grouped matmul when the op precision is F32; this affects only the grouped branch.",
+          "source": "https://raw.githubusercontent.com/ggml-org/llama.cpp/master/ggml/src/ggml-metal/ggml-metal-ops.cpp",
+          "note": null
+        },
+        {
+          "text": "Weight-read deduplication only helps if the target is bandwidth-bound. A 32-token grouped matmul that reads each expert once may still lose to 32 cheap matvecs when the SLC absorbs repeated reads of an expert that adjacent threadgroups touch together; no source measures this.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Grouping adds fixed overhead: a `map0` dispatch, a concurrency barrier (`ggml_metal_op_concurrency_reset`) and one threadgroup per (expert, row tile) even for experts with no token. Whether this overhead exceeds the saved weight traffic at 32 to 64 tokens is unmeasured.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "`mul_mm_id` requires `ne00 >= 64` and simdgroup matrix support; a small-hidden-size MoE or a device without `has_simdgroup_mm` stays on `mul_mv_id` at every window size.",
+          "source": "https://raw.githubusercontent.com/ggml-org/llama.cpp/master/ggml/src/ggml-metal/ggml-metal-common.cpp",
+          "note": null
+        },
+        {
+          "text": "No source in this batch disputes the per-pair reading. The open disagreement is empirical: whether a lowered `ne21 >= 32` threshold, or an MLX multi-row `gather_qmv`, would raise verify speed on a Mac MoE. Cohere's GPU measurement (38% adjacent-token overlap, 20.4 unique experts for a 4-token window against 32 pairs) says the available saving is about a third of the pair count at window 4, held in expert-overlap-between-draft-tokens-in-moe-specu.md.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Measured `mul_mv_id` versus `mul_mm_id` cost for a 16 to 64 token verify window on an M-series MoE target, with the window's unique-expert count logged. No source reports it.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Whether any maintained MLX or llama.cpp patch lowers the grouped-kernel threshold for speculation; the two searches in this batch found none.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Whether the `ne21 >= 32` constant was tuned on prefill-sized batches only (the cached ops file carries no comment explaining it).",
+          "source": "https://raw.githubusercontent.com/ggml-org/llama.cpp/master/ggml/src/ggml-metal/ggml-metal-common.cpp",
+          "note": null
+        },
+        {
+          "text": "`ggml_metal_op_mul_mat_id_use_mm` returns `has_simdgroup_mm && ne00 >= 64 && ne21 >= 32`, with `ne21` the token count of the ids tensor.",
+          "source": "https://raw.githubusercontent.com/ggml-org/llama.cpp/master/ggml/src/ggml-metal/ggml-metal-common.cpp",
+          "note": null
+        },
+        {
+          "text": "`ggml_metal_op_mul_mat_use_mm` (dense) returns true for non-transposed operands with `has_simdgroup_mm && ne00 >= 64 && ne11 > 8`.",
+          "source": "https://raw.githubusercontent.com/ggml-org/llama.cpp/master/ggml/src/ggml-metal/ggml-metal-common.cpp",
+          "note": null
+        },
+        {
+          "text": "The grouped MoE path runs `map0` on a single threadgroup of `ne02` threads to fill the `tpe` and `ids` buffers, then `mul_mm_id` on a `(ne21 + 31)/32` by `(ne01 + 63)/64` by `ne02` grid with 128 threads per group.",
+          "source": "https://raw.githubusercontent.com/ggml-org/llama.cpp/master/ggml/src/ggml-metal/ggml-metal-ops.cpp",
+          "note": null
+        },
+        {
+          "text": "The fallback `mul_mv_id` path sets `_ne1 = 1`, `ne123 = ne20 * ne21` and dispatches `ne123` threadgroups in z, one per (token, expert slot) pair.",
+          "source": "https://raw.githubusercontent.com/ggml-org/llama.cpp/master/ggml/src/ggml-metal/ggml-metal-ops.cpp",
+          "note": null
+        },
+        {
+          "text": "The ids scratch buffers are `4 * n_expert` bytes for `tpe` and `4 * n_expert * n_tokens` bytes for `ids`.",
+          "source": "https://raw.githubusercontent.com/ggml-org/llama.cpp/master/ggml/src/ggml-metal/ggml-metal-ops.cpp",
+          "note": null
+        },
+        {
+          "text": "A verify window of fewer than 32 tokens runs every routed-expert matmul on the per-pair `mul_mv_id` path in llama.cpp Metal.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Between 9 and 31 tokens the dense matmuls of the same model run matrix-matrix while the routed experts still run matrix-vector.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "No MLX or llama.cpp Metal kernel that deduplicates experts inside a window of fewer than 32 tokens was found in the cached source or in two searches.",
+          "source": "asserted",
+          "note": null
+        }
+      ]
+    }
+  ],
+  "related": []
+}
