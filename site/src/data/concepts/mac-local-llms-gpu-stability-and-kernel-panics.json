@@ -1,0 +1,299 @@
+{
+  "slug": "mac-local-llms-gpu-stability-and-kernel-panics",
+  "concept": "Mac local LLMs: GPU stability and kernel panics",
+  "generated": "2026-10-05",
+  "summary": "Symptom: `[METAL] Command buffer execution failed: Impacting Interactivity` (code 0x0e; Hang 0x03, Timeout 0x02, InnocentVictim 0x05, OOM 0x08, PageFault 0x0b, SubmissionsIgnored 0x04). Trigger is long kernels or big prefill ubatches contending with WindowServer while a display is active; display...",
+  "facets": [
+    {
+      "title": "Interactivity watchdog (display-on kill): Impacting Interactivity / InnocentVictim",
+      "facts": [
+        {
+          "text": "Symptom: `[METAL] Command buffer execution failed: Impacting Interactivity` (code 0x0e; Hang 0x03, Timeout 0x02, InnocentVictim 0x05, OOM 0x08, PageFault 0x0b, SubmissionsIgnored 0x04). Trigger is long kernels or big prefill ubatches contending with WindowServer while a display is active; display off or asleep avoids it. Seen on 26.2-26.5.1; no 26.x fix found.",
+          "source": "https://github.com/ml-explore/mlx/issues/3267",
+          "note": null
+        },
+        {
+          "text": "Fix: export `AGX_RELAX_CDM_CTXSTORE_TIMEOUT=1` before the first Metal call (read at Metal init, process-local). It fully fixed the mlx LoRA crash.",
+          "source": "https://github.com/ml-explore/mlx/issues/3267",
+          "note": null
+        },
+        {
+          "text": "llama.cpp forces it with `setenv(...,\"1\",true)` (overwrites; you cannot set 0 to opt out); PR 22216 (b10000). Qwen3.6 35B on M1 Max went from failing at 69,360 ctx to 97,237.",
+          "source": "https://github.com/ggml-org/llama.cpp/issues/20141",
+          "note": null
+        },
+        {
+          "text": "Not a guarantee: May 2026 report on M1 Max 64 GB hit the `InnocentVictim` cascade at the first 2048-token ubatch of a 212k prompt (`-ub 2048 -b 2048`).",
+          "source": "https://github.com/ggml-org/llama.cpp/issues/20141",
+          "note": null
+        },
+        {
+          "text": "After the first failure llama.cpp logs `backend is in error state from a previous command buffer failure - recreate the backend to recover` and `llama_decode: failed to decode, ret = -3`; restart llama-server.",
+          "source": "https://github.com/ggml-org/llama.cpp/issues/22214",
+          "note": null
+        },
+        {
+          "text": "NOT helping: subprocess isolation, `mx.metal.set_memory_limit`, smaller batch, `MLX_MAX_OPS_PER_BUFFER=1`, `MLX_MAX_MB_PER_BUFFER=10`, llama.cpp `-b/-ub`, `-c`, `-fa`. MLX maintainer marked it wontfix (OS-controlled).",
+          "source": "https://github.com/ml-explore/mlx/issues/3267",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "M5 Max watchdogd 90 s panic and display sleep",
+      "facts": [
+        {
+          "text": "`panic ... watchdog timeout: no checkins from watchdogd in 90 seconds` (also 93 s), frames `AppleARMWatchdogTimer`/`AppleInterruptControllerV3`: names the detector, not the cause. Mac17,7, macOS 26.5.1, FLUX.2 LoRA; thermal Nominal, WindowServer busiest thread. Env var plus `caffeinate -s` still rebooted at ~11 min.",
+          "source": "https://github.com/ml-explore/mlx/issues/3267",
+          "note": null
+        },
+        {
+          "text": "Fix on that box: env var plus `pmset displaysleepnow` (lid open) reached step 302/600 over 5 h 20 min. `caffeinate -s` alone does not sleep the display. Persistent setting: System Settings, Lock Screen, \"Turn display off when inactive: 1 minute\". Single reporter.",
+          "source": "https://github.com/ml-explore/mlx/issues/3267",
+          "note": null
+        },
+        {
+          "text": "Other M5 Max failure: Qwen3.5-9B-4bit LoRA first backward gives `kIOGPUCommandBufferCallbackErrorOutOfMemory` while Qwen3-8B-4bit trains; cause untested.",
+          "source": "https://github.com/ml-explore/mlx-lm/issues/1206",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "IOGPUFamily prepare-count kernel panic (mlx 3186)",
+      "facts": [
+        {
+          "text": "Panic string `completeMemory() prepare count underflow` at `IOGPUMemory.cpp:550`. Seen 26.3 (IOGPUFamily 129.3.2) to 26.5.2 (130.15.2); no fixed build found. Also `fPendingMemorySet` (IOGPUGroupMemory.cpp:219), `remove_memory_object` (:323).",
+          "source": "https://github.com/ml-explore/mlx/issues/3186",
+          "note": null
+        },
+        {
+          "text": "Controlled test: the trigger is per-buffer MTLResidencySet wire/unwire traffic enabled by `mx.set_wired_limit`. Removing wiring passed 10/10 (4.2 h); removing only `clear_cache` bursts panicked at 99.9 s.",
+          "source": "https://gist.github.com/ronm92130/9bf97b300175be8e4f578c6e295feeaa",
+          "note": null
+        },
+        {
+          "text": "No-op shim: set `mx.set_wired_limit` to a function returning 0 at `mlx.core` level before `mlx_lm.server` starts. Cost at most 3% (prefill 8192: 19,915 to 19,282 t/s). One machine, one hybrid model; \"probabilistic mitigation, not a fix\".",
+          "source": "https://gist.github.com/ronm92130/9bf97b300175be8e4f578c6e295feeaa",
+          "note": null
+        },
+        {
+          "text": "macOS 27.0 beta (IOGPUFamily 162.11): shim served 663 requests, but wiring was never tried there, so fix is neither shown nor excluded. Apple's macOS 27 notes list no GPU fix.",
+          "source": "https://github.com/ml-explore/mlx/issues/3186",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "MetalGuard (Harperbot)",
+      "facts": [
+        {
+          "text": "`pip install metal-guard`; run `metal-guard` after a panic; `guard install` adds a shell block (off: `METALGUARD_SHELL_GUARD_DISABLED=1`) that does not cover launchd. Use `metal-guard panic-gate` in launch scripts (0 proceed, 2 cooldown, 3+ broken); launchd respawns ~14 min after a panic reboot.",
+          "source": "https://raw.githubusercontent.com/Harperbot/metal-guard/main/README.md",
+          "note": null
+        },
+        {
+          "text": "Sets the env var at import; classes `prepare_count_underflow`, `pending_memory_set`, `remove_memory_object`, `ctxstore_timeout`, `metal_oom`; `audit_wired_limit` flags `iogpu.wired_limit_mb` above 85% of RAM.",
+          "source": "https://raw.githubusercontent.com/Harperbot/metal-guard/main/CHANGELOG.md",
+          "note": null
+        },
+        {
+          "text": "Evidence is weak: 9 panics/week to zero is self-reported (M1 Ultra), vendor says it \"narrows the race window but does NOT eliminate panic\"; last release 1.1.0 on 2026-05-19.",
+          "source": "asserted",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Concurrent engines: Hang with gpuEvent reports (oMLX 4224, 3706)",
+      "facts": [
+        {
+          "text": "4224 (M3 Ultra 512 GB, mlx 0.32.2): `kIOGPUCommandBufferCallbackErrorHang` plus InnocentVictim; 9 hangs in 6.9 dual-engine hours vs 0 in 35.9 single-engine hours; 8 of 10 events on macOS 27.0, 2 on 26.5.1. Memory and WindowServer ruled out; causation not proven.",
+          "source": "https://github.com/jundot/omlx/issues/4224",
+          "note": null
+        },
+        {
+          "text": "Evidence file: `/Library/Logs/DiagnosticReports/gpuEvent-*.ips` (`restart_reason 4` \"firmware-detected lockup\", `signature 579`). Count them and AGX `recoveryCount` in `ioreg`.",
+          "source": "https://github.com/jundot/omlx/issues/4224",
+          "note": null
+        },
+        {
+          "text": "Proposed mitigation `OMLX_SERIALIZE_ENGINE_GPU=1` (draft patch) is untested; A/B needs 2.7 lockup-free dual-engine hours for p<0.05.",
+          "source": "https://github.com/jundot/omlx/issues/4224",
+          "note": null
+        },
+        {
+          "text": "3706 (macOS 27.0, mlx 0.32.0): `kIOGPUCommandBufferCallbackErrorTimeout` in `mx.synchronize()`, then `SubmissionsIgnored` (driver rejects all later buffers; process still answers `/v1/models` but generates nothing). Needs a second process actively submitting (idle co-host: 0 faults in 1.5 h; macOS 26: 0 of 130). oMLX commit 5941f68 exits the process on SubmissionsIgnored for supervisor restart.",
+          "source": "https://github.com/jundot/omlx/issues/3706",
+          "note": null
+        },
+        {
+          "text": "Two MLX processes never share a Metal queue: MLX calls `newCommandQueue()` once per stream encoder and attaches residency sets to it. Default per-buffer limits: 20 ops/40 MB (phone), 40/40 (base, Pro), 50/50 (Max, Ultra); env vars override.",
+          "source": "https://raw.githubusercontent.com/ml-explore/mlx/main/mlx/backend/metal/device.cpp",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "MLX error capture and FAST_SYNCH",
+      "facts": [
+        {
+          "text": "Since 0.32.0 (PR 3523) a failed Metal buffer is stored and thrown at the next sync or encode, not aborting. A caught error does not validate KV or arrays from discarded buffers.",
+          "source": "https://github.com/ml-explore/mlx/pull/3523",
+          "note": null
+        },
+        {
+          "text": "PR 3742 (0.32.1) covers CPU `eval_cpu` errors; 0.32.2 adds `synchronize` raise (PR 4338); `mx.async_eval` CPU errors still abort (issue 4329).",
+          "source": "https://github.com/ml-explore/mlx/pull/3742",
+          "note": null
+        },
+        {
+          "text": "`MLX_METAL_FAST_SYNCH` (default 0): maintainer called it unreliable (~5 s watchdog kill near 7.3k tokens on 0.31.2). PR 4552 (0.32.3) fixed one fence deadlock: stalled rank at 100% CPU vs ~300%. Still no claim it is safe; exo limits it to RDMA.",
+          "source": "https://github.com/ml-explore/mlx/issues/3830",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Corrections",
+      "facts": [
+        {
+          "text": "Earlier: PR 3742 made Metal buffer errors raise. Actual: 3523 (0.32.0) did; 3742 is CPU errors and absorbed PR 4174.",
+          "source": "https://github.com/ml-explore/mlx/pull/3742",
+          "note": null
+        },
+        {
+          "text": "Earlier: FAST_SYNCH hangs are unfixable memory-coherence limits. Actual: PR 4552 found a scheduling defect.",
+          "source": "https://github.com/ml-explore/mlx/pull/4552",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Open",
+      "facts": [
+        {
+          "text": "Does the wired shim, the env var, or serialization work on macOS 27.x? Untested; 27.0.1 changes unknown.",
+          "source": "asserted",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Corrections and disagreements",
+      "facts": [
+        {
+          "text": "CONTRADICTS: iogpufamily-driver-bug-and-userspace-panic-mitigations.md says \"mlx PR 3742 made [a stored command-buffer error] raise in 0.32.1\". PR 3742's title and description are about CPU (`eval_cpu`) errors; the Metal command-buffer capture is PR 3523 in 0.32.0, and 3742 only absorbed the Metal sticky-error fix from PR 4174 on 2026-08-15. The oMLX 4224 reporter's version (0.32.0 dropped the error at the next encoder open, 0.32.1 raises) is consistent with that history, but the PR number it cites names the merged vehicle, not the original design.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "CONTRADICTS: mlx-metal-fast-synch-and-jaccl-fence-wait-deadlock.md records zcbenz's wontfix (\"no supported CPU/GPU atomic coherence\") and the view that FAST_SYNCH cannot be made reliable. PR 4552 (collaborator nastya236, merged for 0.32.3) shows at least one deadlock was a scheduling defect, fixed without an architectural change, and reproduced on four \"M5 ultras\" (as the author writes it) over JACCL.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "CONTRADICTS mlx-metal-fast-synch-and-jaccl-fence-wait-deadlock.md on the docs commit: the #3830 thread lists commit e031f07 (\"Document MLX_METAL_FAST_SYNCH as unreliable instead of warning at run...\") and 1c33dfd (\"Warn once when a fast fence is created\") as two commits added by zcbenz referencing the issue, so it is likely upstream, not only a fork commit; unresolved because the fetched upstream docs page still cites only #3142",
+          "source": "https://github.com/ml-explore/mlx/issues/3830",
+          "note": null
+        },
+        {
+          "text": "CONTRADICTS: mlx-metal-fast-synch-and-jaccl-fence-wait-deadlock.md reads the hangs as memory-visibility and cross-queue ordering defects (classes 1 to 5) and zcbenz's April wontfix as \"cannot be guaranteed\"; PR 4552's author began from the coherence hypothesis (\"The hypothesis was that stall happens because memory coherence is not guaranteed\") and found a scheduling defect fixable without any memory-model change, and zcbenz approved the fix.",
+          "source": "https://github.com/ml-explore/mlx/pull/4552",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Concepts in this cluster",
+      "facts": [
+        {
+          "text": "macOS Tahoe GPU command-buffer hangs",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "IOGPUFamily driver bug and userspace panic mitigations such as MetalGuard",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "M5 Max watchdogd 90 s kernel panic under sustained GPU load",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Metal GPU hangs with multiple concurrent engines in one process",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "MetalGuard user-space GPU-crash mitigations",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "WindowServer GPU contention and display-sleep mitigation",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "macOS 27 IOGPUFamily changes and whether the panic is fixed",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "GPU firmware lockup reports gpuEvent ips",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "MLX command-buffer error propagation PR 3742",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "oMLX multi-engine GPU serialization and cross-engine Metal queue contention",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Metal GPU watchdog 5 s timeout in distributed MLX generation",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "MLX PR 4552 Metal fence deadlock fix in 0.32.3 (MLX_METAL_FAST_SYNCH)",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "MLX command-buffer error capture and event poisoning in 0.32.0",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Two llama.cpp or llama-swap models loaded concurrently on one GPU: stability",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "oMLX engine serialization A/B (OMLX_SERIALIZE_ENGINE_GPU) results",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "MLX_METAL_FAST_SYNCH effect on event synchronization hangs",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "MLX Metal queue contention between two processes on one GPU",
+          "source": "asserted",
+          "note": null
+        }
+      ]
+    }
+  ],
+  "related": []
+}

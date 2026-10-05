@@ -1,0 +1,214 @@
+{
+  "slug": "mlx-pr-4552-metal-fence-deadlock-fix-in-0-32-3-m",
+  "concept": "MLX PR 4552 Metal fence deadlock fix in 0.32.3 (MLX_METAL_FAST_SYNCH)",
+  "generated": "2026-10-05",
+  "summary": "Before the PR, `eval_impl` kept one fence per stream with a counter of `fence::update()` calls scheduled by the main thread; the consumer stream waited for a value equal to that scheduled total, regardless of how many updates had finished. With independent reductions in one tape (matmul, matmul, ...",
+  "facets": [
+    {
+      "title": "Facts",
+      "facts": [
+        {
+          "text": "Before the PR, `eval_impl` kept one fence per stream with a counter of `fence::update()` calls scheduled by the main thread; the consumer stream waited for a value equal to that scheduled total, regardless of how many updates had finished. With independent reductions in one tape (matmul, matmul, update, update, wait, wait on the GPU; spin until counter 2 then all_reduce, all_reduce on the CPU) the CPU would not start the first all_reduce before the GPU finished the inputs of every all_reduce in the tape.",
+          "source": "https://github.com/ml-explore/mlx/pull/4552",
+          "note": null
+        },
+        {
+          "text": "The patch makes `Fence::update` return the new counter value and `Fence::wait` take that value (`wait(stream, x, value)`); `transforms.cpp` replaces its `needs_fence` pair with a `FenceInfo{stream_index, cross_device, value}` record, stores the value returned by `update` and passes it to the consumer's `wait`.",
+          "source": "https://github.com/ml-explore/mlx/pull/4552/files",
+          "note": null
+        },
+        {
+          "text": "The header comment of `fence.h` changed from \"wait waits until all previous calls to update are complete\" to \"`update` returns a value that marks when its array is computed and visible. `wait` orders work in the consumer stream after that value is signaled. Later updates do not extend an earlier array's wait.\"",
+          "source": "https://github.com/ml-explore/mlx/pull/4552/files",
+          "note": null
+        },
+        {
+          "text": "The change is not limited to the fast path: the default `MTLSharedEvent` path now does `event.set_value(value); event.wait(stream)` instead of waiting on the latest count, and the CUDA backend keeps one GPU event per update (`gpu_events`) so a consumer can wait for an earlier update.",
+          "source": "https://github.com/ml-explore/mlx/pull/4552/files",
+          "note": null
+        },
+        {
+          "text": "Main's `fence.cpp` after the change still spins in the same two places (`while (f.cpu_value()[0] < value)` on a CPU stream, the `fence_wait` kernel on the GPU), so the fix lives in which value is awaited, not in how the spin reads memory.",
+          "source": "https://raw.githubusercontent.com/ml-explore/mlx/main/mlx/backend/metal/fence.cpp",
+          "note": null
+        },
+        {
+          "text": "The PR touches five files (CUDA, Metal and no-GPU `fence.cpp`, `fence.h`, `transforms.cpp`), +51 lines and -41 lines.",
+          "source": "https://github.com/ml-explore/mlx/pull/4552/files",
+          "note": null
+        },
+        {
+          "text": "2026-09-22: first commit \"first attempt: Fence::update() marks the input\"; 2026-09-23 merge of main; 2026-09-24 suggestions from zcbenz applied to the Metal and CUDA fence files and the title changed from \"[BUG] Deadlock in fence\" to \"[BUG][Metal] Deadlock in fence\".",
+          "source": "https://github.com/ml-explore/mlx/pull/4552",
+          "note": null
+        },
+        {
+          "text": "2026-09-24: zcbenz approved (\"Very good job locating the deadlock!\") and nastya236 merged it as commit 77e1cfb23d3cc94cadf3e821e85aa8eed363ade2 with 29 checks passed.",
+          "source": "https://github.com/ml-explore/mlx/pull/4552",
+          "note": null
+        },
+        {
+          "text": "The 0.32.3 release notes list it as \"[BUG][Metal] Deadlock in fence\" (PR 4552); the tag commit is 64ea011 dated 2026-09-28 and the release page is stamped 29 Sep 00:37.",
+          "source": "https://github.com/ml-explore/mlx/releases/tag/v0.32.3",
+          "note": null
+        },
+        {
+          "text": "2026-09-30: Unsloth's MLX pins moved to mlx 0.32.3 (unsloth pull 12334, unsloth-zoo pull 1516); 2026-10-01: exo PR 2377 \"use MLX fast synch only for RDMA instances\" and exo PR 2384 \"build MLX without null-this traps (needed for MLX >= 0.32.1)\" were open.",
+          "source": "https://github.com/ml-explore/mlx/pull/4552",
+          "note": null
+        },
+        {
+          "text": "Field signature of this deadlock, from the PR: the stalled node's `ps -Ao pid,etime,%cpu,command` shows 100% CPU (one stalled system thread, idle JACCL ring threads) while healthy nodes show about 300% (system thread plus two JACCL pool threads); `sample <pid> 3 -mayDie -f` on the stalled node shows the `Fence::wait(...)::$_1` lambda on the system CPU thread and idle JACCL threads, meaning the node never entered `all_reduce`, while healthy nodes sit in the ring pass.",
+          "source": "https://github.com/ml-explore/mlx/pull/4552",
+          "note": null
+        },
+        {
+          "text": "Counter evidence via `lldb -p <pid>` on the stalled thread: the main thread had scheduled 12 `fence::update()` calls, the GPU counter was 8 and the CPU counter 0, so no all_reduce had started.",
+          "source": "https://github.com/ml-explore/mlx/pull/4552",
+          "note": null
+        },
+        {
+          "text": "The author states the counters cannot tell whether GPU updates 9 to 12 never executed or whether the CPU could not see their writes, so the fix removes the scheduling error but does not settle the memory-visibility question.",
+          "source": "https://github.com/ml-explore/mlx/pull/4552",
+          "note": null
+        },
+        {
+          "text": "The reproducer is a loop of 32 independent `x @ weight` chains (dim 4096, 8 rounds, float32) followed by 32 `mx.distributed.all_sum` calls and a second GPU chain per step, 100 steps, `mx.distributed.init(strict=True, backend=\"jaccl\")`; the author ran it on four M5 Ultras joined in a ring with three cables per neighbour.",
+          "source": "https://github.com/ml-explore/mlx/pull/4552",
+          "note": null
+        },
+        {
+          "text": "The PR lists no issue it closes (\"Successfully merging this pull request may close these issues: None yet\"), so issues 3142 and 3830 are cited in its text but not auto-closed.",
+          "source": "https://github.com/ml-explore/mlx/pull/4552",
+          "note": null
+        },
+        {
+          "text": "Workloads with few independent reductions per tape (single sequential all_sum per layer) would not have hit this particular defect, which fits reports that FAST_SYNCH mostly worked for tensor-parallel decode; failure classes 1 to 5 in the sibling dossier remain possible.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Whether the flag is now safe: the PR makes no such claim, the environment-variables page still gives only \"default is 0\", and exo's open PR 2377 restricts the flag to RDMA instances rather than enabling it everywhere.",
+          "source": "https://github.com/ml-explore/mlx/pull/4552",
+          "note": null
+        },
+        {
+          "text": "Whether the 7,300-token watchdog kill with the flag unset (issue 3830) changes now that the `MTLSharedEvent` path waits for a specific value; no source re-tests it.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Whether failure classes 1 to 4 reproduce on 0.32.3 with the flag on; the PR's own validation covers only its reproducer.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Whether upstream will update the distributed docs wording (\"not reliable ... see #3142\") after this fix.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "PR 4552 was merged by nastya236 on 2026-09-24 as commit 77e1cfb23d3cc94cadf3e821e85aa8eed363ade2 with 29 checks passed, after zcbenz approved it.",
+          "source": "https://github.com/ml-explore/mlx/pull/4552",
+          "note": null
+        },
+        {
+          "text": "zcbenz's review comment was \"Very good job locating the deadlock!\".",
+          "source": "https://github.com/ml-explore/mlx/pull/4552",
+          "note": null
+        },
+        {
+          "text": "The 0.32.3 release notes list PR 4552, and the release tag commit is 64ea011 dated 2026-09-28.",
+          "source": "https://github.com/ml-explore/mlx/releases/tag/v0.32.3",
+          "note": null
+        },
+        {
+          "text": "Before PR 4552 each consumer wait targeted the total number of updates the main thread had scheduled on that fence.",
+          "source": "https://github.com/ml-explore/mlx/pull/4552",
+          "note": null
+        },
+        {
+          "text": "`Fence::update` now returns the counter value and `Fence::wait` takes it, and `transforms.cpp` stores it per array in a `FenceInfo` record.",
+          "source": "https://github.com/ml-explore/mlx/pull/4552/files",
+          "note": null
+        },
+        {
+          "text": "The `fence.h` contract now says later updates do not extend an earlier array's wait.",
+          "source": "https://github.com/ml-explore/mlx/pull/4552/files",
+          "note": null
+        },
+        {
+          "text": "The MTLSharedEvent path of `Fence::wait` now sets the awaited value before waiting.",
+          "source": "https://github.com/ml-explore/mlx/pull/4552/files",
+          "note": null
+        },
+        {
+          "text": "The CUDA fence keeps a vector of per-update GPU events after PR 4552.",
+          "source": "https://github.com/ml-explore/mlx/pull/4552/files",
+          "note": null
+        },
+        {
+          "text": "PR 4552 changes five files for +51 and -41 lines.",
+          "source": "https://github.com/ml-explore/mlx/pull/4552/files",
+          "note": null
+        },
+        {
+          "text": "Main's Metal fence still spins on `cpu_value()[0] < value` on a CPU stream and on a one-thread `fence_wait` kernel on the GPU.",
+          "source": "https://raw.githubusercontent.com/ml-explore/mlx/main/mlx/backend/metal/fence.cpp",
+          "note": null
+        },
+        {
+          "text": "A stalled rank showed 100% CPU against about 300% on healthy ranks, with `Fence::wait` on the system thread in `sample` output.",
+          "source": "https://github.com/ml-explore/mlx/pull/4552",
+          "note": null
+        },
+        {
+          "text": "In the author's lldb capture 12 updates were scheduled, the GPU had completed 8 and the CPU counter was 0.",
+          "source": "https://github.com/ml-explore/mlx/pull/4552",
+          "note": null
+        },
+        {
+          "text": "The author could not tell from the counters whether updates 9 to 12 never ran or were not visible to the CPU.",
+          "source": "https://github.com/ml-explore/mlx/pull/4552",
+          "note": null
+        },
+        {
+          "text": "The PR's reproducer uses 32 independent GPU chains and 32 `all_sum` calls per step over JACCL, 100 steps, on four M5 Ultras in a ring.",
+          "source": "https://github.com/ml-explore/mlx/pull/4552",
+          "note": null
+        },
+        {
+          "text": "The PR does not auto-close issues 3142 or 3830.",
+          "source": "https://github.com/ml-explore/mlx/pull/4552",
+          "note": null
+        },
+        {
+          "text": "Unsloth Studio moved its MLX pin to 0.32.3 on 2026-09-30, and exo had open PRs 2377 (fast synch only for RDMA) and 2384 (null-this traps, needed for MLX 0.32.1 and later) on 2026-10-01.",
+          "source": "https://github.com/ml-explore/mlx/pull/4552",
+          "note": null
+        },
+        {
+          "text": "The environment-variables page documents `MLX_METAL_FAST_SYNCH` as default 0 and requiring Metal 3.2 or later, with no reliability wording.",
+          "source": "https://ml-explore.github.io/mlx/build/html/usage/environment_variables.html",
+          "note": null
+        },
+        {
+          "text": "PR 4552 shows one cause of FAST_SYNCH deadlocks was scheduling, not memory coherence, which narrows but does not remove the \"cannot be guaranteed\" position.",
+          "source": "asserted",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Corrections and disagreements",
+      "facts": [
+        {
+          "text": "CONTRADICTS: mlx-metal-fast-synch-and-jaccl-fence-wait-deadlock.md reads the hangs as memory-visibility and cross-queue ordering defects (classes 1 to 5) and zcbenz's April wontfix as \"cannot be guaranteed\"; PR 4552's author began from the coherence hypothesis (\"The hypothesis was that stall happens because memory coherence is not guaranteed\") and found a scheduling defect fixable without any memory-model change, and zcbenz approved the fix.",
+          "source": "https://github.com/ml-explore/mlx/pull/4552",
+          "note": null
+        }
+      ]
+    }
+  ],
+  "related": []
+}

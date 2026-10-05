@@ -1,0 +1,149 @@
+{
+  "slug": "jaccl-ring-all-gather-direction-1-slice-bug-mlx",
+  "concept": "JACCL ring all_gather direction-1 slice bug (mlx PR 4443)",
+  "generated": "2026-10-05",
+  "summary": "In the JACCL ring backend, `all_gather` sent the same half of every rank's region in both ring directions, so the other half of each peer's data was never transferred and the output held stale or zero bytes there. `all_sum` was not affected.",
+  "facets": [
+    {
+      "title": "Facts",
+      "facts": [
+        {
+          "text": "In the JACCL ring backend, `all_gather` sent the same half of every rank's region in both ring directions, so the other half of each peer's data was never transferred and the output held stale or zero bytes there. `all_sum` was not affected.",
+          "source": "https://github.com/ml-explore/mlx/pull/4443",
+          "note": null
+        },
+        {
+          "text": "The cause is the PR 3900 refactor: `all_gather_wire` gave both directions identical `wire_offset` and `wire_end`, so both covered the lower-half slice of each peer region.",
+          "source": "https://github.com/ml-explore/mlx/pull/4443",
+          "note": null
+        },
+        {
+          "text": "`all_reduce_wire` computes a per-direction term `lr * n_wires * size_per_wire`, which is why `all_sum` worked. The fix adds `n_wires` to `all_gather_wire`'s signature and computes `wire_offset[lr] = lr * n_wires * n_bytes_per_wire + lw * n_bytes_per_wire`, clamped to `min(n_bytes, (lr + 1) * n_wires * n_bytes_per_wire)`.",
+          "source": "https://github.com/ml-explore/mlx/pull/4443/files",
+          "note": null
+        },
+        {
+          "text": "The diff touches `mlx/distributed/jaccl/lib/jaccl/ring_impl.h` (20 added, 9 removed lines) and adds `test_all_gather_rank_data` to `python/tests/mlx_distributed_tests.py`.",
+          "source": "https://github.com/ml-explore/mlx/pull/4443/files",
+          "note": null
+        },
+        {
+          "text": "The new test gathers `arange(size) % 100003 + rank` for sizes 7, 1024, 1000003 and 4*1024*1024, so each rank's region is distinct and odd sizes exercise tail clamping; the old all-ones test could not detect a missing or misplaced region.",
+          "source": "https://github.com/ml-explore/mlx/pull/4443/files",
+          "note": null
+        },
+        {
+          "text": "Opened 2026-08-31 by Drifter4242, who disclosed that the AI model \"Fable\" found and fixed the bug and wrote the code; the author says he did not fully understand it. zcbenz labelled it low priority and, after the test was added, \"await verification\".",
+          "source": "https://github.com/ml-explore/mlx/pull/4443",
+          "note": null
+        },
+        {
+          "text": "Reproduction in the PR: `MLX_JACCL_RING=1`, 2 ranks, `all_gather` corrupts at every size while `all_sum` passes. On two M3 Ultras over Thunderbolt, wheel `0.32.3.dev20260901+37c26e575` (PR base) failed both `test_all_gather` and `test_all_gather_rank_data` on both ranks, and the fix build `+9b6b10c76` passed both.",
+          "source": "https://github.com/ml-explore/mlx/pull/4443",
+          "note": null
+        },
+        {
+          "text": "On 2026-09-11 a user with 4 Mac Studios on mlx 0.32.1 with jaccl-ring for distributed pretraining reported the same symptom with int32 and float32 inputs (including explicitly evaluated ones) and argued for removing the low-priority label because the result is silently wrong; nastya236 removed it the same day.",
+          "source": "https://github.com/ml-explore/mlx/pull/4443",
+          "note": null
+        },
+        {
+          "text": "That user's workaround was to place each rank's message in its own section of a zero-filled array and use `all_sum`, with checksums and sequence checks, keeping native `all_sum` for gradients.",
+          "source": "https://github.com/ml-explore/mlx/pull/4443",
+          "note": null
+        },
+        {
+          "text": "nastya236 tested on four M3 Ultras on 2026-09-15, approved and merged as commit `7241f12` (26 of 29 checks passed; the failing CUDA tests were called unrelated); Homebrew's mlx 0.32.3 PR links it.",
+          "source": "https://github.com/ml-explore/mlx/pull/4443",
+          "note": null
+        },
+        {
+          "text": "The bug exists from the commit that landed PR 3900, which first shipped in v0.32.1, so the affected releases are 0.32.1 and 0.32.2 (not 0.32.0, which predates the refactor), and only on the ring path.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "The mesh topology (full mesh with `MeshImpl`) is a different class and is not named in the PR; the symptom report is ring-only.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "The PR body mentions a second one-line fix to a size parameter for `ring_pass`; the cached diff rendering does not make the old and new arguments distinguishable.",
+          "source": "https://github.com/ml-explore/mlx/pull/4443",
+          "note": null
+        },
+        {
+          "text": "Standard MLX CI does not run on Thunderbolt hardware, which the author gives as the reason the bug was missed.",
+          "source": "https://github.com/ml-explore/mlx/pull/4443",
+          "note": null
+        },
+        {
+          "text": "An all-ones `all_gather` test passes on the buggy code, so a model-level check that only compares shapes or constants will not notice it.",
+          "source": "https://github.com/ml-explore/mlx/pull/4443/files",
+          "note": null
+        },
+        {
+          "text": "Severity. The PR was labelled low priority at first; a user pointed out it returns wrong data rather than failing, and the maintainer removed the label.",
+          "source": "https://github.com/ml-explore/mlx/pull/4443",
+          "note": null
+        },
+        {
+          "text": "Whether exo's pinned fork, which is based on 0.32.0 plus patches, ever contained PR 3900's ring refactor.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Whether any inference path (tensor-parallel decode) uses ring `all_gather` rather than `all_sum`, so whether model output was affected in the field.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "The PR 3900 ring refactor gave both ring directions the same all_gather slice, so half of each peer region was never sent.",
+          "source": "https://github.com/ml-explore/mlx/pull/4443",
+          "note": null
+        },
+        {
+          "text": "`all_sum` on the same ring was correct because `all_reduce_wire` already had the per-direction offset.",
+          "source": "https://github.com/ml-explore/mlx/pull/4443",
+          "note": null
+        },
+        {
+          "text": "The fix passes `n_wires` into `all_gather_wire` and adds `lr * n_wires * n_bytes_per_wire` to the offset for direction `lr`.",
+          "source": "https://github.com/ml-explore/mlx/pull/4443/files",
+          "note": null
+        },
+        {
+          "text": "The repro needs `MLX_JACCL_RING=1` and 2 ranks, and fails at every size.",
+          "source": "https://github.com/ml-explore/mlx/pull/4443",
+          "note": null
+        },
+        {
+          "text": "Before the fix, `test_all_gather` and the new `test_all_gather_rank_data` failed on both ranks of two M3 Ultras; after the fix both passed.",
+          "source": "https://github.com/ml-explore/mlx/pull/4443",
+          "note": null
+        },
+        {
+          "text": "A 4-Mac-Studio user on mlx 0.32.1 reported wrong `all_gather` results for int32 and float32 while `all_sum` passed.",
+          "source": "https://github.com/ml-explore/mlx/pull/4443",
+          "note": null
+        },
+        {
+          "text": "The maintainer verified the fix on 4 M3 Ultras and merged it on 2026-09-15 as `7241f12`.",
+          "source": "https://github.com/ml-explore/mlx/pull/4443",
+          "note": null
+        },
+        {
+          "text": "The label changed from low priority to \"await verification\" and the low-priority label was removed after the silent-corruption argument.",
+          "source": "https://github.com/ml-explore/mlx/pull/4443",
+          "note": null
+        },
+        {
+          "text": "Affected releases are 0.32.1 and 0.32.2 on the ring backend.",
+          "source": "asserted",
+          "note": null
+        }
+      ]
+    }
+  ],
+  "related": []
+}

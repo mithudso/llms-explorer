@@ -1,0 +1,164 @@
+{
+  "slug": "qwen-chat-template-whitespace-normalisation-of-t",
+  "concept": "Qwen chat template whitespace normalisation of tool-call and think blocks",
+  "generated": "2026-10-05",
+  "summary": "Normalisation sites in the Qwen3.8-27B template: every message body goes through `render_content(...)|trim`; the system text is trimmed; `reasoning_content` is trimmed (line 116); the last-query scan trims user text before testing for a `<tool_response>` wrapper.",
+  "facets": [
+    {
+      "title": "Facts",
+      "facts": [
+        {
+          "text": "Normalisation sites in the Qwen3.8-27B template: every message body goes through `render_content(...)|trim`; the system text is trimmed; `reasoning_content` is trimmed (line 116); the last-query scan trims user text before testing for a `<tool_response>` wrapper.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Fixed re-wrap on render: a historical assistant turn is written as `<|im_start|>assistant\\n<think>\\n` + trimmed reasoning + `\\n</think>\\n\\n` + trimmed content. The generation prompt is `<|im_start|>assistant\\n<think>\\n`. A model that emitted extra blank lines or trailing spaces around the think block is therefore rewritten to the canonical form on the next request.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Tool-call wrapper: `\\n\\n<tool_call>\\n<function=NAME>\\n` when the turn has text, bare `<tool_call>\\n<function=NAME>\\n` when it has none, `\\n<tool_call>\\n...` for later calls in the same turn; each parameter is `<parameter=KEY>\\n` + value + `\\n</parameter>\\n`; the call ends `</function>\\n</tool_call>`.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Value serialisation: a string argument is written verbatim; any other value is written as `args_value | tojson | safe`. Number formatting, nested-object key order and JSON spacing in the re-render come from the template runtime's `tojson`, not from the model's raw text.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Tool results: consecutive `tool` messages are merged into one `user` turn of `<tool_response>` blocks; the body is trimmed.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Maintainer position (QwenLM/Qwen3.8 #131, 2026-04-14): the normalisation difference \"lacks a perfect solution\" because token-level generation and message-level templating are separate; the suggested experiment is to remove the normalisation in the chat template.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Third-party claims: froggeric states it applies \"strict single newline normalization at autoregressive boundaries\" and rewrites `content | replace(...)` as `content.split(...) | join('')` because the C++ minja engine silently drops the whole text if the replaced string sits at index 0. Neither claim is shown with a measured token diff.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "2026-04-09/10: #131 reporter lists two template fixes (guard empty historical think; optionally drop historical think entirely) and a reproduction on oMLX plus OpenCode and Pi, and says llama.cpp-style backends show the same drift.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "After 2026-08-13: froggeric v22.3 adds a prefix test and fuzz harness (see prefix-stability-regression-testing-of-chat-temp.md) but both only test template idempotence.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "A template-only test cannot catch generation-versus-render drift: the froggeric tests render message lists twice and compare strings; they never tokenise model output.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "If a server's reasoning parser trims the reasoning text and the template trims again, the pair is idempotent only when the model's first and last reasoning characters are non-whitespace.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "`trim` on the final content means a model reply that ends in a newline is cached as `...\\n<|im_end|>` but re-rendered as `...<|im_end|>`; the divergence sits one token before the end of the turn, so the loss is the turn's tail plus every later token.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "On a hybrid model the divergence point forces a checkpoint restore or a full reprocess (held in hybrid-and-sliding-window-attention-kv-cache-rewinding.md), so a one-character difference costs as much as a template reorder.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Qwen maintainer: whitespace normalisation is a residual that cannot be fully fixed and may be removed experimentally. froggeric: strict single-newline normalisation yields a 100% prefix hit rate. These claims are not compared with a shared measurement; the froggeric figure is a documentation claim.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Whether llama.cpp's Qwen tool-call parser trims parameter values or keeps the model's trailing newline, which decides whether `<parameter>` values round-trip byte-exact.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Whether `tojson` in llama.cpp's Jinja runtime emits the same separators as the model's own JSON output for non-string arguments.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "A measured token-level diff between a Qwen3.8 generation and its re-render on any Mac runtime.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "The Qwen3.8-27B template trims message content, system text and reasoning_content before rendering",
+          "source": "https://huggingface.co/Qwen/Qwen3.8-27B/raw/main/chat_template.jinja",
+          "note": null
+        },
+        {
+          "text": "A historical assistant turn renders as an assistant header, a think block of trimmed reasoning, then trimmed content, joined by fixed newlines",
+          "source": "https://huggingface.co/Qwen/Qwen3.8-27B/raw/main/chat_template.jinja",
+          "note": null
+        },
+        {
+          "text": "The generation prompt is the assistant header followed by \"<think>\\n\" unless enable_thinking is false, when it is \"<think>\\n\\n</think>\\n\\n\"",
+          "source": "https://huggingface.co/Qwen/Qwen3.8-27B/raw/main/chat_template.jinja",
+          "note": null
+        },
+        {
+          "text": "The first tool call of a turn is preceded by \"\\n\\n\" only when the turn has non-empty content",
+          "source": "https://huggingface.co/Qwen/Qwen3.8-27B/raw/main/chat_template.jinja",
+          "note": null
+        },
+        {
+          "text": "Non-string tool-call argument values are rendered with tojson and the safe filter, string values verbatim",
+          "source": "https://huggingface.co/Qwen/Qwen3.8-27B/raw/main/chat_template.jinja",
+          "note": null
+        },
+        {
+          "text": "Consecutive tool messages are merged into a single user turn of tool_response blocks with trimmed bodies",
+          "source": "https://huggingface.co/Qwen/Qwen3.8-27B/raw/main/chat_template.jinja",
+          "note": null
+        },
+        {
+          "text": "A Qwen maintainer on #131 suggests trying removal of the template's normalisation to see whether prefix mismatches improve",
+          "source": "https://github.com/QwenLM/Qwen3.8/issues/131",
+          "note": null
+        },
+        {
+          "text": "The #131 reporter reproduced the drift on oMLX with OpenCode and Pi and says llama.cpp-style backends show the same behaviour",
+          "source": "https://github.com/QwenLM/Qwen3.8/issues/131",
+          "note": null
+        },
+        {
+          "text": "froggeric documents \"strict single newline normalization at autoregressive boundaries\" as part of its 100% prefix-hit claim",
+          "source": "https://huggingface.co/froggeric/Qwen-Fixed-Chat-Templates",
+          "note": null
+        },
+        {
+          "text": "froggeric replaced content|replace with split-and-join because minja drops the whole text when the replaced string is found at index 0",
+          "source": "https://huggingface.co/froggeric/Qwen-Fixed-Chat-Templates",
+          "note": null
+        },
+        {
+          "text": "froggeric's template tests render message lists as strings and never tokenise model output",
+          "source": "https://huggingface.co/froggeric/Qwen-Fixed-Chat-Templates/raw/main/scripts/test_v22.py",
+          "note": null
+        },
+        {
+          "text": "A one-character whitespace difference between generated and re-rendered text ends the shared prefix at that character",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Trimming final content in the template means a reply that ended in a newline is re-rendered one token shorter than it was cached",
+          "source": "asserted",
+          "note": null
+        }
+      ]
+    }
+  ],
+  "related": []
+}

@@ -1,0 +1,104 @@
+{
+  "slug": "mlx-get-qmv-batch-limit-per-generation-tuning-ta",
+  "concept": "MLX get_qmv_batch_limit per-generation tuning table",
+  "generated": "2026-10-05",
+  "summary": "Branch order matters for chips with the 'd' suffix: the gen >= 17 and gen 15-16 branches both test `arch_size != 'd'`, so any 'd' part falls through to the `arch_gen >= 13` switch whose 'd' case returns 32/18/12. A hypothetical gen-17 'd' (Ultra-class) part would therefore not get the 33/25/13 ta...",
+  "facets": [
+    {
+      "title": "Facts",
+      "facts": [
+        {
+          "text": "Branch order matters for chips with the 'd' suffix: the gen >= 17 and gen 15-16 branches both test `arch_size != 'd'`, so any 'd' part falls through to the `arch_gen >= 13` switch whose 'd' case returns 32/18/12. A hypothetical gen-17 'd' (Ultra-class) part would therefore not get the 33/25/13 table. Base M5 (`applegpu_g17g`, suffix 'g') is non-'d' and does get 33/25/13, so the existing \"(M5 Pro/Max class)\" label omits the base chip.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "The limit is applied only to transposed weights (`vector_limit = transpose_ ? get_qmv_batch_limit(K, N, d) : 4`). At or above it, B == 1 and transposed routes to `qmm_splitk`, which may in turn fall back to plain `qmm` (and so NAX) when its split factor computes to 1.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Size bands are on D and O both: first band both <= 2048, second both <= 4096, third otherwise; one large dimension puts the matmul in the third band.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "The table has been retuned since February 2026: the author of PR 3120 printed `qmv_batch_limit(D=4096, O=4096) = 12` on an `applegpu_g15s` device, while main returns 15 for gen 15-16 non-'d' in that band. The exact intermediate revision is unknown.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Pre-qmv_wide, the limit was visibly costly for fp modes on g15s: in the PR 3120 log, mxfp8 D=4096 took 0.262 ms at M=10 on qmv but 0.121 ms at M=12 on `qmm_splitk`, 2.2x cost at lower M. qmv_wide (0.32.0) and the retuned bands address this.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "The 12-to-13 crossover claim in existing dossiers is for gen 15-16 and gen 17 third-band shapes only; first-band shapes on gen 17 cross at 33 and second-band at 25, so a small-hidden-size model (K,N <= 2048) keeps the qmv family up to 32 rows on an M5 Max.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Since `qmv_wide` accepts M < limit and tiles by 5, the number of weight streams just below the limit is ceil((limit-1)/5): 3 at limit 13, 7 at limit 33 (M=32), so a cost cliff just under the 33 limit would be larger than at 13. This is derived, not measured.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "None new beyond the existing dossier's Disagreements section.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Whether a retune is needed now that qmv_wide changed the qmv-side cost curve; the only forced-path sweep (M5 Max, M4 Pro) is a single-shape check.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Whether M5 Pro and base M5 were measured when the gen-17 band values were set; the PR benchmarks used M5 Max only.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "`get_qmv_batch_limit` reads the architecture suffix from the last character of the architecture string and tests `arch_size != 'd'` in both its gen >= 17 and gen >= 15 branches.",
+          "source": "https://raw.githubusercontent.com/ml-explore/mlx/main/mlx/backend/metal/quantized.cpp",
+          "note": null
+        },
+        {
+          "text": "For gen < 13 the non-'d' limits are 18, 12, 10 and the 'd' limits 32, 18, 12 for the first, second and third size bands.",
+          "source": "https://raw.githubusercontent.com/ml-explore/mlx/main/mlx/backend/metal/quantized.cpp",
+          "note": null
+        },
+        {
+          "text": "`vector_limit` is `get_qmv_batch_limit(K, N, d)` for transposed weights and 4 otherwise.",
+          "source": "https://raw.githubusercontent.com/ml-explore/mlx/main/mlx/backend/metal/quantized.cpp",
+          "note": null
+        },
+        {
+          "text": "When M >= vector_limit and the matmul is transposed with B == 1, `qmm_splitk` is called; otherwise `qmm`.",
+          "source": "https://raw.githubusercontent.com/ml-explore/mlx/main/mlx/backend/metal/quantized.cpp",
+          "note": null
+        },
+        {
+          "text": "On an `applegpu_g15s` device the PR 3120 benchmark printed `qmv_batch_limit(D=4096, O=4096) = 12` in February 2026.",
+          "source": "https://github.com/ml-explore/mlx/pull/3120",
+          "note": null
+        },
+        {
+          "text": "In that log mxfp8 D=4096 cost 0.212 ms at M=8, 0.262 ms at M=10 on qmv and 0.121 ms at M=12 on `qmm_splitk`.",
+          "source": "https://github.com/ml-explore/mlx/pull/3120",
+          "note": null
+        },
+        {
+          "text": "Issue 3086 (M2 Max, 0.30.3) reported 4-bit quantized_matmul slower than fp16 at N=10-14 (1.19x, 1.19x, 1.86x); a maintainer's chained benchmark showed 0.66-0.87x at N=10-14 for D=4096 and closed it as an ill-conditioned measurement.",
+          "source": "https://github.com/ml-explore/mlx/issues/3086",
+          "note": null
+        },
+        {
+          "text": "Base M5 (`applegpu_g17g`) reports generation 17 with a non-'d' suffix and so takes the 33/25/13 branch.",
+          "source": "asserted",
+          "note": null
+        }
+      ]
+    }
+  ],
+  "related": []
+}

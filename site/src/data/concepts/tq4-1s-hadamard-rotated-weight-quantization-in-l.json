@@ -1,0 +1,229 @@
+{
+  "slug": "tq4-1s-hadamard-rotated-weight-quantization-in-l",
+  "concept": "TQ4_1S Hadamard-rotated weight quantization in llama.cpp fork",
+  "generated": "2026-10-05",
+  "summary": "Block: 32 elements, 20 bytes = 2 x fp16 scale (d0 for elements 0-15, d1 for 16-31) + 16 bytes of 4-bit centroid indices. Randomized Hadamard with golden-ratio sign flips decorrelates the block; centroids are the 16-level N(0,1) Lloyd-Max set, MSE 0.0095 versus 0.0346 for 3-bit TQ3_1S.",
+  "facets": [
+    {
+      "title": "Facts",
+      "facts": [
+        {
+          "text": "Block: 32 elements, 20 bytes = 2 x fp16 scale (d0 for elements 0-15, d1 for 16-31) + 16 bytes of 4-bit centroid indices. Randomized Hadamard with golden-ratio sign flips decorrelates the block; centroids are the 16-level N(0,1) Lloyd-Max set, MSE 0.0095 versus 0.0346 for 3-bit TQ3_1S.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Metal kernel (V2.1): do not inverse-WHT each weight block (1,280 FLOPs per block, 8x redundant across output rows). Instead rotate the activation once per matmul with a 5-stage simd_shuffle_xor butterfly, then dequantization is centroid lookup times scale; zero threadgroup memory, NR0=8 rows per simdgroup.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Policy (Config I): attention q/k/v/output, ffn_gate and ffn_up as TQ4_1S, ffn_down as Q4_K, first 2 and last 2 layers native. For Llama-family models use Hybrid (attention TQ4_1S, all FFN Q4_K) or Premium (FFN Q5_K/Q6_K, boundary 4+4).",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Constraint: all attention tensors in a layer must be the same type because the in-place rotation of the hidden state would corrupt a non-rotated q8_0 matmul reading it; FFN tensors may be mixed freely.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "David Y. Tan builds TQ3_1S (WHT, dual half-block scales, 8 Lloyd-Max centroids, 4.0 bpw) in a llama.cpp fork; Qwen3.5-27B PPL 7.257 reported near Q4_0 at a smaller size; later TQ3_4S.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "2026-04: TheTom's TQ4_1S (16 centroids, 5.0 bpw) and Metal V2.1 kernel, PR 45 merged; paper 'Tensor-Role-Aware Weight Compression for llama.cpp: TQ4_1S and the Config I Policy' dated early April 2026; community results compiled across 14+ GPUs.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Early PR text said compressed GGUFs would not run on CUDA/HIP; later docs list Metal, CUDA and HIP backends, with a load-time TQ4_1S-to-q8_0 conversion mode giving native q8_0 decode speed.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Q4_K_M source files: TQ4_1S (5.0 bpw) is larger than Q4_K (4.5 bpw), so compressing a Q4_K_M source can increase size; an adapted policy on Command-R+ 104B Q4_K_M reached only 7% reduction. The sweet spot is a Q8_0 source.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Llama-family FFN amplifies per-layer error 6-8x more than Qwen or Phi, so Config I costs +17% PPL on Llama 3.1 70B; one extra bit for FFN (Q4_K to Q5_K) cut the delta from +16% to +6.7%.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Size cliff: below about 5.8 effective BPW Config I loses quality fast (+8-12% at 5.3-5.8 BPW; +12% or more under 5.3).",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Mixed TQ3/TQ4 per layer underperformed uniform TQ4 at similar size; mixing 3-bit read tensors drags quality more than 4-bit write-back tensors save.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "27B decode regression: at ne00=5120 threadgroup memory of 20 KB allowed one threadgroup per core and decode fell to 70% of q8_0 until the zero-shared-memory kernel with NR0=8 restored 97-99%.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "CUDA is the weak backend: no dp4a for centroid lookup, decode 39-71% of q8_0 (RTX 5090 38.5%).",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "The author's claim that 'compression policy matters more than compression math' (policy discovered on Qwen2.5-1.5B) versus the Llama result that the same policy fails; the paper itself lists the Llama cause as unexplained.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "TQ4_1S 'optimal for Metal, storage format on CUDA' (paper) versus the CUDA optimization log's finding that 19 kernel versions could not close the gap, i.e. a fundamental limit rather than missing tuning.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "No independent KLD or head-to-head against Q4_K_M, UD-Q4_K_XL, IQ4_NL or MLX 4-bit at equal size; all numbers are PPL deltas against Q8_0 (the author's own and community runs).",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Upstream status: mainline llama.cpp master has no TQ3_1S or TQ4_1S entries in quantize.cpp, llama-quant.cpp or the Metal device support lists in the cached copies.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "TQ4_1S uses 32-element blocks of 20 bytes: two fp16 scales (d0 for elements 0-15, d1 for 16-31) plus 16 bytes of 4-bit centroid indices, which is 5.0 bits per weight versus 4.0 for TQ3_1S.",
+          "source": "https://github.com/signalnine/llama-cpp-turboquant/blob/feature/tq4-weight-cuda/docs/tq4-weight-cuda-optimization-log.md",
+          "note": null
+        },
+        {
+          "text": "TQ4_1S has MSE 0.0095 against 0.0346 for TQ3_1S (72.5% lower) from 16 Lloyd-Max centroids for N(0,1); the 16 centroids run from -2.733 to 2.733 and pack into clean nibbles.",
+          "source": "https://github.com/TheTom/turboquant_plus/blob/main/docs/papers/weight-compression-tq4.md",
+          "note": null
+        },
+        {
+          "text": "The WHT step is a randomized Hadamard transform with golden-ratio sign flips over each 32-element block.",
+          "source": "https://github.com/TheTom/turboquant_plus/blob/main/docs/papers/weight-compression-tq4.md",
+          "note": null
+        },
+        {
+          "text": "The author chose 16 centroids because the earlier turbo4 KV result showed 16 optimal centroids with nibble packing beat 8-centroid schemes with correction, and QJL correction was actively harmful (turbo4 PPL 679 to +0.23% after removing it; five groups reported QJL off by default).",
+          "source": "https://github.com/TheTom/turboquant_plus/blob/main/docs/papers/weight-compression-tq4.md",
+          "note": null
+        },
+        {
+          "text": "TQ4_1S is applied to a Q8_0 GGUF via llama-quantize --allow-requantize --tensor-type-file with lines like blk.N.attn_q.weight=tq4_1s, with the output type argument Q8_0 for untouched tensors.",
+          "source": "https://github.com/TheTom/turboquant_plus/blob/main/docs/getting-started.md",
+          "note": null
+        },
+        {
+          "text": "Config I is TQ4_1S for attn_q/k/v/output, ffn_gate and ffn_up, Q4_K for ffn_down, and 2 native layers at each end; Qwen3.5-27B goes from 26.6 GB to 19.1 GB (-28%) at +1.3% PPL and 94-102% of Q8_0 decode on Metal.",
+          "source": "https://github.com/TheTom/turboquant_plus/blob/main/docs/getting-started.md",
+          "note": null
+        },
+        {
+          "text": "Validated Config I results (author runs): Qwen2.5-1.5B 1.76G to 1.28G +1.9%; Qwen3.5-35B-A3B MoE 34.4G to 21.6G +1.4% with decode 102%; Qwen2.5-72B 72.0G to 45.8G +3.9%; Phi-4 14B 14.5G to 9.3G +1.0% with decode 254%.",
+          "source": "https://github.com/TheTom/turboquant_plus/blob/main/docs/getting-started.md",
+          "note": null
+        },
+        {
+          "text": "Phi-4's 254% decode is attributed to the 36% size cut moving the M5 Max bottleneck from bandwidth to compute; MoE decode of 102% is attributed to only active experts being read per token.",
+          "source": "https://github.com/TheTom/turboquant_plus/blob/main/docs/papers/weight-compression-tq4.md",
+          "note": null
+        },
+        {
+          "text": "Community Metal results: M5 Max 94-102% of Q8_0 decode, M4 Max 85-99%, M2 Pro about 85%, M1 Max 63% (400 GB/s) on 27B; Gemma 4 26B A4B MoE Config I measured -2.3% PPL (better than Q8_0) at 24.4G.",
+          "source": "https://github.com/TheTom/turboquant_plus/blob/main/docs/weight-compression-results.md",
+          "note": null
+        },
+        {
+          "text": "Do not use Config I on Llama: Llama 3.1 70B Hybrid gives 69.8G to 40.2G at +16% PPL and Premium 49.8G at +5.8%; Mistral 7B Hybrid +1.28% and Premium +0.41%.",
+          "source": "https://github.com/TheTom/turboquant_plus/blob/main/docs/weight-compression-results.md",
+          "note": null
+        },
+        {
+          "text": "The paper says Llama Hybrid matches Q4_K_M in size with 18% better PPL and 33% faster decode, and Llama amplifies per-layer FFN error 6-8x more than Qwen/Phi, an effect that grows with depth (3B fine, 70B needs Premium).",
+          "source": "https://github.com/TheTom/turboquant_plus/blob/main/docs/papers/weight-compression-tq4.md",
+          "note": null
+        },
+        {
+          "text": "On Qwen2.5-1.5B, FFN compression is the speed killer: attention-only TQ3_1S keeps pp512 near baseline while FFN TQ3_1S dropped pp512 from 10,674 to 7,932; boundary 4+4 with ffn_down q8_0 gave +5.6% PPL (+4.5% when attn_output was also q8_0).",
+          "source": "https://github.com/TheTom/turboquant_plus/blob/main/docs/papers/weight-compression-tq4.md",
+          "note": null
+        },
+        {
+          "text": "In-layer mixing constraint: V_proj alone as TQ3_1S gave PPL 324 and V plus attn_output gave 121 against 10.52 with all four attention tensors, because the in-place WHT rotates the hidden state read by other matmuls in the layer.",
+          "source": "https://github.com/TheTom/turboquant_plus/blob/main/docs/papers/weight-compression-tq4.md",
+          "note": null
+        },
+        {
+          "text": "Below about 5.8 BPW Config I degrades: 6.2+ BPW under +3% PPL, 5.3-5.8 BPW +8-12%, under 5.3 BPW +12% or more (Qwen2.5-1.5B).",
+          "source": "https://github.com/TheTom/turboquant_plus/blob/main/docs/papers/weight-compression-tq4.md",
+          "note": null
+        },
+        {
+          "text": "TQ4_1S needs Q8_0 source weights; on Command-R+ 104B Q4_K_M TQ4_1S at 5.0 BPW increases the size of tensors already at Q4_K (4.5 BPW) and an adapted policy gave only 7% reduction.",
+          "source": "https://github.com/TheTom/turboquant_plus/blob/main/docs/papers/weight-compression-tq4.md",
+          "note": null
+        },
+        {
+          "text": "Metal V2.1 fused kernel pre-rotates activations with simd_shuffle_xor (10 FLOPs per element) instead of inverse WHT per block (1,280 FLOPs with 8x redundancy), taking prefill from 1,747 to 9,946 t/s (5.7x) and decode to 85-99% of q8_0.",
+          "source": "https://github.com/TheTom/turboquant_plus/blob/main/docs/papers/weight-compression-tq4.md",
+          "note": null
+        },
+        {
+          "text": "Qwen3.5-27B decode on M5 Max by rows-per-simdgroup NR0: 2 gives 85% of baseline, 4 gives 93%, 8 gives 97%, 16 gives 95% (register pressure); the initial 70% was caused by 20 KB threadgroup memory limiting occupancy to one threadgroup per core.",
+          "source": "https://github.com/TheTom/turboquant_plus/blob/main/docs/papers/weight-compression-tq4.md",
+          "note": null
+        },
+        {
+          "text": "Weight and KV compression stack: on Qwen3.5-35B-A3B at 32K context total memory reached about 59% of baseline (41% reduction) at +1.4% PPL.",
+          "source": "https://github.com/TheTom/turboquant_plus/blob/main/docs/papers/weight-compression-tq4.md",
+          "note": null
+        },
+        {
+          "text": "On CUDA the TQ4_1S decode reached only 39-71% of q8_0 (RTX 5090 38.5%, GTX 1080 Ti 55%, dual 4090 70.6%) because float centroid lookup prevents dp4a integer dot products; the nonlinear lookup itself is free.",
+          "source": "https://github.com/TheTom/turboquant_plus/blob/main/docs/papers/weight-compression-tq4.md",
+          "note": null
+        },
+        {
+          "text": "A 19-version CUDA optimization log on RTX 5090 (Qwen2.5-7B) reached 69 t/s with a pre-rotated-activation scalar kernel against 267 t/s for q4_0 (dp4a) and 20 t/s for the dequant-to-cuBLAS path; multi-row, WMMA, LUT-in-shared-memory and L2-prefetch variants did not help.",
+          "source": "https://github.com/signalnine/llama-cpp-turboquant/blob/feature/tq4-weight-cuda/docs/tq4-weight-cuda-optimization-log.md",
+          "note": null
+        },
+        {
+          "text": "Qwen2.5-7B wikitext PPL in the CUDA log: f16 7.301, TQ4_1S 7.599 (5.0 bpv), q4_0 7.843 (4.5 bpv).",
+          "source": "https://github.com/signalnine/llama-cpp-turboquant/blob/feature/tq4-weight-cuda/docs/tq4-weight-cuda-optimization-log.md",
+          "note": null
+        },
+        {
+          "text": "A community load-time conversion of TQ4_1S to q8_0 gives native q8_0 decode speed at the compressed file size on CUDA (RTX 5090 107% of Q8_0 decode), and the same table lists RTX PRO 6000 Blackwell Config I at 109%.",
+          "source": "https://github.com/TheTom/turboquant_plus/blob/main/docs/weight-compression-results.md",
+          "note": null
+        },
+        {
+          "text": "David Y. Tan's turbo-tan fork adds TQ3_4S with a Blackwell path that maps TQ3_4S blocks to FP4 tiles at runtime for prefill (GGUF stays TQ3_4S on disk), controlled by GGML_CUDA_TQ3_4S_FP4 and related environment variables.",
+          "source": "https://github.com/turbo-tan/llama.cpp-tq3",
+          "note": null
+        },
+        {
+          "text": "The upstream PR 45 testing log states the compressed GGUFs would not run on CUDA/HIP until the runtime dequant kernels were ported and that quantization itself works on any platform; later docs list Metal, CUDA and AMD HIP backends.",
+          "source": "https://github.com/TheTom/llama-cpp-turboquant/pull/45",
+          "note": null
+        },
+        {
+          "text": "Mainline llama.cpp has no TQ3_1S or TQ4_1S type in quantize.cpp, llama-quant.cpp or the Metal support lists, so TQ4_1S GGUFs need the TheTom or turbo-tan forks.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "At 5.0 bpw, TQ4_1S 'Config I' sizes (27-38% below Q8_0) land near Q4_K_M-class files, so a fair comparison is against Q4_K_M or UD-Q4_K_XL by size and KLD, which no source provides.",
+          "source": "asserted",
+          "note": null
+        }
+      ]
+    }
+  ],
+  "related": []
+}

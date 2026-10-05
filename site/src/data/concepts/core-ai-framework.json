@@ -1,0 +1,369 @@
+{
+  "slug": "core-ai-framework",
+  "concept": "Core AI framework",
+  "generated": "2026-10-05",
+  "summary": "LLM path end to end: `uv run coreai.model.registry --list-models [--type llm] [--platform macOS]` -> `uv run coreai.llm.export <HF_ID> [--platform iOS]` -> resource folder (`.aimodel` + tokenizer + other resources) -> Swift `CoreAILanguageModel(resourcesAt:)` -> `LanguageModelSession(model:)`. Ex...",
+  "facets": [
+    {
+      "title": "Facts",
+      "facts": [
+        {
+          "text": "LLM path end to end: `uv run coreai.model.registry --list-models [--type llm] [--platform macOS]` -> `uv run coreai.llm.export <HF_ID> [--platform iOS]` -> resource folder (`.aimodel` + tokenizer + other resources) -> Swift `CoreAILanguageModel(resourcesAt:)` -> `LanguageModelSession(model:)`. Export is per platform because models are specialized to the device they run on.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Export defaults: macOS = dynamic KV cache, full model context, `4bit` (INT4 weight-only, block size 32); optional `4bit_weights_8bit_kv_cache` (needs coreai-opt graph mode). iOS = static shapes with a mandatory `--max-context-length`, `4bit_weight_palettized_group32` default (embedding 8-bit). Mixed-precision recipes via `--compression-config` YAML. Debug info is stripped by default (`--include-debug-info` to keep).",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Apple's own doc says the engine (GPU, CPU or ANE) is selected \"depending on how you export it\"; there is no single fixed unit for CoreAILanguageModel.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Reasoning models: Core AI routes chain-of-thought into `Transcript.Entry.reasoning`, not the response text; `model.capabilities.contains(.reasoning)` reports support. Loading is async (compile plus tokenizer); preload when a request is seconds away.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Specialization control: `AIModelCache.default`, `cache.model(for:options:)` returns nil if not cached (does not specialize); `AIModel.specialize(contentsOf:options:cache:cachePolicy:)` pre-specializes without loading; `SpecializationOptions` `.default` (system picks units to minimize latency), `.cpuOnly`, `init(preferredComputeUnitKind:)`, `availableKinds`; `expectFrequentReshapes = true` skips per-shape optimization for dynamic LLM decode where the sequence grows each token.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Cache lifetime: invalidated always on OS update, on source `.aimodel` change, and under storage pressure unless policy `.persistent`; delete via `deleteEntries(for:)`, `deleteEntry(for:options:)`, `deleteAll()`; share across apps via app group (`AIModelCache(appGroup:)`).",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "AOT: `xcrun coreai-build compile M.aimodel --platform iOS --min-deployment-version 27.0 --output dir/` yields `M.<arch>.aimodelc` per device architecture (`AIModel.deviceArchitectureName`); each works on OS >= the min version; still needs some on-device specialization; requires the Metal Toolchain (`xcodebuild -downloadComponent MetalToolchain`) and builds containing `.aimodel` fail without it. AOT floor: A17 Pro+, M1+, Vision Pro M2.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Tooling: Core AI Debugger app (op graph, numeric debugging, trace to Python source), Xcode debug gauge, Instruments template, Foundation Models instrument for LLM sessions; `Background Inference` entitlement lets a background task run on the ANE; Evaluations framework for quality.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "coreai-torch also supports authoring: composite ops (attention, RoPE, RMSNorm, gather-matmul), `externalize_modules`, `register_torch_lowering`, and inline Metal kernels (`TorchMetalKernel`, `register_custom_kernels`); decompose with `get_decomp_table()` before `TorchConverter`.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "coreai-models catalog: LLMs Gemma 3, Gemma 4, GPT-OSS, Mistral, Phi, Qwen2.5, Qwen3, Qwen3 MoE, SmolLM2, plus Qwen3-VL (VLM), Whisper, FLUX.2/Sana/Wan diffusion, SAM3 segmentation; Stable Diffusion removed. It also ships agent skills (`working-with-coreai`, `model-authoring`, `model-compression-exploration`) as a plugin for Claude Code, Codex CLI and Gemini CLI. Repo has CLI runners `llm-runner` and `llm-benchmark`, and Swift libraries CoreAILM, CoreAISegmentation.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Apple publishes export recipes only, no pre-converted models; community hosts bundles (john-rocky/coreai-model-zoo, 60+ models, BSD-3; HF mlboydaisuke).",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Repo apple/coreai-models: initial commit 2026-06-08, 184 commits and 2.2k stars by 2026-10-01, 3 tags, active daily (Sep 28 bump of coreai-core/torch/opt wheels).",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Python packages: coreai-core 1.0.0b1; coreai-torch 0.4.0 then 0.4.1 (0.4.0-era IR was refused by coreai-build / AIModel.load on a July macOS 27 beta).",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Community zoo flagged \"GA\" wording change after macOS 27 shipped (open gates: 0.4.0-era IR load refusal on 26A428, a KV-write GPU trap, apple/coreai-models#5).",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Export-generation trap: the same `coreai.llm.export qwen3-0.6b` produced 1,116-1,121 tok/s on macOS 26 and ~484-500 on a macOS 27 beta two days later (M4 Max). Fast artifact: plain Linear composites, no quant ops. Slow: ParametrizedLinear plus 141 `constexpr_blockwise_shift_scale` dequant ops. Re-export with frozen wheels still yields the slow form, so lowering consults the running OS. On iPhone 17 Pro 115.1 vs 57.2 tok/s, 0.22 vs 0.47 GB. At 8B both read ~94. Lesson: an `.aimodel` is a build artifact; pin and benchmark the shipped file.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Export memory: gpt-oss-20B conversion needed a 128 GB Mac; Mistral-7B source download is 27 GB (duplicate consolidated.safetensors) vs 4.1 GB converted bundle; running only needs mmap-able memory.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "gpt-oss-20B: MXFP4 passes through unconverted (~3 min export); M4 Max 78 tok/s decode, 1,252 prefill, 2.1 s warm load, 33.9 GB peak RSS; `COREAI_CHUNK_THRESHOLD` trades prefill speed for memory (4,096-token prefill: 1,439 tok/s at 18 GB unchunked vs 766 tok/s at 1.7 GB chunk-128).",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Models with per-layer embeddings (Gemma 4 E2B) force one-token prefill in community engine: ~5 s TTFT on 19-token prompt; Mac 53 tok/s vs MLX 177.8. Community Mamba/hybrid ports are decode-only int8 bundles (Nemotron-3 Nano 4B 85.2 vs MLX 176.8, llama.cpp 88.4).",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "iOS KV cap (1,024 on the Gemma path) and per-arch AOT are real constraints; first-ever generation slow (iPhone 76.5 then 193 tok/s).",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "App-size: Qwen+SAM3 bundles added over 1 GB; Apple's pattern is Background Assets download on opt-in, then specialize.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Fidelity bug class: community MiniCPM5-1B per-channel int8 had dead LM-head rows (ids >= ~65024), so chat ran to token cap; rebuilt per-block-32.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Core AI vs MLX speed, M4 Max, one author's matched matrix (macOS 27 beta artifacts, 512/1024): gpt-oss-20b MLX 100.2 vs Core AI 78.1 (MLX +28%); qwen3-0.6b 484 vs 432 (+12%); qwen3-4b 145.4 vs 145.8 tie; qwen3-8b 94.1 vs 90.0 (+5%); gemma3-4b 141.5 vs 136.3 (+4%); gemma3-12b 55.0 vs 55.1 tie; mistral-7b 101.7 vs 97.5 (+4%). Versus a macOS-26-era 0.6B export: 1,121 vs 455 (2.47x). Both sides side by side: large Core AI wins exist only for small dense models with a lucky export generation; parity elsewhere; MLX wins on MoE and hybrids. The author says to benchmark the file you ship.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Core AI Mac energy: community Core AI Gemma 4 E2B ~0.33 J/token (18.9 W, 53 tok/s) vs MLX 0.090 J/token (14.6 W, 177.8). Different engine patch; not an Apple-engine verdict.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "iPhone MLX number drift: same MLX binary 126-133 tok/s in June and 159-180 in July (device/OS state), so any ratio across sessions is unreliable (reinforces the existing retraction).",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Whether Apple publishes first-party throughput; none found. All numbers are one community harness.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Whether the macOS-27 RTM lowering regression (2.2x) is fixed in a later coreai-torch.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Which models beyond the registry Apple will support (no official hybrid Mamba or Gemma 4 E2B bundle).",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Core AI's Apple doc lists availability iOS, iPadOS, Mac Catalyst, macOS, tvOS, visionOS, watchOS 27.0+, and describes it as running AI models across CPU, GPU and Neural Engine.",
+          "source": "https://developer.apple.com/documentation/coreai",
+          "note": null
+        },
+        {
+          "text": "Apple points non-neural models (decision trees, tabular feature engineering) to Core ML and says language models can also be run through Foundation Models.",
+          "source": "https://developer.apple.com/documentation/coreai",
+          "note": null
+        },
+        {
+          "text": "A Core AI engineer in the WWDC26 group lab reportedly said everyone working with neural networks should move to Core AI, with Core ML kept for traditional ML (paraphrase from a local recording, no Apple captions).",
+          "source": "https://blakecrosley.com/blog/core-ai-run-models-apple-silicon",
+          "note": null
+        },
+        {
+          "text": "Core ML remains a current framework (macOS 10.13+).",
+          "source": "https://developer.apple.com/documentation/coreml",
+          "note": null
+        },
+        {
+          "text": "Apple's article \"Running a Core AI model in a Foundation Models session\" says `CoreAILanguageModel` lives in the open-source `coreai-models` Swift package (product CoreAILM, module CoreAILanguageModels) and conforms to `LanguageModel`; only the model passed to `LanguageModelSession(model:)` changes.",
+          "source": "https://developer.apple.com/documentation/foundationmodels/running-a-core-ai-model-in-a-foundation-models-session",
+          "note": null
+        },
+        {
+          "text": "Core AI selects the engine (GPU, CPU or ANE) depending on how the model is exported.",
+          "source": "https://developer.apple.com/documentation/foundationmodels/running-a-core-ai-model-in-a-foundation-models-session",
+          "note": null
+        },
+        {
+          "text": "Apple recommends a ~0.6B model as a first export because it downloads fast and runs comfortably on device.",
+          "source": "https://developer.apple.com/documentation/foundationmodels/running-a-core-ai-model-in-a-foundation-models-session",
+          "note": null
+        },
+        {
+          "text": "Core AI routes reasoning-model chain of thought into `Transcript.Entry.reasoning` and exposes `.reasoning` in model.capabilities.",
+          "source": "https://developer.apple.com/documentation/foundationmodels/running-a-core-ai-model-in-a-foundation-models-session",
+          "note": null
+        },
+        {
+          "text": "The Foundation Models instrument measures load time, token counts and per-request latency for Core AI-backed sessions.",
+          "source": "https://developer.apple.com/documentation/foundationmodels/running-a-core-ai-model-in-a-foundation-models-session",
+          "note": null
+        },
+        {
+          "text": "WWDC26 session 326 shows Qwen3 0.6B on iPhone and Qwen3 8B on Mac behind the same Swift code and LanguageModelSession, with @Generable guided generation.",
+          "source": "https://developer.apple.com/videos/play/wwdc2026/326/",
+          "note": null
+        },
+        {
+          "text": "In session 326 SAM3 is 623 MB, exposes functions imageEncode and detect, and the Qwen+SAM3 models added over 1 GB to the app download.",
+          "source": "https://developer.apple.com/videos/play/wwdc2026/326/",
+          "note": null
+        },
+        {
+          "text": "Session 326 recommends Background Assets for on-demand model download, per-architecture AOT assets chosen by device architecture, and a first-run specialization step.",
+          "source": "https://developer.apple.com/videos/play/wwdc2026/326/",
+          "note": null
+        },
+        {
+          "text": "The coreai-models README requires macOS and iOS 27.0+ and Xcode 27.0+ to run, uses `uv` for export, and its CI runs on self-hosted Apple Silicon macOS (Tahoe) runners.",
+          "source": "https://github.com/apple/coreai-models",
+          "note": null
+        },
+        {
+          "text": "coreai-models LLM catalog: Gemma 3, Gemma 4, GPT-OSS, Mistral, Phi, Qwen2.5, Qwen3, Qwen3 MoE, SmolLM2, Qwen3-VL, plus Whisper.",
+          "source": "https://github.com/apple/coreai-models/tree/main/models",
+          "note": null
+        },
+        {
+          "text": "coreai-models export defaults: macOS 4bit INT4 weight-only block 32 with dynamic KV cache; iOS 4bit palettized group32 with fixed context length set at export; KV cache INT8 quantization is a macOS option needing coreai-opt graph mode.",
+          "source": "https://github.com/apple/coreai-models/tree/main/models",
+          "note": null
+        },
+        {
+          "text": "coreai-models ships skills `working-with-coreai`, `model-authoring` (BC1S layout, op compatibility, KV cache patterns, precision rules, MoE) and `model-compression-exploration` for Claude Code, Codex CLI and Gemini CLI.",
+          "source": "https://github.com/apple/coreai-models",
+          "note": null
+        },
+        {
+          "text": "coreai-torch exposes composite ops (attention, RoPE, RMSNorm, gather-matmul), `externalize_modules`, `register_torch_lowering` and inline Metal kernels via `TorchMetalKernel`.",
+          "source": "https://apple.github.io/coreai-torch/",
+          "note": null
+        },
+        {
+          "text": "AOT `coreai-build compile` takes `--platform`, `--min-deployment-version`, `--preferred-compute`, outputs `<name>.<arch>.aimodelc`, and each file works at or above the min OS; on-device specialization still remains.",
+          "source": "https://developer.apple.com/documentation/coreai/compiling-core-ai-models-ahead-of-time",
+          "note": null
+        },
+        {
+          "text": "`AIModel.specialize` runs full specialization on device at a chosen moment and is not equivalent to AOT.",
+          "source": "https://developer.apple.com/documentation/coreai/managing-model-specialization-and-caching",
+          "note": null
+        },
+        {
+          "text": "`expectFrequentReshapes = true` skips per-shape optimization for dynamic-shape LLMs whose sequence grows one token at a time.",
+          "source": "https://developer.apple.com/documentation/coreai/managing-model-specialization-and-caching",
+          "note": null
+        },
+        {
+          "text": "Specialized cache entries are always invalidated on OS update, and also on source change or storage pressure unless `.persistent` policy is used.",
+          "source": "https://developer.apple.com/documentation/coreai/managing-model-specialization-and-caching",
+          "note": null
+        },
+        {
+          "text": "Apple suggests `.cpuOnly` specialization for small background models to avoid competing with foreground GPU work.",
+          "source": "https://developer.apple.com/documentation/coreai/managing-model-specialization-and-caching",
+          "note": null
+        },
+        {
+          "text": "Core AI models can share a specialized cache across apps through an app group.",
+          "source": "https://developer.apple.com/documentation/coreai/managing-model-specialization-and-caching",
+          "note": null
+        },
+        {
+          "text": "Core AI model integration requires the Metal Toolchain; builds containing `.aimodel` fail without it; AOT floor is A17 Pro, M1, Vision Pro M2.",
+          "source": "https://blakecrosley.com/blog/core-ai-run-models-apple-silicon",
+          "note": null
+        },
+        {
+          "text": "Apple's tooling includes a Core AI Debugger app, an Xcode debug gauge and an Instruments template.",
+          "source": "https://blakecrosley.com/blog/core-ai-run-models-apple-silicon",
+          "note": null
+        },
+        {
+          "text": "Core AI's AIModelAsset (inspect, cannot infer) and AIModel (specialized, runs) are distinct; InferenceFunction is Sendable and takes inputs, states and outputViews; ComputeStream serializes dependent inferences.",
+          "source": "https://blakecrosley.com/blog/core-ai-run-models-apple-silicon",
+          "note": null
+        },
+        {
+          "text": "Apple publishes export recipes only and no pre-converted .aimodel bundles.",
+          "source": "https://rockyshikoku.medium.com/7-llms-pre-converted-to-apples-core-ai-format-aimodel-now-on-hugging-face-0ad996e921e8",
+          "note": null
+        },
+        {
+          "text": "gpt-oss-20B export needed a 128 GB Mac; MXFP4 passes through; M4 Max decode 78 tok/s, prefill 1,252, warm load 2.1 s, peak RSS 33.9 GB.",
+          "source": "https://rockyshikoku.medium.com/7-llms-pre-converted-to-apples-core-ai-format-aimodel-now-on-hugging-face-0ad996e921e8",
+          "note": null
+        },
+        {
+          "text": "COREAI_CHUNK_THRESHOLD trades prefill speed for memory on MoE: 4,096-token prefill 1,439 tok/s at 18 GB unchunked vs 766 tok/s at 1.7 GB with chunk-128.",
+          "source": "https://rockyshikoku.medium.com/7-llms-pre-converted-to-apples-core-ai-format-aimodel-now-on-hugging-face-0ad996e921e8",
+          "note": null
+        },
+        {
+          "text": "Same export command on macOS 26 vs macOS 27 beta changed Qwen3-0.6B Core AI decode from 1,121 to 484 tok/s because lowering switched from native quantized Linear to explicit dequant ops.",
+          "source": "https://rockyshikoku.medium.com/7-llms-pre-converted-to-apples-core-ai-format-aimodel-now-on-hugging-face-0ad996e921e8",
+          "note": null
+        },
+        {
+          "text": "The slow artifact contains ParametrizedLinear plus 141 constexpr_blockwise_shift_scale ops; re-exporting with frozen wheels still gives the slow form, so lowering consults the running OS; the effect vanishes at 8B (~94 tok/s both).",
+          "source": "https://rockyshikoku.medium.com/apple-core-ai-vs-mlx-which-is-faster-on-iphone-and-mac-for-the-same-model-8faf3c8784ff",
+          "note": null
+        },
+        {
+          "text": "M4 Max matrix (macOS 27 beta, 512 prompt/1024 gen): gpt-oss-20b Core AI 78.1 vs MLX 100.2; qwen3-0.6b 484 vs 432; qwen3-4b 145.4 vs 145.8; qwen3-8b 94.1 vs 90.0; gemma3-4b 141.5 vs 136.3; gemma3-12b 55.0 vs 55.1; mistral-7b 101.7 vs 97.5.",
+          "source": "https://rockyshikoku.medium.com/apple-core-ai-vs-mlx-which-is-faster-on-iphone-and-mac-for-the-same-model-8faf3c8784ff",
+          "note": null
+        },
+        {
+          "text": "Against a macOS-26-era 0.6B artifact the Core AI/MLX ratio was 2.47x (1,121 vs 455); with the macOS 27 re-export it was about 1.1x.",
+          "source": "https://rockyshikoku.medium.com/apple-core-ai-vs-mlx-which-is-faster-on-iphone-and-mac-for-the-same-model-8faf3c8784ff",
+          "note": null
+        },
+        {
+          "text": "iPhone 17 Pro Qwen3-0.6B: Core AI GPU 193.3 cold (June) vs MLX 167.2 cold / 158.8 warm (July); the same MLX binary read 126-133 in June, so cross-session ratios are unreliable.",
+          "source": "https://rockyshikoku.medium.com/apple-core-ai-vs-mlx-which-is-faster-on-iphone-and-mac-for-the-same-model-8faf3c8784ff",
+          "note": null
+        },
+        {
+          "text": "Hybrid Mamba-2 on M4 Max: Nemotron-3 Nano 4B Core AI int8 85.2 vs MLX 4-bit 176.8 vs llama.cpp Q4_K_M 88.4; Core AI ports are decode-only int8 bundles with token-identical greedy output vs fp32.",
+          "source": "https://rockyshikoku.medium.com/apple-core-ai-vs-mlx-which-is-faster-on-iphone-and-mac-for-the-same-model-8faf3c8784ff",
+          "note": null
+        },
+        {
+          "text": "Gemma 4 E2B M4 Max energy per token: MLX PTQ 0.090 J (177.8 tok/s, 14.6 W); Core AI community int4 patched ~0.33 J (53 tok/s, 18.9 W).",
+          "source": "https://rockyshikoku.medium.com/apple-core-ai-vs-mlx-which-is-faster-on-iphone-and-mac-for-the-same-model-8faf3c8784ff",
+          "note": null
+        },
+        {
+          "text": "Per the same author, choose MLX for any HF model today, MoE, and hybrids on Mac; Core AI for small dense GPU models with a pinned artifact or a static-shape ANE path; 4B-12B dense is a tie.",
+          "source": "https://rockyshikoku.medium.com/apple-core-ai-vs-mlx-which-is-faster-on-iphone-and-mac-for-the-same-model-8faf3c8784ff",
+          "note": null
+        },
+        {
+          "text": "Apple's Foundation Model measured by the same harness: ~85.2 tok/s (estimated tokens, +-20%), 0.11 J/token.",
+          "source": "https://github.com/john-rocky/apple-silicon-llm-bench",
+          "note": null
+        },
+        {
+          "text": "The bench repo's Core AI 30B 3-way row used a forked engine (john-rocky/coreai-models@58aab35) because pinned 0.2.0 neither ran on that OS seed (FM ABI) nor supported muse_glimmer; arms were interleaved with 45 s cooldowns.",
+          "source": "https://github.com/john-rocky/apple-silicon-llm-bench",
+          "note": null
+        },
+        {
+          "text": "A third-party model zoo (john-rocky/coreai-model-zoo) catalogs ~65 recipes (63 verified), BSD-3, and records a dead-LM-head bug in a per-channel int8 MiniCPM5-1B bundle fixed by per-block-32 quantization.",
+          "source": "https://github.com/john-rocky/coreai-model-zoo",
+          "note": null
+        },
+        {
+          "text": "Core AI sits below Foundation Models and Core ML in Apple's stack and is chosen when explicit specialization, caching and scheduling control are needed (one author's decision tree).",
+          "source": "https://blakecrosley.com/blog/core-ai-run-models-apple-silicon",
+          "note": null
+        },
+        {
+          "text": "For a Mac user wanting a local model today, Core AI adds little over MLX in speed on 4B-12B dense models; its distinct value is Foundation Models API compatibility, Apple tooling and static-shape ANE on iOS.",
+          "source": "asserted",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Corrections and disagreements",
+      "facts": [
+        {
+          "text": "Does CoreAILanguageModel run on the ANE or GPU? CONTRADICTS apple-foundation-models-framework.md line 96 (\"CoreAILanguageModel (Neural Engine)\"): Apple's article says it runs on GPU, CPU or ANE depending on export; macOS export is dynamic and lands on the GPU pipelined engine, iOS static export on the ANE.",
+          "source": "asserted",
+          "note": null
+        }
+      ]
+    }
+  ],
+  "related": []
+}

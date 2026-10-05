@@ -1,0 +1,169 @@
+{
+  "slug": "exo-set-rdma-network-config-sh-network-setup-scr",
+  "concept": "exo set_rdma_network_config.sh network setup script",
+  "generated": "2026-10-05",
+  "summary": "`tmp/set_rdma_network_config.sh` is a bash script in the exo repository (strict mode `set -euo pipefail`) that rebuilds a Mac's network configuration so every Thunderbolt RDMA port has its own network service on DHCP. exo bundles the same script in the macOS app.",
+  "facets": [
+    {
+      "title": "Facts",
+      "facts": [
+        {
+          "text": "`tmp/set_rdma_network_config.sh` is a bash script in the exo repository (strict mode `set -euo pipefail`) that rebuilds a Mac's network configuration so every Thunderbolt RDMA port has its own network service on DHCP. exo bundles the same script in the macOS app.",
+          "source": "https://raw.githubusercontent.com/exo-explore/exo/main/tmp/set_rdma_network_config.sh",
+          "note": null
+        },
+        {
+          "text": "Step 1, remove the bridge at run time: if `bridge0` exists it removes each member with `ifconfig bridge0 deletem` and then `ifconfig bridge0 destroy`. Errors are ignored.",
+          "source": "https://raw.githubusercontent.com/exo-explore/exo/main/tmp/set_rdma_network_config.sh",
+          "note": null
+        },
+        {
+          "text": "Step 2, remove the bridge from stored configuration: `PlistBuddy -c \"Delete :VirtualNetworkInterfaces:Bridge:bridge0\"` on `/Library/Preferences/SystemConfiguration/preferences.plist`, so it does not come back after reboot.",
+          "source": "https://raw.githubusercontent.com/exo-explore/exo/main/tmp/set_rdma_network_config.sh",
+          "note": null
+        },
+        {
+          "text": "Step 3, create and switch to a network location named `exo` (`networksetup -createlocation exo` if none exists, then `-switchtolocation exo`). The script therefore changes the active network location, not just one service.",
+          "source": "https://raw.githubusercontent.com/exo-explore/exo/main/tmp/set_rdma_network_config.sh",
+          "note": null
+        },
+        {
+          "text": "Step 4, loop over `networksetup -listallhardwareports`: names starting \"Ethernet Adapter\" and the \"Thunderbolt Bridge\" port are skipped; every other port named \"Thunderbolt ...\" gets a new service called `EXO <port name>` created with `-createnetworkservice` and set to DHCP with `-setdhcp`.",
+          "source": "https://raw.githubusercontent.com/exo-explore/exo/main/tmp/set_rdma_network_config.sh",
+          "note": null
+        },
+        {
+          "text": "Step 4 also recreates a service for every other hardware port (Wi-Fi and so on) under its own name if the new location lacks one, because a new location starts empty.",
+          "source": "https://raw.githubusercontent.com/exo-explore/exo/main/tmp/set_rdma_network_config.sh",
+          "note": null
+        },
+        {
+          "text": "Step 5, if a \"Thunderbolt Bridge\" service exists, it is disabled with `-setnetworkserviceenabled \"Thunderbolt Bridge\" off`.",
+          "source": "https://raw.githubusercontent.com/exo-explore/exo/main/tmp/set_rdma_network_config.sh",
+          "note": null
+        },
+        {
+          "text": "The script is idempotent on re-run: existing locations and `EXO ...` services are detected with `grep -q` before creation.",
+          "source": "https://raw.githubusercontent.com/exo-explore/exo/main/tmp/set_rdma_network_config.sh",
+          "note": null
+        },
+        {
+          "text": "The script needs root, since it edits the system preferences plist and network services, but contains no `sudo`; the caller must supply it.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "The script sets DHCP only. It never assigns a static address and never calls `route`, so its result is dynamic link-local per port, not the static schemes in static-link-local-ipv4-per-thunderbolt-port-for.md.",
+          "source": "https://raw.githubusercontent.com/exo-explore/exo/main/tmp/set_rdma_network_config.sh",
+          "note": null
+        },
+        {
+          "text": "A maintainer replied in issue 1390 (February 2026) that after macOS 26.2 the RDMA interfaces no longer self-assign addresses, that a script in `tmp/` does the setup automatically, and that it \"is a little destructive to existing networking settings\".",
+          "source": "https://github.com/exo-explore/exo/issues/1390",
+          "note": null
+        },
+        {
+          "text": "The issue's summary lists three actions as \"essentially what our script does\": delete the Thunderbolt bridge, assign a new network service to each Thunderbolt port, enable DHCP or IPv6 auto-assignment.",
+          "source": "https://github.com/exo-explore/exo/issues/1390",
+          "note": null
+        },
+        {
+          "text": "A reporter ran the script, rebooted, re-pulled from source and got a working cluster, and proposed README troubleshooting text that warns the script \"can be destructive to existing networking configurations\".",
+          "source": "https://github.com/exo-explore/exo/issues/1390",
+          "note": null
+        },
+        {
+          "text": "The exo README tells source users to run the script and says it \"will disable Thunderbolt Bridge and set dhcp on each RDMA port\" (caveat 4 of the RDMA section). The same list requires every node connected to every other node, TB5 cables, avoiding the port next to Ethernet on a Mac Studio, and exactly matching macOS versions.",
+          "source": "https://raw.githubusercontent.com/exo-explore/exo/main/README.md",
+          "note": null
+        },
+        {
+          "text": "Side effects outside RDMA: the Mac is switched to a new `exo` location, so previously configured per-service settings (static IPs, DNS, proxies, VPN services) from the old location are not carried over. This is the mechanism behind the \"destructive\" warning.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "The 4-node M3 Ultra cluster in exo issue 1847 ran in network location `exo` with Thunderbolt Bridge disabled and `EXO Thunderbolt 1-6` services on DHCP link-local, which matches the script's output.",
+          "source": "https://github.com/exo-explore/exo/issues/1847",
+          "note": null
+        },
+        {
+          "text": "Symptom without the setup: loading a model with Tensor sharding and the `MLX RDMA` instance type shows `preparing` then `failed` in the dashboard and repeats `Worker plan: CreateRunner` in the console.",
+          "source": "https://github.com/exo-explore/exo/issues/1390",
+          "note": null
+        },
+        {
+          "text": "The script does not touch `rdma_ctl` or recovery-mode RDMA enabling; those stay manual steps before it.",
+          "source": "https://raw.githubusercontent.com/exo-explore/exo/main/README.md",
+          "note": null
+        },
+        {
+          "text": "Scope. The maintainer's phrase \"essentially what our script does\" lists three steps; the script does more (it creates a location, recreates all other services, edits the preferences plist). The summary understates the side effects.",
+          "source": "https://raw.githubusercontent.com/exo-explore/exo/main/tmp/set_rdma_network_config.sh",
+          "note": null
+        },
+        {
+          "text": "DHCP versus static: see static-link-local-ipv4-per-thunderbolt-port-for.md; this script takes the DHCP side.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Whether the DHCP link-local result survives a macOS 27 upgrade and the reworked RDMA library.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Whether the script is still needed once the bundled app sets up the network itself. The sources say the app \"bundles\" the script, not how it runs it.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "`tmp/set_rdma_network_config.sh` destroys `bridge0` at run time and deletes its entry from the system preferences plist with PlistBuddy.",
+          "source": "https://raw.githubusercontent.com/exo-explore/exo/main/tmp/set_rdma_network_config.sh",
+          "note": null
+        },
+        {
+          "text": "The script creates and switches to a network location named `exo`.",
+          "source": "https://raw.githubusercontent.com/exo-explore/exo/main/tmp/set_rdma_network_config.sh",
+          "note": null
+        },
+        {
+          "text": "For each Thunderbolt hardware port other than \"Thunderbolt Bridge\" the script creates a service named `EXO <port>` and sets it to DHCP.",
+          "source": "https://raw.githubusercontent.com/exo-explore/exo/main/tmp/set_rdma_network_config.sh",
+          "note": null
+        },
+        {
+          "text": "The script re-creates a service for every non-Thunderbolt, non-\"Ethernet Adapter\" hardware port in the new location and disables the \"Thunderbolt Bridge\" service.",
+          "source": "https://raw.githubusercontent.com/exo-explore/exo/main/tmp/set_rdma_network_config.sh",
+          "note": null
+        },
+        {
+          "text": "The script assigns no static address and no routes.",
+          "source": "https://raw.githubusercontent.com/exo-explore/exo/main/tmp/set_rdma_network_config.sh",
+          "note": null
+        },
+        {
+          "text": "The exo README says source users must run the script, and that it disables Thunderbolt Bridge and sets DHCP on each RDMA port.",
+          "source": "https://raw.githubusercontent.com/exo-explore/exo/main/README.md",
+          "note": null
+        },
+        {
+          "text": "A maintainer calls the script \"a little destructive to existing networking settings\" and ties the need to macOS 26.2 no longer self-assigning addresses on the RDMA interfaces.",
+          "source": "https://github.com/exo-explore/exo/issues/1390",
+          "note": null
+        },
+        {
+          "text": "Without the network setup, loading a Tensor-sharded `MLX RDMA` instance cycles between `preparing` and `failed`.",
+          "source": "https://github.com/exo-explore/exo/issues/1390",
+          "note": null
+        },
+        {
+          "text": "The README RDMA caveats also require OS versions to match exactly, including beta numbers, on all devices.",
+          "source": "https://raw.githubusercontent.com/exo-explore/exo/main/README.md",
+          "note": null
+        }
+      ]
+    }
+  ],
+  "related": []
+}

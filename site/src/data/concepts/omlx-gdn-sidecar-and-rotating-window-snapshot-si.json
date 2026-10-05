@@ -1,0 +1,89 @@
+{
+  "slug": "omlx-gdn-sidecar-and-rotating-window-snapshot-si",
+  "concept": "oMLX GDN sidecar and rotating-window snapshot size",
+  "generated": "2026-10-05",
+  "summary": "Issue 2647's model init log for a Gemma4-31B 8-bit fine-tune reads `60 layers (10 KVCache, rotating 50x@1024)` and `Aligning paged cache block_size=256 to 1024 (RotatingKVCache window_size=1024)`.",
+  "facets": [
+    {
+      "title": "Facts",
+      "facts": [
+        {
+          "text": "Issue 2647's model init log for a Gemma4-31B 8-bit fine-tune reads `60 layers (10 KVCache, rotating 50x@1024)` and `Aligning paged cache block_size=256 to 1024 (RotatingKVCache window_size=1024)`.",
+          "source": "https://github.com/jundot/omlx/issues/2647",
+          "note": null
+        },
+        {
+          "text": "For that model the reporter computes sliceable KV per 1,024-token block as 10 layers x 1,024 tokens x 16 KB, about 160 MB, and rotating-window state as 50 layers x 1,024 x 16 KB, about 820 MB, so the sidecar dominates each boundary file (about 850 MB).",
+          "source": "https://github.com/jundot/omlx/issues/2647",
+          "note": null
+        },
+        {
+          "text": "On a 10,813-token cold turn the store log read `storing 10240/10813 tokens (9 intermediate snapshots)` and left 8.6 GB in the hot cache across 10 entries; a warm turn stored 2 snapshots and added 1.7 GB of SSD in 2 files.",
+          "source": "https://github.com/jundot/omlx/issues/2647",
+          "note": null
+        },
+        {
+          "text": "Steady-state SSD writes on that model were 2.5-4.6 GB per turn across several client lanes, which filled a 148 GB quota in about 43 turns.",
+          "source": "https://github.com/jundot/omlx/issues/2647",
+          "note": null
+        },
+        {
+          "text": "Issue 2647's author proposes a configurable snapshot stride (store every 2nd or 4th boundary) and lists deduplicating or delta-encoding rotating state, or KV-quantizing the sidecar, as alternatives.",
+          "source": "https://github.com/jundot/omlx/issues/2647",
+          "note": null
+        },
+        {
+          "text": "Issue 2647's author says PR 2620's incremental KV segments for distributed ranks would shrink only the roughly 160 MB sliceable share, not the roughly 820 MB rotating sidecar.",
+          "source": "https://github.com/jundot/omlx/issues/2647",
+          "note": null
+        },
+        {
+          "text": "On qwen4_exp one commenter measured fp32 GDN sidecar bundles at 5.1 GB each with 122 tensors per bundle; `rht_int8` made a boundary bundle about 57 MB and a warm 40K rerun restored 96% of the prefix in 3 s against 50 s cold with identical temp-0 output.",
+          "source": "https://github.com/jundot/omlx/issues/2647",
+          "note": null
+        },
+        {
+          "text": "The same commenter found rht_int8 left bytes written per token near 0.6 MB, because large files are cumulative re-bundles rewritten as the request grows; append or delta semantics would cut per-request sidecar bytes from O(seq^2) to about O(seq).",
+          "source": "https://github.com/jundot/omlx/issues/2647",
+          "note": null
+        },
+        {
+          "text": "The 126 GB orphan under `_gdn_sidecars/<hash>/` came from a client-aborted 203K prefill whose `cleanup_request` never ran because the engine died in the post-reject immediate-abort unload.",
+          "source": "https://github.com/jundot/omlx/issues/2647",
+          "note": null
+        },
+        {
+          "text": "Issue 2384 (Qwen3.5-122B-A10B 5-bit, M4 Max 64 GB, about 11.5K-token prompts) showed a hot cache of 3.8 GB over 20 entries, about 190 MB each, after 20 turns of one conversation that shared a 12,288-token prefix, while the SSD tier had reached 125 GB of a 150 GB cap.",
+          "source": "https://github.com/jundot/omlx/issues/2384",
+          "note": null
+        },
+        {
+          "text": "In issue 2384 the same 12,288 tokens were stored every turn (`storing 12288/12502 tokens (skipping trailing partial block, 0 intermediate snapshots)`), and boundary_snapshot_save time grew from 463 ms to 544 ms as entries accumulated.",
+          "source": "https://github.com/jundot/omlx/issues/2384",
+          "note": null
+        },
+        {
+          "text": "Issue 2384 is open and the cached copy shows cleanup_finished_sync at 7,381.6 ms across 1,258 calls in the reporter's phase timings.",
+          "source": "https://github.com/jundot/omlx/issues/2384",
+          "note": null
+        },
+        {
+          "text": "With `gdn_snapshot_storage: embedded` a 203K cold prefill of Qwen3.8-Flash-Next on a 128 GB Mac died at 161,792 tokens after 903 s, because in-flight memory grew about 237 KB per token against the guard's 27.28 KB per token estimate.",
+          "source": "https://github.com/jundot/omlx/issues/3284",
+          "note": null
+        },
+        {
+          "text": "With the SSD sidecar the same 203K request completed in about 14 minutes but wrote 126 GB of fp32 sidecar bundles for that one request.",
+          "source": "https://github.com/jundot/omlx/issues/3284",
+          "note": null
+        },
+        {
+          "text": "Issue 3284 proposes counting `ctx/2048` snapshots times state bytes in the admission estimate or a per-model `prefill_bytes_per_token_override`, failing fast when `progress + remaining x measured slope` cannot fit, and returning a typed HTTP error instead of an aborted 200 with empty `usage`.",
+          "source": "https://github.com/jundot/omlx/issues/3284",
+          "note": null
+        }
+      ]
+    }
+  ],
+  "related": []
+}

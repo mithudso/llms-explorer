@@ -1,0 +1,109 @@
+{
+  "slug": "client-side-compaction-thresholds-for-hybrid-mod",
+  "concept": "Client-side compaction thresholds for hybrid-model local servers",
+  "generated": "2026-10-05",
+  "summary": "With no window set, Claude Code compacts when the conversation reaches the model's context limit, except cloud sessions, Sonnet 4.6 and Opus 4.6 without extended context (200K boundary), Opus 4.8 and later on a 200K window, and `CLAUDE_CODE_DISABLE_1M_CONTEXT=1`.",
+  "facets": [
+    {
+      "title": "Facts",
+      "facts": [
+        {
+          "text": "With no window set, Claude Code compacts when the conversation reaches the model's context limit, except cloud sessions, Sonnet 4.6 and Opus 4.6 without extended context (200K boundary), Opus 4.8 and later on a 200K window, and `CLAUDE_CODE_DISABLE_1M_CONTEXT=1`.",
+          "source": "https://code.claude.com/docs/en/model-config",
+          "note": null
+        },
+        {
+          "text": "Models with a native 1M window compact before the window fills, at about 967K tokens by default.",
+          "source": "https://code.claude.com/docs/en/model-config",
+          "note": null
+        },
+        {
+          "text": "`/autocompact` and `--autocompact` accept 100K to 1M as a plain count, a `k` or `M` suffix, or a bare number from 100 to 1000 meaning thousands; `CLAUDE_CODE_AUTO_COMPACT_WINDOW` accepts only a plain integer.",
+          "source": "https://code.claude.com/docs/en/model-config",
+          "note": null
+        },
+        {
+          "text": "Precedence is `CLAUDE_CODE_AUTO_COMPACT_WINDOW` over `/autocompact` over the `--autocompact` flag over `autoCompactWindow`; the flag is not preempted by managed settings but the command is.",
+          "source": "https://code.claude.com/docs/en/model-config",
+          "note": null
+        },
+        {
+          "text": "A window saved with `/autocompact` is stored per model under `modelSettings` from v2.1.288; earlier versions saved one window for every model.",
+          "source": "https://code.claude.com/docs/en/model-config",
+          "note": null
+        },
+        {
+          "text": "Once `CLAUDE_CODE_AUTO_COMPACT_WINDOW` is set, the status line `used_percentage` still measures against the model's full window and no longer indicates when compaction will run.",
+          "source": "https://code.claude.com/docs/en/env-vars",
+          "note": null
+        },
+        {
+          "text": "`CLAUDE_AUTOCOMPACT_PCT_OVERRIDE` can only lower the threshold (values above the default percentage are ignored), applies only in sessions that compact before the model's context limit, and covers both main conversations and subagents.",
+          "source": "https://code.claude.com/docs/en/env-vars",
+          "note": null
+        },
+        {
+          "text": "On a model ID Claude Code does not recognise, `CLAUDE_CODE_DISABLE_UNKNOWN_MODEL_WINDOW_ENFORCEMENT=1` makes it compact only after the API rejects the conversation with a too-long error it recognises, and Claude Code does not run that recovery when a gateway rewrites the error wording.",
+          "source": "https://code.claude.com/docs/en/model-config",
+          "note": null
+        },
+        {
+          "text": "With `CLAUDE_CODE_GATEWAY_HINT_HEADERS=1` (default off on a custom base URL, v2.1.273 or later) Claude Code sends `x-claude-code-request-class` whose value `compaction` marks the summarisation request.",
+          "source": "https://code.claude.com/docs/en/llm-gateway-protocol",
+          "note": null
+        },
+        {
+          "text": "`x-claude-code-compaction` appears only on the summarising request and carries the trigger: `auto` (window near capacity), `manual` (`/compact`) or `reactive` (the API rejected a request as too long).",
+          "source": "https://code.claude.com/docs/en/llm-gateway-protocol",
+          "note": null
+        },
+        {
+          "text": "`x-claude-code-context-compacted` appears once, on the first main-conversation request after a compaction, and signals that the prefix before this request is no longer used so a cache keyed on it can be dropped.",
+          "source": "https://code.claude.com/docs/en/llm-gateway-protocol",
+          "note": null
+        },
+        {
+          "text": "Setting `CLAUDE_CODE_GATEWAY_HINT_HEADERS=0` stops the headers on every connection, including the default send to the Anthropic API.",
+          "source": "https://code.claude.com/docs/en/env-vars",
+          "note": null
+        },
+        {
+          "text": "Codex's `model_auto_compact_token_limit` is the token threshold that triggers automatic history compaction (unset uses model defaults), and `model_context_window` sets the window Codex assumes for the active model.",
+          "source": "https://developers.openai.com/codex/config-reference",
+          "note": null
+        },
+        {
+          "text": "Codex's `model_auto_compact_token_limit_scope` is `total` (default; counts the full active context) or `body_after_prefix` (counts only growth after the carried compaction-window prefix).",
+          "source": "https://developers.openai.com/codex/config-reference",
+          "note": null
+        },
+        {
+          "text": "A Codex CLI request through a llama.cpp backend was 18383 tokens at the first turn and failed against an 8192-token server window with `exceed_context_size_error`; raising `--ctx-size` to 32768 fixed it.",
+          "source": "https://github.com/unslothai/unsloth/issues/5141",
+          "note": null
+        },
+        {
+          "text": "A user report puts Codex CLI's system prompt at \"at least 27,000 tokens\" and runs llama-server with `-c 32768`; Ollama's guidance for Codex is a 64k context and LM Studio's is above about 25k.",
+          "source": "https://medium.com/google-cloud/i-ran-gemma-4-as-a-local-model-in-codex-cli-7fda754dc0d4",
+          "note": null
+        },
+        {
+          "text": "Ollama's guidance for Codex is \"at least 64k tokens\" and LM Studio's is \"more than ~25k\" per a September 2026 how-to.",
+          "source": "https://michaelwolfinger.com/blog/2026/codex-cli-local-model-lm-studio-ollama/",
+          "note": null
+        },
+        {
+          "text": "Inferred: a local router that sees `x-claude-code-context-compacted` can evict the conversation's recurrent-state checkpoints at once instead of waiting for LRU, since the old prefix will not recur.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Inferred: because a hybrid server cannot shift context, the compaction window should be set at or below the server's `-c` minus the largest expected single tool result, not at the model's trained maximum.",
+          "source": "asserted",
+          "note": null
+        }
+      ]
+    }
+  ],
+  "related": []
+}

@@ -1,0 +1,404 @@
+{
+  "slug": "mac-local-llms-kv-cache-sizing-and-quantization",
+  "concept": "Mac local LLMs: KV cache sizing and quantization",
+  "generated": "2026-10-05",
+  "summary": "KV/token = attn layers x 2 x KV heads x head_dim x bytes. Hybrids: count only full-attention layers; sliding layers add a bounded ring, DeltaNet a constant state.",
+  "facets": [
+    {
+      "title": "Sizing (count only layers that hold KV)",
+      "facts": [
+        {
+          "text": "KV/token = attn layers x 2 x KV heads x head_dim x bytes. Hybrids: count only full-attention layers; sliding layers add a bounded ring, DeltaNet a constant state.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Qwen3.6-35B-A3B: 10 attn layers, 2 KV heads, head_dim 256 = 20 KiB/token fp16, ~5 GiB at 262K.",
+          "source": "https://huggingface.co/Qwen/Qwen3.6-35B-A3B",
+          "note": null
+        },
+        {
+          "text": "Qwen3.6-27B: 16 attn layers x 4 KV heads = 64 KiB/token, ~12.5 GiB at 200K.",
+          "source": "https://wal.sh/research/qwen3.6-local-first-inference/",
+          "note": null
+        },
+        {
+          "text": "Gemma 3/4 in mlx-lm: local layers use RotatingKVCache (bounded); global KVCache grows in 256-token steps, never evicts, so sliding window does not bound memory.",
+          "source": "https://github.com/ml-explore/mlx/discussions/3840",
+          "note": null
+        },
+        {
+          "text": "Gemma-4-26B-A4B global layers disputed (5 vs 10; ~10 vs >20 GiB at 262K): read config.json before sizing.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Gemma 4 E2B/E4B share KV: count only producer layers (15 of 35, 24 of 42); shared layers get doubled MLP, so weights do not shrink. 26B-A4B reports shared_kv_layers = 0.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Gemma 4 attention_k_eq_v: global layers reuse K as V (no v_proj); a quantizer expecting v_proj fails.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "32 GB: Qwen3.6-35B-A3B Q4 plus fp16 KV at 262K is tight; use ~128K or q8_0 KV. 24 GB: Qwen3.6-27B ceiling ~32K fp16, ~64K q8_0.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "KV-head count beats parameter count for long-context sizing.",
+          "source": "asserted",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Runtime knobs and defaults",
+      "facts": [
+        {
+          "text": "llama-server: --cache-prompt on, --cache-reuse 0, -ctxcp 32, -cms 8192, -cram 8192 MiB, --context-shift off, --swa-full false; --cache-type-k/v accepts f32 f16 bf16 q8_0 q4_0 q4_1 iq4_nl q5_0 q5_1. Drop --no-kv-offload on Apple Silicon.",
+          "source": "https://particula.tech/blog/prompt-reprocessing-swa-hybrid-models-kv-cache",
+          "note": null
+        },
+        {
+          "text": "--ctx-size is split across slots with explicit --parallel N (ctx/N each); set --parallel explicitly. --cache-ram competes with weights on unified memory.",
+          "source": "https://medium.com/@michael.hannecke/tuning-llama-server-on-apple-silicon-9b3e778ab100",
+          "note": null
+        },
+        {
+          "text": "--checkpoint-every-n-tokens was removed (PR #22929) and now fails to parse; --cache-disk does not exist.",
+          "source": "https://particula.tech/blog/prompt-reprocessing-swa-hybrid-models-kv-cache",
+          "note": null
+        },
+        {
+          "text": "Ollama: OLLAMA_KV_CACHE_TYPE global, default f16, q8_0 ~1/2 memory, q4_0 ~1/4; needs flash attention (auto since Oct 2025); the server reads it, so exporting in the client terminal does nothing; macOS app needs launchctl setenv; unsupported architectures silently fall back to f16.",
+          "source": "https://modelpiper.com/blog/ollama-kv-cache-quantization",
+          "note": null
+        },
+        {
+          "text": "Ollama MLX runner allocates context dynamically: ollama ps CONTEXT is the maximum, SIZE the live use; it keeps an 8 GB snapshot cache, so SIZE climbs 18 to 26 GB; OLLAMA_KEEP_ALIVE=0 stops accumulation.",
+          "source": "https://github.com/ollama/ollama/issues/17875",
+          "note": null
+        },
+        {
+          "text": "mlx_lm.server has no --ctx flag; cap context in the client. MLX_LM_CACHE_LIMIT=0 stops allocator growth.",
+          "source": "https://danmackinlay.name/notebook/local_llm_mac.html",
+          "note": null
+        },
+        {
+          "text": "mlx-lm generate: --kv-bits, --kv-group-size 64, --quantized-kv-start 5000; server support merged 2026-09-09 (PR #1832).",
+          "source": "https://github.com/ml-explore/mlx-lm/issues/1043",
+          "note": null
+        },
+        {
+          "text": "Metal flash attention needs K type == V type (#25900), so K=q8_0/V=q4_0 may not run fused.",
+          "source": "https://github.com/ggml-org/llama.cpp/issues/25900",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Failure modes and fixes",
+      "facts": [
+        {
+          "text": "Silent full re-prefill each turn: HTTP 200, only log is \"forcing full prompt re-processing due to lack of cache data\" at -lv 4. Debug: grep \"forcing full prompt|context checkpoint|n_past =\", add --log-prompts-dir.",
+          "source": "https://particula.tech/blog/prompt-reprocessing-swa-hybrid-models-kv-cache",
+          "note": null
+        },
+        {
+          "text": "Hybrid/SWA models cannot truncate; reasoning models drop prior think tokens, breaking prefix reuse; -rea off does not fix it (--reasoning-preserve).",
+          "source": "https://particula.tech/blog/prompt-reprocessing-swa-hybrid-models-kv-cache",
+          "note": null
+        },
+        {
+          "text": "mlx_lm.server OOM: \"kIOGPUCommandBufferCallbackErrorOutOfMemory\" (M5 Pro 48 GB, Qwen3.6-27B 4-bit). mx.metal.set_memory_limit(48 GB) before import turns the panic into a Python exception.",
+          "source": "https://blog.kulman.sk/running-local-llm-coding-server/",
+          "note": null
+        },
+        {
+          "text": "fp16 KV at 63K panicked a 48 GB M5 Pro (30.8 GB peak, AppleARMWatchdogTimer); K8/V3 (28.7 GB) ran.",
+          "source": "https://github.com/manjunathshiva/turboquant-mlx",
+          "note": null
+        },
+        {
+          "text": "mlx-lm quantized KV fails on RotatingKVCache (NotImplementedError); layers lacking a quantized variant are skipped silently (Gemma 4 26B: 25 of 30). Quantized-KV serving is sequential.",
+          "source": "https://github.com/ml-explore/mlx-lm/issues/1043",
+          "note": null
+        },
+        {
+          "text": "mlx-lm prefill peak with KV4 is +13.2% at step 2048 but -16.8%/-24.0%/-26.2% at 1024/512/256: lower --prefill-step-size.",
+          "source": "https://github.com/ml-explore/mlx-lm/pull/1832",
+          "note": null
+        },
+        {
+          "text": "mlx-lm LRU prompt cache keeps pre-trim copies (10 GB x 10 = 100 GB).",
+          "source": "https://github.com/ml-explore/mlx-lm/issues/903",
+          "note": null
+        },
+        {
+          "text": "M5: TF32 breaks 8 mlx-lm tests; MLX_ENABLE_TF32=0 passes all 31.",
+          "source": "https://github.com/ml-explore/mlx-lm/pull/1584",
+          "note": null
+        },
+        {
+          "text": "Metal JIT silently falls back to CPU if ggml-metal.metal includes custom headers; fork benchmarks may measure CPU.",
+          "source": "https://github.com/ggml-org/llama.cpp/discussions/20969",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "KV quantization decisions",
+      "facts": [
+        {
+          "text": "Rule: 8-16 GB, q8_0 K and V, never q4_0 under ~4B (Qwen3 0.6B q4_0 PPL 46.25 vs 13.67). 24-32 GB, q8_0 only if weights+KV pass ~75% of RAM. 48 GB+, keep fp16 unless past ~64K or avoiding the wired-limit panic.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "llama.cpp PR #21038 rotates Q/K/V with a Hadamard transform: existing -ctk q4_0 improves with no new flag; load log shows attn_rot_k; LLAMA_ATTN_ROT_DISABLE=1 turns it off. Qwen3 8B q4_0 PPL 7.6451 to 7.5012 (f16 7.3203).",
+          "source": "https://github.com/ggml-org/llama.cpp/pull/21038",
+          "note": null
+        },
+        {
+          "text": "Multi-agent batching: skip --kv-bits; use prefix-cache-only quantization (vllm-mlx --kv-cache-bits).",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "TurboQuant on Mac: fork TheTom/llama-cpp-turboquant; safe default -ctk q8_0 -ctv turbo4 -fa on; turbo3 never on Qwen2.5 Q4_K_M; head_dim 64 falls back to q8_0. Apple mlx-swift-lm kvScheme turbo8v3 (2.72x vs affine8 1.88x).",
+          "source": "https://github.com/TheTom/turboquant_plus",
+          "note": null
+        },
+        {
+          "text": "QJL: paper keeps it; practitioners drop it (variance), though mlx_turboquant 3-bit ppl 77.5 without vs 4.82 with.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Compounding: K3/V3 on 3-bit weights collapsed past ~800 tokens; K8/V3 was clean.",
+          "source": "https://github.com/manjunathshiva/turboquant-mlx",
+          "note": null
+        },
+        {
+          "text": "Mixed precision on Macs is coarse: leave sliding layers and boundary layers high; no per-layer map in llama.cpp/mlx-lm.",
+          "source": "asserted",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Tool calls and agents",
+      "facts": [
+        {
+          "text": "Only controlled Apple-relevant evidence is CUDA: TriAxialKV BFCL Memory, INT4 -0.22 to -2.00 pts, FP4 up to -7.11, KIVI 2-bit up to -4.44 vs BF16. Use q8_0 for coding agents.",
+          "source": "https://arxiv.org/html/2605.17170v1",
+          "note": null
+        },
+        {
+          "text": "System prompt and tool schemas are the most sensitive tokens.",
+          "source": "https://arxiv.org/html/2605.17170v1",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Corrections to earlier claims",
+      "facts": [
+        {
+          "text": "\"q4_0 costs 0.5-1.1% PPL\" is model dependent (+4.4% before rotation). Rotated q4_0 still lost 16 AIME25 points (21.7% vs 37.9%).",
+          "source": "https://github.com/ggml-org/llama.cpp/pull/21038",
+          "note": null
+        },
+        {
+          "text": "\"q4_0 92% slower at 64K\" was retracted 2026-04-01.",
+          "source": "https://github.com/ggml-org/llama.cpp/discussions/20969",
+          "note": null
+        },
+        {
+          "text": "\"Gemma 3 q8_0 KV drops GPU to 20-30%\" was a CUDA bug (#9683).",
+          "source": "https://github.com/ollama/ollama/issues/9683",
+          "note": null
+        },
+        {
+          "text": "\"~50-55% speed at 64K\" is not general: hybrid MoE lost ~7% by 8K.",
+          "source": "asserted",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Open",
+      "facts": [
+        {
+          "text": "Does MLX runner honor OLLAMA_KV_CACHE_TYPE; are TBQ types in llama.cpp master (PR #21089 closed); any Metal tool-call benchmark; does mlx-lm #1832 fail loudly.",
+          "source": "asserted",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Corrections and disagreements",
+      "facts": [
+        {
+          "text": "CONTRADICTS on-device-local-llm-runtimes.md section 10 (generic formula only): for hybrid models the formula must use only full-attention layers, as in the two derivations above.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "CONTRADICTS on-device-local-llm-runtimes.md 5.1 and anti-pattern 11 on context handling: on MLX-runner tags the VRAM-tier default and `num_ctx` do not pre-allocate or truncate the same way; the log still prints `vram-based default context total_vram=\"36.0 GiB\" default_num_ctx=32768` on an M4 Pro.",
+          "source": "https://github.com/ollama/ollama/issues/15944",
+          "note": null
+        },
+        {
+          "text": "CONTRADICTS on-device-local-llm-runtimes.md section 10 \"at 64K depth decode ran at ~50-55% of short-context speed\": that figure is not family-independent; the hybrid MoE above lost ~7% by 8K and the dense-attention M3 Ultra case lost 73% by 128K (sibling dossier).",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "CONTRADICTS on-device-local-llm-runtimes.md section 10 \"GPU gets ~75% of RAM\": the same author says llama.cpp on a 64 GB Mac uses about 56 GB by default (article truncated, mechanism unseen).",
+          "source": "https://xhinker.medium.com/qwen3-8-flash-next-40-tokens-second-on-an-m4-max-macbook-4-27-bpw-quant-168k-context-a8e594e0bb87",
+          "note": null
+        },
+        {
+          "text": "CONTRADICTS on-device-local-llm-runtimes.md section 10 (\"q4_0 costs ~0.5-1.1% perplexity\"): measured q4_0 cost is model dependent, +4.4% on Qwen3 8B before rotation and +2.5% after.",
+          "source": "https://github.com/ggml-org/llama.cpp/pull/21038",
+          "note": null
+        },
+        {
+          "text": "CONTRADICTS kv-cache-and-long-context-on-mac.md (\"Q4_0 KV can be up to 92% slower at 64K\"): the 92.5% prompt-throughput collapse and \"q4_0 uses more memory than f16\" came from a post that its author retracted on 2026-04-01 (silent request failures, RSS instead of GPU memory).",
+          "source": "https://github.com/ggml-org/llama.cpp/discussions/20969",
+          "note": null
+        },
+        {
+          "text": "CONTRADICTS kv-cache-and-long-context-on-mac.md secondary claim \"Gemma 3 with even q8_0 KV drops GPU use to 20-30% on Ollama\": that was a CUDA kernel-coverage bug closed in October 2025, not an Apple Metal property.",
+          "source": "https://github.com/ollama/ollama/issues/9683",
+          "note": null
+        },
+        {
+          "text": "CONTRADICTS botmonster claim above: llama.cpp metadata for 26B-A4B reports shared_kv_layers = 0, so for that model the 26B-A4B cache arithmetic must use all attention layers, not a reduced producer count (see hybrid-and-sliding-window-attention-kv-cache-rewinding.md).",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "CONTRADICTS kv-cache-quantization-tradeoffs-on-apple-gpus.md (rotation cannot apply to Gemma 4 mixed-precision cache): per-cache iSWA rotation exists upstream, so the attn_rot_k = 0 log in #21394 is a point-in-time build observation, not a design limit.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "CONTRADICTS kv-cache-quantization-tradeoffs-on-apple-gpus.md (q4_0 near-lossless after rotation, +2.5% PPL): on a reasoning benchmark rotated Q4_0 still loses 16 points of AIME25 (21.7% vs 37.9% F16); perplexity understates agentic or reasoning damage.",
+          "source": "https://github.com/ggml-org/llama.cpp/pull/21038",
+          "note": null
+        },
+        {
+          "text": "TriAxialKV (arXiv 2605.17170) is the first source found that reports a tool-call benchmark (BFCL Memory) for a KV-cache quantization variant against a BF16 cache with weights held fixed. CONTRADICTS: kv-cache-quantization-degrading-tool-call-accura.md, which says no controlled measurement exists; the study is CUDA/SGLang, so the Metal gap remains.",
+          "source": "https://arxiv.org/html/2605.17170v1",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Concepts in this cluster",
+      "facts": [
+        {
+          "text": "KV cache and long context on Mac",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "KV cache quantization tradeoffs on Apple GPUs",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "TurboQuant and rotation-based KV quantization on Metal",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Gemma 4 shared KV cache layers YOCO",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Gemma 4 sliding-window layer exclusion from KV quantization",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "KV-cache quantization degrading tool-call accuracy",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Metal flash attention K.type==V.type constraint",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Mixed-precision KV-cache quantization per-layer sensitivity",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Pre-M5 vs M5 Apple GPU decode behavior for compressed KV",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "QJL residual correction needed or harmful",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Sparse V attention-gated dequant",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "llama.cpp attention rotation Hadamard for quantized KV cache",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Cross-layer attention (CLA) KV sharing",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "KV-cache quantization effect on tool-call flips (int8 vs int4)",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Gemma 4 attention_k_eq_v global-layer key-as-value sharing",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "KV cache quantization (4-bit and 8-bit) memory pricing and NaN failures in MTPLX",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "LCKV and YOCO cross-layer KV sharing variants",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "TriAxialKV per-role mixed-precision KV quantization for agentic prefills",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "TurboQuant KV cache compression (Hadamard, Lloyd-Max, QJL)",
+          "source": "asserted",
+          "note": null
+        }
+      ]
+    }
+  ],
+  "related": []
+}

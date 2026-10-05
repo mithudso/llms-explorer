@@ -1,0 +1,219 @@
+{
+  "slug": "jaccl-gid-selection-regression-and-rtr-errno-22",
+  "concept": "JACCL GID selection regression and RTR errno 22 (mlx 3467)",
+  "generated": "2026-10-05",
+  "summary": "`Connection::info()` in `mlx/distributed/jaccl/lib/jaccl/rdma.cpp` picks the local GID that is sent to the peer for the queue pair. After the JACCL refactor (PR 3412, merged 2026-04-15) it scans the GID table for an IPv4-mapped GID (`::ffff:a.b.c.d`) instead of using the fixed index 1. Issue 3467...",
+  "facets": [
+    {
+      "title": "Facts",
+      "facts": [
+        {
+          "text": "`Connection::info()` in `mlx/distributed/jaccl/lib/jaccl/rdma.cpp` picks the local GID that is sent to the peer for the queue pair. After the JACCL refactor (PR 3412, merged 2026-04-15) it scans the GID table for an IPv4-mapped GID (`::ffff:a.b.c.d`) instead of using the fixed index 1. Issue 3467, opened 2026-04-29, reports that with no such GID the variable was left uninitialized and the RTR step failed with errno 22.",
+          "source": "https://github.com/ml-explore/mlx/issues/3467",
+          "note": null
+        },
+        {
+          "text": "A Thunderbolt RDMA port publishes only one GID, a link-local `fe80::` address at index 0, until its network interface has an IPv4 address. Once the interface has one, an IPv4-mapped GID appears at index 1 (for example `::ffff:169.254.10.1`) and unmodified MLX works.",
+          "source": "https://github.com/ml-explore/mlx/issues/3467",
+          "note": null
+        },
+        {
+          "text": "The GID table length on these ports is 1024 entries (`gid_tbl_len: 1024`).",
+          "source": "https://github.com/ml-explore/mlx/issues/3467",
+          "note": null
+        },
+        {
+          "text": "Current main initializes `gid = {}`, tracks `found_gid`, and throws `[jaccl] No IPv4-mapped GID for this device. Thunderbolt RDMA ports only publish one once the interface has an IPv4 address; assign a link-local address to it, for example: ifconfig <interface> inet 169.254.0.1 netmask 255.255.0.0 alias`.",
+          "source": "https://raw.githubusercontent.com/ml-explore/mlx/main/mlx/distributed/jaccl/lib/jaccl/rdma.cpp",
+          "note": null
+        },
+        {
+          "text": "`queue_pair_rtr` still hard-codes `grh.sgid_index = 1`, while `info()` accepts an IPv4-mapped GID at any index.",
+          "source": "https://raw.githubusercontent.com/ml-explore/mlx/main/mlx/distributed/jaccl/lib/jaccl/rdma.cpp",
+          "note": null
+        },
+        {
+          "text": "The destination GID is used (`is_global = 1`) only when its interface-id half is non-zero.",
+          "source": "https://raw.githubusercontent.com/ml-explore/mlx/main/mlx/distributed/jaccl/lib/jaccl/rdma.cpp",
+          "note": null
+        },
+        {
+          "text": "2026-04-29: issue 3467 opened (\"PR follows\"); PR 3468, which closes it, zero-initialized `gid`, added a `try_gid()` helper and a fallback to the first non-zero GID preferring index 1. Tested on 2x Mac Studio M4 Max, macOS 26.4.1, Qwen3.6-27B-4bit tensor parallel.",
+          "source": "https://github.com/ml-explore/mlx/pull/3468",
+          "note": null
+        },
+        {
+          "text": "2026-05-04: zcbenz labelled the issue `bug` and `distributed`.",
+          "source": "https://github.com/ml-explore/mlx/issues/3467",
+          "note": null
+        },
+        {
+          "text": "2026-07-24: Sofille65 reported a 4x M3 Ultra mesh (macOS 26.4.1 and 26.5, mlx 0.31.2 and 0.32.0) and the APIPA nuance below.",
+          "source": "https://github.com/ml-explore/mlx/issues/3467",
+          "note": null
+        },
+        {
+          "text": "2026-08-11: erwinzhang7 tested PR 3468 on two M4 Pro Mac minis (macOS 26.5.1) and found errno 22 became errno 96 (ENODATA); zcbenz thanked them and closed PR 3468 unmerged.",
+          "source": "https://github.com/ml-explore/mlx/pull/3468",
+          "note": null
+        },
+        {
+          "text": "2026-08-11/12: erwinzhang7's PR 4191 (\"Report when no usable GID is found\") was approved by zcbenz and merged on 2026-08-12 as commit 21d897d with 28 checks passing. Issue 3467 stays open.",
+          "source": "https://github.com/ml-explore/mlx/pull/4191",
+          "note": null
+        },
+        {
+          "text": "The bug fires only when no IPv4-mapped GID exists, so it can look intermittent: macOS self-assigns an APIPA IPv4 address when DHCP finds no server, which gives the port an IPv4-mapped GID most of the time.",
+          "source": "https://github.com/ml-explore/mlx/issues/3467",
+          "note": null
+        },
+        {
+          "text": "Failure windows named: at boot before the APIPA address lands, for minutes after any IPv4 configuration change, and after link re-negotiation, when the APIPA address often returns as a different address.",
+          "source": "https://github.com/ml-explore/mlx/issues/3467",
+          "note": null
+        },
+        {
+          "text": "Deterministic repro without pulling cables: `networksetup -setv4off \"<service for enX>\"` then `mx.distributed.init(backend=\"jaccl\")` fails on both ends with errno 22; `-setdhcp` recovers only after minutes; `-setmanual \"<service>\" 169.254.250.5 255.255.255.0` fixes it at once and durably.",
+          "source": "https://github.com/ml-explore/mlx/issues/3467",
+          "note": null
+        },
+        {
+          "text": "The reporter's durable workaround is a static link-local IPv4 per mesh port from one dedicated block (for example `169.254.250.N` with mask `255.255.255.0`), which survived reboots and cable unplug and replug and removed the errno 22 and 96 init failures on that cluster.",
+          "source": "https://github.com/ml-explore/mlx/issues/3467",
+          "note": null
+        },
+        {
+          "text": "A second workaround, `sudo ifconfig en3 inet 169.254.10.1 netmask 255.255.0.0 alias` on one node and `en2 ... 169.254.10.2` on the other, made stock MLX run a correct two-rank `all_sum` on the M4 Pro minis.",
+          "source": "https://github.com/ml-explore/mlx/issues/3467",
+          "note": null
+        },
+        {
+          "text": "Four different RTR errnos come from this one transition. 22 (EINVAL): uninitialized or zero GID. 60 (ETIMEDOUT): a link-local GID was chosen but did not route (PR 3468 on the 4x M3 Ultra mesh). 96 (ENODATA): link-local GID chosen on a single-GID table (M4 Pro minis), or a stale or holey GID table whose `::ffff:` entry sits at an unexpected index. 16 (EBUSY) is a different cause: a queue pair still held by an orphaned process (exo PR 2205).",
+          "source": "https://github.com/ml-explore/mlx/issues/3467",
+          "note": null
+        },
+        {
+          "text": "A stale GID table after IPv4 transitions gave `RTR failed with errno 96` on one rank and `Recv failed with errno=2` on the peers although a `::ffff:` GID was present; re-applying the IPv4 address with `setmanual` normalized the table.",
+          "source": "https://github.com/ml-explore/mlx/issues/3467",
+          "note": null
+        },
+        {
+          "text": "PR 4191 was checked on an active port only; an inactive port fails earlier in `allocate_protection_domain` and never reaches the GID code.",
+          "source": "https://github.com/ml-explore/mlx/pull/4191",
+          "note": null
+        },
+        {
+          "text": "Because RTR hard-codes `sgid_index = 1`, a table whose IPv4-mapped entry is at another index would be advertised from that index and routed from index 1. This could be the mechanism behind the holey-table errno 96.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "`ifconfig ... alias` addresses do not survive a reboot, so a durable mesh needs the `networksetup -setmanual` form or a boot script.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Is the fix code or configuration? Issue 3467's title and the PR 3468 author treat it as a JACCL regression to fix in code by falling back to `fe80::`. Two independent tests (M4 Pro minis, 4x M3 Ultra) show the fallback only changes the errno to 96 or 60. The upstream outcome was a clearer error message (PR 4191) and the stated remedy is to configure IPv4 on the port.",
+          "source": "https://github.com/ml-explore/mlx/pull/4191",
+          "note": null
+        },
+        {
+          "text": "Is index 0 usable? The PR 3468 author says index 0 on Apple Thunderbolt derives from a non-RDMA interface and routes elsewhere (errno 60). erwinzhang7 shows `rdma_en3 GID[0] = fe80::...` is the port's own and only GID when no IPv4 is set. Both are single-setup observations.",
+          "source": "https://github.com/ml-explore/mlx/pull/3468",
+          "note": null
+        },
+        {
+          "text": "Sofille65 qualifies the original claim: Thunderbolt ports \"do expose an IPv4-mapped GID most of the time\", so \"Apple exposes only link-local GIDs\" is true only without an IPv4 address.",
+          "source": "https://github.com/ml-explore/mlx/issues/3467",
+          "note": null
+        },
+        {
+          "text": "Whether a link-local-only GID can ever route on macOS 26.x or later; the two fallback tests say no.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Whether JACCL will select the RTR `sgid_index` from the chosen GID instead of fixing it at 1.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "PR 3468 (GID fallback to index 1) is closed unmerged since 2026-08-11.",
+          "source": "https://github.com/ml-explore/mlx/pull/3468",
+          "note": null
+        },
+        {
+          "text": "On two M4 Pro minis PR 3468 changed errno 22 to errno 96 (ENODATA).",
+          "source": "https://github.com/ml-explore/mlx/pull/3468",
+          "note": null
+        },
+        {
+          "text": "On a 4x M3 Ultra mesh PR 3468 changed errno 22 to errno 60 (ETIMEDOUT), so the chosen link-local GID did not route.",
+          "source": "https://github.com/ml-explore/mlx/issues/3467",
+          "note": null
+        },
+        {
+          "text": "Issue 3467 is still open after PR 4191 merged.",
+          "source": "https://github.com/ml-explore/mlx/issues/3467",
+          "note": null
+        },
+        {
+          "text": "Without an IPv4 address a Thunderbolt RDMA port has a single GID (`fe80::`) at index 0; with one, the IPv4-mapped GID is at index 1.",
+          "source": "https://github.com/ml-explore/mlx/issues/3467",
+          "note": null
+        },
+        {
+          "text": "macOS self-assigns APIPA addresses, which hides the bug until boot, re-link or an IPv4 config change leaves the port without one.",
+          "source": "https://github.com/ml-explore/mlx/issues/3467",
+          "note": null
+        },
+        {
+          "text": "`networksetup -setmanual \"<service>\" 169.254.250.N 255.255.255.0` gave a durable fix that survived reboot and replug.",
+          "source": "https://github.com/ml-explore/mlx/issues/3467",
+          "note": null
+        },
+        {
+          "text": "Current main throws a \"No IPv4-mapped GID\" error with an `ifconfig ... alias` example.",
+          "source": "https://raw.githubusercontent.com/ml-explore/mlx/main/mlx/distributed/jaccl/lib/jaccl/rdma.cpp",
+          "note": null
+        },
+        {
+          "text": "Current main's `queue_pair_rtr` uses `sgid_index = 1` unconditionally.",
+          "source": "https://raw.githubusercontent.com/ml-explore/mlx/main/mlx/distributed/jaccl/lib/jaccl/rdma.cpp",
+          "note": null
+        },
+        {
+          "text": "RTR errno 96 can come from a stale GID table with the `::ffff:` entry at an unexpected index.",
+          "source": "https://github.com/ml-explore/mlx/issues/3467",
+          "note": null
+        },
+        {
+          "text": "RTR errno 16 (EBUSY) comes from an orphaned runner still holding the queue pair, a separate cause.",
+          "source": "https://github.com/exo-explore/exo/pull/2205",
+          "note": null
+        },
+        {
+          "text": "A hard-coded `sgid_index = 1` can disagree with the GID `info()` selected.",
+          "source": "asserted",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Corrections and disagreements",
+      "facts": [
+        {
+          "text": "CONTRADICTS: thunderbolt-bridge-bridge0-and-stp-fixes-for-rdm.md (\"errno 22 ... a GID-selection regression in JACCL (#3467 ..., fix is code)\"): the merged change does not alter which GID is chosen; it only throws a clearer error, and the working fix is giving the interface an IPv4 address.",
+          "source": "https://github.com/ml-explore/mlx/pull/4191",
+          "note": null
+        },
+        {
+          "text": "CONTRADICTS: thunderbolt-bridge-bridge0-and-stp-fixes-for-rdm.md \"fix is code\": PR 4191, merged 2026-08-12, only reports a missing IPv4-mapped GID with a remedy.",
+          "source": "https://github.com/ml-explore/mlx/pull/4191",
+          "note": null
+        }
+      ]
+    }
+  ],
+  "related": []
+}

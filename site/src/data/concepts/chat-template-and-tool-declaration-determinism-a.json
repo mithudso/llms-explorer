@@ -1,0 +1,144 @@
+{
+  "slug": "chat-template-and-tool-declaration-determinism-a",
+  "concept": "Chat-template and tool-declaration determinism as a cache-hit prerequisite",
+  "generated": "2026-10-05",
+  "summary": "Ollama stores tool properties and tool-call arguments in insertion-ordered maps (`ToolPropertiesMap`, `ToolCallFunctionArguments`). A renderer that loops with `.All()` therefore emits keys in the order the client's JSON had them.",
+  "facets": [
+    {
+      "title": "Facts",
+      "facts": [
+        {
+          "text": "Ollama stores tool properties and tool-call arguments in insertion-ordered maps (`ToolPropertiesMap`, `ToolCallFunctionArguments`). A renderer that loops with `.All()` therefore emits keys in the order the client's JSON had them.",
+          "source": "https://raw.githubusercontent.com/ollama/ollama/main/api/types.go",
+          "note": null
+        },
+        {
+          "text": "The Qwen3.5 renderer writes the tool block first, inside the leading system turn, and serialises each tool with `marshalWithSpaces`.",
+          "source": "https://raw.githubusercontent.com/ollama/ollama/main/model/renderers/qwen35.go",
+          "note": null
+        },
+        {
+          "text": "`marshalWithSpaces` runs `json.Marshal` and then inserts a space after every `:` and `,` that lies outside a string, to mimic Python `json.dumps` spacing.",
+          "source": "https://raw.githubusercontent.com/ollama/ollama/main/model/renderers/json.go",
+          "note": null
+        },
+        {
+          "text": "The Qwen3.5 renderer renders an assistant `<think>` block only for assistant turns after the last real user query, unless the Qwen3.8 variant flag `alwaysRenderAssistantThinkBlock` is set.",
+          "source": "https://raw.githubusercontent.com/ollama/ollama/main/model/renderers/qwen35.go",
+          "note": null
+        },
+        {
+          "text": "The Qwen3-Coder renderer takes the first system message and drops later ones, and adds the default system text \"You are Qwen, a helpful AI assistant that can interact with a computer to solve tasks.\" when tools exist but no system message does.",
+          "source": "https://raw.githubusercontent.com/ollama/ollama/main/model/renderers/qwen3coder.go",
+          "note": null
+        },
+        {
+          "text": "The Qwen3-Coder renderer emits extra schema keys (anything except `type` and `description` on a property, and anything except `type` and `properties` on the parameters object) through `renderAdditionalKeys`. That helper marshals the object, unmarshals it into a `map[string]any`, and ranges over the map.",
+          "source": "https://raw.githubusercontent.com/ollama/ollama/main/model/renderers/qwen3coder.go",
+          "note": null
+        },
+        {
+          "text": "Ollama moved newer models from Go `TEMPLATE` strings to registered renderer and parser pairs; the qwen3-coder renderer carries a TODO to match Python `json.dumps` spacing, and the later Qwen3.5 renderer added `marshalWithSpaces` to do so.",
+          "source": "https://raw.githubusercontent.com/ollama/ollama/main/model/renderers/qwen3coder.go",
+          "note": null
+        },
+        {
+          "text": "llama.cpp issue 26974 (2026-08-12) showed template render time growing quadratically with tool count; PR 27034 merged 2026-08-14 with byte-identical prompts.",
+          "source": "https://api.github.com/repos/ggml-org/llama.cpp/pulls/27034",
+          "note": null
+        },
+        {
+          "text": "Go does not define an iteration order for `range` over a map. In `renderAdditionalKeys`, a property that carries two or more extra keys (for example `enum` and `default`) can therefore render those keys in a different order on different requests of the same logical tool set, which breaks the cached prefix. This is inferred from the code and the Go language rule; no issue reporting it was found.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "The Qwen3.5 renderer has no such map loop for tool schemas, so the hazard is specific to the qwen3-coder renderer path.",
+          "source": "https://raw.githubusercontent.com/ollama/ollama/main/model/renderers/qwen35.go",
+          "note": null
+        },
+        {
+          "text": "Because the tool block precedes the system text and all messages, adding, removing or reordering one tool, or an MCP server reconnecting with its tools in a new order, changes bytes at the start of the prompt and forces a full re-prefill.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Insertion-ordered storage makes determinism depend on the client: a client that re-serialises `parameters.properties` with sorted or hash-ordered keys changes the rendered bytes even though the schema is logically equal.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Template render time is paid on every request, including full cache hits. At 20 tools of 20 properties the bundled Command-R tool-use template took 0.43 s on llama.cpp before the fix, and 9.2 s at 50 tools of 50 properties.",
+          "source": "https://api.github.com/repos/ggml-org/llama.cpp/pulls/27034",
+          "note": null
+        },
+        {
+          "text": "None found. The two engines choose different layers for determinism: Ollama fixes key order in Go structures, llama.cpp relies on the Jinja template and `common_json` insertion order (see llama-cpp-jinja-capability-probes-chat-template.md).",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Whether `renderAdditionalKeys` ordering has produced an observable cache miss on a real qwen3-coder deployment; no measurement exists.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Whether Ollama's prefix reuse compares tokens or text, which decides how much one reordered key costs.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Ollama `ToolPropertiesMap` and `ToolCallFunctionArguments` keep insertion order through an ordered map and expose it through `All()`.",
+          "source": "https://raw.githubusercontent.com/ollama/ollama/main/api/types.go",
+          "note": null
+        },
+        {
+          "text": "Ollama `marshalWithSpaces` inserts a space after `:` and `,` outside string values after `json.Marshal`.",
+          "source": "https://raw.githubusercontent.com/ollama/ollama/main/model/renderers/json.go",
+          "note": null
+        },
+        {
+          "text": "The Ollama Qwen3.5 renderer renders each tool with `marshalWithSpaces` inside the first system turn, before the system content.",
+          "source": "https://raw.githubusercontent.com/ollama/ollama/main/model/renderers/qwen35.go",
+          "note": null
+        },
+        {
+          "text": "The Ollama Qwen3.5 renderer renders assistant think blocks only for turns after the last user query unless the Qwen3.8 variant is used.",
+          "source": "https://raw.githubusercontent.com/ollama/ollama/main/model/renderers/qwen35.go",
+          "note": null
+        },
+        {
+          "text": "The Ollama Qwen3-Coder renderer ranges over a Go `map[string]any` when it emits extra tool-schema keys.",
+          "source": "https://raw.githubusercontent.com/ollama/ollama/main/model/renderers/qwen3coder.go",
+          "note": null
+        },
+        {
+          "text": "The Ollama Qwen3-Coder renderer keeps only the first system message and injects a default system message when tools exist without one.",
+          "source": "https://raw.githubusercontent.com/ollama/ollama/main/model/renderers/qwen3coder.go",
+          "note": null
+        },
+        {
+          "text": "llama.cpp issue 26974 measured chat-template render time of 0.43 s for 20 tools by 20 properties and 9.3 s for 50 by 50 on the Command-R tool-use template.",
+          "source": "https://api.github.com/repos/ggml-org/llama.cpp/issues/26974",
+          "note": null
+        },
+        {
+          "text": "llama.cpp PR 27034 (merged 2026-08-14) fixed two quadratic terms in `gather_string_parts` and kept prompts byte-identical.",
+          "source": "https://api.github.com/repos/ggml-org/llama.cpp/pulls/27034",
+          "note": null
+        },
+        {
+          "text": "In Ollama's qwen3-coder renderer, two requests with the same tools can render extra schema keys in different orders.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "A change in tool order or tool set alters the first system turn and invalidates the whole prefix cache on Qwen renderers.",
+          "source": "asserted",
+          "note": null
+        }
+      ]
+    }
+  ],
+  "related": []
+}

@@ -1,0 +1,484 @@
+{
+  "slug": "hybrid-and-sliding-window-attention-kv-cache-rew",
+  "concept": "Hybrid and sliding-window attention KV cache rewinding",
+  "generated": "2026-10-05",
+  "summary": "mlx-lm gate: `can_trim_prompt_cache()` returns `all(c.is_trimmable() for c in cache)`, so one non-trimmable layer disables the \"longer cache\" trim path in `fetch_nearest_cache()`. `ArraysCache` (DeltaNet/Mamba state) inherits `is_trimmable() -> False`; `RotatingKVCache.is_trimmable()` is `offset ...",
+  "facets": [
+    {
+      "title": "Facts",
+      "facts": [
+        {
+          "text": "mlx-lm gate: `can_trim_prompt_cache()` returns `all(c.is_trimmable() for c in cache)`, so one non-trimmable layer disables the \"longer cache\" trim path in `fetch_nearest_cache()`. `ArraysCache` (DeltaNet/Mamba state) inherits `is_trimmable() -> False`; `RotatingKVCache.is_trimmable()` is `offset < max_size`, so it turns False once the ring wraps.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "mlx-lm cache-class census from a repro: Qwen3.5-9B = 24 `ArraysCache` + 8 `KVCache` (32 layers); Nemotron-H 30B-A3B = 52 layers, 29 cache-bearing, 23 `ArraysCache` + 6 `KVCache`.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Failure shape in mlx-lm: when a request shares only the system prompt with the stored entry (divergent suffix, typical agent tool call) the stored entry is \"longer\", needs trimming, cannot be trimmed, so the server prefills everything. Strictly appended conversations hit the \"shorter cache\" path and still reuse.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "The rewind fix for rings (mlx-lm PR #999, draft 2026-03-14): separate `_offset` (physical buffer size) from `offset` (logical RoPE position), linearise the ring with `_temporal_order()` on `trim(n)`, clip physical deletion to `min(_offset, n)`, and make `server.py` evict intermediates only when the trim distance fits `min(c.size())`. Without separating the two offsets, trimming breaks RoPE for later tokens.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Why the same trick is unsafe for recurrent state: resetting only the Mamba layers while keeping attention layers would feed the new suffix into an empty state and silently hallucinate. The designed fix is a saved snapshot, not a trim.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "The checkpoint fix for recurrent state (mlx-lm PR #1006, 2026-03-15): in `_compute_prompt_checkpoint`, for non-trimmable models save the cache at the last-user-message boundary during prefill; later requests find it via the \"shorter cache\" path. The boundary is found by a sentinel trick: tokenise the conversation with the last user message replaced by \"x\" and take the token-wise common prefix, because `apply_chat_template(messages[:-1])` is not a token prefix of the full render under Qwen3.5's template.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "mlx-lm PR #923 (dexloom, 2026-02-22) took another route: `LRUPromptCache` boundary caching at message delimiters (`<|im_end|>`), `keep_original` copy on shorter-prefix extraction, and a cache key rendered without the generation suffix.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "llama.cpp for recurrent models: the checkpoint restore test is `cur.pos_min < pos_min_thold` (an SWA test); recurrent memory reports `pos_min` equal to the full sequence length and `n_swa = 1`, so nothing qualifies. Logged symptoms: `forcing full prompt re-processing due to lack of cache data (likely due to SWA or hybrid/recurrent memory ...)`, `failed to truncate tokens with position >= N - clearing the memory`, `erased invalidated context checkpoint (pos_min = ..., n_swa = 1, size = 62.813 MiB)`.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "llama.cpp Gemma 4 26B-A4B load log: `gemma4.block_count 30`, `n_swa = 1024`, `llama_kv_cache_iswa` creates a non-SWA cache of 262,144 cells and an SWA cache of only 4,608 cells with 4 slots; recurrent-style checkpoints for it were 43.948 MiB each.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Gemma 4 shared KV: the last `num_kv_shared_layers` layers reuse K/V from the last non-shared layer of the same attention type and compute no K/V of their own; sliding windows are 512 tokens on small dense models and 1024 on larger ones; the model uses dual RoPE (standard on sliding layers, pruned on global).",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Ollama MLX snapshot rule (blog \"mlx-performance\"): it saves state at branch points, at intervals through long prompts, and just before each response; the pre-response snapshot exists because thinking models drop reasoning tokens from history so the next request never matches the state just built. Snapshots are \"selective and incremental\" to leave memory for weights.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "2025-07-01 lmstudio mlx-engine issue #177: wrapped `RotatingKVCache` rejects `trim`, so the context-overflow policy falls back to erasing the whole cache (thousands to tens of thousands of tokens recomputed). Still open when fetched 2026-10-04; PRs #188 and #192 never approved.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "2026-02-22 mlx-lm PR #923 (hybrid cache for Qwen3.5) opened; not merged.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "2026-02-24/25 llama.cpp #19858 (Qwen3.5-35B-A3B reprocesses everything, Vulkan, build 8140) and LM Studio bug #1563 (`cache reuse is not supported - ignoring n_cache_reuse = 256`, LM Studio 0.4.5, GGUF backend) filed; both closed.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "2026-03-03 llama.cpp PR #20087 adds `--checkpoint-every-nb` (checkpoint every n batches during prompt processing) for hybrid models; this is the flag round 1 records as later deleted by #22929.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "2026-03-08 llama.cpp #20225 (Qwen3.5-27B, 15K tokens, about 8 min per turn at 30 tok/s) closed by maintainer ggerganov as \"not a bug, the client mutates the prefix\"; reporters continued to dispute it.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "2026-03-10 mlx-lm #980 consolidates the hybrid/SWA failures; 2026-03-12 maintainer angeloskath says the non-trimmable problem \"has been fixed\" and only the chat template remains; skcadri's repro still shows `can_trim_prompt_cache: False` for Qwen3.5-9B.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "2026-03-30 mlx-lm PR #1006 closed by its author without merge; 2026-08-21 PR #999 closed by zcbenz (no merge shown on the page).",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "2026-04-23 llama.cpp PR #22288 \"server : fix swa-full logic\" closes #21468 (Gemma 4 cache reuse): with `--swa-full` the server now sets its own `n_swa = 0` to behave like a non-SWA model.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "2026-04-26 llama.cpp #22384 proposes a hybrid checkpoint-restore patch; closed the same day with ggerganov replying \"nothing to fix in llama-server, enable preserve_thinking\".",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "2026-05-13 llama.cpp #23030: Qwen3.6-35B-A3B still reprocesses a repeated identical 20K prompt on b8935 and b9131 with `--chat-template-kwargs {\"preserve_thinking\": true}`; closed \"not planned\" (stale).",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Whole-model veto: in mlx-lm a model with 23 recurrent layers and 6 attention layers gets zero trimmable reuse; only pure-attention MiniMax M2.5 showed reuse in the March 2026 survey (29.33 s cold, 6.15 s then 2.79 s warm, M3 Ultra, LM Studio 0.4.6 mlx-engine).",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Measured no-cache cases on that M3 Ultra: GPT-OSS 120B (alternating sliding_attention, `sliding_window` 128) 1.54 s cold and 1.77 s / 1.67 s warm; Qwen3.5-9B 5.02 s cold, 7.76 s / 8.00 s warm (slower, from cache bookkeeping).",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Scale: Qwen3.5-397B-A17B MLX 8-bit (mlx-lm 0.31.1) on a 21K-token prefix took 169.9 s, 169.2 s, 170.4 s for three calls; the same prompt on GGUF Q8_0 via llama-server with `--swa-full` took 230.7 s cold then 6.9 s and 6.6 s.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "PR #999 on GPT-OSS 120B 8-bit: 98% cache hit, 0.79 s warm vs 2.83 s stock LM Studio (3.37x) on a 2,700-token shared prefix. PR #1006 on Qwen3.5-9B: 98% hit, 2.86x; Nemotron-H 30B: 98% hit, 3.1x; a multi-turn `[sys, user, assistant]` test reused 75%.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Concurrency bug in PR #1006 review: `prompt_checkpoint = max(all_checkpoints)` could exceed a shorter prompt in a batch and break `mx.array()` on ragged lists (fixed in 82574b4 by left-padding); reviewer dae still saw corrupted system prompts with parallel requests unless `--prompt-concurrency 1`.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Llama-4 Maverick on omlx 0.3.0 with mlx-lm 0.31.2: `ChunkedKVCache does not yet support batching`, then an endless \"Cache corruption detected ... re-prefilling\" loop.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Template cause, independent of cache code: Qwen templates strip thinking from earlier turns, so the previous answer's tokens differ on the next turn and at least that turn is reprocessed (angeloskath: can be tens of thousands of tokens per user message and cannot be fixed without changing the template).",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Prefix mutation by the client also looks identical to a cache bug: in #20225 `n_past = 1044` against 36,767 stored tokens; ggerganov's diagnostic is `LLAMA_SERVER_SLOTS_DEBUG=1`.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "llama.cpp Gemma 4 RAM blow-up (#21690, build 8724): default checkpoints grow host RAM about 10 GB, 18 GB, then OOM above 25 GB within three 16K-token generations on a 64 GB box; `--ctx-checkpoints 0` or `1` with `-np 1` holds it at 0.4-1.5 GB. Reproduced in KoboldCpp discussion #2098 (VRAM headroom 1 GB vs 18-20K context on llama-server, vanished once checkpoints and RAM cache were disabled). Closed \"not planned\" and stale; Mac impact inferred because unified memory is shared, not measured.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Gemma 4 E2B on llama.cpp (#21468, build 8660): with `--swa-full` the prefix similarity check worked but reuse still bailed with \"cache reuse is not supported\"; the reporter blamed `shared_kv_layers = 20` on E2B (26B-A4B logs show `shared_kv_layers = 0`). The fix that closed it (#22288) concerns `--swa-full` logic; whether shared-KV layers were separately handled is not stated.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "`--context-shift` plus a recurrent model is a known-bad pairing (reporters on #20087 note prompt caching fails once the context is exceeded, because the front of the prompt cannot be dropped from recurrent state); #23030 used `--context-shift` and never reached a diagnosis.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Mixed-sequence batches on Gated DeltaNet in ik_llama.cpp (CUDA, not Mac) logged `qwen3next mixed-sequence batch contains repeated seq_id values; falling back to single-token chunking` and decode fell from about 21 t/s to 0.59 t/s when a second user joined; ik_llama.cpp issue #1762 is open with PRs #1888 and #1976 attached.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "`mlx_lm.server` has no `--prompt-cache-file` (issue #1178, open since 2026-04-21); the file feature exists only in `mlx_lm.generate`.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Is the mlx-lm hybrid reuse problem fixed? angeloskath (maintainer, 2026-03-12): fixed, expected reuse seen on latest Qwen, remainder is the chat template. skcadri: `can_trim_prompt_cache` is False for Qwen3.5-9B, no reuse on divergent suffixes; allenwlee still saw 0% on 0.31.1. Both can be true: appended chats reuse, divergent suffixes do not.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "llama.cpp hybrid reprocessing: ggerganov (#20225, #22384) says client mutation or missing `preserve_thinking`, no server bug. Tongas, williamtwomey: reproduced with `preserve_thinking=true`; a two-line patch (use `pos_max <= pos_next` for recurrent/hybrid models, lower the 64-token checkpoint minimum to 4) turned 12,146 reprocessed tokens (11 s) into 31 (115 ms). The patch lives in forks (buun-llama-cpp #26, llama-tq, sanmai) and was not merged upstream per the pages read.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "\"Fixed in b8212\": mlx-lm #980's related list says #19858 was fixed in b8212, yet #20225 and #22384 report the same symptom on b8233, b8943 and b9131.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Whether `--swa-full` helps hybrid reuse: allenwlee credits `--swa-full` for correct checkpoint behaviour on Qwen3.5-397B GGUF (6.9 s warm); Qwen3.5 is DeltaNet, not SWA, so the mechanism is unexplained and may be the generic checkpoint path rather than the flag.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Which mlx-lm release first reuses Qwen3.5/3.6 divergent-suffix prompts (round 1 lists 0.31.0 prompt_checkpoint and 0.31.2 system/user caching; neither #999 nor #1006 merged, so the shipped mechanism is unidentified).",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Does LM Studio's current mlx-engine pick up any hybrid snapshotting? Its changelog page fetched had no cache-related entries.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Does Ollama's MLX snapshot system cover Gemma 4 sliding rings and Qwen DeltaNet state identically, and at what MiB per snapshot?",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Does `preserve_thinking` fully restore reuse on llama.cpp Metal for Qwen3.6, given #22384 and #23030 disagree?",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "A single non-trimmable layer disables prompt-cache trimming for the whole model in mlx-lm because `can_trim_prompt_cache()` requires all layers trimmable.",
+          "source": "https://github.com/ml-explore/mlx-lm/issues/980",
+          "note": null
+        },
+        {
+          "text": "In mlx-lm `ArraysCache` inherits `is_trimmable() -> False` and `RotatingKVCache.is_trimmable()` returns `offset < max_size`, so it is False once the ring has wrapped.",
+          "source": "https://github.com/ml-explore/mlx-lm/issues/980",
+          "note": null
+        },
+        {
+          "text": "Qwen3.5-9B in mlx-lm builds 24 ArraysCache and 8 KVCache layers.",
+          "source": "https://github.com/ml-explore/mlx-lm/issues/980",
+          "note": null
+        },
+        {
+          "text": "Nemotron-H 30B-A3B (52 layers, 29 cache layers) has 23 ArraysCache and 6 KVCache layers in mlx-lm.",
+          "source": "https://github.com/ml-explore/mlx-lm/pull/1006",
+          "note": null
+        },
+        {
+          "text": "In March 2026 MiniMax M2.5 (pure attention MoE) was the only major model with working MLX prefix reuse: 29.33 s cold, 6.15 s, 2.79 s warm on an M3 Ultra 512 GB with LM Studio 0.4.6.",
+          "source": "https://github.com/ml-explore/mlx-lm/issues/980",
+          "note": null
+        },
+        {
+          "text": "GPT-OSS 120B (sliding_window 128, alternating layers) and Qwen3.5-9B showed no warm-request speedup in LM Studio 0.4.6 mlx-engine; Qwen3.5-9B warm requests were slower (7.76 s, 8.00 s vs 5.02 s cold).",
+          "source": "https://github.com/ml-explore/mlx-lm/issues/980",
+          "note": null
+        },
+        {
+          "text": "Qwen3.5-397B-A17B MLX 8-bit on mlx-lm 0.31.1 spent about 170 s on every call with a 21K-token prefix; llama-server GGUF Q8_0 with `--swa-full` fell from 230.7 s cold to 6.9 s warm on the same Mac Studio.",
+          "source": "https://github.com/ml-explore/mlx-lm/issues/980",
+          "note": null
+        },
+        {
+          "text": "Failure to reuse appears only when the new request diverges from the stored one (same system prompt, different user turn); strictly appended conversations reuse through the shorter-cache path.",
+          "source": "https://github.com/ml-explore/mlx-lm/pull/1006",
+          "note": null
+        },
+        {
+          "text": "mlx-lm maintainer angeloskath stated on 2026-03-12 that the non-trimmable cache problem was fixed and the remaining reprocessing of the last response comes from the chat template removing thinking traces; in agentic use that can be tens of thousands of tokens per user message and is not fixable without changing the template.",
+          "source": "https://github.com/ml-explore/mlx-lm/issues/980",
+          "note": null
+        },
+        {
+          "text": "The 2026-03-12 repro printed `Cache types: {'ArraysCache': 24, 'KVCache': 8}` and `can_trim_prompt_cache: False` for Qwen3.5-9B, with 1.40 s for a 642-token prefill and 1.29 s for the \"reused\" second request.",
+          "source": "https://github.com/ml-explore/mlx-lm/issues/980",
+          "note": null
+        },
+        {
+          "text": "mlx-lm PR #999 makes wrapped RotatingKVCache trimmable by splitting physical `_offset` from logical `offset`, linearising the ring with `_temporal_order()`, and teaching the server to evict intermediates only when the trim distance fits the physical buffer.",
+          "source": "https://github.com/ml-explore/mlx-lm/pull/999",
+          "note": null
+        },
+        {
+          "text": "PR #999's author refused to touch ArraysCache because resetting Mamba state while keeping attention layers would make the model silently hallucinate on the suffix.",
+          "source": "https://github.com/ml-explore/mlx-lm/pull/999",
+          "note": null
+        },
+        {
+          "text": "PR #999 measured KL divergence about 0.1 between full recompute and trimmed generation on GPT-OSS, and reviewer dae reported a slowdown from the server over-evicting intermediate caches, fixed by a physical-buffer check.",
+          "source": "https://github.com/ml-explore/mlx-lm/pull/999",
+          "note": null
+        },
+        {
+          "text": "PR #999 on GPT-OSS 120B 8-bit gave a 98% hit rate and 0.79 s warm vs 2.83 s for stock LM Studio on a 2,700-token shared prefix.",
+          "source": "https://github.com/ml-explore/mlx-lm/issues/980",
+          "note": null
+        },
+        {
+          "text": "PR #999 was closed by zcbenz on 2026-08-21; the page shows no merge.",
+          "source": "https://github.com/ml-explore/mlx-lm/pull/999",
+          "note": null
+        },
+        {
+          "text": "mlx-lm PR #1006 saves a checkpoint at the last-user-message boundary for non-trimmable models, locating it by tokenising the conversation with the last user message replaced by \"x\" and taking the common token prefix.",
+          "source": "https://github.com/ml-explore/mlx-lm/pull/1006",
+          "note": null
+        },
+        {
+          "text": "PR #1006 gave 98% cache hit and 2.86x speedup on Qwen3.5-9B (2.7K-token prompt, 10.30 s cold vs 3.07-4.27 s warm) and 3.1x on Nemotron-H 30B (2.38 s vs 0.76 s).",
+          "source": "https://github.com/ml-explore/mlx-lm/pull/1006",
+          "note": null
+        },
+        {
+          "text": "PR #1006 initially crashed on parallel requests of different lengths (`prompt_checkpoint = max(all_checkpoints)` exceeded the shorter prompt); reviewer dae still saw corrupted system prompts with concurrency unless `--prompt-concurrency 1`.",
+          "source": "https://github.com/ml-explore/mlx-lm/pull/1006",
+          "note": null
+        },
+        {
+          "text": "PR #1006 was closed by its author on 2026-03-30 without merge.",
+          "source": "https://github.com/ml-explore/mlx-lm/pull/1006",
+          "note": null
+        },
+        {
+          "text": "mlx-lm PR #923 proposed LRUPromptCache boundary caching at message delimiters, a `keep_original` flag so reused prefixes stay in the cache, and cache keys without the generation suffix; it was not merged.",
+          "source": "https://github.com/ml-explore/mlx-lm/pull/923",
+          "note": null
+        },
+        {
+          "text": "lmstudio mlx-engine issue #177 (opened 2025-07-01, still open 2026-10-04): a wrapped RotatingKVCache rejects `trim`, so the context-overflow policy erases the entire cache, costing thousands to tens of thousands of tokens of recompute.",
+          "source": "https://github.com/lmstudio-ai/mlx-engine/issues/177",
+          "note": null
+        },
+        {
+          "text": "Users hit by mlx-engine #177 (MiMo v2 Flash 8-bit, Nemotron 3 Nano on a 32 GB MacBook Pro) switched to GGUF or to Ollama with GLM 4.7 Flash.",
+          "source": "https://github.com/lmstudio-ai/mlx-engine/issues/177",
+          "note": null
+        },
+        {
+          "text": "Llama-4 Maverick 4-bit on omlx 0.3.0 with mlx-lm 0.31.2 looped on \"ChunkedKVCache does not yet support batching, clearing cache and re-prefilling\".",
+          "source": "https://github.com/ml-explore/mlx-lm/issues/980",
+          "note": null
+        },
+        {
+          "text": "Downstream projects patched around the mlx-lm gap by disabling KV reuse for Qwen3.5 (fae), adding hybrid PrefixCache (mlx-seori) or fixing `BatchMambaCache` size passing (vllm-mlx fork).",
+          "source": "https://github.com/ml-explore/mlx-lm/issues/980",
+          "note": null
+        },
+        {
+          "text": "`mlx_lm.server` has no `--prompt-cache-file`; the flag exists only in `mlx_lm.generate` (issue #1178, open since 2026-04-21, a contributor volunteered 2026-05-27).",
+          "source": "https://github.com/ml-explore/mlx-lm/issues/1178",
+          "note": null
+        },
+        {
+          "text": "LM Studio 0.4.5 on Windows with a Qwen3.5-35B-A3B GGUF logged `cache reuse is not supported - ignoring n_cache_reuse = 256` and `failed to truncate tokens with position >= 1560 - clearing the memory` on every request.",
+          "source": "https://github.com/lmstudio-ai/lmstudio-bug-tracker/issues/1563",
+          "note": null
+        },
+        {
+          "text": "On recurrent models llama.cpp's checkpoint restore test `cur.pos_min < pos_min_thold` always fails because `pos_min` equals the full sequence length (`n_swa = 1`).",
+          "source": "https://github.com/ggml-org/llama.cpp/issues/20225",
+          "note": null
+        },
+        {
+          "text": "llama.cpp log texts for the miss: `forcing full prompt re-processing due to lack of cache data (likely due to SWA or hybrid/recurrent memory ...)` and `erased invalidated context checkpoint (pos_min = 7536, pos_max = 7536, n_swa = 1, size = 62.813 MiB)`.",
+          "source": "https://github.com/ggml-org/llama.cpp/issues/19858",
+          "note": null
+        },
+        {
+          "text": "llama.cpp issue #20225 (Qwen3.5-27B Q8_0, HIP) reported about 8 minutes per turn at 15K tokens at 30 tok/s; maintainer ggerganov closed it on 2026-03-08 as client prefix mutation and recommended `LLAMA_SERVER_SLOTS_DEBUG=1` to see which tokens change.",
+          "source": "https://github.com/ggml-org/llama.cpp/issues/20225",
+          "note": null
+        },
+        {
+          "text": "Earlier llama.cpp hybrid-checkpoint work: PRs #19747 and #19849 (multimodal checkpoints), #19877 (multimodal prompt caching), #19924 (restore logic) and #20087 (`--checkpoint-every-nb`, March 2026).",
+          "source": "https://github.com/ggml-org/llama.cpp/issues/20225",
+          "note": null
+        },
+        {
+          "text": "llama.cpp PR #20087 added `--checkpoint-every-nb N` to create a checkpoint every N batches during prompt processing; reviewers asked whether it helps after the context is exceeded, which recurrent models cannot do by dropping the prompt head.",
+          "source": "https://github.com/ggml-org/llama.cpp/pull/20087",
+          "note": null
+        },
+        {
+          "text": "A proposed llama.cpp server patch (issue #22384, 2026-04-26) switches recurrent/hybrid restore to `cur.pos_max <= pos_next` and lowers the checkpoint minimum from 64 to 4 tokens; reported Qwen3.6-27B Q4_K_M on an RTX 3090 turn-2 prefill falling from 12,146 tokens (11 s) to 31 tokens (115 ms).",
+          "source": "https://github.com/ggml-org/llama.cpp/issues/22384",
+          "note": null
+        },
+        {
+          "text": "ggerganov rejected that patch (\"nothing to fix in llama-server, enable preserve_thinking\" from the Qwen3.6 model card); the reporter replied that with `preserve_thinking=true` turn 1 created no checkpoint (64-token minimum) and turn 2 still logged \"forcing full prompt re-processing\".",
+          "source": "https://github.com/ggml-org/llama.cpp/issues/22384",
+          "note": null
+        },
+        {
+          "text": "Issue #23030 (Qwen3.6-35B-A3B Q8_K_XL, `--chat-template-kwargs {\"preserve_thinking\": true}`, `--context-shift`, ROCm, b8935 and b9131) showed an identical 20K-token request fully reprocessed on repeat; closed \"not planned\".",
+          "source": "https://github.com/ggml-org/llama.cpp/issues/23030",
+          "note": null
+        },
+        {
+          "text": "llama.cpp PR #22288 (2026-04-23, \"server : fix swa-full logic\") closes issue #21468 by adding a server-side `n_swa` that `--swa-full` sets to 0 to emulate a non-SWA model.",
+          "source": "https://github.com/ggml-org/llama.cpp/pull/22288",
+          "note": null
+        },
+        {
+          "text": "Before that fix, on Gemma 4 E2B with `--cache-reuse 256 --swa-full` the prompt similarity was 0.000 and the server logged \"cache reuse is not supported\", re-evaluating about 46K tokens in about 96 s on the reporter's laptop GPU.",
+          "source": "https://github.com/ggml-org/llama.cpp/issues/21468",
+          "note": null
+        },
+        {
+          "text": "The #21468 reporter believed Gemma 4 E2B's `shared_kv_layers = 20` blocked reuse even after `--swa-full` made the similarity check work; the 26B-A4B GGUF metadata shows `attention.shared_kv_layers = 0`.",
+          "source": "https://github.com/ggml-org/llama.cpp/issues/21468",
+          "note": null
+        },
+        {
+          "text": "llama.cpp loading Gemma 4 26B-A4B (30 layers, n_swa 1024, 4 parallel slots) creates a non-SWA cache of 262,144 cells and an SWA cache of 4,608 cells, with a 43.948 MiB checkpoint at pos 224.",
+          "source": "https://github.com/ggml-org/llama.cpp/issues/21468",
+          "note": null
+        },
+        {
+          "text": "Gemma 4 shares KV: the last `num_kv_shared_layers` layers reuse K/V from the last non-shared layer of the same attention type (sliding or full); small dense variants use 512-token windows and larger ones 1024; sliding layers use standard RoPE and global layers pruned RoPE.",
+          "source": "https://huggingface.co/blog/gemma4",
+          "note": null
+        },
+        {
+          "text": "llama.cpp issue #21690 (build 8724): with Gemma 4 only, default checkpoints raised host RAM from 0.7 GB to 10 GB, 18 GB, then OOM above 25 GB across three 16K-token generations; `--ctx-checkpoints 1 -np 1` held 1.5 GB and `0` held 0.4 GB; VRAM at start was 23.6 vs 21.6 GB. Closed \"not planned\".",
+          "source": "https://github.com/ggml-org/llama.cpp/issues/21690",
+          "note": null
+        },
+        {
+          "text": "KoboldCpp discussion #2098 attributed a Gemma 4 31B memory gap versus llama-server (24 GB RTX 3090, about 24K vs 18-20K context) to llama-server's default checkpoints and RAM cache, which leaked VRAM and RAM on Gemma 4; disabling them equalised usage.",
+          "source": "https://github.com/LostRuins/koboldcpp/discussions/2098",
+          "note": null
+        },
+        {
+          "text": "ik_llama.cpp issue #1762 (Qwen3.6-27B Q8_0, CUDA, 66K-token turns at 339.7 tok/s about 3.25 min each) reports the same checkpoint failure and a second problem: mixed-sequence batches on Gated DeltaNet fall back to single-token chunking and decode drops from about 21 t/s to 0.59 t/s.",
+          "source": "https://github.com/ikawrakow/ik_llama.cpp/issues/1762",
+          "note": null
+        },
+        {
+          "text": "Ollama's MLX snapshot system saves state where conversations branch, at intervals through long prompts, and just before each response; the pre-response snapshot exists because thinking models drop reasoning tokens so the next request never matches built state.",
+          "source": "https://ollama.com/blog/mlx-performance",
+          "note": null
+        },
+        {
+          "text": "Ollama states sliding-window attention and recurrent layers \"carry state that can't be rewound\" and keeps snapshots selective and incremental to leave memory for the model.",
+          "source": "https://ollama.com/blog/mlx-performance",
+          "note": null
+        },
+        {
+          "text": "Rapid-MLX documents a radix prefix cache with state snapshots for hybrid models (DeltaNet RNN snapshots), saved to disk at shutdown and restored at startup.",
+          "source": "https://github.com/raullenchai/Rapid-MLX",
+          "note": null
+        },
+        {
+          "text": "waybarrios/vllm-mlx ships a trie prefix cache, paged KV, an SSD tier (`--ssd-cache-dir`) and `--warm-prompts`; its README does not say how hybrid state is handled.",
+          "source": "https://github.com/waybarrios/vllm-mlx",
+          "note": null
+        },
+        {
+          "text": "vllm-metal reports Automatic Prefix Cache as supported for Gemma 4 (GQA + per-layer sliding window + YOCO) but experimental for Qwen3.5/3.6/3.8 and Qwen3-Next (hybrid SDPA + GDN); vLLM 0.28.0 enabled hybrid/Mamba prefix reuse by default.",
+          "source": "https://docs.vllm.ai/projects/vllm-metal/en/latest/supported_models/",
+          "note": null
+        },
+        {
+          "text": "vLLM's hybrid KV cache manager splits layers into KV cache groups per attention behaviour; LMCache's multiprocess connector stores every group and lists Gemma 3/4, gpt-oss, Qwen3.5/3.6/3.8, Kimi-Linear as validated.",
+          "source": "https://docs.lmcache.ai/mp/hybrid_models.html",
+          "note": null
+        },
+        {
+          "text": "The Llama 4 chunked-attention models (8K chunks plus NoPE) were \"likely broken\" for MLX prefix reuse in March 2026, and Qwen2.5-VL (partial sliding window) likewise.",
+          "source": "https://github.com/ml-explore/mlx-lm/issues/980",
+          "note": null
+        },
+        {
+          "text": "Inferred: on a Mac, treat any Qwen3.5/3.6 or Gemma 3/4 serving stack as full re-prefill until a log shows a cache hit (llama-server `restored context checkpoint`, mlx-lm/optiq `cached_tokens`, LM Studio per-request timing); round-1 numbers imply a 30-60 s penalty per tool call at 20K+ tokens on mid-range chips.",
+          "source": "asserted",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Corrections and disagreements",
+      "facts": [
+        {
+          "text": "Gemma 4 26B-A4B depth (extends round 1): the llama.cpp load log shows `block_count 30` with a 4,608-cell SWA cache, matching the mlx discussion (30 layers) and CONTRADICTS the \"10 global / 50 sliding\" claim, which implies 60 layers.",
+          "source": "asserted",
+          "note": null
+        }
+      ]
+    }
+  ],
+  "related": []
+}

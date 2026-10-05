@@ -1,0 +1,584 @@
+{
+  "slug": "macos-wired-memory-limit-and-gpu-kernel-panics",
+  "concept": "macOS wired memory limit and GPU kernel panics",
+  "generated": "2026-10-05",
+  "summary": "Why wired memory evades Jetsam: Apple defines wired memory as memory the system needs to operate that \"can't be cached and must stay in RAM, so it's not available to other apps\". Memory pressure is computed from free memory, swap rate, wired memory and file cache. A panic report from a 96 GB Mac ...",
+  "facets": [
+    {
+      "title": "Facts",
+      "facts": [
+        {
+          "text": "Why wired memory evades Jetsam: Apple defines wired memory as memory the system needs to operate that \"can't be cached and must stay in RAM, so it's not available to other apps\". Memory pressure is computed from free memory, swap rate, wired memory and file cache. A panic report from a 96 GB Mac showed wired 5,251,984 pages x 16,384 B = 80.14 GB, free 973 pages (0.01 GB), compressor tiny, and `\"memoryPressure\": false`, so the pressure signal never fired before the panic.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "`mlx_lm.server` calls `mx.set_wired_limit(max_recommended_working_set_size)` at startup; the 0.31.3 package has 7 call sites and `server.py` calls it unconditionally. Wiring is done through a Metal residency set; MLX adds and removes each buffer from it and commits.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "MLX's own allocation guideline is separate: `mx.set_memory_limit` defaults to 1.5 x the device's recommended working set (MLX 0.32.3 docs), and when exceeded with no RAM/swap left, allocations raise an exception. So on a 64 GB Mac (48 GiB working set) MLX's default ceiling is ~72 GiB, above RAM, which is why an explicit `set_memory_limit(48 GiB)` changes the failure from panic to exception.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Controlled isolation (M4 mini 32 GB, macOS 26.4.1, IOGPUFamily 130.13, mlx 0.31.2, mlx-lm 0.31.3, Qwen3.6-35B-A3B-4bit): stock panicked in 102-108 s on a workload of two concurrent streams plus prompt-cache eviction churn; a sequential replica ran 111 min without panic. Never calling `mx.set_wired_limit` gave 10/10 clean runs (4.2 h) and 10/10 more with `clear_cache` also no-op (5.0 h). No-op `clear_cache` alone, and `sysctl iogpu.disable_wired_collector=1` plus `debug.iogpu.metal4_disable_async_mapping=1`, still panicked (99.9 s, 109.6 s). Memory-bounding arms (RotatingKVCache(8192), wired cap = recommended - 5 GiB, `MLX_MAX_OPS_PER_BUFFER/MB=200`) died as ordinary userspace Metal OOM and never reached the panic. Conclusion by the tester: residency-set add/remove plus commit traffic on the synchronous command-buffer completion path triggers the underflow; memory pressure only changes the rate (6-bit model panicked at 60.9 s vs 103 s).",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Cost of the workaround: no-op `set_wired_limit` cost at most 3% sequential throughput (pe8192 19,915 -> 19,282 t/s, tg 29.6-31.0 -> 29.6-31.8 t/s); weights become pageable, so under outside memory pressure macOS may evict them. A 6-bit 27.1 GiB model without wiring page-thrashed (<0.25 t/s) on the 32 GB box.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Shim form: set `mx.set_wired_limit = lambda *a, **k: 0` at `mlx.core` module level before importing `mlx_lm.server` (one assignment covers every call site because `mlx_lm` shares the module object). The env var `MLX_LM_DISABLE_WIRED_LIMIT` in the reporter's shim is the shim's own toggle, not an mlx-lm feature.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Second hypothesis (24 GB machine, Sep 2026): `KVCache`/`QuantizedKVCache` grow in `step=256` chunks via `mx.concatenate`, each a new wired allocation; thousands of reallocations during a long prefill exhaust mappable wired pages and panic at 40-50k tokens. PR 1920 adds `--kv-preallocate-size N` (single `mx.zeros` + `mx.eval`, writes in place, raises ValueError past N, forces `--prompt-cache-size=1`); tested with `--kv-bits 4 --kv-group-size 64 --kv-preallocate-size 65536 --prefill-step-size 256`, 10 turns at 65,536 tokens, no crash. Open PR, single reporter.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Third hypothesis: thread/lifetime races. A daemon thread running `mlx_lm.generate()` while the main thread calls `mx.clear_cache()` on unload frees buffers still in use; 7+ sequential model loads per batch panicked 9 times in 6 days on an M1 Ultra 64 GB; cross-process contention (two Python processes generating) also panics. MLX PR 3348 (April 2026) moved `CommandEncoder` into thread-local storage and synchronizes in `~CommandEncoder`.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Panic string variants: `IOGPUMemory.cpp:550` (macOS 26.3 to 26.5.2), `IOGPUMemory.cpp:492` (cited in MetalGuard README, other driver build), `\"Memory object unexpectedly not found in fPendingMemorySet\" @IOGPUGroupMemory.cpp:219`, `\"IOGPUGroupMemory::remove_memory_object() memory object not found\" @IOGPUGroupMemory.cpp:323`. MetalGuard's `detect_panic_signature` classes: `prepare_count_underflow`, `pending_memory_set`, `remove_memory_object`, `ctxstore_timeout`, `metal_oom`.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Panic report fields worth reading: `bug_type` 210, `os_version`, `memoryStatus` JSON (`memoryPages.wired`, `free`, `compressorSize`, `memoryPressure`, `pageSize` 16384), `Compressor Info` lines, `Panicked task` (pid and name, e.g. `python3.12`, or LM Studio's bundled `node`), `Kernel Extensions in backtrace` with the IOGPUFamily version. Report folders MetalGuard scans: `/Library/Logs/DiagnosticReports`, `/var/db/PanicReporter`, `~/Library/...`, files `.panic` and `.ips`.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "`footprint -p <pid>` prints an `IOAccelerator (graphics)` line that is the real Metal allocation of a process; one author uses it against `sysctl iogpu.wired_limit_mb` as the ceiling. `mactop` is named as a monitor.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "2026-02-11/12: mlx-lm issue 883 filed (M3 Ultra 96 GB, macOS 26.3, mlx-lm 0.30.6, Qwen3-Coder-30B-A3B-8bit, `--max-tokens 64000`, OpenCode, ~58k tokens). Reporter blamed the 75% wiring and unbounded KV and asked for `--max-kv-size`, `--memory-limit`, a lower default wired limit, graceful 503s and docs. PR 884 (`--max-kv-size`) was linked.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "2026-02-16: maintainer angeloskath replied the panic is \"probably related to the wired limit being too high\" and asked whether the user had run `sudo sysctl iogpu.wired_limit_mb`; said `max-kv-size` makes output \"kind of wrong\" at the limit; preferred exposing prompt-cache counts or offloading caches to disk.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "2026-02-17/19: PR 906 \"Improve the cache size limits\" (angeloskath, approved by awni, shipped in v0.31.0): all caches get `nbytes`; `LRUPromptCache(max_bytes=...)` evicts so it holds at most one cache or less than `max_bytes`; batch generator exposes `kv_cache_nbytes`; at generation start the prompt cache is trimmed so prompt cache plus active batch KV stays under a total. Review started with two flags (`--prompt-cache-bytes` default `1 << 63`, `--prompt-cache-total-bytes`, \"best effort\" to include active KV) and ended with one after awni called two confusing. Issue 883 closed as completed by PR 906 on Feb 19.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "2026-03-01: mlx issue 3186 (M4 Max 36 GB, macOS 26.3, IOGPUFamily 129.3.2, ~173k-token prefill, Apple Feedback FB22091885); still open in October. 2026-03-31: mlx issue 3346 (M3 Ultra 96 GB, macOS 26.4, 9 panics in 6 days, two signatures); closed without a fix. 2026-03-31 comment on 883: persists on macOS 26.4 with default MLX behavior, no sysctl run.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "2026-04..07: Harperbot publishes MetalGuard (v0.1.0 Apr 9, v0.4.0 Apr 12 with cross-process lock, `recommended_config()`, KV growth monitor, v0.11.5 Apr 27). Jul 3: M4 Pro 48 GB, macOS 26.5.2, IOGPUFamily 130.15.2 panics 51 s after the last request with only a 9.46 GB prompt cache (about 20% of RAM). Jul 7: the single-variable attribution above.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "2026-08-07: LM Studio 0.4.20+1 on macOS 26.5.2 (M5 Pro 64 GB) panics twice in a day on two MLX models; Ollama control with a heavier agent load stable. 2026-08-28: workaround confirmed in production on macOS 27.0 beta (IOGPUFamily 162.11, mlx 0.32.2, 663 requests, 2 days uptime, largest prefill 146,838 tokens); author says it does not show the driver bug is fixed because he never ran with wiring on.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "2026-09-24: PR 1920 and the step=256 theory on a 24 GB machine.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Panic without memory pressure: M4 mini 32 GB with ~20 GB resident; M4 Pro 48 GB with ~20% cache; M4 Max 36 GB with ~10 GB headroom. Do not assume headroom protects against the underflow panic.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "`--prompt-cache-bytes 8589934592` (8 GiB) did not prevent a panic on the 32 GB mini; `--max-kv-size` does not help either per the tester, who says it is silently ignored for architectures that define `make_cache` (qwen3_5 hybrids).",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Precursors: whole-machine sluggishness that grows with context (free memory dips to ~44% and returns to ~86% only when wiring is off); speakers distorting because `coreaudiod` is paged out (llama.cpp issue 19825, M4 Pro 24 GB, `iogpu.wired_limit_mb=22000`, closed as completed Feb 25 2026 with no visible fix); the top fifth of the screen flashing purple, \"paging dance\", then self-reboot (mlx-lm 883 comment); black screen then reboot (M5 32 GB, Qwen3 Coder 5-bit); sudden reboot after ~30 s hang.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Post-panic GPU state pollution (moderate confidence): after a pile-up of panics and aborted GPU processes, fresh servers hit OOM under previously fine conditions until a reboot. Detection: idle wired memory with no MLX process alive; healthy 1.2-2.4 GB on the test box, refuse to start above 6 GB. Normal wired-mode serving did not cause it.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Restart loops: after a panic launchd respawns KeepAlive jobs about 14 minutes after reboot and can re-trigger. MetalGuard's cooldown: 1 panic in 72 h -> 2 h cooldown; at least 2 in 24 h or 3 in 72 h -> lockout until `metal-guard ack`; `metal-guard panic-gate` returns 0 proceed, 2 cooldown, >=3 gate broken.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Risk ranking from MetalGuard README: single-model LM Studio use low; multi-model load/unload pipelines, long-running `mlx_lm.server` and agent loops with 50-100 short generate calls high; 24/7 daemons critical. Its `ensure_headroom` and `is_pressure_high` default to 67% pressure.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "vllm-mlx: `manager.memory_budget_gb` counts weights only and ignores `--gpu-memory-utilization`; set too high it keeps two models resident and MLX dies on the process ceiling, a hard OOM crash instead of eviction (vllm-mlx issue 627; 0.4.1 warns at startup but does not clamp). Rule from that author: budget <= ceiling - KV - headroom.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "A bad persisted sysctl value applies on every boot including the repair boot.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Ollama issue 4151 (2024): raising the wired limit made a model that stuttered run \"much smoother\"; mostly resolved in Ollama 0.3.6.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "oMLX 0.7.0 (Oct 2026): memory guard rebuilt from scratch (PR 3933). Tiers set how much memory stays free for other apps: `safe` ~20% of RAM (6-16 GB), `balanced` ~8% (3-8 GB), `aggressive` ~2% (1.5-4 GB). CLI: `omlx serve --memory-guard safe|balanced|aggressive` or `--memory-guard-gb 48`; default tier balanced. The previous guard could refuse a prompt with memory to spare or try one without enough; if you turned the guard off before, 0.7.0 asks you to re-enable. The older README text (default total limit RAM minus 8 GB, `ProcessMemoryEnforcer`) predates this. Later fixes: prefill admission accounts for fixed reclaim costs, ANE I/O surfaces and CPU-sharing allocations; ANE banks can be released under long-context pressure.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "llama.cpp `--fit` (PR 16653, default on): adjusts unset args to fit free device memory; first shrinks context, then moves weights off device (dense weights first for MoE); options `--fit-target MiB` (margin per device, default 1024, env `LLAMA_ARG_FIT_TARGET`), `--fit-ctx N` (floor, default 4096), env `LLAMA_ARG_FIT`; it does nothing to values you set manually (`-c`, `-ngl`, tensor split, overrides) and default context is 0 = model max. On a 32 GB M1 Max log: `MTL0 (Apple M1 Max) | 21845 = 21844 + ...` and `will leave 10429 >= 1024 MiB of free device memory, no changes needed`, i.e. Metal \"free\" is the working-set budget (21.33 GiB), not physical RAM. Speculative contexts add to the target (`adding 1808.02 MiB to fit_params_target for device MTL0`). No source tests `--fit` against the Metal OOM string.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "LM Studio: guardrail docs URLs tried (`/docs/app/advanced/resource-guardrails`, `/model-loading-guardrails`, `/resources`) return 404, so mode names stay unverified. LM Studio can still panic: issue 2249 shows its bundled Node process (`~/.lmstudio/.internal/utils/node`) as the panicked task after repeated `MTLCompilerService` connections and \"Metal Compiling Shader\".",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "mlx-lm server: no memory-limit flag in the sources found; mitigations are `--prompt-cache-bytes`, `--prompt-cache-size`, wrapper `mx.set_memory_limit`, and the no-op wired-limit shim.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "llama.cpp as the contrast: tester moved to llama.cpp after the panic and reports weeks without incident on the same box and model family; Ollama control stable in the LM Studio report.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "`man sysctl.conf` on macOS 15.7 documents `/etc/sysctl.conf` as read when the system enters multi-user mode; its BUGS section warns that kext-provided sysctls may be processed too early for the file to set them. No source tested `iogpu.wired_limit_mb` from `sysctl.conf` after a reboot on macOS 26.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "A forum reply (Jun 2026) says `sysctl.conf` may work for early kernel keys but runtime tunables are better set by a launchd job after boot, and advises against disabling SIP.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "LaunchDaemon recipe: `/Library/LaunchDaemons/com.local.iogpu-wired-limit.plist` with `ProgramArguments` `/usr/sbin/sysctl` and `iogpu.wired_limit_mb=<MB>` and `RunAtLoad` true (Mar 2026 post).",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Another guide appends the line with `echo \"iogpu.wired_limit_mb=55296\" | sudo tee -a /etc/sysctl.conf` with no SIP step; the devnote says it \"may require disabling SIP\".",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "llmconfigurator (Aug 2026): leave at least 8 GB on 32 GB (set ~24576), 10 GB on 64 GB (~55296), 16 GB on 128 GB (~114688); says about 70% of RAM is the commonly cited safe ceiling.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "thinkdifferent: 36 GB -> 30720, 48 GB -> 40960, 64 GB -> 57344, 128 GB -> 118784 (existing dossier); Baykar (Mar 2026): leave at least 4-8 GB, sets 61440 on 64 GB; devnote: leave 8-16 GB (32 GB -> 28672-30720, 64 GB -> 57344, 128 GB -> 122880); danmackinlay: 128 GB -> 114688 (112 GiB).",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Hannecke-style custom ceilings differ from the sysctl: 48 GiB cap on a 64 GB Mac via `set_memory_limit`.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "A cap set 5 GiB below the recommended working set on the 32 GB mini starved the working set and OOMed, so \"lower limit\" is not a panic cure either.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "A 16 GB Mac: one author says models should stay under 12 GB; larger ones risk an unresponsive system and hard reboot.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Cause of the 883-class panic. Reporter and Hannecke: wired 75% plus unbounded KV, Jetsam blind. Maintainer: wired limit probably too high. Later reporters: reproduces with default MLX and no sysctl, at 20% cache, with 10 GB headroom, even idle after the last request. Controlled test: not memory, wiring traffic plus concurrency/churn. Not reconciled; the evidence for \"not OOM\" is stronger (arms and counters) but comes from one box.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Does bounding KV prevent it? PR 906 (`--prompt-cache-bytes`) and `--max-kv-size`: reported not to prevent it (tester, M4 mini). PR 1920 preallocation: reported to prevent it (24 GB, single reporter). The tester's RotatingKVCache arm died of OOM first, so it never tested panic safety.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Is it LM Studio's problem? Existing dossier says the panic is mlx-lm, not LM Studio; issue 2249 and an M3 Ultra 256 GB report on LM Studio 0.4.12 (GLM-4.5 Air 4-bit, `IOGPUGroupMemory.cpp:323`) say LM Studio's MLX runtime panics too.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Has Apple fixed it? mlx issue 3186 and Apple Feedback FB22091885 open; macOS 27 beta evidence is \"workaround still works\", not \"fixed\".",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "`sysctl.conf` and SIP: see persistence. The llmconfigurator page contradicts itself on a missing key: its table says `unknown oid`, its text says setting a missing key \"appears to succeed and does nothing\".",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Sysctl key name by version: a user on a 2026 macOS ran `sysctl debug.iogpu.wired_limit` and got 0, so the old key still answered (macOS version not stated), while the maintainer in that thread typed `iogpu.wired_limt_mb` (a typo for `iogpu.wired_limit_mb`).",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Residency sets: the isolation test blames per-buffer residency-set traffic; llama.cpp also uses residency sets on macOS 15+ (existing dossier) yet is reported stable. Unresolved.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Whether any macOS 26.x or 27 release fixes the underflow with wiring enabled.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "What the final mlx-lm flag set from PR 906 is (`--prompt-cache-bytes` alone, per the review thread) and whether a server-level `--max-kv-size` shipped (one comment implies it exists in 0.31.3; the existing dossier says absent).",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Whether `--fit` prevents Metal OOM on Macs.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "LM Studio guardrail mode names and thresholds from first-party docs.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Whether `/etc/sysctl.conf` reliably applies `iogpu.wired_limit_mb` at boot on macOS 26 with SIP on.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Whether an unwired mlx-lm under real memory pressure loses throughput beyond the 3% measured at idle.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "A panic report from an M3 Ultra 96 GB showed wired 5,251,984 pages (80.14 GB), free 973 pages (0.01 GB) and `memoryPressure: false` at the moment of the `IOGPUMemory.cpp:550` panic.",
+          "source": "https://github.com/ml-explore/mlx-lm/issues/883",
+          "note": null
+        },
+        {
+          "text": "That server was started with `--max-tokens 64000` on Qwen3-Coder-30B-A3B-Instruct-8bit with mlx-lm 0.30.6 on macOS 26.3, driven by OpenCode to ~58k tokens.",
+          "source": "https://github.com/ml-explore/mlx-lm/issues/883",
+          "note": null
+        },
+        {
+          "text": "The mlx-lm 883 reporter asked for `--max-kv-size`, a `--memory-limit` flag, a lower default wired limit (50-60%), a 503 on approaching the limit, and documentation.",
+          "source": "https://github.com/ml-explore/mlx-lm/issues/883",
+          "note": null
+        },
+        {
+          "text": "Maintainer angeloskath said the panic is probably related to the wired limit being too high and that `--max-kv-size` makes model output \"kind of wrong\" at the limit.",
+          "source": "https://github.com/ml-explore/mlx-lm/issues/883",
+          "note": null
+        },
+        {
+          "text": "Issue 883 was closed as completed by PR 906 on Feb 19 2026, and PR 906 shipped in mlx-lm v0.31.0.",
+          "source": "https://github.com/ml-explore/mlx-lm/issues/883",
+          "note": null
+        },
+        {
+          "text": "A commenter reported 9 panics in 6 days on an M3 Ultra 96 GB on macOS 26.4 without running the sysctl, and a second signature `Memory object unexpectedly not found in fPendingMemorySet @IOGPUGroupMemory.cpp:219`.",
+          "source": "https://github.com/ml-explore/mlx-lm/issues/883",
+          "note": null
+        },
+        {
+          "text": "A commenter reported a daemon-thread race: `mlx_lm.generate()` in a thread while the main thread calls `mx.clear_cache()` on model unload panicked an M1 Ultra 64 GB 9 times; 700+ model switches crash reliably while 1 is safe.",
+          "source": "https://github.com/ml-explore/mlx-lm/issues/883",
+          "note": null
+        },
+        {
+          "text": "MetalGuard v0.4.0 added a cross-process file lock, `MetalGuard.recommended_config()` for chips from 8 GB to 512 GB, a KV growth monitor, and a TurboQuant size estimator.",
+          "source": "https://github.com/ml-explore/mlx-lm/issues/883",
+          "note": null
+        },
+        {
+          "text": "A 24 GB-machine reporter says the panic reproduces at 40-50k tokens serving a 27B 4-bit model at 64k context.",
+          "source": "https://github.com/ml-explore/mlx-lm/issues/883",
+          "note": null
+        },
+        {
+          "text": "PR 1920 adds `--kv-preallocate-size N`, preallocating the KV buffer in one `mx.zeros` plus `mx.eval`, raising ValueError past N, and forcing `--prompt-cache-size=1`.",
+          "source": "https://github.com/ml-explore/mlx-lm/pull/1920",
+          "note": null
+        },
+        {
+          "text": "PR 1920 blames the `step=256` `mx.concatenate` reallocation loop for exhausting mappable wired pages and reports a 10-turn 65,536-token test with `--kv-bits 4` and no crash.",
+          "source": "https://github.com/ml-explore/mlx-lm/pull/1920",
+          "note": null
+        },
+        {
+          "text": "PR 1920 cites mlx-lm issue 1395: `fetch_nearest_cache` deep-copies the cached KV, doubling peak memory when a cached conversation is reused.",
+          "source": "https://github.com/ml-explore/mlx-lm/pull/1920",
+          "note": null
+        },
+        {
+          "text": "PR 906 gives every cache an `nbytes` property, `LRUPromptCache` a `max_bytes` argument, the batch generator `kv_cache_nbytes`, and trims saved prompt caches at generation start so saved plus active KV stays under a total.",
+          "source": "https://github.com/ml-explore/mlx-lm/pull/906",
+          "note": null
+        },
+        {
+          "text": "PR 906's review reduced two proposed flags (`--prompt-cache-bytes` default `1 << 63`, `--prompt-cache-total-bytes`) to one.",
+          "source": "https://github.com/ml-explore/mlx-lm/pull/906",
+          "note": null
+        },
+        {
+          "text": "PR 906's author noted saving the prompt-processing part of the KV cache for reasoning models is hard because tools like OpenCode insert tokens before the assistant start token.",
+          "source": "https://github.com/ml-explore/mlx-lm/pull/906",
+          "note": null
+        },
+        {
+          "text": "MLX's `set_memory_limit` is a guideline for graph evaluation, raises an exception when exceeded with no RAM or swap left, and defaults to 1.5 times the device's maximum recommended working set size.",
+          "source": "https://ml-explore.github.io/mlx/build/html/python/_autosummary/mlx.core.set_memory_limit.html",
+          "note": null
+        },
+        {
+          "text": "mlx issue 3186 reports a panic at `IOGPUMemory.cpp:550` during ~173k-token prefill on an M4 Max 36 GB with macOS 26.3 and IOGPUFamily 129.3.2, filed with Apple as FB22091885, and it is still open.",
+          "source": "https://github.com/ml-explore/mlx/issues/3186",
+          "note": null
+        },
+        {
+          "text": "The 3186 reporter says the panic does not occur with prompts under ~10,000 tokens and that capacity is not the issue (26 GB model on 36 GB).",
+          "source": "https://github.com/ml-explore/mlx/issues/3186",
+          "note": null
+        },
+        {
+          "text": "A Mac mini M4 32 GB on macOS 26.4.1 panicked 8 min 16 s after starting `mlx_lm.server` with ~20 GB resident and `--prompt-cache-bytes 8589934592`.",
+          "source": "https://github.com/ml-explore/mlx/issues/3186",
+          "note": null
+        },
+        {
+          "text": "A MacBook Pro M4 Pro 48 GB on macOS 26.5.2 (IOGPUFamily 130.15.2) panicked 51 s after the last request with a 9.46 GB prompt cache and a largest prefill of 41,707 tokens.",
+          "source": "https://github.com/ml-explore/mlx/issues/3186",
+          "note": null
+        },
+        {
+          "text": "On the mini, a replica of the crashing session ran 111 minutes without a panic; two concurrent streams with prompt-cache eviction churn panicked in 102-108 s in 3 of 3 cold boots.",
+          "source": "https://gist.github.com/ronm92130/9bf97b300175be8e4f578c6e295feeaa",
+          "note": null
+        },
+        {
+          "text": "Never calling `mx.set_wired_limit` gave 20 of 20 panic-free runs (about 9 h, 5.3 M tokens); no-op `clear_cache` alone and the two `iogpu`/`metal4` sysctls did not prevent the panic.",
+          "source": "https://gist.github.com/ronm92130/9bf97b300175be8e4f578c6e295feeaa",
+          "note": null
+        },
+        {
+          "text": "Memory-bounding arms (RotatingKVCache(8192), wired cap recommended minus 5 GiB, reduced `MLX_MAX_OPS_PER_BUFFER`) failed with ordinary userspace `kIOGPUCommandBufferCallbackErrorOutOfMemory` and never panicked.",
+          "source": "https://gist.github.com/ronm92130/9bf97b300175be8e4f578c6e295feeaa",
+          "note": null
+        },
+        {
+          "text": "The tester measured at most a 3.2% sequential throughput loss from no-op `set_wired_limit`, and notes unwired weights are pageable under external memory pressure.",
+          "source": "https://gist.github.com/ronm92130/9bf97b300175be8e4f578c6e295feeaa",
+          "note": null
+        },
+        {
+          "text": "A 27.1 GiB 6-bit model panicked in 60.9 s with wiring and ran 76 GPU-active minutes without panic unwired, but page-thrashed below 0.25 t/s on the 32 GB box.",
+          "source": "https://gist.github.com/ronm92130/9bf97b300175be8e4f578c6e295feeaa",
+          "note": null
+        },
+        {
+          "text": "Idle wired memory with no MLX process alive was 1.2-2.4 GB on healthy boots; after a pile-up of panics it rose until a reboot, and the harness refuses to start above 6 GB.",
+          "source": "https://gist.github.com/ronm92130/9bf97b300175be8e4f578c6e295feeaa",
+          "note": null
+        },
+        {
+          "text": "A no-op `set_wired_limit` shim run as a permanent LaunchAgent on an M3 Ultra 96 GB with macOS 27.0 beta (IOGPUFamily 162.11, mlx 0.32.2) served 663 requests over 2 days with zero panics.",
+          "source": "https://github.com/ml-explore/mlx/issues/3186",
+          "note": null
+        },
+        {
+          "text": "`mlx_lm/server.py` still calls `set_wired_limit` unconditionally in 0.31.3, with 7 call sites in the package.",
+          "source": "https://github.com/ml-explore/mlx/issues/3186",
+          "note": null
+        },
+        {
+          "text": "Without wiring, free memory dipped to ~44% in heavy sessions and returned to ~86% afterward, which the author calls the reclaim wiring prevents; system-wide lag that scales with context is the named precursor.",
+          "source": "https://github.com/ml-explore/mlx/issues/3186",
+          "note": null
+        },
+        {
+          "text": "An M3 Ultra 256 GB on LM Studio 0.4.12 (GLM-4.5 Air 4-bit MLX) panicked twice in 16 h with `IOGPUGroupMemory::remove_memory_object() memory object not found @IOGPUGroupMemory.cpp:323` on macOS 26.4.1.",
+          "source": "https://github.com/ml-explore/mlx/issues/3186",
+          "note": null
+        },
+        {
+          "text": "mlx issue 3346 (M3 Ultra 96 GB, macOS 26.4, 122B MoE ~50 GB) lists 7 `IOGPUMemory.cpp:550` panics Mar 31-Apr 1 and 2 `IOGPUGroupMemory.cpp:219` panics Mar 26, with higher odds at >80% GPU memory use, repeated model loads and several MLX processes.",
+          "source": "https://github.com/ml-explore/mlx/issues/3346",
+          "note": null
+        },
+        {
+          "text": "MLX PR 3348 moved `CommandEncoder` synchronization into its destructor and into thread-local storage, throwing when a stream is used from a thread that did not create it.",
+          "source": "https://github.com/ml-explore/mlx/pull/3348",
+          "note": null
+        },
+        {
+          "text": "LM Studio 0.4.20+1 on macOS 26.5.2 (M5 Pro 64 GB) panicked twice in one day with two MLX models at `IOGPUMemory.cpp:550`; the panicked task was LM Studio's bundled Node process, compressor and swap were healthy, and the same agent workload on Ollama was stable.",
+          "source": "https://github.com/lmstudio-ai/lmstudio-bug-tracker/issues/2249",
+          "note": null
+        },
+        {
+          "text": "MetalGuard lists the panic strings `IOGPUMemory.cpp:492` and `:550`, `fPendingMemorySet`, and `kIOGPUCommandBufferCallbackErrorOutOfMemory`, and scans `/Library/Logs/DiagnosticReports` and `/var/db/PanicReporter` for `.panic` and `.ips` files.",
+          "source": "https://github.com/Harperbot/metal-guard",
+          "note": null
+        },
+        {
+          "text": "MetalGuard's cooldown gate applies 2 h after one panic and a lockout needing an explicit ack after 2 panics in 24 h or 3 in 72 h; launchd respawns plists about 14 minutes after a panic reboot.",
+          "source": "https://github.com/Harperbot/metal-guard",
+          "note": null
+        },
+        {
+          "text": "MetalGuard rates single-model LM Studio use low risk and long-running `mlx_lm.server`, multi-model pipelines and agent loops high risk; `is_pressure_high` defaults to 67%.",
+          "source": "https://github.com/Harperbot/metal-guard",
+          "note": null
+        },
+        {
+          "text": "Apple documents wired memory as memory that cannot be cached and must stay in RAM, and says memory pressure is determined by free memory, swap rate, wired memory and file cache.",
+          "source": "https://support.apple.com/guide/activity-monitor/view-memory-usage-actmntr1004/mac",
+          "note": null
+        },
+        {
+          "text": "oMLX 0.7.0 rebuilt its memory guard; tiers keep about 20% (6-16 GB, safe), 8% (3-8 GB, balanced) or 2% (1.5-4 GB, aggressive) of RAM free for other apps.",
+          "source": "https://github.com/jundot/omlx/releases",
+          "note": null
+        },
+        {
+          "text": "oMLX exposes `omlx serve --memory-guard <tier>` and `--memory-guard-gb <GB>`, default tier balanced, and the 0.7.0 notes say the old guard could refuse prompts with memory to spare or try prompts without enough.",
+          "source": "https://github.com/jundot/omlx",
+          "note": null
+        },
+        {
+          "text": "oMLX's earlier documented default was a process memory limit of system RAM minus 8 GB.",
+          "source": "https://github.com/jundot/omlx",
+          "note": null
+        },
+        {
+          "text": "llama.cpp `--fit` (default on) shrinks context first, then moves weights off the device, with `--fit-target` default 1024 MiB, `--fit-ctx` default 4096, and no change to manually set values.",
+          "source": "https://github.com/ggml-org/llama.cpp/pull/16653",
+          "note": null
+        },
+        {
+          "text": "llama.cpp's server README lists `-fit/--fit [on|off]` (env `LLAMA_ARG_FIT`), `-fitt/--fit-target` (env `LLAMA_ARG_FIT_TARGET`) and `-fitc/--fit-ctx` (env `LLAMA_ARG_FIT_CTX`).",
+          "source": "https://raw.githubusercontent.com/ggml-org/llama.cpp/master/tools/server/README.md",
+          "note": null
+        },
+        {
+          "text": "On a 32 GB M1 Max, llama.cpp's fit log reports MTL0 free as 21,844 MiB and \"will leave 10429 >= 1024 MiB of free device memory, no changes needed\" for a 10.86 GiB model.",
+          "source": "https://github.com/ggml-org/llama.cpp/issues/22800",
+          "note": null
+        },
+        {
+          "text": "llama.cpp adds the speculative MTP context estimate (1808.02 MiB) to the fit target for device MTL0.",
+          "source": "https://github.com/ggml-org/llama.cpp/issues/23752",
+          "note": null
+        },
+        {
+          "text": "llama.cpp issue 19825 (M4 Pro 24 GB, `iogpu.wired_limit_mb=22000`) described the OS becoming sluggish and the speakers distorting before a crash, and was closed as completed on Feb 25 2026.",
+          "source": "https://github.com/ggml-org/llama.cpp/issues/19825",
+          "note": null
+        },
+        {
+          "text": "`man sysctl.conf` on macOS 15.7 says `/etc/sysctl.conf` is read when the system enters multi-user mode, and warns that sysctls added by loadable kernel modules may be processed too early.",
+          "source": "https://forum.level1techs.com/t/set-custom-sysctl-settings-in-mac-sequoia-15-0/238942",
+          "note": null
+        },
+        {
+          "text": "A forum reply advises a launchd job for runtime sysctls and against disabling SIP for tuning.",
+          "source": "https://forum.level1techs.com/t/set-custom-sysctl-settings-in-mac-sequoia-15-0/238942",
+          "note": null
+        },
+        {
+          "text": "A Launch Daemon at `/Library/LaunchDaemons/com.local.iogpu-wired-limit.plist` running `/usr/sbin/sysctl iogpu.wired_limit_mb=<MB>` with `RunAtLoad` persists the setting.",
+          "source": "https://medium.com/@se.mehmet.baykar/increase-vram-on-apple-silicon-for-local-llms-1b35c453b165",
+          "note": null
+        },
+        {
+          "text": "Baykar says to leave at least 4-8 GB for macOS and that allocating 100% causes lockups, beachballs or a hard reset; a 64 GB Mac showed 51.84 GB default and 60 GB after setting 61440.",
+          "source": "https://medium.com/@se.mehmet.baykar/increase-vram-on-apple-silicon-for-local-llms-1b35c453b165",
+          "note": null
+        },
+        {
+          "text": "llmconfigurator recommends leaving 8 GB (32 GB Mac, ~24576), 10 GB (64 GB, ~55296) and 16 GB (128 GB, ~114688), labels this its own recommendation, and says about 70% of RAM is commonly cited as the safe ceiling.",
+          "source": "https://llmconfigurator.com/en/guides/troubleshooting/increase-metal-vram-limit-apple-silicon",
+          "note": null
+        },
+        {
+          "text": "llmconfigurator says to read both `iogpu.wired_limit_mb` and `debug.iogpu.wired_limit` to find which key exists, and that a value of 0 means \"use the system default\", not unlimited.",
+          "source": "https://llmconfigurator.com/en/guides/troubleshooting/increase-metal-vram-limit-apple-silicon",
+          "note": null
+        },
+        {
+          "text": "llmconfigurator says a persisted bad value applies on every boot, including the boot used to fix it, and advises testing live first.",
+          "source": "https://llmconfigurator.com/en/guides/troubleshooting/increase-metal-vram-limit-apple-silicon",
+          "note": null
+        },
+        {
+          "text": "devnote lists 32 GB -> 28672-30720, 64 GB -> 57344, 128 GB -> 122880 and says to leave 8-16 GB.",
+          "source": "https://github.com/ivanopcode/devnote-override-macos-metal-vram-cap",
+          "note": null
+        },
+        {
+          "text": "danmackinlay uses `iogpu.wired_limit_mb=114688` on a 128 GB Mac, `footprint -p <pid>` (`IOAccelerator (graphics)` line) to read a process's Metal allocation, and vllm-mlx `memory_budget_gb` counts weights only and can cause a hard OOM instead of eviction (vllm-mlx issue 627).",
+          "source": "https://danmackinlay.name/notebook/local_llm_mac.html",
+          "note": null
+        },
+        {
+          "text": "A commenter on mlx-lm 883 ran `sysctl debug.iogpu.wired_limit` and got 0 while hitting these crashes (macOS version unstated).",
+          "source": "https://github.com/ml-explore/mlx-lm/issues/883",
+          "note": null
+        },
+        {
+          "text": "LM Studio issue 651 reports models above ~70 GB marked \"Likely too large\" on a 128 GB M3 Max even after `iogpu.wired_limit_mb=126976` (existing dossier has the figure; this adds that high CPU use above 1000% with idle GPU follows).",
+          "source": "https://github.com/lmstudio-ai/lmstudio-bug-tracker/issues/651",
+          "note": null
+        },
+        {
+          "text": "Ollama issue 4151 reports raising the wired limit made a stuttering model run much smoother and was closed as mostly resolved in Ollama 0.3.6.",
+          "source": "https://github.com/ollama/ollama/issues/4151",
+          "note": null
+        },
+        {
+          "text": "A 16 GB-Mac author advises models under 12 GB because larger ones can leave the system unresponsive and force a hard reboot.",
+          "source": "https://blog.6nok.org/experimenting-with-local-llms-on-macos/",
+          "note": null
+        },
+        {
+          "text": "The LM Studio guardrail documentation URLs tried return 404, so guardrail mode names are unverified from first-party docs.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "The 883-class panic is a driver reference-count bug reachable without memory exhaustion, with wiring traffic and concurrency as the discriminating factors in the one controlled study.",
+          "source": "asserted",
+          "note": null
+        }
+      ]
+    }
+  ],
+  "related": []
+}

@@ -1,0 +1,434 @@
+{
+  "slug": "mlx-and-mlx-lm-on-apple-silicon",
+  "concept": "MLX and mlx-lm on Apple silicon",
+  "generated": "2026-10-05",
+  "summary": "CLI entry points: mlx_lm.generate, chat, server, convert, cache_prompt, benchmark, dwq, dynamic_quant, awq, gptq (also lora/fuse).",
+  "facets": [
+    {
+      "title": "Facts",
+      "facts": [
+        {
+          "text": "CLI entry points: mlx_lm.generate, chat, server, convert, cache_prompt, benchmark, dwq, dynamic_quant, awq, gptq (also lora/fuse).",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Convert: `mlx_lm.convert --model <hf> -q [--q-bits --q-group-size --q-mode affine|mxfp4|nvfp4|mxfp8 --quant-predicate mixed_2_6|mixed_3_4|mixed_3_6|mixed_4_6 --dtype --upload-repo --mlx-path mlx_model]. Mixed recipes are a llama.cpp Q4_K_M-like heuristic: high bits (6, or 4 for mixed_3_4) for v_proj and down_proj in the first 1/8, last 1/8 and every third layer, plus lm_head; low bits elsewhere.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Learned quantization (needs `pip install \"mlx-lm[train]\"`): dynamic_quant (fast, per-layer sensitivity, saves reusable sensitivity JSON), AWQ, GPTQ, DWQ (distills scales/biases against the unquantized teacher; best at 2-4 bit, poor for 16->8/6 bit; smaller group size doubles tunable parameters; defaults --bits 4 --num-samples 1024 --batch-size 8, max-seq-length 2048). Methods can be cascaded (dynamic then DWQ).",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Server: `mlx_lm.server --model X` binds 127.0.0.1:8080, OpenAI-like /v1/chat/completions and /v1/models. Request fields include max_tokens (default 512), temperature (default 0.0), top_p/top_k/min_p, repetition/presence/frequency penalties, logit_bias, logprobs (1-10), model, adapters, draft_model, num_draft_tokens. SERVER.md says it is not recommended for production (basic security checks only).",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Server flags (from server.py): --decode-concurrency (default 32), --prompt-concurrency (8), --prompt-cache-size (10 distinct KV caches), --prompt-cache-bytes, --prefill-step-size (README default 2048), --kv-bits/--kv-group-size/--quantized-kv-start, --draft-model, --num-draft-tokens (default 3), --pipeline (pipeline instead of tensor parallelism), --chat-template, --chat-template-args, --allowed-origins (default \"*\"), --trust-remote-code, --adapter-path.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Continuous batching is in the server (BatchGenerator). It is disabled (requests served sequentially) when a draft model is loaded or when --kv-bits quantizes the KV cache, and when any cache type lacks batch support.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Server loads tool parsers by `tool_parser_type` in tokenizer_config.json (qwen3_coder, Gemma4, Mistral, MiniMax M2 parsers exist).",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Prompt caching: `mlx_lm.cache_prompt --prompt-cache-file f.safetensors` then `mlx_lm.generate --prompt-cache-file f.safetensors`; cached prompt is a prefix and the model is read from the cache file. Python API supports cache reuse (examples/chat.py). A rotating fixed KV cache is available via --max-kv-size in generate.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Speculative decoding: `--draft-model` plus `--num-draft-tokens`; a tokenizer vocab-size mismatch only logs a warning.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Memory: README: models large relative to RAM are slowed unless wired; mlx-lm wires model and cache (macOS 15+); raise limit with `sudo sysctl iogpu.wired_limit_mb=N` (N above model size in MB, below RAM). Server startup calls maybe_set_recommended_wired_limit.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "WWDC26 session 232 (MLX engineer): Neural Accelerators give 4x matmul on M5, \"almost exactly\" 4x prompt-processing speedup with no flags; mlx-lm server does continuous batching for concurrent subagents; distributed serving via `mlx.launch` with a hostfile, auto-sharding, Thunderbolt RDMA from macOS 26.2, Thunderbolt or Ethernet; agent stack demo is OpenCode and Xcode against mlx_lm.server.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "mlx-lm 0.32.0 was released on PyPI on 2026-10-01; the GitHub releases page still lists v0.31.3 (2026-04-22) as latest.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "v0.31.2 (2026-04-07): caching of system/user prompts for non-trimmable caches, batch generator refactor, presence/frequency penalties. v0.31.3: thread-local generation stream (pairs with MLX 0.31.2), parallel tool-call fixes, Gemma 4 tool parser fixes.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Server --max-kv-size PR #906 closed issue #883 in Feb 2026, but a April 2026 report says the flag was still missing from the server in 0.31.2; KV-cache quantization in the server landed Sep 2026 (#1832).",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Ollama 0.19 (2026-03-30) replaced its llama.cpp Metal backend with MLX; reported decode 58 to 112 tok/s on one machine and 43 to 130 tok/s for Qwen3-Coder-30B-A3B on M4 Pro (vendor figures via a secondary article).",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Kernel panic `\"completeMemory prepare count underflow\" @IOGPUMemory.cpp:550` (also `\"Memory object unexpectedly not found in fPendingMemorySet\" @IOGPUGroupMemory.cpp:219`): mlx_lm.server wires about 75% of RAM; wired memory cannot be swapped or Jetsam-killed, `memoryPressure` reports false; unbounded KV growth during long agent sessions (about 58k tokens on 96 GB M3 Ultra with Qwen3-Coder-30B 8-bit) panics the machine. Reported on macOS 26.3 and still on 26.4 (9 panics in 6 days, 122B MoE). A maintainer attributes it to a too-high wired limit and prefers exposing cache count or disk offload to --max-kv-size, because output degrades once the cap is hit.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Second trigger: unloading models (mx.clear_cache) while a generate daemon thread still holds Metal buffers; third-party mitigation \"MetalGuard\".",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Workaround: wrapper script that calls `mx.metal.set_memory_limit(...)` before `mlx_lm.server.main()` so overflow raises a Python exception instead of a panic.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Models with hybrid attention (Gemma 4: 50 sliding-window plus 10 global layers) can exceed 20 GB KV at full context; standard GQA models (Qwen3) scale more predictably.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Missing tool parsing: HF mlx-community Qwen3-Coder-4bit lacks `tool_parser_type`; raw XML tool calls print. Edit a local copy (`hf download --local-dir`), never the HF cache (hash change triggers full re-download).",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Quantized KV: attention is not fused, so a prefill_step_size x context score matrix is held; lower --prefill-step-size (e.g. 512) or it can cost more than the cache saves.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "bf16 on M1/M2: most mlx-community weights are bf16, which M1/M2 emulate; converting to fp16 cut Gemma 3 12B 8K prefill from 114.4s to 68.9s (third-party). M3+ run bf16 natively.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Short-prompt latency: on M5 Max, one test showed MLX 2.2s vs GGUF 1.0s for classification though decode was similar (125 vs 131 tok/s), blamed on prefill.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "MLX vs llama.cpp speed. Side A: MLX is up to about 3x faster than llama.cpp decode on Apple silicon (Ollama's MLX switch figures), but degrades at about 40k context with multi-minute prefill (Towards AI, paywalled). Side B (atomic.chat, 2026-06-10): runtime matters more than format; llama.cpp and LM Studio GGUF about 41.5 tok/s effective vs oMLX 38.0 and LM Studio MLX 17.0 on M1 Max 64 GB; GGUF wins short tasks, MLX wins long output; \"MLX 3x faster than Ollama\" is cherry-picked. Atomic.chat sells a competing runtime, so treat as interested.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Quality of \"4-bit\": atomic.chat claims GGUF Q4_K_M has 4.7x lower perplexity degradation than MLX uniform 4-bit at similar size; mlx-lm's mixed_* recipes and DWQ (about +0.6 effective bit per one secondary source) exist to close that, and no head-to-head was found.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Speculative decoding gains: one vendor blog (M5 Max) reports 2.0-2.3x for same-family drafts at 70B and MoE, regression for cross-family drafts and verifiers under about 30B, and 102 vs 94 tok/s MLX vs llama.cpp; its \"mlx_lm 0.21 earlier this year\" and \"vLLM does not support MLX\" are inconsistent with current facts (vllm-metal exists), so its numbers are low confidence.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Default draft length: server default is 3; the blog recommends 5-6.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Is --max-kv-size or a memory limit now in mlx_lm.server 0.32.0, and does the wired-limit kernel panic still reproduce on macOS 26.4+/M5?",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "What changed in 0.32.0 beyond 0.31.3?",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Independent MLX vs llama.cpp numbers on M5 with NAX at long context.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Whether the server prompt cache survives agent traffic without reprocessing (non-trimmable caches for hybrid-attention models).",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "mlx-lm 0.32.0 was published to PyPI on 2026-10-01 while GitHub Releases lists v0.31.3 as latest.",
+          "source": "https://pypi.org/project/mlx-lm/",
+          "note": null
+        },
+        {
+          "text": "The mlx-lm repo had 966 commits, 30 tags and about 7.2k stars on 2026-10-04, with a commit on 2026-10-02.",
+          "source": "https://github.com/ml-explore/mlx-lm",
+          "note": null
+        },
+        {
+          "text": "The default model for mlx_lm.generate and chat is mlx-community/Llama-3.2-3B-Instruct-4bit.",
+          "source": "https://github.com/ml-explore/mlx-lm",
+          "note": null
+        },
+        {
+          "text": "mlx_lm.convert -q quantizes and --upload-repo uploads to Hugging Face; the mlx-my-repo HF Space does the same in browser.",
+          "source": "https://github.com/ml-explore/mlx-lm",
+          "note": null
+        },
+        {
+          "text": "mlx_lm.convert --q-mode accepts affine (default), mxfp4, nvfp4, mxfp8.",
+          "source": "https://github.com/ml-explore/mlx-lm/blob/main/mlx_lm/convert.py",
+          "note": null
+        },
+        {
+          "text": "mlx_lm.convert --quant-predicate accepts mixed_2_6, mixed_3_4, mixed_3_6, mixed_4_6.",
+          "source": "https://github.com/ml-explore/mlx-lm/blob/main/mlx_lm/convert.py",
+          "note": null
+        },
+        {
+          "text": "Mixed recipes use high bits (6; 4 for mixed_3_4) on v_proj and down_proj in the first and last eighth of layers and every third layer, and on lm_head.",
+          "source": "https://github.com/ml-explore/mlx-lm/blob/main/mlx_lm/convert.py",
+          "note": null
+        },
+        {
+          "text": "Learned quantization options are DWQ, AWQ, dynamic quantization and GPTQ, installed with the mlx-lm[train] extra.",
+          "source": "https://github.com/ml-explore/mlx-lm/blob/main/mlx_lm/LEARNED_QUANTS.md",
+          "note": null
+        },
+        {
+          "text": "DWQ works best distilling to 2-4 bit and often fails at 16 to 8 or 6 bit; smaller group size doubles tunable parameters.",
+          "source": "https://github.com/ml-explore/mlx-lm/blob/main/mlx_lm/LEARNED_QUANTS.md",
+          "note": null
+        },
+        {
+          "text": "DWQ memory reduction: distill from an 8-bit teacher, use --max-seq-length 512, or --batch-size 1.",
+          "source": "https://github.com/ml-explore/mlx-lm/blob/main/mlx_lm/LEARNED_QUANTS.md",
+          "note": null
+        },
+        {
+          "text": "mlx_lm.dynamic_quant saves a per-layer sensitivity JSON that can be reused for other precisions.",
+          "source": "https://github.com/ml-explore/mlx-lm/blob/main/mlx_lm/LEARNED_QUANTS.md",
+          "note": null
+        },
+        {
+          "text": "DWQ is about 0.6 effective bit better than plain quantization per one measurement (4-bit DWQ about 4.6-bit standard); secondary source, direction only.",
+          "source": "https://medium.com/@michael.hannecke/mlx-quantization-on-apple-silicon-dynamic-quant-vs-awq-vs-gptq-vs-dwq-8b2a5af2b53f",
+          "note": null
+        },
+        {
+          "text": "AWQ and GPTQ in mlx-lm are mainly chosen for interoperability with non-MLX tooling.",
+          "source": "https://medium.com/@michael.hannecke/mlx-quantization-on-apple-silicon-dynamic-quant-vs-awq-vs-gptq-vs-dwq-8b2a5af2b53f",
+          "note": null
+        },
+        {
+          "text": "mlx_lm.server defaults to 127.0.0.1:8080.",
+          "source": "https://github.com/ml-explore/mlx-lm/blob/main/mlx_lm/server.py",
+          "note": null
+        },
+        {
+          "text": "SERVER.md states the server is not recommended for production because it only implements basic security checks.",
+          "source": "https://github.com/ml-explore/mlx-lm/blob/main/mlx_lm/SERVER.md",
+          "note": null
+        },
+        {
+          "text": "Server defaults: --decode-concurrency 32, --prompt-concurrency 8, --prompt-cache-size 10, --num-draft-tokens 3, --allowed-origins \"*\".",
+          "source": "https://github.com/ml-explore/mlx-lm/blob/main/mlx_lm/server.py",
+          "note": null
+        },
+        {
+          "text": "The server flag --pipeline selects pipeline parallelism instead of tensor parallelism for distributed serving.",
+          "source": "https://github.com/ml-explore/mlx-lm/blob/main/mlx_lm/server.py",
+          "note": null
+        },
+        {
+          "text": "The server batches requests only when no draft model is loaded and every cache type supports batching.",
+          "source": "https://github.com/ml-explore/mlx-lm/blob/main/mlx_lm/server.py",
+          "note": null
+        },
+        {
+          "text": "A quantized KV cache (--kv-bits) disables batching in the server; requests run one at a time.",
+          "source": "https://github.com/ml-explore/mlx-lm/blob/main/mlx_lm/SERVER.md",
+          "note": null
+        },
+        {
+          "text": "Attention over a quantized KV cache is not fused and holds a prefill_step_size x context_length score matrix.",
+          "source": "https://github.com/ml-explore/mlx-lm/blob/main/mlx_lm/SERVER.md",
+          "note": null
+        },
+        {
+          "text": "Server request defaults: max_tokens 512, temperature 0.0, top_p 1.0; draft_model can be set per request and null unloads it.",
+          "source": "https://github.com/ml-explore/mlx-lm/blob/main/mlx_lm/SERVER.md",
+          "note": null
+        },
+        {
+          "text": "Server request fields include logit_bias, logprobs (1-10), adapters, presence/frequency penalties and a per-request model.",
+          "source": "https://github.com/ml-explore/mlx-lm/blob/main/mlx_lm/SERVER.md",
+          "note": null
+        },
+        {
+          "text": "mlx_lm.cache_prompt saves a prompt KV cache to safetensors; generate with --prompt-cache-file treats it as a prefix and reads the model from the cache.",
+          "source": "https://github.com/ml-explore/mlx-lm",
+          "note": null
+        },
+        {
+          "text": "max-kv-size gives a rotating fixed-size KV cache in mlx_lm.generate; --prefill-step-size defaults to 2048.",
+          "source": "https://github.com/ml-explore/mlx-lm",
+          "note": null
+        },
+        {
+          "text": "Wiring model memory for large models needs macOS 15+; raise with `sudo sysctl iogpu.wired_limit_mb=N`.",
+          "source": "https://github.com/ml-explore/mlx-lm",
+          "note": null
+        },
+        {
+          "text": "mlx_lm.server 0.30.6 on macOS 26.3 caused a kernel panic `\"completeMemory prepare count underflow\" @IOGPUMemory.cpp:550` with 80 GB wired and memoryPressure false.",
+          "source": "https://github.com/ml-explore/mlx-lm/issues/883",
+          "note": null
+        },
+        {
+          "text": "The same panic was reported to persist on macOS 26.4 (9 panics in 6 days, M3 Ultra 96 GB, 122B MoE) and a second panic string at IOGPUGroupMemory.cpp:219 appeared.",
+          "source": "https://github.com/ml-explore/mlx-lm/issues/883",
+          "note": null
+        },
+        {
+          "text": "A thread race (mx.clear_cache while a generate thread holds Metal buffers) is a second panic trigger.",
+          "source": "https://github.com/ml-explore/mlx-lm/issues/883",
+          "note": null
+        },
+        {
+          "text": "An MLX maintainer said the panic is probably from an overly high wired limit and preferred cache-count limits or disk offload over --max-kv-size, since output degrades at the cap.",
+          "source": "https://github.com/ml-explore/mlx-lm/issues/883",
+          "note": null
+        },
+        {
+          "text": "Workaround is calling mx.metal.set_memory_limit before starting the server so overflow raises a Python exception.",
+          "source": "https://medium.com/@michael.hannecke/how-my-local-coding-agent-crashed-my-mac-and-what-i-learned-about-mlx-memory-management-e0cbad01553c",
+          "note": null
+        },
+        {
+          "text": "Gemma 4 26B (MoE) uses 50 sliding-window and 10 global layers and exceeds 20 GB KV at full context.",
+          "source": "https://medium.com/@michael.hannecke/how-my-local-coding-agent-crashed-my-mac-and-what-i-learned-about-mlx-memory-management-e0cbad01553c",
+          "note": null
+        },
+        {
+          "text": "mlx-community Qwen3-Coder-30B-A3B 4-bit lacks tool_parser_type in tokenizer_config.json so tool calls print as raw XML; add \"tool_parser_type\": \"qwen3_coder\" in a local copy.",
+          "source": "https://medium.com/@michael.hannecke/how-my-local-coding-agent-crashed-my-mac-and-what-i-learned-about-mlx-memory-management-e0cbad01553c",
+          "note": null
+        },
+        {
+          "text": "Editing files inside the HF cache changes hashes and forces a full re-download.",
+          "source": "https://medium.com/@michael.hannecke/how-my-local-coding-agent-crashed-my-mac-and-what-i-learned-about-mlx-memory-management-e0cbad01553c",
+          "note": null
+        },
+        {
+          "text": "mlx-lm v0.31.2 added caching of system and user prompts for non-trimmable caches and a batch generator refactor.",
+          "source": "https://github.com/ml-explore/mlx-lm/releases",
+          "note": null
+        },
+        {
+          "text": "mlx-lm v0.31.3 added thread-local generation stream and fixed parallel tool calls and Gemma 4 and Mistral tool parsers.",
+          "source": "https://github.com/ml-explore/mlx-lm/releases",
+          "note": null
+        },
+        {
+          "text": "KV-cache quantization was added to the server on 2026-09-09 (#1832).",
+          "source": "https://github.com/ml-explore/mlx-lm/blob/main/mlx_lm/SERVER.md",
+          "note": null
+        },
+        {
+          "text": "WWDC26 session 232: M5 Neural Accelerators give 4x matmul and about 4x prompt processing with no flags.",
+          "source": "https://developer.apple.com/videos/play/wwdc2026/232/",
+          "note": null
+        },
+        {
+          "text": "WWDC26 session 232: mlx-lm server uses continuous batching so subagent requests are served concurrently.",
+          "source": "https://developer.apple.com/videos/play/wwdc2026/232/",
+          "note": null
+        },
+        {
+          "text": "WWDC26 session 232: distributed serving uses mlx.launch with a hostfile, auto-shards the model, supports Thunderbolt RDMA from macOS 26.2 and Ethernet.",
+          "source": "https://developer.apple.com/videos/play/wwdc2026/232/",
+          "note": null
+        },
+        {
+          "text": "Ollama 0.19 (2026-03-30) switched its Apple silicon backend from llama.cpp Metal to MLX.",
+          "source": "https://pub.towardsai.net/apples-mlx-runs-local-llms-3x-faster-than-llama-cpp-until-your-context-hits-40k-715ec441afbb",
+          "note": null
+        },
+        {
+          "text": "A 40,000-token prompt produced a roughly 3.5 minute wait before first token in one MLX-based local agent test (paywalled, anecdotal).",
+          "source": "https://pub.towardsai.net/apples-mlx-runs-local-llms-3x-faster-than-llama-cpp-until-your-context-hits-40k-715ec441afbb",
+          "note": null
+        },
+        {
+          "text": "On M1 Max 64 GB, effective tok/s: LM Studio GGUF 41.7, llama.cpp 41.4, oMLX 38.0, Rapid-MLX 35.6, Ollama 26.0, LM Studio MLX 17.0.",
+          "source": "https://atomic.chat/blog/guides/gguf-vs-mlx",
+          "note": null
+        },
+        {
+          "text": "M5 Max Qwen3-30B-A3B: decode 131 tok/s GGUF Q4_K_M vs 125 tok/s MLX 4-bit; short classification 1.0s vs 2.2s.",
+          "source": "https://atomic.chat/blog/guides/gguf-vs-mlx",
+          "note": null
+        },
+        {
+          "text": "Most mlx-community weights are bf16; converting to fp16 on M1/M2 cut Gemma 3 12B 8K prefill from 114.4s to 68.9s.",
+          "source": "https://atomic.chat/blog/guides/gguf-vs-mlx",
+          "note": null
+        },
+        {
+          "text": "New models reach GGUF within hours but MLX conversions days to weeks later (vendor claim).",
+          "source": "https://atomic.chat/blog/guides/gguf-vs-mlx",
+          "note": null
+        },
+        {
+          "text": "A vendor blog reports M5 Max Llama 3.3 70B 4-bit with a 1B same-family draft going from 45 to 102 tok/s, while cross-family drafts and verifiers under about 30B regress.",
+          "source": "https://contracollective.com/blog/speculative-decoding-mlx-apple-silicon-2026",
+          "note": null
+        },
+        {
+          "text": "Same blog: llama.cpp --draft-max 6 gave 94 tok/s vs MLX 102 on that setup.",
+          "source": "https://contracollective.com/blog/speculative-decoding-mlx-apple-silicon-2026",
+          "note": null
+        },
+        {
+          "text": "Speculative decoding blog claim that vLLM does not support MLX contradicts the vllm-metal 0.28.0 entry in the existing file.",
+          "source": "https://contracollective.com/blog/speculative-decoding-mlx-apple-silicon-2026",
+          "note": null
+        },
+        {
+          "text": "A Qwen3.6-35B-A3B-8bit mlx_lm.server 0.31.2 run on a 128 GB Mac Studio used --prompt-cache-bytes 24G --prompt-concurrency 1 --decode-concurrency 1 for an agent (OpenClaw) and still hit context-overflow compaction failures; anecdote.",
+          "source": "https://www.reddit.com/r/LocalLLaMA/comments/1stpdjb/help_openclaw_412_mlxlm_persistent_autocompaction/",
+          "note": null
+        },
+        {
+          "text": "mlx-lm server is thin over HF conventions and exposes fewer sampler options than llama.cpp (no DRY, XTC, grammar-constrained decoding), a gap acknowledged by a practitioner.",
+          "source": "https://medium.com/@michael.hannecke/llama-cpp-vs-mlx-on-apple-mx-775ee59df0ee",
+          "note": null
+        },
+        {
+          "text": "No equivalent of -ngl, tensor-split or NUMA flags is needed on Apple silicon because unified memory removes the problem.",
+          "source": "https://medium.com/@michael.hannecke/llama-cpp-vs-mlx-on-apple-mx-775ee59df0ee",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Corrections and disagreements",
+      "facts": [
+        {
+          "text": "CONTRADICTS: ~/.claude/skills/ai-llm-model-layer/references/on-device-local-llm-runtimes.md 7.1 \"last tag v0.31.3 ... install from git main\": PyPI has 0.32.0 (2026-10-01), so `pip install mlx-lm` should now get recent models.",
+          "source": "https://pypi.org/project/mlx-lm/",
+          "note": null
+        }
+      ]
+    }
+  ],
+  "related": []
+}

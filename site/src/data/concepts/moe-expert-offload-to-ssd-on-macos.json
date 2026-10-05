@@ -1,0 +1,424 @@
+{
+  "slug": "moe-expert-offload-to-ssd-on-macos",
+  "concept": "MoE expert offload to SSD on macOS",
+  "generated": "2026-10-05",
+  "summary": "Per-token read volume is fixed by the expert layout: Flash-MoE at 4-bit reads about 1.6 GB per token (4 experts x ~6.75 MB x 60 layers), giving a ceiling of about 18.6 tok/s at 17.5 GB/s; the engine reaches roughly 23-35% of that.",
+  "facets": [
+    {
+      "title": "Facts",
+      "facts": [
+        {
+          "text": "Per-token read volume is fixed by the expert layout: Flash-MoE at 4-bit reads about 1.6 GB per token (4 experts x ~6.75 MB x 60 layers), giving a ceiling of about 18.6 tok/s at 17.5 GB/s; the engine reaches roughly 23-35% of that.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "The Anemll fork on M5 Max measures expert I/O at 0.74 ms per layer for 27 MB (about 36 GB/s effective, vs 17.5 GB/s on M3 Max) and 96 ms per token total at 4-bit; with Q3 GGUF experts it reads 21.8 MB per layer, 77 ms per token, 12.9 tok/s.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Flash-MoE's discarded-experiment table: mmap of expert files is 5x slower on cold data (per-page fault overhead), LZ4 expert compression -13%, temporal expert prediction -18% (25% hit rate), MLP routing predictor 31% accuracy, dispatch_io -70%, expert file clustering 0% (\"NVMe ignores scatter at 7MB granularity\"), MTP speculative decoding break-even because MoE I/O scales per token.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "SwiftLM's rewritten pipeline (0.58 to 5.91 tok/s on 122B): cross-projection batching (about 1,400 eval calls to about 48 per token), concurrent pread at queue depth 24 (8 experts x 3 projections), asyncEval pipeline with speculative pread from previous-token routing (about 70% hit), persistent Metal buffers, and runtime top-k override via `SWIFTLM_TOP_K`.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "mlx-lm PR 1588 / issue 1438 (mabaeyens, 32 GB Mac, Qwen3.6-35B-A3B): `mlx_lm.load` with default `lazy=False` calls `mx.eval(model.parameters())` and materializes the full stacked expert table at load (18.2 GB spike for the 4-bit model); `load(lazy=True)` plus a dict-keyed LRU with explicit byte-range reads fixes it. A per-expert slice read measured 0.3-0.6 ms on the Apple SSD.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "ds4 (antirez) keeps a bounded cache of routed experts in RAM and reads misses from the GGUF; non-routed weights stay resident because every token needs them, and an oversized expert cache can displace them and slow decoding.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Apple's \"LLM in a Flash\" (Dec 2023, ACL Aug 2024) is the intellectual root: an inference cost model for flash, \"windowing\" (reuse recently activated neurons) and \"row-column bundling\" (larger contiguous reads). mlx-flash cites it explicitly.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "2023-12: Apple \"LLM in a Flash\" paper (dense FFN sparsity on phones, not MoE).",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "2026-02-23: llama.cpp issue 19825 filed, closed by its author 2026-02-25.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "2026-03 (about Mar 18-21): Dan Woods builds Flash-MoE in 24 hours with Claude; Anemll fork (branch m5-nax) adds Q3 GGUF experts and Metal 4 NAX for M5 Max.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "2026-04: mac-code and the \"mmap trick on 16 GB Mac mini\" posts circulate.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "2026-06-27: mlx-lm issue 1438 asks for expert streaming; 2026-07-19 PR 1588 opens an opt-in `enable_offload` primitive.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "2026-09: ds4 documents SSD streaming for GLM 5.3 and DeepSeek Flash on a 128 GB M5 Max (Sep 6); SwiftLM b782 publishes first 32 GB M6 numbers; llama.cpp merges `--no-mmap`/`--mlock` into `--load-mode` and removes the old flag spellings (2026-09-15).",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Flash-MoE does not run the model as trained: Qwen3.5-397B-A17B normally activates K=10 experts and Flash-MoE uses K=4; its author found K=4 holds quality and K=3 collapses immediately.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "SwiftLM `--stream-experts` crashed on quantized MoE models in releases b769 and b773 (`broadcast_shapes` fatal error on first request, e.g. `(263,8,8,2048) and (263,8,1)` with top-k 8); fixed in SharpAI/mlx-swift-lm PR 69 and 71. Earlier SSD tables were measured before the sync and not re-checked.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "SwiftLM: `--gpu-layers N` with MoE puts CPU-resident MoE layers on a single core (Gemma 4 26B-A4B at `--gpu-layers 23`: about 0.4 tok/s prefill, about 3 s per decoded token); treat it as OOM avoidance, not a speed trade.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "SwiftLM: combining `--stream-experts` with `--draft-model` regresses below solo streaming, because the verify pass of N+1 tokens routes to different experts and SSD I/O scales with the union (default 4 draft tokens gives a 5x I/O fan-out).",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "SwiftLM at long context: plain SSD streaming of a 126 GB DeepSeek-V4-Flash on M5 Pro 64 GB falls from 4.65 tok/s at 512 tokens to 0.32 tok/s at 40K; SSD plus TurboQuant KV holds 4.16 tok/s at 40K. Gemma 4 26B-A4B SSD plus TurboQuant on M5 Pro falls from 11.4 to 1.6 tok/s at 100K, so the KV-compression rescue is model-dependent.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Prefill is the hard phase for offload: a diverse prefill routes to nearly all 256 experts, so a 30% resident cache re-fetches most of the table every prefill; warm prefill is no faster than cold (mlx-lm 1438).",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Applying a second LRU on top of the page cache hurts: SwiftLM's application-memory expert LRU regressed 4.84 to 4.01 tok/s, Flash-MoE's Metal LRU cost 38%.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "An LLM-written Medium/blog post can misattribute speeds: the 30 tok/s on a 16 GB Mac mini in the mac-code write-up is an IQ2_M 10.6 GB model that fits entirely in RAM, not streaming.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Streamed-model hygiene: the model should live on the internal SSD, not an external drive, and out of Time Machine backups (danmackinlay), and Spotlight indexing, a nearly full disk, or thermal throttling show up as token latency (macoclock).",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Is SSD bandwidth or GPU compute the bottleneck? Flash-MoE (M3 Max 48 GB): SSD read is 56% of per-layer time (2.41 of 4.28 ms), and SSD DMA cannot overlap GPU compute on unified memory, so a serial pipeline is optimal. SwiftLM (122B on 64 GB class Macs): at steady state GPU compute is about 190 ms of about 200 ms per token, the OS page cache serves about 90% of expert reads, and speculative pread overlaps I/O with the GPU async window. These come from different models, quants and hit rates and are not reconciled; Flash-MoE's F_RDADVISE prefetch experiment measured SSD DMA slowing the GPU by 73%.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Does the 2-bit quant break JSON? Flash-MoE README: 2-bit produces `\\name\\` instead of `\"name\"`. HN commenter tarruda: llama.cpp with a 2.46 bpw quant of the same model works for tool calling; the HN critics attribute damage to the K=10 to K=4 cut plus the repack's 2-bit scheme. Unresolved; do not assume plain 2-bit is the cause.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Does mmap on a Mac work for larger-than-RAM MoE? modelfit/jock.pl: Qwen3.5-35B-A3B UD-IQ3_XXS (13 GB file) on a 16 GB Mac mini M4 reached 17.3 tok/s with zero swap under llama.cpp mmap versus 4.3 million swapouts and a 10-minute timeout under Ollama default load. The author's later edit retains it only as a \"historical observation\", says the run record cannot isolate mmap as the cause, says the 13 GB file is not larger than RAM, and says the 35B server was later retired. Flash-MoE: explicit mmap of expert files is 5x slower than pread. Existing dossiers: weights re-read per token, extremely slow. Treat 17.3 tok/s as a near-fits case, not evidence that mmap rescues a truly oversized model.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Decode cache policy: doramirdor proposed heat-pinned resident experts; mabaeyens measured plain per-layer LRU decode hit rate 0.80-0.87 (Belady ceiling 0.90-0.94) and pinning was -6 to -30 points cross-topic and net negative even within one session, so doramirdor retracted it. Cross-layer prefetch measured as a null (adjacent-layer Jaccard 0.017 vs 0.016 uniform).",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Does on-disk expert layout help? mbolt (llama.cpp, Qwen3-Next-80B-A3B IQ3_XXS, M5 Pro): co-activation reorder plus up/gate/down interleave cut cold reads per token 1418 to about 370 and decode I/O 2.23x, 1.55x end-to-end with an explicit-read prefetcher, but mmap page-fault streaming is layout-blind. Flash-MoE: clustering 0% at 7 MB expert granularity. mabaeyens/doramirdor concluded layout helps cold prefill, not a decode with an LRU.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "SSD wear: no measured write volume or endurance claim was found for expert streaming; the Reddit thread \"Does heavy local LLM inference meaningfully wear\" could not be fetched. Streaming is read-dominant, but swap and KV-cache SSD tiers do write.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Whether issue 19825's \"swap cannot handle expert routing\" claim holds for llama.cpp with `--mmap` on a Mac (as opposed to wired-limit plus swap) was never tested by a maintainer.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Quality of Flash-MoE-style K=4 and 2-3 bit experts on real agent tasks: only WikiText-2 perplexity (Q3 3.81, 4-bit MLX 3.64, Q8_0 attention 3.49, 2-bit +57%) and anecdotes.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Whether M5-generation SSD (about 36 GB/s effective read in the Anemll fork) moves the practical threshold to interactive speed for 100B+ MoE.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Issue 19825 (llama.cpp, \"Managed SSD offloading for MoE to prevent macOS kernel panics\") had a single participant, its author, who closed it as completed two days after opening it; no maintainer commented and no pull request was linked.",
+          "source": "https://github.com/ggml-org/llama.cpp/issues/19825",
+          "note": null
+        },
+        {
+          "text": "Issue 19825 reports that even with `-n-cpu-moe` and `-ngl 0` on an M4 Pro 24 GB the system entered a swap death spiral once physical RAM was exceeded, and that the author had also raised `iogpu.wired_limit_mb=22000`.",
+          "source": "https://github.com/ggml-org/llama.cpp/issues/19825",
+          "note": null
+        },
+        {
+          "text": "Issue 19825's author reports the ik_llama.cpp fork with `--cpu-moe` ran Qwen 30B IQ4_KSS at 35+ tok/s, Qwen 30B Q4_K_M at 25+ tok/s and Qwen Next 80B IQ4_KSS at 10+ tok/s on the same 24 GB M4 Pro, with prompt processing the bottleneck.",
+          "source": "https://github.com/ggml-org/llama.cpp/issues/19825",
+          "note": null
+        },
+        {
+          "text": "`--n-cpu-moe N` keeps the expert feed-forward weights of the first N layers in system RAM while `-ngl` stays at all; it is documented for discrete GPUs with VRAM, where lowering N too far causes a silent VRAM spill (one 5090 owner: 69.4 tok/s at N=12, 27.5 one step lower).",
+          "source": "https://openclawdc.com/blog/llama-cpp-moe-offload-flags-explained/",
+          "note": null
+        },
+        {
+          "text": "llama.cpp merged `--no-mmap` and `--mlock` into `-lm, --load-mode` (`none`, `mlock`) and removed the old spellings by 2026-09-15; older command lines fail with `error: invalid argument`.",
+          "source": "https://openclawdc.com/blog/llama-cpp-moe-offload-flags-explained/",
+          "note": null
+        },
+        {
+          "text": "Flash-MoE's measured table on M3 Max 48 GB: 4-bit experts 4.36 tok/s (FMA kernel; 3.90 before), 2-bit experts 5.74 tok/s with 120 GB on disk, 2-bit single-token peak 7.05 tok/s on a warm cache.",
+          "source": "https://github.com/danveloper/flash-moe",
+          "note": null
+        },
+        {
+          "text": "Flash-MoE reduces Qwen3.5-397B-A17B from its native K=10 active experts to K=4; the developer found K=3 causes immediate quality collapse.",
+          "source": "https://www.buildmvpfast.com/blog/flash-moe-weight-streaming-benchmarks-quality-tradeoffs-2026",
+          "note": null
+        },
+        {
+          "text": "Flash-MoE's resident footprint is about 6 GB (5.5 GB non-expert weights mmap'd read-only plus about 200 MB Metal scratch), leaving about 42 GB on a 48 GB machine for the OS and page cache (about 35 GB retained experts).",
+          "source": "https://github.com/danveloper/flash-moe",
+          "note": null
+        },
+        {
+          "text": "Flash-MoE experiment results: mmap of expert files -5x, LZ4 expert compression -13%, F_RDADVISE prefetch net 0% (SSD DMA slows the GPU 73%), temporal expert prediction -18% at 25% hit rate, MLP routing predictor 31% accuracy, dispatch_io -70%, spin-poll GPU wait -23%, speculative early routing -38%, expert file clustering 0%, MTP speculative decoding break-even.",
+          "source": "https://github.com/danveloper/flash-moe",
+          "note": null
+        },
+        {
+          "text": "Flash-MoE uses F_NOCACHE only for 2-bit (+3% from avoiding page thrash); 4-bit relies on the OS page cache.",
+          "source": "https://github.com/danveloper/flash-moe",
+          "note": null
+        },
+        {
+          "text": "Flash-MoE's paper had a peer-review pass correcting \"8x DRAM\" to 4x, and a vm_stat estimate of 1-2 GB/s memory-compressor overhead.",
+          "source": "https://github.com/danveloper/flash-moe",
+          "note": null
+        },
+        {
+          "text": "Community Flash-MoE benchmark on M5 Pro 64 GB reached 6.55 tok/s at 4-bit.",
+          "source": "https://www.buildmvpfast.com/blog/flash-moe-weight-streaming-benchmarks-quality-tradeoffs-2026",
+          "note": null
+        },
+        {
+          "text": "Flash-MoE on an iPhone 17 Pro 12 GB at Q1 reached 0.6 tok/s with a 50 second time to first token.",
+          "source": "https://www.buildmvpfast.com/blog/flash-moe-weight-streaming-benchmarks-quality-tradeoffs-2026",
+          "note": null
+        },
+        {
+          "text": "Anemll's flash-moe fork (branch m5-nax, targeting M5 Max 128 GB) measures 4-bit decode at about 96 ms per token (expert I/O 0.74 ms per layer for 27 MB, 47% of time) and Q3 GGUF experts with `--cache-io-split 4` at 12.9 tok/s (77 ms per token, 1.31 GB experts read per token), 36% faster than 4-bit (9.5 tok/s in its README).",
+          "source": "https://github.com/Anemll/flash-moe",
+          "note": null
+        },
+        {
+          "text": "Anemll fork perplexity on WikiText-2 (2000 tokens): Q3 GGUF 3.81, MLX 4-bit 3.64, full GGUF resident stack 3.49 (5.1 tok/s), 2-bit degrades perplexity by 57%.",
+          "source": "https://github.com/Anemll/flash-moe",
+          "note": null
+        },
+        {
+          "text": "Anemll fork: Q8_0 attention overlays improve quality but halve decode speed because dense matmuls are 54% of per-token time and Q8_0 doubles their memory traffic; a Q6_K LM head costs about 2% of decode time.",
+          "source": "https://github.com/Anemll/flash-moe",
+          "note": null
+        },
+        {
+          "text": "Anemll fork recommends Unsloth UD-Q3_K_XL (IQ3_XXS/IQ4_XS, with layer 27 attention kept BF16 and down_proj experts at Q5_K) as 23% smaller expert I/O than uniform 4-bit.",
+          "source": "https://github.com/Anemll/flash-moe",
+          "note": null
+        },
+        {
+          "text": "An M5 Max 128 GB run of Qwen3.5-397B through llama.cpp at 2.46 bpw is quoted at about 20 tok/s on an M1 Ultra 128 GB with MMLU 87.86%, GPQA Diamond 82.32% and reliable constrained JSON, as the in-RAM comparison to streaming.",
+          "source": "https://www.buildmvpfast.com/blog/flash-moe-weight-streaming-benchmarks-quality-tradeoffs-2026",
+          "note": null
+        },
+        {
+          "text": "An HN commenter reports llama.cpp with the 2.46 bpw quant of the same 397B model \"has been working flawless for tool calling\", disputing that 2-bit alone explains Flash-MoE's JSON failure.",
+          "source": "https://news.ycombinator.com/item?id=47476422",
+          "note": null
+        },
+        {
+          "text": "HN commenters note SSD I/O in expert streaming is bursty (the SSD saturates only after the router result lands and idles during compute), and that an external TB5 enclosure with a WD SN850X measured 6-7 GB/s on an M4 Pro.",
+          "source": "https://news.ycombinator.com/item?id=47476422",
+          "note": null
+        },
+        {
+          "text": "SwiftLM `--stream-experts` on a Mac mini M6 32 GB (170 GB/s, Metal working set 26.8 GB, release b782): Qwen3.6-35B-A3B 4-bit (21.6 GB) decodes 48.4 tok/s fully on GPU versus 14.1 tok/s streamed (6.8 GB peak at 40.8K); Gemma 4 26B-A4B 8-bit (about 26 GB) swaps on GPU but streams at 9.7 tok/s with a context limit near 10K tokens.",
+          "source": "https://github.com/SharpAI/SwiftLM",
+          "note": null
+        },
+        {
+          "text": "SwiftLM streamed Qwen3.6-35B-A3B on the M6 holds 14.1 / 14.1 / 13.9 / 13.0 tok/s decode at about 0.55K / 2.3K / 9.8K / 40.8K prompt tokens, with prefill 263-415 tok/s and zero swap growth.",
+          "source": "https://github.com/SharpAI/SwiftLM",
+          "note": null
+        },
+        {
+          "text": "SwiftLM's SSD-streaming rewrite on 122B-class models: original sequential pread 0.58 tok/s; top-k 8 (full quality) 4.95; top-k 6 (default) 5.20; top-k 4 5.91; top-k 2 6.52 tok/s, with about 10.6 GB resident and no swap.",
+          "source": "https://github.com/SharpAI/SwiftLM",
+          "note": null
+        },
+        {
+          "text": "SwiftLM reports that at steady state GPU compute is about 190 ms of about 200 ms per token and the OS page cache serves about 90% of expert reads, and that an application-level expert LRU regressed 4.84 to 4.01 tok/s.",
+          "source": "https://github.com/SharpAI/SwiftLM",
+          "note": null
+        },
+        {
+          "text": "SwiftLM streams DeepSeek-V4-Flash (126 GB Q3-mixed) on an M5 Pro 64 GB at 4.65 tok/s with 512 context and 0.32 tok/s at 40K; with TurboQuant KV it holds 4.78 and 4.16 tok/s; 16-worker prefetch did not help (4.43 and 0.32).",
+          "source": "https://github.com/SharpAI/SwiftLM",
+          "note": null
+        },
+        {
+          "text": "SwiftLM Gemma 4 26B-A4B 4-bit on M5 Pro 64 GB: full-RAM 77.5 tok/s at 512 context vs SSD stream 10.8 tok/s (22.2 GB) and 9.0 tok/s at 100K (27.6 GB); at 40K the full-RAM path used 48.7 GB versus 24.2 GB streamed.",
+          "source": "https://github.com/SharpAI/SwiftLM",
+          "note": null
+        },
+        {
+          "text": "SwiftLM combining `--stream-experts` with `--draft-model` (4 draft tokens) causes a 5x I/O fan-out and regresses below solo streaming.",
+          "source": "https://github.com/SharpAI/SwiftLM",
+          "note": null
+        },
+        {
+          "text": "SwiftLM reports a 9.5 tok/s dense Qwen3.8-27B-4bit (11.3 GB) at about 107 GB/s effective, 63% of the M6's 170 GB/s, as the contrast with 48.4 tok/s for the 3B-active MoE.",
+          "source": "https://github.com/SharpAI/SwiftLM",
+          "note": null
+        },
+        {
+          "text": "SwiftLM streaming of Qwen3.5-122B-A10B 4-bit: 0.58 to 5.91 tok/s with about 10 GB resident; the same article lists `SWIFTLM_TOP_K=4` and 6 as the conservative settings and warns that nearly full disks, external drives, Spotlight and thermals show up as token latency.",
+          "source": "https://medium.com/macoclock/the-122b-model-inside-a-mac-mini-92717895d7d0",
+          "note": null
+        },
+        {
+          "text": "ds4 `--ssd-streaming` on a 128 GB M5 Max with automatic cache sizing: GLM 5.3 Flash Q4_K (177.77 GiB) prefill 121 tok/s initial and 104 continued, generation 11.9 / 14.9 tok/s; DeepSeek Flash Vision MXFP4 (145.26 GiB) prefill 300 / 263 tok/s, generation 11.9 / 19.3 tok/s (single run, 86.2 GiB expert cache).",
+          "source": "https://github.com/antirez/ds4/blob/main/docs/SSD_STREAMING.md",
+          "note": null
+        },
+        {
+          "text": "ds4 states resident inference is faster when the model fits, that generation is more sensitive to cache misses than prefill, and that an oversized expert cache can displace the non-routed weights and slow decoding.",
+          "source": "https://github.com/antirez/ds4/blob/main/docs/SSD_STREAMING.md",
+          "note": null
+        },
+        {
+          "text": "ds4 on a 128 GB Mac streams full GLM 5.3 IQ2_XXS (196.58 GiB) at 4-5 tok/s; with an 8K context and 61.35 GiB expert cache a 16-token append fell from 30.8 s to 2.9 s and generation rose from 4.09 to 5.11 tok/s.",
+          "source": "https://github.com/antirez/ds4/blob/main/docs/SSD_STREAMING.md",
+          "note": null
+        },
+        {
+          "text": "OptiQ's 2-bit Qwen3.8-Flash-Next (81 GB on disk) peaks at 4.6 GB memory and 3.8 tok/s on an M3 Max, SSD-bound.",
+          "source": "https://danmackinlay.name/notebook/local_llm_mac.html",
+          "note": null
+        },
+        {
+          "text": "Some 2026 models carry large n-gram or \"engram\" embedding tables read a few rows per token (Qwen3.8-Flash-Next 51B n-gram table; DeepSeek V4.1 Flash 189 GiB engram in ds4's Q2), so a 137 GiB ds4 Q2 file needs only 42 GiB resident weights.",
+          "source": "https://danmackinlay.name/notebook/local_llm_mac.html",
+          "note": null
+        },
+        {
+          "text": "mlx-lm `load()` with the default `lazy=False` materializes the whole stacked expert table at load (18.2 GB spike for Qwen3.6-35B-A3B-4bit) and the server never resets `mx.get_peak_memory()`, so the load high-water mark appears at request time.",
+          "source": "https://github.com/ml-explore/mlx-lm/issues/1438",
+          "note": null
+        },
+        {
+          "text": "mlx-lm issue 1438 measurement on a 32 GB Mac (Qwen3.6-35B-A3B, resident fraction 0.3): 4-bit with offload off 57.1 tok/s decode and 616/957 tok/s prefill cold/warm; 4-bit offload on 10.8 tok/s decode and 77/76 prefill; 8-bit (35 GB, over RAM and the ~25 GB wired limit) 6.6 tok/s decode, 59/56 prefill, 12.7-13.0 GB peak.",
+          "source": "https://github.com/ml-explore/mlx-lm/issues/1438",
+          "note": null
+        },
+        {
+          "text": "Under mlx-lm 1438's LRU, per-layer decode hit rate at 30% capacity (77 of 256 experts) is 0.83 code, 0.87 prose, 0.80 agentic versus Belady ceilings 0.92, 0.94, 0.90; the 0.51 first quoted was prefill-dominated.",
+          "source": "https://github.com/ml-explore/mlx-lm/issues/1438",
+          "note": null
+        },
+        {
+          "text": "mlx-lm 1438: pinning the hottest experts from a profile lowered decode hit rate 6-30 points cross-topic and was net negative within a session; adjacent-layer expert Jaccard of 0.017 (uniform 0.016) means cross-layer prefetch has no signal.",
+          "source": "https://github.com/ml-explore/mlx-lm/issues/1438",
+          "note": null
+        },
+        {
+          "text": "mlx-lm 1438: on this hardware disk is about 14% of cold prefill wall (0.207 ms per slice at 8-way parallel), so layout or reorder work caps at a single-digit prefill gain by Amdahl.",
+          "source": "https://github.com/ml-explore/mlx-lm/issues/1438",
+          "note": null
+        },
+        {
+          "text": "mlx-lm 1438 (mbolt, Qwen3-Next-80B-A3B IQ3_XXS, M5 Pro): experts are 95% of file bytes; co-activation reorder plus up/gate/down interleave cuts cold reads per token from 1418 to about 370, decode I/O time 2.23x, and 1.55x end-to-end with an explicit-read prefetcher; mmap page-fault streaming is layout-blind.",
+          "source": "https://github.com/ml-explore/mlx-lm/issues/1438",
+          "note": null
+        },
+        {
+          "text": "mlx-lm 1438: MLX arrays are thread-affine, so a fetched expert's `mx.array` must be built on the model thread; a prefix slice of an `mx.array` pins its parent buffer, so the resident set must be seeded from the fetch function.",
+          "source": "https://github.com/ml-explore/mlx-lm/pull/1588",
+          "note": null
+        },
+        {
+          "text": "mlx-lm PR 1588 adds opt-in `enable_offload(resident_slots, fetch_fn)` to SwitchLinear/QuantizedSwitchLinear, off by default; the author says offload on a model that already fits cost about 5x decode and 8-12x prefill and should be used only when the model otherwise cannot load.",
+          "source": "https://github.com/ml-explore/mlx-lm/pull/1588",
+          "note": null
+        },
+        {
+          "text": "mlx-moe (mu-hashni) and SwiftLM were cited as the existing MLX SSD expert-streaming proofs of concept when mlx-lm issue 1438 was opened for a 395 GB GLM-5.2-mxfp4 on a 128 GB M5 Max.",
+          "source": "https://github.com/ml-explore/mlx-lm/issues/1438",
+          "note": null
+        },
+        {
+          "text": "mlx-flash (matt-k-wong) is a dense layer-weight streamer inspired by \"LLM in a Flash\", using mmap(lazy) plus a predictive pread scheduler and a token-bucket pacer to keep GPU slowdown under 5%; its MoE lookahead routing is only on the v0.6.0 roadmap, and the PyPI package of the same name is unrelated.",
+          "source": "https://github.com/matt-k-wong/mlx-flash",
+          "note": null
+        },
+        {
+          "text": "mac-code's measured table on a Mac mini M4 16 GB: Qwen3.5-35B-A3B IQ2_M (10.6 GB, fully in RAM) 30 tok/s; Qwen3-30B-A3B Q4 (17.2 GB) via \"Expert Sniper\" 4.3 tok/s; Qwen3.5-35B-A3B Q4 (19.5 GB) Expert Sniper 5.4 tok/s; Q4_K_M (22 GB) \"Flash Streaming\" 1.54 tok/s; dense Qwen3.5-27B Flash Streaming 0.18 tok/s.",
+          "source": "https://github.com/walter-grace/mac-code",
+          "note": null
+        },
+        {
+          "text": "A blog write-up of mac-code headlines \"30 tokens per second\" for a 35B model paged from SSD, but the 30 tok/s row is the IQ2_M model that fits in RAM; the streamed rows are 1.5-5.4 tok/s.",
+          "source": "https://themenonlab.blog/blog/mac-code-35b-ai-agent-apple-silicon-flash-paging",
+          "note": null
+        },
+        {
+          "text": "Jock.pl's original run on a 16 GB M4 Mac mini: Ollama default load of Qwen3.5-35B-A3B tried 26 GB, froze with 4.3 million swapouts and produced no token in 10 minutes; llama.cpp with mmap on the 13 GB UD-IQ3_XXS file gave 17.3 tok/s with 81% memory free; the author later flagged that the run record cannot isolate mmap as the cause and retired the 35B server.",
+          "source": "https://thoughts.jock.pl/p/local-llm-35b-mac-mini-gemma-swap-production-2026",
+          "note": null
+        },
+        {
+          "text": "Apple's \"LLM in a Flash\" frames flash inference as an inference cost model that reduces data volume transferred and reads larger contiguous chunks, via windowing and row-column bundling.",
+          "source": "https://machinelearning.apple.com/research/efficient-large-language",
+          "note": null
+        },
+        {
+          "text": "A Flash-MoE-style practical assessment recommends in-RAM llama.cpp when the model fits, and treats streaming 397B at about 4-6 tok/s as suited to offline or overnight batch work, hardware evaluation, and an M5 Max 128 GB tier at 12.9 tok/s.",
+          "source": "https://www.buildmvpfast.com/blog/flash-moe-weight-streaming-benchmarks-quality-tradeoffs-2026",
+          "note": null
+        },
+        {
+          "text": "Qwen3.5-122B-A10B at higher quant on the same machine is argued to give better effective quality per second than a 397B streamed at about 5 tok/s.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Expert-streaming speed on Apple Silicon scales with effective SSD read bandwidth, resident non-expert footprint and expert cache hit rate, and falls sharply with context length when KV and the working set crowd out the page cache (SwiftLM 0.32 tok/s at 40K on 126 GB DeepSeek).",
+          "source": "asserted",
+          "note": null
+        }
+      ]
+    }
+  ],
+  "related": []
+}

@@ -1,0 +1,84 @@
+{
+  "slug": "ternary-gguf-packings-ptq1-0-and-pq2-0-in-the-pr",
+  "concept": "Ternary GGUF packings PTQ1_0 and PQ2_0 in the Prism llama.cpp fork",
+  "generated": "2026-10-05",
+  "summary": "GGML_TYPE_PQ2_0 = 142 and GGML_TYPE_PTQ1_0 = 143, past upstream's GGML_TYPE_COUNT, so they coexist with upstream Q1_0 (41) and Q2_0 (42, group 64).",
+  "facets": [
+    {
+      "title": "Facts",
+      "facts": [
+        {
+          "text": "GGML_TYPE_PQ2_0 = 142 and GGML_TYPE_PTQ1_0 = 143, past upstream's GGML_TYPE_COUNT, so they coexist with upstream Q1_0 (41) and Q2_0 (42, group 64).",
+          "source": "https://github.com/ggml-org/llama.cpp/issues/29058",
+          "note": null
+        },
+        {
+          "text": "block_pq2_0 is 34 bytes per 128 weights: an fp16 scale plus 32 bytes of 2-bit codes, where 00 = -1, 01 = 0, 10 = +1, 11 = +2, decoded as (q-1)*d.",
+          "source": "https://github.com/ggml-org/llama.cpp/issues/29058",
+          "note": null
+        },
+        {
+          "text": "block_ptq1_0 is 28 bytes per 128 weights: 24 bytes qs at 5 trits per byte (120 weights), 2 bytes qh at 4 trits per byte (8 weights), and an fp16 scale.",
+          "source": "https://github.com/ggml-org/llama.cpp/issues/29058",
+          "note": null
+        },
+        {
+          "text": "PTQ1_0 file layout was verified to the byte: with 28-byte blocks and a 32-byte-aligned data start of 11120992, max(tensor_offset + tensor_bytes) equals the payload.",
+          "source": "https://github.com/ggml-org/llama.cpp/issues/29058",
+          "note": null
+        },
+        {
+          "text": "Both Bonsai-2 27B packs hold 851 tensors (402 x type 142 or 143, 353 F32, 96 BF16), arch qwen35, 48 SSM and 16 full-attention layers.",
+          "source": "https://github.com/ggml-org/llama.cpp/issues/29058",
+          "note": null
+        },
+        {
+          "text": "Pack file_type values are 141 (PQ2_0) and 143 (PTQ1_0); the LLAMA_FTYPE enum on the prism branch matches, and the GGML_FTYPE values 128 and 129 are never written to files.",
+          "source": "https://github.com/ggml-org/llama.cpp/issues/29058",
+          "note": null
+        },
+        {
+          "text": "GGUF metadata prism.hadamard.* holds block_size 1024, transform normalized-sylvester-walsh-hadamard, axis input-last-dimension, sign_mode explicit, sign_widths [5120, 6144, 17408], 28672 sign values, 401 weight_names, inverse_weight_names [\"token_embd.weight\"], gdn_v_grouped true.",
+          "source": "https://github.com/ggml-org/llama.cpp/issues/29058",
+          "note": null
+        },
+        {
+          "text": "The runtime computes y = W' * (H * (s * P * x)) (permute, then signs, then Hadamard) on build_lora_mm paths; the embedding inverse runs the Hadamard then signs on the looked-up row.",
+          "source": "https://github.com/ggml-org/llama.cpp/issues/29058",
+          "note": null
+        },
+        {
+          "text": "The fork refuses to load folded weights on tensor kinds outside attn_q/k/v/qkv/gate/output, ffn_gate/up/down (and MoE variants), ssm_out and output.weight.",
+          "source": "https://github.com/ggml-org/llama.cpp/issues/29058",
+          "note": null
+        },
+        {
+          "text": "gdn_v_grouped permutes the ssm_out activation [hd, nk, rep] to [hd, rep, nk] with hd 128, nk 16, rep 3 (ssm_dt_rank 48, ssm_n_group 16).",
+          "source": "https://github.com/ggml-org/llama.cpp/issues/29058",
+          "note": null
+        },
+        {
+          "text": "Prism's Ternary-Bonsai-27B-Q2_0.gguf is g128 under type id 42 and fails against a reader that treats id 42 as g64 (18 B/64 versus 34 B/128); the g64 file is Ternary-Bonsai-27B-Q2_g64.gguf.",
+          "source": "https://huggingface.co/prism-ml/Ternary-Bonsai-27B-gguf/discussions/59",
+          "note": null
+        },
+        {
+          "text": "Prism merged the quickstart fix pointing at the PQ2_0 pack on 2026-08-31.",
+          "source": "https://huggingface.co/prism-ml/Ternary-Bonsai-27B-gguf/discussions/59",
+          "note": null
+        },
+        {
+          "text": "Ollama 0.33.2 `ollama create` fails on these packs with `size overflow` because its Go GGUF parser has no size for types 142/143, and 0.34.2 source still lacks them.",
+          "source": "https://github.com/ggml-org/llama.cpp/issues/29058",
+          "note": null
+        },
+        {
+          "text": "The F16 Bonsai-2 pack loads in stock llama.cpp without a warning and yields incoherent text because the Hadamard metadata is ignored.",
+          "source": "https://github.com/ggml-org/llama.cpp/issues/29058",
+          "note": null
+        }
+      ]
+    }
+  ],
+  "related": []
+}

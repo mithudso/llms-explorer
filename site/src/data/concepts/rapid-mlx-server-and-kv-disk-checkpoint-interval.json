@@ -1,0 +1,114 @@
+{
+  "slug": "rapid-mlx-server-and-kv-disk-checkpoint-interval",
+  "concept": "Rapid-MLX server and kv-disk-checkpoint-interval",
+  "generated": "2026-10-05",
+  "summary": "`--kv-disk-checkpoint-interval` is a token interval at which the scheduler snapshots KV state to `~/.cache/rapid-mlx/kv_checkpoints/`; 0 disables and is the default.",
+  "facets": [
+    {
+      "title": "Facts",
+      "facts": [
+        {
+          "text": "`--kv-disk-checkpoint-interval` is a token interval at which the scheduler snapshots KV state to `~/.cache/rapid-mlx/kv_checkpoints/`; 0 disables and is the default.",
+          "source": "https://github.com/raullenchai/Rapid-MLX/blob/main/docs/reference/cli.md",
+          "note": null
+        },
+        {
+          "text": "Each `--kv-disk-checkpoint-interval` snapshot blocks decode for O(context).",
+          "source": "https://github.com/raullenchai/Rapid-MLX/blob/main/docs/reference/cli.md",
+          "note": null
+        },
+        {
+          "text": "The checkpoint directory is capped by `RAPID_MLX_KV_CHECKPOINT_MAX_BYTES` (default 21,474,836,480 bytes, 20 GiB), oldest files evicted first, and the value is read at scan time so it can change without a restart.",
+          "source": "https://github.com/raullenchai/Rapid-MLX/blob/main/docs/reference/cli.md",
+          "note": null
+        },
+        {
+          "text": "`rapid-mlx serve` prefix-cache flags: `--enable-prefix-cache` / `--disable-prefix-cache` (on by default), `--prefix-cache-index radix|hash` (default radix; radix surfaces dedup-bytes-saved on `/metrics`), `--prefix-cache-size` (legacy entry-count mode, default 100) and `--cache-memory-mb` (auto, about 20% of RAM).",
+          "source": "https://github.com/raullenchai/Rapid-MLX/blob/main/docs/reference/cli.md",
+          "note": null
+        },
+        {
+          "text": "`--hybrid-cache-entries N` is opt-in (default 0): it retains N non-trimmable prefix-cache entries for prefix-extension reuse on hybrid recurrent-state (GatedDeltaNet/Mamba) and sliding-window (Gemma 4, GPT-OSS) models.",
+          "source": "https://github.com/raullenchai/Rapid-MLX/blob/main/docs/reference/configuration.md",
+          "note": null
+        },
+        {
+          "text": "`RAPID_MLX_PREFIX_CACHE_MAX_BYTES` is a hard byte cap on prefix-cache memory; unset, blank or invalid values fall back to the heuristic limit and log once.",
+          "source": "https://github.com/raullenchai/Rapid-MLX/blob/main/docs/reference/cli.md",
+          "note": null
+        },
+        {
+          "text": "`rapid-mlx chat --disable-prefix-cache` is described as disabling reusable on-disk prefix caching for a server spawned by `chat`, and applies only when `chat` spawns its own server.",
+          "source": "https://github.com/raullenchai/Rapid-MLX/blob/main/docs/reference/cli.md",
+          "note": null
+        },
+        {
+          "text": "Since commit 1394f16 the heuristic budget is `max(percent x available, floor)` with floor `min((Metal cap - resident weights) / 3, 4 GiB)`, applied only when a Metal cap is configured and never raised for an explicit `--cache-memory-percent`, `--cache-memory-mb` or `RAPID_MLX_PREFIX_CACHE_MAX_BYTES`.",
+          "source": "https://github.com/raullenchai/Rapid-MLX/commit/1394f16960d51e5d619c1aa45f1aa173454eb8c8",
+          "note": null
+        },
+        {
+          "text": "The decision record for commit 1394f16 measured an 18 GB M3 Pro: Metal cap 11.6 GB, resident weights 5.2 GB, floor 2.1 GB; on a 16 GB Mac the cap is about 9.6 GB and the floor 1.5 GB, which still holds one 23K-token entry.",
+          "source": "https://github.com/raullenchai/Rapid-MLX/commit/1394f16960d51e5d619c1aa45f1aa173454eb8c8",
+          "note": null
+        },
+        {
+          "text": "For Qwen3.5-9B-4bit one 23K-token session entry is about 958 MiB: 8 full-attention layers x 2 x 4 KV heads x 256 x 2 bytes is 32 KiB per token (about 712 MiB at 22.8K tokens), plus 24 GatedDeltaNet states of about 2 MiB and up to 4 hybrid checkpoints, about 250 MiB in total.",
+          "source": "https://github.com/raullenchai/Rapid-MLX/commit/1394f16960d51e5d619c1aa45f1aa173454eb8c8",
+          "note": null
+        },
+        {
+          "text": "Before the fix the 20% budget was measured at boot after weights loaded, giving 0.81-1.2 GB; any entry larger than the whole budget was dropped at store time (`Cache entry too large`).",
+          "source": "https://github.com/raullenchai/Rapid-MLX/commit/1394f16960d51e5d619c1aa45f1aa173454eb8c8",
+          "note": null
+        },
+        {
+          "text": "The 'R6-H6' cache-self trigger evicted down to 90% of the cache's own budget on every engine tick, independent of Metal pressure, and removed the only session entry right after the store; the fix keeps the most recently used entry below the Metal cap.",
+          "source": "https://github.com/raullenchai/Rapid-MLX/commit/1394f16960d51e5d619c1aa45f1aa173454eb8c8",
+          "note": null
+        },
+        {
+          "text": "The 'D-METAL-CAP' admission gate now evicts memory-aware prefix-cache entries in LRU order before returning 503, so a larger cache never turns into backpressure.",
+          "source": "https://github.com/raullenchai/Rapid-MLX/commit/1394f16960d51e5d619c1aa45f1aa173454eb8c8",
+          "note": null
+        },
+        {
+          "text": "Each hybrid request used to store two non-trimmable entries of about 1 GB (message-boundary snapshot and N-token prompt); the N-token entry is now skipped when it adds at most 64 tokens of reuse, and the completion entry is skipped when both entries would not fit.",
+          "source": "https://github.com/raullenchai/Rapid-MLX/commit/1394f16960d51e5d619c1aa45f1aa173454eb8c8",
+          "note": null
+        },
+        {
+          "text": "Before a hybrid prefill starts, Rapid-MLX projects peak memory as recurrent state plus in-flight reservations plus remaining prompt KV plus 3.5 x that KV, compares it with 90% of the Metal cap, and evicts prefix-cache entries in LRU order until it fits; a 23K cold prefill on Qwen3.5-9B peaked 3.2 GB above weights.",
+          "source": "https://github.com/raullenchai/Rapid-MLX/commit/1394f16960d51e5d619c1aa45f1aa173454eb8c8",
+          "note": null
+        },
+        {
+          "text": "Prefill reclaim applies only to hybrid models (head_dim-256 attention materializes each chunk's score matrix) and stops as soon as an eviction frees no Metal memory.",
+          "source": "https://github.com/raullenchai/Rapid-MLX/commit/1394f16960d51e5d619c1aa45f1aa173454eb8c8",
+          "note": null
+        },
+        {
+          "text": "The decision record lists known limits: the floor is computed once when the scheduler is built, ignores models loaded later and is near zero with `--disk-stream`, the multimodal lane keeps its own budget with no floor, and storing prefix entries with 8-bit KV (half the KV bytes) stays opt-in because it is lossy on every hit.",
+          "source": "https://github.com/raullenchai/Rapid-MLX/commit/1394f16960d51e5d619c1aa45f1aa173454eb8c8",
+          "note": null
+        },
+        {
+          "text": "Rapid-MLX's decision record is dated 2026-09-27 with status Accepted and lists measurement (Vector) and policy (Atlas) as owners.",
+          "source": "https://github.com/raullenchai/Rapid-MLX/commit/1394f16960d51e5d619c1aa45f1aa173454eb8c8",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Corrections and disagreements",
+      "facts": [
+        {
+          "text": "CONTRADICTS: https://danmackinlay.name/notebook/local_llm_mac.html (calls `--kv-disk-checkpoint-interval` the nearest replacement for oMLX's persistent cache; not in an existing dossier): Rapid-MLX's CLI reference says the flag is write-only today and 'enable only for external tooling that consumes the files'.",
+          "source": "https://github.com/raullenchai/Rapid-MLX/blob/main/docs/reference/cli.md",
+          "note": null
+        }
+      ]
+    }
+  ],
+  "related": []
+}

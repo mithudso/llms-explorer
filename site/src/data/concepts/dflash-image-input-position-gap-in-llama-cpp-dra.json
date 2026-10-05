@@ -1,0 +1,179 @@
+{
+  "slug": "dflash-image-input-position-gap-in-llama-cpp-dra",
+  "concept": "DFlash image-input position gap in llama.cpp draft context",
+  "generated": "2026-10-05",
+  "summary": "The draft-side `process()` returns early for any batch that has no token ids or that carries embeddings (`if (batch_in.token == nullptr || batch_in.embd != nullptr) return true;`) with a `TODO: how to make it work with vision tokens?` comment, so image embedding positions never enter the draft co...",
+  "facets": [
+    {
+      "title": "Facts",
+      "facts": [
+        {
+          "text": "The draft-side `process()` returns early for any batch that has no token ids or that carries embeddings (`if (batch_in.token == nullptr || batch_in.embd != nullptr) return true;`) with a `TODO: how to make it work with vision tokens?` comment, so image embedding positions never enter the draft context.",
+          "source": "https://github.com/ggml-org/llama.cpp/pull/25144",
+          "note": null
+        },
+        {
+          "text": "`llama-batch.cpp` allows a position jump only for M-RoPE inputs (`n_pos_per_embd > 1`): a token batch needs `X < Y`, an embedding batch `X <= Y`; for one-axis RoPE the positions must be consecutive.",
+          "source": "https://github.com/ggml-org/llama.cpp/pull/25144",
+          "note": null
+        },
+        {
+          "text": "The DFlash drafter context is an independent one-axis-RoPE KV cache, while Qwen3.5/3.6 targets use M-RoPE; copying target positions into the draft context therefore produces a gap the draft context refuses.",
+          "source": "https://github.com/z-lab/llama.cpp-fork/pull/5",
+          "note": null
+        },
+        {
+          "text": "A maintainer comment in the PR 25144 thread (the cached text shows no author name; it follows ngxson's FIXME request) gives the root cause as a batch-format limit: the batch must carry vision embeddings and target hidden-state embeddings at once, and today it cannot. Its preferred fix is the `llama_batch` refactor (PR 24669, `llama_batch_ext`, superseding PR 11875) and not a per-case patch.",
+          "source": "https://github.com/ggml-org/llama.cpp/pull/25144",
+          "note": null
+        },
+        {
+          "text": "Draft-local numbering (PR 25144's second approach, and the fork's DFlash2 fix) numbers the draft KV by its own last position plus one, so the draft never numbers the image and no hole opens; the server's rollback, checkpoint, prompt-cache, slot and cancellation paths stay correct because the draft never uses target positions.",
+          "source": "https://github.com/ggml-org/llama.cpp/pull/25144",
+          "note": null
+        },
+        {
+          "text": "15 Jun 2026: PR 24669 (ngxson) opens as a draft: \"(wip) add llama_batch_ext\", superseding PR 11875.",
+          "source": "https://github.com/ggml-org/llama.cpp/pull/24669",
+          "note": null
+        },
+        {
+          "text": "29 Jun 2026: PR 25144 (ServeurpersoCom) opens to fix an MTP draft crash on image input for Step-3.7-Flash (\"failed to process speculative batch\"); first commit drops speculation for a sequence whose draft KV fell behind, second commit renumbers draft positions across vision gaps (30 Jun).",
+          "source": "https://github.com/ggml-org/llama.cpp/pull/25144",
+          "note": null
+        },
+        {
+          "text": "3 to 7 Jul 2026: ngxson calls the renumbering \"a temporary patch\" that will likely lower draft acceptance on vision input and asks for a FIXME; the author adds one, then writes that proper support means reinjecting target-side image embeddings into the draft KV with draft-local positions; ngxson answers that the proper way is to extend batches to carry vision and target embeddings together and suggests not merging the PR. The author marks it draft on 8 Jul.",
+          "source": "https://github.com/ggml-org/llama.cpp/pull/25144",
+          "note": null
+        },
+        {
+          "text": "23 Jul 2026: on PR 22105 the DFlash author (ruixiang63) answers the image-crash report with \"Vision input for speculative decoding is not supported yet\", pointing at the PR 25144 thread and PR 24669.",
+          "source": "https://github.com/ggml-org/llama.cpp/pull/22105",
+          "note": null
+        },
+        {
+          "text": "23 Aug 2026: z-lab's fork opens PR 5 \"keep DFlash draft positions contiguous across mtmd vision chunks\" for its DFlash2 build, using draft-local positions for mtmd feature injection and draft noise blocks.",
+          "source": "https://github.com/z-lab/llama.cpp-fork/pull/5",
+          "note": null
+        },
+        {
+          "text": "29 Aug 2026: a user running Qwen3.8-27B with `--mmproj` and `--spec-type draft-mtp` on one RTX 3090 offers to test the PR 25144 branch on the image path; text-only prompts work for them.",
+          "source": "https://github.com/ggml-org/llama.cpp/pull/25144",
+          "note": null
+        },
+        {
+          "text": "The failure does not hit every drafter. The PR 25144 author sorted MTP drafts into three families: separate cache with one-axis RoPE (Step-3.7-Flash, crashes), separate cache with M-RoPE (Qwen3.6, tolerates a forward jump and keeps drafting) and shared cache (Gemma-4, no gap forms).",
+          "source": "https://github.com/ggml-org/llama.cpp/pull/25144",
+          "note": null
+        },
+        {
+          "text": "Relaxing the position check lets the batch through but gives zero accepted drafts, because the hole in the draft KV makes the draft useless; renumbering gave about 0.75 acceptance on a quick probe.",
+          "source": "https://github.com/ggml-org/llama.cpp/pull/25144",
+          "note": null
+        },
+        {
+          "text": "Independent drafts (a separate small draft model sharing only vocabulary) already get a compacted text-only prompt on the server through `get_text_tokens`, so they do not gap.",
+          "source": "https://github.com/ggml-org/llama.cpp/pull/25144",
+          "note": null
+        },
+        {
+          "text": "Visible symptoms are repeated non-consecutive-position warnings during image processing, then `failed to process speculative batch`; text-only requests keep working. A separate warning `dflash requires ctx_other to be set` appears during memory fitting and is normal.",
+          "source": "https://github.com/ggml-org/llama.cpp/pull/22105",
+          "note": null
+        },
+        {
+          "text": "Draft-local numbering still gives the drafter no view of the image: the target's hidden states carry image information (the draft is conditioned on target features), but draft attention over its own KV sees no image tokens, so acceptance on image turns may fall. ngxson predicted this for the MTP patch; no DFlash measurement exists.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Patch now or batch refactor first: the PR 25144 author argues draft-local numbering is simpler than feared, validated across three MTP families with images and keeps the speedup; ngxson argues it is a stopgap that will degrade acceptance and that the batch API should be fixed for all cases. Neither side shows a measured acceptance-on-image number.",
+          "source": "https://github.com/ggml-org/llama.cpp/pull/25144",
+          "note": null
+        },
+        {
+          "text": "The fork's DFlash2 PR reports a working image path (about 22K text plus an image returned HTTP 200 with `draft_n = 63` and `draft_n_accepted = 42`, about 67% acceptance over that request), while upstream says vision input for speculative decoding \"is not supported yet\". Both are consistent: the fork carries a patch upstream has not taken.",
+          "source": "https://github.com/z-lab/llama.cpp-fork/pull/5",
+          "note": null
+        },
+        {
+          "text": "Status of PR 24669 and PR 25144 after 29 Aug 2026; the cached pages show the first as a draft and the second as a draft with no reviews.",
+          "source": "https://github.com/ggml-org/llama.cpp/pull/24669",
+          "note": null
+        },
+        {
+          "text": "Whether upstream will take draft-local numbering for DFlash or wait for the batch refactor.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Whether image turns on a Metal build keep DFlash acceptance; no Mac report is in any of these threads.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "PR 25144 reports that Step-3.7-Flash with its MTP draft aborts requests with \"failed to process speculative batch\" once an image is sent, and ties the cause to the draft staying at the position just before the image.",
+          "source": "https://github.com/ggml-org/llama.cpp/pull/25144",
+          "note": null
+        },
+        {
+          "text": "PR 25144's first version dropped speculation for a sequence whose draft KV had fallen behind, gated on the draft RoPE type, and its second version kept speculation by renumbering draft positions.",
+          "source": "https://github.com/ggml-org/llama.cpp/pull/25144",
+          "note": null
+        },
+        {
+          "text": "ngxson wrote that the m-rope temporal position can jump non-linearly, for example 1, 2, 3, 3, 3, 3, 7, and the PR author replied with a target-versus-draft numbering example (target `0 1 2 [3 3 3 3] 7 8 9`, draft `0 1 2 3 4 5`).",
+          "source": "https://github.com/ggml-org/llama.cpp/pull/25144",
+          "note": null
+        },
+        {
+          "text": "ngxson stated that \"currently, draft context doesn't accept vision input\" and that vision support was another FIXME.",
+          "source": "https://github.com/ggml-org/llama.cpp/pull/25144",
+          "note": null
+        },
+        {
+          "text": "A maintainer comment recommended refactoring `llama_batch` (PR 24669) instead of merging PR 25144, and the author converted PR 25144 to a draft on 8 Jul 2026.",
+          "source": "https://github.com/ggml-org/llama.cpp/pull/25144",
+          "note": null
+        },
+        {
+          "text": "PR 24669 is titled \"(wip) add llama_batch_ext\", supersedes PR 11875, was opened on 15 Jun 2026 and marked draft the same day.",
+          "source": "https://github.com/ggml-org/llama.cpp/pull/24669",
+          "note": null
+        },
+        {
+          "text": "The `llama-batch.cpp` check allows non-continuous positions only when `n_pos_per_embd > 1`, requiring `X < Y` for token batches and `X <= Y` for embedding batches.",
+          "source": "https://github.com/ggml-org/llama.cpp/pull/25144",
+          "note": null
+        },
+        {
+          "text": "On 23 Jul 2026 ruixiang63 replied to the DFlash image report that vision input for speculative decoding is not supported yet.",
+          "source": "https://github.com/ggml-org/llama.cpp/pull/22105",
+          "note": null
+        },
+        {
+          "text": "A ROCm 7.2.4 user on build b9871 reported the same crash for Qwen3.6 27B and 35B-A3B with vision on DFlash; the log showed `block_size=16`, `n_max=8`, `n_extract=8`.",
+          "source": "https://github.com/ggml-org/llama.cpp/pull/22105",
+          "note": null
+        },
+        {
+          "text": "z-lab/llama.cpp-fork PR 5 (23 Aug 2026) fixes \"find_slot: non-consecutive token position\", \"required Y = X + 1\" and \"failed to process mtmd chunk\" for DFlash2 by keeping draft positions in the independent draft KV's consecutive space.",
+          "source": "https://github.com/z-lab/llama.cpp-fork/pull/5",
+          "note": null
+        },
+        {
+          "text": "That fork PR validated Qwen3.8-27B Q4_K_M with DFlash2 on 3x Tesla V100: a text request, a single image, about 22K text plus an image (`draft_n = 63`, `draft_n_accepted = 42`), and two images followed by text all returned HTTP 200 without a KV assertion or crash.",
+          "source": "https://github.com/z-lab/llama.cpp-fork/pull/5",
+          "note": null
+        },
+        {
+          "text": "PR 25144 lists a \"Eval bug: MTP breaks multimodality in StepFun Step-3.7-Flash\" report as the issue it would close and cites it as \"Fixes 25129\".",
+          "source": "https://github.com/ggml-org/llama.cpp/pull/25144",
+          "note": null
+        }
+      ]
+    }
+  ],
+  "related": []
+}

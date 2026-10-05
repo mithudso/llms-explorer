@@ -1,0 +1,389 @@
+{
+  "slug": "mmap-mlock-and-no-mmap-on-apple-silicon",
+  "concept": "mmap mlock and no-mmap on Apple silicon",
+  "generated": "2026-10-05",
+  "summary": "llama.cpp POSIX mmap path: `mmap(NULL, size, PROT_READ, MAP_SHARED, fd, 0)`. MAP_POPULATE and posix_fadvise(SEQUENTIAL) are inside `#ifdef __linux__`, so they do not run on macOS. On macOS the only advice calls are posix_madvise WILLNEED (prefetch range) and RANDOM (lazy ranges).",
+  "facets": [
+    {
+      "title": "Facts",
+      "facts": [
+        {
+          "text": "llama.cpp POSIX mmap path: `mmap(NULL, size, PROT_READ, MAP_SHARED, fd, 0)`. MAP_POPULATE and posix_fadvise(SEQUENTIAL) are inside `#ifdef __linux__`, so they do not run on macOS. On macOS the only advice calls are posix_madvise WILLNEED (prefetch range) and RANDOM (lazy ranges).",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "mlock failure on macOS prints \"failed to mlock N-byte buffer ... Cannot allocate memory\" plus a hint naming sysctls `vm.user_wire_limit`, `vm.global_user_wire_limit`, `vm.global_no_user_wire_amount` and RLIMIT_MEMLOCK (`ulimit -l`).",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "On Metal, mmap'd weights are the file cache pages. Under memory pressure the OS drops them and they refault from SSD on the next prefill, every time. `--mlock` or `--no-mmap` stops that.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "`--no-mmap` and mmap take different load paths. The non-mmap path can stage through pinned host buffers with async GPU upload, so load/first-inference differences are not only page faults.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "A file-backed mapping is read-only, so refaults read the file and write nothing. Weight paging adds no SSD write wear. KV cache is not mmapped and stays in RAM.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "MLX: `mx.load` of a file path is lazy. `mlx_lm.utils.load_model` evals parameters (`mx.eval(model.parameters())`) when `lazy=False` (default), so weights are fully materialized at load. `lazy=True` skips it. `sharded_load` loads lazy first to pick a sharding, then evals.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "MLX has no mmap mode. An MLX maintainer (2023-24) said MLX cannot mmap in a way the GPU can use, and that lazy load reads weights from the file path when needed, not via mmap.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Ollama: `use_mmap` is a per-request option in the API (`options.use_mmap`) and Modelfile parameter. A 2024 Ollama Metal runner log on a 16 GiB M1 shows the runner launched with `--no-mmap --n-gpu-layers 26 --ctx-size 32768`.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "LM Studio: SDK load config field `tryMmap` (boolean). Docs say mmap speeds initial load but may hurt if the model is larger than RAM.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "llama.cpp `--lazy-mode on|auto|off` (PR 27794, 0.4.0, 2026-09-04): reads oversized embedding tables (PLE, n-gram) on demand through mmap. `auto` only affects tensors over 4 GiB. If a model already fits in RAM, lazy mode is a net loss.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "macOS memory tools: Activity Monitor \"Cached Files\" maps to vm_stat file-backed pages; \"Wired\" to Pages wired down; \"Compressed\" to Pages occupied by compressor; \"App Memory\" is roughly active + speculative. `memory_pressure` prints Pages wired down, Swapins, Swapouts and System-wide memory free percentage. Wired memory cannot be compressed or swapped.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "2023-05: M1 Air 8 GB user reports `--mlock` took a 7B answer from about 3 minutes to near real-time. An M2 Pro 16 GB user saw no gain on one-shot prompts, only in chat mode.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "2023: MLX discussion 615 asks for mmap loading. A prototype allocator using mmap plus newBufferWithBytesNoCopy hit 0.025 tok/s for a 70 GB 8-bit Llama-3.3-70B on a 64 GB M4 Mini (the 4-bit that fits ran about 6 tok/s).",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "2026-02: llama.cpp discussion 19883 clarifies docs: `--no-mmap` slower load, may reduce pageouts if not using `--mlock`, and a model larger than RAM will not load without mmap.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "2026-07-23: PR 20834 folds `--no-mmap`, `--mlock`, `--direct-io` into `-lm/--load-mode` (`auto`,`none`,`mmap`,`mlock`,`mmap+mlock`,`dio`); PR 28334 removes the old spellings. Source: openclawdc.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "2026: discussion 29347 \"When does mmap actually help performance?\"",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "`mlock` mode implies mmap in the new enum, so old `--no-mmap --mlock` has no direct replacement (issue 26110).",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "mmap'd weights are not charged to the process the way malloc'd ones are, so RSS and Activity Monitor numbers differ between modes for identical models. Free memory looks larger with mmap until the pages are touched.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "A commenter reports the kernel filling RAM then all swap with llama-server when a GGUF does not fit. Another says a read-only mmap just refaults and does not swap. Both are claims about Linux, not measured on macOS.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Prefill under mmap can be slow. A user reports at least 30 percent slower prefill with mmap even after warmup. Proposed causes: lack of huge pages on file-backed mappings (Linux THP), and refault of Metal-wrapped file pages under pressure on macOS.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Parallel GGUF scenarios: two processes loading the same file share page cache under mmap but double the RAM under `--no-mmap`.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "mlock default: Hannecke says add `--mlock --prio 2` whenever there is headroom; also says the same flag thrashes the system if model+KV+OS exceeds about 70 percent of unified memory. Hannecke also says `--no-mmap` should be set only if you hit the load hang near 75 percent. The 2023 M2 Pro report found mlock had no effect on one-shot prompts. There is no controlled Apple-silicon benchmark of mlock.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Does mmap speed inference? Answer in 29347: mmap does not make steady-state compute faster; benefits are load time, peak memory and page sharing. The asker measures 30 percent worse prefill; the answerers' explanation is unverified on macOS.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Steady-state RAM: HN commenter says the kernel keeps the hot \"resident trunk\" in page cache so oversize models work; MLX prototype measured 0.025 tok/s for 70 GB on 64 GB. Both are true for different access patterns (MoE vs dense).",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "No controlled macOS benchmark of cold vs warm load, first-token latency and RSS for mmap vs `-lm none` vs `-lm mlock` on one model.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Whether `mlock` of a Metal-wrapped file mapping counts against `vm.user_wire_limit` or `iogpu.wired_limit_mb`.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Whether Ollama's current runner still passes `--no-mmap` by default on Metal.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Recommended flags per RAM tier were not found in a primary source (see below for inferred table).",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Model plus KV well under RAM (under about 60 percent): default (mmap). Optional `-lm mlock` to avoid refaults when other apps run.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Model near the wired limit (60-75 percent): default, do not mlock; watch memory_pressure.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Larger than RAM: mmap only; dense decode collapses to the SSD read rate, MoE can work.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Load hangs near 75 percent: `-lm none`.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "On macOS, llama.cpp's mmap path does not use MAP_POPULATE or posix_fadvise(SEQUENTIAL) because they are guarded by `#ifdef __linux__`; it uses posix_madvise WILLNEED for the prefetch range and RANDOM for lazy ranges.",
+          "source": "https://raw.githubusercontent.com/ggml-org/llama.cpp/master/src/llama-mmap.cpp",
+          "note": null
+        },
+        {
+          "text": "llama.cpp's mlock failure message on macOS recommends raising `vm.user_wire_limit` and `vm.global_user_wire_limit`, lowering `vm.global_no_user_wire_amount`, and raising RLIMIT_MEMLOCK.",
+          "source": "https://raw.githubusercontent.com/ggml-org/llama.cpp/master/src/llama-mmap.cpp",
+          "note": null
+        },
+        {
+          "text": "The failure text is \"warning: failed to mlock N-byte buffer (after previously locking M bytes): Cannot allocate memory\".",
+          "source": "https://raw.githubusercontent.com/ggml-org/llama.cpp/master/src/llama-mmap.cpp",
+          "note": null
+        },
+        {
+          "text": "The mlock hint is printed only when errno is ENOMEM and RLIMIT_MEMLOCK max is not larger than current plus the size.",
+          "source": "https://raw.githubusercontent.com/ggml-org/llama.cpp/master/src/llama-mmap.cpp",
+          "note": null
+        },
+        {
+          "text": "The same \"Cannot allocate memory\" mlock warning on Linux was a default RLIMIT_MEMLOCK problem, unrelated to context size.",
+          "source": "https://github.com/abetlen/llama-cpp-python/issues/254",
+          "note": null
+        },
+        {
+          "text": "`mlock` only forbids swapping; it does not change how much memory the model needs.",
+          "source": "https://github.com/abetlen/llama-cpp-python/issues/254",
+          "note": null
+        },
+        {
+          "text": "On Metal the GPU weight buffers are the file cache pages; under memory pressure the OS drops them and they refault from disk on the next prefill; `--mlock` or `--no-mmap` stops that.",
+          "source": "https://github.com/ggml-org/llama.cpp/discussions/29347",
+          "note": null
+        },
+        {
+          "text": "mmap does not make steady-state inference compute faster; its advantages are load time, peak memory and sharing pages across processes.",
+          "source": "https://github.com/ggml-org/llama.cpp/discussions/29347",
+          "note": null
+        },
+        {
+          "text": "mmap and `--no-mmap` use different load code paths, and the non-mmap path can stage through pinned host buffers with async GPU upload.",
+          "source": "https://github.com/ggml-org/llama.cpp/discussions/29347",
+          "note": null
+        },
+        {
+          "text": "A user measured at least 30 percent lower prefill with mmap than without, on unified-memory and discrete-GPU systems; the cause is unconfirmed.",
+          "source": "https://github.com/ggml-org/llama.cpp/discussions/29347",
+          "note": null
+        },
+        {
+          "text": "A suggested test protocol is to measure first prefill, later prefill after warmup, and cold and warm page cache separately.",
+          "source": "https://github.com/ggml-org/llama.cpp/discussions/29347",
+          "note": null
+        },
+        {
+          "text": "The official `--no-mmap` help text says: slower load, may reduce pageouts if `--mlock` is not used, and the model will not load at all if larger than RAM.",
+          "source": "https://github.com/ggml-org/llama.cpp/discussions/19883",
+          "note": null
+        },
+        {
+          "text": "With mmap, llama.cpp log prints `load_tensors: loading model tensors, this can take a while... (mmap = true, direct_io = false)` and a `CPU_Mapped model buffer size` line for the host-resident part.",
+          "source": "https://github.com/ggml-org/llama.cpp/discussions/19883",
+          "note": null
+        },
+        {
+          "text": "Under mmap, a model that fits in VRAM still shows equal host RAM use on Windows (user report), explained as file-backed cache; `--no-mmap` cut RAM use significantly.",
+          "source": "https://github.com/ggml-org/llama.cpp/discussions/19883",
+          "note": null
+        },
+        {
+          "text": "The load-mode PR is 20834 (merged 2026-07-23 per openclawdc) and old flag removal is PR 28334. This conflicts with the 2026-09-15 date in moe-expert-offload-to-ssd-on-macos.md.",
+          "source": "https://openclawdc.com/blog/llama-cpp-flags-explained/",
+          "note": null
+        },
+        {
+          "text": "Mapping from old flags: `--no-mmap` to `-lm none`, `--mlock` to `-lm mlock`, `--mmap` to `-lm mmap`, `--direct-io` to `-lm dio`.",
+          "source": "https://openclawdc.com/blog/llama-cpp-flags-explained/",
+          "note": null
+        },
+        {
+          "text": "`-lm dio` uses DirectIO where available.",
+          "source": "https://openclawdc.com/blog/llama-cpp-flags-explained/",
+          "note": null
+        },
+        {
+          "text": "`--lazy-mode on|auto|off` (PR 27794, in 0.4.0 on 2026-09-04) stops loading whole embedding tables at startup; if the model fits in RAM it is a net loss.",
+          "source": "https://modelfit.io/blog/llama-cpp-0-4-0-on-mac-lazy-tensors-rdma-sparse-attention/",
+          "note": null
+        },
+        {
+          "text": "Qwen3.8-Flash-Next has a 97.7 GiB unquantized n-gram embedding table that lazy mode keeps off resident RAM.",
+          "source": "https://modelfit.io/blog/llama-cpp-0-4-0-on-mac-lazy-tensors-rdma-sparse-attention/",
+          "note": null
+        },
+        {
+          "text": "Hannecke recommends `--mlock --prio 2` as part of the mandatory Apple silicon config when memory headroom exists.",
+          "source": "https://medium.com/@michael.hannecke/tuning-llama-cpp-on-apple-silicon-843f37a6c3dc",
+          "note": null
+        },
+        {
+          "text": "Hannecke says `--mlock` gives no latency cliffs when memory pressure builds elsewhere on the system.",
+          "source": "https://medium.com/@michael.hannecke/tuning-llama-cpp-on-apple-silicon-843f37a6c3dc",
+          "note": null
+        },
+        {
+          "text": "Hannecke says `--numa` is a no-op or harmful on Apple silicon, and `--no-kv-offload` is slower on unified memory.",
+          "source": "https://medium.com/@michael.hannecke/tuning-llama-cpp-on-apple-silicon-843f37a6c3dc",
+          "note": null
+        },
+        {
+          "text": "On a 2020 M1 MacBook Air, `--mlock` took a 7B answer from about 3 minutes to near real-time (2023 user report, no measured numbers).",
+          "source": "https://github.com/ggml-org/llama.cpp/discussions/1335",
+          "note": null
+        },
+        {
+          "text": "On an M2 Pro 16 GB, `--mlock` made no difference for one-shot prompts but helped in chat mode.",
+          "source": "https://github.com/ggml-org/llama.cpp/discussions/1335",
+          "note": null
+        },
+        {
+          "text": "MLX's `mx.load` from a path is lazy; `mlx_lm.utils.load_model(lazy=False)` calls `mx.eval(model.parameters())` so weights are fully read at load; `lazy=True` skips that.",
+          "source": "https://raw.githubusercontent.com/ml-explore/mlx-lm/main/mlx_lm/utils.py",
+          "note": null
+        },
+        {
+          "text": "mlx_lm's `maybe_set_recommended_wired_limit` calls `mx.set_wired_limit` with the recommended max size.",
+          "source": "https://raw.githubusercontent.com/ml-explore/mlx-lm/main/mlx_lm/utils.py",
+          "note": null
+        },
+        {
+          "text": "mlx_lm `sharded_load` loads lazily first, picks tensor vs pipeline sharding, then evals only the local shard.",
+          "source": "https://raw.githubusercontent.com/ml-explore/mlx-lm/main/mlx_lm/utils.py",
+          "note": null
+        },
+        {
+          "text": "An MLX maintainer said MLX can mmap a model but still must allocate memory for weights when used, so a too-large model still swaps, and that mmap memory cannot be made GPU-usable; MLX instead lazily reads weights from the file path.",
+          "source": "https://github.com/ml-explore/mlx/discussions/615",
+          "note": null
+        },
+        {
+          "text": "An MLX mmap prototype (mmap plus newBufferWithBytesNoCopy per-tensor temp files) ran a 70 GB 8-bit Llama-3.3-70B at 0.025 tok/s on a 64 GB M4 Mini, versus about 6 tok/s for the fitting 4-bit.",
+          "source": "https://github.com/ml-explore/mlx/discussions/615",
+          "note": null
+        },
+        {
+          "text": "The prototype author found zero-copy mmap on safetensors fails because mmap page alignment and Metal buffer offset alignment (data-type aligned) cannot both be met without copying or conversion.",
+          "source": "https://github.com/ml-explore/mlx/discussions/615",
+          "note": null
+        },
+        {
+          "text": "The prototype author said kernel page-cache eviction is a poor fit: you cannot control what is evicted, and one badly placed I/O collapses throughput. Suggested mlock/munlock and madvise per buffer would still not reach practical speed.",
+          "source": "https://github.com/ml-explore/mlx/discussions/615",
+          "note": null
+        },
+        {
+          "text": "Ollama's API reference lists `use_mmap` as a request option (example value true) alongside `numa`, `num_gpu` and `num_thread`.",
+          "source": "https://raw.githubusercontent.com/ollama/ollama/main/docs/api.md",
+          "note": null
+        },
+        {
+          "text": "A 2024 Ollama Metal runner log (16 GiB M1, 32768 ctx) shows `--no-mmap --n-gpu-layers 26` in the launch command.",
+          "source": "https://github.com/ollama/ollama/issues/7081",
+          "note": null
+        },
+        {
+          "text": "LM Studio's SDK load config has `tryMmap`; its docs say mmap improves initial load but may reduce performance if the model exceeds RAM.",
+          "source": "https://lmstudio.ai/docs/typescript/api-reference/llm-load-model-config",
+          "note": null
+        },
+        {
+          "text": "Apple wired memory cannot be compressed or swapped; compressor stats appear in `memory_pressure` and `vm_stat` as \"Pages used by compressor\", \"Pages compressed\", \"Pages decompressed\".",
+          "source": "https://medium.com/@rajveer.rathod1301/is-your-mac-really-running-out-of-memory-a-deep-dive-into-macos-memory-pressure-257302fd5ed9",
+          "note": null
+        },
+        {
+          "text": "Mapping of Activity Monitor terms to vm_stat: File Cache = file-backed pages; Wired = Pages wired down; Compressed = Pages occupied by compressor; App Memory = Pages active plus speculative (pre-Yosemite definition; newer Activity Monitor drops File Cache from \"Memory Used\" but still lists Cached Files).",
+          "source": "https://apple.stackexchange.com/questions/81581/why-does-free-active-inactive-speculative-wired-not-equal-total-ram",
+          "note": null
+        },
+        {
+          "text": "A read-only mmap refaults by reading the file; it performs no writes, so large-weight paging does not add SSD write wear; KV cache is not mmapped.",
+          "source": "https://news.ycombinator.com/item?id=49130892",
+          "note": null
+        },
+        {
+          "text": "Disagreement on whether llama-server swaps when a GGUF exceeds RAM: one user says it fills RAM then all swap; others say evicted page-cache pages are simply reread. No macOS measurement.",
+          "source": "https://news.ycombinator.com/item?id=49130892",
+          "note": null
+        },
+        {
+          "text": "With mmap, when model plus other apps exceed RAM, a dense model's token rate falls to the rate at which the OS can refault pages from disk.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Using `-lm none` on a unified-memory Mac costs about one extra full copy of the weights at load (file read into anonymous memory) and a longer load, but gives stable RSS and no refaults.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Because mmap pages are reclaimable page cache, memory_pressure \"free percentage\" stays high after loading with mmap; with `-lm none` or mlock the same bytes show as non-reclaimable.",
+          "source": "asserted",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Corrections and disagreements",
+      "facts": [
+        {
+          "text": "CONTRADICTS: moe-expert-offload-to-ssd-on-macos.md dates the load-mode merge 2026-09-15; openclawdc dates it 2026-07-23 with removal in a later PR.",
+          "source": "asserted",
+          "note": null
+        }
+      ]
+    }
+  ],
+  "related": []
+}

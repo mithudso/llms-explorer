@@ -1,0 +1,159 @@
+{
+  "slug": "exo-ring-abort-detection-by-stderr-diagnostic-pr",
+  "concept": "exo ring-abort detection by stderr diagnostic (PR 2367)",
+  "generated": "2026-10-05",
+  "summary": "exo PR 2367, \"fix(worker): stop a runner whose connection to its peers has failed\" (commit b2fa0d2, opened 2026-09-30 by AlexCheema), makes a runner's supervisor stop the runner when the runner's stderr has shown MLX's ring abort.",
+  "facets": [
+    {
+      "title": "Facts",
+      "facts": [
+        {
+          "text": "exo PR 2367, \"fix(worker): stop a runner whose connection to its peers has failed\" (commit b2fa0d2, opened 2026-09-30 by AlexCheema), makes a runner's supervisor stop the runner when the runner's stderr has shown MLX's ring abort.",
+          "source": "https://github.com/exo-explore/exo/pull/2367",
+          "note": null
+        },
+        {
+          "text": "The trigger is a pair of ring lines: ten repeats of `[ring] Receiving from socket 51 failed with errno 54`, then `[ring] Too many send/recv errors. Aborting...`.",
+          "source": "https://github.com/exo-explore/exo/pull/2367",
+          "note": null
+        },
+        {
+          "text": "The runner process does not exit after the abort. Its main thread stays blocked in the failed collective, so the instance produces no more tokens, and the runner still reports `RunnerRunning`.",
+          "source": "https://github.com/exo-explore/exo/pull/2367",
+          "note": null
+        },
+        {
+          "text": "The detection already existed for crash diagnostics. The supervisor's stdio handler records stderr lines into `diagnostics`, and a `RunnerRingTransportError` entry is created from them. The PR adds a method `_lost_its_peers()` that returns true when any recorded diagnostic is a `RunnerRingTransportError`.",
+          "source": "https://github.com/exo-explore/exo/pull/2367.diff",
+          "note": null
+        },
+        {
+          "text": "`_watch_runner` gains a branch after the liveness check: if the process is alive and `_lost_its_peers()` is true, it calls `_check_runner(RuntimeError(\"Lost the connection to the instance's other runners\"))`.",
+          "source": "https://github.com/exo-explore/exo/pull/2367.diff",
+          "note": null
+        },
+        {
+          "text": "The watch interval became a module constant, `RUNNER_WATCH_INTERVAL = 5.0`, so tests can shrink it.",
+          "source": "https://github.com/exo-explore/exo/pull/2367.diff",
+          "note": null
+        },
+        {
+          "text": "After `_check_runner`, the existing failure path runs: in-flight requests end with the error \"Runner shutdown before completing command\" plus the ring diagnostics, the runner is reported `RunnerFailed`, the worker shuts down the instance's other runners, and the worker recreates the runners with backoff.",
+          "source": "https://github.com/exo-explore/exo/pull/2367",
+          "note": null
+        },
+        {
+          "text": "Merge order matters. The PR says \"Merge after #2366\". The error event that this PR creates carries the ring diagnostic across the network, and without PR 2366 the receiving node cannot parse it and exits.",
+          "source": "https://github.com/exo-explore/exo/pull/2367",
+          "note": null
+        },
+        {
+          "text": "PR 2366 (\"A runner failure on one node can crash another node, the master included\") fixes that: the diagnostic field `evidence` is a `tuple[str, ...]`, JSON turns it into a list, and pydantic strict mode rejects it, giving `ValidationError: 79 validation errors for LocalForwarderEvent ... RunnerRingTransportError Extra inputs are not permitted`. The router then logs `Gossipsub receive loop terminated unexpectedly` and exo exits with `EXO terminated due to unhandled exception`.",
+          "source": "https://github.com/exo-explore/exo/pull/2366",
+          "note": null
+        },
+        {
+          "text": "PR 2366 sets `Field(strict=False)` on `evidence` and makes `TopicRouter.publish_bytes` drop an unreadable message and log the topic and payload start instead of killing the node.",
+          "source": "https://github.com/exo-explore/exo/pull/2366",
+          "note": null
+        },
+        {
+          "text": "A downstream fork (cdvankammen/exo) ported the commit and recorded that its parsing was unchanged, so the port did not need PR 2366 there; the fork's test run was 8 passed in `test_runner_supervisor.py`.",
+          "source": "https://github.com/exo-explore/exo/pull/2367",
+          "note": null
+        },
+        {
+          "text": "Field data in the PR: in three multi-hour chaos runs on 5 Mac Studios there were 1, 4 and 2 aborts. Most were `errno 54` (connection reset) after a peer runner or node died or its connection was cut; two were `errno 14` (EFAULT) with no fault injected.",
+          "source": "https://github.com/exo-explore/exo/pull/2367",
+          "note": null
+        },
+        {
+          "text": "In the first no-fault EFAULT case all 16 requests sent to the instance over the next five minutes hung until chaos happened to take the instance down.",
+          "source": "https://github.com/exo-explore/exo/pull/2367",
+          "note": null
+        },
+        {
+          "text": "Reproduction used 2 Mac Studios (96 GB), Qwen3.8-27B-4bit as a 2-node pipeline and 4 streaming clients; all TCP connections between the nodes were reset for 3 seconds with a pf `block return` rule. A 3 s reset aborted the ring in 3 of 4 trials.",
+          "source": "https://github.com/exo-explore/exo/pull/2367",
+          "note": null
+        },
+        {
+          "text": "Result table: without the PR, 4 requests in the next 5.5 minutes hung and none completed, instance stuck until deleted. With the PR alone, requests failed fast but the master's exo exited. With the PR and PR 2366, 172 requests completed, none hung, and the instance was back 23 s after the reset.",
+          "source": "https://github.com/exo-explore/exo/pull/2367",
+          "note": null
+        },
+        {
+          "text": "Detection is text matching on stderr. A runner whose ring dies without printing the abort line (a silent transport stall) is not caught by this PR; PR 2370 covers that case by silence.",
+          "source": "https://github.com/exo-explore/exo/pull/2370",
+          "note": null
+        },
+        {
+          "text": "The unit tests are: a runner with ten `errno 54` lines plus the abort line is stopped and reported `RunnerFailed`; a runner with only \"some unrelated warning\" is left alone.",
+          "source": "https://github.com/exo-explore/exo/pull/2367.diff",
+          "note": null
+        },
+        {
+          "text": "Probe versus text. The ibv_devinfo issue proposes a link-layer health probe; this PR uses the runner's own stderr diagnostic. The sources do not compare them (see ibv-devinfo-hang-as-an-rdma-health-probe.md).",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Whether the PR merged. The cached page (2026-10-04) shows a downstream fork port and an \"after #2366\" note but no merge event in the text read.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Whether the \"[ring]\" abort text is stable across MLX versions, since the match depends on it.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "exo PR 2367 stops a runner whose supervisor has recorded a `RunnerRingTransportError` diagnostic, checked every 5 seconds in `_watch_runner`.",
+          "source": "https://github.com/exo-explore/exo/pull/2367.diff",
+          "note": null
+        },
+        {
+          "text": "The abort that PR 2367 reacts to is ten `Receiving from socket N failed with errno E` lines followed by `[ring] Too many send/recv errors. Aborting...`.",
+          "source": "https://github.com/exo-explore/exo/pull/2367",
+          "note": null
+        },
+        {
+          "text": "After MLX's ring aborts, the runner process stays alive and reports `RunnerRunning`, so every request on the instance hangs.",
+          "source": "https://github.com/exo-explore/exo/pull/2367",
+          "note": null
+        },
+        {
+          "text": "The stop raises `RuntimeError(\"Lost the connection to the instance's other runners\")` into the existing `_check_runner` failure path.",
+          "source": "https://github.com/exo-explore/exo/pull/2367.diff",
+          "note": null
+        },
+        {
+          "text": "The failure path ends in-flight requests with \"Runner shutdown before completing command\", marks `RunnerFailed`, shuts down peer runners and recreates all with backoff.",
+          "source": "https://github.com/exo-explore/exo/pull/2367",
+          "note": null
+        },
+        {
+          "text": "Chaos runs on 5 Mac Studios logged 1, 4 and 2 ring aborts, mostly `errno 54`, plus two `errno 14` aborts with no injected fault.",
+          "source": "https://github.com/exo-explore/exo/pull/2367",
+          "note": null
+        },
+        {
+          "text": "With PR 2367 and PR 2366 a 3-second TCP reset between two nodes cost 23 seconds of downtime and 172 requests completed in 5.5 minutes, versus 4 hung requests and a permanently stuck instance on main.",
+          "source": "https://github.com/exo-explore/exo/pull/2367",
+          "note": null
+        },
+        {
+          "text": "PR 2367 alone makes the master's exo process exit when the failure event reaches it, because the diagnostic fails strict pydantic parsing; PR 2366 fixes that.",
+          "source": "https://github.com/exo-explore/exo/pull/2366",
+          "note": null
+        },
+        {
+          "text": "A 3-second pf `block return` of all TCP between two nodes aborted the MLX ring in 3 of 4 trials.",
+          "source": "https://github.com/exo-explore/exo/pull/2367",
+          "note": null
+        }
+      ]
+    }
+  ],
+  "related": []
+}

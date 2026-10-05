@@ -1,0 +1,189 @@
+{
+  "slug": "tree-attention-verification-on-hybrid-recurrent",
+  "concept": "Tree attention verification on hybrid recurrent targets",
+  "generated": "2026-10-05",
+  "summary": "Full-attention layers verify a flattened tree with an ancestor mask, so each node sees the committed prefix and its own ancestors; draft KV is append-only and rejected entries drop by moving a pointer, and branches share their common-prefix KV.",
+  "facets": [
+    {
+      "title": "Facts",
+      "facts": [
+        {
+          "text": "Full-attention layers verify a flattened tree with an ancestor mask, so each node sees the committed prefix and its own ancestors; draft KV is append-only and rejected entries drop by moving a pointer, and branches share their common-prefix KV.",
+          "source": "https://arxiv.org/html/2608.01651v1",
+          "note": null
+        },
+        {
+          "text": "GDN layers have no mask to apply: the tree dependency is carried by parent-to-child state propagation, so existing engines traverse a T-node tree node by node and, because one in-place state cannot represent diverging branches, materialize a full post-update state for every node before the accepted path is known.",
+          "source": "https://arxiv.org/html/2608.01651v1",
+          "note": null
+        },
+        {
+          "text": "Bole factorizes the linear-attention recurrence in tree form: a structured linear system separates the committed state from interactions among proposal tokens, and a GPU kernel solves all nodes in parallel from one pre-tree state. The paper reports 3.4x to 7.7x faster linear-attention tree verification.",
+          "source": "https://arxiv.org/html/2608.01651v1",
+          "note": null
+        },
+        {
+          "text": "Bole keeps one committed state and stores candidate updates as token-scale factors (P, K, U); after sampling it reconstructs only the accepted state, so rejected branches need no full state and no rollback.",
+          "source": "https://arxiv.org/html/2608.01651v1",
+          "note": null
+        },
+        {
+          "text": "TreeWY applies a tree-structured WY (UT) transform to the gated delta rule: with `S_t = alpha_t S_(t-1) + v~_t k_t^T` and pseudo-value `v~_t = beta_t (v_t - alpha_t S_(t-1) k_t)`, the whole draft window solves `(I + diag(beta) G) V~ = R` by one forward substitution over a strictly lower-triangular ancestor matrix, and the accepted state is rebuilt as `S_a = g_a S_0 + sum over ancestors (g_a / g_i) v~_i k_i^T`.",
+          "source": "https://arxiv.org/html/2608.20961v1",
+          "note": null
+        },
+        {
+          "text": "TreeWY says the scalar-decay ancestor mask comes from STree (arXiv 2505.14969) for Mamba2 and that its own addition is carrying GDN's rank-1 delta correction through it.",
+          "source": "https://arxiv.org/html/2608.20961v1",
+          "note": null
+        },
+        {
+          "text": "Bole's second half is a runtime budget: it profiles, per model, GPU, batch and KV-length bucket, the largest total node count N whose complete target forward stays within `(1 + epsilon)` of one-token decode latency, then spends that batch-wide capacity on the highest cumulative-probability nodes across requests, which keeps each tree prefix-connected without a repair pass.",
+          "source": "https://arxiv.org/html/2608.01651v1",
+          "note": null
+        },
+        {
+          "text": "2025: STree (Wu et al.) verifies trees for Mamba2 only, because Mamba2's transition is a bare scalar decay and a product of gates reduces to a cumulative sum.",
+          "source": "https://arxiv.org/html/2608.20961v1",
+          "note": null
+        },
+        {
+          "text": "Apr 2026: DDTree (arXiv 2604.12989) brings tree verification to block-diffusion drafters; ddtree-mlx implements per-node state forking on Metal (existing dossiers).",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "3 Aug 2026: Bole is posted (cs.DC, Nanjing University and Ant Group), with an SGLang integration of about 6.2 kLoC of Python and Triton. The arXiv page carries the banner \"HPCA 2027 Submission #814 Confidential Draft Do NOT Distribute\", which makes its status as a published result uncertain.",
+          "source": "https://arxiv.org/html/2608.01651v1",
+          "note": null
+        },
+        {
+          "text": "21 Aug 2026: TreeWY (Sneha Murthy Ghantasala, cs.AI, 10 pages) is posted, with a vLLM fork not yet upstreamed; TreeWY names Bole as concurrent work and notes Bole links no code.",
+          "source": "https://arxiv.org/abs/2608.20961",
+          "note": null
+        },
+        {
+          "text": "Serial recurrence: the linear layers' share of the target forward rose from 4% to 27% as the tree grew from 8 to 64 nodes (Qwen3.5-9B on A100).",
+          "source": "https://arxiv.org/html/2608.01651v1",
+          "note": null
+        },
+        {
+          "text": "State explosion: full-state snapshots took 36 GiB for eight 32-node requests on Qwen3.5-122B-A10B over four A100-80GB (72 GiB at 16 requests) against under 1 GiB for Bole's factors. For one request with a 100-node tree the transient state is 4.7 GB (Qwen3.5-4B and 9B) to 14.1 GB (27B and 122B-A10B) with snapshots against 57 to 151 MB with Bole.",
+          "source": "https://arxiv.org/html/2608.01651v1",
+          "note": null
+        },
+        {
+          "text": "The efficient verification range is hardware specific: the MLP GEMMs turn compute-bound near 128 rows on an A100 and near 256 rows on a GB10, and the full hybrid forward also depends on KV length and tree shape, so a fixed per-request node cap is unreliable.",
+          "source": "https://arxiv.org/html/2608.01651v1",
+          "note": null
+        },
+        {
+          "text": "A real tree needs a non-causal ancestor mask that cannot be replayed from a CUDA graph; in vLLM that drops the whole model to piecewise capture and evicts the GDN mixer from graphs, which TreeWY says costs far more than the mask itself. A tree must also be scheduled atomically, because a depth-first prefix of a tree is a different topology.",
+          "source": "https://arxiv.org/html/2608.20961v1",
+          "note": null
+        },
+        {
+          "text": "Width is affordable but not yet a win: TreeWY measured acceptance length rising from 3.23 for a chain to 3.58 for a (3,3,3) tree of 39 nodes (Qwen3.5-35B-A3B, depth-3 MTP, greedy), while the wider tree pushes N+1 tokens through the target and runs piecewise, so the authors report trees \"as enabled and correct, not as a speedup\".",
+          "source": "https://arxiv.org/html/2608.20961v1",
+          "note": null
+        },
+        {
+          "text": "SGLang's merged ReplaySSM verify supports GDN chains only (`speculative-eagle-topk <= 1`); tree verify (`topk > 1`), KDA and NPU/CPU fall back to recurrent verify.",
+          "source": "https://github.com/sgl-project/sglang/pull/28695",
+          "note": null
+        },
+        {
+          "text": "Where the win comes from. Bole reports up to 4.72x offline decode throughput over autoregressive decoding and up to 2.03x over the strongest tree-speculative baseline, and online TTFT and TPOT cuts up to 67.6% and 49.9%. TreeWY, on a different engine, reports throughput parity or a 0.93x to 0.99x dip where memory does not bind and gains up to 1.49x (about 40x lower p99 TTFT) only where it does, and says trees give no throughput gain yet. The two use different models, GPUs, drafters and baselines; neither runs the other.",
+          "source": "https://arxiv.org/html/2608.01651v1",
+          "note": null
+        },
+        {
+          "text": "The Mac result from ddtree-mlx (+10 to 15% over DFlash, tree budget 4 best on hybrids) and Bole's 2.03x over the best tree baseline measure different baselines; no source compares them.",
+          "source": "https://arxiv.org/html/2608.01651v1",
+          "note": null
+        },
+        {
+          "text": "Whether a closed-form tree verifier (Bole or TreeWY) can be written as a Metal kernel and beats ddtree-mlx's state-fork kernel on an M-series GPU; neither paper has Apple-silicon data.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Whether TreeWY or Bole changes the best tree budget on a Mac, where the efficient verify range is set by unified-memory bandwidth, not by HBM.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Whether llama.cpp will verify trees on hybrid targets at all; the PR 22105 author deferred DDTree until after the DFlash merge and no PR was found.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Bole (arXiv 2608.01651v1, 3 Aug 2026, Wang et al., Nanjing University and Ant Group) is a kernel-runtime co-design for tree speculation on hybrid-attention LLMs, integrated into SGLang.",
+          "source": "https://arxiv.org/html/2608.01651v1",
+          "note": null
+        },
+        {
+          "text": "Bole reports 3.4x to 7.7x faster linear-attention tree verification and 82x to 99x lower transient state memory.",
+          "source": "https://arxiv.org/html/2608.01651v1",
+          "note": null
+        },
+        {
+          "text": "Across four models and two GPU platforms Bole reports up to 4.72x the offline decode throughput of autoregressive decoding and up to 2.03x that of the strongest tree-speculative baseline.",
+          "source": "https://arxiv.org/html/2608.01651v1",
+          "note": null
+        },
+        {
+          "text": "Under online agent workloads Bole reports TTFT and TPOT reductions of up to 67.6% and 49.9% over the strongest tree-speculative baseline.",
+          "source": "https://arxiv.org/html/2608.01651v1",
+          "note": null
+        },
+        {
+          "text": "Qwen3.5 repeats three GDN layers then one gated full-attention layer; the GDN recurrent core has H state heads each with a d_k by d_v matrix.",
+          "source": "https://arxiv.org/html/2608.01651v1",
+          "note": null
+        },
+        {
+          "text": "Bole's Table I lists linear state per request of 48 MB (Qwen3.5-4B, 9B) and 144 MB (27B, 122B-A10B), SGLang snapshots of 4.7 GB or 14.1 GB at 100 nodes and 9.4 GB or 28.1 GB at 200 nodes, and Bole factors of 57 MB, 151 MB and 142 MB at 100 nodes.",
+          "source": "https://arxiv.org/html/2608.01651v1",
+          "note": null
+        },
+        {
+          "text": "The paper says existing tree systems (SpecInfer, DeFT, SGLang's runtime, AdaServe) were built around append-only KV caches, and that STree's composition of diagonal SSM transitions does not apply to gated delta recurrences.",
+          "source": "https://arxiv.org/html/2608.01651v1",
+          "note": null
+        },
+        {
+          "text": "Bole's offline profiler picks the largest node count whose complete target forward stays within `(1 + epsilon)` of one-token decode latency, per model, GPU, batch bucket, KV bucket and tree template.",
+          "source": "https://arxiv.org/html/2608.01651v1",
+          "note": null
+        },
+        {
+          "text": "TreeWY (arXiv 2608.20961, 21 Aug 2026) states that snapshot-per-position verification makes a wide, high-acceptance tree memory-infeasible and that it replaces snapshots with one triangular solve plus a stored pseudo-value matrix of O(N d_v) instead of per-node states.",
+          "source": "https://arxiv.org/abs/2608.20961",
+          "note": null
+        },
+        {
+          "text": "TreeWY's closed form matches the per-node recurrence to about 1e-15 in fp64 and 1e-7 in fp32, and token streams are not bit-identical to the baseline, so correctness was gated against a no-speculation reference and by acceptance length.",
+          "source": "https://arxiv.org/html/2608.20961v1",
+          "note": null
+        },
+        {
+          "text": "TreeWY ran Qwen3.5-35B-A3B (TP1) and Qwen3.5-397B-A17B (TP8) in vLLM on B200 GPUs with a depth-3 MTP chain; peak KV usage was 2x to 3x lower and acceptance length matched the baseline (mean absolute difference 0.039 over 175 matched points).",
+          "source": "https://arxiv.org/html/2608.20961v1",
+          "note": null
+        },
+        {
+          "text": "At the 35B model's tightest memory budget TreeWY's throughput ratio was 0.94 at concurrency 1, 1.20 at 128 and 1.40 at 256, with p99 TTFT ratios of 5.62 and 3.97 at 128 and 256.",
+          "source": "https://arxiv.org/html/2608.20961v1",
+          "note": null
+        },
+        {
+          "text": "TreeWY's chain and all-ones tree verify and commit in one fused CUDA-graph-capturable Triton kernel; a real tree does not.",
+          "source": "https://arxiv.org/html/2608.20961v1",
+          "note": null
+        }
+      ]
+    }
+  ],
+  "related": []
+}

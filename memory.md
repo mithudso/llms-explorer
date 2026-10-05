@@ -730,3 +730,7 @@
 - Delta: tree entries copied by concept name; all prior nodes and frontier names preserved. Parent retains BUDGET_EXHAUSTED and runtimeQualified false.
 - Validation: exact 95-claim retention; 296 local links; 30 hub dependencies; strict zero-loss guards for nodes/frontier references; 467 browser search vectors; Astro check/build passed. Hub CI and 779 local tests passed (42 private-submodule tests skipped).
 - Canonical skills PR51 and global tree/pack PR64 are merged; Explorer publication and final remote verification remain.
+
+## 2026-10-05 — Mac local-LLM expert concepts published
+- Added 524 nodes to `concept-tree/tree.json` (root "Running LLM models locally on a Mac" under "On-Device & Local LLM Runtimes", 21 cluster nodes, 502 concept nodes) from the become-expert run, with 524 concept packs rendered to `site/src/data/concepts/`; search index regenerated with the committed deferral list honoured (991 entries).
+- Site test `test_every_node_page_is_the_node_it_claims` now accepts Astro's `&#39;` for an apostrophe in a concept name.

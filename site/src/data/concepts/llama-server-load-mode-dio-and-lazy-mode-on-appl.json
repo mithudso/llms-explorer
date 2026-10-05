@@ -1,0 +1,214 @@
+{
+  "slug": "llama-server-load-mode-dio-and-lazy-mode-on-appl",
+  "concept": "llama-server --load-mode dio and lazy-mode on Apple silicon",
+  "generated": "2026-10-05",
+  "summary": "`dio` sets `use_direct_io` in the model loader and turns `use_mmap` off. The only code that opens the GGUF with `O_DIRECT` is guarded by `#ifdef __linux__`; the Windows variant reports direct I/O as available; the remaining POSIX branch (macOS) opens a normal buffered `FILE*` and its `has_direct_...",
+  "facets": [
+    {
+      "title": "Facts",
+      "facts": [
+        {
+          "text": "`dio` sets `use_direct_io` in the model loader and turns `use_mmap` off. The only code that opens the GGUF with `O_DIRECT` is guarded by `#ifdef __linux__`; the Windows variant reports direct I/O as available; the remaining POSIX branch (macOS) opens a normal buffered `FILE*` and its `has_direct_io()` is `fd != -1 && alignment > 1`, which is false there.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Result on macOS: `dio` is accepted, logs `load_mode = dio`, and loads like `none` (weights copied into host-allocated buffers), with no warning.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Lazy tensors are mapped even when the load mode is not `mmap`: the loader builds file mappings when `use_mmap || lazy.any()`. Only the lazy tensors are served from the mapping; the rest follow the chosen load mode.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "`lazy_read::add` skips a tensor in `off` mode, skips tensors of 4 GiB or less unless mode is `on`, and, if the build has no mmap support, logs that the tensor \"is loaded into RAM in full\".",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "mlock never pins a lazy tensor, because that would fault the whole table in.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "PR 20834 (taronaeo, opened 2026-03-21) folded `--mlock`, `--mmap` and `--direct-io` into one enum, marking the old flags deprecated first. A reviewer rejected making DirectIO the automatic default on GPU builds because it had been tried before and failed on a \"not insignificant number of configurations\".",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "PR 26135 (opened 2026-07-26, merged) corrected the refactor's regression (issue 26110): `-lm mlock` now means lock without mmap; `-lm mmap+mlock` means lock with mmap.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "PR 28334 (opened 2026-09-03, same author) removes the deprecated flag spellings from the argument parser as \"the final cleanup\".",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "The lazy flag was first proposed as `--tensor-read-lazy`; master and the installed Ollama-bundled build both list `-lzm, --lazy-mode` with env `LLAMA_ARG_LAZY_MODE`.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "`-lm dio` on a Mac silently degrades to `none`: higher RSS and slower load than mmap, and no page-cache bypass. [asserted by source reading and local test below]",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "`llama_prefetch` exists only for Linux and Windows, so on macOS there is no prefetch of mapped ranges, and the \"skip prefetch\" half of lazy mode has nothing to skip.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "`--load-mode mlock` after PR 26135 no longer enables mmap, so it behaves like the old `--no-mmap --mlock` pair; before it, `mlock` meant mmap plus mlock and a user reported being killed for out-of-memory.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "On macOS `mlock` failures print a hint naming `vm.user_wire_limit`, `vm.global_user_wire_limit`, `vm.global_no_user_wire_amount` and `ulimit -l`.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Which PR renamed `--tensor-read-lazy` to `--lazy-mode`.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Whether a macOS direct-read path (`F_NOCACHE`) is planned for `dio`; none found in source.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Measured effect of `--lazy-mode on` on a Mac with a table above 4 GiB (only gemma-4 E4B numbers exist).",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "The argument table defines `-lm, --load-mode` with values auto, none, mmap, mlock, mmap+mlock and dio, and env `LLAMA_ARG_LOAD_MODE`; `dio` is described as \"use DirectIO if available\".",
+          "source": "https://raw.githubusercontent.com/ggml-org/llama.cpp/master/common/arg.cpp",
+          "note": null
+        },
+        {
+          "text": "The argument table defines `-lzm, --lazy-mode` with values on, auto, off, env `LLAMA_ARG_LAZY_MODE`, where `on` requires mmap and `auto` means on only for tensors larger than 4 GiB.",
+          "source": "https://raw.githubusercontent.com/ggml-org/llama.cpp/master/common/arg.cpp",
+          "note": null
+        },
+        {
+          "text": "The model loader sets `use_mmap` for auto, mmap and mmap+mlock, and sets `use_direct_io` only for `dio`.",
+          "source": "https://raw.githubusercontent.com/ggml-org/llama.cpp/master/src/llama-model-loader.cpp",
+          "note": null
+        },
+        {
+          "text": "`llama_file` opens with `O_RDONLY | O_DIRECT` only inside `#ifdef __linux__`.",
+          "source": "https://raw.githubusercontent.com/ggml-org/llama.cpp/master/src/llama-mmap.cpp",
+          "note": null
+        },
+        {
+          "text": "In the POSIX `llama_file` implementation, `has_direct_io()` returns `fd != -1 && alignment > 1`, so it is false when no `O_DIRECT` descriptor was opened.",
+          "source": "https://raw.githubusercontent.com/ggml-org/llama.cpp/master/src/llama-mmap.cpp",
+          "note": null
+        },
+        {
+          "text": "`llama_prefetch` is compiled only for `__linux__` or Windows 8 and later.",
+          "source": "https://raw.githubusercontent.com/ggml-org/llama.cpp/master/src/llama-mmap.cpp",
+          "note": null
+        },
+        {
+          "text": "The macOS mlock failure hint names `vm.user_wire_limit`, `vm.global_user_wire_limit`, `vm.global_no_user_wire_amount` and `ulimit -l`.",
+          "source": "https://raw.githubusercontent.com/ggml-org/llama.cpp/master/src/llama-mmap.cpp",
+          "note": null
+        },
+        {
+          "text": "On Linux the PR 20834 debug trace shows `llama_model_loader: direct I/O is enabled, disabling mmap` and a single aligned read path (`alignment=4096`) in `dio` mode.",
+          "source": "https://github.com/ggml-org/llama.cpp/pull/20834",
+          "note": null
+        },
+        {
+          "text": "PR 20834 states it \"overhauls the three separate loading modes (mlock, mmap, and direct-io) into one single -lm/--load-mode option\" and marks `--mlock`, `--mmap`, `--direct-io` and their negative forms deprecated.",
+          "source": "https://github.com/ggml-org/llama.cpp/pull/20834",
+          "note": null
+        },
+        {
+          "text": "A reviewer on PR 20834 wrote that defaulting to DirectIO \"was a bad idea\" because it \"seems to fail on a not insignificant number of configurations\", and suggested disabling mmap by default on GPU builds instead.",
+          "source": "https://github.com/ggml-org/llama.cpp/pull/20834",
+          "note": null
+        },
+        {
+          "text": "The PR 20834 author confirmed that `--load-mode none` equals the old `--no-mmap`.",
+          "source": "https://github.com/ggml-org/llama.cpp/pull/20834",
+          "note": null
+        },
+        {
+          "text": "PR 26135 redefines `-lm mlock` as memory-lock only, without mmap, and `-lm mmap+mlock` as lock with mmap, to fix issue 26110.",
+          "source": "https://github.com/ggml-org/llama.cpp/pull/26135",
+          "note": null
+        },
+        {
+          "text": "RESOLVES the open question in llama-cpp-metal-backend-on-mac.md about `--load-mode mlock` semantics after regression 26110: after PR 26135, `mlock` does not map the file.",
+          "source": "https://github.com/ggml-org/llama.cpp/pull/26135",
+          "note": null
+        },
+        {
+          "text": "PR 28334 (opened 2026-09-03) removes the `--mmap`, `--mlock` and `--direct-io` spellings from the argument parser as the final cleanup of the refactor.",
+          "source": "https://github.com/ggml-org/llama.cpp/pull/28334",
+          "note": null
+        },
+        {
+          "text": "`lazy_read::add` returns false for `off`, returns false when the tensor is 4 GiB or smaller unless mode is `on`, and warns that the tensor \"is loaded into RAM in full\" when mmap is unsupported.",
+          "source": "https://raw.githubusercontent.com/ggml-org/llama.cpp/master/src/llama-model-loader.cpp",
+          "note": null
+        },
+        {
+          "text": "The loader skips mlock growth for lazy tensors, with the comment that locking one \"would fault all of it in, which is what lazy avoids\".",
+          "source": "https://raw.githubusercontent.com/ggml-org/llama.cpp/master/src/llama-model-loader.cpp",
+          "note": null
+        },
+        {
+          "text": "Ollama's launcher passes `--load-mode dio` only on Linux with an integrated CUDA or ROCm GPU, `--load-mode none` when `use_mmap` is false, and no lazy-mode flag at all.",
+          "source": "https://raw.githubusercontent.com/ollama/ollama/main/llm/llama_server.go",
+          "note": null
+        },
+        {
+          "text": "Measured on this Mac (macOS arm64, Metal, the Ollama 0.34.4 Homebrew llama-server, build 11081 commit 161755f29, 274 MB GGUF): `-lm auto` logs `load_mode = mmap` with `CPU_Mapped 44.72 MiB` and `MTL0_Mapped 260.86 MiB`.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Measured on the same Mac and build: `-lm dio` logs `load_mode = dio` and non-mapped buffers `CPU 44.72 MiB` and `MTL0 216.15 MiB`, identical to `-lm none`, with no direct-I/O warning.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "The same installed build prints `-lm, --load-mode` and `-lzm, --lazy-mode` in `--help`, with the same help text as master.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Inference: `dio` on macOS has no benefit over `none` and should not be recommended; use `auto` (mmap) for fully resident models and `none` only to avoid mapped-span accounting.",
+          "source": "asserted",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Corrections and disagreements",
+      "facts": [
+        {
+          "text": "CONTRADICTS: llama-cpp-lazy-mode-lazy-tensor-reading-of-overs.md, which treats `--tensor-read-lazy` versus `--lazy-mode` as unresolved: the current argument table has only `--lazy-mode`/`-lzm`.",
+          "source": "https://raw.githubusercontent.com/ggml-org/llama.cpp/master/common/arg.cpp",
+          "note": null
+        },
+        {
+          "text": "CONTRADICTS: llama-cpp-lazy-mode-lazy-tensor-reading-of-overs.md (\"with mmap off there is nothing to read lazily\"): `init_mappings` creates mappings when `use_mmap || lazy.any()`, with the comment that this keeps lazy reading usable \"even when --load-mode is not set to mmap\".",
+          "source": "https://raw.githubusercontent.com/ggml-org/llama.cpp/master/src/llama-model-loader.cpp",
+          "note": null
+        }
+      ]
+    }
+  ],
+  "related": []
+}

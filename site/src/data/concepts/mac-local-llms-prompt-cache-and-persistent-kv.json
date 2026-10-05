@@ -1,0 +1,384 @@
+{
+  "slug": "mac-local-llms-prompt-cache-and-persistent-kv",
+  "concept": "Mac local LLMs: Prompt cache and persistent KV",
+  "generated": "2026-10-05",
+  "summary": "Claude Code attribution block `x-anthropic-billing-header: cc_version=<ver>.<hash>; cc_entrypoint=cli; cch=00000;` is the first system block; in v2.1.37 the hash changed per call. Set `CLAUDE_CODE_ATTRIBUTION_HEADER=0` (settings.json env or `--settings`; older releases ignored shell export). Repo...",
+  "facets": [
+    {
+      "title": "Agent client invalidators (fix first)",
+      "facts": [
+        {
+          "text": "Claude Code attribution block `x-anthropic-billing-header: cc_version=<ver>.<hash>; cc_entrypoint=cli; cch=00000;` is the first system block; in v2.1.37 the hash changed per call. Set `CLAUDE_CODE_ATTRIBUTION_HEADER=0` (settings.json env or `--settings`; older releases ignored shell export). Reported 2 s follow-ups became 30 s waits.",
+          "source": "https://medium.com/@vito.rallo/running-claude-code-with-local-llms-all-lies-until-now-3e9a0084dfe1",
+          "note": null
+        },
+        {
+          "text": "Since v2.1.181 the block is stable within one conversation, but still differs across conversations and subagents, so cross-conversation system-prompt reuse still breaks.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Bedrock rejects the block: `400 x-anthropic-billing-header is a reserved keyword and may not be used in the system prompt`.",
+          "source": "https://github.com/anthropics/claude-code/issues/24168",
+          "note": null
+        },
+        {
+          "text": "`--tools \"Bash,Edit,Read\"` plus `--strict-mcp-config` cut a 259-tool request to 8 built-ins; `--exclude-dynamic-system-prompt-sections` moves per-user context to the first user message (ignored with --system-prompt).",
+          "source": "https://medium.com/@vito.rallo/running-claude-code-with-local-llms-all-lies-until-now-3e9a0084dfe1",
+          "note": null
+        },
+        {
+          "text": "Thinking: Qwen3.5 template emits `<think>` only after the last user message, so history re-renders when a new user turn arrives. Qwen3.6 needs `--chat-template-kwargs '{\"preserve_thinking\":true}'`.",
+          "source": "https://github.com/dmitryryabkov/local-ai-mac",
+          "note": null
+        },
+        {
+          "text": "Non-leading system messages: oMLX `preserve_mid_system_cache` defaults true (user_note_safe); false merges all to one leading system message.",
+          "source": "https://raw.githubusercontent.com/jundot/omlx/main/omlx/server.py",
+          "note": null
+        },
+        {
+          "text": "Template patching: llama.cpp `--jinja --chat-template-file chat_template.jinja --reasoning-format deepseek`; check with the props endpoint `chat_template`; froggeric's v22.5 ships render-twice-and-diff scripts. Diff the rendered tokenised prompt, not request JSON.",
+          "source": "https://huggingface.co/froggeric/Qwen-Fixed-Chat-Templates",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "llama.cpp / llama-server",
+      "facts": [
+        {
+          "text": "Defaults: `--ctx-checkpoints 32` per slot, `--checkpoint-min-step 8192`, `--cache-idle-slots` on, `--kv-unified` on with auto slots, `--slot-prompt-similarity 0.10`. Cache size via `--cache-ram`/`-cram`; log line `cache state: N prompts, X MiB (limits: ...)`.",
+          "source": "https://github.com/ggml-org/llama.cpp/blob/master/tools/server/README.md",
+          "note": null
+        },
+        {
+          "text": "Debug: `-lv 4` and grep `forcing full prompt|context checkpoint|Checking checkpoint|n_past =`; good `restored context checkpoint`, bad `erased invalidated context checkpoint`. No mismatch dump when `n_past == 0` (first-token change looks cold).",
+          "source": "https://particula.tech/blog/prompt-reprocessing-swa-hybrid-models-kv-cache",
+          "note": null
+        },
+        {
+          "text": "A 121,035-token prompt was reprocessed repeatedly once the cache hit its 8192 MiB limit; an evicted entry takes its checkpoints with it. Cache restore does not depend on slot id.",
+          "source": "https://github.com/ggml-org/llama.cpp/issues/24055",
+          "note": null
+        },
+        {
+          "text": "Checkpoint RAM: Gemma 4 on build 8724 went 0.7 GB to 10 GB to OOM above 25 GB; `--ctx-checkpoints 1 -np 1` held 1.5 GB, `0` held 0.4 GB. 128 checkpoints at 149.626 MiB is about 18.7 GiB per slot.",
+          "source": "https://github.com/ggml-org/llama.cpp/pull/25592",
+          "note": null
+        },
+        {
+          "text": "Restore search walks newest to oldest; if every checkpoint has `pos_min` above the threshold the whole prompt reprocesses (issue 23013). Upstream eviction is oldest-first plus min-step proximity (PR 25472), not tokens-per-byte scoring.",
+          "source": "https://raw.githubusercontent.com/ggml-org/llama.cpp/master/tools/server/server-context.cpp",
+          "note": null
+        },
+        {
+          "text": "Recurrent models: `--cache-reuse` and `--swa-full` do nothing for Qwen3-Next-style; Gemma-3 without `--swa-full` restores \"successfully\" but re-prefills. With `--swa-full` a 21K prefix fell 230.7 s cold to 6.9 s warm.",
+          "source": "https://github.com/ml-explore/mlx-lm/issues/980",
+          "note": null
+        },
+        {
+          "text": "Sleep (`--sleep-idle-seconds`): `prompt_cache` stays allocated while asleep but wake runs `load_model()`, which rebuilds it and drops saved states (issue 29322; PR 29408 adds `test_server_sleep_prompt_cache`).",
+          "source": "https://github.com/ggml-org/llama.cpp/issues/29322",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Persistence across restart, swap, unload",
+      "facts": [
+        {
+          "text": "Slot save files hold token list plus KV cells, not checkpoints; restore calls `slot->prompt.clear()`, so a restored hybrid slot shows `cache_n = 0` (issue 25913). PR 26004 appends an `SCKP` checkpoint payload (old files still load): 58,202 tokens 181.9 s to 4.7 s on Vulkan. Unmerged as of last read.",
+          "source": "https://github.com/ggml-org/llama.cpp/pull/26004",
+          "note": null
+        },
+        {
+          "text": "Save size ~128 KiB/token f16 (Llama-3.1-8B); q8_0 is 0.531x, q4_0 0.281x.",
+          "source": "https://github.com/vimalnakrani08/stillwarm-bench",
+          "note": null
+        },
+        {
+          "text": "stillwarm refuses restore on flash-attn change, KV type change, model change, `--swa-full` change, or context smaller than saved tokens; `-ngl` changes are allowed; it warns when a restore succeeds but the server re-prefills.",
+          "source": "https://raw.githubusercontent.com/vimalnakrani08/stillwarm/main/README.md",
+          "note": null
+        },
+        {
+          "text": "llama-save-wrapper: `main.py --port 12872 -m model.gguf --slot-save-path DIR -c 32768`. llama-swap has no per-model hooks (discussion 724); a restore script races the first request because readiness is the health check. `/api/models/unload[/<model>]`, `unloadTimeout` default 10 s.",
+          "source": "https://github.com/mostlygeek/llama-swap/discussions/724",
+          "note": null
+        },
+        {
+          "text": "LM Studio disk cache is temporary `/tmp` overflow, not a restart tier. 0.3.35 broke MLX caching (revert to 0.3.31); 0.4.2 logs `Tried to trim '3195' tokens from the prompt cache, but could not: Cache is not trimmable. Clearing the cache instead.`",
+          "source": "https://github.com/lmstudio-ai/lmstudio-bug-tracker/issues/1319",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "MLX servers with SSD tiers",
+      "facts": [
+        {
+          "text": "oMLX: SSD limit `auto` = 50% of (free disk + existing cache incl. GDN sidecars) (v0.6.4 used 10% of capacity); fixed `--paged-ssd-cache-max-size 20GB`. M4 Pro, 22,819 tokens: cold 63.1 s, later turns 0.49 s, after restart 0.27 s.",
+          "source": "https://rapidmlx.com/compare",
+          "note": null
+        },
+        {
+          "text": "oMLX memory guard: `Prefill would require ~9.08 GB peak ... dynamic ceiling is 9.00 GB` on 18 GB. No per-hour write cap exists; wear is unmeasured.",
+          "source": "https://github.com/jundot/omlx/issues/2063",
+          "note": null
+        },
+        {
+          "text": "Rapid-MLX: `--kv-disk-checkpoint-interval` is write-only (external tooling) and blocks decode O(context); `--hybrid-cache-entries N` default 0. Restart restored 18,944 of 22,819 tokens. Shutdown save has a 3.5 s SIGTERM budget.",
+          "source": "https://github.com/raullenchai/Rapid-MLX/blob/main/docs/reference/cli.md",
+          "note": null
+        },
+        {
+          "text": "MTPLX: `--ssd-session-cache-max-size` default 100GB (32GB on 64 GB Macs), writes stop below 10 GiB free; reasoning history preserved by default.",
+          "source": "https://mtplx.com/releases/2.11.3/",
+          "note": null
+        },
+        {
+          "text": "ds4: files keyed by SHA1 byte prefix; trims 32 tokens then rounds down to a multiple of 2,048; eviction score (hits with 6 h half-life + 1) x tokens / size; `--tool-memory-max-ids`, `--disable-exact-dsml-tool-replay`.",
+          "source": "https://raw.githubusercontent.com/antirez/ds4/main/ds4_kvstore.c",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Decision rules",
+      "facts": [
+        {
+          "text": "Agent slow on every turn: fix the client prefix first, then engine. Restarts frequent or multi-agent: oMLX or MTPLX SSD tier. Rare restarts: RAM cache (`--parallel 1` contends between chats).",
+          "source": "asserted",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Corrections",
+      "facts": [
+        {
+          "text": "LM Studio mlx-engine 1.8.5 was thought to survive restarts; it does not.",
+          "source": "https://lmstudio.ai/blog/mlx-engine-agentic-workloads",
+          "note": null
+        },
+        {
+          "text": "Attribution block was \"changes every request\"; true only before v2.1.181.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Rapid-MLX flag was called oMLX's replacement; it is not. Host cache is not freed in sleep.",
+          "source": "asserted",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Open",
+      "facts": [
+        {
+          "text": "Whether vLLM hybrid/Mamba prefix reuse is default (docs say WIP); CachyLlama design unreadable; oMLX on-disk size vs f16 unmeasured.",
+          "source": "asserted",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Corrections and disagreements",
+      "facts": [
+        {
+          "text": "Does LM Studio persist KV across restarts? rapidmlx.com comparison table lists LM Studio as \"In-memory\". The LM Studio blog describes a disk-backed cache that is intentionally temporary (`/tmp` scratch file, cleared on model unload). Both are consistent: disk is used as overflow inside a model lifetime, not as a restart tier. CONTRADICTS prompt-processing-versus-decode-on-apple-gpus-and-neural-accelerators.md line 23 (\"appear to survive restarts and evictions\" for LM Studio mlx-engine 1.8.5); the survivors are oMLX and, partially, Rapid-MLX.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "CONTRADICTS prompt-processing-versus-decode-on-apple-gpus-and-neural-accelerators.md line 23: mlx-engine 1.8.5's disk cache does not survive restarts.",
+          "source": "https://lmstudio.ai/blog/mlx-engine-agentic-workloads",
+          "note": null
+        },
+        {
+          "text": "Gemma 4 26B-A4B depth (extends round 1): the llama.cpp load log shows `block_count 30` with a 4,608-cell SWA cache, matching the mlx discussion (30 layers) and CONTRADICTS the \"10 global / 50 sliding\" claim, which implies 60 layers.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Is the attribution block per-request or per-conversation? Unsloth (and Rallo, Mykola) describe a value that changes every request and cost \"90% slower\", \"2-second follow-ups into 30-second waits\". Claude Code docs say stable per conversation since v2.1.181 and per-request before. Reporters do not state their version. CONTRADICTS: local-llm-server-as-a-coding-agent-backend-on-mac.md which says the line changes every request without a version bound.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "CONTRADICTS: https://danmackinlay.name/notebook/local_llm_mac.html (calls `--kv-disk-checkpoint-interval` the nearest replacement for oMLX's persistent cache; not in an existing dossier): Rapid-MLX's CLI reference says the flag is write-only today and 'enable only for external tooling that consumes the files'.",
+          "source": "https://github.com/raullenchai/Rapid-MLX/blob/main/docs/reference/cli.md",
+          "note": null
+        },
+        {
+          "text": "CONTRADICTS: prompt-cache-survival-across-model-unload-swap-and-restart.md line \"sleep unloads the model and its KV cache\" implies host cache is freed; in master the `prompt_cache` object stays allocated during sleep and is discarded only on wake.",
+          "source": "https://github.com/ggml-org/llama.cpp/issues/29322",
+          "note": null
+        },
+        {
+          "text": "CONTRADICTS: hybrid-and-sliding-window-attention-kv-cache-rewinding.md (line 109, vLLM 0.28.0 enabled hybrid/Mamba prefix reuse by default): the current vLLM design page still says prefix caching for Mamba models is work in progress; the page may be stale.",
+          "source": "https://docs.vllm.ai/en/latest/design/hybrid_kv_cache_manager/",
+          "note": null
+        },
+        {
+          "text": "CONTRADICTS: chat-template-patching-for-cache-stability.md (open question \"no source documents a render-twice-and-diff procedure\"). froggeric's repo ships exactly that, in two scripts.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Premise check, CONTRADICTS the concept name: no upstream file read here scores checkpoints by tokens per byte or decays a hit count. Upstream uses oldest-first plus min-step proximity. If such a scorer exists it is in a fork (the batch brief links it to CachyLlama), and no readable source documents it.",
+          "source": "https://raw.githubusercontent.com/ggml-org/llama.cpp/master/tools/server/server-context.cpp",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Concepts in this cluster",
+      "facts": [
+        {
+          "text": "Disk and SSD-tiered KV cache servers",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Hybrid and sliding-window attention KV cache rewinding",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Prompt-cache invalidation by agent clients",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Chat-template patching for cache stability",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Context shift and cache-overflow policy for recurrent models",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Prompt cache survival across model unload swap and server restart",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Rapid-MLX server and kv-disk-checkpoint-interval",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Rapid-MLX shutdown-time disk save",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Reasoning-token cache invalidation across turns",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "llama-server host-memory prompt cache and idle sleep unload",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "stillwarm llama-server KV persistence wrapper",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "vLLM-Metal hybrid KV cache manager and prefix caching",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Agent-owned KV cache export import artifacts",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "ds4 disk KV cache and SHA1 byte-prefix keying",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "llama-swap lifecycle hooks and wrapper-based KV save restore",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "llama.cpp host-memory prompt cache cache-ram cache-idle-slots on unified memory",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "llama.cpp host prompt cache interaction with id_slot pinning",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Prefix-cache-safe handling of non-leading system turns",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Prefix-stability regression testing of chat templates",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "CachyLlama llama.cpp fork with persistent KV",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Exact tool-call replay for byte-stable agent prefixes",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "KV checkpoint eviction scoring by tokens per byte with hit decay",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "LLAMA_SERVER_SLOTS_DEBUG mismatch logging workflow",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "MTPLX SSD session cache and SessionBank warm-prefix reuse",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "llama.cpp prompt-cache eviction when cache-ram limit is hit",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Chat-template and tool-declaration determinism as a cache-hit prerequisite",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "SSD write budgets and wear for KV session stores",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "oMLX paged SSD cache auto limit policy",
+          "source": "asserted",
+          "note": null
+        }
+      ]
+    }
+  ],
+  "related": []
+}

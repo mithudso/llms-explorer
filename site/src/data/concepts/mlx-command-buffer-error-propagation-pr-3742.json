@@ -1,0 +1,244 @@
+{
+  "slug": "mlx-command-buffer-error-propagation-pr-3742",
+  "concept": "MLX command-buffer error propagation PR 3742",
+  "generated": "2026-10-05",
+  "summary": "Design (PR 3523): save the error from the command buffer's completion handler, then throw it at safe points, namely after synchronization and before and after command encoding. The error therefore surfaces later than the failure, \"quite similar to how CUDA handles errors\". Closes issue 2670.",
+  "facets": [
+    {
+      "title": "Facts",
+      "facts": [
+        {
+          "text": "Design (PR 3523): save the error from the command buffer's completion handler, then throw it at safe points, namely after synchronization and before and after command encoding. The error therefore surfaces later than the failure, \"quite similar to how CUDA handles errors\". Closes issue 2670.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "PR 3523's first review found that `check_error` in the Event and Fence wait did nothing useful because the calling thread is almost never the thread that scheduled the work; the author then switched to propagating the error from `CommandBuffer` to `Event`: set it on every signaled event, and when a poisoned event is waited, pass it on to the encoder and its signaled events.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Failure left by 3523 (issue 3979, PR 4134 and PR 4174): when a buffer is committed mid-eval without signal events and fails, nothing is poisoned, a later healthy buffer signals the eval synchronizer, `mx.eval` returns success, and `get_command_encoder()` later resets the stored error. A 3100 by 1048576 float add that exceeded memory returned `0.0`.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "PR 4174's fix: make the error persistent in the command encoder until an event throws it or the user touches the stream. With it `eval(c)` still does not throw but a following call such as `mx.arange(10)` does. PR 4134 proposed parking the error per stream instead.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "PR 3742 (final form): the error from `eval_cpu` persists per stream until the eval ends; all signaled events in the stream are poisoned by it, and any waited event poisons the stream. `Scheduler::enqueue` wraps every task in try/catch and moves exceptions into stream error state, and `array::detach_event` checks the error before detaching, so the `is_available()` shortcut cannot swallow it.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "On 2026-08-15 zcbenz merged PR 4174 into 3742 \"since they overlap too much\"; commits in 3742 include \"Fix metal error escaping handler\".",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Scope limit in the description: most `eval_cpu` errors are fatal and unrecoverable, so only expected errors passed to the scheduler explicitly are handled; `Load::eval_cpu` IO errors are the worked example.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "2026-05-11 to 05-20: PR 3523 reviewed (angeloskath) and reworked; later merged as commit a025496 (merge date not read) and listed in the MLX v0.32.0 notes (2026-07-07).",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "2026-06-22: PR 3742 opened, motivated by CPU load failures (mlx-swift 427 byte-progress reporting needs truncated safetensors reads to reach `eval`). 06-23 reworked to a persistent per-stream error after review found `is_available()` could drop the error.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "2026-08-08: PR 4060 (ring: fail on peer disconnect) cites 3742 as the PR that will make the thrown exception catchable. 2026-08-12: ring peer-loss abort found and reproduced on an M5 Max (exit 134); on 08-15 the rebased 3742 made the `except RuntimeError` run (8 of 8), with no change to `ring.cpp`.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "2026-08-17: 3742 merged (commit 06f154b, 28 checks passed); issue 4329 opened the same day. MLX 0.32.1 was released the same day (the releases page shows both 17 Aug 09:44 PM and 18 Aug 03:45).",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "2026-08-25: MLX 0.32.2 adds PR 4338 \"Raise cpu stream errors from synchronize\". 2026-09-29: 0.32.3 is latest.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "`mx.async_eval` path: after 3742 a CPU error is stored on the event and never surfaced to Python, and the process aborts (exit 134, uncatchable). Issue 4329 reproduces with a singular `mx.linalg.inv` on `mx.cpu`; 12 of 12 runs aborted for reading the value, `mx.synchronize()` and `mx.synchronize(mx.cpu)`.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "PR 4338 fixes the `synchronize` half: the CPU branch enqueued a task and then waited, so its check ran before the work; it now waits and then checks, matching the GPU branch (`mlx/backend/metal/device.cpp:564`). Not addressed: the uncatchable abort when the value is read (`getbuffer` in `python/src/buffer.h` is a CPython slot with no exception translation).",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "A reviewer noticed that a throw skipping `notify_task_completion` on every tenth dispatch could turn an abort into a hang; the author added a fix.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Ring and JACCL: until 3742, a peer loss was an infinite wait on 0.32.0, an abort on main with 4060, and a catchable error only with 3742; JACCL peer loss still hangs at 100% CPU (issue 4278, open).",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "What 3742 does not do: it does not prevent a Hang, Timeout or OOM, it only reports it; after a GPU error the engine must still decide whether the KV or arrays produced by discarded buffers are trustworthy. oMLX swallowed the error for exactly this reason (issue 4224).",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Metal fence deadlock (separate): PR 4552, merged in 0.32.3, traces `MLX_METAL_FAST_SYNCH=1` stalls with many independent reductions in one tape to a consumer waiting on a counter equal to the scheduled `fence::update()` count, not on the specific updates for its input.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "oMLX 4224's source reading says the first error is stored once per command encoder and `Error::check()` throws and clears; PR 4174's text says the error persists until an event throws it or the stream is used. The 4224 reading predates or ignores 3742's persistence change; which MLX 0.32.2 code path applies is unresolved.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Is a command-buffer error consumed by a `mx.synchronize` inside an application (oMLX `_sync_and_clear_cache`) still lost on 0.32.3? Not tested in any source.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Does PR 4134's per-stream sticky design return later after the 3742 and 4174 merge? It was closed.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "PR 3742 was opened 2026-06-22 by zcbenz, implements exception handling for errors in `eval_cpu`, and poisons all pending events in the stream when a CPU error occurs, so the exception throws when a poisoned event is synchronized.",
+          "source": "https://github.com/ml-explore/mlx/pull/3742",
+          "note": null
+        },
+        {
+          "text": "PR 3742's description says most `eval_cpu` errors are fatal, so it handles the IO error in `Load::eval_cpu` as an example and requires expected errors to be passed to the scheduler explicitly.",
+          "source": "https://github.com/ml-explore/mlx/pull/3742",
+          "note": null
+        },
+        {
+          "text": "On 2026-06-23 zcbenz changed 3742 to keep the `eval_cpu` error persistent per stream until the eval ends, poison all signaled events by it, and make `array::detach_event` check the error before detaching.",
+          "source": "https://github.com/ml-explore/mlx/pull/3742",
+          "note": null
+        },
+        {
+          "text": "A reviewer showed on 2026-06-22 that `array::is_available()` could detach a signaled, poisoned event and silently discard the error.",
+          "source": "https://github.com/ml-explore/mlx/pull/3742",
+          "note": null
+        },
+        {
+          "text": "On 2026-08-15 zcbenz rebased 3742 on PR 4174 and changed it to catch and transfer all exceptions in CPU streams; `Scheduler::enqueue` wraps each task in try/catch.",
+          "source": "https://github.com/ml-explore/mlx/pull/3742",
+          "note": null
+        },
+        {
+          "text": "On an M5 Max (macOS 26.6) a two-rank localhost ring with one rank killed hung on v0.32.0 (3 of 3), aborted with exit 134 on main (4 of 4), and raised a catchable `RuntimeError` with the rebased 3742 (8 of 8).",
+          "source": "https://github.com/ml-explore/mlx/pull/3742",
+          "note": null
+        },
+        {
+          "text": "PR 3742 was merged into main on 2026-08-17 as commit 06f154b with 28 checks passed.",
+          "source": "https://github.com/ml-explore/mlx/pull/3742",
+          "note": null
+        },
+        {
+          "text": "Issue 4329 reports CPU errors in `mx.async_eval` still abort the process (exit 134, 12 of 12 runs) after 3742.",
+          "source": "https://github.com/ml-explore/mlx/issues/4329",
+          "note": null
+        },
+        {
+          "text": "PR 4338 makes the CPU branch of `mx.synchronize` wait and then check for a stored stream error, mirroring the GPU branch, and leaves the uncatchable abort on `getbuffer` reads unaddressed.",
+          "source": "https://github.com/ml-explore/mlx/pull/4338",
+          "note": null
+        },
+        {
+          "text": "MLX v0.32.0 (2026-07-07) lists \"Catch error in CommandBuffer and poison the events\" (PR 3523).",
+          "source": "https://github.com/ml-explore/mlx/releases",
+          "note": null
+        },
+        {
+          "text": "MLX v0.32.2 (2026-08-25) lists \"Raise cpu stream errors from synchronize\" (PR 4338), and v0.32.3 (2026-09-29) is the latest release.",
+          "source": "https://github.com/ml-explore/mlx/releases",
+          "note": null
+        },
+        {
+          "text": "PR 3523 saves a command-buffer completion-handler error and throws it after synchronization and before and after command encoding, closing issue 2670, and notes the timing is delayed like CUDA's.",
+          "source": "https://github.com/ml-explore/mlx/pull/3523",
+          "note": null
+        },
+        {
+          "text": "A PR 3523 reviewer (angeloskath) said `check_error` in the Event and Fence wait was not doing what it was meant to because the calling thread is practically never the thread that scheduled the work.",
+          "source": "https://github.com/ml-explore/mlx/pull/3523",
+          "note": null
+        },
+        {
+          "text": "A mlx-swift issue (407) reports `check_error()` throwing from a completion handler as an uncaught SIGABRT on an iPhone 15 Pro.",
+          "source": "https://github.com/ml-explore/mlx/pull/3523",
+          "note": null
+        },
+        {
+          "text": "PR 4134 (closed) shows a 3100 by 1048576 float add that exceeds memory returning `0.0` because a mid-eval commit with no signal events fails without poisoning anything.",
+          "source": "https://github.com/ml-explore/mlx/pull/4134",
+          "note": null
+        },
+        {
+          "text": "PR 4134 proposed a per-stream `StreamError` that outlives the encode cycle and is reported from synchronization points, with the expected message `[METAL] Command buffer execution failed: Insufficient Memory (00000008:kIOGPUCommandBufferCallbackErrorOutOfMemory)`.",
+          "source": "https://github.com/ml-explore/mlx/pull/4134",
+          "note": null
+        },
+        {
+          "text": "PR 4174 keeps the Metal error persistent in the command encoder until an event throws it or the user uses the stream, and was closed on 2026-08-15 after zcbenz merged it into 3742.",
+          "source": "https://github.com/ml-explore/mlx/pull/4174",
+          "note": null
+        },
+        {
+          "text": "With PR 4174 `mx.eval(c)` on the failed add still does not throw, but a following `mx.arange(10)` does.",
+          "source": "https://github.com/ml-explore/mlx/pull/4174",
+          "note": null
+        },
+        {
+          "text": "PR 4552 (merged for MLX 0.32.3) fixes a Metal fence deadlock under `MLX_METAL_FAST_SYNCH=1` with many independent reductions in one tape, where the consumer waited on a counter equal to the scheduled update count instead of its own inputs.",
+          "source": "https://github.com/ml-explore/mlx/pull/4552",
+          "note": null
+        },
+        {
+          "text": "PR 4552's reporter reproduced the stall on a cluster of four \"M5 ultras\" (as the author writes it) using JACCL with 32 independent all_sum calls, and its description cites issues 3142 and 3830.",
+          "source": "https://github.com/ml-explore/mlx/pull/4552",
+          "note": null
+        },
+        {
+          "text": "oMLX 4224's source reading says MLX 0.32.2 stores the first error once per command encoder and `Error::check()` throws and clears it, so an application that calls `mx.synchronize` and drops the exception loses it.",
+          "source": "https://github.com/jundot/omlx/issues/4224",
+          "note": null
+        },
+        {
+          "text": "PR 3742's merge commit shipped in MLX 0.32.1 (inferred from merge date 2026-08-17 and release the same day; the release page truncates its notes).",
+          "source": "asserted",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Corrections and disagreements",
+      "facts": [
+        {
+          "text": "CONTRADICTS: iogpufamily-driver-bug-and-userspace-panic-mitigations.md says \"mlx PR 3742 made [a stored command-buffer error] raise in 0.32.1\". PR 3742's title and description are about CPU (`eval_cpu`) errors; the Metal command-buffer capture is PR 3523 in 0.32.0, and 3742 only absorbed the Metal sticky-error fix from PR 4174 on 2026-08-15. The oMLX 4224 reporter's version (0.32.0 dropped the error at the next encoder open, 0.32.1 raises) is consistent with that history, but the PR number it cites names the merged vehicle, not the original design.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "CONTRADICTS: mlx-metal-fast-synch-and-jaccl-fence-wait-deadlock.md records zcbenz's wontfix (\"no supported CPU/GPU atomic coherence\") and the view that FAST_SYNCH cannot be made reliable. PR 4552 (collaborator nastya236, merged for 0.32.3) shows at least one deadlock was a scheduling defect, fixed without an architectural change, and reproduced on four \"M5 ultras\" (as the author writes it) over JACCL.",
+          "source": "asserted",
+          "note": null
+        }
+      ]
+    }
+  ],
+  "related": []
+}

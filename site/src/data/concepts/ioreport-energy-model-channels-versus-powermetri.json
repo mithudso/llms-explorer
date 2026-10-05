@@ -1,0 +1,199 @@
+{
+  "slug": "ioreport-energy-model-channels-versus-powermetri",
+  "concept": "IOReport Energy Model channels versus powermetrics samplers",
+  "generated": "2026-10-05",
+  "summary": "powermetrics reads energy through IOReport. A Frida trace of `powermetrics --samplers cpu_power` on Mac14,7 (Apple M2) under macOS 26.5.2 found three successful IOReport subscriptions: \"CPU Complex Performance States\" (4 channels), \"CPU Core Performance States\" (8 channels) and \"Energy Model\" (13...",
+  "facets": [
+    {
+      "title": "Facts",
+      "facts": [
+        {
+          "text": "powermetrics reads energy through IOReport. A Frida trace of `powermetrics --samplers cpu_power` on Mac14,7 (Apple M2) under macOS 26.5.2 found three successful IOReport subscriptions: \"CPU Complex Performance States\" (4 channels), \"CPU Core Performance States\" (8 channels) and \"Energy Model\" (136 channels).",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "The Energy Model subscription is the whole group even when only the `cpu_power` sampler is requested: the 136 channels include CPU, GPU, ANE, DRAM, display, media, SRAM and other SoC energy channels. Which of them powermetrics prints is a separate, sampler-controlled step.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Each reporting cycle samples every subscription once with `IOReportCreateSamples` and takes one `IOReportCreateSamplesDelta` against the previous cycle's sample. The requested interval does not subdivide into hidden samples; it only sets the wait between cycles. The real window is a little longer than requested and is written in the plist as `elapsed_ns`.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Measured windows: a 1000 ms request gave a median 1009.3 ms (range 1003.5 to 1011.4), 250 ms gave 258.1 ms, 100 ms gave 107.9 ms. Energy divided by the requested interval overstates power by about 1%, 3% and 8% at those settings; use `elapsed_ns`.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Consequence: a zeus (or macmon, TokenWatt) reading and a powermetrics reading of the same run draw on the same counters, so they cannot disagree about the hardware's report. Differences come from window alignment, from which channels each tool sums, and from sampler formatting.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Apple's own man page says average power values are \"estimated and may be inaccurate\" and \"should not be used for any comparison between devices\", but may help optimize apps. The IOReport energy values that back them are believed to be model-based (utilization, frequency, voltage). Both statements apply to every IOReport-based tool.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "powermetrics needs sudo and reports only at fixed intervals; zeus-apple-silicon gives energy over arbitrary code windows without sudo, plus per-core and DRAM values. powermetrics only aggregates CPU, GPU and ANE per its samplers.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "On M1, zeus's DRAM, ANE and GPU SRAM fields may be None; on M2 and later all fields are typically present.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Channel names drift between generations (it happened with M5). zeus ships a `dump_channels` tool that prints every IOReport energy channel name, raw value and unit and says to compare the output against the name patterns the library recognizes (efficiency/performance core and manager, `CPU Energy`, `DRAM`, `GPU Energy`, `GPU SRAM`, `ANE`).",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "2024-08: macmon's author read IOReport channel names with `strings /usr/bin/powermetrics`, which is how a sudoless monitor became possible.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "2026-07-23: macmon changed its sampler to take one IOReport delta over the whole requested interval, because the earlier design split each interval into four adjacent windows and averaged the derived values; that did not reproduce powermetrics. The four-window mode was presentation smoothing to make graphs resemble Activity Monitor.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Peak power read from a smoothed monitor is not comparable with a powermetrics peak, because averaging four sub-windows flattens bursts; energy over a long window is unaffected because energy adds. Old macmon peak readings are therefore not comparable with new ones.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "An all-`DOWN` core or cluster sample is not evidence that the cluster is off: an M5 Max performance cluster spent about 99.8% of an interval in `DOWN` while another cluster ran, and the same machine is reported as two valid performance clusters. A reader must not infer topology from a dynamic power state.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Active residency uses only frequency states in the numerator; the denominator includes `IDLE`, `DOWN` and `OFF`.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "A CoreML job believed to run on the ANE can leave the ANE power counter at zero while the GPU counter rises, which means the work ran on the GPU. The ANE channel is a placement check as well as a power reading.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "GPU compute versus graphics draw very different power at similar \"busy\" levels: on an M1 Max, Metal graphics gave 85-90% GPU active residency at a peak 972 MHz and about 7 W, while a compute task gave 100% residency at 1296 MHz and 26-29.2 W. A GPU-residency number cannot stand in for energy.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Reproducing the macmon trace needs SIP disabled, Frida, and boot arguments; it is a development-machine experiment, not something to run on a serving host.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Smoothing. macmon (before 2026-07-23) averaged four sub-windows; powermetrics uses one delta per cycle. Both published values for the same \"interval\", with different peak behavior.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Does the macOS 27 beta `CPU Power: 0 mW` come from the CPU-power output stage of powermetrics rather than from missing counters? A sudoless IOReport reader on the same beta would show whether the Energy Model CPU channels were also zero. No source ran it.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Which Energy Model channels carry DRAM and display energy on M5 Pro/Max and whether powermetrics `--samplers` can print them.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "`powermetrics --samplers cpu_power` on Mac14,7 (M2) under macOS 26.5.2 created three successful IOReport subscriptions with 4, 8 and 136 channels (Complex Performance States, Core Performance States, Energy Model).",
+          "source": "https://github.com/vladkens/macmon/tree/main/research/powermetrics",
+          "note": null
+        },
+        {
+          "text": "The 136-channel Energy Model subscription contains CPU, GPU, ANE, DRAM, display, media, SRAM and other SoC energy channels.",
+          "source": "https://github.com/vladkens/macmon/tree/main/research/powermetrics",
+          "note": null
+        },
+        {
+          "text": "powermetrics samples each IOReport subscription exactly once per reporting cycle and takes a delta against the prior cycle, with no fixed-rate hidden sampling and no subdivision of the requested interval.",
+          "source": "https://github.com/vladkens/macmon/tree/main/research/powermetrics",
+          "note": null
+        },
+        {
+          "text": "Recorded `elapsed_ns` medians were 1009.305 ms for a 1000 ms request, 258.146 ms for 250 ms and 107.943 ms for 100 ms.",
+          "source": "https://github.com/vladkens/macmon/tree/main/research/powermetrics",
+          "note": null
+        },
+        {
+          "text": "Before 2026-07-23 macmon divided each interval into four adjacent windows and averaged the derived values, which did not reproduce powermetrics; the fix takes one IOReport delta over the complete interval and uses the real elapsed time.",
+          "source": "https://github.com/vladkens/macmon/tree/main/research/powermetrics",
+          "note": null
+        },
+        {
+          "text": "powermetrics treats `IDLE` and `DOWN` as distinct states that are both excluded from active residency but included in the total-residency denominator.",
+          "source": "https://github.com/vladkens/macmon/tree/main/research/powermetrics",
+          "note": null
+        },
+        {
+          "text": "An M5 Max performance cluster was measured spending about 99.8% of an interval in `DOWN` while another cluster was active, so an all-`DOWN` sample does not prove a core is disabled.",
+          "source": "https://github.com/vladkens/macmon/tree/main/research/powermetrics",
+          "note": null
+        },
+        {
+          "text": "The powermetrics man page says average power values \"are estimated and may be inaccurate\" and \"should not be used for any comparison between devices\".",
+          "source": "https://ss64.com/mac/powermetrics.html",
+          "note": null
+        },
+        {
+          "text": "powermetrics requires sudo and prints energy at fixed intervals such as 500 ms, and gives only aggregate CPU, GPU and ANE results.",
+          "source": "https://ml.energy/blog/energy/measurement/profiling-llm-energy-consumption-on-macs/",
+          "note": null
+        },
+        {
+          "text": "zeus-apple-silicon adds per-core and DRAM energy and may report None for DRAM, ANE and GPU SRAM on M1, while M2 and later typically report all fields.",
+          "source": "https://ml.energy/blog/energy/measurement/profiling-llm-energy-consumption-on-macs/",
+          "note": null
+        },
+        {
+          "text": "zeus-apple-silicon links against CoreFoundation and `-lIOReport`, ships `dump_channels` to print each IOReport energy channel name, raw value and unit, and states channel naming changed with the M5 generation.",
+          "source": "https://github.com/ml-energy/zeus-apple-silicon",
+          "note": null
+        },
+        {
+          "text": "macmon found its private channel names by running `strings /usr/bin/powermetrics`, and a CoreML task that was on the GPU showed zero on the ANE power counter in one author's test.",
+          "source": "https://medium.com/macoclock/is-your-on-device-ai-actually-on-the-neural-engine-b068f33b8efe",
+          "note": null
+        },
+        {
+          "text": "On an M1 Max, Metal graphics drew about 7 W at 85-90% GPU active residency and 972 MHz, while a compute task drew 26-29.2 W at 100% residency and 1296 MHz.",
+          "source": "https://eclecticlight.co/2023/11/07/estimating-energy-use-for-apple-silicon-chips/",
+          "note": null
+        },
+        {
+          "text": "On the same M1 Max, P cores took a third of the time of E cores for the same task and used about six times the energy per thread.",
+          "source": "https://eclecticlight.co/2023/11/07/estimating-energy-use-for-apple-silicon-chips/",
+          "note": null
+        },
+        {
+          "text": "Because powermetrics and zeus read the same IOReport Energy Model group, a benchmark that reports J/token from either should state the window source (`elapsed_ns` versus requested interval) and not call the two methods independent cross-checks.",
+          "source": "asserted",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Corrections and disagreements",
+      "facts": [
+        {
+          "text": "\"Two routes\" framing. The existing energy dossier frames IOReport (zeus) and powermetrics as two routes and lists \"do they agree\" as open. This file says both read the same Energy Model group, so the real comparison is between windowing and channel selection, not between sensors. CONTRADICTS (partly): energy-per-token-measurement-on-apple-silicon.md open question 1 premise.",
+          "source": "asserted",
+          "note": null
+        }
+      ]
+    }
+  ],
+  "related": []
+}

@@ -1,0 +1,134 @@
+{
+  "slug": "omlx-multi-engine-gpu-serialization-and-cross-en",
+  "concept": "oMLX multi-engine GPU serialization and cross-engine Metal queue contention",
+  "generated": "2026-10-05",
+  "summary": "oMLX gives each loaded LLM engine its own thread and MLX stream at `omlx/engine_core.py:345-352` (requested in issue 1248, implemented by PR 1304, first shipped in v0.4.0), and embedding models share the single `mlx-global` executor thread (`:210-224`).",
+  "facets": [
+    {
+      "title": "Facts",
+      "facts": [
+        {
+          "text": "oMLX gives each loaded LLM engine its own thread and MLX stream at `omlx/engine_core.py:345-352` (requested in issue 1248, implemented by PR 1304, first shipped in v0.4.0), and embedding models share the single `mlx-global` executor thread (`:210-224`).",
+          "source": "https://github.com/jundot/omlx/issues/4224",
+          "note": null
+        },
+        {
+          "text": "MLX creates one Metal command queue per stream (`mlx/backend/metal/device.cpp:309-324`), so two busy oMLX engines submit to two command queues of one process.",
+          "source": "https://github.com/jundot/omlx/issues/4224",
+          "note": null
+        },
+        {
+          "text": "PR 1304's motivation was that the MTP patch read the module-level `generation_stream` through `sys.modules`, bypassing the stream given to `BatchGenerator`, so two MTP-capable engines wrote forwards to one stream, a stream-ordering violation that mlx-lm 0.31.3's `BatchGenerator(stream=...)` was designed to prevent.",
+          "source": "https://github.com/jundot/omlx/pull/1304",
+          "note": null
+        },
+        {
+          "text": "PR 1304 gives each EngineCore its own ThreadPoolExecutor and `mx.new_thread_local_stream()`, replaces 37 `generation_stream` references in scheduler.py with `self._stream`, and keeps the global executor for TTS, STT, embedding and reranker engines.",
+          "source": "https://github.com/jundot/omlx/pull/1304",
+          "note": null
+        },
+        {
+          "text": "PR 1304 added `_ensure_wired_limit()` so the process-global `mx.set_wired_limit()` runs once instead of racing across concurrent BatchGenerator inits.",
+          "source": "https://github.com/jundot/omlx/pull/1304",
+          "note": null
+        },
+        {
+          "text": "PR 1304 reports its own sub-2x gain as expected because Metal command buffers still serialize on one GPU; the win is CPU-side overlap, with the 0.6B model's TTFT falling from 2,089 ms to 701 ms beside Qwen3-Coder-Next-6bit, and a two-MTP-model wall time from 5,408 ms to 4,722 ms.",
+          "source": "https://github.com/jundot/omlx/pull/1304",
+          "note": null
+        },
+        {
+          "text": "The `_engine_loop` docstring at `engine_core.py:491-497` still says the executor guarantees MLX GPU operations are never concurrent, which has held only within one engine since PR 1304.",
+          "source": "https://github.com/jundot/omlx/issues/4224",
+          "note": null
+        },
+        {
+          "text": "In issue 4224 the engine that raises `Caused GPU Hang` fails every request it holds because the scheduler re-raises the step error and the engine loop calls `fail_all_requests()`; the other engine's requests usually fail as `InnocentVictim` or `Chunked prefill failed`.",
+          "source": "https://github.com/jundot/omlx/issues/4224",
+          "note": null
+        },
+        {
+          "text": "In 4224 the Python frame where `Caused GPU Hang` surfaces is the first encode or wait on that stream after the reset (`glm5_next_vlm_runtime.py:516` in all six GLM events), so it names the engine, not the kernel.",
+          "source": "https://github.com/jundot/omlx/issues/4224",
+          "note": null
+        },
+        {
+          "text": "In 4224 events 4, 7 and 9 had a discarded queue (2, 10 and 11 buffers) whose owner logged nothing, consistent with the swallow path in `_sync_and_clear_cache` but not provable from logs.",
+          "source": "https://github.com/jundot/omlx/issues/4224",
+          "note": null
+        },
+        {
+          "text": "4224's exposure table: two engines busy 6.9 h with 9 hangs; two busy and each holding a request of 32K+ tokens 5.2 h with 6 hangs; exactly one engine busy 35.9 h (23.4 h with a 32K+ request) with 0 hangs.",
+          "source": "https://github.com/jundot/omlx/issues/4224",
+          "note": null
+        },
+        {
+          "text": "By blamed engine, GLM-5.3 alone had 6.9 h and 0 hangs, GLM-5.3 with Qwen busy 5.5 h and 5 hangs, DeepSeek-V4 alone 4.5 h and 0, DeepSeek-V4 with Qwen busy 1.3 h and 2.",
+          "source": "https://github.com/jundot/omlx/issues/4224",
+          "note": null
+        },
+        {
+          "text": "4224 reports the chance that all nine hangs fall in the dual-engine share by luck is 7.5e-8 if hangs were uniform and independent, between about 3e-6 and 4e-3 under conservative assumptions, and not significant within 10-02 alone (P about 0.13-0.16) because both engines were busy 63-71% of that day.",
+          "source": "https://github.com/jundot/omlx/issues/4224",
+          "note": null
+        },
+        {
+          "text": "Heavy load on both engines is not required in 4224: the blamed engine's own context was 471, 29,962 and 210 tokens at events 1-3, but a chunked prefill was in flight somewhere in the process at all ten events.",
+          "source": "https://github.com/jundot/omlx/issues/4224",
+          "note": null
+        },
+        {
+          "text": "MLX 0.32.0 (oMLX 0.6.4, 2.7 dual-engine hours, light load) reported no hang, but it dropped a stored command-buffer error when the next compute encoder opened; every Hang that reached Python since 09-28 surfaced inside `mx.async_eval` at such an encode.",
+          "source": "https://github.com/jundot/omlx/issues/4224",
+          "note": null
+        },
+        {
+          "text": "4224 ruled out or did not require: memory or wiring, other GPU clients (oMLX held 94.7-98.8% of GPU time), multi-request Lightning MTP transitions, a custom-kernel defect (events 1-2 had no GLM kernels), macOS 27 alone (events 1-2 ran macOS 26.5.1), and the paged SSD cache.",
+          "source": "https://github.com/jundot/omlx/issues/4224",
+          "note": null
+        },
+        {
+          "text": "A GLM-5.3 singleton verify cycle took 0.75-0.79 s just before the 12:17 hang against a median of 53 ms for that context length, and the hung 08-27 DeepSeek decode had run 15.3 s against about 1.2 s for identical requests, which the reporter reads as time-slicing between queues.",
+          "source": "https://github.com/jundot/omlx/issues/4224",
+          "note": null
+        },
+        {
+          "text": "4224's draft patch is a process-wide re-entrant first-come 'GPU turn' enabled by `OMLX_SERIALIZE_ENGINE_GPU=1` or `scheduler.serialize_engine_gpu`; an engine holds it for one decode burst (`_step_burst`) and embedding, reranker and keep-warm forwards hold it for one forward.",
+          "source": "https://github.com/jundot/omlx/issues/4224",
+          "note": null
+        },
+        {
+          "text": "In the draft patch the holder synchronizes its engine stream and its worker thread's default stream before handing the turn on, drain errors are raised not swallowed, and waiters keep publishing decode activity so the cross-engine prefill fairness of PR 2633 stays engaged.",
+          "source": "https://github.com/jundot/omlx/issues/4224",
+          "note": null
+        },
+        {
+          "text": "The draft patch leaves out paged-SSD store workers' copy evals (0.2-0.6% of wall-clock GPU time), model loads, vision encoding, STT/TTS, diffusion, DFlash jobs and a separate-drafter MTP `generation_stream`.",
+          "source": "https://github.com/jundot/omlx/issues/4224",
+          "note": null
+        },
+        {
+          "text": "4224's A/B arithmetic: against 9 hangs in 6.9 dual-engine hours, a serialized run with zero hangs reaches p < 0.05 after about 2.7 dual-engine hours and p < 0.01 after about 4.6; bounding the reduction at 5x needs 11.5-14 lockup-free dual-engine hours.",
+          "source": "https://github.com/jundot/omlx/issues/4224",
+          "note": null
+        },
+        {
+          "text": "4224 request (c): `_reconcile_mtp_to_standard` (`omlx/patches/mlx_lm_mtp/batch_generator.py:1482-1560`) re-runs the committed history in 2,048-token chunks, about 50-110 forwards at 100K-230K tokens, once per MTP row in a batch, and logs success only at DEBUG; PR 4031 saw about 2 minutes for a 111K replay.",
+          "source": "https://github.com/jundot/omlx/issues/4224",
+          "note": null
+        },
+        {
+          "text": "Issue 3706 (macOS 27.0, one resident 399 GB GLM-5.2-oQ4e-mtp, MTP off) shows `kIOGPUCommandBufferCallbackErrorTimeout` from `mx.synchronize()` in `_sync_and_clear_cache`, then `SubmissionsIgnored`: six timeouts in a 10-hour window against zero in three months and 156 engine starts on macOS 26.5.1.",
+          "source": "https://github.com/jundot/omlx/issues/3706",
+          "note": null
+        },
+        {
+          "text": "In 3706 the engine's error recovery calls the same `_sync_and_clear_cache` (`scheduler.py:8204`) that is failing, so once the process is in the driver's penalty box it loops every 5-7 minutes with no self-recovery; commit 5941f68 added a SubmissionsIgnored exit.",
+          "source": "https://github.com/jundot/omlx/issues/3706",
+          "note": null
+        }
+      ]
+    }
+  ],
+  "related": []
+}

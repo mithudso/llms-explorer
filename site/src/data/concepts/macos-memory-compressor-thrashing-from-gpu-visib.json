@@ -1,0 +1,134 @@
+{
+  "slug": "macos-memory-compressor-thrashing-from-gpu-visib",
+  "concept": "macOS memory compressor thrashing from GPU-visible buffers",
+  "generated": "2026-10-05",
+  "summary": "A residency set is a request, not a hard pin. Apple's `requestResidency()` page says Metal does \"as much preparatory work as it can, with the system's current conditions\", and \"may postpone some of the necessary steps\" when other apps concurrently need resources in residency.",
+  "facets": [
+    {
+      "title": "Facts",
+      "facts": [
+        {
+          "text": "A residency set is a request, not a hard pin. Apple's `requestResidency()` page says Metal does \"as much preparatory work as it can, with the system's current conditions\", and \"may postpone some of the necessary steps\" when other apps concurrently need resources in residency.",
+          "source": "https://developer.apple.com/documentation/metal/mtlresidencyset/requestresidency()",
+          "note": null
+        },
+        {
+          "text": "MLX makes a standing `requestResidency()` on each residency set it creates.",
+          "source": "https://raw.githubusercontent.com/ml-explore/mlx/main/mlx/backend/metal/resident.cpp",
+          "note": null
+        },
+        {
+          "text": "MLX keeps a running `total_wired_`. An allocation that would push it past `capacity_` \"is tracked but left out of any set\". Those buffers are never wired by MLX, so under pressure they are candidates for compression and swap like any anonymous memory.",
+          "source": "https://raw.githubusercontent.com/ml-explore/mlx/main/mlx/backend/metal/resident.cpp",
+          "note": null
+        },
+        {
+          "text": "Lowering the wired limit at run time removes allocations from their sets until under the budget; raising it adds unwired allocations back.",
+          "source": "https://raw.githubusercontent.com/ml-explore/mlx/main/mlx/backend/metal/resident.cpp",
+          "note": null
+        },
+        {
+          "text": "On macOS the memorystatus health check has no compressor-thrashing input. The thrash and phantom-cache fields (`msh_compressor_is_thrashing`, `msh_filecache_is_thrashing`) are filled only in the `CONFIG_JETSAM` branch; the macOS branch uses the vm pressure level plus compressor and swap space.",
+          "source": "https://raw.githubusercontent.com/apple-oss-distributions/xnu/main/bsd/kern/kern_memorystatus_policy.c",
+          "note": null
+        },
+        {
+          "text": "The kernel page-query code reports a page of an internal object as paged out when the compressor pager holds it (`vm_object_compressor_pager_state_get` returns `VM_EXTERNAL_STATE_EXISTS`). This state covers pages compressed in RAM and pages swapped.",
+          "source": "https://raw.githubusercontent.com/apple-oss-distributions/xnu/main/osfmk/vm/vm_map.c",
+          "note": null
+        },
+        {
+          "text": "`mincore` turns that state into `MINCORE_PAGED_OUT`, and marks non-file pages `MINCORE_ANONYMOUS`. A probe over a Metal buffer's address range can therefore count how many pages the compressor or swap currently holds.",
+          "source": "https://raw.githubusercontent.com/apple-oss-distributions/xnu/main/bsd/kern/kern_mman.c",
+          "note": null
+        },
+        {
+          "text": "The task ledger charges IOKit mappings to `phys_footprint` at full size and `internal_compressed` memory is \"no longer actually resident for the task\", so a falling footprint on a GPU-heavy process does not by itself prove the buffers were wired.",
+          "source": "https://raw.githubusercontent.com/apple-oss-distributions/xnu/main/osfmk/kern/task.c",
+          "note": null
+        },
+        {
+          "text": "No dated history for a compressor-versus-GPU-buffer interaction was found.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Buffers over the wired capacity are the pageable ones. A workload that grows the MLX buffer pool past the wired limit (long KV, many sessions) turns on compression for exactly the newest buffers while the weights stay wired.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "The mlx-optiq cluster page reports a throughput cliff on a 24 GB M4 with \"system memory is free, nothing swaps, and no error is raised\", yet its own table labels the 19.6 GiB row \"swapping\". The page does not say whether the compressor is involved.",
+          "source": "https://mlx-optiq.com/docs/cluster",
+          "note": null
+        },
+        {
+          "text": "Compression of quantized weights buys little (existing dossier), so any compression of a wired-out weight buffer costs CPU for a small gain.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Explanation of the Anemll decompression spikes. macos-unified-buffer-cache-policy-and-wired-memo.md attributes them to a lower file-cache floor from a wired Metal cache. An alternative from this dossier: the buffers beyond MLX's wired capacity are compressible. The two are not exclusive and no counter data separates them.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "No source reports the compression ratio or per-second decompress rate for Metal buffers on a running MLX or llama.cpp process, with `vm_stat` and `mincore` together.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Whether the throughput cliff in the mlx-optiq docs coincides with rising `Pages decompressed`.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Apple documents `requestResidency()` as best-effort preparation that may postpone making allocations resident when other apps concurrently need resources.",
+          "source": "https://developer.apple.com/documentation/metal/mtlresidencyset/requestresidency()",
+          "note": null
+        },
+        {
+          "text": "MLX issues a standing `requestResidency()` on each residency set it creates and adds allocations to sets only while the tracked wired total stays within capacity.",
+          "source": "https://raw.githubusercontent.com/ml-explore/mlx/main/mlx/backend/metal/resident.cpp",
+          "note": null
+        },
+        {
+          "text": "An MLX allocation that would exceed the wired capacity is tracked but not placed in any residency set.",
+          "source": "https://raw.githubusercontent.com/ml-explore/mlx/main/mlx/backend/metal/resident.cpp",
+          "note": null
+        },
+        {
+          "text": "XNU's macOS (non-CONFIG_JETSAM) memorystatus health check ignores compressor thrashing and phantom-cache pressure and uses vm pressure level, compressor space and swap space.",
+          "source": "https://raw.githubusercontent.com/apple-oss-distributions/xnu/main/bsd/kern/kern_memorystatus_policy.c",
+          "note": null
+        },
+        {
+          "text": "`vm_map_page_range_info_internal` reports a page as paged out when the compressor pager state for it exists.",
+          "source": "https://raw.githubusercontent.com/apple-oss-distributions/xnu/main/osfmk/vm/vm_map.c",
+          "note": null
+        },
+        {
+          "text": "`mincore` sets `MINCORE_PAGED_OUT` from that state and `MINCORE_ANONYMOUS` for pages whose object is not file-backed.",
+          "source": "https://raw.githubusercontent.com/apple-oss-distributions/xnu/main/bsd/kern/kern_mman.c",
+          "note": null
+        },
+        {
+          "text": "The mlx-optiq cluster page states the 24 GB M4 cliff happens with free system memory and no swap, and labels its 19.6 GiB row \"swapping\".",
+          "source": "https://mlx-optiq.com/docs/cluster",
+          "note": null
+        },
+        {
+          "text": "Metal buffers outside MLX's wired capacity are compressible and swappable, so compressor activity beside a wired weight set points at the unwired remainder, not at the weights.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "A `mincore` count of `MINCORE_PAGED_OUT` pages over a buffer is a direct probe for compressor residency of GPU buffers; no published run uses it.",
+          "source": "asserted",
+          "note": null
+        }
+      ]
+    }
+  ],
+  "related": []
+}

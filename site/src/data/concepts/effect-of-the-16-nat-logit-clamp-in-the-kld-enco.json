@@ -1,0 +1,119 @@
+{
+  "slug": "effect-of-the-16-nat-logit-clamp-in-the-kld-enco",
+  "concept": "Effect of the 16-nat logit clamp in the .kld encoder on tail KLD",
+  "generated": "2026-10-05",
+  "summary": "When the clamp is active, the stored min_log_prob equals -16 - log_sum_exp, and log_sum_exp is at least 0 because the top token adds exp(0) = 1 to the sum, so every clamped token decodes to a log-prob at or below -16.",
+  "facets": [
+    {
+      "title": "Facts",
+      "facts": [
+        {
+          "text": "When the clamp is active, the stored min_log_prob equals -16 - log_sum_exp, and log_sum_exp is at least 0 because the top token adds exp(0) = 1 to the sum, so every clamped token decodes to a log-prob at or below -16.",
+          "source": "https://raw.githubusercontent.com/ggml-org/llama.cpp/master/tools/perplexity/perplexity.cpp",
+          "note": null
+        },
+        {
+          "text": "The reader sums p_base * (p_log_base - logit + log_sum_exp) only for entries with p_log_base > -16, so every token the encoder clamped is excluded from the KLD sum.",
+          "source": "https://raw.githubusercontent.com/ggml-org/llama.cpp/master/tools/perplexity/perplexity.cpp",
+          "note": null
+        },
+        {
+          "text": "The encoder clamp therefore adds no truncation beyond the reader's absolute guard: the effective cutoff is reference probability below e^-16 (about 1.1e-7), and the relative max-16 floor always sits inside that dropped region.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "At high-entropy positions (log_sum_exp of several nats) the reader's absolute cutoff drops tokens that are fewer than 16 nats below the top logit, so the reader guard, not the encoder clamp, is the binding limit there.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "The quantized model's own logits are never clamped: its log-softmax runs over full-precision logits, so the truncation is one-sided and applies to the reference only.",
+          "source": "https://raw.githubusercontent.com/ggml-org/llama.cpp/master/tools/perplexity/perplexity.cpp",
+          "note": null
+        },
+        {
+          "text": "Worst-case dropped reference mass is n_vocab * e^-16; for a 262144-entry vocabulary that is about 0.03, and real tails sit far below the threshold so the actual mass is much smaller.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "localbench (Apr 2026) avoids the .kld path: it patches llama.cpp to return prompt logprobs and scores KL over the union of the two top-40 lists, with a floor of the lowest observed logprob minus 2 for missing tokens.",
+          "source": "https://localbench.substack.com/p/gguf-benchmark-methodology",
+          "note": null
+        },
+        {
+          "text": "Each dropped term is p_base * (log p_base - log q); it is negative where the quant raises a tail token's probability and positive where it lowers it, so dropping it biases per-position KLD in either direction by at most e^-16 times the log-ratio times the number of dropped tokens.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Mean KLD, 99.9th-percentile KLD and max KLD are all built from the same per-position sums, so the truncation bound is the same per position and does not by itself explain tail-metric rank flips; Unsloth's 99.9% values reach 9.27 for a 12B QAT model, which head tokens dominate.",
+          "source": "https://unsloth.ai/docs/models/gemma-4/qat",
+          "note": null
+        },
+        {
+          "text": "A position whose reference distribution is almost one-hot (scale near 0 but nonzero) still gets the full 65535 steps over at most 16 nats, so resolution is at best 2.4e-4 nats there.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Top-40 KL (localbench) and full-vocabulary .kld KL are different estimators with different tail handling, so their absolute values are not interchangeable.",
+          "source": "https://localbench.substack.com/p/gguf-benchmark-methodology",
+          "note": null
+        },
+        {
+          "text": "No measurement of the dropped-mass term on a real model was found; a run comparing KLD with the -16 guard removed would settle the size.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "The 4e-6 floor quoted in cross-engine-reference-logits-precision-and-toke.md was not re-derived against the guard.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "The encoder sets min_logit = max(min_logit, max_logit - 16) and stores min_log_prob = min_logit - max_logit - log_sum_exp.",
+          "source": "https://raw.githubusercontent.com/ggml-org/llama.cpp/master/tools/perplexity/perplexity.cpp",
+          "note": null
+        },
+        {
+          "text": "The KLD reader accumulates only entries whose reference log-prob is above -16.",
+          "source": "https://raw.githubusercontent.com/ggml-org/llama.cpp/master/tools/perplexity/perplexity.cpp",
+          "note": null
+        },
+        {
+          "text": "Every token clamped by the encoder decodes to a log-prob at or below -16 and is therefore skipped by the reader.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "The 16-nat encoder clamp has no effect on KLD beyond the reader's own -16 log-prob cutoff.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "The quantized model's logits are not clamped in the KLD computation.",
+          "source": "https://raw.githubusercontent.com/ggml-org/llama.cpp/master/tools/perplexity/perplexity.cpp",
+          "note": null
+        },
+        {
+          "text": "localbench scores KL over the union of top-40 lists with a floor of lowest observed logprob minus 2.",
+          "source": "https://localbench.substack.com/p/gguf-benchmark-methodology",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Corrections and disagreements",
+      "facts": [
+        {
+          "text": "CONTRADICTS: llama-cpp-kld-reference-file-binary-layout-and-e.md Edge cases line \"reference-side precision for extreme tails is limited by the clamp\": the clamped tokens are dropped by the reader guard, so they contribute zero rather than a coarsened value.",
+          "source": "asserted",
+          "note": null
+        }
+      ]
+    }
+  ],
+  "related": []
+}

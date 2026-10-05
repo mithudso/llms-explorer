@@ -1,0 +1,84 @@
+{
+  "slug": "omlx-shared-mlx-executor-thread-versus-per-engin",
+  "concept": "oMLX shared MLX executor thread versus per-engine streams",
+  "generated": "2026-10-05",
+  "summary": "Work on the global executor and a decode on an engine thread run on different threads and streams, so they can overlap on the GPU. The global executor's \"serialized\" claim holds only among global-executor users.",
+  "facets": [
+    {
+      "title": "Facts",
+      "facts": [
+        {
+          "text": "Work on the global executor and a decode on an engine thread run on different threads and streams, so they can overlap on the GPU. The global executor's \"serialized\" claim holds only among global-executor users.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "The keep-warm tick runs on the global thread and touches the default stream, not any engine's stream.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "`get_mlx_executor()` creates a lazy single-worker `ThreadPoolExecutor` with thread name prefix `mlx-global`, and its docstring cites issue #85 for serializing MLX GPU work onto one thread.",
+          "source": "https://raw.githubusercontent.com/jundot/omlx/main/omlx/engine_core.py",
+          "note": null
+        },
+        {
+          "text": "`EngineCore` creates `mx.new_thread_local_stream(mx.default_device())` and a single-worker executor named `mlx-engine-<first 8 chars of engine id>` and gives the stream to its `Scheduler`.",
+          "source": "https://raw.githubusercontent.com/jundot/omlx/main/omlx/engine_core.py",
+          "note": null
+        },
+        {
+          "text": "The engine loop runs `_step_burst` on `_mlx_executor` and routes `add_request` and `fail_all_requests` through the same executor.",
+          "source": "https://raw.githubusercontent.com/jundot/omlx/main/omlx/engine_core.py",
+          "note": null
+        },
+        {
+          "text": "`AsyncEngineCore._mlx_executor` is documented as exposing the engine's executor \"for VLM vision encoding\".",
+          "source": "https://raw.githubusercontent.com/jundot/omlx/main/omlx/engine_core.py",
+          "note": null
+        },
+        {
+          "text": "Decode-burst defaults are `OMLX_DECODE_BURST_MAX_STEPS=64`, `OMLX_DECODE_BURST_BUDGET_SINGLE_S=0.1` and `OMLX_DECODE_BURST_BUDGET_S=0.03`.",
+          "source": "https://raw.githubusercontent.com/jundot/omlx/main/omlx/engine_core.py",
+          "note": null
+        },
+        {
+          "text": "A burst stops early when a request produces its first chunk, no work remains, a prefill eviction needs the async callback, or the deadline passes.",
+          "source": "https://raw.githubusercontent.com/jundot/omlx/main/omlx/engine_core.py",
+          "note": null
+        },
+        {
+          "text": "The burst comment reports about 80 tok/s in an in-process sync loop versus about 74 tok/s through per-token async hand-off, and about 1 ms per token of GIL contention.",
+          "source": "https://raw.githubusercontent.com/jundot/omlx/main/omlx/engine_core.py",
+          "note": null
+        },
+        {
+          "text": "Engine `close()` submits `scheduler.shutdown` and `scheduler.deep_reset` to the engine executor and calls `fatal_exit` if either times out.",
+          "source": "https://raw.githubusercontent.com/jundot/omlx/main/omlx/engine_core.py",
+          "note": null
+        },
+        {
+          "text": "`_final_engine_thread_reclaim(stream)` runs `gc.collect()`, `_sync_and_clear_cache(stream)`, `gc.collect()` and `clear_thread_streams()` on the engine worker thread.",
+          "source": "https://raw.githubusercontent.com/jundot/omlx/main/omlx/engine_core.py",
+          "note": null
+        },
+        {
+          "text": "A comment in `close()` says the final reclaim must run on the engine's own thread and stream because clearing on the global executor cannot reliably return thread- and stream-local Metal memory.",
+          "source": "https://raw.githubusercontent.com/jundot/omlx/main/omlx/engine_core.py",
+          "note": null
+        },
+        {
+          "text": "`shutdown_mlx_executor` submits `_final_global_mlx_thread_reclaim`, calls `fatal_exit` on timeout and then `executor.shutdown(wait=False)`.",
+          "source": "https://raw.githubusercontent.com/jundot/omlx/main/omlx/engine_core.py",
+          "note": null
+        },
+        {
+          "text": "`EnginePool` runs `_touch_gpu` on `get_mlx_executor()` from a keep-warm loop that fires only when a loaded model was recently used and has no active request.",
+          "source": "https://raw.githubusercontent.com/jundot/omlx/main/omlx/engine_pool.py",
+          "note": null
+        }
+      ]
+    }
+  ],
+  "related": []
+}

@@ -1,0 +1,229 @@
+{
+  "slug": "omlx-custom-quantization-loader-dispatcher-maybe",
+  "concept": "oMLX custom quantization loader dispatcher (maybe_load_custom_quantization)",
+  "generated": "2026-10-05",
+  "summary": "Detection key: the function reads `<model_name>/config.json` and looks only at `quantization_config.quant_method`; it does not read the `quantization` dict that mlx-lm itself writes. A missing file or an unreadable JSON file returns None (the parse error is logged at debug level). The comparison ...",
+  "facets": [
+    {
+      "title": "Facts",
+      "facts": [
+        {
+          "text": "Detection key: the function reads `<model_name>/config.json` and looks only at `quantization_config.quant_method`; it does not read the `quantization` dict that mlx-lm itself writes. A missing file or an unreadable JSON file returns None (the parse error is logged at debug level). The comparison is case-insensitive.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Because the path is joined as `Path(model_name) / \"config.json\"`, only local model directories can trigger a custom loader; a bare hub repo id has no such file at that path and falls through to mlx-lm.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Branch 1, `compressed-tensors`: it imports `patches.qwen38_modelopt_mixed` and, if `is_supported_config(config)` is true, requires `is_vlm`, raising ValueError (\"refusing the text-only fallback loader\") otherwise, and returns that module's `load(model_name)`. An unsupported compressed-tensors config falls through to the end and returns None, so every other compressed-tensors checkpoint stays with mlx-lm.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Branch 2, `paroquant`: it lazily imports `paroquant.inference.backends.mlx.load.load`, turns an ImportError into one that says to install `paroquant[mlx]` separately, calls `paro_load(model_name, force_text=not is_vlm)`, and raises ValueError if a VLM load came back text-only.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Any other `quant_method` value (AWQ, GPTQ, FP8 and so on) returns None with the comment that mlx-lm may already support it, so the dispatcher never rejects a format; it only claims the ones it lists.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Call-site contract: the batched LLM engine runs the dispatcher inside `_load_model_sync` on the global MLX executor thread (so loading never overlaps other Metal work), and when it returns a pair the engine keeps `getattr(processor, \"tokenizer\", processor)` as the tokenizer. The call passes only the model name and `is_vlm=False`, so the custom path receives neither the `lazy=` flag used for MoE expert offload nor the MTP sidecar kwargs that the stock `lm_load_compat` path gets.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "The custom loaders own tokenizer and processor wiring; oMLX's `tokenizer_config` and per-model `trust_remote_code` setting are not forwarded to them, so the per-model trust toggle does not gate code inside a custom loader (the ModelOpt branch is in-tree code; the ParoQuant branch is an installed third-party package).",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Ordering in the engine: `maybe_apply_pre_load_patches` (model_type-gated sys.modules registrations) runs first, then the dispatcher, then, on None, the stock `lm_load_compat`; the dispatcher is a second hook beside the pre-load patch hook and not a replacement.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Second mechanism, config normalizers: oMLX also patches `mlx_lm.utils.load_config` so that foreign `quantization_config` blocks are rewritten into mlx-lm's own `quantization` dict before mlx-lm builds the model (Laguna compressed-tensors, Ling FP8/MXFP4 hybrid, MiMo MXFP4, per-layer key variants, GLM DSA fused gate/up keys). These keep mlx-lm as the loader. The dispatcher is reserved for formats that need a different loader; because the dispatcher's custom path bypasses `mlx_lm.load`, these normalizers do not run for dispatcher-handled models.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Design rule that follows: if a format can be expressed as per-module `{bits, group_size, mode}` entries (oQ, OptiQ, MXFP4/NVFP4 hybrids), oMLX handles it by normalizing config; if it needs extra inference-time transforms (ParoQuant's rotations) or a different weight packing (ModelOpt mixed), it goes through the dispatcher.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "2026-03-13 to 2026-05: PR 209 (ParoQuant support) is written as a \"future-friendly custom quantization loading flow\" and merged as-is; the maintainer defers call-site cleanup and toggle gating to a follow-up.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Follow-up commit \"route remaining load call sites through paroquant dispatcher\" wires the dispatcher into the LLM model wrapper, both reranker loaders and the VLM SpecPrefill draft loader.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "After PR 209, a `compressed-tensors` branch for a Qwen3.8 ModelOpt mixed checkpoint is added to the same function, so the dispatcher is no longer paroquant-only (PR 209's description says \"currently paroquant\").",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "JANG took a different path: PR 364 (2026-03-23) proposed a standalone JANGLoader that a commenter reported the maintainer did not want; the author paused it by 2026-05-16, forks carried a dedicated \"jang\" engine in June 2026, and users were still asking for JANG support on 2026-06-20.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Silent fall-through: a ParoQuant checkpoint whose config lacks `quantization_config.quant_method == \"paroquant\"` goes to mlx-lm and fails with a parameter-mismatch error from the stock loader, not a ParoQuant error.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Missing optional dependency: the paroquant branch fails at load time with an ImportError message that names the pip extra; the app does not ship the package.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "VLM and text mismatches are rejected explicitly: the ModelOpt branch refuses a text-only load and the ParoQuant branch refuses a text-only result for a VLM request.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Features keyed on the stock path do not apply to the custom path: expert offload's lazy load, MTP sidecar kwargs and the config normalizers above are all skipped, which is why the maintainer planned to gate MTP, SpecPrefill and IndexCache for ParoQuant models.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "A VLM load of oQ output has its own failure: mlx-vlm skips `Model.sanitize` when safetensors metadata says `format=mlx`, so nested visual keys were not remapped and Qwen3.6-35B-A3B oQ variants failed with \"333 parameters not in model\" until a load_weights remap was added; this is a separate fix from the dispatcher.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Maintainer position on custom loaders: PR 209 (single dispatcher slot, upstream package does the work) was accepted, while PR 364 (in-tree JANG engine, 675 lines) was not; the stated difference is who owns the format code. A reviewer's plugin-system proposal (PR 364 thread) would have made the dispatcher open-ended and was not adopted.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Whether JANG \"has integration\" in oMLX: the JANG project README (quoted in the existing JANG dossier) says oMLX added JANG integration via PR 364, but PR 364 shows no merge, its author paused it, a June 2026 user still asks for support, and the 2026-10-04 oMLX tree has no JANG source file and no JANG branch in the dispatcher.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "`maybe_load_custom_quantization(model_name: str, *, is_vlm: bool) -> tuple[Any, Any] | None` is defined in oMLX's utils/model_loading.py and its docstring says it returns None when the model does not declare a known custom quantization method.",
+          "source": "https://raw.githubusercontent.com/jundot/omlx/main/omlx/utils/model_loading.py",
+          "note": null
+        },
+        {
+          "text": "Its docstring says the custom loaders (for example paroquant) handle their own tokenizer and processor wiring, so omlx's tokenizer_config and trust_remote_code are not forwarded.",
+          "source": "https://raw.githubusercontent.com/jundot/omlx/main/omlx/utils/model_loading.py",
+          "note": null
+        },
+        {
+          "text": "The function returns None if `Path(model_name) / \"config.json\"` does not exist, and returns None after a debug log if reading or parsing it raises.",
+          "source": "https://raw.githubusercontent.com/jundot/omlx/main/omlx/utils/model_loading.py",
+          "note": null
+        },
+        {
+          "text": "The function reads `quantization_config.quant_method`, returns None if it is empty, and compares the value with `.lower()` against \"compressed-tensors\" and \"paroquant\".",
+          "source": "https://raw.githubusercontent.com/jundot/omlx/main/omlx/utils/model_loading.py",
+          "note": null
+        },
+        {
+          "text": "For \"compressed-tensors\" it imports `..patches.qwen38_modelopt_mixed`, and when `is_supported_config(config)` is true it raises ValueError (\"The supported Qwen3.8 ModelOpt mixed checkpoint is a VLM; refusing the text-only fallback loader\") if is_vlm is false, else returns `qwen38_modelopt_mixed.load(model_name)`.",
+          "source": "https://raw.githubusercontent.com/jundot/omlx/main/omlx/utils/model_loading.py",
+          "note": null
+        },
+        {
+          "text": "For \"paroquant\" it imports `paroquant.inference.backends.mlx.load.load`, re-raises ImportError with 'pip install \"paroquant[mlx]\"', calls `paro_load(model_name, force_text=not is_vlm)`, and raises ValueError \"ParoQuant loader returned a text-only model for VLM load\" if is_vlm is true but the loader returned a text-only model.",
+          "source": "https://raw.githubusercontent.com/jundot/omlx/main/omlx/utils/model_loading.py",
+          "note": null
+        },
+        {
+          "text": "Any other quant_method falls to an else branch that returns None, with the comment that the method may already be supported by mlx-lm.",
+          "source": "https://raw.githubusercontent.com/jundot/omlx/main/omlx/utils/model_loading.py",
+          "note": null
+        },
+        {
+          "text": "oMLX wraps `mlx_lm.utils.load_config` with `_patch_mlx_lm_load_config`, which applies normalize_hy_v3_rope_config, expand_per_layer_quant_keys, expand_glm_moe_dsa_fused_quant_keys, normalize_laguna_compressed_quant, normalize_bailing_hybrid_fp8_quant and normalize_mimo_mxfp4_quant to every loaded config.",
+          "source": "https://raw.githubusercontent.com/jundot/omlx/main/omlx/utils/model_loading.py",
+          "note": null
+        },
+        {
+          "text": "normalize_laguna_compressed_quant maps compressed-tensors `float-quantized` to `{group_size 64, bits 8}`, `nvfp4-pack-quantized` to an nvfp4 mode entry and `pack-quantized` to affine, because mlx-lm's legacy handling assumes int4 affine group size 32.",
+          "source": "https://raw.githubusercontent.com/jundot/omlx/main/omlx/utils/model_loading.py",
+          "note": null
+        },
+        {
+          "text": "expand_per_layer_quant_keys adds variants of per-layer quantization keys (bare tensor name, `language_model.` prefix, HF `model.language_model.` order swapped to runtime order) because mlx-lm's nn.quantize predicate matches the runtime module path, and a missed key silently builds the layer at the global bit width.",
+          "source": "https://raw.githubusercontent.com/jundot/omlx/main/omlx/utils/model_loading.py",
+          "note": null
+        },
+        {
+          "text": "In the batched engine's `_load_model_sync`, oMLX calls `maybe_load_custom_quantization(self._model_name, is_vlm=False)` first, returns `(model, getattr(processor, \"tokenizer\", processor))` when it is not None, and otherwise calls `lm_load_compat` with the MTP sidecar kwargs and `lazy=` set from the MoE expert offload setting.",
+          "source": "https://raw.githubusercontent.com/jundot/omlx/main/omlx/engine/batched.py",
+          "note": null
+        },
+        {
+          "text": "The batched engine runs that load on the global MLX executor through `loop.run_in_executor` to avoid blocking the event loop while keeping Metal operations non-concurrent, citing issue 85 in a comment.",
+          "source": "https://raw.githubusercontent.com/jundot/omlx/main/omlx/engine/batched.py",
+          "note": null
+        },
+        {
+          "text": "PR 209's description says it adds a centralized loader that detects `quantization_config.quant_method` from the local config.json, dispatches supported custom formats (currently paroquant), and falls back to mlx-lm or mlx-vlm otherwise, with updated call sites in the batched LLM engine, VLM engine, LLM model wrapper and causal-LM reranker loader.",
+          "source": "https://github.com/jundot/omlx/pull/209",
+          "note": null
+        },
+        {
+          "text": "A follow-up commit on PR 209's thread, \"route remaining load call sites through paroquant dispatcher\", wires `maybe_load_custom_quantization` into the LLM model wrapper, both reranker loaders and the VLM SpecPrefill draft loader, and says each site keeps its mlx-lm fallback when the dispatcher returns None.",
+          "source": "https://github.com/jundot/omlx/pull/209",
+          "note": null
+        },
+        {
+          "text": "A commit message on PR 209's thread says mlx-vlm's load_model skips Model.sanitize when safetensors metadata declares format=mlx, so oQ output needed a `_remap_nested_visual_on_load` wrapper mapping `language_model.model.visual.*` to `vision_tower.*`, without which Qwen3.6-35B-A3B oQ variants fail with \"333 parameters not in model\".",
+          "source": "https://github.com/jundot/omlx/pull/209",
+          "note": null
+        },
+        {
+          "text": "PR 209's author states ParoQuant \"is also very friendly to mlx-lm, only needing to apply an additional lightweight transform before executing the mlx-native quantized matrix multiplication\" and that the official ParoQuant repository already has a custom MLX loader.",
+          "source": "https://github.com/jundot/omlx/pull/209",
+          "note": null
+        },
+        {
+          "text": "On PR 364, a commenter (wsantos, 2026-03-25) writes that the maintainer said on another issue he does not want this kind of implementation and proposes a plugin system instead; the PR author (AlexTzk, comment of 2026-05-16) says work is paused because there is no clear answer whether it will be merged.",
+          "source": "https://github.com/jundot/omlx/pull/364",
+          "note": null
+        },
+        {
+          "text": "PR 364's thread shows two fork commits (2026-06-11 and later) titled \"JANG/JANGTQ mixed-precision MoE engine\" that add a dedicated JANGLoader with engine_type \"jang\" and a JANGTQ dispatch to `load_jangtq_model`, and a user on 2026-06-20 writes \"Still hoping for JANG support in oMLX\".",
+          "source": "https://github.com/jundot/omlx/pull/364",
+          "note": null
+        },
+        {
+          "text": "PR 364's thread cross-references issue 1889, titled \"JANG support removed in v0.4.x without notice\", and the maintainer force-pushed oMLX main on 2026-08-04.",
+          "source": "https://github.com/jundot/omlx/pull/364",
+          "note": null
+        },
+        {
+          "text": "oMLX's repository tree on 2026-10-04 contains `omlx/utils/model_loading.py`, `omlx/patches/qwen38_modelopt_mixed.py`, `docs/oQ_Quantization.md` and per-model patch packages, and no file whose path contains \"jang\" or \"paro\".",
+          "source": "https://api.github.com/repos/jundot/omlx/git/trees/main?recursive=1",
+          "note": null
+        },
+        {
+          "text": "The custom path in the batched engine cannot receive the `lazy=` argument that the stock path uses for MoE expert offload, because the dispatcher is called with only a model name and `is_vlm`.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "The two-mechanism split (config normalization for formats that map to per-module mlx-lm quantization, dispatcher for formats that need their own loader) is the practical test for where a new quantization format belongs in oMLX.",
+          "source": "asserted",
+          "note": null
+        }
+      ]
+    }
+  ],
+  "related": []
+}

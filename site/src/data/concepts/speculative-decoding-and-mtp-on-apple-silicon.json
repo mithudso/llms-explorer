@@ -1,0 +1,729 @@
+{
+  "slug": "speculative-decoding-and-mtp-on-apple-silicon",
+  "concept": "Speculative decoding and MTP on Apple silicon",
+  "generated": "2026-10-05",
+  "summary": "MTP-head drafters are not peer models: the head has no embedding table or output head of its own and needs the target's hidden state as input, so mlx-lm's generic `--draft-model` path cannot load them. That is why `mlx_lm.server --draft-model <Qwen3.6-27B-MTP-bf16>` fails with `ValueError: Model ...",
+  "facets": [
+    {
+      "title": "Facts",
+      "facts": [
+        {
+          "text": "MTP-head drafters are not peer models: the head has no embedding table or output head of its own and needs the target's hidden state as input, so mlx-lm's generic `--draft-model` path cannot load them. That is why `mlx_lm.server --draft-model <Qwen3.6-27B-MTP-bf16>` fails with `ValueError: Model type qwen3_5_mtp not supported`.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Exactness at temperature needs Leviathan-Chen rejection sampling (accept with probability min(1, p/q), resample from (p-q)+). Naive \"sample both and compare\" collapses acceptance: OptiQ measured 28% vs 67% greedy on Qwen3.5-4B at temp 1.0 until it implemented rejection sampling (then 57%).",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "The draft and verify distributions must be truncated identically (same top-p/top-k support) or acceptance stays low: OptiQ's 9B acceptance went 32% to 63% and throughput 1.00x to 1.28x after truncating both sides.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Why depth is capped on Metal: the K-token verify forward costs roughly K times a single-token forward on Metal, unlike CUDA where spare tensor-core throughput makes it nearly free. Root cause found in MLX: `mx.quantized_matmul` re-reads the weight matrix per row for M=2..8 and only amortizes from about M=16 (4-bit M=7 costs 5.28x M=1; bf16 is flat from M=2). The verify window is exactly M=2..8.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "mlx-dspark replaced the stock kernel with its own small-M `skinny_qmm` (weights as the matrix operand, shared by up to 16 rows), flattening verify cost at widths 5-16 (4-bit) and 6-16 (8-bit); it is force-disabled on M5 and newer (`applegpu_g17`+) because it stalled a sustained generation about 105 s there despite winning microbenchmarks.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Attention verify cost also grows with context: with 2-8 query rows Metal's decode attention re-reads the whole KV cache once per row; Metal has a cliff at 6-15 query rows. mlx-dspark's multi-row attention kernel reads each KV tile once (8 rows at 32k on Qwen3.8-27B: 7.5 ms to 1.6 ms per call).",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Hybrid (GatedDeltaNet) models cannot trim a rejected draft: recurrent state is a fixed-size array, not an append-only KV buffer. Strategies seen: checkpoint-and-replay (mlx-lm PR 1468: undo the round, replay accepted tokens in one extra forward; 3 of 4 layers are recurrent so each reject costs a near-full extra pass), per-node state capture with parent-indexed recurrence kernel (ddtree-mlx, zero-cost commit), \"innovation tape replay\" in a GDN kernel (MTPLX), and direct rollback to last accepted token for n-gram drafts (OptiQ).",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Self-drafting from context: OptiQ `--ngram-draft 16` picks draft length each step from recent acceptance and the measured cost of a verify at the current context; MTP and n-gram combine (`--mtp --ngram-draft`).",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "2025: Apple ReDrafter (RNN drafter conditioned on target hidden states + dynamic tree attention): up to 2.8x on H100 and up to 2.3x on Apple Metal via MLX.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Feb 2026: mlx-lm issue 846: `--draft-model` on hybrid Qwen3/Qwen3.5 targets skipped or garbled tokens (counting 1-20 returns 1,3,5,6,8...); non-hybrid-safe cache rewind was the cause; a fork commit \"Fix speculative decoding for hybrid models (ArraysCache + KVCache)\" appeared 7 Mar 2026.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "27 Apr 2026: MTPLX (Youssof Altoukhi) runs exact MTP speculative sampling; public preview 2 May 2026. Claim (first-party): no macOS runtime could use a model's own MTP heads before that.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "5 May 2026: Google ships Gemma-4 `-assistant` MTP drafters (E2B/E4B/26B-A4B/31B); 8 May LM Studio mlx-engine issue 323 (`ValueError: Model type gemma4_assistant not supported`, 60+ thumbs-up) and mlx-swift-lm issue 279 report no loader.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "16 May 2026: llama.cpp merges MTP (PR 22673, am17an); the merged \"mtp-clean\" version was 5-15% slower than the earlier branch on one Vulkan box because the earlier version failed to feed target embeddings into drafts (ggerganov, issue 23230): correct but costs extra processing.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Jun 2026: mlx-vlm ships a Gemma-4 drafter path; llama.cpp merges DFlash 28 Jun (PR 22105); DeepSeek DSpark released 27 Jun and ported to MLX by about 5 Jul (mlx-dspark, Abdur Rahim).",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "3 Aug 2026: llama.cpp merges MTP for Qwen3-Next hybrid GDN models (PR 25589).",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Aug 2026: ml-explore/mlx issue 4265 (quantized_matmul small-M weight read); oMLX 0.6.4 ships Lightning MTP, VLM MTP and DFlash as three exclusive per-model methods; Ollama 0.32.6 uses Qwen3.5 MTP head automatically on MLX (already held in existing dossiers).",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Sep 2026: MTPLX 2.11/2.12 (flash-decoding verify kernel, Flash-Next 125B MoE, ternary Bonsai on 16 GB); mlx-dspark 0.20 (Gemma-4 12B 3.25x, speculation holds at 32k); as of 3 Oct 2026 mlx-lm main still has no merged MTP path (MTPLX FAQ: mlx-lm MTP PR \"still unmerged\"; mlx-lm maintainer zcbenz closed the n-gram/GDN rollback issue 1497 on 25 Aug 2026 with \"we don't accept AI written architecture changes\").",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "llama.cpp draft-mtp on Metal is chip- and model-dependent, not uniformly a loss (see Disagreements).",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "llama.cpp MTP lowers prompt processing: -17% on M2 Ultra (1015 to ~842 t/s, flat across n_max 2-6); PR 22673 attributes it to device-to-host embedding transfers; on a CUDA+Vulkan layer split prefill roughly halves (issue 27428, Linux, not Mac).",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "llama.cpp MTP run-to-run variance on Metal grows with n_max (n=6 spread 11 t/s on M2 Ultra, baseline spread 0.02); reporter guesses batched-verify floating-point ordering.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "llama.cpp MTP image input crash warning on Qwen3.6-27B-MTP-GGUF model card; `-np > 1` and `--mmproj` were unsupported in the first Unsloth MTP release (12 May 2026), though PR 22673 later states MTP is compatible with vision and parallel decoding \"not fully optimized\".",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "mlx-lm server truncation bug (issue 1292, open): on Unsloth/community Qwen3.6 MTP MLX variants, a second request with the same system prompt but a different user prompt returns 1-72 tokens instead of 400 (M4 Pro and M5 Max, mlx-lm 0.31.3); non-MTP variants are fine; reporter suspects a speculatively drafted EOS accepted at the prefix-cache seam. Workaround: use the non-MTP MLX variant for multi-turn work.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "mlx-lm 0.31.3 has no `mtp` module at all (118 model modules checked); every Qwen3.6 MTP drafter on the Hub fails to load through `--draft-model` (issue 1462, open).",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Two independent mlx-lm bugs found while porting MTP: MTPHead concatenated [hidden, embedding] in the wrong order and used the post-final-norm hidden state instead of the pre-norm residual stream; fixing both took acceptance from about 0% to about 66% (fork PR 1469 closed). Gemma-4 drafter ports hit the same class: Gemma-4 RMSNorm is `x*weight` not `x*(1+weight)`, and layer_scalar is `h*scalar` not `h*(1+scalar)`; fixing took acceptance 0% to 3% to 33%.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "mlx-lm multi-token verify is not bit-identical to sequential single-token forwards in bf16: Gemma-4 E4B max logit diff 0.68 at the second position, so greedy spec output can drift from baseline after tens of tokens (prefix match 24-200 of 200). mlx-dspark and MTPLX say quantized batched matmul flips about 0.5% of near-tie tokens; same class as batched decoding.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Duplicate-weights trap: OptiQ's first MTP wiring loaded the base model twice (mlx-lm.server plus MTPLX loader): Qwen3.5-9B peak 6.5 GB without MTP, 16.7 GB with; the head itself is only about 185 MB. Fix reused the loaded model (9B MTP peak 6.7 GB; 27B 17.6 GB).",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Conversion trap: default mlx-lm converters strip MTP tensors. oMLX warns \"Config declares MTP layers but the weight files contain neither mtp.* tensors nor native nextn layers\"; this applied to mlx-community Qwen3.6-35B-A3B and lmstudio-community Qwen3.8-27B builds. MTPLX refuses to attach a separately supplied MTP sidecar to an arbitrary MLX trunk because matching shapes cannot prove the head was trained against those weights.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Tiny targets regress: Qwen3.5-0.8B (130 tok/s base) with MTP about 0.7x; 2B about break-even (OptiQ); Qwen3.5-0.8B DSpark 0.96x (mlx-dspark); below about 4B there is little to win.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Gemma-4 E4B MTP drafter in mlx-vlm 0.5.0 gave negative speedup (24.5 to 12.6-14.1 tok/s, 11% acceptance) in May 2026 (issue 1121, closed); OptiQ later reached 1.18x geomean on E4B with its own loader.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Long context erodes or reverses gains: mlx-dspark fixed-cap-7 configs fell from 1.17-1.41x at 2k to 0.53-0.97x at 32k before depth-aware caps; oMLX DFlash on Qwen3.6-35B-A3B 8-bit fell from 92 tok/s (1k prompt) to 78 base vs 17 with DFlash at 32k, and Qwen3.8-27B 4-bit from 23.5 to 6.3 tok/s at 32k.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "bf16 targets lose: MLX's unquantized matmul has a roughly 2x cost cliff at verify width 2 (mlx-dspark); 8-bit is the sweet spot for ratio, 4-bit for absolute tok/s.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Sampling-parameter coupling in oMLX: VLM MTP is silently disabled by repetition/presence penalties (Qwen presets set presence_penalty 1.5), cannot combine with TurboQuant KV, only runs when no other request is active, and is ignored on text-only loads.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Window/rotating-cache models: Gemma-4 prefix reuse \"trim\" mode is exact only until the sliding window first wraps (mlx-dspark).",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Does llama.cpp MTP lose on Metal?",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Side A (loss): issue 23752: M1 Max 32 GB, b9330, Qwen3.5-9B Q4_K_M, 25.3 to 18.3-22.4 t/s at every n_max; also 5-14x loss on Qwen3.6-35B-A3B-MTP; maintainer am17an closed it \"not a bug\", saying MTP is optional and multiple users incl. Georgi report sizeable Mac speedups, and refused to debug that setup. Same-thread corroboration: M2 Pro mini Qwen3.5-9B 18 vs 20 t/s (issue 23230), M1 Max Gemma-4 26B MTP slower (comment 11 Jun 2026).",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Side B (win): M5 Max 128 GB, Qwen3.6-27B Q8 dense 18.4 to 31.7 t/s (+75%, acceptance not stated) and Qwen3.6-35B-A3B Q8 MoE 92.9 to 104.6 (+12%), draft-n-max 3, b-unknown, 14 Jun 2026 (stared/benching-local-llms-on-apple-silicon). M2 Ultra 192 GB Qwen3.6-35B-A3B Q8: 68.07 to 77.68 t/s at n=4 (+14%), n=3 76.00 (+12%) at 78% acceptance (b9196). M5 Max Qwen3-Next-80B-A3B Q4_K_M: 90-91 t/s to 78-158 t/s per prompt, aggregate acceptance 83%, wall 18.14 s to 15.47 s (PR 25589). M1 Max 64 GB Gemma-4 26B-A4B Q4_K_XL + Q8 MTP drafter: 58.2 to 72.2 t/s (+24%) at n_max 3 (ikyle.me). M4 Pro 48 GB Qwen3.6-27B Q4_K_XL: about 7 to 10.5 t/s (+50%) at about 86% acceptance, MTPLX 18.3.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Reading: the \"net loss\" in existing dossiers is true for one M1 Max/Qwen3.5-9B/b9330 report and a few comments, but is contradicted by M5 Max, M2 Ultra and M4 Pro data; the same M1 Max chip appears on both sides (Gemma-4 26B-A4B won +24% in ikyle.me; lost in issue 23752 and a comment). Treat as model- and size-dependent: small, already-fast targets lose; big dense targets win.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Best draft depth on Metal: OptiQ ships fixed depth 1 and says depth 2-4 loses every config (Qwen3.6-27B greedy: K=1 1.36x, K=2 1.34x, K=3 0.94x, K=4 0.74x); MTPLX defaults to depth 3 (Qwen packs), Bonsai depth 1, 9B on 16 GB M4 mini retunes to depth 1, Flash-Next accepts up to depth 5; llama.cpp users converge on n_max 2-4 (Unsloth default start 2, ikyle M1 Max best 3, M2 Ultra 3-4, stared 3). Difference tracks the verify kernel: OptiQ's depth-1 verdict used stock mlx-lm kernels, MTPLX and mlx-dspark ship custom small-M verify kernels.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "MTP speedup size for Qwen 27B dense on Mac: OptiQ 1.40x greedy / 1.30x sampled (M4 Pro 24 GB, stock mlx-lm path); llama.cpp +75% (M5 Max); oMLX Lightning MTP 1.88x (21.1 to 39.7 tok/s, M5 Max, Qwen3.8-27B oQ4e) and VLM MTP 1.43x; MTPLX 2.0-3.0x (M5 Max; 2.69x record is on a 192-token bench with thinking off). The spread is explained by engine kernels, quant, content type and chip, and first-party vs third-party measurement.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "DFlash vs DSpark vs MTP on Mac: mlx-dspark says DFlash wins structured code/math (accept length 5.95-6.20, about 36 tok/s vs 2.1x) and DSpark/MTP-style wins chat; \"verdict is version-dependent\" (mlx 0.31 favored DFlash 16-block on Gemma-12B; mlx 0.32 flipped to DSpark; small-M verify kernel flipped Qwen3.8 back to DFlash 2). ddtree-mlx claims tree verify adds only about 10-15% over DFlash and about 0% on creative prose (acceptance 5-10%).",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Whether to use speculation with batching: mlx-dspark measured batching and speculation as substitutes (batched dspark 0.97x of batched baseline at B=4 on Qwen3-4B); Allen Kuo (RTX PRO 6000, not Mac) found MTP net win only with concurrency >= 4, n_spec >= 3, acceptance >= 80%; on Mac the opposite shape appears (spec helps B=1).",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Dense vs MoE: stared +75% vs +12%; mlx-dspark Qwen3.6-35B-A3B 4-bit 1.05-1.67x vs dense 27B 1.96-2.67x; Nemotron-3.5-Lightning-30B-A3B 1.07-1.34x; but oMLX Lightning MTP on 35B-A3B oQ4e 100.2 to 119.2 (+19%) and VLM MTP on 8-bit 79.7 to 117.5 (+47%); MTPLX 35B-A3B 145 tok/s at depth 2. Absolute fastest decode on Mac stays with the MoEs even where ratio is small.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Is a native MTP path ever merged into mlx-lm main (PR 1468/1469 forks and AirRunner `feat/mtp-native` are unmerged; maintainers reject AI-written architecture changes)?",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Has llama.cpp's Metal MTP overhead on pre-M3 chips (M1 Max, M2 Pro) been fixed since b9330? No post-fix M1/M2 measurement was found.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Do first-party MTPLX gains (2-3x) reproduce on third-party hardware beyond the single M4 Pro 2.6x and Mirai Labs M5 Max 55.4 vs 29.7 tok/s datapoints?",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Exact acceptance and depth interplay for MoE targets on Metal (expert-union cost per verify row) is only measured by mlx-dspark and MTPLX; no independent study.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Whether speculative decoding with KV-quantized caches works in mlx-lm server (existing dossier says batching disables with --kv-bits; mlx-dspark supports `--kv-bits 8` with spec and says it is a RAM lever, not speed, slightly slower at 32k).",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "MTPLX is an Apache-2.0 Mac app and CLI that runs a model's own MTP heads as an exact speculative decoder on Apple silicon; first public preview 2 May 2026, exact sampling running 27 Apr 2026.",
+          "source": "https://mtplx.com/faq/",
+          "note": null
+        },
+        {
+          "text": "MTPLX install: `brew install youssofal/mtplx/mtplx`, then `mtplx start`, `mtplx serve --model <repo>`, `mtplx tune --model <m> --retune`, `mtplx forge`, `mtplx inspect`; pip is `python3 -m pip install mtplx`; also a DMG.",
+          "source": "https://github.com/youssofal/MTPLX",
+          "note": null
+        },
+        {
+          "text": "MTPLX serves OpenAI-compatible and Anthropic-compatible (`/v1/messages`) APIs on 127.0.0.1:8000 and refuses to bind a non-localhost host without an API key.",
+          "source": "https://vinoth12940.github.io/blog/articles/genai-20260519-local-mtp-speculative-decoding/",
+          "note": null
+        },
+        {
+          "text": "MTPLX example setup: `mtplx pull Youssofal/Qwen3.6-27B-MTPLX-Optimized-Speed` then `mtplx serve --profile sustained --reasoning off --mtp --depth 3`.",
+          "source": "https://vinoth12940.github.io/blog/articles/genai-20260519-local-mtp-speculative-decoding/",
+          "note": null
+        },
+        {
+          "text": "MTPLX auto-tune measures autoregressive decoding against each draft depth on the user's own Mac and saves a depth only if it beats baseline; on a 16 GB M4 Mac mini Qwen 3.5 9B lands on depth 1 (14.4 to 23.0 tok/s).",
+          "source": "https://github.com/youssofal/MTPLX",
+          "note": null
+        },
+        {
+          "text": "MTPLX default depth is 3 for the Qwen packs, 1 for Ternary Bonsai 2 27B, and Flash-Next accepts up to depth 5.",
+          "source": "https://github.com/youssofal/MTPLX",
+          "note": null
+        },
+        {
+          "text": "MTPLX acceptance dashboard example: Qwen 3.6 35B-A3B mean acceptance P=77.8% at about 89 tok/s.",
+          "source": "https://genie.devoxx.com/blog/mtplx-local-llm-apple-silicon",
+          "note": null
+        },
+        {
+          "text": "Independent M4 Pro 48 GB test: Qwen3.6-27B 4-bit about 7 tok/s baseline, llama.cpp draft-mtp n_max 3 10.5 tok/s (about 86% acceptance), MTPLX depth 3 18.3 tok/s (2.6x), per-position acceptance about 73%/48%/32%, 16.2 GB active / 18.6 GB peak, 14.3 tok/s served over LAN.",
+          "source": "https://vinoth12940.github.io/blog/articles/genai-20260519-local-mtp-speculative-decoding/",
+          "note": null
+        },
+        {
+          "text": "MTPLX 27B record (first-party): 81.74 tok/s vs 30.37 plain (2.69x) on Qwen 3.6 27B Optimized Speed, M5 Max, depth 3, 192-token coding bench, thinking off, temperature 0.6, 2 Jul 2026.",
+          "source": "https://mtplx.com/faq/",
+          "note": null
+        },
+        {
+          "text": "MTPLX 4-bit packs run about 2.3x and the 8-bit Optimized Quality pack about 3.0x over plain decode of the same model (Qwen3.8-27B, depth 3, M5 Max, v2.9.0).",
+          "source": "https://mtplx.com/faq/",
+          "note": null
+        },
+        {
+          "text": "MTPLX measured Qwen 3.5 4B at 227.8 tok/s (1.71x over 133.6 plain, depth 3) and a Forge example \"227.1 to 296.1, 1.30x\".",
+          "source": "https://github.com/youssofal/MTPLX",
+          "note": null
+        },
+        {
+          "text": "MTPLX Flash-Next (Qwen3.8 125B-A6B MoE) numbers on an M5 Max 128 GB: 125.8 tok/s on one OpenCode request, 79.3 at 9k context, 61.8 at 109k, 50.3 at 200k (v2.11.3); needs 96 GB or more, its 32 GB n-gram table streams from SSD.",
+          "source": "https://mtplx.com/faq/",
+          "note": null
+        },
+        {
+          "text": "MTPLX 2.12 ran ternary Bonsai 2 27B at 64.4 tok/s vs 52.6 for 4-bit Qwen3.8-27B (M5 Max, 4,061-token prompt), peak 11.4 GB vs 23.9 GB; the 16 GB window (8,192 tokens) was simulated by a memory budget on a 128 GB Mac, not a real 16 GB Mac.",
+          "source": "https://mtplx.com/faq/",
+          "note": null
+        },
+        {
+          "text": "MTPLX prefix caching works together with speculation on hybrid GDN models since 2.0.0 (6 Jul 2026) by checkpointing attention KV plus recurrent and conv state at commit boundaries; a 100k-token session restores in about 2 s.",
+          "source": "https://mtplx.com/faq/",
+          "note": null
+        },
+        {
+          "text": "MTPLX modes: Turbo (NAX verify kernels + compiled verify, default for quantized 27B/9B), Sustained (default for other models, long-context path with chunked prefill and request-sized KV), Sustained Max (fans 100%), Burst (legacy, loud).",
+          "source": "https://github.com/youssofal/MTPLX",
+          "note": null
+        },
+        {
+          "text": "MTPLX `inspect` classifies models as verified, family-compatible, architecture-compatible, AR-only, incompatible or no MTP heads, and does not silently fall back to slow decode.",
+          "source": "https://github.com/youssofal/MTPLX",
+          "note": null
+        },
+        {
+          "text": "MTPLX needs macOS 14+; M1 and M2 get FP16 builds; the 27B flagship needs 32 GB or more; official packs live under the Hugging Face user Youssofal in speed/balance/quality builds.",
+          "source": "https://mtplx.com/faq/",
+          "note": null
+        },
+        {
+          "text": "MTPLX's custom kernels include a small-M quantized matvec `verify_qmv` for M=3..6 verify shapes and a GDN linear-attention kernel with innovation-tape replay for deterministic rollback.",
+          "source": "https://vinoth12940.github.io/blog/articles/genai-20260519-local-mtp-speculative-decoding/",
+          "note": null
+        },
+        {
+          "text": "oMLX Lightning MTP's verify-shape Metal kernels are powered by MTPLX per oMLX's README; mlx-serve also credits MTPLX kernels.",
+          "source": "https://github.com/jundot/omlx",
+          "note": null
+        },
+        {
+          "text": "oMLX 0.6.4 offers three mutually exclusive speculative methods per model: Lightning MTP (head inside the weights), VLM MTP (external drafter under 2 GB), DFlash (z-lab block diffusion, serves one request at a time).",
+          "source": "https://jacar.es/en/how-to-install-and-tune-omlx-on-m5-max-128-gb/",
+          "note": null
+        },
+        {
+          "text": "oMLX Lightning MTP defaults to 3 draft tokens per cycle with an adaptive controller; logged acceptance 72-77% and 2.5-2.9 tokens per cycle on Qwen3.6-35B-A3B oQ4e.",
+          "source": "https://jacar.es/en/how-to-install-and-tune-omlx-on-m5-max-128-gb/",
+          "note": null
+        },
+        {
+          "text": "oMLX M5 Max API results at temp 0.6 (coding / 15k context): Qwen3.8-27B oQ4e Lightning MTP 21.1 to 39.7 / 21.4 to 27.2 tok/s; Qwen3.6-35B-A3B oQ4e Lightning MTP 100.2 to 119.2 / 100.2 to 115.5; Qwen3.6-35B-A3B 8-bit VLM MTP 79.7 to 117.5 / 84.0 to 90.7; Gemma-4 12B 8-bit VLM MTP 27.4 to 50.5 / 26.6 to 39.2.",
+          "source": "https://jacar.es/en/how-to-install-and-tune-omlx-on-m5-max-128-gb/",
+          "note": null
+        },
+        {
+          "text": "oMLX: at 15k context the Qwen3.8-27B 4-bit VLM MTP gain fell from 1.43x to 1.07x as the large model accepts fewer drafts on prose/code reading; no configuration was slower than its baseline.",
+          "source": "https://jacar.es/en/how-to-install-and-tune-omlx-on-m5-max-128-gb/",
+          "note": null
+        },
+        {
+          "text": "oMLX VLM MTP drafters: `mlx-community/Qwen3.6-35B-A3B-MTP-bf16` (1.7 GB), `mlx-community/Qwen3.8-27B-MTP-bf16` (0.87 GB), `mlx-community/gemma-4-12B-it-assistant-bf16` (0.88 GB); full MTP-head builds `Jundot/Qwen3.6-35B-A3B-oQ4e-mtp` (21.6 GB) and `Jundot/Qwen3.8-27B-oQ4e-mtp` (17.0 GB).",
+          "source": "https://jacar.es/en/how-to-install-and-tune-omlx-on-m5-max-128-gb/",
+          "note": null
+        },
+        {
+          "text": "oMLX Lightning MTP adds peak memory of only about 1-3 GiB (Qwen3.6-35B-A3B oQ4e 23.2 to 24.6 GiB; Qwen3.8-27B 4-bit with VLM MTP 21.7 to 25.4 GiB peak).",
+          "source": "https://jacar.es/en/how-to-install-and-tune-omlx-on-m5-max-128-gb/",
+          "note": null
+        },
+        {
+          "text": "oMLX TurboQuant KV at 4 bits with Lightning MTP left peak memory unchanged at a 32k prompt (24.4 GiB) and lowered decode from 35.4 to 30.3 tok/s on Qwen3.8-27B oQ4e; in hybrid models only the full-attention layers keep KV.",
+          "source": "https://jacar.es/en/how-to-install-and-tune-omlx-on-m5-max-128-gb/",
+          "note": null
+        },
+        {
+          "text": "oMLX ANE prompt-processing split gave +12.8% prefill alone but no gain with Lightning MTP on (505 vs 499 tok/s at 4k) and grew the model from 16.0 to 20.7 GB.",
+          "source": "https://jacar.es/en/how-to-install-and-tune-omlx-on-m5-max-128-gb/",
+          "note": null
+        },
+        {
+          "text": "oMLX built-in benchmark samples greedily (best case for speculation) and uploads results to omlx.ai with no opt-out except the ANE-aligned-prompts checkbox; on 0.6.4 it loads vision models on the text-only engine unless MTP is on.",
+          "source": "https://jacar.es/en/how-to-install-and-tune-omlx-on-m5-max-128-gb/",
+          "note": null
+        },
+        {
+          "text": "OptiQ (`pip install mlx-optiq`) flags: `optiq serve --model mlx-community/Qwen3.5-9B-OptiQ-4bit --mtp`, `--drafter <repo>` (Gemma-4 E4B), `--ngram-draft 16`; `--mtp` and `--drafter` are mutually exclusive, `--ngram-draft` combines with `--mtp` only.",
+          "source": "https://mlx-optiq.com/docs/speculative",
+          "note": null
+        },
+        {
+          "text": "OptiQ MTP greedy on M4 Pro 24 GB: Qwen3.5-4B 29.2 to 35.0 (1.20x, 67% acceptance), 9B 19.5 to 25.8 (1.32x, 66%), Qwen3.6-27B 6.0 to 8.4 (1.40x, 72%); with Qwen's sampler (temp 1.0, top-p 0.95, top-k 20) 1.09x / 1.17x / 1.30x at 56% acceptance.",
+          "source": "https://mlx-optiq.com/docs/speculative",
+          "note": null
+        },
+        {
+          "text": "OptiQ chose fixed depth 1: Qwen3.5-9B K=1 1.28x, K=2 1.19x, K=3 0.89x, K=4 0.74x; Qwen3.6-27B 1.36x, 1.34x, 0.94x, 0.74x; HuggingFace-style adaptive depth lost 4-17%.",
+          "source": "https://mlx-optiq.com/blog/mtp-on-apple-silicon",
+          "note": null
+        },
+        {
+          "text": "OptiQ n-gram lookup on an M4 24 GB with Qwen3.6-35B-A3B-REAP-19B: coding-agent turns 31.1 to 50.5 tok/s (1.62x), chat/research 33.8 to 37.6 (1.11x), copy-heavy turns 86-99 tok/s; with n-gram on, requests decode one at a time.",
+          "source": "https://mlx-optiq.com/docs/speculative",
+          "note": null
+        },
+        {
+          "text": "OptiQ Gemma-4 E4B with `-assistant` drafter: 1.18x geomean, 31.4% acceptance, greedy only; gamma 1 best (1.34x on math), gamma 3 0.96x, gamma 5 0.70x; no drafters published for Gemma-4 E2B/26B/31B in OptiQ's support matrix (but Google lists 26B-A4B and 31B drafters).",
+          "source": "https://mlx-optiq.com/docs/speculative",
+          "note": null
+        },
+        {
+          "text": "OptiQ's MTP head ships as a 4-bit projection with a bf16 final layer, and Nemotron-3.5-Lightning-30B-A3B OptiQ-4bit (22.8 GB) preserves its MTP head for `optiq serve --mtp`.",
+          "source": "https://mlx-optiq.com/",
+          "note": null
+        },
+        {
+          "text": "mlx-dspark (`pip install mlx-dspark`, MIT, needs mlx >= 0.32.0) runs DeepSeek DSpark and z-lab DFlash drafters natively; Mac app via `brew tap ARahim3/mlx-dspark` + `brew install --cask mlx-dspark`; serves OpenAI and Anthropic APIs; `--mode auto|dspark|dflash|lookup|baseline`, `--max-draft auto`, `--max-batch N`, `--kv-bits 8`.",
+          "source": "https://github.com/ARahim3/mlx-dspark",
+          "note": null
+        },
+        {
+          "text": "mlx-dspark M4 Pro best speedups (code/math/chat): Qwen3.8-27B 8-bit DFlash 2 3.80x/4.22x/2.99x (~25-35 tok/s); Gemma-4 12B 8-bit 2.90x/4.24x/2.62x (~48-78 tok/s); Qwen3.6-27B 8-bit 1.96x/2.67x/2.26x; Qwen3-8B 8-bit 2.03x/2.83x/1.71x; Qwen3.6-35B-A3B 4-bit MoE 1.24x/1.67x/1.05x (~91-145 tok/s); Nemotron-3.5-Lightning 30B-A3B 1.27x/1.34x/1.07x.",
+          "source": "https://github.com/ARahim3/mlx-dspark",
+          "note": null
+        },
+        {
+          "text": "mlx-dspark Qwen3.6-35B-A3B: plain decode already 86.9 tok/s (a step is about 11.5 ms) while the 1.53B dense drafter costs about 5.7 ms per round, so ratio is only 1.32x despite 7.0 tokens/round acceptance on math; hybrid n-gram lookup drafts are a net loss on MoEs (1.27x to 1.21x) and ship off.",
+          "source": "https://github.com/ARahim3/mlx-dspark",
+          "note": null
+        },
+        {
+          "text": "mlx-dspark long context (M4 Pro, greedy): Qwen3.8-27B 4-bit DFlash 2 1.69x/1.79x at 16k and 1.66x/1.85x at 32k (baseline 14.1 and 12.9 tok/s); fixed cap 7 had been 0.53-0.97x at 32k before the multi-row attention kernel and depth-aware cap.",
+          "source": "https://github.com/ARahim3/mlx-dspark",
+          "note": null
+        },
+        {
+          "text": "mlx-dspark picks the draft cap by measuring verify and drafter cost curves on the user's Mac once (about 5 s) and an M5 Max may pick cap 2 where an M4 Pro picks 7, so copying caps between machines can be a net loss.",
+          "source": "https://github.com/ARahim3/mlx-dspark",
+          "note": null
+        },
+        {
+          "text": "mlx-dspark KV cost for Qwen3.8-27B is 0.086 GB per 1k tokens (about 11 GB at 128k, 23 GB at 256k) regardless of weight bits, and the drafter adds about 20 KB/token of context cache; DSpark drafters attend only a 4096-row window to keep acceptance at depth.",
+          "source": "https://github.com/ARahim3/mlx-dspark",
+          "note": null
+        },
+        {
+          "text": "mlx-dspark drafter memory: 4-bit drafters about 0.77-3.85 GB (Qwen3.6-35B-A3B DFlash 0.77 GB, Qwen3.8-27B DFlash2 3.85 GB, Gemma-4 12B DFlash 1.46 GB, DSpark Gemma-4 heads about 1.8 GB); drafter quantization does not change acceptance.",
+          "source": "https://github.com/ARahim3/mlx-dspark",
+          "note": null
+        },
+        {
+          "text": "mlx-dspark batching: `--max-batch 4` gave 2.48x aggregate for baseline Qwen3-4B (52 to 128 tok/s) and batched dspark 2.51x (130 tok/s) i.e. 0.97x of batched baseline; verify(width 4)/verify(width 1) rises from 1.11x at B=1 to 2.10x at B=16.",
+          "source": "https://github.com/ARahim3/mlx-dspark",
+          "note": null
+        },
+        {
+          "text": "mlx-dspark batches hybrid targets' baseline (Qwen3-4B 4.00x at B=8, Ornith-9B 3.52x at B=4, Qwen3.6-35B-A3B 2.11x at B=8) but batched speculative decoding stays dense-only because per-row rollback of recurrent state has no equivalent; hybrids take the serial spec path.",
+          "source": "https://github.com/ARahim3/mlx-dspark",
+          "note": null
+        },
+        {
+          "text": "mlx-dspark prefix caching works with hybrid targets via checkpoint snapshots and \"rungs\" every 8192 tokens (turn-2 5.5x on Ornith-9B; Qwen3.8-27B 4-bit 62 s cold to 0.21 s identical retry, ~8k-token system prompt); DFlash 2 pair: 38.3 s to 0.24 s.",
+          "source": "https://github.com/ARahim3/mlx-dspark",
+          "note": null
+        },
+        {
+          "text": "mlx-dspark Claude Code comparison: prefill and prefix-cache reuse dominate agent wall-clock; Qwen3-8B 8-bit (accept length 3.01, cache on) finished in about 2:20 vs about 4:10 for Ornith-1.0-9B (accept length 5.07, cache off for hybrid) and Gemma-4 12B.",
+          "source": "https://github.com/ARahim3/mlx-dspark",
+          "note": null
+        },
+        {
+          "text": "mlx-dspark Qwen3.8-27B ranks: 8-bit DFlash 2 3.66x mean; 4-bit about 31-45 tok/s is the fastest decode among 27B-class targets; for target precision 8-bit gives best ratio, bf16 loses because of the verify cost cliff at width 2.",
+          "source": "https://github.com/ARahim3/mlx-dspark",
+          "note": null
+        },
+        {
+          "text": "mlx-dspark Mac-app \"This Mac\" roofline view shows measured memory bandwidth, bytes-per-token and the plain-decode ceiling so speculation gain is visible against it.",
+          "source": "https://github.com/ARahim3/mlx-dspark",
+          "note": null
+        },
+        {
+          "text": "mlx-dspark DSpark port on M4 Pro (July 2026): Gemma-4 12B 18.4 to about 30 tok/s (1.6x) and Qwen3-4B 52.9 to about 73 (1.4x) at launch; Rahim estimated an Apple-silicon ceiling around 2.2x; acceptance rose from 47% to 82% when pairing the drafter with the instruction-tuned target instead of the base target; bf16 target cost more in verify than it gained in acceptance.",
+          "source": "https://we0.ai/articles/deepseek-dspark-apple-silicon-mlx-dflash",
+          "note": null
+        },
+        {
+          "text": "DFlash-MLX (Aryagm) supports Qwen3-4B (default, ~12 GB pair download) and Qwen3.5-4B; Qwen3.5 support is \"functional but incomplete\" because exact partial-block acceptance needs per-layer cache rollback over full, sliding-window and recurrent layers and long-generation acceptance is weaker.",
+          "source": "https://github.com/Aryagm/dflash-mlx",
+          "note": null
+        },
+        {
+          "text": "DFlash-MLX verify accepts the longest matching prefix plus one bonus correction token against greedy target output and extends MLX caches for per-layer rollback because MLX has no speculative-decoding primitives.",
+          "source": "https://github.com/Aryagm/dflash-mlx",
+          "note": null
+        },
+        {
+          "text": "ddtree-mlx on a Mac Studio M3 Ultra 256 GB, Qwen3.5-27B 4-bit, 8K-token code prompt: autoregressive 27.9 tok/s, DFlash 38.6 (1.38x, 85% acceptance), DFlash+DDTree 42.3 (1.52x, 4.2 tokens/cycle); tree budget 4 is optimal for hybrids; total memory about 19 GB (16 GB target + 3 GB drafter).",
+          "source": "https://github.com/humanrouter/ddtree-mlx",
+          "note": null
+        },
+        {
+          "text": "ddtree-mlx handles Qwen3.5's 48 GatedDeltaNet and 16 full-attention layers with tree-attention masks plus a custom Metal kernel that forks recurrent state at branch points, and installs the accepted path's state directly.",
+          "source": "https://github.com/humanrouter/ddtree-mlx",
+          "note": null
+        },
+        {
+          "text": "ddtree-mlx content sensitivity: code 85%+ DFlash acceptance (DDTree +10-15%), structured/factual 70-80% (+10-15%), creative prose 5-10% (about 0%).",
+          "source": "https://github.com/humanrouter/ddtree-mlx",
+          "note": null
+        },
+        {
+          "text": "Qwen3-Next and Qwen3.6 draft acceptance by task type is task-dependent in llama.cpp PR data on M5 Max: creative_short 66% acceptance (78 t/s) vs stepwise_math 99% (158 t/s) vs code 90% (129-133 t/s) on Qwen3-Next-80B-A3B Q4_K_M.",
+          "source": "https://github.com/ggml-org/llama.cpp/pull/25589",
+          "note": null
+        },
+        {
+          "text": "llama.cpp MTP design (PR 22673): the MTP model loads from the same GGUF with its own context and KV cache, steady-state acceptance about 75% at 3 draft tokens, \"more than 2x\" on DGX Spark (Qwen3.6 Q8 7.0 to about 16-21 t/s), PP takes a hit from device-to-host embedding transfers.",
+          "source": "https://github.com/ggml-org/llama.cpp/pull/22673",
+          "note": null
+        },
+        {
+          "text": "llama.cpp MTP depends on partial seq_rm for GDN models (PR 22400) for rollback on hybrids.",
+          "source": "https://github.com/ggml-org/llama.cpp/pull/22673",
+          "note": null
+        },
+        {
+          "text": "llama.cpp MTP on Metal reserves an extra context: 1808.02 MiB for Qwen3.5-9B; Unsloth says to plan about 2 GB extra RAM/VRAM headroom for MTP.",
+          "source": "https://unsloth.ai/docs/models/mtp",
+          "note": null
+        },
+        {
+          "text": "Unsloth guidance: MTP GGUFs give about 1.4x to 2.2x, dense models like Gemma-4-31B benefit most (>1.4x), \"gains are smaller on devices with lower memory bandwidth, such as older Macs\"; start with `--spec-draft-n-max 2` and sweep 1-6; Gemma-4 MTP files live in an `MTP/` folder inside the regular GGUF repo; Qwen3.6 still needs a separate MTP GGUF.",
+          "source": "https://unsloth.ai/docs/models/mtp",
+          "note": null
+        },
+        {
+          "text": "Unsloth Gemma-4 MTP command: `llama-server -hf unsloth/gemma-4-31B-it-GGUF --spec-type draft-mtp --spec-draft-n-max 4`; Studio auto-selects MTP settings per hardware including Mac.",
+          "source": "https://unsloth.ai/docs/models/mtp",
+          "note": null
+        },
+        {
+          "text": "stared M5 Max 128 GB 8-bit table: Qwen3.6-35B-A3B llama.cpp+MTP 105/97 tok/s (@128/@8k, 45 GB) vs llama.cpp 93/87 vs MLX 85/79; Qwen3.6-27B llama.cpp+MTP 32/30 (42 GB) vs 18/17 (41 GB) vs MLX 17/17 (28 GB); MTP slightly lowers prefill (35B 2462 to 1990, 27B 567 to 521 tok/s) and adds about 1 s load.",
+          "source": "https://github.com/stared/benching-local-llms-on-apple-silicon/blob/main/NOTES.md",
+          "note": null
+        },
+        {
+          "text": "stared command: `llama-server -m Qwen3.6-35B-A3B-Q8_0.gguf --spec-type draft-mtp --spec-draft-n-max 3 -ngl 999 -fa on -c 65536 --parallel 1 --jinja`; the MTP GGUF build runs as a normal model without the flag.",
+          "source": "https://github.com/stared/benching-local-llms-on-apple-silicon",
+          "note": null
+        },
+        {
+          "text": "M2 Ultra 192 GB llama.cpp b9196 Qwen3.6-35B-A3B UD-Q8_K_XL: baseline 68.07 t/s, MTP n=2 73.04 (1.07x, 86% acc), n=3 76.00 (1.12x, 78%), n=4 77.68 (1.14x, 77%), n=5 74.68, n=6 73.68 (66%); prompt processing 1015 to about 842 t/s (-17%).",
+          "source": "https://dev.to/someoddcodeguy/llamacpps-new-mtp-on-macos-4ea0",
+          "note": null
+        },
+        {
+          "text": "M1 Max 64 GB macOS 15.7.7 Gemma-4 26B-A4B Q4_K_XL with Unsloth Q8 MTP draft: 58.2 to 72.2 t/s (1.24x) at n_max 3, prompt processing unchanged (298 to 296 t/s), n_max 2 close and above 3 slower.",
+          "source": "https://ikyle.me/blog/2026/how-to-setup-a-local-coding-agent-on-macos",
+          "note": null
+        },
+        {
+          "text": "M5 Max llama.cpp Qwen3-Next-80B-A3B-Instruct-MTP Q4_K_M: aggregate acceptance 83.3%, 1,570 tokens in 18.14 s without MTP vs 15.47 s with (about +17% wall throughput).",
+          "source": "https://github.com/ggml-org/llama.cpp/pull/25589",
+          "note": null
+        },
+        {
+          "text": "ggerganov on llama.cpp MTP change after merge: the earlier draft did not use target embeddings for generated drafts, degrading acceptance over long runs; the correct version needs extra processing, so 5-15% lower numbers vs the old branch are expected.",
+          "source": "https://github.com/ggml-org/llama.cpp/issues/23230",
+          "note": null
+        },
+        {
+          "text": "llama.cpp issue 23752 closed by MTP author am17an with \"This is not a bug\"; he cited reports of sizeable Mac speedups from other users and Georgi, and said he lacked bandwidth to debug the reporter's setup.",
+          "source": "https://github.com/ggml-org/llama.cpp/issues/23752",
+          "note": null
+        },
+        {
+          "text": "llama.cpp issue 23752 acceptance observed: draft acceptance 0.80 (192 of 240) at n_max 3 with eval 35.89 t/s in the log excerpt, so lower acceptance is not the whole explanation for the loss.",
+          "source": "https://github.com/ggml-org/llama.cpp/issues/23752",
+          "note": null
+        },
+        {
+          "text": "The Qwen3.8 DeltaNet CUDA bug under WSL produced garbage output even without MTP, showing MTP symptoms can be a base-model backend bug (Linux/CUDA, not Mac).",
+          "source": "https://github.com/ggml-org/llama.cpp/discussions/27164",
+          "note": null
+        },
+        {
+          "text": "llama.cpp DFlash merged 28 Jun 2026 (PR 22105); a pending DSpark PR 25173 reports 1.88x vs 1.55x for DFlash on Qwen3-8B at concurrency 1 (NVIDIA/CPU test, not Mac) and 1.21x over DFlash across 11 categories.",
+          "source": "https://genie.devoxx.com/blog/mtplx-local-llm-apple-silicon",
+          "note": null
+        },
+        {
+          "text": "LM Studio 0.3.10 draft-model speculative decoding is reported at 2.43x on a 32B target with a 0.5B draft and 1.71x on Llama 8B, loads a second model (extra RAM).",
+          "source": "https://modelfit.io/blog/speculative-decoding-mac-llm/",
+          "note": null
+        },
+        {
+          "text": "LM Studio's llama.cpp engine v2.15.0 (beta, May 2026) was needed to load Qwen3.6 MTP GGUFs; LM Studio v0.2.14.0's built-in engine failed with only \"Failed to load model\".",
+          "source": "https://github.com/lmstudio-ai/lmstudio-bug-tracker/issues/1941",
+          "note": null
+        },
+        {
+          "text": "LM Studio mlx-engine had no loader for Gemma-4 `gemma4_assistant` drafters as of May 2026 (issue 323 open).",
+          "source": "https://github.com/lmstudio-ai/mlx-engine/issues/323",
+          "note": null
+        },
+        {
+          "text": "mlx-swift-lm has the speculative-decoding API (`generate(..., draftModel:, numDraftTokens:)`, `SpeculativeTokenIterator`) but had no `gemma4_assistant` model type registered (issue 279, 9 May 2026).",
+          "source": "https://github.com/ml-explore/mlx-swift-lm/issues/279",
+          "note": null
+        },
+        {
+          "text": "Gemma-4 drafter checkpoints: `mlx-community/gemma-4-{E2B,E4B,26B-A4B,31B}-it-assistant-bf16` of 78 MB, 78.8 MB, about 400 MB, about 500 MB; the drafter is a 4-layer Q-only transformer sharing K/V with two target layers (one sliding, one full), centroid output head of 2048 centroids x 128 tokens, top-K 32.",
+          "source": "https://github.com/ml-explore/mlx-swift-lm/issues/279",
+          "note": null
+        },
+        {
+          "text": "Gemma-4 31B 4-bit with its drafter on a 48 GB MacBook Pro in mlx-vlm 0.5.0: no draft 13.50 tok/s, block_size 6 8.81, 3 13.47, 4 13.49 (accepted/round 1.10-1.76); E4B bf16 24.47 to 12.61-14.09.",
+          "source": "https://github.com/Blaizzy/mlx-vlm/issues/1121",
+          "note": null
+        },
+        {
+          "text": "Qwen3.6 MTP quirk: Unsloth recommends temp 1.0 with top-p 0.95 and top-k 20; mismatched truncation across draft and verify wrecks acceptance.",
+          "source": "https://mlx-optiq.com/blog/mtp-on-apple-silicon",
+          "note": null
+        },
+        {
+          "text": "mlx-lm issue 846: server `--draft-model Qwen3-0.6B` on Qwen3-Next-80B-A3B-Instruct 6-bit with `--num-draft-tokens 5` produced skipped tokens at every draft size and quant (mlx-lm 0.30.4); also garbled output on Qwen3.5 (0.31.1) with counting prompts masking it in speed tests.",
+          "source": "https://github.com/ml-explore/mlx-lm/issues/846",
+          "note": null
+        },
+        {
+          "text": "mlx-lm PR 1468 (fork, unmerged) adds `ArraysCache.checkpoint()/restore()`, `can_rewind_prompt_cache()`, an attached `MTPHead` via `load_mtp_head()`, and `mtp_speculative_generate_step()`; verified token-identical at temp 0 on Qwen3.6-27B-UD-MLX-6bit but speedup was 1.2x on 40 tokens and about 0.9x on 200 tokens at about 66% acceptance.",
+          "source": "https://github.com/ml-explore/mlx-lm/pull/1468",
+          "note": null
+        },
+        {
+          "text": "mlx-lm issue 1497 proposed CPU n-gram self-speculation for hybrid GDN models: Qwen3.6-27B (2-bit mixed quant) on M2 Ultra baseline 44.6 tok/s, 1 draft 52.1 (+17%, 44% hit rate), 2 drafts 34.4 (0.77x); closed by a maintainer on 25 Aug 2026 citing no AI-written architecture changes.",
+          "source": "https://github.com/ml-explore/mlx-lm/issues/1497",
+          "note": null
+        },
+        {
+          "text": "ml-explore/mlx issue 4265 (M3 Ultra, mlx 0.31.2 and 0.32.0): 4-bit `(M,5120)@(17408,5120)^T` costs 1.83x/3.26x/5.28x/6.12x of M=1 at M=2/4/7/8 and 6.32x at M=16, bf16 is flat 1.99x from M=2.",
+          "source": "https://github.com/ml-explore/mlx/issues/4265",
+          "note": null
+        },
+        {
+          "text": "Memory-bandwidth arithmetic for speculation: a dense 27B Q4 (about 17 GB read per token) on an M4 Pro (about 120 GB/s) tops out near 7 tok/s baseline; speculation raises effective throughput by accepted tokens per verify pass, not by reducing bytes per pass.",
+          "source": "https://vinoth12940.github.io/blog/articles/genai-20260519-local-mtp-speculative-decoding/",
+          "note": null
+        },
+        {
+          "text": "Allen Kuo (RTX PRO 6000, vLLM, not Mac) found built-in MTP on Qwen3.6-27B a net win only when concurrency >= 4, n_spec >= 3, acceptance >= 80%, and base decode not too fast; n_spec=1 lost (47.3 to 38.5 tok/s single stream); position acceptance 85-88% at slot 0 and 58% at slot 2.",
+          "source": "https://allenkuo.medium.com/when-speculative-decoding-helps-local-llms-and-when-it-doesnt-5c41dd804e4b",
+          "note": null
+        },
+        {
+          "text": "A 30-minute Medium post claims llama.cpp MTP speedup degrades below non-MTP at about 100K context on both NVIDIA and Apple silicon (paywalled, no numbers visible).",
+          "source": "https://blog.gopenai.com/the-mtp-with-llama-cpp-looks-great-but-there-are-deadly-drawbacks-889547d42eb4",
+          "note": null
+        },
+        {
+          "text": "Models shipping a usable MTP head or drafter for Mac as of Oct 2026: Qwen3.5 (0.8B-397B, heads in weights), Qwen3.6 (27B, 35B-A3B), Qwen3.8 (27B dense, Flash-Next 125B-A6B), Gemma-4 (separate `-assistant` drafters), Nemotron-3.5-Lightning-30B-A3B, DeepSeek-V3 family, MiMo V2.6 Qwen 9B, ternary Bonsai 2 27B (draft head added), Gemma-4 12B (Google DSpark/DFlash drafters).",
+          "source": "https://mtplx.com/faq/",
+          "note": null
+        },
+        {
+          "text": "Apple Mirror/ReDrafter line: ReDrafter reports up to 2.3x on Apple silicon via MLX; Apple Dec 2025 \"Mirror\" paper is the successor on the same page.",
+          "source": "https://machinelearning.apple.com/research/recurrent-drafter",
+          "note": null
+        },
+        {
+          "text": "Third-party leaderboard datapoint (Mirai Labs, M5 Max 128 GB, 1 Sep 2026, Qwen3.6-27B): llama.cpp + Unsloth MTP GGUF 29.7 tok/s, MLX plain decode 25.7, MTPLX 2.9.0 55.4; cited via MTPLX comparison page (first-party host).",
+          "source": "https://mtplx.com/compare/mtplx-vs-llama-cpp/",
+          "note": null
+        },
+        {
+          "text": "Hannecke's argument for Mac: unified memory means no second GPU or HBM tier, so a separate 7B drafter beside a 30B target eats context budget; DFlash-style ~1B conditioned drafters fit; he reports AR-drafter speedups on Macs \"stuck near 1.5 to 2x\".",
+          "source": "https://medium.com/@michael.hannecke/why-apple-silicon-inference-needs-diffusion-drafters-not-diffusion-llms-b6ec009409ac",
+          "note": null
+        },
+        {
+          "text": "When it helps on bandwidth-bound Macs (synthesis): biggest on dense 27B-class models and 8-bit/4-bit weights at B=1, with 3-4+ tokens accepted per round; smallest on A3B MoEs (cheap step) and sub-4B models; erodes with context depth unless the engine has depth-aware verify kernels; run speculation OR batching, not both.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Practical setup order on a Mac for a Qwen 27B-class model (synthesis): llama.cpp `--spec-type draft-mtp --spec-draft-n-max 2-3` is the lowest-friction route on M2 Ultra/M4 Pro/M5 Max; MTPLX/oMLX Lightning MTP or mlx-dspark give larger ratios on MLX; mlx-lm stock cannot load MTP heads.",
+          "source": "asserted",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Corrections and disagreements",
+      "facts": [
+        {
+          "text": "CONTRADICTS: llama-cpp-metal-backend-on-mac.md and moe-active-parameter-decode-on-unified-memory.md (llama.cpp draft-mtp \"net loss at every setting on Metal\"): it is a net win on M5 Max (dense Qwen3.6-27B Q8 18.4 to 31.7 t/s, MoE 35B-A3B Q8 92.9 to 104.6), M2 Ultra (+7-14%), M1 Max with Gemma-4 26B-A4B (+24%) and M4 Pro (+50%); the loss is specific to issue 23752 (M1 Max, Qwen3.5-9B) and a few comments.",
+          "source": "https://github.com/stared/benching-local-llms-on-apple-silicon/blob/main/NOTES.md",
+          "note": null
+        },
+        {
+          "text": "CONTRADICTS: llama-cpp-metal-backend-on-mac.md (\"Issue 23752 is closed with no fix recorded\"): it was closed by the MTP author as \"not a bug\" on 26 May 2026, not as fixed, and the maintainer declined to debug the setup.",
+          "source": "https://github.com/ggml-org/llama.cpp/issues/23752",
+          "note": null
+        },
+        {
+          "text": "CONTRADICTS: continuous-batching-on-mlx.md line \"Spec decoding on hybrids needs DeltaNet recurrent state to roll back ... an active area in llama.cpp\": it is merged in llama.cpp (PR 22400 partial seq_rm for GDN, PR 22673 MTP 16 May 2026, PR 25589 Qwen3-Next MTP 3 Aug 2026), and has working MLX implementations (MTPLX, ddtree-mlx, OptiQ n-gram, mlx-dspark checkpoint/rungs).",
+          "source": "https://mtplx.com/compare/mtplx-vs-llama-cpp/",
+          "note": null
+        },
+        {
+          "text": "CONTRADICTS: mlx-vs-llama-cpp-decode-and-prefill-by-model-size-and-context.md (\"mlx-lm 0.31.3 has no MTP path\" is correct) but its implication that MLX has no MTP path outside Ollama/Rapid-MLX: MTPLX, OptiQ `--mtp`, oMLX Lightning MTP/VLM MTP and mlx-dspark all run MTP or drafter speculation on MLX today.",
+          "source": "https://mlx-optiq.com/docs/speculative",
+          "note": null
+        },
+        {
+          "text": "CONTRADICTS: moe-active-parameter-decode-on-unified-memory.md (\"MTPLX reports 2.2-2.6x on dense Qwen3.6-27B\" as the MLX counterpoint): the stock-kernel MLX path (OptiQ on M4 Pro 24 GB) gets only 1.30-1.40x on the same model, so the 2x+ figures depend on MTPLX's custom verify kernels.",
+          "source": "https://mlx-optiq.com/docs/speculative",
+          "note": null
+        },
+        {
+          "text": "CONTRADICTS: mlx-and-mlx-lm-on-apple-silicon.md (vendor blog \"default draft length: blog recommends 5-6\"; server default 3): on Metal several measurements say depth 1-3 is optimal and 4+ regresses (OptiQ depth 1; Gemma gamma 3 0.96x; mlx-dspark caps 2-7 by chip).",
+          "source": "https://mlx-optiq.com/blog/mtp-on-apple-silicon",
+          "note": null
+        }
+      ]
+    }
+  ],
+  "related": []
+}

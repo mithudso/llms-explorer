@@ -1,0 +1,89 @@
+{
+  "slug": "metal-prefill-cost-of-q8-0-shared-experts-beside",
+  "concept": "Metal prefill cost of Q8_0 shared experts beside Q4_K routed experts",
+  "generated": "2026-10-05",
+  "summary": "Routed experts and shared experts take different Metal op paths: routed experts are MUL_MAT_ID, handled by ggml_metal_op_mul_mat_id with its own id-sorting scratch buffers (tpe, ids, amax), and shared experts are ordinary MUL_MAT through ggml_metal_op_mul_mat.",
+  "facets": [
+    {
+      "title": "Facts",
+      "facts": [
+        {
+          "text": "Routed experts and shared experts take different Metal op paths: routed experts are MUL_MAT_ID, handled by ggml_metal_op_mul_mat_id with its own id-sorting scratch buffers (tpe, ids, amax), and shared experts are ordinary MUL_MAT through ggml_metal_op_mul_mat.",
+          "source": "https://raw.githubusercontent.com/ggml-org/llama.cpp/master/ggml/src/ggml-metal/ggml-metal-ops.cpp",
+          "note": null
+        },
+        {
+          "text": "Each path chooses between a mat-vec and a mat-mat kernel from the batch size and the device's simdgroup-matrix support, so a Q8_0 shared-expert tensor and a Q4_K routed tensor can sit on different kernels in one layer.",
+          "source": "https://raw.githubusercontent.com/ggml-org/llama.cpp/master/ggml/src/ggml-metal/ggml-metal-ops.cpp",
+          "note": null
+        },
+        {
+          "text": "At prefill batch sizes (ne11 above 8) the small-batch mat-vec gate is not used for either type, so both go to the mat-mat path where weights are dequantized into threadgroup memory; the type difference is then the dequantize step and the bytes read, 34 bytes per 32 weights for Q8_0 (8.5 bpw) against 144 per 256 for Q4_K (4.5 bpw).",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Byte arithmetic: shared-expert tensors are read for every prompt token's layer pass in full, while a routed expert is read once per layer per batch only if some token selects it, which at prefill batch sizes is nearly every expert. So Q8_0 on the shared expert raises layer bytes by (8.5 - 4.5) times the shared share of expert parameters, about 0.4% per the covering file for a 1-in-256 layout, so near 1.6% of 4.5 bpw expert bytes, before attention and other tensors.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Because prefill is compute-bound on the dequantize plus matrix-multiply, an 8.5-bpw dequantize (one int8 times one half scale per 32 weights) is lighter per weight than the Q4_K unpack (nibble split, 6-bit scales and mins), so per-weight ALU is not higher for Q8_0.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Pipeline count: a file with Q8_0 shared and Q4_K routed keeps one more distinct mat-mat pipeline hot per layer shape than an all-Q4_K file.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "2025: ik_llama.cpp and ubergarm recipes make shared-expert Q8_0 routine (covering file). No Metal measurement followed in any source found.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Models with several or wide shared experts (the covering file's 0.4% figure is DeepSeek-R1 layout) have a larger share; the cost scales with that share.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "A shared expert whose row length is not divisible by the Q4_K block size is demoted by tensor_type_fallback (covering file), changing the type mix.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Recipe authors treat shared-expert precision as nearly free (\"0.02 bpw overall\", covering file) versus the unmeasured prefill and decode kernel cost; both can be true because the byte share is tiny.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "llama-bench pp512 and pp4096 on one Apple chip for the same MoE quantized twice, shared experts at Q8_0 versus Q4_K, all else equal.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "The Metal backend dispatches routed-expert matmuls (MUL_MAT_ID) and shared-expert matmuls (MUL_MAT) through separate functions, ggml_metal_op_mul_mat_id and ggml_metal_op_mul_mat.",
+          "source": "https://raw.githubusercontent.com/ggml-org/llama.cpp/master/ggml/src/ggml-metal/ggml-metal-ops.cpp",
+          "note": null
+        },
+        {
+          "text": "Both Metal functions select mat-vec or mat-mat kernels by batch size and simdgroup-matrix support.",
+          "source": "https://raw.githubusercontent.com/ggml-org/llama.cpp/master/ggml/src/ggml-metal/ggml-metal-ops.cpp",
+          "note": null
+        },
+        {
+          "text": "No source found measures Metal prefill for Q8_0 shared experts beside Q4_K routed experts.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Raising one shared expert per layer from Q4_K to Q8_0 adds on the order of 1.6% to expert-tensor bytes on a 1-in-256 layout.",
+          "source": "asserted",
+          "note": null
+        }
+      ]
+    }
+  ],
+  "related": []
+}

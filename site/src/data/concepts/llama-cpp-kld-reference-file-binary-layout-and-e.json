@@ -1,0 +1,119 @@
+{
+  "slug": "llama-cpp-kld-reference-file-binary-layout-and-e",
+  "concept": "llama.cpp .kld reference file binary layout and external reader",
+  "generated": "2026-10-05",
+  "summary": "The encoder clamps the low end of the stored range: min_logit = max(min_logit, max_logit - 16), so the 65535 steps cover at most 16 nats and the step is at most 16/65535, about 2.4e-4 nats.",
+  "facets": [
+    {
+      "title": "Facts",
+      "facts": [
+        {
+          "text": "The encoder clamps the low end of the stored range: min_logit = max(min_logit, max_logit - 16), so the 65535 steps cover at most 16 nats and the step is at most 16/65535, about 2.4e-4 nats.",
+          "source": "https://raw.githubusercontent.com/ggml-org/llama.cpp/master/tools/perplexity/perplexity.cpp",
+          "note": null
+        },
+        {
+          "text": "Any logit at or below the clamped minimum is stored as 0 and decodes to min_log_prob, so every token more than 16 nats under the top token reads back as the same floor value; tail mass below that is not represented per token.",
+          "source": "https://raw.githubusercontent.com/ggml-org/llama.cpp/master/tools/perplexity/perplexity.cpp",
+          "note": null
+        },
+        {
+          "text": "If max_logit equals min_logit (scale 0), the encoder writes zeros for the whole record.",
+          "source": "https://raw.githubusercontent.com/ggml-org/llama.cpp/master/tools/perplexity/perplexity.cpp",
+          "note": null
+        },
+        {
+          "text": "min_log_prob is min_logit - max_logit - log_sum_exp, so a decoder needs only the two floats and the uint16 values, with no separate normalizer.",
+          "source": "https://raw.githubusercontent.com/ggml-org/llama.cpp/master/tools/perplexity/perplexity.cpp",
+          "note": null
+        },
+        {
+          "text": "The saved token ids are the original text tokens for every chunk, written as n_chunk*n_ctx llama_token values; BOS is substituted at the first position of each chunk only inside the decode batch and then restored, so the file holds no BOS.",
+          "source": "https://raw.githubusercontent.com/ggml-org/llama.cpp/master/tools/perplexity/perplexity.cpp",
+          "note": null
+        },
+        {
+          "text": "The reference run requires at least 2*n_ctx tokens of text and sets n_chunk to min(requested chunks, tokens / n_ctx).",
+          "source": "https://raw.githubusercontent.com/ggml-org/llama.cpp/master/tools/perplexity/perplexity.cpp",
+          "note": null
+        },
+        {
+          "text": "The reader checks the magic and fails on a bad one; on n_ctx larger than the current context and on n_vocab differing from the model's vocabulary it only logs an error and keeps going, so a mismatched vocabulary does not stop the run and can produce wrong KLD.",
+          "source": "https://raw.githubusercontent.com/ggml-org/llama.cpp/master/tools/perplexity/perplexity.cpp",
+          "note": null
+        },
+        {
+          "text": "The reader asserts the vocabulary does not add EOS and uses the same add_bos setting as the writer through llama_vocab_get_add_bos.",
+          "source": "https://raw.githubusercontent.com/ggml-org/llama.cpp/master/tools/perplexity/perplexity.cpp",
+          "note": null
+        },
+        {
+          "text": "A pure-Python reader therefore needs: 8-byte magic, <I n_ctx, <i n_vocab, <i n_chunk, n_ctx*n_chunk int32 token ids, then per chunk (n_ctx - 1 - n_ctx/2) records of nv uint16, each decoded as scale*u + min_log_prob.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "PR 5076 introduced the mode (existing dossiers); the 16-nat clamp is in the current master source read here, and its introduction date was not checked.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Tail KLD terms that depend on tokens more than 16 nats below the top are quantized to one value, so reference-side precision for extreme tails is limited by the clamp, separate from the 16-bit step.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "A reader that decodes with the wrong n_vocab misaligns every later record because the record stride is nv uint16.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "None found; the file format is documented only by the source.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Whether the 16-nat clamp changes KLD for models with very peaked distributions enough to matter at the 4e-6 floor quoted in cross-engine-reference-logits-precision-and-toke.md.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "The .kld encoder clamps the stored logit range to 16 nats below the maximum logit.",
+          "source": "https://raw.githubusercontent.com/ggml-org/llama.cpp/master/tools/perplexity/perplexity.cpp",
+          "note": null
+        },
+        {
+          "text": "Logits at or below the clamped minimum are stored as 0 and decode to min_log_prob.",
+          "source": "https://raw.githubusercontent.com/ggml-org/llama.cpp/master/tools/perplexity/perplexity.cpp",
+          "note": null
+        },
+        {
+          "text": "A record with scale 0 is written as all zeros.",
+          "source": "https://raw.githubusercontent.com/ggml-org/llama.cpp/master/tools/perplexity/perplexity.cpp",
+          "note": null
+        },
+        {
+          "text": "The file stores the original chunk tokens and restores them after temporarily setting BOS at each chunk start.",
+          "source": "https://raw.githubusercontent.com/ggml-org/llama.cpp/master/tools/perplexity/perplexity.cpp",
+          "note": null
+        },
+        {
+          "text": "The reference pass needs at least 2*n_ctx tokens and n_chunk is capped by tokens divided by n_ctx.",
+          "source": "https://raw.githubusercontent.com/ggml-org/llama.cpp/master/tools/perplexity/perplexity.cpp",
+          "note": null
+        },
+        {
+          "text": "The KLD reader logs but does not abort on an n_vocab mismatch or an n_ctx larger than the current context.",
+          "source": "https://raw.githubusercontent.com/ggml-org/llama.cpp/master/tools/perplexity/perplexity.cpp",
+          "note": null
+        },
+        {
+          "text": "The remaining layout is already covered in confidence-conditioned-top-1-flip-rate-for-liter.md.",
+          "source": "asserted",
+          "note": null
+        }
+      ]
+    }
+  ],
+  "related": []
+}

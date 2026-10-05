@@ -1,0 +1,194 @@
+{
+  "slug": "gemma-3-4-float16-activation-overflow-handling-a",
+  "concept": "Gemma 3/4 float16 activation overflow handling across runtimes",
+  "generated": "2026-10-05",
+  "summary": "Gemma 3 overflow is in the text decoder residual stream (existing files). Gemma 4 adds a second site: the vision tower.",
+  "facets": [
+    {
+      "title": "Facts",
+      "facts": [
+        {
+          "text": "Gemma 3 overflow is in the text decoder residual stream (existing files). Gemma 4 adds a second site: the vision tower.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "In Gemma 4 31B and 26B-A4B the SigLIP vision tower applies a final standardization `(h - std_bias) * std_scale`. The stored `std_bias` (bf16) reaches 36,352 to -53,760. With fp16 arithmetic, `hidden_states - std_bias` overflows to -inf for the components near -53,760, the later multiply by `std_scale` cannot recover (-inf times a small positive is -inf), and RMSNorm of inf yields NaN at image positions. The language model then emits only `<pad>`.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "The weights fit in fp16 (53,760 < 65,504): storage is safe, arithmetic is not.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Only variants with `vision_config.standardize = True` are affected: 31B and 26B-A4B yes, E4B no.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "A runtime avoids the failure by keeping the overflowing sub-module in bf16 (or fp32) while the rest runs fp16, or by running everything in bf16. llama.cpp's graph keeps activations in F32 on CUDA by default, which is consistent with, but not documented as, the reason Gemma runs there.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "2025-03: Unsloth reports Gemma 3 float16 infinities (existing file).",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "2026-02-11: llama.cpp discussion 19505 proposes configurable FP16 intermediate activations on CUDA (today all CUDA activation ops assert F32).",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "2026-04-19: vLLM issue 40290: Gemma 4 31B/26B-A4B vision outputs only `<pad>` under `--dtype float16`.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Undated (Unsloth page last updated about a month before 2026-10-04): Unsloth Gemma 4 GGUF guides ship `mmproj-BF16.gguf` (with F16 also offered per user reports); Unsloth FAQ states BF16 may be slower than F16 on Mac.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Symptom string for the vLLM bug: output `<pad><pad><pad>...` repeated, `finish_reason: length`, only on image requests; text-only requests work.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Dump showing the failing tensor: `vision_tower.last_hidden_state` has `min=-inf` and `inf=True` while pixel values are finite; the next tensors become `inf` then `nan`.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Triggering setting: `--dtype float16`, which is the default for AWQ quantized checkpoints, so a quantized deployment hits it without the user choosing fp16.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "A different Gemma 3 symptom, `<unused32>` repeated forever after sending an image to Gemma 3 4B on CUDA (llama.cpp issue 12433), was reported fixed by testing PR 13951 in one case while a 27B mmproj case still reproduced; the thread does not identify float16 as the cause, so do not conflate it with overflow.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Mmproj precision choice: a commenter advises FP16 mmproj only \"if your GPU does not support BF16\"; mixing an F16 mmproj with Gemma 4 targets exactly the standardize path above (inferred).",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Q8_K_XL builds upcast some layers to BF16; Unsloth says on Mac BF16 may be slower than F16 and plans to make F16 the default conversion for Q8_K_XL, which would put Gemma-family layers with large dynamic range back into fp16 (inferred risk).",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "\"GGUF in float16 may give weird results on Gemma 3\" (Han, existing file) versus the absence of a reproduced Metal report: the only llama.cpp evidence is the unresolved QAT thread. Both stand.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "BF16 speed on Mac: Unsloth says BF16 is slower than F16 on Mac for Q8_K_XL; the existing M1/M2 file states M3 and later show no measurable fp16 advantage. The two are compatible only if \"Mac\" in Unsloth's FAQ means pre-M3 chips, which the page does not say.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Does MLX or mlx-vlm run Gemma 4 31B and 26B-A4B correctly when a user converts with `--dtype float16` on M1/M2? Not tested in any source.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Does llama.cpp's Metal path for the Gemma 4 mmproj overflow in F16? No report found.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Which runtimes clamp (ANEMLL) versus upcast (vLLM fix) versus avoid (bf16 only) for Gemma 4 vision: only vLLM's proposed fix is documented, and the issue was still open at fetch.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "vLLM issue 40290 (opened 2026-04-19, Open at fetch): Gemma 4 31B and 26B-A4B vision outputs only `<pad>` under fp16 because the vision tower standardize step overflows.",
+          "source": "https://github.com/vllm-project/vllm/issues/40290",
+          "note": null
+        },
+        {
+          "text": "The affected computation is `(h - std_bias) * std_scale`; `model.vision_tower.std_bias` is bfloat16 with max 36352.0 and min -53760.0, and `std_scale` ranges 0.0001 to 0.0210.",
+          "source": "https://github.com/vllm-project/vllm/issues/40290",
+          "note": null
+        },
+        {
+          "text": "The vision tower output becomes -inf under fp16, then inf times finite weights is inf, then RMSNorm of inf is NaN at image positions.",
+          "source": "https://github.com/vllm-project/vllm/issues/40290",
+          "note": null
+        },
+        {
+          "text": "The weights themselves fit in fp16; the overflow is in fp16 arithmetic, and bf16 is immune.",
+          "source": "https://github.com/vllm-project/vllm/issues/40290",
+          "note": null
+        },
+        {
+          "text": "Only checkpoints with `vision_config.standardize = True` are affected; `gemma-4-E4B-it` has standardize False and is not affected.",
+          "source": "https://github.com/vllm-project/vllm/issues/40290",
+          "note": null
+        },
+        {
+          "text": "The trigger is `--dtype float16`, the default for AWQ checkpoints, and a pad-token reply from a vision request is the symptom.",
+          "source": "https://github.com/vllm-project/vllm/issues/40290",
+          "note": null
+        },
+        {
+          "text": "The proposed fix keeps `vision_tower` in bf16 when `standardize` is set and casts pixel values to the tower's dtype; after the edit the reporter's image prompts returned correct text in 0.8 to 3.0 s.",
+          "source": "https://github.com/vllm-project/vllm/issues/40290",
+          "note": null
+        },
+        {
+          "text": "The reporter ruled out the missing prefix-LM attention mask (issue 40106, PR 40185) as the cause of this pad-token output.",
+          "source": "https://github.com/vllm-project/vllm/issues/40290",
+          "note": null
+        },
+        {
+          "text": "llama.cpp discussion 19505 states all CUDA operators assert `src0->type == GGML_TYPE_F32` for activation tensors, so activations stay F32 even with quantized weights.",
+          "source": "https://github.com/ggml-org/llama.cpp/discussions/19505",
+          "note": null
+        },
+        {
+          "text": "The same proposal validated FP16 activations only on Qwen2, Qwen3 and Qwen3-MoE, and a reply in the thread said a default FP16/BF16 compute type would be useful but must land CPU-first per the contributing guidelines.",
+          "source": "https://github.com/ggml-org/llama.cpp/discussions/19505",
+          "note": null
+        },
+        {
+          "text": "Unsloth's Gemma 4 llama.cpp commands use `mmproj-BF16.gguf` while the prose says `mmproj-F16`.",
+          "source": "https://unsloth.ai/docs/models/gemma-4",
+          "note": null
+        },
+        {
+          "text": "A llama.cpp discussion commenter advises trying the FP16 mmproj \"if your GPU does not support BF16\".",
+          "source": "https://github.com/ggml-org/llama.cpp/discussions/22190",
+          "note": null
+        },
+        {
+          "text": "Unsloth's FAQ says on Mac BF16 might be slower than F16, Q8_K_XL upcasts some layers to BF16, and the conversion process is being changed to make F16 the default for Q8_K_XL.",
+          "source": "https://unsloth.ai/docs/basics/troubleshooting-and-faqs",
+          "note": null
+        },
+        {
+          "text": "llama.cpp issue 12433 (Gemma 3 4B, CUDA, image input) shows `<unused32>` output spam; the issue closed with linked PR 13991 and a tester reported PR 13951 fixed his case.",
+          "source": "https://github.com/ggml-org/llama.cpp/issues/12433",
+          "note": null
+        },
+        {
+          "text": "Gemma 4 on Apple Silicon should be run with bf16 weights and a bf16 mmproj unless a test shows fp16 safe; the documented failure is silent (`<pad>` or NaN), not a crash.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "A converter that casts Gemma 4 to float16 for M1/M2 needs a per-tensor guard that keeps `std_bias` and the vision standardize path in bf16 or fp32.",
+          "source": "asserted",
+          "note": null
+        }
+      ]
+    }
+  ],
+  "related": []
+}

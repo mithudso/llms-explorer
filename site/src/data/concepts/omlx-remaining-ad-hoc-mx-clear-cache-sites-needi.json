@@ -1,0 +1,79 @@
+{
+  "slug": "omlx-remaining-ad-hoc-mx-clear-cache-sites-needi",
+  "concept": "oMLX remaining ad-hoc mx.clear_cache sites needing stream analysis",
+  "generated": "2026-10-05",
+  "summary": "On main, `engine/base.py` `_finish_activity` still runs `(mx.synchronize(), mx.clear_cache())` on `get_mlx_executor()` after every non-streaming request, with a comment that it always clears because gating on `_active_count == 0` grew the pool without bound (issue 684).",
+  "facets": [
+    {
+      "title": "Facts",
+      "facts": [
+        {
+          "text": "On main, `engine/base.py` `_finish_activity` still runs `(mx.synchronize(), mx.clear_cache())` on `get_mlx_executor()` after every non-streaming request, with a comment that it always clears because gating on `_active_count == 0` grew the pool without bound (issue 684).",
+          "source": "https://raw.githubusercontent.com/jundot/omlx/main/omlx/engine/base.py",
+          "note": null
+        },
+        {
+          "text": "The same bare pair remains in `engine/reranker.py`, `engine/tts.py`, `engine/stt.py` and `engine/sts.py` (one site each, via `get_mlx_executor()`), `engine/dflash.py` (two sites, in model eviction and its settle loop) and `admin/oq_manager.py` (two sites inside retry loops of 3).",
+          "source": "https://raw.githubusercontent.com/jundot/omlx/main/omlx/engine/dflash.py",
+          "note": null
+        },
+        {
+          "text": "`engine_pool.py` has about 18 sites using the same `(mx.synchronize(), mx.clear_cache())` lambda on the MLX executor for load, unload, emergency and settle paths; none passes a stream or takes `_mx_buffer_access_lock`.",
+          "source": "https://raw.githubusercontent.com/jundot/omlx/main/omlx/engine_pool.py",
+          "note": null
+        },
+        {
+          "text": "`engine/vlm.py` still calls bare `mx.synchronize(); mx.clear_cache()` after vision encoding and in the `finally` of the diffusion stream, on the calling thread.",
+          "source": "https://raw.githubusercontent.com/jundot/omlx/main/omlx/engine/vlm.py",
+          "note": null
+        },
+        {
+          "text": "`engine/embedding.py` calls `mx.clear_cache()` after `mx.synchronize()` only when `fairness.should_clear_cache()` is true, inside the batch worker's `finally`.",
+          "source": "https://raw.githubusercontent.com/jundot/omlx/main/omlx/engine/embedding.py",
+          "note": null
+        },
+        {
+          "text": "`oq.py` has about 37 `mx.clear_cache()` mentions: most follow `mx.eval` and `del` in per-tensor or per-layer quantization loops, many with a preceding `mx.synchronize()`, and one set replaces `mx.clear_cache` with a no-op in a test or fake-array harness.",
+          "source": "https://raw.githubusercontent.com/jundot/omlx/main/omlx/oq.py",
+          "note": null
+        },
+        {
+          "text": "In `patches/glm_moe_dsa/generate_patch.py` the decode-side clear every 512 steps is converted to `_sync_and_clear_cache(self._stream)`, but the patched prefill loop still calls bare `mx.clear_cache()` after `mx.eval` twice (lines near 164 and 172).",
+          "source": "https://raw.githubusercontent.com/jundot/omlx/main/omlx/patches/glm_moe_dsa/generate_patch.py",
+          "note": null
+        },
+        {
+          "text": "`speculative/vlm_mtp.py` now uses `_sync_and_clear_cache(_vlm_generation_stream)` at three sites, matching PR 2413.",
+          "source": "https://raw.githubusercontent.com/jundot/omlx/main/omlx/speculative/vlm_mtp.py",
+          "note": null
+        },
+        {
+          "text": "`scheduler.py` routes every clear through `Scheduler._clear_cache`, which calls `_sync_and_clear_cache(self._stream)`, and the deferred, periodic, per-chunk, abort and pressure-reclaim clears all use it.",
+          "source": "https://raw.githubusercontent.com/jundot/omlx/main/omlx/scheduler.py",
+          "note": null
+        },
+        {
+          "text": "Scheduler call sites include a clear every 1024 decode tokens and a deferred clear after request end (`_schedule_deferred_metal_clear`), whose comment says an immediate clear after completion races.",
+          "source": "https://raw.githubusercontent.com/jundot/omlx/main/omlx/scheduler.py",
+          "note": null
+        },
+        {
+          "text": "Scheduler wraps its error-recovery clear in try/except because `mx.synchronize()` or `mx.clear_cache()` can raise a C++ exception that would SIGABRT (issue 435).",
+          "source": "https://raw.githubusercontent.com/jundot/omlx/main/omlx/scheduler.py",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Corrections and disagreements",
+      "facts": [
+        {
+          "text": "CONTRADICTS: omlx-metal-cache-clears-wait-for-the-owning-stre.md open question implies the sites may have been converted; on main only the `vlm_mtp.py` and GLM decode sites are, and the engine, engine_pool, dflash, vlm and oq sites are not.",
+          "source": "https://raw.githubusercontent.com/jundot/omlx/main/omlx/engine_pool.py",
+          "note": null
+        }
+      ]
+    }
+  ],
+  "related": []
+}

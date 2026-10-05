@@ -1,0 +1,154 @@
+{
+  "slug": "jaccl-coordinator-optional-connection-setup-mlx",
+  "concept": "JACCL coordinator-optional connection setup (mlx PR 3899)",
+  "generated": "2026-10-05",
+  "summary": "PR 3899 turns the JACCL bootstrap all-gather into a pluggable \"side channel\". The TCP star coordinator at `JACCL_COORDINATOR` stays the default, and a caller may instead pass `all_gather_factory` to `mx.distributed.init(backend=\"jaccl\", ...)`.",
+  "facets": [
+    {
+      "title": "Facts",
+      "facts": [
+        {
+          "text": "PR 3899 turns the JACCL bootstrap all-gather into a pluggable \"side channel\". The TCP star coordinator at `JACCL_COORDINATOR` stays the default, and a caller may instead pass `all_gather_factory` to `mx.distributed.init(backend=\"jaccl\", ...)`.",
+          "source": "https://ml-explore.github.io/mlx/build/html/usage/distributed.html",
+          "note": null
+        },
+        {
+          "text": "During initialisation JACCL exchanges RDMA connection metadata between ranks over a byte-level all-gather; the default is \"a simple TCP star all-gather\".",
+          "source": "https://ml-explore.github.io/mlx/build/html/usage/distributed.html",
+          "note": null
+        },
+        {
+          "text": "The factory is called once per rank with `(rank, size)` and must return a callable `f(src: bytes, n_bytes: int) -> bytes` whose result has length `size * n_bytes` with all ranks' inputs concatenated in rank order.",
+          "source": "https://ml-explore.github.io/mlx/build/html/usage/distributed.html",
+          "note": null
+        },
+        {
+          "text": "In `jaccl.cpp`, `Config::set_all_gather_factory` and `Config::set_all_gather` store the user function, and `Config::get_side_channel` prefers the factory, then the plain function, and only then builds a `TCPAllGather` from the coordinator address.",
+          "source": "https://raw.githubusercontent.com/ml-explore/mlx/main/mlx/distributed/jaccl/lib/jaccl/jaccl.cpp",
+          "note": null
+        },
+        {
+          "text": "`Config::is_valid` now accepts a config when the coordinator string is non-empty OR a factory OR an all-gather function is set, so a run with no coordinator is valid.",
+          "source": "https://raw.githubusercontent.com/ml-explore/mlx/main/mlx/distributed/jaccl/lib/jaccl/jaccl.cpp",
+          "note": null
+        },
+        {
+          "text": "The strict-mode error text still names a coordinator (\"a coordinator ip/port (JACCL_COORDINATOR/MLX_JACCL_COORDINATOR)\") and does not mention the factory.",
+          "source": "https://raw.githubusercontent.com/ml-explore/mlx/main/mlx/distributed/jaccl/lib/jaccl/jaccl.cpp",
+          "note": null
+        },
+        {
+          "text": "The Python binding was moved into `mlx/distributed/distributed.cpp` after review so the group registers with the backends map; the first version called `jaccl::init` directly from the binding and the group was not registered, which reviewer nastya236 flagged would break `mx.distributed.all_sum` without a group and `clear_backends()`.",
+          "source": "https://github.com/ml-explore/mlx/pull/3899",
+          "note": null
+        },
+        {
+          "text": "PR 3899 was opened by angeloskath on 2026-07-23, approved by nastya236 on 2026-07-30 and merged the same day as commit `85e3fb3` with 28 checks passing; its follow-up PR 3900 (ring refactor with a thread per wire) was written on top of it.",
+          "source": "https://github.com/ml-explore/mlx/pull/3899",
+          "note": null
+        },
+        {
+          "text": "Late commits before merge were \"Add user-definable side-channel\", \"Make sure one all gather at a time only\", \"Add the ability to define side-channel from python\" and \"Fixes from comments\".",
+          "source": "https://github.com/ml-explore/mlx/pull/3899",
+          "note": null
+        },
+        {
+          "text": "The release notes list it as \"Making JACCL coordinator optional\" in v0.32.1.",
+          "source": "https://github.com/ml-explore/mlx/releases",
+          "note": null
+        },
+        {
+          "text": "The factory path still needs a working slow channel; the PR text names a shared filesystem, iCloud or any central service as examples, and its worked example uses ZeroMQ with rank 0 as a ROUTER socket, so that example still has a rank-0 listener.",
+          "source": "https://github.com/ml-explore/mlx/pull/3899",
+          "note": null
+        },
+        {
+          "text": "A reviewer asked why the barrier is built from two all-gathers; no answer is visible in the cached page.",
+          "source": "https://github.com/ml-explore/mlx/pull/3899",
+          "note": null
+        },
+        {
+          "text": "The PR description says the zmq example was written by Claude; it is an illustration inside the PR, not shipped code.",
+          "source": "https://github.com/ml-explore/mlx/pull/3899",
+          "note": null
+        },
+        {
+          "text": "\"Optional\" is used for two different things in the sources: in the release note it means the coordinator environment variable is not required, while the documentation still says `MLX_JACCL_COORDINATOR` should hold the IP and port rank 0 can listen on for the default path. Both are true: it is optional only when a factory is supplied.",
+          "source": "https://ml-explore.github.io/mlx/build/html/usage/distributed.html",
+          "note": null
+        },
+        {
+          "text": "Whether `mlx.launch --backend jaccl` offers any flag to select a non-TCP side channel; the cached launch.py shows it only sets the coordinator.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "How the side channel behaves for peer-death detection compared with the TCP star (PR 4530 relies on the TCP channel living as long as the group).",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "PR 3899 lets a user supply their own metadata all-gather (\"side channel\") for JACCL initialisation through the `all_gather_factory` argument.",
+          "source": "https://ml-explore.github.io/mlx/build/html/usage/distributed.html",
+          "note": null
+        },
+        {
+          "text": "The default side channel is a TCP star all-gather rooted at the rank-0 coordinator.",
+          "source": "https://ml-explore.github.io/mlx/build/html/usage/distributed.html",
+          "note": null
+        },
+        {
+          "text": "The factory receives `(rank, size)` and returns `f(src, n_bytes)` that must give back `size * n_bytes` bytes in rank order.",
+          "source": "https://ml-explore.github.io/mlx/build/html/usage/distributed.html",
+          "note": null
+        },
+        {
+          "text": "`Config::get_side_channel` picks factory, then function, then TCP coordinator in that order.",
+          "source": "https://raw.githubusercontent.com/ml-explore/mlx/main/mlx/distributed/jaccl/lib/jaccl/jaccl.cpp",
+          "note": null
+        },
+        {
+          "text": "`Config::is_valid` accepts an empty coordinator when a factory or all-gather function is set.",
+          "source": "https://raw.githubusercontent.com/ml-explore/mlx/main/mlx/distributed/jaccl/lib/jaccl/jaccl.cpp",
+          "note": null
+        },
+        {
+          "text": "The strict-mode error message still lists only a coordinator and does not mention the factory.",
+          "source": "https://raw.githubusercontent.com/ml-explore/mlx/main/mlx/distributed/jaccl/lib/jaccl/jaccl.cpp",
+          "note": null
+        },
+        {
+          "text": "The PR author's stated purpose is apps that already have a slow connection between nodes, to avoid opening a port and listening for connections.",
+          "source": "https://github.com/ml-explore/mlx/pull/3899",
+          "note": null
+        },
+        {
+          "text": "The reviewer's summary of the benefit: no second network is needed, and rank 0 needs neither a reachable IP nor an open listening port.",
+          "source": "https://github.com/ml-explore/mlx/pull/3899",
+          "note": null
+        },
+        {
+          "text": "Registering the factory-built group through `mlx/distributed/distributed.cpp` was a review fix so that backend registration and `clear_backends()` work.",
+          "source": "https://github.com/ml-explore/mlx/pull/3899",
+          "note": null
+        },
+        {
+          "text": "PR 3899 merged on 2026-07-30 as commit `85e3fb3` and is in v0.32.1.",
+          "source": "https://github.com/ml-explore/mlx/pull/3899",
+          "note": null
+        },
+        {
+          "text": "PR 3900 was stacked on 3899 and says it would be rebased after 3899 merged.",
+          "source": "https://github.com/ml-explore/mlx/pull/3900",
+          "note": null
+        },
+        {
+          "text": "Rank hosts without a reachable listener can only skip the coordinator if their own side channel does not need one.",
+          "source": "asserted",
+          "note": null
+        }
+      ]
+    }
+  ],
+  "related": []
+}

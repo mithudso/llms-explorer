@@ -1,0 +1,74 @@
+{
+  "slug": "omlx-omlx-disable-pressure-reclaim-and-request-p",
+  "concept": "oMLX OMLX_DISABLE_PRESSURE_RECLAIM and request_pressure_reclaim scheduler path",
+  "generated": "2026-10-05",
+  "summary": "Whether 5 grace polls cover a slow prefill chunk, since the chunk-boundary drain waits for the end of the current chunk.",
+  "facets": [
+    {
+      "title": "Facts",
+      "facts": [
+        {
+          "text": "Whether 5 grace polls cover a slow prefill chunk, since the chunk-boundary drain waits for the end of the current chunk.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "`Scheduler` keeps `_pending_reclaim_request` for idle reclaim and `_pending_pressure_clear` for hard-pressure reclaim; the second \"drains at the next step boundary even under load\".",
+          "source": "https://raw.githubusercontent.com/jundot/omlx/main/omlx/scheduler.py",
+          "note": null
+        },
+        {
+          "text": "`request_pressure_reclaim` only sets `_pending_pressure_clear = True`, and its docstring says the actual `_sync_and_clear_cache` runs on the inference thread at the next `step()` boundary.",
+          "source": "https://raw.githubusercontent.com/jundot/omlx/main/omlx/scheduler.py",
+          "note": null
+        },
+        {
+          "text": "`_consume_pressure_clear` returns False when the flag is unset, otherwise resets it and returns True, and it is deliberately not idle-gated.",
+          "source": "https://raw.githubusercontent.com/jundot/omlx/main/omlx/scheduler.py",
+          "note": null
+        },
+        {
+          "text": "`has_requests()` includes `_pending_pressure_clear`, so an idle engine loop keeps calling `step()` until the clear fires.",
+          "source": "https://raw.githubusercontent.com/jundot/omlx/main/omlx/scheduler.py",
+          "note": null
+        },
+        {
+          "text": "The external prefill loop calls `_consume_pressure_clear()` after each chunk and then `Scheduler._clear_cache(self)`, because a single `step()` can last minutes.",
+          "source": "https://raw.githubusercontent.com/jundot/omlx/main/omlx/scheduler.py",
+          "note": null
+        },
+        {
+          "text": "A comment at that site says the abort escalation was measured firing 0.1 GB over the watermark with 3.7 GB pooled.",
+          "source": "https://raw.githubusercontent.com/jundot/omlx/main/omlx/scheduler.py",
+          "note": null
+        },
+        {
+          "text": "`Scheduler._clear_cache` calls `_sync_and_clear_cache(self._stream)` and records the pooled bytes for the prefill transient tracker when flat-overhead tracking is on.",
+          "source": "https://raw.githubusercontent.com/jundot/omlx/main/omlx/scheduler.py",
+          "note": null
+        },
+        {
+          "text": "`_process_pending_reclaim` returns without consuming the idle request while any request is running, prefilling or waiting, and cites issue 2179.",
+          "source": "https://raw.githubusercontent.com/jundot/omlx/main/omlx/scheduler.py",
+          "note": null
+        },
+        {
+          "text": "The enforcer's grace gate requires level not ok, not emergency, `OMLX_DISABLE_PRESSURE_RECLAIM != \"1\"` and fewer than `_PRESSURE_RECLAIM_GRACE_POLLS_MAX` (5) polls, and returns early after a successful request.",
+          "source": "https://raw.githubusercontent.com/jundot/omlx/main/omlx/process_memory_enforcer.py",
+          "note": null
+        },
+        {
+          "text": "At hard level the enforcer calls `_request_scheduler_cache_reclaim(freed_hot)` after the hot-cache shrink unless the env var is \"1\", and then recomputes the pressure level from current usage.",
+          "source": "https://raw.githubusercontent.com/jundot/omlx/main/omlx/process_memory_enforcer.py",
+          "note": null
+        },
+        {
+          "text": "`_request_scheduler_cache_reclaim` calls `request_pressure_reclaim` on each pooled engine's scheduler, tolerates exceptions per scheduler, and returns the count of accepted requests.",
+          "source": "https://raw.githubusercontent.com/jundot/omlx/main/omlx/process_memory_enforcer.py",
+          "note": null
+        }
+      ]
+    }
+  ],
+  "related": []
+}

@@ -1,0 +1,174 @@
+{
+  "slug": "macos-27-tensorops-fp8-fp4-mx-scale-planes",
+  "concept": "macOS 27 TensorOps FP8 FP4 MX scale planes",
+  "generated": "2026-10-05",
+  "summary": "Data plane: an `MTLTensorDescriptor` with a quantized `dataType`; the session's example is `MTLTensorDataTypeMetalFloat8E4M3` (FP8 E4M3) with `usage = MTLTensorUsageCompute`.",
+  "facets": [
+    {
+      "title": "Facts",
+      "facts": [
+        {
+          "text": "Data plane: an `MTLTensorDescriptor` with a quantized `dataType`; the session's example is `MTLTensorDataTypeMetalFloat8E4M3` (FP8 E4M3) with `usage = MTLTensorUsageCompute`.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Scales plane: an `MTLTensorAuxiliaryPlaneDescriptor` with `dataType = MTLTensorDataTypeMetalFloat8UE8M0` and `blockFactors = {32, 1}`, registered in an `MTLTensorAuxiliaryPlaneDescriptorMap` under `MTLTensorPlaneTypeScales`, then attached as `tensorDesc.auxiliaryPlanes`. The data, scales and metadata are packed into one tensor object. Each scale element covers a 32x1 block of the data plane (32 elements along the first listed dimension, which the example orders as {NumCols, NumRows}).",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Shader side: `tensor<device metal_fp8_e4m3_format, dextents<int, 2>, tensor_handle, scales_plane>` where `scales_plane = tensor_blockwise<tensor_plane_scales, device metal_fp8_ue8m0_format, 32, 1>`. Swapping the tag `tensor_handle` for `tensor_inline` builds a temporary tensor on the shader stack from buffer pointers.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Tiling: `slice` on a quantized tensor slices the data and scales planes together according to the block size; the `matmul2d_descriptor` and op setup are identical to non-quantized tensors and TensorOps handles dequantization. Apple's guidance is to feed quantized data straight into TensorOps so it can use any available acceleration.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Custom formats: if a format is not native, dequantize into a cooperative tensor (registers) and pass it as a matmul input (supported since 26.3), avoiding the threadgroup-memory round trip of dequantizing to f16 in threadgroup memory.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Flash-attention pieces in 27: `reduce_rows` with a max reduction and initial -INFINITY into a row-reduction destination cooperative tensor; `map_iterator` to map between the 2-D tensor and the reduction tensor; `get_left_input_cooperative_tensor<float, half, float>(ctQK)` to reuse the QK result as the left input of the second matmul; `is_compatible_as_left_input` / `is_compatible_as_right_input` must be checked because cooperative tensor layouts differ by data type.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Alignment: the new data types have additional alignment requirements compared with 16-bit types; Apple tells developers to check the Metal documentation.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "TensorOps data types by release (tech talk 111432): bfloat in 26.1, cooperative tensors as matmul input in 26.3 (\"custom dequantization routines inside your kernel\"), 4/8-bit integer tensors in 26.4, fp4/fp8/int2 plus MX scale planes in 27. The 26.4 SDK also added the \"M or N a multiple of 16\" static_assert in the existing dossier.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Format match: the documented scale plane is E8M0 with 32x1 blocks, which matches MLX `mxfp4` and `mxfp8` (group size 32, E8M0 scales) but not MLX `nvfp4` (group size 16, per the group-size-16 note in MLX split-K code); NVFP4's E4M3 scale and 16-element block are not shown in the session. Whether macOS 27 accepts an E4M3 scale plane or a block factor of 16 is not stated in the sources read.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "No `metal_fp8`, `tensor_blockwise` or `ue8m0` reference appears in the fetched MLX device, matmul, quantized or SDPA sources, so MLX NAX kernels today dequantize in-kernel rather than using native MX tensors.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Affine (scale plus bias, group sizes 32/64/128) quantization, the dominant MLX and GGUF-K style format, has no described scale-plane equivalent; it would use the custom-dequant cooperative-tensor path.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Pre-release status: the session is a WWDC26 preview of 27; names such as `MTLTensorDataTypeMetalFloat8UE8M0` may change before release.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "None found. Apple says llama.cpp, MLX and PyTorch already use the Neural Accelerators; no source shows any of them using the 27 native MX tensors yet.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Hardware acceleration scope: the session says TensorOps uses \"any available hardware acceleration\" but does not say whether FP8/FP4/MX run natively on M5 Neural Accelerators or only on a future chip; no rate figures given.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Which fp4 variant (E2M1) naming and alignment constants the API uses; not shown.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Whether MLX or llama.cpp will move quantized matmul to native MX planes and what that does to decode bandwidth; none in sources read.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "macOS and iOS 27 extend TensorOps data types to 4- and 8-bit floating point and 2-bit integer, after 4- and 8-bit integer support in 26.x.",
+          "source": "https://developer.apple.com/videos/play/wwdc2026/330/",
+          "note": null
+        },
+        {
+          "text": "In macOS and iOS 27 a single MTLTensor can hold quantized data plus a scales plane in FP8 E8M0 block-wise scale-factor format.",
+          "source": "https://developer.apple.com/videos/play/wwdc2026/330/",
+          "note": null
+        },
+        {
+          "text": "Each element of the scale plane applies to a block of elements in the data plane, set by `blockFactors`.",
+          "source": "https://developer.apple.com/videos/play/wwdc2026/330/",
+          "note": null
+        },
+        {
+          "text": "The session's host example uses `MTLTensorDataTypeMetalFloat8E4M3` for the data plane and `MTLTensorDataTypeMetalFloat8UE8M0` with blockFactors {32, 1} for the scales plane.",
+          "source": "https://developer.apple.com/videos/play/wwdc2026/330/",
+          "note": null
+        },
+        {
+          "text": "The scales plane is registered with `MTLTensorPlaneTypeScales` in an `MTLTensorAuxiliaryPlaneDescriptorMap` assigned to `tensorDesc.auxiliaryPlanes`.",
+          "source": "https://developer.apple.com/videos/play/wwdc2026/330/",
+          "note": null
+        },
+        {
+          "text": "In MSL the MXFP8 tensor type is `tensor<device metal_fp8_e4m3_format, dextents<int, 2>, tensor_handle, scales_plane>` with `tensor_blockwise<tensor_plane_scales, device metal_fp8_ue8m0_format, 32, 1>`.",
+          "source": "https://developer.apple.com/videos/play/wwdc2026/330/",
+          "note": null
+        },
+        {
+          "text": "Replacing `tensor_handle` with `tensor_inline` creates the tensor on the shader stack from buffer pointers.",
+          "source": "https://developer.apple.com/videos/play/wwdc2026/330/",
+          "note": null
+        },
+        {
+          "text": "Calling `slice` on quantized tensors slices the data and scales planes together according to the block size.",
+          "source": "https://developer.apple.com/videos/play/wwdc2026/330/",
+          "note": null
+        },
+        {
+          "text": "Setting up `matmul2d` with quantized tensors is identical to normal tensors and TensorOps handles dequantization.",
+          "source": "https://developer.apple.com/videos/play/wwdc2026/330/",
+          "note": null
+        },
+        {
+          "text": "For a custom format, dequantizing into a cooperative tensor and passing it to `matmul2d` avoids a threadgroup-memory round trip.",
+          "source": "https://developer.apple.com/videos/play/wwdc2026/330/",
+          "note": null
+        },
+        {
+          "text": "The new MX and E8M0 types have additional alignment requirements versus larger data types.",
+          "source": "https://developer.apple.com/videos/play/wwdc2026/330/",
+          "note": null
+        },
+        {
+          "text": "macOS 27 allows a cooperative tensor as a direct matmul input via `get_left_input_cooperative_tensor`, with `is_compatible_as_left_input` to check layout compatibility.",
+          "source": "https://developer.apple.com/videos/play/wwdc2026/330/",
+          "note": null
+        },
+        {
+          "text": "TensorOps provides `reduce_rows` (e.g. max with initial -INFINITY) and `map_iterator` for flash-attention softmax on cooperative tensors.",
+          "source": "https://developer.apple.com/videos/play/wwdc2026/330/",
+          "note": null
+        },
+        {
+          "text": "In macOS 26.3 cooperative tensors became valid matmul inputs, enabling custom dequantization inside a kernel.",
+          "source": "https://developer.apple.com/videos/play/tech-talks/111432",
+          "note": null
+        },
+        {
+          "text": "The existing MLX NAX code paths contain no reference to `metal_fp8`, `tensor_blockwise` or `ue8m0`.",
+          "source": "https://raw.githubusercontent.com/ml-explore/mlx/main/mlx/backend/metal/quantized.cpp",
+          "note": null
+        },
+        {
+          "text": "MLX nvfp4 uses group size 16, which does not match the documented 32x1 E8M0 scale block.",
+          "source": "https://raw.githubusercontent.com/ml-explore/mlx/main/mlx/backend/metal/quantized.cpp",
+          "note": null
+        }
+      ]
+    }
+  ],
+  "related": []
+}

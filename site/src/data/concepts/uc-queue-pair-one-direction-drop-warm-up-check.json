@@ -1,0 +1,139 @@
+{
+  "slug": "uc-queue-pair-one-direction-drop-warm-up-check",
+  "concept": "UC queue pair one-direction drop warm-up check",
+  "generated": "2026-10-05",
+  "summary": "A one-direction drop is a freshly created Apple Thunderbolt RDMA UC queue pair that delivers in one direction only. UC never reports a lost message, so the failure appears as a first bulk exchange that times out with no completions. The warm-up check proves both directions before real traffic.",
+  "facets": [
+    {
+      "title": "Facts",
+      "facts": [
+        {
+          "text": "A one-direction drop is a freshly created Apple Thunderbolt RDMA UC queue pair that delivers in one direction only. UC never reports a lost message, so the failure appears as a first bulk exchange that times out with no completions. The warm-up check proves both directions before real traffic.",
+          "source": "https://raw.githubusercontent.com/antirez/ds4/main/ds4_tp.c",
+          "note": null
+        },
+        {
+          "text": "Order in ds4's setup: exchange RDMA info over TCP, move the pair to RTR and RTS, exchange a READY frame, then run the warm-up (skipped when `DS4_TP_DISABLE_RDMA_WARMUP` is set).",
+          "source": "https://raw.githubusercontent.com/antirez/ds4/main/ds4_tp.c",
+          "note": null
+        },
+        {
+          "text": "The warm message is full size (16384 bytes, the RDMA maximum message) because, per the source comment, \"64 B warm messages pass on a fresh direction while the first 16 KB chunks are still dropped\".",
+          "source": "https://raw.githubusercontent.com/antirez/ds4/main/ds4_tp.c",
+          "note": null
+        },
+        {
+          "text": "Each side posts exactly one full-size receive, then resends a tagged message until the peer confirms receipt over the control socket (`DS4_TP_FRAME_RDMA_WARM`); the attempt loop is 20 rounds on UC with a 0.1 s deadline each, and 1 round on RC.",
+          "source": "https://raw.githubusercontent.com/antirez/ds4/main/ds4_tp.c",
+          "note": null
+        },
+        {
+          "text": "Because \"a dropped UC message never arrives late\", once both sides have received the tagged message no stray warm-up message can later land in the receive queue.",
+          "source": "https://raw.githubusercontent.com/antirez/ds4/main/ds4_tp.c",
+          "note": null
+        },
+        {
+          "text": "A second barrier protects a different failure: on Apple's Thunderbolt RDMA, a UC send that reaches a queue pair with no receive posted is not just lost, that direction \"stops delivering for good\". So every sender waits for the peer's `DS4_TP_FRAME_RDMA_POSTED` word (one control-channel round trip) that its receives are posted before it posts sends.",
+          "source": "https://raw.githubusercontent.com/antirez/ds4/main/ds4_tp.c",
+          "note": null
+        },
+        {
+          "text": "On failure the warm-up sets `warm_failed` (UC only) and returns the error `tp rdma: warm-up failed after %d attempts (recv %d, peer %d)`; `ds4_tp_attach_slab` then prints `ds4-tp: <error>; recreating the queue pair (setup attempt N)` and calls the re-create function. Re-creation stops after setup attempt 3, so a run can build the queue pair at most four times.",
+          "source": "https://raw.githubusercontent.com/antirez/ds4/main/ds4_tp.c",
+          "note": null
+        },
+        {
+          "text": "Re-creation destroys the queue pair and the completion queue, builds a new completion queue (512 entries) and a new queue pair (1024 send and 1024 receive work requests), and gets a new queue pair number; the packet sequence number includes `setup_attempt * 0x1000`. Both ranks take the path together because the warm-up status exchange gives them the same outcome.",
+          "source": "https://raw.githubusercontent.com/antirez/ds4/main/ds4_tp.c",
+          "note": null
+        },
+        {
+          "text": "Success prints `ds4-tp: rdma warm-up ok (N attempt[s]), queue depth recv R send S`.",
+          "source": "https://raw.githubusercontent.com/antirez/ds4/main/ds4_tp.c",
+          "note": null
+        },
+        {
+          "text": "The source comment names two triggers: \"right after a working run and after role swaps\".",
+          "source": "https://raw.githubusercontent.com/antirez/ds4/main/ds4_tp.c",
+          "note": null
+        },
+        {
+          "text": "With a warm-up that succeeds only on a later attempt, the first attempts' messages are the dropped ones; the docs warn not to treat repeated handshake or RDMA timeouts as a pass merely because a retry works.",
+          "source": "https://raw.githubusercontent.com/antirez/ds4/main/docs/DISTRIBUTED.md",
+          "note": null
+        },
+        {
+          "text": "Setting `DS4_TP_DISABLE_RDMA_WARMUP` removes the proof, so a dead direction would surface later as a timeout in the first bulk round.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "JACCL's `rdma.cpp` has no warm-up round, no posted-receive barrier and a fixed packet sequence number, so a queue pair with a dead direction would hang instead of being re-created.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Is the drop a driver fault or a protocol effect? The ds4 comments describe two separate observed behaviours (a fresh pair that drops one direction, and a pair that dies when a send precedes a posted receive) and treat both as driver behaviour of UC on Thunderbolt. No Apple source confirms either.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Whether macOS 27's reworked `libthunderboltrdma` removes the one-direction drop.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Whether the failure rate depends on the previous run's teardown, since the source ties it to \"right after a working run\".",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "ds4 runs its warm-up after the READY barrier unless `DS4_TP_DISABLE_RDMA_WARMUP` is set.",
+          "source": "https://raw.githubusercontent.com/antirez/ds4/main/ds4_tp.c",
+          "note": null
+        },
+        {
+          "text": "The warm-up message is 16384 bytes because 64-byte messages pass on a fresh dead direction while the first 16 KB chunks are still dropped.",
+          "source": "https://raw.githubusercontent.com/antirez/ds4/main/ds4_tp.c",
+          "note": null
+        },
+        {
+          "text": "ds4's warm-up gives UC 20 rounds of 0.1 s each and RC one round.",
+          "source": "https://raw.githubusercontent.com/antirez/ds4/main/ds4_tp.c",
+          "note": null
+        },
+        {
+          "text": "A dropped UC message never arrives late, so no stray warm-up message can reach the receive queue after both sides have received.",
+          "source": "https://raw.githubusercontent.com/antirez/ds4/main/ds4_tp.c",
+          "note": null
+        },
+        {
+          "text": "On Apple Thunderbolt RDMA, a UC send into a queue pair with no posted receive kills that direction permanently, so ds4 waits for the peer's \"receives posted\" frame before sending.",
+          "source": "https://raw.githubusercontent.com/antirez/ds4/main/ds4_tp.c",
+          "note": null
+        },
+        {
+          "text": "ds4 re-creates a failed queue pair up to three times, four builds in total.",
+          "source": "https://raw.githubusercontent.com/antirez/ds4/main/ds4_tp.c",
+          "note": null
+        },
+        {
+          "text": "Re-creation builds a new 512-entry completion queue and a new 1024/1024-work-request queue pair, with a new queue pair number and a packet sequence number offset by `setup_attempt * 0x1000`.",
+          "source": "https://raw.githubusercontent.com/antirez/ds4/main/ds4_tp.c",
+          "note": null
+        },
+        {
+          "text": "The log strings are `rdma warm-up ok (N attempts), queue depth recv R send S`, `warm-up failed after N attempts (recv a, peer b)` and `recreating the queue pair (setup attempt N)`.",
+          "source": "https://raw.githubusercontent.com/antirez/ds4/main/ds4_tp.c",
+          "note": null
+        },
+        {
+          "text": "JACCL's `rdma.cpp` has no warm-up or receives-posted barrier.",
+          "source": "asserted",
+          "note": null
+        }
+      ]
+    }
+  ],
+  "related": []
+}

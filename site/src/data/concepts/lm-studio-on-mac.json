@@ -1,0 +1,374 @@
+{
+  "slug": "lm-studio-on-mac",
+  "concept": "LM Studio on Mac",
+  "generated": "2026-10-05",
+  "summary": "Install: DMG for the app, or `curl -fsSL https://lmstudio.ai/install.sh | bash` for llmster, which the docs list as \"Linux / Mac\". llmster is not Linux-only, so the existing file's \"Linux servers and CI\" framing is incomplete.",
+  "facets": [
+    {
+      "title": "Facts",
+      "facts": [
+        {
+          "text": "Install: DMG for the app, or `curl -fsSL https://lmstudio.ai/install.sh | bash` for llmster, which the docs list as \"Linux / Mac\". llmster is not Linux-only, so the existing file's \"Linux servers and CI\" framing is incomplete.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Two headless routes on Mac: llmster (docs-recommended), or the desktop app with \"run the LLM server on login\" (Cmd+, settings). With that box checked, quitting the app minimizes it to the tray and the server keeps running. The last server state is restored on launch.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "The only documented startup-task recipe is Linux systemd (oneshot unit running `lms daemon up`, `lms load ... --yes`, `lms server start`). No launchd recipe exists in the docs.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Runtime management CLI: `lms runtime ls`, `lms runtime update` (all), `lms runtime remove <name>`, `lms runtime select llama.cpp|mlx`. `lms daemon update` upgrades llmster separately from the runtimes. Daemon and runtimes are two distinct update tracks.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Engine layout: llama.cpp engine went to 2.0.0 with 0.4.0 (continuous batching). `mlx-engine` is MIT-licensed Python on top of `mlx-lm` and `mlx-vlm`. Since in-app engine v0.17.0, `mlx-lm` text implementations are always used and `mlx-vlm` vision models plug in as add-ons, so text-only chats with MLX VLMs get prompt caching.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Parallel requests: Max Concurrent Predictions (default 4) plus Unified KV Cache (default on, no hard per-request partition). Shown in the loader under \"Manually choose model load parameters\" then \"Show advanced settings\". Developer Mode (Settings > Developer) exposes advanced loader options.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "MLX parallelism arrived in 0.4.2 build 2 (mlx-engine 1.0.0, text only). VLM continuous batching came with mlx-engine 1.8.5.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "mlx-engine 1.8.5 disk-backed cache detail: KV blocks are saved at 256-token boundaries into one scratch file in `/tmp`, LRU-evicted, deleted on model unload. It targets Qwen 3.5/3.6 (hybrid) and Gemma 4 (sliding window), whose caches cannot be rewound arbitrarily.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Vendor benchmark (M3 Max 36 GB, Qwen3.6-27B-MLX-4bit, parallel=4): v1.7.0 to v1.8.5 gave 15.24 to 33.97 output tok/s end to end (2.2x); extra RAM after long parallel prompts +6.47 GB to +1.18 GB (-82%); a repeated image prompt's second request 23.79 s to 6.88 s (3.5x).",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Memory estimate and guardrails: `lms load --estimate-only <model>` (0.3.27+) honors `--context-length` and `--gpu`, and accounts for flash attention and vision. Example output: gpt-oss-120b 65.68 GB, \"may be loaded based on your resource guardrails settings\".",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Load flags: `--gpu 0-1|off|max`, `--context-length`, `--ttl`, `--identifier`, `--parallel`, `--yes`. Per-model defaults (My Models, gear icon) apply to `lms load` too.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "TTL: JIT-loaded models default to a 60-minute idle TTL. Models loaded with `lms load` have no TTL unless `--ttl` is set. Auto-Evict (default on) keeps at most one JIT model resident.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "JIT on: `/v1/models` lists all downloaded models and inference calls load on demand. JIT off: `/v1/models` lists only loaded models.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Server flags: `lms server start --port N --cors --bind 0.0.0.0` (default bind 127.0.0.1; env `LMS_SERVER_HOST`). Authentication is off by default and, since 0.4.0, uses API tokens with per-token permissions (Developer > Server Settings > Manage Tokens). Anthropic `/v1/messages` accepts `x-api-key` or `Authorization: Bearer`.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "API surface: native `/api/v1/*` (chat, models, models/load, models/unload, models/download, download/status); OpenAI `/v1/chat/completions`, `/v1/responses`, `/v1/embeddings`; Anthropic `/v1/messages` (since 0.4.1). Only `/api/v1/chat` has load/prompt-processing streaming events and per-request context length. `/api/v1/chat` and `/v1/responses` support stateful chats and MCPs; chat-completions and messages do not.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Claude Code recipe: `ANTHROPIC_BASE_URL=http://localhost:1234`, `ANTHROPIC_AUTH_TOKEN=lmstudio`, `claude --model openai/gpt-oss-20b`.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Model formats: GGUF and MLX from the in-app Hugging Face search; `lms import <gguf>` (experimental) for outside files, which must sit at `~/.lmstudio/models/<publisher>/<model>/<file>.gguf`. MLX conversions lag GGUF (new releases are GGUF the same day; MLX hours to days).",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "System requirements: macOS 14.0+, Apple Silicon M1 to M4 (docs list), 16 GB+ recommended, 8 GB workable with small models; Intel Macs unsupported.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "0.3.4: MLX engine ships (Llama 3.2 1B about 250 tok/s on M3 Max, vendor figure), Outlines JSON enforcement, mlx-vlm vision, mixed llama.cpp+MLX multi-model.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "0.3.27 (2025-09-24): `--estimate-only`. 0.3.29 (2025-10-06): `/v1/responses`.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "0.4.0: llmster, parallel requests (llama.cpp), `/api/v1/*`, tokens, `lms chat`, Developer Mode. 0.4.1: `/v1/messages`. 0.4.2 build 2: MLX continuous batching.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Oct 2025: LM Studio's bundled Electron 37.2.0 triggered the macOS 26 Tahoe WindowServer GPU slowdown (`cornerMask`). Fix shipped in beta build 5 on 2025-10-24, issue #1119 closed.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Guardrail refusal is enforced in CLI/REST with no override: GUI \"Load anyway\" has no `lms`/REST equivalent (lms #499, open, 2026-03). Example refusal: qwen3.5-9b at 110000 context estimated 22.92 GB while llama.cpp used about 11.5 GB, so the estimator can over-estimate. Reported workaround from LM Studio staff: `\"mode\": \"off\"` in `modelLoadingGuardrails`. The reporter's attempt with `\"mode\": \"high\"` had no effect.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "With guardrails on, 32B 4-bit models (GGUF and MLX) failed to load on a 24 GB M4 Mac mini. With guardrails off, they loaded but froze the machine (bug-tracker #484, 0.3.11, open).",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "GPU memory cap: on an M3 Max 128 GB, `sudo sysctl iogpu.wired_limit_mb=126976` did not lift LM Studio's ~64 GB effective ceiling; models over ~70 GB were \"Likely too large\" and ran on CPU (#651, open).",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "MLX kernel panic with unbounded KV: `panic ... \"completeMemory() prepare count underflow\" @IOGPUMemory.cpp:550`. Seen with `mlx_lm.server` (wires about 75% of RAM, no `--max-kv-size`), Gemma 4 26B-A4B on a 64 GB M4 Max (mlx-lm #883). This is mlx-lm, not LM Studio. A Reddit thread alleges reboots with LM Studio MLX but was not readable.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "KV quantization and parallel cannot be set together through one programmatic path: CLI has `--parallel` but no KV quant flag; the SDK can set `llamaKCacheQuantizationType: \"q8_0\"` but ends at PARALLEL 4; the REST load endpoint rejects both fields (#2024, Windows, 0.4.16, open). Applies to the llama.cpp engine only.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Wedged states: llmster/`lms ls`/`lms load` sometimes failed right after waking the service (fixed in 0.4.0 build 16).",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "MLX vs llama.cpp speed. LM Studio and an arXiv study (cited by a Medium post) report MLX at about 230 tok/s on M2 Ultra vs 20-40 tok/s for Ollama (llama.cpp Metal). A Reddit post titled \"MLX is not faster\" benchmarks them as comparable (page not readable). The existing agent note of 17 vs 38 tok/s favouring oMLX is a third data point. Do not average these.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Where MLX is not ahead: model availability and conversion lag, and a flatter feature set (no KV-quant flags documented for MLX).",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "No official page found describing the guardrail modes (names seen only in a settings.json dump: off/high/custom threshold).",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Whether LM Studio's MLX engine exposes any KV-cache quantization. None documented.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Whether any LM Studio release since 0.4.25 changed the Tahoe or kernel-panic picture. Not checked.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Reddit pages were blocked, so the \"Mac keeps rebooting with LM Studio MLX\" thread is unverified.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "llmster install script is documented for \"Linux / Mac\" and runs on a local machine without the GUI.",
+          "source": "https://lmstudio.ai/docs/developer/core/headless",
+          "note": null
+        },
+        {
+          "text": "The desktop app can run headless on Mac via the \"run the LLM server on login\" setting, which keeps the server alive in the tray after quit.",
+          "source": "https://lmstudio.ai/docs/developer/core/headless",
+          "note": null
+        },
+        {
+          "text": "The only documented startup-task recipe is a Linux systemd oneshot unit; no launchd recipe is documented.",
+          "source": "https://lmstudio.ai/docs/developer/core/headless_llmster",
+          "note": null
+        },
+        {
+          "text": "`lms runtime ls`, `lms runtime update`, `lms runtime remove <name>` and `lms runtime select llama.cpp|mlx` manage engines; `lms daemon update` updates llmster separately.",
+          "source": "https://xhinker.medium.com/how-to-upgrade-lm-studio-headless-lms-to-its-latest-version-5379e76d3b1e",
+          "note": null
+        },
+        {
+          "text": "llama.cpp engine 2.0.0 shipped with 0.4.0 and enabled concurrent requests to one model.",
+          "source": "https://lmstudio.ai/blog/0.4.0",
+          "note": null
+        },
+        {
+          "text": "Max Concurrent Predictions defaults to 4 and Unified KV Cache defaults to on.",
+          "source": "https://lmstudio.ai/docs/app/advanced/parallel-requests",
+          "note": null
+        },
+        {
+          "text": "MLX continuous batching landed in LM Studio 0.4.2 build 2 via mlx-engine 1.0.0, text only.",
+          "source": "https://lmstudio.ai/changelog/lmstudio/lmstudio-v0.4.2",
+          "note": null
+        },
+        {
+          "text": "mlx-engine 1.8.5 added continuous batching for VLM requests.",
+          "source": "https://lmstudio.ai/blog/mlx-engine-agentic-workloads",
+          "note": null
+        },
+        {
+          "text": "mlx-engine's disk KV cache saves at 256-token boundaries into a single `/tmp` scratch file with LRU eviction and deletes it on model unload.",
+          "source": "https://lmstudio.ai/blog/mlx-engine-agentic-workloads",
+          "note": null
+        },
+        {
+          "text": "Qwen 3.5/3.6 (hybrid) and Gemma 4 (sliding window) caches are not arbitrarily rewindable, which motivated the disk cache.",
+          "source": "https://lmstudio.ai/blog/mlx-engine-agentic-workloads",
+          "note": null
+        },
+        {
+          "text": "Vendor benchmark on M3 Max 36 GB with Qwen3.6-27B-MLX-4bit at parallel=4: 15.24 to 33.97 output tok/s (2.2x) from mlx-engine 1.7.0 to 1.8.5.",
+          "source": "https://lmstudio.ai/blog/mlx-engine-agentic-workloads",
+          "note": null
+        },
+        {
+          "text": "Same benchmark: extra RAM after four parallel long prompts fell from +6.47 GB to +1.18 GB.",
+          "source": "https://lmstudio.ai/blog/mlx-engine-agentic-workloads",
+          "note": null
+        },
+        {
+          "text": "Same benchmark: second request of a repeated 3.7k-token image prompt fell from 23.79 s to 6.88 s.",
+          "source": "https://lmstudio.ai/blog/mlx-engine-agentic-workloads",
+          "note": null
+        },
+        {
+          "text": "Since in-app mlx-engine v0.17.0, mlx-lm text models are always used and mlx-vlm vision models act as add-ons, giving prompt caching to text-only chats on VLMs.",
+          "source": "https://lmstudio.ai/blog/unified-mlx-engine",
+          "note": null
+        },
+        {
+          "text": "MLX engine (0.3.4) supports Outlines JSON-schema enforcement and mixing llama.cpp and MLX models loaded simultaneously.",
+          "source": "https://lmstudio.ai/blog/lmstudio-v0.3.4",
+          "note": null
+        },
+        {
+          "text": "`lms load --estimate-only` accounts for context length, flash attention and vision, and prints whether the load passes the resource guardrails.",
+          "source": "https://lmstudio.ai/docs/cli/local-models/load",
+          "note": null
+        },
+        {
+          "text": "`lms load --gpu` accepts 0-1, off or max; unset means automatic.",
+          "source": "https://lmstudio.ai/docs/cli/local-models/load",
+          "note": null
+        },
+        {
+          "text": "Models loaded with `lms load` have no TTL by default; JIT-loaded models get a 60-minute idle TTL; Auto-Evict (default on) keeps at most one JIT model loaded.",
+          "source": "https://lmstudio.ai/docs/developer/core/ttl-and-auto-evict",
+          "note": null
+        },
+        {
+          "text": "Per-model default load settings (GPU offload, context, flash attention) set in My Models apply to `lms load` as well.",
+          "source": "https://lmstudio.ai/docs/app/advanced/per-model",
+          "note": null
+        },
+        {
+          "text": "`lms server start` flags are `--port`, `--cors` and `--bind` (default 127.0.0.1; env LMS_SERVER_HOST).",
+          "source": "https://lmstudio.ai/docs/cli/serve/server-start",
+          "note": null
+        },
+        {
+          "text": "API-token authentication requires 0.4.0+, is off by default, and tokens carry per-token permissions.",
+          "source": "https://lmstudio.ai/docs/developer/core/authentication",
+          "note": null
+        },
+        {
+          "text": "`/v1/messages` was added in 0.4.1; with auth on it accepts `x-api-key` or Bearer.",
+          "source": "https://lmstudio.ai/docs/developer/anthropic-compat",
+          "note": null
+        },
+        {
+          "text": "Only `/api/v1/chat` offers model-load and prompt-processing stream events and per-request context length; chat-completions and messages lack stateful chat and MCP.",
+          "source": "https://github.com/lmstudio-ai/lmstudio-bug-tracker/issues/2206",
+          "note": null
+        },
+        {
+          "text": "`/v1/responses` (0.3.29) supports `previous_response_id` and `reasoning.effort` for gpt-oss-20b.",
+          "source": "https://lmstudio.ai/docs/developer/api-changelog",
+          "note": null
+        },
+        {
+          "text": "For gpt-oss on chat-completions, reasoning is returned in `message.reasoning` / `delta.reasoning`, not `content` (0.3.23).",
+          "source": "https://lmstudio.ai/docs/developer/api-changelog",
+          "note": null
+        },
+        {
+          "text": "`lms import <gguf>` is experimental; GGUF files must be at `~/.lmstudio/models/<publisher>/<model>/`.",
+          "source": "https://lmstudio.ai/docs/app/advanced/import-model",
+          "note": null
+        },
+        {
+          "text": "Mac requirements: Apple Silicon, macOS 14.0+, 16 GB+ recommended; Intel unsupported.",
+          "source": "https://lmstudio.ai/docs/app/system-requirements",
+          "note": null
+        },
+        {
+          "text": "Guardrail refusals apply in CLI and REST load; the GUI \"Load anyway\" has no CLI/REST equivalent (lms #499, open).",
+          "source": "https://github.com/lmstudio-ai/lms/issues/499",
+          "note": null
+        },
+        {
+          "text": "A staff reply names `\"mode\": \"off\"` in modelLoadingGuardrails as the current workaround; `\"mode\": \"high\"` did not change CLI behavior for the reporter.",
+          "source": "https://github.com/lmstudio-ai/lms/issues/499",
+          "note": null
+        },
+        {
+          "text": "The guardrail estimate for qwen3.5-9b at 110000 context was 22.92 GB while llama.cpp used about 11.5 GB for a similar setup.",
+          "source": "https://github.com/lmstudio-ai/lms/issues/499",
+          "note": null
+        },
+        {
+          "text": "On a 24 GB M4 Mac mini, 32B 4-bit models failed to load with guardrails on and froze the machine with guardrails off (0.3.11, #484 open).",
+          "source": "https://github.com/lmstudio-ai/lmstudio-bug-tracker/issues/484",
+          "note": null
+        },
+        {
+          "text": "On an M3 Max 128 GB, raising `iogpu.wired_limit_mb` to 126976 did not lift LM Studio's ~64 GB effective limit; models over ~70 GB showed \"Likely too large\" (#651).",
+          "source": "https://github.com/lmstudio-ai/lmstudio-bug-tracker/issues/651",
+          "note": null
+        },
+        {
+          "text": "LM Studio's Electron 37.2.0 caused the macOS 26 Tahoe WindowServer GPU slowdown; fix in beta build 5 on 2025-10-24.",
+          "source": "https://github.com/lmstudio-ai/lmstudio-bug-tracker/issues/1119",
+          "note": null
+        },
+        {
+          "text": "`mlx_lm.server` wires about 75% of RAM and lacks `--max-kv-size`; unbounded KV growth caused `completeMemory() prepare count underflow @IOGPUMemory.cpp:550` kernel panics on a 64 GB M4 Max.",
+          "source": "https://medium.com/@michael.hannecke/how-my-local-coding-agent-crashed-my-mac-and-what-i-learned-about-mlx-memory-management-e0cbad01553c",
+          "note": null
+        },
+        {
+          "text": "Setting `mx.metal.set_memory_limit(...)` before starting mlx_lm.server turns the panic into a Python exception.",
+          "source": "https://medium.com/@michael.hannecke/how-my-local-coding-agent-crashed-my-mac-and-what-i-learned-about-mlx-memory-management-e0cbad01553c",
+          "note": null
+        },
+        {
+          "text": "Programmatic load cannot combine KV-cache quantization with `--parallel 1`: CLI lacks KV quant, SDK defaults PARALLEL 4, REST rejects both fields (#2024, Windows, llama.cpp engine).",
+          "source": "https://github.com/lmstudio-ai/lmstudio-bug-tracker/issues/2024",
+          "note": null
+        },
+        {
+          "text": "MLX models require conversion from safetensors via `mlx_lm.convert`, so new releases appear in GGUF first.",
+          "source": "https://contracollective.com/blog/mlx-vs-llama-cpp-apple-silicon-local-ai",
+          "note": null
+        },
+        {
+          "text": "Claude Code works against LM Studio with `ANTHROPIC_BASE_URL=http://localhost:1234` and `ANTHROPIC_AUTH_TOKEN=lmstudio`.",
+          "source": "https://lmstudio.ai/docs/developer/anthropic-compat",
+          "note": null
+        }
+      ]
+    }
+  ],
+  "related": []
+}

@@ -1,0 +1,129 @@
+{
+  "slug": "cost-of-a-mincore-sweep-per-gb-on-apple-silicon",
+  "concept": "Cost of a mincore sweep per GB on Apple silicon",
+  "generated": "2026-10-05",
+  "summary": "The syscall copies results in chunks: it allocates a kernel vector of at most MAX_PAGE_RANGE_QUERY pages and an info array of `struct vm_page_info_basic` (24 bytes per page: disposition, ref_count, object_id, offset, depth, pad), calls `vm_map_page_range_info_internal` per chunk, converts each en...",
+  "facets": [
+    {
+      "title": "Facts",
+      "facts": [
+        {
+          "text": "The syscall copies results in chunks: it allocates a kernel vector of at most MAX_PAGE_RANGE_QUERY pages and an info array of `struct vm_page_info_basic` (24 bytes per page: disposition, ref_count, object_id, offset, depth, pad), calls `vm_map_page_range_info_internal` per chunk, converts each entry to flag bits and `copyout`s one byte per page.",
+          "source": "https://raw.githubusercontent.com/apple-oss-distributions/xnu/main/bsd/kern/kern_mman.c",
+          "note": null
+        },
+        {
+          "text": "`vm_map_page_range_info_internal` takes the map read lock, looks up each map entry, takes the vm_object lock in shared mode, drops the map lock, then loops page by page: `vm_page_lookup`, on a miss a compressor-pager state query for internal objects, then a walk down the shadow chain.",
+          "source": "https://raw.githubusercontent.com/apple-oss-distributions/xnu/main/osfmk/vm/vm_map.c",
+          "note": null
+        },
+        {
+          "text": "Per page it also calls `vm_object_lock_yield_shared` (and relocks the base object when it left the shadow chain). The sweep therefore pays a hash lookup plus a lock-yield check for every page.",
+          "source": "https://raw.githubusercontent.com/apple-oss-distributions/xnu/main/osfmk/vm/vm_map.c",
+          "note": null
+        },
+        {
+          "text": "The loop does not fault or decompress anything: a compressed page is reported through the pager state query only.",
+          "source": "https://raw.githubusercontent.com/apple-oss-distributions/xnu/main/osfmk/vm/vm_map.c",
+          "note": null
+        },
+        {
+          "text": "The kernel vector size is bounded, so a 400 GB sweep is many syscall chunks, each re-taking the map read lock.",
+          "source": "https://raw.githubusercontent.com/apple-oss-distributions/xnu/main/bsd/kern/kern_mman.c",
+          "note": null
+        },
+        {
+          "text": "Not documented in sources read.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Measured: a 4 GiB anonymous region fully touched (some pages already compressed) cost 0.080 to 0.083 s per sweep, about 0.020 s/GiB or 306 to 318 ns per 16 KiB page, repeated 5 times. [asserted] (measured locally 2026-10-04, Apple M5 Max 64 GB, macOS 27.2, 16 KiB pages, C microbenchmark)",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Measured: a 4 GiB untouched anonymous region cost 0.5 ms (about 2 ns per page, 0.0001 s/GiB), because there is no page to look up. [asserted] (measured locally 2026-10-04, Apple M5 Max 64 GB, macOS 27.2, 16 KiB pages, C microbenchmark)",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Measured: a 4 GiB shared file mapping, fully cached and dirty, cost 0.077 s (about 0.019 s/GiB, 293 ns per page); after `msync` it cost 0.076 s. A never-touched sparse file mapping cost 0.059 s (0.0147 s/GiB, 224 ns per page). Resident versus absent file pages differ by only about 30 percent. [asserted] (measured locally 2026-10-04, Apple M5 Max 64 GB, macOS 27.2, 16 KiB pages, C microbenchmark)",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Derived: a 27 MB expert layer is about 1,650 pages and costs about 0.5 ms to probe at 0.020 s/GiB. Anemll's measured 0.74 ms per 27 MB layer pread is the same order, so probing every layer before every read would add roughly 70 percent to a cached read and is not free.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Derived: sweeping a 400 GB bundle costs about 8 s; sweeping a 64 GB bundle about 1.3 s. A sweep should be done once per second or per request, not per token.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "The sweep competes for the object lock in shared mode, so it should not block page-ins by other readers, but the per-page yield means other threads can interleave. This is inferred from the code and was not tested under contention.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "None found. No published figure exists to disagree with.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Cost under concurrent page-fault load from the inference threads (lock yield behavior).",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Cost on 4 KiB-page processes (Rosetta or x86 binaries): four times as many pages per GiB, so about four times the sweep cost if per-page cost holds.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Cost with the object on the shadow chain (forked children, copy-on-write): the per-page walk is deeper.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "mincore on macOS does a per-page vm_page_lookup and lock-yield, with no decompression or page-in.",
+          "source": "https://raw.githubusercontent.com/apple-oss-distributions/xnu/main/osfmk/vm/vm_map.c",
+          "note": null
+        },
+        {
+          "text": "Chunked: kernel allocates one flag byte plus one 24-byte info record per page per chunk.",
+          "source": "https://raw.githubusercontent.com/apple-oss-distributions/xnu/main/bsd/kern/kern_mman.c",
+          "note": null
+        },
+        {
+          "text": "Resident anonymous memory costs about 20 ms per GiB to sweep on an M5 Max (310 ns per 16 KiB page).",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Untouched anonymous memory costs about 0.1 ms per GiB to sweep.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "A cached file-backed mapping costs about 19 ms per GiB, an unfaulted-in sparse file mapping about 15 ms per GiB.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "A per-layer probe of a 27 MB expert layer costs about 0.5 ms, comparable to the layer's read.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "A whole-model sweep at 20 ms per GiB is affordable at request granularity (400 GB about 8 s) but not per token.",
+          "source": "asserted",
+          "note": null
+        }
+      ]
+    }
+  ],
+  "related": []
+}

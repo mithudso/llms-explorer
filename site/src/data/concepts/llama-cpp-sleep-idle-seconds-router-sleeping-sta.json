@@ -1,0 +1,214 @@
+{
+  "slug": "llama-cpp-sleep-idle-seconds-router-sleeping-sta",
+  "concept": "llama.cpp --sleep-idle-seconds router sleeping state keeps its models-max slot",
+  "generated": "2026-10-05",
+  "summary": "The router tracks a status per model: unloaded, downloading, loading, loaded, sleeping. A child reports state changes to the router, which maps `SERVER_STATE_SLEEPING` to the status `SLEEPING` and `SERVER_STATE_READY` to `LOADED`.",
+  "facets": [
+    {
+      "title": "Facts",
+      "facts": [
+        {
+          "text": "The router tracks a status per model: unloaded, downloading, loading, loaded, sleeping. A child reports state changes to the router, which maps `SERVER_STATE_SLEEPING` to the status `SLEEPING` and `SERVER_STATE_READY` to `LOADED`.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "`is_running()` is true for loaded, loading and sleeping. `is_ready_or_sleep()` is true for loaded and sleeping.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "The slot check `has_capacity` passes when `--models-max` is not positive or `count_running()` is below it. `count_running()` counts every model whose `is_running()` is true, so a sleeping model is counted.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Eviction (`pick_victim`) accepts a model that is ready or sleeping, has no in-flight request, is not already stopping, and is not wanted by a queued request. It picks the one with the oldest `last_used`. A sleeping model is therefore a normal eviction candidate; sleeping does not protect it and does not free its slot.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "`ensure_model_ready` returns false at once for a sleeping model that is not stopping, with the comment that the child is still running and a new request wakes it. The router does not queue the request for a new slot.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "`proxy_request` rejects a model only when `is_running()` is false, so a request for a sleeping model is forwarded to the child, which reloads in-process.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "GET requests proxied through the router pass `update_last_used=false`; POST requests pass true. The idle timer inside the child and the router's `last_used` therefore move only on POSTs.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "After wake, the child reports ready with an empty payload; the router keeps the earlier load info.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "PR 18228 (2025-12) added sleeping; the router later gained a `SLEEPING` status and a model-status event `\"status\": \"sleeping\"` (README).",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "2026-09-30: issue 29689 reports the wake race below; no fix or linked PR when read on 2026-10-04.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "With `--models-max 1` and `--sleep-idle-seconds`, loading a second model still evicts the sleeping one first. Sleep gives no way to keep two models \"parked\" under a limit of one.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Race (issue 29689, written up 2026-10-03): a completion handler checks that the server is awake, then tokenizes (or preprocesses an image), then queues the task. If the idle timer fires in that window the server sleeps anyway. Outcome A: the task is queued while asleep and nothing wakes the server, so the client waits for its own timeout until a second request arrives. Outcome B: the sleep callback frees the vocabulary while the handler tokenizes, and the process dies with SIGSEGV in `llama_vocab::text_to_token`.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Measured on b11368 (CPU, Linux, Gemma 3 1B, `--sleep-idle-seconds 1`, 17,653-token prompt, 123 sends around the sleep moment): sends 46 to 34 ms before sleep hung (32 of 32), sends 34 to 3 ms before crashed the server (41 of 41), sends 2 ms before to 29 ms after woke it normally (37 of 37). A two-word prompt had no failures in 93 sends because the window is almost zero.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "In router mode the same race lives inside the child; the router sees a proxied request that never completes, or a child that exits.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "`/health`, `/props`, `/models` and `/metrics` do not wake the server and do not reset the idle timer, so they cannot serve as a warm-up.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Whether sleeping fully returns Metal wired memory on macOS; every measurement found is CUDA, CPU or Windows.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Whether the router forwards `--sleep-idle-seconds` from its own command line to children, or only through preset keys; the cached source was not read for that path.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Which llama.cpp build will fix 29689, and which Ollama pin would carry it (Ollama's pin has no router, so only plain `llama-server` users are exposed).",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "`server_model_meta::is_running()` returns true for status LOADED, LOADING or SLEEPING.",
+          "source": "https://raw.githubusercontent.com/ggml-org/llama.cpp/master/tools/server/server-models.h",
+          "note": null
+        },
+        {
+          "text": "`server_model_meta::is_ready_or_sleep()` returns true for LOADED or SLEEPING.",
+          "source": "https://raw.githubusercontent.com/ggml-org/llama.cpp/master/tools/server/server-models.h",
+          "note": null
+        },
+        {
+          "text": "`server_lru_sched::has_capacity` returns true when `models_max <= 0` or `count_running() < models_max`.",
+          "source": "https://raw.githubusercontent.com/ggml-org/llama.cpp/master/tools/server/server-models.cpp",
+          "note": null
+        },
+        {
+          "text": "`count_running()` counts every model for which `meta.is_running()` is true, which includes sleeping models.",
+          "source": "https://raw.githubusercontent.com/ggml-org/llama.cpp/master/tools/server/server-models.cpp",
+          "note": null
+        },
+        {
+          "text": "`pick_victim` skips a model with `req_count != 0` or one that is not ready-or-sleeping, skips one that is stopping or wanted by a queued request, and returns the one with the smallest `last_used`.",
+          "source": "https://raw.githubusercontent.com/ggml-org/llama.cpp/master/tools/server/server-models.cpp",
+          "note": null
+        },
+        {
+          "text": "`ensure_model_ready` returns false for a non-stopping sleeping model, with the comment \"child is sleeping but still running; new request will wake it up\".",
+          "source": "https://raw.githubusercontent.com/ggml-org/llama.cpp/master/tools/server/server-models.cpp",
+          "note": null
+        },
+        {
+          "text": "`ensure_model_ready` treats status LOADED or SLEEPING as the end of its wait loop.",
+          "source": "https://raw.githubusercontent.com/ggml-org/llama.cpp/master/tools/server/server-models.cpp",
+          "note": null
+        },
+        {
+          "text": "`proxy_request` throws \"is not running\" only when `is_running()` is false, so sleeping models accept proxied requests.",
+          "source": "https://raw.githubusercontent.com/ggml-org/llama.cpp/master/tools/server/server-models.cpp",
+          "note": null
+        },
+        {
+          "text": "The router maps a child's `SERVER_STATE_SLEEPING` to `SERVER_MODEL_STATUS_SLEEPING` and its `SERVER_STATE_READY` to LOADED, noting the payload can be empty on a wakeup from sleep.",
+          "source": "https://raw.githubusercontent.com/ggml-org/llama.cpp/master/tools/server/server-models.cpp",
+          "note": null
+        },
+        {
+          "text": "Router GET proxying calls `proxy_request(..., false)` and POST proxying calls `proxy_request(..., true)` with the comment \"update last usage for POST request only\".",
+          "source": "https://raw.githubusercontent.com/ggml-org/llama.cpp/master/tools/server/server-models.cpp",
+          "note": null
+        },
+        {
+          "text": "The server README documents a model status value `\"sleeping\"` and a `model_status` event with `\"status\": \"sleeping\"`, and says a wake event carries no `info` block.",
+          "source": "https://raw.githubusercontent.com/ggml-org/llama.cpp/master/tools/server/README.md",
+          "note": null
+        },
+        {
+          "text": "The README lists `GET /health`, `GET /props`, `GET /models` and `GET /metrics` as exempt from counting as incoming tasks.",
+          "source": "https://raw.githubusercontent.com/ggml-org/llama.cpp/master/tools/server/README.md",
+          "note": null
+        },
+        {
+          "text": "Issue 29689 (\"llama-server --sleep-idle-seconds: a request that arrives as the server falls asleep is never processed\") was opened on 2026-09-30 on build 11160 and had no assignee, label or linked PR on 2026-10-04.",
+          "source": "https://github.com/ggml-org/llama.cpp/issues/29689",
+          "note": null
+        },
+        {
+          "text": "Issue 29689 explains that the sleeping wait condition is `!running || req_stop_sleeping`, that only `wait_until_no_sleep()` sets `req_stop_sleeping`, and that `post()` of a task does not, so a task queued during sleep stays unprocessed.",
+          "source": "https://github.com/ggml-org/llama.cpp/issues/29689",
+          "note": null
+        },
+        {
+          "text": "A second commenter on 29689 reproduced the race on Linux with release build b11368 and found a second outcome, SIGSEGV in `llama_vocab::text_to_token` during `tokenize_input_prompts`, 41 of 41 times for sends 34 to 3 ms before sleep.",
+          "source": "https://github.com/ggml-org/llama.cpp/issues/29689",
+          "note": null
+        },
+        {
+          "text": "The write-up says sends 46 to 34 ms before the server fell asleep hung 32 of 32 times and were answered only after a second request woke the server (first request answered 4.2 s after sending).",
+          "source": "https://dev.to/homelabpm/llama-servers-sleep-mode-loses-or-crashes-on-a-request-that-arrives-just-before-it-sleeps-5e41",
+          "note": null
+        },
+        {
+          "text": "The write-up measured a reload latency of about 1.4 s for a request arriving after sleep, on a CPU-only 1B model.",
+          "source": "https://dev.to/homelabpm/llama-servers-sleep-mode-loses-or-crashes-on-a-request-that-arrives-just-before-it-sleeps-5e41",
+          "note": null
+        },
+        {
+          "text": "Workaround that held in 123 of 123 sends: send a 1-token completion (`{\"prompt\":\"hi\",\"n_predict\":1}`) immediately before the real request; its `post()` resets the idle timer.",
+          "source": "https://github.com/ggml-org/llama.cpp/issues/29689",
+          "note": null
+        },
+        {
+          "text": "Second workaround: poll `/props` until `is_sleeping` is true and then send, which forces the wake path at the cost of a model reload on every request.",
+          "source": "https://github.com/ggml-org/llama.cpp/issues/29689",
+          "note": null
+        },
+        {
+          "text": "The reporter's failing setup had `--mmproj` and speculative decoding on, and saw one hang in eight runs; image preprocessing sits in the same window as tokenization.",
+          "source": "https://github.com/ggml-org/llama.cpp/issues/29689",
+          "note": null
+        },
+        {
+          "text": "Under a router, a sleeping child is evictable and counted, so `--models-max N` bounds sleeping plus loaded children together.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "On a Mac, an agent client that sends one request after a quiet period is the pattern most exposed to the 29689 hang.",
+          "source": "asserted",
+          "note": null
+        }
+      ]
+    }
+  ],
+  "related": []
+}

@@ -1,0 +1,449 @@
+{
+  "slug": "mlx-vs-llama-cpp-decode-and-prefill-by-model-siz",
+  "concept": "MLX vs llama.cpp decode and prefill by model size and context",
+  "generated": "2026-10-05",
+  "summary": "Decode is bandwidth-bound, so the engine gap is mostly \"fraction of the memory bus the kernels reach\" plus per-token dequant cost. M3 Ultra (about 800 GB/s), Qwen3.5-9B: llama.cpp Q4_K_M 5.28 GiB at 77.8 tok/s is about 440 GB/s (about 55% of the bus); mlx-lm 4-bit 6.0 GB at 107.5 tok/s is about 6...",
+  "facets": [
+    {
+      "title": "Facts",
+      "facts": [
+        {
+          "text": "Decode is bandwidth-bound, so the engine gap is mostly \"fraction of the memory bus the kernels reach\" plus per-token dequant cost. M3 Ultra (about 800 GB/s), Qwen3.5-9B: llama.cpp Q4_K_M 5.28 GiB at 77.8 tok/s is about 440 GB/s (about 55% of the bus); mlx-lm 4-bit 6.0 GB at 107.5 tok/s is about 645 GB/s (about 80%). That accounts for the 38% gap.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Format cost, not only engine cost: on M1 Ultra Qwen3.8-27B, Ollama (llama.cpp) decodes 21.9 tok/s at Q4_K_M and 20.4 at Q8_0 (7% slower reading 76% more bytes), so its 4-bit decode is not bandwidth-limited; the suspect is K-quant super-block unpacking. MLX goes 30.9 to 19.5 over the same change, close to the halving theory predicts. Result: the MLX 4-bit lead (+41%) vanishes at 8-bit (MLX 19.5 vs 20.4). \"Which 4-bit\" decides the comparison.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Prefill crossover is chunk size: Ollama's default batch is 512 tokens, mlx-lm's prefill step is 2048. At about 500 tokens both do one chunk, so startup overhead dominates (Go-to-C++ beats a Python loop); at 16K MLX makes a quarter as many, larger GPU dispatches and catches up or leads on dense models.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Prefill is architecture-dependent: llama.cpp prefills MoE models much faster than MLX at short prompts, but the gap closes by 16K (Qwen3-30B-A3B, M1 Ultra: 1443 vs 707 t/s at 517 tokens, 819 vs 804 at 16.5K).",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Ollama routes per checkpoint, not per machine: MLX runner only for MLX-format tags (e.g. NVFP4, MXFP8, bf16), llama.cpp for GGUF k-quants. OLLAMA_LLM_LIBRARY=mlx on a GGUF tag is silently ignored (35.65 vs 35.40 tok/s).",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Ollama's MLX path for Qwen3.5 turns on the model's MTP head automatically since 0.32.6, so its MLX decode figure includes speculative decoding; mlx-lm 0.31.3 has no MTP path, and Rapid-MLX turns it on by default in its server but off in its own comparable benchmark protocol.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "bf16 vs fp16 on M1/M2: most mlx-community weights are bf16, which M1/M2 emulate; prefill uses the non-quantized dtype even for 4-bit models. Converting to fp16 gives 1.7x prefill at every context size (Gemma 3 12B QAT, M1 Max: 6.2 to 3.7 s at 655 tokens, 114.4 to 68.9 s at 8K) and lifts decode 28 to 33 tok/s. Side effect: fp16 hurts oMLX on pure 8K prefill for Qwen3.5-35B-A3B (12.4 vs 16.4 eff t/s), so the fix is workload-dependent.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Flash attention: MLX has a fused `mx.fast.scaled_dot_product_attention` kernel but it is not fully IO-aware in the FlashAttention sense; an open MLX issue from 2025-12 proposes FlashAttention-style integration. llama.cpp `--flash-attn` is the usual explanation for llama.cpp's long-context decode lead.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "2023-12 (llama.cpp discussion #4345, days after MLX release): a tester found MLX load times slow, MLX prompt processing seemingly faster than llama.cpp, and mid-thread users noted MLX's low VRAM use; llama.cpp's tg lead on small models was the received wisdom for the next two years.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "2026-01 to 2026-09: that rule inverted for small models. john-rocky/apple-silicon-llm-bench (M4 Max): \"MLX-Swift now wins decode on every cell, 1.4x to 1.8x over llama.cpp\" after mlx-swift-lm shipped Qwen and Gemma kernel updates in early 2026 (Qwen rows roughly tripled versus a snapshot before them). The repo says to re-measure before quoting \"llama.cpp always wins small-model decode\".",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "2026-03-30 Ollama 0.19 added an MLX runner; 0.33.2 ships both runners. Ollama blobs are no longer portable llama.cpp GGUFs: upstream llama.cpp rejects `unknown model architecture: gptoss` and `key qwen35.rope.dimension_sections has wrong array length; expected 4, got 3`.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Ollama GGUF path speed relative to upstream llama.cpp swung by version and model: 25% slower on gpt-oss-20b (Ollama 0.32.7 vs llama.cpp build 10330, M2 Pro), equal on Qwen3.5-9B (77.7 vs 77.8 tok/s, Ollama 0.32.13 vs build 10809, M3 Ultra), 37% slower than LM Studio on Qwen3-30B-A3B (famstack, M1 Max).",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "A reported 2-3x mlxcel gap over mlx-lm on an M1 Max (2026-05-29) did not reproduce in clean sweeps (2026-05-31/06-01), shrinking to 1.3x vs Ollama. Treat single-session 2-3x claims as likely artifacts.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Prompt-cache artifacts invert comparisons: Ollama reported prefill of 19,071 then 25,596 then 30,850 t/s for a repeated 3,932-token prompt (physically impossible: about 200 TFLOP of work on a roughly 21 TFLOPS chip). Same prompt twice, 16,384 tokens, TTFT: Ollama 90.6 s then 0.19 s then 85.4 s on a fresh prompt; Rapid-MLX 85.7 then 1.16 then 77.4; vanilla mlx-lm rebuilds its cache each call (84.7, 77.8, 78.3) and so looks slow next to both servers. Salt the first tokens of every run.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Each engine applies its own chat template; compare prompt token counts first (they must match). Same tag name can be different weights (Ollama qwen3:30b-a3b is the original; the MLX build usually the 2507 Instruct refresh).",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "LM Studio MLX engine (as benchmarked on M2 Pro) posted the fastest burst decode (71.5 t/s on gpt-oss) but re-paid full prefill on every long request (about 4 s TTFT where others hit cache).",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Memory: Ollama loads Qwen3.5 at 262,144 context by default: GGUF path 15 GB resident for a 6.6 GB file, MLX tag 9 GB, mlx-lm peak 5.24 GB. On 16 GB Macs this decides viability. mlx-lm refuses large models until `sudo sysctl iogpu.wired_limit_mb=14000` is set (gpt-oss-20b MXFP4-Q8 on M4 16 GB: `kIOGPUCommandBufferCallbackErrorOutOfMemory`), while llama.cpp ran the GGUF with `--n-cpu-moe 12` at about 26 tok/s without OS changes; Apple's awni said it is not higher memory use, just explicit opt-in.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "mlxcel TurboQuant 4-bit KV on M1 Max cut decode about 3.6x (63.33 to 17.48 tok/s).",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Hybrid/linear-attention models (Qwen3.5, Qwen3.6, Nemotron-3 Nano, Granite-4.0-H, Falcon-H1) are where MLX's lead is largest and where fresh-architecture bugs live (broken caching mlx-lm#903, coherence failures: Falcon-H1 MLX output degenerates after about two sentences).",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Fanless Macs: a median of 3 runs overstates sustained throughput by about 20% on a MacBook Air.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Vendor harnesses disclose their own limits: Rapid-MLX's README says dense 12B was no faster and llama.cpp-family engines prefilled cold prompts faster; its \"4.2x faster than Ollama\" headline is irreproducible (measured 1.40-1.53x dense, 0.79x MoE on M1 Ultra), the \"3.0x\" is aggregate decode at 8 concurrent streams on M2 Pro.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Rapid-MLX PFlash prefill compression (20% of prompt tokens kept) cuts 16K TTFT from 42.8 s to 8.23 s on M4 Pro but the model no longer sees every token; not like-for-like.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "MLX vs llama.cpp on MoE decode. Side A (Rapid-MLX, M2 Pro 32 GB, Qwen3.6-35B-A3B): mlx-lm 61.7 vs llama-bench 39.1 tok/s (1.58x); server 58.5 vs 38.3-39.0. Side B (zachrattner.com, M1 Ultra, Qwen3-30B-A3B): Ollama (llama.cpp) 83.3 vs MLX 68.1 decode (+22% for llama.cpp) and Ollama also ahead at 4K and 16K; Rapid-MLX did not rescue it (Ollama 91.2 vs 72.5 at 512). Side C (famstack, M1 Max, Qwen3-30B-A3B 2507): tie, 58 (GGUF) vs 55-56 (MLX) generation tok/s. Side D (vllm-mlx paper, M4 Max, Qwen3-30B-A3B): mlx-lm 107.4 vs llama.cpp 89.9 (+19%). Sources differ in chip, model generation (Qwen3 vs hybrid Qwen3.5/3.6), llama.cpp build and wrapper; no single variable isolated.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Where MLX's decode lead ends. starmorph/local-llm.net (existing dossier) say ties at 14B+/27B+. The vllm-mlx paper's table (M4 Max, Q4_K_M vs 4-bit, one author) shows mlx-lm vs llama.cpp: Qwen3-0.6B 356 vs 282 (+27%), Qwen3-4B 129 vs 118 (+9%), Qwen3-8B 79.9 vs 76.9 (+4%), Llama-3.2-1B 347 vs 331 (+5%), Llama-3.2-3B 168 vs 156 (+8%), Gemma 3 4B 105 vs 123 (llama.cpp +17%), Nemotron-30B-A3B 102 vs 85 (+19%). So the gap is not monotone in size: it is largest at sub-1B and at MoE, smallest at 8B dense, and reversed on Gemma 3.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Long-context decode: mlx-lm issue #763 (M3 Ultra 256 GB, LM Studio, MiniMax-M2.1 4-bit): at 30K, MLX 25 t/s vs llama.cpp+flash attention 32; at 146K, 5.95 vs 12.12 t/s (about 50%), prompt time about equal (82.5 s vs 78 s at 30K). No maintainer reproduction was recorded (awni asked for commands). Counter-evidence at 32K: Rapid-MLX on M3 Ultra, Qwen3.8-27B 4-bit MLX decode without MTP falls 30.7 (128 tokens) to 16.5 tok/s (32K), and with MTP 43.9 to 38.7; MLX-only, no llama.cpp control, so it shows MLX depth sensitivity, not a gap. So the \"MLX loses long-context decode\" claim rests on one LM Studio-mediated measurement.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Ollama GGUF vs upstream llama.cpp: Rapid-MLX (gpt-oss-20b MXFP4, M2 Pro) says Ollama is 25% slower from its own conversion/serving path; terminalbytes (Qwen3.5-9B, M3 Ultra) shows parity; famstack says 37% slower than LM Studio. Not additive; model-, version- and conversion-specific.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "MLX prefill vs llama.cpp: Rapid-MLX M2 Pro llama-bench pp512 vs raw MLX: gpt-oss 558 vs 250 t/s, Qwen3.6-35B-A3B 460 vs 277, Gemma4-12B 172 vs 96 (1.7-2.2x llama.cpp). Zachrattner M1 Ultra: MLX prefill higher than Ollama at 4K+ on the dense 27B (216 vs 203 at 4K; 212 vs 194 at 16K) and equal on MoE at 16K. Rapid-MLX M4 Pro dense 9B cold 16K TTFT: mlx-lm 43.6 s vs Ollama 49.4 s. Reconciliation consistent with the chunk-size mechanism: llama.cpp wins short/cold-MoE prefill, MLX wins or ties long dense prefill. M1 Max: MLX 8.5K prefill (Qwen3 30B, fp16-converted) 42.6 s vs GGUF 49.1 s (bf16: 62.5 s), but Qwen3.5-35B-A3B via LM Studio MLX 5.9 vs GGUF 7.8 eff t/s on prefill stress (oMLX 16.4).",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "No controlled same-model, same-quant, same-build MLX vs llama.cpp numbers on M5 family at depth 32K-128K (llama-bench `-d` vs `mlx_lm.benchmark`); tensor-API effects on both are untested head to head.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Whether Ollama's MLX runner (not Rapid-MLX) beats its llama.cpp runner on the Qwen3-30B-A3B MoE where llama.cpp won (author explicitly did not run it).",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "llama.cpp build drift: the M4 Max hybrid-model table used Homebrew build 8680 (same era as other posts using 10330/10809 and b11170), so llama.cpp column values in some tables are from a much older build than others; the size of the effect is unmeasured.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Why Gemma 3 4B reverses (llama.cpp +17% on M4 Max) while Gemma4-12B shows only a 15% MLX edge; whether kernel updates since changed it.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "On M4 Max 128 GB with 4-bit/Q4_K_M, plain mlx-lm vs llama.cpp tok/s: Qwen3-0.6B 356.2 vs 281.5; Qwen3-4B 128.9 vs 118.2; Qwen3-8B 79.9 vs 76.9; Qwen3-30B-A3B 107.4 vs 89.9.",
+          "source": "https://arxiv.org/html/2601.19139v1",
+          "note": null
+        },
+        {
+          "text": "Same table: Llama-3.2-1B 347.1 vs 331.3; Llama-3.2-3B 167.5 vs 155.8; Gemma 3 4B 105.4 vs 123.2 (llama.cpp faster); Nemotron-30B-A3B 101.6 vs 85.1.",
+          "source": "https://arxiv.org/html/2601.19139v1",
+          "note": null
+        },
+        {
+          "text": "In that paper the figure 93.3 tok/s for Qwen3-8B belongs to the authors' vllm-mlx, which also scores 525.5 (0.6B), 159.0 (4B), 109.7 (30B-A3B), 121.8 (Nemotron-30B); the \"21% to 87%\" claim is vllm-mlx over llama.cpp.",
+          "source": "https://arxiv.org/html/2601.19139v1",
+          "note": null
+        },
+        {
+          "text": "The paper does not state llama.cpp build or flags and measures decode only (no prefill table).",
+          "source": "https://arxiv.org/html/2601.19139v1",
+          "note": null
+        },
+        {
+          "text": "The same paper reports vllm-mlx continuous batching scaling of 3.7x (Qwen3-0.6B, 441 to 1642 tok/s at 16 concurrent) and 2.6x (Qwen3-8B).",
+          "source": "https://arxiv.org/html/2601.19139v1",
+          "note": null
+        },
+        {
+          "text": "M1 Ultra 128 GB (800 GB/s), Ollama 0.33.2 (llama.cpp, Q4_K_M) vs mlx-lm 0.31.3 (mlx 0.32.2), Qwen3.8-27B 4-bit decode: 21.91 vs 30.89 at 501 tokens, 22.35 vs 29.91 at 3,963, 18.98 vs 27.52 at 16,454.",
+          "source": "https://zachrattner.com/projects/ai-mac-cluster/mlx-vs-ollama",
+          "note": null
+        },
+        {
+          "text": "Same machine, Qwen3.8-27B 4-bit prefill tok/s Ollama vs MLX: 225.2 vs 178.2 at 501; 203.1 vs 215.9 at 3,963; 193.9 vs 211.5 at 16,454.",
+          "source": "https://zachrattner.com/projects/ai-mac-cluster/mlx-vs-ollama",
+          "note": null
+        },
+        {
+          "text": "Same machine, Qwen3.8-27B 8-bit decode: Ollama 20.41/20.01/19.06 vs MLX 19.53/19.20/18.13 at 501/3,963/16,454 tokens; Ollama prefill is higher at 8-bit (229 vs 203 at 4K) than 4-bit.",
+          "source": "https://zachrattner.com/projects/ai-mac-cluster/mlx-vs-ollama",
+          "note": null
+        },
+        {
+          "text": "Same machine, Qwen3-30B-A3B 4-bit: Ollama decode 83.32/78.02/55.85 vs MLX 68.08/60.16/45.80, prefill 1,443/1,415/819 vs 707/1,143/804 t/s at 517/4,175/16,507 tokens.",
+          "source": "https://zachrattner.com/projects/ai-mac-cluster/mlx-vs-ollama",
+          "note": null
+        },
+        {
+          "text": "Rapid-MLX wrapper vs vanilla MLX on that machine: +1.9% to +4.4% decode on the dense 27B; on the MoE, Ollama leads Rapid-MLX by 20-22% at every prompt length (91.23 vs 72.50 at 512; 57.76 vs 45.01 at 16K).",
+          "source": "https://zachrattner.com/projects/ai-mac-cluster/mlx-vs-ollama",
+          "note": null
+        },
+        {
+          "text": "Ollama's default prefill batch is 512 tokens; mlx-lm's prefill step is 2,048.",
+          "source": "https://zachrattner.com/projects/ai-mac-cluster/mlx-vs-ollama",
+          "note": null
+        },
+        {
+          "text": "Ollama figures on that page all came from the llama.cpp runner because GGUF k-quants are not loadable by Ollama's MLX runner.",
+          "source": "https://zachrattner.com/projects/ai-mac-cluster/mlx-vs-ollama",
+          "note": null
+        },
+        {
+          "text": "M3 Ultra 256 GB, Qwen3.5-9B 4-bit decode: Ollama GGUF 77.7, llama-bench (build 10809, tg128) 77.8 +/-0.11, Ollama MLX NVFP4 90.5, rapid-mlx 105.9, mlx-lm 107.5 tok/s.",
+          "source": "https://terminalbytes.com/ollama-vs-llama-cpp-vs-mlx-mac-2026/",
+          "note": null
+        },
+        {
+          "text": "Same post: llama-bench pp512 prompt rate for the GGUF was about 1,010 t/s; Ollama's GGUF path processed a 34-token prompt at 344 t/s while Ollama's MLX tag was 26-37 t/s on that 34-token prompt (fixed startup cost; rapid-mlx did 512 tokens in 469 ms and 2,048 in 1.7 s).",
+          "source": "https://terminalbytes.com/ollama-vs-llama-cpp-vs-mlx-mac-2026/",
+          "note": null
+        },
+        {
+          "text": "Same post: Ollama loads Qwen3.5 at 262,144 context, resident 15 GB (GGUF, 6.6 GB file) vs 9 GB (MLX tag); mlx-lm peak 5.24 GB.",
+          "source": "https://terminalbytes.com/ollama-vs-llama-cpp-vs-mlx-mac-2026/",
+          "note": null
+        },
+        {
+          "text": "Ollama's downloaded Qwen3.5 GGUF fails in upstream llama.cpp 0.3.0/0.4.0 with `key qwen35.rope.dimension_sections has wrong array length; expected 4, got 3`.",
+          "source": "https://terminalbytes.com/ollama-vs-llama-cpp-vs-mlx-mac-2026/",
+          "note": null
+        },
+        {
+          "text": "Ollama 0.32.6 release notes: MLX engine uses the Qwen3.5 MTP head for speculative decoding automatically.",
+          "source": "https://terminalbytes.com/ollama-vs-llama-cpp-vs-mlx-mac-2026/",
+          "note": null
+        },
+        {
+          "text": "M2 Pro 32 GB Mac mini decode (rapid-mlx 0.12.11 / llama.cpp build 10330 / Ollama 0.32.7 / LM Studio GGUF / LM Studio MLX): gpt-oss-20b MXFP4 46.7/42.6/32.1/42.2/48.1; Qwen3.6-35B-A3B 58.5/38.3/39.0; Gemma4-12B 21.3/18.3/18.0/18.0/22.0 tok/s.",
+          "source": "https://rapidmlx.com/blog/rapid-mlx-vs-ollama-benchmark",
+          "note": null
+        },
+        {
+          "text": "Same machine raw framework numbers: mlx-lm 61.7 vs llama-bench 39.1 on Qwen3.6-35B-A3B.",
+          "source": "https://rapidmlx.com/blog/rapid-mlx-vs-ollama-benchmark",
+          "note": null
+        },
+        {
+          "text": "Same machine prefill, llama-bench pp512 vs raw MLX: gpt-oss 558 vs 250, Qwen3.6-35B-A3B 460 vs 277, Gemma4-12B 172 vs 96 t/s.",
+          "source": "https://rapidmlx.com/blog/rapid-mlx-vs-ollama-benchmark",
+          "note": null
+        },
+        {
+          "text": "Same machine cold 1K-token TTFT: Qwen3.6-35B-A3B llama.cpp 2.3 s, Ollama 2.6 s, rapid-mlx 3.4 s; Gemma4-12B 6.7/6.8/9.3 s.",
+          "source": "https://rapidmlx.com/blog/rapid-mlx-vs-ollama-benchmark",
+          "note": null
+        },
+        {
+          "text": "Same machine, 8 concurrent streams aggregate decode: Qwen3.6-35B-A3B rapid-mlx 82.9 vs llama.cpp 48.8 vs Ollama 27.2; Gemma4-12B llama.cpp 30.9 vs rapid-mlx 22.6; gpt-oss tie (62.9 vs 63.6).",
+          "source": "https://rapidmlx.com/blog/rapid-mlx-vs-ollama-benchmark",
+          "note": null
+        },
+        {
+          "text": "The vendor (Rapid-MLX) discloses its own conflict of interest and says \"never meaningfully slower at decode\" and \"llama.cpp prefills 1.7-2x faster\"; treat headline ratios as vendor-framed.",
+          "source": "https://rapidmlx.com/blog/rapid-mlx-vs-ollama-benchmark",
+          "note": null
+        },
+        {
+          "text": "M4 Pro 48 GB Mac mini, Qwen3.5-9B 4-bit, single-stream decode: Rapid-MLX 66.1 (MTP on), oMLX 51.2, mlx-lm 47.7, Ollama 0.34.3 GGUF 38.4 tok/s; cold ~16K TTFT 42.8 s (Rapid-MLX PFlash off), 41.7 oMLX, 43.6 mlx-lm, 49.4 Ollama.",
+          "source": "https://rapidmlx.com/compare",
+          "note": null
+        },
+        {
+          "text": "Same page: 4-stream aggregate oMLX 97.1 and mlx-lm 96.6 beat Rapid-MLX 68.3 and Ollama 37.4 tok/s; Ollama serves that model one request at a time.",
+          "source": "https://rapidmlx.com/compare",
+          "note": null
+        },
+        {
+          "text": "M4 Max, hybrid Mamba-2/transformer models, MLX vs llama.cpp (Homebrew build 8680) decode: Nemotron-3 Nano 30B-A3B 159.7 vs 86.2; Nemotron-3 Nano 4B 176.8 vs 88.4; Granite-4.0-H-Tiny 202.2 vs 117.3; Granite-4.0-H 350M 521.7 vs 282.5; Granite-4.0-H 1B 275.8 vs 141.9 tok/s.",
+          "source": "https://github.com/john-rocky/apple-silicon-llm-bench",
+          "note": null
+        },
+        {
+          "text": "M4 Max, mlx-swift Q4 vs llama.cpp Q4_K_M decode: Qwen2.5 0.5B 531.1 vs 297.1; Qwen3.5 0.8B 421.1 vs 201.1; Qwen3.5 2B 291.9 vs 149.7; Gemma 4 E2B 185.4 vs 119.2; Gemma 4 E4B 113.5 vs 80.5 tok/s (1.4x-1.8x).",
+          "source": "https://github.com/john-rocky/apple-silicon-llm-bench",
+          "note": null
+        },
+        {
+          "text": "The repo says quantization is not equal across columns (Q4_K_M not equal to 4-bit affine) and that the older rule \"llama.cpp Metal wins small-model decode\" is no longer true on M4 Max.",
+          "source": "https://github.com/john-rocky/apple-silicon-llm-bench",
+          "note": null
+        },
+        {
+          "text": "That table's llama.cpp column was captured with Homebrew build 8680 (commit 15f786e65), while other September-2026 measurements cite builds 10330 and 10809, so llama.cpp build version differs by about 2,000+ builds across comparable sources.",
+          "source": "https://github.com/john-rocky/apple-silicon-llm-bench",
+          "note": null
+        },
+        {
+          "text": "M3 Ultra 256 GB via LM Studio, MiniMax-M2.1 4-bit: 30K context prompt 82.5 s MLX vs 78 s llama.cpp+flash attention, generation 25 vs 32 t/s; 146K context generation 5.95 vs 12.12 t/s.",
+          "source": "https://github.com/ml-explore/mlx-lm/issues/763",
+          "note": null
+        },
+        {
+          "text": "Issue #763 (opened 2026-01-15) had no reproduction by maintainers in the fetched thread, and later comments are a solicitation for a research call (page content, not instruction).",
+          "source": "https://github.com/ml-explore/mlx-lm/issues/763",
+          "note": null
+        },
+        {
+          "text": "M1 Max 64 GB, Gemma 3 12B QAT effective tok/s (MLX bf16 / MLX fp16 / GGUF): creative 26.7/32.8/32.4; doc classification 10.9/16.1/16.9; ops agent 17.2/20.0/22.2; 8K prefill stress 2.8/5.2/4.7.",
+          "source": "https://famstack.dev/guides/mlx-vs-gguf-part-2-isolating-variables/",
+          "note": null
+        },
+        {
+          "text": "M1 Max, Qwen3 30B-A3B 2507 effective tok/s (MLX bf16 / fp16 / GGUF): creative 53.7/52.7/56.1; doc class 26.4/32.8/33.7; ops agent 35.7/38.4/41.7; 8K prefill 6.0/8.6/7.6.",
+          "source": "https://famstack.dev/guides/mlx-vs-gguf-part-2-isolating-variables/",
+          "note": null
+        },
+        {
+          "text": "Same page: Qwen3 30B-A3B generation speed tied, 58 tok/s GGUF vs 55-56 MLX; the Part 1 gap (57 MLX vs 29 GGUF) with Qwen3.5-35B-A3B \"was the model, not the engine\" (broken caching mlx-lm#903, unoptimized hybrid attention, bf16 on M1).",
+          "source": "https://famstack.dev/guides/mlx-vs-gguf-part-2-isolating-variables/",
+          "note": null
+        },
+        {
+          "text": "Same page, Qwen3 30B-A3B prefill seconds (MLX bf16 / MLX fp16 / GGUF): 655 tok 2.5/1.5/1.6; 1.5K 4.8/2.8/3.3; 3K 11.1/6.6/7.7; 8.5K 62.5/42.6/49.1.",
+          "source": "https://famstack.dev/guides/mlx-vs-gguf-part-2-isolating-variables/",
+          "note": null
+        },
+        {
+          "text": "Same page, Qwen3.5-35B-A3B ops-agent effective tok/s: oMLX 38.0 (M1 Max), 47.3 (fp16-converted), 71.3 (M3 Max 128 GB, 40 cores); LM Studio MLX 17.0 (M1 Max), 37.1 (M3 Max); LM Studio GGUF 17.6; wrapper choice moved M3 Max results by 1.9x.",
+          "source": "https://famstack.dev/guides/mlx-vs-gguf-part-2-isolating-variables/",
+          "note": null
+        },
+        {
+          "text": "On M1 Max, LM Studio GGUF (17.6) and LM Studio MLX (17.0) tie for opposite reasons: GGUF generates slowly with fast prefill, MLX generates fast with slow prefill.",
+          "source": "https://famstack.dev/guides/mlx-vs-gguf-part-2-isolating-variables/",
+          "note": null
+        },
+        {
+          "text": "M1 Max 64 GB, Llama 3.2 3B 4-bit decode: mlx-lm 67.63, mlxcel 0.1.2 63.33, Ollama 0.20.7 (GGUF Q4_K_M) 48.73; Qwen2.5-7B: mlx-lm 31.80, mlxcel 31.33, Ollama 24.23 tok/s; 120-word prompt prefill about even (420-440 t/s).",
+          "source": "https://blog.kubesimplify.com/mlxcel-rust-native-inference-engine-tested-on-m1-max",
+          "note": null
+        },
+        {
+          "text": "An earlier 2026-05-29 mlxcel session showed about 130 tok/s on Llama 3.2 3B and a 2-3x gap that did not reproduce in clean sweeps.",
+          "source": "https://blog.kubesimplify.com/mlxcel-rust-native-inference-engine-tested-on-m1-max",
+          "note": null
+        },
+        {
+          "text": "The same post claims a gap of about 3x on longer prompts at 3B (Ollama vs MLX) in one sweep while reporting prefill roughly even at 120 words; internally inconsistent, low confidence.",
+          "source": "https://blog.kubesimplify.com/mlxcel-rust-native-inference-engine-tested-on-m1-max",
+          "note": null
+        },
+        {
+          "text": "Q4_K_M averages about 4.85 bits per weight and MLX 4-bit about 4.5 (kubesimplify) or 4.83 vs uniform (famstack); MLX 4-bit weights are about 3.50 GB vs 3.80 GB for Q4_K_M on a 7B.",
+          "source": "https://blog.kubesimplify.com/mlxcel-rust-native-inference-engine-tested-on-m1-max",
+          "note": null
+        },
+        {
+          "text": "Rapid-MLX on M3 Ultra, 8K prompt, 256 decode, prefix cache cleared: Qwen3.8-27B 4-bit TTFT 24.66 s, prefill 330.8 t/s, decode 43.4 t/s (with MTP in 0.13.4; 24.58 t/s at 8K and 16.52 at 32K without).",
+          "source": "https://github.com/raullenchai/Rapid-MLX",
+          "note": null
+        },
+        {
+          "text": "Same table: MLX-only decode without MTP drops 30.71 (128 tokens) to 28.88 (2K) to 24.58 (8K) to 16.52 (32K) tok/s on that dense 27B, so MLX decode depth-sensitivity is about 46% from 128 to 32K.",
+          "source": "https://github.com/raullenchai/Rapid-MLX",
+          "note": null
+        },
+        {
+          "text": "M1 Max 64 GB, Qwen3.6-35B-A3B 4-bit raw MLX: 8,700-token context took 20 s before first token; M4 Max 5.75 s.",
+          "source": "https://blog.gopenai.com/i-tried-running-ai-agents-on-my-macbook-mlx-was-too-slow-then-i-found-omlx-1f0cc7f63273",
+          "note": null
+        },
+        {
+          "text": "One HN user on an M1 Max 64 GB found MLX faster at token generation but slower at prompt processing and unstable versus GGUF with MTP (anecdote).",
+          "source": "https://news.ycombinator.com/item?id=48513899",
+          "note": null
+        },
+        {
+          "text": "One HN user, M4 Pro 64 GB, Gemma 4 31B: Q4_K_M GGUF in LM Studio 0.92 s TTFT, 11.56 tok/s; the 8-bit MLX 4.62 s TTFT, 7.2 tok/s (different quants, not controlled).",
+          "source": "https://news.ycombinator.com/item?id=48089091",
+          "note": null
+        },
+        {
+          "text": "contracollective.com's \"MLX 20-40% faster, gap widens on long contexts because llama.cpp copies the KV cache\" and \"M2 Pro Llama 3.1 8B: llama.cpp 38-48 vs MLX 45-58 tok/s\" give no method, build, or source; the long-context claim contradicts the issue #763 data.",
+          "source": "https://contracollective.com/blog/llama-cpp-vs-mlx-ollama-vllm-apple-silicon-2026",
+          "note": null
+        },
+        {
+          "text": "A practitioner (Hannecke) states that as of 2026 llama.cpp with --flash-attn is faster than MLX out of the box on long contexts, with an MLX issue from December 2025 proposing FlashAttention-style integration.",
+          "source": "https://medium.com/@michael.hannecke/llama-cpp-vs-mlx-on-apple-mx-775ee59df0ee",
+          "note": null
+        },
+        {
+          "text": "Rules of thumb per chip class, inferred from the above (all single-stream, 4-bit class, 2026-09 builds; verify on your build): M1/M2 Pro/Max (150-400 GB/s): convert bf16 MLX to fp16 first; MLX decode lead is 0-50% (small and sparse models highest), llama.cpp wins cold prefill and tends to win wall-clock on 8K+ prompts for MoE.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "M3 Ultra/M1 Ultra (800 GB/s): MLX reaches about 80% of the bus vs llama.cpp about 55% on dense 4-bit, so a 27-35-40% decode lead; at 8-bit the lead disappears.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "M4 Pro/Max: mlx-lm +4% (8B dense) to +27% (0.6B) and +19% (MoE 30B-A3B); Gemma 3 4B is the known counterexample; hybrid-attention models up to 1.8x.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "M5 family: tensor API/neural accelerators help prefill on both engines (llama.cpp 2.1-2.4x pp, tg unchanged per round-1); no controlled cross-engine M5 table was found, so no per-engine rule is supportable yet.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Selection heuristic: interactive output on dense 4-bit or hybrid/sparse models, use MLX; long cold prompts, agents without a prompt cache, 16 GB Macs needing CPU-MoE offload or no wired-limit tweak, and anything needing grammars, use llama.cpp; agents with repeated prefixes are decided by cache reuse, not engine.",
+          "source": "asserted",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Corrections and disagreements",
+      "facts": [
+        {
+          "text": "CONTRADICTS: apple-silicon-memory-bandwidth-and-decode-speed.md line \"Qwen3-8B 4-bit decodes at 93.3 tok/s with MLX versus 76.9 with llama.cpp\" (via starmorph). In the primary paper (arXiv 2601.19139, Table 1) 93.3 is the paper's own vllm-mlx server; plain mlx-lm is 79.9, so the plain MLX lead at 8B is +4%, not +21%. The \"20-87%\" headline range is vllm-mlx over llama.cpp, not mlx-lm over llama.cpp (plain mlx-lm range in that table is -14% to +27%).",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "CONTRADICTS: existing \"MLX 3x faster until 40K\" framing. The only same-model controlled 3x-type gaps found are single sessions that did not reproduce (mlxcel 2-3x on M1 Max collapsed to 1.3x); Ollama's own 130 vs 43 is MoE on M4 Pro with an Ollama llama.cpp build of that time. Controlled 2026-09 data on M3 Ultra/M4 Pro/M1 Ultra show 1.0x-1.5x single-stream, with MoE and hybrid models at the top.",
+          "source": "asserted",
+          "note": null
+        }
+      ]
+    }
+  ],
+  "related": []
+}

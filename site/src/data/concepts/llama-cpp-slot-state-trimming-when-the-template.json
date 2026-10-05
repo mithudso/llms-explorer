@@ -1,0 +1,144 @@
+{
+  "slug": "llama-cpp-slot-state-trimming-when-the-template",
+  "concept": "llama.cpp slot state trimming when the template will drop reasoning",
+  "generated": "2026-10-05",
+  "summary": "ANSWERS the open question in reasoning-token-cache-invalidation-across-turns.md: master has no code that removes reasoning tokens from a stored slot. The only token trim is `slot.prompt.tokens.keep_first(n_past)` after the prefix match, followed by `memory_seq_rm [p0, end)`; nothing in the path t...",
+  "facets": [
+    {
+      "title": "Facts",
+      "facts": [
+        {
+          "text": "ANSWERS the open question in reasoning-token-cache-invalidation-across-turns.md: master has no code that removes reasoning tokens from a stored slot. The only token trim is `slot.prompt.tokens.keep_first(n_past)` after the prefix match, followed by `memory_seq_rm [p0, end)`; nothing in the path tests for reasoning.",
+          "source": "https://raw.githubusercontent.com/ggml-org/llama.cpp/master/tools/server/server-context.cpp",
+          "note": null
+        },
+        {
+          "text": "The slot keeps the generated tokens as they were sampled; on the next request `get_common_prefix` compares them with the re-rendered prompt and stops at the first differing token, which is the start of the dropped reasoning.",
+          "source": "https://raw.githubusercontent.com/ggml-org/llama.cpp/master/tools/server/server-context.cpp",
+          "note": null
+        },
+        {
+          "text": "Hybrid and SWA models cannot cut KV back to that point, so the server must restore a checkpoint taken before it. The design response is to place checkpoints so none contains reasoning: PR 20288 makes two checkpoints near the prompt end, at `4 + n_ubatch` and `4` tokens before the end (`checkpoint_offsets[] = {4 + n_ubatch, 4}`).",
+          "source": "https://raw.githubusercontent.com/ggml-org/llama.cpp/master/tools/server/server-context.cpp",
+          "note": null
+        },
+        {
+          "text": "The reason, from the author: \"The main restriction is to guarantee that no 'reasoning' tokens will get included in the checkpoint because they will be removed for the next user message.\"",
+          "source": "https://github.com/ggml-org/llama.cpp/pull/20288",
+          "note": null
+        },
+        {
+          "text": "The margin was first 64 tokens, then lowered to 4 after ggerganov asked whether \"begin thinking\" tokens can exceed 4; aldehir answered the longest he knows is gpt-oss at 3 tokens (`<|channel|>`, `analysis`, `<|message|>`).",
+          "source": "https://github.com/ggml-org/llama.cpp/pull/20288",
+          "note": null
+        },
+        {
+          "text": "The two offsets serve two cases: the `4 + n_ubatch` one lets an edit of the last user message resume without reprocessing 512 tokens, and the `4` one allows near-zero re-eval when a request is replayed.",
+          "source": "https://github.com/ggml-org/llama.cpp/pull/20288",
+          "note": null
+        },
+        {
+          "text": "The checkpoint is taken before `llama_decode` of the final batch, so the batch about to run is not in it; the code comment says so.",
+          "source": "https://raw.githubusercontent.com/ggml-org/llama.cpp/master/tools/server/server-context.cpp",
+          "note": null
+        },
+        {
+          "text": "The `[TAG_PROMPT_LOGITS]` guard decrements `n_past` by one when it equals the task's token count, so at least one token is always evaluated.",
+          "source": "https://raw.githubusercontent.com/ggml-org/llama.cpp/master/tools/server/server-context.cpp",
+          "note": null
+        },
+        {
+          "text": "PR 25592 adds the agentic angle: agentic clients strip the previous reply's reasoning \"so the next request diverges right at the end of the previous prompt\", which is why it exempts end-of-prompt checkpoints from `--checkpoint-min-step`.",
+          "source": "https://github.com/ggml-org/llama.cpp/pull/25592",
+          "note": null
+        },
+        {
+          "text": "A server-side flag decides whether the template keeps reasoning: master logs `chat template supports preserving reasoning, it is enabled by default (may use more tokens, disable via --no-reasoning-preserve)` or `consider enabling it via --reasoning-preserve`, or `has no effect` when the template lacks support.",
+          "source": "https://raw.githubusercontent.com/ggml-org/llama.cpp/master/tools/server/server-context.cpp",
+          "note": null
+        },
+        {
+          "text": "2026-03-09: PR 20288 opened and merged 2026-03-10 as a7b3dee.",
+          "source": "https://github.com/ggml-org/llama.cpp/pull/20288",
+          "note": null
+        },
+        {
+          "text": "A downstream fork measured that each of the two end-of-prompt breaks is a separate `llama_decode` and costs a pipeline drain on a 10-stage RPC split (a 4-token break still cost 11.6 s of an 85 s request) and moved checkpointing to after the decode. This matters only for multi-device splits.",
+          "source": "https://github.com/ggml-org/llama.cpp/pull/20288",
+          "note": null
+        },
+        {
+          "text": "A client that sends the reasoning back verbatim and a template that keeps it (`preserve_thinking`) removes the divergence; the checkpoints at the end then hold reasoning that stays valid.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "If the reasoning-start sequence is longer than 4 tokens for some model, the checkpoint at offset 4 would contain reasoning tokens and be unusable for the next turn; the 4 + n_ubatch checkpoint is the fallback.",
+          "source": "https://github.com/ggml-org/llama.cpp/pull/20288",
+          "note": null
+        },
+        {
+          "text": "With `-ub 4096` the `4 + n_ubatch` checkpoint sits about 4100 tokens back, so an edit-resume reprocesses that many tokens.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Reporter 24055 with checkpoints only at the very end saw them erased the next turn (`erased invalidated context checkpoint ... pos_next = 0`) because the next prompt was shorter than the checkpoint position.",
+          "source": "https://github.com/ggml-org/llama.cpp/issues/24055",
+          "note": null
+        },
+        {
+          "text": "Option A (server trims): remove reasoning tokens from the slot after generation so the stored state equals the next prompt. Option B (current): keep the generated state and snapshot before the reasoning. A needs a rollback of recurrent state, which the maintainer says is invalid at any position but the latest; B needs only checkpoints. The code follows B.",
+          "source": "https://github.com/ggml-org/llama.cpp/pull/24797",
+          "note": null
+        },
+        {
+          "text": "Whether any fork trims the slot (the batch brief names slot trimming; no readable source).",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Whether models with a multi-token think prefix longer than 4 exist outside the sources.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "No code path in master server-context.cpp strips reasoning tokens from a stored slot.",
+          "source": "https://raw.githubusercontent.com/ggml-org/llama.cpp/master/tools/server/server-context.cpp",
+          "note": null
+        },
+        {
+          "text": "Checkpoints are taken at `n_tokens - 4` and `n_tokens - (4 + n_ubatch)` before the end of the prompt, in batches of at most `n_batch`.",
+          "source": "https://raw.githubusercontent.com/ggml-org/llama.cpp/master/tools/server/server-context.cpp",
+          "note": null
+        },
+        {
+          "text": "PR 20288 states \"In some cases, reprocessing the last 512 tokens of the prompt could be too slow. In other cases it is necessary in order to allow mutating the last user message.\"",
+          "source": "https://github.com/ggml-org/llama.cpp/pull/20288",
+          "note": null
+        },
+        {
+          "text": "A tester reported 20288 worked with a 4-token secondary checkpoint for Qwen3.5 with the default template in both instruct and reasoning modes.",
+          "source": "https://github.com/ggml-org/llama.cpp/pull/20288",
+          "note": null
+        },
+        {
+          "text": "A Qwen3-30B-A3B (non-hybrid) replay shows near-zero re-eval while Qwen3.5-35B-A3B re-evaluates the tail, per a commenter on PR 20288, matching the checkpoint-dependent design.",
+          "source": "https://github.com/ggml-org/llama.cpp/pull/20288",
+          "note": null
+        },
+        {
+          "text": "Master has `reasoning_end` slot control action that forces the reasoning budget sampler to end thinking, and rejects it when reasoning control was not armed.",
+          "source": "https://raw.githubusercontent.com/ggml-org/llama.cpp/master/tools/server/server-context.cpp",
+          "note": null
+        },
+        {
+          "text": "PR 24110 changes `pos_min_thold` to subtract 1 only when no new tokens exist.",
+          "source": "https://github.com/ggml-org/llama.cpp/pull/24110",
+          "note": null
+        }
+      ]
+    }
+  ],
+  "related": []
+}

@@ -1,0 +1,159 @@
+{
+  "slug": "llama-server-readiness-and-health-semantics-afte",
+  "concept": "llama-server readiness and health semantics after fatal Metal init OOM",
+  "generated": "2026-10-05",
+  "summary": "`/health` is public (no API key check); `/v1/health` is an alias. It returns 503 with `{\"error\": {\"code\": 503, \"message\": \"Loading model\", \"type\": \"unavailable_error\"}}` while the model loads and 200 `{\"status\": \"ok\"}` once loaded. It has no state for \"loaded but backend failed\".",
+  "facets": [
+    {
+      "title": "Facts",
+      "facts": [
+        {
+          "text": "`/health` is public (no API key check); `/v1/health` is an alias. It returns 503 with `{\"error\": {\"code\": 503, \"message\": \"Loading model\", \"type\": \"unavailable_error\"}}` while the model loads and 200 `{\"status\": \"ok\"}` once loaded. It has no state for \"loaded but backend failed\".",
+          "source": "https://github.com/ggml-org/llama.cpp/blob/master/tools/server/README.md",
+          "note": null
+        },
+        {
+          "text": "Why init succeeds: the Metal compute failure is asynchronous. The warm-up `llama_decode()` can return success and the error only surfaces when the backend is synchronised, after the server has already marked itself ready (PR 28242's stated root cause).",
+          "source": "https://github.com/ggml-org/llama.cpp/pull/28242",
+          "note": null
+        },
+        {
+          "text": "The reporter's code trace on b9960: `/health` returns ok unconditionally once the model is marked loaded (tools/server/server-context.cpp:4322, master :4448); the only gate is the server-state middleware, which fires only on `!is_ready`; the init probe treats a failed `llama_decode` as non-fatal (common/common.cpp:1576 on master).",
+          "source": "https://github.com/ggml-org/llama.cpp/issues/27309",
+          "note": null
+        },
+        {
+          "text": "The process does not exit: one reproduction (M3 Pro 18 GB, macOS 26.5.1, qwen3:8b GGUF, `-ngl 99 -c 262144 -ctk q8_0 -ctv q8_0`) showed it alive at 65 s with 16 MB RSS, ending only on a signal; `-c 4096` gave 200 on `/health` and 200 on completions with no OOM lines.",
+          "source": "https://github.com/ggml-org/llama.cpp/issues/27309",
+          "note": null
+        },
+        {
+          "text": "Request-time signature: HTTP 500 `{\"error\":{\"code\":500,\"message\":\"Compute error.\"}}` on /completion and /v1/chat/completions; log line \"ggml_metal_graph_compute: backend is in error state from a previous command buffer failure - recreate the backend to recover\".",
+          "source": "https://github.com/ggml-org/llama.cpp/issues/27309",
+          "note": null
+        },
+        {
+          "text": "PR 28242 \"server: fail initialization after async compute errors\" (ac-mmi, opened 2 Sep 2026) fixes issue 27309: probe once more after synchronisation so the backend error is caught, and fail initialisation when the target context cannot evaluate. Tested on Metal with and without warm-up; an oversized context now fails during init; normal loading and no-memory embedding models still work. As of 29 Sep 2026 it had no reviews, and the author pinged maintainer ngxson. It is still open.",
+          "source": "https://github.com/ggml-org/llama.cpp/pull/28242",
+          "note": null
+        },
+        {
+          "text": "Issue 27309 reporter's request: exit non-zero at startup like other unrecoverable init failures, or at minimum make `/health` non-ready. A second reproducer asked maintainers which of those they want, how to signal the error given the context-capability enum, and whether a fix without a regression test is acceptable (CONTRIBUTING requires one; no error-injection mechanism exists).",
+          "source": "https://github.com/ggml-org/llama.cpp/issues/27309",
+          "note": null
+        },
+        {
+          "text": "Router mode (\"loaded but serving nothing\"): a router child instance hit the same OOM during a model swap on an M1 Max 64 GB (`--models-preset router.ini --models-max 2`). The model showed as `loaded` in `/v1/models` and held its port; every completion was 500; the instance never recovered. A client with model fallback retried three times, then fell back to a cloud model, so the fault looked like intermittent model switching.",
+          "source": "https://github.com/ggml-org/llama.cpp/issues/27309",
+          "note": null
+        },
+        {
+          "text": "Recovery in router mode: SIGTERM to the child is absorbed by the router's lifecycle owner and does nothing; `kill -9` of the child makes the router autoload a fresh instance on a new port with a clean backend.",
+          "source": "https://github.com/ggml-org/llama.cpp/issues/27309",
+          "note": null
+        },
+        {
+          "text": "The router reporter asked that a non-ready `/health` fix also cover the autoload-router case, where a model can report loaded indefinitely while poisoned.",
+          "source": "https://github.com/ggml-org/llama.cpp/issues/27309",
+          "note": null
+        },
+        {
+          "text": "launchd interaction: because the process stays alive and listening, KeepAlive never restarts it; launchd sees a healthy job. A supervising plist cannot rely on process exit, and must pair KeepAlive with an external probe that kills the process (inferred).",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Probe design: a readiness probe that checks only `/health` passes in this state. A probe that issues a one-token completion (`max_tokens: 1`) to `/v1/chat/completions` fails with 500, and on that failure sends SIGKILL (SIGTERM is absorbed in router mode). Existing coverage already says a readiness probe must send a real completion; this adds the kill step and the API-key detail below.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "If the server runs with `--api-key`, `/health` stays public, so it is useless as an authenticated-path probe; the completion probe must send the Bearer key.",
+          "source": "https://github.com/ggml-org/llama.cpp/blob/master/tools/server/README.md",
+          "note": null
+        },
+        {
+          "text": "`GET /slots?fail_on_no_slot=1` returns 503 only when no slot is free; it does not detect a poisoned backend.",
+          "source": "https://github.com/ggml-org/llama.cpp/blob/master/tools/server/README.md",
+          "note": null
+        },
+        {
+          "text": "Desired behaviour is undecided upstream: refuse to start (exit non-zero) versus start with a non-ready `/health`. PR 28242 takes the first (fail init); the router reporter argues a non-ready `/health` is also needed for already-running instances.",
+          "source": "https://github.com/ggml-org/llama.cpp/issues/27309",
+          "note": null
+        },
+        {
+          "text": "Whether a poisoned backend can arise after init (a mid-session OOM or GPU timeout) and whether PR 28242's init probe would catch it; the PR covers init only.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Whether PR 28242 will be merged; no maintainer review seen as of 29 Sep 2026.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "`/health` on llama-server is public and does not check API keys; `/v1/health` also works.",
+          "source": "https://github.com/ggml-org/llama.cpp/blob/master/tools/server/README.md",
+          "note": null
+        },
+        {
+          "text": "`/health` returns 503 with message \"Loading model\" while loading and 200 `{\"status\":\"ok\"}` when loaded.",
+          "source": "https://github.com/ggml-org/llama.cpp/blob/master/tools/server/README.md",
+          "note": null
+        },
+        {
+          "text": "The init failure is asynchronous: the first `llama_decode()` can succeed and the error appears only at backend synchronisation.",
+          "source": "https://github.com/ggml-org/llama.cpp/pull/28242",
+          "note": null
+        },
+        {
+          "text": "PR 28242 adds a second probe after synchronisation and fails init when the context cannot evaluate; it remained unreviewed on 29 Sep 2026.",
+          "source": "https://github.com/ggml-org/llama.cpp/pull/28242",
+          "note": null
+        },
+        {
+          "text": "On b9960 `/health` is unconditional after \"loaded\" (server-context.cpp:4322) and the init probe tolerates a failed decode (common.cpp:1497).",
+          "source": "https://github.com/ggml-org/llama.cpp/issues/27309",
+          "note": null
+        },
+        {
+          "text": "A second reproduction on master d7fa69b (M3 Pro 18 GB, macOS 26.5.1) shows 11 \"Insufficient Memory\" errors, `llama_decode: failed to decode, ret = -3`, then `/health` 200 and completions 500.",
+          "source": "https://github.com/ggml-org/llama.cpp/issues/27309",
+          "note": null
+        },
+        {
+          "text": "The failed process stays alive (65 s, 16 MB RSS) until signalled.",
+          "source": "https://github.com/ggml-org/llama.cpp/issues/27309",
+          "note": null
+        },
+        {
+          "text": "In router mode the poisoned child reports `loaded` in `/v1/models` and never self-heals.",
+          "source": "https://github.com/ggml-org/llama.cpp/issues/27309",
+          "note": null
+        },
+        {
+          "text": "In router mode SIGTERM on the child does nothing and `kill -9` triggers a clean autoload on a new port.",
+          "source": "https://github.com/ggml-org/llama.cpp/issues/27309",
+          "note": null
+        },
+        {
+          "text": "A fallback-routing client masks this fault as intermittent model switching after three retries.",
+          "source": "https://github.com/ggml-org/llama.cpp/issues/27309",
+          "note": null
+        },
+        {
+          "text": "The upstream maintainers had not answered the exit-versus-non-ready design question or the regression-test requirement as of the cached page.",
+          "source": "https://github.com/ggml-org/llama.cpp/issues/27309",
+          "note": null
+        },
+        {
+          "text": "A KeepAlive plist does not restart a poisoned llama-server because the process never exits (inferred).",
+          "source": "asserted",
+          "note": null
+        }
+      ]
+    }
+  ],
+  "related": []
+}

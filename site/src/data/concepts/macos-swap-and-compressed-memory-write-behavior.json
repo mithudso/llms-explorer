@@ -1,0 +1,194 @@
+{
+  "slug": "macos-swap-and-compressed-memory-write-behavior",
+  "concept": "macOS swap and compressed memory write behavior under memory pressure",
+  "generated": "2026-10-05",
+  "summary": "Default mode on macOS is VM_PAGER_COMPRESSOR_WITH_SWAP. The compressor pool is sized from RAM: 16x RAM at 4 GiB or less, 8x up to 8 GiB, 4x up to 32 GiB, 2x above 32 GiB, capped at 192 GiB.",
+  "facets": [
+    {
+      "title": "Facts",
+      "facts": [
+        {
+          "text": "Default mode on macOS is VM_PAGER_COMPRESSOR_WITH_SWAP. The compressor pool is sized from RAM: 16x RAM at 4 GiB or less, 8x up to 8 GiB, 4x up to 32 GiB, 2x above 32 GiB, capped at 192 GiB.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "On Apple-silicon macOS a compressor segment is 64 KiB (C_SEG_BUFSIZE_ARM_SWAP), chosen after Apple found that 64 KiB beats 256 KiB for performance and for swap writes on fast SSDs with a hardware compression block. A swapped-in segment returns whole, so a smaller segment wastes less swap traffic when pages in it are not all touched.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Swap trigger (COMPRESSOR_NEEDS_TO_SWAP): the count of uncompressed available pages (active + inactive + free + speculative) falls below AVAILABLE_MEMORY divided by 2.5 (macOS divisor 25, RAM above 3 GiB), where AVAILABLE_MEMORY adds the compressor's page count. Other triggers: the external (file) pageout queue is throttled while anonymous pages are under 5% of inactive; or free pages fall below the reserve.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "The compact, swap, unthrottle and catch-up thresholds on macOS above 3 GiB are 1/2, 1/2.5, 1/3.5 and 1/5 of AVAILABLE_MEMORY (divisors 20, 25, 35, 50).",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Drives that are not SSDs get earlier thresholds (divisors 15, 18, 24, 30) because, in the source comment, write wear is not a concern there and write bandwidth is small. On SSD the kernel therefore starts swapping later.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Swap files are created on demand, 256 MiB minimum and 1 GiB maximum each on macOS, under the VM volume path /System/Volumes/VM/swapfile, with up to 100 files configured.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Wired pages sit outside AVAILABLE_NON_COMPRESSED_MEMORY, so wiring more memory lowers the numerator of the swap test and starts compression and swap sooner.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Segments age; a swapped segment is reclaimed or defragmented when swap files are sparse (reclaim at 1.7x and abort at 1.3x of one max-size file's segments).",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Oversize anonymous models: weights copied into process memory (no-mmap, or MLX allocations) are anonymous, so they compress and swap; mmap'd weights are file-backed and are dropped, not swapped.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Model weights compress poorly, so a model larger than RAM spends compressor CPU and still writes swap segments.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "The 100 x 1 GiB file cap bounds configured swap at about 100 GiB on the main-branch source; free space on the VM volume also bounds it.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "A wired Metal cache shrinks the base of every threshold above, which is an alternate explanation for the existing dossier's compressor activity beside a 9.8 GB wired cache.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Existing claim, \"Swap of an oversized eagerly loaded model is the write-heavy case\": consistent. Existing claim that compressed memory may spill to swap \"faster under MoE page-cache pressure than under dense models\" (open question) is not answered by the source; the trigger uses queue counts, not model type.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "The compression ratio of quantized weights in the Apple hardware compressor.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Shipping macOS 26/27 kernel values versus XNU main.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Swap write volume per GB of overcommit, not measured.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "On macOS the default compressor mode is VM_PAGER_COMPRESSOR_WITH_SWAP.",
+          "source": "https://raw.githubusercontent.com/apple-oss-distributions/xnu/main/osfmk/vm/vm_compressor.c",
+          "note": null
+        },
+        {
+          "text": "The macOS compressor pool is 16x RAM at 4 GiB or less, 8x up to 8 GiB, 4x up to 32 GiB and 2x above, capped at VM_COMPRESSOR_MAX_POOL_SIZE of 192 GiB.",
+          "source": "https://raw.githubusercontent.com/apple-oss-distributions/xnu/main/osfmk/vm/vm_compressor.c",
+          "note": null
+        },
+        {
+          "text": "On macOS arm64 the default compressor segment buffer is 64 KiB (C_SEG_BUFSIZE_ARM_SWAP) instead of 256 KiB.",
+          "source": "https://raw.githubusercontent.com/apple-oss-distributions/xnu/main/osfmk/vm/vm_compressor.c",
+          "note": null
+        },
+        {
+          "text": "A source comment says 64 KiB segments gave a better trade-off in performance and swap writes than 256 KiB on systems with fast SSDs and a hardware compression block.",
+          "source": "https://raw.githubusercontent.com/apple-oss-distributions/xnu/main/osfmk/vm/vm_compressor.c",
+          "note": null
+        },
+        {
+          "text": "For macOS with more than 3 GiB of RAM the minor-compact, major-compact (swap), unthrottle and catch-up divisors are 20, 25, 35 and 50.",
+          "source": "https://raw.githubusercontent.com/apple-oss-distributions/xnu/main/osfmk/vm/vm_compressor.c",
+          "note": null
+        },
+        {
+          "text": "The threshold macros compute AVAILABLE_MEMORY * 10 / divisor, and a comment says a divisor of 25 is really a divide by 2.5.",
+          "source": "https://raw.githubusercontent.com/apple-oss-distributions/xnu/main/osfmk/vm/vm_compressor_xnu.h",
+          "note": null
+        },
+        {
+          "text": "On macOS COMPRESSOR_NEEDS_TO_SWAP is true when AVAILABLE_NON_COMPRESSED_MEMORY is below VM_PAGE_COMPRESSOR_SWAP_THRESHOLD.",
+          "source": "https://raw.githubusercontent.com/apple-oss-distributions/xnu/main/osfmk/vm/vm_compressor_xnu.h",
+          "note": null
+        },
+        {
+          "text": "AVAILABLE_NON_COMPRESSED_MEMORY is active + inactive + free + speculative page counts, and AVAILABLE_MEMORY adds the compressor page count.",
+          "source": "https://raw.githubusercontent.com/apple-oss-distributions/xnu/main/osfmk/vm/vm_page.h",
+          "note": null
+        },
+        {
+          "text": "With swap present, the swap-out conditions also fire when the external pageout queue is throttled and anonymous pages are under 1/20 of the inactive count, or when free pages drop below the reserve minus twice COMPRESSOR_FREE_RESERVED_LIMIT.",
+          "source": "https://raw.githubusercontent.com/apple-oss-distributions/xnu/main/osfmk/vm/vm_compressor.c",
+          "note": null
+        },
+        {
+          "text": "On macOS arm64 the thrashing-detection and phantom-cache swap triggers are compiled out (\"Thrashing detection disabled\").",
+          "source": "https://raw.githubusercontent.com/apple-oss-distributions/xnu/main/osfmk/vm/vm_compressor.c",
+          "note": null
+        },
+        {
+          "text": "If the swap file's volume is not an SSD, the kernel lowers the four divisors to 15, 18, 24 and 30 so swapping starts earlier, and the comment says the kernel is then \"not worried about SSD write-wear\".",
+          "source": "https://raw.githubusercontent.com/apple-oss-distributions/xnu/main/osfmk/vm/vm_compressor_backing_store.c",
+          "note": null
+        },
+        {
+          "text": "macOS swap files are between 256 MiB (MIN_SWAP_FILE_SIZE) and 1 GiB (MAX_SWAP_FILE_SIZE) and are named SWAP_VOLUME_NAME \"/System/Volumes\" plus \"/VM/swapfile\".",
+          "source": "https://raw.githubusercontent.com/apple-oss-distributions/xnu/main/osfmk/vm/vm_compressor_backing_store_internal.h",
+          "note": null
+        },
+        {
+          "text": "VM_MAX_SWAP_FILE_NUM is 100 on macOS (5 on embedded targets).",
+          "source": "https://raw.githubusercontent.com/apple-oss-distributions/xnu/main/osfmk/vm/vm_compressor_backing_store.c",
+          "note": null
+        },
+        {
+          "text": "Swap files are reclaimed when allocated minus used segments reach 1.7x of a max-size file's segment count and reclaim aborts at 1.3x.",
+          "source": "https://raw.githubusercontent.com/apple-oss-distributions/xnu/main/osfmk/vm/vm_compressor_backing_store.c",
+          "note": null
+        },
+        {
+          "text": "On macOS the swapfile swap-pin and delayed-trim machinery is enabled (VM_SWAPFILE_DELAYED_TRIM_MAX 128, VM_SWAP_SHOULD_PIN uses vm_swappin_avail).",
+          "source": "https://raw.githubusercontent.com/apple-oss-distributions/xnu/main/osfmk/vm/vm_compressor_backing_store.c",
+          "note": null
+        },
+        {
+          "text": "vm_swapout_ripe_segments (aged segments pushed to swap after vm_ripe_target_age of 48 hours) is set only inside the compressor flush path, not during normal pressure.",
+          "source": "https://raw.githubusercontent.com/apple-oss-distributions/xnu/main/osfmk/vm/vm_compressor.c",
+          "note": null
+        },
+        {
+          "text": "Apple's archived guide says OS X pages anonymous memory to a disk backing store and file-mapped pages through the vnode pager.",
+          "source": "https://developer.apple.com/library/archive/documentation/Performance/Conceptual/ManagingMemory/Articles/AboutMemory.html",
+          "note": null
+        },
+        {
+          "text": "Wired memory raises the compressor and swap pressure because it is excluded from AVAILABLE_NON_COMPRESSED_MEMORY while staying inside the total.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "An LLM weight file loaded with mmap and left unlocked never produces swap writes on macOS; only copied or MLX-allocated anonymous weights do.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "A Mac with a fast SSD reaches the swap trigger when uncompressed available memory is under 40% of uncompressed plus compressed pages, so heavy compressed-memory use is the warning sign that swap writes follow.",
+          "source": "asserted",
+          "note": null
+        }
+      ]
+    }
+  ],
+  "related": []
+}

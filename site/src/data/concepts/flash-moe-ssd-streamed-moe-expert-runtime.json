@@ -1,0 +1,204 @@
+{
+  "slug": "flash-moe-ssd-streamed-moe-expert-runtime",
+  "concept": "Flash-MoE SSD-streamed MoE expert runtime",
+  "generated": "2026-10-05",
+  "summary": "Model shape as stated by the project: 60 transformer layers, 45 GatedDeltaNet (linear attention) and 15 full attention; 512 experts per layer with K=4 active plus one shared expert; hidden size 4096.",
+  "facets": [
+    {
+      "title": "Facts",
+      "facts": [
+        {
+          "text": "Model shape as stated by the project: 60 transformer layers, 45 GatedDeltaNet (linear attention) and 15 full attention; 512 experts per layer with K=4 active plus one shared expert; hidden size 4096.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Expert reads use parallel `pread()` through GCD dispatch groups; only the K=4 active experts per layer (about 6.75 MB each at 4-bit) are loaded per token.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "The FMA dequant kernel rearranges `(nibble * scale + bias) * x` into `fma(nibble, scale*x, bias*x)` so the GPU fused multiply-add does dequantize plus multiply in one instruction; this gave GPU compute -12% and +12% tok/s (3.90 to 4.36).",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Expert forward (CMD3) is submitted without waiting (\"deferred\"); the GPU runs it while the CPU prepares the next layer, and combine, residual and norm run on GPU feeding the next layer's attention projections.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "The GatedDeltaNet recurrence over the 64-head 128x128 state uses Accelerate (`cblas_sscal`, `cblas_sgemv`, `cblas_sger`), cutting CPU attention from 0.78 to 0.28 ms (64% faster).",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Measured per-layer pipeline at 4-bit (4.28 ms average): CMD1 attention projections plus delta-net 1.22 ms GPU, CPU flush 0.01 ms, CMD2 o_proj/norm/routing/shared 0.55 ms GPU, softmax plus top-K 0.003 ms, parallel `pread` of 4 experts 2.41 ms SSD, CMD3 encode 0.04 ms (deferred).",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "The project claims SSD DMA and GPU compute share the memory controller and cannot be profitably overlapped: GPU dequant kernels are bandwidth-saturated near 418 GiB/s and even small background DMA causes GPU latency spikes, so a serial GPU, SSD, GPU pipeline is \"hardware-optimal\". The I/O write-up from the same authors reports the GPU last-level cache bandwidth at about 418 GB/s with a 93.4% L1 read hit rate for the input vector.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "A C BPE tokenizer cut startup from 3,500 ms (Python) to 180 ms.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "danveloper/flash-moe has 144 commits; the last commit (\"Q4 optimization: FMA kernel +12%, 58 experiments documented\") is dated 2026-03-19, so the repo shows no changes in the roughly seven months before the 2026-10-04 fetch.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Anemll/flash-moe (branch m5-nax) has 151 commits and its last commit is 2026-03-21.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "The README says \"90+ experiments\" in the paper and \"58 experiments\" in the discarded table and `results.tsv`; the two counts are not reconciled.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Anemll's headline \"M5 Max 14.5 tok/s, 3.3x vs original\" compares the 2-bit configuration (PPL 5.71) on an M5 Max 128 GB with the original 4-bit M3 Max figure of 4.36; the like-for-like M5 Max 4-bit figure is 9.5 tok/s (2.2x).",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "On the M5 Max fork the 2-bit experts decode at 14.5 tok/s with 21 ms per token of expert I/O and PPL 5.71, versus 12.9 tok/s (27 ms, PPL 3.81) for Q3 GGUF and 9.5 tok/s (45 ms, PPL 3.64) for 4-bit. Those I/O times come from warm-cache runs.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Anemll's NAX (Metal 4 tensor) kernels add tile-padding overhead at M=1 and give no net decode gain; the project expects benefit only for batched prefill.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "The raw README.md at the repo root is a pointer file, so fetchers that read README.md miss the content; read CLAUDE.md or the HTML repo page.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Articles retelling the project often quote 5.74 tok/s (2-bit, tool calling broken) as the headline instead of 4.36 (4-bit).",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Own-cache versus OS-cache. Flash-MoE deleted a Metal LRU for +38%; ds4 ships an explicit GPU expert cache and reports usable speeds on a 128 GB machine (see ds4-antirez-ssd-streaming-runtime.md). The engines differ in model, memory budget and wiring; none compared directly.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "K=4 acceptability versus the PHDS guidance that degradation grows below half the trained k (see expert-count-reduction-at-inference-top-k-overri.md).",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "The paper (paper/flash_moe.pdf) was not fetched here; its 90+ experiment log may contain claims absent from the README.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "No source shows Flash-MoE or its forks running on macOS 27 or later, or on M6.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "No source reports quality of Flash-MoE on an agentic task suite.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Flash-MoE describes Qwen3.5-397B-A17B as 60 layers (45 GatedDeltaNet, 15 full attention) with 512 experts per layer, K=4 active plus one shared expert, hidden size 4096.",
+          "source": "https://github.com/danveloper/flash-moe",
+          "note": null
+        },
+        {
+          "text": "Flash-MoE's FMA dequant kernel rewrites `(nibble * scale + bias) * x` as `fma(nibble, scale*x, bias*x)` and measured 12% faster.",
+          "source": "https://github.com/danveloper/flash-moe",
+          "note": null
+        },
+        {
+          "text": "Flash-MoE submits expert forward (CMD3) without waiting so the GPU overlaps the CPU's next-layer preparation, and runs combine, residual and norm on GPU.",
+          "source": "https://github.com/danveloper/flash-moe",
+          "note": null
+        },
+        {
+          "text": "Flash-MoE uses Accelerate BLAS for the GatedDeltaNet recurrence and cut CPU attention from 0.78 ms to 0.28 ms (64% faster).",
+          "source": "https://github.com/danveloper/flash-moe",
+          "note": null
+        },
+        {
+          "text": "Flash-MoE's per-layer pipeline is CMD1 1.22 ms GPU, CMD2 0.55 ms GPU, expert pread 2.41 ms SSD and CMD3 encode 0.04 ms, totaling a 4.28 ms average at 4-bit.",
+          "source": "https://github.com/danveloper/flash-moe",
+          "note": null
+        },
+        {
+          "text": "Flash-MoE asserts SSD DMA and GPU compute share the memory controller, that GPU dequant kernels saturate about 418 GiB/s, and that a serial GPU, SSD, GPU pipeline is hardware-optimal.",
+          "source": "https://github.com/danveloper/flash-moe",
+          "note": null
+        },
+        {
+          "text": "A C BPE tokenizer cut Flash-MoE startup from 3,500 ms to 180 ms (about 20x).",
+          "source": "https://github.com/danveloper/flash-moe",
+          "note": null
+        },
+        {
+          "text": "Flash-MoE's main file is `metal_infer/infer.m` (about 7,000 lines) with `shaders.metal` (about 1,200 lines), and non-expert weights are extracted to a 5.5 GB `model_weights.bin` that is mmap'd read-only.",
+          "source": "https://github.com/danveloper/flash-moe",
+          "note": null
+        },
+        {
+          "text": "danveloper/flash-moe has 144 commits and its latest commit is dated 2026-03-19.",
+          "source": "https://github.com/danveloper/flash-moe",
+          "note": null
+        },
+        {
+          "text": "Anemll/flash-moe has 151 commits on branch m5-nax with its latest commit dated 2026-03-21.",
+          "source": "https://github.com/Anemll/flash-moe",
+          "note": null
+        },
+        {
+          "text": "Flash-MoE's raw README.md contains only the text `CLAUDE.md` (a pointer), and CLAUDE.md carries the same project description.",
+          "source": "https://raw.githubusercontent.com/danveloper/flash-moe/main/README.md",
+          "note": null
+        },
+        {
+          "text": "On an M5 Max 128 GB Anemll measures 2-bit MLX experts at 14.5 tok/s (PPL 5.71, expert I/O 21 ms per token), Q3 GGUF with `--cache-io-split 4` at 12.9 tok/s (PPL 3.81, 27 ms) and 4-bit MLX at 9.5 tok/s (PPL 3.64, 45 ms).",
+          "source": "https://github.com/Anemll/flash-moe",
+          "note": null
+        },
+        {
+          "text": "Anemll's table presents 14.5 tok/s as 3.3x the original 4.36 tok/s although the 14.5 figure is the 2-bit configuration and the same-machine 4-bit figure is 9.5 tok/s.",
+          "source": "https://github.com/Anemll/flash-moe",
+          "note": null
+        },
+        {
+          "text": "Anemll's NAX kernels give no net gain for M=1 decode (FMA kernel already 1.4 ms on M5 Max) and are intended for batched prefill.",
+          "source": "https://github.com/Anemll/flash-moe",
+          "note": null
+        },
+        {
+          "text": "Anemll's Q3 decode breakdown on M5 Max is 76.8 ms per token with 26.7 ms (35%) expert I/O at 0.44 ms per layer for 21.8 MB, against 95.9 ms with 44.7 ms (47%) expert I/O at 0.74 ms per layer for 27.0 MB at 4-bit.",
+          "source": "https://github.com/Anemll/flash-moe",
+          "note": null
+        },
+        {
+          "text": "An explainer credits a \"90+ rounds\" optimization from 0.28 to 5.74 tok/s, which is the 2-bit 48 GB M3 Max figure.",
+          "source": "https://www.qwe.edu.pl/tutorial/run-80b-qwen-4gb-ram-mac-iphone-guide/",
+          "note": null
+        },
+        {
+          "text": "Flash-MoE and its Anemll fork show no commits after 2026-03-21 as of 2026-10-04.",
+          "source": "asserted",
+          "note": null
+        }
+      ]
+    }
+  ],
+  "related": []
+}

@@ -1,0 +1,189 @@
+{
+  "slug": "router-models-max-swap-ordering-unload-before-lo",
+  "concept": "router --models-max swap ordering (unload before load) peak memory",
+  "generated": "2026-10-05",
+  "summary": "Entry point: a request for a non-running model joins a first-in-first-out queue (requests for the same model share one entry). Only the model at the head of the queue may claim a slot, and only when the running count is below `models_max`.",
+  "facets": [
+    {
+      "title": "Facts",
+      "facts": [
+        {
+          "text": "Entry point: a request for a non-running model joins a first-in-first-out queue (requests for the same model share one entry). Only the model at the head of the queue may claim a slot, and only when the running count is below `models_max`.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "`is_running()` is true for LOADING, LOADED and SLEEPING. UNLOADED is set only when the child process exits. A model that has been told to stop still counts as running until its process has exited.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Eviction: `tick()` and `unload_lru()` choose a victim that is idle (no in-flight request), ready or sleeping, not already stopping, not wanted by a queued request, and least recently used. The router sends the stop command and the monitor force-kills after `stop_timeout` (default 10 s, per-model preset key `stop-timeout`). A child still LOADING is killed at once.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Load: `load()` calls `unload_lru()` first; that call blocks on a condition variable until the victim reaches UNLOADED. Then `load()` re-checks capacity under the lock and throws \"model limit reached, try again later\" if the cap is still hit. Only after that does it pick a free port and spawn the new child.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Waiters re-check every 200 ms; if every model is busy, no victim exists and the request waits.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Result: unload completes before the replacement process is spawned, so at most `models_max` children exist at once, plus the kernel's lag in returning the exited process's memory.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Older reports (discussion 18939, early 2026) show a second model failing with an allocation error instead of evicting, and `--models-max` ignored when set only in the INI file; the queue scheduler (`server_lru_sched`) present on master on 2026-10-04 is newer. The PR that added it was not found.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "`--models-max 0` disables the cap and eviction.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "The cap counts models, not bytes: two large models that fit under the count can still exceed memory.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "A sleeping model (idle-sleep) keeps its slot, so `--sleep-idle-seconds` does not free a router slot. [asserted from `is_running()`]",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "If the number of startup models exceeds `models_max`, the router refuses to start with \"number of models to load on startup (N) exceeds models_max (M)\".",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Loading a model that is mid-load on request cancellation leaves the slot to the next waiter.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Source says a swap is serial; one field report (M1 Max 64 GB, `--models-max 2`, 2026-09-07 comment in issue 27309) says \"a third swap-in briefly overlapping both residents pushed wired past 64 GB\". The report does not give a build and issue 27309 itself was filed on b9960 (2026-08-18). Both are recorded; the overlap may come from an older router, from the kernel returning a killed child's wired memory late, or from two loads started from different front ends.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "The PR and build that introduced `server_lru_sched`.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Whether macOS returns a killed Metal child's wired memory fast enough that the replacement never sees the overlap.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Whether `stop_timeout` expiry (10 s default) can leave a hung Metal child counted as running and blocking all loads.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "`server_models::load` calls `unload_lru()` before taking the lock and spawning, and `unload_lru()` waits on a condition variable until the victim's status is UNLOADED.",
+          "source": "https://raw.githubusercontent.com/ggml-org/llama.cpp/master/tools/server/server-models.cpp",
+          "note": null
+        },
+        {
+          "text": "After `unload_lru()`, `load()` re-checks capacity under the lock and throws \"model limit reached, try again later\" if the number of running models is still at or above `models_max`.",
+          "source": "https://raw.githubusercontent.com/ggml-org/llama.cpp/master/tools/server/server-models.cpp",
+          "note": null
+        },
+        {
+          "text": "`server_model_meta::is_running()` is true for LOADED, LOADING and SLEEPING, and `is_ready_or_sleep()` for LOADED and SLEEPING.",
+          "source": "https://raw.githubusercontent.com/ggml-org/llama.cpp/master/tools/server/server-models.h",
+          "note": null
+        },
+        {
+          "text": "The status becomes UNLOADED in `on_child_exit`, after the child process has ended.",
+          "source": "https://raw.githubusercontent.com/ggml-org/llama.cpp/master/tools/server/server-models.cpp",
+          "note": null
+        },
+        {
+          "text": "`has_capacity` is `models_max <= 0 || count_running() < models_max`, and `try_claim` succeeds only for the model at the head of the queue that is not already loading.",
+          "source": "https://raw.githubusercontent.com/ggml-org/llama.cpp/master/tools/server/server-models.cpp",
+          "note": null
+        },
+        {
+          "text": "`pick_victim` skips models with in-flight requests, models still coming up, models already stopping and models a queued request wants, and picks the smallest `last_used`.",
+          "source": "https://raw.githubusercontent.com/ggml-org/llama.cpp/master/tools/server/server-models.cpp",
+          "note": null
+        },
+        {
+          "text": "`tick()` evicts idle models while `n_free < n_needed`, with `n_free = models_max - n_running + n_stopping - n_claimed`, and logs \"evicting idle LRU name=... for a queued request\".",
+          "source": "https://raw.githubusercontent.com/ggml-org/llama.cpp/master/tools/server/server-models.cpp",
+          "note": null
+        },
+        {
+          "text": "`DEFAULT_STOP_TIMEOUT` is 10 seconds, and the per-model preset key `stop-timeout` overrides it.",
+          "source": "https://raw.githubusercontent.com/ggml-org/llama.cpp/master/tools/server/server-models.cpp",
+          "note": null
+        },
+        {
+          "text": "A model that is still LOADING when unloaded is force-killed (`terminate()`) with the warning \"is still loading, force-killing\".",
+          "source": "https://raw.githubusercontent.com/ggml-org/llama.cpp/master/tools/server/server-models.cpp",
+          "note": null
+        },
+        {
+          "text": "A request waiting for a model polls every 200 ms and throws \"request cancelled while waiting for model\" if the client goes away, handing the freed slot to the next waiter.",
+          "source": "https://raw.githubusercontent.com/ggml-org/llama.cpp/master/tools/server/server-models.cpp",
+          "note": null
+        },
+        {
+          "text": "The router refuses to start when the number of models to load at startup exceeds `models_max`, with \"number of models to load on startup (%zu) exceeds models_max (%d)\".",
+          "source": "https://raw.githubusercontent.com/ggml-org/llama.cpp/master/tools/server/server-models.cpp",
+          "note": null
+        },
+        {
+          "text": "`--models-max` has env `LLAMA_ARG_MODELS_MAX` and a default of 4 (0 = unlimited); the router removes that variable from every child's environment.",
+          "source": "https://raw.githubusercontent.com/ggml-org/llama.cpp/master/common/arg.cpp",
+          "note": null
+        },
+        {
+          "text": "Issue 27309's comment of 2026-09-07 reports `--models-preset router.ini --models-max 2` on an M1 Max 64 GB where \"a third swap-in briefly overlapping both residents pushed wired past 64 GB\", followed by Metal `kIOGPUCommandBufferCallbackErrorOutOfMemory` errors and a child stuck \"loaded\".",
+          "source": "https://github.com/ggml-org/llama.cpp/issues/27309",
+          "note": null
+        },
+        {
+          "text": "Issue 27309 was opened on 2026-08-18 on build b9960 (a935fbffe) with the single-server `Compute error` signature, and it describes the failure after an out-of-memory event rather than the swap order.",
+          "source": "https://github.com/ggml-org/llama.cpp/issues/27309",
+          "note": null
+        },
+        {
+          "text": "A discussion reporter found that `--models-max 1` on the router command line worked while the same setting in the INI file did not, and another commenter suggested `--sleep-idle-seconds 10` to unload idle models.",
+          "source": "https://github.com/ggml-org/llama.cpp/discussions/18939",
+          "note": null
+        },
+        {
+          "text": "Measured on this Mac: Ollama's bundled `llama-server` (build 11081) cannot run router mode (\"subprocess is not enabled on this build\"), so these semantics need a stock llama.cpp build.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Practical rule on a 64 GB Mac: set `--models-max` to the number of models that fit together with the largest KV cache, not to the number you would like resident, and leave headroom for the kernel to return a killed child's wired memory.",
+          "source": "asserted",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Corrections and disagreements",
+      "facts": [
+        {
+          "text": "CONTRADICTS: two-llama-cpp-or-llama-swap-models-loaded-concur.md (\"Peak memory during a swap can therefore be three models, not --models-max\") for current master: the source serializes unload and load, so peak is `models_max` children; the cited report gives no router build.",
+          "source": "https://raw.githubusercontent.com/ggml-org/llama.cpp/master/tools/server/server-models.cpp",
+          "note": null
+        }
+      ]
+    }
+  ],
+  "related": []
+}

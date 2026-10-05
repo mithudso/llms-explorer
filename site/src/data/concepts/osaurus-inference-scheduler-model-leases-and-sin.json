@@ -1,0 +1,269 @@
+{
+  "slug": "osaurus-inference-scheduler-model-leases-and-sin",
+  "concept": "Osaurus inference scheduler, model leases and single-residency handoff",
+  "generated": "2026-10-05",
+  "summary": "Request path: `ChatEngine` -> `ModelRuntime` (container lifecycle, lease, prefill progress) -> `MLXBatchAdapter` -> `BatchEngine.generate`, with `GenerationEventMapper` turning engine events into `ModelRuntimeEvent`.",
+  "facets": [
+    {
+      "title": "Facts",
+      "facts": [
+        {
+          "text": "Request path: `ChatEngine` -> `ModelRuntime` (container lifecycle, lease, prefill progress) -> `MLXBatchAdapter` -> `BatchEngine.generate`, with `GenerationEventMapper` turning engine events into `ModelRuntimeEvent`.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Concurrency layers: the `BatchEngine` actor serializes Metal and model access and batches concurrent same-model requests; `MLXBatchAdapter.Registry` keeps one engine per model name and single-flights first creation; `ModelLease` pins a model name for one stream's lifetime so `unload`, `clearAll` and GC block until the count is zero; `ModelResidencyManager` schedules idle unload only after the last lease drops; a per-plugin in-flight cap (default 2) returns `plugin_busy`; `MetalGate` serializes GPU producers across families.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "`MetalGate` has three entries. `enterGeneration` is shared per model, while `enterEmbedding` and `enterModelLoad` are exclusive. It exists so concurrent command buffers cannot trip `AGXG17XFamilyCommandBuffer` asserts.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Idle residency: Settings > Local Inference > Model Management > \"Keep model loaded after use\". Default 15 minutes (`.afterSeconds(900)`); choices 5, 15, 30, 60 minutes, Immediately or Never. The timer starts when the stream releases its lease, a new use of the same model cancels it, and the timer re-checks the lease count and residency before unloading. Idle unload frees weights and runtime buffers only; downloaded models and vmlx disk KV entries stay.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "`/health` keeps `loaded`, `current_model` and `inflight` and adds `resident_models[]` with `idle_unload_at` and `idle_seconds_remaining`.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Strict single-model eviction, manual unload, `clearAll`, app quit and memory cleanup override idle timers.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Batch capacity is set by `~/.osaurus/config/server-runtime.json`. Resolution order: Memory Safety explicit sequence override, explicit Concurrent Sessions, then the Memory Safety profile (Performance and Balanced resolve to 2; Safe Auto and Strict to 1). Continuous Batching off pins capacity to 1; results clamp to [1, 32]. `BatchEngine.updateMaxBatchSize(_:)` (vmlx pin `b9da180`) resizes a live engine without an unload.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Delegation handoff admission: a planner (`SubagentBatchAdmissionPlanner`) computes RAM slots from reclaimable memory, the resident target's load footprint, a child state estimate, the model load budget, any parent release credit and kernel pressure. Under warning pressure it drops the incremental-resident rule and applies a conservative 3 GiB reserve. Zero RAM slots means refusal even with a free engine slot.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Before sampling memory, the recovery path waits for the exclusive GPU gate, synchronizes, drops volatile caches and allocator buffers, synchronizes again, then waits 1.1 seconds for XNU's cached host statistics to refresh.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "One shared setting, `ramSafetyPreflightEnabled`, controls the delegation RAM clamp and handoff preflights. OFF bypasses them, including for unknown or critical pressure, but keeps permissions, ownership, cancellation and engine serialization.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Residency ownership: a resident model records a `lastUseSource`. Window-close cleanup and handoff unload skip non-chat owners. A 2026-09-15 fix made title and suggestion requests set `preserveExistingResidencyOwner` so utility calls no longer turn a chat-owned resident into an API-owned one.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Cold-load admission: Strict or custom Memory Safety now passes a request working-set estimate (1.25 times the chat estimate used by the model picker) into the resolver before an mmap load and refuses before any MLX allocation; `/admin/cache-stats` exposes `last_load_decision` with estimate, budget and verdict.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "2026-05-18: vmlx-swift single-package switch gate and live matrix are written; runtime proof rows are classified `proven`, `partial`, `failed` or `unproven`.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "2026-07-15: Memory Safety load admission proof (request-aware refusal, No Automatic Limits mode).",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "2026-09-14 to 2026-09-16: idle residency spec, core-utility ownership fix and delegation warning-pressure report with its regression tests.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "The idle-residency document was first a docs-only proposal (PR 1057 follow-up) with an open default decision; the runtime document now states the 15-minute default as shipped.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "A policy refusal is not an out-of-memory prediction. On a 16 GB M4 reporter's inputs, same-model Gemma 4 E2B delegation under warning pressure left 69,402,624 bytes after the reserve against a 1,014,497,280-byte child estimate, so zero slots, although the resident target needs no second weight load.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "An app restart does not reset system-wide memory pressure, so a refusal can persist after trimming caches.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Different-model handoff and resident same-model reuse are not matched comparisons: a smaller different-model child unloads the parent before the post-unload memory sample.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "The model issued a requested two-call wave sequentially in native tests, so concurrent child execution is covered by tests and CI, not native proof.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "A load-time `convertToBFloat16` crash after earlier GPU faults on the same boot (`mlx::core::Fence::wait` under `AGX::ComputeContext::endComputePass`) is below the recoverable error layer; a reboot clears it.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "A wedged-stream failure mode of the kind in oMLX issue 2624 is not documented for Osaurus. The lease design means a stream that never releases its lease blocks unload indefinitely. [asserted in claims below]",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "The README describes handoff as the normal behavior for a different local model. The delegation documents show it gated by RAM admission, with refusal or opt-out when the check fails. Both are consistent, but \"normally\" depends on memory pressure.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Osaurus counts Performance and Balanced as batch capacity 2 and Safe Auto and Strict as 1, so out-of-box concurrency differs from the README's near-linear scaling to 6 to 8 slots in the engine fork's own benchmark.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Whether any Osaurus path times out or cancels a stream that holds a `ModelLease` after the engine stops producing tokens.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Native different-model handoff on a 16 GB machine: the delegation reports state it is unproven.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "How the experimental RAM-safe coexistence mode admits two models (the setting exists; its admission formula is not in the pages read).",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Osaurus' inference path is `ChatEngine` -> `ModelRuntime` -> `MLXBatchAdapter` -> `BatchEngine.generate`, with tool-call parsing, reasoning extraction, KV cache management and per-model scheduling inside vmlx-swift.",
+          "source": "https://raw.githubusercontent.com/osaurus-ai/osaurus/main/docs/INFERENCE_RUNTIME.md",
+          "note": null
+        },
+        {
+          "text": "`ModelLease` pins a model name for the lifetime of one stream, and `unload(name)` waits for the lease count to reach zero before freeing buffers.",
+          "source": "https://raw.githubusercontent.com/osaurus-ai/osaurus/main/docs/INFERENCE_RUNTIME.md",
+          "note": null
+        },
+        {
+          "text": "`ModelResidencyManager` schedules idle unload after the final lease drops and never owns execution, KV cache or disk cache deletion.",
+          "source": "https://raw.githubusercontent.com/osaurus-ai/osaurus/main/docs/INFERENCE_RUNTIME.md",
+          "note": null
+        },
+        {
+          "text": "`MetalGate` serializes GPU producers across families: `enterGeneration` is shared per model; embedding and model load are exclusive; it guards against `AGXG17XFamilyCommandBuffer` asserts.",
+          "source": "https://raw.githubusercontent.com/osaurus-ai/osaurus/main/docs/INFERENCE_RUNTIME.md",
+          "note": null
+        },
+        {
+          "text": "`MLXBatchAdapter.Registry` keeps one `BatchEngine` per model name and coalesces concurrent first creation.",
+          "source": "https://raw.githubusercontent.com/osaurus-ai/osaurus/main/docs/INFERENCE_RUNTIME.md",
+          "note": null
+        },
+        {
+          "text": "The per-plugin in-flight cap is 2 by default and excess calls return `plugin_busy`.",
+          "source": "https://raw.githubusercontent.com/osaurus-ai/osaurus/main/docs/INFERENCE_RUNTIME.md",
+          "note": null
+        },
+        {
+          "text": "The default \"Keep model loaded after use\" is 15 minutes (`ModelIdleResidencyPolicy.defaultWarm = .afterSeconds(900)`), with 5, 15, 30 and 60 minute, Immediately and Never choices.",
+          "source": "https://raw.githubusercontent.com/osaurus-ai/osaurus/main/docs/INFERENCE_RUNTIME.md",
+          "note": null
+        },
+        {
+          "text": "Idle unload unloads weights and runtime buffers only, and strict single-model eviction, manual unload, `clearAll`, app quit and memory cleanup win over idle timers.",
+          "source": "https://raw.githubusercontent.com/osaurus-ai/osaurus/main/docs/INFERENCE_RUNTIME.md",
+          "note": null
+        },
+        {
+          "text": "`/health` adds `resident_models[]` with `idle_unload_at` and `idle_seconds_remaining`.",
+          "source": "https://raw.githubusercontent.com/osaurus-ai/osaurus/main/docs/INFERENCE_RUNTIME.md",
+          "note": null
+        },
+        {
+          "text": "`~/.osaurus/config/server-runtime.json` is the sole live authority for BatchEngine capacity; resolution is Memory Safety override, then Concurrent Sessions, then profile (Performance and Balanced 2, Safe Auto and Strict 1), clamped to [1, 32], with Continuous Batching off forcing 1.",
+          "source": "https://raw.githubusercontent.com/osaurus-ai/osaurus/main/docs/INFERENCE_RUNTIME.md",
+          "note": null
+        },
+        {
+          "text": "vmlx pin `b9da180` makes `BatchEngine.maxBatchSize` mutable via `updateMaxBatchSize(_:)` and adds `isShutdown`, so a stale handle landing during unload gets a `.cancelled` info event instead of restarting GPU work.",
+          "source": "https://raw.githubusercontent.com/osaurus-ai/osaurus/main/docs/INFERENCE_RUNTIME.md",
+          "note": null
+        },
+        {
+          "text": "Idle timer rules in the spec: the timer starts only after the stream releases its lease, any new use of the model cancels it, and on firing it re-checks last-used marker, lease count, residency and eviction policy; idle values load clamped to [30, 86,400] seconds.",
+          "source": "https://raw.githubusercontent.com/osaurus-ai/osaurus/main/docs/MODEL_IDLE_RESIDENCY_SPEC.md",
+          "note": null
+        },
+        {
+          "text": "The spec's eviction policies are `strictSingleModel` (unload others when a different model loads) and `manualMultiModel` (no eviction because a different model is used), each resident model getting its own idle countdown under the latter.",
+          "source": "https://raw.githubusercontent.com/osaurus-ai/osaurus/main/docs/MODEL_IDLE_RESIDENCY_SPEC.md",
+          "note": null
+        },
+        {
+          "text": "Under warning kernel pressure the delegation planner drops the normal incremental-resident rule and applies a 3 GiB (3,221,225,472-byte) effective reserve, which on the reported 16 GB M4 inputs left 69,402,624 bytes against a 1,014,497,280-byte child estimate and produced zero RAM slots.",
+          "source": "https://raw.githubusercontent.com/osaurus-ai/osaurus/main/docs/DELEGATION_WARNING_PRESSURE_2026_09_16.md",
+          "note": null
+        },
+        {
+          "text": "The delegation RAM recovery drains volatile caches, synchronizes twice around the trim and waits 1.1 seconds for XNU's cached host statistics before sampling, and persistent warning inputs still refuse afterwards.",
+          "source": "https://raw.githubusercontent.com/osaurus-ai/osaurus/main/docs/DELEGATION_WARNING_PRESSURE_2026_09_16.md",
+          "note": null
+        },
+        {
+          "text": "`ramSafetyPreflightEnabled` is one shared delegation setting; OFF bypasses the RAM slot clamp and handoff preflights (including unknown or critical pressure) but not permissions, ownership, cancellation, explicit fan-out or engine serialization.",
+          "source": "https://raw.githubusercontent.com/osaurus-ai/osaurus/main/docs/DELEGATION_WARNING_PRESSURE_2026_09_16.md",
+          "note": null
+        },
+        {
+          "text": "A native test on a 128 GiB M5 Max ran a Gemma 4 E2B to Raptor 0.6 to Gemma handoff with an actual unload, load, run, unload and restore (Raptor 445 tokens at 42.2 tok/s; parent 52 tokens at 81.0 tok/s), and a cancelled Raptor child settled with Gemma restored.",
+          "source": "https://raw.githubusercontent.com/osaurus-ai/osaurus/main/docs/DELEGATION_WARNING_PRESSURE_2026_09_16.md",
+          "note": null
+        },
+        {
+          "text": "The same report says it claims no physical M4 16 GB run, no actual OOM and no native concurrent-child proof, since the model issued the two-call wave sequentially.",
+          "source": "https://raw.githubusercontent.com/osaurus-ai/osaurus/main/docs/DELEGATION_WARNING_PRESSURE_2026_09_16.md",
+          "note": null
+        },
+        {
+          "text": "Automatic title and follow-up requests previously carried `requestSource = .httpAPI` and flipped a chat-owned resident to API-owned, which made window-close cleanup and `ChatResidencyHandoff.unload` skip it; the fix sets `preserveExistingResidencyOwner` for core utilities, and the reporter's M4 16 GB refusal is not confirmed to be this mechanism.",
+          "source": "https://raw.githubusercontent.com/osaurus-ai/osaurus/main/docs/CORE_UTILITY_RESIDENCY_2026_09_15.md",
+          "note": null
+        },
+        {
+          "text": "Strict or custom Memory Safety passes a 1.25 times working-set request estimate into the bundle-aware resolver before cold load, refuses before MLX allocation, and exposes `last_load_decision` in `/admin/cache-stats`; before the change `request: nil` meant production cold loads could never produce the documented request-budget refusal.",
+          "source": "https://raw.githubusercontent.com/osaurus-ai/osaurus/main/docs/MEMORY_SAFETY_LOAD_ADMISSION_PROOF_2026-07-15.md",
+          "note": null
+        },
+        {
+          "text": "A load-time `convertToBFloat16(model:)` crash after prior GPU faults on the same boot (`mlx::core::Fence::wait` -> `AGX::ComputeContext::endComputePass`) is below the recoverable MLX error layer and a reboot clears the poisoned GPU state.",
+          "source": "https://raw.githubusercontent.com/osaurus-ai/osaurus/main/docs/INFERENCE_RUNTIME.md",
+          "note": null
+        },
+        {
+          "text": "Osaurus' README says the handoff applies when a subagent runs on a different local model and that experimental RAM-safe coexistence keeps both resident only \"when enabled and admitted\".",
+          "source": "https://github.com/osaurus-ai/osaurus",
+          "note": null
+        },
+        {
+          "text": "Because a lease pins a model until its stream ends, a stream that never finishes (an engine wedge of the kind in oMLX issue 2624) would block unload, strict eviction and idle timers for that model.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "No Osaurus page read documents a stream timeout or lease-expiry mechanism.",
+          "source": "asserted",
+          "note": null
+        }
+      ]
+    }
+  ],
+  "related": []
+}

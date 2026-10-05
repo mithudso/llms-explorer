@@ -1,0 +1,134 @@
+{
+  "slug": "ds4-tp-with-ssd-streaming-on-metal-for-glm-and-v",
+  "concept": "ds4 TP with --ssd-streaming on Metal for GLM and V4.1",
+  "generated": "2026-10-05",
+  "summary": "\"TP with streaming\" here means two Macs running `ds4 --tensor-parallel` with `--ssd-streaming` for GLM 5.x or DeepSeek V4.1. The ds4 docs give no command for it, so every statement below comes from the source.",
+  "facets": [
+    {
+      "title": "Facts",
+      "facts": [
+        {
+          "text": "\"TP with streaming\" here means two Macs running `ds4 --tensor-parallel` with `--ssd-streaming` for GLM 5.x or DeepSeek V4.1. The ds4 docs give no command for it, so every statement below comes from the source.",
+          "source": "https://raw.githubusercontent.com/antirez/ds4/main/docs/DISTRIBUTED.md",
+          "note": null
+        },
+        {
+          "text": "Because `tp_shard = tp.role != NONE && !ssd_streaming`, a streaming TP run skips every step guarded by `tp_shard`: the contiguous routed-expert half mapping, the sharded-bytes memory accounting, the GLM ownership-kernel validation and the wired-limit lazy-paging warning.",
+          "source": "https://raw.githubusercontent.com/antirez/ds4/main/ds4.c",
+          "note": null
+        },
+        {
+          "text": "The GLM check `glm_tp_validate_ownership_kernels` (error text \"GLM tensor parallelism lacks ownership-aware kernels for routed expert type %u in layer %u\") runs only under `tp_shard`, so a streaming GLM TP run never reaches it.",
+          "source": "https://raw.githubusercontent.com/antirez/ds4/main/ds4.c",
+          "note": null
+        },
+        {
+          "text": "The Metal warning \"iogpu.wired_limit_mb is 0 -- TP expert shard will page lazily\" is also inside the `tp_shard` path, so the documented `sudo sysctl iogpu.wired_limit_mb=120000` step is about the resident shard (about 97 GiB of sharded span views in the source comment), not about streaming.",
+          "source": "https://raw.githubusercontent.com/antirez/ds4/main/ds4.c",
+          "note": null
+        },
+        {
+          "text": "Memory accounting returns the sharded byte count only `if (!ssd_streaming && g_tp_shard_model_bytes != 0)`, so a streaming run accounts memory by the normal streaming rules.",
+          "source": "https://raw.githubusercontent.com/antirez/ds4/main/ds4.c",
+          "note": null
+        },
+        {
+          "text": "The Metal static-weights lock (keeps non-routed weights out of competition with streamed experts in the file cache) is conditioned on `ssd_streaming && !load_slice && !tp_shard`, so it stays active in a streaming TP run; `DS4_METAL_DISABLE_STREAMING_STATIC_LOCK` turns it off and the message \"Metal SSD static weights remain pageable to preserve runtime headroom\" says the lock was skipped.",
+          "source": "https://raw.githubusercontent.com/antirez/ds4/main/ds4.c",
+          "note": null
+        },
+        {
+          "text": "For V4.1, the TP fast decode path (`ds41_decode_island` with the shared-owner split) is taken only when `tp_world == 2` and not `streaming`; with streaming the code falls back to the ordinary `ds41_graph_layer`. `DS4_METAL_DISABLE_V41_TP_SHARED_OWNER` disables the fast path in any mode.",
+          "source": "https://raw.githubusercontent.com/antirez/ds4/main/ds4.c",
+          "note": null
+        },
+        {
+          "text": "The Metal TP batched-MoE path for 2 to 6 rows is gated on `!g->ssd_streaming` and on an M5-class GPU, with `DS4_METAL_DISABLE_TP_BATCH_MOE` as the off switch.",
+          "source": "https://raw.githubusercontent.com/antirez/ds4/main/ds4.c",
+          "note": null
+        },
+        {
+          "text": "The ds4 docs list tested two-Mac TP setups that do not use the streaming flag: V4 Flash Q4/MXFP4, GLM 5.3 Flash Q4, GLM 5.2 IQ2_XXS, and V4.1 Flash Q2 \"with disk-only Engram tables\".",
+          "source": "https://raw.githubusercontent.com/antirez/ds4/main/docs/DISTRIBUTED.md",
+          "note": null
+        },
+        {
+          "text": "For the two-Spark CUDA TP section the docs say \"Do not add `--ssd-streaming` or `--cuda-tensor-parallel`: those select different memory/execution modes\". That sentence is about CUDA network TP; the Mac section has no such sentence.",
+          "source": "https://raw.githubusercontent.com/antirez/ds4/main/docs/DISTRIBUTED.md",
+          "note": null
+        },
+        {
+          "text": "The docs tell the operator not to treat repeated handshake or RDMA timeouts as a pass just because a retry works, and to keep both logs.",
+          "source": "https://raw.githubusercontent.com/antirez/ds4/main/docs/DISTRIBUTED.md",
+          "note": null
+        },
+        {
+          "text": "Do not probe the waiting coordinator with `curl` or `nc`; it may treat the connection as a worker handshake.",
+          "source": "https://raw.githubusercontent.com/antirez/ds4/main/docs/DISTRIBUTED.md",
+          "note": null
+        },
+        {
+          "text": "Is the combination supported? The Metal validator accepts it and the GLM gate schedule has a streaming branch; the docs show no command and no benchmark; the CUDA section forbids it. Both sides are real.",
+          "source": "https://raw.githubusercontent.com/antirez/ds4/main/docs/DISTRIBUTED.md",
+          "note": null
+        },
+        {
+          "text": "How routed experts are divided between the two ranks in a streaming run, since the contiguous-half shard map is off. The code read does not show it.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Whether the V4.1 fall-back to `ds41_graph_layer` under streaming makes TP slower than single-Mac streaming. No benchmark exists.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "A streaming TP run skips the `tp_shard` steps: half-expert mapping, sharded-bytes accounting, GLM ownership validation and the lazy-paging warning.",
+          "source": "https://raw.githubusercontent.com/antirez/ds4/main/ds4.c",
+          "note": null
+        },
+        {
+          "text": "The GLM ownership-aware kernel validation does not run when `--ssd-streaming` is set.",
+          "source": "https://raw.githubusercontent.com/antirez/ds4/main/ds4.c",
+          "note": null
+        },
+        {
+          "text": "The `iogpu.wired_limit_mb` lazy-paging warning belongs to the resident TP shard path, not to streaming.",
+          "source": "https://raw.githubusercontent.com/antirez/ds4/main/ds4.c",
+          "note": null
+        },
+        {
+          "text": "The Metal static-weights lock still applies in a streaming TP run.",
+          "source": "https://raw.githubusercontent.com/antirez/ds4/main/ds4.c",
+          "note": null
+        },
+        {
+          "text": "ds4's V4.1 TP shared-owner decode path is disabled when streaming is on.",
+          "source": "https://raw.githubusercontent.com/antirez/ds4/main/ds4.c",
+          "note": null
+        },
+        {
+          "text": "ds4's Metal TP batched-MoE path (2 to 6 rows, M5 GPUs) is disabled when streaming is on.",
+          "source": "https://raw.githubusercontent.com/antirez/ds4/main/ds4.c",
+          "note": null
+        },
+        {
+          "text": "The ds4 docs list V4.1 Flash Q2 on two 128 GB Macs with disk-only Engram tables as a TP setup, without the streaming flag.",
+          "source": "https://raw.githubusercontent.com/antirez/ds4/main/docs/DISTRIBUTED.md",
+          "note": null
+        },
+        {
+          "text": "The ds4 two-Spark CUDA section forbids `--ssd-streaming` with TP; the Mac section does not say so.",
+          "source": "https://raw.githubusercontent.com/antirez/ds4/main/docs/DISTRIBUTED.md",
+          "note": null
+        },
+        {
+          "text": "Probing a waiting ds4 TP coordinator with `curl` or `nc` can be read as a worker handshake.",
+          "source": "https://raw.githubusercontent.com/antirez/ds4/main/docs/DISTRIBUTED.md",
+          "note": null
+        }
+      ]
+    }
+  ],
+  "related": []
+}

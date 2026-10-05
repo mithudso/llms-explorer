@@ -1,0 +1,74 @@
+{
+  "slug": "omlx-store-cache-admission-gate-and-60-s-admissi",
+  "concept": "oMLX store-cache admission gate and 60 s admission stall error",
+  "generated": "2026-10-05",
+  "summary": "`_StoreCacheGate` is guarded by a lock and exposes `note_submitted`, `note_done`, `set_cap`, `cap`, `in_flight` and `has_capacity`; `has_capacity` is `in_flight < cap` and the cap is at least 1.",
+  "facets": [
+    {
+      "title": "Facts",
+      "facts": [
+        {
+          "text": "`_StoreCacheGate` is guarded by a lock and exposes `note_submitted`, `note_done`, `set_cap`, `cap`, `in_flight` and `has_capacity`; `has_capacity` is `in_flight < cap` and the cap is at least 1.",
+          "source": "https://raw.githubusercontent.com/jundot/omlx/main/omlx/scheduler.py",
+          "note": null
+        },
+        {
+          "text": "The store-cache executor is a `ThreadPoolExecutor` with `max_workers=1` and thread name prefix `omlx-store-cache`, so stores are serialized and never race on the paged SSD index.",
+          "source": "https://raw.githubusercontent.com/jundot/omlx/main/omlx/scheduler.py",
+          "note": null
+        },
+        {
+          "text": "`ProcessMemoryEnforcer` adjusts the gate cap on every poll through `adjust_store_cache_cap`: one step up toward `max_num_seqs` at ok pressure, one step down to a floor of 1 at soft or hard pressure.",
+          "source": "https://raw.githubusercontent.com/jundot/omlx/main/omlx/scheduler.py",
+          "note": null
+        },
+        {
+          "text": "`note_submitted()` is called before `executor.submit`, `note_done()` is called if the submit raises, and otherwise `note_done()` runs in `_drain_pending_async_removes` after the request cache references are released, not when the write finishes.",
+          "source": "https://raw.githubusercontent.com/jundot/omlx/main/omlx/scheduler.py",
+          "note": null
+        },
+        {
+          "text": "`_schedule_waiting` defers admission when the gate has no capacity or when `len(_pending_async_removes) >= gate.cap`, and logs `Admission deferred: store-cache pipeline full (in_flight=%d pending_cleanups=%d cap=%d)` at debug level.",
+          "source": "https://raw.githubusercontent.com/jundot/omlx/main/omlx/scheduler.py",
+          "note": null
+        },
+        {
+          "text": "If the gate is full and process memory is already at or above the limit (or admission is paused), the scheduler uses `_memory_admission_stall_output(\"store_cache_backpressure\")`, whose error code is `memory_admission_stalled`, instead of the store-cache timer.",
+          "source": "https://raw.githubusercontent.com/jundot/omlx/main/omlx/scheduler.py",
+          "note": null
+        },
+        {
+          "text": "`_MEMORY_ADMISSION_STALL_TIMEOUT_S` and `_STORE_CACHE_ADMISSION_STALL_TIMEOUT_S` are both 60.0 seconds.",
+          "source": "https://raw.githubusercontent.com/jundot/omlx/main/omlx/scheduler.py",
+          "note": null
+        },
+        {
+          "text": "The stalled request's output has `finish_reason=\"error\"`, `error_code=\"store_cache_admission_stalled\"` and `error_metadata` with `request_id`, `reason`, `stalled_seconds`, `store_cache_in_flight`, `pending_store_cleanups` and `store_cache_cap`.",
+          "source": "https://raw.githubusercontent.com/jundot/omlx/main/omlx/scheduler.py",
+          "note": null
+        },
+        {
+          "text": "The error text reads `Request could not be admitted because store-cache cleanup stayed full for <n>s (<reason>). The previous response cache is still being persisted; retry after the cache writer drains or reduce cache/write pressure.`",
+          "source": "https://raw.githubusercontent.com/jundot/omlx/main/omlx/scheduler.py",
+          "note": null
+        },
+        {
+          "text": "The scheduler logs `Store-cache admission stalled for %s: %s (in_flight=%d pending_cleanups=%d cap=%d)` at warning level when it fails a request this way.",
+          "source": "https://raw.githubusercontent.com/jundot/omlx/main/omlx/scheduler.py",
+          "note": null
+        },
+        {
+          "text": "The timer state is `_store_cache_admission_blocked_request_id` and `_store_cache_admission_blocked_since`; both reset when the blocked request is admitted, a different request becomes head, or the waiting queue empties.",
+          "source": "https://raw.githubusercontent.com/jundot/omlx/main/omlx/scheduler.py",
+          "note": null
+        },
+        {
+          "text": "After a drain completes, the scheduler schedules another deferred Metal clear, because the earlier deferred clear may have fired while the async store worker still owned the extracted KV buffers.",
+          "source": "https://raw.githubusercontent.com/jundot/omlx/main/omlx/scheduler.py",
+          "note": null
+        }
+      ]
+    }
+  ],
+  "related": []
+}

@@ -1,0 +1,179 @@
+{
+  "slug": "omlx-issue-2624-engine-stops-dispatching-for-6-h",
+  "concept": "oMLX issue 2624: engine stops dispatching for 6 hours with every thread idle",
+  "generated": "2026-10-05",
+  "summary": "First episode, 2026-08-13: last completion at 04:47:05, an unfinished request at 04:52:00, wedge until `launchctl bootout` at 10:50:08. Onset lies in the 04:47 to 04:52 window with nothing logged. A 25,345-token prompt had stored a 25,088-token boundary snapshot about 100 seconds before the last ...",
+  "facets": [
+    {
+      "title": "Facts",
+      "facts": [
+        {
+          "text": "First episode, 2026-08-13: last completion at 04:47:05, an unfinished request at 04:52:00, wedge until `launchctl bootout` at 10:50:08. Onset lies in the 04:47 to 04:52 window with nothing logged. A 25,345-token prompt had stored a 25,088-token boundary snapshot about 100 seconds before the last completion.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Native `sample` captures (21, every 10 minutes) show 62 threads: 55 in `__psynch_cvwait`, 4 in `_PyParkingLot_Park` (Python mutex), main thread in kevent, and exactly one thread in `mlx::core::eval` -> `array::wait()` -> `Event::wait()` -> `IOSurfaceSharedEvent waitUntilSignaledValue`. The GPU event never signalled.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "The maintainer's candidate: the async cache-store worker syncs the engine stream while holding the MLX buffer access lock, a residual hazard noted during issue 2330, so the inference thread blocks on that lock and looks like the four parked Python threads.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Second episode, 2026-08-14 (about 19.5 hours): py-spy shows the engine thread `mlx-engine-...` \"active\" at 0% CPU in `_serialize_extracted` (`omlx/cache/boundary_snapshot_store.py:737`) under `save` (line 174), `_maybe_capture_boundary_snapshot` (`omlx/scheduler.py:5830`) and `step`, while `boundary-snapshot-writer` and `ssd-cache-writer` are idle. Third episode, 2026-08-16: same subsystem, frame in `save` (line 174).",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Fourth episode, 2026-08-18 on v0.6.1, during a machine-wide memory-pressure spike: even `GET /api/status` returned no body, though the port still accepted TCP. Swap grew from 21 to 36 GB during the wedge and was released on restart, so it was the wedged process's own memory.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "2026-08-13: filed on 0.5.4 (pinned, 0.5.7 was current). The maintainer agreed the stacks fall outside issue 2235 (stuck eval, 2,476 of 2,476 samples in `eval_impl`) and issue 2515 (MTP path), and closer to issue 2330 (scheduler never dispatches again).",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "2026-08-17: host upgraded 0.5.4 to 0.6.0; the issue 2330 trigger (two identical fully cached concurrent prefills) no longer wedged on 0.6.0, 0.6.1 or 0.6.2.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "2026-08-18: recurred on 0.6.1 with a deeper signature. A separate issue 2855 was filed for wired memory stranded after wedge and restart cycles.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "2026-08-24: last comment; a recurrence on 0.6.1 \"with the same shape\" was reported. The issue was open with 7 comments and no linked pull request at the 2026-10-04 fetch.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "The reporter's cancels at 03:20 and 03:25 were followed by 80 minutes of normal service, so a client cancel alone is not sufficient. A cancel at 04:53:24 came after the last completion, so cause and effect are unknown.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "The reporter's environment set `MLX_METAL_FAST_SYNCH=1`. The maintainer asked about it because the same variable was set in issue 2330. Whether unsetting it changes the outcome was offered as a discriminator but no result is posted.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "SIGTERM handling differs between episodes. On 2026-08-13 the process exited at exactly SIGTERM plus 60 seconds without logging either teardown-watchdog line. On 2026-08-16 the reporter says SIGTERM was processed but the graceful drain never completed, and the process survived indefinitely until SIGKILL. The two descriptions conflict.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "The reporter notes about 157 GB still reported wired right after the process exited, reclaimed within minutes, so apparent stranding can be a delayed reclaim.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Reporter reading: parked engine plus the snapshot-save stack point to the buffer-lock-during-sync hypothesis. Maintainer: agrees it fits, but wants the Python stack of the async cache-store worker to name the exact lock. The reporter's later py-spy shows the engine thread, not the store worker, inside snapshot serialization, which is a different thread from the one the maintainer's candidate names.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Reporter on 2026-08-15 offers two readings of the differing stacks (two stages of one failure, or the parked state is where it converges). Neither is tested.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Which lock the engine thread waits on in `boundary_snapshot_store.py` serialization.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Whether a fix exists in 0.6.x or later. The maintainer found nothing targeting this shape in the 0.5.5 to 0.5.8.dev3 delta, and the reporter recurred on 0.6.1.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Whether the `OMLX_SERIALIZE_ENGINE_GPU` gate from issue 4224 would affect this wedge. It targets two engines, while this reproduction is one engine on one model.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Issue 2624 was opened on 2026-08-13 by anicaise-ai against oMLX 0.5.4 with mlx 0.32.0, mlx-lm 0.31.3, Python 3.13.12, macOS 26.5.2, an M3 Ultra with 512 GB, and DeepSeek-V4-Flash-0731-MXFP4 at 155.9 GB, launched with `--max-concurrent-requests 4 --memory-guard-gb 400 --hot-cache-max-size 128GB`.",
+          "source": "https://github.com/jundot/omlx/issues/2624",
+          "note": null
+        },
+        {
+          "text": "During the wedge `/api/status` and `/v1/models` answered in about 2 ms while every `POST /v1/chat/completions` returned 200 headers and no body.",
+          "source": "https://github.com/jundot/omlx/issues/2624",
+          "note": null
+        },
+        {
+          "text": "The last completion was at 04:47:05 and `launchctl bootout` came at 10:50:08; the process exited 60 seconds later with no SIGKILL, and the model reloaded in 16 seconds.",
+          "source": "https://github.com/jundot/omlx/issues/2624",
+          "note": null
+        },
+        {
+          "text": "The first capture at 07:32 showed 62 threads: 55 in `__psynch_cvwait`, 4 in `_PySemaphore_Wait` or `_PyParkingLot_Park`, the main thread in kevent, and the MLX `StreamThread` parked on its condition variable.",
+          "source": "https://github.com/jundot/omlx/issues/2624",
+          "note": null
+        },
+        {
+          "text": "In all 21 captures one thread was in `mlx::core::eval` -> `array::wait()` -> `Event::wait()` -> `waitUntilSignaledValue`, and 4 threads waited on a Python mutex; `mlx::core::synchronize` and `Fence` appeared 0 times.",
+          "source": "https://github.com/jundot/omlx/issues/2624",
+          "note": null
+        },
+        {
+          "text": "The maintainer's candidate cause is the async cache-store worker syncing the engine stream while holding the MLX buffer access lock, a hazard flagged during issue 2330.",
+          "source": "https://github.com/jundot/omlx/issues/2624",
+          "note": null
+        },
+        {
+          "text": "Neither \"Engine teardown timed out after 60s\" nor \"timed out after 60s waiting for N async store_cache future(s)\" appeared in the log, and the dying process wrote no line between SIGTERM and exit.",
+          "source": "https://github.com/jundot/omlx/issues/2624",
+          "note": null
+        },
+        {
+          "text": "`MLX_METAL_FAST_SYNCH=1` was set in the reporter's LaunchAgent environment.",
+          "source": "https://github.com/jundot/omlx/issues/2624",
+          "note": null
+        },
+        {
+          "text": "On 2026-08-14 the engine thread sat at 0% CPU for at least two minutes in `_serialize_extracted` at `omlx/cache/boundary_snapshot_store.py:737` while the `boundary-snapshot-writer` and `ssd-cache-writer` threads were idle, and the wedge lasted about 19.5 hours.",
+          "source": "https://github.com/jundot/omlx/issues/2624",
+          "note": null
+        },
+        {
+          "text": "On 2026-08-16 a third episode showed the scheduler thread inside `boundary_snapshot_store.py:174` (`save`), and the reporter said the process survived SIGTERM until SIGKILL.",
+          "source": "https://github.com/jundot/omlx/issues/2624",
+          "note": null
+        },
+        {
+          "text": "After upgrading to 0.6.0 on 2026-08-17 the issue 2330 trigger no longer wedged, but this issue's failure recurred on 0.6.1 on 2026-08-18.",
+          "source": "https://github.com/jundot/omlx/issues/2624",
+          "note": null
+        },
+        {
+          "text": "The 2026-08-18 episode wedged `GET /api/status` too, during a memory-pressure spike, and swap that had ratcheted from 21 to 36 GB was returned when the wedged process was restarted (36 GB to 11.9 GB).",
+          "source": "https://github.com/jundot/omlx/issues/2624",
+          "note": null
+        },
+        {
+          "text": "The reporter's last comment is dated 2026-08-24; the issue has 7 comments, is open, and has no linked branch or pull request.",
+          "source": "https://api.github.com/repos/jundot/omlx/issues/2624/comments",
+          "note": null
+        },
+        {
+          "text": "Osaurus' runtime documentation lists `AGXG17XFamilyCommandBuffer` asserts and `mlx::core::Fence::wait` crashes after prior GPU faults as known Metal-level hazards and serializes GPU producers with a `MetalGate`.",
+          "source": "https://raw.githubusercontent.com/osaurus-ai/osaurus/main/docs/INFERENCE_RUNTIME.md",
+          "note": null
+        },
+        {
+          "text": "A machine-wide memory-pressure spike preceding the 2026-08-18 wedge makes memory pressure a candidate trigger, but one occurrence is not enough to show cause.",
+          "source": "asserted",
+          "note": null
+        }
+      ]
+    }
+  ],
+  "related": []
+}

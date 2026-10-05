@@ -1,0 +1,519 @@
+{
+  "slug": "mac-local-llms-clusters-rdma-exo-ds4",
+  "concept": "Mac local LLMs: Clusters, RDMA, exo and ds4",
+  "generated": "2026-10-05",
+  "summary": "Stack: RDMA over TB5 (macOS 26.2+) -> JACCL -> MLX/mlx-lm. Backends: ring (TCP), JACCL (RDMA, needed for TP), MPI, NCCL. JACCL mesh needs all pairs cabled (4 Macs = 6 cables); ring needs neighbours only.",
+  "facets": [
+    {
+      "title": "Setup (MLX/JACCL)",
+      "facts": [
+        {
+          "text": "Stack: RDMA over TB5 (macOS 26.2+) -> JACCL -> MLX/mlx-lm. Backends: ring (TCP), JACCL (RDMA, needed for TP), MPI, NCCL. JACCL mesh needs all pairs cabled (4 Macs = 6 cables); ring needs neighbours only.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Enable RDMA only from Recovery: `rdma_ctl enable`.",
+          "source": "https://developer.apple.com/documentation/technotes/tn3205-low-latency-communication-with-rdma-over-thunderbolt",
+          "note": null
+        },
+        {
+          "text": "Hostfile: `mlx.distributed_config --hosts h1,h2 --backend jaccl --over thunderbolt --output hosts.json [--auto-setup]` (auto-setup needs passwordless sudo, disables Thunderbolt Bridge). Run once per boot; a second run gives `RTR failed with errno 60`. rdma_enX names change every reboot: regenerate and redistribute the hostfile.",
+          "source": "https://ml-explore.github.io/mlx/build/html/usage/distributed.html",
+          "note": null
+        },
+        {
+          "text": "Launch: `mlx.launch --hostfile hosts.json --backend jaccl -- /path/mlx_lm.server --model ...` (same paths and cached model on every node); `--backend jaccl-ring` sets `MLX_JACCL_RING=1` to test the ring path. Non-zero ranks' stderr is hidden (\"rank N exited with code 255\").",
+          "source": "https://raw.githubusercontent.com/ml-explore/mlx/main/python/mlx/_distributed_utils/launch.py",
+          "note": null
+        },
+        {
+          "text": "Launcher sets `MLX_JACCL_COORDINATOR` = rank 0's first IP + `--starting-port` (default 32323), exports the rdma matrix as `MLX_IBV_DEVICES`; errors if rdma list length differs from host count or a host's own slot is not null. `--env` overrides hostfile `envs`.",
+          "source": "https://raw.githubusercontent.com/ml-explore/mlx/main/python/mlx/_distributed_utils/launch.py",
+          "note": null
+        },
+        {
+          "text": "Each cabled port needs an IPv4 (26.2 stopped self-assigning): `sudo ifconfig en1 inet 10.99.0.2/30 alias`.",
+          "source": "https://raw.githubusercontent.com/antirez/ds4/main/docs/DISTRIBUTED.md",
+          "note": "privacy-ok (example address quoted from the cited source)"
+        },
+        {
+          "text": "bridge0: TN3205 warns of bridge-loop flooding; a 2026-04-03 comment says init works with bridge0 active if each port has its own IP.",
+          "source": "https://github.com/ml-explore/mlx/discussions/3481",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "exo",
+      "facts": [
+        {
+          "text": "Install: `brew install --cask exo` (macOS 26.2+; set_rdma_network_config.sh deletes bridge0) or `uv sync --extra mlx; uv run exo`. API port 52415 (/v1/chat/completions, /v1/messages, /ollama/api/chat).",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Env: EXO_MODELS_DIRS, EXO_OFFLINE, EXO_FAST_SYNCH, EXO_ZENOH_NAMESPACE (isolation, PR 2132). TP needs hidden_size and KV heads divisible by node count.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Fast synch is RDMA-only by default (PR 2377; ring runners log `Fast synch flag: 0`; `--fast-synch`/`--no-fast-synch` override). Two models on one Mac stalled; PR 2348 (2026-09-28, \"a busy runner no longer holds up every other model\") fixes the plan loop, merge not visible.",
+          "source": "https://github.com/exo-explore/exo/pull/2348",
+          "note": null
+        },
+        {
+          "text": "PR 2367 stops a runner on `[ring] Too many send/recv errors. Aborting...`; PR 2370 restarts a 90 s silent one.",
+          "source": "https://github.com/exo-explore/exo/pull/2370",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Failure modes and fixes",
+      "facts": [
+        {
+          "text": "`[jaccl] Changing queue pair to RTR failed with errno 22`: no IPv4 on a member port or ports enslaved to a bridge (exo 1390 open). After idle on 3x M3 Ultra only a full reboot cleared it (exo 1847).",
+          "source": "https://github.com/exo-explore/exo/issues/1390",
+          "note": null
+        },
+        {
+          "text": "Peer loss: JACCL hangs silently (SIGTERM ignored, SIGKILL leaves wired pages until reboot; re-plugging does not help, #3910). Unplug mid-collective: tbt_post_recv SIGSEGV on both ranks (#4192, macOS 26.5.1). The TCP side channel is used only at init; completion loops never read it, so nothing detects a dead peer.",
+          "source": "https://github.com/ml-explore/mlx/issues/3910",
+          "note": null
+        },
+        {
+          "text": "Ring peer death: recv() returns 0, worker spins at 100% CPU silently (PR 4060).",
+          "source": "https://github.com/ml-explore/mlx/pull/4060",
+          "note": null
+        },
+        {
+          "text": "`Couldn't allocate protection domain` at mx.distributed.init(): PDs leak across restarts (ring uses 2*n_conns per rank, mesh (size-1)*n_wires); JACCL frees them, so the kernel likely does not. Prefer one N-node broadcast to N-1 pair transfers.",
+          "source": "https://github.com/ml-explore/mlx-lm/issues/955",
+          "note": null
+        },
+        {
+          "text": "Orphans in `Us+` ignore kill -9; only a reboot clears them, and they build up gradually after the launcher dies. Orphan ppid is the hung `sshd`, not 1, so kill by name/`--tmpdir` pattern with `kill -9` before launch. launchd KeepAlive piles up orphans; use a PID-file lock released just before `exec`.",
+          "source": "https://valensas.com/blog/how-we-fixed-a-silent-killer-in-our-mac-studio-llm-cluster",
+          "note": null
+        },
+        {
+          "text": "MLX_METAL_FAST_SYNCH=1 can spin fence_wait forever (reboot); leave unset (MLX PR 4005), though that risks `kIOGPUCommandBufferCallbackErrorTimeout` (~5 s, #3830).",
+          "source": "asserted",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Performance and choosing a mode",
+      "facts": [
+        {
+          "text": "Decode tok/s at 1/2/4 M3 Ultras, Qwen3-235B: exo+RDMA 19.5/26.2/31.9; llama.cpp RPC TCP 20.4/17.2/15.2.",
+          "source": "https://forums.appleinsider.com/discussion/242810/ai-calculations-on-mac-cluster-get-big-boosts-from-new-rdma-support-on-thunderbolt-5",
+          "note": null
+        },
+        {
+          "text": "If the model fits one Mac, TP loses decode (Mixtral 8x7B 69.1 vs 43.8 TP2) but speeds prefill. PP for throughput, TP for big dense models.",
+          "source": "https://github.com/guruswami-ai/mlx-benchmarks/blob/main/docs/CHAKRA_CLUSTER.md",
+          "note": null
+        },
+        {
+          "text": "llama.cpp RPC has RDMA (Aug 2026); 2 M3 Ultra DeepSeek V4 Flash `-sm tensor` 9.61 vs layer split 23.05 tok/s.",
+          "source": "https://github.com/ggml-org/llama.cpp/pull/26610",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "JACCL internals and benchmarking",
+      "facts": [
+        {
+          "text": "Frames 4096 B, pipeline depth 2: latency steps per frame. Ring all_reduce: one wire at <=32768 B; sum_scatter at 65536 B; all_gather always all wires; `RING_MAX_CONNS` 4. Mesh: multi-wire from 512 KiB, reduce-scatter+all-gather above 32 KiB per wire when size >2, `MESH_MAX_PEERS` 8. Init falls back to a valid ring though the docs say fully connected only.",
+          "source": "https://raw.githubusercontent.com/ml-explore/mlx/main/mlx/distributed/jaccl/lib/jaccl/ring.cpp",
+          "note": null
+        },
+        {
+          "text": "Microbench: sweep 1 B, 4/8/16/32 KB, 32 KB+4 B, 64 KB, 512 KB-4 B, 512 KB; `mx.eval` inside the timed loop (all_sum is lazy), discard tens of warm-ups; barrier() is a 1-byte all_sum.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Corruption tests: int32 (bfloat16 hides errors), non-constant data, sizes both sides of each threshold, a timeout (UC never reports loss).",
+          "source": "asserted",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "ds4 (antirez)",
+      "facts": [
+        {
+          "text": "TP on two Macs, worker first: `./ds4 --tensor-parallel --role worker --coordinator 10.99.0.2 9911 --transport rdma --ctx 8192`, then coordinator `--role coordinator --listen 10.99.0.2 9911`; `--vision`/`--mtp` on both.",
+          "source": "https://raw.githubusercontent.com/antirez/ds4/main/docs/DISTRIBUTED.md",
+          "note": "privacy-ok (example address quoted from the cited source)"
+        },
+        {
+          "text": "Verbs layer: `--rdma-device`, `--rdma-gid-index`; warm-up failure logs `tp rdma: warm-up failed after %d attempts`. Gate wait 750 ms (`DS4_TP_GATE_TIMEOUT_MS`), 16384-byte chunks. Prefill big gates need 64+ slots of 16384 B (else unavailable); each swaps a TCP header (tag 0xB16) first. Speculative verify blocks run gates with no handshake after a 0xB5 barrier; debug with `DS4_TP_BIG_GATE_DEBUG`, `DS4_TP_DISABLE_VERIFY_WINDOW`. `--dist-prefill-window/-chunk` are pipeline-mode only.",
+          "source": "https://raw.githubusercontent.com/antirez/ds4/main/ds4_tp.c",
+          "note": null
+        },
+        {
+          "text": "Streaming cache: `--ssd-streaming-cache-experts` is capped at 7/8 of GPU working set; with no slot it logs \"leaves no complete expert slot; using direct per-layer reads\". Under TP each rank sees about half the experts, so a single-Mac cache count wastes half its slots; each rank sizes its own cache, nothing is exchanged, and Metal fast paths need `tp_world < 2`.",
+          "source": "https://raw.githubusercontent.com/antirez/ds4/main/ds4.c",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Corrections and open questions",
+      "facts": [
+        {
+          "text": "\"Only exo supports RDMA\" is outdated (llama.cpp RPC); MLX PRs 3152 and 4530 (completion checks, liveness) closed unmerged.",
+          "source": "https://github.com/ml-explore/mlx/pull/4530",
+          "note": null
+        },
+        {
+          "text": "Unverified: ds4 TP streaming on Metal; macOS 27 RDMA fix; ds4 TP tok/s.",
+          "source": "asserted",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Corrections and disagreements",
+      "facts": [
+        {
+          "text": "\"Only exo supports RDMA\" (Geerling Dec 2025, AppleInsider) vs llama.cpp RPC RDMA transport merged Aug 2026 (README). CONTRADICTS any claim in existing materials that RPC is TCP-only.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "CONTRADICTS distributed-inference-across-macs.md (step 4, bridge0 must be disabled): a 2026-04-03 commenter on macOS 26.4 with MLX 0.31.1 reports JACCL init works across 3 nodes with bridge0 present and active once each Thunderbolt interface has its own IP",
+          "source": "https://github.com/ml-explore/mlx/discussions/3481",
+          "note": null
+        },
+        {
+          "text": "CONTRADICTS exo-cluster-software.md only in location: the fetched evidence places P/D routing in master/main.py and a worker disaggregated adapter, and no fetched source mentions placement_utils; the existing claim is unconfirmed rather than disproved",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "CONTRADICTS exo-cluster-software.md: a Mac measurement exists. ryan5rdx ran -sm tensor on 2 M3 Ultra over RDMA (with PR 26421) on DeepSeek V4 Flash MXFP4 and got tg2048 9.61 tok/s and pp2048 166.05 tok/s",
+          "source": "https://github.com/ggml-org/llama.cpp/pull/26610",
+          "note": null
+        },
+        {
+          "text": "Mar 3 label bug; Mar 18 label distributed; Apr 27 zcbenz labels wontfix: per the Metal team there is no supported CPU/GPU atomic coherence, nor any public guaranteed GPU spinlock, so the flag cannot be guaranteed. Issue page still shows state Open with labels bug, distributed, wontfix (fetched 2026-10-04). CONTRADICTS exo-vs-mlx-launch-tensor-parallel-throughput-comparison.md, which says #3142 was \"closed ... wontfix\": it is labelled wontfix but not closed. #3141 itself was closed unmerged.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "CONTRADICTS distributed-inference-across-macs.md and apple-libthunderboltrdma-tbt-post-recv-sigsegv.md on PR status: MLX PR 3152 and PR 4530 are both closed unmerged by zcbenz (3152 on 2026-10-02, 4530 on 2026-09-29); both pages in the cache show the 'closed this' event and no merge",
+          "source": "https://github.com/ml-explore/mlx/pull/3152",
+          "note": null
+        },
+        {
+          "text": "CONTRADICTS distributed-inference-across-macs.md: PR #3152 is closed, not open; zcbenz closed it without merging on 2026-10-02",
+          "source": "https://github.com/ml-explore/mlx/pull/3152",
+          "note": null
+        },
+        {
+          "text": "CONTRADICTS apple-libthunderboltrdma-tbt-post-recv-sigsegv.md: PR #4530 is closed, not open; zcbenz closed it on 2026-09-29 without merging",
+          "source": "https://github.com/ml-explore/mlx/pull/4530",
+          "note": null
+        },
+        {
+          "text": "CONTRADICTS: the concept label \"as EP substitute\" and the \"shards experts\" wording in exo-cluster-software.md: `ShardedMoEV4` slices the intermediate dimension of every expert on every rank in place; it places no whole experts on ranks.",
+          "source": "https://raw.githubusercontent.com/exo-explore/exo/main/src/exo/worker/engines/mlx/auto_parallel.py",
+          "note": null
+        },
+        {
+          "text": "CONTRADICTS application-level-no-progress-watchdog-and-group.md as a general fingerprint: `ps -axo pid,ppid,command | awk '$2==1 && /spawn_main/'` finds exo runners reparented to launchd but misses `mlx.launch` SSH orphans, whose parent is a stuck `sshd`.",
+          "source": "https://valensas.com/blog/how-we-fixed-a-silent-killer-in-our-mac-studio-llm-cluster",
+          "note": null
+        },
+        {
+          "text": "CONTRADICTS (docs vs source, not stated in existing files): the MLX distributed docs say JACCL supports only fully connected topologies, while jaccl.cpp init falls back to a valid ring.",
+          "source": "https://ml-explore.github.io/mlx/build/html/usage/distributed.html",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Concepts in this cluster",
+      "facts": [
+        {
+          "text": "Distributed inference across Macs",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Tensor vs pipeline vs expert parallelism for MoE in mlx-lm",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "exo cluster software",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Apple libthunderboltrdma tbt_post_recv SIGSEGV",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "MLX expert parallelism all_to_all PR 3158",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "exo prefill/decode disaggregation",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "mlx distributed error propagation via event poisoning (PR 3523, 3742)",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Thunderbolt Bridge bridge0 and STP fixes for RDMA mesh setup",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "llama.cpp RPC -sm tensor PR 26610",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "MLX_METAL_FAST_SYNCH and JACCL GPU fence_wait deadlock",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Per-collective all_sum latency in decode over JACCL RDMA",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "exo pinned MLX fork",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "JACCL RDMA completion status checking and silent corruption",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "JACCL peer-liveness side channel and progress timeout PR 4530",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "JACCL silent hang on peer loss",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "macOS 27 libthunderboltrdma rework",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Application-level no-progress watchdog and group re-formation for JACCL clusters",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Tensor-parallel all-reduce count per transformer layer in MLX shard_linear",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "ds4 layer pipeline parallelism over TCP with activation quantization",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "ds4 two-Mac tensor parallelism over Thunderbolt RDMA setup",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "exo DeepSeek V4 expert sharding (ShardedMoEV4) as EP substitute",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Per-token collective count times per-call latency model",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Static link-local IPv4 per Thunderbolt port for JACCL meshes",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "UC queue pair one-direction drop warm-up check",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "ds4 TP with --ssd-streaming on Metal for GLM and V4.1",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "ds4 own verbs layer versus JACCL",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "exo MLX_METAL_FAST_SYNCH only for RDMA instances (exo PR 2377)",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "exo orphaned runner holds RDMA queue pairs (RTR errno 16)",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "ibv_devinfo hang as an RDMA health probe",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Apple UC send into a queue pair with no posted receive kills that direction",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "JACCL coordinator-optional connection setup (mlx PR 3899)",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Model-free 8-10 KiB all_sum loop on 2 and 4 JACCL nodes",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Routed-expert ownership split under ds4 streaming TP",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Two exo models sharing one Mac GPU under fast synch",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "ds4 TP gate chunking and 16-gate receive lookahead window",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "exo ring-abort detection by stderr diagnostic (PR 2367)",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "exo set_rdma_network_config.sh network setup script",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "exo stuck-runner 90-second no-progress watchdog (PR 2370)",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "macOS 26.2 stops self-assigning IPv4 on Thunderbolt RDMA interfaces",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "mlx.launch remote teardown bug (tmp.None pid file)",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "JACCL TCPAllGather side channel as peer-liveness channel",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "mlx.launch jaccl backend flags and hostfile coordinator handling",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "JACCL ring all_reduce wire partitioning (n_wires, directions, threads)",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Silent-corruption testing for distributed collectives with rank-distinct data",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "macOS network service order and Thunderbolt Bridge auto-creation on upgrade",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Uninterruptible Us+ rank processes in the Thunderbolt RDMA driver",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "JACCL protection domain exhaustion on repeated mx.distributed.init",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Small-message JACCL all_sum latency microbenchmark protocol",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "ds4 TP big-gate bulk exchange for prefill over RDMA",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "exo PR 2348 plan loop no longer waits for generation task acknowledgement",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "ds4 streaming expert cache sizing under TP",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "JACCL mesh versus ring topology selection and per-pair device counts",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "ds4 TP speculative-verify block window over RDMA (tag 0xB5)",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "ds4 manual cache safe-bytes cap (7/8 of recommended working set minus context)",
+          "source": "asserted",
+          "note": null
+        }
+      ]
+    }
+  ],
+  "related": []
+}

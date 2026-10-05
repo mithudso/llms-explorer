@@ -1,0 +1,559 @@
+{
+  "slug": "apple-foundation-models-framework",
+  "concept": "Apple Foundation Models framework",
+  "generated": "2026-10-05",
+  "summary": "Backend abstraction: `LanguageModel` (declares `capabilities` and an `executorConfiguration`) plus `LanguageModelExecutor` (init from Configuration, `prewarm`, streaming `respond`). The session keeps an executor store keyed by the Hashable Configuration, not by model instance, so two model values...",
+  "facets": [
+    {
+      "title": "Facts",
+      "facts": [
+        {
+          "text": "Backend abstraction: `LanguageModel` (declares `capabilities` and an `executorConfiguration`) plus `LanguageModelExecutor` (init from Configuration, `prewarm`, streaming `respond`). The session keeps an executor store keyed by the Hashable Configuration, not by model instance, so two model values with equal configuration share one executor and its KV cache. Releasing the session releases every executor.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "The executor receives the full transcript on every `respond` call. It diffs against the transcript it saw last time, keeps state when entries were only appended, and invalidates back to the divergence point when entries were removed or edited. This is prefix caching expressed as a protocol contract.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "One-shot `respond` is implemented as a collected stream. Streaming order contract: metadata update, then usage update (prompt tokens), then text deltas.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Request carries `ContextOptions` (reasoning level, response schema) and `GenerationOptions` (sampling, temperature, maximumResponseTokens). If an executor cannot honor an option it should approximate or throw a built-in `LanguageModelError` (context overflow, rate limit, refusal, guardrail, unsupported capability, timeout).",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "MLX bridge: `MLXLanguageModel` lives in the `MLXFoundationModels` library of `ml-explore/mlx-swift-lm`. It is built with the `#huggingFaceLanguageModel(configuration:capabilities:)` macro or the full initializer (`configuration`, `capabilities`, `weightsLocation:`, `load:`). Capabilities are declared, never inferred (default `[.guidedGeneration]`; others `.toolCalling`, `.reasoning`, `.vision`); a request beyond the declared set fails with a typed error. `availability` reports `.available`, `.downloading`, `.unavailable(...)`. The adapter compiles to an empty module unless the SwiftPM trait `FoundationModelsIntegration` (default on) and the 27.0 SDK are both present.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "fm CLI subcommands seen on the shipping build: `respond`, `chat`, `schema object`, `count-tokens`, `available`, `license`, `serve`. `respond` flags: `-i` instructions, `--text`, `--schema file`, `-g` greedy sampling, `--no-stream`, `--save-transcript`, `--resume`, `--image`, `--tool` (barcode, ocr), use cases `general` and `content-tagging`, guardrails `default` and `permissive-content-transformations`. `chat` slash commands: `/model`, `/save`, `/resume`, `/clear`, `/instructions`.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "`fm serve`: HTTP on `127.0.0.1:1976` by default; endpoints `/health`, `/v1/models`, `/v1/chat/completions`; `--host`, `--port`, and `--socket <path>` for a Unix socket. Model id is `system`.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Python SDK: PyPI name `apple-fm-sdk`, import `apple_fm_sdk as fm`. API: `fm.SystemLanguageModel().is_available()` returns `(bool, reason)`; `fm.LanguageModelSession(instructions=, tools=)`; `await session.respond(prompt, generating=Type)`; `@fm.generable` with `fm.guide(...)`; `fm.Tool` subclasses. It runs the Swift framework underneath (Apple: evaluations \"reflect real on-device performance\"). The documented backend is the on-device system model only.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Model versions (SystemLanguageModel docs): three on-device versions, tied to OS 26.0-26.3, 26.4, and 27.0. The 3B model uses a 5:3 two-block split with KV-cache sharing (37.5% less KV memory), 2-bit QAT weights, 100k to 150k vocabulary, and a ViTDet-L 300M vision encoder.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "macOS 26.0 (2025): `SystemLanguageModel` introduced on macOS.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "2026-02-25: `apple/python-apple-fm-sdk` first commit (Apache-2.0); requires macOS 26.0+, so the Python SDK predates macOS 27. Tag 0.2.1 on 2026-06-26; repo has 5 tags and 11 commits as of 2026-09-30.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "26.4: `contextSize` and `tokenCount(for:)` APIs added; guardrail false positives reduced.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "WWDC26 (2026-06-08): `LanguageModel` protocol, PCC model, vision input, Dynamic Profiles, Evaluations framework, `fm` CLI, Anthropic and Google Swift packages announced. The mlx-swift-lm adapter commit is dated 2026-07-15.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "macOS 27 shipped 2026-09-14 (per MacRumors as cited by one article).",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Adapter training toolkit: last release is 26.0.0, \"not compatible with macOS, iOS, iPadOS, or visionOS 27 and later\". Betas 0.1.0 and 0.2.0 were removed.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "fm CLI license gate: first run prints \"YOU HAVE NOT AGREED TO THE FOUNDATION MODELS CLI LEGAL NOTICE & TERMS\" and refuses until someone runs `sudo fm license`; acceptance applies to every user on the machine. The terms also say you agree \"NOT TO PROGRAMMATICALLY ACCESS OR USE APPLE MODELS THROUGH APPLE SOFTWARE OR SERVICES EXCEPT AS EXPRESSLY PERMITTED\". This is in tension with shipping `fm serve`; a distributed app should use the framework in a signed app.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "`fm serve` has no authentication option. Any credential, including an invented bearer token, returns 200. The only guard is a 403 for cross-origin browser POSTs; the Host header is not checked. `--socket` creates the socket as `srwxr-xr-x`, so protection depends on the parent directory (use a 0700 directory). Apple's own help example binds `0.0.0.0`.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "`fm serve` is not an OpenAI drop-in: streaming is on by default (send `\"stream\": false`); with `tool_choice: \"auto\"` tool-call arguments arrive as raw JSON text in `content` with no `tool_calls` field; `tool_choice: \"required\"` returns HTTP 500.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Schema is shape only: with `--schema`, a content-level injection in a piped document was followed in 20 of 20 runs; a form-level injection (\"reply APPROVED\") was blocked. A missing field was filled with an invented value (age 30). 8 of 60 schema runs on a 316-token document failed with a context-size error, cause unknown. `--save-transcript` writes a 0644 file and a doctored transcript replayed with `--resume` in 5 of 5 runs.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Privacy: inference processes held zero network file descriptors during `fm respond` (one measurement on a Mac Studio M4 Max).",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Python SDK needs Xcode installed (matching macOS version) beyond Python 3.10 and Apple Silicon; a mismatched Xcode is listed as a cause of \"model not available\".",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Extra errors: transcript edits (removing entries, changing tools or instructions) invalidate the KV cache and raise latency; append-only keeps it warm. Image input costs more tokens and latency with size. Per-session context overflow throws; the Python grocery demo's longest prompt hit it.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Adapters: ~160 MB each, one per toolkit/OS version; training needs Apple Silicon Mac with 32 GB or Linux GPU, Python 3.11+; deploying needs the Adapter Entitlement from the Account Holder (not needed to train or test locally). No toolkit exists for OS 27 yet.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "MLX models on 16 GB: article claims a 4-bit 3-4B model is comfortable [unverified].",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "On-device context window under OS 27: session 241 shows `model.contextSize` printing 8192; session 319 (same conference) says the on-device model offers \"4k\" vs PCC 32K; TN3193 still says 4096. Side by side, not averaged. The fm-CLI article uses a 7,700-token preflight, which is consistent with 8192.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "`--model pcc` in fm: WWDC session 334 and a macOS 27 beta article show `fm --help` listing `pcc` and `quota-usage`; a shipping-build test (macOS 27.0, fm 2.0.68.1.402, Germany region) lists only `system` and `fm available` reports only the system model. Cause (region, staged rollout) unknown.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "MLX constructor shape: one article shows `MLXLanguageModel(modelID: \"mlx-community/...\")`; the adapter README shows a macro or `configuration:` + `weightsLocation:` + `load:`. Apple's session 339 sample used `modelID:` as a placeholder. Treat the README as authoritative.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Python SDK on macOS 26 versus 27: the existing 7.2 text lists the Python SDK as an OS 27 item; the repo and docs require macOS 26.0+. Session 334 presents it as new on macOS 27, but the 27 additions are image input and context-size APIs, not existence.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "PCC billing language: \"no cloud API cost for developers under 2M first-time downloads\" (241, 319) versus the whats-new page \"App Store Small Business Program and fewer than 2 million total first-time downloads\". Not both strictly the same condition.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Throughput on a Mac: only one benchmark row exists (apple-fm, ~3B est., TTFT 269 ms, 85.2 tok/s decode, tokens estimated at utf8/4, +/-20%, n=3, device not stated in the cited README). No M-series-specific number from Apple.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Whether `LanguageModelSession` over `MLXLanguageModel` can use the system model's guardrails, LoRA adapters or Dynamic Profile model modifiers is not documented in the sources read.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Whether Ollama or llama.cpp can be a `LanguageModel` today (only Hugging Face AnyLanguageModel, pre-27, has those backends; no first-party one).",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Whether Anthropic and Google packages have shipped (announced as \"soon\").",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Where the open-sourced framework repo lives; sources here do not give a URL.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "macOS 27 hardware cut-off beyond \"Apple Intelligence compatible Mac\" (an M1 8 GB MacBook Air ran the beta).",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "On macOS the Foundation Models Python SDK is installed as `pip install apple-fm-sdk` and imported as `apple_fm_sdk`.",
+          "source": "https://github.com/apple/python-apple-fm-sdk",
+          "note": null
+        },
+        {
+          "text": "The Python SDK requires macOS 26.0+, Xcode 26.0+ (matching the macOS version), Python 3.10+ and Apple Intelligence turned on.",
+          "source": "https://apple.github.io/python-apple-fm-sdk/getting_started.html",
+          "note": null
+        },
+        {
+          "text": "The Python SDK repo's first commit is 2026-02-25 and its pyproject version reached 0.2.1 on 2026-06-26, so it predates macOS 27.",
+          "source": "https://github.com/apple/python-apple-fm-sdk",
+          "note": null
+        },
+        {
+          "text": "The Python SDK is Apache-2.0 and exposes `SystemLanguageModel.is_available()` returning `(bool, reason)`.",
+          "source": "https://github.com/apple/python-apple-fm-sdk",
+          "note": null
+        },
+        {
+          "text": "The Python SDK runs the Swift Foundation Models framework underneath, aimed at evaluating Swift app features.",
+          "source": "https://apple.github.io/python-apple-fm-sdk/",
+          "note": null
+        },
+        {
+          "text": "The Python SDK supports text and image input, streaming, tool calling and guided generation via `@fm.generable` and `fm.guide`.",
+          "source": "https://developer.apple.com/videos/play/wwdc2026/334/",
+          "note": null
+        },
+        {
+          "text": "The WWDC26 demo evaluates three prompt variants in Jupyter with Pandas, matplotlib and a server judge model; the longest prompt produced context-window generation errors.",
+          "source": "https://developer.apple.com/videos/play/wwdc2026/334/",
+          "note": null
+        },
+        {
+          "text": "The `fm` tool ships at /usr/bin/fm on macOS 27 and, on a fresh machine, refuses to run until `sudo fm license` is accepted.",
+          "source": "https://ai.plainenglish.io/exploring-the-fm-cli-and-apple-foundation-model-in-macos-27-213f6481c7cc",
+          "note": null
+        },
+        {
+          "text": "Accepting the fm license applies to every user on the machine and must be done as a privileged user.",
+          "source": "https://ai.plainenglish.io/exploring-the-fm-cli-and-apple-foundation-model-in-macos-27-213f6481c7cc",
+          "note": null
+        },
+        {
+          "text": "The fm license text includes agreeing not to programmatically access or use Apple models through Apple software or services except as expressly permitted.",
+          "source": "https://medium.com/@michael.hannecke/apples-model-at-the-command-line-what-fm-serve-leaves-to-you-6a7a702d66c9",
+          "note": null
+        },
+        {
+          "text": "On this build `fm available` printed \"System model available\" on the cited Mac, and the CLI lists subcommands respond, chat, schema, count-tokens, available, license, serve.",
+          "source": "https://ai.plainenglish.io/exploring-the-fm-cli-and-apple-foundation-model-in-macos-27-213f6481c7cc",
+          "note": null
+        },
+        {
+          "text": "`fm count-tokens -q --text \"...\"` returns an integer token count for the on-device tokenizer (316 for the tester's referral document).",
+          "source": "https://medium.com/@michael.hannecke/apples-model-at-the-command-line-what-fm-serve-leaves-to-you-6a7a702d66c9",
+          "note": null
+        },
+        {
+          "text": "`fm respond` supports `-i` instructions, `--text`, `--schema`, `-g` greedy sampling, `--no-stream`, `--save-transcript`, `--resume`, `--image`, and `--tool` with barcode and ocr.",
+          "source": "https://medium.com/@michael.hannecke/apples-model-at-the-command-line-what-fm-serve-leaves-to-you-6a7a702d66c9",
+          "note": null
+        },
+        {
+          "text": "`fm schema object --name N --string f --int g --array` writes a JSON schema to stdout for use with `fm respond --schema`.",
+          "source": "https://developer.apple.com/videos/play/wwdc2026/334/",
+          "note": null
+        },
+        {
+          "text": "`fm chat` has slash commands `/model`, `/save`, `/resume`, `/clear`, `/instructions` and shows token usage.",
+          "source": "https://ai.plainenglish.io/exploring-the-fm-cli-and-apple-foundation-model-in-macos-27-213f6481c7cc",
+          "note": null
+        },
+        {
+          "text": "`fm serve` with no flags listens on 127.0.0.1:1976 and prints nothing.",
+          "source": "https://medium.com/@michael.hannecke/apples-model-at-the-command-line-what-fm-serve-leaves-to-you-6a7a702d66c9",
+          "note": null
+        },
+        {
+          "text": "`fm serve` exposes /health, /v1/models and /v1/chat/completions; the model id is `system`.",
+          "source": "https://medium.com/@michael.hannecke/apples-model-at-the-command-line-what-fm-serve-leaves-to-you-6a7a702d66c9",
+          "note": null
+        },
+        {
+          "text": "`fm serve` has no authentication option and returns 200 for a request with an invented bearer token.",
+          "source": "https://medium.com/@michael.hannecke/apples-model-at-the-command-line-what-fm-serve-leaves-to-you-6a7a702d66c9",
+          "note": null
+        },
+        {
+          "text": "`fm serve` answers 403 \"Cross-site requests are not allowed\" for cross-origin browser POSTs and does not check the Host header.",
+          "source": "https://medium.com/@michael.hannecke/apples-model-at-the-command-line-what-fm-serve-leaves-to-you-6a7a702d66c9",
+          "note": null
+        },
+        {
+          "text": "`fm serve --socket <path>` replaces the TCP listener with a Unix socket created srwxr-xr-x, so directory permissions are the protection.",
+          "source": "https://medium.com/@michael.hannecke/apples-model-at-the-command-line-what-fm-serve-leaves-to-you-6a7a702d66c9",
+          "note": null
+        },
+        {
+          "text": "Apple's `fm serve --help` example binds `--host 0.0.0.0 --port 1976`, which answered unauthenticated LAN requests.",
+          "source": "https://medium.com/@michael.hannecke/apples-model-at-the-command-line-what-fm-serve-leaves-to-you-6a7a702d66c9",
+          "note": null
+        },
+        {
+          "text": "`fm serve` streams by default; clients must send `\"stream\": false` to get a single JSON body.",
+          "source": "https://medium.com/@michael.hannecke/apples-model-at-the-command-line-what-fm-serve-leaves-to-you-6a7a702d66c9",
+          "note": null
+        },
+        {
+          "text": "`fm serve` tool calling returns arguments as raw JSON in `content` (no `tool_calls` field) under `tool_choice: \"auto\"`, and `tool_choice: \"required\"` returns HTTP 500.",
+          "source": "https://medium.com/@michael.hannecke/apples-model-at-the-command-line-what-fm-serve-leaves-to-you-6a7a702d66c9",
+          "note": null
+        },
+        {
+          "text": "A schema constrains output shape but not truth: a content-level prompt injection was adopted in 20 of 20 `fm respond --schema` runs, and a missing `age` field was filled with 30.",
+          "source": "https://medium.com/@michael.hannecke/apples-model-at-the-command-line-what-fm-serve-leaves-to-you-6a7a702d66c9",
+          "note": null
+        },
+        {
+          "text": "8 of 60 schema runs on a 316-token document failed with a context-size error with no established cause.",
+          "source": "https://medium.com/@michael.hannecke/apples-model-at-the-command-line-what-fm-serve-leaves-to-you-6a7a702d66c9",
+          "note": null
+        },
+        {
+          "text": "`fm respond --save-transcript` writes a 0644 file and `--resume` accepted a modified transcript in 5 of 5 runs.",
+          "source": "https://medium.com/@michael.hannecke/apples-model-at-the-command-line-what-fm-serve-leaves-to-you-6a7a702d66c9",
+          "note": null
+        },
+        {
+          "text": "During `fm respond`, the fm process and the inference helper processes held no network file descriptors in one measurement.",
+          "source": "https://medium.com/@michael.hannecke/apples-model-at-the-command-line-what-fm-serve-leaves-to-you-6a7a702d66c9",
+          "note": null
+        },
+        {
+          "text": "A beta write-up shows `fm --help` listing models `system` (on-device, default) and `pcc` (Private Cloud Compute) and a `quota-usage` command, and the on-device model ran on a MacBook Air M1 8 GB.",
+          "source": "https://medium.com/macoclock/macos-27-has-a-hidden-llm-inside-10-amazing-things-you-can-do-with-it-44a28d8cc042",
+          "note": null
+        },
+        {
+          "text": "macOS 27 shipped on 2026-09-14 with the Foundation Models framework second generation.",
+          "source": "https://medium.com/@nuthalapativarun/ios-27-turned-apples-on-device-model-into-a-protocol-and-your-mlx-models-can-plug-in-b02345592156",
+          "note": null
+        },
+        {
+          "text": "`SystemLanguageModel` is available from macOS 26.0 and has three model versions: 26.0-26.3, 26.4, and 27.0.",
+          "source": "https://developer.apple.com/documentation/foundationmodels/systemlanguagemodel",
+          "note": null
+        },
+        {
+          "text": "`SystemLanguageModel` exposes `variant`, `isAvailable`, `availability`, `contextSize`, `supportedLanguages`, `supportsLocale(_:)`, `tokenCount(for:)`.",
+          "source": "https://developer.apple.com/documentation/foundationmodels/systemlanguagemodel",
+          "note": null
+        },
+        {
+          "text": "`SystemLanguageModel.UseCase` includes `contentTagging` and `Guardrails` are configurable at init.",
+          "source": "https://developer.apple.com/documentation/foundationmodels/systemlanguagemodel",
+          "note": null
+        },
+        {
+          "text": "Availability depends on whether the device and region support Apple Intelligence.",
+          "source": "https://developer.apple.com/documentation/foundationmodels/systemlanguagemodel",
+          "note": null
+        },
+        {
+          "text": "`contextSize` and `tokenCount(for:)` shipped in iOS 26.4 and are meant to adapt apps to the hardware.",
+          "source": "https://developer.apple.com/videos/play/wwdc2026/241/",
+          "note": null
+        },
+        {
+          "text": "Session 241's sample prints `model.contextSize` as 8192.",
+          "source": "https://developer.apple.com/videos/play/wwdc2026/241/",
+          "note": null
+        },
+        {
+          "text": "On-device inference works offline and has no request limits; PCC needs a connection and gives each user a daily limit (higher with iCloud+).",
+          "source": "https://developer.apple.com/videos/play/wwdc2026/319/",
+          "note": null
+        },
+        {
+          "text": "PCC is free to developers with fewer than 2 million first-time downloads, requires an entitlement application, and needs no API keys; it works only on Apple Intelligence devices.",
+          "source": "https://developer.apple.com/videos/play/wwdc2026/319/",
+          "note": null
+        },
+        {
+          "text": "The whats-new page ties free PCC access to the App Store Small Business Program and fewer than 2 million total first-time downloads.",
+          "source": "https://developer.apple.com/macos/whats-new/",
+          "note": null
+        },
+        {
+          "text": "Reasoning on PCC generates extra tokens that count against the 32K context.",
+          "source": "https://developer.apple.com/videos/play/wwdc2026/319/",
+          "note": null
+        },
+        {
+          "text": "`PrivateCloudComputeLanguageModel` and `SystemLanguageModel` both expose `contextSize`.",
+          "source": "https://developer.apple.com/videos/play/wwdc2026/319/",
+          "note": null
+        },
+        {
+          "text": "Apple open-sources two LanguageModel implementations, `CoreAILanguageModel` (Neural Engine) and `MLXLanguageModel` (Mac GPU), alongside the core framework and a \"Foundation Models framework utilities\" package.",
+          "source": "https://developer.apple.com/videos/play/wwdc2026/241/",
+          "note": null
+        },
+        {
+          "text": "The utilities package provides profile modifiers for transcript management, a skill API, and a Chat Completions-standard language model that talks to servers.",
+          "source": "https://developer.apple.com/videos/play/wwdc2026/241/",
+          "note": null
+        },
+        {
+          "text": "Responses and sessions expose a `usage` property with input total, cached input, output total and reasoning token counts.",
+          "source": "https://developer.apple.com/videos/play/wwdc2026/241/",
+          "note": null
+        },
+        {
+          "text": "New built-in tools: `BarcodeReaderTool`, `OCRTool` (Vision) and a Spotlight-backed search tool for local RAG.",
+          "source": "https://developer.apple.com/videos/play/wwdc2026/241/",
+          "note": null
+        },
+        {
+          "text": "A `LanguageModelSession` can swap models mid-conversation via `DynamicProfile` model modifiers while keeping history; transcripts may need trimming to fit the smaller context.",
+          "source": "https://developer.apple.com/videos/play/wwdc2026/242/",
+          "note": null
+        },
+        {
+          "text": "Appending to a transcript preserves the KV cache; removing entries, changing tools, or editing instructions invalidates it and raises latency.",
+          "source": "https://developer.apple.com/videos/play/wwdc2026/242/",
+          "note": null
+        },
+        {
+          "text": "`LanguageModel` requires `capabilities` and `executorConfiguration`; `LanguageModelExecutor` requires `init(configuration:)`, `prewarm(model:transcript:)` and `respond(to:model:streamingInto:)`.",
+          "source": "https://developer.apple.com/videos/play/wwdc2026/339/",
+          "note": null
+        },
+        {
+          "text": "The executor store is keyed by the Hashable Configuration; equal configurations share one executor, and deallocating the session releases every executor.",
+          "source": "https://developer.apple.com/videos/play/wwdc2026/339/",
+          "note": null
+        },
+        {
+          "text": "`prewarm` is not guaranteed to run, so executors must load weights lazily as well.",
+          "source": "https://developer.apple.com/videos/play/wwdc2026/339/",
+          "note": null
+        },
+        {
+          "text": "The executor receives the full transcript on every call and must diff it against saved state to reuse its KV cache.",
+          "source": "https://developer.apple.com/videos/play/wwdc2026/339/",
+          "note": null
+        },
+        {
+          "text": "Transcript has six entry types (instructions, prompt, toolCalls, toolOutput, response, reasoning) that the executor maps to the engine's own roles.",
+          "source": "https://developer.apple.com/videos/play/wwdc2026/339/",
+          "note": null
+        },
+        {
+          "text": "Streaming contract order: metadata update, usage update, then text deltas; custom metadata (for example tokensPerSecond, timeToFirstToken) can be sent through the channel.",
+          "source": "https://developer.apple.com/videos/play/wwdc2026/339/",
+          "note": null
+        },
+        {
+          "text": "Provider packages should declare platforms macOS, iOS, visionOS, watchOS 27 and ideally Linux; Anthropic and Google Swift packages were announced as coming \"soon\".",
+          "source": "https://developer.apple.com/videos/play/wwdc2026/339/",
+          "note": null
+        },
+        {
+          "text": "The MLX adapter declares capabilities as `.guidedGeneration`, `.toolCalling`, `.reasoning`, `.vision` and default to guided generation only.",
+          "source": "https://github.com/ml-explore/mlx-swift-lm/blob/main/Libraries/MLXFoundationModels/README.md",
+          "note": null
+        },
+        {
+          "text": "The adapter is built with `#huggingFaceLanguageModel(configuration: LLMRegistry.qwen3_0_6b_4bit, capabilities: [.reasoning])` and needs the macOS/iOS/visionOS 27.0 SDK.",
+          "source": "https://github.com/ml-explore/mlx-swift-lm/blob/main/Libraries/MLXFoundationModels/README.md",
+          "note": null
+        },
+        {
+          "text": "The adapter's direct initializer takes `configuration:`, `capabilities:`, `weightsLocation:` and `load:` (Hugging Face download plus tokenizer loader).",
+          "source": "https://github.com/ml-explore/mlx-swift-lm/blob/main/Libraries/MLXFoundationModels/README.md",
+          "note": null
+        },
+        {
+          "text": "The adapter's SwiftPM trait `FoundationModelsIntegration` is on by default; with the trait on and an older SDK it compiles to an empty module.",
+          "source": "https://github.com/ml-explore/mlx-swift-lm/blob/main/Libraries/MLXFoundationModels/README.md",
+          "note": null
+        },
+        {
+          "text": "`MLXLanguageModel.availability` returns `.available`, `.downloading` or `.unavailable(...)`.",
+          "source": "https://github.com/ml-explore/mlx-swift-lm/blob/main/Libraries/MLXFoundationModels/README.md",
+          "note": null
+        },
+        {
+          "text": "Hugging Face's AnyLanguageModel (announced 2025-11-20) was a pre-27 drop-in replacement for FoundationModels with MLX, Core ML, llama.cpp (traits `MLX`, `CoreML`, `Llama`), Ollama HTTP, and cloud backends.",
+          "source": "https://huggingface.co/blog/anylanguagemodel",
+          "note": null
+        },
+        {
+          "text": "Core AI (iOS/macOS 27) converts PyTorch with `coreai-torch`, compiles with `coreai-build` to `.aimodelc`, and runs on CPU, GPU or Neural Engine; one benchmark README cites Qwen3-8B 4-bit at 94 tok/s on an M4 Max GPU.",
+          "source": "https://github.com/john-rocky/apple-silicon-llm-bench",
+          "note": null
+        },
+        {
+          "text": "A third-party benchmark row measured Apple's system model at TTFT 269 ms and 85.2 tok/s decode (n=3, tokens estimated at utf8/4, +/-20%, device not stated).",
+          "source": "https://github.com/john-rocky/apple-silicon-llm-bench",
+          "note": null
+        },
+        {
+          "text": "The 3B on-device model splits into two blocks (5:3 depth) with block-2 KV caches shared from block 1, cutting KV memory 37.5%.",
+          "source": "https://machinelearning.apple.com/research/apple-foundation-models-2025-updates",
+          "note": null
+        },
+        {
+          "text": "The on-device model's vocabulary grew from 100k to 150k and its vision encoder is ViTDet-L at 300M parameters.",
+          "source": "https://machinelearning.apple.com/research/apple-foundation-models-2025-updates",
+          "note": null
+        },
+        {
+          "text": "The adapter training toolkit's last release is 26.0.0 and it is not compatible with macOS 27 or later.",
+          "source": "https://developer.apple.com/apple-intelligence/foundation-models-adapter/",
+          "note": null
+        },
+        {
+          "text": "Each custom adapter is about 160 MB, one is needed per toolkit/OS version, and training needs an Apple Silicon Mac with 32 GB or a Linux GPU box and Python 3.11+.",
+          "source": "https://developer.apple.com/apple-intelligence/foundation-models-adapter/",
+          "note": null
+        },
+        {
+          "text": "The Foundation Models Framework Adapter Entitlement is needed to deploy adapters but not to train or test them locally.",
+          "source": "https://developer.apple.com/apple-intelligence/foundation-models-adapter/",
+          "note": null
+        },
+        {
+          "text": "On this machine (macOS 27.2, arm64) /usr/bin/fm exists and prints the unaccepted-license notice, confirming the license gate applies to a fresh account.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Inference for ordinary Mac use is not billed or rate-limited when the system model is used; costs and daily limits apply to PCC and third-party server models only.",
+          "source": "asserted",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Corrections and disagreements",
+      "facts": [
+        {
+          "text": "CONTRADICTS: on-device-local-llm-runtimes.md says fm CLI offers PCC; the shipping macOS 27.0 build (fm 2.0.68.1.402) tested lists only the `system` model while WWDC and a beta write-up show `--model pcc` and `quota-usage`.",
+          "source": "https://medium.com/@michael.hannecke/apples-model-at-the-command-line-what-fm-serve-leaves-to-you-6a7a702d66c9",
+          "note": null
+        },
+        {
+          "text": "CONTRADICTS: on-device-local-llm-runtimes.md says OS 27 on-device context is 8192; session 319 says the on-device model offers \"4k\" context vs 32K for PCC, and TN3193 says 4096 per session.",
+          "source": "https://developer.apple.com/videos/play/wwdc2026/319/",
+          "note": null
+        },
+        {
+          "text": "CONTRADICTS (within sources): articles show `MLXLanguageModel(modelID: \"mlx-community/...\")`, but the adapter README documents a macro or `configuration:`/`weightsLocation:`/`load:`; the session sample's `modelID:` is Apple's placeholder.",
+          "source": "https://medium.com/@nuthalapativarun/mlx-is-now-a-first-class-citizen-in-apples-ai-stack-run-any-hugging-face-model-through-foundation-9dfb8dad2191",
+          "note": null
+        },
+        {
+          "text": "CONTRADICTS: on-device-local-llm-runtimes.md lists the Python SDK under OS 27; the SDK requires macOS 26.0+ and has existed since 2026-02.",
+          "source": "https://apple.github.io/python-apple-fm-sdk/getting_started.html",
+          "note": null
+        },
+        {
+          "text": "CONTRADICTS (soft): on-device-local-llm-runtimes.md lists \"rank-32 LoRA adapters that must be retrained per model version\" without noting that no adapter toolkit exists for OS 27; the toolkit ended at 26.0.0.",
+          "source": "https://developer.apple.com/apple-intelligence/foundation-models-adapter/",
+          "note": null
+        }
+      ]
+    }
+  ],
+  "related": []
+}

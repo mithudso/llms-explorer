@@ -1,0 +1,259 @@
+{
+  "slug": "gguf-re-upload-versioning-and-stale-cache-hygien",
+  "concept": "GGUF re-upload versioning and stale cache hygiene",
+  "generated": "2026-10-05",
+  "summary": "Hugging Face cache layout: `blobs/` holds files named by hash; `refs/<branch>` holds the commit hash currently seen for that ref; `snapshots/<commit>/` holds symlinks to blobs, one folder per revision ever fetched. An unchanged file is shared between revisions through the same blob.",
+  "facets": [
+    {
+      "title": "Facts",
+      "facts": [
+        {
+          "text": "Hugging Face cache layout: `blobs/` holds files named by hash; `refs/<branch>` holds the commit hash currently seen for that ref; `snapshots/<commit>/` holds symlinks to blobs, one folder per revision ever fetched. An unchanged file is shared between revisions through the same blob.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "When a repo is updated at the same filename, the next `hf download` of main resolves a new commit, writes a new `snapshots/<new-commit>/` folder and updates `refs/main`; the old snapshot and its blobs stay on disk until deleted. So a re-upload doubles disk use for each changed GGUF until pruned.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "`hf cache ls --revisions` lists per-revision snapshots; `hf cache verify <repo>` checks cached file checksums; `hf cache rm <id>` deletes an entry; `hf cache prune` is listed without a stated scope on the page read (for Xet it removes shared files no cached repo uses); filters such as `--filter \"size>30g\"` and `--filter \"accessed>1y\"` select entries.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Pinning: `hf download <repo> --revision <commit|branch|tag>` fetches a fixed revision; `resolve_revision()` resolves main to a commit once so multiple files come from one commit, because two calls seconds apart can land on different commits if the repo changes in between.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Xet-backed files are stored once per content hash across repos (shared blobs), so identical bytes in two repos cost one copy; older clients (including llama.cpp and anything that follows symlinks) can delete a shared file that other repos still use, forcing a re-download.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "llama.cpp `-hf` uses its own cache directory; `LLAMA_CACHE` selects where it saves.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Unsloth Studio/Desktop reuses already-present GGUF files instead of downloading again whenever a model loads, so a stale file persists unless the user removes it.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "2026-03-05: Unsloth docs banner \"Redownload Qwen3.5 35B, 27B, 122B and 397B\"; the only notice is a dated line on a guide page.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "2026-03-27 / 2026-04-01: Unsloth Studio starts detecting models already in the HF cache and LM Studio folders; then lets users select an existing folder.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "2026-05-18: Unsloth Studio warns when its bundled llama.cpp prebuilt is stale or too old for MTP.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "2026-07-20: Unsloth reuses existing GGUF files whenever a model loads.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "2026-08-19: Qwen3.8-27B Dynamic v3.0 update: non-dynamic files such as `Qwen3.8-27B-Q4_K_M.gguf` were deleted from the repo; an `MTP` folder appeared.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "2026-09-22: Studio can reuse downloaded models without duplicate copies and inspect or clear caches in Settings.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Partial update: after the Qwen3.8 v3 re-upload a user reported `UD-Q8_K_XL` \"wasn't updated or included in the benchmarks\"; one repo can hold files from different generations, so checking the commit date of each file matters, not the repo's last-modified time.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Embedded chat template not refreshed: users reported later in the same thread that the new GGUFs still raised `Jinja Exception: System message must be at the beginning.` with Claude Code (HTTP 500 from llama-server), pointing at an earlier discussion (42) that carried the template fix.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Preview versus final under one name: a user reported the final Dynamic v3 UD 2-bit-XL did worse than the earlier preview v3 file on a coding test (anecdote), which shows that \"update\" can regress for a given workload and the old file is no longer downloadable by name.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Deleted variants: a plain Q4_K_M that a script referenced by filename disappears and a `-hf repo:Q4_K_M` style reference may then fail or resolve to a different file (inferred, not reported).",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "mmproj mismatch: the vision projector is a separate GGUF, not versioned with the text GGUF; a wrong or stale one fails at load with `mtmd_init_from_file: error: mismatch between text model (n_embd = 2816) and mmproj (n_embd = 1536)`.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Desktop uninstall does not clean models: removing the app (or `~/.unsloth/studio`) leaves HF model files in `~/.cache/huggingface/hub/` and LM Studio models in their own folder.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Stuck downloads: Unsloth documents a Hugging Face Hub Xet debugging section for stalled downloads and ships an HTTP fallback for stalled downloads in its core package.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Whether a re-upload is a fix: Unsloth's pinned thread says \"nothing was broken\" and the update was \"purely an update to make them EVEN BETTER\" (existing file); users in the same thread report a template error that persisted and a regression versus the preview. Both are reported; the vendor does not publish per-file changelogs or hashes.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "No source says how LM Studio or Ollama detect a changed upstream GGUF (LM Studio keeps its own `lm-studio/models` store, which Unsloth Studio says llama.cpp cannot see by default).",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "No source lists a stable machine-readable version marker for Unsloth GGUF re-uploads; the HF commit hash and per-file sha256 are the only handles.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "The Hugging Face cache stores files in `blobs/` named by hash, branch-to-commit mappings in `refs/`, and one `snapshots/<commit>/` folder per fetched revision containing symlinks to blobs.",
+          "source": "https://huggingface.co/docs/huggingface_hub/en/guides/manage-cache",
+          "note": null
+        },
+        {
+          "text": "A file unchanged between two revisions shares one blob, so it is not downloaded again when the second revision is fetched.",
+          "source": "https://huggingface.co/docs/huggingface_hub/en/guides/manage-cache",
+          "note": null
+        },
+        {
+          "text": "Re-downloading from a reference after the repo head changes updates the `refs/<ref>` file to the new commit hash.",
+          "source": "https://huggingface.co/docs/huggingface_hub/en/guides/manage-cache",
+          "note": null
+        },
+        {
+          "text": "`HfApi.resolve_revision()` resolves a branch to a commit once so many file downloads use one commit; two per-file resolutions seconds apart can land on different commits if the repo is updated in between.",
+          "source": "https://huggingface.co/docs/huggingface_hub/en/guides/manage-cache",
+          "note": null
+        },
+        {
+          "text": "The revision-to-commit mapping is written into `refs/`, so a later offline resolve can use it.",
+          "source": "https://huggingface.co/docs/huggingface_hub/en/guides/manage-cache",
+          "note": null
+        },
+        {
+          "text": "Xet files are deduplicated across repos in the cache, with each repo blob a relative symlink to one shared blob.",
+          "source": "https://huggingface.co/docs/huggingface_hub/en/guides/manage-cache",
+          "note": null
+        },
+        {
+          "text": "Older clients including llama.cpp and anything that follows symlinks keep reading normally, but their cache-deletion tools may delete a shared file other repos still use; the fix is an up-to-date `huggingface_hub` for `hf cache rm` and `hf cache prune`.",
+          "source": "https://huggingface.co/docs/huggingface_hub/en/guides/manage-cache",
+          "note": null
+        },
+        {
+          "text": "`HF_HUB_DISABLE_XET=1` disables the shared store and `HF_HUB_DISABLE_SHARED_BLOBS=1` opts out of cross-repo sharing.",
+          "source": "https://huggingface.co/docs/huggingface_hub/en/guides/manage-cache",
+          "note": null
+        },
+        {
+          "text": "`hf cache` offers `ls`, `ls --revisions`, `rm`, `prune` and `verify`; `hf cache ls` accepts filters such as `size>30g` and `accessed>1y` and `-q` for IDs that can be piped to `hf cache rm`.",
+          "source": "https://huggingface.co/docs/huggingface_hub/en/guides/cli",
+          "note": null
+        },
+        {
+          "text": "`hf download --revision` accepts a commit hash, branch or tag.",
+          "source": "https://huggingface.co/docs/huggingface_hub/en/guides/cli",
+          "note": null
+        },
+        {
+          "text": "Unsloth's Qwen3.5 guide carries \"Mar 5 Update: Redownload Qwen3.5-35B, 27B, 122B and 397B\".",
+          "source": "https://unsloth.ai/docs/models/qwen3.5",
+          "note": null
+        },
+        {
+          "text": "Unsloth's guides tell users to `export LLAMA_CACHE=\"folder\"` to force llama.cpp to save a model to a chosen location.",
+          "source": "https://unsloth.ai/docs/models/qwen3.5",
+          "note": null
+        },
+        {
+          "text": "Unsloth Studio detects models downloaded to the Hugging Face hub cache; LM Studio GGUFs in `~/.cache/lm-studio/models` or `~/lm-studio/models` are not visible to llama.cpp by default and must be copied into the HF cache or another path.",
+          "source": "https://unsloth.ai/docs/new/studio/chat",
+          "note": null
+        },
+        {
+          "text": "Unsloth Studio added automatic detection of existing models on 2026-03-27 and a user-selected existing-folder option on 2026-04-01.",
+          "source": "https://unsloth.ai/docs/new/studio/chat",
+          "note": null
+        },
+        {
+          "text": "Unsloth's July 20 2026 changelog says existing GGUF files are reused instead of being downloaded again whenever a model loads.",
+          "source": "https://unsloth.ai/docs/new/changelog",
+          "note": null
+        },
+        {
+          "text": "Unsloth's May 18 2026 changelog says Studio warns when the bundled llama.cpp prebuilt is stale or too old for MTP.",
+          "source": "https://unsloth.ai/docs/new/changelog",
+          "note": null
+        },
+        {
+          "text": "Unsloth's September 22 2026 changelog says reuse of downloaded models avoids duplicate copies and that caches can be inspected or cleared from Settings.",
+          "source": "https://unsloth.ai/docs/new/changelog",
+          "note": null
+        },
+        {
+          "text": "Unsloth's uninstall steps for Studio and Desktop do not touch downloaded HF model files; the default location is `~/.cache/huggingface/hub/` unless `HF_HUB_CACHE` or `HF_HOME` is set.",
+          "source": "https://unsloth.ai/docs/get-started/install/mac",
+          "note": null
+        },
+        {
+          "text": "In the pinned Qwen3.8-27B thread a user noted the non-dynamic `Qwen3.8-27B-Q4_K_M.gguf` files were deleted.",
+          "source": "https://huggingface.co/unsloth/Qwen3.8-27B-GGUF/discussions/74",
+          "note": null
+        },
+        {
+          "text": "In the same thread a user asked why `UD-Q8_K_XL` was not updated and said it still had the broken Jinja template.",
+          "source": "https://huggingface.co/unsloth/Qwen3.8-27B-GGUF/discussions/74",
+          "note": null
+        },
+        {
+          "text": "A user reported llama-server error `Jinja Exception: System message must be at the beginning.` with Claude Code on the new GGUFs and linked an earlier discussion that carried the template fix.",
+          "source": "https://huggingface.co/unsloth/Qwen3.8-27B-GGUF/discussions/74",
+          "note": null
+        },
+        {
+          "text": "A user reported the final Dynamic v3 UD 2-bit-XL did worse than the older preview v3 build on one coding task (single anecdote).",
+          "source": "https://huggingface.co/unsloth/Qwen3.8-27B-GGUF/discussions/74",
+          "note": null
+        },
+        {
+          "text": "llama.cpp refuses an mmproj whose embedding size differs from the text model with `mtmd_init_from_file: error: mismatch between text model (n_embd = 2816) and mmproj (n_embd = 1536)`.",
+          "source": "https://github.com/ggml-org/llama.cpp/discussions/22190",
+          "note": null
+        },
+        {
+          "text": "Unsloth's Gemma 4 guide points stalled Hugging Face downloads to a Xet debugging section.",
+          "source": "https://unsloth.ai/docs/models/gemma-4",
+          "note": null
+        },
+        {
+          "text": "After any vendor re-upload, run `hf cache ls --revisions`, delete older snapshots with `hf cache rm`, and verify with `hf cache verify`, since only the commit hash differs.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "For reproducible Mac benchmarks, pin `--revision <commit>` and record each GGUF's sha256 next to results.",
+          "source": "asserted",
+          "note": null
+        }
+      ]
+    }
+  ],
+  "related": []
+}

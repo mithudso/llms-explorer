@@ -1,0 +1,299 @@
+{
+  "slug": "mac-local-llms-runtime-selection-and-frontends",
+  "concept": "Mac local LLMs: Runtime selection and frontends",
+  "generated": "2026-10-05",
+  "summary": "Runtime dominates format: Ollama measured 37% slower than LM Studio on the same GGUF; oMLX 2.2x faster than LM Studio on MLX; MLX ~10-25% faster than llama.cpp in 2026 on a 512 GB Studio.",
+  "facets": [
+    {
+      "title": "Choosing a runtime",
+      "facts": [
+        {
+          "text": "Runtime dominates format: Ollama measured 37% slower than LM Studio on the same GGUF; oMLX 2.2x faster than LM Studio on MLX; MLX ~10-25% faster than llama.cpp in 2026 on a 512 GB Studio.",
+          "source": "https://atomic.chat/blog/guides/gguf-vs-mlx",
+          "note": null
+        },
+        {
+          "text": "Dense vs MoE: Mac Studio bake-off had MLX 41% faster on dense 27B 4-bit (30.72 vs 20.86 tok/s at 512 tokens) but Ollama GGUF faster on 30B-A3B MoE (91.23 vs 68.06). Test both paths before accepting an MLX default.",
+          "source": "https://zachrattner.com/projects/ai-mac-cluster/mlx-vs-ollama",
+          "note": null
+        },
+        {
+          "text": "Nemotron-3 Nano 30B-A3B hybrid Mamba-2 MoE on M4 Max: MLX 159.7 vs llama.cpp Metal 86.2 tok/s, but quants differ (4-bit vs ~6.2 bpw). mlx-lm support for the 30B hybrid is still maturing; 9B/12B v2 are safer.",
+          "source": "https://github.com/ggml-org/llama.cpp/discussions/20421",
+          "note": null
+        },
+        {
+          "text": "Uniform MLX 4-bit loses more quality than GGUF Q4_K_M; M1/M2 choke on bf16 MLX weights (converting to fp16 cut Gemma 3 12B 8K prefill 114.4s to 68.9s).",
+          "source": "https://atomic.chat/blog/guides/gguf-vs-mlx",
+          "note": null
+        },
+        {
+          "text": "Unsloth Studio/Desktop (Tauri, beta) runs GGUF and MLX, connects to OpenAI, Anthropic, Ollama, llama.cpp, vLLM backends.",
+          "source": "https://unsloth.ai/docs/desktop",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "RAM tiers and GPU memory",
+      "facts": [
+        {
+          "text": "Sizing shortcut: ~0.6 GB per billion params at Q4; budget ~70% of RAM (85% on 128 GB+). Plan 32K+ context; it adds to weights.",
+          "source": "https://modelfit.io/mac-studio/",
+          "note": null
+        },
+        {
+          "text": "GPU default cap is ~65-75% on 32 GB and smaller (32 GB gets ~21-24 GB), not a flat 75%. Correction to an earlier claim of ~75%.",
+          "source": "https://stencel.io/posts/apple-silicon-limitations-with-usage-on-local-llm%20.html",
+          "note": null
+        },
+        {
+          "text": "24 GB: comfort ceiling 20-32B; a ~20 GB load stutters when browser tabs open. 32 GB: MoE (Qwen3.6-35B-A3B Q4 ~22-23 GB, ~3x faster) or dense Qwen3.8 27B Q4 (16.9-18.3 GB). 64 GB: Llama 3.3 70B Q4 (43 GB) leaves ~5 GB; gpt-oss-120b (65 GB) does not fit. 128 GB: gpt-oss-120b,.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "48 GB, 70B Q4 (~42 GB) exceeds the default 36 GB window and Ollama splits CPU/GPU (~2 tok/s); after raising to 40 GB it ran 9-10 tok/s. Verify with `ollama ps` showing \"100% GPU\".",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Raise the cap: `sudo sysctl iogpu.wired_limit_mb=N` (N above model MB, below RAM; wiring needs macOS 15+). Modern macOS ignores /etc/sysctl.conf, so persist via a /Library/LaunchDaemons plist.",
+          "source": "https://github.com/ml-explore/mlx-lm",
+          "note": null
+        },
+        {
+          "text": "LM Studio ignored the sysctl on a 128 GB M3 Max (126976 set): ~64 GB effective limit, models over ~70 GB \"Likely too large\" (#651, open).",
+          "source": "https://github.com/lmstudio-ai/lmstudio-bug-tracker/issues/651",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Ollama",
+      "facts": [
+        {
+          "text": "Install: ollama.dmg to /Applications (links CLI into /usr/local/bin), `curl -fsSL https://ollama.com/install.sh | sh`, or brew (launchd via `brew services`). State in ~/.ollama; logs ~/.ollama/logs/app.log and server.log.",
+          "source": "https://docs.ollama.com/macos",
+          "note": null
+        },
+        {
+          "text": "App-mode env vars need `launchctl setenv OLLAMA_HOST \"0.0.0.0:11434\"` then an app restart.",
+          "source": "https://docs.ollama.com/faq",
+          "note": null
+        },
+        {
+          "text": "OLLAMA_KEEP_ALIVE default 5m (0 unloads immediately, negative = forever); `ollama stop <model>` unloads now. Memory scales with OLLAMA_NUM_PARALLEL x OLLAMA_CONTEXT_LENGTH.",
+          "source": "https://docs.ollama.com/faq",
+          "note": null
+        },
+        {
+          "text": "Default context tiers 4k/32k/256k by VRAM, so a 32 GB Mac defaults to 32k and 16 GB to 4k.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Release line: 0.19 (2026-03-30) MLX preview (>32 GB Macs). Runner check: `ollama runner --mlx-engine` vs `llama-server` subprocess.",
+          "source": "https://terminalbytes.com/ollama-vs-llama-cpp-vs-mlx-mac-2026",
+          "note": null
+        },
+        {
+          "text": "0.40.0-rc0 (25 Sep 2026, pre-release, branched from 0.34.4) runs untagged names like `ollama run qwen3.8` on MLX. Stable on 2026-10-04 is 0.35.1. No opt-out flag, architecture list or rollback guidance is documented.",
+          "source": "https://github.com/ollama/ollama/releases/tag/v0.40.0-rc0",
+          "note": null
+        },
+        {
+          "text": "32 GB risk: MLX prefix cache fixed at 8 GiB swapped a 32 GB M1 Max (30.7 GB used, 10.1 GB swap, issues 18131/18132, no maintainer reply). Requested OLLAMA_MLX_PREFIX_CACHE_BYTES may not exist. Mitigate with smaller `num_ctx` and OLLAMA_KEEP_ALIVE=0, or pin 0.35.1.",
+          "source": "https://github.com/ollama/ollama/issues/18132",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "LM Studio",
+      "facts": [
+        {
+          "text": "Needs macOS 14+, Apple silicon, 16 GB+ advised. `lms runtime ls|update|remove|select llama.cpp|mlx`; `lms daemon update` upgrades llmster separately.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Defaults: Max Concurrent Predictions 4, JIT idle TTL 60 min, `lms load` has no TTL unless `--ttl`.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "API: native `/api/v1/*`, OpenAI `/v1/*`, Anthropic `/v1/messages`. Claude Code: `ANTHROPIC_BASE_URL=http://localhost:1234` and `ANTHROPIC_AUTH_TOKEN=lmstudio`.",
+          "source": "https://lmstudio.ai/docs/developer/anthropic-compat",
+          "note": null
+        },
+        {
+          "text": "Guardrails: 32B 4-bit failed to load on a 24 GB M4 mini; setting `\"mode\": \"off\"` in modelLoadingGuardrails loads but can freeze the Mac (#484, #499).",
+          "source": "https://github.com/lmstudio-ai/lms/issues/499",
+          "note": null
+        },
+        {
+          "text": "MLX engine: PR #352 (2026-07-24) sends batchable text models through BatchedVisionModelKit, not always plain mlx-lm as older docs say. Auto-fit overrides user context (log `configured=32,768 fitted=208,384`); a 200,000 request gave 152,576 on runtime 1.10.1 (#2191, #2250).",
+          "source": "https://github.com/lmstudio-ai/mlx-engine/pull/352",
+          "note": null
+        },
+        {
+          "text": "MLX failures: `ValueError: Model type gemma4 not supported. Error: No module named 'mlx_vlm.models.gemma4'` (0.4.8, fixed by mlx-vlm bump); `Cache is not trimmable` (#1319, revert to 0.3.31); `BatchRotatingKVCache.merge` broadcast_shapes ValueError kills the scheduler (#363, open).",
+          "source": "https://github.com/lmstudio-ai/lmstudio-bug-tracker/issues/1741",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "mlx-lm",
+      "facts": [
+        {
+          "text": "`pip install mlx-lm` now gets 0.32.0 (PyPI 2026-10-01); GitHub still shows v0.31.3 as latest. Corrects an earlier \"install from git main\" claim.",
+          "source": "https://pypi.org/project/mlx-lm/",
+          "note": null
+        },
+        {
+          "text": "`mlx_lm.server` defaults to 127.0.0.1:8080; continuous batching is off with a draft model or `--kv-bits`. Lower `--prefill-step-size` (e.g. 512) with KV quantization.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Kernel panic `\"completeMemory prepare count underflow\" @IOGPUMemory.cpp:550` (0.30.6, macOS 26.3, 80 GB wired, issue 883). Call `mx.metal.set_memory_limit(...)` before `mlx_lm.server.main()` so overflow raises a Python exception.",
+          "source": "https://github.com/ml-explore/mlx-lm/issues/883",
+          "note": null
+        },
+        {
+          "text": "Qwen3-Coder-30B-A3B 4-bit prints tool calls as raw XML until `\"tool_parser_type\": \"qwen3_coder\"` is added to tokenizer_config.json.",
+          "source": "https://medium.com/@michael.hannecke/how-my-local-coding-agent-crashed-my-mac-and-what-i-learned-about-mlx-memory-management-e0cbad0",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "llama.cpp, Llama-macOS, Unsloth",
+      "facts": [
+        {
+          "text": "llama.cpp default port: PR 26508 announces 8080 to 9931, but `llama-server` README on master still says 8080 (checked 2026-10-04). Only `llama serve` changes; pin with `LLAMA_ARG_PORT=8080`.",
+          "source": "https://github.com/ggml-org/llama.cpp/pull/26508",
+          "note": null
+        },
+        {
+          "text": "Llama-macOS app: port 2276, then 8080 (0.32.0), then 9931 (0.40.0); API ids became `{org}/{repo}:{TAG}` at 0.35.0. No password by default: use `defaults write app.llama.Llama extraServerArgs -string \"--api-key secret\"`. Overrides go in ~/.config/llama/models.user.ini.",
+          "source": "https://github.com/ggml-org/Llama-macOS",
+          "note": null
+        },
+        {
+          "text": "Unsloth: keys start `sk-unsloth-` (revoked keys give 401). Server-side Python/terminal/web tools are on by default and run as your user, so pass `--disable-tools` when fronting Claude Code or Codex. `UNSLOTH_STUDIO_HOME` isolates a second install.",
+          "source": "https://unsloth.ai/docs/basics/api",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Open questions",
+      "facts": [
+        {
+          "text": "Final 0.40.0 architecture list, any MLX opt-out, and a prefix-cache variable are unverified; LM Studio runtimes newer than 1.11.0 unchecked.",
+          "source": "asserted",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Corrections and disagreements",
+      "facts": [
+        {
+          "text": "CONTRADICTS: ~/.claude/skills/ai-llm-model-layer/references/on-device-local-llm-runtimes.md 7.1 \"last tag v0.31.3 ... install from git main\": PyPI has 0.32.0 (2026-10-01), so `pip install mlx-lm` should now get recent models.",
+          "source": "https://pypi.org/project/mlx-lm/",
+          "note": null
+        },
+        {
+          "text": "CONTRADICTS on-device-local-llm-runtimes.md s10 (\"GPU gets ~75% of RAM by default\"): the cap is lower, ~65-75%, on 32 GB and smaller Macs; a 32 GB Mac gets ~21-24 GB for the GPU.",
+          "source": "https://stencel.io/posts/apple-silicon-limitations-with-usage-on-local-llm%20.html",
+          "note": null
+        },
+        {
+          "text": "Merged PR #352 routes batchable text-only models through `BatchedVisionModelKit` (mlx-vlm) and keeps vocab-only, speculative, KV-quantized and non-mergeable models on the sequential path. CONTRADICTS lm-studio-on-mac.md, which says mlx-lm text implementations are always used.",
+          "source": "https://github.com/lmstudio-ai/mlx-engine/pull/352",
+          "note": null
+        },
+        {
+          "text": "CONTRADICTS: llama-macos-menu-bar-app.md line 53 (\"Whether llama.cpp's own default port actually switched to 9931 was not confirmed\"): it is now confirmed that a switch is announced via merged PR 26508 but not yet applied to llama-server in the README.",
+          "source": "https://github.com/ggml-org/llama.cpp/pull/26508",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Concepts in this cluster",
+      "facts": [
+        {
+          "text": "LM Studio on Mac",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "MLX and mlx-lm on Apple silicon",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Model selection by Mac RAM tier",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Ollama on macOS",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "LM Studio MLX engine",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Llama-macOS menu-bar app",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Ollama 0.40 MLX-by-default rollout and opt-out",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Unsloth Desktop Studio macOS app running GGUF and MLX",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "llama.cpp default port change to 9931",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Unsloth Studio as an Anthropic-compatible endpoint for Claude Code",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "llama serve command (router-mode daemon front end)",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Unsloth server-side tools versus agent passthrough",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Hybrid Mamba-2 and MoE model support across Mac runtimes",
+          "source": "asserted",
+          "note": null
+        }
+      ]
+    }
+  ],
+  "related": []
+}

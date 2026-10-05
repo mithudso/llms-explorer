@@ -1,0 +1,124 @@
+{
+  "slug": "per-token-collective-count-times-per-call-latenc",
+  "concept": "Per-token collective count times per-call latency model",
+  "generated": "2026-10-05",
+  "summary": "Per-token synchronisation time on a tensor-parallel Mac cluster is modelled as `T_sync = G x t_gate`, where `G` is the number of cross-machine exchanges per decoded token and `t_gate` is the time one exchange adds to the critical path.",
+  "facets": [
+    {
+      "title": "Facts",
+      "facts": [
+        {
+          "text": "Per-token synchronisation time on a tensor-parallel Mac cluster is modelled as `T_sync = G x t_gate`, where `G` is the number of cross-machine exchanges per decoded token and `t_gate` is the time one exchange adds to the critical path.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "`G` depends on the engine. ds4 resident TP uses 2 gates per layer (`DS4_TP_GATES_PER_LAYER = 2`); ds4 GLM with streaming uses one per sparse layer (existing dossiers); an mlx-lm TP run uses about two all-sums per layer.",
+          "source": "https://raw.githubusercontent.com/antirez/ds4/main/ds4_tp.h",
+          "note": null
+        },
+        {
+          "text": "`t_gate` is not one number. For ds4 it is the number of 16384-byte messages in a gate times the per-message cost, plus the wait for the peer's partial result: `chunks_per_gate = ceil(vec_bytes / 16384)` with `vec_bytes = n_embd x 4`, so a model with `n_embd <= 4096` sends one message per gate and larger ones send more.",
+          "source": "https://raw.githubusercontent.com/antirez/ds4/main/ds4_tp.c",
+          "note": null
+        },
+        {
+          "text": "ds4 keeps 16 gates of receives posted ahead during decode (`DS4_TP_RDMA_RECV_WINDOW = 16`), so the receive side is not on the critical path for each gate; the send and the peer's compute are.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "A measured per-round cost exists for JACCL with and without fast synch. Exo PR 2377's standalone loop on 2 Mac Studio M3 Ultra over Thunderbolt 5 does 8 rounds per step of a bf16 matmul followed by `all_sum` of 16x5120 values, and the step takes 3.2 ms with fast synch off and 1.56 ms on, with exo's pinned MLX and with upstream MLX main alike.",
+          "source": "https://github.com/exo-explore/exo/pull/2377",
+          "note": null
+        },
+        {
+          "text": "Dividing by 8 gives about 0.40 ms per round off and 0.195 ms per round on, so fast synch saves about 0.2 ms per round. Each round includes the matmul, so 0.195 ms is an upper bound on the collective's own cost with fast synch on, and the 0.2 ms saving assumes the matmul time does not change.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "At 160 KiB per `all_sum` (16x5120 bf16, assuming bf16 payload) the loop is larger than a batch-1 decode partial (about 10 KiB at `n_embd = 5120` in bf16), so it likely overstates small-message cost.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "The existing dossiers could not confirm the figure of 0.26 ms saved per `all_sum` by fast synch. The PR 2377 loop is the first fetched measurement of the same quantity and gives 0.2 ms, the same order.",
+          "source": "https://github.com/exo-explore/exo/pull/2377",
+          "note": null
+        },
+        {
+          "text": "With fast synch off, a 100-collective token costs about 100 x 0.4 = 40 ms of matmul-plus-collective in that loop; with it on, about 19.5 ms. These are loop numbers, not model decode numbers, and the matmul shapes differ.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "ds4 bounds its gate waits with a deadline from `DS4_TP_GATE_TIMEOUT_MS` (default 750 ms), so a stalled peer should show up as an over-long `t_gate` rather than an unbounded wait.",
+          "source": "https://raw.githubusercontent.com/antirez/ds4/main/ds4_tp.c",
+          "note": null
+        },
+        {
+          "text": "ds4 skips RDMA and uses TCP when `n_embd x 4` exceeds twice the 16384-byte message limit, that is for `n_embd > 8192`.",
+          "source": "https://raw.githubusercontent.com/antirez/ds4/main/ds4_tp.c",
+          "note": null
+        },
+        {
+          "text": "Per-collective latency: 3 us (exo tweet), about 10 us (PR 3152), 50 to 100 us (guruswami), and now 0.2 to 0.4 ms per matmul-plus-collective round (PR 2377). The first three are collective-only claims on small messages; the last includes compute and a 160 KiB payload. They are not the same quantity and should not be averaged.",
+          "source": "https://github.com/exo-explore/exo/pull/2377",
+          "note": null
+        },
+        {
+          "text": "A model-free loop with an 8 to 10 KiB payload, one matmul-free `all_sum` per step, fast synch off and on, on 2 and 4 nodes. The PR 2377 loop is the nearest data but still includes the matmul.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "How much of `t_gate` for ds4 is the peer's slower partial (load imbalance) rather than the wire.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "A model of per-token sync time is exchanges per token times per-exchange critical-path time.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "ds4 splits a gate into `ceil(n_embd x 4 / 16384)` messages, so models with `n_embd <= 4096` use one message per gate.",
+          "source": "https://raw.githubusercontent.com/antirez/ds4/main/ds4_tp.c",
+          "note": null
+        },
+        {
+          "text": "ds4 keeps 16 gates of decode receives posted ahead.",
+          "source": "https://raw.githubusercontent.com/antirez/ds4/main/ds4_tp.c",
+          "note": null
+        },
+        {
+          "text": "ds4 falls back to TCP for `n_embd > 8192` because the gate exceeds twice the RDMA message limit.",
+          "source": "https://raw.githubusercontent.com/antirez/ds4/main/ds4_tp.c",
+          "note": null
+        },
+        {
+          "text": "Exo PR 2377 measured 3.2 ms per step (8 rounds of bf16 matmul plus 16x5120 `all_sum`) with fast synch off and 1.56 ms on, on 2 Mac Studio M3 Ultra 512 GB over Thunderbolt 5 with JACCL.",
+          "source": "https://github.com/exo-explore/exo/pull/2377",
+          "note": null
+        },
+        {
+          "text": "That loop implies about 0.40 ms per round with fast synch off and 0.195 ms on, a saving near 0.2 ms per round.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "The PR 2377 payload (16 rows) is larger than a batch-1 decode partial, so it is not a decode-sized latency.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "ds4's gate wait deadline defaults to 750 ms.",
+          "source": "https://raw.githubusercontent.com/antirez/ds4/main/ds4_tp.c",
+          "note": null
+        }
+      ]
+    }
+  ],
+  "related": []
+}

@@ -1,0 +1,214 @@
+{
+  "slug": "jangpress-cold-expert-eviction-for-moe-larger-th",
+  "concept": "JangPress cold-expert eviction for MoE larger than RAM",
+  "generated": "2026-10-05",
+  "summary": "Policy API: `LoadConfiguration.default` auto-detects, falls back to environment variables, and caps residency at 70% by default; `config.jangPress = .enabled(coldFraction: 0.70)` pins the cold fraction, `.disabled` restores pre-JangPress behavior, `maxResidentBytes = .unlimited` removes the cap, ...",
+  "facets": [
+    {
+      "title": "Facts",
+      "facts": [
+        {
+          "text": "Policy API: `LoadConfiguration.default` auto-detects, falls back to environment variables, and caps residency at 70% by default; `config.jangPress = .enabled(coldFraction: 0.70)` pins the cold fraction, `.disabled` restores pre-JangPress behavior, `maxResidentBytes = .unlimited` removes the cap, and `runtime.status()` reports `enabled` and `coldFraction`.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "The wrapper script exposes `pct` (recommended 100 on a 128 GB Mac, \"maximum routed-expert mass evicted\", 50-70 on 256 GB+), `--jang-press-force-mode soft|force` (default soft; `force` only when first inference needs more aggressive reclaim, with slowdown), `--enable-jangpress-router-advice`, and `VMLX_JANGPRESS_ROUTE_TELEMETRY`.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "`JANGPRESS_PRESTACK` (default on) regenerates a prestack overlay of about 150 GB per Kimi variant on first load into `JANGPRESS_PRESTACK_CACHE_DIR` (default under `~/Library/Caches`); later loads of the same bundle are fast. The overlay connects the on-disk JANGTQ tile layout to the shape Metal expects without making routed weights resident.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "`VMLX_MEMORY_BUDGET_OVERRIDE` (default 256 GB in the script) bypasses the load gate's \"model requires about 234 GB peak\" check; calling `vmlxctl serve` directly without it fails with `insufficient memory: model requires ≈234 GB peak`.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Low-RAM serve flags (`KIMI_LOW_RAM=1`) disable prefix, memory and disk KV caches and idle behavior, set `kv-cache-quantization=none` and default thinking off.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Reported published bundles keep a subset of the routed experts: Kimi-K2.6-Small-JANGTQ keeps 211 of 384 (153 GB), Med 250 of 384 (167 GB), Large 288 of 384 (about 190 GB). These are pruned/re-quantized derivatives, not the full 384-expert model.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "A JANG bundle's routed experts are packed as JANGTQ tiles aligned for direct mmap, so no `MLX.stacked` materialization happens at load.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "2026-05-04: JangPress guide \"validation status\" date. 2026-05-09: \"Tighten JANGTQ runtime and JangPress bring-up\" commit in jang-runtime. jang 2.5.18 release notes mention JangPress, DSV4 hybrid SWA+CSA+HSA runtime and Swift/Python examples.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "The upstream Swift guide `docs/JANGPRESS.md` that both jangq pages point to returned 404 on the main branches of osaurus-ai/vmlx-swift-lm and jjang-ai/vmlx-swift-lm at the 2026-10-04 fetch, and the osaurus-ai/vmlx-swift-lm README fetched does not mention JangPress.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Idle resident set after load is about 1 GB while virtual size is about 600 GB; Activity Monitor's large number is virtual mmap reservation, not RAM.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Decode is slow under heavy eviction: the guide says \"seconds-per-token under stress\" and the MMLU runner's HTTP timeout was raised to 600 s because requests hang under refault.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "First inference on a 167 GB bundle on 128 GB is sensitive to memory pressure; the guide advises `KIMI_LOW_RAM=1` and `JANGPRESS_PRESTACK=1` for the first pass.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Route-telemetry readback peaked at 130 GB physical footprint before token 1, so it is kept off for Kimi. A layer-boundary eval diagnostic (`KIMI_LAYER_EVAL=1`) did not reduce the 130 GB footprint on Small.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Loading needs shadow-config workarounds for two vMLX routing and decoding bugs (`model_type kimi_k25` with `has_vision: false` promoted to the top level); without them the load fails with \"Unsupported model type: kimi_k25\" or \"kimi_k2\".",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "JangPress is not a speedup: for bundles much smaller than RAM it is optional and `JANGPRESS=disabled` is byte-compatible with the pre-JangPress path; for bundles near RAM (DSV4-Flash JANG_2L on 192 GB) it mainly keeps idle RSS near 1 GB. Dense JANGTQ bundles are not a target because the cold-tier ABI is per routed expert.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "No token-rate figure under eviction is published; the 20.5 tok/s (M3 Ultra, JANGTQ2 79.5 GB) and 24.5 tok/s Swift numbers in the JANG README are for a 79.5 GB bundle, not a larger-than-RAM run.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Eviction policy versus streaming engines. JangPress advises the kernel to drop expert pages (`MADV_DONTNEED`) per token, whereas Flash-MoE found `madvise` hints neutral or harmful and ds4 keeps an explicit expert cache. JangPress's authors report a different failure (prefill footprint), not a slower decode, so the comparison is untested.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "No source reports a decode speed for any Kimi-K2.6 JANGTQ bundle under JangPress eviction, or any coherent first token on a 128 GB Mac after the status note.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Whether the upstream `docs/JANGPRESS.md` exists on another branch or has been removed.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "How the router-advice mode chooses a hot set and its resident-bytes cap is documented only in the missing upstream guide.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Whether `MADV_DONTNEED` on a file-backed mapping is honored the same way on macOS 26-27 (it only drops clean pages) is not documented in these sources.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "JangPress combines mmap-backed safetensors, `madvise(MADV_DONTNEED)` over canonical routed-expert pages at load and per token, and an optional router-aware per-layer hot set.",
+          "source": "https://raw.githubusercontent.com/jjang-ai/jangq/main/docs/JANGPRESS.md",
+          "note": null
+        },
+        {
+          "text": "JangPress is OS mmap and page reclaim, not custom compressed expert blobs, so no proprietary on-disk format is involved.",
+          "source": "https://raw.githubusercontent.com/jjang-ai/jangq/main/docs/JANGPRESS.md",
+          "note": null
+        },
+        {
+          "text": "JangPress's Swift API defaults to auto-detect with environment fallback and a 70% resident cap, and offers `.enabled(coldFraction:)`, `.disabled`, `maxResidentBytes = .unlimited` and `runtime.status()`.",
+          "source": "https://raw.githubusercontent.com/jjang-ai/jangq/main/docs/JANGPRESS.md",
+          "note": null
+        },
+        {
+          "text": "The JangPress guide says decode is slower under heavy eviction (seconds per token under stress) but that the bundle is \"runnable, not just loadable\".",
+          "source": "https://raw.githubusercontent.com/jjang-ai/jangq/main/docs/JANGPRESS.md",
+          "note": null
+        },
+        {
+          "text": "The JangPress guide's validation (2026-05-04) records Kimi-K2.6-Small-JANGTQ (153 GB) load-validating on an M4 Max 128 GB with 12,660 routed expert tiles (129.8 GB) under management and about 0.7 GB post-load footprint, and Med (167 GB) first inference being memory-pressure sensitive.",
+          "source": "https://raw.githubusercontent.com/jjang-ai/jangq/main/docs/JANGPRESS.md",
+          "note": null
+        },
+        {
+          "text": "The JangPress guide says routed-MoE bundles larger than RAM need it to fit, bundles near RAM benefit from idle RSS of about 1 GB, bundles much smaller than RAM treat it as optional, and dense JANGTQ bundles are not a target.",
+          "source": "https://raw.githubusercontent.com/jjang-ai/jangq/main/docs/JANGPRESS.md",
+          "note": null
+        },
+        {
+          "text": "The prestack overlay is about 150 GB per Kimi variant, generated on first load and relocatable with `JANGPRESS_PRESTACK_CACHE_DIR`.",
+          "source": "https://raw.githubusercontent.com/jjang-ai/jangq/main/scripts/jangpress/README.md",
+          "note": null
+        },
+        {
+          "text": "The Kimi runtime README says Small and Med bundles load to `/health` on a 128 GB host but neither produced a single coherent token through `vmlxctl serve`, first prefill reaching about 130 GB process footprint with severe memory pressure before token 1.",
+          "source": "https://raw.githubusercontent.com/jjang-ai/jangq/main/scripts/jangpress/README.md",
+          "note": null
+        },
+        {
+          "text": "Kimi-K2.6-Small, Med and Large JANGTQ keep 211, 250 and 288 of 384 routed experts at 153 GB, 167 GB and about 190 GB, with `pct=100` recommended on 128 GB Macs and 50-70 on 256 GB or more.",
+          "source": "https://raw.githubusercontent.com/jjang-ai/jangq/main/scripts/jangpress/README.md",
+          "note": null
+        },
+        {
+          "text": "Idle resident set is about 1 GB while virtual size is about 600 GB, so Activity Monitor's large number is mmap reservation.",
+          "source": "https://raw.githubusercontent.com/jjang-ai/jangq/main/scripts/jangpress/README.md",
+          "note": null
+        },
+        {
+          "text": "`KIMI_JANGPRESS_FORCE_MODE` defaults to `soft`, `force` expects slowdown, `KIMI_ROUTER_ADVICE` defaults to 0, and route telemetry readback has peaked at 130 GB physical footprint before token 1.",
+          "source": "https://raw.githubusercontent.com/jjang-ai/jangq/main/scripts/jangpress/README.md",
+          "note": null
+        },
+        {
+          "text": "`KIMI_LOW_RAM=1` disables prefix, memory and disk KV caches, sets `kv-cache-quantization=none` and defaults thinking off.",
+          "source": "https://raw.githubusercontent.com/jjang-ai/jangq/main/scripts/jangpress/README.md",
+          "note": null
+        },
+        {
+          "text": "`VMLX_MEMORY_BUDGET_OVERRIDE` bypasses the load gate that otherwise fails with \"insufficient memory: model requires ≈234 GB peak\".",
+          "source": "https://raw.githubusercontent.com/jjang-ai/jangq/main/scripts/jangpress/README.md",
+          "note": null
+        },
+        {
+          "text": "The jangq README states 20.5 tok/s decode on an M3 Ultra at JANGTQ2 (79.5 GB) and 24.5 tok/s on Swift; the bundle size shown is not a larger-than-RAM case.",
+          "source": "https://github.com/jjang-ai/jangq",
+          "note": null
+        },
+        {
+          "text": "The jangq repo page lists the \"Tighten JANGTQ runtime and JangPress bring-up\" commit on 2026-05-09 and a jang 2.5.18 release including JangPress.",
+          "source": "https://github.com/jjang-ai/jangq",
+          "note": null
+        },
+        {
+          "text": "The upstream `docs/JANGPRESS.md` in vmlx-swift-lm returned 404 on the main branches of both the osaurus-ai and jjang-ai repositories.",
+          "source": "https://raw.githubusercontent.com/osaurus-ai/vmlx-swift-lm/main/docs/JANGPRESS.md",
+          "note": null
+        },
+        {
+          "text": "JangPress has no published decode rate for a bundle larger than RAM, so its \"runnable\" claim is unverified.",
+          "source": "asserted",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Corrections and disagreements",
+      "facts": [
+        {
+          "text": "CONTRADICTS: the jangq README headline and the two existing dossiers say a 167 GB Kimi-K2.6 bundle serves from a 128 GB Mac. The runtime-scripts README in the same repo says: \"Small and Med can load to /health, but neither has produced a single coherent token through vmlxctl serve. First prefill reaches ~130 GB process footprint and severe system memory pressure before token 1. Do not start MMLU until a one-token probe returns content.\" The JangPress guide's own validation section says only that the bundles \"load-validate\" and have a post-load footprint of about 0.7 GB. So the validated claim is loadable, not runnable; the \"runnable\" claim in the guide's introduction is not backed by any measured token.",
+          "source": "asserted",
+          "note": null
+        }
+      ]
+    }
+  ],
+  "related": []
+}

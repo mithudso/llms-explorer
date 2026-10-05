@@ -1,0 +1,194 @@
+{
+  "slug": "target-side-deferred-commit-for-recurrent-state",
+  "concept": "Target-side deferred commit for recurrent state (SGLang DFlash worker)",
+  "generated": "2026-10-05",
+  "summary": "Baseline in SGLang and vLLM (called full-state snapshotting): one recurrent-state snapshot per draft position is written during verify, and rollback is an index into the snapshots. Rollback is free; memory grows with the draft size and snapshots cannot be shared between tree branches.",
+  "facets": [
+    {
+      "title": "Facts",
+      "facts": [
+        {
+          "text": "Baseline in SGLang and vLLM (called full-state snapshotting): one recurrent-state snapshot per draft position is written during verify, and rollback is an index into the snapshots. Rollback is free; memory grows with the draft size and snapshots cannot be shared between tree branches.",
+          "source": "https://arxiv.org/html/2608.20961v1",
+          "note": null
+        },
+        {
+          "text": "DFlash on SGLang uses this baseline: for a block of size D the target keeps an intermediate SSM snapshot per draft position, `[num_mamba_layers, num_request_slots, D, state_shape]`.",
+          "source": "https://github.com/sgl-project/sglang/issues/28730",
+          "note": null
+        },
+        {
+          "text": "Reduced-cache replay (PR 28010, jianuo-huang): the server caches only the first K verify states and replays the accepted uncached tail after verification, controlled by `--speculative-dflash-mamba-cache-steps`; K = 0 is a true zero-snapshot path; values below the block size turn replay on automatically.",
+          "source": "https://github.com/sgl-project/sglang/pull/28010",
+          "note": null
+        },
+        {
+          "text": "Final-state recompute (PR 26520, closed 7 Aug 2026 without a merge shown on the page): `--gdn-mtp-cache-mode none` skips `intermediate_ssm`, keeps only the conv-window rollback state, stashes post-conv GDN inputs during target verify and runs a recovery-only recurrence kernel that writes the accepted final state after verify.",
+          "source": "https://github.com/sgl-project/sglang/pull/26520",
+          "note": null
+        },
+        {
+          "text": "Delta cache (PR 27658, strgrb): store three vectors per head and step (k, the corrected value delta, and the decay) instead of a `[128,128]` state, then rebuild with a replay kernel; the PR text estimates 560 MB per request for 70 layers, 64 heads and 4 draft tokens under the old scheme.",
+          "source": "https://github.com/sgl-project/sglang/pull/27658",
+          "note": null
+        },
+        {
+          "text": "ReplaySSM ring (PR 28695, merged 20 Jul 2026): a per-slot circular ring plus a frozen checkpoint. Verify writes ring records of size O(V+K) per token; the verify output is rebuilt output-only through a chunked `(I + A)^-1` transform; the committed state advances by the accepted count and a flush folds the ring into the checkpoint; a rejected draft is a cursor move.",
+          "source": "https://github.com/sgl-project/sglang/pull/28695",
+          "note": null
+        },
+        {
+          "text": "TreeWY (arXiv 2608.20961) describes the same family as a choice of when state is materialized: \"deferred materialization with a rank-1 cache (ReplaySSM)\" defers to a periodic flush, while TreeWY materializes only the accepted state on commit from a stored pseudo-value matrix.",
+          "source": "https://arxiv.org/html/2608.20961v1",
+          "note": null
+        },
+        {
+          "text": "15 Jun 2026: SGLang announces DFlash and Spec V2 with a `DFlashWorker`; the post does not describe hybrid state handling.",
+          "source": "https://www.lmsys.org/blog/2026-06-15-next-generation-speculative-decoding-dflash-v2/",
+          "note": null
+        },
+        {
+          "text": "19 Jun 2026: issue 28730 reports the verify-cache cost of DFlash on hybrid Mamba/GDN targets and links PRs 27658, 26520, 28695, 28451 and 28010. The issue was closed as completed on 18 Aug 2026.",
+          "source": "https://github.com/sgl-project/sglang/issues/28730",
+          "note": null
+        },
+        {
+          "text": "26 Jun 2026: PR 28451 (ReplaySSM buffered output-only decode for linear attention, GDN and KDA) merges; it ports the decode ring from Dao AI Lab's ReplaySSM blog behind `--enable-linear-replayssm`.",
+          "source": "https://github.com/sgl-project/sglang/pull/28451",
+          "note": null
+        },
+        {
+          "text": "20 Jul 2026: PR 28695 (ReplaySSM spec-verify, \"Part B of 28511\") merges as opt-in `--enable-gdn-replayssm-spec`.",
+          "source": "https://github.com/sgl-project/sglang/pull/28695",
+          "note": null
+        },
+        {
+          "text": "20 to 21 Jul 2026: PR 31850 and PR 32052 \"Fix hybrid recurrent-state commit for radix cache\" appear for DFlash; the cached page shows 31850 closed and 32052 open.",
+          "source": "https://github.com/sgl-project/sglang/pull/28010",
+          "note": null
+        },
+        {
+          "text": "11 Sep 2026: PR 39025 \"Defer accepted-state materialization for SM90 Triton verify\" (KDA) is a draft.",
+          "source": "https://github.com/sgl-project/sglang/pull/27658",
+          "note": null
+        },
+        {
+          "text": "20 Sep 2026: a stale bot closed PR 28010 after 91 days without updates; it was not merged.",
+          "source": "https://github.com/sgl-project/sglang/pull/28010",
+          "note": null
+        },
+        {
+          "text": "ReplaySSM's first revision folded stored chunked deltas into the checkpoint open-loop; the cancellation error of the `(I + A)^-1` transform (amplified up to `2^(BS-1)`) accumulated across flushes and the model degenerated at 16k or more output tokens (AIME-2024 0.767 against 0.933 for the recurrent baseline, one problem looping a single line 1,210 times). The merged design replays raw inputs in an exact fold, needs an fp32 SSM checkpoint, and measures AIME2025 0.800 for both.",
+          "source": "https://github.com/sgl-project/sglang/pull/28695",
+          "note": null
+        },
+        {
+          "text": "ReplaySSM's spec path is GDN-only and linear-chain only (`speculative-eagle-topk <= 1`); EAGLE tree verify, KDA and NPU or CPU fall back to the recurrent verify.",
+          "source": "https://github.com/sgl-project/sglang/pull/28695",
+          "note": null
+        },
+        {
+          "text": "The K = 4 and K = 8 partial-cache paths of PR 28010 were slower at concurrency 4 than K = 16 until the prompt count was raised, and the author blames sparse tail selection (`nonzero` and gather bookkeeping) that may replay short tails when the accepted length exceeds K, not the fused GDN kernel.",
+          "source": "https://github.com/sgl-project/sglang/pull/28010",
+          "note": null
+        },
+        {
+          "text": "A fix for deferred commit under the radix prefix cache was needed after merge (PRs 31850 and 32052), so prefix caching and deferred commit interact.",
+          "source": "https://github.com/sgl-project/sglang/pull/28010",
+          "note": null
+        },
+        {
+          "text": "Bandwidth gate: before writing PR 28695 the author measured the recurrent GDN verify forward at Qwen3.5-35B-A3B dims on an H20-3e (peak about 3.85 TB/s) as only 6.7% of peak HBM bandwidth at batch 1, 60.8% at 16, 74.7% at 64 and 79.4% at 256, so snapshot traffic matters mainly at higher batch.",
+          "source": "https://github.com/sgl-project/sglang/pull/28695",
+          "note": null
+        },
+        {
+          "text": "Value of the deferred approach at batch 1: PR 28010 shows K = 0 and K = 1 preserving single-stream throughput (123.71 and 126.45 tok/s against 124.43 at K = 16) while gaining 40 to 43% at concurrency 16; TreeWY's sweep shows throughput 0.93x to 0.94x at concurrency 1 and a gain only where memory binds (up to 1.49x). The two designs and GPUs differ. Both read the benefit as a memory and concurrency gain, not a single-stream speedup.",
+          "source": "https://github.com/sgl-project/sglang/pull/28010",
+          "note": null
+        },
+        {
+          "text": "Naming: PR 22105 calls SGLang's approach \"target-side deferred commit\"; SGLang's own issue and the two papers describe its DFlash default as per-position snapshotting, and call the ReplaySSM, K-step replay and final-state recompute schemes the deferred ones. The existing dossier line is not wrong about the goal (commit only the accepted prefix), but the April 2026 SGLang code stored a snapshot per draft position.",
+          "source": "https://github.com/sgl-project/sglang/issues/28730",
+          "note": null
+        },
+        {
+          "text": "Whether llama.cpp's recurrent memory will adopt a ring plus exact fold (the existing `n_rs_seq` ring already keeps per-token snapshots); no PR in this batch proposes it.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Whether a Metal kernel for the output-only `(I + A)^-1` verify transform exists; every kernel in these sources is Triton or CUDA.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Whether the exact-fold cost is acceptable on a bandwidth-limited Mac where batch is 1.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "For Qwen3Next or Qwen3.5-style GDN with about 36 linear layers, a DFlash block of 16, fp32 SSM state and 48 request slots, issue 28730 estimates the intermediate SSM cache at about 1,152 MiB per slot against about 73.7 MiB of normal Mamba/GDN state, about 15.8 times.",
+          "source": "https://github.com/sgl-project/sglang/issues/28730",
+          "note": null
+        },
+        {
+          "text": "The same issue estimates extra DFlash verify cache of about 55.6 GiB at TP = 1, 27.8 GiB at TP = 2, 13.9 GiB at TP = 4 and 7.0 GiB at TP = 8, and about 55.6, 28.1, 14.3, 3.9 and 0.5 GiB at TP = 1 for K = 16, 8, 4, 1 and 0 cached steps.",
+          "source": "https://github.com/sgl-project/sglang/issues/28730",
+          "note": null
+        },
+        {
+          "text": "PR 28010 on Qwen3.5-27B DFlash (2x A100 80GB, TP 2, block 16) matched exact greedy text against the K = 16 baseline for K of 0, 1, 4 and 8.",
+          "source": "https://github.com/sgl-project/sglang/pull/28010",
+          "note": null
+        },
+        {
+          "text": "At concurrency 16 on that setup output throughput was 576.78 tok/s at K = 16, 825.86 at K = 0 (1.43x), 805.28 at K = 1, 732.84 at K = 4 and 719.58 at K = 8, with accept length near 4.2 throughout.",
+          "source": "https://github.com/sgl-project/sglang/pull/28010",
+          "note": null
+        },
+        {
+          "text": "Intermediate SSM cache per TP rank fell from 11.25 GB at K = 16 to 1.20 GB at K = 1 and 0 at K = 0, and `max_mamba_cache_size` rose from 48 to 160 at K = 1 and 190 at K = 0.",
+          "source": "https://github.com/sgl-project/sglang/pull/28010",
+          "note": null
+        },
+        {
+          "text": "PR 26520 reports Qwen3.5-397B-A17B-FP8 on 4x GB200 GSM8K 0.978642 in `full` mode and 0.976354 in `none` mode, at 6,867 and 6,803 output tok/s.",
+          "source": "https://github.com/sgl-project/sglang/pull/26520",
+          "note": null
+        },
+        {
+          "text": "PR 27658 on Qwen3-Next-80B-A3B (H20, TP 4, NEXTN) shrank the Mamba cache allocation from 2.32 GB of intermediate SSM state to about 0.02 GB each for k, v and decay caches, and measured GSM8K 0.951 against 0.952 and 8k-in 1k-out TPOT 2.02 against 2.03 ms at batch 1.",
+          "source": "https://github.com/sgl-project/sglang/pull/27658",
+          "note": null
+        },
+        {
+          "text": "PR 28695 measured Qwen3.5-35B-A3B at concurrency 32 on H20-3e at 1,954.1 tok/s with ReplaySSM against 1,926.4 for the recurrent baseline, and removed 11.48 GB of `intermediate_ssm` for six ring buffers of 1.81 GB (6.4 times smaller, 11.5 GB freed per GPU at TP = 1).",
+          "source": "https://github.com/sgl-project/sglang/pull/28695",
+          "note": null
+        },
+        {
+          "text": "On Qwen3.5-122B-A10B (TP 4, NEXTN, draft 4, 8192-in 1024-out) PR 28695 reports output throughput gains of 30.3%, 26.1% and 15.1% and median TPOT cuts of 45.9%, 43.6% and 39.0% at concurrency 8, 16 and 32.",
+          "source": "https://github.com/sgl-project/sglang/pull/28695",
+          "note": null
+        },
+        {
+          "text": "ReplaySSM originates from Dao AI Lab (\"ReplaySSM: Cache SSM Inputs, Not State\", 2026) and shipped at the same time in a vLLM RFC (47572, PR 47576) and TensorRT-LLM (PR 14203), per TreeWY's reference list.",
+          "source": "https://arxiv.org/html/2608.20961v1",
+          "note": null
+        },
+        {
+          "text": "TreeWY reports that vLLM's default `store_all` commit costs k+1 state blocks per sequence per GDN layer, 120 MiB per sequence at 35B and 360 MiB at 397B for k = 3, and its `mamba_state_commit=\"reconstruct\"` mode keeps one block.",
+          "source": "https://arxiv.org/html/2608.20961v1",
+          "note": null
+        },
+        {
+          "text": "The llama.cpp DFlash PR names SGLang's target-side deferred commit as the more fundamental fix and says it needs deeper changes to llama.cpp's recurrent-state update flow; no PR in the cached pages implements it.",
+          "source": "https://github.com/ggml-org/llama.cpp/pull/22105",
+          "note": null
+        }
+      ]
+    }
+  ],
+  "related": []
+}

@@ -1,0 +1,589 @@
+{
+  "slug": "kv-cache-and-long-context-on-mac",
+  "concept": "KV cache and long context on Mac",
+  "generated": "2026-10-05",
+  "summary": "Generic formula needs a correction for hybrids: count only full-attention (global) layers; recurrent/linear layers add a constant state, sliding-window layers add a bounded ring.",
+  "facets": [
+    {
+      "title": "Facts",
+      "facts": [
+        {
+          "text": "Generic formula needs a correction for hybrids: count only full-attention (global) layers; recurrent/linear layers add a constant state, sliding-window layers add a bounded ring.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Qwen3.6-35B-A3B (HF card): 40 layers = 10 x (3 Gated DeltaNet -> 1 Gated Attention); attention has 16 Q heads, 2 KV heads, head_dim 256. KV = 10 x 2 x 2 x 256 x 2 B = 20 KiB/token fp16, so ~5 GiB at the 262,144-token native window. DeltaNet state is constant (~33 MB claimed).",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Qwen3.6-27B (dense hybrid): 64 layers = 16 x (3 DeltaNet -> 1 attention), 4 KV heads, head_dim 256 per the llama.cpp thread = 16 x 2 x 4 x 256 x 2 B = 64 KiB/token fp16, ~12.5 GiB at 200K. This 64 KiB figure is already the hybrid figure.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Gemma 3/4 in mlx-lm: local layers get `RotatingKVCache(max_size=sliding_window)` (bounded ring); global layers get plain `KVCache` that grows in 256-token steps and never evicts. \"Sliding window\" therefore does not bound memory; the global term is linear in context.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Gemma-4-26B-A4B per the mlx discussion: 30 layers, 5 global/25 local, window 1024, 8 KV heads, head_dim 256: global KV 40 KiB/token fp16 (20 KiB at 8-bit), local ring fixed ~200 MiB, crossover ~5,120 tokens, ~10 GiB fp16 global KV at 262K.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "llama.cpp cannot truncate recurrent or SWA memory. It keeps \"context checkpoints\" of only the non-reconstructible partial state (`LLAMA_STATE_SEQ_FLAGS_PARTIAL_ONLY`); full-attention KV is simply truncated. A miss on every checkpoint sets n_past to 0 and erases all checkpoints (full re-prefill).",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "mlx-lm: Mamba/ArraysCache (DeltaNet) state is not trimmable, so server reuse works for strictly appended conversations but not for \"same system prompt, new query\".",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Reasoning models: next-turn prompts drop prior reasoning tokens, so the cached key (P+R+A) diverges from the new prompt (P+A+...). This defeats prefix reuse on hybrid and SWA models in llama.cpp and mlx-lm alike.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Ollama MLX runner allocates context dynamically; GGUF runner pre-allocates. `ollama ps` CONTEXT on MLX models is the maximum supported (262144), SIZE is the live allocation.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "llama-server `--ctx-size` is a budget split across slots when `--parallel N` is explicit (ctx/N each); with auto slots and `--kv-unified` it is one shared pool.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "2025-05-20 llama.cpp SWA cache (PR #13194, build b5429): no token removal or position shift on SWA caches.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "2026-02 mlx-lm issue #903: Qwen3.5 cached-token counter always 0 on lm_server; 0.31.0 added server prompt_checkpoint; 0.31.2 (2026-04-07) cached system/user prompts for non-trimmable caches.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "2026-03 TurboQuant (Google, arXiv 2504.19874) triggers llama.cpp discussion #20969 and MLX forks; llama.cpp CPU PR #21089 (TBQ3_0/TBQ4_0) later closed unmerged (status as of 2026-06).",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "2026-03-30 Ollama 0.19 MLX preview; 2026-05 MLX runner dynamic-context behaviour clarified (#16219); 2026-08 #17875 cache-growth report on 0.32.12.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "2026-05-25 llama.cpp deletes `--checkpoint-every-n-tokens` (PR #22929); checkpoints now created at user-message boundaries (PR #24176, 2026-06-23); min-step eviction (PR #25472, 2026-07-12).",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "2026-09-09 mlx-lm server KV quantization lands (PR #1832, closes #1043 after four competing PRs). mlx-lm 0.32.0 released 2026-10-01.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "llama-server returns HTTP 200 and a correct answer while silently re-prefilling the whole conversation every turn. The only evidence is the log line \"forcing full prompt re-processing due to lack of cache data\", printed at trace verbosity (-lv 4); default -lv 3 never shows it.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "An oversized request (86,082 tokens on a 65,536 slot) is rejected with 400; the next request is assigned a slot by LRU, not prefix similarity; n_past = 3 vs 12,134 stored tokens; 15 checkpoints x 149.626 MiB (~2.19 GiB) erased in one step.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "With `-cms` at its 8192 default and agent turns ~800 tokens apart, most per-user-message checkpoints are created then evicted (\"erasing context checkpoint too close to an earlier one\").",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "On unified memory `--cache-ram` (default 8192 MiB) is not a second tier: it competes with weights and KV for the same pool.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "mlx-lm LRU prompt cache keeps the pre-trim copy on a partial hit: a 10 GB cache forked 10 times costs 100 GB. For reasoning models the pre-reasoning copy is never reused.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Quantized-KV in mlx-lm server: mixed-cache models (full-attention + `RotatingKVCache`) fail because rotating caches expose `to_quantized()` but raise NotImplementedError; only supported layers must be quantized. In one 62 GB Laguna setup that left ~72 MiB of bounded BF16 rotating state.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "`mlx_lm.server` on a 48 GB M5 Pro with Qwen3.6-27B 4-bit crashed after a few exchanges with `kIOGPUCommandBufferCallbackErrorOutOfMemory` (an uncaught C++ exception, distinct from the kernel-panic string `completeMemory() prepare count underflow`); `--prompt-cache-size 0 --prompt-cache-bytes 0` did not prevent it.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Capping Metal with `mx.metal.set_memory_limit(48 * 1024**3)` before importing `mlx_lm.server` turns the 64 GB-machine panic into a Python exception.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Ollama MLX runner: an 8 GB snapshot cache of past branches means resident SIZE climbs 18 GB -> 26 GB over ~23 independent calls then plateaus; whether real tool-calling sessions grow past that is disputed (see Disagreements).",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Gemma 4 E2B/E4B: llama.cpp issue #21468 reports cache reuse unsupported despite `-fa` and `--swa-full` (opened 2026-04-05; resolution not read).",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Persistent agent state: on an M4 Pro with 10.2 GB cache budget only 3 agents fit at 8K fp16; re-prefill of 4K on Gemma 3 12B costs 15.7 s (~260 tok/s prefill) versus 577 ms restore from disk.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Gemma 4 26B-A4B global layer count. mlx discussion #3840: 30 layers, 5 global, ~10 GiB at 262K. Hannecke crash post and sibling dossier: 10 global / 50 sliding, >20 GB at full context (10 global x 80 KiB/token x 262K = ~20 GiB is arithmetically consistent with that figure). Unresolved; read the HF config.json before sizing.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "TurboQuant in llama.cpp. wal.sh (April 2026): \"lands\" in PR #20969 with 3.5 bpw blocks and ~4.6x. modelpiper (updated 2026-08-12): PR #21089 closed without merging, \"no live PR to wait on\", upstream adopted only parts of the rotation technique. Hannecke (2026-03-31): not merged, needs fork. Current merge status unverified; forks exist.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Which of K or V needs more bits. Hannecke llama.cpp post (via sibling): V-cache quantization is more quality-sensitive than K. #20969 community: keys need more bits (K/V norm disparity 4-182x), best config q8_0 K + 3-bit TurboQuant V. Both end at \"K higher precision than V\" for the TurboQuant case; they disagree on the plain q4_0 case.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Does MLX beat llama.cpp on a Mac at long context? stared (M5 Max 128 GB, 8-bit, 2026-06-14): llama.cpp beats MLX by 10-24% on Qwen3.6, opposite of folk wisdom. wal.sh/starmorph: MLX 20-87% faster below 14B, advantage collapses at 27B+. Towards AI (sibling): MLX degrades near 40K with long prefill.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Ollama MLX memory growth. #17875 reporter: unbounded growth, 45-56 GB incidents under KEEP_ALIVE=-1. Ollama maintainer (jessegross): expected, 8 GB cache; ask for longer-session numbers. Reporter's Test A plateau at 26 GB agrees with maintainer; Test B (89 KB tool schema, 99.95% cache hit) kept growing past 28 GB.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "llama.cpp checkpoint fix status: two reprocessing issues were still open on 2026-07-28; merged PRs improved bookkeeping and community reports conflict. Neither \"fixed\" nor \"broken\" is established.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Does the Ollama MLX runner honour OLLAMA_KV_CACHE_TYPE (the #17875 repro sets q8_0, effect unmeasured)?",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Does llama.cpp TBQ/turbo cache types reach master, and what is the fused-kernel Metal speed vs q8_0?",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Practical max context per RAM tier measured end-to-end (weights + KV + OS), not derived; no source gives a table that includes wired-limit effects.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Is the 18-GB-floor + 8 GB cache behaviour in Ollama configurable?",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Outcome of llama.cpp #21468 and of mlx-lm PRs #1476/#1353/#1618 vs merged #1832.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Qwen3.6-35B-A3B has 40 layers in a 10 x (3 Gated DeltaNet + 1 Gated Attention) layout, 16 Q / 2 KV heads and head_dim 256 on the attention layers.",
+          "source": "https://huggingface.co/Qwen/Qwen3.6-35B-A3B",
+          "note": null
+        },
+        {
+          "text": "Qwen3.6-35B-A3B native context is 262,144 tokens, extensible to 1,010,000; Qwen advises keeping at least 128K to preserve thinking capability.",
+          "source": "https://huggingface.co/Qwen/Qwen3.6-35B-A3B",
+          "note": null
+        },
+        {
+          "text": "Qwen3.6-35B-A3B fp16 KV is 20 KiB/token (10 layers x 2 x 2 heads x 256 x 2 B), about 5 GiB at 262K.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Hannecke states the Qwen3.5-35B-A3B FP16 KV for the 10 full-attention layers grows past 5 GB at 262K and the GatedDeltaNet ArraysCache stays ~33 MB.",
+          "source": "https://medium.com/@michael.hannecke/turboquant-on-apple-macos-five-integration-paths-for-local-kv-cache-compression-42e83959d414",
+          "note": null
+        },
+        {
+          "text": "A community measurement on Qwen3.5-35B-A3B reported about 800 MB extra VRAM going from ctx 4096 to 65536.",
+          "source": "https://wal.sh/research/qwen3.6-local-first-inference/",
+          "note": null
+        },
+        {
+          "text": "Qwen3.6-27B KV is 16 attention layers x 2 x 4 KV heads x 256 x 2 B = 64 KiB/token fp16, about 12.5 GiB at 200K.",
+          "source": "https://wal.sh/research/qwen3.6-local-first-inference/",
+          "note": null
+        },
+        {
+          "text": "wal.sh's \"~18x total reduction over a dense fp16 baseline\" double-counts: its 64 KiB/token baseline is already the hybrid figure.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Hannecke says Qwen3.6-27B and Qwen3.5-9B use 4 KV heads on Gated Attention layers and that the classic n_layers formula over-counts hybrids by 4x.",
+          "source": "https://medium.com/@michael.hannecke/tuning-llama-server-on-apple-silicon-9b3e778ab100",
+          "note": null
+        },
+        {
+          "text": "Gemma-3/4 local layers use `RotatingKVCache(max_size=sliding_window, keep=0)` and global layers use unbounded `KVCache` in mlx-lm (gemma4_text.py:662, gemma3_text.py:247).",
+          "source": "https://github.com/ml-explore/mlx/discussions/3840",
+          "note": null
+        },
+        {
+          "text": "`KVCache` in mlx-lm grows its buffer in step=256 blocks via mx.concatenate and never caps or evicts.",
+          "source": "https://github.com/ml-explore/mlx/discussions/3840",
+          "note": null
+        },
+        {
+          "text": "Gemma-4-26B-A4B per that discussion: 5 global/25 local layers, window 1024, 8 KV heads, head_dim 256, 40 KiB/token global KV fp16, local ring ~200 MiB fixed, crossover ~5,120 tokens.",
+          "source": "https://github.com/ml-explore/mlx/discussions/3840",
+          "note": null
+        },
+        {
+          "text": "A Gemma-4-26B server (third-party OpenAI-compatible, ~15 GB 4-bit weights) reached 34 GB resident, then \"Out of cache blocks / Cannot allocate block\" stalls, and crept to ~65 GB over days with a larger prefix-cache budget.",
+          "source": "https://github.com/ml-explore/mlx/discussions/3840",
+          "note": null
+        },
+        {
+          "text": "8-bit KV halves the slope of the Gemma global-KV term but it stays linear.",
+          "source": "https://github.com/ml-explore/mlx/discussions/3840",
+          "note": null
+        },
+        {
+          "text": "The Gemma 4 E2B local layers use a 512-token sliding window.",
+          "source": "https://lmstudio.ai/blog/mlx-engine-agentic-workloads",
+          "note": null
+        },
+        {
+          "text": "Gemma 4 max context is 128K for E2B/E4B and 262,144 for 12B/26B-A4B/31B.",
+          "source": "https://unsloth.ai/docs/models/gemma-4",
+          "note": null
+        },
+        {
+          "text": "llama.cpp has three separate cache mechanisms: prompt cache/prefix reuse (`--cache-prompt` on, `--cache-reuse` 0), in-RAM context checkpoints (`-ctxcp`, `-cms`, `-cram`), and manual slot save/restore to disk (`--slot-save-path`, `POST /slots/{id}?action=save|restore`).",
+          "source": "https://particula.tech/blog/prompt-reprocessing-swa-hybrid-models-kv-cache",
+          "note": null
+        },
+        {
+          "text": "llama-server defaults on master (2026-07-28): `-ctxcp` 32 per slot, `-cms` 8192 tokens (eviction floor, not creation cadence), `-cram` 8192 MiB (-1 unlimited, 0 off), `-sps` 0.10, `--context-shift` disabled, `--cache-idle-slots` enabled, `--swa-full` false.",
+          "source": "https://particula.tech/blog/prompt-reprocessing-swa-hybrid-models-kv-cache",
+          "note": null
+        },
+        {
+          "text": "`--checkpoint-every-n-tokens` was removed by PR #22929 (2026-05-25) and now fails to parse; checkpoints are created at user-message boundaries (PR #24176, 2026-06-23).",
+          "source": "https://particula.tech/blog/prompt-reprocessing-swa-hybrid-models-kv-cache",
+          "note": null
+        },
+        {
+          "text": "`--cache-disk` / `--cache-disk-max` do not exist; they are only proposed in issue #20697.",
+          "source": "https://particula.tech/blog/prompt-reprocessing-swa-hybrid-models-kv-cache",
+          "note": null
+        },
+        {
+          "text": "`--cache-reuse` is silently disabled with a log line when the context cannot do KV shifting.",
+          "source": "https://particula.tech/blog/prompt-reprocessing-swa-hybrid-models-kv-cache",
+          "note": null
+        },
+        {
+          "text": "`--swa-full` has no effect when n_swa == 0; for Gemma it only matters beyond the 1024-token window.",
+          "source": "https://github.com/ggml-org/llama.cpp/discussions/13606",
+          "note": null
+        },
+        {
+          "text": "Observed checkpoint sizes run 62.8, 149.6 and 188-214 MiB, growing with position; 32 checkpoints at 150 MiB is ~4.7 GiB.",
+          "source": "https://particula.tech/blog/prompt-reprocessing-swa-hybrid-models-kv-cache",
+          "note": null
+        },
+        {
+          "text": "Debug recipe: run at `-lv 4`, grep \"forcing full prompt|context checkpoint|Checking checkpoint|n_past =\", add `--log-prompts-dir DIR` and diff consecutive prompt dumps to prove the client mutates the prefix.",
+          "source": "https://particula.tech/blog/prompt-reprocessing-swa-hybrid-models-kv-cache",
+          "note": null
+        },
+        {
+          "text": "`-rea off` does not preserve cache: the assistant turn still emits two empty think tokens that are stripped next turn; `--reasoning-preserve` exists on master for templates advertising `supports_preserve_reasoning`.",
+          "source": "https://particula.tech/blog/prompt-reprocessing-swa-hybrid-models-kv-cache",
+          "note": null
+        },
+        {
+          "text": "Full-attention-only models need no checkpoints on llama.cpp because prefix KV can be truncated.",
+          "source": "https://particula.tech/blog/prompt-reprocessing-swa-hybrid-models-kv-cache",
+          "note": null
+        },
+        {
+          "text": "`LLAMA_ATTN_ROT_DISABLE=1` force-disables attention rotation (meaningful with quantized KV), reported as a workaround for the re-processing symptom; use for isolation only.",
+          "source": "https://particula.tech/blog/prompt-reprocessing-swa-hybrid-models-kv-cache",
+          "note": null
+        },
+        {
+          "text": "vLLM's hybrid KV manager handles exactly two cache groups; SGLang stores int8-compressed recurrent states per radix node (a design claim in a code comment, not a benchmark).",
+          "source": "https://particula.tech/blog/prompt-reprocessing-swa-hybrid-models-kv-cache",
+          "note": null
+        },
+        {
+          "text": "With `--parallel N` explicit and `--no-kv-unified`, `--ctx-size M` gives M/N tokens per slot; with auto slots and `--kv-unified` the pool is shared; setting `--parallel` explicitly makes capacity predictable.",
+          "source": "https://medium.com/@michael.hannecke/tuning-llama-server-on-apple-silicon-9b3e778ab100",
+          "note": null
+        },
+        {
+          "text": "llama-server `--cache-reuse` is the recommended lever for agent loops with stable system prompts.",
+          "source": "https://medium.com/@michael.hannecke/tuning-llama-server-on-apple-silicon-9b3e778ab100",
+          "note": null
+        },
+        {
+          "text": "mlx-lm maintainer awni (2026-02-17): the Mamba cache cannot be trimmed, so a continuing conversation caches but a repeated system prompt with a new query must be reprocessed.",
+          "source": "https://github.com/ml-explore/mlx-lm/issues/903",
+          "note": null
+        },
+        {
+          "text": "mlx-lm's LRU prompt cache leaves the pre-trim cache in memory when trimming; a 10 GB cache copied 10 times costs 100 GB; the maintainers planned size-aware eviction.",
+          "source": "https://github.com/ml-explore/mlx-lm/issues/903",
+          "note": null
+        },
+        {
+          "text": "awni proposed saving the prompt cache only up to just before the reasoning output for reasoning models, which also gives hybrid models a usable cache point.",
+          "source": "https://github.com/ml-explore/mlx-lm/issues/903",
+          "note": null
+        },
+        {
+          "text": "A user patch moving the hybrid-model checkpoint to just before the last user message turned a Qwen3.5-35B-A3B request #2 from 11962/11967 tokens processed to 57/379.",
+          "source": "https://github.com/ml-explore/mlx-lm/issues/903",
+          "note": null
+        },
+        {
+          "text": "A LM Studio + OpenCode user reported Qwen3.5-35B-A3B 4-bit reprocessing the whole prompt on every message and tool call, 10-15 s becoming 1m46s.",
+          "source": "https://github.com/ml-explore/mlx-lm/issues/903",
+          "note": null
+        },
+        {
+          "text": "mlx-lm server KV quantization was requested 2026-03-22 (#1043), had four competing PRs (#1309, #1353, #1476, #1618), and was closed by #1832 on 2026-09-09.",
+          "source": "https://github.com/ml-explore/mlx-lm/issues/1043",
+          "note": null
+        },
+        {
+          "text": "The mlx-lm `generate` KV-quant args are `--kv-bits`, `--kv-group-size` (default 64) and `--quantized-kv-start` (default 5000); the server lacked a quantization hook because BatchGenerator never called `maybe_quantize_kv_cache`.",
+          "source": "https://github.com/ml-explore/mlx-lm/issues/1043",
+          "note": null
+        },
+        {
+          "text": "On an M3 Pro 36 GB serving Qwen3.6-35B-A3B 4-bit, fp16-KV serving OOMed at ~78-92K tokens; non-server `--kv-bits 4` cleared ~92-113K, greedy-lossless 10/10 with 15/15 long-context recall at 83.5K.",
+          "source": "https://github.com/ml-explore/mlx-lm/issues/1043",
+          "note": null
+        },
+        {
+          "text": "On a 128 GB M5 Max with a 62 GB Laguna S 2.1 model, affine KV4 group-size 64 kept a 100,047-token prefill whose retained KV4 prefix was 1.46 GB with no new swap growth.",
+          "source": "https://github.com/ml-explore/mlx-lm/issues/1043",
+          "note": null
+        },
+        {
+          "text": "Server KV quantization forced sequential serving, and sequential mode ignored `--prompt-cache-bytes` until PR #1118 (8 lines).",
+          "source": "https://github.com/ml-explore/mlx-lm/issues/1043",
+          "note": null
+        },
+        {
+          "text": "mlx-lm 0.32.0 (2026-10-01) README still documents the rotating cache (`--max-kv-size n`) under generate/cache_prompt, not the server.",
+          "source": "https://pypi.org/project/mlx-lm/",
+          "note": null
+        },
+        {
+          "text": "`mlx_lm.server` on M5 Pro 48 GB with Qwen3.6-27B-UD-MLX-4bit died with `libc++abi: terminating due to uncaught exception of type std::runtime_error: (00000008:kIOGPUCommandBufferCallbackErrorOutOfMemory)`.",
+          "source": "https://blog.kulman.sk/running-local-llm-coding-server/",
+          "note": null
+        },
+        {
+          "text": "The same author ran Ollama qwen3.6:27b (Q4_K_M GGUF, 24 GB, CONTEXT 32768) and qwen3.6:35b-a3b-mxfp8 (37 GB of 48 GB, 100% GPU) stably; Ollama's qwen3.6:27b shipped presence_penalty 1.5.",
+          "source": "https://blog.kulman.sk/running-local-llm-coding-server/",
+          "note": null
+        },
+        {
+          "text": "Setting `mx.metal.set_memory_limit(48 GB)` before launching mlx_lm.server on a 64 GB Mac converts the GPU-driver panic into a Python exception when KV hits the cap.",
+          "source": "https://medium.com/@michael.hannecke/how-my-local-coding-agent-crashed-my-mac-and-what-i-learned-about-mlx-memory-management-e0cbad01553c",
+          "note": null
+        },
+        {
+          "text": "Ollama MLX runner: \"dynamic context, doesn't pre-allocate buffer space\"; `ollama ps` CONTEXT shows the maximum (262144 for qwen3.6 nvfp4) and SIZE shows live allocation, so Modelfile `num_ctx` appears ignored but is not a bug (maintainer rick-github, 2026-05-19).",
+          "source": "https://github.com/ollama/ollama/issues/16219",
+          "note": null
+        },
+        {
+          "text": "Ollama MLX runner keeps an 8 GB cache (`maxPagedOutBytes`) of snapshots from past branches (maintainer jessegross, 2026-08-19); qwen3.8:27b-mlx SIZE rose 18 GB -> 26 GB in 23 trivial calls and stayed flat to 60 calls.",
+          "source": "https://github.com/ollama/ollama/issues/17875",
+          "note": null
+        },
+        {
+          "text": "In a tool-calling test (32 tools, ~89 KB schema) the same runner grew 18 -> 28 GB with 99.95% reported cache hits and never shrank; OLLAMA_KEEP_ALIVE=0 stops accumulation by discarding the prefix cache every turn.",
+          "source": "https://github.com/ollama/ollama/issues/17875",
+          "note": null
+        },
+        {
+          "text": "The #17875 repro environment sets OLLAMA_KV_CACHE_TYPE=q8_0 and OLLAMA_FLASH_ATTENTION=1 on v0.32.12; whether the MLX runner honours them is not stated.",
+          "source": "https://github.com/ollama/ollama/issues/17875",
+          "note": null
+        },
+        {
+          "text": "Ollama enables flash attention automatically since October 2025; OLLAMA_FLASH_ATTENTION is now a three-state override; the macOS app needs `launchctl setenv` for OLLAMA_KV_CACHE_TYPE.",
+          "source": "https://modelpiper.com/blog/ollama-kv-cache-quantization",
+          "note": null
+        },
+        {
+          "text": "TurboQuant llama.cpp PR #21089 (CPU-only TBQ3_0/TBQ4_0) was closed without merging after maintainer review (status as of June 2026, page updated 2026-08-12).",
+          "source": "https://modelpiper.com/blog/ollama-kv-cache-quantization",
+          "note": null
+        },
+        {
+          "text": "tbq3_0 = 3.0625 bits/value (98 B per 256-element block), tbq4_0 = 4.0625 bits/value (3.8x).",
+          "source": "https://medium.com/@michael.hannecke/turboquant-on-apple-macos-five-integration-paths-for-local-kv-cache-compression-42e83959d414",
+          "note": null
+        },
+        {
+          "text": "Community result on Qwen3.5-35B-A3B Q4_K_M: PPL 6.20 vs 6.19 baseline with TurboQuant KV; the paper itself only evaluated models up to ~8B.",
+          "source": "https://medium.com/@michael.hannecke/turboquant-on-apple-macos-five-integration-paths-for-local-kv-cache-compression-42e83959d414",
+          "note": null
+        },
+        {
+          "text": "TheTom's Metal fork reached 0.78x of q8_0 prefill (2,095 vs 2,694 tok/s) because the Walsh-Hadamard rotation is O(d^2) per block; later fork work reported sparse-V dequant +22.8% decode at 32K on M5 Max and a 4-mag LUT +38% decode on M2 Pro at 8K.",
+          "source": "https://github.com/ggml-org/llama.cpp/discussions/20969",
+          "note": null
+        },
+        {
+          "text": "Recommended asymmetric TurboQuant config from the thread: `--cache-type-k q8_0 --cache-type-v tbq3_0`, because K/V norms differ 4-182x.",
+          "source": "https://medium.com/@michael.hannecke/turboquant-on-apple-macos-five-integration-paths-for-local-kv-cache-compression-42e83959d414",
+          "note": null
+        },
+        {
+          "text": "mlx-optiq 0.0.2 provides `TurboQuantKVCache` for mlx-lm with no fused Metal dequant kernel; flovflo benchmark reported -44% cache size, +32% prompt and +26% generation speed on Qwen3.5-35B-A3B-4bit.",
+          "source": "https://medium.com/@michael.hannecke/turboquant-on-apple-macos-five-integration-paths-for-local-kv-cache-compression-42e83959d414",
+          "note": null
+        },
+        {
+          "text": "Hannecke (secondary) reports mlx-lm uniform 4-bit KV quantization reaching perplexity above 500 on small models while larger models tolerate it.",
+          "source": "https://medium.com/@michael.hannecke/turboquant-on-apple-macos-five-integration-paths-for-local-kv-cache-compression-42e83959d414",
+          "note": null
+        },
+        {
+          "text": "`optiq serve` (drop-in for mlx_lm.server, vendor docs) offers `--kv-bits 4` or per-layer `--kv-config`; it claims a 24 GB Mac at 32K peaks at 7.60 GB vs 16.35 GB for stock mlx-lm u4, within +-2% of fp16 speed.",
+          "source": "https://mlx-optiq.pages.dev/docs/serve",
+          "note": null
+        },
+        {
+          "text": "`optiq serve` reuses the shared prefix automatically (LRU in RAM, byte budget `--prompt-cache-bytes`) and reports `usage.prompt_tokens_details.cached_tokens`; a 4,306/4,331-token reuse cut TTFT from ~0.97 s to ~0.24 s on Qwen3.5-0.8B.",
+          "source": "https://mlx-optiq.pages.dev/docs/serve",
+          "note": null
+        },
+        {
+          "text": "oMLX keeps a hot in-memory KV tier plus a cold SSD tier of safetensors blocks restored after restarts, flags `--paged-ssd-cache-dir`, `--hot-cache-max-size`; default SSD limit is 50% of free disk plus existing cache.",
+          "source": "https://github.com/jundot/omlx",
+          "note": null
+        },
+        {
+          "text": "Persistent per-agent Q4 KV cache (safetensors on SSD): restore 577 ms warm/719 ms hot vs 15.7 s re-prefill at 4K on Gemma 3 12B (M4 Pro), 4x more agents than fp16, perplexity change -0.7% to +3.0% across three models.",
+          "source": "https://arxiv.org/html/2603.04428v1",
+          "note": null
+        },
+        {
+          "text": "LM Studio mlx-engine v1.8.5 on M3 Max 36 GB (Qwen3.6-27B-MLX-4bit, parallel=4, 32,876 input tokens): extra RAM after run 6.47 GB -> 1.18 GB (82% less), parallel chat 15.24 -> 33.97 tok/s.",
+          "source": "https://lmstudio.ai/blog/mlx-engine-agentic-workloads",
+          "note": null
+        },
+        {
+          "text": "stared (M5 Max 128 GB, 8-bit, llama.cpp): Qwen3.6-35B-A3B decode 93 tok/s at 128 context -> 87 at 8K (-6.5%); with MTP 105 -> 97; MLX 85 -> 79; dense Qwen3.6-27B 18 -> 17 (llama.cpp), 17 -> 17 (MLX).",
+          "source": "https://github.com/stared/benching-local-llms-on-apple-silicon",
+          "note": null
+        },
+        {
+          "text": "Same benchmark: llama.cpp beat MLX by 10-24% on these models, and MLX used less memory (35B-A3B 37 vs 44 GB; 27B 28 vs 41 GB).",
+          "source": "https://github.com/stared/benching-local-llms-on-apple-silicon",
+          "note": null
+        },
+        {
+          "text": "Secondary claims, unsourced: Q4_0 KV can be up to 92% slower than fp16 at 64K from dequant overhead, and Gemma 3 with even q8_0 KV drops GPU use to 20-30% with CPU at 100% while Qwen is fine.",
+          "source": "https://omniforge.online/blog/your-local-llm-is-slow-because-of-five-config-flags",
+          "note": null
+        },
+        {
+          "text": "The same \"92% slower at 64K\" claim is repeated by another secondary guide with a 32 GB practical-context table (14B 32-64K, 30B-A3B and 27B 8-16K, q8_0 KV roughly doubles it) and \"10x slower at 40-50K tokens\".",
+          "source": "https://blog.starmorph.com/blog/apple-silicon-llm-inference-optimization-guide",
+          "note": null
+        },
+        {
+          "text": "Rathod's promo posts compute Llama-3.1-8B KV as 4.2 GB at 8K and 16.8 GB at 32K (32 KV heads, no GQA); this overstates the true 128 KiB/token (1 GiB at 8K) by 4x.",
+          "source": "https://medium.com/@rajveer.rathod1301/why-your-mac-llm-just-died-and-the-missing-piece-nobody-talks-about-240039733d6a",
+          "note": null
+        },
+        {
+          "text": "Same post: Qwen2.5-32B 4-bit (17.5 GB) on a 24 GB Mac left ~0.2 GB for KV and the process was killed within 2 tokens by the memory watchdog.",
+          "source": "https://medium.com/@rajveer.rathod1301/why-your-mac-llm-just-died-and-the-missing-piece-nobody-talks-about-240039733d6a",
+          "note": null
+        },
+        {
+          "text": "A 64 GB M4 Max user reports Qwen3.8-Flash-Next at 4.27 bpw with an MTP head and 168K context holding 30-40 tok/s; the page title says 244k context while the URL says 168k; the article is paywalled.",
+          "source": "https://xhinker.medium.com/qwen3-8-flash-next-40-tokens-second-on-an-m4-max-macbook-4-27-bpw-quant-168k-context-a8e594e0bb87",
+          "note": null
+        },
+        {
+          "text": "mlx-lm wires model and cache memory for large models on macOS 15+; `MLX_LM_CACHE_LIMIT=0` stops MLX's internal allocation cache growing during long sessions.",
+          "source": "https://danmackinlay.name/notebook/local_llm_mac.html",
+          "note": null
+        },
+        {
+          "text": "mlx_lm.server has no `--ctx` flag and grows KV to whatever is sent, so the context cap must live in the client harness (contextWindow/limit.context).",
+          "source": "https://danmackinlay.name/notebook/local_llm_mac.html",
+          "note": null
+        },
+        {
+          "text": "Ollama's autoscaled context gave a 640 MB embedding model 4 GB resident on a large Mac (32,768 default on 128 GB); a second buffer sized by `num_batch` also counts.",
+          "source": "https://danmackinlay.name/notebook/local_llm_mac.html",
+          "note": null
+        },
+        {
+          "text": "Inferred sizing for 32 GB Macs: Qwen3.6-35B-A3B Q4 (~20-22 GB) plus 5 GiB fp16 KV at 262K leaves little for OS, so ~128K (2.5 GiB) or q8_0 KV is the safe long-context setting.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Inferred sizing for 24 GB Macs: Qwen3.6-27B Q4 (~17 GB) plus 64 KiB/token means ~32K (2 GiB) is the ceiling with fp16 KV and ~64K with q8_0 before the OS squeeze.",
+          "source": "asserted",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Corrections and disagreements",
+      "facts": [
+        {
+          "text": "CONTRADICTS on-device-local-llm-runtimes.md section 10 (generic formula only): for hybrid models the formula must use only full-attention layers, as in the two derivations above.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "CONTRADICTS on-device-local-llm-runtimes.md 5.1 and anti-pattern 11 on context handling: on MLX-runner tags the VRAM-tier default and `num_ctx` do not pre-allocate or truncate the same way; the log still prints `vram-based default context total_vram=\"36.0 GiB\" default_num_ctx=32768` on an M4 Pro.",
+          "source": "https://github.com/ollama/ollama/issues/15944",
+          "note": null
+        },
+        {
+          "text": "CONTRADICTS on-device-local-llm-runtimes.md section 10 \"at 64K depth decode ran at ~50-55% of short-context speed\": that figure is not family-independent; the hybrid MoE above lost ~7% by 8K and the dense-attention M3 Ultra case lost 73% by 128K (sibling dossier).",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "CONTRADICTS on-device-local-llm-runtimes.md section 10 \"GPU gets ~75% of RAM\": the same author says llama.cpp on a 64 GB Mac uses about 56 GB by default (article truncated, mechanism unseen).",
+          "source": "https://xhinker.medium.com/qwen3-8-flash-next-40-tokens-second-on-an-m4-max-macbook-4-27-bpw-quant-168k-context-a8e594e0bb87",
+          "note": null
+        }
+      ]
+    }
+  ],
+  "related": []
+}

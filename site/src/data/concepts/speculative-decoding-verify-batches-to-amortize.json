@@ -1,0 +1,184 @@
+{
+  "slug": "speculative-decoding-verify-batches-to-amortize",
+  "concept": "Speculative decoding verify batches to amortize ANE dispatch",
+  "generated": "2026-10-05",
+  "summary": "Fixed shapes: ANE graphs are static, so verification is a separate program (CoreML-LLM `verify_qK`, K=3 or 8; Forge verify width T=8 with separate prefill width 64) or a function in a multifunction package; Orion decode already pads every token to a minimum sequence of 16, so a verify batch of up...",
+  "facets": [
+    {
+      "title": "Facts",
+      "facts": [
+        {
+          "text": "Fixed shapes: ANE graphs are static, so verification is a separate program (CoreML-LLM `verify_qK`, K=3 or 8; Forge verify width T=8 with separate prefill width 64) or a function in a multifunction package; Orion decode already pads every token to a minimum sequence of 16, so a verify batch of up to 16 positions needs no extra dispatch.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "The measured amortization premise: on a Mac with the Gemma 4 E2B probe bundle at 2K context, `verify_qK=8` takes a 30.15 ms median versus 31.9 ms for `decode_q1`, so 8 positions cost no more than one (\"batch invariance\").",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Commit rule: the target's argmax at each draft row decides acceptance; the longest matching prefix plus one correction or bonus token is committed. Forge commits only the accepted prefix to host-owned KV through `accept(k)`, so rejected drafts never touch the cache.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Break-even arithmetic (CoreML-LLM): expected tokens per burst for a K=3 chain is 1 + p + p^2 + p^3; p=30% gives 1.42 and p=50% gives 1.88, which is the break-even on GPU verify; on ANE verify the stated bar is per-position acceptance of at least 70%.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "2026-04-14/15 CoreML-LLM tries MTP Path A/C, EAGLE-3, PLD, cross-vocab and a union orchestrator on Gemma 4 E2B; PR #72 serial-decode check refutes batched-fp16 drift as the cause of the accept-rate gap and points at KV contamination; PR #62 earlier blamed bench methodology.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "2026-04-17 DRAFTER_DEAD_FOR_E2B closes separate-architecture drafters on that model.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Date not shown: a drafter-free \"linear LookAhead / Jacobi plus PLD\" engine (#122) is added opt-in with K=8 verification.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "2026-09 Forge ships T=8 verification for a 27B target on M6 with a conditioned drafter; documents the commit protocol and stalls.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "KV write-before-accept: a verify program that writes draft rows into the KV cache at positions P+1..P+K-1 before acceptance is decided contaminates later target argmaxes; CoreML-LLM calls this structural for all its speculative paths. The fix is delayed KV write-through (commit after acceptance), which is what Forge's host-owned KV with `accept(k)` implements.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Batched numerics: a batched graph can differ numerically from the single-token path, so greedy equivalence depends on identical weights and state; Forge states it explicitly and CoreML-LLM observed bench-versus-live accept-rate gaps.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Rejected drafts cost time: with p=17% acceptance and K=3, MTP Path C ran at about 16 tok/s versus 31 baseline on iPhone 17 Pro.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Stalls: drafter submissions immediately after target verification showed intermittent 300-700 ms stalls; multithreaded host top-k delayed target dispatch (Forge).",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Is decode dispatch-bound (so batching helps)? maderix and CoreML-LLM's early plan say yes (fewer dispatches). CoreML-LLM later measured the ANE busy 97% of the step and chunk consolidation 4 to 2 gave only +1 tok/s (\"dispatch-overhead theory refuted\"), while 4 to 3 chunks gave +8.2%. A verify batch only helps if the extra rows are nearly free, which the 30.15 vs 31.9 ms result supports at K=8 on E2B.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Why did CoreML-LLM's speculation fail? HANDOFF (Apr 24): KV contamination plus low acceptance (best 38%, needs 60%+). MTP_PATH_C (Apr 15, corrected): live-versus-oracle accept-rate gap from bench over-claim, not fp16 drift. REJECTED_APPROACHES (Apr 28) still lists the contamination as the structural blocker. Three internal framings; the later docs do not retract each other.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "ANE versus Metal verify scaling. Existing dossier: stock MLX Metal verify costs about K times a single-token forward for M=2..8 (weights re-read per row). CoreML-LLM's ANE probe shows verify at K=8 about equal to decode. Opposite scaling on the two backends; no source measures both on one chip.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Does `verify_qK` stay flat at long context and for models larger than 2B, where compute grows? Only the E2B 2K Mac probe exists.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Does delayed KV write-through (Forge style) cure CoreML-LLM's contamination, and what is its cost in chunk I/O? Not tested in CoreML-LLM; its docs call it \"multi-week\".",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "LookAhead acceptance on free-form text is 0-3%; is a trained drafter the only route to a net gain on small ANE targets?",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "CoreML-LLM's linear LookAhead K=8 engine measured `verify_qK=8` at a 30.15 ms median versus `decode_q1` 31.9 ms on a Mac (gemma4-e2b probe bundle, 2K context), described as batch invariance.",
+          "source": "https://github.com/john-rocky/CoreML-LLM",
+          "note": null
+        },
+        {
+          "text": "The same engine gave about 34-36 tok/s on free-form text (+1-8%, acceptance 0-3%) versus a 33 tok/s serial baseline, and 57 tok/s (+72%, acceptance 11-13%, peak 5 of 7) on structured text, and it ships default-off behind `lookaheadEnabled` or `LLM_LOOKAHEAD_ENABLE=1`.",
+          "source": "https://github.com/john-rocky/CoreML-LLM",
+          "note": null
+        },
+        {
+          "text": "CoreML-LLM's priority order when several speculation paths are enabled is EAGLE-3, then LookAhead, MTP, Union, CV and T=1.",
+          "source": "https://github.com/john-rocky/CoreML-LLM",
+          "note": null
+        },
+        {
+          "text": "Verify chunks write drafter proposals into the KV cache at positions P+1..P+K-1 before acceptance is decided, so later target argmaxes condition on contaminated cache, which PR #72 proved is semantic and not fp16 numerical.",
+          "source": "https://raw.githubusercontent.com/john-rocky/CoreML-LLM/main/docs/HANDOFF.md",
+          "note": null
+        },
+        {
+          "text": "Replacing batched `verify_qK` with K serial `decode_q1` calls left the chain accept-rate gap unchanged (cross-vocab code stayed at 1.01 vs oracle 2.63), ruling out batched-fp16 ordering as the cause.",
+          "source": "https://raw.githubusercontent.com/john-rocky/CoreML-LLM/main/docs/PHASE_B_DECISION.md",
+          "note": null
+        },
+        {
+          "text": "Prompt-lookup chain acceptance in v4 was E[tok/burst] 1.48 (chat), 2.01 (code), 1.00 (QA) and 1.00 (summary) against a break-even of at least 2.6, a net regression on 3 of 4 categories.",
+          "source": "https://raw.githubusercontent.com/john-rocky/CoreML-LLM/main/docs/PHASE_B_DECISION.md",
+          "note": null
+        },
+        {
+          "text": "CoreML-LLM's candidate fix list for verify is output-space tolerance (compare logit margins) and delayed KV write-through (verify computes logits but commits KV after the acceptance decision), the latter judged multi-week work.",
+          "source": "https://raw.githubusercontent.com/john-rocky/CoreML-LLM/main/docs/PHASE_B_DECISION.md",
+          "note": null
+        },
+        {
+          "text": "MTP Path C (self-trained K=2 modules, about 80 M parameters each) deployed on iPhone 17 Pro at about 16.3 tok/s with acc0 17% versus 31 tok/s baseline, and a later correction attributes the gap to bench-versus-live accept-rate over-claim, not fp16 drift.",
+          "source": "https://raw.githubusercontent.com/john-rocky/CoreML-LLM/main/docs/MTP_PATH_C_FINDINGS.md",
+          "note": null
+        },
+        {
+          "text": "CoreML-LLM's drafter analysis puts the GPU-verify break-even at E[tok/burst] about 1.88 (per-position acceptance about 50%) and says the bar on ANE verify is acceptance of at least 70%.",
+          "source": "https://raw.githubusercontent.com/john-rocky/CoreML-LLM/main/docs/DRAFTER_DEAD_FOR_E2B.md",
+          "note": null
+        },
+        {
+          "text": "Forge's verifier checks an anchor plus seven drafted tokens as one T=8 batch, commits only the accepted prefix through `accept(k)`, and states that eight evaluated rows do not guarantee eight emitted tokens.",
+          "source": "https://github.com/Anemll/anemll-forge/blob/main/docs/SPECULATIVE_DECODING.md",
+          "note": null
+        },
+        {
+          "text": "Forge notes a batched verifier graph can differ numerically from a single-token path, so equivalence to plain greedy decoding is conditional on the same weights, numerics, state and generation policy.",
+          "source": "https://github.com/Anemll/anemll-forge/blob/main/docs/SPECULATIVE_DECODING.md",
+          "note": null
+        },
+        {
+          "text": "Forge treats a sampled proposal path as deterministic, accepts a proposal with its target probability and samples the target distribution excluding it on rejection, preserving the target distribution algorithmically but not identical draws across implementations.",
+          "source": "https://github.com/Anemll/anemll-forge/blob/main/docs/SPECULATIVE_DECODING.md",
+          "note": null
+        },
+        {
+          "text": "Forge reserves eight verifier-write positions before granting an output budget and caps usable context at 65,472 rows because the largest block width of 64 is reserved inside a 65,536-element compile boundary.",
+          "source": "https://github.com/Anemll/anemll-forge/blob/main/docs/SPECULATIVE_DECODING.md",
+          "note": null
+        },
+        {
+          "text": "Forge's Core AI path uses a default `DRAFT_GAP_MS=3` pause after verification before the next draft submission, because drafter submissions right after target verification showed intermittent 300-700 ms stalls.",
+          "source": "https://github.com/Anemll/anemll-forge/blob/main/docs/SPECULATIVE_DECODING.md",
+          "note": null
+        },
+        {
+          "text": "Orion pads every ANE decode token to a minimum sequence dimension of 16, meaning a single-token decode already pays for 16 positions per dispatch.",
+          "source": "https://arxiv.org/html/2603.06728v1",
+          "note": null
+        },
+        {
+          "text": "Inference: because the E2B ANE probe shows 8 verified positions at about the cost of 1, the Metal \"verify costs K times\" ceiling in the existing speculative dossier is a GPU-kernel artifact, not a property of speculation on the ANE.",
+          "source": "asserted",
+          "note": null
+        }
+      ]
+    }
+  ],
+  "related": []
+}

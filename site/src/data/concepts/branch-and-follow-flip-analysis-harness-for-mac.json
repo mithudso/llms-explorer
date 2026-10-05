@@ -1,0 +1,204 @@
+{
+  "slug": "branch-and-follow-flip-analysis-harness-for-mac",
+  "concept": "Branch-and-follow flip analysis harness for Mac GGUF and MLX quants",
+  "generated": "2026-10-05",
+  "summary": "First Divergent Token (FDT): greedy-decode N tokens from the base model, feed that whole sequence to the compressed model once, and take the first index where the compressed model's logit argmax differs from the base model's token. One forward pass, same cost as a perplexity pass.",
+  "facets": [
+    {
+      "title": "Facts",
+      "facts": [
+        {
+          "text": "First Divergent Token (FDT): greedy-decode N tokens from the base model, feed that whole sequence to the compressed model once, and take the first index where the compressed model's logit argmax differs from the base model's token. One forward pass, same cost as a perplexity pass.",
+          "source": "https://arxiv.org/html/2311.01544v3",
+          "note": null
+        },
+        {
+          "text": "Share of Divergent Tokens (SDT) counts all positions where the argmax differs on that same teacher-forced base rollout, instead of stopping at the first.",
+          "source": "https://arxiv.org/html/2311.01544v3",
+          "note": null
+        },
+        {
+          "text": "FDT is symmetric in its two models, while perplexity is not.",
+          "source": "https://arxiv.org/html/2311.01544v3",
+          "note": null
+        },
+        {
+          "text": "Greedy decoding is a discontinuous function of the logits, so two models can have equal perplexity and still produce different greedy output; the paper calls equal perplexity with divergent generation a false positive of PPL.",
+          "source": "https://arxiv.org/html/2311.01544v3",
+          "note": null
+        },
+        {
+          "text": "FDT is not branch-and-follow: FDT stops at the first mismatch and never lets the compressed model continue from its own token. Branch-and-follow starts at that mismatch and generates onward to see recovery, meaning change or malformed output.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Three things are called a \"flip\" and must not be pooled: (a) answer-level flips, where a benchmark answer changes between correct and incorrect; (b) teacher-forced token top-1 flips, where one position's argmax differs; (c) the first divergent token of a rollout.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "The answer-level flip metric excludes incorrect-to-incorrect changes, because exact free-text matches between models are rare and would inflate the count; an \"AllFlips\" variant includes them.",
+          "source": "https://arxiv.org/html/2407.09141v1",
+          "note": null
+        },
+        {
+          "text": "llama-server `/completion` takes the prompt as a string or as an array of token ids, so a harness can feed exact token ids and skip chat-template and tokenizer drift.",
+          "source": "https://raw.githubusercontent.com/ggml-org/llama.cpp/master/tools/server/README.md",
+          "note": null
+        },
+        {
+          "text": "llama-server inserts BOS automatically only when the prompt is a string (or an array whose first element is a string) and the GGUF has `tokenizer.ggml.add_bos_token` true; a pure integer array gets no BOS, so the harness must include BOS itself.",
+          "source": "https://raw.githubusercontent.com/ggml-org/llama.cpp/master/tools/server/README.md",
+          "note": null
+        },
+        {
+          "text": "llama-server `return_tokens: true` returns the raw generated token ids in the `tokens` field, which is the capture hook for branch futures.",
+          "source": "https://raw.githubusercontent.com/ggml-org/llama.cpp/master/tools/server/README.md",
+          "note": null
+        },
+        {
+          "text": "mlx_lm.server can return generated token ids together with log-probabilities and top-N token info per position when `logprobs` is requested.",
+          "source": "https://raw.githubusercontent.com/ml-explore/mlx-lm/main/mlx_lm/server.py",
+          "note": null
+        },
+        {
+          "text": "llama-server `cache_prompt` defaults to true, and the README warns that logits are not guaranteed bit-for-bit identical between prompt-processing and token-generation batch sizes, so cache reuse can make a run nondeterministic.",
+          "source": "https://raw.githubusercontent.com/ggml-org/llama.cpp/master/tools/server/README.md",
+          "note": null
+        },
+        {
+          "text": "A branch run therefore needs `cache_prompt: false`, and the harness should run the reference twice (cache on and off) to measure its own self-flip floor before attributing any flip to the quant.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Harness recipe for Mac: (1) generate or log the reference token stream with one engine; (2) score each quant teacher-forced on that stream to list flip roots; (3) for each chosen root send `reference_prefix + quant_token` to both the quant and the reference as a token array and generate K tokens with `cache_prompt: false`; (4) classify each pair as recovers, changes meaning, or malformed tool call.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "A cross-engine branch needs one shared token dictionary, so GGUF-versus-MLX branching is valid only when both engines tokenize the same text to the same ids; the existing cross-engine dossier says that parity has no published test for Gemma 4 and Qwen3.x.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "2023-11: Divergent Token Metrics paper introduces FDT and SDT for pruning and int8 quantization of Llama-2 components.",
+          "source": "https://arxiv.org/abs/2311.01544",
+          "note": null
+        },
+        {
+          "text": "2024-07: \"Accuracy is Not All You Need\" introduces answer-level flips as a distance metric next to KL divergence.",
+          "source": "https://arxiv.org/html/2407.09141v1",
+          "note": null
+        },
+        {
+          "text": "2026-08: Level1Techs and Unsloth move to token-level rollouts for agent workloads (existing dossier).",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "FDT is censored by position: a run whose first divergence is at token 3 and one at token 3,000 differ by three orders of magnitude, so report the median and the share of runs with no divergence inside N, not only the mean.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Teacher-forced flips overcount: a flip at a position where the reference was near a tie may be a harmless synonym, so rollout classification is needed before calling a flip a failure.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "A greedy rollout hides sampling effects; the sources measure only greedy decoding.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Storage: full-vocabulary capture is heavy (see confidence-conditioned dossier for the llama.cpp record size), so capture full logits only at flip roots and in tool-call spans.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "FDT, a single-pass teacher-forced metric, versus branch-and-follow, which pays extra generations to see consequences: the DTM paper argues the discontinuity of greedy decoding is the reason to measure divergence, while the Level1Techs author argues a single flip matters only if it propagates into a wrong tool call. Both accept that perplexity and mean KLD are insufficient.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Answer-level flips (benchmark) versus token-level flips (agent trace): the first paper reports 5% or more flips at under 2% accuracy change on multiple-choice tasks; the second reports 1.3% to 5.8% token flips on one agent stream. The rates are not comparable because the units differ.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "No measurement of FDT or branch-and-follow on any GGUF or MLX quant of one BF16 base on Apple silicon was found.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Whether `cache_prompt: false` removes enough batch-size nondeterminism for a flip floor of zero on Metal.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Whether MLX and llama.cpp reference rollouts agree with each other at all (self-flip floor across engines).",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "First Divergent Token is computed in one forward pass by feeding the base model's greedy generation to the compressed model and finding the first argmax mismatch.",
+          "source": "https://arxiv.org/html/2311.01544v3",
+          "note": null
+        },
+        {
+          "text": "The Share of Divergent Tokens metric counts every teacher-forced argmax mismatch on the base model's greedy rollout.",
+          "source": "https://arxiv.org/html/2311.01544v3",
+          "note": null
+        },
+        {
+          "text": "The DTM paper argues equal perplexity can hide very different greedy output because greedy decoding is discontinuous in the logits.",
+          "source": "https://arxiv.org/html/2311.01544v3",
+          "note": null
+        },
+        {
+          "text": "The DTM paper reports FDTM suggesting more than 80% of parameters can be naively converted to int8 without outlier handling, on Llama-2 family models.",
+          "source": "https://arxiv.org/abs/2311.01544",
+          "note": null
+        },
+        {
+          "text": "Answer-level flips are correct-to-incorrect plus incorrect-to-correct changes, and incorrect-to-incorrect changes are left out of the headline flip metric.",
+          "source": "https://arxiv.org/html/2407.09141v1",
+          "note": null
+        },
+        {
+          "text": "In the same paper six quantization schemes show up to 13.6% flips while accuracy changes by 2% or less on seven tasks, except GPTQ W8A16 which has negligible flips.",
+          "source": "https://arxiv.org/html/2407.09141v1",
+          "note": null
+        },
+        {
+          "text": "llama-server `/completion` accepts the prompt as a string, an array of strings or numbers representing tokens, and inserts BOS only for string-first prompts when add_bos_token is true.",
+          "source": "https://raw.githubusercontent.com/ggml-org/llama.cpp/master/tools/server/README.md",
+          "note": null
+        },
+        {
+          "text": "llama-server `return_tokens` returns raw generated token ids and `cache_prompt` defaults to true with a documented nondeterminism warning.",
+          "source": "https://raw.githubusercontent.com/ggml-org/llama.cpp/master/tools/server/README.md",
+          "note": null
+        },
+        {
+          "text": "mlx_lm.server builds log-probability responses that can include generated token ids and top-N token info.",
+          "source": "https://raw.githubusercontent.com/ml-explore/mlx-lm/main/mlx_lm/server.py",
+          "note": null
+        },
+        {
+          "text": "A Mac branch-and-follow harness should send token-array prompts with `cache_prompt: false` and measure a reference self-flip floor first.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "FDT and branch-and-follow answer different questions: FDT locates where divergence begins, branch-and-follow shows whether it matters.",
+          "source": "asserted",
+          "note": null
+        }
+      ]
+    }
+  ],
+  "related": []
+}

@@ -1,0 +1,189 @@
+{
+  "slug": "core-ml-to-mlx-kv-cache-hand-off-cost-and-layout",
+  "concept": "Core ML to MLX KV cache hand-off cost and layout",
+  "generated": "2026-10-05",
+  "summary": "Core ML side (stateless prefill, Yetter): the KV tensors leave the program as outputs. For a single-batch export the cache interface concatenates all layers into one tensor of shape (num_hidden_layers, num_key_value_heads, max_cache_len, head_dim), so a stateful Qwen3-0.6B has 2 states (key_cache...",
+  "facets": [
+    {
+      "title": "Facts",
+      "facts": [
+        {
+          "text": "Core ML side (stateless prefill, Yetter): the KV tensors leave the program as outputs. For a single-batch export the cache interface concatenates all layers into one tensor of shape (num_hidden_layers, num_key_value_heads, max_cache_len, head_dim), so a stateful Qwen3-0.6B has 2 states (key_cache, value_cache) instead of 56; non-first dims must be powers of two or the model fails at predict.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Core ML buffers are static: capacity is fixed at conversion (max_cache_len, 512 in Yetter's runs) and valid rows are selected by a mask or position, so a hand-off must slice to the live length.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "MLX side: mlx-lm keeps one cache object per layer (KVCache, RotatingKVCache, ArraysCache for linear-attention layers), grown by concatenation; a hand-off therefore needs a split of the concatenated Core ML tensor into per-layer arrays.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Memory model: MLX's unified-memory design means arrays on CPU or GPU need no transfer (SqueezeBits' description), and ANE I/O is IOSurface-backed shared memory that maderix showed GPU and ANE can share; neither source documents importing an IOSurface into an MLX array.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Payload size is linear in context: Qwen3.8-27B's 16 full-attention layers hold 64 KiB per history position in FP16 (about 512 MiB at 8K, about 4 GiB at 64K), so even a pure memcpy at tens of GB/s is milliseconds to over 100 ms.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "2026-02/03 maderix demonstrates GPU prefill to ANE decode over a shared IOSurface (the reverse direction to Yetter) on small models.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "2025 (blog; iPhone 15 Pro, iOS 18.6.1) SqueezeBits ships Yetter, ANE prefill via stateless Core ML and GPU decode via MLX, but publishes figures as images with no hand-off cost.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "2026-04 CoreML-LLM plans \"GPU prefill via MLX-Swift\" (item 27) as the reverse split (GPU prefill, ANE decode) with shared weights, then reports a Mac result that GPU prefill through Core ML .cpuAndGPU is 9.7x slower than ANE.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "2026-04-15 CoreML-LLM's compute-unit split spike shows ANE and GPU kernels overlap 0.87-0.99 but never measures the activation/KV copy across the boundary.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "2026-09 Forge keeps KV in host-owned FP16 IOSurface buffers and copies on context growth, giving the only concrete host-side KV copy mechanics for ANE graphs.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Numerical consistency across backends: CoreML-LLM's pipelined ANE+GPU decode produced a bit-exact failure on one prompt at token 50 because ANE and GPU backends round chunk-3 fp16 differently, so KV produced on one device is not bit-identical to what the other would produce.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "IOSurface-backed MLMultiArrays that a model has consumed as input are locked and cannot be reused as output backing, so a zero-copy re-export of the same buffers is blocked in Core ML (CoreML-LLM).",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Static capacity: Forge's resize allocates new IOSurface K/V buffers, copies the cached prefix, and rebinds; 160 transitions between 8K and 16K leaked about 120 GiB until the Python bridge ownership cycle and autorelease pools were fixed, so hand-off code must own buffer lifetimes explicitly.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Quantized or hybrid caches do not hand off as plain K/V: Qwen3.8-27B adds 48 DeltaNet layers whose recurrent state is a separate non-KV state that would also need transfer; Forge's V8 variant stores V as INT8 with scales.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Which direction wins? maderix recommends ANE prefill plus CPU(SME) decode and a commenter argues decode belongs on the GPU; maderix's own repo demonstrates GPU prefill to ANE decode, and CoreML-LLM plans GPU prefill with ANE decode for power and TTFT. Yetter does ANE prefill plus GPU decode. These optimize different things (TTFT, power, GPU availability); no source compares them on one device.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Cost of crossing: CoreML-LLM projects 1-2 ms per ANE-GPU handoff before measuring and later measures a net regression; Yetter says only that stateless prefill is \"slightly\" slower than stateful. No source gives a measured number.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Can an IOSurface or MTLBuffer holding Core ML KV outputs be wrapped as an MLX array without a copy, and does MLX's cache concatenation then force a copy anyway?",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Is the KV from ANE FP16 prefill numerically equivalent enough for GPU decode (token agreement after hand-off at long context)? No source tests it.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "What is the end-to-end hand-off latency on a Mac at 4K-32K context for a 7B+ model? Not published.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "SqueezeBits' Yetter engine assigns prefill to Core ML on the ANE and decode to MLX on the GPU, and its converter builds the Core ML package stateful for pure-ANE use or stateless with KV tensors as outputs for the disaggregated path.",
+          "source": "https://blog.squeezebits.com/disaggregated-inference-on-apple-silicon-npu-prefill-and-gpu-decode-67176",
+          "note": null
+        },
+        {
+          "text": "SqueezeBits manages the Core ML KV cache as one concatenated tensor of shape (num_hidden_layers, num_key_value_heads, max_cache_len, head_dim) at batch size 1, giving two states for Qwen3-0.6B instead of 56.",
+          "source": "https://blog.squeezebits.com/disaggregated-inference-on-apple-silicon-npu-prefill-and-gpu-decode-67176",
+          "note": null
+        },
+        {
+          "text": "SqueezeBits states its Core ML runs pad inputs to a maximum sequence length of 512, so the Core ML KV tensor has fixed capacity 512 in all its disaggregated measurements.",
+          "source": "https://blog.squeezebits.com/disaggregated-inference-on-apple-silicon-npu-prefill-and-gpu-decode-67176",
+          "note": null
+        },
+        {
+          "text": "SqueezeBits lists future work on different numerical precision for prefill and decode and a router that sends work to GPU or ANE dynamically, but publishes no hand-off cost.",
+          "source": "https://blog.squeezebits.com/disaggregated-inference-on-apple-silicon-npu-prefill-and-gpu-decode-67176",
+          "note": null
+        },
+        {
+          "text": "maderix's repo includes a GPU-prefill to ANE-decode pipeline over a shared IOSurface (gpu_prefill_ane_decode.m, gpu_ane_share.m) with M4 seq=256 timings of 6.7 ms GPU prefill plus 1.9 ms ANE decode (Stories110M) and 9.7 ms plus 2.3 ms (Qwen3-0.6B).",
+          "source": "https://github.com/maderix/ANE",
+          "note": null
+        },
+        {
+          "text": "maderix's Part 1 notes IOSurface is the same mechanism used for GPU textures, so zero-copy GPU-ANE sharing is theoretically possible, and lists unexplored classes `_ANESharedEvents`, `_ANESharedSignalEvent` and `_ANESharedWaitEvent` as Metal-style fence primitives for GPU-ANE synchronization.",
+          "source": "https://maderix.substack.com/p/inside-the-m4-apple-neural-engine",
+          "note": null
+        },
+        {
+          "text": "CoreML-LLM measured GPU prefill via Core ML .cpuAndGPU on a Mac Studio at 2697 ms versus 278 ms on the ANE (9.7x slower) with decode unchanged (33.0 to 32.9 tok/s), and defers the plan to iPhone A19 Pro tensor cores with a projected TTFT of about 1 s instead of 13 s.",
+          "source": "https://raw.githubusercontent.com/john-rocky/CoreML-LLM/main/docs/HANDOFF.md",
+          "note": null
+        },
+        {
+          "text": "CoreML-LLM's compute-unit-split spike moved chunk 3 to .cpuAndGPU (7.5 to 16.6 ms, 2.2x slower, about 1200 ms first-step shader compile) and found ANE and GPU predictions overlap with factor 0.87-0.99, while pure-ANE submissions from one process overlap only 0.02-0.06.",
+          "source": "https://raw.githubusercontent.com/john-rocky/CoreML-LLM/main/docs/PHASE_D_COMPUTE_UNIT_SPLIT_SPIKE.md",
+          "note": null
+        },
+        {
+          "text": "That spike's projection assumed a 1-2 ms ANE-GPU hand-off and warned that a GPU-resident chunk cannot use the ANE chunks' IOSurface-backed KV buffers, so K/V may need copying across the boundary; neither cost was measured.",
+          "source": "https://raw.githubusercontent.com/john-rocky/CoreML-LLM/main/docs/PHASE_D_COMPUTE_UNIT_SPLIT_SPIKE.md",
+          "note": null
+        },
+        {
+          "text": "The implemented ANE+GPU pipeline regressed 23-25% across four prompt categories and failed bit-exactness on one prompt at token 50 from fp16 rounding differences between ANE and GPU backends of chunk 3.",
+          "source": "https://raw.githubusercontent.com/john-rocky/CoreML-LLM/main/docs/PHASE_B_DECISION.md",
+          "note": null
+        },
+        {
+          "text": "CoreML-LLM's plan for GPU prefill compiles prefill chunks with .cpuAndGPU and decode chunks with .cpuAndNeuralEngine, switching on batch size with shared weights.",
+          "source": "https://raw.githubusercontent.com/john-rocky/CoreML-LLM/main/docs/HANDOFF.md",
+          "note": null
+        },
+        {
+          "text": "Forge's Core AI runtime holds target KV in host-owned FP16 IOSurface buffers and, when the context entry grows, allocates new K/V buffers, copies the cached prefix (rows up to min(hi, new capacity)), preserves position, pending commits and DeltaNet state, and clears the cached binding plans.",
+          "source": "https://github.com/Anemll/anemll-forge/blob/main/docs/SPECULATIVE_DECODING.md",
+          "note": null
+        },
+        {
+          "text": "Forge's KV payload is 64 KiB per history position in FP16 (48.125 KiB with the experimental V8 INT8-V layout) for Qwen3.8-27B.",
+          "source": "https://github.com/Anemll/anemll-forge/blob/main/docs/SPECULATIVE_DECODING.md",
+          "note": null
+        },
+        {
+          "text": "Forge fixed a Python-binding ownership cycle (`Buffer -> ndarray -> Buffer`) and drained autorelease pools around `cai_buffer_create` and `cai_buffer_address`; `.np` now returns a zero-copy view of the IOSurface buffer.",
+          "source": "https://github.com/Anemll/anemll-forge/blob/main/docs/SPECULATIVE_DECODING.md",
+          "note": null
+        },
+        {
+          "text": "CoreML-LLM found an IOSurface-backed MLMultiArray used as a model input becomes locked and cannot be an output backing later, with Core ML falling back to new allocations and a 16x slowdown.",
+          "source": "https://raw.githubusercontent.com/john-rocky/CoreML-LLM/main/docs/CPU_BOTTLENECK_INVESTIGATION.md",
+          "note": null
+        },
+        {
+          "text": "SqueezeBits' Yetter measurements and CoreML-LLM's split spikes both avoid publishing a KV hand-off figure, so a measured Core ML to MLX hand-off cost does not exist in the reviewed sources.",
+          "source": "asserted",
+          "note": null
+        }
+      ]
+    }
+  ],
+  "related": []
+}

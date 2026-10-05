@@ -1,0 +1,89 @@
+{
+  "slug": "omlx-metal-cache-clears-wait-for-the-owning-stre",
+  "concept": "oMLX Metal cache clears wait for the owning stream (PRs 2412 and 2413)",
+  "generated": "2026-10-05",
+  "summary": "PR 2412 \"fix(scheduler): pass the engine stream to prefill-cleanup cache clears\" changes six `_sync_and_clear_cache()` calls in `omlx/scheduler.py` to `_sync_and_clear_cache(self._stream)`, across `_advance_chunked_prefills` and two ladders in `_schedule_waiting`, in the `PrefillMemoryExceededErr...",
+  "facets": [
+    {
+      "title": "Facts",
+      "facts": [
+        {
+          "text": "PR 2412 \"fix(scheduler): pass the engine stream to prefill-cleanup cache clears\" changes six `_sync_and_clear_cache()` calls in `omlx/scheduler.py` to `_sync_and_clear_cache(self._stream)`, across `_advance_chunked_prefills` and two ladders in `_schedule_waiting`, in the `PrefillMemoryExceededError` and `RuntimeError` handlers.",
+          "source": "https://github.com/jundot/omlx/pull/2412",
+          "note": null
+        },
+        {
+          "text": "PR 2412 measured on the engine thread with mlx 0.32.0 that `self._stream` is `Stream(gpu, 1)`, `_default_generation_stream` is `Stream(gpu, 2)` and the stream a bare `mx.synchronize()` drains is `Stream(gpu, 0)`.",
+          "source": "https://github.com/jundot/omlx/pull/2412",
+          "note": null
+        },
+        {
+          "text": "PR 2412's test queued a dependent matmul chain on the engine stream with `mx.async_eval`: the bare call returned in 0.1 to 0.2 ms and left 69 to 70 ms of work in flight at `mx.clear_cache()`, while `_sync_and_clear_cache(self._stream)` blocked 69.5 to 70.1 ms and left 0.0 ms, over three trials.",
+          "source": "https://github.com/jundot/omlx/pull/2412",
+          "note": null
+        },
+        {
+          "text": "`_sync_and_clear_cache(stream=None)` falls back to `_default_generation_stream`, the import-time alias of `mlx_lm.generate.generation_stream`, and then to a plain `mx.synchronize()`; both are the wrong stream on an engine executor thread.",
+          "source": "https://github.com/jundot/omlx/pull/2412",
+          "note": null
+        },
+        {
+          "text": "PR 2412 says the no-stream calls came from commit 0169f159 (three bare calls), were missed by 56860b32 (added `stream=` and swept other sites), and were copied by 4c64f163 to three more.",
+          "source": "https://github.com/jundot/omlx/pull/2412",
+          "note": null
+        },
+        {
+          "text": "PR 2412 adds six tests in `tests/test_scheduler_chunked_prefill.py` (`TestPrefillCleanupUsesEngineStream`), one per fixed site, each using a real per-engine `mx.new_thread_local_stream`.",
+          "source": "https://github.com/jundot/omlx/pull/2412",
+          "note": null
+        },
+        {
+          "text": "PR 2412 leaves one bare call, `omlx/patches/qwen35_moe_gate_up.py:215`, because it runs at load time during MoE gate/up fusion with no engine in scope, and leaves the `admin/routes.py` fallbacks that run when no engine executor exists.",
+          "source": "https://github.com/jundot/omlx/pull/2412",
+          "note": null
+        },
+        {
+          "text": "PR 2413 \"fix(metal): drain the GPU stream before the hot-loop cache clears\" fixes two sites that cleared with a bare `mx.clear_cache()` and no synchronization: the GLM-5.2 DSA generate patch (every 512 decode steps in `omlx/patches/glm_moe_dsa/generate_patch.py`) and the VLM MTP loop in `omlx/speculative/vlm_mtp.py` (every round-loop yield).",
+          "source": "https://github.com/jundot/omlx/pull/2413",
+          "note": null
+        },
+        {
+          "text": "In PR 2413 the GLM patch now calls `_sync_and_clear_cache(self._stream)` with the generator's own stream, and the VLM MTP site passes mlx-vlm's `generation_stream`, because mlx-vlm dispatches verify and rollback forwards on its own stream while the rest of the round runs on the engine stream.",
+          "source": "https://github.com/jundot/omlx/pull/2413",
+          "note": null
+        },
+        {
+          "text": "PR 2413 measured the added drain at 0.11 to 0.19 ms per MTP yield in a micro-benchmark, under 1% of a real MTP token on 31B-class targets, and says it is not an end-to-end MTP run.",
+          "source": "https://github.com/jundot/omlx/pull/2413",
+          "note": null
+        },
+        {
+          "text": "PR 2413 moves `_sync_and_clear_cache`, `_mx_buffer_access_lock` and `_default_generation_stream` from `scheduler.py` to `omlx/utils/metal_sync.py`; `scheduler.py` re-exports them, so about 30 call sites and tests that patch `omlx.scheduler._sync_and_clear_cache` are unchanged.",
+          "source": "https://github.com/jundot/omlx/pull/2413",
+          "note": null
+        },
+        {
+          "text": "PR 2413 lists the other ad-hoc `mx.clear_cache()` sites it did not convert: `engine/base.py` `_finish_activity`, the embedding, reranker, tts, stt and sts engines, `engine_pool.py` load, unload and reclaim paths, `dflash.py` eviction, `vlm.py` diffusion cleanup, `admin/oq_manager.py` and the `oq.py` eval-then-clear sites.",
+          "source": "https://github.com/jundot/omlx/pull/2413",
+          "note": null
+        },
+        {
+          "text": "PR 2413 notes the helper holds `_mx_buffer_access_lock`, so with `paged_ssd_cache_dir` enabled a clear can wait on the async store-cache worker, the same serialization the scheduler's per-chunk and per-1024-token clears already accept.",
+          "source": "https://github.com/jundot/omlx/pull/2413",
+          "note": null
+        },
+        {
+          "text": "On main, `_sync_and_clear_cache` runs under the RLock, calls `mx.synchronize(target)` where `target` is the given stream or the default generation stream, then `mx.synchronize()` and `mx.clear_cache()`, and routes a `RuntimeError` through `exit_if_gpu_submissions_ignored`.",
+          "source": "https://raw.githubusercontent.com/jundot/omlx/main/omlx/utils/metal_sync.py",
+          "note": null
+        },
+        {
+          "text": "`metal_sync.py` on main also holds `clear_thread_streams()`, which synchronizes and calls `mx.clear_streams()` before a worker thread exits, and `unreleased_graphics_bytes`, which estimates freed Metal bytes the kernel footprint still charges using a 10 s window of residuals (0.1 to 0.3 s lag on macOS 27, over 1 s on some macOS 26 builds, per its comment).",
+          "source": "https://raw.githubusercontent.com/jundot/omlx/main/omlx/utils/metal_sync.py",
+          "note": null
+        }
+      ]
+    }
+  ],
+  "related": []
+}

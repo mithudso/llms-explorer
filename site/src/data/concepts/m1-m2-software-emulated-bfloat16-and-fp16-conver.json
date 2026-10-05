@@ -1,0 +1,289 @@
+{
+  "slug": "m1-m2-software-emulated-bfloat16-and-fp16-conver",
+  "concept": "M1/M2 software-emulated bfloat16 and FP16 conversion",
+  "generated": "2026-10-05",
+  "summary": "MLX's Metal kernel header bf16.h simply does `typedef bfloat bfloat16_t` and as_type bit casts; it uses Metal's native `bfloat` type, so M1/M2 emulation happens in Apple's Metal compiler, not in MLX code.",
+  "facets": [
+    {
+      "title": "Facts",
+      "facts": [
+        {
+          "text": "MLX's Metal kernel header bf16.h simply does `typedef bfloat bfloat16_t` and as_type bit casts; it uses Metal's native `bfloat` type, so M1/M2 emulation happens in Apple's Metal compiler, not in MLX code.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Emulation costs compute, not bytes: in the scalar benchmark BF16 matches FP32 time exactly but moves half the bytes (M2 Max 38c: FP32 2602 GFLOPS 3.55 GiB/s, BF16 2600 / 1.77, FP16 4253 / 2.90). FP16 is therefore 1.63x over BF16 on the 38-core M2 Max, 1.66x on M1 Pro. Why prefill (compute-bound) gains and decode (bandwidth-bound) barely moves.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "M1 Max 32c replicates: FP32 2033, BF16 2035, FP16 3384 GFLOPS, near-identical to M2 Max 30c (a different generation with matching numbers).",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "M3 Pro 14c: FP32 1857, BF16 1686, FP16 1725 GFLOPS; M4 10c: 1559 / 1404 / 1434; M4 Pro 20c: 3122 / 2805 / 2869. On M3+, FP32 scalar is slightly faster than either 16-bit type, and BF16 ~ FP16 (within ~2%).",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Hardware vs OS claim: transformers PR 40458 (2025-08) states bf16 on M1/M2 is \"emulated in software (by Apple's Metal framework) using float32\". The benchmark author notes M2 Max reports CPU FEAT_BF16 = 1 while M1 Pro returns 0, but that is the CPU ISA, not the GPU, so it is not evidence about Metal.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "mlx_lm.convert --dtype: choices float16, bfloat16, float32; default = config torch_dtype (falling back to text_config dtype); it only casts floating params that pass cast_predicate. For quantized output the cast also decides scale/bias dtype (oMLX: \"casts every fp tensor (non-quant weights + scales/biases) to fp16 before save\").",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Example commands: `mlx_lm.convert --hf-path <src> --mlx-path <dst> --quantize --q-mode mxfp4 --q-group-size 32 --dtype float16` (oMLX #604); an existing 4-bit bf16 model can be re-cast by converting from source again, not by flag on the finished folder.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "oMLX sanity check on Qwen3.5-4B oQ2 -> fp16: 196 non-quant fp tensors, 249 scales and 249 biases converted; no config change needed to load.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "2024-02 (mlx-examples #435): mlx_lm.convert quantized in float16; mzbac asked for bf16 after MLX #663 sped bf16 quantized kernels. awni (MLX lead) declined to make bf16 default: \"float16 is still considerably faster given it has native support\", measured 42 TPS fp16 vs 32 bf16 (chip not stated), and \"precision loss bf16 -> fp16 is nothing compared to fp16 -> 4-bit\". Also bf16 scan kernels were commented out, giving `Unable to load kernel contiguous_scan_inclusive_sum_bfloat16_bfloat16` on M2 Ultra at the time.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "2025-03: Gemma 3 float16 infinite-activation finding (Unsloth). 2025-08 transformers PR 40458. 2026-04 oMLX dtype toggle. 2026-05 deepsweet benchmark and FP16 oQ uploads.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Since the 2024 default flipped to config torch_dtype, bf16 became the de facto mlx-community default as model authors ship bf16.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "fp16 overflow is a property of model training dtype. Unsloth (Gemma 3): max float16 = 65,504; Gemma 3 activations reach ~800,000 (inf, NaN). Overflow appears between decoder layers (Decoder i post_feedforward_layernorm to Decoder i+1 input_layernorm), not inside attention/MLP. Gemma 3 1B max ~60,672 (just under the limit); Llama 3.1 8B absmax only ~322 (safe). Unsloth says Gemma 3 1B to 27B exceed 65,504 under float16 mixed precision, and GGUF/vLLM/other fp16 engines \"might experience weird results\".",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Gemma 3 was \"the first model I encountered to love using larger full bfloat16 ranges\" (Han); speculation, not tested.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "llama.cpp evidence (gemma-3-1b-it-qat-q4_0 GGUF discussion 1, Apr-May 2025): gibberish/repeated tokens after ~600 tokens on QAT-IT on Metal; original converted to fp16 and other quants did not; a commenter attributes it to float16 activation range and notes Metal likely uses f16 activations. Cause unconfirmed in thread (alternative: bad QAT weights).",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "JANG's 397B NaN claim (existing) is the only MLX overflow report with a named architecture; none found for Qwen3.x dense under fp16 on M1/M2 (deepsweet ships Qwen3.6 FP16 builds, no overflow notes).",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Peak memory goes up slightly with fp16 on hybrid-attention models (oMLX maintainer: hybrid paths keep more fp16 state live); scales/biases same size either way.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "At very long context the fp16 MXFP4 build decoded slower than bf16 (existing: 32.8 vs 44.1 tok/s at pp32768); mechanism unexplained.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Magnitude of the fp16 gain. oMLX maintainer: ~+20% prefill, decode \"roughly a wash\". Measured M2 Max oMLX (existing): +52-63%. M1 Pro 14c 16 GB, Qwopus3.5-9B oQ4 pp4096/tg128: bf16 pp 138.6 tok/s, TTFT 29,544 ms, tg 27.2; fp16 pp 232.6, TTFT 17,608 ms, tg 31.2, peak mem 6.69 GB both (pp +68%, tg +15%, E2E 34.3 -> 21.7 s). Side by side: 20% (vendor estimate) vs 52-68% (user measurements).",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Is the cause \"software emulation\" or just FP32 fallback? Source for \"emulated\" is a transformers PR comment and microbenchmarks; no Apple document states it. Benchmarks are consistent with FP32-rate execution, not proof of mechanism.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Which chip first has native bf16 ALU rate: M3 shows BF16 ~ FP16 in the scalar test, but M3 Pro FP32 is also faster than both, so the test does not show 2x half-precision dual-issue on any generation.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "M1/M2 Ultra not benchmarked; M2 Pro, M3 Max, M3 Ultra, M4 Max numbers absent from the repo.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Per-family fp16 safety list does not exist; only Gemma 3 documented as overflowing, Llama 3.1 8B documented safe.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Whether MLX fp16 inference on Gemma 3/4 on M1/M2 produces NaN is untested in sources found; Gemma 4 mlx-community checkpoints are published as bf16 (62.5 GB for 31B-it).",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Reddit threads (do fp16 MLX run faster than 8bit; llama.cpp f16 vs bf16) were unfetchable.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "MLX's Metal bf16.h typedefs Metal's native bfloat as bfloat16_t, so any M1/M2 bf16 slowdown comes from the Metal compiler, not MLX code.",
+          "source": "https://raw.githubusercontent.com/ml-explore/mlx/main/mlx/backend/metal/kernels/bf16.h",
+          "note": null
+        },
+        {
+          "text": "Scalar Metal benchmark, M2 Max 38c: FP32 2602.26, BF16 2600.17, FP16 4253.30 GFLOPS; BF16 moves half the bytes of FP32 at identical time.",
+          "source": "https://github.com/deepsweet/metal-fp32-bf16-fp16",
+          "note": null
+        },
+        {
+          "text": "Same benchmark, M1 Max 32c (user-submitted via oMLX #604): FP32 2033.11, BF16 2035.38, FP16 3384.48 GFLOPS, matching M2 Max 30c.",
+          "source": "https://github.com/jundot/omlx/issues/604",
+          "note": null
+        },
+        {
+          "text": "Same benchmark, M3 Pro 14c: FP32 1857.43, BF16 1686.11, FP16 1724.87 GFLOPS.",
+          "source": "https://github.com/deepsweet/metal-fp32-bf16-fp16",
+          "note": null
+        },
+        {
+          "text": "Same benchmark, M4 10c: FP32 1558.82, BF16 1404.43, FP16 1433.61; M4 Pro 20c: 3121.82 / 2805.13 / 2869.22 GFLOPS.",
+          "source": "https://github.com/deepsweet/metal-fp32-bf16-fp16",
+          "note": null
+        },
+        {
+          "text": "On M3 and later FP32 scalar throughput is 5-12% above both 16-bit types in this benchmark, so bf16/fp16 gain no ALU rate there; 16-bit's advantage is bytes.",
+          "source": "https://github.com/deepsweet/metal-fp32-bf16-fp16",
+          "note": null
+        },
+        {
+          "text": "Benchmark author's conclusion: \"BF16 is natively hardware-accelerated on M3 and newer chips, FP16 offers no measurable advantage\" (inference from parity with FP16, not an Apple statement).",
+          "source": "https://github.com/deepsweet/metal-fp32-bf16-fp16",
+          "note": null
+        },
+        {
+          "text": "The author notes M2 Max reports CPU feature FEAT_BF16 via sysctl while M1 Pro returns 0, and that this concerns the CPU, not the GPU.",
+          "source": "https://github.com/deepsweet/metal-fp32-bf16-fp16",
+          "note": null
+        },
+        {
+          "text": "transformers PR 40458 (merged 2025-08) says bf16 is emulated in software by Metal using float32 on M1 and M2 and recommends float16 or float32 there.",
+          "source": "https://github.com/huggingface/transformers/pull/40458",
+          "note": null
+        },
+        {
+          "text": "M1 Pro 14c 16 GB, Qwopus3.5-9B oQ4 pp4096/tg128: bf16 TTFT 29,544.7 ms, pp 138.6 tok/s, tg 27.2 tok/s; oQ4-fp16 TTFT 17,607.8 ms, pp 232.6 tok/s, tg 31.2 tok/s; peak memory 6.69 GB for both (pp +68%).",
+          "source": "https://github.com/jundot/omlx/issues/604",
+          "note": null
+        },
+        {
+          "text": "mlx_lm.convert `--dtype` has choices float16, bfloat16, float32, defaults to config.json torch_dtype (then text_config dtype), and applies only to floating-point non-quantized parameters (cast_predicate).",
+          "source": "https://github.com/ml-explore/mlx-lm/blob/main/mlx_lm/convert.py",
+          "note": null
+        },
+        {
+          "text": "Example fp16 conversion: `mlx_lm.convert --hf-path <src> --mlx-path <dst> --quantize --q-mode mxfp4 --q-group-size 32 --dtype float16` logs \"[INFO] Using dtype: float16\".",
+          "source": "https://github.com/jundot/omlx/issues/604",
+          "note": null
+        },
+        {
+          "text": "oMLX's fp16 oQ toggle casts non-quant weights and scales/biases to fp16 before mx.quantize, and its sanity check on Qwen3.5-4B-oQ2 converted 196 fp tensors, 249 scales and 249 biases.",
+          "source": "https://github.com/jundot/omlx/issues/604",
+          "note": null
+        },
+        {
+          "text": "In Feb 2024 awni declined to make bf16 the mlx_lm.convert default, citing 42 TPS fp16 vs 32 TPS bf16 and that bf16 -> fp16 precision loss is minor next to 4-bit quantization.",
+          "source": "https://github.com/ml-explore/mlx-examples/issues/435",
+          "note": null
+        },
+        {
+          "text": "MLX PR #663 sped up only bfloat16-quantized models; float16 and float32 quantized models saw no change.",
+          "source": "https://github.com/ml-explore/mlx-examples/issues/435",
+          "note": null
+        },
+        {
+          "text": "In Feb 2024 MLX's bf16 scan kernels were commented out, giving \"Unable to load kernel contiguous_scan_inclusive_sum_bfloat16_bfloat16\" on an M2 Ultra.",
+          "source": "https://github.com/ml-explore/mlx-examples/issues/435",
+          "note": null
+        },
+        {
+          "text": "float16 max is 65,504; bfloat16 reaches ~1e38 with fewer mantissa bits.",
+          "source": "https://unsloth.ai/docs/models/tutorials/gemma-3-how-to-run-and-fine-tune",
+          "note": null
+        },
+        {
+          "text": "Gemma 3 activations can reach ~800,000 and become infinity in float16; Unsloth reports Gemma 3 1B through 27B exceed the float16 maximum.",
+          "source": "https://x.com/danielhanchen/status/1902396261875249346",
+          "note": null
+        },
+        {
+          "text": "In Gemma 3 the large activations occur between decoder layers (post_feedforward_layernorm of layer i into input_layernorm of layer i+1), not inside attention or MLP.",
+          "source": "https://x.com/danielhanchen/status/1902396261875249346",
+          "note": null
+        },
+        {
+          "text": "Gemma 3 1B max activation ~60,672 (near the fp16 limit); Llama 3.1 8B absmax ~322.",
+          "source": "https://x.com/danielhanchen/status/1902396261875249346",
+          "note": null
+        },
+        {
+          "text": "Han warns GGUF, vLLM and other engines running float16 (bfloat16 fine) may give \"weird results\" on Gemma 3.",
+          "source": "https://x.com/danielhanchen/status/1902396261875249346",
+          "note": null
+        },
+        {
+          "text": "Unsloth's fix keeps intermediate activations in bfloat16, upcasts layernorms to float32 and uses a manual autocaster; all-float32 would be 2x memory.",
+          "source": "https://x.com/danielhanchen/status/1902396261875249346",
+          "note": null
+        },
+        {
+          "text": "Reproduced symptom: gemma-3-1b-it-qat-q4_0 GGUF gives gibberish/repeated tokens ~600 tokens in under llama.cpp (Metal too); the fp16-converted original and other quants did not; a commenter suspects float16 activation range; unresolved in thread.",
+          "source": "https://huggingface.co/google/gemma-3-1b-it-qat-q4_0-gguf/discussions/1",
+          "note": null
+        },
+        {
+          "text": "oMLX maintainer: float16 oQ on M2 Max gives ~+20% prefill, decode roughly a wash, peak memory slightly higher because hybrid attention paths keep more fp16 state live.",
+          "source": "https://github.com/jundot/omlx/issues/604",
+          "note": null
+        },
+        {
+          "text": "Published fp16 checkpoints: deepsweet's Qwen3.6-35B-A3B and Qwen3.6-27B oQ4/5/6/8 collections each carry text and VL \"-FP16\" variants (35B-A3B oQ4-FP16 is 20.4 GB, tensor types U32 and F16); card says FP16 is an M1/M2 tweak and non-FP16 \"is better suited for M3+\".",
+          "source": "https://huggingface.co/deepsweet/Qwen3.6-35B-A3B-MLX-oQ4-FP16",
+          "note": null
+        },
+        {
+          "text": "Official-looking bf16 MLX checkpoints remain the norm: mlx-community/gemma-4-31b-it-bf16 is ~62.5 GB.",
+          "source": "https://www.invisiblefriends.net/running-gemma-4-locally-with-mlx/",
+          "note": null
+        },
+        {
+          "text": "oQ's streaming path casts non-quantized float32 weights to bfloat16 \"for inference parity\"; vision encoder stays fp16; source checkpoints may be BF16, FP16, FP8 or MXFP8.",
+          "source": "https://github.com/jundot/omlx/blob/main/docs/oQ_Quantization.md",
+          "note": null
+        },
+        {
+          "text": "llama.cpp --cache-type-k/v accepts f32, f16, bf16, q8_0, q4_0, q4_1, iq4_nl, q5_0, q5_1 with default f16; so KV cache is fp16 by default regardless of weight dtype.",
+          "source": "https://medium.com/@michael.hannecke/tuning-llama-cpp-on-apple-silicon-843f37a6c3dc",
+          "note": null
+        },
+        {
+          "text": "MLX issue 846 (awni, 2024): quantized forward can be slower than fp16 when the prompt is long because it is no longer bandwidth-bound; quantized models win on token generation.",
+          "source": "https://github.com/ml-explore/mlx/issues/846",
+          "note": null
+        },
+        {
+          "text": "Per-chip recommendation (inferred): M1/M2 (all tiers) convert non-quantized tensors to fp16 unless the family is overflow-prone (Gemma 3 documented); M3/M4/M5 keep bf16, since no measurable fp16 advantage.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Safe-to-try rule (inferred): run a short prompt and check for NaN/inf or gibberish after fp16 conversion; keep bf16 build as fallback because awni states the precision loss is minor but overflow is not precision.",
+          "source": "asserted",
+          "note": null
+        }
+      ]
+    }
+  ],
+  "related": []
+}

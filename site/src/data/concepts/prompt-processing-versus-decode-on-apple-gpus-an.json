@@ -1,0 +1,344 @@
+{
+  "slug": "prompt-processing-versus-decode-on-apple-gpus-an",
+  "concept": "Prompt processing versus decode on Apple GPUs and Neural Accelerators",
+  "generated": "2026-10-05",
+  "summary": "Per-chip llama.cpp numbers (Llama-2 7B, llama-bench -p 512 -n 128 -ngl 99, one shared table) let you separate the two regimes: pp tracks GPU core count and generation, tg tracks bandwidth and weight bytes. See Claims for the full M1-M5 Q4_0 matrix.",
+  "facets": [
+    {
+      "title": "Facts",
+      "facts": [
+        {
+          "text": "Per-chip llama.cpp numbers (Llama-2 7B, llama-bench -p 512 -n 128 -ngl 99, one shared table) let you separate the two regimes: pp tracks GPU core count and generation, tg tracks bandwidth and weight bytes. See Claims for the full M1-M5 Q4_0 matrix.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "M1-M4 GPUs have no dedicated matrix units. Matmul runs on the shared FP32 ALU pipeline (simdgroup_matrix improves utilisation only). The M5 GPU adds a per-core Neural Accelerator reached through Metal 4 TensorOps / Metal Performance Primitives. That is why pp jumps about 3.3-3.8x between M4 and M5 at equal core count while tg moves only with bandwidth.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Effective prefill compute, derived as pp512 x 13.5 GFLOP per token (6.74 B params x 2): M4 Max 40-core about 12 TFLOPS, M5 Max 40-core about 43 TFLOPS, M5 Ultra 80-core about 67 TFLOPS. A third-party pre-launch spec estimate gives 18.4 TFLOPS FP32 (M4 Max) and about 70 TFLOPS FP16 (M5 Max) peak, so M5 Max reaches roughly 60% of that estimate in llama.cpp.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Per-GPU-core pp512 (Q4_0): M1 base 8-core 14.7; M1 Max 32-core 16.6; M2 Ultra 76-core 16.3; M3 Max 40-core 19.0; M3 Ultra 80-core 18.4; M4 base 22.1; M4 Max 40-core 22.1; M5 base 72.3; M5 Pro 20-core 81.0; M5 Max 40-core 80.5; M5 Ultra 80-core 61.8. A generation of pre-M5 chips changes per-core pp by under 35%; the M5 step is about 3.6x. The M5 Ultra loses about 23% per core versus M5 Max (two-die scaling shortfall).",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Quant independence is visible inside every row: Q4_0, Q8_0 and F16 pp512 differ by under 8% on M1-M5 (M5 Max 3347/3220/3190), while tg moves about 3x. Prefill does not get faster by quantizing harder; decode does.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Batch tuning: `-b` is the logical batch (README default 2048), `-ub` the physical micro-batch (README default 512). Prompt tokens are fed to the GPU in ub-sized slices, so ub is the knob that sets matmul tile size; raising only `-b` does nothing while `-ub` stays at 512. MLX's equivalent is `--prefill-step-size` (default 2048).",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Cache reuse removes prefill instead of speeding it. llama-server defaults: `--cache-prompt` on (only the unseen suffix of an identical prefix is evaluated), `--cache-reuse` 0 (KV shifting off), `--cache-ram` 8192 MiB, `--ctx-checkpoints` 32 per slot spaced at least 8192 tokens apart, `--slot-save-path` disabled. Hybrid-attention and sliding-window models (Qwen 3.5/3.6, Gemma 4) cannot rewind their KV cache arbitrarily, so engines add checkpoints (llama.cpp) or 256-token disk blocks (LM Studio mlx-engine).",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Cache invalidators in agent clients: any changed character before the new text forces recomputation from that point. Reported causes: tool-definition order or argument order changing between turns (fix: sort_keys in the chat template), a date or timestamp in the system prompt, and Qwen 3.5 `<think>` tags being added and stripped so the previous assistant turn never matches.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "TTFT planning formula (inference): TTFT = uncached_prompt_tokens / pp_rate + model_load. Use pp measured at your model size, not 7B numbers, and scale by active parameters (a 7B-class Q4 pp of 3,300 t/s on M5 Max implies roughly 1,000 t/s for a 27B dense model by compute scaling).",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "2023-11 (llama.cpp discussion 4167 opened): M1/M2 table on commit 8e672ef. Same discussion updated 2026-08-25 to build c1d0e7a to add M5+, and by 2026-09-30 has an M5 Ultra row.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "2025-11-19 Apple MLX post: first TensorOps/NAX results (macOS 26.2 required).",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "2026-03-30 Ollama 0.19 MLX preview adds checkpointed cache reuse for shared-system-prompt agents.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "2026-04 to 2026-06: disk-backed or SSD-tiered KV caches (LM Studio mlx-engine 1.8.5, oMLX) appear to survive restarts and evictions.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Base chips cannot run F16 7B in llama-bench: weights (13.5 GiB) exceed recommendedMaxWorkingSetSize (12.7 GB) on a 16 GB M5 Air, hence blank F16 cells for M1-M4 base rows.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "M4 24 GB, Qwen3.5-9B Q5_K_M, Hermes agent, 65k ctx, -b 2048 -ub 1024: first request about 14k tokens took 82 s (prefill reported as 95 to 174 t/s in the same post); follow-ups 7-8 s thanks to the cache. A fresh session first prompt up to 50k tokens took 3-6 minutes to first visible character.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "mlx_lm.server KV cache grows unbounded and is wired, so Jetsam cannot reclaim it: \"[METAL] Command buffer execution failed: Insufficient Memory\" after a few messages on M5 Pro 48 GB with a 27B 8-bit model; mlx_lm.server has no `--max-kv-size`.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Restart wipes in-RAM prompt cache: mlx-lm after restart was about 5x slower than warm, only about half recovered; oMLX restored from SSD at 97% of warm.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "oMLX lazy-loads, so its first cold TTFT includes model load (64 s vs 32 s for mlx-lm in the same test); and its SSD cache persists across benchmark runs, making \"cold\" numbers falsely fast unless `~/.omlx/cache` is cleared.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Quadratic attention: a 20K prompt costs 25x the attention of a 4K prompt, so tok/s at pp512 overstates long-prompt prefill.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Decode gain M4 to M5 Max. Side A (llama.cpp discussion 4167 raw rows): Q4_0 tg 119.92 (M5 Max, build c1d0e7a) vs 83.06 (M4 Max, build 8e672ef), +44%. Side B (bandwidth 614 vs 546 GB/s = +12%; sibling dossiers cite 7-10%; Apple's same-build MLX result is 19-27% on base M5). The rows are confounded: the same table shows M2 Ultra Q4_0 tg rising 94.27 to 125.21 (+33%) and pp 1238 to 1489 (+20%) purely from llama.cpp builds between 8e672ef and c1d0e7a. Dividing 1.44 by 1.33 leaves about 1.08, consistent with Side B. Treat cross-build chip ratios as upper bounds.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "`-b`/`-ub` defaults. Medium tuning post says both default 512; the current llama-server README says -b 2048, -ub 512. A third-party post claims \"2-3x faster prompt eval from batch 2048\" without data and gives `OLLAMA_NUM_BATCH` as the Ollama knob. Only one anecdote (4K prompt 8 s to about 3 s) exists, and no controlled per-chip sweep was found.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "MLX vs llama.cpp prefill. Warm prefill ties between mlx-lm and oMLX (3.45 s vs 3.65 s, 8k prefix, Gemma 4 31B 4-bit, M4 Max). Other posts claim MLX prefill collapses at long context; no same-chip, same-prompt pp comparison across engines on M5 was found.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Controlled `-ub` sweep (512 to 4096) on M5-class with the tensor API on; none found.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "M5 pp at 32k to 128k depth for llama.cpp and MLX (llama-bench `-d`).",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "M5 Max prefill for 27B dense and 70B dense; only 7B-class and MoE data found.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Whether Ollama's 1810 t/s prefill figure was measured on M5 base, Pro or Max (chip not stated in the fetched text).",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "llama.cpp Llama-2 7B Q4_0 pp512 / tg128 t/s: M1 8-core 117.96/14.15 (68 GB/s); M1 Pro 16-core 266.25/36.41; M1 Max 32-core 530.06/61.19; M1 Ultra 64-core 1030.04/83.73; M2 10-core 179.57/21.91; M2 Pro 19-core 341.19/38.86; M2 Max 38-core 671.31/65.95; M2 Ultra 76-core 1238.48/94.27",
+          "source": "https://github.com/ggml-org/llama.cpp/discussions/4167",
+          "note": null
+        },
+        {
+          "text": "llama.cpp Llama-2 7B Q4_0 pp512 / tg128 t/s: M3 10-core 186.75/21.34; M3 Pro 18-core 341.67/30.74; M3 Max 40-core 759.70/66.31; M3 Max 30-core (300 GB/s) 567.59/56.58; M3 Ultra 80-core 1471.24/92.14",
+          "source": "https://github.com/ggml-org/llama.cpp/discussions/4167",
+          "note": null
+        },
+        {
+          "text": "llama.cpp Llama-2 7B Q4_0 pp512 / tg128 t/s: M4 10-core 221.29/24.11 (120 GB/s); M4 Pro 20-core 439.78/50.74 (273 GB/s); M4 Max 32-core 713.93/69.95 (410 GB/s); M4 Max 40-core 885.68/83.06 (546 GB/s)",
+          "source": "https://github.com/ggml-org/llama.cpp/discussions/4167",
+          "note": null
+        },
+        {
+          "text": "llama.cpp Llama-2 7B Q4_0 pp512 / tg128 t/s: M5 10-core 722.79/31.88 (154 GB/s, build c1d0e7a); M5 Pro 16-core 1340.44/67.59; M5 Pro 20-core 1620.64/66.33; M5 Max 40-core 3219.99/119.92 (614 GB/s)",
+          "source": "https://github.com/ggml-org/llama.cpp/discussions/4167",
+          "note": null
+        },
+        {
+          "text": "The M1 to M4 rows were all measured on commit 8e672ef (2023-11-21); M5 rows on c1d0e7a or later builds, so cross-generation ratios mix hardware and software gains.",
+          "source": "https://github.com/ggml-org/llama.cpp/discussions/4167",
+          "note": null
+        },
+        {
+          "text": "On the same table, M2 Ultra Q4_0 pp512 rose from 1238 to 1489 (+20%) and tg128 from 94 to 125 (+33%) between builds 8e672ef and c1d0e7a (commit 8e672ef plain vs c1d0e7a with FA).",
+          "source": "https://github.com/ggml-org/llama.cpp/discussions/4167",
+          "note": null
+        },
+        {
+          "text": "M5 10-core vs M4 10-core, same table: pp512 722.79 vs 221.29 is 3.27x; tg128 31.88 vs 24.11 is 1.32x against a 1.28x bandwidth ratio.",
+          "source": "https://github.com/ggml-org/llama.cpp/discussions/4167",
+          "note": null
+        },
+        {
+          "text": "M5 Max 40-core vs M4 Max 40-core, same table: pp512 Q4_0 3219.99 vs 885.68 is 3.64x; F16 pp 3158.49 vs 922.83 is 3.42x.",
+          "source": "https://github.com/ggml-org/llama.cpp/discussions/4167",
+          "note": null
+        },
+        {
+          "text": "A 16 GB M5 Air (10-core, macOS 26.6.1) cannot run the F16 7B benchmark because 13.5 GiB weights exceed recommendedMaxWorkingSetSize of 12.7 GB.",
+          "source": "https://github.com/ggml-org/llama.cpp/discussions/4167",
+          "note": null
+        },
+        {
+          "text": "Within every M5 row Q4_0, Q8_0 and F16 pp512 differ by under 8% (M5 Ultra 4945/4911/5207; M5 Max 3220/3144/3158) while tg differs about 1.5x to 2.4x.",
+          "source": "https://github.com/ggml-org/llama.cpp/discussions/4167",
+          "note": null
+        },
+        {
+          "text": "M5 Ultra 80-core Q4_0 tg128 179.10 is about 56% of its 1228 GB/s over the 3.82 GB weights, versus about 74% for M5 Max (119.92 of 614 GB/s).",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Per-GPU-core pp512 for Q4_0 is about 22 on M4 and 72-81 on M5 base, Pro and Max, but 62 on M5 Ultra 80-core.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Effective prefill compute of llama.cpp Metal (pp512 x 13.5 GFLOP) is about 12 TFLOPS on M4 Max 40-core and about 43 TFLOPS on M5 Max 40-core.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Apple's MLX test used prompt size 4096, generation of 128 tokens, M5 24 GB MacBook Pro vs similarly configured M4, via mlx_lm.generate.",
+          "source": "https://machinelearning.apple.com/research/exploring-llms-mlx-m5",
+          "note": null
+        },
+        {
+          "text": "Apple per-model M5 vs M4 TTFT speedup / generation speedup: Qwen3-1.7B bf16 3.57x/1.27x; Qwen3-8B bf16 3.62x/1.24x; Qwen3-8B 4-bit 3.97x/1.24x; Qwen3-14B 4-bit 4.06x/1.19x; gpt-oss-20b MXFP4 3.33x/1.24x; Qwen3-30B-A3B 4-bit 3.52x/1.25x. The \"up to 4x\" figure is the best dense 4-bit case; the MoE and MXFP4 cases are 3.3-3.5x.",
+          "source": "https://machinelearning.apple.com/research/exploring-llms-mlx-m5",
+          "note": null
+        },
+        {
+          "text": "Apple states M5 TTFT is under 10 s for a dense 14B and under 3 s for a 30B MoE at a 4096-token prompt.",
+          "source": "https://machinelearning.apple.com/research/exploring-llms-mlx-m5",
+          "note": null
+        },
+        {
+          "text": "Ollama 0.19 (MLX preview), Qwen3.5-35B-A3B, tested 2026-03-29: prefill 1154 to 1810 t/s and decode 58 to 112 t/s versus 0.18 (NVFP4 vs Q4_K_M); decode doubling comes mainly from the engine and format change, not only from Neural Accelerators. Chip not stated.",
+          "source": "https://ollama.com/blog/mlx",
+          "note": null
+        },
+        {
+          "text": "llama-server README defaults: `-b` 2048, `-ub` 512, `--cache-prompt` on, `--cache-reuse` 0, `-cram` 8192 MiB, `-ctxcp` 32 per slot, `-cms` 8192 tokens minimum spacing, `--cache-idle-slots` on, `--slot-save-path` disabled.",
+          "source": "https://raw.githubusercontent.com/ggml-org/llama.cpp/master/tools/server/README.md",
+          "note": null
+        },
+        {
+          "text": "llama-server `cache_prompt` evaluates only the suffix that differs from the previous completion, and may give nondeterministic output because logits are not bit-identical across batch sizes.",
+          "source": "https://raw.githubusercontent.com/ggml-org/llama.cpp/master/tools/server/README.md",
+          "note": null
+        },
+        {
+          "text": "A tuning guide recommends `-ngl 99 -fa 1 -b 2048 -ub 2048 --cache-type-k q8_0 --cache-type-v q8_0` on Apple Silicon and notes the larger compute buffer as the cost of big ub.",
+          "source": "https://medium.com/@michael.hannecke/tuning-llama-cpp-on-apple-silicon-843f37a6c3dc",
+          "note": null
+        },
+        {
+          "text": "The only measured ubatch claim found: a 4K-token prompt took about 8 s at defaults and about 3 s with `-ub 2048` (single anecdote, hardware not stated).",
+          "source": "https://medium.com/@michael.hannecke/tuning-llama-cpp-on-apple-silicon-843f37a6c3dc",
+          "note": null
+        },
+        {
+          "text": "M4 24 GB, Qwen3.5-9B Q5_K_M via llama-server: 82 s TTFT for about 14k tokens on the first query, 7-8 s on follow-ups; the poster saw prefill of 95 to 174 t/s.",
+          "source": "https://github.com/ggml-org/llama.cpp/discussions/21112",
+          "note": null
+        },
+        {
+          "text": "M4 Pro 24 GB, Gemma 3 12B: roughly 260 t/s prefill; 4K cold prefill 15.7 s; restoring a persisted Q4 KV cache from disk took 577 ms warm and 719 ms hot memory.",
+          "source": "https://arxiv.org/html/2603.04428v1",
+          "note": null
+        },
+        {
+          "text": "In that paper prefill was 84% of latency at 4K context with 3 s of decode, and 94% with 1 s of decode.",
+          "source": "https://arxiv.org/html/2603.04428v1",
+          "note": null
+        },
+        {
+          "text": "Persisting the KV cache in 4-bit (group 64) shrinks it to 0.281 of FP16; for Gemma 3 12B at 4K context that is 1,536 MB vs 432 MB per agent.",
+          "source": "https://arxiv.org/html/2603.04428v1",
+          "note": null
+        },
+        {
+          "text": "Qwen 3.5 (hybrid) and Gemma 4 (sliding window) KV caches are not arbitrarily rewindable, so reasoning-heavy agent turns break prefix reuse unless checkpointed.",
+          "source": "https://lmstudio.ai/blog/mlx-engine-agentic-workloads",
+          "note": null
+        },
+        {
+          "text": "LM Studio mlx-engine 1.8.5 saves local-attention KV blocks to a temporary /tmp scratch file at every 256-token boundary with LRU eviction, restoring the longest cached prefix.",
+          "source": "https://lmstudio.ai/blog/mlx-engine-agentic-workloads",
+          "note": null
+        },
+        {
+          "text": "LM Studio benchmark on M3 Max 36 GB, Qwen3.6-27B MLX 4-bit: second identical 3,729-token image prompt took 6.88 s (3,584 cached tokens) vs 23.79 s before; four parallel long prompts totalling 32,876 input tokens took about 277 s (about 120 t/s total including decode of about 980 tokens).",
+          "source": "https://lmstudio.ai/blog/mlx-engine-agentic-workloads",
+          "note": null
+        },
+        {
+          "text": "Mac Studio M4 Max 64 GB, Gemma 4 31B 4-bit, 8k prefix: mlx-lm cold about 32 s, oMLX cold about 64 s, warm 3.65 s vs 3.45 s; decode 22 vs 25 t/s; after a server restart mlx-lm was about 5x slower than warm while oMLX was back at 7.2 s.",
+          "source": "https://medium.com/macoclock/mlx-lm-vs-omlx-i-was-wrong-about-the-winner-8f36be328069",
+          "note": null
+        },
+        {
+          "text": "Raw MLX, Qwen3.6-35B-A3B 4-bit, 8,700-token context: 20 s on M1 Max 64 GB (about 435 t/s) vs 5.75 s on M4 Max 64 GB (about 1,500 t/s).",
+          "source": "https://blog.gopenai.com/i-tried-running-ai-agents-on-my-macbook-mlx-was-too-slow-then-i-found-omlx-1f0cc7f63273",
+          "note": null
+        },
+        {
+          "text": "Mac Studio M3 Ultra 512 GB: about 7,000-token prompt edits take about 30 s and Claude Code with a 16,000-token system prompt takes about 90 s before caching fixes.",
+          "source": "https://spicyneuron.substack.com/p/a-mac-studio-for-local-ai-6-months",
+          "note": null
+        },
+        {
+          "text": "Claude Code reorders tools and tool arguments between turns, which defeats prefix caching; sorting with `tojson(sort_keys=True)` and `dictsort` in the Qwen 3.5 chat template fixes it.",
+          "source": "https://spicyneuron.substack.com/p/a-mac-studio-for-local-ai-6-months",
+          "note": null
+        },
+        {
+          "text": "Qwen 3.5's dynamic `<think>` placement stops the previous assistant turn from matching the cache; a \"speculative prompt processing\" patch (`--prompt-cache-warmup` in a personal mlx-lm branch) pre-computes the next turn's prefix while the user is reading.",
+          "source": "https://spicyneuron.substack.com/p/a-mac-studio-for-local-ai-6-months",
+          "note": null
+        },
+        {
+          "text": "Apple-GPU Metal 4 TensorOps hardware is described as 1,024 FP16 FMA per cycle per Neural Accelerator, about 70 TFLOPS FP16 for 40-core M5 Max, and M1-M4 GPUs have no dedicated matrix hardware (pre-launch third-party analysis, not Apple data).",
+          "source": "https://skorppio.com/blog/apple-m5-max-vs-nvidia-ai-deep-dive",
+          "note": null
+        },
+        {
+          "text": "The Neural Engine cannot be programmed directly (CoreML only), so llama.cpp, MLX and Ollama run on the GPU, which is where the M5 Neural Accelerators sit.",
+          "source": "https://skorppio.com/blog/apple-m5-max-vs-nvidia-ai-deep-dive",
+          "note": null
+        },
+        {
+          "text": "M5 Pro 48 GB with mlx_lm.server and a 27B 8-bit model hit \"[METAL] Command buffer execution failed: Insufficient Memory\" because KV cache grows unbounded and wired memory is not reclaimed by Jetsam.",
+          "source": "https://blog.kulman.sk/running-local-llm-coding-server/",
+          "note": null
+        },
+        {
+          "text": "Third-party advice that raising batch size to 2048 gives a 2-3x prompt-eval speedup, with `OLLAMA_NUM_BATCH` as the Ollama knob, is unsourced and uncontrolled.",
+          "source": "https://omniforge.online/blog/your-local-llm-is-slow-because-of-five-config-flags",
+          "note": null
+        },
+        {
+          "text": "M2 Max native Metal Q4_0 pp512 measured 746 t/s on a later build vs 671 in the main table, another example of build drift.",
+          "source": "https://github.com/ggml-org/llama.cpp/discussions/12985",
+          "note": null
+        },
+        {
+          "text": "Because decode is bandwidth-bound and prefill compute-bound, a long cold prompt should be budgeted as prompt_tokens / pp_rate, with pp rate derived from active parameters and chip (e.g. 14k tokens at 174 t/s is about 80 s).",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "For agent loops on M-series, avoiding prefill (stable prefix, sorted tools, no timestamps, checkpoints, SSD cache) usually saves more time than the M4-to-M5 hardware step.",
+          "source": "asserted",
+          "note": null
+        }
+      ]
+    }
+  ],
+  "related": []
+}

@@ -1,0 +1,54 @@
+{
+  "slug": "jaccl-protection-domain-exhaustion-on-repeated-m",
+  "concept": "JACCL protection domain exhaustion on repeated mx.distributed.init",
+  "generated": "2026-10-05",
+  "summary": "The library does carry release paths: `Connection` has a destructor and the verbs table includes `dealloc_pd`, `destroy_qp` and `destroy_cq`. The reported leak is therefore not a missing call in JACCL's own code path as read here; it matches the reports that the kernel side does not return PDs af...",
+  "facets": [
+    {
+      "title": "Facts",
+      "facts": [
+        {
+          "text": "The library does carry release paths: `Connection` has a destructor and the verbs table includes `dealloc_pd`, `destroy_qp` and `destroy_cq`. The reported leak is therefore not a missing call in JACCL's own code path as read here; it matches the reports that the kernel side does not return PDs after teardown.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "A larger mesh or more wires per pair burns the pool faster per init, so a 5-node mesh should hit the limit in fewer restarts than a 2-node pair. The reported counts do not fit this simple model (about 60 sessions at 2 nodes against 2 to 3 broadcasts at 5 nodes), so other consumers of the pool probably exist (orphans, probes).",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Ring init allocates a PD, a completion queue and a queue pair per connection, `2 * n_conns` PDs per rank",
+          "source": "https://raw.githubusercontent.com/ml-explore/mlx/main/mlx/distributed/jaccl/lib/jaccl/ring.cpp",
+          "note": null
+        },
+        {
+          "text": "Mesh init allocates a PD per connection to every peer, so a rank uses `(size - 1) * n_wires` PDs",
+          "source": "https://raw.githubusercontent.com/ml-explore/mlx/main/mlx/distributed/jaccl/lib/jaccl/mesh.cpp",
+          "note": null
+        },
+        {
+          "text": "JACCL registers each send and receive buffer to the PD of the connection it serves",
+          "source": "https://raw.githubusercontent.com/ml-explore/mlx/main/mlx/distributed/jaccl/lib/jaccl/ring.cpp",
+          "note": null
+        },
+        {
+          "text": "JACCL's verbs table includes `dealloc_pd`, `destroy_qp` and `destroy_cq` and `Connection` has a destructor",
+          "source": "https://raw.githubusercontent.com/ml-explore/mlx/main/mlx/distributed/jaccl/lib/jaccl/rdma.h",
+          "note": null
+        },
+        {
+          "text": "mlx-lm issue 955 recommends one N-node broadcast over N-1 sequential 2-node transfers to limit init cycles, and periodic reboots for heavy use",
+          "source": "https://github.com/ml-explore/mlx-lm/issues/955",
+          "note": null
+        },
+        {
+          "text": "mlx-lm issue 955 says RDMA device names change after every reboot, so `mlx.distributed_config --auto-setup` must be rerun and the hostfile redistributed after a PD-exhaustion reboot",
+          "source": "https://github.com/ml-explore/mlx-lm/issues/955",
+          "note": null
+        }
+      ]
+    }
+  ],
+  "related": []
+}

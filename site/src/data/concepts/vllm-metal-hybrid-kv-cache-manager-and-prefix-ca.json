@@ -1,0 +1,99 @@
+{
+  "slug": "vllm-metal-hybrid-kv-cache-manager-and-prefix-ca",
+  "concept": "vLLM-Metal hybrid KV cache manager and prefix caching",
+  "generated": "2026-10-05",
+  "summary": "vLLM's hybrid KV cache manager uses a single memory pool split into blocks of one page size, with `KVCacheManager` allocating different block counts to layers by attention type; for full-attention-only models page size is block_size x num_hidden_layers x kv_hidden_size.",
+  "facets": [
+    {
+      "title": "Facts",
+      "facts": [
+        {
+          "text": "vLLM's hybrid KV cache manager uses a single memory pool split into blocks of one page size, with `KVCacheManager` allocating different block counts to layers by attention type; for full-attention-only models page size is block_size x num_hidden_layers x kv_hidden_size.",
+          "source": "https://docs.vllm.ai/en/latest/design/hybrid_kv_cache_manager/",
+          "note": null
+        },
+        {
+          "text": "vLLM's block pool caches full blocks in a dict keyed `tuple(block_hash, group_id)`, so tokens in different KV cache groups are cached and evicted independently, and a request's cached prefix is the intersection of the per-group hits.",
+          "source": "https://docs.vllm.ai/en/latest/design/hybrid_kv_cache_manager/",
+          "note": null
+        },
+        {
+          "text": "For sliding-window layers vLLM allocates different blocks per token and frees blocks outside the window, because a round-robin ring of `sliding_window_size` blocks is incompatible with prefix caching; a hit needs only the last `sliding_window_size - 1` tokens cached and is checked right to left.",
+          "source": "https://docs.vllm.ai/en/latest/design/hybrid_kv_cache_manager/",
+          "note": null
+        },
+        {
+          "text": "For full attention plus one other type (sliding window, Llama 4 local attention or Mamba) vLLM finds the longest full-attention hit scanning left to right, then the longest other-type hit within that length scanning right to left; it does not support models without full attention or with more than two attention types.",
+          "source": "https://docs.vllm.ai/en/latest/design/hybrid_kv_cache_manager/",
+          "note": null
+        },
+        {
+          "text": "vLLM's HybridKVCacheCoordinator handles exactly two KV cache groups (one full-attention plus one other efficient type), UnitaryKVCacheCoordinator handles one group, and KVCacheCoordinatorNoPrefixCache applies when prefix caching is off; the design page uses one LRU queue across all groups.",
+          "source": "https://docs.vllm.ai/en/latest/design/hybrid_kv_cache_manager/",
+          "note": null
+        },
+        {
+          "text": "For hybrid Mamba models vLLM raises attention `block_size` until block_size x attention kv_hidden_size is at least the Mamba state size and pads Mamba state to match, which can exceed 400 tokens per block; the page calls a better padding strategy work in progress.",
+          "source": "https://docs.vllm.ai/en/latest/design/hybrid_kv_cache_manager/",
+          "note": null
+        },
+        {
+          "text": "vllm-metal's architecture is upstream vLLM for API server, scheduler and paged block manager, mlx_lm for token-wise model layers, and vllm-metal for the request-aware attention path (paged varlen kernel, M5 NAX prefill, speculative decoding).",
+          "source": "https://github.com/vllm-project/vllm-metal",
+          "note": null
+        },
+        {
+          "text": "vllm-metal sizes its paged KV cache with vLLM's `--gpu-memory-utilization`; the former `VLLM_METAL_MEMORY_FRACTION` override has been removed.",
+          "source": "https://github.com/vllm-project/vllm-metal/blob/main/docs/configuration.md",
+          "note": null
+        },
+        {
+          "text": "In vllm-metal models with full and sliding-window attention use grouped KV cache so sliding layers release old blocks, which can improve long-context capacity but not necessarily speed; `--disable-hybrid-kv-cache-manager` selects dense allocation.",
+          "source": "https://github.com/vllm-project/vllm-metal/blob/main/docs/configuration.md",
+          "note": null
+        },
+        {
+          "text": "vllm-metal allocates the KV pool lazily: vLLM's zero-fill would commit every page on unified memory at startup, so it skips the fill when `KVCacheConfig.needs_kv_cache_zeroing` is false (Mamba state and mixed-precision caches keep the zero fill), and pages commit only as blocks are written.",
+          "source": "https://github.com/vllm-project/vllm-metal/blob/main/docs/configuration.md",
+          "note": null
+        },
+        {
+          "text": "Because of lazy commit `--gpu-memory-utilization` sizes the capacity vllm-metal may reach rather than its resident footprint, so a 16 GB Mac can give the cache a multi-GB budget while a short request occupies only the blocks it writes.",
+          "source": "https://github.com/vllm-project/vllm-metal/blob/main/docs/configuration.md",
+          "note": null
+        },
+        {
+          "text": "vllm-metal's supported-models table marks Automatic Prefix Cache supported for Qwen3, LFM2/2.5 (hybrid SDPA + ShortConv), Gemma 3 and Gemma 4, and experimental for Qwen3.5/3.6/3.8, Qwen3-Next and Ling-3.0 Tiny; prefix caching is disabled for Nemotron-H and Granite 4.0 hybrid (SDPA + Mamba-2) models.",
+          "source": "https://github.com/vllm-project/vllm-metal/blob/main/docs/supported_models.md",
+          "note": null
+        },
+        {
+          "text": "vllm-metal's `VLLM_METAL_SPEC_VERIFY_WINDOW` (default off) shares KV block loads across the K+1 verification rows, but MLA, hybrid-GDN and head sizes above 256 always use the expanded layout.",
+          "source": "https://github.com/vllm-project/vllm-metal/blob/main/docs/configuration.md",
+          "note": null
+        },
+        {
+          "text": "`VLLM_METAL_GDN_LAZY_KERNELS` (default 1) enables lazy GDN kernels for eligible hybrid batches; setting it to 0 forces the eager conv / C++ recurrent fallback.",
+          "source": "https://github.com/vllm-project/vllm-metal/blob/main/docs/configuration.md",
+          "note": null
+        },
+        {
+          "text": "The vllm-metal README dates v0.2.0 to 2026-04 (unified paged varlen Metal kernel as default: 83x TTFT and 3.6x throughput over v0.1.0) and 2026-08 for Qwen3.8 hybrid SDPA + GDN serving and M5 NAX prefill.",
+          "source": "https://github.com/vllm-project/vllm-metal",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Corrections and disagreements",
+      "facts": [
+        {
+          "text": "CONTRADICTS: hybrid-and-sliding-window-attention-kv-cache-rewinding.md (line 109, vLLM 0.28.0 enabled hybrid/Mamba prefix reuse by default): the current vLLM design page still says prefix caching for Mamba models is work in progress; the page may be stale.",
+          "source": "https://docs.vllm.ai/en/latest/design/hybrid_kv_cache_manager/",
+          "note": null
+        }
+      ]
+    }
+  ],
+  "related": []
+}

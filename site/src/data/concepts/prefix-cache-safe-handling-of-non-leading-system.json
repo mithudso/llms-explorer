@@ -1,0 +1,214 @@
+{
+  "slug": "prefix-cache-safe-handling-of-non-leading-system",
+  "concept": "Prefix-cache-safe handling of non-leading system turns",
+  "generated": "2026-10-05",
+  "summary": "oMLX entry point: `prepare_system_messages_for_template` (omlx/api/utils.py). It runs for requests that have a non-leading system message and are not partial (continue-final-message) requests.",
+  "facets": [
+    {
+      "title": "Facts",
+      "facts": [
+        {
+          "text": "oMLX entry point: `prepare_system_messages_for_template` (omlx/api/utils.py). It runs for requests that have a non-leading system message and are not partial (continue-final-message) requests.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Step 1, relocation hook: a tokenizer attribute `_omlx_relocate_mid_system_messages`, or `relocate_mid_system_messages` on its template object, may rewrite the messages first (model-specific, for templates with a native reminder role).",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Step 2, placement check: `_mid_system_placement_kinds` accepts a non-leading system run only if the previous message is `user` or `tool` and the next is nothing (tail) or `assistant` (between). Any other shape returns \"unsupported\". `developer` counts as system.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Step 3, capability probe: `chat_template_preserves_mid_system` renders a synthetic conversation (user, optional assistant tool call and tool result, system with a marker, optional assistant) through the real template and requires the system marker to appear after the preceding-role marker (and before the assistant marker for the \"between\" case). A render exception means false. An explicit `_omlx_supports_mid_system_messages` or `supports_mid_system_messages` attribute set to false short-circuits it. Results are memoised in a process-wide dict.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Probe cache key: tokenizer object id, hash of the template string, whether tools are present, the frozen chat-template kwargs, preceding role, placement and partial flag. So a change in `enable_thinking` or `preserve_thinking` re-probes.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Step 4, if the probe passes: consecutive system messages are merged in place with \"\\n\\n\" and the prefix is untouched.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Step 5, if it fails: server setting `preserve_mid_system_cache` (default true) selects `user_note_safe`; false selects `strict`.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "`user_note_safe` (`_downgrade_mid_system_to_user_notes`): wraps the system text as `[System note]\\n...\\n[/System note]` and appends it to the preceding user message if that message is a plain-text user turn and the system run is last or followed by an assistant; otherwise prepends it to the next user message; refuses (returns None) when the previous message is a tool message, when an assistant tool call sits on the boundary, or when the user content is multimodal.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "`strict` fallback, also used when `user_note_safe` returns None: `_consolidate_system_messages` moves every system message to the front and merges them with \"\\n\\n\" into one leading system message. Partial requests always take this path.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Failure mode (issue 3608, comment 2026-09-28, source-read and not reproduced): Claude Code's most common shape is system after a tool-result turn and before an assistant turn. `user_note_safe` rejects it (previous role is tool), so oMLX hoists every reminder into the leading system message. That message grows by one line per turn, the rendered prompt diverges just after Claude Code's own system prompt on every request, and everything after is re-prefilled. The divergence depth stays near the system-prompt-plus-tools length, rounded down to the 2048-token block.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Template-side fix (oMLX issue 3316, closed 2026-08-31 as completed by its author): a patched Qwen3.8 template that renders a non-leading system or developer message in place as `<|im_start|>system\\n...<|im_end|>\\n`. The author chose it over a server change; a reviewer agreed (\"just fix the chat template\").",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Probe weakness (oMLX issue 1966, 2026-06-22; fix PR 1991, open on 2026-10-04): the probe used only `[user, system]`. Qwen3.6 accepts that shape but rejects a system message after a leading system block, so the probe returned a false positive and the request failed with \"System message must be at the beginning.\" PR 1991 adds a leading-system shape to the probe and a `has_leading_system` field in the cache key. The cached main-branch utils.py read on 2026-10-04 has no `has_leading_system`, so the fix is not on main.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "froggeric's template documents \"native support for arbitrary system and developer messages\" and merges consecutive leading system and developer messages; its repo does not say whether a later system message is rendered in place or moved.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "2026-06-22/24: oMLX issue 1966 and PR 1991 (probe false positive on /v1/responses with a leading developer block).",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "2026-08-30/31: oMLX issue 3316 (Claude Code placements that defeat the downgrade) closed with a template patch.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "2026-09-12: oMLX issue 3608 (constant-depth prefix divergence); 2026-09-28 comment attributes it to the hoist fallback.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Each mid-conversation reminder that Claude Code re-sends (\"task tools haven't been used recently\", plan-mode exit, hook context) is kept in history; a hoist makes the leading block grow, a downgrade attaches the note to a neighbouring user turn, which changes that turn's bytes the first time and stays stable afterwards only if the same neighbour is chosen every request.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "`user_note_safe` prepends the note to the next user message when the previous message is not a safe target; a request that later gains an assistant turn between them can change which neighbour is chosen, altering earlier bytes.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "oMLX probes with a one-tool dummy schema (`omlx_probe_tool`), so a template whose system rendering depends on the real tool list is only approximated.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "llama.cpp has no equivalent probe or downgrade; the only server-side workaround is merging a leading system message when `supports_system_role` is false. A non-leading one still reaches the template.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Server fix versus template fix: the oMLX issue 3316 author and a reviewer prefer rendering in place via the template; a commenter on 3608 proposes extending `_downgrade_mid_system_to_user_notes` so a system run after a tool message becomes a trailing user note. Neither side shows model-quality evidence for in-place system turns versus user notes.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Whether the 3608 divergence is a caching bug (reporter's cache_control hypothesis) or the hoist (reviewers). A reviewer ruled cache_control out from source; the hoist explanation is also source reading and unreproduced.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Whether Rapid-MLX and vllm-mlx implement any equivalent of the probe or downgrade.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Whether a template that renders a mid-conversation system turn in place degrades Qwen3.8 answer quality (no evaluation found).",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Whether PR 1991 or a tool-boundary downgrade has merged after 2026-10-04.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "oMLX's prepare_system_messages_for_template tries a tokenizer relocation hook, then a placement check, then a template probe, then a policy fallback",
+          "source": "https://raw.githubusercontent.com/jundot/omlx/main/omlx/api/utils.py",
+          "note": null
+        },
+        {
+          "text": "oMLX accepts a non-leading system run only after a user or tool message and only when followed by nothing or an assistant message",
+          "source": "https://raw.githubusercontent.com/jundot/omlx/main/omlx/api/utils.py",
+          "note": null
+        },
+        {
+          "text": "oMLX probes a template by rendering a synthetic conversation and requiring the system marker to appear after the preceding-role marker, treating a render exception as unsupported",
+          "source": "https://raw.githubusercontent.com/jundot/omlx/main/omlx/api/utils.py",
+          "note": null
+        },
+        {
+          "text": "The oMLX probe cache key holds tokenizer id, template hash, tools flag, frozen chat-template kwargs, preceding role, placement and partial flag",
+          "source": "https://raw.githubusercontent.com/jundot/omlx/main/omlx/api/utils.py",
+          "note": null
+        },
+        {
+          "text": "oMLX's server setting preserve_mid_system_cache defaults to true and selects the user_note_safe fallback; false selects strict",
+          "source": "https://raw.githubusercontent.com/jundot/omlx/main/omlx/server.py",
+          "note": null
+        },
+        {
+          "text": "user_note_safe wraps system text in [System note] markers and attaches it to a neighbouring plain-text user message, refusing tool-call boundaries and multimodal user content",
+          "source": "https://raw.githubusercontent.com/jundot/omlx/main/omlx/api/utils.py",
+          "note": null
+        },
+        {
+          "text": "The strict fallback moves all system messages to the front and merges them with a blank line into one leading system message",
+          "source": "https://raw.githubusercontent.com/jundot/omlx/main/omlx/api/utils.py",
+          "note": null
+        },
+        {
+          "text": "A 3608 commenter reports the user_note_safe path returns None for a system turn after a tool message, so oMLX hoists reminders into the leading system message and the prefix diverges right after the system prompt every turn (source reading, not reproduced)",
+          "source": "https://github.com/jundot/omlx/issues/3608",
+          "note": null
+        },
+        {
+          "text": "oMLX issue 3316 lists Claude Code system messages between tool and assistant turns, plus plan-mode exit and hook-context notes, as the placements that defeat the downgrade",
+          "source": "https://github.com/jundot/omlx/issues/3316",
+          "note": null
+        },
+        {
+          "text": "The 3316 author closed the issue on 2026-08-31 with a template that renders non-leading system and developer messages in place as system turns",
+          "source": "https://github.com/jundot/omlx/issues/3316",
+          "note": null
+        },
+        {
+          "text": "oMLX PR 1991 says the probe's [user, system] shape gave a false positive on Qwen3.6, which rejects a system message after a leading system block",
+          "source": "https://github.com/jundot/omlx/pull/1991",
+          "note": null
+        },
+        {
+          "text": "PR 1991 adds a leading-system probe shape and a has_leading_system field in the probe cache key",
+          "source": "https://github.com/jundot/omlx/pull/1991",
+          "note": null
+        },
+        {
+          "text": "froggeric lists native support for arbitrary system and developer messages and merges consecutive leading system and developer messages with blank lines",
+          "source": "https://huggingface.co/froggeric/Qwen-Fixed-Chat-Templates",
+          "note": null
+        },
+        {
+          "text": "Hoisting a growing list of per-turn reminders into the leading system message re-prefills everything after the system prompt on each request",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "llama.cpp has no probe or downgrade for non-leading system messages",
+          "source": "asserted",
+          "note": null
+        }
+      ]
+    }
+  ],
+  "related": []
+}

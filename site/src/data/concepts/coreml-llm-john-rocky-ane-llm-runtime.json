@@ -1,0 +1,199 @@
+{
+  "slug": "coreml-llm-john-rocky-ane-llm-runtime",
+  "concept": "CoreML-LLM john-rocky ANE LLM runtime",
+  "generated": "2026-10-05",
+  "summary": "Chunked decode: the model is split into 3-4 Core ML programs run serially; Gemma 4 E2B decode is `chunk1 + chunk2_3way (L8-24) + chunk3_3way (L25-34 + lm_head)` since v1.7.0, three ANE dispatches per step, bit-equivalent to the 4-chunk build, +8.2% tok/s on iPhone 17 Pro.",
+  "facets": [
+    {
+      "title": "Facts",
+      "facts": [
+        {
+          "text": "Chunked decode: the model is split into 3-4 Core ML programs run serially; Gemma 4 E2B decode is `chunk1 + chunk2_3way (L8-24) + chunk3_3way (L25-34 + lm_head)` since v1.7.0, three ANE dispatches per step, bit-equivalent to the 4-chunk build, +8.2% tok/s on iPhone 17 Pro.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Prefill stays 4-chunk with batched calls (one Core ML call per 512-token chunk; multifunction `prefill_b8` and T=32 variants for small models) so the vision-aware bidirectional mask is preserved.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Op-level rewrites for ANE: RMSNorm as `cat([x,-x])` into LayerNorm then slice; `nn.Linear` as 1x1 Conv2d (\"about 3x faster than matmul\"); manual fp16 softmax; RoPE cos/sin precomputed as inputs to avoid int gather ops that fall to CPU; in-graph argmax; PLE in-graph (8 ms to 1.8 ms per token); shift-based sliding-window KV for 28 of 35 layers.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "KV handling is explicit input/output tensors copied back by the host for Gemma 4 (Qwen3-VL and Qwen3.5 use MLState); weights shared between decode and prefill graphs by hard links (-682 MB on disk).",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Quality gates: a compute-plan audit (non-ANE ops at most 5%), a Mac-only determinism oracle (fixed corpus, token IDs plus sha256 with drafters off), and parity against HF top-1.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Process: the repo keeps a REJECTED_APPROACHES index with revisit rules (cite new upstream evidence, link a harness, update the file), and flags stale docs; commits are co-authored by Claude Opus 4.7.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "2026-04-08 initial implementation (Qwen2.5-0.5B, MLState KV, int4 palettization, Swift API); 2026-04-13 MLState rejected for Gemma 4; 2026-04-15 pipelining spikes; 2026-04-17/18 CPU-bottleneck and drafter-dead investigations; 2026-04-24 SWA prefill-write bug found and fixed; 2026-04-26/28 Round 8 candidates and LFM2.5 conversion.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "v1.4.0 3-chunk opt-in (31.6 to 34.2 tok/s), v1.5/1.6 Qwen3-VL 2B stateful, v1.7.0 3-chunk default, v1.8.0 Qwen3.5, v1.9.0 Gemma 4 E4B multimodal 15.7 tok/s; last commit 2026-10-02 (471 commits, 112 branches, 28 tags, 25 forks).",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "The project's own plan changed from \"reach LiteRT-LM's 56 tok/s\" to \"power, TTFT and the ANE decode ceiling\" on 2026-04-15 after the user rejected abandoning ANE placement.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Ceiling logic: iPhone Gemma 4 E2B decode was declared a hard ANE ceiling of about 31-34 tok/s on this graph; per-chunk times c1 5.9, c2 6.8, c3 8.1, c4 10.4 ms.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Silent failures: SWA prefill write bug on E2B (fixed a878c44/14a9965); fp16 reduction noise from zero-padded depthwise taps collapsed LFM2.5 into repetition; `reshapeFrequency = .infrequent` combined with prefix cache triggered \"MILCompilerForANE: failed to compile ANEF\" on iPhone 17 Pro / iOS 26.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Agent-generated research candidates (xKV and others) were rejected for fabricated benchmark numbers and wrong hardware targets, hence the repo's verify-before-adopt rule.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "ANE as a speed vs an efficiency choice. Repo README: ANE draws about half the power and \"overtakes MLX under sustained load\" on iPhone. The same repo's Mac energy table (M4 Max, Gemma 4 E2B, whole-system powermetrics) gives CoreML/ANE 12.7 W but 0.48 J/token, worse than MLX (0.24) and llama.cpp (0.25), because decode is slower (32 tok/s). Lowest instantaneous watts and best joules per token are different claims; neither is averaged.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Interactions with maderix's INT8: maderix measures INT8 W8A8 1.88x on an M4 Mac via quantize/dequantize MIL ops, while CoreML-LLM records that the iPhone ANE compiler rejects quantize/dequantize ops (ANECCompile failure) for W8A8. Different chips and compile paths.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "ANEMLL transferability: CoreML-LLM found ANEMLL's 16-way LM-head split a net loss at vocab 262,144 (-4.6% end to end).",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Which of the many rejections still hold on macOS 27 / Core AI (the repo flags MLState gate-zero and native SDPA re-tests as cheap residual probes)?",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Does W2 QAT, the repo's only named large remaining decode lever, exist for any ANE model it ships?",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "The repository had 471 commits, 112 branches, 28 tags, 194 stars and 25 forks as of 2026-10-04, with a last commit on 2026-10-02 renaming the uv project to coreml-llm-conversion.",
+          "source": "https://github.com/john-rocky/CoreML-LLM",
+          "note": null
+        },
+        {
+          "text": "Its first commit (2026-04-08) already shipped a monolithic Core ML model with stateful KV (MLState), int4 palettization, Gemma 4 dual attention and KV sharing, and a four-method Swift API verified on Qwen2.5-0.5B.",
+          "source": "https://github.com/john-rocky/CoreML-LLM",
+          "note": null
+        },
+        {
+          "text": "Gemma 4 E2B 3-chunk decode (v1.7.0 default) runs three ANE dispatches per step at 34.2 tok/s on iPhone 17 Pro A19 Pro, +8.2% over the 4-chunk build and bit-equivalent by construction.",
+          "source": "https://github.com/john-rocky/CoreML-LLM",
+          "note": null
+        },
+        {
+          "text": "v1.9.0 adds Gemma 4 E4B multimodal (text, image, video, audio) at 15.7 tok/s on iPhone 17 Pro using a 3-chunk decode plus a legacy 4-chunk prefill_b8 multifunction with a vision-aware bidirectional mask.",
+          "source": "https://github.com/john-rocky/CoreML-LLM",
+          "note": null
+        },
+        {
+          "text": "The documented ANE optimizations are ANERMSNorm (cat([x,-x]) into LayerNorm), Conv2d-Linear (about 3x faster than matmul), in-graph argmax, manual fp16 softmax, precomputed RoPE inputs, explicit KV I/O, shift-based sliding window for 28 of 35 layers, batched prefill, PLE in-graph (8 ms to 1.8 ms per token) and 3-chunk decode.",
+          "source": "https://raw.githubusercontent.com/john-rocky/CoreML-LLM/main/docs/ARCHITECTURE.md",
+          "note": null
+        },
+        {
+          "text": "On iPhone 17 Pro the Gemma 4 E2B 4-chunk decode costs c1 5.9, c2 6.8, c3 8.1 and c4 10.4 ms per step with 99.78% ANE placement (7,294 of 7,310 ops), about 1 GB phys_footprint, 31.4 tok/s decode and about 154 tok/s prefill at 2K context.",
+          "source": "https://raw.githubusercontent.com/john-rocky/CoreML-LLM/main/docs/HANDOFF.md",
+          "note": null
+        },
+        {
+          "text": "The E4B step on iPhone 17 Pro takes c1 21.7, c2 21.6, c3 11.3 and c4 16.0 ms (70.6 ms, 14.0 tok/s) with ANE wait 97% of the step and CPU active 4%.",
+          "source": "https://raw.githubusercontent.com/john-rocky/CoreML-LLM/main/docs/CPU_BOTTLENECK_INVESTIGATION.md",
+          "note": null
+        },
+        {
+          "text": "CoreML-LLM measured Qwen3.5 2B on an M4 Max at 35.0 tok/s ANE with 230 MB peak memory against MLX-Swift 291.9 tok/s and 1223 MB, and Gemma 4 E2B at 32.5 tok/s against MLX 185.4 and llama.cpp 119.2.",
+          "source": "https://github.com/john-rocky/apple-silicon-llm-bench",
+          "note": null
+        },
+        {
+          "text": "On the M4 Max, whole-system powermetrics gives CoreML-LLM Gemma 4 E2B 12.7 W, 244.9 J per 512-token run and 0.48 J/token versus MLX-Swift 24.7 W and 0.24 J/token, llama.cpp 24.5 W and 0.25, and Apple Foundation Models 7.6 W and 0.11, so the ANE has the lowest watts but the worst energy per token.",
+          "source": "https://github.com/john-rocky/apple-silicon-llm-bench",
+          "note": null
+        },
+        {
+          "text": "The bench README notes whole-system measurement includes the idle baseline and so inflates per-token energy for all four runtimes.",
+          "source": "https://github.com/john-rocky/apple-silicon-llm-bench",
+          "note": null
+        },
+        {
+          "text": "Rejected on E2B: separate-architecture drafters (EAGLE-3, cross-vocab Qwen 0.5B at 1.8 tok/s, MTP Path C at acc0 17%, PLD, SuffixDecoding), LayerSkip at L14 (0 of 60 match), chunk pipelining on ANE alone (driver serializes), W8A8 (ANECCompile rejects quantize/dequantize MIL ops), W2/W3 post-training palettization (gibberish), and softmax swap (zero Mac delta).",
+          "source": "https://raw.githubusercontent.com/john-rocky/CoreML-LLM/main/docs/REJECTED_APPROACHES.md",
+          "note": null
+        },
+        {
+          "text": "Round 8 negatives: TurboQuant 3-bit KV (ANE forces FP16 decompression), joint INT8-LUT compression (73 INT8-dequant ops fall off ANE, 92.9% to 86.7%, latency +3.4%, cosine 0.83), and joint 2:4 sparse plus palettized (bundle 155.8 to 349.6 MB, latency +11%, cosine 0.449).",
+          "source": "https://raw.githubusercontent.com/john-rocky/CoreML-LLM/main/docs/REJECTED_APPROACHES.md",
+          "note": null
+        },
+        {
+          "text": "Chunk consolidation from 4 to 2 chunks gained only about +1 tok/s on E2B, so the repo recorded the dispatch-overhead theory as refuted.",
+          "source": "https://raw.githubusercontent.com/john-rocky/CoreML-LLM/main/docs/REJECTED_APPROACHES.md",
+          "note": null
+        },
+        {
+          "text": "A W4A8 retry on Gemma 4 with real-prompt calibration lifted chunk-1 cosine similarity from 0.108 to 0.501 against a 0.95 gate and stayed on HOLD because error compounds over 56 quantize/dequantize rounds per chunk.",
+          "source": "https://github.com/john-rocky/CoreML-LLM",
+          "note": null
+        },
+        {
+          "text": "CoreML-LLM states the ANE driver serializes distinct-model MLModel predictions from one process: two chunks on separate dispatch queues overlap by a factor of only 0.02-0.06.",
+          "source": "https://raw.githubusercontent.com/john-rocky/CoreML-LLM/main/docs/PHASE_D_PIPELINING_SPIKE.md",
+          "note": null
+        },
+        {
+          "text": "An ANE chunk and a GPU (.cpuAndGPU) chunk dispatched concurrently overlap at a factor of 0.87-0.99.",
+          "source": "https://raw.githubusercontent.com/john-rocky/CoreML-LLM/main/docs/PHASE_D_COMPUTE_UNIT_SPLIT_SPIKE.md",
+          "note": null
+        },
+        {
+          "text": "The README's 3-chunk +8.2% and Gemma 4 E2B 34.2 tok/s numbers are iPhone 17 Pro, 2048-token context, ANE-only without GPU fallback, with methodology in docs/BENCHMARKING.md.",
+          "source": "https://github.com/john-rocky/CoreML-LLM",
+          "note": null
+        },
+        {
+          "text": "LFM2.5-350M ships at 52 tok/s on iPhone 17 Pro with 97.8% ANE residency, but its depthwise conv layers run on CPU and a Mac CPU-only build is faster (about 57 versus 42.3 tok/s).",
+          "source": "https://raw.githubusercontent.com/john-rocky/CoreML-LLM/main/docs/LFM2_CONVERSION_FINDINGS.md",
+          "note": null
+        },
+        {
+          "text": "Qwen3-VL 2B stateful decodes at about 24 tok/s with 256 MB phys_footprint on iPhone 17 Pro and cross-turn KV reuse takes same-prompt second TTFT from 4 s to 125 ms.",
+          "source": "https://github.com/john-rocky/CoreML-LLM",
+          "note": null
+        },
+        {
+          "text": "Commits in the repo are co-authored by Claude Opus 4.7 (1M context), so its research docs are partly agent-written and carry the repo's own verify-before-adopt rule.",
+          "source": "https://github.com/john-rocky/CoreML-LLM",
+          "note": null
+        }
+      ]
+    }
+  ],
+  "related": []
+}

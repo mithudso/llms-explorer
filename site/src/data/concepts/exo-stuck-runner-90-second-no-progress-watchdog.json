@@ -1,0 +1,169 @@
+{
+  "slug": "exo-stuck-runner-90-second-no-progress-watchdog",
+  "concept": "exo stuck-runner 90-second no-progress watchdog (PR 2370)",
+  "generated": "2026-10-05",
+  "summary": "exo PR 2370, \"fix(worker): restart a runner that is stuck mid-generation\" (commit de99629, opened 2026-10-01 by AlexCheema), stops a runner that has said nothing for 90 seconds while its instance has a text generation in flight.",
+  "facets": [
+    {
+      "title": "Facts",
+      "facts": [
+        {
+          "text": "exo PR 2370, \"fix(worker): restart a runner that is stuck mid-generation\" (commit de99629, opened 2026-10-01 by AlexCheema), stops a runner that has said nothing for 90 seconds while its instance has a text generation in flight.",
+          "source": "https://github.com/exo-explore/exo/pull/2370",
+          "note": null
+        },
+        {
+          "text": "New constants: `RUNNER_WATCH_INTERVAL = 5.0` and `RUNNER_STALL_TIMEOUT = 90.0`.",
+          "source": "https://github.com/exo-explore/exo/pull/2370.diff",
+          "note": null
+        },
+        {
+          "text": "The supervisor keeps `_last_heard`, set to `anyio.current_time()` at construction and refreshed on every event the supervisor forwards from the runner (inside `_forward_events`, before any other handling). Any event counts as a word, not only tokens.",
+          "source": "https://github.com/exo-explore/exo/pull/2370.diff",
+          "note": null
+        },
+        {
+          "text": "`_stuck()` is true only when all four hold: `bound_shard.device_rank == 0`, `status` is `RunnerRunning`, at least one `TextGeneration` task is in `in_progress`, and `now - _last_heard > RUNNER_STALL_TIMEOUT`.",
+          "source": "https://github.com/exo-explore/exo/pull/2370.diff",
+          "note": null
+        },
+        {
+          "text": "When `_stuck()` fires, `_watch_runner` calls `_check_runner(RuntimeError(\"Runner made no progress for 90s while generating\"))`. This reuses the same failure path as PR 2367: in-flight requests get an `ErrorChunk`, the status becomes `RunnerFailed`, peers are shut down and runners are recreated with backoff.",
+          "source": "https://github.com/exo-explore/exo/pull/2370.diff",
+          "note": null
+        },
+        {
+          "text": "Only rank 0 is judged because only the first rank reports tokens and prefill progress; the other ranks are silent in normal operation. Stopping rank 0 brings the whole instance down and back.",
+          "source": "https://github.com/exo-explore/exo/pull/2370",
+          "note": null
+        },
+        {
+          "text": "The PR argues 90 s is far outside normal behaviour: a generating runner reports a token every decode step and progress every prefill chunk, including remote prefill, \"even for the largest models\".",
+          "source": "https://github.com/exo-explore/exo/pull/2370",
+          "note": null
+        },
+        {
+          "text": "Only generation tasks arm the watchdog. Loading, warm-up and idle runners are not judged, since the check needs a `TextGeneration` task in `in_progress`.",
+          "source": "https://github.com/exo-explore/exo/pull/2370.diff",
+          "note": null
+        },
+        {
+          "text": "Because the check runs every 5 s, the realistic stop time is between 90 and 95 s after the last event.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "The target causes in the PR text: a process that is alive but stuck (blocked on I/O, frozen by the OS, deadlocked), a transport that stops delivering without an error, and ranks that disagree about the batch so one waits for data the other never sends.",
+          "source": "https://github.com/exo-explore/exo/pull/2370",
+          "note": null
+        },
+        {
+          "text": "Stack dumps of stuck runners in chaos runs \"showed ranks waiting in different collectives of the same decode step\".",
+          "source": "https://github.com/exo-explore/exo/pull/2370",
+          "note": null
+        },
+        {
+          "text": "It complements PR 2367, which catches the case where MLX prints the ring abort; PR 2370 catches the silent cases where nothing is printed.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "PR 2370 alone is not enough for recovery. When a runner is stuck, the worker's plan loop waits forever for it to acknowledge the next task, so that node never shuts the stuck runner down. With only this PR, in-flight requests end with an error after 90 s but the instance stays stuck and none of the requests started in the next 5 minutes completed.",
+          "source": "https://github.com/exo-explore/exo/pull/2370",
+          "note": null
+        },
+        {
+          "text": "The PR says to merge it with PR 2348 (\"a busy runner no longer holds up every other model on the node\"), which stops the planner from waiting on generation-task acknowledgements. With 2348 and the other open reliability PRs, 384 requests completed starting 115 s after a freeze and the frozen runner was killed.",
+          "source": "https://github.com/exo-explore/exo/pull/2370",
+          "note": null
+        },
+        {
+          "text": "Freeze test: 2 Mac Studios (96 GB), Llama-3.2-3B as a 2-node pipeline, 3 clients; the second rank's runner was frozen with SIGSTOP mid-generation and left frozen.",
+          "source": "https://github.com/exo-explore/exo/pull/2370",
+          "note": null
+        },
+        {
+          "text": "Three-hour chaos run on 5 M3 Ultra 512 GB Mac Studios (Qwen3.8-27B as a 2-node pipeline, 12 clients): without the PR a pipeline instance stopped producing tokens 3 times with no fault injected and 8 requests hung until the client gave up after 5 minutes; with it (plus PR 2369) the watchdog fired 5 times, each time in-flight requests ended with an error, runners were recreated, the instance served again about 1.5 to 2 minutes after it stopped, and no request hung.",
+          "source": "https://github.com/exo-explore/exo/pull/2370",
+          "note": null
+        },
+        {
+          "text": "A rank-1 runner that dies or hangs by itself is not caught by this check; it is caught only through rank 0 going silent when the pipeline stalls.",
+          "source": "https://github.com/exo-explore/exo/pull/2370.diff",
+          "note": null
+        },
+        {
+          "text": "Tests: a silent first-rank runner mid-generation is stopped and reported `RunnerFailed` with an `ErrorChunk`; a runner that keeps updating `_last_heard` is left alone; a rank-1 supervisor is never stopped for silence. The first test \"fails without this change\". Tests shrink the two constants to 0.01 s and 0.05 s.",
+          "source": "https://github.com/exo-explore/exo/pull/2370.diff",
+          "note": null
+        },
+        {
+          "text": "Related side finding: PR 2348's measurement on one M3 Ultra 96 GB showed that sharing a GPU between two models costs almost nothing (1B time to first token 0.38 to 0.40 s with the 3B model busy versus 0.23 s alone), while a second 3B request queued behind a 30k-token prefill made the 1B request wait 15.1 to 15.7 s on main because the worker's plan loop blocked on `start_task`.",
+          "source": "https://github.com/exo-explore/exo/pull/2348",
+          "note": null
+        },
+        {
+          "text": "Fast synch and the watchdog. PR 2377 reports the watchdog fired 5 times in a 3-hour chaos run with fast synch on and 0 times with it off for ring instances, so the stalls the watchdog catches may partly be a fast-synch effect; PR 2370 attributes them to unmatched collectives of unknown cause (\"causes not all found yet\"). The two runs differ in node count (5 and 3).",
+          "source": "https://github.com/exo-explore/exo/pull/2377",
+          "note": null
+        },
+        {
+          "text": "Whether 90 s is too short for a very long remote prefill that sends no progress event. The PR says progress is reported every prefill chunk, but no source gives the chunk time on the largest contexts.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Whether the PR merged. The cached page shows open dependencies (PR 2348, 2369) and no merge event.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "exo PR 2370 sets `RUNNER_STALL_TIMEOUT` to 90 seconds and `RUNNER_WATCH_INTERVAL` to 5 seconds.",
+          "source": "https://github.com/exo-explore/exo/pull/2370.diff",
+          "note": null
+        },
+        {
+          "text": "The stall check applies only to the supervisor of device rank 0, only while status is `RunnerRunning`, and only while a `TextGeneration` task is in progress.",
+          "source": "https://github.com/exo-explore/exo/pull/2370.diff",
+          "note": null
+        },
+        {
+          "text": "The supervisor refreshes `_last_heard` on every event it receives from the runner, so any event resets the 90-second clock.",
+          "source": "https://github.com/exo-explore/exo/pull/2370.diff",
+          "note": null
+        },
+        {
+          "text": "A stall raises `RuntimeError(\"Runner made no progress for 90s while generating\")` into `_check_runner`.",
+          "source": "https://github.com/exo-explore/exo/pull/2370.diff",
+          "note": null
+        },
+        {
+          "text": "Without PR 2348, PR 2370 ends stuck requests with an error after 90 s but the instance does not recover, because the other node's plan loop waits forever on the stuck runner.",
+          "source": "https://github.com/exo-explore/exo/pull/2370",
+          "note": null
+        },
+        {
+          "text": "With PR 2348 and the other reliability PRs, a SIGSTOP-frozen rank-1 runner was killed and the instance recreated itself, completing 384 requests starting 115 seconds after the freeze.",
+          "source": "https://github.com/exo-explore/exo/pull/2370",
+          "note": null
+        },
+        {
+          "text": "In a 3-hour 5-node chaos run the watchdog fired 5 times, each recovery took about 1.5 to 2 minutes and no request hung; without it, 3 no-fault stalls left 8 requests hanging for 5 minutes.",
+          "source": "https://github.com/exo-explore/exo/pull/2370",
+          "note": null
+        },
+        {
+          "text": "Stack dumps of stuck exo runners showed the two pipeline ranks waiting in different collectives of the same decode step.",
+          "source": "https://github.com/exo-explore/exo/pull/2370",
+          "note": null
+        },
+        {
+          "text": "On one M3 Ultra, a busy 3B model delayed a 1B model's time to first token by about 0.15 s; the 15 s delay seen on main came from the worker's `start_task` acknowledgement wait, not from GPU sharing.",
+          "source": "https://github.com/exo-explore/exo/pull/2348",
+          "note": null
+        }
+      ]
+    }
+  ],
+  "related": []
+}

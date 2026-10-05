@@ -1,0 +1,444 @@
+{
+  "slug": "ane-numerics-hazards-in-fp16",
+  "concept": "ANE numerics hazards in FP16",
+  "generated": "2026-10-05",
+  "summary": "Residual accumulation, not a single tensor, causes Gemma 3 overflow: every attention, MLP and norm sub-tensor stays in range, but `output = input + attention + mlp` grows layer by layer (illustrated ~1,000 at layer 0, ~72,000 by layer 5). Gemma 3 uses post-LayerNorm with a `(1+w)` gain, so nothin...",
+  "facets": [
+    {
+      "title": "Facts",
+      "facts": [
+        {
+          "text": "Residual accumulation, not a single tensor, causes Gemma 3 overflow: every attention, MLP and norm sub-tensor stays in range, but `output = input + attention + mlp` grows layer by layer (illustrated ~1,000 at layer 0, ~72,000 by layer 5). Gemma 3 uses post-LayerNorm with a `(1+w)` gain, so nothing bounds the stream. Llama and Qwen3 use pre-norm RMSNorm, which bounds it.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Weight scaling is function-preserving because RMSNorm is scale-invariant: scale embeddings by alpha, and rewrite each post-attention and post-feedforward norm weight as `alpha*(1+w_old)-1`; the final RMSNorm cancels the global scale. alpha = target_max / observed_peak with target_max about 50,000 for headroom; binary fractions (3/16, 1/8) are suggested.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Partial variant: if overflow starts at layer N, scale only from layer N, which needs one `hidden *= alpha` insertion between layers N-1 and N plus norm rewrites for layers >= N.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Hybrid mitigation: weight scaling plus a rarely-firing safety clamp at +/-60,000.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Orion training: activations were clamped to [-65504, +65504] before softmax and layer norm to stop inf propagating to NaN loss; gradients sanitized (NaN to 0, +/-inf to +/-65504) before writing BLOBFILE weights.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "2022 hollance neural-engine notes and 2026 maderix reverse engineering feed Orion's 20-item constraint catalog (arXiv 2603.06728, Mar 2026).",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Feb 2026 ANEMLL 0.3.5 adds fp16_preflight.sh and FP16 compatibility docs (docs/FP16_SCALING.md, commit f8f7df7, 2026-02-14).",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Aug 2025 SqueezeBits documents RMSNorm `pow` instability and the mul-rewrite graph pass in their Yetter engine.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Apr 2026 NPUMoE (arXiv 2604.18788) extends ANEMLL to MoE prefill offload.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Llama 3.2 1B: peak residual 410 (0.01x of FP16 max), 100% FP16 vs BF16 token match, no scaling.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Qwen3 1.7B: peak 14,858 (0.23x); a layer-2 MLP spike (~14,500) sets the baseline and later layers grow slowly; 100% match, no scaling. DeepSeek distills (Llama/Qwen based) are asserted FP16-safe.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Gemma 3 270M: first overflow at layer 7. Gemma 3 4B QAT: first overflow at layer 5. Gemma 3 1B never overflows (61,040) but is within 7% of the limit.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Gemma 3 4B non-QAT: recommended alpha is 0.5 (not in existing files).",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "QAT int4-unquantized checkpoints overflow worst (4.5x) because training expected int4 to constrain values.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Unsloth reports the Gemma 3 FP16 overflow across all sizes 1B-27B (cited by ANEMLL).",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Gemma 3 with vision: the vision tower and `multi_modal_projector` can also produce large activations; check them if inf/NaN appears with images.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "SqueezeBits: Llama-3.2-1B on ANE produced only newline characters until `torch.Tensor.pow` in RMSNorm/LayerNorm was rewritten. Fix: MIL graph pass `pow(x,2)` to `mul(x,x)`, and fold the epsilon `add` into the following `rsqrt` parameter.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Core ML defaults to Float16 precision for mlprogram; Apple's own Llama 3.1 8B guide verified FP32 PyTorch vs FP16 Core ML logits only to a \"low tolerance\".",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Orion: SDPA causal masks silently ignored on ANE (wrong attention, manual mask needed); gelu not a valid MIL activation (tanh approximation); concat rejected; conv bias param unsupported; 32K-channel convolutions rejected.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Orion silent-corruption constraints: multi-input/output IOSurfaces must be uniformly sized and alphabetically ordered by variable name (wrong data, no error); ~49 KB minimum IOSurface (error 0x1d, pad seq dim to >=16); ~119 compilations per process then silent failure.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "ANEMLL Qwen3 multi-chunk bug: applying the final RMSNorm on every FFN chunk degraded output progressively; it must run only on the last chunk.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "SqueezeBits stateful-model failures: too many Core ML states fail to compile (56 per-layer states vs 2 concatenated); state dims must be powers of two (EXAONE head_dim 80 padded to 128, else \"Unable to compute the prediction using ML Program\"); value-cache update in prefill needed an `add` of `torch.finfo(torch.float32).smallest_normal` (truncates to 0 in fp16) to avoid \"Failed to build the model execution plan\"; long sequences (1024-2048) need MIL pass `scaled_dot_product_attention_sliced_q`.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Forge (beyond existing): the stable softplus is `relu(x)+log(1+exp(-abs(x)))`; scaling q and v for recurrent states needs the squared factor folded into the normalization epsilon; MLP down-projection input scaling (static or dynamic) was rejected because it overflowed or corrupted outputs; blocked softmax over large windows must use a global maximum and combine numerator/denominator, since independently normalized blocks are wrong.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Orion: ANE softmax over vocab 32,000 is 2.40 ms vs 81.11 ms on CPU (33.8x), so softmax is a place where ANE excels, not just a hazard.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "`fp16_preflight.sh --model <id>` runs a clamp sweep and writes a JSON report to tests/dev/logs/fp16_preflight_<timestamp>.json; `fp16_compatibility_check.py --sweep`; `compute_residual_scaling.py --save scaling.json`; `test_gemma3_qat_tensor_overflow_map.py` gives per-layer overflow maps.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Xcode Core ML performance report shows per-op device delegation; for ANE LLMs only the gather embedding, the LM-head linear and a few elementwise ops fell off the ANE.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Compare FP16 vs BF16 greedy generation token match (ANEMLL treats 100% as pass) and ANE vs CPU token identity (Orion: 64-token greedy, 100% match on GPT-2).",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Orion stability stress test: 0 NaN/Inf in 25 and in 1,000 observations.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Orion Table 1 lists 0.095 ms dispatch (XPC+IOKit); the Fig. 10 caption gives ~0.03 ms bare single-token dispatch; the Fig. 6 caption gives ~2.3 ms IOSurface round trip per dispatch; Fig. 10 gives ~5.78 ms gap per token across 12 layers. 170 tok/s is about 5.9 ms per token, so the 5.78 ms gap is nearly all the per-token time (about 0.48 ms per layer).",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "ANE evaluation queue depth 127 (in existing). Orion says its constraints are likely compiler/microarchitecture artifacts, not fundamental.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Dispatch dominates MoE: CPU-NPU dispatch is >60% of the MoE block time in default Core ML; 16 separate prediction calls per layer is a major cost. Mitigation: group experts (4x or 8x), hot-expert resident working set on NPU, cold experts on CPU. Latency per token at capacity 32 drops 0.31 to 0.27 (4x) and 0.26 ms (8x).",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Which fix: ANEMLL says weight scaling is better (zero runtime ops) and clamping slightly reduces ANE efficiency; clamping is the quick path. Both reach 100% token match. Not averaged.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "\"Only Gemma 3 needs scaling\" (ANEMLL FP16_SCALING.md) vs Forge evidence of Qwen3.5-style DeltaNet precision problems needing q/v scaling and rewritten activations. Different layers of failure (residual range vs small-value precision); the first claim is limited to the tested Llama/Qwen3 1B-2B models.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Dispatch figures: 0.095 vs ~0.03 ms bare dispatch inside the same paper; ~2.3 ms per dispatch vs ~0.48 ms per layer implied by the 5.78 ms gap. The \"~2.3 ms round trip\" claim is verified only as an Orion figure caption for GPT-2 124M on M4 Max, not as a general constant.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Orion clamp semantics: clamping to exactly +/-65504 only helps if the pre-clamp value is representable; ANEMLL clamps at 55,000 for headroom.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Whether ANE accumulates matmul in FP32 internally (not stated in sources).",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Per-layer scaling vs uniform alpha: ANEMLL says uniform is usually enough; no data.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Hybrid ANE prefill + GPU decode throughput numbers (Yetter figures are images only; no tokens/s extracted) and KV hand-off cost (Yetter uses stateless prefill that returns KV as outputs).",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Whether Core AI (macOS 27) changes FP16-only constraint.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "ANE LLM inference is FP16-only, and BF16-trained activations above 65,504 overflow to inf and propagate NaN.",
+          "source": "https://github.com/Anemll/Anemll/blob/main/docs/FP16_SCALING.md",
+          "note": null
+        },
+        {
+          "text": "Gemma 3 overflow is residual-stream accumulation: all individual attention, MLP and norm tensors stay in FP16 range.",
+          "source": "https://github.com/Anemll/Anemll/blob/main/docs/GEMMA3_FP16_SCALING.md",
+          "note": null
+        },
+        {
+          "text": "Gemma 3 uses post-LayerNorm with a (1+w) gain, which lets the residual stream grow unbounded; Llama and Qwen3 use pre-norm RMSNorm.",
+          "source": "https://github.com/Anemll/Anemll/blob/main/docs/FP16_SCALING.md",
+          "note": null
+        },
+        {
+          "text": "Llama 3.2 1B peak residual is 410.3 (0.01x FP16 max) with 100% FP16/BF16 token match.",
+          "source": "https://github.com/Anemll/Anemll/blob/main/docs/FP16_SCALING.md",
+          "note": null
+        },
+        {
+          "text": "Qwen3 1.7B peak residual is 14,858.1 (0.23x) with 100% FP16/BF16 token match.",
+          "source": "https://github.com/Anemll/Anemll/blob/main/docs/FP16_SCALING.md",
+          "note": null
+        },
+        {
+          "text": "Gemma 3 270M first overflows at layer 7; Gemma 3 4B QAT first overflows at layer 5; Gemma 3 1B does not overflow but peaks at 0.93x.",
+          "source": "https://github.com/Anemll/Anemll/blob/main/docs/GEMMA3_FP16_SCALING.md",
+          "note": null
+        },
+        {
+          "text": "Recommended --fp16-scale for google/gemma-3-4b-it (non-QAT) is 0.5.",
+          "source": "https://github.com/Anemll/Anemll/blob/main/docs/GEMMA3_FP16_SCALING.md",
+          "note": null
+        },
+        {
+          "text": "Weight scaling rewrites embeddings as embed*alpha and post-attention/post-feedforward norm weights as alpha*(1+w)-1; it works because RMSNorm is scale-invariant and the final norm cancels the scale.",
+          "source": "https://github.com/Anemll/Anemll/blob/main/docs/GEMMA3_FP16_SCALING.md",
+          "note": null
+        },
+        {
+          "text": "Scaling target is about 50,000 peak (alpha = target_max/observed_peak) for headroom across prompts.",
+          "source": "https://github.com/Anemll/Anemll/blob/main/docs/GEMMA3_FP16_SCALING.md",
+          "note": null
+        },
+        {
+          "text": "The hybrid scaling-plus-safety-clamp uses a +/-60,000 clamp; runtime clamping is off by default (enable_residual_clamp, residual_clamp_value default 65504.0).",
+          "source": "https://github.com/Anemll/Anemll/blob/main/docs/GEMMA3_FP16_SCALING.md",
+          "note": null
+        },
+        {
+          "text": "QAT int4-unquantized Gemma 3 checkpoints overflow worst because training expected int4 to constrain values.",
+          "source": "https://github.com/Anemll/Anemll/blob/main/docs/GEMMA3_FP16_SCALING.md",
+          "note": null
+        },
+        {
+          "text": "Gemma 3 vision input may need scaling at the multi_modal_projector handoff.",
+          "source": "https://github.com/Anemll/Anemll/blob/main/docs/GEMMA3_FP16_SCALING.md",
+          "note": null
+        },
+        {
+          "text": "fp16_preflight.sh runs a clamp sweep and saves a JSON report under tests/dev/logs/.",
+          "source": "https://github.com/Anemll/Anemll/blob/main/docs/FP16_SCALING.md",
+          "note": null
+        },
+        {
+          "text": "ANEMLL 0.3.5 fixed Qwen3 multi-chunk divergence: final RMSNorm must run only on the last FFN chunk.",
+          "source": "https://github.com/Anemll/Anemll/blob/main/docs/RELEASE_NOTES_0.3.5.md",
+          "note": null
+        },
+        {
+          "text": "Orion's overflow fix for training clamps activations to [-65504, 65504] before softmax and layer norm.",
+          "source": "https://arxiv.org/html/2603.06728v1",
+          "note": null
+        },
+        {
+          "text": "Orion sanitizes gradients (NaN to 0, +/-inf to +/-65504) before writing BLOBFILE weights and validates NaN/Inf after load.",
+          "source": "https://arxiv.org/html/2603.06728v1",
+          "note": null
+        },
+        {
+          "text": "Orion's three NaN bugs were stale programs after checkpoint resume, fp16 overflow cascade, and corrupted BLOBFILE weights; upstream ANEgpt diverged to NaN at step 2 with 100% reproducibility.",
+          "source": "https://arxiv.org/html/2603.06728v1",
+          "note": null
+        },
+        {
+          "text": "Orion catalogs 20 ANE constraints including: concat rejected, SDPA causal mask silently ignored, gelu invalid, conv bias unsupported, 32K-channel conv rejected, ~119 compiles per process.",
+          "source": "https://arxiv.org/html/2603.06728v1",
+          "note": null
+        },
+        {
+          "text": "Orion multi-input and multi-output IOSurfaces must be uniformly sized and ordered alphabetically by variable name or the ANE returns silently wrong data.",
+          "source": "https://arxiv.org/html/2603.06728v1",
+          "note": null
+        },
+        {
+          "text": "Orion measured stability: 0 of 25 and 0 of 1,000 NaN/Inf occurrences in stress tests; 110M training 1,000 steps in 22.4 minutes with delta reload.",
+          "source": "https://arxiv.org/html/2603.06728v1",
+          "note": null
+        },
+        {
+          "text": "Orion states ANE softmax over vocab 32,000 takes 2.40 ms vs 81.11 ms on CPU (33.8x).",
+          "source": "https://arxiv.org/html/2603.06728v1",
+          "note": null
+        },
+        {
+          "text": "Orion Fig. 6 caption attributes CPU decode 283 tok/s beating ANE decode 170 tok/s on GPT-2 124M to ~2.3 ms IOSurface round trip per dispatch.",
+          "source": "https://arxiv.org/html/2603.06728v1",
+          "note": null
+        },
+        {
+          "text": "Orion Fig. 10 caption gives ~0.03 ms bare single-token dispatch and ~5.78 ms dispatch-to-decode gap per token across 12 layers, while Table 1 lists 0.095 ms dispatch; the two bare-dispatch values disagree within the paper.",
+          "source": "https://arxiv.org/html/2603.06728v1",
+          "note": null
+        },
+        {
+          "text": "Orion's compiler cast-fusion pass removes round-trip fp16 to fp32 to fp16 casts.",
+          "source": "https://arxiv.org/html/2603.06728v1",
+          "note": null
+        },
+        {
+          "text": "Orion's ANE and CPU GPT-2 paths produce identical 64-token greedy output.",
+          "source": "https://arxiv.org/html/2603.06728v1",
+          "note": null
+        },
+        {
+          "text": "Llama-3.2-1B on ANE generated only newline characters until pow in RMSNorm was rewritten as mul(x,x) with the epsilon add folded into rsqrt.",
+          "source": "https://blog.squeezebits.com/disaggregated-inference-on-apple-silicon-npu-prefill-and-gpu-decode-67176",
+          "note": null
+        },
+        {
+          "text": "Core ML stateful LLMs fail to compile with many states; concatenating per-layer KV into two states (key_cache, value_cache) fixed Qwen3-0.6B (56 states to 2).",
+          "source": "https://blog.squeezebits.com/disaggregated-inference-on-apple-silicon-npu-prefill-and-gpu-decode-67176",
+          "note": null
+        },
+        {
+          "text": "A Core ML state with a non-first dimension that is not a power of two (EXAONE-3.5-2.4B head_dim 80) raises \"Unable to compute the prediction using ML Program\" and is fixed by padding to 128.",
+          "source": "https://blog.squeezebits.com/disaggregated-inference-on-apple-silicon-npu-prefill-and-gpu-decode-67176",
+          "note": null
+        },
+        {
+          "text": "\"Failed to build the model execution plan using a model architecture file\" is fixed by adding torch.finfo(float32).smallest_normal before the prefill value-cache update, which Core ML truncates to zero in fp16.",
+          "source": "https://blog.squeezebits.com/disaggregated-inference-on-apple-silicon-npu-prefill-and-gpu-decode-67176",
+          "note": null
+        },
+        {
+          "text": "coremltools MIL pass scaled_dot_product_attention_sliced_q fixes execution-plan failures at max sequence 1024-2048.",
+          "source": "https://blog.squeezebits.com/disaggregated-inference-on-apple-silicon-npu-prefill-and-gpu-decode-67176",
+          "note": null
+        },
+        {
+          "text": "In Llama-3.2-1B INT4 ANE graphs, only the token-embedding gather, the LM-head linear and a few elementwise ops were not delegated to ANE per the Xcode performance report.",
+          "source": "https://blog.squeezebits.com/disaggregated-inference-on-apple-silicon-npu-prefill-and-gpu-decode-67176",
+          "note": null
+        },
+        {
+          "text": "SqueezeBits Yetter Inference Engine assigns prefill to Core ML on the ANE (stateless prefill, KV returned as outputs) and decode to MLX on the GPU; decode latency is near MLX, prefill near Core ML, tested on iPhone 15 Pro with Qwen3-0.6B, Llama-3.2-1B, EXAONE-4.0-1.2B, HyperCLOVAX 1.5B, kanana-1.5-2.1b.",
+          "source": "https://blog.squeezebits.com/disaggregated-inference-on-apple-silicon-npu-prefill-and-gpu-decode-67176",
+          "note": null
+        },
+        {
+          "text": "SqueezeBits found MLX (GPU) beats Core ML (ANE) on TPOT in all scenarios while Core ML wins TTFT in prefill-heavy cases.",
+          "source": "https://blog.squeezebits.com/disaggregated-inference-on-apple-silicon-npu-prefill-and-gpu-decode-67176",
+          "note": null
+        },
+        {
+          "text": "SqueezeBits future work: different numerical precision for prefill and decode stages, and dynamic GPU/ANE routing.",
+          "source": "https://blog.squeezebits.com/disaggregated-inference-on-apple-silicon-npu-prefill-and-gpu-decode-67176",
+          "note": null
+        },
+        {
+          "text": "NPUMoE (UVA, arXiv 2604.18788) offloads static dense attention and expert FFN prefill to the ANE with CPU doing layernorm, masking, top-k routing and scatter/gather, built on ANEMLL conversion plus Core ML via Swift.",
+          "source": "https://arxiv.org/html/2604.18788v1",
+          "note": null
+        },
+        {
+          "text": "NPUMoE on PhiMoE (M2 Ultra) cuts prefill latency 1.32x-5.55x, energy 1.81x-7.37x and CPU cycles 1.78x-5.54x versus baselines with <1.1% accuracy loss versus FP16.",
+          "source": "https://arxiv.org/html/2604.18788v1",
+          "note": null
+        },
+        {
+          "text": "In naive Core ML MoE, CPU-NPU dispatch is over 60% of MoE block time; grouping experts and keeping hot experts resident on NPU amortizes it.",
+          "source": "https://arxiv.org/html/2604.18788v1",
+          "note": null
+        },
+        {
+          "text": "Core ML fixes device placement at compile time so overflow tokens cannot spill to CPU/GPU dynamically; NPUMoE uses static expert capacity and drops lowest-saliency overflow tokens.",
+          "source": "https://arxiv.org/html/2604.18788v1",
+          "note": null
+        },
+        {
+          "text": "NPUMoE leaves decode on the same pipeline as prefill and notes decode is memory-bound and does not amortize CPU-NPU coordination.",
+          "source": "https://arxiv.org/html/2604.18788v1",
+          "note": null
+        },
+        {
+          "text": "Other NPU/hybrid proposals named in NPUMoE's related work: llm.npu, Hybe (GPU-NPU hybrid for million-token context), HeteroLLM, sd.npu, OpenPangu.",
+          "source": "https://arxiv.org/html/2604.18788v1",
+          "note": null
+        },
+        {
+          "text": "Forge stable softplus is relu(x)+log(1+exp(-abs(x))); scaling q and v for recurrent states requires a squared factor in the norm epsilon.",
+          "source": "https://github.com/Anemll/anemll-forge/blob/main/docs/TECHNIQUES.md",
+          "note": null
+        },
+        {
+          "text": "Forge rejected MLP down-projection input scaling because static and dynamic variants overflowed or corrupted outputs.",
+          "source": "https://github.com/Anemll/anemll-forge/blob/main/docs/TECHNIQUES.md",
+          "note": null
+        },
+        {
+          "text": "Forge blocked softmax for large attention windows must use a global maximum and combined numerator/denominator; independently normalized blocks are incorrect.",
+          "source": "https://github.com/Anemll/anemll-forge/blob/main/docs/TECHNIQUES.md",
+          "note": null
+        },
+        {
+          "text": "Apple's Llama 3.1 8B Core ML guide converts to Float16 by default and checks outputs against FP32 PyTorch only within a low tolerance.",
+          "source": "https://machinelearning.apple.com/research/core-ml-on-device-llama",
+          "note": null
+        },
+        {
+          "text": "Clamping exactly at +/-65504 cannot recover values already overflowed to inf; ANEMLL's 55,000 clamp leaves headroom.",
+          "source": "asserted",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Corrections and disagreements",
+      "facts": [
+        {
+          "text": "Hybrid shipped or not. core-ml-and-apple-neural-engine-for-llms.md: ANE prefill + GPU decode \"not shipped in mainstream stacks\". SqueezeBits Yetter engine (Aug 2025) does exactly this. CONTRADICTS core-ml-and-apple-neural-engine-for-llms.md. Unreleased at time of post (they intend to open-source); mainstream status unverified.",
+          "source": "asserted",
+          "note": null
+        }
+      ]
+    }
+  ],
+  "related": []
+}

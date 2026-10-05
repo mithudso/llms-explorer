@@ -1,0 +1,149 @@
+{
+  "slug": "dependent-chain-versus-queue-batched-mlx-kernel",
+  "concept": "Dependent-chain versus queue-batched MLX kernel benchmarking",
+  "generated": "2026-10-05",
+  "summary": "MLX is lazy: it records a compute graph and computes only on an eval, and it does not compile and rerun graphs; they are generated dynamically. A loop of independent calls therefore becomes one large graph with no data dependencies between calls.",
+  "facets": [
+    {
+      "title": "Facts",
+      "facts": [
+        {
+          "text": "MLX is lazy: it records a compute graph and computes only on an eval, and it does not compile and rerun graphs; they are generated dynamically. A loop of independent calls therefore becomes one large graph with no data dependencies between calls.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "With many independent matmuls in flight the GPU overlaps them, and a split-K kernel (qmm_splitk) parallelises across independent work far better than a vector kernel (qmv), so its amortised cost goes flat in M. A dependent chain removes that overlap, so qmm_splitk shows its true per-call cost.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Decode is serial, so only the dependent-chain column describes what one decode step pays.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "2026-08-15 to 08-16: ml-explore/mlx issue 4265 opened with a queue-batched microbenchmark; the author's follow-up and a second contributor's dispatch-constant sweep both switched to dependent chains; a maintainer closed the issue as completed on 2026-08-16 pointing to qmv_wide.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "MLX 0.32.3 documentation lists async_eval as an experimental API.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Queue-batched numbers can understate single-call latency: the same stock 4-bit shape on M3 Ultra reads 0.041 ms at M=1 queue-batched and 0.060 ms as a dependent chain, so batching hid about a third of the latency at M=1.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "The ranking of two kernels can flip with the method: the same kernel measured 1.13x faster than stock on 32 independent calls per eval and 0.52x as a chain, and at M=1 the chain shows it 0.62x of stock.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Independent-call timing invents a crossover: with independent calls on an M5 Max, M=8 reads 0.2362 ms against 0.2003 chained, and M=16 reads 0.2342 ms against 0.3117 chained, so qmm looks faster than qmv inside the qmv range when it is not.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Per-call `mx.eval` is not a fix: it puts every entry near a synchronisation floor and hides the effect.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "The sources do not state the chain length used, so a short chain may still leave warm-up or launch-overhead effects.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Does the dispatch constant need tuning. Side A (a contributor, M5 Max and M4 Pro, chained): forced-path sweeps show zero rows where the current constant 13 picks the slower path, so only a new kernel recovers M=2..12. Side B (the same contributor's earlier numbers from independent calls): qmm beat qmv well inside the qmv range, suggesting a cheaper one-constant fix. The contributor withdrew side B after chaining; the two sides differ only in benchmark method.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Chain length and whether the chain should include the surrounding norm and residual ops to match a real decode step.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Whether a dependent chain of identical shapes overstates cache residency of the weights compared with a real model that streams different layers.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "MLX computes lazily: a compute graph is recorded and only evaluated on eval, and MLX does not compile and rerun graphs, which are generated dynamically.",
+          "source": "https://ml-explore.github.io/mlx/build/html/usage/lazy_evaluation.html",
+          "note": null
+        },
+        {
+          "text": "The MLX 0.32.3 documentation marks mx.async_eval as an experimental API that may change.",
+          "source": "https://ml-explore.github.io/mlx/build/html/python/_autosummary/mlx.core.async_eval.html",
+          "note": null
+        },
+        {
+          "text": "The issue 4265 reproduction enqueues 64 matmuls per mx.eval (reps=64), times 6 iterations bracketed by mx.synchronize, and divides by iterations and reps.",
+          "source": "https://github.com/ml-explore/mlx/issues/4265",
+          "note": null
+        },
+        {
+          "text": "In the queue-batched table the stock 4-bit shape costs 0.041 ms at M=1 and the bf16 shape 0.271 ms, while the dependent-chain table gives 0.060 ms for stock 4-bit at M=1 on the same M3 Ultra and shape.",
+          "source": "https://github.com/ml-explore/mlx/issues/4265",
+          "note": null
+        },
+        {
+          "text": "The kernel revision that measured 1.13x faster used 32 independent calls per mx.eval, whereas the original microbenchmark used 64.",
+          "source": "https://github.com/ml-explore/mlx/issues/4265",
+          "note": null
+        },
+        {
+          "text": "On an M5 Max, independent calls at M=8 cost 0.2362 ms against 0.2003 ms chained, and at M=16 0.2342 ms against 0.3117 ms chained.",
+          "source": "https://github.com/ml-explore/mlx/issues/4265",
+          "note": null
+        },
+        {
+          "text": "The independent-call column drops at M=13 because with many matmuls in flight qmm_splitk parallelises across independent work far better than qmv, so its amortised cost goes flat in M, while a dependent chain removes that overlap.",
+          "source": "https://github.com/ml-explore/mlx/issues/4265",
+          "note": null
+        },
+        {
+          "text": "get_qmv_batch_limit returns 13 for D and O both above 4096, and the author of the forced-path sweep confirmed on the M3 Ultra that the crossover is at 13 so the constant was never the problem.",
+          "source": "https://github.com/ml-explore/mlx/issues/4265",
+          "note": null
+        },
+        {
+          "text": "Both the kernel author and a second contributor said they measure everything in the small-M window with serial dependency chains because parallel-loop microbenchmarks misprice decode.",
+          "source": "https://github.com/ml-explore/mlx/issues/4265",
+          "note": null
+        },
+        {
+          "text": "A maintainer closed issue 4265 as completed on 2026-08-16 saying small M relies on the qmv_wide kernel (PR 3764) and that PRs optimising it are welcome.",
+          "source": "https://github.com/ml-explore/mlx/issues/4265",
+          "note": null
+        },
+        {
+          "text": "The author's production Python mx.fast.metal_kernel split-K MMA path is gated to M between 6 and 8, N of at least 4096 and 4-bit group size 64 affine, and was extended to tensor-parallel sharded quantized linears where post-shard N stays at or above 4096.",
+          "source": "https://github.com/ml-explore/mlx/issues/4265",
+          "note": null
+        },
+        {
+          "text": "With the small-M kernel wired into a 27B hybrid, one forward at S=6, 7 and 8 fell from 62.5, 70.5 and 77.1 ms to 44.5, 44.6 and 43.3 ms with token-identical output.",
+          "source": "https://github.com/ml-explore/mlx/issues/4265",
+          "note": null
+        },
+        {
+          "text": "The speculative-decoding rows in issue 4265 were plain 37.6 tok/s, MTP k=2 49.3 before and 50.4 after, and an external drafter 34.7 before and 62.2 after (0.92x to 1.65x).",
+          "source": "https://github.com/ml-explore/mlx/issues/4265",
+          "note": null
+        },
+        {
+          "text": "PR 3764 documents qmv_wide as selected for M in [2, vector_limit) across affine, nvfp4, mxfp4 and mxfp8, with affine gated to gen-15+ GPUs.",
+          "source": "https://github.com/ml-explore/mlx/pull/3764",
+          "note": null
+        }
+      ]
+    }
+  ],
+  "related": []
+}

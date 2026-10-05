@@ -1,0 +1,274 @@
+{
+  "slug": "mlx-qmv-wide-kernel-pr-3764-and-affine-gen-15-pl",
+  "concept": "MLX qmv_wide kernel PR 3764 and affine gen-15+ gating",
+  "generated": "2026-10-05",
+  "summary": "Dispatch order inside `dispatch_qmv` (mlx/backend/metal/quantized.cpp, main): (1) K == 64 or K == 128 with power-of-2 bits and no global scale goes to `qmv_quad`, before qmv_wide is considered; (2) else M >= 2 and `use_qmv_wide(mode, d)` and no global scale goes to `qmv_wide`; (3) else plain `qmv...",
+  "facets": [
+    {
+      "title": "Facts",
+      "facts": [
+        {
+          "text": "Dispatch order inside `dispatch_qmv` (mlx/backend/metal/quantized.cpp, main): (1) K == 64 or K == 128 with power-of-2 bits and no global scale goes to `qmv_quad`, before qmv_wide is considered; (2) else M >= 2 and `use_qmv_wide(mode, d)` and no global scale goes to `qmv_wide`; (3) else plain `qmv`. `use_qmv_wide` is `mode != \"affine\" || arch_gen >= 15`.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "nvfp4 with a tensor-level global scale never takes qmv_wide (falls to `qmv`). The same function is also reached from the qqmm path (activation-quantized matmul), so those shapes follow the same rule.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Only transposed-weight matmuls reach it; the non-transposed case uses `vector_limit = 4` and the qvm path.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Upper bound is `vector_limit = get_qmv_batch_limit(K, N, d)`; at or above it, qmm (or `qmm_splitk` when B == 1) runs instead. This limit is per generation and per chip tier, not a single 13:",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "gen >= 17 non-Ultra (M5 Pro/Max class): 33 if K,N <= 2048; 25 if both <= 4096; else 13.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "gen 15-16 non-Ultra (M3/M4 Pro/Max class): 13; 15; 13 by the same size bands.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "gen >= 13 'd' (Ultra) suffix: 32; 18; 12. Gen 13-14 non-Ultra: 14; 10; 6. Gen < 13: 18/12/10 (non-d) and 32/18/12 (d).",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "So the 12-to-13 crossover cited elsewhere holds for M3/M4/M5 Pro and Max on large matrices, not for Ultra (12) or M1/M2 base-Pro-Max (6 on large matrices).",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Tiling (qmv_wide host function): `n_tiles = ceil(M/5)`, `vecs_per_tg = ceil(M/n_tiles)`. Each tile re-reads the weights, so weight streams per matmul = ceil(M/5). M=2..5: 1 stream; M=6..10: 2 streams (3-5 rows each); M=11..13: 3 streams. Grid is (n_tiles, ceil(N/rows_per_tg), B) with 2 simdgroups per threadgroup.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "k_lanes (lanes reducing K per output row): 8 for affine (4 output rows per simdgroup, 8 per threadgroup), 16 for fp modes (2 rows per simdgroup, 4 per threadgroup). Reduction uses a simd_shuffle_down ladder, not simd_sum.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Affine decode: each lane strides over groups, decodes the group in 8-value sub-chunks (`scale*q+bias`, accumulate in fp32), and reuses each sub-chunk across vecs_per_tg vectors. `group_size/8` is unrolled, so any group size that is a multiple of 8 works; kernel name encodes `_gs_`, `_b_`, `_nv_`, `_kl_`, `_batch_`.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Scale/bias are loaded once per group per lane, so metadata traffic per weight byte depends on group size exactly as in qmv; there is no group-size special case in the dispatch.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Reviewer fix (angeloskath, 26 Jun 2026): in the fp kernel, the per-group scale multiply was applied to nf4*4 = 32 values; moving it after the dot product cut it to one multiply.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "PR 3764 opened 24 Jun 2026, approved 26 Jun, merged 26 Jun as 548dd80; v0.32.0 was released 7 Jul 2026. v0.32.1 (17 Aug), v0.32.2 (25 Aug), v0.32.3 (28 Sep, latest) followed.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "PR 3888 `gemv_wide` (jessegross, merged 22 Jul 2026, in 0.32.1): the bf16/fp16 sibling of qmv_wide for the layers a quantized model leaves unquantized, x @ w.T with M = 2..15, streams weight rows once for up to 5 vectors, covers Matmul, AddMM, GatherMM, M3 generation and later. Per-kernel speedups: `in_proj_a/b` [M,2048]x[2048,32] M=2: 3.0x M3 Ultra, 2.3x M4 Pro, 6.0x M5 Max; M=8: 2.3x, 1.7x, 4.8x. `lm_head` [M,2048]x[2048,248320] M=2: 1.7x, 2.3x, 1.4x; M=8: 1.8x, 2.1x, 1.3x.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "v0.32.1 also fixed nvfp4 `quantized_matmul` through the split-K path (PR 3854). v0.32.3 added Metal global-scale qmm (PR 4458, 4483) and fixed fp quantized matmul corruption when the quantized dim is not a multiple of 32 (PR 3912).",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Split-K qmm for small M (PR 3120) landed before 0.32.0; qmm_splitk picks split_k to target about 512 threadgroups and requires K partitions that are whole multiples of max(group_size, 32).",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "M1 is generation 13 and M2 is generation 14 (M3 Pro reports `applegpu_g15s`); affine quantization on M1/M2 stays on `qmv` at all M. fp-format quants (nvfp4, mxfp4, mxfp8) still get qmv_wide there: the PR table measures M2 Pro at 1.3x (M=2) and 1.4-1.7x (M=4, 8), so \"M1/M2 get nothing\" is true only for int4/int8 affine.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "The PR benchmark has only one shape (Gemma-4-12B gate/up 15360x3840, bf16 activations, GPU kernel time) and four chips (M2 Pro, M3 Ultra, M4 Pro, M5 Max); no M1, no M3 base/Pro/Max, no M4 Max, no group size other than the default.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "At M=2, affine int4 gain is only 1.1-1.3x and int8 on M4 Pro is 1.0x; mxfp4 is the weakest fp mode at M=8 (1.2-1.4x) while mxfp8 and nvfp4 reach 1.7-2.2x.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Kernel-time speedups are not end-to-end: an M5 Max reviewer figure is mxfp4 Qwen 9B batch 4 going 253 to 295 tok/s (after the scale hoist), +17%.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Shapes with K of 64 or 128 skip qmv_wide for qmv_quad; shapes with a tensor global scale skip it.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Backports to older mlx pins must carry the `use_qmv_wide` gate: spokvulcan/mlx 452aeca (21 Aug 2026) ported only the affine half onto v0.31.1 and relies on the gen>=15 check.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Existing dossier says mlx 0.32.0 widened the verify window; issue 4265's author measured no change between 0.31.2 and 0.32.0 on M3 Ultra. Source explains part of it: Ultra uses the 'd' branch (vector_limit 12 on large matrices), M3 Ultra is gen 15 so affine qualifies, so the kernel was reachable there; the discrepancy is not a gating miss.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "No published end-to-end draft-width sweep keyed to ceil(M/5) steps (M=5 vs M=6 should show a step in verify cost on large matrices); not measured in any source read.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "No measured effect of group size (g32/g64/g128) on qmv_wide speedup.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "No M1 or M3 base measurements; no data on whether extending the affine gate to gen 13-14 is ever profitable.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Whether the tile cap of 5 will be raised or the kernel replaced by a split-K/MMA variant (issue 4265 invited a PR; none merged in sources read).",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "`dispatch_qmv` routes K==64 or K==128 (power-of-2 bits, no global scale) to `qmv_quad` before considering qmv_wide.",
+          "source": "https://raw.githubusercontent.com/ml-explore/mlx/main/mlx/backend/metal/quantized.cpp",
+          "note": null
+        },
+        {
+          "text": "qmv_wide is used when M >= 2, `use_qmv_wide(mode, d)` holds, and no global scale is present.",
+          "source": "https://raw.githubusercontent.com/ml-explore/mlx/main/mlx/backend/metal/quantized.cpp",
+          "note": null
+        },
+        {
+          "text": "`use_qmv_wide` returns `mode != \"affine\" || arch_gen >= 15`.",
+          "source": "https://raw.githubusercontent.com/ml-explore/mlx/main/mlx/backend/metal/quantized.cpp",
+          "note": null
+        },
+        {
+          "text": "nvfp4 with a tensor global scale falls back to plain `qmv`.",
+          "source": "https://raw.githubusercontent.com/ml-explore/mlx/main/mlx/backend/metal/quantized.cpp",
+          "note": null
+        },
+        {
+          "text": "qmv_wide uses `n_tiles = ceil(M/5)` and `vecs_per_tg = ceil(M/n_tiles)`, so weights are read ceil(M/5) times.",
+          "source": "https://raw.githubusercontent.com/ml-explore/mlx/main/mlx/backend/metal/quantized.cpp",
+          "note": null
+        },
+        {
+          "text": "qmv_wide runs 2 simdgroups per threadgroup with k_lanes 8 for affine and 16 for fp modes.",
+          "source": "https://raw.githubusercontent.com/ml-explore/mlx/main/mlx/backend/metal/quantized.cpp",
+          "note": null
+        },
+        {
+          "text": "The affine qmv_wide decodes each group in 8-value sub-chunks with fp32 accumulation and unrolls group_size/8 chunks.",
+          "source": "https://raw.githubusercontent.com/ml-explore/mlx/main/mlx/backend/metal/kernels/quantized.h",
+          "note": null
+        },
+        {
+          "text": "`get_qmv_batch_limit` on gen>=17 non-Ultra returns 33, 25, 13 for K,N <=2048, <=4096, larger.",
+          "source": "https://raw.githubusercontent.com/ml-explore/mlx/main/mlx/backend/metal/quantized.cpp",
+          "note": null
+        },
+        {
+          "text": "`get_qmv_batch_limit` on gen 15-16 non-Ultra returns 13, 15, 13 by the same size bands.",
+          "source": "https://raw.githubusercontent.com/ml-explore/mlx/main/mlx/backend/metal/quantized.cpp",
+          "note": null
+        },
+        {
+          "text": "`get_qmv_batch_limit` for gen>=13 Ultra ('d') returns 32, 18, 12 and for gen 13-14 non-Ultra returns 14, 10, 6.",
+          "source": "https://raw.githubusercontent.com/ml-explore/mlx/main/mlx/backend/metal/quantized.cpp",
+          "note": null
+        },
+        {
+          "text": "When M >= vector_limit and B == 1 with transposed weights, MLX uses `qmm_splitk`, which targets about 512 threadgroups.",
+          "source": "https://raw.githubusercontent.com/ml-explore/mlx/main/mlx/backend/metal/quantized.cpp",
+          "note": null
+        },
+        {
+          "text": "PR 3764 was merged 26 Jun 2026 and v0.32.0 was released 7 Jul 2026 with it in the notes.",
+          "source": "https://github.com/ml-explore/mlx/releases",
+          "note": null
+        },
+        {
+          "text": "On M2 Pro, fp-mode qmv_wide measured 1.3x at M=2 and 1.4-1.7x at M=4 and M=8, while int4 and int8 stayed on qmv.",
+          "source": "https://github.com/ml-explore/mlx/pull/3764",
+          "note": null
+        },
+        {
+          "text": "PR 3764 benchmarks cover M2 Pro, M3 Ultra, M4 Pro and M5 Max on one shape (15360x3840, bf16 activations) only.",
+          "source": "https://github.com/ml-explore/mlx/pull/3764",
+          "note": null
+        },
+        {
+          "text": "PR 3888 (gemv_wide) merged 22 Jul 2026 and shipped in v0.32.1.",
+          "source": "https://github.com/ml-explore/mlx/pull/3888",
+          "note": null
+        },
+        {
+          "text": "gemv_wide handles bf16/fp16 x @ w.T with M = 2..15 on M3-generation and later GPUs for Matmul, AddMM and GatherMM.",
+          "source": "https://github.com/ml-explore/mlx/pull/3888",
+          "note": null
+        },
+        {
+          "text": "gemv_wide measured 2.3-6.0x on `in_proj_a/b` M=2 across M3 Ultra, M4 Pro, M5 Max and 1.3-2.3x on a 248320-wide lm_head.",
+          "source": "https://github.com/ml-explore/mlx/pull/3888",
+          "note": null
+        },
+        {
+          "text": "v0.32.1 fixed nvfp4 quantized_matmul via split-K (PR 3854); v0.32.3 added Metal global-scale qmm (PR 4458, 4483) and an fp quantized matmul corruption fix for dims not multiple of 32 (PR 3912).",
+          "source": "https://github.com/ml-explore/mlx/releases",
+          "note": null
+        },
+        {
+          "text": "mlx v0.32.3 (28 Sep 2026) is the latest release as of this fetch.",
+          "source": "https://github.com/ml-explore/mlx/releases",
+          "note": null
+        },
+        {
+          "text": "M3 Pro reports Metal architecture `applegpu_g15s`.",
+          "source": "https://github.com/ml-explore/mlx/releases",
+          "note": null
+        },
+        {
+          "text": "M1 is generation 13 and M2 is generation 14 in MLX's architecture-gen numbering.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "To check you have qmv_wide: `mx.__version__ >= 0.32.0` and `mx.metal.device_info()[\"architecture\"]` ends in a gen >= 15 for affine; fp modes need only the version.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Verify cost for a batch of M rows steps up at M=6 and M=11 on qmv_wide because weight streams go 1 to 2 to 3; draft width 4 plus the bonus row (M=5) is the last single-stream width.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Group size has no dispatch effect on qmv_wide; only per-group metadata traffic differs.",
+          "source": "asserted",
+          "note": null
+        }
+      ]
+    }
+  ],
+  "related": []
+}

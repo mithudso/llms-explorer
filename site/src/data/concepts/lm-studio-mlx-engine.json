@@ -1,0 +1,479 @@
+{
+  "slug": "lm-studio-mlx-engine",
+  "concept": "LM Studio MLX engine",
+  "generated": "2026-10-05",
+  "summary": "The README lists three dependencies: mlx-lm, Outlines (structured output) and mlx-vlm. The standalone demo needs Python 3.11 because the LM Studio MLX runtime bundles CPython 3.11. It supports a `--draft-model` speculative-decoding demo.",
+  "facets": [
+    {
+      "title": "Facts",
+      "facts": [
+        {
+          "text": "The README lists three dependencies: mlx-lm, Outlines (structured output) and mlx-vlm. The standalone demo needs Python 3.11 because the LM Studio MLX runtime bundles CPython 3.11. It supports a `--draft-model` speculative-decoding demo.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "The runtime pack is a native Node addon plus an embedded Python: `mlx-llm-mac-arm64-apple-metal-advsimd-<ver>/llm_engine_mlx_amphibian.node` loads `libpython3.11.dylib` from a separate vendor dir `backends/vendor/_amphibian/cpython3.11-mac-arm64@<n>/`. A second pack `mlx-llm-mac-arm64-apple-metal-nax-advsimd` targets M5 (Neural Accelerators) and uses them.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Routing changed in July 2026 (PR #352, merged 2026-07-24): batchable text-only models now go through `BatchedVisionModelKit` (mlx-vlm loading and cache inspection), so text and vision share one batching, disk-cache and structured-output implementation. Vocab-only, single-sequence/speculative, KV-quantized and non-mergeable models stay on the old sequential path.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Threading (PR #326, VLM batching plus disk cache, merged 2026-05-28): one generation thread does the MLX work; each request arrives on its own thread and queues to it; a separate prompt-cache I/O thread owns disk restore prep and blob-store commits. It requires MLX 0.31.2 or later because that is the first MLX release the authors treat as thread-safe. All arrays must be evaluated before another thread consumes them.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Disk-cache chunk identity (PR #326): the default chunk is 256 tokens; a chunk key is a hash of its tokens, its image identifiers and the previous chunk's key (modelled on vLLM/LMCache).",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Prompt-cache checkpoints (PR #308, merged 2026-04-10): `CacheWrapper` was rebuilt on mlx-lm `LRUPromptCache`. `checkpoint_tail_tokens` is 11 (checkpoint taken 11 tokens before the end of the prompt, matching mlx-lm). Two checkpoint classes, \"user\" (after prefill is nearly done) and \"assistant\" (when generation ends), 10 entries each. It exists so SWA models such as Gemma 4 keep their cache when reasoning content is stripped from history. mlx-lm's separate \"system\" checkpoint is not ported because the engine cannot find the end of the system prompt. The PR warns cache-related memory use will rise.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Context auto-fit (PR #345, merged 2026-07-14): at load, a one-token probe measures real cache shapes and dtypes, then `context = (recommended working set - reserve - fixed memory) / bytes-per-token`, where reserve = max(3 GiB, 5% of working set) and fixed = loaded baseline + rotating cache + recurrent state; bytes/token = full KV + prompt embeddings + attention workspace. Result is rounded to the 256-token cache boundary and capped at native context. Authors measured 2.41 GiB as the largest unexplained peak, hence the 3 GiB floor.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Auto-fit worked example (M3 Max 36 GiB, 27 GiB working set, 4-bit): Qwen3.6-27B 55,040 tokens at 170 KiB/token; Qwen3.6-35B-A3B 58,880 at 88 KiB/token; Gemma 4 12B 153,856 at 87.5 KiB/token; Gemma 4 26B-A4B 104,192 at 89.5 KiB/token.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Dynamic prefill step (PR #367, merged 2026-08-21): the default prefill step is 2048 tokens; near the memory limit the engine shrinks the step (plan precomputed per request) to squeeze more context. Fitted context, old fixed-2048 to new max: M3 Max 36 GB Qwen 35B-A3B 59K to 130K, Qwen 27B 55K to 95K, Gemma 26B-A4B 104K to 232K, Gemma 12B 154K to 262K; M5 24 GB (17.76 GiB working set) Gemma 12B 4-bit 43K to 108K, but both Qwen models stay at 4K. Step 2048 to 1024 changed speed from roughly neutral to 17% faster; 1024 to 512 ranged from 13% faster to 13% slower depending on chip (M2 Ultra 2-7% slower).",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "GPT-OSS fit correction (PR #352): the fitter had assumed a full attention-score matrix; GPT-OSS with head_dim 64 uses fused attention, so the prior 50,432-token fit was too conservative. GPT-OSS 20B used 1.14 GiB less after four 16K prompts.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Load options added in 2026: `auto_fit_context` boolean (PR #355, 2026-07-31, forwarded to batched text models) and `enable_disk_cache` (PR #369, 2026-08-21; when off it avoids creating or writing the temp cache). PR #348 (2026-07-15) updates the disk budget after auto-fit.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Experimental HTTP server (PR #353, merged 2026-08-10): authenticated, one loaded model, streaming chat-completions and health only, base64 images only, tool requests rejected, \"not a general OpenAI-compatible server\". Direct Python vs HTTP: text 242.9 vs 246.2 tok/s (Qwen2.5 0.5B 4-bit), vision 117.7 vs 117.2 tok/s (Gemma 4 E2B). The batcher used to decode up to 500 ms before checking for new requests; it now yields when work is waiting. Issue #373 (2026-09-02) proposes using it as an Engine Protocol runtime.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Model-specific patches recorded in merged PRs: KV-cache quantization disabled for MambaCache models (#223); Qwen 3.5 ragged decode attention kernel disabled (#338); Gemma 4 unified architecture (#305), bidirectional visual prefill (#340), tool-call grammars for Gemma 4 (#344) and Qwen 3.5 (#346); Muse Glimmer (#364); Ernie 4.5; Qwen vision feature caching (#309); Outlines cache resolved from the LM Studio home dir (#375, 2026-09-25).",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "2025-12-07: mlx-engine #245 asks for \"Agent Mode\" (unbounded prefill, multi-slot LRU cache) because the old `CacheWrapper` was single-slot and chunked prefill at 512 tokens; a contributor's PR #246 was closed. The 2026 PRs #308, #326 and #352 address the multi-slot part.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "2026-02 to 2026-04: MLX runtime missing-vendor failures (see failure modes). 2026-04-03: Gemma 4 MLX fails with `No module named 'mlx_vlm.models.gemma4'` on LM Studio 0.4.8 until the bundled mlx-vlm was bumped (#1741, 54 reactions); unified Gemma 4 arch landed 2026-04-08 (#305).",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Runtime pack versions seen in reports: 1.0.0 (0.4.2), 1.3.0 (0.4.6), 1.4.0, 1.6.0 (May), 1.8.5 (June, disk cache plus VLM batching), 1.9.0 (June, M2 ragged-attention crash), 1.10.0, 1.10.1, 1.11.0 (July to August).",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Open issue list on 2026-10-04: 89 open, 94 closed. Merged PRs 162, open PRs 0. Nearly all recent merges come from one LM Studio engineer (neilmehta24).",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Auto-fit overrides user context (bug-tracker #2191, #2250, mlx-engine #366; runtime 1.10.1 and 1.11.0, LM Studio 0.4.20-0.4.21): the log shows `VLM prompt cache context target: configured=32,768 fitted=208,384 effective=208,384`. The configured value reaches the engine but `fit_batched_vlm_context()` is called without it, and `ensure_max_kv_size` keeps `max(configured, fitted)`. Context goes DOWN to fit memory (200,000 requested, 152,576 delivered on a 36 GB working set) or UP to model max (131,072 requested, 262,144 delivered on a 128 GB M5 Max). `lms load -c`, My Models defaults and app defaults all fail the same way. Per a commenter, text-only models on the non-VLM path and GGUF are unaffected.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Workaround confirmed by three commenters: select MLX runtime 1.10.0 in Settings (the issue is absent there). A reporter on 1.10.1 reproduced it, so 1.10.1 is not safe.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Zero-fit floor (#366): when fit computes 0 tokens (24 GB M4, 16 GB model, 14.95 GiB baseline vs 14.76 GiB safe ceiling) the engine logs `calculated 0 tokens; using the 4,096 token minimum` and the load reports success. Related: #2212 (16 GB M2 Air, fitted 4,864 yet client says context too small).",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Auto-fit can pin memory at its ceiling and cripple prefill (#2250, M1 Max 64 GB): Qwen3.8-27B fitted to 208,384 tokens at 65,536 B/token KV showed about 62 tok/s prefill vs about 1,000 tok/s for Gemma 4 26B-A4B; a 22,986-token prefill took about 6 minutes at 0% cache hit. This is a user measurement, not vendor data.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Disk-cache SSD wear (mlx-engine #341, open, 2026-06-24): a user reports `disk_budget.py` caps the budget at about min(30 GiB, free disk / 4) and saw 40 GB+ written in one agentic session on a 64 GB Mac, with logs of heavy `lifetime_evicted_mib` cycling; hardcoding the budget to 0 stopped the writes with no quality change. 7 thumbs-up. PR #369 (`enable_disk_cache`) landed two months later; a toggle in the LM Studio UI was not confirmed in sources read. Issue #354 (open) asks for the opposite, a persistent disk prefix cache, because prompt processing dominates agent time.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Cache reset on agent turns (mlx-engine #327, open, 2026-05-15): \"kv cache starts back from 0 every other turn\" on Anthropic-compatible API with Claude CLI, OpenCode and Pi, M1 Max 32 GB and M2 Max 64 GB. A counter-test on `/v1/chat/completions` (M4 Max, runtime 1.11.0, Qwen3-Coder-30B-A3B, 10k system prefix, no tools) reached TTFT 9.53 s then 0.47-0.55 s. The same test on `Qwen3-Coder-Next` (hybrid, `full_attention_interval: 4`) showed no caching at all (10.02 s then 10.87 s), silently, with no warning log.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "`Cache is not trimmable` regression record: bug-tracker #1319 (opened 2025-12-19, still open) was MLX KV cache fully reprocessing on 0.3.35, fixed by reverting to 0.3.31. On 2026-04-15 a user asked whether MLX runtime 1.6.0 \"just fixed this\"; the thread has no vendor confirmation.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Batching crashes (open): #363 `ValueError: [broadcast_shapes] Shapes (1,8,348,128) and (1,8,907,128)` in `BatchRotatingKVCache.merge` when concurrent requests share a prefix with different retained lengths; the scheduler dies and all in-flight requests fail (23 repeated tracebacks, then \"model has crashed ... Exit code: null\"). #359: `repeat_penalty: 1.15` in multi-turn requests triggers fatal scheduler exceptions (HTTP 400); removing it gives 8/8 turns. #374: `BatchedModelKit` ignores multiple EOS ids. #343: batched VLM loader treats `mtp.safetensors` as base weights. #371: draft-only MTP repos are indexed as loadable and crash with `'Qwen3_5MTPDraftModel' object has no attribute 'get_input_embeddings'`. #368: batched vision models cannot use a draft model (`is_draft_model_compatible()` returns False). #370: built-in MTP heads unused on MLX.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Model-format gaps in open issues: #357 text-only architectures implemented only in mlx_vlm (deepseek_v4) fail to load because dispatch checks for `vision_config`; #330 Qwen3.6 35B A3B mxfp8 fails to load; #339 and #376 ask for mlx-vlm 0.6.2+ and 0.7.1 (bundled 0.6.5); #337 Gemma 4 26B-A4B reasoning never terminates on MLX (16k reasoning tokens, empty content) while GGUF terminates; #372 glm5_next prompt-cache save always fails (`save_safetensors` on zero-size array).",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Fused batched decode is not implemented (#342, open): on an M5 Max 128 GB the requester measured mlx_lm `batch_generate` at about 21x single-stream for a 4B dense model (130 to 2,800 tok/s at B~128), 2.4x for Qwen3.6-35B-A3B (137 to 326) and 2.5x for Qwen3.6-27B (33 to 84), and says LM Studio's concurrency delivers far less.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "MLX runtime will not load if its vendored CPython dir is missing (bug-tracker #1521, #1645; 0.4.2+2 to 0.4.12; MLX pack 1.0.0-1.6.0): `Library not loaded: @rpath/libpython3.11.dylib` from `.../vendor/_amphibian/cpython3.11-mac-arm64@10/`. Trigger in #1645: removing old engine versions through Manage Versions deleted `cpython3.11-mac-arm64@9`. The Settings \"Fix\" button and `lms runtime remove`/`get` did not recreate it, and `lms runtime update --all` reports up to date because it does not reconcile vendor deps against disk. Dropping in Homebrew's libpython fails because LM Studio's hardened runtime rejects the Team ID mismatch. Reported fixes: delete `~/.cache/lm-studio` plus reinstall the app (worked for several users; CleanMyMac suspected); one user said 0.4.9 fixed it, then it returned on 0.4.12 for the M5 runtime.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "M5 pack: an M5 runtime download stuck at a greyed 100% (#1645, 2026-03). Bug-tracker #2040 notes the MLX `nax` pack uses the Neural Accelerators while the llama.cpp 2.21 runtime failed the tensor-API check (GGUF 2-3x prefill lost; decode unchanged); an unverified third-party article says a similar matrix-engine miss was fixed in early September 2026.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Does LM Studio's MLX path support hybrid/SWA prompt reuse? Vendor blog and PRs #308/#326 say yes within a session (checkpoints plus disk records). Users on 0.4.x report none for hybrid models (#327 counter-test, `qwen3_next`) or resets after tool calls. Both can be true: reuse depends on model architecture, request type and runtime version.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Is auto-fit a safety feature or a regression? PR #345 states it only reports a value and \"does not enforce\"; PR #367 says \"This is not a regression ... autofit is our best estimate at load time\". Users (#2250, 24 thumbs-up) experience it as the engine ignoring the context they set.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Speed claim \"17 vs 38 tok/s, LM Studio MLX vs oMLX or mlx-lm direct\": NOT verified. No source read contains those figures. Nearest verified numbers: LM Studio's own v1.7.0 to v1.8.5 parallel=4 run 15.24 to 33.97 end-to-end output tok/s (both inside LM Studio, M3 Max, Qwen3.6-27B 4-bit); macoclock single-run oMLX vs mlx-lm decode 22 vs 25 tok/s (already held elsewhere). Treat \"17 vs 38\" as an unsourced claim, possibly a garbled version of the 15.24 to 33.97 vendor figure.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Which runtime fixed or will fix auto-fit override (#2250) after 1.11.0, and does a pack newer than 1.11.0 exist? Sources read stop at 1.11.0.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Is `enable_disk_cache` exposed in the LM Studio GUI or `lms load`, and is the 30 GiB / free-disk-over-4 budget accurate? Only the issue reporter's reading of `disk_budget.py` was found.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Whether runtime 1.6.0 truly fixed non-trimmable clearing (#1319 comment unconfirmed).",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "No official doc page on runtime selection, auto-update or pinning was reachable (lmstudio.ai docs paths tried returned 404); pinning is known only from user reports (Settings, select an older MLX version; `lms runtime select`).",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "No independent head-to-head of LM Studio MLX vs oMLX on identical hardware, model and settings was found.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "mlx-engine is MIT-licensed, has 196 commits, 0 tags, 17 branches, 1.2k stars and 135 forks as of 2026-10-04.",
+          "source": "https://github.com/lmstudio-ai/mlx-engine",
+          "note": null
+        },
+        {
+          "text": "mlx-engine's README lists mlx-lm, Outlines and mlx-vlm as its built-with dependencies and says its requirements file is compiled for Python 3.11, the version bundled in the LM Studio MLX runtime.",
+          "source": "https://github.com/lmstudio-ai/mlx-engine",
+          "note": null
+        },
+        {
+          "text": "LM Studio's mlx-engine supports a draft-model speculative decoding demo via `--draft-model`.",
+          "source": "https://github.com/lmstudio-ai/mlx-engine",
+          "note": null
+        },
+        {
+          "text": "mlx-engine had 89 open and 94 closed issues, and 162 merged PRs with 0 open, on 2026-10-04.",
+          "source": "https://github.com/lmstudio-ai/mlx-engine/issues",
+          "note": null
+        },
+        {
+          "text": "The MLX runtime pack is a Node addon `llm_engine_mlx_amphibian.node` that loads libpython3.11 from `backends/vendor/_amphibian/cpython3.11-mac-arm64@10/`.",
+          "source": "https://github.com/lmstudio-ai/lmstudio-bug-tracker/issues/1521",
+          "note": null
+        },
+        {
+          "text": "Removing old MLX engine versions via Manage Versions deleted `cpython3.11-mac-arm64@9` and broke MLX loading on LM Studio 0.4.6+1 with runtime 1.3.0.",
+          "source": "https://github.com/lmstudio-ai/lmstudio-bug-tracker/issues/1645",
+          "note": null
+        },
+        {
+          "text": "The Settings \"Fix\" button and `lms runtime remove` plus `lms runtime get` did not restore the missing vendor CPython, and `lms runtime update --all` reported up to date.",
+          "source": "https://github.com/lmstudio-ai/lmstudio-bug-tracker/issues/1645",
+          "note": null
+        },
+        {
+          "text": "Homebrew's libpython3.11 was rejected by LM Studio's hardened runtime because of a Team ID mismatch.",
+          "source": "https://github.com/lmstudio-ai/lmstudio-bug-tracker/issues/1645",
+          "note": null
+        },
+        {
+          "text": "Deleting `~/.cache/lm-studio` and reinstalling the app fixed the missing-vendor failure for several users, though an M5-specific MLX runtime stayed broken for one.",
+          "source": "https://github.com/lmstudio-ai/lmstudio-bug-tracker/issues/1645",
+          "note": null
+        },
+        {
+          "text": "A user reported the missing-vendor failure fixed on LM Studio 0.4.9 and recurring on 0.4.12.",
+          "source": "https://github.com/lmstudio-ai/lmstudio-bug-tracker/issues/1645",
+          "note": null
+        },
+        {
+          "text": "The MLX nax pack `mlx-llm-mac-arm64-apple-metal-nax-advsimd` targets M5 and uses the Neural Accelerators; the llama.cpp 2.21.0 runtime failed the Metal tensor-API check on an M5 Max, losing 2-3x prefill.",
+          "source": "https://github.com/lmstudio-ai/lmstudio-bug-tracker/issues/2040",
+          "note": null
+        },
+        {
+          "text": "PR #352 corrected the GPT-OSS context fit (fused attention at head_dim 64), saving 1.14 GiB after four 16K prompts on GPT-OSS 20B.",
+          "source": "https://github.com/lmstudio-ai/mlx-engine/pull/352",
+          "note": null
+        },
+        {
+          "text": "PR #326 (merged 2026-05-28) added `BatchedVisionModelKit` with VLM continuous batching and a per-process disk store for inactive KV records, and requires MLX 0.31.2 for thread safety.",
+          "source": "https://github.com/lmstudio-ai/mlx-engine/pull/326",
+          "note": null
+        },
+        {
+          "text": "PR #326 uses one generation thread, one request thread per client, and a dedicated prompt-cache I/O thread that owns restore prep and blob-store commits.",
+          "source": "https://github.com/lmstudio-ai/mlx-engine/pull/326",
+          "note": null
+        },
+        {
+          "text": "PR #326 defines a 256-token chunk keyed by a hash of its tokens, its image ids and the previous chunk's key.",
+          "source": "https://github.com/lmstudio-ai/mlx-engine/pull/326",
+          "note": null
+        },
+        {
+          "text": "PR #308 (merged 2026-04-10) rebuilt `CacheWrapper` on mlx-lm `LRUPromptCache` with `checkpoint_tail_tokens` 11 and 10 \"user\" plus 10 \"assistant\" checkpoints, so SWA models keep cache when reasoning is stripped; this answers the open question in hybrid-and-sliding-window-attention-kv-cache-rewinding.md about LM Studio snapshotting.",
+          "source": "https://github.com/lmstudio-ai/mlx-engine/pull/308",
+          "note": null
+        },
+        {
+          "text": "PR #308 omits mlx-lm's \"system\" checkpoint because the engine cannot locate the end of the system prompt, and warns that cache memory use will rise.",
+          "source": "https://github.com/lmstudio-ai/mlx-engine/pull/308",
+          "note": null
+        },
+        {
+          "text": "PR #345 (merged 2026-07-14) adds context auto-fit using a one-token probe: context = (recommended working set - reserve - fixed memory) / bytes-per-token, reserve = max(3 GiB, 5% of working set).",
+          "source": "https://github.com/lmstudio-ai/mlx-engine/pull/345",
+          "note": null
+        },
+        {
+          "text": "PR #345 reports only the fitted value via `get_runtime_load_info()` and states it does not enforce the limit.",
+          "source": "https://github.com/lmstudio-ai/mlx-engine/pull/345",
+          "note": null
+        },
+        {
+          "text": "PR #345 measured on an M3 Max 36 GiB (27 GiB working set): Qwen3.6-27B 55,040 tokens, Qwen3.6-35B-A3B 58,880, Gemma 4 12B 153,856, Gemma 4 26B-A4B 104,192.",
+          "source": "https://github.com/lmstudio-ai/mlx-engine/pull/345",
+          "note": null
+        },
+        {
+          "text": "PR #345 measured per-token memory of 170 KiB (Qwen3.6-27B), 88 KiB (35B-A3B), 87.5 KiB (Gemma 4 12B) and 89.5 KiB (Gemma 4 26B-A4B), and its largest unexplained peak was 2.41 GiB.",
+          "source": "https://github.com/lmstudio-ai/mlx-engine/pull/345",
+          "note": null
+        },
+        {
+          "text": "PR #367 shrinks the default 2048-token prefill step near the memory limit to raise fitted context, e.g. M3 Max Qwen 35B-A3B 59K to 130K and Gemma 4 12B 8-bit on a 24 GB M5 24K to 65K.",
+          "source": "https://github.com/lmstudio-ai/mlx-engine/pull/367",
+          "note": null
+        },
+        {
+          "text": "PR #367 reports step 2048 to 1024 as 6-17% faster on an M5 laptop and neutral to 3% faster on M3 Max; 1024 to 512 ranged from 2% slower to 13% faster on M3 Max and 2-7% slower on M2 Ultra.",
+          "source": "https://github.com/lmstudio-ai/mlx-engine/pull/367",
+          "note": null
+        },
+        {
+          "text": "On a 24 GB M5 (17.76 GiB working set) auto-fit left both Qwen 3.x models at 4K context even after PR #367.",
+          "source": "https://github.com/lmstudio-ai/mlx-engine/pull/367",
+          "note": null
+        },
+        {
+          "text": "PR #355 added an `auto_fit_context` load toggle (2026-07-31) and PR #369 added an `enable_disk_cache` load option that avoids creating or writing the temp cache when off (2026-08-21).",
+          "source": "https://github.com/lmstudio-ai/mlx-engine/pull/355",
+          "note": null
+        },
+        {
+          "text": "PR #369 adds the `enable_disk_cache` option.",
+          "source": "https://github.com/lmstudio-ai/mlx-engine/pull/369",
+          "note": null
+        },
+        {
+          "text": "PR #353 added an authenticated, streaming-only, single-model HTTP server to mlx-engine that rejects tool-enabled requests and fetches no image URLs.",
+          "source": "https://github.com/lmstudio-ai/mlx-engine/pull/353",
+          "note": null
+        },
+        {
+          "text": "PR #353 measured direct Python vs HTTP at 242.9 vs 246.2 tok/s (text) and 117.7 vs 117.2 tok/s (vision), and changed the batcher from decoding up to 500 ms to yielding when work is waiting.",
+          "source": "https://github.com/lmstudio-ai/mlx-engine/pull/353",
+          "note": null
+        },
+        {
+          "text": "PR #338 disabled the Qwen 3.5-family ragged decode attention fast path because v1.9.0 could crash on M2 machines through a custom Metal kernel with a large threadgroup shape.",
+          "source": "https://github.com/lmstudio-ai/mlx-engine/pull/338",
+          "note": null
+        },
+        {
+          "text": "The fix of #338 has no measured single-sequence throughput impact because normal decode does not call the ragged helper.",
+          "source": "https://github.com/lmstudio-ai/mlx-engine/pull/338",
+          "note": null
+        },
+        {
+          "text": "With MLX runtime 1.10.1 on LM Studio, requesting 200,000 context yielded 152,576 on a 36 GiB working set; the issue did not appear on runtime 1.10.0.",
+          "source": "https://github.com/lmstudio-ai/lmstudio-bug-tracker/issues/2191",
+          "note": null
+        },
+        {
+          "text": "On a 128 GB M5 Max with runtime 1.10.1, requesting 131,072 context yielded 262,144 (auto-fit pushed context up).",
+          "source": "https://github.com/lmstudio-ai/lmstudio-bug-tracker/issues/2191",
+          "note": null
+        },
+        {
+          "text": "Issue #2250 (LM Studio 0.4.20, runtime 1.11.0, M1 Max 64 GB) shows `lms load -c`, My Models defaults and app defaults all ignored by MLX VLM-path models, with 24 thumbs-up.",
+          "source": "https://github.com/lmstudio-ai/lmstudio-bug-tracker/issues/2250",
+          "note": null
+        },
+        {
+          "text": "A commenter traced #2250 to `fit_batched_vlm_context()` being called without the requested length, and `ensure_max_kv_size` keeping `max(configured, fitted)`; text-only MLX models and GGUF are reportedly unaffected.",
+          "source": "https://github.com/lmstudio-ai/lmstudio-bug-tracker/issues/2250",
+          "note": null
+        },
+        {
+          "text": "A user measured about 62 tok/s prefill for Qwen3.8-27B auto-fitted to 208,384 tokens (65,536 B/token KV) against about 1,000 tok/s for Gemma 4 26B-A4B on an M1 Max 64 GB, with a 22,986-token prefill taking about 6 minutes at 0% cache hit.",
+          "source": "https://github.com/lmstudio-ai/lmstudio-bug-tracker/issues/2250",
+          "note": null
+        },
+        {
+          "text": "When auto-fit computes zero tokens, mlx-engine floors the context at 4,096 and the load reports success (reported on a 24 GB M4 with a 16 GB model, runtime 1.11.0).",
+          "source": "https://github.com/lmstudio-ai/mlx-engine/issues/366",
+          "note": null
+        },
+        {
+          "text": "Issue #2212 shows a 16 GB M2 Air with context auto-fitted to 4,864 yet Bionic rejecting requests as too large, with `canLoad=false` from the guardrail estimate.",
+          "source": "https://github.com/lmstudio-ai/lmstudio-bug-tracker/issues/2212",
+          "note": null
+        },
+        {
+          "text": "mlx-engine #341 (open) says `disk_budget.py` sizes the disk cache from free SSD space (reported as min(30 GiB, free/4)), and one agentic session wrote 40 GB+; setting the budget to 0 stopped the writes with no quality change.",
+          "source": "https://github.com/lmstudio-ai/mlx-engine/issues/341",
+          "note": null
+        },
+        {
+          "text": "mlx-engine #354 (open) requests persistent disk prefix KV caching, since users report prompt processing dominating generation time roughly 100:1.",
+          "source": "https://github.com/lmstudio-ai/mlx-engine/issues/354",
+          "note": null
+        },
+        {
+          "text": "mlx-engine #327 (open) reports KV cache restarting from 0 every other turn on the Anthropic-compatible API with Claude CLI, OpenCode and Pi across MLX models, M1 Max 32 GB and M2 Max 64 GB.",
+          "source": "https://github.com/lmstudio-ai/mlx-engine/issues/327",
+          "note": null
+        },
+        {
+          "text": "In #327 a commenter found `/v1/chat/completions` without tools cached correctly (TTFT 9.53 s then 0.47-0.55 s, runtime 1.11.0, M4 Max) but the hybrid `Qwen3-Coder-Next` had no caching and no warning.",
+          "source": "https://github.com/lmstudio-ai/mlx-engine/issues/327",
+          "note": null
+        },
+        {
+          "text": "Bug-tracker #1319 (KV caching broken for MLX on 0.3.35, GLM-4.6 6.5-bit on M3 Ultra 512 GB) remains open; on 2026-04-15 a user asked whether MLX runtime 1.6.0 fixed it, without confirmation.",
+          "source": "https://github.com/lmstudio-ai/lmstudio-bug-tracker/issues/1319",
+          "note": null
+        },
+        {
+          "text": "mlx-engine #363 (open): `BatchRotatingKVCache.merge` raises `ValueError: [broadcast_shapes] Shapes (1,8,348,128) and (1,8,907,128) cannot be broadcast`, killing the scheduler and every in-flight request when concurrent requests share a prefix.",
+          "source": "https://github.com/lmstudio-ai/mlx-engine/issues/363",
+          "note": null
+        },
+        {
+          "text": "mlx-engine #359 (open): `repeat_penalty` 1.15 in multi-turn conversations triggers fatal backend-scheduler exceptions (HTTP 400); removing it makes 8/8 turns succeed.",
+          "source": "https://github.com/lmstudio-ai/mlx-engine/issues/359",
+          "note": null
+        },
+        {
+          "text": "mlx-engine #342 (open): on an M5 Max 128 GB mlx_lm `batch_generate` reaches about 2,800 tok/s aggregate for gemma-4-e4b (21x single-stream), 326 for Qwen3.6-35B-A3B (2.4x) and 84 for Qwen3.6-27B (2.5x), and the requester asks LM Studio to adopt fused batched decode.",
+          "source": "https://github.com/lmstudio-ai/mlx-engine/issues/342",
+          "note": null
+        },
+        {
+          "text": "mlx-engine #245 (open since 2025-12-07) described the old `CacheWrapper` as single-slot with 512-token chunked prefill, and requested multi-slot LRU caching and unbounded prefill.",
+          "source": "https://github.com/lmstudio-ai/mlx-engine/issues/245",
+          "note": null
+        },
+        {
+          "text": "mlx-engine #337 (open): Gemma 4 26B-A4B on MLX never terminates reasoning (15,997 reasoning tokens of 15,999, empty content) while the GGUF backend terminates.",
+          "source": "https://github.com/lmstudio-ai/mlx-engine/issues/337",
+          "note": null
+        },
+        {
+          "text": "mlx-engine #357 (open): text-only architectures implemented only in mlx_vlm, such as deepseek_v4, fail to load because dispatch checks only for `vision_config`.",
+          "source": "https://github.com/lmstudio-ai/mlx-engine/issues/357",
+          "note": null
+        },
+        {
+          "text": "On LM Studio 0.4.8 an MLX Gemma 4 26B failed with `ValueError: Model type gemma4 not supported. Error: No module named 'mlx_vlm.models.gemma4'` until the bundled mlx-vlm was updated.",
+          "source": "https://github.com/lmstudio-ai/lmstudio-bug-tracker/issues/1741",
+          "note": null
+        },
+        {
+          "text": "No source read contains a \"17 vs 38 tok/s\" LM Studio-vs-oMLX figure; LM Studio's own mlx-engine benchmark is 15.24 to 33.97 tok/s between engine v1.7.0 and v1.8.5 at parallel=4.",
+          "source": "https://lmstudio.ai/blog/mlx-engine-agentic-workloads",
+          "note": null
+        },
+        {
+          "text": "Hannecke (2026-03-06) cites an academic study with MLX near 230 tok/s sustained against Ollama's 20-40 on an M2 Ultra, and notes the mlx-engine is MIT while the LM Studio app is closed source.",
+          "source": "https://medium.com/@michael.hannecke/the-same-router-better-backend-multi-model-routing-with-lm-studio-and-apples-mlx-78f53b2aabbb",
+          "note": null
+        },
+        {
+          "text": "Selecting an older MLX runtime version in LM Studio settings is the user-reported way to roll back an engine regression (1.10.0 chosen to avoid the auto-fit override).",
+          "source": "https://github.com/lmstudio-ai/lmstudio-bug-tracker/issues/2191",
+          "note": null
+        },
+        {
+          "text": "Danmackinlay notes the directory-scanning MLX servers (oMLX, LM Studio) each want their own model folder, oMLX can reuse `~/.lmstudio` directly, and any server that loads mlx-lm formats can load OptiQ/oQ quantizations without custom support.",
+          "source": "https://danmackinlay.name/notebook/local_llm_mac.html",
+          "note": null
+        },
+        {
+          "text": "JANG-format quantizations load natively in oMLX, MLX Studio and vMLX but not in LM Studio, Ollama or Jan.",
+          "source": "https://danmackinlay.name/notebook/local_llm_mac.html",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Corrections and disagreements",
+      "facts": [
+        {
+          "text": "Merged PR #352 routes batchable text-only models through `BatchedVisionModelKit` (mlx-vlm) and keeps vocab-only, speculative, KV-quantized and non-mergeable models on the sequential path. CONTRADICTS lm-studio-on-mac.md, which says mlx-lm text implementations are always used.",
+          "source": "https://github.com/lmstudio-ai/mlx-engine/pull/352",
+          "note": null
+        }
+      ]
+    }
+  ],
+  "related": []
+}

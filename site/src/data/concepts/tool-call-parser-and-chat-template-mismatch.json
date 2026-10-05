@@ -1,0 +1,914 @@
+{
+  "slug": "tool-call-parser-and-chat-template-mismatch",
+  "concept": "Tool-call parser and chat-template mismatch",
+  "generated": "2026-10-05",
+  "summary": "mlx_lm.server selects a parser with `_infer_tool_parser()` in `mlx_lm.tokenizer_utils`, which matches marker strings in the chat template (e.g. `<start_function_call>` gives `function_gemma`); a template with no known marker gets no parser and the raw text stays in `content`.",
+  "facets": [
+    {
+      "title": "Facts",
+      "facts": [
+        {
+          "text": "mlx_lm.server selects a parser with `_infer_tool_parser()` in `mlx_lm.tokenizer_utils`, which matches marker strings in the chat template (e.g. `<start_function_call>` gives `function_gemma`); a template with no known marker gets no parser and the raw text stays in `content`.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "oMLX auto-detects the parser per family and logs it at load (for example `VLM tool calling enabled: parser=qwen3_coder`); it emits structured calls only after the turn completes and suppresses known tool markup from visible content while streaming.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Ollama does not use the GGUF Jinja template for newer models. A model manifest names a `RENDERER` and a `PARSER` (Go code) and sets `TEMPLATE {{ .Prompt }}`. For Qwen3.5 these were `RENDERER qwen3.5` / `PARSER qwen3.5`.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "LM Studio ships its own closed-source parser and Harmony implementation; it does not use llama.cpp's parser. LM Studio has \"Native\" tool support (template supports tools, parsed to `tool_calls`) and \"Default\" support (custom system prompt, `tool` role rewritten to `user`).",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "llama.cpp since PR #18675 (autoparser, merged around 2026-03-05) generates a PEG parser from the Jinja template, so reasoning, content and tool-call phases come from template structure rather than stream scanning.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "vLLM pairs `--reasoning-parser` with `--tool-call-parser`; the tool parser only sees `content`, so any tool call left inside the reasoning region is lost.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Rapid-MLX has 27 parser modules, auto-recovers tool calls that arrive as plain text, and accepts an explicit `--tool-call-parser` as the fallback.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Jan 2026: llama.cpp new Jinja engine (#18462, b7756) made GLM-4.7 templates log \"Template supports tool calls but does not natively describe tools\" and return HTTP 500 `Callee is not a function: got Undefined (hint: 'items')` on tool calls with no arguments.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Feb 2026: Qwen3.5 released with Qwen3-Coder XML tool format; Ollama, LM Studio, mlx-lm and vLLM each shipped a wrong or fragile parser path within weeks.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Feb 27, 2026: Ollama issue #14493 documents that `qwen3.5` was wired to the Qwen3 Hermes-JSON renderer/parser instead of the Qwen3-Coder XML pipeline, plus an unclosed `</think>` in the renderer and a missing generation prompt after tool-call turns.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Mar 2026: Ollama 0.17.6 introduced a regression for Qwen3.5 tool calls in OpenCode (issue #14745); users pinned 0.17.5; the issue closed on 2026-03-27 via PR #15022.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Apr 2, 2026: mlx-lm issue #1096 (Gemma 4 tool calls not parsed) opened; fix PRs added a Gemma 4 parser and the `<|tool_call>`/`<tool_call|>` detection rule.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Apr 2026: vLLM 0.18/0.19 regression for Qwen3.5 tool calls inside `<think>` (issue #39056).",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Jul 2026: Ollama 0.32.1 still logs `qwen tool call parsing failed ... element <parameter> closed by </function>` for qwen3-coder:30b on macOS (issue #17276, closed as duplicate of #14834).",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "mlx_lm.server with Gemma 4 on mlx-lm 0.31.1: `message.content` held `<|tool_call>call:get_current_time{timezone:<|\"|>Asia/Tokyo<|\"|>}<tool_call|>` and `tool_calls` was `[]`; mlx_vlm.server was affected because it relies on mlx-lm parser inference.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Ollama with an old num_ctx: prompt truncation drops tool-format instructions and Qwen prints `<function=explore>`; fix is a larger num_ctx Modelfile variant (secondary source, plausible but unverified).",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Ollama Qwen3.5 in OpenCode: `<tool_call><function=read>...` printed inside the \"Thinking:\" block, then the agent stops silently.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Qwen3.5/3.6 often write a complete `<tool_call>` block before `</think>`. Result: LM Studio returns `content: \"\"`, `reasoning_content` holding the XML, `tool_calls: []`, `finish_reason: stop` (LM Studio bug 1592 thread, Qwen3.5-9B, macOS and Windows reports).",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "llama.cpp issue #20837 (Mar 2026): Qwen3.5-9B with thinking on prints tool calls as XML inside the thinking block and stops; with `chat-template-kwargs {\"enable_thinking\":false}` consecutive tool calls work.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "vLLM issue #39056: `--reasoning-parser qwen3 --tool-call-parser qwen3_coder` returns populated `reasoning` and empty `tool_calls`; reproduced with Qwen3.5-35B-A3B-FP8 and Qwen3.5-122B; a commenter reports the same with `qwen3_xml`.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Cause is the model, not the parser alone: raw llama-server also shows tool calls inside `<think>`.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "LM Studio's parser matches `<tool_call>`, `<function=...>` and `<tool_call_start|>` simultaneously and also inside `<think>` blocks. When the model reasons about tool syntax, the parser flips back into reasoning mode (30+ \"Start thinking\" log entries in one generation), emits `Failed to parse tool call: Expected \"<parameter=\" ...`, feeds the error back, and the model loops.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Results are non-deterministic across identical runs; the empty-`content` outcome returns `finish_reason: stop`, so agents that treat stop as success accept an empty answer.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "The \"separate reasoning_content and content\" toggle has paired failure modes: OFF leaves `<think>` blocks in history and breaks tool JSON; ON risks empty `content`.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Workaround: disable thinking via `{%- set enable_thinking = false %}` in the template (20+ consecutive tool calls then succeeded).",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "mlx_lm.server `ValueError: No function provided.` at `mlx_lm/tool_parsers/qwen3_coder.py` line 110 when Qwen3.5 emits an empty or incomplete `<tool_call></tool_call>` block, or a tool with `\"parameters\": {}`; one reported workaround wraps `parse_tools` in try/except and returns the raw text in `content` (mlx-lm issue #905, still open).",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "mlx-lm `qwen3_coder.py` also fails if the model emits a trailing space in the function element (reporter's reading of line 13).",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "llama.cpp after #18675: `common_chat_peg_parse` throws `std::runtime_error` and returns 500 when the PEG parser does not consume the whole output (gpt-oss JSON-schema request, Llama 3.2 with tools); the report was closed because the reporter was on an old build (8227) rather than a current one.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Related llama.cpp reports from the same period: Qwen3.5 Thinking crash in `common_chat_peg_parse` (#19869), gpt-oss \"Cannot pass both content and thinking\" regression (#20500), 500 \"Failed to parse input at pos 0\" when `max_tokens` is reached (#20193).",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "oMLX issue #854: after one successful tool-enabled chat completion with Qwen3.6-35B-A3B-8bit on the DMG build, every later request returns 500 `Can only get item pairs from a mapping.` until restart; no-`tools` requests work.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Ollama qwen3coder.go: `XML syntax error ... element <parameter> closed by </function>` drops the whole turn though HTTP is 200.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "oMLX issue #812: Qwen3.6-35B-A3B loaded through VLMBatchedEngine (auto-selected when the model dir has `processor_config.json`/`video_preprocessor_config.json`) stops with text and no `tool_calls`; the same weights through the text BatchedEngine call tools correctly.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Ollama GLM-4.7-Flash in OpenCode: generation halts after each tool call; vLLM does not (issue #13840, Ollama 0.14.3).",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "gpt-oss with Ollama 0.11.10 and Open WebUI on macOS: tool call starts, then the turn ends with nothing done (issue #12187).",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Qwen3-Coder-Next with llama.cpp: model announces a tool call then emits EOS; asking it to continue produces the call.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Gemma 4 via Ollama/LiteLLM: LiteLLM sends role `tool`, Gemma 4's template looks for `tool_responses`, so the model never sees the result and repeats the same call (LiteLLM issue 28530, proposed mapping `tool` to `tool_responses` for gemma4).",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Gemma 4 under long context plus reasoning malforms its own calls and then loops on the broken output; reported across vLLM, llama.cpp, Ollama and oobabooga; a parser-level repair and an experimental format LoRA exist (HF forum, Jun 2026).",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "LM Studio recursive trap above.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "A trailing `\\n` captured into the reasoning block by a llama.cpp parser steered Step 3.7 Flash into reasoning self-corrections that worsened over long multi-turn sessions (HN thread on level1techs post, relayed by tarruda).",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Qwen3-Coder-Next emits `\"filePath\"~/home/username` in OpenCode on llama.cpp (Q6 GGUF) and vLLM (AWQ); one reply argues grammar-constrained sampling in llama.cpp with `--jinja` should prevent this, so the cause is unresolved.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "vLLM `qwen3_coder` parser with long inputs produced an endless `!!!!!!` stream with `next_token_id = 0`; switching to `qwen3_xml` removed it.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Quantizing the KV cache to int4 flipped enough tokens inside tool calls to cause a reproducible tool-call failure in Qwen3.6-27B at about 100k context; int8 recovered, BF16 was fine (vLLM on CUDA; mechanism applies to llama.cpp `-ctk/-ctv`).",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Ollama: mis-wired Qwen3.5 renderer/parser (#14493); tool format fixes arrived in PR #14603 (merged 2026-03-04) and 0.17.x notes, but users still saw failures on 0.17.6 to 0.18.2 and a user reported `qwen3.5:122b-a10b` fixed only by v0.19.0 (PR #15224 referenced). In `x/create/client/create.go`, `getParserName()`/`getRendererName()` used `strings.Contains(arch, \"qwen3\")` so `ollama create` from safetensors gave Qwen3-Coder and Qwen3.5 the Hermes pipeline; fix commit 6474431 \"create: fix parser/renderer mapping for qwen3 variants\" (Apr 2, 2026). `ollama pull` models use registry manifests with the right config.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "vLLM docs list Qwen3-Coder under `--tool-call-parser qwen3_xml` and Qwen2.5/Qwen3 (Hermes JSON) under `hermes`; the Qwen3-Coder-Next model card still showed `qwen3_coder` and a discussion asked for it to change (Feb 2026).",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Reasons given for `qwen3_xml` over `qwen3_coder` (third-party analysis of vLLM source): expat-based XML streaming instead of regex, sanitising of `<`, `>`, `&`, deferred JSON parsing of nested parameters, auto-closing of missing tags. One commenter could not get arguments out of `qwen3_xml` on an older vLLM.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "A custom Jinja template (`qwen3.5-enhanced.jinja`, \"M2.5-style interleaved thinking\") is recommended for long agentic sessions on vLLM; vLLM does not auto-pick it, `--chat-template` must be passed. Claimed template faults in the official Qwen3.5 template: `</think>` before an unclosed `<think>`, premature stops on XML tool calls, historical reasoning leaking into context.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Qwen3.5 SFT-distilled (Claude-style) AutoRound INT4 checkpoint drifted from `qwen3_xml` to `hermes` JSON and mixed both formats after about 65K tokens.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Qwen3.6 adds Preserve Thinking (keeps prior reasoning in history, costs tokens). llama.cpp exposes it as `--reasoning-preserve` (generic flag) and templates still accept `--chat-template-kwargs '{\"preserve_thinking\":true}'`; llama-server logs \"chat template supports preserving reasoning, consider enabling it via --reasoning-preserve\". Unsloth says its Qwen3.5/3.6 GGUF template updates improve nested-object parsing and reduce looping.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Qwen's llama.cpp doc: the hard `enable_thinking` switch is not exposed by llama.cpp CLI flags; workaround is a custom template via `--chat-template-file`; `--jinja --reasoning-format deepseek` gives thinking and tool parsing.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "LangChain llama.cpp users hit Qwen3.5 tool failure because the template expects tool-call `arguments` as a dict, not a JSON string; patching `_lc_tool_call_to_openai_tool_call` fixed it.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Qwen3.5 on mlx_lm.server needed mlx-lm containing PR #928 to load at all (`ValueError: Received 333 parameters not in model`).",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Qwen3.5-397B via oMLX: oMLX always extracted `<tool_call>` XML into `tool_calls`, which broke a downstream proxy that parsed raw XML; feature request #906 asks for `--tool-call-parser none`. Related oMLX tool-drop issues cited: #812, #854, #792, #617, #666, #896, #811.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "mlx-lm 0.31.1 had no Gemma 4 parser (issue #1096, 2026-04-02); fix PR #1103 adds `function_gemma4` and detects both `<|tool_call>` and `<tool_call|>` in the template; v0.31.3 notes mention Gemma 4 parser fixes.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Ollama v0.20.3 on Apple Silicon routed Gemma 4 tool-call output into the reasoning field and a Flash Attention freeze hung prompts over about 500 tokens; the same author found Ollama v0.20.5 fine on NVIDIA. Working Mac path in that report: llama.cpp `--jinja`, `-m` with a local GGUF (not `-hf`, which pulls a 1.1 GB mmproj and OOM'd 24 GB), 32768 context, `-ctk q8_0 -ctv q8_0`, `-np 1`.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Gemma 4 thinking is enabled by `<|think|>` at the start of the system prompt; large variants may emit an empty thought block even when it is off; `llama-cli` is unreliable for disabling it, use `llama-server --chat-template-kwargs '{\"enable_thinking\":false}'`.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Gemma 4 tool role must be `tool_responses` for Ollama's template (LiteLLM issue above); Google ADK fixed the same mismatch (adk-python #5655).",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "llama.cpp issue discussion (2025-08): llama-server returned Harmony fragments (`<|channel|>commentary to=functions.get_weather json<|message|>{...}`) inside `reasoning_content` with empty `content`, i.e. tool call not extracted; maintainers' advice was to rebuild, since fixes landed constantly.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "llama.cpp autoparser regressions after #18675 hit gpt-oss (500 on `response_format` json_schema; \"Cannot pass both content and thinking\", fix from #19704 lost).",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "OpenAI cookbook for Ollama: Ollama's built-in template mimics Harmony; because tool calls happen inside chain-of-thought, the returned reasoning must be passed back on the next request until the final answer.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "vLLM uses `--tool-call-parser openai` for gpt-oss (Harmony-aware parser).",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "vLLM parsers: `glm45` for GLM-4.5/4.5-Air/4.6, `glm47` for GLM-4.7/4.7-Flash.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "GLM-4.7 format is `<arg_key>/<arg_value>` XML (oMLX table); oMLX auto-detects GLM 4.7 and 5.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Unsloth: GLM-4.7-Flash GGUFs were re-uploaded after llama.cpp fixed `scoring_func` softmax vs sigmoid (looping and poor output); recommended tool-calling sampling `--temp 0.7 --top-p 1.0` with repeat penalty off; Unsloth did not recommend Ollama for that GGUF because of chat-template compatibility.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "LM Studio and llama.cpp are the preferred hosts for GLM-4.7-Flash GGUFs; Ollama had a halt-after-tool-call bug (issue #13840).",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Disable thinking first when tool calls go missing: `chat_template_kwargs {\"enable_thinking\": false}` removed the Qwen3.5 symptom on llama.cpp and LM Studio in every report found.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Prefer a server that re-parses against the template: llama.cpp with autoparser (>= Mar 2026 builds) over older builds; a build older than #18675 does not have the PEG autoparser and is not affected by its regressions.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "For Claude Code on vLLM with Qwen3.5, one commenter found the Anthropic Messages path stable where OpenAI Chat Completions dropped calls (no explanation; anecdote, one reporter).",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "A proxy (qwen-toolcall-fixer, OpenAI-compatible) repairs malformed Qwen3.5 tool calls for vLLM users; claude-code-local recovers garbled calls by salvaging non-streaming responses and bounded re-issue.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Claude Code adds a per-request `x-anthropic-billing-header` line at the start of the system prompt that invalidates local KV cache prefixes; `CLAUDE_CODE_ATTRIBUTION_HEADER=0` (in settings `env`) stops it; Unsloth says this makes local inference about 90% slower otherwise. It also says `--bare` and `--exclude-dynamic-system-prompt-sections` shrink the prompt for cache reuse.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "When using Unsloth Studio with Claude Code, `--disable-tools` is needed or Studio's own server-side tools swallow Claude Code's tool calls and files never change.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "llama-server also serves `POST /v1/messages` and `/v1/messages/count_tokens`; the HF post says tool use needs only a tool-capable GGUF (PR #17570).",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Quick test, three requests: (1) POST `/v1/chat/completions` with one trivial tool and `temperature` 0 and check `choices[0].message.tool_calls` non-empty and `finish_reason` is `tool_calls`; (2) repeat with thinking enabled and a prompt that makes the model reason about XML; (3) send the tool result back in a second turn and check the model answers instead of calling again. Raw text such as `<function=` or `<|tool_call>` in `content`, or `reasoning_content` containing `<tool_call>`, locates the failing layer. `lms log stream` shows LM Studio's default-format prompt; `mlx_lm.server --log-level DEBUG` shows mlx-lm requests; llama-server `GET /props` and `--verbose` show the template and prompt.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Rapid-MLX ships `rapid-mlx agents <harness> --test` (single, multi-turn, parallel, streaming and stress tool-call scenarios per harness).",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Docker's local tool-calling study found small local models fail in four ways: eager invocation on greetings, wrong tool, invalid arguments, ignoring tool responses; it used a 5-round agent loop cap.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Ollama: Qwen3.5 parser in-thinking fix in 0.17.3 (PR #14477); renderer fix PR #14603 (2026-03-04); regression window 0.17.6 to 0.18.2 for OpenCode; issue #14745 closed 2026-03-27 by PR #15022; one user says v0.19.0 fixed Qwen3.5-122B; create-path mapping fix commit 6474431 (2026-04-02).",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "mlx-lm: Gemma 4 parser via PR #1103 / commit 171c1fd (April 2026), shipped by v0.31.3; Qwen3.5 load fix PR #928.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "llama.cpp: autoparser PR #18675 (Mar 2026) is the baseline for correct Qwen3.5 handling; GLM-4.7 `items` 500 error from the Jan 2026 Jinja engine (#19009) was triaged to a workaround for empty arguments.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "LM Studio: no fixed version confirmed; bug 1592 was open with \"Got a repro\" from LM Studio staff on 2026-03-09; Windows-only update on 2026-03-27 reportedly made it worse.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "vLLM: Qwen3.5 tool calling reported fine on 0.17 and broken on 0.18/0.19; PR #39055 proposes promoting XML tool calls out of reasoning; issue #39056 still open when fetched.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "qwen3_coder vs qwen3_xml (vLLM): Qwen3.5 model card recommends `qwen3_coder`; community and vLLM docs for Qwen3-Coder use `qwen3_xml`. One reporter says `qwen3_xml` emitted no arguments on an old vLLM; another says `qwen3_xml` also loses tool calls in `<think>` on vLLM 0.19.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Ollama issue #14493: reporter calls Qwen3.5 tool calling \"completely non-functional\"; a maintainer replied it works in the experimental bash-tool run and called the claim inaccurate.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Qwen3-Coder-Next `\"filePath\"/...` bug: reporter says model/quant issue; a commenter says llama.cpp grammar sampling should make this impossible, so blames the parser.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Context size as cause of raw XML (Ollama num_ctx truncation) versus parser/renderer mismatch as cause: both are reported for Qwen on Ollama; no study separates them.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Rapid-MLX claims auto-recovery handles most plain-text tool calls; no independent verification found.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Whether LM Studio fixed in-think scanning for Qwen3.5/3.6 and in which version.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Whether current mlx-lm `qwen3_coder` parser still raises `ValueError` on empty tool blocks (issue #905 open).",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Whether oMLX's VLM engine tool-call loss (#812) is fixed in releases after 0.3.5.dev1.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Why the Anthropic Messages path avoided vLLM tool-call loss for one reporter.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Ollama 0.32.x qwen3coder.go strict XML failure rate (16 events in about 25 days for one user) and any lenient-parse fix.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "mlx_lm.server chooses a tool parser via _infer_tool_parser() on markers in the chat template; a template without a known marker gets no parser and the raw call stays in content",
+          "source": "https://github.com/ml-explore/mlx-lm/issues/1096",
+          "note": null
+        },
+        {
+          "text": "Gemma 4 emits tool calls as <|tool_call>call:name{key:<|\"|>value<|\"|>}<tool_call|> and mlx-lm 0.31.1 left tool_calls empty for it",
+          "source": "https://github.com/ml-explore/mlx-lm/issues/1096",
+          "note": null
+        },
+        {
+          "text": "mlx_vlm.server depends on mlx-lm parser inference, so the Gemma 4 gap affected it too",
+          "source": "https://github.com/ml-explore/mlx-lm/issues/1096",
+          "note": null
+        },
+        {
+          "text": "The Gemma 4 mlx-lm fix PR adds a function_gemma4 parser and requires both <|tool_call> and <tool_call|> in the template to avoid false positives",
+          "source": "https://github.com/ml-explore/mlx-lm/issues/1096",
+          "note": null
+        },
+        {
+          "text": "mlx_lm.server raised ValueError \"No function provided.\" at tool_parsers/qwen3_coder.py line 110 for Qwen3.5-4B when a request carried a tool with empty parameters",
+          "source": "https://github.com/ml-explore/mlx-lm/issues/905",
+          "note": null
+        },
+        {
+          "text": "mlx-lm issue 905 reports that an empty or truncated block between <tool_call> and </tool_call> makes the qwen3_coder parser raise and fail the HTTP request",
+          "source": "https://github.com/ml-explore/mlx-lm/issues/905",
+          "note": null
+        },
+        {
+          "text": "mlx_lm.server --log-level DEBUG is the maintainer's requested way to capture the failing prompt",
+          "source": "https://github.com/ml-explore/mlx-lm/issues/905",
+          "note": null
+        },
+        {
+          "text": "Loading Qwen3.5-397B-A17B-4bit in mlx_lm.server needed a build containing PR 928 or it failed with \"Received 333 parameters not in model\"",
+          "source": "https://github.com/ml-explore/mlx-lm/issues/905",
+          "note": null
+        },
+        {
+          "text": "Ollama v0.17.x mapped qwen3.5 to the Qwen3 Hermes-JSON renderer and parser although Qwen3.5 uses Qwen3-Coder XML",
+          "source": "https://github.com/ollama/ollama/issues/14493",
+          "note": null
+        },
+        {
+          "text": "Ollama's Qwen3.5 renderer left an unclosed </think> in multi-turn prompts when an assistant turn had thinking plus tool calls and no text",
+          "source": "https://github.com/ollama/ollama/issues/14493",
+          "note": null
+        },
+        {
+          "text": "Ollama's Qwen renderers treated a last assistant message with tool calls as prefill and omitted the generation prompt, breaking the tool round trip",
+          "source": "https://github.com/ollama/ollama/issues/14493",
+          "note": null
+        },
+        {
+          "text": "Ollama's Go runner did not implement repeat, presence or frequency penalties as of v0.17.x, so Qwen3.5's recommended presence_penalty 1.5 was ignored",
+          "source": "https://github.com/ollama/ollama/issues/14493",
+          "note": null
+        },
+        {
+          "text": "Ollama manifests carry RENDERER and PARSER lines and TEMPLATE {{ .Prompt }} for qwen3.5",
+          "source": "https://github.com/ollama/ollama/issues/14745",
+          "note": null
+        },
+        {
+          "text": "Ollama's getParserName/getRendererName used strings.Contains(arch, \"qwen3\") so ollama create from safetensors misassigned Qwen3-Coder and Qwen3.5; fixed by commit 6474431 on 2026-04-02",
+          "source": "https://github.com/ollama/ollama/issues/14493",
+          "note": null
+        },
+        {
+          "text": "ollama pull models use registry manifests with correct parser config, so the create-path bug mainly affects imported safetensors",
+          "source": "https://github.com/ollama/ollama/issues/14493",
+          "note": null
+        },
+        {
+          "text": "Ollama 0.17.6 through 0.18.2 regressed Qwen3.5 tool calling in OpenCode, with 0.17.5 as the reported workaround",
+          "source": "https://github.com/ollama/ollama/issues/14745",
+          "note": null
+        },
+        {
+          "text": "Ollama issue 14745 closed on 2026-03-27 through PR 15022",
+          "source": "https://github.com/ollama/ollama/issues/14745",
+          "note": null
+        },
+        {
+          "text": "One user reports qwen3.5:122b-a10b tool calls fixed in Ollama 0.19.0 after failing on 0.18.2",
+          "source": "https://github.com/ollama/ollama/issues/14493",
+          "note": null
+        },
+        {
+          "text": "Ollama 0.32.1 on macOS logs \"qwen tool call parsing failed: XML syntax error ... element <parameter> closed by </function>\" for qwen3-coder:30b and discards a response returned with HTTP 200",
+          "source": "https://github.com/ollama/ollama/issues/17276",
+          "note": null
+        },
+        {
+          "text": "The Ollama qwen3-coder parse failure appeared mid-to-late in multi-tool sequences with about 29k cached tokens and recurred 16 times from 2026-06-25 to 2026-07-20 for one user",
+          "source": "https://github.com/ollama/ollama/issues/17276",
+          "note": null
+        },
+        {
+          "text": "Ollama v0.20.3 on Apple Silicon sent Gemma 4 tool calls into the reasoning field instead of tool_calls",
+          "source": "https://medium.com/google-cloud/i-ran-gemma-4-as-a-local-model-in-codex-cli-7fda754dc0d4",
+          "note": null
+        },
+        {
+          "text": "A Flash Attention freeze hung Ollama on Gemma 4 prompts longer than about 500 tokens on Apple Silicon (v0.20.x report)",
+          "source": "https://medium.com/google-cloud/i-ran-gemma-4-as-a-local-model-in-codex-cli-7fda754dc0d4",
+          "note": null
+        },
+        {
+          "text": "On a 24 GB M4 Pro the reporter ran Gemma 4 26B-A4B via llama-server --jinja with -m local path, 32768 context, -ctk/-ctv q8_0, -np 1; -hf downloaded a 1.1 GB mmproj and caused OOM",
+          "source": "https://medium.com/google-cloud/i-ran-gemma-4-as-a-local-model-in-codex-cli-7fda754dc0d4",
+          "note": null
+        },
+        {
+          "text": "Codex CLI sends a web_search_preview tool type that llama.cpp rejects, so web_search must be disabled in the Codex profile",
+          "source": "https://medium.com/google-cloud/i-ran-gemma-4-as-a-local-model-in-codex-cli-7fda754dc0d4",
+          "note": null
+        },
+        {
+          "text": "Gemma 4 via LiteLLM and Ollama loops on the same tool call because LiteLLM sends role \"tool\" while Gemma 4 expects \"tool_responses\"",
+          "source": "https://github.com/BerriAI/litellm/issues/28530",
+          "note": null
+        },
+        {
+          "text": "Gemma 4 thinking is enabled by <|think|> at the start of the system prompt, and larger variants may emit an empty thought block when it is off",
+          "source": "https://unsloth.ai/docs/models/gemma-4",
+          "note": null
+        },
+        {
+          "text": "For Gemma 4, llama-cli is unreliable for disabling thinking; use llama-server with --chat-template-kwargs '{\"enable_thinking\":false}'",
+          "source": "https://unsloth.ai/docs/models/gemma-4",
+          "note": null
+        },
+        {
+          "text": "Gemma 4 malforms its own tool calls under long context plus reasoning and then loops, reported across vLLM, llama.cpp, Ollama and oobabooga as of June 2026",
+          "source": "https://discuss.huggingface.co/t/gemma-4-bug-fixes-and-research-request/176979",
+          "note": null
+        },
+        {
+          "text": "LM Studio's tool-call parser also scans inside <think> blocks and treats prose mentions of <tool_call>, <function=...> or <tool_call_start|> as call attempts",
+          "source": "https://github.com/lmstudio-ai/lmstudio-bug-tracker/issues/1592",
+          "note": null
+        },
+        {
+          "text": "LM Studio's parser can fail to exit reasoning mode, returning empty content, full text in reasoning_content and finish_reason stop",
+          "source": "https://github.com/lmstudio-ai/lmstudio-bug-tracker/issues/1592",
+          "note": null
+        },
+        {
+          "text": "LM Studio's \"separate reasoning_content and content\" toggle trades tool-JSON corruption (OFF) for empty-content risk (ON)",
+          "source": "https://github.com/lmstudio-ai/lmstudio-bug-tracker/issues/1592",
+          "note": null
+        },
+        {
+          "text": "Disabling thinking with {%- set enable_thinking = false %} let LM Studio complete 20+ consecutive Qwen3.5 tool calls",
+          "source": "https://github.com/lmstudio-ai/lmstudio-bug-tracker/issues/1592",
+          "note": null
+        },
+        {
+          "text": "LM Studio uses its own closed-source parser and Harmony v0.3.6 rather than llama.cpp's implementation, per a llama.cpp collaborator quoted in the issue",
+          "source": "https://github.com/lmstudio-ai/lmstudio-bug-tracker/issues/1592",
+          "note": null
+        },
+        {
+          "text": "Qwen3.5-9B in LM Studio on Windows returned empty tool_calls with the XML in reasoning_content; a reporter said the same model on a Mac was fine at that time",
+          "source": "https://github.com/lmstudio-ai/lmstudio-bug-tracker/issues/1592",
+          "note": null
+        },
+        {
+          "text": "LM Studio staff reproduced the in-think parsing problem on 2026-03-09",
+          "source": "https://github.com/lmstudio-ai/lmstudio-bug-tracker/issues/1592",
+          "note": null
+        },
+        {
+          "text": "LM Studio gives \"Native\" tool support when the template supports tools and the tool calls are parsed, and \"Default\" support via a custom system prompt that rewrites tool role messages to user",
+          "source": "https://lmstudio.ai/docs/developer/openai-compat/tools",
+          "note": null
+        },
+        {
+          "text": "LM Studio documents that a badly formatted tool call stays in content and tool_calls is not populated",
+          "source": "https://lmstudio.ai/docs/developer/openai-compat/tools",
+          "note": null
+        },
+        {
+          "text": "llama.cpp issue 20837: Qwen3.5-9B with thinking on prints tool calls as XML inside the thinking block and stops; enable_thinking false fixes it",
+          "source": "https://github.com/ggml-org/llama.cpp/issues/20837",
+          "note": null
+        },
+        {
+          "text": "llama.cpp autoparser PR 18675 made common_chat_peg_parse throw and return 500 when the parser did not consume all output (gpt-oss with json_schema, Llama 3.2 with tools)",
+          "source": "https://github.com/ggml-org/llama.cpp/issues/20814",
+          "note": null
+        },
+        {
+          "text": "The llama.cpp 20814 report was closed after the maintainer pointed out the reporter ran build 8227 rather than a current build",
+          "source": "https://github.com/ggml-org/llama.cpp/issues/20814",
+          "note": null
+        },
+        {
+          "text": "Related llama.cpp issues after #18675 include 19869 (Qwen3.5 Thinking crash), 20500 (gpt-oss content-and-thinking Jinja error), 20193 (500 when max_tokens reached) and 20245 (LFM2.5 tool calls)",
+          "source": "https://github.com/ggml-org/llama.cpp/issues/20814",
+          "note": null
+        },
+        {
+          "text": "llama.cpp's new Jinja engine (commit c15395f, b7756) made GLM-4.7 log \"Template supports tool calls but does not natively describe tools\" and return 500 \"Callee is not a function: got Undefined (hint: 'items')\" for tool calls",
+          "source": "https://github.com/ggml-org/llama.cpp/issues/19009",
+          "note": null
+        },
+        {
+          "text": "A llama.cpp maintainer proposed defaulting empty function arguments to an empty object to avoid the GLM 500 error",
+          "source": "https://github.com/ggml-org/llama.cpp/issues/19009",
+          "note": null
+        },
+        {
+          "text": "The llama.cpp GLM 4.7 chat format is logged as \"Chat format: GLM 4.5\"",
+          "source": "https://github.com/ggml-org/llama.cpp/issues/19009",
+          "note": null
+        },
+        {
+          "text": "llama-server logs \"chat template supports preserving reasoning, consider enabling it via --reasoning-preserve\" for Qwen3.8",
+          "source": "https://huggingface.co/Qwen/Qwen3.8-27B/discussions/150",
+          "note": null
+        },
+        {
+          "text": "llama.cpp's --reasoning-preserve is a generic server flag while preserve_thinking remains a template kwarg, and both reach the same template variable",
+          "source": "https://huggingface.co/froggeric/Qwen-Fixed-Chat-Templates/discussions/54",
+          "note": null
+        },
+        {
+          "text": "Qwen3.6 has Preserve Thinking, which keeps earlier reasoning in history at extra token cost",
+          "source": "https://unsloth.ai/docs/models/qwen3.6",
+          "note": null
+        },
+        {
+          "text": "Unsloth Qwen3.6 GGUFs include chat-template updates for coding and tool-calling consistency and nested-object parsing",
+          "source": "https://unsloth.ai/docs/models/qwen3.6",
+          "note": null
+        },
+        {
+          "text": "Qwen's llama.cpp doc says the hard enable_thinking switch is not exposed in llama.cpp and a custom --chat-template-file is the workaround",
+          "source": "https://qwen.readthedocs.io/en/latest/run_locally/llama.cpp.html",
+          "note": null
+        },
+        {
+          "text": "Qwen's llama.cpp doc uses llama-server --jinja --reasoning-format deepseek for thinking and tool-call parsing",
+          "source": "https://qwen.readthedocs.io/en/latest/run_locally/llama.cpp.html",
+          "note": null
+        },
+        {
+          "text": "vLLM reasoning parser qwen3 puts text before </think> in reasoning and the tool parser sees only content, so a tool call written inside <think> is lost",
+          "source": "https://github.com/vllm-project/vllm/issues/39056",
+          "note": null
+        },
+        {
+          "text": "vLLM issue 39056 reproduces tool-call loss with --reasoning-parser qwen3 --tool-call-parser qwen3_coder on Qwen3.5-35B-A3B-FP8 and also saw it with Nemotron-Cascade2",
+          "source": "https://github.com/vllm-project/vllm/issues/39056",
+          "note": null
+        },
+        {
+          "text": "A commenter on vLLM 39056 reports the same loss with either qwen3_coder or qwen3_xml in OpenCode and Claude Code",
+          "source": "https://github.com/vllm-project/vllm/issues/39056",
+          "note": null
+        },
+        {
+          "text": "Reporters say Qwen3.5 tool calling worked on vLLM 0.17 and broke on 0.18/0.19",
+          "source": "https://github.com/vllm-project/vllm/issues/39056",
+          "note": null
+        },
+        {
+          "text": "A commenter on vLLM 39056 found the Anthropic Messages API stable with Claude Code and OpenCode where OpenAI Chat Completions dropped calls",
+          "source": "https://github.com/vllm-project/vllm/issues/39056",
+          "note": null
+        },
+        {
+          "text": "vLLM PR 39055 promotes embedded XML tool-call blocks from reasoning into content in qwen3_reasoning_parser",
+          "source": "https://github.com/vllm-project/vllm/issues/39056",
+          "note": null
+        },
+        {
+          "text": "vLLM docs assign --tool-call-parser qwen3_xml to Qwen3-Coder 480B and 30B, hermes to Qwen2.5 and QwQ, openai to gpt-oss, glm45 to GLM-4.5/4.6 and glm47 to GLM-4.7 and 4.7-Flash",
+          "source": "https://docs.vllm.ai/en/latest/features/tool_calling/",
+          "note": null
+        },
+        {
+          "text": "vLLM --chat-template is optional for auto tool choice only when the model ships a tool-capable template",
+          "source": "https://docs.vllm.ai/en/latest/features/tool_calling/",
+          "note": null
+        },
+        {
+          "text": "The Qwen3-Coder-Next model card used qwen3_coder and a discussion asked for qwen3_xml, citing vLLM PR 25028",
+          "source": "https://huggingface.co/Qwen/Qwen3-Coder-Next/discussions/17",
+          "note": null
+        },
+        {
+          "text": "vLLM qwen3_coder produced an endless \"!!!!\" stream with next_token_id 0 on long inputs with a tool call; qwen3_xml removed it",
+          "source": "https://huggingface.co/Qwen/Qwen3-Coder-Next/discussions/17",
+          "note": null
+        },
+        {
+          "text": "Qwen3-Coder-Next emitted \"filePath\"~/home/user in OpenCode with llama.cpp Q6 GGUFs and vLLM AWQ",
+          "source": "https://huggingface.co/Qwen/Qwen3-Coder-Next/discussions/14",
+          "note": null
+        },
+        {
+          "text": "A third-party vLLM source analysis says qwen3_xml uses expat streaming, sanitises special characters, defers JSON parsing and auto-closes missing tags, unlike regex-based qwen3_coder",
+          "source": "https://github.com/allanchan339/vLLM-Qwen3-3.5-3.6-chat-template-fix/blob/main/README.md",
+          "note": null
+        },
+        {
+          "text": "vLLM does not auto-select a custom chat template; --chat-template must be passed explicitly",
+          "source": "https://github.com/allanchan339/vLLM-Qwen3-3.5-3.6-chat-template-fix/blob/main/README.md",
+          "note": null
+        },
+        {
+          "text": "A Claude-style SFT Qwen3.5 AutoRound INT4 checkpoint shifted from qwen3_xml to hermes JSON and mixed both formats after about 65K tokens",
+          "source": "https://github.com/allanchan339/vLLM-Qwen3-3.5-3.6-chat-template-fix/blob/main/README.md",
+          "note": null
+        },
+        {
+          "text": "Qwen3.5 tool calling on long Hermes Agent tasks silently failed on vLLM until a chat-template fix plus qwen3_xml was applied (DGX Spark user, April 2026)",
+          "source": "https://forums.developer.nvidia.com/t/qwen3-5-tool-calling-finally-fixed-possibly/366451",
+          "note": null
+        },
+        {
+          "text": "A llama.cpp Qwen3.5 template expects tool-call arguments as a dict, so LangChain's JSON-string arguments broke tool calling until patched",
+          "source": "https://forum.langchain.com/t/qwen-3-5-tool-calling/3267",
+          "note": null
+        },
+        {
+          "text": "oMLX auto-detects tool formats per family (Qwen3.5 XML <function=...>, Gemma <start_function_call>, GLM 4.7 and 5 <arg_key>/<arg_value>, MiniMax, Mistral, Kimi K2, Longcat) and requires the chat template to accept the tools parameter",
+          "source": "https://github.com/jundot/omlx",
+          "note": null
+        },
+        {
+          "text": "oMLX per-model settings include chat template kwargs and a model type override",
+          "source": "https://github.com/jundot/omlx",
+          "note": null
+        },
+        {
+          "text": "oMLX issue 906 reports oMLX always converts Qwen3.5 XML into tool_calls so downstream parsers of raw XML see null content, and asks for --tool-call-parser none",
+          "source": "https://github.com/jundot/omlx/issues/906",
+          "note": null
+        },
+        {
+          "text": "oMLX issue 812 reports Qwen3.6-35B-A3B tool calls silently stop under VLMBatchedEngine and work under BatchedEngine; VLM mode is auto-chosen when processor_config.json exists",
+          "source": "https://github.com/jundot/omlx/issues/812",
+          "note": null
+        },
+        {
+          "text": "oMLX issue 854 reports every request after the first tool-enabled completion returning 500 \"Can only get item pairs from a mapping\" on the DMG build with Qwen3.6-35B-A3B-8bit",
+          "source": "https://github.com/jundot/omlx/issues/854",
+          "note": null
+        },
+        {
+          "text": "A claude-code-local note cited in oMLX issue 906 recovers garbled tool calls on non-streaming requests and warns that stream rewriting is where oMLX's own filter had bugs",
+          "source": "https://github.com/jundot/omlx/issues/906",
+          "note": null
+        },
+        {
+          "text": "Rapid-MLX tells users to set --tool-call-parser explicitly when auto-recovery fails to convert plain-text tool calls",
+          "source": "https://github.com/raullenchai/Rapid-MLX",
+          "note": null
+        },
+        {
+          "text": "Rapid-MLX wire-verifies 12 agent CLIs including Claude Code, Codex, OpenCode and Aider, and exposes rapid-mlx agents <harness> --test for tool-call scenarios",
+          "source": "https://pypi.org/project/rapid-mlx/0.5.8/",
+          "note": null
+        },
+        {
+          "text": "Ollama GLM-4.7-Flash halted after each tool call in OpenCode on Ollama 0.14.3 while vLLM did not",
+          "source": "https://github.com/ollama/ollama/issues/13840",
+          "note": null
+        },
+        {
+          "text": "Unsloth did not recommend running its GLM-4.7-Flash GGUF in Ollama because of chat-template compatibility and advised --temp 0.7 --top-p 1.0 and no repeat penalty for tool calling",
+          "source": "https://unsloth.ai/docs/models/tutorials/glm-4.7-flash",
+          "note": null
+        },
+        {
+          "text": "Unsloth re-uploaded GLM-4.7-Flash GGUFs after llama.cpp fixed scoring_func softmax to sigmoid, which had caused looping",
+          "source": "https://unsloth.ai/docs/models/tutorials/glm-4.7-flash",
+          "note": null
+        },
+        {
+          "text": "gpt-oss on llama.cpp returned Harmony text (<|channel|>commentary to=functions.get_weather json<|message|>{...}) inside reasoning_content with empty content",
+          "source": "https://huggingface.co/openai/gpt-oss-20b/discussions/80",
+          "note": null
+        },
+        {
+          "text": "gpt-oss in Ollama 0.11.10 with Open WebUI on macOS started a tool then ended the turn without completing it",
+          "source": "https://github.com/ollama/ollama/issues/12187",
+          "note": null
+        },
+        {
+          "text": "OpenAI's Ollama guide says gpt-oss tool calls happen inside chain of thought, so returned reasoning must be passed back until the final answer",
+          "source": "https://developers.openai.com/cookbook/articles/gpt-oss/run-locally-ollama",
+          "note": null
+        },
+        {
+          "text": "Int4 KV-cache quantization caused a reproducible tool-call failure on Qwen3.6-27B near 100k context while int8 recovered and BF16 was fine (vLLM, CUDA)",
+          "source": "https://forum.level1techs.com/t/why-your-local-llm-feels-dumber-than-it-is/253917",
+          "note": null
+        },
+        {
+          "text": "A llama.cpp parser capturing an extra newline into the reasoning block produced a reasoning-correction loop in Step 3.7 Flash during long agent sessions",
+          "source": "https://news.ycombinator.com/item?id=49402232",
+          "note": null
+        },
+        {
+          "text": "Claude Code's per-request x-anthropic-billing-header at the head of the system prompt invalidates local KV cache; CLAUDE_CODE_ATTRIBUTION_HEADER=0 in settings env stops it",
+          "source": "https://unsloth.ai/docs/basics/claude-code",
+          "note": null
+        },
+        {
+          "text": "Unsloth Studio needs --disable-tools when serving an external coding agent or its own server-side tools swallow the agent's tool calls",
+          "source": "https://unsloth.ai/docs/basics/claude-code",
+          "note": null
+        },
+        {
+          "text": "llama-server serves POST /v1/messages and /v1/messages/count_tokens for Claude Code (PR 17570)",
+          "source": "https://huggingface.co/blog/ggml-org/anthropic-messages-api-in-llamacpp",
+          "note": null
+        },
+        {
+          "text": "Docker's local-model tool-calling study found eager invocation, wrong tool selection, invalid arguments and ignored tool responses as the recurring small-model failures",
+          "source": "https://www.docker.com/blog/local-llm-tool-calling-a-practical-evaluation/",
+          "note": null
+        },
+        {
+          "text": "Small context in Ollama can truncate the prompt and cause Qwen to print <function=...> text instead of structured calls (fix: num_ctx 32768 Modelfile variant)",
+          "source": "https://local-ai-experts.com/en/wiki/fix-ollama-raw-tool-calls",
+          "note": null
+        },
+        {
+          "text": "A three-request quick test (trivial tool at temperature 0; thinking-on reasoning-about-XML prompt; tool-result second turn) separates template, parser and model faults",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "lms log stream shows LM Studio's default tool format; GET /props and --verbose expose llama-server's template and prompt",
+          "source": "asserted",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Corrections and disagreements",
+      "facts": [
+        {
+          "text": "CONTRADICTS local-llm-server-as-a-coding-agent-backend-on-mac.md (line 16, \"tool_parser_type is needed\"): mlx-lm infers the parser from the template, so the tokenizer_config.json key is an explicit override rather than the only mechanism",
+          "source": "https://github.com/ml-explore/mlx-lm/issues/1096",
+          "note": null
+        }
+      ]
+    }
+  ],
+  "related": []
+}

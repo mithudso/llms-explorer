@@ -1,0 +1,264 @@
+{
+  "slug": "ds4-antirez-ssd-streaming-runtime",
+  "concept": "ds4 antirez SSD streaming runtime",
+  "generated": "2026-10-05",
+  "summary": "The expert-cache budget has two forms. A byte value (`--ssd-streaming-cache-experts 32GB`) is a target, not a guaranteed allocation: ds4 reserves routed-prefill headroom and fits the cache to what remains after model, graph, context and backend budget. A plain number (`--ssd-streaming-cache-exper...",
+  "facets": [
+    {
+      "title": "Facts",
+      "facts": [
+        {
+          "text": "The expert-cache budget has two forms. A byte value (`--ssd-streaming-cache-experts 32GB`) is a target, not a guaranteed allocation: ds4 reserves routed-prefill headroom and fits the cache to what remains after model, graph, context and backend budget. A plain number (`--ssd-streaming-cache-experts 4000`) asks for that many dynamic expert slots instead.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "By default GLM spends the cache budget on selected experts across all layers; `--ssd-streaming-full-layers N` instead reserves complete routed prefix layers.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Unless `--ssd-streaming-cold` is set, ds4 seeds the expert cache from a built-in static hotlist: sorted (layer, expert) pairs generated from profiled routing, compiled in as `ds4_default_streaming_hotlist_pro`, `_flash` and a GLM 5.2 list. Cold mode disables the hotlist.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Each hotlist entry becomes a cache priority, not a pin: on Apple the priority is `1 + 31 * remaining / total`, so list rank is a preload preference scaled into 1..32 rather than a count of observed routes.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "A routing profiler can write a new hotlist file (header `# ds4 expert hotlist v1`, columns layer expert hits weight), which a user can load instead of the built-in list.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "The GPU API exposes a `ds4_gpu_stream_expert_cache_prefetch(current, next)` call that takes the current and next layer's expert tables, plus `reset_route_hotness`, `release_resident` and `seed_*` entry points, so prefetch and hotness are layer-aware.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Large SSD prefills process layers in wide batches; on Metal the compute for a layer overlaps the reads for the next layer, while short appends keep using the expert cache. On CUDA, experts are staged into a bounded device cache.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Read hints are env-gated: `POSIX_MADV_WILLNEED`, per-layer prefill madvise/page-in/pread/readahead paths and an `F_RDADVISE` loop exist behind `DS4_METAL_ENABLE_*` / `DS4_METAL_DISABLE_*` and `DS4_ROCM_*` switches, so the default read path is not the same as any single experiment toggle.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "For the Qwen n-gram table, ds4 opens a separate fd with `F_NOCACHE` and `F_RDAHEAD 0` on macOS (`POSIX_FADV_RANDOM`/`NOREUSE` elsewhere) so single-row reads do not pollute the page cache.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "antirez posted \"A few words on DS4\" (news 165) about 141 days before 2026-10-04, saying distributed inference (serial and parallel) was a stated goal; the project later added two-Mac TP over RDMA and layer pipelines.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "The repo page fetched on 2026-10-04 lists the \"Implement SSD streaming\" commit as about 4 months old and lists CUDA SSD streaming for DeepSeek V4.1 Flash as a later commit.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "DESIGN: model support is \"intentionally opportunistic\"; a model may be removed when a better open-weight fit arrives for the same machine sizes.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Do not infer streaming support for every model or tensor layout from the existence of the flag. Documented support: Metal for DeepSeek and GLM, CUDA streaming paths, ROCm for GLM 5.2/5.3 only.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Qwen3.8 Flash Next n-gram tables must follow page-aligned weights or ds4 aborts (\"Qwen n-grams must follow page-aligned weights; repack with gguf-tools/qwen4_native_ngrams.py\").",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Session batching under streaming falls back to ordered execution on Metal for V4.1 Flash, so extra slots add concurrency but no aggregate speedup. CUDA Q2 SSD mode batches up to eight decode rows.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "`--ssd-streaming-cold` and `--ssd-streaming-preload-experts N` are meant for controlled measurements; normal use leaves preloading on.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Do not disable the memory guard to start an oversized resident model; ds4's docs call this no remedy for insufficient RAM.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Own cache versus OS page cache. Flash-MoE and SwiftLM both report that adding an application-level expert LRU made decode slower on 48 GB and 64 GB machines (\"trust the OS\"). ds4 runs an explicit GPU expert cache with seeded priorities and reports 11.9-19.3 tok/s from a 145-178 GiB model on a 128 GB machine. The sources differ in hardware, cache size (up to 86.2 GiB here) and model, and none compares the two designs on the same model.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Is the hotlist useful? ds4 ships static hotlists; mlx-lm issue 1438 (already in moe-expert-offload-to-ssd-on-macos.md) found profile-pinned hot experts lowered decode hit rate. A priority-seeded cache that can still evict differs from a pin, and no source tests the two on one model.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "No source gives the number of hotlist hits or the profiling workload behind the shipped lists (Pro 6,884 pairs, Flash 6,436 pairs).",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "No source states the on-disk read pattern (page-aligned pread size) used for decode misses.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "No M-series SSD bandwidth utilization figure is given for ds4 streaming.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "ds4 documents SSD streaming support as Metal for DeepSeek and GLM, CUDA streaming paths, and ROCm for GLM 5.2/5.3, and warns not to infer support for every model from the flag.",
+          "source": "https://raw.githubusercontent.com/antirez/ds4/main/docs/SSD_STREAMING.md",
+          "note": null
+        },
+        {
+          "text": "`--ssd-streaming-cache-experts` accepts a byte budget treated as a target (DwarfStar reserves routed-prefill headroom and the effective value may be smaller) or a plain number that requests dynamic expert slots.",
+          "source": "https://raw.githubusercontent.com/antirez/ds4/main/docs/SSD_STREAMING.md",
+          "note": null
+        },
+        {
+          "text": "By default GLM spends the expert-cache budget on selected experts across all layers, and `--ssd-streaming-full-layers N` reserves full routed prefix layers instead.",
+          "source": "https://raw.githubusercontent.com/antirez/ds4/main/docs/SSD_STREAMING.md",
+          "note": null
+        },
+        {
+          "text": "Metal keeps non-routed weights resident when it can, because every token needs them, and an oversized expert cache can displace them and slow decoding.",
+          "source": "https://raw.githubusercontent.com/antirez/ds4/main/docs/SSD_STREAMING.md",
+          "note": null
+        },
+        {
+          "text": "Metal GLM memory budgeting includes planned and already resident sessions, and a request can still be refused when its mandatory allocations cannot fit.",
+          "source": "https://raw.githubusercontent.com/antirez/ds4/main/docs/SSD_STREAMING.md",
+          "note": null
+        },
+        {
+          "text": "`--ssd-streaming-cold` and `--ssd-streaming-preload-experts N` are described as mainly useful for controlled measurements.",
+          "source": "https://raw.githubusercontent.com/antirez/ds4/main/docs/SSD_STREAMING.md",
+          "note": null
+        },
+        {
+          "text": "ds4 benchmarking guidance says SSD-streaming results should record the effective cache and distinguish cold startup from a warm cache.",
+          "source": "https://raw.githubusercontent.com/antirez/ds4/main/docs/PERFORMANCE.md",
+          "note": null
+        },
+        {
+          "text": "Resident Flash Q2 on an M5 Max 128 GB measures 790.18 t/s prefill and 39.35 t/s generation at 2048 context, and 398.50 t/s and 27.64 t/s at 65536, which is the resident baseline streaming is traded against.",
+          "source": "https://raw.githubusercontent.com/antirez/ds4/main/docs/PERFORMANCE.md",
+          "note": null
+        },
+        {
+          "text": "The ds4 Metal guide lists a 64 GB Mac as a Flash Q2 `--ssd-streaming` starting point, 96 GB as Flash Q2 resident, 128 GB as Flash Q2 or GLM 5.3 Flash Q2 with modest initial context, and 256 GB for Flash Q4/MXFP4 or GLM 5.3 Flash Q4.",
+          "source": "https://raw.githubusercontent.com/antirez/ds4/main/docs/METAL.md",
+          "note": null
+        },
+        {
+          "text": "GLM 5.3 Flash Q2 is about 90 GiB before runtime allocations, so other memory-heavy workloads should be stopped before loading it resident.",
+          "source": "https://raw.githubusercontent.com/antirez/ds4/main/docs/METAL.md",
+          "note": null
+        },
+        {
+          "text": "DeepSeek V4.1 Flash `ds41f-q2` is a 341 GiB file with 152 GiB of main weights and `ds41f-q4` is 483 GiB with 294 GiB; both include 189 GiB of Engram tables that are read row by row from the file in every mode and never loaded as a resident table.",
+          "source": "https://raw.githubusercontent.com/antirez/ds4/main/docs/MODELS.md",
+          "note": null
+        },
+        {
+          "text": "On a 128 GB Mac, V4.1 Flash Q2 runs with `--ssd-streaming --ctx 32768`, Q4 needs streaming on smaller Macs or a 512 GB Mac for residency, and V4.1 Flash supports Metal vision with SSD streaming.",
+          "source": "https://raw.githubusercontent.com/antirez/ds4/main/docs/MODELS.md",
+          "note": null
+        },
+        {
+          "text": "The Qwen3.8 Flash Next `qwen38-q2` download is one 137.10 GiB GGUF with 41.73 GiB of main/MTP weights and 95.37 GiB of BF16 n-grams kept on disk, and `qwen38-q4k` is 165.11 GiB with 69.74 GiB resident.",
+          "source": "https://raw.githubusercontent.com/antirez/ds4/main/docs/MODELS.md",
+          "note": null
+        },
+        {
+          "text": "With Metal SSD streaming for V4.1 Flash, session batching uses ordered fallback (concurrency without aggregate speedup).",
+          "source": "https://raw.githubusercontent.com/antirez/ds4/main/docs/SERVER.md",
+          "note": null
+        },
+        {
+          "text": "CUDA Q2 SSD mode for V4.1 Flash batches up to eight decode rows.",
+          "source": "https://raw.githubusercontent.com/antirez/ds4/main/docs/MODELS.md",
+          "note": null
+        },
+        {
+          "text": "ds4 compiles per-model default streaming expert hotlists into the binary: 6,884 (layer, expert) pairs for DeepSeek V4 Pro and 6,436 for Flash, plus a GLM 5.2 list.",
+          "source": "https://raw.githubusercontent.com/antirez/ds4/main/ds4_streaming_hotlist.inc",
+          "note": null
+        },
+        {
+          "text": "The streaming hotlist is enabled only when SSD streaming is on and `--ssd-streaming-cold` is off, and can be disabled with `DS4_METAL_DISABLE_STREAMING_EXPERT_HOTLIST` or the ROCm equivalent.",
+          "source": "https://raw.githubusercontent.com/antirez/ds4/main/ds4.c",
+          "note": null
+        },
+        {
+          "text": "Built-in hotlist rank maps to a cache priority of 1 + 31*remaining/total on Apple, and the cache seed call takes experts with those priorities.",
+          "source": "https://raw.githubusercontent.com/antirez/ds4/main/ds4.c",
+          "note": null
+        },
+        {
+          "text": "ds4's routing profiler writes a hotlist file with header `# ds4 expert hotlist v1` and columns layer, expert, hits, weight.",
+          "source": "https://raw.githubusercontent.com/antirez/ds4/main/ds4.c",
+          "note": null
+        },
+        {
+          "text": "The ds4 GPU API declares `ds4_gpu_stream_expert_cache_prefetch(current, next)` over the current and next layer expert tables, with a configurable expert budget and per-expert byte size.",
+          "source": "https://raw.githubusercontent.com/antirez/ds4/main/ds4_gpu.h",
+          "note": null
+        },
+        {
+          "text": "ds4 opens its Qwen n-gram table on a separate fd with `F_NOCACHE` and `F_RDAHEAD 0` on macOS and aborts if the table does not follow page-aligned weights.",
+          "source": "https://raw.githubusercontent.com/antirez/ds4/main/ds4.c",
+          "note": null
+        },
+        {
+          "text": "ds4 gates `POSIX_MADV_WILLNEED` and `F_RDADVISE` streaming hints behind `DS4_METAL_ENABLE_STREAMING_MADVISE_WILLNEED` and related switches.",
+          "source": "https://raw.githubusercontent.com/antirez/ds4/main/ds4.c",
+          "note": null
+        },
+        {
+          "text": "Metal large SSD prefills overlap computation with the next layer's reads, and CUDA stages experts into a bounded device cache.",
+          "source": "https://raw.githubusercontent.com/antirez/ds4/main/docs/MODELS.md",
+          "note": null
+        },
+        {
+          "text": "antirez says model support is opportunistic and the project follows the best open weights for useful machine sizes, with distributed inference (serial and parallel) named as a goal.",
+          "source": "https://antirez.com/news/165",
+          "note": null
+        },
+        {
+          "text": "ds4's README says SSD streaming is also needed to run full GLM 5.x (not Flash) on 128 GB systems and that Metal is the primary target on Macs with 96 GB or more.",
+          "source": "https://github.com/antirez/ds4",
+          "note": null
+        },
+        {
+          "text": "A Hacker News reader asked whether anyone had measured token speeds on Apple machines below 96 GB, and the cached thread shows no answer in that sub-thread.",
+          "source": "https://news.ycombinator.com/item?id=49936575",
+          "note": null
+        },
+        {
+          "text": "Generation with SSD streaming is more cache-miss sensitive than prefill, so a model that starts can still be too slow for interactive work and a short generation test is advised first.",
+          "source": "https://raw.githubusercontent.com/antirez/ds4/main/docs/SSD_STREAMING.md",
+          "note": null
+        },
+        {
+          "text": "Own GPU expert cache versus OS page cache is untested head to head on one model.",
+          "source": "asserted",
+          "note": null
+        }
+      ]
+    }
+  ],
+  "related": []
+}

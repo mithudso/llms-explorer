@@ -1,0 +1,129 @@
+{
+  "slug": "macos-vm-user-wire-limit-and-rlimit-memlock-for",
+  "concept": "macOS vm.user_wire_limit and RLIMIT_MEMLOCK for mlock",
+  "generated": "2026-10-05",
+  "summary": "Over-limit failure returns KERN_RESOURCE_SHORTAGE, which mlock maps to EAGAIN, not ENOMEM. Any other failure maps to ENOMEM.",
+  "facets": [
+    {
+      "title": "Facts",
+      "facts": [
+        {
+          "text": "Over-limit failure returns KERN_RESOURCE_SHORTAGE, which mlock maps to EAGAIN, not ENOMEM. Any other failure maps to ENOMEM.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "llama.cpp prints its raise-the-limits hint only for ENOMEM (see existing dossier), so an over-limit mlock on macOS may fail without the hint.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "mlockall and munlockall return ENOSYS on macOS.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "munlock removes one wiring, not all (source comment \"JMM - need to remove all wirings by spec\").",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "fork copies the parent's user_wire_limit into the child map.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "On DEVELOPMENT or DEBUG kernels, a panic_on_mlock_failure switch can panic on an over-limit mlock; release kernels only increment counters.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Existing dossier: llama.cpp hint appears when mlock fails with ENOMEM. This source: the limit check yields EAGAIN. The two are not reconciled; a macOS run with strerror output would settle it.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Which file defines the vm.user_wire_limit, vm.global_user_wire_limit and vm.global_no_user_wire_amount sysctls and their Apple-silicon defaults (not found in bsd/vm/vm_unix.c as fetched).",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Whether a Metal buffer made by newBufferWithBytesNoCopy over mlocked pages is counted once or twice in the system wired count.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "XNU mlock(2) calls vm_map_wire_kernel(current_map(), addr, end, VM_PROT_NONE, VM_KERN_MEMORY_MLOCK, TRUE) with user_wire true.",
+          "source": "https://raw.githubusercontent.com/apple-oss-distributions/xnu/main/bsd/kern/kern_mman.c",
+          "note": null
+        },
+        {
+          "text": "mlock maps KERN_RESOURCE_SHORTAGE to EAGAIN, KERN_INVALID_ARGUMENT to EINVAL, KERN_PROTECTION_FAILURE to EPERM and every other failure to ENOMEM.",
+          "source": "https://raw.githubusercontent.com/apple-oss-distributions/xnu/main/bsd/kern/kern_mman.c",
+          "note": null
+        },
+        {
+          "text": "mlockall and munlockall return ENOSYS on macOS.",
+          "source": "https://raw.githubusercontent.com/apple-oss-distributions/xnu/main/bsd/kern/kern_mman.c",
+          "note": null
+        },
+        {
+          "text": "munlock calls vm_map_unwire once and carries a comment that the spec requires removing all wirings but it removes one.",
+          "source": "https://raw.githubusercontent.com/apple-oss-distributions/xnu/main/bsd/kern/kern_mman.c",
+          "note": null
+        },
+        {
+          "text": "The user wire check runs only when a map entry's user_wired_count is 0, i.e. the first time the user wires that entry.",
+          "source": "https://raw.githubusercontent.com/apple-oss-distributions/xnu/main/osfmk/vm/vm_map.c",
+          "note": null
+        },
+        {
+          "text": "The per-map cap is MIN(map->user_wire_limit, vm_per_task_user_wire_limit) compared against map->user_wire_size plus the request.",
+          "source": "https://raw.githubusercontent.com/apple-oss-distributions/xnu/main/osfmk/vm/vm_map.c",
+          "note": null
+        },
+        {
+          "text": "The system-wide cap compares the request plus ptoa_64(vm_page_wire_count + vm_lopage_free_count) against vm_global_user_wire_limit.",
+          "source": "https://raw.githubusercontent.com/apple-oss-distributions/xnu/main/osfmk/vm/vm_map.c",
+          "note": null
+        },
+        {
+          "text": "A failed limit check returns KERN_RESOURCE_SHORTAGE and increments vm_add_wire_count_over_global_limit or vm_add_wire_count_over_user_limit.",
+          "source": "https://raw.githubusercontent.com/apple-oss-distributions/xnu/main/osfmk/vm/vm_map.c",
+          "note": null
+        },
+        {
+          "text": "A new vm_map is created with user_wire_limit = MACH_VM_MAX_ADDRESS, commented \"default limit is unlimited\".",
+          "source": "https://raw.githubusercontent.com/apple-oss-distributions/xnu/main/osfmk/vm/vm_map.c",
+          "note": null
+        },
+        {
+          "text": "vm_map_fork copies user_wire_limit from the old map to the new map.",
+          "source": "https://raw.githubusercontent.com/apple-oss-distributions/xnu/main/osfmk/vm/vm_map.c",
+          "note": null
+        },
+        {
+          "text": "setrlimit for RLIMIT_MEMLOCK calls vm_map_set_user_wire_limit(current_map(), rlim_cur).",
+          "source": "https://raw.githubusercontent.com/apple-oss-distributions/xnu/main/bsd/kern/kern_resource.c",
+          "note": null
+        },
+        {
+          "text": "mach_vm_wire_level_monitor derives its page budget from vm_global_user_wire_limit minus vm_page_wire_count, so kernel wiring requests are throttled by the same global limit.",
+          "source": "https://raw.githubusercontent.com/apple-oss-distributions/xnu/main/osfmk/vm/vm_pageout.c",
+          "note": null
+        },
+        {
+          "text": "Because the per-process RLIMIT_MEMLOCK default is unlimited in the map, the effective per-process ceiling for mlock on a stock Mac is vm_per_task_user_wire_limit, not the shell's ulimit -l.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "An over-limit llama.cpp --mlock on macOS likely reports EAGAIN (\"Resource temporarily unavailable\"), so the ENOMEM-gated hint would not print.",
+          "source": "asserted",
+          "note": null
+        }
+      ]
+    }
+  ],
+  "related": []
+}

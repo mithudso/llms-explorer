@@ -1,0 +1,189 @@
+{
+  "slug": "llama-cpp-ngram-mod-speculative-stuck-loop-issue",
+  "concept": "llama.cpp ngram-mod speculative stuck loop (issue 23268, PR 25819)",
+  "generated": "2026-10-05",
+  "summary": "On a failed verification the server sets `spec_draft` to the accepted tokens including the correction token and restores the checkpoint. The next iteration reuses that draft instead of regenerating it, and it can fail again, so the loop has a non-deterministic end condition.",
+  "facets": [
+    {
+      "title": "Facts",
+      "facts": [
+        {
+          "text": "On a failed verification the server sets `spec_draft` to the accepted tokens including the correction token and restores the checkpoint. The next iteration reuses that draft instead of regenerating it, and it can fail again, so the loop has a non-deterministic end condition.",
+          "source": "https://github.com/ggml-org/llama.cpp/pull/25819",
+          "note": null
+        },
+        {
+          "text": "The PR 25819 debug log shows the loop token by token at a constant `n_past = 47206`: `PRE_DRAFT` with a non-empty `spec_draft`, then `VERIFY_FAIL idx=20 draft=63 (logit=24.2188) sampled=7561 (logit=24.2500)`, a `ROLLBACK` with a 21-token `spec_draft`, then the same failure with the two tokens swapped (`draft=7561 (24.2188)` against `sampled=63 (24.3125)`).",
+          "source": "https://github.com/ggml-org/llama.cpp/pull/25819",
+          "note": null
+        },
+        {
+          "text": "The mitigation counts consecutive restores, logs `STUCK speculative loop: 4 consecutive checkpoint restores with no progress (matched 20/21 draft tokens), diverging at draft index 20`, trims the draft to 20 tokens and forces progress; the next line is `recovered from stuck speculative loop after 4 iterations`.",
+          "source": "https://github.com/ggml-org/llama.cpp/pull/25819",
+          "note": null
+        },
+        {
+          "text": "The first commit message says it \"does not fix the underlying state leak\".",
+          "source": "https://github.com/ggml-org/llama.cpp/pull/25819",
+          "note": null
+        },
+        {
+          "text": "Reading of the log: the draft token and the target's sampled token at index 20 are two candidates 0.03 to 0.09 apart in logit, and each re-verify of a different batch composition picks the other one, so a near-tie that flips between batch shapes is a plausible trigger. The PR does not state this.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "18 May 2026: issue 23268 is filed on build 9204 (commit 726704a), Vulkan, AMD \"395\", Qwen3.6-35B-A3B-UD-Q8_K_XL, with `--spec-type draft-mtp --spec-draft-n-max 6`; the stream stops sending data but the connection stays open until a client timeout.",
+          "source": "https://github.com/ggml-org/llama.cpp/issues/23268",
+          "note": null
+        },
+        {
+          "text": "18 to 19 May 2026: reporters on Vulkan (Strix Halo), ROCm 7.2.3 with two 7900 XTX (build b9222) and CUDA 13.1 on Windows describe the same hang; a prompt \"Write 500 words on agentic agents\" reproduces it every time on one setup.",
+          "source": "https://github.com/ggml-org/llama.cpp/issues/23268",
+          "note": null
+        },
+        {
+          "text": "22 May 2026: ggerganov answers that \"the fix for ngram-mod + draft-mtp was done in d14ce3d and later\"; two reporters confirm a newer build resolves it and the issue closes.",
+          "source": "https://github.com/ggml-org/llama.cpp/issues/23268",
+          "note": null
+        },
+        {
+          "text": "17 Jul 2026: PR 25819 (branch `ngram-mod-stuck-fix`, commit \"server : add stuck-loop escape for ngram-mod (WIP)\") opens, tags its debug lines `[issue#23268]` and asks users to report logs on issue 23268.",
+          "source": "https://github.com/ggml-org/llama.cpp/pull/25819",
+          "note": null
+        },
+        {
+          "text": "25 Aug 2026: a Qwen3.x user says they met the loop only after applying the slot and checkpoint save/restore fixes (PR 25592). On 13 Sep 2026 another user confirms the PR works around \"repeated, sporadic hangs\".",
+          "source": "https://github.com/ggml-org/llama.cpp/pull/25819",
+          "note": null
+        },
+        {
+          "text": "12 Sep 2026: a downstream desktop app's engine supervisor keeps `--spec-type ngram-mod` behind a single switch because of \"the open defect 25819\", and reports ngram-mod costs up to 10.5% on a first call and pays back from the second.",
+          "source": "https://github.com/ggml-org/llama.cpp/pull/25819",
+          "note": null
+        },
+        {
+          "text": "Combinations that hang: `draft-mtp` with `ngram-mod`; `draft-mtp` with `ngram-map-k4v` (no ngram-mod); all three together. `draft-mtp` alone completed on the same ROCm setup.",
+          "source": "https://github.com/ggml-org/llama.cpp/issues/23268",
+          "note": null
+        },
+        {
+          "text": "One 98%-reproducible hang on Strix Halo Vulkan occurred at about token 61 with `--spec-type draft-mtp,ngram-mod --spec-draft-n-max 3` and ngram-mod n-match 20, n-min 4, n-max 40.",
+          "source": "https://github.com/ggml-org/llama.cpp/issues/23268",
+          "note": null
+        },
+        {
+          "text": "With one slot the loop locks the server until someone restarts it.",
+          "source": "https://github.com/ggml-org/llama.cpp/issues/23268",
+          "note": null
+        },
+        {
+          "text": "A separate regression report in the same thread says ngram-mod throughput fell from up to 140 tok/s to almost no gain after the MTP compatibility fix, with the same result on standalone `ngram-mod`; the reporter later saw it work once without any change.",
+          "source": "https://github.com/ggml-org/llama.cpp/issues/23268",
+          "note": null
+        },
+        {
+          "text": "A multi-GPU CUDA user saw the process hang with MTP and keep running after server stop, which may be a different bug.",
+          "source": "https://github.com/ggml-org/llama.cpp/issues/23268",
+          "note": null
+        },
+        {
+          "text": "Cause: PR 25819's author says the root cause is unknown and a \"state leak\" remains; the 25 Aug commenter ties the loop's appearance to the checkpoint save/restore fixes, which the 25592 dossier also records. No source reproduces the loop without checkpoint restore.",
+          "source": "https://github.com/ggml-org/llama.cpp/pull/25819",
+          "note": null
+        },
+        {
+          "text": "Whether PR 25819 was reviewed or merged; the cached page lists no reviews and the PR is described as WIP.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Whether the near-tie token flip in the log is a numerical batch-shape effect on Qwen3.6 or a state bug; the PR gives no run with fixed batch shapes.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Whether any Metal build reproduces the loop; every report names Vulkan, ROCm or CUDA.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Issue 23268 is titled \"Eval bug: Speculative Decoding intermittent timeout\" and was opened on 18 May 2026 by wszgrcy on build 9204 (726704a) with a Vulkan backend on AMD \"395\" and Qwen3.6-35B-A3B-UD-Q8_K_XL.",
+          "source": "https://github.com/ggml-org/llama.cpp/issues/23268",
+          "note": null
+        },
+        {
+          "text": "The original flags were `--spec-type draft-mtp --spec-draft-n-max 6`, and removing them stopped the timeouts; the reporter says it happened a few times a day with a probability under 1%.",
+          "source": "https://github.com/ggml-org/llama.cpp/issues/23268",
+          "note": null
+        },
+        {
+          "text": "The reporter says the same hang occurred with `--spec-type ngram-mod --spec-ngram-mod-n-match 24 --spec-ngram-mod-n-min 12 --spec-ngram-mod-n-max 48`, and that the last event before the stall was a `content_block_delta` with an `input_json_delta` fragment.",
+          "source": "https://github.com/ggml-org/llama.cpp/issues/23268",
+          "note": null
+        },
+        {
+          "text": "A reporter using `draft-mtp` with `--spec-draft-n-max 2` alone saw no hang, and one using `draft-mtp,ngram-mod,ngram-map-k4v` on two 7900 XTX saw a loop on every long reply with a repeating `generate_draft` id.",
+          "source": "https://github.com/ggml-org/llama.cpp/issues/23268",
+          "note": null
+        },
+        {
+          "text": "ggerganov wrote on 22 May 2026 that the `ngram-mod + draft-mtp` fix was in commit d14ce3d and later, and two reporters confirmed it.",
+          "source": "https://github.com/ggml-org/llama.cpp/issues/23268",
+          "note": null
+        },
+        {
+          "text": "PR 25819 is headed \"This is WiP and a mitigation PR, not an actual fix\" and says the root cause of the loop is not yet clear.",
+          "source": "https://github.com/ggml-org/llama.cpp/pull/25819",
+          "note": null
+        },
+        {
+          "text": "Its log shows a 21-token draft matching 20 tokens and diverging at index 20 on tokens 63 and 7561, with logits 24.2188 against 24.25 and later 24.2188 against 24.3125.",
+          "source": "https://github.com/ggml-org/llama.cpp/pull/25819",
+          "note": null
+        },
+        {
+          "text": "The mitigation triggers after 4 consecutive checkpoint restores with no progress and the log reports recovery after 4 iterations.",
+          "source": "https://github.com/ggml-org/llama.cpp/pull/25819",
+          "note": null
+        },
+        {
+          "text": "The PR's AI-use disclosure lists llama.cpp with Qwen3.6 35B-A3B and the pi agent.",
+          "source": "https://github.com/ggml-org/llama.cpp/pull/25819",
+          "note": null
+        },
+        {
+          "text": "A commenter wrote that the PR fixes reproducible endless loops on Nemotron-3.5-Lightning-30B-A3B and that loops occur \"even with only MTP\".",
+          "source": "https://github.com/ggml-org/llama.cpp/pull/25819",
+          "note": null
+        },
+        {
+          "text": "On 13 Sep 2026 a user wrote that the PR stopped repeated sporadic `llama-server` hangs with ngram-mod.",
+          "source": "https://github.com/ggml-org/llama.cpp/pull/25819",
+          "note": null
+        },
+        {
+          "text": "The cached PR 25819 page lists four participants, no reviewers and no linked issue closed by merge.",
+          "source": "https://github.com/ggml-org/llama.cpp/pull/25819",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Corrections and disagreements",
+      "facts": [
+        {
+          "text": "CONTRADICTS: llama-cpp-pr-25592-exact-position-hybrid-checkpo.md lines 22 and 41 (an MTP-only run without loops \"points at ngram-mod rather than MTP\"). A commenter on PR 25819 reports loops on Nemotron-3.5-Lightning-30B-A3B \"even with only MTP\" that the PR's changes fix, and the issue thread shows loops with `draft-mtp,ngram-map-k4v` and no ngram-mod. The two single-user observations (no loop with MTP-only on a Qwen3.x setup; loop with MTP-only on Nemotron) are held side by side; the targets differ.",
+          "source": "https://github.com/ggml-org/llama.cpp/pull/25819",
+          "note": null
+        },
+        {
+          "text": "CONTRADICTS (partly): llama-cpp-pr-25592-exact-position-hybrid-checkpo.md line 21, which presents issue 23268 as the open stuck-loop issue. Issue 23268 is closed since 22 May 2026 and its original ngram-mod plus draft-mtp hang was fixed by d14ce3d; PR 25819 borrows the number for its logs. Whether the July loop is a separate bug is not stated by the PR.",
+          "source": "https://github.com/ggml-org/llama.cpp/issues/23268",
+          "note": null
+        }
+      ]
+    }
+  ],
+  "related": []
+}

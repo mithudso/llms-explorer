@@ -1,0 +1,134 @@
+{
+  "slug": "hybrid-gateddeltanet-state-rollback-and-checkpoi",
+  "concept": "Hybrid GatedDeltaNet state rollback and checkpoint prefix caching",
+  "generated": "2026-10-05",
+  "summary": "llama.cpp's hybrid memory is two sub-caches: an attention KV cache and a recurrent cache with one cell per sequence.",
+  "facets": [
+    {
+      "title": "Facts",
+      "facts": [
+        {
+          "text": "llama.cpp's hybrid memory is two sub-caches: an attention KV cache and a recurrent cache with one cell per sequence.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "A checkpoint stores only the part that cannot be rebuilt by truncation (`LLAMA_STATE_SEQ_FLAGS_PARTIAL_ONLY`); the attention KV prefix stays in the slot.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "The recurrent cache also keeps a short ring of per-token snapshots (`n_rs_seq`), used when speculative decoding rejects part of a draft.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Restore picks the latest checkpoint at or before the shared prefix and reprocesses from there.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "2026-04-26: issue 22384 shows the restore test never succeeds for recurrent state.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "2026-06: PRs 24176, 24411 and 25472 repair placement, erasure and eviction; PR 24797 (draft) targets the `seq_pos_min()` root cause.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "ik_llama.cpp keeps the same logic and the same failure (issue 1762, May 2026).",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Speculative decoding on hybrid models uses checkpoints: the server logs `speculative decoding will use checkpoints` at load. Partial acceptance beyond `n_rs_seq` used to fail `seq_rm` and leave the attention cache with stale entries.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "The recurrent snapshot is not precise after a fall-through rollback: the model reprocesses from the last valid checkpoint.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "The hybrid `seq_pos_min()` was written as `max()` of both sub-caches; the PR 24797 author argues it should return only the attention cache's minimum, as non-hybrid memory does. Whether other hybrid types (Mamba-based) should follow is untested.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Merge state and effect of PR 24797 on the residual misses reported after 24411 and 24176.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Whether Metal's behavior differs; every cited log is CUDA or ROCm.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "PR 24797 states hybrid memory consists of two independent cache subsystems with different positional semantics: for the attention cache `pos_min` is the earliest cached KV position, and for the recurrent cache `pos_min == pos_max ==` the current position.",
+          "source": "https://github.com/ggml-org/llama.cpp/pull/24797",
+          "note": null
+        },
+        {
+          "text": "PR 24797 says the old `seq_pos_min()` returned the `std::max()` of both caches' minimums, which made a cached prefix look absent and forced full reprocessing on any prompt variation (stripped thinking, injected timestamp).",
+          "source": "https://github.com/ggml-org/llama.cpp/pull/24797",
+          "note": null
+        },
+        {
+          "text": "PR 24797 keeps `seq_pos_max` with intersection semantics because it bounds valid attention entries by where the recurrent state has advanced.",
+          "source": "https://github.com/ggml-org/llama.cpp/pull/24797",
+          "note": null
+        },
+        {
+          "text": "PR 24797 notes other hybrid types with recurrent memory would probably benefit from the same `seq_pos_min()` change but were not tested.",
+          "source": "https://github.com/ggml-org/llama.cpp/pull/24797",
+          "note": null
+        },
+        {
+          "text": "On hybrid models, when speculative decoding partially accepts draft tokens and the rollback distance exceeds `n_rs_seq`, the pre-24797 recurrent cache returned false from `seq_rm`, leaving the attention cache with stale entries.",
+          "source": "https://github.com/ggml-org/llama.cpp/pull/24797",
+          "note": null
+        },
+        {
+          "text": "Particula states the bounded recurrent rewind succeeds only when `cell.pos - (p0 - 1)` is between 1 and `n_rs_seq` (context type `SEQ_RM_TYPE_RS`).",
+          "source": "https://particula.tech/blog/prompt-reprocessing-swa-hybrid-models-kv-cache",
+          "note": null
+        },
+        {
+          "text": "Hybrid checkpoints in 24055 logs satisfy `pos_min == pos_max == n_tokens - 1` (for example 2799, 2799, 2800 tokens), so each stores one recurrent position.",
+          "source": "https://github.com/ggml-org/llama.cpp/issues/24055",
+          "note": null
+        },
+        {
+          "text": "A 27B hybrid checkpoint measured 149.626 MiB at 2,800 tokens and 151.055 MiB at 364 tokens, so size is nearly independent of prompt length.",
+          "source": "https://github.com/ggml-org/llama.cpp/issues/24055",
+          "note": null
+        },
+        {
+          "text": "The load log of a Qwen3.6-27B MTP model reads `speculative decoding will use checkpoints` followed by `common_speculative_init: no implementations specified for speculative decoding` when no draft type is given.",
+          "source": "https://github.com/ggml-org/llama.cpp/issues/24055",
+          "note": null
+        },
+        {
+          "text": "ik_llama.cpp issue 1762 (qwen3next, Gated DeltaNet) reports the same restore-test failure and 64-token creation floor as llama.cpp 22384 and says the same fix is needed in the fork's server checkpoint code.",
+          "source": "https://github.com/ikawrakow/ik_llama.cpp/issues/1762",
+          "note": null
+        },
+        {
+          "text": "Reporters in 24055 use `--spec-type draft-mtp` with `--spec-draft-n-max 3` (and 6) on hybrid Qwen3.6 models while relying on checkpoints, with 85% draft acceptance reported on one 27B run.",
+          "source": "https://github.com/ggml-org/llama.cpp/issues/24055",
+          "note": null
+        },
+        {
+          "text": "Inferred: restore cost on a hybrid model is the token gap between the resume point and the nearest earlier checkpoint, so placing a checkpoint at each user-message boundary (PR 24176) bounds typical re-prefill to one turn's new text plus the last assistant turn.",
+          "source": "asserted",
+          "note": null
+        }
+      ]
+    }
+  ],
+  "related": []
+}

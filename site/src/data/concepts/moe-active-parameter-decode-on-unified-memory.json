@@ -1,0 +1,479 @@
+{
+  "slug": "moe-active-parameter-decode-on-unified-memory",
+  "concept": "MoE active-parameter decode on unified memory",
+  "generated": "2026-10-05",
+  "summary": "Measured bandwidth efficiency is much lower for MoE than for dense on the same chip, and falls as chip bandwidth rises. Derived (active bytes are inferred from public active-parameter counts at about 4.25 bits): gpt-oss-20b MXFP4 llama.cpp tg128 reaches roughly 43% of the active-byte ceiling on M...",
+  "facets": [
+    {
+      "title": "Facts",
+      "facts": [
+        {
+          "text": "Measured bandwidth efficiency is much lower for MoE than for dense on the same chip, and falls as chip bandwidth rises. Derived (active bytes are inferred from public active-parameter counts at about 4.25 bits): gpt-oss-20b MXFP4 llama.cpp tg128 reaches roughly 43% of the active-byte ceiling on M1 Pro (45.7 tok/s, 200 GB/s) and M4 Max-410 (92.4), 36% on M1 Max (75.2), and 27% on M2 Ultra and M3 Ultra (116 and 115.5). Dense 7B Q4_0 on the same Ultras is 40-45%.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "The M2 Ultra (800 GB/s, 76 cores) and M3 Ultra (819 GB/s, 80 cores) decode gpt-oss-20b at the same ~116 tok/s, about 8.7 ms per token. A M4 Max-410 reaches 92 with half the bandwidth. A M1 Max-400 reaches 75 with the same 400 GB/s as a 36GB M4 Max-410 running 92: +23% at equal bandwidth.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Active-parameter scaling holds across model size on one chip: gpt-oss-120b (5.1B active, 59 GiB resident) decodes 79.7 tok/s on M2 Ultra vs 116.1 for gpt-oss-20b (3.6B active, 11.3 GiB); the 1.46x speed ratio matches the ~1.4x active ratio, not the 5.2x resident-size ratio.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Per-token time is linear in active bytes with a fixed intercept. On one M3 Ultra (MLX Q4/Q8/BF16, same machine, same prompt), Qwen3-30B-A3B decodes 94.95 / 75.84 / 62.62 tok/s (10.5 / 13.2 / 16.0 ms). With ~1.7 / 3.3 / 6.1 GB active that fits a slope near 1.24 ms/GB (about 800 GB/s) plus ~8.4 ms fixed overhead. Dense Qwen3 32B on the same machine: 33.88 / 20.11 / 10.76 tok/s (18.4 / 34.8 / 65.5 GB), intercept near 5 ms. [derived by this dossier]",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Consequence: moving a MoE from Q4 to Q8 costs about 20% speed, not 50%. Dense 32B pays 41%. Quantization buys MoE little speed on Ultra chips.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Base and Pro chips are closer to the bandwidth ceiling: M4 Pro 48GB (273 GB/s), MLX single stream, 2K prompt: gemma-4-26B-A4B 4-bit 71-76 tok/s and gpt-oss-20b 70-73 vs dense Qwen3.6/3.8-27B 4-bit 15.3-15.5. About 4.7-5x for ~7x fewer active parameters.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "On a M4 Mac mini 64GB through oMLX, Qwen3.5-35B-A3B-4bit averaged 35.2 tok/s vs dense Qwen3-32B-4bit 10.0 (3.5x).",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Apple's own MLX M5-vs-M4 test shows MoE tracks bandwidth like dense on base chips: Qwen3-30B-A3B 4-bit +25% decode and gpt-oss-20b +24%, vs Qwen3-8B 4-bit +24% for a 28% bandwidth gain (120 to 153 GB/s). TTFT speedups were 3.52x and 3.33x for the two MoEs; 30B MoE TTFT is under 3 s on M5 at 4096-token prompts.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Routing overhead is software-visible. In mlx-swift-lm (M4 Max 96GB, Qwen3.5-35B-A3B-4bit) a MoE decodes at 11.7 tok/s vs 85.1 for Python mlx-lm, a 7.3x gap; dense Qwen3-8B shows only 1.33x (52.8 vs 70.2). Reported root cause: a global evalLock taken on every eval/asyncEval, a GPU-to-CPU sync per token via item(), and no stream context for kernel fusion; MoE issues about 30-40 ops per forward pass vs 8-10 for dense, which roughly matches the 7.3x. [one issue report]",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "In llama.cpp on Metal, speculative decoding with draft models can lose on Apple GPUs: an M1 Max with Qwen3.5-9B went from 25.3 tok/s to 11-24% slower in every configuration, attributed to per-draft kernel dispatch overhead (issue #23752 as cited by modelfit.io). MLX-based self-drafting (MTPLX) reports 2.2-2.6x on dense Qwen3.6-27B.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Speculative decoding interacts with MoE: verification of K+1 tokens activates the union of experts, so large draft trees erode sparsity (MoE-Spec, Meta/FandM, Feb 2026: 10-30% over EAGLE-3 by capping experts per layer). Cohere measured the opposite shape for one MoE: SD speedup rises with batch size before falling, with an unusually high gain at batch 1 attributed to fixed-overhead amortization. Neither was measured on Apple silicon.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Batching recovers MoE throughput on Ultra chips. oMLX, DeepSeek-V4-Flash 4-bit on M3 Ultra 80-core 512GB: 29.5 tok/s at 1x, 46.1 (2x), 69.3 (4x), 94.7 (8x aggregate, 3.2x), prompt 432.6 tok/s at 1K, peak 142 GB. Rapid-MLX on M2 Pro: 3.0x Ollama's aggregate at 8 concurrent streams on Qwen3.6-35B-A3B (82.9 vs 27.2).",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Expert streaming turns \"memory wall\" into a disk wall. Flash-MoE (C/Metal, Qwen3.5-397B-A17B, 512 experts/layer, 4 active, 4-bit) streams experts from NVMe through the OS page cache on a 48GB MacBook Pro at 4.4 tok/s; ~71% page-cache hit rate, 17.5 GB/s SSD reads, 2.41 ms per layer over 60 layers (about 145 ms/token), 5.5 GB resident non-expert weights. It records 58 failed experiments; a serial load-then-compute pipeline beat overlapped I/O because CPU/GPU/SSD share one bandwidth pool; the OS page cache beat custom LRU caches by 38%. 2-bit broke JSON and tool calls while 4-bit held.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "TurboQuant-MLX expert streaming: Qwen3.5-122B-A10B (256 experts, ~8 per token), 3-bit, ~54 GB on disk, resident peak ~9 GB on a 16 GB Mac mini; same author earlier reported 26.5 tok/s for the 122B and gpt-oss-120b at 44 tok/s on a 64 GB Mac (TurboQuant 3-bit).",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "llama.cpp discussion #27149 (Aug 2026, idea, prototype TinyGiant, M1 MacBook Pro 16GB): Qwen3-30B-A3B has 15.75 GB of expert weights of 16.2 GB total; per-layer reads drop from 345 MB (all experts) to 30 MB (8 of 128), 11.4x; double-buffered SSD pipeline 6.06 GB/s vs 2.97 sequential. Stock Ollama on that machine: qwen3:30b-a3b 1.7 tok/s at 11.3 GB RSS; dense qwen3:32b under 1 tok/s with swap.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "NPU path: NPUMoE (UVA, Apr 2026) offloads static expert compute to the Apple Neural Engine for prefill, not decode. On M2 Max and M2 Ultra with Phi-3.5-MoE, Phi-tiny-MoE, Qwen3-30B-A3B it cuts prefill latency 1.32-5.55x, energy per token 1.81-7.37x and CPU cycles 1.78-5.54x vs CoreML baselines. Three obstacles it names: dynamic expert-routing shapes, irregular top-k/scatter/gather ops, and many small kernel launches; CPU-NPU sync can exceed 60% of runtime. Average decode length in its workload was 8 tokens.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Qwen3-30B-A3B (Apr 2025) on M3 Ultra 96GB was already 94.95 tok/s MLX Q4 vs 33.9 for dense Qwen3 32B (3x per the MacRumors benchmark, May 2025) and 3-tier quant gaps were small.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "gpt-oss (Aug 2025) shipped natively as MXFP4; llama.cpp's guide gives memory totals (20B: 14.9 GB at 8K ctx, 17.9 GB at 131K; 120B: 64.0 GB at 8K, 68.5 GB at 131K) and Metal tg128 for M1 Pro through M3 Ultra.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "MLX gpt-oss support lagged: in Feb 2026 on an M1 Pro, mlx-lm decode was 33.8-48 tok/s vs llama.cpp 37-46 and prefill ~245 vs 405 tok/s. A bf16-to-fp16 conversion helped prefill (M1 lacks bf16), MXFP4 re-quantization lifted decode to 47-48. On an M3 Ultra the same maintainer measured MLX faster at every size, up to 30% at 8K for 120B (1680 vs 1264 tok/s prefill).",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Later 2026 Ultra-class MoEs shifted the frontier: DeepSeek V4 Flash (284B, ~13B active per its card as relayed by one source) at 29.5-35 tok/s on M3 Ultra 512GB; GLM-5.2 744B at 17.7 tok/s.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Thermal: in llama.cpp #15396 a user's MacBook Pro gpt-oss-20b tg128 looked low; maintainer ggerganov suspected heat throttling and measured 95.88 tok/s on his M4 Max 36GB running llama-bench alone (-p 0). Another thread participant saw large run-to-run variance on a MacBook Pro and consistent results on a Studio. Throttling noise dominates laptop MoE benchmarks.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Prefill after a context grows: gpt-oss-20b M1 Pro llama.cpp decode falls 46.0 to 30.2 tok/s from 0.5K to 32K; MLX 48.3 to 25.5. gpt-oss uses sliding-window plus full attention so KV is small (0.2 GB per 8K, 20B), yet decode still sags.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Ultra tier can lose to a Pro on MoE (see Disagreements). Do not buy Ultra bandwidth for a ≤A5B MoE; buy RAM capacity.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Quant floor for experts: 2-bit MoE (Flash-MoE) produced fluent text but broke JSON and function calling.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "16 GB machines: MoE with all weights resident still swaps (qwen3:30b-a3b 1.7 tok/s, 11.3 GB RSS); expert streaming rescues it only with a fast SSD and custom runtime.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Qwen3.6-35B-A3B-OptiQ-4bit on an M4 Pro 48GB mini: 325 tok/s prompt, 34 tok/s generation, about 20 GB RAM.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Ultra vs Pro for MoE. arXiv 2605.00519 (MLX v0.30.6, macOS 26, Apr-May 2026): Qwen3-Next-80B 4-bit decodes 52.3 on M4 Pro 64GB vs 49.1 on M3 Ultra 96GB; GLM-4.7-Flash-30B 53.6 vs 55.0 (M2 Max 39.7); dense Llama-3.3-70B 5.1 vs 13.1 (2.5x). Authors hypothesise UltraFusion latency on irregular routing plus M4 core gains; untested. Opposing: Mixtral 8x7B on M3 Ultra measured 68 tok/s, and Ultra still wins on very large MoEs where Pro cannot hold the weights.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "MLX vs llama.cpp for MoE. Existing dossier: MLX 3x llama.cpp on Qwen3-Coder-30B (M4 Pro). Counter: gpt-oss-20b on M1 Pro MLX is within +/-10% of llama.cpp decode and 40% slower on prefill; the Ollama issue and one oMLX issue show shape/dtype dependence. Gemma 4 E4B/E2B on a 24 GB Mac was faster on Ollama than MLX (kartit.net) and the 26B-A4B ran at ~2 tok/s under memory pressure there.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "MoE vs dense on Ultra. Rapid-MLX on M3 Ultra 256GB: dense Qwen3.8-27B 4-bit 43.4 tok/s (with MTP, up to 2.34x at 32K) beats Qwen3.8-Flash-Next 180B/6B-active at 23.0 and GLM-5.3-Flash 320B/18B at 27.8. Without MTP the dense 27B ran 30.7 (0.13.3). Dense can win when the dense model has self-drafting and the MoE does not.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "gpt-oss-120b on M3 Ultra: modelfit.io estimate ~29 tok/s (43 on M5 Ultra) vs the existing dossier's TDS measurement 74 tok/s and llama.cpp 79.7 on M2 Ultra. The estimate is 2.5x low because the roofline ignores the MoE active-parameter ratio. Prefer measurements.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "DeepSeek V4 Flash size: zachrattner.com says 284B/~13B active, 4-bit ~155 GB, ~35 tok/s on a 512GB M3 Ultra; modelfit.io says V4.1-Flash is 552B backbone (8B active prefill, 16B decode, 264.5 GB full weights) and lists 7.3-9.5 tok/s for 2-bit builds on 256 GiB. The oMLX 29.5 figure belongs to the 284B V4-Flash. Different models; naming overlaps.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Linear-scaling forecasts: MacStories extrapolates 35 to 120+ tok/s for DeepSeek V4 Flash on M5 Ultra (4x compute). Bandwidth is only +50% and MoE decode on Ultra is overhead-bound, so decode will not gain 4x (the 4x is a prefill/AI-compute claim).",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "No independent MLX or llama.cpp MoE decode on M5 Pro/Max/Ultra beyond Apple's M5 base-chip +25%.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Whether the ~8 ms fixed per-token cost is encode/launch overhead or UltraFusion latency; MLX graph caching or compiled decode loops could test it.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Joules per token for MoE vs dense with matched quality, same runtime, wall-metered; none found beyond the dense-vs-MoE watt/tok figures in the existing thermal dossier.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Speculative decoding on MoE on Apple silicon (MoE-Spec and Cohere were GPU-server studies).",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Resident-memory overhead of MoE (all experts) for oMLX/Ollama when only a quarter is touched: mmap residency vs wired.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "A llama.cpp Metal benchmark of gpt-oss-20b MXFP4 (11.27 GiB, 20.91B params, flash attention on, n_ubatch 2048) gives tg128: M3 Ultra 80-core 115.52, M2 Ultra 76-core 116.08, M4 Max 36GB 92.36 (95.88 in a clean rerun), M1 Max 64GB 75.15, M1 Pro 32GB 45.68 tok/s.",
+          "source": "https://github.com/ggml-org/llama.cpp/discussions/15396",
+          "note": null
+        },
+        {
+          "text": "Same benchmark: gpt-oss-120b MXFP4 (59.02 GiB, 116.83B params) on M2 Ultra 192GB decodes 79.68 tok/s and prefills 1244.57 (pp2048) down to 752.31 tok/s (pp32768).",
+          "source": "https://github.com/ggml-org/llama.cpp/discussions/15396",
+          "note": null
+        },
+        {
+          "text": "gpt-oss-20b prefill on M3 Ultra falls from 2816 tok/s at 2K to 1352 at 32K; on M4 Max 36GB from 1277 to 568.",
+          "source": "https://github.com/ggml-org/llama.cpp/discussions/15396",
+          "note": null
+        },
+        {
+          "text": "llama.cpp's gpt-oss memory table: 20B totals 14.9 / 15.5 / 17.9 GB and 120B totals 64.0 / 64.9 / 68.5 GB at 8K / 32K / 131K context; KV is 0.2 GB (20B) and 0.3 GB (120B) per 8K tokens.",
+          "source": "https://github.com/ggml-org/llama.cpp/discussions/15396",
+          "note": null
+        },
+        {
+          "text": "A maintainer attributed a low gpt-oss-20b tg128 reported on a MacBook Pro to possible heat throttling and measured 95.88 tok/s on his M4 Max 36GB.",
+          "source": "https://github.com/ggml-org/llama.cpp/discussions/15396",
+          "note": null
+        },
+        {
+          "text": "gpt-oss-120b decodes 1.46x slower than gpt-oss-20b on M2 Ultra despite 5.2x more resident weight, consistent with the ~1.4x active-parameter ratio.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Estimated bandwidth efficiency of gpt-oss-20b decode is 27% on M2/M3 Ultra, 36% on M1 Max and about 43% on M1 Pro and M4 Max-410, using ~1.9 GB active at MXFP4.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "The 800 GB/s M2 Ultra and 819 GB/s M3 Ultra give the same gpt-oss-20b decode (~116 tok/s, ~8.7 ms per token), which indicates a latency-bound floor rather than bandwidth.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "On an M3 Ultra 96GB (28-core CPU, 60-core GPU) with MLX Q4, Qwen3 30B-A3B decodes 94.95 tok/s (17.19 GB), Q8 75.84 (32.46 GB), BF16 62.62 (61.08 GB).",
+          "source": "https://forums.macrumors.com/threads/mac-studio-m3-ultra-96gb-28-60-llm-performance.2456559/",
+          "note": null
+        },
+        {
+          "text": "Same machine, dense Qwen3 32B: Q4 33.88 (18.45 GB), Q8 20.11 (34.83 GB), BF16 10.76 (65.54 GB); speculative decoding with a 1.7B draft raised Q8 to 22.36 and BF16 to 17.57.",
+          "source": "https://forums.macrumors.com/threads/mac-studio-m3-ultra-96gb-28-60-llm-performance.2456559/",
+          "note": null
+        },
+        {
+          "text": "Same machine: Llama 4 Scout 17B-16E 44.67 tok/s (61.14 GB) at Q4, Gemma-3 27B 33.89, DeepSeek R1 Llama 70B 16.45, Phi-4 14B 71.09.",
+          "source": "https://forums.macrumors.com/threads/mac-studio-m3-ultra-96gb-28-60-llm-performance.2456559/",
+          "note": null
+        },
+        {
+          "text": "A linear fit to the M3 Ultra Qwen3 30B-A3B quant ladder gives ~1.24 ms per GB of active weights (about 800 GB/s) plus ~8 ms fixed per token.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Quantizing a MoE from Q4 to Q8 on M3 Ultra costs about 20% of decode speed; a dense 32B loses 41%.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "In MLX on M4 Pro 64GB, GLM-4.7-Flash-30B 4-bit decodes 53.6, M3 Ultra 96GB 55.0, M2 Max 32GB 39.7 tok/s.",
+          "source": "https://arxiv.org/html/2605.00519v1",
+          "note": null
+        },
+        {
+          "text": "Same paper: Qwen3-Next-80B 4-bit decodes 52.3 on M4 Pro vs 49.1 on M3 Ultra; M2 Max OOM.",
+          "source": "https://arxiv.org/html/2605.00519v1",
+          "note": null
+        },
+        {
+          "text": "Same paper: dense Llama-3.3-70B 4-bit decodes 5.1 on M4 Pro and 13.1 on M3 Ultra, 2.5x, in line with bandwidth.",
+          "source": "https://arxiv.org/html/2605.00519v1",
+          "note": null
+        },
+        {
+          "text": "The authors hypothesise the M3 Ultra's UltraFusion interconnect penalizes irregular MoE routing access and that M4 core gains help routing logic; neither was tested.",
+          "source": "https://arxiv.org/html/2605.00519v1",
+          "note": null
+        },
+        {
+          "text": "The same paper reports M3 Ultra delivers up to 23x more tokens per joule than an RTX 5090 on a 1.5B dense model, from powermetrics versus PyNVML; energy plots were not published.",
+          "source": "https://arxiv.org/html/2605.00519v1",
+          "note": null
+        },
+        {
+          "text": "On M4 Pro 48GB with Rapid-MLX 0.14.1 (single request, greedy, AC power), gemma-4-26b-4bit decodes 75.59 (512 prompt) / 71.33 (2K prompt) tok/s at 16.9 GiB; gpt-oss-20b-mxfp4-q8 73.24 / 70.10 at 12.4 GiB; qwen3.5-9b-4bit 49.76; gemma-4-12b-4bit 31.87; dense qwen3.6-27b-4bit 15.53 / 15.30 at 18.1 GiB.",
+          "source": "https://github.com/raullenchai/Rapid-MLX",
+          "note": null
+        },
+        {
+          "text": "On M3 Ultra 256GB, Rapid-MLX 0.13.4 B=1 at 8K prompt: dense Qwen3.8-27B 4-bit decodes 43.4 tok/s (with MTP) at 26.7 GB; Qwen3.8-Flash-Next (180B total, 6B active) 23.0 tok/s at 102.8 GB active, prefill 867.9 tok/s; GLM-5.3-Flash (320B, 18B active) 27.8 tok/s at 180.6 GB.",
+          "source": "https://github.com/raullenchai/Rapid-MLX",
+          "note": null
+        },
+        {
+          "text": "Rapid-MLX's MTP path gave dense Qwen3.8-27B on M3 Ultra 1.43x at 128 prompt tokens up to 2.34x at 32K (30.71 to 43.93, 16.52 to 38.66 tok/s); the MoE Flash-Next default path was flat across the two builds.",
+          "source": "https://github.com/raullenchai/Rapid-MLX",
+          "note": null
+        },
+        {
+          "text": "Rapid-MLX reports 3.0x Ollama's aggregate decode at 8 concurrent streams on Qwen3.6-35B-A3B on an M2 Pro (82.9 vs 27.2 tok/s).",
+          "source": "https://github.com/raullenchai/Rapid-MLX",
+          "note": null
+        },
+        {
+          "text": "Rapid-MLX recommends 192 GB as the practical tier for 99 GB-weight Qwen3.8-Flash-Next and 256 GB for GLM-5.3-Flash at 32K context (195.6 GB peak).",
+          "source": "https://github.com/raullenchai/Rapid-MLX",
+          "note": null
+        },
+        {
+          "text": "oMLX community benchmark: DeepSeek-V4-Flash 4-bit on M3 Ultra 80-core 512GB, macOS 26.3, oMLX 0.4.3, 2026-06-13: 29.5 tok/s decode and 432.6 tok/s prefill at 1K, 27.6 tok/s at 8K, 142.2 GB peak.",
+          "source": "https://omlx.ai/benchmarks/performance/gd7f98lp",
+          "note": null
+        },
+        {
+          "text": "Same benchmark batching: aggregate decode 46.1 (2x), 69.3 (4x), 94.7 tok/s (8x), a 3.21x speedup.",
+          "source": "https://omlx.ai/benchmarks/performance/gd7f98lp",
+          "note": null
+        },
+        {
+          "text": "MacStories (an M3 Ultra owner) reports DeepSeek-V4-Flash averaging 35 tok/s with oMLX and extrapolates over 120 on M5 Ultra by assuming 4x.",
+          "source": "https://www.macstories.net/notes/the-potential-of-m6-and-m5-ultra-for-local-ai-on-macos/",
+          "note": null
+        },
+        {
+          "text": "modelfit.io says V4.1-Flash is a 552B backbone with 8B active during prefill and 16B during decode, needing 264.5 GB for full weights, and that no Q3_K_M figure exists for M5 Ultra 512GB until late October shipping.",
+          "source": "https://modelfit.io/blog/deepseek-v4-1-flash-mac-memory-requirements/",
+          "note": null
+        },
+        {
+          "text": "Community 2-bit V4.1-Flash builds on M3 Ultra 256 GiB measured 7.31-9.5 tok/s (REAP 2-bit with 336 of 384 experts, 7.31-7.92).",
+          "source": "https://modelfit.io/blog/deepseek-v4-1-flash-mac-memory-requirements/",
+          "note": null
+        },
+        {
+          "text": "zachrattner.com: DeepSeek V4 Flash is 284B total with ~13B active, 4-bit ~155 GB, ~35 tok/s on a 512GB M3 Ultra; a 2-bit build near 90 GB fits 128 GB; GLM-5.3 is 753B with ~40B active, needing a 512GB Studio with heavy quantization.",
+          "source": "https://zachrattner.com/projects/ai-mac-cluster/coding-models",
+          "note": null
+        },
+        {
+          "text": "zachrattner.com pairs 32GB Macs with Qwen3-Coder-30B-A3B, 64GB with dense Qwen3.8-27B, 128GB M5 Max with DeepSeek V4 Flash 2-bit and 256GB Ultra with V4 Flash 4-bit.",
+          "source": "https://zachrattner.com/projects/ai-mac-cluster/coding-models",
+          "note": null
+        },
+        {
+          "text": "Apple MLX M5 vs M4 MacBook Pro 24GB: generation speedup 1.25x for Qwen3-30B-A3B 4-bit (17.31 GB) and 1.24x for gpt-oss-20b MXFP4 (12.08 GB), vs 1.24x for Qwen3-8B 4-bit and 1.19x for 14B 4-bit; TTFT speedup 3.52x and 3.33x.",
+          "source": "https://machinelearning.apple.com/research/exploring-llms-mlx-m5",
+          "note": null
+        },
+        {
+          "text": "Apple says M5 TTFT is under 3 s for the 30B MoE at a 4096-token prompt.",
+          "source": "https://machinelearning.apple.com/research/exploring-llms-mlx-m5",
+          "note": null
+        },
+        {
+          "text": "On an M4 Mac mini 64GB with oMLX, Qwen3.5-35B-A3B-4bit averaged 35.2 tok/s and dense Qwen3-32B-4bit 10.0 tok/s.",
+          "source": "https://kenhuangus.substack.com/p/i-ran-a-35b-ai-coding-agent-locally",
+          "note": null
+        },
+        {
+          "text": "mlx-swift-lm issue #124 (Feb 2026, M4 Max 96GB): Qwen3.5-35B-A3B-4bit decodes 11.7 tok/s in Swift vs 85.1 in Python mlx-lm (7.3x); dense Qwen3-8B 52.8 vs 70.2 (1.33x).",
+          "source": "https://github.com/ml-explore/mlx-swift-lm/issues/124",
+          "note": null
+        },
+        {
+          "text": "The issue's root cause: a global evalLock on every eval/asyncEval, a per-token GPU-to-CPU sync in TokenIterator.next(), and no mx.stream kernel-fusion context; MoE has ~30-40 ops per forward pass vs 8-10 for dense.",
+          "source": "https://github.com/ml-explore/mlx-swift-lm/issues/124",
+          "note": null
+        },
+        {
+          "text": "mlx-lm issue #858 (Feb 2026, M1 Pro 32GB, mlx 0.30.6): gpt-oss-20b llama.cpp decodes 37.05 tok/s at 14.7K prompt and 404 tok/s prefill; mlx-lm 33.8 and 246.",
+          "source": "https://github.com/ml-explore/mlx-lm/issues/858",
+          "note": null
+        },
+        {
+          "text": "Same issue's context sweep on M1 Pro: llama.cpp decode 46.0 (0.5K) to 30.2 (32K); MLX MXFP4-Q4 48.3 to 25.5; fp16-converted MXFP4 47.4 to 26.6; 8-bit 44.7 to 26.1.",
+          "source": "https://github.com/ml-explore/mlx-lm/issues/858",
+          "note": null
+        },
+        {
+          "text": "An MLX maintainer found MLX faster than llama.cpp on M3 Ultra for gpt-oss-20b and 120b at all tested contexts, up to 30% prefill at 8K for 120B (1680 vs 1264 tok/s); OpenAI's bf16 weights slow prefill on M1 (no native bf16) and should be cast with mlx_lm.convert --dtype float16.",
+          "source": "https://github.com/ml-explore/mlx-lm/issues/858",
+          "note": null
+        },
+        {
+          "text": "Flash-MoE streams Qwen3.5-397B experts (512 per layer, 4 active, 209 GB) from SSD on a 48GB MacBook Pro at 4.4 tok/s, 5.5 GB resident, 71% page-cache hit rate, 17.5 GB/s NVMe, 2.41 ms per layer for 60 layers.",
+          "source": "https://starlog.is/articles/llm-engineering/danveloper-flash-moe/",
+          "note": null
+        },
+        {
+          "text": "Flash-MoE found trusting the macOS page cache beat custom caches by 38%, found serial load-then-compute beat overlapped SSD streaming because unified memory bandwidth is shared, and found 2-bit experts break JSON and tool calls while 4-bit does not.",
+          "source": "https://starlog.is/articles/llm-engineering/danveloper-flash-moe/",
+          "note": null
+        },
+        {
+          "text": "Flash-MoE rewrites 4-bit dequantization as fma(nibble, scale*x, bias*x) for a 12% kernel gain and documents 58 failed experiments.",
+          "source": "https://starlog.is/articles/llm-engineering/danveloper-flash-moe/",
+          "note": null
+        },
+        {
+          "text": "TurboQuant-MLX expert streaming runs Qwen3.5-122B-A10B (256 experts) 3-bit, 54 GB on disk, in ~9 GB resident on a 16 GB Mac mini; the author calls the sparse-MoE memory wall a disk-bandwidth wall.",
+          "source": "https://medium.com/data-science-collective/a-qwen-3-6-122b-llm-on-a-16-gb-mac-mini-moe-expert-streaming-with-turboquant-mlx-4f77f0b48518",
+          "note": null
+        },
+        {
+          "text": "The same author earlier reported gpt-oss-120b at 44 tok/s and Qwen3.5-122B at 26.5 tok/s on a 64 GB Mac with TurboQuant MLX.",
+          "source": "https://medium.com/data-science-collective/a-qwen-3-6-122b-llm-on-a-16-gb-mac-mini-moe-expert-streaming-with-turboquant-mlx-4f77f0b48518",
+          "note": null
+        },
+        {
+          "text": "llama.cpp discussion #27149: Qwen3-30B-A3B weights split into 0.43 GB shared, 0.05 GB router and 15.75 GB experts; 30 MB per layer with 8 active experts vs 345 MB for all; 11.4x I/O cut; M1 MacBook Pro 16GB with Ollama ran qwen3:30b-a3b at 1.7 tok/s and dense qwen3:32b under 1 tok/s.",
+          "source": "https://github.com/ggml-org/llama.cpp/discussions/27149",
+          "note": null
+        },
+        {
+          "text": "NPUMoE on M2 Max 64GB and M2 Ultra 192GB cuts prefill latency 1.32-5.55x, energy per token 1.81-7.37x and CPU cycles 1.78-5.54x vs CoreML baselines for Phi-3.5-MoE, Phi-tiny-MoE and Qwen3-30B-A3B, with under 1.1% accuracy loss.",
+          "source": "https://arxiv.org/html/2604.18788v1",
+          "note": null
+        },
+        {
+          "text": "NPUMoE's authors say expert routing gives dynamic shapes that conflict with NPU static graphs, top-k and scatter/gather are NPU-unfriendly, and CPU-NPU synchronization can exceed 60% of runtime in the worst case.",
+          "source": "https://arxiv.org/html/2604.18788v1",
+          "note": null
+        },
+        {
+          "text": "NPUMoE measures expert-load imbalance as highly skewed and different between prefill and decode, and uses offline calibration of expert capacity and popularity.",
+          "source": "https://arxiv.org/html/2604.18788v1",
+          "note": null
+        },
+        {
+          "text": "MoE-Spec (Feb 2026) says speculative verification of draft trees activates many unique experts and erodes sparse bandwidth savings; capping experts per layer yields 10-30% higher throughput than EAGLE-3; the top 32 of 64 experts hold 93% of routing weight at tree size 63.",
+          "source": "https://arxiv.org/html/2602.16052v1",
+          "note": null
+        },
+        {
+          "text": "Cohere found MoE speculative-decoding speedup is non-monotonic in batch size (rises, then falls) with an anomalously high gain at batch 1 from fixed-overhead amortization, while a dense 111B model decays monotonically.",
+          "source": "https://cohere.com/blog/mixture-of-experts-models-get-more-from-speculative-decoding",
+          "note": null
+        },
+        {
+          "text": "NVIDIA says at batch 1 decode is memory-bound where MoE wins; as batch grows, tokens cover most experts and MoE's latency margin narrows while its throughput advantage persists.",
+          "source": "https://developer.nvidia.com/blog/dense-vs-moe-models-active-parameters-throughput-and-when-to-choose-each/",
+          "note": null
+        },
+        {
+          "text": "llama.cpp MTP/speculative decoding on Metal was a net loss of 11-24% for Qwen3.5-9B on M1 Max (25.3 tok/s baseline) per issue #23752 as cited by modelfit.io; MLX self-drafting (MTPLX) reports 2.24x on Qwen3.6-27B and an independent M4 Pro 48GB test 7 to 18.3 tok/s (2.6x), with draft acceptance 73%, 48%, 32% by depth.",
+          "source": "https://modelfit.io/blog/speculative-decoding-mac-llm/",
+          "note": null
+        },
+        {
+          "text": "On M4 Pro 48GB Qwen3.6-35B-A3B-OptiQ-4bit uses about 20 GB and runs 325 tok/s prompt, 34 tok/s generation.",
+          "source": "https://lws.io/blog/my-local-model-setup/",
+          "note": null
+        },
+        {
+          "text": "LLMCheck index estimates (not measurements) for Qwen3.6-35B-A3B via MLX: ~32 tok/s M4 Pro, ~44 M4 Max, ~52 M5 Max, with ~20 GB RAM.",
+          "source": "https://llmcheck.net/blog/qwen-36-35b-a3b-mac-new-number-one/",
+          "note": null
+        },
+        {
+          "text": "modelfit.io estimates gpt-oss-120b at ~29 tok/s on M3 Ultra and ~43 on M5 Ultra and Llama 4 Maverick 400B at ~12 on M5 Ultra 512GB, labeled estimates; its M3 Ultra figure is 2.5x below the 74 tok/s measured elsewhere.",
+          "source": "https://modelfit.io/blog/mac-studio-m5-ultra-512gb-local-llm/",
+          "note": null
+        },
+        {
+          "text": "Gemma 4 26B-A4B ran at ~2 tok/s on a 24GB Mac under memory pressure while Gemma 4 E4B ran 57 and E2B 95 tok/s on Ollama (Ollama beat MLX on these).",
+          "source": "https://www.kartit.net/blog/gemma4-local-benchmark",
+          "note": null
+        },
+        {
+          "text": "Apple Silicon bandwidth is shared by CPU, GPU and I/O controllers, so overlapping SSD expert reads with GPU compute contends instead of hiding latency.",
+          "source": "https://starlog.is/articles/llm-engineering/danveloper-flash-moe/",
+          "note": null
+        }
+      ]
+    }
+  ],
+  "related": []
+}

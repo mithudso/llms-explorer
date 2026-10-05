@@ -1,0 +1,129 @@
+{
+  "slug": "two-exo-models-sharing-one-mac-gpu-under-fast-sy",
+  "concept": "Two exo models sharing one Mac GPU under fast synch",
+  "generated": "2026-10-05",
+  "summary": "Two exo runners on one Mac are two OS processes that share one GPU. Under `MLX_METAL_FAST_SYNCH=1` MLX waits for GPU completion by spinning on shared memory; MLX's own docs change (PR 4005) says not to pass it by default because it is unreliable with more than one stream.",
+  "facets": [
+    {
+      "title": "Facts",
+      "facts": [
+        {
+          "text": "Two exo runners on one Mac are two OS processes that share one GPU. Under `MLX_METAL_FAST_SYNCH=1` MLX waits for GPU completion by spinning on shared memory; MLX's own docs change (PR 4005) says not to pass it by default because it is unreliable with more than one stream.",
+          "source": "https://github.com/exo-explore/exo/pull/2377",
+          "note": null
+        },
+        {
+          "text": "Two different mechanisms can make \"model B stalls while model A is busy\" on one Mac, and they have different fixes. (1) Fast synch makes the two runners contend or deadlock on the GPU; the fix is PR 2377 (fast synch off for ring instances). (2) The worker's plan loop blocks while a runner prefill runs; the fix is PR 2348.",
+          "source": "https://github.com/exo-explore/exo/pull/2348",
+          "note": null
+        },
+        {
+          "text": "Mechanism 2 in detail: a generating runner reads new tasks only between generation steps, and one step includes the whole prefill of a newly admitted prompt. `RunnerSupervisor.start_task` waited for the runner to acknowledge each task, and the worker's planning loop awaited `start_task`, so a request queued behind a long prompt stalled planning for every other model on the node, plus cancellations and shutdowns.",
+          "source": "https://github.com/exo-explore/exo/pull/2348",
+          "note": null
+        },
+        {
+          "text": "PR 2348's fix: generation tasks (`TextGeneration`, `ImageGeneration`, `ImageEdits`) are tracked in `in_progress` before sending and `start_task` no longer waits for the acknowledgement; creating, connecting, loading and warming up a runner still wait; a cancellation for a task the runner has not acknowledged is held in the background and sent on acknowledgement.",
+          "source": "https://github.com/exo-explore/exo/pull/2348",
+          "note": null
+        },
+        {
+          "text": "Measurement for mechanism 2 (one Mac Studio M3 Ultra 96 GB, Llama-3.2-1B and Llama-3.2-3B, the 3B model prefilling a unique ~30k-token prompt of about 19 s, a short 1B request sent 3.5 s later): 1B time to first token was 0.23 s alone, 0.38 to 0.40 s with the 3B busy and nothing queued, and 15.1 to 15.7 s on main when one more 3B request was queued; with the PR it was 0.34 to 0.42 s.",
+          "source": "https://github.com/exo-explore/exo/pull/2348",
+          "note": null
+        },
+        {
+          "text": "The PR's conclusion from that table: \"sharing the GPU costs almost nothing; the wait came from the worker.\"",
+          "source": "https://github.com/exo-explore/exo/pull/2348",
+          "note": null
+        },
+        {
+          "text": "PR 2377 measured throughput, not time to first token, with 8 streaming clients per model, so its collapse (2.2 and 7.2 requests per minute) mixes fast-synch contention with the plan-loop stall of PR 2348 unless the PR was tested on a branch containing it. The cached text does not say which.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "The watchdog PR 2370 depends on PR 2348 for the instance to recover after a stuck runner, for the same plan-loop reason.",
+          "source": "https://github.com/exo-explore/exo/pull/2370",
+          "note": null
+        },
+        {
+          "text": "Time-to-first-token stalls of 15 s with fast synch not involved are a plan-loop problem, not a GPU problem; the diagnostic is whether the second model's request is delayed while the first model's runner is mid-prefill with a queued request.",
+          "source": "https://github.com/exo-explore/exo/pull/2348",
+          "note": null
+        },
+        {
+          "text": "A cancellation for a queued request is ignored by a runner that has not picked it up. On real hardware 0 tokens were generated for a request cancelled 1.5 s after queueing, in the 20 s after the long prompt finished, on both main and PR 2348 (2 trials each).",
+          "source": "https://github.com/exo-explore/exo/pull/2348",
+          "note": null
+        },
+        {
+          "text": "The two-model GPU deadlock needs fast synch plus more than one MLX process or stream on the GPU. A single ring instance alone on a Mac does not show it.",
+          "source": "https://github.com/exo-explore/exo/pull/2377",
+          "note": null
+        },
+        {
+          "text": "RDMA (JACCL) instances keep fast synch, and PR 2377 did not test two RDMA models on one GPU.",
+          "source": "https://github.com/exo-explore/exo/pull/2377",
+          "note": null
+        },
+        {
+          "text": "Is GPU sharing itself the problem? PR 2377 attributes the two-model collapse to fast synch on the shared GPU; PR 2348 measures that a second model alone adds only about 0.15 s to time to first token and attributes the long waits to the worker. Both can be true in different conditions; neither PR tests the other's setup.",
+          "source": "https://github.com/exo-explore/exo/pull/2348",
+          "note": null
+        },
+        {
+          "text": "Whether PR 2377's throughput collapse reproduces with PR 2348 applied.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Whether a long prefill on one model still starves another model's decode steps on the same GPU once the plan loop is fixed; PR 2348 measured only time to first token of a short request.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "A runner that is generating only picks up new tasks between generation steps, and one step includes the full prefill of a newly admitted prompt.",
+          "source": "https://github.com/exo-explore/exo/pull/2348",
+          "note": null
+        },
+        {
+          "text": "Before exo PR 2348 the worker's planning loop awaited `RunnerSupervisor.start_task`, which waited for a runner acknowledgement, so one model's long prefill stalled requests, cancellations and shutdowns for every other model on the node.",
+          "source": "https://github.com/exo-explore/exo/pull/2348",
+          "note": null
+        },
+        {
+          "text": "On one M3 Ultra 96 GB, a 1B model's time to first token was 0.23 s alone and 0.38 to 0.40 s while a 3B model prefilled a ~30k-token prompt, so GPU sharing cost about 0.15 s.",
+          "source": "https://github.com/exo-explore/exo/pull/2348",
+          "note": null
+        },
+        {
+          "text": "With a second 3B request queued behind that prefill, the 1B request waited 15.1 to 15.7 s on main and 0.34 to 0.42 s with PR 2348.",
+          "source": "https://github.com/exo-explore/exo/pull/2348",
+          "note": null
+        },
+        {
+          "text": "PR 2348 stops waiting for acknowledgements of generation tasks, and holds a cancellation in the background until the runner acknowledges the task.",
+          "source": "https://github.com/exo-explore/exo/pull/2348",
+          "note": null
+        },
+        {
+          "text": "exo PR 2377's two-model throughput collapse (2.2 and 7.2 requests per minute) was measured under 8 streaming clients per model and may include the plan-loop stall fixed by PR 2348.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "PR 2370 needs PR 2348 for an instance to recover by itself after a stuck runner is stopped.",
+          "source": "https://github.com/exo-explore/exo/pull/2370",
+          "note": null
+        },
+        {
+          "text": "The fast-synch two-model deadlock is specific to MLX's spin-wait on shared memory with more than one stream or process on one GPU.",
+          "source": "https://github.com/exo-explore/exo/pull/2377",
+          "note": null
+        }
+      ]
+    }
+  ],
+  "related": []
+}

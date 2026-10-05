@@ -1,0 +1,144 @@
+{
+  "slug": "speculative-decoding-with-structured-output-gram",
+  "concept": "Speculative decoding with structured-output grammar at reasoning boundaries",
+  "generated": "2026-10-05",
+  "summary": "`common_sampler_sample_and_accept_n` walks the draft in order: it samples a token at position i, calls `common_sampler_accept(..., is_generated = true)` on it, and stops at the first position where the sampled token differs from the draft token; if every draft token matches it samples one more bo...",
+  "facets": [
+    {
+      "title": "Facts",
+      "facts": [
+        {
+          "text": "`common_sampler_sample_and_accept_n` walks the draft in order: it samples a token at position i, calls `common_sampler_accept(..., is_generated = true)` on it, and stops at the first position where the sampled token differs from the draft token; if every draft token matches it samples one more bonus token.",
+          "source": "https://raw.githubusercontent.com/ggml-org/llama.cpp/master/common/sampling.cpp",
+          "note": null
+        },
+        {
+          "text": "Because accept runs per token, grammar and reasoning-budget state advance token by token inside one verify batch, including across the end of a think block.",
+          "source": "https://raw.githubusercontent.com/ggml-org/llama.cpp/master/common/sampling.cpp",
+          "note": null
+        },
+        {
+          "text": "`grammar_should_apply()` returns false for a lazy grammar unless the reasoning-budget state is IDLE or DONE; so inside a think block a drafted token is never checked against the tool or JSON grammar.",
+          "source": "https://raw.githubusercontent.com/ggml-org/llama.cpp/master/common/sampling.cpp",
+          "note": null
+        },
+        {
+          "text": "When the budget reaches DONE while the grammar was not accepting, `common_sampler_accept` replays the matched end sequence into the grammar so a trigger contained in the think-end tag still starts the lazy grammar.",
+          "source": "https://raw.githubusercontent.com/ggml-org/llama.cpp/master/common/sampling.cpp",
+          "note": null
+        },
+        {
+          "text": "With `grammar_first` false, the sampler first draws from the normal chain, then tests the single drawn token against the grammar and, if invalid, resamples after applying the grammar mask; with `grammar_first` true it masks first.",
+          "source": "https://raw.githubusercontent.com/ggml-org/llama.cpp/master/common/sampling.cpp",
+          "note": null
+        },
+        {
+          "text": "A draft token that the grammar rejects therefore ends acceptance at that position; verification keeps the earlier accepted tokens plus the resampled grammar-valid token.",
+          "source": "https://raw.githubusercontent.com/ggml-org/llama.cpp/master/common/sampling.cpp",
+          "note": null
+        },
+        {
+          "text": "The probabilistic variant `common_sampler_sample_and_accept_n_rejection` accepts a draft token with probability min(1, p/q); when the grammar masks the target distribution it zeroes forbidden tokens and rescales the remaining mass (`p_norm = 1/p_sum`) so the residual distribution is not over-weighted.",
+          "source": "https://raw.githubusercontent.com/ggml-org/llama.cpp/master/common/sampling.cpp",
+          "note": null
+        },
+        {
+          "text": "Before verifying, the server clones the slot sampler (`smpl_save`). If a partial acceptance needs a checkpoint restore, it copies the saved sampler back, restores the target and draft state, and re-verifies the accepted prefix in replay mode.",
+          "source": "https://raw.githubusercontent.com/ggml-org/llama.cpp/master/tools/server/server-context.cpp",
+          "note": null
+        },
+        {
+          "text": "For ngram-style drafters with synthetic acceptance probabilities, \"synthetic draft tokens do not advance grammar or reasoning state\"; only the final replayed token (from the target) calls accept with `is_generated = true`.",
+          "source": "https://raw.githubusercontent.com/ggml-org/llama.cpp/master/tools/server/server-context.cpp",
+          "note": null
+        },
+        {
+          "text": "Backend (GPU) sampling asserts that no grammar and no reasoning budget are configured, so grammar-constrained requests always sample on the CPU.",
+          "source": "https://raw.githubusercontent.com/ggml-org/llama.cpp/master/common/sampling.cpp",
+          "note": null
+        },
+        {
+          "text": "A drafted end-of-generation token is never accepted from a draft, and acceptance stops after an EOG that is not the last draft position, so the context never holds draft tokens past the end.",
+          "source": "https://raw.githubusercontent.com/ggml-org/llama.cpp/master/common/sampling.cpp",
+          "note": null
+        },
+        {
+          "text": "vLLM treats the same boundary as a configuration problem: with Qwen3 Coder and reasoning enabled, structured outputs can become disabled when reasoning is not parsed into a separate field (v0.11.2+), and `--structured-outputs-config.enable_in_reasoning=True` re-enables them.",
+          "source": "https://docs.vllm.ai/en/latest/features/structured_outputs/",
+          "note": null
+        },
+        {
+          "text": "Acceptance rate falls inside constrained regions if the drafter proposes tokens outside the grammar; the only mitigation in code is the early stop, there is no grammar-aware draft filtering for ngram or draft-model drafters.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Inside a think block the grammar is off, so drafted free text there is verified against nothing but the target distribution; acceptance near the think-end tag is where grammar state flips and a drafted end tag followed by drafted grammar tokens can all be accepted in one pass.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "A think-end tag drafted correctly but followed by a grammar-invalid token stops acceptance after the tag; the grammar already holds the replayed end sequence, so the next step resumes from valid state.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Unlimited reasoning budget still arms the sampler when a lazy grammar is active, so the check cost applies to every token even when no budget is set.",
+          "source": "https://raw.githubusercontent.com/ggml-org/llama.cpp/master/common/sampling.cpp",
+          "note": null
+        },
+        {
+          "text": "JSONSchemaBench (arXiv 2501.10868) compares constrained-decoding engines but not under speculation.",
+          "source": "https://arxiv.org/html/2501.10868v1",
+          "note": null
+        },
+        {
+          "text": "Grammar and reasoning-budget state advance per accepted token inside one verify pass.",
+          "source": "https://raw.githubusercontent.com/ggml-org/llama.cpp/master/common/sampling.cpp",
+          "note": null
+        },
+        {
+          "text": "A lazy grammar is skipped while the reasoning budget is in any state other than IDLE or DONE.",
+          "source": "https://raw.githubusercontent.com/ggml-org/llama.cpp/master/common/sampling.cpp",
+          "note": null
+        },
+        {
+          "text": "On reaching DONE, the matched think-end sequence is fed to the grammar so a trigger in the tag still fires.",
+          "source": "https://raw.githubusercontent.com/ggml-org/llama.cpp/master/common/sampling.cpp",
+          "note": null
+        },
+        {
+          "text": "A grammar-invalid draft token ends acceptance at its position and the sampler emits a grammar-valid replacement.",
+          "source": "https://raw.githubusercontent.com/ggml-org/llama.cpp/master/common/sampling.cpp",
+          "note": null
+        },
+        {
+          "text": "The rejection-sampling verifier renormalises target probabilities after grammar masking.",
+          "source": "https://raw.githubusercontent.com/ggml-org/llama.cpp/master/common/sampling.cpp",
+          "note": null
+        },
+        {
+          "text": "The server snapshots the sampler before verification and restores it on checkpoint rollback.",
+          "source": "https://raw.githubusercontent.com/ggml-org/llama.cpp/master/tools/server/server-context.cpp",
+          "note": null
+        },
+        {
+          "text": "Synthetic-probability drafts do not advance grammar or reasoning state except for the final replayed target token.",
+          "source": "https://raw.githubusercontent.com/ggml-org/llama.cpp/master/tools/server/server-context.cpp",
+          "note": null
+        },
+        {
+          "text": "Backend sampling cannot be combined with a grammar or reasoning budget.",
+          "source": "https://raw.githubusercontent.com/ggml-org/llama.cpp/master/common/sampling.cpp",
+          "note": null
+        },
+        {
+          "text": "vLLM disables structured outputs for Qwen3 Coder reasoning unless `enable_in_reasoning` is set when reasoning content is not parsed separately.",
+          "source": "https://docs.vllm.ai/en/latest/features/structured_outputs/",
+          "note": null
+        }
+      ]
+    }
+  ],
+  "related": []
+}

@@ -1,0 +1,384 @@
+{
+  "slug": "quantization-formats-for-apple-silicon-gguf-vs-m",
+  "concept": "Quantization formats for Apple silicon (GGUF vs MLX)",
+  "generated": "2026-10-05",
+  "summary": "Bits per weight (arithmetic, [asserted] where not cited): MLX affine 4-bit with default group size 64 and fp16/bf16 scale+bias = 4 + 32/64 = 4.5 bpw; group size 32 = 5.0 bpw. llama.cpp Q4_K = 4.5 bpw (super-block of 8x32, 6-bit scales and mins); Q4_K_M actual file = 4.89 bpw because Q6_K is used ...",
+  "facets": [
+    {
+      "title": "Facts",
+      "facts": [
+        {
+          "text": "Bits per weight (arithmetic, [asserted] where not cited): MLX affine 4-bit with default group size 64 and fp16/bf16 scale+bias = 4 + 32/64 = 4.5 bpw; group size 32 = 5.0 bpw. llama.cpp Q4_K = 4.5 bpw (super-block of 8x32, 6-bit scales and mins); Q4_K_M actual file = 4.89 bpw because Q6_K is used for half of attn v and ffn down plus 6-bit output.weight. So MLX uniform affine-4 gs64 and pure Q4_K (Q4_K_S: all tensors Q4_K) are the same nominal width, and Q4_K_M costs about 0.4 bpw more.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "MXFP4 = 4.25 bpw (Unsloth); NVFP4 ~4.5 bpw (16-element blocks, fp8 scale) [asserted].",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "mlx-lm `--quant-predicate` mixed recipes (mixed_2_6, mixed_3_4, mixed_3_6, mixed_4_6): high bits (6, or 4 for mixed_3_4) go to v_proj and down_proj in the first 1/8 and last 1/8 of layers and every third layer between, plus lm_head; everything else gets low bits. Code comment says it mimics llama.cpp Q4_K_M and credits Alex Barron. Predicates raise ValueError unless q_mode == affine, so mxfp4/nvfp4/mxfp8 cannot be combined with mixed recipes.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "mlx_lm.dynamic_quant: defaults low 4 / high 5 bits, per-layer sensitivity, `--target-bpw`, reusable `--sensitivities` JSON.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "GGUF I-quants use codebooks, so matmuls need many lookup-table loads (explanation given in the llama.cpp thread, Feb 2024).",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "2023-06: llama.cpp PR #1684 introduces k-quants and the file-type \"mixes\" (ikawrakow).",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "2025-03: MLX maintainer (awni) answers \"Q4_K_M support?\" (mlx #1934): no plan to add exactly Q4_K_M; use mixed_3_6, 4-bit with `--q-group-size 32`, or 6-bit.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "2026-03: MLX issue #3251 reports group_size=32 mixed models run 7-14% slower decode and up to 2x slower prefill than uniform g128 on Metal kernels (M2 Ultra, MLX 0.29.3).",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "2026-03/04: third-party data-driven mixed-precision for MLX appears as plain mlx-lm-loadable checkpoints: oQ (oMLX), OptiQ (mlx-optiq), JANG (custom format). Ollama 0.19 (2026-03-31) moves Apple silicon to MLX and ships NVFP4; 0.20/0.21 add mixed precision.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "2026-03 Unsloth retires MXFP4 from its Q2/Q3/Q4_K_XL mixes; Dynamic v3.0 (Qwen3.8 era) is GGUF-only.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "bf16 on M1/M2: many mlx-community weights keep bf16 non-quantized tensors; converting with `--dtype float16` recovered most of the MLX prefill gap on M1 Max (Gemma 3 12B 8K prefill 114.4 s -> 68.9 s, per atomic.chat; famstack measured MLX bf16 -> fp16 effective tok/s 10.9 -> 16.1 on classification, then within single digits of GGUF).",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Small group sizes (g32 or mixed g32/64/128) cost 7-14% decode on MLX Metal kernels (issue #3251); a quality fix by smaller groups is not free.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "DWQ: only useful at 2-4 bit; fails at 16->8/6. Distilling from an 8-bit teacher works; drop `--max-seq-length 512`, batch 1 for memory.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "mixed recipes need `down_proj` module names; mlx-lm raises \"Model does not have expected keys for mixed quant\" otherwise (MoE/hybrid naming can break it).",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Hybrid (Mamba/GatedDeltaNet) models: Unsloth KLD sweep on Qwen3.5-35B-A3B says quantizing ssm_out or any attn_* tensor is especially damaging; ffn_up/gate_exps tolerate ~3-bit, ffn_down_exps slightly less. MXFP4 on attn_gate, attn_q, ssm_beta, ssm_alpha is much worse than Q4_K.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Conversion direction: no GGUF->MLX path without dequantizing; convert from HF safetensors.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Memory failure example: mlx-community/gpt-oss-20b-MXFP4-Q8 (11.5 GB) OOMs on a 16 GB Mac with \"[METAL] Command buffer execution failed: Insufficient Memory\" while llama.cpp with `--n-cpu-moe 12` ran the ggml-org GGUF at ~26 tok/s (mlx-lm issue #644).",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "\"GGUF Q4_K_M has 4.7x lower perplexity degradation than MLX uniform 4-bit\" (atomic.chat, famstack part 2) vs primary data: the figure is the old llama.cpp table ratio +0.2499 (Q4_0) / +0.0535 (Q4_K_M) on LLaMA-1 7B WikiText (June 2023). Q4_0 is symmetric, group 32, no min; it is not MLX affine. The same PR lists Q4_K_S (pure Q4_K, 4.5 bpw, asymmetric) at +0.1149, i.e. 2.1x not 4.7x the Q4_K_M degradation. famstack itself softens to \"structurally similar\" and says real-output impact was not measured. The KLD gist it cites is Mistral-7B and also GGUF-only. No MLX number appears in any of it.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Speed: MLX 20-40% faster decode (Contra Collective, M3 Max, Llama 3.1 8B Q4_K_M 58 vs MLX 4-bit 71 tok/s; vendor blog, no method) vs famstack on M1 Max after fp16 fix: single-digit differences either way, Qwen3-30B-A3B decode 58 (GGUF) vs 55-56 (MLX); runtime choice (LM Studio vs Ollama) moved results 19-40% more than format.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "NVFP4 vs Q4_K_M: gingter.org (secondary) says NVFP4 retains slightly better accuracy than Q4_K_M at same bit width; Unsloth's per-tensor KLD says MXFP4 is worse than Q4_K at 4.25 vs 4.5 bpw. Different formats (MXFP4 vs NVFP4) and no shared test; unresolved.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "OptiQ (vendor): +3.5 capability score vs uniform 4-bit at ~3% more disk (gemma-4-31B). oQ (vendor, Qwen3.5-35B-A3B, 300-sample): oQ3 beats mlx-lm 3-bit by 85.0 vs 76.3 MMLU; at 4-bit mlx-lm uniform wins HumanEval 87.2 vs 85.4 and oQ wins MMLU 83.3 vs 79.7. Vendor-run, small samples.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "No independent KLD/perplexity measurement of mlx-community affine 4-bit gs64 vs Q4_K_S / Q4_K_M / IQ4_XS on the same BF16 base and same eval text was found. Reddit threads that likely contain one (\"comparing 4bit quants for MLX\", \"MLX vs GGUF Unsloth Qwen3.5 122B\") were unfetchable.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Does llama.cpp's Metal backend slow I-quants below 4 bits on M3/M4/M5 (current kernels)? Only 2024 evidence on M1/M2.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Does MLX NVFP4/MXFP4 beat affine-4 at equal bpw on real models? No primary KLD.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "MLX default affine 4-bit with group size 64 and 16-bit scale and bias stores about 4.5 bits per weight.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "llama.cpp Q4_K is 4.5 bits per weight: super-blocks of 8 blocks x 32 weights, scales and mins quantized to 6 bits.",
+          "source": "https://github.com/ggml-org/llama.cpp/pull/1684",
+          "note": null
+        },
+        {
+          "text": "llama.cpp Q4_K_M uses Q6_K for half of attention.wv and feed_forward.w2 tensors and Q4_K elsewhere; all variants use 6-bit output.weight, which lowered Q4_0 perplexity by about 0.03 at 7B.",
+          "source": "https://github.com/ggml-org/llama.cpp/pull/1684",
+          "note": null
+        },
+        {
+          "text": "LLaMA-1 7B WikiText perplexity from the k-quants PR: F16 5.9066, Q4_K_S 6.0215 (3.56 GB), Q4_K_M 5.9601 (3.80 GB), Q5_K_M 5.9208 (4.45 GB).",
+          "source": "https://github.com/ggml-org/llama.cpp/pull/1684",
+          "note": null
+        },
+        {
+          "text": "The \"4.7x\" ratio equals (6.1565-5.9066)/(5.9601-5.9066) = 0.2499/0.0535 using legacy Q4_0, a 2023 LLaMA-1 7B result, not an MLX measurement.",
+          "source": "https://famstack.dev/guides/mlx-vs-gguf-part-2-isolating-variables/",
+          "note": null
+        },
+        {
+          "text": "famstack describes Q4_0 as \"structurally similar\" to MLX 4-bit and says real-world quality impact of the gap was not measured in its article.",
+          "source": "https://famstack.dev/guides/mlx-vs-gguf-part-2-isolating-variables/",
+          "note": null
+        },
+        {
+          "text": "Ollama 0.19 advertises up to 1851 tok/s prefill and 134 tok/s decode on M5 Max with int4 Qwen3.5-35B-A3B and offers NVFP4 on Apple silicon.",
+          "source": "https://gingter.org/2026/04/23/ollama-goes-mlx/",
+          "note": null
+        },
+        {
+          "text": "MLX maintainers said they will not add exactly Q4_K_M; they recommend mixed_3_6, `--q-group-size 32`, or 6-bit as quality bumps (Mar 2025).",
+          "source": "https://github.com/ml-explore/mlx/issues/1934",
+          "note": null
+        },
+        {
+          "text": "mlx_lm.convert quant predicates are built by mixed_quant_predicate_builder with recipes mixed_2_6, mixed_3_4, mixed_3_6, mixed_4_6 (mixed_4_6 absent from the 2025 maintainer reply, which listed only mixed_3_6 and mixed_2_6).",
+          "source": "https://github.com/ml-explore/mlx-lm/blob/main/mlx_lm/convert.py",
+          "note": null
+        },
+        {
+          "text": "The mixed recipe gives high bits to v_proj and down_proj when layer index < n/8, >= 7n/8, or (index - n/8) % 3 == 2, plus lm_head; all other modules get low bits.",
+          "source": "https://github.com/ml-explore/mlx-lm/blob/main/mlx_lm/convert.py",
+          "note": null
+        },
+        {
+          "text": "mlx_lm.convert raises ValueError \"Quant predicates only support 'affine' quantization.\" when q_mode is mxfp4, nvfp4 or mxfp8 with a recipe.",
+          "source": "https://github.com/ml-explore/mlx-lm/blob/main/mlx_lm/convert.py",
+          "note": null
+        },
+        {
+          "text": "mlx_lm.convert `--dtype` casts non-quantized parameters (choices float16, bfloat16, float32) and defaults to config torch_dtype.",
+          "source": "https://github.com/ml-explore/mlx-lm/blob/main/mlx_lm/convert.py",
+          "note": null
+        },
+        {
+          "text": "mlx_lm.dynamic_quant defaults to 4 low bits and 5 high bits, accepts --target-bpw, and can reuse a saved --sensitivities file.",
+          "source": "https://github.com/ml-explore/mlx-lm/blob/main/mlx_lm/LEARNED_QUANTS.md",
+          "note": null
+        },
+        {
+          "text": "Metal quantized_matmul with group_size 32 is slower than group_size 128: mixed g32/64/128 models lost 7-14% decode (Qwen3-30B-A3B 91.1 -> 84.7 tok/s at prompt 128, Mixtral-8x7B 69.6 -> 60.2, Llama-4-Scout 45.7 -> 40.1) and up to 2x prefill on M2 Ultra, MLX 0.29.3; root cause cited is per-thread scale/bias reads without threadgroup caching.",
+          "source": "https://github.com/ml-explore/mlx/issues/3251",
+          "note": null
+        },
+        {
+          "text": "oMLX oQ levels: oQ4 targets about 4.6 bpw (recommended), oQ3 ~3.5, oQ6 ~6.5; base is affine gs64 except 8-bit which uses mxfp8 gs32; output is standard mlx-lm safetensors needing no custom loader; oQ+ adds GPTQ weight optimization before quantizing.",
+          "source": "https://github.com/jundot/omlx/blob/main/docs/oQ_Quantization.md",
+          "note": null
+        },
+        {
+          "text": "oQ vendor benchmark on Qwen3.5-35B-A3B (300 samples): 2-bit MMLU mlx-lm 14.0 vs oQ 64.0; 3-bit 76.3 vs 85.0; 4-bit 79.7 vs 83.3; HumanEval 4-bit mlx-lm 87.2 vs oQ 85.4.",
+          "source": "https://github.com/jundot/omlx/blob/main/docs/oQ_Quantization.md",
+          "note": null
+        },
+        {
+          "text": "OptiQ vendor card claims Capability 80.03 vs 78.75 for stock uniform 4-bit at about 3% more disk, using a KL-divergence sensitivity pass; it promotes sensitive tensors to 8-bit.",
+          "source": "https://danmackinlay.name/notebook/local_llm_mac.html",
+          "note": null
+        },
+        {
+          "text": "OptiQ and oQ write mixed bits via per-module {bits, group_size} entries in config.json \"quantization\", so any mlx-lm-based loader (mlx-lm, mlx-vlm, vllm-mlx, LM Studio, oMLX) loads them; JANG instead defines its own format and has not gained wide adoption.",
+          "source": "https://danmackinlay.name/notebook/local_llm_mac.html",
+          "note": null
+        },
+        {
+          "text": "mlx-community DWQ checkpoints exist as ready downloads, e.g. Qwen3-30B-A3B-4bit-DWQ, \"distilled from the 6-bit to the 4-bit quantization\".",
+          "source": "https://huggingface.co/mlx-community/Qwen3-30B-A3B-4bit-DWQ",
+          "note": null
+        },
+        {
+          "text": "Hugging Face docs recommend `python -m mlx_lm.convert --hf-path <repo> -q` plus `--upload-repo`, and point to mlx-community as the publishing org.",
+          "source": "https://huggingface.co/docs/hub/en/mlx",
+          "note": null
+        },
+        {
+          "text": "Apple's M5 article quantizes with `mlx_lm.convert` in seconds, benchmarks Qwen3-8B/14B MLX-4bit, Qwen3-30B-A3B MLX-4bit and gpt-oss-20b in native MXFP4, and reports decode only 19-27% faster than M4 (153 vs 120 GB/s).",
+          "source": "https://machinelearning.apple.com/research/exploring-llms-mlx-m5",
+          "note": null
+        },
+        {
+          "text": "mlx-community publishes MXFP4 variants with names like gpt-oss-20b-MXFP4-Q8 (11,516 MB), which exceeded the 10,922 MB recommended Metal working set and OOMed on a 16 GB Mac Mini M4.",
+          "source": "https://github.com/ml-explore/mlx-lm/issues/644",
+          "note": null
+        },
+        {
+          "text": "On the same 16 GB Mac Mini M4, llama.cpp ran ggml-org/gpt-oss-20b-GGUF at about 26 tok/s using `--n-cpu-moe 12 -fa on -c 32768 --no-mmap`.",
+          "source": "https://github.com/ml-explore/mlx-lm/issues/644",
+          "note": null
+        },
+        {
+          "text": "ggml-org hosts official pre-converted GGUFs for gpt-oss (ggml-org/gpt-oss-20b-GGUF, 120b-GGUF).",
+          "source": "https://github.com/ggml-org/llama.cpp/discussions/15396",
+          "note": null
+        },
+        {
+          "text": "llama-quantize options: `--imatrix`, `--include-weights/--exclude-weights`, `--output-tensor-type`, `--token-embedding-type`, `--tensor-type <regex>=<type>` (per-tensor override), `--pure` (disable k-quant mixtures), `--leave-output-tensor`, `--allow-requantize` (warns of severe quality loss), `--keep-split`, `--prune-layers`.",
+          "source": "https://github.com/ggml-org/llama.cpp/blob/master/tools/quantize/README.md",
+          "note": null
+        },
+        {
+          "text": "Conversion path is `convert_hf_to_gguf.py` to bf16/f16 GGUF then `llama-quantize <in> <out> Q4_K_M`; multimodal projector is converted separately with `--mmproj` and typically kept at Q8_0.",
+          "source": "https://github.com/ggml-org/llama.cpp/blob/master/tools/quantize/README.md",
+          "note": null
+        },
+        {
+          "text": "llama.cpp's own table for Llama-3.1-8B gives bits/weight: IQ4_XS 4.4597, IQ4_NL 4.6818, Q4_K_S 4.6672, Q4_K_M 4.8944, Q5_K_M 5.7036, Q6_K 6.5633, Q8_0 8.5008.",
+          "source": "https://github.com/ggml-org/llama.cpp/blob/master/tools/quantize/README.md",
+          "note": null
+        },
+        {
+          "text": "In that table (hardware not stated, not a Mac) text generation t/s @128 is IQ4_XS 77.51, IQ4_NL 76.63, Q4_K_S 76.71, Q4_K_M 71.93, Q6_K 58.67, Q8_0 50.93; IQ2/IQ3 range 69-80.",
+          "source": "https://github.com/ggml-org/llama.cpp/blob/master/tools/quantize/README.md",
+          "note": null
+        },
+        {
+          "text": "A llama.cpp commenter (Feb 2024) attributes Apple silicon's poor IQ performance to codebook lookups and reports about 50 t/s for a 7B IQ quant on a 30-core M2 Max; M1 Max 64 GB ran a 120B IQ2_XS at 24 t/s prompt and 3.1 t/s generation with `-ngl 999`.",
+          "source": "https://github.com/ggml-org/llama.cpp/discussions/5617",
+          "note": null
+        },
+        {
+          "text": "text-generation-webui gave gibberish and \"ggml_metal_graph_compute: command buffer 0 failed with status 5\" with `-ngl 999` on a 120B IQ2_XS on M1 Max 64 GB (Feb 2024).",
+          "source": "https://github.com/ggml-org/llama.cpp/discussions/5617",
+          "note": null
+        },
+        {
+          "text": "Unsloth (CUDA-class numbers, not Mac): I-quants cost 5-10% decode (tg128 about 90 for Q4_K vs about 85 for IQ3_XXS/IQ2_XXS), imatrix lowers KLD and PPL; the Mac penalty may differ.",
+          "source": "https://unsloth.ai/docs/models/qwen3.5/gguf-benchmarks",
+          "note": null
+        },
+        {
+          "text": "Unsloth: MXFP4 is 4.25 bpw vs Q4_K 4.5 bpw and is worse than Q4_K on attn_gate, attn_q, ssm_beta, ssm_alpha; it retired MXFP4 from Q2_K_XL/Q3_K_XL/Q4_K_XL except pure MXFP4_MOE (Mar 2026).",
+          "source": "https://unsloth.ai/docs/models/qwen3.5/gguf-benchmarks",
+          "note": null
+        },
+        {
+          "text": "Unsloth KLD sweep (Qwen3.5-35B-A3B, 121 configs, 150+ KLD runs): ffn_up/gate_exps tolerate ~3 bit, quantizing ssm_out or attn_* is especially harmful in hybrid models, imatrix helps most at low bits.",
+          "source": "https://unsloth.ai/docs/models/qwen3.5/gguf-benchmarks",
+          "note": null
+        },
+        {
+          "text": "Unsloth Dynamic v3.0 (Qwen3.8-27B) claims >10% better top-1 accuracy at equal size vs every other provider, uses a new imatrix set, no QAT/QAD, and reports \"Divergence-300 @32\"; UD-IQ1_S is 6.2 GB at about 72% top-1 and is not recommended for agentic/tool use. Vendor claim.",
+          "source": "https://unsloth.ai/docs/basics/dynamic-3.0-ggufs",
+          "note": null
+        },
+        {
+          "text": "Unsloth Dynamic quants are GGUF for llama.cpp; Unsloth's separate unsloth-mlx project is for fine-tuning on Mac and can export GGUF (q4_k_m), it is not an MLX-quant publisher.",
+          "source": "https://github.com/masna-ai/unsloth-mlx",
+          "note": null
+        },
+        {
+          "text": "On M1 Max 64 GB, atomic.chat/famstack measured Qwen3-30B-A3B and Gemma 3 12B with MLX bf16 behind GGUF on all scenarios, MLX fp16 within single digits; MLX leads prefill-heavy 8K tests by about 10% after fp16 fix.",
+          "source": "https://famstack.dev/guides/mlx-vs-gguf-part-2-isolating-variables/",
+          "note": null
+        },
+        {
+          "text": "Gemma 3 12B QAT 4-bit MLX in famstack's test is a QAT checkpoint, so it does not isolate PTQ method quality.",
+          "source": "https://famstack.dev/guides/mlx-vs-gguf-part-2-isolating-variables/",
+          "note": null
+        },
+        {
+          "text": "famstack: new models get GGUF quants within hours on bartowski and lmstudio-community, MLX variants days to weeks later; recommends LM Studio + GGUF for beginners.",
+          "source": "https://famstack.dev/guides/mlx-vs-gguf-part-2-isolating-variables/",
+          "note": null
+        },
+        {
+          "text": "Contra Collective (vendor blog, no method published): Llama 3.1 8B file size 4.92 GB Q4_K_M vs 4.53 GB MLX 4-bit; Qwen 2.5 32B 19.8 vs 17.9 GB; MMLU loss 0.4-0.8 (Q4_K_M) vs 0.6-1.2 (MLX 4-bit); MLX 6-bit closes the gap for small models. Treat as weak.",
+          "source": "https://contracollective.com/blog/gguf-vs-mlx-quantization-formats-apple-silicon-2026",
+          "note": null
+        },
+        {
+          "text": "LM Studio 0.3.4 added an MLX engine (mlx-engine) that downloads MLX models from Hugging Face like GGUF and can run MLX and llama.cpp models simultaneously.",
+          "source": "https://lmstudio.ai/blog/lmstudio-v0.3.4",
+          "note": null
+        },
+        {
+          "text": "Another secondary source says LM Studio defaults to MLX whenever an MLX build exists and falls back to GGUF.",
+          "source": "https://inventivehq.com/blog/running-llms-on-apple-silicon-mlx",
+          "note": null
+        },
+        {
+          "text": "Per-runtime format: llama.cpp / llama-server / vLLM-less Ollama-on-Linux read GGUF; Ollama 0.19+ on Apple silicon uses MLX; mlx-lm, mlx-vlm, vllm-mlx, oMLX, Rapid-MLX, LM Studio's MLX engine read MLX safetensors.",
+          "source": "https://danmackinlay.name/notebook/local_llm_mac.html",
+          "note": null
+        },
+        {
+          "text": "llama.cpp Metal throughput for Q4_0 vs Q8_0 vs F16 is published per chip in discussion 4167 (LLaMA 7B; e.g. M4 Max 546 GB/s: Q4_0 tg 83.06, Q8_0 54.05, F16 31.64 tok/s; M5 Max 614 GB/s: 119.92 / 72.42 / 37.11), confirming decode scales with bytes per weight.",
+          "source": "https://github.com/ggml-org/llama.cpp/discussions/4167",
+          "note": null
+        },
+        {
+          "text": "Hannecke (secondary): MLX quantization is data-free in default mode and loses ground at very aggressive bit widths vs llama.cpp IQ-quants+imatrix; llama.cpp with flash attention is faster at long contexts out of the box.",
+          "source": "https://medium.com/@michael.hannecke/llama-cpp-vs-mlx-on-apple-mx-775ee59df0ee",
+          "note": null
+        },
+        {
+          "text": "Artefact2's GGUF guide advises using the largest quant that fits the GPU and trying a larger model at Q4_K_S if it fits; it is collecting blind-test data and gives no Mac data.",
+          "source": "https://gist.github.com/Artefact2/b5f810600771265fc1e39442288e8ec9",
+          "note": null
+        },
+        {
+          "text": "AWQ and GPTQ in mlx-lm exist mainly for interoperability; no Mac-specific advantage over DWQ at low bit.",
+          "source": "https://medium.com/@michael.hannecke/mlx-quantization-on-apple-silicon-dynamic-quant-vs-awq-vs-gptq-vs-dwq-8b2a5af2b53f",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Corrections and disagreements",
+      "facts": [
+        {
+          "text": "I-quants on Metal: \"slower on Apple silicon\" (existing file, llama.cpp thread) holds for 2-3-bit codebook quants, but a thread commenter reports IQ4_NL as fast as Q4_K and ikawrakow's README table (non-Mac hardware, unnamed) shows IQ4_XS tg 77.5 vs Q4_K_M 71.9 tok/s. See CONTRADICTS list in Claims.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "CONTRADICTS on-device-local-llm-runtimes.md sec 10 / quantization-format-comparison.md decision tree (Mac -> \"GGUF Q4_K (Ollama; Metal)\"): Ollama 0.19 (2026-03-31) runs Apple silicon inference on MLX instead of llama.cpp Metal.",
+          "source": "https://gingter.org/2026/04/23/ollama-goes-mlx/",
+          "note": null
+        },
+        {
+          "text": "CONTRADICTS existing sec 10 \"I-quants slower than K-quants on CPU and Metal\" as a blanket rule: IQ4_XS and IQ4_NL are not slower than Q4_K_M in llama.cpp's table, and a user reports IQ4_NL as fast as Q4_K on Apple silicon; the slowdown is for 2-3-bit codebook I-quants.",
+          "source": "https://github.com/ggml-org/llama.cpp/discussions/5617",
+          "note": null
+        }
+      ]
+    }
+  ],
+  "related": []
+}

@@ -1,0 +1,159 @@
+{
+  "slug": "mlx-qmm-splitk-small-m-split-k-quantized-matmul",
+  "concept": "MLX qmm_splitk small-M split-K quantized matmul",
+  "generated": "2026-10-05",
+  "summary": "Origin: issue 3086 observed 4-bit quantized_matmul slower than fp16 at batch 10-14. PR 3120's author traced the qmm underuse to occupancy: D=2560, M=12 with 32x32 tiles gives about 80 threadgroups, too few to saturate the GPU.",
+  "facets": [
+    {
+      "title": "Facts",
+      "facts": [
+        {
+          "text": "Origin: issue 3086 observed 4-bit quantized_matmul slower than fp16 at batch 10-14. PR 3120's author traced the qmm underuse to occupancy: D=2560, M=12 with 32x32 tiles gives about 80 threadgroups, too few to saturate the GPU.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Algorithm (main): tile bm = bn = 32; `current_tgs = ceil(N/32) * ceil(M/32)`; `split_k = max(1, 512 / current_tgs)`; then `k_align = max(group_size, 32)`, `split_k = min(split_k, K / k_align)`, and `split_k` is decremented until `K % (split_k * k_align) == 0`. If split_k ends at 1 or less, `qmm` runs instead.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Execution: grid (n_tiles, m_tiles, split_k); each threadgroup computes a K slice into a temporary buffer of shape [split_k, M, N] (partition stride M*N), then a reduction sums over axis 0. Kernel names are `<mode>_qmm_t_splitk_...` with an aligned-N variant. The kernels tile K by BK = 32 and do not bound K themselves, so partitions must be whole BK tiles and whole quantization groups.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Implementation was reduced in review: the affine and fp variants reuse `qmm_t_impl` / `fp_qmm_t_impl` with a `K_eff` loop bound and pre-offset pointers (the `qvm_splitk` pattern); an unused qmv split-K was deleted.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Because the split factor is a function of tile count, split-K helps only while `ceil(N/32) * ceil(M/32) <= 256`: M <= 32 with N <= 8192, M in 33-64 with N <= 4096, and so on. Larger problems take plain `qmm` (and NAX on gen-17). This is derived from the source.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "MoE gather matmul (`GatherQMM`) has no split-K call, so MoE verify and routed experts do not benefit from PR 3120.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "2026-01-31: issue 3086 filed (M2 Max, 0.30.3). 2026-02-02: maintainer angeloskath closed it as an ill-conditioned benchmark and showed chained numbers, while noting the fp16 jump at N=16 \"warrants a bit of an investigation\".",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "2026-02-11: PR 3120 opened by Ziqiao-git. 2026-02-17: angeloskath requested changes (fp quantizations missing, unused qmv split-K, duplicate impl). 2026-02-24: jagrit06 requested changes; 2026-03-03 asked to cap split_k by quantization groups (done in commit 05927cd). Approvals: angeloskath 2026-03-10, jagrit06 2026-03-17. Merged 2026-03-20 as commit 38ad257 with 16 checks passed after two follow-up pings from a user running MTP verification.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Later fixes in the same code: nvfp4 through split-K (PR 3854, v0.32.1) and a corruption fix for dimensions not a multiple of 32 (PR 3912, v0.32.3), both recorded in the existing dossier.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Over-read hazard: group size 16 (nvfp4) with BK = 32 tiles would read into the next group's weights and scales; the `k_align` floor of 32 is the guard.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Intermediate buffer costs [split_k, M, N] floats plus a reduction pass, so at very small N*M the extra traffic can erase the gain; the PR reports no regressions for large M because split_k collapses to 1.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "On gen >= 17 the split-K path pre-empts NAX qmm for small tile counts, so M5 users see non-NAX behavior for M just above the qmv limit.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "The PR benchmark used independent timed calls and a flat fp16 column (about 0.52 ms for M = 1-32), which suggests dispatch overhead dominated its fp16 baseline; the quantized column is the useful part.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "The author claims verification-step speedups for speculative decoding at M = 12-32. A downstream user running 5-bit MoE MTP verify at M = 8-16 on M2 Ultra argued the PR helps MoE verify; source shows MoE uses `GatherQMM`, which does not call `qmm_splitk`. Unresolved without MoE-specific measurement.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Whether a NAX-aware split-K for M5 is planned.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Interaction with qmv_wide: the speculative-decoding verify window now sits mostly below the limit (qmv_wide), so split-K matters for M from the limit up to about 32-64.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Issue 3086 (2026-01-31, M2 Max, mlx 0.30.3) reported 4-bit quantized_matmul slower than fp16 at N = 10-14.",
+          "source": "https://github.com/ml-explore/mlx/issues/3086",
+          "note": null
+        },
+        {
+          "text": "PR 3120 states D=2560, M=12 yields about 80 threadgroups with 32x32 tiles, insufficient to saturate the GPU.",
+          "source": "https://github.com/ml-explore/mlx/pull/3120",
+          "note": null
+        },
+        {
+          "text": "PR 3120 reported on M3 Max (4-bit, group size 64) D=2560 M=12 0.079 ms to 0.055 ms and D=4096 M=16 0.155 ms to 0.117 ms.",
+          "source": "https://github.com/ml-explore/mlx/pull/3120",
+          "note": null
+        },
+        {
+          "text": "PR 3120 was opened 2026-02-11, approved by angeloskath on 2026-03-10 and jagrit06 on 2026-03-17, and merged 2026-03-20 as commit 38ad257.",
+          "source": "https://github.com/ml-explore/mlx/pull/3120",
+          "note": null
+        },
+        {
+          "text": "A reviewer asked for fp quantization support and removal of an unused qmv split-K, and another asked to cap split_k by quantization groups.",
+          "source": "https://github.com/ml-explore/mlx/pull/3120",
+          "note": null
+        },
+        {
+          "text": "After review the affine and fp variants reuse `qmm_t_impl` with a `K_eff` loop bound and pre-offset pointers.",
+          "source": "https://github.com/ml-explore/mlx/pull/3120",
+          "note": null
+        },
+        {
+          "text": "`qmm_splitk` computes `split_k = max(1, 512 / (ceil(N/32) * ceil(M/32)))` with 32x32 tiles.",
+          "source": "https://raw.githubusercontent.com/ml-explore/mlx/main/mlx/backend/metal/quantized.cpp",
+          "note": null
+        },
+        {
+          "text": "`qmm_splitk` uses `k_align = max(group_size, 32)` and lowers split_k until K divides evenly.",
+          "source": "https://raw.githubusercontent.com/ml-explore/mlx/main/mlx/backend/metal/quantized.cpp",
+          "note": null
+        },
+        {
+          "text": "`qmm_splitk` allocates a [split_k, M, N] temporary and sums across axis 0 afterwards.",
+          "source": "https://raw.githubusercontent.com/ml-explore/mlx/main/mlx/backend/metal/quantized.cpp",
+          "note": null
+        },
+        {
+          "text": "`QuantizedMatmul::eval_gpu` is the only caller of `qmm_splitk`; `GatherQMM` has no split-K call.",
+          "source": "https://raw.githubusercontent.com/ml-explore/mlx/main/mlx/backend/metal/quantized.cpp",
+          "note": null
+        },
+        {
+          "text": "A PR 3120 benchmark on `applegpu_g15s` showed mxfp8 D=4096 at 0.121-0.125 ms for M=12-32 on `qmm_splitk` and 6.646 ms at M=2048 on regular qmm.",
+          "source": "https://github.com/ml-explore/mlx/pull/3120",
+          "note": null
+        },
+        {
+          "text": "A user commented on PR 3120 that it benefits MTP speculative-decoding verification on a 5-bit MoE (Qwen3.5-122B) at M = 8-16 on M2 Ultra.",
+          "source": "https://github.com/ml-explore/mlx/pull/3120",
+          "note": null
+        },
+        {
+          "text": "Split-K helps only while the 32x32 tile count is at most 256 (M <= 32 with N <= 8192).",
+          "source": "asserted",
+          "note": null
+        }
+      ]
+    }
+  ],
+  "related": []
+}

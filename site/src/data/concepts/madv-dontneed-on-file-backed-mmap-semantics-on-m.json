@@ -1,0 +1,199 @@
+{
+  "slug": "madv-dontneed-on-file-backed-mmap-semantics-on-m",
+  "concept": "MADV_DONTNEED on file-backed mmap semantics on macOS",
+  "generated": "2026-10-05",
+  "summary": "madvise(2) maps MADV_DONTNEED to VM_BEHAVIOR_DONTNEED and calls mach_vm_behavior_set, which calls vm_map_behavior_set.",
+  "facets": [
+    {
+      "title": "Facts",
+      "facts": [
+        {
+          "text": "madvise(2) maps MADV_DONTNEED to VM_BEHAVIOR_DONTNEED and calls mach_vm_behavior_set, which calls vm_map_behavior_set.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "vm_map_behavior_set runs DONTNEED as an immediate action: vm_map_msync(map, start, length, VM_SYNC_DEACTIVATE | VM_SYNC_CONTIGUOUS).",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "vm_map_msync with DEACTIVATE (no KILLPAGES) calls vm_object_deactivate_pages with kill_page false. For each resident page that is not wired, private, busy, in laundry or being cleaned, it clears the reference bit and queues a move to the inactive queue. Wired pages are skipped.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "The mapping stays valid and all pmap entries stay in place; only reference state and queue position change. The next touch re-activates the page without I/O if it is still resident, or faults it back from the file if the scan has since freed it.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "The scan frees an unreferenced inactive clean file page without writing; a dirty page is written to its file first. Nothing runs until free memory is low enough to wake vm_pageout_scan, so with ample free memory a DONTNEED'd page can stay resident indefinitely.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "MADV_FREE is the destructive variant (VM_SYNC_KILLPAGES), but the modified-bit clear and compressor-state clear apply only to internal (anonymous) VM objects, so on a file-backed mapping it behaves like DONTNEED for page state and does not discard file data.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "MADV_WILLNEED is the opposite immediate action: it reads the range in with a stealth fault (pages are not activated afterward, the fault does not wait on busy pages).",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Errors: a hole in the range returns KERN_INVALID_ADDRESS, which madvise reports as EINVAL; an out-of-range address returns ENOMEM.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Linux semantics do not carry over. On Linux MADV_DONTNEED on a private anonymous range discards the data and the next read sees zeros; on macOS the data is untouched and nothing is discarded.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Because mappings stay in the pmap, resident-set size (RSS) is expected to stay high after DONTNEED and fall only when the scan steals the pages.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "The wired count excludes these pages only if they are not wired; JangPress pages wired through a Metal residency set would be skipped entirely.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "A page touched again before the scan reaches it is simply re-referenced; there is no guarantee a per-token DONTNEED evicts the experts not routed this token.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "DONTNEED does not help on an unlocked mapping when memory is plentiful: it costs a syscall and a page walk for no freed bytes.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Flash-MoE found madvise hints neutral or harmful (recorded in the JangPress dossier). The source reading explains this: on macOS the hint changes queue position, not residency, so with ample memory it cannot help.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Whether JangPress's reported low RSS is explained by memory pressure reclaim, by a different call, or by a counting difference in how RSS treats mapped but inactive pages.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Whether pmap resident counts drop when pages are deactivated but not yet stolen. The source clears reference bits through pmap_clear_refmod and does not remove mappings.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "madvise(MADV_DONTNEED) maps to VM_BEHAVIOR_DONTNEED and MADV_FREE to VM_BEHAVIOR_FREE in the BSD madvise handler.",
+          "source": "https://raw.githubusercontent.com/apple-oss-distributions/xnu/main/bsd/kern/kern_mman.c",
+          "note": null
+        },
+        {
+          "text": "vm_map_behavior_set handles VM_BEHAVIOR_DONTNEED as an immediate action by calling vm_map_msync with VM_SYNC_DEACTIVATE | VM_SYNC_CONTIGUOUS, and VM_BEHAVIOR_FREE with VM_SYNC_KILLPAGES | VM_SYNC_CONTIGUOUS.",
+          "source": "https://raw.githubusercontent.com/apple-oss-distributions/xnu/main/osfmk/vm/vm_map.c",
+          "note": null
+        },
+        {
+          "text": "For DEACTIVATE or KILLPAGES, vm_map_msync calls vm_object_deactivate_pages on the entry's object range instead of syncing to the pager.",
+          "source": "https://raw.githubusercontent.com/apple-oss-distributions/xnu/main/osfmk/vm/vm_map.c",
+          "note": null
+        },
+        {
+          "text": "The vm_object_deactivate_pages header comment says it moves resident pages in the range to the inactive queue and, only if kill_page is set, also clears modified state and forgets changes.",
+          "source": "https://raw.githubusercontent.com/apple-oss-distributions/xnu/main/osfmk/vm/vm_object.c",
+          "note": null
+        },
+        {
+          "text": "deactivate_pages_in_object skips wired, private, gobbled, busy, laundry, cleaning and free-when-done pages, and for the rest clears the reference bit (DW_clear_reference) and queues DW_move_page.",
+          "source": "https://raw.githubusercontent.com/apple-oss-distributions/xnu/main/osfmk/vm/vm_object.c",
+          "note": null
+        },
+        {
+          "text": "The modified-state clear, precious clear and compressor-state clear apply only when the DEACTIVATE_KILL flag is set and the object is internal.",
+          "source": "https://raw.githubusercontent.com/apple-oss-distributions/xnu/main/osfmk/vm/vm_object.c",
+          "note": null
+        },
+        {
+          "text": "vm_map_msync takes the KILLPAGES path with kill_pages = 1 only when the object has a single reference or has no copy and no shadow, and passes kill_pages -1 (no deactivation) for shared copy-on-write cases.",
+          "source": "https://raw.githubusercontent.com/apple-oss-distributions/xnu/main/osfmk/vm/vm_map.c",
+          "note": null
+        },
+        {
+          "text": "For multi-page ranges the deactivation clears reference bits for the whole range with one pmap_clear_refmod_range_options call, and the pmap entries are kept.",
+          "source": "https://raw.githubusercontent.com/apple-oss-distributions/xnu/main/osfmk/vm/vm_object.c",
+          "note": null
+        },
+        {
+          "text": "vm_map_willneed uses a fault_info with stealth set (do not activate pages after faulting) and fi_no_sleep set (do not wait for busy pages).",
+          "source": "https://raw.githubusercontent.com/apple-oss-distributions/xnu/main/osfmk/vm/vm_map.c",
+          "note": null
+        },
+        {
+          "text": "Apple's madvise man page describes MADV_DONTNEED only as \"not expecting to access this address range soon\", MADV_FREE as pages \"may be reused right away\" with the range remaining valid, and says the advice may alter the paging strategy.",
+          "source": "https://developer.apple.com/library/archive/documentation/System/Conceptual/ManPages_iPhoneOS/man2/madvise.2.html",
+          "note": null
+        },
+        {
+          "text": "The BSD madvise handler returns EINVAL for KERN_INVALID_ADDRESS, ENOMEM for KERN_NO_SPACE, EPERM for KERN_PROTECTION_FAILURE and ENOTSUP for KERN_NO_ACCESS.",
+          "source": "https://raw.githubusercontent.com/apple-oss-distributions/xnu/main/bsd/kern/kern_mman.c",
+          "note": null
+        },
+        {
+          "text": "On arm64 madvise fails with EINVAL for MADV_FREE and MADV_FREE_REUSABLE on a range starting at address 0.",
+          "source": "https://raw.githubusercontent.com/apple-oss-distributions/xnu/main/bsd/kern/kern_mman.c",
+          "note": null
+        },
+        {
+          "text": "The macOS mman.h defines MADV_DONTNEED as POSIX_MADV_DONTNEED (4), MADV_FREE as 5, MADV_FREE_REUSABLE as 7, MADV_PAGEOUT as 10 (internal only) and MADV_ZERO as 11.",
+          "source": "https://raw.githubusercontent.com/apple-oss-distributions/xnu/main/bsd/sys/mman.h",
+          "note": null
+        },
+        {
+          "text": "MADV_PAGEOUT returns ENOTSUP unless the kernel is built with MACH_ASSERT, so no user-space call can force page-out.",
+          "source": "https://raw.githubusercontent.com/apple-oss-distributions/xnu/main/bsd/kern/kern_mman.c",
+          "note": null
+        },
+        {
+          "text": "On macOS, MADV_DONTNEED on a file-backed mapping does not discard data, unmap pages, lower pmap residency, or force eviction; it demotes resident pages to the inactive queue with a cleared reference bit.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Resident-set size should not fall at the moment of the call; it falls only when vm_pageout_scan steals the deactivated pages under memory pressure.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "A per-token DONTNEED loop over unrouted experts therefore changes which pages the scan steals first, not how much memory is resident, so its benefit appears only when free memory is already low.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "The reported 0.7-1 GB post-load RSS for JangPress is not explained by DONTNEED alone and needs reclaim pressure or another mechanism.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "To reclaim a file-backed range immediately on macOS there is no unprivileged call found in the source; munmap or closing and remapping the file drops the mapping instead.",
+          "source": "asserted",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Corrections and disagreements",
+      "facts": [
+        {
+          "text": "JangPress documentation, as recorded in moe-expert-ssd-streaming-and-page-cache-residenc.md: DONTNEED lets \"the kernel drop expert pages\", with idle RSS of about 1 GB for a roughly 600 GB virtual size. XNU source: DONTNEED only deactivates. CONTRADICTS: moe-expert-ssd-streaming-and-page-cache-residenc.md line 21 and jangpress-cold-expert-eviction-for-moe-larger-th.md line 33 on mechanism. The two can both hold if the 1 GB RSS comes from reclaim under pressure rather than from DONTNEED itself, which the sources do not settle.",
+          "source": "asserted",
+          "note": null
+        }
+      ]
+    }
+  ],
+  "related": []
+}

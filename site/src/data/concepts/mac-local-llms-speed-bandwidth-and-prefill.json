@@ -1,0 +1,334 @@
+{
+  "slug": "mac-local-llms-speed-bandwidth-and-prefill",
+  "concept": "Mac local LLMs: Speed, bandwidth and prefill",
+  "generated": "2026-10-05",
+  "summary": "Decode is bandwidth-bound, prefill compute-bound: Q4_0/Q8_0/F16 pp512 differ <8% on M1-M5 while tg moves ~3x. Quantize for decode, never for prefill.",
+  "facets": [
+    {
+      "title": "Decode vs prefill rules",
+      "facts": [
+        {
+          "text": "Decode is bandwidth-bound, prefill compute-bound: Q4_0/Q8_0/F16 pp512 differ <8% on M1-M5 while tg moves ~3x. Quantize for decode, never for prefill.",
+          "source": "https://github.com/ggml-org/llama.cpp/discussions/4167",
+          "note": null
+        },
+        {
+          "text": "TTFT = uncached_prompt_tokens / pp_rate + model_load; scale pp by active params (7B 3,300 t/s on M5 Max is ~1,000 t/s for 27B dense).",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Attention is quadratic (20K prompt = 25x a 4K prompt), so pp512 overstates long prompts; a 40K prompt took ~3.5 min to first token.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Context erodes decode: M3 Ultra Qwen 32B Q4 31.2 (1K) -> 19.0 (32K) -> 8.5 tok/s (128K).",
+          "source": "https://github.com/ml-explore/mlx/discussions/3209",
+          "note": null
+        },
+        {
+          "text": "Batching: vllm-mlx M5 Max Qwen3-8B-4bit 87 single vs 215 aggregate at 15 streams (16 each).",
+          "source": "https://github.com/waybarrios/vllm-mlx/discussions/637",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Chip numbers (llama.cpp Llama-2 7B Q4_0 tg128)",
+      "facts": [
+        {
+          "text": "M1 14.19, M1 Pro 36.41, M1 Max 61.19, M1 Ultra 83.73; M3 Ultra 92.14; M4 24.11, Pro 50.74, Max-546 83.06.",
+          "source": "https://github.com/ggml-org/llama.cpp/discussions/4167",
+          "note": null
+        },
+        {
+          "text": "Correction: M5 Max vs M4 Max \"+44%\" is a build artifact (M2 Ultra +33% from builds alone); real gain ~7-10%, bandwidth +12%; cross-build ratios are upper bounds.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Newer build: M5 31.88, M5 Pro 67.59, M5 Max-614 119.92, M5 Ultra 179.10, M6 (170 GB/s) 35.74. Decode efficiency vs bandwidth: 69-84% base/Pro, 58-74% Max, 40-55% Ultra.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Bandwidth per Apple: M5 Pro 307, M5 Max 460 (32-core) / 614 (40-core), M5 Ultra ~1.2 TB/s; M4 Pro 273; M3 Pro 150 (below M2 Pro 200). Ignore contracollective/llmcheck figures. Check the GPU-core bin.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "M5 prefill is the big step: pp512 3.64x M4 Max (3220 vs 886); Apple MLX M5 vs M4 TTFT 3.33-4.06x but generation only 1.19-1.27x. \"Up to 4x\" means prefill.",
+          "source": "asserted",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Neural Accelerator / Metal 4 tensor path",
+      "facts": [
+        {
+          "text": "Verify it is live: llama.cpp init log shows `has tensor = true` with no `error compiling source`; compare pp with GGML_METAL_TENSOR_DISABLE=1. M4 logs `tensor API disabled for pre-M5 and pre-A19 devices`; Metal4 family does not imply accelerators.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "MLX NAX needs macOS 26.2+. Tensor path gives M4 nothing and M2 Ultra ~5% less. PR #20962 (merged 2026-04-25) dense pp +26.4% geomean (F16 8B +80.6%, Q4_0 7B +6.8%) but MoE only 1.00-1.08x.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Ollama 0.20.7 on M5 macOS 26.3.1: `static_assert failed ... __is_same_v<bfloat, half> \"Input types must match cooperative tensor types\"`, `llama runner terminated exit status 2`; OLLAMA_LLM_LIBRARY=cpu does not help (issue #15594 open).",
+          "source": "https://github.com/ollama/ollama/issues/15594",
+          "note": null
+        },
+        {
+          "text": "Other probe failures: `undeclared identifier 'mpp'` (languageVersion, fixed #27461); `At least one of M or N must be a multiple of 16` on macOS 26.4 (fixed #21048, `has tensor` false to true). Correction: March-2026 26.4 reports were the multiple-of-16 bug, not languageVersion.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "LM Studio: runtime `llama.cpp-mac-arm64-apple-metal-advsimd` has no tensor API on M5; `mlx-llm-mac-arm64-apple-metal-nax-advsimd` uses accelerators.",
+          "source": "https://github.com/lmstudio-ai/lmstudio-bug-tracker/issues/2040",
+          "note": null
+        },
+        {
+          "text": "macOS 27 TensorOps adds fp8/fp4/int2 and MX scale planes (E8M0, 32x1): fits MLX mxfp4/mxfp8, not nvfp4 (group 16). Pre-release; no runtime uses them yet.",
+          "source": "asserted",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Prefill avoidance and server settings",
+      "facts": [
+        {
+          "text": "llama-server defaults: -b 2048, -ub 512, --cache-prompt on, --cache-reuse 0, --cache-ram 8192 MiB, --ctx-checkpoints 32. Raising only -b does nothing; -ub 2048 cut one 4K prefill 8 s to 3 s (anecdote). MLX knob: --prefill-step-size 2048.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Cache killers: tool/argument order changing (fix: tojson(sort_keys=True), dictsort in Qwen 3.5 template), timestamps in the system prompt, Qwen 3.5 <think> tags. A stable prefix beats the M4-to-M5 step.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "mlx_lm.server: `[METAL] Command buffer execution failed: Insufficient Memory` (unbounded wired KV, no --max-kv-size). Restart wipes cache (mlx-lm ~5x slower); oMLX SSD cache restored 7.2 s; clear ~/.omlx/cache before cold benchmarks.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Ollama 0.19 (2026-03-30) moved to MLX: Qwen3.5-35B-A3B 58 to 112 tok/s decode; needs 32GB+.",
+          "source": "asserted",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "MoE decode",
+      "facts": [
+        {
+          "text": "Speed follows active params: gpt-oss-120b 79.7 vs 20b 116.1 tok/s on M2 Ultra (1.46x, not 5.2x size). M2 and M3 Ultra both ~116 (8.7 ms/token): latency floor, not bandwidth.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Fit on M3 Ultra: ~1.24 ms/GB active + ~8 ms fixed; Q4 to Q8 costs MoE ~20%, dense 41%. Do not buy Ultra bandwidth for <=A5B MoE; buy RAM. M4 Pro 64GB Qwen3-Next-80B 52.3 beat M3 Ultra 49.1 (dense 70B 5.1 vs 13.1; UltraFusion cause untested).",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Dense can win with self-drafting: Qwen3.8-27B with MTP 43.4 vs 180B/6B MoE 23.0 on M3 Ultra; llama.cpp Metal draft models lost 11-24% on M1 Max. mlx-swift-lm MoE 11.7 vs 85.1 tok/s Python.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Expert streaming: Flash-MoE 397B at 4.4 tok/s on 48GB; 2-bit broke JSON/tool calls, 4-bit held. 16GB Ollama qwen3:30b-a3b 1.7 tok/s.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Quant kernels: Q6_K moves 1.458x Q4_K bytes; dense 8B Q4_K_M is 6.2% slower than Q4_K_S for 4.9% more bytes; MoE extra 2-8% active bytes, unmeasured. Unsloth tg flat ~90.4 across q4_k/q6_k/q8_0. K-quants skip small-batch mat-vec at batch 2-3.",
+          "source": "asserted",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Thermals, power, memory limits",
+      "facts": [
+        {
+          "text": "Energy Modes: Low Power / Automatic / High Power; High Power not on MacBook Air. Check `pmset -g batt`, `pmset -g | grep -i lowpowermode`; watch `sudo powermetrics --samplers smc,gpu_power -i 1000` (macmon: no sudo).",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "\"Low Power halves speed\" is hearsay (same author measured 20-30%, 30 to 21 tok/s; M2 Max 8.02 vs 16); High Power \"15-25% sag\" has no benchmark. Air throttle to 60-70% after 8-12 min is unverified; laptop benchmarks are noisy.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Wired limit: `sudo sysctl iogpu.wired_limit_mb=<MB>` (older `debug.iogpu.wired_limit`); a missing key silently does nothing, 0 restores default, resets on reboot. 32GB Mac exposes ~21-24GB; swapping drops decode to ~2 from 9-10.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Benchmark with short -p: an 8k prefill heat-throttles M4 Max; gpt-oss-20b on a throttled laptop reads low (clean M4 Max rerun 95.88).",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Battery (M1 Pro, Ollama Q4_K_M): 8B ~11%/hr bursty, ~38%/hr hammered; OLLAMA_KEEP_ALIVE=10m. M5 Max drained ~1%/min even on a 60 W adapter.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "iPhone 600 s retention: ANE 67%, LiteRT 48%, MLX 38%; ANE half the watts yet worse J/token on M4 Max (0.48 vs 0.24).",
+          "source": "asserted",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Energy measurement",
+      "facts": [
+        {
+          "text": "Use `elapsed_ns`, not the requested interval (1000 ms request = 1009 ms; 100 ms = 108). powermetrics, zeus and macmon read the same IOReport Energy Model, so they are not independent checks.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "macOS 27 beta powermetrics printed `CPU Power: 0 mW` in 288 of 288 samples; figures are GPU-only there. Mac GPU-only J/token: MLX 0.116, llama.cpp 0.188. Correction: iPhone llama.cpp 0.213 J/token is 4.72 W, not 9.8 W.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Wall-calibrated M3 Ultra: dense 27B 21.5 tok/s, 138 W, $0.554/M tokens vs gpt-oss-120b 74 tok/s, 94 W, $0.109 ($0.31/kWh); ~21 W resident overhead is single-source.",
+          "source": "https://towardsdatascience.com/how-much-does-a-local-llm-actually-cost-to-run-i-measured-every-watt-on-apple-silicon/",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Open questions",
+      "facts": [
+        {
+          "text": "Unmeasured: sustained Air GPU decode curves; Low/Auto/High joules per token; MoE on M5 Pro/Max/Ultra; Q6_K vs Q4_K microbenchmark; -ub sweep with tensor API; M5 Ultra die count; MoE tensor port.",
+          "source": "asserted",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Corrections and disagreements",
+      "facts": [
+        {
+          "text": "iPhone llama.cpp power. The existing dossier holds both about 9.8 W with 0.483 J/token (one campaign) and 0.213 J/token (nominal re-run) without a wattage for the second. The nominal-gated session gives 4.72 W for 0.213 J/token, so CONTRADICTS: sustained-load-thermal-throttling-ane-versus-gpu.md on the 9.8 W figure (at 0.213 J/token and 22.2 tok/s the implied power is 4.7 W, not 9.8 W). Different campaigns and gating; the nominal-gated one is the bench's own correction.",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "\"Two routes\" framing. The existing energy dossier frames IOReport (zeus) and powermetrics as two routes and lists \"do they agree\" as open. This file says both read the same Energy Model group, so the real comparison is between windowing and channel selection, not between sensors. CONTRADICTS (partly): energy-per-token-measurement-on-apple-silicon.md open question 1 premise.",
+          "source": "asserted",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Concepts in this cluster",
+      "facts": [
+        {
+          "text": "Apple silicon memory bandwidth and decode speed by chip",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Prompt processing versus decode on Apple GPUs and Neural Accelerators",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Thermal, power and battery behavior during local inference",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Metal 4 tensor API and M5 Neural Accelerator prefill in llama.cpp",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "MoE active-parameter decode on unified memory",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "UltraFusion die-to-die latency and irregular MoE access",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "llama.cpp MoE tensor-API port",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "macOS 27 TensorOps FP8 FP4 MX scale planes",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Q4_K_M dequantization cost vs MLX affine g64 on dense decode",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Sustained-load thermal throttling ANE versus GPU decode",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Energy per token measurement on Apple Silicon",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "IOReport Energy Model channels versus powermetrics samplers",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Q6_K Metal mat-vec cost inside Q4_K_M files",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Wall-power meter calibration of SoC-rail energy estimates",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Isolated Metal microbenchmark of Q6_K vs Q4_K mat-vec at matched bytes",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Metal prefill cost of Q8_0 shared experts beside Q4_K routed experts",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Q4_K_M vs Q4_K_S decode on MoE (Q6_K ffn_down_exps share)",
+          "source": "asserted",
+          "note": null
+        },
+        {
+          "text": "Resident-model standing power overhead on unified memory (about 21 W)",
+          "source": "asserted",
+          "note": null
+        }
+      ]
+    }
+  ],
+  "related": []
+}
