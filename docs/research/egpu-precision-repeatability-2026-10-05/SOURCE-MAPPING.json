@@ -1,0 +1,89 @@
+{
+  "version": "1.0.1",
+  "observed_at": "2026-10-05T21:19:45.933187+00:00",
+  "sources": [
+    {
+      "path": "/Users/mitch/dev/macuda/llama.cpp/tools/server/server-context.cpp",
+      "sha256": "2f5d65ce6ef0504b5c8cf55a74c68d3959c49784ba380ef836566b7a7d5fa12b"
+    },
+    {
+      "path": "/Users/mitch/dev/macuda/llama.cpp/common/common.cpp",
+      "sha256": "9d0819ee984f36cab9c35eb0fb374c9e73bfd0af0fe6a5b912cdf1ccce7d51a3"
+    },
+    {
+      "path": "/Users/mitch/dev/macuda/llama.cpp/src/llama-context.cpp",
+      "sha256": "6429ebec7c926945987e6fe037317af0f99265490bc14b0606d9487a62a76453"
+    },
+    {
+      "path": "/Users/mitch/dev/macuda/llama.cpp/src/llama-graph.cpp",
+      "sha256": "3b65f7caee0c2f31af180f7cc41e689e650332746b3bcaa9fe584340d601e570"
+    },
+    {
+      "path": "/Users/mitch/dev/macuda/llama.cpp/src/models/qwen35.cpp",
+      "sha256": "ef973e9c789eb52ef27a77e0b1f36c6f41a378733a994d41b5924e3be012f671"
+    },
+    {
+      "path": "/Users/mitch/dev/macuda/llama.cpp/ggml/src/ggml-backend.cpp",
+      "sha256": "a39c4fe81b043c7e8616ebe57afb75d727c692fe3b26c3e9bc2ddde3c6991041"
+    },
+    {
+      "path": "/Users/mitch/dev/macuda/llama.cpp/tools/server/server-common.cpp",
+      "sha256": "de3a89422f67b97eb385041fae17e553dc677aac6b67f2e98e9f0beff672b4e0"
+    }
+  ],
+  "confirmed": [
+    {
+      "claim": "Startup calls common_context_can_seq_rm with a two-zero-token decode even with --no-warmup. Saved pair0 occurs before a completion request.",
+      "anchors": [
+        "server-context.cpp:1240",
+        "common.cpp:1598"
+      ]
+    },
+    {
+      "claim": "Checkpoint-prefill can decode earlier prompt segments whose output flags remain false. Only DONE_PROMPT sets final token output=true and slot.i_batch.",
+      "anchors": [
+        "server-context.cpp:3542",
+        "server-context.cpp:3550",
+        "server-context.cpp:3564",
+        "server-context.cpp:3594",
+        "server-context.cpp:3601"
+      ]
+    },
+    {
+      "claim": "Decoder sets graph n_outputs from ubatch output flags, get_rows selects those rows, then result_norm and LM-head result_output are captured before sampling.",
+      "anchors": [
+        "llama-context.cpp:1824",
+        "qwen35.cpp:211",
+        "qwen35.cpp:215",
+        "qwen35.cpp:222"
+      ]
+    },
+    {
+      "claim": "Eval callback graph partition introduces backend synchronization before each requested tensor read.",
+      "anchors": [
+        "ggml-backend.cpp:1795",
+        "ggml-backend.cpp:1824"
+      ]
+    },
+    {
+      "claim": "Normal emitted presampling probability uses full vocabulary softmax with float cumulative sum; common float64 normalization is a diagnostic comparison and cannot change the original acceptance threshold.",
+      "anchors": [
+        "server-context.cpp:1996",
+        "server-common.cpp:1554",
+        "server-common.cpp:1563"
+      ]
+    }
+  ],
+  "hypothesis": "Confirmed by actual v103 CPU captures: result_norm[5120,0,1,1] and result_output[248320,0,1,1], nbytes0, occur as paired checkpoint-prefill events. Corrected strict handling skips them before captured sampled row0.",
+  "successor_requirements": [
+    "Bound actual failed name/type/shape/strides/nbytes/op metadata",
+    "Skip only paired zero-row output events, with bounded event retention",
+    "Keep nonempty original arm exactly one row for norm5120/output248320",
+    "Bind captured pair to actual output flags and slot.i_batch/outputrow0; never blindly select last arbitrary column",
+    "Keep startup compatibility-probe pair outside request ranges",
+    "Review exact immutable source before next control execution",
+    "Do not admit GPU capture on failed v101 build"
+  ],
+  "delta": "Actual v103 CPU layout receipts confirm the prior zero-output hypothesis.",
+  "actual_receipt": "/Users/mitch/.cache/claude-egpu/experiments/precision-capture-independent-review-20261005/CPU-V103-REVIEW.json"
+}
