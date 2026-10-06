@@ -57,3 +57,29 @@ A transport guard also exposed an assumption before inference. It expected TinyG
 The native process survived this short request. That observation does not establish repeated-session stability, physical peak memory, full Claude Code coding or completed standard research. Those gates remain open. The detailed continuation and actual receipts are published here:
 
 https://github.com/mithudso/llms-explorer/tree/main/docs/research/egpu-f32-trial-2026-10-05
+
+## Raw captures: divergence before the output projection
+
+On October 6, after another confirmed physical cold recovery, we captured the normalized pre-output vector and all 248320 output logits at each sampled position. Two fresh CPU requests on macOS 27.2 produced 86 finite vectors bit-for-bit identical to the historical CPU captures. Both 21-token emitted responses matched exactly. The current OS controls avoid assuming that Apple's historical shared-library cache was unchanged; they do not provide a full cache content hash or loaded-image proof.
+
+One reviewed eGPU startup then succeeded. Its transport and native processes remained the same for two uncached GPU requests. All 21 selected token IDs, strings and bytes matched the CPU reference, including EOS. Both GPU repeats were identical to each other, and their emitted log-probabilities matched the earlier GPU repeats exactly. The numerical gate still failed in both requests.
+
+| First sampled position | Measurement |
+|---|---:|
+| Emitted CPU/GPU selected-token log-probability difference | 0.087565 |
+| Difference after common float64 full-vocabulary normalization | 0.087527 |
+| Maximum normalized pre-output vector difference | 2.728110 |
+| Pre-output vector relative L2 difference | 33.22% |
+| Pre-output vector cosine similarity | 0.945000 |
+| Maximum full-vocabulary raw-logit difference | 3.830020 |
+| Original numerical tolerance | 0.05 |
+
+The probability-processing deltas were approximately 0.00002746 on CPU and 0.00006577 on GPU. They are much smaller than the observed cross-backend gap. The captured state already differs before the final output projection. Probability postprocessing therefore cannot explain the full difference, and the evidence does not justify treating the output head as the sole cause. It does not yet identify the faulty operation upstream.
+
+The GPU server reported 56.53 and 56.78 generated tokens/sec for these short requests. Capture callbacks synchronize and partition the graph, so these are diagnostic timings rather than production coding throughput. Neither the captures nor the surviving process establish repeated-session stability or peak-memory acceptance. No completed full-tool coding session or canonical standard `/dr` is claimed.
+
+This round also corrected a source-admission bug before hardware startup. The earlier receiver applied private-file ownership and nonsymlink rules to Apple SDK aliases and system-owned inputs. Hash enumeration and fixture tests had missed the incompatibility. The separate successor verified the exact source aliases, targets, hashes and ownership while keeping private authorities strict. Independent review exercised all 4509 actual source pins and 49 accept/refuse controls. Those are software checks, separate from the four actual CPU/GPU requests.
+
+The exact source correction, current-OS controls, raw first-token vectors, actual capture receipts, independent reviews and offline evidence verifier are preserved here:
+
+https://github.com/mithudso/llms-explorer/tree/main/docs/research/egpu-cold-capture-2026-10-06
