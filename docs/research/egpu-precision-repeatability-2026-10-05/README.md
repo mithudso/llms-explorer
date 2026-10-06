@@ -1,7 +1,9 @@
 # Repeated precision measurements on the retained RTX candidate
 
-Version: 1.3.0
+Version: 1.4.0
 Date: 2026-10-05
+
+Oct6 correction: this report retains the historical v110 source audit and commands. The actual consuming validator later refused its own system-owned and symlinked source closure before any GPU startup. Eight system-tool hashes also changed. The v110 receiver remains unused and inadmissible; do not execute its historical commands. Follow the new source correction and current-OS control evidence in `/Users/mitch/dev/llms-explorer/docs/research/egpu-cold-capture-2026-10-06/README.md`. The original model, capture binaries and 0.05 limit are preserved.
 
 Two CPU requests matched each other exactly at all 21 emitted selected-token logprobs. Two CUDA requests also matched each other exactly. Both CPU/CUDA comparisons reproduced the maximum absolute error 0.08756500482559204 at output index 0. The unchanged limit is 0.05, so numerical qualification remains failed. All 21 token IDs, strings, bytes and final JSON matched.
 
