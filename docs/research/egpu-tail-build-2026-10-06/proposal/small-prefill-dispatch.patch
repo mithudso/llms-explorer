@@ -1,0 +1,20 @@
+--- /Users/mitch/dev/macuda/llama.cpp/ggml/src/ggml-cuda/mmvq.cu
++++ /Users/mitch/.cache/claude-egpu/experiments/qwen36-27b-iq2-aggregate-scratch-host-proposal-v116/mmvq.cu.proposed
+@@ -316,6 +316,17 @@
+ }
+ 
+ bool ggml_cuda_should_use_mmvq(enum ggml_type type, int cc, int64_t ne11) {
++#ifdef LLMSX_QWEN36_SMALL_PREFILL_F32_DIAGNOSTIC
++    // The admitted prompt splits into 60 + 4 tokens for recurrent checkpointing.
++    // The existing v102 MMQ diagnostic already refuses these same three types.
++    // Refuse MMVQ for only the small multi-column tail, so the dispatcher falls
++    // through that MMQ predicate to the original explicit-F32 cuBLAS route.
++    // One-column decode and the Q5_K output projection keep their old routes.
++    if (ne11 > 1 && ne11 <= MMVQ_MAX_BATCH_SIZE &&
++            (type == GGML_TYPE_Q2_K || type == GGML_TYPE_Q4_K || type == GGML_TYPE_IQ2_XXS)) {
++        return false;
++    }
++#endif
+     if (!ggml_is_quantized(type)) {
+         return false;
+     }

@@ -105,3 +105,18 @@ A corrected control explicitly selected CPU_REPACK’s eight-row Q5_K implementa
 For the first selected token, the saved CPU logit was 23.959152221679688. Applying the same explicit CPU projection to the GPU hidden vector produced 22.746320724487305. The saved CUDA logit was 22.767013549804688. The recorded difference therefore decomposes exactly into −1.2128314971923828 from changed hidden input and +0.020692825317382812 from the remaining projection difference. The other two selected rows show the same larger absolute hidden-input contribution.
 
 That result directs the next experiment toward hidden-state and prefill computation. It does not identify a unique historical CPU operator or establish the full-vocabulary 0.05 numerical gate. The original GPU comparison remains failed, and no new GPU request ran during these controls. The next proposed build also needs an aggregate scratch bound across stream pools and must retain both embedded device binaries.
+
+
+## The checkpoint-tail correction now compiles
+
+The recorded prompt divides into 60 tokens followed by a four-token checkpoint tail. CUDA dispatch sends small quantized matrix multiplies through MMVQ before considering cuBLAS. Setting cuBLAS to F32 therefore did not prove that the tail used F32 computation. We built a separate diagnostic that bypasses MMVQ for 2–8-column multiplies of Q2_K, Q4_K and IQ2_XXS weights. It retains one-column decode and the Q5_K output projection.
+
+We also replaced the per-pool scratch limit with one process-wide atomic ledger. It counts cached and checked-out legacy scratch, plus a prepaid 256 MiB of cuBLAS capacity per context, against the unchanged 2 GiB workspace ceiling. The exact header passed 27 compiled CPU accounting and concurrency controls. That establishes the tested accounting behavior; actual CUDA allocation lifecycle and total physical peak remain unmeasured.
+
+The first host build failed because its sandbox allowed an earlier output directory. We preserved the failure, corrected the path in a fresh arm, and exercised actual allowed and forbidden writes. The subsequent materialization, two host-only compiles, archive replacement and link all succeeded without retry. The archive retained both original embedded device binaries and 186 untouched members. These are build results, not a new model benchmark.
+
+The new executable has not been started on the eGPU. Its next physical experiment must meet the original 0.05 numerical limit across every sampled position, including EOS. Full coding tools, repeated-session stability, memory placement and a completed canonical standard `/dr` remain separate requirements. The earlier 0.087565 numerical failure still stands.
+
+The exact sources, CPU accounting controls, failed and successful host receipts, independent reviews and offline verifier are preserved here:
+
+https://github.com/mithudso/llms-explorer/tree/main/docs/research/egpu-tail-build-2026-10-06

@@ -1,0 +1,1 @@
+Root authorizes exactly one isolated CPU-only compile of frozen v114 actual atomic header control,60s timeout/no retry. Preserve all compiler/source/tool/depfile/import/binary identities. Execution/native materializer/native or GPUbuild/action remain unauthorized.
