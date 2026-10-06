@@ -1,0 +1,178 @@
+{
+  "agent": "/root/cold_capture_review",
+  "definition_version": "1.0.0",
+  "status": "complete",
+  "observed_at": "2026-10-06T13:01:01.127054+00:00",
+  "task": "TASK-620",
+  "source_feasible_same_binary_capture_disabled": true,
+  "same_live_owner_can_disable_capture_via_existing_HTTP": false,
+  "max_pairs": 64,
+  "limit_behavior": "GGML_ABORT count or pair order violated; ggml_abort always calls abort(). It does not skip capture or clear the callback. ask remains true for both output tensors at the limit.",
+  "capture_disable_boundary": "LLMSX_PRECISION_CAPTURE_DIR must be absent at context initialization. Default params cb_eval is nullptr; capture initialization then returns nullptr, so diagnostic callback is not installed. Empty string is present and fails canonical directory validation. Existing captured context retains callback/state.",
+  "normal_selected_token_EOS_gate_source_feasible": true,
+  "normal_gate_scope": "Ordinary pre-sampling n_probs path reads context probabilities independently of capture. Selected token is populated before process_token/EOS; non-word-stop final response retains complete generated_token_probs. Preserve same original2uncached requests/exactCPU/.05/all21 including EOS; no actual pass is inferred.",
+  "evidence": [
+    {
+      "source": "/Users/mitch/.cache/claude-egpu/experiments/qwen36-27b-iq2-precision-capture-v103/precision_capture.hpp",
+      "sha256": "05f40e212d8a95ded6b92808368902e877160ec3eee3539ab29e9a06a92cfb76",
+      "observed_at": "2026-10-06T13:01:01.127054+00:00",
+      "supported_claim": "Exact pinned capture setup/count/abort/HTTP or normal native probability path as specified in passages",
+      "passages": [
+        {
+          "start_line": 24,
+          "end_line": 25,
+          "text": "24:     bool empty_norm_pending = false;\n25:     std::vector<float> last_logits;"
+        },
+        {
+          "start_line": 47,
+          "end_line": 52,
+          "text": "47: static bool llmsx_precision_capture(ggml_tensor * tensor, bool ask, void * data) {\n48:     auto * state = static_cast<llmsx_precision_state *>(data);\n49:     const bool norm = strcmp(tensor->name, \"result_norm\") == 0;\n50:     const bool output = strcmp(tensor->name, \"result_output\") == 0;\n51:     if (ask) return norm || output;\n52:     if (!norm && !output) return true;"
+        },
+        {
+          "start_line": 81,
+          "end_line": 85,
+          "text": "81:     unsigned & count = norm ? state->norm_count : state->output_count;\n82:     if (count >= state->max_pairs ||\n83:         (norm && state->norm_count != state->output_count) ||\n84:         (output && state->norm_count != state->output_count + 1)) {\n85:         GGML_ABORT(\"precision capture count or pair order violated\");"
+        },
+        {
+          "start_line": 109,
+          "end_line": 111,
+          "text": "109: static llmsx_precision_state * llmsx_precision_init() {\n110:     const char * path = getenv(\"LLMSX_PRECISION_CAPTURE_DIR\");\n111:     if (!path) return nullptr;"
+        },
+        {
+          "start_line": 122,
+          "end_line": 128,
+          "text": "122:     llmsx_precision_active = &state;\n123:     return &state;\n124: }\n125: \n126: static void llmsx_precision_validate_sample(llama_context * ctx, int token_index) {\n127:     auto * state = llmsx_precision_active;\n128:     if (!state) return;"
+        }
+      ]
+    },
+    {
+      "source": "/Users/mitch/.cache/claude-egpu/experiments/qwen36-27b-iq2-precision-capture-v103/server-context.cpp",
+      "sha256": "8a555092575e47c4a5b440bc743714986d130f3b075bd2839ae96ce928f6e106",
+      "observed_at": "2026-10-06T13:01:01.127054+00:00",
+      "supported_claim": "Exact pinned capture setup/count/abort/HTTP or normal native probability path as specified in passages",
+      "passages": [
+        {
+          "start_line": 1100,
+          "end_line": 1106,
+          "text": "1100:         if (auto * capture = llmsx_precision_init()) {\n1101:             if (params_base.cb_eval != nullptr) GGML_ABORT(\"precision capture existing callback refused\");\n1102:             params_base.cb_eval = llmsx_precision_capture;\n1103:             params_base.cb_eval_user_data = capture;\n1104:         }\n1105: \n1106:         llama_init = common_init_from_params(params_base);"
+        },
+        {
+          "start_line": 1797,
+          "end_line": 1803,
+          "text": "1797:             const bool need_pre_sample_logits = task.params.sampling.n_probs > 0 && !task.params.post_sampling_probs;\n1798: \n1799:             bool use_backend_sampling = task.params.sampling.backend_sampling;\n1800: \n1801:             // TODO: getting pre sampling logits is not yet supported with backend sampling\n1802:             use_backend_sampling &= !need_pre_sample_logits;\n1803: "
+        },
+        {
+          "start_line": 1882,
+          "end_line": 1885,
+          "text": "1882:             slot.add_token(result);\n1883:             if (slot.task->params.stream) {\n1884:                 send_partial_response(slot, result, false);\n1885:             }"
+        },
+        {
+          "start_line": 1959,
+          "end_line": 1964,
+          "text": "1959:         if (llama_vocab_is_eog(vocab, result.tok)) {\n1960:             slot.stop           = STOP_TYPE_EOS;\n1961:             slot.has_next_token = false;\n1962: \n1963:             SLT_DBG(slot, \"%s\", \"stopped by EOS\\n\");\n1964:         }"
+        },
+        {
+          "start_line": 1971,
+          "end_line": 2025,
+          "text": "1971:     void populate_token_probs(const server_slot & slot, completion_token_output & result, bool post_sampling, bool special, int idx) const {\n1972:         const size_t n_probs_request = slot.task->params.sampling.n_probs;\n1973: \n1974:         if (post_sampling) {\n1975:             const auto * cur_p = common_sampler_get_candidates(slot.smpl.get(), true);\n1976:             const size_t max_probs = cur_p->size;\n1977:             const size_t n_probs = std::min(max_probs, n_probs_request);\n1978: \n1979:             // set probability for sampled token\n1980:             for (size_t i = 0; i < max_probs; i++) {\n1981:                 if (cur_p->data[i].id == result.tok) {\n1982:                     result.prob = cur_p->data[i].p;\n1983:                     break;\n1984:                 }\n1985:             }\n1986: \n1987:             // set probability for top n_probs tokens\n1988:             result.probs.reserve(n_probs);\n1989:             for (size_t i = 0; i < n_probs; i++) {\n1990:                 // Some samplers do return 0.0 probabilities, others don't.\n1991:                 // Filter 0.0 probailities, to ensure the behavior is consistent.\n1992:                 if (cur_p->data[i].p == 0.0) {\n1993:                     break;\n1994:                 }\n1995: \n1996:                 result.probs.push_back({\n1997:                     cur_p->data[i].id,\n1998:                     common_token_to_piece(ctx_tgt, cur_p->data[i].id, special),\n1999:                     cur_p->data[i].p\n2000:                 });\n2001:             }\n2002:         } else {\n2003:             std::vector<llama_token_data> cur = get_token_probabilities(ctx_tgt, idx, n_probs_request);\n2004:             const size_t max_probs = cur.size();\n2005:             const size_t n_probs = std::min(max_probs, n_probs_request);\n2006: \n2007:             // set probability for sampled token\n2008:             for (size_t i = 0; i < max_probs; i++) {\n2009:                 // set probability for sampled token\n2010:                 if (cur[i].id == result.tok) {\n2011:                     result.prob = cur[i].p;\n2012:                     break;\n2013:                 }\n2014:             }\n2015: \n2016:             // set probability for top n_probs tokens\n2017:             result.probs.reserve(n_probs);\n2018:             for (size_t i = 0; i < n_probs; i++) {\n2019:                 result.probs.push_back({\n2020:                     cur[i].id,\n2021:                     common_token_to_piece(ctx_tgt, cur[i].id, special),\n2022:                     cur[i].p\n2023:                 });\n2024:             }\n2025:         }"
+        },
+        {
+          "start_line": 2139,
+          "end_line": 2151,
+          "text": "2139:         if (slot.task->params.sampling.n_probs > 0) {\n2140:             if (!slot.task->params.stream && slot.stop == STOP_TYPE_WORD) {\n2141:                 const llama_tokens stop_word_toks = common_tokenize(ctx_tgt, slot.stopping_word, false);\n2142: \n2143:                 size_t safe_offset = std::min(slot.generated_token_probs.size(), stop_word_toks.size());\n2144:                 res->probs_output = std::vector<completion_token_output>(\n2145:                         slot.generated_token_probs.begin(),\n2146:                         slot.generated_token_probs.end() - safe_offset);\n2147:             } else {\n2148:                 res->probs_output = std::vector<completion_token_output>(\n2149:                         slot.generated_token_probs.begin(),\n2150:                         slot.generated_token_probs.end());\n2151:             }"
+        },
+        {
+          "start_line": 3861,
+          "end_line": 3865,
+          "text": "3861:             {\n3862:                 scoped_timer timer(t_sampl, n_sampl);\n3863:                 llmsx_precision_validate_sample(slot.ctx_tgt, tok_idx);\n3864:                 id = common_sampler_sample(slot.smpl.get(), slot.ctx_tgt, tok_idx);\n3865:             }"
+        },
+        {
+          "start_line": 3883,
+          "end_line": 3896,
+          "text": "3883: \n3884:             completion_token_output result;\n3885:             result.tok          = id;\n3886:             result.text_to_send = common_token_to_piece(slot.ctx_tgt, result.tok, accept_special_token(slot, result.tok));\n3887:             result.prob         = 1.0f; // TODO: set it here instead of doing inside populate_token_probs\n3888: \n3889:             if (slot.task->params.sampling.n_probs > 0) {\n3890:                 populate_token_probs(slot, result, slot.task->params.post_sampling_probs, params_base.special, tok_idx);\n3891:             }\n3892: \n3893:             if (!process_token(result, slot)) {\n3894:                 // release slot because of stop condition\n3895:                 slot.print_timings();\n3896:                 send_final_response(slot);"
+        },
+        {
+          "start_line": 4824,
+          "end_line": 4834,
+          "text": "4824:     this->post_props = [this](const server_http_req &) {\n4825:         auto res = create_response();\n4826:         if (!params.endpoint_props) {\n4827:             res->error(format_error_response(\"This server does not support changing global properties. Start it with `--props`\", ERROR_TYPE_NOT_SUPPORTED));\n4828:             return res;\n4829:         }\n4830:         // update any props here\n4831: \n4832:         res->ok({{ \"success\", true }});\n4833:         return res;\n4834:     };"
+        }
+      ]
+    },
+    {
+      "source": "/Users/mitch/dev/macuda/llama.cpp/common/common.h",
+      "sha256": "7cfcc6a57122702ea35d04ed20861aef162bd94f55cfbbf9fd23ee3127fe6cb4",
+      "observed_at": "2026-10-06T13:01:01.127054+00:00",
+      "supported_claim": "Exact pinned capture setup/count/abort/HTTP or normal native probability path as specified in passages",
+      "passages": [
+        {
+          "start_line": 491,
+          "end_line": 492,
+          "text": "491:     ggml_backend_sched_eval_callback cb_eval = nullptr;\n492:     void * cb_eval_user_data                 = nullptr;"
+        }
+      ]
+    },
+    {
+      "source": "/Users/mitch/dev/macuda/llama.cpp/ggml/src/ggml.c",
+      "sha256": "9d0d2ccf43f7f920594e5d48053efc398f644d75783bc09ebfcf46d8ccc91f67",
+      "observed_at": "2026-10-06T13:01:01.127054+00:00",
+      "supported_claim": "Exact pinned capture setup/count/abort/HTTP or normal native probability path as specified in passages",
+      "passages": [
+        {
+          "start_line": 253,
+          "end_line": 272,
+          "text": "253: void ggml_abort(const char * file, int line, const char * fmt, ...) {\n254:     fflush(stdout);\n255: \n256:     char message[2048];\n257:     int offset = snprintf(message, sizeof(message), \"%s:%d: \", file, line);\n258: \n259:     va_list args;\n260:     va_start(args, fmt);\n261:     vsnprintf(message + offset, sizeof(message) - offset, fmt, args);\n262:     va_end(args);\n263: \n264:     if (g_abort_callback) {\n265:         g_abort_callback(message);\n266:     } else {\n267:         // default: print error and backtrace to stderr\n268:         fprintf(stderr, \"%s\\n\", message);\n269:         ggml_print_backtrace();\n270:     }\n271: \n272:     abort();"
+        }
+      ]
+    },
+    {
+      "source": "/Users/mitch/.cache/claude-egpu/experiments/qwen36-27b-preload-guard-build-v100/server.cpp",
+      "sha256": "2d2e8bcca8372bf8c9ac277b612c2cde9959f0feb16a62afcfd6dacad4531641",
+      "observed_at": "2026-10-06T13:01:01.127054+00:00",
+      "supported_claim": "Exact pinned capture setup/count/abort/HTTP or normal native probability path as specified in passages",
+      "passages": [
+        {
+          "start_line": 286,
+          "end_line": 287,
+          "text": "286:     ctx_http.get (\"/props\",                    ex_wrapper(routes.get_props));\n287:     ctx_http.post(\"/props\",                    ex_wrapper(routes.post_props));"
+        }
+      ]
+    }
+  ],
+  "changes": [
+    "Designated private source feasibility receipt only"
+  ],
+  "remaining": [
+    "Parent chooses capture-disabled fresh startup and unchanged emitted-logprob gate versus separate diagnostic arm",
+    "New downstream freeze/source review remains pending",
+    "All actual candidate production quality/numerics/throughput/physical/coding/DR evidence remains absent"
+  ],
+  "details": {
+    "surface": "Exact compiled-context capture source and ordinary native probability path",
+    "acceptance_condition": "Determine callback disable/exhaustion/HTTP behavior without native or HTTP action",
+    "source_revision": "c1fb382b5557f3dabdb76241f9ee2f9167e87eac208878f23116a34cbf6d19d9",
+    "loaded_revision": null,
+    "process_or_origin": "Pinned server-context archive reused in candidate; candidate never invoked",
+    "configuration_identity": "Capture env absent at initialization versus present diagnostic env",
+    "observations": [
+      "Same binary can initialize without diagnostic callback; no rebuild necessary",
+      "No existing pinned capture HTTP disable control; post_props handler performs no property update",
+      "Capture max64 will abort long campaigns, not degrade into capture-free mode",
+      "Ordinary native logprobs do not require capture callback"
+    ],
+    "mismatches": [],
+    "unverified_checks": [
+      "Actual capture-disabled startup and numerical gate unmeasured",
+      "Scheduler source was inspected as a current source reference but not used as a historically pinned compiled-code proof",
+      "Source feasibility does not authorize restart or alter frozenv124"
+    ]
+  },
+  "reviewer_actions": {
+    "native_invocations": 0,
+    "HTTP_calls": 0,
+    "GPU_actions": 0,
+    "model_requests": 0,
+    "resets": 0,
+    "rebuilds": 0
+  },
+  "full_qualification": false
+}
