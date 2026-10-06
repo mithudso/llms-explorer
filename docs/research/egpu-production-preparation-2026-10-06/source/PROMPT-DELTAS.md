@@ -1,0 +1,13 @@
+# TASK-620 source-only continuation instructions
+
+Definition 1.0.0. Root owns final authorities and publication; author owns only fresh private v125 sources. Preserve every frozen v124 byte, current retained native owner and unrelated edits. No operational native/GPU/model/HTTP calls, lifecycle/reset, campaign clock/claims/tree writes, downloads, cleanup or paused-service changes.
+
+Root selected production-mode numerical admission followed by same-owner coding/DR. Reuse v124 accepted starter/renderer/guard/outside-preflight mechanisms. New paths and absent LLMSX_PRECISION_CAPTURE_DIR are the only startup mode delta; an empty value is forbidden. Exact unchanged c1fb candidate/model/ctx32768/f16/batch256/ubatch256/slot1/reserves/noMTP/no-warmup. Reuse original unchanged two cache-off64-token native selected-probability CPUv111/all21inclEOS/.05 gate. No prior capture-mode numerical credit. No rebuild. Actual callback absence remains source-derived from exact startup environment and pinned binary, not absence of files or direct pointer telemetry.
+
+Preserve original full23 coding schemas/all21 original verifier gates/two fresh sessions and original six research tools. Standard topic is HTTP cache validators and conditional revalidation, five original concepts, three independent originating organizations each, literal quotes and real read/source bindings and negation. Original150minute trial budget. Fresh campaign starts only after actual root activation; never reset an old campaign.
+
+Canonical order: render/install/card -> injection scan -> blind10/refetch15 -> full standalone current SKO2.23.0 --no-sync -> canonical finish -> site sync dry-run/apply/regen on own branch -> registry/route. SKO requires all15 passes A-O, convergence, functional evals, fresh-context blind re-audit and full report/outcomes. --meta or abbreviated adapter verdict is never full SKO. Use existing coordinator plus complete prompt and strict independent receipt binding; do not create another workflow engine.
+
+Embedding/indexing remain explicitly paused. Registry build/route call embeddings; no invented alternate or restart. REGISTRY-UNAVAILABLE prevents completed qualification. Current installed measured trigger harness invokes a bare literal claude prefix the strict client does not admit; preserve unavailable/fallback/refusal accurately, not measured success.
+
+Finish only source-only controls and exact source/command/dependency freeze; reviewer audits immutable inputs. Root creates final root seals after review and owns physical confirmation/execution. Current boot is consumed1791277640:498901; no user recovery has admitted a new boot.
