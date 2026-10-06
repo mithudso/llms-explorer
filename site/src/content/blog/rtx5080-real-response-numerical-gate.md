@@ -96,3 +96,12 @@ Source inspection ruled out a guessed two-column Q5_K dot path. The CPU has a se
 The source, build, refusal and independent review receipts are preserved here:
 
 https://github.com/mithudso/llms-explorer/tree/main/docs/research/egpu-selected-projection-2026-10-06
+
+
+## Matching the CPU projection exactly
+
+A corrected control explicitly selected CPU_REPACK’s eight-row Q5_K implementation and checked the actual NEON/i8mm features and buffer type. It compiled once, then executed six tiny CPU graph projections in 0.130 seconds. All three saved CPU raw logits reproduced bitwise. The actual workspace was 6,352 bytes. Independent review also decoded the Q5_K rows separately and reproduced all six mathematical controls. These are projection-control timings, not full-model inference speeds.
+
+For the first selected token, the saved CPU logit was 23.959152221679688. Applying the same explicit CPU projection to the GPU hidden vector produced 22.746320724487305. The saved CUDA logit was 22.767013549804688. The recorded difference therefore decomposes exactly into −1.2128314971923828 from changed hidden input and +0.020692825317382812 from the remaining projection difference. The other two selected rows show the same larger absolute hidden-input contribution.
+
+That result directs the next experiment toward hidden-state and prefill computation. It does not identify a unique historical CPU operator or establish the full-vocabulary 0.05 numerical gate. The original GPU comparison remains failed, and no new GPU request ran during these controls. The next proposed build also needs an aggregate scratch bound across stream pools and must retain both embedded device binaries.
