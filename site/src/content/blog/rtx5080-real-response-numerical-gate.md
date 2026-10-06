@@ -83,3 +83,25 @@ This round also corrected a source-admission bug before hardware startup. The ea
 The exact source correction, current-OS controls, raw first-token vectors, actual capture receipts, independent reviews and offline evidence verifier are preserved here:
 
 https://github.com/mithudso/llms-explorer/tree/main/docs/research/egpu-cold-capture-2026-10-06
+
+
+## A projection control that refused to validate
+
+A small CPU-only follow-up read three output-weight rows and the saved CPU/GPU normalized hidden vectors. The helper compiled successfully and ran once in 0.122 seconds, using about 77 KB of data buffers. It made no GPU requests.
+
+Its first responsibility was to reproduce three recorded CPU raw logits bitwise. It failed: token 4754 differed by +3 F32 units in the last place, token 90 by −1 and token 71093 by +2. The helper exited 2 and refused residual interpretation. Those differences do not change the model’s 0.05 logprob limit or the observed 0.0875 GPU failure. They show that an exact operator reconstruction needs more care before it can support attribution.
+
+Source inspection ruled out a guessed two-column Q5_K dot path. The CPU has a separate repacked eight-row Q5_K route whose actual use must be bound before another projection control. Meanwhile, the proposed GPU tail-routing correction remains source-only. Its memory cap covers one scratch pool; aggregate scratch and physical peak still need their original checks. The next build must also retain the device binary embedded in the MMVQ object.
+
+The source, build, refusal and independent review receipts are preserved here:
+
+https://github.com/mithudso/llms-explorer/tree/main/docs/research/egpu-selected-projection-2026-10-06
+
+
+## Matching the CPU projection exactly
+
+A corrected control explicitly selected CPU_REPACK’s eight-row Q5_K implementation and checked the actual NEON/i8mm features and buffer type. It compiled once, then executed six tiny CPU graph projections in 0.130 seconds. All three saved CPU raw logits reproduced bitwise. The actual workspace was 6,352 bytes. Independent review also decoded the Q5_K rows separately and reproduced all six mathematical controls. These are projection-control timings, not full-model inference speeds.
+
+For the first selected token, the saved CPU logit was 23.959152221679688. Applying the same explicit CPU projection to the GPU hidden vector produced 22.746320724487305. The saved CUDA logit was 22.767013549804688. The recorded difference therefore decomposes exactly into −1.2128314971923828 from changed hidden input and +0.020692825317382812 from the remaining projection difference. The other two selected rows show the same larger absolute hidden-input contribution.
+
+That result directs the next experiment toward hidden-state and prefill computation. It does not identify a unique historical CPU operator or establish the full-vocabulary 0.05 numerical gate. The original GPU comparison remains failed, and no new GPU request ran during these controls. The next proposed build also needs an aggregate scratch bound across stream pools and must retain both embedded device binaries.

@@ -1,0 +1,34 @@
+--- /Users/mitch/dev/macuda/llama.cpp/ggml/src/ggml-cuda/ggml-cuda.cu
++++ /Users/mitch/.cache/claude-egpu/experiments/qwen36-27b-iq2-small-prefill-f32-proposal-v112/ggml-cuda.cu.proposed
+@@ -490,9 +490,23 @@
+         void * ptr;
+         size_t look_ahead_size = (size_t) (1.05 * size);
+         look_ahead_size = 256 * ((look_ahead_size + 255)/256);
++#ifdef LLMSX_QWEN36_SMALL_PREFILL_F32_DIAGNOSTIC
++        // Count checked-out and cached allocations in this legacy scratch pool.
++        // Refuse before allocating; do not evict, retry or change the allowance.
++        constexpr size_t llmsx_workspace_limit = 2147483648ull;
++        if (pool_size > llmsx_workspace_limit || look_ahead_size > llmsx_workspace_limit - pool_size) {
++            GGML_ABORT("LLMSX workspace limit refused: resident=%zu requested=%zu limit=%zu",
++                       pool_size, look_ahead_size, llmsx_workspace_limit);
++        }
++#endif
+         ggml_cuda_set_device(device);
+         cudaError_t err = ggml_cuda_device_malloc(&ptr, look_ahead_size, device);
+         if (err == cudaErrorMemoryAllocation) {
++#ifdef LLMSX_QWEN36_SMALL_PREFILL_F32_DIAGNOSTIC
++            // Fail before synchronization, cache eviction or a second attempt.
++            GGML_ABORT("LLMSX workspace allocation refused: resident=%zu requested=%zu limit=%zu",
++                       pool_size, look_ahead_size, llmsx_workspace_limit);
++#else
+             (void)cudaGetLastError();
+             const size_t cached_bytes = pool_size;
+             GGML_LOG_DEBUG(GGML_CUDA_NAME " pool[%d]: alloc of %.2f MiB failed, flushing %.2f MiB of cached buffers and retrying\n",
+@@ -503,6 +517,7 @@
+             if (err == cudaSuccess) {
+                 GGML_LOG_DEBUG(GGML_CUDA_NAME " pool[%d]: retry succeeded\n", device);
+             }
++#endif
+         }
+         CUDA_CHECK(err);
+         *actual_size = look_ahead_size;
