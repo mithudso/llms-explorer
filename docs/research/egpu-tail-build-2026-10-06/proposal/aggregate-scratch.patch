@@ -1,0 +1,112 @@
+--- /Users/mitch/dev/macuda/llama.cpp/ggml/src/ggml-cuda/ggml-cuda.cu
++++ /Users/mitch/.cache/claude-egpu/experiments/qwen36-27b-iq2-aggregate-scratch-host-proposal-v116/ggml-cuda.cu.proposed
+@@ -92,6 +92,9 @@
+ #include <vector>
+ 
+ static_assert(sizeof(half) == sizeof(ggml_fp16_t), "wrong fp16 size");
++#ifdef LLMSX_QWEN36_AGGREGATE_SCRATCH_DIAGNOSTIC
++#include "llmsx_aggregate_scratch.hpp"
++#endif
+ 
+ #define GGML_LOG_WARN_ONCE(str) \
+     { static std::once_flag warn_flag; std::call_once(warn_flag, []() { GGML_LOG_WARN(str); }); }
+@@ -442,6 +445,10 @@
+             ggml_cuda_buffer & b = buffer_pool[i];
+             if (b.ptr != nullptr) {
+                 CUDA_CHECK(cudaFree(b.ptr));
++#ifdef LLMSX_QWEN36_AGGREGATE_SCRATCH_DIAGNOSTIC
++                // Keep the reservation until the preceding cudaFree succeeds.
++                llmsx_scratch::release(b.size);
++#endif
+                 pool_size -= b.size;
+                 b.ptr  = nullptr;
+                 b.size = 0;
+@@ -450,6 +457,12 @@
+     }
+ 
+     void * alloc(size_t size, size_t * actual_size) override {
++#ifdef LLMSX_QWEN36_AGGREGATE_SCRATCH_DIAGNOSTIC
++        // Bound the float-to-size_t conversion and subsequent 256-byte rounding.
++        if (size == 0 || size > llmsx_scratch::limit) {
++            GGML_ABORT("LLMSX aggregate scratch size refused: requested=%zu", size);
++        }
++#endif
+ #ifdef DEBUG_CUDA_MALLOC
+         int nnz = 0;
+         size_t max_size = 0;
+@@ -489,9 +502,29 @@
+         }
+         void * ptr;
+         size_t look_ahead_size = (size_t) (1.05 * size);
++#ifdef LLMSX_QWEN36_AGGREGATE_SCRATCH_DIAGNOSTIC
++        if (look_ahead_size > SIZE_MAX - 255) {
++            GGML_ABORT("LLMSX aggregate scratch rounding overflow refused");
++        }
++#endif
+         look_ahead_size = 256 * ((look_ahead_size + 255)/256);
++#ifdef LLMSX_QWEN36_AGGREGATE_SCRATCH_DIAGNOSTIC
++        // All pools share this atomic reservation, including cached/checked-out.
++        if (!llmsx_scratch::reserve(look_ahead_size)) {
++            GGML_ABORT("LLMSX aggregate scratch limit refused: reserved=%zu requested=%zu limit=%zu",
++                       llmsx_scratch::reserved.load(), look_ahead_size, llmsx_scratch::limit);
++        }
++#endif
+         ggml_cuda_set_device(device);
+         cudaError_t err = ggml_cuda_device_malloc(&ptr, look_ahead_size, device);
++#ifdef LLMSX_QWEN36_AGGREGATE_SCRATCH_DIAGNOSTIC
++        if (err != cudaSuccess) {
++            // Failed allocation has no owned bytes: release once, then refuse.
++            // Never synchronize, evict cached buffers or make another attempt.
++            llmsx_scratch::release(look_ahead_size);
++            GGML_ABORT("LLMSX aggregate scratch allocation refused: error=%d requested=%zu", (int)err, look_ahead_size);
++        }
++#endif
+         if (err == cudaErrorMemoryAllocation) {
+             (void)cudaGetLastError();
+             const size_t cached_bytes = pool_size;
+@@ -526,6 +559,10 @@
+         GGML_LOG_DEBUG(GGML_CUDA_NAME " buffer pool full, increase MAX_CUDA_BUFFERS\n");
+         ggml_cuda_set_device(device);
+         CUDA_CHECK(cudaFree(ptr));
++#ifdef LLMSX_QWEN36_AGGREGATE_SCRATCH_DIAGNOSTIC
++        // Pool overflow frees an allocation rather than caching it.
++        llmsx_scratch::release(size);
++#endif
+         pool_size -= size;
+     }
+ };
+@@ -718,6 +755,9 @@
+             }
+         }
+     }
++#ifdef LLMSX_QWEN36_AGGREGATE_SCRATCH_DIAGNOSTIC
++    llmsx_scratch::release(llmsx_scratch::cublas_per_context);
++#endif
+ }
+ 
+ 
+@@ -5767,7 +5807,24 @@
+         return nullptr;
+     }
+ 
++#ifdef LLMSX_QWEN36_AGGREGATE_SCRATCH_DIAGNOSTIC
++    // Exactly one physical/virtual device is the existing experimental contract.
++    // Each admitted context accounts all8 possible32MiB cuBLAS workspaces.
++    if (device != 0 || ggml_backend_cuda_get_device_count() != 1 ||
++            !llmsx_scratch::reserve(llmsx_scratch::cublas_per_context)) {
++        GGML_ABORT("LLMSX aggregate context/cuBLAS reservation refused");
++    }
++    ggml_backend_cuda_context * ctx = nullptr;
++    try {
++        ctx = new (std::nothrow) ggml_backend_cuda_context(device);
++    } catch (...) {
++        llmsx_scratch::release(llmsx_scratch::cublas_per_context);
++        GGML_ABORT("LLMSX aggregate context construction refused");
++    }
++    if (ctx == nullptr) { llmsx_scratch::release(llmsx_scratch::cublas_per_context); }
++#else
+     ggml_backend_cuda_context * ctx = new ggml_backend_cuda_context(device);
++#endif
+     if (ctx == nullptr) {
+         GGML_LOG_ERROR("%s: failed to allocate context\n", __func__);
+         return nullptr;

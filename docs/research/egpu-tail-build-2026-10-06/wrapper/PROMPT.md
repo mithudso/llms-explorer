@@ -1,0 +1,1 @@
+Prepare the exact v117 host-only build wrapper for root and independent review. Consume accepted validators from held bytes. Preserve current live owner. No materialization/compile/archive/link/GPU action is authorized by preparation. Separate exact root authority is required.
