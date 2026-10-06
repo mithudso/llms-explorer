@@ -48,11 +48,30 @@ def main():
     assert request["production_mode_numerical_acceptance"] is False
     assert request["model_requests"] == 0 and request["GPU_initializations"] == 0
     assert request["full_qualification"] is False
+    downstream = json.loads(
+        (root / "source" / "INDEPENDENT-DOWNSTREAM-REVIEW.json").read_text()
+    )
+    downstream_review = json.loads(
+        (root / "evidence" / "TASK620-DOWNSTREAM-FINAL-SEAL-REVIEW.json").read_text()
+    )
+    assert downstream["passed"] is True and downstream["seal_pending"] is False
+    assert downstream["actual_session_identity"] is None
+    assert downstream["actual_numerical_acceptance"] is False
+    assert downstream["coding_verified"] is False and downstream["standard_research_verified"] is False
+    assert downstream["full_qualification"] is False
+    assert downstream["registry_status"] == "REGISTRY-UNAVAILABLE"
+    assert len(downstream["runtime_alias_bindings"]) == 10
+    assert downstream_review["final_source_authority_readback_passed"] is True
+    assert downstream_review["actual_pure_source_review_prefix_passed"] is True
+    assert downstream_review["actual_session_identity"] is None
+    assert all(value == 0 for value in downstream_review["reviewer_actions"].values())
+    assert downstream_review["full_qualification"] is False
     print(json.dumps({
         "saved_evidence_integrity": True,
         "snapshot_count": len(mapping["files"]),
         "capture_disabled_mode_source_feasible": True,
         "production_source_and_final_authority_admission": True,
+        "scoped_downstream_source_and_final_authority_admission": True,
         "new_physical_numerical_pass_proven": False,
         "full_qualification": False,
     }, indent=2))

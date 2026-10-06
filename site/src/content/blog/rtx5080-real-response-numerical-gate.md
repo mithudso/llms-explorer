@@ -130,6 +130,8 @@ The same compiled executable can start without tracing when the capture environm
 
 The downstream audit also found that the preserved coding and research receivers still bind an older model and physical session. We are adapting their reusable components to the current candidate and adding the research finishing phases: the blind claim gate, full current skill optimization, canonical installation and finalization, and both concept trees. These are source changes. No new numerical pass, coding result, research completion or production speed measurement is claimed.
 
+The downstream source review covered 65 frozen files, 61 actual source consumers and 10 current runtime aliases. Its 22 focused checks made no model calls. Admission covers the prepared research orchestrator with a fixed local environment and arguments. The standalone research entrypoint retains generic fallback paths and has no unattended-launcher acceptance. Before later quality sessions, the parent must recheck every runtime alias and retain raw GPU witness observations around each phase.
+
 The source-feasibility evidence and continuation checkpoint are preserved here:
 
 https://github.com/mithudso/llms-explorer/tree/main/docs/research/egpu-production-preparation-2026-10-06
