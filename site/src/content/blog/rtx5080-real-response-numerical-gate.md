@@ -120,3 +120,16 @@ The new executable has not been started on the eGPU. Its next physical experimen
 The exact sources, CPU accounting controls, failed and successful host receipts, independent reviews and offline verifier are preserved here:
 
 https://github.com/mithudso/llms-explorer/tree/main/docs/research/egpu-tail-build-2026-10-06
+
+
+## Preparing the server for longer sessions
+
+The tracing build has a further constraint: its capture callback is fixed at startup and aborts after 64 captured pairs or samples. Our two diagnostic numerical requests consume 42 samples. Continuing into a long coding or research session with that callback enabled would hit the bound. Source inspection also found no HTTP control to disable it on the running server.
+
+The same compiled executable can start without tracing when the capture environment variable is absent. No rebuild is needed. Its normal probability path still records selected-token probabilities through EOS, independently of the capture callback. That lets us prepare a production-mode sequence: the same two uncached 64-token requests, all 21 comparison positions and the unchanged 0.05 tolerance, followed by coding and research on the same admitted owner if the numerical gate passes.
+
+The downstream audit also found that the preserved coding and research receivers still bind an older model and physical session. We are adapting their reusable components to the current candidate and adding the research finishing phases: the blind claim gate, full current skill optimization, canonical installation and finalization, and both concept trees. These are source changes. No new numerical pass, coding result, research completion or production speed measurement is claimed.
+
+The source-feasibility evidence and continuation checkpoint are preserved here:
+
+https://github.com/mithudso/llms-explorer/tree/main/docs/research/egpu-production-preparation-2026-10-06
