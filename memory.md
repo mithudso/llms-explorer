@@ -1,10 +1,13 @@
 # Memory Log
 
-## v0.22.45 - 2026-10-10
+## v0.22.46 - 2026-10-10
 
 - TASK-628 removes website source-directory routes, scraped source pages, raw source downloads and repository-root corpus merging. Original pages, concept-tree data, concept packs, 3D viewer and search remain. Archived citations remain visible without broken links. Context lists concept facts only.
 - Release checkout: /private/tmp/llmsx-site-removal-20261010 from origin/main. Preserve the divergent shared main branch and unrelated untracked work.
-- Delta: memory 0.22.44 to 0.22.45; site 0.0.11 to 0.0.12; publication policy 1.0.0. Validation: 260 site tests pass, Ruff and typecheck pass, build emits 1,380 pages with 1,123 sitemap URLs and zero High llms findings. Both tree snapshots and all 1,024 concept packs are unchanged. 323 archived reports are excluded. A top-level 404 page prevents Cloudflare from serving the homepage at removed URLs; verification 1.0.0 to 1.0.1. Remaining: ship through CI and verify production.
+- Delta: memory 0.22.44 to 0.22.45; site 0.0.11 to 0.0.12; publication policy 1.0.0. Validation: 260 site tests pass, Ruff and typecheck pass, build emits 1,380 pages with 1,123 sitemap URLs and zero High llms findings. Both tree snapshots and all 1,024 concept packs are unchanged. 323 archived reports are excluded. A top-level 404 page prevents Cloudflare from serving the homepage at removed URLs; verification 1.0.0 to 1.0.1. PR163 merged as683908cddff386d2bf1aa1da7d74e2a20b3d919e after GitHub CI passed. Cloudflare preview18355791 passes all removed-route404 checks. Remaining: verify production on both domains.
+
+
+- Delta: memory 0.22.45 to 0.22.46; production receipt 1.0.0. Main commit 683908cddff386d2bf1aa1da7d74e2a20b3d919e and Cloudflare deployment 7bc06a40-a89f-4be3-aab7-70b6dc002e5c are successful. Bare removed URLs still return cached HTTP 200 on both public domains. Cache-busted requests return HTTP 404. KNOW-634 records this cache lesson. The tree viewer, search, topic page and fact download pass live preservation checks. Remaining: sign into Cloudflare in the opened Chrome Beta tab, purge both site caches, rerun bare-route checks, publish the final receipt, and close TASK-632/TASK-628. Local Wrangler credentials are expired and lack cache-purge permission. No source report or concept data was deleted.
 
 ## v0.22.44 - 2026-09-30
 
