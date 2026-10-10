@@ -11,6 +11,8 @@ def check(dist: Path) -> None:
     for name in ("llms.txt", "llms-facts.txt"):
         if "<!-- migrated sections below:" in (dist / name).read_text():
             raise ValueError(f"Archived repository corpus was merged into {name}")
+    if not (dist / "404.html").is_file():
+        raise ValueError("Missing 404.html would enable the Cloudflare homepage fallback")
 
 
 if __name__ == "__main__":

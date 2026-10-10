@@ -33,3 +33,10 @@ def test_publication_guard_rejects_merged_archived_corpora(tmp_path):
     (tmp_path / "llms.txt").write_text("# Site\n<!-- migrated sections below: -->")
     with pytest.raises(ValueError, match="Archived repository corpus"):
         check_publication.check(tmp_path)
+
+
+def test_publication_guard_requires_a_real_missing_page_response(tmp_path):
+    for name in ("llms.txt", "llms-facts.txt"):
+        (tmp_path / name).write_text("# Original site content")
+    with pytest.raises(ValueError, match="Missing 404.html"):
+        check_publication.check(tmp_path)
