@@ -85,3 +85,10 @@ def test_the_home_page_leads_with_practical_work_and_keeps_library_access():
     tree = json.loads((SITE / "src/data/tree.json").read_text(encoding="utf-8"))
     assert any(f'href="/tree/{slug}/"' in main for slug in tree["roots"])
     assert '>Concept tree</a>' in html
+
+
+def test_context_index_contains_only_preserved_concept_facts(built):
+    assert built["totals"]["files"] == 0
+    assert all(not root["files"] for root in built["roots"])
+    assert built["totals"]["concepts"] > 0
+    assert not (DIST / "downloads/sources").exists()

@@ -116,6 +116,8 @@ def test_frontmatter_noindex_reaches_rendered_pages_and_sitemap():
     flagged = []
     sitemap = (DIST / "sitemap.xml").read_text(encoding="utf-8")
     for source in CONTENT.rglob("*.md"):
+        if source.relative_to(CONTENT).parts[0] == "sources":
+            continue
         metadata, _ = _source(source)
         if metadata.get("noindex"):
             flagged.append(source)

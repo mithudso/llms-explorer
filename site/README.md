@@ -1,11 +1,17 @@
+<!-- publication-policy v1.0.0; delta: remove source directory and scraped publication -->
+The website publishes original pages and the concept tree, including concept facts downloads.
+The source directory, archived source reports and raw source downloads are not published.
+Repository-root corpus files are not merged into the website llms family.
+`src/content/sources/` remains an archived private build input, outside Astro collections.
+`check_publication.py` rejects removed routes, source downloads and merged corpora after every build.
+
 # LLMS-Explorer site
 
 The Astro site for `docs/site/00-platform-design.md`. Step 1: the reference
 tables, the essays, the worked examples and the launch posts, every page with a
 `.md` twin, and the site's own `llms.txt` family generated from those twins.
 Step 2 adds the concept-tree explorer (`/tree/`, a page per node, `/tree/3d/`),
-the directory of known llms files with their conformance grades (`/directory/`,
-a page per site) and the recorded retrieval demo (`/demo/`) — all served from
+concept facts downloads and the recorded retrieval demo (`/demo/`) — all served from
 build-time JSON under `src/data/`, no backend. Hosted on Cloudflare Pages.
 
 ## Run it locally
@@ -30,7 +36,7 @@ after a build, under `dist/`.
 Every `npm run build` regenerates `/sitemap.xml` and `/robots.txt` from the
 built HTML pages. Publishing or removing content updates the sitemap in the
 same deployment. Scheduled posts enter it only after promotion into
-`src/content/blog/` and a rebuild. Generated tree and directory pages are
+`src/content/blog/` and a rebuild. Generated tree pages are
 included automatically. Account utilities (`/login/`, `/account/`, `/keys/`,
 `/usage/`), redirects, noindex pages, and canonical aliases are excluded.
 Markdown twins and other downloads are not HTML page entries.
@@ -136,10 +142,10 @@ content is hand-edited.
 | `gen_reference.py` | the `/ldo` rubric in `.claude/skills/llms-deep-optimizer/` | `src/content/reference/*.md` (attribute + pass tables, spoke copies) | by hand, when the rubric changes; output is committed |
 | `gen_figures.py` | `outputs/exports/*.llms/manifest.json`, lint JSON | `src/data/figures.json` (the numbers the blog cites) | by hand, after a snapshot refresh; output is committed |
 | `gen_tree.py` | `concept-tree/tree.json` (the repo's own copy, never `~/.global-ai-hub`) | `src/data/tree.json` (nodes, edges, derived frontier) | `npm run generate`; output is committed, and CI diffs it |
-| `gen_directory.py` | `outputs/llms-full/` (catalog, manifest, mirrored files) scored through `hub/scripts/llms_lint.py` | `src/data/directory.json` (a graded entry per site) | `npm run generate`; needs the `outputs/` mirror (not in CI, minutes over ~145 sites) so by hand after a snapshot refresh; output is committed |
+| `gen_directory.py` (private archive tool; excluded from website generation) | `outputs/llms-full/` (catalog, manifest, mirrored files) scored through `hub/scripts/llms_lint.py` | `src/data/directory.json` (a graded entry per site) | private use only; needs the `outputs/` mirror (not in CI, minutes over ~145 sites) so by hand after a snapshot refresh; output is committed |
 | `gen_demo.py` | the live hub's docset indexes (keyword + vector) | `src/data/demo.json` (the three retrieval legs per golden question) | **run by hand on the M5** — it needs the live hub, so it is never in `generate` or CI; output is committed and the page is labelled with its recording date |
-| `gen_downloads.py` | `src/content/sources/**/*.md` | `public/downloads/sources/**` (the same docs as raw, fetchable markdown) | `prebuild`; output is gitignored |
-| `gen_context.py` | `src/content/sources/**`, `src/data/concepts/*.json`, `src/data/tree.json` | `src/data/context.json` (every context file and concept facts file, filed by tree root) | `prebuild` and `npm run generate`; output is committed, and CI diffs it |
+| `gen_downloads.py --package-only` | `llmsx/` package | package downloads; stale raw source copies removed | `prebuild`; output is gitignored |
+| `gen_context.py` | `src/content/sources/**`, `src/data/concepts/*.json`, `src/data/tree.json` | `src/data/context.json` (concept facts only, filed by tree root) | `prebuild` and `npm run generate`; output is committed, and CI diffs it |
 | `gen_concept_facts.py` | `src/data/concepts/*.json`, `src/data/tree.json` | `public/downloads/concepts/<slug>.md` (one plain-markdown facts file per pack) | `prebuild`; output is gitignored |
 | `twins.py` | `src/content/**/*.md`, `dist/`, plus `PAGE_SECTIONS` (the generated sections, `/context/` among them) and `STATIC_PAGES` (the account routes) | `dist/**/*.md` twins + `dist/_headers` | `postbuild` |
 | `build_llms.py` | the twins in `dist/`, `llms.overrides.json` | `dist/llms.txt`, `llms-full.txt`, `llms-small.txt`, `llms-facts.txt`, `llms-vocabulary.txt`, `manifest.json`; refreshes `_headers` | `postbuild` |
@@ -148,7 +154,7 @@ content is hand-edited.
 Refresh the committed data with one command (from `site/`):
 
 ```sh
-npm run generate             # gen_reference.py, gen_tree.py, gen_directory.py, gen_context.py
+npm run generate             # gen_reference.py, gen_tree.py, gen_context.py
 ```
 
 `gen_demo.py` is deliberately not in it: it queries the live hub's indexes, so

@@ -93,5 +93,5 @@ def test_the_committed_index_matches_the_committed_inputs():
     if not committed.is_file():
         import pytest
         pytest.skip("no committed context.json")
-    fresh = gen_context.build(gen_context.DEFAULT_SOURCES, gen_context.DEFAULT_CONCEPTS, gen_context.DEFAULT_TREE)
+    fresh = gen_context.build(None, gen_context.DEFAULT_CONCEPTS, gen_context.DEFAULT_TREE)
     assert json.loads(committed.read_text()) == fresh, "run site/tools/gen_context.py and commit the result"

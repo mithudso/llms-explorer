@@ -1,11 +1,10 @@
 #!/usr/bin/env python3
 """gen_context — the context-file index (src/data/context.json).
 
-Files the 300-odd mirrored research reports under src/content/sources/ and
-every concept pack under src/data/concepts/ into the roots of the concept
+Indexes every concept pack under src/data/concepts/ into the roots of the concept
 tree, so /context/ (and its /context.md twin) can hand an agent one
 categorised list: every context file and every concept's facts file, each
-one fetch away.
+one fetch away. Archived source reports are excluded from public output.
 
 How a row is filed:
   * a concept goes under its own root — walk `parent_slug` up tree.json;
@@ -114,10 +113,10 @@ def root_of(slug: str, nodes: dict) -> str | None:
     return None if cur not in nodes else cur
 
 
-def build(sources_dir: Path, concepts_dir: Path, tree_path: Path) -> dict:
+def build(sources_dir: Path | None, concepts_dir: Path, tree_path: Path) -> dict:
     tree = json.loads(tree_path.read_text(encoding="utf-8"))
     nodes = tree.get("nodes") or {}
-    sources = load_sources(sources_dir)
+    sources = load_sources(sources_dir) if sources_dir is not None else {}
     packs = load_packs(concepts_dir)
 
     concept_root: dict[str, str] = {}
@@ -186,12 +185,11 @@ def write(data: dict, out: Path) -> None:
 def main(argv=None) -> int:
     p = argparse.ArgumentParser(description=__doc__,
                                 formatter_class=argparse.RawDescriptionHelpFormatter)
-    p.add_argument("--sources", default=str(DEFAULT_SOURCES))
     p.add_argument("--concepts", default=str(DEFAULT_CONCEPTS))
     p.add_argument("--tree", default=str(DEFAULT_TREE))
     p.add_argument("--out", default=str(DEFAULT_OUT))
     a = p.parse_args(argv)
-    data = build(Path(a.sources), Path(a.concepts), Path(a.tree))
+    data = build(None, Path(a.concepts), Path(a.tree))
     write(data, Path(a.out))
     t = data["totals"]
     print(f"{a.out}: {t['files']} context files and {t['concepts']} concept fact files "

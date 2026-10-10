@@ -134,7 +134,7 @@ def test_generate_script_runs_the_generators_that_run_anywhere():
     by hand on the M5 and its output committed."""
     pkg = json.loads((ROOT / "site/package.json").read_text())
     gen = pkg["scripts"]["generate"]
-    for tool in ("gen_reference.py", "gen_tree.py", "gen_directory.py"):
+    for tool in ("gen_reference.py", "gen_tree.py", "gen_context.py"):
         assert tool in gen, tool
     assert "gen_demo.py" not in gen
     assert "generate" not in pkg["scripts"]["build"], "a build must not regenerate committed data"

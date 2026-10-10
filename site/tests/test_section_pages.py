@@ -14,7 +14,7 @@ HOME_HREF_RE = re.compile(r'href="(/[^"#?]*)"')
 # the section, none per row. The rows must therefore advertise no twin at all. (/context/
 # has no row pages of its own — its rows are /downloads/ files — but its section twin is
 # promised the same way.)
-GENERATED_SECTIONS = ("tree", "directory", "demo", "context")
+GENERATED_SECTIONS = ("tree", "demo", "context")
 
 
 def _home_links() -> set[str]:
@@ -94,7 +94,7 @@ def test_the_ethos_page_claims_no_robots_check_the_code_does_not_make():
     scope the claim to the crawl, and say what the one-file mirror does instead."""
     ethos = (SITE / "src/content/reference/ethos.md").read_text()
     assert "Content Signals and `robots.txt` are honoured at acquisition" not in ethos
-    assert "llms-full mirror" in ethos and "does not check them" in ethos
+    assert "no longer published" in ethos
     catalog = SITE.parent / "hub" / "scripts" / "llms_full_catalog.py"
     if not catalog.is_file():
         pytest.skip("no vendored hub to check the claim against")
