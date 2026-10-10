@@ -1,5 +1,11 @@
 # Memory Log
 
+## v0.22.45 - 2026-10-10
+
+- TASK-628 removes website source-directory routes, scraped source pages, raw source downloads and repository-root corpus merging. Original pages, concept-tree data, concept packs, 3D viewer and search remain. Archived citations remain visible without broken links. Context lists concept facts only.
+- Release checkout: /private/tmp/llmsx-site-removal-20261010 from origin/main. Preserve the divergent shared main branch and unrelated untracked work.
+- Delta: memory 0.22.44 to 0.22.45; site 0.0.11 to 0.0.12; publication policy 1.0.0. Validation: 258 site tests pass, six focused publication tests pass, Ruff and typecheck pass, build emits 1,380 pages with 1,123 sitemap URLs and zero High llms findings. Both tree snapshots and all 1,024 concept packs are unchanged. 323 archived reports are excluded. Remaining: ship through CI and verify production.
+
 ## v0.22.44 - 2026-09-30
 
 - TASK-86 responds to the user's repeated full-path requirement. `/Users/mitch/.claude/CLAUDE.md` already contains the rule; `/Users/mitch/.codex/AGENTS.md` lacked it. The old migration preserved Codex guidance but did not import Claude global instructions. KNOW-87 records that a hidden absolute Markdown target with a filename stub does not comply.

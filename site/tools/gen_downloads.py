@@ -227,9 +227,17 @@ def main(argv=None) -> int:
     p.add_argument("--src", default=str(DEFAULT_SRC))
     p.add_argument("--out", default=str(DEFAULT_OUT))
     p.add_argument("--no-package", action="store_true", help="skip the llmsx wheel/sdist build")
+    p.add_argument("--package-only", action="store_true",
+                   help="publish packages without archived sources")
     a = p.parse_args(argv)
-    n = build(Path(a.src), Path(a.out))
-    print(f"{a.out}: {n} reference file(s) mirrored for download")
+    if a.package_only:
+        for rel in ("sources", "directory", "downloads/sources", "llms-full"):
+            stale = HERE / "public" / rel
+            if stale.exists():
+                shutil.rmtree(stale)
+    else:
+        n = build(Path(a.src), Path(a.out))
+        print(f"{a.out}: {n} reference file(s) mirrored for download")
     if not a.no_package:
         build_package()
     return 0

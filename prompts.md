@@ -1,5 +1,11 @@
 # Prompts Log
 
+## Prompt v61 - 2026-10-10
+
+> Remove the directory and all scraped content from the site. WHich does not include the concept tree.
+
+Scope: TASK-628. Remove public source directory, archived reports and raw downloads; preserve tree and concept facts. Delta: prompt v60 to v61.
+
 ## Prompt v60 - 2026-09-30
 
 > I've told you 4 times now, when you present a file to me like you just did, you need to display the entire filepath, not relative filepath. I cannot click on nor copy effectively a filename stub. Copy the rules from claude code to codex, make sure to include the ones about telling me the full filepath of all the files you create at the end of your message along with asks, and a summary. Display the full filepath of every file you created this session.
