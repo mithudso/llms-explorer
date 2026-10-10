@@ -85,24 +85,15 @@ PAGE_SECTIONS = [
      "explains": "reference/concept-tree.md", "data": "tree.json", "dated": "generated",
      "index": lambda d: [(n["concept"], f"/tree/{n['slug']}/") for n in
                          sorted(d["nodes"].values(), key=lambda n: n["concept"])]},
-    {"route": "/directory/", "title": "The directory of known llms files",
-     "page": "src/pages/directory/index.astro",
-     "description": "Every mirrored llms-full.txt that splits into pages, scored "
-                    "against the attribute rubric by llms_lint and graded A–F.",
-     "explains": "reference/directory.md", "data": "directory.json", "dated": "scored",
-     "index": lambda d: [(f"{s['name'] or s['key']} — grade {s['grade']}, {s['pages']} pages",
-                          f"/directory/{s['key']}/") for s in d["sites"]]},
     {"route": "/context/", "title": "Context files",
      "page": "src/pages/context/index.astro",
-     "description": "Every context file (the hub's mirrored research reports) and every "
+     "description": "Every "
                     "concept facts file, filed under the roots of the concept tree — each "
                     "one a plain markdown fetch.",
      "explains": "reference/context-files.md", "data": "context.json", "dated": "generated",
      # every download, absolute, grouped by root: the one file an agent reads to
      # pick the second and last hop
-     "index": lambda d: [(f"{r['concept']} · {f['title']}", f["download"])
-                         for r in d["roots"] for f in r["files"]] +
-                        [(f"{r['concept']} · {c['concept']} — facts", c["download"])
+     "index": lambda d: [(f"{r['concept']} · {c['concept']} — facts", c["download"])
                          for r in d["roots"] for c in r["concepts"]]},
     {"route": "/demo/", "title": "Semantic indexing, recorded",
      "page": "src/pages/demo.astro",
@@ -236,15 +227,15 @@ STATIC_PAGES = [
              "account once you've made one.\n"},
     {"route": "/contribute/", "title": "Contribute a subject",
      "page": "src/pages/contribute.astro",
-     "description": "Submit a new concept to the directory: a subject name, optional parent, "
+     "description": "Submit a new concept to the concept tree: a subject name, optional parent, "
                     "and your text, run through a research pass and routed to moderators.",
-     "body": "The directory is built by contributions like yours. Each submission is "
+     "body": "The concept tree is built by contributions like yours. Each submission is "
              "reviewed and must pass a lint gate before joining the tree.\n\n"
              "## The process\n\n"
              "Sign in, provide a subject name and content (or upload a file), and submit. "
              "A research pass generates an initial summary and fact sheet. Moderators "
              "review the findings and approve or request changes. Approved subjects land "
-             "in the directory and the concept tree.\n"},
+             "in the concept tree.\n"},
     {"route": "/proposals/", "title": "My proposals",
      "page": "src/pages/proposals.astro",
      "description": "View the contributions you've submitted to the LLMS-Explorer "
@@ -289,7 +280,7 @@ STATIC_PAGES += [{'route': '/start-here/',
           '\n'
           'Original experiments should expose methods, artifacts and limits. '
           'Architecture reports are not measured effect sizes. Agent-assisted references '
-          'and mirrored reports require source inspection. See [editorial '
+          'references require source inspection. See [editorial '
           'standards](/editorial/).\n'
           '\n'
           '## Contact and corrections\n'
@@ -304,17 +295,17 @@ STATIC_PAGES += [{'route': '/start-here/',
   'title': 'Sources & editorial standards',
   'page': 'src/pages/editorial.astro',
   'description': 'How to distinguish original experiments, implementation reports, '
-                 'agent-assisted references and mirrored sources on LLMSX.',
+                 'agent-assisted concept references on LLMSX.',
   'body': 'LLMSX combines original writing, agent-assisted research and third-party '
           'references. An experiment should identify its questions, environment, '
           'comparisons, raw artifacts and limits. A design report describes architecture '
           'and does not demonstrate an effect size without a measurement. Publication '
           'dates do not certify freshness.\n'
           '\n'
-          'Concept facts may cite upstream documents or mirrored reports. Follow a '
-          'mirrored report to its primary references. A citation makes a claim '
-          'inspectable, not authoritative or verified. Directory grades assess format '
-          'quality under the stated rubric, not factual accuracy.\n'
+          'Concept facts cite upstream documents or archived research reports. '
+          'Archived reports are no longer hosted here. A citation makes a claim '
+          'traceable, not authoritative or verified. '
+          'Check the primary source before relying on a claim.\n'
           '\n'
           'Incomplete topic entries stay browsable and are excluded from Search. '
           'Remaining references are not automatically fact-checked. Articles with '

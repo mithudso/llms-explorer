@@ -26,14 +26,13 @@ def _first(section: str) -> str:
     return "/" + page.parent.relative_to(DIST).as_posix() + "/"
 
 
-def test_mirrored_pages_are_noindex():
+def test_mirrored_pages_are_absent():
     for section in ("sources", "directory"):
-        route = _first(section)
-        assert NOINDEX.search(_html(route)), f"{route} is indexable"
+        assert not (DIST / section).exists()
 
 
 def test_the_sites_own_pages_stay_indexable():
-    for route in ("/", "/directory/", _first("tree"), _first("blog"), _first("reference")):
+    for route in ("/", _first("tree"), _first("blog"), _first("reference")):
         assert not NOINDEX.search(_html(route)), f"{route} was dropped from the index"
 
 
