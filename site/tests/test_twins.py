@@ -22,7 +22,7 @@ COLLECTIONS = ("reference", "examples", "blog", "skills")
 # surfaces over `/api/skills/{skill}/run` and src/data/tree.json, not prose. A
 # markdown twin of a form is that form with its controls stripped, which is worse
 # than no twin; the prose explaining each skill is its /skills/<id>/ page.
-GENERATED_SECTIONS = ("tree", "directory", "demo", "playground", "moderate",
+GENERATED_SECTIONS = ("tree", "demo", "playground", "moderate",
                        # `/net-dns-monitor/` is a product's support and privacy
                        # pages for an app-store listing (PR #101): a legal
                        # notice for a reviewer, not context for an agent, so it
@@ -166,21 +166,21 @@ def test_generated_sections_get_twins_with_an_inventory(tmp_path):
     content, dist = _section_fixture(tmp_path)
     out = twins.write_twins(content, dist, "https://ex.dev")
     names = {p.relative_to(dist).as_posix() for p in out}
-    assert {"tree.md", "directory.md", "demo.md"} <= names
+    assert {"tree.md", "demo.md"} <= names
     tree_twin = (dist / "tree.md").read_text()
     assert tree_twin.startswith("<!-- llms-explorer twin of https://ex.dev/tree/ ")
     assert "# Concepts" in tree_twin
     assert "[The concept tree](https://ex.dev/reference/concept-tree/)" in tree_twin  # link, not a copy
     assert "[Alpha](https://ex.dev/tree/a/)" in tree_twin
     assert "What this section holds (1)" in tree_twin
-    assert "grade B" in (dist / "directory.md").read_text()
+    assert not (dist / "directory.md").exists()
     assert "why split big files" in (dist / "demo.md").read_text()
     # /context/ lists every download absolutely — the file IS the second hop
     context_twin = (dist / "context.md").read_text()
     assert "# Context files" in context_twin
-    assert "[Alpha · Alpha report](https://ex.dev/downloads/sources/hub/alpha.md)" in context_twin
+    assert "/downloads/sources/" not in context_twin
     assert "[Alpha · Alpha kid — facts](https://ex.dev/downloads/concepts/alpha-kid.md)" in context_twin
-    assert "What this section holds (2)" in context_twin
+    assert "What this section holds (1)" in context_twin
 
 
 def test_a_section_twin_never_republishes_the_explainer(tmp_path):
@@ -190,14 +190,12 @@ def test_a_section_twin_never_republishes_the_explainer(tmp_path):
     content, dist = _section_fixture(tmp_path)
     twins.write_twins(content, dist, "https://ex.dev")
     for name, prose in (("tree.md", "Prose about the tree."),
-                        ("directory.md", "Prose about grades."),
                         ("demo.md", "Prose about retrieval.")):
         twin = (dist / name).read_text()
         assert prose not in twin, name
         assert "/reference/" in twin or "/blog/" in twin, name   # links to it instead
     # …and no body line is shared between a section twin and the page it links
     for section, explainer in (("tree.md", "reference/concept-tree.md"),
-                               ("directory.md", "reference/directory.md"),
                                ("demo.md", "blog/semantic-indexing.md")):
         theirs = {ln.strip() for ln in (content / explainer).read_text().splitlines()
                   if len(ln.strip()) > 20}
@@ -214,7 +212,7 @@ def test_a_section_twin_is_stamped_with_its_data_date(tmp_path):
     demo = (dist / "demo.md").read_text()
     assert "· data recorded 2026-08-28 · twin built " in demo.splitlines()[0]
     assert "Data recorded 2026-08-28; twin built " in demo
-    assert "Data scored 2026-08-29;" in (dist / "directory.md").read_text()
+    assert not (dist / "directory.md").exists()
     assert "Data generated 2026-08-30;" in (dist / "tree.md").read_text()
 
 

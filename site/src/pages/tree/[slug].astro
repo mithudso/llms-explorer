@@ -20,45 +20,6 @@ const packBySlug = new Map<string, ConceptPack>(
   ])
 );
 
-// The "Download this reference file" link: a concept's mirrored source doc
-// (gen_downloads.py's copy of src/content/sources/<hub>/<name>.md into
-// public/downloads/sources/) when one exists for this slug. Only the path
-// is needed, so the glob stays non-eager — nothing is loaded, just listed.
-//
-// The source doc's filename is NOT the concept slug in general — e.g. the
-// doc `mdb-context-hub/mcp-servers.md` backs the concept slugged
-// `mcp-server-development`. Matching by filename==slug (the original
-// approach) only covered 130/361 concepts. Every researched pack's facts
-// carry the real filename in their own `source` URL
-// (`https://llms-explorer.com/sources/<hub>/<name>/#...`), so that's the
-// ground truth to key off instead: walk each pack's facts for the first one
-// whose source names an existing mirrored doc. Covers 346/361.
-const sourceFiles = import.meta.glob("../../content/sources/*/*.md");
-const existingSourceDocs = new Set(
-  Object.keys(sourceFiles).map((path) => {
-    const parts = path.split("/");
-    const file = (parts.pop() ?? "").replace(/\.md$/, "");
-    const hub = parts.pop();
-    return `${hub}/${file}`;
-  })
-);
-const SOURCE_URL_RE = /^https:\/\/llms-explorer\.com\/sources\/([^/]+)\/([^/#]+)\//;
-const downloadBySlug = new Map<string, string>();
-for (const [slug, pack] of packBySlug) {
-  let hit: string | null = null;
-  for (const facet of pack.facets ?? []) {
-    for (const fact of facet.facts ?? []) {
-      const m = SOURCE_URL_RE.exec(fact.source ?? "");
-      if (m && existingSourceDocs.has(`${m[1]}/${m[2]}`)) {
-        hit = `/downloads/sources/${m[1]}/${m[2]}.md`;
-        break;
-      }
-    }
-    if (hit) break;
-  }
-  if (hit) downloadBySlug.set(slug, hit);
-}
-
 // Astro resolves a static route before a dynamic one, so a node slugging to `3d`
 // would be silently served the 3D viewer instead of its own page, and two concepts
 // slugging alike would silently share one URL. Fail the build instead: a concept
@@ -93,7 +54,6 @@ const pack = packBySlug.get(node.slug);
 const hasPublishedReference = Boolean(pack?.summary?.trim() &&
   pack.facets?.some((facet) => facet.facts?.some((fact) =>
     fact.text?.trim() && fact.source?.trim())));
-const downloadHref = hasPublishedReference ? downloadBySlug.get(node.slug) : undefined;
 const frontier = tree.frontier.filter((f) => f.parent_slug === node.slug);
 
 // A related concept in a pack names its target by concept text, not slug —
@@ -120,9 +80,13 @@ const esc = (s: unknown) =>
 // their facts as top-level, so they render as one flat list, same as
 // they always have.
 function renderFacts(facts: PackFact[]): string {
-  const factHtml = (fact: PackFact) =>
-    `${esc(fact.text)} <a href="${esc(fact.source)}" class="fact-source" rel="noopener">[source]</a>` +
-    (fact.note ? ` <em>— ${esc(fact.note)}</em>` : "");
+  const factHtml = (fact: PackFact) => {
+    const archived = /^https?:\/\/(?:llms-explorer\.com|llmsx\.org)\/sources\//.test(fact.source ?? "");
+    const citation = archived
+      ? `<span class="fact-source">[archived source: ${esc(fact.source)}]</span>`
+      : `<a href="${esc(fact.source)}" class="fact-source" rel="noopener">[source]</a>`;
+    return `${esc(fact.text)} ${citation}` + (fact.note ? ` <em>— ${esc(fact.note)}</em>` : "");
+  };
   let html = "<ul>";
   let level = 0;
   facts.forEach((fact, i) => {
@@ -176,11 +140,6 @@ const description = hasPublishedReference && pack
           ↓ Facts as markdown
         </a>
       )}
-      {downloadHref && (
-        <a href={downloadHref} download class="download-ref">
-          ↓ Download this reference file
-        </a>
-      )}
       <a href="/context/" class="download-note">all context files</a>
     </p>
   )}
@@ -189,8 +148,8 @@ const description = hasPublishedReference && pack
     <>
       <blockquote>{pack.summary}</blockquote>
       <p class="reference-provenance">
-        These notes link each claim to its source. A source may be a research report hosted
-        on this site rather than the primary document. A published reference means the
+        These notes link each claim to its source. Some citations identify archived research reports
+        that are no longer hosted on this site. A published reference means the
         content is available; it does not certify independent review or accuracy.
         <a href="/editorial/">Read the editorial policy</a> and follow the sources before relying on a claim.
       </p>

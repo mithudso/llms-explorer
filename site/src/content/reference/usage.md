@@ -35,19 +35,19 @@ error (H7), and a redirect to an HTML app shell — as docs.cursor.com once did 
 ## 2. Markdown twins
 
 Every page in the content sections — reference, examples, blog — has a clean-markdown
-twin at the same route with `.md` appended: `/reference/usage/` → `/reference/usage.md`. The four
-generated sections carry one twin each for the section, not per row: `/tree.md`, `/directory.md`,
+twin at the same route with `.md` appended: `/reference/usage/` → `/reference/usage.md`. The three
+generated sections carry one twin each for the section, not per row: `/tree.md`,
 `/demo.md` and `/context.md` hold the prose that explains the section plus an inventory of what it
-contains. The per-row pages under them — `/tree/<slug>/`, `/tree/3d/`, `/directory/<key>/` — are
+contains. The per-row pages under them — `/tree/<slug>/`, `/tree/3d/` — are
 HTML only, because a twin apiece would be hundreds of files repeating what the section twin's
 inventory already carries; every page advertises the twin it actually has, and none advertises
 one it does not.
 
 What a concept row *does* publish is a download: its facts are at
-`/downloads/concepts/<slug>.md`, and every context file at `/downloads/sources/<hub>/<name>.md`,
-both served as `text/markdown` by the one `/*.md` rule and both listed, with absolute URLs, in
+`/downloads/concepts/<slug>.md`,
+served as `text/markdown` by the one `/*.md` rule and listed, with absolute URLs, in
 `/context.md`. Downloads carry no per-file `X-Markdown-Tokens` header, so the facts file writes
-its estimate into its banner comment and `/context/` shows each file's size. See
+its estimate into its banner comment and `/context/` lists its fact and facet counts. See
 [context files](/reference/context-files/) for the grammar.
 
 Spec v2 allows either `page.html.md` or `page.md`; the lint's twin probe (N6) accepts both. The

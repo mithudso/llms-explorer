@@ -69,7 +69,8 @@ def render_facts(facts: list[dict]) -> str:
         line = f"{'  ' * level}- {text}"
         # a URL becomes a link; a local path (the older packs cite files under
         # ~/.claude) is shown verbatim in code, since a link to it resolves nowhere
-        if src.startswith(("http://", "https://")):
+        if src.startswith(("http://", "https://")) and not re.match(
+                r"https?://(?:llms-explorer\.com|llmsx\.org)/sources/", src):
             line += f" — [source]({src})"
         elif src:
             line += f" — source: `{src}`"
@@ -116,19 +117,6 @@ def render_pack(pack: dict, nodes: dict, site_url: str, sources_dir: Path) -> st
             if r.get("note"):
                 line += f"; {_md_text(r['note'])}"
             body.append(line)
-        body.append("")
-
-    cited: list[tuple[str, str]] = []
-    for facet in facets:
-        for fact in facet.get("facts") or []:
-            m = SOURCE_URL_RE.match(str(fact.get("source") or ""))
-            if m and (m.group(1), m.group(2)) not in cited:
-                cited.append((m.group(1), m.group(2)))
-    if cited:
-        body += ["## Context files", ""]
-        for hub, name in cited:
-            body.append(f"- [{_source_title(sources_dir, hub, name)}]"
-                        f"({site_url}/downloads/sources/{hub}/{name}.md)")
         body.append("")
 
     text = "\n".join(head + body).rstrip() + "\n"

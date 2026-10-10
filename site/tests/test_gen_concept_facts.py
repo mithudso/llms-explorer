@@ -46,13 +46,13 @@ def test_one_file_per_pack_with_nested_facts_and_sources(tmp_path):
     assert text.startswith("<!-- llms-explorer concept facts · https://ex.dev/tree/kid/ · pack 2026-09-18 · ~")
     assert " tokens -->\n\n# Kid\n\n> A child concept. With a newline.\n\n" in text
     assert "Parent: [Root](https://ex.dev/tree/root/) · 2 facets · 4 facts · page: https://ex.dev/tree/kid/" in text
-    assert "\n## Structure\n\n- Lazarus split appraisal in two: — [source](https://llms-explorer.com/sources/hub/doc/#a)\n" in text
-    assert "\n  - primary appraisal — [source](https://llms-explorer.com/sources/hub/doc/#b) *(the threat)*\n" in text
+    assert "\n## Structure\n\n- Lazarus split appraisal in two: — source: `https://llms-explorer.com/sources/hub/doc/#a`\n" in text
+    assert "\n  - primary appraisal — source: `https://llms-explorer.com/sources/hub/doc/#b` *(the threat)*\n" in text
     assert "\n  - secondary appraisal — source: `~/.claude/skills/x/ref.md#c`\n" in text, "a local path is shown, never linked"
     assert "\n## Flat\n\n- no level field — [source](https://x.example/)\n" in text
     assert "- [Root](https://ex.dev/tree/root/) — is the parent of Kid\n" in text
     assert "- Nowhere — unresolved; no page\n" in text, "an unresolved related concept stays plain text"
-    assert "\n## Context files\n\n- [The doc](https://ex.dev/downloads/sources/hub/doc.md)\n" in text
+    assert "/downloads/sources/" not in text
 
 
 def test_the_banner_token_estimate_is_the_family_estimator(tmp_path):
