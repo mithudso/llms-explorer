@@ -1,5 +1,6 @@
 # ruff: noqa: E501  -- fixture strings and asserted spans are real site lines; wrapping changes what is tested
 import json
+from fnmatch import fnmatch
 import re
 import subprocess
 import sys
@@ -340,6 +341,25 @@ def test_middleware_applies_the_headers_rules_and_the_token_count(tmp_path):
     assert "content-security-policy" in page["headers"]
     assert "x-markdown-tokens" not in page["headers"] and "link" not in page["headers"]
     assert fetches == 1, "the rules file is fetched once per isolate, not per request"
+
+
+def test_removed_routes_cannot_serve_cached_assets(tmp_path):
+    paths = ["/directory/", "/directory.md", "/directory/old/",
+             "/sources/report/", "/downloads/sources/report.md",
+             "/downloads/sources/report.md?old=1", "/llms-full/report.txt",
+             "/reference/directory/", "/reference/directory.md"]
+    responses, fetches, _ = _run_middleware(tmp_path, paths)
+    assert fetches == 0
+    for response in responses:
+        assert response["status"] == 404
+        assert response["headers"]["cache-control"] == "no-store"
+        assert "asset body" not in response["body"]
+    routes = json.loads(ROUTES.read_text())
+    assert all(not fnmatch(path.split("?")[0], rule)
+               for path in paths for rule in routes["exclude"])
+    preserved, _, _ = _run_middleware(_dist_with_twins(tmp_path),
+                                     ["/tree/", "/downloads/concepts/topic.md", "/llms-full.txt"])
+    assert all(response["status"] == 200 for response in preserved)
 
 
 def test_middleware_fails_open_with_the_build_independent_headers(tmp_path):

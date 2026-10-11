@@ -151,6 +151,14 @@ async function loadEdgeHeaders(assets: Fetcher, base: string): Promise<Compiled>
 export async function onRequest(context: Context): Promise<Response> {
   const { request, env, next } = context;
   const url = new URL(request.url);
+  // Removed assets can survive a Pages deploy and even a zone cache purge.
+  // Reject their routes before asking Pages for a potentially cached asset.
+  if (/^\/(?:directory|sources|downloads\/sources|llms-full|reference\/directory)(?:\/|\.md$|$)/.test(url.pathname)) {
+    return new Response("This content is no longer available. Explore /tree/ for concept facts.\n", {
+      status: 404,
+      headers: { "Cache-Control": "no-store", "Content-Type": "text/plain; charset=utf-8" },
+    });
+  }
   // Start the rules fetch before awaiting the page so a cold isolate pays the
   // two round-trips in parallel, not in series. On failure the cache is
   // cleared so the next request retries.
