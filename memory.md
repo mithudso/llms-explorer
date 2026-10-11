@@ -1,5 +1,11 @@
 # Memory Log
 
+## v0.22.48 - 2026-10-10
+
+- TASK-628 production removal now passes all 24 bare-URL checks on llms-explorer.com and llmsx.org. PR164 merged as ec0ee55cfcd1d8836adb757e28d0631499a63242. Cloudflare production deployment 0b695c78-3eaf-4500-b6ca-5663d1dc932e succeeded. Removed directory, source pages, raw downloads and corpus paths return explicit no-store HTTP 404. The previously stale raw download no longer serves content.
+- Concept-tree data and all 1024 concept packs remain unchanged. The tree, 3D viewer, topic page, fact download, context page and curated llms-full.txt return HTTP 200. The sampled concept fact download retains SHA256 7d2932d57b4ffa300e221ee4535f541ce5d6065e6bfccfde92ec9f2363447b7a. All 261 site tests, Ruff, Astro check and build passed. KNOW-634 preserves the concrete cache failure and route guard fix.
+- Delta: memory 0.22.47 to 0.22.48; production and validation receipts 1.0.2 to 1.0.3. Preserve historical failed cache probes alongside final acceptance. The independent live-acceptance-verifier also passed all 18 probes. Final verification receipts are committed with this entry. No implementation or acceptance work remains. Preserve unrelated shared-main changes and all other worktrees.
+
 ## v0.22.47 - 2026-10-10
 
 - TASK-628 resumed after the user signed into Cloudflare. Purge Everything succeeded on both zones. Most sampled removed URLs now return HTTP 404. The main-domain raw source download still served its original 5998-byte payload after both broad and exact-URL purges. The Pages deployment origin returns HTTP 404. KNOW-634 records the concrete failure.
