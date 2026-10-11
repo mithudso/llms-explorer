@@ -1,10 +1,17 @@
 # Prompts Log
 
+## Prompt v62 - 2026-10-10
+
+> signed in
+
+Scope: resume TASK-628/TASK-632 after Cloudflare authentication. Purge both website caches, verify removed bare URLs and preserve the concept tree. Delta: prompt v61 to v62.
+
 ## Prompt v61 - 2026-10-10
 
 > Remove the directory and all scraped content from the site. WHich does not include the concept tree.
 
 Scope: TASK-628. Remove public source directory, archived reports and raw downloads; preserve tree and concept facts. Delta: prompt v60 to v61.
+
 
 ## Prompt v60 - 2026-09-30
 
