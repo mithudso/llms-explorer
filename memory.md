@@ -1,5 +1,11 @@
 # Memory Log
 
+## v0.22.47 - 2026-10-10
+
+- TASK-628 resumed after the user signed into Cloudflare. Purge Everything succeeded on both zones. Most sampled removed URLs now return HTTP 404. The main-domain raw source download still served its original 5998-byte payload after both broad and exact-URL purges. The Pages deployment origin returns HTTP 404. KNOW-634 records the concrete failure.
+- site/functions/_middleware.ts now returns no-store HTTP 404 for removed directory, source, raw download and corpus paths before fetching assets. site/public/_routes.json excludes only concept downloads from Functions, so removed raw downloads enter the guard. Concept data remains unchanged. Site 0.0.12 to 0.0.13; prompts v61 to v62; memory 0.22.46 to 0.22.47; production receipt 1.0.1 to 1.0.2. All 261 site tests, Ruff, build and Astro check pass with zero errors/warnings. Both tree snapshots and all 1024 concept packs remain byte-identical.
+- Remaining: ship the edge repair in draft PR164, and rerun independent production checks before closing TASK-630, TASK-632 and TASK-628. Preserve unrelated divergent shared main and untracked work.
+
 ## v0.22.46 - 2026-10-10
 
 - TASK-628 removes website source-directory routes, scraped source pages, raw source downloads and repository-root corpus merging. Original pages, concept-tree data, concept packs, 3D viewer and search remain. Archived citations remain visible without broken links. Context lists concept facts only.
