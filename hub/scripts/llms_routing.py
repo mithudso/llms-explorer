@@ -9,9 +9,13 @@ Every llms-writing skill ends with `install`, which writes one block between
     Ask it for |` (`Path` is `~`-relative: the block is committed, and an
     absolute home path names a person), most-read first when the access
     ledger has data (`llms_ledger.py rank`), else in role order;
-  * **quick answers** — the lines an agent most often needs (defaults, file
-    roles, formulas, commands) copied out of `llms-facts.txt` and the
-    `*_llms.md` category files, each keeping its `— path:line` citation.
+  * **quick answers** — the lines an agent most often needs (corrected
+    misbeliefs, defaults, file roles, formulas, commands) copied out of
+    `llms-facts.txt` and the `*_llms.md` category files, each keeping its
+    `— path:line` citation. A `Misbelief: <wrong>. Actually: <right>.` line
+    from the contested category comes first: it is the fact a model is most
+    likely to get wrong from its own prior. `Controversy:` and
+    `Open question:` lines are not answers and are never copied.
     They are a cached, cited copy: the llms file stays the source of truth;
   * the **indexes** block — where the semantic and keyword indexes and the
     ledger live and how to query them.
@@ -57,6 +61,7 @@ _CITATION = re.compile(r"—\s*\S+:\d+")
 #: Answer classes in the order quick answers are listed; each capped so one
 #: class cannot crowd out the others.
 _CLASSES = {
+    "misbelief": re.compile(r"^Misbelief:\s", re.I),
     "default": re.compile(r"\bdefaults?\s+(?:to|is|are|=)\b|\bby default\b", re.I),
     "file role": re.compile(
         r"(?:^|\s)[`\"']?(?:~|\.|/)?[\w.-]+/[\w./-]+[`\"']?\s+(?:holds|is the|lives in|contains)\b",
@@ -170,8 +175,8 @@ def answers(directory: Path) -> tuple[str, int]:
             seen.add(key)
             found[cls].append("- " + _esc(line))
     out = [ln for cls in _CLASSES for ln in found[cls]][:MAX_ANSWERS]
-    block = ["### Quick answers", ""] + (out or ["_none found: no default, file-role, formula or "
-                                                 "command lines in the facts files_"])
+    block = ["### Quick answers", ""] + (out or ["_none found: no misbelief, default, file-role, "
+                                                 "formula or command lines in the facts files_"])
     return "\n".join(block), dropped
 
 
