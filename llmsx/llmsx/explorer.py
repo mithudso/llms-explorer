@@ -674,6 +674,7 @@ class Explorer(App):
     BINDINGS = [
         Binding("q", "quit", "Quit"),
         Binding("slash", "focus_filter", "Filter", key_display="/"),
+        Binding("super+f,ctrl+f", "search", "Search", key_display="⌘F", priority=True),
         Binding("r", "reload", "Reload"),
         Binding("m", "mark_review", "Needs review"),
         Binding("f", "mark_further", "Further research"),
@@ -738,6 +739,8 @@ class Explorer(App):
         self._render_serial = 0     # pane ids are unique per render: removal is async
         self._git_busy = False      # one git subprocess at a time, whatever the workers do
         self._filter_timer = None
+        self._search_hits: list[str] = []   # concept names, tree order
+        self._search_pos = -1
         self._type_filter = "all"   # store.FILTERS
         self._active_pane = "pane-overview"   # kept by TabActivated: `active` updates async
         self._hidden_panes: set[str] = set()  # tabs hidden by the Windows settings
@@ -762,7 +765,7 @@ class Explorer(App):
         yield Header()
         with Horizontal():
             with Vertical(id="left"):
-                yield Input(placeholder="filter concepts and aliases…  (/)", id="filter")
+                yield Input(placeholder="filter / search concepts…  (/ or ⌘F)", id="filter")
                 yield OutlineTree("concept tree", id="outline")
             with Vertical(id="right"):
                 with Horizontal(id="quick-actions"):
@@ -790,6 +793,7 @@ class Explorer(App):
         self._load()
         self._render_outline()
         self._apply_panels()
+        self._cursor_to_top()
         if self._auto_sync:
             self.action_sync()
 
@@ -950,10 +954,74 @@ class Explorer(App):
 
     @on(Input.Submitted, "#filter")
     def _filter_submitted(self) -> None:
-        self._main.query_one("#outline", OutlineTree).focus()
+        tree = self._main.query_one("#outline", OutlineTree)
+        if self._filter_timer is not None:   # apply a pending rebuild now
+            self._filter_timer.stop()
+            self._filter_timer = None
+            self._render_outline()
+        tree.focus()
+        self._search_next()
+
+    def _cursor_to_top(self) -> None:
+        """Focus the outline with the cursor on its first concept."""
+        tree = self._main.query_one("#outline", OutlineTree)
+        tree.focus()
+
+        def place() -> None:   # after layout, once the rows have line numbers
+            # leave a cursor or selection something already placed (a jump, a click)
+            if (tree.root.children and not self._selected
+                    and tree.cursor_node in (None, tree.root)):
+                tree.move_cursor(tree.root.children[0])
+            tree.scroll_home(animate=False)
+        self.call_after_refresh(place)
+
+    def _search_next(self) -> None:
+        """Move the cursor to the next concept whose name or alias holds the
+        filter text, wrapping; the filtered outline keeps every hit's ancestors."""
+        needle = self._main.query_one("#filter", Input).value.strip().lower()
+        tree = self._main.query_one("#outline", OutlineTree)
+        if not needle:
+            self._search_hits, self._search_pos = [], -1
+            return
+        hits, stack = [], list(reversed(tree.root.children))
+        while stack:   # depth-first, so hits run top to bottom
+            tn = stack.pop()
+            stack.extend(reversed(tn.children))
+            name = tn.data
+            node = self._node(name)
+            aliases = (node.get("aliases") or []) if node else []
+            if needle in name.lower() or any(needle in a.lower() for a in aliases):
+                hits.append(tn)
+        names = [tn.data for tn in hits]
+        if names != self._search_hits:
+            self._search_hits, self._search_pos = names, -1
+        if not hits:
+            self._status(f"search: no concept matches {needle!r}")
+            return
+        self._search_pos = (self._search_pos + 1) % len(hits)
+        tn = hits[self._search_pos]
+        parent = tn.parent
+        while parent is not None:
+            parent.expand()
+            parent = parent.parent
+
+        def place() -> None:   # after layout: a fresh rebuild has no line numbers yet
+            tree.move_cursor(tn)
+            tree.scroll_to_node(tn)
+        self.call_after_refresh(place)
+        self._status(f"search {needle!r}: {self._search_pos + 1}/{len(hits)}"
+                     " · ⌘F/ctrl+f then Enter for next")
 
     def action_focus_filter(self) -> None:
         self._main.query_one("#filter", Input).focus()
+
+    def action_search(self) -> None:
+        """⌘F / ctrl+f: open the search box; Enter jumps to the next hit."""
+        if self.screen is not self._main:
+            return
+        box = self._main.query_one("#filter", Input)
+        box.focus()
+        box.select_all()
 
     def action_reload(self) -> None:
         self._refresh()
