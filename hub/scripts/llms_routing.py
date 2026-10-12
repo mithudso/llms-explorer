@@ -61,7 +61,7 @@ _CITATION = re.compile(r"—\s*\S+:\d+")
 #: Answer classes in the order quick answers are listed; each capped so one
 #: class cannot crowd out the others.
 _CLASSES = {
-    "misbelief": re.compile(r"^Misbelief:\s", re.I),
+    "misbelief": re.compile(r"^(?:[\w./-]+ :: )?Misbelief:\s", re.I),
     "default": re.compile(r"\bdefaults?\s+(?:to|is|are|=)\b|\bby default\b", re.I),
     "file role": re.compile(
         r"(?:^|\s)[`\"']?(?:~|\.|/)?[\w.-]+/[\w./-]+[`\"']?\s+(?:holds|is the|lives in|contains)\b",
@@ -71,6 +71,10 @@ _CLASSES = {
                           re.I),
 }
 PER_CLASS = 8
+#: The rest of the contested category: not answers, so never copied even when
+#: the line also reads as a default or a command. The optional `<slug> :: `
+#: prefix is the become-expert facts grammar.
+_CONTESTED = re.compile(r"^(?:[\w./-]+ :: )?(?:Controversy|Open question):\s", re.I)
 #: Lines that are source code, not facts: a fact file that folds skills in
 #: carries snippets, and `x = y` in JavaScript is not a formula.
 _CODE_SHAPE = re.compile(
@@ -162,6 +166,8 @@ def answers(directory: Path) -> tuple[str, int]:
                 continue
             if _DIRECTIVE.match(line):      # checked before anything else: never copied
                 dropped += 1
+                continue
+            if _CONTESTED.match(line):
                 continue
             cls = classify(line)
             if not cls or len(found[cls]) >= PER_CLASS:

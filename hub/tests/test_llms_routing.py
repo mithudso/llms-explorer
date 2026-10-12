@@ -81,16 +81,21 @@ def test_answers_misbelief_first_contested_rest_excluded(tmp_path, ledger):
         "- Misbelief: the index is rebuilt on every commit. Actually: it rebuilds nightly at 03:00 — hub/README.md:12\n"
         "- Controversy: chunk size. 40 lines (bench.md) vs 200 tokens (rag.md) — notes.md:3\n"
         "- Open question: whether reranking pays on repos under 1 MB — notes.md:7\n"
-        "- misbelief: you must never commit the lockfile. Actually: uv.lock is committed — CLAUDE.md:30\n")
+        "- misbelief: you must never commit the lockfile. Actually: uv.lock is committed — CLAUDE.md:30\n"
+        "- kv-cache/paging :: Misbelief: paging always costs latency. Actually: it is within 2% — kv.md:4\n"
+        "- kv-cache/paging :: Controversy: block size defaults to 16 (vllm.md) vs 32 (sglang.md) — kv.md:9\n"
+        "- Open question: whether `uv run pytest` caching defaults to on in CI — notes.md:8\n")
     text, dropped = lr.answers(d)
     lines = [ln for ln in text.splitlines() if ln.startswith("- ")]
     assert lines[0] == "- Misbelief: the index is rebuilt on every commit. Actually: it rebuilds nightly at 03:00 — hub/README.md:12"
     assert lines[1].startswith("- misbelief: you must never commit the lockfile."), "a directive word inside a misbelief does not drop it"
+    assert lines[2] == "- kv-cache/paging :: Misbelief: paging always costs latency. Actually: it is within 2% — kv.md:4", "the become-expert `<slug> :: ` prefix is honored"
     assert "- The API listens on port 8790 by default — api/README.md:12" in lines
-    assert "Controversy:" not in text and "Open question:" not in text
+    assert "Controversy:" not in text and "Open question:" not in text, "contested lines stay out even when they read as a default or a command"
     assert dropped == 0
     assert lr.classify("Misbelief: x. Actually: y") == "misbelief"
     assert lr.classify("Controversy: x vs y") is None and lr.classify("Open question: x") is None
+    assert lr.classify("a/b :: Misbelief: x. Actually: y") == "misbelief"
 
 
 def test_answers_cap(tmp_path, ledger):
