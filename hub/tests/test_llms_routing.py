@@ -92,7 +92,7 @@ def test_answers_misbelief_first_contested_rest_excluded(tmp_path, ledger):
     assert lines[0] == "- Misbelief: the index is rebuilt on every commit. Actually: it rebuilds nightly at 03:00 — hub/README.md:12"
     assert lines[1].startswith("- misbelief: you must never commit the lockfile."), "a directive word inside a misbelief does not drop it"
     assert lines[2] == "- kv-cache/paging :: Misbelief: paging always costs latency. Actually: it is within 2% — kv.md:4", "the become-expert `<slug> :: ` prefix is honored"
-    assert lines[3].startswith("- [fact] Misbelief: the free tier has no rate limit. Actually: it allows 60 requests a minute — https://docs.example.com/limits#free"), "the docset `[type] ` prefix is honored"
+    assert lines[3] == "- [fact] Misbelief: the free tier has no rate limit. Actually: it allows 60 requests a minute — https://docs.example.com/limits#free", "the docset `[type] ` prefix is honored, and its URL citation is not doubled"
     assert "- The API listens on port 8790 by default — api/README.md:12" in lines
     assert "Controversy:" not in text and "Open question:" not in text, "contested lines stay out even when they read as a default or a command"
     assert dropped == 0
@@ -101,6 +101,24 @@ def test_answers_misbelief_first_contested_rest_excluded(tmp_path, ledger):
     assert lr.classify("a/b :: Misbelief: x. Actually: y") == "misbelief"
     assert lr.classify("[fact] Misbelief: x. Actually: y") == "misbelief"
     assert lr._CONTESTED.match("[question] Open question: x") and lr._CONTESTED.match("a/b :: Controversy: x vs y")
+
+
+def test_answers_keep_one_citation_for_url_and_anchor_sources(tmp_path, ledger):
+    d = tmp_path / "fam"
+    d.mkdir()
+    (d / "llms-facts.txt").write_text(
+        "# F\n\n> f\n\n"
+        "- [fact] The proxy listens on port 4000 by default. — https://docs.litellm.ai/docs/proxy/quick_start\n"
+        "- [fact] Retries default to 3 per call. — https://docs.example.com/retries#limits\n"
+        "- Batch size defaults to 64 — ../bench.claims.md#batching\n"
+        "- The cache defaults to off — asserted\n")
+    text, _ = lr.answers(d)
+    lines = [ln for ln in text.splitlines() if ln.startswith("- ")]
+    assert "- [fact] The proxy listens on port 4000 by default. — https://docs.litellm.ai/docs/proxy/quick_start" in lines
+    assert "- [fact] Retries default to 3 per call. — https://docs.example.com/retries#limits" in lines
+    assert "- Batch size defaults to 64 — ../bench.claims.md#batching" in lines
+    assert sum(ln.count(" — ") for ln in lines[:3]) == 3, "a URL or #anchor citation is not cited a second time"
+    assert any(ln.startswith("- The cache defaults to off — asserted — ") and ln.endswith("llms-facts.txt:8") for ln in lines), "a bare provenance word still gets a locator"
 
 
 def test_answers_cap(tmp_path, ledger):
