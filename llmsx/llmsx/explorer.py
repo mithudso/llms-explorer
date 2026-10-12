@@ -688,6 +688,7 @@ class Explorer(App):
         Binding("R", "research", "Research"),
         Binding("o", "job_log", "Job log", show=False),
         Binding("u", "queue_viewer", "Queue", show=False),
+        Binding("P", "prefill_clusters", "Prefill queue", show=False),
         Binding("a", "toggle_autopilot", "Auto /dr", show=False),
         Binding("h", "add_highlight", "Highlight", show=False),
         Binding("H", "view_highlights", "Highlights", show=False),
@@ -1644,7 +1645,8 @@ class Explorer(App):
             self._run_job(argv, f"notes-to-llms-txt on {folder}")
         self.push_screen(screens.Journal(to_llms))
 
-    def _run_job(self, argv: list[str], what: str, provider: str | None = None) -> None:
+    def _run_job(self, argv: list[str], what: str, provider: str | None = None,
+                 queue_concepts: list[str] | None = None) -> None:
         """One research or skill agent job in a thread worker. The TUI stays up: the job
         log screen streams every event as it happens, escape hides it while
         the job keeps running, `x` there cancels, `o` brings it back. The
@@ -1663,6 +1665,7 @@ class Explorer(App):
                 return
         snapshot = store.snapshot_tree(self.repo)
         job = screens.JobState(what, store.job_log_path(what))
+        job.queue_concepts = list(queue_concepts or [])
         self._job = job
         repo = self.repo
         timeout = (store.EGPU_TIMEOUT_S if prov == "egpu" else
@@ -1806,6 +1809,12 @@ class Explorer(App):
                 ok, msg = False, f"runner reported an error: {result.message} · {msg}"
         if not ok:
             logger.warning("job %r failed: %s", job.what, msg)
+        elif job.queue_concepts:
+            try:
+                ticked = store.mark_queue_done(self.repo, job.queue_concepts)
+                msg += f" · queue: {ticked} row(s) ticked"
+            except OSError as exc:
+                msg += f" · could not tick the queue: {exc}"
         self._refresh()
         line = ("done — " if ok else "FAILED — ") + f"{job.what}: {msg}"
         self._job_line(job, line)
@@ -2038,7 +2047,47 @@ class Explorer(App):
             get_job=lambda: self._job,
             on_run=self._run_from_queue,
             on_job_screen=lambda j: self.push_screen(screens.JobLog(j)),
+            on_run_cluster=self._run_cluster,
+            on_prefill=self._prefill_clusters,
         ))
+
+    def _prefill_clusters(self) -> str:
+        """Queue every frontier concept, clustered by shared parent; clusters
+        mentioning config `cluster_first` (default "mongodb") lead."""
+        if not self._outline:
+            return "no tree loaded"
+        first = store.cluster_first_term()
+        try:
+            added, clusters = store.prefill_queue_clusters(self.repo, self._outline, first=first)
+        except (OSError, ValueError) as exc:
+            return f"could not prefill the queue: {exc}"
+        self._refresh(reload=True)
+        if not added:
+            return "every frontier concept is already queued"
+        return f"queued {added} frontier concept(s) in {clusters} cluster(s)"
+
+    def action_prefill_clusters(self) -> None:
+        self._status(self._prefill_clusters())
+
+    def _run_cluster(self, cluster: dict) -> None:
+        """One research job for a whole cluster of queued concepts."""
+        concepts = [c for c in cluster["concepts"] if store.safe_name(c)]
+        if not concepts:
+            self._status(f"cluster {cluster['name']} has no concept a prompt accepts")
+            return
+        prov = store.active_provider()
+        try:
+            argv = store.cluster_research_argv(cluster["name"], concepts, cluster.get("parent"),
+                                               provider=prov)
+        except ValueError as exc:
+            self._status(f"refusing: {exc}")
+            return
+        if not argv:
+            self._status(f"{store.PROVIDER_LABELS.get(prov, prov)} CLI not found on PATH")
+            return
+        what = (f"dr research on {concepts[0]}" if len(concepts) == 1 else
+                f"cluster research on {cluster['name']} ({len(concepts)} concepts)")
+        self._run_job(argv, what, provider=prov, queue_concepts=concepts)
 
     def _run_from_queue(self, concept: str, mode: str, parent: str | None) -> None:
         why = store.unsafe_name_reason(concept)
@@ -2169,6 +2218,20 @@ class Explorer(App):
             self._status("autopilot stopped: tree outline not available")
             return
 
+        # the clustered queue first, but only rows still on the frontier: a
+        # concept researched some other way since it was queued is skipped
+        clusters = []
+        frontier_now = set(store.frontier_concepts(self._outline))
+        for c in store.pending_clusters(self.repo, store.cluster_first_term()):
+            live = [n for n in c["concepts"] if n in frontier_now]
+            if live and c["mode"] == "dr":
+                clusters.append({**c, "concepts": live})
+        if clusters:
+            c = clusters[0]
+            self._status(f"autopilot: researching cluster '{c['name']}' "
+                         f"({len(c['concepts'])} concepts, {len(clusters)} clusters queued)")
+            self._run_cluster(c)
+            return
         frontier = store.frontier_concepts(self._outline)
         if frontier:
             target = frontier[0]

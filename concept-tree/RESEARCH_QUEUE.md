@@ -144,3 +144,3802 @@ instead of being silently treated as done.
 - [ ] Concept: `Warm Standby Replica` | Parent: `Global AI Hub Research Corpus` | Note: thin/unsourced batch-2026-09-14, needs real re-research; no specific existing parent found, filed under the catch-all root pending a real placement decision
 - [ ] Concept: `Zero Trust Architecture` | Parent: `Global AI Hub Research Corpus` | Note: thin/unsourced batch-2026-09-14, needs real re-research; no specific existing parent found, filed under the catch-all root pending a real placement decision
 - [ ] Concept: `dbt Data Transform` | Parent: `Global AI Hub Research Corpus` | Note: thin/unsourced batch-2026-09-14, needs real re-research; no specific existing parent found, filed under the catch-all root pending a real placement decision
+
+## Frontier clusters (2026-10-12)
+
+Every frontier concept, grouped by shared parent (at most 8 per cluster), clusters about mongodb first. The explorer researches one cluster per job.
+
+- [ ] Concept: `Federated Query on Archive` | Parent: `MongoDB Atlas Online Archive` | Mode: `dr` | Cluster: `MongoDB Atlas Online Archive`
+- [ ] Concept: `Archive Cost Model` | Parent: `MongoDB Atlas Online Archive` | Mode: `dr` | Cluster: `MongoDB Atlas Online Archive`
+- [ ] Concept: `Archive Restore` | Parent: `MongoDB Atlas Online Archive` | Mode: `dr` | Cluster: `MongoDB Atlas Online Archive`
+- [ ] Concept: `Archive Monitoring` | Parent: `MongoDB Atlas Online Archive` | Mode: `dr` | Cluster: `MongoDB Atlas Online Archive`
+- [ ] Concept: `Archive Anti-Patterns` | Parent: `MongoDB Atlas Online Archive` | Mode: `dr` | Cluster: `MongoDB Atlas Online Archive`
+- [ ] Concept: `App Services Rules and Permissions` | Parent: `MongoDB Atlas App Services` | Mode: `dr` | Cluster: `MongoDB Atlas App Services`
+- [ ] Concept: `App Services Schema Validation` | Parent: `MongoDB Atlas App Services` | Mode: `dr` | Cluster: `MongoDB Atlas App Services`
+- [ ] Concept: `Atlas GraphQL API (EOL)` | Parent: `MongoDB Atlas App Services` | Mode: `dr` | Cluster: `MongoDB Atlas App Services`
+- [ ] Concept: `Atlas Data API (EOL)` | Parent: `MongoDB Atlas App Services` | Mode: `dr` | Cluster: `MongoDB Atlas App Services`
+- [ ] Concept: `Custom HTTPS Endpoints (EOL)` | Parent: `MongoDB Atlas App Services` | Mode: `dr` | Cluster: `MongoDB Atlas App Services`
+- [ ] Concept: `App Services Values and Secrets` | Parent: `MongoDB Atlas App Services` | Mode: `dr` | Cluster: `MongoDB Atlas App Services`
+- [ ] Concept: `App Services Deployment Model` | Parent: `MongoDB Atlas App Services` | Mode: `dr` | Cluster: `MongoDB Atlas App Services`
+- [ ] Concept: `App Services Migration Paths` | Parent: `MongoDB Atlas App Services` | Mode: `dr` | Cluster: `MongoDB Atlas App Services`
+- [ ] Concept: `Atlas Search Anti-Patterns` | Parent: `MongoDB Atlas Search` | Mode: `dr` | Cluster: `MongoDB Atlas Search (1 of 2)`
+- [ ] Concept: `Atlas Search Architecture` | Parent: `MongoDB Atlas Search` | Mode: `dr` | Cluster: `MongoDB Atlas Search (1 of 2)`
+- [ ] Concept: `Autocomplete` | Parent: `MongoDB Atlas Search` | Mode: `dr` | Cluster: `MongoDB Atlas Search (1 of 2)`
+- [ ] Concept: `Custom Analyzers` | Parent: `MongoDB Atlas Search` | Mode: `dr` | Cluster: `MongoDB Atlas Search (1 of 2)`
+- [ ] Concept: `Faceted Search` | Parent: `MongoDB Atlas Search` | Mode: `dr` | Cluster: `MongoDB Atlas Search (1 of 2)`
+- [ ] Concept: `Search Highlighting` | Parent: `MongoDB Atlas Search` | Mode: `dr` | Cluster: `MongoDB Atlas Search (2 of 2)`
+- [ ] Concept: `Search Index Mapping` | Parent: `MongoDB Atlas Search` | Mode: `dr` | Cluster: `MongoDB Atlas Search (2 of 2)`
+- [ ] Concept: `Atlas Search Nodes` | Parent: `MongoDB Atlas Search` | Mode: `dr` | Cluster: `MongoDB Atlas Search (2 of 2)`
+- [ ] Concept: `Relevance Scoring` | Parent: `MongoDB Atlas Search` | Mode: `dr` | Cluster: `MongoDB Atlas Search (2 of 2)`
+- [ ] Concept: `Chart Types` | Parent: `MongoDB Atlas Charts` | Mode: `dr` | Cluster: `MongoDB Atlas Charts`
+- [ ] Concept: `Data Sources` | Parent: `MongoDB Atlas Charts` | Mode: `dr` | Cluster: `MongoDB Atlas Charts`
+- [ ] Concept: `Dashboards` | Parent: `MongoDB Atlas Charts` | Mode: `dr` | Cluster: `MongoDB Atlas Charts`
+- [ ] Concept: `Embedded Charts` | Parent: `MongoDB Atlas Charts` | Mode: `dr` | Cluster: `MongoDB Atlas Charts`
+- [ ] Concept: `Embedding SDK` | Parent: `MongoDB Atlas Charts` | Mode: `dr` | Cluster: `MongoDB Atlas Charts`
+- [ ] Concept: `Charts REST API` | Parent: `MongoDB Atlas Charts` | Mode: `dr` | Cluster: `MongoDB Atlas Charts`
+- [ ] Concept: `Cost Model` | Parent: `MongoDB Atlas Charts` | Mode: `dr` | Cluster: `MongoDB Atlas Charts`
+- [ ] Concept: `Quick Reference` | Parent: `MongoDB Atlas Charts` | Mode: `dr` | Cluster: `MongoDB Atlas Charts`
+- [ ] Concept: `write-model-strategies` | Parent: `mongodb-kafka-connector` | Mode: `dr` | Cluster: `mongodb-kafka-connector`
+- [ ] Concept: `DLQ-error-handling` | Parent: `mongodb-kafka-connector` | Mode: `dr` | Cluster: `mongodb-kafka-connector`
+- [ ] Concept: `schema-registry-integration` | Parent: `mongodb-kafka-connector` | Mode: `dr` | Cluster: `mongodb-kafka-connector`
+- [ ] Concept: `MSK-Connect-deployment` | Parent: `mongodb-kafka-connector` | Mode: `dr` | Cluster: `mongodb-kafka-connector`
+- [ ] Concept: `Connection Registry` | Parent: `MongoDB Atlas Stream Processing` | Mode: `dr` | Cluster: `MongoDB Atlas Stream Processing (1 of 2)`
+- [ ] Concept: `Dead Letter Queue (DLQ)` | Parent: `MongoDB Atlas Stream Processing` | Mode: `dr` | Cluster: `MongoDB Atlas Stream Processing (1 of 2)`
+- [ ] Concept: `Hopping Windows` | Parent: `MongoDB Atlas Stream Processing` | Mode: `dr` | Cluster: `MongoDB Atlas Stream Processing (1 of 2)`
+- [ ] Concept: `Stream Processing Instance (SPI)` | Parent: `MongoDB Atlas Stream Processing` | Mode: `dr` | Cluster: `MongoDB Atlas Stream Processing (1 of 2)`
+- [ ] Concept: `Stream Processor Monitoring` | Parent: `MongoDB Atlas Stream Processing` | Mode: `dr` | Cluster: `MongoDB Atlas Stream Processing (1 of 2)`
+- [ ] Concept: `Stream Processor Pipeline` | Parent: `MongoDB Atlas Stream Processing` | Mode: `dr` | Cluster: `MongoDB Atlas Stream Processing (2 of 2)`
+- [ ] Concept: `Session Windows` | Parent: `MongoDB Atlas Stream Processing` | Mode: `dr` | Cluster: `MongoDB Atlas Stream Processing (2 of 2)`
+- [ ] Concept: `Tumbling Windows` | Parent: `MongoDB Atlas Stream Processing` | Mode: `dr` | Cluster: `MongoDB Atlas Stream Processing (2 of 2)`
+- [ ] Concept: `Watermarks and Late-Event Tolerance` | Parent: `MongoDB Atlas Stream Processing` | Mode: `dr` | Cluster: `MongoDB Atlas Stream Processing (2 of 2)`
+- [ ] Concept: `Atlas Activity Feed` | Parent: `MongoDB Atlas IAM and RBAC` | Mode: `dr` | Cluster: `MongoDB Atlas IAM and RBAC (1 of 3)`
+- [ ] Concept: `Atlas Auth Tier Feature Matrix M0 Flex M10` | Parent: `MongoDB Atlas IAM and RBAC` | Mode: `dr` | Cluster: `MongoDB Atlas IAM and RBAC (1 of 3)`
+- [ ] Concept: `Atlas AWS IAM Database Auth` | Parent: `MongoDB Atlas IAM and RBAC` | Mode: `dr` | Cluster: `MongoDB Atlas IAM and RBAC (1 of 3)`
+- [ ] Concept: `Atlas IAM Compliance Mapping` | Parent: `MongoDB Atlas IAM and RBAC` | Mode: `dr` | Cluster: `MongoDB Atlas IAM and RBAC (1 of 3)`
+- [ ] Concept: `Atlas Custom Database Roles` | Parent: `MongoDB Atlas IAM and RBAC` | Mode: `dr` | Cluster: `MongoDB Atlas IAM and RBAC (1 of 3)`
+- [ ] Concept: `Atlas Database Auditing` | Parent: `MongoDB Atlas IAM and RBAC` | Mode: `dr` | Cluster: `MongoDB Atlas IAM and RBAC (1 of 3)`
+- [ ] Concept: `Atlas Database Users` | Parent: `MongoDB Atlas IAM and RBAC` | Mode: `dr` | Cluster: `MongoDB Atlas IAM and RBAC (2 of 3)`
+- [ ] Concept: `Atlas IdP Group to Role Mapping` | Parent: `MongoDB Atlas IAM and RBAC` | Mode: `dr` | Cluster: `MongoDB Atlas IAM and RBAC (2 of 3)`
+- [ ] Concept: `Atlas LDAPS (Deprecated 8.0)` | Parent: `MongoDB Atlas IAM and RBAC` | Mode: `dr` | Cluster: `MongoDB Atlas IAM and RBAC (2 of 3)`
+- [ ] Concept: `Atlas Log Push SIEM` | Parent: `MongoDB Atlas IAM and RBAC` | Mode: `dr` | Cluster: `MongoDB Atlas IAM and RBAC (2 of 3)`
+- [ ] Concept: `Atlas Organization Roles` | Parent: `MongoDB Atlas IAM and RBAC` | Mode: `dr` | Cluster: `MongoDB Atlas IAM and RBAC (2 of 3)`
+- [ ] Concept: `Atlas Organization Teams` | Parent: `MongoDB Atlas IAM and RBAC` | Mode: `dr` | Cluster: `MongoDB Atlas IAM and RBAC (2 of 3)`
+- [ ] Concept: `Atlas Programmatic API Keys (Legacy)` | Parent: `MongoDB Atlas IAM and RBAC` | Mode: `dr` | Cluster: `MongoDB Atlas IAM and RBAC (3 of 3)`
+- [ ] Concept: `Atlas Project Roles (15 Purpose-Built)` | Parent: `MongoDB Atlas IAM and RBAC` | Mode: `dr` | Cluster: `MongoDB Atlas IAM and RBAC (3 of 3)`
+- [ ] Concept: `Atlas SCRAM-SHA-256` | Parent: `MongoDB Atlas IAM and RBAC` | Mode: `dr` | Cluster: `MongoDB Atlas IAM and RBAC (3 of 3)`
+- [ ] Concept: `Atlas Three-Tier Identity Model` | Parent: `MongoDB Atlas IAM and RBAC` | Mode: `dr` | Cluster: `MongoDB Atlas IAM and RBAC (3 of 3)`
+- [ ] Concept: `Atlas X.509 Certificate Auth` | Parent: `MongoDB Atlas IAM and RBAC` | Mode: `dr` | Cluster: `MongoDB Atlas IAM and RBAC (3 of 3)`
+- [ ] Concept: `Atlas IP access list for service accounts` | Parent: `Atlas Identity Federation and Resource Policy Boundaries` | Mode: `dr` | Cluster: `Atlas Identity Federation and Resource Policy Boundaries`
+- [ ] Concept: `Atlas WIF built-in vs callback authentication` | Parent: `Atlas Identity Federation and Resource Policy Boundaries` | Mode: `dr` | Cluster: `Atlas Identity Federation and Resource Policy Boundaries`
+- [ ] Concept: `Atlas federated database users and groups` | Parent: `Atlas Identity Federation and Resource Policy Boundaries` | Mode: `dr` | Cluster: `Atlas Identity Federation and Resource Policy Boundaries`
+- [ ] Concept: `Atlas org mapping and domain mapping` | Parent: `Atlas Identity Federation and Resource Policy Boundaries` | Mode: `dr` | Cluster: `Atlas Identity Federation and Resource Policy Boundaries`
+- [ ] Concept: `Entra ID group overage in Atlas` | Parent: `Atlas Identity Federation and Resource Policy Boundaries` | Mode: `dr` | Cluster: `Atlas Identity Federation and Resource Policy Boundaries`
+- [ ] Concept: `Federated database user mapping by sub/groups claim` | Parent: `Atlas Identity Federation and Resource Policy Boundaries` | Mode: `dr` | Cluster: `Atlas Identity Federation and Resource Policy Boundaries`
+- [ ] Concept: `Service account secret rotation` | Parent: `Atlas Identity Federation and Resource Policy Boundaries` | Mode: `dr` | Cluster: `Atlas Identity Federation and Resource Policy Boundaries`
+- [ ] Concept: `Terraform mongodbatlas_service_account without initial secret` | Parent: `Atlas Identity Federation and Resource Policy Boundaries` | Mode: `dr` | Cluster: `Atlas Identity Federation and Resource Policy Boundaries`
+- [ ] Concept: `Atlas nonCompliantResources endpoint` | Parent: `Atlas Resource Policies Cedar` | Mode: `dr` | Cluster: `Atlas Resource Policies Cedar`
+- [ ] Concept: `Cedar forbid-only policy patterns for Atlas` | Parent: `Atlas Resource Policies Cedar` | Mode: `dr` | Cluster: `Atlas Resource Policies Cedar`
+- [ ] Concept: `Atlas Terraform mongodbatlas_resource_policy` | Parent: `Atlas Resource Policies Cedar` | Mode: `dr` | Cluster: `Atlas Resource Policies Cedar`
+- [ ] Concept: `Atlas Admin API Date Versioned Media Types` | Parent: `MongoDB Atlas Infrastructure as Code` | Mode: `dr` | Cluster: `MongoDB Atlas Infrastructure as Code (1 of 4)`
+- [ ] Concept: `Atlas Admin API v2 REST` | Parent: `MongoDB Atlas Infrastructure as Code` | Mode: `dr` | Cluster: `MongoDB Atlas Infrastructure as Code (1 of 4)`
+- [ ] Concept: `AKO Deletion Protection v2.0` | Parent: `MongoDB Atlas Infrastructure as Code` | Mode: `dr` | Cluster: `MongoDB Atlas Infrastructure as Code (1 of 4)`
+- [ ] Concept: `AKO Dry Run Mode` | Parent: `MongoDB Atlas Infrastructure as Code` | Mode: `dr` | Cluster: `MongoDB Atlas Infrastructure as Code (1 of 4)`
+- [ ] Concept: `Backup Compliance Policy One-Way` | Parent: `MongoDB Atlas Infrastructure as Code` | Mode: `dr` | Cluster: `MongoDB Atlas Infrastructure as Code (1 of 4)`
+- [ ] Concept: `Atlas CLI Scripting` | Parent: `MongoDB Atlas Infrastructure as Code` | Mode: `dr` | Cluster: `MongoDB Atlas Infrastructure as Code (1 of 4)`
+- [ ] Concept: `Atlas CLI Terraform Plugin` | Parent: `MongoDB Atlas Infrastructure as Code` | Mode: `dr` | Cluster: `MongoDB Atlas Infrastructure as Code (1 of 4)`
+- [ ] Concept: `CloudFormation Third Party Activation` | Parent: `MongoDB Atlas Infrastructure as Code` | Mode: `dr` | Cluster: `MongoDB Atlas Infrastructure as Code (2 of 4)`
+- [ ] Concept: `Atlas IaC Anti-Patterns` | Parent: `MongoDB Atlas Infrastructure as Code` | Mode: `dr` | Cluster: `MongoDB Atlas Infrastructure as Code (2 of 4)`
+- [ ] Concept: `Atlas IaC Migration Paths` | Parent: `MongoDB Atlas Infrastructure as Code` | Mode: `dr` | Cluster: `MongoDB Atlas Infrastructure as Code (2 of 4)`
+- [ ] Concept: `Atlas IaC Tool Decision Matrix` | Parent: `MongoDB Atlas Infrastructure as Code` | Mode: `dr` | Cluster: `MongoDB Atlas Infrastructure as Code (2 of 4)`
+- [ ] Concept: `Atlas IP Access List Ownership Conflict` | Parent: `MongoDB Atlas Infrastructure as Code` | Mode: `dr` | Cluster: `MongoDB Atlas Infrastructure as Code (2 of 4)`
+- [ ] Concept: `atlas kubernetes config generate` | Parent: `MongoDB Atlas Infrastructure as Code` | Mode: `dr` | Cluster: `MongoDB Atlas Infrastructure as Code (2 of 4)`
+- [ ] Concept: `Atlas Kubernetes Operator AKO v2.14` | Parent: `MongoDB Atlas Infrastructure as Code` | Mode: `dr` | Cluster: `MongoDB Atlas Infrastructure as Code (2 of 4)`
+- [ ] Concept: `mongodbatlas_advanced_cluster Resource` | Parent: `MongoDB Atlas Infrastructure as Code` | Mode: `dr` | Cluster: `MongoDB Atlas Infrastructure as Code (3 of 4)`
+- [ ] Concept: `moved Block Migration Pattern` | Parent: `MongoDB Atlas Infrastructure as Code` | Mode: `dr` | Cluster: `MongoDB Atlas Infrastructure as Code (3 of 4)`
+- [ ] Concept: `Multi-Environment Terraform Directories vs Workspaces` | Parent: `MongoDB Atlas Infrastructure as Code` | Mode: `dr` | Cluster: `MongoDB Atlas Infrastructure as Code (3 of 4)`
+- [ ] Concept: `Programmatic API Keys Legacy Auth` | Parent: `MongoDB Atlas Infrastructure as Code` | Mode: `dr` | Cluster: `MongoDB Atlas Infrastructure as Code (3 of 4)`
+- [ ] Concept: `Pulumi mongodbatlas Provider` | Parent: `MongoDB Atlas Infrastructure as Code` | Mode: `dr` | Cluster: `MongoDB Atlas Infrastructure as Code (3 of 4)`
+- [ ] Concept: `Service Account OAuth 2.0 Authentication` | Parent: `MongoDB Atlas Infrastructure as Code` | Mode: `dr` | Cluster: `MongoDB Atlas Infrastructure as Code (3 of 4)`
+- [ ] Concept: `Service Account per Environment Pattern` | Parent: `MongoDB Atlas Infrastructure as Code` | Mode: `dr` | Cluster: `MongoDB Atlas Infrastructure as Code (3 of 4)`
+- [ ] Concept: `Terraform Drift Detection` | Parent: `MongoDB Atlas Infrastructure as Code` | Mode: `dr` | Cluster: `MongoDB Atlas Infrastructure as Code (4 of 4)`
+- [ ] Concept: `Terraform Import generate-config-out` | Parent: `MongoDB Atlas Infrastructure as Code` | Mode: `dr` | Cluster: `MongoDB Atlas Infrastructure as Code (4 of 4)`
+- [ ] Concept: `Terraform Atlas Provider v2.x` | Parent: `MongoDB Atlas Infrastructure as Code` | Mode: `dr` | Cluster: `MongoDB Atlas Infrastructure as Code (4 of 4)`
+- [ ] Concept: `Workload Identity Federation Atlas` | Parent: `MongoDB Atlas Infrastructure as Code` | Mode: `dr` | Cluster: `MongoDB Atlas Infrastructure as Code (4 of 4)`
+- [ ] Concept: `Atlas Cluster IaC` | Parent: `MongoDB Atlas Terraform Provider` | Mode: `dr` | Cluster: `MongoDB Atlas Terraform Provider`
+- [ ] Concept: `Atlas Networking IaC` | Parent: `MongoDB Atlas Terraform Provider` | Mode: `dr` | Cluster: `MongoDB Atlas Terraform Provider`
+- [ ] Concept: `Atlas RBAC IaC` | Parent: `MongoDB Atlas Terraform Provider` | Mode: `dr` | Cluster: `MongoDB Atlas Terraform Provider`
+- [ ] Concept: `Atlas Encryption IaC` | Parent: `MongoDB Atlas Terraform Provider` | Mode: `dr` | Cluster: `MongoDB Atlas Terraform Provider`
+- [ ] Concept: `Atlas Backup IaC` | Parent: `MongoDB Atlas Terraform Provider` | Mode: `dr` | Cluster: `MongoDB Atlas Terraform Provider`
+- [ ] Concept: `Terraform Provider v2 Migration` | Parent: `MongoDB Atlas Terraform Provider` | Mode: `dr` | Cluster: `MongoDB Atlas Terraform Provider`
+- [ ] Concept: `Common Pitfalls` | Parent: `MongoDB Realm Mobile Sync` | Mode: `dr` | Cluster: `MongoDB Realm Mobile Sync (1 of 2)`
+- [ ] Concept: `Sync Configuration` | Parent: `MongoDB Realm Mobile Sync` | Mode: `dr` | Cluster: `MongoDB Realm Mobile Sync (1 of 2)`
+- [ ] Concept: `Conflict Resolution` | Parent: `MongoDB Realm Mobile Sync` | Mode: `dr` | Cluster: `MongoDB Realm Mobile Sync (1 of 2)`
+- [ ] Concept: `Atlas Device Sync Overview` | Parent: `MongoDB Realm Mobile Sync` | Mode: `dr` | Cluster: `MongoDB Realm Mobile Sync (1 of 2)`
+- [ ] Concept: `Flexible Sync` | Parent: `MongoDB Realm Mobile Sync` | Mode: `dr` | Cluster: `MongoDB Realm Mobile Sync (1 of 2)`
+- [ ] Concept: `Realm Object Model` | Parent: `MongoDB Realm Mobile Sync` | Mode: `dr` | Cluster: `MongoDB Realm Mobile Sync (2 of 2)`
+- [ ] Concept: `Offline-First Patterns` | Parent: `MongoDB Realm Mobile Sync` | Mode: `dr` | Cluster: `MongoDB Realm Mobile Sync (2 of 2)`
+- [ ] Concept: `Partition-Based Sync (Legacy)` | Parent: `MongoDB Realm Mobile Sync` | Mode: `dr` | Cluster: `MongoDB Realm Mobile Sync (2 of 2)`
+- [ ] Concept: `Permissions Model` | Parent: `MongoDB Realm Mobile Sync` | Mode: `dr` | Cluster: `MongoDB Realm Mobile Sync (2 of 2)`
+- [ ] Concept: `Realm SDK Languages and Platforms` | Parent: `MongoDB Realm Mobile Sync` | Mode: `dr` | Cluster: `MongoDB Realm Mobile Sync (2 of 2)`
+- [ ] Concept: `Asymmetric Sync` | Parent: `MongoDB Atlas Device SDK` | Mode: `dr` | Cluster: `MongoDB Atlas Device SDK (1 of 2)`
+- [ ] Concept: `Client Reset Strategies` | Parent: `MongoDB Atlas Device SDK` | Mode: `dr` | Cluster: `MongoDB Atlas Device SDK (1 of 2)`
+- [ ] Concept: `Atlas Edge Server` | Parent: `MongoDB Atlas Device SDK` | Mode: `dr` | Cluster: `MongoDB Atlas Device SDK (1 of 2)`
+- [ ] Concept: `Flexible Sync Subscriptions` | Parent: `MongoDB Atlas Device SDK` | Mode: `dr` | Cluster: `MongoDB Atlas Device SDK (1 of 2)`
+- [ ] Concept: `Flutter Dart Realm SDK` | Parent: `MongoDB Atlas Device SDK` | Mode: `dr` | Cluster: `MongoDB Atlas Device SDK (1 of 2)`
+- [ ] Concept: `Offline-First Mobile` | Parent: `MongoDB Atlas Device SDK` | Mode: `dr` | Cluster: `MongoDB Atlas Device SDK (2 of 2)`
+- [ ] Concept: `Realm Authentication` | Parent: `MongoDB Atlas Device SDK` | Mode: `dr` | Cluster: `MongoDB Atlas Device SDK (2 of 2)`
+- [ ] Concept: `Realm Migration` | Parent: `MongoDB Atlas Device SDK` | Mode: `dr` | Cluster: `MongoDB Atlas Device SDK (2 of 2)`
+- [ ] Concept: `Atlas Device Sync` | Parent: `MongoDB Atlas Device SDK` | Mode: `dr` | Cluster: `MongoDB Atlas Device SDK (2 of 2)`
+- [ ] Concept: `Connection Troubleshooting` | Parent: `MongoDB Atlas AWS Networking` | Mode: `dr` | Cluster: `MongoDB Atlas AWS Networking (1 of 2)`
+- [ ] Concept: `DNS and SRV Records` | Parent: `MongoDB Atlas AWS Networking` | Mode: `dr` | Cluster: `MongoDB Atlas AWS Networking (1 of 2)`
+- [ ] Concept: `EDP Credits` | Parent: `MongoDB Atlas AWS Networking` | Mode: `dr` | Cluster: `MongoDB Atlas AWS Networking (1 of 2)`
+- [ ] Concept: `EventBridge Integration` | Parent: `MongoDB Atlas AWS Networking` | Mode: `dr` | Cluster: `MongoDB Atlas AWS Networking (1 of 2)`
+- [ ] Concept: `IAM Authentication` | Parent: `MongoDB Atlas AWS Networking` | Mode: `dr` | Cluster: `MongoDB Atlas AWS Networking (1 of 2)`
+- [ ] Concept: `KMS Encryption at Rest` | Parent: `MongoDB Atlas AWS Networking` | Mode: `dr` | Cluster: `MongoDB Atlas AWS Networking (1 of 2)`
+- [ ] Concept: `Lambda Integration` | Parent: `MongoDB Atlas AWS Networking` | Mode: `dr` | Cluster: `MongoDB Atlas AWS Networking (1 of 2)`
+- [ ] Concept: `Multi-Region Networking` | Parent: `MongoDB Atlas AWS Networking` | Mode: `dr` | Cluster: `MongoDB Atlas AWS Networking (2 of 2)`
+- [ ] Concept: `Network Access Lists` | Parent: `MongoDB Atlas AWS Networking` | Mode: `dr` | Cluster: `MongoDB Atlas AWS Networking (2 of 2)`
+- [ ] Concept: `Security Groups` | Parent: `MongoDB Atlas AWS Networking` | Mode: `dr` | Cluster: `MongoDB Atlas AWS Networking (2 of 2)`
+- [ ] Concept: `Terraform Atlas Provider` | Parent: `MongoDB Atlas AWS Networking` | Mode: `dr` | Cluster: `MongoDB Atlas AWS Networking (2 of 2)`
+- [ ] Concept: `TLS Encryption` | Parent: `MongoDB Atlas AWS Networking` | Mode: `dr` | Cluster: `MongoDB Atlas AWS Networking (2 of 2)`
+- [ ] Concept: `Transit Gateway Patterns` | Parent: `MongoDB Atlas AWS Networking` | Mode: `dr` | Cluster: `MongoDB Atlas AWS Networking (2 of 2)`
+- [ ] Concept: `VPC Peering` | Parent: `MongoDB Atlas AWS Networking` | Mode: `dr` | Cluster: `MongoDB Atlas AWS Networking (2 of 2)`
+- [ ] Concept: `Atlas Cloud Backup (snapshots)` | Parent: `MongoDB Backup and Restore` | Mode: `dr` | Cluster: `MongoDB Backup and Restore`
+- [ ] Concept: `Continuous Cloud Backup (PITR)` | Parent: `MongoDB Backup and Restore` | Mode: `dr` | Cluster: `MongoDB Backup and Restore`
+- [ ] Concept: `Queryable Backups` | Parent: `MongoDB Backup and Restore` | Mode: `dr` | Cluster: `MongoDB Backup and Restore`
+- [ ] Concept: `Ops Manager Backup` | Parent: `MongoDB Backup and Restore` | Mode: `dr` | Cluster: `MongoDB Backup and Restore`
+- [ ] Concept: `Restore Workflows` | Parent: `MongoDB Backup and Restore` | Mode: `dr` | Cluster: `MongoDB Backup and Restore`
+- [ ] Concept: `Cross-Region Snapshot Copy` | Parent: `MongoDB Backup and Restore` | Mode: `dr` | Cluster: `MongoDB Backup and Restore`
+- [ ] Concept: `Backup Verification and Tabletop Exercises` | Parent: `MongoDB Backup and Restore` | Mode: `dr` | Cluster: `MongoDB Backup and Restore`
+- [ ] Concept: `Backup Anti-Patterns` | Parent: `MongoDB Backup and Restore` | Mode: `dr` | Cluster: `MongoDB Backup and Restore`
+- [ ] Concept: `Backup Cost Optimization` | Parent: `MongoDB Atlas Cost Optimization` | Mode: `dr` | Cluster: `MongoDB Atlas Cost Optimization (1 of 2)`
+- [ ] Concept: `Cluster Pause` | Parent: `MongoDB Atlas Cost Optimization` | Mode: `dr` | Cluster: `MongoDB Atlas Cost Optimization (1 of 2)`
+- [ ] Concept: `Common Cost Overruns` | Parent: `MongoDB Atlas Cost Optimization` | Mode: `dr` | Cluster: `MongoDB Atlas Cost Optimization (1 of 2)`
+- [ ] Concept: `Elastic Compute Autoscaling` | Parent: `MongoDB Atlas Cost Optimization` | Mode: `dr` | Cluster: `MongoDB Atlas Cost Optimization (1 of 2)`
+- [ ] Concept: `Index Storage Cost` | Parent: `MongoDB Atlas Cost Optimization` | Mode: `dr` | Cluster: `MongoDB Atlas Cost Optimization (1 of 2)`
+- [ ] Concept: `Instance Right-Sizing` | Parent: `MongoDB Atlas Cost Optimization` | Mode: `dr` | Cluster: `MongoDB Atlas Cost Optimization (1 of 2)`
+- [ ] Concept: `Cost Monitoring` | Parent: `MongoDB Atlas Cost Optimization` | Mode: `dr` | Cluster: `MongoDB Atlas Cost Optimization (2 of 2)`
+- [ ] Concept: `Network Egress Costs` | Parent: `MongoDB Atlas Cost Optimization` | Mode: `dr` | Cluster: `MongoDB Atlas Cost Optimization (2 of 2)`
+- [ ] Concept: `Reserved Capacity and Committed Use` | Parent: `MongoDB Atlas Cost Optimization` | Mode: `dr` | Cluster: `MongoDB Atlas Cost Optimization (2 of 2)`
+- [ ] Concept: `Storage Autoscaling` | Parent: `MongoDB Atlas Cost Optimization` | Mode: `dr` | Cluster: `MongoDB Atlas Cost Optimization (2 of 2)`
+- [ ] Concept: `Storage Tier Selection` | Parent: `MongoDB Atlas Cost Optimization` | Mode: `dr` | Cluster: `MongoDB Atlas Cost Optimization (2 of 2)`
+- [ ] Concept: `Tier 0 Tier 1 Tier 2 Strategy` | Parent: `MongoDB Atlas Cost Optimization` | Mode: `dr` | Cluster: `MongoDB Atlas Cost Optimization (2 of 2)`
+- [ ] Concept: `Serverless Cold Start Behavior` | Parent: `MongoDB Atlas Flex and Serverless Tiers` | Mode: `dr` | Cluster: `MongoDB Atlas Flex and Serverless Tiers (1 of 2)`
+- [ ] Concept: `Flex Cost Break-Even Analysis` | Parent: `MongoDB Atlas Flex and Serverless Tiers` | Mode: `dr` | Cluster: `MongoDB Atlas Flex and Serverless Tiers (1 of 2)`
+- [ ] Concept: `Flex vs Dedicated Decision Matrix` | Parent: `MongoDB Atlas Flex and Serverless Tiers` | Mode: `dr` | Cluster: `MongoDB Atlas Flex and Serverless Tiers (1 of 2)`
+- [ ] Concept: `Serverless Deprecation and EOL` | Parent: `MongoDB Atlas Flex and Serverless Tiers` | Mode: `dr` | Cluster: `MongoDB Atlas Flex and Serverless Tiers (1 of 2)`
+- [ ] Concept: `M0 Free Tier vs Flex Comparison` | Parent: `MongoDB Atlas Flex and Serverless Tiers` | Mode: `dr` | Cluster: `MongoDB Atlas Flex and Serverless Tiers (1 of 2)`
+- [ ] Concept: `M2 M5 Migration to Flex` | Parent: `MongoDB Atlas Flex and Serverless Tiers` | Mode: `dr` | Cluster: `MongoDB Atlas Flex and Serverless Tiers (1 of 2)`
+- [ ] Concept: `Atlas Flex Pricing Model` | Parent: `MongoDB Atlas Flex and Serverless Tiers` | Mode: `dr` | Cluster: `MongoDB Atlas Flex and Serverless Tiers (2 of 2)`
+- [ ] Concept: `Serverless RPU WPU Billing` | Parent: `MongoDB Atlas Flex and Serverless Tiers` | Mode: `dr` | Cluster: `MongoDB Atlas Flex and Serverless Tiers (2 of 2)`
+- [ ] Concept: `Atlas Flex Technical Limits` | Parent: `MongoDB Atlas Flex and Serverless Tiers` | Mode: `dr` | Cluster: `MongoDB Atlas Flex and Serverless Tiers (2 of 2)`
+- [ ] Concept: `Flex Tooling Migration Terraform K8s CLI` | Parent: `MongoDB Atlas Flex and Serverless Tiers` | Mode: `dr` | Cluster: `MongoDB Atlas Flex and Serverless Tiers (2 of 2)`
+- [ ] Concept: `Atlas Flex Unsupported Features` | Parent: `MongoDB Atlas Flex and Serverless Tiers` | Mode: `dr` | Cluster: `MongoDB Atlas Flex and Serverless Tiers (2 of 2)`
+- [ ] Concept: `Atlas on Azure` | Parent: `MongoDB Atlas Multi-Cloud` | Mode: `dr` | Cluster: `MongoDB Atlas Multi-Cloud (1 of 2)`
+- [ ] Concept: `Azure Partnership and MACC` | Parent: `MongoDB Atlas Multi-Cloud` | Mode: `dr` | Cluster: `MongoDB Atlas Multi-Cloud (1 of 2)`
+- [ ] Concept: `Azure Private Link for Atlas` | Parent: `MongoDB Atlas Multi-Cloud` | Mode: `dr` | Cluster: `MongoDB Atlas Multi-Cloud (1 of 2)`
+- [ ] Concept: `Multi-Cloud Billing` | Parent: `MongoDB Atlas Multi-Cloud` | Mode: `dr` | Cluster: `MongoDB Atlas Multi-Cloud (1 of 2)`
+- [ ] Concept: `Cross-Cloud Egress Costs` | Parent: `MongoDB Atlas Multi-Cloud` | Mode: `dr` | Cluster: `MongoDB Atlas Multi-Cloud (1 of 2)`
+- [ ] Concept: `Multi-Cloud DR Pattern` | Parent: `MongoDB Atlas Multi-Cloud` | Mode: `dr` | Cluster: `MongoDB Atlas Multi-Cloud (1 of 2)`
+- [ ] Concept: `Multi-Cloud Failure Modes` | Parent: `MongoDB Atlas Multi-Cloud` | Mode: `dr` | Cluster: `MongoDB Atlas Multi-Cloud (2 of 2)`
+- [ ] Concept: `Atlas on GCP` | Parent: `MongoDB Atlas Multi-Cloud` | Mode: `dr` | Cluster: `MongoDB Atlas Multi-Cloud (2 of 2)`
+- [ ] Concept: `GCP Partnership and Marketplace` | Parent: `MongoDB Atlas Multi-Cloud` | Mode: `dr` | Cluster: `MongoDB Atlas Multi-Cloud (2 of 2)`
+- [ ] Concept: `GCP Private Service Connect for Atlas` | Parent: `MongoDB Atlas Multi-Cloud` | Mode: `dr` | Cluster: `MongoDB Atlas Multi-Cloud (2 of 2)`
+- [ ] Concept: `Multi-Cloud Global Clusters` | Parent: `MongoDB Atlas Multi-Cloud` | Mode: `dr` | Cluster: `MongoDB Atlas Multi-Cloud (2 of 2)`
+- [ ] Concept: `Multi-Cloud Replica Sets` | Parent: `MongoDB Atlas Multi-Cloud` | Mode: `dr` | Cluster: `MongoDB Atlas Multi-Cloud (2 of 2)`
+- [ ] Concept: `Atlas App Services Cost Model` | Parent: `MongoDB Atlas Triggers and Functions` | Mode: `dr` | Cluster: `MongoDB Atlas Triggers and Functions (1 of 2)`
+- [ ] Concept: `Authentication Triggers` | Parent: `MongoDB Atlas Triggers and Functions` | Mode: `dr` | Cluster: `MongoDB Atlas Triggers and Functions (1 of 2)`
+- [ ] Concept: `Change Data Capture Patterns` | Parent: `MongoDB Atlas Triggers and Functions` | Mode: `dr` | Cluster: `MongoDB Atlas Triggers and Functions (1 of 2)`
+- [ ] Concept: `Database Triggers` | Parent: `MongoDB Atlas Triggers and Functions` | Mode: `dr` | Cluster: `MongoDB Atlas Triggers and Functions (1 of 2)`
+- [ ] Concept: `Function Context Object` | Parent: `MongoDB Atlas Triggers and Functions` | Mode: `dr` | Cluster: `MongoDB Atlas Triggers and Functions (1 of 2)`
+- [ ] Concept: `HTTPS Endpoints` | Parent: `MongoDB Atlas Triggers and Functions` | Mode: `dr` | Cluster: `MongoDB Atlas Triggers and Functions (1 of 2)`
+- [ ] Concept: `Atlas Functions JavaScript Runtime` | Parent: `MongoDB Atlas Triggers and Functions` | Mode: `dr` | Cluster: `MongoDB Atlas Triggers and Functions (2 of 2)`
+- [ ] Concept: `Realm Migration Paths` | Parent: `MongoDB Atlas Triggers and Functions` | Mode: `dr` | Cluster: `MongoDB Atlas Triggers and Functions (2 of 2)`
+- [ ] Concept: `Scheduled Triggers` | Parent: `MongoDB Atlas Triggers and Functions` | Mode: `dr` | Cluster: `MongoDB Atlas Triggers and Functions (2 of 2)`
+- [ ] Concept: `Trigger Error Handling and Suspension` | Parent: `MongoDB Atlas Triggers and Functions` | Mode: `dr` | Cluster: `MongoDB Atlas Triggers and Functions (2 of 2)`
+- [ ] Concept: `Trigger and Function Anti-Patterns` | Parent: `MongoDB Atlas Triggers and Functions` | Mode: `dr` | Cluster: `MongoDB Atlas Triggers and Functions (2 of 2)`
+- [ ] Concept: `Atlas Search Lucene Architecture` | Parent: `MongoDB Atlas Search and Vector Search` | Mode: `dr` | Cluster: `MongoDB Atlas Search and Vector Search`
+- [ ] Concept: `Atlas Vector Search HNSW IVF` | Parent: `MongoDB Atlas Search and Vector Search` | Mode: `dr` | Cluster: `MongoDB Atlas Search and Vector Search`
+- [ ] Concept: `RAG Patterns with Vector Search` | Parent: `MongoDB Atlas Search and Vector Search` | Mode: `dr` | Cluster: `MongoDB Atlas Search and Vector Search`
+- [ ] Concept: `Atlas Search Analyzers and Tokenizers` | Parent: `MongoDB Atlas Search and Vector Search` | Mode: `dr` | Cluster: `MongoDB Atlas Search and Vector Search`
+- [ ] Concept: `Stored Source Performance Optimization` | Parent: `MongoDB Atlas Search and Vector Search` | Mode: `dr` | Cluster: `MongoDB Atlas Search and Vector Search`
+- [ ] Concept: `Auto Embedding Voyage AI` | Parent: `MongoDB Atlas Search and Vector Search` | Mode: `dr` | Cluster: `MongoDB Atlas Search and Vector Search`
+- [ ] Concept: `Search Nodes Dedicated Infrastructure` | Parent: `MongoDB Atlas Search and Vector Search` | Mode: `dr` | Cluster: `MongoDB Atlas Search and Vector Search`
+- [ ] Concept: `Lexical Prefilters for Vector Search` | Parent: `MongoDB Atlas Search and Vector Search` | Mode: `dr` | Cluster: `MongoDB Atlas Search and Vector Search`
+- [ ] Concept: `Express MongoDB Driver Pattern` | Parent: `Atlas Data API Removal` | Mode: `dr` | Cluster: `Atlas Data API Removal`
+- [ ] Concept: `FastAPI Motor Pattern` | Parent: `Atlas Data API Removal` | Mode: `dr` | Cluster: `Atlas Data API Removal`
+- [ ] Concept: `Lambda MongoDB Driver Pattern` | Parent: `Atlas Data API Removal` | Mode: `dr` | Cluster: `Atlas Data API Removal`
+- [ ] Concept: `Delbridge Data API` | Parent: `Atlas Data API Removal` | Mode: `dr` | Cluster: `Atlas Data API Removal`
+- [ ] Concept: `RESTHeart` | Parent: `Atlas Data API Removal` | Mode: `dr` | Cluster: `Atlas Data API Removal`
+- [ ] Concept: `Atlas GraphQL API Removal` | Parent: `Atlas Data API Removal` | Mode: `dr` | Cluster: `Atlas Data API Removal`
+- [ ] Concept: `mongosqld Architecture` | Parent: `MongoDB BI Connector and SQL Access` | Mode: `dr` | Cluster: `MongoDB BI Connector and SQL Access`
+- [ ] Concept: `DRDL Schema Management` | Parent: `MongoDB BI Connector and SQL Access` | Mode: `dr` | Cluster: `MongoDB BI Connector and SQL Access`
+- [ ] Concept: `BI Connector Authentication` | Parent: `MongoDB BI Connector and SQL Access` | Mode: `dr` | Cluster: `MongoDB BI Connector and SQL Access`
+- [ ] Concept: `SQL-to-MQL Translation` | Parent: `MongoDB BI Connector and SQL Access` | Mode: `dr` | Cluster: `MongoDB BI Connector and SQL Access`
+- [ ] Concept: `BI Connector EOL Migration` | Parent: `MongoDB BI Connector and SQL Access` | Mode: `dr` | Cluster: `MongoDB BI Connector and SQL Access`
+- [ ] Concept: `HTTP Data Access Replacements` | Parent: `MongoDB BI Connector and SQL Access` | Mode: `dr` | Cluster: `MongoDB BI Connector and SQL Access`
+- [ ] Concept: `Azure App Service Atlas` | Parent: `MongoDB Atlas on Azure` | Mode: `dr` | Cluster: `MongoDB Atlas on Azure (1 of 5)`
+- [ ] Concept: `Atlas Application Insights OTel` | Parent: `MongoDB Atlas on Azure` | Mode: `dr` | Cluster: `MongoDB Atlas on Azure (1 of 5)`
+- [ ] Concept: `AtlasGov Azure Government` | Parent: `MongoDB Atlas on Azure` | Mode: `dr` | Cluster: `MongoDB Atlas on Azure (1 of 5)`
+- [ ] Concept: `Atlas Bicep Private Endpoint` | Parent: `MongoDB Atlas on Azure` | Mode: `dr` | Cluster: `MongoDB Atlas on Azure (1 of 5)`
+- [ ] Concept: `Azure Container Apps Atlas` | Parent: `MongoDB Atlas on Azure` | Mode: `dr` | Cluster: `MongoDB Atlas on Azure (1 of 5)`
+- [ ] Concept: `Entra ID OIDC Workforce Federation` | Parent: `MongoDB Atlas on Azure` | Mode: `dr` | Cluster: `MongoDB Atlas on Azure (1 of 5)`
+- [ ] Concept: `Entra ID Workload Identity Federation` | Parent: `MongoDB Atlas on Azure` | Mode: `dr` | Cluster: `MongoDB Atlas on Azure (1 of 5)`
+- [ ] Concept: `Azure Event Hub Atlas Stream Processing` | Parent: `MongoDB Atlas on Azure` | Mode: `dr` | Cluster: `MongoDB Atlas on Azure (2 of 5)`
+- [ ] Concept: `ExpressRoute Atlas Connectivity` | Parent: `MongoDB Atlas on Azure` | Mode: `dr` | Cluster: `MongoDB Atlas on Azure (2 of 5)`
+- [ ] Concept: `Azure Functions Atlas Connection Pooling` | Parent: `MongoDB Atlas on Azure` | Mode: `dr` | Cluster: `MongoDB Atlas on Azure (2 of 5)`
+- [ ] Concept: `Hub-and-Spoke Atlas Networking` | Parent: `MongoDB Atlas on Azure` | Mode: `dr` | Cluster: `MongoDB Atlas on Azure (2 of 5)`
+- [ ] Concept: `Atlas Key Rotation AKV` | Parent: `MongoDB Atlas on Azure` | Mode: `dr` | Cluster: `MongoDB Atlas on Azure (2 of 5)`
+- [ ] Concept: `Azure Key Vault Atlas BYOK` | Parent: `MongoDB Atlas on Azure` | Mode: `dr` | Cluster: `MongoDB Atlas on Azure (2 of 5)`
+- [ ] Concept: `Azure Key Vault RBAC Atlas` | Parent: `MongoDB Atlas on Azure` | Mode: `dr` | Cluster: `MongoDB Atlas on Azure (2 of 5)`
+- [ ] Concept: `KMS Failsafe Behavior Atlas` | Parent: `MongoDB Atlas on Azure` | Mode: `dr` | Cluster: `MongoDB Atlas on Azure (3 of 5)`
+- [ ] Concept: `Atlas LDAP Azure AD DS` | Parent: `MongoDB Atlas on Azure` | Mode: `dr` | Cluster: `MongoDB Atlas on Azure (3 of 5)`
+- [ ] Concept: `Atlas MACC Eligibility` | Parent: `MongoDB Atlas on Azure` | Mode: `dr` | Cluster: `MongoDB Atlas on Azure (3 of 5)`
+- [ ] Concept: `Azure Marketplace Atlas Billing` | Parent: `MongoDB Atlas on Azure` | Mode: `dr` | Cluster: `MongoDB Atlas on Azure (3 of 5)`
+- [ ] Concept: `Atlas Azure Monitor Metrics` | Parent: `MongoDB Atlas on Azure` | Mode: `dr` | Cluster: `MongoDB Atlas on Azure (3 of 5)`
+- [ ] Concept: `Azure Native MongoDB ANM` | Parent: `MongoDB Atlas on Azure` | Mode: `dr` | Cluster: `MongoDB Atlas on Azure (3 of 5)`
+- [ ] Concept: `NSG Rules for Atlas` | Parent: `MongoDB Atlas on Azure` | Mode: `dr` | Cluster: `MongoDB Atlas on Azure (3 of 5)`
+- [ ] Concept: `Azure OpenAI Atlas Vector Search` | Parent: `MongoDB Atlas on Azure` | Mode: `dr` | Cluster: `MongoDB Atlas on Azure (4 of 5)`
+- [ ] Concept: `Azure Private DNS Resolver` | Parent: `MongoDB Atlas on Azure` | Mode: `dr` | Cluster: `MongoDB Atlas on Azure (4 of 5)`
+- [ ] Concept: `Atlas Private DNS Zones Azure` | Parent: `MongoDB Atlas on Azure` | Mode: `dr` | Cluster: `MongoDB Atlas on Azure (4 of 5)`
+- [ ] Concept: `Atlas Azure Regions Mapping` | Parent: `MongoDB Atlas on Azure` | Mode: `dr` | Cluster: `MongoDB Atlas on Azure (4 of 5)`
+- [ ] Concept: `Atlas SAML Entra ID` | Parent: `MongoDB Atlas on Azure` | Mode: `dr` | Cluster: `MongoDB Atlas on Azure (4 of 5)`
+- [ ] Concept: `Atlas Secretless KV Authentication` | Parent: `MongoDB Atlas on Azure` | Mode: `dr` | Cluster: `MongoDB Atlas on Azure (4 of 5)`
+- [ ] Concept: `Atlas Azure Security Compliance` | Parent: `MongoDB Atlas on Azure` | Mode: `dr` | Cluster: `MongoDB Atlas on Azure (4 of 5)`
+- [ ] Concept: `Atlas Sentinel Log Integration` | Parent: `MongoDB Atlas on Azure` | Mode: `dr` | Cluster: `MongoDB Atlas on Azure (5 of 5)`
+- [ ] Concept: `Azure Service Bus Atlas Triggers` | Parent: `MongoDB Atlas on Azure` | Mode: `dr` | Cluster: `MongoDB Atlas on Azure (5 of 5)`
+- [ ] Concept: `Azure Synapse Atlas Data Federation` | Parent: `MongoDB Atlas on Azure` | Mode: `dr` | Cluster: `MongoDB Atlas on Azure (5 of 5)`
+- [ ] Concept: `Atlas Terraform Azure Provider` | Parent: `MongoDB Atlas on Azure` | Mode: `dr` | Cluster: `MongoDB Atlas on Azure (5 of 5)`
+- [ ] Concept: `Atlas Azure Troubleshooting Playbook` | Parent: `MongoDB Atlas on Azure` | Mode: `dr` | Cluster: `MongoDB Atlas on Azure (5 of 5)`
+- [ ] Concept: `BigQuery Atlas Dataflow CDC` | Parent: `MongoDB Atlas on GCP` | Mode: `dr` | Cluster: `MongoDB Atlas on GCP (1 of 5)`
+- [ ] Concept: `Cloud Build Atlas API Auth` | Parent: `MongoDB Atlas on GCP` | Mode: `dr` | Cluster: `MongoDB Atlas on GCP (1 of 5)`
+- [ ] Concept: `Cloud DNS Private Zone for Atlas` | Parent: `MongoDB Atlas on GCP` | Mode: `dr` | Cluster: `MongoDB Atlas on GCP (1 of 5)`
+- [ ] Concept: `Cloud DNS Terraform Atlas` | Parent: `MongoDB Atlas on GCP` | Mode: `dr` | Cluster: `MongoDB Atlas on GCP (1 of 5)`
+- [ ] Concept: `Cloud Functions Gen2 Atlas` | Parent: `MongoDB Atlas on GCP` | Mode: `dr` | Cluster: `MongoDB Atlas on GCP (1 of 5)`
+- [ ] Concept: `Cloud HSM Atlas` | Parent: `MongoDB Atlas on GCP` | Mode: `dr` | Cluster: `MongoDB Atlas on GCP (1 of 5)`
+- [ ] Concept: `Cloud Monitoring Atlas Metrics` | Parent: `MongoDB Atlas on GCP` | Mode: `dr` | Cluster: `MongoDB Atlas on GCP (2 of 5)`
+- [ ] Concept: `Cloud NAT for Atlas` | Parent: `MongoDB Atlas on GCP` | Mode: `dr` | Cluster: `MongoDB Atlas on GCP (2 of 5)`
+- [ ] Concept: `Cloud Run Atlas Connection Pooling` | Parent: `MongoDB Atlas on GCP` | Mode: `dr` | Cluster: `MongoDB Atlas on GCP (2 of 5)`
+- [ ] Concept: `Atlas Data Federation GCS` | Parent: `MongoDB Atlas on GCP` | Mode: `dr` | Cluster: `MongoDB Atlas on GCP (2 of 5)`
+- [ ] Concept: `Atlas GCP EDP Credits` | Parent: `MongoDB Atlas on GCP` | Mode: `dr` | Cluster: `MongoDB Atlas on GCP (2 of 5)`
+- [ ] Concept: `Atlas Envelope Encryption GCP` | Parent: `MongoDB Atlas on GCP` | Mode: `dr` | Cluster: `MongoDB Atlas on GCP (2 of 5)`
+- [ ] Concept: `GCP Forwarding Rule Quota` | Parent: `MongoDB Atlas on GCP` | Mode: `dr` | Cluster: `MongoDB Atlas on GCP (2 of 5)`
+- [ ] Concept: `GKE Atlas Kubernetes Operator` | Parent: `MongoDB Atlas on GCP` | Mode: `dr` | Cluster: `MongoDB Atlas on GCP (2 of 5)`
+- [ ] Concept: `GKE NodeLocal DNSCache Atlas` | Parent: `MongoDB Atlas on GCP` | Mode: `dr` | Cluster: `MongoDB Atlas on GCP (3 of 5)`
+- [ ] Concept: `GCP Global Access PSC` | Parent: `MongoDB Atlas on GCP` | Mode: `dr` | Cluster: `MongoDB Atlas on GCP (3 of 5)`
+- [ ] Concept: `Google Cloud KMS BYOK` | Parent: `MongoDB Atlas on GCP` | Mode: `dr` | Cluster: `MongoDB Atlas on GCP (3 of 5)`
+- [ ] Concept: `Google Cloud Partner of Year` | Parent: `MongoDB Atlas on GCP` | Mode: `dr` | Cluster: `MongoDB Atlas on GCP (3 of 5)`
+- [ ] Concept: `Google Distributed Cloud GDC` | Parent: `MongoDB Atlas on GCP` | Mode: `dr` | Cluster: `MongoDB Atlas on GCP (3 of 5)`
+- [ ] Concept: `Google Workspace SAML Federation` | Parent: `MongoDB Atlas on GCP` | Mode: `dr` | Cluster: `MongoDB Atlas on GCP (3 of 5)`
+- [ ] Concept: `KMS Key Rotation Atlas` | Parent: `MongoDB Atlas on GCP` | Mode: `dr` | Cluster: `MongoDB Atlas on GCP (3 of 5)`
+- [ ] Concept: `KMS Unavailability Failsafe` | Parent: `MongoDB Atlas on GCP` | Mode: `dr` | Cluster: `MongoDB Atlas on GCP (3 of 5)`
+- [ ] Concept: `Looker Atlas BI Connector` | Parent: `MongoDB Atlas on GCP` | Mode: `dr` | Cluster: `MongoDB Atlas on GCP (4 of 5)`
+- [ ] Concept: `PSC Legacy Migration` | Parent: `MongoDB Atlas on GCP` | Mode: `dr` | Cluster: `MongoDB Atlas on GCP (4 of 5)`
+- [ ] Concept: `PSC Port-Mapped Architecture` | Parent: `MongoDB Atlas on GCP` | Mode: `dr` | Cluster: `MongoDB Atlas on GCP (4 of 5)`
+- [ ] Concept: `PSC Terraform GCP` | Parent: `MongoDB Atlas on GCP` | Mode: `dr` | Cluster: `MongoDB Atlas on GCP (4 of 5)`
+- [ ] Concept: `GCP Shared VPC` | Parent: `MongoDB Atlas on GCP` | Mode: `dr` | Cluster: `MongoDB Atlas on GCP (4 of 5)`
+- [ ] Concept: `MongoDB for Startups GCP` | Parent: `MongoDB Atlas on GCP` | Mode: `dr` | Cluster: `MongoDB Atlas on GCP (5 of 5)`
+- [ ] Concept: `Atlas Stream Processing Pub/Sub` | Parent: `MongoDB Atlas on GCP` | Mode: `dr` | Cluster: `MongoDB Atlas on GCP (5 of 5)`
+- [ ] Concept: `Atlas Terraform GCP Provider` | Parent: `MongoDB Atlas on GCP` | Mode: `dr` | Cluster: `MongoDB Atlas on GCP (5 of 5)`
+- [ ] Concept: `Atlas GCP Troubleshooting` | Parent: `MongoDB Atlas on GCP` | Mode: `dr` | Cluster: `MongoDB Atlas on GCP (5 of 5)`
+- [ ] Concept: `Vertex AI Atlas Vector Search` | Parent: `MongoDB Atlas on GCP` | Mode: `dr` | Cluster: `MongoDB Atlas on GCP (5 of 5)`
+- [ ] Concept: `GCP VPC Peering` | Parent: `MongoDB Atlas on GCP` | Mode: `dr` | Cluster: `MongoDB Atlas on GCP (5 of 5)`
+- [ ] Concept: `GCP Workload Identity Federation OIDC` | Parent: `MongoDB Atlas on GCP` | Mode: `dr` | Cluster: `MongoDB Atlas on GCP (5 of 5)`
+- [ ] Concept: `HNSW Index Parameters` | Parent: `MongoDB Atlas Vector Search` | Mode: `dr` | Cluster: `MongoDB Atlas Vector Search`
+- [ ] Concept: `Vector Quantization` | Parent: `MongoDB Atlas Vector Search` | Mode: `dr` | Cluster: `MongoDB Atlas Vector Search`
+- [ ] Concept: `Hybrid Search` | Parent: `MongoDB Atlas Vector Search` | Mode: `dr` | Cluster: `MongoDB Atlas Vector Search`
+- [ ] Concept: `Voyage AI Embeddings` | Parent: `MongoDB Atlas Vector Search` | Mode: `dr` | Cluster: `MongoDB Atlas Vector Search`
+- [ ] Concept: `RAG Patterns` | Parent: `MongoDB Atlas Vector Search` | Mode: `dr` | Cluster: `MongoDB Atlas Vector Search`
+- [ ] Concept: `Search Nodes` | Parent: `MongoDB Atlas Vector Search` | Mode: `dr` | Cluster: `MongoDB Atlas Vector Search`
+- [ ] Concept: `Embedding Pipelines` | Parent: `MongoDB Atlas Vector Search` | Mode: `dr` | Cluster: `MongoDB Atlas Vector Search`
+- [ ] Concept: `Multi-Vector Patterns` | Parent: `MongoDB Atlas Vector Search` | Mode: `dr` | Cluster: `MongoDB Atlas Vector Search`
+- [ ] Concept: `MongoDB Atlas Data Federation` | Parent: `MongoDB Atlas` | Mode: `dr` | Cluster: `MongoDB Atlas`
+- [ ] Concept: `MongoDB 8.0 WT Improvements (TCMalloc, ExpressPlan)` | Parent: `WiredTiger Storage Engine Internals` | Mode: `dr` | Cluster: `WiredTiger Storage Engine Internals (1 of 3)`
+- [ ] Concept: `Application Thread Eviction` | Parent: `WiredTiger Storage Engine Internals` | Mode: `dr` | Cluster: `WiredTiger Storage Engine Internals (1 of 3)`
+- [ ] Concept: `Block Compression (snappy/zlib/zstd)` | Parent: `WiredTiger Storage Engine Internals` | Mode: `dr` | Cluster: `WiredTiger Storage Engine Internals (1 of 3)`
+- [ ] Concept: `Block Manager and Page Sizing` | Parent: `WiredTiger Storage Engine Internals` | Mode: `dr` | Cluster: `WiredTiger Storage Engine Internals (1 of 3)`
+- [ ] Concept: `Cache Architecture` | Parent: `WiredTiger Storage Engine Internals` | Mode: `dr` | Cluster: `WiredTiger Storage Engine Internals (1 of 3)`
+- [ ] Concept: `Corruption (validate, --repair, wt CLI)` | Parent: `WiredTiger Storage Engine Internals` | Mode: `dr` | Cluster: `WiredTiger Storage Engine Internals (1 of 3)`
+- [ ] Concept: `Query Planning and Plan Cache` | Parent: `MongoDB Performance Troubleshooting` | Mode: `dr` | Cluster: `MongoDB Performance Troubleshooting`
+- [ ] Concept: `Index Analysis` | Parent: `MongoDB Performance Troubleshooting` | Mode: `dr` | Cluster: `MongoDB Performance Troubleshooting`
+- [ ] Concept: `Explain Plan Interpretation` | Parent: `MongoDB Performance Troubleshooting` | Mode: `dr` | Cluster: `MongoDB Performance Troubleshooting`
+- [ ] Concept: `Performance Diagnostic Workflow` | Parent: `MongoDB Performance Troubleshooting` | Mode: `dr` | Cluster: `MongoDB Performance Troubleshooting`
+- [ ] Concept: `MongoDB Drivers` | Parent: `MongoDB Developer Patterns` | Mode: `dr` | Cluster: `MongoDB Developer Patterns`
+- [ ] Concept: `mongosh Reference` | Parent: `MongoDB Developer Patterns` | Mode: `dr` | Cluster: `MongoDB Developer Patterns`
+- [ ] Concept: `Atlas CLI` | Parent: `MongoDB Developer Patterns` | Mode: `dr` | Cluster: `MongoDB Developer Patterns`
+- [ ] Concept: `Error Codes and Troubleshooting` | Parent: `MongoDB Developer Patterns` | Mode: `dr` | Cluster: `MongoDB Developer Patterns`
+- [ ] Concept: `Customer Troubleshooting Playbooks` | Parent: `MongoDB Developer Patterns` | Mode: `dr` | Cluster: `MongoDB Developer Patterns`
+- [ ] Concept: `Server Selection Algorithm` | Parent: `MongoDB Driver Internals` | Mode: `dr` | Cluster: `MongoDB Driver Internals`
+- [ ] Concept: `Retryable Reads` | Parent: `MongoDB Driver Internals` | Mode: `dr` | Cluster: `MongoDB Driver Internals`
+- [ ] Concept: `Read and Write Concerns` | Parent: `MongoDB Driver Internals` | Mode: `dr` | Cluster: `MongoDB Driver Internals`
+- [ ] Concept: `Sessions` | Parent: `MongoDB Driver Internals` | Mode: `dr` | Cluster: `MongoDB Driver Internals`
+- [ ] Concept: `Multi-document Transactions` | Parent: `MongoDB Driver Internals` | Mode: `dr` | Cluster: `MongoDB Driver Internals`
+- [ ] Concept: `DNS SRV Discovery` | Parent: `MongoDB Driver Internals` | Mode: `dr` | Cluster: `MongoDB Driver Internals`
+- [ ] Concept: `TLS and OCSP` | Parent: `MongoDB Driver Internals` | Mode: `dr` | Cluster: `MongoDB Driver Internals`
+- [ ] Concept: `Spark Connector vs Alternatives` | Parent: `MongoDB Spark Connector and Databricks Integration` | Mode: `dr` | Cluster: `MongoDB Spark Connector and Databricks Integration (1 of 2)`
+- [ ] Concept: `Batch Reads and Aggregation Pushdown` | Parent: `MongoDB Spark Connector and Databricks Integration` | Mode: `dr` | Cluster: `MongoDB Spark Connector and Databricks Integration (1 of 2)`
+- [ ] Concept: `Batch Writes and Idempotency` | Parent: `MongoDB Spark Connector and Databricks Integration` | Mode: `dr` | Cluster: `MongoDB Spark Connector and Databricks Integration (1 of 2)`
+- [ ] Concept: `Connector Error Patterns` | Parent: `MongoDB Spark Connector and Databricks Integration` | Mode: `dr` | Cluster: `MongoDB Spark Connector and Databricks Integration (1 of 2)`
+- [ ] Concept: `Partitioner Strategies` | Parent: `MongoDB Spark Connector and Databricks Integration` | Mode: `dr` | Cluster: `MongoDB Spark Connector and Databricks Integration (1 of 2)`
+- [ ] Concept: `Performance Tuning Checklist` | Parent: `MongoDB Spark Connector and Databricks Integration` | Mode: `dr` | Cluster: `MongoDB Spark Connector and Databricks Integration (1 of 2)`
+- [ ] Concept: `Schema Inference and Type Promotion` | Parent: `MongoDB Spark Connector and Databricks Integration` | Mode: `dr` | Cluster: `MongoDB Spark Connector and Databricks Integration (2 of 2)`
+- [ ] Concept: `Streaming Write Semantics` | Parent: `MongoDB Spark Connector and Databricks Integration` | Mode: `dr` | Cluster: `MongoDB Spark Connector and Databricks Integration (2 of 2)`
+- [ ] Concept: `Structured Streaming with Change Streams` | Parent: `MongoDB Spark Connector and Databricks Integration` | Mode: `dr` | Cluster: `MongoDB Spark Connector and Databricks Integration (2 of 2)`
+- [ ] Concept: `Spark Connector V10 Architecture` | Parent: `MongoDB Spark Connector and Databricks Integration` | Mode: `dr` | Cluster: `MongoDB Spark Connector and Databricks Integration (2 of 2)`
+- [ ] Concept: `Databricks Workspace Integration` | Parent: `MongoDB Spark Connector and Databricks Integration` | Mode: `dr` | Cluster: `MongoDB Spark Connector and Databricks Integration (2 of 2)`
+- [ ] Concept: `Error Code Lookup` | Parent: `MongoDB KB Articles` | Mode: `dr` | Cluster: `MongoDB KB Articles`
+- [ ] Concept: `Connectivity Troubleshooting` | Parent: `MongoDB KB Articles` | Mode: `dr` | Cluster: `MongoDB KB Articles`
+- [ ] Concept: `Replica Set Support Articles` | Parent: `MongoDB KB Articles` | Mode: `dr` | Cluster: `MongoDB KB Articles`
+- [ ] Concept: `Performance KB Articles` | Parent: `MongoDB KB Articles` | Mode: `dr` | Cluster: `MongoDB KB Articles`
+- [ ] Concept: `Security KB Articles` | Parent: `MongoDB KB Articles` | Mode: `dr` | Cluster: `MongoDB KB Articles`
+- [ ] Concept: `Authentication Methods` | Parent: `MongoDB Security Architecture` | Mode: `dr` | Cluster: `MongoDB Security Architecture`
+- [ ] Concept: `Atlas RBAC` | Parent: `MongoDB Security Architecture` | Mode: `dr` | Cluster: `MongoDB Security Architecture`
+- [ ] Concept: `Network Security Layers` | Parent: `MongoDB Security Architecture` | Mode: `dr` | Cluster: `MongoDB Security Architecture`
+- [ ] Concept: `Self-Managed Security Config` | Parent: `MongoDB Security Architecture` | Mode: `dr` | Cluster: `MongoDB Security Architecture`
+- [ ] Concept: `Org and Project Governance` | Parent: `MongoDB Security Architecture` | Mode: `dr` | Cluster: `MongoDB Security Architecture`
+- [ ] Concept: `Encryption in Transit` | Parent: `MongoDB Security Architecture` | Mode: `dr` | Cluster: `MongoDB Security Architecture`
+- [ ] Concept: `Secrets Management` | Parent: `MongoDB Security Architecture` | Mode: `dr` | Cluster: `MongoDB Security Architecture`
+- [ ] Concept: `Atlas Security Posture Checklist` | Parent: `MongoDB Security Architecture` | Mode: `dr` | Cluster: `MongoDB Security Architecture`
+- [ ] Concept: `Atlas Access Control and RBAC` | Parent: `MongoDB Compliance and Regulatory` | Mode: `dr` | Cluster: `MongoDB Compliance and Regulatory (1 of 2)`
+- [ ] Concept: `Atlas Audit Logging` | Parent: `MongoDB Compliance and Regulatory` | Mode: `dr` | Cluster: `MongoDB Compliance and Regulatory (1 of 2)`
+- [ ] Concept: `Audit-Ready Architecture and Evidence Collection` | Parent: `MongoDB Compliance and Regulatory` | Mode: `dr` | Cluster: `MongoDB Compliance and Regulatory (1 of 2)`
+- [ ] Concept: `BYOK Key Management` | Parent: `MongoDB Compliance and Regulatory` | Mode: `dr` | Cluster: `MongoDB Compliance and Regulatory (1 of 2)`
+- [ ] Concept: `Atlas Compliance Certifications` | Parent: `MongoDB Compliance and Regulatory` | Mode: `dr` | Cluster: `MongoDB Compliance and Regulatory (1 of 2)`
+- [ ] Concept: `Common Audit Findings and Remediation` | Parent: `MongoDB Compliance and Regulatory` | Mode: `dr` | Cluster: `MongoDB Compliance and Regulatory (1 of 2)`
+- [ ] Concept: `Data Residency and EU Sovereignty` | Parent: `MongoDB Compliance and Regulatory` | Mode: `dr` | Cluster: `MongoDB Compliance and Regulatory (2 of 2)`
+- [ ] Concept: `Encryption Requirements (At-Rest, In-Transit, Field-Level)` | Parent: `MongoDB Compliance and Regulatory` | Mode: `dr` | Cluster: `MongoDB Compliance and Regulatory (2 of 2)`
+- [ ] Concept: `FedRAMP and AtlasGov` | Parent: `MongoDB Compliance and Regulatory` | Mode: `dr` | Cluster: `MongoDB Compliance and Regulatory (2 of 2)`
+- [ ] Concept: `Compliance Gaps and Shared Responsibility` | Parent: `MongoDB Compliance and Regulatory` | Mode: `dr` | Cluster: `MongoDB Compliance and Regulatory (2 of 2)`
+- [ ] Concept: `HIPAA BAA and ePHI Configuration` | Parent: `MongoDB Compliance and Regulatory` | Mode: `dr` | Cluster: `MongoDB Compliance and Regulatory (2 of 2)`
+- [ ] Concept: `PCI DSS Scoping and Tokenization` | Parent: `MongoDB Compliance and Regulatory` | Mode: `dr` | Cluster: `MongoDB Compliance and Regulatory (2 of 2)`
+- [ ] Concept: `Change Point Detection` | Parent: `MongoDB Performance Regression Detection and Testing Methodology` | Mode: `dr` | Cluster: `MongoDB Performance Regression Detection and Testing Methodology`
+- [ ] Concept: `Coefficient of Variation / Run-to-Run Noise Control` | Parent: `MongoDB Performance Regression Detection and Testing Methodology` | Mode: `dr` | Cluster: `MongoDB Performance Regression Detection and Testing Methodology`
+- [ ] Concept: `CI Performance Regression Gating` | Parent: `MongoDB Performance Regression Detection and Testing Methodology` | Mode: `dr` | Cluster: `MongoDB Performance Regression Detection and Testing Methodology`
+- [ ] Concept: `Canary and Shadow-Traffic Comparison` | Parent: `MongoDB Performance Regression Detection and Testing Methodology` | Mode: `dr` | Cluster: `MongoDB Performance Regression Detection and Testing Methodology`
+- [ ] Concept: `MongoDB Major-Version Upgrade Regression Detection` | Parent: `MongoDB Performance Regression Detection and Testing Methodology` | Mode: `dr` | Cluster: `MongoDB Performance Regression Detection and Testing Methodology`
+- [ ] Concept: `YCSB Workload Reference` | Parent: `MongoDB Performance Benchmarking` | Mode: `dr` | Cluster: `MongoDB Performance Benchmarking`
+- [ ] Concept: `Workload Characterization` | Parent: `MongoDB Performance Benchmarking` | Mode: `dr` | Cluster: `MongoDB Performance Benchmarking`
+- [ ] Concept: `Connection Pool Benchmarking` | Parent: `MongoDB Performance Benchmarking` | Mode: `dr` | Cluster: `MongoDB Performance Benchmarking`
+- [ ] Concept: `Index Effectiveness Measurement` | Parent: `MongoDB Performance Benchmarking` | Mode: `dr` | Cluster: `MongoDB Performance Benchmarking`
+- [ ] Concept: `Baseline Methodology` | Parent: `MongoDB Performance Benchmarking` | Mode: `dr` | Cluster: `MongoDB Performance Benchmarking`
+- [ ] Concept: `Atlas Tier Selection` | Parent: `MongoDB Performance Benchmarking` | Mode: `dr` | Cluster: `MongoDB Performance Benchmarking`
+- [ ] Concept: `Benchmarking Anti-Patterns` | Parent: `MongoDB Performance Benchmarking` | Mode: `dr` | Cluster: `MongoDB Performance Benchmarking`
+- [ ] Concept: `Benchmark Result Reporting` | Parent: `MongoDB Performance Benchmarking` | Mode: `dr` | Cluster: `MongoDB Performance Benchmarking`
+- [ ] Concept: `Cluster Tier Selection` | Parent: `MongoDB Capacity Planning` | Mode: `dr` | Cluster: `MongoDB Capacity Planning (1 of 2)`
+- [ ] Concept: `Common Sizing Mistakes` | Parent: `MongoDB Capacity Planning` | Mode: `dr` | Cluster: `MongoDB Capacity Planning (1 of 2)`
+- [ ] Concept: `Connection Capacity` | Parent: `MongoDB Capacity Planning` | Mode: `dr` | Cluster: `MongoDB Capacity Planning (1 of 2)`
+- [ ] Concept: `Growth Signals` | Parent: `MongoDB Capacity Planning` | Mode: `dr` | Cluster: `MongoDB Capacity Planning (1 of 2)`
+- [ ] Concept: `IOPS Forecasting` | Parent: `MongoDB Capacity Planning` | Mode: `dr` | Cluster: `MongoDB Capacity Planning (1 of 2)`
+- [ ] Concept: `Oplog Sizing` | Parent: `MongoDB Capacity Planning` | Mode: `dr` | Cluster: `MongoDB Capacity Planning (1 of 2)`
+- [ ] Concept: `Atlas Performance Advisor` | Parent: `MongoDB Capacity Planning` | Mode: `dr` | Cluster: `MongoDB Capacity Planning (2 of 2)`
+- [ ] Concept: `Read vs Write Distribution` | Parent: `MongoDB Capacity Planning` | Mode: `dr` | Cluster: `MongoDB Capacity Planning (2 of 2)`
+- [ ] Concept: `Sharding Triggers` | Parent: `MongoDB Capacity Planning` | Mode: `dr` | Cluster: `MongoDB Capacity Planning (2 of 2)`
+- [ ] Concept: `Storage Growth Modeling` | Parent: `MongoDB Capacity Planning` | Mode: `dr` | Cluster: `MongoDB Capacity Planning (2 of 2)`
+- [ ] Concept: `Capacity Testing` | Parent: `MongoDB Capacity Planning` | Mode: `dr` | Cluster: `MongoDB Capacity Planning (2 of 2)`
+- [ ] Concept: `Working Set Sizing` | Parent: `MongoDB Capacity Planning` | Mode: `dr` | Cluster: `MongoDB Capacity Planning (2 of 2)`
+- [ ] Concept: `Multi-Tenancy Anti-Patterns` | Parent: `MongoDB Multi-Tenancy` | Mode: `dr` | Cluster: `MongoDB Multi-Tenancy (1 of 2)`
+- [ ] Concept: `Billing and Cost Chargeback` | Parent: `MongoDB Multi-Tenancy` | Mode: `dr` | Cluster: `MongoDB Multi-Tenancy (1 of 2)`
+- [ ] Concept: `Connection Pooling Strategies` | Parent: `MongoDB Multi-Tenancy` | Mode: `dr` | Cluster: `MongoDB Multi-Tenancy (1 of 2)`
+- [ ] Concept: `Atlas Projects as Hard Isolation` | Parent: `MongoDB Multi-Tenancy` | Mode: `dr` | Cluster: `MongoDB Multi-Tenancy (1 of 2)`
+- [ ] Concept: `RBAC and Connection Security` | Parent: `MongoDB Multi-Tenancy` | Mode: `dr` | Cluster: `MongoDB Multi-Tenancy (1 of 2)`
+- [ ] Concept: `Row-Level Security Patterns` | Parent: `MongoDB Multi-Tenancy` | Mode: `dr` | Cluster: `MongoDB Multi-Tenancy (2 of 2)`
+- [ ] Concept: `Schema Design for Multi-Tenancy` | Parent: `MongoDB Multi-Tenancy` | Mode: `dr` | Cluster: `MongoDB Multi-Tenancy (2 of 2)`
+- [ ] Concept: `Shard Key Design for Multi-Tenancy` | Parent: `MongoDB Multi-Tenancy` | Mode: `dr` | Cluster: `MongoDB Multi-Tenancy (2 of 2)`
+- [ ] Concept: `Tenant Isolation Models` | Parent: `MongoDB Multi-Tenancy` | Mode: `dr` | Cluster: `MongoDB Multi-Tenancy (2 of 2)`
+- [ ] Concept: `Tenant Lifecycle Operations` | Parent: `MongoDB Multi-Tenancy` | Mode: `dr` | Cluster: `MongoDB Multi-Tenancy (2 of 2)`
+- [ ] Concept: `Standard URI Format` | Parent: `MongoDB Connection String URI` | Mode: `dr` | Cluster: `MongoDB Connection String URI`
+- [ ] Concept: `SRV DNS Seedlist Format` | Parent: `MongoDB Connection String URI` | Mode: `dr` | Cluster: `MongoDB Connection String URI`
+- [ ] Concept: `Authentication Mechanisms` | Parent: `MongoDB Connection String URI` | Mode: `dr` | Cluster: `MongoDB Connection String URI`
+- [ ] Concept: `TLS/SSL Configuration` | Parent: `MongoDB Connection String URI` | Mode: `dr` | Cluster: `MongoDB Connection String URI`
+- [ ] Concept: `Connection Pool Tuning` | Parent: `MongoDB Connection String URI` | Mode: `dr` | Cluster: `MongoDB Connection String URI`
+- [ ] Concept: `Read Preference` | Parent: `MongoDB Connection String URI` | Mode: `dr` | Cluster: `MongoDB Connection String URI`
+- [ ] Concept: `Wire Protocol Compression` | Parent: `MongoDB Connection String URI` | Mode: `dr` | Cluster: `MongoDB Connection String URI`
+- [ ] Concept: `CSOT Client-Side Operations Timeout` | Parent: `MongoDB Connection String URI` | Mode: `dr` | Cluster: `MongoDB Connection String URI`
+- [ ] Concept: `Distributed Sharded Transactions` | Parent: `MongoDB Transactions` | Mode: `dr` | Cluster: `MongoDB Transactions (1 of 2)`
+- [ ] Concept: `Driver Examples` | Parent: `MongoDB Transactions` | Mode: `dr` | Cluster: `MongoDB Transactions (1 of 2)`
+- [ ] Concept: `Multi-Document Transactions` | Parent: `MongoDB Transactions` | Mode: `dr` | Cluster: `MongoDB Transactions (1 of 2)`
+- [ ] Concept: `Performance Impact` | Parent: `MongoDB Transactions` | Mode: `dr` | Cluster: `MongoDB Transactions (1 of 2)`
+- [ ] Concept: `Read Concern` | Parent: `MongoDB Transactions` | Mode: `dr` | Cluster: `MongoDB Transactions (1 of 2)`
+- [ ] Concept: `Replica Set Transactions` | Parent: `MongoDB Transactions` | Mode: `dr` | Cluster: `MongoDB Transactions (2 of 2)`
+- [ ] Concept: `Retryable Transactions` | Parent: `MongoDB Transactions` | Mode: `dr` | Cluster: `MongoDB Transactions (2 of 2)`
+- [ ] Concept: `Transaction Anti-Patterns` | Parent: `MongoDB Transactions` | Mode: `dr` | Cluster: `MongoDB Transactions (2 of 2)`
+- [ ] Concept: `Transaction Limits` | Parent: `MongoDB Transactions` | Mode: `dr` | Cluster: `MongoDB Transactions (2 of 2)`
+- [ ] Concept: `Write Concern` | Parent: `MongoDB Transactions` | Mode: `dr` | Cluster: `MongoDB Transactions (2 of 2)`
+- [ ] Concept: `Arbiter handling and PSA topology` | Parent: `MongoDB Upgrade Paths` | Mode: `dr` | Cluster: `MongoDB Upgrade Paths (1 of 4)`
+- [ ] Concept: `Binary downgrade window` | Parent: `MongoDB Upgrade Paths` | Mode: `dr` | Cluster: `MongoDB Upgrade Paths (1 of 4)`
+- [ ] Concept: `Change-stream resumability` | Parent: `MongoDB Upgrade Paths` | Mode: `dr` | Cluster: `MongoDB Upgrade Paths (1 of 4)`
+- [ ] Concept: `Cold-cache latency regression` | Parent: `MongoDB Upgrade Paths` | Mode: `dr` | Cluster: `MongoDB Upgrade Paths (1 of 4)`
+- [ ] Concept: `Common upgrade failures` | Parent: `MongoDB Upgrade Paths` | Mode: `dr` | Cluster: `MongoDB Upgrade Paths (1 of 4)`
+- [ ] Concept: `Config server / shards / mongos upgrade sequence` | Parent: `MongoDB Upgrade Paths` | Mode: `dr` | Cluster: `MongoDB Upgrade Paths (1 of 4)`
+- [ ] Concept: `Config shard caveat (8.0+)` | Parent: `MongoDB Upgrade Paths` | Mode: `dr` | Cluster: `MongoDB Upgrade Paths (1 of 4)`
+- [ ] Concept: `Disk pre-warming SOP (Cookie 7.0→8.0 lesson)` | Parent: `MongoDB Upgrade Paths` | Mode: `dr` | Cluster: `MongoDB Upgrade Paths (1 of 4)`
+- [ ] Concept: `Driver compatibility matrix (Java/Node/Python/.NET/Go)` | Parent: `MongoDB Upgrade Paths` | Mode: `dr` | Cluster: `MongoDB Upgrade Paths (2 of 4)`
+- [ ] Concept: `Driver mismatch failure mode` | Parent: `MongoDB Upgrade Paths` | Mode: `dr` | Cluster: `MongoDB Upgrade Paths (2 of 4)`
+- [ ] Concept: `Error Envelope and customer sign-off` | Parent: `MongoDB Upgrade Paths` | Mode: `dr` | Cluster: `MongoDB Upgrade Paths (2 of 4)`
+- [ ] Concept: `Upgrade event coverage (pre/during/post)` | Parent: `MongoDB Upgrade Paths` | Mode: `dr` | Cluster: `MongoDB Upgrade Paths (2 of 4)`
+- [ ] Concept: `FCV pinning and downgrade preservation window` | Parent: `MongoDB Upgrade Paths` | Mode: `dr` | Cluster: `MongoDB Upgrade Paths (2 of 4)`
+- [ ] Concept: `FCV unpinned too early` | Parent: `MongoDB Upgrade Paths` | Mode: `dr` | Cluster: `MongoDB Upgrade Paths (2 of 4)`
+- [ ] Concept: `In-flight index builds` | Parent: `MongoDB Upgrade Paths` | Mode: `dr` | Cluster: `MongoDB Upgrade Paths (2 of 4)`
+- [ ] Concept: `Index build commit quorum (8.0 nuance)` | Parent: `MongoDB Upgrade Paths` | Mode: `dr` | Cluster: `MongoDB Upgrade Paths (2 of 4)`
+- [ ] Concept: `Index build conflicts` | Parent: `MongoDB Upgrade Paths` | Mode: `dr` | Cluster: `MongoDB Upgrade Paths (3 of 4)`
+- [ ] Concept: `Java driver 4.10 and 5.x retry semantics` | Parent: `MongoDB Upgrade Paths` | Mode: `dr` | Cluster: `MongoDB Upgrade Paths (3 of 4)`
+- [ ] Concept: `mongos version skew failure` | Parent: `MongoDB Upgrade Paths` | Mode: `dr` | Cluster: `MongoDB Upgrade Paths (3 of 4)`
+- [ ] Concept: `mongos version skew rules` | Parent: `MongoDB Upgrade Paths` | Mode: `dr` | Cluster: `MongoDB Upgrade Paths (3 of 4)`
+- [ ] Concept: `Oplog window overflow` | Parent: `MongoDB Upgrade Paths` | Mode: `dr` | Cluster: `MongoDB Upgrade Paths (3 of 4)`
+- [ ] Concept: `Oplog window sizing` | Parent: `MongoDB Upgrade Paths` | Mode: `dr` | Cluster: `MongoDB Upgrade Paths (3 of 4)`
+- [ ] Concept: `Point of No Return` | Parent: `MongoDB Upgrade Paths` | Mode: `dr` | Cluster: `MongoDB Upgrade Paths (3 of 4)`
+- [ ] Concept: `Pre-upgrade safety checks` | Parent: `MongoDB Upgrade Paths` | Mode: `dr` | Cluster: `MongoDB Upgrade Paths (3 of 4)`
+- [ ] Concept: `PSA topology stepdown failure` | Parent: `MongoDB Upgrade Paths` | Mode: `dr` | Cluster: `MongoDB Upgrade Paths (4 of 4)`
+- [ ] Concept: `Upgrade rollback playbook` | Parent: `MongoDB Upgrade Paths` | Mode: `dr` | Cluster: `MongoDB Upgrade Paths (4 of 4)`
+- [ ] Concept: `Rolling replica-set upgrade` | Parent: `MongoDB Upgrade Paths` | Mode: `dr` | Cluster: `MongoDB Upgrade Paths (4 of 4)`
+- [ ] Concept: `Straight-to-8 jump pattern` | Parent: `MongoDB Upgrade Paths` | Mode: `dr` | Cluster: `MongoDB Upgrade Paths (4 of 4)`
+- [ ] Concept: `Version upgrade paths (4.4 → 5.0 → 6.0 → 7.0 → 8.0)` | Parent: `MongoDB Upgrade Paths` | Mode: `dr` | Cluster: `MongoDB Upgrade Paths (4 of 4)`
+- [ ] Concept: `WiredTiger cache warm-up` | Parent: `MongoDB Upgrade Paths` | Mode: `dr` | Cluster: `MongoDB Upgrade Paths (4 of 4)`
+- [ ] Concept: `allowDiskUse-100MB-stage` | Parent: `mongodb-aggregation-stages-deep` | Mode: `dr` | Cluster: `mongodb-aggregation-stages-deep`
+- [ ] Concept: `explain-executionStats-usedDisk` | Parent: `mongodb-aggregation-stages-deep` | Mode: `dr` | Cluster: `mongodb-aggregation-stages-deep`
+- [ ] Concept: `Pipeline Stages Reference` | Parent: `MongoDB Aggregation Pipeline` | Mode: `dr` | Cluster: `MongoDB Aggregation Pipeline`
+- [ ] Concept: `Pipeline Optimization` | Parent: `MongoDB Aggregation Pipeline` | Mode: `dr` | Cluster: `MongoDB Aggregation Pipeline`
+- [ ] Concept: `Window Functions ($setWindowFields)` | Parent: `MongoDB Aggregation Pipeline` | Mode: `dr` | Cluster: `MongoDB Aggregation Pipeline`
+- [ ] Concept: `Time Series Aggregation` | Parent: `MongoDB Aggregation Pipeline` | Mode: `dr` | Cluster: `MongoDB Aggregation Pipeline`
+- [ ] Concept: `Memory Limits and allowDiskUse` | Parent: `MongoDB Aggregation Pipeline` | Mode: `dr` | Cluster: `MongoDB Aggregation Pipeline`
+- [ ] Concept: `Driver Examples (Node.js, Python, Java)` | Parent: `MongoDB Aggregation Pipeline` | Mode: `dr` | Cluster: `MongoDB Aggregation Pipeline`
+- [ ] Concept: `MongoDB 8.0 Block Processing` | Parent: `mongodb-time-series` | Mode: `dr` | Cluster: `mongodb-time-series (1 of 2)`
+- [ ] Concept: `Bucket Architecture and Columnar Compression` | Parent: `mongodb-time-series` | Mode: `dr` | Cluster: `mongodb-time-series (1 of 2)`
+- [ ] Concept: `Atlas Charts Integration` | Parent: `mongodb-time-series` | Mode: `dr` | Cluster: `mongodb-time-series (1 of 2)`
+- [ ] Concept: `Time Series Collection Creation (timeField, metaField, granularity)` | Parent: `mongodb-time-series` | Mode: `dr` | Cluster: `mongodb-time-series (1 of 2)`
+- [ ] Concept: `Granularity Anti-Patterns` | Parent: `mongodb-time-series` | Mode: `dr` | Cluster: `mongodb-time-series (1 of 2)`
+- [ ] Concept: `metaField Cardinality Anti-Patterns` | Parent: `mongodb-time-series` | Mode: `dr` | Cluster: `mongodb-time-series (1 of 2)`
+- [ ] Concept: `Migration from Regular Collections` | Parent: `mongodb-time-series` | Mode: `dr` | Cluster: `mongodb-time-series (2 of 2)`
+- [ ] Concept: `Secondary Indexes on Time Series` | Parent: `mongodb-time-series` | Mode: `dr` | Cluster: `mongodb-time-series (2 of 2)`
+- [ ] Concept: `Time Series Sharding Patterns` | Parent: `mongodb-time-series` | Mode: `dr` | Cluster: `mongodb-time-series (2 of 2)`
+- [ ] Concept: `Atlas Triggers Workarounds (no change streams)` | Parent: `mongodb-time-series` | Mode: `dr` | Cluster: `mongodb-time-series (2 of 2)`
+- [ ] Concept: `TTL and Automatic Bucket Deletion` | Parent: `mongodb-time-series` | Mode: `dr` | Cluster: `mongodb-time-series (2 of 2)`
+- [ ] Concept: `Working Set Sizing for Time Series` | Parent: `mongodb-time-series` | Mode: `dr` | Cluster: `mongodb-time-series (2 of 2)`
+- [ ] Concept: `Cluster-to-Cluster Sync Phases` | Parent: `MongoDB Migration Patterns` | Mode: `dr` | Cluster: `MongoDB Migration Patterns (1 of 2)`
+- [ ] Concept: `Common Migration Failures` | Parent: `MongoDB Migration Patterns` | Mode: `dr` | Cluster: `MongoDB Migration Patterns (1 of 2)`
+- [ ] Concept: `Cutover Strategies` | Parent: `MongoDB Migration Patterns` | Mode: `dr` | Cluster: `MongoDB Migration Patterns (1 of 2)`
+- [ ] Concept: `Atlas Live Migration` | Parent: `MongoDB Migration Patterns` | Mode: `dr` | Cluster: `MongoDB Migration Patterns (1 of 2)`
+- [ ] Concept: `mongomirror Deprecation` | Parent: `MongoDB Migration Patterns` | Mode: `dr` | Cluster: `MongoDB Migration Patterns (1 of 2)`
+- [ ] Concept: `MongoSync GA Tool` | Parent: `MongoDB Migration Patterns` | Mode: `dr` | Cluster: `MongoDB Migration Patterns (2 of 2)`
+- [ ] Concept: `Relational Migrator` | Parent: `MongoDB Migration Patterns` | Mode: `dr` | Cluster: `MongoDB Migration Patterns (2 of 2)`
+- [ ] Concept: `Schema Transformation` | Parent: `MongoDB Migration Patterns` | Mode: `dr` | Cluster: `MongoDB Migration Patterns (2 of 2)`
+- [ ] Concept: `Sharded Cluster Migrations` | Parent: `MongoDB Migration Patterns` | Mode: `dr` | Cluster: `MongoDB Migration Patterns (2 of 2)`
+- [ ] Concept: `Migration Validation Patterns` | Parent: `MongoDB Migration Patterns` | Mode: `dr` | Cluster: `MongoDB Migration Patterns (2 of 2)`
+- [ ] Concept: `Compound Indexes and ESR Rule` | Parent: `MongoDB Indexes Deep Dive` | Mode: `dr` | Cluster: `MongoDB Indexes Deep Dive (1 of 2)`
+- [ ] Concept: `Hashed Indexes` | Parent: `MongoDB Indexes Deep Dive` | Mode: `dr` | Cluster: `MongoDB Indexes Deep Dive (1 of 2)`
+- [ ] Concept: `Hidden Indexes` | Parent: `MongoDB Indexes Deep Dive` | Mode: `dr` | Cluster: `MongoDB Indexes Deep Dive (1 of 2)`
+- [ ] Concept: `hint() and Index Forcing` | Parent: `MongoDB Indexes Deep Dive` | Mode: `dr` | Cluster: `MongoDB Indexes Deep Dive (1 of 2)`
+- [ ] Concept: `Index Anti-Patterns` | Parent: `MongoDB Indexes Deep Dive` | Mode: `dr` | Cluster: `MongoDB Indexes Deep Dive (1 of 2)`
+- [ ] Concept: `Index Build Strategies` | Parent: `MongoDB Indexes Deep Dive` | Mode: `dr` | Cluster: `MongoDB Indexes Deep Dive (1 of 2)`
+- [ ] Concept: `Index Intersection` | Parent: `MongoDB Indexes Deep Dive` | Mode: `dr` | Cluster: `MongoDB Indexes Deep Dive (1 of 2)`
+- [ ] Concept: `Index Selectivity and Covering Queries` | Parent: `MongoDB Indexes Deep Dive` | Mode: `dr` | Cluster: `MongoDB Indexes Deep Dive (1 of 2)`
+- [ ] Concept: `Multikey Indexes` | Parent: `MongoDB Indexes Deep Dive` | Mode: `dr` | Cluster: `MongoDB Indexes Deep Dive (2 of 2)`
+- [ ] Concept: `Partial Indexes` | Parent: `MongoDB Indexes Deep Dive` | Mode: `dr` | Cluster: `MongoDB Indexes Deep Dive (2 of 2)`
+- [ ] Concept: `Single-Field Indexes` | Parent: `MongoDB Indexes Deep Dive` | Mode: `dr` | Cluster: `MongoDB Indexes Deep Dive (2 of 2)`
+- [ ] Concept: `Sparse Indexes` | Parent: `MongoDB Indexes Deep Dive` | Mode: `dr` | Cluster: `MongoDB Indexes Deep Dive (2 of 2)`
+- [ ] Concept: `Text Indexes` | Parent: `MongoDB Indexes Deep Dive` | Mode: `dr` | Cluster: `MongoDB Indexes Deep Dive (2 of 2)`
+- [ ] Concept: `TTL Indexes` | Parent: `MongoDB Indexes Deep Dive` | Mode: `dr` | Cluster: `MongoDB Indexes Deep Dive (2 of 2)`
+- [ ] Concept: `Unique Indexes` | Parent: `MongoDB Indexes Deep Dive` | Mode: `dr` | Cluster: `MongoDB Indexes Deep Dive (2 of 2)`
+- [ ] Concept: `Wildcard Indexes` | Parent: `MongoDB Indexes Deep Dive` | Mode: `dr` | Cluster: `MongoDB Indexes Deep Dive (2 of 2)`
+- [ ] Concept: `GeoJSON Object Types` | Parent: `MongoDB Geospatial` | Mode: `dr` | Cluster: `MongoDB Geospatial`
+- [ ] Concept: `Radius Unit Conversions` | Parent: `MongoDB Geospatial` | Mode: `dr` | Cluster: `MongoDB Geospatial`
+- [ ] Concept: `Geospatial $lookup Patterns` | Parent: `MongoDB Geospatial` | Mode: `dr` | Cluster: `MongoDB Geospatial`
+- [ ] Concept: `Geospatial Anti-Patterns` | Parent: `MongoDB Geospatial` | Mode: `dr` | Cluster: `MongoDB Geospatial`
+- [ ] Concept: `Compass Aggregation Pipeline Builder` | Parent: `MongoDB Compass` | Mode: `dr` | Cluster: `MongoDB Compass (1 of 2)`
+- [ ] Concept: `Compass Anti-Patterns` | Parent: `MongoDB Compass` | Mode: `dr` | Cluster: `MongoDB Compass (1 of 2)`
+- [ ] Concept: `Compass Connection Management` | Parent: `MongoDB Compass` | Mode: `dr` | Cluster: `MongoDB Compass (1 of 2)`
+- [ ] Concept: `Compass CRUD and Documents Tab` | Parent: `MongoDB Compass` | Mode: `dr` | Cluster: `MongoDB Compass (1 of 2)`
+- [ ] Concept: `Compass Data Import Export` | Parent: `MongoDB Compass` | Mode: `dr` | Cluster: `MongoDB Compass (1 of 2)`
+- [ ] Concept: `Compass Data Modeling ER Diagrams` | Parent: `MongoDB Compass` | Mode: `dr` | Cluster: `MongoDB Compass (1 of 2)`
+- [ ] Concept: `Compass Editions` | Parent: `MongoDB Compass` | Mode: `dr` | Cluster: `MongoDB Compass (1 of 2)`
+- [ ] Concept: `Compass Explain Plan Visualizer` | Parent: `MongoDB Compass` | Mode: `dr` | Cluster: `MongoDB Compass (2 of 2)`
+- [ ] Concept: `Compass Index Management` | Parent: `MongoDB Compass` | Mode: `dr` | Cluster: `MongoDB Compass (2 of 2)`
+- [ ] Concept: `Compass Natural Language Query` | Parent: `MongoDB Compass` | Mode: `dr` | Cluster: `MongoDB Compass (2 of 2)`
+- [ ] Concept: `Compass Performance Insights` | Parent: `MongoDB Compass` | Mode: `dr` | Cluster: `MongoDB Compass (2 of 2)`
+- [ ] Concept: `Compass Plugins and Extensibility` | Parent: `MongoDB Compass` | Mode: `dr` | Cluster: `MongoDB Compass (2 of 2)`
+- [ ] Concept: `Compass Real-Time Performance Monitoring` | Parent: `MongoDB Compass` | Mode: `dr` | Cluster: `MongoDB Compass (2 of 2)`
+- [ ] Concept: `Compass Schema Analysis` | Parent: `MongoDB Compass` | Mode: `dr` | Cluster: `MongoDB Compass (2 of 2)`
+- [ ] Concept: `Associate Atlas Administrator` | Parent: `MongoDB University & Certification` | Mode: `dr` | Cluster: `MongoDB University & Certification (1 of 2)`
+- [ ] Concept: `Associate Data Modeler` | Parent: `MongoDB University & Certification` | Mode: `dr` | Cluster: `MongoDB University & Certification (1 of 2)`
+- [ ] Concept: `Associate DBA Certification` | Parent: `MongoDB University & Certification` | Mode: `dr` | Cluster: `MongoDB University & Certification (1 of 2)`
+- [ ] Concept: `Associate Developer Certification` | Parent: `MongoDB University & Certification` | Mode: `dr` | Cluster: `MongoDB University & Certification (1 of 2)`
+- [ ] Concept: `Credly Digital Badges` | Parent: `MongoDB University & Certification` | Mode: `dr` | Cluster: `MongoDB University & Certification (1 of 2)`
+- [ ] Concept: `Instructor-Led Training` | Parent: `MongoDB University & Certification` | Mode: `dr` | Cluster: `MongoDB University & Certification (2 of 2)`
+- [ ] Concept: `Learning Paths by Role` | Parent: `MongoDB University & Certification` | Mode: `dr` | Cluster: `MongoDB University & Certification (2 of 2)`
+- [ ] Concept: `MongoDB University Platform` | Parent: `MongoDB University & Certification` | Mode: `dr` | Cluster: `MongoDB University & Certification (2 of 2)`
+- [ ] Concept: `Skill Badges (free micro-credentials)` | Parent: `MongoDB University & Certification` | Mode: `dr` | Cluster: `MongoDB University & Certification (2 of 2)`
+- [ ] Concept: `TAM Positioning Playbook` | Parent: `MongoDB University & Certification` | Mode: `dr` | Cluster: `MongoDB University & Certification (2 of 2)`
+- [ ] Concept: `express execution path` | Parent: `MongoDB 8.0 performance changes & read-path regressions vs 7.0` | Mode: `dr` | Cluster: `MongoDB 8.0 performance changes & read-path regressions vs 7.0`
+- [ ] Concept: `SBE vs classic engine defaults` | Parent: `MongoDB 8.0 performance changes & read-path regressions vs 7.0` | Mode: `dr` | Cluster: `MongoDB 8.0 performance changes & read-path regressions vs 7.0`
+- [ ] Concept: `TCMalloc per-CPU caches` | Parent: `MongoDB 8.0 performance changes & read-path regressions vs 7.0` | Mode: `dr` | Cluster: `MongoDB 8.0 performance changes & read-path regressions vs 7.0`
+- [ ] Concept: `majority-ack write concern change` | Parent: `MongoDB 8.0 performance changes & read-path regressions vs 7.0` | Mode: `dr` | Cluster: `MongoDB 8.0 performance changes & read-path regressions vs 7.0`
+- [ ] Concept: `minor-version compatibility rule` | Parent: `MongoDB Java driver 5.x version timeline & 8.0 compatibility` | Mode: `dr` | Cluster: `MongoDB Java driver 5.x version timeline & 8.0 compatibility`
+- [ ] Concept: `Atlas Metrics and Dashboards` | Parent: `MongoDB Monitoring and Observability` | Mode: `dr` | Cluster: `MongoDB Monitoring and Observability`
+- [ ] Concept: `Atlas Alerts` | Parent: `MongoDB Monitoring and Observability` | Mode: `dr` | Cluster: `MongoDB Monitoring and Observability`
+- [ ] Concept: `Datadog Integration` | Parent: `MongoDB Monitoring and Observability` | Mode: `dr` | Cluster: `MongoDB Monitoring and Observability`
+- [ ] Concept: `Prometheus Integration` | Parent: `MongoDB Monitoring and Observability` | Mode: `dr` | Cluster: `MongoDB Monitoring and Observability`
+- [ ] Concept: `New Relic Integration` | Parent: `MongoDB Monitoring and Observability` | Mode: `dr` | Cluster: `MongoDB Monitoring and Observability`
+- [ ] Concept: `Slow Query Monitoring` | Parent: `MongoDB Monitoring and Observability` | Mode: `dr` | Cluster: `MongoDB Monitoring and Observability`
+- [ ] Concept: `Replication Lag Monitoring` | Parent: `MongoDB Monitoring and Observability` | Mode: `dr` | Cluster: `MongoDB Monitoring and Observability`
+- [ ] Concept: `Connection Metrics` | Parent: `MongoDB Monitoring and Observability` | Mode: `dr` | Cluster: `MongoDB Monitoring and Observability`
+- [ ] Concept: `Sustained overload / soak testing (memory leaks, connection pool exhaustion, WiredTiger cache thrashing, ticket starvation, oplog window shrinkage)` | Parent: `MongoDB Stress, Soak, and Chaos-Resilience Testing` | Mode: `dr` | Cluster: `MongoDB Stress, Soak, and Chaos-Resilience Testing`
+- [ ] Concept: `Breaking-point / overload testing methodology (first bottleneck vs visible symptom, cascading failure, thundering herd, cache-eviction death spiral)` | Parent: `MongoDB Stress, Soak, and Chaos-Resilience Testing` | Mode: `dr` | Cluster: `MongoDB Stress, Soak, and Chaos-Resilience Testing`
+- [ ] Concept: `Chaos-style resilience testing under load (kill primary during peak writes, network partition, disk-full/IO-stall injection)` | Parent: `MongoDB Stress, Soak, and Chaos-Resilience Testing` | Mode: `dr` | Cluster: `MongoDB Stress, Soak, and Chaos-Resilience Testing`
+- [ ] Concept: `Safe execution against non-production Atlas (cluster isolation, guardrails, cost/cleanup discipline)` | Parent: `MongoDB Stress, Soak, and Chaos-Resilience Testing` | Mode: `dr` | Cluster: `MongoDB Stress, Soak, and Chaos-Resilience Testing`
+- [ ] Concept: `Ops Manager Admin API` | Parent: `MongoDB Ops Manager and Cloud Manager` | Mode: `dr` | Cluster: `MongoDB Ops Manager and Cloud Manager (1 of 5)`
+- [ ] Concept: `MongoDB Agent (Automation, Monitoring, Backup)` | Parent: `MongoDB Ops Manager and Cloud Manager` | Mode: `dr` | Cluster: `MongoDB Ops Manager and Cloud Manager (1 of 5)`
+- [ ] Concept: `Ops Manager Application` | Parent: `MongoDB Ops Manager and Cloud Manager` | Mode: `dr` | Cluster: `MongoDB Ops Manager and Cloud Manager (1 of 5)`
+- [ ] Concept: `Application Database (App DB)` | Parent: `MongoDB Ops Manager and Cloud Manager` | Mode: `dr` | Cluster: `MongoDB Ops Manager and Cloud Manager (1 of 5)`
+- [ ] Concept: `Ops Manager Architecture` | Parent: `MongoDB Ops Manager and Cloud Manager` | Mode: `dr` | Cluster: `MongoDB Ops Manager and Cloud Manager (1 of 5)`
+- [ ] Concept: `Automation Agent` | Parent: `MongoDB Ops Manager and Cloud Manager` | Mode: `dr` | Cluster: `MongoDB Ops Manager and Cloud Manager (1 of 5)`
+- [ ] Concept: `Backup Daemon` | Parent: `MongoDB Ops Manager and Cloud Manager` | Mode: `dr` | Cluster: `MongoDB Ops Manager and Cloud Manager (1 of 5)`
+- [ ] Concept: `Backup Daemon HA and Failure Domains` | Parent: `MongoDB Ops Manager and Cloud Manager` | Mode: `dr` | Cluster: `MongoDB Ops Manager and Cloud Manager (2 of 5)`
+- [ ] Concept: `Backup Daemon and Head DB` | Parent: `MongoDB Ops Manager and Cloud Manager` | Mode: `dr` | Cluster: `MongoDB Ops Manager and Cloud Manager (2 of 5)`
+- [ ] Concept: `Blockstore Snapshot Storage` | Parent: `MongoDB Ops Manager and Cloud Manager` | Mode: `dr` | Cluster: `MongoDB Ops Manager and Cloud Manager (2 of 5)`
+- [ ] Concept: `Blockstore and Snapshot Stores` | Parent: `MongoDB Ops Manager and Cloud Manager` | Mode: `dr` | Cluster: `MongoDB Ops Manager and Cloud Manager (2 of 5)`
+- [ ] Concept: `Common Failure Modes` | Parent: `MongoDB Ops Manager and Cloud Manager` | Mode: `dr` | Cluster: `MongoDB Ops Manager and Cloud Manager (2 of 5)`
+- [ ] Concept: `Continuous Backup with PITR` | Parent: `MongoDB Ops Manager and Cloud Manager` | Mode: `dr` | Cluster: `MongoDB Ops Manager and Cloud Manager (2 of 5)`
+- [ ] Concept: `Cross-DC App DB Placement` | Parent: `MongoDB Ops Manager and Cloud Manager` | Mode: `dr` | Cluster: `MongoDB Ops Manager and Cloud Manager (2 of 5)`
+- [ ] Concept: `Enterprise Advanced Licensing` | Parent: `MongoDB Ops Manager and Cloud Manager` | Mode: `dr` | Cluster: `MongoDB Ops Manager and Cloud Manager (3 of 5)`
+- [ ] Concept: `Filesystem Snapshot Storage` | Parent: `MongoDB Ops Manager and Cloud Manager` | Mode: `dr` | Cluster: `MongoDB Ops Manager and Cloud Manager (3 of 5)`
+- [ ] Concept: `Cloud Manager Free/Standard/Premium Tiers` | Parent: `MongoDB Ops Manager and Cloud Manager` | Mode: `dr` | Cluster: `MongoDB Ops Manager and Cloud Manager (3 of 5)`
+- [ ] Concept: `Goal-State Automation Configuration` | Parent: `MongoDB Ops Manager and Cloud Manager` | Mode: `dr` | Cluster: `MongoDB Ops Manager and Cloud Manager (3 of 5)`
+- [ ] Concept: `Ops Manager High Availability` | Parent: `MongoDB Ops Manager and Cloud Manager` | Mode: `dr` | Cluster: `MongoDB Ops Manager and Cloud Manager (3 of 5)`
+- [ ] Concept: `Kubernetes Operator Deployment` | Parent: `MongoDB Ops Manager and Cloud Manager` | Mode: `dr` | Cluster: `MongoDB Ops Manager and Cloud Manager (3 of 5)`
+- [ ] Concept: `LDAP and Federation` | Parent: `MongoDB Ops Manager and Cloud Manager` | Mode: `dr` | Cluster: `MongoDB Ops Manager and Cloud Manager (3 of 5)`
+- [ ] Concept: `Ops Manager LDAP/Kerberos/SAML/OIDC Federation` | Parent: `MongoDB Ops Manager and Cloud Manager` | Mode: `dr` | Cluster: `MongoDB Ops Manager and Cloud Manager (4 of 5)`
+- [ ] Concept: `Live Migration to Atlas` | Parent: `MongoDB Ops Manager and Cloud Manager` | Mode: `dr` | Cluster: `MongoDB Ops Manager and Cloud Manager (4 of 5)`
+- [ ] Concept: `Live Migration to Atlas via mongosync` | Parent: `MongoDB Ops Manager and Cloud Manager` | Mode: `dr` | Cluster: `MongoDB Ops Manager and Cloud Manager (4 of 5)`
+- [ ] Concept: `Local Mode and Air-Gap Deployments` | Parent: `MongoDB Ops Manager and Cloud Manager` | Mode: `dr` | Cluster: `MongoDB Ops Manager and Cloud Manager (4 of 5)`
+- [ ] Concept: `Migration Host Provisioning` | Parent: `MongoDB Ops Manager and Cloud Manager` | Mode: `dr` | Cluster: `MongoDB Ops Manager and Cloud Manager (4 of 5)`
+- [ ] Concept: `Monitoring Agent` | Parent: `MongoDB Ops Manager and Cloud Manager` | Mode: `dr` | Cluster: `MongoDB Ops Manager and Cloud Manager (4 of 5)`
+- [ ] Concept: `Multi-Org Scale Patterns` | Parent: `MongoDB Ops Manager and Cloud Manager` | Mode: `dr` | Cluster: `MongoDB Ops Manager and Cloud Manager (4 of 5)`
+- [ ] Concept: `OpenTelemetry MongoDB Receiver` | Parent: `MongoDB Ops Manager and Cloud Manager` | Mode: `dr` | Cluster: `MongoDB Ops Manager and Cloud Manager (5 of 5)`
+- [ ] Concept: `PagerDuty/Datadog/Splunk Integration` | Parent: `MongoDB Ops Manager and Cloud Manager` | Mode: `dr` | Cluster: `MongoDB Ops Manager and Cloud Manager (5 of 5)`
+- [ ] Concept: `S3-Compatible Snapshot Storage with Object Lock` | Parent: `MongoDB Ops Manager and Cloud Manager` | Mode: `dr` | Cluster: `MongoDB Ops Manager and Cloud Manager (5 of 5)`
+- [ ] Concept: `Source Oplog Window Sizing for Migration` | Parent: `MongoDB Ops Manager and Cloud Manager` | Mode: `dr` | Cluster: `MongoDB Ops Manager and Cloud Manager (5 of 5)`
+- [ ] Concept: `Upgrade Procedures` | Parent: `MongoDB Ops Manager and Cloud Manager` | Mode: `dr` | Cluster: `MongoDB Ops Manager and Cloud Manager (5 of 5)`
+- [ ] Concept: `Version Manifest Mirroring` | Parent: `MongoDB Ops Manager and Cloud Manager` | Mode: `dr` | Cluster: `MongoDB Ops Manager and Cloud Manager (5 of 5)`
+- [ ] Concept: `Workforce and Workload Identity Federation` | Parent: `MongoDB Ops Manager and Cloud Manager` | Mode: `dr` | Cluster: `MongoDB Ops Manager and Cloud Manager (5 of 5)`
+- [ ] Concept: `Security Policy Audit` | Parent: `Security Compliance Auditor` | Mode: `dr` | Cluster: `Security Compliance Auditor`
+- [ ] Concept: `Compliance Gap Analysis` | Parent: `Security Compliance Auditor` | Mode: `dr` | Cluster: `Security Compliance Auditor`
+- [ ] Concept: `MongoDB AI Policy Scanning` | Parent: `Security Compliance Auditor` | Mode: `dr` | Cluster: `Security Compliance Auditor`
+- [ ] Concept: `Codebase Security Review` | Parent: `Security Compliance Auditor` | Mode: `dr` | Cluster: `Security Compliance Auditor`
+- [ ] Concept: `AWS RDS Proxy` | Parent: `Database Proxies & Query-Optimization Middleware` | Mode: `dr` | Cluster: `Database Proxies & Query-Optimization Middleware (1 of 2)`
+- [ ] Concept: `Connection pooling & multiplexing` | Parent: `Database Proxies & Query-Optimization Middleware` | Mode: `dr` | Cluster: `Database Proxies & Query-Optimization Middleware (1 of 2)`
+- [ ] Concept: `Credential brokering (IAM / Secrets Manager)` | Parent: `Database Proxies & Query-Optimization Middleware` | Mode: `dr` | Cluster: `Database Proxies & Query-Optimization Middleware (1 of 2)`
+- [ ] Concept: `Failover acceleration & proxy-tier HA (SPOF, sidecar vs centralized vs Keepalived)` | Parent: `Database Proxies & Query-Optimization Middleware` | Mode: `dr` | Cluster: `Database Proxies & Query-Optimization Middleware (1 of 2)`
+- [ ] Concept: `MariaDB MaxScale` | Parent: `Database Proxies & Query-Optimization Middleware` | Mode: `dr` | Cluster: `Database Proxies & Query-Optimization Middleware (1 of 2)`
+- [ ] Concept: `mongos as MongoDB's native router & why MongoDB rarely uses third-party proxies` | Parent: `Database Proxies & Query-Optimization Middleware` | Mode: `dr` | Cluster: `Database Proxies & Query-Optimization Middleware (1 of 2)`
+- [ ] Concept: `PgBouncer` | Parent: `Database Proxies & Query-Optimization Middleware` | Mode: `dr` | Cluster: `Database Proxies & Query-Optimization Middleware (1 of 2)`
+- [ ] Concept: `PgCat & Pgpool-II` | Parent: `Database Proxies & Query-Optimization Middleware` | Mode: `dr` | Cluster: `Database Proxies & Query-Optimization Middleware (1 of 2)`
+- [ ] Concept: `DATE criteria date format specifications` | Parent: `DATE Criteria` | Mode: `dr` | Cluster: `DATE Criteria`
+- [ ] Concept: `DATE criteria field types and formats` | Parent: `DATE Criteria` | Mode: `dr` | Cluster: `DATE Criteria`
+- [ ] Concept: `DATE vs CUSTOM criteria selection` | Parent: `DATE Criteria` | Mode: `dr` | Cluster: `DATE Criteria`
+- [ ] Concept: `Online Archive query performance optimization` | Parent: `DATE Criteria` | Mode: `dr` | Cluster: `DATE Criteria`
+- [ ] Concept: `Partition fields constraints for DATE rules` | Parent: `DATE Criteria` | Mode: `dr` | Cluster: `DATE Criteria`
+- [ ] Concept: `expireAfterDays data age calculation` | Parent: `DATE Criteria` | Mode: `dr` | Cluster: `DATE Criteria`
+- [ ] Concept: `CUSTOM Criteria` | Parent: `Archive Rules` | Mode: `dr` | Cluster: `Archive Rules`
+- [ ] Concept: `Archive Schedule Window` | Parent: `Archive Rules` | Mode: `dr` | Cluster: `Archive Rules`
+- [ ] Concept: `Archive Data Expiration Rule` | Parent: `Archive Rules` | Mode: `dr` | Cluster: `Archive Rules`
+- [ ] Concept: `Index Sufficiency Warning` | Parent: `Archive Rules` | Mode: `dr` | Cluster: `Archive Rules`
+- [ ] Concept: `Time Series Archive Rules` | Parent: `Archive Rules` | Mode: `dr` | Cluster: `Archive Rules`
+- [ ] Concept: `Online Archive Terraform Resource` | Parent: `Archive Rules` | Mode: `dr` | Cluster: `Archive Rules`
+- [ ] Concept: `Partition Field Count Limits (DATE vs CUSTOM)` | Parent: `Partition Fields` | Mode: `dr` | Cluster: `Partition Fields`
+- [ ] Concept: `Partition Field Leftmost-Prefix Ordering` | Parent: `Partition Fields` | Mode: `dr` | Cluster: `Partition Fields`
+- [ ] Concept: `Partition Field Type Enum Docs-vs-Spec Disagreement` | Parent: `Partition Fields` | Mode: `dr` | Cluster: `Partition Fields`
+- [ ] Concept: `Partition Field Cardinality and the 2023-06-07 Storage Engine Change` | Parent: `Partition Fields` | Mode: `dr` | Cluster: `Partition Fields`
+- [ ] Concept: `Partition Field Immutability and Merge-Delete-Recreate Migration` | Parent: `Partition Fields` | Mode: `dr` | Cluster: `Partition Fields`
+- [ ] Concept: `Online Archive Data Access and Data Seek Query Cost Model` | Parent: `Partition Fields` | Mode: `dr` | Cluster: `Partition Fields`
+- [ ] Concept: `change-stream-resume-token` | Parent: `kafka-source-connector` | Mode: `dr` | Cluster: `kafka-source-connector`
+- [ ] Concept: `heartbeat-configuration` | Parent: `kafka-source-connector` | Mode: `dr` | Cluster: `kafka-source-connector`
+- [ ] Concept: `startup-mode-copy-existing` | Parent: `kafka-source-connector` | Mode: `dr` | Cluster: `kafka-source-connector`
+- [ ] Concept: `bulk-write-ordering` | Parent: `kafka-sink-connector` | Mode: `dr` | Cluster: `kafka-sink-connector`
+- [ ] Concept: `outbox-pattern` | Parent: `CDC-patterns` | Mode: `dr` | Cluster: `CDC-patterns`
+- [ ] Concept: `exactly-once-semantics` | Parent: `CDC-patterns` | Mode: `dr` | Cluster: `CDC-patterns`
+- [ ] Concept: `debezium-handlers` | Parent: `CDC-patterns` | Mode: `dr` | Cluster: `CDC-patterns`
+- [ ] Concept: `OAuth2 Token Exchange` | Parent: `Atlas Service Accounts` | Mode: `dr` | Cluster: `Atlas Service Accounts`
+- [ ] Concept: `Secret Rotation` | Parent: `Atlas Service Accounts` | Mode: `dr` | Cluster: `Atlas Service Accounts`
+- [ ] Concept: `Service Account Roles` | Parent: `Atlas Service Accounts` | Mode: `dr` | Cluster: `Atlas Service Accounts`
+- [ ] Concept: `Terraform Integration` | Parent: `Atlas Service Accounts` | Mode: `dr` | Cluster: `Atlas Service Accounts`
+- [ ] Concept: `Atlas CLI Integration` | Parent: `Atlas Service Accounts` | Mode: `dr` | Cluster: `Atlas Service Accounts`
+- [ ] Concept: `Bypass SAML mode` | Parent: `Atlas Federated Authentication` | Mode: `dr` | Cluster: `Atlas Federated Authentication (1 of 2)`
+- [ ] Concept: `Connected organizations` | Parent: `Atlas Federated Authentication` | Mode: `dr` | Cluster: `Atlas Federated Authentication (1 of 2)`
+- [ ] Concept: `Domain verification` | Parent: `Atlas Federated Authentication` | Mode: `dr` | Cluster: `Atlas Federated Authentication (1 of 2)`
+- [ ] Concept: `Federation Management Console` | Parent: `Atlas Federated Authentication` | Mode: `dr` | Cluster: `Atlas Federated Authentication (1 of 2)`
+- [ ] Concept: `Group-to-role mapping` | Parent: `Atlas Federated Authentication` | Mode: `dr` | Cluster: `Atlas Federated Authentication (1 of 2)`
+- [ ] Concept: `IdP configuration (Entra ID)` | Parent: `Atlas Federated Authentication` | Mode: `dr` | Cluster: `Atlas Federated Authentication (2 of 2)`
+- [ ] Concept: `IdP configuration (Okta)` | Parent: `Atlas Federated Authentication` | Mode: `dr` | Cluster: `Atlas Federated Authentication (2 of 2)`
+- [ ] Concept: `JIT user provisioning` | Parent: `Atlas Federated Authentication` | Mode: `dr` | Cluster: `Atlas Federated Authentication (2 of 2)`
+- [ ] Concept: `SAML 2.0 SSO flow` | Parent: `Atlas Federated Authentication` | Mode: `dr` | Cluster: `Atlas Federated Authentication (2 of 2)`
+- [ ] Concept: `SCIM provisioning` | Parent: `Atlas Federated Authentication` | Mode: `dr` | Cluster: `Atlas Federated Authentication (2 of 2)`
+- [ ] Concept: `BM25 IDF corpus statistics` | Parent: `Atlas Hybrid Fusion and BM25 Diagnostics` | Mode: `dr` | Cluster: `Atlas Hybrid Fusion and BM25 Diagnostics`
+- [ ] Concept: `BM25 term frequency saturation and field length normalization` | Parent: `Atlas Hybrid Fusion and BM25 Diagnostics` | Mode: `dr` | Cluster: `Atlas Hybrid Fusion and BM25 Diagnostics`
+- [ ] Concept: `Fusion score normalization strategies` | Parent: `Atlas Hybrid Fusion and BM25 Diagnostics` | Mode: `dr` | Cluster: `Atlas Hybrid Fusion and BM25 Diagnostics`
+- [ ] Concept: `Per-query fusion weighting` | Parent: `Atlas Hybrid Fusion and BM25 Diagnostics` | Mode: `dr` | Cluster: `Atlas Hybrid Fusion and BM25 Diagnostics`
+- [ ] Concept: `Ranked and scored input pipeline eligibility` | Parent: `Atlas Hybrid Fusion and BM25 Diagnostics` | Mode: `dr` | Cluster: `Atlas Hybrid Fusion and BM25 Diagnostics`
+- [ ] Concept: `MongoSQL ODBC Driver` | Parent: `Atlas SQL Interface MongoSQL` | Mode: `dr` | Cluster: `Atlas SQL Interface MongoSQL`
+- [ ] Concept: `Atlas SQL Schema Builder` | Parent: `Atlas SQL Interface MongoSQL` | Mode: `dr` | Cluster: `Atlas SQL Interface MongoSQL`
+- [ ] Concept: `Power BI DirectQuery` | Parent: `Atlas SQL Interface MongoSQL` | Mode: `dr` | Cluster: `Atlas SQL Interface MongoSQL`
+- [ ] Concept: `Tableau Certified Connector` | Parent: `Atlas SQL Interface MongoSQL` | Mode: `dr` | Cluster: `Atlas SQL Interface MongoSQL`
+- [ ] Concept: `BI Connector to MongoSQL Migration` | Parent: `Atlas SQL Interface MongoSQL` | Mode: `dr` | Cluster: `Atlas SQL Interface MongoSQL`
+- [ ] Concept: `Diagnostic Surface (serverStatus, FTDC, verbose components)` | Parent: `WiredTiger Storage Engine Internals` | Mode: `dr` | Cluster: `WiredTiger Storage Engine Internals (2 of 3)`
+- [ ] Concept: `Encryption at Rest (KMIP, AES-256-CBC/GCM)` | Parent: `WiredTiger Storage Engine Internals` | Mode: `dr` | Cluster: `WiredTiger Storage Engine Internals (2 of 3)`
+- [ ] Concept: `Journal (Write-Ahead Log)` | Parent: `WiredTiger Storage Engine Internals` | Mode: `dr` | Cluster: `WiredTiger Storage Engine Internals (2 of 3)`
+- [ ] Concept: `Long-Running Transactions and Cache Pressure` | Parent: `WiredTiger Storage Engine Internals` | Mode: `dr` | Cluster: `WiredTiger Storage Engine Internals (2 of 3)`
+- [ ] Concept: `In-Memory Storage Engine (Enterprise)` | Parent: `WiredTiger Storage Engine Internals` | Mode: `dr` | Cluster: `WiredTiger Storage Engine Internals (2 of 3)`
+- [ ] Concept: `MVCC and Snapshot Isolation` | Parent: `WiredTiger Storage Engine Internals` | Mode: `dr` | Cluster: `WiredTiger Storage Engine Internals (2 of 3)`
+- [ ] Concept: `Prefix Compression (indexes)` | Parent: `WiredTiger Storage Engine Internals` | Mode: `dr` | Cluster: `WiredTiger Storage Engine Internals (3 of 3)`
+- [ ] Concept: `Reconciliation and Page Splitting` | Parent: `WiredTiger Storage Engine Internals` | Mode: `dr` | Cluster: `WiredTiger Storage Engine Internals (3 of 3)`
+- [ ] Concept: `Timestamp APIs (oldest/stable/pinned)` | Parent: `WiredTiger Storage Engine Internals` | Mode: `dr` | Cluster: `WiredTiger Storage Engine Internals (3 of 3)`
+- [ ] Concept: `wiredTigerEngineRuntimeConfig` | Parent: `WiredTiger Storage Engine Internals` | Mode: `dr` | Cluster: `WiredTiger Storage Engine Internals (3 of 3)`
+- [ ] Concept: `WT_CACHE_FULL / Cache Pressure Troubleshooting` | Parent: `WiredTiger Storage Engine Internals` | Mode: `dr` | Cluster: `WiredTiger Storage Engine Internals (3 of 3)`
+- [ ] Concept: `client sessions` | Parent: `Causal Consistency` | Mode: `dr` | Cluster: `Causal Consistency`
+- [ ] Concept: `afterClusterTime` | Parent: `Causal Consistency` | Mode: `dr` | Cluster: `Causal Consistency`
+- [ ] Concept: `operationTime` | Parent: `Causal Consistency` | Mode: `dr` | Cluster: `Causal Consistency`
+- [ ] Concept: `clusterTime` | Parent: `Causal Consistency` | Mode: `dr` | Cluster: `Causal Consistency`
+- [ ] Concept: `read your own writes` | Parent: `Causal Consistency` | Mode: `dr` | Cluster: `Causal Consistency`
+- [ ] Concept: `monotonic reads` | Parent: `Causal Consistency` | Mode: `dr` | Cluster: `Causal Consistency`
+- [ ] Concept: `implicit vs explicit sessions` | Parent: `Causal Consistency` | Mode: `dr` | Cluster: `Causal Consistency`
+- [ ] Concept: `cross-service causal tokens` | Parent: `Causal Consistency` | Mode: `dr` | Cluster: `Causal Consistency`
+- [ ] Concept: `FTDC and Log Tooling` | Parent: `Atlas Diagnostics Expert` | Mode: `dr` | Cluster: `Atlas Diagnostics Expert`
+- [ ] Concept: `KB-Backed Troubleshooting` | Parent: `Atlas Diagnostics Expert` | Mode: `dr` | Cluster: `Atlas Diagnostics Expert`
+- [ ] Concept: `Diagnostic Tool Design` | Parent: `Atlas Diagnostics Expert` | Mode: `dr` | Cluster: `Atlas Diagnostics Expert`
+- [ ] Concept: `Atlas Triage Workflows` | Parent: `Atlas Diagnostics Expert` | Mode: `dr` | Cluster: `Atlas Diagnostics Expert`
+- [ ] Concept: `M30 specs & connection limits` | Parent: `Atlas cluster tiers (M30) & major-version upgrade mechanics` | Mode: `dr` | Cluster: `Atlas cluster tiers (M30) & major-version upgrade mechanics`
+- [ ] Concept: `rolling upgrade & elections` | Parent: `Atlas cluster tiers (M30) & major-version upgrade mechanics` | Mode: `dr` | Cluster: `Atlas cluster tiers (M30) & major-version upgrade mechanics`
+- [ ] Concept: `FCV pinning no-downgrade rule` | Parent: `Atlas cluster tiers (M30) & major-version upgrade mechanics` | Mode: `dr` | Cluster: `Atlas cluster tiers (M30) & major-version upgrade mechanics`
+- [ ] Concept: `Atlas Gen2 ARM hardware` | Parent: `Atlas cluster tiers (M30) & major-version upgrade mechanics` | Mode: `dr` | Cluster: `Atlas cluster tiers (M30) & major-version upgrade mechanics`
+- [ ] Concept: `Maintenance Window Configuration` | Parent: `Atlas Maintenance Windows` | Mode: `dr` | Cluster: `Atlas Maintenance Windows`
+- [ ] Concept: `Rolling Maintenance Procedure` | Parent: `Atlas Maintenance Windows` | Mode: `dr` | Cluster: `Atlas Maintenance Windows`
+- [ ] Concept: `Deferring Maintenance` | Parent: `Atlas Maintenance Windows` | Mode: `dr` | Cluster: `Atlas Maintenance Windows`
+- [ ] Concept: `Emergency Security Patches` | Parent: `Atlas Maintenance Windows` | Mode: `dr` | Cluster: `Atlas Maintenance Windows`
+- [ ] Concept: `Maintenance Impact Minimization` | Parent: `Atlas Maintenance Windows` | Mode: `dr` | Cluster: `Atlas Maintenance Windows`
+- [ ] Concept: `Sharded Cluster Maintenance` | Parent: `Atlas Maintenance Windows` | Mode: `dr` | Cluster: `Atlas Maintenance Windows`
+- [ ] Concept: `local read concern` | Parent: `Read Concern Levels` | Mode: `dr` | Cluster: `Read Concern Levels`
+- [ ] Concept: `available read concern` | Parent: `Read Concern Levels` | Mode: `dr` | Cluster: `Read Concern Levels`
+- [ ] Concept: `majority read concern` | Parent: `Read Concern Levels` | Mode: `dr` | Cluster: `Read Concern Levels`
+- [ ] Concept: `linearizable read concern` | Parent: `Read Concern Levels` | Mode: `dr` | Cluster: `Read Concern Levels`
+- [ ] Concept: `snapshot read concern` | Parent: `Read Concern Levels` | Mode: `dr` | Cluster: `Read Concern Levels`
+- [ ] Concept: `majority commit point mechanics` | Parent: `Read Concern Levels` | Mode: `dr` | Cluster: `Read Concern Levels`
+- [ ] Concept: `read concern in sharding` | Parent: `Read Concern Levels` | Mode: `dr` | Cluster: `Read Concern Levels`
+- [ ] Concept: `initial-sync-and-cdc` | Parent: `mongosync` | Mode: `dr` | Cluster: `mongosync (1 of 2)`
+- [ ] Concept: `atlas-live-migration-comparison` | Parent: `mongosync` | Mode: `dr` | Cluster: `mongosync (1 of 2)`
+- [ ] Concept: `loadlevel-tuning` | Parent: `mongosync` | Mode: `dr` | Cluster: `mongosync (1 of 2)`
+- [ ] Concept: `namespace-filtering` | Parent: `mongosync` | Mode: `dr` | Cluster: `mongosync (1 of 2)`
+- [ ] Concept: `oplog-window-sizing` | Parent: `mongosync` | Mode: `dr` | Cluster: `mongosync (1 of 2)`
+- [ ] Concept: `resume-and-checkpoint` | Parent: `mongosync` | Mode: `dr` | Cluster: `mongosync (2 of 2)`
+- [ ] Concept: `reverse-sync-cutover` | Parent: `mongosync` | Mode: `dr` | Cluster: `mongosync (2 of 2)`
+- [ ] Concept: `mongosync-state-machine` | Parent: `mongosync` | Mode: `dr` | Cluster: `mongosync (2 of 2)`
+- [ ] Concept: `tls-x509-auth` | Parent: `mongosync` | Mode: `dr` | Cluster: `mongosync (2 of 2)`
+- [ ] Concept: `verification-modes` | Parent: `mongosync` | Mode: `dr` | Cluster: `mongosync (2 of 2)`
+- [ ] Concept: `Severity scale (Blocking / Major / Medium / Minor / Nit)` | Parent: `Document Critique` | Mode: `dr` | Cluster: `Document Critique`
+- [ ] Concept: `Convergence loop with 3-iteration cap` | Parent: `Document Critique` | Mode: `dr` | Cluster: `Document Critique`
+- [ ] Concept: `Adversarial injection and hallucination guard` | Parent: `Document Critique` | Mode: `dr` | Cluster: `Document Critique`
+- [ ] Concept: `Meta-artifact and versioning cleanup` | Parent: `Document Critique` | Mode: `dr` | Cluster: `Document Critique`
+- [ ] Concept: `Human-voice rephrasing pass` | Parent: `Document Critique` | Mode: `dr` | Cluster: `Document Critique`
+- [ ] Concept: `Authoritative verification and fact-checking` | Parent: `Document Critique` | Mode: `dr` | Cluster: `Document Critique`
+- [ ] Concept: `Domain-aware skill activation` | Parent: `Document Critique` | Mode: `dr` | Cluster: `Document Critique`
+- [ ] Concept: `Bail conditions (scope / audience / premise changed)` | Parent: `Draft Review Revise Loop` | Mode: `dr` | Cluster: `Draft Review Revise Loop (1 of 2)`
+- [ ] Concept: `Convergence stop (5% word-count delta)` | Parent: `Draft Review Revise Loop` | Mode: `dr` | Cluster: `Draft Review Revise Loop (1 of 2)`
+- [ ] Concept: `Fresh eyes pattern` | Parent: `Draft Review Revise Loop` | Mode: `dr` | Cluster: `Draft Review Revise Loop (1 of 2)`
+- [ ] Concept: `Hard stop (3 iterations)` | Parent: `Draft Review Revise Loop` | Mode: `dr` | Cluster: `Draft Review Revise Loop (1 of 2)`
+- [ ] Concept: `Named-framework review (BLUF, MECE, Minto, SCQA)` | Parent: `Draft Review Revise Loop` | Mode: `dr` | Cluster: `Draft Review Revise Loop (1 of 2)`
+- [ ] Concept: `Severity-ranked findings (Critical / High / Medium / Low)` | Parent: `Draft Review Revise Loop` | Mode: `dr` | Cluster: `Draft Review Revise Loop (2 of 2)`
+- [ ] Concept: `Shitty first draft (Lamott)` | Parent: `Draft Review Revise Loop` | Mode: `dr` | Cluster: `Draft Review Revise Loop (2 of 2)`
+- [ ] Concept: `Soft stop (no medium-or-higher findings)` | Parent: `Draft Review Revise Loop` | Mode: `dr` | Cluster: `Draft Review Revise Loop (2 of 2)`
+- [ ] Concept: `Time-box stop (50% draft effort)` | Parent: `Draft Review Revise Loop` | Mode: `dr` | Cluster: `Draft Review Revise Loop (2 of 2)`
+- [ ] Concept: `Active-voice scan` | Parent: `Editing and Revision` | Mode: `dr` | Cluster: `Editing and Revision (1 of 2)`
+- [ ] Concept: `Cut-30% pass` | Parent: `Editing and Revision` | Mode: `dr` | Cluster: `Editing and Revision (1 of 2)`
+- [ ] Concept: `Four editing types (developmental, line, copy, proofreading)` | Parent: `Editing and Revision` | Mode: `dr` | Cluster: `Editing and Revision (1 of 2)`
+- [ ] Concept: `Given/New contract (Williams)` | Parent: `Editing and Revision` | Mode: `dr` | Cluster: `Editing and Revision (1 of 2)`
+- [ ] Concept: `Multi-pass top-down methodology (structural → paragraph → sentence → word)` | Parent: `Editing and Revision` | Mode: `dr` | Cluster: `Editing and Revision (1 of 2)`
+- [ ] Concept: `Nominalization elimination (Williams)` | Parent: `Editing and Revision` | Mode: `dr` | Cluster: `Editing and Revision (2 of 2)`
+- [ ] Concept: `Paragraph-coherence pass` | Parent: `Editing and Revision` | Mode: `dr` | Cluster: `Editing and Revision (2 of 2)`
+- [ ] Concept: `Topic-sentence-first pass` | Parent: `Editing and Revision` | Mode: `dr` | Cluster: `Editing and Revision (2 of 2)`
+- [ ] Concept: `Verb-first pass` | Parent: `Editing and Revision` | Mode: `dr` | Cluster: `Editing and Revision (2 of 2)`
+- [ ] Concept: `Dependency audit pass` | Parent: `Doc Archaeology` | Mode: `dr` | Cluster: `Doc Archaeology (1 of 2)`
+- [ ] Concept: `Diátaxis process-drift theory (how-to guides rot fastest)` | Parent: `Doc Archaeology` | Mode: `dr` | Cluster: `Doc Archaeology (1 of 2)`
+- [ ] Concept: `Example validation pass` | Parent: `Doc Archaeology` | Mode: `dr` | Cluster: `Doc Archaeology (1 of 2)`
+- [ ] Concept: `Five decay categories (stale facts, dead links, drift, phantom dependencies, obsolete examples)` | Parent: `Doc Archaeology` | Mode: `dr` | Cluster: `Doc Archaeology (1 of 2)`
+- [ ] Concept: `Last-updated lens pass` | Parent: `Doc Archaeology` | Mode: `dr` | Cluster: `Doc Archaeology (1 of 2)`
+- [ ] Concept: `Link verification pass` | Parent: `Doc Archaeology` | Mode: `dr` | Cluster: `Doc Archaeology (2 of 2)`
+- [ ] Concept: `Nielsen documentation maintenance research` | Parent: `Doc Archaeology` | Mode: `dr` | Cluster: `Doc Archaeology (2 of 2)`
+- [ ] Concept: `Process-currency pass` | Parent: `Doc Archaeology` | Mode: `dr` | Cluster: `Doc Archaeology (2 of 2)`
+- [ ] Concept: `Salvage decision (update / restructure / deprecate / archive / delete)` | Parent: `Doc Archaeology` | Mode: `dr` | Cluster: `Doc Archaeology (2 of 2)`
+- [ ] Concept: `Semantic decay and knowledge drift` | Parent: `Doc Archaeology` | Mode: `dr` | Cluster: `Doc Archaeology (2 of 2)`
+- [ ] Concept: `Value Proposition Canvas` | Parent: `Offer Design and Value Proposition` | Mode: `dr` | Cluster: `Offer Design and Value Proposition (1 of 2)`
+- [ ] Concept: `Category Design` | Parent: `Offer Design and Value Proposition` | Mode: `dr` | Cluster: `Offer Design and Value Proposition (1 of 2)`
+- [ ] Concept: `Ethical Scarcity and Urgency` | Parent: `Offer Design and Value Proposition` | Mode: `dr` | Cluster: `Offer Design and Value Proposition (1 of 2)`
+- [ ] Concept: `Guarantee Design` | Parent: `Offer Design and Value Proposition` | Mode: `dr` | Cluster: `Offer Design and Value Proposition (1 of 2)`
+- [ ] Concept: `Jobs-to-Be-Done` | Parent: `Offer Design and Value Proposition` | Mode: `dr` | Cluster: `Offer Design and Value Proposition (1 of 2)`
+- [ ] Concept: `Message-Market Fit` | Parent: `Offer Design and Value Proposition` | Mode: `dr` | Cluster: `Offer Design and Value Proposition (2 of 2)`
+- [ ] Concept: `Objection Handling Architecture` | Parent: `Offer Design and Value Proposition` | Mode: `dr` | Cluster: `Offer Design and Value Proposition (2 of 2)`
+- [ ] Concept: `Positioning Strategy` | Parent: `Offer Design and Value Proposition` | Mode: `dr` | Cluster: `Offer Design and Value Proposition (2 of 2)`
+- [ ] Concept: `Price Anchoring in Offers` | Parent: `Offer Design and Value Proposition` | Mode: `dr` | Cluster: `Offer Design and Value Proposition (2 of 2)`
+- [ ] Concept: `Offer Stack Design` | Parent: `Offer Design and Value Proposition` | Mode: `dr` | Cluster: `Offer Design and Value Proposition (2 of 2)`
+- [ ] Concept: `Brand-Voice Prompting System` | Parent: `AI-Assisted Copywriting Workflow` | Mode: `dr` | Cluster: `AI-Assisted Copywriting Workflow`
+- [ ] Concept: `Copy Brief Template` | Parent: `AI-Assisted Copywriting Workflow` | Mode: `dr` | Cluster: `AI-Assisted Copywriting Workflow`
+- [ ] Concept: `Human-in-the-Loop Copy QA` | Parent: `AI-Assisted Copywriting Workflow` | Mode: `dr` | Cluster: `AI-Assisted Copywriting Workflow`
+- [ ] Concept: `Variation Generation at Scale` | Parent: `AI-Assisted Copywriting Workflow` | Mode: `dr` | Cluster: `AI-Assisted Copywriting Workflow`
+- [ ] Concept: `AI Copy Failure Modes` | Parent: `AI-Assisted Copywriting Workflow` | Mode: `dr` | Cluster: `AI-Assisted Copywriting Workflow`
+- [ ] Concept: `FTC Compliance for AI Content` | Parent: `AI-Assisted Copywriting Workflow` | Mode: `dr` | Cluster: `AI-Assisted Copywriting Workflow`
+- [ ] Concept: `Instruction Drift Mitigation` | Parent: `AI-Assisted Copywriting Workflow` | Mode: `dr` | Cluster: `AI-Assisted Copywriting Workflow`
+- [ ] Concept: `Awareness-Stage Copy Prompting` | Parent: `AI-Assisted Copywriting Workflow` | Mode: `dr` | Cluster: `AI-Assisted Copywriting Workflow`
+- [ ] Concept: `VOC Research` | Parent: `Conversion Copywriting and Voice of Customer` | Mode: `dr` | Cluster: `Conversion Copywriting and Voice of Customer`
+- [ ] Concept: `Review Mining` | Parent: `Conversion Copywriting and Voice of Customer` | Mode: `dr` | Cluster: `Conversion Copywriting and Voice of Customer`
+- [ ] Concept: `JTBD Message Extraction` | Parent: `Conversion Copywriting and Voice of Customer` | Mode: `dr` | Cluster: `Conversion Copywriting and Voice of Customer`
+- [ ] Concept: `Message Hierarchy` | Parent: `Conversion Copywriting and Voice of Customer` | Mode: `dr` | Cluster: `Conversion Copywriting and Voice of Customer`
+- [ ] Concept: `Post-Purchase Survey Design` | Parent: `Conversion Copywriting and Voice of Customer` | Mode: `dr` | Cluster: `Conversion Copywriting and Voice of Customer`
+- [ ] Concept: `Stages of Awareness Research` | Parent: `Conversion Copywriting and Voice of Customer` | Mode: `dr` | Cluster: `Conversion Copywriting and Voice of Customer`
+- [ ] Concept: `Copy Testing` | Parent: `Conversion Copywriting and Voice of Customer` | Mode: `dr` | Cluster: `Conversion Copywriting and Voice of Customer`
+- [ ] Concept: `Atomic numbered steps with verb-first imperatives` | Parent: `Runbook Craft` | Mode: `dr` | Cluster: `Runbook Craft (1 of 2)`
+- [ ] Concept: `Common runbook anti-patterns` | Parent: `Runbook Craft` | Mode: `dr` | Cluster: `Runbook Craft (1 of 2)`
+- [ ] Concept: `Copy-pasteable commands and no placeholders in prose` | Parent: `Runbook Craft` | Mode: `dr` | Cluster: `Runbook Craft (1 of 2)`
+- [ ] Concept: `Decision points with measurable thresholds` | Parent: `Runbook Craft` | Mode: `dr` | Cluster: `Runbook Craft (1 of 2)`
+- [ ] Concept: `The fresh-machine test` | Parent: `Runbook Craft` | Mode: `dr` | Cluster: `Runbook Craft (1 of 2)`
+- [ ] Concept: `Ownership, review cadence, and metadata` | Parent: `Runbook Craft` | Mode: `dr` | Cluster: `Runbook Craft (2 of 2)`
+- [ ] Concept: `Post-condition checks (assertions)` | Parent: `Runbook Craft` | Mode: `dr` | Cluster: `Runbook Craft (2 of 2)`
+- [ ] Concept: `Prerequisites block at the top` | Parent: `Runbook Craft` | Mode: `dr` | Cluster: `Runbook Craft (2 of 2)`
+- [ ] Concept: `Rollback as a first-class section` | Parent: `Runbook Craft` | Mode: `dr` | Cluster: `Runbook Craft (2 of 2)`
+- [ ] Concept: `You-are-here markers and progress anchoring` | Parent: `Runbook Craft` | Mode: `dr` | Cluster: `Runbook Craft (2 of 2)`
+- [ ] Concept: `All-clear has a checklist not just a message` | Parent: `Incident Comms` | Mode: `dr` | Cluster: `Incident Comms (1 of 2)`
+- [ ] Concept: `Apology calibration (specific, late, owned)` | Parent: `Incident Comms` | Mode: `dr` | Cluster: `Incident Comms (1 of 2)`
+- [ ] Concept: `Designated voice and single source of truth` | Parent: `Incident Comms` | Mode: `dr` | Cluster: `Incident Comms (1 of 2)`
+- [ ] Concept: `Heartbeat rule and predictable cadence` | Parent: `Incident Comms` | Mode: `dr` | Cluster: `Incident Comms (1 of 2)`
+- [ ] Concept: `Internal vs external surfaces separation` | Parent: `Incident Comms` | Mode: `dr` | Cluster: `Incident Comms (1 of 2)`
+- [ ] Concept: `No speculation no causes until confirmed` | Parent: `Incident Comms` | Mode: `dr` | Cluster: `Incident Comms (2 of 2)`
+- [ ] Concept: `Quantified impact not vague gestures` | Parent: `Incident Comms` | Mode: `dr` | Cluster: `Incident Comms (2 of 2)`
+- [ ] Concept: `Subscribe affordance and the silent audience` | Parent: `Incident Comms` | Mode: `dr` | Cluster: `Incident Comms (2 of 2)`
+- [ ] Concept: `Voice shifts across the incident timeline (hour zero to resolution)` | Parent: `Incident Comms` | Mode: `dr` | Cluster: `Incident Comms (2 of 2)`
+- [ ] Concept: `Action items with owners, dates, severity, traceability` | Parent: `Postmortem Writing` | Mode: `dr` | Cluster: `Postmortem Writing (1 of 2)`
+- [ ] Concept: `Blameless framing in prose (system not human)` | Parent: `Postmortem Writing` | Mode: `dr` | Cluster: `Postmortem Writing (1 of 2)`
+- [ ] Concept: `Contributing factors vs root cause distinction` | Parent: `Postmortem Writing` | Mode: `dr` | Cluster: `Postmortem Writing (1 of 2)`
+- [ ] Concept: `Customer impact section (quantified, time-bounded, honest)` | Parent: `Postmortem Writing` | Mode: `dr` | Cluster: `Postmortem Writing (1 of 2)`
+- [ ] Concept: `Five Whys discipline (not literally five, never one)` | Parent: `Postmortem Writing` | Mode: `dr` | Cluster: `Postmortem Writing (1 of 2)`
+- [ ] Concept: `Hindsight bias and the linguistic markers to delete` | Parent: `Postmortem Writing` | Mode: `dr` | Cluster: `Postmortem Writing (2 of 2)`
+- [ ] Concept: `Publication and review ritual` | Parent: `Postmortem Writing` | Mode: `dr` | Cluster: `Postmortem Writing (2 of 2)`
+- [ ] Concept: `Sensitive incidents (security, privacy, legal review)` | Parent: `Postmortem Writing` | Mode: `dr` | Cluster: `Postmortem Writing (2 of 2)`
+- [ ] Concept: `Timeline reconstruction in UTC with source-of-truth` | Parent: `Postmortem Writing` | Mode: `dr` | Cluster: `Postmortem Writing (2 of 2)`
+- [ ] Concept: `What went well without performative positivity` | Parent: `Postmortem Writing` | Mode: `dr` | Cluster: `Postmortem Writing (2 of 2)`
+- [ ] Concept: `Error code conventions and status-code-vs-error-code distinction` | Parent: `Error Message Craft` | Mode: `dr` | Cluster: `Error Message Craft (1 of 2)`
+- [ ] Concept: `Concrete next action or admit there is none` | Parent: `Error Message Craft` | Mode: `dr` | Cluster: `Error Message Craft (1 of 2)`
+- [ ] Concept: `Conservative punctuation (exclamation marks, ALL CAPS, ellipses)` | Parent: `Error Message Craft` | Mode: `dr` | Cluster: `Error Message Craft (1 of 2)`
+- [ ] Concept: `Form-validation errors (inline, contextual, specific)` | Parent: `Error Message Craft` | Mode: `dr` | Cluster: `Error Message Craft (1 of 2)`
+- [ ] Concept: `Internationalization (pluralization, register, length budget)` | Parent: `Error Message Craft` | Mode: `dr` | Cluster: `Error Message Craft (1 of 2)`
+- [ ] Concept: `NN/g hostile patterns to avoid` | Parent: `Error Message Craft` | Mode: `dr` | Cluster: `Error Message Craft (2 of 2)`
+- [ ] Concept: `No-blame language (system owns the failure)` | Parent: `Error Message Craft` | Mode: `dr` | Cluster: `Error Message Craft (2 of 2)`
+- [ ] Concept: `Separate user-facing string from log string with correlation IDs` | Parent: `Error Message Craft` | Mode: `dr` | Cluster: `Error Message Craft (2 of 2)`
+- [ ] Concept: `User terms vs internal terms` | Parent: `Error Message Craft` | Mode: `dr` | Cluster: `Error Message Craft (2 of 2)`
+- [ ] Concept: `The what / why / what-to-do-next triple` | Parent: `Error Message Craft` | Mode: `dr` | Cluster: `Error Message Craft (2 of 2)`
+- [ ] Concept: `BREAKING CHANGE footer` | Parent: `Commit Message Craft` | Mode: `dr` | Cluster: `Commit Message Craft (1 of 2)`
+- [ ] Concept: `Co-authored-by trailer` | Parent: `Commit Message Craft` | Mode: `dr` | Cluster: `Commit Message Craft (1 of 2)`
+- [ ] Concept: `Conventional Commits` | Parent: `Commit Message Craft` | Mode: `dr` | Cluster: `Commit Message Craft (1 of 2)`
+- [ ] Concept: `Fixup/squash/autosquash workflow` | Parent: `Commit Message Craft` | Mode: `dr` | Cluster: `Commit Message Craft (1 of 2)`
+- [ ] Concept: `Imperative-mood subjects` | Parent: `Commit Message Craft` | Mode: `dr` | Cluster: `Commit Message Craft (1 of 2)`
+- [ ] Concept: `Multi-commit storytelling` | Parent: `Commit Message Craft` | Mode: `dr` | Cluster: `Commit Message Craft (2 of 2)`
+- [ ] Concept: `Signed-off-by/DCO trailers` | Parent: `Commit Message Craft` | Mode: `dr` | Cluster: `Commit Message Craft (2 of 2)`
+- [ ] Concept: `Commit splitting heuristics` | Parent: `Commit Message Craft` | Mode: `dr` | Cluster: `Commit Message Craft (2 of 2)`
+- [ ] Concept: `Tim Pope 50/72 rule` | Parent: `Commit Message Craft` | Mode: `dr` | Cluster: `Commit Message Craft (2 of 2)`
+- [ ] Concept: `Why-not-what body discipline` | Parent: `Commit Message Craft` | Mode: `dr` | Cluster: `Commit Message Craft (2 of 2)`
+- [ ] Concept: `Before/after screenshots and recordings` | Parent: `Pull Request Description Craft` | Mode: `dr` | Cluster: `Pull Request Description Craft (1 of 2)`
+- [ ] Concept: `Conventional Comments for review threads` | Parent: `Pull Request Description Craft` | Mode: `dr` | Cluster: `Pull Request Description Craft (1 of 2)`
+- [ ] Concept: `Draft/blocked/stacked signaling` | Parent: `Pull Request Description Craft` | Mode: `dr` | Cluster: `Pull Request Description Craft (1 of 2)`
+- [ ] Concept: `Link-out vs inline detail` | Parent: `Pull Request Description Craft` | Mode: `dr` | Cluster: `Pull Request Description Craft (1 of 2)`
+- [ ] Concept: `PR title as squash-commit subject` | Parent: `Pull Request Description Craft` | Mode: `dr` | Cluster: `Pull Request Description Craft (1 of 2)`
+- [ ] Concept: `Reviewer shopping and CODEOWNERS` | Parent: `Pull Request Description Craft` | Mode: `dr` | Cluster: `Pull Request Description Craft (2 of 2)`
+- [ ] Concept: `Stacked PR workflow` | Parent: `Pull Request Description Craft` | Mode: `dr` | Cluster: `Pull Request Description Craft (2 of 2)`
+- [ ] Concept: `Two-tier reader pattern (skimmers vs nit-pickers)` | Parent: `Pull Request Description Craft` | Mode: `dr` | Cluster: `Pull Request Description Craft (2 of 2)`
+- [ ] Concept: `Verifiable PR checklists` | Parent: `Pull Request Description Craft` | Mode: `dr` | Cluster: `Pull Request Description Craft (2 of 2)`
+- [ ] Concept: `WWHT template (What/Why/How/Test)` | Parent: `Pull Request Description Craft` | Mode: `dr` | Cluster: `Pull Request Description Craft (2 of 2)`
+- [ ] Concept: `Diátaxis four-quadrant framework (Procida)` | Parent: `API Documentation Craft` | Mode: `dr` | Cluster: `API Documentation Craft (1 of 2)`
+- [ ] Concept: `Endpoint reference page structure` | Parent: `API Documentation Craft` | Mode: `dr` | Cluster: `API Documentation Craft (1 of 2)`
+- [ ] Concept: `Error catalog pattern` | Parent: `API Documentation Craft` | Mode: `dr` | Cluster: `API Documentation Craft (1 of 2)`
+- [ ] Concept: `Explanation quadrant essays` | Parent: `API Documentation Craft` | Mode: `dr` | Cluster: `API Documentation Craft (1 of 2)`
+- [ ] Concept: `Multi-language code samples` | Parent: `API Documentation Craft` | Mode: `dr` | Cluster: `API Documentation Craft (1 of 2)`
+- [ ] Concept: `OpenAPI/Swagger three-pane layout` | Parent: `API Documentation Craft` | Mode: `dr` | Cluster: `API Documentation Craft (2 of 2)`
+- [ ] Concept: `RFC 8594 Sunset/Deprecation headers` | Parent: `API Documentation Craft` | Mode: `dr` | Cluster: `API Documentation Craft (2 of 2)`
+- [ ] Concept: `Try It interactive widgets` | Parent: `API Documentation Craft` | Mode: `dr` | Cluster: `API Documentation Craft (2 of 2)`
+- [ ] Concept: `URI vs header vs date-pinned versioning` | Parent: `API Documentation Craft` | Mode: `dr` | Cluster: `API Documentation Craft (2 of 2)`
+- [ ] Concept: `Attachments Hygiene` | Parent: `Proposal and Grant Writing` | Mode: `dr` | Cluster: `Proposal and Grant Writing (1 of 2)`
+- [ ] Concept: `Budget Narrative` | Parent: `Proposal and Grant Writing` | Mode: `dr` | Cluster: `Proposal and Grant Writing (1 of 2)`
+- [ ] Concept: `Demonstrated Need` | Parent: `Proposal and Grant Writing` | Mode: `dr` | Cluster: `Proposal and Grant Writing (1 of 2)`
+- [ ] Concept: `Executive Summary` | Parent: `Proposal and Grant Writing` | Mode: `dr` | Cluster: `Proposal and Grant Writing (1 of 2)`
+- [ ] Concept: `Logical Framework (Logframe)` | Parent: `Proposal and Grant Writing` | Mode: `dr` | Cluster: `Proposal and Grant Writing (1 of 2)`
+- [ ] Concept: `NIH Specific Aims` | Parent: `Proposal and Grant Writing` | Mode: `dr` | Cluster: `Proposal and Grant Writing (2 of 2)`
+- [ ] Concept: `Problem Statement` | Parent: `Proposal and Grant Writing` | Mode: `dr` | Cluster: `Proposal and Grant Writing (2 of 2)`
+- [ ] Concept: `SMART Objectives` | Parent: `Proposal and Grant Writing` | Mode: `dr` | Cluster: `Proposal and Grant Writing (2 of 2)`
+- [ ] Concept: `Sustainability Plan` | Parent: `Proposal and Grant Writing` | Mode: `dr` | Cluster: `Proposal and Grant Writing (2 of 2)`
+- [ ] Concept: `Theory of Change` | Parent: `Proposal and Grant Writing` | Mode: `dr` | Cluster: `Proposal and Grant Writing (2 of 2)`
+- [ ] Concept: `Academic CV vs Industry Resume` | Parent: `Resume and CV Writing` | Mode: `dr` | Cluster: `Resume and CV Writing (1 of 2)`
+- [ ] Concept: `ATS Parse-Friendly Formatting` | Parent: `Resume and CV Writing` | Mode: `dr` | Cluster: `Resume and CV Writing (1 of 2)`
+- [ ] Concept: `Cover Letter Complement` | Parent: `Resume and CV Writing` | Mode: `dr` | Cluster: `Resume and CV Writing (1 of 2)`
+- [ ] Concept: `Employment Gap Explanation` | Parent: `Resume and CV Writing` | Mode: `dr` | Cluster: `Resume and CV Writing (1 of 2)`
+- [ ] Concept: `LinkedIn vs Resume Tone` | Parent: `Resume and CV Writing` | Mode: `dr` | Cluster: `Resume and CV Writing (1 of 2)`
+- [ ] Concept: `Portfolio vs Resume Convention` | Parent: `Resume and CV Writing` | Mode: `dr` | Cluster: `Resume and CV Writing (1 of 2)`
+- [ ] Concept: `Quantification Discipline` | Parent: `Resume and CV Writing` | Mode: `dr` | Cluster: `Resume and CV Writing (2 of 2)`
+- [ ] Concept: `Role Tailoring` | Parent: `Resume and CV Writing` | Mode: `dr` | Cluster: `Resume and CV Writing (2 of 2)`
+- [ ] Concept: `Senior IC vs Management Track` | Parent: `Resume and CV Writing` | Mode: `dr` | Cluster: `Resume and CV Writing (2 of 2)`
+- [ ] Concept: `Skills Section Debate` | Parent: `Resume and CV Writing` | Mode: `dr` | Cluster: `Resume and CV Writing (2 of 2)`
+- [ ] Concept: `X-Y-Z Achievement Formula` | Parent: `Resume and CV Writing` | Mode: `dr` | Cluster: `Resume and CV Writing (2 of 2)`
+- [ ] Concept: `RFC 2119 / RFC 8174 normative keywords` | Parent: `Policy and Governance Writing` | Mode: `dr` | Cluster: `Policy and Governance Writing`
+- [ ] Concept: `NIST SP 800-12 policy hierarchy` | Parent: `Policy and Governance Writing` | Mode: `dr` | Cluster: `Policy and Governance Writing`
+- [ ] Concept: `Policy components (scope, definitions, roles, exceptions, review)` | Parent: `Policy and Governance Writing` | Mode: `dr` | Cluster: `Policy and Governance Writing`
+- [ ] Concept: `ISO/IEC 27001 Annex A policy patterns` | Parent: `Policy and Governance Writing` | Mode: `dr` | Cluster: `Policy and Governance Writing`
+- [ ] Concept: `Plain Writing Act 2010 accessibility` | Parent: `Policy and Governance Writing` | Mode: `dr` | Cluster: `Policy and Governance Writing`
+- [ ] Concept: `Exception clauses` | Parent: `Policy and Governance Writing` | Mode: `dr` | Cluster: `Policy and Governance Writing`
+- [ ] Concept: `Change management and version control` | Parent: `Policy and Governance Writing` | Mode: `dr` | Cluster: `Policy and Governance Writing`
+- [ ] Concept: `Policy vs RFC vs ADR vs runbook distinction` | Parent: `Policy and Governance Writing` | Mode: `dr` | Cluster: `Policy and Governance Writing`
+- [ ] Concept: `Abstract vs introduction distinction` | Parent: `Academic and Citation Writing` | Mode: `dr` | Cluster: `Academic and Citation Writing (1 of 2)`
+- [ ] Concept: `APA 7th edition citation style` | Parent: `Academic and Citation Writing` | Mode: `dr` | Cluster: `Academic and Citation Writing (1 of 2)`
+- [ ] Concept: `Chicago Manual of Style 17th edition (notes-bibliography and author-date)` | Parent: `Academic and Citation Writing` | Mode: `dr` | Cluster: `Academic and Citation Writing (1 of 2)`
+- [ ] Concept: `IEEE and Vancouver numeric citation systems` | Parent: `Academic and Citation Writing` | Mode: `dr` | Cluster: `Academic and Citation Writing (1 of 2)`
+- [ ] Concept: `Literature review funnel pattern` | Parent: `Academic and Citation Writing` | Mode: `dr` | Cluster: `Academic and Citation Writing (1 of 2)`
+- [ ] Concept: `MLA 9th edition core-elements template` | Parent: `Academic and Citation Writing` | Mode: `dr` | Cluster: `Academic and Citation Writing (1 of 2)`
+- [ ] Concept: `Persistent identifiers (DOI, ORCID, ISBN)` | Parent: `Academic and Citation Writing` | Mode: `dr` | Cluster: `Academic and Citation Writing (2 of 2)`
+- [ ] Concept: `Primary vs secondary vs tertiary sources` | Parent: `Academic and Citation Writing` | Mode: `dr` | Cluster: `Academic and Citation Writing (2 of 2)`
+- [ ] Concept: `Pseudo-citation avoidance` | Parent: `Academic and Citation Writing` | Mode: `dr` | Cluster: `Academic and Citation Writing (2 of 2)`
+- [ ] Concept: `Reference management tools (Zotero, BibTeX)` | Parent: `Academic and Citation Writing` | Mode: `dr` | Cluster: `Academic and Citation Writing (2 of 2)`
+- [ ] Concept: `Signal phrases and source integration` | Parent: `Academic and Citation Writing` | Mode: `dr` | Cluster: `Academic and Citation Writing (2 of 2)`
+- [ ] Concept: `Toulmin argument structure` | Parent: `Academic and Citation Writing` | Mode: `dr` | Cluster: `Academic and Citation Writing (2 of 2)`
+- [ ] Concept: `Apology Calibration` | Parent: `Support Ticket Writing` | Mode: `dr` | Cluster: `Support Ticket Writing (1 of 2)`
+- [ ] Concept: `ASAP De-escalation` | Parent: `Support Ticket Writing` | Mode: `dr` | Cluster: `Support Ticket Writing (1 of 2)`
+- [ ] Concept: `CSAT and Closing Language` | Parent: `Support Ticket Writing` | Mode: `dr` | Cluster: `Support Ticket Writing (1 of 2)`
+- [ ] Concept: `First-Response Templates` | Parent: `Support Ticket Writing` | Mode: `dr` | Cluster: `Support Ticket Writing (1 of 2)`
+- [ ] Concept: `HEARD De-escalation` | Parent: `Support Ticket Writing` | Mode: `dr` | Cluster: `Support Ticket Writing (1 of 2)`
+- [ ] Concept: `Holding Statement Patterns` | Parent: `Support Ticket Writing` | Mode: `dr` | Cluster: `Support Ticket Writing (2 of 2)`
+- [ ] Concept: `Phone vs Ticket Decision` | Parent: `Support Ticket Writing` | Mode: `dr` | Cluster: `Support Ticket Writing (2 of 2)`
+- [ ] Concept: `Status-Update Cadence by Severity` | Parent: `Support Ticket Writing` | Mode: `dr` | Cluster: `Support Ticket Writing (2 of 2)`
+- [ ] Concept: `Warm vs Cold Handoff` | Parent: `Support Ticket Writing` | Mode: `dr` | Cluster: `Support Ticket Writing (2 of 2)`
+- [ ] Concept: `Confirmation Dialogs` | Parent: `Microcopy and UI Writing` | Mode: `dr` | Cluster: `Microcopy and UI Writing (1 of 2)`
+- [ ] Concept: `Dark Pattern Avoidance` | Parent: `Microcopy and UI Writing` | Mode: `dr` | Cluster: `Microcopy and UI Writing (1 of 2)`
+- [ ] Concept: `Empty State Copy` | Parent: `Microcopy and UI Writing` | Mode: `dr` | Cluster: `Microcopy and UI Writing (1 of 2)`
+- [ ] Concept: `Error and Validation Messages` | Parent: `Microcopy and UI Writing` | Mode: `dr` | Cluster: `Microcopy and UI Writing (1 of 2)`
+- [ ] Concept: `Mailchimp/Polaris/HIG/Material/GOV.UK Conventions` | Parent: `Microcopy and UI Writing` | Mode: `dr` | Cluster: `Microcopy and UI Writing (1 of 2)`
+- [ ] Concept: `Onboarding and Password-Reset Flows` | Parent: `Microcopy and UI Writing` | Mode: `dr` | Cluster: `Microcopy and UI Writing (2 of 2)`
+- [ ] Concept: `Sentence vs Title Case` | Parent: `Microcopy and UI Writing` | Mode: `dr` | Cluster: `Microcopy and UI Writing (2 of 2)`
+- [ ] Concept: `Toast and Modal Patterns` | Parent: `Microcopy and UI Writing` | Mode: `dr` | Cluster: `Microcopy and UI Writing (2 of 2)`
+- [ ] Concept: `Verb-the-Noun Button Rule` | Parent: `Microcopy and UI Writing` | Mode: `dr` | Cluster: `Microcopy and UI Writing (2 of 2)`
+- [ ] Concept: `Backward design` | Parent: `Diátaxis Tutorial Quadrant` | Mode: `dr` | Cluster: `Diátaxis Tutorial Quadrant`
+- [ ] Concept: `Cognitive load 7±2` | Parent: `Diátaxis Tutorial Quadrant` | Mode: `dr` | Cluster: `Diátaxis Tutorial Quadrant`
+- [ ] Concept: `Narrator voice` | Parent: `Diátaxis Tutorial Quadrant` | Mode: `dr` | Cluster: `Diátaxis Tutorial Quadrant`
+- [ ] Concept: `Learner's promise` | Parent: `Diátaxis Tutorial Quadrant` | Mode: `dr` | Cluster: `Diátaxis Tutorial Quadrant`
+- [ ] Concept: `Carpentries pedagogy` | Parent: `Diátaxis Tutorial Quadrant` | Mode: `dr` | Cluster: `Diátaxis Tutorial Quadrant`
+- [ ] Concept: `Prerequisite blocks` | Parent: `Diátaxis How-To Quadrant` | Mode: `dr` | Cluster: `Diátaxis How-To Quadrant`
+- [ ] Concept: `Imperative steps` | Parent: `Diátaxis How-To Quadrant` | Mode: `dr` | Cluster: `Diátaxis How-To Quadrant`
+- [ ] Concept: `Cookbook conventions` | Parent: `Diátaxis How-To Quadrant` | Mode: `dr` | Cluster: `Diátaxis How-To Quadrant`
+- [ ] Concept: `Branching guides` | Parent: `Diátaxis How-To Quadrant` | Mode: `dr` | Cluster: `Diátaxis How-To Quadrant`
+- [ ] Concept: `How-to vs tutorial` | Parent: `Diátaxis How-To Quadrant` | Mode: `dr` | Cluster: `Diátaxis How-To Quadrant`
+- [ ] Concept: `Parameter tables` | Parent: `Diátaxis Reference Quadrant` | Mode: `dr` | Cluster: `Diátaxis Reference Quadrant`
+- [ ] Concept: `Exhaustive coverage` | Parent: `Diátaxis Reference Quadrant` | Mode: `dr` | Cluster: `Diátaxis Reference Quadrant`
+- [ ] Concept: `No-surprises rule` | Parent: `Diátaxis Reference Quadrant` | Mode: `dr` | Cluster: `Diátaxis Reference Quadrant`
+- [ ] Concept: `Structure-mirrors-product` | Parent: `Diátaxis Reference Quadrant` | Mode: `dr` | Cluster: `Diátaxis Reference Quadrant`
+- [ ] Concept: `Search-discoverability` | Parent: `Diátaxis Reference Quadrant` | Mode: `dr` | Cluster: `Diátaxis Reference Quadrant`
+- [ ] Concept: `Mental-model construction` | Parent: `Diátaxis Explanation Quadrant` | Mode: `dr` | Cluster: `Diátaxis Explanation Quadrant`
+- [ ] Concept: `ADR pattern` | Parent: `Diátaxis Explanation Quadrant` | Mode: `dr` | Cluster: `Diátaxis Explanation Quadrant`
+- [ ] Concept: `Decisions log` | Parent: `Diátaxis Explanation Quadrant` | Mode: `dr` | Cluster: `Diátaxis Explanation Quadrant`
+- [ ] Concept: `Alternatives considered` | Parent: `Diátaxis Explanation Quadrant` | Mode: `dr` | Cluster: `Diátaxis Explanation Quadrant`
+- [ ] Concept: `Discussion vs RFC vs runbook` | Parent: `Diátaxis Explanation Quadrant` | Mode: `dr` | Cluster: `Diátaxis Explanation Quadrant`
+- [ ] Concept: `Cagan four-section minimum` | Parent: `PRD Writing` | Mode: `dr` | Cluster: `PRD Writing (1 of 2)`
+- [ ] Concept: `Designed-by-committee anti-pattern` | Parent: `PRD Writing` | Mode: `dr` | Cluster: `PRD Writing (1 of 2)`
+- [ ] Concept: `Leading vs lagging metrics` | Parent: `PRD Writing` | Mode: `dr` | Cluster: `PRD Writing (1 of 2)`
+- [ ] Concept: `MVP vs v1 vs roadmap scoping` | Parent: `PRD Writing` | Mode: `dr` | Cluster: `PRD Writing (1 of 2)`
+- [ ] Concept: `Non-goals as first-class section` | Parent: `PRD Writing` | Mode: `dr` | Cluster: `PRD Writing (1 of 2)`
+- [ ] Concept: `Problem-first structure (Lenny)` | Parent: `PRD Writing` | Mode: `dr` | Cluster: `PRD Writing (2 of 2)`
+- [ ] Concept: `Shape Up pitch (Basecamp)` | Parent: `PRD Writing` | Mode: `dr` | Cluster: `PRD Writing (2 of 2)`
+- [ ] Concept: `Stakeholder sign-off pattern` | Parent: `PRD Writing` | Mode: `dr` | Cluster: `PRD Writing (2 of 2)`
+- [ ] Concept: `Wireframes vs prose` | Parent: `PRD Writing` | Mode: `dr` | Cluster: `PRD Writing (2 of 2)`
+- [ ] Concept: `Appendix slide convention` | Parent: `Pitch Deck Writing` | Mode: `dr` | Cluster: `Pitch Deck Writing (1 of 2)`
+- [ ] Concept: `Designer + writer collaboration` | Parent: `Pitch Deck Writing` | Mode: `dr` | Cluster: `Pitch Deck Writing (1 of 2)`
+- [ ] Concept: `Narrative arc (problem-solution-traction-team-ask)` | Parent: `Pitch Deck Writing` | Mode: `dr` | Cluster: `Pitch Deck Writing (1 of 2)`
+- [ ] Concept: `Narrative deck vs traditional deck` | Parent: `Pitch Deck Writing` | Mode: `dr` | Cluster: `Pitch Deck Writing (1 of 2)`
+- [ ] Concept: `No-cliffhanger rule` | Parent: `Pitch Deck Writing` | Mode: `dr` | Cluster: `Pitch Deck Writing (1 of 2)`
+- [ ] Concept: `Sequoia / Reid Hoffman structure` | Parent: `Pitch Deck Writing` | Mode: `dr` | Cluster: `Pitch Deck Writing (2 of 2)`
+- [ ] Concept: `Slide title as thesis` | Parent: `Pitch Deck Writing` | Mode: `dr` | Cluster: `Pitch Deck Writing (2 of 2)`
+- [ ] Concept: `What I most want you to remember closer` | Parent: `Pitch Deck Writing` | Mode: `dr` | Cluster: `Pitch Deck Writing (2 of 2)`
+- [ ] Concept: `Y Combinator seed deck` | Parent: `Pitch Deck Writing` | Mode: `dr` | Cluster: `Pitch Deck Writing (2 of 2)`
+- [ ] Concept: `Likert scale design` | Parent: `Survey Question Writing` | Mode: `dr` | Cluster: `Survey Question Writing`
+- [ ] Concept: `NPS / CSAT / CES choice` | Parent: `Survey Question Writing` | Mode: `dr` | Cluster: `Survey Question Writing`
+- [ ] Concept: `Question-stem hygiene (Dillman)` | Parent: `Survey Question Writing` | Mode: `dr` | Cluster: `Survey Question Writing`
+- [ ] Concept: `Agree-disagree anti-pattern (Saris & Gallhofer)` | Parent: `Survey Question Writing` | Mode: `dr` | Cluster: `Survey Question Writing`
+- [ ] Concept: `Double-barreled and leading question detection` | Parent: `Survey Question Writing` | Mode: `dr` | Cluster: `Survey Question Writing`
+- [ ] Concept: `Anchor labels and ordering effects` | Parent: `Survey Question Writing` | Mode: `dr` | Cluster: `Survey Question Writing`
+- [ ] Concept: `Mobile survey constraints` | Parent: `Survey Question Writing` | Mode: `dr` | Cluster: `Survey Question Writing`
+- [ ] Concept: `Attachment vs Link` | Parent: `Email Craft` | Mode: `dr` | Cluster: `Email Craft (1 of 2)`
+- [ ] Concept: `BLUF Opening` | Parent: `Email Craft` | Mode: `dr` | Cluster: `Email Craft (1 of 2)`
+- [ ] Concept: `Breakup Email` | Parent: `Email Craft` | Mode: `dr` | Cluster: `Email Craft (1 of 2)`
+- [ ] Concept: `Cold Outreach (Non-Sales)` | Parent: `Email Craft` | Mode: `dr` | Cluster: `Email Craft (1 of 2)`
+- [ ] Concept: `Follow-Up Cadence` | Parent: `Email Craft` | Mode: `dr` | Cluster: `Email Craft (1 of 2)`
+- [ ] Concept: `Intro Request and Double Opt-In` | Parent: `Email Craft` | Mode: `dr` | Cluster: `Email Craft (1 of 2)`
+- [ ] Concept: `One Ask Per Email` | Parent: `Email Craft` | Mode: `dr` | Cluster: `Email Craft (1 of 2)`
+- [ ] Concept: `Phone vs Email Judgment` | Parent: `Email Craft` | Mode: `dr` | Cluster: `Email Craft (1 of 2)`
+- [ ] Concept: `Reply-All Etiquette` | Parent: `Email Craft` | Mode: `dr` | Cluster: `Email Craft (2 of 2)`
+- [ ] Concept: `Send-Time Decisions` | Parent: `Email Craft` | Mode: `dr` | Cluster: `Email Craft (2 of 2)`
+- [ ] Concept: `Signature Hygiene` | Parent: `Email Craft` | Mode: `dr` | Cluster: `Email Craft (2 of 2)`
+- [ ] Concept: `Slack vs Email Test` | Parent: `Email Craft` | Mode: `dr` | Cluster: `Email Craft (2 of 2)`
+- [ ] Concept: `Subject Line Discipline` | Parent: `Email Craft` | Mode: `dr` | Cluster: `Email Craft (2 of 2)`
+- [ ] Concept: `Thank-You Notes` | Parent: `Email Craft` | Mode: `dr` | Cluster: `Email Craft (2 of 2)`
+- [ ] Concept: `Email Tone and Register` | Parent: `Email Craft` | Mode: `dr` | Cluster: `Email Craft (2 of 2)`
+- [ ] Concept: `Above-the-Fold Visual Hierarchy` | Parent: `One-Pager Writing` | Mode: `dr` | Cluster: `One-Pager Writing (1 of 2)`
+- [ ] Concept: `Account Brief Species` | Parent: `One-Pager Writing` | Mode: `dr` | Cluster: `One-Pager Writing (1 of 2)`
+- [ ] Concept: `Amazon 1-Pager and PR-FAQ` | Parent: `One-Pager Writing` | Mode: `dr` | Cluster: `One-Pager Writing (1 of 2)`
+- [ ] Concept: `Bullets vs Paragraphs` | Parent: `One-Pager Writing` | Mode: `dr` | Cluster: `One-Pager Writing (1 of 2)`
+- [ ] Concept: `Design vs Writing Collaboration` | Parent: `One-Pager Writing` | Mode: `dr` | Cluster: `One-Pager Writing (1 of 2)`
+- [ ] Concept: `Headline + Value-Prop Pattern` | Parent: `One-Pager Writing` | Mode: `dr` | Cluster: `One-Pager Writing (1 of 2)`
+- [ ] Concept: `If You Only Read One Line` | Parent: `One-Pager Writing` | Mode: `dr` | Cluster: `One-Pager Writing (2 of 2)`
+- [ ] Concept: `No-Second-Page Discipline` | Parent: `One-Pager Writing` | Mode: `dr` | Cluster: `One-Pager Writing (2 of 2)`
+- [ ] Concept: `Project Pitch Species` | Parent: `One-Pager Writing` | Mode: `dr` | Cluster: `One-Pager Writing (2 of 2)`
+- [ ] Concept: `Sales-Enablement One-Pager Species` | Parent: `One-Pager Writing` | Mode: `dr` | Cluster: `One-Pager Writing (2 of 2)`
+- [ ] Concept: `Section Budget for One Page` | Parent: `One-Pager Writing` | Mode: `dr` | Cluster: `One-Pager Writing (2 of 2)`
+- [ ] Concept: `Working Backwards Lineage` | Parent: `One-Pager Writing` | Mode: `dr` | Cluster: `One-Pager Writing (2 of 2)`
+- [ ] Concept: `Auditing the vocabulary of system prompts and instruction files` | Parent: `Prompt-side control of LLM lexical tics` | Mode: `dr` | Cluster: `Prompt-side control of LLM lexical tics (1 of 2)`
+- [ ] Concept: `Base vs instruct repetition behaviour` | Parent: `Prompt-side control of LLM lexical tics` | Mode: `dr` | Cluster: `Prompt-side control of LLM lexical tics (1 of 2)`
+- [ ] Concept: `Context-borne lexical contagion` | Parent: `Prompt-side control of LLM lexical tics` | Mode: `dr` | Cluster: `Prompt-side control of LLM lexical tics (1 of 2)`
+- [ ] Concept: `Decoding-time suppression as alternative to prompt lists` | Parent: `Prompt-side control of LLM lexical tics` | Mode: `dr` | Cluster: `Prompt-side control of LLM lexical tics (1 of 2)`
+- [ ] Concept: `Exemplar diversity and unintended pattern pickup` | Parent: `Prompt-side control of LLM lexical tics` | Mode: `dr` | Cluster: `Prompt-side control of LLM lexical tics (1 of 2)`
+- [ ] Concept: `Few-shot exemplars versus banned-word lists for style control` | Parent: `Prompt-side control of LLM lexical tics` | Mode: `dr` | Cluster: `Prompt-side control of LLM lexical tics (1 of 2)`
+- [ ] Concept: `Prompt-format mirroring in output` | Parent: `Prompt-side control of LLM lexical tics` | Mode: `dr` | Cluster: `Prompt-side control of LLM lexical tics (1 of 2)`
+- [ ] Concept: `Formatting mirroring` | Parent: `Prompt-side control of LLM lexical tics` | Mode: `dr` | Cluster: `Prompt-side control of LLM lexical tics (1 of 2)`
+- [ ] Concept: `Ironic rebound mechanism in attention heads` | Parent: `Prompt-side control of LLM lexical tics` | Mode: `dr` | Cluster: `Prompt-side control of LLM lexical tics (2 of 2)`
+- [ ] Concept: `Linting instruction files for emphatic language` | Parent: `Prompt-side control of LLM lexical tics` | Mode: `dr` | Cluster: `Prompt-side control of LLM lexical tics (2 of 2)`
+- [ ] Concept: `Negative-instruction backfire in style prompts` | Parent: `Prompt-side control of LLM lexical tics` | Mode: `dr` | Cluster: `Prompt-side control of LLM lexical tics (2 of 2)`
+- [ ] Concept: `Positive substitution style guides` | Parent: `Prompt-side control of LLM lexical tics` | Mode: `dr` | Cluster: `Prompt-side control of LLM lexical tics (2 of 2)`
+- [ ] Concept: `Prohibition plus named replacement` | Parent: `Prompt-side control of LLM lexical tics` | Mode: `dr` | Cluster: `Prompt-side control of LLM lexical tics (2 of 2)`
+- [ ] Concept: `Structural priming in generation` | Parent: `Prompt-side control of LLM lexical tics` | Mode: `dr` | Cluster: `Prompt-side control of LLM lexical tics (2 of 2)`
+- [ ] Concept: `Prompt style matching output style` | Parent: `Prompt-side control of LLM lexical tics` | Mode: `dr` | Cluster: `Prompt-side control of LLM lexical tics (2 of 2)`
+- [ ] Concept: `Voice descriptions versus wording lists` | Parent: `Prompt-side control of LLM lexical tics` | Mode: `dr` | Cluster: `Prompt-side control of LLM lexical tics (2 of 2)`
+- [ ] Concept: `Four Workflow Modes (I-draft/AI-edits, AI-drafts/I-edit, style-sample prompting, redline-not-rewrite)` | Parent: `AI Collaboration Writing` | Mode: `dr` | Cluster: `AI Collaboration Writing`
+- [ ] Concept: `Voice Transfer Problem` | Parent: `AI Collaboration Writing` | Mode: `dr` | Cluster: `AI Collaboration Writing`
+- [ ] Concept: `Few-Shot Style-Sample Prompting` | Parent: `AI Collaboration Writing` | Mode: `dr` | Cluster: `AI Collaboration Writing`
+- [ ] Concept: `AI Disclosure Ethics 2026` | Parent: `AI Collaboration Writing` | Mode: `dr` | Cluster: `AI Collaboration Writing`
+- [ ] Concept: `FTC and New York 2026 Disclosure Rules` | Parent: `AI Collaboration Writing` | Mode: `dr` | Cluster: `AI Collaboration Writing`
+- [ ] Concept: `Prompt-Style-Guide Artifacts` | Parent: `AI Collaboration Writing` | Mode: `dr` | Cluster: `AI Collaboration Writing`
+- [ ] Concept: `Alt-Text Writing (W3C four-category decision tree)` | Parent: `Accessibility Writing` | Mode: `dr` | Cluster: `Accessibility Writing (1 of 2)`
+- [ ] Concept: `ARIA Labels for Icon-Only Controls` | Parent: `Accessibility Writing` | Mode: `dr` | Cluster: `Accessibility Writing (1 of 2)`
+- [ ] Concept: `Captions and Transcripts` | Parent: `Accessibility Writing` | Mode: `dr` | Cluster: `Accessibility Writing (1 of 2)`
+- [ ] Concept: `Color-Independent Information` | Parent: `Accessibility Writing` | Mode: `dr` | Cluster: `Accessibility Writing (1 of 2)`
+- [ ] Concept: `Descriptive Link Text` | Parent: `Accessibility Writing` | Mode: `dr` | Cluster: `Accessibility Writing (1 of 2)`
+- [ ] Concept: `Form Label Association` | Parent: `Accessibility Writing` | Mode: `dr` | Cluster: `Accessibility Writing (2 of 2)`
+- [ ] Concept: `Heading Structure (H1-H2-H3 no skips)` | Parent: `Accessibility Writing` | Mode: `dr` | Cluster: `Accessibility Writing (2 of 2)`
+- [ ] Concept: `Reading Level (WCAG)` | Parent: `Accessibility Writing` | Mode: `dr` | Cluster: `Accessibility Writing (2 of 2)`
+- [ ] Concept: `Skip to Main Content Link` | Parent: `Accessibility Writing` | Mode: `dr` | Cluster: `Accessibility Writing (2 of 2)`
+- [ ] Concept: `Table Captions and Headers` | Parent: `Accessibility Writing` | Mode: `dr` | Cluster: `Accessibility Writing (2 of 2)`
+- [ ] Concept: `Avoiding Text-in-Images` | Parent: `Localization Friendly Writing` | Mode: `dr` | Cluster: `Localization Friendly Writing (1 of 2)`
+- [ ] Concept: `CLDR Plural Categories` | Parent: `Localization Friendly Writing` | Mode: `dr` | Cluster: `Localization Friendly Writing (1 of 2)`
+- [ ] Concept: `ICU MessageFormat Syntax` | Parent: `Localization Friendly Writing` | Mode: `dr` | Cluster: `Localization Friendly Writing (1 of 2)`
+- [ ] Concept: `Key Naming Conventions` | Parent: `Localization Friendly Writing` | Mode: `dr` | Cluster: `Localization Friendly Writing (1 of 2)`
+- [ ] Concept: `Named Placeholders (never positional)` | Parent: `Localization Friendly Writing` | Mode: `dr` | Cluster: `Localization Friendly Writing (1 of 2)`
+- [ ] Concept: `Pseudo-Localization Testing` | Parent: `Localization Friendly Writing` | Mode: `dr` | Cluster: `Localization Friendly Writing (2 of 2)`
+- [ ] Concept: `RTL-Friendly Layouts` | Parent: `Localization Friendly Writing` | Mode: `dr` | Cluster: `Localization Friendly Writing (2 of 2)`
+- [ ] Concept: `Translation-Friendly English Rules` | Parent: `Localization Friendly Writing` | Mode: `dr` | Cluster: `Localization Friendly Writing (2 of 2)`
+- [ ] Concept: `Translator Comment Discipline` | Parent: `Localization Friendly Writing` | Mode: `dr` | Cluster: `Localization Friendly Writing (2 of 2)`
+- [ ] Concept: `Ad-Break Placement` | Parent: `Audio Script Writing` | Mode: `dr` | Cluster: `Audio Script Writing (1 of 2)`
+- [ ] Concept: `Broadcast Copy Conventions` | Parent: `Audio Script Writing` | Mode: `dr` | Cluster: `Audio Script Writing (1 of 2)`
+- [ ] Concept: `Cold-Open Pattern` | Parent: `Audio Script Writing` | Mode: `dr` | Cluster: `Audio Script Writing (1 of 2)`
+- [ ] Concept: `IVR Pause Budgets (100/250/500ms)` | Parent: `Audio Script Writing` | Mode: `dr` | Cluster: `Audio Script Writing (1 of 2)`
+- [ ] Concept: `One Idea Per Sentence Rule` | Parent: `Audio Script Writing` | Mode: `dr` | Cluster: `Audio Script Writing (1 of 2)`
+- [ ] Concept: `Pacing Markers (commas, ellipses, line breaks)` | Parent: `Audio Script Writing` | Mode: `dr` | Cluster: `Audio Script Writing (2 of 2)`
+- [ ] Concept: `Podcast Show Notes with Chapter Timestamps` | Parent: `Audio Script Writing` | Mode: `dr` | Cluster: `Audio Script Writing (2 of 2)`
+- [ ] Concept: `Sample-Dialog for Voice Conversation Design` | Parent: `Audio Script Writing` | Mode: `dr` | Cluster: `Audio Script Writing (2 of 2)`
+- [ ] Concept: `Transcription-Friendly Writing` | Parent: `Audio Script Writing` | Mode: `dr` | Cluster: `Audio Script Writing (2 of 2)`
+- [ ] Concept: `Alt-Text (Decorative/Informational/Functional/Complex)` | Parent: `Visual Writing` | Mode: `dr` | Cluster: `Visual Writing (1 of 2)`
+- [ ] Concept: `Chart Titles and Axis Labels` | Parent: `Visual Writing` | Mode: `dr` | Cluster: `Visual Writing (1 of 2)`
+- [ ] Concept: `Cole Nussbaumer Knaflic Action Title Rule` | Parent: `Visual Writing` | Mode: `dr` | Cluster: `Visual Writing (1 of 2)`
+- [ ] Concept: `Data-Viz Annotations` | Parent: `Visual Writing` | Mode: `dr` | Cluster: `Visual Writing (1 of 2)`
+- [ ] Concept: `Edward Tufte Principles (data-ink ratio, chartjunk)` | Parent: `Visual Writing` | Mode: `dr` | Cluster: `Visual Writing (1 of 2)`
+- [ ] Concept: `Image and Photo Captions` | Parent: `Visual Writing` | Mode: `dr` | Cluster: `Visual Writing (2 of 2)`
+- [ ] Concept: `Infographic Copy` | Parent: `Visual Writing` | Mode: `dr` | Cluster: `Visual Writing (2 of 2)`
+- [ ] Concept: `Pull Quotes and Callouts` | Parent: `Visual Writing` | Mode: `dr` | Cluster: `Visual Writing (2 of 2)`
+- [ ] Concept: `Video Captions and Sub-Captions` | Parent: `Visual Writing` | Mode: `dr` | Cluster: `Visual Writing (2 of 2)`
+- [ ] Concept: `Above-the-Fold Hierarchy` | Parent: `Sales and Marketing Copy` | Mode: `dr` | Cluster: `Sales and Marketing Copy (1 of 2)`
+- [ ] Concept: `AIDA Framework` | Parent: `Sales and Marketing Copy` | Mode: `dr` | Cluster: `Sales and Marketing Copy (1 of 2)`
+- [ ] Concept: `Cold/Nurture/Breakup Email Skeletons` | Parent: `Sales and Marketing Copy` | Mode: `dr` | Cluster: `Sales and Marketing Copy (1 of 2)`
+- [ ] Concept: `Conversion Anti-Patterns` | Parent: `Sales and Marketing Copy` | Mode: `dr` | Cluster: `Sales and Marketing Copy (1 of 2)`
+- [ ] Concept: `CTA Microcopy` | Parent: `Sales and Marketing Copy` | Mode: `dr` | Cluster: `Sales and Marketing Copy (1 of 2)`
+- [ ] Concept: `Email Subject-Line Patterns` | Parent: `Sales and Marketing Copy` | Mode: `dr` | Cluster: `Sales and Marketing Copy (2 of 2)`
+- [ ] Concept: `Headline Formulas` | Parent: `Sales and Marketing Copy` | Mode: `dr` | Cluster: `Sales and Marketing Copy (2 of 2)`
+- [ ] Concept: `PAS Framework` | Parent: `Sales and Marketing Copy` | Mode: `dr` | Cluster: `Sales and Marketing Copy (2 of 2)`
+- [ ] Concept: `Schwartz 5 Awareness Stages` | Parent: `Sales and Marketing Copy` | Mode: `dr` | Cluster: `Sales and Marketing Copy (2 of 2)`
+- [ ] Concept: `Social Proof Typography` | Parent: `Sales and Marketing Copy` | Mode: `dr` | Cluster: `Sales and Marketing Copy (2 of 2)`
+- [ ] Concept: `Disclaimers and AS-IS Language` | Parent: `Legal Adjacent Writing` | Mode: `dr` | Cluster: `Legal Adjacent Writing (1 of 2)`
+- [ ] Concept: `Force-Majeure Clauses` | Parent: `Legal Adjacent Writing` | Mode: `dr` | Cluster: `Legal Adjacent Writing (1 of 2)`
+- [ ] Concept: `Indemnification with Carve-Outs` | Parent: `Legal Adjacent Writing` | Mode: `dr` | Cluster: `Legal Adjacent Writing (1 of 2)`
+- [ ] Concept: `MSA and NDA Structure` | Parent: `Legal Adjacent Writing` | Mode: `dr` | Cluster: `Legal Adjacent Writing (1 of 2)`
+- [ ] Concept: `Privacy Notices (GDPR/CCPA/CPRA)` | Parent: `Legal Adjacent Writing` | Mode: `dr` | Cluster: `Legal Adjacent Writing (1 of 2)`
+- [ ] Concept: `Risk-Allocating Contract Architecture` | Parent: `Legal Adjacent Writing` | Mode: `dr` | Cluster: `Legal Adjacent Writing (2 of 2)`
+- [ ] Concept: `Security Incident Disclosures (8-K Item 1.05)` | Parent: `Legal Adjacent Writing` | Mode: `dr` | Cluster: `Legal Adjacent Writing (2 of 2)`
+- [ ] Concept: `SOC2/HIPAA Notice Patterns` | Parent: `Legal Adjacent Writing` | Mode: `dr` | Cluster: `Legal Adjacent Writing (2 of 2)`
+- [ ] Concept: `Terms of Service Architecture` | Parent: `Legal Adjacent Writing` | Mode: `dr` | Cluster: `Legal Adjacent Writing (2 of 2)`
+- [ ] Concept: `Warranty and Limitation-of-Liability Clauses` | Parent: `Legal Adjacent Writing` | Mode: `dr` | Cluster: `Legal Adjacent Writing (2 of 2)`
+- [ ] Concept: `Benefit-Led Language (not feature-list)` | Parent: `Changelogs for Humans` | Mode: `dr` | Cluster: `Changelogs for Humans (1 of 2)`
+- [ ] Concept: `ChangeKeep Readable Conventions` | Parent: `Changelogs for Humans` | Mode: `dr` | Cluster: `Changelogs for Humans (1 of 2)`
+- [ ] Concept: `Grouping by Audience Benefit` | Parent: `Changelogs for Humans` | Mode: `dr` | Cluster: `Changelogs for Humans (1 of 2)`
+- [ ] Concept: `Linear/Stripe/Vercel/Notion Changelog Pattern` | Parent: `Changelogs for Humans` | Mode: `dr` | Cluster: `Changelogs for Humans (1 of 2)`
+- [ ] Concept: `Mailchimp What's New Email Format` | Parent: `Changelogs for Humans` | Mode: `dr` | Cluster: `Changelogs for Humans (1 of 2)`
+- [ ] Concept: `Monthly Digest Patterns` | Parent: `Changelogs for Humans` | Mode: `dr` | Cluster: `Changelogs for Humans (2 of 2)`
+- [ ] Concept: `RSS-Feed Friendliness` | Parent: `Changelogs for Humans` | Mode: `dr` | Cluster: `Changelogs for Humans (2 of 2)`
+- [ ] Concept: `Screenshots and GIFs for UI Changes` | Parent: `Changelogs for Humans` | Mode: `dr` | Cluster: `Changelogs for Humans (2 of 2)`
+- [ ] Concept: `Skip-the-Version-Numbers Approach` | Parent: `Changelogs for Humans` | Mode: `dr` | Cluster: `Changelogs for Humans (2 of 2)`
+- [ ] Concept: `Keep a Changelog Spec` | Parent: `Changelog and Release Notes` | Mode: `dr` | Cluster: `Changelog and Release Notes`
+- [ ] Concept: `Semver Communication Obligations` | Parent: `Changelog and Release Notes` | Mode: `dr` | Cluster: `Changelog and Release Notes`
+- [ ] Concept: `Breaking-Change Announcement Patterns` | Parent: `Changelog and Release Notes` | Mode: `dr` | Cluster: `Changelog and Release Notes`
+- [ ] Concept: `What/Why/Impact Format` | Parent: `Changelog and Release Notes` | Mode: `dr` | Cluster: `Changelog and Release Notes`
+- [ ] Concept: `Conventional Commits Mapping` | Parent: `Changelog and Release Notes` | Mode: `dr` | Cluster: `Changelog and Release Notes`
+- [ ] Concept: `Automation Tooling (release-please, semantic-release)` | Parent: `Changelog and Release Notes` | Mode: `dr` | Cluster: `Changelog and Release Notes`
+- [ ] Concept: `Deprecation Notices` | Parent: `Changelog and Release Notes` | Mode: `dr` | Cluster: `Changelog and Release Notes`
+- [ ] Concept: `Migration Guides` | Parent: `Changelog and Release Notes` | Mode: `dr` | Cluster: `Changelog and Release Notes`
+- [ ] Concept: `Cross-Channel Launch Ladder` | Parent: `Release Blog and Launch Narrative` | Mode: `dr` | Cluster: `Release Blog and Launch Narrative (1 of 2)`
+- [ ] Concept: `Launch-Day Comms Tree` | Parent: `Release Blog and Launch Narrative` | Mode: `dr` | Cluster: `Release Blog and Launch Narrative (1 of 2)`
+- [ ] Concept: `Embargo and Sequencing` | Parent: `Release Blog and Launch Narrative` | Mode: `dr` | Cluster: `Release Blog and Launch Narrative (1 of 2)`
+- [ ] Concept: `Pre-Launch Teasers` | Parent: `Release Blog and Launch Narrative` | Mode: `dr` | Cluster: `Release Blog and Launch Narrative (1 of 2)`
+- [ ] Concept: `Problem-to-Solution-to-Demo-to-CTA Arc` | Parent: `Release Blog and Launch Narrative` | Mode: `dr` | Cluster: `Release Blog and Launch Narrative (1 of 2)`
+- [ ] Concept: `Relaunch Problem` | Parent: `Release Blog and Launch Narrative` | Mode: `dr` | Cluster: `Release Blog and Launch Narrative (2 of 2)`
+- [ ] Concept: `Success Criteria for Launches` | Parent: `Release Blog and Launch Narrative` | Mode: `dr` | Cluster: `Release Blog and Launch Narrative (2 of 2)`
+- [ ] Concept: `What's Not in v1 Honest-Disclosure Section` | Parent: `Release Blog and Launch Narrative` | Mode: `dr` | Cluster: `Release Blog and Launch Narrative (2 of 2)`
+- [ ] Concept: `Why Now Paragraph` | Parent: `Release Blog and Launch Narrative` | Mode: `dr` | Cluster: `Release Blog and Launch Narrative (2 of 2)`
+- [ ] Concept: `Demo Prep` | Parent: `Public Speaking and Presentations` | Mode: `dr` | Cluster: `Public Speaking and Presentations (1 of 2)`
+- [ ] Concept: `Duarte Resonate Framework` | Parent: `Public Speaking and Presentations` | Mode: `dr` | Cluster: `Public Speaking and Presentations (1 of 2)`
+- [ ] Concept: `Kawasaki 10/20/30 Rule` | Parent: `Public Speaking and Presentations` | Mode: `dr` | Cluster: `Public Speaking and Presentations (1 of 2)`
+- [ ] Concept: `Opening and Closing Hooks` | Parent: `Public Speaking and Presentations` | Mode: `dr` | Cluster: `Public Speaking and Presentations (1 of 2)`
+- [ ] Concept: `Q&A Handling` | Parent: `Public Speaking and Presentations` | Mode: `dr` | Cluster: `Public Speaking and Presentations (1 of 2)`
+- [ ] Concept: `Rehearsal Discipline` | Parent: `Public Speaking and Presentations` | Mode: `dr` | Cluster: `Public Speaking and Presentations (2 of 2)`
+- [ ] Concept: `Slide-Doc vs PowerPoint Structure` | Parent: `Public Speaking and Presentations` | Mode: `dr` | Cluster: `Public Speaking and Presentations (2 of 2)`
+- [ ] Concept: `Talk Arc Design` | Parent: `Public Speaking and Presentations` | Mode: `dr` | Cluster: `Public Speaking and Presentations (2 of 2)`
+- [ ] Concept: `Virtual vs In-Person Calibration` | Parent: `Public Speaking and Presentations` | Mode: `dr` | Cluster: `Public Speaking and Presentations (2 of 2)`
+- [ ] Concept: `AIDA mapped to headlines` | Parent: `Headline craft` | Mode: `dr` | Cluster: `Headline craft (1 of 2)`
+- [ ] Concept: `Channel-specific length budgets` | Parent: `Headline craft` | Mode: `dr` | Cluster: `Headline craft (1 of 2)`
+- [ ] Concept: `Curiosity-gap vs declarative` | Parent: `Headline craft` | Mode: `dr` | Cluster: `Headline craft (1 of 2)`
+- [ ] Concept: `Deck / subhead pairing` | Parent: `Headline craft` | Mode: `dr` | Cluster: `Headline craft (1 of 2)`
+- [ ] Concept: `Five-times rule (Ogilvy)` | Parent: `Headline craft` | Mode: `dr` | Cluster: `Headline craft (1 of 2)`
+- [ ] Concept: `News vs feature vs op-ed vs SEO registers` | Parent: `Headline craft` | Mode: `dr` | Cluster: `Headline craft (2 of 2)`
+- [ ] Concept: `Headline numbers (BuzzSumo)` | Parent: `Headline craft` | Mode: `dr` | Cluster: `Headline craft (2 of 2)`
+- [ ] Concept: `Upworthy/BuzzFeed clickbait lesson` | Parent: `Headline craft` | Mode: `dr` | Cluster: `Headline craft (2 of 2)`
+- [ ] Concept: `You-frame rule` | Parent: `Headline craft` | Mode: `dr` | Cluster: `Headline craft (2 of 2)`
+- [ ] Concept: `Ethics (Malcolm)` | Parent: `Profile writing` | Mode: `dr` | Cluster: `Profile writing (1 of 2)`
+- [ ] Concept: `Fact-checking discipline` | Parent: `Profile writing` | Mode: `dr` | Cluster: `Profile writing (1 of 2)`
+- [ ] Concept: `Five-part structure (lede/nutgraf/context/biography/kicker)` | Parent: `Profile writing` | Mode: `dr` | Cluster: `Profile writing (1 of 2)`
+- [ ] Concept: `Interview-to-prose distillation` | Parent: `Profile writing` | Mode: `dr` | Cluster: `Profile writing (1 of 2)`
+- [ ] Concept: `Kicker patterns (callback/crystallizing/forward-look)` | Parent: `Profile writing` | Mode: `dr` | Cluster: `Profile writing (1 of 2)`
+- [ ] Concept: `Lede patterns (in-scene/anecdotal/paradoxical/delayed)` | Parent: `Profile writing` | Mode: `dr` | Cluster: `Profile writing (2 of 2)`
+- [ ] Concept: `Nutgraf placement` | Parent: `Profile writing` | Mode: `dr` | Cluster: `Profile writing (2 of 2)`
+- [ ] Concept: `Reporting requirement` | Parent: `Profile writing` | Mode: `dr` | Cluster: `Profile writing (2 of 2)`
+- [ ] Concept: `Show in scene, summarize in transit (Harrington)` | Parent: `Profile writing` | Mode: `dr` | Cluster: `Profile writing (2 of 2)`
+- [ ] Concept: `Talese write-around technique` | Parent: `Profile writing` | Mode: `dr` | Cluster: `Profile writing (2 of 2)`
+- [ ] Concept: `Single-thesis rule` | Parent: `Op-ed writing` | Mode: `dr` | Cluster: `Op-ed writing`
+- [ ] Concept: `Why-now news peg` | Parent: `Op-ed writing` | Mode: `dr` | Cluster: `Op-ed writing`
+- [ ] Concept: `Authority paragraph` | Parent: `Op-ed writing` | Mode: `dr` | Cluster: `Op-ed writing`
+- [ ] Concept: `Counter-argument acknowledgment` | Parent: `Op-ed writing` | Mode: `dr` | Cluster: `Op-ed writing`
+- [ ] Concept: `Evidence selection (Trish Hall)` | Parent: `Op-ed writing` | Mode: `dr` | Cluster: `Op-ed writing`
+- [ ] Concept: `Voice and register` | Parent: `Op-ed writing` | Mode: `dr` | Cluster: `Op-ed writing`
+- [ ] Concept: `Call-to-action close` | Parent: `Op-ed writing` | Mode: `dr` | Cluster: `Op-ed writing`
+- [ ] Concept: `Pitch and submission mechanics` | Parent: `Op-ed writing` | Mode: `dr` | Cluster: `Op-ed writing`
+- [ ] Concept: `capital allocation` | Parent: `Founder Letter Writing` | Mode: `dr` | Cluster: `Founder Letter Writing (1 of 2)`
+- [ ] Concept: `Day 1 frame` | Parent: `Founder Letter Writing` | Mode: `dr` | Cluster: `Founder Letter Writing (1 of 2)`
+- [ ] Concept: `missionary vs mercenary` | Parent: `Founder Letter Writing` | Mode: `dr` | Cluster: `Founder Letter Writing (1 of 2)`
+- [ ] Concept: `operating metrics` | Parent: `Founder Letter Writing` | Mode: `dr` | Cluster: `Founder Letter Writing (1 of 2)`
+- [ ] Concept: `owner-as-partner stance` | Parent: `Founder Letter Writing` | Mode: `dr` | Cluster: `Founder Letter Writing (1 of 2)`
+- [ ] Concept: `recurring principles` | Parent: `Founder Letter Writing` | Mode: `dr` | Cluster: `Founder Letter Writing (2 of 2)`
+- [ ] Concept: `signed sign-off` | Parent: `Founder Letter Writing` | Mode: `dr` | Cluster: `Founder Letter Writing (2 of 2)`
+- [ ] Concept: `Toulmin-style spine` | Parent: `Founder Letter Writing` | Mode: `dr` | Cluster: `Founder Letter Writing (2 of 2)`
+- [ ] Concept: `founder voice` | Parent: `Founder Letter Writing` | Mode: `dr` | Cluster: `Founder Letter Writing (2 of 2)`
+- [ ] Concept: `what I was wrong about` | Parent: `Founder Letter Writing` | Mode: `dr` | Cluster: `Founder Letter Writing (2 of 2)`
+- [ ] Concept: `Baseline-frequency test for style words` | Parent: `LLM engineering-metaphor tics: term of art versus reflexive tic` | Mode: `dr` | Cluster: `LLM engineering-metaphor tics: term of art versus reflexive tic (1 of 2)`
+- [ ] Concept: `Candor and sincerity marker tics` | Parent: `LLM engineering-metaphor tics: term of art versus reflexive tic` | Mode: `dr` | Cluster: `LLM engineering-metaphor tics: term of art versus reflexive tic (1 of 2)`
+- [ ] Concept: `Excess-vocabulary detection method` | Parent: `LLM engineering-metaphor tics: term of art versus reflexive tic` | Mode: `dr` | Cluster: `LLM engineering-metaphor tics: term of art versus reflexive tic (1 of 2)`
+- [ ] Concept: `Literal-referent rewriting protocol` | Parent: `LLM engineering-metaphor tics: term of art versus reflexive tic` | Mode: `dr` | Cluster: `LLM engineering-metaphor tics: term of art versus reflexive tic (1 of 2)`
+- [ ] Concept: `Mixed metaphors as a collapse symptom` | Parent: `LLM engineering-metaphor tics: term of art versus reflexive tic` | Mode: `dr` | Cluster: `LLM engineering-metaphor tics: term of art versus reflexive tic (1 of 2)`
+- [ ] Concept: `Orbital argumentation and catachresis in LLM prose` | Parent: `LLM engineering-metaphor tics: term of art versus reflexive tic` | Mode: `dr` | Cluster: `LLM engineering-metaphor tics: term of art versus reflexive tic (1 of 2)`
+- [ ] Concept: `Referent-first drafting prompts` | Parent: `LLM engineering-metaphor tics: term of art versus reflexive tic` | Mode: `dr` | Cluster: `LLM engineering-metaphor tics: term of art versus reflexive tic (1 of 2)`
+- [ ] Concept: `RLHF annotator-dialect hypothesis` | Parent: `LLM engineering-metaphor tics: term of art versus reflexive tic` | Mode: `dr` | Cluster: `LLM engineering-metaphor tics: term of art versus reflexive tic (1 of 2)`
+- [ ] Concept: `Source-domain collapse in LLM metaphor` | Parent: `LLM engineering-metaphor tics: term of art versus reflexive tic` | Mode: `dr` | Cluster: `LLM engineering-metaphor tics: term of art versus reflexive tic (2 of 2)`
+- [ ] Concept: `Stance adverbs (genuinely, quietly)` | Parent: `LLM engineering-metaphor tics: term of art versus reflexive tic` | Mode: `dr` | Cluster: `LLM engineering-metaphor tics: term of art versus reflexive tic (2 of 2)`
+- [ ] Concept: `Sycophantic openers` | Parent: `LLM engineering-metaphor tics: term of art versus reflexive tic` | Mode: `dr` | Cluster: `LLM engineering-metaphor tics: term of art versus reflexive tic (2 of 2)`
+- [ ] Concept: `Term of art versus reflexive tic` | Parent: `LLM engineering-metaphor tics: term of art versus reflexive tic` | Mode: `dr` | Cluster: `LLM engineering-metaphor tics: term of art versus reflexive tic (2 of 2)`
+- [ ] Concept: `Typicality bias in preference data` | Parent: `LLM engineering-metaphor tics: term of art versus reflexive tic` | Mode: `dr` | Cluster: `LLM engineering-metaphor tics: term of art versus reflexive tic (2 of 2)`
+- [ ] Concept: `Engineering-metaphor vocabulary tics in LLM output` | Parent: `LLM engineering-metaphor tics: term of art versus reflexive tic` | Mode: `dr` | Cluster: `LLM engineering-metaphor tics: term of art versus reflexive tic (2 of 2)`
+- [ ] Concept: `Word-swap hook filtering` | Parent: `LLM engineering-metaphor tics: term of art versus reflexive tic` | Mode: `dr` | Cluster: `LLM engineering-metaphor tics: term of art versus reflexive tic (2 of 2)`
+- [ ] Concept: `Awards-and-recognition boilerplate` | Parent: `LLM rhetorical-pattern tells in prose` | Mode: `dr` | Cluster: `LLM rhetorical-pattern tells in prose (1 of 2)`
+- [ ] Concept: `Contrastive negation and false-dichotomy framing` | Parent: `LLM rhetorical-pattern tells in prose` | Mode: `dr` | Cluster: `LLM rhetorical-pattern tells in prose (1 of 2)`
+- [ ] Concept: `Excess-vocabulary lists` | Parent: `LLM rhetorical-pattern tells in prose` | Mode: `dr` | Cluster: `LLM rhetorical-pattern tells in prose (1 of 2)`
+- [ ] Concept: `Four- and five-item list extension` | Parent: `LLM rhetorical-pattern tells in prose` | Mode: `dr` | Cluster: `LLM rhetorical-pattern tells in prose (1 of 2)`
+- [ ] Concept: `Human style convergence from LLM exposure` | Parent: `LLM rhetorical-pattern tells in prose` | Mode: `dr` | Cluster: `LLM rhetorical-pattern tells in prose (1 of 2)`
+- [ ] Concept: `Inanimate-subject participles` | Parent: `LLM rhetorical-pattern tells in prose` | Mode: `dr` | Cluster: `LLM rhetorical-pattern tells in prose (1 of 2)`
+- [ ] Concept: `Perplexity as detection signal` | Parent: `LLM rhetorical-pattern tells in prose` | Mode: `dr` | Cluster: `LLM rhetorical-pattern tells in prose (1 of 2)`
+- [ ] Concept: `Rhythm uniformity and burstiness` | Parent: `LLM rhetorical-pattern tells in prose` | Mode: `dr` | Cluster: `LLM rhetorical-pattern tells in prose (1 of 2)`
+- [ ] Concept: `RLHF-induced rhetorical overuse` | Parent: `LLM rhetorical-pattern tells in prose` | Mode: `dr` | Cluster: `LLM rhetorical-pattern tells in prose (2 of 2)`
+- [ ] Concept: `Sentence-length variance metrics` | Parent: `LLM rhetorical-pattern tells in prose` | Mode: `dr` | Cluster: `LLM rhetorical-pattern tells in prose (2 of 2)`
+- [ ] Concept: `Significance inflation and promotional puffery` | Parent: `LLM rhetorical-pattern tells in prose` | Mode: `dr` | Cluster: `LLM rhetorical-pattern tells in prose (2 of 2)`
+- [ ] Concept: `Trailing participial analysis phrases` | Parent: `LLM rhetorical-pattern tells in prose` | Mode: `dr` | Cluster: `LLM rhetorical-pattern tells in prose (2 of 2)`
+- [ ] Concept: `Travel-brochure register` | Parent: `LLM rhetorical-pattern tells in prose` | Mode: `dr` | Cluster: `LLM rhetorical-pattern tells in prose (2 of 2)`
+- [ ] Concept: `Tricolon of near-synonyms` | Parent: `LLM rhetorical-pattern tells in prose` | Mode: `dr` | Cluster: `LLM rhetorical-pattern tells in prose (2 of 2)`
+- [ ] Concept: `Tricolon and rule-of-three lists` | Parent: `LLM rhetorical-pattern tells in prose` | Mode: `dr` | Cluster: `LLM rhetorical-pattern tells in prose (2 of 2)`
+- [ ] Concept: `Vague attribution to third parties` | Parent: `LLM rhetorical-pattern tells in prose` | Mode: `dr` | Cluster: `LLM rhetorical-pattern tells in prose (2 of 2)`
+- [ ] Concept: `Baseline contamination by AI text` | Parent: `Measuring LLM lexical tics: excess vocabulary, baselines, drift` | Mode: `dr` | Cluster: `Measuring LLM lexical tics: excess vocabulary, baselines, drift (1 of 2)`
+- [ ] Concept: `Content-word vs style-word annotation` | Parent: `Measuring LLM lexical tics: excess vocabulary, baselines, drift` | Mode: `dr` | Cluster: `Measuring LLM lexical tics: excess vocabulary, baselines, drift (1 of 2)`
+- [ ] Concept: `Counterfactual frequency projection` | Parent: `Measuring LLM lexical tics: excess vocabulary, baselines, drift` | Mode: `dr` | Cluster: `Measuring LLM lexical tics: excess vocabulary, baselines, drift (1 of 2)`
+- [ ] Concept: `Era-tagging tic entries` | Parent: `Measuring LLM lexical tics: excess vocabulary, baselines, drift` | Mode: `dr` | Cluster: `Measuring LLM lexical tics: excess vocabulary, baselines, drift (1 of 2)`
+- [ ] Concept: `Excess-vocabulary frequency method` | Parent: `Measuring LLM lexical tics: excess vocabulary, baselines, drift` | Mode: `dr` | Cluster: `Measuring LLM lexical tics: excess vocabulary, baselines, drift (1 of 2)`
+- [ ] Concept: `Frequency ratio vs frequency gap` | Parent: `Measuring LLM lexical tics: excess vocabulary, baselines, drift` | Mode: `dr` | Cluster: `Measuring LLM lexical tics: excess vocabulary, baselines, drift (1 of 2)`
+- [ ] Concept: `Human baselines and control words for tic detection` | Parent: `Measuring LLM lexical tics: excess vocabulary, baselines, drift` | Mode: `dr` | Cluster: `Measuring LLM lexical tics: excess vocabulary, baselines, drift (1 of 2)`
+- [ ] Concept: `Humanizer tools and paraphrase evasion` | Parent: `Measuring LLM lexical tics: excess vocabulary, baselines, drift` | Mode: `dr` | Cluster: `Measuring LLM lexical tics: excess vocabulary, baselines, drift (1 of 2)`
+- [ ] Concept: `Maintaining a living tic list` | Parent: `Measuring LLM lexical tics: excess vocabulary, baselines, drift` | Mode: `dr` | Cluster: `Measuring LLM lexical tics: excess vocabulary, baselines, drift (2 of 2)`
+- [ ] Concept: `Non-native writer false positives` | Parent: `Measuring LLM lexical tics: excess vocabulary, baselines, drift` | Mode: `dr` | Cluster: `Measuring LLM lexical tics: excess vocabulary, baselines, drift (2 of 2)`
+- [ ] Concept: `Per-model idiolect profiles` | Parent: `Measuring LLM lexical tics: excess vocabulary, baselines, drift` | Mode: `dr` | Cluster: `Measuring LLM lexical tics: excess vocabulary, baselines, drift (2 of 2)`
+- [ ] Concept: `Perplexity and burstiness detectors` | Parent: `Measuring LLM lexical tics: excess vocabulary, baselines, drift` | Mode: `dr` | Cluster: `Measuring LLM lexical tics: excess vocabulary, baselines, drift (2 of 2)`
+- [ ] Concept: `Retiring decayed tics` | Parent: `Measuring LLM lexical tics: excess vocabulary, baselines, drift` | Mode: `dr` | Cluster: `Measuring LLM lexical tics: excess vocabulary, baselines, drift (2 of 2)`
+- [ ] Concept: `RLHF-induced lexical overrepresentation` | Parent: `Measuring LLM lexical tics: excess vocabulary, baselines, drift` | Mode: `dr` | Cluster: `Measuring LLM lexical tics: excess vocabulary, baselines, drift (2 of 2)`
+- [ ] Concept: `Stylometry and AI-text detector limits` | Parent: `Measuring LLM lexical tics: excess vocabulary, baselines, drift` | Mode: `dr` | Cluster: `Measuring LLM lexical tics: excess vocabulary, baselines, drift (2 of 2)`
+- [ ] Concept: `Tic drift across model versions` | Parent: `Measuring LLM lexical tics: excess vocabulary, baselines, drift` | Mode: `dr` | Cluster: `Measuring LLM lexical tics: excess vocabulary, baselines, drift (2 of 2)`
+- [ ] Concept: `Agent attribution trailers` | Parent: `LLM tells in code, commit messages, comments and READMEs` | Mode: `dr` | Cluster: `LLM tells in code, commit messages, comments and READMEs (1 of 3)`
+- [ ] Concept: `Agent commit-style fingerprinting` | Parent: `LLM tells in code, commit messages, comments and READMEs` | Mode: `dr` | Cluster: `LLM tells in code, commit messages, comments and READMEs (1 of 3)`
+- [ ] Concept: `Badge walls and generated project-structure trees` | Parent: `LLM tells in code, commit messages, comments and READMEs` | Mode: `dr` | Cluster: `LLM tells in code, commit messages, comments and READMEs (1 of 3)`
+- [ ] Concept: `Ceremonial layering` | Parent: `LLM tells in code, commit messages, comments and READMEs` | Mode: `dr` | Cluster: `LLM tells in code, commit messages, comments and READMEs (1 of 3)`
+- [ ] Concept: `Code comment narration and over-explanation` | Parent: `LLM tells in code, commit messages, comments and READMEs` | Mode: `dr` | Cluster: `LLM tells in code, commit messages, comments and READMEs (1 of 3)`
+- [ ] Concept: `Defensive-code and over-engineering signatures` | Parent: `LLM tells in code, commit messages, comments and READMEs` | Mode: `dr` | Cluster: `LLM tells in code, commit messages, comments and READMEs (1 of 3)`
+- [ ] Concept: `Detector false positives on plain writing` | Parent: `LLM tells in code, commit messages, comments and READMEs` | Mode: `dr` | Cluster: `LLM tells in code, commit messages, comments and READMEs (2 of 3)`
+- [ ] Concept: `Docstring over-completeness` | Parent: `LLM tells in code, commit messages, comments and READMEs` | Mode: `dr` | Cluster: `LLM tells in code, commit messages, comments and READMEs (2 of 3)`
+- [ ] Concept: `Duplication over reuse` | Parent: `LLM tells in code, commit messages, comments and READMEs` | Mode: `dr` | Cluster: `LLM tells in code, commit messages, comments and READMEs (2 of 3)`
+- [ ] Concept: `Good engineering prose versus a tell` | Parent: `LLM tells in code, commit messages, comments and READMEs` | Mode: `dr` | Cluster: `LLM tells in code, commit messages, comments and READMEs (2 of 3)`
+- [ ] Concept: `Invented changelog entries` | Parent: `LLM tells in code, commit messages, comments and READMEs` | Mode: `dr` | Cluster: `LLM tells in code, commit messages, comments and READMEs (2 of 3)`
+- [ ] Concept: `Message-code inconsistency` | Parent: `LLM tells in code, commit messages, comments and READMEs` | Mode: `dr` | Cluster: `LLM tells in code, commit messages, comments and READMEs (2 of 3)`
+- [ ] Concept: `Commit message and PR description tells` | Parent: `LLM tells in code, commit messages, comments and READMEs` | Mode: `dr` | Cluster: `LLM tells in code, commit messages, comments and READMEs (3 of 3)`
+- [ ] Concept: `Meta comments (e.g. 'added for X')` | Parent: `LLM tells in code, commit messages, comments and READMEs` | Mode: `dr` | Cluster: `LLM tells in code, commit messages, comments and READMEs (3 of 3)`
+- [ ] Concept: `Placeholder and debug debris` | Parent: `LLM tells in code, commit messages, comments and READMEs` | Mode: `dr` | Cluster: `LLM tells in code, commit messages, comments and READMEs (3 of 3)`
+- [ ] Concept: `README and changelog boilerplate tells` | Parent: `LLM tells in code, commit messages, comments and READMEs` | Mode: `dr` | Cluster: `LLM tells in code, commit messages, comments and READMEs (3 of 3)`
+- [ ] Concept: `Specificity test for a sentence` | Parent: `LLM tells in code, commit messages, comments and READMEs` | Mode: `dr` | Cluster: `LLM tells in code, commit messages, comments and READMEs (3 of 3)`
+- [ ] Concept: `What-versus-why comment distinction` | Parent: `LLM tells in code, commit messages, comments and READMEs` | Mode: `dr` | Cluster: `LLM tells in code, commit messages, comments and READMEs (3 of 3)`
+- [ ] Concept: `Promotional adjective lists` | Parent: `Vague attribution and promotional register in LLM prose` | Mode: `dr` | Cluster: `Vague attribution and promotional register in LLM prose (1 of 2)`
+- [ ] Concept: `Anonymous authority phrases` | Parent: `Vague attribution and promotional register in LLM prose` | Mode: `dr` | Cluster: `Vague attribution and promotional register in LLM prose (1 of 2)`
+- [ ] Concept: `Connective words implying unsupported relations` | Parent: `Vague attribution and promotional register in LLM prose` | Mode: `dr` | Cluster: `Vague attribution and promotional register in LLM prose (1 of 2)`
+- [ ] Concept: `Cultural-heritage significance framing` | Parent: `Vague attribution and promotional register in LLM prose` | Mode: `dr` | Cluster: `Vague attribution and promotional register in LLM prose (1 of 2)`
+- [ ] Concept: `Dropping attribution for undisputed claims` | Parent: `Vague attribution and promotional register in LLM prose` | Mode: `dr` | Cluster: `Vague attribution and promotional register in LLM prose (1 of 2)`
+- [ ] Concept: `Editorial commentary in neutral prose` | Parent: `Vague attribution and promotional register in LLM prose` | Mode: `dr` | Cluster: `Vague attribution and promotional register in LLM prose (1 of 2)`
+- [ ] Concept: `Overgeneralised consensus from one source` | Parent: `Vague attribution and promotional register in LLM prose` | Mode: `dr` | Cluster: `Vague attribution and promotional register in LLM prose (1 of 2)`
+- [ ] Concept: `Passive voice hiding the agent` | Parent: `Vague attribution and promotional register in LLM prose` | Mode: `dr` | Cluster: `Vague attribution and promotional register in LLM prose (1 of 2)`
+- [ ] Concept: `Peacock terms and undue emphasis` | Parent: `Vague attribution and promotional register in LLM prose` | Mode: `dr` | Cluster: `Vague attribution and promotional register in LLM prose (2 of 2)`
+- [ ] Concept: `Positive-sentiment drift in preference-tuned models` | Parent: `Vague attribution and promotional register in LLM prose` | Mode: `dr` | Cluster: `Vague attribution and promotional register in LLM prose (2 of 2)`
+- [ ] Concept: `Rewriting with named sources and plain claims` | Parent: `Vague attribution and promotional register in LLM prose` | Mode: `dr` | Cluster: `Vague attribution and promotional register in LLM prose (2 of 2)`
+- [ ] Concept: `Significance and legacy inflation` | Parent: `Vague attribution and promotional register in LLM prose` | Mode: `dr` | Cluster: `Vague attribution and promotional register in LLM prose (2 of 2)`
+- [ ] Concept: `Travel-brochure and promotional register` | Parent: `Vague attribution and promotional register in LLM prose` | Mode: `dr` | Cluster: `Vague attribution and promotional register in LLM prose (2 of 2)`
+- [ ] Concept: `Verifying rewritten attributions against source text` | Parent: `Vague attribution and promotional register in LLM prose` | Mode: `dr` | Cluster: `Vague attribution and promotional register in LLM prose (2 of 2)`
+- [ ] Concept: `Attribution vs voice in neutral prose` | Parent: `Vague attribution and promotional register in LLM prose` | Mode: `dr` | Cluster: `Vague attribution and promotional register in LLM prose (2 of 2)`
+- [ ] Concept: `Vague attribution and weasel wording` | Parent: `Vague attribution and promotional register in LLM prose` | Mode: `dr` | Cluster: `Vague attribution and promotional register in LLM prose (2 of 2)`
+- [ ] Concept: `Career of metaphor` | Parent: `Mixed metaphors and catachresis as signs of reflexive figurative language` | Mode: `dr` | Cluster: `Mixed metaphors and catachresis as signs of reflexive figurative language (1 of 2)`
+- [ ] Concept: `Conceptual metaphor source domains in technical prose` | Parent: `Mixed metaphors and catachresis as signs of reflexive figurative language` | Mode: `dr` | Cluster: `Mixed metaphors and catachresis as signs of reflexive figurative language (1 of 2)`
+- [ ] Concept: `Dead versus live metaphors in engineering writing` | Parent: `Mixed metaphors and catachresis as signs of reflexive figurative language` | Mode: `dr` | Cluster: `Mixed metaphors and catachresis as signs of reflexive figurative language (1 of 2)`
+- [ ] Concept: `Deliberate metaphor theory` | Parent: `Mixed metaphors and catachresis as signs of reflexive figurative language` | Mode: `dr` | Cluster: `Mixed metaphors and catachresis as signs of reflexive figurative language (1 of 2)`
+- [ ] Concept: `Edit protocol for colliding metaphors` | Parent: `Mixed metaphors and catachresis as signs of reflexive figurative language` | Mode: `dr` | Cluster: `Mixed metaphors and catachresis as signs of reflexive figurative language (1 of 2)`
+- [ ] Concept: `Kimmel corpus study of mixed metaphor` | Parent: `Mixed metaphors and catachresis as signs of reflexive figurative language` | Mode: `dr` | Cluster: `Mixed metaphors and catachresis as signs of reflexive figurative language (1 of 2)`
+- [ ] Concept: `Mixed metaphor and catachresis` | Parent: `Mixed metaphors and catachresis as signs of reflexive figurative language` | Mode: `dr` | Cluster: `Mixed metaphors and catachresis as signs of reflexive figurative language (1 of 2)`
+- [ ] Concept: `Metaphor collision as a detection signal` | Parent: `Mixed metaphors and catachresis as signs of reflexive figurative language` | Mode: `dr` | Cluster: `Mixed metaphors and catachresis as signs of reflexive figurative language (1 of 2)`
+- [ ] Concept: `Metaphor conventionality gradient` | Parent: `Mixed metaphors and catachresis as signs of reflexive figurative language` | Mode: `dr` | Cluster: `Mixed metaphors and catachresis as signs of reflexive figurative language (2 of 2)`
+- [ ] Concept: `Per-clause MIPVU-style word labelling` | Parent: `Mixed metaphors and catachresis as signs of reflexive figurative language` | Mode: `dr` | Cluster: `Mixed metaphors and catachresis as signs of reflexive figurative language (2 of 2)`
+- [ ] Concept: `Quintilian on abusio` | Parent: `Mixed metaphors and catachresis as signs of reflexive figurative language` | Mode: `dr` | Cluster: `Mixed metaphors and catachresis as signs of reflexive figurative language (2 of 2)`
+- [ ] Concept: `Read-aloud literal visualization test` | Parent: `Mixed metaphors and catachresis as signs of reflexive figurative language` | Mode: `dr` | Cluster: `Mixed metaphors and catachresis as signs of reflexive figurative language (2 of 2)`
+- [ ] Concept: `Source-domain lexicon overlap check` | Parent: `Mixed metaphors and catachresis as signs of reflexive figurative language` | Mode: `dr` | Cluster: `Mixed metaphors and catachresis as signs of reflexive figurative language (2 of 2)`
+- [ ] Concept: `Technical debt as finance metaphor` | Parent: `Mixed metaphors and catachresis as signs of reflexive figurative language` | Mode: `dr` | Cluster: `Mixed metaphors and catachresis as signs of reflexive figurative language (2 of 2)`
+- [ ] Concept: `War and journey metaphors in engineering` | Parent: `Mixed metaphors and catachresis as signs of reflexive figurative language` | Mode: `dr` | Cluster: `Mixed metaphors and catachresis as signs of reflexive figurative language (2 of 2)`
+- [ ] Concept: `Consequences for tic lists and detectors` | Parent: `Human adoption of LLM vocabulary and its effect on tic baselines` | Mode: `dr` | Cluster: `Human adoption of LLM vocabulary and its effect on tic baselines (1 of 2)`
+- [ ] Concept: `Cross-cultural style convergence in AI-assisted writing` | Parent: `Human adoption of LLM vocabulary and its effect on tic baselines` | Mode: `dr` | Cluster: `Human adoption of LLM vocabulary and its effect on tic baselines (1 of 2)`
+- [ ] Concept: `Excess-frequency counterfactual` | Parent: `Human adoption of LLM vocabulary and its effect on tic baselines` | Mode: `dr` | Cluster: `Human adoption of LLM vocabulary and its effect on tic baselines (1 of 2)`
+- [ ] Concept: `Exposure-to-active-vocabulary mechanism` | Parent: `Human adoption of LLM vocabulary and its effect on tic baselines` | Mode: `dr` | Cluster: `Human adoption of LLM vocabulary and its effect on tic baselines (1 of 2)`
+- [ ] Concept: `Feedback loop and baseline contamination` | Parent: `Human adoption of LLM vocabulary and its effect on tic baselines` | Mode: `dr` | Cluster: `Human adoption of LLM vocabulary and its effect on tic baselines (1 of 2)`
+- [ ] Concept: `Homogenization of professional and scientific prose` | Parent: `Human adoption of LLM vocabulary and its effect on tic baselines` | Mode: `dr` | Cluster: `Human adoption of LLM vocabulary and its effect on tic baselines (1 of 2)`
+- [ ] Concept: `Measuring convergence against pre-LLM baselines` | Parent: `Human adoption of LLM vocabulary and its effect on tic baselines` | Mode: `dr` | Cluster: `Human adoption of LLM vocabulary and its effect on tic baselines (1 of 2)`
+- [ ] Concept: `Model-to-human vocabulary loop` | Parent: `Human adoption of LLM vocabulary and its effect on tic baselines` | Mode: `dr` | Cluster: `Human adoption of LLM vocabulary and its effect on tic baselines (1 of 2)`
+- [ ] Concept: `Peer-review homogenization` | Parent: `Human adoption of LLM vocabulary and its effect on tic baselines` | Mode: `dr` | Cluster: `Human adoption of LLM vocabulary and its effect on tic baselines (2 of 2)`
+- [ ] Concept: `Perplexity detector bias` | Parent: `Human adoption of LLM vocabulary and its effect on tic baselines` | Mode: `dr` | Cluster: `Human adoption of LLM vocabulary and its effect on tic baselines (2 of 2)`
+- [ ] Concept: `Pre-2022 frozen corpora as clean baselines` | Parent: `Human adoption of LLM vocabulary and its effect on tic baselines` | Mode: `dr` | Cluster: `Human adoption of LLM vocabulary and its effect on tic baselines (2 of 2)`
+- [ ] Concept: `Human adoption of LLM vocabulary in speech and writing` | Parent: `Human adoption of LLM vocabulary and its effect on tic baselines` | Mode: `dr` | Cluster: `Human adoption of LLM vocabulary and its effect on tic baselines (2 of 2)`
+- [ ] Concept: `Speech vs writing adoption` | Parent: `Human adoption of LLM vocabulary and its effect on tic baselines` | Mode: `dr` | Cluster: `Human adoption of LLM vocabulary and its effect on tic baselines (2 of 2)`
+- [ ] Concept: `Synthetic control for lexical change` | Parent: `Human adoption of LLM vocabulary and its effect on tic baselines` | Mode: `dr` | Cluster: `Human adoption of LLM vocabulary and its effect on tic baselines (2 of 2)`
+- [ ] Concept: `Web prevalence of AI text as corpus contamination` | Parent: `Human adoption of LLM vocabulary and its effect on tic baselines` | Mode: `dr` | Cluster: `Human adoption of LLM vocabulary and its effect on tic baselines (2 of 2)`
+- [ ] Concept: `Weighting and dating tic lists` | Parent: `Human adoption of LLM vocabulary and its effect on tic baselines` | Mode: `dr` | Cluster: `Human adoption of LLM vocabulary and its effect on tic baselines (2 of 2)`
+- [ ] Concept: `BLUF and Minto Pyramid Frameworks` | Parent: `Writing and Documentation` | Mode: `dr` | Cluster: `Writing and Documentation`
+- [ ] Concept: `SCQA Framework` | Parent: `Writing and Documentation` | Mode: `dr` | Cluster: `Writing and Documentation`
+- [ ] Concept: `Tone Calibration by Audience` | Parent: `Writing and Documentation` | Mode: `dr` | Cluster: `Writing and Documentation`
+- [ ] Concept: `Williams Sentence Craft (nominalization, Given/New)` | Parent: `Writing and Documentation` | Mode: `dr` | Cluster: `Writing and Documentation`
+- [ ] Concept: `Zinsser Four Enemies of Clutter` | Parent: `Writing and Documentation` | Mode: `dr` | Cluster: `Writing and Documentation`
+- [ ] Concept: `Pinker Curse of Knowledge` | Parent: `Writing and Documentation` | Mode: `dr` | Cluster: `Writing and Documentation`
+- [ ] Concept: `Executive Summaries and QBRs` | Parent: `Writing and Documentation` | Mode: `dr` | Cluster: `Writing and Documentation`
+- [ ] Concept: `Document Type Templates` | Parent: `Writing and Documentation` | Mode: `dr` | Cluster: `Writing and Documentation`
+- [ ] Concept: `Subtext and Dialogue as Action` | Parent: `Dialogue Craft` | Mode: `dr` | Cluster: `Dialogue Craft`
+- [ ] Concept: `Silence and the Unsaid` | Parent: `Dialogue Craft` | Mode: `dr` | Cluster: `Dialogue Craft`
+- [ ] Concept: `Distinct Character Voice (Idiolect)` | Parent: `Dialogue Craft` | Mode: `dr` | Cluster: `Dialogue Craft`
+- [ ] Concept: `Dialect and Accent Rendering Without Phonetic Overkill` | Parent: `Dialogue Craft` | Mode: `dr` | Cluster: `Dialogue Craft`
+- [ ] Concept: `Dialogue Tags vs Action Beats` | Parent: `Dialogue Craft` | Mode: `dr` | Cluster: `Dialogue Craft`
+- [ ] Concept: `Banter and Dialogue Rhythm/Pacing` | Parent: `Dialogue Craft` | Mode: `dr` | Cluster: `Dialogue Craft`
+- [ ] Concept: `Exposition via Dialogue (As You Know Bob)` | Parent: `Dialogue Craft` | Mode: `dr` | Cluster: `Dialogue Craft`
+- [ ] Concept: `Interruption and Overlap Mechanics` | Parent: `Dialogue Craft` | Mode: `dr` | Cluster: `Dialogue Craft`
+- [ ] Concept: `Anti-stories (bugs/spikes/tech-debt)` | Parent: `User Story and Acceptance Criteria` | Mode: `dr` | Cluster: `User Story and Acceptance Criteria (1 of 2)`
+- [ ] Concept: `Acceptance Criteria vs Definition of Done` | Parent: `User Story and Acceptance Criteria` | Mode: `dr` | Cluster: `User Story and Acceptance Criteria (1 of 2)`
+- [ ] Concept: `Given/When/Then Gherkin acceptance criteria` | Parent: `User Story and Acceptance Criteria` | Mode: `dr` | Cluster: `User Story and Acceptance Criteria (1 of 2)`
+- [ ] Concept: `INVEST principles (Bill Wake 2003)` | Parent: `User Story and Acceptance Criteria` | Mode: `dr` | Cluster: `User Story and Acceptance Criteria (1 of 2)`
+- [ ] Concept: `Mike Cohn As-a/I-want/so-that template` | Parent: `User Story and Acceptance Criteria` | Mode: `dr` | Cluster: `User Story and Acceptance Criteria (1 of 2)`
+- [ ] Concept: `Roles vs personas` | Parent: `User Story and Acceptance Criteria` | Mode: `dr` | Cluster: `User Story and Acceptance Criteria (2 of 2)`
+- [ ] Concept: `Ron Jeffries 3 C's (Card/Conversation/Confirmation)` | Parent: `User Story and Acceptance Criteria` | Mode: `dr` | Cluster: `User Story and Acceptance Criteria (2 of 2)`
+- [ ] Concept: `Story sizing (Fibonacci/t-shirt/no-estimates)` | Parent: `User Story and Acceptance Criteria` | Mode: `dr` | Cluster: `User Story and Acceptance Criteria (2 of 2)`
+- [ ] Concept: `SPIDR story splitting (Spike/Path/Interface/Data/Rules)` | Parent: `User Story and Acceptance Criteria` | Mode: `dr` | Cluster: `User Story and Acceptance Criteria (2 of 2)`
+- [ ] Concept: `Vertical-slice rule` | Parent: `User Story and Acceptance Criteria` | Mode: `dr` | Cluster: `User Story and Acceptance Criteria (2 of 2)`
+- [ ] Concept: `Spec-as-contract mindset` | Parent: `Spec Writing` | Mode: `dr` | Cluster: `Spec Writing (1 of 2)`
+- [ ] Concept: `AsyncAPI 3.0` | Parent: `Spec Writing` | Mode: `dr` | Cluster: `Spec Writing (1 of 2)`
+- [ ] Concept: `Contract-first design` | Parent: `Spec Writing` | Mode: `dr` | Cluster: `Spec Writing (1 of 2)`
+- [ ] Concept: `Examples as part of spec` | Parent: `Spec Writing` | Mode: `dr` | Cluster: `Spec Writing (1 of 2)`
+- [ ] Concept: `Spec file vs code doc decision` | Parent: `Spec Writing` | Mode: `dr` | Cluster: `Spec Writing (1 of 2)`
+- [ ] Concept: `Gherkin / Given-When-Then` | Parent: `Spec Writing` | Mode: `dr` | Cluster: `Spec Writing (2 of 2)`
+- [ ] Concept: `OpenAPI 3.1` | Parent: `Spec Writing` | Mode: `dr` | Cluster: `Spec Writing (2 of 2)`
+- [ ] Concept: `Versioning conventions` | Parent: `Spec Writing` | Mode: `dr` | Cluster: `Spec Writing (2 of 2)`
+- [ ] Concept: `WHAT not HOW (Spolsky)` | Parent: `Spec Writing` | Mode: `dr` | Cluster: `Spec Writing (2 of 2)`
+- [ ] Concept: `Spec-to-Plan Translation` | Parent: `Code Plan Writing` | Mode: `dr` | Cluster: `Code Plan Writing`
+- [ ] Concept: `Task Granularity Design` | Parent: `Code Plan Writing` | Mode: `dr` | Cluster: `Code Plan Writing`
+- [ ] Concept: `RFC and ADR Formats` | Parent: `Code Plan Writing` | Mode: `dr` | Cluster: `Code Plan Writing`
+- [ ] Concept: `Checkpoint Design` | Parent: `Code Plan Writing` | Mode: `dr` | Cluster: `Code Plan Writing`
+- [ ] Concept: `Context Handoff` | Parent: `Code Plan Writing` | Mode: `dr` | Cluster: `Code Plan Writing`
+- [ ] Concept: `ADDIE` | Parent: `Instructional Design & Course Architecture` | Mode: `dr` | Cluster: `Instructional Design & Course Architecture (1 of 2)`
+- [ ] Concept: `Backward Design / UbD` | Parent: `Instructional Design & Course Architecture` | Mode: `dr` | Cluster: `Instructional Design & Course Architecture (1 of 2)`
+- [ ] Concept: `Constructive Alignment (Biggs)` | Parent: `Instructional Design & Course Architecture` | Mode: `dr` | Cluster: `Instructional Design & Course Architecture (1 of 2)`
+- [ ] Concept: `Dick & Carey systems model` | Parent: `Instructional Design & Course Architecture` | Mode: `dr` | Cluster: `Instructional Design & Course Architecture (1 of 2)`
+- [ ] Concept: `Course Format Decisions` | Parent: `Instructional Design & Course Architecture` | Mode: `dr` | Cluster: `Instructional Design & Course Architecture (1 of 2)`
+- [ ] Concept: `Gagné's Nine Events` | Parent: `Instructional Design & Course Architecture` | Mode: `dr` | Cluster: `Instructional Design & Course Architecture (2 of 2)`
+- [ ] Concept: `Learning Objectives (ABCD / Mager, Bloom's verbs)` | Parent: `Instructional Design & Course Architecture` | Mode: `dr` | Cluster: `Instructional Design & Course Architecture (2 of 2)`
+- [ ] Concept: `Merrill's First Principles` | Parent: `Instructional Design & Course Architecture` | Mode: `dr` | Cluster: `Instructional Design & Course Architecture (2 of 2)`
+- [ ] Concept: `SAM (Allen)` | Parent: `Instructional Design & Course Architecture` | Mode: `dr` | Cluster: `Instructional Design & Course Architecture (2 of 2)`
+- [ ] Concept: `Scope-and-Sequence & Prerequisite DAGs` | Parent: `Instructional Design & Course Architecture` | Mode: `dr` | Cluster: `Instructional Design & Course Architecture (2 of 2)`
+- [ ] Concept: `ANSI/ISO 17024 & NCCA Accreditation` | Parent: `Technical Assessment & Certification Design` | Mode: `dr` | Cluster: `Technical Assessment & Certification Design (1 of 2)`
+- [ ] Concept: `Cut Scores (Angoff, Bookmark)` | Parent: `Technical Assessment & Certification Design` | Mode: `dr` | Cluster: `Technical Assessment & Certification Design (1 of 2)`
+- [ ] Concept: `Exam Security & AI-Resistant Assessment` | Parent: `Technical Assessment & Certification Design` | Mode: `dr` | Cluster: `Technical Assessment & Certification Design (1 of 2)`
+- [ ] Concept: `Item Writing (MCQ & performance-based)` | Parent: `Technical Assessment & Certification Design` | Mode: `dr` | Cluster: `Technical Assessment & Certification Design (1 of 2)`
+- [ ] Concept: `Job Task Analysis` | Parent: `Technical Assessment & Certification Design` | Mode: `dr` | Cluster: `Technical Assessment & Certification Design (1 of 2)`
+- [ ] Concept: `Open Badges 3.0 & Micro-Credentials` | Parent: `Technical Assessment & Certification Design` | Mode: `dr` | Cluster: `Technical Assessment & Certification Design (2 of 2)`
+- [ ] Concept: `Psychometrics (CTT item analysis, IRT, KR-20)` | Parent: `Technical Assessment & Certification Design` | Mode: `dr` | Cluster: `Technical Assessment & Certification Design (2 of 2)`
+- [ ] Concept: `Test Blueprints` | Parent: `Technical Assessment & Certification Design` | Mode: `dr` | Cluster: `Technical Assessment & Certification Design (2 of 2)`
+- [ ] Concept: `Validity & Reliability` | Parent: `Technical Assessment & Certification Design` | Mode: `dr` | Cluster: `Technical Assessment & Certification Design (2 of 2)`
+- [ ] Concept: `Customer Academy Program Model` | Parent: `Technical Training Delivery & Developer Education` | Mode: `dr` | Cluster: `Technical Training Delivery & Developer Education (1 of 2)`
+- [ ] Concept: `DevRel Education` | Parent: `Technical Training Delivery & Developer Education` | Mode: `dr` | Cluster: `Technical Training Delivery & Developer Education (1 of 2)`
+- [ ] Concept: `Hands-on Labs & Sandboxes` | Parent: `Technical Training Delivery & Developer Education` | Mode: `dr` | Cluster: `Technical Training Delivery & Developer Education (1 of 2)`
+- [ ] Concept: `Modalities (ILT/self-paced/blended)` | Parent: `Technical Training Delivery & Developer Education` | Mode: `dr` | Cluster: `Technical Training Delivery & Developer Education (1 of 2)`
+- [ ] Concept: `Participatory Live Coding` | Parent: `Technical Training Delivery & Developer Education` | Mode: `dr` | Cluster: `Technical Training Delivery & Developer Education (1 of 2)`
+- [ ] Concept: `Partner/SI Enablement` | Parent: `Technical Training Delivery & Developer Education` | Mode: `dr` | Cluster: `Technical Training Delivery & Developer Education (2 of 2)`
+- [ ] Concept: `Peer Instruction` | Parent: `Technical Training Delivery & Developer Education` | Mode: `dr` | Cluster: `Technical Training Delivery & Developer Education (2 of 2)`
+- [ ] Concept: `Scaffolding, Fading & Parsons Problems` | Parent: `Technical Training Delivery & Developer Education` | Mode: `dr` | Cluster: `Technical Training Delivery & Developer Education (2 of 2)`
+- [ ] Concept: `Screencast & Microlearning Production` | Parent: `Technical Training Delivery & Developer Education` | Mode: `dr` | Cluster: `Technical Training Delivery & Developer Education (2 of 2)`
+- [ ] Concept: `Teaching SQL/NoSQL & Notional Machines` | Parent: `Technical Training Delivery & Developer Education` | Mode: `dr` | Cluster: `Technical Training Delivery & Developer Education (2 of 2)`
+- [ ] Concept: `Cognitive Apprenticeship` | Parent: `Teaching Troubleshooting & Diagnostic Reasoning` | Mode: `dr` | Cluster: `Teaching Troubleshooting & Diagnostic Reasoning (1 of 2)`
+- [ ] Concept: `Dual-Process Theory` | Parent: `Teaching Troubleshooting & Diagnostic Reasoning` | Mode: `dr` | Cluster: `Teaching Troubleshooting & Diagnostic Reasoning (1 of 2)`
+- [ ] Concept: `Game-Day / Fire-Drill as Pedagogy` | Parent: `Teaching Troubleshooting & Diagnostic Reasoning` | Mode: `dr` | Cluster: `Teaching Troubleshooting & Diagnostic Reasoning (1 of 2)`
+- [ ] Concept: `Illness Scripts` | Parent: `Teaching Troubleshooting & Diagnostic Reasoning` | Mode: `dr` | Cluster: `Teaching Troubleshooting & Diagnostic Reasoning (1 of 2)`
+- [ ] Concept: `Key-Feature Assessment` | Parent: `Teaching Troubleshooting & Diagnostic Reasoning` | Mode: `dr` | Cluster: `Teaching Troubleshooting & Diagnostic Reasoning (1 of 2)`
+- [ ] Concept: `Mental-Model Instruction` | Parent: `Teaching Troubleshooting & Diagnostic Reasoning` | Mode: `dr` | Cluster: `Teaching Troubleshooting & Diagnostic Reasoning (2 of 2)`
+- [ ] Concept: `Novice-to-Expert Trajectory` | Parent: `Teaching Troubleshooting & Diagnostic Reasoning` | Mode: `dr` | Cluster: `Teaching Troubleshooting & Diagnostic Reasoning (2 of 2)`
+- [ ] Concept: `Productive Failure (Kapur)` | Parent: `Teaching Troubleshooting & Diagnostic Reasoning` | Mode: `dr` | Cluster: `Teaching Troubleshooting & Diagnostic Reasoning (2 of 2)`
+- [ ] Concept: `Worked-Example Fading` | Parent: `Teaching Troubleshooting & Diagnostic Reasoning` | Mode: `dr` | Cluster: `Teaching Troubleshooting & Diagnostic Reasoning (2 of 2)`
+- [ ] Concept: `Kirkpatrick Four Levels` | Parent: `Learning Measurement & Training Evaluation` | Mode: `dr` | Cluster: `Learning Measurement & Training Evaluation`
+- [ ] Concept: `New World Kirkpatrick Model` | Parent: `Learning Measurement & Training Evaluation` | Mode: `dr` | Cluster: `Learning Measurement & Training Evaluation`
+- [ ] Concept: `Phillips ROI (Level 5)` | Parent: `Learning Measurement & Training Evaluation` | Mode: `dr` | Cluster: `Learning Measurement & Training Evaluation`
+- [ ] Concept: `xAPI / SCORM / cmi5` | Parent: `Learning Measurement & Training Evaluation` | Mode: `dr` | Cluster: `Learning Measurement & Training Evaluation`
+- [ ] Concept: `Learning Record Store (LRS)` | Parent: `Learning Measurement & Training Evaluation` | Mode: `dr` | Cluster: `Learning Measurement & Training Evaluation`
+- [ ] Concept: `Training Transfer (Baldwin-Ford, LTSI)` | Parent: `Learning Measurement & Training Evaluation` | Mode: `dr` | Cluster: `Learning Measurement & Training Evaluation`
+- [ ] Concept: `Leading vs Lagging KPIs` | Parent: `Learning Measurement & Training Evaluation` | Mode: `dr` | Cluster: `Learning Measurement & Training Evaluation`
+- [ ] Concept: `L&D Dashboard Design` | Parent: `Learning Measurement & Training Evaluation` | Mode: `dr` | Cluster: `Learning Measurement & Training Evaluation`
+- [ ] Concept: `Adaptive / Personalized Learning` | Parent: `GenAI for Instructional Design & AI Tutors` | Mode: `dr` | Cluster: `GenAI for Instructional Design & AI Tutors (1 of 2)`
+- [ ] Concept: `AI-Assisted Instructional Design (HITL)` | Parent: `GenAI for Instructional Design & AI Tutors` | Mode: `dr` | Cluster: `GenAI for Instructional Design & AI Tutors (1 of 2)`
+- [ ] Concept: `Automated Item Generation` | Parent: `GenAI for Instructional Design & AI Tutors` | Mode: `dr` | Cluster: `GenAI for Instructional Design & AI Tutors (1 of 2)`
+- [ ] Concept: `Bloom 2-Sigma & Socratic Tutoring` | Parent: `GenAI for Instructional Design & AI Tutors` | Mode: `dr` | Cluster: `GenAI for Instructional Design & AI Tutors (1 of 2)`
+- [ ] Concept: `Cognitive Offloading` | Parent: `GenAI for Instructional Design & AI Tutors` | Mode: `dr` | Cluster: `GenAI for Instructional Design & AI Tutors (1 of 2)`
+- [ ] Concept: `GenAI in CS Education (amplifier vs equalizer)` | Parent: `GenAI for Instructional Design & AI Tutors` | Mode: `dr` | Cluster: `GenAI for Instructional Design & AI Tutors (2 of 2)`
+- [ ] Concept: `FERPA/COPPA & AI Equity` | Parent: `GenAI for Instructional Design & AI Tutors` | Mode: `dr` | Cluster: `GenAI for Instructional Design & AI Tutors (2 of 2)`
+- [ ] Concept: `LLM Tutors / ITS (Khanmigo, LearnLM)` | Parent: `GenAI for Instructional Design & AI Tutors` | Mode: `dr` | Cluster: `GenAI for Instructional Design & AI Tutors (2 of 2)`
+- [ ] Concept: `AI-Resistant Assessment (learning)` | Parent: `GenAI for Instructional Design & AI Tutors` | Mode: `dr` | Cluster: `GenAI for Instructional Design & AI Tutors (2 of 2)`
+- [ ] Concept: `Performance Consultant Role & Tacit-Knowledge Limitation` | Parent: `Human Performance Technology & Performance Support` | Mode: `dr` | Cluster: `Human Performance Technology & Performance Support (1 of 2)`
+- [ ] Concept: `Digital Adoption Platforms (WalkMe/Whatfix/Pendo)` | Parent: `Human Performance Technology & Performance Support` | Mode: `dr` | Cluster: `Human Performance Technology & Performance Support (1 of 2)`
+- [ ] Concept: `Performance Support & EPSS (Gery intrinsic/extrinsic/external)` | Parent: `Human Performance Technology & Performance Support` | Mode: `dr` | Cluster: `Human Performance Technology & Performance Support (1 of 2)`
+- [ ] Concept: `Five Moments of Need (Gottfredson & Mosher)` | Parent: `Human Performance Technology & Performance Support` | Mode: `dr` | Cluster: `Human Performance Technology & Performance Support (1 of 2)`
+- [ ] Concept: `Gilbert's Behavior Engineering Model (BEM, 6-cell, environment-first)` | Parent: `Human Performance Technology & Performance Support` | Mode: `dr` | Cluster: `Human Performance Technology & Performance Support (1 of 2)`
+- [ ] Concept: `HPT Intervention Taxonomy` | Parent: `Human Performance Technology & Performance Support` | Mode: `dr` | Cluster: `Human Performance Technology & Performance Support (1 of 2)`
+- [ ] Concept: `ISPI/HPT Model (performance → cause → intervention)` | Parent: `Human Performance Technology & Performance Support` | Mode: `dr` | Cluster: `Human Performance Technology & Performance Support (2 of 2)`
+- [ ] Concept: `Job Aid Design (step-by-step/checklist/decision-table/worksheet)` | Parent: `Human Performance Technology & Performance Support` | Mode: `dr` | Cluster: `Human Performance Technology & Performance Support (2 of 2)`
+- [ ] Concept: `Learning in the Flow of Work` | Parent: `Human Performance Technology & Performance Support` | Mode: `dr` | Cluster: `Human Performance Technology & Performance Support (2 of 2)`
+- [ ] Concept: `Mager & Pipe Performance-Analysis Flowchart` | Parent: `Human Performance Technology & Performance Support` | Mode: `dr` | Cluster: `Human Performance Technology & Performance Support (2 of 2)`
+- [ ] Concept: `Rummler-Brache Three Levels & Nine Performance Variables` | Parent: `Human Performance Technology & Performance Support` | Mode: `dr` | Cluster: `Human Performance Technology & Performance Support (2 of 2)`
+- [ ] Concept: `Unit & object model (service/socket/target/timer/mount/slice/scope/path/device types, Type= readiness)` | Parent: `systemd (init system & service manager)` | Mode: `dr` | Cluster: `systemd (init system & service manager)`
+- [ ] Concept: `Dependency & ordering semantics (Wants/Requires/Requisite/BindsTo/PartOf, After/Before, drop-ins, presets, generators)` | Parent: `systemd (init system & service manager)` | Mode: `dr` | Cluster: `systemd (init system & service manager)`
+- [ ] Concept: `systemd-journald (Storage= volatile/persistent/auto/none, rotation/vacuum, rate-limiting, forwarding, Forward Secure Sealing, journal namespaces, remote journals)` | Parent: `systemd (init system & service manager)` | Mode: `dr` | Cluster: `systemd (init system & service manager)`
+- [ ] Concept: `cgroup-v2 resource control (slice/scope tree, CPUWeight/CPUQuota/AllowedCPUs, MemoryMin/Low/High/Max ladder, IOWeight, TasksMax, Delegate)` | Parent: `systemd (init system & service manager)` | Mode: `dr` | Cluster: `systemd (init system & service manager)`
+- [ ] Concept: `systemd-oomd (PSI-driven userspace OOM, ManagedOOMSwap/ManagedOOMMemoryPressure, oomd.conf)` | Parent: `systemd (init system & service manager)` | Mode: `dr` | Cluster: `systemd (init system & service manager)`
+- [ ] Concept: `System & configuration extensions (systemd-sysext /usr+/opt, systemd-confext /etc, DDIs/dm-verity, extension-release matching)` | Parent: `systemd (init system & service manager)` | Mode: `dr` | Cluster: `systemd (init system & service manager)`
+- [ ] Concept: `Portable services (portablectl, systemd-portabled, security profiles)` | Parent: `systemd (init system & service manager)` | Mode: `dr` | Cluster: `systemd (init system & service manager)`
+- [ ] Concept: `Execution sandbox (ProtectSystem/PrivateTmp/DynamicUser/CapabilityBoundingSet/SystemCallFilter, systemd-analyze security)` | Parent: `systemd (init system & service manager)` | Mode: `dr` | Cluster: `systemd (init system & service manager)`
+- [ ] Concept: `Scheduling-class hierarchy (stop/dl/rt/fair/idle) and policies (SCHED_OTHER/FIFO/RR/DEADLINE/IDLE)` | Parent: `Linux Kernel Architecture & Scheduling — CFS/EEVDF, Syscall ABI, Kernel Modules` | Mode: `dr` | Cluster: `Linux Kernel Architecture & Scheduling — CFS/EEVDF, Syscall ABI, Kernel Modules (1 of 2)`
+- [ ] Concept: `Syscall entry path (SYSCALL_DEFINE, sys_call_table dispatch, pt_regs, seccomp/ptrace interception)` | Parent: `Linux Kernel Architecture & Scheduling — CFS/EEVDF, Syscall ABI, Kernel Modules` | Mode: `dr` | Cluster: `Linux Kernel Architecture & Scheduling — CFS/EEVDF, Syscall ABI, Kernel Modules (1 of 2)`
+- [ ] Concept: `Loadable kernel modules (insmod/modprobe/finit_module, module_init/exit, depmod)` | Parent: `Linux Kernel Architecture & Scheduling — CFS/EEVDF, Syscall ABI, Kernel Modules` | Mode: `dr` | Cluster: `Linux Kernel Architecture & Scheduling — CFS/EEVDF, Syscall ABI, Kernel Modules (1 of 2)`
+- [ ] Concept: `Module ABI safety (vermagic, CONFIG_MODVERSIONS CRC, unstable internal ABI)` | Parent: `Linux Kernel Architecture & Scheduling — CFS/EEVDF, Syscall ABI, Kernel Modules` | Mode: `dr` | Cluster: `Linux Kernel Architecture & Scheduling — CFS/EEVDF, Syscall ABI, Kernel Modules (1 of 2)`
+- [ ] Concept: `Module signing (CONFIG_MODULE_SIG, Secure Boot/MOK) and Kbuild out-of-tree builds` | Parent: `Linux Kernel Architecture & Scheduling — CFS/EEVDF, Syscall ABI, Kernel Modules` | Mode: `dr` | Cluster: `Linux Kernel Architecture & Scheduling — CFS/EEVDF, Syscall ABI, Kernel Modules (1 of 2)`
+- [ ] Concept: `Monolithic kernel architecture (ring 0/3, kernel vs user space, major subsystems)` | Parent: `Linux Kernel Architecture & Scheduling — CFS/EEVDF, Syscall ABI, Kernel Modules` | Mode: `dr` | Cluster: `Linux Kernel Architecture & Scheduling — CFS/EEVDF, Syscall ABI, Kernel Modules (1 of 2)`
+- [ ] Concept: `Preemption models (PREEMPT_NONE/VOLUNTARY/FULL/LAZY) and PREEMPT_RT` | Parent: `Linux Kernel Architecture & Scheduling — CFS/EEVDF, Syscall ABI, Kernel Modules` | Mode: `dr` | Cluster: `Linux Kernel Architecture & Scheduling — CFS/EEVDF, Syscall ABI, Kernel Modules (2 of 2)`
+- [ ] Concept: `EEVDF scheduler (lag, eligibility, virtual deadline, request size/time slice, Linux 6.6)` | Parent: `Linux Kernel Architecture & Scheduling — CFS/EEVDF, Syscall ABI, Kernel Modules` | Mode: `dr` | Cluster: `Linux Kernel Architecture & Scheduling — CFS/EEVDF, Syscall ABI, Kernel Modules (2 of 2)`
+- [ ] Concept: `CFS scheduler (vruntime, weight from nice, rb-tree)` | Parent: `Linux Kernel Architecture & Scheduling — CFS/EEVDF, Syscall ABI, Kernel Modules` | Mode: `dr` | Cluster: `Linux Kernel Architecture & Scheduling — CFS/EEVDF, Syscall ABI, Kernel Modules (2 of 2)`
+- [ ] Concept: `Symbol export and GPL boundary (EXPORT_SYMBOL vs EXPORT_SYMBOL_GPL)` | Parent: `Linux Kernel Architecture & Scheduling — CFS/EEVDF, Syscall ABI, Kernel Modules` | Mode: `dr` | Cluster: `Linux Kernel Architecture & Scheduling — CFS/EEVDF, Syscall ABI, Kernel Modules (2 of 2)`
+- [ ] Concept: `Syscall ABI (x86-64 calling convention, syscall instruction, rax/rdi..r9, vDSO)` | Parent: `Linux Kernel Architecture & Scheduling — CFS/EEVDF, Syscall ABI, Kernel Modules` | Mode: `dr` | Cluster: `Linux Kernel Architecture & Scheduling — CFS/EEVDF, Syscall ABI, Kernel Modules (2 of 2)`
+- [ ] Concept: `XFS — allocation groups, CIL/delayed-logging journal, grow-only, xfs_repair vs auto log replay, xfs_scrub online fsck (RHEL default)` | Parent: `Linux Filesystems & Storage — ext4/XFS/Btrfs/ZFS, LVM, Block Layer & I/O Schedulers` | Mode: `dr` | Cluster: `Linux Filesystems & Storage — ext4/XFS/Btrfs/ZFS, LVM, Block Layer & I/O Schedulers (1 of 2)`
+- [ ] Concept: `Btrfs — copy-on-write, subvolumes/snapshots, b-tree, checksums, integrated RAID, the RAID5/6 write-hole caveat (not production)` | Parent: `Linux Filesystems & Storage — ext4/XFS/Btrfs/ZFS, LVM, Block Layer & I/O Schedulers` | Mode: `dr` | Cluster: `Linux Filesystems & Storage — ext4/XFS/Btrfs/ZFS, LVM, Block Layer & I/O Schedulers (1 of 2)`
+- [ ] Concept: `LVM and device-mapper — PV/VG/LV, physical extents, dm-linear/striped/snapshot/thin/cache/crypt, thin provisioning, mdadm software RAID` | Parent: `Linux Filesystems & Storage — ext4/XFS/Btrfs/ZFS, LVM, Block Layer & I/O Schedulers` | Mode: `dr` | Cluster: `Linux Filesystems & Storage — ext4/XFS/Btrfs/ZFS, LVM, Block Layer & I/O Schedulers (1 of 2)`
+- [ ] Concept: `ext4 — extents, jbd2 journaling (ordered/journal/writeback), delayed allocation, htree, resize2fs/e2fsck` | Parent: `Linux Filesystems & Storage — ext4/XFS/Btrfs/ZFS, LVM, Block Layer & I/O Schedulers` | Mode: `dr` | Cluster: `Linux Filesystems & Storage — ext4/XFS/Btrfs/ZFS, LVM, Block Layer & I/O Schedulers (1 of 2)`
+- [ ] Concept: `Filesystem repair & integrity — xfs_repair, e2fsck, btrfs scrub/check, zpool scrub/replace, fsck workflow` | Parent: `Linux Filesystems & Storage — ext4/XFS/Btrfs/ZFS, LVM, Block Layer & I/O Schedulers` | Mode: `dr` | Cluster: `Linux Filesystems & Storage — ext4/XFS/Btrfs/ZFS, LVM, Block Layer & I/O Schedulers (1 of 2)`
+- [ ] Concept: `Multi-queue block layer (blk-mq) and I/O schedulers — none/mq-deadline/kyber/bfq, scheduler-per-device-class` | Parent: `Linux Filesystems & Storage — ext4/XFS/Btrfs/ZFS, LVM, Block Layer & I/O Schedulers` | Mode: `dr` | Cluster: `Linux Filesystems & Storage — ext4/XFS/Btrfs/ZFS, LVM, Block Layer & I/O Schedulers (2 of 2)`
+- [ ] Concept: `Block queue tunables — nr_requests, read_ahead_kb, rotational, add_random` | Parent: `Linux Filesystems & Storage — ext4/XFS/Btrfs/ZFS, LVM, Block Layer & I/O Schedulers` | Mode: `dr` | Cluster: `Linux Filesystems & Storage — ext4/XFS/Btrfs/ZFS, LVM, Block Layer & I/O Schedulers (2 of 2)`
+- [ ] Concept: `TRIM/discard — fstrim.timer batched vs inline discard mount option` | Parent: `Linux Filesystems & Storage — ext4/XFS/Btrfs/ZFS, LVM, Block Layer & I/O Schedulers` | Mode: `dr` | Cluster: `Linux Filesystems & Storage — ext4/XFS/Btrfs/ZFS, LVM, Block Layer & I/O Schedulers (2 of 2)`
+- [ ] Concept: `VFS, page cache, and the writeback path (vm.dirty_ratio/dirty_background_ratio throttling, fsync/fdatasync, O_DIRECT)` | Parent: `Linux Filesystems & Storage — ext4/XFS/Btrfs/ZFS, LVM, Block Layer & I/O Schedulers` | Mode: `dr` | Cluster: `Linux Filesystems & Storage — ext4/XFS/Btrfs/ZFS, LVM, Block Layer & I/O Schedulers (2 of 2)`
+- [ ] Concept: `ZFS — zpool/vdev/RAID-Z hierarchy, end-to-end checksums + self-heal, ARC/L2ARC, ZIL/SLOG, scrub, CDDL out-of-tree module` | Parent: `Linux Filesystems & Storage — ext4/XFS/Btrfs/ZFS, LVM, Block Layer & I/O Schedulers` | Mode: `dr` | Cluster: `Linux Filesystems & Storage — ext4/XFS/Btrfs/ZFS, LVM, Block Layer & I/O Schedulers (2 of 2)`
+- [ ] Concept: `Atomic/immutable shared model (transactional A/B-vs-snapshot updates, read-only /usr+root, mutable /etc+/var, rollback)` | Parent: `Immutable & Atomic Linux Distributions — OSTree/rpm-ostree, bootc/CoreOS, NixOS, openSUSE MicroOS` | Mode: `dr` | Cluster: `Immutable & Atomic Linux Distributions — OSTree/rpm-ostree, bootc/CoreOS, NixOS, openSUSE MicroOS`
+- [ ] Concept: `OSTree + rpm-ostree (Fedora Silverblue/Kinoite/Atomic — content-addressed deployments, package layering, container-native ostree)` | Parent: `Immutable & Atomic Linux Distributions — OSTree/rpm-ostree, bootc/CoreOS, NixOS, openSUSE MicroOS` | Mode: `dr` | Cluster: `Immutable & Atomic Linux Distributions — OSTree/rpm-ostree, bootc/CoreOS, NixOS, openSUSE MicroOS`
+- [ ] Concept: `bootc / bootable containers (Fedora CoreOS, RHEL image mode — OCI image as OS, Containerfile, bootc switch/upgrade, bootc-image-builder)` | Parent: `Immutable & Atomic Linux Distributions — OSTree/rpm-ostree, bootc/CoreOS, NixOS, openSUSE MicroOS` | Mode: `dr` | Cluster: `Immutable & Atomic Linux Distributions — OSTree/rpm-ostree, bootc/CoreOS, NixOS, openSUSE MicroOS`
+- [ ] Concept: `NixOS (functional /nix/store, declarative configuration.nix, generations, nixos-rebuild + rollback)` | Parent: `Immutable & Atomic Linux Distributions — OSTree/rpm-ostree, bootc/CoreOS, NixOS, openSUSE MicroOS` | Mode: `dr` | Cluster: `Immutable & Atomic Linux Distributions — OSTree/rpm-ostree, bootc/CoreOS, NixOS, openSUSE MicroOS`
+- [ ] Concept: `openSUSE MicroOS/Aeon/SLE Micro (transactional-update over Btrfs + snapper)` | Parent: `Immutable & Atomic Linux Distributions — OSTree/rpm-ostree, bootc/CoreOS, NixOS, openSUSE MicroOS` | Mode: `dr` | Cluster: `Immutable & Atomic Linux Distributions — OSTree/rpm-ostree, bootc/CoreOS, NixOS, openSUSE MicroOS`
+- [ ] Concept: `Application model: Flatpak + toolbx/distrobox` | Parent: `Immutable & Atomic Linux Distributions — OSTree/rpm-ostree, bootc/CoreOS, NixOS, openSUSE MicroOS` | Mode: `dr` | Cluster: `Immutable & Atomic Linux Distributions — OSTree/rpm-ostree, bootc/CoreOS, NixOS, openSUSE MicroOS`
+- [ ] Concept: `Distro selection by use case (desktop/server/K8s node/edge)` | Parent: `Immutable & Atomic Linux Distributions — OSTree/rpm-ostree, bootc/CoreOS, NixOS, openSUSE MicroOS` | Mode: `dr` | Cluster: `Immutable & Atomic Linux Distributions — OSTree/rpm-ostree, bootc/CoreOS, NixOS, openSUSE MicroOS`
+- [ ] Concept: `Anti-patterns and failed-update/rollback troubleshooting` | Parent: `Immutable & Atomic Linux Distributions — OSTree/rpm-ostree, bootc/CoreOS, NixOS, openSUSE MicroOS` | Mode: `dr` | Cluster: `Immutable & Atomic Linux Distributions — OSTree/rpm-ostree, bootc/CoreOS, NixOS, openSUSE MicroOS`
+- [ ] Concept: `The 2023-2025 security-disable saga (Google 60%-of-exploits, ChromeOS/Android disable, Docker/containerd seccomp default, why seccomp does not filter ops in the ring)` | Parent: `Linux io_uring — Async I/O Rings, liburing, Registered Resources & Security-Disable Saga` | Mode: `dr` | Cluster: `Linux io_uring — Async I/O Rings, liburing, Registered Resources & Security-Disable Saga (1 of 2)`
+- [ ] Concept: `Registered/fixed buffers + READ_FIXED/WRITE_FIXED and O_DIRECT win` | Parent: `Linux io_uring — Async I/O Rings, liburing, Registered Resources & Security-Disable Saga` | Mode: `dr` | Cluster: `Linux io_uring — Async I/O Rings, liburing, Registered Resources & Security-Disable Saga (1 of 2)`
+- [ ] Concept: `Registered/fixed files + IOSQE_FIXED_FILE and direct descriptors` | Parent: `Linux io_uring — Async I/O Rings, liburing, Registered Resources & Security-Disable Saga` | Mode: `dr` | Cluster: `Linux io_uring — Async I/O Rings, liburing, Registered Resources & Security-Disable Saga (1 of 2)`
+- [ ] Concept: `Kernel-side controls (io_uring_disabled sysctl, IORING_SETUP_R_DISABLED + IORING_REGISTER_RESTRICTIONS allowlist, task-level restrictions, Curing rootkit)` | Parent: `Linux io_uring — Async I/O Rings, liburing, Registered Resources & Security-Disable Saga` | Mode: `dr` | Cluster: `Linux io_uring — Async I/O Rings, liburing, Registered Resources & Security-Disable Saga (1 of 2)`
+- [ ] Concept: `Kernel-version feature timeline (5.1 introduction -> 6.x maturation)` | Parent: `Linux io_uring — Async I/O Rings, liburing, Registered Resources & Security-Disable Saga` | Mode: `dr` | Cluster: `Linux io_uring — Async I/O Rings, liburing, Registered Resources & Security-Disable Saga (1 of 2)`
+- [ ] Concept: `Multishot operations (multishot accept/recv/poll, IORING_CQE_F_MORE, re-arming)` | Parent: `Linux io_uring — Async I/O Rings, liburing, Registered Resources & Security-Disable Saga` | Mode: `dr` | Cluster: `Linux io_uring — Async I/O Rings, liburing, Registered Resources & Security-Disable Saga (1 of 2)`
+- [ ] Concept: `Provided buffer rings (IORING_REGISTER_PBUF_RING, kernel-picked buffer IDs)` | Parent: `Linux io_uring — Async I/O Rings, liburing, Registered Resources & Security-Disable Saga` | Mode: `dr` | Cluster: `Linux io_uring — Async I/O Rings, liburing, Registered Resources & Security-Disable Saga (1 of 2)`
+- [ ] Concept: `SQE ordering and chaining (IOSQE_IO_LINK/HARDLINK/IO_DRAIN/ASYNC/CQE_SKIP_SUCCESS)` | Parent: `Linux io_uring — Async I/O Rings, liburing, Registered Resources & Security-Disable Saga` | Mode: `dr` | Cluster: `Linux io_uring — Async I/O Rings, liburing, Registered Resources & Security-Disable Saga (2 of 2)`
+- [ ] Concept: `Submission/completion modes (default interrupt-driven, IORING_SETUP_SQPOLL kernel poller, IORING_SETUP_IOPOLL busy-poll, COOP/DEFER_TASKRUN/SINGLE_ISSUER)` | Parent: `Linux io_uring — Async I/O Rings, liburing, Registered Resources & Security-Disable Saga` | Mode: `dr` | Cluster: `Linux io_uring — Async I/O Rings, liburing, Registered Resources & Security-Disable Saga (2 of 2)`
+- [ ] Concept: `The three syscalls (io_uring_setup / io_uring_enter / io_uring_register)` | Parent: `Linux io_uring — Async I/O Rings, liburing, Registered Resources & Security-Disable Saga` | Mode: `dr` | Cluster: `Linux io_uring — Async I/O Rings, liburing, Registered Resources & Security-Disable Saga (2 of 2)`
+- [ ] Concept: `The two-ring shared-memory model (SQ + CQ, SQE/CQE structs, head/tail, indirection array)` | Parent: `Linux io_uring — Async I/O Rings, liburing, Registered Resources & Security-Disable Saga` | Mode: `dr` | Cluster: `Linux io_uring — Async I/O Rings, liburing, Registered Resources & Security-Disable Saga (2 of 2)`
+- [ ] Concept: `liburing userspace library (queue_init, get_sqe, prep_*, submit, wait_cqe, cqe_seen, for_each_cqe)` | Parent: `Linux io_uring — Async I/O Rings, liburing, Registered Resources & Security-Disable Saga` | Mode: `dr` | Cluster: `Linux io_uring — Async I/O Rings, liburing, Registered Resources & Security-Disable Saga (2 of 2)`
+- [ ] Concept: `Zero-copy networking (IORING_OP_SEND_ZC two-CQE F_MORE/F_NOTIF 6.0, zero-copy receive 6.15, NAPI busy-poll)` | Parent: `Linux io_uring — Async I/O Rings, liburing, Registered Resources & Security-Disable Saga` | Mode: `dr` | Cluster: `Linux io_uring — Async I/O Rings, liburing, Registered Resources & Security-Disable Saga (2 of 2)`
+- [ ] Concept: `seccomp-bpf syscall filtering (cBPF over seccomp_data, eight RET actions, no_new_privs, TSYNC, SECCOMP_RET_USER_NOTIF notifier)` | Parent: `Linux Sandboxing & Confinement — seccomp-bpf, Landlock, gVisor, Kata, Firecracker` | Mode: `dr` | Cluster: `Linux Sandboxing & Confinement — seccomp-bpf, Landlock, gVisor, Kata, Firecracker`
+- [ ] Concept: `Landlock unprivileged self-sandboxing LSM (ABI v1-v6, filesystem/REFER/TRUNCATE/network/ioctl/scoped-IPC rights, best-effort downgrade)` | Parent: `Linux Sandboxing & Confinement — seccomp-bpf, Landlock, gVisor, Kata, Firecracker` | Mode: `dr` | Cluster: `Linux Sandboxing & Confinement — seccomp-bpf, Landlock, gVisor, Kata, Firecracker`
+- [ ] Concept: `LSM framework + capabilities + SELinux/AppArmor/BPF-LSM context` | Parent: `Linux Sandboxing & Confinement — seccomp-bpf, Landlock, gVisor, Kata, Firecracker` | Mode: `dr` | Cluster: `Linux Sandboxing & Confinement — seccomp-bpf, Landlock, gVisor, Kata, Firecracker`
+- [ ] Concept: `gVisor user-space kernel (Sentry, Gofer/9P + Directfs, runsc, ptrace->Systrap->KVM platforms)` | Parent: `Linux Sandboxing & Confinement — seccomp-bpf, Landlock, gVisor, Kata, Firecracker` | Mode: `dr` | Cluster: `Linux Sandboxing & Confinement — seccomp-bpf, Landlock, gVisor, Kata, Firecracker`
+- [ ] Concept: `Kata Containers VM-isolated OCI containers (shim/agent/guest-kernel/rootfs, QEMU vs Cloud Hypervisor vs Firecracker, TDX/SEV-SNP, runtime-rs)` | Parent: `Linux Sandboxing & Confinement — seccomp-bpf, Landlock, gVisor, Kata, Firecracker` | Mode: `dr` | Cluster: `Linux Sandboxing & Confinement — seccomp-bpf, Landlock, gVisor, Kata, Firecracker`
+- [ ] Concept: `Firecracker minimal microVM monitor (5-device model, Jailer, ~125ms boot/<5MiB, Lambda/Fargate)` | Parent: `Linux Sandboxing & Confinement — seccomp-bpf, Landlock, gVisor, Kata, Firecracker` | Mode: `dr` | Cluster: `Linux Sandboxing & Confinement — seccomp-bpf, Landlock, gVisor, Kata, Firecracker`
+- [ ] Concept: `Unprivileged userspace sandboxes (bubblewrap, nsjail, firejail)` | Parent: `Linux Sandboxing & Confinement — seccomp-bpf, Landlock, gVisor, Kata, Firecracker` | Mode: `dr` | Cluster: `Linux Sandboxing & Confinement — seccomp-bpf, Landlock, gVisor, Kata, Firecracker`
+- [ ] Concept: `Isolation-vs-performance decision model for choosing a boundary` | Parent: `Linux Sandboxing & Confinement — seccomp-bpf, Landlock, gVisor, Kata, Firecracker` | Mode: `dr` | Cluster: `Linux Sandboxing & Confinement — seccomp-bpf, Landlock, gVisor, Kata, Firecracker`
+- [ ] Concept: `AutoNUMA balancing (kernel.numa_balancing, page migration & scheduler bias)` | Parent: `Linux Memory Management & NUMA — Virtual Memory, Paging, Reclaim, OOM, Hugepages, NUMA Tuning` | Mode: `dr` | Cluster: `Linux Memory Management & NUMA — Virtual Memory, Paging, Reclaim, OOM, Hugepages, NUMA Tuning (1 of 2)`
+- [ ] Concept: `cgroup-v2 memcg OOM (memory.max/high/low/min, memory.swap.max, memory.oom.group, memory.events, memory.pressure, memory.reclaim)` | Parent: `Linux Memory Management & NUMA — Virtual Memory, Paging, Reclaim, OOM, Hugepages, NUMA Tuning` | Mode: `dr` | Cluster: `Linux Memory Management & NUMA — Virtual Memory, Paging, Reclaim, OOM, Hugepages, NUMA Tuning (1 of 2)`
+- [ ] Concept: `Container/k8s NUMA & memory limits (cpuset.mems, Topology Manager, Guaranteed QoS, exit 137)` | Parent: `Linux Memory Management & NUMA — Virtual Memory, Paging, Reclaim, OOM, Hugepages, NUMA Tuning` | Mode: `dr` | Cluster: `Linux Memory Management & NUMA — Virtual Memory, Paging, Reclaim, OOM, Hugepages, NUMA Tuning (1 of 2)`
+- [ ] Concept: `Virtual memory & demand paging (page tables/TLB, minor vs major faults, copy-on-write, page cache, anonymous vs file-backed, swap & vm.swappiness)` | Parent: `Linux Memory Management & NUMA — Virtual Memory, Paging, Reclaim, OOM, Hugepages, NUMA Tuning` | Mode: `dr` | Cluster: `Linux Memory Management & NUMA — Virtual Memory, Paging, Reclaim, OOM, Hugepages, NUMA Tuning (1 of 2)`
+- [ ] Concept: `Explicit hugepages (hugetlbfs, vm.nr_hugepages, 2M/1G hugepagesz boot reserve, MAP_HUGETLB, hugetlb cgroup controller)` | Parent: `Linux Memory Management & NUMA — Virtual Memory, Paging, Reclaim, OOM, Hugepages, NUMA Tuning` | Mode: `dr` | Cluster: `Linux Memory Management & NUMA — Virtual Memory, Paging, Reclaim, OOM, Hugepages, NUMA Tuning (1 of 2)`
+- [ ] Concept: `The OOM killer (oom_badness, oom_score_adj -1000..+1000, panic_on_oom, dmesg forensic)` | Parent: `Linux Memory Management & NUMA — Virtual Memory, Paging, Reclaim, OOM, Hugepages, NUMA Tuning` | Mode: `dr` | Cluster: `Linux Memory Management & NUMA — Virtual Memory, Paging, Reclaim, OOM, Hugepages, NUMA Tuning (1 of 2)`
+- [ ] Concept: `Reclaim machinery (kswapd vs direct reclaim, min/low/high watermarks, vm.min_free_kbytes, active/inactive LRU, MGLRU, PSI memory pressure)` | Parent: `Linux Memory Management & NUMA — Virtual Memory, Paging, Reclaim, OOM, Hugepages, NUMA Tuning` | Mode: `dr` | Cluster: `Linux Memory Management & NUMA — Virtual Memory, Paging, Reclaim, OOM, Hugepages, NUMA Tuning (1 of 2)`
+- [ ] Concept: `Multi-size THP / mTHP & folios (hugepages-<size>kB/enabled inherit, per-size stats, THP shrinker shrink_underused)` | Parent: `Linux Memory Management & NUMA — Virtual Memory, Paging, Reclaim, OOM, Hugepages, NUMA Tuning` | Mode: `dr` | Cluster: `Linux Memory Management & NUMA — Virtual Memory, Paging, Reclaim, OOM, Hugepages, NUMA Tuning (2 of 2)`
+- [ ] Concept: `Memory overcommit (vm.overcommit_memory heuristic/always/strict, overcommit_ratio, CommitLimit/Committed_AS)` | Parent: `Linux Memory Management & NUMA — Virtual Memory, Paging, Reclaim, OOM, Hugepages, NUMA Tuning` | Mode: `dr` | Cluster: `Linux Memory Management & NUMA — Virtual Memory, Paging, Reclaim, OOM, Hugepages, NUMA Tuning (2 of 2)`
+- [ ] Concept: `NUMA memory policy (numactl --membind/--interleave/--preferred/--localalloc, set_mempolicy/mbind, MPOL_BIND/INTERLEAVE/PREFERRED/LOCAL)` | Parent: `Linux Memory Management & NUMA — Virtual Memory, Paging, Reclaim, OOM, Hugepages, NUMA Tuning` | Mode: `dr` | Cluster: `Linux Memory Management & NUMA — Virtual Memory, Paging, Reclaim, OOM, Hugepages, NUMA Tuning (2 of 2)`
+- [ ] Concept: `systemd-oomd (PSI + swap driven proactive userspace OOM, ManagedOOMMemoryPressure/Swap)` | Parent: `Linux Memory Management & NUMA — Virtual Memory, Paging, Reclaim, OOM, Hugepages, NUMA Tuning` | Mode: `dr` | Cluster: `Linux Memory Management & NUMA — Virtual Memory, Paging, Reclaim, OOM, Hugepages, NUMA Tuning (2 of 2)`
+- [ ] Concept: `NUMA topology & node distance (numactl -H, lscpu, lstopo, /sys/devices/system/node)` | Parent: `Linux Memory Management & NUMA — Virtual Memory, Paging, Reclaim, OOM, Hugepages, NUMA Tuning` | Mode: `dr` | Cluster: `Linux Memory Management & NUMA — Virtual Memory, Paging, Reclaim, OOM, Hugepages, NUMA Tuning (2 of 2)`
+- [ ] Concept: `Transparent hugepages (enabled always/madvise/never, defrag, khugepaged pages_to_scan/max_ptes_none, MADV_HUGEPAGE/NOHUGEPAGE/COLLAPSE)` | Parent: `Linux Memory Management & NUMA — Virtual Memory, Paging, Reclaim, OOM, Hugepages, NUMA Tuning` | Mode: `dr` | Cluster: `Linux Memory Management & NUMA — Virtual Memory, Paging, Reclaim, OOM, Hugepages, NUMA Tuning (2 of 2)`
+- [ ] Concept: `zone_reclaim_mode & numastat (numa_hit/miss/foreign, local_node/other_node)` | Parent: `Linux Memory Management & NUMA — Virtual Memory, Paging, Reclaim, OOM, Hugepages, NUMA Tuning` | Mode: `dr` | Cluster: `Linux Memory Management & NUMA — Virtual Memory, Paging, Reclaim, OOM, Hugepages, NUMA Tuning (2 of 2)`
+- [ ] Concept: `GRUB 2 (boot.img/core.img stages, grubx64.efi, generated grub.cfg via grub-mkconfig/update-grub, menuentry linux/initrd, BLS Type 1 entries, grubby/kernel-install)` | Parent: `Linux Boot & Init — UEFI/Secure Boot, GRUB, initramfs/dracut, Early Userspace` | Mode: `dr` | Cluster: `Linux Boot & Init — UEFI/Secure Boot, GRUB, initramfs/dracut, Early Userspace (1 of 2)`
+- [ ] Concept: `Boot-failure troubleshooting (dracut emergency shell, rd.break stages, VFS unable to mount root, grub rescue, rebuilding a broken initramfs)` | Parent: `Linux Boot & Init — UEFI/Secure Boot, GRUB, initramfs/dracut, Early Userspace` | Mode: `dr` | Cluster: `Linux Boot & Init — UEFI/Secure Boot, GRUB, initramfs/dracut, Early Userspace (1 of 2)`
+- [ ] Concept: `UEFI firmware, the ESP, and boot entries (BootOrder/Boot#### EFI vars, efibootmgr, efivarfs, PEI/DXE/BDS, fallback BOOTX64.EFI)` | Parent: `Linux Boot & Init — UEFI/Secure Boot, GRUB, initramfs/dracut, Early Userspace` | Mode: `dr` | Cluster: `Linux Boot & Init — UEFI/Secure Boot, GRUB, initramfs/dracut, Early Userspace (1 of 2)`
+- [ ] Concept: `initramfs/initrd early userspace (why it exists, CPIO-into-tmpfs, dracut build + hostonly vs no-hostonly, dracut modules, config)` | Parent: `Linux Boot & Init — UEFI/Secure Boot, GRUB, initramfs/dracut, Early Userspace` | Mode: `dr` | Cluster: `Linux Boot & Init — UEFI/Secure Boot, GRUB, initramfs/dracut, Early Userspace (1 of 2)`
+- [ ] Concept: `Kernel command line (root=, rd.* dracut params, init=/systemd.unit handoff, diagnostics quiet/loglevel/nomodeset)` | Parent: `Linux Boot & Init — UEFI/Secure Boot, GRUB, initramfs/dracut, Early Userspace` | Mode: `dr` | Cluster: `Linux Boot & Init — UEFI/Secure Boot, GRUB, initramfs/dracut, Early Userspace (1 of 2)`
+- [ ] Concept: `Measured boot & TPM-bound unlock (TPM2 PCR 4/7/11/12/13, systemd-cryptenroll, systemd-measure signed PCR11, systemd-pcrlock)` | Parent: `Linux Boot & Init — UEFI/Secure Boot, GRUB, initramfs/dracut, Early Userspace` | Mode: `dr` | Cluster: `Linux Boot & Init — UEFI/Secure Boot, GRUB, initramfs/dracut, Early Userspace (1 of 2)`
+- [ ] Concept: `Secure Boot signature chain (PK/KEK/db/dbx, Microsoft-signed shim, distro embedded cert, MOK/MokManager/mokutil, SBAT generation-based revocation, kernel lockdown)` | Parent: `Linux Boot & Init — UEFI/Secure Boot, GRUB, initramfs/dracut, Early Userspace` | Mode: `dr` | Cluster: `Linux Boot & Init — UEFI/Secure Boot, GRUB, initramfs/dracut, Early Userspace (2 of 2)`
+- [ ] Concept: `The switch_root / pivot_root handoff to PID 1 and shutdown jump-back to /run/initramfs/shutdown` | Parent: `Linux Boot & Init — UEFI/Secure Boot, GRUB, initramfs/dracut, Early Userspace` | Mode: `dr` | Cluster: `Linux Boot & Init — UEFI/Secure Boot, GRUB, initramfs/dracut, Early Userspace (2 of 2)`
+- [ ] Concept: `systemd-boot / sd-boot (UEFI-only, bootctl, auto-discovery of BLS Type1 + Type2 UKIs, loader.conf)` | Parent: `Linux Boot & Init — UEFI/Secure Boot, GRUB, initramfs/dracut, Early Userspace` | Mode: `dr` | Cluster: `Linux Boot & Init — UEFI/Secure Boot, GRUB, initramfs/dracut, Early Userspace (2 of 2)`
+- [ ] Concept: `Two initramfs execution models (systemd-in-initrd targets + /sysroot contract vs legacy dracut /init hook pipeline cmdline..pre-pivot..cleanup)` | Parent: `Linux Boot & Init — UEFI/Secure Boot, GRUB, initramfs/dracut, Early Userspace` | Mode: `dr` | Cluster: `Linux Boot & Init — UEFI/Secure Boot, GRUB, initramfs/dracut, Early Userspace (2 of 2)`
+- [ ] Concept: `Unified Kernel Image (UKI) — systemd-stub, ukify, PE sections .linux/.initrd/.cmdline, signed cmdline+initrd, UAPI.5` | Parent: `Linux Boot & Init — UEFI/Secure Boot, GRUB, initramfs/dracut, Early Userspace` | Mode: `dr` | Cluster: `Linux Boot & Init — UEFI/Secure Boot, GRUB, initramfs/dracut, Early Userspace (2 of 2)`
+- [ ] Concept: `Confidential VMs (AMD SEV/SEV-ES/SEV-SNP via PSP, Intel TDX/SEAM Trust Domains, guest memory encryption + integrity + remote attestation)` | Parent: `Linux Virtualization — KVM, QEMU, libvirt, virtio & microVMs` | Mode: `dr` | Cluster: `Linux Virtualization — KVM, QEMU, libvirt, virtio & microVMs (1 of 2)`
+- [ ] Concept: `virtio data-plane acceleration ladder (QEMU-emulated → vhost-net/vhost-scsi kernel → vhost-user DPDK/SPDK → vDPA hardware offload)` | Parent: `Linux Virtualization — KVM, QEMU, libvirt, virtio & microVMs` | Mode: `dr` | Cluster: `Linux Virtualization — KVM, QEMU, libvirt, virtio & microVMs (1 of 2)`
+- [ ] Concept: `Device assignment (VFIO/vfio-pci, IOMMU groups + VT-d/AMD-Vi, SR-IOV PF/VF, GPU passthrough, mediated devices mdev)` | Parent: `Linux Virtualization — KVM, QEMU, libvirt, virtio & microVMs` | Mode: `dr` | Cluster: `Linux Virtualization — KVM, QEMU, libvirt, virtio & microVMs (1 of 2)`
+- [ ] Concept: `microVMs (Firecracker 5-device model + jailer + ~125ms boot/<5MiB, Cloud Hypervisor, rust-vmm crates, QEMU microvm machine type, Kata wrapping)` | Parent: `Linux Virtualization — KVM, QEMU, libvirt, virtio & microVMs` | Mode: `dr` | Cluster: `Linux Virtualization — KVM, QEMU, libvirt, virtio & microVMs (1 of 2)`
+- [ ] Concept: `KVM in-kernel hypervisor (/dev/kvm ioctl API — KVM_CREATE_VM/VCPU/RUN, Intel VT-x/VMX root vs non-root, AMD-V/SVM, EPT/NPT two-dimensional paging, VM exits, posted interrupts/APICv, one-thread-per-vCPU, nested virt)` | Parent: `Linux Virtualization — KVM, QEMU, libvirt, virtio & microVMs` | Mode: `dr` | Cluster: `Linux Virtualization — KVM, QEMU, libvirt, virtio & microVMs (1 of 2)`
+- [ ] Concept: `Live migration (pre-copy iterative + stop-and-copy, post-copy demand fault, CPU-model/machine-type compatibility, VFIO device migration)` | Parent: `Linux Virtualization — KVM, QEMU, libvirt, virtio & microVMs` | Mode: `dr` | Cluster: `Linux Virtualization — KVM, QEMU, libvirt, virtio & microVMs (2 of 2)`
+- [ ] Concept: `libvirt management layer (domain XML + virsh, the modular daemons virtqemud/virtnetworkd/virtnodedevd/virtstoraged/virtsecretd, virtproxyd, default NAT network + storage pools)` | Parent: `Linux Virtualization — KVM, QEMU, libvirt, virtio & microVMs` | Mode: `dr` | Cluster: `Linux Virtualization — KVM, QEMU, libvirt, virtio & microVMs (2 of 2)`
+- [ ] Concept: `virtio paravirtualized device framework (virtqueues/vrings split vs packed, feature negotiation, transports virtio-pci/-mmio/-ccw, device family net/blk/scsi/fs/gpu/balloon/vsock/rng)` | Parent: `Linux Virtualization — KVM, QEMU, libvirt, virtio & microVMs` | Mode: `dr` | Cluster: `Linux Virtualization — KVM, QEMU, libvirt, virtio & microVMs (2 of 2)`
+- [ ] Concept: `QEMU userspace VMM & device model (accelerators kvm/tcg/hvf, machine types q35/pc/virt/microvm versioned, -machine/-cpu/-device/-drive/-netdev model, OVMF/UEFI firmware, qcow2 vs raw, io_uring block backend)` | Parent: `Linux Virtualization — KVM, QEMU, libvirt, virtio & microVMs` | Mode: `dr` | Cluster: `Linux Virtualization — KVM, QEMU, libvirt, virtio & microVMs (2 of 2)`
+- [ ] Concept: `VM performance tuning (host-passthrough vs host-model, 1:1 CPU pinning, NUMA affinity, 2M/1G hugepages, multiqueue virtio-net, vhost, iothreads, balloon/KSM overcommit)` | Parent: `Linux Virtualization — KVM, QEMU, libvirt, virtio & microVMs` | Mode: `dr` | Cluster: `Linux Virtualization — KVM, QEMU, libvirt, virtio & microVMs (2 of 2)`
+- [ ] Concept: `Shared package model (packages, dependencies, repositories, transactions, signing, explicit-vs-dependency)` | Parent: `Linux Package Management & Software Building — apt/dpkg, dnf/rpm, pacman, from-source & kernel build` | Mode: `dr` | Cluster: `Linux Package Management & Software Building — apt/dpkg, dnf/rpm, pacman, from-source & kernel build`
+- [ ] Concept: `apt/dpkg on Debian/Ubuntu (APT 3.0 solver3, deb822 + Signed-By keyrings, apt-mark hold, dpkg low-level)` | Parent: `Linux Package Management & Software Building — apt/dpkg, dnf/rpm, pacman, from-source & kernel build` | Mode: `dr` | Cluster: `Linux Package Management & Software Building — apt/dpkg, dnf/rpm, pacman, from-source & kernel build`
+- [ ] Concept: `dnf/rpm on Fedora/RHEL (dnf5, transaction history undo/rollback, gpgcheck, rpm -V/--rebuilddb, RHEL core-package caveat)` | Parent: `Linux Package Management & Software Building — apt/dpkg, dnf/rpm, pacman, from-source & kernel build` | Mode: `dr` | Cluster: `Linux Package Management & Software Building — apt/dpkg, dnf/rpm, pacman, from-source & kernel build`
+- [ ] Concept: `pacman on Arch (-Syu vs the partial-upgrade hazard, flag grammar, orphans, archlinux-keyring desync, PKGBUILD/makepkg/AUR)` | Parent: `Linux Package Management & Software Building — apt/dpkg, dnf/rpm, pacman, from-source & kernel build` | Mode: `dr` | Cluster: `Linux Package Management & Software Building — apt/dpkg, dnf/rpm, pacman, from-source & kernel build`
+- [ ] Concept: `Universal formats — Flatpak/Snap/Nix (dependency-bundled, cross-distro tradeoffs)` | Parent: `Linux Package Management & Software Building — apt/dpkg, dnf/rpm, pacman, from-source & kernel build` | Mode: `dr` | Cluster: `Linux Package Management & Software Building — apt/dpkg, dnf/rpm, pacman, from-source & kernel build`
+- [ ] Concept: `Building from source (autotools configure/make, CMake, Meson/Ninja, prefix isolation, checkinstall, GNU Stow, ldconfig)` | Parent: `Linux Package Management & Software Building — apt/dpkg, dnf/rpm, pacman, from-source & kernel build` | Mode: `dr` | Cluster: `Linux Package Management & Software Building — apt/dpkg, dnf/rpm, pacman, from-source & kernel build`
+- [ ] Concept: `Linux kernel build (menuconfig/localmodconfig/olddefconfig, make -j, modules_install, bzImage, initramfs + GRUB, fallback boot)` | Parent: `Linux Package Management & Software Building — apt/dpkg, dnf/rpm, pacman, from-source & kernel build` | Mode: `dr` | Cluster: `Linux Package Management & Software Building — apt/dpkg, dnf/rpm, pacman, from-source & kernel build`
+- [ ] Concept: `Cross-distro troubleshooting (NO_PUBKEY, dpkg interrupted, broken/held deps, rpmdb corruption, pacman PGP signature, missing -dev headers, kernel won't boot)` | Parent: `Linux Package Management & Software Building — apt/dpkg, dnf/rpm, pacman, from-source & kernel build` | Mode: `dr` | Cluster: `Linux Package Management & Software Building — apt/dpkg, dnf/rpm, pacman, from-source & kernel build`
+- [ ] Concept: `bcc (BPF Compiler Collection) tools` | Parent: `eBPF for Linux Observability, Networking & Security` | Mode: `dr` | Cluster: `eBPF for Linux Observability, Networking & Security (1 of 2)`
+- [ ] Concept: `bpftrace tracing language` | Parent: `eBPF for Linux Observability, Networking & Security` | Mode: `dr` | Cluster: `eBPF for Linux Observability, Networking & Security (1 of 2)`
+- [ ] Concept: `Cilium eBPF CNI & kube-proxy replacement (XDP/tc/socket hooks, DSR, Maglev)` | Parent: `eBPF for Linux Observability, Networking & Security` | Mode: `dr` | Cluster: `eBPF for Linux Observability, Networking & Security (1 of 2)`
+- [ ] Concept: `CO-RE, BTF, vmlinux.h & libbpf portability` | Parent: `eBPF for Linux Observability, Networking & Security` | Mode: `dr` | Cluster: `eBPF for Linux Observability, Networking & Security (1 of 2)`
+- [ ] Concept: `Continuous profiling (Parca, Pixie)` | Parent: `eBPF for Linux Observability, Networking & Security` | Mode: `dr` | Cluster: `eBPF for Linux Observability, Networking & Security (1 of 2)`
+- [ ] Concept: `Development frameworks (libbpf, cilium/ebpf Go, aya Rust, eunomia-bpf)` | Parent: `eBPF for Linux Observability, Networking & Security` | Mode: `dr` | Cluster: `eBPF for Linux Observability, Networking & Security (1 of 2)`
+- [ ] Concept: `Helpers and kfuncs` | Parent: `eBPF for Linux Observability, Networking & Security` | Mode: `dr` | Cluster: `eBPF for Linux Observability, Networking & Security (1 of 2)`
+- [ ] Concept: `Hubble flow visibility` | Parent: `eBPF for Linux Observability, Networking & Security` | Mode: `dr` | Cluster: `eBPF for Linux Observability, Networking & Security (2 of 2)`
+- [ ] Concept: `Program & attach types (kprobe/uprobe/tracepoint/fentry/XDP/tc/LSM)` | Parent: `eBPF for Linux Observability, Networking & Security` | Mode: `dr` | Cluster: `eBPF for Linux Observability, Networking & Security (2 of 2)`
+- [ ] Concept: `Ring buffer vs per-CPU perf buffer event streaming` | Parent: `eBPF for Linux Observability, Networking & Security` | Mode: `dr` | Cluster: `eBPF for Linux Observability, Networking & Security (2 of 2)`
+- [ ] Concept: `eBPF runtime security (BPF LSM, Tetragon, Falco, KubeArmor)` | Parent: `eBPF for Linux Observability, Networking & Security` | Mode: `dr` | Cluster: `eBPF for Linux Observability, Networking & Security (2 of 2)`
+- [ ] Concept: `eBPF verifier limits & troubleshooting` | Parent: `eBPF for Linux Observability, Networking & Security` | Mode: `dr` | Cluster: `eBPF for Linux Observability, Networking & Security (2 of 2)`
+- [ ] Concept: `eBPF VM, verifier, JIT & maps` | Parent: `eBPF for Linux Observability, Networking & Security` | Mode: `dr` | Cluster: `eBPF for Linux Observability, Networking & Security (2 of 2)`
+- [ ] Concept: `Container & Kubernetes composition (cap-drop ALL + add, container_t/MCS categories, seLinuxOptions, docker-default/appArmorProfile, seccomp RuntimeDefault, Pod Security Standards Baseline/Restricted)` | Parent: `Linux Mandatory Access Control & Privilege — SELinux, AppArmor & Capabilities` | Mode: `dr` | Cluster: `Linux Mandatory Access Control & Privilege — SELinux, AppArmor & Capabilities (1 of 2)`
+- [ ] Concept: `Dangerous capabilities (CAP_SYS_ADMIN, CAP_DAC_OVERRIDE, CAP_SETUID/SETGID, CAP_NET_ADMIN, CAP_NET_BIND_SERVICE, CAP_SYS_MODULE/PTRACE/BPF)` | Parent: `Linux Mandatory Access Control & Privilege — SELinux, AppArmor & Capabilities` | Mode: `dr` | Cluster: `Linux Mandatory Access Control & Privilege — SELinux, AppArmor & Capabilities (1 of 2)`
+- [ ] Concept: `File capabilities + securebits + no_new_privs (security.capability xattr, setcap/getcap, SECBIT_*, prctl PR_SET_NO_NEW_PRIVS)` | Parent: `Linux Mandatory Access Control & Privilege — SELinux, AppArmor & Capabilities` | Mode: `dr` | Cluster: `Linux Mandatory Access Control & Privilege — SELinux, AppArmor & Capabilities (1 of 2)`
+- [ ] Concept: `Linux capabilities — five thread sets (permitted/effective/inheritable/bounding/ambient) and the execve() transformation formula` | Parent: `Linux Mandatory Access Control & Privilege — SELinux, AppArmor & Capabilities` | Mode: `dr` | Cluster: `Linux Mandatory Access Control & Privilege — SELinux, AppArmor & Capabilities (1 of 2)`
+- [ ] Concept: `SELinux label model (user:role:type:level contexts, Type Enforcement as the core, RBAC, MLS/MCS, targeted vs mls policy)` | Parent: `Linux Mandatory Access Control & Privilege — SELinux, AppArmor & Capabilities` | Mode: `dr` | Cluster: `Linux Mandatory Access Control & Privilege — SELinux, AppArmor & Capabilities (1 of 2)`
+- [ ] Concept: `LSM framework (hooks before each kernel access, exclusive vs stackable, SELinux/AppArmor/Smack/TOMOYO/Yama/Landlock/IPE/LoadPin/SafeSetID/BPF-LSM modules, lsm= boot stacking, only one exclusive MAC)` | Parent: `Linux Mandatory Access Control & Privilege — SELinux, AppArmor & Capabilities` | Mode: `dr` | Cluster: `Linux Mandatory Access Control & Privilege — SELinux, AppArmor & Capabilities (2 of 2)`
+- [ ] Concept: `SELinux operations (enforcing/permissive/disabled modes, domain transitions, booleans, semanage fcontext/port labeling, restorecon vs chcon, getenforce/setenforce, ls -Z/ps -Z/id -Z)` | Parent: `Linux Mandatory Access Control & Privilege — SELinux, AppArmor & Capabilities` | Mode: `dr` | Cluster: `Linux Mandatory Access Control & Privilege — SELinux, AppArmor & Capabilities (2 of 2)`
+- [ ] Concept: `AppArmor path-based profiles (enforce vs complain/learning, abstractions/includes, aa-genprof/aa-logprof/aa-enforce/aa-status, path-vs-label trade-off, multi-path bypass caveat)` | Parent: `Linux Mandatory Access Control & Privilege — SELinux, AppArmor & Capabilities` | Mode: `dr` | Cluster: `Linux Mandatory Access Control & Privilege — SELinux, AppArmor & Capabilities (2 of 2)`
+- [ ] Concept: `SELinux troubleshooting loop (AVC denials, ausearch -m avc, sealert, audit2allow -M as last resort, dontaudit semodule -DB)` | Parent: `Linux Mandatory Access Control & Privilege — SELinux, AppArmor & Capabilities` | Mode: `dr` | Cluster: `Linux Mandatory Access Control & Privilege — SELinux, AppArmor & Capabilities (2 of 2)`
+- [ ] Concept: `Advanced Routing` | Parent: `DNS Caching` | Mode: `dr` | Cluster: `DNS Caching (1 of 4)`
+- [ ] Concept: `Ambient Mesh DNS` | Parent: `DNS Caching` | Mode: `dr` | Cluster: `DNS Caching (1 of 4)`
+- [ ] Concept: `Architecture` | Parent: `DNS Caching` | Mode: `dr` | Cluster: `DNS Caching (1 of 4)`
+- [ ] Concept: `Best Practices` | Parent: `DNS Caching` | Mode: `dr` | Cluster: `DNS Caching (1 of 4)`
+- [ ] Concept: `Cloud Native` | Parent: `DNS Caching` | Mode: `dr` | Cluster: `DNS Caching (1 of 4)`
+- [ ] Concept: `Cloud Native / Ad-blocking` | Parent: `DNS Caching` | Mode: `dr` | Cluster: `DNS Caching (1 of 4)`
+- [ ] Concept: `DDR` | Parent: `DNS Caching` | Mode: `dr` | Cluster: `DNS Caching (1 of 4)`
+- [ ] Concept: `Deployment` | Parent: `DNS Caching` | Mode: `dr` | Cluster: `DNS Caching (2 of 4)`
+- [ ] Concept: `DGA Detection (ML)` | Parent: `DNS Caching` | Mode: `dr` | Cluster: `DNS Caching (2 of 4)`
+- [ ] Concept: `Edge / Local Resolvers` | Parent: `DNS Caching` | Mode: `dr` | Cluster: `DNS Caching (2 of 4)`
+- [ ] Concept: `Encrypted DNS` | Parent: `DNS Caching` | Mode: `dr` | Cluster: `DNS Caching (2 of 4)`
+- [ ] Concept: `Enterprise / ISP Resolvers` | Parent: `DNS Caching` | Mode: `dr` | Cluster: `DNS Caching (2 of 4)`
+- [ ] Concept: `Frontier` | Parent: `DNS Caching` | Mode: `dr` | Cluster: `DNS Caching (2 of 4)`
+- [ ] Concept: `Logging Protocols` | Parent: `DNS Caching` | Mode: `dr` | Cluster: `DNS Caching (2 of 4)`
+- [ ] Concept: `Maintenance` | Parent: `DNS Caching` | Mode: `dr` | Cluster: `DNS Caching (3 of 4)`
+- [ ] Concept: `Multi-CDN Steering` | Parent: `DNS Caching` | Mode: `dr` | Cluster: `DNS Caching (3 of 4)`
+- [ ] Concept: `Operations` | Parent: `DNS Caching` | Mode: `dr` | Cluster: `DNS Caching (3 of 4)`
+- [ ] Concept: `Packet Analysis` | Parent: `DNS Caching` | Mode: `dr` | Cluster: `DNS Caching (3 of 4)`
+- [ ] Concept: `Performance` | Parent: `DNS Caching` | Mode: `dr` | Cluster: `DNS Caching (3 of 4)`
+- [ ] Concept: `Query Tools` | Parent: `DNS Caching` | Mode: `dr` | Cluster: `DNS Caching (3 of 4)`
+- [ ] Concept: `Resilience` | Parent: `DNS Caching` | Mode: `dr` | Cluster: `DNS Caching (3 of 4)`
+- [ ] Concept: `Resource Sizing` | Parent: `DNS Caching` | Mode: `dr` | Cluster: `DNS Caching (4 of 4)`
+- [ ] Concept: `Security` | Parent: `DNS Caching` | Mode: `dr` | Cluster: `DNS Caching (4 of 4)`
+- [ ] Concept: `Serve Stale` | Parent: `DNS Caching` | Mode: `dr` | Cluster: `DNS Caching (4 of 4)`
+- [ ] Concept: `Visualization` | Parent: `DNS Caching` | Mode: `dr` | Cluster: `DNS Caching (4 of 4)`
+- [ ] Concept: `Software-KVM lineage & protocol compat (Synergy 2001 -> Barrier 2018 -> Input Leap 2021 -> Deskflow upstream 2024)` | Parent: `Cross-Computer Input Sharing (software KVM + hardware KVM / DDC-CI switching)` | Mode: `dr` | Cluster: `Cross-Computer Input Sharing (software KVM + hardware KVM / DDC-CI switching)`
+- [ ] Concept: `Deskflow macOS setup (brew tap, quarantine xattr, Accessibility/Input Monitoring/Local Network TCC)` | Parent: `Cross-Computer Input Sharing (software KVM + hardware KVM / DDC-CI switching)` | Mode: `dr` | Cluster: `Cross-Computer Input Sharing (software KVM + hardware KVM / DDC-CI switching)`
+- [ ] Concept: `Server text config & hotkey switching (screens/links/aliases/options; keystroke = switchToScreen/switchInDirection/lockCursorToScreen)` | Parent: `Cross-Computer Input Sharing (software KVM + hardware KVM / DDC-CI switching)` | Mode: `dr` | Cluster: `Cross-Computer Input Sharing (software KVM + hardware KVM / DDC-CI switching)`
+- [ ] Concept: `lan-mouse (Rust/DTLS) and commercial/legacy alternatives (ShareMouse, teleport)` | Parent: `Cross-Computer Input Sharing (software KVM + hardware KVM / DDC-CI switching)` | Mode: `dr` | Cluster: `Cross-Computer Input Sharing (software KVM + hardware KVM / DDC-CI switching)`
+- [ ] Concept: `DDC/CI input switching (MCCS VCP 0x60, m1ddc, BetterDisplay CLI, ddcutil quirks)` | Parent: `Cross-Computer Input Sharing (software KVM + hardware KVM / DDC-CI switching)` | Mode: `dr` | Cluster: `Cross-Computer Input Sharing (software KVM + hardware KVM / DDC-CI switching)`
+- [ ] Concept: `Hardware hotkey KVMs & EDID emulation` | Parent: `Cross-Computer Input Sharing (software KVM + hardware KVM / DDC-CI switching)` | Mode: `dr` | Cluster: `Cross-Computer Input Sharing (software KVM + hardware KVM / DDC-CI switching)`
+- [ ] Concept: `Full-desk orchestration (m1ddc + HID++ + blueutil over SSH; InputSwitch pattern)` | Parent: `Cross-Computer Input Sharing (software KVM + hardware KVM / DDC-CI switching)` | Mode: `dr` | Cluster: `Cross-Computer Input Sharing (software KVM + hardware KVM / DDC-CI switching)`
+- [ ] Concept: `Requirements & device matrix (same Apple Account/2FA, BT+Wi-Fi+Handoff, 10 m, max 3 devices, model blacklist)` | Parent: `Apple Universal Control (Continuity edge-crossing input sharing)` | Mode: `dr` | Cluster: `Apple Universal Control (Continuity edge-crossing input sharing)`
+- [ ] Concept: `Ensemble daemon layer (UniversalControl process, com.apple.ensemble LaunchAgent, UniversalControl.framework, rapportd)` | Parent: `Apple Universal Control (Continuity edge-crossing input sharing)` | Mode: `dr` | Cluster: `Apple Universal Control (Continuity edge-crossing input sharing)`
+- [ ] Concept: `AWDL transport & session model (Controller/Target, Hot Zone, Sync Barrier, XIDs, EVNT/SYNC/DRAG/CLIP)` | Parent: `Apple Universal Control (Continuity edge-crossing input sharing)` | Mode: `dr` | Cluster: `Apple Universal Control (Continuity edge-crossing input sharing)`
+- [ ] Concept: `Unified-log analysis (com.apple.universalcontrol + com.apple.rapport subsystems)` | Parent: `Apple Universal Control (Continuity edge-crossing input sharing)` | Mode: `dr` | Cluster: `Apple Universal Control (Continuity edge-crossing input sharing)`
+- [ ] Concept: `com.apple.universalcontrol defaults keys (Disable, DisableMagicEdges, -currentHost/ByHost) & allowUniversalControl MDM` | Parent: `Apple Universal Control (Continuity edge-crossing input sharing)` | Mode: `dr` | Cluster: `Apple Universal Control (Continuity edge-crossing input sharing)`
+- [ ] Concept: `The scripting gap (no API/CLI/AppleScript/Shortcuts; synthesized events don't cross the edge)` | Parent: `Apple Universal Control (Continuity edge-crossing input sharing)` | Mode: `dr` | Cluster: `Apple Universal Control (Continuity edge-crossing input sharing)`
+- [ ] Concept: `Workaround classes (edge pre-arrangement, Control Center GUI-scripting, killall/pkill -HUP reset primitives)` | Parent: `Apple Universal Control (Continuity edge-crossing input sharing)` | Mode: `dr` | Cluster: `Apple Universal Control (Continuity edge-crossing input sharing)`
+- [ ] Concept: `Failure modes & reset ladder (one-way links, sleep drops, VPN/awdl0 interference, Sidecar conflict)` | Parent: `Apple Universal Control (Continuity edge-crossing input sharing)` | Mode: `dr` | Cluster: `Apple Universal Control (Continuity edge-crossing input sharing)`
+- [ ] Concept: `HID++ 2.0 framing & IRoot feature discovery` | Parent: `Logitech HID++ 2.0 Multi-Host Switching (Easy-Switch, feature 0x1814)` | Mode: `dr` | Cluster: `Logitech HID++ 2.0 Multi-Host Switching (Easy-Switch, feature 0x1814)`
+- [ ] Concept: `Feature 0x1814 changeHost (get_host_info/set_current_host/cookies, ENHANCED_HOST_SWITCH)` | Parent: `Logitech HID++ 2.0 Multi-Host Switching (Easy-Switch, feature 0x1814)` | Mode: `dr` | Cluster: `Logitech HID++ 2.0 Multi-Host Switching (Easy-Switch, feature 0x1814)`
+- [ ] Concept: `Feature 0x1815 hostsInfo (slot status, bus type, host names)` | Parent: `Logitech HID++ 2.0 Multi-Host Switching (Easy-Switch, feature 0x1814)` | Mode: `dr` | Cluster: `Logitech HID++ 2.0 Multi-Host Switching (Easy-Switch, feature 0x1814)`
+- [ ] Concept: `Undocumented Easy-Switch 0x1814 notification & discriminator filters` | Parent: `Logitech HID++ 2.0 Multi-Host Switching (Easy-Switch, feature 0x1814)` | Mode: `dr` | Cluster: `Logitech HID++ 2.0 Multi-Host Switching (Easy-Switch, feature 0x1814)`
+- [ ] Concept: `macOS HID access paths (0xFF43/0x0202 BT vs 0xFF00 receiver, TCC Input Monitoring)` | Parent: `Logitech HID++ 2.0 Multi-Host Switching (Easy-Switch, feature 0x1814)` | Mode: `dr` | Cluster: `Logitech HID++ 2.0 Multi-Host Switching (Easy-Switch, feature 0x1814)`
+- [ ] Concept: `Tool landscape (logi-gate, Optune, mxswitch, CleverSwitch, logi_mx_auto_switch, Solaar, logitech-flow-kvm, hidapitester)` | Parent: `Logitech HID++ 2.0 Multi-Host Switching (Easy-Switch, feature 0x1814)` | Mode: `dr` | Cluster: `Logitech HID++ 2.0 Multi-Host Switching (Easy-Switch, feature 0x1814)`
+- [ ] Concept: `Orchestration patterns (hotkeys, corner triggers, keyboard-follower daemons, push-only rule)` | Parent: `Logitech HID++ 2.0 Multi-Host Switching (Easy-Switch, feature 0x1814)` | Mode: `dr` | Cluster: `Logitech HID++ 2.0 Multi-Host Switching (Easy-Switch, feature 0x1814)`
+- [ ] Concept: `Pointer acceleration model (HIDPointerAcceleration, mouse.scaling, Sonoma linear toggle)` | Parent: `macOS Programmatic Input Control (CGEvent synthesis, event taps, cursor warping, TCC gates, remapping & pointer tuning)` | Mode: `dr` | Cluster: `macOS Programmatic Input Control (CGEvent synthesis, event taps, cursor warping, TCC gates, remapping & pointer tuning) (1 of 2)`
+- [ ] Concept: `TCC gates (Accessibility vs Input Monitoring vs none; secure input mode; tccutil)` | Parent: `macOS Programmatic Input Control (CGEvent synthesis, event taps, cursor warping, TCC gates, remapping & pointer tuning)` | Mode: `dr` | Cluster: `macOS Programmatic Input Control (CGEvent synthesis, event taps, cursor warping, TCC gates, remapping & pointer tuning) (1 of 2)`
+- [ ] Concept: `Event taps (CGEventTapCreate, active vs listen-only, timeout re-enable)` | Parent: `macOS Programmatic Input Control (CGEvent synthesis, event taps, cursor warping, TCC gates, remapping & pointer tuning)` | Mode: `dr` | Cluster: `macOS Programmatic Input Control (CGEvent synthesis, event taps, cursor warping, TCC gates, remapping & pointer tuning) (1 of 2)`
+- [ ] Concept: `hidutil UserKeyMapping (TN2450, persistence via LaunchAgent, per-device matching)` | Parent: `macOS Programmatic Input Control (CGEvent synthesis, event taps, cursor warping, TCC gates, remapping & pointer tuning)` | Mode: `dr` | Cluster: `macOS Programmatic Input Control (CGEvent synthesis, event taps, cursor warping, TCC gates, remapping & pointer tuning) (1 of 2)`
+- [ ] Concept: `Karabiner-Elements architecture (grabber, DriverKit virtual HID, complex_modifications)` | Parent: `macOS Programmatic Input Control (CGEvent synthesis, event taps, cursor warping, TCC gates, remapping & pointer tuning)` | Mode: `dr` | Cluster: `macOS Programmatic Input Control (CGEvent synthesis, event taps, cursor warping, TCC gates, remapping & pointer tuning) (1 of 2)`
+- [ ] Concept: `CGEvent synthesis (mouse/keyboard/scroll, CGEventPost, tap locations)` | Parent: `macOS Programmatic Input Control (CGEvent synthesis, event taps, cursor warping, TCC gates, remapping & pointer tuning)` | Mode: `dr` | Cluster: `macOS Programmatic Input Control (CGEvent synthesis, event taps, cursor warping, TCC gates, remapping & pointer tuning) (2 of 2)`
+- [ ] Concept: `macOS input event pipeline (HID→IOKit→WindowServer→CGEvent→NSEvent)` | Parent: `macOS Programmatic Input Control (CGEvent synthesis, event taps, cursor warping, TCC gates, remapping & pointer tuning)` | Mode: `dr` | Cluster: `macOS Programmatic Input Control (CGEvent synthesis, event taps, cursor warping, TCC gates, remapping & pointer tuning) (2 of 2)`
+- [ ] Concept: `Cursor positioning (CGWarpMouseCursorPosition, suppression interval, CGAssociateMouseAndMouseCursorPosition)` | Parent: `macOS Programmatic Input Control (CGEvent synthesis, event taps, cursor warping, TCC gates, remapping & pointer tuning)` | Mode: `dr` | Cluster: `macOS Programmatic Input Control (CGEvent synthesis, event taps, cursor warping, TCC gates, remapping & pointer tuning) (2 of 2)`
+- [ ] Concept: `Scripting surfaces (cliclick, MouseTools, Hammerspoon, AppleScript System Events, PyObjC/pyautogui)` | Parent: `macOS Programmatic Input Control (CGEvent synthesis, event taps, cursor warping, TCC gates, remapping & pointer tuning)` | Mode: `dr` | Cluster: `macOS Programmatic Input Control (CGEvent synthesis, event taps, cursor warping, TCC gates, remapping & pointer tuning) (2 of 2)`
+- [ ] Concept: `Pointer-tuning tools (LinearMouse, Mos, SteerMouse, USB Overdrive, BetterTouchTool)` | Parent: `macOS Programmatic Input Control (CGEvent synthesis, event taps, cursor warping, TCC gates, remapping & pointer tuning)` | Mode: `dr` | Cluster: `macOS Programmatic Input Control (CGEvent synthesis, event taps, cursor warping, TCC gates, remapping & pointer tuning) (2 of 2)`
+- [ ] Concept: `workflow orchestration` | Parent: `data engineering and pipelines` | Mode: `dr` | Cluster: `data engineering and pipelines`
+- [ ] Concept: `dbt analytics engineering` | Parent: `data engineering and pipelines` | Mode: `dr` | Cluster: `data engineering and pipelines`
+- [ ] Concept: `lakehouse architectures` | Parent: `data engineering and pipelines` | Mode: `dr` | Cluster: `data engineering and pipelines`
+- [ ] Concept: `batch vs streaming Lambda Kappa` | Parent: `data engineering and pipelines` | Mode: `dr` | Cluster: `data engineering and pipelines`
+- [ ] Concept: `data contracts` | Parent: `data engineering and pipelines` | Mode: `dr` | Cluster: `data engineering and pipelines`
+- [ ] Concept: `data quality testing` | Parent: `data engineering and pipelines` | Mode: `dr` | Cluster: `data engineering and pipelines`
+- [ ] Concept: `pipeline observability` | Parent: `data engineering and pipelines` | Mode: `dr` | Cluster: `data engineering and pipelines`
+- [ ] Concept: `Kafka` | Parent: `streaming analytics` | Mode: `dr` | Cluster: `streaming analytics`
+- [ ] Concept: `Flink` | Parent: `streaming analytics` | Mode: `dr` | Cluster: `streaming analytics`
+- [ ] Concept: `Spark Structured Streaming` | Parent: `streaming analytics` | Mode: `dr` | Cluster: `streaming analytics`
+- [ ] Concept: `watermarking` | Parent: `streaming analytics` | Mode: `dr` | Cluster: `streaming analytics`
+- [ ] Concept: `exactly-once semantics` | Parent: `streaming analytics` | Mode: `dr` | Cluster: `streaming analytics`
+- [ ] Concept: `windowing` | Parent: `streaming analytics` | Mode: `dr` | Cluster: `streaming analytics`
+- [ ] Concept: `stream processing patterns` | Parent: `streaming analytics` | Mode: `dr` | Cluster: `streaming analytics`
+- [ ] Concept: `ARIMA family` | Parent: `forecasting` | Mode: `dr` | Cluster: `forecasting`
+- [ ] Concept: `exponential smoothing ETS` | Parent: `forecasting` | Mode: `dr` | Cluster: `forecasting`
+- [ ] Concept: `Prophet NeuralProphet` | Parent: `forecasting` | Mode: `dr` | Cluster: `forecasting`
+- [ ] Concept: `ML forecasting` | Parent: `forecasting` | Mode: `dr` | Cluster: `forecasting`
+- [ ] Concept: `foundation models TimeGPT Chronos Moirai TimesFM` | Parent: `forecasting` | Mode: `dr` | Cluster: `forecasting`
+- [ ] Concept: `hierarchical reconciliation MinT` | Parent: `forecasting` | Mode: `dr` | Cluster: `forecasting`
+- [ ] Concept: `intermittent demand Croston SBA` | Parent: `forecasting` | Mode: `dr` | Cluster: `forecasting`
+- [ ] Concept: `prediction intervals conformal` | Parent: `forecasting` | Mode: `dr` | Cluster: `forecasting`
+- [ ] Concept: `autoencoder VAE deep methods` | Parent: `anomaly detection` | Mode: `dr` | Cluster: `anomaly detection (1 of 2)`
+- [ ] Concept: `change-point detection PELT BOCPD` | Parent: `anomaly detection` | Mode: `dr` | Cluster: `anomaly detection (1 of 2)`
+- [ ] Concept: `CUSUM EWMA control charts` | Parent: `anomaly detection` | Mode: `dr` | Cluster: `anomaly detection (1 of 2)`
+- [ ] Concept: `drift vs anomaly` | Parent: `anomaly detection` | Mode: `dr` | Cluster: `anomaly detection (1 of 2)`
+- [ ] Concept: `Isolation Forest` | Parent: `anomaly detection` | Mode: `dr` | Cluster: `anomaly detection (1 of 2)`
+- [ ] Concept: `LOF density methods` | Parent: `anomaly detection` | Mode: `dr` | Cluster: `anomaly detection (2 of 2)`
+- [ ] Concept: `one-class SVM elliptic envelope` | Parent: `anomaly detection` | Mode: `dr` | Cluster: `anomaly detection (2 of 2)`
+- [ ] Concept: `statistical methods z-score MAD ESD` | Parent: `anomaly detection` | Mode: `dr` | Cluster: `anomaly detection (2 of 2)`
+- [ ] Concept: `streaming detection River PySAD` | Parent: `anomaly detection` | Mode: `dr` | Cluster: `anomaly detection (2 of 2)`
+- [ ] Concept: `automated feature engineering Featuretools AutoFeat OpenFE` | Parent: `feature engineering and feature stores` | Mode: `dr` | Cluster: `feature engineering and feature stores (1 of 2)`
+- [ ] Concept: `categorical encoding target encoding` | Parent: `feature engineering and feature stores` | Mode: `dr` | Cluster: `feature engineering and feature stores (1 of 2)`
+- [ ] Concept: `datetime cyclical features` | Parent: `feature engineering and feature stores` | Mode: `dr` | Cluster: `feature engineering and feature stores (1 of 2)`
+- [ ] Concept: `feature stores Feast Tecton Hopsworks Databricks Vertex SageMaker` | Parent: `feature engineering and feature stores` | Mode: `dr` | Cluster: `feature engineering and feature stores (1 of 2)`
+- [ ] Concept: `feature monitoring drift freshness lineage` | Parent: `feature engineering and feature stores` | Mode: `dr` | Cluster: `feature engineering and feature stores (1 of 2)`
+- [ ] Concept: `numerical transforms Box-Cox Yeo-Johnson` | Parent: `feature engineering and feature stores` | Mode: `dr` | Cluster: `feature engineering and feature stores (2 of 2)`
+- [ ] Concept: `online feature serving` | Parent: `feature engineering and feature stores` | Mode: `dr` | Cluster: `feature engineering and feature stores (2 of 2)`
+- [ ] Concept: `point-in-time correctness` | Parent: `feature engineering and feature stores` | Mode: `dr` | Cluster: `feature engineering and feature stores (2 of 2)`
+- [ ] Concept: `train-serve consistency` | Parent: `feature engineering and feature stores` | Mode: `dr` | Cluster: `feature engineering and feature stores (2 of 2)`
+- [ ] Concept: `Adstock and carryover transformations` | Parent: `Marketing Mix Modeling and Incrementality` | Mode: `dr` | Cluster: `Marketing Mix Modeling and Incrementality (1 of 2)`
+- [ ] Concept: `Bayesian MMM and priors` | Parent: `Marketing Mix Modeling and Incrementality` | Mode: `dr` | Cluster: `Marketing Mix Modeling and Incrementality (1 of 2)`
+- [ ] Concept: `Geo-lift experiments (GeoLift, TBR, CausalImpact)` | Parent: `Marketing Mix Modeling and Incrementality` | Mode: `dr` | Cluster: `Marketing Mix Modeling and Incrementality (1 of 2)`
+- [ ] Concept: `MMM calibration with experiments` | Parent: `Marketing Mix Modeling and Incrementality` | Mode: `dr` | Cluster: `Marketing Mix Modeling and Incrementality (1 of 2)`
+- [ ] Concept: `Multi-touch attribution vs MMM` | Parent: `Marketing Mix Modeling and Incrementality` | Mode: `dr` | Cluster: `Marketing Mix Modeling and Incrementality (1 of 2)`
+- [ ] Concept: `Open-source MMM frameworks (Robyn, Meridian, PyMC-Marketing)` | Parent: `Marketing Mix Modeling and Incrementality` | Mode: `dr` | Cluster: `Marketing Mix Modeling and Incrementality (2 of 2)`
+- [ ] Concept: `Privacy-era post-cookie measurement` | Parent: `Marketing Mix Modeling and Incrementality` | Mode: `dr` | Cluster: `Marketing Mix Modeling and Incrementality (2 of 2)`
+- [ ] Concept: `Saturation and Hill curves` | Parent: `Marketing Mix Modeling and Incrementality` | Mode: `dr` | Cluster: `Marketing Mix Modeling and Incrementality (2 of 2)`
+- [ ] Concept: `Incrementality testing` | Parent: `Marketing Mix Modeling and Incrementality` | Mode: `dr` | Cluster: `Marketing Mix Modeling and Incrementality (2 of 2)`
+- [ ] Concept: `AtScale (virtual OLAP cube)` | Parent: `Semantic Layer and Headless BI` | Mode: `dr` | Cluster: `Semantic Layer and Headless BI (1 of 2)`
+- [ ] Concept: `Cube (headless BI)` | Parent: `Semantic Layer and Headless BI` | Mode: `dr` | Cluster: `Semantic Layer and Headless BI (1 of 2)`
+- [ ] Concept: `dbt Semantic Layer / MetricFlow` | Parent: `Semantic Layer and Headless BI` | Mode: `dr` | Cluster: `Semantic Layer and Headless BI (1 of 2)`
+- [ ] Concept: `Dynamic SQL generation` | Parent: `Semantic Layer and Headless BI` | Mode: `dr` | Cluster: `Semantic Layer and Headless BI (1 of 2)`
+- [ ] Concept: `Grounding AI text-to-SQL agents in governed metrics` | Parent: `Semantic Layer and Headless BI` | Mode: `dr` | Cluster: `Semantic Layer and Headless BI (1 of 2)`
+- [ ] Concept: `Looker LookML` | Parent: `Semantic Layer and Headless BI` | Mode: `dr` | Cluster: `Semantic Layer and Headless BI (1 of 2)`
+- [ ] Concept: `Metric governance (code, Git, CI, access control)` | Parent: `Semantic Layer and Headless BI` | Mode: `dr` | Cluster: `Semantic Layer and Headless BI (1 of 2)`
+- [ ] Concept: `Metric store / metrics layer` | Parent: `Semantic Layer and Headless BI` | Mode: `dr` | Cluster: `Semantic Layer and Headless BI (2 of 2)`
+- [ ] Concept: `Metric types and composability (MetricFlow)` | Parent: `Semantic Layer and Headless BI` | Mode: `dr` | Cluster: `Semantic Layer and Headless BI (2 of 2)`
+- [ ] Concept: `Semantic model primitives (entities, dimensions, measures, semantic graph)` | Parent: `Semantic Layer and Headless BI` | Mode: `dr` | Cluster: `Semantic Layer and Headless BI (2 of 2)`
+- [ ] Concept: `Open Semantic Interchange (OSI)` | Parent: `Semantic Layer and Headless BI` | Mode: `dr` | Cluster: `Semantic Layer and Headless BI (2 of 2)`
+- [ ] Concept: `Pre-aggregation and caching` | Parent: `Semantic Layer and Headless BI` | Mode: `dr` | Cluster: `Semantic Layer and Headless BI (2 of 2)`
+- [ ] Concept: `Query APIs and BI connectivity (SQL/JDBC/GraphQL/MDX/DAX)` | Parent: `Semantic Layer and Headless BI` | Mode: `dr` | Cluster: `Semantic Layer and Headless BI (2 of 2)`
+- [ ] Concept: `Universal vs native semantic layer` | Parent: `Semantic Layer and Headless BI` | Mode: `dr` | Cluster: `Semantic Layer and Headless BI (2 of 2)`
+- [ ] Concept: `Activation & aha moment` | Parent: `Product Analytics` | Mode: `dr` | Cluster: `Product Analytics (1 of 2)`
+- [ ] Concept: `Engagement & stickiness (DAU/WAU/MAU)` | Parent: `Product Analytics` | Mode: `dr` | Cluster: `Product Analytics (1 of 2)`
+- [ ] Concept: `Event taxonomy & tracking plans` | Parent: `Product Analytics` | Mode: `dr` | Cluster: `Product Analytics (1 of 2)`
+- [ ] Concept: `Experimentation operations` | Parent: `Product Analytics` | Mode: `dr` | Cluster: `Product Analytics (1 of 2)`
+- [ ] Concept: `Feature adoption` | Parent: `Product Analytics` | Mode: `dr` | Cluster: `Product Analytics (1 of 2)`
+- [ ] Concept: `Funnel & conversion analysis` | Parent: `Product Analytics` | Mode: `dr` | Cluster: `Product Analytics (1 of 2)`
+- [ ] Concept: `Analytics governance & data quality` | Parent: `Product Analytics` | Mode: `dr` | Cluster: `Product Analytics (2 of 2)`
+- [ ] Concept: `Metric frameworks (AARRR vs HEART)` | Parent: `Product Analytics` | Mode: `dr` | Cluster: `Product Analytics (2 of 2)`
+- [ ] Concept: `North Star metric framework` | Parent: `Product Analytics` | Mode: `dr` | Cluster: `Product Analytics (2 of 2)`
+- [ ] Concept: `Session & path analysis` | Parent: `Product Analytics` | Mode: `dr` | Cluster: `Product Analytics (2 of 2)`
+- [ ] Concept: `Product-analytics tooling` | Parent: `Product Analytics` | Mode: `dr` | Cluster: `Product Analytics (2 of 2)`
+- [ ] Concept: `Activation observability and data quality` | Parent: `Reverse ETL and Operational Analytics` | Mode: `dr` | Cluster: `Reverse ETL and Operational Analytics (1 of 2)`
+- [ ] Concept: `Audience building and syncs` | Parent: `Reverse ETL and Operational Analytics` | Mode: `dr` | Cluster: `Reverse ETL and Operational Analytics (1 of 2)`
+- [ ] Concept: `Composable/warehouse-native vs packaged CDP` | Parent: `Reverse ETL and Operational Analytics` | Mode: `dr` | Cluster: `Reverse ETL and Operational Analytics (1 of 2)`
+- [ ] Concept: `Data activation and operational analytics` | Parent: `Reverse ETL and Operational Analytics` | Mode: `dr` | Cluster: `Reverse ETL and Operational Analytics (1 of 2)`
+- [ ] Concept: `Destination API rate limits and error handling` | Parent: `Reverse ETL and Operational Analytics` | Mode: `dr` | Cluster: `Reverse ETL and Operational Analytics (1 of 2)`
+- [ ] Concept: `Reverse ETL vs ETL/ELT` | Parent: `Reverse ETL and Operational Analytics` | Mode: `dr` | Cluster: `Reverse ETL and Operational Analytics (1 of 2)`
+- [ ] Concept: `Governance, PII and consent in activation` | Parent: `Reverse ETL and Operational Analytics` | Mode: `dr` | Cluster: `Reverse ETL and Operational Analytics (2 of 2)`
+- [ ] Concept: `Identity and entity resolution` | Parent: `Reverse ETL and Operational Analytics` | Mode: `dr` | Cluster: `Reverse ETL and Operational Analytics (2 of 2)`
+- [ ] Concept: `Semantic/metrics layer relationship` | Parent: `Reverse ETL and Operational Analytics` | Mode: `dr` | Cluster: `Reverse ETL and Operational Analytics (2 of 2)`
+- [ ] Concept: `Sync mechanics (incremental diffing, CDC, idempotency, DLQ)` | Parent: `Reverse ETL and Operational Analytics` | Mode: `dr` | Cluster: `Reverse ETL and Operational Analytics (2 of 2)`
+- [ ] Concept: `Reverse ETL vendor landscape 2024-2026` | Parent: `Reverse ETL and Operational Analytics` | Mode: `dr` | Cluster: `Reverse ETL and Operational Analytics (2 of 2)`
+- [ ] Concept: `Anomaly Detection on Pipelines` | Parent: `Data Observability` | Mode: `dr` | Cluster: `Data Observability (1 of 2)`
+- [ ] Concept: `Data Downtime` | Parent: `Data Observability` | Mode: `dr` | Cluster: `Data Observability (1 of 2)`
+- [ ] Concept: `Five Pillars (freshness, volume, schema, distribution, lineage)` | Parent: `Data Observability` | Mode: `dr` | Cluster: `Data Observability (1 of 2)`
+- [ ] Concept: `Data Incident Management` | Parent: `Data Observability` | Mode: `dr` | Cluster: `Data Observability (1 of 2)`
+- [ ] Concept: `Data Lineage and OpenLineage/Marquez` | Parent: `Data Observability` | Mode: `dr` | Cluster: `Data Observability (1 of 2)`
+- [ ] Concept: `Observability vs Quality vs Testing vs Monitoring` | Parent: `Data Observability` | Mode: `dr` | Cluster: `Data Observability (2 of 2)`
+- [ ] Concept: `Shift-Left and Data Contracts` | Parent: `Data Observability` | Mode: `dr` | Cluster: `Data Observability (2 of 2)`
+- [ ] Concept: `Data SLAs/SLOs/SLIs` | Parent: `Data Observability` | Mode: `dr` | Cluster: `Data Observability (2 of 2)`
+- [ ] Concept: `Observability Tooling Landscape` | Parent: `Data Observability` | Mode: `dr` | Cluster: `Data Observability (2 of 2)`
+- [ ] Concept: `Centrality measures (degree, betweenness, closeness, eigenvector, PageRank)` | Parent: `Network and Graph Analytics` | Mode: `dr` | Cluster: `Network and Graph Analytics (1 of 2)`
+- [ ] Concept: `Community detection (Louvain, Leiden, label propagation, modularity, resolution limit)` | Parent: `Network and Graph Analytics` | Mode: `dr` | Cluster: `Network and Graph Analytics (1 of 2)`
+- [ ] Concept: `Connectivity and shortest paths (connected components, BFS, Dijkstra, Bellman-Ford)` | Parent: `Network and Graph Analytics` | Mode: `dr` | Cluster: `Network and Graph Analytics (1 of 2)`
+- [ ] Concept: `Graph embeddings (node2vec, DeepWalk)` | Parent: `Network and Graph Analytics` | Mode: `dr` | Cluster: `Network and Graph Analytics (1 of 2)`
+- [ ] Concept: `Link prediction (common neighbors, Jaccard, Adamic-Adar, preferential attachment)` | Parent: `Network and Graph Analytics` | Mode: `dr` | Cluster: `Network and Graph Analytics (1 of 2)`
+- [ ] Concept: `Network motifs and bipartite projection` | Parent: `Network and Graph Analytics` | Mode: `dr` | Cluster: `Network and Graph Analytics (2 of 2)`
+- [ ] Concept: `Graph neural networks for analytics (GCN, GraphSAGE)` | Parent: `Network and Graph Analytics` | Mode: `dr` | Cluster: `Network and Graph Analytics (2 of 2)`
+- [ ] Concept: `Graph representations (adjacency matrix/list, directed/weighted, bipartite, ego networks)` | Parent: `Network and Graph Analytics` | Mode: `dr` | Cluster: `Network and Graph Analytics (2 of 2)`
+- [ ] Concept: `Graph analytics tooling (NetworkX, igraph, graph-tool, cuGraph, Neo4j GDS)` | Parent: `Network and Graph Analytics` | Mode: `dr` | Cluster: `Network and Graph Analytics (2 of 2)`
+- [ ] Concept: `ArviZ diagnostics and plotting` | Parent: `Bayesian Data Analysis and Probabilistic Programming` | Mode: `dr` | Cluster: `Bayesian Data Analysis and Probabilistic Programming (1 of 2)`
+- [ ] Concept: `Convergence diagnostics (R-hat, ESS, divergences, BFMI)` | Parent: `Bayesian Data Analysis and Probabilistic Programming` | Mode: `dr` | Cluster: `Bayesian Data Analysis and Probabilistic Programming (1 of 2)`
+- [ ] Concept: `Hierarchical/multilevel models (partial pooling, non-centered parameterization)` | Parent: `Bayesian Data Analysis and Probabilistic Programming` | Mode: `dr` | Cluster: `Bayesian Data Analysis and Probabilistic Programming (1 of 2)`
+- [ ] Concept: `Probabilistic programming languages (PyMC, Stan, NumPyro, Bambi)` | Parent: `Bayesian Data Analysis and Probabilistic Programming` | Mode: `dr` | Cluster: `Bayesian Data Analysis and Probabilistic Programming (1 of 2)`
+- [ ] Concept: `MCMC (NUTS/HMC)` | Parent: `Bayesian Data Analysis and Probabilistic Programming` | Mode: `dr` | Cluster: `Bayesian Data Analysis and Probabilistic Programming (1 of 2)`
+- [ ] Concept: `Model comparison (LOO-CV/PSIS, WAIC)` | Parent: `Bayesian Data Analysis and Probabilistic Programming` | Mode: `dr` | Cluster: `Bayesian Data Analysis and Probabilistic Programming (1 of 2)`
+- [ ] Concept: `Posterior predictive checks` | Parent: `Bayesian Data Analysis and Probabilistic Programming` | Mode: `dr` | Cluster: `Bayesian Data Analysis and Probabilistic Programming (2 of 2)`
+- [ ] Concept: `Priors and prior predictive checks` | Parent: `Bayesian Data Analysis and Probabilistic Programming` | Mode: `dr` | Cluster: `Bayesian Data Analysis and Probabilistic Programming (2 of 2)`
+- [ ] Concept: `Bayesian regression and GLMs` | Parent: `Bayesian Data Analysis and Probabilistic Programming` | Mode: `dr` | Cluster: `Bayesian Data Analysis and Probabilistic Programming (2 of 2)`
+- [ ] Concept: `Variational inference (ADVI)` | Parent: `Bayesian Data Analysis and Probabilistic Programming` | Mode: `dr` | Cluster: `Bayesian Data Analysis and Probabilistic Programming (2 of 2)`
+- [ ] Concept: `Bayesian workflow (Gelman/Vehtari)` | Parent: `Bayesian Data Analysis and Probabilistic Programming` | Mode: `dr` | Cluster: `Bayesian Data Analysis and Probabilistic Programming (2 of 2)`
+- [ ] Concept: `BG/BB discrete-time non-contractual` | Parent: `Customer Lifetime Value Modeling` | Mode: `dr` | Cluster: `Customer Lifetime Value Modeling (1 of 2)`
+- [ ] Concept: `BG/NBD model` | Parent: `Customer Lifetime Value Modeling` | Mode: `dr` | Cluster: `Customer Lifetime Value Modeling (1 of 2)`
+- [ ] Concept: `Buy-Till-You-Die (BTYD) framework` | Parent: `Customer Lifetime Value Modeling` | Mode: `dr` | Cluster: `Customer Lifetime Value Modeling (1 of 2)`
+- [ ] Concept: `CAC:LTV ratio` | Parent: `Customer Lifetime Value Modeling` | Mode: `dr` | Cluster: `Customer Lifetime Value Modeling (1 of 2)`
+- [ ] Concept: `Cohort-based CLV` | Parent: `Customer Lifetime Value Modeling` | Mode: `dr` | Cluster: `Customer Lifetime Value Modeling (1 of 2)`
+- [ ] Concept: `Discounted Expected Residual Transactions (DERT)` | Parent: `Customer Lifetime Value Modeling` | Mode: `dr` | Cluster: `Customer Lifetime Value Modeling (1 of 2)`
+- [ ] Concept: `Gamma-Gamma monetary model` | Parent: `Customer Lifetime Value Modeling` | Mode: `dr` | Cluster: `Customer Lifetime Value Modeling (2 of 2)`
+- [ ] Concept: `MBG/NBD model` | Parent: `Customer Lifetime Value Modeling` | Mode: `dr` | Cluster: `Customer Lifetime Value Modeling (2 of 2)`
+- [ ] Concept: `Pareto/NBD model` | Parent: `Customer Lifetime Value Modeling` | Mode: `dr` | Cluster: `Customer Lifetime Value Modeling (2 of 2)`
+- [ ] Concept: `Predictive vs historical CLV` | Parent: `Customer Lifetime Value Modeling` | Mode: `dr` | Cluster: `Customer Lifetime Value Modeling (2 of 2)`
+- [ ] Concept: `RFM as sufficient statistics` | Parent: `Customer Lifetime Value Modeling` | Mode: `dr` | Cluster: `Customer Lifetime Value Modeling (2 of 2)`
+- [ ] Concept: `sBG shifted-beta-geometric (contractual)` | Parent: `Customer Lifetime Value Modeling` | Mode: `dr` | Cluster: `Customer Lifetime Value Modeling (2 of 2)`
+- [ ] Concept: `Censoring and Truncation` | Parent: `Survival Analysis` | Mode: `dr` | Cluster: `Survival Analysis (1 of 2)`
+- [ ] Concept: `Competing Risks (Cause-Specific and Fine-Gray)` | Parent: `Survival Analysis` | Mode: `dr` | Cluster: `Survival Analysis (1 of 2)`
+- [ ] Concept: `Cox Proportional-Hazards Model` | Parent: `Survival Analysis` | Mode: `dr` | Cluster: `Survival Analysis (1 of 2)`
+- [ ] Concept: `Discrete-Time Survival and Churn/CLV` | Parent: `Survival Analysis` | Mode: `dr` | Cluster: `Survival Analysis (1 of 2)`
+- [ ] Concept: `Survival and Hazard Functions` | Parent: `Survival Analysis` | Mode: `dr` | Cluster: `Survival Analysis (1 of 2)`
+- [ ] Concept: `Kaplan-Meier and Nelson-Aalen Estimators` | Parent: `Survival Analysis` | Mode: `dr` | Cluster: `Survival Analysis (1 of 2)`
+- [ ] Concept: `Log-Rank Test` | Parent: `Survival Analysis` | Mode: `dr` | Cluster: `Survival Analysis (2 of 2)`
+- [ ] Concept: `Machine-Learning Survival Models` | Parent: `Survival Analysis` | Mode: `dr` | Cluster: `Survival Analysis (2 of 2)`
+- [ ] Concept: `Parametric and Accelerated Failure Time Models` | Parent: `Survival Analysis` | Mode: `dr` | Cluster: `Survival Analysis (2 of 2)`
+- [ ] Concept: `Proportional-Hazards Assumption and Diagnostics` | Parent: `Survival Analysis` | Mode: `dr` | Cluster: `Survival Analysis (2 of 2)`
+- [ ] Concept: `Time-Varying Covariates` | Parent: `Survival Analysis` | Mode: `dr` | Cluster: `Survival Analysis (2 of 2)`
+- [ ] Concept: `Constraint-based methods (PC, FCI)` | Parent: `Causal Discovery and Structure Learning` | Mode: `dr` | Cluster: `Causal Discovery and Structure Learning (1 of 2)`
+- [ ] Concept: `Continuous-optimization methods (NOTEARS, GOLEM, DAG-GNN)` | Parent: `Causal Discovery and Structure Learning` | Mode: `dr` | Cluster: `Causal Discovery and Structure Learning (1 of 2)`
+- [ ] Concept: `Evaluation metrics (SHD, SID)` | Parent: `Causal Discovery and Structure Learning` | Mode: `dr` | Cluster: `Causal Discovery and Structure Learning (1 of 2)`
+- [ ] Concept: `Faithfulness and causal sufficiency assumptions` | Parent: `Causal Discovery and Structure Learning` | Mode: `dr` | Cluster: `Causal Discovery and Structure Learning (1 of 2)`
+- [ ] Concept: `Functional causal models (LiNGAM, ANM, PNL)` | Parent: `Causal Discovery and Structure Learning` | Mode: `dr` | Cluster: `Causal Discovery and Structure Learning (1 of 2)`
+- [ ] Concept: `Interventional data` | Parent: `Causal Discovery and Structure Learning` | Mode: `dr` | Cluster: `Causal Discovery and Structure Learning (1 of 2)`
+- [ ] Concept: `Latent confounders (FCI, PAGs/MAGs)` | Parent: `Causal Discovery and Structure Learning` | Mode: `dr` | Cluster: `Causal Discovery and Structure Learning (2 of 2)`
+- [ ] Concept: `Markov equivalence classes and CPDAGs` | Parent: `Causal Discovery and Structure Learning` | Mode: `dr` | Cluster: `Causal Discovery and Structure Learning (2 of 2)`
+- [ ] Concept: `Permutation search (GRaSP, BOSS)` | Parent: `Causal Discovery and Structure Learning` | Mode: `dr` | Cluster: `Causal Discovery and Structure Learning (2 of 2)`
+- [ ] Concept: `Score-based search (GES, GIES)` | Parent: `Causal Discovery and Structure Learning` | Mode: `dr` | Cluster: `Causal Discovery and Structure Learning (2 of 2)`
+- [ ] Concept: `Time-series causal discovery (Granger, PCMCI, VAR-LiNGAM)` | Parent: `Causal Discovery and Structure Learning` | Mode: `dr` | Cluster: `Causal Discovery and Structure Learning (2 of 2)`
+- [ ] Concept: `Causal discovery tooling (causal-learn, gCastle, Tigramite, pcalg)` | Parent: `Causal Discovery and Structure Learning` | Mode: `dr` | Cluster: `Causal Discovery and Structure Learning (2 of 2)`
+- [ ] Concept: `Access governance and policy enforcement (ABAC)` | Parent: `Data Governance Catalogs and Discovery` | Mode: `dr` | Cluster: `Data Governance Catalogs and Discovery (1 of 2)`
+- [ ] Concept: `Business glossaries` | Parent: `Data Governance Catalogs and Discovery` | Mode: `dr` | Cluster: `Data Governance Catalogs and Discovery (1 of 2)`
+- [ ] Concept: `Catalog tooling landscape (DataHub, OpenMetadata, Amundsen, Atlan, Collibra, Alation, Unity Catalog, Purview)` | Parent: `Data Governance Catalogs and Discovery` | Mode: `dr` | Cluster: `Data Governance Catalogs and Discovery (1 of 2)`
+- [ ] Concept: `Data classification and tagging` | Parent: `Data Governance Catalogs and Discovery` | Mode: `dr` | Cluster: `Data Governance Catalogs and Discovery (1 of 2)`
+- [ ] Concept: `Data contracts (ODCS and ODPS)` | Parent: `Data Governance Catalogs and Discovery` | Mode: `dr` | Cluster: `Data Governance Catalogs and Discovery (1 of 2)`
+- [ ] Concept: `DAMA-DMBOK and DCAM governance frameworks` | Parent: `Data Governance Catalogs and Discovery` | Mode: `dr` | Cluster: `Data Governance Catalogs and Discovery (1 of 2)`
+- [ ] Concept: `Metadata management and active metadata` | Parent: `Data Governance Catalogs and Discovery` | Mode: `dr` | Cluster: `Data Governance Catalogs and Discovery (2 of 2)`
+- [ ] Concept: `Data products and data mesh federated computational governance` | Parent: `Data Governance Catalogs and Discovery` | Mode: `dr` | Cluster: `Data Governance Catalogs and Discovery (2 of 2)`
+- [ ] Concept: `Data discovery and search` | Parent: `Data Governance Catalogs and Discovery` | Mode: `dr` | Cluster: `Data Governance Catalogs and Discovery (2 of 2)`
+- [ ] Concept: `Data stewardship and ownership roles` | Parent: `Data Governance Catalogs and Discovery` | Mode: `dr` | Cluster: `Data Governance Catalogs and Discovery (2 of 2)`
+- [ ] Concept: `Table-level and column-level data lineage` | Parent: `Data Governance Catalogs and Discovery` | Mode: `dr` | Cluster: `Data Governance Catalogs and Discovery (2 of 2)`
+- [ ] Concept: `Adaptive prediction sets (APS/RAPS)` | Parent: `Conformal Prediction and Uncertainty Quantification` | Mode: `dr` | Cluster: `Conformal Prediction and Uncertainty Quantification (1 of 2)`
+- [ ] Concept: `Conformal vs Bayesian credible intervals and bootstrap` | Parent: `Conformal Prediction and Uncertainty Quantification` | Mode: `dr` | Cluster: `Conformal Prediction and Uncertainty Quantification (1 of 2)`
+- [ ] Concept: `Calibration vs sharpness` | Parent: `Conformal Prediction and Uncertainty Quantification` | Mode: `dr` | Cluster: `Conformal Prediction and Uncertainty Quantification (1 of 2)`
+- [ ] Concept: `Conformalized quantile regression (CQR)` | Parent: `Conformal Prediction and Uncertainty Quantification` | Mode: `dr` | Cluster: `Conformal Prediction and Uncertainty Quantification (1 of 2)`
+- [ ] Concept: `Exchangeability assumption` | Parent: `Conformal Prediction and Uncertainty Quantification` | Mode: `dr` | Cluster: `Conformal Prediction and Uncertainty Quantification (1 of 2)`
+- [ ] Concept: `Full/transductive conformal prediction` | Parent: `Conformal Prediction and Uncertainty Quantification` | Mode: `dr` | Cluster: `Conformal Prediction and Uncertainty Quantification (1 of 2)`
+- [ ] Concept: `Marginal coverage guarantee` | Parent: `Conformal Prediction and Uncertainty Quantification` | Mode: `dr` | Cluster: `Conformal Prediction and Uncertainty Quantification (1 of 2)`
+- [ ] Concept: `Mondrian/group-conditional conformal` | Parent: `Conformal Prediction and Uncertainty Quantification` | Mode: `dr` | Cluster: `Conformal Prediction and Uncertainty Quantification (2 of 2)`
+- [ ] Concept: `Nonconformity scores` | Parent: `Conformal Prediction and Uncertainty Quantification` | Mode: `dr` | Cluster: `Conformal Prediction and Uncertainty Quantification (2 of 2)`
+- [ ] Concept: `Conformal risk control` | Parent: `Conformal Prediction and Uncertainty Quantification` | Mode: `dr` | Cluster: `Conformal Prediction and Uncertainty Quantification (2 of 2)`
+- [ ] Concept: `Split/inductive conformal prediction (ICP)` | Parent: `Conformal Prediction and Uncertainty Quantification` | Mode: `dr` | Cluster: `Conformal Prediction and Uncertainty Quantification (2 of 2)`
+- [ ] Concept: `Conformal for time series (EnbPI, ACI)` | Parent: `Conformal Prediction and Uncertainty Quantification` | Mode: `dr` | Cluster: `Conformal Prediction and Uncertainty Quantification (2 of 2)`
+- [ ] Concept: `Tooling (MAPIE, crepes, TorchCP)` | Parent: `Conformal Prediction and Uncertainty Quantification` | Mode: `dr` | Cluster: `Conformal Prediction and Uncertainty Quantification (2 of 2)`
+- [ ] Concept: `Weighted conformal under covariate shift` | Parent: `Conformal Prediction and Uncertainty Quantification` | Mode: `dr` | Cluster: `Conformal Prediction and Uncertainty Quantification (2 of 2)`
+- [ ] Concept: `Real-time vs batch analytics (Lambda/Kappa)` | Parent: `Real-Time OLAP and Analytical Databases` | Mode: `dr` | Cluster: `Real-Time OLAP and Analytical Databases (1 of 2)`
+- [ ] Concept: `ClickHouse MergeTree indexing (sparse primary index, data-skipping)` | Parent: `Real-Time OLAP and Analytical Databases` | Mode: `dr` | Cluster: `Real-Time OLAP and Analytical Databases (1 of 2)`
+- [ ] Concept: `Columnar storage` | Parent: `Real-Time OLAP and Analytical Databases` | Mode: `dr` | Cluster: `Real-Time OLAP and Analytical Databases (1 of 2)`
+- [ ] Concept: `Embedded OLAP (DuckDB)` | Parent: `Real-Time OLAP and Analytical Databases` | Mode: `dr` | Cluster: `Real-Time OLAP and Analytical Databases (1 of 2)`
+- [ ] Concept: `OLAP engines vs cloud data warehouses` | Parent: `Real-Time OLAP and Analytical Databases` | Mode: `dr` | Cluster: `Real-Time OLAP and Analytical Databases (1 of 2)`
+- [ ] Concept: `High-QPS user-facing analytics` | Parent: `Real-Time OLAP and Analytical Databases` | Mode: `dr` | Cluster: `Real-Time OLAP and Analytical Databases (1 of 2)`
+- [ ] Concept: `Materialized views and pre-aggregation` | Parent: `Real-Time OLAP and Analytical Databases` | Mode: `dr` | Cluster: `Real-Time OLAP and Analytical Databases (2 of 2)`
+- [ ] Concept: `Star-schema-on-OLAP and denormalization` | Parent: `Real-Time OLAP and Analytical Databases` | Mode: `dr` | Cluster: `Real-Time OLAP and Analytical Databases (2 of 2)`
+- [ ] Concept: `Storage-compute separation / shared-data / tiered storage` | Parent: `Real-Time OLAP and Analytical Databases` | Mode: `dr` | Cluster: `Real-Time OLAP and Analytical Databases (2 of 2)`
+- [ ] Concept: `Streaming ingestion and upserts (Kafka/Pulsar/Kinesis)` | Parent: `Real-Time OLAP and Analytical Databases` | Mode: `dr` | Cluster: `Real-Time OLAP and Analytical Databases (2 of 2)`
+- [ ] Concept: `Vectorized (SIMD) execution` | Parent: `Real-Time OLAP and Analytical Databases` | Mode: `dr` | Cluster: `Real-Time OLAP and Analytical Databases (2 of 2)`
+- [ ] Concept: `Choropleth Mapping & Classification` | Parent: `Geospatial Analytics` | Mode: `dr` | Cluster: `Geospatial Analytics (1 of 2)`
+- [ ] Concept: `Coordinate Reference Systems & Projections` | Parent: `Geospatial Analytics` | Mode: `dr` | Cluster: `Geospatial Analytics (1 of 2)`
+- [ ] Concept: `Geocoding` | Parent: `Geospatial Analytics` | Mode: `dr` | Cluster: `Geospatial Analytics (1 of 2)`
+- [ ] Concept: `Geometric Operations` | Parent: `Geospatial Analytics` | Mode: `dr` | Cluster: `Geospatial Analytics (1 of 2)`
+- [ ] Concept: `Interpolation & Kriging` | Parent: `Geospatial Analytics` | Mode: `dr` | Cluster: `Geospatial Analytics (1 of 2)`
+- [ ] Concept: `Point-Pattern Analysis` | Parent: `Geospatial Analytics` | Mode: `dr` | Cluster: `Geospatial Analytics (1 of 2)`
+- [ ] Concept: `Spatial Autocorrelation (Moran's I, LISA, Geary's C)` | Parent: `Geospatial Analytics` | Mode: `dr` | Cluster: `Geospatial Analytics (1 of 2)`
+- [ ] Concept: `Spatial Indexing (R-tree, Geohash, H3, S2)` | Parent: `Geospatial Analytics` | Mode: `dr` | Cluster: `Geospatial Analytics (2 of 2)`
+- [ ] Concept: `Spatial Joins` | Parent: `Geospatial Analytics` | Mode: `dr` | Cluster: `Geospatial Analytics (2 of 2)`
+- [ ] Concept: `Spatial Predicates & DE-9IM` | Parent: `Geospatial Analytics` | Mode: `dr` | Cluster: `Geospatial Analytics (2 of 2)`
+- [ ] Concept: `Spatial Regression (GWR, Spatial Lag/Error)` | Parent: `Geospatial Analytics` | Mode: `dr` | Cluster: `Geospatial Analytics (2 of 2)`
+- [ ] Concept: `Spatial Weights` | Parent: `Geospatial Analytics` | Mode: `dr` | Cluster: `Geospatial Analytics (2 of 2)`
+- [ ] Concept: `Vector vs Raster Data Models` | Parent: `Geospatial Analytics` | Mode: `dr` | Cluster: `Geospatial Analytics (2 of 2)`
+- [ ] Concept: `Constraint Programming (CP-SAT)` | Parent: `Prescriptive Analytics and Optimization` | Mode: `dr` | Cluster: `Prescriptive Analytics and Optimization (1 of 2)`
+- [ ] Concept: `Convex Optimization` | Parent: `Prescriptive Analytics and Optimization` | Mode: `dr` | Cluster: `Prescriptive Analytics and Optimization (1 of 2)`
+- [ ] Concept: `Decision Analysis (Decision Trees, EVPI, Utility)` | Parent: `Prescriptive Analytics and Optimization` | Mode: `dr` | Cluster: `Prescriptive Analytics and Optimization (1 of 2)`
+- [ ] Concept: `Decision Intelligence` | Parent: `Prescriptive Analytics and Optimization` | Mode: `dr` | Cluster: `Prescriptive Analytics and Optimization (1 of 2)`
+- [ ] Concept: `Linear Programming` | Parent: `Prescriptive Analytics and Optimization` | Mode: `dr` | Cluster: `Prescriptive Analytics and Optimization (1 of 2)`
+- [ ] Concept: `Mixed-Integer Programming` | Parent: `Prescriptive Analytics and Optimization` | Mode: `dr` | Cluster: `Prescriptive Analytics and Optimization (2 of 2)`
+- [ ] Concept: `Multi-Objective Optimization (Pareto)` | Parent: `Prescriptive Analytics and Optimization` | Mode: `dr` | Cluster: `Prescriptive Analytics and Optimization (2 of 2)`
+- [ ] Concept: `OR Application Archetypes (Routing, Scheduling, Assignment, Inventory, Blending)` | Parent: `Prescriptive Analytics and Optimization` | Mode: `dr` | Cluster: `Prescriptive Analytics and Optimization (2 of 2)`
+- [ ] Concept: `Simulation for Decisions (DES, Monte Carlo, Queueing)` | Parent: `Prescriptive Analytics and Optimization` | Mode: `dr` | Cluster: `Prescriptive Analytics and Optimization (2 of 2)`
+- [ ] Concept: `Stochastic and Robust Optimization` | Parent: `Prescriptive Analytics and Optimization` | Mode: `dr` | Cluster: `Prescriptive Analytics and Optimization (2 of 2)`
+- [ ] Concept: `Bag-of-words, TF-IDF, n-grams` | Parent: `Text Analytics and NLP for Analysts` | Mode: `dr` | Cluster: `Text Analytics and NLP for Analysts (1 of 2)`
+- [ ] Concept: `Text classification` | Parent: `Text Analytics and NLP for Analysts` | Mode: `dr` | Cluster: `Text Analytics and NLP for Analysts (1 of 2)`
+- [ ] Concept: `Document similarity` | Parent: `Text Analytics and NLP for Analysts` | Mode: `dr` | Cluster: `Text Analytics and NLP for Analysts (1 of 2)`
+- [ ] Concept: `Embeddings and semantic clustering (word2vec, sentence-transformers)` | Parent: `Text Analytics and NLP for Analysts` | Mode: `dr` | Cluster: `Text Analytics and NLP for Analysts (1 of 2)`
+- [ ] Concept: `Evaluation of NLP outputs` | Parent: `Text Analytics and NLP for Analysts` | Mode: `dr` | Cluster: `Text Analytics and NLP for Analysts (1 of 2)`
+- [ ] Concept: `Keyword and keyphrase extraction (RAKE, YAKE, KeyBERT)` | Parent: `Text Analytics and NLP for Analysts` | Mode: `dr` | Cluster: `Text Analytics and NLP for Analysts (1 of 2)`
+- [ ] Concept: `LLM-assisted qualitative coding and structured extraction` | Parent: `Text Analytics and NLP for Analysts` | Mode: `dr` | Cluster: `Text Analytics and NLP for Analysts (2 of 2)`
+- [ ] Concept: `Named-entity recognition` | Parent: `Text Analytics and NLP for Analysts` | Mode: `dr` | Cluster: `Text Analytics and NLP for Analysts (2 of 2)`
+- [ ] Concept: `Text preprocessing, tokenization, normalization` | Parent: `Text Analytics and NLP for Analysts` | Mode: `dr` | Cluster: `Text Analytics and NLP for Analysts (2 of 2)`
+- [ ] Concept: `Sentiment analysis (lexicon VADER vs transformer)` | Parent: `Text Analytics and NLP for Analysts` | Mode: `dr` | Cluster: `Text Analytics and NLP for Analysts (2 of 2)`
+- [ ] Concept: `Topic modeling (LDA, NMF, BERTopic)` | Parent: `Text Analytics and NLP for Analysts` | Mode: `dr` | Cluster: `Text Analytics and NLP for Analysts (2 of 2)`
+- [ ] Concept: `Cost-aware data modeling (incremental models, avoid SELECT *)` | Parent: `Data FinOps and Cost Optimization` | Mode: `dr` | Cluster: `Data FinOps and Cost Optimization (1 of 2)`
+- [ ] Concept: `BigQuery on-demand vs Editions/slots cost model` | Parent: `Data FinOps and Cost Optimization` | Mode: `dr` | Cluster: `Data FinOps and Cost Optimization (1 of 2)`
+- [ ] Concept: `Databricks DBU/Photon/serverless cost model` | Parent: `Data FinOps and Cost Optimization` | Mode: `dr` | Cluster: `Data FinOps and Cost Optimization (1 of 2)`
+- [ ] Concept: `FinOps Framework for data cloud platforms (inform/optimize/operate, Scopes)` | Parent: `Data FinOps and Cost Optimization` | Mode: `dr` | Cluster: `Data FinOps and Cost Optimization (1 of 2)`
+- [ ] Concept: `Partition pruning, clustering, and materialized views for cost` | Parent: `Data FinOps and Cost Optimization` | Mode: `dr` | Cluster: `Data FinOps and Cost Optimization (1 of 2)`
+- [ ] Concept: `Query cost attribution and chargeback/showback` | Parent: `Data FinOps and Cost Optimization` | Mode: `dr` | Cluster: `Data FinOps and Cost Optimization (1 of 2)`
+- [ ] Concept: `Snowflake credit and virtual warehouse cost model` | Parent: `Data FinOps and Cost Optimization` | Mode: `dr` | Cluster: `Data FinOps and Cost Optimization (2 of 2)`
+- [ ] Concept: `Spend monitoring and cost anomaly detection` | Parent: `Data FinOps and Cost Optimization` | Mode: `dr` | Cluster: `Data FinOps and Cost Optimization (2 of 2)`
+- [ ] Concept: `Storage tiering and Time Travel/lifecycle cost` | Parent: `Data FinOps and Cost Optimization` | Mode: `dr` | Cluster: `Data FinOps and Cost Optimization (2 of 2)`
+- [ ] Concept: `FinOps tooling (dbt Cost Insights/Fusion, SELECT.dev, Bluesky, native dashboards)` | Parent: `Data FinOps and Cost Optimization` | Mode: `dr` | Cluster: `Data FinOps and Cost Optimization (2 of 2)`
+- [ ] Concept: `Data unit economics (cost per query/dashboard/pipeline/model run)` | Parent: `Data FinOps and Cost Optimization` | Mode: `dr` | Cluster: `Data FinOps and Cost Optimization (2 of 2)`
+- [ ] Concept: `Warehouse right-sizing and auto-suspend` | Parent: `Data FinOps and Cost Optimization` | Mode: `dr` | Cluster: `Data FinOps and Cost Optimization (2 of 2)`
+- [ ] Concept: `Acquisition vs behavioral cohorts` | Parent: `Cohort and Retention Analytics` | Mode: `dr` | Cluster: `Cohort and Retention Analytics (1 of 2)`
+- [ ] Concept: `Building cohort retention tables in SQL` | Parent: `Cohort and Retention Analytics` | Mode: `dr` | Cluster: `Cohort and Retention Analytics (1 of 2)`
+- [ ] Concept: `Churn rate vs retention rate asymmetry` | Parent: `Cohort and Retention Analytics` | Mode: `dr` | Cluster: `Cohort and Retention Analytics (1 of 2)`
+- [ ] Concept: `Retention curve shapes (smile/flattening/dead-on-arrival)` | Parent: `Cohort and Retention Analytics` | Mode: `dr` | Cluster: `Cohort and Retention Analytics (1 of 2)`
+- [ ] Concept: `DAU/WAU/MAU and stickiness ratio` | Parent: `Cohort and Retention Analytics` | Mode: `dr` | Cluster: `Cohort and Retention Analytics (1 of 2)`
+- [ ] Concept: `Retention and engagement relationship` | Parent: `Cohort and Retention Analytics` | Mode: `dr` | Cluster: `Cohort and Retention Analytics (1 of 2)`
+- [ ] Concept: `Growth accounting (revenue/MRR) and quick ratio` | Parent: `Cohort and Retention Analytics` | Mode: `dr` | Cluster: `Cohort and Retention Analytics (2 of 2)`
+- [ ] Concept: `Growth accounting (users)` | Parent: `Cohort and Retention Analytics` | Mode: `dr` | Cluster: `Cohort and Retention Analytics (2 of 2)`
+- [ ] Concept: `N-day vs unbounded vs bracket vs rolling retention` | Parent: `Cohort and Retention Analytics` | Mode: `dr` | Cluster: `Cohort and Retention Analytics (2 of 2)`
+- [ ] Concept: `Net and gross revenue retention (NRR/GRR)` | Parent: `Cohort and Retention Analytics` | Mode: `dr` | Cluster: `Cohort and Retention Analytics (2 of 2)`
+- [ ] Concept: `Sean Ellis test and power-user curve (L28/L30)` | Parent: `Cohort and Retention Analytics` | Mode: `dr` | Cluster: `Cohort and Retention Analytics (2 of 2)`
+- [ ] Concept: `Class imbalance: SMOTE/ADASYN vs generative` | Parent: `Synthetic Data Generation` | Mode: `dr` | Cluster: `Synthetic Data Generation (1 of 2)`
+- [ ] Concept: `Deep generative methods (GANs, VAEs, diffusion/TabDDPM)` | Parent: `Synthetic Data Generation` | Mode: `dr` | Cluster: `Synthetic Data Generation (1 of 2)`
+- [ ] Concept: `Differentially private synthesis (DP-GAN, PATE-GAN, PrivBayes, MST, SmartNoise)` | Parent: `Synthetic Data Generation` | Mode: `dr` | Cluster: `Synthetic Data Generation (1 of 2)`
+- [ ] Concept: `Fidelity vs utility vs privacy evaluation (TSTR, DCR, membership inference)` | Parent: `Synthetic Data Generation` | Mode: `dr` | Cluster: `Synthetic Data Generation (1 of 2)`
+- [ ] Concept: `Regulatory context (GDPR, ICO, NIST)` | Parent: `Synthetic Data Generation` | Mode: `dr` | Cluster: `Synthetic Data Generation (1 of 2)`
+- [ ] Concept: `Tabular synthesis methods (Gaussian copula, CTGAN, TVAE, CopulaGAN, CART/sequential)` | Parent: `Synthetic Data Generation` | Mode: `dr` | Cluster: `Synthetic Data Generation (2 of 2)`
+- [ ] Concept: `Text and image synthesis overview` | Parent: `Synthetic Data Generation` | Mode: `dr` | Cluster: `Synthetic Data Generation (2 of 2)`
+- [ ] Concept: `Tools and frameworks (SDV, SDMetrics, synthcity, synthpop)` | Parent: `Synthetic Data Generation` | Mode: `dr` | Cluster: `Synthetic Data Generation (2 of 2)`
+- [ ] Concept: `Why synthetic data (privacy, augmentation, testing, rebalancing)` | Parent: `Synthetic Data Generation` | Mode: `dr` | Cluster: `Synthetic Data Generation (2 of 2)`
+- [ ] Concept: `Conformed Dimensions and Bus Matrix` | Parent: `Dimensional and Analytics Data Modeling` | Mode: `dr` | Cluster: `Dimensional and Analytics Data Modeling (1 of 2)`
+- [ ] Concept: `dbt Modeling Layers and Materializations` | Parent: `Dimensional and Analytics Data Modeling` | Mode: `dr` | Cluster: `Dimensional and Analytics Data Modeling (1 of 2)`
+- [ ] Concept: `Fact Table Types` | Parent: `Dimensional and Analytics Data Modeling` | Mode: `dr` | Cluster: `Dimensional and Analytics Data Modeling (1 of 2)`
+- [ ] Concept: `Inmon vs Kimball vs Data Vault 2.0` | Parent: `Dimensional and Analytics Data Modeling` | Mode: `dr` | Cluster: `Dimensional and Analytics Data Modeling (1 of 2)`
+- [ ] Concept: `Kimball Dimensional Modeling` | Parent: `Dimensional and Analytics Data Modeling` | Mode: `dr` | Cluster: `Dimensional and Analytics Data Modeling (1 of 2)`
+- [ ] Concept: `Medallion Architecture (bronze/silver/gold)` | Parent: `Dimensional and Analytics Data Modeling` | Mode: `dr` | Cluster: `Dimensional and Analytics Data Modeling (1 of 2)`
+- [ ] Concept: `One Big Table vs Star Schema` | Parent: `Dimensional and Analytics Data Modeling` | Mode: `dr` | Cluster: `Dimensional and Analytics Data Modeling (2 of 2)`
+- [ ] Concept: `Semantic vs Physical Modeling` | Parent: `Dimensional and Analytics Data Modeling` | Mode: `dr` | Cluster: `Dimensional and Analytics Data Modeling (2 of 2)`
+- [ ] Concept: `Slowly Changing Dimensions (SCD 0-7)` | Parent: `Dimensional and Analytics Data Modeling` | Mode: `dr` | Cluster: `Dimensional and Analytics Data Modeling (2 of 2)`
+- [ ] Concept: `Specialized Dimensions (degenerate/role-playing/junk)` | Parent: `Dimensional and Analytics Data Modeling` | Mode: `dr` | Cluster: `Dimensional and Analytics Data Modeling (2 of 2)`
+- [ ] Concept: `Surrogate vs Natural Keys` | Parent: `Dimensional and Analytics Data Modeling` | Mode: `dr` | Cluster: `Dimensional and Analytics Data Modeling (2 of 2)`
+- [ ] Concept: `Collaborative Filtering (User-User, Item-Item, Neighborhood)` | Parent: `Recommender Systems and Learning-to-Rank Analytics` | Mode: `dr` | Cluster: `Recommender Systems and Learning-to-Rank Analytics (1 of 2)`
+- [ ] Concept: `Content-Based and Hybrid Recommenders` | Parent: `Recommender Systems and Learning-to-Rank Analytics` | Mode: `dr` | Cluster: `Recommender Systems and Learning-to-Rank Analytics (1 of 2)`
+- [ ] Concept: `Factorization Machines (FM, FFM, DeepFM)` | Parent: `Recommender Systems and Learning-to-Rank Analytics` | Mode: `dr` | Cluster: `Recommender Systems and Learning-to-Rank Analytics (1 of 2)`
+- [ ] Concept: `LLM-Augmented and Generative Recommenders (Semantic IDs)` | Parent: `Recommender Systems and Learning-to-Rank Analytics` | Mode: `dr` | Cluster: `Recommender Systems and Learning-to-Rank Analytics (1 of 2)`
+- [ ] Concept: `Matrix Factorization (SVD, funkSVD, ALS, WRMF, BPR)` | Parent: `Recommender Systems and Learning-to-Rank Analytics` | Mode: `dr` | Cluster: `Recommender Systems and Learning-to-Rank Analytics (1 of 2)`
+- [ ] Concept: `Modern Deep Recommenders (Two-Tower, Neural CF, Sequential SASRec/BERT4Rec/GRU4Rec)` | Parent: `Recommender Systems and Learning-to-Rank Analytics` | Mode: `dr` | Cluster: `Recommender Systems and Learning-to-Rank Analytics (1 of 2)`
+- [ ] Concept: `Offline Evaluation Metrics (NDCG, MAP, MRR, Recall@k, Coverage, Diversity, Serendipity)` | Parent: `Recommender Systems and Learning-to-Rank Analytics` | Mode: `dr` | Cluster: `Recommender Systems and Learning-to-Rank Analytics (2 of 2)`
+- [ ] Concept: `Online and Off-Policy Evaluation (A/B, Interleaving, IPS, Doubly-Robust)` | Parent: `Recommender Systems and Learning-to-Rank Analytics` | Mode: `dr` | Cluster: `Recommender Systems and Learning-to-Rank Analytics (2 of 2)`
+- [ ] Concept: `Learning-to-Rank (Pointwise, Pairwise RankNet, Listwise ListNet/LambdaMART)` | Parent: `Recommender Systems and Learning-to-Rank Analytics` | Mode: `dr` | Cluster: `Recommender Systems and Learning-to-Rank Analytics (2 of 2)`
+- [ ] Concept: `Problem Framing (Explicit vs Implicit Feedback, Feedback Loop, Cold-Start)` | Parent: `Recommender Systems and Learning-to-Rank Analytics` | Mode: `dr` | Cluster: `Recommender Systems and Learning-to-Rank Analytics (2 of 2)`
+- [ ] Concept: `Production Concerns (Candidate Generation, Feature/Embedding Stores, Bandits, Fairness)` | Parent: `Recommender Systems and Learning-to-Rank Analytics` | Mode: `dr` | Cluster: `Recommender Systems and Learning-to-Rank Analytics (2 of 2)`
+- [ ] Concept: `demand-curve and discrete-choice demand (logit/nested/mixed/BLP)` | Parent: `Pricing and Revenue Analytics` | Mode: `dr` | Cluster: `Pricing and Revenue Analytics (1 of 2)`
+- [ ] Concept: `price A/B testing and geo price tests (fairness/ethics/legal)` | Parent: `Pricing and Revenue Analytics` | Mode: `dr` | Cluster: `Pricing and Revenue Analytics (1 of 2)`
+- [ ] Concept: `price elasticity of demand (own/cross-price)` | Parent: `Pricing and Revenue Analytics` | Mode: `dr` | Cluster: `Pricing and Revenue Analytics (1 of 2)`
+- [ ] Concept: `price endogeneity and IV identification` | Parent: `Pricing and Revenue Analytics` | Mode: `dr` | Cluster: `Pricing and Revenue Analytics (1 of 2)`
+- [ ] Concept: `price optimization and revenue management (yield/dynamic/markdown/laddering)` | Parent: `Pricing and Revenue Analytics` | Mode: `dr` | Cluster: `Pricing and Revenue Analytics (1 of 2)`
+- [ ] Concept: `price-volume-mix bridge and margin analytics` | Parent: `Pricing and Revenue Analytics` | Mode: `dr` | Cluster: `Pricing and Revenue Analytics (2 of 2)`
+- [ ] Concept: `promotion and discount analytics (lift/cannibalization/halo/pantry-loading)` | Parent: `Pricing and Revenue Analytics` | Mode: `dr` | Cluster: `Pricing and Revenue Analytics (2 of 2)`
+- [ ] Concept: `subscription/SaaS pricing analytics (packaging/price-volume-mix/expansion)` | Parent: `Pricing and Revenue Analytics` | Mode: `dr` | Cluster: `Pricing and Revenue Analytics (2 of 2)`
+- [ ] Concept: `willingness-to-pay measurement (Van Westendorp/Gabor-Granger/conjoint/MaxDiff)` | Parent: `Pricing and Revenue Analytics` | Mode: `dr` | Cluster: `Pricing and Revenue Analytics (2 of 2)`
+- [ ] Concept: `Augmented analytics and agentic analytics (Gartner)` | Parent: `Augmented Analytics and LLM-Assisted Analysis` | Mode: `dr` | Cluster: `Augmented Analytics and LLM-Assisted Analysis`
+- [ ] Concept: `Conversational BI and NLQ` | Parent: `Augmented Analytics and LLM-Assisted Analysis` | Mode: `dr` | Cluster: `Augmented Analytics and LLM-Assisted Analysis`
+- [ ] Concept: `Text-to-SQL (schema linking, self-correction, Spider/BIRD benchmarks)` | Parent: `Augmented Analytics and LLM-Assisted Analysis` | Mode: `dr` | Cluster: `Augmented Analytics and LLM-Assisted Analysis`
+- [ ] Concept: `Analytics agents (plan-query-analyze-narrate, code interpreter)` | Parent: `Augmented Analytics and LLM-Assisted Analysis` | Mode: `dr` | Cluster: `Augmented Analytics and LLM-Assisted Analysis`
+- [ ] Concept: `Automated insight generation and NLG narratives` | Parent: `Augmented Analytics and LLM-Assisted Analysis` | Mode: `dr` | Cluster: `Augmented Analytics and LLM-Assisted Analysis`
+- [ ] Concept: `RAG over structured plus unstructured analytical context (hybrid SQL+vector)` | Parent: `Augmented Analytics and LLM-Assisted Analysis` | Mode: `dr` | Cluster: `Augmented Analytics and LLM-Assisted Analysis`
+- [ ] Concept: `Evaluation, trust and governance for LLM-produced numbers` | Parent: `Augmented Analytics and LLM-Assisted Analysis` | Mode: `dr` | Cluster: `Augmented Analytics and LLM-Assisted Analysis`
+- [ ] Concept: `Two graph data models (LPG vs RDF triple store, RDF-star)` | Parent: `Knowledge Graphs and Semantic Analytics` | Mode: `dr` | Cluster: `Knowledge Graphs and Semantic Analytics`
+- [ ] Concept: `Semantic web stack (RDF, RDFS, OWL 2, SPARQL, SHACL, named graphs)` | Parent: `Knowledge Graphs and Semantic Analytics` | Mode: `dr` | Cluster: `Knowledge Graphs and Semantic Analytics`
+- [ ] Concept: `OWL inference vs SHACL validation (open- vs closed-world)` | Parent: `Knowledge Graphs and Semantic Analytics` | Mode: `dr` | Cluster: `Knowledge Graphs and Semantic Analytics`
+- [ ] Concept: `Ontology and taxonomy engineering (SKOS, upper ontologies, ODPs, schema.org)` | Parent: `Knowledge Graphs and Semantic Analytics` | Mode: `dr` | Cluster: `Knowledge Graphs and Semantic Analytics`
+- [ ] Concept: `KG construction (entity/relation extraction, resolution, linking, R2RML/RML, OBDA, LLM-assisted)` | Parent: `Knowledge Graphs and Semantic Analytics` | Mode: `dr` | Cluster: `Knowledge Graphs and Semantic Analytics`
+- [ ] Concept: `Querying, reasoning and analytics (SPARQL vs Cypher vs ISO GQL, materialisation)` | Parent: `Knowledge Graphs and Semantic Analytics` | Mode: `dr` | Cluster: `Knowledge Graphs and Semantic Analytics`
+- [ ] Concept: `Enterprise KGs, data fabric and catalogs-as-graphs` | Parent: `Knowledge Graphs and Semantic Analytics` | Mode: `dr` | Cluster: `Knowledge Graphs and Semantic Analytics`
+- [ ] Concept: `GraphRAG and semantic retrieval for grounded entity-centric analytics` | Parent: `Knowledge Graphs and Semantic Analytics` | Mode: `dr` | Cluster: `Knowledge Graphs and Semantic Analytics`
+- [ ] Concept: `Backdoor Frontdoor Criterion` | Parent: `A/B Testing and Causal Inference` | Mode: `dr` | Cluster: `A/B Testing and Causal Inference (1 of 2)`
+- [ ] Concept: `CUPED Variance Reduction` | Parent: `A/B Testing and Causal Inference` | Mode: `dr` | Cluster: `A/B Testing and Causal Inference (1 of 2)`
+- [ ] Concept: `Difference-in-Differences Parallel Trends` | Parent: `A/B Testing and Causal Inference` | Mode: `dr` | Cluster: `A/B Testing and Causal Inference (1 of 2)`
+- [ ] Concept: `Heterogeneous Treatment Effects Causal Forests Uplift` | Parent: `A/B Testing and Causal Inference` | Mode: `dr` | Cluster: `A/B Testing and Causal Inference (1 of 2)`
+- [ ] Concept: `Instrumental Variables Exclusion Restriction LATE` | Parent: `A/B Testing and Causal Inference` | Mode: `dr` | Cluster: `A/B Testing and Causal Inference (1 of 2)`
+- [ ] Concept: `Multi-Armed Bandits Thompson UCB` | Parent: `A/B Testing and Causal Inference` | Mode: `dr` | Cluster: `A/B Testing and Causal Inference (1 of 2)`
+- [ ] Concept: `Multiple Testing Bonferroni BH FDR` | Parent: `A/B Testing and Causal Inference` | Mode: `dr` | Cluster: `A/B Testing and Causal Inference (1 of 2)`
+- [ ] Concept: `Network Effects SUTVA Switchback` | Parent: `A/B Testing and Causal Inference` | Mode: `dr` | Cluster: `A/B Testing and Causal Inference (1 of 2)`
+- [ ] Concept: `Online Experimentation Platforms` | Parent: `A/B Testing and Causal Inference` | Mode: `dr` | Cluster: `A/B Testing and Causal Inference (2 of 2)`
+- [ ] Concept: `Pearl Causal Hierarchy DAGs` | Parent: `A/B Testing and Causal Inference` | Mode: `dr` | Cluster: `A/B Testing and Causal Inference (2 of 2)`
+- [ ] Concept: `Propensity Score Matching IPTW Doubly Robust` | Parent: `A/B Testing and Causal Inference` | Mode: `dr` | Cluster: `A/B Testing and Causal Inference (2 of 2)`
+- [ ] Concept: `Regression Discontinuity Sharp Fuzzy` | Parent: `A/B Testing and Causal Inference` | Mode: `dr` | Cluster: `A/B Testing and Causal Inference (2 of 2)`
+- [ ] Concept: `Sample Size and Power Analysis MDE` | Parent: `A/B Testing and Causal Inference` | Mode: `dr` | Cluster: `A/B Testing and Causal Inference (2 of 2)`
+- [ ] Concept: `Sequential Testing mSPRT O'Brien-Fleming` | Parent: `A/B Testing and Causal Inference` | Mode: `dr` | Cluster: `A/B Testing and Causal Inference (2 of 2)`
+- [ ] Concept: `Synthetic Control` | Parent: `A/B Testing and Causal Inference` | Mode: `dr` | Cluster: `A/B Testing and Causal Inference (2 of 2)`
+- [ ] Concept: `APIs and Pagination` | Parent: `Data Acquisition and Sampling` | Mode: `dr` | Cluster: `Data Acquisition and Sampling (1 of 2)`
+- [ ] Concept: `Data Contracts` | Parent: `Data Acquisition and Sampling` | Mode: `dr` | Cluster: `Data Acquisition and Sampling (1 of 2)`
+- [ ] Concept: `Database Extraction and CDC` | Parent: `Data Acquisition and Sampling` | Mode: `dr` | Cluster: `Data Acquisition and Sampling (1 of 2)`
+- [ ] Concept: `File Formats` | Parent: `Data Acquisition and Sampling` | Mode: `dr` | Cluster: `Data Acquisition and Sampling (1 of 2)`
+- [ ] Concept: `Sampling Methodology` | Parent: `Data Acquisition and Sampling` | Mode: `dr` | Cluster: `Data Acquisition and Sampling (1 of 2)`
+- [ ] Concept: `Sample Size Determination` | Parent: `Data Acquisition and Sampling` | Mode: `dr` | Cluster: `Data Acquisition and Sampling (2 of 2)`
+- [ ] Concept: `Data Sources Taxonomy` | Parent: `Data Acquisition and Sampling` | Mode: `dr` | Cluster: `Data Acquisition and Sampling (2 of 2)`
+- [ ] Concept: `Streaming Ingest` | Parent: `Data Acquisition and Sampling` | Mode: `dr` | Cluster: `Data Acquisition and Sampling (2 of 2)`
+- [ ] Concept: `Surveys and Primary Collection` | Parent: `Data Acquisition and Sampling` | Mode: `dr` | Cluster: `Data Acquisition and Sampling (2 of 2)`
+- [ ] Concept: `Web Scraping` | Parent: `Data Acquisition and Sampling` | Mode: `dr` | Cluster: `Data Acquisition and Sampling (2 of 2)`
+- [ ] Concept: `dbt Analytics Engineering` | Parent: `Data Analysis Tools and Languages` | Mode: `dr` | Cluster: `Data Analysis Tools and Languages (1 of 2)`
+- [ ] Concept: `Jupyter JupyterLab VS Code` | Parent: `Data Analysis Tools and Languages` | Mode: `dr` | Cluster: `Data Analysis Tools and Languages (1 of 2)`
+- [ ] Concept: `Marimo Reactive Notebooks` | Parent: `Data Analysis Tools and Languages` | Mode: `dr` | Cluster: `Data Analysis Tools and Languages (1 of 2)`
+- [ ] Concept: `Notebook Anti-patterns` | Parent: `Data Analysis Tools and Languages` | Mode: `dr` | Cluster: `Data Analysis Tools and Languages (1 of 2)`
+- [ ] Concept: `NumPy SciPy scikit-learn` | Parent: `Data Analysis Tools and Languages` | Mode: `dr` | Cluster: `Data Analysis Tools and Languages (1 of 2)`
+- [ ] Concept: `Performance Benchmarks pandas vs Polars vs DuckDB` | Parent: `Data Analysis Tools and Languages` | Mode: `dr` | Cluster: `Data Analysis Tools and Languages (1 of 2)`
+- [ ] Concept: `Python pandas Polars DuckDB` | Parent: `Data Analysis Tools and Languages` | Mode: `dr` | Cluster: `Data Analysis Tools and Languages (2 of 2)`
+- [ ] Concept: `Quarto Polyglot Reports` | Parent: `Data Analysis Tools and Languages` | Mode: `dr` | Cluster: `Data Analysis Tools and Languages (2 of 2)`
+- [ ] Concept: `R tidyverse data.table arrow` | Parent: `Data Analysis Tools and Languages` | Mode: `dr` | Cluster: `Data Analysis Tools and Languages (2 of 2)`
+- [ ] Concept: `Reproducible Analysis Stack` | Parent: `Data Analysis Tools and Languages` | Mode: `dr` | Cluster: `Data Analysis Tools and Languages (2 of 2)`
+- [ ] Concept: `Spark PySpark Databricks Photon` | Parent: `Data Analysis Tools and Languages` | Mode: `dr` | Cluster: `Data Analysis Tools and Languages (2 of 2)`
+- [ ] Concept: `SQL Modern Dialects Window Functions CTEs` | Parent: `Data Analysis Tools and Languages` | Mode: `dr` | Cluster: `Data Analysis Tools and Languages (2 of 2)`
+- [ ] Concept: `Categorical Encoding` | Parent: `Data Cleaning and Preparation` | Mode: `dr` | Cluster: `Data Cleaning and Preparation (1 of 2)`
+- [ ] Concept: `Deduplication and Record Linkage` | Parent: `Data Cleaning and Preparation` | Mode: `dr` | Cluster: `Data Cleaning and Preparation (1 of 2)`
+- [ ] Concept: `Feature Engineering Basics` | Parent: `Data Cleaning and Preparation` | Mode: `dr` | Cluster: `Data Cleaning and Preparation (1 of 2)`
+- [ ] Concept: `Imbalanced Datasets` | Parent: `Data Cleaning and Preparation` | Mode: `dr` | Cluster: `Data Cleaning and Preparation (1 of 2)`
+- [ ] Concept: `Imputation Methods` | Parent: `Data Cleaning and Preparation` | Mode: `dr` | Cluster: `Data Cleaning and Preparation (1 of 2)`
+- [ ] Concept: `Missing Data MCAR MAR MNAR` | Parent: `Data Cleaning and Preparation` | Mode: `dr` | Cluster: `Data Cleaning and Preparation (1 of 2)`
+- [ ] Concept: `Normalization and Scaling` | Parent: `Data Cleaning and Preparation` | Mode: `dr` | Cluster: `Data Cleaning and Preparation (2 of 2)`
+- [ ] Concept: `Outlier Detection` | Parent: `Data Cleaning and Preparation` | Mode: `dr` | Cluster: `Data Cleaning and Preparation (2 of 2)`
+- [ ] Concept: `Schema Validation` | Parent: `Data Cleaning and Preparation` | Mode: `dr` | Cluster: `Data Cleaning and Preparation (2 of 2)`
+- [ ] Concept: `Text Cleaning` | Parent: `Data Cleaning and Preparation` | Mode: `dr` | Cluster: `Data Cleaning and Preparation (2 of 2)`
+- [ ] Concept: `Type Coercion` | Parent: `Data Cleaning and Preparation` | Mode: `dr` | Cluster: `Data Cleaning and Preparation (2 of 2)`
+- [ ] Concept: `AI Alignment for Analysis Pipelines` | Parent: `Data Ethics and Privacy` | Mode: `dr` | Cluster: `Data Ethics and Privacy (1 of 2)`
+- [ ] Concept: `Bias Types Selection Measurement Label Sampling` | Parent: `Data Ethics and Privacy` | Mode: `dr` | Cluster: `Data Ethics and Privacy (1 of 2)`
+- [ ] Concept: `CCPA CPRA Sensitive Personal Information` | Parent: `Data Ethics and Privacy` | Mode: `dr` | Cluster: `Data Ethics and Privacy (1 of 2)`
+- [ ] Concept: `Differential Privacy Epsilon Delta` | Parent: `Data Ethics and Privacy` | Mode: `dr` | Cluster: `Data Ethics and Privacy (1 of 2)`
+- [ ] Concept: `EU AI Act Risk Tiers 2024-2026` | Parent: `Data Ethics and Privacy` | Mode: `dr` | Cluster: `Data Ethics and Privacy (1 of 2)`
+- [ ] Concept: `Fairlearn AIF360 What-If Tool` | Parent: `Data Ethics and Privacy` | Mode: `dr` | Cluster: `Data Ethics and Privacy (1 of 2)`
+- [ ] Concept: `Fairness Impossibility Theorems` | Parent: `Data Ethics and Privacy` | Mode: `dr` | Cluster: `Data Ethics and Privacy (1 of 2)`
+- [ ] Concept: `Fairness Metrics Demographic Parity Equalized Odds Calibration` | Parent: `Data Ethics and Privacy` | Mode: `dr` | Cluster: `Data Ethics and Privacy (2 of 2)`
+- [ ] Concept: `GDPR Purpose Limitation Right to Erasure` | Parent: `Data Ethics and Privacy` | Mode: `dr` | Cluster: `Data Ethics and Privacy (2 of 2)`
+- [ ] Concept: `HIPAA PHI Safe Harbor` | Parent: `Data Ethics and Privacy` | Mode: `dr` | Cluster: `Data Ethics and Privacy (2 of 2)`
+- [ ] Concept: `IRB Common Rule Belmont` | Parent: `Data Ethics and Privacy` | Mode: `dr` | Cluster: `Data Ethics and Privacy (2 of 2)`
+- [ ] Concept: `k-anonymity l-diversity t-closeness` | Parent: `Data Ethics and Privacy` | Mode: `dr` | Cluster: `Data Ethics and Privacy (2 of 2)`
+- [ ] Concept: `Model Cards Datasheets Data Statements` | Parent: `Data Ethics and Privacy` | Mode: `dr` | Cluster: `Data Ethics and Privacy (2 of 2)`
+- [ ] Concept: `Build-vs-Buy on TCO` | Parent: `Customer-Facing and Embedded Analytics Dashboards` | Mode: `dr` | Cluster: `Customer-Facing and Embedded Analytics Dashboards (1 of 2)`
+- [ ] Concept: `Decision-First Curation and Value Framing` | Parent: `Customer-Facing and Embedded Analytics Dashboards` | Mode: `dr` | Cluster: `Customer-Facing and Embedded Analytics Dashboards (1 of 2)`
+- [ ] Concept: `Freshness vs Latency and Last-Updated Indicators` | Parent: `Customer-Facing and Embedded Analytics Dashboards` | Mode: `dr` | Cluster: `Customer-Facing and Embedded Analytics Dashboards (1 of 2)`
+- [ ] Concept: `Metric Consistency via Governed Semantic Layer` | Parent: `Customer-Facing and Embedded Analytics Dashboards` | Mode: `dr` | Cluster: `Customer-Facing and Embedded Analytics Dashboards (1 of 2)`
+- [ ] Concept: `Multi-Tenant Isolation (signed JWT/guest tokens + server-side RLS)` | Parent: `Customer-Facing and Embedded Analytics Dashboards` | Mode: `dr` | Cluster: `Customer-Facing and Embedded Analytics Dashboards (1 of 2)`
+- [ ] Concept: `Embedded-Analytics Platform Landscape 2026` | Parent: `Customer-Facing and Embedded Analytics Dashboards` | Mode: `dr` | Cluster: `Customer-Facing and Embedded Analytics Dashboards (2 of 2)`
+- [ ] Concept: `Sub-Second-at-Concurrency Performance` | Parent: `Customer-Facing and Embedded Analytics Dashboards` | Mode: `dr` | Cluster: `Customer-Facing and Embedded Analytics Dashboards (2 of 2)`
+- [ ] Concept: `Customer-Facing UX Patterns and WCAG-AA Chart Accessibility` | Parent: `Customer-Facing and Embedded Analytics Dashboards` | Mode: `dr` | Cluster: `Customer-Facing and Embedded Analytics Dashboards (2 of 2)`
+- [ ] Concept: `Customer Value / Health Dashboard Angle` | Parent: `Customer-Facing and Embedded Analytics Dashboards` | Mode: `dr` | Cluster: `Customer-Facing and Embedded Analytics Dashboards (2 of 2)`
+- [ ] Concept: `Embedded / White-Label / Headless / GenBI Taxonomy` | Parent: `Customer-Facing and Embedded Analytics Dashboards` | Mode: `dr` | Cluster: `Customer-Facing and Embedded Analytics Dashboards (2 of 2)`
+- [ ] Concept: `Visualization anti-patterns` | Parent: `Data Visualization` | Mode: `dr` | Cluster: `Data Visualization (1 of 2)`
+- [ ] Concept: `Chart selection by intent` | Parent: `Data Visualization` | Mode: `dr` | Cluster: `Data Visualization (1 of 2)`
+- [ ] Concept: `Color theory and palettes` | Parent: `Data Visualization` | Mode: `dr` | Cluster: `Data Visualization (1 of 2)`
+- [ ] Concept: `Dashboard design rules` | Parent: `Data Visualization` | Mode: `dr` | Cluster: `Data Visualization (1 of 2)`
+- [ ] Concept: `Gestalt principles for charts` | Parent: `Data Visualization` | Mode: `dr` | Cluster: `Data Visualization (1 of 2)`
+- [ ] Concept: `Grammar of graphics (Wilkinson, Wickham layered)` | Parent: `Data Visualization` | Mode: `dr` | Cluster: `Data Visualization (1 of 2)`
+- [ ] Concept: `Knaflic / Few storytelling and dashboard design` | Parent: `Data Visualization` | Mode: `dr` | Cluster: `Data Visualization (2 of 2)`
+- [ ] Concept: `Perceptual foundation (Cleveland & McGill)` | Parent: `Data Visualization` | Mode: `dr` | Cluster: `Data Visualization (2 of 2)`
+- [ ] Concept: `Visualization tooling map` | Parent: `Data Visualization` | Mode: `dr` | Cluster: `Data Visualization (2 of 2)`
+- [ ] Concept: `Tufte's principles` | Parent: `Data Visualization` | Mode: `dr` | Cluster: `Data Visualization (2 of 2)`
+- [ ] Concept: `WCAG accessibility for charts` | Parent: `Data Visualization` | Mode: `dr` | Cluster: `Data Visualization (2 of 2)`
+- [ ] Concept: `Visualization workflow` | Parent: `Data Visualization` | Mode: `dr` | Cluster: `Data Visualization (2 of 2)`
+- [ ] Concept: `Automated EDA Tools` | Parent: `Exploratory Data Analysis` | Mode: `dr` | Cluster: `Exploratory Data Analysis (1 of 2)`
+- [ ] Concept: `Bivariate Analysis` | Parent: `Exploratory Data Analysis` | Mode: `dr` | Cluster: `Exploratory Data Analysis (1 of 2)`
+- [ ] Concept: `Distribution Checking QQ Plots` | Parent: `Exploratory Data Analysis` | Mode: `dr` | Cluster: `Exploratory Data Analysis (1 of 2)`
+- [ ] Concept: `HARKing Garden of Forking Paths` | Parent: `Exploratory Data Analysis` | Mode: `dr` | Cluster: `Exploratory Data Analysis (1 of 2)`
+- [ ] Concept: `Multivariate Analysis` | Parent: `Exploratory Data Analysis` | Mode: `dr` | Cluster: `Exploratory Data Analysis (1 of 2)`
+- [ ] Concept: `Pre-Registration` | Parent: `Exploratory Data Analysis` | Mode: `dr` | Cluster: `Exploratory Data Analysis (2 of 2)`
+- [ ] Concept: `Time-Series EDA` | Parent: `Exploratory Data Analysis` | Mode: `dr` | Cluster: `Exploratory Data Analysis (2 of 2)`
+- [ ] Concept: `Tukey EDA Philosophy` | Parent: `Exploratory Data Analysis` | Mode: `dr` | Cluster: `Exploratory Data Analysis (2 of 2)`
+- [ ] Concept: `Univariate Analysis` | Parent: `Exploratory Data Analysis` | Mode: `dr` | Cluster: `Exploratory Data Analysis (2 of 2)`
+- [ ] Concept: `Actor-Critic Methods (A2C/GAE/TRPO/PPO)` | Parent: `Deep Reinforcement Learning Foundations` | Mode: `dr` | Cluster: `Deep Reinforcement Learning Foundations (1 of 2)`
+- [ ] Concept: `Continuous Control (DDPG/TD3/SAC)` | Parent: `Deep Reinforcement Learning Foundations` | Mode: `dr` | Cluster: `Deep Reinforcement Learning Foundations (1 of 2)`
+- [ ] Concept: `Dynamic Programming` | Parent: `Deep Reinforcement Learning Foundations` | Mode: `dr` | Cluster: `Deep Reinforcement Learning Foundations (1 of 2)`
+- [ ] Concept: `Exploration Strategies (RND/curiosity)` | Parent: `Deep Reinforcement Learning Foundations` | Mode: `dr` | Cluster: `Deep Reinforcement Learning Foundations (1 of 2)`
+- [ ] Concept: `Markov Decision Processes` | Parent: `Deep Reinforcement Learning Foundations` | Mode: `dr` | Cluster: `Deep Reinforcement Learning Foundations (1 of 2)`
+- [ ] Concept: `Maximum-Entropy RL` | Parent: `Deep Reinforcement Learning Foundations` | Mode: `dr` | Cluster: `Deep Reinforcement Learning Foundations (1 of 2)`
+- [ ] Concept: `Model-Based RL (MuZero/Dreamer)` | Parent: `Deep Reinforcement Learning Foundations` | Mode: `dr` | Cluster: `Deep Reinforcement Learning Foundations (1 of 2)`
+- [ ] Concept: `Model-Free Prediction and Control` | Parent: `Deep Reinforcement Learning Foundations` | Mode: `dr` | Cluster: `Deep Reinforcement Learning Foundations (2 of 2)`
+- [ ] Concept: `Multi-Agent RL` | Parent: `Deep Reinforcement Learning Foundations` | Mode: `dr` | Cluster: `Deep Reinforcement Learning Foundations (2 of 2)`
+- [ ] Concept: `Offline RL (CQL/IQL/Decision Transformer)` | Parent: `Deep Reinforcement Learning Foundations` | Mode: `dr` | Cluster: `Deep Reinforcement Learning Foundations (2 of 2)`
+- [ ] Concept: `Policy Gradient Methods` | Parent: `Deep Reinforcement Learning Foundations` | Mode: `dr` | Cluster: `Deep Reinforcement Learning Foundations (2 of 2)`
+- [ ] Concept: `Reward Shaping & Reward Hacking` | Parent: `Deep Reinforcement Learning Foundations` | Mode: `dr` | Cluster: `Deep Reinforcement Learning Foundations (2 of 2)`
+- [ ] Concept: `Temporal-Difference Learning` | Parent: `Deep Reinforcement Learning Foundations` | Mode: `dr` | Cluster: `Deep Reinforcement Learning Foundations (2 of 2)`
+- [ ] Concept: `Value-Based Deep RL (DQN/Rainbow)` | Parent: `Deep Reinforcement Learning Foundations` | Mode: `dr` | Cluster: `Deep Reinforcement Learning Foundations (2 of 2)`
+- [ ] Concept: `Benchmarks (JOB/IMDB, STATS-CEB, JOB-Complex)` | Parent: `Learned / ML-based Query Optimization` | Mode: `dr` | Cluster: `Learned / ML-based Query Optimization (1 of 2)`
+- [ ] Concept: `Learned cost models (QPPNet, tree-LSTM, tree-CNN, zero-shot)` | Parent: `Learned / ML-based Query Optimization` | Mode: `dr` | Cluster: `Learned / ML-based Query Optimization (1 of 2)`
+- [ ] Concept: `Data-driven learned cardinality estimation (DeepDB, Naru, NeuroCard)` | Parent: `Learned / ML-based Query Optimization` | Mode: `dr` | Cluster: `Learned / ML-based Query Optimization (1 of 2)`
+- [ ] Concept: `Query-driven learned cardinality estimation (MSCN)` | Parent: `Learned / ML-based Query Optimization` | Mode: `dr` | Cluster: `Learned / ML-based Query Optimization (1 of 2)`
+- [ ] Concept: `Learned indexes (RMI) adjacent` | Parent: `Learned / ML-based Query Optimization` | Mode: `dr` | Cluster: `Learned / ML-based Query Optimization (1 of 2)`
+- [ ] Concept: `Instance-optimized / self-driving databases (Peloton/NoisePage)` | Parent: `Learned / ML-based Query Optimization` | Mode: `dr` | Cluster: `Learned / ML-based Query Optimization (1 of 2)`
+- [ ] Concept: `Neo end-to-end learned optimizer` | Parent: `Learned / ML-based Query Optimization` | Mode: `dr` | Cluster: `Learned / ML-based Query Optimization (1 of 2)`
+- [ ] Concept: `OtterTune knob tuning and shutdown` | Parent: `Learned / ML-based Query Optimization` | Mode: `dr` | Cluster: `Learned / ML-based Query Optimization (1 of 2)`
+- [ ] Concept: `Pessimistic/bound-based estimation (AGM/PANDA/SafeBound/LpBound)` | Parent: `Learned / ML-based Query Optimization` | Mode: `dr` | Cluster: `Learned / ML-based Query Optimization (2 of 2)`
+- [ ] Concept: `Production status as of 2026 (QO-Advisor shutdown, ByteCard)` | Parent: `Learned / ML-based Query Optimization` | Mode: `dr` | Cluster: `Learned / ML-based Query Optimization (2 of 2)`
+- [ ] Concept: `q-error vs P-Error / plan regret` | Parent: `Learned / ML-based Query Optimization` | Mode: `dr` | Cluster: `Learned / ML-based Query Optimization (2 of 2)`
+- [ ] Concept: `Replacement-vs-steering spectrum (Bao, Lero, AutoSteer)` | Parent: `Learned / ML-based Query Optimization` | Mode: `dr` | Cluster: `Learned / ML-based Query Optimization (2 of 2)`
+- [ ] Concept: `RL join ordering (ReJOIN, DQ, Balsa)` | Parent: `Learned / ML-based Query Optimization` | Mode: `dr` | Cluster: `Learned / ML-based Query Optimization (2 of 2)`
+- [ ] Concept: `When learned optimization fails` | Parent: `Learned / ML-based Query Optimization` | Mode: `dr` | Cluster: `Learned / ML-based Query Optimization (2 of 2)`
+- [ ] Concept: `Why cardinality estimation is the optimizer's hardest sub-problem` | Parent: `Learned / ML-based Query Optimization` | Mode: `dr` | Cluster: `Learned / ML-based Query Optimization (2 of 2)`
+- [ ] Concept: `Alerting, Retraining Triggers, and the Monitoring->Retraining Loop` | Parent: `ML Model Monitoring` | Mode: `dr` | Cluster: `ML Model Monitoring (1 of 2)`
+- [ ] Concept: `Model Monitoring vs Data Observability vs LLM Observability` | Parent: `ML Model Monitoring` | Mode: `dr` | Cluster: `ML Model Monitoring (1 of 2)`
+- [ ] Concept: `Drift Detection Tests (PSI, KL/JS divergence, KS, Chi-square, Wasserstein/EMD, L-infinity, MMD, C2ST)` | Parent: `ML Model Monitoring` | Mode: `dr` | Cluster: `ML Model Monitoring (1 of 2)`
+- [ ] Concept: `Drift Taxonomy (data/covariate, concept, prediction/output, label/prior, feature drift)` | Parent: `ML Model Monitoring` | Mode: `dr` | Cluster: `ML Model Monitoring (1 of 2)`
+- [ ] Concept: `Input Outlier/Adversarial Detection (Alibi Detect)` | Parent: `ML Model Monitoring` | Mode: `dr` | Cluster: `ML Model Monitoring (1 of 2)`
+- [ ] Concept: `Performance Monitoring with Delayed/Absent Ground Truth (proxy metrics, two-loop monitoring, label lag)` | Parent: `ML Model Monitoring` | Mode: `dr` | Cluster: `ML Model Monitoring (1 of 2)`
+- [ ] Concept: `Performance Estimation Without Labels (NannyML CBPE, DLE, M-CBPE)` | Parent: `ML Model Monitoring` | Mode: `dr` | Cluster: `ML Model Monitoring (2 of 2)`
+- [ ] Concept: `Sequential/Streaming Concept-Drift Detectors (DDM, EDDM, ADWIN, Page-Hinkley, CUSUM)` | Parent: `ML Model Monitoring` | Mode: `dr` | Cluster: `ML Model Monitoring (2 of 2)`
+- [ ] Concept: `Slice/Segment-Based Performance Monitoring and Fairness Drift` | Parent: `ML Model Monitoring` | Mode: `dr` | Cluster: `ML Model Monitoring (2 of 2)`
+- [ ] Concept: `Model-Monitoring Tooling (Evidently, Arize, Fiddler, WhyLabs/whylogs, NannyML, Seldon/Alibi Detect, SageMaker Model Monitor, Vertex AI Model Monitoring, MLflow)` | Parent: `ML Model Monitoring` | Mode: `dr` | Cluster: `ML Model Monitoring (2 of 2)`
+- [ ] Concept: `Training-Serving Skew Detection` | Parent: `ML Model Monitoring` | Mode: `dr` | Cluster: `ML Model Monitoring (2 of 2)`
+- [ ] Concept: `Bayesian Optimization` | Parent: `Machine Learning` | Mode: `dr` | Cluster: `Machine Learning (1 of 5)`
+- [ ] Concept: `Bias-Variance Tradeoff` | Parent: `Machine Learning` | Mode: `dr` | Cluster: `Machine Learning (1 of 5)`
+- [ ] Concept: `Chatbot Arena` | Parent: `Machine Learning` | Mode: `dr` | Cluster: `Machine Learning (1 of 5)`
+- [ ] Concept: `CNNs` | Parent: `Machine Learning` | Mode: `dr` | Cluster: `Machine Learning (1 of 5)`
+- [ ] Concept: `Deep Learning` | Parent: `Machine Learning` | Mode: `dr` | Cluster: `Machine Learning (1 of 5)`
+- [ ] Concept: `Deployment Patterns` | Parent: `Machine Learning` | Mode: `dr` | Cluster: `Machine Learning (1 of 5)`
+- [ ] Concept: `Drift Detection` | Parent: `Machine Learning` | Mode: `dr` | Cluster: `Machine Learning (1 of 5)`
+- [ ] Concept: `Feature Stores` | Parent: `Machine Learning` | Mode: `dr` | Cluster: `Machine Learning (2 of 5)`
+- [ ] Concept: `Foundation Models` | Parent: `Machine Learning` | Mode: `dr` | Cluster: `Machine Learning (2 of 5)`
+- [ ] Concept: `HELM` | Parent: `Machine Learning` | Mode: `dr` | Cluster: `Machine Learning (2 of 5)`
+- [ ] Concept: `Hyperparameter Tuning` | Parent: `Machine Learning` | Mode: `dr` | Cluster: `Machine Learning (2 of 5)`
+- [ ] Concept: `LLM-as-Judge` | Parent: `Machine Learning` | Mode: `dr` | Cluster: `Machine Learning (2 of 5)`
+- [ ] Concept: `LLM Evaluation` | Parent: `Machine Learning` | Mode: `dr` | Cluster: `Machine Learning (2 of 5)`
+- [ ] Concept: `LLM Landscape 2026` | Parent: `Machine Learning` | Mode: `dr` | Cluster: `Machine Learning (2 of 5)`
+- [ ] Concept: `ML Taxonomy` | Parent: `Machine Learning` | Mode: `dr` | Cluster: `Machine Learning (3 of 5)`
+- [ ] Concept: `MLflow` | Parent: `Machine Learning` | Mode: `dr` | Cluster: `Machine Learning (3 of 5)`
+- [ ] Concept: `MLOps` | Parent: `Machine Learning` | Mode: `dr` | Cluster: `Machine Learning (3 of 5)`
+- [ ] Concept: `MMLU` | Parent: `Machine Learning` | Mode: `dr` | Cluster: `Machine Learning (3 of 5)`
+- [ ] Concept: `Model Evaluation` | Parent: `Machine Learning` | Mode: `dr` | Cluster: `Machine Learning (3 of 5)`
+- [ ] Concept: `MT-Bench` | Parent: `Machine Learning` | Mode: `dr` | Cluster: `Machine Learning (3 of 5)`
+- [ ] Concept: `Optuna` | Parent: `Machine Learning` | Mode: `dr` | Cluster: `Machine Learning (3 of 5)`
+- [ ] Concept: `Precision Recall F1` | Parent: `Machine Learning` | Mode: `dr` | Cluster: `Machine Learning (4 of 5)`
+- [ ] Concept: `Ray Tune` | Parent: `Machine Learning` | Mode: `dr` | Cluster: `Machine Learning (4 of 5)`
+- [ ] Concept: `Regression Metrics` | Parent: `Machine Learning` | Mode: `dr` | Cluster: `Machine Learning (4 of 5)`
+- [ ] Concept: `Regularization` | Parent: `Machine Learning` | Mode: `dr` | Cluster: `Machine Learning (4 of 5)`
+- [ ] Concept: `Reproducibility` | Parent: `Machine Learning` | Mode: `dr` | Cluster: `Machine Learning (4 of 5)`
+- [ ] Concept: `Retraining Triggers` | Parent: `Machine Learning` | Mode: `dr` | Cluster: `Machine Learning (4 of 5)`
+- [ ] Concept: `RNNs` | Parent: `Machine Learning` | Mode: `dr` | Cluster: `Machine Learning (4 of 5)`
+- [ ] Concept: `ROC AUC` | Parent: `Machine Learning` | Mode: `dr` | Cluster: `Machine Learning (5 of 5)`
+- [ ] Concept: `SWE-bench` | Parent: `Machine Learning` | Mode: `dr` | Cluster: `Machine Learning (5 of 5)`
+- [ ] Concept: `Train-Serve Skew` | Parent: `Machine Learning` | Mode: `dr` | Cluster: `Machine Learning (5 of 5)`
+- [ ] Concept: `Transformers` | Parent: `Machine Learning` | Mode: `dr` | Cluster: `Machine Learning (5 of 5)`
+- [ ] Concept: `Weights and Biases` | Parent: `Machine Learning` | Mode: `dr` | Cluster: `Machine Learning (5 of 5)`
+- [ ] Concept: `Action titles` | Parent: `Reporting and Communication` | Mode: `dr` | Cluster: `Reporting and Communication (1 of 2)`
+- [ ] Concept: `Anti-patterns of analytical writing` | Parent: `Reporting and Communication` | Mode: `dr` | Cluster: `Reporting and Communication (1 of 2)`
+- [ ] Concept: `Audience adaptation (executive / technical / operational)` | Parent: `Reporting and Communication` | Mode: `dr` | Cluster: `Reporting and Communication (1 of 2)`
+- [ ] Concept: `BLUF (Bottom Line Up Front)` | Parent: `Reporting and Communication` | Mode: `dr` | Cluster: `Reporting and Communication (1 of 2)`
+- [ ] Concept: `Dashboards and live reports` | Parent: `Reporting and Communication` | Mode: `dr` | Cluster: `Reporting and Communication (1 of 2)`
+- [ ] Concept: `Data storytelling (Knaflic)` | Parent: `Reporting and Communication` | Mode: `dr` | Cluster: `Reporting and Communication (1 of 2)`
+- [ ] Concept: `Executive summary one-pager` | Parent: `Reporting and Communication` | Mode: `dr` | Cluster: `Reporting and Communication (1 of 2)`
+- [ ] Concept: `Honest framing of uncertainty` | Parent: `Reporting and Communication` | Mode: `dr` | Cluster: `Reporting and Communication (1 of 2)`
+- [ ] Concept: `Minto Pyramid Principle` | Parent: `Reporting and Communication` | Mode: `dr` | Cluster: `Reporting and Communication (2 of 2)`
+- [ ] Concept: `Notebook-as-report (Jupyter / Quarto / Observable / R Markdown)` | Parent: `Reporting and Communication` | Mode: `dr` | Cluster: `Reporting and Communication (2 of 2)`
+- [ ] Concept: `Recommendation framing with confidence levels` | Parent: `Reporting and Communication` | Mode: `dr` | Cluster: `Reporting and Communication (2 of 2)`
+- [ ] Concept: `Reproducibility appendix` | Parent: `Reporting and Communication` | Mode: `dr` | Cluster: `Reporting and Communication (2 of 2)`
+- [ ] Concept: `SCQA framework` | Parent: `Reporting and Communication` | Mode: `dr` | Cluster: `Reporting and Communication (2 of 2)`
+- [ ] Concept: `Technical report structure (IMRaD)` | Parent: `Reporting and Communication` | Mode: `dr` | Cluster: `Reporting and Communication (2 of 2)`
+- [ ] Concept: `Uncertainty taxonomy` | Parent: `Reporting and Communication` | Mode: `dr` | Cluster: `Reporting and Communication (2 of 2)`
+- [ ] Concept: `Bayesian Modeling Stan PyMC` | Parent: `Statistical Modeling` | Mode: `dr` | Cluster: `Statistical Modeling (1 of 2)`
+- [ ] Concept: `Classification LDA QDA Naive Bayes` | Parent: `Statistical Modeling` | Mode: `dr` | Cluster: `Statistical Modeling (1 of 2)`
+- [ ] Concept: `Clustering k-means DBSCAN GMM` | Parent: `Statistical Modeling` | Mode: `dr` | Cluster: `Statistical Modeling (1 of 2)`
+- [ ] Concept: `GLMs` | Parent: `Statistical Modeling` | Mode: `dr` | Cluster: `Statistical Modeling (1 of 2)`
+- [ ] Concept: `Linear Regression` | Parent: `Statistical Modeling` | Mode: `dr` | Cluster: `Statistical Modeling (1 of 2)`
+- [ ] Concept: `Logistic Regression` | Parent: `Statistical Modeling` | Mode: `dr` | Cluster: `Statistical Modeling (1 of 2)`
+- [ ] Concept: `Mixed-Effects Models` | Parent: `Statistical Modeling` | Mode: `dr` | Cluster: `Statistical Modeling (2 of 2)`
+- [ ] Concept: `Model Interpretation SHAP` | Parent: `Statistical Modeling` | Mode: `dr` | Cluster: `Statistical Modeling (2 of 2)`
+- [ ] Concept: `Model Selection AIC BIC CV` | Parent: `Statistical Modeling` | Mode: `dr` | Cluster: `Statistical Modeling (2 of 2)`
+- [ ] Concept: `Regularization Ridge Lasso ElasticNet` | Parent: `Statistical Modeling` | Mode: `dr` | Cluster: `Statistical Modeling (2 of 2)`
+- [ ] Concept: `Time Series ARIMA Prophet` | Parent: `Statistical Modeling` | Mode: `dr` | Cluster: `Statistical Modeling (2 of 2)`
+- [ ] Concept: `Prompt Optimization Algorithms` | Parent: `Prompt Helper and Optimizer` | Mode: `dr` | Cluster: `Prompt Helper and Optimizer`
+- [ ] Concept: `APE and OPRO Methods` | Parent: `Prompt Helper and Optimizer` | Mode: `dr` | Cluster: `Prompt Helper and Optimizer`
+- [ ] Concept: `DSPy and MIPROv2` | Parent: `Prompt Helper and Optimizer` | Mode: `dr` | Cluster: `Prompt Helper and Optimizer`
+- [ ] Concept: `Agent-Ready Prompt Writing` | Parent: `Prompt Helper and Optimizer` | Mode: `dr` | Cluster: `Prompt Helper and Optimizer`
+- [ ] Concept: `Prompt Template Discovery` | Parent: `Prompt Lookup` | Mode: `dr` | Cluster: `Prompt Lookup`
+- [ ] Concept: `Prompt Search and Retrieval` | Parent: `Prompt Lookup` | Mode: `dr` | Cluster: `Prompt Lookup`
+- [ ] Concept: `Prompt Improvement` | Parent: `Prompt Lookup` | Mode: `dr` | Cluster: `Prompt Lookup`
+- [ ] Concept: `Plugin Anatomy and Structure` | Parent: `Claude Code Plugins` | Mode: `dr` | Cluster: `Claude Code Plugins`
+- [ ] Concept: `Hook System (29 Events)` | Parent: `Claude Code Plugins` | Mode: `dr` | Cluster: `Claude Code Plugins`
+- [ ] Concept: `Plugin Commands and Skills` | Parent: `Claude Code Plugins` | Mode: `dr` | Cluster: `Claude Code Plugins`
+- [ ] Concept: `Agent Definitions` | Parent: `Claude Code Plugins` | Mode: `dr` | Cluster: `Claude Code Plugins`
+- [ ] Concept: `Plugin Distribution` | Parent: `Claude Code Plugins` | Mode: `dr` | Cluster: `Claude Code Plugins`
+- [ ] Concept: `Skill Authoring Best Practices` | Parent: `Claude Code Skills` | Mode: `dr` | Cluster: `Claude Code Skills`
+- [ ] Concept: `Skill Discovery and Distribution` | Parent: `Claude Code Skills` | Mode: `dr` | Cluster: `Claude Code Skills`
+- [ ] Concept: `Skill Management and Composition` | Parent: `Claude Code Skills` | Mode: `dr` | Cluster: `Claude Code Skills`
+- [ ] Concept: `Skill Discovery` | Parent: `Skill Lookup` | Mode: `dr` | Cluster: `Skill Lookup`
+- [ ] Concept: `Skill Installation` | Parent: `Skill Lookup` | Mode: `dr` | Cluster: `Skill Lookup`
+- [ ] Concept: `Skill Search Workflow` | Parent: `Skill Lookup` | Mode: `dr` | Cluster: `Skill Lookup`
+- [ ] Concept: `Multi-Source Web Research` | Parent: `Deep Research` | Mode: `dr` | Cluster: `Deep Research`
+- [ ] Concept: `Firecrawl and Exa Integration` | Parent: `Deep Research` | Mode: `dr` | Cluster: `Deep Research`
+- [ ] Concept: `Cited Report Generation` | Parent: `Deep Research` | Mode: `dr` | Cluster: `Deep Research`
+- [ ] Concept: `Source Attribution` | Parent: `Deep Research` | Mode: `dr` | Cluster: `Deep Research`
+- [ ] Concept: `Question Decomposition` | Parent: `Deep Research Methods` | Mode: `dr` | Cluster: `Deep Research Methods`
+- [ ] Concept: `Source Evaluation Heuristics` | Parent: `Deep Research Methods` | Mode: `dr` | Cluster: `Deep Research Methods`
+- [ ] Concept: `Multi-Source Synthesis` | Parent: `Deep Research Methods` | Mode: `dr` | Cluster: `Deep Research Methods`
+- [ ] Concept: `Subagent Research Patterns` | Parent: `Deep Research Methods` | Mode: `dr` | Cluster: `Deep Research Methods`
+- [ ] Concept: `Anti-Pattern Detection` | Parent: `Deep Research Methods` | Mode: `dr` | Cluster: `Deep Research Methods`
+- [ ] Concept: `Agent Cards` | Parent: `A2A Protocol Interoperability` | Mode: `dr` | Cluster: `A2A Protocol Interoperability`
+- [ ] Concept: `JSON-RPC 2.0 Transport` | Parent: `A2A Protocol Interoperability` | Mode: `dr` | Cluster: `A2A Protocol Interoperability`
+- [ ] Concept: `Cross-Framework Agent Bridging` | Parent: `A2A Protocol Interoperability` | Mode: `dr` | Cluster: `A2A Protocol Interoperability`
+- [ ] Concept: `Vector Databases` | Parent: `AI Datastores` | Mode: `dr` | Cluster: `AI Datastores`
+- [ ] Concept: `Knowledge Graphs for AI` | Parent: `AI Datastores` | Mode: `dr` | Cluster: `AI Datastores`
+- [ ] Concept: `Agent Memory Frameworks` | Parent: `AI Datastores` | Mode: `dr` | Cluster: `AI Datastores`
+- [ ] Concept: `Redis for Agent Coordination` | Parent: `AI Datastores` | Mode: `dr` | Cluster: `AI Datastores`
+- [ ] Concept: `Hybrid Storage Architectures` | Parent: `AI Datastores` | Mode: `dr` | Cluster: `AI Datastores`
+- [ ] Concept: `Multi-AI Opinion Synthesis` | Parent: `Agent Council` | Mode: `dr` | Cluster: `Agent Council`
+- [ ] Concept: `Parallel Agent Querying` | Parent: `Agent Council` | Mode: `dr` | Cluster: `Agent Council`
+- [ ] Concept: `Consensus Building` | Parent: `Agent Council` | Mode: `dr` | Cluster: `Agent Council`
+- [ ] Concept: `Action Space Design` | Parent: `Agent Harness Construction` | Mode: `dr` | Cluster: `Agent Harness Construction`
+- [ ] Concept: `Observation Format Design` | Parent: `Agent Harness Construction` | Mode: `dr` | Cluster: `Agent Harness Construction`
+- [ ] Concept: `Error Recovery Contracts` | Parent: `Agent Harness Construction` | Mode: `dr` | Cluster: `Agent Harness Construction`
+- [ ] Concept: `Context Budget Management` | Parent: `Agent Harness Construction` | Mode: `dr` | Cluster: `Agent Harness Construction`
+- [ ] Concept: `Multi-Agent Orchestration Planning` | Parent: `Agent Plan Writing` | Mode: `dr` | Cluster: `Agent Plan Writing`
+- [ ] Concept: `Subagent Prompt Crafting` | Parent: `Agent Plan Writing` | Mode: `dr` | Cluster: `Agent Plan Writing`
+- [ ] Concept: `Context Window Budgeting` | Parent: `Agent Plan Writing` | Mode: `dr` | Cluster: `Agent Plan Writing`
+- [ ] Concept: `Safety Guardrails Design` | Parent: `Agent Plan Writing` | Mode: `dr` | Cluster: `Agent Plan Writing`
+- [ ] Concept: `Agent Evaluation Planning` | Parent: `Agent Plan Writing` | Mode: `dr` | Cluster: `Agent Plan Writing`
+- [ ] Concept: `Sequential Pipeline Patterns` | Parent: `Autonomous Loop Patterns` | Mode: `dr` | Cluster: `Autonomous Loop Patterns`
+- [ ] Concept: `Infinite Agent Loops` | Parent: `Autonomous Loop Patterns` | Mode: `dr` | Cluster: `Autonomous Loop Patterns`
+- [ ] Concept: `RFC-Driven DAG Orchestration` | Parent: `Autonomous Loop Patterns` | Mode: `dr` | Cluster: `Autonomous Loop Patterns`
+- [ ] Concept: `NanoClaw REPL` | Parent: `Autonomous Loop Patterns` | Mode: `dr` | Cluster: `Autonomous Loop Patterns`
+- [ ] Concept: `Microsoft Agent Framework` | Parent: `Multi-Agent Workflow Builder` | Mode: `dr` | Cluster: `Multi-Agent Workflow Builder`
+- [ ] Concept: `Agent Tracing and Monitoring` | Parent: `Multi-Agent Workflow Builder` | Mode: `dr` | Cluster: `Multi-Agent Workflow Builder`
+- [ ] Concept: `Agent Evaluation` | Parent: `Multi-Agent Workflow Builder` | Mode: `dr` | Cluster: `Multi-Agent Workflow Builder`
+- [ ] Concept: `Foundry Deployment` | Parent: `Multi-Agent Workflow Builder` | Mode: `dr` | Cluster: `Multi-Agent Workflow Builder`
+- [ ] Concept: `Built-in vs standalone vs BYOC sandboxes` | Parent: `Agent Runtime Sandboxes & Code Execution` | Mode: `dr` | Cluster: `Agent Runtime Sandboxes & Code Execution (1 of 2)`
+- [ ] Concept: `Dual-LLM & CaMeL capability-based mitigation` | Parent: `Agent Runtime Sandboxes & Code Execution` | Mode: `dr` | Cluster: `Agent Runtime Sandboxes & Code Execution (1 of 2)`
+- [ ] Concept: `Filesystem snapshots & declarative images` | Parent: `Agent Runtime Sandboxes & Code Execution` | Mode: `dr` | Cluster: `Agent Runtime Sandboxes & Code Execution (1 of 2)`
+- [ ] Concept: `GPU sandboxes for ML agents` | Parent: `Agent Runtime Sandboxes & Code Execution` | Mode: `dr` | Cluster: `Agent Runtime Sandboxes & Code Execution (1 of 2)`
+- [ ] Concept: `The lethal trifecta & prompt-injection exfiltration` | Parent: `Agent Runtime Sandboxes & Code Execution` | Mode: `dr` | Cluster: `Agent Runtime Sandboxes & Code Execution (1 of 2)`
+- [ ] Concept: `MCP-in-a-sandbox (gateways, credential brokering)` | Parent: `Agent Runtime Sandboxes & Code Execution` | Mode: `dr` | Cluster: `Agent Runtime Sandboxes & Code Execution (1 of 2)`
+- [ ] Concept: `MicroVM vs gVisor vs container isolation` | Parent: `Agent Runtime Sandboxes & Code Execution` | Mode: `dr` | Cluster: `Agent Runtime Sandboxes & Code Execution (2 of 2)`
+- [ ] Concept: `Code Mode / programmatic tool calling` | Parent: `Agent Runtime Sandboxes & Code Execution` | Mode: `dr` | Cluster: `Agent Runtime Sandboxes & Code Execution (2 of 2)`
+- [ ] Concept: `Network egress policy (default-deny, allow-lists)` | Parent: `Agent Runtime Sandboxes & Code Execution` | Mode: `dr` | Cluster: `Agent Runtime Sandboxes & Code Execution (2 of 2)`
+- [ ] Concept: `Pause-resume & memory snapshots` | Parent: `Agent Runtime Sandboxes & Code Execution` | Mode: `dr` | Cluster: `Agent Runtime Sandboxes & Code Execution (2 of 2)`
+- [ ] Concept: `Sandbox forking (copy-on-write branching)` | Parent: `Agent Runtime Sandboxes & Code Execution` | Mode: `dr` | Cluster: `Agent Runtime Sandboxes & Code Execution (2 of 2)`
+- [ ] Concept: `Sandbox lifecycle (create/exec/dispose)` | Parent: `Agent Runtime Sandboxes & Code Execution` | Mode: `dr` | Cluster: `Agent Runtime Sandboxes & Code Execution (2 of 2)`
+- [ ] Concept: `Activities vs workflow body (non-determinism isolation)` | Parent: `Durable Agent Execution & Long-Running Agent Runtimes` | Mode: `dr` | Cluster: `Durable Agent Execution & Long-Running Agent Runtimes (1 of 2)`
+- [ ] Concept: `Durable actors & hibernation (Durable Objects)` | Parent: `Durable Agent Execution & Long-Running Agent Runtimes` | Mode: `dr` | Cluster: `Durable Agent Execution & Long-Running Agent Runtimes (1 of 2)`
+- [ ] Concept: `Deterministic replay & event sourcing` | Parent: `Durable Agent Execution & Long-Running Agent Runtimes` | Mode: `dr` | Cluster: `Durable Agent Execution & Long-Running Agent Runtimes (1 of 2)`
+- [ ] Concept: `Exactly-once side effects & idempotency` | Parent: `Durable Agent Execution & Long-Running Agent Runtimes` | Mode: `dr` | Cluster: `Durable Agent Execution & Long-Running Agent Runtimes (1 of 2)`
+- [ ] Concept: `Human-in-the-loop interrupts & resume` | Parent: `Durable Agent Execution & Long-Running Agent Runtimes` | Mode: `dr` | Cluster: `Durable Agent Execution & Long-Running Agent Runtimes (1 of 2)`
+- [ ] Concept: `Postgres-backed vs orchestrator-based durability` | Parent: `Durable Agent Execution & Long-Running Agent Runtimes` | Mode: `dr` | Cluster: `Durable Agent Execution & Long-Running Agent Runtimes (1 of 2)`
+- [ ] Concept: `Durable queues & concurrency flow control` | Parent: `Durable Agent Execution & Long-Running Agent Runtimes` | Mode: `dr` | Cluster: `Durable Agent Execution & Long-Running Agent Runtimes (2 of 2)`
+- [ ] Concept: `Durable sleep, timers & cron scheduling` | Parent: `Durable Agent Execution & Long-Running Agent Runtimes` | Mode: `dr` | Cluster: `Durable Agent Execution & Long-Running Agent Runtimes (2 of 2)`
+- [ ] Concept: `Durable streams (reconnectable agent output)` | Parent: `Durable Agent Execution & Long-Running Agent Runtimes` | Mode: `dr` | Cluster: `Durable Agent Execution & Long-Running Agent Runtimes (2 of 2)`
+- [ ] Concept: `Time-travel debugging & workflow forking` | Parent: `Durable Agent Execution & Long-Running Agent Runtimes` | Mode: `dr` | Cluster: `Durable Agent Execution & Long-Running Agent Runtimes (2 of 2)`
+- [ ] Concept: `Workflow-as-code / durable functions` | Parent: `Durable Agent Execution & Long-Running Agent Runtimes` | Mode: `dr` | Cluster: `Durable Agent Execution & Long-Running Agent Runtimes (2 of 2)`
+- [ ] Concept: `Agentic Commerce Protocol & delegated payment / Shared Payment Token` | Parent: `Agent Identity, Authorization & Payments` | Mode: `dr` | Cluster: `Agent Identity, Authorization & Payments (1 of 2)`
+- [ ] Concept: `AP2 mandates (Intent / Checkout / Payment, SD-JWT)` | Parent: `Agent Identity, Authorization & Payments` | Mode: `dr` | Cluster: `Agent Identity, Authorization & Payments (1 of 2)`
+- [ ] Concept: `Confused-deputy & prompt-injection authority hijack` | Parent: `Agent Identity, Authorization & Payments` | Mode: `dr` | Cluster: `Agent Identity, Authorization & Payments (1 of 2)`
+- [ ] Concept: `Delegation chains & act/may_act claims` | Parent: `Agent Identity, Authorization & Payments` | Mode: `dr` | Cluster: `Agent Identity, Authorization & Payments (1 of 2)`
+- [ ] Concept: `Human-in-the-loop consent & async authorization` | Parent: `Agent Identity, Authorization & Payments` | Mode: `dr` | Cluster: `Agent Identity, Authorization & Payments (1 of 2)`
+- [ ] Concept: `MCP authorization & resource-server pattern (RFC 9728/8707)` | Parent: `Agent Identity, Authorization & Payments` | Mode: `dr` | Cluster: `Agent Identity, Authorization & Payments (1 of 2)`
+- [ ] Concept: `Non-human identity (NHI) for agents` | Parent: `Agent Identity, Authorization & Payments` | Mode: `dr` | Cluster: `Agent Identity, Authorization & Payments (2 of 2)`
+- [ ] Concept: `OAuth 2.1 on-behalf-of / token exchange (RFC 8693)` | Parent: `Agent Identity, Authorization & Payments` | Mode: `dr` | Cluster: `Agent Identity, Authorization & Payments (2 of 2)`
+- [ ] Concept: `Scoped least-privilege short-lived agent tokens` | Parent: `Agent Identity, Authorization & Payments` | Mode: `dr` | Cluster: `Agent Identity, Authorization & Payments (2 of 2)`
+- [ ] Concept: `Spend caps, allowances & agent payment audit trails` | Parent: `Agent Identity, Authorization & Payments` | Mode: `dr` | Cluster: `Agent Identity, Authorization & Payments (2 of 2)`
+- [ ] Concept: `Token vaulting & credential brokering` | Parent: `Agent Identity, Authorization & Payments` | Mode: `dr` | Cluster: `Agent Identity, Authorization & Payments (2 of 2)`
+- [ ] Concept: `x402 HTTP-402 stablecoin settlement` | Parent: `Agent Identity, Authorization & Payments` | Mode: `dr` | Cluster: `Agent Identity, Authorization & Payments (2 of 2)`
+- [ ] Concept: `Tmux Pane Manager for Agents` | Parent: `Dmux Multi-Agent Workflows` | Mode: `dr` | Cluster: `Dmux Multi-Agent Workflows`
+- [ ] Concept: `Parallel Agent Coordination` | Parent: `Dmux Multi-Agent Workflows` | Mode: `dr` | Cluster: `Dmux Multi-Agent Workflows`
+- [ ] Concept: `Multi-Harness Orchestration` | Parent: `Dmux Multi-Agent Workflows` | Mode: `dr` | Cluster: `Dmux Multi-Agent Workflows`
+- [ ] Concept: `Agent Workflow Patterns` | Parent: `Dmux Multi-Agent Workflows` | Mode: `dr` | Cluster: `Dmux Multi-Agent Workflows`
+- [ ] Concept: `LLM/agent tracing and spans` | Parent: `LLM Observability` | Mode: `dr` | Cluster: `LLM Observability (1 of 3)`
+- [ ] Concept: `Agent trajectory and tool-call observability` | Parent: `LLM Observability` | Mode: `dr` | Cluster: `LLM Observability (1 of 3)`
+- [ ] Concept: `Answer-relevance monitoring` | Parent: `LLM Observability` | Mode: `dr` | Cluster: `LLM Observability (1 of 3)`
+- [ ] Concept: `LLM-as-judge production scoring` | Parent: `LLM Observability` | Mode: `dr` | Cluster: `LLM Observability (1 of 3)`
+- [ ] Concept: `Datasets and experiment tracking` | Parent: `LLM Observability` | Mode: `dr` | Cluster: `LLM Observability (1 of 3)`
+- [ ] Concept: `Hallucination / groundedness / faithfulness monitoring` | Parent: `LLM Observability` | Mode: `dr` | Cluster: `LLM Observability (1 of 3)`
+- [ ] Concept: `Loop / recursion detection in agents` | Parent: `LLM Observability` | Mode: `dr` | Cluster: `LLM Observability (2 of 3)`
+- [ ] Concept: `Online (reference-free) evaluation vs offline eval` | Parent: `LLM Observability` | Mode: `dr` | Cluster: `LLM Observability (2 of 3)`
+- [ ] Concept: `OpenInference span-kind standard` | Parent: `LLM Observability` | Mode: `dr` | Cluster: `LLM Observability (2 of 3)`
+- [ ] Concept: `OpenLLMetry / Traceloop instrumentation` | Parent: `LLM Observability` | Mode: `dr` | Cluster: `LLM Observability (2 of 3)`
+- [ ] Concept: `OpenTelemetry GenAI semantic conventions` | Parent: `LLM Observability` | Mode: `dr` | Cluster: `LLM Observability (2 of 3)`
+- [ ] Concept: `PII detection and redaction at runtime` | Parent: `LLM Observability` | Mode: `dr` | Cluster: `LLM Observability (2 of 3)`
+- [ ] Concept: `Prompt management and versioning` | Parent: `LLM Observability` | Mode: `dr` | Cluster: `LLM Observability (3 of 3)`
+- [ ] Concept: `Prompt / output / embedding drift detection` | Parent: `LLM Observability` | Mode: `dr` | Cluster: `LLM Observability (3 of 3)`
+- [ ] Concept: `RAG observability (RAGAS: context precision/recall, faithfulness)` | Parent: `LLM Observability` | Mode: `dr` | Cluster: `LLM Observability (3 of 3)`
+- [ ] Concept: `Runtime guardrails and safety monitoring` | Parent: `LLM Observability` | Mode: `dr` | Cluster: `LLM Observability (3 of 3)`
+- [ ] Concept: `Token, cost, and latency monitoring` | Parent: `LLM Observability` | Mode: `dr` | Cluster: `LLM Observability (3 of 3)`
+- [ ] Concept: `Observability tooling landscape (Langfuse, LangSmith, Arize Phoenix, WhyLabs/LangKit, Helicone, Datadog, OpenLLMetry)` | Parent: `LLM Observability` | Mode: `dr` | Cluster: `LLM Observability (3 of 3)`
+- [ ] Concept: `Blackboard Architecture` | Parent: `Multi-Agent Orchestration Topologies` | Mode: `dr` | Cluster: `Multi-Agent Orchestration Topologies (1 of 2)`
+- [ ] Concept: `Group Chat (AutoGen / Magentic-One)` | Parent: `Multi-Agent Orchestration Topologies` | Mode: `dr` | Cluster: `Multi-Agent Orchestration Topologies (1 of 2)`
+- [ ] Concept: `Handoff / Swarm` | Parent: `Multi-Agent Orchestration Topologies` | Mode: `dr` | Cluster: `Multi-Agent Orchestration Topologies (1 of 2)`
+- [ ] Concept: `Hierarchical Agents` | Parent: `Multi-Agent Orchestration Topologies` | Mode: `dr` | Cluster: `Multi-Agent Orchestration Topologies (1 of 2)`
+- [ ] Concept: `Network / Peer-to-Peer` | Parent: `Multi-Agent Orchestration Topologies` | Mode: `dr` | Cluster: `Multi-Agent Orchestration Topologies (1 of 2)`
+- [ ] Concept: `Orchestrator-Worker (Supervisor)` | Parent: `Multi-Agent Orchestration Topologies` | Mode: `dr` | Cluster: `Multi-Agent Orchestration Topologies (2 of 2)`
+- [ ] Concept: `Role Specialization & Decomposition` | Parent: `Multi-Agent Orchestration Topologies` | Mode: `dr` | Cluster: `Multi-Agent Orchestration Topologies (2 of 2)`
+- [ ] Concept: `Sequential & Parallel Pipelines` | Parent: `Multi-Agent Orchestration Topologies` | Mode: `dr` | Cluster: `Multi-Agent Orchestration Topologies (2 of 2)`
+- [ ] Concept: `Shared vs Isolated Context` | Parent: `Multi-Agent Orchestration Topologies` | Mode: `dr` | Cluster: `Multi-Agent Orchestration Topologies (2 of 2)`
+- [ ] Concept: `Single-Agent vs Multi-Agent Decision` | Parent: `Multi-Agent Orchestration Topologies` | Mode: `dr` | Cluster: `Multi-Agent Orchestration Topologies (2 of 2)`
+- [ ] Concept: `ReAct (reason+act interleaving) + failure modes` | Parent: `Agent Planning & Control-Flow Patterns` | Mode: `dr` | Cluster: `Agent Planning & Control-Flow Patterns`
+- [ ] Concept: `Plan-and-Execute / Plan-and-Solve` | Parent: `Agent Planning & Control-Flow Patterns` | Mode: `dr` | Cluster: `Agent Planning & Control-Flow Patterns`
+- [ ] Concept: `ReWOO (reasoning without observation)` | Parent: `Agent Planning & Control-Flow Patterns` | Mode: `dr` | Cluster: `Agent Planning & Control-Flow Patterns`
+- [ ] Concept: `LLMCompiler (parallel function-call DAG)` | Parent: `Agent Planning & Control-Flow Patterns` | Mode: `dr` | Cluster: `Agent Planning & Control-Flow Patterns`
+- [ ] Concept: `Reflexion / Self-Refine + the intrinsic-self-correction caveat` | Parent: `Agent Planning & Control-Flow Patterns` | Mode: `dr` | Cluster: `Agent Planning & Control-Flow Patterns`
+- [ ] Concept: `Tree/Graph-of-Thoughts applied to acting (LATS)` | Parent: `Agent Planning & Control-Flow Patterns` | Mode: `dr` | Cluster: `Agent Planning & Control-Flow Patterns`
+- [ ] Concept: `Workflows vs Agents + the 5 Anthropic workflow patterns` | Parent: `Agent Planning & Control-Flow Patterns` | Mode: `dr` | Cluster: `Agent Planning & Control-Flow Patterns`
+- [ ] Concept: `Task decomposition & replanning on failure` | Parent: `Agent Planning & Control-Flow Patterns` | Mode: `dr` | Cluster: `Agent Planning & Control-Flow Patterns`
+- [ ] Concept: `LangGraph StateGraph (channels, reducers, super-steps)` | Parent: `Agent State & Durable Execution` | Mode: `dr` | Cluster: `Agent State & Durable Execution`
+- [ ] Concept: `Checkpointing & thread_id persistence` | Parent: `Agent State & Durable Execution` | Mode: `dr` | Cluster: `Agent State & Durable Execution`
+- [ ] Concept: `Human-in-the-loop interrupts & time-travel/replay/fork` | Parent: `Agent State & Durable Execution` | Mode: `dr` | Cluster: `Agent State & Durable Execution`
+- [ ] Concept: `Durable execution engines (Temporal, Restate, DBOS, Inngest)` | Parent: `Agent State & Durable Execution` | Mode: `dr` | Cluster: `Agent State & Durable Execution`
+- [ ] Concept: `Checkpointing != durable execution` | Parent: `Agent State & Durable Execution` | Mode: `dr` | Cluster: `Agent State & Durable Execution`
+- [ ] Concept: `Determinism constraint & idempotency keys` | Parent: `Agent State & Durable Execution` | Mode: `dr` | Cluster: `Agent State & Durable Execution`
+- [ ] Concept: `Architecture spectrum & LangGraph-in-Temporal use-both` | Parent: `Agent State & Durable Execution` | Mode: `dr` | Cluster: `Agent State & Durable Execution`
+- [ ] Concept: `LangGraph durability modes (exit/async/sync)` | Parent: `Agent State & Durable Execution` | Mode: `dr` | Cluster: `Agent State & Durable Execution`
+- [ ] Concept: `Budget & Step Caps` | Parent: `Agent Reliability & Guardrails` | Mode: `dr` | Cluster: `Agent Reliability & Guardrails (1 of 2)`
+- [ ] Concept: `Constrained Agent Design Patterns` | Parent: `Agent Reliability & Guardrails` | Mode: `dr` | Cluster: `Agent Reliability & Guardrails (1 of 2)`
+- [ ] Concept: `Content Filters & Safety Classifiers (Llama Guard / NeMo Guardrails / Guardrails AI)` | Parent: `Agent Reliability & Guardrails` | Mode: `dr` | Cluster: `Agent Reliability & Guardrails (1 of 2)`
+- [ ] Concept: `Dual-LLM / Quarantine & CaMeL Defenses` | Parent: `Agent Reliability & Guardrails` | Mode: `dr` | Cluster: `Agent Reliability & Guardrails (1 of 2)`
+- [ ] Concept: `Excessive Agency (OWASP LLM06)` | Parent: `Agent Reliability & Guardrails` | Mode: `dr` | Cluster: `Agent Reliability & Guardrails (1 of 2)`
+- [ ] Concept: `Human-Approval Gates` | Parent: `Agent Reliability & Guardrails` | Mode: `dr` | Cluster: `Agent Reliability & Guardrails (1 of 2)`
+- [ ] Concept: `Input/Output Guardrails` | Parent: `Agent Reliability & Guardrails` | Mode: `dr` | Cluster: `Agent Reliability & Guardrails (1 of 2)`
+- [ ] Concept: `The Lethal Trifecta` | Parent: `Agent Reliability & Guardrails` | Mode: `dr` | Cluster: `Agent Reliability & Guardrails (2 of 2)`
+- [ ] Concept: `OWASP Top 10 for LLM Applications` | Parent: `Agent Reliability & Guardrails` | Mode: `dr` | Cluster: `Agent Reliability & Guardrails (2 of 2)`
+- [ ] Concept: `Reliability Patterns (Retries, Backoff, Circuit Breakers, Fallback Chains)` | Parent: `Agent Reliability & Guardrails` | Mode: `dr` | Cluster: `Agent Reliability & Guardrails (2 of 2)`
+- [ ] Concept: `Prompt Injection & Indirect Prompt Injection (OWASP LLM01)` | Parent: `Agent Reliability & Guardrails` | Mode: `dr` | Cluster: `Agent Reliability & Guardrails (2 of 2)`
+- [ ] Concept: `Structured-Output Validation` | Parent: `Agent Reliability & Guardrails` | Mode: `dr` | Cluster: `Agent Reliability & Guardrails (2 of 2)`
+- [ ] Concept: `Tool-Call Safety (Sandboxing, Allow-lists, Least Privilege)` | Parent: `Agent Reliability & Guardrails` | Mode: `dr` | Cluster: `Agent Reliability & Guardrails (2 of 2)`
+- [ ] Concept: `Tool / RAG Poisoning` | Parent: `Agent Reliability & Guardrails` | Mode: `dr` | Cluster: `Agent Reliability & Guardrails (2 of 2)`
+- [ ] Concept: `Computer-use agents (Claude computer use, OpenAI Operator/CUA)` | Parent: `Computer-Use & GUI Agents` | Mode: `dr` | Cluster: `Computer-Use & GUI Agents`
+- [ ] Concept: `Browser agents (Browser Use, Playwright/CDP)` | Parent: `Computer-Use & GUI Agents` | Mode: `dr` | Cluster: `Computer-Use & GUI Agents`
+- [ ] Concept: `GUI grounding (pixel vs accessibility tree vs set-of-marks)` | Parent: `Computer-Use & GUI Agents` | Mode: `dr` | Cluster: `Computer-Use & GUI Agents`
+- [ ] Concept: `Screen parsers (OmniParser)` | Parent: `Computer-Use & GUI Agents` | Mode: `dr` | Cluster: `Computer-Use & GUI Agents`
+- [ ] Concept: `GUI action space (click/type/scroll/key)` | Parent: `Computer-Use & GUI Agents` | Mode: `dr` | Cluster: `Computer-Use & GUI Agents`
+- [ ] Concept: `Computer-use benchmarks (OSWorld, WebArena, WebVoyager, Mind2Web, AndroidWorld)` | Parent: `Computer-Use & GUI Agents` | Mode: `dr` | Cluster: `Computer-Use & GUI Agents`
+- [ ] Concept: `GUI agent reliability ceilings` | Parent: `Computer-Use & GUI Agents` | Mode: `dr` | Cluster: `Computer-Use & GUI Agents`
+- [ ] Concept: `Computer-use safety (prompt injection via screen, destructive clicks, sandboxing)` | Parent: `Computer-Use & GUI Agents` | Mode: `dr` | Cluster: `Computer-Use & GUI Agents`
+- [ ] Concept: `CoALA Cognitive Architecture` | Parent: `Agent Memory Architecture` | Mode: `dr` | Cluster: `Agent Memory Architecture (1 of 2)`
+- [ ] Concept: `Memory Evaluation (LoCoMo / LongMemEval)` | Parent: `Agent Memory Architecture` | Mode: `dr` | Cluster: `Agent Memory Architecture (1 of 2)`
+- [ ] Concept: `Memory Extraction & Retrieval Policies` | Parent: `Agent Memory Architecture` | Mode: `dr` | Cluster: `Agent Memory Architecture (1 of 2)`
+- [ ] Concept: `Forgetting & Decay` | Parent: `Agent Memory Architecture` | Mode: `dr` | Cluster: `Agent Memory Architecture (1 of 2)`
+- [ ] Concept: `Memory Frameworks (Mem0 / Zep-Graphiti / LangMem)` | Parent: `Agent Memory Architecture` | Mode: `dr` | Cluster: `Agent Memory Architecture (1 of 2)`
+- [ ] Concept: `Generative Agents (observe-reflect-plan)` | Parent: `Agent Memory Architecture` | Mode: `dr` | Cluster: `Agent Memory Architecture (1 of 2)`
+- [ ] Concept: `Hallucinated Memories` | Parent: `Agent Memory Architecture` | Mode: `dr` | Cluster: `Agent Memory Architecture (1 of 2)`
+- [ ] Concept: `MemGPT / Letta Virtual Context Paging` | Parent: `Agent Memory Architecture` | Mode: `dr` | Cluster: `Agent Memory Architecture (2 of 2)`
+- [ ] Concept: `Memory vs RAG` | Parent: `Agent Memory Architecture` | Mode: `dr` | Cluster: `Agent Memory Architecture (2 of 2)`
+- [ ] Concept: `Reflection & Memory Consolidation` | Parent: `Agent Memory Architecture` | Mode: `dr` | Cluster: `Agent Memory Architecture (2 of 2)`
+- [ ] Concept: `Self-Editing Memory` | Parent: `Agent Memory Architecture` | Mode: `dr` | Cluster: `Agent Memory Architecture (2 of 2)`
+- [ ] Concept: `Short-term vs Long-term Memory Management` | Parent: `Agent Memory Architecture` | Mode: `dr` | Cluster: `Agent Memory Architecture (2 of 2)`
+- [ ] Concept: `Temporal Knowledge Graph Memory` | Parent: `Agent Memory Architecture` | Mode: `dr` | Cluster: `Agent Memory Architecture (2 of 2)`
+- [ ] Concept: `Memory Types (Working/Episodic/Semantic/Procedural)` | Parent: `Agent Memory Architecture` | Mode: `dr` | Cluster: `Agent Memory Architecture (2 of 2)`
+- [ ] Concept: `Cost/quality/latency Pareto modeling` | Parent: `LLM Model Routing, Cascades & Mixture-of-Agents` | Mode: `dr` | Cluster: `LLM Model Routing, Cascades & Mixture-of-Agents (1 of 2)`
+- [ ] Concept: `Model cascades + deferral/abstention (FrugalGPT, threshold calibration)` | Parent: `LLM Model Routing, Cascades & Mixture-of-Agents` | Mode: `dr` | Cluster: `LLM Model Routing, Cascades & Mixture-of-Agents (1 of 2)`
+- [ ] Concept: `Failure modes (routing collapse, tail miscalibration)` | Parent: `LLM Model Routing, Cascades & Mixture-of-Agents` | Mode: `dr` | Cluster: `LLM Model Routing, Cascades & Mixture-of-Agents (1 of 2)`
+- [ ] Concept: `Mixture-of-Agents (MoA layered proposers + aggregator)` | Parent: `LLM Model Routing, Cascades & Mixture-of-Agents` | Mode: `dr` | Cluster: `LLM Model Routing, Cascades & Mixture-of-Agents (1 of 2)`
+- [ ] Concept: `Output ensembling & fusion (LLM-Blender PairRanker + GenFuser)` | Parent: `LLM Model Routing, Cascades & Mixture-of-Agents` | Mode: `dr` | Cluster: `LLM Model Routing, Cascades & Mixture-of-Agents (1 of 2)`
+- [ ] Concept: `Predictive routing (RouteLLM router taxonomy, PGR/CPT)` | Parent: `LLM Model Routing, Cascades & Mixture-of-Agents` | Mode: `dr` | Cluster: `LLM Model Routing, Cascades & Mixture-of-Agents (1 of 2)`
+- [ ] Concept: `Route-by-difficulty / complexity (Route-to-Reason, RADAR, think-vs-non-think)` | Parent: `LLM Model Routing, Cascades & Mixture-of-Agents` | Mode: `dr` | Cluster: `LLM Model Routing, Cascades & Mixture-of-Agents (2 of 2)`
+- [ ] Concept: `Router evaluation & benchmarks (RouterBench, AIQ, RouterArena)` | Parent: `LLM Model Routing, Cascades & Mixture-of-Agents` | Mode: `dr` | Cluster: `LLM Model Routing, Cascades & Mixture-of-Agents (2 of 2)`
+- [ ] Concept: `Semantic / prompt caching as a routing layer (GPTCache)` | Parent: `LLM Model Routing, Cascades & Mixture-of-Agents` | Mode: `dr` | Cluster: `LLM Model Routing, Cascades & Mixture-of-Agents (2 of 2)`
+- [ ] Concept: `Speculative cascades (token-level deferral, vs speculative decoding)` | Parent: `LLM Model Routing, Cascades & Mixture-of-Agents` | Mode: `dr` | Cluster: `LLM Model Routing, Cascades & Mixture-of-Agents (2 of 2)`
+- [ ] Concept: `Routing tooling landscape (OpenRouter, LiteLLM, NotDiamond, Martian, vLLM Semantic Router)` | Parent: `LLM Model Routing, Cascades & Mixture-of-Agents` | Mode: `dr` | Cluster: `LLM Model Routing, Cascades & Mixture-of-Agents (2 of 2)`
+- [ ] Concept: `Naive-RAG failure taxonomy (Barnett 7 points, lost-in-the-middle)` | Parent: `Agentic and Advanced RAG Patterns` | Mode: `dr` | Cluster: `Agentic and Advanced RAG Patterns`
+- [ ] Concept: `Query transformation (HyDE, decomposition, step-back, RAG-Fusion+RRF)` | Parent: `Agentic and Advanced RAG Patterns` | Mode: `dr` | Cluster: `Agentic and Advanced RAG Patterns`
+- [ ] Concept: `Hybrid search & re-ranking (BM25+dense, cross-encoders, ColBERT, MMR)` | Parent: `Agentic and Advanced RAG Patterns` | Mode: `dr` | Cluster: `Agentic and Advanced RAG Patterns`
+- [ ] Concept: `Advanced indexing (parent-doc, sentence-window, auto-merging, Anthropic Contextual Retrieval)` | Parent: `Agentic and Advanced RAG Patterns` | Mode: `dr` | Cluster: `Agentic and Advanced RAG Patterns`
+- [ ] Concept: `Agentic RAG (Self-RAG, CRAG, Adaptive-RAG, iterative, routing)` | Parent: `Agentic and Advanced RAG Patterns` | Mode: `dr` | Cluster: `Agentic and Advanced RAG Patterns`
+- [ ] Concept: `GraphRAG (Microsoft, Leiden communities, hybrid graph+vector)` | Parent: `Agentic and Advanced RAG Patterns` | Mode: `dr` | Cluster: `Agentic and Advanced RAG Patterns`
+- [ ] Concept: `RAG evaluation (Ragas, retrieval-vs-generation split)` | Parent: `Agentic and Advanced RAG Patterns` | Mode: `dr` | Cluster: `Agentic and Advanced RAG Patterns`
+- [ ] Concept: `Multimodal RAG (ColPali) + long-context-vs-RAG routing` | Parent: `Agentic and Advanced RAG Patterns` | Mode: `dr` | Cluster: `Agentic and Advanced RAG Patterns`
+- [ ] Concept: `Open-source scanners/frameworks (Garak, PyRIT, promptfoo, Giskard, CyberSecEval)` | Parent: `AI Red-Teaming and Security-Testing Tooling` | Mode: `dr` | Cluster: `AI Red-Teaming and Security-Testing Tooling`
+- [ ] Concept: `Attack taxonomy (direct/indirect injection, jailbreak families, many-shot, Crescendo, exfiltration)` | Parent: `AI Red-Teaming and Security-Testing Tooling` | Mode: `dr` | Cluster: `AI Red-Teaming and Security-Testing Tooling`
+- [ ] Concept: `Automated attack generation (GCG, PAIR, TAP, red-teamer LLMs)` | Parent: `AI Red-Teaming and Security-Testing Tooling` | Mode: `dr` | Cluster: `AI Red-Teaming and Security-Testing Tooling`
+- [ ] Concept: `Benchmarks (AdvBench, HarmBench, JailbreakBench, AgentDojo)` | Parent: `AI Red-Teaming and Security-Testing Tooling` | Mode: `dr` | Cluster: `AI Red-Teaming and Security-Testing Tooling`
+- [ ] Concept: `Commercial continuous red-teaming (Lakera/Gandalf, Cisco AI Defense, Mindgard)` | Parent: `AI Red-Teaming and Security-Testing Tooling` | Mode: `dr` | Cluster: `AI Red-Teaming and Security-Testing Tooling`
+- [ ] Concept: `Process & governance (OWASP GenAI Red Teaming Guide, MITRE ATLAS, NIST AI RMF, red-team-in-CI)` | Parent: `AI Red-Teaming and Security-Testing Tooling` | Mode: `dr` | Cluster: `AI Red-Teaming and Security-Testing Tooling`
+- [ ] Concept: `Cascaded vs speech-to-speech architecture` | Parent: `Voice and Real-Time Agent Design` | Mode: `dr` | Cluster: `Voice and Real-Time Agent Design`
+- [ ] Concept: `Real-time APIs (OpenAI Realtime gpt-realtime, Gemini Live)` | Parent: `Voice and Real-Time Agent Design` | Mode: `dr` | Cluster: `Voice and Real-Time Agent Design`
+- [ ] Concept: `Turn detection & barge-in (VAD, semantic, Deepgram Flux, backchannel)` | Parent: `Voice and Real-Time Agent Design` | Mode: `dr` | Cluster: `Voice and Real-Time Agent Design`
+- [ ] Concept: `Voice latency budgeting (<800ms, LLM TTFT ~70%)` | Parent: `Voice and Real-Time Agent Design` | Mode: `dr` | Cluster: `Voice and Real-Time Agent Design`
+- [ ] Concept: `Streaming STT/TTS components (Deepgram, ElevenLabs, Cartesia)` | Parent: `Voice and Real-Time Agent Design` | Mode: `dr` | Cluster: `Voice and Real-Time Agent Design`
+- [ ] Concept: `Orchestration & telephony (LiveKit, Pipecat, Vapi/Retell/Bland, SIP)` | Parent: `Voice and Real-Time Agent Design` | Mode: `dr` | Cluster: `Voice and Real-Time Agent Design`
+- [ ] Concept: `Voice UX (confidence-tiered confirmation, error recovery, consent)` | Parent: `Voice and Real-Time Agent Design` | Mode: `dr` | Cluster: `Voice and Real-Time Agent Design`
+- [ ] Concept: `Voice-agent evaluation (4-layer, WER limits, interruption accuracy, MOS, TSR/FCR)` | Parent: `Voice and Real-Time Agent Design` | Mode: `dr` | Cluster: `Voice and Real-Time Agent Design`
+- [ ] Concept: `Compiled/optimized prompting (DSPy signatures/modules/compile)` | Parent: `Declarative and Programmatic LLM Frameworks` | Mode: `dr` | Cluster: `Declarative and Programmatic LLM Frameworks`
+- [ ] Concept: `Schema-first typed LLM functions (BAML + Schema-Aligned Parsing, codegen)` | Parent: `Declarative and Programmatic LLM Frameworks` | Mode: `dr` | Cluster: `Declarative and Programmatic LLM Frameworks`
+- [ ] Concept: `Constrained generation/decoding (Outlines FSM, Guidance token-healing, LMQL)` | Parent: `Declarative and Programmatic LLM Frameworks` | Mode: `dr` | Cluster: `Declarative and Programmatic LLM Frameworks`
+- [ ] Concept: `Type/validation structured-output libs (Instructor, Pydantic AI, Mirascope)` | Parent: `Declarative and Programmatic LLM Frameworks` | Mode: `dr` | Cluster: `Declarative and Programmatic LLM Frameworks`
+- [ ] Concept: `App-level structured output (strict mode, function-calling-as-extraction, validate+reask)` | Parent: `Declarative and Programmatic LLM Frameworks` | Mode: `dr` | Cluster: `Declarative and Programmatic LLM Frameworks`
+- [ ] Concept: `Test-driven & versioned prompting` | Parent: `Declarative and Programmatic LLM Frameworks` | Mode: `dr` | Cluster: `Declarative and Programmatic LLM Frameworks`
+- [ ] Concept: `When-declarative-wins decision & anti-patterns` | Parent: `Declarative and Programmatic LLM Frameworks` | Mode: `dr` | Cluster: `Declarative and Programmatic LLM Frameworks`
+- [ ] Concept: `Agentic grep vs precomputed-index retrieval (the central debate)` | Parent: `AI Coding-Agent Design` | Mode: `dr` | Cluster: `AI Coding-Agent Design (1 of 2)`
+- [ ] Concept: `Agentless / structured SWE pipelines (localize-repair-validate)` | Parent: `AI Coding-Agent Design` | Mode: `dr` | Cluster: `AI Coding-Agent Design (1 of 2)`
+- [ ] Concept: `Benchmarks (SWE-bench family, Aider polyglot, Terminal-Bench)` | Parent: `AI Coding-Agent Design` | Mode: `dr` | Cluster: `AI Coding-Agent Design (1 of 2)`
+- [ ] Concept: `Agent-Computer Interface (ACI) & CodeAct action space` | Parent: `AI Coding-Agent Design` | Mode: `dr` | Cluster: `AI Coding-Agent Design (1 of 2)`
+- [ ] Concept: `Context management for long-horizon code agents` | Parent: `AI Coding-Agent Design` | Mode: `dr` | Cluster: `AI Coding-Agent Design (1 of 2)`
+- [ ] Concept: `Edit/diff application formats & reliability (udiff vs search-replace, lint-gated)` | Parent: `AI Coding-Agent Design` | Mode: `dr` | Cluster: `AI Coding-Agent Design (2 of 2)`
+- [ ] Concept: `Repo-map & structural code indexing (tree-sitter + PageRank)` | Parent: `AI Coding-Agent Design` | Mode: `dr` | Cluster: `AI Coding-Agent Design (2 of 2)`
+- [ ] Concept: `Semantic code retrieval & AST-aware chunking (cAST, Cursor/Merkle)` | Parent: `AI Coding-Agent Design` | Mode: `dr` | Cluster: `AI Coding-Agent Design (2 of 2)`
+- [ ] Concept: `Test-driven control loops & self-repair (plan-edit-test-repair, SBFL)` | Parent: `AI Coding-Agent Design` | Mode: `dr` | Cluster: `AI Coding-Agent Design (2 of 2)`
+- [ ] Concept: `Agent/trajectory evaluation` | Parent: `Eval-Driven Development for LLM Apps` | Mode: `dr` | Cluster: `Eval-Driven Development for LLM Apps (1 of 2)`
+- [ ] Concept: `CI/CD eval gating & regression suites` | Parent: `Eval-Driven Development for LLM Apps` | Mode: `dr` | Cluster: `Eval-Driven Development for LLM Apps (1 of 2)`
+- [ ] Concept: `Criteria drift & Who-Validates-the-Validators (EvalGen, SPADE)` | Parent: `Eval-Driven Development for LLM Apps` | Mode: `dr` | Cluster: `Eval-Driven Development for LLM Apps (1 of 2)`
+- [ ] Concept: `Error analysis & qualitative coding (open/axial coding of traces)` | Parent: `Eval-Driven Development for LLM Apps` | Mode: `dr` | Cluster: `Eval-Driven Development for LLM Apps (1 of 2)`
+- [ ] Concept: `Golden datasets & synthetic eval-data (silver-to-gold)` | Parent: `Eval-Driven Development for LLM Apps` | Mode: `dr` | Cluster: `Eval-Driven Development for LLM Apps (1 of 2)`
+- [ ] Concept: `Eval levels (assertion / LLM-as-judge / human; offline vs online flywheel)` | Parent: `Eval-Driven Development for LLM Apps` | Mode: `dr` | Cluster: `Eval-Driven Development for LLM Apps (2 of 2)`
+- [ ] Concept: `Metric design (rubric, pairwise, pass@k vs pass^k)` | Parent: `Eval-Driven Development for LLM Apps` | Mode: `dr` | Cluster: `Eval-Driven Development for LLM Apps (2 of 2)`
+- [ ] Concept: `The Three Gulfs (Specification/Generalization/Comprehension)` | Parent: `Eval-Driven Development for LLM Apps` | Mode: `dr` | Cluster: `Eval-Driven Development for LLM Apps (2 of 2)`
+- [ ] Concept: `Tooling (promptfoo, DeepEval, Ragas, Braintrust, LangSmith)` | Parent: `Eval-Driven Development for LLM Apps` | Mode: `dr` | Cluster: `Eval-Driven Development for LLM Apps (2 of 2)`
+- [ ] Concept: `Anti-laziness prompt legacy` | Parent: `Instruction-file hygiene for LLM lexical tics: linting, mirroring, hook filtering` | Mode: `dr` | Cluster: `Instruction-file hygiene for LLM lexical tics: linting, mirroring, hook filtering (1 of 2)`
+- [ ] Concept: `Hook-based filtering of agent output` | Parent: `Instruction-file hygiene for LLM lexical tics: linting, mirroring, hook filtering` | Mode: `dr` | Cluster: `Instruction-file hygiene for LLM lexical tics: linting, mirroring, hook filtering (1 of 2)`
+- [ ] Concept: `Classifying hits: ban list vs example vs prose` | Parent: `Instruction-file hygiene for LLM lexical tics: linting, mirroring, hook filtering` | Mode: `dr` | Cluster: `Instruction-file hygiene for LLM lexical tics: linting, mirroring, hook filtering (1 of 2)`
+- [ ] Concept: `Emphatic language in prompts and overtriggering` | Parent: `Instruction-file hygiene for LLM lexical tics: linting, mirroring, hook filtering` | Mode: `dr` | Cluster: `Instruction-file hygiene for LLM lexical tics: linting, mirroring, hook filtering (1 of 2)`
+- [ ] Concept: `Few-shot example style leakage` | Parent: `Instruction-file hygiene for LLM lexical tics: linting, mirroring, hook filtering` | Mode: `dr` | Cluster: `Instruction-file hygiene for LLM lexical tics: linting, mirroring, hook filtering (1 of 2)`
+- [ ] Concept: `Linting instruction files for seeded vocabulary` | Parent: `Instruction-file hygiene for LLM lexical tics: linting, mirroring, hook filtering` | Mode: `dr` | Cluster: `Instruction-file hygiene for LLM lexical tics: linting, mirroring, hook filtering (1 of 2)`
+- [ ] Concept: `Fixed prompt-set regression harness for style` | Parent: `Instruction-file hygiene for LLM lexical tics: linting, mirroring, hook filtering` | Mode: `dr` | Cluster: `Instruction-file hygiene for LLM lexical tics: linting, mirroring, hook filtering (1 of 2)`
+- [ ] Concept: `Negative instructions vs positive framing` | Parent: `Instruction-file hygiene for LLM lexical tics: linting, mirroring, hook filtering` | Mode: `dr` | Cluster: `Instruction-file hygiene for LLM lexical tics: linting, mirroring, hook filtering (1 of 2)`
+- [ ] Concept: `Per-model prompt migration` | Parent: `Instruction-file hygiene for LLM lexical tics: linting, mirroring, hook filtering` | Mode: `dr` | Cluster: `Instruction-file hygiene for LLM lexical tics: linting, mirroring, hook filtering (2 of 2)`
+- [ ] Concept: `Positive framing of format instructions` | Parent: `Instruction-file hygiene for LLM lexical tics: linting, mirroring, hook filtering` | Mode: `dr` | Cluster: `Instruction-file hygiene for LLM lexical tics: linting, mirroring, hook filtering (2 of 2)`
+- [ ] Concept: `PostToolUse updatedToolOutput` | Parent: `Instruction-file hygiene for LLM lexical tics: linting, mirroring, hook filtering` | Mode: `dr` | Cluster: `Instruction-file hygiene for LLM lexical tics: linting, mirroring, hook filtering (2 of 2)`
+- [ ] Concept: `Prompt-format mirroring and structural priming in output` | Parent: `Instruction-file hygiene for LLM lexical tics: linting, mirroring, hook filtering` | Mode: `dr` | Cluster: `Instruction-file hygiene for LLM lexical tics: linting, mirroring, hook filtering (2 of 2)`
+- [ ] Concept: `Stop hook nag-once pattern` | Parent: `Instruction-file hygiene for LLM lexical tics: linting, mirroring, hook filtering` | Mode: `dr` | Cluster: `Instruction-file hygiene for LLM lexical tics: linting, mirroring, hook filtering (2 of 2)`
+- [ ] Concept: `Synonym substitution after word bans` | Parent: `Instruction-file hygiene for LLM lexical tics: linting, mirroring, hook filtering` | Mode: `dr` | Cluster: `Instruction-file hygiene for LLM lexical tics: linting, mirroring, hook filtering (2 of 2)`
+- [ ] Concept: `Tic-word list curation per model` | Parent: `Instruction-file hygiene for LLM lexical tics: linting, mirroring, hook filtering` | Mode: `dr` | Cluster: `Instruction-file hygiene for LLM lexical tics: linting, mirroring, hook filtering (2 of 2)`
+- [ ] Concept: `Verifying a vocabulary fix with before-and-after tic rates` | Parent: `Instruction-file hygiene for LLM lexical tics: linting, mirroring, hook filtering` | Mode: `dr` | Cluster: `Instruction-file hygiene for LLM lexical tics: linting, mirroring, hook filtering (2 of 2)`
+- [ ] Concept: `Context-as-managed-resource / RAM framing (Karpathy LLM-as-OS)` | Parent: `LLM Context Engineering` | Mode: `dr` | Cluster: `LLM Context Engineering`
+- [ ] Concept: `Context rot / lost-in-the-middle / effective-vs-advertised length (NoLiMa, RULER)` | Parent: `LLM Context Engineering` | Mode: `dr` | Cluster: `LLM Context Engineering`
+- [ ] Concept: `Compaction & context editing (auto-compact ~95%, Claude memory tool)` | Parent: `LLM Context Engineering` | Mode: `dr` | Cluster: `LLM Context Engineering`
+- [ ] Concept: `Just-in-time / agentic retrieval vs pre-loading` | Parent: `LLM Context Engineering` | Mode: `dr` | Cluster: `LLM Context Engineering`
+- [ ] Concept: `External memory & filesystem-as-memory (recoverable compression)` | Parent: `LLM Context Engineering` | Mode: `dr` | Cluster: `LLM Context Engineering`
+- [ ] Concept: `Multi-agent context (shared traces vs isolation: Cognition vs Anthropic)` | Parent: `LLM Context Engineering` | Mode: `dr` | Cluster: `LLM Context Engineering`
+- [ ] Concept: `KV-cache-aware layout (stable prefix, append-only, mask tools)` | Parent: `LLM Context Engineering` | Mode: `dr` | Cluster: `LLM Context Engineering`
+- [ ] Concept: `Failure modes (poisoning/distraction/confusion/clash - Breunig)` | Parent: `LLM Context Engineering` | Mode: `dr` | Cluster: `LLM Context Engineering`
+- [ ] Concept: `Chunked prefill and the vLLM V1 unified scheduler` | Parent: `LLM Inference Optimization and Serving` | Mode: `dr` | Cluster: `LLM Inference Optimization and Serving (1 of 2)`
+- [ ] Concept: `Constrained / structured decoding at serving layer (XGrammar, Outlines, llguidance)` | Parent: `LLM Inference Optimization and Serving` | Mode: `dr` | Cluster: `LLM Inference Optimization and Serving (1 of 2)`
+- [ ] Concept: `Continuous / in-flight batching` | Parent: `LLM Inference Optimization and Serving` | Mode: `dr` | Cluster: `LLM Inference Optimization and Serving (1 of 2)`
+- [ ] Concept: `Endpoint autoscaling and cost-per-token (KEDA/Knative, scale-to-zero)` | Parent: `LLM Inference Optimization and Serving` | Mode: `dr` | Cluster: `LLM Inference Optimization and Serving (1 of 2)`
+- [ ] Concept: `Serving-engine landscape (vLLM, SGLang, TensorRT-LLM, TGI, LMDeploy, NVIDIA Dynamo)` | Parent: `LLM Inference Optimization and Serving` | Mode: `dr` | Cluster: `LLM Inference Optimization and Serving (1 of 2)`
+- [ ] Concept: `Latency/throughput metrics and SLOs (TTFT, TPOT/ITL, goodput)` | Parent: `LLM Inference Optimization and Serving` | Mode: `dr` | Cluster: `LLM Inference Optimization and Serving (1 of 2)`
+- [ ] Concept: `Multi-GPU inference (tensor / pipeline / expert parallelism)` | Parent: `LLM Inference Optimization and Serving` | Mode: `dr` | Cluster: `LLM Inference Optimization and Serving (2 of 2)`
+- [ ] Concept: `PagedAttention and KV-cache memory management (+ KV offload: LMCache/KVBM/FlexKV)` | Parent: `LLM Inference Optimization and Serving` | Mode: `dr` | Cluster: `LLM Inference Optimization and Serving (2 of 2)`
+- [ ] Concept: `Prefill/decode disaggregation (DistServe, Splitwise, KV-aware routing)` | Parent: `LLM Inference Optimization and Serving` | Mode: `dr` | Cluster: `LLM Inference Optimization and Serving (2 of 2)`
+- [ ] Concept: `Prefix / prompt caching (Automatic Prefix Caching, RadixAttention)` | Parent: `LLM Inference Optimization and Serving` | Mode: `dr` | Cluster: `LLM Inference Optimization and Serving (2 of 2)`
+- [ ] Concept: `Speculative decoding (draft models, Medusa, lookahead, EAGLE/EAGLE-2/EAGLE-3)` | Parent: `LLM Inference Optimization and Serving` | Mode: `dr` | Cluster: `LLM Inference Optimization and Serving (2 of 2)`
+- [ ] Concept: `AlphaDev — AssemblyGame for sorting/hashing` | Parent: `Algorithmic Discovery & Superoptimization` | Mode: `dr` | Cluster: `Algorithmic Discovery & Superoptimization (1 of 2)`
+- [ ] Concept: `AlphaEvolve — the evolutionary coding-agent keystone` | Parent: `Algorithmic Discovery & Superoptimization` | Mode: `dr` | Cluster: `Algorithmic Discovery & Superoptimization (1 of 2)`
+- [ ] Concept: `AlphaTensor — TensorGame for matrix multiplication` | Parent: `Algorithmic Discovery & Superoptimization` | Mode: `dr` | Cluster: `Algorithmic Discovery & Superoptimization (1 of 2)`
+- [ ] Concept: `Superoptimization & complexity reduction (STOKE, Souper, Massalin origins)` | Parent: `Algorithmic Discovery & Superoptimization` | Mode: `dr` | Cluster: `Algorithmic Discovery & Superoptimization (1 of 2)`
+- [ ] Concept: `FunSearch — LLM proposer + systematic evaluator` | Parent: `Algorithmic Discovery & Superoptimization` | Mode: `dr` | Cluster: `Algorithmic Discovery & Superoptimization (1 of 2)`
+- [ ] Concept: `LLM + formal-verifier hybrids for classical optimization (LPO)` | Parent: `Algorithmic Discovery & Superoptimization` | Mode: `dr` | Cluster: `Algorithmic Discovery & Superoptimization (2 of 2)`
+- [ ] Concept: `ML-guided compiler optimization & autotuning (MLGO, OpenTuner, Halide)` | Parent: `Algorithmic Discovery & Superoptimization` | Mode: `dr` | Cluster: `Algorithmic Discovery & Superoptimization (2 of 2)`
+- [ ] Concept: `Open descendants & sample-efficiency frontier (ShinkaEvolve, OpenEvolve)` | Parent: `Algorithmic Discovery & Superoptimization` | Mode: `dr` | Cluster: `Algorithmic Discovery & Superoptimization (2 of 2)`
+- [ ] Concept: `Program-synthesis & evolutionary substrate (sketching, CEGIS, SyGuS, GenProg)` | Parent: `Algorithmic Discovery & Superoptimization` | Mode: `dr` | Cluster: `Algorithmic Discovery & Superoptimization (2 of 2)`
+- [ ] Concept: `Provable vs measured trust` | Parent: `Algorithmic Discovery & Superoptimization` | Mode: `dr` | Cluster: `Algorithmic Discovery & Superoptimization (2 of 2)`
+- [ ] Concept: `Python AI Frameworks` | Parent: `AI Programming Languages` | Mode: `dr` | Cluster: `AI Programming Languages`
+- [ ] Concept: `TypeScript AI Frameworks` | Parent: `AI Programming Languages` | Mode: `dr` | Cluster: `AI Programming Languages`
+- [ ] Concept: `Rust AI Frameworks` | Parent: `AI Programming Languages` | Mode: `dr` | Cluster: `AI Programming Languages`
+- [ ] Concept: `Go AI Frameworks` | Parent: `AI Programming Languages` | Mode: `dr` | Cluster: `AI Programming Languages`
+- [ ] Concept: `Prompt Engineering Languages` | Parent: `AI Programming Languages` | Mode: `dr` | Cluster: `AI Programming Languages`
+- [ ] Concept: `LLM Integration Review Workflow` | Parent: `LLM Integration Patterns` | Mode: `dr` | Cluster: `LLM Integration Patterns`
+- [ ] Concept: `Prompt Injection Defense` | Parent: `LLM Integration Patterns` | Mode: `dr` | Cluster: `LLM Integration Patterns`
+- [ ] Concept: `Structured Output Patterns` | Parent: `LLM Integration Patterns` | Mode: `dr` | Cluster: `LLM Integration Patterns`
+- [ ] Concept: `Caching and Cost Control` | Parent: `LLM Integration Patterns` | Mode: `dr` | Cluster: `LLM Integration Patterns`
+- [ ] Concept: `Annotator dialect hypothesis` | Parent: `Why LLMs converge on the same words: mode collapse and post-training lexical effects` | Mode: `dr` | Cluster: `Why LLMs converge on the same words: mode collapse and post-training lexical effects (1 of 3)`
+- [ ] Concept: `Annotator dialect hypothesis for 'delve'` | Parent: `Why LLMs converge on the same words: mode collapse and post-training lexical effects` | Mode: `dr` | Cluster: `Why LLMs converge on the same words: mode collapse and post-training lexical effects (1 of 3)`
+- [ ] Concept: `Attractor states in aligned models` | Parent: `Why LLMs converge on the same words: mode collapse and post-training lexical effects` | Mode: `dr` | Cluster: `Why LLMs converge on the same words: mode collapse and post-training lexical effects (1 of 3)`
+- [ ] Concept: `Base-model vs aligned-model sampling` | Parent: `Why LLMs converge on the same words: mode collapse and post-training lexical effects` | Mode: `dr` | Cluster: `Why LLMs converge on the same words: mode collapse and post-training lexical effects (1 of 3)`
+- [ ] Concept: `Distillation as a homogeneity confounder` | Parent: `Why LLMs converge on the same words: mode collapse and post-training lexical effects` | Mode: `dr` | Cluster: `Why LLMs converge on the same words: mode collapse and post-training lexical effects (1 of 3)`
+- [ ] Concept: `Diversity-restoring decoding and prompting` | Parent: `Why LLMs converge on the same words: mode collapse and post-training lexical effects` | Mode: `dr` | Cluster: `Why LLMs converge on the same words: mode collapse and post-training lexical effects (1 of 3)`
+- [ ] Concept: `Human-feedback emulation experiments` | Parent: `Why LLMs converge on the same words: mode collapse and post-training lexical effects` | Mode: `dr` | Cluster: `Why LLMs converge on the same words: mode collapse and post-training lexical effects (2 of 3)`
+- [ ] Concept: `Infinity-Chat benchmark` | Parent: `Why LLMs converge on the same words: mode collapse and post-training lexical effects` | Mode: `dr` | Cluster: `Why LLMs converge on the same words: mode collapse and post-training lexical effects (2 of 3)`
+- [ ] Concept: `Inter-model homogeneity in open-ended generation` | Parent: `Why LLMs converge on the same words: mode collapse and post-training lexical effects` | Mode: `dr` | Cluster: `Why LLMs converge on the same words: mode collapse and post-training lexical effects (2 of 3)`
+- [ ] Concept: `KL-regularised optimal policy sharpening` | Parent: `Why LLMs converge on the same words: mode collapse and post-training lexical effects` | Mode: `dr` | Cluster: `Why LLMs converge on the same words: mode collapse and post-training lexical effects (2 of 3)`
+- [ ] Concept: `Post-training effects on LLM vocabulary` | Parent: `Why LLMs converge on the same words: mode collapse and post-training lexical effects` | Mode: `dr` | Cluster: `Why LLMs converge on the same words: mode collapse and post-training lexical effects (2 of 3)`
+- [ ] Concept: `Markdown and em-dash fingerprinting` | Parent: `Why LLMs converge on the same words: mode collapse and post-training lexical effects` | Mode: `dr` | Cluster: `Why LLMs converge on the same words: mode collapse and post-training lexical effects (2 of 3)`
+- [ ] Concept: `Markdown and em-dash fingerprints` | Parent: `Why LLMs converge on the same words: mode collapse and post-training lexical effects` | Mode: `dr` | Cluster: `Why LLMs converge on the same words: mode collapse and post-training lexical effects (3 of 3)`
+- [ ] Concept: `Preference-stage lexical shift metrics` | Parent: `Why LLMs converge on the same words: mode collapse and post-training lexical effects` | Mode: `dr` | Cluster: `Why LLMs converge on the same words: mode collapse and post-training lexical effects (3 of 3)`
+- [ ] Concept: `Pretraining versus alignment attribution of lexical tics` | Parent: `Why LLMs converge on the same words: mode collapse and post-training lexical effects` | Mode: `dr` | Cluster: `Why LLMs converge on the same words: mode collapse and post-training lexical effects (3 of 3)`
+- [ ] Concept: `Temperature and truncation sampler tuning` | Parent: `Why LLMs converge on the same words: mode collapse and post-training lexical effects` | Mode: `dr` | Cluster: `Why LLMs converge on the same words: mode collapse and post-training lexical effects (3 of 3)`
+- [ ] Concept: `Mode collapse and typicality bias in preference tuning` | Parent: `Why LLMs converge on the same words: mode collapse and post-training lexical effects` | Mode: `dr` | Cluster: `Why LLMs converge on the same words: mode collapse and post-training lexical effects (3 of 3)`
+- [ ] Concept: `Constitutional AI / RLCAI` | Parent: `LLM Alignment and Post-Training` | Mode: `dr` | Cluster: `LLM Alignment and Post-Training (1 of 2)`
+- [ ] Concept: `DPO (Direct Preference Optimization)` | Parent: `LLM Alignment and Post-Training` | Mode: `dr` | Cluster: `LLM Alignment and Post-Training (1 of 2)`
+- [ ] Concept: `DPO-Variant Family (IPO/KTO/ORPO/SimPO/CPO)` | Parent: `LLM Alignment and Post-Training` | Mode: `dr` | Cluster: `LLM Alignment and Post-Training (1 of 2)`
+- [ ] Concept: `Alignment Evaluation (win-rate, LC-AlpacaEval, Arena-Hard, RewardBench, safety)` | Parent: `LLM Alignment and Post-Training` | Mode: `dr` | Cluster: `LLM Alignment and Post-Training (1 of 2)`
+- [ ] Concept: `Preference-Data Pipelines (pairwise/ratings, on/off-policy, iterative/self-rewarding)` | Parent: `LLM Alignment and Post-Training` | Mode: `dr` | Cluster: `LLM Alignment and Post-Training (1 of 2)`
+- [ ] Concept: `Reward Hacking / Length Bias / Over-Optimization` | Parent: `LLM Alignment and Post-Training` | Mode: `dr` | Cluster: `LLM Alignment and Post-Training (1 of 2)`
+- [ ] Concept: `Reward Modeling (Bradley-Terry, RewardBench)` | Parent: `LLM Alignment and Post-Training` | Mode: `dr` | Cluster: `LLM Alignment and Post-Training (2 of 2)`
+- [ ] Concept: `RLAIF (AI feedback)` | Parent: `LLM Alignment and Post-Training` | Mode: `dr` | Cluster: `LLM Alignment and Post-Training (2 of 2)`
+- [ ] Concept: `RLHF with PPO (KL penalty, value model)` | Parent: `LLM Alignment and Post-Training` | Mode: `dr` | Cluster: `LLM Alignment and Post-Training (2 of 2)`
+- [ ] Concept: `Supervised Fine-Tuning / Instruction Tuning` | Parent: `LLM Alignment and Post-Training` | Mode: `dr` | Cluster: `LLM Alignment and Post-Training (2 of 2)`
+- [ ] Concept: `Alignment Tooling (TRL, alignment-handbook, Axolotl, OpenRLHF)` | Parent: `LLM Alignment and Post-Training` | Mode: `dr` | Cluster: `LLM Alignment and Post-Training (2 of 2)`
+- [ ] Concept: `AWQ` | Parent: `LLM Compression (Quantization, Distillation, Pruning, Merging)` | Mode: `dr` | Cluster: `LLM Compression (Quantization, Distillation, Pruning, Merging) (1 of 2)`
+- [ ] Concept: `BitNet & EfficientQAT` | Parent: `LLM Compression (Quantization, Distillation, Pruning, Merging)` | Mode: `dr` | Cluster: `LLM Compression (Quantization, Distillation, Pruning, Merging) (1 of 2)`
+- [ ] Concept: `bitsandbytes NF4 & LLM.int8` | Parent: `LLM Compression (Quantization, Distillation, Pruning, Merging)` | Mode: `dr` | Cluster: `LLM Compression (Quantization, Distillation, Pruning, Merging) (1 of 2)`
+- [ ] Concept: `Compressed-model evaluation (perplexity vs KL vs flips)` | Parent: `LLM Compression (Quantization, Distillation, Pruning, Merging)` | Mode: `dr` | Cluster: `LLM Compression (Quantization, Distillation, Pruning, Merging) (1 of 2)`
+- [ ] Concept: `FP8/INT4 & MX/MXFP4 microscaling` | Parent: `LLM Compression (Quantization, Distillation, Pruning, Merging)` | Mode: `dr` | Cluster: `LLM Compression (Quantization, Distillation, Pruning, Merging) (1 of 2)`
+- [ ] Concept: `GGUF llama.cpp k-quants & imatrix` | Parent: `LLM Compression (Quantization, Distillation, Pruning, Merging)` | Mode: `dr` | Cluster: `LLM Compression (Quantization, Distillation, Pruning, Merging) (1 of 2)`
+- [ ] Concept: `GPTQ` | Parent: `LLM Compression (Quantization, Distillation, Pruning, Merging)` | Mode: `dr` | Cluster: `LLM Compression (Quantization, Distillation, Pruning, Merging) (1 of 2)`
+- [ ] Concept: `Knowledge distillation (logit/feature/sequence/on-policy GKD/MiniLLM/DistiLLM)` | Parent: `LLM Compression (Quantization, Distillation, Pruning, Merging)` | Mode: `dr` | Cluster: `LLM Compression (Quantization, Distillation, Pruning, Merging) (2 of 2)`
+- [ ] Concept: `KV-cache quantization (KIVI/KVQuant)` | Parent: `LLM Compression (Quantization, Distillation, Pruning, Merging)` | Mode: `dr` | Cluster: `LLM Compression (Quantization, Distillation, Pruning, Merging) (2 of 2)`
+- [ ] Concept: `Model merging (TIES/DARE/SLERP/task-arithmetic/soups/MergeKit)` | Parent: `LLM Compression (Quantization, Distillation, Pruning, Merging)` | Mode: `dr` | Cluster: `LLM Compression (Quantization, Distillation, Pruning, Merging) (2 of 2)`
+- [ ] Concept: `PTQ vs QAT` | Parent: `LLM Compression (Quantization, Distillation, Pruning, Merging)` | Mode: `dr` | Cluster: `LLM Compression (Quantization, Distillation, Pruning, Merging) (2 of 2)`
+- [ ] Concept: `SmoothQuant (W8A8 activation quant)` | Parent: `LLM Compression (Quantization, Distillation, Pruning, Merging)` | Mode: `dr` | Cluster: `LLM Compression (Quantization, Distillation, Pruning, Merging) (2 of 2)`
+- [ ] Concept: `Pruning & sparsity (SparseGPT, Wanda, 2:4 N:M)` | Parent: `LLM Compression (Quantization, Distillation, Pruning, Merging)` | Mode: `dr` | Cluster: `LLM Compression (Quantization, Distillation, Pruning, Merging) (2 of 2)`
+- [ ] Concept: `Reasoning benchmarks (AIME, GPQA-Diamond, MATH, LiveCodeBench)` | Parent: `Reasoning Models and Test-Time Compute` | Mode: `dr` | Cluster: `Reasoning Models and Test-Time Compute (1 of 2)`
+- [ ] Concept: `Budget forcing and thinking-token control` | Parent: `Reasoning Models and Test-Time Compute` | Mode: `dr` | Cluster: `Reasoning Models and Test-Time Compute (1 of 2)`
+- [ ] Concept: `Chain-of-thought and long-CoT` | Parent: `Reasoning Models and Test-Time Compute` | Mode: `dr` | Cluster: `Reasoning Models and Test-Time Compute (1 of 2)`
+- [ ] Concept: `Cost / latency / accuracy trade-offs and overthinking` | Parent: `Reasoning Models and Test-Time Compute` | Mode: `dr` | Cluster: `Reasoning Models and Test-Time Compute (1 of 2)`
+- [ ] Concept: `Reasoning distillation (R1-Distill)` | Parent: `Reasoning Models and Test-Time Compute` | Mode: `dr` | Cluster: `Reasoning Models and Test-Time Compute (1 of 2)`
+- [ ] Concept: `Inference-time scaling laws and compute-optimal test-time scaling` | Parent: `Reasoning Models and Test-Time Compute` | Mode: `dr` | Cluster: `Reasoning Models and Test-Time Compute (1 of 2)`
+- [ ] Concept: `The o-series / R1-class reasoning-model landscape` | Parent: `Reasoning Models and Test-Time Compute` | Mode: `dr` | Cluster: `Reasoning Models and Test-Time Compute (2 of 2)`
+- [ ] Concept: `Parallel test-time compute (self-consistency / majority vote, best-of-N, generative verifiers)` | Parent: `Reasoning Models and Test-Time Compute` | Mode: `dr` | Cluster: `Reasoning Models and Test-Time Compute (2 of 2)`
+- [ ] Concept: `Process reward models (PRM) vs outcome reward models (ORM) and process supervision` | Parent: `Reasoning Models and Test-Time Compute` | Mode: `dr` | Cluster: `Reasoning Models and Test-Time Compute (2 of 2)`
+- [ ] Concept: `Reinforcement learning for reasoning (GRPO + DeepSeek-R1/R1-Zero recipe)` | Parent: `Reasoning Models and Test-Time Compute` | Mode: `dr` | Cluster: `Reasoning Models and Test-Time Compute (2 of 2)`
+- [ ] Concept: `RLVR — reinforcement learning with verifiable rewards` | Parent: `Reasoning Models and Test-Time Compute` | Mode: `dr` | Cluster: `Reasoning Models and Test-Time Compute (2 of 2)`
+- [ ] Concept: `Search-based test-time compute (beam, lookahead, MCTS, reward-guided decoding)` | Parent: `Reasoning Models and Test-Time Compute` | Mode: `dr` | Cluster: `Reasoning Models and Test-Time Compute (2 of 2)`
+- [ ] Concept: `Distributed checkpointing (PyTorch DCP sharded + async, resharding)` | Parent: `Distributed Training & Training Infrastructure` | Mode: `dr` | Cluster: `Distributed Training & Training Infrastructure (1 of 2)`
+- [ ] Concept: `Collective communication (NCCL all-reduce/all-gather/reduce-scatter/all-to-all, ring vs tree, overlap)` | Parent: `Distributed Training & Training Infrastructure` | Mode: `dr` | Cluster: `Distributed Training & Training Infrastructure (1 of 2)`
+- [ ] Concept: `Context/sequence parallelism for long context (Ring Attention, DeepSpeed-Ulysses, USP)` | Parent: `Distributed Training & Training Infrastructure` | Mode: `dr` | Cluster: `Distributed Training & Training Infrastructure (1 of 2)`
+- [ ] Concept: `Data parallelism & PyTorch DDP (gradient bucketing, backward/comm overlap)` | Parent: `Distributed Training & Training Infrastructure` | Mode: `dr` | Cluster: `Distributed Training & Training Infrastructure (1 of 2)`
+- [ ] Concept: `Frameworks (torchtitan, Megatron-Core, DeepSpeed, NeMo, Composer) & MFU/HFU scaling efficiency` | Parent: `Distributed Training & Training Infrastructure` | Mode: `dr` | Cluster: `Distributed Training & Training Infrastructure (1 of 2)`
+- [ ] Concept: `FSDP & FSDP2 (FlatParameter→per-parameter DTensor, HSDP)` | Parent: `Distributed Training & Training Infrastructure` | Mode: `dr` | Cluster: `Distributed Training & Training Infrastructure (1 of 2)`
+- [ ] Concept: `Gradient checkpointing / selective activation recomputation & gradient accumulation` | Parent: `Distributed Training & Training Infrastructure` | Mode: `dr` | Cluster: `Distributed Training & Training Infrastructure (2 of 2)`
+- [ ] Concept: `Mixed precision (FP16 vs BF16 vs FP8/Transformer-Engine, loss scaling)` | Parent: `Distributed Training & Training Infrastructure` | Mode: `dr` | Cluster: `Distributed Training & Training Infrastructure (2 of 2)`
+- [ ] Concept: `Pipeline parallelism (GPipe, 1F1B, interleaved, the bubble, Seq1F1B/DualPipe)` | Parent: `Distributed Training & Training Infrastructure` | Mode: `dr` | Cluster: `Distributed Training & Training Infrastructure (2 of 2)`
+- [ ] Concept: `Training stability (loss spikes, z-loss, QK-norm, LR warmup, init, grad clip/ZClip)` | Parent: `Distributed Training & Training Infrastructure` | Mode: `dr` | Cluster: `Distributed Training & Training Infrastructure (2 of 2)`
+- [ ] Concept: `Tensor parallelism (Megatron column/row split) + sequence parallelism` | Parent: `Distributed Training & Training Infrastructure` | Mode: `dr` | Cluster: `Distributed Training & Training Infrastructure (2 of 2)`
+- [ ] Concept: `ZeRO optimizer stages 1/2/3 + ZeRO-Offload/ZeRO-Infinity` | Parent: `Distributed Training & Training Infrastructure` | Mode: `dr` | Cluster: `Distributed Training & Training Infrastructure (2 of 2)`
+- [ ] Concept: `Base-model (pre-instruct) evaluation (perplexity, few-shot log-likelihood, lm-evaluation-harness)` | Parent: `LLM Pretraining & Scaling Laws` | Mode: `dr` | Cluster: `LLM Pretraining & Scaling Laws (1 of 2)`
+- [ ] Concept: `The C≈6ND compute budget (2N forward + 4N backward, MoE active-params, MFU)` | Parent: `LLM Pretraining & Scaling Laws` | Mode: `dr` | Cluster: `LLM Pretraining & Scaling Laws (1 of 2)`
+- [ ] Concept: `Continual & domain-adaptive pretraining (LR re-warm + re-decay + replay)` | Parent: `LLM Pretraining & Scaling Laws` | Mode: `dr` | Cluster: `LLM Pretraining & Scaling Laws (1 of 2)`
+- [ ] Concept: `Data-constrained scaling (Muennighoff, ≤4 epochs) & inference-aware / over-training (Sardana & Frankle)` | Parent: `LLM Pretraining & Scaling Laws` | Mode: `dr` | Cluster: `LLM Pretraining & Scaling Laws (1 of 2)`
+- [ ] Concept: `Data mixtures & domain weighting (DoReMi Group-DRO proxy reweighting)` | Parent: `LLM Pretraining & Scaling Laws` | Mode: `dr` | Cluster: `LLM Pretraining & Scaling Laws (1 of 2)`
+- [ ] Concept: `Pretraining data pipeline (web curation, MinHash/LSH dedup, quality filtering, FineWeb/FineWeb-Edu)` | Parent: `LLM Pretraining & Scaling Laws` | Mode: `dr` | Cluster: `LLM Pretraining & Scaling Laws (1 of 2)`
+- [ ] Concept: `Emergent abilities & the mirage debate (Wei vs Schaeffer)` | Parent: `LLM Pretraining & Scaling Laws` | Mode: `dr` | Cluster: `LLM Pretraining & Scaling Laws (2 of 2)`
+- [ ] Concept: `Kaplan vs Chinchilla compute-optimal scaling (N∝C^0.5, ~20 tokens/param) & reconciliation` | Parent: `LLM Pretraining & Scaling Laws` | Mode: `dr` | Cluster: `LLM Pretraining & Scaling Laws (2 of 2)`
+- [ ] Concept: `LR schedules at scale (cosine vs Warmup-Stable-Decay/WSD, MiniCPM) & data annealing` | Parent: `LLM Pretraining & Scaling Laws` | Mode: `dr` | Cluster: `LLM Pretraining & Scaling Laws (2 of 2)`
+- [ ] Concept: `Pretraining objectives (causal/autoregressive LM, masked LM, prefix-LM, FIM, UL2 mixture-of-denoisers)` | Parent: `LLM Pretraining & Scaling Laws` | Mode: `dr` | Cluster: `LLM Pretraining & Scaling Laws (2 of 2)`
+- [ ] Concept: `Tokenizer training (vocab size ~128K, fertility/parity) & eval-set decontamination` | Parent: `LLM Pretraining & Scaling Laws` | Mode: `dr` | Cluster: `LLM Pretraining & Scaling Laws (2 of 2)`
+- [ ] Concept: `Judge biases: position, verbosity, self-preference, sycophancy (sycophantic modality gap)` | Parent: `Vision-Model / Multimodal-LLM Design Critique Technique` | Mode: `dr` | Cluster: `Vision-Model / Multimodal-LLM Design Critique Technique (1 of 2)`
+- [ ] Concept: `Multi-image & before/after comparison (image labeling, image-order/position bias, order-swap)` | Parent: `Vision-Model / Multimodal-LLM Design Critique Technique` | Mode: `dr` | Cluster: `Vision-Model / Multimodal-LLM Design Critique Technique (1 of 2)`
+- [ ] Concept: `Object/element hallucination in critique (POPE/AMBER/MMHal, co-occurrence & affirmative bias)` | Parent: `Vision-Model / Multimodal-LLM Design Critique Technique` | Mode: `dr` | Cluster: `Vision-Model / Multimodal-LLM Design Critique Technique (1 of 2)`
+- [ ] Concept: `Region grounding of findings (Set-of-Mark, OmniParser OCR+icon pre-pass, points>boxes)` | Parent: `Vision-Model / Multimodal-LLM Design Critique Technique` | Mode: `dr` | Cluster: `Vision-Model / Multimodal-LLM Design Critique Technique (1 of 2)`
+- [ ] Concept: `Reliability practices (few-shot anchors, self-consistency, LLM-as-jury panels, abstention, temp 0)` | Parent: `Vision-Model / Multimodal-LLM Design Critique Technique` | Mode: `dr` | Cluster: `Vision-Model / Multimodal-LLM Design Critique Technique (1 of 2)`
+- [ ] Concept: `Rubric-based visual critique prompting (describe-then-judge, rubric-as-prompt, supplied definitions)` | Parent: `Vision-Model / Multimodal-LLM Design Critique Technique` | Mode: `dr` | Cluster: `Vision-Model / Multimodal-LLM Design Critique Technique (2 of 2)`
+- [ ] Concept: `Structured/JSON findings output (json_schema/responseSchema/tool-use; the format tax — reason-first)` | Parent: `Vision-Model / Multimodal-LLM Design Critique Technique` | Mode: `dr` | Cluster: `Vision-Model / Multimodal-LLM Design Critique Technique (2 of 2)`
+- [ ] Concept: `Text-in-image / OCR limits in UI critique (OCRBench, resolution/detail param, external OCR pre-pass)` | Parent: `Vision-Model / Multimodal-LLM Design Critique Technique` | Mode: `dr` | Cluster: `Vision-Model / Multimodal-LLM Design Critique Technique (2 of 2)`
+- [ ] Concept: `VLM-as-judge / MLLM-as-judge calibration vs human designers (rank-not-score, pairwise>pointwise)` | Parent: `Vision-Model / Multimodal-LLM Design Critique Technique` | Mode: `dr` | Cluster: `Vision-Model / Multimodal-LLM Design Critique Technique (2 of 2)`
+- [ ] Concept: `Weak fine-grained spatial reasoning & counting (VSR/BLINK/SpatialEval/CountBench)` | Parent: `Vision-Model / Multimodal-LLM Design Critique Technique` | Mode: `dr` | Cluster: `Vision-Model / Multimodal-LLM Design Critique Technique (2 of 2)`
+- [ ] Concept: `Audio/video/speech modalities (Whisper encoder, Thinker-Talker, frame sampling)` | Parent: `Multimodal & Vision-Language Model Architecture` | Mode: `dr` | Cluster: `Multimodal & Vision-Language Model Architecture (1 of 2)`
+- [ ] Concept: `Multimodal benchmarks & hallucination (MMMU/MMBench/DocVQA/MathVista/POPE/MMHal)` | Parent: `Multimodal & Vision-Language Model Architecture` | Mode: `dr` | Cluster: `Multimodal & Vision-Language Model Architecture (1 of 2)`
+- [ ] Concept: `Vision encoders (ViT/CLIP/SigLIP/DINOv2/EVA)` | Parent: `Multimodal & Vision-Language Model Architecture` | Mode: `dr` | Cluster: `Multimodal & Vision-Language Model Architecture (1 of 2)`
+- [ ] Concept: `Fusion strategies (unified-concat vs cross-attention vs late)` | Parent: `Multimodal & Vision-Language Model Architecture` | Mode: `dr` | Cluster: `Multimodal & Vision-Language Model Architecture (1 of 2)`
+- [ ] Concept: `High-resolution & dynamic tiling (AnyRes/NaViT/native-resolution ViT)` | Parent: `Multimodal & Vision-Language Model Architecture` | Mode: `dr` | Cluster: `Multimodal & Vision-Language Model Architecture (1 of 2)`
+- [ ] Concept: `Modality connector/projector (MLP/Q-Former/gated cross-attention)` | Parent: `Multimodal & Vision-Language Model Architecture` | Mode: `dr` | Cluster: `Multimodal & Vision-Language Model Architecture (2 of 2)`
+- [ ] Concept: `Native any-to-any & image tokenization (Chameleon VQ-VAE, Fuyu)` | Parent: `Multimodal & Vision-Language Model Architecture` | Mode: `dr` | Cluster: `Multimodal & Vision-Language Model Architecture (2 of 2)`
+- [ ] Concept: `Multimodal position encoding (2-D RoPE, M-RoPE)` | Parent: `Multimodal & Vision-Language Model Architecture` | Mode: `dr` | Cluster: `Multimodal & Vision-Language Model Architecture (2 of 2)`
+- [ ] Concept: `The VLM model landscape (LLaVA/Qwen-VL/InternVL/Pixtral/Llama-3.2-Vision/Chameleon/GPT-4o)` | Parent: `Multimodal & Vision-Language Model Architecture` | Mode: `dr` | Cluster: `Multimodal & Vision-Language Model Architecture (2 of 2)`
+- [ ] Concept: `VLM training stages (projector-align, visual instruction tuning, multimodal DPO)` | Parent: `Multimodal & Vision-Language Model Architecture` | Mode: `dr` | Cluster: `Multimodal & Vision-Language Model Architecture (2 of 2)`
+- [ ] Concept: `The 2025-26 agentic-RL model wave (Kimi-Researcher, search/SWE/computer-use agents)` | Parent: `Agentic RL — Reinforcement Learning for LLM Agents` | Mode: `dr` | Cluster: `Agentic RL — Reinforcement Learning for LLM Agents (1 of 2)`
+- [ ] Concept: `Agent RL benchmarks (SWE-bench Verified, WebArena, tau-bench/tau2-bench pass^k, GAIA, OSWorld, AppWorld, Terminal-Bench)` | Parent: `Agentic RL — Reinforcement Learning for LLM Agents` | Mode: `dr` | Cluster: `Agentic RL — Reinforcement Learning for LLM Agents (1 of 2)`
+- [ ] Concept: `RL environments & gyms and the step/reset/state interface (OpenEnv, SkyRL-Gym, RAGEN, BrowserGym)` | Parent: `Agentic RL — Reinforcement Learning for LLM Agents` | Mode: `dr` | Cluster: `Agentic RL — Reinforcement Learning for LLM Agents (1 of 2)`
+- [ ] Concept: `GRPO/PPO adapted to multi-turn — observation/tool-token masking (retrieved-token masking)` | Parent: `Agentic RL — Reinforcement Learning for LLM Agents` | Mode: `dr` | Cluster: `Agentic RL — Reinforcement Learning for LLM Agents (1 of 2)`
+- [ ] Concept: `Long-horizon temporal credit assignment (trajectory-level vs step-level advantage)` | Parent: `Agentic RL — Reinforcement Learning for LLM Agents` | Mode: `dr` | Cluster: `Agentic RL — Reinforcement Learning for LLM Agents (1 of 2)`
+- [ ] Concept: `Multi-turn / long-horizon RL & the POMDP framing (vs single-step PBRFT MDP)` | Parent: `Agentic RL — Reinforcement Learning for LLM Agents` | Mode: `dr` | Cluster: `Agentic RL — Reinforcement Learning for LLM Agents (1 of 2)`
+- [ ] Concept: `Reward design & long-horizon reward hacking (outcome vs process, sparse vs dense, the Echo Trap)` | Parent: `Agentic RL — Reinforcement Learning for LLM Agents` | Mode: `dr` | Cluster: `Agentic RL — Reinforcement Learning for LLM Agents (2 of 2)`
+- [ ] Concept: `Agentic RLVR — verifiable rewards from environment outcomes (code/tests, task/search success)` | Parent: `Agentic RL — Reinforcement Learning for LLM Agents` | Mode: `dr` | Cluster: `Agentic RL — Reinforcement Learning for LLM Agents (2 of 2)`
+- [ ] Concept: `Rollout infrastructure for agentic RL (async server-based vLLM/SGLang, actor-learner, verl AgentLoop, SkyRL-Agent)` | Parent: `Agentic RL — Reinforcement Learning for LLM Agents` | Mode: `dr` | Cluster: `Agentic RL — Reinforcement Learning for LLM Agents (2 of 2)`
+- [ ] Concept: `Tool-use RL / agent-as-policy (ReTool, ToRL, tool-integrated reasoning)` | Parent: `Agentic RL — Reinforcement Learning for LLM Agents` | Mode: `dr` | Cluster: `Agentic RL — Reinforcement Learning for LLM Agents (2 of 2)`
+- [ ] Concept: `Trajectory-level StarPO/StarPO-S and nested episode+step GiGPO credit assignment` | Parent: `Agentic RL — Reinforcement Learning for LLM Agents` | Mode: `dr` | Cluster: `Agentic RL — Reinforcement Learning for LLM Agents (2 of 2)`
+- [ ] Concept: `Activation steering & representation engineering (RepE, ActAdd)` | Parent: `Mechanistic Interpretability` | Mode: `dr` | Cluster: `Mechanistic Interpretability (1 of 2)`
+- [ ] Concept: `Interpretability for alignment & safety (auditing, deception probes, the interpretability illusion)` | Parent: `Mechanistic Interpretability` | Mode: `dr` | Cluster: `Mechanistic Interpretability (1 of 2)`
+- [ ] Concept: `Attribution graphs & circuit tracing (Biology of an LLM)` | Parent: `Mechanistic Interpretability` | Mode: `dr` | Cluster: `Mechanistic Interpretability (1 of 2)`
+- [ ] Concept: `Auto-interpretability & evaluation (SAEBench, Neuronpedia)` | Parent: `Mechanistic Interpretability` | Mode: `dr` | Cluster: `Mechanistic Interpretability (1 of 2)`
+- [ ] Concept: `Circuit discovery (induction heads, IOI, activation/path patching, ACDC, EAP)` | Parent: `Mechanistic Interpretability` | Mode: `dr` | Cluster: `Mechanistic Interpretability (1 of 2)`
+- [ ] Concept: `Logit lens / tuned lens / linear probes / concept erasure` | Parent: `Mechanistic Interpretability` | Mode: `dr` | Cluster: `Mechanistic Interpretability (1 of 2)`
+- [ ] Concept: `The SAE critique wave (random-Transformer baselines, non-canonical, deprioritization)` | Parent: `Mechanistic Interpretability` | Mode: `dr` | Cluster: `Mechanistic Interpretability (2 of 2)`
+- [ ] Concept: `Sparse autoencoders & dictionary learning (Gated/TopK/JumpReLU, Gemma Scope)` | Parent: `Mechanistic Interpretability` | Mode: `dr` | Cluster: `Mechanistic Interpretability (2 of 2)`
+- [ ] Concept: `Sparse feature circuits` | Parent: `Mechanistic Interpretability` | Mode: `dr` | Cluster: `Mechanistic Interpretability (2 of 2)`
+- [ ] Concept: `Superposition & polysemanticity (linear representation hypothesis)` | Parent: `Mechanistic Interpretability` | Mode: `dr` | Cluster: `Mechanistic Interpretability (2 of 2)`
+- [ ] Concept: `Tooling (TransformerLens, SAELens, nnsight/NDIF, Neuronpedia, Gemma Scope)` | Parent: `Mechanistic Interpretability` | Mode: `dr` | Cluster: `Mechanistic Interpretability (2 of 2)`
+- [ ] Concept: `Transcoders & cross-layer transcoders/crosscoders` | Parent: `Mechanistic Interpretability` | Mode: `dr` | Cluster: `Mechanistic Interpretability (2 of 2)`
+- [ ] Concept: `Architectures: UNet → Diffusion Transformer (DiT, MMDiT/SD3, FLUX)` | Parent: `Diffusion & Generative-Media Models` | Mode: `dr` | Cluster: `Diffusion & Generative-Media Models (1 of 2)`
+- [ ] Concept: `Audio/music & other-modality diffusion (overview)` | Parent: `Diffusion & Generative-Media Models` | Mode: `dr` | Cluster: `Diffusion & Generative-Media Models (1 of 2)`
+- [ ] Concept: `Classifier-free guidance (CFG, guidance scale, negative prompts)` | Parent: `Diffusion & Generative-Media Models` | Mode: `dr` | Cluster: `Diffusion & Generative-Media Models (1 of 2)`
+- [ ] Concept: `Conditioning & control (ControlNet, T2I-Adapter, IP-Adapter, DreamBooth, LoRA, textual inversion)` | Parent: `Diffusion & Generative-Media Models` | Mode: `dr` | Cluster: `Diffusion & Generative-Media Models (1 of 2)`
+- [ ] Concept: `Denoising diffusion core (DDPM, ε/v-prediction, noise schedules)` | Parent: `Diffusion & Generative-Media Models` | Mode: `dr` | Cluster: `Diffusion & Generative-Media Models (1 of 2)`
+- [ ] Concept: `Evaluation & efficiency (FID/FVD/CLIPScore, VBench, efficiency surveys)` | Parent: `Diffusion & Generative-Media Models` | Mode: `dr` | Cluster: `Diffusion & Generative-Media Models (1 of 2)`
+- [ ] Concept: `Few-step generation & distillation (consistency models, LCM, ADD/Turbo, sCM, TurboDiffusion)` | Parent: `Diffusion & Generative-Media Models` | Mode: `dr` | Cluster: `Diffusion & Generative-Media Models (2 of 2)`
+- [ ] Concept: `Flow matching & rectified flow (conditional FM, stochastic interpolants, Diff2Flow)` | Parent: `Diffusion & Generative-Media Models` | Mode: `dr` | Cluster: `Diffusion & Generative-Media Models (2 of 2)`
+- [ ] Concept: `Latent diffusion (VAE + denoiser, Stable Diffusion)` | Parent: `Diffusion & Generative-Media Models` | Mode: `dr` | Cluster: `Diffusion & Generative-Media Models (2 of 2)`
+- [ ] Concept: `Samplers/schedulers (DDIM, DPM-Solver++, Euler/Heun, Karras sigmas)` | Parent: `Diffusion & Generative-Media Models` | Mode: `dr` | Cluster: `Diffusion & Generative-Media Models (2 of 2)`
+- [ ] Concept: `Score-based SDE/ODE view (VP/VE, probability-flow ODE, EDM/Karras)` | Parent: `Diffusion & Generative-Media Models` | Mode: `dr` | Cluster: `Diffusion & Generative-Media Models (2 of 2)`
+- [ ] Concept: `Text-to-video & video diffusion (spatiotemporal DiT, Sora/Veo/Kling/CogVideoX/Wan, temporal consistency)` | Parent: `Diffusion & Generative-Media Models` | Mode: `dr` | Cluster: `Diffusion & Generative-Media Models (2 of 2)`
+- [ ] Concept: `Budget/spend controls & cost attribution/chargeback` | Parent: `AI Gateways & LLM Proxy Infrastructure` | Mode: `dr` | Cluster: `AI Gateways & LLM Proxy Infrastructure (1 of 2)`
+- [ ] Concept: `Fallback chains, retries & load balancing` | Parent: `AI Gateways & LLM Proxy Infrastructure` | Mode: `dr` | Cluster: `AI Gateways & LLM Proxy Infrastructure (1 of 2)`
+- [ ] Concept: `Gateway caching (exact-match vs semantic)` | Parent: `AI Gateways & LLM Proxy Infrastructure` | Mode: `dr` | Cluster: `AI Gateways & LLM Proxy Infrastructure (1 of 2)`
+- [ ] Concept: `Governance, RBAC & audit` | Parent: `AI Gateways & LLM Proxy Infrastructure` | Mode: `dr` | Cluster: `AI Gateways & LLM Proxy Infrastructure (1 of 2)`
+- [ ] Concept: `Guardrail & PII/DLP enforcement at the proxy` | Parent: `AI Gateways & LLM Proxy Infrastructure` | Mode: `dr` | Cluster: `AI Gateways & LLM Proxy Infrastructure (1 of 2)`
+- [ ] Concept: `MCP/agent/tool-call gateway governance` | Parent: `AI Gateways & LLM Proxy Infrastructure` | Mode: `dr` | Cluster: `AI Gateways & LLM Proxy Infrastructure (1 of 2)`
+- [ ] Concept: `Observability, logging & tracing hooks` | Parent: `AI Gateways & LLM Proxy Infrastructure` | Mode: `dr` | Cluster: `AI Gateways & LLM Proxy Infrastructure (2 of 2)`
+- [ ] Concept: `Rate limiting & quotas` | Parent: `AI Gateways & LLM Proxy Infrastructure` | Mode: `dr` | Cluster: `AI Gateways & LLM Proxy Infrastructure (2 of 2)`
+- [ ] Concept: `Self-hosted vs managed vs edge vs platform-native` | Parent: `AI Gateways & LLM Proxy Infrastructure` | Mode: `dr` | Cluster: `AI Gateways & LLM Proxy Infrastructure (2 of 2)`
+- [ ] Concept: `Streaming (SSE) pass-through` | Parent: `AI Gateways & LLM Proxy Infrastructure` | Mode: `dr` | Cluster: `AI Gateways & LLM Proxy Infrastructure (2 of 2)`
+- [ ] Concept: `Unified OpenAI-compatible API surface` | Parent: `AI Gateways & LLM Proxy Infrastructure` | Mode: `dr` | Cluster: `AI Gateways & LLM Proxy Infrastructure (2 of 2)`
+- [ ] Concept: `Virtual keys & key-vault management (BYOK)` | Parent: `AI Gateways & LLM Proxy Infrastructure` | Mode: `dr` | Cluster: `AI Gateways & LLM Proxy Infrastructure (2 of 2)`
+- [ ] Concept: `LiteLLM A2A agent gateway` | Parent: `LiteLLM gateway and SDK engineering` | Mode: `dr` | Cluster: `LiteLLM gateway and SDK engineering (1 of 5)`
+- [ ] Concept: `LiteLLM gateway alias configuration` | Parent: `LiteLLM gateway and SDK engineering` | Mode: `dr` | Cluster: `LiteLLM gateway and SDK engineering (1 of 5)`
+- [ ] Concept: `Anthropic block fidelity and provider capabilities` | Parent: `LiteLLM gateway and SDK engineering` | Mode: `dr` | Cluster: `LiteLLM gateway and SDK engineering (1 of 5)`
+- [ ] Concept: `Anthropic-to-Chat client tool translation` | Parent: `LiteLLM gateway and SDK engineering` | Mode: `dr` | Cluster: `LiteLLM gateway and SDK engineering (1 of 5)`
+- [ ] Concept: `Anthropic Messages native passthrough` | Parent: `LiteLLM gateway and SDK engineering` | Mode: `dr` | Cluster: `LiteLLM gateway and SDK engineering (1 of 5)`
+- [ ] Concept: `Anthropic-to-Responses routing` | Parent: `LiteLLM gateway and SDK engineering` | Mode: `dr` | Cluster: `LiteLLM gateway and SDK engineering (1 of 5)`
+- [ ] Concept: `LiteLLM budget reservation and reconciliation` | Parent: `LiteLLM gateway and SDK engineering` | Mode: `dr` | Cluster: `LiteLLM gateway and SDK engineering (1 of 5)`
+- [ ] Concept: `Context and thinking controls across local API surfaces` | Parent: `LiteLLM gateway and SDK engineering` | Mode: `dr` | Cluster: `LiteLLM gateway and SDK engineering (1 of 5)`
+- [ ] Concept: `LiteLLM cooldown policies` | Parent: `LiteLLM gateway and SDK engineering` | Mode: `dr` | Cluster: `LiteLLM gateway and SDK engineering (2 of 5)`
+- [ ] Concept: `LiteLLM database-free deployment boundaries` | Parent: `LiteLLM gateway and SDK engineering` | Mode: `dr` | Cluster: `LiteLLM gateway and SDK engineering (2 of 5)`
+- [ ] Concept: `LiteLLM distributed counter failure policy` | Parent: `LiteLLM gateway and SDK engineering` | Mode: `dr` | Cluster: `LiteLLM gateway and SDK engineering (2 of 5)`
+- [ ] Concept: `Endpoint-specific streaming failover` | Parent: `LiteLLM gateway and SDK engineering` | Mode: `dr` | Cluster: `LiteLLM gateway and SDK engineering (2 of 5)`
+- [ ] Concept: `LiteLLM exact cache identity and tenant namespace` | Parent: `LiteLLM gateway and SDK engineering` | Mode: `dr` | Cluster: `LiteLLM gateway and SDK engineering (2 of 5)`
+- [ ] Concept: `LiteLLM SDK exception taxonomy` | Parent: `LiteLLM gateway and SDK engineering` | Mode: `dr` | Cluster: `LiteLLM gateway and SDK engineering (2 of 5)`
+- [ ] Concept: `Local function-tool capability qualification` | Parent: `LiteLLM gateway and SDK engineering` | Mode: `dr` | Cluster: `LiteLLM gateway and SDK engineering (2 of 5)`
+- [ ] Concept: `LiteLLM MCP permission governance` | Parent: `LiteLLM gateway and SDK engineering` | Mode: `dr` | Cluster: `LiteLLM gateway and SDK engineering (2 of 5)`
+- [ ] Concept: `LiteLLM migrations and image provenance` | Parent: `LiteLLM gateway and SDK engineering` | Mode: `dr` | Cluster: `LiteLLM gateway and SDK engineering (3 of 5)`
+- [ ] Concept: `LiteLLM model capability metadata` | Parent: `LiteLLM gateway and SDK engineering` | Mode: `dr` | Cluster: `LiteLLM gateway and SDK engineering (3 of 5)`
+- [ ] Concept: `LiteLLM model groups and deployment selection` | Parent: `LiteLLM gateway and SDK engineering` | Mode: `dr` | Cluster: `LiteLLM gateway and SDK engineering (3 of 5)`
+- [ ] Concept: `LiteLLM native finish reason preservation` | Parent: `LiteLLM gateway and SDK engineering` | Mode: `dr` | Cluster: `LiteLLM gateway and SDK engineering (3 of 5)`
+- [ ] Concept: `LiteLLM native Ollama Chat adapter` | Parent: `LiteLLM gateway and SDK engineering` | Mode: `dr` | Cluster: `LiteLLM gateway and SDK engineering (3 of 5)`
+- [ ] Concept: `OpenAI-compatible local server configuration` | Parent: `LiteLLM gateway and SDK engineering` | Mode: `dr` | Cluster: `LiteLLM gateway and SDK engineering (3 of 5)`
+- [ ] Concept: `LiteLLM OpenTelemetry generations and privacy` | Parent: `LiteLLM gateway and SDK engineering` | Mode: `dr` | Cluster: `LiteLLM gateway and SDK engineering (3 of 5)`
+- [ ] Concept: `LiteLLM passthrough endpoint capability parity` | Parent: `LiteLLM gateway and SDK engineering` | Mode: `dr` | Cluster: `LiteLLM gateway and SDK engineering (3 of 5)`
+- [ ] Concept: `Provider-specific token and spend accounting` | Parent: `LiteLLM gateway and SDK engineering` | Mode: `dr` | Cluster: `LiteLLM gateway and SDK engineering (4 of 5)`
+- [ ] Concept: `Provider usage normalization with cached tokens` | Parent: `LiteLLM gateway and SDK engineering` | Mode: `dr` | Cluster: `LiteLLM gateway and SDK engineering (4 of 5)`
+- [ ] Concept: `LiteLLM readiness and provider health` | Parent: `LiteLLM gateway and SDK engineering` | Mode: `dr` | Cluster: `LiteLLM gateway and SDK engineering (4 of 5)`
+- [ ] Concept: `Redis cache expiration eviction and ACLs` | Parent: `LiteLLM gateway and SDK engineering` | Mode: `dr` | Cluster: `LiteLLM gateway and SDK engineering (4 of 5)`
+- [ ] Concept: `LiteLLM Responses API interoperability` | Parent: `LiteLLM gateway and SDK engineering` | Mode: `dr` | Cluster: `LiteLLM gateway and SDK engineering (4 of 5)`
+- [ ] Concept: `LiteLLM retry ownership and budgets` | Parent: `LiteLLM gateway and SDK engineering` | Mode: `dr` | Cluster: `LiteLLM gateway and SDK engineering (4 of 5)`
+- [ ] Concept: `LiteLLM Rust gateway migration` | Parent: `LiteLLM gateway and SDK engineering` | Mode: `dr` | Cluster: `LiteLLM gateway and SDK engineering (4 of 5)`
+- [ ] Concept: `LiteLLM semantic replay correctness for agents` | Parent: `LiteLLM gateway and SDK engineering` | Mode: `dr` | Cluster: `LiteLLM gateway and SDK engineering (4 of 5)`
+- [ ] Concept: `LiteLLM stream compatibility fixtures` | Parent: `LiteLLM gateway and SDK engineering` | Mode: `dr` | Cluster: `LiteLLM gateway and SDK engineering (5 of 5)`
+- [ ] Concept: `LiteLLM streamed argument assembly` | Parent: `LiteLLM gateway and SDK engineering` | Mode: `dr` | Cluster: `LiteLLM gateway and SDK engineering (5 of 5)`
+- [ ] Concept: `LiteLLM tenant authorization and key lifecycle` | Parent: `LiteLLM gateway and SDK engineering` | Mode: `dr` | Cluster: `LiteLLM gateway and SDK engineering (5 of 5)`
+- [ ] Concept: `LiteLLM tool result correlation` | Parent: `LiteLLM gateway and SDK engineering` | Mode: `dr` | Cluster: `LiteLLM gateway and SDK engineering (5 of 5)`
+- [ ] Concept: `LiteLLM unsupported parameter policy` | Parent: `LiteLLM gateway and SDK engineering` | Mode: `dr` | Cluster: `LiteLLM gateway and SDK engineering (5 of 5)`
+- [ ] Concept: `LiteLLM usage and stream termination` | Parent: `LiteLLM gateway and SDK engineering` | Mode: `dr` | Cluster: `LiteLLM gateway and SDK engineering (5 of 5)`
+- [ ] Concept: `Apple Foundation Models framework & @Generable guided generation` | Parent: `On-Device & Local LLM Runtimes` | Mode: `dr` | Cluster: `On-Device & Local LLM Runtimes (1 of 4)`
+- [ ] Concept: `Apple MLX, mlx-lm, mlx-vlm` | Parent: `On-Device & Local LLM Runtimes` | Mode: `dr` | Cluster: `On-Device & Local LLM Runtimes (1 of 4)`
+- [ ] Concept: `Apple MLX & MLX-LM (unified-memory inference)` | Parent: `On-Device & Local LLM Runtimes` | Mode: `dr` | Cluster: `On-Device & Local LLM Runtimes (1 of 4)`
+- [ ] Concept: `Chrome Built-in AI / Gemini Nano and Edge Prompt API` | Parent: `On-Device & Local LLM Runtimes` | Mode: `dr` | Cluster: `On-Device & Local LLM Runtimes (1 of 4)`
+- [ ] Concept: `Chrome Built-in AI / Gemini Nano Prompt API` | Parent: `On-Device & Local LLM Runtimes` | Mode: `dr` | Cluster: `On-Device & Local LLM Runtimes (1 of 4)`
+- [ ] Concept: `ExecuTorch` | Parent: `On-Device & Local LLM Runtimes` | Mode: `dr` | Cluster: `On-Device & Local LLM Runtimes (1 of 4)`
+- [ ] Concept: `GBNF grammars and JSON-schema structured output` | Parent: `On-Device & Local LLM Runtimes` | Mode: `dr` | Cluster: `On-Device & Local LLM Runtimes (1 of 4)`
+- [ ] Concept: `GBNF grammars & local schema-constrained decoding` | Parent: `On-Device & Local LLM Runtimes` | Mode: `dr` | Cluster: `On-Device & Local LLM Runtimes (2 of 4)`
+- [ ] Concept: `Local hardware sizing & quant-level selection (RAM/VRAM, KV cache, Q4/Q5/Q8)` | Parent: `On-Device & Local LLM Runtimes` | Mode: `dr` | Cluster: `On-Device & Local LLM Runtimes (2 of 4)`
+- [ ] Concept: `Local hardware sizing and quant selection` | Parent: `On-Device & Local LLM Runtimes` | Mode: `dr` | Cluster: `On-Device & Local LLM Runtimes (2 of 4)`
+- [ ] Concept: `Jan, LocalAI, KoboldCpp, llamafile, Docker Model Runner, RamaLama` | Parent: `On-Device & Local LLM Runtimes` | Mode: `dr` | Cluster: `On-Device & Local LLM Runtimes (2 of 4)`
+- [ ] Concept: `LiteRT-LM and MediaPipe LLM Inference migration` | Parent: `On-Device & Local LLM Runtimes` | Mode: `dr` | Cluster: `On-Device & Local LLM Runtimes (2 of 4)`
+- [ ] Concept: `llama.cpp / llama-server & the GGUF format` | Parent: `On-Device & Local LLM Runtimes` | Mode: `dr` | Cluster: `On-Device & Local LLM Runtimes (2 of 4)`
+- [ ] Concept: `llama.cpp / llama-server and GGUF (semver, --load-mode, router mode, MCP tools)` | Parent: `On-Device & Local LLM Runtimes` | Mode: `dr` | Cluster: `On-Device & Local LLM Runtimes (2 of 4)`
+- [ ] Concept: `LM Studio (GUI + SDK + MLX backend)` | Parent: `On-Device & Local LLM Runtimes` | Mode: `dr` | Cluster: `On-Device & Local LLM Runtimes (3 of 4)`
+- [ ] Concept: `LM Studio and llmster headless daemon` | Parent: `On-Device & Local LLM Runtimes` | Mode: `dr` | Cluster: `On-Device & Local LLM Runtimes (3 of 4)`
+- [ ] Concept: `MLC-LLM` | Parent: `On-Device & Local LLM Runtimes` | Mode: `dr` | Cluster: `On-Device & Local LLM Runtimes (3 of 4)`
+- [ ] Concept: `MLC-LLM & MLCEngine (universal/compiled deploy)` | Parent: `On-Device & Local LLM Runtimes` | Mode: `dr` | Cluster: `On-Device & Local LLM Runtimes (3 of 4)`
+- [ ] Concept: `Mobile on-device runtimes (MediaPipe to LiteRT-LM, ONNX Runtime GenAI / QNN)` | Parent: `On-Device & Local LLM Runtimes` | Mode: `dr` | Cluster: `On-Device & Local LLM Runtimes (3 of 4)`
+- [ ] Concept: `Ollama (llama.cpp engine since 0.30, Modelfile, library)` | Parent: `On-Device & Local LLM Runtimes` | Mode: `dr` | Cluster: `On-Device & Local LLM Runtimes (3 of 4)`
+- [ ] Concept: `Ollama Modelfile & local model library` | Parent: `On-Device & Local LLM Runtimes` | Mode: `dr` | Cluster: `On-Device & Local LLM Runtimes (3 of 4)`
+- [ ] Concept: `ONNX Runtime GenAI` | Parent: `On-Device & Local LLM Runtimes` | Mode: `dr` | Cluster: `On-Device & Local LLM Runtimes (4 of 4)`
+- [ ] Concept: `Runtime-choice matrix for Linux + RTX 5080 16GB eGPU` | Parent: `On-Device & Local LLM Runtimes` | Mode: `dr` | Cluster: `On-Device & Local LLM Runtimes (4 of 4)`
+- [ ] Concept: `vLLM and SGLang on a single consumer GPU` | Parent: `On-Device & Local LLM Runtimes` | Mode: `dr` | Cluster: `On-Device & Local LLM Runtimes (4 of 4)`
+- [ ] Concept: `WebLLM and Transformers.js` | Parent: `On-Device & Local LLM Runtimes` | Mode: `dr` | Cluster: `On-Device & Local LLM Runtimes (4 of 4)`
+- [ ] Concept: `WebLLM & Transformers.js (WebGPU in-browser inference)` | Parent: `On-Device & Local LLM Runtimes` | Mode: `dr` | Cluster: `On-Device & Local LLM Runtimes (4 of 4)`
+- [ ] Concept: `Windows AI Foundry / Foundry Local & on-device NPU inference` | Parent: `On-Device & Local LLM Runtimes` | Mode: `dr` | Cluster: `On-Device & Local LLM Runtimes (4 of 4)`
+- [ ] Concept: `Windows Foundry Local and Windows ML` | Parent: `On-Device & Local LLM Runtimes` | Mode: `dr` | Cluster: `On-Device & Local LLM Runtimes (4 of 4)`
+- [ ] Concept: `DMAR fault triage` | Parent: `Linux thunderbolt driver: host_reset, CLx and bolt authorization` | Mode: `dr` | Cluster: `Linux thunderbolt driver: host_reset, CLx and bolt authorization (1 of 2)`
+- [ ] Concept: `eGPU multi-GPU LLM topology: Thunderbolt vs OCuLink` | Parent: `Linux thunderbolt driver: host_reset, CLx and bolt authorization` | Mode: `dr` | Cluster: `Linux thunderbolt driver: host_reset, CLx and bolt authorization (1 of 2)`
+- [ ] Concept: `Firmware CM (ICM) / Titan Ridge limitations` | Parent: `Linux thunderbolt driver: host_reset, CLx and bolt authorization` | Mode: `dr` | Cluster: `Linux thunderbolt driver: host_reset, CLx and bolt authorization (1 of 2)`
+- [ ] Concept: `initramfs Thunderbolt boot-device authorization` | Parent: `Linux thunderbolt driver: host_reset, CLx and bolt authorization` | Mode: `dr` | Cluster: `Linux thunderbolt driver: host_reset, CLx and bolt authorization (1 of 2)`
+- [ ] Concept: `Intel VT-d untrusted-device domain policy` | Parent: `Linux thunderbolt driver: host_reset, CLx and bolt authorization` | Mode: `dr` | Cluster: `Linux thunderbolt driver: host_reset, CLx and bolt authorization (1 of 2)`
+- [ ] Concept: `Thunderbolt NVM and retimer firmware updates (fwupd)` | Parent: `Linux thunderbolt driver: host_reset, CLx and bolt authorization` | Mode: `dr` | Cluster: `Linux thunderbolt driver: host_reset, CLx and bolt authorization (1 of 2)`
+- [ ] Concept: `pciehp hotplug and Thunderbolt root-port removal` | Parent: `Linux thunderbolt driver: host_reset, CLx and bolt authorization` | Mode: `dr` | Cluster: `Linux thunderbolt driver: host_reset, CLx and bolt authorization (2 of 2)`
+- [ ] Concept: `Resizable BAR over Thunderbolt` | Parent: `Linux thunderbolt driver: host_reset, CLx and bolt authorization` | Mode: `dr` | Cluster: `Linux thunderbolt driver: host_reset, CLx and bolt authorization (2 of 2)`
+- [ ] Concept: `USB4 router/adapter/path model` | Parent: `Linux thunderbolt driver: host_reset, CLx and bolt authorization` | Mode: `dr` | Cluster: `Linux thunderbolt driver: host_reset, CLx and bolt authorization (2 of 2)`
+- [ ] Concept: `USB4 v2 asymmetric links and asym_threshold` | Parent: `Linux thunderbolt driver: host_reset, CLx and bolt authorization` | Mode: `dr` | Cluster: `Linux thunderbolt driver: host_reset, CLx and bolt authorization (2 of 2)`
+- [ ] Concept: `XDomain Thunderbolt networking and thunderbolt_dma_test` | Parent: `Linux thunderbolt driver: host_reset, CLx and bolt authorization` | Mode: `dr` | Cluster: `Linux thunderbolt driver: host_reset, CLx and bolt authorization (2 of 2)`
+- [ ] Concept: `ACPI _CRS host-bridge windows vs pci=nocrs/use_crs` | Parent: `PCI hotplug resource assignment: hpmmiosize, realloc and BAR placement` | Mode: `dr` | Cluster: `PCI hotplug resource assignment: hpmmiosize, realloc and BAR placement (1 of 2)`
+- [ ] Concept: `AER/DPC firmware-first vs native ownership (_OSC) on Thunderbolt root ports` | Parent: `PCI hotplug resource assignment: hpmmiosize, realloc and BAR placement` | Mode: `dr` | Cluster: `PCI hotplug resource assignment: hpmmiosize, realloc and BAR placement (1 of 2)`
+- [ ] Concept: `Barlow Ridge JHL9580/JHL9586 host-reset timeouts` | Parent: `PCI hotplug resource assignment: hpmmiosize, realloc and BAR placement` | Mode: `dr` | Cluster: `PCI hotplug resource assignment: hpmmiosize, realloc and BAR placement (1 of 2)`
+- [ ] Concept: `PCI bridge D3cold/runtime-PM and pci_bridge_d3_possible() exceptions` | Parent: `PCI hotplug resource assignment: hpmmiosize, realloc and BAR placement` | Mode: `dr` | Cluster: `PCI hotplug resource assignment: hpmmiosize, realloc and BAR placement (1 of 2)`
+- [ ] Concept: `Intel IOMMU untrusted-device policy for external PCI` | Parent: `PCI hotplug resource assignment: hpmmiosize, realloc and BAR placement` | Mode: `dr` | Cluster: `PCI hotplug resource assignment: hpmmiosize, realloc and BAR placement (1 of 2)`
+- [ ] Concept: `Movable BARs / ReBAR-aware resource fitting (Miroshnichenko 2020, Järvinen 2026)` | Parent: `PCI hotplug resource assignment: hpmmiosize, realloc and BAR placement` | Mode: `dr` | Cluster: `PCI hotplug resource assignment: hpmmiosize, realloc and BAR placement (2 of 2)`
+- [ ] Concept: `NVIDIA NVreg_EnableResizableBar and open-driver ReBAR requirements` | Parent: `PCI hotplug resource assignment: hpmmiosize, realloc and BAR placement` | Mode: `dr` | Cluster: `PCI hotplug resource assignment: hpmmiosize, realloc and BAR placement (2 of 2)`
+- [ ] Concept: `PCIe Link Control 2 auto-speed-disable and link retrain drops on TB eGPUs` | Parent: `PCI hotplug resource assignment: hpmmiosize, realloc and BAR placement` | Mode: `dr` | Cluster: `PCI hotplug resource assignment: hpmmiosize, realloc and BAR placement (2 of 2)`
+- [ ] Concept: `pciehp surprise-removal and re-add semantics for USB4 tunnels` | Parent: `PCI hotplug resource assignment: hpmmiosize, realloc and BAR placement` | Mode: `dr` | Cluster: `PCI hotplug resource assignment: hpmmiosize, realloc and BAR placement (2 of 2)`
+- [ ] Concept: `Thunderbolt software vs firmware connection manager (ICM) and NVM implications` | Parent: `PCI hotplug resource assignment: hpmmiosize, realloc and BAR placement` | Mode: `dr` | Cluster: `PCI hotplug resource assignment: hpmmiosize, realloc and BAR placement (2 of 2)`
+- [ ] Concept: `NVIDIA FSP boot chain on Blackwell (kfspWaitForResponse) vs GSP` | Parent: `Diagnosing a GPU that has fallen off the bus: config space, MMIO chip ID and AER` | Mode: `dr` | Cluster: `Diagnosing a GPU that has fallen off the bus: config space, MMIO chip ID and AER`
+- [ ] Concept: `PCI bridge config-vs-memory TLP forwarding and COMMAND/window semantics` | Parent: `Diagnosing a GPU that has fallen off the bus: config space, MMIO chip ID and AER` | Mode: `dr` | Cluster: `Diagnosing a GPU that has fallen off the bus: config space, MMIO chip ID and AER`
+- [ ] Concept: `Stable-kernel regression bisection for eGPU (backport tracking)` | Parent: `Diagnosing a GPU that has fallen off the bus: config space, MMIO chip ID and AER` | Mode: `dr` | Cluster: `Diagnosing a GPU that has fallen off the bus: config space, MMIO chip ID and AER`
+- [ ] Concept: `UEFI/BIOS PCIe pre-boot enumeration & Pre-Boot ACL tunnel ownership` | Parent: `Diagnosing a GPU that has fallen off the bus: config space, MMIO chip ID and AER` | Mode: `dr` | Cluster: `Diagnosing a GPU that has fallen off the bus: config space, MMIO chip ID and AER`
+- [ ] Concept: `USB4 asymmetric link / lane symmetry (asym_threshold)` | Parent: `Diagnosing a GPU that has fallen off the bus: config space, MMIO chip ID and AER` | Mode: `dr` | Cluster: `Diagnosing a GPU that has fallen off the bus: config space, MMIO chip ID and AER`
+- [ ] Concept: `Xid 154 recovery-action semantics and nvidia-smi --gpu-reset limits` | Parent: `Diagnosing a GPU that has fallen off the bus: config space, MMIO chip ID and AER` | Mode: `dr` | Cluster: `Diagnosing a GPU that has fallen off the bus: config space, MMIO chip ID and AER`
+- [ ] Concept: `nvidia-persistenced interaction with runtime PM on eGPUs` | Parent: `Diagnosing a GPU that has fallen off the bus: config space, MMIO chip ID and AER` | Mode: `dr` | Cluster: `Diagnosing a GPU that has fallen off the bus: config space, MMIO chip ID and AER`
+- [ ] Concept: `pciehp hot-remove safety in GPU drivers (nvidia vs amdgpu)` | Parent: `Diagnosing a GPU that has fallen off the bus: config space, MMIO chip ID and AER` | Mode: `dr` | Cluster: `Diagnosing a GPU that has fallen off the bus: config space, MMIO chip ID and AER`
+- [ ] Concept: `NVIDIA driver branch lifecycle (NFB/PB/LTSB, EOL dates)` | Parent: `NVIDIA open kernel module on a Thunderbolt eGPU: Xid 79, driver blocking and power management` | Mode: `dr` | Cluster: `NVIDIA open kernel module on a Thunderbolt eGPU: Xid 79, driver blocking and power management (1 of 2)`
+- [ ] Concept: `CUDA minor-version compatibility & forward-compat (PTX JIT, cuda-compat)` | Parent: `NVIDIA open kernel module on a Thunderbolt eGPU: Xid 79, driver blocking and power management` | Mode: `dr` | Cluster: `NVIDIA open kernel module on a Thunderbolt eGPU: Xid 79, driver blocking and power management (1 of 2)`
+- [ ] Concept: `GSP firmware boot diagnostics (GSP-FMC, NVreg_EnableGpuFirmwareLogs, Xid 119/120)` | Parent: `NVIDIA open kernel module on a Thunderbolt eGPU: Xid 79, driver blocking and power management` | Mode: `dr` | Cluster: `NVIDIA open kernel module on a Thunderbolt eGPU: Xid 79, driver blocking and power management (1 of 2)`
+- [ ] Concept: `llama.cpp CUDA build matrix for sm_120 (CMAKE_CUDA_ARCHITECTURES, MXFP4)` | Parent: `NVIDIA open kernel module on a Thunderbolt eGPU: Xid 79, driver blocking and power management` | Mode: `dr` | Cluster: `NVIDIA open kernel module on a Thunderbolt eGPU: Xid 79, driver blocking and power management (1 of 2)`
+- [ ] Concept: `Ollama GPU discovery & bundled CUDA backends (cuda_v12/cuda_v13, NVML)` | Parent: `NVIDIA open kernel module on a Thunderbolt eGPU: Xid 79, driver blocking and power management` | Mode: `dr` | Cluster: `NVIDIA open kernel module on a Thunderbolt eGPU: Xid 79, driver blocking and power management (1 of 2)`
+- [ ] Concept: `nvidia-persistenced & device-node lifecycle headless (nvidia-modprobe, CDI)` | Parent: `NVIDIA open kernel module on a Thunderbolt eGPU: Xid 79, driver blocking and power management` | Mode: `dr` | Cluster: `NVIDIA open kernel module on a Thunderbolt eGPU: Xid 79, driver blocking and power management (2 of 2)`
+- [ ] Concept: `PyTorch CUDA wheel matrix & vendored runtime (cu126/cu128/cu130)` | Parent: `NVIDIA open kernel module on a Thunderbolt eGPU: Xid 79, driver blocking and power management` | Mode: `dr` | Cluster: `NVIDIA open kernel module on a Thunderbolt eGPU: Xid 79, driver blocking and power management (2 of 2)`
+- [ ] Concept: `Ubuntu Secure Boot MOK / DKMS signing vs prebuilt linux-modules-nvidia` | Parent: `NVIDIA open kernel module on a Thunderbolt eGPU: Xid 79, driver blocking and power management` | Mode: `dr` | Cluster: `NVIDIA open kernel module on a Thunderbolt eGPU: Xid 79, driver blocking and power management (2 of 2)`
+- [ ] Concept: `vLLM consumer-Blackwell sm_120 kernels (NVFP4, FlashInfer, bitsandbytes gaps)` | Parent: `NVIDIA open kernel module on a Thunderbolt eGPU: Xid 79, driver blocking and power management` | Mode: `dr` | Cluster: `NVIDIA open kernel module on a Thunderbolt eGPU: Xid 79, driver blocking and power management (2 of 2)`
+- [ ] Concept: `AMD amdgpu eGPU hot-unplug (drm hotunplug) as contrast to NVIDIA` | Parent: `Loading an eGPU driver after bolt with systemd` | Mode: `dr` | Cluster: `Loading an eGPU driver after bolt with systemd`
+- [ ] Concept: `NVIDIA Container Toolkit CDI regeneration on GPU hot-attach` | Parent: `Loading an eGPU driver after bolt with systemd` | Mode: `dr` | Cluster: `Loading an eGPU driver after bolt with systemd`
+- [ ] Concept: `bolt enrollment policies (auto/manual/iommu) and preboot ACL for present-at-boot devices` | Parent: `Loading an eGPU driver after bolt with systemd` | Mode: `dr` | Cluster: `Loading an eGPU driver after bolt with systemd`
+- [ ] Concept: `initramfs-tools framebuffer hook and NVIDIA-in-initrd trimming (FRAMEBUFFER=n, MODULES=dep)` | Parent: `Loading an eGPU driver after bolt with systemd` | Mode: `dr` | Cluster: `Loading an eGPU driver after bolt with systemd`
+- [ ] Concept: `kmod precedence rules: install vs softdep vs blacklist vs module_blacklist=` | Parent: `Loading an eGPU driver after bolt with systemd` | Mode: `dr` | Cluster: `Loading an eGPU driver after bolt with systemd`
+- [ ] Concept: `pciehp surprise-removal semantics and DPC/AER on Thunderbolt tunnels` | Parent: `Loading an eGPU driver after bolt with systemd` | Mode: `dr` | Cluster: `Loading an eGPU driver after bolt with systemd`
+- [ ] Concept: `systemd device units: SYSTEMD_WANTS, BindsTo and DefaultDeviceTimeoutSec` | Parent: `Loading an eGPU driver after bolt with systemd` | Mode: `dr` | Cluster: `Loading an eGPU driver after bolt with systemd`
+- [ ] Concept: `ASUS NPSS and Edge Suite` | Parent: `ASUS NUC BIOS Thunderbolt options and the iSetupCfg CLI` | Mode: `dr` | Cluster: `ASUS NUC BIOS Thunderbolt options and the iSetupCfg CLI`
+- [ ] Concept: `BIOS candidates: Above-4G, ReBAR, VT-d for eGPU` | Parent: `ASUS NUC BIOS Thunderbolt options and the iSetupCfg CLI` | Mode: `dr` | Cluster: `ASUS NUC BIOS Thunderbolt options and the iSetupCfg CLI`
+- [ ] Concept: `NUC BIOS update and recovery risk model` | Parent: `ASUS NUC BIOS Thunderbolt options and the iSetupCfg CLI` | Mode: `dr` | Cluster: `ASUS NUC BIOS Thunderbolt options and the iSetupCfg CLI`
+- [ ] Concept: `Thunderbolt security level in BIOS vs Linux authorization` | Parent: `ASUS NUC BIOS Thunderbolt options and the iSetupCfg CLI` | Mode: `dr` | Cluster: `ASUS NUC BIOS Thunderbolt options and the iSetupCfg CLI`
+- [ ] Concept: `iSetupCfg export-and-diff workflow` | Parent: `ASUS NUC BIOS Thunderbolt options and the iSetupCfg CLI` | Mode: `dr` | Cluster: `ASUS NUC BIOS Thunderbolt options and the iSetupCfg CLI`
+- [ ] Concept: `modern standby S0ix vs S3 and eGPU sleep` | Parent: `ASUS NUC BIOS Thunderbolt options and the iSetupCfg CLI` | Mode: `dr` | Cluster: `ASUS NUC BIOS Thunderbolt options and the iSetupCfg CLI`
+- [ ] Concept: `DPC containment and pciehp interaction` | Parent: `PCIe power management and error handling for a Thunderbolt eGPU: ASPM, D3cold, runtime PM, AER and DPC` | Mode: `dr` | Cluster: `PCIe power management and error handling for a Thunderbolt eGPU: ASPM, D3cold, runtime PM, AER and DPC (1 of 2)`
+- [ ] Concept: `dev_is_removable() and ACPI ExternalFacingPort` | Parent: `PCIe power management and error handling for a Thunderbolt eGPU: ASPM, D3cold, runtime PM, AER and DPC` | Mode: `dr` | Cluster: `PCIe power management and error handling for a Thunderbolt eGPU: ASPM, D3cold, runtime PM, AER and DPC (1 of 2)`
+- [ ] Concept: `PCIe ASPM L1 substates and CLKREQ` | Parent: `PCIe power management and error handling for a Thunderbolt eGPU: ASPM, D3cold, runtime PM, AER and DPC` | Mode: `dr` | Cluster: `PCIe power management and error handling for a Thunderbolt eGPU: ASPM, D3cold, runtime PM, AER and DPC (1 of 2)`
+- [ ] Concept: `AER native vs firmware-first (_OSC) ownership` | Parent: `PCIe power management and error handling for a Thunderbolt eGPU: ASPM, D3cold, runtime PM, AER and DPC` | Mode: `dr` | Cluster: `PCIe power management and error handling for a Thunderbolt eGPU: ASPM, D3cold, runtime PM, AER and DPC (1 of 2)`
+- [ ] Concept: `NVIDIA RTD3 udev rules on an eGPU` | Parent: `PCIe power management and error handling for a Thunderbolt eGPU: ASPM, D3cold, runtime PM, AER and DPC` | Mode: `dr` | Cluster: `PCIe power management and error handling for a Thunderbolt eGPU: ASPM, D3cold, runtime PM, AER and DPC (1 of 2)`
+- [ ] Concept: `NVreg_PreserveVideoMemoryAllocations and suspend` | Parent: `PCIe power management and error handling for a Thunderbolt eGPU: ASPM, D3cold, runtime PM, AER and DPC` | Mode: `dr` | Cluster: `PCIe power management and error handling for a Thunderbolt eGPU: ASPM, D3cold, runtime PM, AER and DPC (2 of 2)`
+- [ ] Concept: `pci_bridge_d3_possible() and port runtime PM` | Parent: `PCIe power management and error handling for a Thunderbolt eGPU: ASPM, D3cold, runtime PM, AER and DPC` | Mode: `dr` | Cluster: `PCIe power management and error handling for a Thunderbolt eGPU: ASPM, D3cold, runtime PM, AER and DPC (2 of 2)`
+- [ ] Concept: `s2idle vs deep suspend with an eGPU` | Parent: `PCIe power management and error handling for a Thunderbolt eGPU: ASPM, D3cold, runtime PM, AER and DPC` | Mode: `dr` | Cluster: `PCIe power management and error handling for a Thunderbolt eGPU: ASPM, D3cold, runtime PM, AER and DPC (2 of 2)`
+- [ ] Concept: `Xid 79 triage from AER precursors` | Parent: `PCIe power management and error handling for a Thunderbolt eGPU: ASPM, D3cold, runtime PM, AER and DPC` | Mode: `dr` | Cluster: `PCIe power management and error handling for a Thunderbolt eGPU: ASPM, D3cold, runtime PM, AER and DPC (2 of 2)`
+- [ ] Concept: `16 GB VRAM residency budgeting (weights + KV cache)` | Parent: `Blackwell sm_120 local-LLM inference stack on Linux: llama.cpp, Ollama, PyTorch and vLLM over a Thunderbolt eGPU` | Mode: `dr` | Cluster: `Blackwell sm_120 local-LLM inference stack on Linux: llama.cpp, Ollama, PyTorch and vLLM over a Thunderbolt eGPU`
+- [ ] Concept: `MoE expert CPU offload traffic over a Thunderbolt tunnel` | Parent: `Blackwell sm_120 local-LLM inference stack on Linux: llama.cpp, Ollama, PyTorch and vLLM over a Thunderbolt eGPU` | Mode: `dr` | Cluster: `Blackwell sm_120 local-LLM inference stack on Linux: llama.cpp, Ollama, PyTorch and vLLM over a Thunderbolt eGPU`
+- [ ] Concept: `Ollama cuda_v12/cuda_v13 backend selection and NVML dependency` | Parent: `Blackwell sm_120 local-LLM inference stack on Linux: llama.cpp, Ollama, PyTorch and vLLM over a Thunderbolt eGPU` | Mode: `dr` | Cluster: `Blackwell sm_120 local-LLM inference stack on Linux: llama.cpp, Ollama, PyTorch and vLLM over a Thunderbolt eGPU`
+- [ ] Concept: `PyTorch cu126/cu128/cu130 wheel matrix and driver floors` | Parent: `Blackwell sm_120 local-LLM inference stack on Linux: llama.cpp, Ollama, PyTorch and vLLM over a Thunderbolt eGPU` | Mode: `dr` | Cluster: `Blackwell sm_120 local-LLM inference stack on Linux: llama.cpp, Ollama, PyTorch and vLLM over a Thunderbolt eGPU`
+- [ ] Concept: `llama.cpp CMAKE_CUDA_ARCHITECTURES for sm_120 and MXFP4/NVFP4 kernels` | Parent: `Blackwell sm_120 local-LLM inference stack on Linux: llama.cpp, Ollama, PyTorch and vLLM over a Thunderbolt eGPU` | Mode: `dr` | Cluster: `Blackwell sm_120 local-LLM inference stack on Linux: llama.cpp, Ollama, PyTorch and vLLM over a Thunderbolt eGPU`
+- [ ] Concept: `vLLM consumer-Blackwell kernels (NVFP4, FlashInfer, bitsandbytes gaps)` | Parent: `Blackwell sm_120 local-LLM inference stack on Linux: llama.cpp, Ollama, PyTorch and vLLM over a Thunderbolt eGPU` | Mode: `dr` | Cluster: `Blackwell sm_120 local-LLM inference stack on Linux: llama.cpp, Ollama, PyTorch and vLLM over a Thunderbolt eGPU`
+- [ ] Concept: `Chunked Prefill Memory Bounds` | Parent: `16 GB VRAM residency budgeting` | Mode: `dr` | Cluster: `16 GB VRAM residency budgeting (1 of 2)`
+- [ ] Concept: `Context Sizing Budgets on 16GB VRAM` | Parent: `16 GB VRAM residency budgeting` | Mode: `dr` | Cluster: `16 GB VRAM residency budgeting (1 of 2)`
+- [ ] Concept: `FP8 and INT4 KV Cache Quantization` | Parent: `16 GB VRAM residency budgeting` | Mode: `dr` | Cluster: `16 GB VRAM residency budgeting (1 of 2)`
+- [ ] Concept: `GGUF k-quants` | Parent: `16 GB VRAM residency budgeting` | Mode: `dr` | Cluster: `16 GB VRAM residency budgeting (1 of 2)`
+- [ ] Concept: `GQA KV Cache Memory Mechanics` | Parent: `16 GB VRAM residency budgeting` | Mode: `dr` | Cluster: `16 GB VRAM residency budgeting (1 of 2)`
+- [ ] Concept: `NVFP4 on Blackwell sm_120` | Parent: `16 GB VRAM residency budgeting` | Mode: `dr` | Cluster: `16 GB VRAM residency budgeting (2 of 2)`
+- [ ] Concept: `PagedAttention and Memory Fragmentation` | Parent: `16 GB VRAM residency budgeting` | Mode: `dr` | Cluster: `16 GB VRAM residency budgeting (2 of 2)`
+- [ ] Concept: `Sliding Window Attention` | Parent: `16 GB VRAM residency budgeting` | Mode: `dr` | Cluster: `16 GB VRAM residency budgeting (2 of 2)`
+- [ ] Concept: `Weight Quantization Footprints` | Parent: `16 GB VRAM residency budgeting` | Mode: `dr` | Cluster: `16 GB VRAM residency budgeting (2 of 2)`
+- [ ] Concept: `FSP boot chain (kfspWaitForResponse) and GSP-FMC bootstrap` | Parent: `NVIDIA GSP and FSP firmware boot diagnostics on Blackwell under the open kernel modules` | Mode: `dr` | Cluster: `NVIDIA GSP and FSP firmware boot diagnostics on Blackwell under the open kernel modules`
+- [ ] Concept: `KMD/firmware blob version mismatch` | Parent: `NVIDIA GSP and FSP firmware boot diagnostics on Blackwell under the open kernel modules` | Mode: `dr` | Cluster: `NVIDIA GSP and FSP firmware boot diagnostics on Blackwell under the open kernel modules`
+- [ ] Concept: `NVreg_EnableGpuFirmwareLogs and reading GSP logs` | Parent: `NVIDIA GSP and FSP firmware boot diagnostics on Blackwell under the open kernel modules` | Mode: `dr` | Cluster: `NVIDIA GSP and FSP firmware boot diagnostics on Blackwell under the open kernel modules`
+- [ ] Concept: `RmInitAdapter failure ladder` | Parent: `NVIDIA GSP and FSP firmware boot diagnostics on Blackwell under the open kernel modules` | Mode: `dr` | Cluster: `NVIDIA GSP and FSP firmware boot diagnostics on Blackwell under the open kernel modules`
+- [ ] Concept: `Xid 119/120 GSP RPC timeout and error semantics` | Parent: `NVIDIA GSP and FSP firmware boot diagnostics on Blackwell under the open kernel modules` | Mode: `dr` | Cluster: `NVIDIA GSP and FSP firmware boot diagnostics on Blackwell under the open kernel modules`
+- [ ] Concept: `nouveau/nova GSP support as contrast` | Parent: `NVIDIA GSP and FSP firmware boot diagnostics on Blackwell under the open kernel modules` | Mode: `dr` | Cluster: `NVIDIA GSP and FSP firmware boot diagnostics on Blackwell under the open kernel modules`
+- [ ] Concept: `bolt IOMMU DMA-protection policy` | Parent: `Thunderbolt boot-device authorization and NVIDIA CDI for an eGPU on Linux` | Mode: `dr` | Cluster: `Thunderbolt boot-device authorization and NVIDIA CDI for an eGPU on Linux (1 of 2)`
+- [ ] Concept: `Thunderbolt BootACL and preboot ACL` | Parent: `Thunderbolt boot-device authorization and NVIDIA CDI for an eGPU on Linux` | Mode: `dr` | Cluster: `Thunderbolt boot-device authorization and NVIDIA CDI for an eGPU on Linux (1 of 2)`
+- [ ] Concept: `/dev/nvidia* node lifecycle on hotplug` | Parent: `Thunderbolt boot-device authorization and NVIDIA CDI for an eGPU on Linux` | Mode: `dr` | Cluster: `Thunderbolt boot-device authorization and NVIDIA CDI for an eGPU on Linux (1 of 2)`
+- [ ] Concept: `Docker --gpus vs CDI` | Parent: `Thunderbolt boot-device authorization and NVIDIA CDI for an eGPU on Linux` | Mode: `dr` | Cluster: `Thunderbolt boot-device authorization and NVIDIA CDI for an eGPU on Linux (1 of 2)`
+- [ ] Concept: `dracut Thunderbolt module` | Parent: `Thunderbolt boot-device authorization and NVIDIA CDI for an eGPU on Linux` | Mode: `dr` | Cluster: `Thunderbolt boot-device authorization and NVIDIA CDI for an eGPU on Linux (1 of 2)`
+- [ ] Concept: `initramfs-tools hook authoring for Thunderbolt` | Parent: `Thunderbolt boot-device authorization and NVIDIA CDI for an eGPU on Linux` | Mode: `dr` | Cluster: `Thunderbolt boot-device authorization and NVIDIA CDI for an eGPU on Linux (2 of 2)`
+- [ ] Concept: `nvidia-modprobe and nvidia_uvm on headless hosts` | Parent: `Thunderbolt boot-device authorization and NVIDIA CDI for an eGPU on Linux` | Mode: `dr` | Cluster: `Thunderbolt boot-device authorization and NVIDIA CDI for an eGPU on Linux (2 of 2)`
+- [ ] Concept: `podman rootless CDI for NVIDIA` | Parent: `Thunderbolt boot-device authorization and NVIDIA CDI for an eGPU on Linux` | Mode: `dr` | Cluster: `Thunderbolt boot-device authorization and NVIDIA CDI for an eGPU on Linux (2 of 2)`
+- [ ] Concept: `nvidia-cdi-refresh systemd units` | Parent: `Thunderbolt boot-device authorization and NVIDIA CDI for an eGPU on Linux` | Mode: `dr` | Cluster: `Thunderbolt boot-device authorization and NVIDIA CDI for an eGPU on Linux (2 of 2)`
+- [ ] Concept: `CDI spec staleness and regeneration` | Parent: `Thunderbolt boot-device authorization and NVIDIA CDI for an eGPU on Linux` | Mode: `dr` | Cluster: `Thunderbolt boot-device authorization and NVIDIA CDI for an eGPU on Linux (2 of 2)`
+- [ ] Concept: `DPC containment vs surprise removal` | Parent: `GPU hot-unplug and surprise-removal safety for a Thunderbolt eGPU on Linux` | Mode: `dr` | Cluster: `GPU hot-unplug and surprise-removal safety for a Thunderbolt eGPU on Linux`
+- [ ] Concept: `DRM hot-unplug contract in amdgpu and xe` | Parent: `GPU hot-unplug and surprise-removal safety for a Thunderbolt eGPU on Linux` | Mode: `dr` | Cluster: `GPU hot-unplug and surprise-removal safety for a Thunderbolt eGPU on Linux`
+- [ ] Concept: `PCI core disconnected flag and all-ones MMIO` | Parent: `GPU hot-unplug and surprise-removal safety for a Thunderbolt eGPU on Linux` | Mode: `dr` | Cluster: `GPU hot-unplug and surprise-removal safety for a Thunderbolt eGPU on Linux`
+- [ ] Concept: `amdgpu removable-GPU runtime-PM policy` | Parent: `GPU hot-unplug and surprise-removal safety for a Thunderbolt eGPU on Linux` | Mode: `dr` | Cluster: `GPU hot-unplug and surprise-removal safety for a Thunderbolt eGPU on Linux`
+- [ ] Concept: `nvidia-persistenced and open file descriptors blocking removal` | Parent: `GPU hot-unplug and surprise-removal safety for a Thunderbolt eGPU on Linux` | Mode: `dr` | Cluster: `GPU hot-unplug and surprise-removal safety for a Thunderbolt eGPU on Linux`
+- [ ] Concept: `nvidia-smi drain for planned detach` | Parent: `GPU hot-unplug and surprise-removal safety for a Thunderbolt eGPU on Linux` | Mode: `dr` | Cluster: `GPU hot-unplug and surprise-removal safety for a Thunderbolt eGPU on Linux`
+- [ ] Concept: `nvidia_remove usage-count hang` | Parent: `GPU hot-unplug and surprise-removal safety for a Thunderbolt eGPU on Linux` | Mode: `dr` | Cluster: `GPU hot-unplug and surprise-removal safety for a Thunderbolt eGPU on Linux`
+- [ ] Concept: `pciehp surprise link-down handling` | Parent: `GPU hot-unplug and surprise-removal safety for a Thunderbolt eGPU on Linux` | Mode: `dr` | Cluster: `GPU hot-unplug and surprise-removal safety for a Thunderbolt eGPU on Linux`
+- [ ] Concept: `fwupd retimer offline-mode flow` | Parent: `Thunderbolt firmware updates and kernel-regression hygiene for a Linux eGPU` | Mode: `dr` | Cluster: `Thunderbolt firmware updates and kernel-regression hygiene for a Linux eGPU (1 of 2)`
+- [ ] Concept: `git bisect on a kernel-only observable` | Parent: `Thunderbolt firmware updates and kernel-regression hygiene for a Linux eGPU` | Mode: `dr` | Cluster: `Thunderbolt firmware updates and kernel-regression hygiene for a Linux eGPU (1 of 2)`
+- [ ] Concept: `GRUB saved default and apt-mark hold kernel pinning` | Parent: `Thunderbolt firmware updates and kernel-regression hygiene for a Linux eGPU` | Mode: `dr` | Cluster: `Thunderbolt firmware updates and kernel-regression hygiene for a Linux eGPU (1 of 2)`
+- [ ] Concept: `journalctl cross-boot diff for regression triage` | Parent: `Thunderbolt firmware updates and kernel-regression hygiene for a Linux eGPU` | Mode: `dr` | Cluster: `Thunderbolt firmware updates and kernel-regression hygiene for a Linux eGPU (1 of 2)`
+- [ ] Concept: `LVFS coverage for eGPU enclosures and Barlow Ridge` | Parent: `Thunderbolt firmware updates and kernel-regression hygiene for a Linux eGPU` | Mode: `dr` | Cluster: `Thunderbolt firmware updates and kernel-regression hygiene for a Linux eGPU (1 of 2)`
+- [ ] Concept: `Thunderbolt NVM sysfs nvm_version and nvm_authenticate` | Parent: `Thunderbolt firmware updates and kernel-regression hygiene for a Linux eGPU` | Mode: `dr` | Cluster: `Thunderbolt firmware updates and kernel-regression hygiene for a Linux eGPU (2 of 2)`
+- [ ] Concept: `regressions@lists.linux.dev and regzbot commands` | Parent: `Thunderbolt firmware updates and kernel-regression hygiene for a Linux eGPU` | Mode: `dr` | Cluster: `Thunderbolt firmware updates and kernel-regression hygiene for a Linux eGPU (2 of 2)`
+- [ ] Concept: `stable backport tracking (stable-queue, stable-rc)` | Parent: `Thunderbolt firmware updates and kernel-regression hygiene for a Linux eGPU` | Mode: `dr` | Cluster: `Thunderbolt firmware updates and kernel-regression hygiene for a Linux eGPU (2 of 2)`
+- [ ] Concept: `kernel taint and DKMS as regression disqualifiers` | Parent: `Thunderbolt firmware updates and kernel-regression hygiene for a Linux eGPU` | Mode: `dr` | Cluster: `Thunderbolt firmware updates and kernel-regression hygiene for a Linux eGPU (2 of 2)`
+- [ ] Concept: `Ubuntu GA vs HWE kernel tracks` | Parent: `Thunderbolt firmware updates and kernel-regression hygiene for a Linux eGPU` | Mode: `dr` | Cluster: `Thunderbolt firmware updates and kernel-regression hygiene for a Linux eGPU (2 of 2)`
+- [ ] Concept: `CUDA_VISIBLE_DEVICES by UUID with a late-arriving eGPU` | Parent: `Hybrid graphics on Linux: Intel iGPU plus NVIDIA eGPU for headless compute` | Mode: `dr` | Cluster: `Hybrid graphics on Linux: Intel iGPU plus NVIDIA eGPU for headless compute`
+- [ ] Concept: `PRIME render offload vs pure CUDA` | Parent: `Hybrid graphics on Linux: Intel iGPU plus NVIDIA eGPU for headless compute` | Mode: `dr` | Cluster: `Hybrid graphics on Linux: Intel iGPU plus NVIDIA eGPU for headless compute`
+- [ ] Concept: `gnome-shell VRAM footprint on a secondary NVIDIA GPU` | Parent: `Hybrid graphics on Linux: Intel iGPU plus NVIDIA eGPU for headless compute` | Mode: `dr` | Cluster: `Hybrid graphics on Linux: Intel iGPU plus NVIDIA eGPU for headless compute`
+- [ ] Concept: `mutter preferred-primary-GPU udev tag` | Parent: `Hybrid graphics on Linux: Intel iGPU plus NVIDIA eGPU for headless compute` | Mode: `dr` | Cluster: `Hybrid graphics on Linux: Intel iGPU plus NVIDIA eGPU for headless compute`
+- [ ] Concept: `nvidia-drm modeset and fbdev on a compute-only GPU` | Parent: `Hybrid graphics on Linux: Intel iGPU plus NVIDIA eGPU for headless compute` | Mode: `dr` | Cluster: `Hybrid graphics on Linux: Intel iGPU plus NVIDIA eGPU for headless compute`
+- [ ] Concept: `sharing 16 GB VRAM across multiple compute servers` | Parent: `Hybrid graphics on Linux: Intel iGPU plus NVIDIA eGPU for headless compute` | Mode: `dr` | Cluster: `Hybrid graphics on Linux: Intel iGPU plus NVIDIA eGPU for headless compute`
+- [ ] Concept: `vgaarb and boot_vga with a late-arriving eGPU` | Parent: `Hybrid graphics on Linux: Intel iGPU plus NVIDIA eGPU for headless compute` | Mode: `dr` | Cluster: `Hybrid graphics on Linux: Intel iGPU plus NVIDIA eGPU for headless compute`
+- [ ] Concept: `xe vs i915 force_probe binding checks` | Parent: `Hybrid graphics on Linux: Intel iGPU plus NVIDIA eGPU for headless compute` | Mode: `dr` | Cluster: `Hybrid graphics on Linux: Intel iGPU plus NVIDIA eGPU for headless compute`
+- [ ] Concept: `12V-2x6 connector seating and sense pins` | Parent: `Power, PSU and thermals for a Thunderbolt eGPU` | Mode: `dr` | Cluster: `Power, PSU and thermals for a Thunderbolt eGPU (1 of 2)`
+- [ ] Concept: `Thunderbolt bus power and PD back-power` | Parent: `Power, PSU and thermals for a Thunderbolt eGPU` | Mode: `dr` | Cluster: `Power, PSU and thermals for a Thunderbolt eGPU (1 of 2)`
+- [ ] Concept: `clocks throttle reasons decoding` | Parent: `Power, PSU and thermals for a Thunderbolt eGPU` | Mode: `dr` | Cluster: `Power, PSU and thermals for a Thunderbolt eGPU (1 of 2)`
+- [ ] Concept: `Core X V2 ATX PSU sizing` | Parent: `Power, PSU and thermals for a Thunderbolt eGPU` | Mode: `dr` | Cluster: `Power, PSU and thermals for a Thunderbolt eGPU (1 of 2)`
+- [ ] Concept: `power-limit tuning for LLM inference` | Parent: `Power, PSU and thermals for a Thunderbolt eGPU` | Mode: `dr` | Cluster: `Power, PSU and thermals for a Thunderbolt eGPU (1 of 2)`
+- [ ] Concept: `nvidia-smi power-limit persistence via systemd` | Parent: `Power, PSU and thermals for a Thunderbolt eGPU` | Mode: `dr` | Cluster: `Power, PSU and thermals for a Thunderbolt eGPU (2 of 2)`
+- [ ] Concept: `RTX 5080 360 W TGP power budget` | Parent: `Power, PSU and thermals for a Thunderbolt eGPU` | Mode: `dr` | Cluster: `Power, PSU and thermals for a Thunderbolt eGPU (2 of 2)`
+- [ ] Concept: `eGPU soak-test runbook with abort criteria` | Parent: `Power, PSU and thermals for a Thunderbolt eGPU` | Mode: `dr` | Cluster: `Power, PSU and thermals for a Thunderbolt eGPU (2 of 2)`
+- [ ] Concept: `Xid 54 vs Xid 79 power-vs-bus fault discrimination` | Parent: `Power, PSU and thermals for a Thunderbolt eGPU` | Mode: `dr` | Cluster: `Power, PSU and thermals for a Thunderbolt eGPU (2 of 2)`
+- [ ] Concept: `Barlow Ridge host-reset timeout and BAR window failures` | Parent: `Thunderbolt 5, Barlow Ridge and OCuLink eGPU topologies on Linux` | Mode: `dr` | Cluster: `Thunderbolt 5, Barlow Ridge and OCuLink eGPU topologies on Linux`
+- [ ] Concept: `MoE CPU-expert offload PCIe traffic` | Parent: `Thunderbolt 5, Barlow Ridge and OCuLink eGPU topologies on Linux` | Mode: `dr` | Cluster: `Thunderbolt 5, Barlow Ridge and OCuLink eGPU topologies on Linux`
+- [ ] Concept: `OCuLink M.2 adapter boot order and ATX PSU sequencing` | Parent: `Thunderbolt 5, Barlow Ridge and OCuLink eGPU topologies on Linux` | Mode: `dr` | Cluster: `Thunderbolt 5, Barlow Ridge and OCuLink eGPU topologies on Linux`
+- [ ] Concept: `TB5 enclosure on a TB4 host negotiation` | Parent: `Thunderbolt 5, Barlow Ridge and OCuLink eGPU topologies on Linux` | Mode: `dr` | Cluster: `Thunderbolt 5, Barlow Ridge and OCuLink eGPU topologies on Linux`
+- [ ] Concept: `eGPU topology buying guide by model size` | Parent: `Thunderbolt 5, Barlow Ridge and OCuLink eGPU topologies on Linux` | Mode: `dr` | Cluster: `Thunderbolt 5, Barlow Ridge and OCuLink eGPU topologies on Linux`
+- [ ] Concept: `multi-GPU layer split vs tensor parallel over eGPU links` | Parent: `Thunderbolt 5, Barlow Ridge and OCuLink eGPU topologies on Linux` | Mode: `dr` | Cluster: `Thunderbolt 5, Barlow Ridge and OCuLink eGPU topologies on Linux`
+- [ ] Concept: `AER correctable-counter baselining` | Parent: `PCIe link training, speed and width on a Thunderbolt eGPU` | Mode: `dr` | Cluster: `PCIe link training, speed and width on a Thunderbolt eGPU`
+- [ ] Concept: `MPS and MRRS tuning on hotplug trees` | Parent: `PCIe link training, speed and width on a Thunderbolt eGPU` | Mode: `dr` | Cluster: `PCIe link training, speed and width on a Thunderbolt eGPU`
+- [ ] Concept: `PCIe equalization phases and LnkSta2 fields` | Parent: `PCIe link training, speed and width on a Thunderbolt eGPU` | Mode: `dr` | Cluster: `PCIe link training, speed and width on a Thunderbolt eGPU`
+- [ ] Concept: `Thunderbolt tunnel bandwidth vs enclosure controller ceiling` | Parent: `PCIe link training, speed and width on a Thunderbolt eGPU` | Mode: `dr` | Cluster: `PCIe link training, speed and width on a Thunderbolt eGPU`
+- [ ] Concept: `Thunderbolt/USB4 cable certification and rx/tx speed sysfs` | Parent: `PCIe link training, speed and width on a Thunderbolt eGPU` | Mode: `dr` | Cluster: `PCIe link training, speed and width on a Thunderbolt eGPU`
+- [ ] Concept: `kernel pcie_bandwidth_available message and tunnel-port exclusion` | Parent: `PCIe link training, speed and width on a Thunderbolt eGPU` | Mode: `dr` | Cluster: `PCIe link training, speed and width on a Thunderbolt eGPU`
+- [ ] Concept: `safe link retrain procedure` | Parent: `PCIe link training, speed and width on a Thunderbolt eGPU` | Mode: `dr` | Cluster: `PCIe link training, speed and width on a Thunderbolt eGPU`
+- [ ] Concept: `CUDA bandwidthTest pinned vs pageable` | Parent: `Measuring a Thunderbolt eGPU: bandwidth, latency and inference benchmarks` | Mode: `dr` | Cluster: `Measuring a Thunderbolt eGPU: bandwidth, latency and inference benchmarks (1 of 2)`
+- [ ] Concept: `Thunderbolt host-to-device and device-to-host duplex behaviour` | Parent: `Measuring a Thunderbolt eGPU: bandwidth, latency and inference benchmarks` | Mode: `dr` | Cluster: `Measuring a Thunderbolt eGPU: bandwidth, latency and inference benchmarks (1 of 2)`
+- [ ] Concept: `link-bound vs VRAM-bound workload classification` | Parent: `Measuring a Thunderbolt eGPU: bandwidth, latency and inference benchmarks` | Mode: `dr` | Cluster: `Measuring a Thunderbolt eGPU: bandwidth, latency and inference benchmarks (1 of 2)`
+- [ ] Concept: `llama-bench prompt-processing vs token-generation` | Parent: `Measuring a Thunderbolt eGPU: bandwidth, latency and inference benchmarks` | Mode: `dr` | Cluster: `Measuring a Thunderbolt eGPU: bandwidth, latency and inference benchmarks (1 of 2)`
+- [ ] Concept: `model load time cold vs warm page cache` | Parent: `Measuring a Thunderbolt eGPU: bandwidth, latency and inference benchmarks` | Mode: `dr` | Cluster: `Measuring a Thunderbolt eGPU: bandwidth, latency and inference benchmarks (1 of 2)`
+- [ ] Concept: `nvbandwidth testcases and copy-engine vs SM` | Parent: `Measuring a Thunderbolt eGPU: bandwidth, latency and inference benchmarks` | Mode: `dr` | Cluster: `Measuring a Thunderbolt eGPU: bandwidth, latency and inference benchmarks (2 of 2)`
+- [ ] Concept: `Ollama verbose eval rates and residency` | Parent: `Measuring a Thunderbolt eGPU: bandwidth, latency and inference benchmarks` | Mode: `dr` | Cluster: `Measuring a Thunderbolt eGPU: bandwidth, latency and inference benchmarks (2 of 2)`
+- [ ] Concept: `PCIe TLP overhead and max payload size on tunnels` | Parent: `Measuring a Thunderbolt eGPU: bandwidth, latency and inference benchmarks` | Mode: `dr` | Cluster: `Measuring a Thunderbolt eGPU: bandwidth, latency and inference benchmarks (2 of 2)`
+- [ ] Concept: `eGPU results template and regression bisection` | Parent: `Measuring a Thunderbolt eGPU: bandwidth, latency and inference benchmarks` | Mode: `dr` | Cluster: `Measuring a Thunderbolt eGPU: bandwidth, latency and inference benchmarks (2 of 2)`
+- [ ] Concept: `steady-state thermal and clock pinning` | Parent: `Measuring a Thunderbolt eGPU: bandwidth, latency and inference benchmarks` | Mode: `dr` | Cluster: `Measuring a Thunderbolt eGPU: bandwidth, latency and inference benchmarks (2 of 2)`
+- [ ] Concept: `Blackwell Xid 120 suspend regressions` | Parent: `Suspend, resume and sleep states with a Thunderbolt NVIDIA eGPU on Linux` | Mode: `dr` | Cluster: `Suspend, resume and sleep states with a Thunderbolt NVIDIA eGPU on Linux (1 of 2)`
+- [ ] Concept: `bolt re-authorization after resume` | Parent: `Suspend, resume and sleep states with a Thunderbolt NVIDIA eGPU on Linux` | Mode: `dr` | Cluster: `Suspend, resume and sleep states with a Thunderbolt NVIDIA eGPU on Linux (1 of 2)`
+- [ ] Concept: `disabling suspend via masking, logind and GNOME` | Parent: `Suspend, resume and sleep states with a Thunderbolt NVIDIA eGPU on Linux` | Mode: `dr` | Cluster: `Suspend, resume and sleep states with a Thunderbolt NVIDIA eGPU on Linux (1 of 2)`
+- [ ] Concept: `gnome-shell deadlock in nv_procfs_write_suspend` | Parent: `Suspend, resume and sleep states with a Thunderbolt NVIDIA eGPU on Linux` | Mode: `dr` | Cluster: `Suspend, resume and sleep states with a Thunderbolt NVIDIA eGPU on Linux (1 of 2)`
+- [ ] Concept: `NUC modern standby and S0ix mapping` | Parent: `Suspend, resume and sleep states with a Thunderbolt NVIDIA eGPU on Linux` | Mode: `dr` | Cluster: `Suspend, resume and sleep states with a Thunderbolt NVIDIA eGPU on Linux (1 of 2)`
+- [ ] Concept: `NVreg_EnableS0ixPowerManagement` | Parent: `Suspend, resume and sleep states with a Thunderbolt NVIDIA eGPU on Linux` | Mode: `dr` | Cluster: `Suspend, resume and sleep states with a Thunderbolt NVIDIA eGPU on Linux (1 of 2)`
+- [ ] Concept: `post-resume eGPU validation` | Parent: `Suspend, resume and sleep states with a Thunderbolt NVIDIA eGPU on Linux` | Mode: `dr` | Cluster: `Suspend, resume and sleep states with a Thunderbolt NVIDIA eGPU on Linux (1 of 2)`
+- [ ] Concept: `PreserveVideoMemoryAllocations disk sizing` | Parent: `Suspend, resume and sleep states with a Thunderbolt NVIDIA eGPU on Linux` | Mode: `dr` | Cluster: `Suspend, resume and sleep states with a Thunderbolt NVIDIA eGPU on Linux (2 of 2)`
+- [ ] Concept: `NVIDIA procfs suspend handshake` | Parent: `Suspend, resume and sleep states with a Thunderbolt NVIDIA eGPU on Linux` | Mode: `dr` | Cluster: `Suspend, resume and sleep states with a Thunderbolt NVIDIA eGPU on Linux (2 of 2)`
+- [ ] Concept: `s2idle vs S3 mem_sleep detection` | Parent: `Suspend, resume and sleep states with a Thunderbolt NVIDIA eGPU on Linux` | Mode: `dr` | Cluster: `Suspend, resume and sleep states with a Thunderbolt NVIDIA eGPU on Linux (2 of 2)`
+- [ ] Concept: `systemd sleep pre/post hooks` | Parent: `Suspend, resume and sleep states with a Thunderbolt NVIDIA eGPU on Linux` | Mode: `dr` | Cluster: `Suspend, resume and sleep states with a Thunderbolt NVIDIA eGPU on Linux (2 of 2)`
+- [ ] Concept: `suspend test abort and recovery` | Parent: `Suspend, resume and sleep states with a Thunderbolt NVIDIA eGPU on Linux` | Mode: `dr` | Cluster: `Suspend, resume and sleep states with a Thunderbolt NVIDIA eGPU on Linux (2 of 2)`
+- [ ] Concept: `Thunderbolt tunnel fate across suspend` | Parent: `Suspend, resume and sleep states with a Thunderbolt NVIDIA eGPU on Linux` | Mode: `dr` | Cluster: `Suspend, resume and sleep states with a Thunderbolt NVIDIA eGPU on Linux (2 of 2)`
+- [ ] Concept: `wake sources: WoL, RTC, USB` | Parent: `Suspend, resume and sleep states with a Thunderbolt NVIDIA eGPU on Linux` | Mode: `dr` | Cluster: `Suspend, resume and sleep states with a Thunderbolt NVIDIA eGPU on Linux (2 of 2)`
+- [ ] Concept: `AER sysfs counters and rate alerting` | Parent: `Health monitoring, alerting and safe automated recovery for a Thunderbolt eGPU` | Mode: `dr` | Cluster: `Health monitoring, alerting and safe automated recovery for a Thunderbolt eGPU (1 of 2)`
+- [ ] Concept: `auto-recovery rate limit, backoff and lockout state machine` | Parent: `Health monitoring, alerting and safe automated recovery for a Thunderbolt eGPU` | Mode: `dr` | Cluster: `Health monitoring, alerting and safe automated recovery for a Thunderbolt eGPU (1 of 2)`
+- [ ] Concept: `BAR0 chip-ID liveness probe` | Parent: `Health monitoring, alerting and safe automated recovery for a Thunderbolt eGPU` | Mode: `dr` | Cluster: `Health monitoring, alerting and safe automated recovery for a Thunderbolt eGPU (1 of 2)`
+- [ ] Concept: `break-glass manual recovery runbook` | Parent: `Health monitoring, alerting and safe automated recovery for a Thunderbolt eGPU` | Mode: `dr` | Cluster: `Health monitoring, alerting and safe automated recovery for a Thunderbolt eGPU (1 of 2)`
+- [ ] Concept: `DCGM vs NVML vs nvidia-smi on GeForce` | Parent: `Health monitoring, alerting and safe automated recovery for a Thunderbolt eGPU` | Mode: `dr` | Cluster: `Health monitoring, alerting and safe automated recovery for a Thunderbolt eGPU (1 of 2)`
+- [ ] Concept: `node_exporter textfile collector for hardware health` | Parent: `Health monitoring, alerting and safe automated recovery for a Thunderbolt eGPU` | Mode: `dr` | Cluster: `Health monitoring, alerting and safe automated recovery for a Thunderbolt eGPU (2 of 2)`
+- [ ] Concept: `NVIDIA Xid recovery-action taxonomy` | Parent: `Health monitoring, alerting and safe automated recovery for a Thunderbolt eGPU` | Mode: `dr` | Cluster: `Health monitoring, alerting and safe automated recovery for a Thunderbolt eGPU (2 of 2)`
+- [ ] Concept: `PCI bridge COMMAND Mem/BusMaster diagnosis` | Parent: `Health monitoring, alerting and safe automated recovery for a Thunderbolt eGPU` | Mode: `dr` | Cluster: `Health monitoring, alerting and safe automated recovery for a Thunderbolt eGPU (2 of 2)`
+- [ ] Concept: `persistent journal kernel-evidence retention` | Parent: `Health monitoring, alerting and safe automated recovery for a Thunderbolt eGPU` | Mode: `dr` | Cluster: `Health monitoring, alerting and safe automated recovery for a Thunderbolt eGPU (2 of 2)`
+- [ ] Concept: `systemd OnFailure oneshot watchdog pattern` | Parent: `Health monitoring, alerting and safe automated recovery for a Thunderbolt eGPU` | Mode: `dr` | Cluster: `Health monitoring, alerting and safe automated recovery for a Thunderbolt eGPU (2 of 2)`
+- [ ] Concept: `ATX supply light-load efficiency for an eGPU` | Parent: `Idle power and energy accounting for an always-on Thunderbolt eGPU` | Mode: `dr` | Cluster: `Idle power and energy accounting for an always-on Thunderbolt eGPU (1 of 2)`
+- [ ] Concept: `DCGM exporter and textfile power metrics` | Parent: `Idle power and energy accounting for an always-on Thunderbolt eGPU` | Mode: `dr` | Cluster: `Idle power and energy accounting for an always-on Thunderbolt eGPU (1 of 2)`
+- [ ] Concept: `kWh, tariff and time-of-use cost arithmetic` | Parent: `Idle power and energy accounting for an always-on Thunderbolt eGPU` | Mode: `dr` | Cluster: `Idle power and energy accounting for an always-on Thunderbolt eGPU (1 of 2)`
+- [ ] Concept: `Power-limit and clock-locking trade-offs` | Parent: `Idle power and energy accounting for an always-on Thunderbolt eGPU` | Mode: `dr` | Cluster: `Idle power and energy accounting for an always-on Thunderbolt eGPU (1 of 2)`
+- [ ] Concept: `nvidia-persistenced and persistence mode` | Parent: `Idle power and energy accounting for an always-on Thunderbolt eGPU` | Mode: `dr` | Cluster: `Idle power and energy accounting for an always-on Thunderbolt eGPU (1 of 2)`
+- [ ] Concept: `Ollama keep-alive versus cold-start energy` | Parent: `Idle power and energy accounting for an always-on Thunderbolt eGPU` | Mode: `dr` | Cluster: `Idle power and energy accounting for an always-on Thunderbolt eGPU (2 of 2)`
+- [ ] Concept: `RAPL and powercap host energy counters` | Parent: `Idle power and energy accounting for an always-on Thunderbolt eGPU` | Mode: `dr` | Cluster: `Idle power and energy accounting for an always-on Thunderbolt eGPU (2 of 2)`
+- [ ] Concept: `Idle-power regression alerting after a driver change` | Parent: `Idle power and energy accounting for an always-on Thunderbolt eGPU` | Mode: `dr` | Cluster: `Idle power and energy accounting for an always-on Thunderbolt eGPU (2 of 2)`
+- [ ] Concept: `Runtime D3 (NVreg_DynamicPowerManagement) trade-offs` | Parent: `Idle power and energy accounting for an always-on Thunderbolt eGPU` | Mode: `dr` | Cluster: `Idle power and energy accounting for an always-on Thunderbolt eGPU (2 of 2)`
+- [ ] Concept: `Wall-power metering and smart-plug accuracy` | Parent: `Idle power and energy accounting for an always-on Thunderbolt eGPU` | Mode: `dr` | Cluster: `Idle power and energy accounting for an always-on Thunderbolt eGPU (2 of 2)`
+- [ ] Concept: `AC-loss power restore and ErP interaction` | Parent: `Unattended remote recovery and out-of-band access for a Thunderbolt eGPU host` | Mode: `dr` | Cluster: `Unattended remote recovery and out-of-band access for a Thunderbolt eGPU host (1 of 2)`
+- [ ] Concept: `ATX supply remote switching and standby rail` | Parent: `Unattended remote recovery and out-of-band access for a Thunderbolt eGPU host` | Mode: `dr` | Cluster: `Unattended remote recovery and out-of-band access for a Thunderbolt eGPU host (1 of 2)`
+- [ ] Concept: `Break-glass kill-switch file` | Parent: `Unattended remote recovery and out-of-band access for a Thunderbolt eGPU host` | Mode: `dr` | Cluster: `Unattended remote recovery and out-of-band access for a Thunderbolt eGPU host (1 of 2)`
+- [ ] Concept: `Recovery-chain drill with the owner present` | Parent: `Unattended remote recovery and out-of-band access for a Thunderbolt eGPU host` | Mode: `dr` | Cluster: `Unattended remote recovery and out-of-band access for a Thunderbolt eGPU host (1 of 2)`
+- [ ] Concept: `Thunderbolt deauthorize and authorize rung` | Parent: `Unattended remote recovery and out-of-band access for a Thunderbolt eGPU host` | Mode: `dr` | Cluster: `Unattended remote recovery and out-of-band access for a Thunderbolt eGPU host (1 of 2)`
+- [ ] Concept: `Enclosure-only power cut is a GPU hot-unplug` | Parent: `Unattended remote recovery and out-of-band access for a Thunderbolt eGPU host` | Mode: `dr` | Cluster: `Unattended remote recovery and out-of-band access for a Thunderbolt eGPU host (1 of 2)`
+- [ ] Concept: `Headless boot Thunderbolt auto-enrollment` | Parent: `Unattended remote recovery and out-of-band access for a Thunderbolt eGPU host` | Mode: `dr` | Cluster: `Unattended remote recovery and out-of-band access for a Thunderbolt eGPU host (1 of 2)`
+- [ ] Concept: `Heartbeat dead-man escalation with lockout` | Parent: `Unattended remote recovery and out-of-band access for a Thunderbolt eGPU host` | Mode: `dr` | Cluster: `Unattended remote recovery and out-of-band access for a Thunderbolt eGPU host (1 of 2)`
+- [ ] Concept: `Intel AMT and vPro presence check` | Parent: `Unattended remote recovery and out-of-band access for a Thunderbolt eGPU host` | Mode: `dr` | Cluster: `Unattended remote recovery and out-of-band access for a Thunderbolt eGPU host (2 of 2)`
+- [ ] Concept: `Jump host as out-of-band controller` | Parent: `Unattended remote recovery and out-of-band access for a Thunderbolt eGPU host` | Mode: `dr` | Cluster: `Unattended remote recovery and out-of-band access for a Thunderbolt eGPU host (2 of 2)`
+- [ ] Concept: `PCI sysfs remove and rescan recovery` | Parent: `Unattended remote recovery and out-of-band access for a Thunderbolt eGPU host` | Mode: `dr` | Cluster: `Unattended remote recovery and out-of-band access for a Thunderbolt eGPU host (2 of 2)`
+- [ ] Concept: `Power-cycle ordering: services, host, enclosure` | Parent: `Unattended remote recovery and out-of-band access for a Thunderbolt eGPU host` | Mode: `dr` | Cluster: `Unattended remote recovery and out-of-band access for a Thunderbolt eGPU host (2 of 2)`
+- [ ] Concept: `RTC scheduled wake from off` | Parent: `Unattended remote recovery and out-of-band access for a Thunderbolt eGPU host` | Mode: `dr` | Cluster: `Unattended remote recovery and out-of-band access for a Thunderbolt eGPU host (2 of 2)`
+- [ ] Concept: `Serial console and IP KVM for a headless NUC` | Parent: `Unattended remote recovery and out-of-band access for a Thunderbolt eGPU host` | Mode: `dr` | Cluster: `Unattended remote recovery and out-of-band access for a Thunderbolt eGPU host (2 of 2)`
+- [ ] Concept: `Smart-plug power-on state and local protocols` | Parent: `Unattended remote recovery and out-of-band access for a Thunderbolt eGPU host` | Mode: `dr` | Cluster: `Unattended remote recovery and out-of-band access for a Thunderbolt eGPU host (2 of 2)`
+- [ ] Concept: `Wake-on-LAN firmware and ethtool layers` | Parent: `Unattended remote recovery and out-of-band access for a Thunderbolt eGPU host` | Mode: `dr` | Cluster: `Unattended remote recovery and out-of-band access for a Thunderbolt eGPU host (2 of 2)`
+- [ ] Concept: `Ansible check and diff role for an eGPU` | Parent: `Reproducible eGPU bring-up and configuration drift detection` | Mode: `dr` | Cluster: `Reproducible eGPU bring-up and configuration drift detection (1 of 2)`
+- [ ] Concept: `apt-mark hold pinning` | Parent: `Reproducible eGPU bring-up and configuration drift detection` | Mode: `dr` | Cluster: `Reproducible eGPU bring-up and configuration drift detection (1 of 2)`
+- [ ] Concept: `bolt re-enrollment after reinstall` | Parent: `Reproducible eGPU bring-up and configuration drift detection` | Mode: `dr` | Cluster: `Reproducible eGPU bring-up and configuration drift detection (1 of 2)`
+- [ ] Concept: `Checksum manifest with mode and owner` | Parent: `Reproducible eGPU bring-up and configuration drift detection` | Mode: `dr` | Cluster: `Reproducible eGPU bring-up and configuration drift detection (1 of 2)`
+- [ ] Concept: `DKMS rebuild drift after a kernel upgrade` | Parent: `Reproducible eGPU bring-up and configuration drift detection` | Mode: `dr` | Cluster: `Reproducible eGPU bring-up and configuration drift detection (1 of 2)`
+- [ ] Concept: `dpkg conffile prompt handling` | Parent: `Reproducible eGPU bring-up and configuration drift detection` | Mode: `dr` | Cluster: `Reproducible eGPU bring-up and configuration drift detection (1 of 2)`
+- [ ] Concept: `etckeeper as an /etc change journal` | Parent: `Reproducible eGPU bring-up and configuration drift detection` | Mode: `dr` | Cluster: `Reproducible eGPU bring-up and configuration drift detection (1 of 2)`
+- [ ] Concept: `Excluding secrets from a config repository` | Parent: `Reproducible eGPU bring-up and configuration drift detection` | Mode: `dr` | Cluster: `Reproducible eGPU bring-up and configuration drift detection (2 of 2)`
+- [ ] Concept: `GRUB command-line drop-in drift` | Parent: `Reproducible eGPU bring-up and configuration drift detection` | Mode: `dr` | Cluster: `Reproducible eGPU bring-up and configuration drift detection (2 of 2)`
+- [ ] Concept: `Guard-first versus driver-first restore order` | Parent: `Reproducible eGPU bring-up and configuration drift detection` | Mode: `dr` | Cluster: `Reproducible eGPU bring-up and configuration drift detection (2 of 2)`
+- [ ] Concept: `Idempotent installer with dry-run` | Parent: `Reproducible eGPU bring-up and configuration drift detection` | Mode: `dr` | Cluster: `Reproducible eGPU bring-up and configuration drift detection (2 of 2)`
+- [ ] Concept: `Read-only drift verifier` | Parent: `Reproducible eGPU bring-up and configuration drift detection` | Mode: `dr` | Cluster: `Reproducible eGPU bring-up and configuration drift detection (2 of 2)`
+- [ ] Concept: `Snapshot rollback with Timeshift, Btrfs or LVM` | Parent: `Reproducible eGPU bring-up and configuration drift detection` | Mode: `dr` | Cluster: `Reproducible eGPU bring-up and configuration drift detection (2 of 2)`
+- [ ] Concept: `Staged-tree restore testing` | Parent: `Reproducible eGPU bring-up and configuration drift detection` | Mode: `dr` | Cluster: `Reproducible eGPU bring-up and configuration drift detection (2 of 2)`
+- [ ] Concept: `Cold-start budget: file size over link rate` | Parent: `Local LLM model load path over a Thunderbolt eGPU` | Mode: `dr` | Cluster: `Local LLM model load path over a Thunderbolt eGPU (1 of 2)`
+- [ ] Concept: `drop_caches for an honest cold test` | Parent: `Local LLM model load path over a Thunderbolt eGPU` | Mode: `dr` | Cluster: `Local LLM model load path over a Thunderbolt eGPU (1 of 2)`
+- [ ] Concept: `Keep-warm versus reload decision` | Parent: `Local LLM model load path over a Thunderbolt eGPU` | Mode: `dr` | Cluster: `Local LLM model load path over a Thunderbolt eGPU (1 of 2)`
+- [ ] Concept: `llama.cpp load modes: mmap, mlock and direct I/O` | Parent: `Local LLM model load path over a Thunderbolt eGPU` | Mode: `dr` | Cluster: `Local LLM model load path over a Thunderbolt eGPU (1 of 2)`
+- [ ] Concept: `llama-server idle sleep and router mode` | Parent: `Local LLM model load path over a Thunderbolt eGPU` | Mode: `dr` | Cluster: `Local LLM model load path over a Thunderbolt eGPU (1 of 2)`
+- [ ] Concept: `LM Studio JIT loading, TTL and auto-evict` | Parent: `Local LLM model load path over a Thunderbolt eGPU` | Mode: `dr` | Cluster: `Local LLM model load path over a Thunderbolt eGPU (2 of 2)`
+- [ ] Concept: `mmap hides load cost: measuring time to first token` | Parent: `Local LLM model load path over a Thunderbolt eGPU` | Mode: `dr` | Cluster: `Local LLM model load path over a Thunderbolt eGPU (2 of 2)`
+- [ ] Concept: `Ollama keep-alive, preload and eviction` | Parent: `Local LLM model load path over a Thunderbolt eGPU` | Mode: `dr` | Cluster: `Local LLM model load path over a Thunderbolt eGPU (2 of 2)`
+- [ ] Concept: `Page-cache prewarm with vmtouch and fincore` | Parent: `Local LLM model load path over a Thunderbolt eGPU` | Mode: `dr` | Cluster: `Local LLM model load path over a Thunderbolt eGPU (2 of 2)`
+- [ ] Concept: `vLLM load formats: Run:ai streamer, InstantTensor, prefetch` | Parent: `Local LLM model load path over a Thunderbolt eGPU` | Mode: `dr` | Cluster: `Local LLM model load path over a Thunderbolt eGPU (2 of 2)`
+- [ ] Concept: `Catastrophic forgetting and mitigations` | Parent: `LLM Fine-Tuning & PEFT` | Mode: `dr` | Cluster: `LLM Fine-Tuning & PEFT (1 of 2)`
+- [ ] Concept: `Evaluating a fine-tune (task + capability-regression)` | Parent: `LLM Fine-Tuning & PEFT` | Mode: `dr` | Cluster: `LLM Fine-Tuning & PEFT (1 of 2)`
+- [ ] Concept: `Full fine-tuning vs PEFT (memory, plasticity-stability)` | Parent: `LLM Fine-Tuning & PEFT` | Mode: `dr` | Cluster: `LLM Fine-Tuning & PEFT (1 of 2)`
+- [ ] Concept: `HuggingFace PEFT + TRL workflow` | Parent: `LLM Fine-Tuning & PEFT` | Mode: `dr` | Cluster: `LLM Fine-Tuning & PEFT (1 of 2)`
+- [ ] Concept: `LoRA family (QLoRA, DoRA, rsLoRA, LoRA+)` | Parent: `LLM Fine-Tuning & PEFT` | Mode: `dr` | Cluster: `LLM Fine-Tuning & PEFT (1 of 2)`
+- [ ] Concept: `LoRA mechanics (rank/alpha/target_modules/init)` | Parent: `LLM Fine-Tuning & PEFT` | Mode: `dr` | Cluster: `LLM Fine-Tuning & PEFT (1 of 2)`
+- [ ] Concept: `Multi-LoRA serving: merge vs swap + adapter merging` | Parent: `LLM Fine-Tuning & PEFT` | Mode: `dr` | Cluster: `LLM Fine-Tuning & PEFT (2 of 2)`
+- [ ] Concept: `Non-LoRA PEFT (adapters, (IA)^3, prefix/P-tuning/prompt-tuning)` | Parent: `LLM Fine-Tuning & PEFT` | Mode: `dr` | Cluster: `LLM Fine-Tuning & PEFT (2 of 2)`
+- [ ] Concept: `SFT data preparation and chat templating` | Parent: `LLM Fine-Tuning & PEFT` | Mode: `dr` | Cluster: `LLM Fine-Tuning & PEFT (2 of 2)`
+- [ ] Concept: `Fine-tuning tooling stack (Unsloth/Axolotl/Llama-Factory/torchtune)` | Parent: `LLM Fine-Tuning & PEFT` | Mode: `dr` | Cluster: `LLM Fine-Tuning & PEFT (2 of 2)`
+- [ ] Concept: `Fine-tune vs RAG vs prompt decision framework` | Parent: `LLM Fine-Tuning & PEFT` | Mode: `dr` | Cluster: `LLM Fine-Tuning & PEFT (2 of 2)`
+- [ ] Concept: `Alternative and hybrid architectures (Mamba/Mamba-2, linear attention, RWKV, Jamba)` | Parent: `Transformer Architecture Internals & Variants` | Mode: `dr` | Cluster: `Transformer Architecture Internals & Variants (1 of 2)`
+- [ ] Concept: `Attention-efficiency variants (MQA, GQA, MLA)` | Parent: `Transformer Architecture Internals & Variants` | Mode: `dr` | Cluster: `Transformer Architecture Internals & Variants (1 of 2)`
+- [ ] Concept: `FlashAttention (IO-aware exact attention, v1/v2/v3)` | Parent: `Transformer Architecture Internals & Variants` | Mode: `dr` | Cluster: `Transformer Architecture Internals & Variants (1 of 2)`
+- [ ] Concept: `Gated FFN (SwiGLU/GeGLU)` | Parent: `Transformer Architecture Internals & Variants` | Mode: `dr` | Cluster: `Transformer Architecture Internals & Variants (1 of 2)`
+- [ ] Concept: `Long-context extension (PI, NTK, YaRN, context-parallel)` | Parent: `Transformer Architecture Internals & Variants` | Mode: `dr` | Cluster: `Transformer Architecture Internals & Variants (1 of 2)`
+- [ ] Concept: `Mixture-of-Experts (top-k routing, load balancing, DeepSeek-V3, expert parallelism)` | Parent: `Transformer Architecture Internals & Variants` | Mode: `dr` | Cluster: `Transformer Architecture Internals & Variants (2 of 2)`
+- [ ] Concept: `Normalization and placement (RMSNorm, pre/post-norm, DeepNorm)` | Parent: `Transformer Architecture Internals & Variants` | Mode: `dr` | Cluster: `Transformer Architecture Internals & Variants (2 of 2)`
+- [ ] Concept: `Positional encoding (RoPE, ALiBi, NoPE, absolute)` | Parent: `Transformer Architecture Internals & Variants` | Mode: `dr` | Cluster: `Transformer Architecture Internals & Variants (2 of 2)`
+- [ ] Concept: `Self-attention and multi-head attention (QKV, causal mask, KV cache)` | Parent: `Transformer Architecture Internals & Variants` | Mode: `dr` | Cluster: `Transformer Architecture Internals & Variants (2 of 2)`
+- [ ] Concept: `Tokenization (BPE, byte-level BPE, SentencePiece, tiktoken)` | Parent: `Transformer Architecture Internals & Variants` | Mode: `dr` | Cluster: `Transformer Architecture Internals & Variants (2 of 2)`
+- [ ] Concept: `Arithmetic intensity and the roofline (prefill compute-bound vs decode memory-bound)` | Parent: `GPU & Accelerator Kernels for LLMs` | Mode: `dr` | Cluster: `GPU & Accelerator Kernels for LLMs (1 of 2)`
+- [ ] Concept: `Compilers (torch.compile/TorchInductor, TensorRT-LLM, XLA, Mojo)` | Parent: `GPU & Accelerator Kernels for LLMs` | Mode: `dr` | Cluster: `GPU & Accelerator Kernels for LLMs (1 of 2)`
+- [ ] Concept: `CUDA basics (coalescing, shared memory, bank conflicts, CUDA graphs)` | Parent: `GPU & Accelerator Kernels for LLMs` | Mode: `dr` | Cluster: `GPU & Accelerator Kernels for LLMs (1 of 2)`
+- [ ] Concept: `GPU execution model (SMs, warps, SIMT, occupancy)` | Parent: `GPU & Accelerator Kernels for LLMs` | Mode: `dr` | Cluster: `GPU & Accelerator Kernels for LLMs (1 of 2)`
+- [ ] Concept: `FlashAttention kernel implementation (tiling, online softmax, FA-3 warp specialization/WGMMA/TMA)` | Parent: `GPU & Accelerator Kernels for LLMs` | Mode: `dr` | Cluster: `GPU & Accelerator Kernels for LLMs (1 of 2)`
+- [ ] Concept: `Hardware landscape (Hopper to Blackwell, AMD MI300X/MI350X, Google TPU)` | Parent: `GPU & Accelerator Kernels for LLMs` | Mode: `dr` | Cluster: `GPU & Accelerator Kernels for LLMs (1 of 2)`
+- [ ] Concept: `Kernel fusion` | Parent: `GPU & Accelerator Kernels for LLMs` | Mode: `dr` | Cluster: `GPU & Accelerator Kernels for LLMs (1 of 2)`
+- [ ] Concept: `Memory hierarchy (registers/SRAM/L2/HBM) and IO-bound attention` | Parent: `GPU & Accelerator Kernels for LLMs` | Mode: `dr` | Cluster: `GPU & Accelerator Kernels for LLMs (2 of 2)`
+- [ ] Concept: `NCCL collective primitives (ring vs tree)` | Parent: `GPU & Accelerator Kernels for LLMs` | Mode: `dr` | Cluster: `GPU & Accelerator Kernels for LLMs (2 of 2)`
+- [ ] Concept: `Paged and quantized KV-cache kernels` | Parent: `GPU & Accelerator Kernels for LLMs` | Mode: `dr` | Cluster: `GPU & Accelerator Kernels for LLMs (2 of 2)`
+- [ ] Concept: `Precision and tensor cores (BF16/TF32, FP8, MX/MXFP4, NVFP4, INT8)` | Parent: `GPU & Accelerator Kernels for LLMs` | Mode: `dr` | Cluster: `GPU & Accelerator Kernels for LLMs (2 of 2)`
+- [ ] Concept: `Profiling and MFU (Nsight Systems/Compute, PyTorch profiler)` | Parent: `GPU & Accelerator Kernels for LLMs` | Mode: `dr` | Cluster: `GPU & Accelerator Kernels for LLMs (2 of 2)`
+- [ ] Concept: `Triton kernels (tile/block programming, autotune)` | Parent: `GPU & Accelerator Kernels for LLMs` | Mode: `dr` | Cluster: `GPU & Accelerator Kernels for LLMs (2 of 2)`
+- [ ] Concept: `Actor-rollout-learner architecture (three engines + experience buffer; 4-model PPO vs critic-free GRPO topology)` | Parent: `RLHF & RL Training Infrastructure` | Mode: `dr` | Cluster: `RLHF & RL Training Infrastructure (1 of 2)`
+- [ ] Concept: `Async / off-policy RL systems (AReaL fully-async streaming + staleness <=8 steps; one-step-off; APRIL partial-rollout recycling)` | Parent: `RLHF & RL Training Infrastructure` | Mode: `dr` | Cluster: `RLHF & RL Training Infrastructure (1 of 2)`
+- [ ] Concept: `Co-located/hybrid vs disaggregated GPU placement (veRL 3D-HybridEngine, OpenRLHF Ray placement groups, single- vs multi-controller)` | Parent: `RLHF & RL Training Infrastructure` | Mode: `dr` | Cluster: `RLHF & RL Training Infrastructure (1 of 2)`
+- [ ] Concept: `The RL framework landscape (veRL, OpenRLHF, NeMo-Aligner/NeMo-RL, TRL, slime, AReaL, ROLL, SkyRL, TorchForge)` | Parent: `RLHF & RL Training Infrastructure` | Mode: `dr` | Cluster: `RLHF & RL Training Infrastructure (1 of 2)`
+- [ ] Concept: `The generation/rollout bottleneck (60-90%+ of step time, <40% actor GPU util, long-tail stragglers, vLLM/SGLang in-the-loop)` | Parent: `RLHF & RL Training Infrastructure` | Mode: `dr` | Cluster: `RLHF & RL Training Infrastructure (1 of 2)`
+- [ ] Concept: `RL GPU under-utilization bubble + OPPO intra/inter-step overlap + Ray-vs-Slurm orchestration` | Parent: `RLHF & RL Training Infrastructure` | Mode: `dr` | Cluster: `RLHF & RL Training Infrastructure (2 of 2)`
+- [ ] Concept: `Reward-model serving + verifier/code-execution sandboxes in the loop` | Parent: `RLHF & RL Training Infrastructure` | Mode: `dr` | Cluster: `RLHF & RL Training Infrastructure (2 of 2)`
+- [ ] Concept: `Scaling the trainer (FSDP/Megatron) alongside the rollout engine (smaller-TP + high-DP)` | Parent: `RLHF & RL Training Infrastructure` | Mode: `dr` | Cluster: `RLHF & RL Training Infrastructure (2 of 2)`
+- [ ] Concept: `RL-systems failure modes (train/inference logprob mismatch -> TIS, vLLM temperature logprob gotcha, MoE Keep-Routing gap, weight-sync desync, reward over-optimization)` | Parent: `RLHF & RL Training Infrastructure` | Mode: `dr` | Cluster: `RLHF & RL Training Infrastructure (2 of 2)`
+- [ ] Concept: `Train->infer weight resync (NCCL packed broadcast / CUDA-IPC / delta-sync; resharding across mismatched layouts via sharding managers; vLLM sleep-wake)` | Parent: `RLHF & RL Training Infrastructure` | Mode: `dr` | Cluster: `RLHF & RL Training Infrastructure (2 of 2)`
+- [ ] Concept: `Model Selection and Pricing` | Parent: `LLM Models and APIs` | Mode: `dr` | Cluster: `LLM Models and APIs`
+- [ ] Concept: `Fine-Tuning and Local Inference` | Parent: `LLM Models and APIs` | Mode: `dr` | Cluster: `LLM Models and APIs`
+- [ ] Concept: `Embeddings` | Parent: `LLM Models and APIs` | Mode: `dr` | Cluster: `LLM Models and APIs`
+- [ ] Concept: `Diffusion & Generative Models` | Parent: `LLM Models and APIs` | Mode: `dr` | Cluster: `LLM Models and APIs`
+- [ ] Concept: `Hybrid MoE prefill vs link bandwidth benchmark (x16 vs OCuLink vs TB5 vs TB4)` | Parent: `Linux eGPU for LLM Inference (Thunderbolt 3/4/5, USB4, OCuLink)` | Mode: `dr` | Cluster: `Linux eGPU for LLM Inference (Thunderbolt 3/4/5, USB4, OCuLink)`
+- [ ] Concept: `llama.cpp op-offload threshold and ubatch tuning on slow links` | Parent: `Linux eGPU for LLM Inference (Thunderbolt 3/4/5, USB4, OCuLink)` | Mode: `dr` | Cluster: `Linux eGPU for LLM Inference (Thunderbolt 3/4/5, USB4, OCuLink)`
+- [ ] Concept: `NVIDIA open-module eGPU patches (TB4/TB5 detection, hot-unplug)` | Parent: `Linux eGPU for LLM Inference (Thunderbolt 3/4/5, USB4, OCuLink)` | Mode: `dr` | Cluster: `Linux eGPU for LLM Inference (Thunderbolt 3/4/5, USB4, OCuLink)`
+- [ ] Concept: `BAR1 / Resizable BAR sizing over Thunderbolt tunnels` | Parent: `Linux eGPU for LLM Inference (Thunderbolt 3/4/5, USB4, OCuLink)` | Mode: `dr` | Cluster: `Linux eGPU for LLM Inference (Thunderbolt 3/4/5, USB4, OCuLink)`
+- [ ] Concept: `TB5 controller (Barlow Ridge) vs ASM2464PD USB4 bridge behavior` | Parent: `Linux eGPU for LLM Inference (Thunderbolt 3/4/5, USB4, OCuLink)` | Mode: `dr` | Cluster: `Linux eGPU for LLM Inference (Thunderbolt 3/4/5, USB4, OCuLink)`
+- [ ] Concept: `OCuLink signal integrity and AER / replay counters` | Parent: `Linux eGPU for LLM Inference (Thunderbolt 3/4/5, USB4, OCuLink)` | Mode: `dr` | Cluster: `Linux eGPU for LLM Inference (Thunderbolt 3/4/5, USB4, OCuLink)`
+- [ ] Concept: `Blackwell power-cap curves: prefill vs decode per watt` | Parent: `Linux eGPU for LLM Inference (Thunderbolt 3/4/5, USB4, OCuLink)` | Mode: `dr` | Cluster: `Linux eGPU for LLM Inference (Thunderbolt 3/4/5, USB4, OCuLink)`
+- [ ] Concept: `Tensor-parallel over TB/OCuLink links` | Parent: `Linux eGPU for LLM Inference (Thunderbolt 3/4/5, USB4, OCuLink)` | Mode: `dr` | Cluster: `Linux eGPU for LLM Inference (Thunderbolt 3/4/5, USB4, OCuLink)`
+- [ ] Concept: `Xid 79 / GSP 'fallen off the bus' on GB20x` | Parent: `RTX 5080 / Blackwell Consumer CUDA Stack on Linux (sm_120)` | Mode: `dr` | Cluster: `RTX 5080 / Blackwell Consumer CUDA Stack on Linux (sm_120)`
+- [ ] Concept: `NVFP4 vs MXFP4 vs Marlin W4A16 on 16 GB sm_120` | Parent: `RTX 5080 / Blackwell Consumer CUDA Stack on Linux (sm_120)` | Mode: `dr` | Cluster: `RTX 5080 / Blackwell Consumer CUDA Stack on Linux (sm_120)`
+- [ ] Concept: `FlashInfer on sm_120 (JIT toolchain, backend gaps)` | Parent: `RTX 5080 / Blackwell Consumer CUDA Stack on Linux (sm_120)` | Mode: `dr` | Cluster: `RTX 5080 / Blackwell Consumer CUDA Stack on Linux (sm_120)`
+- [ ] Concept: `CUDA family targets 120a vs 120f in llama.cpp/vLLM builds` | Parent: `RTX 5080 / Blackwell Consumer CUDA Stack on Linux (sm_120)` | Mode: `dr` | Cluster: `RTX 5080 / Blackwell Consumer CUDA Stack on Linux (sm_120)`
+- [ ] Concept: `PyTorch cu128 drop and driver pinning strategy` | Parent: `RTX 5080 / Blackwell Consumer CUDA Stack on Linux (sm_120)` | Mode: `dr` | Cluster: `RTX 5080 / Blackwell Consumer CUDA Stack on Linux (sm_120)`
+- [ ] Concept: `NVIDIA apt pinning packages vs Ubuntu -open metapackages, Secure Boot MOK` | Parent: `RTX 5080 / Blackwell Consumer CUDA Stack on Linux (sm_120)` | Mode: `dr` | Cluster: `RTX 5080 / Blackwell Consumer CUDA Stack on Linux (sm_120)`
+- [ ] Concept: `FlashAttention-4 sm_120 readiness` | Parent: `RTX 5080 / Blackwell Consumer CUDA Stack on Linux (sm_120)` | Mode: `dr` | Cluster: `RTX 5080 / Blackwell Consumer CUDA Stack on Linux (sm_120)`
+- [ ] Concept: `TensorRT-LLM / SGLang consumer-Blackwell backend matrix` | Parent: `RTX 5080 / Blackwell Consumer CUDA Stack on Linux (sm_120)` | Mode: `dr` | Cluster: `RTX 5080 / Blackwell Consumer CUDA Stack on Linux (sm_120)`
+- [ ] Concept: `Server bind and API surfaces (Ollama, LM Studio llmster, llama-server, vLLM)` | Parent: `Remote access to a local LLM server` | Mode: `dr` | Cluster: `Remote access to a local LLM server (1 of 2)`
+- [ ] Concept: `Remote chat clients (Open WebUI, LibreChat, Jan, AnythingLLM, Msty)` | Parent: `Remote access to a local LLM server` | Mode: `dr` | Cluster: `Remote access to a local LLM server (1 of 2)`
+- [ ] Concept: `Cloudflare Tunnel with Access service tokens` | Parent: `Remote access to a local LLM server` | Mode: `dr` | Cluster: `Remote access to a local LLM server (1 of 2)`
+- [ ] Concept: `Coding-agent clients (Continue, Cline, Aider, OpenAI SDK base_url)` | Parent: `Remote access to a local LLM server` | Mode: `dr` | Cluster: `Remote access to a local LLM server (1 of 2)`
+- [ ] Concept: `Docker bypassing ufw` | Parent: `Remote access to a local LLM server` | Mode: `dr` | Cluster: `Remote access to a local LLM server (1 of 2)`
+- [ ] Concept: `LM Studio LM Link` | Parent: `Remote access to a local LLM server` | Mode: `dr` | Cluster: `Remote access to a local LLM server (2 of 2)`
+- [ ] Concept: `Ollama Host-header check and proxy 403` | Parent: `Remote access to a local LLM server` | Mode: `dr` | Cluster: `Remote access to a local LLM server (2 of 2)`
+- [ ] Concept: `Reverse proxy auth (Caddy, nginx)` | Parent: `Remote access to a local LLM server` | Mode: `dr` | Cluster: `Remote access to a local LLM server (2 of 2)`
+- [ ] Concept: `SSH local port forwarding` | Parent: `Remote access to a local LLM server` | Mode: `dr` | Cluster: `Remote access to a local LLM server (2 of 2)`
+- [ ] Concept: `Tailscale and tailscale serve` | Parent: `Remote access to a local LLM server` | Mode: `dr` | Cluster: `Remote access to a local LLM server (2 of 2)`
+- [ ] Concept: `Internet scans of exposed Ollama hosts` | Parent: `Exposed local-LLM server security` | Mode: `dr` | Cluster: `Exposed local-LLM server security`
+- [ ] Concept: `LLMjacking campaigns` | Parent: `Exposed local-LLM server security` | Mode: `dr` | Cluster: `Exposed local-LLM server security`
+- [ ] Concept: `Ollama CVEs (Probllama, DNS rebinding, GGUF DoS)` | Parent: `Exposed local-LLM server security` | Mode: `dr` | Cluster: `Exposed local-LLM server security`
+- [ ] Concept: `llama.cpp rpc-server CVEs` | Parent: `Exposed local-LLM server security` | Mode: `dr` | Cluster: `Exposed local-LLM server security`
+- [ ] Concept: `vLLM pickle and api-key coverage gaps` | Parent: `Exposed local-LLM server security` | Mode: `dr` | Cluster: `Exposed local-LLM server security`
+- [ ] Concept: `llama-server slots prompt leak` | Parent: `Exposed local-LLM server security` | Mode: `dr` | Cluster: `Exposed local-LLM server security`
+- [ ] Concept: `eGPU link effect on MoE prefill` | Parent: `Hybrid CPU+GPU MoE expert offload` | Mode: `dr` | Cluster: `Hybrid CPU+GPU MoE expert offload (1 of 2)`
+- [ ] Concept: `ik_llama.cpp hybrid inference` | Parent: `Hybrid CPU+GPU MoE expert offload` | Mode: `dr` | Cluster: `Hybrid CPU+GPU MoE expert offload (1 of 2)`
+- [ ] Concept: `KTransformers CPU/GPU MoE engine` | Parent: `Hybrid CPU+GPU MoE expert offload` | Mode: `dr` | Cluster: `Hybrid CPU+GPU MoE expert offload (1 of 2)`
+- [ ] Concept: `llama.cpp auto-fit (-fit)` | Parent: `Hybrid CPU+GPU MoE expert offload` | Mode: `dr` | Cluster: `Hybrid CPU+GPU MoE expert offload (1 of 2)`
+- [ ] Concept: `llama.cpp --n-cpu-moe and --cpu-moe` | Parent: `Hybrid CPU+GPU MoE expert offload` | Mode: `dr` | Cluster: `Hybrid CPU+GPU MoE expert offload (1 of 2)`
+- [ ] Concept: `LM Studio expert-offload toggle regression` | Parent: `Hybrid CPU+GPU MoE expert offload` | Mode: `dr` | Cluster: `Hybrid CPU+GPU MoE expert offload (2 of 2)`
+- [ ] Concept: `GPU-offloaded prompt processing and GGML_OP_OFFLOAD_MIN_BATCH` | Parent: `Hybrid CPU+GPU MoE expert offload` | Mode: `dr` | Cluster: `Hybrid CPU+GPU MoE expert offload (2 of 2)`
+- [ ] Concept: `Ollama expert-offload gap` | Parent: `Hybrid CPU+GPU MoE expert offload` | Mode: `dr` | Cluster: `Hybrid CPU+GPU MoE expert offload (2 of 2)`
+- [ ] Concept: `RAM-bandwidth-bound MoE decode` | Parent: `Hybrid CPU+GPU MoE expert offload` | Mode: `dr` | Cluster: `Hybrid CPU+GPU MoE expert offload (2 of 2)`
+- [ ] Concept: `Tensor overrides (-ot / --override-tensor)` | Parent: `Hybrid CPU+GPU MoE expert offload` | Mode: `dr` | Cluster: `Hybrid CPU+GPU MoE expert offload (2 of 2)`
+- [ ] Concept: `Gemma 4 26B-A4B and 12B` | Parent: `Model picks for the 16GB VRAM + 64GB RAM tier (2026)` | Mode: `dr` | Cluster: `Model picks for the 16GB VRAM + 64GB RAM tier (2026) (1 of 2)`
+- [ ] Concept: `GLM-4.7-Flash` | Parent: `Model picks for the 16GB VRAM + 64GB RAM tier (2026)` | Mode: `dr` | Cluster: `Model picks for the 16GB VRAM + 64GB RAM tier (2026) (1 of 2)`
+- [ ] Concept: `gpt-oss-120b and gpt-oss-20b MXFP4` | Parent: `Model picks for the 16GB VRAM + 64GB RAM tier (2026)` | Mode: `dr` | Cluster: `Model picks for the 16GB VRAM + 64GB RAM tier (2026) (1 of 2)`
+- [ ] Concept: `Hybrid-attention KV budgets` | Parent: `Model picks for the 16GB VRAM + 64GB RAM tier (2026)` | Mode: `dr` | Cluster: `Model picks for the 16GB VRAM + 64GB RAM tier (2026) (1 of 2)`
+- [ ] Concept: `KV-cache quantization at 16GB` | Parent: `Model picks for the 16GB VRAM + 64GB RAM tier (2026)` | Mode: `dr` | Cluster: `Model picks for the 16GB VRAM + 64GB RAM tier (2026) (1 of 2)`
+- [ ] Concept: `Mistral Small 4 119B-A6B` | Parent: `Model picks for the 16GB VRAM + 64GB RAM tier (2026)` | Mode: `dr` | Cluster: `Model picks for the 16GB VRAM + 64GB RAM tier (2026) (2 of 2)`
+- [ ] Concept: `Qwen3.6-35B-A3B MoE` | Parent: `Model picks for the 16GB VRAM + 64GB RAM tier (2026)` | Mode: `dr` | Cluster: `Model picks for the 16GB VRAM + 64GB RAM tier (2026) (2 of 2)`
+- [ ] Concept: `Qwen3.8-27B dense VL` | Parent: `Model picks for the 16GB VRAM + 64GB RAM tier (2026)` | Mode: `dr` | Cluster: `Model picks for the 16GB VRAM + 64GB RAM tier (2026) (2 of 2)`
+- [ ] Concept: `Qwen3-Coder-Next 80B-A3B` | Parent: `Model picks for the 16GB VRAM + 64GB RAM tier (2026)` | Mode: `dr` | Cluster: `Model picks for the 16GB VRAM + 64GB RAM tier (2026) (2 of 2)`
+- [ ] Concept: `Unsloth Dynamic GGUF quant choice` | Parent: `Model picks for the 16GB VRAM + 64GB RAM tier (2026)` | Mode: `dr` | Cluster: `Model picks for the 16GB VRAM + 64GB RAM tier (2026) (2 of 2)`
+- [ ] Concept: `16GB-card baseline config for Ollama, LM Studio, llama-server` | Parent: `Local LLM Troubleshooting Playbook and Recommended Settings (Ollama, LM Studio, llama-server)` | Mode: `dr` | Cluster: `Local LLM Troubleshooting Playbook and Recommended Settings (Ollama, LM Studio, llama-server) (1 of 2)`
+- [ ] Concept: `Chat template and EOS failures (--jinja, Go TEMPLATE)` | Parent: `Local LLM Troubleshooting Playbook and Recommended Settings (Ollama, LM Studio, llama-server)` | Mode: `dr` | Cluster: `Local LLM Troubleshooting Playbook and Recommended Settings (Ollama, LM Studio, llama-server) (1 of 2)`
+- [ ] Concept: `Cold-load latency and keep_alive / TTL residency` | Parent: `Local LLM Troubleshooting Playbook and Recommended Settings (Ollama, LM Studio, llama-server)` | Mode: `dr` | Cluster: `Local LLM Troubleshooting Playbook and Recommended Settings (Ollama, LM Studio, llama-server) (1 of 2)`
+- [ ] Concept: `LM Studio context overflow policy` | Parent: `Local LLM Troubleshooting Playbook and Recommended Settings (Ollama, LM Studio, llama-server)` | Mode: `dr` | Cluster: `Local LLM Troubleshooting Playbook and Recommended Settings (Ollama, LM Studio, llama-server) (1 of 2)`
+- [ ] Concept: `llama-server --fit auto context shrink and ctx-per-slot` | Parent: `Local LLM Troubleshooting Playbook and Recommended Settings (Ollama, LM Studio, llama-server)` | Mode: `dr` | Cluster: `Local LLM Troubleshooting Playbook and Recommended Settings (Ollama, LM Studio, llama-server) (1 of 2)`
+- [ ] Concept: `gpt-oss Harmony format serving` | Parent: `Local LLM Troubleshooting Playbook and Recommended Settings (Ollama, LM Studio, llama-server)` | Mode: `dr` | Cluster: `Local LLM Troubleshooting Playbook and Recommended Settings (Ollama, LM Studio, llama-server) (1 of 2)`
+- [ ] Concept: `GPU-not-detected CPU fallback (nvidia_uvm after suspend, container toolkit)` | Parent: `Local LLM Troubleshooting Playbook and Recommended Settings (Ollama, LM Studio, llama-server)` | Mode: `dr` | Cluster: `Local LLM Troubleshooting Playbook and Recommended Settings (Ollama, LM Studio, llama-server) (2 of 2)`
+- [ ] Concept: `Per-family vendor sampling defaults and GGUF sampling metadata` | Parent: `Local LLM Troubleshooting Playbook and Recommended Settings (Ollama, LM Studio, llama-server)` | Mode: `dr` | Cluster: `Local LLM Troubleshooting Playbook and Recommended Settings (Ollama, LM Studio, llama-server) (2 of 2)`
+- [ ] Concept: `Reasoning-format parsing and think-tag leakage` | Parent: `Local LLM Troubleshooting Playbook and Recommended Settings (Ollama, LM Studio, llama-server)` | Mode: `dr` | Cluster: `Local LLM Troubleshooting Playbook and Recommended Settings (Ollama, LM Studio, llama-server) (2 of 2)`
+- [ ] Concept: `Repetition loops vs repeat_penalty vs presence_penalty` | Parent: `Local LLM Troubleshooting Playbook and Recommended Settings (Ollama, LM Studio, llama-server)` | Mode: `dr` | Cluster: `Local LLM Troubleshooting Playbook and Recommended Settings (Ollama, LM Studio, llama-server) (2 of 2)`
+- [ ] Concept: `Local tool calling and grammar-constrained JSON` | Parent: `Local LLM Troubleshooting Playbook and Recommended Settings (Ollama, LM Studio, llama-server)` | Mode: `dr` | Cluster: `Local LLM Troubleshooting Playbook and Recommended Settings (Ollama, LM Studio, llama-server) (2 of 2)`
+- [ ] Concept: `Ollama VRAM-tier default context and silent chat truncation` | Parent: `Local LLM Troubleshooting Playbook and Recommended Settings (Ollama, LM Studio, llama-server)` | Mode: `dr` | Cluster: `Local LLM Troubleshooting Playbook and Recommended Settings (Ollama, LM Studio, llama-server) (2 of 2)`
+- [ ] Concept: `OpenClaw history and renames (Warelay, Clawdbot, Moltbot, foundation)` | Parent: `OpenClaw and personal-agent gateways on local models` | Mode: `dr` | Cluster: `OpenClaw and personal-agent gateways on local models`
+- [ ] Concept: `OpenClaw Gateway architecture (daemon, channels, skills, memory, heartbeat, sandbox)` | Parent: `OpenClaw and personal-agent gateways on local models` | Mode: `dr` | Cluster: `OpenClaw and personal-agent gateways on local models`
+- [ ] Concept: `OpenClaw local model providers (Ollama native API, LM Studio Responses API, OpenAI-compatible servers)` | Parent: `OpenClaw and personal-agent gateways on local models` | Mode: `dr` | Cluster: `OpenClaw and personal-agent gateways on local models`
+- [ ] Concept: `Local model capability floors (64k context, tool-calling reliability, injection resistance)` | Parent: `OpenClaw and personal-agent gateways on local models` | Mode: `dr` | Cluster: `OpenClaw and personal-agent gateways on local models`
+- [ ] Concept: `OpenClaw security record (exposed gateways, CVE-2026-25253, ClawHavoc supply chain)` | Parent: `OpenClaw and personal-agent gateways on local models` | Mode: `dr` | Cluster: `OpenClaw and personal-agent gateways on local models`
+- [ ] Concept: `OpenClaw hardening baseline (loopback bind, token auth, DM pairing, tool deny, sandbox)` | Parent: `OpenClaw and personal-agent gateways on local models` | Mode: `dr` | Cluster: `OpenClaw and personal-agent gateways on local models`
+- [ ] Concept: `Personal-agent gateway alternatives (Open WebUI, LibreChat, Hermes Agent, goose, n8n, nanobot, IronClaw)` | Parent: `OpenClaw and personal-agent gateways on local models` | Mode: `dr` | Cluster: `OpenClaw and personal-agent gateways on local models`
+- [ ] Concept: `Advisory history and vendor stance on plugin attack chains` | Parent: `Open WebUI deployment and hardening as the remote chat front end` | Mode: `dr` | Cluster: `Open WebUI deployment and hardening as the remote chat front end (1 of 2)`
+- [ ] Concept: `Community function supply-chain risk` | Parent: `Open WebUI deployment and hardening as the remote chat front end` | Mode: `dr` | Cluster: `Open WebUI deployment and hardening as the remote chat front end (1 of 2)`
+- [ ] Concept: `ConfigVar persistent-config trap on environment variables` | Parent: `Open WebUI deployment and hardening as the remote chat front end` | Mode: `dr` | Cluster: `Open WebUI deployment and hardening as the remote chat front end (1 of 2)`
+- [ ] Concept: `First-admin, signup and pending-role behavior` | Parent: `Open WebUI deployment and hardening as the remote chat front end` | Mode: `dr` | Cluster: `Open WebUI deployment and hardening as the remote chat front end (1 of 2)`
+- [ ] Concept: `Host backend reachability via host-gateway and docker0 binding` | Parent: `Open WebUI deployment and hardening as the remote chat front end` | Mode: `dr` | Cluster: `Open WebUI deployment and hardening as the remote chat front end (1 of 2)`
+- [ ] Concept: `Image size and RAM footprint by tag` | Parent: `Open WebUI deployment and hardening as the remote chat front end` | Mode: `dr` | Cluster: `Open WebUI deployment and hardening as the remote chat front end (1 of 2)`
+- [ ] Concept: `License branding clause with the 50-user exception` | Parent: `Open WebUI deployment and hardening as the remote chat front end` | Mode: `dr` | Cluster: `Open WebUI deployment and hardening as the remote chat front end (1 of 2)`
+- [ ] Concept: `Native tool-calling default and its context cost` | Parent: `Open WebUI deployment and hardening as the remote chat front end` | Mode: `dr` | Cluster: `Open WebUI deployment and hardening as the remote chat front end (1 of 2)`
+- [ ] Concept: `Per-model presets, global defaults and the num_ctx override` | Parent: `Open WebUI deployment and hardening as the remote chat front end` | Mode: `dr` | Cluster: `Open WebUI deployment and hardening as the remote chat front end (2 of 2)`
+- [ ] Concept: `Pinned-tag docker compose bound to loopback behind tailscale serve` | Parent: `Open WebUI deployment and hardening as the remote chat front end` | Mode: `dr` | Cluster: `Open WebUI deployment and hardening as the remote chat front end (2 of 2)`
+- [ ] Concept: `RAG embedding offload and web-loader SSRF controls` | Parent: `Open WebUI deployment and hardening as the remote chat front end` | Mode: `dr` | Cluster: `Open WebUI deployment and hardening as the remote chat front end (2 of 2)`
+- [ ] Concept: `Tailscale identity-header SSO caveats` | Parent: `Open WebUI deployment and hardening as the remote chat front end` | Mode: `dr` | Cluster: `Open WebUI deployment and hardening as the remote chat front end (2 of 2)`
+- [ ] Concept: `Tools and Functions as root-equivalent code execution` | Parent: `Open WebUI deployment and hardening as the remote chat front end` | Mode: `dr` | Cluster: `Open WebUI deployment and hardening as the remote chat front end (2 of 2)`
+- [ ] Concept: `Upgrade, one-way migrations and cold backup` | Parent: `Open WebUI deployment and hardening as the remote chat front end` | Mode: `dr` | Cluster: `Open WebUI deployment and hardening as the remote chat front end (2 of 2)`
+- [ ] Concept: `Open WebUI versus LibreChat, AnythingLLM and Jan` | Parent: `Open WebUI deployment and hardening as the remote chat front end` | Mode: `dr` | Cluster: `Open WebUI deployment and hardening as the remote chat front end (2 of 2)`
+- [ ] Concept: `4-DIMM downclocking and 2x32 vs 2x48 vs 4x32 capacity trade-offs` | Parent: `DDR5 and Host Tuning for CPU-Side LLM Inference and MoE Offload` | Mode: `dr` | Cluster: `DDR5 and Host Tuning for CPU-Side LLM Inference and MoE Offload (1 of 2)`
+- [ ] Concept: `Decode tokens/s estimate: effective bandwidth over active bytes per token` | Parent: `DDR5 and Host Tuning for CPU-Side LLM Inference and MoE Offload` | Mode: `dr` | Cluster: `DDR5 and Host Tuning for CPU-Side LLM Inference and MoE Offload (1 of 2)`
+- [ ] Concept: `CPU governor and amd-pstate EPP for memory-bound LLM decode` | Parent: `DDR5 and Host Tuning for CPU-Side LLM Inference and MoE Offload` | Mode: `dr` | Cluster: `DDR5 and Host Tuning for CPU-Side LLM Inference and MoE Offload (1 of 2)`
+- [ ] Concept: `Hugepages, THP, mlock/--load-mode and NUMA settings for CPU inference` | Parent: `DDR5 and Host Tuning for CPU-Side LLM Inference and MoE Offload` | Mode: `dr` | Cluster: `DDR5 and Host Tuning for CPU-Side LLM Inference and MoE Offload (1 of 2)`
+- [ ] Concept: `llama.cpp thread count, SMT, Intel E-cores, CCD and taskset/cpu-mask affinity` | Parent: `DDR5 and Host Tuning for CPU-Side LLM Inference and MoE Offload` | Mode: `dr` | Cluster: `DDR5 and Host Tuning for CPU-Side LLM Inference and MoE Offload (1 of 2)`
+- [ ] Concept: `Measuring memory bandwidth on Linux (mbw, STREAM, likwid-bench, Intel MLC, dmidecode configured speed)` | Parent: `DDR5 and Host Tuning for CPU-Side LLM Inference and MoE Offload` | Mode: `dr` | Cluster: `DDR5 and Host Tuning for CPU-Side LLM Inference and MoE Offload (2 of 2)`
+- [ ] Concept: `Prefill compute-bound vs decode memory-bound and expert placement` | Parent: `DDR5 and Host Tuning for CPU-Side LLM Inference and MoE Offload` | Mode: `dr` | Cluster: `DDR5 and Host Tuning for CPU-Side LLM Inference and MoE Offload (2 of 2)`
+- [ ] Concept: `DDR5 theoretical vs measured bandwidth (channels x MT/s x 8, IFOP/FCLK/UCLK limits)` | Parent: `DDR5 and Host Tuning for CPU-Side LLM Inference and MoE Offload` | Mode: `dr` | Cluster: `DDR5 and Host Tuning for CPU-Side LLM Inference and MoE Offload (2 of 2)`
+- [ ] Concept: `Upgrade paths: faster kits, 96/128GB, Strix Halo, quad/8-channel HEDT and Xeon 600` | Parent: `DDR5 and Host Tuning for CPU-Side LLM Inference and MoE Offload` | Mode: `dr` | Cluster: `DDR5 and Host Tuning for CPU-Side LLM Inference and MoE Offload (2 of 2)`
+- [ ] Concept: `XMP/EXPO profiles and JEDEC vs platform-supported speeds (Intel and AMD 1DPC/2DPC matrices)` | Parent: `DDR5 and Host Tuning for CPU-Side LLM Inference and MoE Offload` | Mode: `dr` | Cluster: `DDR5 and Host Tuning for CPU-Side LLM Inference and MoE Offload (2 of 2)`
+- [ ] Concept: `b12x SM120/SM121 kernel backend (CuTe DSL) for NVFP4 and MXFP4` | Parent: `FP8 / NVFP4 / MXFP4 Safetensors Serving on vLLM and SGLang (single 16GB sm_120 card)` | Mode: `dr` | Cluster: `FP8 / NVFP4 / MXFP4 Safetensors Serving on vLLM and SGLang (single 16GB sm_120 card) (1 of 2)`
+- [ ] Concept: `SGLang consumer Blackwell (sm_120) FP4 and FP8 GEMM backends` | Parent: `FP8 / NVFP4 / MXFP4 Safetensors Serving on vLLM and SGLang (single 16GB sm_120 card)` | Mode: `dr` | Cluster: `FP8 / NVFP4 / MXFP4 Safetensors Serving on vLLM and SGLang (single 16GB sm_120 card) (1 of 2)`
+- [ ] Concept: `KL-divergence benchmarking of GGUF versus vLLM quantized checkpoints` | Parent: `FP8 / NVFP4 / MXFP4 Safetensors Serving on vLLM and SGLang (single 16GB sm_120 card)` | Mode: `dr` | Cluster: `FP8 / NVFP4 / MXFP4 Safetensors Serving on vLLM and SGLang (single 16GB sm_120 card) (1 of 2)`
+- [ ] Concept: `FP8 KV cache calibration and skip-layers for hybrid attention models` | Parent: `FP8 / NVFP4 / MXFP4 Safetensors Serving on vLLM and SGLang (single 16GB sm_120 card)` | Mode: `dr` | Cluster: `FP8 / NVFP4 / MXFP4 Safetensors Serving on vLLM and SGLang (single 16GB sm_120 card) (1 of 2)`
+- [ ] Concept: `NVFP4 KV cache on consumer Blackwell (sm_120 FMHA gap)` | Parent: `FP8 / NVFP4 / MXFP4 Safetensors Serving on vLLM and SGLang (single 16GB sm_120 card)` | Mode: `dr` | Cluster: `FP8 / NVFP4 / MXFP4 Safetensors Serving on vLLM and SGLang (single 16GB sm_120 card) (1 of 2)`
+- [ ] Concept: `vLLM MoE expert cache and CPU offload (moe-expert-cache-size)` | Parent: `FP8 / NVFP4 / MXFP4 Safetensors Serving on vLLM and SGLang (single 16GB sm_120 card)` | Mode: `dr` | Cluster: `FP8 / NVFP4 / MXFP4 Safetensors Serving on vLLM and SGLang (single 16GB sm_120 card) (1 of 2)`
+- [ ] Concept: `Ollama versus raw llama.cpp throughput gap on RTX 5090` | Parent: `FP8 / NVFP4 / MXFP4 Safetensors Serving on vLLM and SGLang (single 16GB sm_120 card)` | Mode: `dr` | Cluster: `FP8 / NVFP4 / MXFP4 Safetensors Serving on vLLM and SGLang (single 16GB sm_120 card) (2 of 2)`
+- [ ] Concept: `NVFP4 quantization recipes: RTN vs GPTQ vs AWQ+AutoRound, protected layers, KL divergence` | Parent: `FP8 / NVFP4 / MXFP4 Safetensors Serving on vLLM and SGLang (single 16GB sm_120 card)` | Mode: `dr` | Cluster: `FP8 / NVFP4 / MXFP4 Safetensors Serving on vLLM and SGLang (single 16GB sm_120 card) (2 of 2)`
+- [ ] Concept: `vLLM sleep mode for sharing one GPU with Ollama or LM Studio` | Parent: `FP8 / NVFP4 / MXFP4 Safetensors Serving on vLLM and SGLang (single 16GB sm_120 card)` | Mode: `dr` | Cluster: `FP8 / NVFP4 / MXFP4 Safetensors Serving on vLLM and SGLang (single 16GB sm_120 card) (2 of 2)`
+- [ ] Concept: `Speculative decoding with MTP or DFlash heads on 16GB consumer cards` | Parent: `FP8 / NVFP4 / MXFP4 Safetensors Serving on vLLM and SGLang (single 16GB sm_120 card)` | Mode: `dr` | Cluster: `FP8 / NVFP4 / MXFP4 Safetensors Serving on vLLM and SGLang (single 16GB sm_120 card) (2 of 2)`
+- [ ] Concept: `vLLM startup time: compile cache, KV profiling, weight-cache Fast Start` | Parent: `FP8 / NVFP4 / MXFP4 Safetensors Serving on vLLM and SGLang (single 16GB sm_120 card)` | Mode: `dr` | Cluster: `FP8 / NVFP4 / MXFP4 Safetensors Serving on vLLM and SGLang (single 16GB sm_120 card) (2 of 2)`
+- [ ] Concept: `layout-aware document parsing` | Parent: `LLM document extraction and text distillation pipeline` | Mode: `dr` | Cluster: `LLM document extraction and text distillation pipeline`
+- [ ] Concept: `heuristic boilerplate removal` | Parent: `LLM document extraction and text distillation pipeline` | Mode: `dr` | Cluster: `LLM document extraction and text distillation pipeline`
+- [ ] Concept: `text canonicalization for deduplication` | Parent: `LLM document extraction and text distillation pipeline` | Mode: `dr` | Cluster: `LLM document extraction and text distillation pipeline`
+- [ ] Concept: `semantic vs lexical deduplication` | Parent: `LLM document extraction and text distillation pipeline` | Mode: `dr` | Cluster: `LLM document extraction and text distillation pipeline`
+- [ ] Concept: `hybrid retrieval fusion and reranking` | Parent: `LLM document extraction and text distillation pipeline` | Mode: `dr` | Cluster: `LLM document extraction and text distillation pipeline`
+- [ ] Concept: `structured output constraints` | Parent: `LLM document extraction and text distillation pipeline` | Mode: `dr` | Cluster: `LLM document extraction and text distillation pipeline`
+- [ ] Concept: `extraction evaluation frameworks` | Parent: `LLM document extraction and text distillation pipeline` | Mode: `dr` | Cluster: `LLM document extraction and text distillation pipeline`
+- [ ] Concept: `HumanEval MBPP CodeXGLUE benchmarks` | Parent: `Code generation model benchmarks and quantization impact` | Mode: `dr` | Cluster: `Code generation model benchmarks and quantization impact`
+- [ ] Concept: `quantization impact on code accuracy` | Parent: `Code generation model benchmarks and quantization impact` | Mode: `dr` | Cluster: `Code generation model benchmarks and quantization impact`
+- [ ] Concept: `code model hallucination rates` | Parent: `Code generation model benchmarks and quantization impact` | Mode: `dr` | Cluster: `Code generation model benchmarks and quantization impact`
+- [ ] Concept: `code model selection and deployment economics` | Parent: `Code generation model benchmarks and quantization impact` | Mode: `dr` | Cluster: `Code generation model benchmarks and quantization impact`
+- [ ] Concept: `Conceptual Family Mapping` | Parent: `Conceptual Family Exploration` | Mode: `dr` | Cluster: `Conceptual Family Exploration`
+- [ ] Concept: `Concept Viability Scoring (CVS)` | Parent: `Conceptual Family Exploration` | Mode: `dr` | Cluster: `Conceptual Family Exploration`
+- [ ] Concept: `Saturation Loop Control` | Parent: `Conceptual Family Exploration` | Mode: `dr` | Cluster: `Conceptual Family Exploration`
+- [ ] Concept: `Gap-Driven /dr Orchestration` | Parent: `Conceptual Family Exploration` | Mode: `dr` | Cluster: `Conceptual Family Exploration`
+- [ ] Concept: `Coverage Inventory and Gap Detection` | Parent: `Conceptual Family Exploration` | Mode: `dr` | Cluster: `Conceptual Family Exploration`
+- [ ] Concept: `Instinct-Based Learning` | Parent: `Continuous Learning System` | Mode: `dr` | Cluster: `Continuous Learning System`
+- [ ] Concept: `Confidence Score Tracking` | Parent: `Continuous Learning System` | Mode: `dr` | Cluster: `Continuous Learning System`
+- [ ] Concept: `Hook-Driven Session Observation` | Parent: `Continuous Learning System` | Mode: `dr` | Cluster: `Continuous Learning System`
+- [ ] Concept: `Skill Evolution from Instincts` | Parent: `Continuous Learning System` | Mode: `dr` | Cluster: `Continuous Learning System`
+- [ ] Concept: `FastMCP Python Patterns` | Parent: `MCP Server Builder Patterns` | Mode: `dr` | Cluster: `MCP Server Builder Patterns`
+- [ ] Concept: `TypeScript SDK Patterns` | Parent: `MCP Server Builder Patterns` | Mode: `dr` | Cluster: `MCP Server Builder Patterns`
+- [ ] Concept: `Tool Design Checklist` | Parent: `MCP Server Builder Patterns` | Mode: `dr` | Cluster: `MCP Server Builder Patterns`
+- [ ] Concept: `MCP Deployment Patterns` | Parent: `MCP Server Builder Patterns` | Mode: `dr` | Cluster: `MCP Server Builder Patterns`
+- [ ] Concept: `Production Hardening` | Parent: `MCP Server Builder Patterns` | Mode: `dr` | Cluster: `MCP Server Builder Patterns`
+- [ ] Concept: `Plaud Tool Quick Reference` | Parent: `Plaud MCP Integration` | Mode: `dr` | Cluster: `Plaud MCP Integration`
+- [ ] Concept: `Session State and Elicitation` | Parent: `Plaud MCP Integration` | Mode: `dr` | Cluster: `Plaud MCP Integration`
+- [ ] Concept: `Cost Safety Controls` | Parent: `Plaud MCP Integration` | Mode: `dr` | Cluster: `Plaud MCP Integration`
+- [ ] Concept: `Skills as Resources` | Parent: `Plaud MCP Integration` | Mode: `dr` | Cluster: `Plaud MCP Integration`
+- [ ] Concept: `JSON-RPC 2.0 Architecture` | Parent: `MCP Server Development` | Mode: `dr` | Cluster: `MCP Server Development`
+- [ ] Concept: `MCP OAuth 2.1 Security` | Parent: `MCP Server Development` | Mode: `dr` | Cluster: `MCP Server Development`
+- [ ] Concept: `Sampling and Elicitation` | Parent: `MCP Server Development` | Mode: `dr` | Cluster: `MCP Server Development`
+- [ ] Concept: `MCP Deployment` | Parent: `MCP Server Development` | Mode: `dr` | Cluster: `MCP Server Development`
+- [ ] Concept: `Context Refinement Patterns` | Parent: `Iterative Retrieval` | Mode: `dr` | Cluster: `Iterative Retrieval`
+- [ ] Concept: `Subagent Context Problems` | Parent: `Iterative Retrieval` | Mode: `dr` | Cluster: `Iterative Retrieval`
+- [ ] Concept: `Progressive Information Fetching` | Parent: `Iterative Retrieval` | Mode: `dr` | Cluster: `Iterative Retrieval`
+- [ ] Concept: `HTML5 Semantic Elements` | Parent: `HTML and CSS` | Mode: `dr` | Cluster: `HTML and CSS`
+- [ ] Concept: `CSS Properties and Selectors` | Parent: `HTML and CSS` | Mode: `dr` | Cluster: `HTML and CSS`
+- [ ] Concept: `Responsive Design` | Parent: `HTML and CSS` | Mode: `dr` | Cluster: `HTML and CSS`
+- [ ] Concept: `CSS At-Rules and Layout` | Parent: `HTML and CSS` | Mode: `dr` | Cluster: `HTML and CSS`
+- [ ] Concept: `Vanilla JS Review Workflow` | Parent: `Vanilla JS UI Patterns` | Mode: `dr` | Cluster: `Vanilla JS UI Patterns`
+- [ ] Concept: `DOM Manipulation Patterns` | Parent: `Vanilla JS UI Patterns` | Mode: `dr` | Cluster: `Vanilla JS UI Patterns`
+- [ ] Concept: `Event Handling Standards` | Parent: `Vanilla JS UI Patterns` | Mode: `dr` | Cluster: `Vanilla JS UI Patterns`
+- [ ] Concept: `Module and Bundling Patterns` | Parent: `Vanilla JS UI Patterns` | Mode: `dr` | Cluster: `Vanilla JS UI Patterns`
+- [ ] Concept: `Correct glyphs (curly quotes, en/em dashes, small caps, old-style/tabular figures, ligatures, true vs faux bold/italic, fractions)` | Parent: `Editorial Micro-Typography & Type-Craft Defects` | Mode: `dr` | Cluster: `Editorial Micro-Typography & Type-Craft Defects (1 of 2)`
+- [ ] Concept: `Type crimes (stretched/condensed faux styles, ransom-note font mixing)` | Parent: `Editorial Micro-Typography & Type-Craft Defects` | Mode: `dr` | Cluster: `Editorial Micro-Typography & Type-Craft Defects (1 of 2)`
+- [ ] Concept: `Hanging punctuation & optical margin alignment, optical vs metric kerning, optical sizing (opsz)` | Parent: `Editorial Micro-Typography & Type-Craft Defects` | Mode: `dr` | Cluster: `Editorial Micro-Typography & Type-Craft Defects (1 of 2)`
+- [ ] Concept: `Hyphenation & justification (H&J) & justified-text gaps` | Parent: `Editorial Micro-Typography & Type-Craft Defects` | Mode: `dr` | Cluster: `Editorial Micro-Typography & Type-Craft Defects (1 of 2)`
+- [ ] Concept: `Kerning / tracking / letter-spacing (keming, all-caps tracking, display kerning)` | Parent: `Editorial Micro-Typography & Type-Craft Defects` | Mode: `dr` | Cluster: `Editorial Micro-Typography & Type-Craft Defects (1 of 2)`
+- [ ] Concept: `Leading / line-height, vertical rhythm & baseline-grid alignment` | Parent: `Editorial Micro-Typography & Type-Craft Defects` | Mode: `dr` | Cluster: `Editorial Micro-Typography & Type-Craft Defects (2 of 2)`
+- [ ] Concept: `Measure (line length / characters-per-line ~45-75)` | Parent: `Editorial Micro-Typography & Type-Craft Defects` | Mode: `dr` | Cluster: `Editorial Micro-Typography & Type-Craft Defects (2 of 2)`
+- [ ] Concept: `Ragged-edge (rag) quality, rivers & bad line breaks` | Parent: `Editorial Micro-Typography & Type-Craft Defects` | Mode: `dr` | Cluster: `Editorial Micro-Typography & Type-Craft Defects (2 of 2)`
+- [ ] Concept: `Widows, orphans, runts & stranded subheads` | Parent: `Editorial Micro-Typography & Type-Craft Defects` | Mode: `dr` | Cluster: `Editorial Micro-Typography & Type-Craft Defects (2 of 2)`
+- [ ] Concept: `Color Systems and Palettes` | Parent: `UI/UX Design` | Mode: `dr` | Cluster: `UI/UX Design`
+- [ ] Concept: `Typography and Font Pairing` | Parent: `UI/UX Design` | Mode: `dr` | Cluster: `UI/UX Design`
+- [ ] Concept: `Component Design Patterns` | Parent: `UI/UX Design` | Mode: `dr` | Cluster: `UI/UX Design`
+- [ ] Concept: `Dashboard and Admin UX` | Parent: `UI/UX Design` | Mode: `dr` | Cluster: `UI/UX Design`
+- [ ] Concept: `Responsive and Mobile Design` | Parent: `UI/UX Design` | Mode: `dr` | Cluster: `UI/UX Design`
+- [ ] Concept: `Adaptive Front-End Design` | Parent: `Frontend Design UI/UX Expert` | Mode: `dr` | Cluster: `Frontend Design UI/UX Expert`
+- [ ] Concept: `Scannable Technical Data UX` | Parent: `Frontend Design UI/UX Expert` | Mode: `dr` | Cluster: `Frontend Design UI/UX Expert`
+- [ ] Concept: `Rendering Performance` | Parent: `Frontend Design UI/UX Expert` | Mode: `dr` | Cluster: `Frontend Design UI/UX Expert`
+- [ ] Concept: `UI Implementation Choices` | Parent: `Frontend Design UI/UX Expert` | Mode: `dr` | Cluster: `Frontend Design UI/UX Expert`
+- [ ] Concept: `WCAG 2.2 Compliance` | Parent: `Accessibility and UX Review` | Mode: `dr` | Cluster: `Accessibility and UX Review`
+- [ ] Concept: `Keyboard Accessibility` | Parent: `Accessibility and UX Review` | Mode: `dr` | Cluster: `Accessibility and UX Review`
+- [ ] Concept: `ARIA and Semantic HTML` | Parent: `Accessibility and UX Review` | Mode: `dr` | Cluster: `Accessibility and UX Review`
+- [ ] Concept: `Focus Management` | Parent: `Accessibility and UX Review` | Mode: `dr` | Cluster: `Accessibility and UX Review`
+- [ ] Concept: `Landmark Regions` | Parent: `Accessibility and UX Review` | Mode: `dr` | Cluster: `Accessibility and UX Review`
+- [ ] Concept: `Visual Design Aesthetics` | Parent: `Web Design` | Mode: `dr` | Cluster: `Web Design`
+- [ ] Concept: `Layout and Color Systems` | Parent: `Web Design` | Mode: `dr` | Cluster: `Web Design`
+- [ ] Concept: `Design Style Translation` | Parent: `Web Design` | Mode: `dr` | Cluster: `Web Design`
+- [ ] Concept: `Landing Page Design` | Parent: `Web Design` | Mode: `dr` | Cluster: `Web Design`
+- [ ] Concept: `Streaming UX (TTFT, markdown buffering, smooth streaming, a11y)` | Parent: `AI-Native UX and Generative UI Design` | Mode: `dr` | Cluster: `AI-Native UX and Generative UI Design`
+- [ ] Concept: `Generative UI (Vercel AI SDK useChat/streamObject, typed parts, paused RSC, Thesys C1/OpenUI)` | Parent: `AI-Native UX and Generative UI Design` | Mode: `dr` | Cluster: `AI-Native UX and Generative UI Design`
+- [ ] Concept: `Latency masking & perceived performance` | Parent: `AI-Native UX and Generative UI Design` | Mode: `dr` | Cluster: `AI-Native UX and Generative UI Design`
+- [ ] Concept: `Trust & calibration UI (citations, confidence cascades, reasoning-trace caveat)` | Parent: `AI-Native UX and Generative UI Design` | Mode: `dr` | Cluster: `AI-Native UX and Generative UI Design`
+- [ ] Concept: `Refusal/error/fallback UX (PAIR taxonomy)` | Parent: `AI-Native UX and Generative UI Design` | Mode: `dr` | Cluster: `AI-Native UX and Generative UI Design`
+- [ ] Concept: `Human-AI steering & feedback affordances` | Parent: `AI-Native UX and Generative UI Design` | Mode: `dr` | Cluster: `AI-Native UX and Generative UI Design`
+- [ ] Concept: `Governing frameworks (Microsoft HAX 18, Google PAIR, Apple HIG, Shape of AI)` | Parent: `AI-Native UX and Generative UI Design` | Mode: `dr` | Cluster: `AI-Native UX and Generative UI Design`
+- [ ] Concept: `Extension Security Review Workflow` | Parent: `Chrome Extension Security` | Mode: `dr` | Cluster: `Chrome Extension Security`
+- [ ] Concept: `Permission Auditing` | Parent: `Chrome Extension Security` | Mode: `dr` | Cluster: `Chrome Extension Security`
+- [ ] Concept: `Content Security Policy` | Parent: `Chrome Extension Security` | Mode: `dr` | Cluster: `Chrome Extension Security`
+- [ ] Concept: `Manifest V3 Security` | Parent: `Chrome Extension Security` | Mode: `dr` | Cluster: `Chrome Extension Security`
+- [ ] Concept: `MV3 Architecture Fundamentals` | Parent: `Chrome Extension Development` | Mode: `dr` | Cluster: `Chrome Extension Development`
+- [ ] Concept: `Chrome API Reference` | Parent: `Chrome Extension Development` | Mode: `dr` | Cluster: `Chrome Extension Development`
+- [ ] Concept: `Messaging Patterns` | Parent: `Chrome Extension Development` | Mode: `dr` | Cluster: `Chrome Extension Development`
+- [ ] Concept: `Chrome DevTools MCP` | Parent: `Chrome Extension Development` | Mode: `dr` | Cluster: `Chrome Extension Development`
+- [ ] Concept: `IndexedDB Schema Design` | Parent: `Dexie and IndexedDB Local-First` | Mode: `dr` | Cluster: `Dexie and IndexedDB Local-First`
+- [ ] Concept: `Dexie.js API Patterns` | Parent: `Dexie and IndexedDB Local-First` | Mode: `dr` | Cluster: `Dexie and IndexedDB Local-First`
+- [ ] Concept: `Local-First Architecture` | Parent: `Dexie and IndexedDB Local-First` | Mode: `dr` | Cluster: `Dexie and IndexedDB Local-First`
+- [ ] Concept: `Sync and Conflict Resolution` | Parent: `Dexie and IndexedDB Local-First` | Mode: `dr` | Cluster: `Dexie and IndexedDB Local-First`
+- [ ] Concept: `Platform Adapter Review Workflow` | Parent: `Platform Adapter Review` | Mode: `dr` | Cluster: `Platform Adapter Review`
+- [ ] Concept: `Adapter Pattern Standards` | Parent: `Platform Adapter Review` | Mode: `dr` | Cluster: `Platform Adapter Review`
+- [ ] Concept: `Cross-Platform Compatibility` | Parent: `Platform Adapter Review` | Mode: `dr` | Cluster: `Platform Adapter Review`
+- [ ] Concept: `iOS Human Interface Guidelines` | Parent: `Mobile iOS Design` | Mode: `dr` | Cluster: `Mobile iOS Design`
+- [ ] Concept: `SwiftUI Patterns` | Parent: `Mobile iOS Design` | Mode: `dr` | Cluster: `Mobile iOS Design`
+- [ ] Concept: `Native iOS Components` | Parent: `Mobile iOS Design` | Mode: `dr` | Cluster: `Mobile iOS Design`
+- [ ] Concept: `Apple Design Principles` | Parent: `Mobile iOS Design` | Mode: `dr` | Cluster: `Mobile iOS Design`
+- [ ] Concept: `Actionable-but-non-prescriptive feedback (problem-not-solution, ask questions, giver/receiver dynamics)` | Parent: `Visual Design Principles as a Critique Rubric + Design-Critique Methodology` | Mode: `dr` | Cluster: `Visual Design Principles as a Critique Rubric + Design-Critique Methodology (1 of 2)`
+- [ ] Concept: `Critique anti-patterns (compliment sandwich, HiPPO, bikeshedding, design-by-committee, vague praise)` | Parent: `Visual Design Principles as a Critique Rubric + Design-Critique Methodology` | Mode: `dr` | Cluster: `Visual Design Principles as a Critique Rubric + Design-Critique Methodology (1 of 2)`
+- [ ] Concept: `Balance (symmetric/asymmetric/radial, visual weight, tipping detection)` | Parent: `Visual Design Principles as a Critique Rubric + Design-Critique Methodology` | Mode: `dr` | Cluster: `Visual Design Principles as a Critique Rubric + Design-Critique Methodology (1 of 2)`
+- [ ] Concept: `The C.R.A.P. principles (contrast, repetition, alignment, proximity) — Robin Williams` | Parent: `Visual Design Principles as a Critique Rubric + Design-Critique Methodology` | Mode: `dr` | Cluster: `Visual Design Principles as a Critique Rubric + Design-Critique Methodology (1 of 2)`
+- [ ] Concept: `Connor & Irizarry Discussing Design (critique vs reaction, frame around objectives, facilitation, no problem-solving mid-crit)` | Parent: `Visual Design Principles as a Critique Rubric + Design-Critique Methodology` | Mode: `dr` | Cluster: `Visual Design Principles as a Critique Rubric + Design-Critique Methodology (1 of 2)`
+- [ ] Concept: `Consistency (internal/external, Jakob's Law, aesthetic vs functional, design tokens, when-to-break)` | Parent: `Visual Design Principles as a Critique Rubric + Design-Critique Methodology` | Mode: `dr` | Cluster: `Visual Design Principles as a Critique Rubric + Design-Critique Methodology (1 of 2)`
+- [ ] Concept: `Emphasis & focal point (dominance/sub-dominance/subordination, isolation/Von Restorff, dual-equal-CTA defect)` | Parent: `Visual Design Principles as a Critique Rubric + Design-Critique Methodology` | Mode: `dr` | Cluster: `Visual Design Principles as a Critique Rubric + Design-Critique Methodology (1 of 2)`
+- [ ] Concept: `Visual flow & scanning patterns (F-pattern as symptom, Z-pattern, Gutenberg diagram, layer-cake/spotted/commitment/bypassing)` | Parent: `Visual Design Principles as a Critique Rubric + Design-Critique Methodology` | Mode: `dr` | Cluster: `Visual Design Principles as a Critique Rubric + Design-Critique Methodology (1 of 2)`
+- [ ] Concept: `Gestalt principles (proximity, similarity, closure, continuity, figure-ground, common region, common fate) as grouping violations` | Parent: `Visual Design Principles as a Critique Rubric + Design-Critique Methodology` | Mode: `dr` | Cluster: `Visual Design Principles as a Critique Rubric + Design-Critique Methodology (2 of 2)`
+- [ ] Concept: `Visual hierarchy (size/weight/contrast/position/spacing levers, typographic hierarchy, squint test, detect→rate→fix)` | Parent: `Visual Design Principles as a Critique Rubric + Design-Critique Methodology` | Mode: `dr` | Cluster: `Visual Design Principles as a Critique Rubric + Design-Critique Methodology (2 of 2)`
+- [ ] Concept: `Design-critique methodology (I-Like-I-Wish-What-If, Describe/Interpret/Evaluate, Rose/Bud/Thorn, design studio/charrette)` | Parent: `Visual Design Principles as a Critique Rubric + Design-Critique Methodology` | Mode: `dr` | Cluster: `Visual Design Principles as a Critique Rubric + Design-Critique Methodology (2 of 2)`
+- [ ] Concept: `Scale & proportion (modular scale ratios 1.25/1.333, 8-point grid, golden-ratio skepticism, 200%-zoom clipping)` | Parent: `Visual Design Principles as a Critique Rubric + Design-Critique Methodology` | Mode: `dr` | Cluster: `Visual Design Principles as a Critique Rubric + Design-Critique Methodology (2 of 2)`
+- [ ] Concept: `Severity rating & design QA (Nielsen 0–4, severity vs priority, Blocker→Cosmetic ladder, spec-parity gate)` | Parent: `Visual Design Principles as a Critique Rubric + Design-Critique Methodology` | Mode: `dr` | Cluster: `Visual Design Principles as a Critique Rubric + Design-Critique Methodology (2 of 2)`
+- [ ] Concept: `Unity, variety & visual rhythm (monotony vs chaos)` | Parent: `Visual Design Principles as a Critique Rubric + Design-Critique Methodology` | Mode: `dr` | Cluster: `Visual Design Principles as a Critique Rubric + Design-Critique Methodology (2 of 2)`
+- [ ] Concept: `White space / negative space (macro vs micro, active vs passive, clutter, premium-feel, line-height/measure numerics)` | Parent: `Visual Design Principles as a Critique Rubric + Design-Critique Methodology` | Mode: `dr` | Cluster: `Visual Design Principles as a Critique Rubric + Design-Critique Methodology (2 of 2)`
+- [ ] Concept: `Glean MCP Integration` | Parent: `Glean Developer Integration` | Mode: `dr` | Cluster: `Glean Developer Integration`
+- [ ] Concept: `Glean SDKs and APIs` | Parent: `Glean Developer Integration` | Mode: `dr` | Cluster: `Glean Developer Integration`
+- [ ] Concept: `Mozilla Glean Telemetry SDK` | Parent: `Glean Developer Integration` | Mode: `dr` | Cluster: `Glean Developer Integration`
+- [ ] Concept: `Glean Enterprise Capability Map` | Parent: `Glean Developer Integration` | Mode: `dr` | Cluster: `Glean Developer Integration`
+- [ ] Concept: `Jira Cloud API` | Parent: `Jira Developer Expert` | Mode: `dr` | Cluster: `Jira Developer Expert`
+- [ ] Concept: `Jira Software and Service Management` | Parent: `Jira Developer Expert` | Mode: `dr` | Cluster: `Jira Developer Expert`
+- [ ] Concept: `Forge App Development` | Parent: `Jira Developer Expert` | Mode: `dr` | Cluster: `Jira Developer Expert`
+- [ ] Concept: `Webhook Integration` | Parent: `Jira Developer Expert` | Mode: `dr` | Cluster: `Jira Developer Expert`
+- [ ] Concept: `Jira Authentication` | Parent: `Jira Developer Expert` | Mode: `dr` | Cluster: `Jira Developer Expert`
+- [ ] Concept: `Monday Platform MCP` | Parent: `Monday.com Developer` | Mode: `dr` | Cluster: `Monday.com Developer`
+- [ ] Concept: `Monday App MCP` | Parent: `Monday.com Developer` | Mode: `dr` | Cluster: `Monday.com Developer`
+- [ ] Concept: `Monday GraphQL API` | Parent: `Monday.com Developer` | Mode: `dr` | Cluster: `Monday.com Developer`
+- [ ] Concept: `Monday Webhooks` | Parent: `Monday.com Developer` | Mode: `dr` | Cluster: `Monday.com Developer`
+- [ ] Concept: `Monday App Development` | Parent: `Monday.com Developer` | Mode: `dr` | Cluster: `Monday.com Developer`
+- [ ] Concept: `Salesforce REST API` | Parent: `Salesforce Developer Expert` | Mode: `dr` | Cluster: `Salesforce Developer Expert`
+- [ ] Concept: `Apex Standards` | Parent: `Salesforce Developer Expert` | Mode: `dr` | Cluster: `Salesforce Developer Expert`
+- [ ] Concept: `Case and Report APIs` | Parent: `Salesforce Developer Expert` | Mode: `dr` | Cluster: `Salesforce Developer Expert`
+- [ ] Concept: `Eventing and Webhooks` | Parent: `Salesforce Developer Expert` | Mode: `dr` | Cluster: `Salesforce Developer Expert`
+- [ ] Concept: `Slack Web API` | Parent: `Slack Developer Platform` | Mode: `dr` | Cluster: `Slack Developer Platform`
+- [ ] Concept: `Slack Events API` | Parent: `Slack Developer Platform` | Mode: `dr` | Cluster: `Slack Developer Platform`
+- [ ] Concept: `Socket Mode` | Parent: `Slack Developer Platform` | Mode: `dr` | Cluster: `Slack Developer Platform`
+- [ ] Concept: `Slack CLI` | Parent: `Slack Developer Platform` | Mode: `dr` | Cluster: `Slack Developer Platform`
+- [ ] Concept: `Authentication and Tokens` | Parent: `Slack Developer Platform` | Mode: `dr` | Cluster: `Slack Developer Platform`
+- [ ] Concept: `Gmail Automation` | Parent: `Google Workspace CLI` | Mode: `dr` | Cluster: `Google Workspace CLI`
+- [ ] Concept: `Calendar Management` | Parent: `Google Workspace CLI` | Mode: `dr` | Cluster: `Google Workspace CLI`
+- [ ] Concept: `Google Drive Operations` | Parent: `Google Workspace CLI` | Mode: `dr` | Cluster: `Google Workspace CLI`
+- [ ] Concept: `Sheets and Docs` | Parent: `Google Workspace CLI` | Mode: `dr` | Cluster: `Google Workspace CLI`
+- [ ] Concept: `Foodora Order History` | Parent: `Order CLI` | Mode: `dr` | Cluster: `Order CLI`
+- [ ] Concept: `Active Order Status` | Parent: `Order CLI` | Mode: `dr` | Cluster: `Order CLI`
+- [ ] Concept: `eBay API Authentication` | Parent: `eBay Listing Automation` | Mode: `dr` | Cluster: `eBay Listing Automation`
+- [ ] Concept: `Listing Creation` | Parent: `eBay Listing Automation` | Mode: `dr` | Cluster: `eBay Listing Automation`
+- [ ] Concept: `Inventory Management` | Parent: `eBay Listing Automation` | Mode: `dr` | Cluster: `eBay Listing Automation`
+- [ ] Concept: `Photo Workflow` | Parent: `eBay Listing Automation` | Mode: `dr` | Cluster: `eBay Listing Automation`
+- [ ] Concept: `Security Review Workflow` | Parent: `Security Review` | Mode: `dr` | Cluster: `Security Review`
+- [ ] Concept: `Common Risk Classes` | Parent: `Security Review` | Mode: `dr` | Cluster: `Security Review`
+- [ ] Concept: `Authentication and Authorization Controls` | Parent: `Security Review` | Mode: `dr` | Cluster: `Security Review`
+- [ ] Concept: `Injection Defense Patterns` | Parent: `Security Review` | Mode: `dr` | Cluster: `Security Review`
+- [ ] Concept: `Security Standards` | Parent: `Security Review` | Mode: `dr` | Cluster: `Security Review`
+- [ ] Concept: `Okta Authentication Flows` | Parent: `Okta Expert` | Mode: `dr` | Cluster: `Okta Expert`
+- [ ] Concept: `Okta API and SDK` | Parent: `Okta Expert` | Mode: `dr` | Cluster: `Okta Expert`
+- [ ] Concept: `Okta Operating Model` | Parent: `Okta Expert` | Mode: `dr` | Cluster: `Okta Expert`
+- [ ] Concept: `Identity and Access Management` | Parent: `Okta Expert` | Mode: `dr` | Cluster: `Okta Expert`
+- [ ] Concept: `CLAUDE.md and AGENTS.md Management` | Parent: `Repo Bootstrapper` | Mode: `dr` | Cluster: `Repo Bootstrapper`
+- [ ] Concept: `CI Workflow Setup` | Parent: `Repo Bootstrapper` | Mode: `dr` | Cluster: `Repo Bootstrapper`
+- [ ] Concept: `Docs Suite Generation` | Parent: `Repo Bootstrapper` | Mode: `dr` | Cluster: `Repo Bootstrapper`
+- [ ] Concept: `Repo Meta-Doc Maintenance` | Parent: `Repo Bootstrapper` | Mode: `dr` | Cluster: `Repo Bootstrapper`
+- [ ] Concept: `Per-File Summary Generation` | Parent: `Repo File Analyzer` | Mode: `dr` | Cluster: `Repo File Analyzer`
+- [ ] Concept: `Incremental Analysis via File Hashing` | Parent: `Repo File Analyzer` | Mode: `dr` | Cluster: `Repo File Analyzer`
+- [ ] Concept: `File Analysis Upload to Context Hub` | Parent: `Repo File Analyzer` | Mode: `dr` | Cluster: `Repo File Analyzer`
+- [ ] Concept: `High-Signal File Prioritization` | Parent: `Repo File Analyzer` | Mode: `dr` | Cluster: `Repo File Analyzer`
+- [ ] Concept: `NestJS Fastify adapter` | Parent: `Node.js Backend Frameworks (Fastify, NestJS, Hono)` | Mode: `dr` | Cluster: `Node.js Backend Frameworks (Fastify, NestJS, Hono) (1 of 2)`
+- [ ] Concept: `Hono Context and Web-Standards core` | Parent: `Node.js Backend Frameworks (Fastify, NestJS, Hono)` | Mode: `dr` | Cluster: `Node.js Backend Frameworks (Fastify, NestJS, Hono) (1 of 2)`
+- [ ] Concept: `Fastify decorators and anti-patterns` | Parent: `Node.js Backend Frameworks (Fastify, NestJS, Hono)` | Mode: `dr` | Cluster: `Node.js Backend Frameworks (Fastify, NestJS, Hono) (1 of 2)`
+- [ ] Concept: `NestJS dynamic modules and forwardRef circular deps` | Parent: `Node.js Backend Frameworks (Fastify, NestJS, Hono)` | Mode: `dr` | Cluster: `Node.js Backend Frameworks (Fastify, NestJS, Hono) (1 of 2)`
+- [ ] Concept: `Hono edge runtimes (Cloudflare Workers/Deno/Bun/Lambda)` | Parent: `Node.js Backend Frameworks (Fastify, NestJS, Hono)` | Mode: `dr` | Cluster: `Node.js Backend Frameworks (Fastify, NestJS, Hono) (1 of 2)`
+- [ ] Concept: `Fastify-vs-NestJS-vs-Hono framework selection` | Parent: `Node.js Backend Frameworks (Fastify, NestJS, Hono)` | Mode: `dr` | Cluster: `Node.js Backend Frameworks (Fastify, NestJS, Hono) (1 of 2)`
+- [ ] Concept: `Fastify JSON Schema validation and serialization (TypeBox type-provider)` | Parent: `Node.js Backend Frameworks (Fastify, NestJS, Hono)` | Mode: `dr` | Cluster: `Node.js Backend Frameworks (Fastify, NestJS, Hono) (1 of 2)`
+- [ ] Concept: `Fastify lifecycle hooks` | Parent: `Node.js Backend Frameworks (Fastify, NestJS, Hono)` | Mode: `dr` | Cluster: `Node.js Backend Frameworks (Fastify, NestJS, Hono) (2 of 2)`
+- [ ] Concept: `NestJS modules and hierarchical DI` | Parent: `Node.js Backend Frameworks (Fastify, NestJS, Hono)` | Mode: `dr` | Cluster: `Node.js Backend Frameworks (Fastify, NestJS, Hono) (2 of 2)`
+- [ ] Concept: `Fastify plugins and encapsulation context` | Parent: `Node.js Backend Frameworks (Fastify, NestJS, Hono)` | Mode: `dr` | Cluster: `Node.js Backend Frameworks (Fastify, NestJS, Hono) (2 of 2)`
+- [ ] Concept: `NestJS providers and scopes` | Parent: `Node.js Backend Frameworks (Fastify, NestJS, Hono)` | Mode: `dr` | Cluster: `Node.js Backend Frameworks (Fastify, NestJS, Hono) (2 of 2)`
+- [ ] Concept: `Hono RegExpRouter and typed Variables/Bindings` | Parent: `Node.js Backend Frameworks (Fastify, NestJS, Hono)` | Mode: `dr` | Cluster: `Node.js Backend Frameworks (Fastify, NestJS, Hono) (2 of 2)`
+- [ ] Concept: `NestJS request pipeline (Middleware/Guards/Interceptors/Pipes/Filters)` | Parent: `Node.js Backend Frameworks (Fastify, NestJS, Hono)` | Mode: `dr` | Cluster: `Node.js Backend Frameworks (Fastify, NestJS, Hono) (2 of 2)`
+- [ ] Concept: `Hono validation (@hono/zod-validator) and RPC mode` | Parent: `Node.js Backend Frameworks (Fastify, NestJS, Hono)` | Mode: `dr` | Cluster: `Node.js Backend Frameworks (Fastify, NestJS, Hono) (2 of 2)`
+- [ ] Concept: `Proxy-based sharding / horizontal scale-out (Vitess vtgate)` | Parent: `Database Proxies & Query-Optimization Middleware` | Mode: `dr` | Cluster: `Database Proxies & Query-Optimization Middleware (2 of 2)`
+- [ ] Concept: `Proxy-vs-driver-vs-app decision framework & pool sizing` | Parent: `Database Proxies & Query-Optimization Middleware` | Mode: `dr` | Cluster: `Database Proxies & Query-Optimization Middleware (2 of 2)`
+- [ ] Concept: `Proxy query result caching (TTL vs invalidation)` | Parent: `Database Proxies & Query-Optimization Middleware` | Mode: `dr` | Cluster: `Database Proxies & Query-Optimization Middleware (2 of 2)`
+- [ ] Concept: `ProxySQL` | Parent: `Database Proxies & Query-Optimization Middleware` | Mode: `dr` | Cluster: `Database Proxies & Query-Optimization Middleware (2 of 2)`
+- [ ] Concept: `Read-after-write / replication-lag staleness hazard (causal_reads, GTID sync)` | Parent: `Database Proxies & Query-Optimization Middleware` | Mode: `dr` | Cluster: `Database Proxies & Query-Optimization Middleware (2 of 2)`
+- [ ] Concept: `Read/write splitting & replica routing` | Parent: `Database Proxies & Query-Optimization Middleware` | Mode: `dr` | Cluster: `Database Proxies & Query-Optimization Middleware (2 of 2)`
+- [ ] Concept: `Query rewriting & SQL firewall (digest allow-list)` | Parent: `Database Proxies & Query-Optimization Middleware` | Mode: `dr` | Cluster: `Database Proxies & Query-Optimization Middleware (2 of 2)`
+- [ ] Concept: `API Design Patterns` | Parent: `Backend Patterns` | Mode: `dr` | Cluster: `Backend Patterns`
+- [ ] Concept: `Database Optimization` | Parent: `Backend Patterns` | Mode: `dr` | Cluster: `Backend Patterns`
+- [ ] Concept: `Caching Strategies` | Parent: `Backend Patterns` | Mode: `dr` | Cluster: `Backend Patterns`
+- [ ] Concept: `Authentication and Authorization` | Parent: `Backend Patterns` | Mode: `dr` | Cluster: `Backend Patterns`
+- [ ] Concept: `Background Jobs and Queues` | Parent: `Backend Patterns` | Mode: `dr` | Cluster: `Backend Patterns`
+- [ ] Concept: `Review Workflow` | Parent: `Code Review` | Mode: `dr` | Cluster: `Code Review`
+- [ ] Concept: `Code Quality Heuristics` | Parent: `Code Review` | Mode: `dr` | Cluster: `Code Review`
+- [ ] Concept: `Review Comment Writing` | Parent: `Code Review` | Mode: `dr` | Cluster: `Code Review`
+- [ ] Concept: `Security-Aware Review` | Parent: `Code Review` | Mode: `dr` | Cluster: `Code Review`
+- [ ] Concept: `PR Review Standards` | Parent: `Code Review` | Mode: `dr` | Cluster: `Code Review`
+- [ ] Concept: `Naming and Readability Conventions` | Parent: `Coding Standards` | Mode: `dr` | Cluster: `Coding Standards`
+- [ ] Concept: `TypeScript and JavaScript Standards` | Parent: `Coding Standards` | Mode: `dr` | Cluster: `Coding Standards`
+- [ ] Concept: `React Best Practices` | Parent: `Coding Standards` | Mode: `dr` | Cluster: `Coding Standards`
+- [ ] Concept: `File Organization` | Parent: `Coding Standards` | Mode: `dr` | Cluster: `Coding Standards`
+- [ ] Concept: `Testing Standards` | Parent: `Coding Standards` | Mode: `dr` | Cluster: `Coding Standards`
+- [ ] Concept: `Root Cause Analysis Frameworks` | Parent: `Debugging Strategies` | Mode: `dr` | Cluster: `Debugging Strategies`
+- [ ] Concept: `Reproduction Checklists` | Parent: `Debugging Strategies` | Mode: `dr` | Cluster: `Debugging Strategies`
+- [ ] Concept: `Hypothesis Formation` | Parent: `Debugging Strategies` | Mode: `dr` | Cluster: `Debugging Strategies`
+- [ ] Concept: `Systematic Debugging Process` | Parent: `Debugging Strategies` | Mode: `dr` | Cluster: `Debugging Strategies`
+- [ ] Concept: `JS Runtime Debugging` | Parent: `JavaScript and Node.js Debugging` | Mode: `dr` | Cluster: `JavaScript and Node.js Debugging`
+- [ ] Concept: `Node.js Diagnostics` | Parent: `JavaScript and Node.js Debugging` | Mode: `dr` | Cluster: `JavaScript and Node.js Debugging`
+- [ ] Concept: `CSS and HTML Validation` | Parent: `JavaScript and Node.js Debugging` | Mode: `dr` | Cluster: `JavaScript and Node.js Debugging`
+- [ ] Concept: `Profiling and Performance` | Parent: `JavaScript and Node.js Debugging` | Mode: `dr` | Cluster: `JavaScript and Node.js Debugging`
+- [ ] Concept: `Root Cause Analysis` | Parent: `Debugging Techniques` | Mode: `dr` | Cluster: `Debugging Techniques`
+- [ ] Concept: `Deep Trace Logging` | Parent: `Debugging Techniques` | Mode: `dr` | Cluster: `Debugging Techniques`
+- [ ] Concept: `Unit Testing for Bugs` | Parent: `Debugging Techniques` | Mode: `dr` | Cluster: `Debugging Techniques`
+- [ ] Concept: `Browser Runtime Performance` | Parent: `Performance Profiling Expert` | Mode: `dr` | Cluster: `Performance Profiling Expert`
+- [ ] Concept: `Rendering and Interaction Analysis` | Parent: `Performance Profiling Expert` | Mode: `dr` | Cluster: `Performance Profiling Expert`
+- [ ] Concept: `Profiling Diagnostic Workflow` | Parent: `Performance Profiling Expert` | Mode: `dr` | Cluster: `Performance Profiling Expert`
+- [ ] Concept: `Performance Triage` | Parent: `Performance Profiling Expert` | Mode: `dr` | Cluster: `Performance Profiling Expert`
+- [ ] Concept: `Architecture Decision Records` | Parent: `Software Architecture` | Mode: `dr` | Cluster: `Software Architecture`
+- [ ] Concept: `Views and Stakeholder Concerns` | Parent: `Software Architecture` | Mode: `dr` | Cluster: `Software Architecture`
+- [ ] Concept: `Architecture Documentation` | Parent: `Software Architecture` | Mode: `dr` | Cluster: `Software Architecture`
+- [ ] Concept: `System Design Patterns` | Parent: `Software Architecture` | Mode: `dr` | Cluster: `Software Architecture`
+- [ ] Concept: `Vitest Core Model` | Parent: `Testing and Vitest Expert` | Mode: `dr` | Cluster: `Testing and Vitest Expert`
+- [ ] Concept: `Mocking and Spies` | Parent: `Testing and Vitest Expert` | Mode: `dr` | Cluster: `Testing and Vitest Expert`
+- [ ] Concept: `Async Testing Patterns` | Parent: `Testing and Vitest Expert` | Mode: `dr` | Cluster: `Testing and Vitest Expert`
+- [ ] Concept: `Test Lifecycle Hooks` | Parent: `Testing and Vitest Expert` | Mode: `dr` | Cluster: `Testing and Vitest Expert`
+- [ ] Concept: `Coverage Configuration` | Parent: `Testing and Vitest Expert` | Mode: `dr` | Cluster: `Testing and Vitest Expert`
+- [ ] Concept: `Playwright Integration` | Parent: `Web App Testing` | Mode: `dr` | Cluster: `Web App Testing`
+- [ ] Concept: `Frontend Functionality Verification` | Parent: `Web App Testing` | Mode: `dr` | Cluster: `Web App Testing`
+- [ ] Concept: `Browser Screenshot Capture` | Parent: `Web App Testing` | Mode: `dr` | Cluster: `Web App Testing`
+- [ ] Concept: `Browser Log Inspection` | Parent: `Web App Testing` | Mode: `dr` | Cluster: `Web App Testing`
+- [ ] Concept: `Async testing (pytest-asyncio, AnyIO backends)` | Parent: `Python Testing with pytest, fixtures, and Hypothesis` | Mode: `dr` | Cluster: `Python Testing with pytest, fixtures, and Hypothesis (1 of 2)`
+- [ ] Concept: `Coverage (pytest-cov, branch coverage, fail-under)` | Parent: `Python Testing with pytest, fixtures, and Hypothesis` | Mode: `dr` | Cluster: `Python Testing with pytest, fixtures, and Hypothesis (1 of 2)`
+- [ ] Concept: `Markers and configuration (skip/xfail/skipif, custom markers, pyproject.toml)` | Parent: `Python Testing with pytest, fixtures, and Hypothesis` | Mode: `dr` | Cluster: `Python Testing with pytest, fixtures, and Hypothesis (1 of 2)`
+- [ ] Concept: `Mocking (monkeypatch, unittest.mock, pytest-mock mocker/spy)` | Parent: `Python Testing with pytest, fixtures, and Hypothesis` | Mode: `dr` | Cluster: `Python Testing with pytest, fixtures, and Hypothesis (1 of 2)`
+- [ ] Concept: `Parallelism (pytest-xdist)` | Parent: `Python Testing with pytest, fixtures, and Hypothesis` | Mode: `dr` | Cluster: `Python Testing with pytest, fixtures, and Hypothesis (1 of 2)`
+- [ ] Concept: `Parametrization (parametrize, indirect, custom IDs, pytest_generate_tests)` | Parent: `Python Testing with pytest, fixtures, and Hypothesis` | Mode: `dr` | Cluster: `Python Testing with pytest, fixtures, and Hypothesis (2 of 2)`
+- [ ] Concept: `Hypothesis property-based testing (@given, strategies, map/filter/flatmap, @composite, @example, shrinking, settings/database)` | Parent: `Python Testing with pytest, fixtures, and Hypothesis` | Mode: `dr` | Cluster: `Python Testing with pytest, fixtures, and Hypothesis (2 of 2)`
+- [ ] Concept: `pytest fixtures (scope, conftest.py, yield/finalization, autouse, built-in fixtures)` | Parent: `Python Testing with pytest, fixtures, and Hypothesis` | Mode: `dr` | Cluster: `Python Testing with pytest, fixtures, and Hypothesis (2 of 2)`
+- [ ] Concept: `Hypothesis stateful testing (RuleBasedStateMachine, rules, invariants)` | Parent: `Python Testing with pytest, fixtures, and Hypothesis` | Mode: `dr` | Cluster: `Python Testing with pytest, fixtures, and Hypothesis (2 of 2)`
+- [ ] Concept: `Shared runtime execution model (GIL, tier-1 specializing adaptive interpreter PEP 659, PyInterpreterState/PyThreadState, immortal objects PEP 683)` | Parent: `CPython Runtime Internals (Free-Threading, Subinterpreters, JIT)` | Mode: `dr` | Cluster: `CPython Runtime Internals (Free-Threading, Subinterpreters, JIT)`
+- [ ] Concept: `Free-threaded no-GIL build (PEP 703/779 — biased/deferred/per-thread refcounting, mimalloc/QSBR, PyMutex, stop-the-world GC, --disable-gil/python3.14t/PYTHON_GIL/sys._is_gil_enabled)` | Parent: `CPython Runtime Internals (Free-Threading, Subinterpreters, JIT)` | Mode: `dr` | Cluster: `CPython Runtime Internals (Free-Threading, Subinterpreters, JIT)`
+- [ ] Concept: `C-extension free-thread compatibility (Py_mod_gil, Py_MOD_GIL_NOT_USED, PyUnstable_Module_SetGIL, cp314t wheels, ThreadSanitizer)` | Parent: `CPython Runtime Internals (Free-Threading, Subinterpreters, JIT)` | Mode: `dr` | Cluster: `CPython Runtime Internals (Free-Threading, Subinterpreters, JIT)`
+- [ ] Concept: `Multiple interpreters / subinterpreters (PEP 734 concurrent.interpreters + Queue + InterpreterPoolExecutor; per-interpreter GIL PEP 684; PEP 554 predecessor)` | Parent: `CPython Runtime Internals (Free-Threading, Subinterpreters, JIT)` | Mode: `dr` | Cluster: `CPython Runtime Internals (Free-Threading, Subinterpreters, JIT)`
+- [ ] Concept: `Copy-and-patch JIT (PEP 744 — tier-2 micro-ops, LLVM build-time stencils, --enable-experimental-jit, PYTHON_JIT)` | Parent: `CPython Runtime Internals (Free-Threading, Subinterpreters, JIT)` | Mode: `dr` | Cluster: `CPython Runtime Internals (Free-Threading, Subinterpreters, JIT)`
+- [ ] Concept: `Choosing free-threading vs subinterpreters vs multiprocessing vs asyncio` | Parent: `CPython Runtime Internals (Free-Threading, Subinterpreters, JIT)` | Mode: `dr` | Cluster: `CPython Runtime Internals (Free-Threading, Subinterpreters, JIT)`
+- [ ] Concept: `BaseModel and field definitions (Field, Annotated constraints)` | Parent: `Pydantic v2 Data Validation and Modeling` | Mode: `dr` | Cluster: `Pydantic v2 Data Validation and Modeling (1 of 2)`
+- [ ] Concept: `pydantic-core (Rust) architecture and performance` | Parent: `Pydantic v2 Data Validation and Modeling` | Mode: `dr` | Cluster: `Pydantic v2 Data Validation and Modeling (1 of 2)`
+- [ ] Concept: `Discriminated (tagged) unions` | Parent: `Pydantic v2 Data Validation and Modeling` | Mode: `dr` | Cluster: `Pydantic v2 Data Validation and Modeling (1 of 2)`
+- [ ] Concept: `Serialization (model_dump/model_dump_json, aliases, include/exclude, computed_field, RootModel)` | Parent: `Pydantic v2 Data Validation and Modeling` | Mode: `dr` | Cluster: `Pydantic v2 Data Validation and Modeling (1 of 2)`
+- [ ] Concept: `pydantic-settings (BaseSettings, env/.env/secrets)` | Parent: `Pydantic v2 Data Validation and Modeling` | Mode: `dr` | Cluster: `Pydantic v2 Data Validation and Modeling (1 of 2)`
+- [ ] Concept: `Strict vs lax coercion and ConfigDict` | Parent: `Pydantic v2 Data Validation and Modeling` | Mode: `dr` | Cluster: `Pydantic v2 Data Validation and Modeling (2 of 2)`
+- [ ] Concept: `TypeAdapter for non-model types` | Parent: `Pydantic v2 Data Validation and Modeling` | Mode: `dr` | Cluster: `Pydantic v2 Data Validation and Modeling (2 of 2)`
+- [ ] Concept: `V1 to V2 migration and anti-patterns` | Parent: `Pydantic v2 Data Validation and Modeling` | Mode: `dr` | Cluster: `Pydantic v2 Data Validation and Modeling (2 of 2)`
+- [ ] Concept: `ValidationError handling` | Parent: `Pydantic v2 Data Validation and Modeling` | Mode: `dr` | Cluster: `Pydantic v2 Data Validation and Modeling (2 of 2)`
+- [ ] Concept: `Validators (field_validator/model_validator, before/after/wrap/plain modes)` | Parent: `Pydantic v2 Data Validation and Modeling` | Mode: `dr` | Cluster: `Pydantic v2 Data Validation and Modeling (2 of 2)`
+- [ ] Concept: `Astral ty (Rust, Salsa incremental, intersection/negation types, beta 0.x)` | Parent: `Python Static Type Checking` | Mode: `dr` | Cluster: `Python Static Type Checking (1 of 2)`
+- [ ] Concept: `Type-checker anti-patterns (Any creep, blanket type: ignore, runtime-enforcement assumption)` | Parent: `Python Static Type Checking` | Mode: `dr` | Cluster: `Python Static Type Checking (1 of 2)`
+- [ ] Concept: `Checker selection (existing vs new project, IDE, CI gate)` | Parent: `Python Static Type Checking` | Mode: `dr` | Cluster: `Python Static Type Checking (1 of 2)`
+- [ ] Concept: `Type distribution (PEP 561, py.typed, types-* stub packages, typeshed)` | Parent: `Python Static Type Checking` | Mode: `dr` | Cluster: `Python Static Type Checking (1 of 2)`
+- [ ] Concept: `Gradual typing model (PEP 483/484, Any, the gradual guarantee)` | Parent: `Python Static Type Checking` | Mode: `dr` | Cluster: `Python Static Type Checking (1 of 2)`
+- [ ] Concept: `Inference divergence (list[int] vs list[Unknown])` | Parent: `Python Static Type Checking` | Mode: `dr` | Cluster: `Python Static Type Checking (1 of 2)`
+- [ ] Concept: `Meta Pyrefly (Rust, Pyre successor, pyrefly infer, stable 1.0.0)` | Parent: `Python Static Type Checking` | Mode: `dr` | Cluster: `Python Static Type Checking (2 of 2)`
+- [ ] Concept: `Migrating an untyped codebase (ratchet strictness, per-module overrides)` | Parent: `Python Static Type Checking` | Mode: `dr` | Cluster: `Python Static Type Checking (2 of 2)`
+- [ ] Concept: `mypy (reference impl, --strict, plugins, mypy.ini/[tool.mypy])` | Parent: `Python Static Type Checking` | Mode: `dr` | Cluster: `Python Static Type Checking (2 of 2)`
+- [ ] Concept: `Pyright (five strictness levels, reportXxx, Pylance, BasedPyright)` | Parent: `Python Static Type Checking` | Mode: `dr` | Cluster: `Python Static Type Checking (2 of 2)`
+- [ ] Concept: `typing-spec conformance suite` | Parent: `Python Static Type Checking` | Mode: `dr` | Cluster: `Python Static Type Checking (2 of 2)`
+- [ ] Concept: `Deterministic profiling (cProfile/profile + pstats, SortKey, ncalls/tottime/cumtime, calibration, snakeviz/gprof2dot)` | Parent: `CPython Performance Profiling and Acceleration` | Mode: `dr` | Cluster: `CPython Performance Profiling and Acceleration`
+- [ ] Concept: `Statistical/sampling profilers (py-spy record/top/dump, --native/--gil/--subprocesses, speedscope/flamegraph, Austin)` | Parent: `CPython Performance Profiling and Acceleration` | Mode: `dr` | Cluster: `CPython Performance Profiling and Acceleration`
+- [ ] Concept: `Scalene (line-level CPU+GPU+memory, Python-vs-native-vs-system separation, copy-volume, AI suggestions)` | Parent: `CPython Performance Profiling and Acceleration` | Mode: `dr` | Cluster: `CPython Performance Profiling and Acceleration`
+- [ ] Concept: `memray (Bloomberg allocation profiler, native tracking, flamegraph/table/tree, live mode, leaks/temporal, pytest-memray)` | Parent: `CPython Performance Profiling and Acceleration` | Mode: `dr` | Cluster: `CPython Performance Profiling and Acceleration`
+- [ ] Concept: `line_profiler/kernprof per-line CPU and py-heat` | Parent: `CPython Performance Profiling and Acceleration` | Mode: `dr` | Cluster: `CPython Performance Profiling and Acceleration`
+- [ ] Concept: `Benchmarking (timeit, pyperf, pytest-benchmark, CI perf budgets)` | Parent: `CPython Performance Profiling and Acceleration` | Mode: `dr` | Cluster: `CPython Performance Profiling and Acceleration`
+- [ ] Concept: `Flame-graph interpretation (self vs cumulative, speedscope views)` | Parent: `CPython Performance Profiling and Acceleration` | Mode: `dr` | Cluster: `CPython Performance Profiling and Acceleration`
+- [ ] Concept: `Native-acceleration ladder (Cython cdef/typed-memoryviews/nogil/prange, Numba @njit, mypyc, PyO3/Rust, ctypes/cffi)` | Parent: `CPython Performance Profiling and Acceleration` | Mode: `dr` | Cluster: `CPython Performance Profiling and Acceleration`
+- [ ] Concept: `Cloudflare Python Workers (embedded Pyodide at the edge)` | Parent: `Python in the Browser & WebAssembly (Pyodide, PyScript, WASI/CPython)` | Mode: `dr` | Cluster: `Python in the Browser & WebAssembly (Pyodide, PyScript, WASI/CPython) (1 of 2)`
+- [ ] Concept: `Pyodide — CPython on Emscripten distribution (loadPyodide, runPython/runPythonAsync, loadPackage, micropip)` | Parent: `Python in the Browser & WebAssembly (Pyodide, PyScript, WASI/CPython)` | Mode: `dr` | Cluster: `Python in the Browser & WebAssembly (Pyodide, PyScript, WASI/CPython) (1 of 2)`
+- [ ] Concept: `PyScript framework (polyscript core, <script type=py>/<script type=mpy>, py-config/pyscript.toml, PyWorker, py-editor)` | Parent: `Python in the Browser & WebAssembly (Pyodide, PyScript, WASI/CPython)` | Mode: `dr` | Cluster: `Python in the Browser & WebAssembly (Pyodide, PyScript, WASI/CPython) (1 of 2)`
+- [ ] Concept: `JS⟺Python FFI (PyProxy/JsProxy, toJs/to_js, create_proxy, destroy lifetime management, PEP 818 upstreaming)` | Parent: `Python in the Browser & WebAssembly (Pyodide, PyScript, WASI/CPython)` | Mode: `dr` | Cluster: `Python in the Browser & WebAssembly (Pyodide, PyScript, WASI/CPython) (1 of 2)`
+- [ ] Concept: `Pyodide vs MicroPython runtime tradeoff (~11-15 MB CPython+SciPy stack vs ~300 KB <100ms MicroPython)` | Parent: `Python in the Browser & WebAssembly (Pyodide, PyScript, WASI/CPython)` | Mode: `dr` | Cluster: `Python in the Browser & WebAssembly (Pyodide, PyScript, WASI/CPython) (1 of 2)`
+- [ ] Concept: `WASI/CPython server-side target (wasmtime, capability-gated FS/net, sandboxed plugins, host functions)` | Parent: `Python in the Browser & WebAssembly (Pyodide, PyScript, WASI/CPython)` | Mode: `dr` | Cluster: `Python in the Browser & WebAssembly (Pyodide, PyScript, WASI/CPython) (2 of 2)`
+- [ ] Concept: `CPython→WASM compile pipeline (wasm32-emscripten tier 3 / wasm32-wasi tier 2, PEP 11 tiers, PEP 776/816, single-threaded WASM model)` | Parent: `Python in the Browser & WebAssembly (Pyodide, PyScript, WASI/CPython)` | Mode: `dr` | Cluster: `Python in the Browser & WebAssembly (Pyodide, PyScript, WASI/CPython) (2 of 2)`
+- [ ] Concept: `WASM constraints & troubleshooting (no threads/multiprocessing, no raw sockets, web-worker offloading, cold-start size, in-memory virtual FS)` | Parent: `Python in the Browser & WebAssembly (Pyodide, PyScript, WASI/CPython)` | Mode: `dr` | Cluster: `Python in the Browser & WebAssembly (Pyodide, PyScript, WASI/CPython) (2 of 2)`
+- [ ] Concept: `WASM packaging — PEP 783 pyodide_* wheel tags + PyEmscripten ABI (pyodide build/cibuildwheel, one ABI per Python version)` | Parent: `Python in the Browser & WebAssembly (Pyodide, PyScript, WASI/CPython)` | Mode: `dr` | Cluster: `Python in the Browser & WebAssembly (Pyodide, PyScript, WASI/CPython) (2 of 2)`
+- [ ] Concept: `Async execution model (event loop, coroutines, tasks, awaitables, cooperative scheduling)` | Parent: `Python Concurrency (asyncio, Structured Concurrency, anyio/trio)` | Mode: `dr` | Cluster: `Python Concurrency (asyncio, Structured Concurrency, anyio/trio)`
+- [ ] Concept: `Structured concurrency with asyncio.TaskGroup 3.11+ (vs gather, ExceptionGroup, except*)` | Parent: `Python Concurrency (asyncio, Structured Concurrency, anyio/trio)` | Mode: `dr` | Cluster: `Python Concurrency (asyncio, Structured Concurrency, anyio/trio)`
+- [ ] Concept: `Cancellation & timeouts (CancelledError re-raise, asyncio.timeout 3.11+, uncancel, shield)` | Parent: `Python Concurrency (asyncio, Structured Concurrency, anyio/trio)` | Mode: `dr` | Cluster: `Python Concurrency (asyncio, Structured Concurrency, anyio/trio)`
+- [ ] Concept: `Fire-and-forget GC trap + background-task-set pattern + eager task factory 3.12` | Parent: `Python Concurrency (asyncio, Structured Concurrency, anyio/trio)` | Mode: `dr` | Cluster: `Python Concurrency (asyncio, Structured Concurrency, anyio/trio)`
+- [ ] Concept: `anyio & trio (nurseries, cancel scopes, portability layer, why anyio for libraries)` | Parent: `Python Concurrency (asyncio, Structured Concurrency, anyio/trio)` | Mode: `dr` | Cluster: `Python Concurrency (asyncio, Structured Concurrency, anyio/trio)`
+- [ ] Concept: `Bridging to threads/processes (asyncio.to_thread, run_in_executor)` | Parent: `Python Concurrency (asyncio, Structured Concurrency, anyio/trio)` | Mode: `dr` | Cluster: `Python Concurrency (asyncio, Structured Concurrency, anyio/trio)`
+- [ ] Concept: `Async toolbox (Lock/Semaphore/Queue, async iterators/generators, async context managers)` | Parent: `Python Concurrency (asyncio, Structured Concurrency, anyio/trio)` | Mode: `dr` | Cluster: `Python Concurrency (asyncio, Structured Concurrency, anyio/trio)`
+- [ ] Concept: `PEP 789 (no yield across TaskGroup) + common pitfalls (blocking loop, swallowing cancel)` | Parent: `Python Concurrency (asyncio, Structured Concurrency, anyio/trio)` | Mode: `dr` | Cluster: `Python Concurrency (asyncio, Structured Concurrency, anyio/trio)`
+- [ ] Concept: `argparse (stdlib subcommands, type coercion)` | Parent: `Python CLI & TUI Application Development` | Mode: `dr` | Cluster: `Python CLI & TUI Application Development`
+- [ ] Concept: `Click (decorator groups, parameter types, context, CliRunner testing)` | Parent: `Python CLI & TUI Application Development` | Mode: `dr` | Cluster: `Python CLI & TUI Application Development`
+- [ ] Concept: `Typer (type-hint driven, Annotated idiom, built on Click)` | Parent: `Python CLI & TUI Application Development` | Mode: `dr` | Cluster: `Python CLI & TUI Application Development`
+- [ ] Concept: `CLI library selection (argparse vs Click vs Typer)` | Parent: `Python CLI & TUI Application Development` | Mode: `dr` | Cluster: `Python CLI & TUI Application Development`
+- [ ] Concept: `Rich (console markup, tables, progress, RichHandler, tracebacks)` | Parent: `Python CLI & TUI Application Development` | Mode: `dr` | Cluster: `Python CLI & TUI Application Development`
+- [ ] Concept: `Textual (widgets, reactive attributes + watch methods, messages, TCSS, workers, browser serve)` | Parent: `Python CLI & TUI Application Development` | Mode: `dr` | Cluster: `Python CLI & TUI Application Development`
+- [ ] Concept: `Entry points / [project.scripts] + exit codes + testing through the runner` | Parent: `Python CLI & TUI Application Development` | Mode: `dr` | Cluster: `Python CLI & TUI Application Development`
+- [ ] Concept: `Data model / dunder protocols (__getattr__/__getattribute__/__call__, __slots__)` | Parent: `Python Metaprogramming & the Data Model` | Mode: `dr` | Cluster: `Python Metaprogramming & the Data Model`
+- [ ] Concept: `Descriptors (__get__/__set__/__delete__, data vs non-data precedence, __set_name__)` | Parent: `Python Metaprogramming & the Data Model` | Mode: `dr` | Cluster: `Python Metaprogramming & the Data Model`
+- [ ] Concept: `Class-creation pipeline (namespace → __set_name__ → __init_subclass__ → metaclass)` | Parent: `Python Metaprogramming & the Data Model` | Mode: `dr` | Cluster: `Python Metaprogramming & the Data Model`
+- [ ] Concept: `__init_subclass__ (lightweight metaclass alternative, subclass kwargs, registries)` | Parent: `Python Metaprogramming & the Data Model` | Mode: `dr` | Cluster: `Python Metaprogramming & the Data Model`
+- [ ] Concept: `Metaclasses (type, __new__/__init__/__call__/__prepare__, conflicts, when to use)` | Parent: `Python Metaprogramming & the Data Model` | Mode: `dr` | Cluster: `Python Metaprogramming & the Data Model`
+- [ ] Concept: `Protocols (structural typing, runtime_checkable) vs ABCs (nominal, abstractmethod, __subclasshook__)` | Parent: `Python Metaprogramming & the Data Model` | Mode: `dr` | Cluster: `Python Metaprogramming & the Data Model`
+- [ ] Concept: `Runtime introspection (inspect, typing.get_type_hints, annotationlib/PEP 649)` | Parent: `Python Metaprogramming & the Data Model` | Mode: `dr` | Cluster: `Python Metaprogramming & the Data Model`
+- [ ] Concept: `Discipline — restraint hierarchy, tool-followability` | Parent: `Python Metaprogramming & the Data Model` | Mode: `dr` | Cluster: `Python Metaprogramming & the Data Model`
+- [ ] Concept: `Distribution spectrum (needs-Python vs bundled-interpreter vs compiled)` | Parent: `Packaging Python Apps as Standalone Distributables` | Mode: `dr` | Cluster: `Packaging Python Apps as Standalone Distributables`
+- [ ] Concept: `zipapp / shiv / pex (self-contained zipapps, target needs Python)` | Parent: `Packaging Python Apps as Standalone Distributables` | Mode: `dr` | Cluster: `Packaging Python Apps as Standalone Distributables`
+- [ ] Concept: `PyInstaller (bundles interpreter, onefile vs onedir, hidden imports, hooks)` | Parent: `Packaging Python Apps as Standalone Distributables` | Mode: `dr` | Cluster: `Packaging Python Apps as Standalone Distributables`
+- [ ] Concept: `Nuitka (compiles to C/native, 2-4x perf, standalone/onefile)` | Parent: `Packaging Python Apps as Standalone Distributables` | Mode: `dr` | Cluster: `Packaging Python Apps as Standalone Distributables`
+- [ ] Concept: `GUI/mobile & single-binary (Briefcase/BeeWare, cx_Freeze, PyOxidizer)` | Parent: `Packaging Python Apps as Standalone Distributables` | Mode: `dr` | Cluster: `Packaging Python Apps as Standalone Distributables`
+- [ ] Concept: `Cross-platform realities (no cross-compile, antivirus/signing/notarization)` | Parent: `Packaging Python Apps as Standalone Distributables` | Mode: `dr` | Cluster: `Packaging Python Apps as Standalone Distributables`
+- [ ] Concept: `Pitfalls (hidden imports, data files via importlib.resources, size, startup cost)` | Parent: `Packaging Python Apps as Standalone Distributables` | Mode: `dr` | Cluster: `Packaging Python Apps as Standalone Distributables`
+- [ ] Concept: `Stdlib logging model (loggers/handlers/formatters/filters, hierarchy, propagation, levels)` | Parent: `Python Logging & Application Observability` | Mode: `dr` | Cluster: `Python Logging & Application Observability`
+- [ ] Concept: `Configure-once at entry (dictConfig) + libraries use NullHandler only` | Parent: `Python Logging & Application Observability` | Mode: `dr` | Cluster: `Python Logging & Application Observability`
+- [ ] Concept: `Structured logging rationale (JSON key-value events for machine parsing)` | Parent: `Python Logging & Application Observability` | Mode: `dr` | Cluster: `Python Logging & Application Observability`
+- [ ] Concept: `structlog (processor pipeline, bound loggers, contextvars, stdlib integration, JSONRenderer)` | Parent: `Python Logging & Application Observability` | Mode: `dr` | Cluster: `Python Logging & Application Observability`
+- [ ] Concept: `loguru (zero-config, sinks, InterceptHandler to bridge stdlib, exception diagnose)` | Parent: `Python Logging & Application Observability` | Mode: `dr` | Cluster: `Python Logging & Application Observability`
+- [ ] Concept: `OpenTelemetry logs (LoggingHandler, OTLP, log<->trace correlation via trace/span IDs)` | Parent: `Python Logging & Application Observability` | Mode: `dr` | Cluster: `Python Logging & Application Observability`
+- [ ] Concept: `Best practices (context via contextvars, no secrets, exc_info, QueueHandler, double-logging pitfall)` | Parent: `Python Logging & Application Observability` | Mode: `dr` | Cluster: `Python Logging & Application Observability`
+- [ ] Concept: `Decision: trusted/internal vs untrusted/external; performance tiers (msgspec<attrs~dataclasses<<pydantic)` | Parent: `Python Data Modeling (dataclasses, attrs, msgspec)` | Mode: `dr` | Cluster: `Python Data Modeling (dataclasses, attrs, msgspec)`
+- [ ] Concept: `dataclasses (field/default_factory, frozen/slots/kw_only, __post_init__, asdict)` | Parent: `Python Data Modeling (dataclasses, attrs, msgspec)` | Mode: `dr` | Cluster: `Python Data Modeling (dataclasses, attrs, msgspec)`
+- [ ] Concept: `attrs (@define, validators/converters, slots default, cattrs serde)` | Parent: `Python Data Modeling (dataclasses, attrs, msgspec)` | Mode: `dr` | Cluster: `Python Data Modeling (dataclasses, attrs, msgspec)`
+- [ ] Concept: `msgspec.Struct (fastest init+serde, auto __slots__, JSON/msgpack)` | Parent: `Python Data Modeling (dataclasses, attrs, msgspec)` | Mode: `dr` | Cluster: `Python Data Modeling (dataclasses, attrs, msgspec)`
+- [ ] Concept: `pydantic-v2 pointer (untrusted-data validation boundary)` | Parent: `Python Data Modeling (dataclasses, attrs, msgspec)` | Mode: `dr` | Cluster: `Python Data Modeling (dataclasses, attrs, msgspec)`
+- [ ] Concept: `stdlib shapes (NamedTuple, TypedDict + Required/NotRequired, enum/StrEnum/Flag)` | Parent: `Python Data Modeling (dataclasses, attrs, msgspec)` | Mode: `dr` | Cluster: `Python Data Modeling (dataclasses, attrs, msgspec)`
+- [ ] Concept: `Serialization (json/orjson/msgspec/pickle-insecurity) + mutable-default & slots pitfalls` | Parent: `Python Data Modeling (dataclasses, attrs, msgspec)` | Mode: `dr` | Cluster: `Python Data Modeling (dataclasses, attrs, msgspec)`
+- [ ] Concept: `ast module (parse, NodeVisitor/NodeTransformer, fix_missing_locations, compile, unparse 3.9+, literal_eval)` | Parent: `Python AST, Codegen & Source Transformation` | Mode: `dr` | Cluster: `Python AST, Codegen & Source Transformation`
+- [ ] Concept: `AST is lossy -> when you need a CST` | Parent: `Python AST, Codegen & Source Transformation` | Mode: `dr` | Cluster: `Python AST, Codegen & Source Transformation`
+- [ ] Concept: `LibCST (lossless CST, matchers, metadata, codemod framework, 3.0-3.14)` | Parent: `Python AST, Codegen & Source Transformation` | Mode: `dr` | Cluster: `Python AST, Codegen & Source Transformation`
+- [ ] Concept: `Import hooks (sys.meta_path finders/loaders, source_to_code, PEP 302/451)` | Parent: `Python AST, Codegen & Source Transformation` | Mode: `dr` | Cluster: `Python AST, Codegen & Source Transformation`
+- [ ] Concept: `Code generation (ast.unparse, astor/astunparse, compile+exec, string templating tradeoff)` | Parent: `Python AST, Codegen & Source Transformation` | Mode: `dr` | Cluster: `Python AST, Codegen & Source Transformation`
+- [ ] Concept: `Use cases (linters/formatters, codemods, instrumentation, DSLs/PEP 750)` | Parent: `Python AST, Codegen & Source Transformation` | Mode: `dr` | Cluster: `Python AST, Codegen & Source Transformation`
+- [ ] Concept: `Pitfalls (AST version drift, locations, exec/eval/pickle security, round-trip loss)` | Parent: `Python AST, Codegen & Source Transformation` | Mode: `dr` | Cluster: `Python AST, Codegen & Source Transformation`
+- [ ] Concept: `Async/await and tokio (lazy futures, executors, tokio::sync, select!, spawn_blocking, Pin/Unpin, function coloring)` | Parent: `Rust Language and Rust for Blockchain` | Mode: `dr` | Cluster: `Rust Language and Rust for Blockchain (1 of 2)`
+- [ ] Concept: `Cargo toolchain: manifest, features and unification, profiles, workspaces, editions (2015-2024)` | Parent: `Rust Language and Rust for Blockchain` | Mode: `dr` | Cluster: `Rust Language and Rust for Blockchain (1 of 2)`
+- [ ] Concept: `Closures and iterators (Fn/FnMut/FnOnce, lazy zero-cost iterator chains, IntoIterator)` | Parent: `Rust Language and Rust for Blockchain` | Mode: `dr` | Cluster: `Rust Language and Rust for Blockchain (1 of 2)`
+- [ ] Concept: `Concurrency: Send/Sync, threads, Mutex/RwLock/Arc, atomics, channels, rayon` | Parent: `Rust Language and Rust for Blockchain` | Mode: `dr` | Cluster: `Rust Language and Rust for Blockchain (1 of 2)`
+- [ ] Concept: `CosmWasm smart contracts (actor model, instantiate/execute/query, cw-storage-plus)` | Parent: `Rust Language and Rust for Blockchain` | Mode: `dr` | Cluster: `Rust Language and Rust for Blockchain (1 of 2)`
+- [ ] Concept: `Error handling and the ? operator (Option/Result, thiserror vs anyhow, panic-vs-Result)` | Parent: `Rust Language and Rust for Blockchain` | Mode: `dr` | Cluster: `Rust Language and Rust for Blockchain (1 of 2)`
+- [ ] Concept: `Rust idioms and anti-patterns (newtype, builder, typestate, illegal-states-unrepresentable, clippy)` | Parent: `Rust Language and Rust for Blockchain` | Mode: `dr` | Cluster: `Rust Language and Rust for Blockchain (1 of 2)`
+- [ ] Concept: `ink! contracts on Polkadot (pallet-revive/PolkaVM migration, SCALE codec)` | Parent: `Rust Language and Rust for Blockchain` | Mode: `dr` | Cluster: `Rust Language and Rust for Blockchain (1 of 2)`
+- [ ] Concept: `Macros: declarative (macro_rules!) and procedural (syn/quote/proc-macro2)` | Parent: `Rust Language and Rust for Blockchain` | Mode: `dr` | Cluster: `Rust Language and Rust for Blockchain (2 of 2)`
+- [ ] Concept: `no_std and embedded Rust (core/alloc, embedded-hal, Embassy, RTIC, probe-rs)` | Parent: `Rust Language and Rust for Blockchain` | Mode: `dr` | Cluster: `Rust Language and Rust for Blockchain (2 of 2)`
+- [ ] Concept: `Ownership, borrowing, lifetimes and the borrow checker (move semantics, NLL, Polonius)` | Parent: `Rust Language and Rust for Blockchain` | Mode: `dr` | Cluster: `Rust Language and Rust for Blockchain (2 of 2)`
+- [ ] Concept: `Smart pointers and interior mutability (Box/Rc/Arc/RefCell/Weak, Rc<RefCell> pattern, deref coercion)` | Parent: `Rust Language and Rust for Blockchain` | Mode: `dr` | Cluster: `Rust Language and Rust for Blockchain (2 of 2)`
+- [ ] Concept: `Rust-on-Solana programming surface and the Anchor framework (PDAs, CPI, accounts, Borsh, compute budget)` | Parent: `Rust Language and Rust for Blockchain` | Mode: `dr` | Cluster: `Rust Language and Rust for Blockchain (2 of 2)`
+- [ ] Concept: `Substrate/FRAME: building app-chains/runtimes vs deploying contracts` | Parent: `Rust Language and Rust for Blockchain` | Mode: `dr` | Cluster: `Rust Language and Rust for Blockchain (2 of 2)`
+- [ ] Concept: `Traits, generics and dispatch (coherence/orphan rule, associated types, monomorphization, dyn vs impl Trait, dyn-compatibility)` | Parent: `Rust Language and Rust for Blockchain` | Mode: `dr` | Cluster: `Rust Language and Rust for Blockchain (2 of 2)`
+- [ ] Concept: `The WASM target (wasm-bindgen/wasm-pack, wasm32-wasip1/p2, Component Model/WASI)` | Parent: `Rust Language and Rust for Blockchain` | Mode: `dr` | Cluster: `Rust Language and Rust for Blockchain (2 of 2)`
+- [ ] Concept: `child_process (spawn/exec/execFile/fork, shell command-injection, maxBuffer, IPC, detached/unref)` | Parent: `Node.js Concurrency Internals` | Mode: `dr` | Cluster: `Node.js Concurrency Internals (1 of 2)`
+- [ ] Concept: `cluster (SCHED_RR vs SCHED_NONE, shared server ports, worker lifecycle, built on child_process.fork)` | Parent: `Node.js Concurrency Internals` | Mode: `dr` | Cluster: `Node.js Concurrency Internals (1 of 2)`
+- [ ] Concept: `Don't block the event loop (sync APIs, ReDoS, partitioning vs offloading, event-loop lag)` | Parent: `Node.js Concurrency Internals` | Mode: `dr` | Cluster: `Node.js Concurrency Internals (1 of 2)`
+- [ ] Concept: `libuv event loop phases (timers, pending callbacks, idle/prepare, poll, check, close)` | Parent: `Node.js Concurrency Internals` | Mode: `dr` | Cluster: `Node.js Concurrency Internals (1 of 2)`
+- [ ] Concept: `libuv thread pool (UV_THREADPOOL_SIZE 4->1024; fs/dns.lookup/crypto/zlib)` | Parent: `Node.js Concurrency Internals` | Mode: `dr` | Cluster: `Node.js Concurrency Internals (1 of 2)`
+- [ ] Concept: `Microtask ordering (process.nextTick queue + Promise microtask queue, starvation)` | Parent: `Node.js Concurrency Internals` | Mode: `dr` | Cluster: `Node.js Concurrency Internals (1 of 2)`
+- [ ] Concept: `setTimeout(0) vs setImmediate ordering` | Parent: `Node.js Concurrency Internals` | Mode: `dr` | Cluster: `Node.js Concurrency Internals (2 of 2)`
+- [ ] Concept: `Stream types and custom streams (Readable/Writable/Duplex/Transform, push/write rules, cork/uncork)` | Parent: `Node.js Concurrency Internals` | Mode: `dr` | Cluster: `Node.js Concurrency Internals (2 of 2)`
+- [ ] Concept: `Streams and backpressure (highWaterMark, write()/false, drain, pipe vs pipeline)` | Parent: `Node.js Concurrency Internals` | Mode: `dr` | Cluster: `Node.js Concurrency Internals (2 of 2)`
+- [ ] Concept: `Web Streams API (WHATWG) & Node interop (ReadableStream/WritableStream/TransformStream, Readable.toWeb/fromWeb, stream/consumers)` | Parent: `Node.js Concurrency Internals` | Mode: `dr` | Cluster: `Node.js Concurrency Internals (2 of 2)`
+- [ ] Concept: `worker_threads (V8 isolates, structured clone, transferList, SharedArrayBuffer/Atomics, MessageChannel)` | Parent: `Node.js Concurrency Internals` | Mode: `dr` | Cluster: `Node.js Concurrency Internals (2 of 2)`
+- [ ] Concept: `WinterTC / WinterCG Minimum Common Web Platform API (ECMA-429) + Runtime Keys` | Parent: `JavaScript/TypeScript Runtimes (Deno, Bun, Edge) & WinterTC Interop` | Mode: `dr` | Cluster: `JavaScript/TypeScript Runtimes (Deno, Bun, Edge) & WinterTC Interop`
+- [ ] Concept: `Deno 2.x runtime (Node/npm compat, npm:/node: specifiers, deno.json, JSR, Deno KV/Queues, secure-by-default perms, LTS)` | Parent: `JavaScript/TypeScript Runtimes (Deno, Bun, Edge) & WinterTC Interop` | Mode: `dr` | Cluster: `JavaScript/TypeScript Runtimes (Deno, Bun, Edge) & WinterTC Interop`
+- [ ] Concept: `Bun 1.x runtime + package manager (JavaScriptCore, bun install, text bun.lock, isolated installs, Bun.serve/bun:sqlite/Bun.sql/Bun.s3, bun test, bundler)` | Parent: `JavaScript/TypeScript Runtimes (Deno, Bun, Edge) & WinterTC Interop` | Mode: `dr` | Cluster: `JavaScript/TypeScript Runtimes (Deno, Bun, Edge) & WinterTC Interop`
+- [ ] Concept: `Edge runtimes (Cloudflare Workers/workerd nodejs_compat + compatibility dates + unenv, Vercel Edge Runtime, Deno Deploy isolates/subhosting)` | Parent: `JavaScript/TypeScript Runtimes (Deno, Bun, Edge) & WinterTC Interop` | Mode: `dr` | Cluster: `JavaScript/TypeScript Runtimes (Deno, Bun, Edge) & WinterTC Interop`
+- [ ] Concept: `Choosing & migrating between Node/Deno/Bun/edge (portability via Minimum Common API + Runtime-Key exports)` | Parent: `JavaScript/TypeScript Runtimes (Deno, Bun, Edge) & WinterTC Interop` | Mode: `dr` | Cluster: `JavaScript/TypeScript Runtimes (Deno, Bun, Edge) & WinterTC Interop`
+- [ ] Concept: `Native TypeScript type stripping (flags/versions, erasableSyntaxOnly, unsupported enum/namespace/parameter-properties, removed --experimental-transform-types, .ts/.mts/.cts + mandatory import extensions, no-type-check caveat)` | Parent: `Node.js Native TypeScript, Permission Model & Single Executable Applications` | Mode: `dr` | Cluster: `Node.js Native TypeScript, Permission Model & Single Executable Applications`
+- [ ] Concept: `tsx and ts-node runners (esbuild transpile vs tsc type-check, decorators/JSX/path-aliases, when native stripping isn't enough)` | Parent: `Node.js Native TypeScript, Permission Model & Single Executable Applications` | Mode: `dr` | Cluster: `Node.js Native TypeScript, Permission Model & Single Executable Applications`
+- [ ] Concept: `The 24.x Permission Model (--permission, --allow-fs-read/-fs-write/-child-process/-worker/-addons/-wasi/-inspector, process.permission.has(), node.config.json, worker-non-inheritance + symlink/FD-bypass limits)` | Parent: `Node.js Native TypeScript, Permission Model & Single Executable Applications` | Mode: `dr` | Cluster: `Node.js Native TypeScript, Permission Model & Single Executable Applications`
+- [ ] Concept: `Single Executable Applications (sea-config.json, --build-sea v25.5, postject + NODE_SEA_BLOB sentinel fuse, node:sea API isSea/getAsset/getRawAsset/getAssetKeys, CJS vs ESM SEA, codesign/signtool)` | Parent: `Node.js Native TypeScript, Permission Model & Single Executable Applications` | Mode: `dr` | Cluster: `Node.js Native TypeScript, Permission Model & Single Executable Applications`
+- [ ] Concept: `Node 24/25/26 LTS toolchain baseline (build-step elimination philosophy, version timeline)` | Parent: `Node.js Native TypeScript, Permission Model & Single Executable Applications` | Mode: `dr` | Cluster: `Node.js Native TypeScript, Permission Model & Single Executable Applications`
+- [ ] Concept: `Diagnostic flags (--trace-opt, --trace-deopt, --trace-ic, %OptimizeFunctionOnNextCall)` | Parent: `V8 Engine Internals (hidden classes / inline caches, JIT pipeline, Orinoco GC)` | Mode: `dr` | Cluster: `V8 Engine Internals (hidden classes / inline caches, JIT pipeline, Orinoco GC) (1 of 2)`
+- [ ] Concept: `V8-friendly JS patterns and megamorphism anti-patterns` | Parent: `V8 Engine Internals (hidden classes / inline caches, JIT pipeline, Orinoco GC)` | Mode: `dr` | Cluster: `V8 Engine Internals (hidden classes / inline caches, JIT pipeline, Orinoco GC) (1 of 2)`
+- [ ] Concept: `Orinoco generational GC: parallel Scavenger (Cheney semi-space)` | Parent: `V8 Engine Internals (hidden classes / inline caches, JIT pipeline, Orinoco GC)` | Mode: `dr` | Cluster: `V8 Engine Internals (hidden classes / inline caches, JIT pipeline, Orinoco GC) (1 of 2)`
+- [ ] Concept: `Maglev mid-tier (SSA/CFG) and TurboFan top-tier (sea-of-nodes)` | Parent: `V8 Engine Internals (hidden classes / inline caches, JIT pipeline, Orinoco GC)` | Mode: `dr` | Cluster: `V8 Engine Internals (hidden classes / inline caches, JIT pipeline, Orinoco GC) (1 of 2)`
+- [ ] Concept: `Major GC Mark-Sweep-Compact, concurrent/incremental marking, write barriers, idle-time GC` | Parent: `V8 Engine Internals (hidden classes / inline caches, JIT pipeline, Orinoco GC)` | Mode: `dr` | Cluster: `V8 Engine Internals (hidden classes / inline caches, JIT pipeline, Orinoco GC) (1 of 2)`
+- [ ] Concept: `Hidden classes / Maps / object shapes (DescriptorArrays, TransitionArrays, transition trees)` | Parent: `V8 Engine Internals (hidden classes / inline caches, JIT pipeline, Orinoco GC)` | Mode: `dr` | Cluster: `V8 Engine Internals (hidden classes / inline caches, JIT pipeline, Orinoco GC) (1 of 2)`
+- [ ] Concept: `Inline caches and the monomorphic/polymorphic/megamorphic ladder` | Parent: `V8 Engine Internals (hidden classes / inline caches, JIT pipeline, Orinoco GC)` | Mode: `dr` | Cluster: `V8 Engine Internals (hidden classes / inline caches, JIT pipeline, Orinoco GC) (2 of 2)`
+- [ ] Concept: `Node.js GC tuning (--max-old-space-size, --max-semi-space-size, --trace-gc, perf_hooks GC observer, container sizing)` | Parent: `V8 Engine Internals (hidden classes / inline caches, JIT pipeline, Orinoco GC)` | Mode: `dr` | Cluster: `V8 Engine Internals (hidden classes / inline caches, JIT pipeline, Orinoco GC) (2 of 2)`
+- [ ] Concept: `Property storage (in-object, backing store, dictionary/slow mode, elements kinds)` | Parent: `V8 Engine Internals (hidden classes / inline caches, JIT pipeline, Orinoco GC)` | Mode: `dr` | Cluster: `V8 Engine Internals (hidden classes / inline caches, JIT pipeline, Orinoco GC) (2 of 2)`
+- [ ] Concept: `Speculative optimization and deoptimization (eager/lazy/soft bailouts, ~70 reasons)` | Parent: `V8 Engine Internals (hidden classes / inline caches, JIT pipeline, Orinoco GC)` | Mode: `dr` | Cluster: `V8 Engine Internals (hidden classes / inline caches, JIT pipeline, Orinoco GC) (2 of 2)`
+- [ ] Concept: `JIT tiering pipeline: Ignition interpreter -> Sparkplug baseline` | Parent: `V8 Engine Internals (hidden classes / inline caches, JIT pipeline, Orinoco GC)` | Mode: `dr` | Cluster: `V8 Engine Internals (hidden classes / inline caches, JIT pipeline, Orinoco GC) (2 of 2)`
+- [ ] Concept: `Turboshaft / Turbolev direction` | Parent: `V8 Engine Internals (hidden classes / inline caches, JIT pipeline, Orinoco GC)` | Mode: `dr` | Cluster: `V8 Engine Internals (hidden classes / inline caches, JIT pipeline, Orinoco GC) (2 of 2)`
+- [ ] Concept: `Babel` | Parent: `JavaScript Build Tooling and Bundlers` | Mode: `dr` | Cluster: `JavaScript Build Tooling and Bundlers (1 of 2)`
+- [ ] Concept: `Biome` | Parent: `JavaScript Build Tooling and Bundlers` | Mode: `dr` | Cluster: `JavaScript Build Tooling and Bundlers (1 of 2)`
+- [ ] Concept: `Bundler Migration` | Parent: `JavaScript Build Tooling and Bundlers` | Mode: `dr` | Cluster: `JavaScript Build Tooling and Bundlers (1 of 2)`
+- [ ] Concept: `Dev Server vs Production Build` | Parent: `JavaScript Build Tooling and Bundlers` | Mode: `dr` | Cluster: `JavaScript Build Tooling and Bundlers (1 of 2)`
+- [ ] Concept: `esbuild` | Parent: `JavaScript Build Tooling and Bundlers` | Mode: `dr` | Cluster: `JavaScript Build Tooling and Bundlers (1 of 2)`
+- [ ] Concept: `ESLint Flat Config` | Parent: `JavaScript Build Tooling and Bundlers` | Mode: `dr` | Cluster: `JavaScript Build Tooling and Bundlers (1 of 2)`
+- [ ] Concept: `Oxc and oxlint` | Parent: `JavaScript Build Tooling and Bundlers` | Mode: `dr` | Cluster: `JavaScript Build Tooling and Bundlers (1 of 2)`
+- [ ] Concept: `Prettier` | Parent: `JavaScript Build Tooling and Bundlers` | Mode: `dr` | Cluster: `JavaScript Build Tooling and Bundlers (1 of 2)`
+- [ ] Concept: `Rollup` | Parent: `JavaScript Build Tooling and Bundlers` | Mode: `dr` | Cluster: `JavaScript Build Tooling and Bundlers (2 of 2)`
+- [ ] Concept: `Rspack` | Parent: `JavaScript Build Tooling and Bundlers` | Mode: `dr` | Cluster: `JavaScript Build Tooling and Bundlers (2 of 2)`
+- [ ] Concept: `Rust Toolchain Wave (VoidZero)` | Parent: `JavaScript Build Tooling and Bundlers` | Mode: `dr` | Cluster: `JavaScript Build Tooling and Bundlers (2 of 2)`
+- [ ] Concept: `SWC` | Parent: `JavaScript Build Tooling and Bundlers` | Mode: `dr` | Cluster: `JavaScript Build Tooling and Bundlers (2 of 2)`
+- [ ] Concept: `Turbopack` | Parent: `JavaScript Build Tooling and Bundlers` | Mode: `dr` | Cluster: `JavaScript Build Tooling and Bundlers (2 of 2)`
+- [ ] Concept: `Vite and Rolldown` | Parent: `JavaScript Build Tooling and Bundlers` | Mode: `dr` | Cluster: `JavaScript Build Tooling and Bundlers (2 of 2)`
+- [ ] Concept: `Webpack` | Parent: `JavaScript Build Tooling and Bundlers` | Mode: `dr` | Cluster: `JavaScript Build Tooling and Bundlers (2 of 2)`
+- [ ] Concept: `Client Storage (IndexedDB, Cache, OPFS)` | Parent: `Web Platform and Browser APIs` | Mode: `dr` | Cluster: `Web Platform and Browser APIs (1 of 2)`
+- [ ] Concept: `Web Components and Shadow DOM` | Parent: `Web Platform and Browser APIs` | Mode: `dr` | Cluster: `Web Platform and Browser APIs (1 of 2)`
+- [ ] Concept: `Web Crypto` | Parent: `Web Platform and Browser APIs` | Mode: `dr` | Cluster: `Web Platform and Browser APIs (1 of 2)`
+- [ ] Concept: `DOM and Events` | Parent: `Web Platform and Browser APIs` | Mode: `dr` | Cluster: `Web Platform and Browser APIs (1 of 2)`
+- [ ] Concept: `Fetch Streams and AbortController` | Parent: `Web Platform and Browser APIs` | Mode: `dr` | Cluster: `Web Platform and Browser APIs (1 of 2)`
+- [ ] Concept: `Navigation API` | Parent: `Web Platform and Browser APIs` | Mode: `dr` | Cluster: `Web Platform and Browser APIs (1 of 2)`
+- [ ] Concept: `Observer APIs (Intersection, Resize, Mutation, Performance)` | Parent: `Web Platform and Browser APIs` | Mode: `dr` | Cluster: `Web Platform and Browser APIs (2 of 2)`
+- [ ] Concept: `Real-Time Transports (WebSocket, WebRTC, WebTransport, SSE)` | Parent: `Web Platform and Browser APIs` | Mode: `dr` | Cluster: `Web Platform and Browser APIs (2 of 2)`
+- [ ] Concept: `Service Workers and PWA` | Parent: `Web Platform and Browser APIs` | Mode: `dr` | Cluster: `Web Platform and Browser APIs (2 of 2)`
+- [ ] Concept: `View Transitions API` | Parent: `Web Platform and Browser APIs` | Mode: `dr` | Cluster: `Web Platform and Browser APIs (2 of 2)`
+- [ ] Concept: `WebGPU and Canvas` | Parent: `Web Platform and Browser APIs` | Mode: `dr` | Cluster: `Web Platform and Browser APIs (2 of 2)`
+- [ ] Concept: `Web Workers and SharedArrayBuffer` | Parent: `Web Platform and Browser APIs` | Mode: `dr` | Cluster: `Web Platform and Browser APIs (2 of 2)`
+- [ ] Concept: `Node-API (N-API) C ABI` | Parent: `Node.js Native Addons (N-API, node-gyp, node-addon-api)` | Mode: `dr` | Cluster: `Node.js Native Addons (N-API, node-gyp, node-addon-api)`
+- [ ] Concept: `node-addon-api C++ wrapper` | Parent: `Node.js Native Addons (N-API, node-gyp, node-addon-api)` | Mode: `dr` | Cluster: `Node.js Native Addons (N-API, node-gyp, node-addon-api)`
+- [ ] Concept: `node-gyp / binding.gyp build toolchain` | Parent: `Node.js Native Addons (N-API, node-gyp, node-addon-api)` | Mode: `dr` | Cluster: `Node.js Native Addons (N-API, node-gyp, node-addon-api)`
+- [ ] Concept: `Prebuilt binary distribution (prebuildify, node-pre-gyp)` | Parent: `Node.js Native Addons (N-API, node-gyp, node-addon-api)` | Mode: `dr` | Cluster: `Node.js Native Addons (N-API, node-gyp, node-addon-api)`
+- [ ] Concept: `cmake-js` | Parent: `Node.js Native Addons (N-API, node-gyp, node-addon-api)` | Mode: `dr` | Cluster: `Node.js Native Addons (N-API, node-gyp, node-addon-api)`
+- [ ] Concept: `Rust addons (napi-rs, neon)` | Parent: `Node.js Native Addons (N-API, node-gyp, node-addon-api)` | Mode: `dr` | Cluster: `Node.js Native Addons (N-API, node-gyp, node-addon-api)`
+- [ ] Concept: `Loading and debugging .node addons` | Parent: `Node.js Native Addons (N-API, node-gyp, node-addon-api)` | Mode: `dr` | Cluster: `Node.js Native Addons (N-API, node-gyp, node-addon-api)`
+- [ ] Concept: `Inspector / Chrome DevTools Protocol (--inspect/--inspect-brk/--inspect-wait, inspector.Session, CDP over WebSocket)` | Parent: `Node.js Production Diagnostics & Profiling` | Mode: `dr` | Cluster: `Node.js Production Diagnostics & Profiling`
+- [ ] Concept: `Programmatic profiling via node:inspector (Profiler.* / HeapProfiler.* domains)` | Parent: `Node.js Production Diagnostics & Profiling` | Mode: `dr` | Cluster: `Node.js Production Diagnostics & Profiling`
+- [ ] Concept: `V8 profilers as CLI flags (--prof/--prof-process tick processor, --cpu-prof, --heap-prof)` | Parent: `Node.js Production Diagnostics & Profiling` | Mode: `dr` | Cluster: `Node.js Production Diagnostics & Profiling`
+- [ ] Concept: `Heap snapshots & three-snapshot memory-leak hunting (--heapsnapshot-signal, --heapsnapshot-near-heap-limit, retainer analysis)` | Parent: `Node.js Production Diagnostics & Profiling` | Mode: `dr` | Cluster: `Node.js Production Diagnostics & Profiling`
+- [ ] Concept: `perf_hooks measurement (PerformanceObserver, monitorEventLoopDelay histogram, eventLoopUtilization for pool sizing, timerify, createHistogram)` | Parent: `Node.js Production Diagnostics & Profiling` | Mode: `dr` | Cluster: `Node.js Production Diagnostics & Profiling`
+- [ ] Concept: `diagnostics_channel + TracingChannel (zero-idle-cost instrumentation, built-in http/net channels, bindStore)` | Parent: `Node.js Production Diagnostics & Profiling` | Mode: `dr` | Cluster: `Node.js Production Diagnostics & Profiling`
+- [ ] Concept: `Diagnostic reports (--report-*) & trace_events (--trace-event-categories)` | Parent: `Node.js Production Diagnostics & Profiling` | Mode: `dr` | Cluster: `Node.js Production Diagnostics & Profiling`
+- [ ] Concept: `Ecosystem tools: clinic.js (doctor/flame/bubbleprof), 0x flamegraphs, autocannon load-driven profiling` | Parent: `Node.js Production Diagnostics & Profiling` | Mode: `dr` | Cluster: `Node.js Production Diagnostics & Profiling`
+- [ ] Concept: `node:http server lifecycle, IncomingMessage/ServerResponse, http.request, http.Agent` | Parent: `Node.js HTTP & Networking` | Mode: `dr` | Cluster: `Node.js HTTP & Networking`
+- [ ] Concept: `node:http server & socket timeouts (headersTimeout/requestTimeout/keepAliveTimeout/maxRequestsPerSocket)` | Parent: `Node.js HTTP & Networking` | Mode: `dr` | Cluster: `Node.js HTTP & Networking`
+- [ ] Concept: `node:http2 (secure/insecure servers, sessions/streams, ALPN, server push, compatibility API)` | Parent: `Node.js HTTP & Networking` | Mode: `dr` | Cluster: `Node.js HTTP & Networking`
+- [ ] Concept: `node:https + node:tls (createSecureContext, SNI, ALPN, session resumption)` | Parent: `Node.js HTTP & Networking` | Mode: `dr` | Cluster: `Node.js HTTP & Networking`
+- [ ] Concept: `node:net TCP connection model (allowHalfOpen, Nagle/setNoDelay, setKeepAlive, BlockList)` | Parent: `Node.js HTTP & Networking` | Mode: `dr` | Cluster: `Node.js HTTP & Networking`
+- [ ] Concept: `node:dgram UDP sockets and multicast` | Parent: `Node.js HTTP & Networking` | Mode: `dr` | Cluster: `Node.js HTTP & Networking`
+- [ ] Concept: `The global fetch as undici (Dispatcher/Client/Pool/Agent, interceptors, RetryAgent/ProxyAgent/MockAgent, setGlobalDispatcher)` | Parent: `Node.js HTTP & Networking` | Mode: `dr` | Cluster: `Node.js HTTP & Networking`
+- [ ] Concept: `undici keep-alive & timeout options (pipelining, keepAliveTimeout, keepAliveMaxTimeout, headersTimeout, bodyTimeout)` | Parent: `Node.js HTTP & Networking` | Mode: `dr` | Cluster: `Node.js HTTP & Networking`
+- [ ] Concept: `The CommonJS require(X) resolution algorithm` | Parent: `Node.js Module Resolution & ESM/CJS Interop` | Mode: `dr` | Cluster: `Node.js Module Resolution & ESM/CJS Interop`
+- [ ] Concept: `The ESM resolution algorithm (ESM_RESOLVE)` | Parent: `Node.js Module Resolution & ESM/CJS Interop` | Mode: `dr` | Cluster: `Node.js Module Resolution & ESM/CJS Interop`
+- [ ] Concept: `package.json exports — conditional exports, subpaths, patterns, encapsulation` | Parent: `Node.js Module Resolution & ESM/CJS Interop` | Mode: `dr` | Cluster: `Node.js Module Resolution & ESM/CJS Interop`
+- [ ] Concept: `package.json imports — private #internal specifiers` | Parent: `Node.js Module Resolution & ESM/CJS Interop` | Mode: `dr` | Cluster: `Node.js Module Resolution & ESM/CJS Interop`
+- [ ] Concept: `The dual-package hazard` | Parent: `Node.js Module Resolution & ESM/CJS Interop` | Mode: `dr` | Cluster: `Node.js Module Resolution & ESM/CJS Interop`
+- [ ] Concept: `ESM <-> CJS interop: require(esm), importing CJS, createRequire` | Parent: `Node.js Module Resolution & ESM/CJS Interop` | Mode: `dr` | Cluster: `Node.js Module Resolution & ESM/CJS Interop`
+- [ ] Concept: `Module customization (loader) hooks (module.register / registerHooks)` | Parent: `Node.js Module Resolution & ESM/CJS Interop` | Mode: `dr` | Cluster: `Node.js Module Resolution & ESM/CJS Interop`
+- [ ] Concept: `Import attributes, JSON modules, and import maps` | Parent: `Node.js Module Resolution & ESM/CJS Interop` | Mode: `dr` | Cluster: `Node.js Module Resolution & ESM/CJS Interop`
+- [ ] Concept: `node:sqlite (DatabaseSync/StatementSync, params, aggregate, backup) — replaces better-sqlite3` | Parent: `Node.js Modern Batteries-Included Built-ins` | Mode: `dr` | Cluster: `Node.js Modern Batteries-Included Built-ins`
+- [ ] Concept: `Global undici-backed WebSocket client (client-only) — replaces ws for client use` | Parent: `Node.js Modern Batteries-Included Built-ins` | Mode: `dr` | Cluster: `Node.js Modern Batteries-Included Built-ins`
+- [ ] Concept: `Environment files: --env-file / --env-file-if-exists / process.loadEnvFile() / util.parseEnv() — replaces dotenv` | Parent: `Node.js Modern Batteries-Included Built-ins` | Mode: `dr` | Cluster: `Node.js Modern Batteries-Included Built-ins`
+- [ ] Concept: `Task running & watch: node --run + --watch / --watch-path / --watch-preserve-output — replaces npm run / nodemon` | Parent: `Node.js Modern Batteries-Included Built-ins` | Mode: `dr` | Cluster: `Node.js Modern Batteries-Included Built-ins`
+- [ ] Concept: `Filesystem & utils: fs.glob/globSync, util.styleText(), structuredClone, navigator — replace glob/chalk/lodash.cloneDeep/os.cpus` | Parent: `Node.js Modern Batteries-Included Built-ins` | Mode: `dr` | Cluster: `Node.js Modern Batteries-Included Built-ins`
+- [ ] Concept: `Module compile cache: module.enableCompileCache() / NODE_COMPILE_CACHE — startup performance` | Parent: `Node.js Modern Batteries-Included Built-ins` | Mode: `dr` | Cluster: `Node.js Modern Batteries-Included Built-ins`
+- [ ] Concept: `CLI app building with built-ins (util.parseArgs, readline/promises, signals, exit codes)` | Parent: `Node.js Modern Batteries-Included Built-ins` | Mode: `dr` | Cluster: `Node.js Modern Batteries-Included Built-ins`
+- [ ] Concept: `Cancellation with AbortController / AbortSignal (signal, reason, 'abort', throwIfAborted)` | Parent: `Node.js Async Control-Flow, Errors & Context Propagation` | Mode: `dr` | Cluster: `Node.js Async Control-Flow, Errors & Context Propagation`
+- [ ] Concept: `Composing signals — AbortSignal.timeout() and AbortSignal.any()` | Parent: `Node.js Async Control-Flow, Errors & Context Propagation` | Mode: `dr` | Cluster: `Node.js Async Control-Flow, Errors & Context Propagation`
+- [ ] Concept: `Structured errors — Error.cause, AggregateError, custom error classes` | Parent: `Node.js Async Control-Flow, Errors & Context Propagation` | Mode: `dr` | Cluster: `Node.js Async Control-Flow, Errors & Context Propagation`
+- [ ] Concept: `The error.code convention — match on code, never message` | Parent: `Node.js Async Control-Flow, Errors & Context Propagation` | Mode: `dr` | Cluster: `Node.js Async Control-Flow, Errors & Context Propagation`
+- [ ] Concept: `Process-level failure — unhandledRejection / uncaughtException / rejectionHandled and exit semantics` | Parent: `Node.js Async Control-Flow, Errors & Context Propagation` | Mode: `dr` | Cluster: `Node.js Async Control-Flow, Errors & Context Propagation`
+- [ ] Concept: `Promise concurrency — all vs allSettled vs any vs race + concurrency limiting` | Parent: `Node.js Async Control-Flow, Errors & Context Propagation` | Mode: `dr` | Cluster: `Node.js Async Control-Flow, Errors & Context Propagation`
+- [ ] Concept: `Context propagation — AsyncLocalStorage (+ async_hooks / AsyncResource)` | Parent: `Node.js Async Control-Flow, Errors & Context Propagation` | Mode: `dr` | Cluster: `Node.js Async Control-Flow, Errors & Context Propagation`
+- [ ] Concept: `Test structure: test/describe/it, subtests, and the TestContext` | Parent: `Node.js Built-in Test Runner (node:test deep features)` | Mode: `dr` | Cluster: `Node.js Built-in Test Runner (node:test deep features)`
+- [ ] Concept: `Lifecycle hooks: before/after/beforeEach/afterEach (+ hook options)` | Parent: `Node.js Built-in Test Runner (node:test deep features)` | Mode: `dr` | Cluster: `Node.js Built-in Test Runner (node:test deep features)`
+- [ ] Concept: `Mocking functions, methods, getters/setters, and properties (mock.fn/method)` | Parent: `Node.js Built-in Test Runner (node:test deep features)` | Mode: `dr` | Cluster: `Node.js Built-in Test Runner (node:test deep features)`
+- [ ] Concept: `Mocking time: mock.timers` | Parent: `Node.js Built-in Test Runner (node:test deep features)` | Mode: `dr` | Cluster: `Node.js Built-in Test Runner (node:test deep features)`
+- [ ] Concept: `Module mocking: mock.module() (--experimental-test-module-mocks)` | Parent: `Node.js Built-in Test Runner (node:test deep features)` | Mode: `dr` | Cluster: `Node.js Built-in Test Runner (node:test deep features)`
+- [ ] Concept: `Coverage, reporters, and the filtering/execution model (--test-* flags, isolation, sharding)` | Parent: `Node.js Built-in Test Runner (node:test deep features)` | Mode: `dr` | Cluster: `Node.js Built-in Test Runner (node:test deep features)`
+- [ ] Concept: `Snapshots (t.assert.snapshot) and assertions (node:assert/strict + t.assert.*)` | Parent: `Node.js Built-in Test Runner (node:test deep features)` | Mode: `dr` | Cluster: `Node.js Built-in Test Runner (node:test deep features)`
+- [ ] Concept: `The package managers — npm / pnpm / Yarn Berry (PnP) / bun install models and node_modules layout` | Parent: `Node.js Package Management & Supply-Chain` | Mode: `dr` | Cluster: `Node.js Package Management & Supply-Chain`
+- [ ] Concept: `Lockfiles and the reproducible-install contract (npm ci vs install, integrity hashes)` | Parent: `Node.js Package Management & Supply-Chain` | Mode: `dr` | Cluster: `Node.js Package Management & Supply-Chain`
+- [ ] Concept: `Workspaces / monorepos and the workspace: protocol` | Parent: `Node.js Package Management & Supply-Chain` | Mode: `dr` | Cluster: `Node.js Package Management & Supply-Chain`
+- [ ] Concept: `Dependency resolution & semver (ranges, dedupe, overrides, peerDependencies, optionalDependencies, engines)` | Parent: `Node.js Package Management & Supply-Chain` | Mode: `dr` | Cluster: `Node.js Package Management & Supply-Chain`
+- [ ] Concept: `npm scripts & lifecycle (pre/post hooks, install hooks, node --run skip)` | Parent: `Node.js Package Management & Supply-Chain` | Mode: `dr` | Cluster: `Node.js Package Management & Supply-Chain`
+- [ ] Concept: `Supply-chain security (npm audit, provenance/sigstore, install-scripts defense, dependency confusion, lockfile injection, corepack pinning)` | Parent: `Node.js Package Management & Supply-Chain` | Mode: `dr` | Cluster: `Node.js Package Management & Supply-Chain`
+- [ ] Concept: `Prototype pollution (attack + defenses)` | Parent: `Node.js Application Security Hardening` | Mode: `dr` | Cluster: `Node.js Application Security Hardening`
+- [ ] Concept: `Injection in Node (command/path/eval/SQL-NoSQL)` | Parent: `Node.js Application Security Hardening` | Mode: `dr` | Cluster: `Node.js Application Security Hardening`
+- [ ] Concept: `Hardening flags & runtime defenses (incl. Permission Model as defense-in-depth)` | Parent: `Node.js Application Security Hardening` | Mode: `dr` | Cluster: `Node.js Application Security Hardening`
+- [ ] Concept: `Secrets & configuration hygiene` | Parent: `Node.js Application Security Hardening` | Mode: `dr` | Cluster: `Node.js Application Security Hardening`
+- [ ] Concept: `Dependency & supply-chain risk` | Parent: `Node.js Application Security Hardening` | Mode: `dr` | Cluster: `Node.js Application Security Hardening`
+- [ ] Concept: `Request-layer risks (SSRF, ReDoS, smuggling, unsafe deserialization)` | Parent: `Node.js Application Security Hardening` | Mode: `dr` | Cluster: `Node.js Application Security Hardening`
+- [ ] Concept: `The bundle-vs-ship-source decision for Node backends (tree-shaking, DCE, minification)` | Parent: `Node.js Build Tooling & Bundlers` | Mode: `dr` | Cluster: `Node.js Build Tooling & Bundlers`
+- [ ] Concept: `esbuild (transform vs build API, platform:node, format, external/packages, no type-checking)` | Parent: `Node.js Build Tooling & Bundlers` | Mode: `dr` | Cluster: `Node.js Build Tooling & Bundlers`
+- [ ] Concept: `swc (@swc/core, .swcrc, Rust speed, decorators/metadata, swc vs esbuild)` | Parent: `Node.js Build Tooling & Bundlers` | Mode: `dr` | Cluster: `Node.js Build Tooling & Bundlers`
+- [ ] Concept: `tsup (esbuild wrapper, dual ESM+CJS, .d.ts generation, the library-build sweet spot)` | Parent: `Node.js Build Tooling & Bundlers` | Mode: `dr` | Cluster: `Node.js Build Tooling & Bundlers`
+- [ ] Concept: `Rollup (output formats, tree-shaking, code-splitting, plugin ecosystem, when over esbuild)` | Parent: `Node.js Build Tooling & Bundlers` | Mode: `dr` | Cluster: `Node.js Build Tooling & Bundlers`
+- [ ] Concept: `Source maps for Node (--enable-source-maps) + tsconfig path-alias resolution in bundles` | Parent: `Node.js Build Tooling & Bundlers` | Mode: `dr` | Cluster: `Node.js Build Tooling & Bundlers`
+- [ ] Concept: `tsx / native TS for dev vs a bundler for prod` | Parent: `Node.js Build Tooling & Bundlers` | Mode: `dr` | Cluster: `Node.js Build Tooling & Bundlers`
+- [ ] Concept: `Prisma — schema-first ORM with a generated client` | Parent: `Node.js & TypeScript ORMs and Query Builders` | Mode: `dr` | Cluster: `Node.js & TypeScript ORMs and Query Builders`
+- [ ] Concept: `Drizzle ORM — SQL-first, no codegen, no runtime engine` | Parent: `Node.js & TypeScript ORMs and Query Builders` | Mode: `dr` | Cluster: `Node.js & TypeScript ORMs and Query Builders`
+- [ ] Concept: `Kysely — a type-safe query builder (not an ORM)` | Parent: `Node.js & TypeScript ORMs and Query Builders` | Mode: `dr` | Cluster: `Node.js & TypeScript ORMs and Query Builders`
+- [ ] Concept: `TypeORM, Sequelize & MikroORM — entities, decorators, the AR/DM split` | Parent: `Node.js & TypeScript ORMs and Query Builders` | Mode: `dr` | Cluster: `Node.js & TypeScript ORMs and Query Builders`
+- [ ] Concept: `Migrations strategy (cross-cutting)` | Parent: `Node.js & TypeScript ORMs and Query Builders` | Mode: `dr` | Cluster: `Node.js & TypeScript ORMs and Query Builders`
+- [ ] Concept: `The N+1 problem, eager/lazy loading & DataLoader (cross-cutting)` | Parent: `Node.js & TypeScript ORMs and Query Builders` | Mode: `dr` | Cluster: `Node.js & TypeScript ORMs and Query Builders`
+- [ ] Concept: `Transactions, pooling, raw SQL & repositories (cross-cutting)` | Parent: `Node.js & TypeScript ORMs and Query Builders` | Mode: `dr` | Cluster: `Node.js & TypeScript ORMs and Query Builders`
+- [ ] Concept: `JavaScript Language Reference` | Parent: `JavaScript and Node.js` | Mode: `dr` | Cluster: `JavaScript and Node.js`
+- [ ] Concept: `Node.js Runtime APIs` | Parent: `JavaScript and Node.js` | Mode: `dr` | Cluster: `JavaScript and Node.js`
+- [ ] Concept: `Async Patterns` | Parent: `JavaScript and Node.js` | Mode: `dr` | Cluster: `JavaScript and Node.js`
+- [ ] Concept: `Module Systems` | Parent: `JavaScript and Node.js` | Mode: `dr` | Cluster: `JavaScript and Node.js`
+- [ ] Concept: `Coding Standards and Best Practices` | Parent: `JavaScript and Node.js` | Mode: `dr` | Cluster: `JavaScript and Node.js`
+- [ ] Concept: `Type System Core Model` | Parent: `TypeScript Expert` | Mode: `dr` | Cluster: `TypeScript Expert`
+- [ ] Concept: `Control Flow Analysis` | Parent: `TypeScript Expert` | Mode: `dr` | Cluster: `TypeScript Expert`
+- [ ] Concept: `Generics and Reusable APIs` | Parent: `TypeScript Expert` | Mode: `dr` | Cluster: `TypeScript Expert`
+- [ ] Concept: `TypeScript Best Practices` | Parent: `TypeScript Expert` | Mode: `dr` | Cluster: `TypeScript Expert`
+- [ ] Concept: `Build backend & publishing (uv_build default since 2025, uv build, uv publish)` | Parent: `uv — The Unified Python Toolchain` | Mode: `dr` | Cluster: `uv — The Unified Python Toolchain (1 of 2)`
+- [ ] Concept: `Configuration & cache ([tool.uv]/uv.toml, UV_* env vars, [[tool.uv.index]], content-addressed cache)` | Parent: `uv — The Unified Python Toolchain` | Mode: `dr` | Cluster: `uv — The Unified Python Toolchain (1 of 2)`
+- [ ] Concept: `Lockfile export & interop (uv export to requirements.txt / pylock.toml PEP 751 / CycloneDX SBOM)` | Parent: `uv — The Unified Python Toolchain` | Mode: `dr` | Cluster: `uv — The Unified Python Toolchain (1 of 2)`
+- [ ] Concept: `PEP 723 inline-script metadata (uv run script.py, uv add --script, --with)` | Parent: `uv — The Unified Python Toolchain` | Mode: `dr` | Cluster: `uv — The Unified Python Toolchain (1 of 2)`
+- [ ] Concept: `pip-compatible interface (uv pip install/compile --universal/sync, uv venv, --system)` | Parent: `uv — The Unified Python Toolchain` | Mode: `dr` | Cluster: `uv — The Unified Python Toolchain (1 of 2)`
+- [ ] Concept: `Project & workspace management (uv init/add/remove/sync/run/lock/tree, [dependency-groups] PEP 735, [tool.uv.sources], multi-package workspaces with shared uv.lock)` | Parent: `uv — The Unified Python Toolchain` | Mode: `dr` | Cluster: `uv — The Unified Python Toolchain (2 of 2)`
+- [ ] Concept: `Tool / pipx replacement (uvx / uv tool run ephemeral, uv tool install/upgrade/list/update-shell)` | Parent: `uv — The Unified Python Toolchain` | Mode: `dr` | Cluster: `uv — The Unified Python Toolchain (2 of 2)`
+- [ ] Concept: `Universal lockfile (uv.lock cross-platform marker resolution, --resolution highest/lowest/lowest-direct, --prerelease, --fork-strategy, --locked/--frozen/--check, requires-python subset rule)` | Parent: `uv — The Unified Python Toolchain` | Mode: `dr` | Cluster: `uv — The Unified Python Toolchain (2 of 2)`
+- [ ] Concept: `Python version install & pinning (uv python install/pin/list/find, .python-version, python-preference managed vs system, UV_PYTHON_DOWNLOADS)` | Parent: `uv — The Unified Python Toolchain` | Mode: `dr` | Cluster: `uv — The Unified Python Toolchain (2 of 2)`
+- [ ] Concept: `Brand-verification gaps in package-registry organization/namespace accounts` | Parent: `Python supply-chain threat landscape 2025-2026` | Mode: `dr` | Cluster: `Python supply-chain threat landscape 2025-2026 (1 of 3)`
+- [ ] Concept: `Defensive namespace squatting on public package registries` | Parent: `Python supply-chain threat landscape 2025-2026` | Mode: `dr` | Cluster: `Python supply-chain threat landscape 2025-2026 (1 of 3)`
+- [ ] Concept: `Dependency confusion and namespace shadowing` | Parent: `Python supply-chain threat landscape 2025-2026` | Mode: `dr` | Cluster: `Python supply-chain threat landscape 2025-2026 (1 of 3)`
+- [ ] Concept: `Domain resurrection attacks against package-registry account recovery` | Parent: `Python supply-chain threat landscape 2025-2026` | Mode: `dr` | Cluster: `Python supply-chain threat landscape 2025-2026 (1 of 3)`
+- [ ] Concept: `Ephemeral/isolated CI runners as a secret-exposure-window mitigation` | Parent: `Python supply-chain threat landscape 2025-2026` | Mode: `dr` | Cluster: `Python supply-chain threat landscape 2025-2026 (1 of 3)`
+- [ ] Concept: `GhostAction GitHub Actions secret exfiltration campaign` | Parent: `Python supply-chain threat landscape 2025-2026` | Mode: `dr` | Cluster: `Python supply-chain threat landscape 2025-2026 (1 of 3)`
+- [ ] Concept: `GitHub Actions workflow-file injection via compromised maintainer accounts (as a distinct sub-technique from token/dependency compromise)` | Parent: `Python supply-chain threat landscape 2025-2026` | Mode: `dr` | Cluster: `Python supply-chain threat landscape 2025-2026 (1 of 3)`
+- [ ] Concept: `LLM package-hallucination benchmarking across models and languages` | Parent: `Python supply-chain threat landscape 2025-2026` | Mode: `dr` | Cluster: `Python supply-chain threat landscape 2025-2026 (2 of 3)`
+- [ ] Concept: `npm postinstall/lifecycle-script execution as an attack surface` | Parent: `Python supply-chain threat landscape 2025-2026` | Mode: `dr` | Cluster: `Python supply-chain threat landscape 2025-2026 (2 of 3)`
+- [ ] Concept: `OIDC Trusted Publishing architecture (PyPI/npm/RubyGems)` | Parent: `Python supply-chain threat landscape 2025-2026` | Mode: `dr` | Cluster: `Python supply-chain threat landscape 2025-2026 (2 of 3)`
+- [ ] Concept: `PEP 740 / Sigstore publish attestations and consumer-side verification` | Parent: `Python supply-chain threat landscape 2025-2026` | Mode: `dr` | Cluster: `Python supply-chain threat landscape 2025-2026 (2 of 3)`
+- [ ] Concept: `PEP 766 index-priority vs version-priority resolution semantics` | Parent: `Python supply-chain threat landscape 2025-2026` | Mode: `dr` | Cluster: `Python supply-chain threat landscape 2025-2026 (2 of 3)`
+- [ ] Concept: `Poetry explicit-source transitive-dependency resolution bugs` | Parent: `Python supply-chain threat landscape 2025-2026` | Mode: `dr` | Cluster: `Python supply-chain threat landscape 2025-2026 (2 of 3)`
+- [ ] Concept: `PyPI phishing and maintainer account takeover` | Parent: `Python supply-chain threat landscape 2025-2026` | Mode: `dr` | Cluster: `Python supply-chain threat landscape 2025-2026 (2 of 3)`
+- [ ] Concept: `PyPI project lifecycle status standardization (PEP 792: active/archived/deprecated/quarantined)` | Parent: `Python supply-chain threat landscape 2025-2026` | Mode: `dr` | Cluster: `Python supply-chain threat landscape 2025-2026 (3 of 3)`
+- [ ] Concept: `PyPI Project Quarantine lifecycle and false-positive restoration` | Parent: `Python supply-chain threat landscape 2025-2026` | Mode: `dr` | Cluster: `Python supply-chain threat landscape 2025-2026 (3 of 3)`
+- [ ] Concept: `Shai-Hulud self-replicating package worm` | Parent: `Python supply-chain threat landscape 2025-2026` | Mode: `dr` | Cluster: `Python supply-chain threat landscape 2025-2026 (3 of 3)`
+- [ ] Concept: `TruffleHog and secret-scanner dual-use (defensive tool repurposed offensively)` | Parent: `Python supply-chain threat landscape 2025-2026` | Mode: `dr` | Cluster: `Python supply-chain threat landscape 2025-2026 (3 of 3)`
+- [ ] Concept: `Typosquatting and name-confusion attacks on PyPI` | Parent: `Python supply-chain threat landscape 2025-2026` | Mode: `dr` | Cluster: `Python supply-chain threat landscape 2025-2026 (3 of 3)`
+- [ ] Concept: `Dependency auditing (pip-audit — PyPA, OSV + PyPA Advisory DB, -r/PEP 751 lockfile input, --fix, cyclonedx output)` | Parent: `Python Supply-Chain & Application Security` | Mode: `dr` | Cluster: `Python Supply-Chain & Application Security`
+- [ ] Concept: `SBOM generation (CycloneDX vs SPDX, cyclonedx-py, syft, lib4sbom, PEP 770 SBOMs-in-wheels)` | Parent: `Python Supply-Chain & Application Security` | Mode: `dr` | Cluster: `Python Supply-Chain & Application Security`
+- [ ] Concept: `Static application security testing (bandit — PyCQA AST plugins, B-codes, severity×confidence, [tool.bandit]/# nosec, baseline workflow)` | Parent: `Python Supply-Chain & Application Security` | Mode: `dr` | Cluster: `Python Supply-Chain & Application Security`
+- [ ] Concept: `Provenance — sigstore/PEP 740 digital attestations + Trusted Publishing OIDC (keyless signing, gh-action-pypi-publish ≥1.11.0, pypi-attestations verify)` | Parent: `Python Supply-Chain & Application Security` | Mode: `dr` | Cluster: `Python Supply-Chain & Application Security`
+- [ ] Concept: `Hash-pinned reproducible installs (pip --require-hashes, pip-compile --generate-hashes, uv lock)` | Parent: `Python Supply-Chain & Application Security` | Mode: `dr` | Cluster: `Python Supply-Chain & Application Security`
+- [ ] Concept: `CI/pipeline hardening (OpenSSF Scorecard, zizmor, SHA-pinned Actions)` | Parent: `Python Supply-Chain & Application Security` | Mode: `dr` | Cluster: `Python Supply-Chain & Application Security`
+- [ ] Concept: `State Management in KMP` | Parent: `Compose Multiplatform Patterns` | Mode: `dr` | Cluster: `Compose Multiplatform Patterns`
+- [ ] Concept: `Navigation Patterns` | Parent: `Compose Multiplatform Patterns` | Mode: `dr` | Cluster: `Compose Multiplatform Patterns`
+- [ ] Concept: `Platform-Specific UI` | Parent: `Compose Multiplatform Patterns` | Mode: `dr` | Cluster: `Compose Multiplatform Patterns`
+- [ ] Concept: `Performance Optimization` | Parent: `Compose Multiplatform Patterns` | Mode: `dr` | Cluster: `Compose Multiplatform Patterns`
+- [ ] Concept: `Byzantine fault tolerance (PBFT three-phase, HotStuff linear view-change, Tendermint/CometBFT, the 3f+1 bound, BFT-SMR)` | Parent: `Distributed Systems & Consensus (theory + blockchain mechanisms)` | Mode: `dr` | Cluster: `Distributed Systems & Consensus (theory + blockchain mechanisms) (1 of 2)`
+- [ ] Concept: `Consistency models hierarchy (linearizability, sequential, causal+, eventual) + the CALM theorem (monotonicity = coordination-free)` | Parent: `Distributed Systems & Consensus (theory + blockchain mechanisms)` | Mode: `dr` | Cluster: `Distributed Systems & Consensus (theory + blockchain mechanisms) (1 of 2)`
+- [ ] Concept: `Crash-fault consensus algorithms (Paxos/Multi-Paxos, Raft, Viewstamped Replication, Zab) and the leader-based-log skeleton they share` | Parent: `Distributed Systems & Consensus (theory + blockchain mechanisms)` | Mode: `dr` | Cluster: `Distributed Systems & Consensus (theory + blockchain mechanisms) (1 of 2)`
+- [ ] Concept: `Blockchain finality models (probabilistic vs deterministic/economic; finality gadget vs fork-choice rule)` | Parent: `Distributed Systems & Consensus (theory + blockchain mechanisms)` | Mode: `dr` | Cluster: `Distributed Systems & Consensus (theory + blockchain mechanisms) (1 of 2)`
+- [ ] Concept: `Gossip/epidemic protocols (anti-entropy, rumor-mongering, SWIM) & CRDTs (state vs op-based, Strong Eventual Consistency)` | Parent: `Distributed Systems & Consensus (theory + blockchain mechanisms)` | Mode: `dr` | Cluster: `Distributed Systems & Consensus (theory + blockchain mechanisms) (1 of 2)`
+- [ ] Concept: `Impossibility & tradeoff results (FLP, CAP/PACELC, safety-vs-liveness, consensus<->atomic-broadcast equivalence)` | Parent: `Distributed Systems & Consensus (theory + blockchain mechanisms)` | Mode: `dr` | Cluster: `Distributed Systems & Consensus (theory + blockchain mechanisms) (1 of 2)`
+- [ ] Concept: `Consensus-layer attacks (selfish mining, nothing-at-stake, long-range, grinding/RANDAO, balancing/bouncing on Gasper)` | Parent: `Distributed Systems & Consensus (theory + blockchain mechanisms)` | Mode: `dr` | Cluster: `Distributed Systems & Consensus (theory + blockchain mechanisms) (2 of 2)`
+- [ ] Concept: `Logical time & causality (Lamport clocks, vector clocks, happens-before)` | Parent: `Distributed Systems & Consensus (theory + blockchain mechanisms)` | Mode: `dr` | Cluster: `Distributed Systems & Consensus (theory + blockchain mechanisms) (2 of 2)`
+- [ ] Concept: `Nakamoto/longest-chain Proof of Work (probabilistic finality, honest-majority assumption, GHOST/heaviest-chain fork-choice)` | Parent: `Distributed Systems & Consensus (theory + blockchain mechanisms)` | Mode: `dr` | Cluster: `Distributed Systems & Consensus (theory + blockchain mechanisms) (2 of 2)`
+- [ ] Concept: `Proof of Stake mechanisms (Ethereum Gasper = Casper FFG + LMD-GHOST, Cardano Ouroboros Praos/Genesis, Solana Tower BFT + PoH)` | Parent: `Distributed Systems & Consensus (theory + blockchain mechanisms)` | Mode: `dr` | Cluster: `Distributed Systems & Consensus (theory + blockchain mechanisms) (2 of 2)`
+- [ ] Concept: `Quorum systems & quorum intersection (majority 2f+1, Byzantine f-masking/disseminating, Flexible Paxos phase-quorum-only intersection)` | Parent: `Distributed Systems & Consensus (theory + blockchain mechanisms)` | Mode: `dr` | Cluster: `Distributed Systems & Consensus (theory + blockchain mechanisms) (2 of 2)`
+- [ ] Concept: `Sybil resistance & the scalability-security-decentralization trilemma (permissionless identity cost)` | Parent: `Distributed Systems & Consensus (theory + blockchain mechanisms)` | Mode: `dr` | Cluster: `Distributed Systems & Consensus (theory + blockchain mechanisms) (2 of 2)`
+- [ ] Concept: `XLSX File Creation and Editing` | Parent: `Excel and Spreadsheet Automation` | Mode: `dr` | Cluster: `Excel and Spreadsheet Automation`
+- [ ] Concept: `Financial Model Formulas` | Parent: `Excel and Spreadsheet Automation` | Mode: `dr` | Cluster: `Excel and Spreadsheet Automation`
+- [ ] Concept: `Tabular Data Cleaning` | Parent: `Excel and Spreadsheet Automation` | Mode: `dr` | Cluster: `Excel and Spreadsheet Automation`
+- [ ] Concept: `CSV and TSV Conversion` | Parent: `Excel and Spreadsheet Automation` | Mode: `dr` | Cluster: `Excel and Spreadsheet Automation`
+- [ ] Concept: `DOCX File Creation` | Parent: `Word Document Manipulation` | Mode: `dr` | Cluster: `Word Document Manipulation`
+- [ ] Concept: `DOCX Editing and Formatting` | Parent: `Word Document Manipulation` | Mode: `dr` | Cluster: `Word Document Manipulation`
+- [ ] Concept: `Table of Contents Generation` | Parent: `Word Document Manipulation` | Mode: `dr` | Cluster: `Word Document Manipulation`
+- [ ] Concept: `Image Insertion` | Parent: `Word Document Manipulation` | Mode: `dr` | Cluster: `Word Document Manipulation`
+- [ ] Concept: `Google Drive Engagement Folders` | Parent: `Document Store Bootstrapper` | Mode: `dr` | Cluster: `Document Store Bootstrapper`
+- [ ] Concept: `Document Taxonomy Design` | Parent: `Document Store Bootstrapper` | Mode: `dr` | Cluster: `Document Store Bootstrapper`
+- [ ] Concept: `Index and Metadata Standards` | Parent: `Document Store Bootstrapper` | Mode: `dr` | Cluster: `Document Store Bootstrapper`
+- [ ] Concept: `Archival Policy` | Parent: `Document Store Bootstrapper` | Mode: `dr` | Cluster: `Document Store Bootstrapper`
+- [ ] Concept: `Core banking systems and system-of-record vs system-of-engagement` | Parent: `Big-Bank IT and Infrastructure Landscape` | Mode: `dr` | Cluster: `Big-Bank IT and Infrastructure Landscape`
+- [ ] Concept: `Bank data-center to cloud journey and cloud-architecture constraints` | Parent: `Big-Bank IT and Infrastructure Landscape` | Mode: `dr` | Cluster: `Big-Bank IT and Infrastructure Landscape`
+- [ ] Concept: `Latency-sensitive trading infra and payments rails (RTGS, FedNow, ISO 20022, 24x7)` | Parent: `Big-Bank IT and Infrastructure Landscape` | Mode: `dr` | Cluster: `Big-Bank IT and Infrastructure Landscape`
+- [ ] Concept: `Batch windows and mainframe modernization (the Rs, strangler-fig, encapsulation)` | Parent: `Big-Bank IT and Infrastructure Landscape` | Mode: `dr` | Cluster: `Big-Bank IT and Infrastructure Landscape`
+- [ ] Concept: `Change governance, change-freeze, segregation of duties and the regulated SDLC` | Parent: `Big-Bank IT and Infrastructure Landscape` | Mode: `dr` | Cluster: `Big-Bank IT and Infrastructure Landscape`
+- [ ] Concept: `Resiliency and DR (RTO/RPO, active-active, recovery testing) and SRE at banks` | Parent: `Big-Bank IT and Infrastructure Landscape` | Mode: `dr` | Cluster: `Big-Bank IT and Infrastructure Landscape`
+- [ ] Concept: `Bank data-platform and integration landscape, build-vs-buy and in-house engineering` | Parent: `Big-Bank IT and Infrastructure Landscape` | Mode: `dr` | Cluster: `Big-Bank IT and Infrastructure Landscape`
+- [ ] Concept: `Concentration, Fourth-Party, Exit Plans & Substitutability` | Parent: `Enterprise Vendor Management, Procurement & Third-Party / Operational-Resilience Risk (Buyer-Side)` | Mode: `dr` | Cluster: `Enterprise Vendor Management, Procurement & Third-Party / Operational-Resilience Risk (Buyer-Side) (1 of 2)`
+- [ ] Concept: `Vendor Consolidation & Rationalization` | Parent: `Enterprise Vendor Management, Procurement & Third-Party / Operational-Resilience Risk (Buyer-Side)` | Mode: `dr` | Cluster: `Enterprise Vendor Management, Procurement & Third-Party / Operational-Resilience Risk (Buyer-Side) (1 of 2)`
+- [ ] Concept: `Contract-Instrument Stack (MSA, SOW, Order Form, DPA, SCCs, precedence)` | Parent: `Enterprise Vendor Management, Procurement & Third-Party / Operational-Resilience Risk (Buyer-Side)` | Mode: `dr` | Cluster: `Enterprise Vendor Management, Procurement & Third-Party / Operational-Resilience Risk (Buyer-Side) (1 of 2)`
+- [ ] Concept: `Negotiation Levers, SLAs/OLAs, Vendor Scorecards & Buyer-Run QBRs` | Parent: `Enterprise Vendor Management, Procurement & Third-Party / Operational-Resilience Risk (Buyer-Side)` | Mode: `dr` | Cluster: `Enterprise Vendor Management, Procurement & Third-Party / Operational-Resilience Risk (Buyer-Side) (1 of 2)`
+- [ ] Concept: `The Vendor-Selling-In Playbook (parallel gates, regulatory flow-down, evidence package)` | Parent: `Enterprise Vendor Management, Procurement & Third-Party / Operational-Resilience Risk (Buyer-Side)` | Mode: `dr` | Cluster: `Enterprise Vendor Management, Procurement & Third-Party / Operational-Resilience Risk (Buyer-Side) (1 of 2)`
+- [ ] Concept: `Standardized Security Assessments & Evidence (SIG, CAIQ, SOC 2, ISO 27036, trust centers)` | Parent: `Enterprise Vendor Management, Procurement & Third-Party / Operational-Resilience Risk (Buyer-Side)` | Mode: `dr` | Cluster: `Enterprise Vendor Management, Procurement & Third-Party / Operational-Resilience Risk (Buyer-Side) (2 of 2)`
+- [ ] Concept: `Enterprise Procurement & Strategic Sourcing (Kraljic, RFx, S2P suites)` | Parent: `Enterprise Vendor Management, Procurement & Third-Party / Operational-Resilience Risk (Buyer-Side)` | Mode: `dr` | Cluster: `Enterprise Vendor Management, Procurement & Third-Party / Operational-Resilience Risk (Buyer-Side) (2 of 2)`
+- [ ] Concept: `Operational-Resilience & Systemic Third-Party Regulation (DORA, OCC/FFIEC, UK PRA/FCA CTP, Basel)` | Parent: `Enterprise Vendor Management, Procurement & Third-Party / Operational-Resilience Risk (Buyer-Side)` | Mode: `dr` | Cluster: `Enterprise Vendor Management, Procurement & Third-Party / Operational-Resilience Risk (Buyer-Side) (2 of 2)`
+- [ ] Concept: `TPRM Lifecycle & Vendor Risk Tiering` | Parent: `Enterprise Vendor Management, Procurement & Third-Party / Operational-Resilience Risk (Buyer-Side)` | Mode: `dr` | Cluster: `Enterprise Vendor Management, Procurement & Third-Party / Operational-Resilience Risk (Buyer-Side) (2 of 2)`
+- [ ] Concept: `Account Health Assessment` | Parent: `TAM Expertise` | Mode: `dr` | Cluster: `TAM Expertise`
+- [ ] Concept: `EBR and QBR Preparation` | Parent: `TAM Expertise` | Mode: `dr` | Cluster: `TAM Expertise`
+- [ ] Concept: `Churn Risk Analysis` | Parent: `TAM Expertise` | Mode: `dr` | Cluster: `TAM Expertise`
+- [ ] Concept: `Customer Success Frameworks` | Parent: `TAM Expertise` | Mode: `dr` | Cluster: `TAM Expertise`
+- [ ] Concept: `MEDDPICC and NRR Metrics` | Parent: `TAM Expertise` | Mode: `dr` | Cluster: `TAM Expertise`
+- [ ] Concept: `Case Lifecycle Management` | Parent: `Case Tracker` | Mode: `dr` | Cluster: `Case Tracker`
+- [ ] Concept: `Tracker Record Schema` | Parent: `Case Tracker` | Mode: `dr` | Cluster: `Case Tracker`
+- [ ] Concept: `Severity System` | Parent: `Case Tracker` | Mode: `dr` | Cluster: `Case Tracker`
+- [ ] Concept: `LLM Analysis Pipeline` | Parent: `Case Tracker` | Mode: `dr` | Cluster: `Case Tracker`
+- [ ] Concept: `MDB Case Assistant Startup` | Parent: `Case MCP Server Guide` | Mode: `dr` | Cluster: `Case MCP Server Guide`
+- [ ] Concept: `Tool Selection for Case Workflows` | Parent: `Case MCP Server Guide` | Mode: `dr` | Cluster: `Case MCP Server Guide`
+- [ ] Concept: `Case MCP Troubleshooting` | Parent: `Case MCP Server Guide` | Mode: `dr` | Cluster: `Case MCP Server Guide`
+- [ ] Concept: `Outcome-based vs Activity-based CS` | Parent: `Value Realization and Outcome-Based Customer Success` | Mode: `dr` | Cluster: `Value Realization and Outcome-Based Customer Success (1 of 2)`
+- [ ] Concept: `Business Value Assessment and the Value Hypothesis` | Parent: `Value Realization and Outcome-Based Customer Success` | Mode: `dr` | Cluster: `Value Realization and Outcome-Based Customer Success (1 of 2)`
+- [ ] Concept: `CS Platform Landscape 2026 (Gainsight/ChurnZero/Totango-Catalyst/Vitally/Planhat)` | Parent: `Value Realization and Outcome-Based Customer Success` | Mode: `dr` | Cluster: `Value Realization and Outcome-Based Customer Success (1 of 2)`
+- [ ] Concept: `Desired Outcome = Required Outcome + Appropriate Experience (Murphy)` | Parent: `Value Realization and Outcome-Based Customer Success` | Mode: `dr` | Cluster: `Value Realization and Outcome-Based Customer Success (1 of 2)`
+- [ ] Concept: `Digital / Scaled / Tech-Touch CS` | Parent: `Value Realization and Outcome-Based Customer Success` | Mode: `dr` | Cluster: `Value Realization and Outcome-Based Customer Success (1 of 2)`
+- [ ] Concept: `Customer Maturity and Journey Models` | Parent: `Value Realization and Outcome-Based Customer Success` | Mode: `dr` | Cluster: `Value Realization and Outcome-Based Customer Success (2 of 2)`
+- [ ] Concept: `Mutual Success Plans (MAP) and Value Scorecards` | Parent: `Value Realization and Outcome-Based Customer Success` | Mode: `dr` | Cluster: `Value Realization and Outcome-Based Customer Success (2 of 2)`
+- [ ] Concept: `Outcome vs Output vs Activity Metrics (leading vs lagging)` | Parent: `Value Realization and Outcome-Based Customer Success` | Mode: `dr` | Cluster: `Value Realization and Outcome-Based Customer Success (2 of 2)`
+- [ ] Concept: `Promised vs Perceived vs Realized Value` | Parent: `Value Realization and Outcome-Based Customer Success` | Mode: `dr` | Cluster: `Value Realization and Outcome-Based Customer Success (2 of 2)`
+- [ ] Concept: `Time-to-Value (TTV)` | Parent: `Value Realization and Outcome-Based Customer Success` | Mode: `dr` | Cluster: `Value Realization and Outcome-Based Customer Success (2 of 2)`
+- [ ] Concept: `Incident Management` | Parent: `TAM Operating Reference` | Mode: `dr` | Cluster: `TAM Operating Reference`
+- [ ] Concept: `Account Lifecycle` | Parent: `TAM Operating Reference` | Mode: `dr` | Cluster: `TAM Operating Reference`
+- [ ] Concept: `Net Revenue Retention (NRR)` | Parent: `TAM commercial metrics` | Mode: `dr` | Cluster: `TAM commercial metrics`
+- [ ] Concept: `Gross Revenue Retention (GRR)` | Parent: `TAM commercial metrics` | Mode: `dr` | Cluster: `TAM commercial metrics`
+- [ ] Concept: `MEDDPICC qualification` | Parent: `TAM commercial metrics` | Mode: `dr` | Cluster: `TAM commercial metrics`
+- [ ] Concept: `SaaS retention/churn/expansion benchmarks 2025-2026` | Parent: `TAM commercial metrics` | Mode: `dr` | Cluster: `TAM commercial metrics`
+- [ ] Concept: `NC Business Formation & Tax (venture-nc-business-formation-tax)` | Parent: `Personal Venture — NC Organ-Donation Nonprofit & Founder Toolkit` | Mode: `dr` | Cluster: `Personal Venture — NC Organ-Donation Nonprofit & Founder Toolkit (1 of 2)`
+- [ ] Concept: `Canva & Founder Brand Stack (venture-canva-founder-brand-stack)` | Parent: `Personal Venture — NC Organ-Donation Nonprofit & Founder Toolkit` | Mode: `dr` | Cluster: `Personal Venture — NC Organ-Donation Nonprofit & Founder Toolkit (1 of 2)`
+- [ ] Concept: `Cause & Nonprofit Marketing (venture-cause-nonprofit-marketing)` | Parent: `Personal Venture — NC Organ-Donation Nonprofit & Founder Toolkit` | Mode: `dr` | Cluster: `Personal Venture — NC Organ-Donation Nonprofit & Founder Toolkit (1 of 2)`
+- [ ] Concept: `Donor & Community Engagement (venture-donor-community-engagement)` | Parent: `Personal Venture — NC Organ-Donation Nonprofit & Founder Toolkit` | Mode: `dr` | Cluster: `Personal Venture — NC Organ-Donation Nonprofit & Founder Toolkit (1 of 2)`
+- [ ] Concept: `NC Employer & Payroll (venture-nc-employer-payroll)` | Parent: `Personal Venture — NC Organ-Donation Nonprofit & Founder Toolkit` | Mode: `dr` | Cluster: `Personal Venture — NC Organ-Donation Nonprofit & Founder Toolkit (1 of 2)`
+- [ ] Concept: `NC Entity Lifecycle (venture-nc-entity-lifecycle)` | Parent: `Personal Venture — NC Organ-Donation Nonprofit & Founder Toolkit` | Mode: `dr` | Cluster: `Personal Venture — NC Organ-Donation Nonprofit & Founder Toolkit (1 of 2)`
+- [ ] Concept: `NC Nonprofit Formation & 501(c)(3) (venture-nc-nonprofit-formation)` | Parent: `Personal Venture — NC Organ-Donation Nonprofit & Founder Toolkit` | Mode: `dr` | Cluster: `Personal Venture — NC Organ-Donation Nonprofit & Founder Toolkit (1 of 2)`
+- [ ] Concept: `Organ Donation Frontier & Advocacy (venture-organ-donation-frontier)` | Parent: `Personal Venture — NC Organ-Donation Nonprofit & Founder Toolkit` | Mode: `dr` | Cluster: `Personal Venture — NC Organ-Donation Nonprofit & Founder Toolkit (1 of 2)`
+- [ ] Concept: `Nonprofit Fundraising Ops (venture-nonprofit-fundraising-ops)` | Parent: `Personal Venture — NC Organ-Donation Nonprofit & Founder Toolkit` | Mode: `dr` | Cluster: `Personal Venture — NC Organ-Donation Nonprofit & Founder Toolkit (2 of 2)`
+- [ ] Concept: `Marketing Strategy & Local SEO (venture-marketing-strategy-local-seo)` | Parent: `Personal Venture — NC Organ-Donation Nonprofit & Founder Toolkit` | Mode: `dr` | Cluster: `Personal Venture — NC Organ-Donation Nonprofit & Founder Toolkit (2 of 2)`
+- [ ] Concept: `Real Estate Advanced — PM, STR & Creative Finance (venture-real-estate-advanced)` | Parent: `Personal Venture — NC Organ-Donation Nonprofit & Founder Toolkit` | Mode: `dr` | Cluster: `Personal Venture — NC Organ-Donation Nonprofit & Founder Toolkit (2 of 2)`
+- [ ] Concept: `NC Real Estate Law (venture-nc-real-estate-law)` | Parent: `Personal Venture — NC Organ-Donation Nonprofit & Founder Toolkit` | Mode: `dr` | Cluster: `Personal Venture — NC Organ-Donation Nonprofit & Founder Toolkit (2 of 2)`
+- [ ] Concept: `Real Estate Marketing & Investing (venture-real-estate-marketing-investing)` | Parent: `Personal Venture — NC Organ-Donation Nonprofit & Founder Toolkit` | Mode: `dr` | Cluster: `Personal Venture — NC Organ-Donation Nonprofit & Founder Toolkit (2 of 2)`
+- [ ] Concept: `Small Business Planning (venture-small-business-planning)` | Parent: `Personal Venture — NC Organ-Donation Nonprofit & Founder Toolkit` | Mode: `dr` | Cluster: `Personal Venture — NC Organ-Donation Nonprofit & Founder Toolkit (2 of 2)`
+- [ ] Concept: `Startup Fundraising Deck & Model (venture-startup-fundraising-deck-model)` | Parent: `Personal Venture — NC Organ-Donation Nonprofit & Founder Toolkit` | Mode: `dr` | Cluster: `Personal Venture — NC Organ-Donation Nonprofit & Founder Toolkit (2 of 2)`
+- [ ] Concept: `Organ Donation System & NC Law (venture-organ-donation-system)` | Parent: `Personal Venture — NC Organ-Donation Nonprofit & Founder Toolkit` | Mode: `dr` | Cluster: `Personal Venture — NC Organ-Donation Nonprofit & Founder Toolkit (2 of 2)`
+- [ ] Concept: `ai-and-ml-for-trading` | Parent: `Trading and Investing — Active Trading & How Financial Markets Work (Family Root)` | Mode: `dr` | Cluster: `Trading and Investing — Active Trading & How Financial Markets Work (Family Root) (1 of 2)`
+- [ ] Concept: `algorithmic-and-quant-trading` | Parent: `Trading and Investing — Active Trading & How Financial Markets Work (Family Root)` | Mode: `dr` | Cluster: `Trading and Investing — Active Trading & How Financial Markets Work (Family Root) (1 of 2)`
+- [ ] Concept: `crypto-and-digital-asset-trading` | Parent: `Trading and Investing — Active Trading & How Financial Markets Work (Family Root)` | Mode: `dr` | Cluster: `Trading and Investing — Active Trading & How Financial Markets Work (Family Root) (1 of 2)`
+- [ ] Concept: `defi-and-onchain-trading` | Parent: `Trading and Investing — Active Trading & How Financial Markets Work (Family Root)` | Mode: `dr` | Cluster: `Trading and Investing — Active Trading & How Financial Markets Work (Family Root) (1 of 2)`
+- [ ] Concept: `derivatives-futures-and-swaps` | Parent: `Trading and Investing — Active Trading & How Financial Markets Work (Family Root)` | Mode: `dr` | Cluster: `Trading and Investing — Active Trading & How Financial Markets Work (Family Root) (1 of 2)`
+- [ ] Concept: `fixed-income-and-bond-markets` | Parent: `Trading and Investing — Active Trading & How Financial Markets Work (Family Root)` | Mode: `dr` | Cluster: `Trading and Investing — Active Trading & How Financial Markets Work (Family Root) (1 of 2)`
+- [ ] Concept: `forex-and-currency-trading` | Parent: `Trading and Investing — Active Trading & How Financial Markets Work (Family Root)` | Mode: `dr` | Cluster: `Trading and Investing — Active Trading & How Financial Markets Work (Family Root) (1 of 2)`
+- [ ] Concept: `market-microstructure-and-execution` | Parent: `Trading and Investing — Active Trading & How Financial Markets Work (Family Root)` | Mode: `dr` | Cluster: `Trading and Investing — Active Trading & How Financial Markets Work (Family Root) (1 of 2)`
+- [ ] Concept: `options-trading-and-strategies` | Parent: `Trading and Investing — Active Trading & How Financial Markets Work (Family Root)` | Mode: `dr` | Cluster: `Trading and Investing — Active Trading & How Financial Markets Work (Family Root) (2 of 2)`
+- [ ] Concept: `portfolio-theory-and-asset-allocation` | Parent: `Trading and Investing — Active Trading & How Financial Markets Work (Family Root)` | Mode: `dr` | Cluster: `Trading and Investing — Active Trading & How Financial Markets Work (Family Root) (2 of 2)`
+- [ ] Concept: `trading-psychology-and-behavioral-finance` | Parent: `Trading and Investing — Active Trading & How Financial Markets Work (Family Root)` | Mode: `dr` | Cluster: `Trading and Investing — Active Trading & How Financial Markets Work (Family Root) (2 of 2)`
+- [ ] Concept: `trading-regulation-compliance-and-taxes` | Parent: `Trading and Investing — Active Trading & How Financial Markets Work (Family Root)` | Mode: `dr` | Cluster: `Trading and Investing — Active Trading & How Financial Markets Work (Family Root) (2 of 2)`
+- [ ] Concept: `trading-risk-management` | Parent: `Trading and Investing — Active Trading & How Financial Markets Work (Family Root)` | Mode: `dr` | Cluster: `Trading and Investing — Active Trading & How Financial Markets Work (Family Root) (2 of 2)`
+- [ ] Concept: `stock-and-equity-trading` | Parent: `Trading and Investing — Active Trading & How Financial Markets Work (Family Root)` | Mode: `dr` | Cluster: `Trading and Investing — Active Trading & How Financial Markets Work (Family Root) (2 of 2)`
+- [ ] Concept: `trading-strategies-and-styles` | Parent: `Trading and Investing — Active Trading & How Financial Markets Work (Family Root)` | Mode: `dr` | Cluster: `Trading and Investing — Active Trading & How Financial Markets Work (Family Root) (2 of 2)`
+- [ ] Concept: `technical-analysis` | Parent: `Trading and Investing — Active Trading & How Financial Markets Work (Family Root)` | Mode: `dr` | Cluster: `Trading and Investing — Active Trading & How Financial Markets Work (Family Root) (2 of 2)`
+- [ ] Concept: `BitVM and the Bitcoin L2/restaking landscape (Babylon)` | Parent: `Bitcoin protocol and ecosystem` | Mode: `dr` | Cluster: `Bitcoin protocol and ecosystem (1 of 2)`
+- [ ] Concept: `Block structure, Proof-of-Work mining and difficulty` | Parent: `Bitcoin protocol and ecosystem` | Mode: `dr` | Cluster: `Bitcoin protocol and ecosystem (1 of 2)`
+- [ ] Concept: `Bitcoin covenants debate (OP_CTV, OP_CAT, APO)` | Parent: `Bitcoin protocol and ecosystem` | Mode: `dr` | Cluster: `Bitcoin protocol and ecosystem (1 of 2)`
+- [ ] Concept: `Lightning Network payment channels and HTLC routing` | Parent: `Bitcoin protocol and ecosystem` | Mode: `dr` | Cluster: `Bitcoin protocol and ecosystem (1 of 2)`
+- [ ] Concept: `Mempool, fee estimation and fee-bumping (RBF, CPFP, TRUC)` | Parent: `Bitcoin protocol and ecosystem` | Mode: `dr` | Cluster: `Bitcoin protocol and ecosystem (1 of 2)`
+- [ ] Concept: `Bitcoin monetary policy and the 21M issuance cap` | Parent: `Bitcoin protocol and ecosystem` | Mode: `dr` | Cluster: `Bitcoin protocol and ecosystem (2 of 2)`
+- [ ] Concept: `Ordinals, inscriptions, BRC-20 and Runes` | Parent: `Bitcoin protocol and ecosystem` | Mode: `dr` | Cluster: `Bitcoin protocol and ecosystem (2 of 2)`
+- [ ] Concept: `Running a Bitcoin node and wallet custody models` | Parent: `Bitcoin protocol and ecosystem` | Mode: `dr` | Cluster: `Bitcoin protocol and ecosystem (2 of 2)`
+- [ ] Concept: `SegWit, Taproot and soft-fork activation` | Parent: `Bitcoin protocol and ecosystem` | Mode: `dr` | Cluster: `Bitcoin protocol and ecosystem (2 of 2)`
+- [ ] Concept: `UTXO transaction model and Bitcoin Script` | Parent: `Bitcoin protocol and ecosystem` | Mode: `dr` | Cluster: `Bitcoin protocol and ecosystem (2 of 2)`
+- [ ] Concept: `Administrative wage garnishment & Treasury offset` | Parent: `Student Loans` | Mode: `dr` | Cluster: `Student Loans (1 of 2)`
+- [ ] Concept: `Default recovery (rehab/consolidation/Fresh Start)` | Parent: `Student Loans` | Mode: `dr` | Cluster: `Student Loans (1 of 2)`
+- [ ] Concept: `Deferment vs forbearance` | Parent: `Student Loans` | Mode: `dr` | Cluster: `Student Loans (1 of 2)`
+- [ ] Concept: `Delinquency and default` | Parent: `Student Loans` | Mode: `dr` | Cluster: `Student Loans (1 of 2)`
+- [ ] Concept: `FAFSA and borrowing wisely` | Parent: `Student Loans` | Mode: `dr` | Cluster: `Student Loans (1 of 2)`
+- [ ] Concept: `Federal vs private loans` | Parent: `Student Loans` | Mode: `dr` | Cluster: `Student Loans (1 of 2)`
+- [ ] Concept: `Forgiveness & discharge (PSLF/IDR/Teacher/TPD)` | Parent: `Student Loans` | Mode: `dr` | Cluster: `Student Loans (2 of 2)`
+- [ ] Concept: `IDR family (SAVE/IBR/PAYE/ICR) and RAP` | Parent: `Student Loans` | Mode: `dr` | Cluster: `Student Loans (2 of 2)`
+- [ ] Concept: `Interest and capitalization` | Parent: `Student Loans` | Mode: `dr` | Cluster: `Student Loans (2 of 2)`
+- [ ] Concept: `Loan servicers` | Parent: `Student Loans` | Mode: `dr` | Cluster: `Student Loans (2 of 2)`
+- [ ] Concept: `Loan types (Direct Sub/Unsub, PLUS, consolidation)` | Parent: `Student Loans` | Mode: `dr` | Cluster: `Student Loans (2 of 2)`
+- [ ] Concept: `Repayment plans (Standard/Graduated/Extended)` | Parent: `Student Loans` | Mode: `dr` | Cluster: `Student Loans (2 of 2)`
+- [ ] Concept: `Account fees, joint accounts, unclaimed property` | Parent: `Personal Banking` | Mode: `dr` | Cluster: `Personal Banking (1 of 2)`
+- [ ] Concept: `APY and Truth in Savings (Reg DD)` | Parent: `Personal Banking` | Mode: `dr` | Cluster: `Personal Banking (1 of 2)`
+- [ ] Concept: `Banks vs credit unions` | Parent: `Personal Banking` | Mode: `dr` | Cluster: `Personal Banking (1 of 2)`
+- [ ] Concept: `ChexSystems and second-chance accounts` | Parent: `Personal Banking` | Mode: `dr` | Cluster: `Personal Banking (1 of 2)`
+- [ ] Concept: `Deposit account types` | Parent: `Personal Banking` | Mode: `dr` | Cluster: `Personal Banking (1 of 2)`
+- [ ] Concept: `FDIC vs NCUA deposit insurance` | Parent: `Personal Banking` | Mode: `dr` | Cluster: `Personal Banking (2 of 2)`
+- [ ] Concept: `High-yield savings and CDs` | Parent: `Personal Banking` | Mode: `dr` | Cluster: `Personal Banking (2 of 2)`
+- [ ] Concept: `Neobank/fintech pass-through risk (Synapse)` | Parent: `Personal Banking` | Mode: `dr` | Cluster: `Personal Banking (2 of 2)`
+- [ ] Concept: `Overdraft/NSF and Reg E opt-in` | Parent: `Personal Banking` | Mode: `dr` | Cluster: `Personal Banking (2 of 2)`
+- [ ] Concept: `Payments (ACH/wire/Zelle) and authorized scams` | Parent: `Personal Banking` | Mode: `dr` | Cluster: `Personal Banking (2 of 2)`
+- [ ] Concept: `Above-the-line adjustments` | Parent: `Personal Income Taxes` | Mode: `dr` | Cluster: `Personal Income Taxes (1 of 2)`
+- [ ] Concept: `Capital gains basics` | Parent: `Personal Income Taxes` | Mode: `dr` | Cluster: `Personal Income Taxes (1 of 2)`
+- [ ] Concept: `Credits (EITC/CTC/education/Saver's)` | Parent: `Personal Income Taxes` | Mode: `dr` | Cluster: `Personal Income Taxes (1 of 2)`
+- [ ] Concept: `Filing statuses` | Parent: `Personal Income Taxes` | Mode: `dr` | Cluster: `Personal Income Taxes (1 of 2)`
+- [ ] Concept: `Free filing (Free File/Direct File)` | Parent: `Personal Income Taxes` | Mode: `dr` | Cluster: `Personal Income Taxes (1 of 2)`
+- [ ] Concept: `IRS process (extensions/amended/audits/payment plans)` | Parent: `Personal Income Taxes` | Mode: `dr` | Cluster: `Personal Income Taxes (1 of 2)`
+- [ ] Concept: `Marginal vs effective brackets` | Parent: `Personal Income Taxes` | Mode: `dr` | Cluster: `Personal Income Taxes (2 of 2)`
+- [ ] Concept: `NC individual income tax` | Parent: `Personal Income Taxes` | Mode: `dr` | Cluster: `Personal Income Taxes (2 of 2)`
+- [ ] Concept: `Quarterly estimated taxes` | Parent: `Personal Income Taxes` | Mode: `dr` | Cluster: `Personal Income Taxes (2 of 2)`
+- [ ] Concept: `Standard vs itemized deduction` | Parent: `Personal Income Taxes` | Mode: `dr` | Cluster: `Personal Income Taxes (2 of 2)`
+- [ ] Concept: `W-2 vs 1099 & self-employment tax` | Parent: `Personal Income Taxes` | Mode: `dr` | Cluster: `Personal Income Taxes (2 of 2)`
+- [ ] Concept: `W-4 withholding` | Parent: `Personal Income Taxes` | Mode: `dr` | Cluster: `Personal Income Taxes (2 of 2)`
+- [ ] Concept: `Auto coverages (BI/PD/collision/comprehensive)` | Parent: `Personal Insurance` | Mode: `dr` | Cluster: `Personal Insurance (1 of 2)`
+- [ ] Concept: `Coastal NC wind / Beach Plan (NCIUA)` | Parent: `Personal Insurance` | Mode: `dr` | Cluster: `Personal Insurance (1 of 2)`
+- [ ] Concept: `Disability: own-occ vs any-occ` | Parent: `Personal Insurance` | Mode: `dr` | Cluster: `Personal Insurance (1 of 2)`
+- [ ] Concept: `Flood (NFIP)` | Parent: `Personal Insurance` | Mode: `dr` | Cluster: `Personal Insurance (1 of 2)`
+- [ ] Concept: `Homeowners HO-3 & renters HO-4` | Parent: `Personal Insurance` | Mode: `dr` | Cluster: `Personal Insurance (1 of 2)`
+- [ ] Concept: `How insurance works (premium/deductible/limit/claims)` | Parent: `Personal Insurance` | Mode: `dr` | Cluster: `Personal Insurance (1 of 2)`
+- [ ] Concept: `Life: term vs permanent` | Parent: `Personal Insurance` | Mode: `dr` | Cluster: `Personal Insurance (2 of 2)`
+- [ ] Concept: `NC auto minimum limits` | Parent: `Personal Insurance` | Mode: `dr` | Cluster: `Personal Insurance (2 of 2)`
+- [ ] Concept: `Replacement cost vs ACV` | Parent: `Personal Insurance` | Mode: `dr` | Cluster: `Personal Insurance (2 of 2)`
+- [ ] Concept: `UM/UIM` | Parent: `Personal Insurance` | Mode: `dr` | Cluster: `Personal Insurance (2 of 2)`
+- [ ] Concept: `Umbrella liability` | Parent: `Personal Insurance` | Mode: `dr` | Cluster: `Personal Insurance (2 of 2)`
+- [ ] Concept: `Appeals & denials` | Parent: `Health Insurance and Coverage` | Mode: `dr` | Cluster: `Health Insurance and Coverage (1 of 2)`
+- [ ] Concept: `Formulary & prior authorization` | Parent: `Health Insurance and Coverage` | Mode: `dr` | Cluster: `Health Insurance and Coverage (1 of 2)`
+- [ ] Concept: `HDHP + HSA (vs FSA)` | Parent: `Health Insurance and Coverage` | Mode: `dr` | Cluster: `Health Insurance and Coverage (1 of 2)`
+- [ ] Concept: `Medicaid & NC expansion` | Parent: `Health Insurance and Coverage` | Mode: `dr` | Cluster: `Health Insurance and Coverage (1 of 2)`
+- [ ] Concept: `Medicare Parts A-D & Medigap` | Parent: `Health Insurance and Coverage` | Mode: `dr` | Cluster: `Health Insurance and Coverage (1 of 2)`
+- [ ] Concept: `Metal tiers & enrollment periods` | Parent: `Health Insurance and Coverage` | Mode: `dr` | Cluster: `Health Insurance and Coverage (2 of 2)`
+- [ ] Concept: `Network types (HMO/PPO/EPO/POS)` | Parent: `Health Insurance and Coverage` | Mode: `dr` | Cluster: `Health Insurance and Coverage (2 of 2)`
+- [ ] Concept: `Plan cost-sharing (premium/deductible/copay/coinsurance/OOP max)` | Parent: `Health Insurance and Coverage` | Mode: `dr` | Cluster: `Health Insurance and Coverage (2 of 2)`
+- [ ] Concept: `Coverage sources (employer/ACA/Medicaid/COBRA)` | Parent: `Health Insurance and Coverage` | Mode: `dr` | Cluster: `Health Insurance and Coverage (2 of 2)`
+- [ ] Concept: `CareCredit deferred-interest traps` | Parent: `Medical Debt and Billing` | Mode: `dr` | Cluster: `Medical Debt and Billing (1 of 2)`
+- [ ] Concept: `Medical debt in collections` | Parent: `Medical Debt and Billing` | Mode: `dr` | Cluster: `Medical Debt and Billing (1 of 2)`
+- [ ] Concept: `Medical debt on credit reports (vacated 2025 rule)` | Parent: `Medical Debt and Billing` | Mode: `dr` | Cluster: `Medical Debt and Billing (1 of 2)`
+- [ ] Concept: `Billing errors and disputes` | Parent: `Medical Debt and Billing` | Mode: `dr` | Cluster: `Medical Debt and Billing (1 of 2)`
+- [ ] Concept: `Good-faith estimate & PPDR` | Parent: `Medical Debt and Billing` | Mode: `dr` | Cluster: `Medical Debt and Billing (1 of 2)`
+- [ ] Concept: `Hospital charity care / IRS 501(r)` | Parent: `Medical Debt and Billing` | Mode: `dr` | Cluster: `Medical Debt and Billing (2 of 2)`
+- [ ] Concept: `HSA/FSA & price transparency` | Parent: `Medical Debt and Billing` | Mode: `dr` | Cluster: `Medical Debt and Billing (2 of 2)`
+- [ ] Concept: `Itemized bill vs EOB & billing codes` | Parent: `Medical Debt and Billing` | Mode: `dr` | Cluster: `Medical Debt and Billing (2 of 2)`
+- [ ] Concept: `Negotiating & settling bills` | Parent: `Medical Debt and Billing` | Mode: `dr` | Cluster: `Medical Debt and Billing (2 of 2)`
+- [ ] Concept: `No Surprises Act (balance billing)` | Parent: `Medical Debt and Billing` | Mode: `dr` | Cluster: `Medical Debt and Billing (2 of 2)`
+- [ ] Concept: `Automating savings` | Parent: `Budgeting and Saving` | Mode: `dr` | Cluster: `Budgeting and Saving (1 of 2)`
+- [ ] Concept: `Debt payoff (snowball vs avalanche)` | Parent: `Budgeting and Saving` | Mode: `dr` | Cluster: `Budgeting and Saving (1 of 2)`
+- [ ] Concept: `Emergency fund (3-6 months)` | Parent: `Budgeting and Saving` | Mode: `dr` | Cluster: `Budgeting and Saving (1 of 2)`
+- [ ] Concept: `Free nonprofit counseling/coaching` | Parent: `Budgeting and Saving` | Mode: `dr` | Cluster: `Budgeting and Saving (1 of 2)`
+- [ ] Concept: `Budgeting on irregular income` | Parent: `Budgeting and Saving` | Mode: `dr` | Cluster: `Budgeting and Saving (1 of 2)`
+- [ ] Concept: `Budgeting methods (50/30/20, zero-based, envelope, pay-yourself-first)` | Parent: `Budgeting and Saving` | Mode: `dr` | Cluster: `Budgeting and Saving (2 of 2)`
+- [ ] Concept: `Sinking funds` | Parent: `Budgeting and Saving` | Mode: `dr` | Cluster: `Budgeting and Saving (2 of 2)`
+- [ ] Concept: `SMART financial goals` | Parent: `Budgeting and Saving` | Mode: `dr` | Cluster: `Budgeting and Saving (2 of 2)`
+- [ ] Concept: `Budgeting tools/apps (post-Mint)` | Parent: `Budgeting and Saving` | Mode: `dr` | Cluster: `Budgeting and Saving (2 of 2)`
+- [ ] Concept: `Tracking spending` | Parent: `Budgeting and Saving` | Mode: `dr` | Cluster: `Budgeting and Saving (2 of 2)`
+- [ ] Concept: `Compounding & time horizon` | Parent: `Investing and Retirement` | Mode: `dr` | Cluster: `Investing and Retirement (1 of 2)`
+- [ ] Concept: `Dollar-cost averaging` | Parent: `Investing and Retirement` | Mode: `dr` | Cluster: `Investing and Retirement (1 of 2)`
+- [ ] Concept: `Expense ratios & fee drag` | Parent: `Investing and Retirement` | Mode: `dr` | Cluster: `Investing and Retirement (1 of 2)`
+- [ ] Concept: `Fiduciary vs commission & BrokerCheck` | Parent: `Investing and Retirement` | Mode: `dr` | Cluster: `Investing and Retirement (1 of 2)`
+- [ ] Concept: `Index funds/ETFs/target-date funds` | Parent: `Investing and Retirement` | Mode: `dr` | Cluster: `Investing and Retirement (1 of 2)`
+- [ ] Concept: `Investment-fraud red flags` | Parent: `Investing and Retirement` | Mode: `dr` | Cluster: `Investing and Retirement (2 of 2)`
+- [ ] Concept: `IRA (Roth/income limits/backdoor)` | Parent: `Investing and Retirement` | Mode: `dr` | Cluster: `Investing and Retirement (2 of 2)`
+- [ ] Concept: `Risk/return & diversification` | Parent: `Investing and Retirement` | Mode: `dr` | Cluster: `Investing and Retirement (2 of 2)`
+- [ ] Concept: `SEP/SIMPLE` | Parent: `Investing and Retirement` | Mode: `dr` | Cluster: `Investing and Retirement (2 of 2)`
+- [ ] Concept: `Social Security claiming age` | Parent: `Investing and Retirement` | Mode: `dr` | Cluster: `Investing and Retirement (2 of 2)`
+- [ ] Concept: `Beneficiary designations & POD/TOD` | Parent: `Estate Planning and Wills` | Mode: `dr` | Cluster: `Estate Planning and Wills (1 of 2)`
+- [ ] Concept: `Durable financial POA (Ch.32C)` | Parent: `Estate Planning and Wills` | Mode: `dr` | Cluster: `Estate Planning and Wills (1 of 2)`
+- [ ] Concept: `Guardianship for minors & digital assets (RUFADAA)` | Parent: `Estate Planning and Wills` | Mode: `dr` | Cluster: `Estate Planning and Wills (1 of 2)`
+- [ ] Concept: `Health-care POA & living will (Ch.32A/90)` | Parent: `Estate Planning and Wills` | Mode: `dr` | Cluster: `Estate Planning and Wills (1 of 2)`
+- [ ] Concept: `Holographic wills & self-proving affidavit` | Parent: `Estate Planning and Wills` | Mode: `dr` | Cluster: `Estate Planning and Wills (1 of 2)`
+- [ ] Concept: `Estate/inheritance tax (NC none; federal exemption)` | Parent: `Estate Planning and Wills` | Mode: `dr` | Cluster: `Estate Planning and Wills (1 of 2)`
+- [ ] Concept: `NC Intestate Succession Act (Ch.29)` | Parent: `Estate Planning and Wills` | Mode: `dr` | Cluster: `Estate Planning and Wills (2 of 2)`
+- [ ] Concept: `NC probate & small-estate affidavit` | Parent: `Estate Planning and Wills` | Mode: `dr` | Cluster: `Estate Planning and Wills (2 of 2)`
+- [ ] Concept: `NC will execution requirements` | Parent: `Estate Planning and Wills` | Mode: `dr` | Cluster: `Estate Planning and Wills (2 of 2)`
+- [ ] Concept: `Revocable living trust vs will` | Parent: `Estate Planning and Wills` | Mode: `dr` | Cluster: `Estate Planning and Wills (2 of 2)`
+- [ ] Concept: `Surviving-spouse elective share (G.S. 30-3.1)` | Parent: `Estate Planning and Wills` | Mode: `dr` | Cluster: `Estate Planning and Wills (2 of 2)`
+- [ ] Concept: `Residential Property and Owners' Association Disclosure Statement (RPOADS, REC 4.22)` | Parent: `NC Residential Property Disclosure Act (G.S. Chapter 47E)` | Mode: `dr` | Cluster: `NC Residential Property Disclosure Act (G.S. Chapter 47E)`
+- [ ] Concept: `Mineral and Oil and Gas Rights Mandatory Disclosure Statement (MOG, REC 4.25)` | Parent: `NC Residential Property Disclosure Act (G.S. Chapter 47E)` | Mode: `dr` | Cluster: `NC Residential Property Disclosure Act (G.S. Chapter 47E)`
+- [ ] Concept: `No Representation answer mechanism (Yes/No/No Representation)` | Parent: `NC Residential Property Disclosure Act (G.S. Chapter 47E)` | Mode: `dr` | Cluster: `NC Residential Property Disclosure Act (G.S. Chapter 47E)`
+- [ ] Concept: `Section 47E-2 exemptions (full 47E-2(a) vs partial 47E-2(b))` | Parent: `NC Residential Property Disclosure Act (G.S. Chapter 47E)` | Mode: `dr` | Cluster: `NC Residential Property Disclosure Act (G.S. Chapter 47E)`
+- [ ] Concept: `Section 47E-5 buyer 3-day cancellation right` | Parent: `NC Residential Property Disclosure Act (G.S. Chapter 47E)` | Mode: `dr` | Cluster: `NC Residential Property Disclosure Act (G.S. Chapter 47E)`
+- [ ] Concept: `Broker independent material-fact duty (21 NCAC 58A .0114)` | Parent: `NC Residential Property Disclosure Act (G.S. Chapter 47E)` | Mode: `dr` | Cluster: `NC Residential Property Disclosure Act (G.S. Chapter 47E)`
+- [ ] Concept: `Coastal Area Management Act (CAMA, G.S. 113A) and the 20 coastal counties` | Parent: `NC Coastal and Flood Real Estate (CAMA, flood disclosure, coastal insurance)` | Mode: `dr` | Cluster: `NC Coastal and Flood Real Estate (CAMA, flood disclosure, coastal insurance) (1 of 2)`
+- [ ] Concept: `Areas of Environmental Concern (AECs) and the Ocean Hazard system` | Parent: `NC Coastal and Flood Real Estate (CAMA, flood disclosure, coastal insurance)` | Mode: `dr` | Cluster: `NC Coastal and Flood Real Estate (CAMA, flood disclosure, coastal insurance) (1 of 2)`
+- [ ] Concept: `Federal mandatory-purchase requirement and Risk Rating 2.0` | Parent: `NC Coastal and Flood Real Estate (CAMA, flood disclosure, coastal insurance)` | Mode: `dr` | Cluster: `NC Coastal and Flood Real Estate (CAMA, flood disclosure, coastal insurance) (1 of 2)`
+- [ ] Concept: `FEMA flood zones, SFHA, FIRM, and the NC FRIS lookup` | Parent: `NC Coastal and Flood Real Estate (CAMA, flood disclosure, coastal insurance)` | Mode: `dr` | Cluster: `NC Coastal and Flood Real Estate (CAMA, flood disclosure, coastal insurance) (1 of 2)`
+- [ ] Concept: `CAMA major/minor/general permits` | Parent: `NC Coastal and Flood Real Estate (CAMA, flood disclosure, coastal insurance)` | Mode: `dr` | Cluster: `NC Coastal and Flood Real Estate (CAMA, flood disclosure, coastal insurance) (1 of 2)`
+- [ ] Concept: `Oceanfront construction setbacks and erosion rates` | Parent: `NC Coastal and Flood Real Estate (CAMA, flood disclosure, coastal insurance)` | Mode: `dr` | Cluster: `NC Coastal and Flood Real Estate (CAMA, flood disclosure, coastal insurance) (2 of 2)`
+- [ ] Concept: `Permanent-hardened-structure ban, sandbags, and post-storm rebuilding` | Parent: `NC Coastal and Flood Real Estate (CAMA, flood disclosure, coastal insurance)` | Mode: `dr` | Cluster: `NC Coastal and Flood Real Estate (CAMA, flood disclosure, coastal insurance) (2 of 2)`
+- [ ] Concept: `NC Coastal Property Insurance Pool (Beach Plan/NCIUA), wind vs flood` | Parent: `NC Coastal and Flood Real Estate (CAMA, flood disclosure, coastal insurance)` | Mode: `dr` | Cluster: `NC Coastal and Flood Real Estate (CAMA, flood disclosure, coastal insurance) (2 of 2)`
+- [ ] Concept: `Coastal insurance rate filings, non-renewals, and CBRA/CBRS zones` | Parent: `NC Coastal and Flood Real Estate (CAMA, flood disclosure, coastal insurance)` | Mode: `dr` | Cluster: `NC Coastal and Flood Real Estate (CAMA, flood disclosure, coastal insurance) (2 of 2)`
+- [ ] Concept: `Flood disclosure via RPOADS Section F (F5-F10, REC 4.22 REV 5/24)` | Parent: `NC Coastal and Flood Real Estate (CAMA, flood disclosure, coastal insurance)` | Mode: `dr` | Cluster: `NC Coastal and Flood Real Estate (CAMA, flood disclosure, coastal insurance) (2 of 2)`
+- [ ] Concept: `COM-B / Behavior Change Wheel (adjacent)` | Parent: `Behavior-Change Psychology for Customer Adoption` | Mode: `dr` | Cluster: `Behavior-Change Psychology for Customer Adoption (1 of 2)`
+- [ ] Concept: `Decisional balance and self-efficacy` | Parent: `Behavior-Change Psychology for Customer Adoption` | Mode: `dr` | Cluster: `Behavior-Change Psychology for Customer Adoption (1 of 2)`
+- [ ] Concept: `Fogg Behavior Model (B=MAP)` | Parent: `Behavior-Change Psychology for Customer Adoption` | Mode: `dr` | Cluster: `Behavior-Change Psychology for Customer Adoption (1 of 2)`
+- [ ] Concept: `Goal-gradient and endowed progress effect` | Parent: `Behavior-Change Psychology for Customer Adoption` | Mode: `dr` | Cluster: `Behavior-Change Psychology for Customer Adoption (1 of 2)`
+- [ ] Concept: `Goal-setting theory (Locke & Latham five principles)` | Parent: `Behavior-Change Psychology for Customer Adoption` | Mode: `dr` | Cluster: `Behavior-Change Psychology for Customer Adoption (1 of 2)`
+- [ ] Concept: `Goals Gone Wild (goal-setting dark side)` | Parent: `Behavior-Change Psychology for Customer Adoption` | Mode: `dr` | Cluster: `Behavior-Change Psychology for Customer Adoption (1 of 2)`
+- [ ] Concept: `Habit loop (cue-routine-reward)` | Parent: `Behavior-Change Psychology for Customer Adoption` | Mode: `dr` | Cluster: `Behavior-Change Psychology for Customer Adoption (1 of 2)`
+- [ ] Concept: `Habit stacking` | Parent: `Behavior-Change Psychology for Customer Adoption` | Mode: `dr` | Cluster: `Behavior-Change Psychology for Customer Adoption (1 of 2)`
+- [ ] Concept: `Implementation intentions (Gollwitzer)` | Parent: `Behavior-Change Psychology for Customer Adoption` | Mode: `dr` | Cluster: `Behavior-Change Psychology for Customer Adoption (2 of 2)`
+- [ ] Concept: `Intrinsic vs extrinsic motivation continuum (Organismic Integration Theory)` | Parent: `Behavior-Change Psychology for Customer Adoption` | Mode: `dr` | Cluster: `Behavior-Change Psychology for Customer Adoption (2 of 2)`
+- [ ] Concept: `Overjustification effect` | Parent: `Behavior-Change Psychology for Customer Adoption` | Mode: `dr` | Cluster: `Behavior-Change Psychology for Customer Adoption (2 of 2)`
+- [ ] Concept: `Self-Determination Theory (autonomy, competence, relatedness)` | Parent: `Behavior-Change Psychology for Customer Adoption` | Mode: `dr` | Cluster: `Behavior-Change Psychology for Customer Adoption (2 of 2)`
+- [ ] Concept: `SMART goals` | Parent: `Behavior-Change Psychology for Customer Adoption` | Mode: `dr` | Cluster: `Behavior-Change Psychology for Customer Adoption (2 of 2)`
+- [ ] Concept: `Tiny Habits method` | Parent: `Behavior-Change Psychology for Customer Adoption` | Mode: `dr` | Cluster: `Behavior-Change Psychology for Customer Adoption (2 of 2)`
+- [ ] Concept: `Transtheoretical Model / Stages of Change` | Parent: `Behavior-Change Psychology for Customer Adoption` | Mode: `dr` | Cluster: `Behavior-Change Psychology for Customer Adoption (2 of 2)`
+- [ ] Concept: `Bounded Rationality and Satisficing (Simon)` | Parent: `Behavioral Decision-Making and Cognitive Biases` | Mode: `dr` | Cluster: `Behavioral Decision-Making and Cognitive Biases (1 of 2)`
+- [ ] Concept: `Choice Architecture, Nudges, and Boosts (defaults, EAST, MINDSPACE, sludge, Hertwig boosts)` | Parent: `Behavioral Decision-Making and Cognitive Biases` | Mode: `dr` | Cluster: `Behavioral Decision-Making and Cognitive Biases (1 of 2)`
+- [ ] Concept: `Debiasing Techniques (consider-the-opposite, premortem, reference-class forecasting, checklists)` | Parent: `Behavioral Decision-Making and Cognitive Biases` | Mode: `dr` | Cluster: `Behavioral Decision-Making and Cognitive Biases (1 of 2)`
+- [ ] Concept: `Dual-Process Theory (System 1 / System 2)` | Parent: `Behavioral Decision-Making and Cognitive Biases` | Mode: `dr` | Cluster: `Behavioral Decision-Making and Cognitive Biases (1 of 2)`
+- [ ] Concept: `Ecological Rationality and Fast-and-Frugal Heuristics (Gigerenzer)` | Parent: `Behavioral Decision-Making and Cognitive Biases` | Mode: `dr` | Cluster: `Behavioral Decision-Making and Cognitive Biases (1 of 2)`
+- [ ] Concept: `Heuristics and Biases (anchoring, availability, representativeness, confirmation, hindsight, overconfidence, status-quo, sunk-cost)` | Parent: `Behavioral Decision-Making and Cognitive Biases` | Mode: `dr` | Cluster: `Behavioral Decision-Making and Cognitive Biases (1 of 2)`
+- [ ] Concept: `Mental Accounting and Present Bias / Hyperbolic Discounting` | Parent: `Behavioral Decision-Making and Cognitive Biases` | Mode: `dr` | Cluster: `Behavioral Decision-Making and Cognitive Biases (2 of 2)`
+- [ ] Concept: `Naturalistic Decision Making / Recognition-Primed Decision (Klein)` | Parent: `Behavioral Decision-Making and Cognitive Biases` | Mode: `dr` | Cluster: `Behavioral Decision-Making and Cognitive Biases (2 of 2)`
+- [ ] Concept: `Neuroeconomics & Reward (dopamine prediction error, neural valuation)` | Parent: `Behavioral Decision-Making and Cognitive Biases` | Mode: `dr` | Cluster: `Behavioral Decision-Making and Cognitive Biases (2 of 2)`
+- [ ] Concept: `Prospect Theory (loss aversion, reference dependence, probability weighting, fourfold pattern, framing)` | Parent: `Behavioral Decision-Making and Cognitive Biases` | Mode: `dr` | Cluster: `Behavioral Decision-Making and Cognitive Biases (2 of 2)`
+- [ ] Concept: `Replication Status of Decision and Social-Psych Effects (power posing, social priming, ego depletion, loss-aversion debate)` | Parent: `Behavioral Decision-Making and Cognitive Biases` | Mode: `dr` | Cluster: `Behavioral Decision-Making and Cognitive Biases (2 of 2)`
+- [ ] Concept: `Active-Constructive Responding & Gottman Ratio` | Parent: `Trust, Rapport & Psychological Safety` | Mode: `dr` | Cluster: `Trust, Rapport & Psychological Safety (1 of 2)`
+- [ ] Concept: `Trust Asymmetry (slow-build / fast-break)` | Parent: `Trust, Rapport & Psychological Safety` | Mode: `dr` | Cluster: `Trust, Rapport & Psychological Safety (1 of 2)`
+- [ ] Concept: `Psychological Safety (Edmondson)` | Parent: `Trust, Rapport & Psychological Safety` | Mode: `dr` | Cluster: `Trust, Rapport & Psychological Safety (1 of 2)`
+- [ ] Concept: `Four Stages of Psychological Safety (Clark)` | Parent: `Trust, Rapport & Psychological Safety` | Mode: `dr` | Cluster: `Trust, Rapport & Psychological Safety (1 of 2)`
+- [ ] Concept: `Interpersonal Trust Models (ABI / cognitive-affective / Trust Equation)` | Parent: `Trust, Rapport & Psychological Safety` | Mode: `dr` | Cluster: `Trust, Rapport & Psychological Safety (1 of 2)`
+- [ ] Concept: `Psychological Safety vs Trust` | Parent: `Trust, Rapport & Psychological Safety` | Mode: `dr` | Cluster: `Trust, Rapport & Psychological Safety (2 of 2)`
+- [ ] Concept: `Rapport (similarity, mere-exposure, synchrony)` | Parent: `Trust, Rapport & Psychological Safety` | Mode: `dr` | Cluster: `Trust, Rapport & Psychological Safety (2 of 2)`
+- [ ] Concept: `Swift Trust in Temporary Teams` | Parent: `Trust, Rapport & Psychological Safety` | Mode: `dr` | Cluster: `Trust, Rapport & Psychological Safety (2 of 2)`
+- [ ] Concept: `Trust Violation & Repair (competence vs integrity)` | Parent: `Trust, Rapport & Psychological Safety` | Mode: `dr` | Cluster: `Trust, Rapport & Psychological Safety (2 of 2)`
+- [ ] Concept: `Asch Conformity & Milgram Obedience with modern caveats (Burger 2009)` | Parent: `Persuasion & Influence Psychology (Attitude-Change Theory)` | Mode: `dr` | Cluster: `Persuasion & Influence Psychology (Attitude-Change Theory) (1 of 2)`
+- [ ] Concept: `Attribution Theory (Heider, Kelley covariation, FAE, actor-observer asymmetry, self-serving bias)` | Parent: `Persuasion & Influence Psychology (Attitude-Change Theory)` | Mode: `dr` | Cluster: `Persuasion & Influence Psychology (Attitude-Change Theory) (1 of 2)`
+- [ ] Concept: `Cognitive Dissonance (induced compliance, effort justification, free-choice paradigm, post-decision dissonance)` | Parent: `Persuasion & Influence Psychology (Attitude-Change Theory)` | Mode: `dr` | Cluster: `Persuasion & Influence Psychology (Attitude-Change Theory) (1 of 2)`
+- [ ] Concept: `Descriptive vs Injunctive Norms / Focus Theory of Normative Conduct (Cialdini)` | Parent: `Persuasion & Influence Psychology (Attitude-Change Theory)` | Mode: `dr` | Cluster: `Persuasion & Influence Psychology (Attitude-Change Theory) (1 of 2)`
+- [ ] Concept: `Elaboration Likelihood Model (central vs peripheral route, elaboration, need for cognition)` | Parent: `Persuasion & Influence Psychology (Attitude-Change Theory)` | Mode: `dr` | Cluster: `Persuasion & Influence Psychology (Attitude-Change Theory) (1 of 2)`
+- [ ] Concept: `Heuristic-Systematic Model (systematic vs heuristic, sufficiency threshold, additivity/bias)` | Parent: `Persuasion & Influence Psychology (Attitude-Change Theory)` | Mode: `dr` | Cluster: `Persuasion & Influence Psychology (Attitude-Change Theory) (1 of 2)`
+- [ ] Concept: `Inoculation Theory (McGuire) and modern prebunking` | Parent: `Persuasion & Influence Psychology (Attitude-Change Theory)` | Mode: `dr` | Cluster: `Persuasion & Influence Psychology (Attitude-Change Theory) (2 of 2)`
+- [ ] Concept: `Normative vs Informational Influence (Deutsch & Gerard)` | Parent: `Persuasion & Influence Psychology (Attitude-Change Theory)` | Mode: `dr` | Cluster: `Persuasion & Influence Psychology (Attitude-Change Theory) (2 of 2)`
+- [ ] Concept: `Psychological Reactance (Brehm: freedom threat, boomerang effect, Rains 2013 effect size)` | Parent: `Persuasion & Influence Psychology (Attitude-Change Theory)` | Mode: `dr` | Cluster: `Persuasion & Influence Psychology (Attitude-Change Theory) (2 of 2)`
+- [ ] Concept: `Self-Perception Theory (Bem) as the rival account + latitude reconciliation` | Parent: `Persuasion & Influence Psychology (Attitude-Change Theory)` | Mode: `dr` | Cluster: `Persuasion & Influence Psychology (Attitude-Change Theory) (2 of 2)`
+- [ ] Concept: `Social Proof as informational influence under uncertainty` | Parent: `Persuasion & Influence Psychology (Attitude-Change Theory)` | Mode: `dr` | Cluster: `Persuasion & Influence Psychology (Attitude-Change Theory) (2 of 2)`
+- [ ] Concept: `Yale Attitude-Change Approach (source/message/channel/audience, sleeper effect)` | Parent: `Persuasion & Influence Psychology (Attitude-Change Theory)` | Mode: `dr` | Cluster: `Persuasion & Influence Psychology (Attitude-Change Theory) (2 of 2)`
+- [ ] Concept: `Appraisal Theory (Lazarus primary/secondary; Scherer Component Process Model)` | Parent: `Emotion & Affect Psychology` | Mode: `dr` | Cluster: `Emotion & Affect Psychology`
+- [ ] Concept: `Structure of Emotion (Basic/Ekman vs Dimensional-Circumplex/Russell vs Constructed/Barrett)` | Parent: `Emotion & Affect Psychology` | Mode: `dr` | Cluster: `Emotion & Affect Psychology`
+- [ ] Concept: `Emotion Regulation (Gross Process Model; Reappraisal vs Suppression; Troy controllability caveat)` | Parent: `Emotion & Affect Psychology` | Mode: `dr` | Cluster: `Emotion & Affect Psychology`
+- [ ] Concept: `Affect-as-Information (Schwarz & Clore; mood-congruent judgment; misattribution)` | Parent: `Emotion & Affect Psychology` | Mode: `dr` | Cluster: `Emotion & Affect Psychology`
+- [ ] Concept: `Affective Forecasting & Impact/Durability Bias (Gilbert & Wilson; focalism; immune neglect)` | Parent: `Emotion & Affect Psychology` | Mode: `dr` | Cluster: `Emotion & Affect Psychology`
+- [ ] Concept: `Emotional Contagion (Hatfield, Cacioppo & Rapson; mimicry-feedback-contagion)` | Parent: `Emotion & Affect Psychology` | Mode: `dr` | Cluster: `Emotion & Affect Psychology`
+- [ ] Concept: `Emotional Intelligence (Mayer-Salovey ability model + MSCEIT vs Goleman/Bar-On mixed)` | Parent: `Emotion & Affect Psychology` | Mode: `dr` | Cluster: `Emotion & Affect Psychology`
+- [ ] Concept: `Emotional Labor (Hochschild; surface vs deep acting)` | Parent: `Emotion & Affect Psychology` | Mode: `dr` | Cluster: `Emotion & Affect Psychology`
+- [ ] Concept: `Achievement Goal Theory (Mastery vs Performance, 2x2/3x2)` | Parent: `Performance, Motivation & Resilience Psychology` | Mode: `dr` | Cluster: `Performance, Motivation & Resilience Psychology (1 of 2)`
+- [ ] Concept: `Burnout & Job Demands-Resources Model (Maslach)` | Parent: `Performance, Motivation & Resilience Psychology` | Mode: `dr` | Cluster: `Performance, Motivation & Resilience Psychology (1 of 2)`
+- [ ] Concept: `Flow and Challenge-Skill Balance (Csikszentmihalyi)` | Parent: `Performance, Motivation & Resilience Psychology` | Mode: `dr` | Cluster: `Performance, Motivation & Resilience Psychology (1 of 2)`
+- [ ] Concept: `Grit and the Conscientiousness Overlap (Duckworth, Credé)` | Parent: `Performance, Motivation & Resilience Psychology` | Mode: `dr` | Cluster: `Performance, Motivation & Resilience Psychology (1 of 2)`
+- [ ] Concept: `Implicit Theories of Ability (Growth vs Fixed Mindset, Dweck)` | Parent: `Performance, Motivation & Resilience Psychology` | Mode: `dr` | Cluster: `Performance, Motivation & Resilience Psychology (1 of 2)`
+- [ ] Concept: `Resilience, Recovery & Post-Traumatic Growth (Sonnentag, Tedeschi & Calhoun)` | Parent: `Performance, Motivation & Resilience Psychology` | Mode: `dr` | Cluster: `Performance, Motivation & Resilience Psychology (2 of 2)`
+- [ ] Concept: `Regulatory Focus Theory (Promotion vs Prevention, Higgins)` | Parent: `Performance, Motivation & Resilience Psychology` | Mode: `dr` | Cluster: `Performance, Motivation & Resilience Psychology (2 of 2)`
+- [ ] Concept: `Self-Efficacy and Its Four Sources (Bandura)` | Parent: `Performance, Motivation & Resilience Psychology` | Mode: `dr` | Cluster: `Performance, Motivation & Resilience Psychology (2 of 2)`
+- [ ] Concept: `Self-Regulation, Willpower & the Ego-Depletion Replication Failure` | Parent: `Performance, Motivation & Resilience Psychology` | Mode: `dr` | Cluster: `Performance, Motivation & Resilience Psychology (2 of 2)`
+- [ ] Concept: `Stress & Coping / Cognitive Appraisal (Lazarus & Folkman)` | Parent: `Performance, Motivation & Resilience Psychology` | Mode: `dr` | Cluster: `Performance, Motivation & Resilience Psychology (2 of 2)`
+- [ ] Concept: `Big Five / Five-Factor Model (OCEAN)` | Parent: `Personality and Individual Differences` | Mode: `dr` | Cluster: `Personality and Individual Differences (1 of 2)`
+- [ ] Concept: `Dark Triad and Dark Tetrad (Paulhus & Williams; SD3; D-factor)` | Parent: `Personality and Individual Differences` | Mode: `dr` | Cluster: `Personality and Individual Differences (1 of 2)`
+- [ ] Concept: `Epstein aggregation principle` | Parent: `Personality and Individual Differences` | Mode: `dr` | Cluster: `Personality and Individual Differences (1 of 2)`
+- [ ] Concept: `Ethical application of traits to stakeholder communication` | Parent: `Personality and Individual Differences` | Mode: `dr` | Cluster: `Personality and Individual Differences (1 of 2)`
+- [ ] Concept: `Forer / Barnum effect` | Parent: `Personality and Individual Differences` | Mode: `dr` | Cluster: `Personality and Individual Differences (1 of 2)`
+- [ ] Concept: `Heritability and the non-shared environment (twin studies)` | Parent: `Personality and Individual Differences` | Mode: `dr` | Cluster: `Personality and Individual Differences (1 of 2)`
+- [ ] Concept: `HEXACO and Honesty-Humility (Ashton & Lee)` | Parent: `Personality and Individual Differences` | Mode: `dr` | Cluster: `Personality and Individual Differences (1 of 2)`
+- [ ] Concept: `Interactionism, situational strength, and CAPS (Mischel & Shoda)` | Parent: `Personality and Individual Differences` | Mode: `dr` | Cluster: `Personality and Individual Differences (1 of 2)`
+- [ ] Concept: `Lexical hypothesis (Allport & Odbert, Cattell, Tupes & Christal, Goldberg)` | Parent: `Personality and Individual Differences` | Mode: `dr` | Cluster: `Personality and Individual Differences (2 of 2)`
+- [ ] Concept: `Mean-level change / maturity principle (Roberts, Walton & Viechtbauer)` | Parent: `Personality and Individual Differences` | Mode: `dr` | Cluster: `Personality and Individual Differences (2 of 2)`
+- [ ] Concept: `NEO-PI-R 30 facets` | Parent: `Personality and Individual Differences` | Mode: `dr` | Cluster: `Personality and Individual Differences (2 of 2)`
+- [ ] Concept: `Person-situation debate (Mischel, the .30 coefficient)` | Parent: `Personality and Individual Differences` | Mode: `dr` | Cluster: `Personality and Individual Differences (2 of 2)`
+- [ ] Concept: `Psychometric critique of MBTI and type systems (DISC, Enneagram, True Colors)` | Parent: `Personality and Individual Differences` | Mode: `dr` | Cluster: `Personality and Individual Differences (2 of 2)`
+- [ ] Concept: `Rank-order stability (Roberts & DelVecchio)` | Parent: `Personality and Individual Differences` | Mode: `dr` | Cluster: `Personality and Individual Differences (2 of 2)`
+- [ ] Concept: `State vs trait and Whole Trait Theory (Fleeson)` | Parent: `Personality and Individual Differences` | Mode: `dr` | Cluster: `Personality and Individual Differences (2 of 2)`
+- [ ] Concept: `Moral Disengagement` | Parent: `Moral Psychology` | Mode: `dr` | Cluster: `Moral Psychology (1 of 2)`
+- [ ] Concept: `Dual-Process Theory of Moral Judgment` | Parent: `Moral Psychology` | Mode: `dr` | Cluster: `Moral Psychology (1 of 2)`
+- [ ] Concept: `Moral Foundations Theory` | Parent: `Moral Psychology` | Mode: `dr` | Cluster: `Moral Psychology (1 of 2)`
+- [ ] Concept: `Is-Ought Problem & Naturalistic Fallacy` | Parent: `Moral Psychology` | Mode: `dr` | Cluster: `Moral Psychology (1 of 2)`
+- [ ] Concept: `Moral Licensing` | Parent: `Moral Psychology` | Mode: `dr` | Cluster: `Moral Psychology (1 of 2)`
+- [ ] Concept: `Morality-as-Cooperation` | Parent: `Moral Psychology` | Mode: `dr` | Cluster: `Moral Psychology (2 of 2)`
+- [ ] Concept: `Organizational Justice (Fairness Perception)` | Parent: `Moral Psychology` | Mode: `dr` | Cluster: `Moral Psychology (2 of 2)`
+- [ ] Concept: `Social Intuitionist Model` | Parent: `Moral Psychology` | Mode: `dr` | Cluster: `Moral Psychology (2 of 2)`
+- [ ] Concept: `Theory of Dyadic Morality` | Parent: `Moral Psychology` | Mode: `dr` | Cluster: `Moral Psychology (2 of 2)`
+- [ ] Concept: `Compassion Fade` | Parent: `Psychology of Charitable Giving` | Mode: `dr` | Cluster: `Psychology of Charitable Giving (1 of 2)`
+- [ ] Concept: `Empathy-Altruism Hypothesis` | Parent: `Psychology of Charitable Giving` | Mode: `dr` | Cluster: `Psychology of Charitable Giving (1 of 2)`
+- [ ] Concept: `Identifiable Victim Effect` | Parent: `Psychology of Charitable Giving` | Mode: `dr` | Cluster: `Psychology of Charitable Giving (1 of 2)`
+- [ ] Concept: `Martyrdom Effect` | Parent: `Psychology of Charitable Giving` | Mode: `dr` | Cluster: `Psychology of Charitable Giving (1 of 2)`
+- [ ] Concept: `Moral Identity and Self-Signaling` | Parent: `Psychology of Charitable Giving` | Mode: `dr` | Cluster: `Psychology of Charitable Giving (1 of 2)`
+- [ ] Concept: `Narrative Transportation` | Parent: `Psychology of Charitable Giving` | Mode: `dr` | Cluster: `Psychology of Charitable Giving (1 of 2)`
+- [ ] Concept: `Nudge and Default Effects` | Parent: `Psychology of Charitable Giving` | Mode: `dr` | Cluster: `Psychology of Charitable Giving (1 of 2)`
+- [ ] Concept: `Overhead Aversion` | Parent: `Psychology of Charitable Giving` | Mode: `dr` | Cluster: `Psychology of Charitable Giving (2 of 2)`
+- [ ] Concept: `Parochial Altruism` | Parent: `Psychology of Charitable Giving` | Mode: `dr` | Cluster: `Psychology of Charitable Giving (2 of 2)`
+- [ ] Concept: `Prosocial Message Framing` | Parent: `Psychology of Charitable Giving` | Mode: `dr` | Cluster: `Psychology of Charitable Giving (2 of 2)`
+- [ ] Concept: `Pseudoinefficacy` | Parent: `Psychology of Charitable Giving` | Mode: `dr` | Cluster: `Psychology of Charitable Giving (2 of 2)`
+- [ ] Concept: `Psychic Numbing` | Parent: `Psychology of Charitable Giving` | Mode: `dr` | Cluster: `Psychology of Charitable Giving (2 of 2)`
+- [ ] Concept: `Singularity Effect` | Parent: `Psychology of Charitable Giving` | Mode: `dr` | Cluster: `Psychology of Charitable Giving (2 of 2)`
+- [ ] Concept: `Warm-Glow and Impure Altruism` | Parent: `Psychology of Charitable Giving` | Mode: `dr` | Cluster: `Psychology of Charitable Giving (2 of 2)`
+- [ ] Concept: `Algorithm Appreciation (Logg)` | Parent: `Psychology of Human-AI Interaction (Trust & Appropriate Reliance)` | Mode: `dr` | Cluster: `Psychology of Human-AI Interaction (Trust & Appropriate Reliance) (1 of 2)`
+- [ ] Concept: `Algorithm Aversion (Dietvorst)` | Parent: `Psychology of Human-AI Interaction (Trust & Appropriate Reliance)` | Mode: `dr` | Cluster: `Psychology of Human-AI Interaction (Trust & Appropriate Reliance) (1 of 2)`
+- [ ] Concept: `Anthropomorphism, AI Persona and Uncanny Valley` | Parent: `Psychology of Human-AI Interaction (Trust & Appropriate Reliance)` | Mode: `dr` | Cluster: `Psychology of Human-AI Interaction (Trust & Appropriate Reliance) (1 of 2)`
+- [ ] Concept: `Trust as Attitude vs. Reliance as Behavior` | Parent: `Psychology of Human-AI Interaction (Trust & Appropriate Reliance)` | Mode: `dr` | Cluster: `Psychology of Human-AI Interaction (Trust & Appropriate Reliance) (1 of 2)`
+- [ ] Concept: `Automation Bias (Commission vs. Omission Errors)` | Parent: `Psychology of Human-AI Interaction (Trust & Appropriate Reliance)` | Mode: `dr` | Cluster: `Psychology of Human-AI Interaction (Trust & Appropriate Reliance) (1 of 2)`
+- [ ] Concept: `Automation Complacency (Parasuraman & Manzey)` | Parent: `Psychology of Human-AI Interaction (Trust & Appropriate Reliance)` | Mode: `dr` | Cluster: `Psychology of Human-AI Interaction (Trust & Appropriate Reliance) (1 of 2)`
+- [ ] Concept: `Calibrated Trust and the Trust-Calibration Curve (Lee & See)` | Parent: `Psychology of Human-AI Interaction (Trust & Appropriate Reliance)` | Mode: `dr` | Cluster: `Psychology of Human-AI Interaction (Trust & Appropriate Reliance) (1 of 2)`
+- [ ] Concept: `Cognitive Forcing Functions (Bucinca)` | Parent: `Psychology of Human-AI Interaction (Trust & Appropriate Reliance)` | Mode: `dr` | Cluster: `Psychology of Human-AI Interaction (Trust & Appropriate Reliance) (1 of 2)`
+- [ ] Concept: `Human-AI Complementarity / Complementary Team Performance` | Parent: `Psychology of Human-AI Interaction (Trust & Appropriate Reliance)` | Mode: `dr` | Cluster: `Psychology of Human-AI Interaction (Trust & Appropriate Reliance) (2 of 2)`
+- [ ] Concept: `Confidence Display and Miscalibrated Confidence` | Parent: `Psychology of Human-AI Interaction (Trust & Appropriate Reliance)` | Mode: `dr` | Cluster: `Psychology of Human-AI Interaction (Trust & Appropriate Reliance) (2 of 2)`
+- [ ] Concept: `Design Principles for Calibrated Reliance` | Parent: `Psychology of Human-AI Interaction (Trust & Appropriate Reliance)` | Mode: `dr` | Cluster: `Psychology of Human-AI Interaction (Trust & Appropriate Reliance) (2 of 2)`
+- [ ] Concept: `Explanation/Transparency Effects on Reliance (Bansal)` | Parent: `Psychology of Human-AI Interaction (Trust & Appropriate Reliance)` | Mode: `dr` | Cluster: `Psychology of Human-AI Interaction (Trust & Appropriate Reliance) (2 of 2)`
+- [ ] Concept: `Appropriate-Reliance Interventions` | Parent: `Psychology of Human-AI Interaction (Trust & Appropriate Reliance)` | Mode: `dr` | Cluster: `Psychology of Human-AI Interaction (Trust & Appropriate Reliance) (2 of 2)`
+- [ ] Concept: `Over-trust/Over-reliance vs. Under-trust/Disuse` | Parent: `Psychology of Human-AI Interaction (Trust & Appropriate Reliance)` | Mode: `dr` | Cluster: `Psychology of Human-AI Interaction (Trust & Appropriate Reliance) (2 of 2)`
+- [ ] Concept: `Reconciling Aversion vs. Appreciation (Moderators)` | Parent: `Psychology of Human-AI Interaction (Trust & Appropriate Reliance)` | Mode: `dr` | Cluster: `Psychology of Human-AI Interaction (Trust & Appropriate Reliance) (2 of 2)`
+- [ ] Concept: `Trust Resolution and Specificity` | Parent: `Psychology of Human-AI Interaction (Trust & Appropriate Reliance)` | Mode: `dr` | Cluster: `Psychology of Human-AI Interaction (Trust & Appropriate Reliance) (2 of 2)`
+- [ ] Concept: `Adult Learning: Andragogy (Knowles) and Bloom's Revised Taxonomy (Anderson & Krathwohl)` | Parent: `Learning & Expertise Psychology` | Mode: `dr` | Cluster: `Learning & Expertise Psychology (1 of 2)`
+- [ ] Concept: `Cognitive Load Theory (Sweller — intrinsic/extraneous/germane load, element interactivity, worked-example & expertise-reversal effects, split-attention/modality/redundancy)` | Parent: `Learning & Expertise Psychology` | Mode: `dr` | Cluster: `Learning & Expertise Psychology (1 of 2)`
+- [ ] Concept: `Deliberate Practice (Ericsson), Expert Chunking (Chase & Simon), and the 10,000-Hour-Rule Critique (Macnamara)` | Parent: `Learning & Expertise Psychology` | Mode: `dr` | Cluster: `Learning & Expertise Psychology (1 of 2)`
+- [ ] Concept: `Desirable Difficulties (Bjork) and the Storage- vs Retrieval-Strength Model (New Theory of Disuse)` | Parent: `Learning & Expertise Psychology` | Mode: `dr` | Cluster: `Learning & Expertise Psychology (1 of 2)`
+- [ ] Concept: `Elaboration, Dual Coding (Paivio), and Self-Explanation (Chi)` | Parent: `Learning & Expertise Psychology` | Mode: `dr` | Cluster: `Learning & Expertise Psychology (1 of 2)`
+- [ ] Concept: `Interleaving vs Blocking and the Discriminative-Contrast Hypothesis` | Parent: `Learning & Expertise Psychology` | Mode: `dr` | Cluster: `Learning & Expertise Psychology (2 of 2)`
+- [ ] Concept: `Metacognition — Judgments of Learning, the Illusion of Fluency, Calibration, Stability/Foresight Bias` | Parent: `Learning & Expertise Psychology` | Mode: `dr` | Cluster: `Learning & Expertise Psychology (2 of 2)`
+- [ ] Concept: `Practitioner Consensus (Dunlosky 2013, Make It Stick) and the Learning-Styles Myth (Pashler 2008)` | Parent: `Learning & Expertise Psychology` | Mode: `dr` | Cluster: `Learning & Expertise Psychology (2 of 2)`
+- [ ] Concept: `Retrieval Practice and the Testing Effect (Roediger & Karpicke) and the Generation Effect` | Parent: `Learning & Expertise Psychology` | Mode: `dr` | Cluster: `Learning & Expertise Psychology (2 of 2)`
+- [ ] Concept: `Spacing / Distributed Practice, the Ebbinghaus Forgetting Curve, and Spaced-Repetition Systems (Leitner, SM-2/Anki)` | Parent: `Learning & Expertise Psychology` | Mode: `dr` | Cluster: `Learning & Expertise Psychology (2 of 2)`
+- [ ] Concept: `Health Belief Model` | Parent: `Health Behavior Change and Donor Registration` | Mode: `dr` | Cluster: `Health Behavior Change and Donor Registration`
+- [ ] Concept: `Theory of Planned Behavior` | Parent: `Health Behavior Change and Donor Registration` | Mode: `dr` | Cluster: `Health Behavior Change and Donor Registration`
+- [ ] Concept: `Extended Parallel Process Model` | Parent: `Health Behavior Change and Donor Registration` | Mode: `dr` | Cluster: `Health Behavior Change and Donor Registration`
+- [ ] Concept: `COM-B and Behaviour Change Wheel` | Parent: `Health Behavior Change and Donor Registration` | Mode: `dr` | Cluster: `Health Behavior Change and Donor Registration`
+- [ ] Concept: `Willingness-Registration Gap` | Parent: `Health Behavior Change and Donor Registration` | Mode: `dr` | Cluster: `Health Behavior Change and Donor Registration`
+- [ ] Concept: `Registration Choice Architecture` | Parent: `Health Behavior Change and Donor Registration` | Mode: `dr` | Cluster: `Health Behavior Change and Donor Registration`
+- [ ] Concept: `Behavioural Insights Team RCT` | Parent: `Health Behavior Change and Donor Registration` | Mode: `dr` | Cluster: `Health Behavior Change and Donor Registration`
+- [ ] Concept: `Barriers to Organ Donor Registration` | Parent: `Health Behavior Change and Donor Registration` | Mode: `dr` | Cluster: `Health Behavior Change and Donor Registration`
+- [ ] Concept: `Phylogenetic Tree Manipulation` | Parent: `Scientific Phylogenetics (ETE Toolkit)` | Mode: `dr` | Cluster: `Scientific Phylogenetics (ETE Toolkit)`
+- [ ] Concept: `Evolutionary Event Detection` | Parent: `Scientific Phylogenetics (ETE Toolkit)` | Mode: `dr` | Cluster: `Scientific Phylogenetics (ETE Toolkit)`
+- [ ] Concept: `NCBI Taxonomy Integration` | Parent: `Scientific Phylogenetics (ETE Toolkit)` | Mode: `dr` | Cluster: `Scientific Phylogenetics (ETE Toolkit)`
+- [ ] Concept: `Tree Visualization` | Parent: `Scientific Phylogenetics (ETE Toolkit)` | Mode: `dr` | Cluster: `Scientific Phylogenetics (ETE Toolkit)`
+- [ ] Concept: `Ollama Architecture and GGUF Memory-Mapping` | Parent: `Local Model Performance Evaluation: Ollama, MLX, and Hardware Architectures` | Mode: `dr` | Cluster: `Local Model Performance Evaluation: Ollama, MLX, and Hardware Architectures (1 of 3)`
+- [ ] Concept: `GDDR7 Channel Bandwidth` | Parent: `Local Model Performance Evaluation: Ollama, MLX, and Hardware Architectures` | Mode: `dr` | Cluster: `Local Model Performance Evaluation: Ollama, MLX, and Hardware Architectures (1 of 3)`
+- [ ] Concept: `GDDR7 Peak Throughput` | Parent: `Local Model Performance Evaluation: Ollama, MLX, and Hardware Architectures` | Mode: `dr` | Cluster: `Local Model Performance Evaluation: Ollama, MLX, and Hardware Architectures (1 of 3)`
+- [ ] Concept: `Gemma4-12B Cross-Platform Residency and Benchmarking` | Parent: `Local Model Performance Evaluation: Ollama, MLX, and Hardware Architectures` | Mode: `dr` | Cluster: `Local Model Performance Evaluation: Ollama, MLX, and Hardware Architectures (1 of 3)`
+- [ ] Concept: `GGML Metal Kernel Dispatch Overhead` | Parent: `Local Model Performance Evaluation: Ollama, MLX, and Hardware Architectures` | Mode: `dr` | Cluster: `Local Model Performance Evaluation: Ollama, MLX, and Hardware Architectures (1 of 3)`
+- [ ] Concept: `GGUF Alignment` | Parent: `Local Model Performance Evaluation: Ollama, MLX, and Hardware Architectures` | Mode: `dr` | Cluster: `Local Model Performance Evaluation: Ollama, MLX, and Hardware Architectures (1 of 3)`
+- [ ] Concept: `Inference Metrics Framework: TTFT TPS and Memory Profiling` | Parent: `Local Model Performance Evaluation: Ollama, MLX, and Hardware Architectures` | Mode: `dr` | Cluster: `Local Model Performance Evaluation: Ollama, MLX, and Hardware Architectures (1 of 3)`
+- [ ] Concept: `Inter-token Latency Jitter` | Parent: `Local Model Performance Evaluation: Ollama, MLX, and Hardware Architectures` | Mode: `dr` | Cluster: `Local Model Performance Evaluation: Ollama, MLX, and Hardware Architectures (2 of 3)`
+- [ ] Concept: `MLX KV Cache Quantization` | Parent: `Local Model Performance Evaluation: Ollama, MLX, and Hardware Architectures` | Mode: `dr` | Cluster: `Local Model Performance Evaluation: Ollama, MLX, and Hardware Architectures (2 of 3)`
+- [ ] Concept: `Memory Bandwidth Scaling Limit` | Parent: `Local Model Performance Evaluation: Ollama, MLX, and Hardware Architectures` | Mode: `dr` | Cluster: `Local Model Performance Evaluation: Ollama, MLX, and Hardware Architectures (2 of 3)`
+- [ ] Concept: `Metal Command Buffer Offload` | Parent: `Local Model Performance Evaluation: Ollama, MLX, and Hardware Architectures` | Mode: `dr` | Cluster: `Local Model Performance Evaluation: Ollama, MLX, and Hardware Architectures (2 of 3)`
+- [ ] Concept: `Multi-Token Prediction Heads` | Parent: `Local Model Performance Evaluation: Ollama, MLX, and Hardware Architectures` | Mode: `dr` | Cluster: `Local Model Performance Evaluation: Ollama, MLX, and Hardware Architectures (2 of 3)`
+- [ ] Concept: `Quantization Block Matrix` | Parent: `Local Model Performance Evaluation: Ollama, MLX, and Hardware Architectures` | Mode: `dr` | Cluster: `Local Model Performance Evaluation: Ollama, MLX, and Hardware Architectures (2 of 3)`
+- [ ] Concept: `Qwen3.6-35B-MLX Sizing and Throughput Profiling` | Parent: `Local Model Performance Evaluation: Ollama, MLX, and Hardware Architectures` | Mode: `dr` | Cluster: `Local Model Performance Evaluation: Ollama, MLX, and Hardware Architectures (2 of 3)`
+- [ ] Concept: `Static Activation Buffers` | Parent: `Local Model Performance Evaluation: Ollama, MLX, and Hardware Architectures` | Mode: `dr` | Cluster: `Local Model Performance Evaluation: Ollama, MLX, and Hardware Architectures (3 of 3)`
+- [ ] Concept: `Thunderbolt 5 Bus Latency` | Parent: `Local Model Performance Evaluation: Ollama, MLX, and Hardware Architectures` | Mode: `dr` | Cluster: `Local Model Performance Evaluation: Ollama, MLX, and Hardware Architectures (3 of 3)`
+- [ ] Concept: `TTFT Compute Bound Analysis` | Parent: `Local Model Performance Evaluation: Ollama, MLX, and Hardware Architectures` | Mode: `dr` | Cluster: `Local Model Performance Evaluation: Ollama, MLX, and Hardware Architectures (3 of 3)`
+- [ ] Concept: `MLX Unified Memory vs eGPU GDDR7 Hardware Architecture` | Parent: `Local Model Performance Evaluation: Ollama, MLX, and Hardware Architectures` | Mode: `dr` | Cluster: `Local Model Performance Evaluation: Ollama, MLX, and Hardware Architectures (3 of 3)`
+- [ ] Concept: `Wired Memory Instrumentation` | Parent: `Local Model Performance Evaluation: Ollama, MLX, and Hardware Architectures` | Mode: `dr` | Cluster: `Local Model Performance Evaluation: Ollama, MLX, and Hardware Architectures (3 of 3)`
+- [ ] Concept: `Zero-Copy Unified Pointer Passing` | Parent: `Local Model Performance Evaluation: Ollama, MLX, and Hardware Architectures` | Mode: `dr` | Cluster: `Local Model Performance Evaluation: Ollama, MLX, and Hardware Architectures (3 of 3)`
+- [ ] Concept: `Asymmetric KV Cache Quantization` | Parent: `Local Inference Acceleration: Memory Architectures, Metal Kernels, and Latency Optimization` | Mode: `dr` | Cluster: `Local Inference Acceleration: Memory Architectures, Metal Kernels, and Latency Optimization (1 of 3)`
+- [ ] Concept: `Context Threshold Compaction` | Parent: `Local Inference Acceleration: Memory Architectures, Metal Kernels, and Latency Optimization` | Mode: `dr` | Cluster: `Local Inference Acceleration: Memory Architectures, Metal Kernels, and Latency Optimization (1 of 3)`
+- [ ] Concept: `Draft Model Amortization` | Parent: `Local Inference Acceleration: Memory Architectures, Metal Kernels, and Latency Optimization` | Mode: `dr` | Cluster: `Local Inference Acceleration: Memory Architectures, Metal Kernels, and Latency Optimization (1 of 3)`
+- [ ] Concept: `GDDR7 Channel Bandwidth and Peak Throughput` | Parent: `Local Inference Acceleration: Memory Architectures, Metal Kernels, and Latency Optimization` | Mode: `dr` | Cluster: `Local Inference Acceleration: Memory Architectures, Metal Kernels, and Latency Optimization (1 of 3)`
+- [ ] Concept: `GDDR7 Channel Interleaving` | Parent: `Local Inference Acceleration: Memory Architectures, Metal Kernels, and Latency Optimization` | Mode: `dr` | Cluster: `Local Inference Acceleration: Memory Architectures, Metal Kernels, and Latency Optimization (1 of 3)`
+- [ ] Concept: `GEMM vs GEMV Scaling` | Parent: `Local Inference Acceleration: Memory Architectures, Metal Kernels, and Latency Optimization` | Mode: `dr` | Cluster: `Local Inference Acceleration: Memory Architectures, Metal Kernels, and Latency Optimization (1 of 3)`
+- [ ] Concept: `GGML Metal Kernel Dispatch and Command Buffer Offload` | Parent: `Local Inference Acceleration: Memory Architectures, Metal Kernels, and Latency Optimization` | Mode: `dr` | Cluster: `Local Inference Acceleration: Memory Architectures, Metal Kernels, and Latency Optimization (1 of 3)`
+- [ ] Concept: `GGUF Alignment and Quantization Block Matrix` | Parent: `Local Inference Acceleration: Memory Architectures, Metal Kernels, and Latency Optimization` | Mode: `dr` | Cluster: `Local Inference Acceleration: Memory Architectures, Metal Kernels, and Latency Optimization (1 of 3)`
+- [ ] Concept: `Host Synchronization Bubbles` | Parent: `Local Inference Acceleration: Memory Architectures, Metal Kernels, and Latency Optimization` | Mode: `dr` | Cluster: `Local Inference Acceleration: Memory Architectures, Metal Kernels, and Latency Optimization (2 of 3)`
+- [ ] Concept: `MLX KV Cache Quantization and Zero-Copy Pointer Passing` | Parent: `Local Inference Acceleration: Memory Architectures, Metal Kernels, and Latency Optimization` | Mode: `dr` | Cluster: `Local Inference Acceleration: Memory Architectures, Metal Kernels, and Latency Optimization (2 of 3)`
+- [ ] Concept: `MTP Speculative Verification` | Parent: `Local Inference Acceleration: Memory Architectures, Metal Kernels, and Latency Optimization` | Mode: `dr` | Cluster: `Local Inference Acceleration: Memory Architectures, Metal Kernels, and Latency Optimization (2 of 3)`
+- [ ] Concept: `Multi-Token Prediction Heads and Speculative Decoding` | Parent: `Local Inference Acceleration: Memory Architectures, Metal Kernels, and Latency Optimization` | Mode: `dr` | Cluster: `Local Inference Acceleration: Memory Architectures, Metal Kernels, and Latency Optimization (2 of 3)`
+- [ ] Concept: `PAM3 Modulation` | Parent: `Local Inference Acceleration: Memory Architectures, Metal Kernels, and Latency Optimization` | Mode: `dr` | Cluster: `Local Inference Acceleration: Memory Architectures, Metal Kernels, and Latency Optimization (2 of 3)`
+- [ ] Concept: `PCIe Tunneling Protocol` | Parent: `Local Inference Acceleration: Memory Architectures, Metal Kernels, and Latency Optimization` | Mode: `dr` | Cluster: `Local Inference Acceleration: Memory Architectures, Metal Kernels, and Latency Optimization (2 of 3)`
+- [ ] Concept: `Metal Pipeline State Caching` | Parent: `Local Inference Acceleration: Memory Architectures, Metal Kernels, and Latency Optimization` | Mode: `dr` | Cluster: `Local Inference Acceleration: Memory Architectures, Metal Kernels, and Latency Optimization (2 of 3)`
+- [ ] Concept: `Shared Buffer Storage Modes` | Parent: `Local Inference Acceleration: Memory Architectures, Metal Kernels, and Latency Optimization` | Mode: `dr` | Cluster: `Local Inference Acceleration: Memory Architectures, Metal Kernels, and Latency Optimization (2 of 3)`
+- [ ] Concept: `SIMD Aligned Memory Vectorization` | Parent: `Local Inference Acceleration: Memory Architectures, Metal Kernels, and Latency Optimization` | Mode: `dr` | Cluster: `Local Inference Acceleration: Memory Architectures, Metal Kernels, and Latency Optimization (3 of 3)`
+- [ ] Concept: `Static Scratchpad Workspace` | Parent: `Local Inference Acceleration: Memory Architectures, Metal Kernels, and Latency Optimization` | Mode: `dr` | Cluster: `Local Inference Acceleration: Memory Architectures, Metal Kernels, and Latency Optimization (3 of 3)`
+- [ ] Concept: `Super-block Quantization Scales` | Parent: `Local Inference Acceleration: Memory Architectures, Metal Kernels, and Latency Optimization` | Mode: `dr` | Cluster: `Local Inference Acceleration: Memory Architectures, Metal Kernels, and Latency Optimization (3 of 3)`
+- [ ] Concept: `Thunderbolt 5 Bus Latency and Bandwidth Scaling Limit` | Parent: `Local Inference Acceleration: Memory Architectures, Metal Kernels, and Latency Optimization` | Mode: `dr` | Cluster: `Local Inference Acceleration: Memory Architectures, Metal Kernels, and Latency Optimization (3 of 3)`
+- [ ] Concept: `Thunderbolt Retimer Jitter` | Parent: `Local Inference Acceleration: Memory Architectures, Metal Kernels, and Latency Optimization` | Mode: `dr` | Cluster: `Local Inference Acceleration: Memory Architectures, Metal Kernels, and Latency Optimization (3 of 3)`
+- [ ] Concept: `TTFT Compute Bound Analysis and Inter-token Latency Jitter` | Parent: `Local Inference Acceleration: Memory Architectures, Metal Kernels, and Latency Optimization` | Mode: `dr` | Cluster: `Local Inference Acceleration: Memory Architectures, Metal Kernels, and Latency Optimization (3 of 3)`
+- [ ] Concept: `Wired Memory Instrumentation and Static Activation Buffers` | Parent: `Local Inference Acceleration: Memory Architectures, Metal Kernels, and Latency Optimization` | Mode: `dr` | Cluster: `Local Inference Acceleration: Memory Architectures, Metal Kernels, and Latency Optimization (3 of 3)`
+- [ ] Concept: `Wired Page Allocation` | Parent: `Local Inference Acceleration: Memory Architectures, Metal Kernels, and Latency Optimization` | Mode: `dr` | Cluster: `Local Inference Acceleration: Memory Architectures, Metal Kernels, and Latency Optimization (3 of 3)`
+- [ ] Concept: `16-bit Sub-channel Bursts` | Parent: `Local Inference Micro-Architectures: Signaling, Quantization Superblocks, and Kernel Pipeline Scheduling` | Mode: `dr` | Cluster: `Local Inference Micro-Architectures: Signaling, Quantization Superblocks, and Kernel Pipeline Scheduling (1 of 3)`
+- [ ] Concept: `Affine Value Block Scaling` | Parent: `Local Inference Micro-Architectures: Signaling, Quantization Superblocks, and Kernel Pipeline Scheduling` | Mode: `dr` | Cluster: `Local Inference Micro-Architectures: Signaling, Quantization Superblocks, and Kernel Pipeline Scheduling (1 of 3)`
+- [ ] Concept: `Arithmetic Intensity Thresholds` | Parent: `Local Inference Micro-Architectures: Signaling, Quantization Superblocks, and Kernel Pipeline Scheduling` | Mode: `dr` | Cluster: `Local Inference Micro-Architectures: Signaling, Quantization Superblocks, and Kernel Pipeline Scheduling (1 of 3)`
+- [ ] Concept: `Asymmetric KV Cache Quantization Algorithms` | Parent: `Local Inference Micro-Architectures: Signaling, Quantization Superblocks, and Kernel Pipeline Scheduling` | Mode: `dr` | Cluster: `Local Inference Micro-Architectures: Signaling, Quantization Superblocks, and Kernel Pipeline Scheduling (1 of 3)`
+- [ ] Concept: `Asynchronous Command Queue Overlap` | Parent: `Local Inference Micro-Architectures: Signaling, Quantization Superblocks, and Kernel Pipeline Scheduling` | Mode: `dr` | Cluster: `Local Inference Micro-Architectures: Signaling, Quantization Superblocks, and Kernel Pipeline Scheduling (1 of 3)`
+- [ ] Concept: `Batch Matrix Amortization` | Parent: `Local Inference Micro-Architectures: Signaling, Quantization Superblocks, and Kernel Pipeline Scheduling` | Mode: `dr` | Cluster: `Local Inference Micro-Architectures: Signaling, Quantization Superblocks, and Kernel Pipeline Scheduling (1 of 3)`
+- [ ] Concept: `Credit-Based Flow Control Delays` | Parent: `Local Inference Micro-Architectures: Signaling, Quantization Superblocks, and Kernel Pipeline Scheduling` | Mode: `dr` | Cluster: `Local Inference Micro-Architectures: Signaling, Quantization Superblocks, and Kernel Pipeline Scheduling (1 of 3)`
+- [ ] Concept: `DRAM Latency Hiding` | Parent: `Local Inference Micro-Architectures: Signaling, Quantization Superblocks, and Kernel Pipeline Scheduling` | Mode: `dr` | Cluster: `Local Inference Micro-Architectures: Signaling, Quantization Superblocks, and Kernel Pipeline Scheduling (1 of 3)`
+- [ ] Concept: `GEMM Compute Scaling vs GEMV Memory-Bandwidth Bounds` | Parent: `Local Inference Micro-Architectures: Signaling, Quantization Superblocks, and Kernel Pipeline Scheduling` | Mode: `dr` | Cluster: `Local Inference Micro-Architectures: Signaling, Quantization Superblocks, and Kernel Pipeline Scheduling (2 of 3)`
+- [ ] Concept: `Hierarchical Quantization Scales` | Parent: `Local Inference Micro-Architectures: Signaling, Quantization Superblocks, and Kernel Pipeline Scheduling` | Mode: `dr` | Cluster: `Local Inference Micro-Architectures: Signaling, Quantization Superblocks, and Kernel Pipeline Scheduling (2 of 3)`
+- [ ] Concept: `Key Outlier Channels` | Parent: `Local Inference Micro-Architectures: Signaling, Quantization Superblocks, and Kernel Pipeline Scheduling` | Mode: `dr` | Cluster: `Local Inference Micro-Architectures: Signaling, Quantization Superblocks, and Kernel Pipeline Scheduling (2 of 3)`
+- [ ] Concept: `Metal Pipeline State Caching and Kernel Dispatch Bubbles` | Parent: `Local Inference Micro-Architectures: Signaling, Quantization Superblocks, and Kernel Pipeline Scheduling` | Mode: `dr` | Cluster: `Local Inference Micro-Architectures: Signaling, Quantization Superblocks, and Kernel Pipeline Scheduling (2 of 3)`
+- [ ] Concept: `MTLBinaryArchive Serialization` | Parent: `Local Inference Micro-Architectures: Signaling, Quantization Superblocks, and Kernel Pipeline Scheduling` | Mode: `dr` | Cluster: `Local Inference Micro-Architectures: Signaling, Quantization Superblocks, and Kernel Pipeline Scheduling (2 of 3)`
+- [ ] Concept: `Multi-Token Prediction Speculative Verification and Draft Amortization` | Parent: `Local Inference Micro-Architectures: Signaling, Quantization Superblocks, and Kernel Pipeline Scheduling` | Mode: `dr` | Cluster: `Local Inference Micro-Architectures: Signaling, Quantization Superblocks, and Kernel Pipeline Scheduling (2 of 3)`
+- [ ] Concept: `Nyquist Frequency Attenuation` | Parent: `Local Inference Micro-Architectures: Signaling, Quantization Superblocks, and Kernel Pipeline Scheduling` | Mode: `dr` | Cluster: `Local Inference Micro-Architectures: Signaling, Quantization Superblocks, and Kernel Pipeline Scheduling (2 of 3)`
+- [ ] Concept: `PAM3 Modulation and GDDR7 Channel Interleaving` | Parent: `Local Inference Micro-Architectures: Signaling, Quantization Superblocks, and Kernel Pipeline Scheduling` | Mode: `dr` | Cluster: `Local Inference Micro-Architectures: Signaling, Quantization Superblocks, and Kernel Pipeline Scheduling (2 of 3)`
+- [ ] Concept: `PCIe Protocol Tunneling and Thunderbolt Retimer Jitter` | Parent: `Local Inference Micro-Architectures: Signaling, Quantization Superblocks, and Kernel Pipeline Scheduling` | Mode: `dr` | Cluster: `Local Inference Micro-Architectures: Signaling, Quantization Superblocks, and Kernel Pipeline Scheduling (3 of 3)`
+- [ ] Concept: `Shared Buffer Storage Modes and Zero-Copy Passing` | Parent: `Local Inference Micro-Architectures: Signaling, Quantization Superblocks, and Kernel Pipeline Scheduling` | Mode: `dr` | Cluster: `Local Inference Micro-Architectures: Signaling, Quantization Superblocks, and Kernel Pipeline Scheduling (3 of 3)`
+- [ ] Concept: `SIMD Aligned Memory Vectorization and Super-block K-Quants` | Parent: `Local Inference Micro-Architectures: Signaling, Quantization Superblocks, and Kernel Pipeline Scheduling` | Mode: `dr` | Cluster: `Local Inference Micro-Architectures: Signaling, Quantization Superblocks, and Kernel Pipeline Scheduling (3 of 3)`
+- [ ] Concept: `SIMD Cacheline Boundaries` | Parent: `Local Inference Micro-Architectures: Signaling, Quantization Superblocks, and Kernel Pipeline Scheduling` | Mode: `dr` | Cluster: `Local Inference Micro-Architectures: Signaling, Quantization Superblocks, and Kernel Pipeline Scheduling (3 of 3)`
+- [ ] Concept: `Speculative Acceptance Thresholds` | Parent: `Local Inference Micro-Architectures: Signaling, Quantization Superblocks, and Kernel Pipeline Scheduling` | Mode: `dr` | Cluster: `Local Inference Micro-Architectures: Signaling, Quantization Superblocks, and Kernel Pipeline Scheduling (3 of 3)`
+- [ ] Concept: `Sub-microsecond Kernel Dispatch` | Parent: `Local Inference Micro-Architectures: Signaling, Quantization Superblocks, and Kernel Pipeline Scheduling` | Mode: `dr` | Cluster: `Local Inference Micro-Architectures: Signaling, Quantization Superblocks, and Kernel Pipeline Scheduling (3 of 3)`
+- [ ] Concept: `TLP Encapsulation Overhead` | Parent: `Local Inference Micro-Architectures: Signaling, Quantization Superblocks, and Kernel Pipeline Scheduling` | Mode: `dr` | Cluster: `Local Inference Micro-Architectures: Signaling, Quantization Superblocks, and Kernel Pipeline Scheduling (3 of 3)`
+- [ ] Concept: `Unified Coherency Protocol` | Parent: `Local Inference Micro-Architectures: Signaling, Quantization Superblocks, and Kernel Pipeline Scheduling` | Mode: `dr` | Cluster: `Local Inference Micro-Architectures: Signaling, Quantization Superblocks, and Kernel Pipeline Scheduling (3 of 3)`
