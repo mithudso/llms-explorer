@@ -473,6 +473,8 @@ class JobState:
     cancel: threading.Event = field(default_factory=threading.Event)
     done: bool = False
     state: str = "running"
+    #: queue rows this job researches; ticked done when it succeeds
+    queue_concepts: list[str] = field(default_factory=list)
 
 
 class JobLog(Screen):
@@ -1028,6 +1030,7 @@ class HotkeyHelp(_Modal):
 | **`🚀 Auto` / `a`** | Autopilot | Continuously research frontiers with /dr; expand most-used concept family when frontier empty |
 | **`R`** | Research Dialog | Mode picker modal; **Enter submits immediately without closing dropdown** |
 | **`u`** | Queue Viewer | Active research queue viewer & real-time live job monitor |
+| **`P`** | Prefill Queue | Queue every frontier concept in clusters of related concepts (shared parent, at most 8; MongoDB first). In the queue viewer `c` runs the next cluster as one /dr job and `r` runs the selected row's cluster; Auto works the clusters in order |
 | **`o`** | Job Log | View streamed JSON output of current or latest Claude job |
 
 ### Navigation & Outline
@@ -1228,6 +1231,8 @@ class QueueViewer(Screen):
         Binding("escape", "app.pop_screen", "Back"),
         Binding("q", "app.pop_screen", "Back", show=False),
         Binding("r", "run_selected", "Run selected"),
+        Binding("c", "run_next_cluster", "Run next cluster"),
+        Binding("P", "prefill", "Prefill clusters"),
         Binding("a", "add_item", "Add concept"),
         Binding("x", "cancel_job", "Cancel job"),
         Binding("o", "open_job_log", "Job log"),
@@ -1246,11 +1251,15 @@ class QueueViewer(Screen):
 
     def __init__(self, repo: Path, get_job: Callable[[], JobState | None],
                  on_run: Callable[[str, str, str | None], None],
-                 on_job_screen: Callable[[JobState], None]) -> None:
+                 on_job_screen: Callable[[JobState], None],
+                 on_run_cluster: Callable[[dict], None] | None = None,
+                 on_prefill: Callable[[], str] | None = None) -> None:
         super().__init__()
         self.repo = repo
         self._get_job = get_job
         self._on_run = on_run
+        self._on_run_cluster = on_run_cluster
+        self._on_prefill = on_prefill
         self._on_job_screen = on_job_screen
         self._items: list[dict] = []
         self._selected_item: dict | None = None
@@ -1288,16 +1297,19 @@ class QueueViewer(Screen):
         self._items = store.load_queue(self.repo)
         table = self.query_one("#qv-table", DataTable)
         table.clear(columns=True)
-        table.add_columns("Status", "Concept", "Parent", "Mode")
+        table.add_columns("Status", "Concept", "Parent", "Mode", "Cluster")
         for item in self._items:
             status = "✓ Done" if item.get("done") else "⏳ Pending"
             concept = item.get("concept", "")
             parent = item.get("parent") or "—"
             mode = item.get("mode") or "dr"
-            table.add_row(status, concept, parent, mode, key=concept)
+            table.add_row(status, concept, parent, mode, item.get("cluster") or "—", key=concept)
         pending = sum(1 for i in self._items if not i.get("done"))
         done = sum(1 for i in self._items if i.get("done"))
-        self._status(f"{len(self._items)} queued item(s) ({pending} pending, {done} done)")
+        clusters = len(store.pending_clusters(self.repo))
+        self._status(f"{len(self._items)} queued item(s) ({pending} pending in {clusters} "
+                     f"cluster(s), {done} done) · r runs the selected row's cluster, "
+                     "c the next cluster, P prefills every frontier concept")
 
     def _refresh_live(self) -> None:
         job = self._get_job()
@@ -1344,7 +1356,24 @@ class QueueViewer(Screen):
         concept = self._selected_item["concept"]
         mode = self._selected_item.get("mode") or "dr"
         parent = self._selected_item.get("parent")
+        if self._on_run_cluster and not self._selected_item.get("done"):
+            for c in store.pending_clusters(self.repo, store.cluster_first_term()):
+                if concept in c["concepts"] and len(c["concepts"]) > 1:
+                    self._on_run_cluster(c)
+                    return
         self._on_run(concept, mode, parent)
+
+    def action_run_next_cluster(self) -> None:
+        clusters = store.pending_clusters(self.repo, store.cluster_first_term())
+        if not clusters:
+            self._status("nothing pending in the queue")
+        elif self._on_run_cluster:
+            self._on_run_cluster(clusters[0])
+
+    def action_prefill(self) -> None:
+        if self._on_prefill:
+            self._status(self._on_prefill())
+            self._refresh_queue()
 
     def action_add_item(self) -> None:
         def done(name: str | None) -> None:

@@ -121,7 +121,8 @@ def test_queue_row_is_the_exact_regex_format_and_never_rewrites(tmp_path, home):
     assert text.startswith("# Queue\n\n- [ ] Concept: `Already Queued` | Parent: `Root Domain`\n")
     assert text.endswith("- [ ] Concept: `Ghost Concept` | Parent: `Root Domain` | Mode: `deep`\n")
     rows = es.load_queue(repo)
-    assert rows[-1] == {"concept": "Ghost Concept", "parent": "Root Domain", "mode": "deep", "done": False}
+    assert rows[-1] == {"concept": "Ghost Concept", "parent": "Root Domain", "mode": "deep",
+                         "cluster": None, "done": False}
     assert es.queue_concept(repo, "Plain") is True
     assert (repo / es.QUEUE_REL).read_text().endswith("- [ ] Concept: `Plain`\n")
     with pytest.raises(ValueError):
@@ -810,3 +811,61 @@ def test_facts_meta_line_heads_the_facts_tab():
     md = es.facts_markdown({"facets": []}, "Kid", line)
     assert md.startswith("# Kid\n\n> `kid` · in **Root**")
     assert "> " not in es.facts_markdown({"facets": []}, "Kid")
+
+
+def _outline_with_frontier(parent_kids: dict[str, list[str]]):
+    nodes = [{"concept": p, "slug": es.slugify(p), "childConcepts": kids,
+              "researchedAt": "2026-01-01"} for p, kids in parent_kids.items()]
+    return es.build_outline(nodes)
+
+
+def test_cluster_frontier_groups_by_parent_splits_and_puts_first_term_first():
+    o = _outline_with_frontier({
+        "Cooking": ["Knife Skills", "Braising"],
+        "MongoDB Sharding": [f"Shard Key {i}" for i in range(10)] + ["Balancer Windows"],
+    })
+    clusters = es.cluster_frontier(o, max_size=4, first="mongodb")
+    assert [c["parent"] for c in clusters][:3] == ["MongoDB Sharding"] * 3
+    assert clusters[-1] == {"name": "Cooking", "parent": "Cooking",
+                            "concepts": ["Knife Skills", "Braising"]}
+    shard = [c for c in clusters if c["parent"] == "MongoDB Sharding"]
+    assert [len(c["concepts"]) for c in shard] == [4, 4, 3]
+    assert shard[0]["name"] == "MongoDB Sharding (1 of 3)"
+    assert sorted(n for c in shard for n in c["concepts"]) == sorted(
+        [f"Shard Key {i}" for i in range(10)] + ["Balancer Windows"])
+    assert [c["parent"] for c in es.cluster_frontier(o, max_size=4)][0] == "Cooking"
+
+
+def test_prefill_pending_clusters_and_tick(tmp_path):
+    repo = tmp_path
+    o = _outline_with_frontier({"MongoDB Indexes": ["Partial Indexes", "TTL Indexes"],
+                                "Cooking": ["Braising"]})
+    es.queue_concept(repo, "Braising", "Cooking", "dr")
+    assert es.prefill_queue_clusters(repo, o, first="mongodb") == (2, 1)
+    assert es.prefill_queue_clusters(repo, o, first="mongodb") == (0, 0), "idempotent"
+    text = (repo / es.QUEUE_REL).read_text()
+    assert "- [ ] Concept: `Partial Indexes` | Parent: `MongoDB Indexes` | Mode: `dr` | Cluster: `MongoDB Indexes`" in text
+    clusters = es.pending_clusters(repo)
+    assert [(c["name"], c["concepts"]) for c in clusters] == [
+        ("Cooking", ["Braising"]), ("MongoDB Indexes", ["Partial Indexes", "TTL Indexes"])]
+    assert es.pending_clusters(repo, "mongodb")[0]["name"] == "MongoDB Indexes"
+    assert es.mark_queue_done(repo, ["Partial Indexes", "TTL Indexes"]) == 2
+    assert [c["name"] for c in es.pending_clusters(repo)] == ["Cooking"]
+    assert es.mark_queue_done(repo, ["Partial Indexes"]) == 0
+
+
+def test_cluster_argv_uses_haiku_at_medium_effort_by_default(monkeypatch, tmp_path):
+    monkeypatch.setenv("LLMSX_HOME", str(tmp_path))
+    for var in ("LLMSX_CLAUDE_MODEL", "LLMSX_MODEL", "LLMSX_CLAUDE_EFFORT"):
+        monkeypatch.delenv(var, raising=False)
+    monkeypatch.setattr(es.shutil, "which", lambda n: f"/usr/bin/{n}")
+    argv = es.cluster_research_argv("MongoDB Indexes", ["Partial Indexes", "TTL Indexes"],
+                                    "MongoDB Indexes", provider="claude")
+    assert argv[argv.index("--model") + 1] == "claude-haiku-5-5"
+    assert argv[argv.index("--effort") + 1] == "medium"
+    prompt = argv[2]
+    assert "ONE run" in prompt and "`Partial Indexes`, `TTL Indexes`" in prompt
+    monkeypatch.setenv("LLMSX_CLAUDE_EFFORT", "bogus")
+    assert "--effort" not in es.research_argv("X", "dr", None, provider="claude")
+    with pytest.raises(ValueError):
+        es.cluster_research_prompt("C", ["ok", "bad`name"])
