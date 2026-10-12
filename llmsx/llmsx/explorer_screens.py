@@ -1034,6 +1034,7 @@ class HotkeyHelp(_Modal):
 | Shortcut | Action | Description |
 | :--- | :--- | :--- |
 | **`/`** | Focus Filter | Type to filter concepts and aliases in the outline |
+| **`⌘F`** / **`ctrl+f`** | Search | Type, then Enter jumps the cursor to the first match; ⌘F, Enter again for the next |
 | **`Right / Left`** | Expand / Collapse | Expand or collapse tree node at cursor |
 | **`[` / `]`** | Prev / Next Tab | Switch between detail tabs (Overview, Facts, Skill, Highlights, etc.) |
 | **`r`** | Reload | Refresh concept tree and local state from disk |
