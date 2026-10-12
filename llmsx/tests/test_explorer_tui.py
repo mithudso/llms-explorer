@@ -361,6 +361,7 @@ def test_filter_debounce_collapses_keystrokes_and_render_survives_io_errors(tmp_
     async def check(app, pilot):
         from textual.widgets import Input
         from llmsx.explorer import OutlineTree
+        await _settle(app, pilot)   # let the startup highlight finish rendering first
         renders = []
         original = app._render_outline
         monkeypatch.setattr(app, "_render_outline", lambda: renders.append(1) or original())
