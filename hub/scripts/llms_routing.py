@@ -57,7 +57,9 @@ KNOWN_BINARIES = ("uv", "python", "python3", "npm", "npx", "node", "git", "gh", 
 _DIRECTIVE = re.compile(
     r"^\s*(?:[-*>]\s*)?(?:ignore|always|never|you must|do not|don't|disregard|override)\b", re.I)
 _LINK = re.compile(r"^\s*-\s*\[(?P<title>[^\]]*)\]\((?P<target>[^)]+)\)")
-_CITATION = re.compile(r"—\s*\S+:\d+")
+#: An existing citation: `— path:line`, `— scheme://url`, or `— file#anchor`.
+#: A line that carries one is not cited a second time.
+_CITATION = re.compile(r"—\s*(?:\S+:\d+|[a-z][\w+.-]*://\S+|\S+#[\w.-]+)")
 #: Answer classes in the order quick answers are listed; each capped so one
 #: class cannot crowd out the others.
 _CLASSES = {
@@ -74,7 +76,8 @@ PER_CLASS = 8
 #: The rest of the contested category: not answers, so never copied even when
 #: the line also reads as a default or a command. The optional prefixes are
 #: the docset facts grammar (`[type] `) and the become-expert one (`<slug> :: `).
-_CONTESTED = re.compile(r"^(?:\[[\w-]+\]\s+)?(?:[\w./-]+ :: )?(?:Controversy|Open question):\s", re.I)
+_CONTESTED = re.compile(
+    r"^(?:\[[\w-]+\]\s+)?(?:[\w./-]+ :: )?(?:Controversy|Open question):\s", re.I)
 #: Lines that are source code, not facts: a fact file that folds skills in
 #: carries snippets, and `x = y` in JavaScript is not a formula.
 _CODE_SHAPE = re.compile(
@@ -139,9 +142,7 @@ def _is_fact_line(line: str) -> bool:
     of bold markup, or a line in a non-Latin script."""
     if not line or line.startswith(("#", "<!--", "```", "|", "//")):
         return False
-    if _CODE_SHAPE.search(line) or _NON_LATIN.search(line) or line.count("**") % 2:
-        return False
-    return True
+    return not (_CODE_SHAPE.search(line) or _NON_LATIN.search(line) or line.count("**") % 2)
 
 
 def answers(directory: Path) -> tuple[str, int]:
