@@ -799,3 +799,14 @@ def test_summarize_and_normalize_agy_and_codex_events():
     assert es.summarize_event(msg) == "assistant: done"
     gem = {"type": "result", "status": "error", "error": {"message": "quota"}}
     assert es._normalize_result(gem)["result"] == "quota"
+
+
+def test_facts_meta_line_heads_the_facts_tab():
+    node = {"slug": "kid", "parentConcept": "Root", "researchedAt": "2026-01-02",
+            "sourcesCount": 3, "skillId": "kidskill"}
+    line = es.facts_meta_line(node, {"kid": {"state": "needs-review"}}, ["db"])
+    assert line == "`kid` · in **Root** · researched 2026-01-02 · 3 sources · skill `kidskill` · **[needs-review]** · #db"
+    assert es.facts_meta_line(None, {}, []) == ""
+    md = es.facts_markdown({"facets": []}, "Kid", line)
+    assert md.startswith("# Kid\n\n> `kid` · in **Root**")
+    assert "> " not in es.facts_markdown({"facets": []}, "Kid")
