@@ -1840,13 +1840,39 @@ def md_escape(text: object) -> str:
 _md_escape = md_escape
 
 
-def facts_markdown(pack: dict | None, concept: str) -> str:
+def facts_meta_line(node: dict | None, marks: dict[str, dict], tags: list[str]) -> str:
+    """One compact line of the node's metadata for the top of the Facts tab:
+    slug, parent, research date, counts, skill, mark and tags. Escaped."""
+    if not node:
+        return ""
+    e = _md_escape
+    bits = [f"`{e(node['slug'])}`"]
+    if node.get("parentConcept"):
+        bits.append(f"in **{e(node['parentConcept'])}**")
+    if node.get("researchedAt"):
+        bits.append(f"researched {e(node.get('refreshedAt') or node['researchedAt'])}")
+    if node.get("sourcesCount") is not None:
+        bits.append(f"{e(node['sourcesCount'])} sources")
+    if node.get("skillId"):
+        bits.append(f"skill `{e(node['skillId'])}`")
+    mark = marks.get(node["slug"])
+    if isinstance(mark, dict) and mark.get("state"):
+        bits.append(f"**[{e(mark['state'])}]**")
+    if tags:
+        bits.append(" ".join(f"#{e(t)}" for t in tags))
+    return " · ".join(bits)
+
+
+def facts_markdown(pack: dict | None, concept: str, meta: str = "") -> str:
     """The Facts tab: the pack's facets as headings and its facts as a list,
     each fact followed by its source link. Every string is escaped; a pack
-    with no renderable facet says so instead of rendering nothing."""
+    with no renderable facet says so instead of rendering nothing. `meta`
+    (from `facts_meta_line`) goes under the title as a one-line header."""
     if not pack:
         return f"# {_md_escape(concept)}\n\n_not available: no concept pack for this node_\n"
     out = [f"# {_md_escape(pack.get('concept') or concept)}", ""]
+    if meta:
+        out += [f"> {meta}", ""]
     if pack.get("summary"):
         out += [_md_escape(pack["summary"]), ""]
     rendered = 0

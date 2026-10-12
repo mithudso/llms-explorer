@@ -99,10 +99,11 @@ def test_selecting_a_node_renders_in_place_and_keeps_injection_literal(tmp_path,
         assert len(app.screen_stack) == 1, "selection never pushes a screen"
         assert "Kid Concept" in _md(app, "md-overview") and INJECTION in _md(app, "md-overview")
         tabs = app.query_one("#tabs", TabbedContent)
-        assert _md(app, "md-facts") == "", "a non-active tab renders lazily"
-        tabs.active = "pane-facts"
-        await _settle(app, pilot)
+        assert tabs.active == "pane-facts", "a concept with a pack opens on its facts"
         assert "Definitions" in _md(app, "md-facts") and INJECTION in _md(app, "md-facts")
+        assert "> `kid-concept` · in **Root Domain**" in app._pane_source["pane-facts"], \
+            "the facts open under a one-line metadata header"
+        assert _md(app, "md-skill") == "", "a non-active tab renders lazily"
         tabs.active = "pane-skill"
         await _settle(app, pilot)
         assert "Kid skill" in _md(app, "md-skill") and INJECTION in _md(app, "md-skill")
@@ -195,6 +196,8 @@ def test_bundle_toggle_and_export(tmp_path, home, monkeypatch):
         from textual.widgets import TabbedContent
         from llmsx.explorer import Bundle
         app._select("Kid Concept")
+        await _settle(app, pilot)
+        app.query_one("#tabs", TabbedContent).active = "pane-overview"
         await _settle(app, pilot)
         app.action_bundle_toggle()
         await _settle(app, pilot)
@@ -539,6 +542,8 @@ def test_edit_file_uses_editor_or_explains(tmp_path, home, monkeypatch):
     async def check(app, pilot):
         from textual.widgets import TabbedContent
         app._select("Kid Concept")
+        await _settle(app, pilot)
+        app.query_one("#tabs", TabbedContent).active = "pane-overview"
         await _settle(app, pilot)
         app.action_edit_file()
         await _settle(app, pilot)

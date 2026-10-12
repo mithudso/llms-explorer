@@ -1090,7 +1090,7 @@ class Explorer(App):
             self._pane_source["pane-facts"] = f"_{_NOT_AVAILABLE['frontier']}_"
             self._pane_source["pane-skill"] = f"_{_NOT_AVAILABLE['frontier']}_"
         else:
-            self._try_set("pane-facts", lambda: self._set_facts(name, slug), name)
+            self._try_set("pane-facts", lambda: self._set_facts(name, node, slug), name)
             self._try_set("pane-skill", lambda: self._set_skill(node), name)
             if self._panels.get("tab-llms", True):
                 self._try_set(None, lambda: self._set_llms(slug), name)
@@ -1102,10 +1102,22 @@ class Explorer(App):
             else:
                 self._hidden_panes.add(pid)
                 tabs.hide_tab(pid)
+        # a concept opens on its facts when it has a pack; the Facts header
+        # carries the metadata. Another tab the user picked (Skill, a
+        # reference) stays put.
+        if self._active_pane in ("pane-overview", "pane-facts"):
+            has_facts = "pane-facts" in self._pane_files and "pane-facts" not in self._hidden_panes
+            target = "pane-facts" if has_facts else "pane-overview"
+            if target != self._active_pane:
+                self._active_pane = target
+                tabs.active = target
         if self._active_pane in self._hidden_panes:
             self._step_tab(1)
+        # Overview and Facts are the two landing tabs: both always render, so
+        # neither keeps the previous concept's text behind the other
         self._fill("pane-overview")
-        self._fill(tabs.active)
+        self._fill("pane-facts")
+        self._fill(self._active_pane)
 
     def _try_set(self, pid: str | None, fn: Callable[[], None], name: str) -> None:
         try:
@@ -1147,11 +1159,13 @@ class Explorer(App):
             md += "\n" + "\n".join(extra) + "\n"
         self._pane_source["pane-overview"] = md
 
-    def _set_facts(self, name: str, slug: str) -> None:
+    def _set_facts(self, name: str, node: dict, slug: str) -> None:
         pack_file = store.pack_path(self.repo, slug)
         if pack_file:
+            tags = store.tags_of(self._marks, store.tag_key(name, self._outline))
+            meta = store.facts_meta_line(node, self._marks, tags)
             self._pane_source["pane-facts"] = store.facts_markdown(
-                store.load_pack(self.repo, slug), name)
+                store.load_pack(self.repo, slug), name, meta)
             self._pane_files["pane-facts"] = (pack_file, "pack")
         else:
             self._pane_source["pane-facts"] = f"_{_NOT_AVAILABLE['no-pack']}_"
