@@ -3,9 +3,9 @@
 
 Judges an llms.txt / family index / llms-full.txt / llms-small.txt / llms-facts.txt /
 llms-vocabulary.txt against the attribute rubric in
-~/.claude/skills/llms-deep-optimizer/references/attributes.md (llms-vocabulary.txt
-reuses the C6/D4/R3 codes by analogy — the rubric has no vocabulary-scoped rows
-yet) and emits findings `{pass, attr, severity, line, msg, fixable}`. Severities
+~/.claude/skills/llms-txt-tooling/references/llms-deep-optimizer/references/attributes.md
+(llms-vocabulary.txt reuses the C6/D4/R3 codes by analogy — the rubric has no
+vocabulary-scoped rows yet) and emits findings `{pass, attr, severity, line, msg, fixable}`. Severities
 follow the family ladder (high / medium / low / hygiene), plus `na` for a check
 that could not run (e.g. anchor resolution with no `--mirror`). `--fix` applies
 only the fixes `apply_fixes()` actually performs (byte hygiene, `## Optional`
