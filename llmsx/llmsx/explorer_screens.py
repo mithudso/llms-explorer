@@ -45,6 +45,7 @@ from textual.widgets import (
     Header,
     Input,
     Label,
+    Log,
     Markdown,
     OptionList,
     RichLog,
@@ -477,10 +478,13 @@ class JobState:
 class JobLog(Screen):
     """The running (or last) job, one line per event as it happens. Escape
     hides the screen and the job keeps running (`o` brings it back); `x`
-    cancels the job, which restores the tree snapshot."""
+    cancels the job, which restores the tree snapshot. The log is a `Log`
+    widget, so mouse-drag selects text and ctrl+c copies it; `y` copies the
+    whole log."""
     BINDINGS = [Binding("escape", "app.pop_screen", "Hide (job keeps running)"),
                 Binding("q", "app.pop_screen", "Hide", show=False),
-                Binding("x", "cancel_job", "Cancel job")]
+                Binding("x", "cancel_job", "Cancel job"),
+                Binding("y", "copy_log", "Copy log")]
     DEFAULT_CSS = """
     JobLog #job-head { height: auto; padding: 0 1; color: $text-muted; }
     JobLog #job-log { height: 1fr; padding: 0 1; }
@@ -493,18 +497,22 @@ class JobLog(Screen):
     def compose(self) -> ComposeResult:
         yield Header()
         yield Static("", id="job-head")
-        yield RichLog(id="job-log", wrap=True, markup=False, highlight=False, auto_scroll=True)
+        # RichLog renders strips and has no text selection; Log does.
+        yield Log(id="job-log", highlight=False, auto_scroll=True)
         yield Footer()
 
     def on_mount(self) -> None:
         self.title = "llmsx explorer — job"
-        log = self.query_one("#job-log", RichLog)
-        for line in self.job.lines:
-            log.write(line)
+        self.query_one("#job-log", Log).write_lines(self.job.lines)
         self.refresh_head()
 
     def append(self, line: str) -> None:
-        self.query_one("#job-log", RichLog).write(line)
+        self.query_one("#job-log", Log).write_line(line)
+
+    def action_copy_log(self) -> None:
+        text = "\n".join(self.job.lines)
+        self.app.copy_to_clipboard(text)
+        self.notify(f"copied {len(self.job.lines)} log line(s) · raw log: {self.job.log}")
 
     def refresh_head(self) -> None:
         j = self.job

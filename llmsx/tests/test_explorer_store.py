@@ -546,8 +546,9 @@ def test_provider_api_keys_persistence_and_env_precedence(home, monkeypatch):
 
 
 def test_provider_models_and_overrides(home, monkeypatch):
-    assert es.provider_model("google") == "gemini-2.5-pro"
-    assert es.provider_model("codex") == "o3-mini"
+    # "" = each CLI keeps its own default model
+    assert es.provider_model("google") == ""
+    assert es.provider_model("codex") == ""
     assert es.provider_model("ollama") == "qwen3.5:27b"
 
     es.set_provider_model("google", "gemini-2.5-flash")
@@ -605,6 +606,8 @@ def test_test_provider_key(home, monkeypatch):
     assert "CLI not found on PATH" in res
 
     monkeypatch.setattr(es.shutil, "which", lambda c: f"/usr/bin/{c}")
+    assert "ready: agy found on PATH" in es.test_provider_key("google")
+    monkeypatch.setattr(es.shutil, "which", lambda c: None if c == "agy" else f"/usr/bin/{c}")
     assert "no API key configured" in es.test_provider_key("google")
 
     class FakeResp:
@@ -731,3 +734,68 @@ def test_sanitize_api_key_handles_duplicate_paste_and_fragments():
 
     # Quotes and whitespace
     assert es.sanitize_api_key("google", "  'AIzaSy" + ("Z" * 33) + "'  ") == "AIzaSy" + ("Z" * 33)
+
+
+def test_google_prefers_agy_and_models_are_explicit_only(home, monkeypatch):
+    monkeypatch.setattr(es.shutil, "which", lambda c: f"/usr/local/bin/{c}")
+    argv = es.research_argv("Concept A", "dr", provider="google")
+    assert argv[0] == "/usr/local/bin/agy"
+    assert "--model" not in argv and "--dangerously-skip-permissions" in argv
+    c_argv = es.research_argv("Concept A", "dr", provider="codex")
+    assert not any(a.startswith("model=") for a in c_argv)
+    es.set_provider_model("codex", "gpt-5.5")
+    assert 'model="gpt-5.5"' in es.research_argv("Concept A", "dr", provider="codex")
+    monkeypatch.setattr(es.shutil, "which", lambda c: None if c == "agy" else f"/usr/local/bin/{c}")
+    assert "--skip-trust" in es.research_argv("Concept A", "dr", provider="google")
+
+
+def test_stored_key_does_not_override_cli_login(home, monkeypatch):
+    es.set_provider_api_key("claude", "sk-ant-" + "a" * 60)
+    es.set_provider_api_key("codex", "sk-proj-" + "b" * 120)
+    for var in ("ANTHROPIC_API_KEY", "OPENAI_API_KEY", "CODEX_API_KEY", "LLMSX_PREFER_API_KEY"):
+        monkeypatch.delenv(var, raising=False)
+    monkeypatch.setattr(es, "cli_has_own_login", lambda prov, binary=None: True)
+    assert "ANTHROPIC_API_KEY" not in es.agent_environment("claude", "/x/claude")
+    assert "OPENAI_API_KEY" not in es.agent_environment("codex", "/x/codex")
+    monkeypatch.setenv("LLMSX_PREFER_API_KEY", "1")
+    assert es.agent_environment("claude", "/x/claude")["ANTHROPIC_API_KEY"].startswith("sk-ant-")
+    monkeypatch.delenv("LLMSX_PREFER_API_KEY")
+    monkeypatch.setattr(es, "cli_has_own_login", lambda prov, binary=None: False)
+    assert es.agent_environment("codex", "/x/codex")["OPENAI_API_KEY"].startswith("sk-proj-")
+
+
+def test_agy_does_not_get_gemini_key(home, monkeypatch):
+    es.set_provider_api_key("google", "AIzaSy" + "Z" * 33)
+    monkeypatch.delenv("GEMINI_API_KEY", raising=False)
+    assert "GEMINI_API_KEY" not in es.agent_environment("google", "/x/agy")
+    env = es.agent_environment("google", "/x/gemini")
+    assert env["GEMINI_DEFAULT_AUTH_TYPE"] == "gemini-api-key"
+
+
+def test_cli_has_own_login_parses_status(monkeypatch):
+    class R:
+        def __init__(self, out, rc=0):
+            self.stdout, self.stderr, self.returncode = out, "", rc
+    monkeypatch.setattr(es.subprocess, "run",
+                        lambda argv, **kw: R('{"loggedIn": true, "authMethod": "claude.ai"}'))
+    assert es.cli_has_own_login("claude", "/x/claude")
+    monkeypatch.setattr(es.subprocess, "run", lambda argv, **kw: R("Not logged in", 1))
+    assert not es.cli_has_own_login("codex", "/x/codex")
+    monkeypatch.setattr(es.subprocess, "run", lambda argv, **kw: R("Logged in using ChatGPT"))
+    assert es.cli_has_own_login("codex", "/x/codex")
+
+
+def test_summarize_and_normalize_agy_and_codex_events():
+    ok = '{"event":"result","result":{"status":"SUCCESS","response":"pong"}}'
+    bad = '{"event":"result","result":{"status":"ERROR","error":"invalid model selection"}}'
+    assert es.summarize_event(ok) == "result: SUCCESS · invalid model selection".replace(
+        "invalid model selection", "pong")
+    assert es._normalize_result(__import__("json").loads(bad)) == {
+        "type": "result", "is_error": True, "result": "invalid model selection"}
+    failed = '{"type":"turn.failed","error":{"message":"401 Unauthorized"}}'
+    assert es.summarize_event(failed) == "✗ 401 Unauthorized"
+    assert es._normalize_result(__import__("json").loads(failed))["is_error"] is True
+    msg = '{"type":"item.completed","item":{"type":"agent_message","text":"done"}}'
+    assert es.summarize_event(msg) == "assistant: done"
+    gem = {"type": "result", "status": "error", "error": {"message": "quota"}}
+    assert es._normalize_result(gem)["result"] == "quota"

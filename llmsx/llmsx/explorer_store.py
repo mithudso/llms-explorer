@@ -873,8 +873,10 @@ PROVIDER_LABELS: dict[str, str] = {
 
 PROVIDER_DEFAULT_MODELS: dict[str, str] = {
     "claude": "claude-sonnet-5",
-    "google": "gemini-2.5-pro",
-    "codex": "o3-mini",
+    # "" = let the CLI pick: agy rejects gemini-2.x ids, and a ChatGPT-login
+    # codex rejects API-only models such as o3-mini.
+    "google": "",
+    "codex": "",
     "copilot": "copilot",
     "ollama": "qwen3.5:27b",
     "egpu": EGPU_MODEL,
@@ -1010,7 +1012,9 @@ def provider_binary(provider: str | None = None) -> str | None:
     if p == "claude":
         return claude_binary()
     if p == "google":
-        return shutil.which("gemini") or shutil.which("agy")
+        # agy first: gemini-cli's personal OAuth tier is retired
+        # (IneligibleTierError) and its stored auth type ignores GEMINI_API_KEY.
+        return shutil.which("agy") or shutil.which("gemini")
     if p == "codex":
         return shutil.which("codex")
     if p == "copilot":
@@ -1018,6 +1022,100 @@ def provider_binary(provider: str | None = None) -> str | None:
     if p == "ollama":
         return shutil.which("ollama")
     return None
+
+
+def explicit_provider_model(provider: str) -> str:
+    """The model the user chose ($LLMSX_<P>_MODEL, $LLMSX_MODEL or config),
+    or "" — never the built-in default, so each CLI keeps its own default."""
+    p = (provider or "").strip().lower()
+    env = os.environ.get(f"LLMSX_{p.upper()}_MODEL") or os.environ.get("LLMSX_MODEL")
+    if env and env.strip():
+        return env.strip()
+    models = load_config().get("models")
+    if isinstance(models, dict) and isinstance(models.get(p), str):
+        return models[p].strip()
+    return ""
+
+
+def agent_argv(prov: str, binary: str, prompt: str) -> list[str] | None:
+    """One headless agent command for every job kind (research, skill, braindump)."""
+    model = explicit_provider_model(prov)
+    if prov == "claude":
+        return [binary, "-p", prompt, "--permission-mode", "acceptEdits"]
+    if prov == "google":
+        if "agy" in Path(binary).name.lower():
+            argv = [binary, "-p", prompt, "--dangerously-skip-permissions",
+                    "--output-format", "stream-json"]
+            return argv + (["--model", model] if model else [])
+        argv = [binary, "-p", prompt, "--approval-mode", "yolo", "--skip-trust",
+                "-o", "stream-json"]
+        return argv + (["-m", model] if model else [])
+    if prov == "codex":
+        argv = [binary, "exec", "--dangerously-bypass-approvals-and-sandbox", "--json", prompt]
+        return argv + (["-c", f'model="{model}"'] if model else [])
+    if prov == "copilot":
+        return [binary, "copilot", "--", "-p", prompt]
+    if prov == "ollama":
+        if not claude_binary():
+            return None
+        return [sys.executable, "-m", "llmsx.ollama_agent", "-p", prompt,
+                "--permission-mode", "acceptEdits", *JOB_STREAM_FLAGS]
+    return [binary, "-p", prompt]
+
+
+def cli_has_own_login(prov: str, binary: str | None = None, timeout: float = 15.0) -> bool:
+    """True when the provider CLI is already signed in by itself (claude.ai or
+    ChatGPT OAuth). An exported API key overrides that login in both CLIs, so a
+    stale stored key would turn a working setup into 401s."""
+    binary = binary or provider_binary(prov)
+    if not binary or prov not in ("claude", "codex"):
+        return False
+    env = {k: v for k, v in os.environ.items() if k not in _OVERRIDE_KEY_VARS}
+    try:
+        if prov == "claude":
+            res = subprocess.run([binary, "auth", "status"], capture_output=True, text=True,
+                                 timeout=timeout, env=env, stdin=subprocess.DEVNULL)
+            data = json.loads(res.stdout or "{}")
+            return bool(isinstance(data, dict) and data.get("loggedIn"))
+        res = subprocess.run([binary, "login", "status"], capture_output=True, text=True,
+                             timeout=timeout, env=env, stdin=subprocess.DEVNULL)
+        return res.returncode == 0 and "logged in" in (res.stdout + res.stderr).lower()
+    except (OSError, ValueError, subprocess.TimeoutExpired):
+        return False
+
+
+_OVERRIDE_KEY_VARS = ("ANTHROPIC_API_KEY", "OPENAI_API_KEY", "CODEX_API_KEY")
+
+
+def agent_environment(prov: str, binary: str | None = None) -> dict[str, str]:
+    """Environment for one agent job: the stored key is exported only when the
+    CLI has no login of its own ($LLMSX_PREFER_API_KEY=1 forces the key)."""
+    env = egpu_environment() if prov == "egpu" else dict(os.environ)
+    key = provider_api_key(prov)
+    if not key:
+        return env
+    clean_key = sanitize_api_key(prov, key)
+    if prov in ("claude", "codex") and os.environ.get("LLMSX_PREFER_API_KEY") != "1" \
+            and cli_has_own_login(prov, binary):
+        return env
+    if prov == "google":
+        if binary and "agy" in Path(binary).name.lower():
+            return env          # agy signs in with Google; it has no API-key mode
+        env["GEMINI_API_KEY"] = clean_key
+        env["GOOGLE_API_KEY"] = clean_key
+        env["GEMINI_DEFAULT_AUTH_TYPE"] = "gemini-api-key"
+    elif prov == "codex":
+        env["OPENAI_API_KEY"] = clean_key
+        env["CODEX_API_KEY"] = clean_key
+    elif prov == "copilot":
+        env["GITHUB_TOKEN"] = clean_key
+        env["GH_TOKEN"] = clean_key
+        env["COPILOT_API_KEY"] = clean_key
+    elif prov == "ollama":
+        env["OLLAMA_API_KEY"] = clean_key
+    elif prov == "claude":
+        env["ANTHROPIC_API_KEY"] = clean_key
+    return env
 
 
 def has_provider_binary(provider: str | None = None) -> bool:
@@ -1229,6 +1327,13 @@ def test_provider_key(provider: str, key: str | None = None) -> str:
 
     if prov == "ollama" and not claude_binary():
         return "Ollama research also requires Claude Code (claude not found on PATH)"
+    if prov == "google" and bin_name and "agy" in bin_name.lower():
+        return f"ready: {bin_name} found on PATH · jobs use its Google sign-in (no API key needed)"
+    if prov in ("claude", "codex") and cli_has_own_login(prov, binary):
+        ok, msg = probe_provider_auth(prov, key)
+        has_key = bool((key or "").strip(" -") or provider_api_key(prov))
+        note = f" (API key not used: {msg})" if has_key and not ok else ""
+        return f"ready: {bin_name} is signed in by itself; jobs use that login{note}"
     ok, msg = probe_provider_auth(prov, key)
     if ok:
         return f"ready: {bin_name} found on PATH · {msg}"
@@ -1261,33 +1366,7 @@ def research_argv(concept: str, mode: str, parent: str | None = None,
             "validate with `python3 scripts/tree_guard.py concept-tree/tree.json`.",
             "save a pre-edit tree copy, then validate with "
             "`python3 scripts/tree_guard.py concept-tree/tree.json <pre-edit-copy>`.")
-    model = provider_model(prov)
-    if prov == "claude":
-        return [binary, "-p", prompt, "--permission-mode", "acceptEdits"]
-    if prov == "google":
-        bname = Path(binary).name.lower()
-        if "agy" in bname:
-            argv = [binary, "-p", prompt, "--dangerously-skip-permissions", "--output-format", "stream-json"]
-            if model:
-                argv.extend(["--model", model])
-            return argv
-        argv = [binary, "-p", prompt, "--approval-mode", "yolo", "-o", "stream-json"]
-        if model:
-            argv.extend(["-m", model])
-        return argv
-    if prov == "codex":
-        argv = [binary, "exec", "--dangerously-bypass-approvals-and-sandbox", "--json", prompt]
-        if model:
-            argv.extend(["-c", f'model="{model}"'])
-        return argv
-    if prov == "copilot":
-        return [binary, "copilot", "--", "-p", prompt]
-    if prov == "ollama":
-        if not claude_binary():
-            return None
-        return [sys.executable, "-m", "llmsx.ollama_agent", "-p", prompt,
-                "--permission-mode", "acceptEdits", *JOB_STREAM_FLAGS]
-    return [binary, "-p", prompt]
+    return agent_argv(prov, binary, prompt)
 
 
 def snapshot_tree(repo: Path) -> str:
@@ -1396,7 +1475,36 @@ def summarize_event(line: str) -> str | None:
         if parts:
             return _clip(" ".join(parts))
 
+    # agy (Antigravity CLI): {"event": "step_update" | "result", ...}
+    if isinstance(ev.get("event"), str):
+        if ev["event"] == "result" and isinstance(ev.get("result"), dict):
+            res = ev["result"]
+            status = str(res.get("status") or "?")
+            text = str(res.get("error") or res.get("response") or "").strip()
+            return _clip(f"result: {status}" + (f" · {text}" if text else ""))
+        step = ev.get("step_update") if isinstance(ev.get("step_update"), dict) else {}
+        if step.get("state") == "DONE" and step.get("step_type") not in (None, "unknown",
+                                                                         "agent_response"):
+            return _clip(f"→ {step['step_type']}")
+        return None
+
     kind = ev.get("type")
+    # codex exec --json
+    if kind == "item.completed" and isinstance(ev.get("item"), dict):
+        item = ev["item"]
+        if item.get("type") == "agent_message" and str(item.get("text", "")).strip():
+            return _clip("assistant: " + str(item["text"]))
+        if item.get("type") == "command_execution":
+            return _clip(f"→ shell {item.get('command', '')}")
+        if item.get("type") == "file_change":
+            return _clip("→ edit " + " ".join(str(c.get("path", "")) for c in item.get("changes") or []
+                                             if isinstance(c, dict)))
+        return None
+    if kind == "turn.failed":
+        err = ev.get("error") if isinstance(ev.get("error"), dict) else {}
+        return _clip(f"✗ {err.get('message') or 'turn failed'}")
+    if kind == "error" and isinstance(ev.get("message"), str):
+        return _clip(f"✗ {ev['message']}")
     if kind == "system":
         sub = ev.get("subtype")
         if sub == "init":
@@ -1461,6 +1569,30 @@ def summarize_event(line: str) -> str | None:
     return None
 
 
+#: A plain-text output line worth surfacing when a CLI exits non-zero.
+_ERRORISH = re.compile(r"\b(error|exception|failed|unauthori[sz]ed|forbidden|invalid)\b", re.I)
+
+
+def _normalize_result(ev: dict) -> dict | None:
+    """Claude-shaped {"type": "result", "is_error", "result"} for the final
+    event of any provider, or None when `ev` is not a final event."""
+    if ev.get("type") == "result":
+        if ev.get("is_error") is None and str(ev.get("status", "")).lower() in ("error", "failed"):
+            err = ev.get("error")
+            msg = err.get("message") if isinstance(err, dict) else err
+            return {**ev, "is_error": True, "result": msg or ev.get("result") or "error"}
+        return ev
+    if ev.get("event") == "result" and isinstance(ev.get("result"), dict):      # agy
+        res = ev["result"]
+        ok = str(res.get("status", "")).upper() == "SUCCESS"
+        return {"type": "result", "is_error": not ok,
+                "result": res.get("response") if ok else (res.get("error") or res.get("status"))}
+    if ev.get("type") == "turn.failed":                                        # codex
+        err = ev.get("error") if isinstance(ev.get("error"), dict) else {}
+        return {"type": "result", "is_error": True, "result": err.get("message") or "turn failed"}
+    return None
+
+
 def run_claude_job(argv: list[str], cwd: Path, *, timeout: int, log: Path,
                    emit: Callable[[str], None], cancel: threading.Event,
                    provider: str | None = None) -> JobResult:
@@ -1485,24 +1617,7 @@ def run_claude_job(argv: list[str], cwd: Path, *, timeout: int, log: Path,
         initial_branch = git_branch(cwd)
     except Exception:
         pass
-    full_env = egpu_environment() if prov == "egpu" else dict(os.environ)
-    key = provider_api_key(prov)
-    if key:
-        clean_key = sanitize_api_key(prov, key)
-        if prov == "google":
-            full_env["GEMINI_API_KEY"] = clean_key
-            full_env["GOOGLE_API_KEY"] = clean_key
-        elif prov == "codex":
-            full_env["OPENAI_API_KEY"] = clean_key
-            full_env["CODEX_API_KEY"] = clean_key
-        elif prov == "copilot":
-            full_env["GITHUB_TOKEN"] = clean_key
-            full_env["GH_TOKEN"] = clean_key
-            full_env["COPILOT_API_KEY"] = clean_key
-        elif prov == "ollama":
-            full_env["OLLAMA_API_KEY"] = clean_key
-        elif prov == "claude":
-            full_env["ANTHROPIC_API_KEY"] = clean_key
+    full_env = agent_environment(prov, argv[0] if argv else None)
 
     if prov == "claude" and not any(flag in argv for flag in JOB_STREAM_FLAGS):
         full = [*argv, *JOB_STREAM_FLAGS]
@@ -1548,6 +1663,7 @@ def run_claude_job(argv: list[str], cwd: Path, *, timeout: int, log: Path,
     watchdog.start()
     result_event: dict | None = None
     last = None
+    last_error = ""
     try:
         with log.open("w", encoding="utf-8") as fh:
             fh.write("$ " + " ".join(shlex.quote(a) for a in full) + "\n")
@@ -1558,15 +1674,16 @@ def run_claude_job(argv: list[str], cwd: Path, *, timeout: int, log: Path,
                 display_line = line
                 try:
                     ev = json.loads(line)
-                    if isinstance(ev, dict) and ev.get("type") == "result":
-                        result_event = ev
+                    if isinstance(ev, dict) and (normalized := _normalize_result(ev)) is not None:
+                        result_event = normalized
                         if prov in ("ollama", "egpu"):
                             # Claude's price estimate is not a local inference charge.
                             display = dict(ev)
                             display.pop("total_cost_usd", None)
                             display_line = json.dumps(display)
                 except ValueError:
-                    pass
+                    if _ERRORISH.search(line):
+                        last_error = _clip(line)
                 for text in (summarize_event(display_line) or "").split("\n"):
                     if text and text != last:     # consecutive repeats (rate-limit nags) collapse
                         last = text
@@ -1590,7 +1707,8 @@ def run_claude_job(argv: list[str], cwd: Path, *, timeout: int, log: Path,
         detail = result_event.get("result") or result_event.get("subtype") or "error"
         return JobResult("error", proc.returncode, _clip(str(detail)))
     if proc.returncode != 0:
-        return JobResult("error", proc.returncode, f"{prov} exited {proc.returncode}")
+        tail = f": {last_error}" if last_error else ""
+        return JobResult("error", proc.returncode, _clip(f"{prov} exited {proc.returncode}{tail}"))
     if prov in ("ollama", "egpu"):
         from llmsx.ollama_agent import completion_check
         completion_argv = full
@@ -2812,33 +2930,7 @@ def skill_argv(skill: str, target: str, provider: str | None = None) -> list[str
     if not binary:
         return None
     prompt = skill_prompt(skill, target)
-    model = provider_model(prov)
-    if prov == "claude":
-        return [binary, "-p", prompt, "--permission-mode", "acceptEdits"]
-    if prov == "google":
-        bname = Path(binary).name.lower()
-        if "agy" in bname:
-            argv = [binary, "-p", prompt, "--dangerously-skip-permissions", "--output-format", "stream-json"]
-            if model:
-                argv.extend(["--model", model])
-            return argv
-        argv = [binary, "-p", prompt, "--approval-mode", "yolo", "-o", "stream-json"]
-        if model:
-            argv.extend(["-m", model])
-        return argv
-    if prov == "codex":
-        argv = [binary, "exec", "--dangerously-bypass-approvals-and-sandbox", "--json", prompt]
-        if model:
-            argv.extend(["-c", f'model="{model}"'])
-        return argv
-    if prov == "copilot":
-        return [binary, "copilot", "--", "-p", prompt]
-    if prov == "ollama":
-        if not claude_binary():
-            return None
-        return [sys.executable, "-m", "llmsx.ollama_agent", "-p", prompt,
-                "--permission-mode", "acceptEdits", *JOB_STREAM_FLAGS]
-    return [binary, "-p", prompt]
+    return agent_argv(prov, binary, prompt)
 
 
 # --------------------------------------------------------------------------- #
@@ -2970,33 +3062,7 @@ def braindump_argv(path: Path, provider: str | None = None) -> list[str] | None:
     if not binary:
         return None
     prompt = braindump_prompt(path)
-    model = provider_model(prov)
-    if prov == "claude":
-        return [binary, "-p", prompt, "--permission-mode", "acceptEdits"]
-    if prov == "google":
-        bname = Path(binary).name.lower()
-        if "agy" in bname:
-            argv = [binary, "-p", prompt, "--dangerously-skip-permissions", "--output-format", "stream-json"]
-            if model:
-                argv.extend(["--model", model])
-            return argv
-        argv = [binary, "-p", prompt, "--approval-mode", "yolo", "-o", "stream-json"]
-        if model:
-            argv.extend(["-m", model])
-        return argv
-    if prov == "codex":
-        argv = [binary, "exec", "--dangerously-bypass-approvals-and-sandbox", "--json", prompt]
-        if model:
-            argv.extend(["-c", f'model="{model}"'])
-        return argv
-    if prov == "copilot":
-        return [binary, "copilot", "--", "-p", prompt]
-    if prov == "ollama":
-        if not claude_binary():
-            return None
-        return [sys.executable, "-m", "llmsx.ollama_agent", "-p", prompt,
-                "--permission-mode", "acceptEdits", *JOB_STREAM_FLAGS]
-    return [binary, "-p", prompt]
+    return agent_argv(prov, binary, prompt)
 
 
 

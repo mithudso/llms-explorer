@@ -76,6 +76,7 @@ def test_run_claude_job_reports_a_result_error_and_a_non_json_failure(fake_claud
     monkeypatch.setenv("FAKE_CLAUDE_MODE", "garbage")
     res, lines, _ = _run(fake_claude, tmp_path, "garbage")
     assert res.status == "error" and res.returncode == 1 and "Error: boom" in lines
+    assert res.message.endswith("exited 1: Error: boom"), "the real error line is surfaced"
 
 
 def test_run_claude_job_times_out_and_cancels(fake_claude, tmp_path, home, monkeypatch):
@@ -275,3 +276,33 @@ exit 0
                             emit=lines.append, cancel=threading.Event())
     assert res.status == "ok"
     assert es.git_branch(repo) == initial
+
+
+def test_job_log_is_selectable_and_copies_whole_log(tmp_path):
+    import asyncio
+
+    from textual.app import App
+    from textual.widgets import Log
+
+    from llmsx import explorer_screens as screens
+
+    job = screens.JobState(what="w", log=tmp_path / "j.log", lines=["one", "two"])
+    copied: list[str] = []
+
+    class Host(App):
+        def copy_to_clipboard(self, text: str) -> None:
+            copied.append(text)
+
+        def on_mount(self) -> None:
+            self.push_screen(screens.JobLog(job))
+
+    async def go() -> None:
+        async with Host().run_test() as pilot:
+            await pilot.pause()
+            log = pilot.app.screen.query_one("#job-log", Log)
+            assert log.lines == ["one", "two"] and log.allow_select
+            await pilot.press("y")
+            await pilot.pause()
+
+    asyncio.run(go())
+    assert copied == ["one\ntwo"]
