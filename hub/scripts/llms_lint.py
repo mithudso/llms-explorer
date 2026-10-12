@@ -5,15 +5,15 @@ Judges an llms.txt / family index / llms-full.txt / llms-small.txt / llms-facts.
 llms-vocabulary.txt against the attribute rubric in
 ~/.claude/skills/llms-txt-tooling/references/llms-deep-optimizer/references/attributes.md
 (llms-vocabulary.txt reuses the C6/D4/R3 codes by analogy — the rubric has no
-vocabulary-scoped rows yet) and emits findings `{pass, attr, severity, line, msg, fixable}`. Severities
-follow the family ladder (high / medium / low / hygiene), plus `na` for a check
-that could not run (e.g. anchor resolution with no `--mirror`). `--fix` applies
-only the fixes `apply_fixes()` actually performs (byte hygiene, `## Optional`
-last, bare-URL wrap, residue strip in full files, and a mintlify grammar banner
-when one is missing) — a `fixable=True` finding is marked `fixed` only when
-`apply_fixes()` reports it touched that attribute, never unconditionally. Model,
-live and family passes (P4, P8, P10, P11-13) live in the skill; P15 (regeneration
-parity) is not implemented anywhere yet.
+vocabulary-scoped rows yet) and emits findings `{pass, attr, severity, line, msg,
+fixable}`. Severities follow the family ladder (high / medium / low / hygiene), plus
+`na` for a check that could not run (e.g. anchor resolution with no `--mirror`). `--fix`
+applies only the fixes `apply_fixes()` actually performs (byte hygiene, `## Optional`
+last, bare-URL wrap, residue strip in full files, and a mintlify grammar banner when one
+is missing) — a `fixable=True` finding is marked `fixed` only when `apply_fixes()`
+reports it touched that attribute, never unconditionally. Model, live and family passes
+(P4, P8, P10, P11-13) live in the skill; P15 (regeneration parity) is not implemented
+anywhere yet.
 
 Usage:
     llms_lint.py detect FILE
