@@ -69,7 +69,28 @@ def test_answers_extract_one_per_class_keep_citations_and_drop_directives(tmp_pa
     assert "Just prose with nothing to route" not in text
     assert "&lt;b>bold&lt;/b> default is off" in text
     assert "git defaults to main here — x:1" in text
-    assert lr.answers(tmp_path / "nothing-here")[0].endswith("_none found: no default, file-role, formula or command lines in the facts files_") or True
+    assert lr.answers(tmp_path / "nothing-here")[0].endswith("_none found: no misbelief, default, file-role, formula or command lines in the facts files_") or True
+
+
+def test_answers_misbelief_first_contested_rest_excluded(tmp_path, ledger):
+    d = tmp_path / "fam"
+    d.mkdir()
+    (d / "llms-facts.txt").write_text(
+        "# Facts\n\n> One claim per line.\n\n## Defaults\n\n"
+        "- The API listens on port 8790 by default — api/README.md:12\n"
+        "- Misbelief: the index is rebuilt on every commit. Actually: it rebuilds nightly at 03:00 — hub/README.md:12\n"
+        "- Controversy: chunk size. 40 lines (bench.md) vs 200 tokens (rag.md) — notes.md:3\n"
+        "- Open question: whether reranking pays on repos under 1 MB — notes.md:7\n"
+        "- misbelief: you must never commit the lockfile. Actually: uv.lock is committed — CLAUDE.md:30\n")
+    text, dropped = lr.answers(d)
+    lines = [ln for ln in text.splitlines() if ln.startswith("- ")]
+    assert lines[0] == "- Misbelief: the index is rebuilt on every commit. Actually: it rebuilds nightly at 03:00 — hub/README.md:12"
+    assert lines[1].startswith("- misbelief: you must never commit the lockfile."), "a directive word inside a misbelief does not drop it"
+    assert "- The API listens on port 8790 by default — api/README.md:12" in lines
+    assert "Controversy:" not in text and "Open question:" not in text
+    assert dropped == 0
+    assert lr.classify("Misbelief: x. Actually: y") == "misbelief"
+    assert lr.classify("Controversy: x vs y") is None and lr.classify("Open question: x") is None
 
 
 def test_answers_cap(tmp_path, ledger):
