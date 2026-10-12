@@ -63,7 +63,15 @@ one_tree() {
 }
 
 # skill, research spokes, router, alias
-sync "$CL/skills/llms-deep-optimizer/"            .claude/skills/llms-deep-optimizer/
+# llms-deep-optimizer is a spoke of the llms-txt-tooling hub (folded 2026-10-12). Its reference
+# dir holds llms-deep-optimizer.md behind a provenance banner instead of SKILL.md. Mirror the rest
+# of the dir, then render SKILL.md with the banner stripped (the tier.mjs stripBanner rule), so
+# the published copy keeps the standalone layout.
+LDO="$CL/skills/llms-txt-tooling/references/llms-deep-optimizer"
+mkdir -p .claude/skills/llms-deep-optimizer
+rsync -a --delete $X --exclude llms-deep-optimizer.md --exclude SKILL.md "$LDO/" .claude/skills/llms-deep-optimizer/
+python3 -c 'import re,sys; t=open(sys.argv[1]).read(); t=re.sub(r"^<!--\s*hub-reference-banner\s*-->[\s\S]*?\n---\n","",t,count=1) if "<!-- hub-reference-banner -->" in t else t; sys.stdout.write(re.sub(r"^\s+","",t))' \
+  "$LDO/llms-deep-optimizer.md" > .claude/skills/llms-deep-optimizer/SKILL.md
 mkdir -p .claude/skills/document-formats/references
 cp "$CL"/skills/document-formats/references/llms-txt*.md .claude/skills/document-formats/references/
 one "$CL/skills/document-formats/SKILL.md"        .claude/skills/document-formats/SKILL.md
