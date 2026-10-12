@@ -475,7 +475,7 @@ class Settings(_Modal):
             yield Label("Active Provider & Model Override")
             with Horizontal(id="provider-row"):
                 yield Select(prov_options, value=active_p, id="provider", allow_blank=False)
-                model_hint = store.PROVIDER_DEFAULT_MODELS.get(active_p, "model override")
+                model_hint = store.PROVIDER_DEFAULT_MODELS.get(active_p) or "CLI default model"
                 yield Input(active_model,
                             placeholder=model_hint,
                             id="model", disabled=active_p == "egpu")
@@ -514,7 +514,7 @@ class Settings(_Modal):
         key_input.value = "" if new_p == "egpu" else self._provider_keys.get(new_p, "")
         key_input.disabled = new_p == "egpu"
         model_input = self.query_one("#model", Input)
-        model_input.placeholder = store.PROVIDER_DEFAULT_MODELS.get(new_p, "default")
+        model_input.placeholder = store.PROVIDER_DEFAULT_MODELS.get(new_p) or "CLI default model"
         model_input.value = self._cfg.get("models", {}).get(new_p, "") if isinstance(self._cfg.get("models"), dict) else ""
         model_input.disabled = new_p == "egpu"
         if new_p == "egpu":
@@ -711,6 +711,13 @@ class Explorer(App):
         Binding("left_square_bracket", "prev_tab", "Prev tab", show=False, key_display="["),
         Binding("right_square_bracket", "next_tab", "Next tab", show=False, key_display="]"),
     ]
+
+
+    def copy_to_clipboard(self, text: str) -> None:
+        """Textual copies through OSC 52, which iTerm2 and Terminal.app block
+        by default; pbcopy / xclip / wl-copy / clip work everywhere."""
+        super().copy_to_clipboard(text)
+        self.run_worker(lambda: store.copy_to_clipboard(text), thread=True, group="clipboard")
 
     def __init__(self, repo: str | Path, auto_sync: bool = True) -> None:
         super().__init__()
