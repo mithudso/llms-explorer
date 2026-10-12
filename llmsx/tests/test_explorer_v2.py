@@ -775,3 +775,28 @@ def test_quiz_with_exactly_four_cards_and_journal_pick_and_link_search(tmp_path,
         await _settle(app, pilot)
 
     _run(check, repo)
+
+
+def test_cursor_starts_at_top_and_ctrl_f_searches_the_tree(tmp_path, home):
+    repo = make_repo(tmp_path, git=False)
+
+    async def check(app, pilot):
+        from llmsx.explorer import OutlineTree
+        tree = app.query_one("#outline", OutlineTree)
+        await _settle(app, pilot)
+        assert app.focused is tree
+        assert tree.cursor_node is tree.root.children[0]
+        await pilot.press("ctrl+f")
+        assert app.focused is app.query_one("#filter")
+        await pilot.press(*"concept", "enter")
+        await _settle(app, pilot)
+        assert app.focused is tree
+        first = tree.cursor_node.data
+        assert "concept" in first.lower()
+        hits = list(app._search_hits)
+        assert first == hits[0]
+        await pilot.press("ctrl+f", "enter")   # same text again: next hit
+        await _settle(app, pilot)
+        assert tree.cursor_node.data == hits[1 % len(hits)]
+
+    _run(check, repo)
