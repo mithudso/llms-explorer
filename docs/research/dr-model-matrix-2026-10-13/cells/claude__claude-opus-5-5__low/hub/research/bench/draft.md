@@ -11,9 +11,9 @@ provenance: "/dr · /Users/mitch/dev/llms-explorer/docs/research/dr-model-matrix
 
 # SQLite write-ahead logging (WAL)
 
-> **DRAFT — research in progress.** 1/1 concepts complete. Last updated: 2026-10-13T06:42:02Z.
+> **DRAFT — research in progress.** 1/1 concepts complete. Last updated: 2026-10-13T06:42:21Z.
 
-<!-- dr:progress {"skillId": "bench", "state": "research-complete", "conceptsTotal": 1, "conceptsDone": ["sqlite-wal-checkpointing"], "conceptsPending": [], "startedAt": "2026-10-13T06:40:53Z", "updatedAt": "2026-10-13T06:42:02Z"} -->
+<!-- dr:progress {"skillId": "bench", "state": "research-complete", "conceptsTotal": 1, "conceptsDone": ["sqlite-wal-checkpointing"], "conceptsPending": [], "startedAt": "2026-10-13T06:40:53Z", "updatedAt": "2026-10-13T06:42:21Z"} -->
 
 ## Overview
 
