@@ -66,6 +66,51 @@ Each gate run cost $0.39–0.70 on top of the research cost (Opus 5.5 at medium 
 6. **Antigravity was the weakest cloud lane.** It produced the fewest claims (4–8), the only cloud contradictions, and the GPT-OSS run skipped the negation round. GPT-OSS also hit a provider 503 on the first try; the retry succeeded.
 7. **Local:** Gemma 31B is still the safer local pick. It was 9/9 and 10/10 at low/high, with one contradiction at max. Qwen 35B gave more claims but was wrong once per run. Local runs took 2–5× longer than Claude at the same effort, and effort barely changed local output.
 
+## Staged pipeline lane (added 2026-10-13)
+
+Question: does splitting `/dr` into passes, each handed to the model + effort that the matrix favoured for that job, beat one model doing everything? Cell `pipeline__sonnet-max+haiku+opus__staged`, same concept, same fixed gate.
+
+| Pass | Model / effort | What it does | Calls | Wall s | $ |
+|---|---|---|---:|---:|---:|
+| 1. Discover | Sonnet 5.5 / max | Picks and vets sources; writes a source list with org, tier and "why", no claims | 1 | 574 | 1.42 |
+| 2. Snapshot | none (`dr_run.py source snapshot`) | Fetches each URL with stdlib, stores text + sha256 in the source library | 16 | 4 | 0 |
+| 3. Extract | Haiku 5.5 / low | One call per source snapshot; facts with a verbatim quote; `source facts-put` drops any quote not found in the snapshot | 16 (6 parallel) | 90 | 0.15 |
+| 4. Synthesize | Haiku 5.5 / medium | Merges the quote-checked facts into the claims file; confidence from distinct urls and orgs | 1 | 362 | 0.14 |
+| 5. Validate | Opus 5.5 / medium | Checks **every** claim against the stored snapshots (no web); drops CONTRADICTED / NOT-IN-SOURCE, rewrites OVERSTATED | 1 | 294 | 2.44 |
+| Total | | | | 1326 | 4.15 |
+
+Head-to-head with the best single-model cells:
+
+| Cell | Claims | High / medium / low | Sources (orgs) | Gate | Research $ | $ per claim | Research s |
+|---|---:|---|---:|---|---:|---:|---:|
+| Sonnet 5.5 max | 39 | 24 high | 16 | 10/10 | 2.43 | 0.062 | 948 |
+| Opus 5.5 max | 28 | 22 high | 16 | 10/10 | 3.12 | 0.111 | 919 |
+| Fable 5.1 max | 26 | 15 high | 17 | 10/10 | 3.73 | 0.143 | 534 |
+| **Staged pipeline** | **135** | 24 / 33 / 78 | 16 (8) | 10/10 | 4.15 | **0.031** | 1326 |
+
+What happened:
+
+1. **Breadth jumped 3.5x at half the cost per claim.** Discovery found the same 16 sources Sonnet max found, but per-source extraction read every page in full instead of skimming. Haiku pulled 398 facts; 397 quotes were verbatim in the snapshot (1 dropped by the machine check).
+2. **The full validation pass caught what a 10-claim sample cannot.** Opus checked all 136 synthesized claims: 128 SUPPORTED, 7 OVERSTATED (scope widened, a condition dropped, a mode omitted; each rewritten from the validator's fix), 1 CONTRADICTED (a forum position attributed to the wrong participant; dropped). That is a 5.9% flaw rate before validation. The single-model cells were only ever sampled 10 claims at a time, so their true rate at this resolution is unknown.
+3. **It was not cheaper or faster in total.** My pre-run estimate (~$1.6, faster) was wrong. Validation of every claim is the largest cost ($2.44, 59%), and synthesis is a serial step. Without the validation pass the pipeline costs $1.71 for 136 claims, under Sonnet max alone.
+4. **Most claims are low confidence.** 78 of 135 cite one source, so they render as "Tentative:". The count of independently corroborated (high + medium) claims is 57, vs 39 total for Sonnet max.
+
+Cheaper variants to try next: validate only high/medium claims with Opus and low claims with Sonnet medium; or validate with Sonnet medium throughout and keep Opus for the fixed gate.
+
+Confound: `dr_run.py source lookup` now answers from the library, so this cell's gate read stored snapshots instead of refetching pages. Verdict rules were unchanged.
+
+### Source library
+
+Built for this lane and now part of `dr_run.py` for every run (`~/.global-ai-hub/scripts/dr_run.py`, commits c5e9922c and fe8304a6 in the hub repo):
+
+- `source snapshot --url U [--tier --org --concept --slug]`: fetch (or reuse if under 30 days old) a text snapshot; stable id `src:<16 hex of sha256(normalized url)>`; stores sha256, ETag, Last-Modified, org, concepts, runs and a change history.
+- `source facts-put / facts`: quote-anchored extracts per source. A quote must appear verbatim in the snapshot. Extracts are tied to the snapshot sha256, so a changed page invalidates them automatically.
+- `source get / list`: metadata by id or url; list by concept or org.
+- `source put` (used by every `/dr` worker) now also snapshots the page into the library, and `source lookup` answers read-instead-of-fetch from a fresh library snapshot first. Every existing `/dr` run therefore builds the library and reuses it.
+- Snapshot text lives under `HUB_DIR/research/.library/` only. It is third-party content and is never committed; this directory commits only the discovery list and validation verdicts.
+
+Not yet measured: cross-concept reuse. A sibling concept that cites the same sqlite.org pages should skip snapshot and extraction entirely.
+
 ## Limits
 
 - One concept, one run per cell. A single different verdict is within noise; treat ±1 gate verdict as a tie.
@@ -81,4 +126,5 @@ Each gate run cost $0.39–0.70 on top of the research cost (Opus 5.5 at medium 
 python3 scripts/dr_model_matrix.py run                 # all lanes, skips finished cells
 python3 scripts/dr_model_matrix.py run --only <cell-id> --force
 python3 scripts/dr_model_matrix.py report              # rewrites results.md / results.json
+python3 scripts/dr_model_matrix.py run --lanes pipeline  # staged discover/extract/validate cell
 ```
