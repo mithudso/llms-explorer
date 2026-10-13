@@ -61,7 +61,10 @@ def _setup(hub_tmp, monkeypatch):
     )
     (base / "catalog.json").write_text("[]")
     monkeypatch.setattr(llms_serve.llms_full_catalog, "BASE_DIR", base)
-    srv = llms_serve.serve("127.0.0.1", 0, mirror_dir=core.MIRROR_OUT_DIR)
+    # an empty topical store, so the root never reads the repo's real llms-concepts/
+    srv = llms_serve.serve(
+        "127.0.0.1", 0, mirror_dir=core.MIRROR_OUT_DIR, topical_dir=hub_tmp / "llms-topical"
+    )
     threading.Thread(target=srv.serve_forever, daemon=True).start()
     return srv, f"http://127.0.0.1:{srv.server_address[1]}"
 
@@ -209,3 +212,25 @@ def test_split_index_section_route(hub_tmp, monkeypatch):
                 assert e.code == 404, bad
     finally:
         srv.shutdown()
+
+
+def test_root_lists_research_pack_with_list_shaped_files():
+    """research-to-llms-txt packs write `files` as a list of names and count with
+    claimsCount/sourcesCount. Before the fix the root returned 500:
+    'list' object has no attribute 'get'."""
+    pack = {
+        "concept": "Atlas CLI",
+        "slug": "atlas-cli",
+        "files": ["llms.txt", "llms-facts.txt", "manifest.json"],
+        "sourcesCount": 7,
+        "claimsCount": 31,
+    }
+    export = {"stem": "ex.dev", "pages": 1, "files": ["llms.txt", "llms-full.txt"]}
+    body = llms_serve.render_root([export], [], "http://h", [pack])
+    assert (
+        "- [Atlas CLI](http://h/t/atlas-cli/llms.txt): 31 facts from 7 sources, "
+        "0 sections, ~0 tokens facts"
+    ) in body
+    assert (
+        "- [ex.dev](http://h/d/ex.dev/llms.txt): 1 pages, ~0 tokens index, ~0 tokens full"
+    ) in body

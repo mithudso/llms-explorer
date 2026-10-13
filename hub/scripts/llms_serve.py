@@ -188,6 +188,13 @@ def render_mirror_index(entry: dict, pages: list[dict], base: str) -> str:
     return "\n".join(out) + "\n"
 
 
+def _file_tokens(manifest: dict, name: str) -> int:
+    """Token count of one file in a manifest; 0 when `files` is a plain list of names."""
+    files = manifest.get("files")
+    entry = files.get(name) if isinstance(files, dict) else None
+    return entry.get("tokens", 0) if isinstance(entry, dict) else 0
+
+
 def render_root(exports: list[dict], mirrors: list[dict], base: str,
                 topics: list[dict] | None = None) -> str:
     topics = topics or []
@@ -208,24 +215,28 @@ def render_root(exports: list[dict], mirrors: list[dict], base: str,
                 "Concept-organised files: facts from every source, filed under the concept "
                 "tree's children of one subject.", ""]
         for t in topics:
-            f = t.get("files", {})
+            # research-to-llms-txt packs write a different manifest: `files` is a list of
+            # names and the counts are `claimsCount` / `sourcesCount`.
+            title = t.get("title") or t.get("concept") or t["slug"]
+            units = t.get("units", t.get("claimsCount", 0))
+            sources = t.get("sources", t.get("sourcesCount", 0))
             out.append(
-                f"- [{t.get('title') or t['slug']}]({base}/t/{t['slug']}/llms.txt): "
-                f"{t.get('units', 0)} facts from {t.get('sources', 0)} sources, "
-                f"{len(t.get('sections', {}))} sections, "
-                f"~{f.get('llms-facts.txt', {}).get('tokens', 0)} tokens facts"
+                f"- [{title}]({base}/t/{t['slug']}/llms.txt): "
+                f"{units} facts from {sources} sources, "
+                f"{len(t.get('sections') or {})} sections, "
+                f"~{_file_tokens(t, 'llms-facts.txt')} tokens facts"
             )
         out.append("")
     if exports:
         out += ["## Hub docsets", ""]
         for m in exports:
-            f = m.get("files", {})
+            f = m.get("files") or {}
             line = (
                 f"- [{m.get('title') or m['stem']}]({base}/d/{m['stem']}/llms.txt): "
-                f"{m.get('pages', 0)} pages, ~{f.get('llms.txt', {}).get('tokens', 0)} tokens index"
+                f"{m.get('pages', 0)} pages, ~{_file_tokens(m, 'llms.txt')} tokens index"
             )
             if "llms-full.txt" in f:
-                line += f", ~{f['llms-full.txt']['tokens']} tokens full"
+                line += f", ~{_file_tokens(m, 'llms-full.txt')} tokens full"
             if "llms-facts.txt" in f:
                 line += f", {m.get('units', 0)} facts"
             out.append(line)
