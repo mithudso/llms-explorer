@@ -755,3 +755,10 @@
 ## 2026-10-05 — Mac local-LLM expert concepts published
 - Added 524 nodes to `concept-tree/tree.json` (root "Running LLM models locally on a Mac" under "On-Device & Local LLM Runtimes", 21 cluster nodes, 502 concept nodes) from the become-expert run, with 524 concept packs rendered to `site/src/data/concepts/`; search index regenerated with the committed deferral list honoured (991 entries).
 - Site test `test_every_node_page_is_the_node_it_claims` now accepts Astro's `&#39;` for an apostrophe in a concept name.
+
+## 2026-10-13 — Explorer: facts-first tabs, llms highlighting, scratchpad, unresearched marks (TASK-645)
+- Selecting a concept opens Facts (pack), else the hub's `llms-facts.txt` tab; a re-render of the same concept keeps the current tab.
+- llms-family tabs render in `LineView` (`llmsx/llmsx/explorer_lines.py`): keyword-highlighted lines with a cursor. Markdown stays for Overview/Facts/Skill/refs.
+- `y` / `📌 Save line` appends the cursor line (or a line picked from a Markdown tab) to `$LLMSX_HOME/scratchpad.md`; `p` / `📝 Scratchpad` edits and copies it.
+- Down/up move focus to the widget below/above wherever the focused widget has no own up/down (outline, lists, dropdowns keep theirs).
+- `U` / `explorer_store.mark_unresearched`: 4,035 concepts with no facts (245 nodes + 3,790 frontier) marked `further-research` in `concept-tree/marks.json`; 245 new queue rows.
