@@ -34,3 +34,4 @@
 | local | egpu:qwen3.6:27b-iq2-xxs | low | unavailable |  |  |  |  |  |  |  |
 | local | egpu:qwen3.6:27b-iq2-xxs | high | unavailable |  |  |  |  |  |  |  |
 | local | egpu:qwen3.6:27b-iq2-xxs | max | unavailable |  |  |  |  |  |  |  |
+| pipeline | sonnet-max+haiku+opus | staged | ok | 1326 | 3459474 | 4.1454 | 135 | 16 | 10/10 | 1.0 |
