@@ -4,7 +4,7 @@ description: "Ten open-weight models, six inference engines and one 16 GB GPU, t
 date: "2026-10-13"
 order: 36
 tags: ["local-llm", "rtx-5080", "benchmarking", "llama-cpp", "gpt-oss", "qwen", "ollama", "lm-studio", "embeddings"]
-evidenceNote: "Interim results from one Linux box, one RTX 5080 (16 GB), one quantization per model, 1–3 seeds per configuration. Coding is scored on hidden tests; research output is scored by Claude judges working blind on 3 outputs per model per item, so small differences are not significant. Several runs were still in progress when this was written (listed at the end). The final recommendation is deliberately not in this part. Harness scripts are not yet published."
+evidenceNote: "Interim results from one Linux box, one RTX 5080 (16 GB), one quantization per model, 1–3 seeds per configuration. Coding is scored on hidden tests; research output is scored by Claude judges working blind on 3 outputs per model per item, so small differences are not significant. The shortlist predates Qwen3.8-27B, which is being added (see the note under the candidates). Several runs were still in progress when this was written (listed at the end). The final recommendation is deliberately not in this part. Harness scripts are not yet published."
 sources:
   - "https://github.com/ggml-org/llama.cpp"
   - "https://github.com/ikawrakow/ik_llama.cpp"
@@ -23,13 +23,16 @@ sources:
   - "https://huggingface.co/unsloth/NVIDIA-Nemotron-3.5-Lightning-30B-A3B-GGUF"
   - "https://huggingface.co/unsloth/Devstral-Small-2-24B-Instruct-2512-GGUF"
   - "https://ollama.com/library/mxbai-embed-large"
+  - "https://huggingface.co/Qwen/Qwen3.8-27B"
+  - "https://huggingface.co/unsloth/Qwen3.8-27B-GGUF"
+  - "https://insiderllm.com/guides/qwen-3-7-preview-scored-57-aai-27b-35b-open-weights-watch/"
 ---
 
 <!-- Version: 1.0.0; Delta: First publication. Interim results as of 2026-10-13; Part 2 carries the final recommendation. -->
 
 We set out to find the best open-weight model for two jobs on a new Fedora box with a single 16 GB RTX 5080: **agentic coding**, and **concept research** with our `/dr`, `/rabbithole` and concept-family skills. We also wanted the fastest stable way to serve it.
 
-The interim answer is that **two models lead and neither wins outright**. gpt-oss-20b is the fastest by a wide margin and has the best average coding score. Qwen3.6-35B-A3B with thinking switched off writes better research claims and concept maps, but it invents details when it answers questions from sources. Bigger and slower models did not win anything. Which one becomes the default, and how it is served, is Part 2.
+The interim answer is that **two models lead and neither wins outright**. gpt-oss-20b is the fastest by a wide margin and has the best average coding score. Qwen3.6-35B-A3B with thinking switched off writes better research claims and concept maps, but it invents details when it answers questions from sources. Bigger and slower models did not win anything. One open model that postdates our shortlist, Qwen3.8-27B, is being added and could change the picture. Which model becomes the default, and how it is served, is Part 2.
 
 This part covers what we ran, what the numbers say, and the places where our own first-pass metrics misled us.
 
@@ -63,6 +66,10 @@ We chose ten current GGUF builds from the Unsloth quantization repositories. Thi
 | [GLM-4.7-Flash](https://huggingface.co/unsloth/GLM-4.7-Flash-GGUF) | Q4_K_M | 17.1 GiB | MoE, partly offloaded |
 | [Nemotron 3.5 Lightning 30B-A3B](https://huggingface.co/unsloth/NVIDIA-Nemotron-3.5-Lightning-30B-A3B-GGUF) | UD-Q4_K_S | 22.8 GiB | MoE, partly offloaded |
 | [Devstral Small 2 24B](https://huggingface.co/unsloth/Devstral-Small-2-24B-Instruct-2512-GGUF) | UD-Q4_K_XL | 13.5 GiB | dense |
+
+### A gap in the shortlist
+
+We built this list on 2026-10-12 and it is already behind. We were asked whether Qwen3.7 is in these tests. It is not, and it cannot be: the Qwen3.7 Max and Plus models are hosted-only, and as of 2026-10-13 the Qwen organization on Hugging Face lists no Qwen3.7 repositories. The open successor is [Qwen3.8-27B](https://huggingface.co/Qwen/Qwen3.8-27B), a dense 27B model released in August under Apache-2.0, with [community-quantized GGUF builds](https://huggingface.co/unsloth/Qwen3.8-27B-GGUF) and separate multi-token-prediction draft heads. We missed it. It is now queued, and the results go in Part 2. The same Qwen3.8 release also includes a 180B model and a 2.4T model, both much larger than a 16 GB card plus 62 GB of RAM handles comfortably, and we did not test them. Other new open models we saw trending on Hugging Face and have not tested include GLM-5.3, JetBrains' Mellum 2.1 and LiquidAI's LFM2.5-24B-A2B.
 
 Where a model did not fit, we let llama.cpp's automatic fit (`--fit on`) decide how many layers and experts go to the GPU. Forcing all layers onto the GPU with `-ngl 99` caused a CUDA out-of-memory crash on the 22 GB file we tried it on.
 
@@ -101,7 +108,7 @@ Stage 1 used default batch sizes and a 32k context (16k for the dense models). L
 Three things stood out.
 
 1. **gpt-oss-20b is in a class of its own on speed.** It is the only model here that fits entirely in VRAM with room for context, and it decodes more than twice as fast as every other model that was usable in the agent loop.
-2. **The dense models are too slow on this card.** Qwen3.6-27B and Devstral decode at 8 to 11 tokens per second even on short prompts, and Qwen3.6-27B dropped to 4.7 tokens per second deep into the ninth coding task. We stopped that coding run after about 2 hours 14 minutes with no score. Our explanation is that a 14 GB file plus context and compute buffers does not fit in 16 GB, so part of every token runs on the CPU. A dense model has to touch all of its weights for every token, while an MoE model touches only a few experts. We did not run an experiment to prove that split is the cause.
+2. **The dense models are too slow on this card.** Qwen3.6-27B and Devstral decode at 8 to 11 tokens per second even on short prompts, and Qwen3.6-27B dropped to 4.7 tokens per second deep into the ninth coding task. We stopped that coding run after about 2 hours 14 minutes with no score. Devstral did finish: 3 hours 43 minutes for a 0.782 score. Our explanation is that a 14 GB file plus context and compute buffers does not fit in 16 GB, so part of every token runs on the CPU. A dense model has to touch all of its weights for every token, while an MoE model touches only a few experts. We did not run an experiment to prove that split is the cause.
 3. **gpt-oss-120b is capped by system memory.** At 26 to 28 tokens per second, decode appears limited by DDR5-4000 bandwidth rather than by the GPU. A sweep of five server flag combinations on it (batch sizes, thread counts, a single slot) never beat the first configuration's 25.0 tokens per second on this measure.
 
 Models that think by default are expensive in this harness even when they are correct. Qwen3.6-35B-A3B took 648 seconds for the nineteen checks and scored 16, while Qwen3-Coder-30B-A3B took 54 seconds and scored 18.
@@ -118,12 +125,12 @@ Each row is a full ten-task run, regraded test by test.
 | gpt-oss-120b | 5 | 0.863 | 347 | 2 h 8 min |
 | Qwen3-Coder-30B-A3B | 2 | 0.830 | 312 | 35 min |
 | Nemotron 3.5 Lightning | 2 | 0.788 | 217 | 80 min, 1 error |
+| Devstral Small 2 24B (dense) | 3 | 0.782 | 305 | 3 h 43 min, task 9 tests timed out |
 | Qwen3.6-35B-A3B, thinking on | 3 | 0.765 | 239 | 1 h 44 min, 3 errors |
 | Qwen3-Coder-Next | 2 | 0.670 | 160 | 28 min |
 | GLM-4.7-Flash | 1 | 0.670 | 208 | 87 min |
 | Gemma 4 26B-A4B, thinking off | 3 | 0.666 | 157 | 31 min |
 | Qwen3.6-27B (dense) | aborted | none | none | stopped after 2 h 14 min |
-| Devstral Small 2 24B (dense) | still running | pending | pending | pending |
 
 What this does and does not show:
 
@@ -223,7 +230,7 @@ These mistakes changed conclusions, so they are part of the result.
 
 At the time of writing:
 
-1. **Devstral Small 2 24B** coding at a 32k context, on task 9 of 10.
+1. **Qwen3.8-27B**: a speed and memory sweep (including its draft heads), then one coding run and three `/dr` runs with thinking off, if it decodes fast enough to be usable.
 2. **The llama.cpp baseline and ik_llama.cpp with `--fit`** in the engine harness.
 3. **The embedding bake-off** against `mxbai-embed-large`.
 4. **Tuning of the two leaders.** Speculative decoding with multi-token prediction on Qwen3.6-35B-A3B, batch-size and quantized-KV-cache sweeps on gpt-oss-20b, and gpt-oss-20b at high and low reasoning effort on both coding and `/dr`, to see whether more reasoning closes its research gap.

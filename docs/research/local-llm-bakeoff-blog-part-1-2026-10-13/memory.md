@@ -2,7 +2,7 @@
 
 Version: 1.0.0
 
-Delta: First publication record. Interim results as of 2026-10-13 16:40 EDT.
+Delta: First publication record. Interim results as of 2026-10-13 17:15 EDT, with the Devstral result and the Qwen3.8 shortlist note added before merge.
 
 ## Intent and constraints
 
@@ -27,9 +27,12 @@ The bench lives outside this repository, in a local `llm-bench` directory. The h
 - VRAM figures are whole-card `nvidia-smi` values in MiB, which include the desktop's share. An early draft mislabeled them as GB.
 - The Bionic documentation page describes an agent app that is separate from LM Studio. It does not say how it is built or whether it has a headless mode. The post states only what the probe observed.
 
+- After the first draft, Devstral finished (3 of 10 tasks, 305 of 374 hidden assertions, 0.782 mean fraction, 13,407 s) and was added to the coding table.
+- The owner asked whether Qwen3.7 was tested. It was not: Qwen3.7 Max and Plus are hosted-only and the Qwen organization on Hugging Face (queried via the Hugging Face API on 2026-10-13) has no Qwen3.7 repositories. It does have Qwen3.8-27B (dense, Apache-2.0, created 2026-08-05), which the shortlist missed. The post discloses this under "A gap in the shortlist" and Part 2 carries the Qwen3.8-27B results.
+
 ## Not yet done (Part 2)
 
-Devstral coding run, llama.cpp and ik_llama.cpp `--fit` runs in the shoot-out harness, the five-model embedding comparison against `mxbai-embed-large`, speculative-decoding and cache-quantization tuning, gpt-oss-20b high and low reasoning effort, a multi-model proxy test, a stability soak, service installation and the final recommendation.
+Qwen3.8-27B speed sweep, coding run and `/dr` runs, llama.cpp and ik_llama.cpp `--fit` runs in the shoot-out harness, the five-model embedding comparison against `mxbai-embed-large`, speculative-decoding and cache-quantization tuning, gpt-oss-20b high and low reasoning effort, a multi-model proxy test, a stability soak, service installation and the final recommendation.
 
 ## Verification
 
