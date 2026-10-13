@@ -249,6 +249,9 @@ def run(mirror: Path, model: str | None = None, classes=DEFAULT_CLASSES, limit: 
             continue
         if limit and generated >= limit:
             break
+        # The page text changed (or its last run failed): units extracted from
+        # the old text are stale claims and must not survive next to the new ones.
+        units = [u for u in units if u.get("source_url") != page["url"]]
         try:
             got = extract_page(page, generate=generate, model=model, start=seq)
             ok = True

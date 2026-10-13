@@ -9,6 +9,7 @@ also powers the TUI's ctrl+p palette.
 from __future__ import annotations
 
 import argparse
+import ast
 import json
 import os
 import sys
@@ -154,9 +155,40 @@ def _walk_tools(obj, origin: str, rows: list[dict], seen: set[str]) -> None:
             _walk_tools(v, origin, rows, seen)
 
 
+def hub_server_file() -> Path:
+    return hub_dir() / "mcp-server" / "hub_mcp_server.py"
+
+
+def _is_tool_decorator(d: ast.expr) -> bool:
+    d = d.func if isinstance(d, ast.Call) else d
+    return isinstance(d, ast.Attribute) and d.attr == "tool"
+
+
+def collect_hub_server_tools() -> list[dict]:
+    """The hub's own tools, read from the @mcp.tool functions and their
+    docstrings. libraries/mcp-library/registry.json lists tools as bare names
+    (and only a few of them), so it cannot supply descriptions."""
+    f = hub_server_file()
+    if not f.is_file():
+        return []
+    try:
+        tree = ast.parse(f.read_text(errors="ignore"))
+    except SyntaxError as e:
+        _log.warning("hub MCP server unparsable (%s): %s", f, e)
+        return []
+    rows = []
+    for node in ast.walk(tree):
+        if isinstance(node, ast.FunctionDef) and any(
+                _is_tool_decorator(d) for d in node.decorator_list):
+            doc = " ".join((ast.get_docstring(node) or "").split())
+            if doc:
+                rows.append(_row("mcp_tool", node.name, doc[:600], str(f)))
+    return rows
+
+
 def collect_mcp_tools() -> list[dict]:
-    rows: list[dict] = []
-    seen: set[str] = set()
+    rows: list[dict] = collect_hub_server_tools()
+    seen: set[str] = {r["name"] for r in rows}
     for f in mcp_registry_files():
         try:
             _walk_tools(json.loads(f.read_text(errors="ignore")), str(f), rows, seen)
@@ -221,6 +253,63 @@ def build_registry(db_path: str | Path | None = None) -> int:
         store.close()
 
 
+def _resolves(origin: str) -> bool:
+    """True when the origin path is readable now (follows symlinks; a loop is unreadable)."""
+    try:
+        return Path(origin).is_file()
+    except OSError:
+        return False
+
+
+def prune_registry(
+    db_path: str | Path | None = None, dry_run: bool = False
+) -> dict[str, int]:
+    """Drop rows whose description is no longer current.
+
+    The build is append-only: an edited description adds a new content-hashed
+    row and the old one keeps competing in routing. This removes, per ref,
+    every row that is not the ref's current description, and every row for a
+    ref that no longer exists on disk.
+
+    Guards against wiping the index when a source is unreadable:
+    - a kind that collected zero rows this run is left untouched;
+    - a ref's stale rows go only when its current row is already stored
+      (run `build` first), so no ref is ever left with zero rows;
+    - a ref absent from this run's collection is dropped only when its kind
+      collected rows and its recorded origin file no longer resolves (a file
+      the collector skipped, e.g. a spoke with no description, keeps its row).
+    """
+    rows = collect_all()
+    path = Path(db_path) if db_path else registry_db_path()
+    if not path.exists():
+        return {"stale": 0, "orphan": 0, "deleted": 0}
+    current: dict[str, str] = {}
+    for r in rows:
+        rid = "reg:" + hub_lib.compute_hash(r["text"], model="router")
+        current[f"{r['kind']}:{r['name']}"] = rid
+    live_kinds = {r["kind"] for r in rows}
+    store = VecStore(path)
+    try:
+        with store._lock:
+            stored = store.db.execute("SELECT id, ref, kind, meta FROM chunks").fetchall()
+        stored_ids = {i for i, _, _, _ in stored}
+        stale, orphan = [], []
+        for rid, ref, kind, meta in stored:
+            if kind not in live_kinds:
+                continue
+            want = current.get(ref)
+            if want is None:
+                origin = (json.loads(meta or "{}") or {}).get("origin", "")
+                if origin and not _resolves(origin):
+                    orphan.append(rid)
+            elif rid != want and want in stored_ids:
+                stale.append(rid)
+        deleted = 0 if dry_run else store.delete_ids(stale + orphan)
+    finally:
+        store.close()
+    return {"stale": len(stale), "orphan": len(orphan), "deleted": deleted}
+
+
 def route(
     task: str, kinds: tuple[str, ...] = KINDS, top_k: int = 5, db_path: str | Path | None = None
 ) -> list[Hit]:
@@ -246,7 +335,11 @@ def main(argv: list[str] | None = None) -> int:
         description="Semantic dispatch over local skills, agents and MCP tools"
     )
     sub = ap.add_subparsers(dest="cmd", required=True)
-    sub.add_parser("build", help="(re)build the registry index")
+    b = sub.add_parser("build", help="(re)build the registry index")
+    b.add_argument("--prune", action="store_true",
+                   help="after building, drop stale and orphan rows")
+    p = sub.add_parser("prune", help="drop rows that are no longer current descriptions")
+    p.add_argument("--dry-run", action="store_true")
     r = sub.add_parser("route", help="rank the local tool surface for a task")
     r.add_argument("task")
     r.add_argument("--top", type=int, default=5)
@@ -254,6 +347,15 @@ def main(argv: list[str] | None = None) -> int:
     args = ap.parse_args(argv)
     if args.cmd == "build":
         print(f"registry: {build_registry()} new entries -> {registry_db_path()}")
+        if args.prune:
+            s = prune_registry()
+            print(f"pruned: {s['deleted']} rows ({s['stale']} stale, {s['orphan']} orphan)")
+        return 0
+    if args.cmd == "prune":
+        s = prune_registry(dry_run=args.dry_run)
+        verb = "would delete" if args.dry_run else "deleted"
+        print(f"prune: {verb} {s['stale'] + s['orphan']} rows "
+              f"({s['stale']} stale, {s['orphan']} orphan)")
         return 0
     kinds = tuple(k.strip() for k in args.kinds.split(",") if k.strip())
     hits = route(args.task, kinds=kinds, top_k=args.top)

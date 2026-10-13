@@ -93,6 +93,17 @@ class VecStore:
                 "DELETE FROM chunks WHERE ref LIKE ? || '%'", (prefix,))
         return cur.rowcount
 
+    def delete_ids(self, ids: list[str]) -> int:
+        """Remove rows by exact id; returns how many were deleted."""
+        n = 0
+        with self._lock, self.db:
+            for i in range(0, len(ids), 500):
+                batch = ids[i:i + 500]
+                ph = ",".join("?" * len(batch))
+                n += self.db.execute(
+                    f"DELETE FROM chunks WHERE id IN ({ph})", batch).rowcount  # noqa: S608
+        return n
+
     def get_mark(self, source: str) -> str | None:
         with self._lock:
             row = self.db.execute(
