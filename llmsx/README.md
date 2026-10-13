@@ -251,11 +251,21 @@ Two different things share the name "Concepts" here, deliberately kept apart:
 
 ## `llmsx explorer` — the concept-tree workbench
 
+**Complete user guide:** [`llmsx/USER_GUIDE.md`](llmsx/USER_GUIDE.md) — shipped in the
+package; press `g` in the app, run `llmsx explorer --guide`, or read it at
+https://llms-explorer.com/explorer/guide/
+
 ```bash
 pip install 'llmsx[tui]'
 llmsx explorer                 # inside an llms-explorer checkout, or clones one to ~/.llmsx/llms-explorer
 llmsx explorer --repo ~/src/llms-explorer --no-sync
+llmsx explorer --guide         # print the user guide and exit
 ```
+
+Selecting a concept opens its **facts**: the Facts tab when it has a pack, else the hub's
+`llms-facts.txt` tab. The llms-family tabs render one keyword-highlighted line per row
+(headings, links, URLs, code, citation tails, `[src:]` tags, dates, warning words) with a
+cursor, so any line can be saved to the scratchpad.
 
 One screen: a collapsible outline of `concept-tree/tree.json` on the left (roots,
 children indented, frontier concepts dimmed, `●` on nodes with a pack, `[needs-review]`
@@ -269,7 +279,10 @@ rendered is treated as untrusted display text.
 
 | key | does | writes |
 |---|---|---|
-| `/` `↑↓` `→ ←` | filter (names and aliases); move; expand / collapse in place | — |
+| `/` `↑↓` `→ ←` | filter (names and aliases); move; expand / collapse in place. Outside the outline, lists and dropdowns, `↓` / `↑` move focus to the widget directly below / above | — |
+| `y` / `p` | save the cursor line of an llms tab (or a line picked from any other tab) to the scratchpad / open the scratchpad editor (`ctrl+s` save, `ctrl+y` copy all) | `$LLMSX_HOME/scratchpad.md` — never committed |
+| `U` | mark every concept with no facts file (no pack facts, no `llms-facts.txt`) `further-research` and queue it, after a confirmation | `concept-tree/marks.json`, `concept-tree/RESEARCH_QUEUE.md` |
+| `g` / `?` | the complete user guide / the key cheat sheet | — |
 | `m` / `f` / `x` | mark needs-review / mark further-research (picks a mode, adds a queue row) / clear | `concept-tree/marks.json`, `concept-tree/RESEARCH_QUEUE.md` |
 | `E` | edit the node's summary, aliases, or add a child (a new frontier point) | `concept-tree/tree.json` (other keys untouched) |
 | `e` | open the current tab's file in `$EDITOR` | that file |

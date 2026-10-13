@@ -3,6 +3,21 @@
 All notable changes to this project are documented in this file. Format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [0.2.5] — 2026-10-13
+
+### Added
+
+- `llmsx explorer`: a concept opens on its facts (the pack, else the hub's
+  `llms-facts.txt`).
+- llms-family tabs render as keyword-highlighted lines with a cursor
+  (`llmsx.explorer_lines`).
+- Scratchpad: `y` / 📌 Save line appends a line with its source to
+  `$LLMSX_HOME/scratchpad.md`; `p` / 📝 Scratchpad edits and copies it.
+- `U` marks every concept with no facts file `further-research` and queues it.
+- `↓` / `↑` move focus to the widget below / above outside lists and dropdowns.
+- The complete user guide ships in the package (`llmsx/USER_GUIDE.md`): `g` in
+  the app, `llmsx explorer --guide`, and https://llms-explorer.com/explorer/guide/.
+
 ## [0.1.0] — 2026-09-02
 
 Initial release.
