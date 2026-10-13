@@ -770,3 +770,9 @@ Outcome: reproduced in a pty (TUI suspended for a silent `claude -p`; Ctrl-C the
 > In the llms-explorer application: 1) Make the facts tab be the default pulled up when selecting a concept. 2) Since every llms file has an established format, create a keyword highlighting colorscheme to make any of the listed files more scannable by a human. 3) When the selector is highlighting anything but a dropdown menu or concept with children, if I press the down arrow the selector should go to the item directly below it. 4) Create a "save to scratchpad" function that has a global notes file that any lne can be selected and a button pressed and it will save to the scratchapad. Useful for looking up URLs and facts about a thing, saving relevant information and then compiling it into a useeable list. 5) Most of the concept lines in this whole concept tree don't have any facts files at all, this looks like we have an entire set of unresearched concepts whose family tree is known without any facts or files created aboput the concept itself. Mark each of these concepts for followup research.
 
 Outcome: TASK-645 — all five shipped in `llmsx explorer`; 4,035 no-facts concepts marked further-research.
+
+## Prompt — 2026-10-13 (2)
+
+> Update the website with your changes, edit the documentation, links, and guides on the website. Also create a complete userguide to using the application and include it as a readme in the executable itself and link to it on the webpage.
+
+Outcome: USER_GUIDE.md ships in llmsx 0.2.5 (`g`, `--guide`); /explorer/guide/ page; /explorer/, /downloads/, home, README updated.

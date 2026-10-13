@@ -104,3 +104,15 @@ def test_the_wheel_installs_and_runs(tmp_path):
         assert out.returncode == 0, out.stderr
         assert "usage: llmsx-speculative" in out.stdout
         assert "validate" in out.stdout and "--execute" in out.stdout
+
+
+def test_the_wheel_ships_the_user_guide_and_the_site_copy_matches(tmp_path):
+    """The guide is package data (`g` and `--guide` read it from the install), and
+    /explorer/guide/ renders a committed copy that must equal it byte for byte."""
+    gd.build_package(tmp_path)
+    wheel = next(tmp_path.glob("*.whl"))
+    with zipfile.ZipFile(wheel) as z:
+        guide = z.read("llmsx/USER_GUIDE.md").decode("utf-8")
+    assert guide.startswith("# LLMSX Explorer — User Guide")
+    assert gd.GUIDE_COPY.read_text(encoding="utf-8") == gd.GUIDE_SRC.read_text(encoding="utf-8"), \
+        "site/src/data/explorer-guide.md is stale: run site/tools/gen_downloads.py --package-only"

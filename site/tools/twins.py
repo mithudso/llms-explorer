@@ -115,6 +115,9 @@ PAGE_SECTIONS = [
 # `title` and `description` are the page's own `const title` / `const
 # description`; test_account_pages.py holds the two together so the index cannot
 # describe a page under a name the page does not use.
+#: The user guide shipped in the llmsx package; /explorer/guide/ renders it.
+_GUIDE = Path(__file__).resolve().parents[1] / "src" / "data" / "explorer-guide.md"
+
 STATIC_PAGES = [
     {"route": "/explorer/", "title": "LLMSX Explorer — The Dynamic Research Workbench",
      "page": "src/pages/explorer.astro",
@@ -123,7 +126,15 @@ STATIC_PAGES = [
      "body": "The LLMSX terminal workbench opens with `llmsx explorer`. This page describes "
              "its concept tree, research queue, highlights, learning tools and keyboard "
              "shortcuts. It includes screenshots and Python installation instructions. "
+             "The complete user guide is at [/explorer/guide/](/explorer/guide/). "
              "See [/downloads/](/downloads/) for the available release files.\n"},
+    {"route": "/explorer/guide/", "title": "LLMSX Explorer User Guide",
+     "page": "src/pages/explorer/guide.astro",
+     "description": "The complete guide to llmsx explorer: navigation, facts, the llms colour "
+                    "scheme, the scratchpad, marks, research jobs and every key.",
+     # the twin is the guide the package ships, minus its own H1
+     "body": _GUIDE.read_text(encoding="utf-8").split("\n", 1)[1]
+     if _GUIDE.is_file() else "See llmsx explorer --guide.\n"},
     {"route": "/downloads/", "title": "Downloads",
      "page": "src/pages/downloads.astro",
      "description": 'Install Skills Explorer, GitHub Explorer and llmsx; download agent skills,'

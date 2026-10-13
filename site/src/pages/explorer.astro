@@ -17,39 +17,40 @@ const description =
 
 const SHORTCUTS: [string, [string, string][]][] = [
   ["Navigation", [
-    ["↑ / ↓ / j / k", "Move cursor up or down in the concept outline tree"],
-    ["Enter / l / Space", "Expand or collapse current node in the outline"],
-    ["/ (slash)", "Focus the search and filter input (matches names and aliases)"],
-    ["[ and ]", "Cycle between tabs: Overview, Facts, Skill, Highlights, References"],
-    ["T", "Cycle tree filter mode (all, researched, frontier, marked)"],
-    ["q", "Quit the explorer workbench"],
+    ["↑ / ↓", "Move in the outline; elsewhere, move focus to the widget directly above or below"],
+    ["→ / ←", "Expand or collapse the concept under the cursor"],
+    ["/ (slash)", "Focus the filter (matches names and aliases)"],
+    ["⌘F / ctrl+f", "Search: Enter jumps to the next match"],
+    ["[ and ]", "Previous / next detail tab"],
+    ["T", "Cycle the outline filter: all, frontier, researched, tagged"],
+    ["g", "Open the complete user guide"],
+    ["q", "Quit the workbench"],
+  ]],
+  ["Scratchpad & Facts", [
+    ["y / 📌 Save line", "Save the cursor line of an llms tab (or a line picked from any tab) to the scratchpad"],
+    ["p / 📝 Scratchpad", "Open, edit and copy ~/.llmsx/scratchpad.md"],
+    ["U", "Mark every concept with no facts file further-research and queue it"],
+    ["m / f / x", "Mark needs-review / mark further-research and queue / clear the mark"],
   ]],
   ["Research & Jobs", [
-    ["⚡ /dr (button)", "Immediately trigger deep research on the selected concept"],
-    ["+ Queue (button)", "Enqueue concept for background research processing"],
-    ["🐇 Rabbithole (button)", "Trigger recursive deep-dive research into edge concepts"],
-    ["🧭 Family (button)", "Explore and map the conceptual taxonomy around the topic"],
-    ["🚀 Auto / a", "Toggle continuous autopilot /dr on frontiers, falling back to most-used concept family expansion"],
-    ["R", "Open research modal with full engine selection (submits on Enter)"],
-    ["u / 📋 Queue", "Open the live Queue Viewer to monitor active jobs and queue rows"],
-    ["o", "View streaming job log of the currently executing research runner"],
-    ["x (in job log)", "Cancel active running research job and atomically restore tree snapshot"],
+    ["⚡ /dr (button)", "Start deep research on the selected concept now"],
+    ["+ Queue (button)", "Add the concept to RESEARCH_QUEUE.md"],
+    ["🐇 Rabbithole (button)", "Research the concept depth-first"],
+    ["🧭 Family (button)", "Map the concept family around the topic"],
+    ["🚀 Auto / a", "Autopilot /dr on frontier concepts, then expand the most-used family"],
+    ["R", "Research dialog: mode and provider (Enter submits)"],
+    ["u / 📋 Queue", "Queue viewer with the live job monitor"],
+    ["o", "Job log of the running job (x cancels, snapshot restored)"],
   ]],
-  ["Highlights & Notes", [
-    ["h / 🔖 Highlight", "Capture and save highlighted text snippet with custom note"],
-    ["H", "Open full-screen Highlights Manager (preview, copy, jump to concept)"],
-    ["n", "Open private local notes editor (~/.llmsx/notes/<slug>.md)"],
-    ["e", "Open current backing file in your $EDITOR"],
-    ["m", "Mark concept as needs-review"],
-    ["f", "Mark concept for further-research and append to queue"],
-  ]],
-  ["Learning & Active Recall", [
-    ["F", "Launch spaced-repetition flashcards across the active branch"],
-    ["Q", "Launch adaptive multiple-choice quiz testing core mechanics"],
-    ["W", "Open Braindump capture: stream loose thoughts into structured llms files"],
-    ["J", "Open daily dated research journal"],
-    ["B", "Open Bundle manager to package reference sets for agent prompts"],
-    ["?", "Display complete interactive hotkey cheat sheet"],
+  ["Notes, Learning & Capture", [
+    ["h / H", "Save a highlight / open the highlights manager"],
+    ["n", "Private notes for the concept (~/.llmsx/notes/<slug>.md)"],
+    ["e / E", "Open the tab's file in $EDITOR / edit the node"],
+    ["F / Q", "Flashcards (Leitner boxes) / quiz over the selected branch"],
+    ["W / J", "Braindump / daily journal"],
+    ["b / B / X", "Bundle toggle / bundle / export"],
+    ["s / c", "git pull --ff-only / commit and push the three tree files"],
+    ["?", "Key cheat sheet"],
   ]],
 ];
 ---
@@ -81,6 +82,7 @@ llmsx explorer`}</code></pre>
       )}
       <div class="install-footer">
         Zero credentials required to browse. Zero telemetry. All notes and highlights persist locally on your machine.
+        <br />New here? Read the <a href="/explorer/guide/">complete user guide</a> — it also ships in the app (press <kbd>g</kbd>, or run <code>llmsx explorer --guide</code>).
       </div>
     </div>
 
@@ -135,6 +137,26 @@ llmsx explorer`}</code></pre>
       <p>
         Test your comprehension with dynamically generated multiple-choice quizzes across any
         branch of the concept tree. Explanations verify subtle mechanical distinctions.
+      </p>
+    </div>
+
+    <div class="feature-card">
+      <div class="icon">📑</div>
+      <h3>Facts First</h3>
+      <p>
+        Selecting a concept opens its facts: the concept pack's Facts tab, or the hub's
+        <code>llms-facts.txt</code> when there is no pack. Every llms file is colour-coded by
+        its format so headings, links, citations and warnings stand out.
+      </p>
+    </div>
+
+    <div class="feature-card">
+      <div class="icon">📌</div>
+      <h3>Scratchpad</h3>
+      <p>
+        Put the cursor on any line and press <kbd>y</kbd> (or <strong>📌 Save line</strong>): the
+        line lands in one global scratchpad with its source file and line number. Press
+        <kbd>p</kbd> to compile the collection into a usable list.
       </p>
     </div>
 
@@ -296,6 +318,46 @@ llmsx explorer`}</code></pre>
     </li>
   </ul>
 
+  <h2 id="facts-and-scratchpad">Facts, the llms Colour Scheme & the Scratchpad</h2>
+  <p>
+    The explorer opens every concept on its facts. The llms-family tabs (<code>llms.txt</code>,
+    <code>llms-full.txt</code>, <code>llms-small.txt</code>, <code>llms-facts.txt</code>,
+    <code>llms-vocabulary.txt</code>) show one numbered line per row, coloured by the llms format:
+  </p>
+  <ul>
+    <li><strong>Structure:</strong> <code>#</code> titles magenta, <code>##</code> sections cyan, the <code>&gt;</code> summary green, list markers yellow.</li>
+    <li><strong>Links:</strong> link names bold, URLs underlined blue, inline <code>code</code> orange.</li>
+    <li><strong>Provenance:</strong> <code>[src: …]</code> and <code>[gen: …]</code> tags and the <code>— path:line (as of date)</code> citation tail dimmed, dates green.</li>
+    <li><strong>Warnings:</strong> <code>STALE:</code>, <code>Misbelief:</code>, <code>TODO</code>, <code>never</code>, <code>must</code> in bold red.</li>
+  </ul>
+  <figure class="screenshot-frame">
+    <img src="/images/explorer/explorer-llms-highlight.svg" alt="Keyword-highlighted llms-facts.txt tab with a line cursor" />
+    <figcaption>An llms-facts.txt tab in the line view: every part of the llms format has its own colour, and the cursor line is the one <kbd>y</kbd> saves.</figcaption>
+  </figure>
+  <p>
+    <strong>The scratchpad</strong> is one global file, <code>~/.llmsx/scratchpad.md</code>. Look up
+    a thing, press <kbd>y</kbd> on each useful URL or fact, and every line is kept as
+    <code>- &lt;line&gt; — &lt;concept&gt; · &lt;file&gt;:&lt;line&gt; (as of &lt;date&gt;)</code>. On the
+    Overview, Facts or Skill tab, <kbd>y</kbd> opens a filterable line picker instead. Duplicates are
+    skipped. Press <kbd>p</kbd> (or <strong>📝 Scratchpad</strong>) to reorder and edit, <kbd>ctrl+s</kbd>
+    to save and <kbd>ctrl+y</kbd> to copy the whole list.
+  </p>
+  <figure class="screenshot-frame">
+    <img src="/images/explorer/explorer-scratchpad.svg" alt="The scratchpad editor with saved lines and their sources" />
+    <figcaption>The scratchpad editor: each saved line keeps its concept, source file and line number.</figcaption>
+  </figure>
+  <p>
+    <strong>Unresearched concepts.</strong> Many concepts are known only by their place in the tree.
+    Press <kbd>U</kbd> to mark every concept with no facts file <code>further-research</code> and add
+    it to the research queue in one confirmed step; then filter with <kbd>T</kbd> and let
+    <strong>🚀 Auto</strong> work through them.
+  </p>
+  <p>
+    <strong>Arrow keys.</strong> The outline, line views, lists and dropdowns keep their own
+    <kbd>↑</kbd> <kbd>↓</kbd>. Everywhere else, <kbd>↓</kbd> moves focus to the widget directly
+    below: from the filter box to the outline, from a button to the tab bar.
+  </p>
+
   <h2>Highlights & Annotations Section</h2>
   <p>
     As you read through concept overviews, facts files, and skill references, you will find standout
@@ -334,7 +396,9 @@ llmsx explorer`}</code></pre>
 
   <h2>Complete Hotkey Reference</h2>
   <p>
-    Press <kbd>?</kbd> at any time in the terminal workbench to bring up the interactive cheatsheet:
+    Press <kbd>?</kbd> at any time in the terminal workbench to bring up the interactive cheatsheet,
+    or <kbd>g</kbd> for the <a href="/explorer/guide/">complete user guide</a>, which covers every
+    screen, file and setting.
   </p>
 
   <figure class="screenshot-frame">
@@ -409,7 +473,8 @@ llmsx explorer`}</code></pre>
   <div class="cta-box">
     <h3>Start exploring today</h3>
     <p>Install the workbench and discover what lies beyond the surface of your field.</p>
-    <a href="/downloads/" class="btn-primary">Get LLMSX Explorer</a>
+    <a href="/downloads/#llmsx" class="btn-primary">Get LLMSX Explorer</a>
+    <a href="/explorer/guide/" class="btn-secondary">Read the User Guide</a>
     <a href="/tree/" class="btn-secondary">View 3D Web Tree</a>
   </div>
 </Base>

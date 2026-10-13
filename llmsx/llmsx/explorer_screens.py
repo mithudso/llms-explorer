@@ -1012,10 +1012,18 @@ class HotkeyHelp(_Modal):
             with VerticalScroll(classes="tall"):
                 yield Markdown(self._help_text())
             with Horizontal():
+                yield Button("User guide (g)", id="guide")
                 yield Button("Close (esc)", id="cancel", variant="primary")
 
     def on_mount(self) -> None:
         self.query_one("#cancel", Button).focus()
+
+    @on(Button.Pressed)
+    def _pressed(self, event: Button.Pressed) -> None:
+        event.stop()
+        self.dismiss(None)
+        if event.button.id == "guide":
+            self.app.push_screen(GuideScreen())
 
     @staticmethod
     def _help_text() -> str:
@@ -1077,8 +1085,37 @@ class HotkeyHelp(_Modal):
 | **`c`** | Commit & Push | Stage allow-listed files only, commit and push |
 | **`,`** | Settings | Configure LLM providers (Google, Codex, Copilot, Ollama, Claude), API keys, and remotes |
 | **`?`** | Help | Show this keyboard shortcut guide |
+| **`g`** | User guide | The complete user guide (also `llmsx explorer --guide`, and llms-explorer.com/explorer/guide/) |
 | **`q`** | Quit | Exit Explorer |
 """
+
+
+class GuideScreen(Screen):
+    """The complete user guide (`USER_GUIDE.md`, shipped in the package)."""
+
+    BINDINGS = [Binding("escape", "app.pop_screen", "Back"), Binding("q", "app.pop_screen", "Back")]
+    DEFAULT_CSS = """
+    GuideScreen VerticalScroll { padding: 0 2; }
+    """
+
+    def compose(self) -> ComposeResult:
+        yield Header()
+        with VerticalScroll(id="guide-scroll"):
+            # the guide ships in the package: trusted text, rendered as written
+            yield Markdown(store.guide_text(), id="guide-md")
+        yield Footer()
+
+    def on_mount(self) -> None:
+        self.title = "llmsx explorer — user guide"
+        self.query_one("#guide-scroll").focus()
+
+    @on(Markdown.LinkClicked, "#guide-md")
+    def _link(self, event: Markdown.LinkClicked) -> None:
+        """Table-of-contents links jump within the guide; others are left alone."""
+        if event.href.startswith("#"):
+            event.prevent_default()
+            event.stop()
+            self.query_one("#guide-md", Markdown).goto_anchor(event.href[1:])
 
 
 # --------------------------------------------------------------------------- #

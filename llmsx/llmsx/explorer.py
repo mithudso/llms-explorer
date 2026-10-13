@@ -803,6 +803,7 @@ class Explorer(App):
         Binding("h", "add_highlight", "Highlight", show=False),
         Binding("H", "view_highlights", "Highlights", show=False),
         Binding("question_mark", "help", "Help", key_display="?"),
+        Binding("g", "guide", "Guide"),
         Binding("s", "sync", "Sync"),
         Binding("c", "commit", "Commit+push"),
         Binding("comma", "settings", "Settings", key_display=","),
@@ -2176,6 +2177,9 @@ class Explorer(App):
 
     def action_help(self) -> None:
         self.push_screen(screens.HotkeyHelp())
+
+    def action_guide(self) -> None:
+        self.push_screen(screens.GuideScreen())
 
     def action_queue_viewer(self) -> None:
         self.push_screen(screens.QueueViewer(
