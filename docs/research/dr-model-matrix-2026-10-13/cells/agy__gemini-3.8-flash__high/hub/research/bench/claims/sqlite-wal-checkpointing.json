@@ -1,0 +1,143 @@
+{
+ "concept": "SQLite WAL checkpointing",
+ "summary": "SQLite WAL checkpointing transfers committed database pages from the write-ahead log (-wal) file back to the primary database file, enabling log reuse or truncation. By default, SQLite triggers an automatic PASSIVE checkpoint when the WAL reaches 1,000 pages or the last connection closes. However, because checkpointing cannot overwrite frames actively referenced by open read transactions, long-running queries or leaked statements induce checkpoint starvation—causing unbound WAL file growth and potential write stalls. Checkpoint modes vary from non-blocking PASSIVE to blocking FULL, RESTART, and TRUNCATE, which require exclusive access to reset or shrink the log. Robust production deployments actively manage checkpoints through connection discipline, journal size limits, and external replication coordination.",
+ "claims": [
+  {
+   "text": "In SQLite WAL mode, checkpointing transfers committed database pages from the separate write-ahead log (-wal) file back to the primary database file so log space can be recycled.",
+   "confidence": "high",
+   "section": "core",
+   "sources": [
+    "https://sqlite.org/wal.html",
+    "https://fly.io/blog/sqlite-internals-wal/"
+   ],
+   "volatile": false
+  },
+  {
+   "text": "SQLite's sqlite3_wal_checkpoint_v2 API provides four operational checkpoint modes: PASSIVE (non-blocking, copies available frames), FULL (blocks writers until readers reach latest snapshot, then syncs), RESTART (blocks writers and subsequent readers until all readers clear the WAL), and TRUNCATE (executes RESTART and truncates the WAL file to zero bytes).",
+   "confidence": "high",
+   "section": "core",
+   "sources": [
+    "https://sqlite.org/c3ref/wal_checkpoint_v2.html",
+    "https://fly.io/blog/sqlite-internals-wal/"
+   ],
+   "volatile": false
+  },
+  {
+   "text": "By default, SQLite initiates an automatic PASSIVE checkpoint whenever a commit causes the WAL file to reach or exceed 1,000 pages (controlled by PRAGMA wal_autocheckpoint) or when the last open connection closes.",
+   "confidence": "high",
+   "section": "patterns",
+   "sources": [
+    "https://sqlite.org/wal.html",
+    "https://fly.io/blog/sqlite-internals-wal/"
+   ],
+   "volatile": false
+  },
+  {
+   "text": "Checkpoint starvation occurs when long-lived or unclosed read transactions prevent checkpointing from advancing past the oldest active snapshot, causing unbounded WAL growth on disk despite continuous passive checkpoint attempts.",
+   "confidence": "high",
+   "section": "antipatterns",
+   "sources": [
+    "https://turso.tech/blog/something-you-probably-want-to-know-about-if-youre-using-sqlite-in-golang-72547ad625f1",
+    "https://fly.io/blog/sqlite-internals-wal/"
+   ],
+   "volatile": false
+  },
+  {
+   "text": "Litestream deliberately intercepts and controls the SQLite checkpoint lifecycle by holding a continuous read lock to prevent concurrent automatic checkpoints from resetting the WAL before frames can be replicated to remote object storage.",
+   "confidence": "high",
+   "section": "tools",
+   "sources": [
+    "https://litestream.io/how-it-works/",
+    "https://fly.io/blog/sqlite-internals-wal/"
+   ],
+   "volatile": false
+  },
+  {
+   "text": "Litestream manages runaway WAL growth via truncate-page-n (defaulting to 121,359 pages / ~500MB), attempting a non-blocking PASSIVE checkpoint first when crossed, but falling back to a blocking TRUNCATE checkpoint if active readers prevent log reduction.",
+   "confidence": "high",
+   "section": "troubleshooting",
+   "sources": [
+    "https://litestream.io/reference/config/",
+    "https://litestream.io/how-it-works/"
+   ],
+   "volatile": true,
+   "verified_as_of": "2026-07-30"
+  },
+  {
+   "text": "Applications executing blocking checkpoints such as PRAGMA wal_checkpoint(TRUNCATE) or PRAGMA wal_checkpoint(RESTART) risk latency spikes or application thread lockups if forced to wait for long-lived readers or unfinalized statements to finish.",
+   "confidence": "high",
+   "section": "troubleshooting",
+   "sources": [
+    "https://sqlite.org/c3ref/wal_checkpoint_v2.html",
+    "https://turso.tech/blog/something-you-probably-want-to-know-about-if-youre-using-sqlite-in-golang-72547ad625f1"
+   ],
+   "volatile": false
+  },
+  {
+   "text": "Configuring PRAGMA journal_size_limit instructs SQLite to truncate the WAL file back to a bounded byte threshold during successful checkpoints, preventing physical disk exhaustion while maintaining normal WAL recycling.",
+   "confidence": "high",
+   "section": "patterns",
+   "sources": [
+    "https://sqlite.org/wal.html",
+    "https://turso.tech/blog/something-you-probably-want-to-know-about-if-youre-using-sqlite-in-golang-72547ad625f1"
+   ],
+   "volatile": false
+  }
+ ],
+ "sources": [
+  {
+   "url": "https://sqlite.org/c3ref/wal_checkpoint_v2.html",
+   "title": "SQLite C Interface: Checkpoint A Database",
+   "tier": "docs"
+  },
+  {
+   "url": "https://sqlite.org/wal.html",
+   "title": "Write-Ahead Logging",
+   "tier": "docs"
+  },
+  {
+   "url": "https://litestream.io/how-it-works/",
+   "title": "Litestream: How It Works",
+   "tier": "docs"
+  },
+  {
+   "url": "https://litestream.io/reference/config/",
+   "title": "Litestream Configuration Reference",
+   "tier": "docs"
+  },
+  {
+   "url": "https://fly.io/blog/sqlite-internals-wal/",
+   "title": "How SQLite Scales Read Concurrency",
+   "tier": "blog"
+  },
+  {
+   "url": "https://turso.tech/blog/something-you-probably-want-to-know-about-if-youre-using-sqlite-in-golang-72547ad625f1",
+   "title": "Something you probably want to know about if you're using SQLite in Golang",
+   "tier": "blog"
+  }
+ ],
+ "disagreements": [
+  {
+   "text": "While SQLite documentation treats automatic 1,000-page PASSIVE checkpointing as sufficient for standard operation, streaming backup tools like Litestream deliberately suppress default checkpoints with persistent reader locks to ensure complete log frame replication before triggering controlled checkpoints.",
+   "sources": [
+    "https://sqlite.org/wal.html",
+    "https://litestream.io/how-it-works/"
+   ]
+  }
+ ],
+ "open_questions": [
+  "How future SQLite revisions or multi-writer forks (such as libSQL BEGIN CONCURRENT) synchronize checkpoint execution without requiring global stop-the-world exclusive truncate locks.",
+  "Whether SQLite will introduce fine-grained per-page WAL checkpointing that can backfill and recycle pages unreferenced by lagging reader snapshots."
+ ],
+ "child_concepts": [
+  "Passive vs Truncate checkpoint tradeoffs",
+  "Checkpoint starvation mitigation",
+  "WAL auto-checkpoint tuning"
+ ],
+ "telemetry": {
+  "queries": 11,
+  "negation_queries": 2,
+  "sources_deep_read": 6
+ },
+ "slug": "sqlite-wal-checkpointing"
+}

@@ -1,0 +1,116 @@
+{
+ "concept": "SQLite WAL checkpointing",
+ "summary": "Checkpointing copies committed WAL content into SQLite's main database. Copying frames, resetting the log for reuse, and shrinking the WAL file are distinct operations. Automatic checkpoints provide a default policy; manual modes trade waiting and write contention against completion and disk reclamation. Long-lived reader snapshots can limit progress. Applications should inspect checkpoint results and choose scheduling based on their workload.",
+ "claims": [
+  {
+   "text": "A checkpoint transfers WAL changes into the main database; ordinary checkpointing need not reduce the WAL file's physical size because SQLite can reuse its allocated space.",
+   "confidence": "high",
+   "section": "core",
+   "sources": [
+    "https://www.sqlite.org/wal.html",
+    "https://github.com/benbjohnson/litestream/blob/main/docs/SQLITE_INTERNALS.md"
+   ],
+   "volatile": false
+  },
+  {
+   "text": "SQLite's default automatic checkpoint threshold is 1000 pages, configurable at build time or runtime. Automatic checkpoints use PASSIVE mode.",
+   "confidence": "high",
+   "section": "core",
+   "sources": [
+    "https://www.sqlite.org/wal.html",
+    "https://github.com/benbjohnson/litestream/blob/main/docs/SQLITE_INTERNALS.md"
+   ],
+   "volatile": false
+  },
+  {
+   "text": "PASSIVE copies as many frames as possible without waiting for readers or writers and never invokes the busy handler; active transactions may leave it incomplete.",
+   "confidence": "high",
+   "section": "tools",
+   "sources": [
+    "https://www.sqlite.org/wal.html",
+    "https://www.sqlite.org/c3ref/wal_checkpoint_v2.html"
+   ],
+   "volatile": false
+  },
+  {
+   "text": "FULL waits for the writer and older reader snapshots, then copies all frames. RESTART additionally waits until readers no longer use the WAL, enabling the next writer to restart it.",
+   "confidence": "low",
+   "section": "tools",
+   "sources": [
+    "https://www.sqlite.org/c3ref/wal_checkpoint_v2.html"
+   ],
+   "volatile": false
+  },
+  {
+   "text": "A successful TRUNCATE checkpoint adds zero-length WAL truncation to RESTART behavior; PRAGMA wal_checkpoint(TRUNCATE) exposes this operation in SQL.",
+   "confidence": "high",
+   "section": "tools",
+   "sources": [
+    "https://www.sqlite.org/c3ref/wal_checkpoint_v2.html",
+    "https://github.com/benbjohnson/litestream/blob/main/docs/SQLITE_INTERNALS.md",
+    "https://turso.tech/blog/migrating-and-importing-sqlite-to-turso-just-got-easier"
+   ],
+   "volatile": false
+  },
+  {
+   "text": "Long-running reader snapshots can prevent checkpoint progress or WAL reset. Under ongoing writes, overlapping readers can therefore permit continued WAL growth.",
+   "confidence": "high",
+   "section": "troubleshooting",
+   "sources": [
+    "https://www.sqlite.org/wal.html",
+    "https://github.com/benbjohnson/litestream/blob/main/docs/SQLITE_INTERNALS.md"
+   ],
+   "volatile": false
+  },
+  {
+   "text": "FULL, RESTART, or TRUNCATE can return SQLITE_BUSY and leave work incomplete if the busy handler stops waiting. Concurrent checkpoint-lock contention returns SQLITE_BUSY without invoking that handler.",
+   "confidence": "low",
+   "section": "troubleshooting",
+   "sources": [
+    "https://www.sqlite.org/c3ref/wal_checkpoint_v2.html"
+   ],
+   "volatile": false
+  }
+ ],
+ "sources": [
+  {
+   "url": "https://www.sqlite.org/wal.html",
+   "title": "Write-Ahead Logging",
+   "tier": "docs"
+  },
+  {
+   "url": "https://www.sqlite.org/c3ref/wal_checkpoint_v2.html",
+   "title": "Checkpoint a database",
+   "tier": "docs"
+  },
+  {
+   "url": "https://github.com/benbjohnson/litestream/blob/main/docs/SQLITE_INTERNALS.md",
+   "title": "SQLite Internals for Litestream",
+   "tier": "repo"
+  },
+  {
+   "url": "https://turso.tech/blog/migrating-and-importing-sqlite-to-turso-just-got-easier",
+   "title": "Migrating and Importing SQLite to Turso Just Got Easier",
+   "tier": "blog"
+  }
+ ],
+ "disagreements": [
+  {
+   "text": "Litestream's internals guide says FULL blocks new readers and PASSIVE fails when readers exist. SQLite's API reference instead allows new readers during FULL and describes PASSIVE as potentially making partial progress. Use the API reference for these semantics.",
+   "sources": [
+    "https://github.com/benbjohnson/litestream/blob/main/docs/SQLITE_INTERNALS.md",
+    "https://www.sqlite.org/c3ref/wal_checkpoint_v2.html"
+   ]
+  }
+ ],
+ "open_questions": [
+  "The SQLite WAL overview and checkpoint API reference differ in their descriptions of reader blocking during RESTART/TRUNCATE; verify latency behavior against the deployed SQLite build."
+ ],
+ "child_concepts": [],
+ "telemetry": {
+  "queries": 5,
+  "negation_queries": 1,
+  "sources_deep_read": 4
+ },
+ "slug": "sqlite-wal-checkpointing"
+}
