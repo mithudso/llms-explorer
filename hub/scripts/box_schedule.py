@@ -118,7 +118,11 @@ def suspension(host: str, now: datetime.datetime | None = None) -> str | None:
     """
     now = now or datetime.datetime.now()
     data = _read_override()
-    for key in ("*", host):
+    # A per-host key is a label or address fragment, and `host` may be a full
+    # Ollama URL (embed_core passes one), so match by containment exactly as
+    # is_quiet() does. "*" always applies.
+    keys = ["*"] + [k for k in data if k != "*" and k in host]
+    for key in keys:
         entry = data.get(key)
         if not isinstance(entry, dict) or not entry.get("suspended"):
             continue

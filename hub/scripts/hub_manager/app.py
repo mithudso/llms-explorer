@@ -1139,7 +1139,7 @@ class HubManagerApp(App):
         if d["status"] == "frontier":
             log.write(f"  [dim]{d['whyGreyed']} — source: "
                       f"{d['frontierSource']}[/dim]")
-            log.write("  press [b]q[/b] to queue it for research")
+            log.write("  press [b]n[/b] to queue it for research")
         else:
             log.write(f"  skill      {d.get('skillId') or '-'}")
             for path in d.get("skillPaths") or []:

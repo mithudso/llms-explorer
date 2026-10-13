@@ -37,3 +37,9 @@ def _no_snapshot_refresh(monkeypatch):
     """pipeline_manager's drain hook would run the real llms-explorer refresh
     (rsync + git push) from inside a queue test; opt out for every test."""
     monkeypatch.setenv("LLMS_EXPLORER_REFRESH", "0")
+
+
+@pytest.fixture(autouse=True)
+def _no_live_egpu(monkeypatch):
+    """Keep tests off the real egpu llama-server; egpu_embed tests set their own URL."""
+    monkeypatch.setenv("HUB_EGPU_URL", "off")

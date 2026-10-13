@@ -62,6 +62,8 @@ def weak_queries(min_score: float = MIN_SCORE, days: int = DAYS) -> list[str]:
     out: list[str] = []
     for rec in load_history(days=days):
         top = rec.get("top") or []
+        if top and rec.get("reranked") is False:
+            continue  # RRF-scale scores (rerank skipped): not comparable to min_score
         best = max((float(h.get("score", 0)) for h in top), default=0.0)
         if best < min_score:
             out.append(rec["query"])

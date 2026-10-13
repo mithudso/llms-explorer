@@ -331,7 +331,7 @@ class SqliteStore:
             self._write_pages(key, pages)
 
     def delete_docset(self, key):
-        """Drop a docset entirely: registry row, chunks, raw pages. Returns
+        """Drop a docset entirely: registry row, chunks, raw pages, keyword rows. Returns
         True when a registry row existed. Deleting a key that is not present
         is a no-op rather than an error, so a retry after a half-failed
         delete converges instead of tripping."""
@@ -340,6 +340,10 @@ class SqliteStore:
                 "SELECT 1 FROM docsets WHERE docset=?", (key,)).fetchone() is not None
             for table in ("chunks", "pages", "docsets"):
                 self.db.execute(f"DELETE FROM {table} WHERE docset=?", (key,))
+            # kw is created lazily by the first keyword-index run; without this
+            # a deleted docset still answers keyword queries and replicates.
+            self._ensure_kw()
+            self.db.execute("DELETE FROM kw WHERE docset=?", (key,))
         return existed
 
     def query(self, key, qvec, top):

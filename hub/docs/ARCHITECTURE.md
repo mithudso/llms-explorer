@@ -17,7 +17,7 @@ embedding pool.
 ```
 
 ## Component Breakdown
-- **Static knowledge** (`coding-patterns/`, `concept-tree/`, `file-analysis/`,
+- **Static knowledge** (`concept-tree/`, `file-analysis/`,
   `libraries/`, `prompts/`, `roles/`): file-based context read directly by agents.
 - **Runtime** (`scripts/`, `mcp-server/`): file-corpus index (`hub.db`), the
   per-docset ChromaDB vector index (`.chroma-docsets/`), and the 7-tool

@@ -65,6 +65,7 @@ that links other indexes.
 | C5 | No duplicated pages (same source URL twice) or near-duplicate bodies (e.g. localized copies) | full | deterministic + embedding | 0 exact dups; near-dups flagged | Medium |
 | C6 | Units are atomic (1–2 sentences), typed from the allowed set, source-anchored | facts | deterministic + judgment | 100% typed; 100% anchored; ≥90% atomic | High for anchors, Medium otherwise |
 | C7 | Units are true to their source span (no generalisation beyond the page) | facts | judgment (sampled re-read) | sample of 20: ≥95% supported | High |
+| C8 | Contested material stays contested: controversies, open questions and common misbeliefs sit in one `## Contested` section as tagged lines (`Misbelief:` / `Controversy:` / `Open question:`), each cited and attested; every `Misbelief:` line is mirrored in facts; no controversy or open question appears as a settled fact anywhere; section absent when empty | full, facts | deterministic (tags, citations, mirror) + judgment (attestation, flattening) | 100% tagged and cited; 0 flattened | High if flattened or a `Controversy:`/`Open question:` line is in facts; Medium otherwise |
 
 ## 5. Provenance and trust
 

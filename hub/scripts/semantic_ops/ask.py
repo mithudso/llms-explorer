@@ -111,7 +111,11 @@ def ask(query: str, corpora=None) -> tuple[str, list[Hit]]:
 def log_query(query: str, hits: list[Hit]) -> None:
     """Best-effort jsonl append for the coverage map; never raises."""
     try:
+        # `reranked` says whether the scores are cosine(query, snippet) or the
+        # much smaller RRF-fused values left when rerank was skipped; coverage
+        # must not compare the latter against its cosine threshold.
         rec = {"ts": time.time(), "query": query,
+               "reranked": bool(hits) and all(h.meta.get("reranked") for h in hits[:10]),
                "top": [{"source": h.source, "ref": h.ref, "score": h.score}
                        for h in hits[:10]]}
         path = history_path()

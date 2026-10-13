@@ -35,6 +35,10 @@ DEFAULTS = {
 }
 
 
+# 0/1 switches: 0 is a real value here, unlike the interval/count keys below.
+FLAGS = frozenset({"mirror_clone", "local_only"})
+
+
 def load() -> dict:
     data = dict(DEFAULTS)
     if SETTINGS_PATH.exists():
@@ -53,9 +57,10 @@ def save(values: dict) -> dict:
             continue
         if isinstance(DEFAULTS[key], int):
             try:
-                # floor of 1: a 0/negative interval would busy-spin the UI
-                # timers and Semaphore(0) would deadlock the manager
-                value = max(1, int(value))
+                # intervals/counts floor at 1: a 0/negative interval would
+                # busy-spin the UI timers and Semaphore(0) would deadlock the
+                # manager; flags are 0/1 and 0 is a real value
+                value = (1 if int(value) > 0 else 0) if key in FLAGS else max(1, int(value))
             except (TypeError, ValueError):
                 continue
         data[key] = value

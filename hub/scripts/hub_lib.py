@@ -220,36 +220,71 @@ def _log_embed_failure(model, url, reason):
         "embedding failed (model=%s url=%s): %s", model, url, reason)
 
 
+_host_down_until = {}  # base_url -> monotonic time before which it is skipped
+HOST_DOWN_COOLDOWN = 60  # seconds a failed host is skipped (indexer calls once per file)
+
+
+def _embed_hosts(cfg):
+    """Ollama hosts to try, best first: the weighted pool (remote GPU boxes
+    first, localhost last), else the single configured url. Hosts that failed
+    within HOST_DOWN_COOLDOWN are skipped so an unreachable remote costs one
+    timeout a minute, not one per file; if every host is cooling down, try all."""
+    try:
+        import embed_core
+        hosts = [u for u, _w in embed_core._parse_hosts()]
+    except Exception:
+        hosts = []
+    if not hosts:
+        hosts = [cfg["ollama_url"].rstrip("/")]
+    import time as _time
+    now = _time.monotonic()
+    live = [h for h in hosts if _host_down_until.get(h, 0.0) <= now]
+    return live or hosts
+
+
 def fetch_embedding(text, model=None):
     """Fetch an embedding vector from Ollama's /api/embed endpoint.
 
-    Returns None on failure, but never silently: see _log_embed_failure.
+    Tries each pool host in order (remote first, local last) and returns the
+    first success. Returns None when every host fails, but never silently:
+    see _log_embed_failure.
     """
+    import time as _time
     cfg = load_config()
     if model is None:
         model = cfg["embed_model"]
-    url = cfg["ollama_url"] + "/api/embed"
+    try:  # egpu tier: used only if llama-server serves exactly this model (egpu_embed.py)
+        import egpu_embed
+        vec = egpu_embed.try_egpu(text, model)
+        if vec is not None:
+            return vec
+    except Exception:
+        pass
     payload = json.dumps({"model": model, "input": text}).encode("utf-8")
-    req = urllib.request.Request(url, data=payload, headers={"Content-Type": "application/json"})
-    try:
-        with urllib.request.urlopen(req, timeout=15) as response:
-            data = json.loads(response.read().decode("utf-8"))
-            if "embeddings" in data and isinstance(data["embeddings"], list):
-                return data["embeddings"][0]
-            if "embedding" in data:
-                return data["embedding"]
-    except Exception as exc:
-        # a missing model comes back as HTTP 404 with the pull hint in the body
-        detail = getattr(exc, "read", None)
-        body = ""
-        if detail is not None:
-            try:
-                body = detail().decode("utf-8", "replace")[:200]
-            except Exception:
-                body = ""
-        _log_embed_failure(model, url, f"{type(exc).__name__}: {exc} {body}".strip())
-        return None
-    _log_embed_failure(model, url, "response had no embedding field")
+    last_url, last_reason = cfg["ollama_url"] + "/api/embed", None
+    for base in _embed_hosts(cfg):
+        url = base + "/api/embed"
+        req = urllib.request.Request(url, data=payload, headers={"Content-Type": "application/json"})
+        try:
+            with urllib.request.urlopen(req, timeout=15) as response:
+                data = json.loads(response.read().decode("utf-8"))
+                if "embeddings" in data and isinstance(data["embeddings"], list):
+                    return data["embeddings"][0]
+                if "embedding" in data:
+                    return data["embedding"]
+            last_url, last_reason = url, "response had no embedding field"
+        except Exception as exc:
+            # a missing model comes back as HTTP 404 with the pull hint in the body
+            detail = getattr(exc, "read", None)
+            body = ""
+            if detail is not None:
+                try:
+                    body = detail().decode("utf-8", "replace")[:200]
+                except Exception:
+                    body = ""
+            last_url, last_reason = url, f"{type(exc).__name__}: {exc} {body}".strip()
+        _host_down_until[base] = _time.monotonic() + HOST_DOWN_COOLDOWN
+    _log_embed_failure(model, last_url, last_reason)
     return None
 
 
@@ -265,8 +300,8 @@ def load_index():
 def load_embeddings():
     return hub_sqlite.load_embeddings()
 
-def upsert_file(abs_path, content_hash, size, embedding):
-    hub_sqlite.upsert_file(abs_path, content_hash, size, embedding, load_config()["embed_model"])
+def upsert_file(abs_path, content_hash, size, embedding, as_of=None):
+    hub_sqlite.upsert_file(abs_path, content_hash, size, embedding, load_config()["embed_model"], as_of)
     index_keywords(abs_path)
 
 def gc_stale_entries():

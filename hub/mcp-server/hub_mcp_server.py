@@ -9,6 +9,7 @@ official `mcp` SDK's FastMCP, matching the hub's existing stack.
 Tools (prefix `hub_`):
   hub_search_codebase   semantic search over the hub's file index (hub.db; rerank opt-in)
   hub_search_keyword    BM25 keyword (FTS5) search over the same files (hub.db files_fts)
+  hub_search_facts      claim-level BM25 over every llms facts file and reference skill (facts.db)
   hub_ask               federated ask: every corpus, RRF+rerank, LLM answer w/ citations
   hub_search_symbols    function/class-granularity semantic code search (symbols.db)
   hub_route             which local skill / agent / MCP tool fits a task
@@ -221,6 +222,28 @@ def hub_search_keyword(query: str, n_results: int = 10, prefix: str = "",
         top = max(1, min(int(n_results), 50))
         hits = keyword_index.query(query, prefix=prefix or None, top=top, mode=mode)
         return json.dumps(hits, indent=2)
+    except Exception as e:
+        return f"ERROR: {e}"
+
+
+@mcp.tool(annotations=ToolAnnotations(readOnlyHint=True))
+def hub_search_facts(query: str, n_results: int = 10, origin: str = "", family: str = "",
+                     contradicts: bool = False) -> str:
+    """Claim-level BM25 search (facts.db, built by scripts/facts_db.py) over every llms-facts file
+    (hub layer, concept packs, expert skills, project facts) and every reference skill line.
+    Returns one claim per hit with its concept, family, source URL or path:line. Terms are OR-ed;
+    quote a phrase. origin: llms | reference (default both). family: substring of the skill or pack
+    path, e.g. running-llm-models-locally-on-mac-expert. contradicts=true keeps only claims that
+    contradict an earlier finding. Rebuild with `python3 scripts/facts_db.py build`."""
+    import facts_db  # deferred: opens facts.db only when called
+    if origin not in ("", "llms", "reference"):
+        return "ERROR: origin must be llms or reference"
+    if not facts_db.DEFAULT_DB.exists():
+        return "ERROR: facts.db missing; run python3 scripts/facts_db.py build"
+    try:
+        top = max(1, min(int(n_results), 50))
+        return json.dumps(facts_db.query(facts_db.DEFAULT_DB, query, origin or None, family or None,
+                                         contradicts, top), indent=2, ensure_ascii=False)
     except Exception as e:
         return f"ERROR: {e}"
 
@@ -626,10 +649,17 @@ def _resolve_concept_pack(concept: str):
     match against slug or concept name — ambiguous or empty matches are
     reported back as candidates rather than guessed."""
     concept_l = concept.strip().lower()
-    exact = LLMS_CONCEPTS_DIR / f"{concept}.llms"
-    if exact.is_dir() and (exact / "manifest.json").is_file():
-        manifest = json.loads((exact / "manifest.json").read_text())
-        return concept, exact, manifest, []
+    # Only a plain slug may name a directory; anything else (separators, "..")
+    # skips the exact-match path and is matched as a substring below.
+    if re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9._-]*", concept) and ".." not in concept:
+        exact = LLMS_CONCEPTS_DIR / f"{concept}.llms"
+        if exact.is_dir() and (exact / "manifest.json").is_file():
+            try:
+                manifest = json.loads((exact / "manifest.json").read_text())
+            except (OSError, ValueError):
+                manifest = None  # corrupt pack: fall through, like _iter_concept_packs
+            if isinstance(manifest, dict):
+                return concept, exact, manifest, []
     candidates = []
     for slug, pack_dir, manifest in _iter_concept_packs():
         name = str(manifest.get("concept", ""))

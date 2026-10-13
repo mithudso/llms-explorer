@@ -363,6 +363,30 @@ def test_units_run_is_resumable_and_skips_excluded_classes(tmp_path):
     ] == ["u000001"]
 
 
+def test_units_run_drops_stale_units_when_page_text_changes(tmp_path):
+    m = _mirror(tmp_path)
+    clean.run(m)
+    facts = {"v": "Hooks are user-defined shell commands that run at points."}
+
+    def gen(prompt, model=None, timeout=None, options=None, think=None):
+        if "quickstart" in prompt:
+            return "[]"
+        return '[{"type":"fact","text":"' + facts["v"] + '"}]'
+
+    embed = lambda t, model=None: [[1.0] for _ in t]  # noqa: E731
+    units.run(m, generate=gen, embed=embed, do_dedup=False, log=lambda s: None)
+    ref = tmp_path / "code.claude.com.reference"
+    pages = mirror_io.load_json(ref / "pages.json")
+    for p in pages:
+        if "hooks" in p["url"]:
+            p["text"] += "\n\nA sentence added after the recrawl changed this page."
+    mirror_io.save_json(pages, ref / "pages.json")
+    facts["v"] = "Hooks now also accept HTTP handlers instead of shell commands."
+    units.run(m, generate=gen, embed=embed, do_dedup=False, log=lambda s: None)
+    texts = [u["text"] for u in mirror_io.read_jsonl(ref / "units.jsonl")]
+    assert texts == ["Hooks now also accept HTTP handlers instead of shell commands."]
+
+
 # ----------------------------------------------------------------- polish --
 
 

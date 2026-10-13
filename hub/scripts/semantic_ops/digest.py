@@ -69,19 +69,29 @@ def _cluster_block(title: str, items: list[tuple[str, str]]) -> list[str]:
     if not items:
         lines += ["_none_", ""]
         return lines
+    degraded = False
     try:
         groups = cluster.cluster_texts([t for _k, t in items])
     except Exception as e:  # embed pool down — fall back to a flat list
         _log.warning("digest clustering degraded: %s", e)
         groups = [[i] for i in range(len(items))]
-    for g in groups:
+        degraded = True
+    groups = sorted(groups, key=len, reverse=True)
+    # Each summary is a sequential LLM call inside a pipeline stage; a large
+    # recrawl can have hundreds of groups, and a degraded run has one per chunk.
+    budget = 0 if degraded else MAX_SUMMARIZED_CLUSTERS
+    for n, g in enumerate(groups):
         texts = [items[i][1] for i in g]
-        lines.append(f"- **{_summary(texts)}** ({len(g)} chunk"
+        label = _summary(texts) if n < budget else items[g[0]][0]
+        lines.append(f"- **{label}** ({len(g)} chunk"
                      f"{'s' if len(g) != 1 else ''})")
         for i in g[:MAX_CLUSTER_ITEMS]:
             lines.append(f"  - `{items[i][0]}`")
         if len(g) > MAX_CLUSTER_ITEMS:
             lines.append(f"  - …and {len(g) - MAX_CLUSTER_ITEMS} more")
+    if len(groups) > budget:
+        lines.append(f"_{len(groups) - budget} of {len(groups)} groups are labeled by their "
+                     "first chunk key, not summarized (summary cap)._")
     lines.append("")
     return lines
 
