@@ -3943,3 +3943,248 @@ Every frontier concept, grouped by shared parent (at most 8 per cluster), cluste
 - [ ] Concept: `Sub-microsecond Kernel Dispatch` | Parent: `Local Inference Micro-Architectures: Signaling, Quantization Superblocks, and Kernel Pipeline Scheduling` | Mode: `dr` | Cluster: `Local Inference Micro-Architectures: Signaling, Quantization Superblocks, and Kernel Pipeline Scheduling (3 of 3)`
 - [ ] Concept: `TLP Encapsulation Overhead` | Parent: `Local Inference Micro-Architectures: Signaling, Quantization Superblocks, and Kernel Pipeline Scheduling` | Mode: `dr` | Cluster: `Local Inference Micro-Architectures: Signaling, Quantization Superblocks, and Kernel Pipeline Scheduling (3 of 3)`
 - [ ] Concept: `Unified Coherency Protocol` | Parent: `Local Inference Micro-Architectures: Signaling, Quantization Superblocks, and Kernel Pipeline Scheduling` | Mode: `dr` | Cluster: `Local Inference Micro-Architectures: Signaling, Quantization Superblocks, and Kernel Pipeline Scheduling (3 of 3)`
+- [ ] Concept: `Global Context Hub Architecture` | Parent: `Research & Knowledge Tooling`
+- [ ] Concept: `Concept Tree Tracking` | Parent: `Global Context Hub Architecture`
+- [ ] Concept: `3D Force-Directed Graphs` | Parent: `Concept Tree Tracking`
+- [ ] Concept: `Library Registries` | Parent: `Global Context Hub Architecture`
+- [ ] Concept: `MCP Server Library` | Parent: `Library Registries`
+- [ ] Concept: `Repo Scenarios Library` | Parent: `Library Registries`
+- [ ] Concept: `URL Reference Library` | Parent: `Library Registries`
+- [ ] Concept: `Shared Code Library` | Parent: `Library Registries`
+- [ ] Concept: `Execution and Telemetry` | Parent: `Global Context Hub Architecture`
+- [ ] Concept: `File Analysis and Logs` | Parent: `Execution and Telemetry`
+- [ ] Concept: `Agent and Role Bindings` | Parent: `Execution and Telemetry`
+- [ ] Concept: `Code and Prompts` | Parent: `Global Context Hub Architecture`
+- [ ] Concept: `Reusable Coding Patterns` | Parent: `Code and Prompts`
+- [ ] Concept: `Prompt Optimization and Variants` | Parent: `Code and Prompts`
+- [ ] Concept: `Aider Persistent Memory Hooks` | Parent: `Execution and Telemetry`
+- [ ] Concept: `Stdlib-Only Python Architecture` | Parent: `Execution and Telemetry`
+- [ ] Concept: `Cross-Browser and Mobile Web Programming` | Parent: `Web & Frontend Development`
+- [ ] Concept: `Cross-Browser Extension and Userscript Portability` | Parent: `Cross-Browser and Mobile Web Programming`
+- [ ] Concept: `Browser Engine Differences and Feature Detection` | Parent: `Cross-Browser and Mobile Web Programming`
+- [ ] Concept: `Cross-Browser Testing and Debugging` | Parent: `Cross-Browser and Mobile Web Programming`
+- [ ] Concept: `Mobile-Web and Browser Security Differences` | Parent: `Cross-Browser and Mobile Web Programming`
+- [ ] Concept: `Membership Ecommerce` | Parent: `Business & Enterprise`
+- [ ] Concept: `Members-Only and Wholesale Pricing` | Parent: `Membership Ecommerce`
+- [ ] Concept: `Squarespace Commerce and Payments` | Parent: `Membership Ecommerce`
+- [ ] Concept: `Membership Site Architecture` | Parent: `Membership Ecommerce`
+- [ ] Concept: `Membership Platforms Build vs Buy` | Parent: `Membership Ecommerce`
+- [ ] Concept: `Web-to-Native App Packaging` | Parent: `Cross-Browser and Mobile Web Programming`
+- [ ] Concept: `High-Risk Payments and Chargeback Management` | Parent: `Membership Ecommerce`
+- [ ] Concept: `Ecommerce Sales-Tax Nexus Compliance` | Parent: `Membership Ecommerce`
+- [ ] Concept: `llms.txt and LLM-readable documentation` | Parent: `Research & Knowledge Tooling`
+- [ ] Concept: `llms.txt specification v2` | Parent: `llms.txt and LLM-readable documentation`
+- [ ] Concept: `llms-full.txt page grammars` | Parent: `llms.txt and LLM-readable documentation`
+- [ ] Concept: `llms.txt generation tooling` | Parent: `llms.txt and LLM-readable documentation`
+- [ ] Concept: `llms.txt ecosystem evidence` | Parent: `llms.txt and LLM-readable documentation`
+- [ ] Concept: `llms.txt recreation and family aggregation` | Parent: `llms.txt and LLM-readable documentation`
+- [ ] Concept: `LLM document extraction and text distillation pipeline` | Parent: `LLM engineering and local deployment`
+- [ ] Concept: `Accessibility and UX Review` | Parent: `Frontend Design`
+- [ ] Concept: `Multi-Agent Workflow Builder` | Parent: `AI Agent Ecosystems`
+- [ ] Concept: `Case MCP Server Guide` | Parent: `TAM Operating Reference`
+- [ ] Concept: `Case Tracker` | Parent: `TAM Operating Reference`
+- [ ] Concept: `Chrome Extension Development` | Parent: `Web & Frontend Development`
+- [ ] Concept: `Chrome Extension Security` | Parent: `Chrome Extension Development`
+- [ ] Concept: `Code Review` | Parent: `Software Engineering Patterns`
+- [ ] Concept: `Debugging Techniques` | Parent: `Software Engineering Patterns`
+- [ ] Concept: `Dexie and IndexedDB Local-First` | Parent: `Chrome Extension Development`
+- [ ] Concept: `Dmux Multi-Agent Workflows` | Parent: `AI Agent Ecosystems`
+- [ ] Concept: `eBay Listing Automation` | Parent: `SaaS APIs & Integrations`
+- [ ] Concept: `Frontend Design UI/UX Expert` | Parent: `Frontend Design`
+- [ ] Concept: `Glean Developer Integration` | Parent: `SaaS APIs & Integrations`
+- [ ] Concept: `Google Workspace CLI` | Parent: `SaaS APIs & Integrations`
+- [ ] Concept: `HTML and CSS` | Parent: `Frontend Design`
+- [ ] Concept: `JavaScript and Node.js Debugging` | Parent: `Debugging Techniques`
+- [ ] Concept: `JavaScript and Node.js` | Parent: `Programming Languages`
+- [ ] Concept: `Jira Developer Expert` | Parent: `SaaS APIs & Integrations`
+- [ ] Concept: `LLM Integration Patterns` | Parent: `LLM Models and APIs`
+- [ ] Concept: `Monday.com Developer` | Parent: `SaaS APIs & Integrations`
+- [ ] Concept: `MongoDB Performance Troubleshooting` | Parent: `MongoDB Expert Knowledge`
+- [ ] Concept: `Order CLI` | Parent: `SaaS APIs & Integrations`
+- [ ] Concept: `Performance Profiling Expert` | Parent: `Software Engineering Patterns`
+- [ ] Concept: `Platform Adapter Review` | Parent: `Chrome Extension Development`
+- [ ] Concept: `Salesforce Developer Expert` | Parent: `SaaS APIs & Integrations`
+- [ ] Concept: `Security Compliance Auditor` | Parent: `Security & Identity`
+- [ ] Concept: `Security Review` | Parent: `Security & Identity`
+- [ ] Concept: `Software Architecture` | Parent: `Software Engineering Patterns`
+- [ ] Concept: `TAM Operating Reference` | Parent: `Business & Enterprise`
+- [ ] Concept: `Testing and Vitest Expert` | Parent: `Software Engineering Patterns`
+- [ ] Concept: `TypeScript Expert` | Parent: `Programming Languages`
+- [ ] Concept: `Vanilla JS UI Patterns` | Parent: `Frontend Design`
+- [ ] Concept: `MongoDB Backup and Restore` | Parent: `MongoDB Atlas`
+- [ ] Concept: `MongoDB Atlas Triggers and Functions` | Parent: `MongoDB Atlas`
+- [ ] Concept: `MongoDB Driver Internals` | Parent: `MongoDB Developer Patterns`
+- [ ] Concept: `MongoDB Performance Benchmarking` | Parent: `MongoDB Expert Knowledge`
+- [ ] Concept: `MongoDB Spark Connector and Databricks Integration` | Parent: `MongoDB Developer Patterns`
+- [ ] Concept: `MongoDB Atlas Analytics Node` | Parent: `MongoDB Atlas`
+- [ ] Concept: `Atlas Service Accounts` | Parent: `MongoDB Atlas`
+- [ ] Concept: `MongoDB Connection String URI` | Parent: `MongoDB Expert Knowledge`
+- [ ] Concept: `Incident Comms` | Parent: `Writing and Documentation`
+- [ ] Concept: `Data Analysis Definitions and Scope` | Parent: `Data Analysis Foundations and Theory`
+- [ ] Concept: `Measurement Theory` | Parent: `Data Analysis Foundations and Theory`
+- [ ] Concept: `Probability Theory` | Parent: `Data Analysis Foundations and Theory`
+- [ ] Concept: `Statistical Inference Foundations` | Parent: `Data Analysis Foundations and Theory`
+- [ ] Concept: `Information Theory` | Parent: `Data Analysis Foundations and Theory`
+- [ ] Concept: `Epistemology of Data` | Parent: `Data Analysis Foundations and Theory`
+- [ ] Concept: `Process Frameworks` | Parent: `Data Analysis Lifecycle`
+- [ ] Concept: `Problem Framing` | Parent: `Data Analysis Lifecycle`
+- [ ] Concept: `Levels of Measurement` | Parent: `Measurement Theory`
+- [ ] Concept: `Probability Distributions` | Parent: `Probability Theory`
+- [ ] Concept: `Data Analysis vs Analytics vs Data` | Parent: `Data Analysis Definitions and Scope`
+- [ ] Concept: `Analysis vs Synthesis` | Parent: `Data Analysis Definitions and Scope`
+- [ ] Concept: `Quantitative vs Qualitative Analysis` | Parent: `Data Analysis Definitions and Scope`
+- [ ] Concept: `Nominal Scale` | Parent: `Levels of Measurement`
+- [ ] Concept: `Ordinal Scale` | Parent: `Levels of Measurement`
+- [ ] Concept: `Interval Scale` | Parent: `Levels of Measurement`
+- [ ] Concept: `Ratio Scale` | Parent: `Levels of Measurement`
+- [ ] Concept: `Discrete vs Continuous Variables` | Parent: `Measurement Theory`
+- [ ] Concept: `Reliability and Validity` | Parent: `Measurement Theory`
+- [ ] Concept: `Operationalization and Constructs` | Parent: `Measurement Theory`
+- [ ] Concept: `Random Variables` | Parent: `Probability Theory`
+- [ ] Concept: `Probability Mass and Density Functions` | Parent: `Probability Theory`
+- [ ] Concept: `Normal Distribution` | Parent: `Probability Distributions`
+- [ ] Concept: `Binomial Distribution` | Parent: `Probability Distributions`
+- [ ] Concept: `Poisson Distribution` | Parent: `Probability Distributions`
+- [ ] Concept: `Exponential Distribution` | Parent: `Probability Distributions`
+- [ ] Concept: `Uniform Distribution` | Parent: `Probability Distributions`
+- [ ] Concept: `Joint Marginal Conditional Probability` | Parent: `Probability Theory`
+- [ ] Concept: `Bayes Theorem` | Parent: `Probability Theory`
+- [ ] Concept: `Law of Large Numbers` | Parent: `Probability Theory`
+- [ ] Concept: `Central Limit Theorem` | Parent: `Probability Theory`
+- [ ] Concept: `Expectation Variance Covariance` | Parent: `Probability Theory`
+- [ ] Concept: `Population vs Sample` | Parent: `Statistical Inference Foundations`
+- [ ] Concept: `Sampling Distributions and Standard Error` | Parent: `Statistical Inference Foundations`
+- [ ] Concept: `Frequentist vs Bayesian Paradigms` | Parent: `Statistical Inference Foundations`
+- [ ] Concept: `Estimation Theory` | Parent: `Statistical Inference Foundations`
+- [ ] Concept: `Correlation vs Causation` | Parent: `Epistemology of Data`
+- [ ] Concept: `Inductive vs Deductive Reasoning` | Parent: `Epistemology of Data`
+- [ ] Concept: `Reproducibility and Replicability` | Parent: `Epistemology of Data`
+- [ ] Concept: `CRISP-DM` | Parent: `Process Frameworks`
+- [ ] Concept: `KDD Process` | Parent: `Process Frameworks`
+- [ ] Concept: `SEMMA` | Parent: `Process Frameworks`
+- [ ] Concept: `OSEMN` | Parent: `Process Frameworks`
+- [ ] Concept: `TDSP` | Parent: `Process Frameworks`
+- [ ] Concept: `Business Research Question Definition` | Parent: `Problem Framing`
+- [ ] Concept: `Hypothesis Formulation` | Parent: `Problem Framing`
+- [ ] Concept: `Data Cleaning and Preparation` | Parent: `Data Analysis`
+- [ ] Concept: `Exploratory Data Analysis` | Parent: `Data Analysis`
+- [ ] Concept: `Statistical Modeling` | Parent: `Data Analysis`
+- [ ] Concept: `Data Analysis Tools and Languages` | Parent: `Data Analysis`
+- [ ] Concept: `Data Ethics and Privacy` | Parent: `Data Analysis`
+- [ ] Concept: `A/B Testing and Causal Inference` | Parent: `Data Analysis`
+- [ ] Concept: `data engineering and pipelines` | Parent: `Data Analysis`
+- [ ] Concept: `streaming analytics` | Parent: `Data Analysis`
+- [ ] Concept: `forecasting` | Parent: `Data Analysis`
+- [ ] Concept: `feature engineering and feature stores` | Parent: `Data Analysis`
+- [ ] Concept: `Behavior-Change Psychology for Customer Adoption` | Parent: `Applied Human Psychology`
+- [ ] Concept: `Python Concurrency (asyncio, Structured Concurrency, anyio/trio)` | Parent: `Programming Languages`
+- [ ] Concept: `Python CLI & TUI Application Development` | Parent: `Programming Languages`
+- [ ] Concept: `Python Metaprogramming & the Data Model` | Parent: `Programming Languages`
+- [ ] Concept: `Packaging Python Apps as Standalone Distributables` | Parent: `Programming Languages`
+- [ ] Concept: `Python Logging & Application Observability` | Parent: `Programming Languages`
+- [ ] Concept: `Python Data Modeling (dataclasses, attrs, msgspec)` | Parent: `Programming Languages`
+- [ ] Concept: `Python AST, Codegen & Source Transformation` | Parent: `Programming Languages`
+- [ ] Concept: `mongodb-schema-design` | Parent: `MongoDB Expert Knowledge`
+- [ ] Concept: `Data Analysis`
+- [ ] Concept: `Human Psychology` | Parent: `Sciences & Human Behavior`
+- [ ] Concept: `Programming Languages` | Parent: `Software Engineering`
+- [ ] Concept: `Software Engineering Patterns` | Parent: `Software Engineering`
+- [ ] Concept: `Python Patterns and Best Practices` | Parent: `Programming Languages`
+- [ ] Concept: `TAM account management` | Parent: `TAM Operating Reference`
+- [ ] Concept: `Software Engineering & Distributed Computing` | Parent: `Software Engineering`
+- [ ] Concept: `Blockchain protocols` | Parent: `Finance, Markets & Blockchain`
+- [ ] Concept: `Global AI Hub Research Corpus` | Parent: `Research & Knowledge Tooling`
+- [ ] Concept: `Vision-Model / Multimodal-LLM Design Critique Technique` | Parent: `Multimodal & Vision-Language Model Architecture`
+- [ ] Concept: `Usability Heuristic Evaluation and Laws of UX` | Parent: `Frontend Design`
+- [ ] Concept: `Visual Design Principles as a Critique Rubric + Design-Critique Methodology` | Parent: `Web & Frontend Development`
+- [ ] Concept: `Computational Aesthetics & Automated UI-Quality Metrics` | Parent: `Frontend Design`
+- [ ] Concept: `Learned / ML-based Query Optimization` | Parent: `Machine Learning`
+- [ ] Concept: `Database Proxies & Query-Optimization Middleware` | Parent: `Software Engineering Patterns`
+- [ ] Concept: `Enterprise Vendor Management, Procurement & Third-Party / Operational-Resilience Risk (Buyer-Side)` | Parent: `Financial-Services Accounts`
+- [ ] Concept: `Big-Bank IT and Infrastructure Landscape` | Parent: `Financial-Services Accounts`
+- [ ] Concept: `Customer Satisfaction and Loyalty Science` | Parent: `Applied Human Psychology`
+- [ ] Concept: `Algorithmic Discovery & Superoptimization` | Parent: `AI Agent Ecosystems`
+- [ ] Concept: `Dialogue Craft` | Parent: `Writing and Documentation`
+- [ ] Concept: `MongoDB Stress, Soak, and Chaos-Resilience Testing` | Parent: `MongoDB Expert Knowledge`
+- [ ] Concept: `MongoDB Performance Regression Detection and Testing Methodology` | Parent: `MongoDB Performance Benchmarking`
+- [ ] Concept: `MongoDB 8.0 performance changes & read-path regressions vs 7.0` | Parent: `MongoDB Expert Knowledge`
+- [ ] Concept: `MongoDB Java driver 5.x version timeline & 8.0 compatibility` | Parent: `MongoDB Expert Knowledge`
+- [ ] Concept: `Atlas cluster tiers (M30) & major-version upgrade mechanics` | Parent: `MongoDB Expert Knowledge`
+- [ ] Concept: `North Carolina real estate agency licensing and commission rules` | Parent: `Personal Life & Property`
+- [ ] Concept: `NCREC licensing provisional broker broker BIC` | Parent: `North Carolina real estate agency licensing and commission rules`
+- [ ] Concept: `NC agency relationships and WWREA disclosure` | Parent: `North Carolina real estate agency licensing and commission rules`
+- [ ] Concept: `NC buyer-agency agreements and NAR settlement compensation` | Parent: `North Carolina real estate agency licensing and commission rules`
+- [ ] Concept: `NC Offer to Purchase and Contract Form 2-T` | Parent: `North Carolina real estate agency licensing and commission rules`
+- [ ] Concept: `NC closing deeds and title` | Parent: `North Carolina real estate agency licensing and commission rules`
+- [ ] Concept: `NC Residential Property Disclosure Act (G.S. Chapter 47E)` | Parent: `North Carolina real estate agency licensing and commission rules`
+- [ ] Concept: `NC Coastal and Flood Real Estate (CAMA, flood disclosure, coastal insurance)` | Parent: `North Carolina real estate agency licensing and commission rules`
+- [ ] Concept: `Logitech HID++ 2.0 Multi-Host Switching (Easy-Switch, feature 0x1814)` | Parent: `Cross-Computer Input Sharing (software KVM + hardware KVM / DDC-CI switching)`
+- [ ] Concept: `Cross-Computer Input Sharing (software KVM + hardware KVM / DDC-CI switching)` | Parent: `DevOps, Infrastructure & Observability`
+- [ ] Concept: `macOS Programmatic Input Control (CGEvent synthesis, event taps, cursor warping, TCC gates, remapping & pointer tuning)` | Parent: `Cross-Computer Input Sharing (software KVM + hardware KVM / DDC-CI switching)`
+- [ ] Concept: `Apple Universal Control (Continuity edge-crossing input sharing)` | Parent: `Cross-Computer Input Sharing (software KVM + hardware KVM / DDC-CI switching)`
+- [ ] Concept: `DNS Caching` | Parent: `DevOps, Infrastructure & Observability`
+- [ ] Concept: `Python supply-chain threat landscape 2025-2026` | Parent: `Python Supply-Chain & Application Security`
+- [ ] Concept: `llms.txt and the AI-discovery standards family` | Parent: `llms.txt and LLM-readable documentation`
+- [ ] Concept: `MongoDB autoCompact` | Parent: `MongoDB Expert Knowledge`
+- [ ] Concept: `Background-Compaction Skip/EMA Heuristic` | Parent: `WiredTiger Compaction Algorithm`
+- [ ] Concept: `WiredTiger Compaction Algorithm` | Parent: `MongoDB autoCompact`
+- [ ] Concept: `autoCompact Atlas-Specific Behavior` | Parent: `MongoDB autoCompact`
+- [ ] Concept: `autoCompact Checkpoint Interaction` | Parent: `MongoDB autoCompact`
+- [ ] Concept: `autoCompact Cluster Topology Behavior` | Parent: `MongoDB autoCompact`
+- [ ] Concept: `autoCompact Lifecycle and Persistence` | Parent: `MongoDB autoCompact`
+- [ ] Concept: `autoCompact and Replica-Set Write Blocking` | Parent: `MongoDB autoCompact`
+- [ ] Concept: `autoCompact freeSpaceTargetMB Gating` | Parent: `MongoDB autoCompact`
+- [ ] Concept: `autoCompact runOnce vs Continuous Mode` | Parent: `MongoDB autoCompact`
+- [ ] Concept: `Used Car Auctions and Buying` | Parent: `Personal Life & Property`
+- [ ] Concept: `LLM engineering-metaphor tics: term of art versus reflexive tic` | Parent: `Writing and Documentation`
+- [ ] Concept: `LLM rhetorical-pattern tells in prose` | Parent: `Writing and Documentation`
+- [ ] Concept: `Measuring LLM lexical tics: excess vocabulary, baselines, drift` | Parent: `Writing and Documentation`
+- [ ] Concept: `Why LLMs converge on the same words: mode collapse and post-training lexical effects` | Parent: `LLM Alignment and Post-Training`
+- [ ] Concept: `Prompt-side control of LLM lexical tics` | Parent: `AI Collaboration Writing`
+- [ ] Concept: `Instruction-file hygiene for LLM lexical tics: linting, mirroring, hook filtering` | Parent: `LLM Context Engineering`
+- [ ] Concept: `LLM tells in code, commit messages, comments and READMEs` | Parent: `Writing and Documentation`
+- [ ] Concept: `Vague attribution and promotional register in LLM prose` | Parent: `Writing and Documentation`
+- [ ] Concept: `Mixed metaphors and catachresis as signs of reflexive figurative language` | Parent: `Writing and Documentation`
+- [ ] Concept: `Human adoption of LLM vocabulary and its effect on tic baselines` | Parent: `Writing and Documentation`
+- [ ] Concept: `LLM engineering and local deployment` | Parent: `LLM Models and APIs`
+- [ ] Concept: `Job search and career operations` | Parent: `Business & Enterprise`
+- [ ] Concept: `Market mechanics and trading infrastructure` | Parent: `Trading and Investing — Active Trading & How Financial Markets Work (Family Root)`
+- [ ] Concept: `Linux eGPU for LLM Inference (Thunderbolt 3/4/5, USB4, OCuLink)` | Parent: `Local LLM Inference on Consumer Hardware (RTX 5080 eGPU, Linux, Remote Access)`
+- [ ] Concept: `RTX 5080 / Blackwell Consumer CUDA Stack on Linux (sm_120)` | Parent: `Local LLM Inference on Consumer Hardware (RTX 5080 eGPU, Linux, Remote Access)`
+- [ ] Concept: `Remote access to a local LLM server` | Parent: `Local LLM Inference on Consumer Hardware (RTX 5080 eGPU, Linux, Remote Access)`
+- [ ] Concept: `Exposed local-LLM server security` | Parent: `Local LLM Inference on Consumer Hardware (RTX 5080 eGPU, Linux, Remote Access)`
+- [ ] Concept: `Hybrid CPU+GPU MoE expert offload` | Parent: `Local LLM Inference on Consumer Hardware (RTX 5080 eGPU, Linux, Remote Access)`
+- [ ] Concept: `Model picks for the 16GB VRAM + 64GB RAM tier (2026)` | Parent: `Local LLM Inference on Consumer Hardware (RTX 5080 eGPU, Linux, Remote Access)`
+- [ ] Concept: `Local LLM Troubleshooting Playbook and Recommended Settings (Ollama, LM Studio, llama-server)` | Parent: `Local LLM Inference on Consumer Hardware (RTX 5080 eGPU, Linux, Remote Access)`
+- [ ] Concept: `OpenClaw and personal-agent gateways on local models` | Parent: `Local LLM Inference on Consumer Hardware (RTX 5080 eGPU, Linux, Remote Access)`
+- [ ] Concept: `Local LLM Inference on Consumer Hardware (RTX 5080 eGPU, Linux, Remote Access)` | Parent: `LLM Models and APIs`
+- [ ] Concept: `DDR5 and Host Tuning for CPU-Side LLM Inference and MoE Offload` | Parent: `Local LLM Inference on Consumer Hardware (RTX 5080 eGPU, Linux, Remote Access)`
+- [ ] Concept: `Open WebUI deployment and hardening as the remote chat front end` | Parent: `Local LLM Inference on Consumer Hardware (RTX 5080 eGPU, Linux, Remote Access)`
+- [ ] Concept: `FP8 / NVFP4 / MXFP4 Safetensors Serving on vLLM and SGLang (single 16GB sm_120 card)` | Parent: `Local LLM Inference on Consumer Hardware (RTX 5080 eGPU, Linux, Remote Access)`
+- [ ] Concept: `PCIe tunneling over Thunderbolt 4 and USB4` | Parent: `Thunderbolt eGPU on Linux for local LLM inference`
+- [ ] Concept: `Ollama CUDA detection and GPU verification` | Parent: `Thunderbolt eGPU on Linux for local LLM inference`
+- [ ] Concept: `AI & LLM Engineering`
+- [ ] Concept: `Prompting & Agent Skills` | Parent: `AI & LLM Engineering`
+- [ ] Concept: `Research & Knowledge Tooling` | Parent: `AI & LLM Engineering`
+- [ ] Concept: `Software Engineering`
+- [ ] Concept: `Web & Frontend Development` | Parent: `Software Engineering`
+- [ ] Concept: `SaaS APIs & Integrations` | Parent: `Software Engineering`
+- [ ] Concept: `Security & Identity` | Parent: `Software Engineering`
+- [ ] Concept: `Developer Tooling & Repo Automation` | Parent: `Software Engineering`
+- [ ] Concept: `Business & Enterprise`
+- [ ] Concept: `Financial-Services Accounts` | Parent: `Business & Enterprise`
+- [ ] Concept: `Finance, Markets & Blockchain`
+- [ ] Concept: `Personal Life & Property`
+- [ ] Concept: `Sciences & Human Behavior`
+- [ ] Concept: `Retrieval & RAG` | Parent: `AI & LLM Engineering`
+- [ ] Concept: `Document Extraction & Text Distillation` | Parent: `Research & Knowledge Tooling`
+- [ ] Concept: `Archive Rules` | Parent: `MongoDB Atlas Online Archive`
+- [ ] Concept: `Partition Fields` | Parent: `MongoDB Atlas Online Archive`
+- [ ] Concept: `16 GB VRAM residency budgeting` | Parent: `Blackwell sm_120 local-LLM inference stack on Linux: llama.cpp, Ollama, PyTorch and vLLM over a Thunderbolt eGPU`
+- [ ] Concept: `Local Model Performance Evaluation: Ollama, MLX, and Hardware Architectures`
+- [ ] Concept: `Local Inference Acceleration: Memory Architectures, Metal Kernels, and Latency Optimization` | Parent: `Local Model Performance Evaluation: Ollama, MLX, and Hardware Architectures`
+- [ ] Concept: `Local Inference Micro-Architectures: Signaling, Quantization Superblocks, and Kernel Pipeline Scheduling` | Parent: `Local Inference Acceleration: Memory Architectures, Metal Kernels, and Latency Optimization`
+- [ ] Concept: `DATE Criteria` | Parent: `Archive Rules`
+- [ ] Concept: `LiteLLM gateway and SDK engineering` | Parent: `AI Gateways & LLM Proxy Infrastructure`
+- [ ] Concept: `Atlas Identity Federation and Resource Policy Boundaries` | Parent: `MongoDB Atlas IAM and RBAC`
+- [ ] Concept: `Atlas Hybrid Fusion and BM25 Diagnostics` | Parent: `MongoDB Atlas Search and Vector Search`
