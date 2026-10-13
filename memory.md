@@ -762,3 +762,8 @@
 - `y` / `📌 Save line` appends the cursor line (or a line picked from a Markdown tab) to `$LLMSX_HOME/scratchpad.md`; `p` / `📝 Scratchpad` edits and copies it.
 - Down/up move focus to the widget below/above wherever the focused widget has no own up/down (outline, lists, dropdowns keep theirs).
 - `U` / `explorer_store.mark_unresearched`: 4,035 concepts with no facts (245 nodes + 3,790 frontier) marked `further-research` in `concept-tree/marks.json`; 245 new queue rows.
+
+## 2026-10-13 — Explorer user guide + website update (llmsx 0.2.5)
+- Complete guide at `llmsx/llmsx/USER_GUIDE.md`, shipped as package data (setuptools package-data and `site/tools/gen_downloads.py` wheel). Opened by `g`, the `?` modal's User guide button, and `llmsx explorer --guide`.
+- `/explorer/guide/` renders `site/src/data/explorer-guide.md`, a committed copy refreshed by the prebuild; `test_the_wheel_ships_the_user_guide_and_the_site_copy_matches` pins it. A site build cannot import outside `site/` (the test fixture builds a copied site root).
+- `/explorer/` gained Facts/Scratchpad cards, a facts + colour scheme + scratchpad section with three new screenshots, corrected shortcuts, and guide links; downloads and home link the guide.

@@ -101,6 +101,15 @@ _QUEUE_RE = re.compile(
 _CREDENTIAL_IN_URL = re.compile(r"(https?://)[^/@\s]+@")
 
 
+def guide_text() -> str:
+    """The user guide shipped in the package (`llmsx/USER_GUIDE.md`)."""
+    from importlib.resources import files
+    try:
+        return files("llmsx").joinpath("USER_GUIDE.md").read_text(encoding="utf-8")
+    except (FileNotFoundError, OSError) as exc:
+        return f"# LLMSX Explorer — User Guide\n\n_guide not found in this install: {exc}_\n"
+
+
 def home() -> Path:
     """`$LLMSX_HOME`, else `~/.llmsx`. Resolved at call time so a test can
     point it at a temp dir after import."""

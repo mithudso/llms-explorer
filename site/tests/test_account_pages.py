@@ -129,8 +129,12 @@ def test_twin_titles_and_descriptions_match_the_pages():
 
 
 def test_the_account_twins_reach_the_family_index():
-    index = (DIST / "overview" / "llms.txt").read_text(encoding="utf-8")
     for spec in twins.STATIC_PAGES:
+        # a top-level route is listed under Overview; a nested one (/explorer/guide/)
+        # under the section named by its first path segment
+        segs = spec["route"].strip("/").split("/")
+        section = "overview" if len(segs) == 1 else segs[0]
+        index = (DIST / section / "llms.txt").read_text(encoding="utf-8")
         assert f"[{spec['title']}]" in index, spec["route"]
         assert spec["route"] in index, spec["route"]
         assert spec["description"] in index, spec["route"]

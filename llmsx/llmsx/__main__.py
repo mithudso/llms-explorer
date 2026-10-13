@@ -108,6 +108,10 @@ def _cmd_frontier(args) -> int:
 
 
 def _cmd_explorer(args) -> int:
+    if getattr(args, "guide", False):     # no Textual needed to read the guide
+        from .explorer_store import guide_text
+        print(guide_text(), end="")
+        return 0
     try:
         from . import explorer  # lazy: Textual is an extra
     except ImportError as exc:
@@ -303,6 +307,8 @@ def build_parser() -> argparse.ArgumentParser:
                          "else ~/.llmsx/llms-explorer, cloned on first run)")
     ex.add_argument("--no-sync", action="store_true", dest="no_sync",
                     help="do not `git pull --ff-only` on start")
+    ex.add_argument("--guide", action="store_true",
+                    help="print the complete user guide (USER_GUIDE.md) and exit")
     ex.set_defaults(func=_cmd_explorer)
 
     # concepts: llms-concept-abstractor packs — a different data model.

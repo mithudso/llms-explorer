@@ -38,6 +38,10 @@ DEFAULT_SRC = HERE / "src" / "content" / "sources"
 DEFAULT_OUT = HERE / "public" / "downloads" / "sources"
 PACKAGE_DIR = HERE.parent / "llmsx"
 PACKAGE_OUT = HERE / "public" / "downloads" / "llmsx"
+#: The user guide ships in the package; /explorer/guide/ renders a committed copy
+#: (a site build must not reach outside site/), refreshed here on every prebuild.
+GUIDE_SRC = PACKAGE_DIR / "llmsx" / "USER_GUIDE.md"
+GUIDE_COPY = HERE / "src" / "data" / "explorer-guide.md"
 #: A token-shaped string that must never ship: GitHub PATs, generic key/secret assignments.
 _CREDENTIAL = re.compile(
     rb"gh[pousr]_[A-Za-z0-9]{20,}|github_pat_[A-Za-z0-9_]{20,}"        # GitHub tokens
@@ -100,10 +104,22 @@ def _metadata(project: dict) -> str:
 
 
 def _package_files() -> list[Path]:
-    """The importable package: every .py and py.typed under llmsx/llmsx/."""
+    """The importable package: every .py, py.typed and the user guide under llmsx/llmsx/."""
     pkg = PACKAGE_DIR / "llmsx"
     return sorted(p for p in pkg.rglob("*") if p.is_file() and "__pycache__" not in p.parts
-                  and (p.suffix == ".py" or p.name == "py.typed"))
+                  and (p.suffix == ".py" or p.name in ("py.typed", "USER_GUIDE.md")))
+
+
+def sync_guide() -> bool:
+    """Copy the package's user guide to the site; True when the copy changed."""
+    if not GUIDE_SRC.is_file():
+        return False
+    text = GUIDE_SRC.read_text(encoding="utf-8")
+    if GUIDE_COPY.is_file() and GUIDE_COPY.read_text(encoding="utf-8") == text:
+        return False
+    GUIDE_COPY.write_text(text, encoding="utf-8")
+    print(f"gen_downloads: user guide → {GUIDE_COPY}")
+    return True
 
 
 def _sha256_urlsafe(data: bytes) -> str:
@@ -238,6 +254,7 @@ def main(argv=None) -> int:
     else:
         n = build(Path(a.src), Path(a.out))
         print(f"{a.out}: {n} reference file(s) mirrored for download")
+    sync_guide()
     if not a.no_package:
         build_package()
     return 0
