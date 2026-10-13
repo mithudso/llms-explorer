@@ -18,10 +18,11 @@ def test_generates_rubric_and_spokes(tmp_path):
     attrs = (tmp_path / "attributes.md").read_text()
     assert attrs.startswith("---\ntitle:")
     # The rubric table is copied verbatim: every attribute row of the source survives.
-    # (The plan text says 57; the source rubric carries 59 — I1–I6, N1–N7, D1–D6, C1–C7,
-    # P1–P6, S1–S6, R1–R7, F1–F6, H1–H8 — so the count is pinned to the source.)
+    # (The plan text says 57; the source rubric carries 60 — I1–I6, N1–N7, D1–D6, C1–C8,
+    # P1–P6, S1–S6, R1–R7, F1–F6, H1–H8 — so the count is pinned to the source. C8 arrived
+    # with the 2026-10-13 hub snapshot.)
     source_rows = len(ROW_RE.findall(RUBRIC.read_text(encoding="utf-8")))
-    assert source_rows == 59
+    assert source_rows == 60
     assert len(ROW_RE.findall(attrs)) == source_rows
     passes = (tmp_path / "passes.md").read_text()
     assert passes.count("\n## P") == 16

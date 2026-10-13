@@ -34,7 +34,8 @@ export interface TreeNode {
 export interface FrontierEntry {
   concept: string;
   parent: string;
-  parent_slug: string;
+  /** Null when the named parent has no node yet (it is itself only queued). */
+  parent_slug: string | null;
   source: string;
 }
 

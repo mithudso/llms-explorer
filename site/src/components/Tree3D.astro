@@ -84,10 +84,29 @@ for (const [parent, child] of tree.edges) {
 
 // A frontier child is named by a parent but has no node of its own: it belongs
 // on the map, dimmed and unlinked, so the unresearched edge of the tree is
-// visible rather than silently absent.
+// visible rather than silently absent. A queued child can name a parent that is
+// itself only queued (parent_slug is null); it hangs off that parent's frontier
+// node, so every link ends on a node that exists.
+const frontierByConcept = new Map(tree.frontier.map((f) => [f.concept, f]));
+const frontierId = (f: (typeof tree.frontier)[number]) =>
+  f.parent_slug ? `frontier:${f.parent_slug}/${f.concept}` : `frontier:${f.concept}`;
+/** The first ancestor that is a researched node: the slug the domain is read from. */
+function anchorSlug(f: (typeof tree.frontier)[number]): string | null {
+  const seen = new Set<string>();
+  let cur: (typeof tree.frontier)[number] | undefined = f;
+  while (cur && !seen.has(cur.concept)) {
+    if (cur.parent_slug) return cur.parent_slug;
+    seen.add(cur.concept);
+    cur = frontierByConcept.get(cur.parent);
+  }
+  return null;
+}
 for (const f of tree.frontier) {
-  const id = `frontier:${f.parent_slug}/${f.concept}`;
-  const domain = domainOf(f.parent_slug);
+  const anchor = anchorSlug(f);
+  const parentFrontier = f.parent_slug ? undefined : frontierByConcept.get(f.parent);
+  if (!anchor || (!f.parent_slug && !parentFrontier)) continue; // no place on the map to attach it
+  const domain = domainOf(anchor);
+  const id = frontierId(f);
   graphNodes.push({
     id,
     name: f.concept,
@@ -102,7 +121,7 @@ for (const f of tree.frontier) {
     childAll: [],
     desc: "Frontier: named as a sub-concept but not researched yet.",
   });
-  graphLinks.push({ source: f.parent_slug, target: id });
+  graphLinks.push({ source: f.parent_slug ?? frontierId(parentFrontier!), target: id });
 }
 
 const payload = JSON.stringify({ nodes: graphNodes, links: graphLinks }).replace(/</g, "\\u003c");
