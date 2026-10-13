@@ -1,0 +1,151 @@
+{
+ "sampled": 10,
+ "verdicts": [
+  {
+   "concept": "SQLite WAL checkpointing",
+   "claim": "The last connection to close a database runs one final checkpoint and then deletes the WAL file and the shared-memory wal-index file.",
+   "footnotes": [
+    "[^c1-1]",
+    "[^c1-2]"
+   ],
+   "urls": [
+    "https://sqlite.org/wal.html",
+    "https://www.sqlite.org/c3ref/wal_checkpoint_v2.html"
+   ],
+   "verdict": "SUPPORTED",
+   "evidence": "wal.html: \"that connection does one last checkpoint and then deletes the WAL and its associated shared-memory file\""
+  },
+  {
+   "concept": "SQLite WAL checkpointing",
+   "claim": "Every new database connection has auto-checkpoint enabled with a threshold of 1000 pages (or SQLITE_DEFAULT_WAL_AUTOCHECKPOINT); runs after commit on committing thread; all PASSIVE",
+   "footnotes": [
+    "[^c1-4]",
+    "[^c1-3]",
+    "[^c1-1]"
+   ],
+   "urls": [
+    "https://www.sqlite.org/c3ref/wal_autocheckpoint.html",
+    "https://www.sqlite.org/pragma.html",
+    "https://sqlite.org/wal.html"
+   ],
+   "verdict": "SUPPORTED",
+   "evidence": "wal_autocheckpoint: \"defaults to having the auto-checkpoint enabled with a threshold of 1000 or SQLITE_DEFAULT_WAL_AUTOCHECKPOINT pages\"; pragma: \"All automatic checkpoints are PASSIVE\"; wal.html: \"run automatically by the same thread that does the COMMIT\"; pragma: \"Setting the auto-checkpoint size to zero or a negative value turns auto-checkpointing off.\"\""
+  },
+  {
+   "concept": "SQLite WAL checkpointing",
+   "claim": "PASSIVE ... never invokes the busy handler. FULL ... blocks new writers but not readers. RESTART ... TRUNCATE truncates the WAL to zero bytes. NOOP...",
+   "footnotes": [
+    "[^c1-2]",
+    "[^c1-3]"
+   ],
+   "urls": [
+    "https://www.sqlite.org/c3ref/wal_checkpoint_v2.html",
+    "https://www.sqlite.org/pragma.html"
+   ],
+   "verdict": "SUPPORTED",
+   "evidence": "wal_checkpoint_v2 mode definitions match all five modes, e.g. TRUNCATE \"truncates the log file to zero bytes just prior to a successful return\""
+  },
+  {
+   "concept": "SQLite WAL checkpointing",
+   "claim": "Every checkpoint takes an exclusive checkpoint lock; if another connection is checkpointing, returns SQLITE_BUSY without busy handler; FULL/RESTART/TRUNCATE degrade to PASSIVE",
+   "footnotes": [
+    "[^c1-2]",
+    "[^c1-3]"
+   ],
+   "urls": [
+    "https://www.sqlite.org/c3ref/wal_checkpoint_v2.html"
+   ],
+   "verdict": "SUPPORTED",
+   "evidence": "\"Even if there is a busy-handler configured, it will not be invoked in this case\"; \"proceeds from that point in the same way as SQLITE_CHECKPOINT_PASSIVE ... SQLITE_BUSY is returned in this case\""
+  },
+  {
+   "concept": "SQLite WAL checkpointing",
+   "claim": "Only a TRUNCATE checkpoint or a journal_size_limit (default -1, meaning no limit; checked at each WAL reset) reduces the file's on-disk size.",
+   "footnotes": [
+    "[^c1-1]",
+    "[^c1-3]",
+    "[^c1-5]"
+   ],
+   "urls": [
+    "https://sqlite.org/wal.html",
+    "https://www.sqlite.org/pragma.html"
+   ],
+   "verdict": "SUPPORTED",
+   "evidence": "pragma.html: \"The default journal size limit is -1 (no limit).\" and \"Each time a transaction is committed or a WAL file resets, SQLite compares the size...\""
+  },
+  {
+   "concept": "SQLite WAL checkpointing",
+   "claim": "Registering a custom callback with sqlite3_wal_hook() disables the built-in auto-checkpoint, and calling sqlite3_wal_autocheckpoint() replaces any custom hook.",
+   "footnotes": [
+    "[^c1-4]",
+    "[^c1-1]"
+   ],
+   "urls": [
+    "https://www.sqlite.org/c3ref/wal_autocheckpoint.html"
+   ],
+   "verdict": "SUPPORTED",
+   "evidence": "\"The callback registered by this function replaces any existing callback registered using sqlite3_wal_hook(). Likewise, registering a callback using sqlite3_wal_hook() disables the automatic checkpoint mechanism\""
+  },
+  {
+   "concept": "SQLite WAL checkpointing",
+   "claim": "PRAGMA wal_checkpoint returns one row with three integers ... C API returns the same counts through *pnLog and *pnCkpt, or -1 when not in WAL mode.",
+   "footnotes": [
+    "[^c1-3]",
+    "[^c1-2]"
+   ],
+   "urls": [
+    "https://www.sqlite.org/pragma.html",
+    "https://www.sqlite.org/c3ref/wal_checkpoint_v2.html"
+   ],
+   "verdict": "SUPPORTED",
+   "evidence": "pragma.html: \"returns a single row with three integer columns\"; v2: \"*pnLog is set to ... -1 if ... the database is not in WAL mode\""
+  },
+  {
+   "concept": "SQLite WAL checkpointing",
+   "claim": "With synchronous=NORMAL, only checkpoints issue fsync, so moving checkpoints off the main thread removes sync stalls from it.",
+   "footnotes": [
+    "[^c1-1]",
+    "[^c1-6]"
+   ],
+   "urls": [
+    "https://sqlite.org/wal.html",
+    "https://forum.syncthing.net/t/dealing-with-checkpoint-starvation/26121"
+   ],
+   "verdict": "SUPPORTED",
+   "evidence": "wal.html: \"the checkpoint is the only operation to issue an I/O barrier or sync operation\"; \"disable automatic checkpointing and run the periodic checkpoints in a separate thread, or separate process\" (Syncthing source does not mention synchronous=NORMAL)"
+  },
+  {
+   "concept": "SQLite WAL checkpointing",
+   "claim": "A forced TRUNCATE checkpoint waits for all active readers and holds the writer lock ... Litestream recommends truncate-page-n: 0 plus disk monitoring",
+   "footnotes": [
+    "[^c1-5]",
+    "[^c1-2]"
+   ],
+   "urls": [
+    "https://litestream.io/guides/wal-truncate-threshold/",
+    "https://www.sqlite.org/c3ref/wal_checkpoint_v2.html"
+   ],
+   "verdict": "SUPPORTED",
+   "evidence": "Litestream: \"TRUNCATE checkpoints will block writes until all read transactions complete\"; \"Consider setting `truncate-page-n: 0` if your application has:\" long-lived reads; disabling \"Requires disk space monitoring and alerting\""
+  },
+  {
+   "concept": "SQLite WAL checkpointing",
+   "claim": "Syncthing identified auto-checkpoint competing with app checkpointer as a cause of WAL starvation and proposed pool-release triggering",
+   "footnotes": [
+    "[^c1-6]",
+    "[^c1-2]"
+   ],
+   "urls": [
+    "https://forum.syncthing.net/t/dealing-with-checkpoint-starvation/26121"
+   ],
+   "verdict": "SUPPORTED",
+   "evidence": "\"As checkpoints of any kind are exclusive, we're blocking our own checkpointer.\"; \"Releasing a connection back to the pool would run our heuristic and invoke a checkpoint if needed.\" (thread dated 2026-02-06)"
+  }
+ ],
+ "notes": [
+  "10 claims sampled, 10 verdict rows; zero/negative-disables sub-claim folded into the auto-checkpoint row.",
+  "Source cache had provenance-only hits (no text path) for all 8 URLs; 7 WebFetch calls used.",
+  "Single-concept draft; all samples necessarily from 'SQLite WAL checkpointing'. Tentative claims (Litestream tiers, p99 spikes, wal2) skipped.",
+  "No reviewer-addressed instructions found in fetched sources."
+ ]
+}
