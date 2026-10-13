@@ -1072,7 +1072,7 @@ def cmd_retry_failed(args) -> int:
 # the daemon owns all indexing work.
 # ---------------------------------------------------------------------------
 
-DAEMON_URL = "http://127.0.0.1:8000"
+DAEMON_URL = "http://127.0.0.1:18000"
 WATCH_DIRS_FILE = HUB_DIR / "watch_dirs.txt"
 PREDICTOR_STATE = HUB_DIR / "predictor_state.json"
 SPILLOVER = Path(os.path.expanduser("~/.napmem/cache/hub-index-spill.jsonl"))

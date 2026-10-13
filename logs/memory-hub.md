@@ -650,3 +650,70 @@
 - Restore: set `DEFAULT_URLS` back to the LAN pool in the comment above it, or export `HUB_OLLAMA_URLS`. `hub-manager.json` `ollama_urls` is still blank.
 - Not restarted: already-running stdio MCP server processes keep the old default in memory until their session restarts (the `com.global-ai-hub.mcp-http` launchd label does not exist on this box).
 - Untouched on purpose: `napmem_hook_lib.py` `SSH_HOST` (user@192.0.2.75) — its memory store lives on that box; `hub.db` still uses nomic-embed-text via config.yaml (already localhost).
+
+## 2026-09-23 — ROUTER SPOKE ROWS ON THE SECOND MACHINE
+- Changed: branch `feat/router-spokes-on-main` adds `collect_spokes()` (one registry row per `<hub>/references/*.md`) to `scripts/semantic_ops/router.py`, plus `tests/test_router_spokes.py`, on top of `origin/main` (23be769). The spoke code otherwise lives only on `feat/vocabulary-research`.
+- Why: the second machine (user@192.0.2.214) ran `main` with 0 spoke rows, so folded hub spokes were not routable there.
+- Left alone: the rest of `feat/vocabulary-research` (dr_run `--alias`, research files), which is not needed for routing.
+
+
+## v1.1.70 - 2026-09-30
+
+- TASK-106 / KNOW-107: persist nine LiteLLM concepts, four prior local-inference concepts, and all authored pack references.
+- Canonical LiteLLM references are installed in /Users/mitch/dev/skills/ai-llm-model-layer/references and routed by hub v1.1.1.
+- Delta: tree entries copied by concept name; all prior nodes and frontier names preserved. Parent retains BUDGET_EXHAUSTED and runtimeQualified false.
+- Validation: 779 hub tests passed, 42 private-submodule-dependent tests skipped; Ruff passed. Both tree guards preserve every prior node and frontier reference. Exact reference checks retain all 95 claims and resolve 296 local document links.
+- Remaining: scoped commit/push/merge and final remote verification.
+
+## v1.1.71 - 2026-10-01
+- Active task: Stele backfill follow-through (project `global-ai-hub-s74vc`): fix 11 of the 13 backfilled tasks, correct doc drift — DONE (2 blocked on the user)
+- Status: 1059 tests + ruff green. Fixed: settings.save floored boolean flags at 1 (local_only/mirror_clone could never be 0); Concepts-tab hint said `q` (quit) instead of `n`; docset delete left FTS5 `kw` rows; units.run kept stale LLM units after a page changed; facts_layer_from_llms --index skipped keyword-index; corpus._query_vec cached a failed embed forever (now successes only, bounded LRU); coverage compared RRF-scale scores to its cosine threshold (history now records `reranked`); digest.recrawl summarized every cluster (now capped like weekly); router mcp_tool rows came back empty (now read from @mcp.tool docstrings, 30 tools); box_schedule.suspension() missed URL-form hosts (now containment match like is_quiet); _resolve_concept_pack validates slug and survives a corrupt manifest.
+  The hub-daemon port is now 18000 (HUB_DAEMON_PORT); two backfill missions still reported 8000, dropped as stale.
+  Doc drift: CLAUDE.md/AGENTS.md pool hosts (192.0.2.218 + mDNS laptop), 30 tools, ~1,050 tests. README/ARCHITECTURE/COMPONENTS/HUB-MANAGER/TESTING/MCP.md still carry 192.168.4.x and 20/7-tool counts.
+- Blocked on user: TASK-349 (create SKILLS_READ_TOKEN repo secret, owner-only), TASK-350 (207 skill-to-hub proposals are decisions, review file skills-hub-proposals.md).
+- Changed files: see commit; hub_manager 0.1.24.
+
+## v1.1.72 - 2026-10-02
+- Active task: root TASK-355; prevent the embedding window from taking over the eGPU research owner. The exact log confirms the window; a scheduled trigger was not found.
+- Status: scoped implementation and CPU checks complete in /Users/mitch/dev/worktrees/global-ai-hub-egpu-takeover-guard on codex/egpu-takeover-guard, based on ac556c0. Root alone operates schedulers, inference and hardware. The worker did not edit /Users/mitch/.global-ai-hub or commit/push.
+- Trigger: /Users/mitch/.global-ai-hub/logs/egpu-embed-20261001-235512.log recorded a second initialization fault after the window stopped the native research owner on boot 1790879561:56304. Indexing and embeddings were explicitly paused. Prior faults with the same initialization pattern exist; this is evidence for this installed stack, not a theorem about every GPU.
+- Decision: remove the runtime environment bypass and refuse activation at the CLI, imported window, direct embedding-server function and shell launcher before probes or lifecycle side effects. Preserve dry-run previews and existing mocked behavioral coverage. No changes to ordinary indexing configuration.
+- Frozen before SHA-256:
+  - /Users/mitch/dev/worktrees/global-ai-hub-egpu-takeover-guard/scripts/egpu_index_window.py: 15bfe71e736da7c343e06af759300693b93b0542520b5b32a321370632e9d4a0
+  - /Users/mitch/dev/worktrees/global-ai-hub-egpu-takeover-guard/scripts/egpu-embed-server.sh: f20af477773234c811d0e432eb7b1c21470b9c45a44298005a8e415b8182448e
+  - /Users/mitch/dev/worktrees/global-ai-hub-egpu-takeover-guard/tests/test_egpu_index_window.py: 09b502fc00d352aba91f3c0f2f8593b9176f3678e8e5c4fe24e3b90b08dc9a77
+- Delta: require_activation_enabled() unconditionally refuses activation. main() invokes it before config or plan probes for --run. run_window() invokes it before handler installation and cleanup lifecycle. start_embed_server() invokes it before socket/owner checks or spawning. The shell returns 2 before model lookup for --run and retains previews. Historical behavior tests patch only the guard in test memory; no environment override remains in production.
+- Changed files:
+  - /Users/mitch/dev/worktrees/global-ai-hub-egpu-takeover-guard/scripts/egpu_index_window.py
+  - /Users/mitch/dev/worktrees/global-ai-hub-egpu-takeover-guard/scripts/egpu-embed-server.sh
+  - /Users/mitch/dev/worktrees/global-ai-hub-egpu-takeover-guard/tests/test_egpu_index_window.py
+  - /Users/mitch/dev/worktrees/global-ai-hub-egpu-takeover-guard/prompts-hub.md
+  - /Users/mitch/dev/worktrees/global-ai-hub-egpu-takeover-guard/memory-hub.md
+- Frozen after SHA-256:
+  - /Users/mitch/dev/worktrees/global-ai-hub-egpu-takeover-guard/scripts/egpu_index_window.py: 1de1d73e7f9f29246de87bb846579fee49727c801a4d072e61bd9da19bc1726c
+  - /Users/mitch/dev/worktrees/global-ai-hub-egpu-takeover-guard/scripts/egpu-embed-server.sh: 116e0bc24020ac20d88fab161eb73d5da283410d320225352f45bd91f08fa1e1
+  - /Users/mitch/dev/worktrees/global-ai-hub-egpu-takeover-guard/tests/test_egpu_index_window.py: 15d61012a0a50283d5eaaf842c4674c0193934f6d2c59934fec06c4bbd516fa1
+- Validation: /Users/mitch/.global-ai-hub/.venv/bin/python -m pytest /Users/mitch/dev/worktrees/global-ai-hub-egpu-takeover-guard/tests/test_egpu_index_window.py -q: 190 passed in 1.36 seconds. The system Python lacks pytest, so the existing hub environment supplied the test runner. Scoped test Ruff, isolated script correctness lint (E9/F/B), /bin/bash -n and git diff --check passed. Full legacy-script Ruff findings: baseline 39, current 39, new 0; unchanged source-line/message fingerprints were compared without creating artifacts. Subsequent edits changed only usage/comment text and were not retested.
+- Version: no canonical repository version file was found. /Users/mitch/dev/worktrees/global-ai-hub-egpu-takeover-guard/scripts/hub_manager/__init__.py is an unrelated package version and remains unchanged by root instruction. This track continuation advances v1.1.71 to v1.1.72.
+- Remaining: root will retain these five uncommitted paths on a fresh branch from origin/main, keeping unrelated AKO draft concept-tree content out of shipping, then review and publish. Do not clear the fault marker or attempt another GPU initialization. Physical qualification is separate and remains unverified.
+
+## v1.1.73 - 2026-10-02
+- Root reviewed the scoped source/test diff and retained all five changes on codex/egpu-takeover-guard-main based on origin/main82e4055. The unrelated AKO draft concept-tree change from ac556c0 is excluded.
+- Status: source protection is ready for scoped commit and CI. Historical mocked lifecycle tests remain hermetic; actual model qualification is separate. No live hub source, ordinary indexing config, native process, fault latch, embedding request or hardware state changed in this checkpoint.
+- Remaining: publish and merge only after CI passes, then verify final live protected source. Save the final merge/deployment receipt in the qualification continuation. Cold recovery requires the user to fully shut down the Mac and power-cycle the enclosure while the Mac is off. Future cold-first model admission cannot inherit the dead owner11844 binding.
+
+## v1.1.74 - 2026-10-02
+- Trigger: CI36965117941 passed lint/compile/JSON and1022 tests, skipped42, but failed test_collect_mcp_tools_includes_live_hub_server_tools at /Users/mitch/dev/worktrees/global-ai-hub-egpu-takeover-guard/tests/test_router.py with AssertionError: hub_ask in empty names. The test used the host home .global-ai-hub default instead of the checked-out server source.
+- Delta: the test binds HUB_DIR to its checkout root using monkeypatch. The real router, source-discovery function, indexing configuration and GPU guards remain unchanged. This is static AST discovery and mocked unit testing, not a semantic query or embedding run.
+- Validation: all12 scoped mocked router tests passed in0.57seconds. Production routing and GPU guard source are unchanged. Commit the portability correction and republish guard PR68; the physical fault remains latched.
+
+## 2026-10-12 - 5080 box onboarding
+- Trigger: new Fedora 45 box `5080` (192.0.2.246, RTX 5080 16 GB, Ollama 0.40.3 with nomic-embed-text + mxbai-embed-large).
+- Delta: watch_dirs.txt gains /home/mitch/{dev,.global-ai-hub,.claude,Documents}; get_watch_dirs() drops non-existent dirs, so the Mac ignores them and the box ignores the /Users paths.
+- Box state: pool_mode.json = local on the box (untracked; a Mac→box sync that copies pool_mode.json would reset it to lan). hub.db rebuilt on the box from scratch; project_registry.db/registry.db copied from M5 (paths inside still /Users/mitch).
+
+## 2026-10-13 - hub CI back to green (lint + llms_serve root 500)
+- Trigger: CI red since 10-07 at `ruff check .` (27 E501 + 1 F401 in tests/test_egpu_index_window.py, test_embed_queue.py, test_index_freshness.py, test_post_edit_index.py). Behind it, tests/test_llms_serve.py::test_root_index_lists_exports_and_mirrors failed with `HTTP Error 500` / `AttributeError: 'list' object has no attribute 'get'`.
+- Root cause of the 500: 10 research-to-llms-txt packs in llms-concepts/ (e.g. atlas-cli.llms) write `files` as a list of names plus `claimsCount`/`sourcesCount`; `render_root` called `.get` on it. The live server at 127.0.0.1:8788/llms.txt returned 500 too. The test read the real llms-concepts/ because `_setup` did not pass `topical_dir`.
+- Delta: scripts/llms_serve.py `_file_tokens()` + topical fallbacks (concept/claimsCount/sourcesCount); tests pass an empty `topical_dir` and add test_root_lists_research_pack_with_list_shaped_files; long test lines rewrapped, unused `import hub_lib` dropped.
+- Validation: `ruff check .` clean; `pytest tests/ -q` 1094 passed. Restart llms_serve to pick up the fix.

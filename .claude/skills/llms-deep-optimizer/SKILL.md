@@ -12,8 +12,8 @@ description: >-
   llms.txt yet → skill-to-llms-txt; prompts → prompt-deep-optimizer; prose
   docs → document-critique; SQL → deep-query-optimizer; crawling a site → web-text-mirror.
   SKIP+: building a NEW family by crawling a site/repo → crawl-to-llms-txt.
-version: 1.0.2
-updated: 2026-09-02
+version: 1.1.0
+updated: 2026-10-12
 model: claude-opus-4-8
 effort: high
 ---
@@ -85,8 +85,8 @@ B4, B7 as concurrent subagents, B5/B6/B8/B9 inline. Collect every finding before
 | P4 Navigation design | I2 I3 N2 N3 N4 N7 | model |
 | P5 Size ladder | S1–S6 H8 | det |
 | P6 Full-file fidelity | C1–C5 | det |
-| P7 Facts shape | C6 R3 R4 R7 P6 | det |
-| P8 Facts truth (sampled) | C7 D5 | model |
+| P7 Facts shape | C6 C8 R3 R4 R7 P6 | det |
+| P8 Facts truth (sampled) | C7 C8 D5 | model |
 | P9 Provenance/rights/steering | P1 P3 P4 P5 | det + model |
 | P10 Family/nesting | F1–F6 | det + model |
 | P11 Retrieval readiness | R1 R2 R4 | live (FTS5 + vector) |
@@ -152,7 +152,7 @@ acceptance bar is P12 (≥ 8/10 index, ≥ 7/10 facts) and P11 (10/10 exact-toke
 ## Routing and deferral
 
 `SKILL.md` or hub spoke → `skill-optimizer`. Generator prompts (`units`, polish) →
-`prompt-deep-optimizer`. Prose docs → document-critique. Moved page → `web-text-mirror`.
+`prompt-deep-optimizer`. Prose docs → writing-expert (references/document-critique.md). Moved page → `web-text-mirror`.
 Unknown family membership → `concept-family-explorer`. Stale concept-level facts →
 `/dr --refresh`. Registered in the family router `~/.claude/skills/deep-optimizer/SKILL.md`.
 
@@ -178,4 +178,4 @@ Every run that writes an llms family ends here, so the map of what was written l
 
 - Run `python3 ~/.global-ai-hub/scripts/llms_routing.py install <project-dir> --from <output-dir>` (in the llms-explorer checkout: `hub/scripts/llms_routing.py`). It writes the `## llms routing` block — routing table, quick answers, indexes — between `<!-- llms-routing:start -->` / `<!-- llms-routing:end -->` in `CLAUDE.md` (else `AGENTS.md`; both → block in `CLAUDE.md`, pointer in `AGENTS.md`; neither → a minimal `CLAUDE.md`). Idempotent; re-run after every regeneration. Outside any project directory it prints `skipped placement: no project directory`.
 - Run `python3 ~/.global-ai-hub/scripts/llms_routing.py reorder <output-dir>/llms.txt`: inside each H2 section the entries whose target file the access ledger (`llms_ledger.py rank`) has seen go first, most read first; the rest keep their authored order. Sections, `llms-small.txt` and `llms-full.txt` are never reordered. With no ledger data it says `ordering: role order (no ledger data)`.
-- Placement rule: defaults, file roles, formulas and commands are quick answers in `CLAUDE.md`/`AGENTS.md` (cached, cited, data not rules); everything else stays in the llms files, which remain the source of truth.
+- Placement rule: defaults, file roles, formulas, commands and `Misbelief:` lines are quick answers in `CLAUDE.md`/`AGENTS.md` (cached, cited, data not rules); everything else stays in the llms files, which remain the source of truth.

@@ -7,4 +7,4 @@ Run:  ~/.global-ai-hub/scripts/hub-manager
   or  ~/.global-ai-hub/.venv/bin/python -m hub_manager   (cwd: scripts/)
 """
 
-__version__ = "0.1.23"
+__version__ = "0.1.24"

@@ -193,7 +193,7 @@ production version of the residue strip — the lint uses the same pattern table
 
 ## P7 — Facts-file shape (deterministic)
 
-**Judges** C6 R3 R4 R7 P6. Parses each unit line as `build_facts` emits it:
+**Judges** C6 C8 R3 R4 R7 P6. Parses each unit line as `build_facts` emits it:
 `- [type] text — <url>#<anchor>` under a `## <page title>` / `<url>` heading pair (optional
 trailing ` · keywords: a, b` and ` · verified-as-of: YYYY-MM-DD` fields are accepted). Checks
 type ∈ `docset_refine.UNIT_TYPES` (concept, fact, actionable, question, problem, statement,
@@ -205,7 +205,10 @@ has ≥ 1 unit.
 **Judged:** unit without source → High. Anchor not resolvable → Medium (High if > 20%).
 Untyped or unknown type → Medium. Unit > 2 sentences (or > 400 chars) → Medium. Page with zero
 units → Medium if a `reference`/`guide` page, Low otherwise. Code token in text but not in
-keywords → Low, aggregated.
+keywords → Low, aggregated. C8, when the family has a `## Contested` section or `Misbelief:`
+lines: a section line without a kind tag or a citation → Medium; a `Misbelief:` line in full
+with no twin in facts → Medium; a `Controversy:` or `Open question:` line in the facts file →
+High, because a quick-answer extractor would copy it as settled.
 
 **Updated (`--fix` safe):** re-anchor by fuzzy heading match within the same page (≥ 0.9
 similarity), else leave as BLOCKED; add missing keywords by regex extraction (backtick spans,
@@ -218,7 +221,7 @@ regenerates units from scratch; run it instead of fixing when > 30% of units fai
 
 ## P8 — Facts truthfulness (model, sampled)
 
-**Judges** C7 D5 P6. Samples 20 units (stratified by type, weighted to LLM-generated ones) and
+**Judges** C7 C8 D5 P6. Samples 20 units (stratified by type, weighted to LLM-generated ones) and
 re-reads each source span from the mirror (`hub_llms_full_read(page=…)` or the banner mirror).
 For each: supported / partially / unsupported / stale (version-stamped claim contradicted).
 
@@ -227,6 +230,11 @@ opening pages; a wrong fact there is worse than a missing one). Partially suppor
 (generalised beyond the span) → Medium. Stale → Medium with the newer span quoted. ≥ 3
 unsupported in the sample → High on the file: regenerate the LLM units (`docset_refine units
 --force`), do not patch.
+
+**C8 (judgment):** sample up to 5 `## Contested` lines. Each needs a source that states the
+dispute, the gap or the correction, and a misbelief needs evidence that the wrong belief is
+commonly held. A strawman misbelief, or a controversy restated elsewhere as a settled fact →
+High.
 
 **Updated:** unsupported units are removed and logged; partially-supported units are rewritten
 to the span's wording (extractive rewrite, then re-verified); stale units get the newer text +

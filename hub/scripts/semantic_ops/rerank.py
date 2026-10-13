@@ -29,7 +29,8 @@ def rerank(query: str, hits: list[Hit], top_n: int | None = None) -> list[Hit]:
         return list(hits)[:top_n] if top_n is not None else list(hits)
     qvec = vecs[0]
     rescored = [
-        Hit(h.source, h.ref, round(cosine_similarity(qvec, v), 4), h.snippet, h.meta)
+        Hit(h.source, h.ref, round(cosine_similarity(qvec, v), 4), h.snippet,
+            {**h.meta, "reranked": True})
         for h, v in zip(embeddable, vecs[1:], strict=True)
     ]
     rescored.sort(key=lambda h: h.score, reverse=True)

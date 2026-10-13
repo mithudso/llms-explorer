@@ -50,7 +50,7 @@ related_skills:
   - content-ingestion-extraction
   - technical-writing-craft
   - chrome-extension-expert
-  - misc-catch-all
+  - generative-engine-optimization
   - web-text-mirror
 ---
 
@@ -111,6 +111,8 @@ This hub provides 28 on-demand reference files (7 absorbed format skills + 16 Ma
 | `rsl-deployment-and-anti-patterns` | Deploy RSL end to end: `license.xml`, the `License:` line, the `application/rsl+xml` media type, `max-age`, per-subdomain scoping; the five-rung ladder from bare declaration to EMS encryption; the validator and Relax NG schema; a curl verification checklist; twelve anti-patterns and a troubleshooting table | `references/rsl-deployment-and-anti-patterns.md` |
 | `rsl-vs-adjacent-standards` | The five-layer AI-permissions stack: RSL vs robots.txt/RFC 9309, IETF AIPREF (`Content-Usage`), Cloudflare Content Signals and pay-per-crawl, W3C TDMRep, C2PA/CAWG, CC Signals, `llms.txt` and `ai.txt`; why `License:` is an unregistered extension and `application/rsl+xml` is not IANA-registered | `references/rsl-vs-adjacent-standards.md` |
 | `rsl-adoption-and-legal-weight` | Does RSL work? Measured deployment (130-domain sweep: 3 independent publishers; 1 of 9 founding supporters), no AI-company commitment, the Medium/Stack Overflow/Guardian conformance defects; legal force — *Ziff Davis v. OpenAI* (robots.txt is not a DMCA §1201 control), hiQ assent, EU DSM Art. 4(3); criticism and the antitrust question | `references/rsl-adoption-and-legal-weight.md` |
+| `google-docs-inplace-editor` | Reviews, edits, and maintains Google Docs in place, preserving existing content, tabs, structure, and | `references/google-docs-inplace-editor/google-docs-inplace-editor.md` |
+| `google-sheets-inplace-editor` | Creates and updates Google Sheets workbooks, tabs, ranges, values, formulas, and formatting while | `references/google-sheets-inplace-editor/google-sheets-inplace-editor.md` |
 
 **Multi-row tasks:** Read the row for the OUTPUT format first, then the row for the input: md→PDF is `markdown-pandoc` (engine choice) then `pdf` (post-processing); pptx→PDF stays in `pptx`; "generate an llms.txt from a crawled site" is `llms-txt-recreation-and-aggregation` then `llms-txt`. If no row matches, do not answer from this table; use the cross-hub map below.
 

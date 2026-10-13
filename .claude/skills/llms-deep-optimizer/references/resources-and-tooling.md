@@ -46,6 +46,10 @@ BLOCKED; `web-text-mirror` remains the zero-credit fallback.
 
 All run from `~/.global-ai-hub` with `PYTHONPATH=scripts .venv/bin/python`.
 
+This reference directory also carries `scripts/llms_lint.py`, a 1,179-line snapshot kept from the
+former standalone `llms-deep-optimizer` skill. It is older than the hub copy. Run the hub copy
+in the table below.
+
 | Script | Command shapes | Role |
 |---|---|---|
 | `scripts/llms_lint.py` | `detect F` · `check F [--kind K] [--check-links] [--fix] [--json]` · `full F` · `facts F [--mirror M]` · `hygiene F --fix` | every deterministic pass (P0 P1 P2 P3-det P5 P6 P7 P9-det P14); JSON findings `{pass, attr, severity, line, msg, fix}` |

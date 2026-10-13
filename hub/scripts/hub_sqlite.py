@@ -4,6 +4,7 @@ hub_sqlite.py — SQLite data access layer for Global AI Hub
 Replaces the old JSON-based UNIVERSAL-INDEX/EMBEDDINGS with a concurrent WAL-mode SQLite DB.
 """
 
+import calendar
 import contextlib
 import sqlite3
 import os
@@ -82,16 +83,42 @@ def load_embeddings():
         return result
 
 def load_index():
-    """Return dictionary of {path: {"hash": hash, "size": size}} for idle-indexer check."""
+    """Return {path: {"hash", "size", "updated_at"}} for the indexers' freshness check."""
     init_db()
     with get_conn() as conn:
-        rows = conn.execute("SELECT path, hash, size FROM files").fetchall()
-        return {r["path"]: {"hash": r["hash"], "size": r["size"]} for r in rows}
+        rows = conn.execute("SELECT path, hash, size, updated_at FROM files").fetchall()
+        return {r["path"]: {"hash": r["hash"], "size": r["size"], "updated_at": r["updated_at"]} for r in rows}
 
-def upsert_file(path, content_hash, size, embedding_vector, model):
-    """Insert or update a file and its embedding."""
+
+def _iso(ts=None):
+    return time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime(time.time() if ts is None else ts))
+
+
+def _parse_iso(s):
+    try:
+        return calendar.timegm(time.strptime(s, "%Y-%m-%dT%H:%M:%SZ"))
+    except (TypeError, ValueError):
+        return 0
+
+
+def index_is_fresh(row, size, mtime):
+    """True when the file cannot have changed since it was indexed: same size and not modified
+    after the row's updated_at. A False answer means "check the content hash", not "changed":
+    a touch, a git checkout or a tail-only edit also lands here, and the hash settles it.
+    updated_at is the moment the indexer *read* the file (see upsert_file's as_of), so an edit
+    that races with an embedding call still reads as stale."""
+    return bool(row) and row.get("size") == size and mtime <= _parse_iso(row.get("updated_at"))
+
+
+def touch_file(path, size, as_of=None):
+    """Record that path's content (hash) is unchanged as of `as_of`, so index_is_fresh settles."""
+    with get_conn() as conn:
+        conn.execute("UPDATE files SET size=?, updated_at=? WHERE path=?", (size, _iso(as_of), path))
+
+def upsert_file(path, content_hash, size, embedding_vector, model, as_of=None):
+    """Insert or update a file and its embedding. as_of: when the content was read (default now)."""
     init_db()
-    now = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
+    now = _iso(as_of)
     vector_str = json.dumps(embedding_vector)
     
     with get_conn() as conn:

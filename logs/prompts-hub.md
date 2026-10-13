@@ -448,3 +448,35 @@
 - User request:
   - The embedding server is available again at user@192.0.2.218, update the hub making this available again at that address. / Yes push your changes and all other commits merge, push pr, commit, get it all up to current. The M3 is now at user@192.0.2.214.
 - Resolution: embedding pool restored to 218 (4) + 214 (3) + localhost (1); SSH targets moved to root@218 and mitch.hudson@214; 214 inherits the work-laptop quiet hours. Committed all pending hub work, merged origin/main (23 conflicts; concept tree 3-way merged by concept name to 631 nodes), merged skills PR #24 and bumped the submodule, regenerated skills-catalog.llms.
+
+## Prompt v105 - 2026-09-23T15:37:10-04:00
+- User request:
+  - Yes update the laptop's hub repo (so the second machine's router can route hub spokes; its hub checkout is on main without spoke routing).
+- Resolution: branch `feat/router-spokes-on-main` = `origin/main` + `scripts/semantic_ops/router.py` and `tests/test_router_spokes.py` taken from `feat/vocabulary-research` (commit b91caee is the only change to the router since the laptop's checkout). 13 router tests pass. Not merged to main.
+
+
+## Prompt v106 - 2026-09-30
+
+> Make sure the concept trees in both llms-erxplorer and ~/.global-ai-hub include all the concepts and references you just made. Also merge push commit all skills you created for this and make sure they're in ~/dev/skills/
+
+
+## Prompt v107 - 2026-10-01T23:55:07-04:00
+- User request:
+  - /stele:start -> bound repo to Stele project global-ai-hub-s74vc and backfilled it (385 nodes); then: skip MASTER_ARCHITECTURE import, fix stale host addresses/tool counts in CLAUDE.md and AGENTS.md, and work the 13 imported tasks.
+
+## Prompt v108 - 2026-10-02
+- User request (delegated implementation scope from root TASK-355):
+  - Implement the narrow CPU-only takeover protection for root TASK-355 in isolated worktree /Users/mitch/dev/worktrees/global-ai-hub-egpu-takeover-guard (branch codex/egpu-takeover-guard; starts ac556c0, a concurrent AKO docs commit). You are not alone in the codebase; preserve all other changes and do not edit live /Users/mitch/.global-ai-hub. Ownership: only scripts/egpu_index_window.py, scripts/egpu-embed-server.sh, tests/test_egpu_index_window.py, plus required hub-track prompts-hub.md/memory-hub.md and existing canonical version file if any. First preserve full task prompt/continuation per AGENTS. Remove EGPU_WINDOW_ALLOW_SECOND_BOOT environment bypass. Refuse --run and imported run_window() before any signal-handler installation, owner stop, cleanup/restore, probes, requests or GPU-related operation. Guard the direct start_embed_server() library entry too if it otherwise bypasses the protected window. Refuse shell --run before model manifest lookup or executing anything. Dry-run CPU previews remain available. Do not introduce another runtime opt-out; existing CPU behavioral tests may monkeypatch a source constant/guard solely in tests. State repeated observed second-init faults, not a universal GPU theorem. Add focused tests for imported entry and shell/CLI refusal with hostile environment, plus call spies proving no destructive cleanup/start/probe. Run appropriate CPU-only unit tests and scoped lint; no actual GPU/model/network/embed/service calls. Do not start/restart inference, clear latch, reset anything, or change ordinary indexing config. Keep frozen source before/after hashes and test evidence. Do not commit/push; root will inspect/ship scoped changes. Report full absolute paths created/modified and results.
+- Resolution: the Python CLI, imported window and direct embedding-server entry refuse before probes, owner changes or cleanup. The shell refuses --run before manifest lookup. No runtime override remains. Hermetic window tests: 190 passed in 1.36 seconds; scoped test Ruff, script correctness lint (E9/F/B), shell syntax and diff checks passed. Full legacy-script lint has the same 39 baseline style findings and no new findings. Root owns review/publication; no commits or live runtime changes were made.
+
+## Prompt v109 - 2026-10-02
+- User request (root continuation of TASK-355):
+  - Correct the CI failure in test_collect_mcp_tools_includes_live_hub_server_tools by binding the test's HUB_DIR to the actual checkout. Preserve production routing and indexing configuration. Run only offline mocked router tests, append exact results, and republish the scoped guard PR68.
+
+## Prompt v110 - 2026-10-12T06:00:00-04:00
+- User request:
+  - Set up new Fedora box "5080" (user@192.0.2.246): sync ~/dev, ~/.global-ai-hub, ~/.claude; install deps; rebuild the hub index on the box; drop openviking MCP there.
+
+## Prompt v111 - 2026-10-13T09:00:00-04:00
+- User request:
+  - "1. Yes. 2. Yes. 3. Keep both. 4. Yes. 5. Yes add a guard, also what is sync_skills actually syncing to? Is that up?" (4 = fix hub CI: the 28 ruff errors in tests/ and anything else keeping it red.)

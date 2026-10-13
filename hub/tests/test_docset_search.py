@@ -590,7 +590,11 @@ def test_sqlite_delete_drops_registry_chunks_and_pages(tmp_path, monkeypatch):
         pages=[{"url": "https://other.example/", "text": "keep me"}],
     )
 
+    store.keyword_replace("example__docs", [{"url": "u", "seq": 0, "text": "orphan token"}])
+    store.keyword_replace("other__docs", [{"url": "v", "seq": 0, "text": "keep token"}])
     assert store.delete_docset("example__docs") is True
+    assert store.keyword_count("example__docs") == 0  # no orphan FTS rows
+    assert store.keyword_count("other__docs") == 1
     assert [e["docset"] for e in store.list_docsets()] == ["other__docs"]
     assert list(store.dump_pages("example__docs")) == []
     assert list(store.dump_chunks("example__docs")) == []

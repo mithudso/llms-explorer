@@ -10,6 +10,7 @@ from __future__ import annotations
 import os
 import re
 import subprocess
+import collections
 import threading
 from typing import Protocol
 
@@ -39,24 +40,31 @@ class Corpus(Protocol):
 # request at the contended pool -- a thundering herd, not a dedup. This
 # coalesces concurrent identical queries: the first caller does the real
 # embed; everyone else waits on it and reads the same result.
+_QUERY_VEC_CACHE_MAX = 256
 _query_vec_lock = threading.Lock()
-_query_vec_cache: dict[str, tuple[float, ...] | None] = {}
-_query_vec_inflight: dict[str, threading.Event] = {}
+_query_vec_cache: collections.OrderedDict[str, tuple[float, ...]] = collections.OrderedDict()
+# query -> (done event, one-slot holder). Waiters read the holder, not the
+# cache, so a failed embed reaches them without ever being cached.
+_query_vec_inflight: dict[str, tuple[threading.Event, list]] = {}
 
 
 def _query_vec(query: str) -> tuple[float, ...] | None:
+    """Embed `query` once per concurrent burst. Only successes are cached
+    (bounded LRU): a transient pool outage must not pin None for the life of a
+    long-lived MCP process."""
     with _query_vec_lock:
         if query in _query_vec_cache:
+            _query_vec_cache.move_to_end(query)
             return _query_vec_cache[query]
-        event = _query_vec_inflight.get(query)
-        owner = event is None
+        flight = _query_vec_inflight.get(query)
+        owner = flight is None
         if owner:
-            event = threading.Event()
-            _query_vec_inflight[query] = event
+            flight = (threading.Event(), [None])
+            _query_vec_inflight[query] = flight
+    event, holder = flight
     if not owner:
         event.wait()
-        with _query_vec_lock:
-            return _query_vec_cache.get(query)
+        return holder[0]
     try:
         result: tuple[float, ...] | None
         try:
@@ -64,8 +72,12 @@ def _query_vec(query: str) -> tuple[float, ...] | None:
         except embed_core.EmbeddingUnavailable as e:
             _log.warning("semantic query degraded (embed pool down): %s", e)
             result = None
-        with _query_vec_lock:
-            _query_vec_cache[query] = result
+        holder[0] = result
+        if result is not None:
+            with _query_vec_lock:
+                _query_vec_cache[query] = result
+                while len(_query_vec_cache) > _QUERY_VEC_CACHE_MAX:
+                    _query_vec_cache.popitem(last=False)
         return result
     finally:
         event.set()
