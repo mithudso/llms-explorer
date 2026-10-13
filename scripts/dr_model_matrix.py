@@ -22,7 +22,7 @@ import threading
 import time
 import urllib.request
 from concurrent.futures import ThreadPoolExecutor
-from datetime import datetime, timezone
+from datetime import datetime, UTC
 from pathlib import Path
 
 REPO = Path(__file__).resolve().parents[1]
@@ -55,9 +55,10 @@ def _cells() -> list[dict]:
     for model in ("gpt-6.1-sol", "gpt-6-astra", "gpt-6-luna"):
         for e in EFFORTS:
             cells.append({"lane": "openai", "model": model, "effort": e})
-    for model in ("gemini-3.8-flash", "gpt-oss-120b-medium"):
-        for e in EFFORTS:
-            cells.append({"lane": "agy", "model": model, "effort": e})
+    for e in EFFORTS:
+        cells.append({"lane": "agy", "model": "gemini-3.8-flash", "effort": e})
+    # Antigravity offers GPT-OSS 120B only as a fixed "medium" variant.
+    cells.append({"lane": "agy", "model": "gpt-oss-120b-medium", "effort": "medium"})
     for model in ("llmsx-research-gemma31-mlx", "qwen3.5:35b", "egpu:qwen3.6:27b-iq2-xxs"):
         for e in EFFORTS:
             cells.append({"lane": "local", "model": model, "effort": e})
@@ -67,7 +68,7 @@ def _cells() -> list[dict]:
 
 
 def _now() -> str:
-    return datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+    return datetime.now(UTC).strftime("%Y-%m-%dT%H:%M:%SZ")
 
 
 def _env(hub: Path, extra: dict | None = None) -> dict:
@@ -123,8 +124,11 @@ def _probe_egpu() -> str | None:
     req = urllib.request.Request(
         "http://127.0.0.1:8000/v1/chat/completions",
         data=json.dumps(
-            {"model": "qwen3.6:27b-iq2-xxs", "max_tokens": 8,
-             "messages": [{"role": "user", "content": "say ok"}]}
+            {
+                "model": "qwen3.6:27b-iq2-xxs",
+                "max_tokens": 8,
+                "messages": [{"role": "user", "content": "say ok"}],
+            }
         ).encode(),
         headers={"content-type": "application/json"},
     )
@@ -133,7 +137,9 @@ def _probe_egpu() -> str | None:
             json.loads(r.read())
         return None
     except Exception as e:  # noqa: BLE001 - any failure means the lane is unavailable
-        return f"eGPU llama-server :8000 did not complete an 8-token chat in 90s ({type(e).__name__})"
+        return (
+            f"eGPU llama-server :8000 did not complete an 8-token chat in 90s ({type(e).__name__})"
+        )
 
 
 def _research_cloud_cli(cell: dict, hub: Path, brief: str) -> dict:
@@ -142,28 +148,65 @@ def _research_cloud_cli(cell: dict, hub: Path, brief: str) -> dict:
     prompt = brief + "\n" + ADAPTER
     if cell["lane"] == "openai":
         argv = [
-            "codex", "exec", "-m", cell["model"], "-c", f"model_reasoning_effort={cell['effort']}",
-            "-c", "tools.web_search=true", "--json", "-s", "workspace-write",
-            "-c", "sandbox_workspace_write.network_access=true",
-            "-c", f'shell_environment_policy.set={{HUB_DIR="{hub}",DR_TELEMETRY="{hub}/telemetry.jsonl"}}',
-            "--skip-git-repo-check", "--ephemeral", "-C", str(work), prompt,
+            "codex",
+            "exec",
+            "-m",
+            cell["model"],
+            "-c",
+            f"model_reasoning_effort={cell['effort']}",
+            "-c",
+            "tools.web_search=true",
+            "--json",
+            "-s",
+            "workspace-write",
+            "-c",
+            "sandbox_workspace_write.network_access=true",
+            "-c",
+            f'shell_environment_policy.set={{HUB_DIR="{hub}",DR_TELEMETRY="{hub}/telemetry.jsonl"}}',
+            "--skip-git-repo-check",
+            "--ephemeral",
+            "-C",
+            str(work),
+            prompt,
         ]
     else:
+        # agy encodes effort in the model id; --effort must match the id's suffix.
         model = cell["model"]
         if model == "gemini-3.8-flash":
-            model = f"gemini-3.8-flash-{'high' if cell['effort'] != 'low' else 'low'}"
+            model = f"gemini-3.8-flash-{cell['effort']}"
         argv = [
-            "agy", "-p", prompt, "--model", model, "--effort", cell["effort"],
-            "--output-format", "json", "--dangerously-skip-permissions",
-            "--disable-slash-commands", "--print-timeout", f"{AGENT_TIMEOUT}s",
+            "agy",
+            "-p",
+            prompt,
+            "--model",
+            model,
+            "--effort",
+            cell["effort"],
+            "--output-format",
+            "json",
+            "--dangerously-skip-permissions",
+            "--disable-slash-commands",
+            "--print-timeout",
+            f"{AGENT_TIMEOUT}s",
         ]
     t0 = time.monotonic()
     try:
-        p = subprocess.run(argv, cwd=work, env=_env(hub), capture_output=True, text=True,
-                           stdin=subprocess.DEVNULL, timeout=AGENT_TIMEOUT + 120)
+        p = subprocess.run(
+            argv,
+            cwd=work,
+            env=_env(hub),
+            capture_output=True,
+            text=True,
+            stdin=subprocess.DEVNULL,
+            timeout=AGENT_TIMEOUT + 120,
+        )
         stdout, stderr, rc = p.stdout, p.stderr, p.returncode
     except subprocess.TimeoutExpired as e:
-        stdout, stderr, rc = (e.stdout or b"").decode() if isinstance(e.stdout, bytes) else (e.stdout or ""), "timeout", -9
+        stdout, stderr, rc = (
+            (e.stdout or b"").decode() if isinstance(e.stdout, bytes) else (e.stdout or ""),
+            "timeout",
+            -9,
+        )
     secs = round(time.monotonic() - t0, 1)
     (hub / "agent.stdout").write_text(stdout or "")
     (hub / "agent.stderr").write_text((stderr or "")[-20000:])
@@ -185,19 +228,34 @@ def _research_cloud_cli(cell: dict, hub: Path, brief: str) -> dict:
             if ev.get("type") == "item.completed":
                 t = (ev.get("item") or {}).get("type", "?")
                 tools[t] = tools.get(t, 0) + 1
-        rec.update({"input_tokens": inp, "cached_input_tokens": cached, "output_tokens": out,
-                    "reasoning_tokens": reasoning, "tokens": inp + out, "tool_events": tools})
+        rec.update(
+            {
+                "input_tokens": inp,
+                "cached_input_tokens": cached,
+                "output_tokens": out,
+                "reasoning_tokens": reasoning,
+                "tokens": inp + out,
+                "tool_events": tools,
+            }
+        )
     else:
         try:
-            d = json.loads(stdout[stdout.find("{"):])
+            d = json.loads(stdout[stdout.find("{") :])
             u = d.get("usage") or {}
-            rec.update({"input_tokens": u.get("input_tokens"), "output_tokens": u.get("output_tokens"),
-                        "reasoning_tokens": u.get("thinking_tokens"),
-                        "cached_input_tokens": u.get("cache_read_tokens"),
-                        "tokens": (u.get("input_tokens") or 0) + (u.get("output_tokens") or 0)
-                        + (u.get("cache_read_tokens") or 0),
-                        "num_turns": d.get("num_turns"), "status": d.get("status"),
-                        "is_error": rc != 0 or d.get("status") not in (None, "SUCCESS")})
+            rec.update(
+                {
+                    "input_tokens": u.get("input_tokens"),
+                    "output_tokens": u.get("output_tokens"),
+                    "reasoning_tokens": u.get("thinking_tokens"),
+                    "cached_input_tokens": u.get("cache_read_tokens"),
+                    "tokens": (u.get("input_tokens") or 0)
+                    + (u.get("output_tokens") or 0)
+                    + (u.get("cache_read_tokens") or 0),
+                    "num_turns": d.get("num_turns"),
+                    "status": d.get("status"),
+                    "is_error": rc != 0 or d.get("status") not in (None, "SUCCESS"),
+                }
+            )
         except (ValueError, json.JSONDecodeError):
             rec["is_error"] = True
     return rec
@@ -213,6 +271,17 @@ def run_cell(cell: dict, force: bool = False) -> dict:
         shutil.rmtree(cdir)
     hub.mkdir(parents=True, exist_ok=True)
     rec = {**cell, "started": _now(), "topic": TOPIC, "concept": CONCEPT, "judge": "/".join(JUDGE)}
+    if cell["lane"] == "agy" and cell["model"] == "gemini-3.8-flash" and cell["effort"] == "max":
+        rec.update(
+            {
+                "status": "not offered",
+                "finished": _now(),
+                "reason": "Antigravity offers Gemini 3.8 Flash only at low/medium/high"
+                " (agy models)",
+            }
+        )
+        res_path.write_text(json.dumps(rec, indent=1) + "\n")
+        return rec
     if cell["model"].startswith("egpu:"):
         why = _probe_egpu()
         if why:
@@ -231,21 +300,48 @@ def run_cell(cell: dict, force: bool = False) -> dict:
         if cell["lane"] == "local":
             timeout = LOCAL_TIMEOUT
             runner = shutil.which("llmsx-ollama-agent")
-            extra = {"DR_CLAUDE_BIN": runner or "", "LLMSX_OLLAMA_RESEARCH_CONTEXT": json.dumps(["SQLite"])}
+            extra = {
+                "DR_CLAUDE_BIN": runner or "",
+                "LLMSX_OLLAMA_RESEARCH_CONTEXT": json.dumps(["SQLite"]),
+            }
             if model.startswith("egpu:"):
-                extra.update({"LLMSX_OLLAMA_MODEL": model.split(":", 1)[1],
-                              "OLLAMA_HOST": "http://127.0.0.1:8000"})
+                extra.update(
+                    {
+                        "LLMSX_OLLAMA_MODEL": model.split(":", 1)[1],
+                        "OLLAMA_HOST": "http://127.0.0.1:8000",
+                    }
+                )
             else:
                 extra["LLMSX_OLLAMA_MODEL"] = model
-        out = _dr(hub, "research", SLUG, "--model", model, "--effort", cell["effort"],
-                  "--max-parallel", "1", "--max-turns", "90", "--agent-timeout", str(timeout),
-                  extra=extra, timeout=timeout + 300)
+        out = _dr(
+            hub,
+            "research",
+            SLUG,
+            "--model",
+            model,
+            "--effort",
+            cell["effort"],
+            "--max-parallel",
+            "1",
+            "--max-turns",
+            "90",
+            "--agent-timeout",
+            str(timeout),
+            extra=extra,
+            timeout=timeout + 300,
+        )
         a = (_manifest(hub).get("agents") or {}).get("sqlite-wal-checkpointing") or {}
-        rec["research"] = {k: a.get(k) for k in ("seconds", "tokens", "cost_usd", "num_turns", "is_error")}
+        rec["research"] = {
+            k: a.get(k) for k in ("seconds", "tokens", "cost_usd", "num_turns", "is_error")
+        }
         try:
-            ag = json.loads((_run_dir(hub) / "agents" / "sqlite-wal-checkpointing.json").read_text())
+            ag = json.loads(
+                (_run_dir(hub) / "agents" / "sqlite-wal-checkpointing.json").read_text()
+            )
             rec["research"]["usage"] = ag.get("usage")
-            rec["research"]["tool_calls"] = {t: ag.get("tools", []).count(t) for t in set(ag.get("tools", []))}
+            rec["research"]["tool_calls"] = {
+                t: ag.get("tools", []).count(t) for t in set(ag.get("tools", []))
+            }
             rec["research"]["result"] = (ag.get("result") or "")[:300]
         except (OSError, json.JSONDecodeError):
             rec["research"]["raw"] = out
@@ -263,9 +359,13 @@ def run_cell(cell: dict, force: bool = False) -> dict:
     try:
         claims = json.loads(_claims_path(hub).read_text())
         rec["claims"] = len(claims.get("claims", []))
-        rec["claim_sources"] = len({s.get("url") for s in claims.get("sources", []) if isinstance(s, dict)})
+        rec["claim_sources"] = len(
+            {s.get("url") for s in claims.get("sources", []) if isinstance(s, dict)}
+        )
         rec["counters"] = claims.get("telemetry")
-        rec["high_conf_claims"] = sum(1 for x in claims.get("claims", []) if x.get("confidence") == "high")
+        rec["high_conf_claims"] = sum(
+            1 for x in claims.get("claims", []) if x.get("confidence") == "high"
+        )
     except (OSError, json.JSONDecodeError, AttributeError):
         rec["claims"] = 0
     try:
@@ -275,8 +375,20 @@ def run_cell(cell: dict, force: bool = False) -> dict:
 
     # --- blind gate, one fixed judge for every cell -----------------------------------------
     if rec["validator_pass"]:
-        g = _dr(hub, "gate", SLUG, "--model", JUDGE[0], "--effort", JUDGE[1], "--sample", "10",
-                "--agent-timeout", "1800", timeout=2100)
+        g = _dr(
+            hub,
+            "gate",
+            SLUG,
+            "--model",
+            JUDGE[0],
+            "--effort",
+            JUDGE[1],
+            "--sample",
+            "10",
+            "--agent-timeout",
+            "1800",
+            timeout=2100,
+        )
         rec["gate"] = {k: g.get(k) for k in ("counts", "cost_usd", "tokens", "seconds", "error")}
         counts = g.get("counts") or {}
         total = sum(counts.values())
@@ -284,9 +396,8 @@ def run_cell(cell: dict, force: bool = False) -> dict:
     rec["status"] = "ok" if rec["validator_pass"] else "failed"
     rec["finished"] = _now()
     res_path.write_text(json.dumps(rec, indent=1) + "\n")
-    with LOCK:
-        with RESULTS.open("a") as f:
-            f.write(json.dumps(rec) + "\n")
+    with LOCK, RESULTS.open("a") as f:
+        f.write(json.dumps(rec) + "\n")
     return rec
 
 
@@ -306,8 +417,12 @@ def cmd_run(a) -> int:
     def lane_runner(name: str, items: list[dict]) -> None:
         with ThreadPoolExecutor(max_workers=LANE_PARALLEL[name]) as pool:
             for r in pool.map(lambda c: _safe(c, a.force), items):
-                print(json.dumps({k: r.get(k) for k in ("id", "status", "claims", "gate_supported_rate")}),
-                      flush=True)
+                print(
+                    json.dumps(
+                        {k: r.get(k) for k in ("id", "status", "claims", "gate_supported_rate")}
+                    ),
+                    flush=True,
+                )
 
     threads = [threading.Thread(target=lane_runner, args=(n, i)) for n, i in lanes.items()]
     for t in threads:
@@ -335,7 +450,8 @@ def cmd_report(a) -> int:
         rows.append(json.loads(p.read_text()) if p.exists() else {**c, "status": "not run"})
     (OUT / "results.json").write_text(json.dumps(rows, indent=1) + "\n")
     lines = [
-        "| Lane | Model | Effort | Status | Research s | Tokens | Cost $ | Claims | Sources | Gate S/total | Supported |",
+        "| Lane | Model | Effort | Status | Research s | Tokens | Cost $ | Claims | Sources"
+        " | Gate S/total | Supported |",
         "|---|---|---|---|---:|---:|---:|---:|---:|---|---:|",
     ]
     for r in rows:
@@ -343,8 +459,9 @@ def cmd_report(a) -> int:
         g = (r.get("gate") or {}).get("counts") or {}
         gt = sum(g.values())
         lines.append(
-            f"| {r['lane']} | {r['model']} | {r['effort']} | {r.get('status')} | {rs.get('seconds', '')} | "
-            f"{rs.get('tokens', '')} | {rs.get('cost_usd') if rs.get('cost_usd') is not None else ''} | "
+            f"| {r['lane']} | {r['model']} | {r['effort']} | {r.get('status')} | "
+            f"{rs.get('seconds', '')} | {rs.get('tokens', '')} | "
+            f"{rs.get('cost_usd') if rs.get('cost_usd') is not None else ''} | "
             f"{r.get('claims', '')} | {r.get('cached_sources', '')} | "
             f"{(str(g.get('SUPPORTED', 0)) + '/' + str(gt)) if gt else ''} | "
             f"{r.get('gate_supported_rate') if r.get('gate_supported_rate') is not None else ''} |"

@@ -1,0 +1,132 @@
+{
+ "concept": "SQLite WAL checkpointing",
+ "summary": "A WAL checkpoint copies valid committed frames from SQLite's write-ahead log into the main database while preserving readers' snapshots. SQLite's automatic checkpoint is passive and uses a default page threshold that builds can override. Older readers can limit checkpoint progress and contribute to unbounded WAL growth. Completing the backfill, resetting the WAL for reuse, and truncating its physical file are distinct outcomes. Stronger checkpoint modes can wait for writers and readers; TRUNCATE requests a zero-byte WAL on success. Frame counts from the checkpoint API help distinguish outstanding checkpoint work from a large file retained for reuse.",
+ "claims": [
+  {
+   "text": "A checkpoint transfers valid WAL content into the main database file; readers retain a fixed end mark so they continue to see a consistent snapshot while newer commits may be appended.",
+   "confidence": "high",
+   "section": "core",
+   "sources": [
+    "https://www.sqlite.org/wal.html",
+    "https://www.sqlite.org/fileformat.html",
+    "https://www.vldb.org/pvldb/vol11/p513-park.pdf"
+   ],
+   "volatile": false
+  },
+  {
+   "text": "SQLite documents a default automatic checkpoint when a COMMIT leaves the WAL at 1000 pages or more; the same thread that performs that COMMIT runs the checkpoint by default, and the threshold can be changed or disabled.",
+   "confidence": "medium",
+   "section": "core",
+   "sources": [
+    "https://www.sqlite.org/wal.html",
+    "https://rogerbinns.github.io/apsw/connection.html"
+   ],
+   "volatile": true,
+   "verified_as_of": "2026-10-13"
+  },
+  {
+   "text": "Automatic checkpoints and sqlite3_wal_checkpoint() use PASSIVE mode, which does not wait for readers or writers and may leave frames uncheckpointed when concurrent activity prevents progress.",
+   "confidence": "high",
+   "section": "core",
+   "sources": [
+    "https://www.sqlite.org/wal.html",
+    "https://www.sqlite.org/c3ref/wal_checkpoint_v2.html",
+    "https://rogerbinns.github.io/apsw/connection.html"
+   ],
+   "volatile": false
+  },
+  {
+   "text": "A reader's older snapshot can constrain the safe checkpoint boundary; overlapping long-lived readers can prevent checkpoints from completing and allow the WAL to grow without bound.",
+   "confidence": "high",
+   "section": "troubleshooting",
+   "sources": [
+    "https://www.sqlite.org/wal.html",
+    "https://www.sqlite.org/fileformat.html",
+    "https://getnobody.org/blog/sqlite-wal-never-shrinks/"
+   ],
+   "volatile": false
+  },
+  {
+   "text": "FULL waits for writers to finish and readers to reach the latest snapshot before checkpointing all frames; it blocks new writers while pending. RESTART adds a wait until readers use the database file only, allowing the next writer to restart the WAL from its beginning.",
+   "confidence": "high",
+   "section": "core",
+   "sources": [
+    "https://www.sqlite.org/c3ref/wal_checkpoint_v2.html",
+    "https://www.sqlite.org/wal.html"
+   ],
+   "volatile": false
+  },
+  {
+   "text": "TRUNCATE performs the RESTART checkpoint behavior and truncates the WAL to zero bytes immediately before a successful return.",
+   "confidence": "high",
+   "section": "core",
+   "sources": [
+    "https://www.sqlite.org/c3ref/wal_checkpoint_v2.html",
+    "https://www.sqlite.org/fileformat.html"
+   ],
+   "volatile": false
+  },
+  {
+   "text": "After a complete checkpoint, SQLite may reset the WAL so later writes overwrite it from the beginning without reducing its physical file size; ordinary checkpointing therefore does not guarantee a smaller WAL file.",
+   "confidence": "high",
+   "section": "patterns",
+   "sources": [
+    "https://www.sqlite.org/fileformat.html",
+    "https://www.sqlite.org/wal.html",
+    "https://getnobody.org/blog/sqlite-wal-never-shrinks/"
+   ],
+   "volatile": false
+  },
+  {
+   "text": "APSW Connection.wal_checkpoint() returns the number of WAL log frames and the number of frames checkpointed, which distinguishes checkpoint progress from the WAL file's byte length.",
+   "confidence": "medium",
+   "section": "tools",
+   "sources": [
+    "https://rogerbinns.github.io/apsw/connection.html",
+    "https://www.sqlite.org/c3ref/wal_checkpoint_v2.html"
+   ],
+   "volatile": false
+  }
+ ],
+ "sources": [
+  {
+   "url": "https://www.sqlite.org/wal.html",
+   "title": "Write-Ahead Logging",
+   "tier": "docs"
+  },
+  {
+   "url": "https://www.sqlite.org/c3ref/wal_checkpoint_v2.html",
+   "title": "Checkpoint a database: sqlite3_wal_checkpoint_v2",
+   "tier": "docs"
+  },
+  {
+   "url": "https://www.sqlite.org/fileformat.html",
+   "title": "Database File Format: Write-Ahead Log",
+   "tier": "docs"
+  },
+  {
+   "url": "https://rogerbinns.github.io/apsw/connection.html",
+   "title": "Connections to a database — APSW documentation",
+   "tier": "docs"
+  },
+  {
+   "url": "https://www.vldb.org/pvldb/vol11/p513-park.pdf",
+   "title": "SQL Statement Logging for Making SQLite Truly Lite",
+   "tier": "paper"
+  },
+  {
+   "url": "https://getnobody.org/blog/sqlite-wal-never-shrinks/",
+   "title": "Why your SQLite WAL file never shrinks",
+   "tier": "blog"
+  }
+ ],
+ "disagreements": [],
+ "open_questions": [],
+ "child_concepts": [],
+ "telemetry": {
+  "queries": 4,
+  "negation_queries": 1,
+  "sources_deep_read": 6
+ },
+ "slug": "sqlite-wal-checkpointing"
+}
