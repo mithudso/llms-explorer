@@ -1,0 +1,111 @@
+{
+ "concept": "SQLite WAL checkpointing",
+ "summary": "SQLite WAL checkpointing copies committed database pages from the write-ahead log into the main database file. Its progress is bounded by reader snapshots and concurrent writers. PASSIVE checkpoints do not wait and may stop before they can finish or reset the log; stronger modes wait for progressively stronger conditions. A successful checkpoint usually reuses the WAL file instead of truncating it, so file size alone does not show whether frames were copied. Applications can tune the automatic threshold or request FULL, RESTART, or TRUNCATE behavior, trading concurrency for completion and space reclamation.",
+ "claims": [
+  {
+   "text": "A WAL checkpoint copies database pages from the WAL back into the main database. PASSIVE mode copies as many frames as possible without waiting for readers or writers, so it may leave the checkpoint unfinished when concurrent activity constrains progress.",
+   "confidence": "high",
+   "section": "core",
+   "sources": [
+    "https://www.sqlite.org/wal.html",
+    "https://www.sqlite.org/c3ref/wal_checkpoint_v2.html"
+   ],
+   "volatile": false
+  },
+  {
+   "text": "FULL waits until there is no writer and readers use the newest snapshot, then copies all WAL frames; it blocks new writers while pending. RESTART adds a wait until readers no longer need the WAL, and TRUNCATE adds truncation to zero bytes after successful completion.",
+   "confidence": "high",
+   "section": "tools",
+   "sources": [
+    "https://www.sqlite.org/c3ref/wal_checkpoint_v2.html",
+    "https://www.sqlite.org/pragma.html"
+   ],
+   "volatile": false
+  },
+  {
+   "text": "SQLite's documented default automatic-checkpoint threshold is 1000 WAL pages; an automatic checkpoint is triggered by a commit that brings the WAL to that size or larger, and automatic checkpoints use PASSIVE behavior. Applications can change or disable the threshold.",
+   "confidence": "high",
+   "section": "tools",
+   "sources": [
+    "https://www.sqlite.org/wal.html",
+    "https://www.sqlite.org/pragma.html"
+   ],
+   "volatile": true,
+   "verified_as_of": "2026-10-13"
+  },
+  {
+   "text": "A successful checkpoint usually recycles the WAL for overwriting instead of shrinking the file. Therefore, a large WAL file alone does not prove that no frames were copied; TRUNCATE reduces it to zero bytes only when that checkpoint succeeds.",
+   "confidence": "high",
+   "section": "troubleshooting",
+   "sources": [
+    "https://www.sqlite.org/wal.html",
+    "https://www.sqlite.org/c3ref/wal_checkpoint_v2.html",
+    "https://getnobody.org/blog/sqlite-wal-never-shrinks/"
+   ],
+   "volatile": false
+  },
+  {
+   "text": "If overlapping read transactions continuously retain older WAL snapshots, checkpoints may be unable to complete and reset the WAL, allowing the WAL file to grow even while automatic checkpoints are enabled.",
+   "confidence": "high",
+   "section": "troubleshooting",
+   "sources": [
+    "https://www.sqlite.org/wal.html",
+    "https://getnobody.org/blog/sqlite-wal-never-shrinks/"
+   ],
+   "volatile": false
+  },
+  {
+   "text": "Litestream coordinates replication with checkpointing by holding a long-running read transaction so other processes cannot checkpoint and restart the WAL while Litestream captures new WAL pages.",
+   "confidence": "low",
+   "section": "patterns",
+   "sources": [
+    "https://litestream.io/how-it-works/"
+   ],
+   "volatile": false
+  }
+ ],
+ "sources": [
+  {
+   "url": "https://www.sqlite.org/wal.html",
+   "title": "Write-Ahead Logging",
+   "tier": "docs"
+  },
+  {
+   "url": "https://www.sqlite.org/c3ref/wal_checkpoint_v2.html",
+   "title": "Checkpoint a database",
+   "tier": "docs"
+  },
+  {
+   "url": "https://www.sqlite.org/pragma.html",
+   "title": "Pragma statements supported by SQLite",
+   "tier": "docs"
+  },
+  {
+   "url": "https://litestream.io/how-it-works/",
+   "title": "How it works - Litestream",
+   "tier": "docs"
+  },
+  {
+   "url": "https://getnobody.org/blog/sqlite-wal-never-shrinks/",
+   "title": "Why your SQLite WAL file never shrinks",
+   "tier": "blog"
+  }
+ ],
+ "disagreements": [
+  {
+   "text": "Litestream broadly says checkpointing can only happen when no transactions are active, while SQLite documents that PASSIVE checkpoints copy as many frames as possible without waiting and may stop unfinished. The sources align if Litestream's statement is read as describing completion and WAL reset rather than any partial backfill.",
+   "sources": [
+    "https://litestream.io/how-it-works/",
+    "https://www.sqlite.org/c3ref/wal_checkpoint_v2.html"
+   ]
+  }
+ ],
+ "open_questions": [],
+ "child_concepts": [],
+ "telemetry": {
+  "queries": 7,
+  "negation_queries": 2,
+  "sources_deep_read": 4
+ },
+ "slug": "sqlite-wal-checkpointing"
+}
