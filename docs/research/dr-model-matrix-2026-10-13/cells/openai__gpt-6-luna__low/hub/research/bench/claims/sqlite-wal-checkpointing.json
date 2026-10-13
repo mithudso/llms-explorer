@@ -1,0 +1,130 @@
+{
+ "concept": "SQLite WAL checkpointing",
+ "summary": "In SQLite write-ahead logging, a checkpoint copies committed frames from the WAL into the main database, allowing the WAL to be reused and keeping recovery and reads manageable. SQLite normally runs passive auto-checkpoints at a configurable page threshold, currently documented as 1000 pages by default. Passive checkpoints do not wait for readers or writers and may stop before completion. A reader holding an older snapshot can prevent a checkpoint from advancing past that reader's end mark, so sustained overlapping reads can delay WAL reset and permit growth. FULL, RESTART, and TRUNCATE modes wait more aggressively; TRUNCATE additionally reduces the WAL file to zero bytes after successful completion. Checkpoint frequency trades write latency against WAL size and read costs, so the default is a policy choice rather than a fixed best setting for every workload.",
+ "claims": [
+  {
+   "text": "A checkpoint copies committed WAL content back into the main database; SQLite's normal checkpoint process preserves the committed database state while moving those page changes out of the log.",
+   "confidence": "high",
+   "section": "core",
+   "sources": [
+    "https://www.sqlite.org/wal.html",
+    "https://www.vldb.org/pvldb/vol11/p513-park.pdf"
+   ],
+   "volatile": false
+  },
+  {
+   "text": "SQLite documents automatic checkpointing at 1000 WAL pages by default, triggered by a commit that reaches the threshold; the threshold can be changed or auto-checkpointing disabled. The current pragma documentation was updated 2026-10-04.",
+   "confidence": "high",
+   "section": "core",
+   "sources": [
+    "https://www.sqlite.org/wal.html",
+    "https://www.sqlite.org/pragma.html",
+    "https://www.vldb.org/pvldb/vol11/p513-park.pdf"
+   ],
+   "volatile": true,
+   "verified_as_of": "2026-10-04"
+  },
+  {
+   "text": "Automatic checkpoints use PASSIVE mode. A passive checkpoint does as much work as possible without waiting for readers or writers, and can leave frames uncheckpointed when concurrent activity prevents completion.",
+   "confidence": "high",
+   "section": "core",
+   "sources": [
+    "https://www.sqlite.org/wal.html",
+    "https://www.sqlite.org/pragma.html",
+    "https://www.sqlite.org/c3ref/wal_checkpoint_v2.html"
+   ],
+   "volatile": false
+  },
+  {
+   "text": "A reader holding an older WAL snapshot can prevent a checkpoint from advancing beyond that reader's end mark; persistent overlapping readers can therefore prevent completion and WAL reset, allowing the WAL to grow without bound.",
+   "confidence": "high",
+   "section": "troubleshooting",
+   "sources": [
+    "https://www.sqlite.org/wal.html",
+    "https://www.sqlite.org/fileformat.html",
+    "https://www3.sqlite.org/matrix/wal.html"
+   ],
+   "volatile": false
+  },
+  {
+   "text": "A successful checkpoint usually recycles the WAL for reuse rather than truncating it, so a large on-disk WAL file alone does not show that no frames were checkpointed; TRUNCATE mode reduces the file to zero bytes only after successful completion.",
+   "confidence": "high",
+   "section": "antipatterns",
+   "sources": [
+    "https://www.sqlite.org/wal.html",
+    "https://www.sqlite.org/pragma.html",
+    "https://www.sqlite.org/c3ref/wal_checkpoint_v2.html"
+   ],
+   "volatile": false
+  },
+  {
+   "text": "SQLite distinguishes FULL, RESTART, and TRUNCATE checkpoint modes: FULL waits for writers and readers to reach the latest snapshot and blocks new writers; RESTART also waits until readers no longer use the WAL; TRUNCATE adds zero-length truncation on success.",
+   "confidence": "high",
+   "section": "methodology",
+   "sources": [
+    "https://www.sqlite.org/c3ref/wal_checkpoint_v2.html",
+    "https://www.sqlite.org/pragma.html",
+    "https://rogerbinns.github.io/apsw/connection.html"
+   ],
+   "volatile": false
+  },
+  {
+   "text": "The APSW Python wrapper exposes Connection.wal_checkpoint(dbname, mode), defaults the mode to PASSIVE, and returns WAL frame and checkpointed-frame counts, providing a wrapper-level way to invoke and inspect SQLite checkpointing.",
+   "confidence": "high",
+   "section": "tools",
+   "sources": [
+    "https://rogerbinns.github.io/apsw/connection.html",
+    "https://www.sqlite.org/c3ref/wal_checkpoint_v2.html"
+   ],
+   "volatile": false
+  }
+ ],
+ "sources": [
+  {
+   "url": "https://www.sqlite.org/wal.html",
+   "title": "Write-Ahead Logging",
+   "tier": "docs"
+  },
+  {
+   "url": "https://www.sqlite.org/pragma.html",
+   "title": "Pragma statements supported by SQLite",
+   "tier": "docs"
+  },
+  {
+   "url": "https://www.sqlite.org/c3ref/wal_checkpoint_v2.html",
+   "title": "Checkpoint a database",
+   "tier": "docs"
+  },
+  {
+   "url": "https://www.sqlite.org/fileformat.html",
+   "title": "Database File Format",
+   "tier": "docs"
+  },
+  {
+   "url": "https://www3.sqlite.org/matrix/wal.html",
+   "title": "Write-Ahead Logging",
+   "tier": "docs"
+  },
+  {
+   "url": "https://www.vldb.org/pvldb/vol11/p513-park.pdf",
+   "title": "SQLite/SSL: A SQLite-Based DBMS for Flash Storage",
+   "tier": "paper"
+  },
+  {
+   "url": "https://rogerbinns.github.io/apsw/connection.html",
+   "title": "Connections to a database — APSW 3.54.0.0",
+   "tier": "docs"
+  }
+ ],
+ "disagreements": [],
+ "open_questions": [
+  "The best checkpoint interval depends on workload and storage latency; the sources do not prescribe a universally optimal threshold."
+ ],
+ "child_concepts": [],
+ "telemetry": {
+  "queries": 9,
+  "negation_queries": 1,
+  "sources_deep_read": 5
+ },
+ "slug": "sqlite-wal-checkpointing"
+}
