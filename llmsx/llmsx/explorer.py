@@ -34,6 +34,13 @@ root and `M` moves a concept under another — an overlay in
 the selected branch; `X` exports a concept, a branch, the current file or
 the bundle as markdown under `$LLMSX_HOME/exports/`.
 
+A concept opens on its facts (the pack, else the hub's `llms-facts.txt`).
+llms-family tabs render as keyword-highlighted lines (`explorer_lines`);
+`y` saves the cursor line, or a line picked from any other tab, to the
+local scratchpad (`p` edits it). `U` marks every concept with no facts
+further-research and queues it. Down / up move focus to the widget below /
+above wherever the focused widget has no use for those keys.
+
 Local-only writes need no confirmation: notes (`n`) → `$LLMSX_HOME/notes/`,
 the bundle (`b` toggle, `B` export) → `$LLMSX_HOME/bundles/`, settings (`,`)
 → `$LLMSX_HOME/config.json`. One carve-out: `e` hands the current tab's file
@@ -90,6 +97,10 @@ try:
         from textual.widgets._select import SelectOverlay
     except ImportError:  # pragma: no cover
         SelectOverlay = None
+    from textual.widgets import OptionList
+    from textual.widgets.option_list import Option
+
+    from .explorer_lines import LineView, highlight_line, read_lines
 except ImportError as exc:  # pragma: no cover - exercised only without the extra
     raise ImportError(
         "llmsx explorer needs Textual — install it with:  pip install 'llmsx[tui]'"
@@ -272,6 +283,104 @@ class Notes(_Modal):
     @on(Button.Pressed)
     def _pressed(self, event: Button.Pressed) -> None:
         self.dismiss(self.query_one("#text", TextArea).text if event.button.id == "ok" else None)
+
+
+class Scratchpad(_Modal):
+    """The global scratchpad, editable: ctrl+s saves, ctrl+y copies it all."""
+
+    BINDINGS = [Binding("escape", "cancel", "Cancel"), Binding("ctrl+s", "save", "Save"),
+                Binding("ctrl+y", "copy_all", "Copy all")]
+    DEFAULT_CSS = _Modal.DEFAULT_CSS + """
+    Scratchpad > Vertical { width: 120; height: 85%; }
+    Scratchpad TextArea { height: 1fr; }
+    """
+
+    def __init__(self, text: str, path: Path) -> None:
+        super().__init__()
+        self._initial, self._pad_path = text, path
+
+    def compose(self) -> ComposeResult:
+        with Vertical():
+            yield Label(f"[b]Scratchpad (local only)[/b]  [dim]{escape(str(self._pad_path))}[/dim]")
+            yield TextArea(self._initial, id="text")
+            with Horizontal():
+                yield Button("Save (ctrl+s)", id="ok", variant="primary")
+                yield Button("Copy all (ctrl+y)", id="copy")
+                yield Button("Cancel", id="cancel")
+
+    def on_mount(self) -> None:
+        self.query_one("#text", TextArea).focus()
+
+    def action_save(self) -> None:
+        self.dismiss(self.query_one("#text", TextArea).text)
+
+    def action_copy_all(self) -> None:
+        self.app.copy_to_clipboard(self.query_one("#text", TextArea).text)
+        self.notify("scratchpad copied to the clipboard")
+
+    @on(Button.Pressed)
+    def _pressed(self, event: Button.Pressed) -> None:
+        if event.button.id == "copy":
+            self.action_copy_all()
+            return
+        self.dismiss(self.query_one("#text", TextArea).text if event.button.id == "ok" else None)
+
+
+class LinePicker(_Modal):
+    """Pick lines of a rendered tab to save to the scratchpad. Enter saves the
+    cursor line and keeps the picker open; the filter narrows the list."""
+
+    BINDINGS = [Binding("escape", "cancel", "Close")]
+    DEFAULT_CSS = _Modal.DEFAULT_CSS + """
+    LinePicker > Vertical { width: 130; height: 85%; }
+    LinePicker OptionList { height: 1fr; }
+    """
+
+    def __init__(self, title: str, lines: list[str], on_pick: Callable[[int, str], str]) -> None:
+        super().__init__()
+        self._title, self._lines, self._on_pick = title, lines, on_pick
+        self._shown: list[int] = []
+
+    def compose(self) -> ComposeResult:
+        with Vertical():
+            yield Label(f"[b]Save a line to the scratchpad:[/b] {escape(self._title)}  "
+                        "[dim]Enter saves · esc closes[/dim]")
+            yield Input(placeholder="filter lines…", id="pick-filter")
+            yield OptionList(id="pick-list")
+            yield Label("", id="pick-status", classes="hint")
+
+    def on_mount(self) -> None:
+        self._show("")
+        self.query_one("#pick-list", OptionList).focus()
+
+    def _show(self, needle: str) -> None:
+        ol = self.query_one("#pick-list", OptionList)
+        ol.clear_options()
+        needle = needle.lower()
+        self._shown = [i for i, ln in enumerate(self._lines)
+                       if ln.strip() and (not needle or needle in ln.lower())]
+        width = len(str(len(self._lines)))
+        opts = []
+        for i in self._shown:
+            row = Text(f"{i + 1:>{width}} ", style="dim")
+            row.append_text(highlight_line(self._lines[i]))
+            opts.append(Option(row))
+        ol.add_options(opts)
+        if opts:
+            ol.highlighted = 0
+
+    @on(Input.Changed, "#pick-filter")
+    def _filter(self, event: Input.Changed) -> None:
+        self._show(event.value)
+
+    @on(Input.Submitted, "#pick-filter")
+    def _filter_done(self) -> None:
+        self.query_one("#pick-list", OptionList).focus()
+
+    @on(OptionList.OptionSelected, "#pick-list")
+    def _picked(self, event: OptionList.OptionSelected) -> None:
+        i = self._shown[event.option_index]
+        self.query_one("#pick-status", Label).update(Text(self._on_pick(i + 1, self._lines[i])))
 
 
 class ResearchSelect(Select):
@@ -663,7 +772,8 @@ class Explorer(App):
     #left { width: 42%; min-width: 30; }
     #outline { height: 1fr; border: round $primary; }
     #right { width: 1fr; }
-    #quick-actions { height: auto; max-height: 3; padding: 0; align: left middle; }
+    #quick-actions { height: auto; max-height: 4; padding: 0; align: left middle;
+                     overflow-x: auto; overflow-y: hidden; scrollbar-size-horizontal: 1; }
     #quick-actions Button { margin-right: 1; height: 3; min-width: 5; padding: 0 1; }
     #tabs { height: 1fr; }
     #status { height: auto; max-height: 4; padding: 0 1; color: $text-muted; }
@@ -710,6 +820,14 @@ class Explorer(App):
         Binding("F", "flashcards", "Flashcards", show=False),
         Binding("Q", "quiz", "Quiz", show=False),
         Binding("X", "export_menu", "Export", show=False),
+        Binding("y", "scratch_line", "Save line"),
+        Binding("p", "scratchpad", "Scratchpad"),
+        Binding("U", "mark_unresearched", "Mark unresearched", show=False),
+        # widgets with their own up/down (the outline, a dropdown, a list, a
+        # text area, a scroll view) handle the key first; everything else
+        # moves focus to the widget directly below / above
+        Binding("down", "focus_below", "Focus below", show=False),
+        Binding("up", "focus_above", "Focus above", show=False),
         Binding("left_square_bracket", "prev_tab", "Prev tab", show=False, key_display="["),
         Binding("right_square_bracket", "next_tab", "Next tab", show=False, key_display="]"),
     ]
@@ -744,6 +862,7 @@ class Explorer(App):
         self._search_pos = -1
         self._type_filter = "all"   # store.FILTERS
         self._active_pane = "pane-overview"   # kept by TabActivated: `active` updates async
+        self._rendered_for: str | None = None   # concept the panes were last built for
         self._hidden_panes: set[str] = set()  # tabs hidden by the Windows settings
         self._import_busy = False
         self._overlay = store.load_overlay()  # local roots and moves, never committed
@@ -780,6 +899,8 @@ class Explorer(App):
                     yield Button("🔖 Highlight", id="btn-highlight")
                     yield Button(f"🤖 {store.active_provider()}", id="btn-provider")
                     yield Button("❓ Help", id="btn-help")
+                    yield Button("📌 Save line", id="btn-scratch")
+                    yield Button("📝 Scratchpad", id="btn-pad")
                 with TabbedContent(id="tabs"):
                     yield TabPane("Overview", Markdown("", id="md-overview"), id="pane-overview")
                     yield TabPane("Facts", Markdown("", id="md-facts"), id="pane-facts")
@@ -878,6 +999,9 @@ class Explorer(App):
                 return label
             label = Text(name, style="dim italic")
             label.append("  (frontier)", style="dim")
+            mark = self._marks.get(store.slugify(name))
+            if isinstance(mark, dict) and mark.get("state"):
+                label.append(f"  [{mark.get('state')}]", style="yellow")
             tags = store.tags_of(self._marks, store.slugify(name))
             if tags:
                 label.append("  #" + " #".join(tags[:3]), style="magenta")
@@ -1103,12 +1227,18 @@ class Explorer(App):
             else:
                 self._hidden_panes.add(pid)
                 tabs.hide_tab(pid)
-        # a concept opens on its facts when it has a pack; the Facts header
-        # carries the metadata. Another tab the user picked (Skill, a
-        # reference) stays put.
-        if self._active_pane in ("pane-overview", "pane-facts"):
-            has_facts = "pane-facts" in self._pane_files and "pane-facts" not in self._hidden_panes
-            target = "pane-facts" if has_facts else "pane-overview"
+        # selecting a concept opens its facts: the pack's Facts tab, else the
+        # hub's llms-facts.txt tab, else the Facts tab saying none exist. A
+        # re-render of the same concept (a mark, a reload) keeps the tab.
+        new_concept = name != self._rendered_for
+        self._rendered_for = name
+        if new_concept and "pane-facts" not in self._hidden_panes:
+            target = "pane-facts"
+            if "pane-facts" not in self._pane_files:
+                target = next((pid for pid in self._dynamic_panes
+                               if pid in self._pane_files
+                               and self._pane_files[pid][0].name == "llms-facts.txt"),
+                              "pane-facts")
             if target != self._active_pane:
                 self._active_pane = target
                 tabs.active = target
@@ -1207,7 +1337,9 @@ class Explorer(App):
         pid = _pane_id(f"{kind or 'text'}-{title}-{self._render_serial}-{len(self._dynamic_panes)}")
         if path is not None and str(path.resolve()) in self._bundle:
             title += " ✓"
-        self._main.query_one("#tabs", TabbedContent).add_pane(TabPane(title, Markdown(""), id=pid))
+        # llms-family files get the highlighted line view; the rest render as Markdown
+        body = LineView() if (kind == "llms" and path is not None) else Markdown("")
+        self._main.query_one("#tabs", TabbedContent).add_pane(TabPane(title, body, id=pid))
         self._dynamic_panes.append(pid)
         self._pane_source[pid] = path if path is not None else (text or "")
         if path is not None and kind:
@@ -1218,10 +1350,14 @@ class Explorer(App):
         if not pid or pid in self._filled or pid not in self._pane_source:
             return
         source = self._pane_source[pid]
-        text = _read_for_render(source) if isinstance(source, Path) else source
         try:
             pane = self._main.query_one(f"#{pid}", TabPane)
-            pane.query_one(Markdown).update(text)
+            views = pane.query(LineView)
+            if views and isinstance(source, Path):
+                views.first().load(source)
+            else:
+                text = _read_for_render(source) if isinstance(source, Path) else source
+                pane.query_one(Markdown).update(text)
         except Exception as exc:  # the pane may already be gone (re-render in flight)
             logger.debug("pane %s not filled: %s", pid, exc)
             return
@@ -2114,6 +2250,120 @@ class Explorer(App):
     def action_view_highlights(self) -> None:
         self.push_screen(screens.HighlightsScreen(on_jump=self.jump_to))
 
+    # ------------------------------------------------------------------ #
+    # scratchpad (local only, no confirmation)
+
+    def _save_scratch(self, text: str, source: Path | None, line: int | None) -> str:
+        try:
+            added = store.add_to_scratchpad(text, self._selected, source, line)
+        except OSError as exc:
+            logger.warning("scratchpad write failed: %s", exc)
+            return f"scratchpad write failed: {exc}"
+        short = text.strip()[:60]
+        return (f"saved to scratchpad: {short}" if added
+                else f"already in the scratchpad (or blank): {short}")
+
+    def action_scratch_line(self) -> None:
+        """Save the cursor line of the current llms tab; on a rendered tab,
+        open a picker over that tab's source lines."""
+        if self.screen is not self._main:
+            return
+        tabs = self._main.query_one("#tabs", TabbedContent)
+        pid = tabs.active
+        try:
+            pane = self._main.query_one(f"#{pid}", TabPane)
+        except Exception:   # no tab yet
+            self._status("select a concept first")
+            return
+        views = pane.query(LineView)
+        if views:
+            view = views.first()
+            cur = view.current()
+            if not cur:
+                self._status("this tab has no line under the cursor")
+                return
+            self._status(self._save_scratch(cur[1], view.path, cur[0]))
+            return
+        source = self._pane_source.get(pid)
+        if source is None:
+            self._status("this tab has nothing to save from")
+            return
+        if isinstance(source, Path):
+            lines, _note = read_lines(source)
+            path: Path | None = source
+        else:
+            lines, path = source.splitlines(), None
+        if not any(ln.strip() for ln in lines):
+            self._status("this tab has nothing to save from")
+            return
+        title = str(tabs.get_tab(pid).label) if pid else ""
+        def pick(n: int, text: str) -> str:
+            return self._save_scratch(text, path, n if path else None)
+        self.push_screen(LinePicker(f"{self._selected or ''} · {title}", lines, pick))
+
+    def action_scratchpad(self) -> None:
+        def done(text: str | None) -> None:
+            if text is None:
+                return
+            self._guarded("scratchpad",
+                          lambda: f"scratchpad saved (local only): {store.write_scratchpad(text)}")
+        self.push_screen(Scratchpad(store.read_scratchpad(), store.scratchpad_path()), done)
+
+    def action_mark_unresearched(self) -> None:
+        """Mark every concept with no facts further-research and queue it."""
+        if not self._outline:
+            return
+        count = len(store.unresearched_concepts(self.repo, self._outline))
+        if not count:
+            self._status("every concept has facts; nothing to mark")
+            return
+
+        def done(ok: bool | None) -> None:
+            if not ok:
+                return
+
+            def apply() -> str:
+                marked, queued = store.mark_unresearched(self.repo, self._outline)
+                self._refresh()
+                return (f"marked {marked} concept(s) further-research, "
+                        f"queued {queued} new row(s); commit with c")
+            self._guarded("mark unresearched", apply)
+        self.push_screen(Confirm(f"Mark {count} concept(s) with no facts file as "
+                                 "further-research and queue them?",
+                                 f"writes {store.MARKS_REL} and {store.QUEUE_REL}"), done)
+
+    # ------------------------------------------------------------------ #
+    # spatial focus: down / up move to the widget below / above
+
+    def action_focus_below(self) -> None:
+        self._focus_spatial(1)
+
+    def action_focus_above(self) -> None:
+        self._focus_spatial(-1)
+
+    def _focus_spatial(self, direction: int) -> None:
+        screen = self.screen
+        cur = screen.focused
+        if cur is None:
+            screen.focus_next()
+            return
+        r = cur.region
+        best, best_key = None, None
+        for w in screen.focus_chain:
+            wr = w.region
+            if w is cur or not wr.width or not wr.height:
+                continue
+            gap = wr.y - (r.y + r.height) if direction > 0 else r.y - (wr.y + wr.height)
+            if gap < 0:
+                continue
+            overlap = min(r.right, wr.right) - max(r.x, wr.x)
+            centre = abs((wr.x + wr.width / 2) - (r.x + r.width / 2))
+            key = (0 if overlap > 0 else 1, gap, centre)
+            if best_key is None or key < best_key:
+                best, best_key = w, key
+        if best is not None:
+            best.focus()
+
     def action_quick_dr(self) -> None:
         name = self._selected
         if not name:
@@ -2270,6 +2520,10 @@ class Explorer(App):
             self.action_queue_viewer()
         elif bid == "btn-highlight":
             self.action_add_highlight()
+        elif bid == "btn-scratch":
+            self.action_scratch_line()
+        elif bid == "btn-pad":
+            self.action_scratchpad()
         elif bid == "btn-help":
             self.action_help()
         elif bid == "btn-provider":

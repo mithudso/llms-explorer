@@ -1039,6 +1039,7 @@ class HotkeyHelp(_Modal):
 | **`/`** | Focus Filter | Type to filter concepts and aliases in the outline |
 | **`⌘F`** / **`ctrl+f`** | Search | Type, then Enter jumps the cursor to the first match; ⌘F, Enter again for the next |
 | **`Right / Left`** | Expand / Collapse | Expand or collapse tree node at cursor |
+| **`Down / Up`** | Focus below / above | Outside the outline, lists and dropdowns, move focus to the widget directly below or above |
 | **`[` / `]`** | Prev / Next Tab | Switch between detail tabs (Overview, Facts, Skill, Highlights, etc.) |
 | **`r`** | Reload | Refresh concept tree and local state from disk |
 | **`T`** | Cycle Filter | Cycle outline filter: all / frontier / researched / tagged |
@@ -1046,6 +1047,9 @@ class HotkeyHelp(_Modal):
 ### Highlights, Annotations & Curation
 | Shortcut | Action | Description |
 | :--- | :--- | :--- |
+| **`y`** / **`📌 Save line`** | Save line | Append the cursor line of an llms tab (or a line picked from any other tab) to the scratchpad, with its source |
+| **`p`** / **`📝 Scratchpad`** | Scratchpad | Open, edit, copy the global scratchpad (`$LLMSX_HOME/scratchpad.md`) |
+| **`U`** | Mark unresearched | Mark every concept with no facts file `further-research` and queue it |
 | **`h`** | Add Highlight | Save selected lines / quote with personal annotation |
 | **`H`** | Highlights Manager | Browse, search, copy, or jump to saved concept highlights |
 | **`m`** | Mark Review | Mark concept as `needs-review` in `marks.json` |

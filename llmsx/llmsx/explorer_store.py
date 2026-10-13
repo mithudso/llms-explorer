@@ -494,6 +494,58 @@ def highlights_markdown(highlights: list[dict], concept: str | None = None) -> s
 
 
 # --------------------------------------------------------------------------- #
+# the scratchpad (local only)
+# --------------------------------------------------------------------------- #
+
+def scratchpad_path() -> Path:
+    return home() / "scratchpad.md"
+
+
+def read_scratchpad() -> str:
+    p = scratchpad_path()
+    return p.read_text(encoding="utf-8") if p.is_file() else ""
+
+
+def write_scratchpad(text: str) -> Path:
+    p = scratchpad_path()
+    _atomic_write(p, text.rstrip("\n") + "\n" if text.strip() else "")
+    return p
+
+
+def scratch_row(text: str, concept: str | None = None, source: Path | str | None = None,
+                line: int | None = None) -> str:
+    """`- <text> — <concept> · <source>:<line> (as of YYYY-MM-DD)`: the saved
+    line plus where it came from, the same shape as a memory-central row.
+    A leading list marker on `text` is dropped so rows never read `- - x`."""
+    body = re.sub(r"^\s*(?:[-*+]|\d+[.)])\s+", "", str(text).strip()).replace("\n", " ")
+    where = [w for w in (concept, f"{source}:{line}" if source and line else
+                         (str(source) if source else None)) if w]
+    tail = f" — {' · '.join(where)}" if where else ""
+    return f"- {body}{tail} (as of {_today()})"
+
+
+def add_to_scratchpad(text: str, concept: str | None = None, source: Path | str | None = None,
+                      line: int | None = None) -> bool:
+    """Append one row to the scratchpad. Returns False (and writes nothing)
+    when the text is blank or the same text is already saved."""
+    if not str(text).strip():
+        return False
+    row = scratch_row(text, concept, source, line)
+    body = row[2:].split(" — ")[0].rsplit(" (as of ", 1)[0]
+    existing = read_scratchpad()
+    for old in existing.splitlines():
+        if old.startswith("- ") and old[2:].split(" — ")[0].rsplit(" (as of ", 1)[0] == body:
+            return False
+    p = scratchpad_path()
+    p.parent.mkdir(parents=True, exist_ok=True)
+    head = "" if existing else "# Scratchpad\n\n"
+    lead = "" if (not existing or existing.endswith("\n")) else "\n"
+    with open(p, "a", encoding="utf-8") as fh:
+        fh.write(head + lead + row + "\n")
+    return True
+
+
+# --------------------------------------------------------------------------- #
 # the research queue
 # --------------------------------------------------------------------------- #
 
@@ -2014,6 +2066,75 @@ def load_pack(repo: Path, slug: str) -> dict | None:
         logger.warning("pack %s unreadable: %s", p, exc)
         return None
     return data if isinstance(data, dict) else None
+
+
+def has_facts(repo: Path, slug: str) -> bool:
+    """True when the concept has facts anywhere: a pack with at least one
+    fact, or an `llms-facts.txt` in its `.llms` dir."""
+    pack = load_pack(repo, slug)
+    if pack and any(isinstance(f, dict) and f.get("facts") for f in pack.get("facets") or []):
+        return True
+    ldir = llms_dir(slug)
+    return bool(ldir and llms_file(ldir, "llms-facts.txt"))
+
+
+UNRESEARCHED_NOTE = "no facts file: follow-up research"
+
+
+def unresearched_concepts(repo: Path, outline: Outline) -> list[str]:
+    """Every concept in the outline, node or frontier, with no facts
+    (`has_facts`), in tree order and without duplicates."""
+    names = list(outline.nodes) + [k for kids in outline.children.values()
+                                   for k in kids if outline.is_frontier(k)]
+    out, seen = [], set()
+    for name in names:
+        if name in seen:
+            continue
+        seen.add(name)
+        if not has_facts(repo, tag_key(name, outline)):
+            out.append(name)
+    return out
+
+
+def mark_unresearched(repo: Path, outline: Outline,
+                      note: str = UNRESEARCHED_NOTE) -> tuple[int, int]:
+    """Mark every no-facts concept `further-research` and queue each one not
+    yet queued: one marks.json write, one queue append. A concept that
+    already carries a mark state keeps it. Returns (marked, queued)."""
+    names = unresearched_concepts(repo, outline)
+    marks = load_marks(repo)
+    marked = 0
+    for name in names:
+        key = tag_key(name, outline)
+        if not SLUG_RE.match(key):
+            continue
+        entry = dict(marks.get(key) or {})
+        if entry.get("state"):
+            continue
+        entry.update({"state": "further-research", "at": _today(), "note": note})
+        marks[key] = entry
+        marked += 1
+    if marked:
+        save_marks(repo, marks)
+    queued_names = {e["concept"] for e in load_queue(repo)}
+    rows = []
+    for name in names:
+        if name in queued_names or "`" in name or "\n" in name:
+            continue
+        node = outline.nodes.get(name)
+        parent = (node or {}).get("parentConcept") or outline.parent_of(name)
+        if parent and ("`" in parent or "\n" in parent):
+            parent = None
+        rows.append(_queue_row(name, parent, None))
+        queued_names.add(name)
+    if rows:
+        p = repo / QUEUE_REL
+        p.parent.mkdir(parents=True, exist_ok=True)
+        existing = p.read_text(encoding="utf-8") if p.is_file() else ""
+        lead = "" if (not existing or existing.endswith("\n")) else "\n"
+        with open(p, "a", encoding="utf-8") as fh:
+            fh.write(lead + "\n".join(rows) + "\n")
+    return marked, len(rows)
 
 
 def skill_target(repo: Path, skill_id: str | None) -> tuple[Path, Path] | None:
