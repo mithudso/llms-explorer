@@ -1,0 +1,157 @@
+{
+ "concept": "SQLite WAL checkpointing",
+ "summary": "A checkpoint copies committed transactions from the -wal file back into the main database file. By default SQLite runs a PASSIVE auto-checkpoint when a COMMIT pushes the WAL past 1000 pages, and when the last connection closes. Applications can disable auto-checkpoints and checkpoint explicitly with PRAGMA wal_checkpoint or sqlite3_wal_checkpoint_v2 in PASSIVE, FULL, RESTART, or TRUNCATE mode. Checkpointing matters because the WAL is only rewound after a checkpoint reaches its end while no reader still uses it. Long-lived or overlapping read transactions, and statements that are never reset, cause checkpoint starvation and unbounded WAL growth. The experimental wal2 branch targets the continuous-writer case.",
+ "claims": [
+  {
+   "text": "By default SQLite auto-checkpoints when a COMMIT leaves the WAL at 1000 pages or more, and when the last connection closes; the threshold is changeable via PRAGMA wal_autocheckpoint or SQLITE_DEFAULT_WAL_AUTOCHECKPOINT.",
+   "confidence": "high",
+   "section": "core",
+   "sources": [
+    "https://sqlite.org/wal.html",
+    "https://sqlite.org/forum/forumpost/6038b31ddb?t=c"
+   ],
+   "volatile": false
+  },
+  {
+   "text": "Auto-checkpoints are PASSIVE: they copy as many frames as possible without waiting and never invoke the busy handler, so they can make little progress under contention.",
+   "confidence": "high",
+   "section": "core",
+   "sources": [
+    "https://sqlite.org/c3ref/wal_checkpoint_v2.html",
+    "https://sqlite.org/wal.html"
+   ],
+   "volatile": false
+  },
+  {
+   "text": "FULL waits (via busy handler) for writers to finish and readers to reach the latest snapshot, then checkpoints all frames; RESTART additionally waits until readers no longer use the WAL so the next writer rewinds it; TRUNCATE additionally truncates the WAL to zero bytes. These modes block new writers but not new readers while waiting.",
+   "confidence": "high",
+   "section": "core",
+   "sources": [
+    "https://sqlite.org/c3ref/wal_checkpoint_v2.html",
+    "https://sqlite.org/wal.html"
+   ],
+   "volatile": false
+  },
+  {
+   "text": "If the busy handler gives up during FULL/RESTART/TRUNCATE, the call degrades to PASSIVE behaviour and returns SQLITE_BUSY; a concurrent checkpoint in another connection returns SQLITE_BUSY immediately.",
+   "confidence": "low",
+   "section": "troubleshooting",
+   "sources": [
+    "https://sqlite.org/c3ref/wal_checkpoint_v2.html"
+   ],
+   "volatile": false
+  },
+  {
+   "text": "A normal checkpoint does not shrink the WAL file; the file is rewound and overwritten from the start unless journal_size_limit is set or a TRUNCATE checkpoint runs.",
+   "confidence": "high",
+   "section": "core",
+   "sources": [
+    "https://sqlite.org/wal.html",
+    "https://sqlite.org/forum/forumpost/6038b31ddb?t=c"
+   ],
+   "volatile": false
+  },
+  {
+   "text": "Checkpoint starvation: if at least one read transaction is always open, checkpoints never reach the end of the WAL and the WAL grows without bound; fixes are reader gaps or periodic RESTART/TRUNCATE checkpoints.",
+   "confidence": "high",
+   "section": "antipatterns",
+   "sources": [
+    "https://sqlite.org/wal.html",
+    "https://sqlite.org/forum/forumpost/6038b31ddb?t=c",
+    "https://brandur.org/atoms/gqljwm2"
+   ],
+   "volatile": false
+  },
+  {
+   "text": "A prepared statement that is stepped but never reset or finalized keeps its transaction open and is a common cause of a WAL that never shrinks; forcing PRAGMA wal_checkpoint and checking file size diagnoses it.",
+   "confidence": "medium",
+   "section": "troubleshooting",
+   "sources": [
+    "https://sqlite.org/forum/forumpost/6038b31ddb?t=c",
+    "https://sqlite.org/forum/forumpost/7d292adea1?t=c"
+   ],
+   "volatile": false
+  },
+  {
+   "text": "Operators under heavy load pair default auto-checkpoints with a separate maintenance task that checks WAL size and issues TRUNCATE checkpoints.",
+   "confidence": "medium",
+   "section": "patterns",
+   "sources": [
+    "https://yhetil.org/guix/87zgpp971n.fsf@gnu.org/",
+    "https://sqlite.org/wal.html"
+   ],
+   "volatile": false
+  },
+  {
+   "text": "The wal2 branch alternates between two WAL files so continuous writers no longer cause unbounded growth, but long-running readers can still prevent full checkpoints; it is not in mainline SQLite.",
+   "confidence": "medium",
+   "section": "patterns",
+   "sources": [
+    "https://sqlite.org/src/doc/wal2/doc/wal2.md",
+    "https://brandur.org/atoms/gqljwm2"
+   ],
+   "volatile": true,
+   "verified_as_of": "2024-01-13"
+  }
+ ],
+ "sources": [
+  {
+   "url": "https://sqlite.org/wal.html",
+   "title": "SQLite Write-Ahead Logging",
+   "tier": "docs"
+  },
+  {
+   "url": "https://sqlite.org/c3ref/wal_checkpoint_v2.html",
+   "title": "sqlite3_wal_checkpoint_v2",
+   "tier": "docs"
+  },
+  {
+   "url": "https://sqlite.org/forum/forumpost/6038b31ddb?t=c",
+   "title": "SQLite Forum: Growing WAL-File",
+   "tier": "forum"
+  },
+  {
+   "url": "https://sqlite.org/forum/forumpost/7d292adea1?t=c",
+   "title": "SQLite Forum: Growing WAL-File (reply)",
+   "tier": "forum"
+  },
+  {
+   "url": "https://sqlite.org/src/doc/wal2/doc/wal2.md",
+   "title": "SQLite wal2 branch design",
+   "tier": "docs"
+  },
+  {
+   "url": "https://brandur.org/atoms/gqljwm2",
+   "title": "brandur.org: SQLite wal2",
+   "tier": "blog"
+  },
+  {
+   "url": "https://yhetil.org/guix/87zgpp971n.fsf@gnu.org/",
+   "title": "Guix mailing list: periodic TRUNCATE checkpoint",
+   "tier": "forum"
+  }
+ ],
+ "disagreements": [
+  {
+   "text": "Secondary tutorials disagree on whether RESTART blocks readers; the official API doc says it blocks new writers, not readers, but waits on existing readers.",
+   "sources": [
+    "https://sqlite.org/c3ref/wal_checkpoint_v2.html"
+   ]
+  }
+ ],
+ "open_questions": [
+  "Whether wal2 or begin-concurrent will merge into mainline SQLite.",
+  "Forum and Guix sources were seen via search snippets, not deep-read."
+ ],
+ "child_concepts": [
+  "SQLite wal2 mode",
+  "sqlite3_wal_hook custom checkpointers",
+  "journal_size_limit"
+ ],
+ "telemetry": {
+  "queries": 2,
+  "negation_queries": 1,
+  "sources_deep_read": 3
+ },
+ "slug": "sqlite-wal-checkpointing"
+}
