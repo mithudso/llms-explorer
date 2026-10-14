@@ -4,7 +4,7 @@ description: "Ten open-weight models, six inference engines and one 16 GB GPU, t
 date: "2026-10-13"
 order: 36
 tags: ["local-llm", "rtx-5080", "benchmarking", "llama-cpp", "gpt-oss", "qwen", "ollama", "lm-studio", "embeddings"]
-evidenceNote: "Interim results from one Linux box, one RTX 5080 (16 GB), one quantization per model, 1–3 seeds per configuration. Coding is scored on hidden tests; research output is scored by Claude judges working blind on 3 outputs per model per item, so small differences are not significant. The shortlist predates Qwen3.8-27B, which is being added (see the note under the candidates). Several runs were still in progress when this was written (listed at the end). The final recommendation is deliberately not in this part. Harness scripts are not yet published."
+evidenceNote: "Interim results from one Linux box, one RTX 5080 (16 GB), one quantization per model, 1–3 seeds per configuration. Coding is scored on hidden tests; research output is scored by Claude judges working blind on 3 outputs per model per item, so small differences are not significant. The shortlist predates Qwen3.8-27B, which is being added (see the note under the candidates). Several runs were still in progress when this was written (listed at the end). The final recommendation is deliberately not in this part. Harness scripts are published with Part 2."
 sources:
   - "https://github.com/ggml-org/llama.cpp"
   - "https://github.com/ikawrakow/ik_llama.cpp"
@@ -28,7 +28,9 @@ sources:
   - "https://insiderllm.com/guides/qwen-3-7-preview-scored-57-aai-27b-35b-open-weights-watch/"
 ---
 
-<!-- Version: 1.0.0; Delta: First publication. Interim results as of 2026-10-13; Part 2 carries the final recommendation. -->
+<!-- Version: 1.1.0; Delta: Added an update note pointing to Part 2, which corrects the explanation for slow dense models and publishes the harness scripts. Interim results below are unchanged. -->
+
+> **Update, 2026-10-14:** [Part 2](/blog/choosing-a-local-llm-for-a-16gb-rtx-5080-part-2/) is published, with the final choice, the launch command and the harness scripts. It corrects one statement below: the slow dense-model results here came from our server flags (automatic fit with four request slots), not from a hardware limit. Fully on the GPU with one slot, Qwen3.8-27B decodes at about 50 tokens per second. We have not re-run Qwen3.6-27B or Devstral Small 2 that way.
 
 We set out to find the best open-weight model for two jobs on a new Fedora box with a single 16 GB RTX 5080: **agentic coding**, and **concept research** with our `/dr`, `/rabbithole` and concept-family skills. We also wanted the fastest stable way to serve it.
 
@@ -241,4 +243,4 @@ Then the work that decides the outcome: a test serving both leaders behind one p
 
 Part 2 will give the final choice of model and server, the exact launch command, the tuning and embedding results above, the stability soak, and the reasons the other candidates lost.
 
-If you want to repeat this on your own card, the method matters more than our scores: hidden tests graded test by test, at least three runs per configuration, blind judging for synthesis tasks, and one quantization at a time. The harness scripts are not yet published.
+If you want to repeat this on your own card, the method matters more than our scores: hidden tests graded test by test, at least three runs per configuration, blind judging for synthesis tasks, and one quantization at a time. The harness scripts are published with [Part 2](/blog/choosing-a-local-llm-for-a-16gb-rtx-5080-part-2/).
