@@ -776,3 +776,9 @@ Outcome: TASK-645 — all five shipped in `llmsx explorer`; 4,035 no-facts conce
 > Update the website with your changes, edit the documentation, links, and guides on the website. Also create a complete userguide to using the application and include it as a readme in the executable itself and link to it on the webpage.
 
 Outcome: USER_GUIDE.md ships in llmsx 0.2.5 (`g`, `--guide`); /explorer/guide/ page; /explorer/, /downloads/, home, README updated.
+
+## Prompt — 2026-10-14
+
+> /full-suite ollama
+
+Outcome: concept-family-explorer run on Ollama (40 concepts, 8 research runs, hub `ollama-expert`); this branch adds the "Ollama" node and its 8 run nodes to the concept tree.
