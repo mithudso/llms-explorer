@@ -767,3 +767,9 @@
 - Complete guide at `llmsx/llmsx/USER_GUIDE.md`, shipped as package data (setuptools package-data and `site/tools/gen_downloads.py` wheel). Opened by `g`, the `?` modal's User guide button, and `llmsx explorer --guide`.
 - `/explorer/guide/` renders `site/src/data/explorer-guide.md`, a committed copy refreshed by the prebuild; `test_the_wheel_ships_the_user_guide_and_the_site_copy_matches` pins it. A site build cannot import outside `site/` (the test fixture builds a copied site root).
 - `/explorer/` gained Facts/Scratchpad cards, a facts + colour scheme + scratchpad section with three new screenshots, corrected shortcuts, and guide links; downloads and home link the guide.
+
+## 2026-10-14 — Ollama concept family (full-suite / concept-family-explorer Step 9d)
+- Added 9 nodes to `concept-tree/tree.json`: "Ollama" (skill `ollama-expert`, under "On-Device & Local LLM Runtimes", aliases for the two older Ollama frontier placeholders) and its 8 research-run nodes (core platform; server ops; deployment, cloud, security and operations; integrations and ecosystem; alternatives and model sourcing; templates and scale-out; RamaLama; engine architecture). Regenerated `site/src/data/tree.json` with `gen_tree.py` (1339 nodes); the CI regen diff is clean.
+- Merge-only via `concept-family-explorer/scripts/sync_trees.py`: node count 1330 -> 1339, validate problems 5 -> 5 (none new).
+- Not included: 64 `site/src/data/concepts/ollama-*.json` reader pages that `gen_concepts.py` generated from the run's `/lca` packs. Those packs are `--rights extractive` third-party extracts, which the llms-concept-abstractor output contract says are never published; publishing them is an owner decision. Unrelated reader-page churn from the same regen was reverted.
+- Site tests: same failure set as `origin/main` (50 pre-existing failures that need a built `site/dist`); no new failures.
