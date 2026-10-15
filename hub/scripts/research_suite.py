@@ -24,6 +24,8 @@ Usage:
                            [--only BATCH]... [--discover-jobs 4] [--snapshot-jobs 2]
                            [--validate-jobs 3] [--ahead 6] [--max-usd X] [--max-streak 5]
   research_suite.py status --run NAME
+  research_suite.py recompile --run NAME [--repo DIR] [--only CONCEPT]...
+                           (rebuild the run's registered packs in place)
 Create `<run dir>/STOP` to stop starting new batches (in-flight work finishes).
 """
 
@@ -1247,29 +1249,39 @@ def stage_validate(run: Path, b: dict, per_call: int = 90) -> None:
 # stage 6: register (pack + tree node)
 # --------------------------------------------------------------------------- #
 def synthesis_markdown(doc: dict) -> str:
-    """Claims only, one paragraph per claim under a heading per section, each with its source
-    URLs inline. The abstractor turns every blank-line-separated paragraph into one unit, so
-    a bulleted block would collapse a whole concept into a single unit."""
+    """Claims only, one paragraph per claim, every claim on its own source page.
+
+    The abstractor's generic reader (`concept_abstract.py read_pages`) takes a `Source: <url>`
+    line as the page URL of everything after it until the next `Source:` line, and a file
+    with no `Source:` line falls back to `file://<path>`, which the pack's anchors then cite.
+    So every claim opens with `Source: <its first source url>`. The reader resets the heading
+    path per page, so the concept and section headings repeat per claim: the concept heading
+    is what lets the harvest keep a claim that names none of the concept's own tokens (the
+    reader excludes the H1 title from the heading path), and the section heading is the
+    anchor. The abstractor turns every blank-line-separated paragraph into one unit, so a
+    bulleted block would collapse a whole concept into a single unit."""
     lines = [f"# {doc['concept']}"]
+
+    def page(sources: list[str], section: str, body: str) -> None:
+        if sources:
+            lines.extend(["", f"Source: {sources[0]}"])
+        lines.extend(["", f"## {doc['concept']}", "", f"### {section}", "", body])
+
     for section in SECTIONS:
         claims = [
             c
             for c in doc["claims"]
             if (c.get("section") if c.get("section") in SECTIONS else "core") == section
         ]
-        if not claims:
-            continue
-        lines += ["", f"## {section.capitalize()}"]
         for c in claims:
             stamp = f" (verified as of {c['verified_as_of']})" if c.get("verified_as_of") else ""
-            lines += [
-                "",
+            page(
+                c["sources"],
+                section.capitalize(),
                 f"[{c['confidence']}] {c['text']}{stamp} Sources: " + ", ".join(c["sources"]),
-            ]
-    if doc.get("disagreements"):
-        lines += ["", "## Disagreements"]
-        for x in doc["disagreements"]:
-            lines += ["", f"{x['text']} Sources: " + ", ".join(x["sources"])]
+            )
+    for x in doc.get("disagreements") or []:
+        page(x["sources"], "Disagreements", f"{x['text']} Sources: " + ", ".join(x["sources"]))
     return "\n".join(lines) + "\n"
 
 
@@ -1296,7 +1308,7 @@ def stage_register(run: Path, b: dict, repo: Path) -> None:
             (work / "rabbithole-synthesis.md").write_text(synthesis_markdown(doc), encoding="utf-8")
             try:
                 with TREE_LOCK:
-                    pack = frb.compile_pack(concept, work, out_run, repo)
+                    pack = frb.compile_pack(concept, work, out_run, repo, trusted_units=True)
                     rec = {"concept": concept, "parent": doc.get("parent"), "status": "complete", "slug": pack.name.removesuffix(".llms"), "pack": str(pack),
                            "sources": len(doc.get("sources", [])), "claims": len(doc["claims"])}  # fmt: skip
                     frb.register(rec, tree_path, out_run / "backup")
@@ -1493,6 +1505,51 @@ def cmd_run(a) -> int:
     return run_pipeline(run, batches, a, Path(a.repo))
 
 
+def cmd_recompile(a) -> int:
+    """Rebuild every registered pack of a run from its validated claims with the current
+    synthesis and compile rules, replacing the canonical pack in place. The tree is not
+    touched: the node, slug and sourcesCount stay as register wrote them."""
+    load_hub_modules()
+    import frontier_research_batch as frb
+
+    run = run_root(a.run)
+    docs: dict[str, dict] = {}
+    for f in (run / "batches").glob("*/validated/*.json"):
+        doc = read_json(f)
+        if isinstance(doc, dict) and doc.get("concept"):
+            docs[doc["concept"]] = doc
+    rows = [r for r in read_jsonl(run / "results.jsonl") if r.get("status") == "complete"]
+    if a.only:
+        rows = [r for r in rows if r["concept"] in set(a.only)]
+    out_run = run / "frb"
+    done: list[dict] = []
+    failed: list[dict] = []
+    for r in rows:
+        concept = r["concept"]
+        doc = docs.get(concept)
+        if doc is None:
+            failed.append({"concept": concept, "error": "no validated doc in the run"})
+            continue
+        work = out_run / frb.run_slug(concept)
+        work.mkdir(parents=True, exist_ok=True)
+        (work / "rabbithole-synthesis.md").write_text(synthesis_markdown(doc), encoding="utf-8")
+        try:
+            pack = frb.compile_pack(
+                concept, work, out_run, Path(a.repo), trusted_units=True, replace=True
+            )
+            facts = (pack / "llms-facts.txt").read_text(encoding="utf-8").splitlines()
+            units = sum(1 for line in facts if line.startswith("- ["))
+            done.append({"concept": concept, "pack": str(pack), "units": units,
+                         "claims": len(doc.get("claims", []))})  # fmt: skip
+            log(f"recompiled {concept}: {units} units from {len(doc.get('claims', []))} claims")
+        except Exception as e:  # noqa: BLE001 - one pack's failure must not stop the sweep
+            failed.append({"concept": concept, "error": f"{type(e).__name__}: {e}"[:400]})
+            log(f"recompile failed: {concept}: {e}")
+    summary = {"recompiled": len(done), "failed": failed, "packs": done}
+    print(json.dumps(summary, indent=1, ensure_ascii=False))
+    return 1 if failed else 0
+
+
 def cmd_status(a) -> int:
     load_hub_modules()
     run = run_root(a.run)
@@ -1552,6 +1609,10 @@ def main() -> int:
     s.add_argument("--max-streak", type=int, default=5)
     s = sub.add_parser("status")
     s.add_argument("--run", required=True)
+    s = sub.add_parser("recompile")
+    s.add_argument("--run", required=True)
+    s.add_argument("--repo", default=str(Path.cwd()))
+    s.add_argument("--only", action="append")
     a = ap.parse_args()
     if a.cmd == "scope":
         return cmd_scope(a)
@@ -1564,6 +1625,8 @@ def main() -> int:
         return 0
     if a.cmd == "run":
         return cmd_run(a)
+    if a.cmd == "recompile":
+        return cmd_recompile(a)
     return cmd_status(a)
 
 
