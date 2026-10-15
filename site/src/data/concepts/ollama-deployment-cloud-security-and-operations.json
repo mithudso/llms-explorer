@@ -1,0 +1,2619 @@
+{
+  "slug": "ollama-deployment-cloud-security-and-operations",
+  "concept": "Ollama deployment and operations",
+  "generated": "2026-10-14",
+  "summary": "Ollama deployment and operations covers running Ollama in Docker and Kubernetes (otwld Helm chart, GPU passthrough, model volumes, OLLAMA_HOST binding), the embeddings API and local RAG, local embeddings into MongoDB Atlas Vector Search, Ollama cloud models and the cloud API (ollama signin, OLLAMA_API_KEY, usage limits), the web_search and web_fetch API, security hardening and CVEs (CVE-2026-7482 fixed in 0.17.1), observability (logs, /api/ps, Prometheus exporters, OpenTelemetry) and air-gapped model mirroring (offline directory copy, private-registry and pull-through limits), drawn from the official docs.ollama.com pages plus community guides, advisories and a research claim set.",
+  "facets": [
+    {
+      "title": "Definitions",
+      "facts": [
+        {
+          "text": "Ollama says cloud prompts and responses are processed to answer requests and are not used to train models; refer to the Privacy Policy for detail.",
+          "source": "https://docs.ollama.com/cloud",
+          "note": null
+        },
+        {
+          "text": "evandhoffman/ollama-prometheus-exporter is a reverse proxy that extracts token and timing fields from completed inference responses. It exposes /metrics, /health and / with counters such as ollama_inference_requests_total, ollama_prompt_eval_seconds_total, ollama_eval_seconds_total and ollama_load_seconds_total.",
+          "source": "https://hub.docker.com/r/evandhoffman/ollama-prometheus-exporter",
+          "note": null
+        },
+        {
+          "text": "- For questions, suggestions, and discussion about Ollama please refer to the [Ollama issue page](https://github.com/ollama/ollama/issues) - For questions, suggestions, and discussion about this chart please visit [Ollama-Helm issue page](https://github.com/otwld/ollama-helm/issues) or join our [OTWLD Discord](https://discord.gg/U24mpqTynB)",
+          "source": "https://raw.githubusercontent.com/otwld/ollama-helm/main/README.md#support",
+          "note": null
+        },
+        {
+          "text": "GPU acceleration is not available for Docker Desktop in macOS due to the lack of GPU passthrough and emulation.",
+          "source": "https://docs.ollama.com/faq#how-do-i-use-ollama-with-gpu-acceleration-in-docker",
+          "note": null
+        },
+        {
+          "text": "Ollama web search is a hosted API feature that returns search results or fetched page content for applications that need current information. It is separate from local model inference and requires an Ollama account API key.",
+          "source": "https://www.simplified.guide/_export/xhtml/ollama/api-use-web-search",
+          "note": null
+        },
+        {
+          "text": "That second command is the one that matters. ollama list only proves the manifests parsed; a generation proves the blobs are intact and the runner can load them. Use the smallest model you transferred for this check — a sub-gigabyte model loads in seconds, and a successful generation on a models directory that never saw a network pull is the proof the whole procedure worked.",
+          "source": "https://localaimaster.com/blog/transfer-ollama-models-offline",
+          "note": null
+        },
+        {
+          "text": "* If you are using a container, is the container runtime working? Try `docker run --gpus all ubuntu nvidia-smi` - if this doesn't work, Ollama won't be able to see your NVIDIA GPU. * Is the uvm driver loaded? `sudo nvidia-modprobe -u` * Try reloading the nvidia\\_uvm driver - `sudo rmmod nvidia_uvm` then `sudo modprobe nvidia_uvm` * Try rebooting * Make sure you're running the latest nvidia drivers",
+          "source": "https://docs.ollama.com/troubleshooting#linux-nvidia-troubleshooting",
+          "note": null
+        },
+        {
+          "text": "127.0.0.1:11434 means local only. 0.0.0.0:11434 or *:11434 means every network interface, which on a VPS means the public internet. Put a reverse proxy with authentication or a private network in front of it, as described in securing your Ollama API endpoint.",
+          "source": "https://www.ssdnodes.com/learn/is-ollama-free-local-vs-cloud",
+          "note": null
+        },
+        {
+          "text": "What is the OpenTelemetry Collector?",
+          "source": "https://signoz.io/docs/ollama-monitoring",
+          "note": null
+        },
+        {
+          "text": "The ollama_build_info metric is a simple gauge that tells you the version of Ollama currently running. This is incredibly useful for debugging, as you can quickly correlate performance issues or unexpected behavior with a specific Ollama version. Always ensure your Prometheus configuration is set to scrape the /metrics endpoint with an appropriate interval, typically between 15 and 60 seconds, to capture meaningful data without overwhelming your Prometheus instance or Ollama.",
+          "source": "https://adhdecode.com/articles/ollama/ollama-prometheus-metrics-monitoring/",
+          "note": null
+        },
+        {
+          "text": "modelName is the name you use in the autoEmbed index.",
+          "source": "https://docs.percona.com/percona-search-for-mongodb/configure-automatic-embedding-ollama.html",
+          "note": null
+        },
+        {
+          "text": "CVE-2024-37032 is an easy-to-exploit remote code execution that affects modern AI infrastructure. Despite the codebase being relatively new and written in modern programming languages, classic vulnerabilities such as Path Traversal remain an issue.",
+          "source": "https://wiz.io/blog/probllama-ollama-vulnerability-cve-2024-37032",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Structure and components",
+      "facts": [
+        {
+          "text": "The models directory holds blobs/ (files named sha256-<hash>) and manifests/ (one small JSON manifest per tag, at manifests/<host>/<namespace>/<model>/<tag>, listing the config blob and layer blobs). Both folders must be copied: blobs alone give no model names, manifests alone give a model list that fails to load. The ollama/ollama issue tracker confirms the layout: a worked backup script derives a model's blobs from the manifest's config.digest and layers[].digest, and a feature request describes blob names as hashes that do not say which model they belong to.",
+          "source": "https://github.com/ollama/ollama/issues/15484",
+          "note": null
+        },
+        {
+          "text": "Community pull-through proxies for the Ollama registry exist (for example beans-bytes/ollama-registry-pull-through-proxy, a Caddy-based pull-only registry, and a Harbor dev build) and are described in issue #914. None is an Ollama-supported component, and none was tested here.",
+          "source": "https://github.com/ollama/ollama/issues/914",
+          "note": null
+        },
+        {
+          "text": "Ollama before 0.17.1 contains a heap out-of-bounds read vulnerability in the GGUF model loader. The /api/create endpoint accepts an attacker-supplied GGUF file in which the declared tensor offset and size exceed the file's actual length; during quantization in fs/ggml/gguf.go and server/quantization.go (WriteTo()), the server reads past the allocated heap buffer. The leaked memory contents may include environment variables, API keys, system prompts, and concurrent users' conversation data, and can be exfiltrated by uploading the resulting model artifact through the /api/push endpoint to an att",
+          "source": "https://nvd.nist.gov/vuln/detail/CVE-2026-7482",
+          "note": null
+        },
+        {
+          "text": "The catalog embedding-service-configs.yml is installed next to the mongot binary and already contains two ready-to-use local models pointed at Ollama: bge-m3 at 1024 dimensions and nomic-embed-text at 768 dimensions.",
+          "source": "https://docs.percona.com/percona-search-for-mongodb/configure-automatic-embedding-ollama.html",
+          "note": null
+        },
+        {
+          "text": "Embedding models are often used in retrieval-augmented generation (RAG) flows, both as part of indexing data as well as later retrieving it. For more detailed instructions, please see our RAG tutorials. Below, see how to index and retrieve data using the embeddings object we initialized above. In this example, we will index and retrieve a sample document in the InMemoryVectorStore.",
+          "source": "https://docs.langchain.com/oss/python/integrations/text_embedding/ollama",
+          "note": null
+        },
+        {
+          "text": "manifests/registry.ollama.ai/library/<model>/<tag> is a small JSON file — one per model tag, with no file extension. It is an OCI-style manifest listing the layers that make up that model. This is the shape of one, with the digests truncated for readability:",
+          "source": "https://localaimaster.com/blog/transfer-ollama-models-offline",
+          "note": null
+        },
+        {
+          "text": "Yes, and that is the simplest version of this. Copying the whole models directory works because Ollama has no per-machine licence, activation, or path baked into the blobs — the manifest references layers by content hash, not by absolute path. The only reasons to copy selectively are size (you rarely want all 200GB) and the -partial files left behind by interrupted pulls, which are dead weight and should be excluded.",
+          "source": "https://localaimaster.com/blog/transfer-ollama-models-offline",
+          "note": null
+        },
+        {
+          "text": "Ollama does the hard part for you: the blob store is content-addressed, so every blob filename is the SHA-256 digest of that file's own contents — the same digests the manifest lists under its layers. On the target machine run sha256sum sha256-<hex> (Linux) or Get-FileHash (Windows) and check the digest matches the filename minus the sha256- prefix. Any blob where they disagree is corrupt; recopy it. Do this whenever your sneakernet media is part of the threat model, which for an air-gapped site it is.",
+          "source": "https://localaimaster.com/blog/transfer-ollama-models-offline",
+          "note": null
+        },
+        {
+          "text": "// DefaultName returns a name with the default values for the host, namespace, // tag, and protocol scheme parts. The model and digest parts are empty. // // - The default host is (\"registry.ollama.ai\") // - The default namespace is (\"library\") // - The default tag is (\"latest\") // - The default protocol scheme is (\"https\") func DefaultName() Name { return Name{ Host: defaultHost, Namespace: defaultNamespace, Tag: defaultTag, ... // different defaults than DefaultName. // // The name returned is not guaranteed to be valid. If it is not valid, the // field valu",
+          "source": "https://github.com/ollama/ollama/blob/957c8cd5ce852d1fd0886baa77987d8cc40eeb69/types/model/name.go",
+          "note": null
+        },
+        {
+          "text": "GitHub Advisory GHSA-x8qc-fggm-mpqg (CVE-2026-7482) is titled \"Ollama contains a heap out-of-bounds read vulnerability in the GGUF model loader\". Its severity is HIGH.",
+          "source": "https://github.com/advisories/GHSA-x8qc-fggm-mpqg",
+          "note": "CVE-2026-7482 severity: GitHub advisory rates HIGH, NVD lists CNA CVSS 3.1 9.1 CRITICAL (4.0: 8.8)"
+        },
+        {
+          "text": "In this section, you load an embedding model locally and generate vector embeddings by using data from the sample_airbnb database, which contains a collection called listingsAndReviews.",
+          "source": "https://www.mongodb.com/docs/vector-search/tutorials/local-rag/",
+          "note": null
+        },
+        {
+          "text": "blobs/ — the actual model weights, stored as content-addressed files (this is the 50 GB part)",
+          "source": "https://llmconfigurator.com/guides/move-ollama-new-computer",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "How it works",
+      "facts": [
+        {
+          "text": "CVE-2024-37032 (Probllama), found by Wiz Research: when /api/pull fetches from a private registry, the `digest` field of a malicious manifest is used without validation. This allows path traversal, arbitrary file write and remote code execution. The fix is in Ollama 0.1.34 (released May 2024). NVD records the affected range as Ollama before 0.1.34 (digest format not validated, so values with fewer or more than 64 hex digits or a leading ../ are accepted).",
+          "source": "https://wiz.io/blog/probllama-ollama-vulnerability-cve-2024-37032",
+          "note": null
+        },
+        {
+          "text": "Fetch a single page when the application needs page content. $ curl https://ollama.com/api/web_fetch \\ -H \"Authorization: Bearer $OLLAMA_API_KEY\" \\ -d '{\"url\":\"https://docs.ollama.com/\"}' {\"title\":\"Ollama documentation\",\"content\":\"##### snipped #####\",\"links\":[##### snipped #####]}",
+          "source": "https://www.simplified.guide/_export/xhtml/ollama/api-use-web-search",
+          "note": null
+        },
+        {
+          "text": "OLLAMA_MODELS must be set in the environment of the server process (systemd unit, tray app), not just the CLI shell, because the CLI talks to the daemon over HTTP.",
+          "source": "https://localaimaster.com/blog/transfer-ollama-models-offline",
+          "note": null
+        },
+        {
+          "text": "A community Reddit report says a 401 on web search, seen when building Ollama from source, went away once the OLLAMA_API_KEY environment variable took precedence over the SSH-key signing path. This is a single unverified report.",
+          "source": "https://reddit.sentinel-team.org/posts/1s0ywmp/snapshots/2026-03-23T07%3A15%3A14.54713Z",
+          "note": null
+        },
+        {
+          "text": "* `OLLAMA_MAX_LOADED_MODELS` - The maximum number of models that can be loaded concurrently provided they fit in available memory. The default is 3 \\* the number of GPUs or 3 for CPU inference. * `OLLAMA_NUM_PARALLEL` - The maximum number of parallel requests each model will process at the same time, default 1. Required RAM will scale by `OLLAMA_NUM_PARALLEL` \\* `OLLAMA_CONTEXT_LENGTH`. * `OLLAMA_MAX_QUEUE` - The maximum number of requests Ollama will queue when busy before rejecting additional requests. The default is 512",
+          "source": "https://docs.ollama.com/faq#how-does-ollama-handle-concurrent-requests",
+          "note": null
+        },
+        {
+          "text": "Ollama's reference RAG flow is embed documents with ollama.embed, store in a vector DB (ChromaDB in the blog), embed the question, retrieve nearest documents, and pass them with the question to a local generation model. The 2024 blog lists mxbai-embed-large (334M), nomic-embed-text (137M) and all-minilm (23M).",
+          "source": "https://ollama.com/blog/embedding-models",
+          "note": null
+        },
+        {
+          "text": "In otwld/ollama-helm persistence is off by default (persistentVolume.enabled=false), so models are lost when the pod is rescheduled unless enabled. When enabled: 30Gi, ReadWriteOnce, mounted at /root/.ollama. The update strategy defaults to Recreate and terminationGracePeriodSeconds to 120. A different community chart (feiskyer) defaults persistence on.",
+          "source": "https://github.com/otwld/ollama-helm",
+          "note": null
+        },
+        {
+          "text": "Ollama binds to 127.0.0.1:11434 by default, so only the machine itself can reach it. Set OLLAMA_HOST=0.0.0.0 to reach it from your laptop, and anyone on the internet who finds the port can use it too, because the server has no API key or password. A stranger can run prompts on your CPU, pull large models to fill your disk, or delete the models you have. Check what the port is bound to:",
+          "source": "https://www.ssdnodes.com/learn/is-ollama-free-local-vs-cloud",
+          "note": null
+        },
+        {
+          "text": "On Linux, copied files extracted as root cause permission errors; run chown -R ollama:ollama on the models directory before restarting the service. Exclude leftover *-partial* blobs from the archive.",
+          "source": "https://localaimaster.com/blog/transfer-ollama-models-offline",
+          "note": null
+        },
+        {
+          "text": "Behind an egress proxy, the FAQ says to set HTTPS_PROXY (with the proxy CA installed as a system certificate) and not HTTP_PROXY, because model pulls use only HTTPS and HTTP_PROXY can break client connections to the server.",
+          "source": "https://docs.ollama.com/faq",
+          "note": null
+        },
+        {
+          "text": "Kubernetes GPU pods request `nvidia.com/gpu: 1` in limits, usually with a nodeSelector for the GPU node pool and a toleration for the nvidia.com/gpu taint. Replica count is bounded by available GPU nodes, because each pod requests its own GPU.",
+          "source": "https://oneuptime.com/blog/post/2026-02-26-argocd-ollama-deployment/view",
+          "note": null
+        },
+        {
+          "text": "<Note>Ollama must be installed and running before the installer runs. When running inside WSL2 or a container, ensure Ollama is reachable from the sandbox (e.g. `OLLAMA_HOST=0.0.0.0`).</Note>",
+          "source": "https://docs.ollama.com/integrations/nemoclaw#platform-support",
+          "note": null
+        },
+        {
+          "text": "This is the problem I see when trying to use Ollama with Artifactory as a mirror for `registry.ollama.ai`. When setting up Artifactory as a mirror I need to set up an Artifactory remote repository with an arbitrary name (say \"ollama-models-remote\") of type Docker and with the url set to `https://registry.ollama.ai`",
+          "source": "https://github.com/ollama/ollama/issues/914#comments",
+          "note": null
+        },
+        {
+          "text": "For Artifactory to call Ollama model registry it needs to use `https://registry.ollama.ai/v2/library/...` . The `v2` is added by Artifactory itself after the configured url. `library` needs to be supplied by me, or by my local Ollama server to be more precise, when calling my Artifactory repo. This is common practice as this is the namespace within the `registry.ollama.ai` where the model I'm interested in is located.",
+          "source": "https://github.com/ollama/ollama/issues/914#comments",
+          "note": null
+        },
+        {
+          "text": "Tested with baseUrl: \"https://ollama.com/api\" → Results in 404 (double /api/api/chat path) Tried restarting gateway after config changes Token is confirmed valid via direct API call Issue appears to be in how OpenClaw 2026.3.31 constructs/sends the Authorization header",
+          "source": "https://github.com/openclaw/openclaw/issues/59205",
+          "note": null
+        },
+        {
+          "text": "Behind a proxy in Docker, pass `-e HTTPS_PROXY=...` to the container. Do not set HTTP_PROXY, because model pulls use HTTPS only and HTTP_PROXY can break client connections to the server. A self-signed proxy CA must be baked into a derived image with update-ca-certificates.",
+          "source": "https://docs.ollama.com/faq",
+          "note": null
+        },
+        {
+          "text": "The ollama/ollama image bundles Vulkan and enables it by default when the container can see GPU devices. OLLAMA_VULKAN=0 disables it and GGML_VK_VISIBLE_DEVICES selects devices.",
+          "source": "https://docs.ollama.com/docker.md",
+          "note": null
+        },
+        {
+          "text": "The Ollama Docker container image can be configured to use a proxy by passing `-e HTTPS_PROXY=https://proxy.example.com` when starting the container.",
+          "source": "https://docs.ollama.com/faq#how-do-i-use-ollama-behind-a-proxy-in-docker",
+          "note": null
+        },
+        {
+          "text": "Alternatively, you can change the amount of time all models are loaded into memory by setting the `OLLAMA_KEEP_ALIVE` environment variable when starting the Ollama server. The `OLLAMA_KEEP_ALIVE` variable uses the same parameter types as the `keep_alive` parameter types mentioned above. Refer to the section explaining [how to configure the Ollama server](#how-do-i-configure-ollama-server) to correctly set the environment variable.",
+          "source": "https://docs.ollama.com/faq#how-do-i-keep-a-model-loaded-in-memory-or-make-it-unload-immediately",
+          "note": null
+        },
+        {
+          "text": "A few experiments with large models can fill a small VPS disk quickly. When the disk is full, a pull fails partway and the model will not load. How ollama pull and ollama run store models explains where the space goes and how to move the model directory.",
+          "source": "https://www.ssdnodes.com/learn/is-ollama-free-local-vs-cloud",
+          "note": null
+        },
+        {
+          "text": "Ollama Cloud is cheaper when you want models far larger than your RAM allows, and your use is light enough that the included credits cover most months. Buying a GPU machine to run a 120-billion-parameter model a few times a week is hard to justify against a $20 plan. The two also mix well, because the same API serves both local and cloud models. Run small models locally for routine work, and send the hard prompts to a cloud model.",
+          "source": "https://www.ssdnodes.com/learn/is-ollama-free-local-vs-cloud",
+          "note": null
+        },
+        {
+          "text": "Vulkan is bundled into the `ollama/ollama` image and is enabled by default when the container can access the GPU devices.",
+          "source": "https://docs.ollama.com/docker.md#vulkan-support",
+          "note": null
+        },
+        {
+          "text": "The single most common mistake with OLLAMA_MODELS is setting it in the wrong process. The ollama CLI is a thin client that talks to the running daemon over HTTP; it does not read models off disk itself. Exporting the variable in the shell where you type ollama list therefore changes nothing — you can point it at a completely empty directory and ollama list will still return the daemon's normal model list, because the daemon never saw your export. The variable has to be set for the server process (the systemd unit, the Windows service, or the shell you run ollama serve in).",
+          "source": "https://localaimaster.com/blog/transfer-ollama-models-offline",
+          "note": null
+        },
+        {
+          "text": "If you are copying to a different drive because C: is small, set OLLAMA_MODELS to the new path in the environment-variable editor and restart Ollama, as the Windows docs describe. If Ollama is not installed on the target at all, skip to machines with no installer. Our Ollama on Windows install guide covers the normal connected path.",
+          "source": "https://localaimaster.com/blog/transfer-ollama-models-offline",
+          "note": null
+        },
+        {
+          "text": "We are not going to publish a list of endpoints to block, because we have not packet-captured any Ollama build and stale claims about what a binary connects to are worse than no claim at all. Point your own monitoring at it, and if your environment already runs an internal mirror, the air-gapped deployment guide covers that pattern properly. Once models are on the box, inference itself is fully local — what running AI offline actually means covers that side.",
+          "source": "https://localaimaster.com/blog/transfer-ollama-models-offline",
+          "note": null
+        },
+        {
+          "text": "[jorander 2024-06-07T15:24:17Z] This is the code in Ollama setting up the url to use when pulling a model: https://github.com/ollama/ollama/blob/main/server/modelpath.go#L50-L62 It uses a set of default values defined here: https://github.com/ollama/ollama/blob/main/server/modelpath.go#L21-L26",
+          "source": "https://github.com/ollama/ollama/issues/914#comments",
+          "note": null
+        },
+        {
+          "text": "When running in a container, in some Linux distributions and container runtimes, the ollama process may be unable to access the GPU. Use `ls -lnd /dev/kfd /dev/dri /dev/dri/*` on the host system to determine the **numeric** group IDs on your system, and pass additional `--group-add ...` arguments to the container so it can access the required devices. For example, in the following output `crw-rw---- 1 0 44 226, 0 Sep 16 16:55 /dev/dri/card0` the group ID column is `44`",
+          "source": "https://docs.ollama.com/troubleshooting#amd-gpu-discovery",
+          "note": null
+        },
+        {
+          "text": "[dglidden 2026-03-11T21:16:02Z] Adding another voice to having some kind of mechanism (env var, command line param, something) that would allow ollama to \"redirect\" pulling from a local Artifactory of some sort. We use JFrog where I work and the ollama registry is basically blocked, leaving only going through the local JFrog instance to be able to pull models. (However they absolutely support pulling models through it, just which ones based on corporate rules.)",
+          "source": "https://github.com/ollama/ollama/issues/914#comments",
+          "note": null
+        },
+        {
+          "text": "Revoke or rotate the key when it was created for testing. $ export OLLAMA_API_KEY=",
+          "source": "https://www.simplified.guide/_export/xhtml/ollama/api-use-web-search",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Parameters and configuration",
+      "facts": [
+        {
+          "text": "| Key | Type | Default | Description | |------------------------------------------------|--------|-----------------------------------------------------",
+          "source": "https://raw.githubusercontent.com/otwld/ollama-helm/main/README.md#helm-values",
+          "note": null
+        },
+        {
+          "text": "extraEnv list [] Additional environments variables on the output Deployment definition. For extra OLLAMA env, please refer to https://github.com/ollama/ollama/blob/main/envconfig/config.go",
+          "source": "https://github.com/otwld/ollama-helm",
+          "note": null
+        },
+        {
+          "text": "ollama.gpu.nvidiaResource string \"nvidia.com/gpu\" only for nvidia cards; change to (example) 'nvidia.com/mig-1g.10gb' to use MIG slice",
+          "source": "https://github.com/otwld/ollama-helm",
+          "note": null
+        },
+        {
+          "text": "ollama.gpu.type string \"nvidia\" GPU type: 'nvidia' or 'amd' If 'ollama.gpu.enabled', default value is nvidia If set to 'amd', this will add 'rocm' suffix to image tag if 'image.tag' is not override This is due cause AMD and CPU/CUDA are different images",
+          "source": "https://github.com/otwld/ollama-helm",
+          "note": null
+        },
+        {
+          "text": "ollama.mountPath string \"\" Override ollama-data volume mount path, default: \"/root/.ollama\"",
+          "source": "https://github.com/otwld/ollama-helm",
+          "note": null
+        },
+        {
+          "text": "persistentVolume.accessModes list [\"ReadWriteOnce\"] Ollama server data Persistent Volume access modes Must match those of existing PV or dynamic provisioner Ref: http://kubernetes.io/docs/user-guide/persistent-volumes/",
+          "source": "https://github.com/otwld/ollama-helm",
+          "note": null
+        },
+        {
+          "text": "persistentVolume.existingClaim string \"\" If you'd like to bring your own PVC for persisting Ollama state, pass the name of the created + ready PVC here. If set, this Chart will not create the default PVC. Requires server.persistentVolume.enabled: true",
+          "source": "https://github.com/otwld/ollama-helm",
+          "note": null
+        },
+        {
+          "text": "persistentVolume.size string \"30Gi\" Ollama server data Persistent Volume size",
+          "source": "https://github.com/otwld/ollama-helm",
+          "note": null
+        },
+        {
+          "text": "persistentVolume.storageClass string \"\" Ollama server data Persistent Volume Storage Class If defined, storageClassName: If set to \"-\", storageClassName: \"\", which disables dynamic provisioning If undefined (the default) or set to null, no storageClassName spec is set, choosing the default provisioner. (gp2 on AWS, standard on GKE, AWS & OpenStack)",
+          "source": "https://github.com/otwld/ollama-helm",
+          "note": null
+        },
+        {
+          "text": "livenessProbe.enabled bool true Enable livenessProbe",
+          "source": "https://github.com/otwld/ollama-helm",
+          "note": null
+        },
+        {
+          "text": "livenessProbe.failureThreshold int 6 Failure threshold for livenessProbe",
+          "source": "https://github.com/otwld/ollama-helm",
+          "note": null
+        },
+        {
+          "text": "livenessProbe.initialDelaySeconds int 60 Initial delay seconds for livenessProbe",
+          "source": "https://github.com/otwld/ollama-helm",
+          "note": null
+        },
+        {
+          "text": "livenessProbe.path string \"/\" Request path for livenessProbe",
+          "source": "https://github.com/otwld/ollama-helm",
+          "note": null
+        },
+        {
+          "text": "nodeSelector object {} Node labels for pod assignment.",
+          "source": "https://github.com/otwld/ollama-helm",
+          "note": null
+        },
+        {
+          "text": "persistentVolume.enabled bool false Enable persistence using PVC",
+          "source": "https://github.com/otwld/ollama-helm",
+          "note": null
+        },
+        {
+          "text": "readinessProbe.enabled bool true Enable readinessProbe",
+          "source": "https://github.com/otwld/ollama-helm",
+          "note": null
+        },
+        {
+          "text": "readinessProbe.failureThreshold int 6 Failure threshold for readinessProbe",
+          "source": "https://github.com/otwld/ollama-helm",
+          "note": null
+        },
+        {
+          "text": "readinessProbe.initialDelaySeconds int 30 Initial delay seconds for readinessProbe",
+          "source": "https://github.com/otwld/ollama-helm",
+          "note": null
+        },
+        {
+          "text": "readinessProbe.path string \"/\" Request path for readinessProbe",
+          "source": "https://github.com/otwld/ollama-helm",
+          "note": null
+        },
+        {
+          "text": "resources.limits object {} Pod limit",
+          "source": "https://github.com/otwld/ollama-helm",
+          "note": null
+        },
+        {
+          "text": "tolerations list [] Tolerations for pod assignment",
+          "source": "https://github.com/otwld/ollama-helm",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "How-to and procedures",
+      "facts": [
+        {
+          "text": "Local-only mode: set `disable_ollama_cloud: true` in ~/.ollama/server.json or export OLLAMA_NO_CLOUD=1, then restart. This disables Ollama cloud models and web search, and the logs show `Ollama cloud disabled: true`.",
+          "source": "https://docs.ollama.com/faq",
+          "note": null
+        },
+        {
+          "text": "The official FAQ lets operators run local-only by setting OLLAMA_NO_CLOUD=1 or `disable_ollama_cloud: true` in ~/.ollama/server.json, which removes cloud models and web search and logs 'Ollama cloud disabled: true'.",
+          "source": "https://docs.ollama.com/faq",
+          "note": null
+        },
+        {
+          "text": "Recommended hardening checklist (LeakIX, Wiz, Cyera): bind OLLAMA_HOST to 127.0.0.1; front with an authenticating reverse proxy or API gateway; firewall port 11434 to trusted IPs; log at the proxy because Ollama does not log requests by default; restrict egress (CVE-2026-7482 exfiltrates via /api/push); rotate secrets if an exposed instance was vulnerable; patch.",
+          "source": "https://blog.leakix.net/2026/02/ollama-exposed/",
+          "note": null
+        },
+        {
+          "text": "Running it is quite straight forward via docker: 1. Start the cache `docker run -p 9200:9200 -v ./cache_dir_docker:/pull-through-cache ghcr.io/beans-bytes/ollama-registry-pull-through-proxy:latest` 2. Pull/run against it `ollama pull --insecure http://localhost:9200/library/<image>:<tag>`",
+          "source": "https://github.com/ollama/ollama/issues/914#comments",
+          "note": null
+        },
+        {
+          "text": "Set your [API key](https://ollama.com/settings/keys) in `OLLAMA_API_KEY`. No Ollama installation required.",
+          "source": "https://docs.ollama.com/api/anthropic-compatibility#direct-cloud-access",
+          "note": null
+        },
+        {
+          "text": "Set your [API key](https://ollama.com/settings/keys) in `OLLAMA_API_KEY`. Install the client with `pip install openai`. No Ollama installation required.",
+          "source": "https://docs.ollama.com/api/openai-compatibility#direct-cloud-access",
+          "note": null
+        },
+        {
+          "text": "Ollama can run in local only mode by disabling Ollama's cloud features. By turning off Ollama's cloud features, you will lose the ability to use Ollama's cloud models and web search.",
+          "source": "https://docs.ollama.com/faq#how-do-i-disable-ollama-s-cloud-features",
+          "note": null
+        },
+        {
+          "text": "To download a model through my local Artifactory repo I would need to name it `my.artifacory.host/ollama-models-remote/library/<model>:<tag>`. This should cause the local Ollama server to call `https://my.artifacory.host/v2/ollama-models-remote/library/...`, which would cause Artifactory to substitute `https://my.artifacory.host/v2/ollama-models-remote/` for `https://registry.ollama.ai/v2/` and then append `library/...`. But since the code in Ollama used to split the model name only handles up to three parts divided by `/` and my supplied name contains four, it goes with the default instead.",
+          "source": "https://github.com/ollama/ollama/issues/914#comments",
+          "note": null
+        },
+        {
+          "text": "Create or select an Ollama API key for the hosted request. $ export OLLAMA_API_KEY='ollama_********************************'",
+          "source": "https://www.simplified.guide/_export/xhtml/ollama/api-use-web-search",
+          "note": null
+        },
+        {
+          "text": "Set your API key in OLLAMA_API_KEY. Install the client with pip install openai. No Ollama installation required.",
+          "source": "https://docs.ollama.com/api/openai-compatibility",
+          "note": null
+        },
+        {
+          "text": "To use cloud models, publish models, or download private models, sign in to Ollama. For direct API access to ollama.com, use an API key.",
+          "source": "https://docs.ollama.com/api/authentication",
+          "note": null
+        },
+        {
+          "text": "Set `OLLAMA_API_KEY` to your [API key](https://ollama.com/settings/keys), then call a cloud model:",
+          "source": "https://docs.ollama.com/api/introduction#ollama-api-example",
+          "note": null
+        },
+        {
+          "text": "Use cloud models with an API key, or run models locally without one. Cloud requests do not require an Ollama installation.",
+          "source": "https://docs.ollama.com/quickstart#build-an-application",
+          "note": null
+        },
+        {
+          "text": "Bind to localhost: set OLLAMA_HOST=127.0.0.1 (not 0.0.0.0)",
+          "source": "https://blog.leakix.net/2026/02/ollama-exposed/",
+          "note": null
+        },
+        {
+          "text": "Ensure OLLAMA_API_KEY is set or it must be passed in the Authorization header.",
+          "source": "https://docs.ollama.com/capabilities/web-search",
+          "note": null
+        },
+        {
+          "text": "Use the `ollama ps` command to see what models are currently loaded into memory.",
+          "source": "https://docs.ollama.com/faq#how-can-i-tell-if-my-model-was-loaded-onto-the-gpu",
+          "note": null
+        },
+        {
+          "text": "Use Ollama’s web search as a tool to build a mini search agent.",
+          "source": "https://ollama.com/blog/web-search",
+          "note": null
+        },
+        {
+          "text": "Install Ollama and pull an embedding model.",
+          "source": "https://docs.percona.com/percona-search-for-mongodb/configure-automatic-embedding-ollama.html",
+          "note": null
+        },
+        {
+          "text": "Put a reverse proxy in front: nginx or Caddy with bearer token auth. Example configs are available in the Ollama issue thread",
+          "source": "https://blog.leakix.net/2026/02/ollama-exposed/",
+          "note": null
+        },
+        {
+          "text": "Use Ollama’s web search API as a tool to build a mini search agent. This example uses Alibaba’s Qwen 3 model with 4B parameters.",
+          "source": "https://docs.ollama.com/capabilities/web-search",
+          "note": null
+        },
+        {
+          "text": "Use Ollama's web search API from Claude Code.",
+          "source": "https://docs.ollama.com/integrations/claude-code#web-search",
+          "note": null
+        },
+        {
+          "text": "Create an API key from your Ollama account.",
+          "source": "https://ollama.com/blog/web-search",
+          "note": null
+        },
+        {
+          "text": "Set `disable_ollama_cloud` in `~/.ollama/server.json`:",
+          "source": "https://docs.ollama.com/faq#how-do-i-disable-ollama-s-cloud-features",
+          "note": null
+        },
+        {
+          "text": "To run Ollama using Docker with AMD GPUs, use the `rocm` tag and the following command:",
+          "source": "https://docs.ollama.com/docker.md#amd-gpu",
+          "note": null
+        },
+        {
+          "text": "Use the same embedding model for both indexing and querying.",
+          "source": "https://docs.ollama.com/capabilities/embeddings",
+          "note": null
+        },
+        {
+          "text": "To fetch individual pages (e.g. when a user provides a url in the prompt), use the new web fetch API.",
+          "source": "https://ollama.com/blog/web-search",
+          "note": null
+        },
+        {
+          "text": "Set OLLAMA_KEEP_ALIVE - Keep models loaded in memory between requests to avoid reload latency.",
+          "source": "https://oneuptime.com/blog/post/2026-02-26-argocd-ollama-deployment/view",
+          "note": null
+        },
+        {
+          "text": "Create a local Atlas deployment.",
+          "source": "https://www.mongodb.com/docs/vector-search/tutorials/local-rag/",
+          "note": null
+        },
+        {
+          "text": "Use a local embedding model to generate vector embeddings.",
+          "source": "https://www.mongodb.com/docs/vector-search/tutorials/local-rag/",
+          "note": null
+        },
+        {
+          "text": "Create a MongoDB Vector Search index on your data.",
+          "source": "https://www.mongodb.com/docs/vector-search/tutorials/local-rag/",
+          "note": null
+        },
+        {
+          "text": "To relocate the directory entirely — onto an encrypted volume, a bigger disk, or a share — set OLLAMA_MODELS. The FAQ is explicit that on Linux with the standard installer you must then give the service account access:",
+          "source": "https://localaimaster.com/blog/transfer-ollama-models-offline",
+          "note": null
+        },
+        {
+          "text": "Use ReadWriteMany for shared storage - When running multiple replicas, use RWX storage classes so all pods share the model cache.",
+          "source": "https://oneuptime.com/blog/post/2026-02-26-argocd-ollama-deployment/view",
+          "note": null
+        },
+        {
+          "text": "Use cosine similarity for most semantic search use cases.",
+          "source": "https://docs.ollama.com/capabilities/embeddings",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Examples and snippets",
+      "facts": [
+        {
+          "text": "apiVersion: apps/v1 kind: Deployment metadata: name: ollama-gpu labels: app: ollama spec: replicas: 1 selector: matchLabels: app: ollama template: metadata: labels: app: ollama spec: containers: - name: ollama image: ollama/ollama:0.24.0 ports: - containerPort: 11434 env: - name: OLLAMA_HOST value: \"0.0.0.0:11434\" - name: OLLAMA_KEEP_ALIVE value: \"24h\" - name: OLLAMA_NUM_PARALLEL value: \"4\"",
+          "source": "https://oneuptime.com/blog/post/2026-02-26-argocd-ollama-deployment/view",
+          "note": null
+        },
+        {
+          "text": "kill $SERVER_PID env: - name: OLLAMA_HOST value: \"0.0.0.0:11434\" resources: requests: cpu: \"2\" memory: 8Gi nvidia.com/gpu: 1 limits: nvidia.com/gpu: 1 volumeMounts: - name: ollama-data mountPath: /root/.ollama containers: - name: ollama image: ollama/ollama:0.24.0",
+          "source": "https://oneuptime.com/blog/post/2026-02-26-argocd-ollama-deployment/view",
+          "note": null
+        },
+        {
+          "text": "```bash theme={\"system\"} — `curl https://ollama.com/api/web_search \\` …",
+          "source": "https://docs.ollama.com/capabilities/web-search#curl-request",
+          "note": null
+        },
+        {
+          "text": "```python theme={\"system\"} — `curl --request POST \\` …",
+          "source": "https://docs.ollama.com/capabilities/web-search#curl-request",
+          "note": null
+        },
+        {
+          "text": "- name: OLLAMA_NUM_PARALLEL value: \"4\" resources: requests: cpu: \"4\" memory: 8Gi limits: cpu: \"8\" memory: 16Gi readinessProbe: httpGet: path: / port: 11434 initialDelaySeconds: 10 periodSeconds: 5 livenessProbe: httpGet: path: / port: 11434 initialDelaySeconds: 30 periodSeconds: 30 volumeMounts: - name: ollama-data mountPath: /root/.ollama volumes: - name: ollama-data persistentVolumeClaim: claimName: ollama-data --- apiVersion: v1 kind: PersistentVolumeClaim metadata: name: ollama-data spec: accessModes: - ReadWriteOnce resources: requests: storage: 100Gi storageClassName: gp3 --- apiVersion:",
+          "source": "https://oneuptime.com/blog/post/2026-02-26-argocd-ollama-deployment/view",
+          "note": null
+        },
+        {
+          "text": "```shell theme={\"system\"} — `ollama pull kimi-k2.6:cloud` …",
+          "source": "https://docs.ollama.com/integrations/vscode#add-a-model",
+          "note": null
+        },
+        {
+          "text": "apiVersion: apps/v1 kind: Deployment metadata: name: ollama labels: app: ollama spec: replicas: 1 selector: matchLabels: app: ollama template: metadata: labels: app: ollama spec: containers: - name: ollama image: ollama/ollama:0.24.0 ports: - containerPort: 11434 name: http env: - name: OLLAMA_HOST value: \"0.0.0.0:11434\"",
+          "source": "https://oneuptime.com/blog/post/2026-02-26-argocd-ollama-deployment/view",
+          "note": null
+        },
+        {
+          "text": "```shell theme={\"system\"} — `curl https://ollama.com/v1/messages \\` …",
+          "source": "https://docs.ollama.com/api/anthropic-compatibility#direct-cloud-access",
+          "note": null
+        },
+        {
+          "text": "```python theme={\"system\"} — `import os` …",
+          "source": "https://docs.ollama.com/api/openai-compatibility#direct-cloud-access",
+          "note": null
+        },
+        {
+          "text": "```shell theme={\"system\"} — `docker run -d --device /dev/kfd --device /dev/dri -v ollama:/root/.ollama -p 11434:11434 --name ollama ollama/` …",
+          "source": "https://docs.ollama.com/docker.md#amd-gpu",
+          "note": null
+        },
+        {
+          "text": "```shell theme={\"system\"} — `docker run -d --device /dev/kfd --device /dev/dri -v ollama:/root/.ollama -p 11434:11434 --name ollama ollama/` …",
+          "source": "https://docs.ollama.com/docker.md#vulkan-support",
+          "note": null
+        },
+        {
+          "text": "```shell theme={\"system\"} — `ollama signin` …",
+          "source": "https://docs.ollama.com/faq#how-to-add-the-key",
+          "note": null
+        },
+        {
+          "text": "```sh — `#!/bin/bash` …",
+          "source": "https://github.com/ollama/ollama/issues/15484#comments",
+          "note": null
+        },
+        {
+          "text": "[cgjosephlee 2024-10-21T08:14:40Z] Since ollama has a similar CLI interface to docker, I implement `save` and `load` fun — `https://github.com/cgjosephlee/ollama-save-load` …",
+          "source": "https://github.com/ollama/ollama/issues/696#comments",
+          "note": null
+        },
+        {
+          "text": "```python theme={\"system\"} — `from ollama import chat, web_fetch, web_search` …",
+          "source": "https://docs.ollama.com/capabilities/web-search#building-a-search-agent",
+          "note": null
+        },
+        {
+          "text": "```shell theme={\"system\"} — `export OLLAMA_API_KEY=\"your_api_key\"` …",
+          "source": "https://docs.ollama.com/api/anthropic-compatibility#direct-cloud-access",
+          "note": null
+        },
+        {
+          "text": "```shell theme={\"system\"} — `curl https://ollama.com/api/tags` …",
+          "source": "https://docs.ollama.com/cloud#models",
+          "note": null
+        },
+        {
+          "text": "```shell theme={\"system\"} — `docker build -t ollama-with-ca .` …",
+          "source": "https://docs.ollama.com/faq#how-do-i-use-ollama-behind-a-proxy-in-docker",
+          "note": null
+        },
+        {
+          "text": "- name: NVIDIA_VISIBLE_DEVICES value: all resources: requests: cpu: \"4\" memory: 16Gi nvidia.com/gpu: 1 limits: cpu: \"8\" memory: 32Gi nvidia.com/gpu: 1 volumeMounts: - name: ollama-data mountPath: /root/.ollama nodeSelector: nvidia.com/gpu.product: NVIDIA-A10G tolerations: - key: nvidia.com/gpu operator: Exists effect: NoSchedule volumes: - name: ollama-data persistentVolumeClaim: claimName: ollama-data",
+          "source": "https://oneuptime.com/blog/post/2026-02-26-argocd-ollama-deployment/view",
+          "note": null
+        },
+        {
+          "text": "apiVersion: networking.k8s.io/v1 kind: Ingress metadata: name: ollama-ingress annotations: nginx.ingress.kubernetes.io/proxy-read-timeout: \"300\" nginx.ingress.kubernetes.io/proxy-send-timeout: \"300\"",
+          "source": "https://oneuptime.com/blog/post/2026-02-26-argocd-ollama-deployment/view",
+          "note": null
+        },
+        {
+          "text": "initContainers: - name: model-preloader image: ollama/ollama:0.24.0 command: - sh - /config/pull-script.sh volumeMounts: - name: ollama-data mountPath: /root/.ollama - name: config mountPath: /config volumes: - name: config configMap: name: ollama-models defaultMode: 0755",
+          "source": "https://oneuptime.com/blog/post/2026-02-26-argocd-ollama-deployment/view",
+          "note": null
+        },
+        {
+          "text": "initContainers: - name: model-preloader image: ollama/ollama:0.24.0 command: - sh - -c - | ollama serve & SERVER_PID=$! sleep 5",
+          "source": "https://oneuptime.com/blog/post/2026-02-26-argocd-ollama-deployment/view",
+          "note": null
+        },
+        {
+          "text": "```powershell theme={\"system\"} — `$env:OLLAMA_DEBUG=\"1\"` …",
+          "source": "https://docs.ollama.com/troubleshooting",
+          "note": null
+        },
+        {
+          "text": "```python theme={\"system\"} — `import ollama` …",
+          "source": "https://docs.ollama.com/capabilities/web-search#python-library",
+          "note": null
+        },
+        {
+          "text": "```shell theme={\"system\"} — `docker run -d --gpus=all -v ollama:/root/.ollama -p 11434:11434 --name ollama ollama/ollama` …",
+          "source": "https://docs.ollama.com/docker.md#start-the-container",
+          "note": null
+        },
+        {
+          "text": "nginx.ingress.kubernetes.io/auth-type: basic nginx.ingress.kubernetes.io/auth-secret: ollama-basic-auth nginx.ingress.kubernetes.io/auth-realm: \"Ollama LLM API\" spec: ingressClassName: nginx tls: - hosts: - ollama.internal.example.com secretName: ollama-tls rules: - host: ollama.internal.example.com http: paths: - path: / pathType: Prefix backend: service: name: ollama port: number: 11434",
+          "source": "https://oneuptime.com/blog/post/2026-02-26-argocd-ollama-deployment/view",
+          "note": null
+        },
+        {
+          "text": "```shell theme={\"system\"} — `OLLAMA_NO_CLOUD=1` …",
+          "source": "https://docs.ollama.com/faq#how-do-i-disable-ollama-s-cloud-features",
+          "note": null
+        },
+        {
+          "text": "```tsx theme={\"system\"} — `import { Ollama } from \"ollama\";` …",
+          "source": "https://docs.ollama.com/capabilities/web-search#javascript-library",
+          "note": null
+        },
+        {
+          "text": "```tsx theme={\"system\"} — `import { Ollama } from \"ollama\";` …",
+          "source": "https://docs.ollama.com/capabilities/web-search#javascript-sdk",
+          "note": null
+        },
+        {
+          "text": "```nginx theme={\"system\"} — `server {` …",
+          "source": "https://docs.ollama.com/faq#how-can-i-use-ollama-with-a-proxy-server",
+          "note": null
+        },
+        {
+          "text": "```shell theme={\"system\"} — `ngrok http 11434 --host-header=\"localhost:11434\"` …",
+          "source": "https://docs.ollama.com/faq#how-can-i-use-ollama-with-ngrok",
+          "note": null
+        },
+        {
+          "text": "```shell theme={\"system\"} — `cloudflared tunnel --url http://localhost:11434 --http-host-header=\"localhost:11434\"` …",
+          "source": "https://docs.ollama.com/faq#how-can-i-use-ollama-with-cloudflare-tunnel",
+          "note": null
+        },
+        {
+          "text": "```json theme={\"system\"} — `\"disable_ollama_cloud\": true` …",
+          "source": "https://docs.ollama.com/faq#how-do-i-disable-ollama-s-cloud-features",
+          "note": null
+        },
+        {
+          "text": "```dockerfile theme={\"system\"} — `FROM ollama/ollama` …",
+          "source": "https://docs.ollama.com/faq#how-do-i-use-ollama-behind-a-proxy-in-docker",
+          "note": null
+        },
+        {
+          "text": "``` — `# Allow all Chrome, Firefox, and Safari extensions` …",
+          "source": "https://docs.ollama.com/faq#how-can-i-allow-additional-web-origins-to-access-ollama",
+          "note": null
+        },
+        {
+          "text": "- name: model-preloader image: ollama/ollama:0.24.0 command: - sh - -c - |",
+          "source": "https://oneuptime.com/blog/post/2026-02-26-argocd-ollama-deployment/view",
+          "note": null
+        },
+        {
+          "text": "echo \"Pulling model: $model\" ollama pull \"$model\" if [ $? -ne 0 ]; then echo \"WARNING: Failed to pull $model\" fi done < /config/models.txt",
+          "source": "https://oneuptime.com/blog/post/2026-02-26-argocd-ollama-deployment/view",
+          "note": null
+        },
+        {
+          "text": "Quick example of running locally: — ````shell` …",
+          "source": "https://github.com/ollama/ollama/issues/914#comments",
+          "note": null
+        },
+        {
+          "text": "You can quickly verify the image using curl: — ````shell` …",
+          "source": "https://github.com/ollama/ollama/issues/914#comments",
+          "note": null
+        },
+        {
+          "text": "`llama3`: — `user@gpunode[~]$ ollama pull registry-ollama-ai.fqdn/llama3` …",
+          "source": "https://github.com/ollama/ollama/issues/914#comments",
+          "note": null
+        },
+        {
+          "text": "```python theme={\"system\"} — `from ollama import web_fetch` …",
+          "source": "https://docs.ollama.com/capabilities/web-search#python-sdk",
+          "note": null
+        },
+        {
+          "text": "```shell theme={\"system\"} — `curl http://localhost:11434/api/generate -d '{` …",
+          "source": "https://docs.ollama.com/api/authentication#signing-in",
+          "note": null
+        },
+        {
+          "text": "```console — `# -- This pulls the latest version of the ollama chart from the repo.` …",
+          "source": "https://raw.githubusercontent.com/otwld/ollama-helm/main/README.md#upgrading-ollama-chart",
+          "note": null
+        },
+        {
+          "text": "``` — `ollama run gpt-oss:120b-cloud` …",
+          "source": "https://docs.ollama.com/api/authentication#signing-in",
+          "note": null
+        },
+        {
+          "text": "- name: OLLAMA_KEEP_ALIVE value: \"24h\"",
+          "source": "https://oneuptime.com/blog/post/2026-02-26-argocd-ollama-deployment/view",
+          "note": null
+        },
+        {
+          "text": "apiVersion: v1 kind: ConfigMap metadata: name: ollama-models labels: app: ollama data: models.txt: | llama3.1:8b mistral:7b codellama:13b nomic-embed-text:latest pull-script.sh: | #!/bin/sh",
+          "source": "https://oneuptime.com/blog/post/2026-02-26-argocd-ollama-deployment/view",
+          "note": null
+        },
+        {
+          "text": "volumes: - name: ollama-data persistentVolumeClaim: claimName: ollama-shared-data --- apiVersion: v1 kind: PersistentVolumeClaim metadata: name: ollama-shared-data spec: accessModes: - ReadWriteMany resources: requests: storage: 200Gi storageClassName: efs # EFS, NFS, or similar RWX storage",
+          "source": "https://oneuptime.com/blog/post/2026-02-26-argocd-ollama-deployment/view",
+          "note": null
+        },
+        {
+          "text": "```shell theme={\"system\"} — `sudo nvidia-ctk runtime configure --runtime=docker` …",
+          "source": "https://docs.ollama.com/docker.md#configure-docker-to-use-nvidia-driver",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Measurements and reference values",
+      "facts": [
+        {
+          "text": "Concurrency inside one container is governed by env vars: OLLAMA_NUM_PARALLEL (default 1; RAM scales with NUM_PARALLEL x context length), OLLAMA_MAX_LOADED_MODELS (default 3 x GPUs, or 3 on CPU), OLLAMA_MAX_QUEUE (default 512; overflow returns 503), OLLAMA_KEEP_ALIVE (default 5 minutes), and OLLAMA_CONTEXT_LENGTH (default 4096). With GPU inference a new model must fit completely in VRAM to load concurrently.",
+          "source": "https://docs.ollama.com/faq",
+          "note": null
+        },
+        {
+          "text": "In containers the server must listen beyond loopback: Ollama binds 127.0.0.1:11434 by default and OLLAMA_HOST changes it. Kubernetes examples set OLLAMA_HOST=0.0.0.0:11434 and probe HTTP GET / on 11434 (readiness 10s delay, liveness 30s). Exposing the port exposes an unauthenticated API (security is a sibling concept).",
+          "source": "https://docs.ollama.com/faq",
+          "note": null
+        },
+        {
+          "text": "Index quantization: scalar cuts vector size 4x and mongot RAM about 3.75x; binary cuts vector size 32x and RAM about 24x (HNSW graph not compressed). MongoDB recommends it for collections over ~100,000 vectors, binary with rescoring for most models, scalar for low-dimension non-QAT models. Query vectors are quantized automatically.",
+          "source": "https://www.mongodb.com/docs/vector-search/about/vector-quantization.md",
+          "note": null
+        },
+        {
+          "text": "It is not cross-architecture magic for the runtime. The blobs are portable; the Ollama build and GPU drivers on the target must match that machine's hardware. A model that ran on a 24GB card will still not fit an 8GB one — check the requirement first with our 8GB VRAM model picks or the RAM and VRAM table.",
+          "source": "https://localaimaster.com/blog/transfer-ollama-models-offline",
+          "note": null
+        },
+        {
+          "text": "Among the exposed instances, we find everything from llama3.3:latest running on 42 GB of VRAM to proprietary fine-tuned models that represent months of training work. Some instances have 30+ models loaded, representing hundreds of gigabytes of weights sitting on the open internet.",
+          "source": "https://blog.leakix.net/2026/02/ollama-exposed/",
+          "note": null
+        },
+        {
+          "text": "4. Disk fills up mid-copy. Usually -partial files that you meant to exclude — a pull interrupted at 80% of a 40GB model leaves 30GB behind. Check the source before packaging: ls -la models/blobs | grep partial.",
+          "source": "https://localaimaster.com/blog/transfer-ollama-models-offline",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Problems, failure modes and limitations",
+      "facts": [
+        {
+          "text": "The official docs list no numeric rate limits, quotas, HTTP error codes or content size limits for web_search/web_fetch. Third-party aggregator pages claim cloud limits are tier-based concurrency (Free 1, Pro 3, Max 10 cloud models) and 5-hour/7-day usage windows, but these concern cloud model inference, not necessarily the search endpoints.",
+          "source": "https://apis.io/rate-limits/ollama/ollama-rate-limits/",
+          "note": null
+        },
+        {
+          "text": "Silent truncation hazard: with truncate defaulting to true, chunks longer than the effective context are cut without error. A downstream project reports nomic-embed-text effectively at about 2048 tokens by default and fixed it by sending options.num_ctx and capping batch/input size.",
+          "source": "https://git.johnwilger.com/jwilger/auto_review/pulls/21",
+          "note": null
+        },
+        {
+          "text": "nomic-embed-text is asymmetric: Percona's config sets documentPrefix 'search_document: ' and queryPrefix 'search_query: '. Ollama passes input through unchanged, so omitting prefixes gives no error but degraded retrieval.",
+          "source": "https://docs.percona.com/percona-search-for-mongodb/configure-automatic-embedding-ollama.html",
+          "note": null
+        },
+        {
+          "text": "Because the endpoints are hosted on ollama.com, any host calling them needs outbound internet access and an account key. Search query text and fetched URLs leave the local network, so air-gapped or egress-restricted deployments cannot use them.",
+          "source": "https://docs.ollama.com/capabilities/web-search",
+          "note": null
+        },
+        {
+          "text": "Ollama parses a model name as [host/][namespace/]model[:tag] and fills missing parts with registry.ollama.ai, library and latest (types/model/name.go at commit 957c8cd). So `registry.example.com/team/model:tag` addresses a private registry, but a four-part name such as `artifactory.example/remote-repo/library/model` is not a pass-through form. Issue #914 (2024 to March 2026) reports the failure for JFrog Artifactory and Nexus remote proxy repositories, and users there still ask for a redirect setting. No environment variable that redirects pulls to a mirror is documented.",
+          "source": "https://github.com/ollama/ollama/blob/957c8cd5ce852d1fd0886baa77987d8cc40eeb69/types/model/name.go",
+          "note": null
+        },
+        {
+          "text": "Ollama stores models on its own local disk, so replicas do not share pulled models. A ReadWriteOnce PVC cannot generally be mounted by pods on different nodes. Scaling beyond one replica needs a per-pod volume (StatefulSet volumeClaimTemplates) or a ReadWriteMany class such as EFS. The ArgoCD guide's own diagram (per-pod PVC) and scaling example (shared RWX) are not reconciled.",
+          "source": "https://oneuptime.com/blog/post/2026-02-26-argocd-ollama-deployment/view",
+          "note": null
+        },
+        {
+          "text": "Included credit resets monthly on the subscription start day (Free: sign-up date) and does not roll over. Included credit is spent first, then purchased credit balance; buying credits unlocks all models on any plan. Paid plans get an email at 90% of included usage (can be disabled). Requests above the concurrency limit queue, then are rejected when the queue is full.",
+          "source": "https://ollama.com/pricing",
+          "note": null
+        },
+        {
+          "text": "Optional /api/embed parameters are truncate (default true; if false, over-length input returns an error instead), dimensions, keep_alive and options (e.g. num_ctx).",
+          "source": "https://docs.ollama.com/api/embed",
+          "note": null
+        },
+        {
+          "text": "Two constraints are worth noting up front. First, ollama-metrics is proxy-only: there is no standalone polling mode. The process must sit between your applications and Ollama to capture per-request metrics. If you run it without routing traffic through it, you’ll still get model state and RAM from /api/ps, but you’ll lose token counts and latency histograms entirely. Second, routing through an extra hop adds a small amount of latency and a single point of failure. You should assess whether this is acceptable for your deployment before putting it on a critical inference path.",
+          "source": "https://www.neteye-blog.com/blog/2026/04/02/monitoring-ollama-in-neteye-with-ollama-metrics-and-check_prometheus/",
+          "note": null
+        },
+        {
+          "text": "To check whether a containerised model is on the GPU, run `docker exec <ctr> ollama ps` and read the Processor column (100% GPU, 100% CPU, or a split such as 48%/52% CPU/GPU). A split means VRAM spillover, not a detection failure.",
+          "source": "https://docs.ollama.com/faq",
+          "note": null
+        },
+        {
+          "text": "The search endpoint runs at https://ollama.com/api/web_search and accepts a query plus an optional result limit. Treat returned snippets as retrieval context that still needs citation, filtering, or summarization in the application layer.",
+          "source": "https://www.simplified.guide/_export/xhtml/ollama/api-use-web-search",
+          "note": null
+        },
+        {
+          "text": "* `AMD_LOG_LEVEL=3` Enable info log levels in the AMD HIP/ROCm libraries. This can help show more detailed error codes that can help troubleshoot problems * `OLLAMA_DEBUG=1` During GPU discovery additional information will be reported * Check dmesg for any errors from amdgpu or kfd drivers `sudo dmesg | grep -i amdgpu` and `sudo dmesg | grep -i kfd`",
+          "source": "https://docs.ollama.com/troubleshooting#amd-gpu-discovery",
+          "note": null
+        },
+        {
+          "text": "LeakIX (2026-02-23) counted 12,269 Ollama instances reachable on the public internet without authentication; about 1,000 ran versions vulnerable to CVE-2024-37032. Top countries were US, China, France, Germany; top hosts were AWS, Hetzner, OVH, Contabo. Exposed endpoints allow model listing (/api/tags), free inference (/api/generate, /api/chat) and model pull/push.",
+          "source": "https://blog.leakix.net/2026/02/ollama-exposed/",
+          "note": null
+        },
+        {
+          "text": "And here’s the part that should worry everyone: the absence of authentication makes every future Ollama CVE automatically unauthenticated. Every single vulnerability that will be found in Ollama, whether it’s a path traversal, a buffer overflow, or any memory corruption bug in the C++ llama.cpp engine, will be exploitable by anyone on the internet with zero credentials. No auth means no barrier between a remote attacker and whatever bug comes next. And bugs will come. Ollama is a large C++ project that parses complex binary formats (GGUF models, OCI manifests, safetensors). The attack surface",
+          "source": "https://blog.leakix.net/2026/02/ollama-exposed/",
+          "note": null
+        },
+        {
+          "text": "Wiz Research discovered an easy-to-exploit Remote Code Execution vulnerability in Ollama: CVE-2024-37032, dubbed “Probllama.” This security issue was responsibly disclosed to Ollama’s maintainers and has since been mitigated. Ollama users are encouraged to upgrade their Ollama installation to version 0.1.34 or newer.",
+          "source": "https://wiz.io/blog/probllama-ollama-vulnerability-cve-2024-37032",
+          "note": null
+        },
+        {
+          "text": "The critical issue is not just the vulnerabilities themselves but the inherent lack of authentication support in these new tools. If exposed to the internet, any attacker can connect to them, steal or modify the AI models, or even execute remote code as a built-in feature (as seen with TorchServe and Ray Anyscale). The lack of authentication support means these tools should never be exposed externally without protective middleware, such as a reverse proxy with authentication. Despite this, when scanning the internet for exposed Ollama servers, our scan revealed over 1,000 exposed instances hos",
+          "source": "https://wiz.io/blog/probllama-ollama-vulnerability-cve-2024-37032",
+          "note": null
+        },
+        {
+          "text": "After updating OpenClaw from version 2026.3.24 to 2026.3.31, all requests to Ollama Cloud models fail with HTTP 401 \"unauthorized\". The same API key works perfectly when tested directly via curl against the Ollama API.",
+          "source": "https://github.com/openclaw/openclaw/issues/59205",
+          "note": null
+        },
+        {
+          "text": "Registry as a pull through cache | CNCF Distribution Distribution Registry / Recipes overview / Registry as a pull through cache Edit page Registry as a pull through cache Use-case If you have multiple consumers of containers running in your environment, such as multiple physical or virtual machines using containers, or a Kubernetes cluster, each consumer fetches an images it doesn’t have locally, from the external registry. You can run a local registry mirror and point all your consumers there, to avoid this extra internet traffic. Alternatives Alternatively, if the set of images you are usin",
+          "source": "https://distribution.github.io/distribution/recipes/mirror/",
+          "note": null
+        },
+        {
+          "text": "Cyera estimates about 300,000 internet-facing Ollama instances were exposed to CVE-2026-7482 at disclosure. This is a vendor estimate that other outlets repeat; no independent scan was found.",
+          "source": "https://www.cyera.com/blog/bleeding-llama-a-critical-memory-leak-in-the-worlds-most-popular-local-ai-platform",
+          "note": null
+        },
+        {
+          "text": "If too many requests are sent to the server, it will respond with a 503 error indicating the server is overloaded. You can adjust how many requests may be queued by setting `OLLAMA_MAX_QUEUE`.",
+          "source": "https://docs.ollama.com/faq#how-do-i-manage-the-maximum-number-of-requests-the-ollama-server-can-queue",
+          "note": null
+        },
+        {
+          "text": "Copying blobs without manifests gives you orphaned data Ollama can't see; manifests without blobs gives you a model list that fails on load. Always move the whole models directory.",
+          "source": "https://llmconfigurator.com/guides/move-ollama-new-computer",
+          "note": null
+        },
+        {
+          "text": "Pulling a model from a private registry While Ollama's official registry can be considered \"trusted,\" anyone can set up their own registry and host models on it. As researchers, we were interested in this attack surface – are private registries being blindly trusted? What damage could a malicious private registry cause?",
+          "source": "https://wiz.io/blog/probllama-ollama-vulnerability-cve-2024-37032",
+          "note": null
+        },
+        {
+          "text": "@Felox63 , I took a leap of faith to upgrade from v2026.3.24 (last version before Ollama Cloud auth starts to fail) to v2026.4.15. Looks like the issue is fixed \"somehow\" between 4.2 and 4.15 although this ticket is still open. I think we should close this bug.",
+          "source": "https://github.com/openclaw/openclaw/issues/59205",
+          "note": null
+        },
+        {
+          "text": "<Note> If you're running on an NVIDIA JetPack system, Ollama can't automatically discover the correct JetPack version. Pass the environment variable `JETSON_JETPACK=5` or `JETSON_JETPACK=6` to the container to select version 5 or 6. </Note>",
+          "source": "https://docs.ollama.com/docker.md#start-the-container",
+          "note": null
+        },
+        {
+          "text": "On linux, AMD GPU access typically requires `video` and/or `render` group membership to access the `/dev/kfd` device. If permissions are not set up correctly, Ollama will detect this and report an error in the server log.",
+          "source": "https://docs.ollama.com/troubleshooting#amd-gpu-discovery",
+          "note": null
+        },
+        {
+          "text": "Critical Unauthenticated Memory Leak in Ollama",
+          "source": "https://www.cyera.com/blog/bleeding-llama-a-critical-memory-leak-in-the-worlds-most-popular-local-ai-platform",
+          "note": null
+        },
+        {
+          "text": "Cyera's research team discovered a critical memory-leak vulnerability in Ollama, the world's most popular platform for running large language models (LLMs) locally.",
+          "source": "https://www.cyera.com/blog/bleeding-llama-a-critical-memory-leak-in-the-worlds-most-popular-local-ai-platform",
+          "note": null
+        },
+        {
+          "text": "Assess your organization's exposure to AI infrastructure vulnerabilities. Cyera can identify unauthenticated or misconfigured AI inference endpoints, flag internet-facing Ollama instances, and provide a risk-prioritized remediation roadmap.",
+          "source": "https://www.cyera.com/blog/bleeding-llama-a-critical-memory-leak-in-the-worlds-most-popular-local-ai-platform",
+          "note": null
+        },
+        {
+          "text": "Inside the models directory there are exactly two subdirectories: blobs/ and manifests/. You need both. Copying one without the other is the classic failure.",
+          "source": "https://localaimaster.com/blog/transfer-ollama-models-offline",
+          "note": null
+        },
+        {
+          "text": "Run this. Sneakernet media is the threat model in an air-gapped environment, and a silently truncated 20GB blob produces a model that loads and then generates garbage — which is a far worse outcome than a clean failure. For the wider control set around this (mirrors, signing, audit trail), our air-gapped AI deployment guide is the policy-layer companion to this file-level procedure.",
+          "source": "https://localaimaster.com/blog/transfer-ollama-models-offline",
+          "note": null
+        },
+        {
+          "text": "* The blob filenames are hashes and do not indicate which model they belong to. * A single model may reference multiple blobs. * Users cannot easily determine which files are required for a particular model. * The common workaround is to copy the entire models directory to another machine and then delete unwanted models afterward, which wastes time and storage.",
+          "source": "https://github.com/ollama/ollama/issues/17115",
+          "note": null
+        },
+        {
+          "text": "Vulnerability Unauthenticated Heap Memory Leak (Out-of-Bounds Read)",
+          "source": "https://www.cyera.com/blog/bleeding-llama-a-critical-memory-leak-in-the-worlds-most-popular-local-ai-platform",
+          "note": null
+        },
+        {
+          "text": "If true, truncate inputs that exceed the context window. If false, returns an error.",
+          "source": "https://docs.ollama.com/api/embed",
+          "note": null
+        },
+        {
+          "text": "The Vulnerability: Arbitrary File Write via Path Traversal",
+          "source": "https://wiz.io/blog/probllama-ollama-vulnerability-cve-2024-37032",
+          "note": null
+        },
+        {
+          "text": "However, we found that the digest field was used without proper validation, resulting in path traversal when attempting to store it on the filesystem. This issue can be exploited to corrupt arbitrary files on the system.",
+          "source": "https://wiz.io/blog/probllama-ollama-vulnerability-cve-2024-37032",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Comparisons and alternatives",
+      "facts": [
+        {
+          "text": "Client bug example: OpenClaw 2026.3.31 sent a synthetic `ollama-local` key instead of the real cloud key, causing HTTP 401 on Ollama Cloud while the same key worked with curl. Setting baseUrl to https://ollama.com/api doubled the path to /api/api/chat (404). Fixed by 2026.4.15.",
+          "source": "https://github.com/openclaw/openclaw/issues/59205",
+          "note": null
+        },
+        {
+          "text": "Before 2026-08-31, Pro/Max/Team cloud usage was limited by 5-hour session and weekly limits tied mainly to GPU time rather than a dollar pool; one source reports a switch to per-token pricing on that date.",
+          "source": "https://www.ssdnodes.com/learn/is-ollama-free-local-vs-cloud",
+          "note": null
+        },
+        {
+          "text": "Local Ollama (http://localhost:11434) has no rate limits or authentication. Ollama Cloud enforces tier-based concurrency (Free, Pro=3, Max=10 concurrent cloud models) and weekly GPU-time quotas rather than per-second request ceilings. Cloud quotas reset on 5-hour session and 7-day weekly cycles. Specific TPS / RPM ceilings are not publicly documented.",
+          "source": "https://apis.io/rate-limits/ollama/ollama-rate-limits/",
+          "note": null
+        },
+        {
+          "text": "Short answer: copy two folders — blobs/ and manifests/ — out of the Ollama models directory, put them in the same place on the offline machine, fix ownership, restart the service. No re-download, no internet, no registry. Ollama's manifests reference weights by content hash rather than by URL or absolute path, so a straight file copy is a complete transfer.",
+          "source": "https://localaimaster.com/blog/transfer-ollama-models-offline",
+          "note": null
+        },
+        {
+          "text": "1. ollama list is empty or missing the model you copied. Almost always the client/server confusion: OLLAMA_MODELS set in your shell instead of for the daemon. Check what the server is actually using — on Linux, sudo systemctl show ollama -p Environment; on Windows, the service environment, not your terminal. Second most likely: you copied blobs/ but not manifests/, so there is no name to list. Third: you never restarted the service after copying.",
+          "source": "https://localaimaster.com/blog/transfer-ollama-models-offline",
+          "note": null
+        },
+        {
+          "text": "Three usual causes, in order. First, OLLAMA_MODELS was set in the shell you typed ollama list into rather than for the server process — the CLI is a thin client that asks the running daemon over HTTP, so the daemon is the process that needs the variable, and setting it client-side changes nothing at all. Second, you copied blobs/ but not manifests/ — with no manifest there is no name to list. Third, on Linux the files are owned by your user and the ollama service account cannot read them; fix with sudo chown -R ollama:ollama on the models directory, as the official FAQ instructs.",
+          "source": "https://localaimaster.com/blog/transfer-ollama-models-offline",
+          "note": null
+        },
+        {
+          "text": "A blog init-container example waits a fixed 5 seconds after starting ollama serve rather than polling readiness, and the inline version has no pull-error handling. A fixed sleep can race with slow server start.",
+          "source": "https://oneuptime.com/blog/post/2026-02-26-argocd-ollama-deployment/view",
+          "note": null
+        },
+        {
+          "text": "You can move Ollama to a new computer by copying one folder — ~/.ollama/models — instead of re-downloading 50 GB+ of models over your internet connection. The same trick works for LM Studio, and this guide covers the exact folder locations on Mac, Windows, and Linux, plus how to carry over your custom Modelfiles and chat history.",
+          "source": "https://llmconfigurator.com/guides/move-ollama-new-computer",
+          "note": null
+        },
+        {
+          "text": "Scoping: Red Hat benchmarks describe Ollama as suited to local dev and prototyping and vLLM as built for production, reporting a vLLM peak of 793 TPS vs 41 TPS for Ollama and lower P99 latency across 1-256 users. Figures come from a search snippet of a vendor-run benchmark, so only the direction is usable.",
+          "source": "https://developers.redhat.com/articles/2025/08/08/ollama-vs-vllm-deep-dive-performance-benchmarking",
+          "note": null
+        },
+        {
+          "text": "As of October 2026, OLLAMA_NUM_PARALLEL defaults to 1 in the documentation. Each loaded model answers one request at a time, and other requests wait in a queue of up to 512. Past that, the server answers with HTTP 503, which means it is overloaded. Raising OLLAMA_NUM_PARALLEL lets a model serve several requests at once, but the context memory is multiplied by the number of parallel slots, so four slots at 16k tokens need the memory of a 64k context. That is fine for one person and a coding agent. For many users at once, a serving engine built for batching fits better, and Ollama versus vLLM co",
+          "source": "https://www.ssdnodes.com/learn/is-ollama-free-local-vs-cloud",
+          "note": null
+        },
+        {
+          "text": "Cloud models can be invoked transparently from a local Ollama instance via signed-in cloud access; routing to localhost vs ollama.com is selected per-request by model name.",
+          "source": "https://apis.io/rate-limits/ollama/ollama-rate-limits/",
+          "note": null
+        },
+        {
+          "text": "That is the whole trick, and it is why ollama pull hanging on a disconnected workstation is an annoyance rather than a wall. The rest of this page is the exact procedure, the three ways people get it wrong, how to prove a 40GB blob survived the USB stick, and what to do on a machine where you cannot even run the installer.",
+          "source": "https://localaimaster.com/blog/transfer-ollama-models-offline",
+          "note": null
+        },
+        {
+          "text": "Everything on this page is either documented by Ollama — the storage paths, the OLLAMA_MODELS variable, the chown requirement on Linux, the import syntax — or falls straight out of how the blob store is built, which is content-addressed in the same way an OCI registry is. Sources are listed at the bottom and attributed inline. Where a claim would need a benchmark or a packet capture to stand up, this page says so rather than asserting it.",
+          "source": "https://localaimaster.com/blog/transfer-ollama-models-offline",
+          "note": null
+        },
+        {
+          "text": "6. ollama pull hangs forever instead of failing. That is the symptom that brought you here, and it is expected on a box with no route out — the client waits on a connection that will never be refused because nothing is there to refuse it. It is not a bug and there is no timeout worth tuning. Use the file transfer.",
+          "source": "https://localaimaster.com/blog/transfer-ollama-models-offline",
+          "note": null
+        },
+        {
+          "text": "The Ollama FAQ states that Ollama on macOS and Windows will automatically download updates, and that you click the taskbar or menubar item and then \"Restart to update\" to apply one. That is an outbound connection an air-gapped audit will flag even though it will simply fail on a disconnected box. The clean answer on a locked-down host is to run the CLI-only build rather than the desktop app — the standalone zip has no updater UI — and to let the site firewall deny the egress rather than trusting a client-side setting. Verify with your own network monitoring; do not take a blog post's word for",
+          "source": "https://localaimaster.com/blog/transfer-ollama-models-offline",
+          "note": null
+        },
+        {
+          "text": "To change where Ollama stores the downloaded models instead of using your home directory, set the environment variable `OLLAMA_MODELS` in your user account.",
+          "source": "https://docs.ollama.com/windows#changing-model-location",
+          "note": null
+        },
+        {
+          "text": "The credit model is new. Ollama moved Pro, Max and Team to per-token pricing on 2026-08-31. Before that date, cloud usage was limited by time windows (a 5-hour session limit and a weekly limit) rather than by a dollar pool. Now each plan's included usage resets monthly on the day your subscription started. Unused credit does not roll over. When the pool runs out, you keep going at the published per-token rate for each model, so a heavy month costs more than the sticker price.",
+          "source": "https://www.ssdnodes.com/learn/is-ollama-free-local-vs-cloud",
+          "note": null
+        },
+        {
+          "text": "Two notes straight from the docs. If you are upgrading from a prior version, remove the old directories first. And the stated requirements are Windows 10 22H2 or newer, with NVIDIA driver 551.61 or newer for NVIDIA cards, or an AMD ROCm v7 / HIP7-capable driver stack (or a Vulkan-capable Radeon driver) on AMD. Driver installation may itself need admin rights on a locked-down box — that is the part this approach does not solve, and you should check it before promising anyone a delivery date. If no-admin is your actual constraint rather than no-network, that is a different problem with different",
+          "source": "https://localaimaster.com/blog/transfer-ollama-models-offline",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Facts and statements",
+      "facts": [
+        {
+          "text": "mongot autoEmbed can be pointed at Ollama via embeddingProvider OPENAI_COMPATIBLE, providerEndpoint http://localhost:11434/v1/embeddings, modelName nomic-embed-text, outputDimensions 768, empty credentials; catalog file embedding-service-configs.yml (custom via embedding.modelConfigFile, restart mongot). This is Percona's documentation.",
+          "source": "https://docs.percona.com/percona-search-for-mongodb/configure-automatic-embedding-ollama.html",
+          "note": null
+        },
+        {
+          "text": "Cloud models need an ollama.com account. After `ollama signin`, Ollama authenticates cloud requests automatically, including requests sent to the local API at localhost:11434.",
+          "source": "https://docs.ollama.com/cloud",
+          "note": null
+        },
+        {
+          "text": "CVE-2026-7482 (Bleeding Llama), disclosed by Cyera Research on 2026-05-05: Ollama before 0.17.1 reads past a heap buffer in the GGUF loader. A crafted GGUF declares a tensor offset and size larger than the file; quantization (fs/ggml/gguf.go, server/quantization.go) then leaks memory. The attack is three unauthenticated calls: POST /api/blobs/sha256:..., POST /api/create, then POST /api/push to an attacker server. Leaked data can include system prompts, conversations and environment variables such as API keys. Fixed version: 0.17.1 (NVD and GitHub advisory GHSA-x8qc-fggm-mpqg both give affecte",
+          "source": "https://nvd.nist.gov/vuln/detail/CVE-2026-7482",
+          "note": null
+        },
+        {
+          "text": "Vector length depends on the model (typically 384-1024). The dimensions parameter truncates output for models that support configurable sizes, e.g. qwen3-embedding:8b with dimensions=1024 in LangChain.",
+          "source": "https://docs.langchain.com/oss/python/integrations/text_embedding/ollama",
+          "note": null
+        },
+        {
+          "text": "CNCF Distribution's pull-through cache mode (proxy.remoteurl) mirrors only one upstream registry, and the Docker daemon accepts such mirrors only for Docker Hub. It therefore does not act as a pull-through cache for registry.ollama.ai. The same page applies to the ollama/ollama container image: carry it across with docker save and docker load (docs.docker.com).",
+          "source": "https://distribution.github.io/distribution/recipes/mirror/",
+          "note": null
+        },
+        {
+          "text": "Verify hosted web search returns results with a bearer token. $ curl https://ollama.com/api/web_search \\ -H \"Authorization: Bearer $OLLAMA_API_KEY\" \\ -d '{\"query\":\"what is ollama?\",\"max_results\":3}' {\"results\":[{\"title\":\"Ollama\",\"url\":\"https://ollama.com/\",\"content\":\"Cloud models are now available...\"}]}",
+          "source": "https://www.simplified.guide/_export/xhtml/ollama/api-use-web-search",
+          "note": null
+        },
+        {
+          "text": "Keep result count small for prompt injection review. $ curl https://ollama.com/api/web_search -H \"Authorization: Bearer $OLLAMA_API_KEY\" -d '{\"query\":\"site:docs.ollama.com embeddings\",\"max_results\":2}' {\"results\":[##### snipped #####]}",
+          "source": "https://www.simplified.guide/_export/xhtml/ollama/api-use-web-search",
+          "note": null
+        },
+        {
+          "text": "Search and fetch results can be thousands of tokens. Ollama recommends raising the model context length to at least ~32000 tokens, and says its cloud models run at full context length. The official example agent uses qwen3:4b with think=True and truncates each tool output to 2000*4 characters.",
+          "source": "https://docs.ollama.com/capabilities/web-search",
+          "note": null
+        },
+        {
+          "text": "docker run -d \\ --name ollama-metrics \\ --restart unless-stopped \\ -e OLLAMA_HOST=http://localhost:11434 \\ -e PORT=8080 \\ --network host \\ ghcr.io/norskhelsenett/ollama-metrics:latest",
+          "source": "https://www.neteye-blog.com/blog/2026/04/02/monitoring-ollama-in-neteye-with-ollama-metrics-and-check_prometheus/",
+          "note": null
+        },
+        {
+          "text": "The troubleshooting docs show OLLAMA_DEBUG=1 only for Windows (quit the tray app, set it in PowerShell, launch `ollama app.exe`). The AMD section says OLLAMA_DEBUG=1 adds GPU discovery detail. CUDA_ERROR_LEVEL=50 and AMD_LOG_LEVEL=3 add driver-level diagnostics.",
+          "source": "https://docs.ollama.com/troubleshooting",
+          "note": null
+        },
+        {
+          "text": "web_search is POST https://ollama.com/api/web_search with required string `query` and optional integer `max_results` (default 5, max 10). The response is an object whose `results` array holds items with `title`, `url` and `content` (a snippet).",
+          "source": "https://docs.ollama.com/capabilities/web-search",
+          "note": null
+        },
+        {
+          "text": "Both endpoints are hosted on ollama.com, not on a local Ollama server, and need an API key created at ollama.com/settings/keys from a free account. The key goes in the OLLAMA_API_KEY environment variable or an `Authorization: Bearer` header.",
+          "source": "https://docs.ollama.com/capabilities/web-search",
+          "note": null
+        },
+        {
+          "text": "otwld/ollama-helm needs Kubernetes 1.16+ for CPU and 1.26+ for stable NVIDIA/AMD GPU. GPU is off by default (ollama.gpu.enabled=false). Type is nvidia or amd; amd appends a rocm suffix to the image tag. The resource defaults to nvidia.com/gpu, can be set to a MIG slice, and DRA (draEnabled) is an alternative to the device plugin. The README warns not all GPUs are supported, especially AMD.",
+          "source": "https://github.com/otwld/ollama-helm",
+          "note": null
+        },
+        {
+          "text": "curl https://ollama.com/api/web_search \\ --header \"Authorization: Bearer $OLLAMA_API_KEY\" \\ -d '{ \"query\": \"what is ollama?\" }'",
+          "source": "https://ollama.com/blog/web-search",
+          "note": null
+        },
+        {
+          "text": "curl --request POST \\ --url https://ollama.com/api/web_fetch \\ --header \"Authorization: Bearer $OLLAMA_API_KEY\" \\ --header 'Content-Type: application/json' \\ --data '{ \"url\": \"ollama.com\" }'",
+          "source": "https://ollama.com/blog/web-search",
+          "note": null
+        },
+        {
+          "text": "For direct access, create an API key at ollama.com/settings/keys, store it in OLLAMA_API_KEY and send `Authorization: Bearer $OLLAMA_API_KEY` to https://ollama.com/api (e.g. /api/chat, /api/tags) or https://ollama.com/v1. No local Ollama install is needed.",
+          "source": "https://docs.ollama.com/cloud",
+          "note": null
+        },
+        {
+          "text": "API keys do not expire and can be revoked in the API keys settings. Docs say to keep them out of browser code and source control.",
+          "source": "https://docs.ollama.com/api/authentication",
+          "note": null
+        },
+        {
+          "text": "The hosted Anthropic-compatible /v1/messages endpoint requires the Authorization: Bearer header; an x-api-key header alone is not supported.",
+          "source": "https://docs.ollama.com/api/authentication",
+          "note": null
+        },
+        {
+          "text": "The local API at http://localhost:11434 requires no authentication. A 401 on a self-hosted server therefore comes from a proxy or wrapper, not Ollama; OLLAMA_API_KEY and signin apply only to ollama.com.",
+          "source": "https://docs.ollama.com/api/authentication",
+          "note": null
+        },
+        {
+          "text": "NVIDIA GPU in Docker needs the NVIDIA Container Toolkit on the host, then `sudo nvidia-ctk runtime configure --runtime=docker`, a Docker restart, and `--gpus=all` on docker run. Docker Desktop on macOS has no GPU passthrough, so GPU acceleration is unavailable there; Linux and Windows with WSL2 are supported.",
+          "source": "https://docs.ollama.com/docker.md",
+          "note": null
+        },
+        {
+          "text": "The ollama-metrics sidecar runs as a transparent proxy (example PORT=8080 in front of Ollama on 11434). It counts tokens and request duration from proxied responses and polls /api/ps on each /metrics scrape. Metrics shown: ollama_generated_tokens_total, ollama_prompt_tokens_total, ollama_loaded_models, ollama_model_loaded, ollama_model_ram_mb, ollama_request_duration_seconds.",
+          "source": "https://www.neteye-blog.com/blog/2026/04/02/monitoring-ollama-in-neteye-with-ollama-metrics-and-check_prometheus/",
+          "note": null
+        },
+        {
+          "text": "Ollama's FAQ lists default model storage as ~/.ollama/models (macOS), /usr/share/ollama/.ollama/models (Linux) and C:\\Users\\%username%\\.ollama\\models (Windows); the OLLAMA_MODELS environment variable relocates it.",
+          "source": "https://docs.ollama.com/faq",
+          "note": null
+        },
+        {
+          "text": "web_fetch is POST https://ollama.com/api/web_fetch with required string `url`. The response has `title`, `content` (main page content) and `links` (links found on the page).",
+          "source": "https://docs.ollama.com/capabilities/web-search",
+          "note": null
+        },
+        {
+          "text": "Ollama ships a Python MCP server (web-search-mcp.py in the ollama-python repo) that exposes web search to any MCP client. Docs show config for Cline and Codex (command uv, with OLLAMA_API_KEY in env). Goose is shown only in screenshots.",
+          "source": "https://docs.ollama.com/capabilities/web-search",
+          "note": null
+        },
+        {
+          "text": "Choose a [cloud model](https://ollama.com/search?c=cloud). The cloud API does not support stateful Responses, built-in web search through `/v1/responses`, or custom/freeform tool-call replay.",
+          "source": "https://docs.ollama.com/api/openai-compatibility#direct-cloud-access",
+          "note": null
+        },
+        {
+          "text": "Ollama binds 127.0.0.1:11434 by default per the official FAQ; the bind address is changed with the OLLAMA_HOST environment variable, and exposing it to a network is an explicit operator choice.",
+          "source": "https://docs.ollama.com/faq",
+          "note": null
+        },
+        {
+          "text": "No official Ollama Kubernetes chart appears in the sources. The community chart otwld/ollama-helm is the common route: install with `helm repo add otwld https://helm.otwld.com/` then `helm install ollama otwld/ollama --namespace ollama --create-namespace`. The registry moved from the old GitHub Pages URL to helm.otwld.com, so old repo references need updating.",
+          "source": "https://github.com/otwld/ollama-helm",
+          "note": null
+        },
+        {
+          "text": "Codex web-search requests sent through the Ollama profile are executed by Ollama for both local and cloud models. Sign in with `ollama signin` to use the web-search service.",
+          "source": "https://docs.ollama.com/integrations/codex#web-search-through-local-ollama",
+          "note": null
+        },
+        {
+          "text": "Web search is enabled automatically. It requires access to Ollama's cloud and a model that supports tools. Run `ollama signin` if needed.",
+          "source": "https://docs.ollama.com/integrations/deepseek-harness#web-search",
+          "note": null
+        },
+        {
+          "text": "<Note>Ollama web search for local models requires `ollama signin`.</Note>",
+          "source": "https://docs.ollama.com/integrations/openclaw#web-search-and-fetch",
+          "note": null
+        },
+        {
+          "text": "MongoDB's official local-RAG tutorial uses Ollama: it pulls nomic-embed-text for embeddings and Mistral 7B as the generator, with the Atlas CLI (v1.14.3+) and a local Atlas deployment. This applies to the .NET, Go and Java variants of the tutorial; the Node.js variant uses mxbai-embed-large-v1 and GPT4All, and the Python variant uses atlas-local-lib-py without the CLI.",
+          "source": "https://www.mongodb.com/docs/vector-search/tutorials/local-rag/",
+          "note": null
+        },
+        {
+          "text": "Ollama's /api/embed returns L2-normalized (unit-length) vectors and accepts a list in input for batching, so dotProduct (which requires unit-length vectors) is valid with Ollama output; cosine also works.",
+          "source": "https://docs.ollama.com/capabilities/embeddings",
+          "note": null
+        },
+        {
+          "text": "Model naming differs by surface: the API uses list names such as `gemma4:31b`, while the app/CLI uses `gemma4:cloud`. Cloud models are not downloaded. Usage settings list upcoming model retirements; downloaded local models are unaffected.",
+          "source": "https://docs.ollama.com/cloud",
+          "note": null
+        },
+        {
+          "text": "Plans as of Oct 2026: Free $0; Pro $20/mo ($200/yr) with $60 monthly usage credit and 3 concurrent requests; Max $100/mo with $300 credit and 10 concurrent; Team $500/mo (early access) with $1,000 shared credit; Enterprise custom. Usage is metered per token at each model's rates.",
+          "source": "https://ollama.com/pricing",
+          "note": null
+        },
+        {
+          "text": "Usage is checked at ollama.com/settings/usage (docs) and billing at /settings/billing (pricing page).",
+          "source": "https://docs.ollama.com/cloud",
+          "note": null
+        },
+        {
+          "text": "Vectors from /api/embed are L2-normalized, so cosine similarity (equivalently dot product) is the recommended metric; use the same embedding model for indexing and querying.",
+          "source": "https://docs.ollama.com/capabilities/embeddings",
+          "note": null
+        },
+        {
+          "text": "The official docs fetched (troubleshooting, FAQ, API ps) describe no native Prometheus /metrics endpoint. Third-party exporters exist to fill the gap, which supports the view that Ollama does not ship one.",
+          "source": "https://www.neteye-blog.com/blog/2026/04/02/monitoring-ollama-in-neteye-with-ollama-metrics-and-check_prometheus/",
+          "note": "native Prometheus /metrics: community blog asserts OLLAMA_ENABLE_METRICS, official docs describe none"
+        },
+        {
+          "text": "A blog says OLLAMA_ENABLE_METRICS=true enables a native /metrics endpoint. The post cites no Ollama source or release, and the official docs fetched do not mention the variable.",
+          "source": "https://adhdecode.com/articles/ollama/ollama-prometheus-metrics-monitoring/",
+          "note": "native Prometheus /metrics: community blog asserts OLLAMA_ENABLE_METRICS, official docs describe none"
+        },
+        {
+          "text": "Web search and fetch were announced 2025-09-24. The announcement calls the free tier generous for individuals and says higher rate limits come with Ollama's cloud subscription. It gives no numbers.",
+          "source": "https://ollama.com/blog/web-search",
+          "note": null
+        },
+        {
+          "text": "Ollama silently running on CPU in a container is most often missing GPU passthrough (no NVIDIA Container Toolkit or no --gpus). Logs then show 'inference compute id=cpu library=cpu total_vram=\"0 B\"' or 'no compatible GPUs were discovered' (older builds). Device nodes under /dev/nvidia* existing does not guarantee detection.",
+          "source": "https://community.qnap.com/t/ollama-cannot-use-gpu-in-docker-on-qnap-rtx-3090-cuda-init-fails/5739",
+          "note": null
+        },
+        {
+          "text": "nomic-embed-text produces 768-dimension vectors, so the index needs type vector, numDimensions 768, path to the embedding field, similarity cosine; a wrong index name returns no results silently.",
+          "source": "https://dev.to/franckpachot/vector-search-index-in-mongodb-with-local-atlas-and-ollama-1p8j",
+          "note": null
+        },
+        {
+          "text": "Frameworks wrap the API: LangChain's OllamaEmbeddings exposes embed_query for queries and embed_documents for indexing, usable with vector stores such as InMemoryVectorStore.",
+          "source": "https://docs.langchain.com/oss/python/integrations/text_embedding/ollama",
+          "note": null
+        },
+        {
+          "text": "Ollama server logs live in: macOS ~/.ollama/logs/server.log; Linux systemd via `journalctl -u ollama --no-pager --follow --pager-end`; containers on stdout/stderr (`docker logs <container>`); a manual `ollama serve` on its terminal; Windows %LOCALAPPDATA%\\Ollama\\server.log with older logs in server-#.log.",
+          "source": "https://docs.ollama.com/troubleshooting",
+          "note": null
+        },
+        {
+          "text": "Returned snippets are untrusted retrieval context, so the application must handle citation, filtering and prompt-injection review. One third-party guide advises keeping max_results small to make that review tractable, and a task-scoped key that is rotated after testing and never stored in a repo.",
+          "source": "https://www.simplified.guide/_export/xhtml/ollama/api-use-web-search",
+          "note": null
+        },
+        {
+          "text": "These examples connect to your local Ollama server. Use `ollama` as the placeholder API key. To use cloud models through this server, [sign in to Ollama](/api/authentication#signing-in).",
+          "source": "https://docs.ollama.com/api/anthropic-compatibility#local-server-usage",
+          "note": null
+        },
+        {
+          "text": "ollama-metrics runs as a transparent HTTP proxy in front of Ollama. It forwards every request upstream and instruments the response stream: token counts, request duration, time-per-token. It also polls the Ollama API at /api/ps on every /metrics scrape to collect loaded model state and RAM allocation.",
+          "source": "https://www.neteye-blog.com/blog/2026/04/02/monitoring-ollama-in-neteye-with-ollama-metrics-and-check_prometheus/",
+          "note": null
+        },
+        {
+          "text": "AMD GPUs use the `ollama/ollama:rocm` tag with `--device /dev/kfd --device /dev/dri`. JetPack hosts set JETSON_JETPACK=5 or 6.",
+          "source": "https://docs.ollama.com/docker.md",
+          "note": null
+        },
+        {
+          "text": "Let’s see what Ollama is spitting out. First, make sure you have Ollama running and have enabled Prometheus metrics. This is usually done by setting OLLAMA_HOST=0.0.0.0:11434 (or your desired IP/port) and OLLAMA_ENABLE_METRICS=true in your environment or Ollama’s config file. Then, you can curl the metrics endpoint:",
+          "source": "https://adhdecode.com/articles/ollama/ollama-prometheus-metrics-monitoring/",
+          "note": null
+        },
+        {
+          "text": "numDimensions is required and max 8192; binary quantization needs numDimensions to be a multiple of 8; cosine rejects zero-magnitude vectors. Query vectors must have the same dimension and come from the same model as stored vectors, so a model change means re-embedding and reindexing.",
+          "source": "https://www.mongodb.com/docs/vector-search/indexes/vector-search-type.md",
+          "note": null
+        },
+        {
+          "text": "The Python library (`ollama>=0.6.0`) exposes `ollama.web_search(query)` and `ollama.web_fetch(url)`, the latter returning a WebFetchResponse. The JavaScript library (`ollama@>=0.6.0`) exposes `client.webSearch()` and `client.webFetch()`. Both SDKs can pass the functions as tools to chat().",
+          "source": "https://docs.ollama.com/capabilities/web-search",
+          "note": null
+        },
+        {
+          "text": "curl https://ollama.com/api/chat \\ -H \"Authorization: Bearer $OLLAMA_API_KEY\" \\ -H \"Content-Type: application/json\" \\ -d '{ \"model\": \"gemma4:31b\", \"messages\": [ { \"role\": \"user\", \"content\": \"Say hello in one sentence.\" } ], \"stream\": false }'",
+          "source": "https://docs.ollama.com/cloud",
+          "note": null
+        },
+        {
+          "text": "[wbuntu 2024-09-12T07:49:08Z] The ollama registry seems a little diffrence from docker reigstry，but the pull logic is simple. I just build a pull-only local registry with caddy and ollama：https://github.com/wbuntu/images/tree/master/ollama-registry Also it can be used as an offline model reigstry.",
+          "source": "https://github.com/ollama/ollama/issues/914#comments",
+          "note": null
+        },
+        {
+          "text": "<RequestExample> ```shell Request theme={\"system\"} curl https://ollama.com/api/balance \\ -H \"Authorization: Bearer $OLLAMA_API_KEY\" ``` </RequestExample>",
+          "source": "https://docs.ollama.com/api/balance",
+          "note": null
+        },
+        {
+          "text": "<Tabs> <Tab title=\"Ollama API\"> ```shell theme={\"system\"} curl https://ollama.com/api/chat \\ -H \"Authorization: Bearer $OLLAMA_API_KEY\" \\ -H \"Content-Type: application/json\" \\ -d '{ \"model\": \"gemma4:31b\", \"messages\": [ { \"role\": \"user\", \"content\": \"Say hello in one sentence.\" } ], \"stream\": false }' ```",
+          "source": "https://docs.ollama.com/quickstart#2-send-a-request",
+          "note": null
+        },
+        {
+          "text": "I create a vector search index (Ollama nomic-embed-text, like BERT, has 768 dimensions):",
+          "source": "https://dev.to/franckpachot/vector-search-index-in-mongodb-with-local-atlas-and-ollama-1p8j",
+          "note": null
+        },
+        {
+          "text": "ollama-metrics requires proxy mode to capture token counts and latency: Model state and RAM come from /api/ps polling and are available even without proxied traffic, but routing your applications through port 8080 is the only way to get the full picture",
+          "source": "https://www.neteye-blog.com/blog/2026/04/02/monitoring-ollama-in-neteye-with-ollama-metrics-and-check_prometheus/",
+          "note": null
+        },
+        {
+          "text": "| API | Direct cloud access | Local Ollama server | | - | - | - | | Ollama | `https://ollama.com/api` | `http://localhost:11434/api` | | OpenAI compatibility | `https://ollama.com/v1` | `http://localhost:11434/v1` | | Anthropic client base URL | `https://ollama.com` | `http://localhost:11434` |",
+          "source": "https://docs.ollama.com/api/introduction#base-urls",
+          "note": null
+        },
+        {
+          "text": "The Ollama Docker container can be configured with GPU acceleration in Linux or Windows (with WSL2). This requires the [nvidia-container-toolkit](https://github.com/NVIDIA/nvidia-container-toolkit). See [ollama/ollama](https://hub.docker.com/r/ollama/ollama) for more details.",
+          "source": "https://docs.ollama.com/faq#how-do-i-use-ollama-with-gpu-acceleration-in-docker",
+          "note": null
+        },
+        {
+          "text": "Offline transfer procedure: pull models on a connected machine, stop Ollama on both ends so no blob is mid-write, copy the whole models directory (archive/rsync/robocopy), extract at the same path on the target, then run `ollama list` to confirm. An Ollama maintainer gave the same answer in 2023: download models on a connected machine and move the ~/.ollama directory to the offline machine.",
+          "source": "https://github.com/ollama/ollama/issues/696",
+          "note": null
+        },
+        {
+          "text": "Sharing one models folder between two running Ollama instances (for example over a NAS) is reported as unsupported and able to corrupt manifests.",
+          "source": "https://llmconfigurator.com/guides/move-ollama-new-computer",
+          "note": null
+        },
+        {
+          "text": "Blobs and manifests are reported identical across macOS, Windows and Linux, so a folder copied from one OS works on another with only the path changing. Neither guide says whether models copied between different Ollama versions stay compatible.",
+          "source": "https://llmconfigurator.com/guides/move-ollama-new-computer",
+          "note": null
+        },
+        {
+          "text": "Desktop (tray app) builds on macOS and Windows check for updates; one guide advises enforcing no-update at the firewall. Updates on an air-gapped host are manual: pull or download on a connected machine and carry across.",
+          "source": "https://localaimaster.com/blog/transfer-ollama-models-offline",
+          "note": null
+        },
+        {
+          "text": "Offline installation of the binary: an Ollama maintainer (BruceMacD, issue #696, 2023) says to download the ollama-linux-<ARCH> binary from the GitHub releases page on a connected machine, move it to the offline machine, and install the matching CUDA driver separately for GPU use. The reply is from 2023; check the current release asset names before relying on it.",
+          "source": "https://github.com/ollama/ollama/issues/696",
+          "note": null
+        },
+        {
+          "text": "As of 2026-10-14 Ollama has no first-class model export or import command. Issue #17115 (opened 2026-07-10, still open) asks for one and calls copying the whole models directory the common workaround; a first-pass pull request (#18578, `ollama export` / `ollama import`) is open and unmerged. Community scripts fill the gap: a manifest-driven zip script (issue #15484) and ollama-save-load (issue #696).",
+          "source": "https://github.com/ollama/ollama/issues/17115",
+          "note": null
+        },
+        {
+          "text": "A private mirror can be a CNCF Distribution (`registry:2`) server. A community report in issue #914 pushes with `ollama cp llama2 localhost:5001/jamesbrink/llama2` then `ollama push localhost:5001/jamesbrink/llama2 --insecure`; the stored manifest uses Docker manifest v2 with Ollama media types (application/vnd.ollama.image.model, .license, .template, .params). Ollama's own docs do not describe this, so treat it as community-verified, not supported.",
+          "source": "https://github.com/ollama/ollama/issues/914",
+          "note": null
+        },
+        {
+          "text": "GET /api/ps returns a `models` array of running models. Each entry has name, model, size, digest, details, expires_at (unload time), size_vram and context_length. The CLI equivalent is `ollama ps`.",
+          "source": "https://docs.ollama.com/api/ps",
+          "note": null
+        },
+        {
+          "text": "Token and latency metrics come only from traffic passing through the proxy and only from inference endpoints (/api/generate, /api/chat), not /api/tags. Without proxied traffic a sidecar reports just model state and RAM from /api/ps. Clients must be repointed at the proxy port.",
+          "source": "https://www.neteye-blog.com/blog/2026/04/02/monitoring-ollama-in-neteye-with-ollama-metrics-and-check_prometheus/",
+          "note": null
+        },
+        {
+          "text": "Ollama is traced from the client side. SigNoz's guide uses opentelemetry-instrumentation-ollama (OllamaInstrumentor), plus httpx and system-metrics instrumentation, exporting over OTLP. It does not say Ollama emits OpenTelemetry itself.",
+          "source": "https://signoz.io/docs/ollama-monitoring",
+          "note": null
+        },
+        {
+          "text": "The official example agent loop is `while True` with no iteration cap and no exception handling, and it passes model-supplied arguments straight to the tool. A production agent needs a loop cap, argument validation and try/except around tool calls.",
+          "source": "https://github.com/ollama/ollama-python/blob/main/examples/web-search.py",
+          "note": null
+        },
+        {
+          "text": "4. Edit or create a new variable for your user account for `OLLAMA_HOST`, `OLLAMA_MODELS`, etc.",
+          "source": "https://docs.ollama.com/faq#setting-environment-variables-on-windows",
+          "note": null
+        },
+        {
+          "text": "Ollama supports both local and cloud models. See the currently supported models [here](https://ollama.com/search).",
+          "source": "https://docs.ollama.com/api/anthropic-compatibility#models",
+          "note": null
+        },
+        {
+          "text": "Browse the [cloud model catalog](https://ollama.com/search?c=cloud). Through a signed-in Ollama server, use a cloud name such as `gemma4:cloud` without a separate pull. For direct cloud requests, use the hosted identifier, such as `gemma4:31b`.",
+          "source": "https://docs.ollama.com/api/anthropic-compatibility#cloud-models",
+          "note": null
+        },
+        {
+          "text": "Direct cloud requests use the identifiers from `https://ollama.com/api/tags` and do not require a pull. Through a signed-in local server, select a cloud model such as `gemma4:cloud`.",
+          "source": "https://docs.ollama.com/api/openai-compatibility#models",
+          "note": null
+        },
+        {
+          "text": "On Windows, yes. The official Windows docs publish a standalone archive, ollama-windows-amd64.zip, containing only the Ollama CLI and GPU library dependencies, plus ollama-windows-amd64-rocm.zip for AMD ROCm and ollama-windows-amd64-mlx.zip. Unzip to a folder you can write to, run ollama.exe serve, and point OLLAMA_MODELS at your copied directory. Note the docs warn that if you are upgrading from a prior version you should remove the old directories first. A separate approach that avoids Ollama's registry entirely is importing a raw GGUF file with a one-line Modelfile.",
+          "source": "https://localaimaster.com/blog/transfer-ollama-models-offline",
+          "note": null
+        },
+        {
+          "text": "A note on Prometheus: NetEye uses InfluxDB as its native metrics backend, not Prometheus. To use check_prometheus, you’ll need a separate Prometheus instance that scrapes ollama-metrics. The simplest option is a lightweight container running on the same host as Ollama or on a dedicated monitoring host. NetEye’s Grafana can then be pointed at this Prometheus instance as an additional data source if you want dashboards alongside the Icinga checks.",
+          "source": "https://www.neteye-blog.com/blog/2026/04/02/monitoring-ollama-in-neteye-with-ollama-metrics-and-check_prometheus/",
+          "note": null
+        },
+        {
+          "text": "Models can be preloaded in Kubernetes either through the Helm values ollama.models.pull (startup pull), ollama.models.run (load into memory), ollama.models.create (custom Modelfile or ConfigMap) and clean, or through an init container that starts `ollama serve`, pulls models, and stops. More pulled models mean longer pod startup.",
+          "source": "https://github.com/otwld/ollama-helm",
+          "note": null
+        },
+        {
+          "text": "The official FAQ documents an nginx proxy_pass example with `proxy_set_header Host localhost:11434`, and ngrok / Cloudflare Tunnel recipes that use a host-header override. The FAQ examples add no authentication; the operator must add it at the proxy or tunnel.",
+          "source": "https://docs.ollama.com/faq",
+          "note": null
+        },
+        {
+          "text": "```bash theme={\"system\"} launchctl setenv OLLAMA_HOST \"0.0.0.0:11434\" ```",
+          "source": "https://docs.ollama.com/faq#setting-environment-variables-on-mac",
+          "note": null
+        },
+        {
+          "text": "```ini theme={\"system\"} [Service] Environment=\"OLLAMA_HOST=0.0.0.0:11434\" ```",
+          "source": "https://docs.ollama.com/faq#setting-environment-variables-on-linux",
+          "note": null
+        },
+        {
+          "text": "docker run --rm -p 9497:9497 \\ -e OLLAMA_BASE_URL=http://host.docker.internal:11434 \\ ollama-prometheus-exporter",
+          "source": "https://hub.docker.com/r/evandhoffman/ollama-prometheus-exporter",
+          "note": null
+        },
+        {
+          "text": "Pre-quantized ingestion: embeddings can be stored as BSON binData (float32, int8, int1); int1 supports euclidean only and needs numDimensions multiple of 8; PyMongo 4.10+, Node 6.11+ etc. MongoDB lists nomic-embed-text-v1.5 and mxbai-embed-large-v1 among models that output byte vectors.",
+          "source": "https://www.mongodb.com/docs/vector-search/about/vector-quantization.md",
+          "note": null
+        },
+        {
+          "text": "Knative mode of otwld/ollama-helm needs persistentVolume.enabled=true and three Knative Serving flags (podspec-persistent-volume-claim, podspec-persistent-volume-write, podspec-tolerations). Its bootstrap runs as a non-blocking Job, so helm install/upgrade return before models finish preloading.",
+          "source": "https://github.com/otwld/ollama-helm",
+          "note": null
+        },
+        {
+          "text": "Yes, Ollama is free: the software is MIT licensed, and running models on your own hardware is unmetered. What costs money is Ollama Cloud, the hosted service that runs models on Ollama's GPUs, and the machine you run Ollama on yourself.",
+          "source": "https://www.ssdnodes.com/learn/is-ollama-free-local-vs-cloud",
+          "note": null
+        },
+        {
+          "text": "Ollama Cloud runs larger models on Ollama's own hardware. You reach them through the same CLI and API as a local model, after you sign in with ollama signin. Cloud models carry a cloud tag, such as gpt-oss:120b-cloud, and otherwise behave like any other model name.",
+          "source": "https://www.ssdnodes.com/learn/is-ollama-free-local-vs-cloud",
+          "note": null
+        },
+        {
+          "text": "No. Installing Ollama, pulling open models and running them on your own hardware needs no account and no payment. You only need to sign in with ollama signin to use Ollama Cloud models, including the starter models on the Free plan.",
+          "source": "https://www.ssdnodes.com/learn/is-ollama-free-local-vs-cloud",
+          "note": null
+        },
+        {
+          "text": "Ollama supports embedding models, making it possible to build retrieval augmented generation (RAG) applications that combine text prompts with existing documents or other data.",
+          "source": "https://ollama.com/blog/embedding-models",
+          "note": null
+        },
+        {
+          "text": "This example walks through building a retrieval augmented generation (RAG) application using Ollama and embedding models.",
+          "source": "https://ollama.com/blog/embedding-models",
+          "note": null
+        },
+        {
+          "text": "Per the official Ollama FAQ: macOS ~/.ollama/models, Linux /usr/share/ollama/.ollama/models, Windows C:\\Users\\%username%\\.ollama\\models. On Windows the docs also describe the location as %HOMEPATH%\\.ollama. Inside that directory there are exactly two subfolders that matter: blobs/ (the actual weight files, named sha256-<hex>) and manifests/registry.ollama.ai/library/<model>/<tag> (small JSON files that give those blobs a name). Set OLLAMA_MODELS to move the whole directory somewhere else.",
+          "source": "https://localaimaster.com/blog/transfer-ollama-models-offline",
+          "note": null
+        },
+        {
+          "text": "POST https://ollama.com/api/web_search",
+          "source": "https://docs.ollama.com/capabilities/web-search",
+          "note": null
+        },
+        {
+          "text": "POST https://ollama.com/api/web_fetch",
+          "source": "https://docs.ollama.com/capabilities/web-search",
+          "note": null
+        },
+        {
+          "text": "Web search results can return thousands of tokens. It is recommended to increase the context length of the model to at least ~32000 tokens. Search agents work best with full context length. Ollama’s cloud models run at the full context length.",
+          "source": "https://docs.ollama.com/capabilities/web-search",
+          "note": null
+        },
+        {
+          "text": "`POST https://ollama.com/api/web_search`",
+          "source": "https://docs.ollama.com/capabilities/web-search#request",
+          "note": null
+        },
+        {
+          "text": "`POST https://ollama.com/api/web_fetch`",
+          "source": "https://docs.ollama.com/capabilities/web-search#request",
+          "note": null
+        },
+        {
+          "text": "Web search results can return thousands of tokens. It is recommended to increase the context length of the model to at least \\~32000 tokens. Search agents work best with full context length. [Ollama's cloud models](https://docs.ollama.com/cloud) run at the full context length.",
+          "source": "https://docs.ollama.com/capabilities/web-search#context-length-and-agents",
+          "note": null
+        },
+        {
+          "text": "1. Sign in to Ollama's cloud with `ollama signin` 2. In the ollama model settings add a model that ollama hosts, like `gpt-oss:120b`. 3. You can now refer to this model in marimo!",
+          "source": "https://docs.ollama.com/integrations/marimo#connecting-to-ollama-com",
+          "note": null
+        },
+        {
+          "text": "If a cloud model asks you to sign in, run `ollama signin`.",
+          "source": "https://docs.ollama.com/integrations/vscode#troubleshooting",
+          "note": null
+        },
+        {
+          "text": "Ollama binds 127.0.0.1 port 11434 by default. Change the bind address with the `OLLAMA_HOST` environment variable.",
+          "source": "https://docs.ollama.com/faq#how-can-i-expose-ollama-on-my-network",
+          "note": null
+        },
+        {
+          "text": "The local API at http://localhost:11434 does not require authentication. To use cloud models, publish models, or download private models, sign in to Ollama. For direct API access to ollama.com, use an API key.",
+          "source": "https://docs.ollama.com/api/authentication",
+          "note": null
+        },
+        {
+          "text": "Affected: ollama/ollama versions 0 lessThan 0.17.1 (semver). CVSS v3.1 (secondary, CNA abd028dc): 9.1 CRITICAL AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:N/A:H CVSS v4.0 (secondary): 8.8 HIGH",
+          "source": "https://nvd.nist.gov/vuln/detail/CVE-2026-7482",
+          "note": "CVE-2026-7482 severity: GitHub advisory rates HIGH, NVD lists CNA CVSS 3.1 9.1 CRITICAL (4.0: 8.8)"
+        },
+        {
+          "text": "Ollama has no built-in authentication. Wiz and LeakIX both direct operators to put a reverse proxy that enforces authentication (nginx, Caddy) in front of it; LeakIX says the maintainers have repeatedly declined to add auth and point users to proxies.",
+          "source": "https://wiz.io/blog/probllama-ollama-vulnerability-cve-2024-37032",
+          "note": null
+        },
+        {
+          "text": "Wiz noted the default Linux install binds localhost, which greatly limits Probllama exposure, while the Docker image runs as root and listens on 0.0.0.0 so the API is remotely reachable. Wiz's scan (June 2024) found over 1,000 exposed instances, some hosting private models.",
+          "source": "https://wiz.io/blog/probllama-ollama-vulnerability-cve-2024-37032",
+          "note": null
+        },
+        {
+          "text": "<Note> Ensure OLLAMA\\_API\\_KEY is set or it must be passed in the Authorization header. </Note>",
+          "source": "https://docs.ollama.com/capabilities/web-search#examples",
+          "note": null
+        },
+        {
+          "text": "For API requests to ollama.com, use the name returned by this list, such as `gemma4:31b`. In the Ollama app or CLI, use `gemma4:cloud`. Cloud models do not need to be downloaded.",
+          "source": "https://docs.ollama.com/cloud#models",
+          "note": null
+        },
+        {
+          "text": "A new web search API is now available in Ollama. Ollama provides a generous free tier of web searches for individuals to use, and higher rate limits are available via Ollama’s cloud.",
+          "source": "https://ollama.com/blog/web-search",
+          "note": null
+        },
+        {
+          "text": "The web_search and web_fetch tools can return thousands of tokens. It is recommended to increase the context length of the model to ~32000 tokens for reasonable performance. Search agents work best with full context length.",
+          "source": "https://ollama.com/blog/web-search",
+          "note": null
+        },
+        {
+          "text": "[mcp_servers.web_search] command = \"uv\" args = [\"run\", \"path/to/web-search-mcp.py\"] env = { \"OLLAMA_API_KEY\" = \"your_api_key_here\" }",
+          "source": "https://ollama.com/blog/web-search",
+          "note": null
+        },
+        {
+          "text": "Web search is included with a free Ollama account, with much higher rate limits available by upgrading your Ollama subscription.",
+          "source": "https://ollama.com/blog/web-search",
+          "note": null
+        },
+        {
+          "text": "curl -fsSL https://ollama.com/install.sh | sh ollama pull nomic-embed-text",
+          "source": "https://docs.percona.com/percona-search-for-mongodb/configure-automatic-embedding-ollama.html",
+          "note": null
+        },
+        {
+          "text": "ollama.embed( model='mxbai-embed-large', input='Llamas are members of the camelid family', )",
+          "source": "https://ollama.com/blog/embedding-models",
+          "note": null
+        },
+        {
+          "text": "for i, d in enumerate(documents): response = ollama.embed(model=\"mxbai-embed-large\", input=d) embeddings = response[\"embeddings\"] collection.add( ids=[str(i)], embeddings=embeddings, documents=[d] )",
+          "source": "https://ollama.com/blog/embedding-models",
+          "note": null
+        },
+        {
+          "text": "response = ollama.embed( model=\"mxbai-embed-large\", input=prompt ) results = collection.query( query_embeddings=[response[\"embeddings\"]], n_results=1 ) data = results['documents'][0][0]",
+          "source": "https://ollama.com/blog/embedding-models",
+          "note": null
+        },
+        {
+          "text": "Build a Local RAG Implementation with MongoDB Vector Search",
+          "source": "https://www.mongodb.com/docs/vector-search/tutorials/local-rag/",
+          "note": null
+        },
+        {
+          "text": "response = chat(model='qwen3', messages=messages, tools=[web_search, web_fetch], think=True)",
+          "source": "https://github.com/ollama/ollama-python/blob/main/examples/web-search.py",
+          "note": null
+        },
+        {
+          "text": "Authentication would not prevent these bugs from existing. But it would prevent random people on the internet from reaching them. Right now, every exposed Ollama instance is one CVE away from a root shell. And there are 12,269 of them.",
+          "source": "https://blog.leakix.net/2026/02/ollama-exposed/",
+          "note": null
+        },
+        {
+          "text": "Ollama running and reachable from the host where ollama-metrics will run",
+          "source": "https://www.neteye-blog.com/blog/2026/04/02/monitoring-ollama-in-neteye-with-ollama-metrics-and-check_prometheus/",
+          "note": null
+        },
+        {
+          "text": "Choose a cloud model. The cloud API does not support stateful Responses, built-in web search through /v1/responses, or custom/freeform tool-call replay.",
+          "source": "https://docs.ollama.com/api/openai-compatibility",
+          "note": null
+        },
+        {
+          "text": "openapi.yaml GET /api/usage Usage statistics for cloud inference, web search, and web fetch.",
+          "source": "https://docs.ollama.com/api/cloud-usage",
+          "note": null
+        },
+        {
+          "text": "Publishing the Docker port as -p 11434:11434 exposes the API on all host interfaces and the Wiz write-up shows Docker defaults are remotely reachable; use a loopback-only publish or an internal network behind a proxy. (Docker deployment detail belongs to the sibling Docker/Kubernetes concept.)",
+          "source": "https://wiz.io/blog/probllama-ollama-vulnerability-cve-2024-37032",
+          "note": null
+        },
+        {
+          "text": "Prometheus exporter and reverse proxy for an Ollama⁠ service, typically running at http://localhost:11434.",
+          "source": "https://hub.docker.com/r/evandhoffman/ollama-prometheus-exporter",
+          "note": null
+        },
+        {
+          "text": "embeddings = OllamaEmbeddings( model=\"qwen3-embedding:8b\", dimensions=1024, )",
+          "source": "https://docs.langchain.com/oss/python/integrations/text_embedding/ollama",
+          "note": null
+        },
+        {
+          "text": "Ollama allows cross-origin requests from `127.0.0.1` and `0.0.0.0` by default. Additional origins can be configured with `OLLAMA_ORIGINS`.",
+          "source": "https://docs.ollama.com/faq#how-can-i-allow-additional-web-origins-to-access-ollama",
+          "note": null
+        },
+        {
+          "text": "import ollama response = ollama.web_search(\"What is Ollama?\") print(response)",
+          "source": "https://ollama.com/blog/web-search",
+          "note": null
+        },
+        {
+          "text": "db.eurovision.createSearchIndex( \"vectorSearchOnLyrics\", \"vectorSearch\", { fields: [ { type: \"vector\", numDimensions: 768, path: \"embedding\", similarity: \"cosine\" } ] } )",
+          "source": "https://dev.to/franckpachot/vector-search-index-in-mongodb-with-local-atlas-and-ollama-1p8j",
+          "note": null
+        },
+        {
+          "text": "This will help you get started with Ollama embedding models using LangChain. For detailed documentation on OllamaEmbeddings features and configuration options, please refer to the API reference.",
+          "source": "https://docs.langchain.com/oss/python/integrations/text_embedding/ollama",
+          "note": null
+        },
+        {
+          "text": "Local server requires no auth. Cloud requires an ollama.com account; pass the API key via the OLLAMA_API_KEY env var or Authorization Bearer header.",
+          "source": "https://apis.io/rate-limits/ollama/ollama-rate-limits/",
+          "note": null
+        },
+        {
+          "text": "Ollama Cloud requests should authenticate successfully using the configured API key, as they did in version 2026.3.24.",
+          "source": "https://github.com/openclaw/openclaw/issues/59205",
+          "note": null
+        },
+        {
+          "text": "Direct cloud inference at https://ollama.com/api and https://ollama.com/v1 requires an API key. No Ollama installation or local server is required. Create an API key, then set it in your terminal:",
+          "source": "https://docs.ollama.com/api/authentication",
+          "note": null
+        },
+        {
+          "text": "For access to Ollama’s web search API, create an API key. A free Ollama account is required.",
+          "source": "https://docs.ollama.com/capabilities/web-search",
+          "note": null
+        },
+        {
+          "text": "Direct cloud inference at `https://ollama.com/api` and `https://ollama.com/v1` requires an API key. No Ollama installation or local server is required.",
+          "source": "https://docs.ollama.com/api/authentication#api-keys",
+          "note": null
+        },
+        {
+          "text": "Call cloud models with an [API key](https://ollama.com/settings/keys). No Ollama installation required. Start with the [API quickstart](/quickstart#build-an-application).",
+          "source": "https://docs.ollama.com/api/introduction#get-started",
+          "note": null
+        },
+        {
+          "text": "Cloud requests need an API key. Local requests do not. To use cloud models through your local server, [sign in to Ollama](/api/authentication#signing-in).",
+          "source": "https://docs.ollama.com/api/introduction#base-urls",
+          "note": null
+        },
+        {
+          "text": "For direct cloud access, set the host to `https://ollama.com` and supply your API key in the `Authorization: Bearer` header.",
+          "source": "https://docs.ollama.com/api/introduction#libraries",
+          "note": null
+        },
+        {
+          "text": "For access to Ollama's web search API, create an [API key](https://ollama.com/settings/keys). A free Ollama account is required.",
+          "source": "https://docs.ollama.com/capabilities/web-search#authentication",
+          "note": null
+        },
+        {
+          "text": "For cloud models, sign in or create an account, then create an [API key](https://ollama.com/settings/keys).",
+          "source": "https://docs.ollama.com/quickstart#1-create-an-api-key",
+          "note": null
+        },
+        {
+          "text": "Read text blocks from `content`. The cloud endpoint requires `Authorization: Bearer`; it does not accept `x-api-key` alone.",
+          "source": "https://docs.ollama.com/api/anthropic-compatibility#direct-cloud-access",
+          "note": null
+        },
+        {
+          "text": "* The local server does not validate API keys. Direct cloud inference requires a valid bearer token. * The hosted endpoint rejects `anthropic-version` values older than `2023-06-01`. Use `2023-06-01` in requests. * Token counts are approximations based on the underlying model's tokenizer",
+          "source": "https://docs.ollama.com/api/anthropic-compatibility#behavior-differences",
+          "note": null
+        },
+        {
+          "text": "* `query` (string, required): the search query string * `max_results` (integer, optional): maximum results to return (default 5, max 10)",
+          "source": "https://docs.ollama.com/capabilities/web-search#request",
+          "note": null
+        },
+        {
+          "text": "The official image is ollama/ollama. The documented CPU run is `docker run -d -v ollama:/root/.ollama -p 11434:11434 --name ollama ollama/ollama`: models live in /root/.ollama and the API listens on 11434.",
+          "source": "https://docs.ollama.com/docker.md",
+          "note": null
+        },
+        {
+          "text": "Embeddings turn text into numeric vectors you can store in a vector database, search with cosine similarity, or use in RAG pipelines. The vector length depends on the model (typically 384–1024 dimensions).",
+          "source": "https://docs.ollama.com/capabilities/embeddings",
+          "note": null
+        },
+        {
+          "text": "Free tier permits running cloud models with basic limits.",
+          "source": "https://apis.io/rate-limits/ollama/ollama-rate-limits/",
+          "note": null
+        },
+        {
+          "text": "Custom models (personas you built with ollama create) travel automatically with the models folder — they're just another manifest + blobs. But it's smart to also export their recipes as plain text, so you can rebuild or tweak them later:",
+          "source": "https://llmconfigurator.com/guides/move-ollama-new-computer",
+          "note": null
+        },
+        {
+          "text": "Optional: The ollama-metrics repository already includes a Grafana dashboard you can import directly: dashboard.json.",
+          "source": "https://www.neteye-blog.com/blog/2026/04/02/monitoring-ollama-in-neteye-with-ollama-metrics-and-check_prometheus/",
+          "note": null
+        },
+        {
+          "text": "Step 1: Deploy ollama-metrics",
+          "source": "https://www.neteye-blog.com/blog/2026/04/02/monitoring-ollama-in-neteye-with-ollama-metrics-and-check_prometheus/",
+          "note": null
+        },
+        {
+          "text": "* Use cosine similarity for most semantic search use cases. * Use the same embedding model for both indexing and querying.",
+          "source": "https://docs.ollama.com/capabilities/embeddings#tips",
+          "note": null
+        },
+        {
+          "text": "Local Atlas deployments are intended for testing only; MongoDB says to deploy a cluster for production. A MongoDB Community or Enterprise cluster with Search and Vector Search installed is the alternative.",
+          "source": "https://www.mongodb.com/docs/vector-search/tutorials/local-rag/",
+          "note": null
+        },
+        {
+          "text": "For browser extensions, you'll need to explicitly allow the extension's origin pattern. Set `OLLAMA_ORIGINS` to include `chrome-extension://*`, `moz-extension://*`, and `safari-web-extension://*` if you wish to allow all browser extensions access, or specific extensions as needed:",
+          "source": "https://docs.ollama.com/faq#how-can-i-allow-additional-web-origins-to-access-ollama",
+          "note": null
+        },
+        {
+          "text": "If a different directory needs to be used, set the environment variable `OLLAMA_MODELS` to the chosen directory.",
+          "source": "https://docs.ollama.com/faq#how-do-i-set-them-to-a-different-location",
+          "note": null
+        },
+        {
+          "text": "The `keep_alive` API parameter with the `/api/generate` and `/api/chat` API endpoints will override the `OLLAMA_KEEP_ALIVE` setting.",
+          "source": "https://docs.ollama.com/faq#how-do-i-keep-a-model-loaded-in-memory-or-make-it-unload-immediately",
+          "note": null
+        },
+        {
+          "text": "Prometheus exporter and reverse proxy for Ollama token metrics",
+          "source": "https://hub.docker.com/r/evandhoffman/ollama-prometheus-exporter",
+          "note": null
+        },
+        {
+          "text": "queryPrefix and documentPrefix provide the task instructions required by nomic-embed-text.",
+          "source": "https://docs.percona.com/percona-search-for-mongodb/configure-automatic-embedding-ollama.html",
+          "note": null
+        },
+        {
+          "text": "graph TD A[Developers / Applications] --> B[Ingress] B --> C[Ollama Service] C --> D[Ollama Pod 1] C --> E[Ollama Pod 2] D --> F[Model Storage PVC] E --> G[Model Storage PVC] D --> H[GPU] E --> I[GPU]",
+          "source": "https://oneuptime.com/blog/post/2026-02-26-argocd-ollama-deployment/view",
+          "note": null
+        },
+        {
+          "text": "Integrate with the OllamaEmbeddings embedding model using LangChain Python.",
+          "source": "https://docs.langchain.com/oss/python/integrations/text_embedding/ollama",
+          "note": null
+        },
+        {
+          "text": "This tutorial demonstrates how to implement retrieval-augmented generation (RAG) locally, without the need for API keys or credits. To learn more about RAG, see Retrieval-Augmented Generation (RAG) with MongoDB.",
+          "source": "https://www.mongodb.com/docs/vector-search/tutorials/local-rag/",
+          "note": null
+        },
+        {
+          "text": "This endpoint allows 10 requests per minute per user, shared across API keys and devices. We recommend polling once per minute. A `429` response includes a `Retry-After` header with the number of seconds to wait before retrying.",
+          "source": "https://docs.ollama.com/api/balance#rate-limits",
+          "note": null
+        },
+        {
+          "text": "<Note> In environments that don't use Docker Desktop (ie, Linux server installations), `host.docker.internal` is not automatically added.",
+          "source": "https://docs.ollama.com/integrations/n8n#using-ollama-locally",
+          "note": null
+        },
+        {
+          "text": "export OLLAMA_BASE_URL=http://localhost:11434 uv run ollama-prometheus-exporter",
+          "source": "https://hub.docker.com/r/evandhoffman/ollama-prometheus-exporter",
+          "note": null
+        },
+        {
+          "text": "ollama-prometheus-exporter: build: context: . environment: OLLAMA_BASE_URL: http://host.docker.internal:11434",
+          "source": "https://hub.docker.com/r/evandhoffman/ollama-prometheus-exporter",
+          "note": null
+        },
+        {
+          "text": "The following example uses nomic-embed-text, which produces 768-dimensional vectors in the Percona model catalog.",
+          "source": "https://docs.percona.com/percona-search-for-mongodb/configure-automatic-embedding-ollama.html",
+          "note": null
+        },
+        {
+          "text": "If your model supports configurable output dimensions (e.g., qwen3-embedding), you can specify them via the dimensions parameter:",
+          "source": "https://docs.langchain.com/oss/python/integrations/text_embedding/ollama",
+          "note": null
+        },
+        {
+          "text": "curl http://localhost:11434/api/ps",
+          "source": "https://docs.ollama.com/api/ps",
+          "note": null
+        },
+        {
+          "text": "Note: Windows with Radeon GPUs currently default to 1 model maximum due to limitations in ROCm v5.7 for available VRAM reporting. Once ROCm v6.2 is available, Windows Radeon will follow the defaults above. You may enable concurrent model loads on Radeon on Windows, but ensure you don't load more models than will fit into your GPU's VRAM.",
+          "source": "https://docs.ollama.com/faq#how-does-ollama-handle-concurrent-requests",
+          "note": null
+        },
+        {
+          "text": "> [!IMPORTANT] > We are migrating the registry from https://otwld.github.io/ollama-helm/ url to OTWLD Helm central > registry https://helm.otwld.com/ > Please update your Helm registry accordingly.",
+          "source": "https://raw.githubusercontent.com/otwld/ollama-helm/main/README.md#deploying-ollama-chart",
+          "note": null
+        },
+        {
+          "text": "Make adjustments to your values as needed, then run `helm upgrade`:",
+          "source": "https://raw.githubusercontent.com/otwld/ollama-helm/main/README.md#upgrading-ollama-chart",
+          "note": null
+        },
+        {
+          "text": "Ollama pulls models from the Internet and may require a proxy server to access the models. Use `HTTPS_PROXY` to redirect outbound requests through the proxy. Ensure the proxy certificate is installed as a system certificate. Refer to the section above for how to use environment variables on your platform.",
+          "source": "https://docs.ollama.com/faq#how-do-i-use-ollama-behind-a-proxy",
+          "note": null
+        },
+        {
+          "text": "Restart Ollama after changing configuration. Once disabled, Ollama's logs will show `Ollama cloud disabled: true`.",
+          "source": "https://docs.ollama.com/faq#how-do-i-disable-ollama-s-cloud-features",
+          "note": null
+        },
+        {
+          "text": "Ollama is MIT licensed and free to run on hardware you own. What costs money is Ollama Cloud and the machine with enough RAM to hold the model.",
+          "source": "https://www.ssdnodes.com/learn/is-ollama-free-local-vs-cloud",
+          "note": null
+        },
+        {
+          "text": "On privacy, Ollama states that its cloud keeps zero data retention, does not log prompts, and does not train on your data. That is a policy you trust, not a property you can check. A local model is the only setup where you can verify that prompts never leave the box. For a longer cost comparison, read Ollama Cloud against running your own server, and for a middle path, running Ollama Cloud models from a small VPS keeps the API on your server while the heavy model runs remotely.",
+          "source": "https://www.ssdnodes.com/learn/is-ollama-free-local-vs-cloud",
+          "note": null
+        },
+        {
+          "text": "Web search is provided as a REST API with deeper tool integrations in Ollama’s Python and JavaScript libraries. This also enables models such as OpenAI’s gpt-oss models to conduct long-running research tasks.",
+          "source": "https://ollama.com/blog/web-search",
+          "note": null
+        },
+        {
+          "text": "result = web_fetch('https://ollama.com') print(result)",
+          "source": "https://ollama.com/blog/web-search",
+          "note": null
+        },
+        {
+          "text": "WARN Voyage API credential files not configured. Voyage models will be unavailable. Keyless OPENAI_COMPATIBLE models (Ollama/vLLM/TEI) remain active. INFO Reading embedding configuration from on-disk catalog WARN Skipping Voyage embedding model 'voyage-4-large': no Voyage API credentials configured INFO Initialized auto-embedding with 2 models",
+          "source": "https://docs.percona.com/percona-search-for-mongodb/configure-automatic-embedding-ollama.html",
+          "note": null
+        },
+        {
+          "text": "MongoDB Vector Search Index, With Local Atlas and Ollama",
+          "source": "https://dev.to/franckpachot/vector-search-index-in-mongodb-with-local-atlas-and-ollama-1p8j",
+          "note": null
+        },
+        {
+          "text": "This article discusses implementing vector search in a local MongoDB Atlas setup using Ollama and the Eurovision song lyrics dataset. We populated the database with vectorized data embedded in the documents and created a vector search index for retrieving songs based on semantic similarity.",
+          "source": "https://dev.to/franckpachot/vector-search-index-in-mongodb-with-local-atlas-and-ollama-1p8j",
+          "note": null
+        },
+        {
+          "text": "Fetch available LLM model via ollama pull <name-of-model>",
+          "source": "https://docs.langchain.com/oss/python/integrations/text_embedding/ollama",
+          "note": null
+        },
+        {
+          "text": "Specify the exact version of the model of interest as such ollama pull vicuna:13b-v1.5-16k-q4_0 (View the various tags for the Vicuna model in this instance)",
+          "source": "https://docs.langchain.com/oss/python/integrations/text_embedding/ollama",
+          "note": null
+        },
+        {
+          "text": "Ollama Monitoring & Observability with OpenTelemetry",
+          "source": "https://signoz.io/docs/ollama-monitoring",
+          "note": null
+        },
+        {
+          "text": "What is Ollama Monitoring?",
+          "source": "https://signoz.io/docs/ollama-monitoring",
+          "note": null
+        },
+        {
+          "text": "Ollama monitoring with OpenTelemetry lets you collect traces, logs, and metrics from your local LLM workloads and export them to SigNoz. This guide walks you through setting up full Ollama observability using OpenTelemetry, covering automatic and manual instrumentation for Python applications.",
+          "source": "https://signoz.io/docs/ollama-monitoring",
+          "note": null
+        },
+        {
+          "text": "With full Ollama monitoring in SigNoz, you can correlate traces, logs, and metrics in unified dashboards, configure alerts for latency and errors, and gain actionable insights to improve the reliability and responsiveness of your LLM workloads.",
+          "source": "https://signoz.io/docs/ollama-monitoring",
+          "note": null
+        },
+        {
+          "text": "View Ollama Traces, Logs, and Metrics in SigNoz",
+          "source": "https://signoz.io/docs/ollama-monitoring",
+          "note": null
+        },
+        {
+          "text": "curl https://ollama.com/api/tags",
+          "source": "https://docs.ollama.com/cloud",
+          "note": null
+        },
+        {
+          "text": "For API requests to ollama.com, use the name returned by this list, such as gemma4:31b. In the Ollama app or CLI, use gemma4:cloud. Cloud models do not need to be downloaded.",
+          "source": "https://docs.ollama.com/cloud",
+          "note": null
+        },
+        {
+          "text": "If you’re the Ollama team reading this: a single OLLAMA_API_KEY environment variable and a 20-line middleware check is all it takes. The community already wrote the code. Multiple times. You keep rejecting it.",
+          "source": "https://blog.leakix.net/2026/02/ollama-exposed/",
+          "note": null
+        },
+        {
+          "text": "On Windows the docs say to set OLLAMA_MODELS through the Settings / Control Panel environment-variable editor and restart Ollama for the change to take effect.",
+          "source": "https://localaimaster.com/blog/transfer-ollama-models-offline",
+          "note": null
+        },
+        {
+          "text": "models/ ├── blobs/ │ ├── sha256-735af2139dc652bf01112746474883d79a52fa1c19038265d363e3d42556f7a2 │ ├── sha256-4b19ac7dd2fb1ab2f2818b73454c5a9128ca39875a8fcf686a6b1c36100a0d68 │ └── ... └── manifests/ └── registry.ollama.ai/ └── library/ ├── gemma3/270m ├── qwen3/4b └── llama3.2/latest",
+          "source": "https://localaimaster.com/blog/transfer-ollama-models-offline",
+          "note": null
+        },
+        {
+          "text": "cat manifests/registry.ollama.ai/library/qwen3/4b",
+          "source": "https://localaimaster.com/blog/transfer-ollama-models-offline",
+          "note": null
+        },
+        {
+          "text": "cd /usr/share/ollama/.ollama/models/blobs for f in sha256-*; do case \"$f\" in *partial*) continue;; esac actual=$(sha256sum \"$f\" | cut -d' ' -f1) [ \"$actual\" = \"${f#sha256-}\" ] || echo \"CORRUPT: $f\" done",
+          "source": "https://localaimaster.com/blog/transfer-ollama-models-offline",
+          "note": null
+        },
+        {
+          "text": "Get-ChildItem \"$env:USERPROFILE\\.ollama\\models\\blobs\" -Filter sha256-* | Where-Object { $_.Name -notmatch 'partial' } | ForEach-Object { $h = (Get-FileHash $_.FullName -Algorithm SHA256).Hash.ToLower() if ($h -ne $_.Name.Substring(7)) { \"CORRUPT: $($_.Name)\" } }",
+          "source": "https://localaimaster.com/blog/transfer-ollama-models-offline",
+          "note": null
+        },
+        {
+          "text": "$env:OLLAMA_MODELS = \"D:\\ollama\\models\" .\\ollama.exe serve",
+          "source": "https://localaimaster.com/blog/transfer-ollama-models-offline",
+          "note": null
+        },
+        {
+          "text": "In a second terminal, .\\ollama.exe list. Remember the client/server rule from earlier: OLLAMA_MODELS matters in the window running serve.",
+          "source": "https://localaimaster.com/blog/transfer-ollama-models-offline",
+          "note": null
+        },
+        {
+          "text": "3. permission denied in the server log on Linux. You extracted as root into the ollama user's directory. sudo chown -R ollama:ollama /usr/share/ollama/.ollama/models and restart. Check with ls -l — if you see root root on the blobs, that is the whole story.",
+          "source": "https://localaimaster.com/blog/transfer-ollama-models-offline",
+          "note": null
+        },
+        {
+          "text": "5. Blobs seem to vanish after a restart. Ollama exposes an OLLAMA_NOPRUNE setting, described in ollama serve --help as \"Do not prune model blobs on startup\". Whether a given release actually prunes orphaned blobs — ones whose manifest is missing — is the subject of a lot of forum folklore and we have not verified it on any version, so we are not going to tell you it does or does not. What we can say is that the setting costs nothing: if you are copying blobs before their manifests, or scripting a staged transfer, export OLLAMA_NOPRUNE=1 for the first startup and the question does not arise.",
+          "source": "https://localaimaster.com/blog/transfer-ollama-models-offline",
+          "note": null
+        },
+        {
+          "text": "It does not move Ollama itself. The binary and service still have to get onto the target — installer, standalone zip, or your organisation's package mirror.",
+          "source": "https://localaimaster.com/blog/transfer-ollama-models-offline",
+          "note": null
+        },
+        {
+          "text": "It assumes the current directory layout. The blobs/manifests split has been stable for a long time and Ollama's own FAQ documents the paths, but nothing guarantees it forever. Before trusting any blog post about this — including this one — open a manifest on your own machine and check it still looks like the example above.",
+          "source": "https://localaimaster.com/blog/transfer-ollama-models-offline",
+          "note": null
+        },
+        {
+          "text": "If your air-gapped host will also be serving other people, lock the endpoint down before you hand out the address: our securing Ollama guide covers binding, auth and exposure.",
+          "source": "https://localaimaster.com/blog/transfer-ollama-models-offline",
+          "note": null
+        },
+        {
+          "text": "Will Ollama try to phone home on an air-gapped machine?",
+          "source": "https://localaimaster.com/blog/transfer-ollama-models-offline",
+          "note": null
+        },
+        {
+          "text": "manifests/ — small JSON files that tell Ollama which blobs make up which model tag",
+          "source": "https://llmconfigurator.com/guides/move-ollama-new-computer",
+          "note": null
+        },
+        {
+          "text": "ollama list # should show your full library instantly ollama run llama3.1 # loads from local blobs, no download bar",
+          "source": "https://llmconfigurator.com/guides/move-ollama-new-computer",
+          "note": null
+        },
+        {
+          "text": "Yes. GGUF blobs are platform-independent — the same files run on macOS, Windows, and Linux. Copy the whole models folder and Ollama on any OS reads it.",
+          "source": "https://llmconfigurator.com/guides/move-ollama-new-computer",
+          "note": null
+        },
+        {
+          "text": "It works read-only in practice but isn't supported — two Ollama instances writing (pulling/removing models) into the same folder can corrupt manifests. A safer pattern: keep one machine as the model host and let others talk to it over the network — see Personal AI Home Server.",
+          "source": "https://llmconfigurator.com/guides/move-ollama-new-computer",
+          "note": null
+        },
+        {
+          "text": "[Bug]: Ollama Cloud Authentication fails with 401 after update to 2026.3.31 #59205",
+          "source": "https://github.com/openclaw/openclaw/issues/59205",
+          "note": null
+        },
+        {
+          "text": "[Bug]: Ollama Cloud Authentication fails with 401 after update to 2026.3.31#59205",
+          "source": "https://github.com/openclaw/openclaw/issues/59205",
+          "note": null
+        },
+        {
+          "text": "Have a working setup with Ollama Cloud provider on version ≤2026.3.24",
+          "source": "https://github.com/openclaw/openclaw/issues/59205",
+          "note": null
+        },
+        {
+          "text": "Attempt to use any Ollama Cloud model (e.g., kimi-k2.5:cloud)",
+          "source": "https://github.com/openclaw/openclaw/issues/59205",
+          "note": null
+        },
+        {
+          "text": "--network host lets the container reach Ollama on localhost without extra bridge configuration. If Ollama runs on a separate host, replace OLLAMA_HOST with the appropriate address.",
+          "source": "https://www.neteye-blog.com/blog/2026/04/02/monitoring-ollama-in-neteye-with-ollama-metrics-and-check_prometheus/",
+          "note": null
+        },
+        {
+          "text": "scrape_configs: - job_name: \"ollama\" static_configs: - targets: - \"<OLLAMA_HOST>:8080\" labels: instance: \"ollama-01\"",
+          "source": "https://www.neteye-blog.com/blog/2026/04/02/monitoring-ollama-in-neteye-with-ollama-metrics-and-check_prometheus/",
+          "note": null
+        },
+        {
+          "text": "client = OpenAI( base_url=\"https://ollama.com/v1\", api_key=os.environ[\"OLLAMA_API_KEY\"], )",
+          "source": "https://docs.ollama.com/api/openai-compatibility",
+          "note": null
+        },
+        {
+          "text": "Direct cloud requests use the identifiers from https://ollama.com/api/tags and do not require a pull. Through a signed-in local server, select a cloud model such as gemma4:cloud.",
+          "source": "https://docs.ollama.com/api/openai-compatibility",
+          "note": null
+        },
+        {
+          "text": "Yes. Cloud models that are trained to support tools are tested for tool calling and with real agent workflows before they go live. If something isn't working, let us know at support@ollama.com.",
+          "source": "https://ollama.com/pricing",
+          "note": null
+        },
+        {
+          "text": "This Community Chart is for deploying [Ollama](https://github.com/ollama/ollama).",
+          "source": "https://raw.githubusercontent.com/otwld/ollama-helm/main/README.md",
+          "note": null
+        },
+        {
+          "text": "First please read the [release notes](https://github.com/ollama/ollama/releases) of Ollama to make sure there are no backwards incompatible changes.",
+          "source": "https://raw.githubusercontent.com/otwld/ollama-helm/main/README.md#upgrading-ollama-chart",
+          "note": null
+        },
+        {
+          "text": "Ollama’s web search API can be used to augment models with the latest information to reduce hallucinations and improve accuracy. Web search is provided as a REST API with deeper tool integrations in the Python and JavaScript libraries. This also enables models like OpenAI’s gpt-oss models to conduct long-running research tasks.",
+          "source": "https://docs.ollama.com/capabilities/web-search",
+          "note": null
+        },
+        {
+          "text": "Ollama’s web search can be integrated with Cline easily using the MCP server configuration. Manage MCP Servers > Configure MCP Servers > Add the following configuration:",
+          "source": "https://docs.ollama.com/capabilities/web-search",
+          "note": null
+        },
+        {
+          "text": "[rick-github 2026-04-11T21:48:55Z] Create a zip file of the blobs. To restore the model, cd to the ollama model directory and extract the zip.",
+          "source": "https://github.com/ollama/ollama/issues/15484#comments",
+          "note": null
+        },
+        {
+          "text": "**Offline installation:** This will be possible by downloading the `ollama-linux-ARCH` binary then moving it onto your offline machine. You can find the binary in the release assets here: https://github.com/jmorganca/ollama/releases",
+          "source": "https://github.com/ollama/ollama/issues/696#comments",
+          "note": null
+        },
+        {
+          "text": "**Offline model usage:** The easiest way to do this would be to download the Ollama models on a machine which is connected to the internet, then moving the `~/.ollama` directory to the offline machine.",
+          "source": "https://github.com/ollama/ollama/issues/696#comments",
+          "note": null
+        },
+        {
+          "text": "The advisory covers the Go package github.com/ollama/ollama with vulnerable versions below 0.17.1. The first patched version is 0.17.1. It was published 2026-05-04.",
+          "source": "https://github.com/advisories/GHSA-x8qc-fggm-mpqg",
+          "note": null
+        },
+        {
+          "text": "const ( defaultHost = \"registry.ollama.ai\" defaultNamespace = \"library\" defaultTag = \"latest\" defaultProtocolScheme = \"https\" )",
+          "source": "https://github.com/ollama/ollama/blob/957c8cd5ce852d1fd0886baa77987d8cc40eeb69/types/model/name.go",
+          "note": null
+        },
+        {
+          "text": "Ollama's web search API can be used to augment models with the latest information to reduce hallucinations and improve accuracy.",
+          "source": "https://docs.ollama.com/capabilities/web-search",
+          "note": null
+        },
+        {
+          "text": "You can enable web search in any MCP client through the [Python MCP server](https://github.com/ollama/ollama-python/blob/main/examples/web-search-mcp.py).",
+          "source": "https://docs.ollama.com/capabilities/web-search#mcp-server",
+          "note": null
+        },
+        {
+          "text": "Ollama's web search can be integrated with Cline easily using the MCP server configuration.",
+          "source": "https://docs.ollama.com/capabilities/web-search#cline",
+          "note": null
+        },
+        {
+          "text": "OpenClaw ships with a bundled Ollama `web_search` provider that lets local or cloud-backed Ollama setups search the web through the configured Ollama host.",
+          "source": "https://docs.ollama.com/integrations/openclaw#web-search-and-fetch",
+          "note": null
+        },
+        {
+          "text": "* `results` (array): array of search result objects, each containing: * `title` (string): the title of the web page * `url` (string): the URL of the web page * `content` (string): relevant content snippet from the web page",
+          "source": "https://docs.ollama.com/capabilities/web-search#response",
+          "note": null
+        },
+        {
+          "text": "Not on its own. The Ollama server has no authentication, so anyone who reaches port 11434 can run prompts, pull models and delete models. Keep the default bind of 127.0.0.1:11434, and put an authenticating reverse proxy or a private network in front of it for remote access.",
+          "source": "https://www.ssdnodes.com/learn/is-ollama-free-local-vs-cloud",
+          "note": null
+        },
+        {
+          "text": "Follow the Install and configure mongot procedure to set up Percona Search for MongoDB. Configure PSMDB as a replica set, point the search parameters to mongot, and create a user with the searchCoordinator role.",
+          "source": "https://docs.percona.com/percona-search-for-mongodb/configure-automatic-embedding-ollama.html",
+          "note": null
+        },
+        {
+          "text": "curl http://localhost:11434/api/embed -d '{ \"model\": \"embeddinggemma\", \"input\": \"Why is the sky blue?\" }'",
+          "source": "https://docs.ollama.com/api/embed",
+          "note": null
+        },
+        {
+          "text": "helm repo add otwld https://helm.otwld.com/ helm repo update helm install ollama otwld/ollama --namespace ollama --create-namespace",
+          "source": "https://github.com/otwld/ollama-helm",
+          "note": null
+        },
+        {
+          "text": "helm repo update helm upgrade ollama otwld/ollama --namespace ollama --values values.yaml",
+          "source": "https://github.com/otwld/ollama-helm",
+          "note": null
+        },
+        {
+          "text": "curl -X POST http://localhost:11434/api/embed \\ -H \"Content-Type: application/json\" \\ -d '{ \"model\": \"embeddinggemma\", \"input\": \"The quick brown fox jumps over the lazy dog.\" }'",
+          "source": "https://docs.ollama.com/capabilities/embeddings",
+          "note": null
+        },
+        {
+          "text": "curl -X POST http://localhost:11434/api/embed \\ -H \"Content-Type: application/json\" \\ -d '{ \"model\": \"embeddinggemma\", \"input\": [ \"First sentence\", \"Second sentence\", \"Third sentence\" ] }'",
+          "source": "https://docs.ollama.com/capabilities/embeddings",
+          "note": null
+        },
+        {
+          "text": "curl -s http://localhost:11434/v1/embeddings \\ -H \"Content-Type: application/json\" \\ -d '{ \"model\": \"nomic-embed-text\", \"input\": [\"hello\"] }'",
+          "source": "https://docs.percona.com/percona-search-for-mongodb/configure-automatic-embedding-ollama.html",
+          "note": null
+        },
+        {
+          "text": "configs: - modelName: nomic-embed-text embeddingProvider: OPENAI_COMPATIBLE config: providerEndpoint: http://localhost:11434/v1/embeddings",
+          "source": "https://docs.percona.com/percona-search-for-mongodb/configure-automatic-embedding-ollama.html",
+          "note": null
+        },
+        {
+          "text": "- The Job is non-blocking: `helm install` and `helm upgrade` do not wait for model preload to finish. - The Job name includes a hash of `ollama.models.pull`, `ollama.models.run`, `ollama.models.create`, and `ollama.models.clean`, so changing those settings on upgrade creates a new Job and reruns bootstrap. - Completed bootstrap Jobs are cleaned up according to `knative.modelBootstrap.ttlSecondsAfterFinished`. - Knative bootstrap requires `persistentVolume.enabled=true` so the bootstrap Job and Knative `Service` can share the same model data.",
+          "source": "https://raw.githubusercontent.com/otwld/ollama-helm/main/README.md#model-bootstrap-behavior",
+          "note": null
+        },
+        {
+          "text": "/openapi.yaml get /api/version Retrieve the version of the Ollama",
+          "source": "https://docs.ollama.com/api-reference/get-version",
+          "note": null
+        },
+        {
+          "text": "Fetches a single web page by URL and returns its content.",
+          "source": "https://docs.ollama.com/capabilities/web-search",
+          "note": null
+        },
+        {
+          "text": "This can impact both installing Ollama, as well as downloading models.",
+          "source": "https://docs.ollama.com/faq#why-is-networking-slow-in-wsl2-on-windows-10",
+          "note": null
+        },
+        {
+          "text": "Open `Control Panel > Networking and Internet > View network status and tasks` and click on `Change adapter settings` on the left panel. Find the `vEthernet (WSL)` adapter, right click and select `Properties`. Click on `Configure` and open the `Advanced` tab. Search through each of the properties until you find `Large Send Offload Version 2 (IPv4)` and `Large Send Offload Version 2 (IPv6)`. *Disable* both of these properties.",
+          "source": "https://docs.ollama.com/faq#why-is-networking-slow-in-wsl2-on-windows-10",
+          "note": null
+        },
+        {
+          "text": "[Usage settings](https://ollama.com/settings) show upcoming retirements for models you've recently used. Switch models before the retirement date. Downloaded local models are not affected.",
+          "source": "https://docs.ollama.com/cloud#retirements",
+          "note": null
+        },
+        {
+          "text": "Ollama processes cloud prompts and responses to answer your requests. We do not use them to train models. Read the [Privacy Policy](https://ollama.com/privacy) for details.",
+          "source": "https://docs.ollama.com/cloud#data-handling",
+          "note": null
+        },
+        {
+          "text": "The /api/embed endpoint returns L2‑normalized (unit‑length) vectors.",
+          "source": "https://docs.ollama.com/capabilities/embeddings",
+          "note": null
+        },
+        {
+          "text": "This web search capability can augment models with the latest information from the web to reduce hallucinations and improve accuracy.",
+          "source": "https://ollama.com/blog/web-search",
+          "note": null
+        },
+        {
+          "text": "{ \"mcpServers\": { \"web_search_and_fetch\": { \"type\": \"stdio\", \"command\": \"uv\", \"args\": [\"run\", \"path/to/web-search-mcp.py\"], \"env\": { \"OLLAMA_API_KEY\": \"your_api_key_here\" } } } }",
+          "source": "https://ollama.com/blog/web-search",
+          "note": null
+        },
+        {
+          "text": "You can use Ollama to generate embeddings locally for Percona Search for MongoDB.",
+          "source": "https://docs.percona.com/percona-search-for-mongodb/configure-automatic-embedding-ollama.html",
+          "note": null
+        },
+        {
+          "text": "I need a local LLM model to generate embeddings from lyrics. To avoid relying on external services, I will use Ollama with the nomic-embed-text model, which I install locally:",
+          "source": "https://dev.to/franckpachot/vector-search-index-in-mongodb-with-local-atlas-and-ollama-1p8j",
+          "note": null
+        },
+        {
+          "text": "What are embedding models?",
+          "source": "https://ollama.com/blog/embedding-models",
+          "note": null
+        },
+        {
+          "text": "Embedding models are models that are trained specifically to generate vector embeddings: long arrays of numbers that represent semantic meaning for a given sequence of text:",
+          "source": "https://ollama.com/blog/embedding-models",
+          "note": null
+        },
+        {
+          "text": "More embedding model architectures: support for ColBERT, RoBERTa, and other embedding model architectures",
+          "source": "https://ollama.com/blog/embedding-models",
+          "note": null
+        },
+        {
+          "text": "Local Atlas deployments are intended for testing only. For production environments, deploy a cluster.",
+          "source": "https://www.mongodb.com/docs/vector-search/tutorials/local-rag/",
+          "note": null
+        },
+        {
+          "text": "Pro tier permits 3 cloud models at a time.",
+          "source": "https://apis.io/rate-limits/ollama/ollama-rate-limits/",
+          "note": null
+        },
+        {
+          "text": "Max tier permits 10 cloud models at a time.",
+          "source": "https://apis.io/rate-limits/ollama/ollama-rate-limits/",
+          "note": null
+        },
+        {
+          "text": "{ \"models\": [ { \"name\": \"gemma4\", \"model\": \"gemma4\", \"size\": 6591830464, \"digest\": \"c6eb396dbd5992bbe3f5cdb947e8bbc0ee413d7c17e2beaae69f5d569cf982eb\", \"details\": { \"parent_model\": \"\", \"format\": \"gguf\", \"family\": \"gemma4\", \"families\": [ \"gemma4\" ], \"parameter_size\": \"8.0B\", \"quantization_level\": \"Q4_K_M\" }, \"expires_at\": \"2025-10-17T16:47:07.93355-07:00\", \"size_vram\": 5333539264, \"context_length\": 4096 } ] }",
+          "source": "https://docs.ollama.com/api/ps",
+          "note": null
+        },
+        {
+          "text": "The top networks hosting exposed instances are AWS (1,686 combined), Hetzner (1,004), OVH (773), and Contabo (634). These aren’t hobbyist setups on home networks. These are cloud deployments, often running expensive GPU instances with production models loaded.",
+          "source": "https://blog.leakix.net/2026/02/ollama-exposed/",
+          "note": null
+        },
+        {
+          "text": "Oct 2023: Issue #849. “How to secure the API with api key.” Response: use nginx.",
+          "source": "https://blog.leakix.net/2026/02/ollama-exposed/",
+          "note": null
+        },
+        {
+          "text": "Nov 2023: Issue #1053. “Requesting support for basic auth or API key authentication.” 25+ comments. Closed.",
+          "source": "https://blog.leakix.net/2026/02/ollama-exposed/",
+          "note": null
+        },
+        {
+          "text": "12,269 exposed instances say the “use a proxy” approach isn’t working. At some point you have to stop blaming users and start taking responsibility for the software you ship.",
+          "source": "https://blog.leakix.net/2026/02/ollama-exposed/",
+          "note": null
+        },
+        {
+          "text": "blobs/ holds every actual file — weights, prompt template, licence text, parameter defaults — each named sha256-<64 hex chars>, where the hex is the SHA-256 of the file's own contents. That is content addressing, and it is what makes the transfer safe: the same blob is shared by every model that uses it, and no blob knows or cares which machine it is on.",
+          "source": "https://localaimaster.com/blog/transfer-ollama-models-offline",
+          "note": null
+        },
+        {
+          "text": "Two things to leave behind. Files with -partial in the name are interrupted downloads (sha256-0aa0872a…-partial, -partial-0, -partial-1, and so on). They are useless on the target and can be as large as whatever fraction of the model had downloaded before the pull died — often several gigabytes. Exclude them. Second, if you are copying selectively, do not copy a manifest whose blobs you skipped; you will get a named model that fails to load.",
+          "source": "https://localaimaster.com/blog/transfer-ollama-models-offline",
+          "note": null
+        },
+        {
+          "text": "Enforce it at the network, not in the app. On an air-gapped site the firewall already denies the egress. That control is auditable; a client-side toggle is not.",
+          "source": "https://localaimaster.com/blog/transfer-ollama-models-offline",
+          "note": null
+        },
+        {
+          "text": "Cross-platform note: blobs and manifests are identical across macOS, Windows, and Linux — a models folder copied from a Mac works on a Windows PC unchanged. Only the path differs.",
+          "source": "https://llmconfigurator.com/guides/move-ollama-new-computer",
+          "note": null
+        },
+        {
+          "text": "If the new machine has a small system drive, don't copy into the default path at all — set the OLLAMA_MODELS environment variable to somewhere roomier and put the folder there:",
+          "source": "https://llmconfigurator.com/guides/move-ollama-new-computer",
+          "note": null
+        },
+        {
+          "text": "export OLLAMA_MODELS=/mnt/bigdisk/ollama-models",
+          "source": "https://llmconfigurator.com/guides/move-ollama-new-computer",
+          "note": null
+        },
+        {
+          "text": "If ollama_loaded_models stays at 0, confirm that OLLAMA_HOST is reachable from inside the container and that at least one model has been loaded:",
+          "source": "https://www.neteye-blog.com/blog/2026/04/02/monitoring-ollama-in-neteye-with-ollama-metrics-and-check_prometheus/",
+          "note": null
+        },
+        {
+          "text": "What quantization or data format do cloud models use?",
+          "source": "https://ollama.com/pricing",
+          "note": null
+        },
+        {
+          "text": "Speed depends on model size, architecture, and hardware optimization. We target and monitor for low time-to-first-token and high throughput across all cloud models. Priority tiers with faster performance may be available in the future.",
+          "source": "https://ollama.com/pricing",
+          "note": null
+        },
+        {
+          "text": "Pro, Max, and Team plans include a set dollar amount of usage credits each month. Free accounts include a starter amount of usage for a smaller set of starter models. Buying usage credits unlocks all models. Running models on your own hardware is always unlimited.",
+          "source": "https://ollama.com/pricing",
+          "note": null
+        },
+        {
+          "text": "Performs a web search for a single query and returns relevant results.",
+          "source": "https://docs.ollama.com/capabilities/web-search",
+          "note": null
+        },
+        {
+          "text": "/openapi.yaml post /api/embed Creates vector embeddings representing the input text",
+          "source": "https://docs.ollama.com/api/embed",
+          "note": null
+        },
+        {
+          "text": "/openapi.yaml get /api/ps Retrieve a list of models that are currently running",
+          "source": "https://docs.ollama.com/api/ps",
+          "note": null
+        },
+        {
+          "text": "<Note> The `/api/embed` endpoint returns L2‑normalized (unit‑length) vectors. </Note>",
+          "source": "https://docs.ollama.com/capabilities/embeddings#generate-embeddings",
+          "note": null
+        },
+        {
+          "text": "3. Edit or create a new variable for your user account for `OLLAMA_MODELS` where you want the models stored",
+          "source": "https://docs.ollama.com/windows#changing-model-location",
+          "note": null
+        },
+        {
+          "text": "queryPrefix: \"search_query: \" documentPrefix: \"search_document: \"",
+          "source": "https://docs.percona.com/percona-search-for-mongodb/configure-automatic-embedding-ollama.html",
+          "note": null
+        },
+        {
+          "text": "```shell theme={\"system\"} curl -fsSL https://nvidia.github.io/libnvidia-container/gpgkey \\ | sudo gpg --dearmor -o /usr/share/keyrings/nvidia-container-toolkit-keyring.gpg curl -fsSL https://nvidia.github.io/libnvidia-container/stable/deb/nvidia-container-toolkit.list \\ | sed 's#deb https://#deb [signed-by=/usr/share/keyrings/nvidia-container-toolkit-keyring.gpg] https://#g' \\ | sudo tee /etc/apt/sources.list.d/nvidia-container-toolkit.list sudo apt-get update ```",
+          "source": "https://docs.ollama.com/docker.md#install-with-apt",
+          "note": null
+        },
+        {
+          "text": "2. Install the NVIDIA Container Toolkit packages",
+          "source": "https://docs.ollama.com/docker.md#install-with-apt",
+          "note": null
+        },
+        {
+          "text": "```shell theme={\"system\"} sudo apt-get install -y nvidia-container-toolkit ```",
+          "source": "https://docs.ollama.com/docker.md#install-with-apt",
+          "note": null
+        },
+        {
+          "text": "```shell theme={\"system\"} curl -fsSL https://nvidia.github.io/libnvidia-container/stable/rpm/nvidia-container-toolkit.repo \\ | sudo tee /etc/yum.repos.d/nvidia-container-toolkit.repo ```",
+          "source": "https://docs.ollama.com/docker.md#install-with-yum-or-dnf",
+          "note": null
+        },
+        {
+          "text": "```shell theme={\"system\"} sudo yum install -y nvidia-container-toolkit ```",
+          "source": "https://docs.ollama.com/docker.md#install-with-yum-or-dnf",
+          "note": null
+        },
+        {
+          "text": "ollama-windows-amd64-rocm.zipAMD ROCm acceleration",
+          "source": "https://localaimaster.com/blog/transfer-ollama-models-offline",
+          "note": null
+        },
+        {
+          "text": "You could try the Harbor registry, there is a dev build you could try: https://github.com/stonezdj/harbor/releases/v2.11.0-ollama",
+          "source": "https://github.com/ollama/ollama/issues/914#comments",
+          "note": null
+        },
+        {
+          "text": "Number of dimensions to generate embeddings for",
+          "source": "https://docs.ollama.com/api/embed",
+          "note": null
+        },
+        {
+          "text": "outputDimensions must match the dimensions returned by the model.",
+          "source": "https://docs.percona.com/percona-search-for-mongodb/configure-automatic-embedding-ollama.html",
+          "note": null
+        },
+        {
+          "text": "What happens to my usage if I switch from an existing Pro or Max plan to the new one?",
+          "source": "https://ollama.com/pricing",
+          "note": null
+        },
+        {
+          "text": "Your usage is reset: the new plan's full monthly amount is available as soon as you switch, and the session and weekly limits of the old plans no longer apply. Your reset date stays on your subscription's original start date. Switch any time from your billing settings.",
+          "source": "https://ollama.com/pricing",
+          "note": null
+        },
+        {
+          "text": "<Accordion title=\"Legacy plans\"> Plans with session and weekly limits return `session` and `weekly` in `included`:",
+          "source": "https://docs.ollama.com/api/balance#balances",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Disagreements",
+      "facts": [
+        {
+          "text": "The official docs fetched (troubleshooting, FAQ, API ps) describe no native Prometheus /metrics endpoint. Third-party exporters exist to fill the gap, which supports the view that Ollama does not ship one.",
+          "source": "https://www.neteye-blog.com/blog/2026/04/02/monitoring-ollama-in-neteye-with-ollama-metrics-and-check_prometheus/",
+          "note": "native Prometheus /metrics: community blog asserts OLLAMA_ENABLE_METRICS, official docs describe none",
+          "group": "c1"
+        },
+        {
+          "text": "A blog says OLLAMA_ENABLE_METRICS=true enables a native /metrics endpoint. The post cites no Ollama source or release, and the official docs fetched do not mention the variable.",
+          "source": "https://adhdecode.com/articles/ollama/ollama-prometheus-metrics-monitoring/",
+          "note": "native Prometheus /metrics: community blog asserts OLLAMA_ENABLE_METRICS, official docs describe none",
+          "group": "c1"
+        },
+        {
+          "text": "Affected: ollama/ollama versions 0 lessThan 0.17.1 (semver). CVSS v3.1 (secondary, CNA abd028dc): 9.1 CRITICAL AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:N/A:H CVSS v4.0 (secondary): 8.8 HIGH",
+          "source": "https://nvd.nist.gov/vuln/detail/CVE-2026-7482",
+          "note": "CVE-2026-7482 severity: GitHub advisory rates HIGH, NVD lists CNA CVSS 3.1 9.1 CRITICAL (4.0: 8.8)",
+          "group": "c2"
+        },
+        {
+          "text": "GitHub Advisory GHSA-x8qc-fggm-mpqg (CVE-2026-7482) is titled \"Ollama contains a heap out-of-bounds read vulnerability in the GGUF model loader\". Its severity is HIGH.",
+          "source": "https://github.com/advisories/GHSA-x8qc-fggm-mpqg",
+          "note": "CVE-2026-7482 severity: GitHub advisory rates HIGH, NVD lists CNA CVSS 3.1 9.1 CRITICAL (4.0: 8.8)",
+          "group": "c2"
+        }
+      ]
+    }
+  ],
+  "related": [
+    {
+      "concept": "ollama",
+      "relation": "is a related of Ollama deployment and operations",
+      "note": null
+    },
+    {
+      "concept": "api key",
+      "relation": "is a part of Ollama deployment and operations",
+      "note": null
+    },
+    {
+      "concept": "11434",
+      "relation": "is a related of Ollama deployment and operations",
+      "note": null
+    },
+    {
+      "concept": "auth proxy",
+      "relation": "is a part of Ollama deployment and operations",
+      "note": null
+    },
+    {
+      "concept": "usage limits",
+      "relation": "is a measure of Ollama deployment and operations",
+      "note": null
+    },
+    {
+      "concept": "nomic-embed-text",
+      "relation": "is a instance of Ollama deployment and operations",
+      "note": null
+    },
+    {
+      "concept": "l2-normalized",
+      "relation": "is a measure of Ollama deployment and operations",
+      "note": null
+    },
+    {
+      "concept": "ollama-metrics",
+      "relation": "is a instance of Ollama deployment and operations",
+      "note": null
+    },
+    {
+      "concept": "ollama:rocm",
+      "relation": "is a hyponym of Ollama deployment and operations",
+      "note": null
+    },
+    {
+      "concept": "persistent volume",
+      "relation": "is a part of Ollama deployment and operations",
+      "note": null
+    }
+  ]
+}
