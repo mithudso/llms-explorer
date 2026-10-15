@@ -333,6 +333,15 @@ def test_scope_cli_writes_scope_and_batches(tmp_path, monkeypatch, capsys):
     assert re.fullmatch(r"[a-z0-9-]+", json.loads((run / "batches.json").read_text())[0]["id"])
 
 
+def test_status_cli_rejects_a_directory_that_is_not_a_run(tmp_path, monkeypatch, capsys):
+    monkeypatch.setattr(rs, "HUB", tmp_path)
+    monkeypatch.setattr(rs, "load_hub_modules", lambda: None)
+    (tmp_path / "research" / ".pipeline" / "logs").mkdir(parents=True)
+    ns = type("A", (), {"run": "logs"})
+    assert rs.cmd_status(ns) == 2
+    assert json.loads(capsys.readouterr().out)["error"].startswith("not a run")
+
+
 hub_mods = pytest.mark.skipif(
     not (Path.home() / ".global-ai-hub/scripts/dr_run.py").exists(), reason="hub checkout absent"
 )
