@@ -1,0 +1,32 @@
+# Example llama-swap config for a 16 GB RTX 5080. Replace /path/to/llm-bench with your own paths. Key names (models, cmd, ttl, healthCheckTimeout) follow the llama-swap README.
+# llama-swap config for the RTX 5080 (16 GB). One model is resident at a time; the first request for another model id swaps it in.
+healthCheckTimeout: 300
+models:
+  qwen38:   # DEFAULT. Qwen3.8-27B Q3_K_XL with its built-in MTP draft head (n=2), thinking off: ~85-92 tok/s, 32k context, ~15.7 GB of the 16.3 GB card.
+    ttl: 900
+    cmd: >
+      /path/to/llm-bench/src/llama.cpp/build/bin/llama-server --port ${PORT} --jinja -fa on
+      -m /path/to/llm-bench/models/Qwen3.8-27B-GGUF/Qwen3.8-27B-UD-Q3_K_XL.gguf
+      -np 1 -ub 512 -b 512 -ngl 99 -c 32768 --cache-type-k q8_0 --cache-type-v q8_0
+      --spec-type draft-mtp --spec-draft-n-max 2
+      --chat-template-kwargs '{"enable_thinking": false}'
+  qwen38-hq:   # Same model, higher-quality IQ4_XS weights, no draft head: ~50 tok/s, 24k context. Use when the 32k build misses a detail.
+    ttl: 900
+    cmd: >
+      /path/to/llm-bench/src/llama.cpp/build/bin/llama-server --port ${PORT} --jinja -fa on
+      -m /path/to/llm-bench/models/Qwen3.8-27B-GGUF/Qwen3.8-27B-UD-IQ4_XS.gguf
+      -np 1 -ub 512 -b 512 -ngl 99 -c 24576 --cache-type-k q8_0 --cache-type-v q8_0
+      --chat-template-kwargs '{"enable_thinking": false}'
+  gptoss20b:   # Fastest (230-250 tok/s), 65k context, default (medium) reasoning effort. Best for bulk or latency-bound work.
+    ttl: 900
+    cmd: >
+      /path/to/llm-bench/src/llama.cpp/build/bin/llama-server --port ${PORT} --jinja -fa on
+      -m /path/to/llm-bench/models/gpt-oss-20b-GGUF/gpt-oss-20b-UD-Q4_K_XL.gguf
+      -c 65536 -ub 2048 -b 2048
+  qwen36-35b:   # Qwen3.6-35B-A3B thinking off, MTP n=2 (~74-85 tok/s): the best concept-family mapper in the bake-off.
+    ttl: 900
+    cmd: >
+      /path/to/llm-bench/src/llama.cpp/build/bin/llama-server --port ${PORT} --jinja -fa on
+      -m /path/to/llm-bench/models/Qwen3.6-35B-A3B-MTP-GGUF/Qwen3.6-35B-A3B-UD-Q4_K_M.gguf
+      -c 65536 -ub 2048 -b 2048 --spec-type draft-mtp --spec-draft-n-max 2
+      --chat-template-kwargs '{"enable_thinking": false}'

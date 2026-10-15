@@ -480,3 +480,7 @@
 ## Prompt v111 - 2026-10-13T09:00:00-04:00
 - User request:
   - "1. Yes. 2. Yes. 3. Keep both. 4. Yes. 5. Yes add a guard, also what is sync_skills actually syncing to? Is that up?" (4 = fix hub CI: the 28 ruff errors in tests/ and anything else keeping it red.)
+
+## Prompt v112 - 2026-10-14T13:49:00-04:00
+- User request:
+  - Run the deep prompt optimizer on the MongoDB research prompt and then run it: research every unresearched/frontier MongoDB concept with the local Qwen3.8-27B (UD-Q3_K_XL + draft head via llama.cpp/llama-swap) as workhorse, build a text-only source library with raw and processed spaces (crawl heavily-used sites, prefer llms-full.txt), stage the research in grouped parallel stages (max-effort sourcing, lighter reasoning for processing), and sync all repos first.
