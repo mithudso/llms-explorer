@@ -1,0 +1,400 @@
+{
+  "slug": "ollama-installation-and-service-ops-on-linux-and-windows",
+  "concept": "Ollama installation and service ops on Linux and Windows",
+  "generated": "2026-10-14",
+  "summary": "Everything the scanned sources say about Ollama installation and service ops on Linux and Windows: 51 source-anchored units across 6 sources, grouped by facet.",
+  "facets": [
+    {
+      "title": "Definitions",
+      "facts": [
+        {
+          "text": "Changing the Ollama port is one line in a systemd drop-in. Everything that follows, the firewall scope, the reverse proxy and the blocked management endpoints, is what keeps an unauthenticated inference API from becoming a public one. Verify the bound address with ss -tlnp after every change, since a drop-in that never took effect looks identical to a working configuration until a client tries to connect.",
+          "source": "https://www.centron.de/tutorials/expose-ollama-network-port-hardening",
+          "note": null
+        },
+        {
+          "text": "Running Ollama on Windows as a real system service is not provided by the installer: the docs point to the standalone ollama-windows-amd64.zip (CLI plus NVIDIA libs; add ollama-windows-amd64-rocm.zip for AMD) run via `ollama serve` under a wrapper such as NSSM.",
+          "source": "https://docs.ollama.com/windows",
+          "note": null
+        },
+        {
+          "text": "GPU acceleration is not available for Docker Desktop in macOS due to the lack of GPU passthrough and emulation.",
+          "source": "https://docs.ollama.com/faq#how-do-i-use-ollama-with-gpu-acceleration-in-docker",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "How it works",
+      "facts": [
+        {
+          "text": "If Ollama runs as a systemd service, add Environment=\"OLLAMA_CONTEXT_LENGTH=4096\" to the unit and restart it, or cap a single model from inside the session with /set parameter num_ctx 4096. Setting the variable in front of ollama run does nothing, because ollama run is only the client and the server holds the context. With the cache capped to fit, the same model on the same card held at 37 tokens per second. Same hardware, same weights, ten times the speed, decided entirely by whether the cache fit.",
+          "source": "https://computingforgeeks.com/how-much-vram-to-run-llm/",
+          "note": null
+        },
+        {
+          "text": "Yes. The server reads them at startup, and a running model keeps the slot count that was fixed into its runner process when it launched. Edit the drop-in with sudo systemctl edit ollama.service, then run sudo systemctl daemon-reload and sudo systemctl restart ollama. Confirm with systemctl show ollama --property=Environment, and then check the server config line in journalctl -u ollama, which lists the environment the server actually loaded.",
+          "source": "https://www.ssdnodes.com/learn/ollama-num-parallel-and-max-queue",
+          "note": null
+        },
+        {
+          "text": "Match the method to how Ollama runs. Terminal server: your shell profile. macOS menu-bar app: launchctl, because launchd never reads ~/.zshrc. Linux: the systemd unit. Docker: a -e flag. Setting it in the wrong place is the number-one reason a variable looks ignored.",
+          "source": "https://modelpiper.com/blog/ollama-environment-variables",
+          "note": null
+        },
+        {
+          "text": "systemctl show prints what systemd will hand the process. If your variable is missing there, the drop-in was not saved or daemon-reload was skipped. Confirm from the server's own side too:",
+          "source": "https://www.ssdnodes.com/learn/ollama-num-parallel-and-max-queue",
+          "note": null
+        },
+        {
+          "text": "Almost always because the variable is set in a different environment than the one the server runs in. The macOS app is started by launchd and never reads your shell profile, so it needs launchctl setenv. A systemd service ignores your shell and needs an Environment= line in the unit. Every method requires a full server restart, since Ollama reads the variables only at startup. If all of that checks out, confirm the variable still exists: OLLAMA_MAX_VRAM and OLLAMA_TMPDIR are both widely recommended and neither is read by current Ollama.",
+          "source": "https://modelpiper.com/blog/ollama-environment-variables",
+          "note": null
+        },
+        {
+          "text": "On Linux, the documented install is `curl -fsSL https://ollama.com/install.sh | sh`; the manual path extracts ollama-linux-amd64.tar.zst (plus ollama-linux-amd64-rocm.tar.zst for AMD, or the arm64 package) into /usr. When upgrading manually, remove /usr/lib/ollama first.",
+          "source": "https://docs.ollama.com/linux",
+          "note": null
+        },
+        {
+          "text": "A line showing 127.0.0.1:11434 means the drop-in was not picked up. Check what systemd actually passes to the process:",
+          "source": "https://www.centron.de/tutorials/expose-ollama-network-port-hardening",
+          "note": null
+        },
+        {
+          "text": "The distinction that trips people up: these configure the background server (ollama serve), not the ollama run command. Setting one in the same shell where you type ollama run does nothing if the server is already running as a separate process or a macOS app. The server has its own environment, and that is the one that counts.",
+          "source": "https://modelpiper.com/blog/ollama-environment-variables",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "How-to and procedures",
+      "facts": [
+        {
+          "text": "To set server environment variables under systemd, run `sudo systemctl edit ollama.service` (creates /etc/systemd/system/ollama.service.d/override.conf), add `[Service]` plus `Environment=\"NAME=value\"` lines, then `systemctl daemon-reload` and `systemctl restart ollama`. Do not edit the packaged unit file; package updates overwrite it.",
+          "source": "https://docs.ollama.com/faq",
+          "note": null
+        },
+        {
+          "text": "Install Ollama on Ubuntu 24.04, run it as a systemd service, configure OLLAMA_HOST and OLLAMA_MODELS, and verify the API on port 11434.",
+          "source": "https://www.centron.de/tutorials/expose-ollama-network-port-hardening",
+          "note": null
+        },
+        {
+          "text": "Set Ollama environment variables in your shell profile for terminal use, with launchctl setenv for the macOS app, in the systemd unit on Linux, or with -e flags for Docker. Ollama reads them at server startup, so restart Ollama after any change.",
+          "source": "https://modelpiper.com/blog/ollama-environment-variables",
+          "note": null
+        },
+        {
+          "text": "Create a service file in `/etc/systemd/system/ollama.service`:",
+          "source": "https://docs.ollama.com/linux#adding-ollama-as-a-startup-service-recommended",
+          "note": null
+        },
+        {
+          "text": "Use a method that survives reboots. launchctl setenv on macOS applies to the current login session, so for a permanent macOS setting add it to a login script or LaunchAgent. On Linux, the systemd unit override is already permanent. In a shell, an export line in ~/.zshrc or ~/.bashrc persists across sessions.",
+          "source": "https://modelpiper.com/blog/ollama-environment-variables",
+          "note": null
+        },
+        {
+          "text": "Run Open WebUI as a browser front end for Ollama on Ubuntu 24.04: Docker setup, secure API binding, model pulls and an HTTPS reverse proxy.",
+          "source": "https://www.centron.de/tutorials/expose-ollama-network-port-hardening",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Examples and snippets",
+      "facts": [
+        {
+          "text": "```shell theme={\"system\"} — `OLLAMA_CONTEXT_LENGTH=8192 ollama serve` …",
+          "source": "https://docs.ollama.com/faq#how-can-i-specify-the-context-window-size",
+          "note": null
+        },
+        {
+          "text": "``` — `OLLAMA_CONTEXT_LENGTH=64000 ollama serve` …",
+          "source": "https://docs.ollama.com/context-length#cli",
+          "note": null
+        },
+        {
+          "text": "``` — `# Allow all Chrome, Firefox, and Safari extensions` …",
+          "source": "https://docs.ollama.com/faq#how-can-i-allow-additional-web-origins-to-access-ollama",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Problems, failure modes and limitations",
+      "facts": [
+        {
+          "text": "Warning: The unit file, source configuration file or drop-ins of ollama.service changed on disk. Run 'systemctl daemon-reload' to reload units. Printed by systemctl restart when you skipped daemon-reload. The restart used the old environment. Reload, then restart again.",
+          "source": "https://www.ssdnodes.com/learn/ollama-kv-cache-quantization",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Comparisons and alternatives",
+      "facts": [
+        {
+          "text": "connection refused from a remote host. The service is still on loopback. ss -tlnp shows 127.0.0.1:11434 rather than *:11434. Re-check the drop-in, run sudo systemctl daemon-reload, and restart the service. A systemctl edit file that was saved without the [Service] header is silently ignored.",
+          "source": "https://www.centron.de/tutorials/expose-ollama-network-port-hardening",
+          "note": null
+        },
+        {
+          "text": "So here it is: every Ollama environment variable, what it controls, its real default, and where to set it on macOS, Linux, Docker, and Windows. This reference was rebuilt on 2026-07-29 by reading envconfig/config.go at v0.32.5 line by line rather than by paraphrasing the FAQ, because on several variables the two disagree and the source wins. This reference assumes Ollama is already running. If it is not, our install guide for Mac gets you there first.",
+          "source": "https://modelpiper.com/blog/ollama-environment-variables",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Facts and statements",
+      "facts": [
+        {
+          "text": "$ systemctl show ollama.service -p Environment Environment=OLLAMA_HOST=0.0.0.0:11434 OLLAMA_ORIGINS=https://chat.example.com",
+          "source": "https://www.centron.de/tutorials/expose-ollama-network-port-hardening",
+          "note": null
+        },
+        {
+          "text": "1. Edit the systemd service by calling `systemctl edit ollama.service`. This will open an editor.",
+          "source": "https://docs.ollama.com/faq#setting-environment-variables-on-linux",
+          "note": null
+        },
+        {
+          "text": "graph TD A[\"Client or app\"] -->|\"HTTPS + Basic Auth\"| B[\"nginx :443\"] B -->|\"HTTP to 127.0.0.1:11434\"| C[\"ollama serve\"] C --> D[\"GPU model runner\"] E[\"Public internet\"] -.->|\"dropped by firewall\"| C",
+          "source": "https://www.centron.de/tutorials/expose-ollama-network-port-hardening",
+          "note": null
+        },
+        {
+          "text": "Browser origins systemctl show ollama.service -p Environment OLLAMA_ORIGINS lists known hosts only",
+          "source": "https://www.centron.de/tutorials/expose-ollama-network-port-hardening",
+          "note": null
+        },
+        {
+          "text": "The Windows installer does not need Administrator, installs to the home directory by default, and accepts `OllamaSetup.exe /DIR=\"d:\\some\\location\"` to relocate binaries. Models are stored separately via OLLAMA_MODELS, and uninstalling does not remove models stored at a custom OLLAMA_MODELS location.",
+          "source": "https://docs.ollama.com/windows",
+          "note": null
+        },
+        {
+          "text": "If Ollama is run as a systemd service, environment variables should be set using `systemctl`:",
+          "source": "https://docs.ollama.com/faq#setting-environment-variables-on-linux",
+          "note": null
+        },
+        {
+          "text": "The documented manual systemd setup creates a system user and group `ollama` (home /usr/share/ollama, shell /bin/false), adds the current user to that group, and writes /etc/systemd/system/ollama.service with ExecStart=/usr/bin/ollama serve, User=ollama, Restart=always, RestartSec=3, WantedBy=multi-user.target; then daemon-reload and enable/start. Logs are read with `journalctl -e -u ollama`.",
+          "source": "https://docs.ollama.com/linux",
+          "note": null
+        },
+        {
+          "text": "Save and quit. If you prefer a file to an editor, the same three lines in /etc/systemd/system/ollama.service.d/override.conf do the same job, which is what systemctl edit writes for you. Then reload and restart:",
+          "source": "https://www.ssdnodes.com/learn/ollama-kv-cache-quantization",
+          "note": null
+        },
+        {
+          "text": "Editing \"/etc/systemd/system/ollama.service.d/override.conf\" canceled: temporary file is empty. You typed the lines below the marker that says everything after it is discarded. Run systemctl edit again and put them above it, or write the override file directly.",
+          "source": "https://www.ssdnodes.com/learn/ollama-kv-cache-quantization",
+          "note": null
+        },
+        {
+          "text": "Linux (systemd service): edit the unit with sudo systemctl edit ollama.service and add the variable under [Service].",
+          "source": "https://modelpiper.com/blog/ollama-environment-variables",
+          "note": null
+        },
+        {
+          "text": "If Ollama initially works on the GPU in a docker container, but then switches to running on CPU after some period of time with errors in the server log reporting GPU discovery failures, this can be resolved by disabling systemd cgroup management in Docker. Edit `/etc/docker/daemon.json` on the host and add `\"exec-opts\": [\"native.cgroupdriver=cgroupfs\"]` to the docker configuration.",
+          "source": "https://docs.ollama.com/troubleshooting#linux-docker",
+          "note": null
+        },
+        {
+          "text": "A drop-in saved without the `[Service]` header is silently ignored, and a variable exported in a user shell never reaches the systemd-run daemon (the CLI is only an HTTP client). Verify with `systemctl show ollama.service -p Environment` and `ss -tlnp | grep 11434`.",
+          "source": "https://www.centron.de/tutorials/expose-ollama-network-port-hardening",
+          "note": null
+        },
+        {
+          "text": "If you are using a container to run Ollama, make sure you've set up the container runtime first as described in [docker](./docker)",
+          "source": "https://docs.ollama.com/troubleshooting#linux-nvidia-troubleshooting",
+          "note": null
+        },
+        {
+          "text": "The Ollama Docker container can be configured with GPU acceleration in Linux or Windows (with WSL2). This requires the [nvidia-container-toolkit](https://github.com/NVIDIA/nvidia-container-toolkit). See [ollama/ollama](https://hub.docker.com/r/ollama/ollama) for more details.",
+          "source": "https://docs.ollama.com/faq#how-do-i-use-ollama-with-gpu-acceleration-in-docker",
+          "note": null
+        },
+        {
+          "text": "docker run -d \\ --gpus '\"device=0,1\"' \\ -v ollama:/root/.ollama \\ -p 11434:11434 \\ --name ollama \\ ollama/ollama",
+          "source": "https://knightli.com/2026/04/19/ollama-multiple-gpu-notes/",
+          "note": null
+        },
+        {
+          "text": "4. Reload `systemd` and restart Ollama:",
+          "source": "https://docs.ollama.com/faq#setting-environment-variables-on-linux",
+          "note": null
+        },
+        {
+          "text": "Alternatively, create an override file manually in `/etc/systemd/system/ollama.service.d/override.conf`:",
+          "source": "https://docs.ollama.com/linux#customizing",
+          "note": null
+        },
+        {
+          "text": "systemd as the init system. The official install script registers ollama.service.",
+          "source": "https://www.centron.de/tutorials/expose-ollama-network-port-hardening",
+          "note": null
+        },
+        {
+          "text": "Nothing changed, and the journal never shows the variable. You set it with export in your shell before running ollama run. That reaches the CLI, which is a client, and never reaches the server, which is the systemd unit with its own environment. systemctl show ollama -p Environment is the only view that counts.",
+          "source": "https://www.ssdnodes.com/learn/ollama-kv-cache-quantization",
+          "note": null
+        },
+        {
+          "text": "docker run -d \\ --gpus=all \\ -v ollama:/root/.ollama \\ -p 11434:11434 \\ --name ollama \\ ollama/ollama",
+          "source": "https://knightli.com/2026/04/19/ollama-multiple-gpu-notes/",
+          "note": null
+        },
+        {
+          "text": "Ollama Docker Hub：https://hub.docker.com/r/ollama/ollama",
+          "source": "https://knightli.com/2026/04/19/ollama-multiple-gpu-notes/",
+          "note": null
+        },
+        {
+          "text": "The easiest way to install Ollama on Windows is to use the `OllamaSetup.exe` installer. It installs in your account without requiring Administrator rights. We update Ollama regularly to support the latest models, and this installer will help you keep up to date.",
+          "source": "https://docs.ollama.com/windows#standalone-cli",
+          "note": null
+        },
+        {
+          "text": "This allows for embedding Ollama in existing applications, or running it as a system service via `ollama serve` with tools such as [NSSM](https://nssm.cc/).",
+          "source": "https://docs.ollama.com/windows#standalone-cli",
+          "note": null
+        },
+        {
+          "text": "Copy sudo systemctl daemon-reload sudo systemctl restart ollama systemctl show ollama --property=Environment",
+          "source": "https://www.ssdnodes.com/learn/ollama-num-parallel-and-max-queue",
+          "note": null
+        },
+        {
+          "text": "如果容器里 nvidia-smi 看不到卡，Ollama 也不可能用到 GPU。先排查 Docker GPU passthrough，再排查 Ollama。",
+          "source": "https://knightli.com/2026/04/19/ollama-multiple-gpu-notes/",
+          "note": null
+        },
+        {
+          "text": "不一定。Linux systemd 服务、Windows 后台应用、Docker 容器都可能需要重启，才能重新识别设备和环境变量。",
+          "source": "https://knightli.com/2026/04/19/ollama-multiple-gpu-notes/",
+          "note": null
+        },
+        {
+          "text": "Ollama reads environment variables once, at server startup. Quit the app fully and reopen it, or stop and restart ollama serve. Reloading a client or browser tab is not enough.",
+          "source": "https://modelpiper.com/blog/ollama-environment-variables",
+          "note": null
+        },
+        {
+          "text": "If manually running `ollama serve` in a terminal, the logs will be on that terminal.",
+          "source": "https://docs.ollama.com/troubleshooting",
+          "note": null
+        }
+      ]
+    }
+  ],
+  "related": [
+    {
+      "concept": "systemd",
+      "relation": "is a synonym of Ollama installation and service ops on Linux and Windows",
+      "note": null
+    },
+    {
+      "concept": "systemctl",
+      "relation": "is a synonym of Ollama installation and service ops on Linux and Windows",
+      "note": null
+    },
+    {
+      "concept": "ollama.service",
+      "relation": "is a synonym of Ollama installation and service ops on Linux and Windows",
+      "note": null
+    },
+    {
+      "concept": "docker",
+      "relation": "is a related of Ollama installation and service ops on Linux and Windows",
+      "note": null
+    },
+    {
+      "concept": "ollama serve",
+      "relation": "is a synonym of Ollama installation and service ops on Linux and Windows",
+      "note": null
+    },
+    {
+      "concept": "GPU",
+      "relation": "is a related of Ollama installation and service ops on Linux and Windows",
+      "note": null
+    },
+    {
+      "concept": "launchctl",
+      "relation": "is a synonym of Ollama installation and service ops on Linux and Windows",
+      "note": null
+    },
+    {
+      "concept": "ollama/ollama",
+      "relation": "is a part of Ollama installation and service ops on Linux and Windows",
+      "note": null
+    },
+    {
+      "concept": "127.0.0.1",
+      "relation": "is a related of Ollama installation and service ops on Linux and Windows",
+      "note": null
+    },
+    {
+      "concept": "OllamaSetup",
+      "relation": "is a synonym of Ollama installation and service ops on Linux and Windows",
+      "note": null
+    },
+    {
+      "concept": "runner",
+      "relation": "is a part of Ollama installation and service ops on Linux and Windows",
+      "note": null
+    },
+    {
+      "concept": "reverse proxy",
+      "relation": "is a part of Ollama installation and service ops on Linux and Windows",
+      "note": null
+    },
+    {
+      "concept": "gpu discovery",
+      "relation": "is a problem of Ollama installation and service ops on Linux and Windows",
+      "note": null
+    },
+    {
+      "concept": "num_ctx",
+      "relation": "is a synonym of Ollama installation and service ops on Linux and Windows",
+      "note": null
+    },
+    {
+      "concept": "context length",
+      "relation": "is a synonym of Ollama installation and service ops on Linux and Windows",
+      "note": null
+    },
+    {
+      "concept": "context window",
+      "relation": "is a synonym of Ollama installation and service ops on Linux and Windows",
+      "note": null
+    },
+    {
+      "concept": "install.sh",
+      "relation": "is a synonym of Ollama installation and service ops on Linux and Windows",
+      "note": null
+    },
+    {
+      "concept": "envconfig",
+      "relation": "is a part of Ollama installation and service ops on Linux and Windows",
+      "note": null
+    },
+    {
+      "concept": "menu bar",
+      "relation": "is a part of Ollama installation and service ops on Linux and Windows",
+      "note": null
+    },
+    {
+      "concept": "settings",
+      "relation": "is a part of Ollama installation and service ops on Linux and Windows",
+      "note": null
+    }
+  ]
+}
