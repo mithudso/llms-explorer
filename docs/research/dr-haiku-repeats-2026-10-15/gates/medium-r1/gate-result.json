@@ -1,0 +1,190 @@
+{
+ "name": "medium-r1",
+ "claims": 14,
+ "concept_done": {
+  "ok": true,
+  "concept": "SQLite WAL checkpointing",
+  "slug": "sqlite-wal-checkpointing",
+  "claims": 14,
+  "sources": 5,
+  "run_status": "research-complete",
+  "pending": [],
+  "warning": null,
+  "warnings": []
+ },
+ "counts": {
+  "SUPPORTED": 12
+ },
+ "cost_usd": 0.4747367,
+ "tokens": 218498,
+ "seconds": 74,
+ "error": null,
+ "verdicts": [
+  {
+   "concept": "SQLite WAL checkpointing",
+   "claim": "There are four checkpoint modes: PASSIVE, FULL, RESTART and TRUNCATE. PASSIVE copies as many frames as it can without waiting",
+   "footnotes": [
+    "[^c1-2]",
+    "[^c1-1]"
+   ],
+   "urls": [
+    "https://www.sqlite.org/c3ref/wal_checkpoint_v2.html",
+    "https://www.sqlite.org/wal.html"
+   ],
+   "verdict": "SUPPORTED",
+   "evidence": "c3ref lists all four; PASSIVE: 'The busy-handler callback is never invoked ... might leave the checkpoint unfinished'. Note: wal.html itself says 'three subtypes' (omits TRUNCATE)."
+  },
+  {
+   "concept": "SQLite WAL checkpointing",
+   "claim": "FULL, RESTART and TRUNCATE block until no writer is active and all readers use the latest snapshot. They also take the exclusive writer lock",
+   "footnotes": [
+    "[^c1-2]",
+    "[^c1-1]"
+   ],
+   "urls": [
+    "https://www.sqlite.org/c3ref/wal_checkpoint_v2.html",
+    "https://www.sqlite.org/wal.html"
+   ],
+   "verdict": "SUPPORTED",
+   "evidence": "c3ref: FULL/RESTART/TRUNCATE 'also obtain the exclusive \"writer\" lock'; wal.html: 'FULL and RESTART ... can only be initiated by a call to sqlite3_wal_checkpoint_v2()', automatic checkpoints are PASSIVE."
+  },
+  {
+   "concept": "SQLite WAL checkpointing",
+   "claim": "RESTART adds a wait until all readers read from the database file only, so the next writer restarts the WAL from the beginning. TRUNCATE adds truncation",
+   "footnotes": [
+    "[^c1-2]",
+    "[^c1-1]"
+   ],
+   "urls": [
+    "https://www.sqlite.org/c3ref/wal_checkpoint_v2.html",
+    "https://www.sqlite.org/wal.html"
+   ],
+   "verdict": "SUPPORTED",
+   "evidence": "c3ref RESTART/TRUNCATE text matches; wal.html: 'readers might block while the checkpoint is running'. Minor tension: c3ref says RESTART 'does not impede readers'."
+  },
+  {
+   "concept": "SQLite WAL checkpointing",
+   "claim": "A checkpoint can run beside readers, but it stops before any WAL page that a current reader still needs. It records its progress in the wal-index",
+   "footnotes": [
+    "[^c1-1]",
+    "[^c1-4]"
+   ],
+   "urls": [
+    "https://www.sqlite.org/wal.html",
+    "https://forum.syncthing.net/t/dealing-with-checkpoint-starvation/26121"
+   ],
+   "verdict": "SUPPORTED",
+   "evidence": "wal.html: 'The checkpoint remembers (in the wal-index) how far it got and will resume ... on the next invocation.'"
+  },
+  {
+   "concept": "SQLite WAL checkpointing",
+   "claim": "After a fully checkpointed WAL and no active readers, the next writer rewinds the WAL to the start and reuses it. A plain checkpoint does not shrink",
+   "footnotes": [
+    "[^c1-1]",
+    "[^c1-5]"
+   ],
+   "urls": [
+    "https://www.sqlite.org/wal.html",
+    "https://photostructure.com/coding/how-to-vacuum-sqlite/"
+   ],
+   "verdict": "SUPPORTED",
+   "evidence": "wal.html: 'The checkpoint does not normally truncate the WAL file (unless the journal_size_limit pragma is set)... start overwriting the WAL file from the beginning.'"
+  },
+  {
+   "concept": "SQLite WAL checkpointing",
+   "claim": "After a successful TRUNCATE checkpoint, the WAL file is zero bytes and both pnLog and pnCkpt are zero",
+   "footnotes": [
+    "[^c1-2]",
+    "[^c1-5]"
+   ],
+   "urls": [
+    "https://www.sqlite.org/c3ref/wal_checkpoint_v2.html",
+    "https://photostructure.com/coding/how-to-vacuum-sqlite/"
+   ],
+   "verdict": "SUPPORTED",
+   "evidence": "c3ref: 'upon successful completion of an SQLITE_CHECKPOINT_TRUNCATE, the log file will have been truncated to zero bytes and so both *pnLog and *pnCkpt will be set to zero.'"
+  },
+  {
+   "concept": "SQLite WAL checkpointing",
+   "claim": "A TRUNCATE checkpoint that returns SQLITE_BUSY leaves the WAL at its previous size",
+   "footnotes": [
+    "[^c1-2]",
+    "[^c1-5]"
+   ],
+   "urls": [
+    "https://www.sqlite.org/c3ref/wal_checkpoint_v2.html",
+    "https://photostructure.com/coding/how-to-vacuum-sqlite/"
+   ],
+   "verdict": "SUPPORTED",
+   "evidence": "Implied, not stated outright: c3ref truncates 'just prior to a successful return' and a BUSY result 'proceeds ... same way as SQLITE_CHECKPOINT_PASSIVE'. PhotoStructure does not address this."
+  },
+  {
+   "concept": "SQLite WAL checkpointing",
+   "claim": "If at least one reader is always active and the readers overlap, no checkpoint completes and the WAL grows without bound. The SQLite docs",
+   "footnotes": [
+    "[^c1-1]",
+    "[^c1-4]"
+   ],
+   "urls": [
+    "https://www.sqlite.org/wal.html",
+    "https://forum.syncthing.net/t/dealing-with-checkpoint-starvation/26121"
+   ],
+   "verdict": "SUPPORTED",
+   "evidence": "wal.html: 'if ... there is always at least one active reader, then no checkpoints will be able to complete ... avoided by ensuring that there are \"reader gaps\"'."
+  },
+  {
+   "concept": "SQLite WAL checkpointing",
+   "claim": "A checkpoint cannot reset the WAL in the middle of a write transaction. A long write transaction, such as a large VACUUM, can make",
+   "footnotes": [
+    "[^c1-1]",
+    "[^c1-5]"
+   ],
+   "urls": [
+    "https://www.sqlite.org/wal.html",
+    "https://photostructure.com/coding/how-to-vacuum-sqlite/"
+   ],
+   "verdict": "SUPPORTED",
+   "evidence": "wal.html: 'the WAL file cannot be reset in the middle of a write transaction'; PhotoStructure: 'The entire rebuilt database gets written to the WAL file'."
+  },
+  {
+   "concept": "SQLite WAL checkpointing",
+   "claim": "A Syncthing developer observed that a timer-based application checkpointer may never find a moment with no active reader",
+   "footnotes": [
+    "[^c1-4]",
+    "[^c1-1]"
+   ],
+   "urls": [
+    "https://forum.syncthing.net/t/dealing-with-checkpoint-starvation/26121",
+    "https://www.sqlite.org/wal.html"
+   ],
+   "verdict": "SUPPORTED",
+   "evidence": "Syncthing post (2026-02-06, bt90): 'we might never hit a timewindow without an active reader'; 'truncating the WAL requires no active readers/writers'."
+  },
+  {
+   "concept": "SQLite WAL checkpointing",
+   "claim": "Syncthing poster proposes accepting an exclusive lock for WAL truncation once the WAL reaches multiple gigabytes. Litestream avoids",
+   "footnotes": [
+    "[^c1-4]",
+    "[^c1-3]"
+   ],
+   "urls": [
+    "https://forum.syncthing.net/t/dealing-with-checkpoint-starvation/26121",
+    "https://litestream.io/guides/wal-truncate-threshold/"
+   ],
+   "verdict": "SUPPORTED",
+   "evidence": "Syncthing: 'critical levels of multiple gigabytes ... would mandate some kind of exclusive locking'; Litestream: 'first attempts a PASSIVE checkpoint', TRUNCATE above 121,359 pages."
+  },
+  {
+   "concept": "SQLite WAL checkpointing",
+   "claim": "PhotoStructure says a TRUNCATE checkpoint after VACUUM reclaims WAL disk space. A 2022-era SQLite forum thread, seen only as a snip",
+   "footnotes": [
+    "[^c1-5]"
+   ],
+   "urls": [
+    "https://photostructure.com/coding/how-to-vacuum-sqlite/"
+   ],
+   "verdict": "SUPPORTED",
+   "evidence": "The PhotoStructure half is supported. The 2022 forum-thread half has no footnote and was self-declared as unfetched, so the gate did not check it."
+  }
+ ]
+}
