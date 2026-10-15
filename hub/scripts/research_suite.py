@@ -1411,6 +1411,8 @@ def run_pipeline(run: Path, batches: list[dict], cfg: argparse.Namespace, repo: 
             n_batches -= 1
             continue
         feed.append((b, st))
+    # batches nearest the end go first: registering finished work is free and releases no GPU debt
+    feed.sort(key=lambda item: -order.index(item[1]))
     log(f"{len(feed)} batches to run ({len(batches) - len(feed)} already complete)")
     for b, st in feed:
         ahead.acquire()
