@@ -436,9 +436,9 @@ def test_public_urls_may_be_fetched(url):
     "url",
     [
         "http://127.0.0.1:8790/api", "http://localhost/x", "http://169.254.169.254/latest/meta-data",
-        "http://10.0.0.5/", "http://192.168.1.1/", "http://100.93.168.117/", "http://[::1]/",
+        "http://10.0.0.5/", "http://192.168.1.1/", "http://100.64.0.1/", "http://[::1]/",  # privacy-ok: synthetic SSRF-guard inputs
         "http://[::ffff:127.0.0.1]/", "http://intranet/wiki", "http://0x7f.1/", "http://127.1/",
-        "http://2130706433/", "http://metadata.google.internal/", "http://nas.local/",
+        "http://2130706433/", "http://metadata.google.internal/", "http://nas.local/",  # privacy-ok: synthetic SSRF-guard input
         "http://user:pw@example.com/", "ftp://example.com/x", "file:///etc/passwd",
         "http://example.com:notaport/", "",
     ],
