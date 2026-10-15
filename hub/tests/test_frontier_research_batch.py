@@ -210,3 +210,57 @@ def test_run_batch_stops_starting_concepts_after_a_pause(monkeypatch, tmp_path):
     assert batch.run_batch(pending, tmp_path, tmp_path, 1, tree_path, jobs=1) == 2
     assert started == ["C0"]
     assert not (tmp_path / "results.jsonl").exists()
+
+
+def _fake_lca(calls):
+    """Stand in for concept_abstract.py: record argv and write the files compile_pack checks."""
+    import json
+    from pathlib import Path
+
+    def run(argv, check=True, **_):
+        calls.append(argv)
+        out = Path(argv[argv.index("--out") + 1])
+        out.mkdir(parents=True, exist_ok=True)
+        if "compile" in argv:
+            (out / "manifest.json").write_text(json.dumps(
+                {"kind": "concept", "concept": argv[argv.index("--concept") + 1],
+                 "facets": {"facts": 1}}))  # fmt: skip
+            for name in ("llms.txt", "llms-full.txt", "llms-small.txt"):
+                (out / name).write_text("x")
+            (out / "llms-facts.txt").write_text(f"- [fact] run {len(calls)}\n")
+        return SimpleNamespace(returncode=0)
+
+    return run
+
+
+def test_compile_pack_trusts_validated_units_and_replaces_its_own_pack(monkeypatch, tmp_path):
+    calls: list[list[str]] = []
+    monkeypatch.setattr(batch.subprocess, "run", _fake_lca(calls))
+    monkeypatch.setattr(batch, "lca_path", lambda repo: tmp_path / "lca.py")
+    monkeypatch.setattr(batch, "CANONICAL_PACK_DIR", tmp_path / "canonical")
+    tree = SimpleNamespace(by_concept={}, nodes=[])
+    monkeypatch.setattr(batch.ct.ConceptTree, "load", lambda: tree)
+    work = tmp_path / "work"
+    work.mkdir()
+    (work / "rabbithole-synthesis.md").write_text("# X\n")
+
+    pack = batch.compile_pack("X", work, tmp_path / "run", tmp_path)
+    harvest = calls[0]
+    assert harvest[harvest.index("--min-score") + 1] == "0.6" and "--no-require-core" not in harvest
+    assert pack == tmp_path / "canonical" / "x.llms"
+    first = (pack / "llms-facts.txt").read_text()
+
+    # trusted units: every paragraph is a validated claim, so nothing is filtered by score
+    batch.compile_pack("X", work, tmp_path / "run", tmp_path, trusted_units=True)
+    harvest = calls[2]
+    assert harvest[harvest.index("--min-score") + 1] == "0"
+    assert "--no-require-core" in harvest and "--heading-only-min-chars" in harvest
+    assert (pack / "llms-facts.txt").read_text() == first  # canonical kept without replace=True
+
+    batch.compile_pack("X", work, tmp_path / "run", tmp_path, trusted_units=True, replace=True)
+    assert (pack / "llms-facts.txt").read_text() != first  # replaced in place
+
+    other = '{"kind": "concept", "concept": "Other", "facets": {"a": 1}}'
+    (pack / "manifest.json").write_text(other)
+    with pytest.raises(RuntimeError, match="belongs to 'Other'"):
+        batch.compile_pack("X", work, tmp_path / "run", tmp_path, replace=True)

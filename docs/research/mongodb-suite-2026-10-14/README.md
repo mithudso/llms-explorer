@@ -156,3 +156,18 @@ the same Qwen3.8-27B `UD-Q3_K_XL` file and MTP draft head with a 24,576-token co
 batches, which leaves about 0.9 GB free. Select it with `RS_LLM_MODEL=qwen38-research`. Any other
 llama-swap client that requests a different model evicts it; workhorse calls wait up to about
 5 minutes for a reload before the run counts it as a systemic failure and halts.
+
+## Pack anchors fix (2026-10-15)
+
+The first 126 registered packs cited `file:///home/...rabbithole-synthesis.md#<section>` in every
+facts line instead of the claim's source URL, and `llms_lint.py check` exited 1 on all of them.
+Cause: `synthesis_markdown` wrote each claim's URLs inline (`Sources: ...`), which the abstractor's
+generic reader does not parse; with no `Source:` line the reader falls back to `file://<path>`.
+Fix: every claim now opens its own page with `Source: <first source url>` and repeats the concept
+and section headings (the reader resets the heading path per page). The harvest also runs with
+`--min-score 0 --heading-only-min-chars 0 --no-require-core` for suite packs (`trusted_units`),
+because every paragraph is a validated claim; the old 0.6 floor had dropped claims that name none
+of the concept's tokens (2,752 units kept of 4,914 validated claims across 120 packs).
+Checked on three real validated concepts: 17/16, 15/15 and 59/59 units per claims, 0 `file://`
+anchors, lint exit 0. Registered packs are rebuilt in place with
+`research_suite.py recompile --run mongodb-2026-10-14 --repo <worktree>`; the tree is untouched.

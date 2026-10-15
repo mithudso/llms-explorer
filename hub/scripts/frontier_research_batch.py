@@ -515,7 +515,22 @@ verdict, and a source list. Do not invent URLs and do not edit the tree."""
                 "error": str(exc)}
 
 
-def compile_pack(concept: str, work: Path, run_dir: Path, repo: Path) -> Path:
+def compile_pack(
+    concept: str,
+    work: Path,
+    run_dir: Path,
+    repo: Path,
+    *,
+    trusted_units: bool = False,
+    replace: bool = False,
+) -> Path:
+    """Harvest + compile the pack under run_dir/compiled, then copy it to the canonical dir.
+
+    trusted_units: every unit in `work` is already a validated claim about `concept` (the
+    research suite's synthesis), so the harvest keeps a claim that names none of the
+    concept's tokens in its text; the default 0.6 floor is for raw page scans.
+    replace: overwrite the canonical pack when it belongs to this concept (a recompile).
+    """
     concept_slug = batch_slug(concept, run_dir)
     final = run_dir / "compiled" / f"{concept_slug}.llms"
     final.mkdir(parents=True, exist_ok=True)
@@ -530,7 +545,8 @@ def compile_pack(concept: str, work: Path, run_dir: Path, repo: Path) -> Path:
     lca = lca_path(repo)
     subprocess.run([sys.executable, str(lca), "harvest", "--lexicon", str(lexicon),
                     "--from", *map(str, sources), "--out", str(final),
-                    "--min-score", "0.6"], check=True)
+                    *(["--min-score", "0", "--heading-only-min-chars", "0", "--no-require-core"]
+                      if trusted_units else ["--min-score", "0.6"])], check=True)
     subprocess.run([sys.executable, str(lca), "compile", "--out", str(final),
                     "--concept", concept, "--lexicon", str(lexicon),
                     "--budget-tokens", "8000", "--rights", "extractive",
@@ -568,7 +584,9 @@ def compile_pack(concept: str, work: Path, run_dir: Path, repo: Path) -> Path:
             raise RuntimeError(
                 f"refusing to overwrite {canonical}: it belongs to {existing_concept!r}"
             )
-        return canonical
+        if not replace:
+            return canonical
+        shutil.rmtree(canonical)
     shutil.copytree(final, canonical)
     return canonical
 

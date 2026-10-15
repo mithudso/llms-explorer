@@ -22,6 +22,7 @@ import pytest
 
 import concept_tree as ct
 import research_suite as rs
+REPO = Path(__file__).resolve().parents[2]
 
 NODES = [
     {"concept": "MongoDB Atlas", "skillId": None, "parentConcept": None,
@@ -180,31 +181,51 @@ def test_candidate_urls_prefers_the_markdown_twin_on_mongodb_docs():
     assert rs.candidate_urls("https://example.com/a?b=1") == ["https://example.com/a?b=1"]
 
 
-def test_synthesis_markdown_makes_one_paragraph_per_claim():
-    doc = {
+def _synthesis_doc() -> dict:
+    return {
         "concept": "X", "parent": "P",
         "claims": [
             {"text": "X does Y.", "section": "core", "confidence": "medium", "sources": ["https://a/1", "https://b/2"], "verified_as_of": None},
-            {"text": "X fails when Z.", "section": "troubleshooting", "confidence": "low", "sources": ["https://a/1"], "verified_as_of": "2026-10-14"},
+            {"text": "It fails when Z.", "section": "troubleshooting", "confidence": "low", "sources": ["https://a/1"], "verified_as_of": "2026-10-14"},
             {"text": "No section given.", "confidence": "low", "sources": ["https://c/3"], "verified_as_of": None},
         ],
         "disagreements": [{"text": "A and B differ.", "sources": ["https://a/1"]}],
         "sources": [{"url": "https://a/1", "title": "A1", "org": "a", "tier": "docs"}],
     }  # fmt: skip
-    md = rs.synthesis_markdown(doc)
+
+
+def test_synthesis_markdown_makes_one_source_page_per_claim():
+    md = rs.synthesis_markdown(_synthesis_doc())
     paras = [p for p in md.split("\n\n") if p.strip()]
-    assert (
-        md.startswith("# X")
-        and "## Core" in md
-        and "## Troubleshooting" in md
-        and "## Disagreements" in md
-    )
+    assert md.startswith("# X") and "### Core" in md and "### Troubleshooting" in md
+    assert "### Disagreements" in md
     assert "[medium] X does Y. Sources: https://a/1, https://b/2" in paras
-    assert "[low] X fails when Z. (verified as of 2026-10-14) Sources: https://a/1" in paras
-    assert (
-        "[low] No section given. Sources: https://c/3" in paras
-    )  # unknown section files under core
+    assert "[low] It fails when Z. (verified as of 2026-10-14) Sources: https://a/1" in paras
+    assert "[low] No section given. Sources: https://c/3" in paras  # unknown section files under core
+    # every claim (and disagreement) opens its own page on its first source, and repeats the
+    # concept heading so the harvest can match a claim that never names the concept
+    assert paras.count("Source: https://a/1") == 3 and paras.count("Source: https://c/3") == 1
+    assert paras.count("## X") == 4
     assert "- [" not in md and "## Sources" not in md and "Scope:" not in md
+
+
+def test_synthesis_pages_read_back_with_source_urls_not_file_anchors(tmp_path):
+    """The abstractor's reader must give every unit the claim's source URL: the file:// fallback
+    is what put local paths into 126 published packs (TASK-690)."""
+    import importlib.util
+
+    script = REPO / ".claude/skills/llms-concept-abstractor/scripts/concept_abstract.py"
+    spec = importlib.util.spec_from_file_location("concept_abstract", script)
+    ca = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(ca)
+    md = tmp_path / "rabbithole-synthesis.md"
+    md.write_text(rs.synthesis_markdown(_synthesis_doc()), encoding="utf-8")
+    units = list(ca.read_pages(md, "u"))
+    assert len(units) == 4
+    assert [u["source_url"] for u in units] == ["https://a/1", "https://c/3", "https://a/1", "https://a/1"]  # core, core, troubleshooting, disagreements
+    assert all("file://" not in u["source_url"] for u in units)
+    assert {u["anchor"] for u in units} == {"#core", "#troubleshooting", "#disagreements"}
+    assert all(u["heading_path"].startswith("X > ") for u in units)
 
 
 def test_state_roundtrip_and_stage_done(tmp_path):
