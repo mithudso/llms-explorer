@@ -1,0 +1,605 @@
+{
+  "slug": "ollama-hardware-sizing-ram-and-vram-requirements-by-model-and-quant",
+  "concept": "Ollama hardware sizing: RAM and VRAM requirements by model and quant",
+  "generated": "2026-10-14",
+  "summary": "OLLAMA_CONTEXT_LENGTH environment variable didn’t have an effect, but there’s another way (from www.autodidacts.io)",
+  "facets": [
+    {
+      "title": "Structure and components",
+      "facts": [
+        {
+          "text": "Yes. Two 24 GB cards give 48 GB of combined VRAM, which holds Llama 3.3 70B at Q4_K_M with a 16K context and about 2 GB to spare, and it is often cheaper than one 48 GB card. Each card carries its own runtime overhead, which the calculator counts per GPU. Ollama and llama.cpp both split the layers across GPUs automatically; in llama.cpp that is the default --split-mode layer, and --tensor-split only changes the ratio. NVLink is not required; a pair of cards on ordinary PCIe slots works, adding a small inter-GPU latency. The catch is that VRAM scales but speed does not. Splitting a 70B across t",
+          "source": "https://computingforgeeks.com/how-much-vram-to-run-llm/",
+          "note": null
+        },
+        {
+          "text": "On a 24 GB card the auto-sized 32k default context for a 32B Q4 model can push total memory past VRAM, spilling layers to CPU and cutting throughput to about a tenth. Fix: cap OLLAMA_CONTEXT_LENGTH or num_ctx.",
+          "source": "https://computingforgeeks.com/how-much-vram-to-run-llm/",
+          "note": null
+        },
+        {
+          "text": "No, not on a single 24 GB card in a usable way. A 70B at Q4_K_M needs 42.5 GB before context, and a 24 GB card is short by almost half. The runtime will start it by offloading about half the layers to the CPU, and throughput drops to one or two tokens per second, slower than reading speed. The real options for a 70B are a single 48 GB card such as the RTX 6000 Ada, two 24 GB cards splitting the model, or a unified-memory machine with 64 GB or more. A single 24 GB card is the right tool for a 27B to 32B model, not a 70B.",
+          "source": "https://computingforgeeks.com/how-much-vram-to-run-llm/",
+          "note": null
+        },
+        {
+          "text": "Old New 52.02 tokens/s token generation speed 85.54 tokens/s token generation speed 19.9GiB of VRAM 21.4GiB of VRAM 48⁄49 layers loaded on GPU 49⁄49 layers loaded on GPU",
+          "source": "https://glukhov.org/llm-performance/ollama/memory-allocation-in-ollama-new-version/",
+          "note": null
+        },
+        {
+          "text": "Offloading also sets a floor on system RAM. The layers that spill out of VRAM live in main memory, so size system RAM to hold the offloaded portion plus headroom for the OS. GGUF memory-maps the file, so only the offloaded layers stay resident, and fast NVMe speeds the initial load but does nothing for generation once the model is mapped.",
+          "source": "https://computingforgeeks.com/how-much-vram-to-run-llm/",
+          "note": null
+        },
+        {
+          "text": "System RAM becomes important when the full workload doesn’t fit on the GPU, since Ollama runs the part that doesn’t fit in VRAM on the CPU instead.",
+          "source": "https://hostinger.com/tutorials/ollama-gpu-requirements/",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "How it works",
+      "facts": [
+        {
+          "text": "Ollama's default context length depends on detected VRAM: under 24 GiB gives 4k, 24-48 GiB gives 32k, 48 GiB or more gives 256k. Larger context raises memory use; OLLAMA_CONTEXT_LENGTH on the server process or the app slider overrides it.",
+          "source": "https://docs.ollama.com/context-length",
+          "note": null
+        },
+        {
+          "text": "When using the API, specify the `num_ctx` parameter:",
+          "source": "https://docs.ollama.com/faq#how-can-i-specify-the-context-window-size",
+          "note": null
+        },
+        {
+          "text": "With the context left at its auto-sized default, generation dropped to roughly 3.6 tokens per second, a tenth of the real rate of the card. The fix is to cap the context so the cache stays inside VRAM. Ollama reads the context length from the server process, so set it there and restart:",
+          "source": "https://computingforgeeks.com/how-much-vram-to-run-llm/",
+          "note": null
+        },
+        {
+          "text": "totalSize, vramSize := llama.MemorySize() trainContext := modelTrainContext(f) if effectiveNumCtx := llama.ContextLength(); req.model.ModelPath != \"\" && effectiveNumCtx > 0 { req.opts.NumCtx = effectiveNumCtx req.contextShift = resolveContextShift(req.shift, req.model) } runnerName := req.model.Runner if req.model.IsMLX() && runnerName == \"\" { runnerName = manifest.RunnerMLX } else if llm.IsLlamaCPP(llama) { // The loaded process is authoritative: a llama.cpp server may serve // the model even when the manifest metadata says ggml. runnerName = manifest.RunnerLlamaCPP } runner := &runnerRef{ mo",
+          "source": "https://raw.githubusercontent.com/ollama/ollama/main/server/sched.go",
+          "note": null
+        },
+        {
+          "text": "This comes up when a model almost fits in VRAM and the cache is what pushes it over. The control people are told to reach for, --no-kv-offload, is a llama.cpp flag, and Ollama never passes it: the argument list Ollama builds for llama-server includes the adjacent --no-mmproj-offload but not this one. Two attempts to surface it went nowhere. PR #9751 has been a draft since 2025-03-26, and an earlier attempt, PR #7274, was closed unmerged on 2025-08-08. The tracking issue, ollama/ollama#9750, is still open but has had no activity since the day it was filed in March 2025.",
+          "source": "https://modelpiper.com/blog/ollama-environment-variables",
+          "note": null
+        },
+        {
+          "text": "// Default automatic value for number of models we allow per GPU // Model will still need to fit in VRAM, but loading many small models // on a large GPU can cause stalling var defaultModelsPerGPU = 3",
+          "source": "https://raw.githubusercontent.com/ollama/ollama/main/server/sched.go",
+          "note": null
+        },
+        {
+          "text": "The longer your context window, the more VRAM Ollama needs because it keeps more of your prompt and conversation in memory while generating a response.",
+          "source": "https://hostinger.com/tutorials/ollama-gpu-requirements/",
+          "note": null
+        },
+        {
+          "text": "When quantisation is applied to the K/V context cache it greatly reduces the memory requirements, allowing users to run larger models or use larger context sizes on their existing hardware.",
+          "source": "https://smcleod.net/2024/12/bringing-k/v-context-quantisation-to-ollama/",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "How-to and procedures",
+      "facts": [
+        {
+          "text": "Run that with one slot, then again at the concurrency you actually expect, and compare the two numbers that decide whether users are happy: time to first token, and tokens per second per request. Throughput per request always falls as slots are added. The question is whether it falls further than your users will accept. Measuring tokens per second on a local LLM covers the method in more detail, including how to keep the prompt constant between runs.",
+          "source": "https://www.ssdnodes.com/learn/ollama-num-parallel-and-max-queue",
+          "note": null
+        },
+        {
+          "text": "Check Ollama’s hardware support page first to see whether it supports your exact GPU, then use its VRAM or unified memory to determine which models you can run entirely on it.",
+          "source": "https://hostinger.com/tutorials/ollama-gpu-requirements/",
+          "note": null
+        },
+        {
+          "text": "To run Ollama on Hostinger GPU hosting, choose a GPU with enough VRAM for the model you plan to use, deploy Ollama in Hostinger dashboard, pull and run your model, and verify that Ollama is using the GPU.",
+          "source": "https://hostinger.com/tutorials/ollama-gpu-requirements/",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Examples and snippets",
+      "facts": [
+        {
+          "text": "``` — `NAME             ID              SIZE      PROCESSOR    CONTEXT    UNTIL` …",
+          "source": "https://docs.ollama.com/context-length#check-allocated-context-length-and-model-offloading",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Measurements and reference values",
+      "facts": [
+        {
+          "text": "Ollama GPU requirements range from about 3‑4 GB of VRAM for a small 3B model to around 50 GB for a 70B model, at Q4_K_M quantization (a widely used compressed version of a model) with an 8K context.",
+          "source": "https://hostinger.com/tutorials/ollama-gpu-requirements/",
+          "note": null
+        },
+        {
+          "text": "At Q4_K_M quantization and an 8K context, Ollama needs roughly 3-4 GB of VRAM for 1B-4B models, 6-7 GB for 7B-8B models, and 47-52 GB for 70B-class models.",
+          "source": "https://hostinger.com/tutorials/ollama-gpu-requirements/",
+          "note": null
+        },
+        {
+          "text": "Say you’re running Llama 3.1 8B Q4_K_M with a 2K context. One request uses about 5-6 GB of VRAM in total.",
+          "source": "https://hostinger.com/tutorials/ollama-gpu-requirements/",
+          "note": null
+        },
+        {
+          "text": "Keep in mind that system RAM and VRAM are separate pools of memory. Your 16 GB of RAM still serves the operating system and other apps, while the GPU has its own 8 GB of VRAM for Ollama.",
+          "source": "https://hostinger.com/tutorials/ollama-gpu-requirements/",
+          "note": null
+        },
+        {
+          "text": "Context and runtime memory sit on top of the model file, which is why a 4.9 GB model needs more than 4.9 GB of VRAM to run entirely on the GPU. The sections below break down each factor and how much VRAM it adds.",
+          "source": "https://hostinger.com/tutorials/ollama-gpu-requirements/",
+          "note": null
+        },
+        {
+          "text": "For example, a model that needs about 48 GB of VRAM could run across two GPUs when neither GPU has enough memory to hold it independently. However, combining GPUs does not make their VRAM behave exactly like one larger memory pool, and transferring data between GPUs can affect performance.",
+          "source": "https://hostinger.com/tutorials/ollama-gpu-requirements/",
+          "note": null
+        },
+        {
+          "text": "GPU: NVIDIA RTX 3080/4090 with 16GB+ VRAM for larger models",
+          "source": "https://www.glukhov.org/llm-performance/ollama/how-ollama-handles-parallel-requests/",
+          "note": null
+        },
+        {
+          "text": "GPU: 1x NVIDIA GeForce RTX 4090 Model: gemma3:12b Context length: 128k",
+          "source": "https://glukhov.org/llm-performance/ollama/memory-allocation-in-ollama-new-version/",
+          "note": null
+        },
+        {
+          "text": "CPU-only inference holds the model in system RAM. Guidance: about 16 GB RAM for a 4.9 GB 8B Q4 model, 32 GB as headroom for a ~20 GB model paired with an 8 GB GPU. Apple Silicon uses unified memory; about 23-25 GB is usable by Ollama on a 32 GB Mac.",
+          "source": "https://hostinger.com/tutorials/ollama-gpu-requirements/",
+          "note": null
+        },
+        {
+          "text": "Tier guide at Q4_K_M, 8K context, one request: 7-8B needs about 6-7 GB VRAM (8 GB card), 12-14B about 10-12 GB (16 GB card), 20-32B about 19-24 GB (24 GB card with short context), 70-72B about 47-52 GB (48 GB tight, 80 GB comfortable).",
+          "source": "https://hostinger.com/tutorials/ollama-gpu-requirements/",
+          "note": null
+        },
+        {
+          "text": "The two lines worth memorizing: 24 GB is the least you want for a 27B to 32B model, and 48 GB is the entry ticket to a 70B on a single card. The 32 GB RTX 5090 is the fastest single card here, but it is still one tier short of a 70B at Q4_K_M, which lands at 42.5 GB before context. At about $7,200 against about $8,000 for the 48 GB RTX 6000 Ada, the step up to 70B now costs only about a tenth more than the fastest 32 GB card, though the 6000 Ada generates tokens at a little over half the speed of the 5090.",
+          "source": "https://computingforgeeks.com/how-much-vram-to-run-llm/",
+          "note": null
+        },
+        {
+          "text": "Some 32B Q4_K_M models fit on a 24 GB GPU, but leave little room as the context grows. A 48 GB GPU is similarly tight for many 70B models, so 80-96 GB gives you much more room.",
+          "source": "https://hostinger.com/tutorials/ollama-gpu-requirements/",
+          "note": null
+        },
+        {
+          "text": "That means the same model that fits on an 8 GB GPU with a short context no longer fits entirely in VRAM at 32K. Longer contexts are useful when you want Ollama to keep track of more information, such as a long conversation or a large document.",
+          "source": "https://hostinger.com/tutorials/ollama-gpu-requirements/",
+          "note": null
+        },
+        {
+          "text": "Match the card to the largest model you intend to run at Q4_K_M, then leave a tier of headroom for context. The prices below were read from Amazon US on 10 October 2026 and sit far above list because of the ongoing memory shortage, so treat them as a band and check the live price. A 5090 at about $7,200 is more than three times its $1,999 launch price, and a new-stock 3090 at about $1,900 is still the cheapest way into the 24 GB tier.",
+          "source": "https://computingforgeeks.com/how-much-vram-to-run-llm/",
+          "note": null
+        },
+        {
+          "text": "48 GBRTX 6000 Adaabout $8,00070B at Q4_K_M with a 16K context",
+          "source": "https://computingforgeeks.com/how-much-vram-to-run-llm/",
+          "note": null
+        },
+        {
+          "text": "Take Llama 3.1 8B Q4_K_M as an example. Its model file is about 4.9 GB.",
+          "source": "https://hostinger.com/tutorials/ollama-gpu-requirements/",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Problems, failure modes and limitations",
+      "facts": [
+        {
+          "text": "When Ollama starts up, it takes inventory of the GPUs present in the system to determine compatibility and how much VRAM is available. Sometimes this discovery can fail to find your GPUs. In general, running the latest driver will yield the best results.",
+          "source": "https://docs.ollama.com/troubleshooting#nvidia-gpu-discovery",
+          "note": null
+        },
+        {
+          "text": "Apple silicon, the AMD Strix Halo and the NVIDIA GB10 share one memory pool between CPU and GPU, and the GPU uses it directly as VRAM. That changes the capacity math. A 128 GB machine holds DeepSeek V4 Flash at its 90.9 GB UD-IQ2_M tier, which no consumer discrete GPU can fit, and the mini PCs built to hold one are compared separately. Two caveats keep it honest. The GPU cannot map the whole pool. macOS allows about two thirds of RAM on smaller Macs and three quarters on larger ones, so a 64 GB Mac behaves like a 48 GB GPU until the limit is raised with sudo sysctl iogpu.wired_limit_mb. On Str",
+          "source": "https://computingforgeeks.com/how-much-vram-to-run-llm/",
+          "note": null
+        },
+        {
+          "text": "config := llamaServerConfigForModel(req.model) config.ContextShift = req.contextShift llama, err = s.newServerFn(systemInfo, loadGpus, req.model.ModelPath, f, req.model.AdapterPaths, req.model.ProjectorPaths, launchOpts, numParallel, config) if err != nil { // some older models are not compatible with newer versions of llama.cpp // show a generalized compatibility error until there is a better way to // check for model compatibility if errors.Is(err, gguf.ErrUnsupported) || strings.Contains(err.Error(), \"failed to load model\") { err = fmt.Errorf(\"%v: this model may be incompatible with your ve",
+          "source": "https://raw.githubusercontent.com/ollama/ollama/main/server/sched.go",
+          "note": null
+        },
+        {
+          "text": "Setting OLLAMA_CONTEXT_LENGTH explicitly overrides the tier in either direction. Raising it on a small machine is the quickest way to make a model fail to load, and lowering it on a large one is a legitimate way to keep more models resident at once.",
+          "source": "https://modelpiper.com/blog/ollama-environment-variables",
+          "note": null
+        },
+        {
+          "text": "Pay closer attention to the GPU tier when your requirement sits near its VRAM limit.",
+          "source": "https://hostinger.com/tutorials/ollama-gpu-requirements/",
+          "note": null
+        },
+        {
+          "text": "Weights are quantized once, offline, by whoever built the GGUF. The K in q4_K_M marks a scheme that spends more bits on the tensors that matter most, and the error it introduces is fixed at build time, so it can be measured once against the original before anyone runs the model.",
+          "source": "https://www.ssdnodes.com/learn/ollama-kv-cache-quantization",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Comparisons and alternatives",
+      "facts": [
+        {
+          "text": "The number that matters is in the 32B row. The RTX 5090 with 32 GB runs the 32B model at 71 tokens per second, more than double the L40S with its larger 48 GB. More VRAM did not make it faster. Token generation is bound by memory bandwidth, not capacity, and the 1,792 GB/s of GDDR7 on the 5090 is more than twice the 864 GB/s of GDDR6 in the L40S. VRAM capacity decides what fits; memory bandwidth decides how fast it runs once it fits. The RTX 3090 vs RTX 5090 comparison shows the same effect across more models.",
+          "source": "https://computingforgeeks.com/how-much-vram-to-run-llm/",
+          "note": null
+        },
+        {
+          "text": "Adding a GPU significantly speeds up response generation compared with running Ollama on a CPU alone. In our benchmark on a Hostinger GPU instance with an RTX 4090, the Llama 3.1 8B Q4_K_M model generated responses 2.7× faster than on the CPU-only instance.",
+          "source": "https://hostinger.com/tutorials/ollama-gpu-requirements/",
+          "note": null
+        },
+        {
+          "text": "Choose a Hostinger GPU based on the model size, context length, and workloads you plan to run. Give yourself some VRAM headroom instead of choosing a GPU that only barely fits your current model.",
+          "source": "https://hostinger.com/tutorials/ollama-gpu-requirements/",
+          "note": null
+        },
+        {
+          "text": "A model like gpt-oss-120b activates only 5.1 billion of its 117 billion parameters per token, and DeepSeek V4 Flash activates 13 billion of 284 billion. Those active counts make the model generate faster, but they do nothing for VRAM. The full weight set still has to fit in memory. gpt-oss-120b needs 62.8 GB for weights alone, so it lands on a 96 GB card or a 128 GB unified-memory machine rather than a consumer GPU. Sizing a mixture-of-experts model by its active parameters instead of its total is the most common and most expensive mistake in this whole topic. The reverse also holds: a MoE tha",
+          "source": "https://computingforgeeks.com/how-much-vram-to-run-llm/",
+          "note": null
+        },
+        {
+          "text": "PreviousBest GPU for LLMs in 2026: Tested by VRAM, Budget, and Model SizeUp next Unified Memory vs VRAM for AI, Explained",
+          "source": "https://computingforgeeks.com/how-much-vram-to-run-llm/",
+          "note": null
+        },
+        {
+          "text": "GPU: centron vs. HetznerNVIDIA models and hourly prices GPU: centron vs. IONOSPrices, models and scaling GPU: centron vs. OVHcloudA100 and RTX instances",
+          "source": "https://www.centron.de/tutorials/expose-ollama-network-port-hardening",
+          "note": null
+        },
+        {
+          "text": "// numCtxAuto is true when NumCtx came from Ollama's automatic VRAM-tier // default rather than explicit request, model, or environment config. numCtxAuto bool",
+          "source": "https://raw.githubusercontent.com/ollama/ollama/main/server/sched.go",
+          "note": null
+        },
+        {
+          "text": "Now add an 8 GB GPU. The 4.9 GB model fits in the GPU’s own memory, called VRAM, with room for a shorter context, so Ollama uses the GPU for processing instead of relying on the CPU.",
+          "source": "https://hostinger.com/tutorials/ollama-gpu-requirements/",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Facts and statements",
+      "facts": [
+        {
+          "text": "Context length and slot count multiply, so they have to be chosen together. A large context with four slots is four large contexts. If you are also tuning the num_ctx context window for your model, change one of the two at a time, or you will not know which one filled the card.",
+          "source": "https://www.ssdnodes.com/learn/ollama-num-parallel-and-max-queue",
+          "note": null
+        },
+        {
+          "text": "Ollama's default context length is no longer a fixed 4096. OLLAMA_CONTEXT_LENGTH compiles to 0, a sentinel meaning \"decide at runtime\", and the server then picks 4K, 32K, or 256K tokens from the VRAM it finds: 4096 below 23GiB, 32768 at 23GiB or more, and 262144 at 47GiB or more.",
+          "source": "https://modelpiper.com/blog/ollama-environment-variables",
+          "note": null
+        },
+        {
+          "text": "Ollama’s GPU and VRAM requirements depend on model parameter count, quantization level, context window length, concurrency, and how much system RAM you have available for offloading.",
+          "source": "https://hostinger.com/tutorials/ollama-gpu-requirements/",
+          "note": null
+        },
+        {
+          "text": "Fitting a model is half the question, and speed does not track VRAM capacity. The numbers below were measured on single rented GPUs running Ollama at Q4_K_M with a 4K context, generation rate in tokens per second, one request at a time:",
+          "source": "https://computingforgeeks.com/how-much-vram-to-run-llm/",
+          "note": null
+        },
+        {
+          "text": "Published tokens per second figures come from someone else's GPU, model, quantisation, context length and prompt. None of those match yours, so treat any number you read as a rough hint and measure the machine in front of you.",
+          "source": "https://www.ssdnodes.com/learn/ollama-num-parallel-and-max-queue",
+          "note": null
+        },
+        {
+          "text": "Here’s how context length affects total VRAM for Llama 3.1 8B Q4_K_M:",
+          "source": "https://hostinger.com/tutorials/ollama-gpu-requirements/",
+          "note": null
+        },
+        {
+          "text": "This can be overridden with the `OLLAMA_CONTEXT_LENGTH` environment variable. For example, to set the default context window to 8K, use:",
+          "source": "https://docs.ollama.com/faq#how-can-i-specify-the-context-window-size",
+          "note": null
+        },
+        {
+          "text": "Why doubling num_ctx cost more than the weight quantization saved",
+          "source": "https://www.ssdnodes.com/learn/ollama-kv-cache-quantization",
+          "note": null
+        },
+        {
+          "text": "According to Ollama’s docs, you can set the context length with the OLLAMA_CONTEXT_LENGTH environment variable.",
+          "source": "https://www.autodidacts.io/increase-ollama-context-length-num-ctx/",
+          "note": null
+        },
+        {
+          "text": "I've built an interactive VRAM estimator to help you understand the impact of K/V context cache quantisation on your VRAM usage. You can adjust the model size, context size and quantisation level to see how it affects the memory requirements.",
+          "source": "https://smcleod.net/2024/12/bringing-k/v-context-quantisation-to-ollama/",
+          "note": null
+        },
+        {
+          "text": "Llama 3.1 8B Q4_K_M, RTX 4090147 tok/s148 tok/sOllama run",
+          "source": "https://computingforgeeks.com/how-much-vram-to-run-llm/",
+          "note": null
+        },
+        {
+          "text": "Llama 3.1 8B Q4_K_M, RTX 3090138 tok/s119 tok/sOllama run (worst fit)",
+          "source": "https://computingforgeeks.com/how-much-vram-to-run-llm/",
+          "note": null
+        },
+        {
+          "text": "Qwen2.5 32B Q4_K_M, RTX 509070 tok/s71 tok/sOllama run",
+          "source": "https://computingforgeeks.com/how-much-vram-to-run-llm/",
+          "note": null
+        },
+        {
+          "text": "Weights are parameters multiplied by bytes per parameter. Dividing the real Llama 3.3 70B GGUF files by its 70.6 billion parameters gives the effective rate for each quantization:",
+          "source": "https://computingforgeeks.com/how-much-vram-to-run-llm/",
+          "note": null
+        },
+        {
+          "text": "How fast will it run? Measured tokens per second per GPU",
+          "source": "https://computingforgeeks.com/how-much-vram-to-run-llm/",
+          "note": null
+        },
+        {
+          "text": "You want to runMinimum VRAM (Q4_K_M, 32K context)Practical card",
+          "source": "https://computingforgeeks.com/how-much-vram-to-run-llm/",
+          "note": null
+        },
+        {
+          "text": "At Q4_K_M quantization, model file sizes scale roughly like this:",
+          "source": "https://hostinger.com/tutorials/ollama-gpu-requirements/",
+          "note": null
+        },
+        {
+          "text": "The practical rule that falls out of all three: pick a quantization that leaves at least one gigabyte of headroom below the VRAM of the card, never one that exactly equals it.",
+          "source": "https://computingforgeeks.com/how-much-vram-to-run-llm/",
+          "note": null
+        },
+        {
+          "text": "For GPU inference, requires full VRAM allocation per model - partial loads aren’t supported.",
+          "source": "https://www.glukhov.org/llm-performance/ollama/how-ollama-handles-parallel-requests/",
+          "note": null
+        },
+        {
+          "text": "Model Old ver: VRAM allocated Old ver: CPU/GPU New ver: VRAM allocated New ver: CPU/GPU",
+          "source": "https://glukhov.org/llm-performance/ollama/memory-allocation-in-ollama-new-version/",
+          "note": null
+        },
+        {
+          "text": "func effectiveModelContext(numCtx int, f *gguf.Model) int { return effectiveContext(numCtx, modelTrainContext(f)) }",
+          "source": "https://raw.githubusercontent.com/ollama/ollama/main/server/sched.go",
+          "note": null
+        },
+        {
+          "text": "func effectiveContext(numCtx, trainCtx int) int { if trainCtx > 0 && numCtx > trainCtx { return trainCtx }",
+          "source": "https://raw.githubusercontent.com/ollama/ollama/main/server/sched.go",
+          "note": null
+        },
+        {
+          "text": "func effectiveLlamaServerContext(numCtx int, f *gguf.Model, numParallel int) int { return effectiveModelContext(numCtx, f) * max(numParallel, 1) }",
+          "source": "https://raw.githubusercontent.com/ollama/ollama/main/server/sched.go",
+          "note": null
+        },
+        {
+          "text": "func nextLowerAutoNumCtx(numCtx int) (int, bool) { switch { case numCtx > 32768: return 32768, true case numCtx > 4096: return 4096, true default: return 0, false } }",
+          "source": "https://raw.githubusercontent.com/ollama/ollama/main/server/sched.go",
+          "note": null
+        },
+        {
+          "text": "ChartKV cache for llama3.1:8b by num_ctx, computed, GiB",
+          "source": "https://www.ssdnodes.com/learn/ollama-kv-cache-quantization",
+          "note": null
+        },
+        {
+          "text": "Repeat the baseline exactly: the same model and the same num_ctx, with the same commands.",
+          "source": "https://www.ssdnodes.com/learn/ollama-kv-cache-quantization",
+          "note": null
+        },
+        {
+          "text": "Not with this setting. The documentation states it is a global option that applies to every model the server runs. The controls you do have per model are num_ctx, which is what the cache size scales with, and the weight file you pull. If one model needs an f16 cache and another does not, the honest answer is a second Ollama instance on a different port with its own drop-in.",
+          "source": "https://www.ssdnodes.com/learn/ollama-kv-cache-quantization",
+          "note": null
+        },
+        {
+          "text": "Why did raising num_ctx use more memory than the weights did?",
+          "source": "https://www.ssdnodes.com/learn/ollama-kv-cache-quantization",
+          "note": null
+        },
+        {
+          "text": "Setting a larger context length will increase the amount of memory required to run a model. Ensure you have enough VRAM available to increase the context length.",
+          "source": "https://docs.ollama.com/context-length#setting-context-length",
+          "note": null
+        },
+        {
+          "text": "Ollama FAQ 里对多 GPU 加载逻辑说得比较直接：加载新模型时，Ollama 会估算模型所需 VRAM，并和当前可用显存比较。如果模型能完整放进某一张 GPU，它会加载到那张 GPU 上；如果单张 GPU 放不下，才会分布到所有可用 GPU 上。",
+          "source": "https://knightli.com/2026/04/19/ollama-multiple-gpu-notes/",
+          "note": null
+        },
+        {
+          "text": "GPU 0: NVIDIA GeForce RTX 3090 (UUID: GPU-xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx) GPU 1: NVIDIA GeForce RTX 3070 (UUID: GPU-yyyyyyyy-yyyy-yyyy-yyyy-yyyyyyyyyyyy)",
+          "source": "https://knightli.com/2026/04/19/ollama-multiple-gpu-notes/",
+          "note": null
+        },
+        {
+          "text": "OLLAMA_CONTEXT_LENGTHDefault context window size0, meaning auto: 4K under 23GiB VRAM, 32K at 23GiB, 256K at 47GiB8192",
+          "source": "https://modelpiper.com/blog/ollama-environment-variables",
+          "note": null
+        },
+        {
+          "text": "OLLAMA_CONTEXT_LENGTH environment variable didn’t have an effect, but there’s another way",
+          "source": "https://www.autodidacts.io/increase-ollama-context-length-num-ctx/",
+          "note": null
+        },
+        {
+          "text": "What determines Ollama GPU and VRAM requirements?",
+          "source": "https://hostinger.com/tutorials/ollama-gpu-requirements/",
+          "note": null
+        },
+        {
+          "text": "Ollama GPU requirements: VRAM, RAM, and supported GPUs",
+          "source": "https://hostinger.com/tutorials/ollama-gpu-requirements/",
+          "note": null
+        },
+        {
+          "text": "The main factors that determine where you land in that range include model parameter count, quantization level, and context window length.",
+          "source": "https://hostinger.com/tutorials/ollama-gpu-requirements/",
+          "note": null
+        },
+        {
+          "text": "What more memory gives youMore RAM lets you run larger models on the CPUMore VRAM lets you run larger models and longer contexts on the GPU",
+          "source": "https://hostinger.com/tutorials/ollama-gpu-requirements/",
+          "note": null
+        },
+        {
+          "text": "The more parameters a model has, the more VRAM you need to run it on the GPU.",
+          "source": "https://hostinger.com/tutorials/ollama-gpu-requirements/",
+          "note": null
+        },
+        {
+          "text": "System RAM gives Ollama a place to store model data that doesn’t fit in VRAM, while storage determines how many models and quantization versions you can keep downloaded.",
+          "source": "https://hostinger.com/tutorials/ollama-gpu-requirements/",
+          "note": null
+        },
+        {
+          "text": "Flash AttentionA technique used to reduce the memory requirements of LLMs by only attending to a subset of the context at a time.",
+          "source": "https://smcleod.net/2024/12/bringing-k/v-context-quantisation-to-ollama/",
+          "note": null
+        },
+        {
+          "text": "Llama 3.3 70B Q4_K_M, L40S16.4 tok/s16 tok/sOllama run",
+          "source": "https://computingforgeeks.com/how-much-vram-to-run-llm/",
+          "note": null
+        },
+        {
+          "text": "Qwen3.5 9B Q4_K_M, A10G80 tok/s82 tok/sllama-bench",
+          "source": "https://computingforgeeks.com/how-much-vram-to-run-llm/",
+          "note": null
+        },
+        {
+          "text": "ModelWeights (Q4_K_M)KV per tokenKV at 32KKV at 128KTotal at 32K",
+          "source": "https://computingforgeeks.com/how-much-vram-to-run-llm/",
+          "note": null
+        },
+        {
+          "text": "VRAMCardApprox. price (30 Sep 2026)Runs at Q4_K_M",
+          "source": "https://computingforgeeks.com/how-much-vram-to-run-llm/",
+          "note": null
+        }
+      ]
+    }
+  ],
+  "related": [
+    {
+      "concept": "VRAM",
+      "relation": "is a synonym of Ollama hardware sizing: RAM and VRAM requirements by model and quant",
+      "note": null
+    },
+    {
+      "concept": "GPU",
+      "relation": "is a related of Ollama hardware sizing: RAM and VRAM requirements by model and quant",
+      "note": null
+    },
+    {
+      "concept": "Q4_K_M",
+      "relation": "is a measure of Ollama hardware sizing: RAM and VRAM requirements by model and quant",
+      "note": null
+    },
+    {
+      "concept": "RTX",
+      "relation": "is a related of Ollama hardware sizing: RAM and VRAM requirements by model and quant",
+      "note": null
+    },
+    {
+      "concept": "context length",
+      "relation": "is a synonym of Ollama hardware sizing: RAM and VRAM requirements by model and quant",
+      "note": null
+    },
+    {
+      "concept": "quantization",
+      "relation": "is a measure of Ollama hardware sizing: RAM and VRAM requirements by model and quant",
+      "note": null
+    },
+    {
+      "concept": "num_ctx",
+      "relation": "is a synonym of Ollama hardware sizing: RAM and VRAM requirements by model and quant",
+      "note": null
+    },
+    {
+      "concept": "context window",
+      "relation": "is a synonym of Ollama hardware sizing: RAM and VRAM requirements by model and quant",
+      "note": null
+    },
+    {
+      "concept": "tokens per second",
+      "relation": "is a measure of Ollama hardware sizing: RAM and VRAM requirements by model and quant",
+      "note": null
+    },
+    {
+      "concept": "NumCtx",
+      "relation": "is a synonym of Ollama hardware sizing: RAM and VRAM requirements by model and quant",
+      "note": null
+    },
+    {
+      "concept": "GB of VRAM",
+      "relation": "is a measure of Ollama hardware sizing: RAM and VRAM requirements by model and quant",
+      "note": null
+    },
+    {
+      "concept": "layers",
+      "relation": "is a related of Ollama hardware sizing: RAM and VRAM requirements by model and quant",
+      "note": null
+    },
+    {
+      "concept": "memory requirements",
+      "relation": "is a measure of Ollama hardware sizing: RAM and VRAM requirements by model and quant",
+      "note": null
+    },
+    {
+      "concept": "slot",
+      "relation": "is a related of Ollama hardware sizing: RAM and VRAM requirements by model and quant",
+      "note": null
+    },
+    {
+      "concept": "runner",
+      "relation": "is a part of Ollama hardware sizing: RAM and VRAM requirements by model and quant",
+      "note": null
+    },
+    {
+      "concept": "bytes per parameter",
+      "relation": "is a measure of Ollama hardware sizing: RAM and VRAM requirements by model and quant",
+      "note": null
+    },
+    {
+      "concept": "gpu discovery",
+      "relation": "is a problem of Ollama hardware sizing: RAM and VRAM requirements by model and quant",
+      "note": null
+    },
+    {
+      "concept": "driver",
+      "relation": "is a related of Ollama hardware sizing: RAM and VRAM requirements by model and quant",
+      "note": null
+    },
+    {
+      "concept": "ollama/ollama",
+      "relation": "is a part of Ollama hardware sizing: RAM and VRAM requirements by model and quant",
+      "note": null
+    }
+  ]
+}

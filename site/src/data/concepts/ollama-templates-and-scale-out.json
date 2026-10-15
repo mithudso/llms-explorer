@@ -1,0 +1,732 @@
+{
+  "slug": "ollama-templates-and-scale-out",
+  "concept": "Ollama templates and scale-out",
+  "generated": "2026-10-14",
+  "summary": "The Modelfile TEMPLATE instruction holds the full, model-specific prompt template that Ollama sends to the model, written in Go template syntax with system, prompt, response, messages, tools and suffix variables; `ollama show --template` prints a model's shipped template. Scale-out covers Ollama's per-server concurrency settings (OLLAMA_NUM_PARALLEL, OLLAMA_MAX_LOADED_MODELS, OLLAMA_MAX_QUEUE), vLLM data-parallel load-balancing modes, LiteLLM router strategies and two independent Ollama-versus-vLLM benchmarks, across 8 hosts.",
+  "facets": [
+    {
+      "title": "Definitions",
+      "facts": [
+        {
+          "text": "TEMPLATE of the full prompt template to be passed into the model. It may include (optionally) a system message, a user’s message and the response from the model. Note: syntax may be model specific. Templates use Go template syntax.",
+          "source": "https://docs.ollama.com/modelfile",
+          "note": null
+        },
+        {
+          "text": "Hybrid load balancing sits between the internal and external approaches. Each node runs its own API server(s) that only queue requests to the data-parallel engines colocated on that node. An upstream load balancer (for example, an ingress controller or traffic router) spreads user requests across those per-node endpoints.",
+          "source": "https://docs.vllm.ai/en/latest/serving/data_parallel_deployment.html",
+          "note": null
+        },
+        {
+          "text": "vLLM supports Data Parallel deployment, where model weights are replicated across separate instances/GPUs to process independent batches of requests.",
+          "source": "https://docs.vllm.ai/en/latest/serving/data_parallel_deployment.html",
+          "note": null
+        },
+        {
+          "text": "vLLM supports \"self-contained\" data parallel deployments that expose a single API endpoint.",
+          "source": "https://docs.vllm.ai/en/latest/serving/data_parallel_deployment.html",
+          "note": null
+        },
+        {
+          "text": "A Modelfile is the blueprint to create and share customized models using Ollama.",
+          "source": "https://docs.ollama.com/modelfile",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Structure and components",
+      "facts": [
+        {
+          "text": "* A basic messages structure (layout) * Three variables: `Messages`, `Role`, and `Content` (variables) * A custom function (action) that iterates over an array of items (`range .Messages`) and displays each item",
+          "source": "https://docs.ollama.com/template.md#basic-template-structure",
+          "note": null
+        },
+        {
+          "text": "| Variable | Description | | - | - | | `{{ .System }}` | The system message used to specify custom behavior. | | `{{ .Prompt }}` | The user prompt message. | | `{{ .Response }}` | The response from the model. When generating a response, text after this variable is omitted. |",
+          "source": "https://docs.ollama.com/modelfile#template-variables",
+          "note": null
+        },
+        {
+          "text": "Requests for one model name are routed across multiple deployments that share the same model_name in model_list. Each deployment entry has its own litellm_params: the model, api_base, api_key and an optional rpm rate limit for that deployment.",
+          "source": "https://docs.litellm.ai/docs/proxy/load_balancing#quick-start-load-balancing",
+          "note": null
+        },
+        {
+          "text": "In these cases, the data parallel ranks are not completely independent. Forward passes must be aligned, and expert layers across all ranks are required to synchronize during every forward pass, even when there are fewer requests to be processed than DP ranks.",
+          "source": "https://docs.vllm.ai/en/latest/serving/data_parallel_deployment.html",
+          "note": null
+        },
+        {
+          "text": "There are two distinct modes supported for online deployments - self-contained with internal load balancing, or externally per-rank process deployment and load balancing.",
+          "source": "https://docs.vllm.ai/en/latest/serving/data_parallel_deployment.html",
+          "note": null
+        },
+        {
+          "text": "`Messages[].ToolCalls[].Function.Name` (string): function name",
+          "source": "https://docs.ollama.com/template.md#variables",
+          "note": null
+        },
+        {
+          "text": "`Messages[].ToolCalls[].Function.Arguments` (map): mapping of argument name to argument value",
+          "source": "https://docs.ollama.com/template.md#variables",
+          "note": null
+        },
+        {
+          "text": "| Instruction | Description | | - | - | | [`FROM`](#from-required) (required) | Defines the base model to use. | | [`PARAMETER`](#parameter) | Sets the parameters for how Ollama will run the model. | | [`TEMPLATE`](#template) | The full prompt template to be sent to the model. | | [`SYSTEM`](#system) | Specifies the system message that will be set in the template. | | [`LICENSE`](#license) | Specifies the legal license. | | [`MESSAGE`](#message) | Specify message history. | | [`REQUIRES`](#requires) | Specify the minimum version of Ollama required by the model. | | [`CAPABILITY`](#capability)",
+          "source": "https://docs.ollama.com/modelfile#format",
+          "note": null
+        },
+        {
+          "text": "For MoE models, particularly those like DeepSeek that employ MLA (Multi-head Latent Attention), it can be advantageous to use data parallel for the attention layers and expert or tensor parallel (EP or TP) for the expert layers.",
+          "source": "https://docs.vllm.ai/en/latest/serving/data_parallel_deployment.html",
+          "note": null
+        },
+        {
+          "text": "type Values struct { Messages []api.Message api.Tools Prompt string Suffix string Think bool // ThinkLevel contains the thinking level if Think is true and a string value was provided ThinkLevel string // whether or not the user explicitly set the thinking flag (vs. it being // implicitly false). Templates can't see whether `Think` is nil IsThinkSet bool",
+          "source": "https://github.com/ollama/ollama/blob/main/template/template.go",
+          "note": null
+        },
+        {
+          "text": "`Messages[].ToolCalls` (list): list of tools the model wants to call",
+          "source": "https://docs.ollama.com/template.md#variables",
+          "note": null
+        },
+        {
+          "text": "`Messages[].ToolCalls[].Function` (object): function to call",
+          "source": "https://docs.ollama.com/template.md#variables",
+          "note": null
+        },
+        {
+          "text": "`Tools[].Function.Name` (string): function name",
+          "source": "https://docs.ollama.com/template.md#variables",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "How it works",
+      "facts": [
+        {
+          "text": "In all cases, it is beneficial to load-balance requests between DP ranks. For online deployments, this balancing can be optimized by taking into account the state of each DP engine - in particular its currently scheduled and waiting (queued) requests, and KV cache state. Each DP engine has an independent KV cache, and the benefit of prefix caching can be maximized by directing prompts intelligently.",
+          "source": "https://docs.vllm.ai/en/latest/serving/data_parallel_deployment.html",
+          "note": null
+        },
+        {
+          "text": "In vLLM, each DP rank is deployed as a separate \"core engine\" process that communicates with front-end process(es) via ZMQ sockets. Data Parallel attention can be combined with Tensor Parallel attention, in which case each DP engine owns a number of per-GPU worker processes equal to the configured TP size.",
+          "source": "https://docs.vllm.ai/en/latest/serving/data_parallel_deployment.html",
+          "note": null
+        },
+        {
+          "text": "When using --data-parallel-external-lb with --nnodes, the data parallel rank can be inferred from --node-rank only when --nnodes is evenly divisible by --data-parallel-size. If it is not evenly divisible, automatic rank inference is rejected and --data-parallel-rank must be set explicitly. When multiple external-LB ranks are co-located on a node, assign each process a disjoint device set with CUDA_VISIBLE_DEVICES or --device-ids; devices are not partitioned automatically between processes.",
+          "source": "https://docs.vllm.ai/en/latest/serving/data_parallel_deployment.html",
+          "note": null
+        },
+        {
+          "text": "By contrast, the admission control limits --max-num-queued-reqs and --max-num-queued-tokens apply to the whole server, not per DP rank: each API server process counts in-flight requests and prefill backlog across all DP ranks it routes to. For example, with --data-parallel-size=4 --max-num-seqs=256 --max-num-queued-reqs=256, the deployment rejects new requests once 256 are in-flight in total, even though ranks could jointly run 1024. To keep ranks saturating, size the cap as roughly data-parallel-size * max-num-seqs plus the desired queue depth.",
+          "source": "https://docs.vllm.ai/en/latest/serving/data_parallel_deployment.html",
+          "note": null
+        },
+        {
+          "text": "Currently, the internal DP load balancing is done within the API server process(es) and is based on the running and waiting queues in each of the engines. This could be made more sophisticated in future by incorporating KV cache aware logic.",
+          "source": "https://docs.vllm.ai/en/latest/serving/data_parallel_deployment.html",
+          "note": null
+        },
+        {
+          "text": "Weighted failover is only active when routing_strategy is simple-shuffle (the default). It is capped by max_fallbacks (default 5) and is async-only: it is honored by router.acompletion() and other async entrypoints, while the sync router.completion() path falls through to regular fallbacks. Cooldowns still apply independently.",
+          "source": "https://docs.litellm.ai/docs/routing#weighted-failover",
+          "note": null
+        },
+        {
+          "text": "If there is insufficient available memory to load a new model request while one or more models are already loaded, all new requests will be queued until the new model can be loaded. As prior models become idle, one or more will be unloaded to make room for the new model. Queued requests will be processed in order. When using GPU inference new models must be able to completely fit in VRAM to allow concurrent model loads.",
+          "source": "https://docs.ollama.com/faq#how-does-ollama-handle-concurrent-requests",
+          "note": null
+        },
+        {
+          "text": "In this case, it's more convenient to treat each DP rank like a separate vLLM deployment, with its own endpoint, and have an external router balance HTTP requests between them, making use of appropriate real-time telemetry from each server for routing decisions.",
+          "source": "https://docs.vllm.ai/en/latest/serving/data_parallel_deployment.html",
+          "note": null
+        },
+        {
+          "text": "By default, models imported into Ollama have a default template of `{{ .Prompt }}`, i.e. user inputs are sent verbatim to the LLM. This is appropriate for text or code completion models but lacks essential markers for chat or instruction models.",
+          "source": "https://docs.ollama.com/template.md#adding-templates-to-your-model",
+          "note": null
+        },
+        {
+          "text": "if flagsSet == 1 { switch showType { case \"license\": fmt.Println(resp.License) case \"modelfile\": fmt.Println(resp.Modelfile) case \"parameters\": fmt.Println(resp.Parameters) case \"system\": fmt.Print(resp.System) case \"template\": fmt.Print(resp.Template) }",
+          "source": "https://github.com/ollama/ollama/blob/main/cmd/cmd.go",
+          "note": null
+        },
+        {
+          "text": "if !slices.Contains(vars, \"messages\") && !slices.Contains(vars, \"response\") { // touch up the template and append {{ .Response }} tmpl.Tree.Root.Nodes = append(tmpl.Tree.Root.Nodes, &response) }",
+          "source": "https://github.com/ollama/ollama/blob/main/template/template.go",
+          "note": null
+        },
+        {
+          "text": "func (t *Template) Execute(w io.Writer, v Values) error { system, messages := collate(v.Messages) vars, err := t.Vars() if err != nil { return err } if v.Prompt != \"\" && v.Suffix != \"\" { return t.Template.Execute(w, map[string]any{ \"Prompt\": v.Prompt, \"Suffix\": v.Suffix, \"Response\": \"\", \"Think\": v.Think, \"ThinkLevel\": v.ThinkLevel, \"IsThinkSet\": v.IsThinkSet, }) } else if !v.forceLegacy && slices.Contains(vars, \"messages\") { return t.Template.Execute(w, map[string]any{ \"System\": system, \"Messages\": convertMessagesForTemplate(messages), \"Tools\": convertToolsForTemplate",
+          "source": "https://github.com/ollama/ollama/blob/main/template/template.go",
+          "note": null
+        },
+        {
+          "text": "By default, when a deployment in a model group fails, the router moves on to the next entry in fallbacks, which is a different model group. With enable_weighted_failover, the router first retries inside the same model group by re-picking a different deployment using the existing weights, and only escalates to cross-group fallbacks once every deployment in the group has been tried. This is useful for multiple regional copies of the same model, where a failed region should fail over to a healthy peer with the same model_name.",
+          "source": "https://docs.litellm.ai/docs/routing#weighted-failover",
+          "note": null
+        },
+        {
+          "text": "When deploying large DP sizes using this method, the API server process can become a bottleneck. In this case, the orthogonal --api-server-count command line option can be used to scale this out (for example --api-server-count=4). This is transparent to users - a single HTTP endpoint / port is still exposed. Note that this API server scale-out is \"internal\" and still confined to the \"head\" node.",
+          "source": "https://docs.vllm.ai/en/latest/serving/data_parallel_deployment.html",
+          "note": null
+        },
+        {
+          "text": "When a single DP group requires multiple nodes, e.g. in case a single model replica needs to run on at least two nodes, make sure to set VLLM_RAY_DP_PACK_STRATEGY=\"span\" in which case --data-parallel-size-local is ignored and will be automatically determined",
+          "source": "https://docs.vllm.ai/en/latest/serving/data_parallel_deployment.html",
+          "note": null
+        },
+        {
+          "text": "Remote DP ranks will be allocated based on node resources of the Ray cluster",
+          "source": "https://docs.vllm.ai/en/latest/serving/data_parallel_deployment.html",
+          "note": null
+        },
+        {
+          "text": "Ollama supports two levels of concurrent processing. If your system has sufficient available memory (system memory when using CPU inference, or VRAM for GPU inference) then multiple models can be loaded at the same time. For a given model, if there is sufficient available memory when the model is loaded, it is configured to allow parallel request processing.",
+          "source": "https://docs.ollama.com/faq#how-does-ollama-handle-concurrent-requests",
+          "note": null
+        },
+        {
+          "text": "Parallel request processing for a given model results in increasing the context size by the number of parallel requests. For example, a 2K context with 4 parallel requests will result in an 8K context and additional memory allocation.",
+          "source": "https://docs.ollama.com/faq#how-does-ollama-handle-concurrent-requests",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Parameters and configuration",
+      "facts": [
+        {
+          "text": "var ( // NumParallel sets the number of parallel model requests. NumParallel can be configured via the OLLAMA_NUM_PARALLEL environment variable. NumParallel = Uint(\"OLLAMA_NUM_PARALLEL\", 1) // MaxRunners sets the maximum number of loaded models. MaxRunners can be configured via the OLLAMA_MAX_LOADED_MODELS environment variable. MaxRunners = Uint(\"OLLAMA_MAX_LOADED_MODELS\", 0) // MaxQueue sets the maximum number of queued requests. MaxQueue can be configured via the OLLAMA_MAX_QUEUE environment variable. MaxQueue = Uint(\"OLLAMA_MAX_QUEUE\", 512) // MaxTransferStreams caps the number of simultane",
+          "source": "https://github.com/ollama/ollama/blob/main/envconfig/config.go",
+          "note": null
+        },
+        {
+          "text": "* `OLLAMA_MAX_LOADED_MODELS` - The maximum number of models that can be loaded concurrently provided they fit in available memory. The default is 3 \\* the number of GPUs or 3 for CPU inference. * `OLLAMA_NUM_PARALLEL` - The maximum number of parallel requests each model will process at the same time, default 1. Required RAM will scale by `OLLAMA_NUM_PARALLEL` \\* `OLLAMA_CONTEXT_LENGTH`. * `OLLAMA_MAX_QUEUE` - The maximum number of requests Ollama will queue when busy before rejecting additional requests. The default is 512",
+          "source": "https://docs.ollama.com/faq#how-does-ollama-handle-concurrent-requests",
+          "note": null
+        },
+        {
+          "text": "router_settings routing_strategy accepts simple-shuffle, least-busy, usage-based-routing or latency-based-routing, and defaults to simple-shuffle. router_settings also takes num_retries (for example 2) and timeout (for example 30 seconds).",
+          "source": "https://docs.litellm.ai/docs/proxy/load_balancing#quick-start-load-balancing",
+          "note": null
+        },
+        {
+          "text": "showCmd.Flags().Bool(\"license\", false, \"Show license of a model\") showCmd.Flags().Bool(\"modelfile\", false, \"Show Modelfile of a model\") showCmd.Flags().Bool(\"parameters\", false, \"Show parameters of a model\") showCmd.Flags().Bool(\"template\", false, \"Show template of a model\") showCmd.Flags().Bool(\"system\", false, \"Show system message of a model\") showCmd.Flags().BoolP(\"verbose\", \"v\", false, \"Show detailed model information\")",
+          "source": "https://github.com/ollama/ollama/blob/main/cmd/cmd.go",
+          "note": null
+        },
+        {
+          "text": "var funcs = template.FuncMap{ \"json\": func(v any) string { b, _ := json.Marshal(v) return string(b) }, \"currentDate\": func(args ...string) string { // Currently ignoring the format argument, but accepting it for future use // Default format is YYYY-MM-DD return time.Now().Format(\"2006-01-02\") }, \"yesterdayDate\": func(args ...string) string { return time.Now().AddDate(0, 0, -1).Format(\"2006-01-02\") }, \"toTypeScriptType\": func(v any) string { if param, ok := v.(api.ToolProperty); ok { return param.ToTypeScriptType() } // Handle pointer case if param, ok := v.(*api.ToolProperty); ok && param != n",
+          "source": "https://github.com/ollama/ollama/blob/main/template/template.go",
+          "note": null
+        },
+        {
+          "text": "The GGUF file location should be specified as an absolute path or relative to the Modelfile location. For a split GGUF model, keep the original split filenames and use a wildcard that matches every shard. Shards can also be listed with separate FROM instructions.",
+          "source": "https://docs.ollama.com/modelfile",
+          "note": null
+        },
+        {
+          "text": "| Parameter | Description | Value Type | Example Usage | | - | - | - | - | | num\\_ctx | Sets the size of the context window used to generate the next token. (Default: 2048) | int | num\\_ctx 4096 | | repeat\\_last\\_n | Sets how far back for the model to look back to prevent repetition. (Default: 64, 0 = disabled, -1 = num\\_ctx) | int | repeat\\_last\\_n 64 | | repeat\\_penalty | Sets how strongly to penalize repetitions. A higher value (e.g., 1.5) will penalize repetitions more strongly, while a lower value (e.g., 0.9) will be more lenient. (Default: 1.0, disabled) | float | repeat\\_penalty 1.1 | |",
+          "source": "https://docs.ollama.com/modelfile#valid-parameters-and-values",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "How-to and procedures",
+      "facts": [
+        {
+          "text": "Fill-in-middle support can be added to a model by adding a `{{ .Suffix }}` node to the template. This feature is useful for models that are trained to generate text in the middle of user input, such as code completion models.",
+          "source": "https://docs.ollama.com/template.md#example-fill-in-middle",
+          "note": null
+        },
+        {
+          "text": "Just thought i'd put this here. Here's a template ollama modelfile that allows you to use this GGUF with Ollama with working tool calls (calling GLM-4.7 Flash from Cline, roo code, kilo code, etc)",
+          "source": "https://huggingface.co/unsloth/GLM-4.7-Flash-GGUF/discussions/23",
+          "note": null
+        },
+        {
+          "text": "For larger scale deployments especially, it can make sense to handle the orchestration and load balancing of data parallel ranks externally.",
+          "source": "https://docs.vllm.ai/en/latest/serving/data_parallel_deployment.html",
+          "note": null
+        },
+        {
+          "text": "Tools support can be added to a model by adding a `{{ .Tools }}` node to the template. This feature is useful for models trained to call external tools and can a powerful tool for retrieving real-time data or performing complex tasks.",
+          "source": "https://docs.ollama.com/template.md#example-tools",
+          "note": "Ollama docs: .Tools node enables tool support"
+        },
+        {
+          "text": "Set redis_host, redis_port and redis_password in router_settings when you run multiple LiteLLM proxy deployments; load balancing state is then stored in Redis.",
+          "source": "https://docs.litellm.ai/docs/proxy/load_balancing#quick-start-load-balancing",
+          "note": null
+        },
+        {
+          "text": "To add templates in your model, you'll need to add a `TEMPLATE` command to the Modelfile. Here's an example using Meta's Llama 3.",
+          "source": "https://docs.ollama.com/template.md#adding-templates-to-your-model",
+          "note": null
+        },
+        {
+          "text": "To view the Modelfile of a given model, use the ollama show --modelfile command.",
+          "source": "https://docs.ollama.com/modelfile",
+          "note": null
+        },
+        {
+          "text": "First, create a `Modelfile` with a `FROM` command which points to the directory containing your Safetensors weights:",
+          "source": "https://docs.ollama.com/import#importing-a-model-from-safetensors-weights",
+          "note": null
+        },
+        {
+          "text": "If you create the Modelfile in the same directory as the weights, you can use the command `FROM .`.",
+          "source": "https://docs.ollama.com/import#importing-a-model-from-safetensors-weights",
+          "note": null
+        },
+        {
+          "text": "To import a single-file GGUF model, create a `Modelfile` containing:",
+          "source": "https://docs.ollama.com/import#importing-a-gguf-model",
+          "note": null
+        },
+        {
+          "text": "Set allowed_fails and cooldown_time on the Router. A deployment that fails more than allowed_fails calls in a minute is cooled down for cooldown_time seconds (for example allowed_fails=1 and cooldown_time=100 cool a deployment for 100 seconds).",
+          "source": "https://docs.litellm.ai/docs/routing#cooldowns",
+          "note": null
+        },
+        {
+          "text": "Set routing_strategy to least-busy to route each call to the deployment with the fewest active requests.",
+          "source": "https://docs.litellm.ai/docs/routing#least-busy",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Examples and snippets",
+      "facts": [
+        {
+          "text": "TEMPLATE \"\"\" {{- $lastUserIdx := -1 -}} {{- range $idx, $msg := .Messages -}} {{- if eq $msg.Role \"user\" }}{{ $lastUserIdx = $idx }}{{ end -}} {{- end }} {{- if .System }}<|im_start|>system {{ .System }}<|im_end|> {{ end }} {{- range $i, $_ := .Messages }} {{- $last := eq (len (slice $.Messages $i)) 1 -}} {{- if eq .Role \"user\" }}<|im_start|>user {{ .Content }}<|im_end|> {{ else if eq .Role \"assistant\" }}<|im_start|>assistant {{ if .Content }}{{ .Content }} {{- else if .ToolCalls }} {{ range .ToolCalls }}{\"name\": \"{{ .Function.Name }}\", \"arguments\": {{ .Function.Arguments }}} {{ end }} {{- end",
+          "source": "https://huggingface.co/unsloth/GLM-4.7-Flash-GGUF/discussions/23",
+          "note": null
+        },
+        {
+          "text": "``` — `# Modelfile generated by \"ollama show\"` …",
+          "source": "https://docs.ollama.com/modelfile#basic-modelfile",
+          "note": null
+        },
+        {
+          "text": "```go theme={\"system\"} — `{{- range $index, $_ := .Messages }}` …",
+          "source": "https://docs.ollama.com/template.md#mistral",
+          "note": null
+        },
+        {
+          "text": "For each function call, return a json object with function name and arguments within <tool_call></tool_call> XML tags: <tool_call> {\"name\": <function-name>, \"arguments\": <args-json-object>} </tool_call> {{- end }} {{- end }} {{- range $i, $_ := .Messages }} {{- $last := eq (len (slice $.Messages $i)) 1 -}} {{- if eq .Role \"user\" }}<|user|> {{ .Content }} {{- else if eq .Role \"assistant\" }}<|assistant|> {{- if .Content }}{{ .Content }}{{- end }} {{- if .ToolCalls }}<tool_call> {{ range .ToolCalls }}{\"name\": \"{{ .Function.Name }}\", \"arguments\": {{ .Function.Arguments }}} {{ end }}</tool_call> {{",
+          "source": "https://huggingface.co/unsloth/GLM-4.7-Flash-GGUF/discussions/23",
+          "note": null
+        },
+        {
+          "text": "```dockerfile theme={\"system\"} — `FROM llama3.2` …",
+          "source": "https://docs.ollama.com/template.md#adding-templates-to-your-model",
+          "note": null
+        },
+        {
+          "text": "TEMPLATE \"\"\"[gMASK]<sop>{{- if .Messages }} {{- if or .System .Tools }}<|system|> {{- if .System }} {{ .System }} {{- end }} {{- if .Tools }}",
+          "source": "https://huggingface.co/unsloth/GLM-4.7-Flash-GGUF/discussions/23",
+          "note": null
+        },
+        {
+          "text": "```go theme={\"system\"} — `<PRE> {{ .Prompt }} <SUF>{{ .Suffix }} <MID>` …",
+          "source": "https://docs.ollama.com/template.md#codellama",
+          "note": null
+        },
+        {
+          "text": "```gotmpl theme={\"system\"} — `[SUFFIX]{{ .Suffix }}[PREFIX] {{ .Prompt }}` …",
+          "source": "https://docs.ollama.com/template.md#codestral",
+          "note": null
+        },
+        {
+          "text": "```go theme={\"system\"} — `{{- range .Messages }}<|im_start|>{{ .Role }}` …",
+          "source": "https://docs.ollama.com/template.md#chatml",
+          "note": null
+        },
+        {
+          "text": "{{ .Response }}<|eot_id|>\"\"\" PARAMETER stop \"<|start_header_id|>\" PARAMETER stop \"<|end_header_id|>\" PARAMETER stop \"<|eot_id|>\" PARAMETER stop \"<|reserved_special_token\"",
+          "source": "https://docs.ollama.com/modelfile",
+          "note": null
+        },
+        {
+          "text": "```gotmpl theme={\"system\"} — `{{- range .Messages }}` …",
+          "source": "https://docs.ollama.com/template.md#basic-template-structure",
+          "note": null
+        },
+        {
+          "text": "TEMPLATE \"\"\"{{ if .System }}<|im_start|>system {{ .System }}<|im_end|> {{ end }}{{ if .Prompt }}<|im_start|>user {{ .Prompt }}<|im_end|> {{ end }}<|im_start|>assistant \"\"\"",
+          "source": "https://docs.ollama.com/modelfile",
+          "note": null
+        },
+        {
+          "text": "RENDERER glm-4.7 PARSER glm-4.7",
+          "source": "https://huggingface.co/unsloth/GLM-4.7-Flash-GGUF/discussions/23",
+          "note": null
+        },
+        {
+          "text": "It can be configured by simply including e.g. --data-parallel-size=4 in the vllm serve command line arguments. This will require 4 GPUs. It can be combined with tensor parallel, for example --data-parallel-size=4 --tensor-parallel-size=2, which would require 8 GPUs. When sizing DP deployments, remember that --max-num-seqs applies per DP rank.",
+          "source": "https://docs.vllm.ai/en/latest/serving/data_parallel_deployment.html",
+          "note": null
+        },
+        {
+          "text": "You are provided with function signatures within <tools></tools> XML tags: <tools> {{- range .Tools }} {\"type\": \"function\", \"function\": {{ .Function }}} {{- end }} </tools>",
+          "source": "https://huggingface.co/unsloth/GLM-4.7-Flash-GGUF/discussions/23",
+          "note": null
+        },
+        {
+          "text": "PARAMETER temperature 0.1 PARAMETER top_p 0.9 PARAMETER num_ctx 65536 PARAMETER stop \"<|im_start|>\" PARAMETER stop \"<|im_end|>\" PARAMETER repeat_penalty 1.05 PARAMETER top_k 20 PARAMETER min_p 0.05",
+          "source": "https://huggingface.co/unsloth/GLM-4.7-Flash-GGUF/discussions/23",
+          "note": null
+        },
+        {
+          "text": "```shell theme={\"system\"} — `ollama show --modelfile llama3.2` …",
+          "source": "https://docs.ollama.com/modelfile#basic-modelfile",
+          "note": null
+        },
+        {
+          "text": "TEMPLATE \"\"\"[gMASK]<sop><|system|> {{ .System }}<|user|> {{ .Prompt }}<|assistant|> {{ .Response }}\"\"\"",
+          "source": "https://huggingface.co/unsloth/GLM-4.7-Flash-GGUF/discussions/23",
+          "note": null
+        },
+        {
+          "text": "this.fimSupported = !!body?.template?.includes(\".Suffix\");",
+          "source": "https://gitea.varghacsongor.hu/GithubMirror/continue/commit/16a540c3378b833931429db9bcb3ce7c98bd7a36",
+          "note": null
+        },
+        {
+          "text": "this.templateSupportsTools = body.template.includes(\".Tools\");",
+          "source": "https://gitea.varghacsongor.hu/GithubMirror/continue/commit/16a540c3378b833931429db9bcb3ce7c98bd7a36",
+          "note": null
+        },
+        {
+          "text": "``` — `FROM llama3.2` …",
+          "source": "https://docs.ollama.com/modelfile#basic-modelfile",
+          "note": null
+        },
+        {
+          "text": "This will run DP=4 with DP ranks 0 and 1 on the head node and ranks 2 and 3 on the second node:",
+          "source": "https://docs.vllm.ai/en/latest/serving/data_parallel_deployment.html",
+          "note": null
+        },
+        {
+          "text": "PARAMETER stop \"<|user|>\" PARAMETER stop \"<|observation|>\" PARAMETER stop \"<|system|>\"",
+          "source": "https://huggingface.co/unsloth/GLM-4.7-Flash-GGUF/discussions/23",
+          "note": null
+        },
+        {
+          "text": "{{ .Content }} <|im_end|> {{ end }} {{- if and (ne .Role \"assistant\") $last }}<|im_start|>assistant {{ end -}} {{- end }}\"\"\"",
+          "source": "https://huggingface.co/unsloth/GLM-4.7-Flash-GGUF/discussions/23",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Measurements and reference values",
+      "facts": [
+        {
+          "text": "Results: vLLM performed up to 3.23x faster than Ollama with 128 concurrent requests (vLLM reached 70.69 requests/s at 128 concurrent; average latency 1.754 s, p95 2.482 s). Ollama ramped up to about 22 requests per second with 32 concurrent requests (matching its OLLAMA_NUM_PARALLEL=32) and stayed flat at that level across the rest of the tests; adding more concurrent requests beyond 32 only increased latency.",
+          "source": "https://robert-mcdermott.medium.com/performance-vs-practicality-a-comparison-of-vllm-and-ollama-104acad250fd",
+          "note": null
+        },
+        {
+          "text": "Hardware: 2x AMD EPYC 7343, 256 GB DDR5, 2x NVIDIA A6000 48 GB with NVLink (96 GB VRAM). Models: vLLM Qwen/Qwen3-14B (vLLM API server 0.8.5.post1, launched with --tensor-parallel-size 2); Ollama qwen3:14b-fp16 (version not stated). Ollama configuration: OLLAMA_SCHED_SPREAD=1 CUDA_VISIBLE_DEVICES=0,1 OLLAMA_NUM_PARALLEL=32 ollama serve.",
+          "source": "https://robert-mcdermott.medium.com/performance-vs-practicality-a-comparison-of-vllm-and-ollama-104acad250fd",
+          "note": null
+        },
+        {
+          "text": "Abstract: Serving LLMs to many concurrent users gives rise to significant challenges for latency, throughput, and scalability. This paper presents a systematic and reproducible benchmark of two widely used LLM serving frameworks, Ollama and vLLM, under concurrent workloads. We conducted a controlled comparison by running both frameworks on a single NVIDIA H100 80 GB GPU with the same model weights (Qwen3-4B) and inference configurations. We then evaluated them using five open benchmark datasets across four scenarios consisting of baseline question answering, complex reasoning, streaming intera",
+          "source": "https://www.mdpi.com/2076-3417/16/11/5435",
+          "note": null
+        },
+        {
+          "text": "Baseline scenario results table: Concurrency 10: Ollama avg latency 20.92 s, 0.45 req/s, 0% errors; vLLM 3.71 s, 2.61 req/s, 0% errors. Concurrency 50: Ollama 89.72 s avg, 0.46 req/s, 0% errors; vLLM 4.02 s, 11.93 req/s. Concurrency 100: Ollama 100.48 s avg, P95 126.09 s, 0.45 req/s, 39.29% errors; vLLM 6.37 s avg, P95 7.94 s, 15.20 req/s, 0% errors. Ollama throughput plateaus at 0.45-0.51 req/s in every scenario; vLLM holds 9.91-13.33 req/s depending on the workload. Ollama error rate ranges from 13.1% (baseline) to 30.06% (streaming).",
+          "source": "https://www.mdpi.com/2076-3417/16/11/5435",
+          "note": null
+        },
+        {
+          "text": "Stress test: Ollama breaking point at 10 users; degradation zone 10-25 users; dominant failure: throughput stagnation, queue saturation, extended recovery after spikes. vLLM stable to 100 users, degradation 100-200, breaking point >= 200 users (15.46 req/s at 200, avg 12.23 s). Endurance: vLLM completed 56,345 requests at 15.65 req/s; Ollama 1,722 requests at 0.48 req/s.",
+          "source": "https://www.mdpi.com/2076-3417/16/11/5435",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Problems, failure modes and limitations",
+      "facts": [
+        {
+          "text": "If too many requests are sent to the server, it will respond with a 503 error indicating the server is overloaded. You can adjust how many requests may be queued by setting `OLLAMA_MAX_QUEUE`.",
+          "source": "https://docs.ollama.com/faq#how-do-i-manage-the-maximum-number-of-requests-the-ollama-server-can-queue",
+          "note": null
+        },
+        {
+          "text": "The Ollama provider checks the model template from /api/show for a `.Tools` placeholder to decide whether to pass tools to the API. For newer models (e.g. qwen3.5) whose templates may not yet include `.Tools`, this silently strips tools from the request — even when the user explicitly sets `capabilities: tools: true` in config.yaml.",
+          "source": "https://gitea.varghacsongor.hu/GithubMirror/continue/commit/16a540c3378b833931429db9bcb3ce7c98bd7a36",
+          "note": "Continue client dropped the template check"
+        },
+        {
+          "text": "Note: Windows with Radeon GPUs currently default to 1 model maximum due to limitations in ROCm v5.7 for available VRAM reporting. Once ROCm v6.2 is available, Windows Radeon will follow the defaults above. You may enable concurrent model loads on Radeon on Windows, but ensure you don't load more models than will fit into your GPU's VRAM.",
+          "source": "https://docs.ollama.com/faq#how-does-ollama-handle-concurrent-requests",
+          "note": null
+        },
+        {
+          "text": "<Note> CodeLlama 34B and 70B code completion and all instruct and Python fine-tuned models do not support fill-in-middle. </Note>",
+          "source": "https://docs.ollama.com/template.md#codellama",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Comparisons and alternatives",
+      "facts": [
+        {
+          "text": "A single launch command (on any node) is needed to start all local and remote DP ranks, therefore it is more convenient compared to launching on each node",
+          "source": "https://docs.vllm.ai/en/latest/serving/data_parallel_deployment.html",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Changes and history",
+      "facts": [
+        {
+          "text": "* fix: let explicit capabilities.tools override Ollama template tool detection",
+          "source": "https://gitea.varghacsongor.hu/GithubMirror/continue/commit/16a540c3378b833931429db9bcb3ce7c98bd7a36",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Facts and statements",
+      "facts": [
+        {
+          "text": "LiteLLM automatically distributes requests across multiple deployments of the same model using its built-in router. The proxy routes traffic to optimize performance and reliability. The \"simple-shuffle\" routing strategy is used by default.",
+          "source": "https://docs.litellm.ai/docs/proxy/load_balancing#how-load-balancing-works",
+          "note": null
+        },
+        {
+          "text": "Running a single data parallel deployment across multiple nodes requires a different vllm serve to be run on each node, specifying which DP ranks should run on that node. In this case, there will still be a single HTTP entrypoint - the API server(s) will run only on one node, but it doesn't necessarily need to be co-located with the DP ranks.",
+          "source": "https://docs.vllm.ai/en/latest/serving/data_parallel_deployment.html",
+          "note": null
+        },
+        {
+          "text": "Load balance multiple instances of the same model. The LiteLLM proxy handles routing requests using LiteLLM's Router. Set rpm in the config if you want to maximize throughput.",
+          "source": "https://docs.litellm.ai/docs/proxy/load_balancing",
+          "note": null
+        },
+        {
+          "text": "Method: same hardware, same model, concurrency steps 1, 2, 4, 8, 16, 32, 64, 128, 256, 512, 768, 1000; throughput in requests per second and response latency.",
+          "source": "https://robert-mcdermott.medium.com/performance-vs-practicality-a-comparison-of-vllm-and-ollama-104acad250fd",
+          "note": null
+        },
+        {
+          "text": "least-busy routes to the deployment with the fewest active requests. Use it for high concurrency scenarios.",
+          "source": "https://docs.litellm.ai/docs/proxy/load_balancing#routing-strategies",
+          "note": null
+        },
+        {
+          "text": "The LiteLLM Router provides multiple strategies for routing calls across multiple deployments: Weighted Pick, Rate-Limit Aware v2, Latency-Based, Rate-Limit Aware, Least-Busy, Custom Routing Strategy and Lowest Cost Routing. We recommend using simple-shuffle (the default) for best performance in production.",
+          "source": "https://docs.litellm.ai/docs/routing",
+          "note": null
+        },
+        {
+          "text": "Setup: Ollama 0.24.0 serving qwen3:4b-q8_0 (GGUF, Q8_0) with OLLAMA_NUM_PARALLEL=4; vLLM 0.17.0 serving Qwen/Qwen3-4B with native FP8. Single node, single GPU.",
+          "source": "https://www.mdpi.com/2076-3417/16/11/5435",
+          "note": null
+        },
+        {
+          "text": "Show information about a model including details, modelfile, template, parameters, license, system prompt.",
+          "source": "https://github.com/ollama/ollama/blob/main/docs/api.md#show-model-information",
+          "note": null
+        },
+        {
+          "text": "In the above diagram, each of the dotted boxes corresponds to a separate launch of vllm serve - these could be separate Kubernetes pods, for example.",
+          "source": "https://docs.vllm.ai/en/latest/serving/data_parallel_deployment.html",
+          "note": null
+        },
+        {
+          "text": "CodeLlama [7B](https://ollama.com/library/codellama:7b-code) and [13B](https://ollama.com/library/codellama:13b-code) code completion models support fill-in-middle.",
+          "source": "https://docs.ollama.com/template.md#codellama",
+          "note": null
+        },
+        {
+          "text": "Codestral [22B](https://ollama.com/library/codestral:22b) supports fill-in-middle.",
+          "source": "https://docs.ollama.com/template.md#codestral",
+          "note": null
+        },
+        {
+          "text": "the Modelfile is not case sensitive. In the examples, uppercase instructions are used to make it easier to distinguish it from arguments.",
+          "source": "https://docs.ollama.com/modelfile",
+          "note": null
+        },
+        {
+          "text": "Give a deployment a weight to pick it more often than others that share the same model_name. For example weight 2 picks that deployment twice as often as a deployment with weight 1.",
+          "source": "https://docs.litellm.ai/docs/routing#weighted-pick",
+          "note": null
+        },
+        {
+          "text": "var DefaultTemplate, _ = Parse(\"{{ .Prompt }}\")",
+          "source": "https://github.com/ollama/ollama/blob/main/template/template.go",
+          "note": null
+        },
+        {
+          "text": "simple-shuffle (recommended) randomly distributes requests. Use it for general purpose work and even load distribution.",
+          "source": "https://docs.litellm.ai/docs/proxy/load_balancing#routing-strategies",
+          "note": null
+        },
+        {
+          "text": "usage-based-routing (documented as bad for perf) routes to the deployment with the lowest current usage (RPM/TPM). Use it when you want to respect rate limits evenly.",
+          "source": "https://docs.litellm.ai/docs/proxy/load_balancing#routing-strategies",
+          "note": null
+        },
+        {
+          "text": "latency-based-routing routes to the fastest responding deployment. Use it for latency-critical applications.",
+          "source": "https://docs.litellm.ai/docs/proxy/load_balancing#routing-strategies",
+          "note": null
+        },
+        {
+          "text": "cost-based-routing routes to the deployment with the lowest cost. Use it for cost-sensitive applications.",
+          "source": "https://docs.litellm.ai/docs/proxy/load_balancing#routing-strategies",
+          "note": null
+        },
+        {
+          "text": "LiteLLM supports all models from Ollama. We recommend using ollama_chat for better responses.",
+          "source": "https://docs.litellm.ai/docs/providers/ollama",
+          "note": null
+        },
+        {
+          "text": "Usage-based routing adds significant latency due to Redis operations for tracking usage across deployments. The async implementation filters out a deployment if its tpm/rpm limit is exceeded, and routes to the deployment with the lowest TPM usage for that minute. In production, Redis tracks TPM/RPM across multiple deployments.",
+          "source": "https://docs.litellm.ai/docs/routing#usage-based-routing",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Disagreements",
+      "facts": [
+        {
+          "text": "Tools support can be added to a model by adding a `{{ .Tools }}` node to the template. This feature is useful for models trained to call external tools and can a powerful tool for retrieving real-time data or performing complex tasks.",
+          "source": "https://docs.ollama.com/template.md#example-tools",
+          "note": "Ollama docs: .Tools node enables tool support",
+          "group": "c1"
+        },
+        {
+          "text": "The Ollama provider checks the model template from /api/show for a `.Tools` placeholder to decide whether to pass tools to the API. For newer models (e.g. qwen3.5) whose templates may not yet include `.Tools`, this silently strips tools from the request — even when the user explicitly sets `capabilities: tools: true` in config.yaml.",
+          "source": "https://gitea.varghacsongor.hu/GithubMirror/continue/commit/16a540c3378b833931429db9bcb3ce7c98bd7a36",
+          "note": "Continue client dropped the template check",
+          "group": "c1"
+        }
+      ]
+    }
+  ],
+  "related": [
+    {
+      "concept": "template",
+      "relation": "is a related of Ollama templates and scale-out",
+      "note": null
+    },
+    {
+      "concept": "{{ .Prompt }}",
+      "relation": "is a part of Ollama templates and scale-out",
+      "note": null
+    },
+    {
+      "concept": "vLLM",
+      "relation": "is a contrast of Ollama templates and scale-out",
+      "note": null
+    },
+    {
+      "concept": "DP rank",
+      "relation": "is a part of Ollama templates and scale-out",
+      "note": null
+    },
+    {
+      "concept": "parallel requests",
+      "relation": "is a part of Ollama templates and scale-out",
+      "note": null
+    },
+    {
+      "concept": "simple-shuffle",
+      "relation": "is a instance of Ollama templates and scale-out",
+      "note": null
+    },
+    {
+      "concept": "load balancer",
+      "relation": "is a part of Ollama templates and scale-out",
+      "note": null
+    },
+    {
+      "concept": "data parallel",
+      "relation": "is a part of Ollama templates and scale-out",
+      "note": null
+    },
+    {
+      "concept": "queued",
+      "relation": "is a problem of Ollama templates and scale-out",
+      "note": null
+    },
+    {
+      "concept": ".Messages",
+      "relation": "is a part of Ollama templates and scale-out",
+      "note": null
+    },
+    {
+      "concept": "role marker",
+      "relation": "is a part of Ollama templates and scale-out",
+      "note": null
+    },
+    {
+      "concept": "{{ range }}",
+      "relation": "is a part of Ollama templates and scale-out",
+      "note": null
+    },
+    {
+      "concept": ".ToolCalls",
+      "relation": "is a part of Ollama templates and scale-out",
+      "note": null
+    },
+    {
+      "concept": ".Tools",
+      "relation": "is a part of Ollama templates and scale-out",
+      "note": null
+    },
+    {
+      "concept": "fill-in-middle",
+      "relation": "is a part of Ollama templates and scale-out",
+      "note": null
+    },
+    {
+      "concept": "Function.Arguments",
+      "relation": "is a part of Ollama templates and scale-out",
+      "note": null
+    },
+    {
+      "concept": "weighted failover",
+      "relation": "is a part of Ollama templates and scale-out",
+      "note": null
+    },
+    {
+      "concept": "OLLAMA_NUM_PARALLEL",
+      "relation": "is a part of Ollama templates and scale-out",
+      "note": null
+    },
+    {
+      "concept": "LiteLLM",
+      "relation": "is a instance of Ollama templates and scale-out",
+      "note": null
+    },
+    {
+      "concept": "throughput",
+      "relation": "is a measure of Ollama templates and scale-out",
+      "note": null
+    }
+  ]
+}

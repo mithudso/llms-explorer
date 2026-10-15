@@ -776,3 +776,20 @@ Outcome: TASK-645 — all five shipped in `llmsx explorer`; 4,035 no-facts conce
 > Update the website with your changes, edit the documentation, links, and guides on the website. Also create a complete userguide to using the application and include it as a readme in the executable itself and link to it on the webpage.
 
 Outcome: USER_GUIDE.md ships in llmsx 0.2.5 (`g`, `--guide`); /explorer/guide/ page; /explorer/, /downloads/, home, README updated.
+
+## Prompt — 2026-10-14
+
+> pull all of the unresearched and frontir concepts involving mongodb and start a full research suite on all of them using the ollama.cpp and ollama-swap Qwen3.8-27B, the Unsloth UD-Q3_K_XL build with the draft head to run it as the workhorse. And while it's doing that build a source libray that contains a full raw dump of every source polled so it can be processed and reused by multiple agents. It will need a processed and an unprocessed space, save the text only. If a site is used very often then use the crawl site to llms skill to pull and parse everything the site has, or look for existing document packs that already do this. Make sure to look for the llms-full.txt file on the site to simplify the whole process. You decide how this all should be stored, tagged, and processed to optimize the efficiency and capacity of the research tasks. Also have the various stages of resaearch be done in a grouped fashion like has been noted, and run each stage in parallel so for instance sourcing will be pulled by agents with max effort since that has been exprimentally proven to be far more effective but then switch to lighter reasoning for the processing. Before doing any of this make sure all the repos are up to date.
+> (run through the deep prompt optimizer first; result in `docs/research/mongodb-suite-2026-10-14/`)
+
+Outcome: `hub/scripts/research_suite.py` (six-stage pipeline: Sonnet max sourcing, Qwen3.8 extraction and synthesis, Sonnet medium validation) over 707 MongoDB concepts in 120 batches; `source_library.py` in the hub (raw and processed text spaces, FTS5 index, URL-derived tags, llms.txt-tree site packs).
+
+> /full-suite ollama
+
+Outcome: concept-family-explorer run on Ollama (40 concepts, 8 research runs, hub `ollama-expert`); this branch adds the "Ollama" node and its 8 run nodes to the concept tree.
+
+## Prompt — 2026-10-14 (2)
+
+> (after /full-suite ollama) 1. Yes Publish to the site. ...
+
+Outcome: 45 Ollama reader pages published, each keyed to a concept-tree node (37 new child nodes under the 8 Ollama run nodes).
