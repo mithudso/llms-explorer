@@ -782,3 +782,9 @@ Outcome: USER_GUIDE.md ships in llmsx 0.2.5 (`g`, `--guide`); /explorer/guide/ p
 > /full-suite ollama
 
 Outcome: concept-family-explorer run on Ollama (40 concepts, 8 research runs, hub `ollama-expert`); this branch adds the "Ollama" node and its 8 run nodes to the concept tree.
+
+## Prompt — 2026-10-14 (2)
+
+> (after /full-suite ollama) 1. Yes Publish to the site. ...
+
+Outcome: 45 Ollama reader pages published, each keyed to a concept-tree node (37 new child nodes under the 8 Ollama run nodes).

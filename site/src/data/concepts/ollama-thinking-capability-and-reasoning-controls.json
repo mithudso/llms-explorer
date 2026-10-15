@@ -1,0 +1,895 @@
+{
+  "slug": "ollama-thinking-capability-and-reasoning-controls",
+  "concept": "Ollama thinking capability and reasoning controls",
+  "generated": "2026-10-14",
+  "summary": "Thinking controls vary by model. Use `/api/show` to discover the values a model supports and the value Ollama uses by default: (from docs.ollama.com)",
+  "facets": [
+    {
+      "title": "Definitions",
+      "facts": [
+        {
+          "text": "Current docs: `think` accepts true, false, null (model default), or a string from the model's `thinking.values`; numbers are unsupported and unsupported names fall back to the model default. Clients discover `values` and `default` from a top-level `thinking` object in /api/show; `values: [false]` means no thinking support, and a missing `thinking` object means no thinking metadata.",
+          "source": "https://docs.ollama.com/capabilities/thinking.md",
+          "note": null
+        },
+        {
+          "text": "SYSTEM \"\"\" You are an expert programmer. Always: - Write clean, well-commented code - Follow best practices - Explain your reasoning \"\"\"",
+          "source": "https://mintlify.wiki/ollama/ollama/cli/create",
+          "note": null
+        },
+        {
+          "text": "* QwQ is the reasoning model of the Qwen series.",
+          "source": "https://github.com/spring-projects/spring-ai/pull/4821/files",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Structure and components",
+      "facts": [
+        {
+          "text": "Ollama's OpenAI layer implements /v1/chat/completions, /v1/completions, /v1/models, /v1/embeddings and /v1/responses. Chat supports streaming, JSON mode, seed, tools, base64 vision and reasoning control; logprobs are unsupported. Embeddings reject token-array input.",
+          "source": "https://docs.ollama.com/api/openai-compatibility",
+          "note": null
+        },
+        {
+          "text": "{\"model\":\"deepseek-r1\", \"created_at\":\"2025-05-29T09:35:56.836222Z\", \"message\": {\"role\": \"assistant\", \"content\": \"The word \\\"strawberry\\\" contains **three** instances of the letter 'R' ...\" \"thinking\": \"First, the question is: \\\"how many r in the word strawberry?\\\" I need to count the number of times the letter 'r' appears in the word \\\"strawberry\\\". Let me write down the word:...\", \"done_reason\":\"stop\", \"done\":true, \"total_duration\":47975065417, \"load_duration\":29758167, \"prompt_eval_count\":10, \"prompt_eval_duration\":174191542, \"eval_count\":2514, \"eval_duration\":47770692833 } }",
+          "source": "https://ollama.com/blog/thinking",
+          "note": null
+        },
+        {
+          "text": "* [x] `model` * [x] `messages` * [x] Text `content` * [x] Image `content` * [x] Base64 encoded image * [ ] Image URL * [x] Array of `content` parts * [x] `frequency_penalty` * [x] `presence_penalty` * [x] `response_format` * [x] `seed` * [x] `stop` * [x] `stream` * [x] `stream_options` * [x] `include_usage` * [x] `temperature` * [x] `top_p` * [x] `max_tokens` * [x] `tools` * [x] `reasoning_effort` (model-defined names and compatibility aliases) * [x] `reasoning` * [x] `effort` (model-defined names and compatibility aliases) * [ ] `tool_choice` * [ ] `logit_bias` * [ ] `user` * [ ] `n`",
+          "source": "https://docs.ollama.com/api/openai-compatibility#supported-request-fields",
+          "note": null
+        },
+        {
+          "text": "* `values` can contain booleans (`true` or `false`) for on/off controls. It can also contain model-defined strings for named levels. * `default` is used when `think` is not set. * `values: [false]` means the model does not support thinking. * If `thinking` is omitted, the model has no thinking metadata. The model might conduct thinking based on its existing behavior.",
+          "source": "https://docs.ollama.com/capabilities/thinking.md#discover-a-model-s-thinking-controls",
+          "note": null
+        },
+        {
+          "text": "The final channel will contain the answer to your user’s request. Check out the reasoning section for more details on the chain-of-thought.",
+          "source": "https://developers.openai.com/cookbook/articles/openai-harmony",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "How it works",
+      "facts": [
+        {
+          "text": "That line comes from a test with the Modelfile in OpenBMB’s Ollama guide[7], which adds a Go TEMPLATE block. The guide states that \"Ollama 0.24 does not directly evaluate the GGUF-embedded Jinja chat template\". In 0.34.1 that block goes unused: its template only covers completion, so Ollama picked the GGUF one and thinking kept working. According to the 0.34.1 source, setting OLLAMA_GO_TEMPLATE=1 on the server makes Ollama use the Modelfile TEMPLATE even when the GGUF carries a template.",
+          "source": "https://jacar.es/en/import-hugging-face-model-into-ollama/",
+          "note": null
+        },
+        {
+          "text": "`reasoning_effort` and `reasoning.effort` control model thinking. Use `/api/show` to discover each model's supported values and default. When a model uses its metadata to resolve named levels, supported names are applied exactly and unsupported names resolve to the model default. Boolean-only models that support enabling thinking map recognized compatibility efforts to `true`, while `\"none\"` requests `false`. Models without metadata retain the existing compatibility aliases: `\"minimal\"` maps to `\"low\"`, and `\"xhigh\"` or `\"ultra\"` map to `\"max\"`. GPT-OSS keeps its existing OpenAI compatibility",
+          "source": "https://docs.ollama.com/api/openai-compatibility#supported-request-fields",
+          "note": null
+        },
+        {
+          "text": "reasoning_effort and reasoning.effort control model thinking. Use /api/show to discover each model’s supported values and default. When a model uses its metadata to resolve named levels, supported names are applied exactly and unsupported names resolve to the model default. Boolean-only models that support enabling thinking map recognized compatibility efforts to true, while \"none\" requests false. Models without metadata retain the existing compatibility aliases: \"minimal\" maps to \"low\", and \"xhigh\" or \"ultra\" map to \"max\". GPT-OSS keeps its existing OpenAI compatibility conversion: \"minimal\"",
+          "source": "https://docs.ollama.com/api/openai-compatibility",
+          "note": null
+        },
+        {
+          "text": "messages = [{'role': 'user', 'content': 'What is (11434+12341)*412?'}] while True: response: ChatResponse = chat( model='qwen3', messages=messages, tools=[add, multiply], think=True, ) messages.append(response.message) print(\"Thinking: \", response.message.thinking) print(\"Content: \", response.message.content) if response.message.tool_calls: for tc in response.message.tool_calls: if tc.function.name in available_functions: print(f\"Calling {tc.function.name} with arguments {tc.function.arguments}\") result = available_functions[tc.function.name](**tc.function.arguments) print(f\"Result: {result}\")",
+          "source": "https://docs.ollama.com/capabilities/tool-calling#multi-turn-tool-calling-agent-loop",
+          "note": null
+        },
+        {
+          "text": "The `think` request field is supported on both /api/chat and /api/generate; when enabled, output separates reasoning from the answer, and `think: false` makes the model skip thinking and output content directly.",
+          "source": "https://ollama.com/blog/thinking",
+          "note": null
+        },
+        {
+          "text": "- `role`: the role of the message, either `system`, `user`, `assistant`, or `tool` - `content`: the content of the message - `thinking`: (for thinking models) the model's thinking process - `images` (optional): a list of images to include in the message (for multimodal models such as `llava`) - `tool_calls` (optional): a list of tools in JSON that the model wants to use - `tool_name` (optional): add the name of the tool that was executed to inform the model of the result",
+          "source": "https://raw.githubusercontent.com/ollama/ollama/main/docs/api.md#parameters",
+          "note": null
+        },
+        {
+          "text": "Disable streaming when a single JSON response is easier to process. $ curl -s http://localhost:11434/api/generate -d '{ \"model\": \"gpt-oss:20b\", \"prompt\": \"Return OK.\", \"stream\": false }' {\"response\":\"OK\",\"done\":true}",
+          "source": "https://www.simplified.guide/_export/xhtml/ollama/api-stream-response",
+          "note": null
+        },
+        {
+          "text": "The useful result concerns mathematical reasoning: on GSM8K, the score drops from 77.63 in FP16 to 68.31 in Q3_K_S. The authors recommend avoiding aggressive 3-bit quantization and preferring Q4_K_S or Q5_0 when the workload involves multistep reasoning. The tasks penalized first by quantization are therefore computation, coding, and long chains of reasoning—not everyday conversation.",
+          "source": "https://bestllmfor.com/guides/quantization-q4-vs-q5-vs-q8-quality/",
+          "note": null
+        },
+        {
+          "text": "for await (const chunk of stream) { if (chunk.message.thinking) { thinking += chunk.message.thinking process.stdout.write(chunk.message.thinking) } if (chunk.message.content) { if (!doneThinking) { doneThinking = true process.stdout.write('\\n') } content += chunk.message.content process.stdout.write(chunk.message.content) } if (chunk.message.tool_calls?.length) { toolCalls.push(...chunk.message.tool_calls) console.log(chunk.message.tool_calls) } }",
+          "source": "https://docs.ollama.com/capabilities/tool-calling#tool-calling-with-streaming",
+          "note": null
+        },
+        {
+          "text": "<Note> It is necessary to accumulate the partial fields in order to maintain the history of the conversation. This is particularly important for tool calling where the thinking, tool call from the model, and the executed tool result must be passed back to the model in the next request. </Note>",
+          "source": "https://docs.ollama.com/capabilities/streaming#handling-streamed-chunks",
+          "note": null
+        },
+        {
+          "text": "When streaming, gather every chunk of `thinking`, `content`, and `tool_calls`, then return those fields together with any tool results in the follow-up request.",
+          "source": "https://docs.ollama.com/capabilities/tool-calling#tool-calling-with-streaming",
+          "note": null
+        },
+        {
+          "text": "if (chunk.message.thinking) { process.stdout.write(chunk.message.thinking) } else if (chunk.message.content) { if (inThinking) { process.stdout.write('\\n\\nAnswer:\\n') inThinking = false } process.stdout.write(chunk.message.content) } } }",
+          "source": "https://docs.ollama.com/capabilities/thinking.md#stream-the-reasoning-trace",
+          "note": null
+        },
+        {
+          "text": "There is a new think parameter that can be set to true or false for enabling a model’s thinking process. When the think parameter is set to true, the output will separate the model’s thinking from the model’s output. This can help users craft new application experiences like animating the thinking process via a graphical interface, or for NPCs in games to have a thinking bubble before the output. When the think parameter is set to false, the model will not think and directly output the content.",
+          "source": "https://ollama.com/blog/thinking",
+          "note": null
+        },
+        {
+          "text": "In streaming, thinking chunks arrive before answer chunks; a client detects the first `thinking` chunk to open a thinking section and switches to the answer when `message.content` arrives.",
+          "source": "https://docs.ollama.com/capabilities/thinking.md",
+          "note": null
+        },
+        {
+          "text": "On Ollama 0.12+, thinking-capable models (qwen3 thinking variants, deepseek-r1, deepseek-v3.1) auto-enable thinking when `think` is unset; standard models such as qwen2.5 and llama3.2 do not.",
+          "source": "https://github.com/spring-projects/spring-ai/pull/4821/files",
+          "note": null
+        },
+        {
+          "text": "When thinking is enabled, the output will separate the model’s thinking from the model’s output. When thinking is disabled, the model will not think and directly output the content.",
+          "source": "https://ollama.com/blog/thinking",
+          "note": null
+        },
+        {
+          "text": "When deploying Qwen3, Olama can support the enable_thinking parameter. The official documentation has stated that enable_thinking=False can support disabling thinking, but after passing the parameter in Olama deployment, it still enters thinking mode. Only by adding /no_think during each inference can we ensure that no thinking is done. Can additional general parameters be added in Olama and passed transparently to the original model to facilitate the specific characteristics of the model",
+          "source": "https://github.com/ollama/ollama/issues/10809",
+          "note": null
+        },
+        {
+          "text": "for await (const chunk of response) { if (chunk.message.thinking && !startedThinking) { startedThinking = true process.stdout.write('Thinking:\\n========\\n\\n') } else if (chunk.message.content && startedThinking && !finishedThinking) { finishedThinking = true process.stdout.write('\\n\\nResponse:\\n========\\n\\n') }",
+          "source": "https://ollama.com/blog/thinking",
+          "note": null
+        },
+        {
+          "text": "* <strong>auto-enable thinking by default</strong> when this field is not set.</li>",
+          "source": "https://github.com/spring-projects/spring-ai/pull/4821/files",
+          "note": null
+        },
+        {
+          "text": "* process in the response's thinking field.",
+          "source": "https://github.com/spring-projects/spring-ai/pull/4821/files",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Parameters and configuration",
+      "facts": [
+        {
+          "text": "gpt-oss uses named effort levels instead of booleans: /api/show example shows values [\"low\",\"medium\",\"high\"] with default \"medium\"; Spring AI documents that gpt-oss takes string levels and not boolean enable/disable.",
+          "source": "https://docs.ollama.com/capabilities/thinking.md",
+          "note": null
+        },
+        {
+          "text": "gpt-oss natively takes reasoning effort low, medium or high set in the system message (e.g. `Reasoning: high`), defaults to medium, and writes raw chain of thought on the `analysis` channel, which OpenAI says should not be shown to end users; this is why Ollama exposes gpt-oss as string levels rather than a boolean.",
+          "source": "https://developers.openai.com/cookbook/articles/openai-harmony",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "How-to and procedures",
+      "facts": [
+        {
+          "text": "Use `/api/show` to discover a model's supported thinking values and default. `thinking.type: \"enabled\"` and `\"disabled\"` act as explicit on/off controls. When a model uses its metadata to resolve named levels, supported `output_config.effort` names are applied exactly and unsupported names resolve to the model default. Models without metadata keep the existing compatibility behavior, which trims and lowercases effort names and maps `\"xhigh\"` to `\"high\"`.",
+          "source": "https://docs.ollama.com/api/anthropic-compatibility#streaming-events",
+          "note": null
+        },
+        {
+          "text": "Use /api/show to discover a model’s supported thinking values and default. thinking.type: \"enabled\" and \"disabled\" act as explicit on/off controls. When a model uses its metadata to resolve named levels, supported output_config.effort names are applied exactly and unsupported names resolve to the model default. Models without metadata keep the existing compatibility behavior, which trims and lowercases effort names and maps \"xhigh\" to \"high\".",
+          "source": "https://docs.ollama.com/api/anthropic-compatibility",
+          "note": null
+        },
+        {
+          "text": "Set the `think` field on a chat or generate request:",
+          "source": "https://docs.ollama.com/capabilities/thinking.md#enable-thinking-in-api-calls",
+          "note": null
+        },
+        {
+          "text": "Use this capability to audit model steps, animate the model *thinking* in a UI, or hide the trace entirely when you only need the final response.",
+          "source": "https://docs.ollama.com/capabilities/thinking.md",
+          "note": null
+        },
+        {
+          "text": "Use this tool to execute Python code in your chain of thought. The code will not be shown to the user. This tool should be used for internal reasoning, but not for code that is intended to be visible to the user (e.g. when creating plots, tables, or files).",
+          "source": "https://developers.openai.com/cookbook/articles/openai-harmony#python",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Examples and snippets",
+      "facts": [
+        {
+          "text": "```python theme={\"system\"} — `from ollama import chat, web_fetch, web_search` …",
+          "source": "https://docs.ollama.com/capabilities/web-search#building-a-search-agent",
+          "note": null
+        },
+        {
+          "text": "```shell theme={\"system\"} — `curl http://localhost:11434/api/show -d '{` …",
+          "source": "https://docs.ollama.com/capabilities/thinking.md#discover-a-model-s-thinking-controls",
+          "note": null
+        },
+        {
+          "text": "```toml theme={\"system\"} — `model = \"gpt-oss:120b\"` …",
+          "source": "https://docs.ollama.com/integrations/codex#profile-based-setup",
+          "note": null
+        },
+        {
+          "text": "``` — `Thinking:  Okay, the user is asking about Ollama's new engine. I need to figure out what they're referring to.` …",
+          "source": "https://docs.ollama.com/capabilities/web-search#building-a-search-agent",
+          "note": null
+        },
+        {
+          "text": "```python theme={\"system\"} — `from ollama import chat` …",
+          "source": "https://docs.ollama.com/capabilities/structured-outputs#example-extract-structured-data",
+          "note": null
+        },
+        {
+          "text": "```json theme={\"system\"} — `\"thinking\": {` …",
+          "source": "https://docs.ollama.com/capabilities/thinking.md#discover-a-model-s-thinking-controls",
+          "note": null
+        },
+        {
+          "text": "```python theme={\"system\"} — `from ollama import chat` …",
+          "source": "https://docs.ollama.com/capabilities/tool-calling#using-functions-as-tools-with-ollama-python-sdk",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Measurements and reference values",
+      "facts": [
+        {
+          "text": "The 1.6 GB download took 21 s, and the model showed the same capabilities as the hand-imported one. The Hub also added five stop sequences, because the repository has no params file: <s>, <|im_start|>, <|im_end|>, <think> and <|im_start|>user. Import the model yourself when no GGUF exists, when you want a quantization the author does not publish, or when you start from your own fine-tune. To pick a size and variant, compare with Gemma 4 locally with Ollama.",
+          "source": "https://jacar.es/en/import-hugging-face-model-into-ollama/",
+          "note": null
+        },
+        {
+          "text": "stream = chat( model='qwen3', messages=[{'role': 'user', 'content': 'What is 17 × 23?'}], think=True, stream=True, )",
+          "source": "https://docs.ollama.com/capabilities/thinking.md#stream-the-reasoning-trace",
+          "note": null
+        },
+        {
+          "text": "async function main() { const stream = await ollama.chat({ model: 'qwen3', messages: [{ role: 'user', content: 'What is 17 × 23?' }], think: true, stream: true, })",
+          "source": "https://docs.ollama.com/capabilities/thinking.md#stream-the-reasoning-trace",
+          "note": null
+        },
+        {
+          "text": "A 13B at about 5 GB in size, with a noticeable loss in reasoning.",
+          "source": "https://bestllmfor.com/guides/quantization-q4-vs-q5-vs-q8-quality/",
+          "note": null
+        },
+        {
+          "text": "Best local LLM for coding in 2026Best local LLM in French in 2026Best local LLM for RAG in 2026Best local LLM for reasoning in 2026Best local LLM with vision in 2026Best local LLM for agents / tool use in 2026Best LLM on RTX 4090 (24 GB) in 2026Best LLM for 16 GB of VRAM in 2026 + 64 more rankings Best LLM on RTX 3060 (12 GB) in 2026Best LLM for 8 GB of VRAM in 2026Best LLM on Mac Apple Silicon in 2026Best LLM without a GPU (CPU only) in 2026Best open local LLM for commercial useBest sovereign European LLM in 2026Best LLM for MacBook Air M4 (M4) in 2026Best LLM for MacBook Air M3 in 2026Best L",
+          "source": "https://bestllmfor.com/guides/quantization-q4-vs-q5-vs-q8-quality/",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Problems, failure modes and limitations",
+      "facts": [
+        {
+          "text": "Anthropic layer supports messages, streaming, system prompts, tools and tool results, base64 images, thinking blocks and output_config.effort. Not supported: /v1/messages/count_tokens, tool_choice, metadata, cache_control prompt caching, Batches, citations, PDF document blocks, streaming error events. budget_tokens is accepted but not enforced; token counts are approximate.",
+          "source": "https://docs.ollama.com/api/anthropic-compatibility",
+          "note": null
+        },
+        {
+          "text": "The Spanish agreement error in the answer (\"las modelos\") comes from MiniCPM5-2B itself, which makes mistakes in Spanish at 2.5 billion parameters. In another test with thinking on, it defined GGUF as an audio archive format. Without --think=false, MiniCPM5-2B reasons before answering and Ollama returns that text in the API’s thinking field, separate from the answer. If you plan to give it tools, the guide to function calling with Ollama shows how to declare them.",
+          "source": "https://jacar.es/en/import-hugging-face-model-into-ollama/",
+          "note": null
+        },
+        {
+          "text": "* [x] `message_start` * [x] `content_block_start` * [x] `content_block_delta` (text\\_delta, input\\_json\\_delta, thinking\\_delta) * [x] `content_block_stop` * [x] `message_delta` * [x] `message_stop` * [x] `ping` * [x] `error`",
+          "source": "https://docs.ollama.com/api/anthropic-compatibility#streaming-events",
+          "note": null
+        },
+        {
+          "text": "Has this problem been resolved? Remove the issue of empty blocks in. Additionally, using/hidethinking does not work and cannot remove empty blocks. Furthermore, using the compiled version for startup also does not work with the think parameter",
+          "source": "https://github.com/ollama/ollama/issues/10809",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Comparisons and alternatives",
+      "facts": [
+        {
+          "text": "Which quantization should you choose: Q4, Q5, or Q8?+ Q4_K_M by default: good quality at about 30% of FP16’s size. Move to Q5_K_M or Q6_K if memory allows, and to Q8_0 only if there is room, since the gain is very small. Going below 4 bits is justified only if the model otherwise does not fit. What does the M in Q4_K_M mean?+ M stands for Medium. The S, M, and L variants (Small, Medium, Large) differ in the share of tensors kept at higher precision. At the same bit count, M is slightly larger than S and loses slightly less quality: it is the default recommended tradeoff. How much VRAM does a Q",
+          "source": "https://bestllmfor.com/guides/quantization-q4-vs-q5-vs-q8-quality/",
+          "note": null
+        },
+        {
+          "text": "Perplexity metrics rank formats consistently: more bits, less loss. But perplexity is a poor predictor of specific capabilities. A study published on arXiv in January 2026 compared llama.cpp formats on Llama-3.1-8B-Instruct, with reasoning, knowledge, and instruction-following tests: perplexity on WikiText-2 ranged from 7.32 for FP16 to 8.96 for Q3_K_S, and the authors noted that perplexity is not a complete predictor of downstream behavior. Q5_0’s average score even slightly exceeded FP16’s (69.92% versus 69.47%), which reflects measurement noise, not an improved model.",
+          "source": "https://bestllmfor.com/guides/quantization-q4-vs-q5-vs-q8-quality/",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Facts and statements",
+      "facts": [
+        {
+          "text": "<Tabs> <Tab title=\"cURL\"> ```shell theme={\"system\"} curl http://localhost:11434/api/chat -d '{ \"model\": \"qwen3\", \"messages\": [{ \"role\": \"user\", \"content\": \"How many letter r are in strawberry?\" }], \"think\": true, \"stream\": false }' ``` </Tab>",
+          "source": "https://docs.ollama.com/capabilities/thinking.md#enable-thinking-in-api-calls",
+          "note": null
+        },
+        {
+          "text": "* [x] `model` * [x] `max_tokens` * [x] `messages` * [x] Text `content` * [x] Image `content` (base64) * [x] Array of content blocks * [x] `tool_use` blocks * [x] `tool_result` blocks * [x] `thinking` blocks * [x] `system` (string or array) * [x] `stream` * [x] `temperature` * [x] `top_p` * [x] `top_k` * [x] `stop_sequences` * [x] `tools` * [x] `thinking` * [x] `output_config` * [x] `effort` (model-defined names) * [ ] `tool_choice` * [ ] `metadata`",
+          "source": "https://docs.ollama.com/api/anthropic-compatibility#supported-request-fields",
+          "note": null
+        },
+        {
+          "text": "* [x] Messages * [x] Streaming * [x] System prompts * [x] Multi-turn conversations * [x] Vision (images) * [x] Tools (function calling) * [x] Tool results * [x] Thinking/extended thinking",
+          "source": "https://docs.ollama.com/api/anthropic-compatibility#supported-features",
+          "note": null
+        },
+        {
+          "text": "{ \"model\": \"qwen3:0.6b\", \"created_at\": \"2025-05-26T03:04:17.792722554Z\", \"message\": { \"role\": \"assistant\", \"content\": \"<think>\\n\\n</think>\\n\\n1加1等于2。\" }, \"done_reason\": \"stop\", \"done\": true, \"total_duration\": 1164766885, \"load_duration\": 16615755, \"prompt_eval_count\": 31, \"prompt_eval_duration\": 583130577, \"eval_count\": 11, \"eval_duration\": 562205320 }",
+          "source": "https://github.com/ollama/ollama/issues/10809",
+          "note": null
+        },
+        {
+          "text": "/v1/responses (added in v0.13.3) supports streaming, function tools and reasoning summaries but only the non-stateful flavor: previous_response_id, conversation and truncation are unavailable. Cloud also lacks built-in web search through it.",
+          "source": "https://docs.ollama.com/api/openai-compatibility",
+          "note": null
+        },
+        {
+          "text": "Ollama uses the Jinja chat template that llama.cpp stores in the GGUF: the imported model advertised tools and thinking without a TEMPLATE line.",
+          "source": "https://jacar.es/en/import-hugging-face-model-into-ollama/",
+          "note": null
+        },
+        {
+          "text": "<Tabs> <Tab title=\"cURL\"> ```shell theme={\"system\"} curl -X POST http://localhost:11434/api/chat -H \"Content-Type: application/json\" -d '{ \"model\": \"gpt-oss\", \"messages\": [{\"role\": \"user\", \"content\": \"Tell me about Canada in one line\"}], \"stream\": false, \"format\": \"json\" }' ``` </Tab>",
+          "source": "https://docs.ollama.com/capabilities/structured-outputs#generating-structured-json",
+          "note": null
+        },
+        {
+          "text": "<Tabs> <Tab title=\"cURL\"> ```shell theme={\"system\"} curl -X POST http://localhost:11434/api/chat -H \"Content-Type: application/json\" -d '{ \"model\": \"gpt-oss\", \"messages\": [{\"role\": \"user\", \"content\": \"Tell me about Canada.\"}], \"stream\": false, \"format\": { \"type\": \"object\", \"properties\": { \"name\": {\"type\": \"string\"}, \"capital\": {\"type\": \"string\"}, \"languages\": { \"type\": \"array\", \"items\": {\"type\": \"string\"} } }, \"required\": [\"name\", \"capital\", \"languages\"] } }' ``` </Tab>",
+          "source": "https://docs.ollama.com/capabilities/structured-outputs#generating-structured-json-with-a-schema",
+          "note": null
+        },
+        {
+          "text": "```shell basic.sh theme={\"system\"} curl -X POST http://localhost:11434/v1/chat/completions \\ -H \"Content-Type: application/json\" \\ -d '{ \"model\": \"gpt-oss:20b\", \"messages\": [{ \"role\": \"user\", \"content\": \"Say this is a test\" }] }' ``` </CodeGroup>",
+          "source": "https://docs.ollama.com/api/openai-compatibility#simple-v1-chat-completions-example",
+          "note": null
+        },
+        {
+          "text": "Handle chat streaming from message.content chunks. $ curl http://localhost:11434/api/chat -d '{\"model\":\"gpt-oss:20b\",\"messages\":[{\"role\":\"user\",\"content\":\"Return OK.\"}]}' {\"message\":{\"content\":\"O\"},\"done\":false} {\"message\":{\"content\":\"K\"},\"done\":false} {\"done\":true}",
+          "source": "https://www.simplified.guide/_export/xhtml/ollama/api-stream-response",
+          "note": null
+        },
+        {
+          "text": "curl http://localhost:11434/api/chat -d '{ \"model\": \"deepseek-r1\", \"messages\": [ { \"role\": \"user\", \"content\": \"how many r in the word strawberry?\" } ], \"think\": true, \"stream\": false }'",
+          "source": "https://ollama.com/blog/thinking",
+          "note": null
+        },
+        {
+          "text": "Send a default streaming generate request. $ curl http://localhost:11434/api/generate -d '{ \"model\": \"gpt-oss:20b\", \"prompt\": \"Return the word OK.\" }' {\"model\":\"gpt-oss:20b\",\"response\":\"O\",\"done\":false} {\"model\":\"gpt-oss:20b\",\"response\":\"K\",\"done\":false} {\"model\":\"gpt-oss:20b\",\"done\":true}",
+          "source": "https://www.simplified.guide/_export/xhtml/ollama/api-stream-response",
+          "note": null
+        },
+        {
+          "text": "curl -X POST http://localhost:11434/v1/chat/completions \\ -H \"Content-Type: application/json\" \\ -d '{ \"model\": \"gpt-oss:20b\", \"messages\": [{ \"role\": \"user\", \"content\": \"Say this is a test\" }] }'",
+          "source": "https://docs.ollama.com/api/openai-compatibility",
+          "note": null
+        },
+        {
+          "text": "Both of Ollama’s generate API (/api/generate) and chat API (/api/chat) have been updated to support thinking.",
+          "source": "https://ollama.com/blog/thinking",
+          "note": null
+        },
+        {
+          "text": "Importing costs no speed against llama.cpp. I compared Ollama with llama.cpp’s server-v0.4.1 image on the same GGUF, with 4 threads, temperature 0, 128 tokens and thinking off, over five alternating rounds:",
+          "source": "https://jacar.es/en/import-hugging-face-model-into-ollama/",
+          "note": null
+        },
+        {
+          "text": "# append accumulated fields to the messages if thinking or content or tool_calls: messages.append({'role': 'assistant', 'thinking': thinking, 'content': content, 'tool_calls': tool_calls})",
+          "source": "https://docs.ollama.com/capabilities/tool-calling#tool-calling-with-streaming",
+          "note": null
+        },
+        {
+          "text": "if (thinking || content || toolCalls.length) { messages.push({ role: 'assistant', thinking, content, tool_calls: toolCalls } as any) }",
+          "source": "https://docs.ollama.com/capabilities/tool-calling#tool-calling-with-streaming",
+          "note": null
+        },
+        {
+          "text": "* [x] `id` * [x] `type` * [x] `role` * [x] `model` * [x] `content` (text, tool\\_use, thinking blocks) * [x] `stop_reason` (end\\_turn, max\\_tokens, tool\\_use) * [x] `usage` (input\\_tokens, output\\_tokens)",
+          "source": "https://docs.ollama.com/api/anthropic-compatibility#supported-response-fields",
+          "note": null
+        },
+        {
+          "text": "* [x] Chat completions * [x] Streaming * [x] JSON mode * [x] Reproducible outputs * [x] Vision * [x] Tools * [x] Reasoning/thinking control (for thinking models) * [ ] Logprobs",
+          "source": "https://docs.ollama.com/api/openai-compatibility#supported-features",
+          "note": null
+        },
+        {
+          "text": "response = chat( model='qwen3', messages=[{'role': 'user', 'content': 'How many letter r are in strawberry?'}], think=True, stream=False, )",
+          "source": "https://docs.ollama.com/capabilities/thinking.md#enable-thinking-in-api-calls",
+          "note": null
+        },
+        {
+          "text": "const response = await ollama.chat({ model: 'deepseek-r1', messages: [{ role: 'user', content: 'How many letter r are in strawberry?' }], think: true, stream: false, })",
+          "source": "https://docs.ollama.com/capabilities/thinking.md#enable-thinking-in-api-calls",
+          "note": null
+        },
+        {
+          "text": "- `model`: (required) the [model name](#model-names) - `messages`: the messages of the chat, this can be used to keep a chat memory - `tools`: list of tools in JSON for the model to use if supported - `think`: (for thinking models) should the model think before responding? Can be a boolean or a thinking level (`\"low\"`, `\"medium\"`, `\"high\"`, or `\"max\"`).",
+          "source": "https://raw.githubusercontent.com/ollama/ollama/main/docs/api.md#parameters",
+          "note": null
+        },
+        {
+          "text": "| Feature | Status | | - | - | | Image content | Base64 images supported; URL images not supported | | Extended thinking | Basic support; `budget_tokens` accepted but not enforced |",
+          "source": "https://docs.ollama.com/api/anthropic-compatibility#partial-support",
+          "note": null
+        },
+        {
+          "text": "1. Chatting: Stream partial assistant messages. Each chunk includes the `content` so you can render messages as they arrive. 2. Thinking: Thinking-capable models emit a `thinking` field alongside regular content in each chunk. Detect this field in streaming chunks to show or hide reasoning traces before the final answer arrives. 3. Tool calling: Watch for streamed `tool_calls` in each chunk, execute the requested tool, and append tool outputs back into the conversation.",
+          "source": "https://docs.ollama.com/capabilities/streaming#key-streaming-concepts",
+          "note": null
+        },
+        {
+          "text": "done_thinking = False # accumulate the partial fields for chunk in stream: if chunk.message.thinking: thinking += chunk.message.thinking print(chunk.message.thinking, end='', flush=True) if chunk.message.content: if not done_thinking: done_thinking = True print('\\n') content += chunk.message.content print(chunk.message.content, end='', flush=True) if chunk.message.tool_calls: tool_calls.extend(chunk.message.tool_calls) print(chunk.message.tool_calls)",
+          "source": "https://docs.ollama.com/capabilities/tool-calling#tool-calling-with-streaming",
+          "note": null
+        },
+        {
+          "text": "chat_completion = client.chat.completions.create( messages=[ { 'role': 'user', 'content': 'Say this is a test', } ], model='gpt-oss:20b', ) print(chat_completion.choices[0].message.content) ```",
+          "source": "https://docs.ollama.com/api/openai-compatibility#simple-v1-chat-completions-example",
+          "note": null
+        },
+        {
+          "text": "const chatCompletion = await openai.chat.completions.create({ messages: [{ role: \"user\", content: \"Say this is a test\" }], model: \"gpt-oss:20b\", });",
+          "source": "https://docs.ollama.com/api/openai-compatibility#simple-v1-chat-completions-example",
+          "note": null
+        },
+        {
+          "text": "messages.push(response.message) console.log('Thinking:', response.message.thinking) console.log('Content:', response.message.content)",
+          "source": "https://docs.ollama.com/capabilities/tool-calling#multi-turn-tool-calling-agent-loop",
+          "note": null
+        },
+        {
+          "text": "while True: stream = chat( model='qwen3', messages=messages, tools=[get_temperature], stream=True, think=True, )",
+          "source": "https://docs.ollama.com/capabilities/tool-calling#tool-calling-with-streaming",
+          "note": null
+        },
+        {
+          "text": "thinking = '' content = '' tool_calls = []",
+          "source": "https://docs.ollama.com/capabilities/tool-calling#tool-calling-with-streaming",
+          "note": null
+        },
+        {
+          "text": "while (true) { const stream = await ollama.chat({ model: 'qwen3', messages, tools: [getTemperatureTool], stream: true, think: true, })",
+          "source": "https://docs.ollama.com/capabilities/tool-calling#tool-calling-with-streaming",
+          "note": null
+        },
+        {
+          "text": "let thinking = '' let content = '' const toolCalls: any[] = [] let doneThinking = false",
+          "source": "https://docs.ollama.com/capabilities/tool-calling#tool-calling-with-streaming",
+          "note": null
+        },
+        {
+          "text": "The gpt-oss models are reasoning models. By default, the model will do medium level reasoning. To control the reasoning you can specify in the system message the reasoning level as low, medium, or high. The recommended format is:",
+          "source": "https://developers.openai.com/cookbook/articles/openai-harmony",
+          "note": null
+        },
+        {
+          "text": "If the model resolves named levels from `/api/show` metadata, Ollama applies supported names exactly. Unsupported names use the model default.",
+          "source": "https://docs.ollama.com/capabilities/thinking.md#enable-thinking-in-api-calls",
+          "note": null
+        },
+        {
+          "text": "- `model`: (required) the [model name](#model-names) - `prompt`: the prompt to generate a response for - `suffix`: the text after the model response - `images`: (optional) a list of base64-encoded images (for multimodal models such as `llava`) - `think`: (for thinking models) should the model think before responding? Can be a boolean or a thinking level (`\"low\"`, `\"medium\"`, `\"high\"`, or `\"max\"`).",
+          "source": "https://raw.githubusercontent.com/ollama/ollama/main/docs/api.md#parameters",
+          "note": null
+        },
+        {
+          "text": "* [x] Streaming * [x] Tools (function calling) * [x] Reasoning summaries (for thinking models) * [ ] Stateful requests",
+          "source": "https://docs.ollama.com/api/openai-compatibility#supported-features",
+          "note": null
+        },
+        {
+          "text": "<Tab title=\"JavaScript\"> ```javascript theme={\"system\"} import ollama from 'ollama'",
+          "source": "https://docs.ollama.com/capabilities/thinking.md#enable-thinking-in-api-calls",
+          "note": null
+        },
+        {
+          "text": "<Tabs> <Tab title=\"Python\"> ```python theme={\"system\"} from ollama import chat",
+          "source": "https://docs.ollama.com/capabilities/thinking.md#stream-the-reasoning-trace",
+          "note": null
+        },
+        {
+          "text": "if chunk.message.thinking: print(chunk.message.thinking, end='') elif chunk.message.content: if in_thinking: print('\\n\\nAnswer:\\n', end='') in_thinking = False print(chunk.message.content, end='')",
+          "source": "https://docs.ollama.com/capabilities/thinking.md#stream-the-reasoning-trace",
+          "note": null
+        },
+        {
+          "text": "# append the accumulated fields to the messages for the next request new_messages = [{ role: 'assistant', thinking: thinking, content: content }] ``` </Tab>",
+          "source": "https://docs.ollama.com/capabilities/streaming#handling-streamed-chunks",
+          "note": null
+        },
+        {
+          "text": "// append the accumulated fields to the messages for the next request new_messages = [{ role: 'assistant', thinking: thinking, content: content }] }",
+          "source": "https://docs.ollama.com/capabilities/streaming#handling-streamed-chunks",
+          "note": null
+        },
+        {
+          "text": "# The python client automatically parses functions as a tool schema so we can pass them directly # Schemas can be passed directly in the tools list as well response = chat(model='qwen3', messages=messages, tools=[get_temperature, get_conditions], think=True)",
+          "source": "https://docs.ollama.com/capabilities/tool-calling#parallel-tool-calling",
+          "note": null
+        },
+        {
+          "text": "# generate the final response final_response = chat(model='qwen3', messages=messages, tools=[get_temperature, get_conditions], think=True) print(final_response.message.content) ``` </Tab>",
+          "source": "https://docs.ollama.com/capabilities/tool-calling#parallel-tool-calling",
+          "note": null
+        },
+        {
+          "text": "const response = await ollama.chat({ model: 'qwen3', messages, tools, think: true })",
+          "source": "https://docs.ollama.com/capabilities/tool-calling#parallel-tool-calling",
+          "note": null
+        },
+        {
+          "text": "// generate the final response const finalResponse = await ollama.chat({ model: 'qwen3', messages, tools, think: true }) console.log(finalResponse.message.content) } ``` </Tab> </Tabs>",
+          "source": "https://docs.ollama.com/capabilities/tool-calling#parallel-tool-calling",
+          "note": null
+        },
+        {
+          "text": "while (true) { const response = await ollama.chat({ model: 'qwen3', messages, tools, think: true, })",
+          "source": "https://docs.ollama.com/capabilities/tool-calling#multi-turn-tool-calling-agent-loop",
+          "note": null
+        },
+        {
+          "text": "Thinking controls vary by model. Use `/api/show` to discover the values a model supports and the value Ollama uses by default:",
+          "source": "https://docs.ollama.com/capabilities/thinking.md#discover-a-model-s-thinking-controls",
+          "note": null
+        },
+        {
+          "text": "* `true`: request thinking output. * `false`: request no thinking output, if the model permits it. * `null`: use the model default. * A string: select a supported level from `thinking.values`. Use the exact value from `/api/show`. Numbers are not supported.",
+          "source": "https://docs.ollama.com/capabilities/thinking.md#enable-thinking-in-api-calls",
+          "note": null
+        },
+        {
+          "text": "msg=\"template selection\" model=…/minicpm5-2b:openbmb-template selected=gguf_chat_template go_template=[completion] chat_template=\"[tools thinking completion]\"",
+          "source": "https://jacar.es/en/import-hugging-face-model-into-ollama/",
+          "note": null
+        },
+        {
+          "text": "Web search is provided as a REST API with deeper tool integrations in the Python and JavaScript libraries. This also enables models like OpenAI’s gpt-oss models to conduct long-running research tasks.",
+          "source": "https://docs.ollama.com/capabilities/web-search",
+          "note": null
+        },
+        {
+          "text": "* [x] `model` * [x] `input` * [x] `instructions` * [x] `tools` * [x] `stream` * [x] `temperature` * [x] `top_p` * [x] `max_output_tokens` * [x] `reasoning` * [x] `effort` (model-defined names and compatibility aliases) * [x] `think` (Ollama extension; boolean, model-defined string, or `null`) * [ ] `previous_response_id` (stateful v1/responses not supported) * [ ] `conversation` (stateful v1/responses not supported) * [ ] `truncation`",
+          "source": "https://docs.ollama.com/api/openai-compatibility#supported-request-fields",
+          "note": null
+        },
+        {
+          "text": "CLI controls from the launch blog: `--think` enables, `--think=false` disables, `--hidethinking` hides reasoning for scripting, and `/set think` / `/set nothink` toggle inside an interactive session.",
+          "source": "https://ollama.com/blog/thinking",
+          "note": null
+        },
+        {
+          "text": "Before the think switch shipped, Qwen3 on Ollama ignored `enable_thinking=False` and users had to append `/no_think` to prompts; a maintainer closed the issue on 2025-05-30 pointing to PR #10584 and the v0.9.0 release as the configurable switch.",
+          "source": "https://github.com/ollama/ollama/issues/10809",
+          "note": null
+        },
+        {
+          "text": "Thinking streams interleave reasoning tokens before answer tokens. Detect the first `thinking` chunk to render a \"thinking\" section, then switch to the final reply once `message.content` arrives.",
+          "source": "https://docs.ollama.com/capabilities/thinking.md#stream-the-reasoning-trace",
+          "note": null
+        },
+        {
+          "text": "for chunk in stream: if chunk.message.thinking and not in_thinking: in_thinking = True print('Thinking:\\n', end='')",
+          "source": "https://docs.ollama.com/capabilities/thinking.md#stream-the-reasoning-trace",
+          "note": null
+        },
+        {
+          "text": "system A system message is used to specify reasoning effort, meta information like knowledge cutoff and built-in tools",
+          "source": "https://developers.openai.com/cookbook/articles/openai-harmony",
+          "note": null
+        },
+        {
+          "text": "<Tab title=\"Python\"> ```python theme={\"system\"} from ollama import chat",
+          "source": "https://docs.ollama.com/capabilities/thinking.md#enable-thinking-in-api-calls",
+          "note": null
+        },
+        {
+          "text": "let inThinking = false let content = '' let thinking = ''",
+          "source": "https://docs.ollama.com/capabilities/streaming#handling-streamed-chunks",
+          "note": null
+        },
+        {
+          "text": "The gpt-oss models were trained on the harmony response format for defining conversation structures, generating reasoning output and structuring function calls. If you are not using gpt-oss directly but through an API or a provider like Ollama, you will not have to be concerned about this as your inference solution will handle the formatting. If you are building your own inference solution, this guide will walk you through the prompt format. The format is designed to mimic the OpenAI Responses API, so if you have used that API before, this format should hopefully feel familiar to you. gpt-oss",
+          "source": "https://developers.openai.com/cookbook/articles/openai-harmony",
+          "note": null
+        },
+        {
+          "text": "* Set thinking level to \"low\" (for GPT-OSS model).",
+          "source": "https://github.com/spring-projects/spring-ai/pull/4821/files",
+          "note": null
+        },
+        {
+          "text": "* Set thinking level to \"medium\" (for GPT-OSS model).",
+          "source": "https://github.com/spring-projects/spring-ai/pull/4821/files",
+          "note": null
+        },
+        {
+          "text": "* Set thinking level to \"high\" (for GPT-OSS model).",
+          "source": "https://github.com/spring-projects/spring-ai/pull/4821/files",
+          "note": null
+        },
+        {
+          "text": "Type `/model` inside Codex to switch between your installed, tool-capable Ollama models without restarting. The starting model remains selected, and each model keeps its own context window, vision, and thinking settings. Pull additional models with `ollama pull <model>` before launching to include them in the picker.",
+          "source": "https://docs.ollama.com/integrations/codex#quick-setup",
+          "note": null
+        },
+        {
+          "text": "Response fields: chat returns reasoning in `message.thinking` and the answer in `message.content`; generate returns `thinking` and `response`.",
+          "source": "https://docs.ollama.com/capabilities/thinking.md",
+          "note": null
+        },
+        {
+          "text": "The reasoning output and answer use separate fields. Chat returns `message.thinking` and `message.content`. Generate returns `thinking` and `response`.",
+          "source": "https://docs.ollama.com/capabilities/thinking.md#enable-thinking-in-api-calls",
+          "note": null
+        },
+        {
+          "text": "print('Thinking:\\n', response.message.thinking) print('Answer:\\n', response.message.content) ``` </Tab>",
+          "source": "https://docs.ollama.com/capabilities/thinking.md#enable-thinking-in-api-calls",
+          "note": null
+        },
+        {
+          "text": "console.log('Thinking:\\n', response.message.thinking) console.log('Answer:\\n', response.message.content) ``` </Tab> </Tabs>",
+          "source": "https://docs.ollama.com/capabilities/thinking.md#enable-thinking-in-api-calls",
+          "note": null
+        },
+        {
+          "text": "Example of streaming responses with thinking",
+          "source": "https://ollama.com/blog/thinking",
+          "note": null
+        },
+        {
+          "text": ".metadata(\"thinking\", ollamaResponse.message().thinking())",
+          "source": "https://github.com/spring-projects/spring-ai/pull/4821/files",
+          "note": null
+        },
+        {
+          "text": "Thinking-capable models emit a `thinking` field that separates their reasoning trace from the final answer.",
+          "source": "https://docs.ollama.com/capabilities/thinking.md",
+          "note": null
+        },
+        {
+          "text": "The response includes a top-level `thinking` object:",
+          "source": "https://docs.ollama.com/capabilities/thinking.md#discover-a-model-s-thinking-controls",
+          "note": null
+        },
+        {
+          "text": "Sharp drop in reasoning: avoid without a memory-related reason.",
+          "source": "https://bestllmfor.com/guides/quantization-q4-vs-q5-vs-q8-quality/",
+          "note": null
+        },
+        {
+          "text": "The reasoning effort — As specified on the levels high, medium, low",
+          "source": "https://developers.openai.com/cookbook/articles/openai-harmony",
+          "note": null
+        },
+        {
+          "text": "Handling reasoning output in subsequent sampling",
+          "source": "https://developers.openai.com/cookbook/articles/openai-harmony",
+          "note": null
+        },
+        {
+          "text": "Ollama now has the ability to enable or disable thinking. This gives users the flexibility to choose the model’s thinking behavior for different applications and use cases.",
+          "source": "https://ollama.com/blog/thinking",
+          "note": null
+        },
+        {
+          "text": "more will be added under thinking models.",
+          "source": "https://ollama.com/blog/thinking",
+          "note": null
+        },
+        {
+          "text": "In the CLI, thinking is enabled by default.",
+          "source": "https://ollama.com/blog/thinking",
+          "note": null
+        },
+        {
+          "text": "In the CLI, thinking is disabled using /set nothink followed by the prompt.",
+          "source": "https://ollama.com/blog/thinking",
+          "note": null
+        },
+        {
+          "text": "For scripting, a --hidethinking command is available. This helps users who want to use thinking models but simply want to see the answer.",
+          "source": "https://ollama.com/blog/thinking",
+          "note": null
+        },
+        {
+          "text": "Example using Ollama’s chat API with thinking enabled",
+          "source": "https://ollama.com/blog/thinking",
+          "note": null
+        },
+        {
+          "text": "Reasoning/thinking control (for thinking models)",
+          "source": "https://docs.ollama.com/api/openai-compatibility",
+          "note": null
+        },
+        {
+          "text": "reasoning_effort (model-defined names and compatibility aliases)",
+          "source": "https://docs.ollama.com/api/openai-compatibility",
+          "note": null
+        },
+        {
+          "text": "Reasoning summaries (for thinking models)",
+          "source": "https://docs.ollama.com/api/openai-compatibility",
+          "note": null
+        },
+        {
+          "text": "feat(ollama): add thinking mode support for reasoning models #4821",
+          "source": "https://github.com/spring-projects/spring-ai/pull/4821/files",
+          "note": null
+        },
+        {
+          "text": "feat(ollama): add thinking mode support for reasoning models",
+          "source": "https://github.com/spring-projects/spring-ai/pull/4821/files",
+          "note": null
+        },
+        {
+          "text": "* Enable thinking mode for the model.",
+          "source": "https://github.com/spring-projects/spring-ai/pull/4821/files",
+          "note": null
+        },
+        {
+          "text": "* Disable thinking mode for the model.",
+          "source": "https://github.com/spring-projects/spring-ai/pull/4821/files",
+          "note": null
+        },
+        {
+          "text": "* <li>Standard models (e.g., qwen2.5:*, llama3.2) do not enable thinking by default.</li>",
+          "source": "https://github.com/spring-projects/spring-ai/pull/4821/files",
+          "note": null
+        },
+        {
+          "text": "* Enable thinking mode for the model. The model will include its reasoning",
+          "source": "https://github.com/spring-projects/spring-ai/pull/4821/files",
+          "note": null
+        },
+        {
+          "text": "* Qwen3 4B with thinking support. This variant auto-enables thinking by default in",
+          "source": "https://github.com/spring-projects/spring-ai/pull/4821/files",
+          "note": null
+        },
+        {
+          "text": "* Ollama 0.12+, providing separate reasoning traces in the response.",
+          "source": "https://github.com/spring-projects/spring-ai/pull/4821/files",
+          "note": null
+        },
+        {
+          "text": "content (text, tool_use, thinking blocks)",
+          "source": "https://docs.ollama.com/api/anthropic-compatibility",
+          "note": null
+        },
+        {
+          "text": "Browse the [model library](https://ollama.com/search) for coding, vision, embeddings, and reasoning models.",
+          "source": "https://docs.ollama.com/index#explore-models",
+          "note": null
+        },
+        {
+          "text": "<div> <div>Thinking</div> <div>Use thinking controls with compatible models</div> </div> </div> </div> </div>",
+          "source": "https://docs.ollama.com/integrations/claude-code#capabilities",
+          "note": null
+        }
+      ]
+    }
+  ],
+  "related": [
+    {
+      "concept": "MESSAGE",
+      "relation": "is a related of Ollama thinking capability and reasoning controls",
+      "note": null
+    },
+    {
+      "concept": "stream",
+      "relation": "is a part of Ollama thinking capability and reasoning controls",
+      "note": null
+    },
+    {
+      "concept": "think",
+      "relation": "is a part of Ollama thinking capability and reasoning controls",
+      "note": null
+    },
+    {
+      "concept": "tool_calls",
+      "relation": "is a part of Ollama thinking capability and reasoning controls",
+      "note": null
+    },
+    {
+      "concept": "SYSTEM",
+      "relation": "is a related of Ollama thinking capability and reasoning controls",
+      "note": null
+    },
+    {
+      "concept": "gpt-oss",
+      "relation": "is a instance of Ollama thinking capability and reasoning controls",
+      "note": null
+    },
+    {
+      "concept": "localhost:11434",
+      "relation": "is a part of Ollama thinking capability and reasoning controls",
+      "note": null
+    },
+    {
+      "concept": "/api/show",
+      "relation": "is a part of Ollama thinking capability and reasoning controls",
+      "note": null
+    },
+    {
+      "concept": "PARAMETER",
+      "relation": "is a part of Ollama thinking capability and reasoning controls",
+      "note": null
+    },
+    {
+      "concept": "/v1/chat/completions",
+      "relation": "is a part of Ollama thinking capability and reasoning controls",
+      "note": null
+    },
+    {
+      "concept": "/api/chat",
+      "relation": "is a part of Ollama thinking capability and reasoning controls",
+      "note": null
+    },
+    {
+      "concept": "/v1/messages",
+      "relation": "is a part of Ollama thinking capability and reasoning controls",
+      "note": null
+    },
+    {
+      "concept": "/api/generate",
+      "relation": "is a part of Ollama thinking capability and reasoning controls",
+      "note": null
+    },
+    {
+      "concept": "llama.cpp",
+      "relation": "is a related of Ollama thinking capability and reasoning controls",
+      "note": null
+    },
+    {
+      "concept": "TEMPLATE",
+      "relation": "is a part of Ollama thinking capability and reasoning controls",
+      "note": null
+    },
+    {
+      "concept": "fp16",
+      "relation": "is a instance of Ollama thinking capability and reasoning controls",
+      "note": null
+    },
+    {
+      "concept": "tool_choice",
+      "relation": "is a part of Ollama thinking capability and reasoning controls",
+      "note": null
+    },
+    {
+      "concept": "context window",
+      "relation": "is a part of Ollama thinking capability and reasoning controls",
+      "note": null
+    },
+    {
+      "concept": "/v1/responses",
+      "relation": "is a part of Ollama thinking capability and reasoning controls",
+      "note": null
+    },
+    {
+      "concept": "done_reason",
+      "relation": "is a part of Ollama thinking capability and reasoning controls",
+      "note": null
+    }
+  ]
+}

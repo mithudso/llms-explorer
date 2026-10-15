@@ -1,0 +1,895 @@
+{
+  "slug": "ollama-flash-attention-and-kv-cache-type-settings",
+  "concept": "Ollama flash attention and KV cache type settings",
+  "generated": "2026-10-14",
+  "summary": "OLLAMA_FLASH_ATTENTION is automatic by default: Ollama uses Flash Attention when the selected backend and devices support it. Setting OLLAMA_FLASH_ATTENTION=1 forces it on and OLLAMA_FLASH_ATTENTION=0 disables it. (from docs.ollama.com)",
+  "facets": [
+    {
+      "title": "Definitions",
+      "facts": [
+        {
+          "text": "Cache size scales with num_ctx and is not changed by weight quantization. For llama3.1:8b at f16 the cache is about 128 KiB per token: 4 GiB at 32,768 tokens, 8 GiB at 65,536; q8_0 at 32,768 tokens is about 2.13 GiB. Sliding-window or shared-KV models (Gemma family) break this formula, so sum the 'llama_kv_cache: size' log lines instead.",
+          "source": "https://www.ssdnodes.com/learn/ollama-kv-cache-quantization",
+          "note": null
+        },
+        {
+          "text": "Capping the context is one of two fixes. The other keeps the long context and shrinks the cache instead. On the RTX 4090, Qwen3.8 27B at a 128K context spilled with the default f16 cache and dropped to 16.4 tok/s. With OLLAMA_KV_CACHE_TYPE=q4_0 and flash attention active, the identical context stayed 100 percent on the GPU. The KV cache type selector in the calculator reproduces both outcomes.",
+          "source": "https://computingforgeeks.com/how-much-vram-to-run-llm/",
+          "note": null
+        },
+        {
+          "text": "The KV cache type is the lever that acts on the right-hand bars. Weight quantization does nothing to them.",
+          "source": "https://www.ssdnodes.com/learn/ollama-kv-cache-quantization",
+          "note": null
+        },
+        {
+          "text": "This is the single most out-of-date piece of Ollama advice in circulation, and this page carried it too until this update. The change landed in commit fdb1094 on 2025-10-01, which swapped the variable from a plain boolean to a three-state one and deleted the branch that required you to opt in. Ollama's own FAQ was not corrected until 2026-07-03, in PR #16994, which shipped in v0.31.2 on 2026-07-06 and removed the sentence \"To enable Flash Attention, set the OLLAMA_FLASH_ATTENTION environment variable to 1\". For nine months the official documentation told people to set a variable that had alrea",
+          "source": "https://modelpiper.com/blog/ollama-environment-variables",
+          "note": null
+        },
+        {
+          "text": "<Note> Currently this is a global option - meaning all models will run with the specified quantization type. </Note>",
+          "source": "https://docs.ollama.com/faq#how-can-i-set-the-quantization-type-for-the-k-v-cache",
+          "note": null
+        },
+        {
+          "text": "What is the OLLAMA_KV_CACHE_TYPE variable?",
+          "source": "https://modelpiper.com/blog/ollama-environment-variables",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Structure and components",
+      "facts": [
+        {
+          "text": "No. It lets more requests run at the same time, and each of those requests is slower than it would be running alone, because they share one GPU. It also multiplies the KV cache, since Ollama starts the runner with a total context of your context length times the slot count. If the result no longer fits in VRAM, Ollama pushes layers onto the CPU and every request slows down, including a single one with no competition. Check ollama ps after the change and confirm the PROCESSOR column still reads 100% GPU.",
+          "source": "https://www.ssdnodes.com/learn/ollama-num-parallel-and-max-queue",
+          "note": null
+        },
+        {
+          "text": "Because the KV cache is proportional to the context length while the weights are fixed. For llama3.1:8b the cache costs 128 KiB per token at f16, which is 4 GiB at 32768 tokens and 8 GiB at 65536. Dropping the weights from q8_0 to q4_K_M saves about 3.4 GiB, so one doubling of the context undoes the whole saving. For a model where every layer uses full attention and keeps its own cache, as llama3.1 does, run ollama show <model> --verbose and multiply 2 x layers x KV heads x head dimension x 2 bytes. If that output lists sliding_window or shared_kv_layers, the multiplication does not hold, so r",
+          "source": "https://www.ssdnodes.com/learn/ollama-kv-cache-quantization",
+          "note": null
+        },
+        {
+          "text": "Total VRAM is weights plus KV cache plus runtime overhead. KV bytes per token = 2 x attention layers x KV heads x head dim x bytes per element (f16 2, q8_0 1.06, q4_0 0.56). Example: Llama 3.1 8B uses 128 KiB per token, about 4.3 GB at 32K context. Runtime overhead is about 0.7 GB at short context, paid per GPU.",
+          "source": "https://computingforgeeks.com/how-much-vram-to-run-llm/",
+          "note": null
+        },
+        {
+          "text": "The first three come from the config.json of the model as num_hidden_layers, num_key_value_heads and head_dim, with layer_types telling you which layers are full attention on hybrid models. Where head_dim is missing, as in the Qwen2.5 configs, divide hidden_size by num_attention_heads. The fourth is the cache type. Llama 3.3 70B has 80 layers with 8 key-value heads of dimension 128, so 2 × 80 × 8 × 128 × 2 bytes is 320 KiB per token. Grouped-query attention is what keeps that small: with a separate key and value for each of its 64 query heads, the same model would need 2.5 MiB per token. The c",
+          "source": "https://computingforgeeks.com/how-much-vram-to-run-llm/",
+          "note": null
+        },
+        {
+          "text": "Two models of the same size can need wildly different VRAM at the same context, and parameter count gives no hint of it. The KV cache per token depends on how many layers use full attention and how many key-value heads they keep. Qwen3 32B stores 256 KiB for every token of context. Qwen3.8 27B stores 64 KiB, because only 16 of its 64 layers are full attention and the rest are Gated DeltaNet layers with a fixed-size state. Nemotron 3.5 Lightning stores 6 KiB. The figures below are computed from the config.json of each model at the default f16 cache type:",
+          "source": "https://computingforgeeks.com/how-much-vram-to-run-llm/",
+          "note": null
+        },
+        {
+          "text": "Part of our series on running Ollama on Mac. See also: Ollama KV cache quantization, the Ollama CORS fix, and running multiple Ollama models on Mac.",
+          "source": "https://modelpiper.com/blog/ollama-environment-variables",
+          "note": null
+        },
+        {
+          "text": "KV stands for key and value. For every token in the context, each attention layer stores one key vector and one value vector, so later tokens can attend to it. That store is the KV cache. It is a different thing from the prompt cache that lets a repeated prefix skip prefill; the KV cache and the prompt cache are often confused, and only the first one costs you memory in proportion to num_ctx.",
+          "source": "https://www.ssdnodes.com/learn/ollama-kv-cache-quantization",
+          "note": null
+        },
+        {
+          "text": "That matches the arithmetic above exactly: 128 KiB per token times 32768 tokens. K (f16) and V (f16) are the parts you are about to shrink. Note the Flash Attention line too. With --flash-attn auto, llama.cpp probes the backend and logs whether it ended up enabled, and the next step depends on that answer.",
+          "source": "https://www.ssdnodes.com/learn/ollama-kv-cache-quantization",
+          "note": null
+        },
+        {
+          "text": "Copy llama_kv_cache: size = 2176.00 MiB ( 32768 cells, 32 layers, 1/1 seqs), K (q8_0): 1088.00 MiB, V (q8_0): 1088.00 MiB",
+          "source": "https://www.ssdnodes.com/learn/ollama-kv-cache-quantization",
+          "note": null
+        },
+        {
+          "text": "Memory is the easy half. The weights are a file size, and the KV cache is exact arithmetic once the layer layout is known. The checks below compare the calculator against memory actually allocated on real hardware:",
+          "source": "https://computingforgeeks.com/how-much-vram-to-run-llm/",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "How it works",
+      "facts": [
+        {
+          "text": "Ollama KV cache quantization is one server setting, OLLAMA_KV_CACHE_TYPE, with three documented values: f16 (the default), q8_0 and q4_0. It only works when flash attention is on, and it applies to every model the server loads. You set it as an Environment= line on the ollama systemd unit. The Ollama FAQ states the memory effect: q8_0 uses approximately half the memory of f16, and q4_0 approximately a quarter. Everything below was first checked against that FAQ and the Ollama 0.34.2 release in September 2026, and re-checked against the FAQ, the Ollama source and the llama.cpp source on 13 Octo",
+          "source": "https://www.ssdnodes.com/learn/ollama-kv-cache-quantization",
+          "note": null
+        },
+        {
+          "text": "OLLAMA_FLASH_ATTENTION is automatic by default: Ollama uses Flash Attention when the selected backend and devices support it. Setting OLLAMA_FLASH_ATTENTION=1 forces it on and OLLAMA_FLASH_ATTENTION=0 disables it.",
+          "source": "https://docs.ollama.com/faq",
+          "note": null
+        },
+        {
+          "text": "Yes. Pass each one with a -e flag at run time, for example docker run -e OLLAMA_KEEP_ALIVE=-1 -e OLLAMA_KV_CACHE_TYPE=q8_0 -p 11434:11434 ollama/ollama. They behave identically to a native install because the container runs the same ollama serve process.",
+          "source": "https://modelpiper.com/blog/ollama-environment-variables",
+          "note": null
+        },
+        {
+          "text": "Flash Attention is a feature of most modern models that can significantly reduce memory usage as the context size grows. Ollama uses Flash Attention automatically when the selected backend and devices support it. To force Flash Attention on, set `OLLAMA_FLASH_ATTENTION=1` when starting the Ollama server. To disable it, set `OLLAMA_FLASH_ATTENTION=0`.",
+          "source": "https://docs.ollama.com/faq#how-can-i-enable-flash-attention",
+          "note": null
+        },
+        {
+          "text": "No. The runner refuses a quantized value cache when flash attention is off and logs quantized V cache was requested, but this requires Flash Attention. Ollama 0.34 sets flash attention to auto and lets llama.cpp probe the backend, so set OLLAMA_FLASH_ATTENTION=1 in the same drop-in as the cache type and you remove the guess. If it still fails with it forced on, your backend has no flash attention kernel and the cache stays f16.",
+          "source": "https://www.ssdnodes.com/learn/ollama-kv-cache-quantization",
+          "note": null
+        },
+        {
+          "text": "Every number above assumes one request at a time. Serving multiple users changes the math, because the weights are shared but the KV cache is per request. Ten concurrent sessions do not load the model ten times, but they do allocate ten KV caches, and at long context that cache is the larger cost. The concurrent-requests selector in the calculator multiplies the cache accordingly. Budget VRAM for peak concurrency, not for a single chat.",
+          "source": "https://computingforgeeks.com/how-much-vram-to-run-llm/",
+          "note": null
+        },
+        {
+          "text": "The worst case memory is the product of the first two. Two loaded models with four slots each is eight slot allocations of KV cache, all resident at once, and Ollama will try to satisfy that. On a single GPU box it is usually better to hold one model and give it slots, because the arithmetic stays something you can do in your head.",
+          "source": "https://www.ssdnodes.com/learn/ollama-num-parallel-and-max-queue",
+          "note": null
+        },
+        {
+          "text": "When Ollama loads a model it launches a separate runner process. Two of the arguments it passes matter here: -c is the total context the runner allocates a KV cache for, and -np is the number of parallel sequences. Ollama sets -c to your per-request context length multiplied by the slot count. The runner then divides that total evenly between the slots, so each request still gets the context length you asked for.",
+          "source": "https://www.ssdnodes.com/learn/ollama-num-parallel-and-max-queue",
+          "note": null
+        },
+        {
+          "text": "That is the whole constraint, and it is why parallelism is not free. Going from one slot to four asks for four times the KV cache at the same per-request context. Nothing is shared between slots, and an idle slot's share is not lent to a busy one, because the split is fixed when the runner starts. On a GPU that memory is VRAM. On a CPU only server it is system RAM, and the same multiplication applies.",
+          "source": "https://www.ssdnodes.com/learn/ollama-num-parallel-and-max-queue",
+          "note": null
+        },
+        {
+          "text": "The K/V context cache can be quantized to significantly reduce memory usage when Flash Attention is enabled.",
+          "source": "https://docs.ollama.com/faq#how-can-i-set-the-quantization-type-for-the-k-v-cache",
+          "note": null
+        },
+        {
+          "text": "At a num_ctx of 32768 the f16 cache is 4.0 GiB. Doubling to 65536 doubles it to 8.0 GiB, and the model's full 131072 context needs 16.0 GiB for the cache before a single weight is loaded. The q8_0 and q4_0 columns sit a little above half and a quarter because of how the quantized blocks are laid out: every 32 values share one 16-bit scale, so a q8_0 block is 34 bytes and a q4_0 block is 18 bytes, against 64 bytes for f16. That is 53 percent and 28 percent, which is what the FAQ rounds to one half and one quarter.",
+          "source": "https://www.ssdnodes.com/learn/ollama-kv-cache-quantization",
+          "note": null
+        },
+        {
+          "text": "The Ollama installer creates a systemd unit, so the setting goes in a drop-in for that unit. The FAQ's instruction is exactly this. Set flash attention explicitly at the same time, because a quantized cache without it is refused by the runner, and auto leaves the decision to a probe you did not see.",
+          "source": "https://www.ssdnodes.com/learn/ollama-kv-cache-quantization",
+          "note": null
+        },
+        {
+          "text": "OLLAMA_KV_CACHE_TYPE:q8_0 means the server process has the variable. An empty result means it does not, whatever your shell says.",
+          "source": "https://www.ssdnodes.com/learn/ollama-kv-cache-quantization",
+          "note": null
+        },
+        {
+          "text": "When --flash-attn on is used with quantized KV cache types (e.g. --cache-type-k q8_0 --cache-type-v q4_0), and llama.cpp was built without -DGGML_CUDA_FA_ALL_QUANTS=ON, the server silently falls back to CPU-based attention. This results in:",
+          "source": "https://github.com/ggml-org/llama.cpp/issues/24485",
+          "note": null
+        },
+        {
+          "text": "Three exceptions to know before you trust it. OLLAMA_AUTH is declared in the source but has no entry in the map that backs the dump, so it never appears at all. OLLAMA_FLASH_ATTENTION prints false when unset even though the real default is automatic, as described above. OLLAMA_IGPU_ENABLE prints an empty string when unset, because it has no fixed default and the decision is made per device. For those three, the log tells you what you set, not what the server decided.",
+          "source": "https://modelpiper.com/blog/ollama-environment-variables",
+          "note": null
+        },
+        {
+          "text": "That last point is worth stating plainly because most \"what's new in Ollama\" posts imply otherwise. Between mid-June and late July 2026, zero environment variables changed. What did change was runtime behavior and documentation, and one of those changes invalidates advice that is still repeated almost everywhere, including in the earlier version of this page. It is covered in the flash attention section below.",
+          "source": "https://modelpiper.com/blog/ollama-environment-variables",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "How-to and procedures",
+      "facts": [
+        {
+          "text": "Set OLLAMA_KV_CACHE_TYPE=q8_0 to roughly halve the memory the context cache uses. It takes effect only when flash attention is active, which on supported hardware it now is by default.",
+          "source": "https://modelpiper.com/blog/ollama-environment-variables",
+          "note": null
+        },
+        {
+          "text": "Set OLLAMA_KV_CACHE_TYPE with systemctl edit",
+          "source": "https://www.ssdnodes.com/learn/ollama-kv-cache-quantization",
+          "note": null
+        },
+        {
+          "text": "Add -DGGML_CUDA_FA_ALL_QUANTS=ON to the default CMake configuration. The build time increase is a one-time cost that most users would accept for 25x performance with quantized KV cache.",
+          "source": "https://github.com/ggml-org/llama.cpp/issues/24485",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Measurements and reference values",
+      "facts": [
+        {
+          "text": "Memory, specifically, scales with OLLAMA_NUM_PARALLEL * OLLAMA_CONTEXT_LENGTH: four parallel slots at a 32K context setting reserve KV cache as if a single 128K sequence were loaded, even before any request uses it. On a 16 GB card that budget math usually matters more than the queueing behavior — see KV Cache on 16 GB GPUs for the full VRAM budget and why OLLAMA_NUM_PARALLEL=1 is usually the right starting point for a single long-context session.",
+          "source": "https://www.glukhov.org/llm-performance/ollama/how-ollama-handles-parallel-requests/#limit-loaded-models-and-parallel-requests",
+          "note": null
+        },
+        {
+          "text": "Three things consume VRAM during inference. The weights are the big, fixed cost. The KV cache grows with context length and with the number of concurrent requests. Overhead is a smaller tax for the CUDA or Metal context and compute buffers, about 0.7 GB at short context and roughly 1.5 GB at 256K, paid once per GPU.",
+          "source": "https://computingforgeeks.com/how-much-vram-to-run-llm/",
+          "note": null
+        },
+        {
+          "text": "The Q4_K_M version fits on an 8 GB GPU with VRAM to spare for context. The Q8_0 version is already 8.5 GB before adding context, so the same GPU can’t hold the entire workload in VRAM.",
+          "source": "https://hostinger.com/tutorials/ollama-gpu-requirements/",
+          "note": null
+        },
+        {
+          "text": "A concrete case from testing: the 32B model on a 24 GB RTX 3090. The weights are about 20 GB and fit. But recent Ollama versions size the context window to the VRAM they detect, and a 24 GB card is handed a 32K window by default. That 32K KV cache on top of the weights pushes the total past 24 GB, the overflow spills to the CPU, and throughput collapses:",
+          "source": "https://computingforgeeks.com/how-much-vram-to-run-llm/",
+          "note": null
+        },
+        {
+          "text": "Q4_K_M file sizes: Llama 3.1 8B about 4.9 GB, Qwen3 32B about 19.8-20 GB, Llama 3.3 70B about 42.5-43 GB. Q8_0 of Llama 3.1 8B is about 8.5 GB, roughly double Q4_K_M, and Q6_K is about 6.6 GB.",
+          "source": "https://hostinger.com/tutorials/ollama-gpu-requirements/",
+          "note": null
+        },
+        {
+          "text": "Qwen3.8 27B UD-Q4_K_XL, 256K context, q4_0 cache, RTX 409024.0 GB, fitsfits, 22.2 GiB (23.8 GB) in use",
+          "source": "https://computingforgeeks.com/how-much-vram-to-run-llm/",
+          "note": null
+        },
+        {
+          "text": "• Q8_0 K/V: Around 3GB, (50%~ saving).",
+          "source": "https://smcleod.net/2024/12/bringing-k/v-context-quantisation-to-ollama/",
+          "note": null
+        },
+        {
+          "text": "• Q4_0 K/V: Around 2GB, (66%~ saving).",
+          "source": "https://smcleod.net/2024/12/bringing-k/v-context-quantisation-to-ollama/",
+          "note": null
+        },
+        {
+          "text": "Nemotron 3.5 Lightning 30B-A3B18.9 GB (Q4_0)6 KiB + 0.05 GB state0.3 GB0.9 GB19.9 GB",
+          "source": "https://computingforgeeks.com/how-much-vram-to-run-llm/",
+          "note": null
+        },
+        {
+          "text": "32B dense32 GBRTX 5090, or 24 GB with a q4_0 cache",
+          "source": "https://computingforgeeks.com/how-much-vram-to-run-llm/",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Problems, failure modes and limitations",
+      "facts": [
+        {
+          "text": "Hardware support at introduction: Metal on Apple Silicon, CUDA on Pascal and newer, and most ROCm GPUs. If a model or hardware does not support flash attention, Ollama falls back to f16 and logs a warning.",
+          "source": "https://smcleod.net/2024/12/bringing-k/v-context-quantisation-to-ollama/",
+          "note": null
+        },
+        {
+          "text": "A quantized K/V cache requires Flash Attention. Without it the runner rejects a quantized V cache with the error 'quantized V cache was requested, but this requires Flash Attention'. Fix: set OLLAMA_FLASH_ATTENTION=1 explicitly; if the error persists the backend has no flash attention kernel and the cache must stay f16.",
+          "source": "https://www.ssdnodes.com/learn/ollama-kv-cache-quantization",
+          "note": null
+        },
+        {
+          "text": "OLLAMA_KV_CACHE_TYPE is a global option: every model runs with the same type. K and V use the same type, and the type cannot be set per model, in a Modelfile, via the API or on the command line. For mixed types the SSD Nodes guide suggests a second Ollama instance on another port.",
+          "source": "https://docs.ollama.com/faq",
+          "note": null
+        },
+        {
+          "text": "Quality measurements are early and come from the feature author's blog: on Qwen 2.5 Coder 7B (2024-12-06) perplexity went from 8.3891 (f16) to 8.3934 (q8_0), +0.0043. Early implementation figures were roughly +0.002 to +0.05 for q8_0 and +0.206 to +0.25 for q4_0. The author flags embedding models (Ollama tries to detect them and disables quantisation, with a warning), vision models and high-attention-head models (Qwen 2) as possibly more sensitive.",
+          "source": "https://smcleod.net/2024/12/bringing-k/v-context-quantisation-to-ollama/",
+          "note": null
+        },
+        {
+          "text": "Upstream llama.cpp CUDA builds compiled without GGML_CUDA_FA_ALL_QUANTS can reportedly fall back silently to CPU attention when flash attention is combined with some quantized K/V combinations (reported: q8_0 K with q4_0 V, head size 512), giving 25-45x slower prefill and no warning. The report is one user's setup, was closed 'not planned' on 2026-07-26 and does not name Ollama builds.",
+          "source": "https://github.com/ggml-org/llama.cpp/issues/24485",
+          "note": null
+        },
+        {
+          "text": "At 4K context the KV cache is a rounding error against the weights. At 128K it can exceed them: Llama 3.1 8B needs 4.9 GB of weights and 17.2 GB of cache at that length. The cache is allocated up front for the maximum context you configure, and it grows linearly with that length and with every concurrent request. Three levers keep long context affordable. The model architecture decides the first two, grouped-query attention and hybrid layers that skip the cache altogether. The third is yours: KV cache quantization to 8-bit or 4-bit, which trades a little quality for a much smaller cache. If a",
+          "source": "https://computingforgeeks.com/how-much-vram-to-run-llm/",
+          "note": null
+        },
+        {
+          "text": "The FAQ describes q8_0 as \"a very small loss in precision\" and q4_0 as \"a small-medium loss in precision that may be more noticeable at higher context sizes\". Take the second half of that sentence seriously. Weight quantization and KV cache quantization are both called quantization, but they are different operations with different failure modes.",
+          "source": "https://www.ssdnodes.com/learn/ollama-kv-cache-quantization",
+          "note": null
+        },
+        {
+          "text": "The default is safe, and it is also why a second user reports that the server \"hung\" when nothing is broken. Adding slots is a two line change. The part that bites is memory. Every parallel slot needs its own key/value cache (KV cache), the block of memory a model keeps for the tokens it has already processed. Add slots without adding VRAM (video memory on the GPU) and you turn a slow answer into a failed load. On a CPU only server the same cache comes out of system RAM instead.",
+          "source": "https://www.ssdnodes.com/learn/ollama-num-parallel-and-max-queue",
+          "note": null
+        },
+        {
+          "text": "In llama-server, when --flash-attn on is set with a quantized KV cache type, check if the appropriate CUDA FA kernel was compiled. If not, emit a clear warning:",
+          "source": "https://github.com/ggml-org/llama.cpp/issues/24485",
+          "note": null
+        },
+        {
+          "text": "Related: Misc. bug: Asymmetric K/V cache quantization types cannot be offloaded to GPU #20866, Eval bug: Mistral 4 119b - flash attention not working properly #20710",
+          "source": "https://github.com/ggml-org/llama.cpp/issues/24485",
+          "note": null
+        },
+        {
+          "text": "Warning: Flash attention with quantized KV cache requires building with -DGGML_CUDA_FA_ALL_QUANTS=ON. Using CPU fallback for attention which will be extremely slow. Consider using --cache-type-k f16 --cache-type-v f16 instead.",
+          "source": "https://github.com/ggml-org/llama.cpp/issues/24485",
+          "note": null
+        },
+        {
+          "text": "When a model plus its KV cache exceed VRAM, the runtime does not fail. It keeps the overflow layers in system RAM and computes them on the CPU. That sounds graceful and is not. GPU memory moves at 500 to 1800 gigabytes per second; DDR5 system memory moves at 50 to 80, and an 8-core cloud VM running DeepSeek V4 Flash entirely on the CPU turned that into about 25 GB/s of effective throughput. Every offloaded layer drags token generation down to that rate, and the result is a cliff, not a slope.",
+          "source": "https://computingforgeeks.com/how-much-vram-to-run-llm/",
+          "note": null
+        },
+        {
+          "text": "Start the server with OLLAMA_DEBUG=1 and read the startup log. If it shows your value, the setting is live. If it shows the default, you set it in an environment the server does not see, so go back to step 1. Three variables are exceptions and cannot be confirmed this way: OLLAMA_AUTH, OLLAMA_FLASH_ATTENTION, and OLLAMA_IGPU_ENABLE.",
+          "source": "https://modelpiper.com/blog/ollama-environment-variables",
+          "note": null
+        },
+        {
+          "text": "There is a limit you cannot tune your way past. Ollama splits the KV cache into equal, fixed slots when the model loads. An idle slot's memory cannot be used by a busy one, and the slot count cannot change without unloading the model. That design is a good fit for one person, or a small team, or a coding agent.",
+          "source": "https://www.ssdnodes.com/learn/ollama-num-parallel-and-max-queue",
+          "note": null
+        },
+        {
+          "text": "As stated in the FAQ, it is not recommended to use K/V cache quantisation for embedding models as these are more sensitive to quantisation. For this reason Ollama attempts to detect embedding models and disable K/V cache quantisation automatically (you'll see a warning in the logs if this happens).",
+          "source": "https://smcleod.net/2024/12/bringing-k/v-context-quantisation-to-ollama/",
+          "note": null
+        },
+        {
+          "text": "While practically all modern models support Flash Attention, if a model is loaded that - or if your hardware doesn't support Flash Attention, Ollama will automatically fall back to the default F16 quantisation. You'll see a warning in the logs if this happens.",
+          "source": "https://smcleod.net/2024/12/bringing-k/v-context-quantisation-to-ollama/",
+          "note": null
+        },
+        {
+          "text": "The KV cache is quantized at run time, on activations, in blocks of 32 values with one shared scale, with no calibration and no per-tensor choices. Every token you generate attends to every earlier key and value through that rounding, so a longer context means more rounded values in every attention step. That is why the FAQ says the loss is more noticeable at higher context sizes, and higher context sizes are the only reason you are here. A 4-bit cache at 4k tokens and a 4-bit cache at 64k tokens are not the same risk.",
+          "source": "https://www.ssdnodes.com/learn/ollama-kv-cache-quantization",
+          "note": null
+        },
+        {
+          "text": "What remains is that the configuration surface is still 26 variables wide, the documentation lags the code by months at a time, and the defaults that are left are still cautious. The context cache defaults to f16 when q8_0 would save memory for free, and it is a global setting that silently degrades to f16 on architectures that cannot take it, so the one memory lever you are told to pull is also the one you cannot verify from the outside.",
+          "source": "https://modelpiper.com/blog/ollama-environment-variables",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Comparisons and alternatives",
+      "facts": [
+        {
+          "text": "The same two lines: OLLAMA_FLASH_ATTENTION=1 and OLLAMA_KV_CACHE_TYPE=q8_0. The memory arithmetic is identical whether the cache lives in RAM or VRAM, and on a VPS RAM is the whole budget. Confirm the Flash Attention line in the journal shows it enabled, compare ollama ps at the same CONTEXT before and after, and measure tokens per second yourself rather than assuming it went up.",
+          "source": "https://www.ssdnodes.com/learn/ollama-kv-cache-quantization",
+          "note": null
+        },
+        {
+          "text": "A 27B model at Q4_K_M needs 16.5 GB for its weights and another 2.3 GB of KV cache and recurrent state at a 32K context. On a 24 GB RTX 4090 that leaves about 6 GB spare and generates about 48 tokens per second, within one token of the 47.7 measured on that exact card. This LLM VRAM calculator does that arithmetic for any model, quantization, context length and GPU, which turns the question of how much VRAM to run an LLM into a number instead of a rule of thumb. Original content from computingforgeeks.com - post 168756",
+          "source": "https://computingforgeeks.com/how-much-vram-to-run-llm/",
+          "note": null
+        },
+        {
+          "text": "The PROCESSOR column reads 100% GPU when the whole thing fits. A split such as 35%/65% CPU/GPU means part of the model is running on the CPU. The SIZE column includes the KV cache, so it grows when you raise the slot count and reload the model. Raise OLLAMA_NUM_PARALLEL, restart, send one request, and run ollama ps again: that is the memory cost of your change, measured rather than guessed. If that measurement says the model no longer fits, remember that the weights are the other half of the same budget, and moving from fp16 to a q8 or q4 build often frees more VRAM than the slot you were tryi",
+          "source": "https://www.ssdnodes.com/learn/ollama-num-parallel-and-max-queue",
+          "note": null
+        },
+        {
+          "text": "The context (KV) cache grows with your context length and, at 32K or more tokens, can use more memory than the model weights themselves. How much it costs depends on the model you run: the memory Qwen 3.6 27B needs is listed against every Mac configuration, so you can size the weights side of the equation before adding the cache on top. Quantizing it from the default f16 down to q8_0 cuts that roughly in half for a perplexity increase that benchmarks put at 0.002 to 0.05, which nobody notices in practice. q4_0 quarters it with a larger, measurable trade-off. We cover the full quality and memor",
+          "source": "https://modelpiper.com/blog/ollama-environment-variables",
+          "note": null
+        },
+        {
+          "text": "Ollama KV cache quantization: q8_0 vs f16 Guides",
+          "source": "https://www.ssdnodes.com/learn/ollama-num-parallel-and-max-queue",
+          "note": null
+        },
+        {
+          "text": "Blog › Guides › Ollama KV cache quantization: q8_0 vs f16",
+          "source": "https://www.ssdnodes.com/learn/ollama-kv-cache-quantization",
+          "note": null
+        },
+        {
+          "text": "If the model weights plus that KV cache do not fit in VRAM, Ollama moves some layers to system RAM and those layers run on the CPU. CPU layers are far slower than GPU layers, so this makes every request slower, including the single request you started with. Raising parallelism can therefore reduce throughput rather than raise it. With a large enough model the weights alone settle the question before any slot arithmetic begins, which is why self-hosting something the size of Kimi K3 is a conversation about how many cards you have rather than how many slots you set.",
+          "source": "https://www.ssdnodes.com/learn/ollama-num-parallel-and-max-queue",
+          "note": null
+        },
+        {
+          "text": "Servers built for many simultaneous users work differently. They allocate KV cache in small pages on demand and add arriving requests into a batch that is already running, so memory follows actual demand instead of a fixed division. If your goal is a large number of concurrent users on one GPU, that architectural difference matters more than any value of OLLAMA_NUM_PARALLEL. The comparison between Ollama and vLLM is the place to make that call. Do not switch on principle, though: a different server is more to operate, and if your traffic is a few people, the built-in behaviour is the correct a",
+          "source": "https://www.ssdnodes.com/learn/ollama-num-parallel-and-max-queue",
+          "note": null
+        },
+        {
+          "text": "The reason you are reading this is usually the same. You picked a weight quantization that fits, then raised num_ctx, and the model stopped fitting, or started swapping. The weights did not change size. The KV cache did, because it grows with context length, and at 32k or 64k tokens it can be bigger than the saving you made by picking q4 weights instead of q8.",
+          "source": "https://www.ssdnodes.com/learn/ollama-kv-cache-quantization",
+          "note": null
+        },
+        {
+          "text": "Yes, on supported hardware. Since October 2025, OLLAMA_FLASH_ATTENTION has been a three-state override rather than an off-by-default switch: leave it unset and Ollama enables flash attention automatically wherever the selected backend and devices support it, set 1 to force it on, or set 0 to force it off.",
+          "source": "https://modelpiper.com/blog/ollama-environment-variables",
+          "note": null
+        },
+        {
+          "text": "ToolPiper takes the other approach. It bundles the same llama.cpp engine and runs the same GGUF models, but it decides the KV cache type per model rather than globally: it reads each model's GGUF header, checks the head dimensions against what the Metal backend can actually serve, and uses q8_0 when it is safe and f16 when it is not. You get the memory saving on every model that supports it and a load that works on the ones that do not, with no variable to set and no silent fallback to discover later. Browser access follows a built-in origin allowlist (loopback pages, modelpiper.com and its ow",
+          "source": "https://modelpiper.com/blog/ollama-environment-variables",
+          "note": null
+        },
+        {
+          "text": "And the variables above stop being the interface. The tuning they express - context length, keep-alive, parallelism, flash attention - is settings in a native app rather than environment state you export in a shell profile and re-derive on every machine. That is a transition path, not the recommended setup. The honest limitation: ToolPiper is macOS only. If you run Ollama on Linux or Windows, the variables in this reference are how you get there, and they work.",
+          "source": "https://modelpiper.com/blog/ollama-environment-variables",
+          "note": null
+        },
+        {
+          "text": "OLLAMA_KV_CACHE_TYPE: Halve Ollama's KV Cache MemoryThe full memory and quality trade-off behind the KV cache variableOLLAMA_ORIGINS=*: Fix the Ollama CORS Error on MacSet OLLAMA_ORIGINS to unblock browser connections to OllamaRun Multiple Ollama Models on Mac at Once: What Fits in 8, 16, 32GBOLLAMA_MAX_LOADED_MODELS and the memory math for running several modelsInstall Ollama on Mac: Setup Guide and the One-App AlternativeGet Ollama running before you tune it",
+          "source": "https://modelpiper.com/blog/ollama-environment-variables",
+          "note": null
+        },
+        {
+          "text": "Q4_K_M for almost everyone. It uses 0.60 bytes per parameter against Q8_0’s 1.06, so it nearly halves the VRAM, and the quality cost is small. On Qwen3.5 9B, GSM8K accuracy measured 87.6 at Q8_0 and 84.8 at Q4_K_M. The better surprise sits one step smaller: IQ4_XS scored 86.4 on the same test from a file about 8 percent smaller than Q4_K_M, and it also generated faster. Q4_K_M stays the default because it is what Ollama ships, not because it wins every test. Q8 is worth the extra memory only when a task is sensitive to small numerical drift and the card has the room to spare. Below 4-bit, qual",
+          "source": "https://computingforgeeks.com/how-much-vram-to-run-llm/",
+          "note": null
+        },
+        {
+          "text": "Every input is traceable. Weights are the real GGUF file sizes read from the Hugging Face repositories people actually download, not parameters multiplied by a guessed byte count. The KV cache comes from the config.json shipped with each model, which matters because the hybrid attention in Qwen3.8, Gemma 4 and Nemotron cuts the cache four to forty times against an older dense model. Speed comes from a model fitted to 20 single-stream runs on five NVIDIA GPUs, the same runs behind the tested GPU buyer guide and the Ollama vs vLLM vs llama.cpp benchmark, then checked against the public llama.cpp",
+          "source": "https://computingforgeeks.com/how-much-vram-to-run-llm/",
+          "note": null
+        },
+        {
+          "text": "llama.cpp resolved flash attention to disabled, so it will not allocate a quantized value cache. Set OLLAMA_FLASH_ATTENTION=1 explicitly rather than leaving it on auto, then reload and restart. If the same line comes back with it forced on, the backend for your hardware does not support the attention kernel, and the cache has to stay f16 on that box.",
+          "source": "https://www.ssdnodes.com/learn/ollama-kv-cache-quantization",
+          "note": null
+        },
+        {
+          "text": "Ollama has quietly gotten better at this. Flash attention turns itself on now, context length scales with your VRAM instead of sitting at 4096, and the loaded-model limit adapts to your GPU count. Those were all manual variables not long ago, and the honest read is that the gap between \"Ollama out of the box\" and \"Ollama tuned\" is smaller in v0.32.5 than it has ever been.",
+          "source": "https://modelpiper.com/blog/ollama-environment-variables",
+          "note": null
+        },
+        {
+          "text": "For readers who want the table rather than the tool, these are the real GGUF weight files for a current model at each size. Add the KV cache for the context you plan to run (next section) and about 0.7 GB of runtime overhead. Q4_K_M is the column that matters for local use, because it is the default quantization in Ollama and the usual balance of size and quality.",
+          "source": "https://computingforgeeks.com/how-much-vram-to-run-llm/",
+          "note": null
+        },
+        {
+          "text": "• A 6.5 bit per value KV cache with q8_0 for the K cache and q4_0 for the V cache also seems to be more precise than q6_K weights. There seems to be no significant quality loss from using q8_0 instead of FP16 for the KV cache.",
+          "source": "https://smcleod.net/2024/12/bringing-k/v-context-quantisation-to-ollama/",
+          "note": null
+        },
+        {
+          "text": "Two caveats the FAQ states but most guides drop. First, this is a global setting: every model the server loads runs with the type you set, and there is no per-model override. A Modelfile parameter for it was proposed in December 2024 and has never been merged, so any guide showing kv_cache_type in a Modelfile or /set parameter is quoting an unmerged pull request. Second, quantized KV cache silently falls back to f16 on model architectures that do not support it, so setting q8_0 is not a guarantee that you got it. Check your memory use rather than assuming.",
+          "source": "https://modelpiper.com/blog/ollama-environment-variables",
+          "note": null
+        },
+        {
+          "text": "There is a genuine trap that keeps the myth alive. Ollama's startup environment dump renders this variable's value as false when it is unset, because the dump asks for the value with a false fallback rather than for the resolved runtime decision. So you can start the server, read OLLAMA_FLASH_ATTENTION:false in your own log, and reasonably conclude flash attention is off while it is actively running. That log line reports the variable, not the behavior.",
+          "source": "https://modelpiper.com/blog/ollama-environment-variables",
+          "note": null
+        },
+        {
+          "text": "Yes, on hardware that supports it. Since a change on 2025-10-01, OLLAMA_FLASH_ATTENTION is a three-state override: unset means Ollama decides automatically based on the backend and devices, 1 forces it on, and 0 forces it off. Guides telling you to set it to 1 to enable it are describing behavior that ended in October 2025. Ollama's own FAQ was not corrected until July 2026. One thing that keeps the confusion alive: the server's startup log prints OLLAMA_FLASH_ATTENTION:false when the variable is unset, which reports the variable rather than the resolved behavior.",
+          "source": "https://modelpiper.com/blog/ollama-environment-variables",
+          "note": null
+        },
+        {
+          "text": "Running the K/V context cache at Q8_0 quantisation effectively halves the VRAM required for the context compared to the default F16 with minimal quality impact on the generated outputs, while Q4_0 cuts it down to just one third (at the cost of some noticeable quality reduction).",
+          "source": "https://smcleod.net/2024/12/bringing-k/v-context-quantisation-to-ollama/",
+          "note": null
+        },
+        {
+          "text": "Saving that 3GB of vRAM by using Q8_0 could be enough to either allow you to double the context size to 64K, or perhaps to run a larger parameter model (e.g. 14B instead of 8B).",
+          "source": "https://smcleod.net/2024/12/bringing-k/v-context-quantisation-to-ollama/",
+          "note": null
+        },
+        {
+          "text": "Q8_0 & Q4_0Different levels of quantisation, with Q8_0 halving the VRAM usage of the context and Q4_0 reducing it to one third compared to F16 (unquantised).",
+          "source": "https://smcleod.net/2024/12/bringing-k/v-context-quantisation-to-ollama/",
+          "note": null
+        },
+        {
+          "text": "Ollama has some KV cache optimizations to improve how memory can be efficiently used. Ollama configures causal attention at the individual model level instead of configuring as a group.",
+          "source": "https://ollama.com/blog/multimodal-models",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Facts and statements",
+      "facts": [
+        {
+          "text": "TL;DR Ollama is configured through environment variables read by the server at startup. The most-used are OLLAMA_HOST (bind address), OLLAMA_MODELS (storage path), OLLAMA_KEEP_ALIVE (how long models stay loaded), and OLLAMA_KV_CACHE_TYPE (cache quantization). OLLAMA_FLASH_ATTENTION is no longer an on/off switch you must set: since October 2025 it is a three-state override, and Ollama enables flash attention automatically wherever the backend and device support it. Set variables in your shell, with launchctl on the macOS app, or systemd on Linux, then restart Ollama.",
+          "source": "https://modelpiper.com/blog/ollama-environment-variables",
+          "note": null
+        },
+        {
+          "text": "Required memory scales with OLLAMA_NUM_PARALLEL x context length: a 2K context with 4 parallel requests becomes an 8K context allocation. Flash attention reduces memory as context grows; quantized KV cache needs flash attention (q8_0 about 1/2 of f16, q4_0 about 1/4).",
+          "source": "https://docs.ollama.com/faq",
+          "note": null
+        },
+        {
+          "text": "Verify the settings on Linux with journalctl -u ollama: the 'llama_kv_cache: size' line shows K (q8_0) / V (q8_0), the 'starting llama-server' line shows --cache-type-k q8_0 --cache-type-v q8_0 --flash-attn on, and the startup config shows OLLAMA_KV_CACHE_TYPE:q8_0. ollama ps shows SIZE and CONTEXT.",
+          "source": "https://www.ssdnodes.com/learn/ollama-kv-cache-quantization",
+          "note": null
+        },
+        {
+          "text": "On systemd installs the variables must be set as Environment= lines on the ollama unit, followed by daemon-reload and restart. Exporting them in a shell does not affect the managed server. A restart unloads all models.",
+          "source": "https://www.ssdnodes.com/learn/ollama-kv-cache-quantization",
+          "note": null
+        },
+        {
+          "text": "The serving framework matters here more than the model. Ollama and llama.cpp pre-allocate a full-context KV cache for every parallel slot they open (OLLAMA_NUM_PARALLEL, or -np on llama-server), so each extra slot costs a whole cache up front whether it is used or not. vLLM uses PagedAttention, which allocates the cache in small pages on demand and wastes under 4 percent of it, against the large fraction a pre-allocating runtime leaves idle. That efficiency is why vLLM serves far more concurrent requests in the same VRAM and is the right tool once more than one person is hitting the endpoint.",
+          "source": "https://computingforgeeks.com/how-much-vram-to-run-llm/",
+          "note": null
+        },
+        {
+          "text": "Raised num_ctx and Ollama no longer fits? The KV cache grew, not the weights. Set OLLAMA_KV_CACHE_TYPE with flash attention and watch the change in ollama ps.",
+          "source": "https://www.ssdnodes.com/learn/ollama-kv-cache-quantization",
+          "note": null
+        },
+        {
+          "text": "OLLAMA_KV_CACHE_TYPE sets the K/V cache type. Valid values are f16 (default), q8_0 and q4_0.",
+          "source": "https://docs.ollama.com/faq",
+          "note": null
+        },
+        {
+          "text": "解释 llama-bench 的 pp、tg、量化和 Flash Attention 指标，给出可复现的 CUDA、ROCm、Vulkan 测试命令，并说明不同社区跑分为何不能直接组成显卡天梯。",
+          "source": "https://knightli.com/2026/04/19/ollama-multiple-gpu-notes/",
+          "note": null
+        },
+        {
+          "text": "Per the Ollama FAQ, q8_0 uses approximately 1/2 the memory of f16 with a very small precision loss (recommended if not using f16). q4_0 uses approximately 1/4 the memory with a small-to-medium loss that may be more noticeable at higher context sizes.",
+          "source": "https://docs.ollama.com/faq",
+          "note": null
+        },
+        {
+          "text": "The data behind this chart [ { \"label\": \"Weights, q4_K_M\", \"gib\": 4.56 }, { \"label\": \"Weights, q8_0\", \"gib\": 7.92 }, { \"label\": \"KV cache f16, num_ctx 32768\", \"gib\": 4.0 }, { \"label\": \"KV cache f16, num_ctx 65536\", \"gib\": 8.0 } ]",
+          "source": "https://www.ssdnodes.com/learn/ollama-kv-cache-quantization",
+          "note": null
+        },
+        {
+          "text": "#ollama#kv-cache#quantization#num_ctx#ram#flash-attention",
+          "source": "https://www.ssdnodes.com/learn/ollama-kv-cache-quantization",
+          "note": null
+        },
+        {
+          "text": "docker run -e OLLAMA_KV_CACHE_TYPE=q8_0 -p 11434:11434 ollama/ollama",
+          "source": "https://modelpiper.com/blog/ollama-environment-variables",
+          "note": null
+        },
+        {
+          "text": "Weight bytes per parameter (Llama 3.3 70B): BF16 2.00, Q8_0 1.06, Q5_K_M 0.71, Q4_K_M 0.60, Q4_0 0.57, IQ4_XS 0.54. Pre-quantized models such as gpt-oss-120b (MXFP4) break this rate, so read the file size instead.",
+          "source": "https://computingforgeeks.com/how-much-vram-to-run-llm/",
+          "note": null
+        },
+        {
+          "text": "• Set the K/V cache quantisation to Q8_0 by adding OLLAMA_KV_CACHE_TYPE=\"q8_0\" to the environment variables you run Ollama with.",
+          "source": "https://smcleod.net/2024/12/bringing-k/v-context-quantisation-to-ollama/",
+          "note": null
+        },
+        {
+          "text": "Copy [Service] Environment=\"OLLAMA_FLASH_ATTENTION=1\" Environment=\"OLLAMA_KV_CACHE_TYPE=q8_0\"",
+          "source": "https://www.ssdnodes.com/learn/ollama-kv-cache-quantization",
+          "note": null
+        },
+        {
+          "text": "{ modelfile: '# Modelfile generated by \"ollama show\"\\n# To build a new Modelfile based on this one, replace the FROM line with:\\n# FROM llava:latest\\n\\nFROM ~/.ollama/models/blobs/sha256:200765e1283640ffbd013184bf496e261032fa75b99498a9613be4e94d63ad52\\nTEMPLATE \"\"\"{{ .System }}\\nUSER: {{ .Prompt }}\\nASSISTANT: \"\"\"\\nPARAMETER num_ctx 4096\\nPARAMETER stop \"\\u003c/s\\u003e\"\\nPARAMETER stop \"USER:\"\\nPARAMETER stop \"ASSISTANT:\"', parameters: 'num_keep 24\\nstop \"<|start_header_id|>\"\\nstop \"<|end_header_id|>\"\\nstop \"<|eot_id|>\"', template: \"{{ if .System }}<|start_header_id|>system<|end_head",
+          "source": "https://github.com/ollama/ollama/blob/main/docs/api.md",
+          "note": null
+        },
+        {
+          "text": "launchctl setenv OLLAMA_KV_CACHE_TYPE q8_0",
+          "source": "https://modelpiper.com/blog/ollama-environment-variables",
+          "note": null
+        },
+        {
+          "text": "KV cache typef16, global across every model, set OLLAMA_KV_CACHE_TYPE to changeDecided per model from the GGUF header: q8_0 where the head dimensions allow it, f16 where they do not",
+          "source": "https://modelpiper.com/blog/ollama-environment-variables",
+          "note": null
+        },
+        {
+          "text": "For the macOS app, run launchctl setenv OLLAMA_KV_CACHE_TYPE q8_0. For a terminal server, add export OLLAMA_KV_CACHE_TYPE=q8_0 to ~/.zshrc. Substitute whichever variable from the reference tables you need.",
+          "source": "https://modelpiper.com/blog/ollama-environment-variables",
+          "note": null
+        },
+        {
+          "text": "* `f16` - high precision and memory usage (default). * `q8_0` - 8-bit quantization, uses approximately 1/2 the memory of `f16` with a very small loss in precision, this usually has no noticeable impact on the model's quality (recommended if not using f16). * `q4_0` - 4-bit quantization, uses approximately 1/4 the memory of `f16` with a small-medium loss in precision that may be more noticeable at higher context sizes.",
+          "source": "https://docs.ollama.com/faq#how-can-i-set-the-quantization-type-for-the-k-v-cache",
+          "note": null
+        },
+        {
+          "text": "Moving the weights from q8_0 (7.92 GiB) to q4_K_M (4.56 GiB) saved about 3.4 GiB. Moving num_ctx from 32768 to 65536 at f16 took the cache from 4.0 GiB to 8.0 GiB, an extra 4 GiB. The context step cost more than the weight step saved. That is the whole trap, and it is why working out whether a model fits in your RAM has to include the context you intend to run as well as the file size on the library page.",
+          "source": "https://www.ssdnodes.com/learn/ollama-kv-cache-quantization",
+          "note": null
+        },
+        {
+          "text": "* `OLLAMA_KV_CACHE_TYPE` - The quantization type for the K/V cache. Default is `f16`.",
+          "source": "https://docs.ollama.com/faq#how-can-i-set-the-quantization-type-for-the-k-v-cache",
+          "note": null
+        },
+        {
+          "text": "Llama 2 7B Q4_0, RTX 5090290 tok/sabout 298 tok/sllama.cpp CUDA scoreboard",
+          "source": "https://computingforgeeks.com/how-much-vram-to-run-llm/",
+          "note": null
+        },
+        {
+          "text": "不过它不是万能开关。开启后并不等于 token/s 线性增长，也可能因为多个模型同时加载、显存估算、上下文长度和 KV cache 增长导致 OOM。官方 FAQ 的核心策略仍然是：如果单 GPU 能完整容纳模型，单 GPU 通常更高效；单 GPU 放不下时才跨多 GPU。",
+          "source": "https://knightli.com/2026/04/19/ollama-multiple-gpu-notes/",
+          "note": null
+        },
+        {
+          "text": "• Make sure you're running Ollama with Flash Attention enabled (OLLAMA_FLASH_ATTENTION=1), Note: This should become the default behaviour in the near future as there's no reason not to use it.",
+          "source": "https://smcleod.net/2024/12/bringing-k/v-context-quantisation-to-ollama/",
+          "note": null
+        },
+        {
+          "text": "It's been noted in llama.cpp's test back at the start of 2024 that high attention head models can be more sensitive to K/V quantisation, so you may want to avoid using K/V context cache quantisation with these models. How high is too high? I'm not sure - but Qwen 2 was mentioned as an example in the llama.cpp PR, I personally have been using Qwen 2.5 Coder 32b Q6_K with Q8_0 K/V cache quantisation without any noticeable issues.",
+          "source": "https://smcleod.net/2024/12/bringing-k/v-context-quantisation-to-ollama/",
+          "note": null
+        },
+        {
+          "text": "• Using q4_0 for the V cache and FP16 for everything else is more precise than using q6_K with FP16 KV cache.",
+          "source": "https://smcleod.net/2024/12/bringing-k/v-context-quantisation-to-ollama/",
+          "note": null
+        },
+        {
+          "text": "Llama 2 7B Q4_0, Strix Halo52.5 tok/sabout 52 tok/sllama.cpp Vulkan scoreboard",
+          "source": "https://computingforgeeks.com/how-much-vram-to-run-llm/",
+          "note": null
+        },
+        {
+          "text": "Llama 2 7B Q4_0, DGX Spark55.8 tok/s57.2 tok/sllama.cpp CUDA scoreboard",
+          "source": "https://computingforgeeks.com/how-much-vram-to-run-llm/",
+          "note": null
+        },
+        {
+          "text": "None of this affects the weights. If the model was wrong with an f16 cache, a different cache type will not fix it, and if it fits only with a q4_0 cache the honest options are a smaller weight file, a smaller num_ctx, more RAM, or a different model.",
+          "source": "https://www.ssdnodes.com/learn/ollama-kv-cache-quantization",
+          "note": null
+        },
+        {
+          "text": "Does OLLAMA_KV_CACHE_TYPE work without flash attention?",
+          "source": "https://www.ssdnodes.com/learn/ollama-kv-cache-quantization",
+          "note": null
+        },
+        {
+          "text": "Is q8_0 KV cache safe to leave on all the time?",
+          "source": "https://www.ssdnodes.com/learn/ollama-kv-cache-quantization",
+          "note": null
+        },
+        {
+          "text": "Can I set the KV cache type per model?",
+          "source": "https://www.ssdnodes.com/learn/ollama-kv-cache-quantization",
+          "note": null
+        },
+        {
+          "text": "[Service]Environment=\"OLLAMA_KV_CACHE_TYPE=q8_0\"",
+          "source": "https://modelpiper.com/blog/ollama-environment-variables",
+          "note": null
+        },
+        {
+          "text": "ollama ps should show a smaller SIZE at the same CONTEXT. The starting llama-server line should now carry --cache-type-k q8_0 --cache-type-v q8_0 and --flash-attn on. And the cache line should have changed type and size:",
+          "source": "https://www.ssdnodes.com/learn/ollama-kv-cache-quantization",
+          "note": null
+        },
+        {
+          "text": "How much the cache quantization impacts the model's response quality will depend on the model and the task. Models that have a high GQA count (e.g. Qwen2) may see a larger impact on precision from quantization than models with a low GQA count.",
+          "source": "https://docs.ollama.com/faq#how-can-i-set-the-quantization-type-for-the-k-v-cache",
+          "note": null
+        },
+        {
+          "text": "You may need to experiment with different quantization types to find the best balance between memory usage and quality.",
+          "source": "https://docs.ollama.com/faq#how-can-i-set-the-quantization-type-for-the-k-v-cache",
+          "note": null
+        },
+        {
+          "text": "If you want the speed side of the trade, run the same prompt with ollama run llama3.1:8b --verbose before and after and compare the eval rate it prints. Flash attention changes the attention kernel, and quantized cache values must be dequantized on every read, so the tokens-per-second figure can move in either direction on a CPU box. Measuring tokens per second properly is a few minutes of work and is the only honest answer for your hardware.",
+          "source": "https://www.ssdnodes.com/learn/ollama-kv-cache-quantization",
+          "note": null
+        },
+        {
+          "text": "• Q4_0 - Some noticeable quality reduction, but still usable for those without much vRAM or working on creative tasks where quality is less critical. In early testing, Q4_0 added around 0.206-0.25~ perplexity to the model.",
+          "source": "https://smcleod.net/2024/12/bringing-k/v-context-quantisation-to-ollama/",
+          "note": null
+        },
+        {
+          "text": "Unsupported cache type: q8. The value is passed to the runner as a string and matched exactly. Ollama lowercases it for you, so Q8_0 works, but q8 and int8 do not. Use f16, q8_0 or q4_0, which are the three the Ollama documentation lists.",
+          "source": "https://www.ssdnodes.com/learn/ollama-kv-cache-quantization",
+          "note": null
+        },
+        {
+          "text": "Start Ollama and Q8_0 quantisation will be used for the K/V context cache by default.",
+          "source": "https://smcleod.net/2024/12/bringing-k/v-context-quantisation-to-ollama/",
+          "note": null
+        },
+        {
+          "text": "If you run into issues with quality however - you can simply disable K/V context cache quantisation by setting OLLAMA_KV_CACHE_TYPE environment variable to f16 or not setting it at all. This is even easier if you run Ollama in a container as you can simply run two containers with different configurations (as there's practically no overhead to running multiple containers).",
+          "source": "https://smcleod.net/2024/12/bringing-k/v-context-quantisation-to-ollama/",
+          "note": null
+        },
+        {
+          "text": "The most commonly used quantisation levels for the K/V are Q8_0 and Q4_0, unquantised is referred to as F16 (or F32 although for inference you would not run F32).",
+          "source": "https://smcleod.net/2024/12/bringing-k/v-context-quantisation-to-ollama/",
+          "note": null
+        },
+        {
+          "text": "• Q8_0 - Minimal quality impact for normal text generation models, suitable for most users to be enabled by default. Perplexity measurements on an early implementation showed it added around 0.002-0.05~ perplexity to the model.",
+          "source": "https://smcleod.net/2024/12/bringing-k/v-context-quantisation-to-ollama/",
+          "note": null
+        },
+        {
+          "text": "I recently performed some perplexity measurements comparing Q8_0 and Q4_0 quantisation levels on a Qwen 2.5 Coder 7B model as the Qwen series of models is known to be quite sensitive to quantisation.",
+          "source": "https://smcleod.net/2024/12/bringing-k/v-context-quantisation-to-ollama/",
+          "note": null
+        },
+        {
+          "text": "Note that the ability to set the K/V cache quantisation level in a model's Modelfile was removed from the PR, but I hope that Ollama will reconsider this in the future so people can experiment with different quantisation levels for different models and use cases.",
+          "source": "https://smcleod.net/2024/12/bringing-k/v-context-quantisation-to-ollama/",
+          "note": null
+        },
+        {
+          "text": "K/V context cache quantisation requires Flash Attention to be enabled. Enabling Flash Attention has no negative impacts and is something I expect to become the default behaviour in the near future with Ollama.",
+          "source": "https://smcleod.net/2024/12/bringing-k/v-context-quantisation-to-ollama/",
+          "note": null
+        },
+        {
+          "text": "• HuggingFace's blog post on K/V cache quantisation, which provides a more technical deep dive into the topic in the context of Transformers",
+          "source": "https://smcleod.net/2024/12/bringing-k/v-context-quantisation-to-ollama/",
+          "note": null
+        },
+        {
+          "text": "Qwen3.8 27B KV cache per token (Ollama log, 8,192 cells)64 KiB512 MiB / 8,192 = 64 KiB",
+          "source": "https://computingforgeeks.com/how-much-vram-to-run-llm/",
+          "note": null
+        },
+        {
+          "text": "Llama 2 7B Q4_0, Apple M5 Max118.5 tok/s119.9 tok/sllama.cpp Apple scoreboard",
+          "source": "https://computingforgeeks.com/how-much-vram-to-run-llm/",
+          "note": null
+        },
+        {
+          "text": "KV cache per token for popular 2026 models",
+          "source": "https://computingforgeeks.com/how-much-vram-to-run-llm/",
+          "note": null
+        },
+        {
+          "text": "The formula: weights plus KV cache plus overhead",
+          "source": "https://computingforgeeks.com/how-much-vram-to-run-llm/",
+          "note": null
+        },
+        {
+          "text": "Chartllama3.1:8b: weight file size against f16 KV cache, GiB",
+          "source": "https://www.ssdnodes.com/learn/ollama-kv-cache-quantization",
+          "note": null
+        },
+        {
+          "text": "Copy sudo journalctl -u ollama --since \"5 min ago\" --no-pager | grep -E 'starting llama-server|llama_kv_cache: size|Flash Attention'",
+          "source": "https://www.ssdnodes.com/learn/ollama-kv-cache-quantization",
+          "note": null
+        },
+        {
+          "text": "Ollama sets the key cache and the value cache to the same type; there is no way to quantize one and not the other through this setting. So the practical rule is: q8_0 is the setting you leave on. q4_0 is the setting you test for your task before you trust it. A cheap test is a long document with one specific fact planted in the middle, a question that needs that fact, and the same request at f16 and q4_0 with \"temperature\": 0 in the options. If the answers diverge, that is your task's verdict, and no general benchmark overrides it. Set the cache type back with the same two commands, daemon-rel",
+          "source": "https://www.ssdnodes.com/learn/ollama-kv-cache-quantization",
+          "note": null
+        },
+        {
+          "text": "Copy quantized V cache was requested, but this requires Flash Attention",
+          "source": "https://www.ssdnodes.com/learn/ollama-kv-cache-quantization",
+          "note": null
+        },
+        {
+          "text": "The Ollama FAQ calls its precision loss \"very small\", and its memory is about 53 percent of f16 by the block layout, so for most servers it is the right default. The setting is global, so every model the server loads gets it. Test it once on your own task with \"temperature\": 0 at f16 and at q8_0, and if the outputs match you are done.",
+          "source": "https://www.ssdnodes.com/learn/ollama-kv-cache-quantization",
+          "note": null
+        },
+        {
+          "text": "Is Ollama flash attention on by default?",
+          "source": "https://modelpiper.com/blog/ollama-environment-variables",
+          "note": null
+        },
+        {
+          "text": "OLLAMA_FLASH_ATTENTIONThree-state flash attention overrideunset = automatic where supported1 to force on, 0 to force off",
+          "source": "https://modelpiper.com/blog/ollama-environment-variables",
+          "note": null
+        },
+        {
+          "text": "Frequently Asked Questions Is flash attention enabled by default in Ollama?",
+          "source": "https://modelpiper.com/blog/ollama-environment-variables",
+          "note": null
+        }
+      ]
+    }
+  ],
+  "related": [
+    {
+      "concept": "kv cache",
+      "relation": "is a synonym of Ollama flash attention and KV cache type settings",
+      "note": null
+    },
+    {
+      "concept": "cache type",
+      "relation": "is a synonym of Ollama flash attention and KV cache type settings",
+      "note": null
+    },
+    {
+      "concept": "flash attention",
+      "relation": "is a synonym of Ollama flash attention and KV cache type settings",
+      "note": null
+    },
+    {
+      "concept": "VRAM",
+      "relation": "is a synonym of Ollama flash attention and KV cache type settings",
+      "note": null
+    },
+    {
+      "concept": "quantization",
+      "relation": "is a measure of Ollama flash attention and KV cache type settings",
+      "note": null
+    },
+    {
+      "concept": "GPU",
+      "relation": "is a related of Ollama flash attention and KV cache type settings",
+      "note": null
+    },
+    {
+      "concept": "settings",
+      "relation": "is a part of Ollama flash attention and KV cache type settings",
+      "note": null
+    },
+    {
+      "concept": "context length",
+      "relation": "is a synonym of Ollama flash attention and KV cache type settings",
+      "note": null
+    },
+    {
+      "concept": "num_ctx",
+      "relation": "is a synonym of Ollama flash attention and KV cache type settings",
+      "note": null
+    },
+    {
+      "concept": "backend",
+      "relation": "is a related of Ollama flash attention and KV cache type settings",
+      "note": null
+    },
+    {
+      "concept": "slot",
+      "relation": "is a related of Ollama flash attention and KV cache type settings",
+      "note": null
+    },
+    {
+      "concept": "Q4_K_M",
+      "relation": "is a measure of Ollama flash attention and KV cache type settings",
+      "note": null
+    },
+    {
+      "concept": "layers",
+      "relation": "is a related of Ollama flash attention and KV cache type settings",
+      "note": null
+    },
+    {
+      "concept": "kv cache quantization",
+      "relation": "is a synonym of Ollama flash attention and KV cache type settings",
+      "note": null
+    },
+    {
+      "concept": "CUDA",
+      "relation": "is a synonym of Ollama flash attention and KV cache type settings",
+      "note": null
+    },
+    {
+      "concept": "runner",
+      "relation": "is a part of Ollama flash attention and KV cache type settings",
+      "note": null
+    },
+    {
+      "concept": "ollama ps",
+      "relation": "is a part of Ollama flash attention and KV cache type settings",
+      "note": null
+    },
+    {
+      "concept": "device",
+      "relation": "is a related of Ollama flash attention and KV cache type settings",
+      "note": null
+    },
+    {
+      "concept": "num_parallel",
+      "relation": "is a synonym of Ollama flash attention and KV cache type settings",
+      "note": null
+    },
+    {
+      "concept": "concurrent",
+      "relation": "is a related of Ollama flash attention and KV cache type settings",
+      "note": null
+    }
+  ]
+}

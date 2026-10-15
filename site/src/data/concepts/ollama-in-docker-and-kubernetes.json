@@ -1,0 +1,590 @@
+{
+  "slug": "ollama-in-docker-and-kubernetes",
+  "concept": "Ollama in Docker and Kubernetes",
+  "generated": "2026-10-14",
+  "summary": "* `OLLAMA_MAX_LOADED_MODELS` - The maximum number of models that can be loaded concurrently provided they fit in available memory. The default is 3 \\* the number of GPUs or 3 for CPU inference. * `OLLAMA_NUM_PARALLEL` - The maximum number of parallel requests each model will process at the same time, default 1. Required RAM will scale by `OLLAMA_NUM_PARALLEL` \\* `OLLAMA_CONTEXT_LENGTH`. * `OLLAMA_ (from docs.ollama.com)",
+  "facets": [
+    {
+      "title": "Definitions",
+      "facts": [
+        {
+          "text": "- For questions, suggestions, and discussion about Ollama please refer to the [Ollama issue page](https://github.com/ollama/ollama/issues) - For questions, suggestions, and discussion about this chart please visit [Ollama-Helm issue page](https://github.com/otwld/ollama-helm/issues) or join our [OTWLD Discord](https://discord.gg/U24mpqTynB)",
+          "source": "https://raw.githubusercontent.com/otwld/ollama-helm/main/README.md#support",
+          "note": null
+        },
+        {
+          "text": "GPU acceleration is not available for Docker Desktop in macOS due to the lack of GPU passthrough and emulation.",
+          "source": "https://docs.ollama.com/faq#how-do-i-use-ollama-with-gpu-acceleration-in-docker",
+          "note": null
+        },
+        {
+          "text": "* If you are using a container, is the container runtime working? Try `docker run --gpus all ubuntu nvidia-smi` - if this doesn't work, Ollama won't be able to see your NVIDIA GPU. * Is the uvm driver loaded? `sudo nvidia-modprobe -u` * Try reloading the nvidia\\_uvm driver - `sudo rmmod nvidia_uvm` then `sudo modprobe nvidia_uvm` * Try rebooting * Make sure you're running the latest nvidia drivers",
+          "source": "https://docs.ollama.com/troubleshooting#linux-nvidia-troubleshooting",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "How it works",
+      "facts": [
+        {
+          "text": "* `OLLAMA_MAX_LOADED_MODELS` - The maximum number of models that can be loaded concurrently provided they fit in available memory. The default is 3 \\* the number of GPUs or 3 for CPU inference. * `OLLAMA_NUM_PARALLEL` - The maximum number of parallel requests each model will process at the same time, default 1. Required RAM will scale by `OLLAMA_NUM_PARALLEL` \\* `OLLAMA_CONTEXT_LENGTH`. * `OLLAMA_MAX_QUEUE` - The maximum number of requests Ollama will queue when busy before rejecting additional requests. The default is 512",
+          "source": "https://docs.ollama.com/faq#how-does-ollama-handle-concurrent-requests",
+          "note": null
+        },
+        {
+          "text": "In otwld/ollama-helm persistence is off by default (persistentVolume.enabled=false), so models are lost when the pod is rescheduled unless enabled. When enabled: 30Gi, ReadWriteOnce, mounted at /root/.ollama. The update strategy defaults to Recreate and terminationGracePeriodSeconds to 120. A different community chart (feiskyer) defaults persistence on.",
+          "source": "https://github.com/otwld/ollama-helm",
+          "note": null
+        },
+        {
+          "text": "Kubernetes GPU pods request `nvidia.com/gpu: 1` in limits, usually with a nodeSelector for the GPU node pool and a toleration for the nvidia.com/gpu taint. Replica count is bounded by available GPU nodes, because each pod requests its own GPU.",
+          "source": "https://oneuptime.com/blog/post/2026-02-26-argocd-ollama-deployment/view",
+          "note": null
+        },
+        {
+          "text": "Behind a proxy in Docker, pass `-e HTTPS_PROXY=...` to the container. Do not set HTTP_PROXY, because model pulls use HTTPS only and HTTP_PROXY can break client connections to the server. A self-signed proxy CA must be baked into a derived image with update-ca-certificates.",
+          "source": "https://docs.ollama.com/faq",
+          "note": null
+        },
+        {
+          "text": "The ollama/ollama image bundles Vulkan and enables it by default when the container can see GPU devices. OLLAMA_VULKAN=0 disables it and GGML_VK_VISIBLE_DEVICES selects devices.",
+          "source": "https://docs.ollama.com/docker.md",
+          "note": null
+        },
+        {
+          "text": "The Ollama Docker container image can be configured to use a proxy by passing `-e HTTPS_PROXY=https://proxy.example.com` when starting the container.",
+          "source": "https://docs.ollama.com/faq#how-do-i-use-ollama-behind-a-proxy-in-docker",
+          "note": null
+        },
+        {
+          "text": "Alternatively, you can change the amount of time all models are loaded into memory by setting the `OLLAMA_KEEP_ALIVE` environment variable when starting the Ollama server. The `OLLAMA_KEEP_ALIVE` variable uses the same parameter types as the `keep_alive` parameter types mentioned above. Refer to the section explaining [how to configure the Ollama server](#how-do-i-configure-ollama-server) to correctly set the environment variable.",
+          "source": "https://docs.ollama.com/faq#how-do-i-keep-a-model-loaded-in-memory-or-make-it-unload-immediately",
+          "note": null
+        },
+        {
+          "text": "Vulkan is bundled into the `ollama/ollama` image and is enabled by default when the container can access the GPU devices.",
+          "source": "https://docs.ollama.com/docker.md#vulkan-support",
+          "note": null
+        },
+        {
+          "text": "The single most common mistake with OLLAMA_MODELS is setting it in the wrong process. The ollama CLI is a thin client that talks to the running daemon over HTTP; it does not read models off disk itself. Exporting the variable in the shell where you type ollama list therefore changes nothing — you can point it at a completely empty directory and ollama list will still return the daemon's normal model list, because the daemon never saw your export. The variable has to be set for the server process (the systemd unit, the Windows service, or the shell you run ollama serve in).",
+          "source": "https://localaimaster.com/blog/transfer-ollama-models-offline",
+          "note": null
+        },
+        {
+          "text": "If you are copying to a different drive because C: is small, set OLLAMA_MODELS to the new path in the environment-variable editor and restart Ollama, as the Windows docs describe. If Ollama is not installed on the target at all, skip to machines with no installer. Our Ollama on Windows install guide covers the normal connected path.",
+          "source": "https://localaimaster.com/blog/transfer-ollama-models-offline",
+          "note": null
+        },
+        {
+          "text": "[jorander 2024-06-07T15:24:17Z] This is the code in Ollama setting up the url to use when pulling a model: https://github.com/ollama/ollama/blob/main/server/modelpath.go#L50-L62 It uses a set of default values defined here: https://github.com/ollama/ollama/blob/main/server/modelpath.go#L21-L26",
+          "source": "https://github.com/ollama/ollama/issues/914#comments",
+          "note": null
+        },
+        {
+          "text": "When running in a container, in some Linux distributions and container runtimes, the ollama process may be unable to access the GPU. Use `ls -lnd /dev/kfd /dev/dri /dev/dri/*` on the host system to determine the **numeric** group IDs on your system, and pass additional `--group-add ...` arguments to the container so it can access the required devices. For example, in the following output `crw-rw---- 1 0 44 226, 0 Sep 16 16:55 /dev/dri/card0` the group ID column is `44`",
+          "source": "https://docs.ollama.com/troubleshooting#amd-gpu-discovery",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Parameters and configuration",
+      "facts": [
+        {
+          "text": "extraEnv list [] Additional environments variables on the output Deployment definition. For extra OLLAMA env, please refer to https://github.com/ollama/ollama/blob/main/envconfig/config.go",
+          "source": "https://github.com/otwld/ollama-helm",
+          "note": null
+        },
+        {
+          "text": "ollama.gpu.nvidiaResource string \"nvidia.com/gpu\" only for nvidia cards; change to (example) 'nvidia.com/mig-1g.10gb' to use MIG slice",
+          "source": "https://github.com/otwld/ollama-helm",
+          "note": null
+        },
+        {
+          "text": "ollama.gpu.type string \"nvidia\" GPU type: 'nvidia' or 'amd' If 'ollama.gpu.enabled', default value is nvidia If set to 'amd', this will add 'rocm' suffix to image tag if 'image.tag' is not override This is due cause AMD and CPU/CUDA are different images",
+          "source": "https://github.com/otwld/ollama-helm",
+          "note": null
+        },
+        {
+          "text": "ollama.mountPath string \"\" Override ollama-data volume mount path, default: \"/root/.ollama\"",
+          "source": "https://github.com/otwld/ollama-helm",
+          "note": null
+        },
+        {
+          "text": "persistentVolume.accessModes list [\"ReadWriteOnce\"] Ollama server data Persistent Volume access modes Must match those of existing PV or dynamic provisioner Ref: http://kubernetes.io/docs/user-guide/persistent-volumes/",
+          "source": "https://github.com/otwld/ollama-helm",
+          "note": null
+        },
+        {
+          "text": "persistentVolume.existingClaim string \"\" If you'd like to bring your own PVC for persisting Ollama state, pass the name of the created + ready PVC here. If set, this Chart will not create the default PVC. Requires server.persistentVolume.enabled: true",
+          "source": "https://github.com/otwld/ollama-helm",
+          "note": null
+        },
+        {
+          "text": "persistentVolume.size string \"30Gi\" Ollama server data Persistent Volume size",
+          "source": "https://github.com/otwld/ollama-helm",
+          "note": null
+        },
+        {
+          "text": "persistentVolume.storageClass string \"\" Ollama server data Persistent Volume Storage Class If defined, storageClassName: If set to \"-\", storageClassName: \"\", which disables dynamic provisioning If undefined (the default) or set to null, no storageClassName spec is set, choosing the default provisioner. (gp2 on AWS, standard on GKE, AWS & OpenStack)",
+          "source": "https://github.com/otwld/ollama-helm",
+          "note": null
+        },
+        {
+          "text": "nodeSelector object {} Node labels for pod assignment.",
+          "source": "https://github.com/otwld/ollama-helm",
+          "note": null
+        },
+        {
+          "text": "persistentVolume.enabled bool false Enable persistence using PVC",
+          "source": "https://github.com/otwld/ollama-helm",
+          "note": null
+        },
+        {
+          "text": "resources.limits object {} Pod limit",
+          "source": "https://github.com/otwld/ollama-helm",
+          "note": null
+        },
+        {
+          "text": "tolerations list [] Tolerations for pod assignment",
+          "source": "https://github.com/otwld/ollama-helm",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "How-to and procedures",
+      "facts": [
+        {
+          "text": "To run Ollama using Docker with AMD GPUs, use the `rocm` tag and the following command:",
+          "source": "https://docs.ollama.com/docker.md#amd-gpu",
+          "note": null
+        },
+        {
+          "text": "Set OLLAMA_KEEP_ALIVE - Keep models loaded in memory between requests to avoid reload latency.",
+          "source": "https://oneuptime.com/blog/post/2026-02-26-argocd-ollama-deployment/view",
+          "note": null
+        },
+        {
+          "text": "To relocate the directory entirely — onto an encrypted volume, a bigger disk, or a share — set OLLAMA_MODELS. The FAQ is explicit that on Linux with the standard installer you must then give the service account access:",
+          "source": "https://localaimaster.com/blog/transfer-ollama-models-offline",
+          "note": null
+        },
+        {
+          "text": "Use ReadWriteMany for shared storage - When running multiple replicas, use RWX storage classes so all pods share the model cache.",
+          "source": "https://oneuptime.com/blog/post/2026-02-26-argocd-ollama-deployment/view",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Examples and snippets",
+      "facts": [
+        {
+          "text": "```shell theme={\"system\"} — `docker run -d --device /dev/kfd --device /dev/dri -v ollama:/root/.ollama -p 11434:11434 --name ollama ollama/` …",
+          "source": "https://docs.ollama.com/docker.md#amd-gpu",
+          "note": null
+        },
+        {
+          "text": "```shell theme={\"system\"} — `docker run -d --device /dev/kfd --device /dev/dri -v ollama:/root/.ollama -p 11434:11434 --name ollama ollama/` …",
+          "source": "https://docs.ollama.com/docker.md#vulkan-support",
+          "note": null
+        },
+        {
+          "text": "```shell theme={\"system\"} — `docker build -t ollama-with-ca .` …",
+          "source": "https://docs.ollama.com/faq#how-do-i-use-ollama-behind-a-proxy-in-docker",
+          "note": null
+        },
+        {
+          "text": "- name: NVIDIA_VISIBLE_DEVICES value: all resources: requests: cpu: \"4\" memory: 16Gi nvidia.com/gpu: 1 limits: cpu: \"8\" memory: 32Gi nvidia.com/gpu: 1 volumeMounts: - name: ollama-data mountPath: /root/.ollama nodeSelector: nvidia.com/gpu.product: NVIDIA-A10G tolerations: - key: nvidia.com/gpu operator: Exists effect: NoSchedule volumes: - name: ollama-data persistentVolumeClaim: claimName: ollama-data",
+          "source": "https://oneuptime.com/blog/post/2026-02-26-argocd-ollama-deployment/view",
+          "note": null
+        },
+        {
+          "text": "initContainers: - name: model-preloader image: ollama/ollama:0.24.0 command: - sh - /config/pull-script.sh volumeMounts: - name: ollama-data mountPath: /root/.ollama - name: config mountPath: /config volumes: - name: config configMap: name: ollama-models defaultMode: 0755",
+          "source": "https://oneuptime.com/blog/post/2026-02-26-argocd-ollama-deployment/view",
+          "note": null
+        },
+        {
+          "text": "initContainers: - name: model-preloader image: ollama/ollama:0.24.0 command: - sh - -c - | ollama serve & SERVER_PID=$! sleep 5",
+          "source": "https://oneuptime.com/blog/post/2026-02-26-argocd-ollama-deployment/view",
+          "note": null
+        },
+        {
+          "text": "```shell theme={\"system\"} — `docker run -d --gpus=all -v ollama:/root/.ollama -p 11434:11434 --name ollama ollama/ollama` …",
+          "source": "https://docs.ollama.com/docker.md#start-the-container",
+          "note": null
+        },
+        {
+          "text": "```dockerfile theme={\"system\"} — `FROM ollama/ollama` …",
+          "source": "https://docs.ollama.com/faq#how-do-i-use-ollama-behind-a-proxy-in-docker",
+          "note": null
+        },
+        {
+          "text": "- name: model-preloader image: ollama/ollama:0.24.0 command: - sh - -c - |",
+          "source": "https://oneuptime.com/blog/post/2026-02-26-argocd-ollama-deployment/view",
+          "note": null
+        },
+        {
+          "text": "Quick example of running locally: — ````shell` …",
+          "source": "https://github.com/ollama/ollama/issues/914#comments",
+          "note": null
+        },
+        {
+          "text": "```console — `# -- This pulls the latest version of the ollama chart from the repo.` …",
+          "source": "https://raw.githubusercontent.com/otwld/ollama-helm/main/README.md#upgrading-ollama-chart",
+          "note": null
+        },
+        {
+          "text": "- name: OLLAMA_KEEP_ALIVE value: \"24h\"",
+          "source": "https://oneuptime.com/blog/post/2026-02-26-argocd-ollama-deployment/view",
+          "note": null
+        },
+        {
+          "text": "volumes: - name: ollama-data persistentVolumeClaim: claimName: ollama-shared-data --- apiVersion: v1 kind: PersistentVolumeClaim metadata: name: ollama-shared-data spec: accessModes: - ReadWriteMany resources: requests: storage: 200Gi storageClassName: efs # EFS, NFS, or similar RWX storage",
+          "source": "https://oneuptime.com/blog/post/2026-02-26-argocd-ollama-deployment/view",
+          "note": null
+        },
+        {
+          "text": "```shell theme={\"system\"} — `sudo nvidia-ctk runtime configure --runtime=docker` …",
+          "source": "https://docs.ollama.com/docker.md#configure-docker-to-use-nvidia-driver",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Measurements and reference values",
+      "facts": [
+        {
+          "text": "Concurrency inside one container is governed by env vars: OLLAMA_NUM_PARALLEL (default 1; RAM scales with NUM_PARALLEL x context length), OLLAMA_MAX_LOADED_MODELS (default 3 x GPUs, or 3 on CPU), OLLAMA_MAX_QUEUE (default 512; overflow returns 503), OLLAMA_KEEP_ALIVE (default 5 minutes), and OLLAMA_CONTEXT_LENGTH (default 4096). With GPU inference a new model must fit completely in VRAM to load concurrently.",
+          "source": "https://docs.ollama.com/faq",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Problems, failure modes and limitations",
+      "facts": [
+        {
+          "text": "Ollama stores models on its own local disk, so replicas do not share pulled models. A ReadWriteOnce PVC cannot generally be mounted by pods on different nodes. Scaling beyond one replica needs a per-pod volume (StatefulSet volumeClaimTemplates) or a ReadWriteMany class such as EFS. The ArgoCD guide's own diagram (per-pod PVC) and scaling example (shared RWX) are not reconciled.",
+          "source": "https://oneuptime.com/blog/post/2026-02-26-argocd-ollama-deployment/view",
+          "note": null
+        },
+        {
+          "text": "If too many requests are sent to the server, it will respond with a 503 error indicating the server is overloaded. You can adjust how many requests may be queued by setting `OLLAMA_MAX_QUEUE`.",
+          "source": "https://docs.ollama.com/faq#how-do-i-manage-the-maximum-number-of-requests-the-ollama-server-can-queue",
+          "note": null
+        },
+        {
+          "text": "<Note> If you're running on an NVIDIA JetPack system, Ollama can't automatically discover the correct JetPack version. Pass the environment variable `JETSON_JETPACK=5` or `JETSON_JETPACK=6` to the container to select version 5 or 6. </Note>",
+          "source": "https://docs.ollama.com/docker.md#start-the-container",
+          "note": null
+        },
+        {
+          "text": "On linux, AMD GPU access typically requires `video` and/or `render` group membership to access the `/dev/kfd` device. If permissions are not set up correctly, Ollama will detect this and report an error in the server log.",
+          "source": "https://docs.ollama.com/troubleshooting#amd-gpu-discovery",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Comparisons and alternatives",
+      "facts": [
+        {
+          "text": "A blog init-container example waits a fixed 5 seconds after starting ollama serve rather than polling readiness, and the inline version has no pull-error handling. A fixed sleep can race with slow server start.",
+          "source": "https://oneuptime.com/blog/post/2026-02-26-argocd-ollama-deployment/view",
+          "note": null
+        },
+        {
+          "text": "Scoping: Red Hat benchmarks describe Ollama as suited to local dev and prototyping and vLLM as built for production, reporting a vLLM peak of 793 TPS vs 41 TPS for Ollama and lower P99 latency across 1-256 users. Figures come from a search snippet of a vendor-run benchmark, so only the direction is usable.",
+          "source": "https://developers.redhat.com/articles/2025/08/08/ollama-vs-vllm-deep-dive-performance-benchmarking",
+          "note": null
+        },
+        {
+          "text": "As of October 2026, OLLAMA_NUM_PARALLEL defaults to 1 in the documentation. Each loaded model answers one request at a time, and other requests wait in a queue of up to 512. Past that, the server answers with HTTP 503, which means it is overloaded. Raising OLLAMA_NUM_PARALLEL lets a model serve several requests at once, but the context memory is multiplied by the number of parallel slots, so four slots at 16k tokens need the memory of a 64k context. That is fine for one person and a coding agent. For many users at once, a serving engine built for batching fits better, and Ollama versus vLLM co",
+          "source": "https://www.ssdnodes.com/learn/is-ollama-free-local-vs-cloud",
+          "note": null
+        },
+        {
+          "text": "Everything on this page is either documented by Ollama — the storage paths, the OLLAMA_MODELS variable, the chown requirement on Linux, the import syntax — or falls straight out of how the blob store is built, which is content-addressed in the same way an OCI registry is. Sources are listed at the bottom and attributed inline. Where a claim would need a benchmark or a packet capture to stand up, this page says so rather than asserting it.",
+          "source": "https://localaimaster.com/blog/transfer-ollama-models-offline",
+          "note": null
+        },
+        {
+          "text": "To change where Ollama stores the downloaded models instead of using your home directory, set the environment variable `OLLAMA_MODELS` in your user account.",
+          "source": "https://docs.ollama.com/windows#changing-model-location",
+          "note": null
+        },
+        {
+          "text": "Two notes straight from the docs. If you are upgrading from a prior version, remove the old directories first. And the stated requirements are Windows 10 22H2 or newer, with NVIDIA driver 551.61 or newer for NVIDIA cards, or an AMD ROCm v7 / HIP7-capable driver stack (or a Vulkan-capable Radeon driver) on AMD. Driver installation may itself need admin rights on a locked-down box — that is the part this approach does not solve, and you should check it before promising anyone a delivery date. If no-admin is your actual constraint rather than no-network, that is a different problem with different",
+          "source": "https://localaimaster.com/blog/transfer-ollama-models-offline",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Facts and statements",
+      "facts": [
+        {
+          "text": "otwld/ollama-helm needs Kubernetes 1.16+ for CPU and 1.26+ for stable NVIDIA/AMD GPU. GPU is off by default (ollama.gpu.enabled=false). Type is nvidia or amd; amd appends a rocm suffix to the image tag. The resource defaults to nvidia.com/gpu, can be set to a MIG slice, and DRA (draEnabled) is an alternative to the device plugin. The README warns not all GPUs are supported, especially AMD.",
+          "source": "https://github.com/otwld/ollama-helm",
+          "note": null
+        },
+        {
+          "text": "NVIDIA GPU in Docker needs the NVIDIA Container Toolkit on the host, then `sudo nvidia-ctk runtime configure --runtime=docker`, a Docker restart, and `--gpus=all` on docker run. Docker Desktop on macOS has no GPU passthrough, so GPU acceleration is unavailable there; Linux and Windows with WSL2 are supported.",
+          "source": "https://docs.ollama.com/docker.md",
+          "note": null
+        },
+        {
+          "text": "No official Ollama Kubernetes chart appears in the sources. The community chart otwld/ollama-helm is the common route: install with `helm repo add otwld https://helm.otwld.com/` then `helm install ollama otwld/ollama --namespace ollama --create-namespace`. The registry moved from the old GitHub Pages URL to helm.otwld.com, so old repo references need updating.",
+          "source": "https://github.com/otwld/ollama-helm",
+          "note": null
+        },
+        {
+          "text": "Ollama silently running on CPU in a container is most often missing GPU passthrough (no NVIDIA Container Toolkit or no --gpus). Logs then show 'inference compute id=cpu library=cpu total_vram=\"0 B\"' or 'no compatible GPUs were discovered' (older builds). Device nodes under /dev/nvidia* existing does not guarantee detection.",
+          "source": "https://community.qnap.com/t/ollama-cannot-use-gpu-in-docker-on-qnap-rtx-3090-cuda-init-fails/5739",
+          "note": null
+        },
+        {
+          "text": "AMD GPUs use the `ollama/ollama:rocm` tag with `--device /dev/kfd --device /dev/dri`. JetPack hosts set JETSON_JETPACK=5 or 6.",
+          "source": "https://docs.ollama.com/docker.md",
+          "note": null
+        },
+        {
+          "text": "The Ollama Docker container can be configured with GPU acceleration in Linux or Windows (with WSL2). This requires the [nvidia-container-toolkit](https://github.com/NVIDIA/nvidia-container-toolkit). See [ollama/ollama](https://hub.docker.com/r/ollama/ollama) for more details.",
+          "source": "https://docs.ollama.com/faq#how-do-i-use-ollama-with-gpu-acceleration-in-docker",
+          "note": null
+        },
+        {
+          "text": "4. Edit or create a new variable for your user account for `OLLAMA_HOST`, `OLLAMA_MODELS`, etc.",
+          "source": "https://docs.ollama.com/faq#setting-environment-variables-on-windows",
+          "note": null
+        },
+        {
+          "text": "Knative mode of otwld/ollama-helm needs persistentVolume.enabled=true and three Knative Serving flags (podspec-persistent-volume-claim, podspec-persistent-volume-write, podspec-tolerations). Its bootstrap runs as a non-blocking Job, so helm install/upgrade return before models finish preloading.",
+          "source": "https://github.com/otwld/ollama-helm",
+          "note": null
+        },
+        {
+          "text": "The official image is ollama/ollama. The documented CPU run is `docker run -d -v ollama:/root/.ollama -p 11434:11434 --name ollama ollama/ollama`: models live in /root/.ollama and the API listens on 11434.",
+          "source": "https://docs.ollama.com/docker.md",
+          "note": null
+        },
+        {
+          "text": "If a different directory needs to be used, set the environment variable `OLLAMA_MODELS` to the chosen directory.",
+          "source": "https://docs.ollama.com/faq#how-do-i-set-them-to-a-different-location",
+          "note": null
+        },
+        {
+          "text": "The `keep_alive` API parameter with the `/api/generate` and `/api/chat` API endpoints will override the `OLLAMA_KEEP_ALIVE` setting.",
+          "source": "https://docs.ollama.com/faq#how-do-i-keep-a-model-loaded-in-memory-or-make-it-unload-immediately",
+          "note": null
+        },
+        {
+          "text": "graph TD A[Developers / Applications] --> B[Ingress] B --> C[Ollama Service] C --> D[Ollama Pod 1] C --> E[Ollama Pod 2] D --> F[Model Storage PVC] E --> G[Model Storage PVC] D --> H[GPU] E --> I[GPU]",
+          "source": "https://oneuptime.com/blog/post/2026-02-26-argocd-ollama-deployment/view",
+          "note": null
+        },
+        {
+          "text": "<Note> In environments that don't use Docker Desktop (ie, Linux server installations), `host.docker.internal` is not automatically added.",
+          "source": "https://docs.ollama.com/integrations/n8n#using-ollama-locally",
+          "note": null
+        },
+        {
+          "text": "Note: Windows with Radeon GPUs currently default to 1 model maximum due to limitations in ROCm v5.7 for available VRAM reporting. Once ROCm v6.2 is available, Windows Radeon will follow the defaults above. You may enable concurrent model loads on Radeon on Windows, but ensure you don't load more models than will fit into your GPU's VRAM.",
+          "source": "https://docs.ollama.com/faq#how-does-ollama-handle-concurrent-requests",
+          "note": null
+        },
+        {
+          "text": "> [!IMPORTANT] > We are migrating the registry from https://otwld.github.io/ollama-helm/ url to OTWLD Helm central > registry https://helm.otwld.com/ > Please update your Helm registry accordingly.",
+          "source": "https://raw.githubusercontent.com/otwld/ollama-helm/main/README.md#deploying-ollama-chart",
+          "note": null
+        },
+        {
+          "text": "Make adjustments to your values as needed, then run `helm upgrade`:",
+          "source": "https://raw.githubusercontent.com/otwld/ollama-helm/main/README.md#upgrading-ollama-chart",
+          "note": null
+        },
+        {
+          "text": "On Windows the docs say to set OLLAMA_MODELS through the Settings / Control Panel environment-variable editor and restart Ollama for the change to take effect.",
+          "source": "https://localaimaster.com/blog/transfer-ollama-models-offline",
+          "note": null
+        },
+        {
+          "text": "$env:OLLAMA_MODELS = \"D:\\ollama\\models\" .\\ollama.exe serve",
+          "source": "https://localaimaster.com/blog/transfer-ollama-models-offline",
+          "note": null
+        },
+        {
+          "text": "In a second terminal, .\\ollama.exe list. Remember the client/server rule from earlier: OLLAMA_MODELS matters in the window running serve.",
+          "source": "https://localaimaster.com/blog/transfer-ollama-models-offline",
+          "note": null
+        },
+        {
+          "text": "--network host lets the container reach Ollama on localhost without extra bridge configuration. If Ollama runs on a separate host, replace OLLAMA_HOST with the appropriate address.",
+          "source": "https://www.neteye-blog.com/blog/2026/04/02/monitoring-ollama-in-neteye-with-ollama-metrics-and-check_prometheus/",
+          "note": null
+        },
+        {
+          "text": "scrape_configs: - job_name: \"ollama\" static_configs: - targets: - \"<OLLAMA_HOST>:8080\" labels: instance: \"ollama-01\"",
+          "source": "https://www.neteye-blog.com/blog/2026/04/02/monitoring-ollama-in-neteye-with-ollama-metrics-and-check_prometheus/",
+          "note": null
+        },
+        {
+          "text": "This Community Chart is for deploying [Ollama](https://github.com/ollama/ollama).",
+          "source": "https://raw.githubusercontent.com/otwld/ollama-helm/main/README.md",
+          "note": null
+        },
+        {
+          "text": "First please read the [release notes](https://github.com/ollama/ollama/releases) of Ollama to make sure there are no backwards incompatible changes.",
+          "source": "https://raw.githubusercontent.com/otwld/ollama-helm/main/README.md#upgrading-ollama-chart",
+          "note": null
+        },
+        {
+          "text": "The advisory covers the Go package github.com/ollama/ollama with vulnerable versions below 0.17.1. The first patched version is 0.17.1. It was published 2026-05-04.",
+          "source": "https://github.com/advisories/GHSA-x8qc-fggm-mpqg",
+          "note": null
+        },
+        {
+          "text": "helm repo add otwld https://helm.otwld.com/ helm repo update helm install ollama otwld/ollama --namespace ollama --create-namespace",
+          "source": "https://github.com/otwld/ollama-helm",
+          "note": null
+        },
+        {
+          "text": "helm repo update helm upgrade ollama otwld/ollama --namespace ollama --values values.yaml",
+          "source": "https://github.com/otwld/ollama-helm",
+          "note": null
+        },
+        {
+          "text": "- The Job is non-blocking: `helm install` and `helm upgrade` do not wait for model preload to finish. - The Job name includes a hash of `ollama.models.pull`, `ollama.models.run`, `ollama.models.create`, and `ollama.models.clean`, so changing those settings on upgrade creates a new Job and reruns bootstrap. - Completed bootstrap Jobs are cleaned up according to `knative.modelBootstrap.ttlSecondsAfterFinished`. - Knative bootstrap requires `persistentVolume.enabled=true` so the bootstrap Job and Knative `Service` can share the same model data.",
+          "source": "https://raw.githubusercontent.com/otwld/ollama-helm/main/README.md#model-bootstrap-behavior",
+          "note": null
+        },
+        {
+          "text": "This can impact both installing Ollama, as well as downloading models.",
+          "source": "https://docs.ollama.com/faq#why-is-networking-slow-in-wsl2-on-windows-10",
+          "note": null
+        },
+        {
+          "text": "Open `Control Panel > Networking and Internet > View network status and tasks` and click on `Change adapter settings` on the left panel. Find the `vEthernet (WSL)` adapter, right click and select `Properties`. Click on `Configure` and open the `Advanced` tab. Search through each of the properties until you find `Large Send Offload Version 2 (IPv4)` and `Large Send Offload Version 2 (IPv6)`. *Disable* both of these properties.",
+          "source": "https://docs.ollama.com/faq#why-is-networking-slow-in-wsl2-on-windows-10",
+          "note": null
+        },
+        {
+          "text": "If the new machine has a small system drive, don't copy into the default path at all — set the OLLAMA_MODELS environment variable to somewhere roomier and put the folder there:",
+          "source": "https://llmconfigurator.com/guides/move-ollama-new-computer",
+          "note": null
+        },
+        {
+          "text": "export OLLAMA_MODELS=/mnt/bigdisk/ollama-models",
+          "source": "https://llmconfigurator.com/guides/move-ollama-new-computer",
+          "note": null
+        },
+        {
+          "text": "If ollama_loaded_models stays at 0, confirm that OLLAMA_HOST is reachable from inside the container and that at least one model has been loaded:",
+          "source": "https://www.neteye-blog.com/blog/2026/04/02/monitoring-ollama-in-neteye-with-ollama-metrics-and-check_prometheus/",
+          "note": null
+        },
+        {
+          "text": "3. Edit or create a new variable for your user account for `OLLAMA_MODELS` where you want the models stored",
+          "source": "https://docs.ollama.com/windows#changing-model-location",
+          "note": null
+        },
+        {
+          "text": "```shell theme={\"system\"} curl -fsSL https://nvidia.github.io/libnvidia-container/gpgkey \\ | sudo gpg --dearmor -o /usr/share/keyrings/nvidia-container-toolkit-keyring.gpg curl -fsSL https://nvidia.github.io/libnvidia-container/stable/deb/nvidia-container-toolkit.list \\ | sed 's#deb https://#deb [signed-by=/usr/share/keyrings/nvidia-container-toolkit-keyring.gpg] https://#g' \\ | sudo tee /etc/apt/sources.list.d/nvidia-container-toolkit.list sudo apt-get update ```",
+          "source": "https://docs.ollama.com/docker.md#install-with-apt",
+          "note": null
+        },
+        {
+          "text": "2. Install the NVIDIA Container Toolkit packages",
+          "source": "https://docs.ollama.com/docker.md#install-with-apt",
+          "note": null
+        },
+        {
+          "text": "```shell theme={\"system\"} sudo apt-get install -y nvidia-container-toolkit ```",
+          "source": "https://docs.ollama.com/docker.md#install-with-apt",
+          "note": null
+        },
+        {
+          "text": "```shell theme={\"system\"} curl -fsSL https://nvidia.github.io/libnvidia-container/stable/rpm/nvidia-container-toolkit.repo \\ | sudo tee /etc/yum.repos.d/nvidia-container-toolkit.repo ```",
+          "source": "https://docs.ollama.com/docker.md#install-with-yum-or-dnf",
+          "note": null
+        },
+        {
+          "text": "```shell theme={\"system\"} sudo yum install -y nvidia-container-toolkit ```",
+          "source": "https://docs.ollama.com/docker.md#install-with-yum-or-dnf",
+          "note": null
+        },
+        {
+          "text": "ollama-windows-amd64-rocm.zipAMD ROCm acceleration",
+          "source": "https://localaimaster.com/blog/transfer-ollama-models-offline",
+          "note": null
+        }
+      ]
+    }
+  ],
+  "related": [
+    {
+      "concept": "ollama",
+      "relation": "is a related of Ollama in Docker and Kubernetes",
+      "note": null
+    },
+    {
+      "concept": "helm chart",
+      "relation": "is a part of Ollama in Docker and Kubernetes",
+      "note": null
+    },
+    {
+      "concept": "persistent volume",
+      "relation": "is a part of Ollama in Docker and Kubernetes",
+      "note": null
+    },
+    {
+      "concept": "ollama:rocm",
+      "relation": "is a hyponym of Ollama in Docker and Kubernetes",
+      "note": null
+    },
+    {
+      "concept": "GPU passthrough",
+      "relation": "is a part of Ollama in Docker and Kubernetes",
+      "note": null
+    },
+    {
+      "concept": "nvidia container toolkit",
+      "relation": "is a part of Ollama in Docker and Kubernetes",
+      "note": null
+    },
+    {
+      "concept": "docker desktop",
+      "relation": "is a instance of Ollama in Docker and Kubernetes",
+      "note": null
+    },
+    {
+      "concept": "11434",
+      "relation": "is a related of Ollama in Docker and Kubernetes",
+      "note": null
+    },
+    {
+      "concept": "StatefulSet",
+      "relation": "is a part of Ollama in Docker and Kubernetes",
+      "note": null
+    },
+    {
+      "concept": "jetson",
+      "relation": "is a hyponym of Ollama in Docker and Kubernetes",
+      "note": null
+    },
+    {
+      "concept": "ingress",
+      "relation": "is a part of Ollama in Docker and Kubernetes",
+      "note": null
+    },
+    {
+      "concept": "ArgoCD",
+      "relation": "is a dependent of Ollama in Docker and Kubernetes",
+      "note": null
+    }
+  ]
+}
