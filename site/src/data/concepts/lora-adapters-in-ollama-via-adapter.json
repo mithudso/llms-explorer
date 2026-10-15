@@ -1,0 +1,390 @@
+{
+  "slug": "lora-adapters-in-ollama-via-adapter",
+  "concept": "LoRA adapters in Ollama via ADAPTER",
+  "generated": "2026-10-14",
+  "summary": "Documented PARAMETER defaults on the Modelfile reference: num_ctx 2048, temperature 0.8, seed 0, top_k 40, top_p 0.9, min_p 0.0, repeat_last_n 64 (0 disabled, -1 = num_ctx), num_predict -1 (infinite). stop has no default and is repeated once per pattern. (from docs.ollama.com)",
+  "facets": [
+    {
+      "title": "Definitions",
+      "facts": [
+        {
+          "text": "Documented PARAMETER defaults on the Modelfile reference: num_ctx 2048, temperature 0.8, seed 0, top_k 40, top_p 0.9, min_p 0.0, repeat_last_n 64 (0 disabled, -1 = num_ctx), num_predict -1 (infinite). stop has no default and is repeated once per pattern.",
+          "source": "https://docs.ollama.com/modelfile.md",
+          "note": null
+        },
+        {
+          "text": "Only FROM is required in a Modelfile; PARAMETER, TEMPLATE, SYSTEM, ADAPTER, LICENSE, MESSAGE and REQUIRES are optional. Instructions are case-insensitive and may appear in any order.",
+          "source": "https://docs.ollama.com/modelfile.md",
+          "note": null
+        },
+        {
+          "text": "Hermes specifically is a textbook case of the /v1 problem. Hermes computes a context window for each request and sends num_ctx, but it talks to a local Ollama over the OpenAI-compatible endpoint, so Ollama ignores it and every model loads at the server default. A native /api/chat adapter is in progress upstream (hermes-agent PR #4505), and there's a community stopgap package that reroutes Hermes to the native endpoint until it lands. Until then, OLLAMA_CONTEXT_LENGTH is the fix for Hermes users, full stop.",
+          "source": "https://www.betterclaw.io/blog/ollama-context-window-truncates-agent-config",
+          "note": null
+        },
+        {
+          "text": "Starting from an existing model's definition is the recommended authoring path: `ollama show --modelfile <model>` prints its Modelfile including TEMPLATE and parameters.",
+          "source": "https://crystal-method.com/blog/ollama-modelfile/",
+          "note": null
+        },
+        {
+          "text": "The original pretrained weights are kept frozen, which means you can have multiple lightweight and portable LoRA models for various downstream tasks built on top of them.",
+          "source": "https://huggingface.co/docs/peft/main/en/developer_guides/lora",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Structure and components",
+      "facts": [
+        {
+          "text": "The current docs.ollama.com import page covers only whole-model Safetensors and GGUF import and shows no adapter workflow. The current Modelfile reference source (docs/modelfile.mdx on main) contains no occurrence of 'adapter' or 'lora'. The only documented ADAPTER guidance found is in the older 0.9.0 guide.",
+          "source": "https://docs.ollama.com/import",
+          "note": null
+        },
+        {
+          "text": "Template syntax is model-specific: copying another model's TEMPLATE breaks output, and after replacing TEMPLATE the stop parameters must be reset to that model's special tokens. SYSTEM only takes effect if the TEMPLATE contains a .System block.",
+          "source": "https://docs.ollama.com/modelfile.md",
+          "note": null
+        },
+        {
+          "text": "gathering model components pulling llama3.2:latest pulling manifest pulling model.bin: 100% copying file adapter.bin: 100% writing manifest success",
+          "source": "https://mintlify.wiki/ollama/ollama/cli/create",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "How it works",
+      "facts": [
+        {
+          "text": "TEMPLATE uses Go text/template syntax; documented variables are {{ .System }}, {{ .Prompt }} and {{ .Response }}, and text after {{ .Response }} is omitted when generating. The reference page does not document .Messages, .Tools or .Think.",
+          "source": "https://docs.ollama.com/modelfile.md",
+          "note": null
+        },
+        {
+          "text": "Ollama's guide advises non-quantized (non-QLoRA) adapters, because most frameworks use different quantization methods.",
+          "source": "https://cdn.jsdelivr.net/gh/ollama/ollama@0.9.0/docs/import.md",
+          "note": null
+        },
+        {
+          "text": "LoRA adapters are no longer supported: merge the adapter into the base model before converting, because ADAPTER is gone",
+          "source": "https://jacar.es/en/import-hugging-face-model-into-ollama/",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "How-to and procedures",
+      "facts": [
+        {
+          "text": "To import a Safetensors LoRA adapter, write a Modelfile with FROM <base model name> and ADAPTER /path/to/safetensors/adapter/directory, then run ollama create. ADAPTER . works when the adapter sits beside the Modelfile.",
+          "source": "https://cdn.jsdelivr.net/gh/ollama/ollama@0.9.0/docs/import.md",
+          "note": null
+        },
+        {
+          "text": "To import a GGUF model, create a `Modelfile` containing:",
+          "source": "https://cdn.jsdelivr.net/gh/ollama/ollama@0.9.0/docs/import.md#importing-a-gguf-based-model-or-adapter",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Examples and snippets",
+      "facts": [
+        {
+          "text": "```shell — `ollama create my-model` …",
+          "source": "https://github.com/ollama/ollama/pull/14969",
+          "note": null
+        },
+        {
+          "text": "``` — `usage: llama-export-lora [options]` …",
+          "source": "https://raw.githubusercontent.com/ggml-org/llama.cpp/master/tools/export-lora/README.md",
+          "note": null
+        },
+        {
+          "text": "```dockerfile — `FROM /path/to/file.gguf` …",
+          "source": "https://cdn.jsdelivr.net/gh/ollama/ollama@0.9.0/docs/import.md#importing-a-gguf-based-model-or-adapter",
+          "note": null
+        },
+        {
+          "text": "```dockerfile — `FROM <base model name>` …",
+          "source": "https://cdn.jsdelivr.net/gh/ollama/ollama@0.9.0/docs/import.md#importing-a-fine-tuned-adapter-from-safetensors-weights",
+          "note": null
+        },
+        {
+          "text": "```dockerfile — `FROM <model name>` …",
+          "source": "https://cdn.jsdelivr.net/gh/ollama/ollama@0.9.0/docs/import.md#importing-a-gguf-based-model-or-adapter",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Problems, failure modes and limitations",
+      "facts": [
+        {
+          "text": "Merging a PEFT LoRA into a quantized base re-quantizes the base weight, so repeated merge/unmerge cycles accumulate rounding error; for deployment prefer one merge_and_unload() (assign the returned model) and keep the unmerged adapter, which supports merging offline before an Ollama FROM import as an alternative to ADAPTER.",
+          "source": "https://huggingface.co/docs/peft/main/en/developer_guides/lora",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Facts and statements",
+      "facts": [
+        {
+          "text": "ADAPTER points at a LoRA adapter (GGUF or safetensors) and requires FROM to name the base model the adapter was tuned on; a mismatched base gives unstable behavior. The official Modelfile reference page fetched here has no ADAPTER section, and the import page does not cover it.",
+          "source": "https://crystal-method.com/blog/ollama-modelfile/",
+          "note": null
+        },
+        {
+          "text": "FROM accepts an existing library model (name:tag), a safetensors model directory, or a GGUF file path (absolute or relative to the Modelfile). Split GGUF is supported with a wildcard (FROM ./model-*.gguf) or one FROM line per shard.",
+          "source": "https://docs.ollama.com/modelfile.md",
+          "note": null
+        },
+        {
+          "text": "For a GGUF adapter, write FROM <model name> and ADAPTER /path/to/file.gguf. FROM may be an Ollama model, a GGUF file or a Safetensors model. A GGUF adapter comes from llama.cpp's convert_lora_to_gguf.py or a download such as Hugging Face.",
+          "source": "https://cdn.jsdelivr.net/gh/ollama/ollama@0.9.0/docs/import.md",
+          "note": null
+        },
+        {
+          "text": "* converting a Safetensors model with the `convert_hf_to_gguf.py` from Llama.cpp; * converting a Safetensors adapter with the `convert_lora_to_gguf.py` from Llama.cpp; or * downloading a model or adapter from a place such as HuggingFace",
+          "source": "https://cdn.jsdelivr.net/gh/ollama/ollama@0.9.0/docs/import.md#importing-a-gguf-based-model-or-adapter",
+          "note": null
+        },
+        {
+          "text": "REQUIRES <version> sets the minimum Ollama version (example 0.14.0), and a CAPABILITY instruction adds capabilities to GGUF/MLX models; the reference page also lists a draft_num_predict parameter (4 for separate draft models, 0 disables speculative drafting). These are recent additions.",
+          "source": "https://docs.ollama.com/modelfile.md",
+          "note": null
+        },
+        {
+          "text": "The Modelfile reference documents num_ctx default 2048, while the Ollama FAQ says the default context window is 4096 tokens. OLLAMA_CONTEXT_LENGTH overrides the server default; per-request num_ctx goes in the API options object, and PARAMETER num_ctx bakes it into a model.",
+          "source": "https://docs.ollama.com/modelfile.md",
+          "note": null
+        },
+        {
+          "text": "SYSTEM and LICENSE take triple-quoted text (SYSTEM \"\"\"...\"\"\"). LICENSE records license text in the model; the build/run commands are `ollama create <name> -f ./Modelfile` then `ollama run <name>`.",
+          "source": "https://docs.ollama.com/modelfile.md",
+          "note": null
+        },
+        {
+          "text": "Per the 0.9.0 import guide, Safetensors adapters are supported for Llama (2, 3, 3.1, 3.2), Mistral (1, 2, Mixtral) and Gemma (1, 2) architectures. Adapters can be produced by Hugging Face training, Unsloth or MLX.",
+          "source": "https://cdn.jsdelivr.net/gh/ollama/ollama@0.9.0/docs/import.md",
+          "note": null
+        },
+        {
+          "text": "Make sure that you use the same base model in the `FROM` command as you used to create the adapter otherwise you will get erratic results. Most frameworks use different quantization methods, so it's best to use non-quantized (i.e. non-QLoRA) adapters. If your adapter is in the same directory as your `Modelfile`, use `ADAPTER .` to specify the adapter path.",
+          "source": "https://cdn.jsdelivr.net/gh/ollama/ollama@0.9.0/docs/import.md#importing-a-fine-tuned-adapter-from-safetensors-weights",
+          "note": null
+        },
+        {
+          "text": "llama.cpp ships an export-lora tool that applies one or more LoRA adapters (--lora, comma-separated, or --lora-scaled FNAME:SCALE) to a base model and writes a merged GGUF, f16 by default. This is an alternative to ADAPTER: merge offline, then import the merged file with plain FROM.",
+          "source": "https://raw.githubusercontent.com/ggml-org/llama.cpp/master/tools/export-lora/README.md",
+          "note": null
+        },
+        {
+          "text": "Once you have created your `Modelfile`, use the `ollama create` command to build the model.",
+          "source": "https://github.com/ollama/ollama/pull/14969",
+          "note": null
+        },
+        {
+          "text": "Now run `ollama create` from the directory where the `Modelfile` was created:",
+          "source": "https://cdn.jsdelivr.net/gh/ollama/ollama@0.9.0/docs/import.md#importing-a-fine-tuned-adapter-from-safetensors-weights",
+          "note": null
+        },
+        {
+          "text": "No. The ADAPTER instruction returns LoRA adapters are no longer supported and no longer appears in the Modelfile reference. The way out is to merge the adapter into the base model and convert the result to GGUF.",
+          "source": "https://jacar.es/en/import-hugging-face-model-into-ollama/",
+          "note": null
+        },
+        {
+          "text": "MESSAGE <role> <text> seeds conversation history; valid roles are system, user and assistant, and repeating it builds a few-shot example conversation. MESSAGE system is an alternative to SYSTEM.",
+          "source": "https://docs.ollama.com/modelfile.md",
+          "note": null
+        },
+        {
+          "text": "The FROM base must be the same base model used to train the adapter. Otherwise results are erratic. The same rule is stated for GGUF adapters.",
+          "source": "https://cdn.jsdelivr.net/gh/ollama/ollama@0.9.0/docs/import.md",
+          "note": null
+        },
+        {
+          "text": "* a model from Ollama * a GGUF file * a Safetensors based model",
+          "source": "https://cdn.jsdelivr.net/gh/ollama/ollama@0.9.0/docs/import.md#importing-a-gguf-based-model-or-adapter",
+          "note": null
+        },
+        {
+          "text": "必須命令はFROMのみ。他の7命令（PARAMETER / TEMPLATE / SYSTEM / ADAPTER / LICENSE / MESSAGE / REQUIRES）は任意",
+          "source": "https://crystal-method.com/blog/ollama-modelfile/",
+          "note": null
+        },
+        {
+          "text": "First, create a `Modelfile` with a `FROM` command pointing at the base model you used for fine tuning, and an `ADAPTER` command which points to the directory with your Safetensors adapter:",
+          "source": "https://cdn.jsdelivr.net/gh/ollama/ollama@0.9.0/docs/import.md#importing-a-fine-tuned-adapter-from-safetensors-weights",
+          "note": null
+        },
+        {
+          "text": "For a GGUF adapter, create the `Modelfile` with:",
+          "source": "https://cdn.jsdelivr.net/gh/ollama/ollama@0.9.0/docs/import.md#importing-a-gguf-based-model-or-adapter",
+          "note": null
+        },
+        {
+          "text": "ADAPTER in the Modelfile Reads the adapter file LoRA adapters are no longer supported",
+          "source": "https://jacar.es/en/import-hugging-face-model-into-ollama/",
+          "note": null
+        },
+        {
+          "text": "Can I import a LoRA adapter in Ollama 0.34.1?",
+          "source": "https://jacar.es/en/import-hugging-face-model-into-ollama/",
+          "note": null
+        },
+        {
+          "text": "On Linux without MLX, importing safetensors fails with MLX runtime is not available, and ADAPTER and typical_p are no longer accepted.",
+          "source": "https://jacar.es/en/import-hugging-face-model-into-ollama/",
+          "note": null
+        },
+        {
+          "text": "FROM llama3.2 ADAPTER ./ollama-lora.gguf",
+          "source": "https://crystal-method.com/blog/ollama-modelfile/",
+          "note": null
+        },
+        {
+          "text": "Apply LORA adapters to base model and export the resulting model.",
+          "source": "https://raw.githubusercontent.com/ggml-org/llama.cpp/master/tools/export-lora/README.md",
+          "note": null
+        },
+        {
+          "text": "Multiple LORA adapters can be applied by passing comma-separated values to `--lora FNAME` or `--lora-scaled FNAME:SCALE,...`:",
+          "source": "https://raw.githubusercontent.com/ggml-org/llama.cpp/master/tools/export-lora/README.md",
+          "note": null
+        },
+        {
+          "text": "Yes. Hermes sends num_ctx but talks to local Ollama over /v1, so the value is ignored and the model loads at the server default. A native adapter is in progress upstream. Until it ships, set OLLAMA_CONTEXT_LENGTH on the server; the Hermes-side context setting alone will not fix it.",
+          "source": "https://www.betterclaw.io/blog/ollama-context-window-truncates-agent-config",
+          "note": null
+        },
+        {
+          "text": "We should just deprecate this for now since LoRAs aren't supported.",
+          "source": "https://github.com/ollama/ollama/pull/14969",
+          "note": null
+        },
+        {
+          "text": "LoRA is orthogonal to other parameter-efficient methods and can be combined with many of them.",
+          "source": "https://huggingface.co/docs/peft/main/en/developer_guides/lora",
+          "note": null
+        },
+        {
+          "text": "Performance of models finetuned using LoRA is comparable to the performance of fully finetuned models.",
+          "source": "https://huggingface.co/docs/peft/main/en/developer_guides/lora",
+          "note": null
+        },
+        {
+          "text": "r (int) — Lora attention dimension (the “rank”).",
+          "source": "https://huggingface.co/docs/peft/main/en/developer_guides/lora",
+          "note": null
+        }
+      ]
+    }
+  ],
+  "related": [
+    {
+      "concept": "ADAPTER",
+      "relation": "is a part of LoRA adapters in Ollama via ADAPTER",
+      "note": null
+    },
+    {
+      "concept": "PARAMETER",
+      "relation": "is a part of LoRA adapters in Ollama via ADAPTER",
+      "note": null
+    },
+    {
+      "concept": "TEMPLATE",
+      "relation": "is a part of LoRA adapters in Ollama via ADAPTER",
+      "note": null
+    },
+    {
+      "concept": "SYSTEM",
+      "relation": "is a related of LoRA adapters in Ollama via ADAPTER",
+      "note": null
+    },
+    {
+      "concept": "MESSAGE",
+      "relation": "is a related of LoRA adapters in Ollama via ADAPTER",
+      "note": null
+    },
+    {
+      "concept": "ollama create",
+      "relation": "is a part of LoRA adapters in Ollama via ADAPTER",
+      "note": null
+    },
+    {
+      "concept": "num_ctx",
+      "relation": "is a part of LoRA adapters in Ollama via ADAPTER",
+      "note": null
+    },
+    {
+      "concept": "REQUIRES",
+      "relation": "is a related of LoRA adapters in Ollama via ADAPTER",
+      "note": null
+    },
+    {
+      "concept": "llama.cpp",
+      "relation": "is a related of LoRA adapters in Ollama via ADAPTER",
+      "note": null
+    },
+    {
+      "concept": "MLX",
+      "relation": "is a related of LoRA adapters in Ollama via ADAPTER",
+      "note": null
+    },
+    {
+      "concept": "convert_lora_to_gguf",
+      "relation": "is a instance of LoRA adapters in Ollama via ADAPTER",
+      "note": null
+    },
+    {
+      "concept": "hf.co",
+      "relation": "is a instance of LoRA adapters in Ollama via ADAPTER",
+      "note": null
+    },
+    {
+      "concept": "context window",
+      "relation": "is a part of LoRA adapters in Ollama via ADAPTER",
+      "note": null
+    },
+    {
+      "concept": "/api/chat",
+      "relation": "is a part of LoRA adapters in Ollama via ADAPTER",
+      "note": null
+    },
+    {
+      "concept": "PEFT",
+      "relation": "is a related of LoRA adapters in Ollama via ADAPTER",
+      "note": null
+    },
+    {
+      "concept": "export-lora",
+      "relation": "is a instance of LoRA adapters in Ollama via ADAPTER",
+      "note": null
+    },
+    {
+      "concept": "convert_hf_to_gguf",
+      "relation": "is a instance of LoRA adapters in Ollama via ADAPTER",
+      "note": null
+    },
+    {
+      "concept": "manifest",
+      "relation": "is a part of LoRA adapters in Ollama via ADAPTER",
+      "note": null
+    },
+    {
+      "concept": "think",
+      "relation": "is a part of LoRA adapters in Ollama via ADAPTER",
+      "note": null
+    },
+    {
+      "concept": "library tags",
+      "relation": "is a part of LoRA adapters in Ollama via ADAPTER",
+      "note": null
+    }
+  ]
+}

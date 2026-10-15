@@ -1,0 +1,390 @@
+{
+  "slug": "ollama-model-registry-and-library-tags-and-on-disk-blob-and-manifest-storage",
+  "concept": "Ollama model registry and library tags and on-disk blob and manifest storage",
+  "generated": "2026-10-14",
+  "summary": "Everything the scanned sources say about Ollama model registry and library tags and on-disk blob and manifest storage: 58 source-anchored units across 6 sources, grouped by facet.",
+  "facets": [
+    {
+      "title": "Definitions",
+      "facts": [
+        {
+          "text": "The store is content-addressed: every filename is the sha256 of that file's contents, and manifests/ holds the JSON that says which blobs make up which model. A real manifest, from ~/.ollama/models/manifests/registry.ollama.ai/library/gemma3/270m:",
+          "source": "https://localaimaster.com/blog/ollama-digest-mismatch",
+          "note": null
+        },
+        {
+          "text": "The path it prints is the model: .../registry.ollama.ai/library/llama3.3/latest. On Windows, Select-String -Path \"$env:USERPROFILE\\.ollama\\models\\manifests\\*\" -Pattern \"4824460d29f2\" -Recurse does the same job.",
+          "source": "https://localaimaster.com/blog/ollama-digest-mismatch",
+          "note": null
+        },
+        {
+          "text": "If it is the machine: move the models directory to a different local disk with OLLAMA_MODELS and retry there before you touch anything else.",
+          "source": "https://localaimaster.com/blog/ollama-digest-mismatch",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Structure and components",
+      "facts": [
+        {
+          "text": "{ \"schemaVersion\": 2, \"mediaType\": \"application/vnd.docker.distribution.manifest.v2+json\", \"config\": { \"mediaType\": \"application/vnd.docker.container.image.v1+json\", \"digest\": \"sha256:74156d92caf6d17ac05e9ad7b3eab0a2123f6bce4150f715ebd92e0c3af6cad1\", \"size\": 490 }, \"layers\": [ { \"mediaType\": \"application/vnd.ollama.image.model\", \"digest\": \"sha256:735af2139dc652bf01112746474883d79a52fa1c19038265d363e3d42556f7a2\", \"size\": 291545472 }, { \"mediaType\": \"application/vnd.ollama.image.template\", \"digest\": \"sha256:4b19ac7dd2fb1ab2f2818b73454c5a9128ca39875a8fcf686a6b1c36100a0d68\", \"size\": 476 }, { \"medi",
+          "source": "https://localaimaster.com/blog/ollama-digest-mismatch",
+          "note": null
+        },
+        {
+          "text": "The downloaded layer's sha256 does not match the digest the model manifest promised. Ollama hashes each blob after downloading it and refuses any file whose contents do not match its own filename, because the blob store is content-addressed. The full string includes both values — want is what the manifest expects, got is what your file actually hashes to.",
+          "source": "https://localaimaster.com/blog/ollama-digest-mismatch",
+          "note": null
+        },
+        {
+          "text": "Do not rm -rf the blobs directory. Blobs are shared across models — the template, params, license and config layers are tiny files that many models reference, and a large model file you already have is a multi-gigabyte download you would be throwing away for no reason. Deleting one 42GB blob costs you 42GB; deleting the directory can cost you hundreds.",
+          "source": "https://localaimaster.com/blog/ollama-digest-mismatch",
+          "note": null
+        },
+        {
+          "text": "That true is the cache hit, and PullModel in server/images.go uses it to set skipVerify[layer.Digest], which excludes that layer from the verification loop entirely. So a corrupt file that reached its final blob name is invisible: the pull prints pulling 4824460d29f2… 100%, then verifying sha256 digest, then success, and the bad bytes stay exactly where they are.",
+          "source": "https://localaimaster.com/blog/ollama-digest-mismatch",
+          "note": null
+        },
+        {
+          "text": "One of the challenges in rewriting manifests to the old format is that the old format involves an image configuration for each layer in the manifest, but the new format only provides one image configuration. To work around this, the registry will create synthetic image configurations for all layers except the top layer. These image configurations will not result in runnable images on their own, but only serve to fill in the parent chain in a compatible way. The IDs in these synthetic configurations will be derived from hashes of their respective blobs. The registry will create these configurat",
+          "source": "https://distribution.github.io/distribution/spec/manifest-v2-2/",
+          "note": null
+        },
+        {
+          "text": "if err := verifyBlob(layer.Digest); err != nil { if errors.Is(err, errDigestMismatch) { fp, err := manifest.BlobsPath(layer.Digest) ... if err := os.Remove(fp); err != nil { slog.Info(fmt.Sprintf(\"couldn't remove file with digest mismatch '%s': %v\", fp, err)) } } return err }",
+          "source": "https://localaimaster.com/blog/ollama-digest-mismatch",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "How it works",
+      "facts": [
+        {
+          "text": "Deleting the blob is the mechanical fix. It is not the whole answer, because something produced those wrong bytes and it will do it again. The rest of this page is the diagnosis: one question — does the got digest change between attempts? — splits every report on the tracker into two groups with completely different causes, and the rest follows from that.",
+          "source": "https://localaimaster.com/blog/ollama-digest-mismatch",
+          "note": null
+        },
+        {
+          "text": "The proposed fix, #17537 (\"server: verify blob digest before trusting a same-size cache hit\"), makes both pull paths hash a candidate blob before trusting it. It states the root cause in one line: both paths \"use a filename-as-hash content-addressed blob store, but neither one actually confirmed the filename matched the content before skipping a re-download.\" It was open and unmerged when this was written. Until it lands, deleting the file yourself is not a workaround — it is the supported way to invalidate a cache entry.",
+          "source": "https://localaimaster.com/blog/ollama-digest-mismatch",
+          "note": null
+        },
+        {
+          "text": "The PR is explicit about why this is worth naming separately: \"The empty blob is caught later by verifyBlob, so nothing corrupt gets stored, but the user sees a digest mismatch. That reads like a corrupted or tampered blob when the actual cause is a registry that did not report a size, which sends you looking in entirely the wrong place.\"",
+          "source": "https://localaimaster.com/blog/ollama-digest-mismatch",
+          "note": null
+        },
+        {
+          "text": "No. It only disables the startup sweep that removes partial downloads and unreferenced blobs, and it has no effect on digest verification. It is useful when you want a half-finished download or a blob you are inspecting to survive a server restart, not when you want a corrupt one repaired.",
+          "source": "https://localaimaster.com/blog/ollama-digest-mismatch",
+          "note": null
+        },
+        {
+          "text": "Point the models directory at a different disk and pull there. OLLAMA_MODELS=/some/other/disk/models on the server process — not your shell — and re-run. If it verifies on one disk and not another, you are done diagnosing.",
+          "source": "https://localaimaster.com/blog/ollama-digest-mismatch",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "How-to and procedures",
+      "facts": [
+        {
+          "text": "To change sampling parameters, create a file named `params` in the repository. The file must be in JSON format. For the list of all available parameters, please refer to [this documentation](https://github.com/ollama/ollama/blob/main/docs/modelfile.mdx#parameter).",
+          "source": "https://huggingface.co/docs/hub/ollama#custom-chat-template-and-parameters",
+          "note": null
+        },
+        {
+          "text": "To know more about the Go template format, please refer to [this documentation](https://github.com/ollama/ollama/blob/main/docs/template.mdx)",
+          "source": "https://huggingface.co/docs/hub/ollama#custom-chat-template-and-parameters",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Examples and snippets",
+      "facts": [
+        {
+          "text": "``` — `# Modelfile generated by \"ollama show\"` …",
+          "source": "https://docs.ollama.com/modelfile.md#basic-modelfile",
+          "note": null
+        },
+        {
+          "text": "```shell — `curl -I http://localhost:11434/api/blobs/sha256:29fdb92e57cf0827ded04ae6461b5931d01fa595843f55d36f5b275a52087d` …",
+          "source": "https://raw.githubusercontent.com/ollama/ollama/main/docs/api.md#request",
+          "note": null
+        },
+        {
+          "text": "```shell — `HEAD /api/blobs/:digest` …",
+          "source": "https://raw.githubusercontent.com/ollama/ollama/main/docs/api.md#check-if-a-blob-exists",
+          "note": null
+        },
+        {
+          "text": "``` — `POST /api/blobs/:digest` …",
+          "source": "https://raw.githubusercontent.com/ollama/ollama/main/docs/api.md#push-a-blob",
+          "note": null
+        },
+        {
+          "text": "```json — `\"status\": \"verifying sha256 digest\"` …",
+          "source": "https://raw.githubusercontent.com/ollama/ollama/main/docs/api.md#response",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Problems, failure modes and limitations",
+      "facts": [
+        {
+          "text": "PR #15489 chased the same pattern much further, and its findings are the single most useful thing on the tracker for this class of failure. On a machine with a reproducible mismatch, the author confirmed that the bytes on the wire were correct — an inline sha256 tee'd off the HTTP response body during download matched the expected digest, and curl piped to sha256sum against the same URL also matched. The blob was even functional: ollama run on it loaded and generated coherent text. But re-reading the file from disk with sha256sum, with io.Copy(sha256.New(), f) and with several other approaches",
+          "source": "https://localaimaster.com/blog/ollama-digest-mismatch",
+          "note": null
+        },
+        {
+          "text": "/Ollama Digest Mismatch Error: Delete One Bad Blob",
+          "source": "https://localaimaster.com/blog/ollama-digest-mismatch",
+          "note": null
+        },
+        {
+          "text": "Ollama Digest Mismatch Error: Delete One Bad Blob",
+          "source": "https://localaimaster.com/blog/ollama-digest-mismatch",
+          "note": null
+        },
+        {
+          "text": "Delete the single blob named after the want digest, then pull again. The error prints want sha256:abc123…; the file is at <models>/blobs/sha256-abc123… — same string, colon swapped for a hyphen. That is the whole mapping, and it means you never need to wipe the blobs directory. The reason retrying alone so often changes nothing is that downloadBlob() in server/download.go treats any file already sitting at the blob path as a cache hit — it calls os.Stat and nothing else — which then sets skipVerify for that layer, so the corrupt file is neither re-hashed nor replaced. Remove the file, and the",
+          "source": "https://localaimaster.com/blog/ollama-digest-mismatch",
+          "note": null
+        },
+        {
+          "text": "func BlobsPath(digest string) (string, error) { // only accept actual sha256 digests pattern := \"^sha256[:-][0-9a-fA-F]{64}$\" ... digest = strings.ReplaceAll(digest, \":\", \"-\") path := filepath.Join(envconfig.Models(), \"blobs\", digest) ... }",
+          "source": "https://localaimaster.com/blog/ollama-digest-mismatch",
+          "note": null
+        },
+        {
+          "text": "So if the mismatch happened on a fresh download, the blob is deleted for you and a retry starts clean. If you are seeing the same error over and over anyway, either the removal failed (that couldn't remove file with digest mismatch line will be in the server log — usually a permissions problem on a Linux install where the daemon runs as the ollama user) or the same wrong bytes are arriving every time. Which brings us to the diagnostic that matters.",
+          "source": "https://localaimaster.com/blog/ollama-digest-mismatch",
+          "note": null
+        },
+        {
+          "text": "If the blob verifies by hand but run still fails, you are no longer debugging a digest mismatch — go to Ollama 500 Internal Server Error and read the server log.",
+          "source": "https://localaimaster.com/blog/ollama-digest-mismatch",
+          "note": null
+        },
+        {
+          "text": "func verifyBlob(digest string) error { fp, err := manifest.BlobsPath(digest) ... fileDigest, _ := GetSHA256Digest(f) if digest != fileDigest { return fmt.Errorf(\"%w: want %s, got %s\", errDigestMismatch, digest, fileDigest) } return nil }",
+          "source": "https://localaimaster.com/blog/ollama-digest-mismatch",
+          "note": null
+        },
+        {
+          "text": "There is one adjacent behaviour worth knowing, because it produces a confusing log line. If manifest.Manifests() cannot parse your manifests, the server logs corrupt manifests detected, skipping prune operation. Re-pull or delete to clear and skips the sweep entirely. A truncated or zero-length manifest file — the same VM-hang or disk-full scenario that damages blobs — will do that, and no amount of blob deletion fixes a broken manifest. Delete the offending file under manifests/ and pull the model again.",
+          "source": "https://localaimaster.com/blog/ollama-digest-mismatch",
+          "note": null
+        },
+        {
+          "text": "If you moved the directory with OLLAMA_MODELS and are not certain the server agrees with you about where it is, that is a separate failure with its own per-platform traps — see OLLAMA_MODELS not working before you go hunting for files that are not there.",
+          "source": "https://localaimaster.com/blog/ollama-digest-mismatch",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Comparisons and alternatives",
+      "facts": [
+        {
+          "text": "To change where Ollama stores the downloaded models instead of using your home directory, set the environment variable `OLLAMA_MODELS` in your user account.",
+          "source": "https://docs.ollama.com/windows#changing-model-location",
+          "note": null
+        },
+        {
+          "text": "Non-deterministic corruption, which is almost always local rather than on the network — a network transform would repeat byte-for-byte. PR #15489 traced one such case and found the bytes arriving over HTTP were correct while re-reading the same file from disk produced a different wrong hash each time. Move the models directory to a different local disk with OLLAMA_MODELS and retry there before investigating anything else.",
+          "source": "https://localaimaster.com/blog/ollama-digest-mismatch",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Facts and statements",
+      "facts": [
+        {
+          "text": "- `digest`: the SHA256 digest of the blob",
+          "source": "https://raw.githubusercontent.com/ollama/ollama/main/docs/api.md#query-parameters",
+          "note": null
+        },
+        {
+          "text": "- `digest`: the expected SHA256 digest of the file",
+          "source": "https://raw.githubusercontent.com/ollama/ollama/main/docs/api.md#query-parameters",
+          "note": null
+        },
+        {
+          "text": "FROM ~/.ollama/models/blobs/sha256-00e1317cbf74d901080d7100f57580ba8dd8de57203072dc6f668324ba545f29 TEMPLATE \"\"\"{{ if .System }}<|start_header_id|>system<|end_header_id|>",
+          "source": "https://docs.ollama.com/modelfile",
+          "note": null
+        },
+        {
+          "text": "Take the digest after want, replace the colon with a hyphen, and look for that filename in the blobs directory. That is not a heuristic; it is literally what manifest.BlobsPath() does:",
+          "source": "https://localaimaster.com/blog/ollama-digest-mismatch",
+          "note": null
+        },
+        {
+          "text": "What it changes is startup housekeeping. On boot, Serve() runs PruneLayers() unless the variable is set, and that function walks blobs/, converts - back to : in each filename, and removes any file that will not parse as a valid digest — the source comment reads \"remove invalid blobs (e.g. partial downloads)\" — subject to a one-hour grace period on the file's modification time. Anything left over that no manifest references then gets deleted too.",
+          "source": "https://localaimaster.com/blog/ollama-digest-mismatch",
+          "note": null
+        },
+        {
+          "text": "* \"https://github.com/ollama/ollama/blob/main/docs/modelfile.md#valid-parameters-and-values\">Ollama",
+          "source": "https://github.com/spring-projects/spring-ai/pull/4821/files",
+          "note": null
+        },
+        {
+          "text": "Issue #9846 is titled with that exact digest — a Windows user on 0.6.1 whose got was e3b0c442…, with a server log showing POST \"/api/pull\" returning 200 in 5.76 seconds. A multi-gigabyte model does not download in under six seconds. Nothing was downloaded at all.",
+          "source": "https://localaimaster.com/blog/ollama-digest-mismatch",
+          "note": null
+        },
+        {
+          "text": "3. Edit or create a new variable for your user account for `OLLAMA_MODELS` where you want the models stored",
+          "source": "https://docs.ollama.com/windows#changing-model-location",
+          "note": null
+        },
+        {
+          "text": "The config field references a configuration object for a container, by digest. This configuration item is a JSON blob that the runtime uses to set up the container. This new schema uses a tweaked version of this configuration to allow image content-addressability on the daemon side.",
+          "source": "https://distribution.github.io/distribution/spec/manifest-v2-2/",
+          "note": null
+        },
+        {
+          "text": "Return 201 Created if the blob was successfully created, 400 Bad Request if the digest used is not expected.",
+          "source": "https://raw.githubusercontent.com/ollama/ollama/main/docs/api.md#response",
+          "note": null
+        },
+        {
+          "text": "// ValidateDigest reports whether digest names a blob.",
+          "source": "https://github.com/ollama/ollama/blob/main/manifest/paths.go",
+          "note": null
+        },
+        {
+          "text": "// DigestReferenceName returns the local blob digest for names that are the",
+          "source": "https://github.com/ollama/ollama/blob/main/manifest/paths.go",
+          "note": null
+        },
+        {
+          "text": "// the empty digest names the blobs directory",
+          "source": "https://github.com/ollama/ollama/blob/main/manifest/paths.go",
+          "note": null
+        },
+        {
+          "text": "path := filepath.Join(envconfig.Models(), \"blobs\", digest)",
+          "source": "https://github.com/ollama/ollama/blob/main/manifest/paths.go",
+          "note": null
+        },
+        {
+          "text": "Not where most people put it. OLLAMA_NOPRUNE is a boolean the server reads at startup, described in envconfig/config.go as \"Do not prune model blobs on startup.\" Setting it does not make verification stricter, does not repair anything and does not affect the digest check at all.",
+          "source": "https://localaimaster.com/blog/ollama-digest-mismatch",
+          "note": null
+        },
+        {
+          "text": "Take the digest after want, swap the colon for a hyphen, and delete that filename from the blobs folder inside your models directory — ~/.ollama/models/blobs/sha256-abc123… on macOS, /usr/share/ollama/.ollama/models/blobs/ on a standard Linux install. Blobs are shared between models, so wiping the directory throws away downloads that were never broken.",
+          "source": "https://localaimaster.com/blog/ollama-digest-mismatch",
+          "note": null
+        },
+        {
+          "text": "// a manifest spells a digest with \":\", a filename with \"-\"",
+          "source": "https://github.com/ollama/ollama/blob/main/manifest/paths.go",
+          "note": null
+        },
+        {
+          "text": "// DigestReference parses a bare local manifest blob reference in sha256-<hex>",
+          "source": "https://github.com/ollama/ollama/blob/main/manifest/paths.go",
+          "note": null
+        },
+        {
+          "text": "// ResolveDigestReference resolves a local manifest blob reference in sha256-hex,",
+          "source": "https://github.com/ollama/ollama/blob/main/manifest/paths.go",
+          "note": null
+        },
+        {
+          "text": "// IsDigestReferenceName reports whether n names a local manifest blob instead",
+          "source": "https://github.com/ollama/ollama/blob/main/manifest/paths.go",
+          "note": null
+        },
+        {
+          "text": "4. Edit or create a new variable for your user account for `OLLAMA_HOST`, `OLLAMA_MODELS`, etc.",
+          "source": "https://docs.ollama.com/faq#setting-environment-variables-on-windows",
+          "note": null
+        },
+        {
+          "text": "If a different directory needs to be used, set the environment variable `OLLAMA_MODELS` to the chosen directory.",
+          "source": "https://docs.ollama.com/faq#how-do-i-set-them-to-a-different-location",
+          "note": null
+        },
+        {
+          "text": "// - The default host is (\"registry.ollama.ai\")",
+          "source": "https://github.com/ollama/ollama/blob/main/types/model/name.go",
+          "note": null
+        },
+        {
+          "text": "defaultPublicHost = \"registry.ollama.ai\"",
+          "source": "https://github.com/ollama/ollama/blob/main/manifest/paths.go",
+          "note": null
+        },
+        {
+          "text": "OLLAMA_MODELS Not Working? Fix It by Platform",
+          "source": "https://localaimaster.com/blog/ollama-digest-mismatch",
+          "note": null
+        }
+      ]
+    }
+  ],
+  "related": [
+    {
+      "concept": "blob",
+      "relation": "is a part of Ollama model registry and library tags and on-disk blob and manifest storage",
+      "note": null
+    },
+    {
+      "concept": "sha256 digest",
+      "relation": "is a part of Ollama model registry and library tags and on-disk blob and manifest storage",
+      "note": null
+    },
+    {
+      "concept": "manifest",
+      "relation": "is a part of Ollama model registry and library tags and on-disk blob and manifest storage",
+      "note": null
+    },
+    {
+      "concept": "OLLAMA_MODELS",
+      "relation": "is a part of Ollama model registry and library tags and on-disk blob and manifest storage",
+      "note": null
+    },
+    {
+      "concept": "TEMPLATE",
+      "relation": "is a part of Ollama model registry and library tags and on-disk blob and manifest storage",
+      "note": null
+    },
+    {
+      "concept": "PARAMETER",
+      "relation": "is a part of Ollama model registry and library tags and on-disk blob and manifest storage",
+      "note": null
+    },
+    {
+      "concept": "SYSTEM",
+      "relation": "is a related of Ollama model registry and library tags and on-disk blob and manifest storage",
+      "note": null
+    },
+    {
+      "concept": "registry.ollama.ai",
+      "relation": "is a part of Ollama model registry and library tags and on-disk blob and manifest storage",
+      "note": null
+    },
+    {
+      "concept": "/api/pull",
+      "relation": "is a part of Ollama model registry and library tags and on-disk blob and manifest storage",
+      "note": null
+    },
+    {
+      "concept": "localhost:11434",
+      "relation": "is a part of Ollama model registry and library tags and on-disk blob and manifest storage",
+      "note": null
+    }
+  ]
+}

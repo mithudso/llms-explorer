@@ -1,0 +1,845 @@
+{
+  "slug": "ollama-model-quantization-tags-and-library-variants",
+  "concept": "Ollama model quantization tags and library variants",
+  "generated": "2026-10-14",
+  "summary": "Quantization degrades cause analysis more than risk assessment. Cause scores drop 2–4 points with quantization while risk scores remain roughly stable or improve slightly. Cause analysis requires precise evidence grounding from the DAG and is more sensitive to precision loss. (from stratospherelinuxips.readthedocs.io)",
+  "facets": [
+    {
+      "title": "Definitions",
+      "facts": [
+        {
+          "text": "Why BFloat16 for this comparison? BF16 is a common numerical format used during inference of many large models. It means that the model parameters are represented with 16 bits of precision. Using BF16 for all models helps us to make an apples-to-apples comparison of models in a common inference setup. This allows us to compare the inherent capabilities of the models themselves, removing variables like different hardware or optimization techniques like quantization, which we'll discuss next.",
+          "source": "https://developers.googleblog.com/en/gemma-3-quantized-aware-trained-state-of-the-art-ai-to-consumer-gpus/",
+          "note": null
+        },
+        {
+          "text": "<Note> Currently this is a global option - meaning all models will run with the specified quantization type. </Note>",
+          "source": "https://docs.ollama.com/faq#how-can-i-set-the-quantization-type-for-the-k-v-cache",
+          "note": null
+        },
+        {
+          "text": "All variants struggle on Normal incidents — this is a training data imbalance issue, not a quantization artifact",
+          "source": "https://stratospherelinuxips.readthedocs.io/en/develop/immune/finetuning_quantization.html",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Structure and components",
+      "facts": [
+        {
+          "text": "Ollama manifests reuse the Docker image manifest v2 schema 2 envelope (schemaVersion 2, mediaType, a config object and a layers array whose entries carry mediaType, size and sha256 digest); Ollama substitutes its own layer media types (model, template, license, params) for image layers.",
+          "source": "https://distribution.github.io/distribution/spec/manifest-v2-2/",
+          "note": null
+        },
+        {
+          "text": "The models directory holds blobs/ with content-addressed files named by digest with ':' replaced by '-' (sha256-<64 hex>), and manifests/ with per-tag JSON, e.g. manifests/registry.ollama.ai/library/gemma3/270m. Blobs are shared by digest, so tags with the same weights layer share one file.",
+          "source": "https://localaimaster.com/blog/ollama-digest-mismatch",
+          "note": null
+        },
+        {
+          "text": "Default model directory: ~/.ollama/models on macOS, /usr/share/ollama/.ollama/models on Linux with the standard installer, C:\\Users\\%username%\\.ollama\\models on Windows. Setting OLLAMA_MODELS overrides it; on Linux the ollama service user needs read/write access to the new directory.",
+          "source": "https://docs.ollama.com/faq",
+          "note": null
+        },
+        {
+          "text": "A manifest is schemaVersion 2 with Docker mediaType application/vnd.docker.distribution.manifest.v2+json, a config (application/vnd.docker.container.image.v1+json) and layers typed application/vnd.ollama.image.model, .template, .license and .params.",
+          "source": "https://localaimaster.com/blog/ollama-digest-mismatch",
+          "note": null
+        },
+        {
+          "text": "Current main source defines two manifest roots under the models dir: legacy 'manifests' and new 'manifests-v2' (canonical host ollama.com). Lookup tries a digest reference, then manifests-v2, then legacy candidates; removal deletes both. Older releases only use manifests/. Layer blobs are hashed with sha256 and written via temp file 'sha256-*' in blobs/.",
+          "source": "https://github.com/ollama/ollama/blob/main/manifest/paths.go",
+          "note": null
+        },
+        {
+          "text": "The three runs took 32.3 s, 20.5 s and 20.6 s, with a load average of 34 to 38. Q4_K_M does not put everything in 4 bits. The tool moved the output matrix and the attn_v and ffn_down tensors of 21 of the 42 layers to Q6_K, so the average lands at 4.95 bits per weight. I also produced a 2,550.66 MiB Q8_0 for comparison.",
+          "source": "https://jacar.es/en/import-hugging-face-model-into-ollama/",
+          "note": null
+        },
+        {
+          "text": "// tag, and protocol scheme parts. The model and digest parts are empty.",
+          "source": "https://github.com/ollama/ollama/blob/main/types/model/name.go",
+          "note": null
+        },
+        {
+          "text": "Compressing a model is like compressing an image, but the loss is not distributed uniformly: some layers tolerate 4 bits, others do not. That is exactly what K and IQ quantizations exploit by allocating more bits to sensitive tensors.",
+          "source": "https://bestllmfor.com/guides/quantization-q4-vs-q5-vs-q8-quality/",
+          "note": null
+        },
+        {
+          "text": "Standard quantization maps all weights to lower precision uniformly, which can degrade quality on the layers that matter most. The imatrix (importance matrix) path addresses this by using calibration data to identify which weights have the highest activation impact, then allocating more precision to those weights during quantization.",
+          "source": "https://stratospherelinuxips.readthedocs.io/en/develop/immune/finetuning_quantization.html",
+          "note": null
+        },
+        {
+          "text": "For these reasons, multimodal components are usually kept in a high-quality format such as bf16 or q8. The impact on speed and memory from using a smaller quant is negligible, but overall quality could be impacted.",
+          "source": "https://github.com/ggml-org/llama.cpp/blob/master/tools/quantize/README.md",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "How it works",
+      "facts": [
+        {
+          "text": "Digest mismatch on pull has several reported causes: proxy ignoring Range requests, missing Content-Length yielding an empty file (sha256 e3b0c442...), disk full or short write, local memory/storage faults (got digest changes each attempt), and an existing corrupt blob accepted as a cache hit by downloadBlob().",
+          "source": "https://localaimaster.com/blog/ollama-digest-mismatch",
+          "note": null
+        },
+        {
+          "text": "Used when a calibration.txt is present and the target quant is one of q2_k, q3_k_m, q4_0, q4_k_m, q5_0, q5_k_m:",
+          "source": "https://stratospherelinuxips.readthedocs.io/en/develop/immune/finetuning_quantization.html",
+          "note": null
+        },
+        {
+          "text": "By default, the `Q4_K_M` quantization scheme is used, when it's present inside the model repo. If not, we default to picking one reasonable quant type present inside the repo.",
+          "source": "https://huggingface.co/docs/hub/ollama#custom-quantization",
+          "note": null
+        },
+        {
+          "text": "--leave-output-tensor leave output.weight un(re)quantized. Increases model size but may also increase quality, especially when requantizing",
+          "source": "https://github.com/ggml-org/llama.cpp/blob/master/tools/quantize/README.md",
+          "note": null
+        },
+        {
+          "text": "The nominal number of bits per weight. The actual value is higher because sensitive tensors remain at higher precision: Q4_K_M measures 4.89 bits per weight.",
+          "source": "https://bestllmfor.com/guides/quantization-q4-vs-q5-vs-q8-quality/",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "How-to and procedures",
+      "facts": [
+        {
+          "text": "To make Gemma 3 even more accessible, we are announcing new versions optimized with Quantization-Aware Training (QAT) that dramatically reduces memory requirements while maintaining high quality. This enables you to run powerful models like Gemma 3 27B locally on consumer-grade GPUs like the NVIDIA RTX 3090.",
+          "source": "https://developers.googleblog.com/en/gemma-3-quantized-aware-trained-state-of-the-art-ai-to-consumer-gpus/",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Measurements and reference values",
+      "facts": [
+        {
+          "text": "llama3.1 library tags follow <size>-<instruct|text>-<quant>, with suffixes q2_K, q3_K_S/M/L, q4_0, q4_1, q4_K_S/M, q5_0, q5_1, q5_K_S/M, q6_K, q8_0 and fp16; the page lists 93 tags, sizes from 3.2GB (8b q2_K) to 812GB (405b fp16).",
+          "source": "https://ollama.com/library/llama3.1/tags",
+          "note": null
+        },
+        {
+          "text": "On this CPU, Q8_0 processed the prompt 58% faster than Q4_K_M and generated at the same pace, and Q4_K_M raises perplexity by 5.5% over Q8_0. Q4_K_M takes 42% less disk than Q8_0; in memory, /api/ps reported 2.03 GB with num_ctx 8192 and 1.79 GB with the default context. BF16 is only an intermediate step: at 2.28 tokens/s it is not usable on this processor.",
+          "source": "https://jacar.es/en/import-hugging-face-model-into-ollama/",
+          "note": null
+        },
+        {
+          "text": "llama3.1:latest, llama3.1 and llama3.1:8b are the same model (4.9GB, ID 46e0c10c039e). The page does not name its quantization, but the ID matches llama3.1:8b-instruct-q4_K_M, so the default is most likely Q4_K_M. gemma3:latest (3.4GB) likewise shares a digest with gemma3:4b-it-q4_K_M.",
+          "source": "https://ollama.com/library/llama3.1/tags",
+          "note": null
+        },
+        {
+          "text": "Two practical consequences. First, switching from Q4_K_M to Q8_0 for an imperceptible quality gain costs about 30% of generation speed in these measurements. Second, weight quantization and KV-cache quantization are two separate settings: the latter reduces long-context memory usage and is covered in its own guide.",
+          "source": "https://bestllmfor.com/guides/quantization-q4-vs-q5-vs-q8-quality/",
+          "note": null
+        },
+        {
+          "text": "With MiniCPM5-2B, conversion to BF16 took 35 s, quantization to Q4_K_M 21 s and the import 2 s, medians of three runs.",
+          "source": "https://jacar.es/en/import-hugging-face-model-into-ollama/",
+          "note": null
+        },
+        {
+          "text": "12 GB8B in Q6_K or Q8_0, or 14B in Q4_K_M (8.6 GB)",
+          "source": "https://bestllmfor.com/guides/quantization-q4-vs-q5-vs-q8-quality/",
+          "note": null
+        },
+        {
+          "text": "q8_0 — 32.6% win rate, nearly identical avg score to fp16",
+          "source": "https://stratospherelinuxips.readthedocs.io/en/develop/immune/finetuning_quantization.html",
+          "note": null
+        },
+        {
+          "text": "A 32B in Q4_K_M (19.6 GB) doesn't fit comfortably on 24 GB with a long context: the KV cache takes several GB, plus compute buffers. To quantify it, use the VRAM calculator or read the guide to the context window.",
+          "source": "https://bestllmfor.com/guides/quantization-q4-vs-q5-vs-q8-quality/",
+          "note": null
+        },
+        {
+          "text": "Only for gigantic models, when nothing else fits. With this kind of quantization, fidelity can be measured: see the Kimi K3 example, where dynamic 1-bit achieves only 78.9% agreement with the original.",
+          "source": "https://bestllmfor.com/guides/quantization-q4-vs-q5-vs-q8-quality/",
+          "note": null
+        },
+        {
+          "text": "llama_model_quantize_impl: model size = 4800.66 MiB (16.00 BPW) llama_model_quantize_impl: quant size = 1484.08 MiB (4.95 BPW) llama_quantize: quantize time = 20647.62 ms",
+          "source": "https://jacar.es/en/import-hugging-face-model-into-ollama/",
+          "note": null
+        },
+        {
+          "text": "Exemple : 32 milliards en Q5_K_M 32 × 5,70 ÷ 8 ≈ 22,8 Go + cache KV (selon le contexte) + 1 à 2 Go de marge",
+          "source": "https://bestllmfor.com/guides/quantization-q4-vs-q5-vs-q8-quality/",
+          "note": null
+        },
+        {
+          "text": "Similar in size to Q4_K_M, minus ~9%. Useful when VRAM is tight.",
+          "source": "https://bestllmfor.com/guides/quantization-q4-vs-q5-vs-q8-quality/",
+          "note": null
+        },
+        {
+          "text": "6 to 8 GB7-8B in Q4_K_M; IQ4_XS if it doesn’t fit",
+          "source": "https://bestllmfor.com/guides/quantization-q4-vs-q5-vs-q8-quality/",
+          "note": null
+        },
+        {
+          "text": "16 GB14B in Q5_K_M (10 GB) with a comfortable context",
+          "source": "https://bestllmfor.com/guides/quantization-q4-vs-q5-vs-q8-quality/",
+          "note": null
+        },
+        {
+          "text": "24 GB32B in Q4_K_M (19.6 GB) with a moderate context",
+          "source": "https://bestllmfor.com/guides/quantization-q4-vs-q5-vs-q8-quality/",
+          "note": null
+        },
+        {
+          "text": "32 GB32B in Q5_K_M (22.8 GB) or Q6_K",
+          "source": "https://bestllmfor.com/guides/quantization-q4-vs-q5-vs-q8-quality/",
+          "note": null
+        },
+        {
+          "text": "64 GB and more70B in Q4_K_M (42.8 GB)",
+          "source": "https://bestllmfor.com/guides/quantization-q4-vs-q5-vs-q8-quality/",
+          "note": null
+        },
+        {
+          "text": "q8_0 — near-NF4 quality on simple/medium, ~2× memory saving",
+          "source": "https://stratospherelinuxips.readthedocs.io/en/develop/immune/finetuning_quantization.html",
+          "note": null
+        },
+        {
+          "text": "q4_k_m — 986 MB, competitive on both tasks",
+          "source": "https://stratospherelinuxips.readthedocs.io/en/develop/immune/finetuning_quantization.html",
+          "note": null
+        },
+        {
+          "text": "Q4_K_M 1.56 GB 104.68 tokens/s 32.52 tokens/s 26.90 ± 1.18",
+          "source": "https://jacar.es/en/import-hugging-face-model-into-ollama/",
+          "note": null
+        },
+        {
+          "text": "Q8_0 2.68 GB 165.60 tokens/s 33.70 tokens/s 25.50 ± 1.12",
+          "source": "https://jacar.es/en/import-hugging-face-model-into-ollama/",
+          "note": null
+        },
+        {
+          "text": "BF16 5.04 GB 2.67 tokens/s 2.28 tokens/s Not measured",
+          "source": "https://jacar.es/en/import-hugging-face-model-into-ollama/",
+          "note": null
+        },
+        {
+          "text": "Gemma 3 27B: Drops from 54 GB (BF16) to just 14.1 GB (int4)",
+          "source": "https://developers.googleblog.com/en/gemma-3-quantized-aware-trained-state-of-the-art-ai-to-consumer-gpus/",
+          "note": null
+        },
+        {
+          "text": "Gemma 3 12B: Shrinks from 24 GB (BF16) to only 6.6 GB (int4)",
+          "source": "https://developers.googleblog.com/en/gemma-3-quantized-aware-trained-state-of-the-art-ai-to-consumer-gpus/",
+          "note": null
+        },
+        {
+          "text": "Gemma 3 4B: Reduces from 8 GB (BF16) to a lean 2.6 GB (int4)",
+          "source": "https://developers.googleblog.com/en/gemma-3-quantized-aware-trained-state-of-the-art-ai-to-consumer-gpus/",
+          "note": null
+        },
+        {
+          "text": "Gemma 3 1B: Goes from 2 GB (BF16) down to a tiny 0.5 GB (int4)",
+          "source": "https://developers.googleblog.com/en/gemma-3-quantized-aware-trained-state-of-the-art-ai-to-consumer-gpus/",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Problems, failure modes and limitations",
+      "facts": [
+        {
+          "text": "All three quants are equivalent on risk. q4_k_m, q5_k_m, and q8_0 all win 26.9% of risk incidents. There is no meaningful quality degradation from lower quantization on the risk task.",
+          "source": "https://stratospherelinuxips.readthedocs.io/en/develop/immune/finetuning_quantization.html",
+          "note": null
+        },
+        {
+          "text": "Quantization degrades cause analysis more than risk assessment. Cause scores drop 2–4 points with quantization while risk scores remain roughly stable or improve slightly. Cause analysis requires precise evidence grounding from the DAG and is more sensitive to precision loss.",
+          "source": "https://stratospherelinuxips.readthedocs.io/en/develop/immune/finetuning_quantization.html",
+          "note": null
+        },
+        {
+          "text": "The --force flag skips that validation. With it, Ollama imported the model in 26 s as 386 layers and 5.0 GB, but ollama run returned Error: 500 Internal Server Error: MLX runtime is not available. Deleting it with ollama rm shrank the blob store from 7.7 GB to 3.0 GB.",
+          "source": "https://jacar.es/en/import-hugging-face-model-into-ollama/",
+          "note": null
+        },
+        {
+          "text": "Evaluation basis: performance numbers below were measured on the finetuned risk model (67 held-out incidents, judge: qwen3.5, date: 2026-04-24). The GPU-served reference is serve_model.py with --quant 4bit (bitsandbytes NF4), not true fp16. Scores are cause score (max 30) and risk score (max 30); win rate is fraction of incidents ranked 1st among 5 models.",
+          "source": "https://stratospherelinuxips.readthedocs.io/en/develop/immune/finetuning_quantization.html",
+          "note": null
+        },
+        {
+          "text": "q4_k_m is the recommended deployment variant. At 986 MB, it matches the larger quants on risk and comes close on summary, with the smallest footprint.",
+          "source": "https://stratospherelinuxips.readthedocs.io/en/develop/immune/finetuning_quantization.html",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Comparisons and alternatives",
+      "facts": [
+        {
+          "text": "gemma3 -it-qat tags are quantization-aware-trained Q4_0-format builds from Google. Google reports a 54% reduction in perplexity drop versus post-training Q4_0 quantization (llama.cpp perplexity eval) and weight VRAM of 54GB BF16 to 14.1GB int4 for 27B.",
+          "source": "https://developers.googleblog.com/en/gemma-3-quantized-aware-trained-state-of-the-art-ai-to-consumer-gpus/",
+          "note": null
+        },
+        {
+          "text": "Using int4 means each number is represented using only 4 bits – a 4x reduction in data size compared to BF16. Quantization can often lead to performance degradation, so we’re excited to release Gemma 3 models that are robust to quantization. We released several quantized variants for each Gemma 3 model to enable inference with your favorite inference engine, such as Q4_0 (a common quantization format) for Ollama, llama.cpp, and MLX.",
+          "source": "https://developers.googleblog.com/en/gemma-3-quantized-aware-trained-state-of-the-art-ai-to-consumer-gpus/",
+          "note": null
+        },
+        {
+          "text": "Tag sets differ per model: gemma3 offers -it-qat, -it-q4_K_M, -it-q8_0, -it-fp16 and -it-bf16 (270m has no q4_K_M tag), unlike llama3.1's K-quant ladder. Check the model's tags page before assuming a quant exists.",
+          "source": "https://ollama.com/library/gemma3/tags",
+          "note": null
+        },
+        {
+          "text": "How do we maintain quality? We use QAT. Instead of just quantizing the model after it's fully trained, QAT incorporates the quantization process during training. QAT simulates low-precision operations during training to allow quantization with less degradation afterwards for smaller, faster models while maintaining accuracy. Diving deeper, we applied QAT on ~5,000 steps using probabilities from the non-quantized checkpoint as targets. We reduce the perplexity drop by 54% (using llama.cpp perplexity evaluation) when quantizing down to Q4_0.",
+          "source": "https://developers.googleblog.com/en/gemma-3-quantized-aware-trained-state-of-the-art-ai-to-consumer-gpus/",
+          "note": null
+        },
+        {
+          "text": "Choose Q4_K_M by default: at 4.89 bits per weight, it reduces the model size by more than threefold compared with FP16, with little quality loss. Move up to Q5_K_M or Q6_K if memory allows, use Q8_0 only if you have room left, and avoid anything below 4 bits without a good reason. What matters is your available memory: the file, context, and some headroom must fit.",
+          "source": "https://bestllmfor.com/guides/quantization-q4-vs-q5-vs-q8-quality/",
+          "note": null
+        },
+        {
+          "text": "q8_0 is the best quantized variant. Smallest gap vs fp16: cause 17.66 (vs 20.21), win rate 34.3% (vs 35.8%). It even outperforms fp16 on risk score and simple incident win rate (45.5% vs 38.6%).",
+          "source": "https://stratospherelinuxips.readthedocs.io/en/develop/immune/finetuning_quantization.html",
+          "note": null
+        },
+        {
+          "text": "The llama.cpp README measurements, taken on Llama 3.1 8B, illustrate a point the guides omit: text generation reads all active weights at every token, so it depends mainly on the number of bytes to read. In this table, generation throughput rises from about 51 tokens per second in Q8_0 to about 72 in Q4_K_M, and 90 in Q2_K_S. Prompt processing, however, remains stable at around 800 tokens per second because it is compute-bound rather than memory-bound. These figures come from specific hardware in the repository and are not representative of your machine; remember the trend: fewer bits, faster",
+          "source": "https://bestllmfor.com/guides/quantization-q4-vs-q5-vs-q8-quality/",
+          "note": null
+        },
+        {
+          "text": "q5_k_m and q4_k_m both show meaningful score drops; q4_k_m surprisingly recovers slightly vs q5_k_m on simple incidents",
+          "source": "https://stratospherelinuxips.readthedocs.io/en/develop/immune/finetuning_quantization.html",
+          "note": null
+        },
+        {
+          "text": "q4_k_m outperforms q5_k_m (cause 18.03 vs 16.46, win rate 26.9% vs 23.9%). q5_k_m is not a reliable quality/size middle ground for this task.",
+          "source": "https://stratospherelinuxips.readthedocs.io/en/develop/immune/finetuning_quantization.html",
+          "note": null
+        },
+        {
+          "text": "q8_0 is the standout for summary. q8_0 wins 32.6% of summary incidents vs 17.0% for fp16 — a +15.6pp gain. Average score is nearly identical (5.09 vs 5.20). Ollama’s inference stack appears to produce more consistently top-ranked outputs than the BnB NF4 GPU server on this task.",
+          "source": "https://stratospherelinuxips.readthedocs.io/en/develop/immune/finetuning_quantization.html",
+          "note": null
+        },
+        {
+          "text": "- `model`: name of the model to push in the form of `<namespace>/<model>:<tag>` - `insecure`: (optional) allow insecure connections to the library. Only use this if you are pushing to your library during development. - `stream`: (optional) if `false` the response will be returned as a single response object, rather than a stream of objects",
+          "source": "https://raw.githubusercontent.com/ollama/ollama/main/docs/api.md#parameters",
+          "note": null
+        },
+        {
+          "text": "The llama.cpp table shows the actual savings. On Llama 3.1 8B, IQ4_XS weighs 4.17 GiB versus 4.58 GiB for Q4_K_M, or about 9% less; IQ3_XXS weighs 3.04 GiB; IQ2_XXS weighs 2.23 GiB. In the repository's measurements, generation throughput for these formats remains close to that of the K-quants, within a few tokens per second: decoding overhead is therefore modest. I-quants, however, depend on the quality of the imatrix and the model: they only make sense when Q4_K_M does not fit.",
+          "source": "https://bestllmfor.com/guides/quantization-q4-vs-q5-vs-q8-quality/",
+          "note": null
+        },
+        {
+          "text": "Complex incident scores are consistent across all quants (~3.0–3.2), tied to input truncation at 4096 tokens rather than quantization effects",
+          "source": "https://stratospherelinuxips.readthedocs.io/en/develop/immune/finetuning_quantization.html",
+          "note": null
+        },
+        {
+          "text": "--allow-requantize allow requantizing tensors that have already been quantized. Warning: This can severely reduce quality compared to quantizing from 16bit or 32bit",
+          "source": "https://github.com/ggml-org/llama.cpp/blob/master/tools/quantize/README.md",
+          "note": null
+        },
+        {
+          "text": "--keep-split generate the quantized model in the same shards as the input file instead of a single quantized file",
+          "source": "https://github.com/ggml-org/llama.cpp/blob/master/tools/quantize/README.md",
+          "note": null
+        },
+        {
+          "text": "It's important to note that while this chart uses BF16 for a fair comparison, deploying the very largest models often involves using lower-precision formats like FP8 as a practical necessity to reduce immense hardware requirements (like the number of GPUs), potentially accepting a performance trade-off for feasibility.",
+          "source": "https://developers.googleblog.com/en/gemma-3-quantized-aware-trained-state-of-the-art-ai-to-consumer-gpus/",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Facts and statements",
+      "facts": [
+        {
+          "text": "For Llama-3.1-8B, llama.cpp lists Q4_K_M at 4.89 bits/weight (4.58GiB, 71.9 t/s generation), Q5_K_M 5.70 bpw (5.33GiB, 67.2 t/s), Q8_0 8.50 bpw (7.95GiB, 50.9 t/s), F16 16.0 bpw (14.96GiB, 29.2 t/s). Smaller quants generate faster; the README gives no perplexity figures for them.",
+          "source": "https://github.com/ggml-org/llama.cpp/blob/master/tools/quantize/README.md",
+          "note": null
+        },
+        {
+          "text": "Unqualified model names resolve against defaults host registry.ollama.ai, namespace library, tag latest (defaultHost/defaultNamespace/defaultTag in the name parser).",
+          "source": "https://github.com/ollama/ollama/blob/main/types/model/name.go",
+          "note": null
+        },
+        {
+          "text": "Automates the complete pipeline from raw 16-bit weights to a publicly accessible model on Ollama. For each quantization variant (default: q4_k_m, q5_k_m, q8_0), the following steps run sequentially:",
+          "source": "https://stratospherelinuxips.readthedocs.io/en/develop/immune/finetuning_quantization.html",
+          "note": null
+        },
+        {
+          "text": "Copying only manifests or only blobs between machines breaks the model; both subdirectories must travel together.",
+          "source": "https://localaimaster.com/blog/ollama-digest-mismatch",
+          "note": null
+        },
+        {
+          "text": "First, create a Modelfile with the FP16 or FP32 based model you wish to quantize.",
+          "source": "https://cdn.jsdelivr.net/gh/ollama/ollama@0.9.0/docs/import.md#quantizing-a-model",
+          "note": null
+        },
+        {
+          "text": "* `f16` - high precision and memory usage (default). * `q8_0` - 8-bit quantization, uses approximately 1/2 the memory of `f16` with a very small loss in precision, this usually has no noticeable impact on the model's quality (recommended if not using f16). * `q4_0` - 4-bit quantization, uses approximately 1/4 the memory of `f16` with a small-medium loss in precision that may be more noticeable at higher context sizes.",
+          "source": "https://docs.ollama.com/faq#how-can-i-set-the-quantization-type-for-the-k-v-cache",
+          "note": null
+        },
+        {
+          "text": "Contents Quantization: what you trade for memoryDecoding the names: Q4_K_M, Q5_K_S, Q8_0, IQ3_XXSDecision table: measured sizes and lossesCalculate a model's memory in secondsWhat quantization really does to qualityWhy a smaller file also generates fasterChoose using three rulesI-quants and sub-4-bit formatsModels published directly in 4-bitWhat to choose based on your memory",
+          "source": "https://bestllmfor.com/guides/quantization-q4-vs-q5-vs-q8-quality/",
+          "note": null
+        },
+        {
+          "text": "Model architecture llama parameters 2.5B context length 131072 embedding length 2048 quantization Q4_K_M",
+          "source": "https://jacar.es/en/import-hugging-face-model-into-ollama/",
+          "note": null
+        },
+        {
+          "text": "Measure Q4_K_S Q4_K_M Q5_K_S Q5_K_M Q6_K Q8_0",
+          "source": "https://github.com/ggml-org/llama.cpp/blob/master/tools/quantize/README.md",
+          "note": null
+        },
+        {
+          "text": "Short: -qQuantization level for the model (reduces size and memory usage)Options: q4_K_M, q4_K_S, q5_K_M, q5_K_S, q8_0",
+          "source": "https://mintlify.wiki/ollama/ollama/cli/create",
+          "note": null
+        },
+        {
+          "text": "Home/Guides/Getting started/Configuration/Choose your quantization (Q4, Q5, Q8, FP16)",
+          "source": "https://bestllmfor.com/guides/quantization-q4-vs-q5-vs-q8-quality/",
+          "note": null
+        },
+        {
+          "text": "Choose your quantization (Q4, Q5, Q8, FP16)",
+          "source": "https://bestllmfor.com/guides/quantization-q4-vs-q5-vs-q8-quality/",
+          "note": null
+        },
+        {
+          "text": "Some recent models are no longer trained in 16-bit and then compressed: their weights are produced in 4-bit with quantization-aware training. Kimi K3 is an example: its specifications list MXFP4 weights and MXFP8 activations, with quantization-aware training. For these models, the native file is already the reference, and further quantization to a lower format degrades it more than quantizing a 16-bit model. Always read the model specifications before converting it.",
+          "source": "https://bestllmfor.com/guides/quantization-q4-vs-q5-vs-q8-quality/",
+          "note": null
+        },
+        {
+          "text": "Re-quantize with importance guidance — llama-quantize --imatrix performs non-uniform quantization: weights more important to the model’s predictions are preserved at higher precision, while less critical weights are compressed more aggressively",
+          "source": "https://stratospherelinuxips.readthedocs.io/en/develop/immune/finetuning_quantization.html",
+          "note": null
+        },
+        {
+          "text": "q8_0 quality loss is negligible (−0.11) — the best quantized variant by a clear margin",
+          "source": "https://stratospherelinuxips.readthedocs.io/en/develop/immune/finetuning_quantization.html",
+          "note": null
+        },
+        {
+          "text": "Model Original size Quantized size (Q4_K_M)",
+          "source": "https://github.com/ggml-org/llama.cpp/blob/master/tools/quantize/README.md",
+          "note": null
+        },
+        {
+          "text": "create: run MLX quantization on worker thread pd95/ollama#11",
+          "source": "https://github.com/ollama/ollama/pull/14969",
+          "note": null
+        },
+        {
+          "text": "Source: arXiv study on llama.cpp quantization (2026)",
+          "source": "https://bestllmfor.com/guides/quantization-q4-vs-q5-vs-q8-quality/",
+          "note": null
+        },
+        {
+          "text": "Source: llama.cpp discussion on quantization methods",
+          "source": "https://bestllmfor.com/guides/quantization-q4-vs-q5-vs-q8-quality/",
+          "note": null
+        },
+        {
+          "text": "#Decoding the names: Q4_K_M, Q5_K_S, Q8_0, IQ3_XXS",
+          "source": "https://bestllmfor.com/guides/quantization-q4-vs-q5-vs-q8-quality/",
+          "note": null
+        },
+        {
+          "text": "Older formats with a uniform precision level. Q8_0 is still used for its near-zero loss, but Q4_0 and Q5_0 have been superseded by the K variants.",
+          "source": "https://bestllmfor.com/guides/quantization-q4-vs-q5-vs-q8-quality/",
+          "note": null
+        },
+        {
+          "text": "Choose a _K_M suffix: Q4_K_M, Q5_K_M, or Q6_K. Reserve IQ and _XXS for cases where the model otherwise will not fit.",
+          "source": "https://bestllmfor.com/guides/quantization-q4-vs-q5-vs-q8-quality/",
+          "note": null
+        },
+        {
+          "text": "q4_k_m — outperforms q5_k_m on this task",
+          "source": "https://stratospherelinuxips.readthedocs.io/en/develop/immune/finetuning_quantization.html",
+          "note": null
+        },
+        {
+          "text": "Source: llama-quantize README (llama.cpp)",
+          "source": "https://bestllmfor.com/guides/quantization-q4-vs-q5-vs-q8-quality/",
+          "note": null
+        },
+        {
+          "text": "MLX: Leverage MLX for efficient, optimized inference of Gemma 3 QAT models on Apple Silicon.",
+          "source": "https://developers.googleblog.com/en/gemma-3-quantized-aware-trained-state-of-the-art-ai-to-consumer-gpus/",
+          "note": null
+        },
+        {
+          "text": "llama.cpp: Integrate easily into existing workflows thanks to native support for our GGUF-formatted QAT models.",
+          "source": "https://developers.googleblog.com/en/gemma-3-quantized-aware-trained-state-of-the-art-ai-to-consumer-gpus/",
+          "note": null
+        },
+        {
+          "text": "After all quants are built, the first quant in the list (q4_k_m) is copied to the :latest tag. This ensures a bare ollama pull without an explicit tag fetches the most portable variant.",
+          "source": "https://stratospherelinuxips.readthedocs.io/en/develop/immune/finetuning_quantization.html",
+          "note": null
+        },
+        {
+          "text": "* **AMD GPU**: `ollama-windows-amd64-rocm.zip` * **MLX (CUDA)**: `ollama-windows-amd64-mlx.zip`",
+          "source": "https://docs.ollama.com/windows#standalone-cli",
+          "note": null
+        },
+        {
+          "text": "* `OLLAMA_KV_CACHE_TYPE` - The quantization type for the K/V cache. Default is `f16`.",
+          "source": "https://docs.ollama.com/faq#how-can-i-set-the-quantization-type-for-the-k-v-cache",
+          "note": null
+        },
+        {
+          "text": "How much the cache quantization impacts the model's response quality will depend on the model and the task. Models that have a high GQA count (e.g. Qwen2) may see a larger impact on precision from quantization than models with a low GQA count.",
+          "source": "https://docs.ollama.com/faq#how-can-i-set-the-quantization-type-for-the-k-v-cache",
+          "note": null
+        },
+        {
+          "text": "You may need to experiment with different quantization types to find the best balance between memory usage and quality.",
+          "source": "https://docs.ollama.com/faq#how-can-i-set-the-quantization-type-for-the-k-v-cache",
+          "note": null
+        },
+        {
+          "text": "// { host } \"/\" { namespace } \"/\" { model } \":\" { tag } \"@\" { digest }",
+          "source": "https://github.com/ollama/ollama/blob/main/types/model/name.go",
+          "note": null
+        },
+        {
+          "text": "// { namespace } \"/\" { model } \":\" { tag } \"@\" { digest }",
+          "source": "https://github.com/ollama/ollama/blob/main/types/model/name.go",
+          "note": null
+        },
+        {
+          "text": "// { model } \":\" { tag } \"@\" { digest }",
+          "source": "https://github.com/ollama/ollama/blob/main/types/model/name.go",
+          "note": null
+        },
+        {
+          "text": "MLX and llama.cpp updates",
+          "source": "https://github.com/ollama/ollama/releases/tag/v0.34.1",
+          "note": null
+        },
+        {
+          "text": "- `quantize` (optional): quantize a non-quantized (e.g. float16) model",
+          "source": "https://github.com/ollama/ollama/pull/14969",
+          "note": null
+        },
+        {
+          "text": "- `quantize` (optional): quantize model weights during import",
+          "source": "https://github.com/ollama/ollama/pull/14969",
+          "note": null
+        },
+        {
+          "text": "#Quantization: what you trade for memory",
+          "source": "https://bestllmfor.com/guides/quantization-q4-vs-q5-vs-q8-quality/",
+          "note": null
+        },
+        {
+          "text": "Weights only, in GB, according to quantization (calculated using the formula above)",
+          "source": "https://bestllmfor.com/guides/quantization-q4-vs-q5-vs-q8-quality/",
+          "note": null
+        },
+        {
+          "text": "#What quantization really does to quality",
+          "source": "https://bestllmfor.com/guides/quantization-q4-vs-q5-vs-q8-quality/",
+          "note": null
+        },
+        {
+          "text": "Explicitly choose a quantization in Ollama⧉ Copy",
+          "source": "https://bestllmfor.com/guides/quantization-q4-vs-q5-vs-q8-quality/",
+          "note": null
+        },
+        {
+          "text": "Quantize the KV cache: save VRAM",
+          "source": "https://bestllmfor.com/guides/quantization-q4-vs-q5-vs-q8-quality/",
+          "note": null
+        },
+        {
+          "text": "Quantization and Deployment for Finetuned Models",
+          "source": "https://stratospherelinuxips.readthedocs.io/en/develop/immune/finetuning_quantization.html",
+          "note": null
+        },
+        {
+          "text": "Quantization and Deployment for Finetuned Models",
+          "source": "https://stratospherelinuxips.readthedocs.io/en/develop/immune/finetuning_quantization.html",
+          "note": null
+        },
+        {
+          "text": "For complex incident analysis specifically, only the NF4/GPU variant is competitive. If complex incidents are a priority deployment target, do not use quantized variants without further fine-tuning on longer DAGs.",
+          "source": "https://stratospherelinuxips.readthedocs.io/en/develop/immune/finetuning_quantization.html",
+          "note": null
+        },
+        {
+          "text": "Understanding performance, precision, and quantization",
+          "source": "https://developers.googleblog.com/en/gemma-3-quantized-aware-trained-state-of-the-art-ai-to-consumer-gpus/",
+          "note": null
+        },
+        {
+          "text": "The impact of int4 quantization is dramatic. Look at the VRAM (GPU memory) required just to load the model weights:",
+          "source": "https://developers.googleblog.com/en/gemma-3-quantized-aware-trained-state-of-the-art-ai-to-consumer-gpus/",
+          "note": null
+        },
+        {
+          "text": "If the model supports multimodal inputs (images or audio), you also need to convert and quantize the multimodal encoders and projectors.",
+          "source": "https://github.com/ggml-org/llama.cpp/blob/master/tools/quantize/README.md",
+          "note": null
+        },
+        {
+          "text": "Various quantization methods are described later in this document.",
+          "source": "https://github.com/ggml-org/llama.cpp/blob/master/tools/quantize/README.md",
+          "note": null
+        },
+        {
+          "text": "--pure disable k-quant mixtures and quantizes all tensors to the same type",
+          "source": "https://github.com/ggml-org/llama.cpp/blob/master/tools/quantize/README.md",
+          "note": null
+        },
+        {
+          "text": "--tensor-type quantize specific tensor(s) to specific quant types. Supports regex syntax. May be specified multiple times.",
+          "source": "https://github.com/ggml-org/llama.cpp/blob/master/tools/quantize/README.md",
+          "note": null
+        },
+        {
+          "text": "--override-kv option to override model metadata by key in the quantized model. May be specified multiple times.",
+          "source": "https://github.com/ggml-org/llama.cpp/blob/master/tools/quantize/README.md",
+          "note": null
+        },
+        {
+          "text": "Several quantization methods are supported. They differ in the resulting model disk size and inference speed. For example,",
+          "source": "https://github.com/ggml-org/llama.cpp/blob/master/tools/quantize/README.md",
+          "note": null
+        },
+        {
+          "text": "quantization tuning, another one, and another one",
+          "source": "https://github.com/ggml-org/llama.cpp/blob/master/tools/quantize/README.md",
+          "note": null
+        },
+        {
+          "text": "The llama-quantize README lists, for Llama 3.1 8B, the number of bits per weight and the size of each format. The Ollama library shows the size of the distributed files for the same model. The two sources broadly agree and provide an estimate applicable to other models in the same family.",
+          "source": "https://bestllmfor.com/guides/quantization-q4-vs-q5-vs-q8-quality/",
+          "note": null
+        },
+        {
+          "text": "Choose the largest model that fits in Q4_K_M",
+          "source": "https://bestllmfor.com/guides/quantization-q4-vs-q5-vs-q8-quality/",
+          "note": null
+        },
+        {
+          "text": "If VRAM remains after reserving space for the context, move to Q5_K_M and then Q6_K. The gain is smaller than moving up to the next size.",
+          "source": "https://bestllmfor.com/guides/quantization-q4-vs-q5-vs-q8-quality/",
+          "note": null
+        },
+        {
+          "text": "Evaluation basis: performance numbers in this document were measured on the finetuned summarization model (47 held-out incidents, judge: gpt-oss-120b). The GPU-served reference is serve_model.py with --quant 4bit (bitsandbytes NF4), not true fp16. The conversion and publication methodology applies to any finetuned model in this pipeline.",
+          "source": "https://stratospherelinuxips.readthedocs.io/en/develop/immune/finetuning_quantization.html",
+          "note": null
+        },
+        {
+          "text": "cd unsloth-scripts/ python3 convert_to_gguf.py \\ --model /path/to/qwen_finetuned_merged_16bit \\ --quant q5_k_m \\ --output ./gguf_q5_k_m/",
+          "source": "https://stratospherelinuxips.readthedocs.io/en/develop/immune/finetuning_quantization.html",
+          "note": null
+        },
+        {
+          "text": "./publish_to_ollama.sh --quant q5_k_m",
+          "source": "https://stratospherelinuxips.readthedocs.io/en/develop/immune/finetuning_quantization.html",
+          "note": null
+        },
+        {
+          "text": "q5_k_m — good middle ground on both tasks",
+          "source": "https://stratospherelinuxips.readthedocs.io/en/develop/immune/finetuning_quantization.html",
+          "note": null
+        },
+        {
+          "text": "With 4 threads, the Q4_K_M generation medians ranged from 32 to 70 tokens/s depending on the tool and the load. The default thread count was the most serious problem in the test. Without num_thread, Ollama started its internal llama-server with 18 threads, one per core.",
+          "source": "https://jacar.es/en/import-hugging-face-model-into-ollama/",
+          "note": null
+        },
+        {
+          "text": "Gemma 3 QAT Models: Bringing state-of-the-Art AI to consumer GPUs",
+          "source": "https://developers.googleblog.com/en/gemma-3-quantized-aware-trained-state-of-the-art-ai-to-consumer-gpus/",
+          "note": null
+        },
+        {
+          "text": "Last month, we launched Gemma 3, our latest generation of open models. Delivering state-of-the-art performance, Gemma 3 quickly established itself as a leading model capable of running on a single high-end GPU like the NVIDIA H100 using its native BFloat16 (BF16) precision.",
+          "source": "https://developers.googleblog.com/en/gemma-3-quantized-aware-trained-state-of-the-art-ai-to-consumer-gpus/",
+          "note": null
+        },
+        {
+          "text": "The chart above shows the performance (Elo score) of recently released large language models. Higher bars mean better performance in comparisons as rated by humans viewing side-by-side responses from two anonymous models. Below each bar, we indicate the estimated number of NVIDIA H100 GPUs needed to run that model using the BF16 data type.",
+          "source": "https://developers.googleblog.com/en/gemma-3-quantized-aware-trained-state-of-the-art-ai-to-consumer-gpus/",
+          "note": null
+        },
+        {
+          "text": "Performance Meets Accessibility with Quantization-Aware Training in Gemma 3",
+          "source": "https://developers.googleblog.com/en/gemma-3-quantized-aware-trained-state-of-the-art-ai-to-consumer-gpus/",
+          "note": null
+        },
+        {
+          "text": "Ollama: Get running quickly – all our Gemma 3 QAT models are natively supported starting today with a simple command.",
+          "source": "https://developers.googleblog.com/en/gemma-3-quantized-aware-trained-state-of-the-art-ai-to-consumer-gpus/",
+          "note": null
+        },
+        {
+          "text": "LM Studio: Easily download and run Gemma 3 QAT models on your desktop via its user-friendly interface.",
+          "source": "https://developers.googleblog.com/en/gemma-3-quantized-aware-trained-state-of-the-art-ai-to-consumer-gpus/",
+          "note": null
+        },
+        {
+          "text": "Bringing state-of-the-art AI performance to accessible hardware is a key step in democratizing AI development. With Gemma 3 models, optimized through QAT, you can now leverage cutting-edge capabilities on your own desktop or laptop.",
+          "source": "https://developers.googleblog.com/en/gemma-3-quantized-aware-trained-state-of-the-art-ai-to-consumer-gpus/",
+          "note": null
+        },
+        {
+          "text": "Background information on llama-quantize",
+          "source": "https://github.com/ggml-org/llama.cpp/blob/master/tools/quantize/README.md",
+          "note": null
+        },
+        {
+          "text": "q4_K_M~4 bits/weightGoodFastRecommended for most use cases",
+          "source": "https://mintlify.wiki/ollama/ollama/cli/create",
+          "note": null
+        },
+        {
+          "text": "q5_K_M~5 bits/weightBetterMediumHigher quality, larger",
+          "source": "https://mintlify.wiki/ollama/ollama/cli/create",
+          "note": null
+        },
+        {
+          "text": "q8_0~8 bits/weightBestSlowHighest quality, largest",
+          "source": "https://mintlify.wiki/ollama/ollama/cli/create",
+          "note": null
+        }
+      ]
+    }
+  ],
+  "related": [
+    {
+      "concept": "q4_K_M",
+      "relation": "is a instance of Ollama model quantization tags and library variants",
+      "note": null
+    },
+    {
+      "concept": "fp16",
+      "relation": "is a instance of Ollama model quantization tags and library variants",
+      "note": null
+    },
+    {
+      "concept": "q8_0",
+      "relation": "is a instance of Ollama model quantization tags and library variants",
+      "note": null
+    },
+    {
+      "concept": "q5_K_M",
+      "relation": "is a instance of Ollama model quantization tags and library variants",
+      "note": null
+    },
+    {
+      "concept": "library tags",
+      "relation": "is a part of Ollama model quantization tags and library variants",
+      "note": null
+    },
+    {
+      "concept": "llama.cpp",
+      "relation": "is a related of Ollama model quantization tags and library variants",
+      "note": null
+    },
+    {
+      "concept": "QAT",
+      "relation": "is a instance of Ollama model quantization tags and library variants",
+      "note": null
+    },
+    {
+      "concept": "blob",
+      "relation": "is a part of Ollama model quantization tags and library variants",
+      "note": null
+    },
+    {
+      "concept": "sha256 digest",
+      "relation": "is a part of Ollama model quantization tags and library variants",
+      "note": null
+    },
+    {
+      "concept": "manifest",
+      "relation": "is a part of Ollama model quantization tags and library variants",
+      "note": null
+    },
+    {
+      "concept": "q4_0",
+      "relation": "is a instance of Ollama model quantization tags and library variants",
+      "note": null
+    },
+    {
+      "concept": "MLX",
+      "relation": "is a related of Ollama model quantization tags and library variants",
+      "note": null
+    },
+    {
+      "concept": "quantization tag",
+      "relation": "is a synonym of Ollama model quantization tags and library variants",
+      "note": null
+    },
+    {
+      "concept": "llama-quantize",
+      "relation": "is a instance of Ollama model quantization tags and library variants",
+      "note": null
+    },
+    {
+      "concept": "PARAMETER",
+      "relation": "is a part of Ollama model quantization tags and library variants",
+      "note": null
+    },
+    {
+      "concept": "TEMPLATE",
+      "relation": "is a part of Ollama model quantization tags and library variants",
+      "note": null
+    },
+    {
+      "concept": "registry.ollama.ai",
+      "relation": "is a part of Ollama model quantization tags and library variants",
+      "note": null
+    },
+    {
+      "concept": "context window",
+      "relation": "is a part of Ollama model quantization tags and library variants",
+      "note": null
+    },
+    {
+      "concept": "num_ctx",
+      "relation": "is a part of Ollama model quantization tags and library variants",
+      "note": null
+    },
+    {
+      "concept": "SYSTEM",
+      "relation": "is a related of Ollama model quantization tags and library variants",
+      "note": null
+    }
+  ]
+}

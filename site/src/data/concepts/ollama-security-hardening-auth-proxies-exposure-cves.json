@@ -1,0 +1,355 @@
+{
+  "slug": "ollama-security-hardening-auth-proxies-exposure-cves",
+  "concept": "Ollama security hardening, exposure and CVEs",
+  "generated": "2026-10-14",
+  "summary": "Everything the scanned sources say about Ollama security hardening, exposure and CVEs: 51 source-anchored units across 10 sources, grouped by facet.",
+  "facets": [
+    {
+      "title": "Definitions",
+      "facts": [
+        {
+          "text": "evandhoffman/ollama-prometheus-exporter is a reverse proxy that extracts token and timing fields from completed inference responses. It exposes /metrics, /health and / with counters such as ollama_inference_requests_total, ollama_prompt_eval_seconds_total, ollama_eval_seconds_total and ollama_load_seconds_total.",
+          "source": "https://hub.docker.com/r/evandhoffman/ollama-prometheus-exporter",
+          "note": null
+        },
+        {
+          "text": "127.0.0.1:11434 means local only. 0.0.0.0:11434 or *:11434 means every network interface, which on a VPS means the public internet. Put a reverse proxy with authentication or a private network in front of it, as described in securing your Ollama API endpoint.",
+          "source": "https://www.ssdnodes.com/learn/is-ollama-free-local-vs-cloud",
+          "note": null
+        },
+        {
+          "text": "CVE-2024-37032 is an easy-to-exploit remote code execution that affects modern AI infrastructure. Despite the codebase being relatively new and written in modern programming languages, classic vulnerabilities such as Path Traversal remain an issue.",
+          "source": "https://wiz.io/blog/probllama-ollama-vulnerability-cve-2024-37032",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Structure and components",
+      "facts": [
+        {
+          "text": "Ollama before 0.17.1 contains a heap out-of-bounds read vulnerability in the GGUF model loader. The /api/create endpoint accepts an attacker-supplied GGUF file in which the declared tensor offset and size exceed the file's actual length; during quantization in fs/ggml/gguf.go and server/quantization.go (WriteTo()), the server reads past the allocated heap buffer. The leaked memory contents may include environment variables, API keys, system prompts, and concurrent users' conversation data, and can be exfiltrated by uploading the resulting model artifact through the /api/push endpoint to an att",
+          "source": "https://nvd.nist.gov/vuln/detail/CVE-2026-7482",
+          "note": null
+        },
+        {
+          "text": "GitHub Advisory GHSA-x8qc-fggm-mpqg (CVE-2026-7482) is titled \"Ollama contains a heap out-of-bounds read vulnerability in the GGUF model loader\". Its severity is HIGH.",
+          "source": "https://github.com/advisories/GHSA-x8qc-fggm-mpqg",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "How it works",
+      "facts": [
+        {
+          "text": "Ollama binds to 127.0.0.1:11434 by default, so only the machine itself can reach it. Set OLLAMA_HOST=0.0.0.0 to reach it from your laptop, and anyone on the internet who finds the port can use it too, because the server has no API key or password. A stranger can run prompts on your CPU, pull large models to fill your disk, or delete the models you have. Check what the port is bound to:",
+          "source": "https://www.ssdnodes.com/learn/is-ollama-free-local-vs-cloud",
+          "note": null
+        },
+        {
+          "text": "<Note>Ollama must be installed and running before the installer runs. When running inside WSL2 or a container, ensure Ollama is reachable from the sandbox (e.g. `OLLAMA_HOST=0.0.0.0`).</Note>",
+          "source": "https://docs.ollama.com/integrations/nemoclaw#platform-support",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "How-to and procedures",
+      "facts": [
+        {
+          "text": "Recommended hardening checklist (LeakIX, Wiz, Cyera): bind OLLAMA_HOST to 127.0.0.1; front with an authenticating reverse proxy or API gateway; firewall port 11434 to trusted IPs; log at the proxy because Ollama does not log requests by default; restrict egress (CVE-2026-7482 exfiltrates via /api/push); rotate secrets if an exposed instance was vulnerable; patch.",
+          "source": "https://blog.leakix.net/2026/02/ollama-exposed/",
+          "note": null
+        },
+        {
+          "text": "Bind to localhost: set OLLAMA_HOST=127.0.0.1 (not 0.0.0.0)",
+          "source": "https://blog.leakix.net/2026/02/ollama-exposed/",
+          "note": null
+        },
+        {
+          "text": "Put a reverse proxy in front: nginx or Caddy with bearer token auth. Example configs are available in the Ollama issue thread",
+          "source": "https://blog.leakix.net/2026/02/ollama-exposed/",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Examples and snippets",
+      "facts": [
+        {
+          "text": "apiVersion: apps/v1 kind: Deployment metadata: name: ollama-gpu labels: app: ollama spec: replicas: 1 selector: matchLabels: app: ollama template: metadata: labels: app: ollama spec: containers: - name: ollama image: ollama/ollama:0.24.0 ports: - containerPort: 11434 env: - name: OLLAMA_HOST value: \"0.0.0.0:11434\" - name: OLLAMA_KEEP_ALIVE value: \"24h\" - name: OLLAMA_NUM_PARALLEL value: \"4\"",
+          "source": "https://oneuptime.com/blog/post/2026-02-26-argocd-ollama-deployment/view",
+          "note": null
+        },
+        {
+          "text": "kill $SERVER_PID env: - name: OLLAMA_HOST value: \"0.0.0.0:11434\" resources: requests: cpu: \"2\" memory: 8Gi nvidia.com/gpu: 1 limits: nvidia.com/gpu: 1 volumeMounts: - name: ollama-data mountPath: /root/.ollama containers: - name: ollama image: ollama/ollama:0.24.0",
+          "source": "https://oneuptime.com/blog/post/2026-02-26-argocd-ollama-deployment/view",
+          "note": null
+        },
+        {
+          "text": "apiVersion: apps/v1 kind: Deployment metadata: name: ollama labels: app: ollama spec: replicas: 1 selector: matchLabels: app: ollama template: metadata: labels: app: ollama spec: containers: - name: ollama image: ollama/ollama:0.24.0 ports: - containerPort: 11434 name: http env: - name: OLLAMA_HOST value: \"0.0.0.0:11434\"",
+          "source": "https://oneuptime.com/blog/post/2026-02-26-argocd-ollama-deployment/view",
+          "note": null
+        },
+        {
+          "text": "apiVersion: networking.k8s.io/v1 kind: Ingress metadata: name: ollama-ingress annotations: nginx.ingress.kubernetes.io/proxy-read-timeout: \"300\" nginx.ingress.kubernetes.io/proxy-send-timeout: \"300\"",
+          "source": "https://oneuptime.com/blog/post/2026-02-26-argocd-ollama-deployment/view",
+          "note": null
+        },
+        {
+          "text": "nginx.ingress.kubernetes.io/auth-type: basic nginx.ingress.kubernetes.io/auth-secret: ollama-basic-auth nginx.ingress.kubernetes.io/auth-realm: \"Ollama LLM API\" spec: ingressClassName: nginx tls: - hosts: - ollama.internal.example.com secretName: ollama-tls rules: - host: ollama.internal.example.com http: paths: - path: / pathType: Prefix backend: service: name: ollama port: number: 11434",
+          "source": "https://oneuptime.com/blog/post/2026-02-26-argocd-ollama-deployment/view",
+          "note": null
+        },
+        {
+          "text": "```nginx theme={\"system\"} — `server {` …",
+          "source": "https://docs.ollama.com/faq#how-can-i-use-ollama-with-a-proxy-server",
+          "note": null
+        },
+        {
+          "text": "```shell theme={\"system\"} — `ngrok http 11434 --host-header=\"localhost:11434\"` …",
+          "source": "https://docs.ollama.com/faq#how-can-i-use-ollama-with-ngrok",
+          "note": null
+        },
+        {
+          "text": "```shell theme={\"system\"} — `cloudflared tunnel --url http://localhost:11434 --http-host-header=\"localhost:11434\"` …",
+          "source": "https://docs.ollama.com/faq#how-can-i-use-ollama-with-cloudflare-tunnel",
+          "note": null
+        },
+        {
+          "text": "``` — `# Allow all Chrome, Firefox, and Safari extensions` …",
+          "source": "https://docs.ollama.com/faq#how-can-i-allow-additional-web-origins-to-access-ollama",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Measurements and reference values",
+      "facts": [
+        {
+          "text": "In containers the server must listen beyond loopback: Ollama binds 127.0.0.1:11434 by default and OLLAMA_HOST changes it. Kubernetes examples set OLLAMA_HOST=0.0.0.0:11434 and probe HTTP GET / on 11434 (readiness 10s delay, liveness 30s). Exposing the port exposes an unauthenticated API (security is a sibling concept).",
+          "source": "https://docs.ollama.com/faq",
+          "note": null
+        },
+        {
+          "text": "Among the exposed instances, we find everything from llama3.3:latest running on 42 GB of VRAM to proprietary fine-tuned models that represent months of training work. Some instances have 30+ models loaded, representing hundreds of gigabytes of weights sitting on the open internet.",
+          "source": "https://blog.leakix.net/2026/02/ollama-exposed/",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Problems, failure modes and limitations",
+      "facts": [
+        {
+          "text": "LeakIX (2026-02-23) counted 12,269 Ollama instances reachable on the public internet without authentication; about 1,000 ran versions vulnerable to CVE-2024-37032. Top countries were US, China, France, Germany; top hosts were AWS, Hetzner, OVH, Contabo. Exposed endpoints allow model listing (/api/tags), free inference (/api/generate, /api/chat) and model pull/push.",
+          "source": "https://blog.leakix.net/2026/02/ollama-exposed/",
+          "note": null
+        },
+        {
+          "text": "Wiz Research discovered an easy-to-exploit Remote Code Execution vulnerability in Ollama: CVE-2024-37032, dubbed “Probllama.” This security issue was responsibly disclosed to Ollama’s maintainers and has since been mitigated. Ollama users are encouraged to upgrade their Ollama installation to version 0.1.34 or newer.",
+          "source": "https://wiz.io/blog/probllama-ollama-vulnerability-cve-2024-37032",
+          "note": null
+        },
+        {
+          "text": "The critical issue is not just the vulnerabilities themselves but the inherent lack of authentication support in these new tools. If exposed to the internet, any attacker can connect to them, steal or modify the AI models, or even execute remote code as a built-in feature (as seen with TorchServe and Ray Anyscale). The lack of authentication support means these tools should never be exposed externally without protective middleware, such as a reverse proxy with authentication. Despite this, when scanning the internet for exposed Ollama servers, our scan revealed over 1,000 exposed instances hos",
+          "source": "https://wiz.io/blog/probllama-ollama-vulnerability-cve-2024-37032",
+          "note": null
+        },
+        {
+          "text": "Cyera estimates about 300,000 internet-facing Ollama instances were exposed to CVE-2026-7482 at disclosure. This is a vendor estimate that other outlets repeat; no independent scan was found.",
+          "source": "https://www.cyera.com/blog/bleeding-llama-a-critical-memory-leak-in-the-worlds-most-popular-local-ai-platform",
+          "note": null
+        },
+        {
+          "text": "Critical Unauthenticated Memory Leak in Ollama",
+          "source": "https://www.cyera.com/blog/bleeding-llama-a-critical-memory-leak-in-the-worlds-most-popular-local-ai-platform",
+          "note": null
+        },
+        {
+          "text": "Cyera's research team discovered a critical memory-leak vulnerability in Ollama, the world's most popular platform for running large language models (LLMs) locally.",
+          "source": "https://www.cyera.com/blog/bleeding-llama-a-critical-memory-leak-in-the-worlds-most-popular-local-ai-platform",
+          "note": null
+        },
+        {
+          "text": "Assess your organization's exposure to AI infrastructure vulnerabilities. Cyera can identify unauthenticated or misconfigured AI inference endpoints, flag internet-facing Ollama instances, and provide a risk-prioritized remediation roadmap.",
+          "source": "https://www.cyera.com/blog/bleeding-llama-a-critical-memory-leak-in-the-worlds-most-popular-local-ai-platform",
+          "note": null
+        },
+        {
+          "text": "Vulnerability Unauthenticated Heap Memory Leak (Out-of-Bounds Read)",
+          "source": "https://www.cyera.com/blog/bleeding-llama-a-critical-memory-leak-in-the-worlds-most-popular-local-ai-platform",
+          "note": null
+        },
+        {
+          "text": "The Vulnerability: Arbitrary File Write via Path Traversal",
+          "source": "https://wiz.io/blog/probllama-ollama-vulnerability-cve-2024-37032",
+          "note": null
+        },
+        {
+          "text": "However, we found that the digest field was used without proper validation, resulting in path traversal when attempting to store it on the filesystem. This issue can be exploited to corrupt arbitrary files on the system.",
+          "source": "https://wiz.io/blog/probllama-ollama-vulnerability-cve-2024-37032",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Facts and statements",
+      "facts": [
+        {
+          "text": "Ollama binds 127.0.0.1:11434 by default per the official FAQ; the bind address is changed with the OLLAMA_HOST environment variable, and exposing it to a network is an explicit operator choice.",
+          "source": "https://docs.ollama.com/faq",
+          "note": null
+        },
+        {
+          "text": "Let’s see what Ollama is spitting out. First, make sure you have Ollama running and have enabled Prometheus metrics. This is usually done by setting OLLAMA_HOST=0.0.0.0:11434 (or your desired IP/port) and OLLAMA_ENABLE_METRICS=true in your environment or Ollama’s config file. Then, you can curl the metrics endpoint:",
+          "source": "https://adhdecode.com/articles/ollama/ollama-prometheus-metrics-monitoring/",
+          "note": null
+        },
+        {
+          "text": "The official FAQ documents an nginx proxy_pass example with `proxy_set_header Host localhost:11434`, and ngrok / Cloudflare Tunnel recipes that use a host-header override. The FAQ examples add no authentication; the operator must add it at the proxy or tunnel.",
+          "source": "https://docs.ollama.com/faq",
+          "note": null
+        },
+        {
+          "text": "```bash theme={\"system\"} launchctl setenv OLLAMA_HOST \"0.0.0.0:11434\" ```",
+          "source": "https://docs.ollama.com/faq#setting-environment-variables-on-mac",
+          "note": null
+        },
+        {
+          "text": "```ini theme={\"system\"} [Service] Environment=\"OLLAMA_HOST=0.0.0.0:11434\" ```",
+          "source": "https://docs.ollama.com/faq#setting-environment-variables-on-linux",
+          "note": null
+        },
+        {
+          "text": "Ollama binds 127.0.0.1 port 11434 by default. Change the bind address with the `OLLAMA_HOST` environment variable.",
+          "source": "https://docs.ollama.com/faq#how-can-i-expose-ollama-on-my-network",
+          "note": null
+        },
+        {
+          "text": "Affected: ollama/ollama versions 0 lessThan 0.17.1 (semver). CVSS v3.1 (secondary, CNA abd028dc): 9.1 CRITICAL AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:N/A:H CVSS v4.0 (secondary): 8.8 HIGH",
+          "source": "https://nvd.nist.gov/vuln/detail/CVE-2026-7482",
+          "note": null
+        },
+        {
+          "text": "Ollama has no built-in authentication. Wiz and LeakIX both direct operators to put a reverse proxy that enforces authentication (nginx, Caddy) in front of it; LeakIX says the maintainers have repeatedly declined to add auth and point users to proxies.",
+          "source": "https://wiz.io/blog/probllama-ollama-vulnerability-cve-2024-37032",
+          "note": null
+        },
+        {
+          "text": "Wiz noted the default Linux install binds localhost, which greatly limits Probllama exposure, while the Docker image runs as root and listens on 0.0.0.0 so the API is remotely reachable. Wiz's scan (June 2024) found over 1,000 exposed instances, some hosting private models.",
+          "source": "https://wiz.io/blog/probllama-ollama-vulnerability-cve-2024-37032",
+          "note": null
+        },
+        {
+          "text": "Authentication would not prevent these bugs from existing. But it would prevent random people on the internet from reaching them. Right now, every exposed Ollama instance is one CVE away from a root shell. And there are 12,269 of them.",
+          "source": "https://blog.leakix.net/2026/02/ollama-exposed/",
+          "note": null
+        },
+        {
+          "text": "Publishing the Docker port as -p 11434:11434 exposes the API on all host interfaces and the Wiz write-up shows Docker defaults are remotely reachable; use a loopback-only publish or an internal network behind a proxy. (Docker deployment detail belongs to the sibling Docker/Kubernetes concept.)",
+          "source": "https://wiz.io/blog/probllama-ollama-vulnerability-cve-2024-37032",
+          "note": null
+        },
+        {
+          "text": "Prometheus exporter and reverse proxy for an Ollama⁠ service, typically running at http://localhost:11434.",
+          "source": "https://hub.docker.com/r/evandhoffman/ollama-prometheus-exporter",
+          "note": null
+        },
+        {
+          "text": "Ollama allows cross-origin requests from `127.0.0.1` and `0.0.0.0` by default. Additional origins can be configured with `OLLAMA_ORIGINS`.",
+          "source": "https://docs.ollama.com/faq#how-can-i-allow-additional-web-origins-to-access-ollama",
+          "note": null
+        },
+        {
+          "text": "For browser extensions, you'll need to explicitly allow the extension's origin pattern. Set `OLLAMA_ORIGINS` to include `chrome-extension://*`, `moz-extension://*`, and `safari-web-extension://*` if you wish to allow all browser extensions access, or specific extensions as needed:",
+          "source": "https://docs.ollama.com/faq#how-can-i-allow-additional-web-origins-to-access-ollama",
+          "note": null
+        },
+        {
+          "text": "Prometheus exporter and reverse proxy for Ollama token metrics",
+          "source": "https://hub.docker.com/r/evandhoffman/ollama-prometheus-exporter",
+          "note": null
+        },
+        {
+          "text": "Not on its own. The Ollama server has no authentication, so anyone who reaches port 11434 can run prompts, pull models and delete models. Keep the default bind of 127.0.0.1:11434, and put an authenticating reverse proxy or a private network in front of it for remote access.",
+          "source": "https://www.ssdnodes.com/learn/is-ollama-free-local-vs-cloud",
+          "note": null
+        },
+        {
+          "text": "The top networks hosting exposed instances are AWS (1,686 combined), Hetzner (1,004), OVH (773), and Contabo (634). These aren’t hobbyist setups on home networks. These are cloud deployments, often running expensive GPU instances with production models loaded.",
+          "source": "https://blog.leakix.net/2026/02/ollama-exposed/",
+          "note": null
+        },
+        {
+          "text": "Oct 2023: Issue #849. “How to secure the API with api key.” Response: use nginx.",
+          "source": "https://blog.leakix.net/2026/02/ollama-exposed/",
+          "note": null
+        },
+        {
+          "text": "Nov 2023: Issue #1053. “Requesting support for basic auth or API key authentication.” 25+ comments. Closed.",
+          "source": "https://blog.leakix.net/2026/02/ollama-exposed/",
+          "note": null
+        },
+        {
+          "text": "12,269 exposed instances say the “use a proxy” approach isn’t working. At some point you have to stop blaming users and start taking responsibility for the software you ship.",
+          "source": "https://blog.leakix.net/2026/02/ollama-exposed/",
+          "note": null
+        }
+      ]
+    }
+  ],
+  "related": [
+    {
+      "concept": "ollama",
+      "relation": "is a related of Ollama security hardening, exposure and CVEs",
+      "note": null
+    },
+    {
+      "concept": "auth proxy",
+      "relation": "is a part of Ollama security hardening, exposure and CVEs",
+      "note": null
+    },
+    {
+      "concept": "11434",
+      "relation": "is a related of Ollama security hardening, exposure and CVEs",
+      "note": null
+    },
+    {
+      "concept": "CVE",
+      "relation": "is a problem of Ollama security hardening, exposure and CVEs",
+      "note": null
+    },
+    {
+      "concept": "api key",
+      "relation": "is a part of Ollama security hardening, exposure and CVEs",
+      "note": null
+    },
+    {
+      "concept": "ollama-metrics",
+      "relation": "is a instance of Ollama security hardening, exposure and CVEs",
+      "note": null
+    },
+    {
+      "concept": "ingress",
+      "relation": "is a part of Ollama security hardening, exposure and CVEs",
+      "note": null
+    },
+    {
+      "concept": "GHSA",
+      "relation": "is a part of Ollama security hardening, exposure and CVEs",
+      "note": null
+    },
+    {
+      "concept": "GPU passthrough",
+      "relation": "is a part of Ollama security hardening, exposure and CVEs",
+      "note": null
+    },
+    {
+      "concept": "docker desktop",
+      "relation": "is a instance of Ollama security hardening, exposure and CVEs",
+      "note": null
+    }
+  ]
+}
