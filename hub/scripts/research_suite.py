@@ -1496,6 +1496,9 @@ def cmd_run(a) -> int:
 def cmd_status(a) -> int:
     load_hub_modules()
     run = run_root(a.run)
+    if not (run / "batches.json").exists():  # `.pipeline/logs/` and the like are not runs
+        print(json.dumps({"run": a.run, "error": "not a run: no batches.json", "dir": str(run)}))
+        return 2
     batches = json.loads((run / "batches.json").read_text(encoding="utf-8"))
     order = ["discover", "snapshot", "extract", "synth", "validate", "register"]
     tally = defaultdict(int)

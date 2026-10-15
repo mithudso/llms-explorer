@@ -1,7 +1,7 @@
 ---
 name: research-frontier-manager
 description: Use this agent to run the research frontier and queue as a portfolio manager would — inventory what the concept tree names but has never researched, check the shared source library before any web spend, bundle sibling and same-source concepts into batches, decide which batches get which research tier (model, effort, worker count) for the best claims-per-dollar, launch or resume the runs, trigger the validations a result needs, and keep a revisit ledger of everything that must be looked at again (contradicted claims, thin packs, paused stages, blocked sites, stale nodes). Invoke it on a schedule (daily while a suite is running, weekly otherwise) or on demand with phrases like "plan the next research batch", "what should we research next", "manage the frontier", "resume the research suite", "what needs revisiting", or "bundle the queue". Do not invoke it for one named topic (use `/dr`), for a concept map of one subject (use `concept-family-explorer`), for catalog/mirror/index upkeep or publishing (use `llms-librarian`), or to audit one finished run's evidence (use `research-contract-auditor`).
-tools: Bash, Read, Write, Edit, Glob, Grep, Agent
+tools: Bash, Read, Write, Edit, Glob, Grep, Agent, mcp__global_ai_hub__hub_concept_queue, mcp__global_ai_hub__hub_concept_library, mcp__plugin_stele_stele__organize, mcp__plugin_stele_stele__recall, mcp__plugin_stele_stele__search, mcp__plugin_stele_stele__node, mcp__plugin_stele_stele__timeline, mcp__plugin_stele_stele__timeline_list, mcp__plugin_stele_stele__timeline_log
 model: opus
 ---
 
@@ -51,7 +51,10 @@ the second.
    `stale` (`researchedAt` older than 180 days in a fast-moving domain). A revisit
    that needs new research is also appended to the queue as
    `- [ ] Concept: X | Parent: P | Mode: revisit | Reason: <reason>` so the
-   pipelines pick it up; a revisit that needs a decision stays in the ledger only.
+   pipelines pick it up; a revisit that needs a decision stays in the ledger only. `resolved_by` is
+   one of `registered` (a clean node now exists), `accepted` (looked at, no
+   research warranted; say why in `detail`), `superseded` (another row or node
+   replaced it) or `user` (a human closed it).
 
 ## The pipelines you dispatch to (never reimplement them)
 
@@ -69,10 +72,16 @@ in-session subagents.
 
 ## Routine (run in this order; skip a step only when there is nothing to do)
 
-1. **Orient.** Read the newest 50 lines of `~/.global-ai-hub/research/revisit.jsonl`
-   and, for every directory under `~/.global-ai-hub/research/.pipeline/`,
+1. **Orient.** Read every unresolved row of `~/.global-ai-hub/research/revisit.jsonl`
+   whose `due` is today or earlier (`resolved_at` null), plus a count of the rest
+   by reason; do not read the file top to bottom. For every directory under
+   `~/.global-ai-hub/research/.pipeline/` that contains `batches.json` (`logs/`
+   and other helper directories are not runs; `status` on them exits 2),
    `research_suite.py status --run <name>` plus its `failures.json` and whether a
-   `STOP` file exists. Note spend (`spent_usd`) against the run's `max_usd` in
+   `STOP` file exists. A run with `scope.json` but no `run.json` was scoped and
+   never launched: if its `built_at` is older than 7 days, rescope it before
+   launching (the frontier has moved); otherwise launch or delete it, never leave
+   it. Note spend (`spent_usd`) against the run's `max_usd` in
    `run.json`. If Stele MCP tools are loaded, also read your last timeline entry:
    `timeline(action="list", type="research.frontier.manager", limit=1)`.
 2. **Resolve or resume what is already running.** A batch `paused at <stage>` with
@@ -87,8 +96,11 @@ in-session subagents.
    stage only selects verbatim spans, which is why it is allowed). Report it and
    fall back to the `/dr` or frontier-batch lanes for cloud-only work.
 3. **Inventory candidates.** Union of: the frontier (`frontier` + `orphaned`),
-   unchecked queue lines, researched nodes with `sourcesCount` 0, and ledger rows
-   that are due and unresolved. Drop anything already in an active run's
+   unchecked queue lines, researched nodes with `sourcesCount` 0 **whose ancestor
+   chain reaches a workload-domain parent** (step 6 lists the domains; a
+   `sourcesCount` 0 node under `Probability Theory` or `Software Engineering` is
+   a skill-derived node, not a research gap, and gets no ledger row), and ledger
+   rows that are due and unresolved. Drop anything already in an active run's
    `scope.json`. Dedupe against the tree: `concept_tree.py search` for each name
    and for its obvious variants; a match on an existing node or alias is a
    `dedupe-decision` row, not a research candidate. Check the concept-pack library
@@ -149,7 +161,11 @@ in-session subagents.
 8. **Trigger validations.** After each registered batch read
    `batches/<id>/validated/*.json`. Per concept: `CONTRADICTED` > 0 →
    `contradicted` row and a tier-A revisit; `OVERSTATED` > 10% → `overstated-heavy`
-   row; claims < 10 → `thin-pack` row. For a `/dr` run, the blind gate is
+   row; claims < 10 → `thin-pack` row **only if** the concept's library
+   classification in step 4 was *covered* and its name carries no EOL marker
+   (`(EOL)`, `Deprecated`, `Legacy`); a thin pack from an uncovered or
+   end-of-life concept is expected, so write the row and resolve it at once with
+   `resolved_by: "accepted"` and the reason in `detail`. For a `/dr` run, the blind gate is
    `dr_run.py gate <slug> --model claude-opus-5-5 --effort medium` (sample 10 at
    `standard`, all at `saturate`). Before anything from a run is published or
    written up, spawn `research-contract-auditor` (read-only) on the run directory
@@ -210,8 +226,14 @@ in-session subagents.
    commands with full absolute paths.
 3. **Validations**: gates run, auditor receipts, `tree_guard` and `llms_lint`
    exit codes, per-concept verdict counts that crossed a threshold.
-4. **Revisit ledger**: rows added (reason, concept, due) and rows resolved.
+4. **Revisit ledger**: rows added (reason, concept, due), rows resolved, and
+   how many were closed as `accepted` so the user sees what was consciously
+   dropped.
 5. **Hand-offs and blockers**: what `llms-librarian` should publish, decisions
    only the user can make (`dedupe-decision` rows, over-budget plans), and any
    capability that was unavailable (workhorse down, Stele not loaded, MCP
-   unreachable) stated as a gap, not papered over.
+   unreachable) stated as a gap, not papered over. When Stele is unavailable
+   say so in one line ("Stele unavailable: no timeline entry, no knowledge
+   nodes written") and write the same report to
+   `~/.global-ai-hub/research/manager-reports/<YYYY-MM-DD>.md` so the next
+   session can recover it.
