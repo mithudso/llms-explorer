@@ -1,0 +1,1120 @@
+{
+  "slug": "ollama-importing-models-gguf-and-safetensors-and-quantize-on-create",
+  "concept": "Ollama importing models: GGUF and safetensors and quantize on create",
+  "generated": "2026-10-14",
+  "summary": "GGUF (GPT-Unified Format) is the binary format used by llama.cpp and Ollama to store quantized model weights for efficient CPU and GPU inference. The conversion script takes the merged 16-bit PyTorch model produced by training and converts it to a self-contained GGUF file at a target quantization level. (from stratospherelinuxips.readthedocs.io)",
+  "facets": [
+    {
+      "title": "Definitions",
+      "facts": [
+        {
+          "text": "Ollama is an application based on llama.cpp to interact with LLMs directly through your computer. You can use any GGUF quants created by the community ([bartowski](https://huggingface.co/bartowski), [MaziyarPanahi](https://huggingface.co/MaziyarPanahi) and [many more](https://huggingface.co/models?pipeline_tag=text-generation&library=gguf&sort=trending)) on Hugging Face directly with Ollama, without creating a new `Modelfile`. At the time of writing there are 45K public GGUF checkpoints on the Hub, you can run any of them with a single `ollama run` command. We also provide customisations like",
+          "source": "https://huggingface.co/docs/hub/ollama",
+          "note": null
+        },
+        {
+          "text": "MLX runtime is not available: failed to load MLX dynamic library: you are importing safetensors on a system without MLX; convert to GGUF",
+          "source": "https://jacar.es/en/import-hugging-face-model-into-ollama/",
+          "note": null
+        },
+        {
+          "text": "GGUF (GPT-Unified Format) is the binary format used by llama.cpp and Ollama to store quantized model weights for efficient CPU and GPU inference. The conversion script takes the merged 16-bit PyTorch model produced by training and converts it to a self-contained GGUF file at a target quantization level.",
+          "source": "https://stratospherelinuxips.readthedocs.io/en/develop/immune/finetuning_quantization.html",
+          "note": null
+        },
+        {
+          "text": "Convert and quantize — model.save_pretrained_gguf() is called with the target quantization method; Unsloth delegates to its bundled llama.cpp binaries to perform tensor-level quantization and write the GGUF file",
+          "source": "https://stratospherelinuxips.readthedocs.io/en/develop/immune/finetuning_quantization.html",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Structure and components",
+      "facts": [
+        {
+          "text": "Support safetensors imports through the MLX create pipeline both locally and on the server, including remote upload/staging, draft layer handling, cancellation propagation, transfer limits, and shared manifest/blob writing.",
+          "source": "https://github.com/ollama/ollama/pull/14969",
+          "note": null
+        },
+        {
+          "text": "./llama-quantize --imatrix imatrix.gguf --tensor-type attn_v=q5_k --tensor-type ffn_down=q5_k --prune-layers 20,21,22 input-model-f32.gguf q4_k_m 8",
+          "source": "https://github.com/ggml-org/llama.cpp/blob/master/tools/quantize/README.md",
+          "note": null
+        },
+        {
+          "text": "./llama-quantize --imatrix imatrix.gguf --override-kv qwen3moe.expert_used_count=int:16 --prune-layers 20,21,22 input-model-f32.gguf pruned-model-f32.gguf copy 8",
+          "source": "https://github.com/ggml-org/llama.cpp/blob/master/tools/quantize/README.md",
+          "note": null
+        },
+        {
+          "text": "llama.cpp will convert the LLM portion of the source model, which is enough for conversational applications. If the model accepts multimodal inputs and you wish to take advantage of them, you need to create a separate GGUF file. This file is generically known as mmproj, for \"multimedia projector\"; however, it may contain various components such as vision or audio encoders in addition to projections.",
+          "source": "https://github.com/ggml-org/llama.cpp/blob/master/tools/quantize/README.md",
+          "note": null
+        },
+        {
+          "text": "The model directory should contain the Safetensors weights for a supported architecture.",
+          "source": "https://docs.ollama.com/modelfile.md#build-from-a-safetensors-model",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "How it works",
+      "facts": [
+        {
+          "text": "Ollama can pull a GGUF straight from Hugging Face with `ollama run hf.co/{username}/{repository}[:{quantization}]` without writing a Modelfile; the default quant is Q4_K_M when present, the quant tag is case-insensitive, and a full GGUF filename also works as the tag.",
+          "source": "https://huggingface.co/docs/hub/ollama",
+          "note": null
+        },
+        {
+          "text": "Safetensors import: Modelfile FROM points at the directory holding the safetensors weights (FROM . when the Modelfile is in that directory); run ollama create my-model from that directory, then ollama run my-model.",
+          "source": "https://docs.ollama.com/import.md",
+          "note": null
+        },
+        {
+          "text": "Deprecation in 0.34.1: typical_p can no longer be set when creating new models (existing GGUF models keep it).",
+          "source": "https://github.com/ollama/ollama/releases/tag/v0.34.1",
+          "note": null
+        },
+        {
+          "text": "On Linux arm64, ollama create from the safetensors folder fails in under a second, because 0.34.1 routes that import to MLX. A Modelfile with FROM ./MiniCPM5-2B produced this:",
+          "source": "https://jacar.es/en/import-hugging-face-model-into-ollama/",
+          "note": null
+        },
+        {
+          "text": "If the author already publishes a GGUF, you do not need to convert anything: ollama pull hf.co/user/repository:quantization downloads it from the Hub. The Hub documentation on Ollama[10] says that, without a tag, Q4_K_M is picked when it exists. With the official MiniCPM5-2B GGUF:",
+          "source": "https://jacar.es/en/import-hugging-face-model-into-ollama/",
+          "note": null
+        },
+        {
+          "text": "Anyone who scripted `ollama create` against a GGUF build has a step to change, because that conversion now belongs to llama.cpp tooling. In exchange the model list gets much faster: a cold `/api/tags` load falls from 3.1 seconds to 294 milliseconds, and that is the call every Ollama client makes to find out which models are installed.",
+          "source": "https://ai-tldr.dev/releases/ollama-0-34-1/",
+          "note": null
+        },
+        {
+          "text": "Yes. digest mismatch, expected \"…\", got \"…\" comes from POST /api/blobs/:digest — the import path used by ollama create when the CLI uploads a local GGUF to the server — and returns HTTP 400. The registry pull path uses want. A mismatch on the import path means the bytes changed between your file and the server's copy of it, so check the disk and memory on the machine doing the copy, not your network.",
+          "source": "https://localaimaster.com/blog/ollama-digest-mismatch",
+          "note": null
+        },
+        {
+          "text": "This tool takes a GGUF input model file, typically in a high-precision format like F32 or BF16, and converts it to a quantized format. Quantization reduces the precision of model weights (e.g., from 32-bit floats to 4-bit integers), which shrinks the model's size and can speed up inference. This process however, may introduce some accuracy loss which is usually measured in Perplexity (ppl) and/or Kullback–Leibler Divergence (kld). This can be minimized by using a suitable imatrix file.",
+          "source": "https://github.com/ggml-org/llama.cpp/blob/master/tools/quantize/README.md",
+          "note": null
+        },
+        {
+          "text": "The labels in the Ollama library indicate the format and size of each variant; when you omit the suffix, Ollama applies the model's default label. On Hugging Face, GGUF files include the quantization in their name.",
+          "source": "https://bestllmfor.com/guides/quantization-q4-vs-q5-vs-q8-quality/",
+          "note": null
+        },
+        {
+          "text": "Do we want to include something here saying quantization only works when importing safetensors into MLX?",
+          "source": "https://github.com/ollama/ollama/pull/14969",
+          "note": null
+        },
+        {
+          "text": "The old path did not keep that template. The GGUF that Ollama 0.34.0 generated had 32 metadata keys and no tokenizer.chat_template, and ollama show only credited it with completion. The one llama.cpp writes has 69 keys, template included. Add TEMPLATE only when the GGUF carries no template, or when you want to force a format with OLLAMA_GO_TEMPLATE.",
+          "source": "https://jacar.es/en/import-hugging-face-model-into-ollama/",
+          "note": null
+        },
+        {
+          "text": "q4_k_m — best cause score among GGUF variants, smallest size",
+          "source": "https://stratospherelinuxips.readthedocs.io/en/develop/immune/finetuning_quantization.html",
+          "note": null
+        },
+        {
+          "text": "When to download the GGUF with ollama pull hf.co",
+          "source": "https://jacar.es/en/import-hugging-face-model-into-ollama/",
+          "note": null
+        },
+        {
+          "text": "Keep the MLX path focused on supported safetensors model creation with validation before MLX work, and expose that flow without the --experimental CLI gate.",
+          "source": "https://github.com/ollama/ollama/pull/14969",
+          "note": null
+        },
+        {
+          "text": "The `/api/tags` endpoint, which Ollama clients call to list installed models, drops from a 3.1 second cold load to 294 milliseconds in version 0.34.1. That is roughly a tenfold improvement on the first call after start-up, which is the case users notice because it is the one that runs before anything is cached.",
+          "source": "https://ai-tldr.dev/releases/ollama-0-34-1/",
+          "note": null
+        },
+        {
+          "text": "There are dangerous arbitrary code execution attacks that can be perpetrated when you load a pickle file. We suggest loading models from users and organizations you trust, relying on signed commits, and/or loading models from TF or Jax formats with the `from_tf=True` auto-conversion mechanism. We also alleviate this issue by displaying/\"vetting\" the list of imports in any pickled file, directly on the Hub. Finally, we are experimenting with a new, simple serialization format for weights called [`safetensors`](https://github.com/huggingface/safetensors).",
+          "source": "https://huggingface.co/docs/hub/ollama",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "How-to and procedures",
+      "facts": [
+        {
+          "text": "To import a Hugging Face model into Ollama 0.34.1, download the safetensors with hf download, convert them with convert_hf_to_gguf.py, quantize with llama-quantize and create the model with a Modelfile that sets num_ctx and, on a shared machine, num_thread. Do not write TEMPLATE if the GGUF carries its own template. On 15 September there was already a v0.34.2-rc0 pre-release whose notes only say \"llama.cpp updates\"; I checked them on 16 September and they do not change this procedure. Before repeating this guide on another version, read its notes on the Ollama releases page[11].",
+          "source": "https://jacar.es/en/import-hugging-face-model-into-ollama/",
+          "note": null
+        },
+        {
+          "text": "Create a model from GGUF files. The `files` parameter should contain the file name and SHA256 digest of each GGUF file. For a split GGUF model, include each shard under its original split filename. Use [/api/blobs/:digest](#push-a-blob) to push each file before calling this API.",
+          "source": "https://raw.githubusercontent.com/ollama/ollama/main/docs/api.md#create-a-model-from-gguf",
+          "note": null
+        },
+        {
+          "text": "Use GGUF community tools to prepare and quantize GGUF files before importing.",
+          "source": "https://raw.githubusercontent.com/ollama/ollama/main/docs/api.md#create-a-model",
+          "note": null
+        },
+        {
+          "text": "Use `ollama create` to then create the quantized model.",
+          "source": "https://cdn.jsdelivr.net/gh/ollama/ollama@0.9.0/docs/import.md#quantizing-a-model",
+          "note": null
+        },
+        {
+          "text": "Create safetensors models through a hybrid local/remote pipeline.",
+          "source": "https://github.com/ollama/ollama/pull/14969",
+          "note": null
+        },
+        {
+          "text": "Enable experimental safetensors model creation from local weights",
+          "source": "https://mintlify.wiki/ollama/ollama/cli/create",
+          "note": null
+        },
+        {
+          "text": "Use the `ollama create mymodel` command to create a new model with the updated context size. Call the API with the updated model name:",
+          "source": "https://docs.ollama.com/api/openai-compatibility#setting-the-local-context-size",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Examples and snippets",
+      "facts": [
+        {
+          "text": "```json5 — `modelfile: '# Modelfile generated by \"ollama show\"\\n# To build a new Modelfile based on this one, replace the ` …",
+          "source": "https://raw.githubusercontent.com/ollama/ollama/main/docs/api.md#response",
+          "note": null
+        },
+        {
+          "text": "```sh — `ollama run hf.co/bartowski/Llama-3.2-3B-Instruct-GGUF:IQ3_M` …",
+          "source": "https://huggingface.co/docs/hub/ollama#custom-quantization",
+          "note": null
+        },
+        {
+          "text": "```shell — `curl http://localhost:11434/api/create -d '{` …",
+          "source": "https://raw.githubusercontent.com/ollama/ollama/main/docs/api.md#request",
+          "note": null
+        },
+        {
+          "text": "```shell — `curl -T model.gguf -X POST http://localhost:11434/api/blobs/sha256:29fdb92e57cf0827ded04ae6461b5931d01fa595843` …",
+          "source": "https://raw.githubusercontent.com/ollama/ollama/main/docs/api.md#request",
+          "note": null
+        },
+        {
+          "text": "```shell theme={\"system\"} — `ollama create my-model` …",
+          "source": "https://docs.ollama.com/import.md#importing-a-model-from-safetensors-weights",
+          "note": null
+        },
+        {
+          "text": "```json — `\"models\": [` …",
+          "source": "https://raw.githubusercontent.com/ollama/ollama/main/docs/api.md#response",
+          "note": null
+        },
+        {
+          "text": "```shell — `$ ollama create --quantize q4_K_M mymodel` …",
+          "source": "https://cdn.jsdelivr.net/gh/ollama/ollama@0.9.0/docs/import.md#quantizing-a-model",
+          "note": null
+        },
+        {
+          "text": "```shell — `{\"status\":\"importing fred (2 tensors)\"}` …",
+          "source": "https://raw.githubusercontent.com/ollama/ollama/main/docs/api.md#response",
+          "note": null
+        },
+        {
+          "text": "```sh — `ollama run hf.co/{username}/{repository}:{quantization}` …",
+          "source": "https://huggingface.co/docs/hub/ollama#custom-quantization",
+          "note": null
+        },
+        {
+          "text": "```shell theme={\"system\"} — `ollama run my-model` …",
+          "source": "https://docs.ollama.com/import.md#importing-a-model-from-safetensors-weights",
+          "note": null
+        },
+        {
+          "text": "```json — `{\"status\":\"parsing GGUF\"}` …",
+          "source": "https://raw.githubusercontent.com/ollama/ollama/main/docs/api.md#response",
+          "note": null
+        },
+        {
+          "text": "```dockerfile theme={\"system\"} — `FROM /path/to/safetensors/directory` …",
+          "source": "https://docs.ollama.com/import.md#importing-a-model-from-safetensors-weights",
+          "note": null
+        },
+        {
+          "text": "```dockerfile theme={\"system\"} — `FROM /path/to/file.gguf` …",
+          "source": "https://docs.ollama.com/import.md#importing-a-gguf-model",
+          "note": null
+        },
+        {
+          "text": "```dockerfile theme={\"system\"} — `FROM /path/to/model-*.gguf` …",
+          "source": "https://docs.ollama.com/import.md#importing-a-gguf-model",
+          "note": null
+        },
+        {
+          "text": "``` — `FROM ./ollama-model.gguf` …",
+          "source": "https://docs.ollama.com/modelfile.md#build-from-a-gguf-model",
+          "note": null
+        },
+        {
+          "text": "``` — `FROM ./model-*.gguf` …",
+          "source": "https://docs.ollama.com/modelfile.md#build-from-a-gguf-model",
+          "note": null
+        },
+        {
+          "text": "```bash — `./bin/llama-export-lora \\` …",
+          "source": "https://raw.githubusercontent.com/ggml-org/llama.cpp/master/tools/export-lora/README.md",
+          "note": null
+        },
+        {
+          "text": "```dockerfile — `FROM /path/to/safetensors/directory` …",
+          "source": "https://cdn.jsdelivr.net/gh/ollama/ollama@0.9.0/docs/import.md#importing-a-model-from-safetensors-weights",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Measurements and reference values",
+      "facts": [
+        {
+          "text": "Since Ollama 0.34.1, ollama create no longer converts or quantizes safetensors weights. To import a Hugging Face model, download it with hf download, convert it to GGUF with llama.cpp's convert_hf_to_gguf.py, quantize it with llama-quantize and build it from a Modelfile. With MiniCPM5-2B on a CPU, the three stages took 35 s, 21 s and 2 s.",
+          "source": "https://jacar.es/en/import-hugging-face-model-into-ollama/",
+          "note": null
+        },
+        {
+          "text": "Ollama 0.34.1 makes ollama create from MLX safetensors a stable feature. Building a GGUF model now requires llama.cpp tooling for safetensor conversion and quantization, and the /api/tags cold load falls from 3.1 seconds to 294 ms.",
+          "source": "https://ai-tldr.dev/releases/ollama-0-34-1/",
+          "note": null
+        },
+        {
+          "text": "ollama create -q q4_K_M from a BF16 GGUF Quantizes: 1.6 GB in 17 s create-time quantization is only supported for safetensors imports",
+          "source": "https://jacar.es/en/import-hugging-face-model-into-ollama/",
+          "note": null
+        },
+        {
+          "text": "Disk use adds up to 5.03 GB of safetensors, 5.04 GB for the BF16 GGUF, 1.56 GB for the quantized GGUF and 1.56 GB more for Ollama’s copy.",
+          "source": "https://jacar.es/en/import-hugging-face-model-into-ollama/",
+          "note": null
+        },
+        {
+          "text": "ollama create -q q4_K_M from safetensors Converts and quantizes: 1.6 GB in 106 s unsupported --quantize \"q4_K_M\"",
+          "source": "https://jacar.es/en/import-hugging-face-model-into-ollama/",
+          "note": null
+        },
+        {
+          "text": "The size of a GGUF file follows this formula: parameters in billions multiplied by bits per weight, divided by eight, gives gigabytes. For a 70B in Q4_K_M: 70 × 4.89 ÷ 8 ≈ 42.8 GB, as confirmed by the llama.cpp table for Llama 3.1 70B (43.1 GB). Then add the KV cache, which grows with the context, plus a margin for the system.",
+          "source": "https://bestllmfor.com/guides/quantization-q4-vs-q5-vs-q8-quality/",
+          "note": null
+        },
+        {
+          "text": "The full Docker image: ghcr.io/ggml-org/llama.cpp:full-v0.4.1 takes 3.91 GB and ships convert_hf_to_gguf.py, llama-quantize and the Python dependencies",
+          "source": "https://jacar.es/en/import-hugging-face-model-into-ollama/",
+          "note": null
+        },
+        {
+          "text": "NF4/GPU is the only variant competitive on complex incidents (20% win rate). All GGUF quantized variants collapse to 0% wins on complex incidents — quantization significantly degrades performance on long, evidence-heavy DAGs.",
+          "source": "https://stratospherelinuxips.readthedocs.io/en/develop/immune/finetuning_quantization.html",
+          "note": null
+        },
+        {
+          "text": "You need Ollama 0.34.1, llama.cpp’s conversion tools and the Hugging Face command line, plus about 13 GB free for a 2.5-billion-parameter model. If you do not have Ollama yet, follow the guide to installing Ollama on your computer. These are the pieces; you need only one of the first two, because both produce the same file:",
+          "source": "https://jacar.es/en/import-hugging-face-model-into-ollama/",
+          "note": null
+        },
+        {
+          "text": "Without Docker, clone the v0.4.1 tag and install the converter requirements in a virtual environment. The install took 24 s and left torch 2.11.0 for CPU, transformers 4.57.6 and gguf 0.19.0:",
+          "source": "https://jacar.es/en/import-hugging-face-model-into-ollama/",
+          "note": null
+        },
+        {
+          "text": "┌─────────┬────────┬────────┐ │ GGUF │ Local │ Remote │ ├─────────┼────────┼────────┤ │ 12.1 GB │ 9.5 s │ 11.3 s │ ├─────────┼────────┼────────┤ │ 29.6 GB │ 22.1 s │ 26.4 s │ └─────────┴────────┴────────┘",
+          "source": "https://github.com/ollama/ollama/pull/14969",
+          "note": null
+        },
+        {
+          "text": "The download fetched 11 files and 5.05 GB in 68 s, including the package install. The folder holds config.json, tokenizer.json, chat_template.jinja and a single 5,033,557,096-byte model-00000-of-00001.safetensors. Without a token, hf warns that anonymous requests get lower limits; for a gated model, export HF_TOKEN first.",
+          "source": "https://jacar.es/en/import-hugging-face-model-into-ollama/",
+          "note": null
+        },
+        {
+          "text": "The import took 2.25 s, 1.93 s and 1.99 s over three runs with a load average of 5.5. The ollama show command confirmed the architecture and the capabilities Ollama detected in the GGUF:",
+          "source": "https://jacar.es/en/import-hugging-face-model-into-ollama/",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Problems, failure modes and limitations",
+      "facts": [
+        {
+          "text": "Since Ollama 0.34.1, ollama create no longer converts or quantizes the weights you download from Hugging Face: llama.cpp does that part now. The release is dated 14 September 2026, and the one-line command that turned a safetensors folder into a GGUF now answers with an error. This guide imports MiniCPM5-2B end to end with the tools that worked on 16 September, with the times, sizes and errors I got on an arm64 CPU with no GPU. There is also a Spanish version of this guide.",
+          "source": "https://jacar.es/en/import-hugging-face-model-into-ollama/",
+          "note": null
+        },
+        {
+          "text": "On Linux arm64 (blog test), safetensors import fails with 'MLX runtime is not available: failed to load MLX dynamic library'; with --force the import succeeds but ollama run returns 'Error: 500 Internal Server Error: MLX runtime is not available'. The author attributes this to the MLX build shipping only in the amd64 image and did not test amd64 or Apple silicon.",
+          "source": "https://jacar.es/en/import-hugging-face-model-into-ollama/",
+          "note": null
+        },
+        {
+          "text": "Issue #13775 is the instructive one here, partly because of how it ended. The reporter had a 6.7GB GGUF, a sha256sum on disk that matched Hugging Face, and ollama create failing with a different \"got\" hash on each attempt. A maintainer downloaded the same file, hashed it, hashed the resulting blob, and got the expected digest on both — then asked the reporter to check for memory or disk read errors. The reporter closed it themselves with \"i genuinely believe it's not an entry issue with ollama. But i also can't figure out wtf it is.\" Same signature, same conclusion: a changing got is a local r",
+          "source": "https://localaimaster.com/blog/ollama-digest-mismatch",
+          "note": null
+        },
+        {
+          "text": "Limit GGUF create to wrapping existing GGUF inputs into Ollama manifests. Remove the in-tree safetensors-to-GGUF converter, server quantization path, and converter-only dependencies so GGUF conversion and quantization stay in llama.cpp tooling.",
+          "source": "https://github.com/ollama/ollama/pull/14969",
+          "note": null
+        },
+        {
+          "text": "PR 18448[3] explains the typical_p case: GGUF models that already carry it keep it, but you cannot create a new one with that parameter. Version 0.34.1 also brings changes unrelated to importing, such as /api/tags dropping from 3.1 s to 294 ms cold in the testing its notes cite.",
+          "source": "https://jacar.es/en/import-hugging-face-model-into-ollama/",
+          "note": null
+        },
+        {
+          "text": "The third variant, for completeness: the fast-transfer path used for safetensors models (x/transfer/download.go) returns a bare digest mismatch with no want/got at all, after removing its own .tmp file. If your error has no digests in it, that is the path you are on.",
+          "source": "https://localaimaster.com/blog/ollama-digest-mismatch",
+          "note": null
+        },
+        {
+          "text": "importing safetensors model Error: MLX runtime is not available: failed to load MLX dynamic library (searched: [/usr/lib/ollama …])",
+          "source": "https://jacar.es/en/import-hugging-face-model-into-ollama/",
+          "note": null
+        },
+        {
+          "text": "Deprecated typical_p: it can no longer be set when creating new models, existing GGUF models retain support.",
+          "source": "https://github.com/ollama/ollama/releases/tag/v0.34.1",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Comparisons and alternatives",
+      "facts": [
+        {
+          "text": "- `model`: name of the model to create - `from`: (optional) name of an existing model to create the new model from - `files`: (optional) a dictionary of file names to SHA256 digests of blobs to create the model from - `template`: (optional) the prompt template for the model - `renderer`: (optional) the name of the renderer for the model - `parser`: (optional) the name of the parser for the model - `license`: (optional) a string or list of strings containing the license or licenses for the model - `system`: (optional) a string containing the system prompt for the model - `parameters`: (optional",
+          "source": "https://raw.githubusercontent.com/ollama/ollama/main/docs/api.md#parameters",
+          "note": null
+        },
+        {
+          "text": "Summary: Finetuned models are converted to GGUF and published to Ollama in three quantization variants (q4_k_m, q5_k_m, q8_0). The GPU-served reference baseline uses BnB NF4 4-bit quantization at inference (not true fp16 — the evaluation GPU lacked sufficient VRAM for the full model), so all comparisons are NF4 vs. GGUF. Quality degrades with quantization relative to the NF4 baseline: ~2% loss at q8_0, ~12% at q5_k_m, ~9% at q4_k_m. q8_0 is the best quantized variant; q5_k_m offers the best quality/size trade-off for CPU/RPi deployment.",
+          "source": "https://stratospherelinuxips.readthedocs.io/en/develop/immune/finetuning_quantization.html",
+          "note": null
+        },
+        {
+          "text": "A model is a set of billions of numbers, called weights. In FP16, each occupies 16 bits: an 8-billion-parameter model weighs about 16 GB. Quantization stores each weight in fewer bits. According to the llama-quantize tool documentation, this process reduces model size and can speed up inference, at the cost of a loss of precision measured by perplexity or Kullback-Leibler divergence. The GGUF format used by llama.cpp, Ollama and LM Studio groups these variants. The right choice depends on three quantities: your card’s or Mac’s memory, the model size, and the context you plan to use. Q4_K_M off",
+          "source": "https://bestllmfor.com/guides/quantization-q4-vs-q5-vs-q8-quality/",
+          "note": null
+        },
+        {
+          "text": "OpenBMB publishes its own GGUFs in MiniCPM5-2B-GGUF[6], with a 16-bit file in F16 rather than BF16. My three files are 2,016 bytes larger than theirs: 1,561,320,384 against 1,561,318,368 bytes for Q4_K_M. A constant gap points at the metadata, not the weights. The Ollama 0.34.1 Docker image ships its own llama-quantize in /usr/lib/ollama, built from the llama.cpp b10864 that Ollama bundles, but not the Python converter.",
+          "source": "https://jacar.es/en/import-hugging-face-model-into-ollama/",
+          "note": null
+        },
+        {
+          "text": "GGUF quantization in 2026: Q4_K_M vs Q5_K_M vs Q6_K in practice Read → Hardware · 12 min",
+          "source": "https://bestllmfor.com/guides/quantization-q4-vs-q5-vs-q8-quality/",
+          "note": null
+        },
+        {
+          "text": "Then ollama create yourmodel-agent -f Modelfile. Note the underscore: the Modelfile parameter is num_ctx, the CLI flag is --num-ctx. Swap them and it fails silently rather than erroring.",
+          "source": "https://www.betterclaw.io/blog/ollama-context-window-truncates-agent-config",
+          "note": null
+        },
+        {
+          "text": "Evaluation basis: performance numbers below were measured on the unified model v2 (47 summary incidents, judge: gpt-oss-120b; 67 risk incidents, judge: qwen3.5; date: 2026-06-09). The fp16 baseline uses BnB NF4 4-bit quantization at inference (the evaluation GPU lacked sufficient VRAM for the full model in true fp16), so the comparison is NF4 vs. GGUF rather than full-precision vs. GGUF.",
+          "source": "https://stratospherelinuxips.readthedocs.io/en/develop/immune/finetuning_quantization.html",
+          "note": null
+        },
+        {
+          "text": "Quantization does not hurt — it slightly helps on risk. Unlike the standalone risk model, all three unified GGUF variants match or exceed the fp16 baseline on risk win rate (26.9% vs 23.9%). This is explained by the NF4 vs GGUF comparison: the fp16 baseline is already a 4-bit quantized inference path, so GGUF quantization is competitive with it.",
+          "source": "https://stratospherelinuxips.readthedocs.io/en/develop/immune/finetuning_quantization.html",
+          "note": null
+        },
+        {
+          "text": "Note the shape: expected \"sha256:…\", got \"sha256:…\" with quotes, and an HTTP 400 rather than the pull-path wording. If your error says expected/got you are looking at POST /api/blobs/:digest, which is the CLI uploading your local GGUF to the server; if it says want/got you are looking at a registry pull.",
+          "source": "https://localaimaster.com/blog/ollama-digest-mismatch",
+          "note": null
+        },
+        {
+          "text": "A digest mismatch during ollama create is a different error string from a different file, and it points at your local copy rather than the registry. The import path returns this from server/routes.go:",
+          "source": "https://localaimaster.com/blog/ollama-digest-mismatch",
+          "note": null
+        },
+        {
+          "text": "The Ollama v0.34.1 Dockerfile[8] explains the failure: it copies the MLX build, with a CUDA 13 backend, into the amd64 image only, and the arm64 image has none. I could not test that amd64 build or the path on a Mac with Apple silicon, where MLX is native and --quantize accepts int4 or nvfp4: I have neither a Mac nor an NVIDIA GPU. If you work on a Mac and want an MLX-based alternative, read what oMLX is and how it differs from Ollama.",
+          "source": "https://jacar.es/en/import-hugging-face-model-into-ollama/",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Facts and statements",
+      "facts": [
+        {
+          "text": "Working recipe for a non-MLX host: hf download the model, convert to BF16 GGUF with llama.cpp convert_hf_to_gguf.py, quantize with llama-quantize (e.g. Q4_K_M), then ollama create from a Modelfile pointing at the GGUF. Omit TEMPLATE if the GGUF carries its own chat template.",
+          "source": "https://jacar.es/en/import-hugging-face-model-into-ollama/",
+          "note": null
+        },
+        {
+          "text": "Before v0.34.1 the import guide (v0.9.0 docs) said Ollama can quantize FP16 and FP32 models via ollama create -q/--quantize with levels such as q8_0, q4_K_S and q4_K_M; that guidance no longer applies to current versions.",
+          "source": "https://cdn.jsdelivr.net/gh/ollama/ollama@0.9.0/docs/import.md",
+          "note": null
+        },
+        {
+          "text": "On 0.34.1, ollama create --quantize q4_K_M from safetensors returns 'unsupported --quantize \"q4_K_M\"'; the flag accepts only MLX formats int4, int8, nvfp4, mxfp4, mxfp8. From a BF16 GGUF it errors: 'create-time quantization is only supported for safetensors imports; quantize GGUF models before importing'.",
+          "source": "https://jacar.es/en/import-hugging-face-model-into-ollama/",
+          "note": null
+        },
+        {
+          "text": "Current Ollama docs say 'Ollama does not quantize GGUF models during import'; quantize with a GGUF tool such as llama.cpp llama-quantize first, then use a Modelfile with FROM /path/to/file.gguf and run ollama create.",
+          "source": "https://docs.ollama.com/import.md",
+          "note": null
+        },
+        {
+          "text": "Ollama v0.34.1 (published 2026-09-14) release notes: MLX safetensors ollama create is no longer experimental, and 'GGUF model creation now requires using llama.cpp tooling for safetensor conversion and quantization'.",
+          "source": "https://github.com/ollama/ollama/releases/tag/v0.34.1",
+          "note": null
+        },
+        {
+          "text": "Sources: [1] Ollama v0.34.1 release notes[12], [2] Ollama PR 14969: MLX imports and the end of GGUF conversion[1], [3] Ollama PR 18448: typical_p deprecation[3], [4] Ollama documentation: importing a model[2], [5] Ollama Modelfile reference[13], [6] Ollama v0.34.1 Dockerfile[8], [7] Ollama v0.34.2-rc0[11], [8] llama.cpp convert_hf_to_gguf.py script[14], [9] llama-quantize README[5], [10] llama.cpp Docker images[15], [11] llama.cpp v0.4.1 release notes[16], [12] MiniCPM5-2B model card on Hugging Face[4], [13] OpenBMB’s MiniCPM5-2B-GGUF[6], [14] OpenBMB guide to MiniCPM5 with Ollama[7], [15] Hub",
+          "source": "https://jacar.es/en/import-hugging-face-model-into-ollama/",
+          "note": null
+        },
+        {
+          "text": "For a Hugging Face GGUF lacking a chat template, a `template` file (Go template, not Jinja), optional `system` file and JSON `params` file in the repo override the defaults; private repos work after adding the Ollama public key (~/.ollama/id_ed25519.pub) to the Hugging Face account SSH keys.",
+          "source": "https://huggingface.co/docs/hub/ollama",
+          "note": null
+        },
+        {
+          "text": "Split GGUF models import by keeping the original shard filenames and using a wildcard in the Modelfile, e.g. FROM /path/to/model-*.gguf.",
+          "source": "https://docs.ollama.com/import.md",
+          "note": null
+        },
+        {
+          "text": "PR 14969 by Daniel Hiltgen (merged 2026-09-15) limits GGUF create to wrapping existing GGUF inputs into Ollama manifests, removes the in-tree safetensors-to-GGUF converter, the server quantization path and converter-only dependencies, adds server-side MLX safetensors imports (including remote upload/staging) and drops the --experimental CLI gate.",
+          "source": "https://github.com/ollama/ollama/pull/14969",
+          "note": null
+        },
+        {
+          "text": "MLX safetensors ollama create no longer experimental. GGUF model creation now requires using llama.cpp tooling for safetensor conversion and quantization.",
+          "source": "https://github.com/ollama/ollama/releases/tag/v0.34.1",
+          "note": null
+        },
+        {
+          "text": "The path that does not depend on MLX is llama.cpp v0.4.1’s convert_hf_to_gguf.py and llama-quantize, followed by ollama create from the GGUF.",
+          "source": "https://jacar.es/en/import-hugging-face-model-into-ollama/",
+          "note": null
+        },
+        {
+          "text": "Only for MLX safetensors imports, and only with int4, int8, nvfp4, mxfp4 or mxfp8. For a GGUF, 0.34.1 rejects the flag and asks you to quantize first with llama-quantize.",
+          "source": "https://jacar.es/en/import-hugging-face-model-into-ollama/",
+          "note": null
+        },
+        {
+          "text": "convert_hf_to_gguf.py reads the Hugging Face folder and writes a GGUF with the weights, the tokenizer and the metadata. Convert to BF16, MiniCPM5-2B’s original type, and quantize afterwards. With the full Docker image, --convert runs the script:",
+          "source": "https://jacar.es/en/import-hugging-face-model-into-ollama/",
+          "note": null
+        },
+        {
+          "text": "The two model formats now have separate owners inside Ollama — MLX handles safetensors on Apple Silicon, llama.cpp handles GGUF conversion and quantization. Version 0.34.1 also improves MLX memory handling on Apple Silicon, makes model capability reporting consistent, and raises the repeat-token detection threshold to 100 tokens so it stops triggering on short repeats.",
+          "source": "https://ai-tldr.dev/releases/ollama-0-34-1/",
+          "note": null
+        },
+        {
+          "text": "llama-quantize shrinks the 16-bit GGUF to Q4_K_M in a single command. Model quantization with llama.cpp covers the theory. Here you pick the type in the last argument:",
+          "source": "https://jacar.es/en/import-hugging-face-model-into-ollama/",
+          "note": null
+        },
+        {
+          "text": "Ollama 0.34.1 handed GGUF conversion and quantization over to llama.cpp. The release notes sum it up in one sentence: \"GGUF model creation now requires using llama.cpp tooling for safetensor conversion and quantization\". The change comes from Ollama PR 14969[1], by Daniel Hiltgen, opened in March and merged hours before the release, which removes the built-in converter and server-side quantization. GitHub dates the release 14 September at 22:14 UTC, although the tag points at a commit from the 15th and the Docker image was built that same day.",
+          "source": "https://jacar.es/en/import-hugging-face-model-into-ollama/",
+          "note": null
+        },
+        {
+          "text": "llama.cpp advises that requantizing an already-quantized model can severely reduce quality, so start from a 16/32-bit GGUF, and that an importance matrix can reduce accuracy loss.",
+          "source": "https://github.com/ggml-org/llama.cpp/blob/master/tools/quantize/README.md",
+          "note": null
+        },
+        {
+          "text": "create-time quantization is only supported for safetensors imports; quantize GGUF models before importing: drop --quantize and run llama-quantize",
+          "source": "https://jacar.es/en/import-hugging-face-model-into-ollama/",
+          "note": null
+        },
+        {
+          "text": "git clone --depth 1 --branch v0.4.1 \\ https://github.com/ggml-org/llama.cpp python3 -m venv .venv && . .venv/bin/activate pip install -r llama.cpp/requirements/requirements-convert_hf_to_gguf.txt python llama.cpp/convert_hf_to_gguf.py ./MiniCPM5-2B \\ --outtype bf16 --outfile MiniCPM5-2B-BF16.gguf",
+          "source": "https://jacar.es/en/import-hugging-face-model-into-ollama/",
+          "note": null
+        },
+        {
+          "text": "AI/TLDR › Tools › Ollama 0.34.1 — MLX safetensors leave experimental, GGUF needs llama.cpp Ollama · 2026-09-14 · major",
+          "source": "https://ai-tldr.dev/releases/ollama-0-34-1/",
+          "note": null
+        },
+        {
+          "text": "Ollama 0.34.1 — MLX safetensors leave experimental, GGUF needs llama.cpp",
+          "source": "https://ai-tldr.dev/releases/ollama-0-34-1/",
+          "note": null
+        },
+        {
+          "text": "Ollama 0.34.1 promotes MLX safetensors model creation out of experimental and hands GGUF conversion to llama.cpp tooling.",
+          "source": "https://ai-tldr.dev/releases/ollama-0-34-1/",
+          "note": null
+        },
+        {
+          "text": "After you have created a high-quality GGUF version of the model, you use llama-quantize to apply quantization. For example, quantize to Q4_K_M using a command like the following:",
+          "source": "https://github.com/ggml-org/llama.cpp/blob/master/tools/quantize/README.md",
+          "note": null
+        },
+        {
+          "text": "No. Ollama 0.34.1 changes how a GGUF model is created, not how an existing one runs — safetensor conversion and quantization now go through llama.cpp tooling. Existing GGUF models also keep support for the `typical_p` parameter, which is only removed for new models, so an installed library keeps working after the upgrade.",
+          "source": "https://ai-tldr.dev/releases/ollama-0-34-1/",
+          "note": null
+        },
+        {
+          "text": "Ollama does not quantize GGUF models during import. Prepare and quantize them first with a GGUF tool such as llama.cpp's [`llama-quantize`](https://github.com/ggml-org/llama.cpp/tree/master/tools/quantize).",
+          "source": "https://docs.ollama.com/import.md#importing-a-gguf-model",
+          "note": null
+        },
+        {
+          "text": "With llama.cpp installed on the system, the equivalent is llama-quantize MiniCPM5-2B-BF16.gguf MiniCPM5-2B-Q4_K_M.gguf Q4_K_M. The end of the output sums up the reduction:",
+          "source": "https://jacar.es/en/import-hugging-face-model-into-ollama/",
+          "note": null
+        },
+        {
+          "text": "unsupported --quantize \"q4_K_M\": supported types are int4, int8, nvfp4, mxfp4, mxfp8: the old command from safetensors; convert and quantize with llama.cpp",
+          "source": "https://jacar.es/en/import-hugging-face-model-into-ollama/",
+          "note": null
+        },
+        {
+          "text": "If you are creating a model from a safetensors directory or from GGUF files, you must [push a blob](#push-a-blob) for each file and then use its file name and SHA256 digest in the `files` field.",
+          "source": "https://raw.githubusercontent.com/ollama/ollama/main/docs/api.md#create-a-model",
+          "note": null
+        },
+        {
+          "text": "An Ollama-compatible Modelfile is written alongside the GGUF, embedding the correct template with {{ .System }}, {{ .Prompt }}, and {{ .Response }} variables, plus appropriate stop tokens (<|im_end|> and <|endoftext|> for ChatML). If an OLLAMA_README.md exists next to the script, it is copied into the output directory as README.md to populate the model card on Ollama.com.",
+          "source": "https://stratospherelinuxips.readthedocs.io/en/develop/immune/finetuning_quantization.html",
+          "note": null
+        },
+        {
+          "text": "python convert_hf_to_gguf.py --outfile gemma-4-E2B-it-bf16.gguf --outtype bf16 --remote google/gemma-4-E2B-it",
+          "source": "https://github.com/ggml-org/llama.cpp/blob/master/tools/quantize/README.md",
+          "note": null
+        },
+        {
+          "text": "python convert_hf_to_gguf.py --mmproj --outfile mmproj-gemma-4-E2B-it-Q8_0.gguf --outtype q8_0 --remote google/gemma-4-E2B-it",
+          "source": "https://github.com/ggml-org/llama.cpp/blob/master/tools/quantize/README.md",
+          "note": null
+        },
+        {
+          "text": "We want you to be able to use these models easily within your preferred workflow. Our official int4 and Q4_0 unquantized QAT models are available on Hugging Face and Kaggle. We’ve partnered with popular developer tools that enable seamlessly trying out the QAT-based quantized checkpoints:",
+          "source": "https://developers.googleblog.com/en/gemma-3-quantized-aware-trained-state-of-the-art-ai-to-consumer-gpus/",
+          "note": null
+        },
+        {
+          "text": "Runs ollama create <model-name>:<quant> -f Modelfile from within the output directory. This registers the model in the local Ollama registry, making it immediately usable via ollama run without a network round-trip.",
+          "source": "https://stratospherelinuxips.readthedocs.io/en/develop/immune/finetuning_quantization.html",
+          "note": null
+        },
+        {
+          "text": "On Hugging Face and in Ollama, the same model exists in dozens of variants: Q4_K_M, Q5_K_S, Q6_K, Q8_0, IQ3_XXS, FP16. This guide gives you measured sizes, a calculation for estimating the memory of any model, and a decision rule based on your VRAM.",
+          "source": "https://bestllmfor.com/guides/quantization-q4-vs-q5-vs-q8-quality/",
+          "note": null
+        },
+        {
+          "text": "How to quantize the GGUF with llama-quantize",
+          "source": "https://jacar.es/en/import-hugging-face-model-into-ollama/",
+          "note": null
+        },
+        {
+          "text": "#gguf #hugging-face #llama-cpp #local-ai #ollama #quantization",
+          "source": "https://jacar.es/en/import-hugging-face-model-into-ollama/",
+          "note": null
+        },
+        {
+          "text": "In Ollama 0.34.1, ollama create --quantize q4_K_M answers unsupported --quantize \"q4_K_M\": the flag only accepts the MLX formats int4, int8, nvfp4, mxfp4 and mxfp8.",
+          "source": "https://jacar.es/en/import-hugging-face-model-into-ollama/",
+          "note": null
+        },
+        {
+          "text": "Beyond making MLX safetensors creation stable, Ollama 0.34.1 improves MLX memory handling on Apple Silicon and updates both the MLX and llama.cpp dependencies. Model capability reporting is also made consistent, so a client asking what a model supports gets the same answer regardless of which of the two backends is serving it.",
+          "source": "https://ai-tldr.dev/releases/ollama-0-34-1/",
+          "note": null
+        },
+        {
+          "text": "Ollama can quantize FP16 and FP32 based models into different quantization levels using the `-q/--quantize` flag with the `ollama create` command.",
+          "source": "https://cdn.jsdelivr.net/gh/ollama/ollama@0.9.0/docs/import.md#quantizing-a-model",
+          "note": null
+        },
+        {
+          "text": "How to convert the safetensors to GGUF with llama.cpp",
+          "source": "https://jacar.es/en/import-hugging-face-model-into-ollama/",
+          "note": null
+        },
+        {
+          "text": "The script stores the chat template from chat_template.jinja and the sampling defaults from generation_config.json in the GGUF: temperature 1.0 and top_p 0.95. If a model needs transformers 5, the llama-quantize documentation[5] says you can upgrade it with pip install -U transformers; MiniCPM5-2B did not need it.",
+          "source": "https://jacar.es/en/import-hugging-face-model-into-ollama/",
+          "note": null
+        },
+        {
+          "text": "The `files` parameter should include the file name and SHA256 digest of each file in the Safetensors model. Use [/api/blobs/:digest](#push-a-blob) to push each file before calling this API. Files remain in the cache until the Ollama server is restarted.",
+          "source": "https://raw.githubusercontent.com/ollama/ollama/main/docs/api.md#create-a-model-from-a-safetensors-directory",
+          "note": null
+        },
+        {
+          "text": "ollama create mymodel -f Modelfile -q q4_K_M",
+          "source": "https://mintlify.wiki/ollama/ollama/cli/create",
+          "note": null
+        },
+        {
+          "text": "ollama create small-model -f Modelfile -q q4_K_M",
+          "source": "https://mintlify.wiki/ollama/ollama/cli/create#assistant",
+          "note": null
+        },
+        {
+          "text": "FROM ./MiniCPM5-2B-Q4_K_M.gguf PARAMETER num_ctx 8192 PARAMETER num_thread 4 SYSTEM \"\"\"Responde en español de España.\"\"\"",
+          "source": "https://jacar.es/en/import-hugging-face-model-into-ollama/",
+          "note": null
+        },
+        {
+          "text": "Yes. ollama create copies the file into its blob store, which lives in /root/.ollama/models/blobs in the Docker image. The model keeps working without the original GGUF, and ollama rm frees that copy.",
+          "source": "https://jacar.es/en/import-hugging-face-model-into-ollama/",
+          "note": null
+        },
+        {
+          "text": "./build/bin/llama-quantize gemma-4-E2B-it-bf16.gguf gemma-4-E2B-it-Q4_K_M.gguf Q4_K_M",
+          "source": "https://github.com/ggml-org/llama.cpp/blob/master/tools/quantize/README.md",
+          "note": null
+        },
+        {
+          "text": "./llama-quantize input-model-f32.gguf q4_k_m 8",
+          "source": "https://github.com/ggml-org/llama.cpp/blob/master/tools/quantize/README.md",
+          "note": null
+        },
+        {
+          "text": "./llama-quantize --allow-requantize --leave-output-tensor --pure input-model-f32.gguf q4_k_m 8",
+          "source": "https://github.com/ggml-org/llama.cpp/blob/master/tools/quantize/README.md",
+          "note": null
+        },
+        {
+          "text": "./llama-quantize --imatrix imatrix.gguf --include-weights attn_v --include-weights ffn_down input-model-f32.gguf q4_k_m 8",
+          "source": "https://github.com/ggml-org/llama.cpp/blob/master/tools/quantize/README.md",
+          "note": null
+        },
+        {
+          "text": "./llama-quantize --imatrix imatrix.gguf --output-tensor-type q5_k --token-embedding-type q3_k --keep-split input-model-f32.gguf q4_k_m 8",
+          "source": "https://github.com/ggml-org/llama.cpp/blob/master/tools/quantize/README.md",
+          "note": null
+        },
+        {
+          "text": "./llama-quantize --imatrix imatrix.gguf --tensor-type \"\\.(\\d*[13579])\\.attn_k=q5_k\" --tensor-type \"\\.(\\d*[02468])\\.attn_q=q3_k\" input-model-f32.gguf q4_k_m 8",
+          "source": "https://github.com/ggml-org/llama.cpp/blob/master/tools/quantize/README.md",
+          "note": null
+        },
+        {
+          "text": "By default, a template will be selected automatically from a list of commonly used templates. It will be selected based on the built-in `tokenizer.chat_template` metadata stored inside the GGUF file.",
+          "source": "https://huggingface.co/docs/hub/ollama#custom-chat-template-and-parameters",
+          "note": null
+        },
+        {
+          "text": "Our official Quantization Aware Trained (QAT) models provide a high-quality baseline, but the vibrant Gemmaverse offers many alternatives. These often use Post-Training Quantization (PTQ), with significant contributions from members such as Bartowski, Unsloth, and GGML readily available on Hugging Face. Exploring these community options provides a wider spectrum of size, speed, and quality trade-offs to fit specific needs.",
+          "source": "https://developers.googleblog.com/en/gemma-3-quantized-aware-trained-state-of-the-art-ai-to-consumer-gpus/",
+          "note": null
+        },
+        {
+          "text": "If you create the Modelfile in the same directory as the weights, you can use the command `FROM .`.",
+          "source": "https://cdn.jsdelivr.net/gh/ollama/ollama@0.9.0/docs/import.md#importing-a-model-from-safetensors-weights",
+          "note": null
+        },
+        {
+          "text": "1. From `Files and versions` tab on a model page, open GGUF viewer on a particular GGUF file. 2. Choose `ollama` from `Use this model` dropdown.",
+          "source": "https://huggingface.co/docs/hub/ollama#custom-quantization",
+          "note": null
+        },
+        {
+          "text": "docker run --rm -u \"$(id -u):$(id -g)\" -e HOME=/tmp \\ -v \"$PWD:/models\" \\ ghcr.io/ggml-org/llama.cpp:full-v0.4.1 \\ --convert /models/MiniCPM5-2B --outtype bf16 \\ --outfile /models/MiniCPM5-2B-BF16.gguf",
+          "source": "https://jacar.es/en/import-hugging-face-model-into-ollama/",
+          "note": null
+        },
+        {
+          "text": "docker run --rm -u \"$(id -u):$(id -g)\" -v \"$PWD:/models\" \\ ghcr.io/ggml-org/llama.cpp:full-v0.4.1 \\ --quantize /models/MiniCPM5-2B-BF16.gguf \\ /models/MiniCPM5-2B-Q4_K_M.gguf Q4_K_M",
+          "source": "https://jacar.es/en/import-hugging-face-model-into-ollama/",
+          "note": null
+        },
+        {
+          "text": "Given the safetensors CreateModel works both local+remote, does it make sense to do the same for stitching together the GGUFs? That could potentially save transferring a lot of data.",
+          "source": "https://github.com/ollama/ollama/pull/14969",
+          "note": null
+        },
+        {
+          "text": "@@ -1196,15 +1197,17 @@ If you are creating a model from a safetensors directory or from a GGUF file, yo",
+          "source": "https://github.com/ollama/ollama/pull/14969",
+          "note": null
+        },
+        {
+          "text": "The GGUF file location should be specified as an absolute path or relative to the `Modelfile` location.",
+          "source": "https://docs.ollama.com/modelfile.md#build-from-a-gguf-model",
+          "note": null
+        },
+        {
+          "text": "GGUF, safetensors: understanding the formats",
+          "source": "https://bestllmfor.com/guides/quantization-q4-vs-q5-vs-q8-quality/",
+          "note": null
+        },
+        {
+          "text": "Cleanup — the intermediate F16 GGUF and .imatrix.dat files are deleted; only the final quantized GGUF is kept",
+          "source": "https://stratospherelinuxips.readthedocs.io/en/develop/immune/finetuning_quantization.html",
+          "note": null
+        },
+        {
+          "text": "Calls convert_to_gguf.py with the model path and target quant, writing the GGUF file, Modelfile, and README to ./gguf_<quant>/.",
+          "source": "https://stratospherelinuxips.readthedocs.io/en/develop/immune/finetuning_quantization.html",
+          "note": null
+        },
+        {
+          "text": "- another model; - a safetensors directory; or - one or more GGUF files.",
+          "source": "https://raw.githubusercontent.com/ollama/ollama/main/docs/api.md#create-a-model",
+          "note": null
+        },
+        {
+          "text": "The GGUF file location should be specified as an absolute path or relative to the Modelfile location. For a split GGUF model, keep the original split filenames and use a wildcard that matches every shard. Shards can also be listed with separate FROM instructions.",
+          "source": "https://docs.ollama.com/modelfile",
+          "note": null
+        },
+        {
+          "text": "Quantize the converted GGUF file.",
+          "source": "https://github.com/ggml-org/llama.cpp/blob/master/tools/quantize/README.md",
+          "note": null
+        },
+        {
+          "text": "OLLAMA_REGISTRY_MAXSTREAMS=1 no longer exists. It appeared in the same suggestion, and a search of the current repository returns no occurrences of that name in any file. The nearest surviving relative is OLLAMA_MAX_TRANSFER_STREAMS (default 4), and its own comment in envconfig/config.go scopes it explicitly: it \"caps the number of simultaneous body-bearing transfers during safetensors model pulls/pushes\" and \"has no effect on GGUF transfers, which use the legacy upload/download paths.\" Setting it will not reduce the parallel range requests that a normal GGUF pull uses.",
+          "source": "https://localaimaster.com/blog/ollama-digest-mismatch",
+          "note": null
+        },
+        {
+          "text": "llama.cpp convert_hf_to_gguf.py script",
+          "source": "https://jacar.es/en/import-hugging-face-model-into-ollama/",
+          "note": null
+        },
+        {
+          "text": "ollama create choose-a-model-name -f ./Modelfile ollama run choose-a-model-name",
+          "source": "https://crystal-method.com/blog/ollama-modelfile/",
+          "note": null
+        },
+        {
+          "text": "If you create the Modelfile in the same directory as the weights, you can use the command FROM .. Now run the ollama create command from the directory where you created the Modelfile:",
+          "source": "https://docs.ollama.com/import",
+          "note": null
+        },
+        {
+          "text": "1. Save it as a file (e.g. `Modelfile`) 2. `ollama create choose-a-model-name -f <location of the file e.g. ./Modelfile>` 3. `ollama run choose-a-model-name` 4. Start using the model!",
+          "source": "https://docs.ollama.com/modelfile.md#basic-modelfile",
+          "note": null
+        },
+        {
+          "text": "Adds a capability to a GGUF or MLX model without removing inherited or inferred capabilities. Repeat the instruction to add more than one. Declare `decision` only for weights trained for System One's decision prompts:",
+          "source": "https://docs.ollama.com/modelfile.md#capability",
+          "note": null
+        },
+        {
+          "text": "Can I still quantize with ollama create --quantize?",
+          "source": "https://jacar.es/en/import-hugging-face-model-into-ollama/",
+          "note": null
+        },
+        {
+          "text": "ollama create minicpm5-2b ollama show minicpm5-2b ollama run minicpm5-2b --think=false --verbose \\ \"Resume en una frase qué es un Modelfile de Ollama.\"",
+          "source": "https://jacar.es/en/import-hugging-face-model-into-ollama/",
+          "note": null
+        },
+        {
+          "text": "Can I still quantize with ollama create –quantize?",
+          "source": "https://jacar.es/en/import-hugging-face-model-into-ollama/",
+          "note": null
+        },
+        {
+          "text": "ollama create MODEL ollama create MODEL -f MODELFILE",
+          "source": "https://mintlify.wiki/ollama/ollama/cli/create",
+          "note": null
+        },
+        {
+          "text": "ollama create mymodel -f ./custom/Modelfile",
+          "source": "https://mintlify.wiki/ollama/ollama/cli/create",
+          "note": null
+        },
+        {
+          "text": "ollama create code-assistant -f Modelfile",
+          "source": "https://mintlify.wiki/ollama/ollama/cli/create#assistant",
+          "note": null
+        },
+        {
+          "text": "ollama create medical-assistant -f Modelfile",
+          "source": "https://mintlify.wiki/ollama/ollama/cli/create#assistant",
+          "note": null
+        },
+        {
+          "text": "ollama create mymodel -f /path/to/Modelfile",
+          "source": "https://mintlify.wiki/ollama/ollama/cli/create",
+          "note": null
+        },
+        {
+          "text": "ollama pull llama3.2 ollama create mymodel -f Modelfile",
+          "source": "https://mintlify.wiki/ollama/ollama/cli/create",
+          "note": null
+        },
+        {
+          "text": "What about ollama create and GGUF imports?",
+          "source": "https://localaimaster.com/blog/ollama-digest-mismatch",
+          "note": null
+        },
+        {
+          "text": "What changed about importing models in Ollama 0.34.1",
+          "source": "https://jacar.es/en/import-hugging-face-model-into-ollama/",
+          "note": null
+        },
+        {
+          "text": "I ran the same commands on the previous release, 0.34.0, and on 0.34.1, against the MiniCPM5-2B folder and its GGUF. This is what each one answered:",
+          "source": "https://jacar.es/en/import-hugging-face-model-into-ollama/",
+          "note": null
+        },
+        {
+          "text": "You can also run private GGUFs from the Hugging Face Hub.",
+          "source": "https://huggingface.co/docs/hub/ollama",
+          "note": null
+        },
+        {
+          "text": "1. Copy your Ollama SSH key, you can do so via: `cat ~/.ollama/id_ed25519.pub | pbcopy` 2. Add the corresponding key to your Hugging Face account by going to [your account settings](https://huggingface.co/settings/keys) and clicking on `Add new SSH key`. 3. That's it! You can now run private GGUFs from the Hugging Face Hub: `ollama run hf.co/{username}/{repository}`.",
+          "source": "https://huggingface.co/docs/hub/ollama#run-private-ggufs-from-the-hugging-face-hub",
+          "note": null
+        },
+        {
+          "text": "- https://github.com/ollama/ollama/blob/main/docs/README.md - https://huggingface.co/docs/hub/en/gguf",
+          "source": "https://huggingface.co/docs/hub/ollama#references",
+          "note": null
+        },
+        {
+          "text": "Does Ollama 0.34.1 break GGUF models I already have?",
+          "source": "https://ai-tldr.dev/releases/ollama-0-34-1/",
+          "note": null
+        },
+        {
+          "text": "create: add server-side MLX imports and drop GGUF conversion - #14969 #14969",
+          "source": "https://github.com/ollama/ollama/pull/14969",
+          "note": null
+        },
+        {
+          "text": "create: add server-side MLX imports and drop GGUF conversion#14969",
+          "source": "https://github.com/ollama/ollama/pull/14969",
+          "note": null
+        },
+        {
+          "text": "create: add server-side MLX imports and drop GGUF conversion",
+          "source": "https://github.com/ollama/ollama/pull/14969",
+          "note": null
+        },
+        {
+          "text": "GGUF creationNow needs llama.cpp tooling",
+          "source": "https://ai-tldr.dev/releases/ollama-0-34-1/",
+          "note": null
+        },
+        {
+          "text": "ollama pull hf.co/openbmb/MiniCPM5-2B-GGUF:Q4_K_M",
+          "source": "https://jacar.es/en/import-hugging-face-model-into-ollama/",
+          "note": null
+        },
+        {
+          "text": "You can also use the GGUF-my-repo space on Hugging Face to build your own quants without any setup. It syncs from llama.cpp main every 6 hours.",
+          "source": "https://github.com/ggml-org/llama.cpp/blob/master/tools/quantize/README.md",
+          "note": null
+        },
+        {
+          "text": "FROM ./models/your-model-q4_k_m.gguf",
+          "source": "https://crystal-method.com/blog/ollama-modelfile/",
+          "note": null
+        },
+        {
+          "text": "changed the title Create safetensors models through a hybrid local/remote pipeline.",
+          "source": "https://github.com/ollama/ollama/pull/14969",
+          "note": null
+        },
+        {
+          "text": "I added the local GGUF as a discrete commit in case we want to drop it.",
+          "source": "https://github.com/ollama/ollama/pull/14969",
+          "note": null
+        },
+        {
+          "text": "Importing a model from Safetensors weights",
+          "source": "https://docs.ollama.com/import",
+          "note": null
+        },
+        {
+          "text": "For a split GGUF model, keep the original split filenames and use a wildcard that matches every shard.",
+          "source": "https://docs.ollama.com/import",
+          "note": null
+        },
+        {
+          "text": "FROM /path/to/model-*.gguf",
+          "source": "https://docs.ollama.com/import",
+          "note": null
+        },
+        {
+          "text": "Produce an intermediate F16 GGUF — a lossless 16-bit GGUF is generated first as the input for imatrix computation",
+          "source": "https://stratospherelinuxips.readthedocs.io/en/develop/immune/finetuning_quantization.html",
+          "note": null
+        },
+        {
+          "text": "Compute activation statistics — llama-imatrix runs inference on the calibration text using the F16 GGUF, recording how much each weight matrix contributes to the model’s outputs across the calibration corpus; the result is a .imatrix.dat file",
+          "source": "https://stratospherelinuxips.readthedocs.io/en/develop/immune/finetuning_quantization.html",
+          "note": null
+        },
+        {
+          "text": "The GPU-served NF4 model serves as the reference; all GGUF variants are compared against it.",
+          "source": "https://stratospherelinuxips.readthedocs.io/en/develop/immune/finetuning_quantization.html",
+          "note": null
+        },
+        {
+          "text": "What happens if you import the safetensors directly",
+          "source": "https://jacar.es/en/import-hugging-face-model-into-ollama/",
+          "note": null
+        },
+        {
+          "text": "Can I delete the GGUF after importing it?",
+          "source": "https://jacar.es/en/import-hugging-face-model-into-ollama/",
+          "note": null
+        },
+        {
+          "text": "--experimental Turns on experimental safetensors creation Hidden flag that does nothing",
+          "source": "https://jacar.es/en/import-hugging-face-model-into-ollama/",
+          "note": null
+        },
+        {
+          "text": "Convert the original model to GGUF format.",
+          "source": "https://github.com/ggml-org/llama.cpp/blob/master/tools/quantize/README.md",
+          "note": null
+        },
+        {
+          "text": "./build/bin/llama cli -m ./gemma-4-E2B-it-Q4_K_M.gguf --mmproj ./mmproj-gemma-4-E2B-it-Q8_0.gguf --image <input_image> --prompt \"Describe this image\"",
+          "source": "https://github.com/ggml-org/llama.cpp/blob/master/tools/quantize/README.md",
+          "note": null
+        },
+        {
+          "text": "【最小構成】Modelfileを書いて ollama create でビルドする手順",
+          "source": "https://crystal-method.com/blog/ollama-modelfile/",
+          "note": null
+        },
+        {
+          "text": "置き場所に決まりはありません。任意のディレクトリにModelfileとして保存し、ollama create <モデル名> -f ./Modelfileのように-fでパスを渡します。ただしFROMでGGUFやSafetensorsを相対パス指定する場合、その基準はModelfileの場所になります。",
+          "source": "https://crystal-method.com/blog/ollama-modelfile/",
+          "note": null
+        }
+      ]
+    }
+  ],
+  "related": [
+    {
+      "concept": "ollama create",
+      "relation": "is a part of Ollama importing models: GGUF and safetensors and quantize on create",
+      "note": null
+    },
+    {
+      "concept": "llama.cpp",
+      "relation": "is a related of Ollama importing models: GGUF and safetensors and quantize on create",
+      "note": null
+    },
+    {
+      "concept": "q4_K_M",
+      "relation": "is a instance of Ollama importing models: GGUF and safetensors and quantize on create",
+      "note": null
+    },
+    {
+      "concept": "MLX",
+      "relation": "is a related of Ollama importing models: GGUF and safetensors and quantize on create",
+      "note": null
+    },
+    {
+      "concept": "v0.34.1",
+      "relation": "is a related of Ollama importing models: GGUF and safetensors and quantize on create",
+      "note": null
+    },
+    {
+      "concept": "llama-quantize",
+      "relation": "is a instance of Ollama importing models: GGUF and safetensors and quantize on create",
+      "note": null
+    },
+    {
+      "concept": "hf.co",
+      "relation": "is a instance of Ollama importing models: GGUF and safetensors and quantize on create",
+      "note": null
+    },
+    {
+      "concept": "fp16",
+      "relation": "is a instance of Ollama importing models: GGUF and safetensors and quantize on create",
+      "note": null
+    },
+    {
+      "concept": "SYSTEM",
+      "relation": "is a related of Ollama importing models: GGUF and safetensors and quantize on create",
+      "note": null
+    },
+    {
+      "concept": "model import",
+      "relation": "is a synonym of Ollama importing models: GGUF and safetensors and quantize on create",
+      "note": null
+    },
+    {
+      "concept": "blob",
+      "relation": "is a part of Ollama importing models: GGUF and safetensors and quantize on create",
+      "note": null
+    },
+    {
+      "concept": "convert_hf_to_gguf",
+      "relation": "is a instance of Ollama importing models: GGUF and safetensors and quantize on create",
+      "note": null
+    },
+    {
+      "concept": "sha256 digest",
+      "relation": "is a part of Ollama importing models: GGUF and safetensors and quantize on create",
+      "note": null
+    },
+    {
+      "concept": "convert_hf_to_gguf.py",
+      "relation": "is a instance of Ollama importing models: GGUF and safetensors and quantize on create",
+      "note": null
+    },
+    {
+      "concept": "PARAMETER",
+      "relation": "is a part of Ollama importing models: GGUF and safetensors and quantize on create",
+      "note": null
+    },
+    {
+      "concept": "TEMPLATE",
+      "relation": "is a part of Ollama importing models: GGUF and safetensors and quantize on create",
+      "note": null
+    },
+    {
+      "concept": "manifest",
+      "relation": "is a part of Ollama importing models: GGUF and safetensors and quantize on create",
+      "note": null
+    },
+    {
+      "concept": "q8_0",
+      "relation": "is a instance of Ollama importing models: GGUF and safetensors and quantize on create",
+      "note": null
+    },
+    {
+      "concept": "library tags",
+      "relation": "is a part of Ollama importing models: GGUF and safetensors and quantize on create",
+      "note": null
+    },
+    {
+      "concept": "/api/tags",
+      "relation": "is a part of Ollama importing models: GGUF and safetensors and quantize on create",
+      "note": null
+    }
+  ]
+}
