@@ -1,0 +1,455 @@
+{
+  "slug": "ollama-memory-estimation-and-multi-gpu-placement-sched-spread-layer-offload-fit",
+  "concept": "Ollama memory estimation and multi-GPU placement: SCHED_SPREAD / layer offload fit",
+  "generated": "2026-10-14",
+  "summary": "OLLAMA_SCHED_SPREAD is a boolean env var described in source as 'Always schedule model across all GPUs', overriding the prefer-single-GPU default. (from raw.githubusercontent.com)",
+  "facets": [
+    {
+      "title": "Definitions",
+      "facts": [
+        {
+          "text": "OLLAMA_SCHED_SPREAD is a boolean env var described in source as 'Always schedule model across all GPUs', overriding the prefer-single-GPU default.",
+          "source": "https://raw.githubusercontent.com/ollama/ollama/main/envconfig/config.go",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Structure and components",
+      "facts": [
+        {
+          "text": "Vendor-reported benchmark: gemma3:12b at 128k context on one RTX 4090 went from 48/49 to 49/49 GPU layers and 52.02 to 85.54 tok/s; mistral-small3.2 with image input on two RTX 4090s went from 40/41 to 41/41 layers. The post gives no mechanism detail for multi-GPU gains and does not mention SCHED_SPREAD.",
+          "source": "https://ollama.com/blog/new-model-scheduling",
+          "note": null
+        },
+        {
+          "text": "Multi-GPU does not pool into one fast GPU: layers/tensors are split across devices with cross-device transfer overhead, so its main value is fitting larger models, not linear speedup; forcing a split of a model that fits one GPU can be slower.",
+          "source": "https://knightli.com/2026/04/19/ollama-multiple-gpu-notes/",
+          "note": null
+        },
+        {
+          "text": "The num_gpu option is a count of layers to offload, not a number of GPUs.",
+          "source": "https://glukhov.org/llm-performance/ollama/memory-allocation-in-ollama-new-version/",
+          "note": null
+        },
+        {
+          "text": "// Pre-flight check: estimate whether the model fits in remaining memory. // llama-server auto-detects layers based on available VRAM, so if // we predict it won't fit, evict before spawning. if requireFull && !explicitPartialGPUOffload(launchOpts, f) && len(s.loaded) > 0 && len(loadGpus) > 0 { freeMemory, gpuFreeMemory, systemLimited := availableMemoryForPlacement(systemInfo, loadGpus, launchOpts) // Use 80% of free memory as threshold to leave headroom. if predictedForLoad > freeMemory*80/100 { slog.Info(\"llama-server model predicted to exceed available memory, evicting\", \"predicted\", format",
+          "source": "https://raw.githubusercontent.com/ollama/ollama/main/server/sched.go",
+          "note": null
+        },
+        {
+          "text": "No. Ollama has no environment variable for KV cache offload and does not expose the underlying flag. It offloads model layers and the KV cache to the GPU together.",
+          "source": "https://modelpiper.com/blog/ollama-environment-variables",
+          "note": null
+        },
+        {
+          "text": "• Memory estimations (e.g. how many layers are offloaded to each GPU).",
+          "source": "https://smcleod.net/2024/12/bringing-k/v-context-quantisation-to-ollama/",
+          "note": null
+        },
+        {
+          "text": "More than inference, and it depends on the method. Full fine-tuning loads the weights, the gradients, and the optimizer states, which pushes a 7B well past 60 GB and often beyond 100 GB, and puts a 70B firmly in multi-GPU territory. Parameter-efficient methods change that completely. QLoRA quantizes the base model to 4-bit and trains only small adapter layers on top, which brings a 7B fine-tune under 16 GB and a 70B fine-tune to roughly 48 GB, the same single 48 GB card that runs a 70B at inference. The Unsloth QLoRA walkthrough runs one end to end on a single card.",
+          "source": "https://computingforgeeks.com/how-much-vram-to-run-llm/",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "How it works",
+      "facts": [
+        {
+          "text": "func AsMap() map[string]EnvVar { ret := map[string]EnvVar{ \"OLLAMA_DEBUG\": {\"OLLAMA_DEBUG\", LogLevel(), \"Show additional debug information (e.g. OLLAMA_DEBUG=1)\"}, \"OLLAMA_DEBUG_LOG_REQUESTS\": {\"OLLAMA_DEBUG_LOG_REQUESTS\", DebugLogRequests(), \"Log inference request bodies and replay curl commands to a temp directory\"}, \"OLLAMA_GO_TEMPLATE\": {\"OLLAMA_GO_TEMPLATE\", GoTemplate(true), \"Enable Modelfile TEMPLATE based rendering when available\"}, \"OLLAMA_FLASH_ATTENTION\": {\"OLLAMA_FLASH_ATTENTION\", FlashAttention(false), \"Enabled flash attention\"}, \"OLLAMA_KV_CACHE_TYP",
+          "source": "https://raw.githubusercontent.com/ollama/ollama/main/envconfig/config.go",
+          "note": null
+        },
+        {
+          "text": "var ( // FlashAttention enables the experimental flash attention feature. FlashAttention = BoolWithDefault(\"OLLAMA_FLASH_ATTENTION\") // GoTemplate enables Modelfile TEMPLATE rendering when a model has one. GoTemplate = BoolWithDefault(\"OLLAMA_GO_TEMPLATE\") // DebugLogRequests logs inference requests to disk for replay/debugging. DebugLogRequests = Bool(\"OLLAMA_DEBUG_LOG_REQUESTS\") // KvCacheType is the quantization type for the K/V cache. KvCacheType = String(\"OLLAMA_KV_CACHE_TYPE\") // NoHistory disables readline history. NoHistory = Bool(\"OLLAMA_NOHISTORY\") // NoPrune disables pruning of mode",
+          "source": "https://raw.githubusercontent.com/ollama/ollama/main/envconfig/config.go",
+          "note": null
+        },
+        {
+          "text": "When loading a new model, Ollama evaluates the required VRAM for the model against what is currently available. If the model will entirely fit on any single GPU, Ollama will load the model on that GPU. This typically provides the best performance as it reduces the amount of data transferring across the PCI bus during inference. If the model does not fit entirely on one GPU, then it will be spread across all the available GPUs.",
+          "source": "https://docs.ollama.com/faq#how-does-ollama-load-models-on-multiple-gpus",
+          "note": null
+        },
+        {
+          "text": "When choosing hardware for Ollama, prioritize a single GPU with enough VRAM for the model whenever possible. Use a multi-GPU setup when you need to run larger models that exceed the memory capacity of one GPU.",
+          "source": "https://hostinger.com/tutorials/ollama-gpu-requirements/",
+          "note": null
+        },
+        {
+          "text": "// Only back off mmap when we still expect the model to fit on discrete GPU. // If VRAM is already tight, disabling mmap can make partial CPU offload // worse by turning file-backed mappings into anonymous memory. if predictedVRAM == 0 || availableVRAM == 0 || predictedVRAM > availableVRAM*80/100 { return false }",
+          "source": "https://raw.githubusercontent.com/ollama/ollama/main/server/sched.go",
+          "note": null
+        },
+        {
+          "text": "Mixture-of-experts models read more per token than their active parameter count suggests, because attention, shared experts and the router are stored at higher precision than the routed experts. Across Gemma 4 26B-A4B, Qwen3-Coder 30B-A3B and gpt-oss-20b on an RTX 4090, the measured reads came out 1.63 times the naive file size × active ÷ total. DeepSeek V4 Flash reads 2.8 times, calibrated to a published DGX Spark run at 19.1 tok/s. The calculator does not model multi-token prediction drafting, which Ollama turns on by default for Qwen3.8, Qwen3.6 and Gemma 4 and which roughly doubled their s",
+          "source": "https://computingforgeeks.com/how-much-vram-to-run-llm/",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "How-to and procedures",
+      "facts": [
+        {
+          "text": "Run the same benchmark with num_gpu changed to -1:",
+          "source": "https://hostinger.com/tutorials/ollama-gpu-requirements/",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Examples and snippets",
+      "facts": [
+        {
+          "text": "``` — `Thinking:  Okay, the user is asking about Ollama's new engine. I need to figure out what they're referring to.` …",
+          "source": "https://docs.ollama.com/capabilities/web-search#building-a-search-agent",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Measurements and reference values",
+      "facts": [
+        {
+          "text": "Diagnose offload with `ollama ps`: the PROCESSOR column shows 100% GPU or a CPU/GPU split; with the new scheduler the vendor says nvidia-smi figures should match ollama ps.",
+          "source": "https://knightli.com/2026/04/19/ollama-multiple-gpu-notes/",
+          "note": null
+        },
+        {
+          "text": "Independent single-16GB-GPU test on v0.12.1: for models too big for VRAM, three of four (mistral-small3.2:24b, gemma3:27b, qwen3:32b) shifted slightly more to CPU (e.g. 41%->44%, 28%->29%, 30%->32% CPU); qwen3:30b-a3b unchanged. Contradicts the vendor claim; anecdotal, one machine, unnamed old version.",
+          "source": "https://glukhov.org/llm-performance/ollama/memory-allocation-in-ollama-new-version/",
+          "note": null
+        },
+        {
+          "text": "go func() { // typical convergence is 0.5-1.5s - If it takes too long to discover and converge, let the scheduler estimate VRAM usage ctx, cancel := context.WithTimeout(context.Background(), s.waitForRecovery) defer cancel() ticker := time.NewTicker(250 * time.Millisecond) defer ticker.Stop() for { select { case <-ticker.C: // Query GPUs, look for free to go back up gpusNow := s.getGpuFn(ctx, runners) totalMemoryNow = 0 freeMemoryNow = 0 for _, gpu := range gpusNow { totalMemoryNow += gpu.TotalMemory freeMemoryNow += gpu.FreeMemory } if freeMemoryNow > freeMemoryBefore { logutil.Trace(\"gpu VRA",
+          "source": "https://raw.githubusercontent.com/ollama/ollama/main/server/sched.go",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Problems, failure modes and limitations",
+      "facts": [
+        {
+          "text": "// Now that we've summed up all the GPU usage predictions across all the loaded runners, update the gpu list for i := range allGpus { if p, ok := predMap[allGpus[i].DeviceID]; ok { slog.Debug(\"gpu reported\", \"gpu\", allGpus[i].ID, \"library\", allGpus[i].Library, \"available\", format.HumanBytes2(allGpus[i].FreeMemory)) if p > allGpus[i].TotalMemory { // Shouldn't happen slog.Warn(\"predicted usage exceeds VRAM\", \"gpu\", allGpus[i].ID, \"totalMemory\", allGpus[i].TotalMemory, \"predicted\", p) allGpus[i].FreeMemory = 0 } else if (allGpus[i].TotalMemory - p) < allGpus[i].FreeMemory { // predicted free is",
+          "source": "https://raw.githubusercontent.com/ollama/ollama/main/server/sched.go",
+          "note": null
+        },
+        {
+          "text": "My PR integrated that functionality into Ollama which involved supporting the required configuration, implementing memory estimations for layer placement, error and condition handling, ensuring compatibility with the existing codebase, a lot of testing and a lot of communication around the feature to help others understand it's importance and how to use it.",
+          "source": "https://smcleod.net/2024/12/bringing-k/v-context-quantisation-to-ollama/",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Comparisons and alternatives",
+      "facts": [
+        {
+          "text": "Ollama blog (2025-09-23): the new engine measures the exact memory a model needs before running instead of estimating it; enabled by default for models on the new engine (gpt-oss, llama4, gemma3, qwen3, mistral-small3.2, embedding models and others), with more migrating.",
+          "source": "https://ollama.com/blog/new-model-scheduling",
+          "note": null
+        },
+        {
+          "text": "The current Apple lineup spreads that trade-off wide. The M5 Max moves 614 GB/s with up to 128 GB, the M5 Ultra 1,228 GB/s with up to 512 GB, while Strix Halo and DGX Spark both sit near 256 to 273 GB/s with 128 GB. On the same scoreboard model the M5 Max reaches 119.9 tok/s, the M5 Ultra 179.1, the DGX Spark 57.2, and an RTX 4090 about 170. The full comparison of unified memory vs VRAM for AI covers where each class wins.",
+          "source": "https://computingforgeeks.com/how-much-vram-to-run-llm/",
+          "note": null
+        },
+        {
+          "text": "// numBatchAuto is true when NumBatch came from Ollama's default options // rather than an explicit request or model option. numBatchAuto bool",
+          "source": "https://raw.githubusercontent.com/ollama/ollama/main/server/sched.go",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Facts and statements",
+      "facts": [
+        {
+          "text": "OLLAMA_GPU_OVERHEAD reserves a number of bytes of VRAM per GPU (default 0), shrinking what the scheduler treats as available.",
+          "source": "https://raw.githubusercontent.com/ollama/ollama/main/envconfig/config.go",
+          "note": null
+        },
+        {
+          "text": "Hardware support is still expanding, which is why the honest answer needs a hardware qualifier and not just a version. v0.31.2 enabled flash attention on NVIDIA GPUs with compute capability 6.x after upstream Pascal kernel fixes, and the gate requires every enumerated device to qualify, so one unsupported GPU in a multi-GPU box turns it off for all of them. Setting OLLAMA_FLASH_ATTENTION=1 is still useful as a forcing function, and 0 is the documented way to rule it out while debugging.",
+          "source": "https://modelpiper.com/blog/ollama-environment-variables",
+          "note": null
+        },
+        {
+          "text": "Current envconfig exposes llama.cpp fit controls: LLAMA_ARG_FIT (auto-fit unset memory options, default on) and LLAMA_ARG_FIT_TARGET (free VRAM margin per device, MiB).",
+          "source": "https://raw.githubusercontent.com/ollama/ollama/main/envconfig/config.go",
+          "note": null
+        },
+        {
+          "text": "Default multi-GPU placement: if the model fits entirely on any single GPU, Ollama loads it on that GPU (less PCIe traffic); only if it does not fit on one GPU is it spread across all available GPUs.",
+          "source": "https://docs.ollama.com/faq",
+          "note": null
+        },
+        {
+          "text": "// Establish a baseline before we unload gpusBefore := s.getGpuFn(context.Background(), runners) var totalMemoryBefore, freeMemoryBefore uint64 for _, gpu := range gpusBefore { totalMemoryBefore += gpu.TotalMemory freeMemoryBefore += gpu.FreeMemory } totalMemoryNow := totalMemoryBefore freeMemoryNow := freeMemoryBefore",
+          "source": "https://raw.githubusercontent.com/ollama/ollama/main/server/sched.go",
+          "note": null
+        },
+        {
+          "text": "// On iGPUs, GPU free memory can be a static or slowly refreshed device // baseline. updateFreeSpace has already subtracted known Ollama runner // allocations from that baseline. Current system free memory is a separate // live measurement that already includes those loaded runners, so use the // smaller value for shared-memory GPUs without discounting discrete VRAM. if systemInfo.FreeMemory > 0 && sharedGPUFree > 0 && systemInfo.FreeMemory < sharedGPUFree { return discreteGPUFree + systemInfo.FreeMemory, gpuFree, true }",
+          "source": "https://raw.githubusercontent.com/ollama/ollama/main/server/sched.go",
+          "note": null
+        },
+        {
+          "text": "curl -s http://127.0.0.1:11434/api/generate -d '{ \"model\": \"llama3.1:8b-instruct-q4_K_M\", \"prompt\": \"Explain how DNS resolution works in at least 300 words.\", \"stream\": false, \"keep_alive\": \"10m\", \"options\": { \"num_ctx\": 8192, \"num_predict\": 128, \"temperature\": 0, \"seed\": 42, \"num_gpu\": 0 } }' | python3 -c 'import sys,json; d=json.load(sys.stdin); print(\"{:.2f} tokens/s\".format(d[\"eval_count\"]/(d[\"eval_duration\"]/1e9)))'",
+          "source": "https://hostinger.com/tutorials/ollama-gpu-requirements/",
+          "note": null
+        },
+        {
+          "text": "curl -s http://127.0.0.1:11434/api/generate -d '{ \"model\": \"llama3.1:8b-instruct-q4_K_M\", \"prompt\": \"Explain how DNS resolution works in at least 300 words.\", \"stream\": false, \"keep_alive\": \"10m\", \"options\": { \"num_ctx\": 8192, \"num_predict\": 128, \"temperature\": 0, \"seed\": 42, \"num_gpu\": -1 } }' | python3 -c 'import sys,json; d=json.load(sys.stdin); print(\"{:.2f} tokens/s\".format(d[\"eval_count\"]/(d[\"eval_duration\"]/1e9)))'",
+          "source": "https://hostinger.com/tutorials/ollama-gpu-requirements/",
+          "note": null
+        },
+        {
+          "text": "for _, gpu := range loadGpus { available := gpu.FreeMemory - envconfig.GpuOverhead() - gpu.MinimumMemory() if gpu.FreeMemory < envconfig.GpuOverhead()+gpu.MinimumMemory() { available = 0 } slog.Info(\"gpu memory\", \"id\", gpu.ID, \"library\", gpu.Library, \"available\", format.HumanBytes2(available), \"free\", format.HumanBytes2(gpu.FreeMemory), \"minimum\", format.HumanBytes2(gpu.MinimumMemory()), \"overhead\", format.HumanBytes2(envconfig.GpuOverhead())) }",
+          "source": "https://raw.githubusercontent.com/ollama/ollama/main/server/sched.go",
+          "note": null
+        },
+        {
+          "text": "func constrainedCUDAWithoutFlashAttention(effectiveCtx int, gpus []ml.DeviceInfo) bool { if effectiveCtx <= 4096 { return false } return slices.ContainsFunc(gpus, func(gpu ml.DeviceInfo) bool { if gpu.Library != \"CUDA\" { return false } memory := gpu.FreeMemory if memory == 0 || (gpu.TotalMemory > 0 && gpu.TotalMemory < memory) { memory = gpu.TotalMemory } return memory > 0 && memory <= 8*format.GibiByte }) }",
+          "source": "https://raw.githubusercontent.com/ollama/ollama/main/server/sched.go",
+          "note": null
+        },
+        {
+          "text": "// Don't reload runner if num_gpu=-1 was provided optsExisting := runner.Options.Runner optsNew := req.opts.Runner optsNew.NumCtx = effectiveContext(optsNew.NumCtx, runner.trainContext) if runner.numCtxAuto && req.numCtxAuto { optsNew.NumCtx = optsExisting.NumCtx } if runner.numBatchAuto && req.numBatchAuto { optsNew.NumBatch = optsExisting.NumBatch } if runner.useMMapAuto && optsNew.UseMMap == nil { optsNew.UseMMap = optsExisting.UseMMap } if optsNew.NumGPU < 0 { optsExisting.NumGPU = -1 optsNew.NumGPU = -1 }",
+          "source": "https://raw.githubusercontent.com/ollama/ollama/main/server/sched.go",
+          "note": null
+        },
+        {
+          "text": "// Set aside VRAM per GPU var GpuOverhead = Uint64(\"OLLAMA_GPU_OVERHEAD\", 0)",
+          "source": "https://raw.githubusercontent.com/ollama/ollama/main/envconfig/config.go",
+          "note": null
+        },
+        {
+          "text": "OLLAMA_MAX_VRAMRemoved from production code. Only test files still reference itUse OLLAMA_GPU_OVERHEAD to reserve VRAM per GPU",
+          "source": "https://modelpiper.com/blog/ollama-environment-variables",
+          "note": null
+        },
+        {
+          "text": "If you have multiple GPUs with different GFX versions, append the numeric device number to the environment variable to set them individually. For example, `HSA_OVERRIDE_GFX_VERSION_0=10.3.0` and `HSA_OVERRIDE_GFX_VERSION_1=11.0.0`",
+          "source": "https://docs.ollama.com/gpu#overrides-on-linux",
+          "note": null
+        },
+        {
+          "text": "Memory estimation & KV cache optimizations",
+          "source": "https://ollama.com/blog/multimodal-models",
+          "note": null
+        },
+        {
+          "text": "predictedCtx := effectiveLlamaServerContext(req.opts.NumCtx, f, numParallel) predicted := llm.PredictServerVRAM(req.model.ModelPath, f, predictedCtx) loadGpus, launchOpts = selectLlamaServerPlacement(systemInfo, gpus, predicted, req.opts) availableForBatch, _, _ := availableMemoryForPlacement(systemInfo, loadGpus, launchOpts) flashAttention := llm.LlamaServerFlashAttention(loadGpus) req.applyAutomaticGenerationBatch(completion, predictedCtx, predicted, availableForBatch, flashAttention, loadGpus) launchOpts.NumBatch = req.opts.NumBatch var batchMemory uint64 launchOpts.NumBatch, batchMemory =",
+          "source": "https://raw.githubusercontent.com/ollama/ollama/main/server/sched.go",
+          "note": null
+        },
+        {
+          "text": "systemTotalMemory := systemInfo.TotalMemory systemFreeMemory := systemInfo.FreeMemory systemSwapFreeMemory := systemInfo.FreeSwap slog.Info(\"system memory\", \"total\", format.HumanBytes2(systemTotalMemory), \"free\", format.HumanBytes2(systemFreeMemory), \"free_swap\", format.HumanBytes2(systemSwapFreeMemory))",
+          "source": "https://raw.githubusercontent.com/ollama/ollama/main/server/sched.go",
+          "note": null
+        },
+        {
+          "text": "oldNumCtx = req.opts.NumCtx oldNumBatch = req.opts.NumBatch effectiveNumCtx = oldNumCtx if f != nil { if trainCtx := int(f.KV().ContextLength()); trainCtx > 0 && effectiveNumCtx > trainCtx { effectiveNumCtx = trainCtx } }",
+          "source": "https://raw.githubusercontent.com/ollama/ollama/main/server/sched.go",
+          "note": null
+        },
+        {
+          "text": "req.opts.NumCtx = newNumCtx predictedCtx := effectiveLlamaServerContext(req.opts.NumCtx, f, numParallel) predictedVRAM := llm.PredictServerVRAM(req.model.ModelPath, f, predictedCtx) available, _, _ := availableMemoryForPlacement(systemInfo, gpus, launchOpts) req.applyAutomaticGenerationBatch(completion, predictedCtx, predictedVRAM, available, llm.LlamaServerFlashAttention(gpus), gpus) newNumBatch = req.opts.NumBatch return oldNumCtx, effectiveNumCtx, newNumCtx, oldNumBatch, newNumBatch, true }",
+          "source": "https://raw.githubusercontent.com/ollama/ollama/main/server/sched.go",
+          "note": null
+        },
+        {
+          "text": "useMmap := false req.opts.UseMMap = &useMmap req.useMMapAuto = true slog.Info(\"disabling mmap for llama-server load due to host memory pressure\", \"model\", req.model.ModelPath, \"model_size\", format.HumanBytes2(modelSize), \"loaded_mmap_size\", format.HumanBytes2(loadedMmapSize), \"headroom\", format.HumanBytes2(mmapHostPressureHeadroom(systemInfo.TotalMemory)), \"system_free\", format.HumanBytes2(systemInfo.FreeMemory), \"system_total\", format.HumanBytes2(systemInfo.TotalMemory), \"predicted_vram\", format.HumanBytes2(predictedVRAM), \"available_vram\", format.HumanBytes2(availableVRAM), ) }",
+          "source": "https://raw.githubusercontent.com/ollama/ollama/main/server/sched.go",
+          "note": null
+        },
+        {
+          "text": "pressure := modelSize + loadedMmapSize + mmapHostPressureHeadroom(systemInfo.TotalMemory) return systemInfo.FreeMemory < pressure }",
+          "source": "https://raw.githubusercontent.com/ollama/ollama/main/server/sched.go",
+          "note": null
+        },
+        {
+          "text": "所以建议把 OLLAMA_SCHED_SPREAD 当成高级调度实验项，而不是多卡必开项。先理解默认行为，再根据实际 ollama ps、日志和 nvidia-smi 观察结果调整。",
+          "source": "https://knightli.com/2026/04/19/ollama-multiple-gpu-notes/",
+          "note": null
+        },
+        {
+          "text": "Ollama FAQ：How does Ollama load models on multiple GPUs?：https://github.com/ollama/ollama/blob/main/docs/faq.mdx",
+          "source": "https://knightli.com/2026/04/19/ollama-multiple-gpu-notes/",
+          "note": null
+        },
+        {
+          "text": "func availableMemoryForLoad(systemInfo ml.SystemInfo, gpus []ml.DeviceInfo) (available, gpuFree uint64, systemLimited bool) { var sharedGPUFree uint64 var discreteGPUFree uint64 for _, gpu := range gpus { gpuFree += gpu.FreeMemory if gpu.Integrated { sharedGPUFree += gpu.FreeMemory } else { discreteGPUFree += gpu.FreeMemory } }",
+          "source": "https://raw.githubusercontent.com/ollama/ollama/main/server/sched.go",
+          "note": null
+        },
+        {
+          "text": "func availableMemoryForGPU(systemInfo ml.SystemInfo, gpu ml.DeviceInfo) uint64 { if gpu.Integrated && systemInfo.FreeMemory > 0 && systemInfo.FreeMemory < gpu.FreeMemory { return systemInfo.FreeMemory }",
+          "source": "https://raw.githubusercontent.com/ollama/ollama/main/server/sched.go",
+          "note": null
+        },
+        {
+          "text": "Multi-GPU performance: Ollama will now schedule models more efficiently over multiple GPUs, significantly improving multi-GPU and mismatched GPU performance",
+          "source": "https://ollama.com/blog/new-model-scheduling",
+          "note": null
+        },
+        {
+          "text": "在一些多 GPU 配置讨论里，会看到 OLLAMA_SCHED_SPREAD=1 或 OLLAMA_SCHED_SPREAD=true。它和 Ollama 的调度策略有关，常被用于希望模型或请求更分散地利用多张 GPU 的场景。",
+          "source": "https://knightli.com/2026/04/19/ollama-multiple-gpu-notes/",
+          "note": null
+        },
+        {
+          "text": "Can Ollama offload the KV cache to system RAM?",
+          "source": "https://modelpiper.com/blog/ollama-environment-variables",
+          "note": null
+        },
+        {
+          "text": "Open `Control Panel > Networking and Internet > View network status and tasks` and click on `Change adapter settings` on the left panel. Find the `vEthernet (WSL)` adapter, right click and select `Properties`. Click on `Configure` and open the `Advanced` tab. Search through each of the properties until you find `Large Send Offload Version 2 (IPv4)` and `Large Send Offload Version 2 (IPv6)`. *Disable* both of these properties.",
+          "source": "https://docs.ollama.com/faq#why-is-networking-slow-in-wsl2-on-windows-10",
+          "note": null
+        },
+        {
+          "text": "Only qwen3:30b-a3b showed the same CPU/GPU spread, three other models were pushed more to CPU in new version. In my tests, to my disappointment, new version of Ollama is worse, and these results are contradicting post on Ollama blog.",
+          "source": "https://glukhov.org/llm-performance/ollama/memory-allocation-in-ollama-new-version/",
+          "note": null
+        },
+        {
+          "text": "func availableMemoryForPlacement(systemInfo ml.SystemInfo, gpus []ml.DeviceInfo, opts api.Options) (available, gpuFree uint64, systemLimited bool) { placementGpus := gpusForPlacement(gpus, opts) if len(placementGpus) == 1 && opts.MainGPU != nil { gpuFree = placementGpus[0].FreeMemory available = availableMemoryForGPU(systemInfo, placementGpus[0]) systemLimited = available < gpuFree return available, gpuFree, systemLimited }",
+          "source": "https://raw.githubusercontent.com/ollama/ollama/main/server/sched.go",
+          "note": null
+        },
+        {
+          "text": "func disableMmapForHostPressure(goos string, opts api.Options, systemInfo ml.SystemInfo, gpus []ml.DeviceInfo, modelSize, loadedMmapSize, predictedVRAM, availableVRAM uint64) bool { if opts.UseMMap != nil || goos != \"linux\" || modelSize == 0 || systemInfo.FreeMemory == 0 || !allDiscreteGPUs(gpus) { return false }",
+          "source": "https://raw.githubusercontent.com/ollama/ollama/main/server/sched.go",
+          "note": null
+        },
+        {
+          "text": "[Service] Environment=\"OLLAMA_SCHED_SPREAD=true\"",
+          "source": "https://knightli.com/2026/04/19/ollama-multiple-gpu-notes/",
+          "note": null
+        },
+        {
+          "text": "Start with CPU-only mode. Run the following command with num_gpu set to 0:",
+          "source": "https://hostinger.com/tutorials/ollama-gpu-requirements/",
+          "note": null
+        },
+        {
+          "text": "req.opts.NumBatch = automaticGenerationBatch(effectiveCtx, predictedVRAM, availableMemory, flashAttention, gpus) }",
+          "source": "https://raw.githubusercontent.com/ollama/ollama/main/server/sched.go",
+          "note": null
+        },
+        {
+          "text": "func mmapHostPressureHeadroom(totalMemory uint64) uint64 { if totalMemory == 0 { return 8 * format.GigaByte } return max(8*format.GigaByte, totalMemory/10) }",
+          "source": "https://raw.githubusercontent.com/ollama/ollama/main/server/sched.go",
+          "note": null
+        }
+      ]
+    }
+  ],
+  "related": [
+    {
+      "concept": "GPU",
+      "relation": "is a related of Ollama memory estimation and multi-GPU placement: SCHED_SPREAD / layer offload fit",
+      "note": null
+    },
+    {
+      "concept": "multi-gpu",
+      "relation": "is a synonym of Ollama memory estimation and multi-GPU placement: SCHED_SPREAD / layer offload fit",
+      "note": null
+    },
+    {
+      "concept": "offload",
+      "relation": "is a synonym of Ollama memory estimation and multi-GPU placement: SCHED_SPREAD / layer offload fit",
+      "note": null
+    },
+    {
+      "concept": "VRAM",
+      "relation": "is a synonym of Ollama memory estimation and multi-GPU placement: SCHED_SPREAD / layer offload fit",
+      "note": null
+    },
+    {
+      "concept": "FreeMemory",
+      "relation": "is a synonym of Ollama memory estimation and multi-GPU placement: SCHED_SPREAD / layer offload fit",
+      "note": null
+    },
+    {
+      "concept": "memory estimation",
+      "relation": "is a synonym of Ollama memory estimation and multi-GPU placement: SCHED_SPREAD / layer offload fit",
+      "note": null
+    },
+    {
+      "concept": "layer offload",
+      "relation": "is a synonym of Ollama memory estimation and multi-GPU placement: SCHED_SPREAD / layer offload fit",
+      "note": null
+    },
+    {
+      "concept": "TotalMemory",
+      "relation": "is a part of Ollama memory estimation and multi-GPU placement: SCHED_SPREAD / layer offload fit",
+      "note": null
+    },
+    {
+      "concept": "NumBatch",
+      "relation": "is a part of Ollama memory estimation and multi-GPU placement: SCHED_SPREAD / layer offload fit",
+      "note": null
+    },
+    {
+      "concept": "layers",
+      "relation": "is a related of Ollama memory estimation and multi-GPU placement: SCHED_SPREAD / layer offload fit",
+      "note": null
+    },
+    {
+      "concept": "num_gpu",
+      "relation": "is a synonym of Ollama memory estimation and multi-GPU placement: SCHED_SPREAD / layer offload fit",
+      "note": null
+    },
+    {
+      "concept": "device",
+      "relation": "is a related of Ollama memory estimation and multi-GPU placement: SCHED_SPREAD / layer offload fit",
+      "note": null
+    },
+    {
+      "concept": "kv cache",
+      "relation": "is a synonym of Ollama memory estimation and multi-GPU placement: SCHED_SPREAD / layer offload fit",
+      "note": null
+    },
+    {
+      "concept": "runner",
+      "relation": "is a part of Ollama memory estimation and multi-GPU placement: SCHED_SPREAD / layer offload fit",
+      "note": null
+    },
+    {
+      "concept": "spread",
+      "relation": "is a synonym of Ollama memory estimation and multi-GPU placement: SCHED_SPREAD / layer offload fit",
+      "note": null
+    },
+    {
+      "concept": "NumCtx",
+      "relation": "is a synonym of Ollama memory estimation and multi-GPU placement: SCHED_SPREAD / layer offload fit",
+      "note": null
+    },
+    {
+      "concept": "flash attention",
+      "relation": "is a synonym of Ollama memory estimation and multi-GPU placement: SCHED_SPREAD / layer offload fit",
+      "note": null
+    },
+    {
+      "concept": "model eviction",
+      "relation": "is a synonym of Ollama memory estimation and multi-GPU placement: SCHED_SPREAD / layer offload fit",
+      "note": null
+    },
+    {
+      "concept": "scheduler",
+      "relation": "is a synonym of Ollama memory estimation and multi-GPU placement: SCHED_SPREAD / layer offload fit",
+      "note": null
+    },
+    {
+      "concept": "GpuOverhead",
+      "relation": "is a synonym of Ollama memory estimation and multi-GPU placement: SCHED_SPREAD / layer offload fit",
+      "note": null
+    }
+  ]
+}
