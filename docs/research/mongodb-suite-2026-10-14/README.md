@@ -7,7 +7,7 @@ behind all of it.
 
 - **Status:** the pilot batch (`mongodb-transactions`, 8 of 707 concepts) is complete and registered. The full run was launched at 2026-10-14 18:50 UTC with `--max-usd 600`; at 19:00 UTC, 4 batches were in discover and 1 (the pilot) was done. Run `status` for the current state.
 - **Scope:** 707 concepts in 120 batches, mostly of siblings and at most 8 per batch (5.9 on average; the 3 `mixed-*` batches pool 23 concepts from small families). A frontier concept is one the concept tree names but has never researched. The set is 700 frontier concepts plus 7 researched nodes with zero sources; the 29 matching queue lines are all frontier concepts already. The match is a name or ancestor regex (`MONGO_RX`) and let in at least one non-MongoDB concept: "Process & governance (OWASP GenAI Red Teaming Guide, MITRE ATLAS, ...)" in batch `mixed-1`, matched on `atlas`. Run name `mongodb-2026-10-14`.
-- **Code:** `hub/scripts/research_suite.py` (this repo, branch `feat/mongodb-research-suite`, not merged) and `~/.global-ai-hub/scripts/source_library.py` (the hub repo). The extraction design described below (quote only, snapped, salvaged) is in uncommitted edits to `research_suite.py` and its test as of 2026-10-14 15:16 EDT; the committed branch still has the first-attempt extraction. The run imports `frontier_research_batch.py` from the same `hub/scripts` directory, so keep this worktree in place until the run exits.
+- **Code:** `hub/scripts/research_suite.py` (this repo, PR #181) and `~/.global-ai-hub/scripts/source_library.py` (the hub repo). The run imports `frontier_research_batch.py` from the same `hub/scripts` directory, so keep the worktree `~/dev/worktrees/llms-explorer-suite` in place until the run exits.
 - **Prompt:** the user's request went through the prompt deep optimizer first. `pdo-report.md` records the audit: the loop stalled at iteration 2 (Medium+ findings rose from 20 to 30). `prompt-v2-operational.md` is the form the run follows; it applies the iteration-2 findings and was not re-audited.
 
 ## Stages
@@ -139,11 +139,20 @@ pilot's copy already holds the 8 new nodes (the cause is not recorded), so it is
 point. The pre-pilot tree is the parent of hub commit `83321b60`. In the hub repo, commit only
 `tree.json` and the new pack directories.
 
-## Known issue: pack structure
+## Fixed: pack structure
 
-Each pilot pack has 1 unit in `units.jsonl` (`multi-document-transactions` has 2), so the claims of
-a concept sit in one passage; the 161 packs in `~/.global-ai-hub/llms-concepts/` that have a
-`units.jsonl` have a median of 65 units. In the pilot packs `llms-full.txt` (1.7 to 2.6 KB) is
-smaller than `llms-small.txt` (2.0 to 19.1 KB). `synthesis_markdown` writes one bullet per claim on
-the assumption that the abstractor makes each bullet a unit, and that does not happen. Fix this
-before relying on the packs or committing the full run's output.
+The first 13 packs were built with one bulleted block per concept, and the abstractor makes one
+unit per blank-line-separated paragraph, so each pack had 1 unit (the other packs in
+`~/.global-ai-hub/llms-concepts/` have a median of 65). `synthesis_markdown` now writes one
+paragraph per claim under a heading per section. The 13 packs were regenerated and now have 19 to
+58 units each.
+
+## GPU memory
+
+`qwen38` in llama-swap needs about 15.7 GB of the card's 16.3 GB. With the desktop and an Ollama
+embed model resident it fails to load (`cudaMalloc failed: out of memory`, shown by llama-swap as
+HTTP 500). The run uses a second entry, `qwen38-research` in `~/.config/llama-swap/config.yaml`:
+the same Qwen3.8-27B `UD-Q3_K_XL` file and MTP draft head with a 24,576-token context and 256-token
+batches, which leaves about 0.9 GB free. Select it with `RS_LLM_MODEL=qwen38-research`. Any other
+llama-swap client that requests a different model evicts it; workhorse calls wait up to about
+5 minutes for a reload before the run counts it as a systemic failure and halts.
