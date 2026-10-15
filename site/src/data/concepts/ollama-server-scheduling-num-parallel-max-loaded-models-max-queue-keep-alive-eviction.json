@@ -1,0 +1,855 @@
+{
+  "slug": "ollama-server-scheduling-num-parallel-max-loaded-models-max-queue-keep-alive-eviction",
+  "concept": "Ollama server scheduling: NUM_PARALLEL / MAX_LOADED_MODELS / MAX_QUEUE / keep_alive eviction",
+  "generated": "2026-10-14",
+  "summary": "OLLAMA_NUM_PARALLEL is how many requests one loaded model handles at the same time. The default is 1, so requests are served one after another. (from www.ssdnodes.com)",
+  "facets": [
+    {
+      "title": "Definitions",
+      "facts": [
+        {
+          "text": "Rost Glukhov is a polyglot developer, has a special interest in web, mobile, backend, AI, devops and other areas. For more details have a look at the About page. For partnership and sponsored content inquiries, see Partnerships.",
+          "source": "https://www.glukhov.org/llm-performance/ollama/how-ollama-handles-parallel-requests/#limit-loaded-models-and-parallel-requests",
+          "note": null
+        },
+        {
+          "text": "Parallel execution in Ollama means handling multiple requests at the same time, either for the same model or for different models, depending on available memory and configuration.",
+          "source": "https://www.glukhov.org/llm-performance/ollama/how-ollama-handles-parallel-requests/#limit-loaded-models-and-parallel-requests",
+          "note": null
+        },
+        {
+          "text": "OLLAMA_MAX_LOADED_MODELS is how many different models stay resident at once. The default is 0, which means Ollama picks: three models per GPU, and three on a machine with no GPU.",
+          "source": "https://www.ssdnodes.com/learn/ollama-num-parallel-and-max-queue",
+          "note": null
+        },
+        {
+          "text": "// loadedModel is a point-in-time snapshot of a loaded runner's state, safe to // use without holding any scheduler locks. type loadedModel struct { model *Model runner string size int64 sizeVRAM int64 contextLength int expiresAt time.Time }",
+          "source": "https://raw.githubusercontent.com/ollama/ollama/main/server/sched.go",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Structure and components",
+      "facts": [
+        {
+          "text": "// Some architectures are not safe with num_parallel > 1. // ref: https://github.com/ollama/ollama/issues/4165 if slices.Contains([]string{\"mllama\", \"qwen3vl\", \"qwen3vlmoe\", \"qwen35\", \"qwen35moe\", \"qwen3next\", \"lfm2\", \"lfm2moe\", \"nemotron_h\", \"nemotron_h_moe\", \"nemotron_h_omni\"}, req.model.Config.ModelFamily) && numParallel != 1 { numParallel = 1 slog.Warn(\"model architecture does not currently support parallel requests\", \"architecture\", req.model.Config.ModelFamily) }",
+          "source": "https://raw.githubusercontent.com/ollama/ollama/main/server/sched.go",
+          "note": null
+        },
+        {
+          "text": "// Free memory reporting on GPUs can lag for a while even after the runner // exits, so we have to keep checking until we see the available memory recover, // otherwise subsequent model loads will get far less layers loaded or worse // case, may completely fall back to CPU mode. // This routine must be called before the runner unloads so it can establish // a before and after GPU memory allocation. The returned channel // will be notified when we're done waiting, or have timed out and should // proceed anyway func (s *Scheduler) waitForVRAMRecovery(runner *runnerRef, runners []ml.FilteredRunn",
+          "source": "https://raw.githubusercontent.com/ollama/ollama/main/server/sched.go",
+          "note": null
+        },
+        {
+          "text": "For GPU inference a model should fit fully in VRAM; ollama ps shows the Processor column (100% GPU, 100% CPU, or a CPU/GPU split such as 48%/52%). A split means some layers run on CPU from system RAM and is much slower.",
+          "source": "https://docs.ollama.com/faq",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "How it works",
+      "facts": [
+        {
+          "text": "When a new model does not fit, the scheduler picks the runner with shortest session duration (refCount 0 first), forces its sessionDuration to 0, unloads it and retries; queued requests are processed in order. If load OOMs with others resident, all other runners are evicted once before retry.",
+          "source": "https://raw.githubusercontent.com/ollama/ollama/main/server/sched.go",
+          "note": null
+        },
+        {
+          "text": "A loaded runner is reloaded (not reused) if options, context shift, adapters, projector differ or the health ping fails, so varying num_ctx or other options per request between callers triggers reloads and cold starts.",
+          "source": "https://raw.githubusercontent.com/ollama/ollama/main/server/sched.go",
+          "note": null
+        },
+        {
+          "text": "OLLAMA_MAX_QUEUE defaults to 512. The pending channel is buffered to that size; when full a request fails immediately with ErrMaxQueue ('server busy, please try again. maximum pending requests exceeded'), surfaced as HTTP 503.",
+          "source": "https://docs.ollama.com/faq",
+          "note": null
+        },
+        {
+          "text": "* `OLLAMA_MAX_LOADED_MODELS` - The maximum number of models that can be loaded concurrently provided they fit in available memory. The default is 3 \\* the number of GPUs or 3 for CPU inference. * `OLLAMA_NUM_PARALLEL` - The maximum number of parallel requests each model will process at the same time, default 1. Required RAM will scale by `OLLAMA_NUM_PARALLEL` \\* `OLLAMA_CONTEXT_LENGTH`. * `OLLAMA_MAX_QUEUE` - The maximum number of requests Ollama will queue when busy before rejecting additional requests. The default is 512",
+          "source": "https://docs.ollama.com/faq#how-does-ollama-handle-concurrent-requests",
+          "note": null
+        },
+        {
+          "text": "Alternatively, you can change the amount of time all models are loaded into memory by setting the `OLLAMA_KEEP_ALIVE` environment variable when starting the Ollama server. The `OLLAMA_KEEP_ALIVE` variable uses the same parameter types as the `keep_alive` parameter types mentioned above. Refer to the section explaining [how to configure the Ollama server](#how-do-i-configure-ollama-server) to correctly set the environment variable.",
+          "source": "https://docs.ollama.com/faq#how-do-i-keep-a-model-loaded-in-memory-or-make-it-unload-immediately",
+          "note": null
+        },
+        {
+          "text": "Parallel Requests per Model: Each loaded model can process several requests in parallel, controlled by the OLLAMA_NUM_PARALLEL setting (default is 1 or 4, depending on memory).",
+          "source": "https://www.glukhov.org/llm-performance/ollama/how-ollama-handles-parallel-requests/#limit-loaded-models-and-parallel-requests",
+          "note": null
+        },
+        {
+          "text": "Parallel Processing: Ollama supports concurrent processing of requests. If the system has enough available memory (RAM for CPU inference, VRAM for GPU inference), multiple models can be loaded at once, and each loaded model can handle several requests in parallel. This is controlled by the environment variable OLLAMA_NUM_PARALLEL, which sets the maximum number of parallel requests each model can process simultaneously. By default, this is set to 4 (or 1, depending on memory availability), but it can be adjusted.",
+          "source": "https://www.glukhov.org/llm-performance/ollama/how-ollama-handles-parallel-requests/",
+          "note": null
+        },
+        {
+          "text": "// LogValue may run from goroutines that already hold refMu (see the scheduler // debug logs), so the unload-mutable fields are read only under TryLock and // omitted when the lock is contended. func (runner *runnerRef) LogValue() slog.Value { if runner == nil { return slog.StringValue(\"nil\") } modelID := runner.modelPath if modelID == \"\" { modelID = runner.modelKey } attrs := []slog.Attr{} if runner.refMu.TryLock() { if runner.model != nil { attrs = append(attrs, slog.String(\"name\", runner.model.Name)) } if len(runner.gpus) > 0 { attrs = append(attrs, slog.Any(\"inference\", slices.Clone(runner",
+          "source": "https://raw.githubusercontent.com/ollama/ollama/main/server/sched.go",
+          "note": null
+        },
+        {
+          "text": "“I run out of VRAM when two requests arrive”",
+          "source": "https://www.glukhov.org/llm-performance/ollama/how-ollama-handles-parallel-requests/#limit-loaded-models-and-parallel-requests",
+          "note": null
+        },
+        {
+          "text": "Batching in Ollama refers to the practice of grouping multiple incoming requests together and processing them as a unit. This allows for more efficient use of computational resources, especially when running on hardware that benefits from parallelized operations (such as GPUs).",
+          "source": "https://www.glukhov.org/llm-performance/ollama/how-ollama-handles-parallel-requests/#limit-loaded-models-and-parallel-requests",
+          "note": null
+        },
+        {
+          "text": "When multiple requests for the same model arrive simultaneously, Ollama can process them together in a batch if memory allows. This increases throughput and can reduce latency for each request, as the model can leverage optimized matrix operations over the batch.",
+          "source": "https://www.glukhov.org/llm-performance/ollama/how-ollama-handles-parallel-requests/#limit-loaded-models-and-parallel-requests",
+          "note": null
+        },
+        {
+          "text": "Ollama leverages both batching and parallel execution to process multiple requests efficiently. Batching groups requests for simultaneous processing, while parallel execution allows multiple requests (or models) to run concurrently. Both methods depend on system memory and are configurable for optimal performance.",
+          "source": "https://www.glukhov.org/llm-performance/ollama/how-ollama-handles-parallel-requests/#limit-loaded-models-and-parallel-requests",
+          "note": null
+        },
+        {
+          "text": "If there is insufficient available memory to load a new model request while one or more models are already loaded, all new requests will be queued until the new model can be loaded. As prior models become idle, one or more will be unloaded to make room for the new model. Queued requests will be processed in order. When using GPU inference new models must be able to completely fit in VRAM to allow concurrent model loads.",
+          "source": "https://docs.ollama.com/faq#how-does-ollama-handle-concurrent-requests",
+          "note": null
+        },
+        {
+          "text": "If raising OLLAMA_NUM_PARALLEL no longer keeps latency stable and the queue keeps growing under real traffic, that is one of the clearer signals worth weighing against a move to a purpose-built serving engine. Ollama to vLLM: When to Migrate Your Local LLM Server walks through that decision, including continuous batching and PagedAttention as the mechanisms vLLM uses to keep concurrent requests from degrading each other.",
+          "source": "https://www.glukhov.org/llm-performance/ollama/how-ollama-handles-parallel-requests/",
+          "note": null
+        },
+        {
+          "text": "if runnerToExpire == nil { // While we were performing load calculations, the loaded runner(s) unloaded in parallel // so findRunnerToUnload returned no runners. We'll try again and the loadedCount should be zero slog.Debug(\"runner to expire was nil, retrying\") continue } // Trigger an expiration to unload once it's done runnerToExpire.refMu.Lock() slog.Debug(\"resetting model to expire immediately to make room\", \"runner\", runnerToExpire, \"refCount\", runnerToExpire.refCount) if runnerToExpire.expireTimer != nil { runnerToExpire.expireTimer.Stop() runnerToExpire.expireTimer = nil } runnerToExpi",
+          "source": "https://raw.githubusercontent.com/ollama/ollama/main/server/sched.go",
+          "note": null
+        },
+        {
+          "text": "Served in parallel. Every request reports a similar ttfb, and total rises for all of them together. The GPU is shared between the running slots, so each answer is slower than it would be alone while more of them finish per minute. This is the regime you are buying when you raise OLLAMA_NUM_PARALLEL.",
+          "source": "https://www.ssdnodes.com/learn/ollama-num-parallel-and-max-queue",
+          "note": null
+        },
+        {
+          "text": "That is 2.13 GiB against 4.0 GiB before, the 53 percent from the block arithmetic. The saving is what lets you raise num_ctx again, or fit a larger weight file, on the same box. The log line is the allocation. ollama ps is an estimate of the whole model and is the number the scheduler uses to decide whether a model fits at all, so watch both, and trust the log line when they disagree.",
+          "source": "https://www.ssdnodes.com/learn/ollama-kv-cache-quantization",
+          "note": null
+        },
+        {
+          "text": "Parallel request processing for a given model results in increasing the context size by the number of parallel requests. For example, a 2K context with 4 parallel requests will result in an 8K context and additional memory allocation.",
+          "source": "https://docs.ollama.com/faq#how-does-ollama-handle-concurrent-requests",
+          "note": null
+        },
+        {
+          "text": "// Wait for every unload event. Each runner produces exactly one // unloadedCh signal when its cleanup finishes. for range runnersToExpire { select { case <-ctx.Done(): slog.Debug(\"shutting down scheduler during evict-all wait\") return false case <-s.unloadedCh: } } return true }",
+          "source": "https://raw.githubusercontent.com/ollama/ollama/main/server/sched.go",
+          "note": null
+        },
+        {
+          "text": "A model that is already loaded keeps the slot count it was started with, because the value is fixed into the runner process at launch. The restart above unloads everything, so the next request reloads the model with the new setting and pays the load time once. How long a model stays resident after that is a separate control, covered in keeping an Ollama model loaded between requests.",
+          "source": "https://www.ssdnodes.com/learn/ollama-num-parallel-and-max-queue",
+          "note": null
+        },
+        {
+          "text": "Administrators should monitor memory usage and adjust these parameters based on their hardware capabilities. Insufficient memory handling becomes crucial when running larger models (7B+ parameters) or processing multiple concurrent requests.",
+          "source": "https://www.glukhov.org/llm-performance/ollama/how-ollama-handles-parallel-requests/",
+          "note": null
+        },
+        {
+          "text": "// The refMu must already be held when calling unload func (runner *runnerRef) unload() { if runner.expireTimer != nil { runner.expireTimer.Stop() runner.expireTimer = nil } if runner.llama != nil { runner.llama.Close() } runner.model = nil runner.Options = nil runner.gpus = nil runner.contextShift = false }",
+          "source": "https://raw.githubusercontent.com/ollama/ollama/main/server/sched.go",
+          "note": null
+        },
+        {
+          "text": "On Linux, Ollama runs as a systemd service. Running export OLLAMA_NUM_PARALLEL=4 in your shell changes nothing, because systemd starts the service with its own environment and never sees your shell. Use a drop-in file.",
+          "source": "https://www.ssdnodes.com/learn/ollama-num-parallel-and-max-queue",
+          "note": null
+        },
+        {
+          "text": "That message means the scheduling queue was full at the moment the request arrived. It says nothing about VRAM and nothing about the model. In current releases that queue only holds requests whose model has not been loaded yet. If the model is already resident when you run the loop above, expect every request to return 200 however low you set OLLAMA_MAX_QUEUE. The overflow shows up as a longer ttfb instead.",
+          "source": "https://www.ssdnodes.com/learn/ollama-num-parallel-and-max-queue",
+          "note": null
+        },
+        {
+          "text": "Model memory adds up too when concurrent requests use different models.",
+          "source": "https://hostinger.com/tutorials/ollama-gpu-requirements/",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "How-to and procedures",
+      "facts": [
+        {
+          "text": "Set OLLAMA_KEEP_ALIVE to control how long a model stays in memory after its last request. The default is 5 minutes. Any negative number keeps models loaded indefinitely, and 0 unloads immediately after each request.",
+          "source": "https://modelpiper.com/blog/ollama-environment-variables",
+          "note": null
+        },
+        {
+          "text": "Use the `ollama ps` command to see what models are currently loaded into memory.",
+          "source": "https://docs.ollama.com/faq#how-can-i-tell-if-my-model-was-loaded-onto-the-gpu",
+          "note": null
+        },
+        {
+          "text": "Check the effect in ollama ps and the runner log",
+          "source": "https://www.ssdnodes.com/learn/ollama-kv-cache-quantization",
+          "note": null
+        },
+        {
+          "text": "Run ollama ps to confirm 100% GPU, then repeat the three-run measurement.",
+          "source": "https://hostinger.com/tutorials/ollama-gpu-requirements/",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Measurements and reference values",
+      "facts": [
+        {
+          "text": "Ollama exposes no queue-depth metric; ollama ps and /api/ps list loaded models only, so queueing must be inferred client-side from time-to-first-byte or counted 503s.",
+          "source": "https://www.ssdnodes.com/learn/ollama-num-parallel-and-max-queue",
+          "note": null
+        },
+        {
+          "text": "LLM performance comparison - Ollama on 16GB VRAM GPU",
+          "source": "https://www.glukhov.org/llm-performance/ollama/how-ollama-handles-parallel-requests/#limit-loaded-models-and-parallel-requests",
+          "note": null
+        },
+        {
+          "text": "The number of concurrently loaded models is limited by OLLAMA_MAX_LOADED_MODELS (default: 3×GPU count or 3 for CPU).",
+          "source": "https://www.glukhov.org/llm-performance/ollama/how-ollama-handles-parallel-requests/",
+          "note": null
+        },
+        {
+          "text": "OLLAMA_MAX_LOADED_MODELS Maximum concurrently loaded models 3×GPU count or 3",
+          "source": "https://www.glukhov.org/llm-performance/ollama/how-ollama-handles-parallel-requests/",
+          "note": null
+        },
+        {
+          "text": "But when I ask the model something through vscode and check ollama ps, it tells me that it split the model 76%/24% CPU/GPU and that the model actually needs 8.9 GB, which is quite a lot more than the 2.5 gb advertized. When I drop the context window down to 4000, ollama reports memory size of 3.3 GB, which should fit in the 4GB of VRAM, but it still splits it 51%/49% CPU/GPU.",
+          "source": "https://forum.level1techs.com/t/ollama-confusion-about-model-size/254525",
+          "note": null
+        },
+        {
+          "text": "Start at 1 and raise it one step at a time. After each step, restart Ollama, send one request to load the model, and run ollama ps. Stop at the last value where PROCESSOR still reads 100% GPU and the SIZE column leaves headroom for the longest context you serve. Then measure time to first token and tokens per second at that setting under your real concurrency, and back off one step if per request speed has dropped below what your users tolerate.",
+          "source": "https://www.ssdnodes.com/learn/ollama-num-parallel-and-max-queue",
+          "note": null
+        },
+        {
+          "text": "Four concurrent requests need four separate 2K contexts, so Ollama is holding roughly 8K tokens of context across them. That raises total VRAM usage to about 6-7 GB, even though each request is still set to 2K.",
+          "source": "https://hostinger.com/tutorials/ollama-gpu-requirements/",
+          "note": null
+        },
+        {
+          "text": "Update: It keeps getting weirder. So I found a model that fits completely into memory, qwen3.5:0.8b. But now it just sits there. The VRAM gets filled but nvtop tells me that there is 0-5% gpu utilization while ollama ps tells me the model is completely run on gpu.",
+          "source": "https://forum.level1techs.com/t/ollama-confusion-about-model-size/254525",
+          "note": null
+        },
+        {
+          "text": "ollama ps prints one row per loaded model with the columns NAME, ID, SIZE, PROCESSOR, CONTEXT and UNTIL. Confirm CONTEXT reads 32768; if it shows a smaller number the option was not applied and the rest of the test is meaningless. Write down SIZE. That is Ollama's estimate of everything the model occupies, weights and cache together. On a VPS without a GPU, PROCESSOR reads 100% CPU, which is expected and is not a problem.",
+          "source": "https://www.ssdnodes.com/learn/ollama-kv-cache-quantization",
+          "note": null
+        },
+        {
+          "text": "This is the variable people reach for after the first time a model unloads mid-session and the next prompt takes ten seconds to reload from disk. A negative value trades RAM for latency: the model sits in memory until you stop the server. On a machine you use for AI all day, that trade is usually worth it. On a 16GB Mac where you also need memory for everything else, the 5-minute default exists for a reason.",
+          "source": "https://modelpiper.com/blog/ollama-environment-variables",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Problems, failure modes and limitations",
+      "facts": [
+        {
+          "text": "Vulkan cannot read free VRAM unless Ollama runs as root or the binary has cap_perfmon (`sudo setcap cap_perfmon+ep /usr/local/bin/ollama`). Without either, the scheduler uses approximate model sizes. On some Linux distributions the ollama user must also join the render group for AMD GPUs.",
+          "source": "https://docs.ollama.com/gpu",
+          "note": null
+        },
+        {
+          "text": "Tip: If you also control your client, add retries with jitter and keep-alive connections. Many “Ollama is slow” issues are really queueing + connection overhead.",
+          "source": "https://www.glukhov.org/llm-performance/ollama/how-ollama-handles-parallel-requests/#limit-loaded-models-and-parallel-requests",
+          "note": null
+        },
+        {
+          "text": "When requests exceed the parallelism limit, they are queued (FIFO) up to OLLAMA_MAX_QUEUE.",
+          "source": "https://www.glukhov.org/llm-performance/ollama/how-ollama-handles-parallel-requests/#limit-loaded-models-and-parallel-requests",
+          "note": null
+        },
+        {
+          "text": "The model unloads between your two measurements. The default keep-alive is five minutes, so a slow second command can hit an empty ollama ps. Pass \"keep_alive\": \"30m\" in the request, or keep the model loaded for the whole session.",
+          "source": "https://www.ssdnodes.com/learn/ollama-kv-cache-quantization",
+          "note": null
+        },
+        {
+          "text": "That line holds the full runner command line, including -c and -np. If -np is 1 after you set the variable, there are two possible causes. The first is the model. Ollama limits some model architectures to one slot no matter what you set, and logs model architecture does not currently support parallel requests when it does. As of October 2026 that list includes the Qwen 3.5, Qwen3-VL, Qwen3-Next, LFM2 and Nemotron-H families, and embedding models always get one slot. Run journalctl -u ollama --no-pager | grep \"does not currently support parallel\" to check. If that warning is absent, the setting",
+          "source": "https://www.ssdnodes.com/learn/ollama-num-parallel-and-max-queue",
+          "note": null
+        },
+        {
+          "text": "Because OLLAMA_NUM_PARALLEL defaults to 1, so a loaded model runs one request at a time and the rest wait in order. The waiting request holds its HTTP connection open and sends no bytes until a slot frees, which looks identical to a slow model from the client side. The tell is the shape of the timing: a long pause and then text at full speed is a queue, while a slow trickle from the first token is a slow model. Raise the slot count with a systemd drop-in and restart the service. Then check the -np value on the runner line, because some model architectures are held to one slot no matter what yo",
+          "source": "https://www.ssdnodes.com/learn/ollama-num-parallel-and-max-queue",
+          "note": null
+        },
+        {
+          "text": "A smaller queue turns that overflow into an immediate 503, but only for requests that are waiting for a model to load, such as the burst that arrives after a restart or while models are being swapped. As of October 2026, requests to a model that is already loaded bypass OLLAMA_MAX_QUEUE and wait for a free slot with no limit. Lowering the queue therefore will not shorten the wait on a busy server with one resident model. To get a fast refusal there, cap concurrency in front of Ollama, as the next section describes. A 503 is useful: a reverse proxy can retry it, a client can back off, a dashboa",
+          "source": "https://www.ssdnodes.com/learn/ollama-num-parallel-and-max-queue",
+          "note": null
+        },
+        {
+          "text": "If too many requests are sent to the server, it will respond with a 503 error indicating the server is overloaded. You can adjust how many requests may be queued by setting `OLLAMA_MAX_QUEUE`.",
+          "source": "https://docs.ollama.com/faq#how-do-i-manage-the-maximum-number-of-requests-the-ollama-server-can-queue",
+          "note": null
+        },
+        {
+          "text": "slog.Warn(\"runtime OOM detected; expiring loaded models to clear memory before next request\", \"model\", schedulerModelKey(model), \"error\", err) for _, runner := range runners { runner.refMu.Lock() if runner.expireTimer != nil { runner.expireTimer.Stop() runner.expireTimer = nil } runner.sessionDuration = 0 if runner.refCount <= 0 { s.expiredCh <- runner } runner.refMu.Unlock() } }",
+          "source": "https://raw.githubusercontent.com/ollama/ollama/main/server/sched.go",
+          "note": null
+        },
+        {
+          "text": "func (s *Scheduler) processCompleted(ctx context.Context) { // Process completed requests, expired timers, and unloading models for { select { case <-ctx.Done(): slog.Debug(\"shutting down scheduler completed loop\") return case finished := <-s.finishedReqCh: finishedKey := schedulerModelKey(finished.model) s.loadedMu.Lock() runner := s.loaded[finishedKey] s.loadedMu.Unlock() if runner == nil { slog.Error(\"finished request signal received after model unloaded\", \"modelPath\", finishedKey) continue } runner.refMu.Lock() runner.refCount-- if runner.refCount <= 0 { if runner.sessionDuration <= 0 { sl",
+          "source": "https://raw.githubusercontent.com/ollama/ollama/main/server/sched.go",
+          "note": null
+        },
+        {
+          "text": "// OOM retry path: load() crashed post-spawn and we still // have other models resident. Evict all of them, wait for // every unload, then loop back to retry the load once. // load() has already set oomRetryAttempted so a second // crash falls through to the fail-fast path. if pending.oomRetryAttempted { if !s.evictAllAndWait(ctx, pendingKey) { return } continue }",
+          "source": "https://raw.githubusercontent.com/ollama/ollama/main/server/sched.go",
+          "note": null
+        },
+        {
+          "text": "func (s *Scheduler) getRunner(c context.Context, m *Model, opts api.Options, sessionDuration *api.Duration, numCtxAuto bool, numBatchAuto bool, shift *bool) (chan *runnerRef, chan error) { if opts.NumCtx < 4 { opts.NumCtx = 4 }",
+          "source": "https://raw.githubusercontent.com/ollama/ollama/main/server/sched.go",
+          "note": null
+        },
+        {
+          "text": "OLLAMA_MAX_QUEUE is how many requests may sit waiting to be scheduled, which in practice means waiting for a model to be loaded. The default is 512. The request that arrives when that queue is full is rejected straight away. Requests for a model that is already loaded skip this queue and wait for a free slot instead, and that wait has no limit. Ollama's maintainers track this as a feature request (issue #7758), which was still open in October 2026.",
+          "source": "https://www.ssdnodes.com/learn/ollama-num-parallel-and-max-queue",
+          "note": null
+        },
+        {
+          "text": "Queue Limits: The maximum number of queued requests is controlled by OLLAMA_MAX_QUEUE (default: 512). If the queue is full, new requests receive a 503 error indicating the server is overloaded.",
+          "source": "https://www.glukhov.org/llm-performance/ollama/how-ollama-handles-parallel-requests/",
+          "note": null
+        },
+        {
+          "text": "One honest limit: Ollama does not publish a queue depth. ollama ps and the /api/ps endpoint report the models that are loaded, not the requests that are waiting. So you measure the queue from the client side, by watching time to first byte, or you count 503 responses at whatever sits in front.",
+          "source": "https://www.ssdnodes.com/learn/ollama-num-parallel-and-max-queue",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Comparisons and alternatives",
+      "facts": [
+        {
+          "text": "Three things the formula does not tell you. Models with sliding-window layers, such as the Gemma family, allocate a much smaller cache for those layers, so the formula overestimates them. Some newer architectures also break the formula's inputs: the Gemma 4 example in Ollama's /api/show reference (checked 13 October 2026) lists gemma4.attention.shared_kv_layers as 18, layers that share key and value cache rather than storing their own, and a key_length of 512 for full-attention layers against a key_length_swa of 256 for sliding-window layers, neither of which equals embedding_length / head_cou",
+          "source": "https://www.ssdnodes.com/learn/ollama-kv-cache-quantization",
+          "note": null
+        },
+        {
+          "text": "Ai AI Coding Ai-Agents Alerting Anaconda Android API Architecture Aws AWS Amplify Backup Bash Cheatsheet Cloud Coding Community CookBook Cursor Data Database DeepLearning Dev Devops DGX Spark Digital Detox Docker Documentation Embeddings Filofax Flutter Git Gitea GitHub Go Golang Gpu Grafana Hardware Hermes Hosting Hugo Images Infrastructure Integration JavaScript K8S Knowledge-Management Kubernetes LabelStudio Latex Linux Llama.cpp Llamacpp Llm Logging Logseq Machine Learning Mainroad Markdown Melbourne Microservices Minio Mmdetection Monitoring Node.js NVidia ObjectDetection Observability Ob",
+          "source": "https://www.glukhov.org/llm-performance/ollama/how-ollama-handles-parallel-requests/#limit-loaded-models-and-parallel-requests",
+          "note": null
+        },
+        {
+          "text": "Ollama: Batching Requests vs Parallel Execution",
+          "source": "https://www.glukhov.org/llm-performance/ollama/how-ollama-handles-parallel-requests/#limit-loaded-models-and-parallel-requests",
+          "note": null
+        },
+        {
+          "text": "That is Ollama's queue overflow error, returned with HTTP status 503. The number of requests waiting to be scheduled, meaning waiting for their model to be loaded, reached OLLAMA_MAX_QUEUE, which defaults to 512, so the newest request was rejected instead of being added. Requests to a model that is already loaded do not count against that limit. You will mostly see this error during bursts at startup or while models are being swapped. It is not a memory error and it is not a model error. Raising the queue only makes callers wait longer before the same rejection, so the real fixes are more slot",
+          "source": "https://www.ssdnodes.com/learn/ollama-num-parallel-and-max-queue",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Facts and statements",
+      "facts": [
+        {
+          "text": "OLLAMA_NUM_PARALLEL defaults to 1 in envconfig; required memory scales with OLLAMA_NUM_PARALLEL * OLLAMA_CONTEXT_LENGTH (a 2K context with 4 parallel requests becomes 8K).",
+          "source": "https://docs.ollama.com/faq",
+          "note": null
+        },
+        {
+          "text": "Default keep-alive is 5 minutes. Per-request keep_alive on /api/generate and /api/chat overrides OLLAMA_KEEP_ALIVE; 0 unloads right after the response, negative (e.g. -1) keeps loaded forever. Env parsing accepts durations or integer seconds; an unparseable value silently keeps 5m.",
+          "source": "https://docs.ollama.com/faq",
+          "note": null
+        },
+        {
+          "text": "OLLAMA_MAX_LOADED_MODELS: env default is 0, which the scheduler turns into 3 * max(GPU count,1); a model loads concurrently only if it fits in memory, and on GPU must fit fully in VRAM.",
+          "source": "https://docs.ollama.com/faq",
+          "note": null
+        },
+        {
+          "text": "The scheduler forces numParallel to 1 for embedding models and for some architectures (e.g. mllama, qwen35, lfm2), regardless of OLLAMA_NUM_PARALLEL.",
+          "source": "https://raw.githubusercontent.com/ollama/ollama/main/server/sched.go",
+          "note": null
+        },
+        {
+          "text": "实际配置时，先用 ollama ps 看模型加载位置，再用 nvidia-smi 或 ROCm 工具观察显存占用。需要限制 GPU 时，NVIDIA 用 CUDA_VISIBLE_DEVICES，AMD ROCm 用 ROCR_VISIBLE_DEVICES，Vulkan 用 GGML_VK_VISIBLE_DEVICES。如果在 Docker 中运行，先确保容器层面能看到 GPU。",
+          "source": "https://knightli.com/2026/04/19/ollama-multiple-gpu-notes/",
+          "note": null
+        },
+        {
+          "text": "Requests for an already-loaded model reuse the runner and skip the pending queue, so the 503 applies to requests needing a model load, not those waiting on a parallel slot.",
+          "source": "https://raw.githubusercontent.com/ollama/ollama/main/server/sched.go",
+          "note": null
+        },
+        {
+          "text": "On Windows with Radeon GPUs the FAQ says max loaded models defaults to 1 due to ROCm v5.7 VRAM reporting limits (note may be outdated).",
+          "source": "https://docs.ollama.com/faq",
+          "note": null
+        },
+        {
+          "text": "docker run --rm -e OLLAMA_NUM_PARALLEL=2 -p 11434:11434 ollama/ollama",
+          "source": "https://www.glukhov.org/llm-performance/ollama/how-ollama-handles-parallel-requests/#limit-loaded-models-and-parallel-requests",
+          "note": null
+        },
+        {
+          "text": "export OLLAMA_MAX_LOADED_MODELS=2 export OLLAMA_NUM_PARALLEL=4",
+          "source": "https://www.glukhov.org/llm-performance/ollama/how-ollama-handles-parallel-requests/#limit-loaded-models-and-parallel-requests",
+          "note": null
+        },
+        {
+          "text": "OLLAMA_NUM_PARALLEL controls how many requests Ollama will execute in parallel. If you send multiple requests to the same Ollama server, this setting largely decides whether they run concurrently or queue up.",
+          "source": "https://www.glukhov.org/llm-performance/ollama/how-ollama-handles-parallel-requests/#limit-loaded-models-and-parallel-requests",
+          "note": null
+        },
+        {
+          "text": "export OLLAMA_NUM_PARALLEL=2 ollama serve",
+          "source": "https://www.glukhov.org/llm-performance/ollama/how-ollama-handles-parallel-requests/#limit-loaded-models-and-parallel-requests",
+          "note": null
+        },
+        {
+          "text": "If you’re optimizing a specific page for CLI usage, see the Ollama CLI section in the cheatsheet, plus command examples for ollama serve, ollama ps, and ollama run.",
+          "source": "https://www.glukhov.org/llm-performance/ollama/how-ollama-handles-parallel-requests/#limit-loaded-models-and-parallel-requests",
+          "note": null
+        },
+        {
+          "text": "var ( // NumParallel sets the number of parallel model requests. NumParallel can be configured via the OLLAMA_NUM_PARALLEL environment variable. NumParallel = Uint(\"OLLAMA_NUM_PARALLEL\", 1) // MaxRunners sets the maximum number of loaded models. MaxRunners can be configured via the OLLAMA_MAX_LOADED_MODELS environment variable. MaxRunners = Uint(\"OLLAMA_MAX_LOADED_MODELS\", 0) // MaxQueue sets the maximum number of queued requests. MaxQueue can be configured via the OLLAMA_MAX_QUEUE environment variable. MaxQueue = Uint(\"OLLAMA_MAX_QUEUE\", 512) // MaxTransferStreams caps the number of simultane",
+          "source": "https://raw.githubusercontent.com/ollama/ollama/main/envconfig/config.go",
+          "note": null
+        },
+        {
+          "text": "OLLAMA_NUM_PARALLEL environment variable",
+          "source": "https://www.glukhov.org/llm-performance/ollama/how-ollama-handles-parallel-requests/",
+          "note": null
+        },
+        {
+          "text": "Symptoms that OLLAMA_NUM_PARALLEL is too high",
+          "source": "https://www.glukhov.org/llm-performance/ollama/how-ollama-handles-parallel-requests/",
+          "note": null
+        },
+        {
+          "text": "Symptoms that OLLAMA_NUM_PARALLEL is too low",
+          "source": "https://www.glukhov.org/llm-performance/ollama/how-ollama-handles-parallel-requests/",
+          "note": null
+        },
+        {
+          "text": "OLLAMA_NUM_PARALLEL=2 (or higher if you have headroom)",
+          "source": "https://www.glukhov.org/llm-performance/ollama/how-ollama-handles-parallel-requests/#limit-loaded-models-and-parallel-requests",
+          "note": null
+        },
+        {
+          "text": "GPU OOM / model unloading happens frequently",
+          "source": "https://www.glukhov.org/llm-performance/ollama/how-ollama-handles-parallel-requests/#limit-loaded-models-and-parallel-requests",
+          "note": null
+        },
+        {
+          "text": "On constrained hardware, Ollama may try to allocate a vision model's full advertised context and crash. OpenClaw's docs advise capping num_ctx in model params (example 2048) and, optionally, a short keep_alive.",
+          "source": "https://docs.openclaw.ai/providers/ollama/vision.md",
+          "note": null
+        },
+        {
+          "text": "Note: Windows with Radeon GPUs currently default to 1 model maximum due to limitations in ROCm v5.7 for available VRAM reporting. Once ROCm v6.2 is available, Windows Radeon will follow the defaults above. You may enable concurrent model loads on Radeon on Windows, but ensure you don't load more models than will fit into your GPU's VRAM.",
+          "source": "https://docs.ollama.com/faq#how-does-ollama-handle-concurrent-requests",
+          "note": null
+        },
+        {
+          "text": "Higher values can increase throughput if you have enough CPU/GPU/VRAM, but may increase latency and memory pressure.",
+          "source": "https://www.glukhov.org/llm-performance/ollama/how-ollama-handles-parallel-requests/#limit-loaded-models-and-parallel-requests",
+          "note": null
+        },
+        {
+          "text": "Start with 1–2 for a single GPU / limited VRAM, then increase gradually while watching:",
+          "source": "https://www.glukhov.org/llm-performance/ollama/how-ollama-handles-parallel-requests/#limit-loaded-models-and-parallel-requests",
+          "note": null
+        },
+        {
+          "text": "An incoming request has three possible fates. It starts immediately in a free slot. It waits in the queue. Or the queue is already full and the server refuses it with HTTP 503. Which one you get is decided by OLLAMA_NUM_PARALLEL, OLLAMA_MAX_QUEUE and OLLAMA_MAX_LOADED_MODELS. There is one catch in current releases as of October 2026. The 503 only applies to requests that arrive while their model still has to be loaded. Ollama never refuses a request for a model that is already loaded. That request waits for a slot for as long as it takes.",
+          "source": "https://www.ssdnodes.com/learn/ollama-num-parallel-and-max-queue",
+          "note": null
+        },
+        {
+          "text": "SIZE is still far bigger than the weights. Read -c and -np on the starting llama-server line. If -c is a multiple of your num_ctx, you have more than one parallel slot, and every slot gets a full cache. Also check that CONTEXT in ollama ps is what you asked for; a client that sets its own num_ctx overrides yours, and how Ollama picks the context length has more than one input.",
+          "source": "https://www.ssdnodes.com/learn/ollama-kv-cache-quantization",
+          "note": null
+        },
+        {
+          "text": "The `keep_alive` API parameter with the `/api/generate` and `/api/chat` API endpoints will override the `OLLAMA_KEEP_ALIVE` setting.",
+          "source": "https://docs.ollama.com/faq#how-do-i-keep-a-model-loaded-in-memory-or-make-it-unload-immediately",
+          "note": null
+        },
+        {
+          "text": "The second request waits, or it is refused: what OLLAMA_NUM_PARALLEL and OLLAMA_MAX_QUEUE really control, and why every parallel slot costs you memory.",
+          "source": "https://www.ssdnodes.com/learn/ollama-num-parallel-and-max-queue",
+          "note": null
+        },
+        {
+          "text": "What OLLAMA_NUM_PARALLEL, OLLAMA_MAX_QUEUE and OLLAMA_MAX_LOADED_MODELS each control",
+          "source": "https://www.ssdnodes.com/learn/ollama-num-parallel-and-max-queue",
+          "note": null
+        },
+        {
+          "text": "Copy [Service] Environment=\"OLLAMA_NUM_PARALLEL=4\" Environment=\"OLLAMA_MAX_LOADED_MODELS=1\" Environment=\"OLLAMA_MAX_QUEUE=32\"",
+          "source": "https://www.ssdnodes.com/learn/ollama-num-parallel-and-max-queue",
+          "note": null
+        },
+        {
+          "text": "if runner != nil { if runner.needsReload(ctx, pending) { slog.Debug(\"reloading\", \"runner\", runner) runnerToExpire = runner } else { // Runner is usable, return it logutil.Trace(\"using existing loaded runner\", \"model\", pendingKey) pending.useLoadedRunner(runner, s.finishedReqCh) break } } else if maxRunners > 0 && loadedCount >= int(maxRunners) { slog.Debug(\"max runners achieved, unloading one to make room\", \"runner_count\", loadedCount) runnerToExpire = s.findRunnerToUnload() } else { // Either no models are loaded or below envconfig.MaxRunners // Get a refreshed GPU list var gpus []ml.DeviceIn",
+          "source": "https://raw.githubusercontent.com/ollama/ollama/main/server/sched.go",
+          "note": null
+        },
+        {
+          "text": "// evictAllAndWait synchronously expires every currently loaded runner except // the one being loaded (matched by modelKey) and waits for all unload events // to drain. Returns false if the context was cancelled mid-wait so the caller // can exit the scheduling loop. Used by the OOM retry path in processPending. func (s *Scheduler) evictAllAndWait(ctx context.Context, keepKey string) bool { s.loadedMu.Lock() runnersToExpire := make([]*runnerRef, 0, len(s.loaded)) for key, r := range s.loaded { if key == keepKey { continue } runnersToExpire = append(runnersToExpire, r) } s.loadedMu.Unlock()",
+          "source": "https://raw.githubusercontent.com/ollama/ollama/main/server/sched.go",
+          "note": null
+        },
+        {
+          "text": "Understand Ollama concurrency, queueing, and how to tune OLLAMA_NUM_PARALLEL for stable parallel requests.",
+          "source": "https://www.glukhov.org/llm-performance/ollama/how-ollama-handles-parallel-requests/",
+          "note": null
+        },
+        {
+          "text": "This guide explains how Ollama handles parallel requests (concurrency, queuing, and resource limits), and how to tune it using the OLLAMA_NUM_PARALLEL environment variable (and related knobs).",
+          "source": "https://www.glukhov.org/llm-performance/ollama/how-ollama-handles-parallel-requests/",
+          "note": null
+        },
+        {
+          "text": "Queuing: If the number of concurrent requests exceeds the configured parallelism (e.g., more than OLLAMA_NUM_PARALLEL requests for a model), additional requests are queued. The queue operates in a first-in, first-out (FIFO) manner.",
+          "source": "https://www.glukhov.org/llm-performance/ollama/how-ollama-handles-parallel-requests/",
+          "note": null
+        },
+        {
+          "text": "OLLAMA_NUM_PARALLEL Parallel requests per loaded model 4 (or 1 if limited)",
+          "source": "https://www.glukhov.org/llm-performance/ollama/how-ollama-handles-parallel-requests/",
+          "note": null
+        },
+        {
+          "text": "s.loadedMu.Lock() slog.Debug(\"got lock to unload expired event\", \"runner\", runner) runnerToUnload := s.loaded[runner.modelKey] if runnerToUnload == nil { // If runnerToUnload is nil, we already processed an event and // unloaded it. This double unload can happen if the initial // request is canceled and we're trying to load another model // that requires this one to be evicted, or the settings change // and require a reload s.loadedMu.Unlock() runner.refMu.Unlock() slog.Debug(\"duplicate expired event, ignoring\", \"runner\", runner) } else if runner.pid != runnerToUnload.pid { // If the pids do n",
+          "source": "https://raw.githubusercontent.com/ollama/ollama/main/server/sched.go",
+          "note": null
+        },
+        {
+          "text": "The Ollama scheduler leverages available VRAM data reported by the GPU libraries to make optimal scheduling decisions. Vulkan requires additional capabilities or running as root to expose this available VRAM data. If neither root access or this capability are granted, Ollama will use approximate sizes of the models to make best effort scheduling decisions.",
+          "source": "https://docs.ollama.com/gpu#vulkan-gpu-support",
+          "note": null
+        },
+        {
+          "text": "Choose more VRAM if you plan to use higher-bit quantization, a context longer than 8K, or concurrent requests.",
+          "source": "https://hostinger.com/tutorials/ollama-gpu-requirements/",
+          "note": null
+        },
+        {
+          "text": "// load creates a new model based on req and loads it. If requireFull is true then the model must be loaded fully onto GPUs // (if any). Returns whether the scheduler needs to evict a model to make this one fit. func (s *Scheduler) load(req *LlmRequest, systemInfo ml.SystemInfo, gpus []ml.DeviceInfo, requireFull bool) bool { numParallel := max(int(envconfig.NumParallel()), 1) completion := req.model.CheckCapabilities(model.CapabilityCompletion) == nil",
+          "source": "https://raw.githubusercontent.com/ollama/ollama/main/server/sched.go",
+          "note": null
+        },
+        {
+          "text": "Copy curl -s http://127.0.0.1:11434/api/generate \\ -d '{\"model\":\"llama3.1:8b\",\"prompt\":\"Say hello.\",\"stream\":false,\"options\":{\"num_ctx\":32768}}' > /dev/null ollama ps sudo journalctl -u ollama --since \"5 min ago\" --no-pager | grep -E 'starting llama-server|llama_kv_cache: size'",
+          "source": "https://www.ssdnodes.com/learn/ollama-kv-cache-quantization",
+          "note": null
+        },
+        {
+          "text": "If you're using the API, use the `keep_alive` parameter with the `/api/generate` and `/api/chat` endpoints to set the amount of time that a model stays in memory. The `keep_alive` parameter can be set to:",
+          "source": "https://docs.ollama.com/faq#how-do-i-keep-a-model-loaded-in-memory-or-make-it-unload-immediately",
+          "note": null
+        },
+        {
+          "text": "slog.Info(\"evicting all other loaded models for OOM retry\", \"count\", len(runnersToExpire)) for _, runner := range runnersToExpire { runner.refMu.Lock() if runner.expireTimer != nil { runner.expireTimer.Stop() runner.expireTimer = nil } runner.sessionDuration = 0 if runner.refCount <= 0 { s.expiredCh <- runner } runner.refMu.Unlock() }",
+          "source": "https://raw.githubusercontent.com/ollama/ollama/main/server/sched.go",
+          "note": null
+        },
+        {
+          "text": "Model Loading: The number of different models that can be loaded at the same time is controlled by OLLAMA_MAX_LOADED_MODELS. If a request requires loading a new model and memory is insufficient, Ollama will unload idle models to make room, and the request will be queued until the model is loaded.",
+          "source": "https://www.glukhov.org/llm-performance/ollama/how-ollama-handles-parallel-requests/",
+          "note": null
+        },
+        {
+          "text": "// loadedModelsForName returns models still owned by loaded runners. The models // are read-only after resolution, so callers may use them after releasing // loadedMu even if a runner unloads in the meantime. func (s *Scheduler) loadedModelsForName(name model.Name, requestedRunner string) []*Model { s.loadedMu.Lock() runners := make([]*runnerRef, 0, len(s.loaded)) for _, runner := range s.loaded { runners = append(runners, runner) } s.loadedMu.Unlock()",
+          "source": "https://raw.githubusercontent.com/ollama/ollama/main/server/sched.go",
+          "note": null
+        },
+        {
+          "text": "// findRunnerToUnload finds a runner to unload to make room for a new model func (s *Scheduler) findRunnerToUnload() *runnerRef { s.loadedMu.Lock() runnerList := make([]*runnerRef, 0, len(s.loaded)) for _, r := range s.loaded { runnerList = append(runnerList, r) } s.loadedMu.Unlock() if len(runnerList) == 0 { slog.Debug(\"no loaded runner to unload\") return nil }",
+          "source": "https://raw.githubusercontent.com/ollama/ollama/main/server/sched.go",
+          "note": null
+        },
+        {
+          "text": "// loadedModels returns a snapshot of the currently loaded models for status // reporting without exposing the scheduler's internal runner bookkeeping. func (s *Scheduler) loadedModels() []loadedModel { s.loadedMu.Lock() runners := make([]*runnerRef, 0, len(s.loaded)) for _, r := range s.loaded { runners = append(runners, r) } s.loadedMu.Unlock()",
+          "source": "https://raw.githubusercontent.com/ollama/ollama/main/server/sched.go",
+          "note": null
+        },
+        {
+          "text": "Blog › Guides › Ollama concurrency: NUM_PARALLEL and MAX_QUEUE",
+          "source": "https://www.ssdnodes.com/learn/ollama-num-parallel-and-max-queue",
+          "note": null
+        },
+        {
+          "text": "Ollama concurrency: NUM_PARALLEL and MAX_QUEUE",
+          "source": "https://www.ssdnodes.com/learn/ollama-num-parallel-and-max-queue",
+          "note": null
+        },
+        {
+          "text": "// KeepAlive returns the duration that models stay loaded in memory. KeepAlive can be configured via the OLLAMA_KEEP_ALIVE environment variable. // Negative values are treated as infinite. Zero is treated as no keep alive. // Default is 5 minutes. func KeepAlive() (keepAlive time.Duration) { keepAlive = 5 * time.Minute if s := Var(\"OLLAMA_KEEP_ALIVE\"); s != \"\" { if d, err := time.ParseDuration(s); err == nil { keepAlive = d } else if n, err := strconv.ParseInt(s, 10, 64); err == nil { keepAlive = time.Duration(n) * time.Second } }",
+          "source": "https://raw.githubusercontent.com/ollama/ollama/main/envconfig/config.go",
+          "note": null
+        },
+        {
+          "text": "By default models are kept in memory for 5 minutes before being unloaded. This allows for quicker response times if you're making numerous requests to the LLM. If you want to immediately unload a model from memory, use the `ollama stop` command:",
+          "source": "https://docs.ollama.com/faq#how-do-i-keep-a-model-loaded-in-memory-or-make-it-unload-immediately",
+          "note": null
+        },
+        {
+          "text": "根据 Ollama 官方文档，使用 ollama ps、服务日志、nvidia-smi、Docker GPU 验证和 AMD 设备权限逐层定位 CPU 回退，并给出恢复与验收步骤。",
+          "source": "https://knightli.com/2026/04/19/ollama-multiple-gpu-notes/",
+          "note": null
+        },
+        {
+          "text": "OLLAMA_KEEP_ALIVE How long a model stays in VRAM 10m",
+          "source": "https://www.centron.de/tutorials/expose-ollama-network-port-hardening",
+          "note": null
+        },
+        {
+          "text": "s.loadedMu.Lock() if oldRunner, ok := s.loaded[runner.modelKey]; ok { // Shouldn't happen, but safeguard against leaking a runner slog.Warn(\"model was still loaded\", \"old_runner\", oldRunner, \"new_runner\", runner) oldRunner.refMu.Lock() oldRunner.unload() oldRunner.refMu.Unlock() } s.activeLoading = nil s.loaded[runner.modelKey] = runner slog.Info(\"loaded runners\", \"count\", len(s.loaded)) s.loadedMu.Unlock()",
+          "source": "https://raw.githubusercontent.com/ollama/ollama/main/server/sched.go",
+          "note": null
+        },
+        {
+          "text": "func (s *Scheduler) applyLlamaServerMmapDefaults(req *LlmRequest, launchOpts api.Options, systemInfo ml.SystemInfo, gpus []ml.DeviceInfo, f *gguf.Model, numParallel int) api.Options { predictedCtx := effectiveLlamaServerContext(req.opts.NumCtx, f, numParallel) predictedVRAM := llm.PredictServerVRAM(req.model.ModelPath, f, predictedCtx) availableVRAM, _, _ := availableMemoryForPlacement(systemInfo, gpus, launchOpts)",
+          "source": "https://raw.githubusercontent.com/ollama/ollama/main/server/sched.go",
+          "note": null
+        },
+        {
+          "text": "func (s *Scheduler) maybeDisableMmapForHostPressure(req *LlmRequest, launchOpts api.Options, systemInfo ml.SystemInfo, gpus []ml.DeviceInfo, f *gguf.Model, numParallel int) { modelSize := modelFileSize(req.model.modelPaths()...) loadedMmapSize := s.loadedMmapModelSizeLocked() predictedCtx := effectiveLlamaServerContext(req.opts.NumCtx, f, numParallel) predictedVRAM := llm.PredictServerVRAM(req.model.ModelPath, f, predictedCtx) availableVRAM, _, _ := availableMemoryForPlacement(systemInfo, gpus, launchOpts) placementGpus := gpusForPlacement(gpus, launchOpts)",
+          "source": "https://raw.githubusercontent.com/ollama/ollama/main/server/sched.go",
+          "note": null
+        },
+        {
+          "text": "func (s *Scheduler) updateFreeSpace(allGpus []ml.DeviceInfo) { if len(allGpus) == 0 { return } predMap := map[ml.DeviceID]uint64{} // Sum up the total predicted usage per GPU for all runners s.loadedMu.Lock() runners := make([]*runnerRef, 0, len(s.loaded)) for _, r := range s.loaded { runners = append(runners, r) } s.loadedMu.Unlock() for _, r := range runners { r.refMu.Lock() if r.llama != nil { for _, gpu := range allGpus { predMap[gpu.DeviceID] += r.llama.VRAMByGPU(gpu.DeviceID) } } else { slog.Warn(\"unexpected nil runner reference, memory prediction may be incorrect\") } r.refMu.Unlock() }",
+          "source": "https://raw.githubusercontent.com/ollama/ollama/main/server/sched.go",
+          "note": null
+        },
+        {
+          "text": "// In the future we can enhance the algorithm to be smarter about picking the optimal runner to unload // e.g., if we have multiple options, will one make room for the request? sort.Sort(ByDurationAndName(runnerList))",
+          "source": "https://raw.githubusercontent.com/ollama/ollama/main/server/sched.go",
+          "note": null
+        },
+        {
+          "text": "// First try to find a runner that's already idle for _, runner := range runnerList { runner.refMu.Lock() rc := runner.refCount runner.refMu.Unlock() if rc == 0 { slog.Debug(\"found an idle runner to unload\", \"runner\", runner) return runner } } // None appear idle, just wait for the one with the shortest duration slog.Debug(\"no idle runners, picking the shortest duration\", \"runner_count\", len(runnerList), \"runner\", runnerList[0]) return runnerList[0] }",
+          "source": "https://raw.githubusercontent.com/ollama/ollama/main/server/sched.go",
+          "note": null
+        },
+        {
+          "text": "// refMu must not be acquired while holding loadedMu: the expiration path // locks them in the opposite order. models := make([]loadedModel, 0, len(runners)) for _, r := range runners { r.refMu.Lock() if r.model == nil { // Unloaded after the snapshot above was taken r.refMu.Unlock() continue } lm := loadedModel{ model: r.model, runner: r.runner, size: int64(r.totalSize), sizeVRAM: int64(r.vramSize), expiresAt: r.expiresAt, } if r.llama != nil { lm.contextLength = r.llama.ContextLength() total, vram := r.llama.MemorySize() lm.size = int64(total) lm.sizeVRAM = int64(vram) } // The",
+          "source": "https://raw.githubusercontent.com/ollama/ollama/main/server/sched.go",
+          "note": null
+        },
+        {
+          "text": "func InitScheduler(ctx context.Context) *Scheduler { maxQueue := envconfig.MaxQueue() sched := &Scheduler{ pendingReqCh: make(chan *LlmRequest, maxQueue), finishedReqCh: make(chan *LlmRequest, maxQueue), expiredCh: make(chan *runnerRef, maxQueue), unloadedCh: make(chan any, maxQueue), loaded: make(map[string]*runnerRef), newServerFn: llm.NewLlamaServer, getGpuFn: discover.GPUDevices, getSystemInfoFn: discover.GetSystemInfo, waitForRecovery: 5 * time.Second, } sched.loadFn = sched.load return sched }",
+          "source": "https://raw.githubusercontent.com/ollama/ollama/main/server/sched.go",
+          "note": null
+        },
+        {
+          "text": "func (s *Scheduler) processPending(ctx context.Context) { maxRunners := envconfig.MaxRunners()",
+          "source": "https://raw.githubusercontent.com/ollama/ollama/main/server/sched.go",
+          "note": null
+        },
+        {
+          "text": "For best performance, use the maximum context length for a model, and avoid offloading the model to CPU. Verify the split under `PROCESSOR` using `ollama ps`.",
+          "source": "https://docs.ollama.com/context-length#check-allocated-context-length-and-model-offloading",
+          "note": null
+        },
+        {
+          "text": "Verify GPU acceleration with ollama ps to check where the model is loaded and nvidia-smi to confirm that the GPU is available to Ollama.",
+          "source": "https://hostinger.com/tutorials/ollama-gpu-requirements/",
+          "note": null
+        },
+        {
+          "text": "The queue size is controlled by OLLAMA_MAX_QUEUE (default: 512 requests).",
+          "source": "https://www.glukhov.org/llm-performance/ollama/how-ollama-handles-parallel-requests/",
+          "note": null
+        },
+        {
+          "text": "OLLAMA_MAX_QUEUE Maximum queued requests 512",
+          "source": "https://www.glukhov.org/llm-performance/ollama/how-ollama-handles-parallel-requests/",
+          "note": null
+        },
+        {
+          "text": "OLLAMA_MAX_LOADED_MODELS Models resident at the same time 2",
+          "source": "https://www.centron.de/tutorials/expose-ollama-network-port-hardening",
+          "note": null
+        },
+        {
+          "text": "// Update free memory from currently loaded models logutil.Trace(\"updating free space\", \"gpu_count\", len(gpus), \"model\", pending.model.ModelPath) s.updateFreeSpace(gpus)",
+          "source": "https://raw.githubusercontent.com/ollama/ollama/main/server/sched.go",
+          "note": null
+        },
+        {
+          "text": "func (s *Scheduler) expireRunner(model *Model) { modelKey := schedulerModelKey(model) var runners []*runnerRef",
+          "source": "https://raw.githubusercontent.com/ollama/ollama/main/server/sched.go",
+          "note": null
+        },
+        {
+          "text": "OLLAMA_NUM_PARALLEL is how many requests one loaded model handles at the same time. The default is 1, so requests are served one after another.",
+          "source": "https://www.ssdnodes.com/learn/ollama-num-parallel-and-max-queue",
+          "note": null
+        },
+        {
+          "text": "Why a smaller MAX_QUEUE is often the better setting",
+          "source": "https://www.ssdnodes.com/learn/ollama-num-parallel-and-max-queue",
+          "note": null
+        },
+        {
+          "text": "Does raising OLLAMA_NUM_PARALLEL make Ollama faster?",
+          "source": "https://www.ssdnodes.com/learn/ollama-num-parallel-and-max-queue",
+          "note": null
+        },
+        {
+          "text": "The last command should print one Environment= line holding the installer's PATH= plus your two variables. If they are missing, the drop-in did not take, and the section on failures below covers why. Restarting the service unloads every model, so this is a change to make between sessions, not during one.",
+          "source": "https://www.ssdnodes.com/learn/ollama-kv-cache-quantization",
+          "note": null
+        },
+        {
+          "text": "keep_alive: controls how long the model will stay loaded into memory following the request (default: 5m)",
+          "source": "https://github.com/ollama/ollama/blob/main/docs/api.md",
+          "note": null
+        },
+        {
+          "text": "If an empty prompt is provided and the keep_alive parameter is set to 0, a model will be unloaded from memory.",
+          "source": "https://github.com/ollama/ollama/blob/main/docs/api.md",
+          "note": null
+        },
+        {
+          "text": "If the messages array is empty and the keep_alive parameter is set to 0, a model will be unloaded from memory.",
+          "source": "https://github.com/ollama/ollama/blob/main/docs/api.md",
+          "note": null
+        },
+        {
+          "text": "Accurate reporting: Measurements in tools like nvidia-smi will now match ollama ps making it easy to track memory utilization on your system",
+          "source": "https://ollama.com/blog/new-model-scheduling",
+          "note": null
+        },
+        {
+          "text": "ollama stop llama3.1:8b-instruct-q4_K_M",
+          "source": "https://hostinger.com/tutorials/ollama-gpu-requirements/",
+          "note": null
+        }
+      ]
+    }
+  ],
+  "related": [
+    {
+      "concept": "num_parallel",
+      "relation": "is a synonym of Ollama server scheduling: NUM_PARALLEL / MAX_LOADED_MODELS / MAX_QUEUE / keep_alive eviction",
+      "note": null
+    },
+    {
+      "concept": "GPU",
+      "relation": "is a related of Ollama server scheduling: NUM_PARALLEL / MAX_LOADED_MODELS / MAX_QUEUE / keep_alive eviction",
+      "note": null
+    },
+    {
+      "concept": "max_loaded_models",
+      "relation": "is a synonym of Ollama server scheduling: NUM_PARALLEL / MAX_LOADED_MODELS / MAX_QUEUE / keep_alive eviction",
+      "note": null
+    },
+    {
+      "concept": "parallel",
+      "relation": "is a related of Ollama server scheduling: NUM_PARALLEL / MAX_LOADED_MODELS / MAX_QUEUE / keep_alive eviction",
+      "note": null
+    },
+    {
+      "concept": "runner",
+      "relation": "is a part of Ollama server scheduling: NUM_PARALLEL / MAX_LOADED_MODELS / MAX_QUEUE / keep_alive eviction",
+      "note": null
+    },
+    {
+      "concept": "model eviction",
+      "relation": "is a synonym of Ollama server scheduling: NUM_PARALLEL / MAX_LOADED_MODELS / MAX_QUEUE / keep_alive eviction",
+      "note": null
+    },
+    {
+      "concept": "scheduler",
+      "relation": "is a synonym of Ollama server scheduling: NUM_PARALLEL / MAX_LOADED_MODELS / MAX_QUEUE / keep_alive eviction",
+      "note": null
+    },
+    {
+      "concept": "VRAM",
+      "relation": "is a synonym of Ollama server scheduling: NUM_PARALLEL / MAX_LOADED_MODELS / MAX_QUEUE / keep_alive eviction",
+      "note": null
+    },
+    {
+      "concept": "ollama ps",
+      "relation": "is a part of Ollama server scheduling: NUM_PARALLEL / MAX_LOADED_MODELS / MAX_QUEUE / keep_alive eviction",
+      "note": null
+    },
+    {
+      "concept": "max_queue",
+      "relation": "is a synonym of Ollama server scheduling: NUM_PARALLEL / MAX_LOADED_MODELS / MAX_QUEUE / keep_alive eviction",
+      "note": null
+    },
+    {
+      "concept": "slot",
+      "relation": "is a related of Ollama server scheduling: NUM_PARALLEL / MAX_LOADED_MODELS / MAX_QUEUE / keep_alive eviction",
+      "note": null
+    },
+    {
+      "concept": "concurrent",
+      "relation": "is a related of Ollama server scheduling: NUM_PARALLEL / MAX_LOADED_MODELS / MAX_QUEUE / keep_alive eviction",
+      "note": null
+    },
+    {
+      "concept": "num_ctx",
+      "relation": "is a synonym of Ollama server scheduling: NUM_PARALLEL / MAX_LOADED_MODELS / MAX_QUEUE / keep_alive eviction",
+      "note": null
+    },
+    {
+      "concept": "envconfig",
+      "relation": "is a part of Ollama server scheduling: NUM_PARALLEL / MAX_LOADED_MODELS / MAX_QUEUE / keep_alive eviction",
+      "note": null
+    },
+    {
+      "concept": "OOM",
+      "relation": "is a problem of Ollama server scheduling: NUM_PARALLEL / MAX_LOADED_MODELS / MAX_QUEUE / keep_alive eviction",
+      "note": null
+    },
+    {
+      "concept": "keep alive",
+      "relation": "is a synonym of Ollama server scheduling: NUM_PARALLEL / MAX_LOADED_MODELS / MAX_QUEUE / keep_alive eviction",
+      "note": null
+    },
+    {
+      "concept": "ROCm",
+      "relation": "is a synonym of Ollama server scheduling: NUM_PARALLEL / MAX_LOADED_MODELS / MAX_QUEUE / keep_alive eviction",
+      "note": null
+    },
+    {
+      "concept": "docker",
+      "relation": "is a related of Ollama server scheduling: NUM_PARALLEL / MAX_LOADED_MODELS / MAX_QUEUE / keep_alive eviction",
+      "note": null
+    },
+    {
+      "concept": "NumCtx",
+      "relation": "is a synonym of Ollama server scheduling: NUM_PARALLEL / MAX_LOADED_MODELS / MAX_QUEUE / keep_alive eviction",
+      "note": null
+    },
+    {
+      "concept": "Vulkan",
+      "relation": "is a synonym of Ollama server scheduling: NUM_PARALLEL / MAX_LOADED_MODELS / MAX_QUEUE / keep_alive eviction",
+      "note": null
+    }
+  ]
+}

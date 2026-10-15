@@ -1,0 +1,565 @@
+{
+  "slug": "air-gapped-ollama-deployment-and-model-mirroring",
+  "concept": "Air-gapped Ollama deployment and model mirroring",
+  "generated": "2026-10-14",
+  "summary": "OLLAMA_MODELS must be set in the environment of the server process (systemd unit, tray app), not just the CLI shell, because the CLI talks to the daemon over HTTP. (from localaimaster.com)",
+  "facets": [
+    {
+      "title": "Definitions",
+      "facts": [
+        {
+          "text": "That second command is the one that matters. ollama list only proves the manifests parsed; a generation proves the blobs are intact and the runner can load them. Use the smallest model you transferred for this check — a sub-gigabyte model loads in seconds, and a successful generation on a models directory that never saw a network pull is the proof the whole procedure worked.",
+          "source": "https://localaimaster.com/blog/transfer-ollama-models-offline",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Structure and components",
+      "facts": [
+        {
+          "text": "The models directory holds blobs/ (files named sha256-<hash>) and manifests/ (one small JSON manifest per tag, at manifests/<host>/<namespace>/<model>/<tag>, listing the config blob and layer blobs). Both folders must be copied: blobs alone give no model names, manifests alone give a model list that fails to load. The ollama/ollama issue tracker confirms the layout: a worked backup script derives a model's blobs from the manifest's config.digest and layers[].digest, and a feature request describes blob names as hashes that do not say which model they belong to.",
+          "source": "https://github.com/ollama/ollama/issues/15484",
+          "note": null
+        },
+        {
+          "text": "Community pull-through proxies for the Ollama registry exist (for example beans-bytes/ollama-registry-pull-through-proxy, a Caddy-based pull-only registry, and a Harbor dev build) and are described in issue #914. None is an Ollama-supported component, and none was tested here.",
+          "source": "https://github.com/ollama/ollama/issues/914",
+          "note": null
+        },
+        {
+          "text": "manifests/registry.ollama.ai/library/<model>/<tag> is a small JSON file — one per model tag, with no file extension. It is an OCI-style manifest listing the layers that make up that model. This is the shape of one, with the digests truncated for readability:",
+          "source": "https://localaimaster.com/blog/transfer-ollama-models-offline",
+          "note": null
+        },
+        {
+          "text": "Yes, and that is the simplest version of this. Copying the whole models directory works because Ollama has no per-machine licence, activation, or path baked into the blobs — the manifest references layers by content hash, not by absolute path. The only reasons to copy selectively are size (you rarely want all 200GB) and the -partial files left behind by interrupted pulls, which are dead weight and should be excluded.",
+          "source": "https://localaimaster.com/blog/transfer-ollama-models-offline",
+          "note": null
+        },
+        {
+          "text": "Ollama does the hard part for you: the blob store is content-addressed, so every blob filename is the SHA-256 digest of that file's own contents — the same digests the manifest lists under its layers. On the target machine run sha256sum sha256-<hex> (Linux) or Get-FileHash (Windows) and check the digest matches the filename minus the sha256- prefix. Any blob where they disagree is corrupt; recopy it. Do this whenever your sneakernet media is part of the threat model, which for an air-gapped site it is.",
+          "source": "https://localaimaster.com/blog/transfer-ollama-models-offline",
+          "note": null
+        },
+        {
+          "text": "// DefaultName returns a name with the default values for the host, namespace, // tag, and protocol scheme parts. The model and digest parts are empty. // // - The default host is (\"registry.ollama.ai\") // - The default namespace is (\"library\") // - The default tag is (\"latest\") // - The default protocol scheme is (\"https\") func DefaultName() Name { return Name{ Host: defaultHost, Namespace: defaultNamespace, Tag: defaultTag, ... // different defaults than DefaultName. // // The name returned is not guaranteed to be valid. If it is not valid, the // field valu",
+          "source": "https://github.com/ollama/ollama/blob/957c8cd5ce852d1fd0886baa77987d8cc40eeb69/types/model/name.go",
+          "note": null
+        },
+        {
+          "text": "blobs/ — the actual model weights, stored as content-addressed files (this is the 50 GB part)",
+          "source": "https://llmconfigurator.com/guides/move-ollama-new-computer",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "How it works",
+      "facts": [
+        {
+          "text": "CVE-2024-37032 (Probllama), found by Wiz Research: when /api/pull fetches from a private registry, the `digest` field of a malicious manifest is used without validation. This allows path traversal, arbitrary file write and remote code execution. The fix is in Ollama 0.1.34 (released May 2024). NVD records the affected range as Ollama before 0.1.34 (digest format not validated, so values with fewer or more than 64 hex digits or a leading ../ are accepted).",
+          "source": "https://wiz.io/blog/probllama-ollama-vulnerability-cve-2024-37032",
+          "note": null
+        },
+        {
+          "text": "OLLAMA_MODELS must be set in the environment of the server process (systemd unit, tray app), not just the CLI shell, because the CLI talks to the daemon over HTTP.",
+          "source": "https://localaimaster.com/blog/transfer-ollama-models-offline",
+          "note": null
+        },
+        {
+          "text": "On Linux, copied files extracted as root cause permission errors; run chown -R ollama:ollama on the models directory before restarting the service. Exclude leftover *-partial* blobs from the archive.",
+          "source": "https://localaimaster.com/blog/transfer-ollama-models-offline",
+          "note": null
+        },
+        {
+          "text": "Behind an egress proxy, the FAQ says to set HTTPS_PROXY (with the proxy CA installed as a system certificate) and not HTTP_PROXY, because model pulls use only HTTPS and HTTP_PROXY can break client connections to the server.",
+          "source": "https://docs.ollama.com/faq",
+          "note": null
+        },
+        {
+          "text": "This is the problem I see when trying to use Ollama with Artifactory as a mirror for `registry.ollama.ai`. When setting up Artifactory as a mirror I need to set up an Artifactory remote repository with an arbitrary name (say \"ollama-models-remote\") of type Docker and with the url set to `https://registry.ollama.ai`",
+          "source": "https://github.com/ollama/ollama/issues/914#comments",
+          "note": null
+        },
+        {
+          "text": "For Artifactory to call Ollama model registry it needs to use `https://registry.ollama.ai/v2/library/...` . The `v2` is added by Artifactory itself after the configured url. `library` needs to be supplied by me, or by my local Ollama server to be more precise, when calling my Artifactory repo. This is common practice as this is the namespace within the `registry.ollama.ai` where the model I'm interested in is located.",
+          "source": "https://github.com/ollama/ollama/issues/914#comments",
+          "note": null
+        },
+        {
+          "text": "A few experiments with large models can fill a small VPS disk quickly. When the disk is full, a pull fails partway and the model will not load. How ollama pull and ollama run store models explains where the space goes and how to move the model directory.",
+          "source": "https://www.ssdnodes.com/learn/is-ollama-free-local-vs-cloud",
+          "note": null
+        },
+        {
+          "text": "We are not going to publish a list of endpoints to block, because we have not packet-captured any Ollama build and stale claims about what a binary connects to are worse than no claim at all. Point your own monitoring at it, and if your environment already runs an internal mirror, the air-gapped deployment guide covers that pattern properly. Once models are on the box, inference itself is fully local — what running AI offline actually means covers that side.",
+          "source": "https://localaimaster.com/blog/transfer-ollama-models-offline",
+          "note": null
+        },
+        {
+          "text": "[dglidden 2026-03-11T21:16:02Z] Adding another voice to having some kind of mechanism (env var, command line param, something) that would allow ollama to \"redirect\" pulling from a local Artifactory of some sort. We use JFrog where I work and the ollama registry is basically blocked, leaving only going through the local JFrog instance to be able to pull models. (However they absolutely support pulling models through it, just which ones based on corporate rules.)",
+          "source": "https://github.com/ollama/ollama/issues/914#comments",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Parameters and configuration",
+      "facts": [
+        {
+          "text": "| Key | Type | Default | Description | |------------------------------------------------|--------|-----------------------------------------------------",
+          "source": "https://raw.githubusercontent.com/otwld/ollama-helm/main/README.md#helm-values",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "How-to and procedures",
+      "facts": [
+        {
+          "text": "Running it is quite straight forward via docker: 1. Start the cache `docker run -p 9200:9200 -v ./cache_dir_docker:/pull-through-cache ghcr.io/beans-bytes/ollama-registry-pull-through-proxy:latest` 2. Pull/run against it `ollama pull --insecure http://localhost:9200/library/<image>:<tag>`",
+          "source": "https://github.com/ollama/ollama/issues/914#comments",
+          "note": null
+        },
+        {
+          "text": "To download a model through my local Artifactory repo I would need to name it `my.artifacory.host/ollama-models-remote/library/<model>:<tag>`. This should cause the local Ollama server to call `https://my.artifacory.host/v2/ollama-models-remote/library/...`, which would cause Artifactory to substitute `https://my.artifacory.host/v2/ollama-models-remote/` for `https://registry.ollama.ai/v2/` and then append `library/...`. But since the code in Ollama used to split the model name only handles up to three parts divided by `/` and my supplied name contains four, it goes with the default instead.",
+          "source": "https://github.com/ollama/ollama/issues/914#comments",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Examples and snippets",
+      "facts": [
+        {
+          "text": "```shell theme={\"system\"} — `ollama pull kimi-k2.6:cloud` …",
+          "source": "https://docs.ollama.com/integrations/vscode#add-a-model",
+          "note": null
+        },
+        {
+          "text": "```sh — `#!/bin/bash` …",
+          "source": "https://github.com/ollama/ollama/issues/15484#comments",
+          "note": null
+        },
+        {
+          "text": "[cgjosephlee 2024-10-21T08:14:40Z] Since ollama has a similar CLI interface to docker, I implement `save` and `load` fun — `https://github.com/cgjosephlee/ollama-save-load` …",
+          "source": "https://github.com/ollama/ollama/issues/696#comments",
+          "note": null
+        },
+        {
+          "text": "echo \"Pulling model: $model\" ollama pull \"$model\" if [ $? -ne 0 ]; then echo \"WARNING: Failed to pull $model\" fi done < /config/models.txt",
+          "source": "https://oneuptime.com/blog/post/2026-02-26-argocd-ollama-deployment/view",
+          "note": null
+        },
+        {
+          "text": "You can quickly verify the image using curl: — ````shell` …",
+          "source": "https://github.com/ollama/ollama/issues/914#comments",
+          "note": null
+        },
+        {
+          "text": "`llama3`: — `user@gpunode[~]$ ollama pull registry-ollama-ai.fqdn/llama3` …",
+          "source": "https://github.com/ollama/ollama/issues/914#comments",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Measurements and reference values",
+      "facts": [
+        {
+          "text": "It is not cross-architecture magic for the runtime. The blobs are portable; the Ollama build and GPU drivers on the target must match that machine's hardware. A model that ran on a 24GB card will still not fit an 8GB one — check the requirement first with our 8GB VRAM model picks or the RAM and VRAM table.",
+          "source": "https://localaimaster.com/blog/transfer-ollama-models-offline",
+          "note": null
+        },
+        {
+          "text": "4. Disk fills up mid-copy. Usually -partial files that you meant to exclude — a pull interrupted at 80% of a 40GB model leaves 30GB behind. Check the source before packaging: ls -la models/blobs | grep partial.",
+          "source": "https://localaimaster.com/blog/transfer-ollama-models-offline",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Problems, failure modes and limitations",
+      "facts": [
+        {
+          "text": "Ollama parses a model name as [host/][namespace/]model[:tag] and fills missing parts with registry.ollama.ai, library and latest (types/model/name.go at commit 957c8cd). So `registry.example.com/team/model:tag` addresses a private registry, but a four-part name such as `artifactory.example/remote-repo/library/model` is not a pass-through form. Issue #914 (2024 to March 2026) reports the failure for JFrog Artifactory and Nexus remote proxy repositories, and users there still ask for a redirect setting. No environment variable that redirects pulls to a mirror is documented.",
+          "source": "https://github.com/ollama/ollama/blob/957c8cd5ce852d1fd0886baa77987d8cc40eeb69/types/model/name.go",
+          "note": null
+        },
+        {
+          "text": "And here’s the part that should worry everyone: the absence of authentication makes every future Ollama CVE automatically unauthenticated. Every single vulnerability that will be found in Ollama, whether it’s a path traversal, a buffer overflow, or any memory corruption bug in the C++ llama.cpp engine, will be exploitable by anyone on the internet with zero credentials. No auth means no barrier between a remote attacker and whatever bug comes next. And bugs will come. Ollama is a large C++ project that parses complex binary formats (GGUF models, OCI manifests, safetensors). The attack surface",
+          "source": "https://blog.leakix.net/2026/02/ollama-exposed/",
+          "note": null
+        },
+        {
+          "text": "Registry as a pull through cache | CNCF Distribution Distribution Registry / Recipes overview / Registry as a pull through cache Edit page Registry as a pull through cache Use-case If you have multiple consumers of containers running in your environment, such as multiple physical or virtual machines using containers, or a Kubernetes cluster, each consumer fetches an images it doesn’t have locally, from the external registry. You can run a local registry mirror and point all your consumers there, to avoid this extra internet traffic. Alternatives Alternatively, if the set of images you are usin",
+          "source": "https://distribution.github.io/distribution/recipes/mirror/",
+          "note": null
+        },
+        {
+          "text": "Copying blobs without manifests gives you orphaned data Ollama can't see; manifests without blobs gives you a model list that fails on load. Always move the whole models directory.",
+          "source": "https://llmconfigurator.com/guides/move-ollama-new-computer",
+          "note": null
+        },
+        {
+          "text": "Pulling a model from a private registry While Ollama's official registry can be considered \"trusted,\" anyone can set up their own registry and host models on it. As researchers, we were interested in this attack surface – are private registries being blindly trusted? What damage could a malicious private registry cause?",
+          "source": "https://wiz.io/blog/probllama-ollama-vulnerability-cve-2024-37032",
+          "note": null
+        },
+        {
+          "text": "Inside the models directory there are exactly two subdirectories: blobs/ and manifests/. You need both. Copying one without the other is the classic failure.",
+          "source": "https://localaimaster.com/blog/transfer-ollama-models-offline",
+          "note": null
+        },
+        {
+          "text": "Run this. Sneakernet media is the threat model in an air-gapped environment, and a silently truncated 20GB blob produces a model that loads and then generates garbage — which is a far worse outcome than a clean failure. For the wider control set around this (mirrors, signing, audit trail), our air-gapped AI deployment guide is the policy-layer companion to this file-level procedure.",
+          "source": "https://localaimaster.com/blog/transfer-ollama-models-offline",
+          "note": null
+        },
+        {
+          "text": "* The blob filenames are hashes and do not indicate which model they belong to. * A single model may reference multiple blobs. * Users cannot easily determine which files are required for a particular model. * The common workaround is to copy the entire models directory to another machine and then delete unwanted models afterward, which wastes time and storage.",
+          "source": "https://github.com/ollama/ollama/issues/17115",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Comparisons and alternatives",
+      "facts": [
+        {
+          "text": "Short answer: copy two folders — blobs/ and manifests/ — out of the Ollama models directory, put them in the same place on the offline machine, fix ownership, restart the service. No re-download, no internet, no registry. Ollama's manifests reference weights by content hash rather than by URL or absolute path, so a straight file copy is a complete transfer.",
+          "source": "https://localaimaster.com/blog/transfer-ollama-models-offline",
+          "note": null
+        },
+        {
+          "text": "1. ollama list is empty or missing the model you copied. Almost always the client/server confusion: OLLAMA_MODELS set in your shell instead of for the daemon. Check what the server is actually using — on Linux, sudo systemctl show ollama -p Environment; on Windows, the service environment, not your terminal. Second most likely: you copied blobs/ but not manifests/, so there is no name to list. Third: you never restarted the service after copying.",
+          "source": "https://localaimaster.com/blog/transfer-ollama-models-offline",
+          "note": null
+        },
+        {
+          "text": "Three usual causes, in order. First, OLLAMA_MODELS was set in the shell you typed ollama list into rather than for the server process — the CLI is a thin client that asks the running daemon over HTTP, so the daemon is the process that needs the variable, and setting it client-side changes nothing at all. Second, you copied blobs/ but not manifests/ — with no manifest there is no name to list. Third, on Linux the files are owned by your user and the ollama service account cannot read them; fix with sudo chown -R ollama:ollama on the models directory, as the official FAQ instructs.",
+          "source": "https://localaimaster.com/blog/transfer-ollama-models-offline",
+          "note": null
+        },
+        {
+          "text": "You can move Ollama to a new computer by copying one folder — ~/.ollama/models — instead of re-downloading 50 GB+ of models over your internet connection. The same trick works for LM Studio, and this guide covers the exact folder locations on Mac, Windows, and Linux, plus how to carry over your custom Modelfiles and chat history.",
+          "source": "https://llmconfigurator.com/guides/move-ollama-new-computer",
+          "note": null
+        },
+        {
+          "text": "That is the whole trick, and it is why ollama pull hanging on a disconnected workstation is an annoyance rather than a wall. The rest of this page is the exact procedure, the three ways people get it wrong, how to prove a 40GB blob survived the USB stick, and what to do on a machine where you cannot even run the installer.",
+          "source": "https://localaimaster.com/blog/transfer-ollama-models-offline",
+          "note": null
+        },
+        {
+          "text": "6. ollama pull hangs forever instead of failing. That is the symptom that brought you here, and it is expected on a box with no route out — the client waits on a connection that will never be refused because nothing is there to refuse it. It is not a bug and there is no timeout worth tuning. Use the file transfer.",
+          "source": "https://localaimaster.com/blog/transfer-ollama-models-offline",
+          "note": null
+        },
+        {
+          "text": "The Ollama FAQ states that Ollama on macOS and Windows will automatically download updates, and that you click the taskbar or menubar item and then \"Restart to update\" to apply one. That is an outbound connection an air-gapped audit will flag even though it will simply fail on a disconnected box. The clean answer on a locked-down host is to run the CLI-only build rather than the desktop app — the standalone zip has no updater UI — and to let the site firewall deny the egress rather than trusting a client-side setting. Verify with your own network monitoring; do not take a blog post's word for",
+          "source": "https://localaimaster.com/blog/transfer-ollama-models-offline",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Facts and statements",
+      "facts": [
+        {
+          "text": "CVE-2026-7482 (Bleeding Llama), disclosed by Cyera Research on 2026-05-05: Ollama before 0.17.1 reads past a heap buffer in the GGUF loader. A crafted GGUF declares a tensor offset and size larger than the file; quantization (fs/ggml/gguf.go, server/quantization.go) then leaks memory. The attack is three unauthenticated calls: POST /api/blobs/sha256:..., POST /api/create, then POST /api/push to an attacker server. Leaked data can include system prompts, conversations and environment variables such as API keys. Fixed version: 0.17.1 (NVD and GitHub advisory GHSA-x8qc-fggm-mpqg both give affecte",
+          "source": "https://nvd.nist.gov/vuln/detail/CVE-2026-7482",
+          "note": null
+        },
+        {
+          "text": "CNCF Distribution's pull-through cache mode (proxy.remoteurl) mirrors only one upstream registry, and the Docker daemon accepts such mirrors only for Docker Hub. It therefore does not act as a pull-through cache for registry.ollama.ai. The same page applies to the ollama/ollama container image: carry it across with docker save and docker load (docs.docker.com).",
+          "source": "https://distribution.github.io/distribution/recipes/mirror/",
+          "note": null
+        },
+        {
+          "text": "Ollama's FAQ lists default model storage as ~/.ollama/models (macOS), /usr/share/ollama/.ollama/models (Linux) and C:\\Users\\%username%\\.ollama\\models (Windows); the OLLAMA_MODELS environment variable relocates it.",
+          "source": "https://docs.ollama.com/faq",
+          "note": null
+        },
+        {
+          "text": "[wbuntu 2024-09-12T07:49:08Z] The ollama registry seems a little diffrence from docker reigstry，but the pull logic is simple. I just build a pull-only local registry with caddy and ollama：https://github.com/wbuntu/images/tree/master/ollama-registry Also it can be used as an offline model reigstry.",
+          "source": "https://github.com/ollama/ollama/issues/914#comments",
+          "note": null
+        },
+        {
+          "text": "Offline transfer procedure: pull models on a connected machine, stop Ollama on both ends so no blob is mid-write, copy the whole models directory (archive/rsync/robocopy), extract at the same path on the target, then run `ollama list` to confirm. An Ollama maintainer gave the same answer in 2023: download models on a connected machine and move the ~/.ollama directory to the offline machine.",
+          "source": "https://github.com/ollama/ollama/issues/696",
+          "note": null
+        },
+        {
+          "text": "Sharing one models folder between two running Ollama instances (for example over a NAS) is reported as unsupported and able to corrupt manifests.",
+          "source": "https://llmconfigurator.com/guides/move-ollama-new-computer",
+          "note": null
+        },
+        {
+          "text": "Blobs and manifests are reported identical across macOS, Windows and Linux, so a folder copied from one OS works on another with only the path changing. Neither guide says whether models copied between different Ollama versions stay compatible.",
+          "source": "https://llmconfigurator.com/guides/move-ollama-new-computer",
+          "note": null
+        },
+        {
+          "text": "Desktop (tray app) builds on macOS and Windows check for updates; one guide advises enforcing no-update at the firewall. Updates on an air-gapped host are manual: pull or download on a connected machine and carry across.",
+          "source": "https://localaimaster.com/blog/transfer-ollama-models-offline",
+          "note": null
+        },
+        {
+          "text": "Offline installation of the binary: an Ollama maintainer (BruceMacD, issue #696, 2023) says to download the ollama-linux-<ARCH> binary from the GitHub releases page on a connected machine, move it to the offline machine, and install the matching CUDA driver separately for GPU use. The reply is from 2023; check the current release asset names before relying on it.",
+          "source": "https://github.com/ollama/ollama/issues/696",
+          "note": null
+        },
+        {
+          "text": "As of 2026-10-14 Ollama has no first-class model export or import command. Issue #17115 (opened 2026-07-10, still open) asks for one and calls copying the whole models directory the common workaround; a first-pass pull request (#18578, `ollama export` / `ollama import`) is open and unmerged. Community scripts fill the gap: a manifest-driven zip script (issue #15484) and ollama-save-load (issue #696).",
+          "source": "https://github.com/ollama/ollama/issues/17115",
+          "note": null
+        },
+        {
+          "text": "A private mirror can be a CNCF Distribution (`registry:2`) server. A community report in issue #914 pushes with `ollama cp llama2 localhost:5001/jamesbrink/llama2` then `ollama push localhost:5001/jamesbrink/llama2 --insecure`; the stored manifest uses Docker manifest v2 with Ollama media types (application/vnd.ollama.image.model, .license, .template, .params). Ollama's own docs do not describe this, so treat it as community-verified, not supported.",
+          "source": "https://github.com/ollama/ollama/issues/914",
+          "note": null
+        },
+        {
+          "text": "On Windows, yes. The official Windows docs publish a standalone archive, ollama-windows-amd64.zip, containing only the Ollama CLI and GPU library dependencies, plus ollama-windows-amd64-rocm.zip for AMD ROCm and ollama-windows-amd64-mlx.zip. Unzip to a folder you can write to, run ollama.exe serve, and point OLLAMA_MODELS at your copied directory. Note the docs warn that if you are upgrading from a prior version you should remove the old directories first. A separate approach that avoids Ollama's registry entirely is importing a raw GGUF file with a one-line Modelfile.",
+          "source": "https://localaimaster.com/blog/transfer-ollama-models-offline",
+          "note": null
+        },
+        {
+          "text": "Models can be preloaded in Kubernetes either through the Helm values ollama.models.pull (startup pull), ollama.models.run (load into memory), ollama.models.create (custom Modelfile or ConfigMap) and clean, or through an init container that starts `ollama serve`, pulls models, and stops. More pulled models mean longer pod startup.",
+          "source": "https://github.com/otwld/ollama-helm",
+          "note": null
+        },
+        {
+          "text": "Per the official Ollama FAQ: macOS ~/.ollama/models, Linux /usr/share/ollama/.ollama/models, Windows C:\\Users\\%username%\\.ollama\\models. On Windows the docs also describe the location as %HOMEPATH%\\.ollama. Inside that directory there are exactly two subfolders that matter: blobs/ (the actual weight files, named sha256-<hex>) and manifests/registry.ollama.ai/library/<model>/<tag> (small JSON files that give those blobs a name). Set OLLAMA_MODELS to move the whole directory somewhere else.",
+          "source": "https://localaimaster.com/blog/transfer-ollama-models-offline",
+          "note": null
+        },
+        {
+          "text": "curl -fsSL https://ollama.com/install.sh | sh ollama pull nomic-embed-text",
+          "source": "https://docs.percona.com/percona-search-for-mongodb/configure-automatic-embedding-ollama.html",
+          "note": null
+        },
+        {
+          "text": "Custom models (personas you built with ollama create) travel automatically with the models folder — they're just another manifest + blobs. But it's smart to also export their recipes as plain text, so you can rebuild or tweak them later:",
+          "source": "https://llmconfigurator.com/guides/move-ollama-new-computer",
+          "note": null
+        },
+        {
+          "text": "Ollama pulls models from the Internet and may require a proxy server to access the models. Use `HTTPS_PROXY` to redirect outbound requests through the proxy. Ensure the proxy certificate is installed as a system certificate. Refer to the section above for how to use environment variables on your platform.",
+          "source": "https://docs.ollama.com/faq#how-do-i-use-ollama-behind-a-proxy",
+          "note": null
+        },
+        {
+          "text": "Fetch available LLM model via ollama pull <name-of-model>",
+          "source": "https://docs.langchain.com/oss/python/integrations/text_embedding/ollama",
+          "note": null
+        },
+        {
+          "text": "Specify the exact version of the model of interest as such ollama pull vicuna:13b-v1.5-16k-q4_0 (View the various tags for the Vicuna model in this instance)",
+          "source": "https://docs.langchain.com/oss/python/integrations/text_embedding/ollama",
+          "note": null
+        },
+        {
+          "text": "models/ ├── blobs/ │ ├── sha256-735af2139dc652bf01112746474883d79a52fa1c19038265d363e3d42556f7a2 │ ├── sha256-4b19ac7dd2fb1ab2f2818b73454c5a9128ca39875a8fcf686a6b1c36100a0d68 │ └── ... └── manifests/ └── registry.ollama.ai/ └── library/ ├── gemma3/270m ├── qwen3/4b └── llama3.2/latest",
+          "source": "https://localaimaster.com/blog/transfer-ollama-models-offline",
+          "note": null
+        },
+        {
+          "text": "cat manifests/registry.ollama.ai/library/qwen3/4b",
+          "source": "https://localaimaster.com/blog/transfer-ollama-models-offline",
+          "note": null
+        },
+        {
+          "text": "cd /usr/share/ollama/.ollama/models/blobs for f in sha256-*; do case \"$f\" in *partial*) continue;; esac actual=$(sha256sum \"$f\" | cut -d' ' -f1) [ \"$actual\" = \"${f#sha256-}\" ] || echo \"CORRUPT: $f\" done",
+          "source": "https://localaimaster.com/blog/transfer-ollama-models-offline",
+          "note": null
+        },
+        {
+          "text": "Get-ChildItem \"$env:USERPROFILE\\.ollama\\models\\blobs\" -Filter sha256-* | Where-Object { $_.Name -notmatch 'partial' } | ForEach-Object { $h = (Get-FileHash $_.FullName -Algorithm SHA256).Hash.ToLower() if ($h -ne $_.Name.Substring(7)) { \"CORRUPT: $($_.Name)\" } }",
+          "source": "https://localaimaster.com/blog/transfer-ollama-models-offline",
+          "note": null
+        },
+        {
+          "text": "3. permission denied in the server log on Linux. You extracted as root into the ollama user's directory. sudo chown -R ollama:ollama /usr/share/ollama/.ollama/models and restart. Check with ls -l — if you see root root on the blobs, that is the whole story.",
+          "source": "https://localaimaster.com/blog/transfer-ollama-models-offline",
+          "note": null
+        },
+        {
+          "text": "5. Blobs seem to vanish after a restart. Ollama exposes an OLLAMA_NOPRUNE setting, described in ollama serve --help as \"Do not prune model blobs on startup\". Whether a given release actually prunes orphaned blobs — ones whose manifest is missing — is the subject of a lot of forum folklore and we have not verified it on any version, so we are not going to tell you it does or does not. What we can say is that the setting costs nothing: if you are copying blobs before their manifests, or scripting a staged transfer, export OLLAMA_NOPRUNE=1 for the first startup and the question does not arise.",
+          "source": "https://localaimaster.com/blog/transfer-ollama-models-offline",
+          "note": null
+        },
+        {
+          "text": "It does not move Ollama itself. The binary and service still have to get onto the target — installer, standalone zip, or your organisation's package mirror.",
+          "source": "https://localaimaster.com/blog/transfer-ollama-models-offline",
+          "note": null
+        },
+        {
+          "text": "It assumes the current directory layout. The blobs/manifests split has been stable for a long time and Ollama's own FAQ documents the paths, but nothing guarantees it forever. Before trusting any blog post about this — including this one — open a manifest on your own machine and check it still looks like the example above.",
+          "source": "https://localaimaster.com/blog/transfer-ollama-models-offline",
+          "note": null
+        },
+        {
+          "text": "If your air-gapped host will also be serving other people, lock the endpoint down before you hand out the address: our securing Ollama guide covers binding, auth and exposure.",
+          "source": "https://localaimaster.com/blog/transfer-ollama-models-offline",
+          "note": null
+        },
+        {
+          "text": "Will Ollama try to phone home on an air-gapped machine?",
+          "source": "https://localaimaster.com/blog/transfer-ollama-models-offline",
+          "note": null
+        },
+        {
+          "text": "manifests/ — small JSON files that tell Ollama which blobs make up which model tag",
+          "source": "https://llmconfigurator.com/guides/move-ollama-new-computer",
+          "note": null
+        },
+        {
+          "text": "ollama list # should show your full library instantly ollama run llama3.1 # loads from local blobs, no download bar",
+          "source": "https://llmconfigurator.com/guides/move-ollama-new-computer",
+          "note": null
+        },
+        {
+          "text": "Yes. GGUF blobs are platform-independent — the same files run on macOS, Windows, and Linux. Copy the whole models folder and Ollama on any OS reads it.",
+          "source": "https://llmconfigurator.com/guides/move-ollama-new-computer",
+          "note": null
+        },
+        {
+          "text": "It works read-only in practice but isn't supported — two Ollama instances writing (pulling/removing models) into the same folder can corrupt manifests. A safer pattern: keep one machine as the model host and let others talk to it over the network — see Personal AI Home Server.",
+          "source": "https://llmconfigurator.com/guides/move-ollama-new-computer",
+          "note": null
+        },
+        {
+          "text": "[rick-github 2026-04-11T21:48:55Z] Create a zip file of the blobs. To restore the model, cd to the ollama model directory and extract the zip.",
+          "source": "https://github.com/ollama/ollama/issues/15484#comments",
+          "note": null
+        },
+        {
+          "text": "**Offline installation:** This will be possible by downloading the `ollama-linux-ARCH` binary then moving it onto your offline machine. You can find the binary in the release assets here: https://github.com/jmorganca/ollama/releases",
+          "source": "https://github.com/ollama/ollama/issues/696#comments",
+          "note": null
+        },
+        {
+          "text": "**Offline model usage:** The easiest way to do this would be to download the Ollama models on a machine which is connected to the internet, then moving the `~/.ollama` directory to the offline machine.",
+          "source": "https://github.com/ollama/ollama/issues/696#comments",
+          "note": null
+        },
+        {
+          "text": "const ( defaultHost = \"registry.ollama.ai\" defaultNamespace = \"library\" defaultTag = \"latest\" defaultProtocolScheme = \"https\" )",
+          "source": "https://github.com/ollama/ollama/blob/957c8cd5ce852d1fd0886baa77987d8cc40eeb69/types/model/name.go",
+          "note": null
+        },
+        {
+          "text": "blobs/ holds every actual file — weights, prompt template, licence text, parameter defaults — each named sha256-<64 hex chars>, where the hex is the SHA-256 of the file's own contents. That is content addressing, and it is what makes the transfer safe: the same blob is shared by every model that uses it, and no blob knows or cares which machine it is on.",
+          "source": "https://localaimaster.com/blog/transfer-ollama-models-offline",
+          "note": null
+        },
+        {
+          "text": "Two things to leave behind. Files with -partial in the name are interrupted downloads (sha256-0aa0872a…-partial, -partial-0, -partial-1, and so on). They are useless on the target and can be as large as whatever fraction of the model had downloaded before the pull died — often several gigabytes. Exclude them. Second, if you are copying selectively, do not copy a manifest whose blobs you skipped; you will get a named model that fails to load.",
+          "source": "https://localaimaster.com/blog/transfer-ollama-models-offline",
+          "note": null
+        },
+        {
+          "text": "Enforce it at the network, not in the app. On an air-gapped site the firewall already denies the egress. That control is auditable; a client-side toggle is not.",
+          "source": "https://localaimaster.com/blog/transfer-ollama-models-offline",
+          "note": null
+        },
+        {
+          "text": "Cross-platform note: blobs and manifests are identical across macOS, Windows, and Linux — a models folder copied from a Mac works on a Windows PC unchanged. Only the path differs.",
+          "source": "https://llmconfigurator.com/guides/move-ollama-new-computer",
+          "note": null
+        },
+        {
+          "text": "You could try the Harbor registry, there is a dev build you could try: https://github.com/stonezdj/harbor/releases/v2.11.0-ollama",
+          "source": "https://github.com/ollama/ollama/issues/914#comments",
+          "note": null
+        }
+      ]
+    }
+  ],
+  "related": [
+    {
+      "concept": "ollama",
+      "relation": "is a related of Air-gapped Ollama deployment and model mirroring",
+      "note": null
+    },
+    {
+      "concept": "Artifactory",
+      "relation": "is a part of Air-gapped Ollama deployment and model mirroring",
+      "note": null
+    },
+    {
+      "concept": "gguf import",
+      "relation": "is a related of Air-gapped Ollama deployment and model mirroring",
+      "note": null
+    },
+    {
+      "concept": "pull-through cache",
+      "relation": "is a part of Air-gapped Ollama deployment and model mirroring",
+      "note": null
+    },
+    {
+      "concept": "CVE",
+      "relation": "is a problem of Air-gapped Ollama deployment and model mirroring",
+      "note": null
+    },
+    {
+      "concept": "ollama:rocm",
+      "relation": "is a hyponym of Air-gapped Ollama deployment and model mirroring",
+      "note": null
+    },
+    {
+      "concept": "StatefulSet",
+      "relation": "is a part of Air-gapped Ollama deployment and model mirroring",
+      "note": null
+    },
+    {
+      "concept": "auth proxy",
+      "relation": "is a part of Air-gapped Ollama deployment and model mirroring",
+      "note": null
+    },
+    {
+      "concept": "GHSA",
+      "relation": "is a part of Air-gapped Ollama deployment and model mirroring",
+      "note": null
+    },
+    {
+      "concept": "persistent volume",
+      "relation": "is a part of Air-gapped Ollama deployment and model mirroring",
+      "note": null
+    },
+    {
+      "concept": "ingress",
+      "relation": "is a part of Air-gapped Ollama deployment and model mirroring",
+      "note": null
+    },
+    {
+      "concept": "GPU passthrough",
+      "relation": "is a part of Air-gapped Ollama deployment and model mirroring",
+      "note": null
+    },
+    {
+      "concept": "nomic-embed-text",
+      "relation": "is a instance of Air-gapped Ollama deployment and model mirroring",
+      "note": null
+    },
+    {
+      "concept": "api key",
+      "relation": "is a part of Air-gapped Ollama deployment and model mirroring",
+      "note": null
+    },
+    {
+      "concept": "healthcheck",
+      "relation": "is a part of Air-gapped Ollama deployment and model mirroring",
+      "note": null
+    },
+    {
+      "concept": "11434",
+      "relation": "is a related of Air-gapped Ollama deployment and model mirroring",
+      "note": null
+    }
+  ]
+}

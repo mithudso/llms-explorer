@@ -1,0 +1,949 @@
+{
+  "slug": "ramalama-container-native-model-runner-using-the-ollama-registry",
+  "concept": "RamaLama and the Ollama registry",
+  "generated": "2026-10-14",
+  "summary": "RamaLama is an open-source tool that runs and serves AI models in OCI containers (Podman or Docker), pulling them from transports selected by prefix (ollama://, huggingface://, oci://, modelscope://, rlcr://, URLs). Through v0.20.0 an unprefixed model name used the Ollama transport; v0.21.0 (2026-05-14) began deprecating it, v0.23.0 (2026-06-24) relaxed that, and the code at v0.25.0 has no implicit default (names with a slash go to Hugging Face, unknown shortnames raise an error), although the README still says org-less names default to Ollama. Containers are rootless and locked down by default. Sources span GitHub (README, releases, pull requests, source), man pages, Red Hat, a blog and a forum thread.",
+  "facets": [
+    {
+      "title": "Definitions",
+      "facts": [
+        {
+          "text": "RamaLama makes AI models execution simple, reproducible, and container-native. It allows us to use various model registries, such as Ollama and HuggingFace, as well as ready-made images from various OCI registries. It also provides an easy path to run AI models on Podman, Docker, and even Kubernetes. Thanks to RamaLama, I was able to leverage Apple Silicon GPUs when running AI models in containers.",
+          "source": "https://piotrminkowski.com/?p=16009",
+          "note": null
+        },
+        {
+          "text": "Generate RAG data from provided documents and convert into an OCI Image.",
+          "source": "https://github.com/containers/ramalama",
+          "note": null
+        },
+        {
+          "text": "RamaLama is a command-line interface for running AI models in containers on your machine, plugging into a container engine such as Podman or Docker. Packages are available for Linux, macOS, and Windows.",
+          "source": "https://www.redhat.com/en/blog/run-containerized-ai-models-locally-ramalama",
+          "note": null
+        },
+        {
+          "text": "Serve specified AI Model as a chat bot. RamaLama pulls specified AI Model from registry if it does not exist in local storage.",
+          "source": "https://raw.githubusercontent.com/containers/ramalama/main/docs/ramalama-serve.1.md#description",
+          "note": null
+        },
+        {
+          "text": "Convert AI Model from local storage to OCI Image.",
+          "source": "https://github.com/containers/ramalama",
+          "note": null
+        },
+        {
+          "text": "Ramalama is simply a command line that runs AI models locally by treating them like containers.",
+          "source": "https://discussion.fedoraproject.org/t/does-ramalama-make-ai-boring/186757",
+          "note": null
+        },
+        {
+          "text": "RamaLama is an open-source developer tool that simplifies the local serving of AI models from any source and facilitates their use for inference in production, all through the familiar language of containers.",
+          "source": "https://github.com/containers/ramalama",
+          "note": null
+        },
+        {
+          "text": "RamaLama is an open-source tool that simplifies the local use and serving of AI models for inference from any source through the familiar approach of containers. It allows engineers to use container-centric development patterns and benefits to extend to AI use cases.",
+          "source": "https://github.com/containers/ramalama",
+          "note": null
+        },
+        {
+          "text": "The goal of RamaLama is to make AI boring.",
+          "source": "https://raw.githubusercontent.com/containers/ramalama/main/docs/ramalama.1.md#description",
+          "note": null
+        },
+        {
+          "text": "The RamaLama tool facilitates local management and serving of AI Models.",
+          "source": "https://raw.githubusercontent.com/containers/ramalama/main/docs/ramalama.1.md#description",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Structure and components",
+      "facts": [
+        {
+          "text": "| Transports | Prefix | Web Site | | ------------- | ------ | --------------------------------------------------- | | URL based | https://, http://, file:// | `https://web.site/ai.model`, `file:///tmp/ai.model`| | HuggingFace | huggingface://, hf://, hf.co/ | [`huggingface.co`](https://www.huggingface.co)| | ModelScope | modelscope://, ms:// | [`modelscope.cn`](https://modelscope.cn/)| | Ollama | ollama:// | [`ollama.com`](https://www.ollama.com)| | rlcr | rlcr:// | [`ramalama.com`](https://registry.ramalama.com) | | OCI",
+          "source": "https://raw.githubusercontent.com/containers/ramalama/main/docs/ramalama-serve.1.md#model-transports",
+          "note": null
+        },
+        {
+          "text": "| Command | Description | | ------------------------------------------------- | ---------------------------------------------------------- | | [ramalama-bench(1)](ramalama-bench.1.md) |benchmark specified AI Model| | [ramalama-benchmarks(1)](ramalama-benchmarks.1.md)|view and interact with historical benchmark results| | [ramalama-chat(1)](ramalama-chat.1.md) |OpenAI chat with the specified REST API URL| | [ramalama-containers(1)](ramalama-containers.1.md)|list all RamaLama containers|",
+          "source": "https://raw.githubusercontent.com/containers/ramalama/main/docs/ramalama.1.md#commands",
+          "note": null
+        },
+        {
+          "text": "+---------------------------+ | | | ramalama run granite3-moe | | | +-------+-------------------+ | | | +------------------+ +------------------+ | | Pull inferencing | | Pull model layer | +-----------| runtime (cuda) |---------->| granite3-moe | +------------------+ +------------------+ | Repo options: | +-+-------+------+-+ | | | v v v +---------+ +------+ +----------+ | Hugging | | OCI | | Ollama | | Face | | | | Registry | +-------+-+ +---+--+ +-+--------+ | | | v v v +------------------+ | Start with | | cuda runtime | | and | | granite3-moe | +------------------+",
+          "source": "https://github.com/containers/ramalama",
+          "note": null
+        },
+        {
+          "text": "| Shortnames type | Path | | --------------- | ---- | | Distribution | /usr/share/ramalama/shortnames.conf | | Local install | /usr/local/share/ramalama/shortnames.conf | | Administrators | /etc/ramalama/shortnames.conf | | Users | $HOME/.config/ramalama/shortnames.conf |",
+          "source": "https://raw.githubusercontent.com/containers/ramalama/main/docs/ramalama.1.md#model-transports",
+          "note": null
+        },
+        {
+          "text": "| Backend / Accelerator | Image | | ------------------------| -------------------------- | | CPU, Vulkan | quay.io/ramalama/ramalama | | ROCm (AMD) | quay.io/ramalama/rocm | | CUDA (NVIDIA) | quay.io/ramalama/cuda | | Intel GPU (sycl) | quay.io/ramalama/intel-gpu | | Intel GPU (openvino) | quay.io/ramalama/openvino | | Asahi (Apple Silicon) | quay.io/ramalama/asahi | | CANN (Ascend) | quay.io/ramalama/cann | | MUSA (Moore Threads) | quay.io/ramalama/musa |",
+          "source": "https://raw.githubusercontent.com/containers/ramalama/main/docs/ramalama-serve.1.md#image-image",
+          "note": null
+        },
+        {
+          "text": "| How | Where the key ends up | | --- | --- | | `--api-key <key>` | ramalama's own argv, so visible in `ps` output and in shell history | | `ramalama.conf` | a file on disk; protect it with file permissions | | `RAMALAMA_RUNTIMES__LLAMA_CPP__SERVER_API_KEY` | ramalama's environment, readable through `/proc/<pid>/environ` by the same user and by root, but absent from `ps` output and from disk |",
+          "source": "https://raw.githubusercontent.com/containers/ramalama/main/docs/ramalama-serve.1.md#api-key-key",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "How it works",
+      "facts": [
+        {
+          "text": "Because RamaLama defaults to running AI models inside rootless containers using Podman or Docker, these containers isolate AI models from information on the underlying host. With RamaLama containers, the AI model is mounted as a volume into the container in read-only mode. This keeps the runtime process (`llama.cpp` or `vLLM`) isolated from the host. Since `ramalama run` uses the `--network=none` option, the container cannot reach the network and leak information out of the system. Finally, containers are run with the `--rm` option, which means content written during execution is removed when",
+          "source": "https://raw.githubusercontent.com/containers/ramalama/main/docs/ramalama.1.md#test-and-run-your-models-more-securely",
+          "note": null
+        },
+        {
+          "text": "TransportFactory takes transport: Optional[str] = None. A name containing a slash goes to Hugging Face when no transport is configured. A configured transport is honoured. Otherwise a KeyError is raised saying the model is not a known shortname and no transport was specified.",
+          "source": "https://github.com/containers/ramalama/blob/v0.25.0/ramalama/transports/transport_factory.py#v0-25-0-2026-09-25-no-implicit-default-transport",
+          "note": "transport_factory.py v0.25.0 (code)"
+        },
+        {
+          "text": "This results in the process running the model (llama.cpp or vLLM) being isolated from the host. Additionally, since ramalama run uses the --network=none option, the container cannot reach the network and leak any information out of the system. Finally, containers are run with the --rm option, which means any content written during container execution is deleted when the application exits.",
+          "source": "https://github.com/containers/ramalama",
+          "note": null
+        },
+        {
+          "text": "OCI container image to run with specified AI model. RamaLama defaults to using images based on the accelerator it discovers and the selected --backend​. For example: quay.io/ramalama/ramalama​. See the table below for all default images. The default image tag is based on the minor version of the RamaLama package. Version 0.25.0 of RamaLama pulls an image with a :0.25 tag from the quay.io/ramalama OCI repository. The --image option overrides this default.",
+          "source": "https://mankier.com/1/ramalama-run",
+          "note": null
+        },
+        {
+          "text": "RamaLama defaults to running AI models inside of rootless containers using Podman or Docker. These containers isolate the AI models from the host. Default protections listed: - Container isolation: AI models run within isolated containers, preventing direct access to the host system. - Read-only volume mounts: the AI model is mounted as a volume into the container in read-only mode, so processes inside the container cannot modify host files. - No network access: ramalama run uses the --network=none option, so the container cannot reach the network and leak information out of the system. - Auto",
+          "source": "https://developers.redhat.com/articles/2025/02/20/how-ramalama-runs-ai-models-isolation-default",
+          "note": null
+        },
+        {
+          "text": "* With `--generate`, the key is written into the generated Quadlet, Kubernetes or Compose file in plaintext, because those files are read without ramalama in the picture. Treat the generated file as a secret. * When the server runs in a container, the key is readable via `podman inspect` / `docker inspect` on the container. * With `--webui on`, the web UI itself still loads, because its assets are public, but its API calls are rejected unless the UI is configured with the key. * Not supported together with `--api llama-stack`: llama-stack serves the only published port and can neither require",
+          "source": "https://raw.githubusercontent.com/containers/ramalama/main/docs/ramalama-serve.1.md#api-key-key",
+          "note": null
+        },
+        {
+          "text": "Because RamaLama defaults to running AI models inside rootless containers using Podman or Docker, these containers isolate the AI models from information on the underlying host. With RamaLama containers, the AI model is mounted as a volume into the container in read-only mode.",
+          "source": "https://github.com/containers/ramalama",
+          "note": null
+        },
+        {
+          "text": "When running the AI models, ramalama uses different transport registries which include ollama, huggingface, Modelscope and OCI registries.",
+          "source": "https://discussion.fedoraproject.org/t/does-ramalama-make-ai-boring/186757",
+          "note": null
+        },
+        {
+          "text": "To make it easier for users, RamaLama uses shortname files, which contain aliases for fully specified AI Models. RamaLama reads `shortnames.conf` files if they exist. These files contain name/value pairs for model definitions. The following table specifies the order in which RamaLama reads these files. Any duplicate names override previously defined shortnames.",
+          "source": "https://raw.githubusercontent.com/containers/ramalama/main/docs/ramalama.1.md#model-transports",
+          "note": null
+        },
+        {
+          "text": "The key is handed to the server through the `LLAMA_API_KEY` environment variable rather than on its command line, so it appears in neither the `llama-server` nor the container engine arguments. Passing it as `--api-key` does put it in ramalama's own arguments, where it is visible in the host process table for as long as the command runs.",
+          "source": "https://raw.githubusercontent.com/containers/ramalama/main/docs/ramalama-serve.1.md#api-key-key",
+          "note": null
+        },
+        {
+          "text": "New() asks the active config for a transport only when config.is_set(\"transport\") is true, so the config dataclass default of \"ollama\" is not applied as an implicit default.",
+          "source": "https://github.com/containers/ramalama/blob/v0.25.0/ramalama/transports/transport_factory.py#new-passes-only-an-explicitly-configured-transport",
+          "note": null
+        },
+        {
+          "text": "No Network Access – ramalama run is executed with --network=none, meaning the model has no outbound connectivity for which information can be leaked.",
+          "source": "https://github.com/containers/ramalama",
+          "note": null
+        },
+        {
+          "text": "By default, RamaLama tries to run the model inside the quay.io/ramalama/ramalama:latest container. The container exposes an OpenAI-compatible API on port 8080.",
+          "source": "https://piotrminkowski.com/?p=16009",
+          "note": null
+        },
+        {
+          "text": "Platform-specific behavior: - On Linux/macOS, Vulkan provides broad compatibility and is preferred for AMD and Intel GPUs - On WSL2, Vulkan is a poor default, so vendor-specific backends (rocm, sycl) are preferred. It remains available, and --backend=vulkan still selects it. This covers both Windows, where containers run in the WSL2-backed machine, and ramalama running inside a WSL2 distro, which otherwise looks like Linux",
+          "source": "https://mankier.com/1/ramalama-run",
+          "note": null
+        },
+        {
+          "text": "The model can be from RamaLama model storage in Huggingface, Ollama, or OCI Model format. The model can also just be a model stored on disk.",
+          "source": "https://raw.githubusercontent.com/containers/ramalama/main/docs/ramalama-push.1.md#description",
+          "note": null
+        },
+        {
+          "text": "Under the hood, `ramalama-serve` uses the `llama.cpp` HTTP server by default. When using `--runtime=vllm`, it uses the vLLM server. When using `--runtime=mlx`, it uses the MLX LM server.",
+          "source": "https://raw.githubusercontent.com/containers/ramalama/main/docs/ramalama-serve.1.md#rest-api-endpoints",
+          "note": null
+        },
+        {
+          "text": "For example, RamaLama version 1.2.3 on an NVIDIA system pulls quay.io/ramalama/cuda:1.2. To override the default image, use the --image option.",
+          "source": "https://github.com/containers/ramalama",
+          "note": null
+        },
+        {
+          "text": "When invoked with two or more model arguments, or without any model argument, starts in **router mode**: models are mounted into a container and served via llama.cpp's multi-model directory feature. Requests are routed to the appropriate model based on the model name in the API request. Router mode requires a container runtime.",
+          "source": "https://raw.githubusercontent.com/containers/ramalama/main/docs/ramalama-serve.1.md#description",
+          "note": null
+        },
+        {
+          "text": "Note: The --backend option provides a higher-level way to select the appropriate image based on GPU type. Use --backend to select vulkan, rocm, cuda, sycl, or openvino backends, which will automatically choose the correct image. Use --image only when you need to override the image selection entirely.",
+          "source": "https://mankier.com/1/ramalama-run",
+          "note": null
+        },
+        {
+          "text": "With `--rag`, the single key covers the whole pipeline. It guards all three published ports: the RAG proxy the user talks to, and the model and embedding `llama-server`s behind it. The proxy also presents the key upstream, so no leg of the pipeline is unauthenticated. Its `/health` endpoint stays public. The first caveat above does not apply, because `--rag` runs the pipeline rather than writing it out; `--generate` is not honoured alongside it, and the key stays out of the engine arguments.",
+          "source": "https://raw.githubusercontent.com/containers/ramalama/main/docs/ramalama-serve.1.md#api-key-key",
+          "note": null
+        },
+        {
+          "text": "Read-Only Volume Mounts – The AI model is mounted in read-only mode, which means that processes inside the container cannot modify the host files.",
+          "source": "https://github.com/containers/ramalama",
+          "note": null
+        },
+        {
+          "text": "No New Privileges – Linux Kernel feature that disables container processes from gaining additional privileges.",
+          "source": "https://github.com/containers/ramalama",
+          "note": null
+        },
+        {
+          "text": "On first run, RamaLama inspects your system for GPU support, falling back to CPU support if no GPUs are present.",
+          "source": "https://raw.githubusercontent.com/containers/ramalama/main/docs/ramalama.1.md#description",
+          "note": null
+        },
+        {
+          "text": "Distributions ship the `/usr/share/ramalama/ramalama.conf` file with their default settings. Administrators can override fields in this file by creating the `/etc/ramalama/ramalama.conf` file. Users can further modify defaults by creating the `$HOME/.config/ramalama/ramalama.conf` file. RamaLama merges its built-in defaults with specified fields from these files if they exist. Fields specified in the user's file override the administrator's file, which overrides the distribution's file, which overrides the built-in defaults.",
+          "source": "https://raw.githubusercontent.com/containers/ramalama/main/docs/ramalama.1.md#configuration-files",
+          "note": null
+        },
+        {
+          "text": "RamaLama uses built-in defaults if no `ramalama.conf` file is found.",
+          "source": "https://raw.githubusercontent.com/containers/ramalama/main/docs/ramalama.1.md#configuration-files",
+          "note": null
+        },
+        {
+          "text": "RamaLama default behavior can also be overridden via environment variables, although the recommended way is to use the `ramalama.conf` file.",
+          "source": "https://raw.githubusercontent.com/containers/ramalama/main/docs/ramalama.1.md#environment-variables",
+          "note": null
+        },
+        {
+          "text": "auto (default): Automatically selects the preferred backend based on your GPU: - AMD GPUs: vulkan (Linux/macOS) or rocm (WSL2) - NVIDIA GPUs: cuda; vulkan available as explicit option - Intel GPUs: vulkan (Linux/macOS) or sycl (WSL2); openvino available as explicit option - Ascend NPUs: cann - MUSA GPUs: musa - No GPU: vulkan (CPU fallback)",
+          "source": "https://mankier.com/1/ramalama-run",
+          "note": null
+        },
+        {
+          "text": "Keep data secure by defaulting to no network access and removing all temporary data on application exits.",
+          "source": "https://github.com/containers/ramalama",
+          "note": null
+        },
+        {
+          "text": "is_set returns True if the config attribute is explicitly set versus the default value. It checks whether the name appears in any config layer; layers come from config files and values set on the instance.",
+          "source": "https://github.com/containers/ramalama/blob/v0.25.0/ramalama/layered_config.py",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Parameters and configuration",
+      "facts": [
+        {
+          "text": "| ENV Name | Description | | ------------------------- | ------------------------------------------ | | HTTP_PROXY, http_proxy | proxy URL for HTTP connections | | HTTPS_PROXY, https_proxy | proxy URL for HTTPS connections | | NO_PROXY, no_proxy | comma-separated list of hosts to bypass proxy (e.g., localhost,127.0.0.1,.local) | | RAMALAMA_CONFIG | specific configuration file to use | | RAMALAMA_CONTAINER_ENGINE | container engine (Podman/Docker) to use | | RAMALAMA_FORCE_EMOJI | define w",
+          "source": "https://raw.githubusercontent.com/containers/ramalama/main/docs/ramalama.1.md#environment-variables",
+          "note": null
+        },
+        {
+          "text": "Individual model transports can be modified when specifying a model via the huggingface://, oci://, modelscope://, ollama://, or rlcr:// prefix.",
+          "source": "https://github.com/containers/ramalama",
+          "note": null
+        },
+        {
+          "text": "The default transport can be overridden in the `ramalama.conf` file or via the `RAMALAMA_TRANSPORT` environment variable. Running `export RAMALAMA_TRANSPORT=huggingface` changes RamaLama to use the HuggingFace transport for unqualified model names.",
+          "source": "https://raw.githubusercontent.com/containers/ramalama/main/docs/ramalama.1.md#model-transports",
+          "note": null
+        },
+        {
+          "text": "The model store defaults to `~/.local/share/ramalama`, which is writable on Silverblue. Temporary files are stored under `~/.cache/ramalama/tmp` in toolbox environments (instead of `/var/tmp`) to ensure they are accessible to container engine commands running on the host.",
+          "source": "https://raw.githubusercontent.com/containers/ramalama/main/docs/ramalama.1.md#fedora-silverblue-and-toolbox",
+          "note": null
+        },
+        {
+          "text": "By default, RamaLama containers are unprivileged (=false) and cannot, for example, modify parts of the operating system. This is because by de‐ fault a container is only allowed limited access to devices. A \"privi‐ leged\" container is given the same access to devices as the user launch‐ ing the container, with the exception of virtual consoles (/dev/tty\\d+) when running in systemd mode (--systemd=always).",
+          "source": "https://mankier.com/1/ramalama-run",
+          "note": null
+        },
+        {
+          "text": "Specify path to Retrieval-Augmented Generation (RAG) database or an OCI Image containing a RAG database",
+          "source": "https://mankier.com/1/ramalama-run",
+          "note": null
+        },
+        {
+          "text": "type of OCI Model Image to push.",
+          "source": "https://raw.githubusercontent.com/containers/ramalama/main/docs/ramalama-push.1.md#type-raw-car",
+          "note": null
+        },
+        {
+          "text": "Run RamaLama using the specified container engine. Default is Podman if installed, otherwise Docker. The default can be overridden in the `ramalama.conf` file or via the `RAMALAMA_CONTAINER_ENGINE` environment variable.",
+          "source": "https://raw.githubusercontent.com/containers/ramalama/main/docs/ramalama.1.md#engine",
+          "note": null
+        },
+        {
+          "text": "Store AI Models in the specified directory (default rootless: `$HOME/.local/share/ramalama`, default rootful: `/var/lib/ramalama`). The default can be overridden in the `ramalama.conf` file.",
+          "source": "https://raw.githubusercontent.com/containers/ramalama/main/docs/ramalama.1.md#store-store",
+          "note": null
+        },
+        {
+          "text": "**Configuration**: The default can be overridden in the `ramalama.conf` file or via the RAMALAMA_BACKEND environment variable.",
+          "source": "https://raw.githubusercontent.com/containers/ramalama/main/docs/ramalama-serve.1.md#backend-auto-vulkan-rocm-cuda-sycl-openvino-cann-musa",
+          "note": null
+        },
+        {
+          "text": "pass --group-add keep-groups to podman (default: False) If GPU device on host system is accessible to user via group access, this option leaks the groups into the container.",
+          "source": "https://mankier.com/1/ramalama-run",
+          "note": null
+        },
+        {
+          "text": "Generate specified configuration format for running the AI Model as a service",
+          "source": "https://raw.githubusercontent.com/containers/ramalama/main/docs/ramalama-serve.1.md#generate-type",
+          "note": null
+        },
+        {
+          "text": "When both Podman and Docker are installed, RamaLama defaults to Podman. The `RAMALAMA_CONTAINER_ENGINE=docker` environment variable can override this behavior. When neither is installed, RamaLama attempts to run the model with software on the local system.",
+          "source": "https://raw.githubusercontent.com/containers/ramalama/main/docs/ramalama.1.md#description",
+          "note": null
+        },
+        {
+          "text": "Explicit backend selection: - vulkan: Use Vulkan-based inference (compatible with AMD, NVIDIA, Intel, and CPU) - rocm: Use AMD ROCm backend (AMD GPUs only) - cuda: Use NVIDIA CUDA backend (NVIDIA GPUs only) - sycl: Use Intel SYCL/oneAPI backend (Intel GPUs only) - openvino: Use Intel OpenVINO backend (Intel GPUs only); uses quay.io/ramalama/openvino - cann: Use Huawei CANN backend (Ascend NPUs only); uses quay.io/ramalama/cann - musa: Use Moore Threads MUSA backend (MUSA GPUs only); uses quay.io/ramalama/musa",
+          "source": "https://mankier.com/1/ramalama-run",
+          "note": null
+        },
+        {
+          "text": "The default can be overridden in the ramalama.conf file or via the RAMALAMA_IMAGE environment variable. export RAMALAMA_IMAGE=quay.io/ramalama/aiimage:1.2 tells RamaLama to use the quay.io/ramalama/aiimage:1.2 image.",
+          "source": "https://mankier.com/1/ramalama-run",
+          "note": null
+        },
+        {
+          "text": "The model store defaults to ~/.local/share/ramalama, which is writable on Silverblue.",
+          "source": "https://github.com/containers/ramalama",
+          "note": null
+        },
+        {
+          "text": "Note: The model data directory (by default ~/.local/share/ramalama) can be quite large depending on how many models you've downloaded. Make sure you want to remove these files before running the commands above.",
+          "source": "https://github.com/containers/ramalama",
+          "note": null
+        },
+        {
+          "text": "Do not run RamaLama workloads in containers (default: False). The default can be overridden in the `ramalama.conf` file.",
+          "source": "https://raw.githubusercontent.com/containers/ramalama/main/docs/ramalama.1.md#nocontainer",
+          "note": null
+        },
+        {
+          "text": "Require clients to present this API key on requests to the AI Model server. Only supported by the llama.cpp runtime. The default is no authentication.",
+          "source": "https://raw.githubusercontent.com/containers/ramalama/main/docs/ramalama-serve.1.md#api-key-key",
+          "note": null
+        },
+        {
+          "text": "Enable SELinux container separation (default: true)",
+          "source": "https://mankier.com/1/ramalama-run",
+          "note": null
+        },
+        {
+          "text": "- **always**: Always pull the image and throw an error if the pull fails. - **missing**: Only pull the image when it does not exist in the local containers storage. Throw an error if no image is found and the pull fails. - **never**: Never pull the image but use the one from the local containers storage. Throw an error when no image is found. - **newer**: Pull if the image on the registry is newer than the one in the local containers storage. An image is considered to be newer when the digests are different. Comparing the time stamps is prone to errors. Pull errors are suppressed if a local im",
+          "source": "https://raw.githubusercontent.com/containers/ramalama/main/docs/ramalama-serve.1.md#pull-policy",
+          "note": null
+        },
+        {
+          "text": "RamaLama CLI defaults can be modified via `ramalama.conf` files. Default settings for flags are defined in **[ramalama.conf(5)](ramalama.conf.5.md)**.",
+          "source": "https://raw.githubusercontent.com/containers/ramalama/main/docs/ramalama.1.md#description",
+          "note": null
+        },
+        {
+          "text": "RamaLama has built-in defaults for command line options. These defaults can be overridden using the `ramalama.conf` configuration files.",
+          "source": "https://raw.githubusercontent.com/containers/ramalama/main/docs/ramalama.1.md#configuration-files",
+          "note": null
+        },
+        {
+          "text": "If the `RAMALAMA_CONFIG` environment variable is set, then its value is used for the `ramalama.conf` file rather than the default.",
+          "source": "https://raw.githubusercontent.com/containers/ramalama/main/docs/ramalama.1.md#configuration-files",
+          "note": null
+        },
+        {
+          "text": "Pull image policy. The default is missing​.",
+          "source": "https://mankier.com/1/ramalama-run",
+          "note": null
+        },
+        {
+          "text": "IP address for the model server to listen on. Defaults to \"127.0.0.1\", so the served model is only reachable from the local machine. To expose it on the network, set this to a wildcard address such as \"0.0.0.0\" (IPv4) or \"::\" (dual-stack).",
+          "source": "https://raw.githubusercontent.com/containers/ramalama/main/docs/ramalama-serve.1.md#host-127-0-0-1",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "How-to and procedures",
+      "facts": [
+        {
+          "text": "Models specified in the Hugging Face `<org>/<model>` format are automatically pulled from Hugging Face. Models can also be specified using a shortname (e.g. `tiny`) which is resolved via `shortnames.conf`, or with an explicit transport prefix such as `huggingface://`, `oci://`, `ollama://`, `https://`, `http://`, or `file://`.",
+          "source": "https://raw.githubusercontent.com/containers/ramalama/main/docs/ramalama.1.md#model-transports",
+          "note": "ramalama(1) man page"
+        },
+        {
+          "text": "The following Deployment uses the quay.io/ramalama/ramalama:latest image and mounts the gemma-3-1b-it-q4_0.gguf model from /mnt/models directory to that container. The model is launched internally using llama-server. The container with the model can use up to 1 GPU out of the 4 allowed across the entire cluster (squat.ai/dri: \"1\").",
+          "source": "https://piotrminkowski.com/?p=16009",
+          "note": null
+        },
+        {
+          "text": "Use the RAMALAMA_TRANSPORT environment variable to modify the default. export RAMALAMA_TRANSPORT=huggingface Changes RamaLama to use huggingface transport.",
+          "source": "https://github.com/containers/ramalama",
+          "note": null
+        },
+        {
+          "text": "We can use RamaLama to run AI models inside containers on Kubernetes, either on CPU or GPU nodes. However, in this section, I would like to use GPU acceleration on macOS, as I did earlier when running models in Podman. We will try this solution on Minikube. Krunkit is a macOS virtualization tool optimized for GPU-accelerated virtual machines and AI workloads. In the first step, we must install it on macOS using Homebrew:",
+          "source": "https://piotrminkowski.com/?p=16009",
+          "note": null
+        },
+        {
+          "text": "As before, we could use a ready-made image from the RamaLama registry. However, if we want to use the GPU support provided by the generic-device-plugin, we should mount the model as a volume to the ramalama container. First, let’s download the gemma-3-1b model from HuggingFace.",
+          "source": "https://piotrminkowski.com/?p=16009",
+          "note": null
+        },
+        {
+          "text": "Note: On macOS systems that use Podman for containers, configure the Podman machine to use the `libkrun` machine provider. The `libkrun` provider enables containers within the Podman machine to access the Mac GPU. See **[ramalama-macos(7)](ramalama-macos.7.md)** for further information.",
+          "source": "https://raw.githubusercontent.com/containers/ramalama/main/docs/ramalama.1.md#description",
+          "note": null
+        },
+        {
+          "text": "To run the container with a specific image, you must add the rlcr:// prefix to the model name. For example, you pull and run the gemma-3-1b-it model as shown below.",
+          "source": "https://piotrminkowski.com/?p=16009",
+          "note": null
+        },
+        {
+          "text": "Generate an oci model out of an Ollama model.",
+          "source": "https://github.com/containers/ramalama",
+          "note": null
+        },
+        {
+          "text": "Run specified AI Model as a chat bot. RamaLama pulls specified AI Model from registry if it does not exist in local storage. By default a prompt for a chat bot is started. When arguments or stdin are provided, they will be given to the AI Model and the output is returned. By default, the command exits after displaying the response, but you can use --interactive (-i) to continue to an interactive chat session after processing the initial prompt.",
+          "source": "https://mankier.com/1/ramalama-run",
+          "note": null
+        },
+        {
+          "text": "Users can convert without pushing using the `ramalama convert` command.",
+          "source": "https://raw.githubusercontent.com/containers/ramalama/main/docs/ramalama-push.1.md#description",
+          "note": null
+        },
+        {
+          "text": "Generate and run an OCI model with a quantized GGUF converted from Safetensors.",
+          "source": "https://github.com/containers/ramalama",
+          "note": null
+        },
+        {
+          "text": "Use the `ramalama stop` command to stop the container running the served ramalama Model.",
+          "source": "https://raw.githubusercontent.com/containers/ramalama/main/docs/ramalama-serve.1.md#detach-d",
+          "note": null
+        },
+        {
+          "text": "List all RamaLama containers.",
+          "source": "https://github.com/containers/ramalama",
+          "note": null
+        },
+        {
+          "text": "You can pull a model using the pull command. By default, it pulls from the Ollama registry.",
+          "source": "https://github.com/containers/ramalama",
+          "note": null
+        },
+        {
+          "text": "Run a chatbot on a model using the run command. By default, it pulls from the Ollama registry.",
+          "source": "https://github.com/containers/ramalama",
+          "note": null
+        },
+        {
+          "text": "After the initial container image has been downloaded, you can interact with different models using the container image.",
+          "source": "https://github.com/containers/ramalama",
+          "note": null
+        },
+        {
+          "text": "If you want to change a default model registry, for example, to HuggingFace, use the RAMALAMA_TRANSPORT environment variable.",
+          "source": "https://piotrminkowski.com/?p=16009",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Examples and snippets",
+      "facts": [
+        {
+          "text": "``` — `$ ramalama serve --name MyGraniteServer --generate=quadlet granite` …",
+          "source": "https://raw.githubusercontent.com/containers/ramalama/main/docs/ramalama-serve.1.md#generate-quadlet-service-off-of-huggingface-granite-model",
+          "note": null
+        },
+        {
+          "text": "``` — `$ ramalama serve --api llama-stack --name MyLlamaStack --generate=kube oci://quay.io/rhatdan/granite:latest` …",
+          "source": "https://raw.githubusercontent.com/containers/ramalama/main/docs/ramalama-serve.1.md#generate-a-llama-stack-kubernetes-yaml-file-named-myllamastack",
+          "note": null
+        },
+        {
+          "text": "``` — `$ ramalama --runtime=vllm serve --name tiny --generate=quadlet oci://quay.io/rhatdan/tiny:latest` …",
+          "source": "https://raw.githubusercontent.com/containers/ramalama/main/docs/ramalama-serve.1.md#generate-quadlet-service-off-of-tiny-oci-model",
+          "note": null
+        },
+        {
+          "text": "Generate an oci model out of an Ollama model and push to registry — `$ ramalama push ollama://tinyllama:latest oci://quay.io/rhatdan/tiny:latest` …",
+          "source": "https://raw.githubusercontent.com/containers/ramalama/main/docs/ramalama-push.1.md#example",
+          "note": null
+        },
+        {
+          "text": "``` — `$ ramalama serve -d -p 8080 --name mymodel ollama://smollm:135m` …",
+          "source": "https://raw.githubusercontent.com/containers/ramalama/main/docs/ramalama-serve.1.md#run-two-ai-models-at-the-same-time-notice-both-are-running-within-podman-containers",
+          "note": null
+        },
+        {
+          "text": "ramalama rag ./README.md https://github.com/containers/podman/blob/main/README.md quay.io/ramalama/myrag 100% |███████████████████████████████████████████████████████| 114.00 KB/ 0.00 B 922.89 KB/s 59m 59s Building quay.io/ramalama/myrag... adding vectordb... c857ebc65c641084b34e39b740fdb6a2d9d2d97be320e6aa9439ed0ab8780fe0",
+          "source": "https://github.com/containers/ramalama",
+          "note": null
+        },
+        {
+          "text": "Push and OCI model to registry — `$ ramalama push oci://quay.io/rhatdan/tiny:latest` …",
+          "source": "https://raw.githubusercontent.com/containers/ramalama/main/docs/ramalama-push.1.md#example",
+          "note": null
+        },
+        {
+          "text": "``` — `ramalama serve --image ghcr.io/ggml-org/llama.cpp:full-vulkan MODEL` …",
+          "source": "https://raw.githubusercontent.com/containers/ramalama/main/docs/ramalama-serve.1.md#image-image",
+          "note": null
+        },
+        {
+          "text": "```toml — `$ cat /usr/share/ramalama/shortnames.conf` …",
+          "source": "https://raw.githubusercontent.com/containers/ramalama/main/docs/ramalama.1.md#model-transports",
+          "note": null
+        },
+        {
+          "text": "Examples: — `# Use auto-detection (default)` …",
+          "source": "https://raw.githubusercontent.com/containers/ramalama/main/docs/ramalama-serve.1.md#backend-auto-vulkan-rocm-cuda-sycl-openvino-cann-musa",
+          "note": null
+        },
+        {
+          "text": "$ ramalama convert ollama://tinyllama:latest oci://quay.io/rhatdan/tiny:latest",
+          "source": "https://github.com/containers/ramalama",
+          "note": null
+        },
+        {
+          "text": "smollm:135m Path: /var/lib/ramalama/models/ollama/smollm:135m Registry: ollama Format: GGUF Version: 3 Endianness: little Metadata: 39 entries Tensors: 272 entries",
+          "source": "https://github.com/containers/ramalama",
+          "note": null
+        },
+        {
+          "text": "$ export RAMALAMA_TRANSPORT=ollama $ ramalama login",
+          "source": "https://github.com/containers/ramalama",
+          "note": null
+        },
+        {
+          "text": "$ ramalama info | jq .Shortnames.Names.mixtao",
+          "source": "https://github.com/containers/ramalama",
+          "note": null
+        },
+        {
+          "text": "$ ramalama run instructlab/merlinite-7b-lab",
+          "source": "https://github.com/containers/ramalama",
+          "note": null
+        },
+        {
+          "text": "Example usage: — ````bash` …",
+          "source": "https://raw.githubusercontent.com/containers/ramalama/main/docs/ramalama-serve.1.md#mlx-support",
+          "note": null
+        },
+        {
+          "text": "$ ramalama rm ollama://tinyllama",
+          "source": "https://github.com/containers/ramalama",
+          "note": null
+        },
+        {
+          "text": "Run two AI Models at the same time. Notice both are running within Podman Containers.",
+          "source": "https://github.com/containers/ramalama",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Problems, failure modes and limitations",
+      "facts": [
+        {
+          "text": "Models specified in the Hugging Face <org>/<model> format are automatically pulled from Hugging Face. For models specified without an organization (e.g. granite-code), RamaLama currently defaults to the Ollama transport. Note: Ollama models are no longer compatible with llama.cpp, and support for the Ollama transport will be removed in a future release. Users should migrate to Hugging Face models.",
+          "source": "https://github.com/containers/ramalama",
+          "note": "README, Oct 2026"
+        },
+        {
+          "text": "The hosted API transports are deprecated and will be removed in a future release. Instead of ramalama run openai://<model>, use ramalama chat --url https://api.openai.com/v1 --api-key <key> --model <model>, which reaches the same endpoint without a transport. Note that the deprecated transport calls the OpenAI Responses API, while ramalama chat calls the chat completions API.",
+          "source": "https://mankier.com/1/ramalama-run",
+          "note": null
+        },
+        {
+          "text": "Note: RAG support requires AI Models be run within containers, --nocontainer not supported. Docker does not support image mounting, meaning Podman support required.",
+          "source": "https://mankier.com/1/ramalama-run",
+          "note": null
+        },
+        {
+          "text": "Only supported for pushing OCI Model Images.",
+          "source": "https://raw.githubusercontent.com/containers/ramalama/main/docs/ramalama-push.1.md#type-raw-car",
+          "note": null
+        },
+        {
+          "text": "But with bigger models like gemma3:12b, the problem wasn’t hallucination as much as it was load time and performance. ramalama run kept timing out, but switching to ramalama serve actually worked better.",
+          "source": "https://discussion.fedoraproject.org/t/does-ramalama-make-ai-boring/186757",
+          "note": null
+        },
+        {
+          "text": "Note: OCI images cannot be used with the `--nocontainer` option. This option disables automatic GPU acceleration, containerized environment isolation, and dynamic resource allocation.",
+          "source": "https://raw.githubusercontent.com/containers/ramalama/main/docs/ramalama.1.md#nocontainer",
+          "note": null
+        },
+        {
+          "text": "Note: Windows support requires running containers via Docker/Podman. The model store uses hardlinks (no admin required) or falls back to file copies if hardlinks are unavailable.",
+          "source": "https://github.com/containers/ramalama",
+          "note": null
+        },
+        {
+          "text": "Hosted API transports connect directly to the remote provider and bypass the local container runtime. In this mode, flags that tune local containers (for example --image, GPU settings, or --network) do not apply, and the provider's own capabilities and security posture govern the execution. URL support means if a model is on a web site or even on your local system, you can run it directly.",
+          "source": "https://mankier.com/1/ramalama-run",
+          "note": null
+        },
+        {
+          "text": "A privileged container turns off the security features that isolate the container from the host. Dropped Capabilities, limited devices, read- only mount points, Apparmor/SELinux separation, and Seccomp filters are all disabled. Due to the disabled security features, the privileged field should almost never be set as containers can easily break out of confinement.",
+          "source": "https://mankier.com/1/ramalama-run",
+          "note": null
+        },
+        {
+          "text": "Regarding this alpha, everything is under development, so expect breaking changes. If you need to reset your installation, see the Uninstall section above for instructions on removing RamaLama and cleaning up all data files, then reinstall.",
+          "source": "https://github.com/containers/ramalama",
+          "note": null
+        },
+        {
+          "text": "Hosted API Providers (deprecated)openai://api.openai.com",
+          "source": "https://mankier.com/1/ramalama-run",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Comparisons and alternatives",
+      "facts": [
+        {
+          "text": "Ollama is the easiest to use. Hugging face and modelscope are not as complicated but OCI registries require authentication in order to use them. For example, ghcr.io which is one of the OCI registries require an authentication token from github to run.",
+          "source": "https://discussion.fedoraproject.org/t/does-ramalama-make-ai-boring/186757",
+          "note": null
+        },
+        {
+          "text": "While Ollama is praised for ease of use, RamaLama was built as an alternative that allows developers to run and serve AI models while making it easy to put those models in containers and enable local, collaborative, and production benefits. Red Hat",
+          "source": "https://discussion.fedoraproject.org/t/does-ramalama-make-ai-boring/186757",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Changes and history",
+      "facts": [
+        {
+          "text": "The transport is marked implicit when none was given and the model does not start with ollama://. A name containing a slash goes to Hugging Face when the transport is implicit. The Ollama transport still warns that it is deprecated.",
+          "source": "https://github.com/containers/ramalama/blob/v0.25.0/ramalama/transports/transport_factory.py#v0-22-0-2026-06-05-implicit-ollama-with-a-deprecation-warning-slash-names-go-to-hugging-face",
+          "note": null
+        },
+        {
+          "text": "v0.23.0 relaxes the Ollama deprecation now that Ollama is pivoting back to llama.cpp (pull request 2803). It also shows a shortname column in ramalama list output (pull request 2766).",
+          "source": "https://github.com/containers/ramalama/releases#v0-23-0-published-2026-06-24",
+          "note": null
+        },
+        {
+          "text": "Add Hugging Face GGUF targets for names commonly used in the Ollama library (llama3*, phi3/phi4, gemma2, qwen2/qwen2.5, mixtral, codellama, deepseek-coder, mistral-nemo, smollm2) so users can run `ramalama run llama3.1:8b` and similar without pasting full repo URLs.",
+          "source": "https://github.com/containers/ramalama/pull/2748",
+          "note": null
+        },
+        {
+          "text": "TransportFactory takes transport: str = \"ollama\" as its default, so a model name with no prefix and no configured transport uses the Ollama transport.",
+          "source": "https://github.com/containers/ramalama/blob/v0.25.0/ramalama/transports/transport_factory.py#v0-20-0-before-2026-05-14-the-default-transport-is-ollama",
+          "note": null
+        },
+        {
+          "text": "However a number of ollama models remain incompatible so update the logic for unknown shortnames to raise a clear error instead of silently defaulting to ollama transport. Explicit ollama:// prefix and --transport ollama still work.",
+          "source": "https://github.com/containers/ramalama/pull/2803",
+          "note": null
+        },
+        {
+          "text": "If a model name includes a slash then default to Hugging Face instead of ollama - none of the listed models in https://ollama.com/library contain a slash (some unlisted user contributed models do). Add a deprecation warning when pulling an ollama model. Update shortnames.conf to remove any references to ollama models and cleanup the existing entries for consistency.",
+          "source": "https://github.com/containers/ramalama/pull/2743",
+          "note": null
+        },
+        {
+          "text": "PR #2803: Relax ollama deprecation now that is it pivoting back to llama.cpp",
+          "source": "https://github.com/containers/ramalama/pull/2743",
+          "note": null
+        },
+        {
+          "text": "Remove the ollama model deprecation warning as ollama is pivoting back to llama.cpp.",
+          "source": "https://github.com/containers/ramalama/pull/2803",
+          "note": null
+        },
+        {
+          "text": "v0.22.0 adds popular Hugging Face models with Ollama-style names to the shortnames (pull request 2748).",
+          "source": "https://github.com/containers/ramalama/releases#v0-22-0-published-2026-06-05",
+          "note": null
+        },
+        {
+          "text": "v0.25.0 deprecates the hosted API transport (pull request 2940).",
+          "source": "https://github.com/containers/ramalama/releases#v0-25-0-published-2026-09-25",
+          "note": null
+        },
+        {
+          "text": "v0.12.2 reverts back to the Ollama granite-code models (pull request 1875) and uses Hugging Face models for tinyllama and smollm:135 (pull request 1916).",
+          "source": "https://github.com/containers/ramalama/releases#v0-12-2-published-2025-09-11",
+          "note": null
+        },
+        {
+          "text": "PR #2743: Begin deprecation of ollama model support Merged: 2026-05-12T14:12:25Z",
+          "source": "https://github.com/containers/ramalama/pull/2743",
+          "note": null
+        },
+        {
+          "text": "v0.21.0 begins deprecation of Ollama model support (pull request 2743).",
+          "source": "https://github.com/containers/ramalama/releases#v0-21-0-published-2026-05-14",
+          "note": null
+        },
+        {
+          "text": "PR #2748: shortnames: add popular HF models with Ollama-style names",
+          "source": "https://github.com/containers/ramalama/pull/2803",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Facts and statements",
+      "facts": [
+        {
+          "text": "RamaLama supports multiple AI model registries, including OCI Container Registries, Ollama, and HuggingFace. RamaLama defaults to the Ollama registry transport. Let’s assume we want to run the following model from the Ollama registry:",
+          "source": "https://piotrminkowski.com/?p=16009",
+          "note": "Feb 2026 blog"
+        },
+        {
+          "text": "RamaLama uses container engines like Podman or Docker to pull the appropriate OCI image with all of the software necessary to run an AI Model for your systems setup.",
+          "source": "https://raw.githubusercontent.com/containers/ramalama/main/docs/ramalama.1.md#description",
+          "note": null
+        },
+        {
+          "text": "Running in containers eliminates the need for users to configure the host system for AI. After initialization, RamaLama runs AI Models within containers based on OCI images. RamaLama pulls a container image specific to the GPUs discovered on the host system. These images are tied to the minor version of RamaLama. For example, RamaLama version 1.2.3 on an NVIDIA system pulls `quay.io/ramalama/cuda:1.2`. To override the default image, use the `--image` option.",
+          "source": "https://raw.githubusercontent.com/containers/ramalama/main/docs/ramalama.1.md#description",
+          "note": null
+        },
+        {
+          "text": "RamaLama pulls AI Models from model registries, then starts a chatbot or a REST API service with a single command. Models are treated similarly to how Podman and Docker treat container images.",
+          "source": "https://raw.githubusercontent.com/containers/ramalama/main/docs/ramalama.1.md#description",
+          "note": null
+        },
+        {
+          "text": "This article explains how to run AI models locally in containers with RamaLama and integrate the sample Java application with them. RamaLama brings AI inferencing to the container world of Podman, Docker, and Kubernetes. It automatically finds and pulls a container image optimized for your system’s GPUs, handling all dependencies and performance tweaks for you. It then uses a container engine, such as Podman or Docker, to pull the required image and prepare everything for running. If you want a hassle-free way to run AI models from multiple sources, using the runtime that fits your hardware, a",
+          "source": "https://piotrminkowski.com/?p=16009",
+          "note": null
+        },
+        {
+          "text": "On first run, RamaLama inspects your system for GPU support, falling back to CPU if none are present. RamaLama uses container engines like Podman or Docker to pull the appropriate OCI image with all necessary software to run an AI Model for your system setup.",
+          "source": "https://github.com/containers/ramalama",
+          "note": null
+        },
+        {
+          "text": "After initialization, RamaLama runs AI Models within a container based on the OCI image. RamaLama pulls container images specific to the GPUs discovered on your system. These images are tied to the minor version of RamaLama.",
+          "source": "https://github.com/containers/ramalama",
+          "note": null
+        },
+        {
+          "text": "Upstream llama.cpp \"full\" images from ghcr.io/ggml-org/llama.cpp are also supported. RamaLama automatically detects the image type and adjusts the container CLI accordingly.",
+          "source": "https://mankier.com/1/ramalama-run",
+          "note": null
+        },
+        {
+          "text": "Model sources: RamaLama fetches models from sources such as Ollama's model registry, Hugging Face, and any Open Container Initiative (OCI)-compliant registry (Docker Hub, Quay.io, etc.).",
+          "source": "https://www.redhat.com/en/blog/run-containerized-ai-models-locally-ramalama",
+          "note": null
+        },
+        {
+          "text": "How RamaLama picks a transport for a model name that has no prefix changed between v0.20.0, v0.22.0 and v0.25.0. The excerpts below are the TransportFactory constructor and detect_model_model_type.",
+          "source": "https://github.com/containers/ramalama/blob/v0.25.0/ramalama/transports/transport_factory.py",
+          "note": null
+        },
+        {
+          "text": "RamaLama strives to make working with AI simple, straightforward, and familiar by using OCI containers.",
+          "source": "https://github.com/containers/ramalama",
+          "note": null
+        },
+        {
+          "text": "RamaLama supports multiple AI model registries, including OCI Container Registries.",
+          "source": "https://github.com/containers/ramalama",
+          "note": null
+        },
+        {
+          "text": "Models are treated similarly to how Podman and Docker treat container images.",
+          "source": "https://github.com/containers/ramalama",
+          "note": null
+        },
+        {
+          "text": "The last registry supported by Ramalama that I would like to discuss in this article is the registry of ready-made images containing selected AI models. At the moment, there are slightly more than 20 images with popular models such as gpt-oss, gemma3, qwen, and llama. You can view the full list of available images with models on this webpage.",
+          "source": "https://piotrminkowski.com/?p=16009",
+          "note": null
+        },
+        {
+          "text": "Deployment: RamaLama can generate Quadlet files for deployment to edge devices and Kubernetes manifests for clusters.",
+          "source": "https://www.redhat.com/en/blog/run-containerized-ai-models-locally-ramalama",
+          "note": null
+        },
+        {
+          "text": "Detects and pulls an accelerated container image specific to the GPUs on the host system, handling dependencies and hardware optimization.",
+          "source": "https://github.com/containers/ramalama",
+          "note": null
+        },
+        {
+          "text": "For REST API endpoint documentation, see: - llama.cpp: [https://github.com/ggml-org/llama.cpp/blob/master/tools/server/README.md#api-endpoints](https://github.com/ggml-org/llama.cpp/blob/master/tools/server/README.md#api-endpoints) - vLLM: [https://docs.vllm.ai/en/latest/serving/openai_compatible_server.html](https://docs.vllm.ai/en/latest/serving/openai_compatible_server.html) - MLX LM: [https://github.com/ml-explore/mlx-lm/blob/main/mlx_lm/SERVER.md](https://github.com/ml-explore/mlx-lm/blob/main/mlx_lm/SERVER.md)",
+          "source": "https://raw.githubusercontent.com/containers/ramalama/main/docs/ramalama-serve.1.md#rest-api-endpoints",
+          "note": null
+        },
+        {
+          "text": "Available choices: The allowed values for --backend are dynamically determined based on your detected GPU hardware. For example, on a system with an AMD GPU, only auto, vulkan, and rocm are available.",
+          "source": "https://mankier.com/1/ramalama-run",
+          "note": null
+        },
+        {
+          "text": "macOS: \"On macOS, you typically need krunkit and libkrun for efficient GPU sharing.\"",
+          "source": "https://developers.redhat.com/articles/2025/06/03/podman-ai-lab-and-ramalama-unite-easier-local-ai",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Disagreements",
+      "facts": [
+        {
+          "text": "Models specified in the Hugging Face `<org>/<model>` format are automatically pulled from Hugging Face. Models can also be specified using a shortname (e.g. `tiny`) which is resolved via `shortnames.conf`, or with an explicit transport prefix such as `huggingface://`, `oci://`, `ollama://`, `https://`, `http://`, or `file://`.",
+          "source": "https://raw.githubusercontent.com/containers/ramalama/main/docs/ramalama.1.md#model-transports",
+          "note": "ramalama(1) man page",
+          "group": "c1"
+        },
+        {
+          "text": "RamaLama supports multiple AI model registries, including OCI Container Registries, Ollama, and HuggingFace. RamaLama defaults to the Ollama registry transport. Let’s assume we want to run the following model from the Ollama registry:",
+          "source": "https://piotrminkowski.com/?p=16009",
+          "note": "Feb 2026 blog",
+          "group": "c1"
+        },
+        {
+          "text": "Models specified in the Hugging Face <org>/<model> format are automatically pulled from Hugging Face. For models specified without an organization (e.g. granite-code), RamaLama currently defaults to the Ollama transport. Note: Ollama models are no longer compatible with llama.cpp, and support for the Ollama transport will be removed in a future release. Users should migrate to Hugging Face models.",
+          "source": "https://github.com/containers/ramalama",
+          "note": "README, Oct 2026",
+          "group": "c1"
+        },
+        {
+          "text": "TransportFactory takes transport: Optional[str] = None. A name containing a slash goes to Hugging Face when no transport is configured. A configured transport is honoured. Otherwise a KeyError is raised saying the model is not a known shortname and no transport was specified.",
+          "source": "https://github.com/containers/ramalama/blob/v0.25.0/ramalama/transports/transport_factory.py#v0-25-0-2026-09-25-no-implicit-default-transport",
+          "note": "transport_factory.py v0.25.0 (code)",
+          "group": "c1"
+        }
+      ]
+    }
+  ],
+  "related": [
+    {
+      "concept": "container",
+      "relation": "is a related of RamaLama and the Ollama registry",
+      "note": null
+    },
+    {
+      "concept": "quay.io/ramalama",
+      "relation": "is a part of RamaLama and the Ollama registry",
+      "note": null
+    },
+    {
+      "concept": "ollama",
+      "relation": "is a contrast of RamaLama and the Ollama registry",
+      "note": null
+    },
+    {
+      "concept": "podman",
+      "relation": "is a part of RamaLama and the Ollama registry",
+      "note": null
+    },
+    {
+      "concept": "transport",
+      "relation": "is a part of RamaLama and the Ollama registry",
+      "note": null
+    },
+    {
+      "concept": "oci://",
+      "relation": "is a part of RamaLama and the Ollama registry",
+      "note": null
+    },
+    {
+      "concept": "ramalama serve",
+      "relation": "is a part of RamaLama and the Ollama registry",
+      "note": null
+    },
+    {
+      "concept": "ramalama run",
+      "relation": "is a part of RamaLama and the Ollama registry",
+      "note": null
+    },
+    {
+      "concept": "llama.cpp",
+      "relation": "is a related of RamaLama and the Ollama registry",
+      "note": null
+    },
+    {
+      "concept": "huggingface://",
+      "relation": "is a part of RamaLama and the Ollama registry",
+      "note": null
+    },
+    {
+      "concept": "ramalama push",
+      "relation": "is a part of RamaLama and the Ollama registry",
+      "note": null
+    },
+    {
+      "concept": "network=none",
+      "relation": "is a part of RamaLama and the Ollama registry",
+      "note": null
+    },
+    {
+      "concept": "shortnames.conf",
+      "relation": "is a part of RamaLama and the Ollama registry",
+      "note": null
+    },
+    {
+      "concept": "RAMALAMA_STORE",
+      "relation": "is a part of RamaLama and the Ollama registry",
+      "note": null
+    },
+    {
+      "concept": "deprecation",
+      "relation": "is a problem of RamaLama and the Ollama registry",
+      "note": null
+    },
+    {
+      "concept": "ramalama rag",
+      "relation": "is a part of RamaLama and the Ollama registry",
+      "note": null
+    },
+    {
+      "concept": "vllm",
+      "relation": "is a contrast of RamaLama and the Ollama registry",
+      "note": null
+    },
+    {
+      "concept": "no longer compatible",
+      "relation": "is a problem of RamaLama and the Ollama registry",
+      "note": null
+    },
+    {
+      "concept": "TransportFactory",
+      "relation": "is a part of RamaLama and the Ollama registry",
+      "note": null
+    },
+    {
+      "concept": "modelscope://",
+      "relation": "is a part of RamaLama and the Ollama registry",
+      "note": null
+    }
+  ]
+}

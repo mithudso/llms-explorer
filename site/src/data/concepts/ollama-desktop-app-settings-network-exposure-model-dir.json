@@ -1,0 +1,350 @@
+{
+  "slug": "ollama-desktop-app-settings-network-exposure-model-dir",
+  "concept": "Ollama desktop app: settings / network exposure / model dir",
+  "generated": "2026-10-14",
+  "summary": "Everything the scanned sources say about Ollama desktop app: settings / network exposure / model dir: 50 source-anchored units across 8 sources, grouped by facet.",
+  "facets": [
+    {
+      "title": "How it works",
+      "facts": [
+        {
+          "text": "When Ollama runs as the macOS application, set environment variables with `launchctl setenv` (e.g. `launchctl setenv OLLAMA_HOST \"0.0.0.0:11434\"`) and restart the Ollama app. The menu-bar app is launched by launchd, not the shell, so exports in ~/.zshrc are not seen.",
+          "source": "https://docs.ollama.com/faq",
+          "note": null
+        },
+        {
+          "text": "On Windows, change the model directory by setting OLLAMA_MODELS as a user-account environment variable (Settings or Control Panel, 'Edit environment variables for your account'), then quit the tray app and relaunch it from the Start menu or open a new terminal. Same mechanism applies to OLLAMA_HOST.",
+          "source": "https://docs.ollama.com/windows",
+          "note": null
+        },
+        {
+          "text": "The light version is a reverse proxy. In nginx, limit_conn caps simultaneous connections and limit_req caps the arrival rate per client, so the overflow is refused at the proxy and never reaches Ollama. The heavy version is a job queue with a database in front of a worker that calls Ollama, which is what you want once requests must outlive a process restart. Sizing that for real traffic is its own exercise: planning a self hosted LLM for concurrent users goes through the arithmetic, and running Ollama on a VPS covers the base install these variables assume.",
+          "source": "https://www.ssdnodes.com/learn/ollama-num-parallel-and-max-queue",
+          "note": null
+        },
+        {
+          "text": "Ollama environment variables are settings the Ollama server reads at startup to control networking, model storage, memory behavior, and inference performance. Ollama v0.32.5 reads 26 OLLAMA_ variables plus the GPU selection and proxy variables it inherits from the environment. The server reads them once when it launches, so changing one only takes effect after you restart Ollama.",
+          "source": "https://modelpiper.com/blog/ollama-environment-variables",
+          "note": null
+        },
+        {
+          "text": "Revert OLLAMA_HOST to 127.0.0.1:11434 in the drop-in when the proxy runs on the same host. Then create the credentials file:",
+          "source": "https://www.centron.de/tutorials/expose-ollama-network-port-hardening",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Measurements and reference values",
+      "facts": [
+        {
+          "text": "Behind an nginx reverse proxy, rewrite the Host header to localhost:11434 (or list the external hostname in OLLAMA_ORIGINS) to avoid 403 Forbidden; turn off proxy_buffering and raise proxy_read_timeout so streamed generations are not cut at ~60 s.",
+          "source": "https://docs.ollama.com/faq",
+          "note": null
+        },
+        {
+          "text": "server { listen 443 ssl; server_name ollama.example.com; ssl_certificate /etc/letsencrypt/live/ollama.example.com/fullchain.pem; ssl_certificate_key /etc/letsencrypt/live/ollama.example.com/privkey.pem; client_max_body_size 64m; location / { auth_basic \"ollama\"; auth_basic_user_file /etc/nginx/ollama.htpasswd; proxy_pass http://127.0.0.1:11434; proxy_set_header Host 127.0.0.1:11434; proxy_http_version 1.1; proxy_buffering off; proxy_read_timeout 600s; } }",
+          "source": "https://www.centron.de/tutorials/expose-ollama-network-port-hardening",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Problems, failure modes and limitations",
+      "facts": [
+        {
+          "text": "Set OLLAMA_HOST=0.0.0.0:11434 to bind Ollama to all network interfaces, and OLLAMA_ORIGINS to allow cross-origin browser requests. By default Ollama binds only to 127.0.0.1, so other machines cannot reach it.",
+          "source": "https://modelpiper.com/blog/ollama-environment-variables",
+          "note": null
+        },
+        {
+          "text": "The two are separate problems. OLLAMA_HOST controls which network interface the server binds to. OLLAMA_ORIGINS controls which web origins the browser is allowed to call. If you are wiring a web app to Ollama and getting a silent CORS failure, the host is fine and the origins are the issue. We walk through that exact fix in the Ollama CORS fix on Mac.",
+          "source": "https://modelpiper.com/blog/ollama-environment-variables",
+          "note": null
+        },
+        {
+          "text": "Setting OLLAMA_HOST=0.0.0.0:11434 puts the API on every interface, and Ollama has no built-in authentication. With the default queue, an open endpoint will accept up to 512 requests waiting for a model to load, from anyone who finds it. For a model that is already loaded, it will hold every request that connects, with no limit. Tying the server up this way costs an attacker almost nothing: long prompts, no login, no rate limit, no bill. Your own users then get 503 responses or long waits, and the machine is busy the whole time.",
+          "source": "https://www.ssdnodes.com/learn/ollama-num-parallel-and-max-queue",
+          "note": null
+        },
+        {
+          "text": "The firewall allows the port, but connections still fail. OLLAMA_HOST may point at a single interface that is not the one carrying the traffic. Compare the address in ss -tlnp with the interface in ip -brief addr.",
+          "source": "https://www.centron.de/tutorials/expose-ollama-network-port-hardening",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Comparisons and alternatives",
+      "facts": [
+        {
+          "text": "Three settings matter more than the rest. proxy_buffering off keeps streamed tokens flowing to the client instead of collecting them in nginx. proxy_read_timeout 600s covers long generations on large models, which otherwise die at the 60 second default. Rewriting Host to 127.0.0.1:11434 matters because Ollama validates the origin of incoming requests and answers 403 Forbidden when the forwarded hostname is not on its allow list. Alternatively, keep the external hostname and list it in OLLAMA_ORIGINS.",
+          "source": "https://www.centron.de/tutorials/expose-ollama-network-port-hardening",
+          "note": null
+        },
+        {
+          "text": "The server reads environment variables once at launch, so a changed OLLAMA_HOST or OLLAMA_MODELS only takes effect after Ollama is restarted. An unparseable port in OLLAMA_HOST logs a warning and silently reverts to the default instead of failing.",
+          "source": "https://modelpiper.com/blog/ollama-environment-variables",
+          "note": null
+        },
+        {
+          "text": "To change where Ollama stores the downloaded models instead of using your home directory, set the environment variable `OLLAMA_MODELS` in your user account.",
+          "source": "https://docs.ollama.com/windows#changing-model-location",
+          "note": null
+        },
+        {
+          "text": "OLLAMA_HOST also has parsing behavior worth knowing: it defaults the scheme to http and the port to 11434, uses https on port 443 for ollama.com, expects IPv6 addresses in brackets, and on an unparseable port logs a warning and silently reverts to the default rather than failing to start.",
+          "source": "https://modelpiper.com/blog/ollama-environment-variables",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Facts and statements",
+      "facts": [
+        {
+          "text": "Ollama's HTTP API has no authentication by default; binding OLLAMA_HOST to 0.0.0.0 lets anyone who can reach the port use it. Guard it with a firewall or a reverse proxy such as Nginx (the FAQ shows a proxy config).",
+          "source": "https://docs.ollama.com/faq",
+          "note": null
+        },
+        {
+          "text": "OLLAMA_ORIGINS controls which browser origins may call the API and is separate from OLLAMA_HOST. Defaults allow 127.0.0.1 and 0.0.0.0 origins; extra origins such as chrome-extension://* must be added explicitly.",
+          "source": "https://docs.ollama.com/faq",
+          "note": null
+        },
+        {
+          "text": "```bash theme={\"system\"} launchctl setenv OLLAMA_HOST \"0.0.0.0:11434\" ```",
+          "source": "https://docs.ollama.com/faq#setting-environment-variables-on-mac",
+          "note": null
+        },
+        {
+          "text": "4. Edit or create a new variable for your user account for `OLLAMA_HOST`, `OLLAMA_MODELS`, etc.",
+          "source": "https://docs.ollama.com/faq#setting-environment-variables-on-windows",
+          "note": null
+        },
+        {
+          "text": "Ollama binds 127.0.0.1:11434 by default; OLLAMA_HOST changes the bind address (e.g. 0.0.0.0:11434 for all interfaces, or a single private IP). The API has no built-in authentication or rate limiting, so exposing it needs a firewall source-subnet rule or a reverse proxy with auth and TLS.",
+          "source": "https://docs.ollama.com/faq",
+          "note": null
+        },
+        {
+          "text": "Ollama binds 127.0.0.1 port 11434 by default; the bind address is changed with the OLLAMA_HOST environment variable (for example 0.0.0.0:11434 to listen on all interfaces).",
+          "source": "https://docs.ollama.com/faq",
+          "note": null
+        },
+        {
+          "text": "```ini theme={\"system\"} [Service] Environment=\"OLLAMA_HOST=0.0.0.0:11434\" ```",
+          "source": "https://docs.ollama.com/faq#setting-environment-variables-on-linux",
+          "note": null
+        },
+        {
+          "text": "[Service] Environment=\"OLLAMA_HOST=0.0.0.0:11434\" Environment=\"OLLAMA_ORIGINS=https://chat.example.com\"",
+          "source": "https://www.centron.de/tutorials/expose-ollama-network-port-hardening",
+          "note": null
+        },
+        {
+          "text": "If Ollama is run as a macOS application, environment variables should be set using `launchctl`:",
+          "source": "https://docs.ollama.com/faq#setting-environment-variables-on-mac",
+          "note": null
+        },
+        {
+          "text": "1. For each environment variable, call `launchctl setenv`.",
+          "source": "https://docs.ollama.com/faq#setting-environment-variables-on-mac",
+          "note": null
+        },
+        {
+          "text": "On Windows, Ollama inherits user and system environment variables. Set OLLAMA_HOST, OLLAMA_MODELS etc. under 'Edit environment variables for your account', then quit the tray application and relaunch it from the Start menu (or open a new terminal). If OLLAMA_MODELS was changed, the uninstaller does not remove downloaded models.",
+          "source": "https://docs.ollama.com/windows",
+          "note": null
+        },
+        {
+          "text": "Ollama allows cross-origin requests from `127.0.0.1` and `0.0.0.0` by default. Additional origins can be configured with `OLLAMA_ORIGINS`.",
+          "source": "https://docs.ollama.com/faq#how-can-i-allow-additional-web-origins-to-access-ollama",
+          "note": null
+        },
+        {
+          "text": "The stable pattern is to leave Ollama on 127.0.0.1:11434 and let nginx own the public port. TLS, credentials and request limits live in the proxy; the model runner never sees an untrusted connection directly.",
+          "source": "https://www.centron.de/tutorials/expose-ollama-network-port-hardening",
+          "note": null
+        },
+        {
+          "text": "Default model directories: macOS ~/.ollama/models, Linux (service install) /usr/share/ollama/.ollama/models, Windows C:\\Users\\%username%\\.ollama\\models. Setting OLLAMA_MODELS overrides it.",
+          "source": "https://docs.ollama.com/faq",
+          "note": null
+        },
+        {
+          "text": "Ollama binds 127.0.0.1 port 11434 by default. Change the bind address with the `OLLAMA_HOST` environment variable.",
+          "source": "https://docs.ollama.com/faq#how-can-i-expose-ollama-on-my-network",
+          "note": null
+        },
+        {
+          "text": "403 Forbidden only through the proxy. Ollama rejected the forwarded origin. Add proxy_set_header Host 127.0.0.1:11434; to the location block, or put the external hostname into OLLAMA_ORIGINS and restart the service.",
+          "source": "https://www.centron.de/tutorials/expose-ollama-network-port-hardening",
+          "note": null
+        },
+        {
+          "text": "// Host returns the scheme and host. Host can be configured via the OLLAMA_HOST environment variable. // Default is scheme \"http\" and host \"127.0.0.1:11434\" func Host() *url.URL { defaultPort := \"11434\"",
+          "source": "https://raw.githubusercontent.com/ollama/ollama/main/envconfig/config.go",
+          "note": null
+        },
+        {
+          "text": "macOS app: the menu-bar app is launched by launchd, not by your shell, so it never sees ~/.zshrc. Ollama's FAQ specifies launchctl for this case. Set the variable, then quit and reopen Ollama.",
+          "source": "https://modelpiper.com/blog/ollama-environment-variables",
+          "note": null
+        },
+        {
+          "text": "Third-party guides say newer macOS and Windows desktop apps have a Settings toggle 'Expose Ollama to the network'. This came only from search-result snippets; the guide page returned HTTP 403 and no official page confirms it.",
+          "source": "https://www.digitalcitizen.life/how-to-expose-ollama-to-the-network-on-windows/",
+          "note": null
+        },
+        {
+          "text": "If the GPU host should stay off the public network entirely, terminate TLS on a separate gateway. A small scalable Linux VM is enough for nginx, and the GPU machine then only accepts connections from that one private address.",
+          "source": "https://www.centron.de/tutorials/expose-ollama-network-port-hardening",
+          "note": null
+        },
+        {
+          "text": "Official docs document the desktop app's Settings only for context length (launch post, July 2025) and sign-in to Ollama cloud (Settings page on Mac and Windows). Neither the launch post nor the macOS and Windows docs pages mention an app setting for network exposure or model location.",
+          "source": "https://ollama.com/blog/new-app",
+          "note": null
+        },
+        {
+          "text": "If a different directory needs to be used, set the environment variable `OLLAMA_MODELS` to the chosen directory.",
+          "source": "https://docs.ollama.com/faq#how-do-i-set-them-to-a-different-location",
+          "note": null
+        },
+        {
+          "text": "3. Edit or create a new variable for your user account for `OLLAMA_MODELS` where you want the models stored",
+          "source": "https://docs.ollama.com/windows#changing-model-location",
+          "note": null
+        },
+        {
+          "text": "If you are using OLLAMA_MODELS environment variable to set the models path, then you can change the models path to a directory that you have permission to read. For example, you can create a directory in your home directory and set the models path to that directory. And then in Msty, update the models path to the new directory by following the steps in Use existing Ollama Models.",
+          "source": "https://docs.msty.app/troubleshooting/linux-issues",
+          "note": null
+        },
+        {
+          "text": "For processing large documents, Ollama’s context length can be increased in the settings. Note: this will require more memory.",
+          "source": "https://ollama.com/blog/new-app",
+          "note": null
+        },
+        {
+          "text": "OLLAMA_ORIGINS Browser origins allowed to call the API https://chat.example.com",
+          "source": "https://www.centron.de/tutorials/expose-ollama-network-port-hardening",
+          "note": null
+        },
+        {
+          "text": "OLLAMA_MODELS Directory holding model blobs /srv/ollama/models",
+          "source": "https://www.centron.de/tutorials/expose-ollama-network-port-hardening",
+          "note": null
+        },
+        {
+          "text": "Change the slider in the Ollama app under settings to your desired context length.",
+          "source": "https://docs.ollama.com/context-length#app",
+          "note": null
+        },
+        {
+          "text": "s := strings.TrimSpace(Var(\"OLLAMA_HOST\")) scheme, hostport, ok := strings.Cut(s, \"://\") switch { case !ok: scheme, hostport = \"http\", s if s == \"ollama.com\" { scheme, hostport = \"https\", \"ollama.com:443\" } case scheme == \"http\": defaultPort = \"80\" case scheme == \"https\": defaultPort = \"443\" }",
+          "source": "https://raw.githubusercontent.com/ollama/ollama/main/envconfig/config.go",
+          "note": null
+        },
+        {
+          "text": "// ConnectableHost returns Host() with unspecified bind addresses (0.0.0.0, ::) // replaced by the corresponding loopback address (127.0.0.1, ::1). // Unspecified addresses are valid for binding a server socket but not for // connecting as a client, which fails on Windows. func ConnectableHost() *url.URL { u := Host() host, port, err := net.SplitHostPort(u.Host) if err != nil { return u }",
+          "source": "https://raw.githubusercontent.com/ollama/ollama/main/envconfig/config.go",
+          "note": null
+        },
+        {
+          "text": "// AllowedOrigins returns a list of allowed origins. AllowedOrigins can be configured via the OLLAMA_ORIGINS environment variable. func AllowedOrigins() (origins []string) { if s := Var(\"OLLAMA_ORIGINS\"); s != \"\" { origins = strings.Split(s, \",\") }",
+          "source": "https://raw.githubusercontent.com/ollama/ollama/main/envconfig/config.go",
+          "note": null
+        },
+        {
+          "text": "// Models returns the path to the models directory. Models directory can be configured via the OLLAMA_MODELS environment variable. // Default is $HOME/.ollama/models func Models() string { if s := Var(\"OLLAMA_MODELS\"); s != \"\" { return s }",
+          "source": "https://raw.githubusercontent.com/ollama/ollama/main/envconfig/config.go",
+          "note": null
+        },
+        {
+          "text": "OLLAMA_ORIGINSAllowed CORS origins for browser requestslocalhost, 127.0.0.1 and 0.0.0.0 on any port over http and https, plus app://*, file://*, tauri://*, vscode-webview://*, vscode-file://**",
+          "source": "https://modelpiper.com/blog/ollama-environment-variables",
+          "note": null
+        },
+        {
+          "text": "Ollama runs an HTTP server and can be exposed using a proxy server such as Nginx. To do so, configure the proxy to forward requests and optionally set required headers (if not exposing Ollama on the network). For example, with Nginx:",
+          "source": "https://docs.ollama.com/faq#how-can-i-use-ollama-with-a-proxy-server",
+          "note": null
+        },
+        {
+          "text": "$ sudo apt install -y apache2-utils $ sudo htpasswd -c /etc/nginx/ollama.htpasswd ollama-client",
+          "source": "https://www.centron.de/tutorials/expose-ollama-network-port-hardening",
+          "note": null
+        }
+      ]
+    }
+  ],
+  "related": [
+    {
+      "concept": "0.0.0.0",
+      "relation": "is a part of Ollama desktop app: settings / network exposure / model dir",
+      "note": null
+    },
+    {
+      "concept": "127.0.0.1",
+      "relation": "is a related of Ollama desktop app: settings / network exposure / model dir",
+      "note": null
+    },
+    {
+      "concept": "settings",
+      "relation": "is a part of Ollama desktop app: settings / network exposure / model dir",
+      "note": null
+    },
+    {
+      "concept": "nginx",
+      "relation": "is a part of Ollama desktop app: settings / network exposure / model dir",
+      "note": null
+    },
+    {
+      "concept": "launchctl",
+      "relation": "is a synonym of Ollama desktop app: settings / network exposure / model dir",
+      "note": null
+    },
+    {
+      "concept": "reverse proxy",
+      "relation": "is a part of Ollama desktop app: settings / network exposure / model dir",
+      "note": null
+    },
+    {
+      "concept": "context length",
+      "relation": "is a synonym of Ollama desktop app: settings / network exposure / model dir",
+      "note": null
+    },
+    {
+      "concept": "menu bar",
+      "relation": "is a part of Ollama desktop app: settings / network exposure / model dir",
+      "note": null
+    },
+    {
+      "concept": "GPU",
+      "relation": "is a related of Ollama desktop app: settings / network exposure / model dir",
+      "note": null
+    },
+    {
+      "concept": "runner",
+      "relation": "is a part of Ollama desktop app: settings / network exposure / model dir",
+      "note": null
+    },
+    {
+      "concept": "model directory",
+      "relation": "is a part of Ollama desktop app: settings / network exposure / model dir",
+      "note": null
+    },
+    {
+      "concept": "expose Ollama to the network",
+      "relation": "is a part of Ollama desktop app: settings / network exposure / model dir",
+      "note": null
+    },
+    {
+      "concept": "concurrent",
+      "relation": "is a related of Ollama desktop app: settings / network exposure / model dir",
+      "note": null
+    }
+  ]
+}
