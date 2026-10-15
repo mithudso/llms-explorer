@@ -717,3 +717,10 @@
 - Root cause of the 500: 10 research-to-llms-txt packs in llms-concepts/ (e.g. atlas-cli.llms) write `files` as a list of names plus `claimsCount`/`sourcesCount`; `render_root` called `.get` on it. The live server at 127.0.0.1:8788/llms.txt returned 500 too. The test read the real llms-concepts/ because `_setup` did not pass `topical_dir`.
 - Delta: scripts/llms_serve.py `_file_tokens()` + topical fallbacks (concept/claimsCount/sourcesCount); tests pass an empty `topical_dir` and add test_root_lists_research_pack_with_list_shaped_files; long test lines rewrapped, unused `import hub_lib` dropped.
 - Validation: `ruff check .` clean; `pytest tests/ -q` 1094 passed. Restart llms_serve to pick up the fix.
+
+## 2026-10-14 - source library (raw + processed text) and the MongoDB research suite
+- New `scripts/source_library.py` (tests: `tests/test_source_library.py`): extends `dr_run.py source` (same `src:` ids, `text/`, `facts/`) with `raw/<domain>/` gz bodies, a SQLite FTS5/BM25 chunk index plus URL-derived tags in `library.db`, `probe-site`, `crawl-site` (llms-full.txt split via `llms_acquire.split_llms_full`, else the nested llms.txt tree with .md twins), a per-host rate limiter (`SL_RPS`, default 3) and a 403/429 breaker. `research/.library/` and `research/.pipeline/` are git-ignored.
+- `mongodb.com/docs` pack built: 7,596 of 7,687 pages. Lesson: ~15 req/s drew a ~10 minute HTTP 403 for everything.
+- The pipeline that uses it, `hub/scripts/research_suite.py`, lives in the llms-explorer repo (PR #181); run state in `research/.pipeline/<run>/`. Pilot: 8 concepts, $4.81, 227/234 claims supported, packs committed here.
+- Repos synced first: llms-explorer local main (10 commits already on origin via PRs) saved as `backup/local-main-2026-10-14` then fast-forwarded; hub `skills` pointer bumped.
+
