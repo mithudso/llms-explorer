@@ -399,9 +399,10 @@ def llm(
     max_tokens: int = 3500,
     temperature: float = 0.2,
     timeout: int = 900,
-    tries: int = 3,
+    tries: int = 5,
 ) -> dict:
-    """One serialised workhorse call. Returns {text, prompt_tokens, completion_tokens, seconds}."""
+    """One serialised workhorse call. A model swap or reload by another llama-swap client takes
+    minutes, so the waits grow (20 s up to 3 min) before the call is declared a systemic failure. Returns {text, prompt_tokens, completion_tokens, seconds}."""
     body: dict = {"model": LLM_MODEL, "messages": messages, "max_tokens": max_tokens, "seed": 17,
                   "temperature": temperature, "top_p": 0.9, "stream": False}  # fmt: skip
     if schema:
@@ -434,7 +435,7 @@ def llm(
             except RETRYABLE as e:
                 last = e
         if attempt + 1 < tries:
-            time.sleep(5 * (attempt + 1))
+            time.sleep(min(20 * 2**attempt, 180))
     raise SystemicFailure(f"workhorse call failed after {tries} tries: {last}")
 
 
@@ -1246,19 +1247,29 @@ def stage_validate(run: Path, b: dict, per_call: int = 90) -> None:
 # stage 6: register (pack + tree node)
 # --------------------------------------------------------------------------- #
 def synthesis_markdown(doc: dict) -> str:
-    """Claims only, each with its source URLs inline: the abstractor turns every bullet into a
-    unit, so no scope sentence or source list that would be harvested as a fact."""
-    lines = [f"# {doc['concept']}", "", "## Claims"]
-    for c in doc["claims"]:
-        stamp = f" (verified as of {c['verified_as_of']})" if c.get("verified_as_of") else ""
-        lines.append(
-            f"- [{c['confidence']}] {c['text']}{stamp} Sources: " + ", ".join(c["sources"])
-        )
+    """Claims only, one paragraph per claim under a heading per section, each with its source
+    URLs inline. The abstractor turns every blank-line-separated paragraph into one unit, so
+    a bulleted block would collapse a whole concept into a single unit."""
+    lines = [f"# {doc['concept']}"]
+    for section in SECTIONS:
+        claims = [
+            c
+            for c in doc["claims"]
+            if (c.get("section") if c.get("section") in SECTIONS else "core") == section
+        ]
+        if not claims:
+            continue
+        lines += ["", f"## {section.capitalize()}"]
+        for c in claims:
+            stamp = f" (verified as of {c['verified_as_of']})" if c.get("verified_as_of") else ""
+            lines += [
+                "",
+                f"[{c['confidence']}] {c['text']}{stamp} Sources: " + ", ".join(c["sources"]),
+            ]
     if doc.get("disagreements"):
         lines += ["", "## Disagreements"]
-        lines += [
-            f"- {x['text']} Sources: " + ", ".join(x["sources"]) for x in doc["disagreements"]
-        ]
+        for x in doc["disagreements"]:
+            lines += ["", f"{x['text']} Sources: " + ", ".join(x["sources"])]
     return "\n".join(lines) + "\n"
 
 

@@ -180,13 +180,31 @@ def test_candidate_urls_prefers_the_markdown_twin_on_mongodb_docs():
     assert rs.candidate_urls("https://example.com/a?b=1") == ["https://example.com/a?b=1"]
 
 
-def test_synthesis_markdown_is_claims_with_inline_sources_only():
-    doc = {"concept": "X", "parent": "P", "claims": [
-        {"text": "X does Y.", "confidence": "medium", "sources": ["https://a/1", "https://b/2"], "verified_as_of": None}],
-        "disagreements": [], "sources": [{"url": "https://a/1", "title": "A1", "org": "a", "tier": "docs"}]}  # fmt: skip
+def test_synthesis_markdown_makes_one_paragraph_per_claim():
+    doc = {
+        "concept": "X", "parent": "P",
+        "claims": [
+            {"text": "X does Y.", "section": "core", "confidence": "medium", "sources": ["https://a/1", "https://b/2"], "verified_as_of": None},
+            {"text": "X fails when Z.", "section": "troubleshooting", "confidence": "low", "sources": ["https://a/1"], "verified_as_of": "2026-10-14"},
+            {"text": "No section given.", "confidence": "low", "sources": ["https://c/3"], "verified_as_of": None},
+        ],
+        "disagreements": [{"text": "A and B differ.", "sources": ["https://a/1"]}],
+        "sources": [{"url": "https://a/1", "title": "A1", "org": "a", "tier": "docs"}],
+    }  # fmt: skip
     md = rs.synthesis_markdown(doc)
-    assert md.startswith("# X") and "- [medium] X does Y. Sources: https://a/1, https://b/2" in md
-    assert "## Sources" not in md and "Scope:" not in md
+    paras = [p for p in md.split("\n\n") if p.strip()]
+    assert (
+        md.startswith("# X")
+        and "## Core" in md
+        and "## Troubleshooting" in md
+        and "## Disagreements" in md
+    )
+    assert "[medium] X does Y. Sources: https://a/1, https://b/2" in paras
+    assert "[low] X fails when Z. (verified as of 2026-10-14) Sources: https://a/1" in paras
+    assert (
+        "[low] No section given. Sources: https://c/3" in paras
+    )  # unknown section files under core
+    assert "- [" not in md and "## Sources" not in md and "Scope:" not in md
 
 
 def test_state_roundtrip_and_stage_done(tmp_path):
@@ -603,7 +621,7 @@ def test_llm_retries_cut_off_and_empty_replies_and_stops_sleeping_after_the_last
     monkeypatch.setattr(rs.urllib.request, "urlopen", flaky)
     monkeypatch.setattr(rs.time, "sleep", sleeps.append)
     assert rs.llm([{"role": "user", "content": "x"}])["text"] == "hi"
-    assert len(calls) == 2 and sleeps == [5]
+    assert len(calls) == 2 and sleeps == [20]
     calls.clear()
     sleeps.clear()
     monkeypatch.setattr(
@@ -611,7 +629,7 @@ def test_llm_retries_cut_off_and_empty_replies_and_stops_sleeping_after_the_last
     )
     with pytest.raises(rs.SystemicFailure):
         rs.llm([{"role": "user", "content": "x"}], tries=2)
-    assert sleeps == [5]  # between the two tries only
+    assert sleeps == [20]  # between the two tries only
 
 
 def _run_ns(**kw):
