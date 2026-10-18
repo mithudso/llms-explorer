@@ -7,7 +7,7 @@ An integrated platform providing documentation exploration for LLMs, semantic se
 | Component | Description |
 |---|---|
 | `api/` | FastAPI backend handling PostgreSQL ledger, WebAuthn/OAuth auth, API keys, and metering. |
-| `site/` | Astro + TypeScript + Tailwind frontend: directory, 3D concept graph, and account portals. |
+| `site/` | Astro + TypeScript frontend (plain CSS): directory, 3D concept graph, and account portals. |
 | `hub/` | Global AI Hub semantic operations, docset refiner, vector/keyword indexing, and MCP server. |
 | `llmsx/` | Python library and CLI for parsing, validating, and generating `llms.txt` standard v2 files. |
 | `concept-tree/` | Canonical hierarchical topic data (`tree.json`) that powers the 3D graph and topical navigation. |
