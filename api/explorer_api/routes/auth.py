@@ -27,7 +27,7 @@ from fastapi import (
 from fastapi.responses import JSONResponse, RedirectResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from .. import auth
+from .. import auth, moderation
 from .. import keys as keys_module
 from ..db import get_session
 from ..models import User
@@ -178,7 +178,10 @@ OptionalUser = Annotated[User | None, Depends(optional_user)]
 
 
 def _signed_in(request: Request, user: User, status_code: int = 200) -> JSONResponse:
-    response = JSONResponse(auth.public_user(user), status_code=status_code)
+    # `moderator` lets the /tree/ facts panel offer "Research this concept"
+    # only to someone the API will let start a run (routes/research.py).
+    body = {**auth.public_user(user), "moderator": moderation.is_moderator(user)}
+    response = JSONResponse(body, status_code=status_code)
     _set_session(response, user, secret=_secret(request))
     return response
 

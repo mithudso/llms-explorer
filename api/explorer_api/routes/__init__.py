@@ -27,6 +27,7 @@ from . import donate as donate_routes
 from . import keys as keys_routes
 from . import mcp as mcp_routes
 from . import proposals as proposal_routes
+from . import research as research_routes
 from . import skills as skill_routes
 from . import subscribers as subscriber_routes
 from . import trees as tree_routes
@@ -50,6 +51,7 @@ ROUTER_MODULES = (
     tree_routes,
     proposal_routes,
     contribute_routes,
+    research_routes,
     subscriber_routes,
     artifact_routes,
 )

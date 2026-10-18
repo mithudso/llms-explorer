@@ -1,5 +1,10 @@
 # Memory Log
 
+## v0.22.50 - 2026-10-17
+
+- TASK-717: /tree/ facts panel offers "Research this concept" for concepts without facts (frontier included). It calls the new `POST /api/research` (api/explorer_api/routes/research.py, api/explorer_api/research.py), which lets only moderators (EXPLORER_MODERATOR_EMAILS) start the llmsx `dr` run (`claude -p … --permission-mode acceptEdits`) as an asyncio child of the API in the repo root. Guards: X-Requested-With CSRF header, a public-tree name check with a stricter 160-char name rule, an advisory lock, one run per concept and at most 2 at once, a boot id that marks orphaned runs failed, a process-group kill on timeout and at API shutdown. `GET /api/research?concept=` is public and read-only. `/api/me` now includes `moderator`.
+- Ops: prod Postgres (brew postgresql@16) had been down since about 2026-09-26 because a stale postmaster.pid from 2026-09-21 blocked every restart. The pid file was moved aside and the service restarted; /ready is green (KNOW-723).
+
 ## v0.22.49 - 2026-10-17
 
 - TASK-714: /tree/ clicking a concept now opens its children in place and loads its facts file (/downloads/concepts/<slug>.md) into a sticky facts panel beside the tree (under the name on narrow screens). The panel shows the root path, meta line, links and a clickable child list; `#<slug>` deep-links. The count badge now reads "N children · M total" from what is actually drawn (frontier included, deduped concepts counted once); the old badge counted only direct researched children, including ones drawn under another parent.
