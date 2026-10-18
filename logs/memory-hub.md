@@ -724,3 +724,16 @@
 - The pipeline that uses it, `hub/scripts/research_suite.py`, lives in the llms-explorer repo (PR #181); run state in `research/.pipeline/<run>/`. Pilot: 8 concepts, $4.81, 227/234 claims supported, packs committed here.
 - Repos synced first: llms-explorer local main (10 commits already on origin via PRs) saved as `backup/local-main-2026-10-14` then fast-forwarded; hub `skills` pointer bumped.
 
+
+## 2026-10-14 - embedding pool primary moved 192.0.2.218 -> 192.0.2.221
+- `scripts/embed_core.py` (`LAN_URLS`, usage text), `.mcp.json` `HUB_OLLAMA_URLS`, `hub-manager.json` and `scripts/hub_manager/settings.py` `ssh_targets`, CLAUDE.md/AGENTS.md, and `tests/test_embed_pool_mode.py` now name 192.0.2.221 (weight 4). `embed_core.py pool` shows lan: .221=4, box.test=3, localhost=1.
+- .221 is a different machine from .218: its ED25519 host key is SHA256:Hmx/dbIF4wW8QBb4DFX62WNnf5AAThCVipNpI5c9v8A (.218 was SHA256:tAp0y4DA/...). It is not yet in ~/.ssh/known_hosts.
+- As of 21:25 EDT, .221 answers ping and SSH but port 11434 is closed, so the pool falls back to the laptop/localhost until Ollama listens on 0.0.0.0:11434 there with mxbai-embed-large pulled.
+- Tests: 1114 pass; 1 pre-existing failure (`test_script_help`: `scripts/source_library.py` lacks a Usage section, from 6987dc1c).
+- Correction (23:30 EDT): .221 is the `5080` box from ~/.ssh/config (`user@192.0.2.221`), so `ssh_targets` now use `mitch@`, not `root@`. Other box: `m5` = `user@192.0.2.236`.
+
+## 2026-10-14 — llm-mesh hook in semantic_ops/llm.py
+- Active task: give the hub's pooled generation client a path through the llm-mesh litellm proxy (repo `~/dev/llm-mesh`, proxy on every box at 0.0.0.0:4000).
+- Status: done. `HUB_LLM_URL=http://127.0.0.1:4000/v1` sends `generate()` to `/chat/completions` with model `HUB_LLM_MODEL` (default `research`, a mesh group); unset keeps the Ollama pool path unchanged. Tests: `tests/test_semantic_llm_mesh.py` (5) + existing `tests/test_semantic_llm.py` (5) pass; ruff clean.
+- Changed files: `scripts/semantic_ops/llm.py`, `tests/test_semantic_llm_mesh.py`, `prompts-hub.md`, `memory-hub.md`.
+- Not done on purpose: the embedding pool (`embed_core.py`, `HUB_OLLAMA_URLS`) is unchanged; the mesh's `embed` group is a second, OpenAI-schema path to the same `mxbai-embed-large` on every box.
