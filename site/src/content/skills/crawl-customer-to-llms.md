@@ -79,9 +79,3 @@ docs site ([crawl-to-llms-txt](/skills/crawl-to-llms-txt/)) · one document
 ([llms-concept-abstractor](/skills/llms-concept-abstractor/)) · writing a weekly update or
 account review · a quality pass on an existing family
 ([llms-deep-optimizer](/skills/llms-deep-optimizer/)).
-
-**Showcase:** [Two thousand artifacts, three
-taxonomies](/blog/crawling-a-customer-engagement/) — the skill run for real against three
-live engagement folders: 2,011 artifacts enumerated, 416 of 427 Drive stubs resolved, 15
-conflicts recorded, four defects the runs found in the skill itself, and the checker bug
-that was wrong in the unsafe direction.
