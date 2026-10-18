@@ -28,64 +28,75 @@ const counts = new Map<string, { facts: number; facets: number; download: string
 for (const root of context.roots)
   for (const c of root.concepts) counts.set(c.slug, { facts: c.facts, facets: c.facets, download: c.download });
 
-/** The one-line summary a node expands to: first sentence or so of the
-    research summary, so a reader can tell what a concept is without leaving
-    the tree. */
-function blurb(text: unknown): string {
-  const t = String(text ?? "").replace(/\s+/g, " ").trim();
-  if (t.length <= 220) return t;
-  const cut = t.slice(0, 220);
-  const at = Math.max(cut.lastIndexOf(". "), cut.lastIndexOf("; "), cut.lastIndexOf(", "));
-  return (at > 120 ? cut.slice(0, at + 1) : cut.trimEnd()) + "…";
-}
-
 // One `seen` set for the whole walk, exactly as the hub-manager Concepts tab
 // does it: a concept named under two parents is drawn once, and a name cycle
 // cannot make the recursion run forever.
 //
-// Every node is a <details>: clicking a name expands it in place — its summary,
-// its facts count, and its children as an indented list — and never navigates.
-// The only link is the explicit "read the facts" one inside the expanded body,
-// so the tree is browsed on this page and a concept's own page is one
-// deliberate click, not the price of opening a branch.
+// Every node is a <details>: clicking a name expands its children in place
+// and opens the concept in the facts panel beside the tree (TreeBrowser.astro
+// fetches the same /downloads/concepts/<slug>.md the facts.md link serves).
+// The inline body stays one line, so the tree reads as a tree.
+//
+// The count beside a name is what the reader will find on opening it: the
+// children drawn directly under it here, and every concept drawn anywhere
+// below it. A child already drawn under another parent is not drawn twice,
+// so it is not counted twice either.
 const seen = new Set<string>();
-function branch(slug: string): string {
+const fmt = (n: number) => n.toLocaleString("en-US");
+function branch(slug: string): { html: string; total: number } {
   const node = nodes[slug];
-  if (!node || seen.has(slug)) return "";
+  if (!node || seen.has(slug)) return { html: "", total: 0 };
   seen.add(slug);
+  let direct = 0;
+  let total = 0;
+  let frontierKids = 0;
   const kids = node.children
-    .map((c) =>
-      c.state !== "frontier"
-        ? branch(c.slug)
-        : `<li class="frontier" data-slug="${esc(c.slug)}" data-concept="${esc(c.concept)}">` +
-          `<span title="frontier: named as a child but not yet researched">${esc(c.concept)} <em>(frontier)</em></span></li>`)
+    .map((c) => {
+      if (c.state === "frontier") {
+        direct += 1;
+        total += 1;
+        frontierKids += 1;
+        return `<li class="frontier" data-slug="${esc(c.slug)}" data-concept="${esc(c.concept)}">` +
+          `<span title="frontier: named as a child but not yet researched">${esc(c.concept)} <em>(frontier)</em></span></li>`;
+      }
+      const sub = branch(c.slug);
+      if (sub.html) {
+        direct += 1;
+        total += 1 + sub.total;
+      }
+      return sub.html;
+    })
     .join("");
   const n = counts.get(slug);
   const hasReference = referenceSlugs.has(slug);
-  const researched = node.children.filter((c) => c.state !== "frontier").length;
-  const frontierKids = node.children.length - researched;
   const meta = [
     hasReference && n ? `${n.facts} facts in ${n.facets} facet${n.facets === 1 ? "" : "s"}` : "",
     hasReference ? "published reference" : node.state === "domain" ? "topic group" : "topic entry",
-    researched ? `${researched} child concept${researched === 1 ? "" : "s"}` : "",
     frontierKids ? `${frontierKids} frontier` : "",
   ].filter(Boolean).join(" · ");
-  const summary = blurb(node.summary || node.skillSummary);
   const body =
     `<div class="node-body">` +
-    (summary ? `<p class="node-summary">${esc(summary)}</p>` : "") +
     `<p class="node-meta">${esc(meta)}` +
     ` · <a href="/tree/${esc(node.slug)}/" class="node-open">${hasReference ? "read reference" : "browse topic"}</a>` +
     (hasReference && n ? ` · <a href="${esc(n.download)}" class="node-open" download>facts.md</a>` : "") +
     `</p></div>`;
+  const countText = !direct ? "" : total > direct
+    ? `${fmt(direct)} children · ${fmt(total)} total`
+    : `${fmt(direct)} ${direct === 1 ? "child" : "children"}`;
   const label = `<span class="node-name">${esc(node.concept)}</span>` +
-    (hasReference ? ` <span class="haspack" title="published reference available">●</span>` : "") +
-    (researched ? ` <span class="node-count">${researched}</span>` : "");
-  return `<li data-slug="${esc(slug)}" data-concept="${esc(node.concept)}">` +
-    `<details><summary>${label}</summary>${body}${kids ? `<ul>${kids}</ul>` : ""}</details></li>`;
+    (hasReference ? ` <span class="haspack" title="facts file available">●</span>` : "") +
+    (countText ? ` <span class="node-count" title="${esc(`${direct} drawn directly under this concept, ${total} concepts anywhere below it`)}">${countText}</span>` : "");
+  // gen_concept_facts.py writes one facts file per pack, so every published
+  // reference has one even before context.json lists it.
+  const facts = hasReference ? ` data-facts="${esc(n?.download ?? `/downloads/concepts/${slug}.md`)}"` : "";
+  return {
+    html: `<li data-slug="${esc(slug)}" data-concept="${esc(node.concept)}"${facts}>` +
+      `<details><summary>${label}</summary>${body}${kids ? `<ul>${kids}</ul>` : ""}</details></li>`,
+    total,
+  };
 }
 
-const list = `<ul id="tree-list">${tree.roots.map((s) => branch(s)).join("")}</ul>`;
+const list = `<ul id="tree-list">${tree.roots.map((s) => branch(s).html).join("")}</ul>`;
 // `</script>` cannot appear inside a <script> element, whatever the type — and a
 // concept name is text a person or a research run wrote, not a constant. Same
 // escape as Tree3D.astro and DirectoryTable.astro.
@@ -100,11 +111,11 @@ const description = `${referenceSlugs.size} published reference${referenceSlugs.
 <Base title={title} description={description} route="/tree/">
   <p class="lede">Browse published references and the topic map that connects them.</p>
   <p class="tab-note">
-    <strong>Concepts</strong> is for browsing: click any name to expand it in place — its summary,
-    its facts count, its children — and keep going down without leaving this page. Each expanded
-    topic offers <em>read reference</em> when it has published content and <em>browse topic</em>
-    when it is a navigation entry. Topic entries without a reference stay available for
-    browsing and are excluded from search indexing.
+    <strong>Concepts</strong> is for browsing: click any name to open its children in place and
+    show its facts file in the panel beside the tree. A <span class="haspack">●</span> marks a
+    concept with a facts file. The grey count is what opening it reveals: the children drawn
+    directly under it, then every concept below it. Topic groups without facts still open to
+    show their branches.
     <a href="/context/">Context files</a> is the other tab: the same concept research as a shelf of facts files
     to load, sized in tokens.
   </p>
@@ -124,7 +135,12 @@ const description = `${referenceSlugs.size} published reference${referenceSlugs.
 
   <script type="application/json" id="tree-data" set:html={payload} />
   <TreeBrowser />
-  <Fragment set:html={list} />
+  <div class="tree-layout">
+    <div class="tree-col"><Fragment set:html={list} /></div>
+    <aside id="facts-panel" class="facts-panel" aria-live="polite">
+      <p class="facts-empty">Click a concept to read its facts here.</p>
+    </aside>
+  </div>
 
   {unreachable.length > 0 && (
     <>

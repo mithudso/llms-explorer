@@ -1,5 +1,10 @@
 # Memory Log
 
+## v0.22.49 - 2026-10-17
+
+- TASK-714: /tree/ clicking a concept now opens its children in place and loads its facts file (/downloads/concepts/<slug>.md) into a sticky facts panel beside the tree (under the name on narrow screens). The panel shows the root path, meta line, links and a clickable child list; `#<slug>` deep-links. The count badge now reads "N children · M total" from what is actually drawn (frontier included, deduped concepts counted once); the old badge counted only direct researched children, including ones drawn under another parent.
+- Files: site/src/pages/tree/index.astro, site/src/components/TreeBrowser.astro, site/src/styles/global.css, site/src/content/reference/concept-tree.md, site/tests/test_tree_pages.py. Site build, astro check (0 errors) and site tests pass except the 2 known fastapi-dependent account-page tests.
+
 ## v0.22.48 - 2026-10-10
 
 - TASK-628 production removal now passes all 24 bare-URL checks on llms-explorer.com and llmsx.org. PR164 merged as ec0ee55cfcd1d8836adb757e28d0631499a63242. Cloudflare production deployment 0b695c78-3eaf-4500-b6ca-5663d1dc932e succeeded. Removed directory, source pages, raw downloads and corpus paths return explicit no-store HTTP 404. The previously stale raw download no longer serves content.

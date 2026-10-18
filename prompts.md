@@ -793,3 +793,9 @@ Outcome: concept-family-explorer run on Ollama (40 concepts, 8 research runs, hu
 > (after /full-suite ollama) 1. Yes Publish to the site. ...
 
 Outcome: 45 Ollama reader pages published, each keyed to a concept-tree node (37 new child nodes under the 8 Ollama run nodes).
+
+## Prompt — 2026-10-17
+
+> on the website, make the concept family tree more concise by that whenever you click on a parent concept, it pulls up that parent concept's facts file instead of just the meta file. ... the parent columns have misleading numbers as to how many child concepts are underneath it. So if I click on a parent concept, it should show the facts file and also expand the family tree to show the child concepts underneath it.
+
+Outcome: /tree/ facts panel (click = expand children + load facts file), honest "N children · M total" counts, `#<slug>` deep links (TASK-714).

@@ -63,6 +63,21 @@ They are listed on their parent's page under `Frontier under this node`.
 node with nine concepts and two children is a node whose run found nine and whose author has
 since written up two.
 
+## Opening a concept
+
+Clicking a name on `/tree/` does two things at once. It opens the branch in place, so its
+children show indented under it. It also loads the concept's facts file into the panel beside
+the tree. That file is `/downloads/concepts/<slug>.md`, the same one the facts.md link serves. A
+concept with a facts file carries a ● after its name. A topic group without one still opens; the
+panel shows its summary and its children as links, with ● on the ones that have facts. The panel
+also shows the path from the root, and each step in it is a link. The URL gains `#<slug>`, so a
+link to `/tree/#<slug>` reopens the tree at that concept. On a narrow screen the panel sits
+directly under the opened name.
+
+The grey count after a name is what opening it reveals: `6 children · 1,671 total` means six
+names are drawn directly under it and 1,671 concepts sit anywhere below it. Frontier names are
+counted, because they are drawn. A concept named under two parents is drawn, and counted, once.
+
 ## How the filter works
 
 The filter box on `/tree/` matches a substring against each concept **and its aliases**, and a
@@ -72,7 +87,7 @@ widened to aliases, which are exactly the names a reader who does not know ours 
 
 The tree is small enough to ship whole: the page embeds the generated JSON and filters it in the
 browser, so there is no request per keystroke and the page works with JavaScript off — the filter
-is the only part that needs it.
+and the facts panel are the only parts that need it.
 
 ## What is not here yet
 
