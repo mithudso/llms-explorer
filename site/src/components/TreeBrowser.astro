@@ -57,7 +57,223 @@
 
       input.addEventListener("input", apply);
       apply();
+      facts(data, list);
     };
+
+
+    // The facts panel. Opening a concept shows its facts file — the same
+    // /downloads/concepts/<slug>.md the facts.md link serves — next to the
+    // tree, so a parent opens to its own facts and its children in one click.
+    // Built with createElement and text nodes only, never innerHTML: the file
+    // is research text, not markup this page should be able to execute.
+    function facts(data, list) {
+      const panel = document.getElementById("facts-panel");
+      if (!panel) return;
+      const cache = new Map();
+      const wide = window.matchMedia("(min-width: 60rem)");
+      let current = null;
+      const LINK = /\[([^\]]+)\]\(([^)\s]+)\)|`([^`]+)`|(https?:\/\/[^\s)`]+)/;
+
+      const el = (tag, cls, text) => {
+        const e = document.createElement(tag);
+        if (cls) e.className = cls;
+        if (text != null) e.textContent = text;
+        return e;
+      };
+      const safeHref = (u) => (/^(https?:\/\/|\/)/.test(u) ? u : null);
+      const anchor = (text, href) => {
+        const ok = safeHref(href);
+        if (!ok) return document.createTextNode(text);
+        const a = el("a", null, text);
+        a.href = ok;
+        if (/^https?:/.test(ok) && !ok.startsWith(location.origin)) a.rel = "noopener";
+        return a;
+      };
+      function inline(text, into) {
+        let rest = text;
+        for (let m = LINK.exec(rest); m; m = LINK.exec(rest)) {
+          into.appendChild(document.createTextNode(rest.slice(0, m.index)));
+          if (m[1]) into.appendChild(anchor(m[1], m[2]));
+          else if (m[3]) into.appendChild(/^https?:\/\//.test(m[3]) ? anchor("source", m[3]) : el("code", null, m[3]));
+          else into.appendChild(anchor(m[4], m[4]));
+          rest = rest.slice(m.index + m[0].length);
+        }
+        into.appendChild(document.createTextNode(rest));
+      }
+      function markdown(text, into) {
+        let ul = null;
+        for (const raw of text.split("\n")) {
+          const line = raw.trimEnd();
+          if (!line.trim() || line.startsWith("<!--")) { ul = null; continue; }
+          const item = /^(\s*)[-*] (.*)$/.exec(line);
+          if (item) {
+            if (!ul) { ul = el("ul"); into.appendChild(ul); }
+            const li = el("li");
+            const depth = Math.floor(item[1].length / 2);
+            if (depth) li.style.marginLeft = depth * 1.1 + "em";
+            inline(item[2], li);
+            ul.appendChild(li);
+            continue;
+          }
+          ul = null;
+          const h = /^(#{1,6})\s+(.*)$/.exec(line);
+          if (h) {
+            // The file's own H1 repeats the panel title.
+            if (h[1].length === 1) continue;
+            const tag = el(h[1].length === 2 ? "h3" : "h4");
+            inline(h[2], tag);
+            into.appendChild(tag);
+          } else if (line.startsWith(">")) {
+            const q = el("blockquote");
+            inline(line.replace(/^>\s?/, ""), q);
+            into.appendChild(q);
+          } else {
+            const p = el("p");
+            inline(line, p);
+            into.appendChild(p);
+          }
+        }
+      }
+      // The trail from the root to this concept, each step clickable.
+      function trail(li) {
+        const steps = [];
+        for (let e = li.parentElement; e && e !== list; e = e.parentElement)
+          if (e.tagName === "LI" && e.dataset.slug) steps.unshift(e);
+        if (!steps.length) return null;
+        const p = el("p", "facts-trail");
+        steps.forEach((s, i) => {
+          if (i) p.appendChild(document.createTextNode(" › "));
+          const b = el("button", "facts-step", s.dataset.concept);
+          b.type = "button";
+          b.addEventListener("click", () => select(s, true));
+          p.appendChild(b);
+        });
+        return p;
+      }
+      function childList(li) {
+        const ul = li.querySelector(":scope > details > ul");
+        if (!ul) return null;
+        const kids = Array.from(ul.children).filter((k) => k.dataset.slug);
+        if (!kids.length) return null;
+        const wrap = el("div", "facts-children");
+        wrap.appendChild(el("h3", null, `Children (${kids.length})`));
+        const out = el("ul");
+        for (const k of kids) {
+          const item = el("li");
+          if (k.classList.contains("frontier")) {
+            item.appendChild(el("span", "frontier", `${k.dataset.concept} (frontier)`));
+          } else {
+            const b = el("button", "facts-step", k.dataset.concept);
+            b.type = "button";
+            b.addEventListener("click", () => select(k, true));
+            item.appendChild(b);
+            if (k.dataset.facts) item.appendChild(el("span", "haspack", " ●"));
+          }
+          out.appendChild(item);
+        }
+        wrap.appendChild(out);
+        return wrap;
+      }
+      function place(li) {
+        // Beside the tree on a wide screen; directly under the opened name on
+        // a narrow one, where there is no "beside".
+        if (wide.matches) {
+          const layout = list.closest(".tree-layout");
+          if (layout && panel.parentElement !== layout) layout.appendChild(panel);
+        } else {
+          const body = li.querySelector(":scope > details > .node-body");
+          if (body) body.after(panel);
+          else li.appendChild(panel);
+        }
+      }
+      async function select(li, reveal) {
+        current = li;
+        for (const e of list.querySelectorAll(".is-selected")) e.classList.remove("is-selected");
+        li.classList.add("is-selected");
+        // Open the path to it and the concept itself, so its children show.
+        for (let e = li; e && e !== list; e = e.parentElement) {
+          if (e.tagName === "DETAILS") e.open = true;
+          if (e.tagName === "LI") e.hidden = false;
+        }
+        const own = li.querySelector(":scope > details");
+        if (own) own.open = true;
+        if (reveal) li.scrollIntoView({ block: "nearest" });
+        try { history.replaceState(null, "", "#" + li.dataset.slug); } catch (_) { /* file:// */ }
+        place(li);
+
+        const node = data.nodes[li.dataset.slug] || {};
+        panel.replaceChildren();
+        const t = trail(li);
+        if (t) panel.appendChild(t);
+        const head = el("h2", "facts-title", li.dataset.concept);
+        panel.appendChild(head);
+        const links = el("p", "facts-links");
+        const meta = li.querySelector(":scope > details > .node-body .node-meta");
+        if (meta && meta.firstChild) links.appendChild(document.createTextNode(meta.firstChild.textContent.replace(/\s*·\s*$/, "") + " · "));
+        if (!li.classList.contains("frontier")) links.appendChild(anchor("open page", `/tree/${li.dataset.slug}/`));
+        if (li.dataset.facts) {
+          links.appendChild(document.createTextNode(" · "));
+          const dl = anchor("facts.md", li.dataset.facts);
+          dl.setAttribute("download", "");
+          links.appendChild(dl);
+        }
+        panel.appendChild(links);
+        const kids = childList(li);
+        const body = el("div", "facts-body");
+        panel.appendChild(body);
+        if (kids) panel.appendChild(kids);
+
+        if (li.classList.contains("frontier")) {
+          body.appendChild(el("p", "facts-empty", "Frontier concept: named as a child but not researched yet, so it has no facts file."));
+          return;
+        }
+        if (!li.dataset.facts) {
+          const summary = node.summary || node.skillSummary;
+          if (summary) body.appendChild(el("p", null, summary));
+          body.appendChild(el("p", "facts-empty", "No facts file yet. Its children are listed below; a ● marks the ones that have facts."));
+          return;
+        }
+        body.appendChild(el("p", "facts-empty", "Loading facts…"));
+        try {
+          let text = cache.get(li.dataset.facts);
+          if (text == null) {
+            const r = await fetch(li.dataset.facts, { headers: { Accept: "text/markdown, text/plain" } });
+            if (!r.ok) throw new Error(String(r.status));
+            text = await r.text();
+            cache.set(li.dataset.facts, text);
+          }
+          if (current !== li) return;
+          body.replaceChildren();
+          markdown(text, body);
+        } catch (_) {
+          if (current !== li) return;
+          body.replaceChildren(el("p", "facts-empty", "Could not load the facts file. "));
+          body.firstChild.appendChild(anchor("Open the page instead", `/tree/${li.dataset.slug}/`));
+        }
+      }
+
+      // A click on a name opens it and shows its facts. A click on an open,
+      // already selected name closes it, as a plain <details> would.
+      list.addEventListener("click", (ev) => {
+        if (ev.target.closest("a, #facts-panel")) return;
+        const summary = ev.target.closest("summary");
+        const frontier = ev.target.closest("li.frontier");
+        if (summary) {
+          const li = summary.closest("li");
+          const details = summary.parentElement;
+          if (li === current && details.open) return;
+          ev.preventDefault();
+          select(li, false);
+        } else if (frontier) {
+          select(frontier, false);
+        }
+      });
+      wide.addEventListener("change", () => { if (current) place(current); });
+
+      const start = decodeURIComponent(location.hash.slice(1));
+      const first = start && list.querySelector(`li[data-slug="${CSS.escape(start)}"]`);
+      if (first) select(first, true);
+    }
 
     if (document.readyState === "loading") {
       document.addEventListener("DOMContentLoaded", initialize, { once: true });
