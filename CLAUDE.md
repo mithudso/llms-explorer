@@ -5,7 +5,7 @@ Monorepo for the LLMS-Explorer platform: accounts, metering, hosted MCP gateway,
 ## Packages and Components
 
 - `api/`: FastAPI backend with PostgreSQL ledger, WebAuthn/OAuth auth, API keys (Argon2id), Stripe subscriptions, and quota enforcement.
-- `site/`: Astro + TypeScript + Tailwind static & SSR website, 3D concept graph, and account pages.
+- `site/`: Astro + TypeScript static & SSR website styled with plain CSS (`site/src/styles/`, no CSS framework), 3D concept graph, and account pages.
 - `hub/`: Global AI Hub semantic ops, ChromaDB/SQLite docsets, Ollama embedding pools, MCP server (`global_ai_hub`).
 - `llmsx/`: Python library and CLI for the llms.txt standard v2.
 - `.claude/commands/` & `.claude/skills/`: Agent commands and workflows (`/ldo`, `/lca`). Both live under `.claude/` so Claude Code (local and cloud sessions) loads them as project commands and skills.
