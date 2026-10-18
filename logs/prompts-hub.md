@@ -484,3 +484,11 @@
 ## Prompt v112 - 2026-10-14T13:49:00-04:00
 - User request:
   - Run the deep prompt optimizer on the MongoDB research prompt and then run it: research every unresearched/frontier MongoDB concept with the local Qwen3.8-27B (UD-Q3_K_XL + draft head via llama.cpp/llama-swap) as workhorse, build a text-only source library with raw and processed spaces (crawl heavily-used sites, prefer llms-full.txt), stage the research in grouped parallel stages (max-effort sourcing, lighter reasoning for processing), and sync all repos first.
+
+## Prompt v113 - 2026-10-14T21:19:00-04:00
+- User request:
+  - (after /full-suite ollama) 1. Yes publish to the site. 2. 192.0.2.218 has moved to 192.0.2.221 which is the new embedding server. 3. yes. 4. Do it. 5. ok.
+
+## Prompt v113 - 2026-10-14T23:29:08-04:00
+- User request:
+  - Set up m3 (user@192.0.2.73) and m5 (user@192.0.2.236) with hostname entries and a litellm weighted-backoff mesh so any box can use any other for semantic indexing, /dr research, the concept-family queue and coding; design test plans for the best model on each Mac from the llm-bench results; push plans, litellm installs and all skills/research to both Macs. (Hub part: semantic_ops/llm.py gains the HUB_LLM_URL mesh path.)

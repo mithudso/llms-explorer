@@ -14,7 +14,7 @@ Usage:
 
 Env config (all optional):
   HUB_OLLAMA_URLS   weighted host list, e.g.
-                    "http://192.0.2.218:11434=4,http://192.0.2.214:11434=3,http://localhost:11434=1"
+                    "http://192.0.2.63:11434=4,http://192.0.2.193:11434=3,http://localhost:11434=1"
   HUB_EMBED_MODEL   embedding model name (default: mxbai-embed-large — the
                     model available on the LAN Ollama hosts)
   OLLAMA_HOST       single-host fallback honored when HUB_OLLAMA_URLS unset
@@ -35,11 +35,12 @@ import time
 import urllib.error
 import urllib.request
 
-# Pool: linux GPU box (192.0.2.218) primary, the work laptop secondary (by
-# mDNS name, so it survives the DHCP lease it had at 192.0.2.214), this
+# Pool: LAN embedding server (5080, 192.0.2.63 since the 2026-10-15 network
+# change) primary, the work laptop secondary (by mDNS name, so it survives the
+# DHCP lease it had at 192.0.2.214), this
 # machine as fallback. box_schedule drops the laptop from the pool during its
 # quiet hours (mon-fri 09:00-17:00).
-LAN_URLS = ("http://192.0.2.218:11434=4,http://box.test:11434=3,"
+LAN_URLS = ("http://192.0.2.63:11434=4,http://box.test:11434=3,"
             "http://localhost:11434=1")
 # Travel / off-LAN: every unreachable host costs a 10s+ timeout on every call,
 # which stalls hooks and routing, so away from the LAN the pool must collapse
