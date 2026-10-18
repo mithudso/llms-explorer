@@ -18,7 +18,7 @@ from sqlalchemy import text
 from sqlalchemy.exc import DBAPIError
 from starlette.middleware.trustedhost import TrustedHostMiddleware
 
-from . import __version__, gateway as gw
+from . import __version__, gateway as gw, research
 from .db import create_engine, create_session_factory
 from .routes import include_routers
 from .settings import Settings
@@ -55,6 +55,9 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         try:
             yield
         finally:
+            # A research run is a child of this process; it must not keep
+            # editing the repo after the API is gone (explorer_api/research.py).
+            research.shutdown()
             await app.state.engine.dispose()
 
     app = FastAPI(

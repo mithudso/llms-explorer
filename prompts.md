@@ -799,3 +799,9 @@ Outcome: 45 Ollama reader pages published, each keyed to a concept-tree node (37
 > on the website, make the concept family tree more concise by that whenever you click on a parent concept, it pulls up that parent concept's facts file instead of just the meta file. ... the parent columns have misleading numbers as to how many child concepts are underneath it. So if I click on a parent concept, it should show the facts file and also expand the family tree to show the child concepts underneath it.
 
 Outcome: /tree/ facts panel (click = expand children + load facts file), honest "N children · M total" counts, `#<slug>` deep links (TASK-714).
+
+## Prompt — 2026-10-17 (2)
+
+> Yes have it start a research run
+
+Outcome: "Research this concept" button in the /tree/ facts panel backed by moderator-only `POST /api/research`, which runs the llmsx `dr` research command on the API host (TASK-717).

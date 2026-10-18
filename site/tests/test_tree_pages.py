@@ -263,3 +263,9 @@ def test_tree_index_wires_the_facts_panel(fixture_dist):
         'data-facts="/downloads/concepts/available-reference.md"' in html
     assert 'data-slug="root" data-concept="Root" data-facts' not in html, \
         "a topic without a reference has no facts file to fetch"
+
+
+def test_tree_index_points_the_research_button_at_the_api(fixture_dist):
+    html = (fixture_dist / "tree" / "index.html").read_text()
+    assert 'id="facts-panel" class="facts-panel" aria-live="polite" data-api="https://' in html
+    assert "/api/research" in html, "the panel script calls the research endpoint"

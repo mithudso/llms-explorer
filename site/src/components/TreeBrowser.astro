@@ -225,12 +225,14 @@
 
         if (li.classList.contains("frontier")) {
           body.appendChild(el("p", "facts-empty", "Frontier concept: named as a child but not researched yet, so it has no facts file."));
+          body.appendChild(researchBox(li));
           return;
         }
         if (!li.dataset.facts) {
           const summary = node.summary || node.skillSummary;
           if (summary) body.appendChild(el("p", null, summary));
           body.appendChild(el("p", "facts-empty", "No facts file yet. Its children are listed below; a ● marks the ones that have facts."));
+          body.appendChild(researchBox(li));
           return;
         }
         body.appendChild(el("p", "facts-empty", "Loading facts…"));
@@ -250,6 +252,77 @@
           body.replaceChildren(el("p", "facts-empty", "Could not load the facts file. "));
           body.firstChild.appendChild(anchor("Open the page instead", `/tree/${li.dataset.slug}/`));
         }
+      }
+
+      // "Research this concept": a concept without facts can start a research
+      // run on the API (api/explorer_api/routes/research.py). Anyone sees the
+      // latest run's status; only a signed-in moderator can start one, and the
+      // API, not this page, is what enforces that.
+      const api = panel.dataset.api || "";
+      let poll = null;
+      const when = (iso) => (iso ? new Date(iso).toLocaleString() : "");
+      function describe(run) {
+        if (!run) return "";
+        if (run.status === "queued") return "Research run queued.";
+        if (run.status === "running") return `Research running since ${when(run.started_at)}.`;
+        if (run.status === "done") return `Research finished ${when(run.finished_at)}. Its facts appear here after the next site update.`;
+        if (run.status === "failed") return `Last research run failed${run.error ? `: ${run.error}` : ""}.`;
+        return `Research run: ${run.status}.`;
+      }
+      function researchBox(li) {
+        const wrap = el("div", "facts-research");
+        const button = el("button", "facts-research-btn", "Research this concept");
+        button.type = "button";
+        const status = el("p", "facts-research-status");
+        wrap.appendChild(button);
+        wrap.appendChild(status);
+        if (!api) { button.hidden = true; return wrap; }
+        const concept = li.dataset.concept;
+        const show = (run) => {
+          status.textContent = describe(run);
+          const active = run && (run.status === "queued" || run.status === "running");
+          button.hidden = Boolean(active);
+          clearTimeout(poll);
+          if (active) poll = setTimeout(check, 20000);
+        };
+        const check = () => {
+          if (current !== li) return;
+          fetch(`${api}/api/research?concept=${encodeURIComponent(concept)}`)
+            .then((r) => (r.ok ? r.json() : null))
+            .then((data) => { if (data && current === li) show(data.run); })
+            .catch(() => {});
+        };
+        button.addEventListener("click", () => {
+          button.disabled = true;
+          status.textContent = "Starting a research run…";
+          fetch(`${api}/api/research`, {
+            method: "POST",
+            credentials: "include",
+            headers: { "Content-Type": "application/json", "X-Requested-With": "XMLHttpRequest" },
+            body: JSON.stringify({ concept }),
+          })
+            .then(async (r) => {
+              button.disabled = false;
+              const data = await r.json().catch(() => ({}));
+              if (r.status === 202) return show(data);
+              status.replaceChildren();
+              if (r.status === 401) {
+                status.appendChild(anchor("Sign in", "/login/"));
+                status.appendChild(document.createTextNode(" as a moderator to start research runs."));
+              } else if (r.status === 403) {
+                status.textContent = "Only a moderator can start research runs.";
+              } else {
+                status.textContent = typeof data.detail === "string" ? data.detail
+                  : `The research run could not start (HTTP ${r.status}).`;
+              }
+            })
+            .catch(() => {
+              button.disabled = false;
+              status.textContent = "Could not reach the research service.";
+            });
+        });
+        check();
+        return wrap;
       }
 
       // A click on a name opens it and shows its facts. A click on an open,

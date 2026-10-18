@@ -74,6 +74,14 @@ also shows the path from the root, and each step in it is a link. The URL gains 
 link to `/tree/#<slug>` reopens the tree at that concept. On a narrow screen the panel sits
 directly under the opened name.
 
+A concept without a facts file, frontier names included, also offers **Research this concept**.
+The button asks the API (`POST /api/research`) to start a research run: the same quick `/dr` run
+the llmsx explorer starts from its research menu, on the machine that hosts the hub. Only a
+signed-in moderator can start one, because a run spends model and search budget. A visitor
+who is not signed in gets a sign-in link. Anyone can see the latest run's status in the panel:
+queued, running, finished or failed. A finished run's facts appear after the next site update,
+because this site is built from snapshots and does not query the hub at request time.
+
 The grey count after a name is what opening it reveals: `6 children · 1,671 total` means six
 names are drawn directly under it and 1,671 concepts sit anywhere below it. Frontier names are
 counted, because they are drawn. A concept named under two parents is drawn, and counted, once.
