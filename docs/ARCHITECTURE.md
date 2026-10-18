@@ -19,7 +19,7 @@ graph TD
 ## Architectural Components
 
 1. **Frontend (`site/`)**:
-   - Built with Astro (SSR + Static generation), TypeScript, and TailwindCSS.
+   - Built with Astro (SSR + Static generation) and TypeScript, styled with plain CSS (`site/src/styles/`).
    - Hosts the directory of llms.txt sources, 3D force-directed concept graph, documentation viewers, and account islands.
    - Postbuild tools generate twin format endpoints and llms.txt indexes.
 
