@@ -5,9 +5,9 @@ date: "2026-09-14"
 order: 27
 ---
 
-### How `concept-family-explorer`, the mdb-context-hub concept tree, and the `/dr` skill compose into a self-expanding expertise pipeline
+### How `concept-family-explorer`, the context hub concept tree, and the `/dr` skill compose into a self-expanding expertise pipeline
 
-**Status:** Technical report · **As of:** 2026-06-17 · **Audience:** skill/prompt engineers, agent-infrastructure maintainers **Provenance:** Every count and timestamp in this paper traces to a live `tam_concept_tree_*` query run while drafting, or to the session run-history. The mapping is in Appendix A. Figures that come from run-history rather than a live query are flagged inline with *(run-history)*.
+**Status:** Technical report · **As of:** 2026-06-17 · **Audience:** skill/prompt engineers, agent-infrastructure maintainers **Provenance:** Every count and timestamp in this paper traces to a live concept-tree query run while drafting, or to the session run-history. The mapping is in Appendix A. Figures that come from run-history rather than a live query are flagged inline with *(run-history)*.
 
 ---
 
@@ -16,7 +16,7 @@ order: 27
 An LLM agent that researches one topic at a time gets *deeper*; it does not get *broader*. Depth alone leaves blind spots — the agent never learns what it does not know to ask. This report documents a working system that closes that gap by separating three concerns that are usually tangled together:
 
 - **`concept-family-explorer` (CFE)** is the **breadth loop** — it maps the full conceptual family around a subject, finds the concepts that are *missing*, scores them, and dispatches research at each gap until the family is *saturated*.  
-- The **mdb-context-hub concept tree** is the **shared-state ledger** — a 431-node graph that records what has already been researched, how concepts relate, and how stale each one is. It is what makes "saturation" a measurable condition rather than a feeling.  
+- The **context hub concept tree** is the **shared-state ledger** — a 431-node graph that records what has already been researched, how concepts relate, and how stale each one is. It is what makes "saturation" a measurable condition rather than a feeling.  
 - **`/dr`** is the **depth worker** — it deep-researches a single topic, authors an expert skill from the findings, installs it, cross-links neighbors, and writes the result back into the tree.
 
 Composed, they form a closed loop: **breadth proposes, depth produces, the ledger remembers.** The remainder of this paper specifies each component, walks the control and data flow, and demonstrates the system with four real expansions taken from the live tree — the TypeScript language subtree (saturated over two runs to 13 concepts), the Node.js core family (grown from 10 to 20 spokes), the timestamped MongoDB build cascade of 2026-05-28 (≈17 expert skills authored between 15:09 and 16:41), and a fully saturated family folded into a single hub skill (markdown → `document-formats`, 8 sub-concepts). It closes with the system's real failure modes, the sharpest of which is concurrency between the scheduled auto-builder and a manual run.
@@ -61,11 +61,11 @@ The three components form a loop. CFE runs the outer cycle (breadth), `/dr` runs
                              │ reads coverage                   │    │ invokes
                              │ writes nodes                     │    ▼
             ┌────────────────▼─────────────────────┐     ┌──────────────────────────┐
-            │     mdb-context-hub CONCEPT TREE      │◀────│        /dr (worker)        │
+            │       context hub CONCEPT TREE        │◀────│        /dr (worker)        │
             │       — shared-state LEDGER —         │ (5) │  research ▶ author SKILL ▶  │
             │  431 nodes · accessed via             │write│  install ▶ cross-link      │
-            │  tam_concept_tree_{list,get,search,   │ back└─────────────┬──────────────┘
-            │  upsert,link,delete}                  │                   │ deep-research
+            │  six MCP tools: list, get,            │ back└─────────────┬──────────────┘
+            │  search, upsert, link, delete         │                   │ deep-research
             │                                       │                   ▼
             │  node = { concept, skillId,           │     ┌──────────────────────────┐
             │  parentConcept, childConcepts[],      │     │  firecrawl / exa / web     │
@@ -90,7 +90,7 @@ The three components form a loop. CFE runs the outer cycle (breadth), `/dr` runs
 
 ## 3. The concept tree: the shared-state ledger
 
-The concept tree is the component that makes the other two work, and it is the easiest to overlook because it does no "thinking." It is a persistent graph stored in the mdb-context-hub and reached through six MCP tools: `tam_concept_tree_list`, `_get`, `_search`, `_upsert`, `_link`, and `_delete`.
+The concept tree is the component that makes the other two work, and it is the easiest to overlook because it does no "thinking." It is a persistent graph stored in the context hub and reached through six MCP tools: concept-tree list, get, search, upsert, link, and delete.
 
 ### 3.1 Node schema
 
@@ -114,7 +114,7 @@ Every node is one researched concept:
 Three fields carry most of the weight:
 
 - **`parentConcept` / `childConcepts`** turn a flat list into a navigable family. CFE walks these edges to enumerate a neighborhood.  
-- **`researchedAt` / `refreshedAt`** make freshness queryable. `tam_concept_tree_list` accepts a `staleOnly` filter that returns nodes older than 90 days — the hook CFE uses to decide what to *re-*research, not just what to add. Re-research shows up as a `refreshedAt` stamp; for example, `TypeScript Expert` was first built 2026-05-25 and refreshed 2026-06-04, and `Document Critique` was refreshed 2026-05-29 over a 2026-05-25 base.  
+- **`researchedAt` / `refreshedAt`** make freshness queryable. The concept-tree list tool accepts a `staleOnly` filter that returns nodes older than 90 days — the hook CFE uses to decide what to *re-*research, not just what to add. Re-research shows up as a `refreshedAt` stamp; for example, `TypeScript Expert` was first built 2026-05-25 and refreshed 2026-06-04, and `Document Critique` was refreshed 2026-05-29 over a 2026-05-25 base.  
 - **`skillId`** is the join key between the tree and the installed skill registry — and the source of the most important structural nuance in the whole system (next section).
 
 ### 3.2 The tree is not the skill registry
@@ -144,7 +144,7 @@ The ledger plays two roles that the breadth loop depends on completely:
 
 **Step 3 — Install.** The skill is installed at user level (`~/.claude/skills/`) so it is available across sessions and projects, not just the one that built it.
 
-**Step 4 — Cross-link.** `/dr` seeds peer-deferral edges to related skills — the "see also / defer to" relationships that keep two neighboring skills from both trying to answer the same question. In the tree these show up as parent/child links written via `tam_concept_tree_link`.
+**Step 4 — Cross-link.** `/dr` seeds peer-deferral edges to related skills — the "see also / defer to" relationships that keep two neighboring skills from both trying to answer the same question. In the tree these show up as parent/child links written via the concept-tree link tool.
 
 **Step 5 — Write back.** A node is upserted into the concept tree with the concept name, the new `skillId`, its parent, its children, and the source count. This is the step that makes the work *visible to the breadth loop* — without it, CFE would re-propose the same gap on its next pass.
 
@@ -273,7 +273,7 @@ This system is not magic, and its sharp edges are worth stating plainly.
 
 ### 8.1 Concurrency: the scheduled builder vs. the manual run
 
-The most consequential failure mode: an **active scheduled CFE/auto-hub run and a manual run on the same subject collide** *(run-history)*. Two writers race against the same shared state, and because skill-building is deterministic, both produce the *same* concept — yielding **duplicate skills with different IDs**. Worse, the scheduler periodically syncs the hub and **prunes unpinned `tam_create_skill` builds**: a manually-built skill that was never pinned in the selection manifest can be silently garbage-collected by the next scheduled sync. The mitigation is operational, not architectural — before manual hub-building, check the registry's modification time and recent manifest pins for a concurrent writer, and always pin new builds.
+The most consequential failure mode: an **active scheduled CFE/auto-hub run and a manual run on the same subject collide** *(run-history)*. Two writers race against the same shared state, and because skill-building is deterministic, both produce the *same* concept — yielding **duplicate skills with different IDs**. Worse, the scheduler periodically syncs the hub and **prunes unpinned skill builds**: a manually-built skill that was never pinned in the selection manifest can be silently garbage-collected by the next scheduled sync. The mitigation is operational, not architectural — before manual hub-building, check the registry's modification time and recent manifest pins for a concurrent writer, and always pin new builds.
 
 ### 8.2 The write-back is an unlocked read-modify-write
 
@@ -307,21 +307,21 @@ The live tree is the evidence that the composition works at scale: a 431-node gr
 
 ## Appendix A — Provenance of cited numbers
 
-All live figures were read via the mdb-context-hub `tam_concept_tree_*` MCP tools while drafting (2026-06-17). "Live" \= direct tool output this session; "run-history" \= recorded in the operator run-log/session memory and confirmed in *shape* (but not exact magnitude) by the live tree.
+All live figures were read via the context hub's concept-tree MCP tools while drafting (2026-06-17). "Live" \= direct tool output this session; "run-history" \= recorded in the operator run-log/session memory and confirmed in *shape* (but not exact magnitude) by the live tree.
 
 | Claim | Value | Source |
 | :---- | :---- | :---- |
-| Total concept-tree nodes | 431 | `tam_concept_tree_list` (`total`) — live |
-| Total registry skills | 477 | `tam_recommend_skills` (`total`) — live |
-| `TypeScript Expert` child concepts / sources / refresh | 13 / 105 / 2026-06-04 | `tam_concept_tree_list` — live |
+| Total concept-tree nodes | 431 | Concept-tree list tool (`total`) — live |
+| Total registry skills | 477 | Skill-recommendation tool (`total`) — live |
+| `TypeScript Expert` child concepts / sources / refresh | 13 / 105 / 2026-06-04 | Concept-tree list tool — live |
 | TypeScript run sequence (1→10 spokes, 4→13, two runs) | — | run-history |
-| `JavaScript and Node.js` sources | 131 | `tam_concept_tree_list` — live |
-| Node.js new spokes + timestamps + per-node sources | per §6.2 table | `tam_concept_tree_search` — live |
+| `JavaScript and Node.js` sources | 131 | Concept-tree list tool — live |
+| Node.js new spokes + timestamps + per-node sources | per §6.2 table | Concept-tree search tool — live |
 | Node.js 10→20 spokes, 2026-06-02 saturation | — | run-history |
-| MongoDB cascade concepts, timestamps, child/source counts | per §6.3 table | `tam_concept_tree_list` — live |
-| `mongodb-upgrade-paths` 33 children / `mongodb-indexes-deep` 17 | 33 / 17 | `tam_concept_tree_list` — live |
-| Markdown family: 8 children, all `skillId: document-formats`, 2026-06-03 | 8 | `tam_concept_tree_search` — live |
-| LLM concepts with `parentConcept` llm-models but `skillId` ai-agent-engineering | — | `tam_concept_tree_search` — live |
+| MongoDB cascade concepts, timestamps, child/source counts | per §6.3 table | Concept-tree list tool — live |
+| `mongodb-upgrade-paths` 33 children / `mongodb-indexes-deep` 17 | 33 / 17 | Concept-tree list tool — live |
+| Markdown family: 8 children, all `skillId: document-formats`, 2026-06-03 | 8 | Concept-tree search tool — live |
+| LLM concepts with `parentConcept` llm-models but `skillId` ai-agent-engineering | — | Concept-tree search tool — live |
 | Hub-index reduction 413→187 | — | run-history |
 | Coverage-saturation threshold ≈3.2 | — | run-history |
 | Parallel-author / serial-write RMW lesson | — | run-history |
@@ -334,7 +334,7 @@ All live figures were read via the mdb-context-hub `tam_concept_tree_*` MCP tool
 | Breadth loop | `concept-family-explorer` | Map a family, score gaps, loop `/dr` to saturation |
 | Depth worker | `/dr` (deep-research-build) | Research → author skill → install → cross-link → write back |
 | Research engine | `deep-research` | Multi-source cited research (firecrawl/exa, web fallback) |
-| Shared ledger | concept tree via `tam_concept_tree_{list,get,search,upsert,link,delete}` | Persistent graph of researched concepts |
+| Shared ledger | concept tree via the concept-tree MCP tools (list, get, search, upsert, link, delete) | Persistent graph of researched concepts |
 | Tree↔skill join | `skillId` field | Many concept nodes → one hub skill |
 | Catalog shape | `skill-tree-architect` | Fold saturated families into hubs; keep the scan surface flat |
 | Terminal quality gate | `skill-optimizer` + `prompt-deep-optimizer` | Audit/verify/tighten new skills after saturation |

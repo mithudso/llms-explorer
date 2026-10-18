@@ -6,7 +6,7 @@
 
 Implementation write-ups with real numbers: what was run, on what, what came out, what the
 lint said, what we learned. Each post is a reproducible case study for one way of using the
-LLMS system (a customer's docs, a topical file, a concept abstraction), so the blog doubles as
+LLMS system (a product's docs, a topical file, a concept abstraction), so the blog doubles as
 the worked-example layer of the reference (03) and the marketing surface for the metered
 components (01, 02, 06, 07, 08).
 
@@ -26,10 +26,10 @@ components (01, 02, 06, 07, 08).
 
 ```
 ---
-title:            Turning a customer's docs into an llms family
+title:            Exporting four public docsets as llms families
 slug:             customer-docs-to-llms-family
 date:             2026-09-xx
-tags:             [export, split, customer]
+tags:             [export, split, docsets]
 components:       [01, 02]
 inputs:           [outputs/exports/developers.cloudflare.com.llms/manifest.json]
 verified-as-of:   2026-08-31

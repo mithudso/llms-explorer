@@ -2,12 +2,11 @@
 
 Extracted from: *Agentic Skill Optimization - Mitch Hudson.md*
 
-This folder originally contained 27 individual markdown files, organized by the original structure. Fourteen were removed on 2026-10-18 because their subject was customer data or an internal employer process; the numbering below is unchanged so the remaining drafts keep their numbers. Draft 28 (the raw Slack notes dump) was removed on 2026-10-02 and is not published. See "Publication status" below for where each draft went.
+This folder originally contained 27 individual markdown files, organized by the original structure. Fifteen were removed on 2026-10-18 because their subject was customer data or an internal employer process; the numbering below is unchanged so the remaining drafts keep their numbers. Draft 28 (the raw Slack notes dump) was removed on 2026-10-02 and is not published. See "Publication status" below for where each draft went.
 
 ## Part A: Start Here — Orientation & Live Demos
 
 1. **Orientation — Worked Examples: The Tooling Explains Itself** — Self-explaining examples of the tooling in action
-3. **The Deep Document Optimizer — A Live Run** — Full end-to-end session of the document optimizer
 
 ## Part B: Project Briefings — What Each System Is
 
@@ -36,7 +35,7 @@ This folder originally contained 27 individual markdown files, organized by the 
 
 ## File Statistics
 
-- **Total files**: 13 markdown documents (27 originally; 14 removed 2026-10-18)
+- **Total files**: 12 markdown documents (27 originally; 15 removed 2026-10-18)
 - **Total content**: ~5,800 lines
 - **Format**: Markdown with full formatting preserved
 - **Each file**: Independently readable article
@@ -58,7 +57,7 @@ The site copy is canonical once a draft is scheduled or published; these drafts 
 |---|---|---|
 | 01 | published | `site/src/content/blog/orientation-worked-examples-the-tooling-explains-itself.md` |
 | 02 | removed 2026-10-18 | draft and post deleted; subject was customer data or an internal employer process |
-| 03 | scheduled 2026-10-04 | `site/scheduled-posts/the-deep-document-optimizer-a-live-run.md` |
+| 03 | removed 2026-10-18 | draft and post deleted; its worked example was an internal employer document |
 | 04 | removed 2026-10-18 | draft and post deleted; subject was customer data or an internal employer process |
 | 05 | removed 2026-10-18 | draft and post deleted; subject was customer data or an internal employer process |
 | 06 | removed 2026-10-18 | draft and post deleted; subject was customer data or an internal employer process |
