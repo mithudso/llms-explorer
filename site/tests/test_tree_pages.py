@@ -246,3 +246,20 @@ def test_tree_section_advertises_its_published_twin():
 def test_the_home_page_links_the_tree():
     home = (DIST / "index.html").read_text()
     assert 'href="/tree/"' in home, "/tree/ must be one hop from the home page"
+
+
+def test_tree_index_counts_what_opening_a_branch_reveals(fixture_dist):
+    """The badge counts the children drawn under a node (frontier included) and
+    every concept below it — not only its direct researched children."""
+    html = (fixture_dist / "tree" / "index.html").read_text()
+    assert ">6 children</span>" in html, "Root draws 5 topics and 1 frontier name"
+    assert "6 drawn directly under this concept, 6 concepts anywhere below it" in html
+
+
+def test_tree_index_wires_the_facts_panel(fixture_dist):
+    html = (fixture_dist / "tree" / "index.html").read_text()
+    assert 'id="facts-panel"' in html
+    assert 'data-slug="available-reference" data-concept="Available reference" ' \
+        'data-facts="/downloads/concepts/available-reference.md"' in html
+    assert 'data-slug="root" data-concept="Root" data-facts' not in html, \
+        "a topic without a reference has no facts file to fetch"
