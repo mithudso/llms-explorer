@@ -2,11 +2,10 @@
 
 Extracted from: *Agentic Skill Optimization - Mitch Hudson.md*
 
-This folder originally contained 27 individual markdown files, organized by the original structure. Fifteen were removed on 2026-10-18 because their subject was customer data or an internal employer process; the numbering below is unchanged so the remaining drafts keep their numbers. Draft 28 (the raw Slack notes dump) was removed on 2026-10-02 and is not published. See "Publication status" below for where each draft went.
+This folder originally contained 27 individual markdown files, organized by the original structure. Twenty-three were removed on 2026-10-18: fifteen because their subject was customer data or an internal employer process, and eight because they were the pre-edit originals of posts that were then neutralised; the numbering below is unchanged so the remaining drafts keep their numbers. Draft 28 (the raw Slack notes dump) was removed on 2026-10-02 and is not published. See "Publication status" below for where each draft went.
 
 ## Part A: Start Here — Orientation & Live Demos
 
-1. **Orientation — Worked Examples: The Tooling Explains Itself** — Self-explaining examples of the tooling in action
 
 ## Part B: Project Briefings — What Each System Is
 
@@ -18,24 +17,17 @@ This folder originally contained 27 individual markdown files, organized by the 
 
 ## Part D: Technical Deep Dives
 
-17. **Implementing a Native macOS Meeting-Intelligence System** — System audio + on-device speech
-18. **State That Survives the Session** — Durable state across sessions
 19. **Markdown as the LLM Output Gateway** — Tokens → AST → render pipeline
-20. **Legible by Construction — Automated Docs, Indexes, Logging** — Systems that stay legible
-21. **Automated Auditing and Security-First Software Design** — Security from the start
-22. **Building Codebases for Machine Collaborators** — Structuring for AI navigation
 
 ## Part E: The Skill System — Architecture & Method
 
 25. **The Hub-and-Spoke Skill Methodology** — Taming skill sprawl
-26. **Semantic Skill Discovery and the Optimizer Family** — Hub finding and skill matching
-27. **A Closed-Loop System for Autonomous Skill-Knowledge Acquisition** — Self-expanding expertise
 
 ---
 
 ## File Statistics
 
-- **Total files**: 12 markdown documents (27 originally; 15 removed 2026-10-18)
+- **Total files**: 4 markdown documents (27 originally; 23 removed 2026-10-18)
 - **Total content**: ~5,800 lines
 - **Format**: Markdown with full formatting preserved
 - **Each file**: Independently readable article
@@ -55,7 +47,7 @@ The site copy is canonical once a draft is scheduled or published; these drafts 
 
 | Draft | Status | Site file |
 |---|---|---|
-| 01 | published | `site/src/content/blog/orientation-worked-examples-the-tooling-explains-itself.md` |
+| 01 | removed 2026-10-18 | pre-edit draft deleted; the published post is canonical |
 | 02 | removed 2026-10-18 | draft and post deleted; subject was customer data or an internal employer process |
 | 03 | removed 2026-10-18 | draft and post deleted; its worked example was an internal employer document |
 | 04 | removed 2026-10-18 | draft and post deleted; subject was customer data or an internal employer process |
@@ -71,17 +63,17 @@ The site copy is canonical once a draft is scheduled or published; these drafts 
 | 14 | removed 2026-10-18 | draft and post deleted; subject was customer data or an internal employer process |
 | 15 | removed 2026-10-18 | draft and post deleted; subject was customer data or an internal employer process |
 | 16 | removed 2026-10-18 | draft and post deleted; subject was customer data or an internal employer process |
-| 17 | published | `site/src/content/blog/implementing-a-native-macos-meeting-intelligence-system.md` |
-| 18 | published | `site/src/content/blog/state-that-survives-the-session.md` |
+| 17 | removed 2026-10-18 | pre-edit draft deleted; the published post is canonical |
+| 18 | removed 2026-10-18 | pre-edit draft deleted; the published post is canonical |
 | 19 | published | `site/src/content/blog/markdown-as-the-llm-output-gateway.md` |
-| 20 | published | `site/src/content/blog/legible-by-construction-automated-docs-indexes-logging-and-test-centric-design.md` |
-| 21 | published | `site/src/content/blog/automated-auditing-and-security-first-software-design.md` |
-| 22 | published | `site/src/content/blog/building-codebases-for-machine-collaborators.md` |
+| 20 | removed 2026-10-18 | pre-edit draft deleted; the published post is canonical |
+| 21 | removed 2026-10-18 | pre-edit draft deleted; the published post is canonical |
+| 22 | removed 2026-10-18 | pre-edit draft deleted; the published post is canonical |
 | 23 | removed 2026-10-18 | draft and post deleted; subject was customer data or an internal employer process |
 | 24 | removed 2026-10-18 | draft and post deleted; subject was customer data or an internal employer process |
 | 25 | held 2026-10-02 (incomplete; author hold) | `docs/future_posts/held/the-hub-and-spoke-skill-methodology.md` (redacted, ddo'd; move to `site/scheduled-posts/` with a new `date` to release) |
-| 26 | published | `site/src/content/blog/semantic-skill-discovery-and-the-optimizer-family.md` |
-| 27 | published | `site/src/content/blog/a-closed-loop-system-for-autonomous-skill-knowledge-acquisition.md` |
+| 26 | removed 2026-10-18 | pre-edit draft deleted; the published post is canonical |
+| 27 | removed 2026-10-18 | pre-edit draft deleted; the published post is canonical |
 | 28 | removed 2026-10-02 | raw Slack notes; never published |
 
 ---
