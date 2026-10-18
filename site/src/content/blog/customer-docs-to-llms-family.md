@@ -1,8 +1,8 @@
 ---
-title: "Turning a customer's docs into an llms family"
+title: "Exporting four public docsets as llms families"
 description: "An August docset acquisition and export case study, with stored llms.txt families, dated figure snapshots, and the limits of their verification."
 date: "2026-09-01"
-tags: [export, split, customer]
+tags: [export, split, docsets]
 sources:
   - outputs/exports/developers.cloudflare.com.llms/manifest.json
   - outputs/exports/developer.paypal.com.llms/manifest.json
@@ -112,7 +112,7 @@ that is itself a site dump). After `build_split_index`, the estate gate reported
   because those pages carry no definition unit the extractor can turn into one. This is a
   generator gap (a description fallback from the page's H1 and first sentence is the fix), not
   a lint false positive.
-- PayPal also trips `P5` (secrets) on a real-looking RSA private key printed in its own docs.
+- One docs site trips the `P5` (secrets) check on sample key material printed in its own docs.
   The lint keeps that High on purpose: whether to publish a third party's key material in a
   facts file is a human decision, not a regex's.
 

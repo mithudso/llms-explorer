@@ -15,11 +15,9 @@ sources:
   - ~/dev/llm-memory-pyramid/llm_extractor.py
   - ~/dev/llms-explorer/hub/scripts/docset_refine/export_llms.py
   - ~/dev/llms-explorer/outputs/llms-concepts/EVAL-NOTES-2026-08-31.md
-  - ~/dev/mdb-context-hub/mcp-server/src/tool-search-config.ts
   - ~/dev/COG-second-brain/docs/SKILL-DISTILLATION.md
   - ~/dev/skills/skill-consolidation/INDEX-ARCHITECTURE.md
   - ~/dev/net-dns-monitor/netdnsmonitor/anthropic_escalator.py
-  - ~/dev/mdb-tam/server/src/live/recommender.js
   - ~/.global-ai-hub/scripts/semantic_ops/ask.py
 ---
 
@@ -29,7 +27,7 @@ sources:
 
 ## Abstract
 
-I collected the token-saving techniques recorded in my stack and linked them to code, configuration or run notes. This is a September 27 snapshot: current-looking settings and counts below refer to that date. Later checks can confirm an implementation without reproducing a historical saving. The private replay inputs, routing-probe outputs and several historical binary snapshots are not published, so their measured claims remain author-recorded results. The result is 57 sections, several of which hold more than one technique. They fall into six groups:
+I collected the token-saving techniques recorded in my stack and linked them to code, configuration or run notes. This is a September 27 snapshot: current-looking settings and counts below refer to that date. Later checks can confirm an implementation without reproducing a historical saving. The private replay inputs, routing-probe outputs and several historical binary snapshots are not published, so their measured claims remain author-recorded results. The result is 54 sections, several of which hold more than one technique. They fall into six groups:
 
 1. **Always-on harness overhead:** what Claude Code loads before I type anything.
 2. **Skill-listing engineering:** folding hundreds of standalone skills into hubs, so referenced content stays reachable with fewer listing entries when the loader does not independently discover nested entrypoints.
@@ -93,10 +91,10 @@ With `skillListingMaxDescChars: 300` set, the listing the model receives ends ea
 ### 1.4 Description caps for hubs: 1000 and 1536
 
 - **Mechanism.** The consolidation toolchain audits hub descriptions against two tiers:
-  - **>1000 characters is Medium.** 1000 is the import cap of Glean, the enterprise search tool at my employer that indexes these skills.
+  - **>1000 characters is Medium.** 1000 is the import cap of a downstream indexer that ingests these skills.
   - **>1536 characters is High.** 1536 is the harness default truncation.
   - The audit tools are `audit-placement.mjs --desc-cap` and `meta-validate.mjs`. `audit-placement.mjs` reports each hub's percentage of the cap.
-- **Which cap applies where.** The 1000 and 1536 tiers govern the stored description, which Glean imports and which the harness shows up to 1536 characters of when `skillListingMaxDescChars` is unset. With my 300-character setting, the live listing shows only the first ~250 characters (section 1.2), so order matters more than total length: routing words go first.
+- **Which cap applies where.** The 1000 and 1536 tiers govern the stored description, which that indexer imports and which the harness shows up to 1536 characters of when `skillListingMaxDescChars` is unset. With my 300-character setting, the live listing shows only the first ~250 characters (section 1.2), so order matters more than total length: routing words go first.
 - **Hard rule:** never delete spoke keywords to get under the cap. At session start the model sees only a hub's name and description, so the spoke enumeration *is* the routing signal. Compress the prose instead.
 - **Measured:**
   - On 2026-06-01, 19 hub descriptions came down from over 1536 to under it, with zero remaining over (`skill-taxonomy-restructure-2026-06.md:10-23`).
@@ -115,7 +113,7 @@ With `skillListingMaxDescChars: 300` set, the listing the model receives ends ea
 ### 1.6 Deferred MCP tools and Tool Search
 
 - **Mechanism.** MCP tool schemas are not loaded up front. Only tool names are listed, and a `ToolSearch` call such as `select:a,b,c` fetches full JSONSchema definitions on demand. The Chrome MCP server's own instructions ask for *one* batched ToolSearch call, because "each separate ToolSearch call wastes a full round-trip."
-- **In my own MCP server** (`mdb-context-hub`):
+- **In my own MCP server** (the context hub):
   - It has about 124 tools. 8 `HOT_TOOLS` are always loaded, and the rest are `defer_loading: true`.
   - The config recommends `ENABLE_TOOL_SEARCH=auto:5` (about 5% of context) instead of the default of about 10%. On a 1M-token window, the default threshold "is far too high to ever fire in practice."
   - The notes assert a tool-selection accuracy cliff at 30–50 tools, without an evaluation dataset here (`tool-search-config.ts:20-45`).
@@ -158,7 +156,7 @@ With `skillListingMaxDescChars: 300` set, the listing the model receives ends ea
 ### 1.10 Subagent model routing
 
 - **Mechanism.** `env.CLAUDE_CODE_SUBAGENT_MODEL=sonnet` sets the default model for subagents. Agent definitions pin their own model in frontmatter.
-- **Counts:** 19 pin `sonnet` and 3 pin `opus` (the two account pipelines and the MongoDB diagnostician). One pins a dated Sonnet (`~/.claude/agents/*.md`).
+- **Counts:** 19 pin `sonnet` and 3 pin `opus`. One pins a dated Sonnet (`~/.claude/agents/*.md`).
 - **Audit:** a cost audit found 13 agents or skills pinned to Opus that could run on Sonnet (`.remember/today-2026-06-05.done.md:2`, `today-2026-06-21.done.md:2`).
 - **Per-skill tiers.** `skill-optimizer` asks each skill author to declare the cheapest model and effort that suffice: mechanical work on Haiku at low effort, routine transforms on Sonnet at medium, judgment-heavy work on Opus at high or xhigh. The `/ce` cost-estimator alias, a thin pass-through, declares `model: claude-haiku-4-5, effort: low`. Two TUIs carry the same table in code as `_EFFORT_MODEL_PRESETS` (`story-tui/skills/skill-optimizer/SKILL.md:186-194`; `skills/ce/SKILL.md:5-6`).
 
@@ -295,13 +293,6 @@ Identical requests that are in flight at the same time share one upstream fetch,
 - The client is built with `max_retries=0` instead of the SDK default of 2, so the SDK does not automatically repeat failed or timed-out attempts. A repeat can create extra work, but billing depends on whether the provider processed the request (`anthropic_escalator.py:20-33`).
 - The 1,884-test suite opens no sockets; the escalator is injected as a plain callable and faked, so CI spends zero API tokens (`net-dns-monitor/CLAUDE.md:29-32,85-87`).
 
-### 3.7 Poll less, trigger once, fetch nothing live
-
-- **Cheaper health probe.** `mdb-case-assistant`, one of my browser-extension tools for support-case work (`mdb-tam` is its account-dashboard sibling), replaced a four-request MCP handshake probe that ran every 60 s, and was tripping Glean's IP rate limit, with one lightweight GET cached for 5 minutes and polled every 5 minutes (commit `eaeb3e9`).
-- **Cooldowns and content hashes.** A 30-second per-case cooldown stops three separate triggers from re-analyzing the same case within seconds (commit `9e2e6c9`), and `ingestion-envelope.js` skips identical content by SHA-256 (commit `56fda6c`).
-- **Batching events.** A Chrome alarm flushes buffered Slack and staleness events every 15 minutes instead of calling per event (commit `5af4d1b`).
-- **Pre-staged inputs.** A 244-case evaluation forbids live case lookups during prediction; two pre-staged files are "the entire input surface" (private evaluation prompt, lines 14–15).
-
 ---
 
 ## Part 4 — Moving work to cheaper or local models
@@ -328,7 +319,7 @@ No repo in the infrastructure set calls a paid embedding API:
 
 - **NapMem** (the memory-pyramid store from `llm-memory-pyramid`, section 5.9) uses Ollama. It falls back to `HashedTfBackend`, a 512-dimension, md5-bucketed, l2-normalized bag of words that needs no network.
 - **distillers** uses `mxbai-embed-large` and falls back to `difflib`.
-- **mdb-context-hub** embeds skills in-process with `Xenova/bge-small-en-v1.5` (384-dimension) and embeds prose with `qwen3-embedding:4b`. Cosine and hybrid blending are plain TypeScript, with no vector DB.
+- **The context hub** embeds skills in-process with `Xenova/bge-small-en-v1.5` (384-dimension) and embeds prose with `qwen3-embedding:4b`. Cosine and hybrid blending are plain TypeScript, with no vector DB.
 
 ### 4.4 A weighted LAN embedding pool
 
@@ -358,7 +349,6 @@ No repo in the infrastructure set calls a paid embedding API:
 ### 4.8 Cheapest model first, escalate on hard cases
 
 - `net-dns-monitor` defaults to Haiku and falls back to Sonnet only when the offline classifier returns `"unclassified"` (`anthropic_escalator.py:5-8,18-19`).
-- `mdb-tam` sends low-stakes to-do audits to locally authenticated CLI tools first (`gemini_cli`, `copilot_cli`) and reaches the paid API only after them (`service-worker.js:1607-1639`).
 - A research harness assigns Opus only to named node classes (foundations, the causal-inference subtree), runs everything else on Sonnet, and gates QA on Haiku (private research harness, lines 73–84).
 
 ---
@@ -387,7 +377,7 @@ No repo in the infrastructure set calls a paid embedding API:
 
 ### 5.3 Distill a source only after it earns it
 
-`/dr` counts touches per host. On the 3rd or 4th touch it runs `/distill-offline` in corpus mode, and from then on it reads the distilled list. After a re-crawl, `--diff` re-distills only the changes. A host touched once or twice "never earns back the distill pass's own cost." The break-even point is labeled "computed, not measured" (`mdb-context-hub/memory.md:742,751`).
+`/dr` counts touches per host. On the 3rd or 4th touch it runs `/distill-offline` in corpus mode, and from then on it reads the distilled list. After a re-crawl, `--diff` re-distills only the changes. A host touched once or twice "never earns back the distill pass's own cost." The break-even point is labeled "computed, not measured" (the context hub's `memory.md:742,751`).
 
 ### 5.4 The four-file llms family
 
@@ -426,9 +416,6 @@ No repo in the infrastructure set calls a paid embedding API:
 | Keyword index vs embedding, per file | `keyword_max_chars` / `max_content_chars` | 200,000 vs 4,000 chars |
 | Log evidence sent to a model | `net-dns-monitor` `MAX_OUTBOUND_LOG_LINES` | last 200 lines × 300 chars |
 | Output per incident diagnosis | `net-dns-monitor` `max_tokens` | 512 |
-| Output per `mdb-tam` call type | `maxTokens` | 120 (one sentence), 512 (dedup JSON), 1,024 (live recommender), 4,096 (reports) |
-| Prompt attachments | `mdb-tam` `normalizePromptAttachmentText` | 30,000 chars each, 8 max, 120,000 total |
-| MCP result counts | `mdb-tam` / `mdb-case-assistant` `limit` clamps | 100, 50, 500, 1,000 by tool |
 | Diff under review | `prompt-deep-optimizer` worked example | most recent 1,500 lines |
 | External fact checks | story-context skill | 5 per run |
 
@@ -470,23 +457,11 @@ The llms-explorer site sends `X-Markdown-Tokens` on every Markdown twin, compute
 
 ### 5.11 Designing prompts for the cache
 
-- **Stable prefix, volatile tail.** A generator for technical-account-manager (TAM) account-context files keeps about **4,500 tokens** of instructions, schema and examples as a cacheable prefix and appends only the per-account inputs. The split is drawn on a section-header phrase, because the `«Account inputs»` token recurs inside the prompt and would move the boundary; metadata moved to a footer for the same reason (auto-memory `account-context-optimization-kit.md:16,18`).
-- **Breakpoints in app code.** `mdb-tam`'s live recommender tags a stable system block and a per-account rolling preamble (account id, window metadata, up to 20 hot cases, stable across a ~60 s debounce) with `cache_control: {type: 'ephemeral'}`. The per-call live snapshot (last 40 transcript segments, last 30 Slack messages) stays uncached because it changes every call (`recommender.js:132-181,190-253`).
-- **Order untrusted input last.** A `prompt-deep-optimizer` worked example moved a `<diff>` block from before the fixed instructions to after them, because leading with it broke the stable prefix (`SKILLS-OPTIMIZATION-GUIDE.md:294-355`).
+- **Stable prefix first, untrusted input last.** A `prompt-deep-optimizer` worked example moved a `<diff>` block from before the fixed instructions to after them, because leading with it broke the stable prefix (`SKILLS-OPTIMIZATION-GUIDE.md:294-355`).
 
-### 5.12 An overflow fixed by stripping and batching
+### 5.12 Tell agents what a file is before they open it
 
-About 3,000 roadmap items in one ranking prompt produced a **1.78M-token** JSON envelope against a 1M-token window. The fix removed each item's ~600-character signed preview URL, which "adds zero ranking signal", kept it in a local id-to-url map, and reattached it after scoring. It then ranked in batches of 200 items, 3 at a time, each "comfortably under 100k tokens" (`mdb-tam` commit `dfe9879`).
-
-### 5.13 Bounding what an app pulls into context
-
-- **Segment cache.** `mdb-tam` caches account context segment by segment in IndexedDB with TTLs from 2 to 20 minutes by type, invalidated by TTL, version bump or manual refresh (`docs/caching-and-optimization.md:184-247`).
-- **Age bounds.** `PROMPT_SCOPE_MAX_AGE_DAYS` limits each segment's window (Slack 30 days, meetings 120, cases 365), "so the corpus can grow unboundedly without inflating every context build" (`caching-and-optimization.md:295-317`).
-- **Dedup and truncation.** `optimizeContextData()` dedupes cases, Slack, meetings and to-dos with `uniqBy()`, truncates document fields to 420 or 320 characters, caps arrays at 12, and reports `savedBytes` per call (`preprocessor.js:2935-3095`).
-
-### 5.14 Tell agents what a file is before they open it
-
-- **File summaries.** `docs/high_signal_file_index.json` gives every tracked file a role, a signal rating and a one-line summary, so an agent can skip a built bundle marked `"signal": "low", "opaque": true` when the task does not require inspecting it. Curated "read this first" lists run to 104 files in one repo and 159 in another (`json-3d-renderer/docs/high_signal_file_index.json`; `solmargintrader/index/README.md:29-37`; `safesite-customer-tracker/docs/llms/llms-indexes.txt:9,44`).
+- **File summaries.** `docs/high_signal_file_index.json` gives every tracked file a role, a signal rating and a one-line summary, so an agent can skip a built bundle marked `"signal": "low", "opaque": true` when the task does not require inspecting it. One repo's curated "read this first" list runs to 104 files (`json-3d-renderer/docs/high_signal_file_index.json`; `solmargintrader/index/README.md:29-37`).
 - **Index hygiene.** The global hub's `excluded_dirs` and `excluded_dir_suffixes` keep vendored and regenerable content out of the index. The config comment records why: one deleted Xcode beta had put **67,503 SDK headers** into it (`.global-ai-hub/config.yaml:29-70`).
 
 ---
@@ -506,12 +481,11 @@ In COG-second-brain, a worker whose output would be 2K tokens or more writes it 
 
 - **Checkpoint every batch to disk.** Batches 21–50 of one research fan-out were never persisted and were lost when the session archived (`project-2026-09-14-frontier-batch-orphaned.md`).
 - **Shared output directory rules.** When subagents share an output directory, briefs say "Read and Write only; never Bash; never delete." One Bash-capable agent recreated the directory and **destroyed 70 of 95 already-paid-for cards** (`feedback-subagent-shared-dir-wipe.md:11-15`).
-- **Flush small batches.** A 244-case evaluation runs 40 cases per batch and writes each batch to disk, because "a single agent emitting hundreds of prediction + grade records in one context can silently truncate" (`evaluation-prompt-parallel.md:21,44`).
 - **Size batches by bytes, not item counts.** Otherwise you hit "Prompt is too long" or the 64,000-token output cap (`feedback-subagent-context-and-output-caps.md`).
 
 ### 6.4 When not to fan out
 
-In mdb-case-assistant, **6 of 10** delegated subagents failed (connection closed or a 600 s stall), mostly after finishing analysis but before writing output. The default flipped to working inline, because delegation's expected cost (wasted turns and context) had passed the cost of doing the work directly (`work-inline-not-subagents.md:15-38`).
+In one of my own tools, **6 of 10** delegated subagents failed (connection closed or a 600 s stall), mostly after finishing analysis but before writing output. The default flipped to working inline, because delegation's expected cost (wasted turns and context) had passed the cost of doing the work directly (`work-inline-not-subagents.md:15-38`).
 
 ### 6.5 Search before reading
 
@@ -519,7 +493,7 @@ In mdb-case-assistant, **6 of 10** delegated subagents failed (connection closed
 - **The cheap path.** Beside the ChromaDB vectors, an FTS5 (BM25) keyword index answers exact identifiers, error strings and flags **with no embedding call** (`hub_query_docset(mode="keyword")`). `mode="hybrid"` fuses both with reciprocal rank fusion (RRF) (`keyword_index.py:1-21`).
 - **Routing by search.** `hub_route` picks the skill, agent or MCP tool for a task by semantic search over stored descriptions in `registry.db`, instead of an agent reading every candidate (`.global-ai-hub/docs/MCP.md:26`). A per-repo variant, used in `net-dns-monitor` and `json-3d-renderer`, indexes 1,000-character chunks with 200 overlap into a local Chroma store behind a `search_codebase` tool (`scripts/semantic_indexer.py:19-20`).
 - **Other no-embedding lookups:**
-  - mdb-context-hub scores skills with a weighted keyword match (id ×5, title ×4, description ×3, and so on) with no embeddings.
+  - The context hub scores skills with a weighted keyword match (id ×5, title ×4, description ×3, and so on) with no embeddings.
   - It memoizes query-term expansion in a 256-entry map (`service.ts:171-259,488-506`).
 
 ### 6.6 Model effort and prompting
@@ -528,7 +502,6 @@ In mdb-case-assistant, **6 of 10** delegated subagents failed (connection closed
 
 ### 6.7 Bound the reviewers
 
-- An evaluation architecture runs a single judge per run and leaves multi-judge ensembles out of scope (private evaluation architecture, lines 135–137).
 - The shared cross-model gate allows one `copilot -p` review per run and hardcodes a model-ID fallback "to save one CLI round-trip" (`cross-model-gate.md:26-35`).
 - `prompt-deep-optimizer` routes one-off prompts under about 600 tokens to a lighter command. `skill-optimizer` measures trigger accuracy with a fixed 20-query eval (target at least 9/10 true positives, at most 1/10 false positives) rather than an open-ended one (`SKILLS-OPTIMIZATION-GUIDE.md:294-296,355-363`).
 

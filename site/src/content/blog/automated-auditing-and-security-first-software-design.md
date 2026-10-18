@@ -1,13 +1,13 @@
 ---
 title: "Automated Auditing and Security-First Software Design"
-description: "A whitepaper on pairing security-first design with automated CI/CD auditing, using a candid case study of advisory-not-blocking dependency scanning to argue a staged, ratcheted adoption path."
+description: "A whitepaper on pairing security-first design with automated CI/CD auditing, and on a staged, ratcheted adoption path from advisory to blocking checks."
 date: "2026-09-11"
 order: 21
 ---
 
 *Why security is a property you build in, not a gate you bolt on — and how automated auditing makes "secure by design" enforceable instead of aspirational.*
 
-**A practitioner whitepaper. As of 2026-06-17.** Audience: engineers, tech leads, and the people who own a codebase's CI/CD. Vendor-neutral; no product is being sold. The running example is this repository (`mdb-context-hub`), used honestly — including where it falls short.
+**A practitioner whitepaper. As of 2026-06-17.** Audience: engineers, tech leads, and the people who own a codebase's CI/CD. Vendor-neutral; no product is being sold.
 
 ---
 
@@ -45,7 +45,7 @@ Before proposing a model, an honest review of the approaches teams actually use 
 
 **Turning on every scanner at once.** The opposite failure. A team enables SAST, DAST, SCA, and secret scanning in a week, every check blocking, and is immediately buried. Static analysis tools are notorious for false positives; a blocking gate with a high false-positive rate trains engineers to disable, ignore, or rubber-stamp it. A control that everyone has learned to bypass is worse than no control, because it also produces a false sense of coverage.
 
-**Documentation as the security control.** A `SECURITY.md` that describes a trust boundary, with nothing that fails when the boundary is violated, is commentary. It ages, it drifts, and it is contradicted by the code it claims to describe. (This paper's companion review of `mdb-context-hub` found exactly this: prose docs asserting "122 tools" while the code had grown to 123, because no gate watched the prose.)
+**Documentation as the security control.** A `SECURITY.md` that describes a trust boundary, with nothing that fails when the boundary is violated, is commentary. It ages, it drifts, and it is contradicted by the code it claims to describe. (A familiar version: prose docs that assert a count or a boundary the code has since outgrown, because no gate watched the prose.)
 
 The common thread: each approach relies on a human being vigilant at a moment in time. Vigilance does not scale, does not survive turnover, and cannot keep pace with continuous delivery. The fix is to move the checks into the pipeline and the security decisions into the design.
 
@@ -85,21 +85,7 @@ Beyond detection sits **auto-remediation**: Dependabot opening the version-bump 
 
 **Supply-chain integrity** is the newest and fastest-moving layer. A Software Bill of Materials (SBOM) in SPDX or CycloneDX format inventories what is actually in your build. SLSA (Supply-chain Levels for Software Artifacts, from the OpenSSF) defines graduated levels of build-provenance assurance, and tools like Sigstore and in-toto make that provenance signable and verifiable. NIST's Secure Software Development Framework (SP 800-218), pulled into US federal procurement by Executive Order 14028, has made SBOMs and provenance a baseline expectation rather than a maturity-model aspiration.
 
-## 5. Proof: a candid look at one real pipeline
-
-**Case study — `mdb-context-hub`**
-
-This repository is a useful specimen precisely because it is a normal working project, not a security showcase. Its companion review (`docs/security-audit-implementation-review.md`) details the findings; the summary here illustrates the model.
-
-**What it does well by construction.** Its strongest control is not labeled "security" at all. Every server tool is registered through a single telemetry wrapper that **redacts arguments before they are written to disk** — so secret/PII hygiene in logs is a property of the architecture (one wrapper, no exceptions), not a rule each author must remember. It maintains an audited register of every outbound network call (`docs/external-calls.md` plus an operations-registry audit), which is egress-allowlisting expressed as enforced documentation. And a CI step asserts the committed tool inventory matches the live code, failing the build on drift — a *blocking policy-as-code check*, applied here to capability inventory but structurally identical to a security gate.
-
-**Where it falls short — honestly.** Its dependency audit (`npm audit --audit-level=moderate`) runs in CI but is marked `continue-on-error: true`: it is **advisory, not blocking**, so a moderate-or-higher CVE does not stop a merge — and as of this writing the audit reports 9 live advisories (including 2 critical and 5 high) sitting behind that inert gate. There is no SAST (no CodeQL/Semgrep), no dedicated secret-scanning step, and no SBOM or build provenance. Dependency *detection* exists; dependency *enforcement* does not yet.
-
-**The lesson.** This is a typical and reasonable mid-maturity posture: good architectural hygiene, detection turned on, enforcement deferred. The path forward is not "buy more tools" — it is to *ratchet the controls it already has from advisory to blocking* once the noise is understood, and to add the two highest-value missing checks (secret scanning, then SAST). That ordering is the recommendation of Section 6.
-
-The case study makes the paper's central claim concrete: the repo's best security control is a *design* decision (redaction in the middleware), and its enforcement gaps are *pipeline* decisions (advisory instead of blocking). Design and automation are the two halves, and a real project is usually stronger in one than the other.
-
-## 6. Implementation: a staged adoption path
+## 5. Implementation: a staged adoption path
 
 Security-first practice fails most often from being adopted all at once. A workable sequence:
 
@@ -112,7 +98,7 @@ Security-first practice fails most often from being adopted all at once. A worka
 
 **Metrics that mean something** (and a warning against the ones that do not): track *escape rate* (vulns found in production that a gate should have caught), *mean time to remediate* by severity, and *percent of checks in blocking mode*. Do **not** optimize raw finding counts — a tuned pipeline with fewer, higher-confidence findings beats a noisy one with thousands, and "number of alerts" rewards exactly the noise you are trying to eliminate. Maturity models — OWASP SAMM, BSIMM — exist to benchmark this progression if you want an external yardstick.
 
-## 7. Costs and honest limits
+## 6. Costs and honest limits
 
 | Cost / limit | Why it is real | Mitigation |
 | :---- | :---- | :---- |
@@ -124,11 +110,11 @@ Security-first practice fails most often from being adopted all at once. A worka
 
 The sharpest limit deserves emphasis: **automated auditing is necessary and insufficient.** It raises the floor — no known-vulnerable dependency, no committed secret, no insecure default ships unnoticed — but the ceiling is still set by design. The authentication-bypass that comes from a flawed trust model, the data leak that comes from an over-broad scope, the logic flaw an attacker chains together: no off-the-shelf scanner has a rule for your specific mistake. That is the irreducible human job, and it is the design half of this paper.
 
-## 8. Conclusion and next steps
+## 7. Conclusion and next steps
 
 Security stops being a periodic event and becomes a property of the system when two things are true at once: the architecture is designed to be secure (least privilege, secure defaults, a known trust boundary, threat-modeled at design time), and the pipeline audits every change automatically (dependencies, secrets, source, config, provenance), ratcheting from advisory to blocking as trust in each signal grows. Neither half suffices alone. Design without automation decays; automation without design drowns.
 
-For a team starting from a typical mid-maturity posture — detection on, enforcement deferred, like the case study here — the next three steps are concrete and ordered: **(1)** promote the check that's already in place — usually SCA — from advisory to blocking on high/critical severity; **(2)** add the highest-value missing check (secret scanning first, then a curated SAST rule set) in advisory mode, and ratchet each to blocking once its signal is trusted; **(3)** put "what can go wrong?" into the design-review template so the human catch happens before the code exists. None of these requires a large budget. All of them move security from something a person remembers to do toward something the system enforces on its own.
+For a team starting from a typical mid-maturity posture — detection on, enforcement deferred — the next three steps are concrete and ordered: **(1)** promote the check that's already in place — usually SCA — from advisory to blocking on high/critical severity; **(2)** add the highest-value missing check (secret scanning first, then a curated SAST rule set) in advisory mode, and ratchet each to blocking once its signal is trusted; **(3)** put "what can go wrong?" into the design-review template so the human catch happens before the code exists. None of these requires a large budget. All of them move security from something a person remembers to do toward something the system enforces on its own.
 
 ---
 
@@ -144,7 +130,6 @@ For a team starting from a typical mid-maturity posture — detection on, enforc
 8. Shostack, A. *Threat Modeling: Designing for Security*. Wiley, 2014; and the *Threat Modeling Manifesto* (2020).  
 9. Microsoft. *Security Development Lifecycle (SDL)* and the origin of STRIDE (Kohnfelder & Garg, 1999).  
 10. Synopsys. *Building Security In Maturity Model (BSIMM)*.  
-11. Open Policy Agent (OPA) / Conftest — CNCF policy-as-code.  
-12. Companion document: `docs/security-audit-implementation-review.md` (this repository's current-state audit) and `docs/architecture-review-legible-and-test-centric-systems.md` (the verifiable-by-construction argument this paper builds on).
+11. Open Policy Agent (OPA) / Conftest — CNCF policy-as-code.
 
-*Author's note: this is an internal practitioner whitepaper, not a sponsored or gated asset. Framework names and standards are cited for accuracy; verify version-specific details (e.g., current SLSA levels, SSDF revision) against the source before relying on them in an audit.*
+*Author's note: this is a practitioner whitepaper, not a sponsored or gated asset. Framework names and standards are cited for accuracy; verify version-specific details (e.g., current SLSA levels, SSDF revision) against the source before relying on them in an audit.*

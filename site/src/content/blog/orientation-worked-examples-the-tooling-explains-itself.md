@@ -49,13 +49,13 @@ Now the six, grouped by what they target.
 
 **Target:** an entire repository's scaffolding and meta-docs (not its logic).
 
-This is the odd one out — it's a standard-enforcer, not a critique-loop. It brings any repo up to your "mdb-tam standard": refreshes CLAUDE.md, AGENTS.md, README indices, .github/, .vscode/, .editorconfig, .gitignore, dependabot, CODEOWNERS, issue/PR templates, CI workflows, the docs/ suite, and operations infrastructure (operations-registry.js, tool-inventory.json, CI drift checks, external-call audits).
+This is the odd one out — it's a standard-enforcer, not a critique-loop. It brings any repo up to your "repo standard": refreshes CLAUDE.md, AGENTS.md, README indices, .github/, .vscode/, .editorconfig, .gitignore, dependabot, CODEOWNERS, issue/PR templates, CI workflows, the docs/ suite, and operations infrastructure (operations-registry.js, tool-inventory.json, CI drift checks, external-call audits).
 
 Use it for: initializing a new repo or auditing an existing one to convention. Not for: reviewing code logic (→ code-deep-optimizer) or pure security (→ security-reviewer).
 
 ### 2. ddo / document-critique — "deep document"
 
-**Target:** prose documents — specs, RFCs, runbooks, KBs, READMEs, weekly updates, customer summaries.
+**Target:** prose documents — specs, RFCs, runbooks, KBs, READMEs.
 
 Runs passes 0–14 plus sub-passes 10.5 and 11.5 — intent → structure → claims → authoritative verification → adversarial/hallucination guard → human-voice rephrasing. Two surfaces:
 
@@ -66,9 +66,9 @@ Notable passes: it fact-checks, strips generator scaffolding, and runs an anti-A
 
 ### 3. sko / skill-optimizer — "skill"
 
-**Target:** a single Claude Code / TAM skill file.
+**Target:** a single Claude Code skill file.
 
-Audits a skill to production quality: runs a convergence-loop quality gate, writes Medium+ fixes, seeds peer-deferral edges (the "→ use other-skill" routing in descriptions), verifies, and syncs to the mdb-context-hub.
+Audits a skill to production quality: runs a convergence-loop quality gate, writes Medium+ fixes, seeds peer-deferral edges (the "→ use other-skill" routing in descriptions), verifies, and syncs to the skill hub.
 
 Has a structural-only --meta mode that does the wiring without content passes: registry registration, placement/folder/manifest validation, naming fixes, peer-edge seeding. This is the skill that keeps your ~200-skill taxonomy's trigger accuracy and collision avoidance healthy.
 
@@ -141,7 +141,7 @@ So CFE is how a single seed topic becomes a whole hub-and-spoke skill family in 
 
 **Real runs from your history** — each shows the explorer-maps-then-/dr-builds rhythm:
 
-- **Organ-donation nonprofit → applied-psychology family.** Ran CFE across the giving/psychology/nonprofit space, it scored 8 gaps, and launched 6 research agents that became applied-psychology spokes — psychology-of-charitable-giving, health-behavior-change, community-based social marketing, fundraising-psychology, effective-altruism, volunteer-motivation. A messy real-world goal ("help my sister's nonprofit") turned into a coherent, scored, evidence-based skill cluster.  
+- **Organ-donation nonprofit → applied-psychology family.** Ran CFE across the giving/psychology/nonprofit space, it scored 8 gaps, and launched 6 research agents that became applied-psychology spokes — psychology-of-charitable-giving, health-behavior-change, community-based social marketing, fundraising-psychology, effective-altruism, volunteer-motivation. A messy real-world goal ("help a small nonprofit") turned into a coherent, scored, evidence-based skill cluster.  
 - **Visual-design family.** CFE mapped the visual-design concept space, scored and ranked 13 gap-concepts against the CVS rubric, identified 4 knowledge-skills worth building (design-critique, vision-model, usability-heuristics, computational-aesthetics), then fanned 4 parallel /dr agents to build them. This is the canonical CFE shape: map → score → rank → parallel-/dr.  
 - **Consumer credit & finance.** The consumer-credit-and-debt hub came out as 22 skills (2 hubs + 20 spokes) built via CFE — credit-reports, charge-offs, debt-collectors, mortgages, bankruptcy, NC-law, and so on. A single domain seed saturated into a full hub-and-spoke tree.  
 - **Copywriting family.** 5 copywriting skills built via CFE parallel research — conversion/voice-of-customer, GEO/AEO, offer-design, direct-response, AI-copywriting — several passing clean audits.  
