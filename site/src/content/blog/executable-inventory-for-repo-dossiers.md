@@ -7,8 +7,8 @@ sources:
   - .claude/skills/crawl-repo-to-llms/SKILL.md
 ---
 
-<!-- verified-as-of: 2026-09-04 · repo identity and customer specifics anonymized; every
-     counts below are the author's recorded results from a private repository -->
+<!-- verified-as-of: 2026-09-04 · counts below are the author's recorded results from a
+     private repository -->
 
 ## Problem
 
@@ -16,7 +16,7 @@ A repo dossier answers "what does this file do" and "what does this codebase mea
 not answer "how do I start the server," and that gap shows up constantly: an agent (or a
 person six weeks later) reads a per-file card explaining that `api/server.py` is a loopback
 HTTP control surface, and still has to go find the one environment variable that makes it
-refuse to start, or the exact flag that turns a dry run into a live post.
+refuse to start, or the exact flag that turns a dry run into a live run.
 
 The knowledge axis (prose, condensed) and the artifact axis (files, cards, an importance
 rubric) don't cover this, because the answer isn't in the file's *purpose* — it's in its
@@ -31,12 +31,11 @@ The counts and three target-repository findings below are recorded run results. 
 parser snapshot and inventory are not included here, so readers cannot independently
 reproduce those numbers. The published skill supports checking the method.
 
-Run against a live, unattended automation pipeline that posts to a real third-party SaaS
-board twice a week — identity anonymized here, but the shape is ordinary: a Python 3.11+
-repo, 85 tracked files, a `pyproject.toml`-installed console script, a stdlib HTTP server, a
-Makefile, and a vendored standalone script. This was the second pass over the repo — the
-first (knowledge + artifact axes) had already run and produced a dossier; this pass added
-only the new operational axis on top of it.
+Run against a private automation repo — identity not disclosed here, but the shape is
+ordinary: a Python 3.11+ codebase, 85 tracked files, a `pyproject.toml`-installed console
+script, a stdlib HTTP server, a Makefile, and a vendored standalone script. This was the
+second pass over the repo — the first (knowledge + artifact axes) had already run and
+produced a dossier; this pass added only the new operational axis on top of it.
 
 ## Commands
 
@@ -44,7 +43,7 @@ only the new operational axis on top of it.
 # the skill's own status-probe pattern, used verbatim as one of its own Guard-3 exceptions
 # (a read-only query against a store the target already built) — this is the kind of
 # thing a "how do I ___" quick-answer resolves to, not a command the skill itself runs
-<INDEX_ROOT_VAR>=<per-target-index-dir> python3 <indexer-script>.py status --target <id>
+<INDEX_ROOT_VAR>=<index-dir> python3 <indexer-script>.py status --target <name>
 
 # what the skill produces is a file, not a command — the entrypoint enumeration itself is
 # a static read of:
@@ -80,12 +79,12 @@ watch — to the exact card that satisfies it, and only when one actually exists
 
 ```
 start the server        → <API_TOKEN_VAR>=$(openssl rand -hex 16) python3 api/server.py
-kick off the process    → <cli> run <target> (dry run is the default; a live flag posts)
+kick off the process    → <cli> run <name> (dry run is the default)
 run everything CI runs  → make check
-tail a running job's log → <cli> logs <target> -n 50
+tail a running job's log → <cli> logs <name> -n 50
 ```
 
-(Command names above are the real shape, target/token names anonymized.) Every row traces
+(Command names above are the real shape, argument and token names anonymized.) Every row traces
 back to a specific entrypoint card in the same file — an intent with no card behind it is
 left out of the table entirely, per the same anti-fabrication rule that governs every other
 axis of this skill's output.

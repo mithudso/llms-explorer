@@ -5,7 +5,7 @@ date: "2026-09-07"
 order: 17
 ---
 
-A native macOS pipeline that captures meeting audio, transcribes it on-device, feeds transcripts into a customer context file, and uses that context to track sentiment and surface customer initiatives that were never explicitly named.
+A native macOS pipeline that captures meeting audio, transcribes it on-device, feeds transcripts into a personal meeting corpus, and uses that context to track sentiment and surface follow-up initiatives that were never explicitly named.
 
 Two design choices shape the whole build:
 
@@ -30,11 +30,11 @@ Two design choices shape the whole build:
                                 ▼
 ┌─ Structure ─────────────────────────────┐
 │  utterance records (ts, speaker?, text) │
-│  + account resolution                    │
+│  + project resolution                    │
 └──────────────────────────────┬──────────┘
                                 ▼
 ┌─ Context file ───────────────────────────┐
-│  ──►  mdb_tam_account_context corpus      │
+│  ──►  meeting corpus                      │
 └──────────────────────────────┬───────────┘
                                 ▼
 ┌─ Analyze (FoundationModels / LLM stack) ┐
@@ -42,10 +42,10 @@ Two design choices shape the whole build:
 │  mentioned vs. latent projects           │
 └──────────────────────────────┬──────────┘
                                 ▼
-        monday board · case MCP · weekly-update builder
+        task tracker
 ```
 
-Four native layers (capture → transcribe → structure → analyze), then a hand-off into the existing TAM stack.
+Four native layers (capture → transcribe → structure → analyze), then a hand-off into your own meeting corpus and task tooling.
 
 **One gate before capture: recording authorization.** Requirements depend on participant locations and the circumstances of the call. Have the organization approve the consent and notice workflow for its use case. Store the meeting's authorization record, stop capture if authorization is withdrawn, and define retention and access rules for audio and transcripts. A notice or a Boolean field alone does not establish legal compliance. The local transcription stage and later corpus or cloud-analysis stages have different data destinations.
 
@@ -197,7 +197,7 @@ for try await result in transcriber.results {
     let text = String(result.text.characters)   // result.text is AttributedString
     if result.isFinal {
         let span = result.range                         // CMTimeRange for the complete result
-        store(utterance: text, at: span, speaker: .rep, final: true)
+        store(utterance: text, at: span, speaker: nil, final: true)
     } else {
         updateLiveCaption(text)                  // volatile / will be revised
     }
@@ -231,60 +231,60 @@ The cited third-party tool reports do not establish a speed or accuracy bound fo
 
 1. **Channel-based attribution:** transcribe local and far-end channels separately as in §1c. This preserves source-channel evidence; it does not distinguish several remote speakers or prove their identities.  
 2. **Per-participant audio:** if the meeting platform exposes per-speaker streams (some Zoom/Teams setups do), tap those.  
-3. **A diarization model on top:** run `pyannote` or `sherpa-onnx` over the mixed audio to segment speakers, then align by timestamp. Heavier, with more failure modes; use only if you need multi-speaker resolution on the customer side.
+3. **A diarization model on top:** run `pyannote` or `sherpa-onnx` over the mixed audio to segment speakers, then align by timestamp. Heavier, with more failure modes; use only if you need multi-speaker resolution on the far end.
 
 ---
 
-## 3\. Transcript to the customer context file
+## 3\. Transcript to a meeting corpus
 
-This layer turns transcription into a TAM asset. Two decisions matter: the record schema and where it lives.
+This layer turns transcription into a durable, searchable asset. Two decisions matter: the record schema and where it lives.
 
 ### 3a. Record schema
 
 Store utterances, not a blob. JSONL appended per meeting:
 
 ```
-{ "account_id": "acme-corp",
-  "meeting_id": "2026-06-17T14:00-acme-qbr",
+{ "project_id": "project-alpha",
+  "meeting_id": "2026-06-17T14:00-project-alpha-planning",
   "consent": { "obtained": true, "method": "verbal", "ts": "..." },
   "ts_start": 312.40, "ts_end": 318.10,
   "channel": "far_end",            // audio source, not speaker identity
   "speaker": null,                  // resolve separately when supported
-  "text": "we're still nervous about the failover story for the EU cluster",
+  "text": "I'm worried the schedule slips if the review runs long",
   "final": true }
 ```
 
-Then a per-account rollup in Markdown with front-matter, the context file a human or model reads:
+Then a per-project rollup in Markdown with front-matter, the context file a human or model reads:
 
 ```
 ---
-account: Acme Corp
+project: Project Alpha
 last_meeting: 2026-06-17
-sentiment_trend: [0.2, 0.1, -0.3]   # last 3 touchpoints
-open_risks: ["EU failover confidence", "renewal Q3"]
+sentiment_trend: [0.2, 0.1, -0.3]   # last 3 meetings
+open_risks: ["schedule risk"]
 ---
 ## Rolling summary
 ...
 ## Per-meeting log
-- 2026-06-17 QBR — sentiment -0.3, raised EU failover ...
+- 2026-06-17 planning — sentiment -0.3, raised schedule risk ...
 ```
 
 Notes:
 
 - **Append raw, derive summaries.** Keep the immutable utterance log as source of truth; regenerate the rollup. If a model summarizes incorrectly, regenerate from the retained log. The transcript itself can still contain recognition errors.  
-- **`account_id` resolution is a real subproblem.** Map calendar invite to attendee domains to account. Wrong attribution silently corrupts the wrong customer's file, so make it explicit and reviewable rather than implicit.
+- **`project_id` resolution is a real subproblem.** Map the calendar invite (title and attendees) to a project. Wrong attribution silently corrupts the wrong project's file, so make it explicit and reviewable rather than implicit.
 
-### 3b. Wire into the existing corpus
+### 3b. Wire into your corpus
 
-The `mdb_tam_account_context` corpus already exists, with `corpus_search`/`corpus_query`/`corpus_get` and `report_run`. The native app's job ends at producing a clean utterance record; ingestion pushes into that corpus as a new collection (for example `meeting_transcripts`) keyed by account. Existing `tam-weekly-update-builder` and `account-data-collector` agents then consume meeting transcripts as another evidence source alongside cases and Slack.
+The native app's job ends at producing a clean utterance record. Ingestion pushes those records into your own meeting corpus as a new collection (for example `meeting_transcripts`) keyed by project, where your review tooling can consume them as another evidence source alongside your notes and task history.
 
-This is the difference between a standalone gadget and something that compounds with the existing stack. The Granola path in `references/granola-transcription.md` is the existing template for this corpus-wiring (polling sync, dedup, 401/403/429 handling) — review it before designing the ingestion, since the same problem shape is already solved there.
+This is the difference between a standalone gadget and something that compounds with the rest of your tooling.
 
 ---
 
 ## 4\. Sentiment and surfacing latent projects
 
-Two analytical jobs. Both can use the macOS 26 Foundation Models framework when its model is available on the device, or route to the existing LLM stack. Check model availability, context limits, and the selected backend's data destination. Local analysis alone does not make a remotely stored corpus local.
+Two analytical jobs. Both can use the macOS 26 Foundation Models framework when its model is available on the device, or route to another LLM backend. Check model availability, context limits, and the selected backend's data destination. Local analysis alone does not make a remotely stored corpus local.
 
 ### 4a. Structured extraction (sentiment, risks, action items)
 
@@ -292,37 +292,37 @@ Two analytical jobs. Both can use the macOS 26 Foundation Models framework when 
 import FoundationModels
 
 @Generable struct MeetingAnalysis {
-    @Guide(description: "overall customer sentiment, -1.0 to 1.0")
+    @Guide(description: "overall sentiment of the meeting, -1.0 to 1.0")
     var sentiment: Double
-    @Guide(description: "explicit risks or concerns the customer raised")
+    @Guide(description: "explicit risks or concerns raised in the meeting")
     var risks: [String]
     @Guide(description: "commitments or follow-ups, with owner")
     var actionItems: [String]
-    @Guide(description: "MongoDB/Atlas topics the customer mentioned")
+    @Guide(description: "key topics mentioned in the meeting")
     var topicsMentioned: [String]
 }
 
 let session = LanguageModelSession(instructions: """
-    You analyze TAM customer-meeting transcripts. Be conservative;
-    do not invent concerns the customer did not voice.
+    You analyze meeting transcripts. Be conservative;
+    do not invent concerns that nobody voiced.
     """)
 let result = try await session.respond(
     to: transcriptText, generating: MeetingAnalysis.self).content
 ```
 
-Guided generation constrains output structure; it does not prove factual accuracy or enforce a numeric range expressed only in a description. Validate ranges, verify quoted evidence against utterance IDs, and test long-transcript chunking and failures. Treat sentiment as a model estimate; do not call it a calibrated churn-risk signal without outcome data.
+Guided generation constrains output structure; it does not prove factual accuracy or enforce a numeric range expressed only in a description. Validate ranges, verify quoted evidence against utterance IDs, and test long-transcript chunking and failures. Treat sentiment as a model estimate; do not call it a calibrated signal without outcome data.
 
 ### 4b. Surfacing projects that were not explicitly mentioned
 
-This is inference, and it concentrates both the value and the risk. A customer says "the EU cluster failover makes us nervous." Nobody said "disaster recovery project" or "multi-region architecture review," but those are the latent initiatives implied. The mechanism:
+This is inference, and it concentrates both the value and the risk. Someone says "we keep losing a day to manual handoffs between teams." Nobody said "automation project" or "process review," but those are the latent initiatives implied. The mechanism:
 
-1. **Entity-link** what was said against the account corpus (open cases, monday initiatives, prior meeting topics, the account's architecture).  
-2. **Gap-detect:** find adjacent initiatives the conversation implies but no one named — a failover concern implies a DR/HA review; repeated latency complaints imply an index/schema engagement; "our team is growing" implies an enablement or MongoDB University path.  
+1. **Entity-link** what was said against your corpus (prior meeting topics and project notes).  
+2. **Gap-detect:** find adjacent initiatives the conversation implies but no one named — a complaint about manual handoffs implies an automation or process review; "our team is growing" implies an onboarding or documentation task.  
 3. **Rank by signal strength** and emit as suggestions with evidence quotes, never as asserted fact.
 
 ```
-@Generable struct LatentOpportunity {
-    @Guide(description: "an initiative implied but NOT explicitly named by the customer")
+@Generable struct LatentInitiative {
+    @Guide(description: "an initiative implied but NOT explicitly named in the meeting")
     var initiative: String
     @Guide(description: "the verbatim quote that implies it")
     var evidence: String
@@ -333,21 +333,21 @@ This is inference, and it concentrates both the value and the risk. A customer s
 
 Notes:
 
-- **This is a recommendation system, not a fact extractor — keep the two separate.** Sentiment and action items are grounded in what was said; latent projects are speculation. Mixing them lets a hallucinated "project" get logged as if the customer requested it. Attach the exact quote and utterance ID, label the initiative as inferred, and route inferred opportunities to human review before board creation. A model-written confidence score is not calibrated probability; review thresholds require validation.  
-- **The `harsh-reviewer` and `tam-doc-validator` agents are the natural guardrail**: fact-check the generated analysis against the corpus before anything customer-facing or board-bound is created.
+- **This is a recommendation system, not a fact extractor — keep the two separate.** Sentiment and action items are grounded in what was said; latent projects are speculation. Mixing them lets a hallucinated "project" get logged as if someone had requested it. Attach the exact quote and utterance ID, label the initiative as inferred, and route inferred initiatives to human review before any task is created. A model-written confidence score is not calibrated probability; review thresholds require validation.  
+- **A review agent or a manual check is the natural guardrail**: fact-check the generated analysis against the corpus before anything shared or task-bound is created.
 
 ### 4c. Closing the loop into action
 
-The analysis becomes TAM motion: create monday items for latent opportunities (gated, human-approved), attach risks to the account's health score, drop action items into the task MCP, and let `tam-weekly-update-builder` fold the sentiment trend into the next update. Verify the generated claims before publishing it.
+The analysis becomes follow-up work: create task items for latent follow-ups (gated, human-approved), record risks in the project's notes, drop action items into your task tracker, and fold the sentiment trend into the next summary. Verify the generated claims before publishing it.
 
 ---
 
 ## 5\. How the pieces run
 
 - **A menubar Swift app** owns capture and transcription. It can call the native audio APIs and write utterance JSONL to a controlled directory. Prototype the intended sandbox, entitlements, permissions, and signing configuration before choosing distribution. The cited sources do not establish a blanket Mac App Store prohibition for system-audio capture, and this design has not passed an App Store or sandbox validation.  
-- **A small local ingestion daemon** (Node or Python) watches that directory, resolves the account, and pushes records into the `mdb_tam_account_context` corpus, reusing the Granola ingestion pattern.  
-- **Analysis** runs either in-app (Foundation Models) or in the daemon against the LLM stack, writing the rollup and structured analysis back to the corpus.  
-- **The existing agents and MCPs** consume the corpus. You do not build the TAM brain — you feed the one already in place.
+- **A small local ingestion daemon** (Node or Python) watches that directory, resolves the project, and pushes records into your meeting corpus.  
+- **Analysis** runs either in-app (Foundation Models) or in the daemon against another LLM backend, writing the rollup and structured analysis back to the corpus.  
+- **Downstream tools** consume the corpus. The native app only has to produce clean records; it does not need to rebuild the tooling that reads them.
 
 ---
 
@@ -356,8 +356,8 @@ The analysis becomes TAM motion: create monday items for latent opportunities (g
 1. **Spike the Core Audio tap** against `insidegui/AudioCap` to prove far-end audio capture works. This is the riskiest piece; if it does not work, nothing downstream matters.  
 2. **Wire `SpeechAnalyzer`** on a saved WAV (file mode, section 2c) before going live; file input is easier to debug.  
 3. **Two-channel live capture** with channel-based speaker tags.  
-4. **Utterance JSONL plus corpus ingestion** (clone the Granola pattern).  
-5. **Structured analysis** (sentiment and risks first; latent-opportunity inference last, behind the human-review gate).
+4. **Utterance JSONL plus corpus ingestion.**  
+5. **Structured analysis** (sentiment and risks first; latent-initiative inference last, behind the human-review gate).
 
 ---
 
