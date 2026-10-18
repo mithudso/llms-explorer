@@ -37,7 +37,7 @@ NODES = [
 ]  # fmt: skip
 QUEUE = """\
 - [x] Concept: `Done Thing` | Parent: `MongoDB Atlas` | Mode: `dr`
-- [ ] Concept: `ts-diag Collection Automation` | Parent: `ts-diag and Diagnostic Workflows` | Mode: `dr`
+- [ ] Concept: `Diagnostic Capture Automation` | Parent: `MongoDB Diagnostic Workflows` | Mode: `dr`
 - [ ] Concept: `Reranking Latency` | Parent: `Retrieval` | Mode: `dr`
 """
 
@@ -57,10 +57,15 @@ def test_scope_is_the_union_of_frontier_unresearched_nodes_and_queue(tree):
     ]
     assert "MongoDB Atlas" in rows and rows["MongoDB Atlas"]["sources"] == ["unresearched-node"]
     assert (
-        "queue" in rows["ts-diag Collection Automation"]["sources"]
+        "queue" in rows["Diagnostic Capture Automation"]["sources"]
     )  # the tree also lists queue items as frontier
     assert "Reranking" not in rows and "Reranking Latency" not in rows  # off topic
     assert "Done Thing" not in rows  # checked queue lines are done
+
+
+def test_extra_topic_rx_extends_the_default_filter():
+    assert rs.topic_rx().search("MongoDB Atlas") and not rs.topic_rx().search("Zebra Herd")
+    assert rs.topic_rx("zebra").search("Zebra Herd") and rs.topic_rx("zebra").search("oplog")
 
 
 def test_scope_dedupes_by_normalized_name_and_keeps_every_source(tree):
