@@ -27,6 +27,8 @@ Usage:
   research_suite.py recompile --run NAME [--repo DIR] [--only CONCEPT]...
                            (rebuild the run's registered packs in place)
 Create `<run dir>/STOP` to stop starting new batches (in-flight work finishes).
+Set RS_EXTRA_TOPIC_RX to a regex alternation (for example `name-one|name-two`) to add
+operator-specific topic names to the default MongoDB filter; `--topic-rx` replaces it.
 """
 
 from __future__ import annotations
@@ -80,11 +82,19 @@ MIN_CLAIMS = 3
 MAX_SOURCES = 48  # per batch; discovery is asked for 12-24, and its output is untrusted
 FIX_MAX_CHARS = 600  # longest accepted rewrite of an OVERSTATED claim (synth caps claims at 460)
 VERDICTS = ("SUPPORTED", "OVERSTATED", "NOT-IN-SOURCE", "CONTRADICTED")
-MONGO_RX = re.compile(
-    r"mongo|atlas\b|bson|wiredtiger|\bmongos\b|\bmongod\b|ftdc|ts-diag|mtools|"
-    r"change stream|oplog|replica set|sharded cluster|\bAKO\b|\bBI Connector",
-    re.I,
-)
+
+
+def topic_rx(extra: str = "") -> re.Pattern:
+    """The MongoDB topic filter. `extra` is an operator-supplied regex alternation (the
+    RS_EXTRA_TOPIC_RX variable), so names that belong to one operator stay out of the repo."""
+    base = (
+        r"mongo|atlas\b|bson|wiredtiger|\bmongos\b|\bmongod\b|ftdc|mtools|"
+        r"change stream|oplog|replica set|sharded cluster|\bAKO\b|\bBI Connector"
+    )
+    return re.compile(f"{base}|{extra}" if extra else base, re.I)
+
+
+MONGO_RX = topic_rx(os.environ.get("RS_EXTRA_TOPIC_RX", ""))
 SECTIONS = ("core", "tools", "methodology", "patterns", "antipatterns", "troubleshooting")
 SL_PATH = HUB / "scripts" / "source_library.py"
 EMPTY_MCP = HUB / "scripts" / "dr_assets" / "empty-mcp.json"
