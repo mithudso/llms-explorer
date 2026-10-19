@@ -100,6 +100,19 @@ def claude_binary() -> str | None:
     return str(default) if default.exists() else None
 
 
+def run_env() -> dict[str, str]:
+    """The API's environment with the usual tool directories on PATH.
+
+    launchd starts the API with PATH=/usr/bin:/bin:/usr/sbin:/sbin, so a run's
+    plugin hooks failed with `node: command not found` (2026-10-18 logs).
+    """
+    env = dict(os.environ)
+    extra = [str(Path.home() / ".local" / "bin"), "/opt/homebrew/bin", "/usr/local/bin"]
+    have = env.get("PATH", "/usr/bin:/bin").split(":")
+    env["PATH"] = ":".join(have + [d for d in extra if d not in have])
+    return env
+
+
 def research_prompt(concept: str, parent: str | None = None) -> str:
     """The llmsx ``dr`` template, word for word, so a run started from the site
     does exactly what a run started from the TUI does."""
@@ -247,7 +260,7 @@ async def run(factory: async_sessionmaker[AsyncSession], job_id: str,
             # Its own process group, so a timeout or an API shutdown stops the
             # run and everything it spawned, not only the `claude` parent.
             proc = await asyncio.create_subprocess_exec(
-                *argv, cwd=str(cwd), stdin=asyncio.subprocess.DEVNULL,
+                *argv, cwd=str(cwd), stdin=asyncio.subprocess.DEVNULL, env=run_env(),
                 stdout=out, stderr=asyncio.subprocess.STDOUT, start_new_session=True)
             _PROCS.add(proc)
             try:
