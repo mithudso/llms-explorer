@@ -1,3 +1,4 @@
+# ruff: noqa: E501  (fixture rows and assertions read better unwrapped)
 """Concept Viability Score (CVS): stored with the concept, gating the auto-researchers.
 
 The score is concept-family-explorer's 0-5 pre-research gate. It must live where the

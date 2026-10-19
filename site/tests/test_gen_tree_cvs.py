@@ -1,4 +1,5 @@
 # site/tests/test_gen_tree_cvs.py — the Concept Viability Score reaches the site's tree data.
+# ruff: noqa: E501  -- fixture strings mirror real tree.json rows
 import json
 import sys
 from pathlib import Path

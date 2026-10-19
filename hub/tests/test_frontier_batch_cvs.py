@@ -1,3 +1,4 @@
+# ruff: noqa: E501  (fixture rows and assertions read better unwrapped)
 """frontier_research_batch.py must not research a frontier concept below the CVS floor."""
 
 import json
