@@ -239,6 +239,15 @@ validates the tree. If the job fails, times out or is cancelled, the snapshot is
 **Queue viewer keys:** `r` run the selected row, `c` run the next cluster, `P` prefill
 clusters, `a` add a concept, `x` cancel the job, `o` job log, `R` refresh, `esc` back.
 
+**Research monitor.** The queue viewer also shows every run that holds concepts on the
+research machine. That covers `/dr` runs, explorer frontier batches, research suite runs
+(paused ones too) and runs started from the website. For each run it shows how many of its
+concepts are finished and which ones are still checked out. A checked-out concept is
+already being researched, so the website offers no research button for it. The monitor
+refreshes every 30 seconds and on `R`. It reads
+`https://api.llms-explorer.com/api/research/queue`, the same data as
+https://llms-explorer.com/queue/. Set `LLMSX_API_URL` to read another API.
+
 Without the provider's command-line tool installed, only `queue` is offered.
 
 ## 10. Providers and settings
@@ -323,6 +332,7 @@ committed file.
 | `LLMSX_CONCEPTS_PATH` | Where hub `.llms` directories live (default `~/.global-ai-hub/llms-concepts`). |
 | `LLMSX_GITHUB_TOKEN` | Token for push and `ls-remote`. |
 | `LLMSX_RESEARCH_TIMEOUT` | Seconds one job may run (default 3600). |
+| `LLMSX_API_URL` | API the queue viewer's research monitor reads (default `https://api.llms-explorer.com`). |
 | `EDITOR` / `VISUAL` | Editor for `e` and `E`. |
 
 ## 16. Key reference

@@ -135,6 +135,17 @@ STATIC_PAGES = [
      # the twin is the guide the package ships, minus its own H1
      "body": _GUIDE.read_text(encoding="utf-8").split("\n", 1)[1]
      if _GUIDE.is_file() else "See llmsx explorer --guide.\n"},
+    {"route": "/queue/", "title": "Research queue",
+     "page": "src/pages/queue.astro",
+     "description": "Live monitor of concept research: runs in progress, runs started from "
+                    "the concept tree, and the queue of concepts waiting.",
+     "body": "A live monitor read from the public, read-only API endpoint "
+             "`https://api.llms-explorer.com/api/research/queue`. It lists the research runs "
+             "that hold concepts right now (/dr runs, explorer frontier batches, research "
+             "suite runs), the runs started from the concept tree's facts panel, and the next "
+             "concepts waiting in `concept-tree/RESEARCH_QUEUE.md`. A concept held by an "
+             "unfinished run is checked out and has no research button on "
+             "[/tree/](/tree/).\n"},
     {"route": "/downloads/", "title": "Downloads",
      "page": "src/pages/downloads.astro",
      "description": 'Install Skills Explorer, GitHub Explorer and llmsx; download agent skills,'

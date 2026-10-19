@@ -199,6 +199,13 @@ async def latest_for(session: AsyncSession, concept: str) -> m.Job | None:
     return rows.scalar_one_or_none()
 
 
+async def recent(session: AsyncSession, limit: int = 20) -> list[m.Job]:
+    rows = await session.execute(
+        select(m.Job).where(m.Job.kind == "research")
+        .order_by(m.Job.created_at.desc()).limit(limit))
+    return list(rows.scalars())
+
+
 def public_view(job: m.Job) -> dict[str, Any]:
     """What the facts panel may show anyone: no user, no log path.
 

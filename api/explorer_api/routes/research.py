@@ -12,6 +12,8 @@ checked here; the run itself lives in :mod:`explorer_api.research`.
   tree's spelling, never the caller's.
 * **One run per concept, at most** :data:`~explorer_api.research.MAX_RUNNING`
   **at once.** A second click returns the run already going.
+* **A concept already checked out by another run is refused** (409): see
+  :mod:`explorer_api.checkouts` for what holds a concept.
 * **Reading a run's status is public and read-only**: the panel shows
   "research in progress" to everyone, and the view holds no user, path or log.
 """
@@ -24,7 +26,7 @@ from fastapi import APIRouter, Depends, Request
 from pydantic import BaseModel, ConfigDict, Field
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from .. import gateway as gw, models as m, moderation, research
+from .. import checkouts, gateway as gw, models as m, moderation, research
 from ..db import get_session
 from .auth import CurrentUser
 
@@ -58,6 +60,9 @@ async def start(body: ResearchRequest, request: Request, user: CurrentUser,
     if not moderation.is_moderator(user):
         raise gw.Forbidden("only a moderator can start a research run")
     concept, parent = _known(body.concept)
+    holder = checkouts.held_by(concept)
+    if holder:
+        raise gw.Conflict(f"already being researched by {holder}")
 
     # Check-and-insert under one advisory lock, so two clicks cannot both see
     # "no run" and both launch, nor push past MAX_RUNNING together.
@@ -96,7 +101,29 @@ async def status(concept: str, session: SessionDep) -> dict[str, Any]:
     if not research.safe_name(concept):
         raise gw.InvalidParams("invalid concept name")
     job = await research.latest_for(session, concept.strip())
-    return {"run": research.public_view(job) if job else None}
+    view = research.public_view(job) if job else None
+    holder = checkouts.held_by(concept)
+    if holder is None and view and view["status"] in research.ACTIVE:
+        holder = "a website research run"
+    return {"run": view, "checked_out": holder}
+
+
+@router.get("/queue", summary="Everything being researched now, and what is queued")
+async def queue(session: SessionDep) -> dict[str, Any]:
+    """The monitor behind /queue/ and the llmsx explorer queue screen.
+
+    Public and read-only, like `status`: concept names are already public in
+    the tree, and no path, user or log leaves the server.
+    """
+    runs, _held = checkouts.snapshot()
+    jobs = await research.recent(session, limit=20)
+    return {
+        "generated_at": checkouts.now_iso(),
+        "runs": [{**r, "pending_count": len(r["pending"]), "pending": r["pending"][:12]}
+                 for r in runs],
+        "website": [research.public_view(j) for j in jobs],
+        "queue": checkouts.research_queue(research.repo_root()),
+    }
 
 
 __all__ = ["router"]

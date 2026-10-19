@@ -1,0 +1,183 @@
+---
+import Base from "../layouts/Base.astro";
+
+// The research monitor. Everything on it is live and comes from the API's
+// public, read-only `GET /api/research/queue` (api/explorer_api/routes/
+// research.py): the runs that hold concepts right now, the runs started from
+// the /tree/ facts panel, and the backlog in concept-tree/RESEARCH_QUEUE.md.
+// The llmsx explorer queue screen reads the same endpoint, so the two agree.
+// Same API origin rule as AccountNav.astro.
+const api = String(import.meta.env.PUBLIC_API_URL || "https://api.llms-explorer.com").replace(/\/+$/, "");
+const title = "Research queue";
+const description = "Live monitor of concept research: runs in progress, runs started from the concept tree, and the queue of concepts waiting.";
+---
+<Base title={title} description={description} route="/queue/">
+  <p class="lede">What is being researched right now, and what is waiting.</p>
+  <p class="tab-note">
+    A concept is <strong>checked out</strong> while an unfinished run holds it: a run started from
+    the <a href="/tree/">concept tree</a>, a <code>/dr</code> run, an explorer frontier batch or a
+    research suite run. Checked-out concepts have no <em>Research this concept</em> button.
+    The page refreshes every 30 seconds.
+  </p>
+  <p id="q-status" class="q-status" aria-live="polite">Loading…</p>
+  <noscript><p>This monitor needs JavaScript; it reads live data from the API.</p></noscript>
+
+  <div id="queue-monitor" data-api={api}>
+    <h2>Being researched now</h2>
+    <div id="q-runs" class="q-runs"></div>
+
+    <h2>Started from the concept tree</h2>
+    <div id="q-website"></div>
+
+    <h2>Waiting in the queue</h2>
+    <p id="q-queue-summary"></p>
+    <ol id="q-next" class="q-next"></ol>
+  </div>
+</Base>
+
+<script is:inline>
+  (() => {
+    const root = document.getElementById("queue-monitor");
+    const api = root && root.dataset.api;
+    if (!api) return;
+    const $ = (id) => document.getElementById(id);
+    // createElement and text nodes only: concept names are text from a
+    // public, PR-editable tree.
+    const el = (tag, cls, text) => {
+      const e = document.createElement(tag);
+      if (cls) e.className = cls;
+      if (text != null) e.textContent = text;
+      return e;
+    };
+    const when = (iso) => (iso ? new Date(iso).toLocaleString() : "—");
+    const SOURCE = {
+      dr: "/dr run",
+      "explorer-batch": "Explorer frontier batch",
+      suite: "Research suite run",
+    };
+    const treeLink = (name) => {
+      const a = el("a", null, name);
+      // The tree resolves a hash by slug first, then by concept name.
+      a.href = "/tree/#" + encodeURIComponent(name);
+      return a;
+    };
+
+    function runs(list) {
+      const box = $("q-runs");
+      box.replaceChildren();
+      if (!list.length) {
+        box.appendChild(el("p", "q-empty", "Nothing is being researched right now."));
+        return;
+      }
+      for (const r of list) {
+        const card = el("section", "q-run");
+        const head = el("h3");
+        head.appendChild(el("span", "q-badge q-" + r.state, r.state));
+        head.appendChild(document.createTextNode(` ${SOURCE[r.source] || r.source} · ${r.name}`));
+        card.appendChild(head);
+        const done = Math.max(0, r.total - r.pending_count);
+        const bar = el("div", "q-bar");
+        const fill = el("span");
+        fill.style.width = (r.total ? Math.round((100 * done) / r.total) : 0) + "%";
+        bar.appendChild(fill);
+        card.appendChild(bar);
+        card.appendChild(el("p", "q-meta",
+          `${done.toLocaleString()} of ${r.total.toLocaleString()} concepts finished · ` +
+          `${r.pending_count.toLocaleString()} checked out · last activity ${when(r.updated)}`));
+        if (r.pending.length) {
+          const p = el("p", "q-names");
+          p.appendChild(document.createTextNode("Checked out: "));
+          r.pending.forEach((name, i) => {
+            if (i) p.appendChild(document.createTextNode(", "));
+            p.appendChild(treeLink(name));
+          });
+          if (r.pending_count > r.pending.length)
+            p.appendChild(document.createTextNode(` and ${(r.pending_count - r.pending.length).toLocaleString()} more`));
+          card.appendChild(p);
+        }
+        box.appendChild(card);
+      }
+    }
+
+    function website(list) {
+      const box = $("q-website");
+      box.replaceChildren();
+      if (!list.length) {
+        box.appendChild(el("p", "q-empty", "No research run has been started from the concept tree yet."));
+        return;
+      }
+      const table = el("table", "q-table");
+      const head = el("tr");
+      for (const h of ["Concept", "Status", "Started", "Finished"]) head.appendChild(el("th", null, h));
+      table.appendChild(head);
+      for (const j of list) {
+        const tr = el("tr");
+        const name = el("td");
+        name.appendChild(treeLink(j.concept || "?"));
+        tr.appendChild(name);
+        const st = el("td");
+        st.appendChild(el("span", "q-badge q-" + j.status, j.status));
+        if (j.error) st.appendChild(el("span", "q-err", " " + j.error));
+        tr.appendChild(st);
+        tr.appendChild(el("td", null, when(j.started_at || j.created_at)));
+        tr.appendChild(el("td", null, when(j.finished_at)));
+        table.appendChild(tr);
+      }
+      box.appendChild(table);
+    }
+
+    function queue(q) {
+      $("q-queue-summary").textContent = q.available
+        ? `${q.pending.toLocaleString()} concepts waiting, ${q.done.toLocaleString()} marked done. Next up (checked-out rows skipped):`
+        : "The queue file is not available.";
+      const ol = $("q-next");
+      ol.replaceChildren();
+      for (const row of q.next || []) {
+        const li = el("li");
+        li.appendChild(treeLink(row.concept));
+        if (row.parent) li.appendChild(el("span", "q-parent", ` — under ${row.parent}`));
+        ol.appendChild(li);
+      }
+    }
+
+    let timer = null;
+    function load() {
+      clearTimeout(timer);
+      fetch(api + "/api/research/queue")
+        .then((r) => (r.ok ? r.json() : Promise.reject(new Error(String(r.status)))))
+        .then((data) => {
+          runs(data.runs || []);
+          website(data.website || []);
+          queue(data.queue || {});
+          $("q-status").textContent = `Updated ${new Date().toLocaleTimeString()} · server time ${when(data.generated_at)}`;
+        })
+        .catch(() => {
+          $("q-status").textContent = "Could not reach the research service. Retrying in 30 seconds.";
+        })
+        .finally(() => { timer = setTimeout(load, 30000); });
+    }
+    document.addEventListener("visibilitychange", () => { if (!document.hidden) load(); });
+    load();
+  })();
+</script>
+
+<style>
+  .q-status { color: var(--ink-faint); font-size: var(--step--1); }
+  .q-runs { display: grid; gap: var(--sp-3); }
+  .q-run { border: 1px solid var(--line); border-radius: 8px; padding: var(--sp-3) var(--sp-4); background: var(--paper-raised, transparent); }
+  .q-run h3 { margin: 0 0 var(--sp-2); font-size: var(--step-0); }
+  .q-bar { height: 6px; background: var(--code-bg, #eef1f4); border-radius: 3px; overflow: hidden; }
+  .q-bar span { display: block; height: 100%; background: var(--accent); }
+  .q-meta, .q-names, .q-empty { font-size: var(--step--1); color: var(--ink-muted); margin: var(--sp-2) 0 0; }
+  .q-badge { font-size: 0.75em; padding: 0.1em 0.5em; border-radius: 4px; border: 1px solid var(--line); text-transform: uppercase; letter-spacing: 0.04em; }
+  .q-running, .q-researching, .q-in-progress { border-color: var(--accent); color: var(--accent); }
+  .q-paused, .q-queued { color: var(--ink-muted); }
+  .q-failed { color: #b42318; border-color: #b42318; }
+  .q-done { color: #1a7f37; border-color: #1a7f37; }
+  .q-err { color: var(--ink-faint); font-size: 0.85em; }
+  .q-table { width: 100%; border-collapse: collapse; font-size: var(--step--1); }
+  .q-table th, .q-table td { text-align: left; padding: 0.35em 0.5em; border-bottom: 1px solid var(--line); }
+  .q-next { font-size: var(--step--1); }
+  .q-parent { color: var(--ink-faint); }
+  @media (max-width: 640px) { .q-table th:nth-child(4), .q-table td:nth-child(4) { display: none; } }
+</style>

@@ -1279,10 +1279,12 @@ class QueueViewer(Screen):
         Binding("o", "open_job_log", "Job log"),
         Binding("R", "refresh", "Refresh"),
     ]
+    _monitor_busy = False
     DEFAULT_CSS = """
     QueueViewer #qv-head { height: auto; padding: 0 1; background: $surface; }
     QueueViewer #qv-active-box { height: auto; max-height: 10; border: round $primary; padding: 0 1; margin: 0 1; }
     QueueViewer #qv-active-log { height: 6; }
+    QueueViewer #qv-monitor-box { height: auto; max-height: 12; border: round $accent; padding: 0 1; margin: 0 1; }
     QueueViewer #qv-table-container { height: 1fr; padding: 0 1; }
     QueueViewer DataTable { height: 1fr; }
     QueueViewer #qv-buttons { height: auto; padding: 0 1; }
@@ -1313,6 +1315,10 @@ class QueueViewer(Screen):
             with Vertical(id="qv-active-box"):
                 yield Static("", id="qv-active-status")
                 yield RichLog(id="qv-active-log", wrap=True, markup=False, highlight=False, auto_scroll=True)
+            # Every run holding concepts on the research machine, from the same
+            # endpoint as the site's /queue/ page; refreshed every 30 s.
+            with Vertical(id="qv-monitor-box"):
+                yield Static("Research monitor: loading…", id="qv-monitor")
         with Horizontal(id="qv-buttons"):
             yield Button("▶ Run Selected (r)", id="btn-qv-run", variant="primary")
             yield Button("+ Add Concept (a)", id="btn-qv-add")
@@ -1329,6 +1335,8 @@ class QueueViewer(Screen):
         self.title = "llmsx explorer — research queue & monitor"
         self._refresh_all()
         self._timer = self.set_interval(1.0, self._refresh_live)
+        self._fetch_monitor()
+        self.set_interval(30.0, self._fetch_monitor)
 
     def _refresh_all(self) -> None:
         self._refresh_queue()
@@ -1379,6 +1387,36 @@ class QueueViewer(Screen):
         log_widget.clear()
         for line in job.lines[-6:]:
             log_widget.write(line)
+
+    def _fetch_monitor(self) -> None:
+        """Fetch the monitor off the UI thread: a slow network must not stall
+        the 1-second live refresh."""
+        if getattr(self, "_monitor_busy", False):
+            return
+        self._monitor_busy = True
+
+        def work() -> None:
+            try:
+                lines = store.research_monitor_lines(store.fetch_research_monitor())
+                head = f"Research monitor · {store.api_url()}/api/research/queue · also at /queue/"
+            except (OSError, ValueError) as exc:
+                lines, head = [f"unavailable: {exc}"], "Research monitor"
+            try:
+                self.app.call_from_thread(self._show_monitor, head, lines)
+            except RuntimeError:
+                pass  # the screen closed while the request was in flight
+
+        threading.Thread(target=work, daemon=True).start()
+
+    def _show_monitor(self, head: str, lines: list[str]) -> None:
+        self._monitor_busy = False
+        if not self.is_attached:
+            return
+        text = Text(head + "\n", style="bold")
+        for line in lines:
+            style = "green" if line.startswith(("RUNNING", "RESEARCHING", "IN-PROGRESS")) else ""
+            text.append(line + "\n", style=style)
+        self.query_one("#qv-monitor", Static).update(text)
 
     def _status(self, text: str) -> None:
         self.query_one("#qv-status", Static).update(Text(text))
@@ -1444,6 +1482,7 @@ class QueueViewer(Screen):
 
     def action_refresh(self) -> None:
         self._refresh_all()
+        self._fetch_monitor()
         self._status("queue refreshed")
 
     @on(Button.Pressed)

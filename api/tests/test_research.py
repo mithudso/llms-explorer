@@ -15,7 +15,7 @@ import pytest_asyncio
 from httpx import ASGITransport, AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from explorer_api import models as m, moderation, research
+from explorer_api import checkouts, models as m, moderation, research
 from explorer_api.db import get_session
 from explorer_api.main import create_app
 from explorer_api.routes.auth import current_user
@@ -37,6 +37,11 @@ def public_tree(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
     path.write_text(json.dumps(TREE) + "\n", encoding="utf-8")
     monkeypatch.setenv("EXPLORER_PUBLIC_TREE", str(path))
     monkeypatch.setenv("DR_CLAUDE_BIN", "/bin/echo")
+    # Never the machine's real run files: they would check out real concepts.
+    monkeypatch.setenv("HUB_DIR", str(tmp_path / "hub"))
+    monkeypatch.setenv("LLMSX_HOME", str(tmp_path / "llmsx"))
+    monkeypatch.setenv("EXPLORER_RESEARCH_CWD", str(tmp_path / "repo"))
+    checkouts.clear_cache()
     assert moderation.public_tree_path() == path
     return path
 
@@ -114,7 +119,7 @@ async def test_second_click_returns_the_run_already_going(client: AsyncClient,
 
 
 async def test_status_is_public_and_minimal(client: AsyncClient) -> None:
-    assert (await client.get("/api/research", params={"concept": "Data Analysis"})).json() == {"run": None}
+    assert (await client.get("/api/research", params={"concept": "Data Analysis"})).json() == {"run": None, "checked_out": None}
     await client.post("/api/research", json={"concept": "Data Analysis"}, headers=XHR)
     run = (await client.get("/api/research", params={"concept": "Data Analysis"})).json()["run"]
     assert run["status"] == "queued" and set(run) == {
@@ -214,3 +219,75 @@ def test_prompt_matches_the_tui_template() -> None:
         sys.path.remove(str(llmsx))
     assert research.research_prompt("Data Analysis", "Root") == \
         explorer_store.research_prompt("Data Analysis", "dr", "Root")
+
+
+def _write(path: Path, data) -> None:  # noqa: ANN001
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(data if isinstance(data, str) else json.dumps(data), encoding="utf-8")
+
+
+def _hold_everything(tmp_path: Path) -> None:
+    hub, llmsx = tmp_path / "hub", tmp_path / "llmsx"
+    _write(hub / "research" / "bayes" / "manifest.json",
+           {"slug": "bayes", "topic": "Bayesian Inference", "status": "researching",
+            "concepts": [{"name": "MCMC", "status": "pending"}, {"name": "Priors", "status": "done"}]})
+    _write(hub / "research" / "old" / "manifest.json",
+           {"slug": "old", "topic": "Data Analysis", "status": "finalized"})
+    batch = llmsx / "jobs" / "batches" / "b1"
+    _write(batch / "run.json", {"root": "Stats", "status": "in-progress",
+                                "concepts": ["Statistical Modeling", "Finished One"]})
+    _write(batch / "results.jsonl", json.dumps({"concept": "Finished One", "status": "complete"}) + "\n")
+    suite = hub / "research" / ".pipeline" / "suite-1"
+    _write(suite / "batches.json", [{"id": "a", "concepts": ["Sharding"]},
+                                    {"id": "b", "concepts": ["Indexes"]}])
+    _write(suite / "batches" / "a" / "state.json", {"stages": {"register": {"status": "done"}}})
+    _write(suite / "batches" / "b" / "state.json", {"stages": {"extract": {"status": "paused"}}})
+    checkouts.clear_cache()
+
+
+def test_checkouts_cover_every_run_source(tmp_path: Path) -> None:
+    _hold_everything(tmp_path)
+    assert checkouts.held_by("bayesian inference") == "a /dr run bayes"
+    assert checkouts.held_by("MCMC") == "a /dr run bayes"
+    assert checkouts.held_by("Priors") is None, "a finished concept in a live run is free"
+    assert checkouts.held_by("Data Analysis") is None, "a finished /dr run holds nothing"
+    assert checkouts.held_by("Statistical Modeling") == "an explorer frontier batch Stats"
+    assert checkouts.held_by("Finished One") is None
+    assert checkouts.held_by("Indexes") == "the research suite run suite-1"
+    assert checkouts.held_by("Sharding") is None, "a registered suite batch is finished"
+    states = {r["source"]: r["state"] for r in checkouts.runs()}
+    assert states == {"dr": "researching", "explorer-batch": "in-progress", "suite": "running"}
+
+
+async def test_checked_out_concept_has_no_run_to_start(client: AsyncClient, tmp_path: Path,
+                                                       launches: Launches) -> None:
+    _hold_everything(tmp_path)
+    status = (await client.get("/api/research", params={"concept": "Statistical Modeling"})).json()
+    assert status["checked_out"] == "an explorer frontier batch Stats"
+    r = await client.post("/api/research", json={"concept": "Statistical Modeling"}, headers=XHR)
+    assert r.status_code == 409 and "already being researched" in r.json()["detail"]
+    assert launches == []
+
+
+async def test_website_run_counts_as_checked_out(client: AsyncClient) -> None:
+    await client.post("/api/research", json={"concept": "Data Analysis"}, headers=XHR)
+    status = (await client.get("/api/research", params={"concept": "Data Analysis"})).json()
+    assert status["checked_out"] == "a website research run"
+
+
+async def test_queue_monitor(client: AsyncClient, tmp_path: Path) -> None:
+    _hold_everything(tmp_path)
+    _write(tmp_path / "repo" / "concept-tree" / "RESEARCH_QUEUE.md",
+           "# Queue\n\n- [ ] Concept: `Indexes` | Parent: `MongoDB`\n"
+           "- [ ] Concept: `Copart Salvage Auctions` | Parent: `Used Cars` | Mode: `dr` | Cluster: `Cars`\n"
+           "- [x] Concept: `Done Thing` | Parent: `X`\n")
+    await client.post("/api/research", json={"concept": "Data Analysis"}, headers=XHR)
+    body = (await client.get("/api/research/queue")).json()
+    assert {r["source"] for r in body["runs"]} == {"dr", "explorer-batch", "suite"}
+    suite = next(r for r in body["runs"] if r["source"] == "suite")
+    assert suite["pending"] == ["Indexes"] and suite["pending_count"] == 1 and suite["total"] == 2
+    assert body["website"][0]["concept"] == "Data Analysis"
+    assert body["queue"]["pending"] == 2 and body["queue"]["done"] == 1
+    assert body["queue"]["next"] == [{"concept": "Copart Salvage Auctions", "parent": "Used Cars",
+                                      "cluster": "Cars"}], "a checked-out row is not 'next'"
+    assert "repo" not in json.dumps(body["runs"]) and "user_id" not in json.dumps(body)
