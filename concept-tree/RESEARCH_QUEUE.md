@@ -4188,3 +4188,8 @@ Every frontier concept, grouped by shared parent (at most 8 per cluster), cluste
 - [ ] Concept: `LiteLLM gateway and SDK engineering` | Parent: `AI Gateways & LLM Proxy Infrastructure`
 - [ ] Concept: `Atlas Identity Federation and Resource Policy Boundaries` | Parent: `MongoDB Atlas IAM and RBAC`
 - [ ] Concept: `Atlas Hybrid Fusion and BM25 Diagnostics` | Parent: `MongoDB Atlas Search and Vector Search`
+- [ ] Concept: `Shard Key Design and Resharding as Cost Levers` | Parent: `MongoDB Atlas Cost Optimization` | Mode: `dr`
+- [ ] Concept: `Read Offload via Caching and Precomputed Views ($merge/$out, Computed Pattern)` | Parent: `MongoDB Atlas Cost Optimization` | Mode: `dr`
+- [ ] Concept: `Platform Consolidation TCO (Atlas Search/Vector Search vs Separate Search or Vector DB)` | Parent: `MongoDB Atlas Cost Optimization` | Mode: `dr`
+- [ ] Concept: `Migration and Cutover Cost (Live Migration, mongosync, Dual-Running, Egress)` | Parent: `MongoDB Atlas Cost Optimization` | Mode: `dr`
+- [ ] Concept: `Cluster Tier Limits and Feature Gates as Cost Drivers (Connections, IOPS Caps, Minimum Tiers)` | Parent: `MongoDB Atlas Cost Optimization` | Mode: `dr`

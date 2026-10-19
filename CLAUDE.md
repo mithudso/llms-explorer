@@ -101,4 +101,14 @@ Maintain `memory.md` and `prompts.md` with active tasks, versions, and prompt hi
 
 LiteLLM indexes use SQLite vectors and FTS5. Query `litellm_published_docs` for raw history, `litellm_operator_reference` for condensed historical units, or `concept__<slug>` for qualified research units through `hub_query_docset`. The research batch reached its eight-concept cap; it does not qualify a running gateway, local model or eGPU.
 
+### MongoDB cost optimization concept suite (2026-10-19)
+
+| File | Path | Holds | Ask it for |
+|---|---|---|---|
+| Family index | ~/.global-ai-hub/llms-concepts/mongodb-cost-optimization-family.llms/llms.txt | 33 cost concept packs from 6 /dr cohorts | billing/invoice anatomy, Cost Explorer and FOCUS, tags and chargeback, tier/topology/sharding economics, transfer and IOPS, Search Node and quantization cost, lifecycle and compression levers, Flex, Resource Policies, FinOps, TCO, region pricing, scheduled scaling, competitor pricing |
+| Hub references | ~/.claude/skills/mongodb-operations-expert/references/atlas-*.md and storage-and-data-lifecycle-cost-levers.md | Six source-anchored spokes (339 claims, 189 sources) | the same topics as skill context; "Cost references: which to load first" in the hub card |
+| Run report | docs/research/mongodb-cost-optimization-full-suite-2026-10-19/README.md | Verdict, runs, installed files, verification, queued gaps | what was researched, what was skipped, what is still open |
+
+Query `concept__<concept-slug>__facts` through `hub_query_docset` for any of the 33 packs. The run exited `SATURATION-DISSENT` with five queued gaps; packs are extractive third-party text (private, not published as reader pages).
+
 <!-- llms-routing:end -->
