@@ -36,11 +36,12 @@ def ec(monkeypatch, tmp_path):
 
 def test_default_is_the_lan_pool(ec):
     assert ec.pool_mode() == ("lan", ec.LAN_URLS)
-    assert [u for u, _w in ec._parse_hosts()] == [
-        "http://192.0.2.218:11434",
-        "http://box.test:11434",
-        "http://localhost:11434",
-    ]
+    # Read from LAN_URLS rather than spelled out: the LAN addresses change
+    # (192.0.2.218 -> .63 on 2026-10-15) and the publish scrubber rewrites
+    # them, so a literal list here broke CI on the next snapshot.
+    expected = [part.split("=")[0] for part in ec.LAN_URLS.split(",")]
+    assert [u for u, _w in ec._parse_hosts()] == expected
+    assert expected[-1] == "http://localhost:11434", "this machine stays the fallback"
 
 
 def test_local_mode_collapses_the_pool_to_this_machine(ec):
