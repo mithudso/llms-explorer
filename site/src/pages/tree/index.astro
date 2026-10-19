@@ -43,6 +43,11 @@ for (const root of context.roots)
 // so it is not counted twice either.
 const seen = new Set<string>();
 const fmt = (n: number) => n.toLocaleString("en-US");
+// Concept Viability Score (0-5): the research gate is 3.2, so the badge says which side of it a name sits on.
+const CVS_GATE = 3.2;
+const cvsText = (v: number | undefined) =>
+  v === undefined ? "" : `score ${v.toFixed(2)}/5${v >= CVS_GATE ? "" : " (below research gate)"}`;
+const frontierScore = new Map(tree.frontier.map((f) => [f.concept, f.cvs]));
 function branch(slug: string): { html: string; total: number } {
   const node = nodes[slug];
   if (!node || seen.has(slug)) return { html: "", total: 0 };
@@ -57,7 +62,7 @@ function branch(slug: string): { html: string; total: number } {
         total += 1;
         frontierKids += 1;
         return `<li class="frontier" data-slug="${esc(c.slug)}" data-concept="${esc(c.concept)}">` +
-          `<span title="frontier: named as a child but not yet researched">${esc(c.concept)} <em>(frontier)</em></span></li>`;
+          `<span title="frontier: named as a child but not yet researched">${esc(c.concept)} <em>(frontier${frontierScore.get(c.concept) !== undefined ? `, ${cvsText(frontierScore.get(c.concept))}` : ""})</em></span></li>`;
       }
       const sub = branch(c.slug);
       if (sub.html) {
@@ -73,6 +78,7 @@ function branch(slug: string): { html: string; total: number } {
     hasReference && n ? `${n.facts} facts in ${n.facets} facet${n.facets === 1 ? "" : "s"}` : "",
     hasReference ? "published reference" : node.state === "domain" ? "topic group" : "topic entry",
     frontierKids ? `${frontierKids} frontier` : "",
+    cvsText(node.cvs),
   ].filter(Boolean).join(" · ");
   const body =
     `<div class="node-body">` +

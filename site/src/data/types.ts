@@ -18,6 +18,10 @@ export interface TreeNode {
   children: TreeChild[];
   concept: string;
   conceptsCount: number;
+  /** Concept Viability Score, 0-5, from concept-family-explorer. Absent when never scored. */
+  cvs?: number;
+  cvsDecision?: string | null;
+  cvsScoredAt?: string | null;
   hasPack: boolean;
   parent: string | null;
   parent_slug: string | null;
@@ -37,6 +41,9 @@ export interface FrontierEntry {
   /** Null when the named parent has no node yet (it is itself only queued). */
   parent_slug: string | null;
   source: string;
+  /** Concept Viability Score, 0-5. Absent when never scored. */
+  cvs?: number;
+  cvsDecision?: string;
 }
 
 /** src/data/tree.json, written by tools/gen_tree.py. */

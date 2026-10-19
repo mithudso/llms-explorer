@@ -50,6 +50,11 @@ def _load(repo_root: Path) -> list[dict]:
     return raw if isinstance(raw, list) else raw.get("nodes", [])
 
 
+def _scores(repo_root: Path) -> dict[str, dict]:
+    """Frontier-name scores from `concept-tree/cvs-scores.json` (empty if absent)."""
+    return ct.load_scores(repo_root / "concept-tree" / "cvs-scores.json")
+
+
 def _skill_summaries(repo_root: Path) -> dict[str, str]:
     """`skillId → summary`, from the map the refresh vendors if there is one."""
     path = repo_root / "concept-tree" / SUMMARIES
@@ -127,6 +132,7 @@ def build(repo_root: Path, today: str | None = None,
     by_name = {n["concept"]: n for n in nodes_in}
     slug_of = {n["concept"]: n.get("slug") or slugify(n["concept"]) for n in nodes_in}
     vendored = _skill_summaries(repo_root)
+    scores = _scores(repo_root)
 
     nodes: dict[str, dict] = {}
     edges: list[list[str]] = []
@@ -138,6 +144,10 @@ def build(repo_root: Path, today: str | None = None,
                        "parent_slug": slug_of.get(e["parentConcept"]),
                        "source": "research-queue"}
         for e in queue_frontier(repo_root) if e["concept"] not in by_name}
+    for name, f in frontier.items():
+        e = next((q for q in queue_frontier(repo_root) if q["concept"] == name), None)
+        if e and e.get("cvs") is not None:
+            f["cvs"] = e["cvs"]
     for n in nodes_in:
         slug = slug_of[n["concept"]]
         children = []
@@ -163,6 +173,16 @@ def build(repo_root: Path, today: str | None = None,
             "hasPack": (concepts_dir / f"{slug}.json").is_file(),
             "artifacts": {},
         }
+        if n.get("cvs") is not None:
+            nodes[slug]["cvs"] = n["cvs"]
+            nodes[slug]["cvsDecision"] = n.get("cvsDecision")
+            nodes[slug]["cvsScoredAt"] = n.get("cvsScoredAt")
+    for name, f in frontier.items():  # the sidecar score beats a hand-written queue tag
+        rec = scores.get(name)
+        if rec and rec.get("cvs") is not None:
+            f["cvs"] = rec["cvs"]
+            if rec.get("decision"):
+                f["cvsDecision"] = rec["decision"]
     roots = [slug_of[n["concept"]] for n in nodes_in if not n.get("parentConcept")]
     stamp = today or generated_stamp(nodes_in)
     return {"generated": stamp, "roots": sorted(roots), "nodes": nodes,

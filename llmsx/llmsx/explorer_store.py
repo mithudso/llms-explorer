@@ -97,6 +97,7 @@ _QUEUE_RE = re.compile(
     r"^\s*-\s*\[(?P<done>[ xX])\]\s*Concept:\s*`(?P<concept>[^`]+)`"
     r"(?:\s*\|\s*Parent:\s*`(?P<parent>[^`]+)`)?"
     r"(?:\s*\|\s*Mode:\s*`(?P<mode>[^`]+)`)?"
+    r"(?:\s*\|\s*CVS:\s*`(?P<cvs>[0-9]+(?:\.[0-9]+)?)`)?"
     r"(?:\s*\|\s*Cluster:\s*`(?P<cluster>[^`]+)`)?", re.M)
 _CREDENTIAL_IN_URL = re.compile(r"(https?://)[^/@\s]+@")
 
@@ -562,12 +563,52 @@ def load_queue(repo: Path) -> list[dict]:
     p = repo / QUEUE_REL
     if not p.is_file():
         return []
-    return [{"concept": m.group("concept").strip(),
-             "parent": (m.group("parent") or "").strip() or None,
-             "mode": (m.group("mode") or "").strip() or None,
-             "cluster": (m.group("cluster") or "").strip() or None,
-             "done": m.group("done").lower() == "x"}
-            for m in _QUEUE_RE.finditer(p.read_text(encoding="utf-8", errors="ignore"))]
+    rows = []
+    for m in _QUEUE_RE.finditer(p.read_text(encoding="utf-8", errors="ignore")):
+        row = {"concept": m.group("concept").strip(),
+               "parent": (m.group("parent") or "").strip() or None,
+               "mode": (m.group("mode") or "").strip() or None,
+               "cluster": (m.group("cluster") or "").strip() or None,
+               "done": m.group("done").lower() == "x"}
+        if m.group("cvs"):                      # only a scored line grows the key: the row shape is pinned
+            row["cvs"] = float(m.group("cvs"))
+        rows.append(row)
+    return rows
+
+
+#: concept-family-explorer only researches a gap at CVS >= this; the explorer
+#: marks a score on the other side of it so a reader sees why it is not queued.
+CVS_GATE = 3.2
+SCORES_REL = Path("concept-tree/cvs-scores.json")
+
+
+def load_scores(repo: Path) -> dict[str, float]:
+    """`{concept name: CVS}` for names that have no node of their own: the
+    `cvs-scores.json` sidecar, overridden by nothing (the scorer writes it) and
+    topped up by `CVS:` tags on queue lines. Researched nodes carry `cvs` on the
+    node itself, so they are not repeated here. Missing files mean no scores."""
+    out: dict[str, float] = {}
+    for e in load_queue(repo):
+        if e.get("cvs") is not None:
+            out[e["concept"]] = e["cvs"]
+    p = repo / SCORES_REL
+    if p.is_file():
+        try:
+            data = json.loads(p.read_text(encoding="utf-8", errors="ignore"))
+        except json.JSONDecodeError:
+            data = {}
+        if isinstance(data, dict):
+            for name, rec in data.items():
+                if isinstance(rec, dict) and rec.get("cvs") is not None:
+                    out[name] = float(rec["cvs"])
+    return out
+
+
+def cvs_tag(score: float | None) -> str:
+    """`3.45` for a score at or above the gate, `2.10↓` below it, '' unscored."""
+    if score is None:
+        return ""
+    return f"{score:.2f}" + ("" if score >= CVS_GATE else "↓")
 
 
 def _queue_row(concept: str, parent: str | None, mode: str | None,
@@ -2307,7 +2348,7 @@ def facts_markdown(pack: dict | None, concept: str, meta: str = "") -> str:
 
 
 def overview_markdown(node: dict | None, name: str, outline: Outline, marks: dict[str, dict],
-                      note: str, queued: bool) -> str:
+                      note: str, queued: bool, frontier_cvs: float | None = None) -> str:
     """The Overview tab: the node's fields, its children, its mark, and the
     local note. Every node field is escaped before it is rendered; a frontier
     concept (no node) gets its parent and queue state only."""
@@ -2318,6 +2359,10 @@ def overview_markdown(node: dict | None, name: str, outline: Outline, marks: dic
         parent = outline.parent_of(name)
         if parent:
             out.append(f"- **parent:** {e(parent)}")
+        if frontier_cvs is not None:
+            out.append(f"- **viability (CVS):** {frontier_cvs:.2f} / 5"
+                       + ("" if frontier_cvs >= CVS_GATE
+                          else f" — below the {CVS_GATE} research gate, so it is not researched automatically"))
         if queued:
             out.append("- **queued:** yes (in RESEARCH_QUEUE.md)")
         return "\n".join(out) + "\n"
@@ -2337,6 +2382,10 @@ def overview_markdown(node: dict | None, name: str, outline: Outline, marks: dic
                + (f", refreshed {e(node['refreshedAt'])}" if node.get("refreshedAt") else ""))
     out.append(f"- **sources / concepts:** {e(node.get('sourcesCount', '—'))} / "
                f"{e(node.get('conceptsCount', '—'))}")
+    if node.get("cvs") is not None:
+        out.append(f"- **viability (CVS):** {float(node['cvs']):.2f} / 5"
+                   + (f" ({e(node['cvsDecision'])})" if node.get("cvsDecision") else "")
+                   + (f", scored {e(node['cvsScoredAt'])}" if node.get("cvsScoredAt") else ""))
     if node.get("aliases"):
         out.append("- **aliases:** " + ", ".join(e(a) for a in node["aliases"]))
     kids = outline.children.get(name) or []

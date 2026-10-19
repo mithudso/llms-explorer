@@ -28,7 +28,9 @@ CLI / Usage:
   concept_tree.py frontier                     known but never researched
   concept_tree.py validate                     structural + skill-link check
   concept_tree.py search <term>                match researched and frontier
-  concept_tree.py queue <concept> [--parent P] park it in RESEARCH_QUEUE.md
+  concept_tree.py queue <concept> [--parent P] [--cvs X]  park it in RESEARCH_QUEUE.md
+  concept_tree.py scores backfill [--telemetry F] [--dry-run]  CVS from telemetry onto nodes
+  concept_tree.py scores show <concept>        the stored Concept Viability Score
   concept_tree.py regroup <layout.json> [--dry-run]  renames, domains, parents
   concept_tree.py reparent <concept> [parent]  move one node (no parent = root)
   concept_tree.py relink-skills [--dry-run]    repoint/retire uninstalled skillIds
@@ -53,17 +55,30 @@ QUEUE_PATH = HUB_DIR / "concept-tree" / "RESEARCH_QUEUE.md"
 # would put two writers on one store; and a killed run must not leave a
 # node permanently marked "researching" in the durable map.
 RESEARCH_STATE_PATH = HUB_DIR / "concept-tree" / "research_state.json"
+# Concept Viability Scores (CVS, 0-5; concept-family-explorer's selection gate:
+# 0.25*Rel + 0.25*Use + 0.20*Nov + 0.15*Int + 0.15*Via). A RESEARCHED node
+# carries its score on the node itself (`cvs`, `cvsDecision`, `cvsScoredAt`,
+# `cvsSubject`). A FRONTIER name has no node to carry it, so its score lives in
+# this sidecar keyed by concept name. Both are written by `scores backfill`
+# (from research-telemetry.jsonl) and by concept-family-explorer's tree sync.
+SCORES_PATH = HUB_DIR / "concept-tree" / "cvs-scores.json"
+CVS_FIELDS = ("cvs", "cvsDecision", "cvsScoredAt", "cvsSubject")
+#: The default research gate. concept-family-explorer researches a gap only at
+#: CVS >= 3.2; the auto-researchers (frontier_research_batch, research_suite)
+#: use the same floor so nothing below it is researched unattended.
+DEFAULT_MIN_CVS = 3.2
 # User-level installs, the hub mirror, then project-level skills in each repo
 # under ~/dev (a repo's .claude/skills is live for sessions in that repo, and
 # research written there is linked from the tree like any other skill).
 SKILLS_DIRS = (Path.home() / ".claude" / "skills", HUB_DIR / "skills",
                *sorted((Path.home() / "dev").glob("*/.claude/skills")))
 
-# "- [ ] Concept: `X` | Parent: `Y` | Mode: `Z`"  — parent and mode optional
+# "- [ ] Concept: `X` | Parent: `Y` | Mode: `Z` | CVS: `3.45`"  — all tags optional
 _QUEUE_RE = re.compile(
     r"^\s*-\s*\[(?P<done>[ xX])\]\s*Concept:\s*`(?P<concept>[^`]+)`"
     r"(?:\s*\|\s*Parent:\s*`(?P<parent>[^`]+)`)?"
-    r"(?:\s*\|\s*Mode:\s*`(?P<mode>[^`]+)`)?", re.M)
+    r"(?:\s*\|\s*Mode:\s*`(?P<mode>[^`]+)`)?"
+    r"(?:\s*\|\s*CVS:\s*`(?P<cvs>[0-9]+(?:\.[0-9]+)?)`)?", re.M)
 
 RESEARCHED = "researched"
 FRONTIER = "frontier"
@@ -424,9 +439,133 @@ def load_queue(path: Path | None = None) -> list[dict]:
             "concept": m.group("concept").strip(),
             "parentConcept": (m.group("parent") or "").strip() or None,
             "mode": (m.group("mode") or "").strip() or None,
+            "cvs": float(m.group("cvs")) if m.group("cvs") else None,
             "done": m.group("done").lower() == "x",
         })
     return out
+
+
+# --------------------------------------------------------------------------- #
+# Concept Viability Scores
+# --------------------------------------------------------------------------- #
+
+def load_scores(path: Path | None = None) -> dict[str, dict]:
+    """The frontier-score sidecar: `{concept name: {cvs, decision, scoredAt,
+    subject, ...}}`. Missing file means no scores, not an error."""
+    p = Path(path) if path else SCORES_PATH
+    if not p.exists():
+        return {}
+    try:
+        data = json.loads(p.read_text(errors="ignore"))
+    except json.JSONDecodeError:
+        return {}
+    return data if isinstance(data, dict) else {}
+
+
+def save_scores(scores: dict[str, dict], path: Path | None = None) -> None:
+    p = Path(path) if path else SCORES_PATH
+    p.parent.mkdir(parents=True, exist_ok=True)
+    tmp = p.with_suffix(".json.tmp")
+    tmp.write_text(json.dumps(dict(sorted(scores.items())), indent=1, sort_keys=True) + "\n")
+    os.replace(tmp, p)
+
+
+def score_of(node: dict | None, concept: str, scores: dict[str, dict] | None) -> dict | None:
+    """One score record for a concept: the node's own `cvs*` fields when the
+    node carries them, else the sidecar entry. None when never scored."""
+    if node and node.get("cvs") is not None:
+        return {"cvs": node.get("cvs"), "decision": node.get("cvsDecision"),
+                "scoredAt": node.get("cvsScoredAt"), "subject": node.get("cvsSubject")}
+    rec = (scores or {}).get(concept)
+    if rec and rec.get("cvs") is not None:
+        return rec
+    return None
+
+
+def passes_cvs(score: dict | None, min_cvs: float | None, include_unscored: bool) -> bool:
+    """The research gate. No threshold means everything passes (legacy
+    behaviour); otherwise an unscored concept passes only when the caller
+    says so, because "never scored" is not "scored high enough"."""
+    if min_cvs is None:
+        return True
+    if score is None or score.get("cvs") is None:
+        return include_unscored
+    return float(score["cvs"]) >= float(min_cvs)
+
+
+def gate_by_cvs(rows: list[dict], tree: "ConceptTree", min_cvs: float | None,
+                include_unscored: bool = False, key: str = "concept") -> tuple[list[dict], dict]:
+    """Drop rows whose concept scores below `min_cvs`. Returns (kept, report)
+    where report counts what was held back and names the lowest few, so a run
+    log can say why a concept was not researched. `min_cvs=None` keeps all."""
+    kept: list[dict] = []
+    low: list[tuple[float, str]] = []
+    unscored: list[str] = []
+    for r in rows:
+        s = tree.score(r[key])
+        if passes_cvs(s, min_cvs, include_unscored):
+            kept.append(r)
+        elif s is None or s.get("cvs") is None:
+            unscored.append(r[key])
+        else:
+            low.append((float(s["cvs"]), r[key]))
+    low.sort()
+    return kept, {"min_cvs": min_cvs, "include_unscored": include_unscored,
+                  "kept": len(kept), "skipped_below_cvs": len(low),
+                  "skipped_unscored": len(unscored),
+                  "lowest_skipped": [f"{c:.2f} {n}" for c, n in low[:5]]}
+
+
+def apply_scores(nodes: list[dict], found: dict[str, dict],
+                 scores: dict[str, dict]) -> tuple[int, int]:
+    """Write `found` ({concept: {cvs, decision, scoredAt, subject}}) onto the
+    nodes that exist and into the `scores` sidecar for names that have no
+    node. Mutates both in place; returns (nodes written, sidecar written)."""
+    by = {n["concept"]: n for n in nodes if n.get("concept")}
+    lower = {k.lower(): v for k, v in by.items()}
+    n_nodes = n_side = 0
+    for concept, rec in found.items():
+        if rec.get("cvs") is None:
+            continue
+        node = by.get(concept) or lower.get(concept.lower())
+        if node is not None:
+            node["cvs"] = float(rec["cvs"])
+            node["cvsDecision"] = rec.get("decision")
+            node["cvsScoredAt"] = rec.get("scoredAt")
+            node["cvsSubject"] = rec.get("subject")
+            n_nodes += 1
+        else:
+            scores[concept] = {"cvs": float(rec["cvs"]), "decision": rec.get("decision"),
+                               "scoredAt": rec.get("scoredAt"), "subject": rec.get("subject"),
+                               "neighborhood": rec.get("neighborhood")}
+            n_side += 1
+    return n_nodes, n_side
+
+
+def scores_from_telemetry(path: Path) -> dict[str, dict]:
+    """Per-concept CVS rows that concept-family-explorer appends to
+    research-telemetry.jsonl (`runner: cfe` + `concept` + `cvs`). The newest
+    row per concept wins, so a re-scored concept reflects its latest run."""
+    found: dict[str, dict] = {}
+    if not Path(path).exists():
+        return found
+    for line in Path(path).read_text(errors="ignore").splitlines():
+        try:
+            row = json.loads(line)
+        except json.JSONDecodeError:
+            continue
+        if row.get("runner") != "cfe" or not row.get("concept") or row.get("cvs") is None:
+            continue
+        name = str(row["concept"]).strip()
+        if name.endswith(" (parent)"):          # a REFRESH row for an existing node
+            name = name[: -len(" (parent)")]
+        rec = {"cvs": float(row["cvs"]), "decision": row.get("decision"),
+               "scoredAt": row.get("date"), "subject": row.get("subject") or row.get("slug"),
+               "neighborhood": row.get("neighborhood")}
+        prev = found.get(name)
+        if prev is None or str(rec["scoredAt"] or "") >= str(prev["scoredAt"] or ""):
+            found[name] = rec
+    return found
 
 
 def _alive(pid: int) -> bool:
@@ -491,19 +630,32 @@ class ConceptTree:
     """Indexed view over the flat node list, plus the derived frontier."""
 
     def __init__(self, nodes: list[dict], queue: list[dict] | None = None,
-                 in_progress: dict[str, dict] | None = None):
+                 in_progress: dict[str, dict] | None = None,
+                 scores: dict[str, dict] | None = None):
         self.nodes = nodes
         self.queue = queue or []
         self.in_progress = in_progress or {}
+        self.scores = scores or {}
         self.by_concept = {n["concept"]: n for n in nodes if n.get("concept")}
         self.by_slug = {n["slug"]: n for n in nodes if n.get("slug")}
         self.frontier = self._derive_frontier()
 
+    def score(self, concept: str) -> dict | None:
+        """The stored CVS record for a node or frontier name, or None. Order:
+        the node's own fields, the sidecar, then a `CVS:` tag on its queue line."""
+        rec = score_of(self.by_concept.get(concept), concept, self.scores)
+        if rec is None:
+            front = self.frontier.get(concept)
+            if front and front.get("cvs") is not None:
+                return {"cvs": front["cvs"], "decision": front.get("cvsDecision"),
+                        "scoredAt": None, "subject": None}
+        return rec
+
     @classmethod
     def load(cls, tree_path=None, queue_path=None,
-             state_path=None) -> "ConceptTree":
+             state_path=None, scores_path=None) -> "ConceptTree":
         return cls(load_nodes(tree_path), load_queue(queue_path),
-                   load_research_state(state_path))
+                   load_research_state(state_path), load_scores(scores_path))
 
     def _derive_frontier(self) -> dict[str, dict]:
         """Known-but-unresearched concepts, from both sources.
@@ -522,6 +674,8 @@ class ConceptTree:
                 "parentConcept": entry["parentConcept"],
                 "source": "research-queue",
             }
+            if entry.get("cvs") is not None:
+                out[entry["concept"]]["cvs"] = entry["cvs"]
         for node in self.nodes:
             for child in node.get("childConcepts") or []:
                 if child in self.by_concept:
@@ -531,6 +685,14 @@ class ConceptTree:
                     "parentConcept": node["concept"],
                     "source": "child-reference",
                 }
+        # the score a scored-but-unresearched name carries (sidecar beats a
+        # queue line: the sidecar is written by the scorer, the line by hand)
+        for name, entry in out.items():
+            rec = self.scores.get(name)
+            if rec and rec.get("cvs") is not None:
+                entry["cvs"] = rec["cvs"]
+                if rec.get("decision"):
+                    entry["cvsDecision"] = rec["decision"]
         return out
 
     # -- status ------------------------------------------------------------
@@ -688,6 +850,14 @@ def detail(tree: ConceptTree, concept: str) -> dict:
         "siblings": rel["siblings"],
         "children": rel["children"],
     }
+    score = tree.score(concept)
+    if score:
+        out["cvs"] = score.get("cvs")
+        out["cvsDecision"] = score.get("decision")
+        out["cvsScoredAt"] = score.get("scoredAt")
+        out["cvsSubject"] = score.get("subject")
+        out["cvsNote"] = ("Concept Viability Score 0-5 from concept-family-explorer; "
+                          f"the auto-researchers skip anything below {DEFAULT_MIN_CVS}")
     if running:
         out["research"] = {"mode": running.get("mode"), "pid": running.get("pid"),
                            "startedAt": running.get("started")}
@@ -711,7 +881,7 @@ def detail(tree: ConceptTree, concept: str) -> dict:
 
 
 def queue_concept(concept: str, parent: str | None = None, mode: str | None = None,
-                  path: Path | None = None) -> bool:
+                  path: Path | None = None, cvs: float | None = None) -> bool:
     """Append a concept to RESEARCH_QUEUE.md as an unchecked item, optionally
     tagged with which research mode to run (`dr`/`family`/`deep`/`crawl` —
     same values `research_prompt` dispatches on) so a queue consumer knows
@@ -732,6 +902,8 @@ def queue_concept(concept: str, parent: str | None = None, mode: str | None = No
         line += f" | Parent: `{parent}`"
     if mode:
         line += f" | Mode: `{mode}`"
+    if cvs is not None:
+        line += f" | CVS: `{float(cvs):.2f}`"
     p.parent.mkdir(parents=True, exist_ok=True)
     with open(p, "a") as fh:
         fh.write(("" if p.exists() and p.read_text().endswith("\n") else "\n")
@@ -760,11 +932,25 @@ def main(argv=None) -> int:
     t = sub.add_parser("tree", help="print the tree")
     t.add_argument("--root"); t.add_argument("--depth", type=int, default=0)
     d = sub.add_parser("show", help="detail for one concept"); d.add_argument("concept")
-    sub.add_parser("frontier", help="concepts known but not researched")
+    f = sub.add_parser("frontier", help="concepts known but not researched")
+    f.add_argument("--min-cvs", type=float, default=None,
+                   help=f"only names whose stored CVS is at least this (the research gate is {DEFAULT_MIN_CVS})")
+    f.add_argument("--include-unscored", action="store_true",
+                   help="with --min-cvs, also list names that were never scored")
     sub.add_parser("validate", help="structural link check")
     s = sub.add_parser("search", help="find concepts"); s.add_argument("term")
     q = sub.add_parser("queue", help="add a concept to the research queue")
     q.add_argument("concept"); q.add_argument("--parent")
+    q.add_argument("--cvs", type=float, default=None, help="Concept Viability Score (0-5) to record on the line")
+    sc = sub.add_parser("scores", help="Concept Viability Scores: backfill from telemetry, or show one")
+    scs = sc.add_subparsers(dest="scores_cmd", required=True)
+    b = scs.add_parser("backfill", help="write CVS rows from research-telemetry.jsonl onto nodes (writes tree.json + cvs-scores.json)")
+    b.add_argument("--telemetry", type=Path,
+                   default=Path.home() / ".claude" / "skill-consolidation" / "research-telemetry.jsonl")
+    b.add_argument("--tree", type=Path, default=None, help="tree.json to write (default: the hub tree)")
+    b.add_argument("--scores", type=Path, default=None, help="sidecar to write (default: beside the tree)")
+    b.add_argument("--dry-run", action="store_true")
+    sh = scs.add_parser("show", help="the stored score for one concept"); sh.add_argument("concept")
     sub.add_parser("slugs", help="give every node a stable slug + aliases list (writes tree.json)")
     g = sub.add_parser("regroup", help="apply a layout file: renames, domain nodes, parents (writes tree.json)")
     g.add_argument("layout"); g.add_argument("--dry-run", action="store_true")
@@ -803,14 +989,52 @@ def main(argv=None) -> int:
         print(f"{n} node field(s) added across {len(nodes)} nodes")
         return 0
 
+    if args.cmd == "scores" and args.scores_cmd == "backfill":
+        tree_path = args.tree or TREE_PATH
+        scores_path = args.scores or (tree_path.parent / "cvs-scores.json")
+        nodes = load_nodes(tree_path)
+        scores = load_scores(scores_path)
+        found = scores_from_telemetry(args.telemetry)
+        n_nodes, n_side = apply_scores(nodes, found, scores)
+        print(json.dumps({"telemetry_rows": len(found), "nodes_scored": n_nodes,
+                          "frontier_scored": n_side, "tree": str(tree_path),
+                          "scores": str(scores_path), "written": not args.dry_run}, indent=2))
+        if not args.dry_run and (n_nodes or n_side):
+            if tree_path == TREE_PATH:
+                _backup_tree()
+            save_nodes(nodes, tree_path)
+            save_scores(scores, scores_path)
+        return 0
+
     tree = ConceptTree.load()
     if args.cmd == "tree":
         print("\n".join(render_ascii(tree, args.root, args.depth)))
     elif args.cmd == "show":
         print(json.dumps(detail(tree, args.concept), indent=2))
+    elif args.cmd == "scores":
+        print(json.dumps({"concept": args.concept, "score": tree.score(args.concept),
+                          "status": tree.status(args.concept)}, indent=2))
     elif args.cmd == "frontier":
-        print(json.dumps({"frontier": sorted(tree.frontier),
-                          "orphaned": tree.orphan_frontier()}, indent=2))
+        names = sorted(tree.frontier)
+        skipped_low = skipped_unscored = 0
+        if args.min_cvs is not None:
+            kept = []
+            for c in names:
+                s = tree.score(c)
+                if passes_cvs(s, args.min_cvs, args.include_unscored):
+                    kept.append(c)
+                elif s is None:
+                    skipped_unscored += 1
+                else:
+                    skipped_low += 1
+            names = kept
+        print(json.dumps({"frontier": names,
+                          "scores": {c: tree.frontier[c].get("cvs") for c in names
+                                     if tree.frontier[c].get("cvs") is not None},
+                          "orphaned": tree.orphan_frontier(),
+                          **({"min_cvs": args.min_cvs, "skipped_below_cvs": skipped_low,
+                              "skipped_unscored": skipped_unscored} if args.min_cvs is not None else {})},
+                         indent=2))
     elif args.cmd == "validate":
         probs = tree.validate()
         print("\n".join(probs) if probs else "ok: no structural problems")
@@ -818,7 +1042,7 @@ def main(argv=None) -> int:
     elif args.cmd == "search":
         print("\n".join(tree.search(args.term)) or "(no matches)")
     elif args.cmd == "queue":
-        added = queue_concept(args.concept, args.parent)
+        added = queue_concept(args.concept, args.parent, cvs=args.cvs)
         print("queued" if added else "already queued")
     return 0
 
