@@ -291,3 +291,9 @@ async def test_queue_monitor(client: AsyncClient, tmp_path: Path) -> None:
     assert body["queue"]["next"] == [{"concept": "Copart Salvage Auctions", "parent": "Used Cars",
                                       "cluster": "Cars"}], "a checked-out row is not 'next'"
     assert "repo" not in json.dumps(body["runs"]) and "user_id" not in json.dumps(body)
+
+
+def test_run_env_adds_tool_directories(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("PATH", "/usr/bin:/bin")
+    path = research.run_env()["PATH"].split(":")
+    assert path[:2] == ["/usr/bin", "/bin"] and "/opt/homebrew/bin" in path
