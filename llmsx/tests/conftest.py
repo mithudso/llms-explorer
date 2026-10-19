@@ -126,3 +126,16 @@ def fake_claude(tmp_path, monkeypatch):
     monkeypatch.setenv("FAKE_CLAUDE_MODE", "ok")
     monkeypatch.setattr(es, "claude_binary", lambda: str(script))
     return script
+
+
+@pytest.fixture(autouse=True)
+def _no_research_monitor_network(monkeypatch):
+    """The queue screen polls the live research monitor. Tests never reach the
+    network: the fetch fails the way an offline machine's would, unless a test
+    replaces it."""
+    from llmsx import explorer_store
+
+    def offline(timeout: float = 8.0) -> dict:
+        raise OSError("offline in tests")
+
+    monkeypatch.setattr(explorer_store, "fetch_research_monitor", offline)

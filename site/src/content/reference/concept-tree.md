@@ -82,6 +82,12 @@ who is not signed in gets a sign-in link. Anyone can see the latest run's status
 queued, running, finished or failed. A finished run's facts appear after the next site update,
 because this site is built from snapshots and does not query the hub at request time.
 
+A concept that an unfinished run already holds is **checked out**, and it has no button. The
+panel says which run holds it. Four kinds of run can hold a concept: a run started from this
+panel, a `/dr` run, an llmsx explorer frontier batch, and a research suite run, including one
+that is paused. [`/queue/`](/queue/) lists every run that holds concepts right now, the runs
+started from this panel, and the next concepts waiting in the research queue.
+
 The grey count after a name is what opening it reveals: `6 children · 1,671 total` means six
 names are drawn directly under it and 1,671 concepts sit anywhere below it. Frontier names are
 counted, because they are drawn. A concept named under two parents is drawn, and counted, once.

@@ -175,6 +175,14 @@ class Forbidden(GatewayRefusal):
     code = "forbidden"
 
 
+class Conflict(GatewayRefusal):
+    """The request would duplicate work already under way."""
+
+    status_code = 409
+    rpc_code = RPC_INVALID_REQUEST
+    code = "conflict"
+
+
 class QuotaExceeded(GatewayRefusal):
     status_code = 402
     rpc_code = RPC_QUOTA

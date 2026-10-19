@@ -276,20 +276,29 @@
         const status = el("p", "facts-research-status");
         wrap.appendChild(button);
         wrap.appendChild(status);
-        if (!api) { button.hidden = true; return wrap; }
+        // Hidden until the status answers, so a checked-out concept never
+        // flashes a button it does not have.
+        button.hidden = true;
+        if (!api) return wrap;
         const concept = li.dataset.concept;
-        const show = (run) => {
-          status.textContent = describe(run);
+        // A concept is checked out while any unfinished run holds it: a run
+        // started here, a /dr run, an explorer batch or a research suite run
+        // (api/explorer_api/checkouts.py). It gets no button, only the holder.
+        const show = (run, holder) => {
           const active = run && (run.status === "queued" || run.status === "running");
-          button.hidden = Boolean(active);
+          const out = Boolean(holder) || Boolean(active);
+          status.textContent = active ? describe(run)
+            : holder ? `Checked out: already being researched by ${holder}.`
+            : describe(run);
+          button.hidden = out;
           clearTimeout(poll);
-          if (active) poll = setTimeout(check, 20000);
+          if (out) poll = setTimeout(check, 30000);
         };
         const check = () => {
           if (current !== li) return;
           fetch(`${api}/api/research?concept=${encodeURIComponent(concept)}`)
             .then((r) => (r.ok ? r.json() : null))
-            .then((data) => { if (data && current === li) show(data.run); })
+            .then((data) => { if (data && current === li) show(data.run, data.checked_out); })
             .catch(() => {});
         };
         button.addEventListener("click", () => {
@@ -304,7 +313,8 @@
             .then(async (r) => {
               button.disabled = false;
               const data = await r.json().catch(() => ({}));
-              if (r.status === 202) return show(data);
+              if (r.status === 202) return show(data, null);
+              if (r.status === 409) return check();
               status.replaceChildren();
               if (r.status === 401) {
                 status.appendChild(anchor("Sign in", "/login/"));
@@ -344,7 +354,11 @@
       wide.addEventListener("change", () => { if (current) place(current); });
 
       const start = decodeURIComponent(location.hash.slice(1));
-      const first = start && list.querySelector(`li[data-slug="${CSS.escape(start)}"]`);
+      // `#<slug>` from this page, or `#<concept name>` from /queue/, which
+      // knows names but not slugs.
+      const wanted = start.toLowerCase();
+      const first = start && (list.querySelector(`li[data-slug="${CSS.escape(start)}"]`) ||
+        Array.from(list.querySelectorAll("li[data-concept]")).find((e) => e.dataset.concept.toLowerCase() === wanted));
       if (first) select(first, true);
     }
 

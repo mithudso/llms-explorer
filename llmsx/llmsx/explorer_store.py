@@ -732,6 +732,59 @@ def pending_clusters(repo: Path, first: str | None = None) -> list[dict]:
     return clusters
 
 
+#: The research monitor: the same public, read-only endpoint the site's
+#: /queue/ page reads (api/explorer_api/routes/research.py), so the TUI and the
+#: web page show the same runs. LLMSX_API_URL points it at another API.
+DEFAULT_API_URL = "https://api.llms-explorer.com"
+MONITOR_SOURCES = {"dr": "/dr run", "explorer-batch": "explorer batch",
+                   "suite": "research suite", "website": "website run"}
+
+
+def api_url() -> str:
+    return (os.environ.get("LLMSX_API_URL") or DEFAULT_API_URL).rstrip("/")
+
+
+def fetch_research_monitor(timeout: float = 8.0) -> dict:
+    """``GET /api/research/queue``. Raises ``OSError``/``ValueError`` on a
+    network or parse failure; the caller shows that as "monitor unavailable"."""
+    req = urllib.request.Request(api_url() + "/api/research/queue",
+                                 headers={"User-Agent": "llmsx-explorer",
+                                          "Accept": "application/json"})
+    with urllib.request.urlopen(req, timeout=timeout) as r:  # noqa: S310 - fixed https host
+        data = json.loads(r.read().decode("utf-8"))
+    if not isinstance(data, dict):
+        raise ValueError("the research monitor did not return an object")
+    return data
+
+
+def research_monitor_lines(data: dict, width: int = 4) -> list[str]:
+    """Plain lines for the queue screen's monitor box: every run that holds
+    concepts, the active website runs, and the queue's size. A concept a run
+    holds is "checked out"."""
+    lines: list[str] = []
+    for run in data.get("runs") or []:
+        total = int(run.get("total") or 0)
+        pending = int(run.get("pending_count") or 0)
+        done = max(0, total - pending)
+        names = ", ".join(str(n) for n in (run.get("pending") or [])[:width])
+        more = f" +{pending - width}" if pending > width else ""
+        lines.append(f"{str(run.get('state', '?')).upper():<11} "
+                     f"{MONITOR_SOURCES.get(run.get('source'), run.get('source'))} "
+                     f"{run.get('name')}: {done}/{total} done, {pending} checked out"
+                     + (f" ({names}{more})" if names else ""))
+    for job in data.get("website") or []:
+        if job.get("status") in ("queued", "running"):
+            lines.append(f"{str(job['status']).upper():<11} website run: {job.get('concept')}")
+    if not lines:
+        lines.append("Nothing is being researched right now.")
+    q = data.get("queue") or {}
+    if q.get("available"):
+        nxt = ", ".join(r.get("concept", "") for r in (q.get("next") or [])[:3])
+        lines.append(f"Queue: {q.get('pending', 0)} waiting, {q.get('done', 0)} done"
+                     + (f" · next: {nxt}" if nxt else ""))
+    return lines
+
+
 def mark_queue_done(repo: Path, concepts: list[str]) -> int:
     """Tick `- [ ]` → `- [x]` on the pending rows for `concepts`. Returns the
     number of rows ticked."""

@@ -805,3 +805,10 @@ Outcome: /tree/ facts panel (click = expand children + load facts file), honest 
 > Yes have it start a research run
 
 Outcome: "Research this concept" button in the /tree/ facts panel backed by moderator-only `POST /api/research`, which runs the llmsx `dr` research command on the API host (TASK-717).
+
+## Prompt — 2026-10-18
+
+> If a concept is checked out it shouldn't have the research this topic button, since it's already being researched.
+> (mid-turn) Create a page that monitors the queue, same with the Explorer tui
+
+Outcome: checked-out detection across website jobs, /dr runs, explorer batches and research-suite batches (TASK-727); /queue/ monitor page and an explorer queue-viewer monitor box backed by `GET /api/research/queue`; llmsx 0.2.6.

@@ -1,5 +1,10 @@
 # Memory Log
 
+## v0.22.51 - 2026-10-18
+
+- TASK-727: a concept is "checked out" while an unfinished run holds it. Holders: an active website job, a /dr manifest in status `researching` (fresh within 24 h), an llmsx frontier batch `in-progress` without a result row, or a research-suite batch whose `register` stage is not done (paused counts). The scan lives in api/explorer_api/checkouts.py and is cached 60 s. GET /api/research returns `checked_out`; POST returns 409; the /tree/ panel shows the holder and no button. On 2026-10-18 the paused suite run mongodb-2026-10-14 holds 694 of its 707 concepts.
+- New public monitor `GET /api/research/queue` (runs, website jobs, RESEARCH_QUEUE.md counts and next rows). It feeds the new site page /queue/ (in the More menu, twin /queue.md) and a "Research monitor" box in the llmsx explorer queue viewer (`u`). llmsx is bumped to 0.2.6; `LLMSX_API_URL` overrides the endpoint.
+
 ## v0.22.50 - 2026-10-17
 
 - TASK-717: /tree/ facts panel offers "Research this concept" for concepts without facts (frontier included). It calls the new `POST /api/research` (api/explorer_api/routes/research.py, api/explorer_api/research.py), which lets only moderators (EXPLORER_MODERATOR_EMAILS) start the llmsx `dr` run (`claude -p … --permission-mode acceptEdits`) as an asyncio child of the API in the repo root. Guards: X-Requested-With CSRF header, a public-tree name check with a stricter 160-char name rule, an advisory lock, one run per concept and at most 2 at once, a boot id that marks orphaned runs failed, a process-group kill on timeout and at API shutdown. `GET /api/research?concept=` is public and read-only. `/api/me` now includes `moderator`.

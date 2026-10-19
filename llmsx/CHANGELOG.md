@@ -3,6 +3,17 @@
 All notable changes to this project are documented in this file. Format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [0.2.6] — 2026-10-18
+
+### Added
+
+- `llmsx explorer` queue viewer (`u`): a research monitor listing every run that
+  holds concepts on the research machine (`/dr` runs, explorer frontier batches,
+  research suite runs, website runs), how many of each run's concepts are done
+  and which are checked out, plus the queue's size. It reads the public
+  `GET /api/research/queue` endpoint (also shown at https://llms-explorer.com/queue/),
+  refreshes every 30 s and on `R`; `LLMSX_API_URL` points it elsewhere.
+
 ## [0.2.5] — 2026-10-13
 
 ### Added
