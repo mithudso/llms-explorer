@@ -106,6 +106,14 @@ in-session subagents.
    `dedupe-decision` row, not a research candidate. Check the concept-pack library
    (`ls ~/.global-ai-hub/llms-concepts/` or the `hub_concept_library` MCP tool
    with a query) so a concept that already has a pack is not researched twice.
+3b. **Gate on viability.** Every candidate carries, when it has been scored, a Concept
+   Viability Score (CVS, 0-5): `concept_tree.py scores show "<concept>"`, a `CVS:` tag on
+   its queue line, or the node's own `cvs` field. Research only candidates at **3.2 or
+   higher**, the floor concept-family-explorer uses. A candidate below the floor gets a
+   `below-cvs-gate` ledger row (not research); a candidate never scored gets an
+   `unscored` row and is held until scored or until the user says to include unscored.
+   `research_suite.py scope` and `frontier_research_batch.py` apply the same floor by
+   default (`--min-cvs`, `--include-unscored`); do not pass `--min-cvs 0` on your own.
 4. **Check sourcing before any web spend.** For each candidate,
    `source_library.py search "<concept terms>" --brief --top 8`. Classify:
    *covered* (3+ hits from 2+ organisations, snapshots under 30 days old or in a

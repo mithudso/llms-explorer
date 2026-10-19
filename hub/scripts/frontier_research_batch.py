@@ -652,6 +652,16 @@ def main() -> int:
              "the ENTIRE frontier, which is almost never what a caller "
              "researching one named family wants.")
     ap.add_argument(
+        "--min-cvs", type=float, default=ct.DEFAULT_MIN_CVS,
+        help="Only research frontier concepts whose stored Concept Viability Score "
+             f"(concept-tree/cvs-scores.json, or a CVS tag on the queue line) is at least "
+             f"this. Default {ct.DEFAULT_MIN_CVS}, the same floor concept-family-explorer "
+             "uses. Pass 0 to disable the gate.")
+    ap.add_argument(
+        "--include-unscored", action="store_true",
+        help="With the gate on, also research concepts that were never scored. "
+             "Off by default: 'never scored' is not 'scored high enough'.")
+    ap.add_argument(
         "--jobs", type=int, default=1,
         help="Concepts researched concurrently (default 1). Each concept runs "
              "four role subagents at once, so --jobs 3 means ~12 live "
@@ -665,6 +675,9 @@ def main() -> int:
         wanted = {ln.strip() for ln in args.concepts.read_text(encoding="utf-8").splitlines()
                  if ln.strip()}
         frontier = filter_frontier(frontier, wanted)
+    if args.min_cvs:
+        frontier, gate = ct.gate_by_cvs(frontier, tree, args.min_cvs, args.include_unscored)
+        print(f"cvs gate: {json.dumps(gate)}", file=sys.stderr)
     if args.limit:
         frontier = frontier[:args.limit]
     # A stable default makes a killed or quota-paused invocation resumable

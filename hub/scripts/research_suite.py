@@ -1474,6 +1474,10 @@ def cmd_scope(a) -> int:
     )
     rx = re.compile(a.topic_rx, re.I) if a.topic_rx else MONGO_RX
     rows = build_scope(tree, q, rx)
+    gate = None
+    min_cvs = getattr(a, "min_cvs", 0)  # argparse supplies ct.DEFAULT_MIN_CVS; a bare namespace means no gate
+    if min_cvs:
+        rows, gate = ct.gate_by_cvs(rows, tree, min_cvs, getattr(a, "include_unscored", False))
     batches = make_batches(rows, a.max_batch)
     (run / "scope.json").write_text(
         json.dumps(
@@ -1488,7 +1492,7 @@ def cmd_scope(a) -> int:
     for r in rows:
         for s in r["sources"]:
             by_src[s] += 1
-    print(json.dumps({"run": a.run, "concepts": len(rows), "by_source": dict(by_src), "batches": len(batches),
+    print(json.dumps({"run": a.run, "cvs_gate": gate, "concepts": len(rows), "by_source": dict(by_src), "batches": len(batches),
                       "largest": max((len(b["concepts"]) for b in batches), default=0), "dir": str(run)}, indent=1))  # fmt: skip
     return 0
 
@@ -1607,6 +1611,10 @@ def main() -> int:
     s.add_argument("--run", required=True)
     s.add_argument("--topic-rx")
     s.add_argument("--max-batch", type=int, default=8)
+    s.add_argument("--min-cvs", type=float, default=ct.DEFAULT_MIN_CVS,
+                   help=f"drop scope rows scoring below this Concept Viability Score (default {ct.DEFAULT_MIN_CVS}; 0 disables)")
+    s.add_argument("--include-unscored", action="store_true",
+                   help="keep rows that were never scored (they are dropped by default once the gate is on)")
     sub.add_parser("preflight")
     s = sub.add_parser("run")
     s.add_argument("--run", required=True)
