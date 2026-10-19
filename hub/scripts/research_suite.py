@@ -559,7 +559,10 @@ def candidate_urls(url: str) -> list[str]:
     return [url.split("#")[0]]
 
 
-_LOCAL_SUFFIXES = (".localhost", ".local", ".internal", ".lan", ".intranet", ".corp", ".home.arpa")
+# `.test`, `.example` and `.invalid` are reserved by RFC 6761 and never resolve
+# publicly; the publish scrubber also rewrites private hostnames to `box.test`.
+_LOCAL_SUFFIXES = (".localhost", ".local", ".internal", ".lan", ".intranet", ".corp", ".home.arpa",
+                   ".test", ".example", ".invalid")
 
 
 def public_http_url(url: str) -> bool:
