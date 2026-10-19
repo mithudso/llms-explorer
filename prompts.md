@@ -812,3 +812,9 @@ Outcome: "Research this concept" button in the /tree/ facts panel backed by mode
 > (mid-turn) Create a page that monitors the queue, same with the Explorer tui
 
 Outcome: checked-out detection across website jobs, /dr runs, explorer batches and research-suite batches (TASK-727); /queue/ monitor page and an explorer queue-viewer monitor box backed by `GET /api/research/queue`; llmsx 0.2.6.
+
+## Prompt — 2026-10-19
+
+> Run the full-suite skill on mongodb cost optimization
+
+Outcome: `/full-suite` run — scout (mongodb.com and docs llms.txt found), CFE plan (33 rows, 23 researched in 4 cohorts), round 1 (68 harvested, 6 researched as cohort E), rounds 2–3 empty, two blind gates (4 corroborated gaps researched as cohort F; 5 more queued), 33 packs + family rollup, trees synced, hub audited. Verdict SATURATION-DISSENT. Report: `docs/research/mongodb-cost-optimization-full-suite-2026-10-19/README.md`.
