@@ -845,6 +845,7 @@ class Explorer(App):
         self.repo = Path(repo).resolve()
         self._auto_sync = auto_sync
         self._tree_nodes: list[dict] = []
+        self._scores: dict[str, float] = {}      # CVS of names with no node (frontier)
         self._outline: store.Outline | None = None
         self._marks: dict[str, dict] = {}
         self._queued: set[str] = set()
@@ -946,6 +947,7 @@ class Explorer(App):
         self._marks = store.load_marks(self.repo)
         try:
             self._queued = {e["concept"] for e in store.load_queue(self.repo) if not e["done"]}
+            self._scores = store.load_scores(self.repo)
             self._available = store.available_slugs(self.repo)
         except OSError as exc:
             logger.warning("could not read the queue or the packs: %s", exc)
@@ -1000,6 +1002,9 @@ class Explorer(App):
                 return label
             label = Text(name, style="dim italic")
             label.append("  (frontier)", style="dim")
+            tag = store.cvs_tag(self._scores.get(name))
+            if tag:
+                label.append(f"  {tag}", style="dim green" if "↓" not in tag else "dim red")
             mark = self._marks.get(store.slugify(name))
             if isinstance(mark, dict) and mark.get("state"):
                 label.append(f"  [{mark.get('state')}]", style="yellow")
@@ -1012,6 +1017,9 @@ class Explorer(App):
         label = Text(name)
         if name in self._overlay.get("moves", {}):
             label.append(" ↷", style="magenta")
+        tag = store.cvs_tag(node.get("cvs"))
+        if tag:
+            label.append(f"  {tag}", style="green" if "↓" not in tag else "red")
         if node["slug"] in self._available:
             label.append(" ●", style="cyan")
         mark = self._marks.get(node["slug"])
@@ -1269,7 +1277,7 @@ class Explorer(App):
     def _set_overview(self, name: str, node: dict | None, slug: str) -> None:
         note = store.read_note(slug) if node else ""
         md = store.overview_markdown(node, name, self._outline, self._marks, note,
-                                     name in self._queued)
+                                     name in self._queued, self._scores.get(name))
         tags = store.tags_of(self._marks, store.tag_key(name, self._outline))
         extra = []
         if tags:

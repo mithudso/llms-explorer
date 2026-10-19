@@ -55,6 +55,14 @@ const hasPublishedReference = Boolean(pack?.summary?.trim() &&
   pack.facets?.some((facet) => facet.facts?.some((fact) =>
     fact.text?.trim() && fact.source?.trim())));
 const frontier = tree.frontier.filter((f) => f.parent_slug === node.slug);
+// Concept Viability Score: concept-family-explorer's 0-5 pre-research gate. Shown so a reader can
+// see how useful a topic was judged before it was researched; the auto-researchers skip below 3.2.
+const CVS_GATE = 3.2;
+const cvsLabel = (v: number) => `${v.toFixed(2)} / 5`;
+const frontierCvs = (concept: string): string => {
+  const f = tree.frontier.find((x) => x.concept === concept);
+  return f?.cvs !== undefined ? `, viability ${cvsLabel(f.cvs)}${f.cvs < CVS_GATE ? ", below research gate" : ""}` : "";
+};
 
 // A related concept in a pack names its target by concept text, not slug —
 // resolved against the live tree so the link always lands on a real page.
@@ -125,6 +133,11 @@ const description = hasPublishedReference && pack
       ? <> · snapshot {pack?.generated || node.researchedAt}</>
       : node.children.length > 0 && <> · {node.children.length} {node.children.length === 1 ? "branch" : "branches"}</>}
     {node.skillId && <> · skill <code>{node.skillId}</code></>}
+    {node.cvs !== undefined && (
+      <> · <span class="cvs" data-cvs={node.cvs} title="Concept Viability Score: relevance, usefulness, novelty, interest and researchability, weighted 0-5. Topics below 3.2 are not researched automatically.">
+        viability {cvsLabel(node.cvs)}{node.cvsDecision ? ` (${node.cvsDecision.toLowerCase()})` : ""}
+      </span></>
+    )}
   </p>
   {!hasPublishedReference && (
     <>
@@ -184,12 +197,12 @@ const description = hasPublishedReference && pack
       <li>
         {c.state !== "frontier"
           ? <a href={`/tree/${c.slug}/`}>{c.concept}</a>
-          : <span class="frontier" title="frontier: named but not yet researched">{c.concept} <em>(frontier)</em></span>}
+          : <span class="frontier" title="frontier: named but not yet researched">{c.concept} <em>(frontier{frontierCvs(c.concept)})</em></span>}
       </li>
     ))}
     {node.children.length === 0 && <li><em>No children recorded.</em></li>}
   </ul>
-  {frontier.length > 0 && <p><strong>Frontier under this node:</strong> {frontier.map((f) => f.concept).join(", ")}</p>}
+  {frontier.length > 0 && <p><strong>Frontier under this node:</strong> {frontier.map((f) => f.cvs !== undefined ? `${f.concept} (${f.cvs.toFixed(2)})` : f.concept).join(", ")}</p>}
   <p>
     <a href="/tree/">← the whole tree</a>
     {has3d && <> · <a href="/tree/3d/">3D view</a></>}

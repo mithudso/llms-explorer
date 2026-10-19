@@ -1009,3 +1009,43 @@ def test_a_failed_atomic_write_leaves_no_temp_file(tmp_path, monkeypatch):
     with pytest.raises(OSError, match="disk full"):
         rs.write_atomic(target, "new")
     assert target.read_text() == "old" and list(tmp_path.iterdir()) == [target]
+
+
+def _scope_args(**kw):
+    base = {"run": "g", "topic_rx": None, "max_batch": 8, "min_cvs": 3.2, "include_unscored": False}
+    return type("A", (), {**base, **kw})
+
+
+def test_scope_cvs_gate_drops_low_and_unscored_and_says_why(tmp_path, monkeypatch, capsys):
+    """The unattended suite must not research a concept scored below the family-explorer floor."""
+    p = tmp_path / "tree.json"
+    p.write_text(json.dumps(NODES))
+    monkeypatch.setattr(ct, "TREE_PATH", p)
+    monkeypatch.setattr(ct, "SCORES_PATH", tmp_path / "cvs-scores.json")
+    monkeypatch.setattr(rs, "HUB", tmp_path)
+    (tmp_path / "concept-tree").mkdir()
+    (tmp_path / "concept-tree" / "RESEARCH_QUEUE.md").write_text(QUEUE)
+    ct.save_scores({"Diagnostic Capture Automation": {"cvs": 3.9}, "Backup Anti-Patterns": {"cvs": 2.0}})
+    assert rs.cmd_scope(_scope_args()) == 0
+    out = json.loads(capsys.readouterr().out)
+    kept = {r["concept"] for r in json.loads((tmp_path / "research" / ".pipeline" / "g" / "scope.json").read_text())["concepts"]}
+    assert "Diagnostic Capture Automation" in kept
+    assert "Backup Anti-Patterns" not in kept
+    assert out["cvs_gate"]["skipped_below_cvs"] >= 1 and out["cvs_gate"]["min_cvs"] == 3.2
+    assert out["cvs_gate"]["skipped_unscored"] >= 1            # everything else was never scored
+    assert out["concepts"] == len(kept)
+
+
+def test_scope_include_unscored_and_zero_threshold_restore_the_old_behaviour(tmp_path, monkeypatch, capsys):
+    p = tmp_path / "tree.json"
+    p.write_text(json.dumps(NODES))
+    monkeypatch.setattr(ct, "TREE_PATH", p)
+    monkeypatch.setattr(ct, "SCORES_PATH", tmp_path / "cvs-scores.json")
+    monkeypatch.setattr(rs, "HUB", tmp_path)
+    (tmp_path / "concept-tree").mkdir()
+    (tmp_path / "concept-tree" / "RESEARCH_QUEUE.md").write_text(QUEUE)
+    assert rs.cmd_scope(_scope_args(min_cvs=0)) == 0
+    everything = json.loads(capsys.readouterr().out)["concepts"]
+    assert everything >= 4
+    assert rs.cmd_scope(_scope_args(include_unscored=True, run="g2")) == 0
+    assert json.loads(capsys.readouterr().out)["concepts"] == everything     # nothing is scored, all pass

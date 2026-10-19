@@ -57,6 +57,7 @@ They are listed on their parent's page under `Frontier under this node`.
 | `sourcesCount` | how many sources that run read |
 | `conceptsCount` | how many concepts that run identified under this one |
 | `skillId` | the skill the research produced, when it produced one |
+| `cvs` | the Concept Viability Score, 0 to 5: how relevant, useful, novel, interesting and researchable the topic was judged before anyone researched it. Absent when the topic was never scored. Frontier names carry the same score when they have one. Automatic research skips anything below 3.2 |
 | `state` | `researched` for every node with a page; `frontier` only for a named child without one |
 
 `sourcesCount` and `conceptsCount` describe **the run that created the node**, not the tree: a
