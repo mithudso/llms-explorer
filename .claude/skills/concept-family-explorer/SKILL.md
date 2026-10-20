@@ -1,11 +1,11 @@
 ---
 description: >-
-  Gap-discovery layer ABOVE /dr: map a subject's full conceptual family (parent domain, siblings, sub-concepts, adjacent/cross-over fields, frontier), surface useful/novel concepts you're MISSING, score each via the da-* skills, then loop /dr on every viable gap until the concept tree saturates; finishes with skill-optimizer + prompt-deep-optimizer and a skill-tree-architect rebalance. TRIGGER: 'what am I missing about X', 'map the concept space/family of X', 'find adjacent/sibling concepts to X', 'what skills should I build around X', 'saturate/complete my coverage of X', 'expand my concept tree for X', 'explore the conceptual neighborhood of X'. SKIP: researching a topic you ALREADY named → /dr; cited web report with no skill-building → deep-research; create ONE skill interactively → skill-creator; audit/improve one existing skill → skill-optimizer; optimize one prompt → phe / prompt-deep-optimizer; reorganize the EXISTING skill tree, no new research → skill-tree-architect.
+  Gap-discovery layer ABOVE /dr: map a subject's full conceptual family (parent domain, siblings, sub-concepts, adjacent/cross-over fields, frontier), surface useful/novel concepts you're MISSING, score each via the da-* skills, then loop /dr on every viable gap until the concept tree saturates; finishes with skill-optimizer + prompt-deep-optimizer, a skill-tree-architect rebalance, and a sync to the site + ~/.global-ai-hub concept trees. TRIGGER: 'what am I missing about X', 'map the concept space/family of X', 'find adjacent/sibling concepts to X', 'what skills should I build around X', 'saturate/complete my coverage of X', 'expand my concept tree for X'. SKIP: researching a topic you ALREADY named → /dr; cited web report with no skill-building → deep-research; create ONE skill interactively → skill-creator; audit/improve one existing skill → skill-optimizer; optimize one prompt → phe / prompt-deep-optimizer; reorganize the EXISTING skill tree, no new research → skill-tree-architect.
 name: concept-family-explorer
-version: "1.8.2"
-updated: "2026-09-01"
-model: claude-opus-5
-effort: xhigh
+version: "1.11.0"
+updated: "2026-10-20"
+model: claude-sonnet-5-5
+effort: max
 category: meta
 tags: [concept-mapping, gap-analysis, skill-building, orchestration, saturation, data-analytics]
 keywords:
@@ -30,6 +30,10 @@ related_skills:
   - prompt-helper-optimizer
 metadata:
   changelog: |
+    2026-10-20 v1.11.0 — research lane is two Sonnet 5.5 `max` passes per concept merged by `dr_run.py research` (frontmatter model/effort moved from Opus xhigh to Sonnet max); Step 6 says not to override it; basis: llms-explorer docs/research/dr-model-repeats-2026-10-20 (one Sonnet max run ≈ one Fable max run in both judge directions at 55 % of the price)
+    2026-10-02 v1.10.0 — remove default concept-count cap; research the full run-start queue in source-sharing cohorts of up to eight concepts, inherit parent evidence, preserve child-only deltas, and keep per-concept authority checks; explicit maxConcepts remains an opt-in user budget
+      2026-09-18 v1.9.1 — align with /dr v3 (dr_run.py finish already writes the hub tree; website tree is Phase 3 step 1b for standalone runs, skipped when dispatched by this skill)
+    2026-09-18 v1.9.0 — new Step 9d: sync the run into BOTH file concept trees (website `concept-tree/tree.json` → `site/src/data/tree.json`, and `~/.global-ai-hub/concept-tree/tree.json`) after the 9b rebalance; merge-only via scripts/sync_trees.py (dry-run default, shrink/validate guards, refuses site writes on main); runs on BUDGET_EXHAUSTED/SATURATION-DISSENT too; procedure in references/tree-sync.md
     2026-07-20 v1.8.1 — gate-dissent remediation (5 Medium, loop exit at cap 5): SATURATION-DISSENT post-exit contract (9–9c run; unresearched gaps listed); resume ask now triggers on ANY non-complete status; warm-start inheritance gated on prior CVS < current threshold; Step 6 pre-dispatch GAP recheck clause (cites reference §Dedup); failure-handling paragraph compressed to pointer (run-state-and-resume normative)
     2026-07-20 v1.8.0 — blind-audit iter-2 (6 Medium fixed): worked trace brought above the 5-per-neighborhood floor with formula-correct new-information rates (0/26) + hub no-op note; queue→failed write point added (resume + budget counter honesty); coverage-terminal category widened to decision-SKIP incl. hard-gated; status "optimizing:budget" variant (budget resume re-enters 9c only, never un-skips owed 9/9b); Step 2 tree bullet compressed to rules+pointer; exit-status header exempts LOCK-HELD from telemetry, dissent row notes no-rounds-left immediate exit
     2026-07-20 v1.7.0 — blind-audit convergence pass (15 Medium fixed): BUDGET_EXHAUSTED path defined (skip 9/9b as owed work, 9c+10 always run); repo-persistence steps 5–7 given their Step 9c slot; blind-gate dead-end → SATURATION-DISSENT when maxRounds exhausted; failed gaps count as coverage-terminal; resume branch for Steps 9–9c interruption (status "optimizing"); dryRun CQ write now lock-checked; LOCK-HELD writes no telemetry row; SKIPPED-PRIOR moved to rationale (decision stays SKIP for cvs_check); "parent subject" slug-prefix rule; rubric example row relabeled alias-missed dup; Step 9 mechanics extracted to references/optimization-pass.md (token budget); lock spec de-duplicated (run-state-and-resume normative); Step 8 bullets compressed to condition+status+pointer
@@ -56,6 +60,10 @@ whenNotToUse:
 
 Given subject, find useful/relevant/novel/interesting concepts in its conceptual family **currently missing** from skill library and concept tree, fill worthwhile ones to saturation via `/dr`, finish by optimizing every changed skill.
 
+## Routing detail
+
+SKIP: one concept selected from the family needs exhausting inward (its own mechanism, parts, limits, primary sources, to saturation) → rabbithole.
+
 Role: **gap-discovery orchestrator**, not researcher. Per-concept research, skill authoring, install, hub-sync, concept-tree writes done by `/dr`. Your job is layer `/dr` does not do: decide *which* concepts worth researching, in what order, *when to stop*.
 
 ```
@@ -67,7 +75,9 @@ subject ─▶ [1] frame ─▶ [2] inventory ─▶ [3] gaps ─▶ [4] score (
                           [8] saturated? ──no─▶ back to [5] with new gaps
                                  │ yes
                                  ▼
-    [9] optimize spokes+hubs ─▶ [9b] rebalance tree ─▶ [9c] batch sync ─▶ [10] report
+    [9] optimize spokes+hubs ─▶ [9b] rebalance tree ─▶ [9c] batch sync
+                                                            │
+        [10] report ◀── [9d] sync site + global-ai-hub concept trees
 ```
 
 ## When not to use
@@ -78,12 +88,12 @@ subject ─▶ [1] frame ─▶ [2] inventory ─▶ [3] gaps ─▶ [4] score (
 - Existing skill needs quality audit → `skill-optimizer`.
 - Skill tree needs reorganizing, re-filing, or rebalancing with no new research → `skill-tree-architect`.
 - No web research or concept-tree MCP → say so, stop; loop can't verify coverage or saturate without at least one.
-- Want llms-family packs (llms.txt/-full/-small/-facts/-vocabulary) + a categorical rollup + indexes built on top of this gap map, not just the map itself → `full-suite`.
+- Want llms-family packs (llms.txt/-full/-small/-facts/-vocabulary) + a categorical rollup + indexes built on top of this gap map, not just the map itself → llms-txt-tooling (references/full-suite.md).
 
 ## Inputs
 
 - **subject** (required) — seed. Domain ("data observability"), skill family ("our MongoDB skills"), or single concept ("conformal prediction").
-- **budget** (optional) — `maxConcepts` (default 8/run), `maxRounds` (default 3 frontier re-expansions), `budgetMinutes` (optional wall-clock cap; accepted as `--budget-minutes=N` command-style — see Step 8 budget clause). `/dr` expensive; caps prevent runaway. State caps used in report.
+- **budget** (optional) — `maxConcepts` (no default; set only when the user asks for a topic-count budget), `maxRounds` (default 3 frontier re-expansions after the run-start snapshot), `budgetMinutes` (optional wall-clock cap; accepted as `--budget-minutes=N` command-style — see Step 8 budget clause). The initial frontier has no default concept-count cap. Bound work with source-sharing cohorts, bounded concurrency, authority floors, novelty gates, and per-concept status tracking. State explicit caps used in report.
 - **threshold** (optional) — minimum Concept Viability Score to research (default 3.2 / 5.0). Lower = wider net; raise = selective.
 - **dryRun** (optional) — when true, do everything except call `/dr`, `skill-optimizer`, `prompt-deep-optimizer`; output scored plan only. Side-effect contract: writes **no** run-state checkpoint (plan-only preview must never be offered for resume), takes **no** run lock; the Step 1 CQ file DOES persist (durable, reusable evidence — a later real run replays it) — but check the lock before that one write: live lock ⇒ skip the CQ persist and note it (never race the lock holder). Use first on unfamiliar subject so user can approve scope.
 
@@ -141,26 +151,26 @@ Score every gap on five 0–5 axes, each grounded in specific `da-*` method, com
 
 Output ranked table: concept · 5 axis scores · CVS · decision (RESEARCH / SKIP / REFRESH) · one-line rationale. Verify arithmetic with `~/.claude/skill-consolidation/cvs_check.py` (feed scored table as JSON) — never verify weighted sums yourself; see `references/scoring-rubric.md`. Checkpoint: write scored table to `~/.claude/skill-consolidation/run-state/cfe-<subject-slug>.json` (see "Failure handling & resume").
 
-### Step 5 — Select within budget
+### Step 5 — Select the complete viable queue
 
-Take gaps with `CVS ≥ threshold`, highest first, up to `maxConcepts`. Group related selections so `/dr` can research in series and combine into one skill (pass comma-separated related topics). Everything below threshold logged as **deliberately skipped** with score — skips are saturation evidence, not silent drops. Checkpoint: update run-state file's `queue` with selection.
+Take every gap with `CVS ≥ threshold`, highest first, unless the user supplied `maxConcepts`; if they did, apply that explicit count after scoring. Group selected concepts into source-sharing cohorts by parent, product surface, and authoritative source pool. Carry parent facts into each child brief as inherited context, then require the child to add only its distinct delta claims. Keep concept names and evidence statuses separate even when one scrape serves multiple concepts. Split a cohort into subgroups of at most eight concepts to fit standard `/dr` synthesis; this subgroup size does not cap retrieval across the run. Everything below threshold is logged as **deliberately skipped** with score. Checkpoint: update run-state file's `queue` with the complete selection.
 
 **If `dryRun`: stop here and present plan for approval.**
 
 ### Step 6 — Research each gap via /dr (always fan out)
 
-Research selected gaps **in parallel — never strictly sequentially**. Pick execution mode by batch size; both satisfy fan-out rule:
+Research all selected gaps **in parallel — never strictly sequentially**. Retrieval covers the complete run-start queue by default. Use bounded cohorts and concurrency to control cost; do not truncate the queue after a fixed number of concepts. Pick execution mode by batch size; both satisfy fan-out rule:
 
 - **Parallel agents (default).** Dispatch selected gaps as one batch of concurrent agents via Agent tool — one agent per concept (or related cluster), each executing `/dr` workflow for its gap. Concurrency rule: **3 in-flight `/dr` runs default; 4 only when every brief is a single concept** (clusters spawn deeper `/dr` fan-out — each `/dr` runs up to 4 research sub-agents, so nesting multiplies fast) — queue remainder, start next as first returns. In repo-native path, isolate concurrent authoring (e.g. per-agent git worktree) so file writes don't collide.
 - **Workflow (larger or repeatable runs).** Drive whole gap list through one `Workflow` script — `parallel`/`pipeline` over gaps, each stage invoking `/dr`, with barrier before batch persist — so fan-out, concurrency cap, post-batch sync are deterministic. Prefer when >4 gaps selected or run will repeat. **Availability**: only when harness exposes a Workflow tool; absent ⇒ parallel agents is the only mode — never emulate Workflow by running gaps strictly sequentially.
 
-Single selected gap may run inline (one-item fan-out). **Re-confirm each concept is still GAP immediately before its dispatch** (reference §Dedup against coverage — scoped recheck, never a re-page): a same-batch return may already have filled it, and re-researching a filled concept is the single biggest budget waste. Pass each gap's scope boundaries in brief — `/dr` treats orchestrator's bounded brief as confirmed scope, won't re-ask. When `budgetMinutes` set, propagate remaining wall-clock budget into each invocation (`--budget-minutes=<remaining>`).
+Single selected gap may run inline (one-item fan-out). Before synthesis, deduplicate the cohort's source URLs and retrieve each page once through Firecrawl batch scrape (API) or one CLI multi-URL scrape invocation. Save readable bodies to the shared source cache and pass their paths to each affected brief. Record URL-to-concept relevance; a shared fetch does not make a source relevant to every concept. Each brief receives its parent's verified reusable facts with provenance, asks only for child-specific deltas, and keeps the child's claims and verdict separate. Batch retrieval never lowers the per-concept independent-origin floor. **Re-confirm each concept is still GAP immediately before its dispatch** (reference §Dedup against coverage — scoped recheck, never a re-page): a same-batch return may already have filled it, and re-researching a filled concept is the single biggest budget waste. Pass each gap's scope boundaries in brief — `/dr` treats orchestrator's bounded brief as confirmed scope, won't re-ask — and state that `/dr` Phase 3 step 1b (website-tree sync) is skipped: Step 9d owns it. When `budgetMinutes` set, propagate remaining wall-clock budget into each invocation (`--budget-minutes=<remaining>`).
 
-`/dr` handles research → skill authoring → hub-routing → install → hub-sync → concept-tree update, including its own internal saturation; don't re-implement here. **Serialize shared-state writes:** parallel research and authoring safe, but persist + `registry.json` + concept-tree writes must not race. Timing: run each skill's Step 6b persistence (steps 1–4) **as its agent returns, serialized one skill at a time — never held for the whole batch** (an interrupt mid-batch must not orphan finished research; matches the run-state per-return write point); repo-persistence steps 5–7 (batch `--sync` + verify, `referents.mjs --repair`, workflow log) are deferred and run exactly once, at Step 9c. (Repo-native exception: when skills authored via `tam_create_skill`, `/dr`'s install/hub-sync step doesn't run — **Step 6b** performs that persistence and placement; substitutes for `/dr`'s install, doesn't duplicate it.)
+`/dr` handles research → skill authoring → hub-routing → install → hub-sync → concept-tree update, including its own internal saturation; don't re-implement here. Its research lane is two independent Sonnet 5.5 `max` agents per concept, merged by `dr_run.py research` before the gate (2026-10-20 repeats study: one Sonnet `max` run is a peer of a Fable `max` run in both judge directions at 55 % of the price, and the second pass adds the breadth one run lacks); do not pass `--model`, `--effort` or `--passes` overrides unless the user asked for a different lane. **Serialize shared-state writes:** parallel research and authoring safe, but persist + `registry.json` + concept-tree writes must not race. Timing: run each skill's Step 6b persistence (steps 1–4) **as its agent returns, serialized one skill at a time — never held for the whole batch** (an interrupt mid-batch must not orphan finished research; matches the run-state per-return write point); repo-persistence steps 5–7 (batch `--sync` + verify, `referents.mjs --repair`, workflow log) are deferred and run exactly once, at Step 9c. (Repo-native exception: when skills authored via `tam_create_skill`, `/dr`'s install/hub-sync step doesn't run — **Step 6b** performs that persistence and placement; substitutes for `/dr`'s install, doesn't duplicate it.)
 
 Respect `/dr`'s hub-routing rule: concepts in registered hub family (MongoDB, da-*, writing, …) become hub `references/` entries, **not** new top-level skills — keep skill index small. Track every skill `/dr` creates or updates — **and hub each new spoke filed under** — optimize both in Step 9.
 
-**When `/dr` agent fails** (errors out, or returns skill below its own authority threshold of 5 concepts / 3 sources): log concept as *failed gap* with reason, don't loop-retry (`/dr` already retries internally), move on. Failed gap still counts against `maxConcepts`, so flaky or un-sourceable concept can't stall run — one agent's failure never aborts batch; budget caps are circuit breaker. Report failed gaps alongside deliberate skips.
+**When `/dr` agent fails** (errors out, or returns skill below its own authority threshold of 5 concepts / 3 sources): log the affected concepts as *failed gaps* with reasons, don't loop-retry (`/dr` already retries internally), and continue with other cohorts. A failure in one cohort never aborts the rest. When the user supplied `maxConcepts`, failed concepts count against that explicit budget. Report failed gaps alongside deliberate skips.
 
 ### Step 6b — Persist & place each new skill (mdb-context-hub repo)
 
@@ -176,7 +186,7 @@ Stop when **any** holds (see `references/saturation-and-loop-control.md` for pre
 
 - **Frontier saturation** → `SATURATED-FRONTIER` — **TWO consecutive** evidence-grounded re-expansion rounds with zero new gaps `≥ threshold`, preconditions met (≥1 productive round — Round 0 counts — AND Round-0 map at the 5-per-neighborhood floor; otherwise verdict says "map-bounded, not saturated"), then the **blind saturation gate** passes. Persistent gate dissent — or corroborated gaps arriving when `maxRounds` is already exhausted — exits `SATURATION-DISSENT`. Full definitions and gate procedure: reference §1.
 - **Coverage saturation** → `SATURATED-COVERAGE` — every family node terminal: HAVE, researched-this-run, decision-SKIP (logged — below threshold **or hard-gated**), **or failed (logged)** — AND every Step 1 CQ in `evals/<subject-slug>.cq.md` resolves to a HAVE or researched node. Reference §2.
-- **Budget exhausted** → `BUDGET_EXHAUSTED` — `maxConcepts`, `maxRounds`, or wall-clock hit (when `budgetMinutes` set, check elapsed after each `/dr` return and each round per canonical §Budget contract). On expiry: drain Step 6b persistence for **every in-flight `/dr` run** — never stop mid-persist — then **skip Steps 9/9b** (list them as owed work), still run **Step 9c sync + Step 10**. Soft stop ≠ saturation: report the unresearched above-threshold queue + wall time. Reference §3.
+- **Budget exhausted** → `BUDGET_EXHAUSTED` — an explicit user-supplied `maxConcepts`, `maxRounds`, or a supplied wall-clock cap is reached (check elapsed after each `/dr` return and each round per canonical §Budget contract). There is no default concept-count cap. On expiry: drain Step 6b persistence for **every in-flight `/dr` run** — never stop mid-persist — then **skip Steps 9/9b** (list them as owed work), still run **Step 9c sync + Step 9d tree sync + Step 10** (9d also queues the unresearched above-threshold gaps). Soft stop ≠ saturation: report the unresearched above-threshold queue + wall time. Reference §3.
 
 ### Step 9 — Optimize the resulting skills (spokes AND their hubs)
 
@@ -189,17 +199,26 @@ User asked to run optimizers on results. `/dr` may have optimized each skill ind
 
 ### Step 9b — Rebalance the tree (skill-tree-architect)
 
-Saturating run can add whole new sub-family, push hub past 1536-char description cap, or land new skills under wrong hub — so after per-skill pass, invoke **`skill-tree-architect`** once over whole `~/.claude/skills` tree. It runs read-only analysis (`audit-placement.mjs`, `detect-candidates.mjs`, `meta-validate.mjs` sweep) and surfaces ranked rebalance plan — new-family / split-over-cap-hub / re-file-misplaced-spoke / hub-homeless. Apply only zero-risk idempotent repairs; surface folding, splits, and registry sync for review (`~/.claude/skills` not git-backed). Same delegation rule as Step 9: you orchestrate whole-tree shape; skill-tree-architect owns it. If rebalance re-filed or folded any skill researched this run, re-run tree write (`tam_concept_tree_upsert` with new parent + `tam_concept_tree_link`) so tree parentage matches final placement — tree write happens BEFORE 9b and goes stale the moment a spoke moves.
+Saturating run can add whole new sub-family, push hub past 1536-char description cap, or land new skills under wrong hub — so after per-skill pass, invoke **`skill-tree-architect`** once over whole `~/.claude/skills` tree. It runs read-only analysis (`audit-placement.mjs`, `detect-candidates.mjs`, `meta-validate.mjs` sweep) and surfaces ranked rebalance plan — new-family / split-over-cap-hub / re-file-misplaced-spoke / hub-homeless. Apply only zero-risk idempotent repairs; surface folding, splits, and registry sync for review (`~/.claude/skills` not git-backed). Same delegation rule as Step 9: you orchestrate whole-tree shape; skill-tree-architect owns it. If rebalance re-filed or folded any skill researched this run, re-run tree write (`tam_concept_tree_upsert` with new parent + `tam_concept_tree_link`) so tree parentage matches final placement — tree write happens BEFORE 9b and goes stale the moment a spoke moves. (That covers the mdb-context-hub tree only; the two file trees are written once, after 9b, in Step 9d.)
 
 ### Step 9c — One batch sync, then re-verify
 
 Every per-spoke and per-hub `sko` run in Step 9 invoked with `--no-sync` (sko's "When driven by an outer loop" rule), and `--no-sync` withholds Pass O peer re-syncs — so run this **after** Step 9b (its rebalance can re-file or fold skills, resulting tree write must be captured): perform ONE batch sync — `/sync-skills`, `npm run sync:skills` in repo-native path, or Step 6b's `persist-spoke.mjs <last-id> --sync` form; all three are whole-pack/registry syncs covering spokes, hubs, and any touched peers. Repo-native: follow the sync with repo-persistence steps 6–7 (`referents.mjs --repair` dry-run then `--apply`; workflow log + version bump). Then re-verify each optimized skill — **spoke and hub** — findable via `tam_search_skills`. Runs on the `BUDGET_EXHAUSTED` path too (Step 8) — persistence completeness is never budget-gated.
 
+### Step 9d — Sync the website and global-ai-hub concept trees
+
+`/dr` (v3: `dr_run.py finish`) writes each concept's node into the hub tree as it finishes, and Step 6b the mdb-context-hub tree (`tam_concept_tree_*`, where that MCP exists) — but nothing writes the website tree, and no writer re-parents after the 9b rebalance. Two file trees must end the run consistent — merge into both **after** 9b so parentage is final placement:
+
+- **global-ai-hub** — `~/.global-ai-hub/concept-tree/tree.json` (the runtime tree the hub MCP `hub_concept_*` tools, TUI, and `hub_concept_frontier` read).
+- **website** — `<llms-explorer>/concept-tree/tree.json`, then `--regen` rebuilds `site/src/data/tree.json` (+ reader pages under `site/src/data/concepts/` when a concept pack exists).
+
+Build one spec from run-state `researched[]`, plus a `scores` map of every scored row (skips included) so the Concept Viability Score is stored with each concept (+ `queue`: above-threshold gaps left unresearched on `BUDGET_EXHAUSTED` / `SATURATION-DISSENT`; below-threshold skips are never queued), run `scripts/sync_trees.py` dry first, then `--apply --regen` against a llms-explorer **branch/worktree** (helper refuses `main`). It is **merge-only** — never copy one tree over the other (that has clobbered the site tree 3×); it backs up, refuses to shrink a tree or add a structural validate problem, and re-running is a no-op. One target refusing does not abort the run or change the verdict — record it in the report. `dryRun` prints the helper's dry-run plan only. Spec format, verification (`concept_tree.py show`, the CI `gen_tree.py` diff, site tests) and commit rules: `references/tree-sync.md`. Checkpoint: nothing extra — idempotent, so resume just re-runs it.
+
 ### Step 10 — Report
 
 Before emitting report, verify deterministically: run `~/.claude/skill-consolidation/cvs_check.py` over scored gap table (as JSON) — recomputes each CVS from weighted-sum formula (asserting |Δ| < 0.005) and enforces `Via ≤ 1` / `Nov = 0` hard gates and threshold decisions; never verify weighted sums yourself. Separately check near-threshold tie *ordering* against Via → Rel → Int rule (tie-break governs queue order, not decisions), and that every researched concept maps to real skill ID from `/dr` run. Fix any mismatch before writing.
 
-Emit report in fixed shape defined by `references/report-template.md` — titled run header plus eight sections in order: **Conceptual family map** (5-neighborhood, HAVE/STALE/GAP), **Scored gap table** (Concept · Rel · Use · Nov · Int · Via · CVS · Decision · Why), **Researched this run**, **Skipped and failed** (saturation evidence), **Optimization results** (spokes + re-`/sko`'d hubs), **Handoffs** (MISPLACED → skill-tree-architect), **Saturation verdict** (state per-round new-information rate — ~5% starting default, not validated truth — AND the mandatory budget-used line: `Budget used: <n>/<maxConcepts> concepts via <k> /dr calls; <r>/<maxRounds> rounds[; wall <m> min]`), and **Updated concept tree**. Read that file for exact skeleton before writing.
+Emit report in fixed shape defined by `references/report-template.md` — titled run header plus eight sections in order: **Conceptual family map** (5-neighborhood, HAVE/STALE/GAP), **Scored gap table** (Concept · Rel · Use · Nov · Int · Via · CVS · Decision · Why), **Researched this run**, **Skipped and failed** (saturation evidence), **Optimization results** (spokes + re-`/sko`'d hubs), **Handoffs** (MISPLACED → skill-tree-architect), **Saturation verdict** (state per-round new-information rate — ~5% starting default, not validated truth — and the mandatory concepts-processed line, which reports an explicit `maxConcepts` only when supplied), and **Updated concept tree** (state each of the three trees — mdb-context-hub, global-ai-hub, website — as written / refused / skipped, with reason). Read that file for exact skeleton before writing.
 
 Close run: append telemetry rows per canonical telemetry schema (`~/.claude/skill-consolidation/convergence-and-severity.md` §Telemetry, Research-run row variant) — one run-level row plus one row per scored concept to `research-telemetry.jsonl`; the run-level row's `exit_status` takes exactly one value from the exit-status table below. Append is fail-safe, never blocks run. Checkpoint: set run-state file's `status` to `complete:<verdict>` — file is then evidence, not a lock.
 
@@ -215,8 +234,8 @@ Close run: append telemetry rows per canonical telemetry schema (`~/.claude/skil
 | --- | --- |
 | `SATURATED-FRONTIER` | two consecutive empty re-expansion rounds + blind gate passed |
 | `SATURATED-COVERAGE` | every node terminal + every CQ resolves (map-bounded) |
-| `BUDGET_EXHAUSTED` | cap hit with above-threshold queue remaining (soft stop; 9/9b owed, 9c+10 ran) |
-| `SATURATION-DISSENT` | blind gate dissent persisted after one extra round — or immediately when no rounds remain. Steps 9–9c run as normal on everything researched; the unresearched corroborated gaps are listed in the verdict |
+| `BUDGET_EXHAUSTED` | cap hit with above-threshold queue remaining (soft stop; 9/9b owed, 9c+9d+10 ran) |
+| `SATURATION-DISSENT` | blind gate dissent persisted after one extra round — or immediately when no rounds remain. Steps 9–9d run as normal on everything researched; the unresearched corroborated gaps are listed in the verdict |
 | `LOCK-HELD` | another live run owns the subject; zero writes — no checkpoint, no CQ, **no telemetry row** (verdict printed only) |
 
 ## Failure handling & resume

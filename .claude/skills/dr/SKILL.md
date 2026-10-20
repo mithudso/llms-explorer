@@ -6,6 +6,8 @@ description: >-
   TRIGGER: "/dr <topic>", "deep research X and make a skill", "build an expert
   skill about X". SKIP: reading one document you already have -> document-distiller;
   condensing a repo or docs site into reference context -> crawl-to-llms-txt.
+model: claude-sonnet-5-5
+effort: max
 ---
 You are executing the **`/dr` deep-research-to-skill workflow**. Input: **$ARGUMENTS**
 
@@ -35,10 +37,10 @@ Empty input (no topic, no `--refresh <slug>`) → ask for the topic. Never resea
 | depth | concepts | sources / concept | negation rounds | saturation loop | research agents | claim gate | `/sko` mode |
 |---|---|---|---|---|---|---|---|
 | quick | ≤3 | 2 | 0 | no | inline only | off | `--meta --no-sync` |
-| standard | 5, cap 8 | 3 independent | 1 | no | ≤4 headless (Sonnet, medium) | sample 10 load-bearing claims | `--meta --no-sync` (spoke) / full `--no-sync` (standalone) |
-| saturate | cap 15 | 3+ independent | ~20% of queries | 2 empty rounds | ≤4 | all anchored claims, ≤15 refetches | full `--no-sync` |
+| standard | 5, cap 8 | 3 independent | 1 | no | 2 × Sonnet `max` per concept, merged (≤4 in flight) | sample 10 load-bearing claims | `--meta --no-sync` (spoke) / full `--no-sync` (standalone) |
+| saturate | cap 15 | 3+ independent | ~20% of queries | 2 empty rounds | 2 × Sonnet `max` per concept, merged (≤4 in flight) | all anchored claims, ≤15 refetches | full `--no-sync` |
 
-Target wall-clock: quick ≈ 8 min, standard ≈ 15–25 min, saturate = whatever the topic needs.
+Target wall-clock: quick ≈ 8 min, standard ≈ 30–45 min, saturate = whatever the topic needs.
 
 ## Phase 0 — Plan (one message to the user)
 
@@ -55,7 +57,7 @@ Methodology: `deep-research-methods` (decomposition, query formulation, source e
 1. **Per concept, before searching:** note the authoritative source TYPE, fast-moving vs stable (sets recency weighting), and what a disconfirming finding would look like.
 2. **Source cache first.** Before any `WebFetch`, run `dr_run.py source lookup --url <url>`; a hit under 30 days old gives a `text` path — read that instead of refetching. After a fresh fetch you keep: `dr_run.py source put <slug> --url … --title … --tier docs|paper|postmortem|blog|forum|repo --concept "<c>" [--text-file <saved body>]`. Cached bodies are shared across runs and CFE siblings.
 3. **Retrieval ladder:** `exa`/`firecrawl` MCPs when present, else `WebSearch` + `WebFetch`. Start from a domain anchor (Wikipedia / an Awesome list / RFC / arXiv / vendor docs), then expand immediately to the primary sources they cite. Collapse citation chains to one evidentiary point. Vary terminology across ecosystems.
-4. **Fan-out, one command:** `python3 ~/.global-ai-hub/scripts/dr_run.py research <slug>` runs one slim headless `claude -p` agent per pending concept (≤4 in parallel by default, Sonnet at the depth's effort), each from a bounded brief it writes to `<run dir>/briefs/`. Those agents load no skill catalogue and no MCP servers, so a turn costs ~26k tokens of context instead of ~156k. Run it in the background (it takes 5–10 minutes) and poll `dr_run.py status <slug>`; it prints one JSON line per agent as each returns and a summary at the end. Each agent's real cost and token count land in `manifest.json` under `agents` and in the finish row. Never dispatch research through the in-process Agent tool; if `claude` is not on PATH, `research --dry-run` writes the briefs and you dispatch them yourself.
+4. **Fan-out, one command:** `python3 ~/.global-ai-hub/scripts/dr_run.py research <slug>` runs slim headless `claude -p` agents for every pending concept: at `standard` and `saturate` **two independent Sonnet `max` passes per concept**, which `dr_run.py` merges (text dedup, then one tool-less Sonnet `medium` clustering call) and records as `claims/<slug>.json`; at `quick` one Sonnet `low` pass. Pass agents run `claims-check`, never `concept-done`. ≤4 agents in flight by default; `--passes N`, `--model`, `--effort` override (the study behind the default: `docs/research/dr-model-repeats-2026-10-20` — one Sonnet `max` run is a peer of one Fable `max` run in both judge directions at 55 % of the price, and the second pass adds the breadth one run lacks). Each agent works from a bounded brief it writes to `<run dir>/briefs/`. Those agents load no skill catalogue and no MCP servers, so a turn costs ~26k tokens of context instead of ~156k. Run it in the background (a `max` pass takes 15–20 minutes; two passes of five concepts at four in flight ≈ 45 minutes) and poll `dr_run.py status <slug>`; it prints one JSON line per agent as each returns and a summary at the end. Each agent's real cost and token count land in `manifest.json` under `agents` and in the finish row. Never dispatch research through the in-process Agent tool; if `claude` is not on PATH, `research --dry-run` writes the briefs and you dispatch them yourself.
 5. **Recording is automatic:** an agent ends by running `dr_run.py concept-done` itself; the `research` command re-validates on return and blocks a concept whose agent wrote nothing or wrote an invalid file (reason recorded). Content to disk first, marker second — always. `tail <run dir>/draft.md` is the live monitor. Re-run `research <slug> --concept "<name>"` to retry one concept.
 6. **Stop** per the depth contract. `saturate` only: stop when two consecutive query rounds add no new claim AND every concept meets its source floor; re-querying that returns the same evidence is thrash, which is its own stop signal.
 7. **Authority floor** (all depths): every concept has ≥ its source count from independent origins. A concept that cannot meet it after two broadened query rounds is blocked with reason "insufficient data". A topic where most concepts block → `dr_run.py finish <slug> --status INSUFFICIENT-AUTHORITY`, no install, recommend a narrower scope.
@@ -97,6 +99,7 @@ Write `<run dir>/report.md` and echo it. Lead with `Run status: COMPLETED | BUDG
 
 ## Changelog
 
+- 2026-10-20 v3.3.0 — Phase 1 default is two independent Sonnet `max` passes per concept at `standard`/`saturate`, merged by `dr_run.py research` (pass agents run `claims-check`; merge = text dedup + one tool-less clustering call; `--passes`, per-effort turn and timeout defaults). Orchestrator frontmatter pinned to Sonnet `max` instead of the session model. Basis: `docs/research/dr-model-repeats-2026-10-20` (one Sonnet `max` run ≈ one Fable `max` run both ways at 55 % of the price).
 - 2026-09-12 v3.2.0 — Phase 1 fan-out is `dr_run.py research` and the claim gate is `dr_run.py gate`: slim headless Sonnet agents (no skill catalogue, no MCP; 26k-token baseline vs 156k in-process), briefs from `dr_assets/brief.md`, per-agent cost recorded.
 - 2026-09-12 v3.1.0 — `init --alias` consumes frontier placeholders; footnote keys `[^c<ordinal>-<n>]`; hub spokes are routable registry rows (`spoke:<hub>/<name>`).
 - 2026-09-12 v3.0.0 — rewrite. One research root (`~/.global-ai-hub/research/<slug>/`) owned by `dr_run.py`; structured per-concept claims + renderer replace free-prose stitching; `--depth` tiers; source cache; claim gate sampled at standard; Pass H moved to hub level in CFE Step 9; cross-pollination opt-in; single concept tree; removed dead `tam_*`/mdb-context-hub/persist-spoke/canonical-prompt/forensic-log/`distill_offline`/hardcoded-OLLAMA branches (none existed on this machine). Audit and rationale: `~/.global-ai-hub/research/dr-rewrite-2026-09-12/` and the artifact page linked from the session. Prior copy: `~/.claude/skill-consolidation/backups/dr-rewrite-20260912-035658/`.
