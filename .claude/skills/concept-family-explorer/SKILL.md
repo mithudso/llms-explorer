@@ -58,11 +58,11 @@ whenNotToUse:
 ---
 # Concept Family Explorer
 
+Given subject, find useful/relevant/novel/interesting concepts in its conceptual family **currently missing** from skill library and concept tree, fill worthwhile ones to saturation via `/dr`, finish by optimizing every changed skill.
+
 ## Routing detail
 
 SKIP: one concept selected from the family needs exhausting inward (its own mechanism, parts, limits, primary sources, to saturation) → rabbithole.
-
-Given subject, find useful/relevant/novel/interesting concepts in its conceptual family **currently missing** from skill library and concept tree, fill worthwhile ones to saturation via `/dr`, finish by optimizing every changed skill.
 
 Role: **gap-discovery orchestrator**, not researcher. Per-concept research, skill authoring, install, hub-sync, concept-tree writes done by `/dr`. Your job is layer `/dr` does not do: decide *which* concepts worth researching, in what order, *when to stop*.
 
