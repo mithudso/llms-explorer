@@ -39,6 +39,14 @@ models' `max` cells: 150 SUPPORTED. The full gates on the deduped unions found 0
 51, 1 CONTRADICTED in Opus's 41 (a "rollback journal is faster above ~100 MB transactions" claim
 whose wording is close to `wal.html`'s own; possibly a gate false positive), 0 in Haiku's 24.
 
+**Mirror test (added after review): Fable is the yardstick, not the deepest run.** Every
+score above asks how much of Fable the candidate reproduced, so Fable is 26/26 by
+construction. Judged the other way (Fable's 26 claims as candidate, strict rule), Fable states
+22 of Haiku r1's 32 claims, **14 of Sonnet r1's 30**, 13 of Opus r1's 29 (missing 5), and
+only 19 of Sonnet's 84-claim union and 34 of Opus's 120. Fable and Sonnet `max` are peers per
+run — each states about half of the other exactly — at $3.73 vs $2.05. Fable's edge is speed
+(534 s vs 900–1,000) and compactness. See [§ Mirror test](#mirror-test-fable-as-the-candidate).
+
 **2. No — concept value is not additive, and the "more" is mostly not more.** See
 [§ Are 100 cheap concepts worth one deep one?](#are-100-cheap-concepts-worth-one-deep-one).
 
@@ -117,6 +125,27 @@ Consequence for the harness: the strict rule measures "did the candidate write F
 not "did the candidate find Fable's facts". Report both rules when comparing models that
 granulate differently.
 
+### Mirror test: Fable as the candidate
+
+Same judge, same strict rule, direction reversed: Fable's 26 claims are the candidate and each
+model's output is the reference (`score/max-reverse-r1/` for run 1, `score/max-reverse/` for
+the deduped 5-run union).
+
+| Reference | ref claims | Fable covers | partial | missing | Fable extras vs ref | forward (ref covers Fable, strict) |
+|---|---:|---:|---:|---:|---:|---:|
+| Haiku `max` r1 | 32 | 22 | 9 | 1 | 20 | 7 / 26 |
+| Sonnet `max` r1 | 30 | 14 | 14 | 2 | 8 | 12–14 / 26 (k=1 range) |
+| Opus `max` r1 | 29 | 13 | 11 | 5 | 9 | 0–2 / 26 strict |
+| Haiku union (5) | 106 | 66 | 31 | 9 | 6 | 7 / 26 |
+| Sonnet union (5) | 84 | 19 | 56 | 9 | 4 | 16 / 26 |
+| Opus union (5) | 120 | 34 | 75 | 11 | 4 | 5 strict / 12 joint |
+
+Reading: Fable dominates Haiku both ways. Fable and Sonnet are symmetric at one run each
+(14/30 vs ~13/26 strict; 28/30 vs ~21/26 at least partial). Fable misses 5 of Opus r1's claims
+outright. Against the unions Fable is mostly "partial", i.e. the unions carry specifics Fable's
+run lacks. Fable's distinct advantages are wall-clock (534 s) and density (26 compound claims
+covering what 30–40 of the others' claims say). Judge cost for the six reverse passes: $2.33.
+
 ## Results at `medium`
 
 | model | $/run | claims/run | sources/run | union covered / partial / missing | union unique claims | union sources |
@@ -171,13 +200,16 @@ feed CVS scoring, not the concept tree directly.
 
 | need | buy |
 |---|---|
-| one concept where compound precision matters (APIs with conditions, postmortem numbers) | 1 × Fable `max` ($3.7) |
-| many gated concepts, good breadth, ~60 % of Fable's precision | 1–2 × Sonnet `max` per concept ($2–4) |
+| any gated concept: breadth and precision ≥ one Fable run | **2 × Sonnet `max`**, merged (~$4, Fable's price; ahead of Fable in both judge directions) |
+| lowest wall-clock, or a compact pack | 1 × Fable `max` ($3.7, 534 s) |
 | frontier discovery / source hunting on a family | 1 × Opus `max` per family ($3), feed into CVS |
 | never | repeats of any model at `medium` to "add up" to `max` |
 
-Sonnet `max` is the better per-dollar buy for broad coverage of a gated queue; Fable for the
-concepts you will be asked precise questions about; Opus for finding what to research next.
+Two Sonnet `max` runs is the default for the research queue (`/dr`, `/rabbithole`,
+`concept-family-explorer` switched to it on 2026-10-20); Fable when wall-clock matters; Opus
+for finding what to research next. The earlier draft of this table reserved Fable for
+"precision-critical" concepts on the strength of the one-way comparison; the mirror test does
+not support that.
 
 ## Limits
 

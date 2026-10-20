@@ -13,10 +13,10 @@ description: >-
   mentions OUT of an existing docset/corpus you already hold → llms-concept-abstractor;
   reorganizing the skill tree → skill-tree-architect.
 name: rabbithole
-version: "1.0.0"
-updated: "2026-09-01"
-model: claude-opus-5
-effort: high
+version: "1.1.0"
+updated: "2026-10-20"
+model: claude-sonnet-5-5
+effort: max
 category: meta
 tags: [concept-depth, exhaustive-research, saturation, orchestration]
 keywords:
@@ -32,9 +32,8 @@ keywords:
 related_skills:
   - concept-family-explorer
   - deep-research
-  - llms-concept-abstractor
+  - llms-txt-tooling
   - skill-tree-architect
-  - full-suite
 whenToUse:
   - "deepen my understanding of <concept>"
   - "exhaust <concept> completely — go as deep as you can"
@@ -75,7 +74,7 @@ concept ─▶ [1] scope & boundary ─▶ [2] pass 0: broad draft ─▶ [3] pa
 - Subject is a domain, family, or "what am I missing about X" question → `concept-family-explorer`.
 - One ordinary research pass is what's wanted, no forced exhaustion loop → `/dr` directly.
 - The concept's mentions already live inside a corpus you hold (docs, notes, a textbook) and
-  you want them pulled out and organized → `llms-concept-abstractor`.
+  you want them pulled out and organized → llms-txt-tooling (references/llms-concept-abstractor/llms-concept-abstractor.md).
 - Skill tree needs reorganizing, no new research → `skill-tree-architect`.
 
 ## Inputs
@@ -103,7 +102,9 @@ depth does.
 
 ### Step 2 — Pass 0: broad draft
 
-One ordinary research pass (reuse `/dr`'s research step, or read `seedMaterial` first if
+One ordinary research pass (reuse `/dr`'s research step — two independent Sonnet `max`
+agents per concept merged by `dr_run.py research`, never a single Fable pass; see
+llms-explorer `docs/research/dr-model-repeats-2026-10-20` — or read `seedMaterial` first if
 given): mechanism in plain terms, the sub-parts/phases it decomposes into, the two or three
 most-cited primary sources, the obvious edge cases. This draft is the baseline every later
 pass is measured against — write it down as a flat list of atomic claims (one fact per line),
@@ -184,4 +185,4 @@ handoff list for `concept-family-explorer` — this skill never chases them itse
 **Should NOT trigger:**
 - "What am I missing about distributed systems in general?" → `concept-family-explorer`.
 - "Research CRDTs and make a skill" (one pass, no forced exhaustion) → `/dr`.
-- "Pull everything these three docsets say about caching" → `llms-concept-abstractor`.
+- "Pull everything these three docsets say about caching" → llms-txt-tooling (references/llms-concept-abstractor/llms-concept-abstractor.md).

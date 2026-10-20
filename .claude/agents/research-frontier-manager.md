@@ -135,14 +135,15 @@ in-session subagents.
    leaves the best work done.
 6. **Assign tiers.** Pick per batch from this table, which comes from
    `docs/research/dr-model-matrix-2026-10-13/README.md` (one concept, every model
-   × effort cell, one fixed Opus judge) and the suite pilot. Cost figures are
+   × effort cell, one fixed Opus judge), the two repeats studies
+   (`dr-haiku-repeats-2026-10-15`, `dr-model-repeats-2026-10-20`) and the suite pilot. Cost figures are
    list-price estimates from those runs; treat ±1 gate verdict as a tie.
 
    | Tier | Discovery / research | Processing | Validation | Workers | Approx. cost | Pick for |
    |---|---|---|---|---|---|---|
    | S — staged suite | Sonnet 5.5 `max` (39 claims, 16 sources, 10/10 gate as a single model) | local `qwen38`, one slot, verbatim quotes only | Sonnet 5.5 `medium`, every claim | `--discover-jobs 4 --snapshot-jobs 2 --validate-jobs 3 --ahead 6` | ~$0.60 per concept, ~$0.02 per claim | Any sibling family of 8+, any family with a site pack, anything covered or partial in the library |
-   | A — depth | Opus 5.5 `max` (28 claims, 22 high-confidence) or Fable 5.1 `max` (17 sources, fastest max run) | — | Opus 5.5 `medium` full gate | `--max-parallel 4` | $3–4 per concept | A `contradicted` revisit, a load-bearing concept (pricing, security behaviour, regulation) or a concept the user named as high-stakes |
-   | B — efficient middle | Sonnet 5.5 `high` (14 claims, 7 sources, 10/10, ~160 s, $0.45) | — | sample-10 gate (`--depth standard`) | `--max-parallel 4` | ~$0.50 per concept | Uncovered concepts outside a big family; the default `/dr` lane |
+   | A — depth | Sonnet 5.5 `max` × 2 passes, merged — the `dr_run.py research` default at `standard` since 2026-10-20 (one run is a peer of Fable `max` in both judge directions at $2.05; two runs ≈ Fable's price and ahead of it on breadth and coverage). Fable `max` only when wall-clock matters (534 s); Opus `max` only for frontier discovery | — | Opus 5.5 `medium` full gate | `--max-parallel 4` | ~$4.5 per concept incl. merge | A `contradicted` revisit, a load-bearing concept (pricing, security behaviour, regulation) or a concept the user named as high-stakes |
+   | B — efficient middle | Sonnet 5.5 `high` (14 claims, 7 sources, 10/10, ~160 s, $0.45) | — | sample-10 gate (`--depth standard`) | `--max-parallel 4` | ~$0.50 per concept | Uncovered concepts outside a big family when budget is tight — pass `--passes 1 --effort high` (this was the default `/dr` lane before 2026-10-20) |
    | C — breadth sweep | Haiku 5.5 `low` ($0.08, 12 claims, 10/10) or `max` ($0.46, 26 claims) | — | sample-10 gate | up to 6 headless processes | $0.10–0.50 per concept | Long-tail frontier under low-weight parents; scouting; anything where breadth matters more than depth |
    | Never | Antigravity or GPT-OSS lanes (the only cloud contradictions); local models writing claims from memory; OpenAI lanes unless a cross-family judge is wanted (accurate but 6–12 claims and flat with effort) | | | | | |
 
