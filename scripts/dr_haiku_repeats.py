@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # ruff: noqa: E501
-"""dr_haiku_repeats.py — how many repeated Haiku 5.5 /dr runs equal one Fable 5.1 run?
+"""dr_haiku_repeats.py — how many repeated Haiku/Sonnet/Opus /dr runs equal one Fable 5.1 run?
 
 Reuses scripts/dr_model_matrix.py: same concept ("SQLite WAL checkpointing"), the identical
 dr_run.py worker brief, one isolated HUB_DIR per cell, and the same fixed blind gate
@@ -18,6 +18,11 @@ dr_run.py worker brief, one isolated HUB_DIR per cell, and the same fixed blind 
     python3 scripts/dr_haiku_repeats.py run [--efforts medium,max] [--repeats 5] [--parallel 10]
     python3 scripts/dr_haiku_repeats.py score [--efforts medium,max]
     python3 scripts/dr_haiku_repeats.py report
+
+Every subcommand takes `--model <claude model id>` (default claude-haiku-5-5) and `--out <dir>`
+(default docs/research/dr-haiku-repeats-2026-10-15). The 2026-10-20 Sonnet 5.5 and Opus 5.5
+repeats used `--model claude-sonnet-5-5 --out docs/research/dr-sonnet-repeats-2026-10-20` and
+`--model claude-opus-5-5 --out docs/research/dr-opus-repeats-2026-10-20`.
 """
 
 from __future__ import annotations
@@ -37,17 +42,38 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 import dr_model_matrix as mx  # noqa: E402
 
 REPO = mx.REPO
-OUT = REPO / "docs" / "research" / "dr-haiku-repeats-2026-10-15"
+DEFAULT_OUT = REPO / "docs" / "research" / "dr-haiku-repeats-2026-10-15"
+DEFAULT_MODEL = "claude-haiku-5-5"
+OUT = DEFAULT_OUT
+MODEL = DEFAULT_MODEL
 MATRIX_CELLS = mx.OUT / "cells"
 REF_ID = "claude__claude-fable-5-1__max"
-MODEL = "claude-haiku-5-5"
 JUDGE = ("claude-opus-5-5", "medium")
 CLAIMS_REL = Path("hub") / "research" / "bench" / "claims" / "sqlite-wal-checkpointing.json"
+LABELS = {
+    "claude-haiku-5-5": "Haiku 5.5",
+    "claude-sonnet-5-5": "Sonnet 5.5",
+    "claude-opus-5-5": "Opus 5.5",
+    "claude-fable-5-1": "Fable 5.1",
+}
 
-# Point the matrix harness at this experiment's directory (run_cell reads these at call time).
-mx.OUT = OUT
-mx.CELLS_DIR = OUT / "cells"
-mx.RESULTS = OUT / "results.jsonl"
+
+def _configure(model: str, out: Path) -> None:
+    """Select the candidate model and the experiment directory, and point the matrix harness
+    (run_cell reads mx.OUT / mx.CELLS_DIR / mx.RESULTS at call time) at that directory."""
+    global MODEL, OUT
+    MODEL = model
+    OUT = out
+    mx.OUT = OUT
+    mx.CELLS_DIR = OUT / "cells"
+    mx.RESULTS = OUT / "results.jsonl"
+
+
+def _label() -> str:
+    return LABELS.get(MODEL, MODEL)
+
+
+_configure(DEFAULT_MODEL, DEFAULT_OUT)
 
 
 def _cells(efforts: list[str], repeats: int) -> list[dict]:
@@ -452,7 +478,7 @@ def cmd_score(a) -> int:
 def cmd_report(a) -> int:
     rep = _load(OUT / "score.json")
     ref = _reference()
-    lines = [f"# Haiku 5.5 repeats vs one Fable 5.1 run — {mx.CONCEPT}", ""]
+    lines = [f"# {_label()} repeats vs one Fable 5.1 run — {mx.CONCEPT}", ""]
     lines += [
         f"Reference: `{REF_ID}` — {len(ref['claims'])} claims, {len(ref['sources'])} sources "
         f"({len({_org(s['url']) for s in ref['sources']})} orgs).",
@@ -460,10 +486,10 @@ def cmd_report(a) -> int:
     ]
     for effort, e in rep["efforts"].items():
         if "error" in e:
-            lines += [f"## Haiku {effort}: {e['error']}", ""]
+            lines += [f"## {_label()} {effort}: {e['error']}", ""]
             continue
         lines += [
-            f"## Haiku 5.5 at `{effort}` — {len(e['runs'])} runs, ${e['cost_total_usd']} total",
+            f"## {_label()} at `{effort}` — {len(e['runs'])} runs, ${e['cost_total_usd']} total",
             "",
         ]
         lines += [
@@ -496,11 +522,11 @@ def cmd_report(a) -> int:
             )
         lines.append("")
         if e["missing_fable_claims"]:
-            lines += ["Fable claims no Haiku run stated:", ""]
+            lines += [f"Fable claims no {_label()} run stated:", ""]
             lines += [f"- {t}" for t in e["missing_fable_claims"]]
             lines.append("")
         if e["fable_sources_not_in_union"]:
-            lines += ["Fable sources no Haiku run cited:", ""]
+            lines += [f"Fable sources no {_label()} run cited:", ""]
             lines += [f"- {u}" for u in e["fable_sources_not_in_union"]]
             lines.append("")
     if rep.get("full_gates"):
@@ -526,6 +552,8 @@ def main() -> int:
     ap = argparse.ArgumentParser(
         description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter
     )
+    ap.add_argument("--model", default=DEFAULT_MODEL, help="candidate claude model id")
+    ap.add_argument("--out", default=str(DEFAULT_OUT), help="experiment directory")
     sub = ap.add_subparsers(dest="cmd", required=True)
     r = sub.add_parser("run")
     r.add_argument("--efforts", default="medium,max")
@@ -542,6 +570,7 @@ def main() -> int:
     s.set_defaults(fn=cmd_score)
     sub.add_parser("report").set_defaults(fn=cmd_report)
     a = ap.parse_args()
+    _configure(a.model, Path(a.out).resolve())
     return a.fn(a)
 
 

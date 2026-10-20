@@ -23,6 +23,11 @@ cannot close that gap. The staged pipeline from the matrix (Sonnet discovers, Ha
 source, a validator checks every claim; see
 [KNOW-660](https://app.stele-ai.dev/p/llms-explorer-9d1wd/nodes/KNOW-660)) is the cheaper lever.
 
+Follow-up (2026-10-20): the same test with Sonnet 5.5 and Opus 5.5 is in
+[dr-model-repeats-2026-10-20](../dr-model-repeats-2026-10-20/README.md). Short version: one
+Sonnet `max` run covers 13 of the 26 Fable claims fully (Haiku: 7); Opus reads the widest but
+writes atomic claims, so the strict judge here under-counts it (5 strict, 12 under a joint rule).
+
 ## Method
 
 - **Concept and brief:** "SQLite WAL checkpointing" (topic "SQLite write-ahead logging (WAL)"),

@@ -1,0 +1,341 @@
+{
+ "name": "max-r1",
+ "claims": 29,
+ "concept_done": {
+  "ok": true,
+  "concept": "SQLite WAL checkpointing",
+  "slug": "sqlite-wal-checkpointing",
+  "claims": 29,
+  "sources": 18,
+  "run_status": "research-complete",
+  "pending": [],
+  "warning": null,
+  "warnings": []
+ },
+ "counts": {
+  "SUPPORTED": 23
+ },
+ "cost_usd": 0.8064659000000001,
+ "tokens": 434414,
+ "seconds": 201,
+ "error": null,
+ "verdicts": [
+  {
+   "concept": "SQLite WAL checkpointing",
+   "claim": "A normal checkpoint does not shrink the -wal file ... next writer rewinds (resets) the WAL ... overwriting an existing file is faster",
+   "footnotes": [
+    "[^c1-1]",
+    "[^c1-3]",
+    "[^c1-10]"
+   ],
+   "urls": [
+    "https://www.sqlite.org/wal.html"
+   ],
+   "verdict": "SUPPORTED",
+   "evidence": "wal.html s6: 'it merely causes SQLite to start overwriting the WAL file from the beginning. This is done because it is normally faster to overwrite an existing file than to append.'"
+  },
+  {
+   "concept": "SQLite WAL checkpointing",
+   "claim": "Automatic checkpoint after any COMMIT that leaves the WAL at 1000 pages or more (SQLITE_DEFAULT_WAL_AUTOCHECKPOINT) ... always PASSIVE",
+   "footnotes": [
+    "[^c1-1]",
+    "[^c1-6]"
+   ],
+   "urls": [
+    "https://www.sqlite.org/wal.html",
+    "https://sqlite.org/c3ref/wal_autocheckpoint.html"
+   ],
+   "verdict": "SUPPORTED",
+   "evidence": "wal_autocheckpoint.html: default 1000 or SQLITE_DEFAULT_WAL_AUTOCHECKPOINT; auto checkpoints are PASSIVE; run after commit when WAL >= N frames."
+  },
+  {
+   "concept": "SQLite WAL checkpointing",
+   "claim": "The last connection to close also runs a final checkpoint under an exclusive lock and deletes the -wal and -shm files",
+   "footnotes": [
+    "[^c1-1]",
+    "[^c1-4]"
+   ],
+   "urls": [
+    "https://www.sqlite.org/wal.html",
+    "https://sqlite.org/walformat.html"
+   ],
+   "verdict": "SUPPORTED",
+   "evidence": "wal.html: 'that connection does one last checkpoint and then deletes the WAL and its associated shared-memory file'; walformat: acquires SQLITE_LOCK_EXCLUSIVE first."
+  },
+  {
+   "concept": "SQLite WAL checkpointing",
+   "claim": "PASSIVE never invokes busy handler; FULL blocks new writers not readers; RESTART waits for readers; TRUNCATE truncates -wal to zero bytes on success",
+   "footnotes": [
+    "[^c1-2]",
+    "[^c1-3]"
+   ],
+   "urls": [
+    "https://sqlite.org/c3ref/wal_checkpoint_v2.html"
+   ],
+   "verdict": "SUPPORTED",
+   "evidence": "'The busy-handler callback is never invoked in the SQLITE_CHECKPOINT_PASSIVE mode'; FULL 'blocks new database writers ... new database readers are allowed'; TRUNCATE 'truncates the log file to zero bytes just prior to a successful return'."
+  },
+  {
+   "concept": "SQLite WAL checkpointing",
+   "claim": "Every checkpoint takes exclusive WAL_CKPT_LOCK; held lock -> SQLITE_BUSY immediately without busy handler; nBackfill only increases under lock",
+   "footnotes": [
+    "[^c1-2]",
+    "[^c1-4]",
+    "[^c1-11]"
+   ],
+   "urls": [
+    "https://sqlite.org/c3ref/wal_checkpoint_v2.html",
+    "https://sqlite.org/walformat.html"
+   ],
+   "verdict": "SUPPORTED",
+   "evidence": "walformat: 'An EXCLUSIVE WAL_CKPT_LOCK is held by any connection that is running a checkpoint' and 'The nBackfill can only be increased while holding the WAL_CKPT_LOCK'."
+  },
+  {
+   "concept": "SQLite WAL checkpointing",
+   "claim": "A checkpoint must stop at the end mark of any active reader ... writer may reset WAL only when fully backfilled and no WAL_READ_LOCK(N) for N>0",
+   "footnotes": [
+    "[^c1-1]",
+    "[^c1-4]"
+   ],
+   "urls": [
+    "https://sqlite.org/walformat.html"
+   ],
+   "verdict": "SUPPORTED",
+   "evidence": "walformat: checkpoint 'must not move WAL content ... for more than the first read-mark[N] frames'; 'ok to reset the WAL if there are no locks held on any of WAL_READ_LOCK(N) for N>0'."
+  },
+  {
+   "concept": "SQLite WAL checkpointing",
+   "claim": "With synchronous=NORMAL in WAL mode, checkpoints are the only operations that fsync ... not durable across power loss; FULL adds WAL sync per commit",
+   "footnotes": [
+    "[^c1-1]",
+    "[^c1-3]"
+   ],
+   "urls": [
+    "https://www.sqlite.org/wal.html",
+    "https://sqlite.org/pragma.html"
+   ],
+   "verdict": "SUPPORTED",
+   "evidence": "wal.html: 'with PRAGMA synchronous set to NORMAL, the checkpoint is the only operation to issue an I/O barrier or sync'; pragma: NORMAL commit 'might roll back following a power loss'."
+  },
+  {
+   "concept": "SQLite WAL checkpointing",
+   "claim": "If zDb is NULL or empty, sqlite3_wal_checkpoint_v2() checkpoints every attached WAL database, continues past SQLITE_BUSY, reports it at end",
+   "footnotes": [
+    "[^c1-2]"
+   ],
+   "urls": [
+    "https://sqlite.org/c3ref/wal_checkpoint_v2.html"
+   ],
+   "verdict": "SUPPORTED",
+   "evidence": "'the operation is still attempted on any remaining attached databases and SQLITE_BUSY is returned at the end'."
+  },
+  {
+   "concept": "SQLite WAL checkpointing",
+   "claim": "SQLite 3.51.0 (2025-11-04) added PRAGMA wal_checkpoint=NOOP and SQLITE_CHECKPOINT_NOOP; NOOP checkpoints zero frames",
+   "footnotes": [
+    "[^c1-5]",
+    "[^c1-2]",
+    "[^c1-3]"
+   ],
+   "urls": [
+    "https://sqlite.org/changes.html",
+    "https://sqlite.org/c3ref/wal_checkpoint_v2.html"
+   ],
+   "verdict": "SUPPORTED",
+   "evidence": "changes.html 3.51.0 (2025-11-04) item 7 adds the PRAGMA and SQLITE_CHECKPOINT_NOOP; v2 doc: 'This mode always checkpoints zero frames.'"
+  },
+  {
+   "concept": "SQLite WAL checkpointing",
+   "claim": "PRAGMA wal_checkpoint returns (busy, log, checkpointed) ... checkpointed includes earlier frames; -1 if not WAL; 0 after TRUNCATE",
+   "footnotes": [
+    "[^c1-3]",
+    "[^c1-2]"
+   ],
+   "urls": [
+    "https://sqlite.org/pragma.html",
+    "https://sqlite.org/c3ref/wal_checkpoint_v2.html"
+   ],
+   "verdict": "SUPPORTED",
+   "evidence": "v2 doc: '(including any that were already checkpointed before the function was called)'; 'both *pnLog and *pnCkpt will be set to zero'; pragma: '-1 if there is no write-ahead log'."
+  },
+  {
+   "concept": "SQLite WAL checkpointing",
+   "claim": "Litestream maintains a read lock to prevent other processes checkpointing, asks wal_autocheckpoint=0, recommends busy_timeout 5 seconds",
+   "footnotes": [
+    "[^c1-12]"
+   ],
+   "urls": [
+    "https://litestream.io/tips/"
+   ],
+   "verdict": "SUPPORTED",
+   "evidence": "'Litestream prevents other processes from checkpointing by maintaining a read lock on the database'; busy timeout 'recommended to set this to 5 seconds'."
+  },
+  {
+   "concept": "SQLite WAL checkpointing",
+   "claim": "Litestream v0.5.x: min-checkpoint-page-count 1000, checkpoint-interval 1m, truncate-page-n 121359 (~500 MB), PASSIVE then TRUNCATE",
+   "footnotes": [
+    "[^c1-13]"
+   ],
+   "urls": [
+    "https://litestream.io/guides/wal-truncate-threshold/"
+   ],
+   "verdict": "SUPPORTED",
+   "evidence": "Page lists 1000 pages, 'Default: 1 minute', 121,359 pages '~500MB', 'Attempts a PASSIVE checkpoint first, then falls back to a TRUNCATE checkpoint'."
+  },
+  {
+   "concept": "SQLite WAL checkpointing",
+   "claim": "SQLite's 1000-page default (about 4 MB) is a compromise tested on workstations; Syncthing: multiple GB WAL grinds to a halt",
+   "footnotes": [
+    "[^c1-1]",
+    "[^c1-15]"
+   ],
+   "urls": [
+    "https://www.sqlite.org/wal.html",
+    "https://forum.syncthing.net/t/dealing-with-checkpoint-starvation/26121"
+   ],
+   "verdict": "SUPPORTED",
+   "evidence": "wal.html: 'seems to work well in test applications on workstations'; Syncthing: 'multiple gigabytes ... database operations grind to a halt'."
+  },
+  {
+   "concept": "SQLite WAL checkpointing",
+   "claim": "rqlite disables autocheckpointing and checkpoint-on-close, TRUNCATE checkpoint at each snapshot, v10 250 ms wait, salt comparison",
+   "footnotes": [
+    "[^c1-14]",
+    "[^c1-9]"
+   ],
+   "urls": [
+    "https://philipotoole.com/taking-control-of-the-sqlite-wal/",
+    "https://sqlite.org/c3ref/c_dbconfig_defensive.html"
+   ],
+   "verdict": "SUPPORTED",
+   "evidence": "Post (2026-05-12): disables 'automatic checkpointing' and 'checkpoint-on-close', TRUNCATE per snapshot, 250 ms default wait, 'aborted, to be retried a few seconds later', salt comparison; dbconfig: NO_CKPT_ON_CLOSE 'zero (the default) to enable them'."
+  },
+  {
+   "concept": "SQLite WAL checkpointing",
+   "claim": "sqlite3_wal_autocheckpoint() wraps sqlite3_wal_hook(), they overwrite each other; hook runs after commit with write lock released",
+   "footnotes": [
+    "[^c1-1]",
+    "[^c1-6]",
+    "[^c1-7]"
+   ],
+   "urls": [
+    "https://sqlite.org/c3ref/wal_autocheckpoint.html",
+    "https://sqlite.org/c3ref/wal_hook.html"
+   ],
+   "verdict": "SUPPORTED",
+   "evidence": "wal_hook: 'invoked by SQLite after the commit has taken place and the associated write-lock on the database released'; autocheckpoint 'replaces any existing callback registered using sqlite3_wal_hook()'."
+  },
+  {
+   "concept": "SQLite WAL checkpointing",
+   "claim": "The -wal file is part of persistent state ... deleting it or copying without it can lose committed transactions; safe removal = open and close",
+   "footnotes": [
+    "[^c1-1]",
+    "[^c1-4]"
+   ],
+   "urls": [
+    "https://www.sqlite.org/wal.html"
+   ],
+   "verdict": "SUPPORTED",
+   "evidence": "wal.html s4: 'The WAL file is part of the persistent state ... The only safe way to remove a WAL file is to open the database file ... then immediately close'."
+  },
+  {
+   "concept": "SQLite WAL checkpointing",
+   "claim": "Three causes of unbounded WAL growth ... Since 3.11.0 a transaction writes each changed page into the WAL only once",
+   "footnotes": [
+    "[^c1-1]",
+    "[^c1-10]",
+    "[^c1-15]"
+   ],
+   "urls": [
+    "https://www.sqlite.org/wal.html"
+   ],
+   "verdict": "SUPPORTED",
+   "evidence": "wal.html lists disabling autocheckpoint, checkpoint starvation, very large write transactions; 3.11.0: 'Pages ... should only be written into the WAL file once'."
+  },
+  {
+   "concept": "SQLite WAL checkpointing",
+   "claim": "Prepared statement never reset/finalized keeps transaction open; Hipp diagnosis 2021, WAL ~100 GB",
+   "footnotes": [
+    "[^c1-10]",
+    "[^c1-1]"
+   ],
+   "urls": [
+    "https://sqlite.org/forum/forumpost/7d292adea1"
+   ],
+   "verdict": "SUPPORTED",
+   "evidence": "Hipp: not resetting statements 'will likely be leaving some transactions open, which will prevent the checkpoint from happening'; WAL ~100 GB."
+  },
+  {
+   "concept": "SQLite WAL checkpointing",
+   "claim": "2021 Forum case with 36 connections and ~1000 writes/s, wal_autocheckpoint=0 on every connection made RESTART succeed; Syncthing self-contention",
+   "footnotes": [
+    "[^c1-11]",
+    "[^c1-15]"
+   ],
+   "urls": [
+    "https://sqlite.org/forum/forumpost/32bac245c0",
+    "https://forum.syncthing.net/t/dealing-with-checkpoint-starvation/26121"
+   ],
+   "verdict": "SUPPORTED",
+   "evidence": "'36 connections open from the same process', 'about 1000 writes per second', 'Setting PRAGMA wal_autocheckpoint=0; on every connection resolves the issue'; Syncthing: 'we're blocking our own checkpointer'."
+  },
+  {
+   "concept": "SQLite WAL checkpointing",
+   "claim": "New connection during close-time checkpoint fails SQLITE_BUSY; sqlite3_setlk_timeout() (3.50.0) with SQLITE_SETLK_BLOCK_ON_CONNECT waits",
+   "footnotes": [
+    "[^c1-8]",
+    "[^c1-5]"
+   ],
+   "urls": [
+    "https://sqlite.org/c3ref/setlk_timeout.html",
+    "https://sqlite.org/changes.html"
+   ],
+   "verdict": "SUPPORTED",
+   "evidence": "setlk_timeout: new reader 'fails with an SQLITE_BUSY error'; with flag 'blocks until the exclusive lock has been released'; changes: 3.50.0 item 1 adds sqlite3_setlk_timeout()."
+  },
+  {
+   "concept": "SQLite WAL checkpointing",
+   "claim": "WAL-reset bug present 3.7.0 (2010-07-21) to 3.51.2 (2026-01-09); fixed 3.51.3, 3.53.0, backports 3.44.6/3.50.7; 3.52.0 withdrawn; newest 3.54.1",
+   "footnotes": [
+    "[^c1-1]",
+    "[^c1-5]"
+   ],
+   "urls": [
+    "https://www.sqlite.org/wal.html",
+    "https://sqlite.org/changes.html"
+   ],
+   "verdict": "SUPPORTED",
+   "evidence": "wal.html: 'from 3.7.0 (2010-07-21) through 3.51.2 (2026-01-09). It is fixed in version 3.51.3 (2026-03-13) ... 3.44.6 and 3.50.7'; changes: 3.52.0 withdrawn, 3.53.0 2026-04-09 fix item 1, 3.54.1 2026-10-16."
+  },
+  {
+   "concept": "SQLite WAL checkpointing",
+   "claim": "Eaton reproduced without test hook; PASSIVE + 1 GiB mmap_size; 3.51.2 lost txn ~4s; 3.53.0 none over ~16s; integrity_check 'ok'",
+   "footnotes": [
+    "[^c1-16]"
+   ],
+   "urls": [
+    "https://theconsensus.dev/p/2026/08/23/another-look-at-sqlite-wal-reset.html"
+   ],
+   "verdict": "SUPPORTED",
+   "evidence": "'permanently lost: 1 transactions' at ~3.5-4.3s with 'integrity_check: ok'; 3.53.0 'permanently lost: 0 transactions' real 15.946s; mmap_size 1073741824."
+  },
+  {
+   "concept": "SQLite WAL checkpointing",
+   "claim": "Tailscale manual aggressive checkpointing; corruption from Aug 2025 ~six months; Dan found and fixed 2026-03-03; integrity_check caught Tailscale corruption",
+   "footnotes": [
+    "[^c1-17]",
+    "[^c1-18]",
+    "[^c1-1]",
+    "[^c1-16]"
+   ],
+   "urls": [
+    "https://www.theregister.com/databases/2026/08/12/deeply-buried-16-year-old-sqlite-bug-caused-last-years-tailscale-outages/5287004",
+    "https://www.techzine.eu/news/infrastructure/143585/old-sqlite-bug-caused-months-of-outages-at-tailscale/",
+    "https://www.sqlite.org/wal.html",
+    "https://theconsensus.dev/p/2026/08/23/another-look-at-sqlite-wal-reset.html"
+   ],
+   "verdict": "SUPPORTED",
+   "evidence": "Register: 'running at our own aggressive pace', corruption detected from 'August 2025'; wal.html: 'On 2026-03-03, one of the SQLite developers (Dan) found and fixed'; Eaton: 'data corruption spotted by PRAGMA integrity_check'."
+  }
+ ]
+}
