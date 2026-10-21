@@ -91,12 +91,17 @@ quality. Publication uses an isolated checkout and green GitHub site CI.
 
 ## Publication checks
 
-The audit verified 158 cited MongoDB issue references through anonymous HTTP 200
+The audit verified 248 cited MongoDB issue references through anonymous HTTP 200
 responses from the official tracker. Their exact keys are in the existing privacy
 allowlist. Two references without anonymous metadata remain private. Generated
 examples replace network and object identifiers with documentation placeholders;
-original research stays intact locally.
+original research stays intact locally. Completion verifies new issue references
+automatically and retries unavailable metadata later.
 
 PR #214 contains the release. GitHub's shared-library installation currently
 fails because the repository Actions secret `LIBS_READ_TOKEN` is missing. The
 release remains unmerged until its CI gate passes.
+
+Local validation: 309 full-suite tests passed in the isolated release checkout.
+Two additional publication regressions bring the focused runtime suite to 38
+passing tests. Build, publication policy and Astro check pass.

@@ -130,6 +130,17 @@ class SiteSyncTests(unittest.TestCase):
         self.assertEqual(report["new_embeddings"], 0)
         self.assertEqual(report["keyword_concepts"], 2)
         self.assertEqual(report["deferred_semantic_concepts"], 1)
+
+    def test_public_examples_keep_their_meaning_without_identity_values(self):
+        scrub = website.module("publication_test_scrub", REPO / "scripts/publish_scrub.py")
+        original = reader("Example", "example", 'Use ObjectId("' + 'f' * 24 + '") with "person@vendor.invalidhost".')
+        original["facets"][0]["facts"][0]["source"] = "https://example.test/RestrictedReference"
+        safe = website.publication_pack(original, scrub, ["RestrictedReference"])
+        fact = safe["facets"][0]["facts"][0]
+        self.assertIn("<object-id>", fact["text"])
+        self.assertIn("user@example.test", fact["text"])
+        self.assertEqual(fact["source"], "archived:private-reference")
+        self.assertIn("person@vendor.invalidhost", original["facets"][0]["facts"][0]["text"])
         self.assertFalse((self.repo / "site/src/data/tree.json").exists())
 
 
