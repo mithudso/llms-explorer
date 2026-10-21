@@ -1,0 +1,379 @@
+{
+  "slug": "wiredtiger-cache-eviction-and-dirty-ratio",
+  "concept": "WiredTiger cache eviction and dirty ratio",
+  "generated": "2026-10-20",
+  "summary": "Source-anchored research for WiredTiger cache eviction and dirty ratio. Run status: COMPLETED.",
+  "facets": [
+    {
+      "title": "Structure and components",
+      "facts": [
+        {
+          "text": "The default WiredTiger cache is the larger of 50% of (RAM minus 1 GB) or 0.256 GB. WiredTiger reserves no separate part of the cache for reads and writes, so clean and dirty pages share one budget. Every threshold above is a fraction of this configured cache, not of RAM. (high confidence)",
+          "source": "https://www.mongodb.com/docs/manual/core/wiredtiger/",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "How it works",
+      "facts": [
+        {
+          "text": "Dirty ratio is dirty bytes divided by the configured maximum cache bytes, not by bytes currently in the cache. mongod's cache-pressure monitor computes cacheBytesDirty / cacheBytesMax and compares it with the dirty trigger, falling back to 0.20 when no explicit trigger is set. Netdata gives the same formula over serverStatus fields wiredTiger.cache['tracked dirty bytes in the cache'] and ['maximum bytes configured']. WiredTiger documents the thresholds as percentages of cache size. (high confidence) (verified as of 2026-10-20)",
+          "source": "https://raw.githubusercontent.com/mongodb/mongo/master/src/mongo/db/storage/wiredtiger/wiredtiger_cache_pressure_monitor.cpp",
+          "note": null
+        },
+        {
+          "text": "Lowering eviction_dirty_target and eviction_dirty_trigger makes background eviction start earlier and caps the dirty data each checkpoint must flush, at the price of more eviction I/O and CPU (block compression) and earlier throttling of application threads. In 2016 WT-2735 stated that WiredTiger checkpoints work best when there is not too much dirty data in cache and proposed setting eviction_dirty_trigger automatically to bound checkpoint time; it was closed as a duplicate of WT-2666. (medium confidence)",
+          "source": "https://source.wiredtiger.com/develop/tune_cache.html",
+          "note": null
+        },
+        {
+          "text": "Every eviction target must stay lower than its trigger. The WiredTiger 3.0.0 tuning page example eviction_trigger=90,eviction_dirty_target=75 sets a dirty target far above the default dirty trigger of 20, which breaks that rule; the 12.0.0 page fixes the example by adding eviction_dirty_trigger=90. (high confidence)",
+          "source": "https://source.wiredtiger.com/3.0.0/tune_cache.html",
+          "note": null
+        },
+        {
+          "text": "The WiredTiger 12.0.0 reference lists further eviction controls: eviction=(app_eviction_min_cache_fill_ratio) (0 to 50, default 0) delays application-thread eviction until a minimum cache fill; eviction=(cache_tolerance_for_app_eviction) (0 to 100, default 0, in steps of 10) loosens the dirty and updates triggers; eviction=(incremental_app_eviction) (default false) lets only some application threads evict; and eviction_checkpoint_target (default 1) evicts dirty content at the start of each checkpoint down to that level. (low confidence) (verified as of 2026-10-20)",
+          "source": "https://source.wiredtiger.com/develop/struct_w_t___c_o_n_n_e_c_t_i_o_n.html",
+          "note": null
+        },
+        {
+          "text": "In MongoDB's master branch, WiredTigerCachePressureMonitor reports cache pressure only when both checks pass: application cache-wait time exceeds cachePressureEvictionStallThresholdProportion (default 0.95) of expected thread time while no transactions commit, held longer than cachePressureEvictionStallDetectionWindowSeconds (default 20); and either dirty bytes over cache maximum exceeds the dirty trigger (default 0.20) or updates bytes over cache maximum exceeds the updates trigger (default half the dirty trigger). The WT-17697 ticket describes the monitor as reading the bytes-of-updates stat",
+          "source": "https://raw.githubusercontent.com/mongodb/mongo/master/src/mongo/db/storage/wiredtiger/wiredtiger_cache_pressure_monitor.cpp",
+          "note": null
+        },
+        {
+          "text": "The dirty and updates limits arrived in stages: MongoDB gained eviction_dirty_trigger support after Mark Callaghan's January 2015 request (SERVER-16737, fix version 3.1.5, resolved 2015-06-26); WiredTiger staff proposed auto-scaling the dirty trigger to bound checkpoint time in 2016 (WT-2735, closed as a duplicate of WT-2666); and MongoDB 4.4 added the separate updates target and trigger (WT-6175). (medium confidence)",
+          "source": "https://jira.mongodb.org/browse/SERVER-16737",
+          "note": null
+        },
+        {
+          "text": "Eviction values inside the percentage range (1 to 100 for the dirty settings, 10 to 100 for eviction_target and eviction_trigger) are percentages of cache_size. Larger values are absolute sizes. Each target must be lower than its trigger, and no value may exceed cache_size. The dirty and updates triggers change behavior only when they are lower than eviction_trigger. (high confidence)",
+          "source": "https://source.wiredtiger.com/develop/struct_w_t___c_o_n_n_e_c_t_i_o_n.html",
+          "note": null
+        },
+        {
+          "text": "WiredTiger judges eviction_dirty_trigger against dirty leaf-page bytes only, not all dirty bytes. The usual dirty ratio uses total tracked dirty bytes, which also count dirty internal pages, so it can read above the quantity WiredTiger compares with the trigger. WT-13642 calls the total ratio incorrect for deciding whether application threads are evicting. The WiredTiger vendored in MongoDB 7.0.45, 8.0.34 and 9.0.4 computes the dirty trigger from dirty leaf bytes. (high confidence) (verified as of 2026-10-20)",
+          "source": "https://jira.mongodb.org/browse/WT-13642",
+          "note": null
+        },
+        {
+          "text": "eviction_updates_target and eviction_updates_trigger default to 0, which WiredTiger resolves to half of eviction_dirty_target and half of eviction_dirty_trigger. With precise checkpoints enabled, the updates target equals the dirty target. These limits count bytes of updates in cache, not dirty bytes. The mongod parameter wiredTigerEvictionUpdatesMaxGB describes the same half-of-dirty-trigger default. (high confidence)",
+          "source": "https://source.wiredtiger.com/develop/struct_w_t___c_o_n_n_e_c_t_i_o_n.html",
+          "note": null
+        },
+        {
+          "text": "WT-17697 (status Backlog, unresolved, last updated 2026-06-04) concludes that removing the updates target and trigger is net-negative, and that 'updates eviction is load-bearing for update-heavy workloads'. The ticket says the cache can fill with update-laden leaf pages that clean eviction skips and dirty eviction does not reclaim. It says bytes_updates accounting tracks that memory separately from dirty bytes. Its benchmark run showed 47 regressions against 17 improvements. (low confidence) (verified as of 2026-06-04)",
+          "source": "https://jira.mongodb.org/browse/WT-17697",
+          "note": null
+        },
+        {
+          "text": "In the monitor source, the dirty check divides WT_STAT_CONN_CACHE_BYTES_DIRTY, the total 'tracked dirty bytes in the cache' statistic, by maximum bytes configured. It does not use dirty leaf bytes, so it can trip at a slightly different level than WiredTiger's own dirty trigger. This is a reading of the code, not a documented statement. (low confidence)",
+          "source": "https://github.com/mongodb/mongo/blob/r9.0.4/src/mongo/db/storage/wiredtiger/wiredtiger_cache_pressure_monitor.cpp",
+          "note": null
+        },
+        {
+          "text": "WiredTiger defines counters for trigger crossings: 'number of times dirty trigger was reached', 'number of times eviction trigger was reached' and 'number of times updates trigger was reached'. The serverStatus manual shows them in the spillWiredTiger.cache sample but not in its wiredTiger.cache sample, so check a live server before relying on them. (medium confidence) (verified as of 2026-10-14)",
+          "source": "https://github.com/wiredtiger/wiredtiger/blob/develop/dist/stat_data.py",
+          "note": null
+        },
+        {
+          "text": "Eviction tuning is a last resort. The MongoDB manual says to avoid modifying wiredTigerEngineRuntimeConfig unless MongoDB engineers direct it, because it has major implications across WiredTiger and MongoDB. Netdata lists eviction parameters after throttling writes, ending long operations, checking storage and resizing the cache. (high confidence)",
+          "source": "https://www.mongodb.com/docs/manual/reference/parameters/",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "How-to and procedures",
+      "facts": [
+        {
+          "text": "To see whether dirty data is driving application-thread eviction, compare dirty leaf bytes with eviction_dirty_trigger and update bytes with the updates trigger, then confirm with the delta of 'pages evicted by application threads'. Total dirty bytes over maximum bytes configured is an upper bound for the dirty check. (medium confidence)",
+          "source": "https://jira.mongodb.org/browse/WT-13642",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Measurements and reference values",
+      "facts": [
+        {
+          "text": "eviction_target (default 80% of cache size) is the level WiredTiger tries to hold overall cache usage; eviction worker threads are active once the cache holds at least that much. eviction_trigger (default 95%) is where application threads start evicting, which throttles operations and raises latency. Operations stall when the cache reaches 100% of its size. Each target must be lower than its trigger. (high confidence)",
+          "source": "https://source.wiredtiger.com/develop/tune_cache.html",
+          "note": null
+        },
+        {
+          "text": "eviction_dirty_target (default 5%) and eviction_dirty_trigger (default 20%) work like the overall pair but count only dirty data, meaning pages modified since they were read from disk. Application threads are throttled when dirty data reaches eviction_dirty_trigger. WiredTiger 12.0.0 documents that the dirty trigger only changes behavior when it is lower than eviction_trigger. MongoDB's manual states the dirty cache is limited to 20% of the total cache size. (high confidence)",
+          "source": "https://source.wiredtiger.com/develop/tune_cache.html",
+          "note": null
+        },
+        {
+          "text": "The updates trigger can bind while the dirty ratio is low. WT-15538, MongoDB's open umbrella ticket (updated 2026-10-09), covers 7.x and 8.x incidents on caches of 72 GB or more with 2,000+ updates per second: the cache stays at or above eviction_updates_trigger, server threads are pulled into eviction, and the update ratio exceeds the dirty ratio, sometimes by a lot, because the update content sits on clean pages. In the WT-17697 FTDC sample, tracked dirty bytes averaged 372 MB (peak 1.74 GB), well under the 20% dirty trigger, while application threads did heavy read-back and eviction writes.",
+          "source": "https://jira.mongodb.org/browse/WT-15538",
+          "note": null
+        },
+        {
+          "text": "Removing the updates target and trigger (clean/dirty-only eviction) is not a safe simplification. A WT-17697 sys-perf experiment (backlog, updated 2026-06-04) found 64 significant movers, 47 regressions and 17 improvements, including tpce_locust latency up 40% to 75%. MongoDB engineers concluded updates eviction is load-bearing for update-heavy workloads. The experiment's patch also changed the cache-pressure monitor, so the result is not fully isolated. (low confidence) (verified as of 2026-06-04)",
+          "source": "https://jira.mongodb.org/browse/WT-17697",
+          "note": null
+        },
+        {
+          "text": "Because the dirty trigger is a percentage, permitted dirty volume grows with cache size. WT-11173 (open, no fix version, last updated 2024-03-07) notes 20% of a 512 GB cache is about 102 GB, says that much dirty data has little benefit for most workloads and makes checkpoints costly, and proposes an absolute cap (for example, stop applying the 20% rule at 10 GB). In 2015 Mark Callaghan asked for eviction_dirty_trigger (SERVER-16737) because on a 144 GB RAM server he did not want about 140 GB of dirty pages in the WiredTiger cache. Percona notes 1% of a 256 GB cache is still about 2.56 GB flush",
+          "source": "https://jira.mongodb.org/browse/WT-11173",
+          "note": null
+        },
+        {
+          "text": "WiredTiger 12.0.0 reads eviction target and trigger values up to 100 as percentages of cache size and values above 100 as absolute sizes, up to 10TB. MongoDB's master branch has startup-only parameters wiredTigerEvictionDirtyTargetGB, wiredTigerEvictionDirtyMaxGB (the dirty trigger) and wiredTigerEvictionUpdatesMaxGB, which take absolute GB values; mongod converts them to megabytes and passes them to WiredTiger as eviction_dirty_target, eviction_dirty_trigger and eviction_updates_trigger. Their defaults are 5% of cache, 20% of cache and half the dirty trigger. (medium confidence) (verified as",
+          "source": "https://source.wiredtiger.com/develop/struct_w_t___c_o_n_n_e_c_t_i_o_n.html",
+          "note": null
+        },
+        {
+          "text": "MongoDB's manual says to avoid modifying wiredTigerEngineRuntimeConfig unless directed by MongoDB engineers, because it has major implications across WiredTiger and MongoDB; the parameter exists only at runtime and is set with setParameter. The manual also says to avoid raising the WiredTiger cache above its default, with cacheSizePct accepting at most 80% of memory. Netdata likewise says to tune eviction parameters only as a last resort, tested in staging, with a rollback plan. (high confidence) (verified as of 2026-10-14)",
+          "source": "https://www.mongodb.com/docs/manual/reference/parameters/",
+          "note": null
+        },
+        {
+          "text": "Do not judge cache health from fill ratio alone. WiredTiger works to hold usage near eviction_target (80%) once data exceeds the cache, and application threads join only at eviction_trigger (95%) or at the dirty or updates triggers. A MongoDB forum reply and Netdata both treat about 75% to 80% fill as normal; Netdata says to graph dirty ratio, not just fill. (high confidence)",
+          "source": "https://source.wiredtiger.com/develop/tune_cache.html",
+          "note": null
+        },
+        {
+          "text": "Application-thread eviction can occur well below the documented 95% fill and 20% dirty triggers. A MongoDB 5.0.10 forum post (2023-07-11) reported spikes in pages evicted by application threads, with latency spikes, at 80% cache fill and 1.4% dirty; the reply named no cause beyond other cache consumers. The separate updates trigger (half the dirty trigger by default) is a candidate cause, since WT-15538 shows the update ratio can exceed the dirty ratio, but the thread does not confirm it. (medium confidence) (verified as of 2026-10-09)",
+          "source": "https://www.mongodb.com/community/forums/t/why-is-mongodb-using-application-threads/234620",
+          "note": null
+        },
+        {
+          "text": "MongoDB's manual says recent versions run a separate 'spill' WiredTiger instance with its own cache for operations that write to disk, isolated from the main cache, with metrics under serverStatus spillWiredTiger. The master-branch IDL gives that instance its own settings: cache 2.5% of system memory bounded to 100 to 1000 MB, one eviction thread, dirty target 5%, dirty trigger 80% and updates trigger 80%. The main cache's dirty ratio therefore excludes spill data. (medium confidence) (verified as of 2026-10-14)",
+          "source": "https://www.mongodb.com/docs/manual/reference/command/serverStatus/",
+          "note": null
+        },
+        {
+          "text": "The manual's spillWiredTiger.cache listing, described as a subset of the wiredTiger fields, names these eviction counters: 'number of times dirty trigger was reached', 'number of times eviction trigger was reached', 'number of times updates trigger was reached', 'application threads eviction requested with cache fill ratio < 25%' and '>= 75%', 'eviction state', 'eviction empty score' and 'eviction currently operating in aggressive mode'. The manual's sample for the main wiredTiger.cache still shows older fields such as 'cache overflow score', so check a live serverStatus for the exact names. (",
+          "source": "https://www.mongodb.com/docs/manual/reference/command/serverStatus/",
+          "note": null
+        },
+        {
+          "text": "WiredTiger's documented defaults are eviction_target 80%, eviction_trigger 95%, eviction_dirty_target 5% and eviction_dirty_trigger 20%, all measured against cache_size. Eviction worker threads start at each target. At each trigger, WiredTiger recruits application threads to evict. (high confidence)",
+          "source": "https://source.wiredtiger.com/develop/tune_cache.html",
+          "note": null
+        },
+        {
+          "text": "When eviction workers fall behind, WiredTiger makes application threads do eviction work before they continue. WiredTiger's tuning guide says this can cause latency spikes, and that operations stall when the cache reaches 100% of cache_size. The mongod source README calls this recruitment. (high confidence)",
+          "source": "https://source.wiredtiger.com/develop/tune_cache.html",
+          "note": null
+        },
+        {
+          "text": "MongoDB 8.2 and later define startup parameters wiredTigerEvictionDirtyTargetGB, wiredTigerEvictionDirtyMaxGB (the dirty trigger) and wiredTigerEvictionUpdatesMaxGB. They set absolute sizes in GB (minimum 0.01). The default 0 keeps WiredTiger's 5%, 20% and half-of-dirty-trigger limits. No such parameter appears in wiredtiger_global_options.idl at tag r8.0.34. Percona asked for an absolute dirty target in 2020, and WT-11173 proposes an absolute cap on the default. (medium confidence) (verified as of 2026-10-20)",
+          "source": "https://github.com/mongodb/mongo/blob/r9.0.4/src/mongo/db/storage/wiredtiger/wiredtiger_global_options.idl",
+          "note": null
+        },
+        {
+          "text": "MongoDB 8.2 and later include a cache-pressure monitor. It flags pressure only when three conditions hold: dirty bytes exceed the dirty trigger (default 20% of maximum bytes) or update bytes exceed the updates trigger (default half of that); application-thread cache wait time exceeds 95% of expected thread time; and no transaction commits for a sustained 20 seconds. A periodic thread then aborts the oldest transactions until the pressure clears. (medium confidence) (verified as of 2026-10-20)",
+          "source": "https://github.com/mongodb/mongo/blob/r9.0.4/src/mongo/db/storage/wiredtiger/wiredtiger_cache_pressure_monitor.cpp",
+          "note": null
+        },
+        {
+          "text": "The cache-pressure monitor and its rollback thread are present in the r9.0.4 source. SERVER-100367 and SERVER-102446 list fix version 8.2.0-rc0, and raw file requests for the monitor at tags r7.0.45, r8.0.34 and r8.1.3 returned 404. The manual documents cachePressureQueryPeriodMilliseconds (default 1000 ms) as new in 8.3 and says MongoDB aborts the oldest transaction when the storage engine is under cache pressure. (medium confidence) (verified as of 2026-10-20)",
+          "source": "https://jira.mongodb.org/browse/SERVER-100367",
+          "note": null
+        },
+        {
+          "text": "For a multi-billion-record bulk load, Percona raised eviction threads from 4 to 20, set eviction_dirty_trigger=5 and eviction_dirty_target=1, and cut the cache to 1 GB to cap dirty data at 10 to 50 MB. The load took about a week; Percona estimated 21 days with defaults but did not finish a default run. Percona says to raise the cache again after loading. (low confidence)",
+          "source": "https://www.percona.com/blog/tuning-mongodb-for-bulk-loads/",
+          "note": null
+        },
+        {
+          "text": "A larger cache is not a fix when writes outpace disk flush. Vortex IQ says a larger cache only treats the symptom because dirty bytes still have to reach disk. The manual advises against raising the cache above its default and allows cacheSizePct up to 80% of memory when needed. Percona instead shrank the cache to 1 GB to cap dirty bytes, at the price of more disk reads. (medium confidence)",
+          "source": "https://docs.vortexiq.ai/nerve-centre/kpi-cards/mongodb/wiredtiger-dirty-cache",
+          "note": null
+        },
+        {
+          "text": "The default 20% dirty trigger can be too large on big caches. WT-11173 (open when fetched, last updated 2024-03-07) estimates about 102 GB of dirty data allowed on a 512 GB cache and proposes an absolute cap such as 10 GB. Percona notes that even 1% of a 256 GB cache is about 2.56 GB flushed each minute. (medium confidence) (verified as of 2026-10-20)",
+          "source": "https://jira.mongodb.org/browse/WT-11173",
+          "note": null
+        },
+        {
+          "text": "Lowering dirty thresholds helps only if eviction workers can keep up. A commenter on Percona's post reported that dirty trigger 5 with dirty target 1 'didn't help much' for their load, and argued the change works only when worker threads keep up and the load stays mostly below the old 20% level. (low confidence)",
+          "source": "https://www.percona.com/blog/tuning-mongodb-for-bulk-loads/",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Problems, failure modes and limitations",
+      "facts": [
+        {
+          "text": "WiredTiger starts evicting pages as the cache approaches its configured size and approximates least-recently-used order. An eviction server finds candidate pages and eviction worker threads evict them in the background. If workers cannot keep up with incoming data, application threads must do eviction work before they can read or write more data, which can cause latency spikes. (high confidence)",
+          "source": "https://source.wiredtiger.com/11.3.1/arch-eviction.html",
+          "note": null
+        },
+        {
+          "text": "The dirty settings bound how much work each checkpoint must do in the worst case, and they limit likely memory fragmentation from mixing small update allocations with large cache-miss allocations. MongoDB writes a checkpoint every 60 seconds, and a sharp checkpoint must flush all dirty pages, so the dirty volume at checkpoint time sets how long the flush takes. (high confidence)",
+          "source": "https://source.wiredtiger.com/develop/tune_cache.html",
+          "note": null
+        },
+        {
+          "text": "MongoDB's recorded workaround for the updates-trigger problem is to raise eviction_updates_trigger in small steps until the problem stops; success was seen with values as high as 95%. WT-15538 names two costs: more memory fragmentation, which raises out-of-memory risk on memory-limited hosts, and a higher cache-miss rate. It says legacy_page_visit_strategy=true is not recommended, and the WiredTiger 12.0.0 reference calls that option highly discouraged because it re-introduces a bug where eviction can fail to find older cache content. (medium confidence) (verified as of 2026-10-09)",
+          "source": "https://jira.mongodb.org/browse/WT-15538",
+          "note": null
+        },
+        {
+          "text": "MongoDB's default WiredTiger cache is the larger of 50% of (RAM minus 1 GB) or 0.256 GB. The cache belongs to the whole mongod instance, cannot pin documents, and is not split between reads and writes, so dirty pages compete with clean working-set pages for the same budget. Collection data in the cache is uncompressed and has a different representation from the on-disk format. (high confidence)",
+          "source": "https://www.mongodb.com/docs/manual/core/wiredtiger/",
+          "note": null
+        },
+        {
+          "text": "Netdata's undated guides, which cite no source, give these alert levels: dirty ratio above 10% as early warning, above 15% as concerning, a sustained climb toward 20% as critical, and any sustained nonzero rate of pages evicted by application threads as abnormal. OneUptime's cache-eviction article gives no numeric health threshold. Treat the Netdata levels as vendor heuristics for lead time before the 20% trigger. (medium confidence) (verified as of 2026-10-20)",
+          "source": "https://www.netdata.cloud/guides/mongodb/mongodb-cache-dirty-ratio-high/",
+          "note": null
+        },
+        {
+          "text": "A May 2025 MongoDB forum post described an 850 GB WiredTiger cache holding about 400 GB of active data, dirty pages well below 64 GB, fill peaking near 80%, and queries spending most of their time waiting for cache. A community reply attributed this to eviction threads that cannot keep up and suggested eviction=(threads_min=8,threads_max=16) in configString. The thread auto-closed with no reported result, and the reply's arithmetic assumed a one-thread default that conflicts with MongoDB's default of four. (low confidence)",
+          "source": "https://www.mongodb.com/community/forums/t/query-slowness-despite-ample-wiredtiger-cache-and-low-dirty-pages/321978",
+          "note": null
+        },
+        {
+          "text": "If mongod runs in a container with less RAM than the host, WiredTiger may size its cache from host memory. MongoDB's manual says to set cacheSizeGB or cacheSizePct below the container's RAM, and Netdata lists an ignored cgroup limit as a cause of high dirty ratio. (medium confidence)",
+          "source": "https://www.mongodb.com/docs/manual/core/wiredtiger/",
+          "note": null
+        },
+        {
+          "text": "Read the dirty percentage next to checkpoint behavior. mongostat 'flushes' counts WiredTiger checkpoints triggered between polls, and serverStatus wiredTiger.transaction 'transaction checkpoint most recent time (msecs)' gives the last checkpoint duration. Netdata flags checkpoints near 30 seconds, and above 60 seconds when they cannot keep up with the interval. (medium confidence)",
+          "source": "https://www.mongodb.com/docs/database-tools/mongostat/",
+          "note": null
+        },
+        {
+          "text": "Abandoned or long transactions hold memory that eviction cannot reclaim. MongoDB's guidance is to abort abandoned transactions and to keep transactionLifetimeLimitSeconds, which aborts expired transactions periodically to relieve cache pressure. The server README adds that if enough such transactions fill the cache, none are evicted and none make progress. (medium confidence)",
+          "source": "https://www.mongodb.com/docs/manual/core/transactions-production-consideration/",
+          "note": null
+        },
+        {
+          "text": "Vendor dirty-ratio alert levels are heuristics, not MongoDB-defined limits. Netdata gives above 10% to alert, 15% as warning and 20% as critical. Vortex IQ alerts above 20% and says it chose that level to match the engine default. Neither cites MongoDB documentation, OneUptime gives no thresholds or sources, and Netdata's lead-time claim of 'minutes' for the dirty ratio comes without data. (medium confidence)",
+          "source": "https://www.netdata.cloud/guides/mongodb/mongodb-cache-dirty-ratio-high/",
+          "note": null
+        },
+        {
+          "text": "When cache pressure forces WiredTiger to roll back a transaction, the error MongoDB returns depends on version. Early servers surfaced a WriteConflict. SERVER-60839 (fixed in 5.0.15 and 6.0.0-rc0) added TemporarilyUnavailable: the server retries internal operations indefinitely with growing backoff, and retries user operations a fixed number of times before returning the error. Since 6.2, a transaction too large for the cache returns TransactionTooLargeForCache and is not retried. (high confidence)",
+          "source": "https://jira.mongodb.org/browse/SERVER-60839",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Comparisons and alternatives",
+      "facts": [
+        {
+          "text": "Since MongoDB 4.4 (WiredTiger 3.2.2), WiredTiger also limits bytes of updates in cache (small insert and update structures) with eviction_updates_target and eviction_updates_trigger. The trigger defaults to half of eviction_dirty_trigger (10% of cache with default dirty settings). The target defaults to half of eviction_dirty_target (2.5%), except that it equals eviction_dirty_target when precise checkpoints are enabled. A workload with many small objects can be governed by these limits, so cache dirty percent tends toward 2.5% instead of 5%. (medium confidence) (verified as of 2026-10-20)",
+          "source": "https://jira.mongodb.org/browse/WT-6175",
+          "note": null
+        },
+        {
+          "text": "MongoDB engineering has not settled a new updates-trigger default. WT-17698 (open, updated 2026-10-19) tested 95% on sys-perf and found one causal effect, a +13.0% p95 regression on insert-bound bulk_insert_w1 (z = 2.18), and concluded 95% should not ship as a global default on that evidence. WT-15843 proposed a 20% default instead of 10% and was closed as a duplicate of WT-17698 on 2026-10-01. The WiredTiger 12.0.0 reference still gives the default as half of eviction_dirty_trigger. (medium confidence) (verified as of 2026-10-19)",
+          "source": "https://jira.mongodb.org/browse/WT-17698",
+          "note": null
+        },
+        {
+          "text": "Percona's 2020 bulk-load recipe lowered eviction_dirty_trigger from 20 to 5 and eviction_dirty_target from 5 to 1, raised eviction threads from 4 to 20, and used a 1 GB cache to hold dirty pages to about 10 to 50 MB, aiming for checkpoints under about 10 seconds. The author estimated the default-settings load at about 21 days (it was not finished) versus about one week tuned. The runtime change blocks client threads for seconds to minutes, so the author advises a maintenance window. A commenter about five years later said the change only helps if eviction workers keep up and 'didn't help much'",
+          "source": "https://www.percona.com/blog/tuning-mongodb-for-bulk-loads/",
+          "note": null
+        },
+        {
+          "text": "MongoDB parameter transactionTooLargeForCacheThreshold (default 0.75, new in 6.2) sets the share of the dirty cache a transaction may use and still be retried after a cache-pressure rollback. With the 20% dirty limit that is 15% of total cache (0.75 * 20%). A larger transaction rolled back for cache pressure fails with TransactionTooLargeForCache instead of retrying. Setting the parameter to 1.0 disables the limit. (medium confidence) (verified as of 2026-10-14)",
+          "source": "https://www.mongodb.com/docs/manual/reference/parameters/",
+          "note": null
+        },
+        {
+          "text": "MongoDB writes to a separate 'spill' WiredTiger instance for some disk-spilling operations, and that instance has its own cache. Its eviction defaults differ from the main cache: dirty target 5%, dirty trigger 80%, updates trigger 80%. (medium confidence) (verified as of 2026-10-20)",
+          "source": "https://www.mongodb.com/docs/manual/reference/command/serverStatus/",
+          "note": null
+        },
+        {
+          "text": "transactionTooLargeForCacheThreshold (new in 6.2, default 0.75) decides when a cache-pressure rollback is final instead of retried. The parameters page says setting it to 1.0 disables the behavior. The two manual pages describe its base differently, so verify behavior on your version. (medium confidence)",
+          "source": "https://www.mongodb.com/docs/manual/reference/parameters/",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Facts and statements",
+      "facts": [
+        {
+          "text": "In MongoDB's master branch the parameters wiredTigerEvictionThreadsMin and wiredTigerEvictionThreadsMax both default to 4, accept 1 to 64, and can be set at startup or at runtime; mongod passes them to WiredTiger as eviction=(threads_min=...,threads_max=...). Percona (2020) likewise reports that MongoDB allocates four eviction threads by default, and said WiredTiger then capped them at 20. (medium confidence) (verified as of 2026-10-20)",
+          "source": "https://raw.githubusercontent.com/mongodb/mongo/master/src/mongo/db/storage/wiredtiger/wiredtiger_global_options.idl",
+          "note": null
+        },
+        {
+          "text": "The serverStatus fields for a dirty-ratio check are wiredTiger.cache['tracked dirty bytes in the cache'] and ['maximum bytes configured'], with ['bytes currently in the cache'] for fill and ['pages evicted by application threads'] for application-thread eviction. MongoDB's manual describes tracked dirty bytes as the size of dirty data in the cache, which should be below bytes currently in the cache, and warns that WiredTiger statistics may change between releases. (high confidence) (verified as of 2026-10-14)",
+          "source": "https://www.mongodb.com/docs/manual/reference/command/serverStatus/",
+          "note": null
+        },
+        {
+          "text": "Watch checkpoint duration beside the dirty ratio. serverStatus wiredTiger.transaction['transaction checkpoint most recent time (msecs)'] is the time to create the latest checkpoint, and MongoDB's manual says a rise under steady write load may indicate I/O subsystem saturation. Netdata alerts on checkpoint time above 30 seconds sustained; Percona's bulk-load goal was checkpoints under about 10 seconds. (medium confidence) (verified as of 2026-10-14)",
+          "source": "https://www.mongodb.com/docs/manual/reference/command/serverStatus/",
+          "note": null
+        },
+        {
+          "text": "The mongostat dirty column is wiredTiger.cache 'tracked dirty bytes in the cache' divided by 'maximum bytes configured'. The used column is 'bytes currently in the cache' divided by 'maximum bytes configured'. Ops Manager defines CACHE_FILL_RATIO the same way and DIRTY_FILL_RATIO as dirty bytes relative to the total WiredTiger cache. (high confidence)",
+          "source": "https://www.mongodb.com/docs/database-tools/mongostat/",
+          "note": null
+        },
+        {
+          "text": "WT-13642 added WiredTiger statistics 'tracked dirty leaf page bytes in the cache' and 'tracked dirty internal page bytes in the cache'. The ticket lists fix versions WiredTiger 11.3.0 and MongoDB 7.0.18, 8.0.5 and 8.1.0-rc0. It proposes dirty leaf bytes divided by maximum bytes configured as the diagnostic ratio. (medium confidence) (verified as of 2026-10-20)",
+          "source": "https://jira.mongodb.org/browse/WT-13642",
+          "note": null
+        },
+        {
+          "text": "MongoDB writes a WiredTiger checkpoint every 60 seconds, and a checkpoint flushes all dirty pages. Dirty volume at checkpoint time therefore sets checkpoint duration and the burst of disk writes. In Percona's bulk load, checkpoint time grew from seconds to minutes and throughput collapsed during checkpoints. (high confidence)",
+          "source": "https://www.mongodb.com/docs/manual/core/wiredtiger/",
+          "note": null
+        },
+        {
+          "text": "eviction_checkpoint_target (default 1, a percentage of cache_size) makes WiredTiger evict at the start of a checkpoint until dirty content falls to that level. A value of zero disables it. (medium confidence)",
+          "source": "https://source.wiredtiger.com/develop/struct_w_t___c_o_n_n_e_c_t_i_o_n.html",
+          "note": null
+        },
+        {
+          "text": "mongod starts with 4 minimum and 4 maximum eviction threads. Percona reported the same default in 2020. The 9.0.4 source still defaults both to 4, with a valid range of 1 to 64 and runtime changes allowed. WiredTiger's own defaults are 1 minimum and 8 maximum, and it scales the worker count between them. (high confidence) (verified as of 2026-10-20)",
+          "source": "https://github.com/mongodb/mongo/blob/r9.0.4/src/mongo/db/storage/wiredtiger/wiredtiger_global_options.idl",
+          "note": null
+        },
+        {
+          "text": "The WiredTiger 12.0.0 reference documents four eviction sub-options that change how application threads are recruited or how eviction runs, all off by default: app_eviction_min_cache_fill_ratio (0 to 50), cache_tolerance_for_app_eviction (0 to 100), incremental_app_eviction and prefer_scrub_eviction. Whether mongod accepts or sets them was not verified. (medium confidence) (verified as of 2026-10-20)",
+          "source": "https://source.wiredtiger.com/develop/struct_w_t___c_o_n_n_e_c_t_i_o_n.html",
+          "note": null
+        },
+        {
+          "text": "Older WiredTiger references list different dirty defaults. The 2.8.0 reference gives eviction_dirty_target 80 and eviction_dirty_trigger 95 (range 5 to 99). The 12.0.0 reference gives 5 and 20 (range 1 to 10TB). Check the version of any reference before quoting dirty defaults. (medium confidence)",
+          "source": "https://source.wiredtiger.com/2.8.0/struct_w_t___c_o_n_n_e_c_t_i_o_n.html",
+          "note": null
+        },
+        {
+          "text": "In the serverStatus manual sample, wiredTiger.cache lists 'maximum bytes configured', 'tracked dirty bytes in the cache', 'tracked dirty pages in the cache', 'pages evicted by application threads', 'modified pages evicted by application threads' and 'operations timed out waiting for space in cache'. 'application thread time evicting (usecs)' and 'application thread time waiting for cache (usecs)' sit under wiredTiger.thread-yield. The manual warns that the available statistics can change between releases. (medium confidence) (verified as of 2026-10-14)",
+          "source": "https://www.mongodb.com/docs/manual/reference/command/serverStatus/",
+          "note": null
+        },
+        {
+          "text": "WiredTiger statistics are cumulative counters, so rates need two samples. Netdata treats any sustained nonzero rate of 'pages evicted by application threads' as abnormal and suggests sampling twice about 10 seconds apart. The mongod monitor differences 'application thread time waiting for cache' between polls in the same way. (medium confidence)",
+          "source": "https://www.netdata.cloud/guides/mongodb/mongodb-application-thread-evictions/",
+          "note": null
+        },
+        {
+          "text": "wiredTigerEngineRuntimeConfig changes eviction settings on a running mongod through setParameter, and the manual says it is available only at runtime. Percona warns that client threads block while the command runs, usually seconds but sometimes minutes on busy servers, and advises a maintenance window. To persist a setting, Percona and OneUptime both show passing it in the startup engine config string. (medium confidence)",
+          "source": "https://www.mongodb.com/docs/manual/reference/parameters/",
+          "note": null
+        },
+        {
+          "text": "A lagging majority commit point raises cache pressure. In a PSA replica set with a down or lagging data-bearing member, majority writes stall and the storage engine keeps every change after the commit point on disk as durable history. The manual says this can greatly impact write performance and increase cache pressure. It says setting votes: 0 and priority: 0 on the lagging member lets majority writes succeed and reduces the pressure. SERVER-31767 likewise describes cache pressure from storing history. (medium confidence)",
+          "source": "https://www.mongodb.com/docs/manual/tutorial/mitigate-psa-performance-issues/",
+          "note": null
+        },
+        {
+          "text": "Time-series collections close buckets early under cache pressure. One documented closure reason is that the set of active buckets does not fit within the allowed storage engine cache size, and serverStatus counts these closures in numBucketsClosedDueToCachePressure. (medium confidence)",
+          "source": "https://www.mongodb.com/docs/manual/core/timeseries/timeseries-bucketing/",
+          "note": null
+        }
+      ]
+    }
+  ],
+  "related": []
+}

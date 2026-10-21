@@ -19,8 +19,13 @@ import { setImmediate as nextTurn } from 'node:timers/promises';
 import vm from 'node:vm';
 
 const source = readFileSync(process.argv[2], 'utf8').match(/<script>([\s\S]*?)<\/script>/)[1];
+const keywordPath = process.argv[2].replace(
+  'components/SearchBox.astro', 'scripts/concept-search.ts');
+const keywordSource = readFileSync(keywordPath, 'utf8');
+const keywordClient = stripTypeScriptTypes(keywordSource).replace(/^export /gm, '');
 const client = stripTypeScriptTypes(source.replace(
-  'import("@huggingface/transformers")', 'loadTransformers()'));
+  'import("@huggingface/transformers")', 'loadTransformers()')
+  .replace(/import \{ keywordHits,[^;]+;/, ''));
 const unhandled = [];
 process.on('unhandledRejection', error => unhandled.push(error));
 
@@ -47,7 +52,7 @@ function deferred() {
   return { promise, resolve, reject };
 }
 
-function mount({ failLoads = 0, delayLoad = null, delayQuery = null } = {}) {
+function mount({ failLoads = 0, delayLoad = null, delayQuery = null, keywordItems = [] } = {}) {
   const input = new Element(), status = new Element(), results = new Element();
   const meta = new Element();
   meta.textContent = JSON.stringify({ model: 'test-model', count: 2, dim: 2,
@@ -65,7 +70,10 @@ function mount({ failLoads = 0, delayLoad = null, delayQuery = null } = {}) {
     document: { getElementById: id => elements[id], createElement: () => new Element() },
     setTimeout: handler => { timers.set(++timerId, handler); return timerId; },
     clearTimeout: id => timers.delete(id),
-    fetch: async () => {
+    fetch: async url => {
+      if (url === '/search-keywords.json') {
+        return { ok: true, json: async () => ({items: keywordItems}) };
+      }
       state.fetches++;
       return { ok: true, arrayBuffer: async () =>
         new Float32Array(state.badVectors ? [1, 0] : [1, 0, 0, 1]).buffer };
@@ -84,7 +92,7 @@ function mount({ failLoads = 0, delayLoad = null, delayQuery = null } = {}) {
       };
     } })
   });
-  vm.runInContext(client, context);
+  vm.runInContext(keywordClient + '\n' + client, context);
   return { input, status, results, state,
     focus: () => input.dispatch('focus'),
     type: value => { input.value = value; input.dispatch('input'); },
@@ -164,6 +172,18 @@ if (scenario === 'runtime_configuration') {
   await flush();
   assert.equal(page.status.textContent, '', 'prewarm failure must not overwrite a cleared input');
   assert.equal(page.results.children.length, 0);
+} else if (scenario === 'keyword_fallback_when_model_fails') {
+  const page = mount({ failLoads: 1, keywordItems: [
+    {slug: 'new-concept', concept: 'Fresh research', summary: 'New', text: 'Fresh research'}] });
+  await search(page, 'fresh research');
+  assert.equal(firstLink(page), '/tree/new-concept/');
+  assert.equal(page.status.textContent, '');
+} else if (scenario === 'keyword_and_semantic_merge') {
+  const page = mount({ keywordItems: [
+    {slug: 'new-concept', concept: 'Fresh research', summary: 'New', text: 'Fresh research'}] });
+  await search(page, 'fresh research');
+  assert.equal(firstLink(page), '/tree/new-concept/');
+  assert.equal(page.results.children.length, 3);
 } else {
   throw new Error('unknown scenario: ' + scenario);
 }
@@ -180,6 +200,8 @@ assert.deepEqual(unhandled, [], 'event handlers must catch download and inferenc
     "invalid_index_retry",
     "stale_result_during_debounce",
     "clear_query_during_load",
+    "keyword_fallback_when_model_fails",
+    "keyword_and_semantic_merge",
 ])
 def test_search_failure_and_race_handling(scenario):
     run = subprocess.run(["node", "--input-type=module", "-e", HARNESS, scenario, str(SOURCE)],

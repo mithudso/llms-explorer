@@ -1,0 +1,170 @@
+{
+  "slug": "request-hedging",
+  "concept": "Request Hedging",
+  "generated": "2026-10-15",
+  "summary": "Depth-first rabbithole dossier for Request Hedging; source-anchored research pack.",
+  "facets": [
+    {
+      "title": "Definitions",
+      "facts": [
+        {
+          "text": "[low] Hedging is a technique to reduce tail latency in large-scale distributed systems where a gRPC client sends multiple copies of the same request to different backends and uses the first response received. Sources: https://grpc.io/docs/guides/request-hedging/",
+          "source": "~/.global-ai-hub/research/.pipeline/mongodb-2026-10-14/frb/request-hedging-e971c9c592/rabbithole-synthesis.md#core",
+          "note": null
+        },
+        {
+          "text": "[low] The `nonFatalStatusCodes` field is an optional list of gRPC status codes; if a hedged request fails with a code not in this list, all outstanding requests are canceled and the response is returned to the application. Sources: https://grpc.io/docs/guides/request-hedging/",
+          "source": "~/.global-ai-hub/research/.pipeline/mongodb-2026-10-14/frb/request-hedging-e971c9c592/rabbithole-synthesis.md#core",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Structure and components",
+      "facts": [
+        {
+          "text": "[low] When a successful response is received from any hedged request, all outstanding hedged requests are canceled and the response is returned to the client application layer. Sources: https://grpc.io/docs/guides/request-hedging/",
+          "source": "~/.global-ai-hub/research/.pipeline/mongodb-2026-10-14/frb/request-hedging-e971c9c592/rabbithole-synthesis.md#core",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "How it works",
+      "facts": [
+        {
+          "text": "[low] The goal of speculative executions is to improve overall latency at high percentiles, though they can lead to stream id exhaustion due to many cancelled requests. Sources: https://docs.datastax.com/en/developer/java-driver/3.3/manual/speculative_execution",
+          "source": "~/.global-ai-hub/research/.pipeline/mongodb-2026-10-14/frb/request-hedging-e971c9c592/rabbithole-synthesis.md#troubleshooting",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Measurements and reference values",
+      "facts": [
+        {
+          "text": "[low] A pattern for request hedging involves deferring the secondary request until the first has been outstanding for more than the 95th-percentile expected latency, limiting additional load to approximately 5% while shortening tail latency. Sources: https://blog.acolyer.org/2015/01/15/the-tail-at-scale/",
+          "source": "~/.global-ai-hub/research/.pipeline/mongodb-2026-10-14/frb/request-hedging-e971c9c592/rabbithole-synthesis.md#patterns",
+          "note": null
+        },
+        {
+          "text": "[low] It is useful for the client to introduce a small delay of two times the average network message delay (1ms or less in modern data-center networks) between sending the first and second request. Sources: https://blog.acolyer.org/2015/01/15/the-tail-at-scale/",
+          "source": "~/.global-ai-hub/research/.pipeline/mongodb-2026-10-14/frb/request-hedging-e971c9c592/rabbithole-synthesis.md#patterns",
+          "note": null
+        },
+        {
+          "text": "[low] At very low request rates (less than 1 RPS), the latency sketch may not have enough data to distinguish stragglers from normal variance. Sources: https://infoq.com/articles/adaptive-hedged-requests-p99-latency",
+          "source": "~/.global-ai-hub/research/.pipeline/mongodb-2026-10-14/frb/request-hedging-e971c9c592/rabbithole-synthesis.md#antipatterns",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Problems, failure modes and limitations",
+      "facts": [
+        {
+          "text": "[low] If an error response with a non-fatal status code is received from a hedged request, the next hedged request is sent immediately, shortcutting its hedging delay. Sources: https://grpc.io/docs/guides/request-hedging/",
+          "source": "~/.global-ai-hub/research/.pipeline/mongodb-2026-10-14/frb/request-hedging-e971c9c592/rabbithole-synthesis.md#core",
+          "note": null
+        },
+        {
+          "text": "[low] If all instances of a hedged RPC fail, there are no additional retry attempts, and if server pushback specifies not to retry, no further hedged requests are issued for the call. Sources: https://grpc.io/docs/guides/request-hedging/",
+          "source": "~/.global-ai-hub/research/.pipeline/mongodb-2026-10-14/frb/request-hedging-e971c9c592/rabbithole-synthesis.md#core",
+          "note": null
+        },
+        {
+          "text": "[low] Subsequent hedged requests are sent only if token_count is greater than max_tokens / 2; if token_count is less than or equal to this threshold, hedged requests are canceled without blocking, returning failure if no other RPCs are in flight. Sources: https://grpc.io/docs/guides/request-hedging/",
+          "source": "~/.global-ai-hub/research/.pipeline/mongodb-2026-10-14/frb/request-hedging-e971c9c592/rabbithole-synthesis.md#core",
+          "note": null
+        },
+        {
+          "text": "[low] Starting in MongoDB 8.1, hedged reads are removed; if specified, MongoDB executes the query but ignores the hedging options and logs a warning. (verified as of 2026-10-15) Sources: https://www.mongodb.com/docs/manual/core/read-preference-hedge-option.md",
+          "source": "~/.global-ai-hub/research/.pipeline/mongodb-2026-10-14/frb/request-hedging-e971c9c592/rabbithole-synthesis.md#core",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Comparisons and alternatives",
+      "facts": [
+        {
+          "text": "[low] gRPC has supported request hedging natively via `hedgingPolicy` in service config for several years, requiring a static `hedgingDelay` configured upfront, while Envoy proxy supports it as part of its retry policy using static timeout configuration rather than adaptive thresholds. Sources: https://infoq.com/articles/adaptive-hedged-requests-p99-latency",
+          "source": "~/.global-ai-hub/research/.pipeline/mongodb-2026-10-14/frb/request-hedging-e971c9c592/rabbithole-synthesis.md#tools",
+          "note": null
+        },
+        {
+          "text": "[low] At 1000 RPS with a 10% budget, the token bucket holds 100 tokens and exhausts in approximately one second under full-outage conditions, adding at most 10% extra requests to the back-end rather than doubling them. Sources: https://infoq.com/articles/adaptive-hedged-requests-p99-latency",
+          "source": "~/.global-ai-hub/research/.pipeline/mongodb-2026-10-14/frb/request-hedging-e971c9c592/rabbithole-synthesis.md#core",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Facts and statements",
+      "facts": [
+        {
+          "text": "[low] The `maxAttempts` field in gRPC hedging is mandatory and specifies the maximum number of in-flight requests; if the specified value is greater than 5, gRPC uses a value of 5. Sources: https://grpc.io/docs/guides/request-hedging/",
+          "source": "~/.global-ai-hub/research/.pipeline/mongodb-2026-10-14/frb/request-hedging-e971c9c592/rabbithole-synthesis.md#core",
+          "note": null
+        },
+        {
+          "text": "[low] The `hedgingDelay` field is optional and defines the time elapsed before sending the next request; if unspecified, `maxAttempts` requests are sent simultaneously. Sources: https://grpc.io/docs/guides/request-hedging/",
+          "source": "~/.global-ai-hub/research/.pipeline/mongodb-2026-10-14/frb/request-hedging-e971c9c592/rabbithole-synthesis.md#core",
+          "note": null
+        },
+        {
+          "text": "[low] After `hedgingDelay` elapses without a successful response, the second RPC is issued, and gRPC call deadlines apply to the entire chain of hedged requests. Sources: https://grpc.io/docs/guides/request-hedging/",
+          "source": "~/.global-ai-hub/research/.pipeline/mongodb-2026-10-14/frb/request-hedging-e971c9c592/rabbithole-synthesis.md#core",
+          "note": null
+        },
+        {
+          "text": "[low] Once the gRPC call deadline passes, the operation fails regardless of in-flight RPCs or hedging configuration. Sources: https://grpc.io/docs/guides/request-hedging/",
+          "source": "~/.global-ai-hub/research/.pipeline/mongodb-2026-10-14/frb/request-hedging-e971c9c592/rabbithole-synthesis.md#core",
+          "note": null
+        },
+        {
+          "text": "[low] Only requests failing with a non-fatal status code or receiving a pushback response indicating not to retry are counted as failures for the throttling policy. Sources: https://grpc.io/docs/guides/request-hedging/",
+          "source": "~/.global-ai-hub/research/.pipeline/mongodb-2026-10-14/frb/request-hedging-e971c9c592/rabbithole-synthesis.md#core",
+          "note": null
+        },
+        {
+          "text": "[low] Server pushback is specified using the metadata key `grpc-retry-pushback-ms` with an ASCII encoded signed 32-bit integer representing milliseconds to wait before the next hedged request. Sources: https://grpc.io/docs/guides/request-hedging/",
+          "source": "~/.global-ai-hub/research/.pipeline/mongodb-2026-10-14/frb/request-hedging-e971c9c592/rabbithole-synthesis.md#core",
+          "note": null
+        },
+        {
+          "text": "[low] Hedging sends duplicate requests, which can execute operations with side effects twice, and if the back-end is compute-saturated, adding a hedge request worsens the saturation. Sources: https://infoq.com/articles/adaptive-hedged-requests-p99-latency",
+          "source": "~/.global-ai-hub/research/.pipeline/mongodb-2026-10-14/frb/request-hedging-e971c9c592/rabbithole-synthesis.md#antipatterns",
+          "note": null
+        },
+        {
+          "text": "[low] gRPC throttles hedged RPCs using a token_count per server name, initially set to max_tokens, where failed RPCs decrement the count by 1 and successful RPCs increment it by token_ratio. Sources: https://grpc.io/docs/guides/request-hedging/",
+          "source": "~/.global-ai-hub/research/.pipeline/mongodb-2026-10-14/frb/request-hedging-e971c9c592/rabbithole-synthesis.md#core",
+          "note": null
+        },
+        {
+          "text": "[low] If the pushback value is negative or unparseable, it is interpreted as the server asking the client not to retry at all. Sources: https://grpc.io/docs/guides/request-hedging/",
+          "source": "~/.global-ai-hub/research/.pipeline/mongodb-2026-10-14/frb/request-hedging-e971c9c592/rabbithole-synthesis.md#core",
+          "note": null
+        },
+        {
+          "text": "[low] Speculative execution metrics can be monitored via `cluster.getMetrics().getErrors().getSpeculativeExecutions()`, which should only be a few percent of the total number of requests. Sources: https://docs.datastax.com/en/developer/java-driver/3.3/manual/speculative_execution",
+          "source": "~/.global-ai-hub/research/.pipeline/mongodb-2026-10-14/frb/request-hedging-e971c9c592/rabbithole-synthesis.md#tools",
+          "note": null
+        }
+      ]
+    }
+  ],
+  "related": [
+    {
+      "concept": "Request",
+      "relation": "is a part of Request Hedging",
+      "note": null
+    },
+    {
+      "concept": "Hedging",
+      "relation": "is a part of Request Hedging",
+      "note": null
+    }
+  ]
+}

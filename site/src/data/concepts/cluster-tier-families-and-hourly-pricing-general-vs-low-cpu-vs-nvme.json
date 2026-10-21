@@ -1,0 +1,537 @@
+{
+  "slug": "cluster-tier-families-and-hourly-pricing-general-vs-low-cpu-vs-nvme",
+  "concept": "Cluster Tier Families and Hourly Pricing (General vs Low-CPU vs NVMe)",
+  "generated": "2026-10-19",
+  "summary": "An Atlas cluster tier sets the RAM, vCPUs and storage of each data-bearing server and is billed per instance hour; the same M-size comes as a General tier, a Low-CPU tier that keeps RAM and storage but halves vCPUs at a lower hourly price, and an NVMe tier on locally attached ephemeral SSD with fixed storage (AWS and Azure only). Drawn from 7 source pages (MongoDB Atlas docs, the MongoDB on AWS pricing page, a Vantage blog) across definitions, parameters, measures, problems, comparisons and how-to; the only public hourly prices found are January 2022 AWS us-east-1 figures.",
+  "facets": [
+    {
+      "title": "Definitions",
+      "facts": [
+        {
+          "text": "Atlas deploys all data-bearing servers in a cluster at the selected cluster tier, and the per-hour charge covers that tier's default RAM and storage. Each added data-bearing node is therefore a full node at the same hourly tier cost, except analytics nodes with a separate tier.",
+          "source": "https://www.mongodb.com/docs/atlas/billing/cluster-configuration-costs/",
+          "note": null
+        },
+        {
+          "text": "On Atlas Core clusters, the cluster tier sets the RAM, vCPUs, and storage for each data-bearing server [1] in the cluster. On Atlas Infinite clusters, the cluster tier sets the RAM, vCPUs, and IOPS for each node in the cluster.",
+          "source": "https://www.mongodb.com/docs/atlas/cluster-tier/",
+          "note": null
+        },
+        {
+          "text": "We also offer low CPU instance types, with comparable amounts of RAM and storage, at slightly lower price points.",
+          "source": "https://www.mongodb.com/mongodb-on-aws/pricing",
+          "note": null
+        },
+        {
+          "text": "For applications hosted on AWS or Azure that require low-latency and high-throughput I/O, Atlas offers storage options using locally attached ephemeral NVMe SSDs.",
+          "source": "https://www.mongodb.com/docs/atlas/nvme-storage/",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Structure and components",
+      "facts": [
+        {
+          "text": "NVMe clusters use a hidden secondary node that consists of a provisioned volume with high throughput and IOPS to facilitate backup.",
+          "source": "https://www.mongodb.com/docs/atlas/nvme-storage/",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "How it works",
+      "facts": [
+        {
+          "text": "When creating a new cluster through the Atlas UI, Atlas automatically selects the Gen2 option under the Cluster Tier section for eligible clusters. For an Atlas Core cluster, you can select Gen1 instead to deploy a Gen1 cluster.",
+          "source": "https://www.mongodb.com/docs/atlas/cluster-tier/",
+          "note": null
+        },
+        {
+          "text": "When applied, the optimization efforts we went over in the previous section can provide a cost-benefit. If query performance is improved, it could reduce the need for higher RAM and CPU resources, making it feasible to consider a lower cluster tier. In addition, using sharded clusters distributes compute and storage resources across multiple nodes. This distribution can optimize resource utilization and potentially allow you to scale down to a less expensive cluster tier. See the MongoDB docs for instructions on how to deploy a sharded cluster.",
+          "source": "https://www.vantage.sh/blog/mongodb-cost-optimization-tips",
+          "note": null
+        },
+        {
+          "text": "On Atlas Core clusters and Atlas Infinite clusters, M10 and M20 clusters are generation-agnostic. You don't select a cluster generation when you deploy an M10 or M20 cluster.",
+          "source": "https://www.mongodb.com/docs/atlas/cluster-tier/",
+          "note": null
+        },
+        {
+          "text": "The selected cluster tier and custom storage size dictate the maximum IOPS for each storage speed.",
+          "source": "https://www.mongodb.com/docs/atlas/reference/amazon-aws/",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Parameters and configuration",
+      "facts": [
+        {
+          "text": "NVMe tiers use locally attached ephemeral NVMe SSD, are available only on AWS (Gen2: M40, M50, M60, M80, M200, M400) and Azure (M60, M80, M200, M300, M400, M600), not on Google Cloud, not in multi-cloud clusters, and not on Atlas Infinite.",
+          "source": "https://www.mongodb.com/docs/atlas/nvme-storage/",
+          "note": null
+        },
+        {
+          "text": "In the Atlas Administration API, an R prefix in the tier name (R40, R50) selects the Low-CPU variant via replicationSpecs[n].regionConfigs[m].electableSpecs.instanceSize.",
+          "source": "https://www.mongodb.com/docs/atlas/reference/amazon-aws/",
+          "note": null
+        },
+        {
+          "text": "Atlas Core clusters support M10+ General cluster tiers and M40+ Low-CPU cluster tiers.",
+          "source": "https://www.mongodb.com/docs/atlas/cluster-tier/",
+          "note": null
+        },
+        {
+          "text": "During public preview, Atlas Infinite clusters support the M10-M60 General cluster tiers and the M40-M60 Low-CPU cluster tiers. Atlas Infinite clusters don't support sharded clusters.",
+          "source": "https://www.mongodb.com/docs/atlas/cluster-tier/",
+          "note": null
+        },
+        {
+          "text": "Gen1 clusters use only the cluster tier in their names in the API and CLI, while Gen2 clusters use the cluster tier with _GEN_2 appended. For example, to deploy an M30 tiered cluster:",
+          "source": "https://www.mongodb.com/docs/atlas/cluster-tier/",
+          "note": null
+        },
+        {
+          "text": "If you update an existing Gen2 cluster with the Update One Cluster in One Project endpoint, specify the corresponding _GEN_2 value for the instanceSize field. A Gen1 value such as M200 might unintentionally change the cluster's generation to Gen1.",
+          "source": "https://www.mongodb.com/docs/atlas/cluster-tier/",
+          "note": null
+        },
+        {
+          "text": "When you update a cluster with the Update One Cluster in One Project endpoint, specify an instanceSize that matches the cluster's intended generation. For example, M200 is Gen1, while M200_GEN_2 is Gen2. If you specify a Gen1 value for an existing Gen2 cluster, you might unintentionally change the cluster's generation. To keep the cluster on Gen2, specify the corresponding _GEN_2 instance size, such as M200_GEN_2.",
+          "source": "https://www.mongodb.com/docs/atlas/cluster-tier/",
+          "note": null
+        },
+        {
+          "text": "For purposes of management with the Atlas Administration API, cluster tier names that are prepended with R instead of an M (R40 for example) run a low-CPU version of the cluster. When creating or modifying a cluster with the API, be sure to specify your desired cluster class by name with the replicationSpecs[n].regionConfigs[m].electableSpecs.instanceSize attribute.",
+          "source": "https://www.mongodb.com/docs/atlas/reference/amazon-aws/",
+          "note": null
+        },
+        {
+          "text": "You can use the Atlas Administration API to choose a different tier per shard in a sharded cluster. You can also select Analytics node tiers independently for each shard. The largest and smallest shard tiers must be within two tiers of each other. For example, if the largest shard is M50, the smallest shard can be M30 or M40. If you change the cluster tier for a sharded cluster in the Atlas UI, Atlas changes the tier of all shards in the cluster.",
+          "source": "https://www.mongodb.com/docs/atlas/cluster-tier/",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "How-to and procedures",
+      "facts": [
+        {
+          "text": "The Atlas billing page does not mention a mongos router charge, tier minimums or per-tier hourly prices. Cost modelling must take the rates from the instance-size pricing section or the pricing calculator.",
+          "source": "https://www.mongodb.com/docs/atlas/billing/cluster-configuration-costs",
+          "note": null
+        },
+        {
+          "text": "MongoDB cost optimization requires efforts across several categories. Reviewing the MongoDB pricing model serves as a reminder of the significance of choosing the right tier and understanding the associated costs. Serverless, in particular, demands careful consideration and query optimization to avoid unexpected expenses. Save with Dedicated Instances by ensuring you have the correct instance size for your needs, and scale down when possible to save money.",
+          "source": "https://www.vantage.sh/blog/mongodb-cost-optimization-tips",
+          "note": null
+        },
+        {
+          "text": "For workloads with either low CPU or RAM, additional configuration can save you money. For low RAM workloads, save money by downscaling your cluster to one with lower RAM, then add more storage. Similarly, for workloads that don’t use a lot of CPU, AWS has low CPU instance types. These instance types have similar RAM and storage to comparable cluster tiers at a lower price.",
+          "source": "https://www.vantage.sh/blog/mongodb-cost-optimization-tips",
+          "note": null
+        },
+        {
+          "text": "The most obvious way to save with Dedicated Instances is by choosing the most cost-effective instance size that still meets the requirements of your workload.",
+          "source": "https://www.vantage.sh/blog/mongodb-cost-optimization-tips",
+          "note": null
+        },
+        {
+          "text": "Customize the storage capacity of your cluster. Each cluster tier comes with a default set of resources. M10+ clusters provide the ability to customize your storage capacity.",
+          "source": "https://www.mongodb.com/docs/atlas/cluster-tier/",
+          "note": null
+        },
+        {
+          "text": "Configure the cluster tier ranges that Atlas uses to automatically scale your cluster tier, storage capacity, or both in response to cluster usage.",
+          "source": "https://www.mongodb.com/docs/atlas/cluster-tier/",
+          "note": null
+        },
+        {
+          "text": "You can take some of the guesswork out of selecting an instance size by enabling cluster autos-caling. With cluster auto-scaling, set the minimum and maximum cluster tiers, and Atlas will scale up or down based on CPU and memory utilization. To manage cluster auto-scaling in your settings, go to the Cluster tier section and navigate to Auto-scale options.",
+          "source": "https://www.vantage.sh/blog/mongodb-cost-optimization-tips",
+          "note": null
+        },
+        {
+          "text": "You can select a cluster tier when you create a new cluster or modify an existing cluster.",
+          "source": "https://www.mongodb.com/docs/atlas/cluster-tier/",
+          "note": null
+        },
+        {
+          "text": "To specify a cluster's generation using the Atlas Administration API or Atlas CLI, use the instanceSize or --tier options, respectively.",
+          "source": "https://www.mongodb.com/docs/atlas/cluster-tier/",
+          "note": null
+        },
+        {
+          "text": "To use locally attached ephemeral NVMe SSDs for applications that require low-latency, high-throughput I/O, see NVMe Storage for Atlas Clusters.",
+          "source": "https://www.mongodb.com/docs/atlas/cluster-tier/",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Measurements and reference values",
+      "facts": [
+        {
+          "text": "Public Atlas-on-AWS hourly prices (us-east-1, calculated January 2022): M40 $1.04, M40 Low-CPU $0.77 (~26% less), M50 $2.00, M50 Low-CPU $1.48 (~26% less). Treat as stale; confirm in the Atlas pricing page or calculator.",
+          "source": "https://www.mongodb.com/mongodb-on-aws/pricing",
+          "note": "Jan 2022 AWS table; a blog claims ~20%"
+        },
+        {
+          "text": "AWS Gen2 General cluster tiers map to M8g instances (Atlas Gen2 Tier | M8g Instance | vCPU | RAM): M30 | m8g.large | 2 | 8 GiB; M40 | m8g.xlarge | 4 | 16 GiB; M50 | m8g.2xlarge | 8 | 32 GiB; M60 | m8g.4xlarge | 16 | 64 GiB; M80 | m8g.8xlarge | 32 | 128 GiB; M140 | m8g.12xlarge | 48 | 192 GiB; M200 | m8g.16xlarge | 64 | 256 GiB; M300 | m8g.24xlarge | 96 | 384 GiB.",
+          "source": "https://www.mongodb.com/docs/atlas/reference/amazon-aws/#aws-gen2-available-cluster-tiers-general",
+          "note": null
+        },
+        {
+          "text": "AWS Gen2 Low-CPU cluster tiers map to R8g instances (Atlas Gen2 Tier | R8g Instance | vCPU | RAM): M40 Low-CPU | r8g.large | 2 | 16 GiB; M50 Low-CPU | r8g.xlarge | 4 | 32 GiB; M60 Low-CPU | r8g.2xlarge | 8 | 64 GiB; M80 Low-CPU | r8g.4xlarge | 16 | 128 GiB; M200 Low-CPU | r8g.8xlarge | 32 | 256 GiB; M300 Low-CPU | r8g.12xlarge | 48 | 384 GiB; M400 Low-CPU | r8g.16xlarge | 64 | 512 GiB; M700 Low-CPU | r8g.24xlarge | 96 | 768 GiB.",
+          "source": "https://www.mongodb.com/docs/atlas/reference/amazon-aws/#aws-gen2-available-cluster-tiers-low-cpu",
+          "note": null
+        },
+        {
+          "text": "AWS Gen2 NVMe cluster tiers map to I8g instances (Atlas Gen2 Tier | I8g Instance | vCPU | RAM): M40_NVMe | i8g.large | 2 | 16 GiB; M50_NVMe | i8g.xlarge | 4 | 32 GiB; M60_NVMe | i8g.2xlarge | 8 | 64 GiB; M80_NVMe | i8g.4xlarge | 16 | 128 GiB; M200_NVMe | i8g.8xlarge | 32 | 256 GiB; M400_NVMe | i8g.16xlarge | 64 | 512 GiB.",
+          "source": "https://www.mongodb.com/docs/atlas/reference/amazon-aws/#aws-gen2-available-cluster-tiers-nvme",
+          "note": null
+        },
+        {
+          "text": "Low CPU instance types on the same page, with comparable RAM and storage at slightly lower price points, AWS us-east-1, calculated January 2022 (Cluster Tier, RAM, Storage, Hourly Cost, Monthly Cost (estimated)): M40 low CPU 16GB 80GB $0.77 $556.26; M50 low CPU 32GB 160GB $1.48 $1,064.33; M60 low CPU 64GB 320GB $2.92 $2,102.40; M80 low CPU 128GB 750GB $5.61 $4,038.36; M200 low CPU 256GB 1.5TB $11.21 $8,067.95; M300 low CPU 384GB 2TB $16.63 $11,977.11; M400 low CPU 512GB 3TB $22.40 $16,124.97; M700 low CPU 768GB 4TB $33.26 $23,945.46.",
+          "source": "https://www.mongodb.com/mongodb-on-aws/pricing#low-cpu-instance-types",
+          "note": "Jan 2022 prices, stale"
+        },
+        {
+          "text": "Atlas Infinite (public preview) storage IOPS and storage throughput are fixed per cluster tier (Cluster Tier | Storage IOPS | Storage Throughput): M10 | 625 | 10 MBps; M20 | 1,250 | 20 MBps; M30 | 5,000 | 80 MBps; M40 | 9,375 | 150 MBps; M40 Low-CPU | 5,000 | 80 MBps; M50 | 18,750 | 300 MBps; M50 Low-CPU | 9,375 | 150 MBps; M60 | 37,500 | 600 MBps; M60 Low-CPU | 18,750 | 300 MBps. The page says these are reference values for a baseline and assume a 16 kB I/O size.",
+          "source": "https://www.mongodb.com/docs/atlas/reference/amazon-aws/#atlas-infinite-storage-iops-and-throughput-values-per-cluster-tier",
+          "note": null
+        },
+        {
+          "text": "Atlas AWS cluster reference, available cluster tiers, General cluster tiers (Instance Size | Storage Range | Default Storage | Default RAM): M10 | 10 GB to 128 GB | 10 GB | 2 GB; M20 | 10 GB to 255 GB | 20 GB | 4 GB; M30 | 10 GB to 512 GB | 40 GB | 8 GB; M40 | 10 GB to 1 TB | 80 GB | 16 GB; M50 | 10 GB to 4 TB | 160 GB | 32 GB; M60 | 10 GB to 4 TB | 320 GB | 64 GB; M80 | 10 GB to 4 TB | 750 GB | 131 GB; M140 | 10 GB to 4 TB | 1 TB | 192 GB; M200 | 10 GB to 4 TB | 1.5 TB | 256 GB; M300 | 10 GB to 4 TB | 2 TB | 384 GB.",
+          "source": "https://www.mongodb.com/docs/atlas/reference/amazon-aws/#available-cluster-tiers-general",
+          "note": null
+        },
+        {
+          "text": "Atlas AWS cluster reference, available cluster tiers, Low-CPU cluster tiers (Instance Size | Storage Range | Default Storage | Default RAM): M40 Low-CPU | 10 GB to 1 TB | 80 GB | 16 GB; M50 Low-CPU | 10 GB to 4 TB | 160 GB | 32 GB; M60 Low-CPU | 10 GB to 4 TB | 320 GB | 64 GB; M80 Low-CPU | 10 GB to 4 TB | 750 GB | 122 GB; M200 Low-CPU | 10 GB to 4 TB | 1.5 TB | 256 GB; M300 Low-CPU | 10 GB to 4 TB | 2 TB | 384 GB; M400 Low-CPU | 10 GB to 4 TB | 3 TB | 488 GB; M700 Low-CPU | 10 GB to 4 TB | 4 TB | 768 GB.",
+          "source": "https://www.mongodb.com/docs/atlas/reference/amazon-aws/#available-cluster-tiers-low-cpu",
+          "note": null
+        },
+        {
+          "text": "Choose from over 10 cluster tiers. Price, storage, RAM, and CPU vary per cloud provider and region. AWS has tiers starting at 10 GB storage, 2 GB RAM, and 2 vCPUs for $0.08/hr to 4000 GB storage, 768 GB RAM, and 96 vCPUs for $33.26/hr. Note that the hourly cost applies only per instance hour your cluster is running. Additional costs will occur for backups, data transfer, etc.",
+          "source": "https://www.vantage.sh/blog/mongodb-cost-optimization-tips",
+          "note": null
+        },
+        {
+          "text": "MongoDB AWS pricing by instance type, AWS N. Virginia (us-east-1), calculated January 2022 (Cluster Tier, RAM, Storage, Hourly Cost, Monthly Cost (estimated)): M10 2GB 10GB $0.08 $56.94; M20 4GB 20GB $0.20 $146.72; M30 8GB 40GB $0.54 $387.62; M40 16GB 80GB $1.04 $746.79; M50 32GB 160GB $2.00 $1,436.64; M60 64GB 320GB $3.95 $2,847.00; M80 128GB 750GB $7.30 $5,258.19; M140 192GB 1TB $10.99 $7,914.65; M200 256GB 1.5TB $14.59 $10,507.62; M300 384GB 2TB $21.85 $15,735.15.",
+          "source": "https://www.mongodb.com/mongodb-on-aws/pricing#mongodb-aws-pricing-by-instance-type",
+          "note": "Jan 2022 prices, stale"
+        },
+        {
+          "text": "Atlas AWS cluster reference, available cluster tiers, NVMe cluster tiers (Instance Size | Storage Range | Default Storage | Default RAM): M40_NVME | 380 GB | 380 GB | 15.25 GB; M50_NVME | 760 GB | 760 GB | 30.5 GB; M60_NVME | 1.6 TB | 1.6 TB | 61 GB; M80_NVME | 1.6 TB | 1.6 TB | 122 GB; M200_NVME | 3.1 TB | 3.1 TB | 244 GB; M400_NVME | 4 TB | 4 TB | 512 GB.",
+          "source": "https://www.mongodb.com/docs/atlas/reference/amazon-aws/#available-cluster-tiers-nvme",
+          "note": null
+        },
+        {
+          "text": "Atlas AWS cluster reference, available cluster tiers, shared and Flex tiers (Instance Size | Storage Range | Default Storage | Default RAM): M0 | .5 GB | .5 GB | Shared; Flex | 5 GB | 5 GB | Flex.",
+          "source": "https://www.mongodb.com/docs/atlas/reference/amazon-aws/#available-cluster-tiers-other",
+          "note": null
+        },
+        {
+          "text": "Catering to learning and exploration, Shared provides three cluster tiers, ranging from 512 MB to 5 GB, each featuring shared CPU and RAM. The cost spectrum spans from free (M0, not recommended for production) to $25.",
+          "source": "https://www.vantage.sh/blog/mongodb-cost-optimization-tips",
+          "note": null
+        },
+        {
+          "text": "MongoDB Atlas offers a perpetual free tier and usage-based pricing for as little as $9/mo for a shared instance or $60/mo dedicated. You’re only charged per instance hour actually running and a flat rate for data transfer, so changing configurations is no big deal.",
+          "source": "https://www.mongodb.com/mongodb-on-aws/pricing",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Problems, failure modes and limitations",
+      "facts": [
+        {
+          "text": "Atlas docs say Low-CPU may also carry fewer max connections depending on tier; the AWS reference page does not list connection limits, so check the connection-limits page before downsizing.",
+          "source": "https://www.mongodb.com/docs/atlas/reference/amazon-aws/",
+          "note": null
+        },
+        {
+          "text": "NVMe operational constraints with cost impact: scaling needs a file-copy initial sync that degrades the source primary; backup cannot be disabled and hourly snapshots limited to every 12 hours; a hidden secondary with a provisioned volume supports backup; the cluster cannot be paused; no independent shard scaling.",
+          "source": "https://www.mongodb.com/docs/atlas/nvme-storage/",
+          "note": null
+        },
+        {
+          "text": "NVMe clusters auto-scale to the next higher tier when 90% of storage is full, because storage cannot grow independently. This makes capacity planning a tier-cost decision.",
+          "source": "https://www.mongodb.com/docs/atlas/nvme-storage/",
+          "note": null
+        },
+        {
+          "text": "M30+ Atlas Infinite clusters are available on Gen2 only, and don't support Extended Standard IOPS. To learn more about how Atlas Infinite clusters handle storage and IOPS, see Manage Storage on an Atlas Infinite Cluster and Atlas Infinite Storage IOPs and Throughput Values per Cluster Tier.",
+          "source": "https://www.mongodb.com/docs/atlas/cluster-tier/",
+          "note": null
+        },
+        {
+          "text": "M10 and M20 cluster tiers use burstable performance infrastructure. Cloud providers cap CPU usage after burst periods, which can cause throttling under heavy load. To learn more, see How Atlas Scales Cluster Tier.",
+          "source": "https://www.mongodb.com/docs/atlas/cluster-tier/",
+          "note": null
+        },
+        {
+          "text": "The actual amount of RAM available to each cluster tier might be slightly less than the stated amount, due to memory that the kernel reserves.",
+          "source": "https://www.mongodb.com/docs/atlas/reference/amazon-aws/",
+          "note": null
+        },
+        {
+          "text": "Atlas Infinite doesn't support locally attached NVMe SSD storage in public preview. For the features supported in public preview, see Public Preview Availability.",
+          "source": "https://www.mongodb.com/docs/atlas/nvme-storage/",
+          "note": null
+        },
+        {
+          "text": "In some cases, the maximum IOPS rate listed for a given instance type in the Amazon AWS Documentation may be higher than the IOPS rate Atlas allows you to configure. This is to ensure high availability, as some higher IOPS rates can only be sustained for short periods of time.",
+          "source": "https://www.mongodb.com/docs/atlas/reference/amazon-aws/",
+          "note": null
+        },
+        {
+          "text": "Atlas requires the same number of electable, read-only and analytics nodes, the same storage capacity and the same NVMe tier on every shard (Global clusters may vary node counts per zone). Storage cannot be sized per shard, so a hot shard forces extra storage cost on all shards.",
+          "source": "https://mongodb.com/docs/atlas/cluster-sharding/",
+          "note": null
+        },
+        {
+          "text": "Every shard must have an equal disk size on all nodes. NVMe clusters are not compatible with independent shard scaling.",
+          "source": "https://www.mongodb.com/docs/atlas/cluster-tier/",
+          "note": null
+        },
+        {
+          "text": "Atlas doesn't support NVMe clusters on Google Cloud. NVMe clusters are not compatible with independent shard scaling.",
+          "source": "https://www.mongodb.com/docs/atlas/nvme-storage/",
+          "note": null
+        },
+        {
+          "text": "NVMe instances can't be used in multi-cloud clusters.",
+          "source": "https://www.mongodb.com/docs/atlas/nvme-storage/",
+          "note": null
+        },
+        {
+          "text": "Clusters with NVMe storage use Cloud Backups. You can't disable backup on NVMe clusters. If you want to use hourly backups, Atlas limits backups on NVMe clusters to once every 12 hours.",
+          "source": "https://www.mongodb.com/docs/atlas/nvme-storage/",
+          "note": null
+        },
+        {
+          "text": "You can't pause an NVMe cluster.",
+          "source": "https://www.mongodb.com/docs/atlas/nvme-storage/",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Comparisons and alternatives",
+      "facts": [
+        {
+          "text": "Low-CPU tiers keep the same RAM and storage range as the General tier of the same size but halve vCPUs: on AWS Gen2 M40 has 4 vCPU and M40 Low-CPU (R40) has 2 vCPU, both 16 GiB RAM and 10 GB-1 TB storage; M50 has 8 vCPU vs R50 4 vCPU at 32 GiB.",
+          "source": "https://www.mongodb.com/docs/atlas/reference/amazon-aws/",
+          "note": null
+        },
+        {
+          "text": "NVMe storage and RAM are fixed per tier, not user-selectable: AWS M40_NVME 380 GB, M50_NVME 760 GB (vs General 80/160 GB defaults, scalable to 1/4 TB). NVMe M40 shows 15.25 GB RAM; the instance has 2 vCPU (i8g.large), same as Low-CPU.",
+          "source": "https://www.mongodb.com/docs/atlas/reference/amazon-aws/",
+          "note": null
+        },
+        {
+          "text": "Low-CPU is the cheaper option for memory-heavy, CPU-light workloads: similar RAM and storage at a lower price. Vantage (Jan 2024) says the same.",
+          "source": "https://www.vantage.sh/blog/mongodb-cost-optimization-tips",
+          "note": null
+        },
+        {
+          "text": "A search-snippet third-party blog claimed General costs ~20% more than Low-CPU, while the MongoDB 2022 price table shows ~35% more (1.04 vs 0.77). Not reconciled; blog not fetched.",
+          "source": "https://www.mongodb.com/mongodb-on-aws/pricing#low-cpu-price-gap-disagreement",
+          "note": "Blog figure unverified; MongoDB table gives ~26% less"
+        },
+        {
+          "text": "M30+ Atlas Core clusters are available in cluster generations Gen1 or Gen2 on AWS and Google Cloud. On Atlas Core clusters, Gen2 Dedicated clusters offer improved performance compared to Gen1 clusters and support Extended Standard IOPS",
+          "source": "https://www.mongodb.com/docs/atlas/cluster-tier/",
+          "note": null
+        },
+        {
+          "text": "On Atlas Core clusters, scaling of clusters (including auto-scaling) that use the local NVMe SSD storage option requires an initial sync, and always uses a File Copy Based Initial Sync to sync all the nodes of an NVME cluster whenever an initial sync is required. Atlas NVMe clusters auto-scale to the next higher tier when 90% of the storage space is full. An initial sync takes longer to complete compared to subsequent syncs, and reduces the performance of the primary from which the data is read.",
+          "source": "https://www.mongodb.com/docs/atlas/nvme-storage/",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Facts and statements",
+      "facts": [
+        {
+          "text": "Low-CPU tiers are supported on Atlas Core from M40 and on Atlas Infinite (public preview) M40-M60; General from M10. M10/M20 use burstable infrastructure that can throttle CPU.",
+          "source": "https://www.mongodb.com/docs/atlas/cluster-tier/",
+          "note": null
+        },
+        {
+          "text": "Low-CPU cluster tiers (M40 Low-CPU, M50 Low-CPU, M60 Low-CPU, and so on) are available in multi-cloud cluster configurations as long as the cluster tier is available for all the regions that the cluster uses.",
+          "source": "https://www.mongodb.com/docs/atlas/reference/amazon-aws/",
+          "note": null
+        },
+        {
+          "text": "The fixed-value storage space and RAM for an NVMe cluster corresponds to its cluster tier. To learn more, see Amazon Cluster Configuration Options and Azure Cluster Configuration Options.",
+          "source": "https://www.mongodb.com/docs/atlas/nvme-storage/",
+          "note": null
+        },
+        {
+          "text": "On Atlas Infinite clusters, the cluster tier also fixes the storage IOPS and storage throughput values. These values don't change as the amount of data you store grows. To review the storage performance for each tier, see Atlas Infinite Storage IOPs and Throughput Values per Cluster Tier.",
+          "source": "https://www.mongodb.com/docs/atlas/cluster-tier/",
+          "note": null
+        },
+        {
+          "text": "On AWS, NVMe storage is supported on Gen2 Dedicated clusters.",
+          "source": "https://www.mongodb.com/docs/atlas/nvme-storage/",
+          "note": null
+        },
+        {
+          "text": "The Atlas UI shows the storage IOPS and storage throughput for the selected tier on the Cluster Tier card. These values are read-only. The cluster tier determines both values.",
+          "source": "https://www.mongodb.com/docs/atlas/reference/amazon-aws/",
+          "note": null
+        },
+        {
+          "text": "M10 and M20 cluster tiers support development environments and production environments with low-traffic applications.",
+          "source": "https://www.mongodb.com/docs/atlas/cluster-tier/",
+          "note": null
+        },
+        {
+          "text": "Gen2 clusters support only reactive auto-scaling, not predictive auto-scaling. To learn more, see Scaling a Gen2 Dedicated Cluster.",
+          "source": "https://www.mongodb.com/docs/atlas/cluster-tier/",
+          "note": null
+        },
+        {
+          "text": "Atlas supports configuring M30+ Dedicated clusters deployed on AWS as Gen2 clusters.",
+          "source": "https://www.mongodb.com/docs/atlas/reference/amazon-aws/",
+          "note": null
+        },
+        {
+          "text": "For existing clusters, you can switch between generations in the same way you would change your cluster's tier. To learn more, see Modify the Cluster Tier.",
+          "source": "https://www.mongodb.com/docs/atlas/cluster-tier/",
+          "note": null
+        },
+        {
+          "text": "Each Atlas cluster tier comes with a default set of resources.",
+          "source": "https://www.mongodb.com/docs/atlas/reference/amazon-aws/",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Disagreements",
+      "facts": [
+        {
+          "text": "Public Atlas-on-AWS hourly prices (us-east-1, calculated January 2022): M40 $1.04, M40 Low-CPU $0.77 (~26% less), M50 $2.00, M50 Low-CPU $1.48 (~26% less). Treat as stale; confirm in the Atlas pricing page or calculator.",
+          "source": "https://www.mongodb.com/mongodb-on-aws/pricing",
+          "note": "Jan 2022 AWS table; a blog claims ~20%",
+          "group": "c1"
+        },
+        {
+          "text": "A search-snippet third-party blog claimed General costs ~20% more than Low-CPU, while the MongoDB 2022 price table shows ~35% more (1.04 vs 0.77). Not reconciled; blog not fetched.",
+          "source": "https://www.mongodb.com/mongodb-on-aws/pricing#low-cpu-price-gap-disagreement",
+          "note": "Blog figure unverified; MongoDB table gives ~26% less",
+          "group": "c1"
+        }
+      ]
+    }
+  ],
+  "related": [
+    {
+      "concept": "NVMe",
+      "relation": "is a hyponym of Cluster Tier Families and Hourly Pricing (General vs Low-CPU vs NVMe)",
+      "note": null
+    },
+    {
+      "concept": "M-series tier",
+      "relation": "is a part of Cluster Tier Families and Hourly Pricing (General vs Low-CPU vs NVMe)",
+      "note": null
+    },
+    {
+      "concept": "Low-CPU",
+      "relation": "is a hyponym of Cluster Tier Families and Hourly Pricing (General vs Low-CPU vs NVMe)",
+      "note": null
+    },
+    {
+      "concept": "RAM",
+      "relation": "is a measure of Cluster Tier Families and Hourly Pricing (General vs Low-CPU vs NVMe)",
+      "note": null
+    },
+    {
+      "concept": "Gen2",
+      "relation": "is a related of Cluster Tier Families and Hourly Pricing (General vs Low-CPU vs NVMe)",
+      "note": null
+    },
+    {
+      "concept": "Atlas Infinite",
+      "relation": "is a instance of Cluster Tier Families and Hourly Pricing (General vs Low-CPU vs NVMe)",
+      "note": null
+    },
+    {
+      "concept": "Dedicated Instances",
+      "relation": "is a instance of Cluster Tier Families and Hourly Pricing (General vs Low-CPU vs NVMe)",
+      "note": null
+    },
+    {
+      "concept": "vCPU",
+      "relation": "is a measure of Cluster Tier Families and Hourly Pricing (General vs Low-CPU vs NVMe)",
+      "note": null
+    },
+    {
+      "concept": "storage range",
+      "relation": "is a measure of Cluster Tier Families and Hourly Pricing (General vs Low-CPU vs NVMe)",
+      "note": null
+    },
+    {
+      "concept": "General tier",
+      "relation": "is a hyponym of Cluster Tier Families and Hourly Pricing (General vs Low-CPU vs NVMe)",
+      "note": null
+    },
+    {
+      "concept": "Extended Standard IOPS",
+      "relation": "is a related of Cluster Tier Families and Hourly Pricing (General vs Low-CPU vs NVMe)",
+      "note": null
+    },
+    {
+      "concept": "auto-scaling",
+      "relation": "is a related of Cluster Tier Families and Hourly Pricing (General vs Low-CPU vs NVMe)",
+      "note": null
+    },
+    {
+      "concept": "Graviton instance types",
+      "relation": "is a part of Cluster Tier Families and Hourly Pricing (General vs Low-CPU vs NVMe)",
+      "note": "Atlas Gen2 tiers map to M8g (General), R8g (Low-CPU) and I8g (NVMe) instances"
+    },
+    {
+      "concept": "pricing calculator",
+      "relation": "is a related of Cluster Tier Families and Hourly Pricing (General vs Low-CPU vs NVMe)",
+      "note": null
+    },
+    {
+      "concept": "shared tier",
+      "relation": "is a hyponym of Cluster Tier Families and Hourly Pricing (General vs Low-CPU vs NVMe)",
+      "note": null
+    },
+    {
+      "concept": "burstable",
+      "relation": "is a hyponym of Cluster Tier Families and Hourly Pricing (General vs Low-CPU vs NVMe)",
+      "note": null
+    },
+    {
+      "concept": "initial sync",
+      "relation": "is a problem of Cluster Tier Families and Hourly Pricing (General vs Low-CPU vs NVMe)",
+      "note": null
+    },
+    {
+      "concept": "cost optimization",
+      "relation": "is a hypernym of Cluster Tier Families and Hourly Pricing (General vs Low-CPU vs NVMe)",
+      "note": null
+    },
+    {
+      "concept": "max connections",
+      "relation": "is a problem of Cluster Tier Families and Hourly Pricing (General vs Low-CPU vs NVMe)",
+      "note": null
+    },
+    {
+      "concept": "billing page",
+      "relation": "is a related of Cluster Tier Families and Hourly Pricing (General vs Low-CPU vs NVMe)",
+      "note": null
+    }
+  ]
+}

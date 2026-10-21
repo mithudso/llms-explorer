@@ -1,0 +1,518 @@
+{
+  "slug": "sharded-cluster-cost-economics",
+  "concept": "Sharded Cluster Cost Economics",
+  "generated": "2026-10-19",
+  "summary": "Atlas bills a sharded cluster as replication factor times shard count data-bearing nodes at the chosen tier, plus three config servers at a separate rate that tier and storage choices do not change; the billing page does not mention a mongos charge. Every shard must have the same node counts, storage and NVMe tier, though shards can run different compute tiers under independent shard scaling, and MongoDB advises adding a shard at sustained 60-70% utilization while MongoDB 8.0 config shards remove the dedicated config server cost for small clusters. Drawn from 6 source pages (MongoDB Atlas docs and manual, Jira) across definitions, structure, parameters, measures, problems and comparisons; the manual's advice to start sharded and Jira's report that a one-shard M30 costs twice a replica set are listed as a disagreement.",
+  "facets": [
+    {
+      "title": "Definitions",
+      "facts": [
+        {
+          "text": "[1](1, 2) On Atlas Core clusters, data-bearing servers are the machines that run the nodes holding your application data. In a sharded cluster, each shard is a replica set whose members are the data-bearing servers. Sharded clusters may also use config servers, which are billed separately from the data-bearing servers.",
+          "source": "https://www.mongodb.com/docs/atlas/billing/cluster-configuration-costs",
+          "note": null
+        },
+        {
+          "text": "Sharding is a method for distributing data across multiple machines. MongoDB uses sharding to support deployments with very large data sets and high throughput operations.",
+          "source": "https://www.mongodb.com/docs/manual/sharding/",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Structure and components",
+      "facts": [
+        {
+          "text": "MongoDB partitions sharded data into chunks. Each chunk has an inclusive lower and exclusive upper range based on the shard key.",
+          "source": "https://www.mongodb.com/docs/manual/sharding/",
+          "note": null
+        },
+        {
+          "text": "Hashed Sharding computes a hash of the shard key field's value. Each chunk is then assigned a range based on the hashed shard key values.",
+          "source": "https://www.mongodb.com/docs/manual/sharding/",
+          "note": null
+        },
+        {
+          "text": "Ranged sharding divides data into ranges based on the shard key values, with each chunk assigned one of those ranges.",
+          "source": "https://www.mongodb.com/docs/manual/sharding/",
+          "note": null
+        },
+        {
+          "text": "config servers: Config servers store metadata and configuration settings for the cluster. Config servers must be deployed as a replica set (CSRS). Starting in MongoDB 8.0, you can deploy the config server as a config shard that also stores application data.",
+          "source": "https://www.mongodb.com/docs/manual/sharding/",
+          "note": null
+        },
+        {
+          "text": "shard: Each shard contains a subset of the sharded data. Each shard must be deployed as a replica set.",
+          "source": "https://www.mongodb.com/docs/manual/sharding/",
+          "note": null
+        },
+        {
+          "text": "Routing with mongos: The mongos acts as a query router, providing an interface between client applications and the sharded cluster.",
+          "source": "https://www.mongodb.com/docs/manual/sharding/",
+          "note": null
+        },
+        {
+          "text": "MongoDB uses the shard key to distribute the collection's documents across shards. The shard key consists of a field or multiple fields in the documents.",
+          "source": "https://www.mongodb.com/docs/manual/sharding/",
+          "note": null
+        },
+        {
+          "text": "MongoDB shards data at the collection level, distributing the collection data across the shards in the cluster.",
+          "source": "https://www.mongodb.com/docs/manual/sharding/",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "How it works",
+      "facts": [
+        {
+          "text": "If queries do not include the shard key or the prefix of a compound shard key, mongos performs a broadcast operation, querying all shards in the sharded cluster. These scatter/gather queries can be long running operations.",
+          "source": "https://www.mongodb.com/docs/manual/sharding/",
+          "note": null
+        },
+        {
+          "text": "A one-shard sharded cluster on M30 was described in a MongoDB Jira ticket (PM-2290) as costing about twice an M30 replica set because of dedicated config servers. Undated and internal, so treat as a rough indicator only.",
+          "source": "https://jira.mongodb.org/browse/COMPASS-6208",
+          "note": "Undated internal ticket; rough indicator"
+        },
+        {
+          "text": "Kubernetes - Some customers prefer to use a sharded cluster with a single shard because the mongos can act as a proxy. No config server would mean better resource utilization and less operational overhead",
+          "source": "https://jira.mongodb.org/browse/COMPASS-6208",
+          "note": null
+        },
+        {
+          "text": "Backup billing for a sharded cluster covers each shard replica set plus the config server replica set. Atlas may retain more than one full snapshot when topology changes (for example when a shard is added), which raises backup storage for a period. Cloud Backup rates on the page are AWS $0.14-$0.19, Azure $0.34-$0.65, Google Cloud $0.08-$0.12 per GB-month.",
+          "source": "https://www.mongodb.com/docs/atlas/billing/cluster-configuration-costs",
+          "note": null
+        },
+        {
+          "text": "When sharding is enabled with dedicated config servers, Atlas adds three config servers billed at a separate rate. Cluster tier and data storage selections do not change that config server cost. The rate itself is not published on the billing page.",
+          "source": "https://www.mongodb.com/docs/atlas/billing/cluster-configuration-costs",
+          "note": null
+        },
+        {
+          "text": "Sharding distributes data across the shards in the cluster, allowing each shard to contain a subset of the total cluster data. As the data set grows, additional shards increase the storage capacity of the cluster.",
+          "source": "https://www.mongodb.com/docs/manual/sharding/",
+          "note": null
+        },
+        {
+          "text": "Starting in MongoDB 8.0, if your deployment meets the resource requirements, it's recommended that you use the sh.shardAndDistributeCollection() method to shard the collection. This method wraps the shardCollection and reshardCollection commands to shard the collection and immediately reshard it to the same key. This causes MongoDB to rebalance data across the shards without waiting on the balancer.",
+          "source": "https://www.mongodb.com/docs/manual/sharding/",
+          "note": null
+        },
+        {
+          "text": "Starting in MongoDB 5.0, you can reshard a collection by changing a collection's shard key.",
+          "source": "https://www.mongodb.com/docs/manual/sharding/",
+          "note": null
+        },
+        {
+          "text": "For queries that include the shard key or the prefix of a compound shard key, mongos can target the query at a specific shard or set of shards. These targeted operations are generally more efficient than broadcasting to every shard in the cluster.",
+          "source": "https://www.mongodb.com/docs/manual/sharding/",
+          "note": null
+        },
+        {
+          "text": "A range of shard keys whose values are \"close\" are more likely to reside on the same chunk. This allows for targeted operations as a mongos can route the operations to only the shards that contain the required data.",
+          "source": "https://www.mongodb.com/docs/manual/sharding/",
+          "note": null
+        },
+        {
+          "text": "To achieve an even data distribution across all shards in the cluster, a balancer runs in the background to migrate ranges across the shards.",
+          "source": "https://www.mongodb.com/docs/manual/sharding/",
+          "note": null
+        },
+        {
+          "text": "MongoDB distributes the read and write workload across the shards in the sharded cluster, allowing each shard to process a subset of cluster operations. Both read and write workloads can be scaled horizontally across the cluster by adding more shards.",
+          "source": "https://www.mongodb.com/docs/manual/sharding/",
+          "note": null
+        },
+        {
+          "text": "You can refine a shard key by adding a suffix field or fields to the existing shard key.",
+          "source": "https://www.mongodb.com/docs/manual/sharding/",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Parameters and configuration",
+      "facts": [
+        {
+          "text": "Sharding on Atlas requires an M30 or larger cluster.",
+          "source": "https://mongodb.com/docs/atlas/cluster-sharding/",
+          "note": null
+        },
+        {
+          "text": "You can use the Atlas Cluster Builder UI to shard your cluster. Once your cluster is sharded, you can use the latest version of the Atlas Admin API, Atlas CLI, or HashiCorp Terraform MongoDB Atlas Provider to scale each shard independently. You can't use the Atlas UI to scale each shard independently. However, you can enable compute auto-scaling in the Atlas UI for shards to scale independently.",
+          "source": "https://mongodb.com/docs/atlas/cluster-sharding/",
+          "note": null
+        },
+        {
+          "text": "All shards in an Atlas cluster can scale uniformly to the same cluster tier. By default, sharded clusters created before Dec 9, 2024 use cluster-wide shard scaling. If you manage your cluster using Atlas Administration API, Atlas CLI, or Terraform, upgrade your Atlas Administration API, Atlas CLI, or Terraform to independently scale your shards. If you use the Atlas UI and you enabled compute auto-scaling, to independently scale your shards, contact MongoDB support.",
+          "source": "https://mongodb.com/docs/atlas/cluster-sharding/",
+          "note": null
+        },
+        {
+          "text": "For Global clusters, you can have a different number of nodes per zone.",
+          "source": "https://mongodb.com/docs/atlas/cluster-sharding/",
+          "note": null
+        },
+        {
+          "text": "The number of electable, read-only, and analytic nodes on all shards must be the same.",
+          "source": "https://mongodb.com/docs/atlas/cluster-sharding/",
+          "note": null
+        },
+        {
+          "text": "The storage capacity on all shards must be the same.",
+          "source": "https://mongodb.com/docs/atlas/cluster-sharding/",
+          "note": null
+        },
+        {
+          "text": "The NVME tier on all shards must be the same.",
+          "source": "https://mongodb.com/docs/atlas/cluster-sharding/",
+          "note": null
+        },
+        {
+          "text": "The Atlas auto-scaler only allows a maximum of 2 tier gap between the shard with the highest cluster tier and the shard with the lowest cluster tier.",
+          "source": "https://mongodb.com/docs/atlas/cluster-sharding/",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "How-to and procedures",
+      "facts": [
+        {
+          "text": "The Atlas billing page does not mention a mongos router charge, tier minimums or per-tier hourly prices. Cost modelling must take the rates from the instance-size pricing section or the pricing calculator.",
+          "source": "https://www.mongodb.com/docs/atlas/billing/cluster-configuration-costs",
+          "note": null
+        },
+        {
+          "text": "To ensure backups are maintained reliably, in some situations, Atlas retains more than one full snapshot per replica set or shard. This can increase backup storage usage and associated costs, because a smaller share of the data is stored as incremental snapshots. Atlas might retain more than one full snapshot in the following cases:",
+          "source": "https://www.mongodb.com/docs/atlas/billing/cluster-configuration-costs",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Measurements and reference values",
+      "facts": [
+        {
+          "text": "MongoDB advises considering an extra shard at sustained 60-70% utilization of RAM, vCPU or storage on a sizable machine. Its Atlas example is an M60 with a 4 TB disk. It states vertical scaling becomes increasingly expensive and that horizontal scaling is more predictable and cost-effective at scale.",
+          "source": "https://www.mongodb.com/docs/manual/core/sharding-start-with-sharding/",
+          "note": null
+        },
+        {
+          "text": "Consider adding shards when your database reaches 60-70% of resource utilization (RAM, vCPUs, or storage) of a sizable machine. For example, in Atlas, consistent 60-70% resource utilization of an M60 machine with a 4 TB disk indicates an additional shard should be added.",
+          "source": "https://www.mongodb.com/docs/manual/core/sharding-start-with-sharding/",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Problems, failure modes and limitations",
+      "facts": [
+        {
+          "text": "Poor shard-key choice and queries lacking the shard key are the main hidden costs: scatter-gather queries are broadcast to all shards and run long, and resharding is slow and resource intensive.",
+          "source": "https://www.mongodb.com/docs/manual/sharding/",
+          "note": null
+        },
+        {
+          "text": "Atlas requires the same number of electable, read-only and analytics nodes, the same storage capacity and the same NVMe tier on every shard (Global clusters may vary node counts per zone). Storage cannot be sized per shard, so a hot shard forces extra storage cost on all shards.",
+          "source": "https://mongodb.com/docs/atlas/cluster-sharding/",
+          "note": null
+        },
+        {
+          "text": "The efficiency of ranged sharding depends on the shard key chosen. Poorly considered shard keys can result in uneven distribution of data, which can negate some benefits of sharding or can cause performance bottlenecks. See shard key selection for range-based sharding.",
+          "source": "https://www.mongodb.com/docs/manual/sharding/",
+          "note": null
+        },
+        {
+          "text": "When you edit a sharded cluster with multiple shard tiers from the Atlas UI, changing the tier will change the tier of all shards.",
+          "source": "https://mongodb.com/docs/atlas/cluster-sharding/",
+          "note": null
+        },
+        {
+          "text": "However, hashed distribution means that range-based queries on the shard key are less likely to target a single shard, resulting in more cluster-wide broadcast operations.",
+          "source": "https://www.mongodb.com/docs/manual/sharding/",
+          "note": null
+        },
+        {
+          "text": "While you can reshard your collection later, carefully consider your shard key choice to avoid scalability and performance issues.",
+          "source": "https://www.mongodb.com/docs/manual/sharding/",
+          "note": null
+        },
+        {
+          "text": "Even if one or more shard replica sets become completely unavailable, the sharded cluster can continue to perform partial reads and writes. That is, while data on the unavailable shard(s) cannot be accessed, reads or writes directed at the available shards can still succeed.",
+          "source": "https://www.mongodb.com/docs/manual/sharding/",
+          "note": null
+        },
+        {
+          "text": "You can't configure auto-scaling for each shard if the shards are on different cluster class. For example, you can't enable auto-scaling if one shard is on M30 (General) and another shard is on M40 (Low-CPU).",
+          "source": "https://mongodb.com/docs/atlas/cluster-sharding/",
+          "note": null
+        },
+        {
+          "text": "Sharded cluster infrastructure requirements and complexity require careful planning, execution, and maintenance.",
+          "source": "https://www.mongodb.com/docs/manual/sharding/",
+          "note": null
+        },
+        {
+          "text": "After you scale each shard independently using the Atlas Administration API, Atlas CLI, or Terraform, you can't manage your cluster by using the Atlas Cluster Builder UI.",
+          "source": "https://mongodb.com/docs/atlas/cluster-sharding/",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Comparisons and alternatives",
+      "facts": [
+        {
+          "text": "We recommend starting with a single sharded cluster when you are building a new application regardless of your immediate need for multiple shards.",
+          "source": "https://www.mongodb.com/docs/manual/core/sharding-start-with-sharding/",
+          "note": "MongoDB manual advice on early sharding"
+        },
+        {
+          "text": "Vertical scaling becomes increasingly expensive and less effective as hardware requirements grow. Horizontal scaling offers more predictable and cost-effective scaling as resource demands increase.",
+          "source": "https://www.mongodb.com/docs/manual/core/sharding-start-with-sharding/",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Facts and statements",
+      "facts": [
+        {
+          "text": "MongoDB 8.0 config shards let a sharded cluster run without dedicated config servers. In Atlas, sharded clusters with up to 3 shards on 8.0 use config shards by default, which removes the separate three-node config server charge for small clusters.",
+          "source": "https://www.mongodb.com/docs/manual/core/sharding-start-with-sharding/",
+          "note": null
+        },
+        {
+          "text": "Cost-Effective Infrastructure – MongoDB 8.0 introduces config shards, allowing you to set up a sharded cluster on a single replica set infrastructure without dedicated config servers. In MongoDB Atlas, sharded clusters with up to 3 shards in version 8.0 use config shards by default.",
+          "source": "https://www.mongodb.com/docs/manual/core/sharding-start-with-sharding/",
+          "note": null
+        },
+        {
+          "text": "If you enable sharding, Atlas also runs three config servers in addition to your data-bearing nodes. Your selections for cluster tier and data storage do not affect the costs of the config nodes. Config servers are charged at a separate rate. Their cost is reflected in the cost of the cluster.",
+          "source": "https://www.mongodb.com/docs/atlas/billing/cluster-configuration-costs",
+          "note": null
+        },
+        {
+          "text": "Atlas charges instance and storage cost for each data-bearing node. For a sharded cluster the node count is replication factor x number of shards (3 shards at RF 3 = 9 nodes).",
+          "source": "https://www.mongodb.com/docs/atlas/billing/cluster-configuration-costs",
+          "note": null
+        },
+        {
+          "text": "For a sharded cluster, the number of data-bearing nodes equals the replication factor multiplied by the number of shards.",
+          "source": "https://www.mongodb.com/docs/atlas/billing/cluster-configuration-costs",
+          "note": null
+        },
+        {
+          "text": "Independent shard scaling lets each shard use its own compute tier and, on AWS and Azure, its own IOPS. It is the default for clusters created on or after 2024-12-09; older clusters scale all shards together. It is controlled through the Admin API, CLI or Terraform, not the UI, and after using it the Cluster Builder UI can no longer manage the cluster. The auto-scaler permits at most a 2-tier gap between the highest and lowest shard.",
+          "source": "https://mongodb.com/docs/atlas/cluster-sharding/",
+          "note": null
+        },
+        {
+          "text": "Every shard must be a replica set, so the minimum footprint of one shard is a multi-node replica set, and the cluster adds config server nodes on top.",
+          "source": "https://www.mongodb.com/docs/manual/sharding/",
+          "note": null
+        },
+        {
+          "text": "We will make dedicated config servers optional for sharded clusters. Customers will have the option to designate a special shard that will hold both user data and config data. For one-shard clusters on Atlas, the shard will automatically be a special shard with both the shard role and config role.",
+          "source": "https://jira.mongodb.org/browse/COMPASS-6208",
+          "note": null
+        },
+        {
+          "text": "Eliminating dedicated config servers will reduce both the cost and the architectural complexity involved in single-shard sharded clusters. On Atlas, a single-shard M30 sharded cluster costs TWICE as much as an M30 replica set. This project would bring cost parity to single-shard clusters on Atlas and will make it easier for customers to start out with a sharded cluster or switch to a sharded cluster.",
+          "source": "https://jira.mongodb.org/browse/COMPASS-6208",
+          "note": "Jira ticket PM-2290, undated"
+        },
+        {
+          "text": "You can horizontally scale your Atlas deployment by sharding your cluster. Sharding allows you to distribute your data across multiple nodes or shards to efficiently handle growing data and workloads. To learn more, see Sharding. If your shard reaches capacity, you can configure auto-scaling to independently scale your shards.",
+          "source": "https://mongodb.com/docs/atlas/cluster-sharding/",
+          "note": null
+        },
+        {
+          "text": "Independent shard scaling allows you to configure each shard separately to better meet the workload requirements of each shard. You can configure the cluster tier of each individual shard for a customized and optimized allocation of resources and cost for each shard. That is, on each shard, your electable and read-only nodes can be on a different cluster tier than analytic nodes. On AWS and Azure, you can also configure disk performance for each shard.",
+          "source": "https://mongodb.com/docs/atlas/cluster-sharding/",
+          "note": null
+        },
+        {
+          "text": "You can use the Atlas Administration API, Atlas CLI, or Terraform to choose a different tier per shard. Analytics Nodes can also have independently selected tiers on all shards.",
+          "source": "https://mongodb.com/docs/atlas/cluster-sharding/",
+          "note": null
+        },
+        {
+          "text": "The deployment of config servers and shards as replica sets provide increased availability.",
+          "source": "https://www.mongodb.com/docs/manual/sharding/",
+          "note": null
+        },
+        {
+          "text": "For example, for one shard, you can configure your electable and read-only nodes (3 nodes) on M30 and analytics nodes (1 node) on M40 while for another shard, you can configure your electable and read-only nodes (3 nodes) on M40 and analytics nodes (1 node) on M30.",
+          "source": "https://mongodb.com/docs/atlas/cluster-sharding/",
+          "note": null
+        },
+        {
+          "text": "Effortless Horizontal Scaling – You can easily add shards as your application grows, without the complexity of migrating from a replica set.",
+          "source": "https://www.mongodb.com/docs/manual/core/sharding-start-with-sharding/",
+          "note": null
+        },
+        {
+          "text": "You can use the Atlas Administration API to specify different IOPS for each shard.",
+          "source": "https://mongodb.com/docs/atlas/cluster-sharding/",
+          "note": null
+        },
+        {
+          "text": "If your cluster is on AWS, choose between Standard IOPS and Provisioned IOPS for each shard. If a shard uses Provisioned IOPS, you can provision different IOPS for each shard. If a shard uses Standard IOPS, the Standard IOPS is tied to the storage size of the cluster.",
+          "source": "https://mongodb.com/docs/atlas/cluster-sharding/",
+          "note": null
+        },
+        {
+          "text": "If your cluster is on Azure in regions that support Extended Storage/IOPS, you can provision different Standard IOPS for each shard. Otherwise, the Standard IOPS is tied to the storage size of the cluster's disk. To learn more, see Configure Extended Storage/IOPS on Azure.",
+          "source": "https://mongodb.com/docs/atlas/cluster-sharding/",
+          "note": null
+        },
+        {
+          "text": "Replica sets are limited to 4 TB per node. Beyond that, Atlas recommends sharding for long-term growth; extended storage is a temporary fix that slows initial syncs and can reduce availability.",
+          "source": "https://www.mongodb.com/docs/atlas/customize-storage/",
+          "note": "Storage-growth guidance from the Atlas docs"
+        },
+        {
+          "text": "Serverless v2 - Serverless would like to remove the cost and complexity of dealing with config servers.",
+          "source": "https://jira.mongodb.org/browse/COMPASS-6208",
+          "note": null
+        },
+        {
+          "text": "You can shard clusters in the UI for deployments hosted in MongoDB Atlas.",
+          "source": "https://www.mongodb.com/docs/manual/sharding/",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Disagreements",
+      "facts": [
+        {
+          "text": "We recommend starting with a single sharded cluster when you are building a new application regardless of your immediate need for multiple shards.",
+          "source": "https://www.mongodb.com/docs/manual/core/sharding-start-with-sharding/",
+          "note": "MongoDB manual advice on early sharding",
+          "group": "c1"
+        },
+        {
+          "text": "A one-shard sharded cluster on M30 was described in a MongoDB Jira ticket (PM-2290) as costing about twice an M30 replica set because of dedicated config servers. Undated and internal, so treat as a rough indicator only.",
+          "source": "https://jira.mongodb.org/browse/COMPASS-6208",
+          "note": "Undated internal ticket; rough indicator",
+          "group": "c1"
+        },
+        {
+          "text": "Eliminating dedicated config servers will reduce both the cost and the architectural complexity involved in single-shard sharded clusters. On Atlas, a single-shard M30 sharded cluster costs TWICE as much as an M30 replica set. This project would bring cost parity to single-shard clusters on Atlas and will make it easier for customers to start out with a sharded cluster or switch to a sharded cluster.",
+          "source": "https://jira.mongodb.org/browse/COMPASS-6208",
+          "note": "Jira ticket PM-2290, undated",
+          "group": "c1"
+        }
+      ]
+    }
+  ],
+  "related": [
+    {
+      "concept": "shard",
+      "relation": "is a part of Sharded Cluster Cost Economics",
+      "note": null
+    },
+    {
+      "concept": "config server",
+      "relation": "is a part of Sharded Cluster Cost Economics",
+      "note": null
+    },
+    {
+      "concept": "shard key",
+      "relation": "is a problem of Sharded Cluster Cost Economics",
+      "note": null
+    },
+    {
+      "concept": "mongos",
+      "relation": "is a part of Sharded Cluster Cost Economics",
+      "note": null
+    },
+    {
+      "concept": "data-bearing node",
+      "relation": "is a measure of Sharded Cluster Cost Economics",
+      "note": null
+    },
+    {
+      "concept": "60-70% utilization",
+      "relation": "is a measure of Sharded Cluster Cost Economics",
+      "note": null
+    },
+    {
+      "concept": "independent shard scaling",
+      "relation": "is a hyponym of Sharded Cluster Cost Economics",
+      "note": null
+    },
+    {
+      "concept": "resharding",
+      "relation": "is a problem of Sharded Cluster Cost Economics",
+      "note": null
+    },
+    {
+      "concept": "hot shard",
+      "relation": "is a problem of Sharded Cluster Cost Economics",
+      "note": null
+    },
+    {
+      "concept": "config shard",
+      "relation": "is a part of Sharded Cluster Cost Economics",
+      "note": null
+    },
+    {
+      "concept": "scatter-gather",
+      "relation": "is a problem of Sharded Cluster Cost Economics",
+      "note": null
+    },
+    {
+      "concept": "horizontal scaling",
+      "relation": "is a contrast of Sharded Cluster Cost Economics",
+      "note": null
+    },
+    {
+      "concept": "per-shard IOPS",
+      "relation": "is a measure of Sharded Cluster Cost Economics",
+      "note": null
+    },
+    {
+      "concept": "replication factor",
+      "relation": "is a measure of Sharded Cluster Cost Economics",
+      "note": null
+    },
+    {
+      "concept": "vertical scaling",
+      "relation": "is a contrast of Sharded Cluster Cost Economics",
+      "note": null
+    },
+    {
+      "concept": "backup storage",
+      "relation": "is a related of Sharded Cluster Cost Economics",
+      "note": null
+    },
+    {
+      "concept": "Global Cluster",
+      "relation": "is a related of Sharded Cluster Cost Economics",
+      "note": null
+    },
+    {
+      "concept": "separate rate",
+      "relation": "is a measure of Sharded Cluster Cost Economics",
+      "note": null
+    },
+    {
+      "concept": "balancer",
+      "relation": "is a related of Sharded Cluster Cost Economics",
+      "note": null
+    },
+    {
+      "concept": "start with sharding",
+      "relation": "is a related of Sharded Cluster Cost Economics",
+      "note": null
+    }
+  ]
+}

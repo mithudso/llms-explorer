@@ -33,3 +33,10 @@ def test_meta_covers_exactly_the_committed_concept_packs():
 
 def test_deferred_concept_packs_have_a_reason():
     assert all(item.get("reason", "").strip() for item in EXCLUSIONS["items"])
+
+
+def test_keyword_index_covers_every_pack_even_when_embeddings_are_paused():
+    keyword = json.loads((SITE / "public/search-keywords.json").read_text())
+    assert {item["slug"] for item in keyword["items"]} == {
+        path.stem for path in (SITE / "src/data/concepts").glob("*.json")}
+    assert all(item["concept"] and item["text"] for item in keyword["items"])

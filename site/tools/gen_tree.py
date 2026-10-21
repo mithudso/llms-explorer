@@ -74,6 +74,8 @@ def skill_summary(repo_root: Path, skill_id: str | None, vendored: dict[str, str
     if not skill_id:
         return ""
     f = repo_root / ".claude" / "skills" / skill_id / "SKILL.md"
+    if not f.is_file():
+        f = repo_root / ".agents" / "skills" / skill_id / "SKILL.md"
     if f.is_file():
         text = f.read_text(encoding="utf-8", errors="ignore")
         if text.startswith("---"):

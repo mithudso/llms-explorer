@@ -1,0 +1,1310 @@
+{
+  "slug": "mongodb-sort-and-pagination-optimization",
+  "concept": "MongoDB sort and pagination optimization",
+  "generated": "2026-10-19",
+  "summary": "Check for a blocking sort with explain(): a SORT stage in the plan means a blocking sort; no SORT stage means the index supplies the order. Use hint() when testing candidate indexes. (from www.mongodb.com)",
+  "facets": [
+    {
+      "title": "Structure and components",
+      "facts": [
+        {
+          "text": "If using [`skip()`](https://www.mongodb.com/docs/manual/reference/method/cursor.skip.md#mongodb-method-cursor.skip) with [`sort()`](https://www.mongodb.com/docs/manual/reference/method/cursor.sort.md#mongodb-method-cursor.sort), be sure to include at least one field in your sort that contains unique values, before passing results to [`skip()`.](https://www.mongodb.com/docs/manual/reference/method/cursor.skip.md#mongodb-method-cursor.skip)",
+          "source": "https://www.mongodb.com/docs/manual/reference/method/cursor.skip.md#using-skip-with-sort",
+          "note": null
+        },
+        {
+          "text": "- Only contain one second of temporal resolution, so [ObjectId](https://www.mongodb.com/docs/manual/reference/bson-types.md#std-label-objectid) values created within the same second do not have a guaranteed ordering, and",
+          "source": "https://www.mongodb.com/docs/manual/reference/method/cursor.skip.md#descending-order",
+          "note": null
+        },
+        {
+          "text": "The second case occurs when the merge part of the split pipeline contains a stage which may write temporary data to disk, such as $group, and the client has specified allowDiskUse:true. In this case, assuming that there are no other stages in the merge pipeline which require the primary shard, the merge runs on a randomly-selected shard in the set of shards targeted by the aggregation.",
+          "source": "https://www.mongodb.com/docs/manual/core/sharded-cluster-query-router/",
+          "note": null
+        },
+        {
+          "text": "be sure to include at least one field in your sort that contains unique values, before passing results to the [`$skip`](https://www.mongodb.com/docs/manual/reference/operator/aggregation/skip.md#mongodb-pipeline-pipe.-skip) stage.",
+          "source": "https://www.mongodb.com/docs/manual/reference/operator/aggregation/skip.md#using-skip-with-sorted-results",
+          "note": null
+        },
+        {
+          "text": "When a [`$skip`](https://www.mongodb.com/docs/manual/reference/operator/aggregation/skip.md#mongodb-pipeline-pipe.-skip) immediately follows another [`$skip`](https://www.mongodb.com/docs/manual/reference/operator/aggregation/skip.md#mongodb-pipeline-pipe.-skip), the two stages can coalesce into a single [`$skip`](https://www.mongodb.com/docs/manual/reference/operator/aggregation/skip.md#mongodb-pipeline-pipe.-skip) where the skip amount is the *sum* of the two initial skip amounts. For example, a pipeline contains the following sequence:",
+          "source": "https://www.mongodb.com/docs/manual/core/aggregation-pipeline-optimization.md#skip-skip-coalescence",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "How it works",
+      "facts": [
+        {
+          "text": "A query that exceeds either 100 megabytes or the available memory spills to disk. It writes intermediate data to storage to save memory, which can cause lowered performance. Use the [`allowDiskUseByDefault`](https://www.mongodb.com/docs/manual/reference/parameters.md#mongodb-parameter-param.allowDiskUseByDefault) parameter or [`cursor.allowDiskUse()`](https://www.mongodb.com/docs/manual/reference/method/cursor.allowdiskuse.md#mongodb-method-cursor.allowDiskUse) method to configure this behavior.",
+          "source": "https://www.mongodb.com/docs/manual/tutorial/query-documents.md#query-spill",
+          "note": null
+        },
+        {
+          "text": "Offset pagination is inconsistent under concurrent writes: inserts or deletes between requests cause duplicate or missing items. Keyset is more stable for changes before the current page but not immune; mutable sort fields can still cause duplicates or misses.",
+          "source": "https://begriffs.com/posts/2016-03-30-five-ways-to-paginate.html",
+          "note": null
+        },
+        {
+          "text": "When you sort based on an array field that is indexed with a multikey index, the query plan includes an in-memory sort stage unless both of the following are true:",
+          "source": "https://www.mongodb.com/docs/manual/core/indexes/index-types/index-multikey/",
+          "note": null
+        },
+        {
+          "text": "When you sort based on an array field that is indexed with a [multikey index](https://www.mongodb.com/docs/manual/core/indexes/index-types/index-multikey.md#std-label-index-type-multikey), the query plan includes an [in-memory sort](https://www.mongodb.com/docs/manual/reference/glossary.md#std-term-in-memory-sort) stage unless both of the following are true:",
+          "source": "https://www.mongodb.com/docs/manual/core/indexes/index-types/index-multikey.md#sorting",
+          "note": null
+        },
+        {
+          "text": "Returning paginated results in ascending order is similar to the previous, but uses [`$gt`](https://www.mongodb.com/docs/manual/reference/operator/query/gt.md#mongodb-query-op.-gt) with an *ascending* sort order:",
+          "source": "https://www.mongodb.com/docs/manual/reference/method/cursor.skip.md#ascending-order",
+          "note": null
+        },
+        {
+          "text": "When combining skip() with sort(), include a field with unique values (easiest: _id) in the sort. Duplicate sort values can yield inconsistent order across executions, especially while the collection receives writes.",
+          "source": "https://www.mongodb.com/docs/v8.2/reference/method/cursor.skip/",
+          "note": null
+        },
+        {
+          "text": "Examples of stages that can write temporary files to disk when [allowDiskUse](https://www.mongodb.com/docs/manual/reference/command/aggregate.md#std-label-aggregate-cmd-allowDiskUse) is `true` are:",
+          "source": "https://www.mongodb.com/docs/manual/core/aggregation-pipeline-limits.md#memory-restrictions",
+          "note": null
+        },
+        {
+          "text": "- Using `{ allowDiskUse: true }` to allow writing temporary files out to disk when `allowDiskUseByDefault` is set to `false`",
+          "source": "https://www.mongodb.com/docs/manual/reference/parameters.md#general-parameters",
+          "note": null
+        },
+        {
+          "text": "- Using `{ allowDiskUse: false }` to prohibit writing temporary files out to disk when `allowDiskUseByDefault` is set to `true`",
+          "source": "https://www.mongodb.com/docs/manual/reference/parameters.md#general-parameters",
+          "note": null
+        },
+        {
+          "text": "Then the second [`$skip`](https://www.mongodb.com/docs/manual/reference/operator/aggregation/skip.md#mongodb-pipeline-pipe.-skip) stage can coalesce into the first [`$skip`](https://www.mongodb.com/docs/manual/reference/operator/aggregation/skip.md#mongodb-pipeline-pipe.-skip) stage and result in a single [`$skip`](https://www.mongodb.com/docs/manual/reference/operator/aggregation/skip.md#mongodb-pipeline-pipe.-skip) stage where the skip amount `7` is the sum of the two initial limits `5` and `2`.",
+          "source": "https://www.mongodb.com/docs/manual/core/aggregation-pipeline-optimization.md#skip-skip-coalescence",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "How-to and procedures",
+      "facts": [
+        {
+          "text": "To check if MongoDB must perform an in-memory sort, append [`cursor.explain()`](https://www.mongodb.com/docs/manual/reference/method/cursor.explain.md#mongodb-method-cursor.explain) to the query and check the [explain results](https://www.mongodb.com/docs/manual/reference/explain-results.md#std-label-explain-results). If the query plan contains a `SORT` stage, then MongoDB must perform an in-memory sort operation.",
+          "source": "https://www.mongodb.com/docs/manual/reference/method/cursor.sort.md#sort-and-index-use",
+          "note": null
+        },
+        {
+          "text": "To avoid an in-memory sort, place the range filter after the sort predicate. For more information on in-memory sorts, see cursor.allowDiskUse().",
+          "source": "https://www.mongodb.com/docs/manual/tutorial/equality-sort-range-rule/",
+          "note": null
+        },
+        {
+          "text": "To avoid an in-memory sort, place the range filter after the sort predicate. For more information on in-memory sorts, see [`cursor.allowDiskUse()`.](https://www.mongodb.com/docs/manual/reference/method/cursor.allowdiskuse.md#mongodb-method-cursor.allowDiskUse)",
+          "source": "https://www.mongodb.com/docs/manual/tutorial/equality-sort-range-guideline.md#range",
+          "note": null
+        },
+        {
+          "text": "Check for a blocking sort with explain(): a SORT stage in the plan means a blocking sort; no SORT stage means the index supplies the order. Use hint() when testing candidate indexes.",
+          "source": "https://www.mongodb.com/docs/manual/tutorial/equality-sort-range-guideline/",
+          "note": null
+        },
+        {
+          "text": "To see full aggregation examples that use the [`$skip`](https://www.mongodb.com/docs/manual/reference/operator/aggregation/skip.md#mongodb-pipeline-pipe.-skip) stage, see the [Complete Aggregation Pipeline Tutorials.](https://www.mongodb.com/docs/manual/tutorial/aggregation-complete-examples.md#std-label-aggregation-complete-examples)",
+          "source": "https://www.mongodb.com/docs/manual/reference/operator/aggregation/skip.md#learn-more",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Examples and snippets",
+      "facts": [
+        {
+          "text": "```javascript — `db.runCommand(` …",
+          "source": "https://www.mongodb.com/docs/manual/reference/command/find.md#syntax",
+          "note": null
+        },
+        {
+          "text": "```javascript — `db.runCommand( {` …",
+          "source": "https://www.mongodb.com/docs/manual/reference/command/aggregate.md#use-variables-in-let",
+          "note": null
+        },
+        {
+          "text": "```javascript — `db.runCommand(` …",
+          "source": "https://www.mongodb.com/docs/manual/reference/command/find.md#specify-a-sort-and-limit",
+          "note": null
+        },
+        {
+          "text": "```json — `\"_id\" : ObjectId(\"613fa06cf9521f85777d5be8\"),` …",
+          "source": "https://www.mongodb.com/docs/atlas/data-federation/query/view-query-history.md#retrieve-details-about-the-queries",
+          "note": null
+        },
+        {
+          "text": "```javascript — `\"op\" : \"command\",` …",
+          "source": "https://www.mongodb.com/docs/manual/reference/method/db.collection.aggregate.md#specify-a-comment",
+          "note": null
+        },
+        {
+          "text": "```javascript — `db.movies.aggregate( [` …",
+          "source": "https://www.mongodb.com/docs/manual/reference/operator/aggregation/merge.md#use-variables-defined-in-the-merge-stage",
+          "note": null
+        },
+        {
+          "text": "```javascript — `db.movies.aggregate( [` …",
+          "source": "https://www.mongodb.com/docs/manual/reference/operator/aggregation/merge.md#use-variables-defined-in-the-aggregate-command",
+          "note": null
+        },
+        {
+          "text": "```javascript — `db.movies.aggregate( [` …",
+          "source": "https://www.mongodb.com/docs/manual/reference/operator/aggregation/merge.md#use-variables-defined-in-the-merge-stage-and-aggregate-command",
+          "note": null
+        },
+        {
+          "text": "```javascript — `db.movies.aggregate( [` …",
+          "source": "https://www.mongodb.com/docs/manual/reference/operator/aggregation/project.md#suppress-id-field-in-the-output-documents",
+          "note": null
+        },
+        {
+          "text": "```javascript — `db.movies.aggregate( [` …",
+          "source": "https://www.mongodb.com/docs/manual/reference/operator/aggregation/project.md#conditionally-exclude-fields",
+          "note": null
+        },
+        {
+          "text": "```javascript — `db.places.aggregate([` …",
+          "source": "https://www.mongodb.com/docs/manual/reference/operator/aggregation/geoNear.md#specify-which-geospatial-index-to-use",
+          "note": null
+        },
+        {
+          "text": "```javascript — `db.movies.aggregate(` …",
+          "source": "https://www.mongodb.com/docs/manual/reference/method/db.collection.aggregate.md#use-variables-in-let",
+          "note": null
+        },
+        {
+          "text": "```javascript — `function printStudents(pageNumber, nPerPage) {` …",
+          "source": "https://www.mongodb.com/docs/manual/reference/method/cursor.skip.md#using-skip",
+          "note": null
+        },
+        {
+          "text": "```javascript — `function printStudents(startValue, nPerPage) {` …",
+          "source": "https://www.mongodb.com/docs/manual/reference/method/cursor.skip.md#descending-order",
+          "note": null
+        },
+        {
+          "text": "```javascript — `function printStudents(startValue, nPerPage) {` …",
+          "source": "https://www.mongodb.com/docs/manual/reference/method/cursor.skip.md#ascending-order",
+          "note": null
+        },
+        {
+          "text": "```javascript — `\"$sort\" : {` …",
+          "source": "https://www.mongodb.com/docs/manual/core/aggregation-pipeline-optimization.md#sort-limit-coalescence",
+          "note": null
+        },
+        {
+          "text": "```javascript — `db.users.find(` …",
+          "source": "https://www.mongodb.com/docs/manual/reference/method/db.collection.find.md#allowdiskuse-with-options",
+          "note": null
+        },
+        {
+          "text": "```javascript — `db.sensors.find({\"sensor-location\" : \"Unit 12\"}).` …",
+          "source": "https://www.mongodb.com/docs/manual/reference/method/cursor.allowDiskUse.md#example",
+          "note": null
+        },
+        {
+          "text": "```javascript — `{ $skip: <positive 64-bit integer> }` …",
+          "source": "https://www.mongodb.com/docs/manual/reference/operator/aggregation/skip.md#definition",
+          "note": null
+        },
+        {
+          "text": "```javascript — `db.article.aggregate([` …",
+          "source": "https://www.mongodb.com/docs/manual/reference/operator/aggregation/skip.md#mongodb-shell",
+          "note": null
+        },
+        {
+          "text": "```javascript — `db.article.aggregate(` …",
+          "source": "https://www.mongodb.com/docs/compass/query/limit.md#how-does-the-compass-query-compare-to-mongodb-and-sql-queries",
+          "note": null
+        },
+        {
+          "text": "```javascript — `$limit : 10` …",
+          "source": "https://www.mongodb.com/docs/compass/query/limit.md#how-does-the-compass-query-compare-to-mongodb-and-sql-queries",
+          "note": null
+        },
+        {
+          "text": "```javascript — `db.movieComments.aggregate( [` …",
+          "source": "https://www.mongodb.com/docs/manual/core/views/join-collections-with-view.md#query-the-view",
+          "note": null
+        },
+        {
+          "text": "```javascript — `{ $sort: { age : -1 } },` …",
+          "source": "https://www.mongodb.com/docs/manual/core/aggregation-pipeline-optimization.md#project-unset-skip-sequence-optimization",
+          "note": null
+        },
+        {
+          "text": "```javascript — `{ $sort : { age : -1 } },` …",
+          "source": "https://www.mongodb.com/docs/manual/core/aggregation-pipeline-optimization.md#sort-limit-coalescence",
+          "note": null
+        },
+        {
+          "text": "```javascript — `{ $limit: 100 },` …",
+          "source": "https://www.mongodb.com/docs/manual/core/aggregation-pipeline-optimization.md#limit-limit-coalescence",
+          "note": null
+        },
+        {
+          "text": "```javascript — `{ $skip: 5 },` …",
+          "source": "https://www.mongodb.com/docs/manual/core/aggregation-pipeline-optimization.md#skip-skip-coalescence",
+          "note": null
+        },
+        {
+          "text": "```javascript — `{ $skip: 7 }` …",
+          "source": "https://www.mongodb.com/docs/manual/core/aggregation-pipeline-optimization.md#skip-skip-coalescence",
+          "note": null
+        },
+        {
+          "text": "```javascript — `{ $sort: { age : -1 } },` …",
+          "source": "https://www.mongodb.com/docs/manual/core/aggregation-pipeline-optimization.md#sort-skip-limit-sequence",
+          "note": null
+        },
+        {
+          "text": "```javascript — `\"$sort\" : {` …",
+          "source": "https://www.mongodb.com/docs/manual/core/aggregation-pipeline-optimization.md#sort-skip-limit-sequence",
+          "note": null
+        },
+        {
+          "text": "```javascript — `db.movies.aggregate(` …",
+          "source": "https://www.mongodb.com/docs/manual/reference/method/db.collection.aggregate.md#group-by-and-calculate-a-sum",
+          "note": null
+        },
+        {
+          "text": "```javascript — `db.movies.aggregate(` …",
+          "source": "https://www.mongodb.com/docs/manual/reference/method/db.collection.aggregate.md#specify-a-comment",
+          "note": null
+        },
+        {
+          "text": "```javascript — `db.images.aggregate([` …",
+          "source": "https://www.mongodb.com/docs/manual/reference/operator/aggregation/binarySize.md#find-largest-binary-data",
+          "note": null
+        },
+        {
+          "text": "```javascript — `db.employees.aggregate([` …",
+          "source": "https://www.mongodb.com/docs/manual/reference/operator/aggregation/bsonSize.md#return-document-with-largest-specified-field",
+          "note": null
+        },
+        {
+          "text": "```javascript — `{ $limit: <positive 64-bit integer> }` …",
+          "source": "https://www.mongodb.com/docs/manual/reference/operator/aggregation/limit.md#syntax",
+          "note": null
+        },
+        {
+          "text": "```javascript — `db.movies.aggregate([` …",
+          "source": "https://www.mongodb.com/docs/manual/reference/operator/aggregation/limit.md#mongodb-shell",
+          "note": null
+        },
+        {
+          "text": "```javascript — `db.article.aggregate(` …",
+          "source": "https://www.mongodb.com/docs/compass/query/skip.md#how-does-the-compass-query-compare-to-mongodb-and-sql-queries",
+          "note": null
+        },
+        {
+          "text": "```javascript — `$skip : 435` …",
+          "source": "https://www.mongodb.com/docs/compass/query/skip.md#how-does-the-compass-query-compare-to-mongodb-and-sql-queries",
+          "note": null
+        },
+        {
+          "text": "```javascript — `db.movies.aggregate( [` …",
+          "source": "https://www.mongodb.com/docs/manual/reference/operator/aggregation/project.md#include-specific-fields-in-output-documents",
+          "note": null
+        },
+        {
+          "text": "```javascript — `db.movies.aggregate( [` …",
+          "source": "https://www.mongodb.com/docs/manual/reference/operator/aggregation/project.md#exclude-fields-from-output-documents",
+          "note": null
+        },
+        {
+          "text": "```javascript — `db.movies.aggregate( [` …",
+          "source": "https://www.mongodb.com/docs/manual/reference/operator/aggregation/project.md#exclude-fields-from-embedded-documents",
+          "note": null
+        },
+        {
+          "text": "```javascript — `db.movies.aggregate( [` …",
+          "source": "https://www.mongodb.com/docs/manual/reference/operator/aggregation/project.md#include-specific-fields-from-embedded-documents",
+          "note": null
+        },
+        {
+          "text": "```javascript — `db.movies.aggregate( [` …",
+          "source": "https://www.mongodb.com/docs/manual/reference/operator/aggregation/project.md#include-computed-fields",
+          "note": null
+        },
+        {
+          "text": "```javascript — `db.movies.aggregate( [` …",
+          "source": "https://www.mongodb.com/docs/manual/reference/operator/aggregation/project.md#project-new-array-fields",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Measurements and reference values",
+      "facts": [
+        {
+          "text": "allowDiskUse has no effect on sorts answered by an index, or on blocking sorts that fit under 100 MB.",
+          "source": "https://www.mongodb.com/docs/manual/reference/method/cursor.allowDiskUse/",
+          "note": null
+        },
+        {
+          "text": "Tencent Cloud reports that placing a range field ahead of the sort field forced an in-memory sort, and that reordering to ESR cut an order query from second-level latency to about 10 ms and a report from timeout to 200 ms. These are single-vendor anecdotes, not benchmarks.",
+          "source": "https://intl.cloud.tencent.com/document/product/240/80772",
+          "note": null
+        },
+        {
+          "text": "| **Instance RAM** | **Comparable Tier** | **maxIndexBuildMemoryUsageMegabytes Default** | | --- | --- | --- | | 256GB+ | M200+ | 2048 MB | | 128GB - 256GB | M80-M140 | 1024 MB | | 32GB - 128GB | M50-M60 | 512 MB | | 16GB | M40 | 400 MB | | 8GB | M30 | 250 MB | | 2GB - 4GB | M10-M20 | 100 MB |",
+          "source": "https://www.mongodb.com/docs/manual/reference/parameters.md#general-parameters",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Problems, failure modes and limitations",
+      "facts": [
+        {
+          "text": "| **MongoDB Version** | **Changes** | | --- | --- | | 6.1 | Slow operation log messages include [cache refresh time fields.](https://www.mongodb.com/docs/manual/reference/log-messages.md#std-label-log-messages-cache-refresh-times) | | 6.2 | Slow operation log messages include a `queryFramework` field that indicates which query engine executed the query: `queryFramework: \"classic\"` indicates that the classic engine executed the query.; `queryFramework: \"sbe\"` indicates that the slot-based query execution engine executed the query. | | 6.3 | Slow operation log messages and [database profiler](ht",
+          "source": "https://www.mongodb.com/docs/manual/reference/log-messages.md#version-specific-changes",
+          "note": null
+        },
+        {
+          "text": "Sort and limit behave differently in the router. Unsorted results come from a round-robin over shard cursors. With limit(), mongos passes the limit to each shard and re-applies it to the merged result. With skip(), mongos cannot push the skip down: it passes limit+skip to the shards, then skips while assembling results. Deep skip on a sharded collection therefore costs more.",
+          "source": "https://www.mongodb.com/docs/manual/core/sharded-cluster-query-router/",
+          "note": null
+        },
+        {
+          "text": "ESR classification: $ne, $nin and $regex are range operators, not equality. $in alone is equality. With a sort, $in under 201 elements expands and merges via a SORT_MERGE stage (acts like equality); at 201 or more it behaves like a range and later index keys cannot supply the sort. The 201 threshold is documented as not guaranteed across versions.",
+          "source": "https://www.mongodb.com/docs/manual/tutorial/equality-sort-range-guideline/",
+          "note": null
+        },
+        {
+          "text": "You can't configure the threshold that [`$sample`](https://www.mongodb.com/docs/manual/reference/operator/aggregation/sample.md#mongodb-pipeline-pipe.-sample) uses to determine when to scan the entire collection. The threshold is 5%. If the size is greater than 5% of the total number of documents in the collection, [`$sample`](https://www.mongodb.com/docs/manual/reference/operator/aggregation/sample.md#mongodb-pipeline-pipe.-sample) performs a [top-k](https://www.mongodb.com/docs/manual/reference/method/cursor.sort.md#std-label-sort-limit-results) sort by a generated random value. The top-k so",
+          "source": "https://www.mongodb.com/docs/manual/reference/operator/aggregation/sample.md#pseudo-random-cursor-behavior",
+          "note": null
+        },
+        {
+          "text": "Keyset pagination cannot jump to an arbitrary page, since reaching page N generally means visiting earlier pages, and it does not easily return total counts. It suits infinite scroll and next/previous navigation. Skip-limit suits shallow paging, small datasets and jump-to-page UIs.",
+          "source": "https://blog.openreplay.com/pagination-patterns-mongodb/",
+          "note": null
+        },
+        {
+          "text": "| Field | Type | Literal or Normalized | | --- | --- | --- | | `key.queryShape.filter` | Document | Normalized | | `key.queryShape.sort` | Document | Literal | | `key.queryShape.projection` | Document | Normalized | | `key.queryShape.skip` | Integer | Normalized | | `key.queryShape.limit` | Integer | Normalized | | `key.queryShape.singleBatch` | Boolean | Literal | | `key.queryShape.max` | Document | Normalized | | `key.queryShape.min` | Document | Normalized | | `key.queryShape.returnKey` | Boolean | Literal | | `key.queryShape.showRecordId` | Boolean | Literal | | `key.queryShape.tailable` |",
+          "source": "https://www.mongodb.com/docs/manual/reference/operator/aggregation/queryStats.md#find-command-query-shape",
+          "note": null
+        },
+        {
+          "text": "To use an index for string sorting, the operation must specify the same collation as the index; a different collation means the index cannot supply the string order and a blocking sort results.",
+          "source": "https://www.mongodb.com/docs/manual/tutorial/sort-results-with-indexes/",
+          "note": null
+        },
+        {
+          "text": "| Prompt | Response | | --- | --- | | `Count the movies that have a release year of 1999` | `[ { $match: { year: 1999 }, }, { $count: \"total_movies\", } ]` | | `Which comedy genre movie has the most awards?` | `[ { $match: { genres: \"Comedy\" } }, { $sort: { \"awards.wins\": -1, \"awards.nominations\": -1 } }, { $limit: 1 }, { $project: { _id: 0, title: 1, \"awards.wins\": 1, \"awards.nominations\": 1 } } ]` | | `How many movies have a imdb.rating > 4?` | `[ { $match: { \"imdb.rating\": { $gt: 4 } } }, { $group: { _id: null, count: { $sum: 1 } } } ]` |",
+          "source": "https://www.mongodb.com/docs/compass/query-with-natural-language/prompt-natural-language-aggregation.md#examples",
+          "note": null
+        },
+        {
+          "text": "A count of the number of documents that match the [`db.collection.find()`](https://www.mongodb.com/docs/manual/reference/method/db.collection.find.md#mongodb-method-db.collection.find) query after applying any [`cursor.skip()`](https://www.mongodb.com/docs/manual/reference/method/cursor.skip.md#mongodb-method-cursor.skip) and [`cursor.limit()`](https://www.mongodb.com/docs/manual/reference/method/cursor.limit.md#mongodb-method-cursor.limit) methods.",
+          "source": "https://www.mongodb.com/docs/manual/reference/method/cursor.size.md",
+          "note": null
+        },
+        {
+          "text": "If the query limits the size of the result set using the limit() cursor method, the mongos instance passes that limit to the shards and then re-applies the limit to the result before returning the result to the client.",
+          "source": "https://www.mongodb.com/docs/manual/core/sharded-cluster-query-router/",
+          "note": null
+        },
+        {
+          "text": "If the query specifies a number of records to skip using the skip() cursor method, the mongos cannot pass the skip to the shards, but rather retrieves unskipped results from the shards and skips the appropriate number of documents when assembling the complete result.",
+          "source": "https://www.mongodb.com/docs/manual/core/sharded-cluster-query-router/",
+          "note": null
+        },
+        {
+          "text": "| Parameter | Type | Description | | --- | --- | --- | | `applySkipLimit` | boolean | Optional. [`mongosh`](https://www.mongodb.com/docs/mongodb-shell.md#mongodb-binary-bin.mongosh) ignores any value you set for this option. The value defaults to `true`. The option specifies whether to consider the effects of the [`cursor.skip()`](https://www.mongodb.com/docs/manual/reference/method/cursor.skip.md#mongodb-method-cursor.skip) and [`cursor.limit()`](https://www.mongodb.com/docs/manual/reference/method/cursor.limit.md#mongodb-method-cursor.limit) methods in the count. By default, the [`count()`](",
+          "source": "https://www.mongodb.com/docs/manual/reference/method/cursor.count.md#definition",
+          "note": null
+        },
+        {
+          "text": "When used in conjunction with a [`limit()`](https://www.mongodb.com/docs/manual/reference/method/cursor.limit.md#mongodb-method-cursor.limit), the [`mongos`](https://www.mongodb.com/docs/manual/reference/program/mongos.md#mongodb-binary-bin.mongos) passes the *limit* plus the value of the [`skip()`](https://www.mongodb.com/docs/manual/reference/method/cursor.skip.md#mongodb-method-cursor.skip) to the shards to improve the efficiency of these operations.",
+          "source": "https://www.mongodb.com/docs/manual/core/sharded-cluster-query-router.md#skips",
+          "note": null
+        },
+        {
+          "text": "- Limit the amount of data to sort by using [`cursor.limit()`](https://www.mongodb.com/docs/manual/reference/method/cursor.limit.md#mongodb-method-cursor.limit) with [`cursor.sort()`](https://www.mongodb.com/docs/manual/reference/method/cursor.sort.md#mongodb-method-cursor.sort). See [Limit Results](https://www.mongodb.com/docs/manual/reference/method/cursor.sort.md#std-label-sort-limit-results) for more information and examples.",
+          "source": "https://www.mongodb.com/docs/manual/reference/method/cursor.sort.md#sort-and-index-use",
+          "note": null
+        },
+        {
+          "text": "If MongoDB cannot obtain the sort order with an index scan, then MongoDB uses a top-k sort algorithm. This algorithm buffers the first `k` results (or last, depending on the sort order) seen so far by the underlying index or collection access. If the memory footprint of these `k` results exceeds 100 megabytes, MongoDB automatically writes temporary files to disk unless the query specifies [`cursor.allowDiskUse()`](https://www.mongodb.com/docs/manual/reference/method/cursor.allowdiskuse.md#mongodb-method-cursor.allowDiskUse) with a value of `false` (in which case, the query fails).",
+          "source": "https://www.mongodb.com/docs/manual/reference/method/cursor.sort.md#limit-results",
+          "note": null
+        },
+        {
+          "text": "Since reading.timestamp is not included in an index, MongoDB must perform an in-memory sort operation to return results in the requested sort order. By specifying cursor.allowDiskUse(false), MongoDB cannot process the sort operation if it requires more than 100 megabytes of system memory. If the operation requires more than 100 megabytes of system memory, MongoDB would return an error.",
+          "source": "https://www.mongodb.com/docs/manual/reference/method/cursor.allowDiskUse/",
+          "note": null
+        },
+        {
+          "text": "ESR guideline: $in used alone is an equality operator (a series of equality matches). With .sort(), an $in of fewer than 201 elements is expanded and merged in index sort order by a SORT_MERGE stage, behaving like equality; with 201 or more elements it is ordered like a range, subsequent index fields cannot be used for sorting, and it behaves like a range predicate.",
+          "source": "https://www.mongodb.com/docs/manual/tutorial/equality-sort-range-guideline/",
+          "note": null
+        },
+        {
+          "text": "The optimization still applies when `allowDiskUse` is `true` and the `n` items exceed the [aggregation memory limit.](https://www.mongodb.com/docs/manual/core/aggregation-pipeline-limits.md#std-label-agg-memory-restrictions)",
+          "source": "https://www.mongodb.com/docs/manual/core/aggregation-pipeline-optimization.md#sort-limit-coalescence",
+          "note": null
+        },
+        {
+          "text": "A $limit caps the final output across shards, not per shard. A forum participant states mongos can still receive up to N documents from each shard (up to shards*N total) because it cannot know the global top N before merging sorted per-shard streams. The thread has no accepted answer; the two repliers differ on intermediate transfer.",
+          "source": "https://www.mongodb.com/community/forums/t/limit-in-a-scatter-and-gather-query-to-a-sharded-collection/237373",
+          "note": null
+        },
+        {
+          "text": "You can't configure the threshold that $sample uses to determine when to scan the entire collection. The threshold is 5%. If the size is greater than 5% of the total number of documents in the collection, $sample performs a top-k sort by a generated random value. The top-k sort could spill to disk if the sample documents are larger than 100MB.",
+          "source": "https://www.mongodb.com/docs/manual/reference/operator/aggregation/sample/",
+          "note": null
+        },
+        {
+          "text": "When a [`$sort`](https://www.mongodb.com/docs/manual/reference/operator/aggregation/sort.md#mongodb-pipeline-pipe.-sort) precedes a [`$limit`](https://www.mongodb.com/docs/manual/reference/operator/aggregation/limit.md#mongodb-pipeline-pipe.-limit) and there are no intervening stages that modify the number of documents, the optimizer can coalesce the [`$limit`](https://www.mongodb.com/docs/manual/reference/operator/aggregation/limit.md#mongodb-pipeline-pipe.-limit) into the [`$sort`](https://www.mongodb.com/docs/manual/reference/operator/aggregation/sort.md#mongodb-pipeline-pipe.-sort). This a",
+          "source": "https://www.mongodb.com/docs/manual/reference/operator/aggregation/sort.md#sort-and-limit-memory-optimization",
+          "note": null
+        },
+        {
+          "text": "Use [`allowDiskUse()`](https://www.mongodb.com/docs/manual/reference/method/cursor.allowdiskuse.md#mongodb-method-cursor.allowDiskUse) to either allow or prohibit writing temporary files on disk when a pipeline stage exceeds the 100 megabyte limit. Starting in MongoDB 6.0, operations that require greater than 100 megabytes of memory automatically write data to temporary files by default.",
+          "source": "https://www.mongodb.com/docs/manual/reference/method/cursor.allowDiskUse.md#definition",
+          "note": null
+        },
+        {
+          "text": "If MongoDB cannot use an index to obtain the sort order, the plan contains an in-memory (blocking) SORT stage; a sort served by an index has no SORT stage and generally performs better.",
+          "source": "https://www.mongodb.com/docs/manual/tutorial/sort-results-with-indexes/",
+          "note": null
+        },
+        {
+          "text": "When you chain [`skip()`](https://www.mongodb.com/docs/manual/reference/method/cursor.skip.md#mongodb-method-cursor.skip) and [`limit()`](https://www.mongodb.com/docs/manual/reference/method/cursor.limit.md#mongodb-method-cursor.limit), the method chaining order does not affect the results. The server always applies the skip operation based on the sort order before it applies the limit on how many documents to return.",
+          "source": "https://www.mongodb.com/docs/manual/reference/method/cursor.skip.md#using-skip-with-limit",
+          "note": null
+        },
+        {
+          "text": "The following code example shows different chaining orders for [`skip()`](https://www.mongodb.com/docs/manual/reference/method/cursor.skip.md#mongodb-method-cursor.skip) and [`limit()`](https://www.mongodb.com/docs/manual/reference/method/cursor.limit.md#mongodb-method-cursor.limit) that always produce the same query results for the same data set:",
+          "source": "https://www.mongodb.com/docs/manual/reference/method/cursor.skip.md#using-skip-with-limit",
+          "note": null
+        },
+        {
+          "text": "You can use [`sort()`](https://www.mongodb.com/docs/manual/reference/method/cursor.sort.md#mongodb-method-cursor.sort) in conjunction with [`limit()`](https://www.mongodb.com/docs/manual/reference/method/cursor.limit.md#mongodb-method-cursor.limit) to return the first (in terms of the sort order) `k` documents, where `k` is the specified limit.",
+          "source": "https://www.mongodb.com/docs/manual/reference/method/cursor.sort.md#limit-results",
+          "note": null
+        },
+        {
+          "text": "Use [`limit()`](https://www.mongodb.com/docs/manual/reference/method/cursor.limit.md#mongodb-method-cursor.limit) with [`sort()`](https://www.mongodb.com/docs/manual/reference/method/cursor.sort.md#mongodb-method-cursor.sort) to return the top matching documents.",
+          "source": "https://www.mongodb.com/docs/manual/reference/operator/query/text.md#return-top-2-matching-documents",
+          "note": null
+        },
+        {
+          "text": "Use the [`limit()`](https://www.mongodb.com/docs/manual/reference/method/cursor.limit.md#mongodb-method-cursor.limit) method on a cursor to specify the maximum number of documents the cursor will return. [`limit()`](https://www.mongodb.com/docs/manual/reference/method/cursor.limit.md#mongodb-method-cursor.limit) is analogous to the `LIMIT` statement in a SQL database.",
+          "source": "https://www.mongodb.com/docs/manual/reference/method/cursor.limit.md#definition",
+          "note": null
+        },
+        {
+          "text": "You must apply [`limit()`](https://www.mongodb.com/docs/manual/reference/method/cursor.limit.md#mongodb-method-cursor.limit) to the cursor before retrieving any documents from the database.",
+          "source": "https://www.mongodb.com/docs/manual/reference/method/cursor.limit.md#definition",
+          "note": null
+        },
+        {
+          "text": "Use [`limit()`](https://www.mongodb.com/docs/manual/reference/method/cursor.limit.md#mongodb-method-cursor.limit) to maximize performance and prevent MongoDB from returning more results than required for processing.",
+          "source": "https://www.mongodb.com/docs/manual/reference/method/cursor.limit.md#definition",
+          "note": null
+        },
+        {
+          "text": "The [`limit()`](https://www.mongodb.com/docs/manual/reference/method/cursor.limit.md#mongodb-method-cursor.limit) method has the following prototype form:",
+          "source": "https://www.mongodb.com/docs/manual/reference/method/cursor.limit.md#definition",
+          "note": null
+        },
+        {
+          "text": "The behavior of [`limit()`](https://www.mongodb.com/docs/manual/reference/method/cursor.limit.md#mongodb-method-cursor.limit) is undefined for values less than -2 31 and greater than 2 31.",
+          "source": "https://www.mongodb.com/docs/manual/reference/method/cursor.limit.md#supported-values",
+          "note": null
+        },
+        {
+          "text": "You must specify a numeric value for [`limit()`.](https://www.mongodb.com/docs/manual/reference/method/cursor.limit.md#mongodb-method-cursor.limit)",
+          "source": "https://www.mongodb.com/docs/manual/reference/method/cursor.limit.md#supported-values",
+          "note": null
+        },
+        {
+          "text": "A [`limit()`](https://www.mongodb.com/docs/manual/reference/method/cursor.limit.md#mongodb-method-cursor.limit) value of 0 (i.e. [`.limit(0)`](https://www.mongodb.com/docs/manual/reference/method/cursor.limit.md#mongodb-method-cursor.limit)) is equivalent to setting no limit.",
+          "source": "https://www.mongodb.com/docs/manual/reference/method/cursor.limit.md#zero-value",
+          "note": null
+        },
+        {
+          "text": "The [`limit()`](https://www.mongodb.com/docs/manual/reference/method/cursor.limit.md#mongodb-method-cursor.limit) method limits the number of documents in the result set. The following operation returns at most `5` documents in the [bios collection:](https://www.mongodb.com/docs/manual/reference/bios-example-collection.md#std-label-bios-example-collection)",
+          "source": "https://www.mongodb.com/docs/manual/reference/method/db.collection.find.md#limit-the-number-of-documents-to-return",
+          "note": null
+        },
+        {
+          "text": "The following statements chain cursor methods [`limit()`](https://www.mongodb.com/docs/manual/reference/method/cursor.limit.md#mongodb-method-cursor.limit) and [`sort()`:](https://www.mongodb.com/docs/manual/reference/method/cursor.sort.md#mongodb-method-cursor.sort)",
+          "source": "https://www.mongodb.com/docs/manual/reference/method/db.collection.find.md#combine-cursor-methods",
+          "note": null
+        },
+        {
+          "text": "The two statements are equivalent; i.e. the order in which you chain the [`limit()`](https://www.mongodb.com/docs/manual/reference/method/cursor.limit.md#mongodb-method-cursor.limit) and the [`sort()`](https://www.mongodb.com/docs/manual/reference/method/cursor.sort.md#mongodb-method-cursor.sort) methods is not significant. Both statements return the first five documents, as determined by the ascending sort order on 'name'.",
+          "source": "https://www.mongodb.com/docs/manual/reference/method/db.collection.find.md#combine-cursor-methods",
+          "note": null
+        },
+        {
+          "text": "MongoDB cursors return results in batches. If you know the number of results you want, specify that value in the limit() method. Limiting results reduces the demand on network resources.",
+          "source": "https://www.mongodb.com/docs/manual/core/query-optimization/",
+          "note": null
+        },
+        {
+          "text": "For more information on limiting results, see [`limit()`.](https://www.mongodb.com/docs/manual/reference/method/cursor.limit.md#mongodb-method-cursor.limit)",
+          "source": "https://www.mongodb.com/docs/manual/core/query-optimization.md#limit-query-results",
+          "note": null
+        },
+        {
+          "text": "When used in conjunction with a limit(), the mongos passes the limit plus the value of the skip() to the shards to improve the efficiency of these operations.",
+          "source": "https://www.mongodb.com/docs/manual/core/sharded-cluster-query-router/",
+          "note": null
+        },
+        {
+          "text": "MongoDB orders the results by their distance from `[ -74 , 40 ]`. The operation returns the first 100 results, unless you modify the query with the [`cursor.limit()`](https://www.mongodb.com/docs/manual/reference/method/cursor.limit.md#mongodb-method-cursor.limit) method.",
+          "source": "https://www.mongodb.com/docs/manual/reference/operator/query/maxDistance.md#example",
+          "note": null
+        },
+        {
+          "text": "- Use the [`$match`](https://www.mongodb.com/docs/manual/reference/operator/aggregation/match.md#mongodb-pipeline-pipe.-match), [`$limit`](https://www.mongodb.com/docs/manual/reference/operator/aggregation/limit.md#mongodb-pipeline-pipe.-limit), and [`$skip`](https://www.mongodb.com/docs/manual/reference/operator/aggregation/skip.md#mongodb-pipeline-pipe.-skip) stages to restrict the documents that enter the pipeline.",
+          "source": "https://www.mongodb.com/docs/manual/core/aggregation-pipeline-optimization.md#document-filters",
+          "note": null
+        },
+        {
+          "text": "If MongoDB cannot use an index or indexes to obtain the sort order, MongoDB must perform an in-memory sort operation on the data.",
+          "source": "https://www.mongodb.com/docs/manual/reference/method/cursor.sort.md#sort-and-index-use",
+          "note": null
+        },
+        {
+          "text": "If MongoDB cannot use an index or indexes to obtain the sort order, the results include a `SORT` stage indicating an in-memory sort operation. If the explain plan does not contain an explicit `SORT` stage, then MongoDB used an index to obtain the sort order.",
+          "source": "https://www.mongodb.com/docs/manual/reference/explain-results.md#sort-stage",
+          "note": null
+        },
+        {
+          "text": "Starting in MongoDB 6.0, a pipeline stage or sort needing more than 100 MB of memory writes temporary files to disk by default; passing allowDiskUse: false restores the error-on-overflow behavior. Before 6.0 the sort failed unless allowDiskUse was set.",
+          "source": "https://www.mongodb.com/docs/manual/reference/method/cursor.allowDiskUse/",
+          "note": null
+        },
+        {
+          "text": "This allows the sort operation to only maintain the top `n` results as it progresses, where `n` is the specified limit, and MongoDB only needs to store `n` items in memory . See [$sort Operator and Memory](https://www.mongodb.com/docs/manual/reference/operator/aggregation/sort.md#std-label-sort-and-memory) for more information.",
+          "source": "https://www.mongodb.com/docs/manual/core/aggregation-pipeline-optimization.md#sort-limit-coalescence",
+          "note": null
+        },
+        {
+          "text": "The optimizer performs [`$sort` + `$limit` Coalescence](https://www.mongodb.com/docs/manual/core/aggregation-pipeline-optimization.md#std-label-agg-sort-limit-coalescence) to transforms the sequence to the following:",
+          "source": "https://www.mongodb.com/docs/manual/core/aggregation-pipeline-optimization.md#sort-skip-limit-sequence",
+          "note": null
+        },
+        {
+          "text": "If the [`$group`](https://www.mongodb.com/docs/manual/reference/operator/aggregation/group.md#mongodb-pipeline-pipe.-group) stage exceeds 100 megabytes of RAM, MongoDB writes data to temporary files. However, if the [allowDiskUse](https://www.mongodb.com/docs/manual/reference/command/aggregate.md#std-label-aggregate-cmd-allowDiskUse) option is set to `false`, `$group` returns an error. For more information, refer to [aggregation pipeline limits.](https://www.mongodb.com/docs/manual/core/aggregation-pipeline-limits.md#std-label-agg-pipeline-limits)",
+          "source": "https://www.mongodb.com/docs/manual/reference/operator/aggregation/group.md#group-and-memory-restrictions",
+          "note": null
+        },
+        {
+          "text": "If the [`$graphLookup`](https://www.mongodb.com/docs/manual/reference/operator/aggregation/graphlookup.md#mongodb-pipeline-pipe.-graphLookup) stage exceeds 100 megabytes of memory and the `allowDiskUse` option is set to `false`, [`$graphLookup`](https://www.mongodb.com/docs/manual/reference/operator/aggregation/graphlookup.md#mongodb-pipeline-pipe.-graphLookup) returns an error.",
+          "source": "https://www.mongodb.com/docs/manual/reference/operator/aggregation/graphLookup.md#memory",
+          "note": null
+        },
+        {
+          "text": "Aggregation pipelines which call `$bottom` are subject to the [100 MB limit](https://www.mongodb.com/docs/manual/core/aggregation-pipeline-limits.md#std-label-agg-memory-restrictions). If this limit is exceeded for an individual group, the aggregation fails with an error.",
+          "source": "https://www.mongodb.com/docs/manual/reference/operator/aggregation/bottom.md#memory-limit-considerations",
+          "note": null
+        },
+        {
+          "text": "Starting in MongoDB 8.3, the query engine limits the `TextOr` stage memory usage to 100 megabytes. The `TextOr` stage processes [`$text`](https://www.mongodb.com/docs/manual/reference/operator/query/text.md#mongodb-query-op.-text) queries that read text score metadata. For example, `TextOr` processes queries that sort results by text score. If the `TextOr` stage exceeds this limit:",
+          "source": "https://www.mongodb.com/docs/manual/reference/operator/query/text.md#memory-limits",
+          "note": null
+        },
+        {
+          "text": "- If `allowDiskUse` is `false`, the query fails with an exceeded memory limit error.",
+          "source": "https://www.mongodb.com/docs/manual/reference/operator/query/text.md#memory-limits",
+          "note": null
+        },
+        {
+          "text": "- If [`allowDiskUseByDefault`](https://www.mongodb.com/docs/manual/reference/parameters.md#mongodb-parameter-param.allowDiskUseByDefault) is set to `false`, pipeline stages that require more than 100 megabytes of memory to execute raise an error by default. You can enable writing temporary files to disk for specific `find` or `aggregate` using the `{ allowDiskUse: true }` option.",
+          "source": "https://www.mongodb.com/docs/manual/core/aggregation-pipeline-limits.md#memory-restrictions",
+          "note": null
+        },
+        {
+          "text": "Some stages can't output any documents until they have processed all incoming documents. These pipeline stages must keep their stage output in RAM until all incoming documents are processed. As a result, these pipeline stages may require more space than the 100 MB limit.",
+          "source": "https://www.mongodb.com/docs/manual/core/aggregation-pipeline-limits.md#memory-restrictions",
+          "note": null
+        },
+        {
+          "text": "For memory-intensive expressions that the per-operation limit does not cover, MongoDB applies a limit on the maximum memory that a subset of expressions can use. The default of this limit is 100 megabytes. To change this limit, set the [`internalQueryMaxSingleExpressionMemoryUsageBytes`](https://www.mongodb.com/docs/manual/reference/parameters.md#mongodb-parameter-param.internalQueryMaxSingleExpressionMemoryUsageBytes) parameter at startup or at runtime.",
+          "source": "https://www.mongodb.com/docs/manual/core/aggregation-pipeline-limits.md#per-operation-memory-limit",
+          "note": null
+        },
+        {
+          "text": "As each stage in a `$facet` executes, the resulting document is limited to 100 megabytes. Note the [allowDiskUse](https://www.mongodb.com/docs/manual/reference/command/aggregate.md#std-label-aggregate-cmd-allowDiskUse) flag doesn't affect the 100 megabyte size limit, since `$facet` can't spill to disk.",
+          "source": "https://www.mongodb.com/docs/manual/reference/operator/aggregation/facet.md#considerations",
+          "note": null
+        },
+        {
+          "text": "The view's underlying aggregation pipeline is subject to the 100 megabyte memory limit for blocking sort and blocking group operations.",
+          "source": "https://www.mongodb.com/docs/manual/core/views.md#view-pipelines",
+          "note": null
+        },
+        {
+          "text": "The [`$bucket`](https://www.mongodb.com/docs/manual/reference/operator/aggregation/bucket.md#mongodb-pipeline-pipe.-bucket) stage has a limit of 100 megabytes of RAM. By default, if the stage exceeds this limit, [`$bucket`](https://www.mongodb.com/docs/manual/reference/operator/aggregation/bucket.md#mongodb-pipeline-pipe.-bucket) returns an error. To allow more space for stage processing, use the [allowDiskUse](https://www.mongodb.com/docs/manual/reference/command/aggregate.md#std-label-aggregate-cmd-allowDiskUse) option to enable aggregation pipeline stages to write data to temporary files.",
+          "source": "https://www.mongodb.com/docs/manual/reference/operator/aggregation/bucket.md#bucket-and-memory-restrictions",
+          "note": null
+        },
+        {
+          "text": "Sort stages, counted separately by sort type and by whether the sort has a limit.",
+          "source": "https://www.mongodb.com/docs/manual/reference/operator/aggregation/queryStats/",
+          "note": null
+        },
+        {
+          "text": "The [`$bucketAuto`](https://www.mongodb.com/docs/manual/reference/operator/aggregation/bucketauto.md#mongodb-pipeline-pipe.-bucketAuto) stage has a limit of 100 megabytes of RAM. By default, if the stage exceeds this limit, MongoDB automatically writes temporary files to disk. For details, see [`allowDiskUseByDefault`.](https://www.mongodb.com/docs/manual/reference/parameters.md#mongodb-parameter-param.allowDiskUseByDefault)",
+          "source": "https://www.mongodb.com/docs/manual/reference/operator/aggregation/bucketAuto.md#bucketauto-and-memory-restrictions",
+          "note": null
+        },
+        {
+          "text": "- A single [`$accumulator`](https://www.mongodb.com/docs/manual/reference/operator/aggregation/accumulator.md#mongodb-group-grp.-accumulator) operation exceeds its specified memory limit. If you specify the [`allowDiskUse`](https://www.mongodb.com/docs/manual/reference/method/db.collection.aggregate.md#mongodb-method-db.collection.aggregate) option, the operator stores the in-progress operation on disk and finishes the operation in memory. Once the operation finishes, the results from disk and memory are merged together using the [merge](https://www.mongodb.com/docs/manual/reference/operator/a",
+          "source": "https://www.mongodb.com/docs/manual/reference/operator/aggregation/accumulator.md#merge-two-states-with-merge",
+          "note": null
+        },
+        {
+          "text": "Slow query log messages contain new metrics if the query execution writes temporary files to disk. These metrics are prefixed by the query execution stage that caused the query to exceed the memory limit. For example, sortSpills indicates the number of times that the sort stage of query execution wrote temporary files to disk.",
+          "source": "https://www.mongodb.com/docs/manual/reference/log-messages/",
+          "note": null
+        },
+        {
+          "text": "MongoDB writes this log message only when an operation exceeds the per-operation memory limit and cannot spill to disk. If a stage that can spill to disk exceeds the limit and allowDiskUse is false, MongoDB ends the operation with the QueryExceededMemoryLimitNoDiskUseAllowed error and does not write this log message.",
+          "source": "https://www.mongodb.com/docs/manual/reference/log-messages/",
+          "note": null
+        },
+        {
+          "text": "To learn more about related pipeline stages, see the [`$limit`](https://www.mongodb.com/docs/manual/reference/operator/aggregation/limit.md#mongodb-pipeline-pipe.-limit) guide.",
+          "source": "https://www.mongodb.com/docs/manual/reference/operator/aggregation/geoNear.md#learn-more",
+          "note": null
+        },
+        {
+          "text": "Starting in MongoDB 5.0, the [`$skip`](https://www.mongodb.com/docs/manual/reference/operator/aggregation/skip.md#mongodb-pipeline-pipe.-skip) pipeline aggregation has a 64-bit integer limit. Values passed to the pipeline which exceed this limit will return a invalid argument error.",
+          "source": "https://www.mongodb.com/docs/manual/reference/operator/aggregation/skip.md#definition",
+          "note": null
+        },
+        {
+          "text": "If the results of one of your [`$sort`](https://www.mongodb.com/docs/manual/reference/operator/aggregation/sort.md#mongodb-pipeline-pipe.-sort) pipeline stages exceed the limit, consider [adding a $limit stage.](https://www.mongodb.com/docs/manual/reference/operator/aggregation/sort.md#std-label-sort-limit-sequence)",
+          "source": "https://www.mongodb.com/docs/manual/core/aggregation-pipeline-limits.md#memory-restrictions",
+          "note": null
+        },
+        {
+          "text": "- Add a [`$limit`](https://www.mongodb.com/docs/manual/reference/operator/aggregation/limit.md#mongodb-pipeline-pipe.-limit) stage after a [`$sort`](https://www.mongodb.com/docs/manual/reference/operator/aggregation/sort.md#mongodb-pipeline-pipe.-sort) stage so that the sort keeps only the documents you need. To learn more, see [$sort and $limit Memory Optimization.](https://www.mongodb.com/docs/manual/reference/operator/aggregation/sort.md#std-label-sort-limit-sequence)",
+          "source": "https://www.mongodb.com/docs/manual/core/aggregation-pipeline-limits.md#per-operation-memory-limit",
+          "note": null
+        },
+        {
+          "text": "[`$skip`](https://www.mongodb.com/docs/manual/reference/operator/aggregation/skip.md#mongodb-pipeline-pipe.-skip) corresponds to the `LIMIT ...` clause in a SQL (Structured Query Language) `SELECT` statement.",
+          "source": "https://www.mongodb.com/docs/compass/query/limit.md#how-does-the-compass-query-compare-to-mongodb-and-sql-queries",
+          "note": null
+        },
+        {
+          "text": "To learn more about related pipeline stages, see the [`$bucketAuto`](https://www.mongodb.com/docs/manual/reference/operator/aggregation/bucketauto.md#mongodb-pipeline-pipe.-bucketAuto), [`$sortByCount`](https://www.mongodb.com/docs/manual/reference/operator/aggregation/sortbycount.md#mongodb-pipeline-pipe.-sortByCount), and [`$limit`](https://www.mongodb.com/docs/manual/reference/operator/aggregation/limit.md#mongodb-pipeline-pipe.-limit) guides.",
+          "source": "https://www.mongodb.com/docs/manual/reference/operator/aggregation/facet.md#learn-more",
+          "note": null
+        },
+        {
+          "text": "When a [`$limit`](https://www.mongodb.com/docs/manual/reference/operator/aggregation/limit.md#mongodb-pipeline-pipe.-limit) immediately follows another [`$limit`](https://www.mongodb.com/docs/manual/reference/operator/aggregation/limit.md#mongodb-pipeline-pipe.-limit), the two stages can coalesce into a single [`$limit`](https://www.mongodb.com/docs/manual/reference/operator/aggregation/limit.md#mongodb-pipeline-pipe.-limit) where the limit amount is the *smaller* of the two initial limit amounts. For example, a pipeline contains the following sequence:",
+          "source": "https://www.mongodb.com/docs/manual/core/aggregation-pipeline-optimization.md#limit-limit-coalescence",
+          "note": null
+        },
+        {
+          "text": "Then the second [`$limit`](https://www.mongodb.com/docs/manual/reference/operator/aggregation/limit.md#mongodb-pipeline-pipe.-limit) stage can coalesce into the first [`$limit`](https://www.mongodb.com/docs/manual/reference/operator/aggregation/limit.md#mongodb-pipeline-pipe.-limit) stage and result in a single [`$limit`](https://www.mongodb.com/docs/manual/reference/operator/aggregation/limit.md#mongodb-pipeline-pipe.-limit) stage where the limit amount `10` is the minimum of the two initial limits `100` and `10`.",
+          "source": "https://www.mongodb.com/docs/manual/core/aggregation-pipeline-optimization.md#limit-limit-coalescence",
+          "note": null
+        },
+        {
+          "text": "A pipeline contains a sequence of [`$sort`](https://www.mongodb.com/docs/manual/reference/operator/aggregation/sort.md#mongodb-pipeline-pipe.-sort) followed by a [`$skip`](https://www.mongodb.com/docs/manual/reference/operator/aggregation/skip.md#mongodb-pipeline-pipe.-skip) followed by a [`$limit`:](https://www.mongodb.com/docs/manual/reference/operator/aggregation/limit.md#mongodb-pipeline-pipe.-limit)",
+          "source": "https://www.mongodb.com/docs/manual/core/aggregation-pipeline-optimization.md#sort-skip-limit-sequence",
+          "note": null
+        },
+        {
+          "text": "- [`$limit`](https://www.mongodb.com/docs/manual/reference/operator/aggregation/limit.md#mongodb-pipeline-pipe.-limit) restricts the output to 5 genres.",
+          "source": "https://www.mongodb.com/docs/manual/reference/operator/aggregation/first.md#examples",
+          "note": null
+        },
+        {
+          "text": "For more information on limiting results, see limit().",
+          "source": "https://www.mongodb.com/docs/manual/core/query-optimization/",
+          "note": null
+        },
+        {
+          "text": "- Uses [`$sort`](https://www.mongodb.com/docs/manual/reference/operator/aggregation/sort.md#mongodb-pipeline-pipe.-sort) and [`$limit`](https://www.mongodb.com/docs/manual/reference/operator/aggregation/limit.md#mongodb-pipeline-pipe.-limit) to show the first five genres alphabetically.",
+          "source": "https://www.mongodb.com/docs/manual/reference/operator/aggregation/bottomN.md#find-the-lowest-rated-movies-for-each-genre",
+          "note": null
+        },
+        {
+          "text": "// Stage 3: Limit the results to 3 documents { $limit: 3 },",
+          "source": "https://www.mongodb.com/docs/manual/tutorial/aggregation-examples/filtered-subset.md#steps",
+          "note": null
+        },
+        {
+          "text": "Next, create a [`$limit`](https://www.mongodb.com/docs/manual/reference/operator/aggregation/limit.md#mongodb-pipeline-pipe.-limit) stage to the pipeline to output only the first three documents in the results.",
+          "source": "https://www.mongodb.com/docs/manual/tutorial/aggregation-examples/filtered-subset.md#steps",
+          "note": null
+        },
+        {
+          "text": "```python pipeline.append({\"$limit\": 3})",
+          "source": "https://www.mongodb.com/docs/manual/tutorial/aggregation-examples/filtered-subset.md#steps",
+          "note": null
+        },
+        {
+          "text": "Next, add a [`$limit`](https://www.mongodb.com/docs/manual/reference/operator/aggregation/limit.md#mongodb-pipeline-pipe.-limit) stage to the pipeline to output only the first three documents in the results.",
+          "source": "https://www.mongodb.com/docs/manual/tutorial/aggregation-examples/filtered-subset.md#steps",
+          "note": null
+        },
+        {
+          "text": "```c \"{\", \"$limit\", BCON_INT32(3), \"}\", ```",
+          "source": "https://www.mongodb.com/docs/manual/tutorial/aggregation-examples/filtered-subset.md#steps",
+          "note": null
+        },
+        {
+          "text": "```javascript pipeline.push({ $limit: 3, });",
+          "source": "https://www.mongodb.com/docs/manual/tutorial/aggregation-examples/filtered-subset.md#steps",
+          "note": null
+        },
+        {
+          "text": "```ruby { \"$limit\": 3 }, ```",
+          "source": "https://www.mongodb.com/docs/manual/tutorial/aggregation-examples/filtered-subset.md#steps",
+          "note": null
+        },
+        {
+          "text": "```rust pipeline.push(doc! { \"$limit\": 3 }); ```",
+          "source": "https://www.mongodb.com/docs/manual/tutorial/aggregation-examples/filtered-subset.md#steps",
+          "note": null
+        },
+        {
+          "text": "| Name | Type | Required | Description | | --- | --- | --- | --- | | -c, --compact | | false | Flag that enables the compact array response structure for a json output. The --compact option returns array objects as top-level responses and allows backward compatibility for scripts based on previous CLI versions. Omitting the --compact option for a json output returns array objects within a 'results' sub-array. You must specify --output json to use this option. | | -h, --help | | false | help for list | | --limit | int | false | Number of items per results page, up to a maximum of 500. If you",
+          "source": "https://www.mongodb.com/docs/atlas/cli/current/command/atlas-alerts-settings-list.md#options",
+          "note": null
+        },
+        {
+          "text": "You can use `$limit` for deployments hosted in the following environments:",
+          "source": "https://www.mongodb.com/docs/manual/reference/operator/aggregation/limit.md#compatibility",
+          "note": null
+        },
+        {
+          "text": "The [`$limit`](https://www.mongodb.com/docs/manual/reference/operator/aggregation/limit.md#mongodb-pipeline-pipe.-limit) stage has the following prototype form:",
+          "source": "https://www.mongodb.com/docs/manual/reference/operator/aggregation/limit.md#syntax",
+          "note": null
+        },
+        {
+          "text": "[`$limit`](https://www.mongodb.com/docs/manual/reference/operator/aggregation/limit.md#mongodb-pipeline-pipe.-limit) takes a positive integer that specifies the maximum number of documents to pass along.",
+          "source": "https://www.mongodb.com/docs/manual/reference/operator/aggregation/limit.md#syntax",
+          "note": null
+        },
+        {
+          "text": "This operation returns only the first 5 documents passed to it by the pipeline. [`$limit`](https://www.mongodb.com/docs/manual/reference/operator/aggregation/limit.md#mongodb-pipeline-pipe.-limit) has no effect on the content of the documents it passes.",
+          "source": "https://www.mongodb.com/docs/manual/reference/operator/aggregation/limit.md#mongodb-shell",
+          "note": null
+        },
+        {
+          "text": "To learn how to use [`$limit`](https://www.mongodb.com/docs/manual/reference/operator/aggregation/limit.md#mongodb-pipeline-pipe.-limit) in a full example, see the [Filter Data in an Aggregation Pipeline](https://www.mongodb.com/docs/manual/tutorial/aggregation-examples/filtered-subset.md#std-label-agg-example-filter-data) tutorial.",
+          "source": "https://www.mongodb.com/docs/manual/reference/operator/aggregation/limit.md#learn-more",
+          "note": null
+        },
+        {
+          "text": "- Uses [`$limit`](https://www.mongodb.com/docs/manual/reference/operator/aggregation/limit.md#mongodb-pipeline-pipe.-limit) to return the top 5 results.",
+          "source": "https://www.mongodb.com/docs/manual/reference/operator/aggregation/stdDevPop.md#example",
+          "note": null
+        },
+        {
+          "text": "In this example, the `$lookup` stage always outputs a `product_mapping` array that contains one document. The `$set` stage after the `$lookup` stage uses `$first` to extract the document from the `product_mapping` array. If you use this pipeline in a setting where the `$lookup` stage outputs an array of more than one document, consider using an explicit `{ $limit: 1 }` stage in the `$lookup` stage.",
+          "source": "https://www.mongodb.com/docs/manual/tutorial/aggregation-examples/one-to-one-join.md#steps",
+          "note": null
+        },
+        {
+          "text": "| Name | Type | Required | Description | | --- | --- | --- | --- | | -h, --help | | false | help for list | | --limit | int | false | Number of items per results page, up to a maximum of 500. If you have more than 500 results, specify the --page option to change the results page. This value defaults to 100. | | --omitCount | | false | Flag that indicates whether the JSON response returns the total number of items (totalCount) in the JSON response. | | -o, --output | string | false | Output format. Valid values are json, json-path, go-template, or go-template-file. To see the full output, use",
+          "source": "https://www.mongodb.com/docs/atlas/cli/current/command/atlas-alerts-list.md#options",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Comparisons and alternatives",
+      "facts": [
+        {
+          "text": "| Field | Type | Description | | --- | --- | --- | | `find` | string | The name of the collection or [view](https://www.mongodb.com/docs/manual/core/views.md#std-label-views-landing-page) to query. | | `filter` | document | Optional. The query predicate. If unspecified, all documents in the collection match the predicate. | | [sort](https://www.mongodb.com/docs/manual/reference/command/find.md#std-label-find-cmd-sort) | document | Optional. The sort specification for the ordering of the results. | | `projection` | document | Optional. The [projection specification](https://www.mongodb.com/docs",
+          "source": "https://www.mongodb.com/docs/manual/reference/command/find.md#command-fields",
+          "note": null
+        },
+        {
+          "text": "| Option | Description | | --- | --- | | allowDiskUse | Whether or not pipelines that require more than 100 megabytes of memory to execute write to temporary files on disk. For details, see [`cursor.allowDiskUse()`.](https://www.mongodb.com/docs/manual/reference/method/cursor.allowdiskuse.md#mongodb-method-cursor.allowDiskUse) | | allowPartialResults | For queries against a sharded collection, allows the command (or subsequent getMore commands) to return partial results, rather than an error, if one or more queried shards are unavailable. | | awaitData | If the cursor is a a tailable-await cur",
+          "source": "https://www.mongodb.com/docs/manual/reference/method/db.collection.find.md#options",
+          "note": null
+        },
+        {
+          "text": "A rooted $or (single top-level $or) with a sort may choose a blocking SORT over a faster SORT_MERGE because the subplanner picks the locally best plan per clause without considering sort order. A SORT stage instead of SORT_MERGE in explain('queryPlanner') diagnoses it. Ticket SERVER-19114 is Backlog/Unresolved, last updated 2025-03-26.",
+          "source": "https://jira.mongodb.org/browse/SERVER-19114",
+          "note": null
+        },
+        {
+          "text": "| Counter | Description | | --- | --- | | `collscanNoFilter``collscanWithFilter` | Collection scan stages, counted separately based on whether the stage applies a filter. | | `ixscanNoFilter``ixscanWithFilter` | Index scan stages, counted separately based on whether the stage applies a filter. | | `fetchNoFilter``fetchWithFilter` | Fetch stages, counted separately based on whether the stage applies a filter. | | `andHashNoFilter``andHashWithFilter` | Hash-based index intersection stages, counted separately based on whether the stage applies a filter. | | `andSorted` | Sorted index intersection",
+          "source": "https://www.mongodb.com/docs/manual/reference/operator/aggregation/queryStats.md#node-counters",
+          "note": null
+        },
+        {
+          "text": "Range queries can use [indexes](https://www.mongodb.com/docs/manual/indexes.md#std-label-indexes) to avoid scanning unwanted documents, typically yielding better performance as the offset grows compared to using [`skip()`](https://www.mongodb.com/docs/manual/reference/method/cursor.skip.md#mongodb-method-cursor.skip) for pagination.",
+          "source": "https://www.mongodb.com/docs/manual/reference/method/cursor.skip.md#using-range-queries",
+          "note": null
+        },
+        {
+          "text": "When a sort is followed by a limit and no index supplies the order, the server keeps only the top k rows (about skip+limit) in sorter memory rather than all matches. It still examines every matching document, so an index-provided order remains the strongest option.",
+          "source": "https://codemia.io/knowledge-hub/path/how_does_top-k_sort_algorithm_work_in_mongodb",
+          "note": null
+        },
+        {
+          "text": "The following example uses the `key` option to specify that the aggregation should use the `location` field values for the `$geoNear` operation rather than the `legacy` field values. The pipeline also uses [`$limit`](https://www.mongodb.com/docs/manual/reference/operator/aggregation/limit.md#mongodb-pipeline-pipe.-limit) to return at most 5 documents.",
+          "source": "https://www.mongodb.com/docs/manual/reference/operator/aggregation/geoNear.md#specify-which-geospatial-index-to-use",
+          "note": null
+        },
+        {
+          "text": "The 10,000-document rule of thumb for preferring keyset over skip is a practitioner heuristic, not a measured benchmark; OpenReplay gives no timings. The only quantified offset-vs-seek numbers found are from Postgres (LIMIT 100 ~0.06 ms vs OFFSET 5,000,000 ~758 ms), which show the shape of the effect but not MongoDB's magnitude.",
+          "source": "https://blog.openreplay.com/pagination-patterns-mongodb/",
+          "note": null
+        },
+        {
+          "text": "- [`QueryExceededMemoryLimitNoDiskUseAllowed`](https://www.mongodb.com/docs/manual/reference/error-codes.md#mongodb-error-292) when a stage that can spill to disk exceeds the limit and `allowDiskUse` is `false`. Run the operation with `{ allowDiskUse: true }` so that the stage spills to disk instead of failing.",
+          "source": "https://www.mongodb.com/docs/manual/core/aggregation-pipeline-limits.md#per-operation-memory-limit",
+          "note": null
+        },
+        {
+          "text": "If you run this example, the order of documents in your results might differ from the order of documents on this page because the aggregation pipeline does not contain a sort stage.",
+          "source": "https://www.mongodb.com/docs/manual/tutorial/aggregation-examples/unpack-arrays.md#steps",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Facts and statements",
+      "facts": [
+        {
+          "text": "Mitigations named by the Netdata guide: put the shard key or leading prefix in predicates, set maxTimeMS on unavoidable scatter-gather queries, avoid deep skip() pagination, and re-evaluate the shard key against dominant query shapes. A low-cardinality key (e.g. continent, at most seven chunks) limits scaling regardless of shard count. Single-vendor-blog advice; not independently verified.",
+          "source": "https://www.netdata.cloud/guides/mongodb/mongodb-scatter-gather-queries/",
+          "note": null
+        },
+        {
+          "text": "| Metric | Description | | --- | --- | | Execution Count | Number of queries executed per hour which would be improved. | | Average Execution Time | Current average execution time in milliseconds for affected queries. | | Average Query Targeting | Average number of documents read per document returned by affected queries. A higher query targeting score indicates a greater degree of inefficiency. For more information on query targeting, see [Query Targeting.](https://www.mongodb.com/docs/atlas/performance-advisor.md#std-label-query-targeting) | | In Memory Sort | Current number of affected quer",
+          "source": "https://www.mongodb.com/docs/atlas/performance-advisor.md#index-metrics",
+          "note": null
+        },
+        {
+          "text": "Workarounds for the rooted-$or SORT problem: hint one index that serves all clauses to force a merge sort; use an index filter (not persistent across restarts, set per node); or ensure each clause has an index providing the sort order and none offers an index requiring a blocking sort.",
+          "source": "https://jira.mongodb.org/browse/SERVER-19114",
+          "note": null
+        },
+        {
+          "text": "Sorting on an indexed array field (multikey index) yields an in-memory SORT stage unless the index bounds for all sort fields are [MinKey, MaxKey] and no multikey field bounds share a path prefix with the sort pattern.",
+          "source": "https://www.mongodb.com/docs/manual/tutorial/sort-results-with-indexes/",
+          "note": null
+        },
+        {
+          "text": "If $in has fewer than 201 array elements, the elements are expanded and then merged in the sort order specified for the index using a SORT_MERGE stage. This improves performance for small arrays. In this case, $in is similar to an equality predicate with ESR.",
+          "source": "https://www.mongodb.com/docs/manual/tutorial/equality-sort-range-rule/",
+          "note": null
+        },
+        {
+          "text": "cursor.allowDiskUse() has no effect on sort operations answered using an index or non-indexed (\"in-memory\") sort operations which require less than 100 megabytes of memory. For more complete documentation on in-memory sorts and sort index use, see Sort and Index Use.",
+          "source": "https://www.mongodb.com/docs/manual/reference/method/cursor.allowDiskUse/",
+          "note": null
+        },
+        {
+          "text": "See [Sort and Index Use](https://www.mongodb.com/docs/manual/reference/method/cursor.sort.md#std-label-sort-index-use) for more information on in-memory sort operations.",
+          "source": "https://www.mongodb.com/docs/manual/reference/method/cursor.allowDiskUse.md#definition",
+          "note": null
+        },
+        {
+          "text": "[`cursor.allowDiskUse()`](https://www.mongodb.com/docs/manual/reference/method/cursor.allowdiskuse.md#mongodb-method-cursor.allowDiskUse) has no effect on sort operations answered using an index *or* non-indexed (\"in-memory\") sort operations which require less than 100 megabytes of memory. For more complete documentation on in-memory sorts and sort index use, see [Sort and Index Use.](https://www.mongodb.com/docs/manual/reference/method/cursor.sort.md#std-label-sort-index-use)",
+          "source": "https://www.mongodb.com/docs/manual/reference/method/cursor.allowDiskUse.md#supports-large-non-indexed-sorts-only",
+          "note": null
+        },
+        {
+          "text": "SERVER-24027 (Core Server, fixed in 3.4.2/3.5.2, closed Jan 2017): for $or keyset pagination sorted descending on a compound key, the planner did not reverse an index scan to get SORT_MERGE and fell back to an in-memory sort. The pre-fix workaround was a descending index plus hint(). On pre-3.4.2 servers, check explain() for SORT or a blocking sort.",
+          "source": "https://jira.mongodb.org/browse/SERVER-24027",
+          "note": null
+        },
+        {
+          "text": "| Field | Type | Literal or Normalized | | --- | --- | --- | | `key.queryShape.pipeline` | Array | Normalized | | `key.queryShape.explain` | Boolean | Literal | | `key.queryShape.allowDiskUse` | Boolean | Literal | | `key.queryShape.allowPartialResults` | Boolean | Literal | | `key.queryShape.collation` | Document | Literal | | `key.queryShape.hint` | String or Document | Normalized | | `key.queryShape.let` | Document | Normalized |",
+          "source": "https://www.mongodb.com/docs/manual/reference/operator/aggregation/queryStats.md#aggregate-command-query-shape",
+          "note": null
+        },
+        {
+          "text": "The following command queries the `movies` collection for movies with an IMDB rating of at least 9 that are in the Drama genre. The command includes a `projection` to return only the `title`, `imdb.rating`, and `year` fields.",
+          "source": "https://www.mongodb.com/docs/manual/reference/command/find.md#specify-a-sort-and-limit",
+          "note": null
+        },
+        {
+          "text": "The following JavaScript function uses [`skip()`](https://www.mongodb.com/docs/manual/reference/method/cursor.skip.md#mongodb-method-cursor.skip) to paginate a collection by its `_id` field:",
+          "source": "https://www.mongodb.com/docs/manual/reference/method/cursor.skip.md#using-skip",
+          "note": null
+        },
+        {
+          "text": "The [`skip()`](https://www.mongodb.com/docs/manual/reference/method/cursor.skip.md#mongodb-method-cursor.skip) method requires the server to scan from the beginning of the input results set before beginning to return results. As the offset increases, [`skip()`](https://www.mongodb.com/docs/manual/reference/method/cursor.skip.md#mongodb-method-cursor.skip) will become slower.",
+          "source": "https://www.mongodb.com/docs/manual/reference/method/cursor.skip.md#using-skip",
+          "note": null
+        },
+        {
+          "text": "- Query for documents whose field is less than the start value using the [`$lt`](https://www.mongodb.com/docs/manual/reference/operator/query/lt.md#mongodb-query-op.-lt) and [`sort()`](https://www.mongodb.com/docs/manual/reference/method/cursor.sort.md#mongodb-method-cursor.sort) operators, and",
+          "source": "https://www.mongodb.com/docs/manual/reference/method/cursor.skip.md#descending-order",
+          "note": null
+        },
+        {
+          "text": "cursor.allowDiskUse() (mongosh method)",
+          "source": "https://www.mongodb.com/docs/manual/reference/method/cursor.allowDiskUse/",
+          "note": null
+        },
+        {
+          "text": "The following operation includes a cursor.sort() on the field reading.timestamp. The operation also passes false to cursor.allowDiskUse() to prohibit the query from writing temporary files to disk.",
+          "source": "https://www.mongodb.com/docs/manual/reference/method/cursor.allowDiskUse/",
+          "note": null
+        },
+        {
+          "text": "The following operation includes a [`cursor.sort()`](https://www.mongodb.com/docs/manual/reference/method/cursor.sort.md#mongodb-method-cursor.sort) on the field `reading.timestamp`. The operation also passes `false` to [`cursor.allowDiskUse()`](https://www.mongodb.com/docs/manual/reference/method/cursor.allowdiskuse.md#mongodb-method-cursor.allowDiskUse) to prohibit the query from writing temporary files to disk.",
+          "source": "https://www.mongodb.com/docs/manual/reference/method/cursor.allowDiskUse.md#example",
+          "note": null
+        },
+        {
+          "text": "A compound index supports a sort on all its keys or on a prefix, with sort keys in index order. Directions must match the index pattern or its exact inverse: {a:1,b:-1} supports {a:1,b:-1} and {a:-1,b:1}, but not {a:1,b:1} or {a:-1,b:-1}.",
+          "source": "https://www.mongodb.com/docs/manual/tutorial/sort-results-with-indexes/",
+          "note": null
+        },
+        {
+          "text": "An index can serve a sort on a non-prefix subset of its keys only if the query has equality conditions on all index keys that precede the sort keys. With index {a,b,c,d}, find({a:{$gt:2}}).sort({c:1}) does not use the index efficiently.",
+          "source": "https://www.mongodb.com/docs/manual/tutorial/sort-results-with-indexes/",
+          "note": null
+        },
+        {
+          "text": "ESR guideline: put equality keys first, then sort keys, then range keys, so the index delivers sorted output without an in-memory sort. Sorting after equality also makes the sort non-blocking.",
+          "source": "https://www.mongodb.com/docs/manual/tutorial/equality-sort-range-guideline/",
+          "note": null
+        },
+        {
+          "text": "Call the [`skip()`](https://www.mongodb.com/docs/manual/reference/method/cursor.skip.md#mongodb-method-cursor.skip) method on a cursor to control where MongoDB begins returning results. This approach may be useful in implementing paginated results.",
+          "source": "https://www.mongodb.com/docs/manual/reference/method/cursor.skip.md#definition",
+          "note": null
+        },
+        {
+          "text": "You must apply [`skip()`](https://www.mongodb.com/docs/manual/reference/method/cursor.skip.md#mongodb-method-cursor.skip) to the cursor before retrieving any documents from the database.",
+          "source": "https://www.mongodb.com/docs/manual/reference/method/cursor.skip.md#definition",
+          "note": null
+        },
+        {
+          "text": "The [`skip()`](https://www.mongodb.com/docs/manual/reference/method/cursor.skip.md#mongodb-method-cursor.skip) method has the following parameter:",
+          "source": "https://www.mongodb.com/docs/manual/reference/method/cursor.skip.md#definition",
+          "note": null
+        },
+        {
+          "text": "The [`skip()`](https://www.mongodb.com/docs/manual/reference/method/cursor.skip.md#mongodb-method-cursor.skip) method controls the starting point of the results set. The following operation skips the first `5` documents in the [bios collection](https://www.mongodb.com/docs/manual/reference/bios-example-collection.md#std-label-bios-example-collection) and returns all remaining documents:",
+          "source": "https://www.mongodb.com/docs/manual/reference/method/db.collection.find.md#set-the-starting-point-of-the-result-set",
+          "note": null
+        },
+        {
+          "text": "- Choose a field such as `_id` which generally changes in a consistent direction over time and has a [unique index](https://www.mongodb.com/docs/manual/core/index-unique.md#std-label-index-type-unique) to prevent duplicate values,",
+          "source": "https://www.mongodb.com/docs/manual/reference/method/cursor.skip.md#descending-order",
+          "note": null
+        },
+        {
+          "text": "Sort operations that use an index often have better performance than in-memory sorts. For more information on creating indexes to support sort operations, see [Use Indexes to Sort Query Results.](https://www.mongodb.com/docs/manual/tutorial/sort-results-with-indexes.md#std-label-sorting-with-indexes)",
+          "source": "https://www.mongodb.com/docs/manual/reference/method/cursor.sort.md#sort-and-index-use",
+          "note": null
+        },
+        {
+          "text": "Sort operations that use an index often have better performance than in-memory sorts.",
+          "source": "https://www.mongodb.com/docs/manual/tutorial/sort-results-with-indexes/",
+          "note": null
+        },
+        {
+          "text": "\"Sort\" determines the order for results. To avoid in-memory sorts, put sort fields before range in the index.",
+          "source": "https://www.mongodb.com/docs/manual/tutorial/equality-sort-range-rule/",
+          "note": null
+        },
+        {
+          "text": "See Sort and Index Use for more information on in-memory sort operations.",
+          "source": "https://www.mongodb.com/docs/manual/reference/method/cursor.allowDiskUse/",
+          "note": null
+        },
+        {
+          "text": "MongoDB's documented range-query pagination: pick a field such as _id that changes consistently over time and has a unique index, filter with $lt (descending) or $gt (ascending), sort on it, and store the last-seen value for the next query. Range queries use indexes to avoid scanning unwanted documents.",
+          "source": "https://www.mongodb.com/docs/v8.2/reference/method/cursor.skip/",
+          "note": null
+        },
+        {
+          "text": "For a non-unique sort field such as createdAt, keyset pagination needs a compound filter: $or of {createdAt < last} and {createdAt == last, _id < lastId}, sorted by {createdAt:-1,_id:-1}, backed by an index with the same fields and directions.",
+          "source": "https://blog.openreplay.com/pagination-patterns-mongodb/",
+          "note": null
+        },
+        {
+          "text": "For example, the following function uses the above procedure to print pages of student names from a collection, sorted approximately in order of newest documents first using the `_id` field (that is, in *descending* order):",
+          "source": "https://www.mongodb.com/docs/manual/reference/method/cursor.skip.md#descending-order",
+          "note": null
+        },
+        {
+          "text": "- the `sort` field to the [`findAndModify`](https://www.mongodb.com/docs/manual/reference/command/findandmodify.md#mongodb-dbcommand-dbcmd.findAndModify) command or the [`findAndModify()`](https://www.mongodb.com/docs/manual/reference/method/db.collection.findandmodify.md#mongodb-method-db.collection.findAndModify) shell method,",
+          "source": "https://www.mongodb.com/docs/manual/reference/operator/aggregation/skip.md#using-skip-with-sorted-results",
+          "note": null
+        },
+        {
+          "text": "Starting in MongoDB 6.0, if the server requires more than 100 megabytes of memory for a pipeline execution stage, MongoDB automatically writes temporary files to disk unless that query specifies { allowDiskUse: false }.",
+          "source": "https://www.mongodb.com/docs/manual/tutorial/sort-results-with-indexes/",
+          "note": null
+        },
+        {
+          "text": "2. Add a sort stage to sort by order date.",
+          "source": "https://www.mongodb.com/docs/manual/tutorial/aggregation-examples/group-and-total.md#steps",
+          "note": null
+        },
+        {
+          "text": "4. Add a sort stage to sort by first order date.",
+          "source": "https://www.mongodb.com/docs/manual/tutorial/aggregation-examples/group-and-total.md#steps",
+          "note": null
+        },
+        {
+          "text": "2) Add a sort stage to sort by order date.",
+          "source": "https://www.mongodb.com/docs/manual/tutorial/aggregation-examples/group-and-total.md#steps",
+          "note": null
+        },
+        {
+          "text": "4) Add a sort stage to sort by first order date.",
+          "source": "https://www.mongodb.com/docs/manual/tutorial/aggregation-examples/group-and-total.md#steps",
+          "note": null
+        },
+        {
+          "text": "- If `allowDiskUse` is `true`, the stage spills intermediate results to disk.",
+          "source": "https://www.mongodb.com/docs/manual/reference/operator/query/text.md#memory-limits",
+          "note": null
+        },
+        {
+          "text": "Starting in MongoDB 6.0, the [`allowDiskUseByDefault`](https://www.mongodb.com/docs/manual/reference/parameters.md#mongodb-parameter-param.allowDiskUseByDefault) parameter controls whether pipeline stages that require more than 100 megabytes of memory to execute write temporary files to disk by default.",
+          "source": "https://www.mongodb.com/docs/manual/core/aggregation-pipeline-limits.md#memory-restrictions",
+          "note": null
+        },
+        {
+          "text": "- If [`allowDiskUseByDefault`](https://www.mongodb.com/docs/manual/reference/parameters.md#mongodb-parameter-param.allowDiskUseByDefault) is set to `true`, pipeline stages that require more than 100 megabytes of memory to execute write temporary files to disk by default. You can disable writing temporary files to disk for specific `find` or `aggregate` commands using the `{ allowDiskUse: false }` option.",
+          "source": "https://www.mongodb.com/docs/manual/core/aggregation-pipeline-limits.md#memory-restrictions",
+          "note": null
+        },
+        {
+          "text": "Pipeline stages that require more than 100 megabytes of memory to execute write temporary files to disk by default. These temporary files last for the duration of the pipeline execution and can influence storage space on your instance.",
+          "source": "https://www.mongodb.com/docs/manual/reference/parameters.md#general-parameters",
+          "note": null
+        },
+        {
+          "text": "*Default*: 104857600 (100 megabytes)",
+          "source": "https://www.mongodb.com/docs/manual/reference/parameters.md#general-parameters",
+          "note": null
+        },
+        {
+          "text": "The following command sets `internalQueryMaxSingleExpressionMemoryUsageBytes` to `104857600` (100 megabytes) at runtime:",
+          "source": "https://www.mongodb.com/docs/manual/reference/parameters.md#general-parameters",
+          "note": null
+        },
+        {
+          "text": "The following command sets `internalQueryMaxSingleExpressionMemoryUsageBytes` to `104857600` (100 megabytes) at startup:",
+          "source": "https://www.mongodb.com/docs/manual/reference/parameters.md#general-parameters",
+          "note": null
+        },
+        {
+          "text": "If avoiding in-memory sorts is critical, place sort fields before range fields (ESR)",
+          "source": "https://www.mongodb.com/docs/manual/tutorial/equality-sort-range-rule/",
+          "note": null
+        },
+        {
+          "text": "If the range predicate in your query is very selective, place it before the sort fields to reduce the number of sorted documents and allow an in-memory sort.",
+          "source": "https://www.mongodb.com/docs/manual/tutorial/equality-sort-range-rule/",
+          "note": null
+        },
+        {
+          "text": "db.collection.find(<match>).sort(<sort>).allowDiskUse()",
+          "source": "https://www.mongodb.com/docs/manual/reference/method/cursor.allowDiskUse/",
+          "note": null
+        },
+        {
+          "text": "Starting in MongoDB 6.0, pipeline stages that require more than 100 megabytes of memory to execute write temporary files to disk by default.",
+          "source": "https://www.mongodb.com/docs/manual/reference/method/cursor.allowDiskUse/",
+          "note": null
+        },
+        {
+          "text": "Prior to MongoDB 6.0, .allowDiskUse(false) and .allowDiskUse(true) have the same effect. In MongoDB 6.0, both mongosh and the legacy mongo shell behave the following way:",
+          "source": "https://www.mongodb.com/docs/manual/reference/method/cursor.allowDiskUse/",
+          "note": null
+        },
+        {
+          "text": ".allowDiskUse() has no additional effect",
+          "source": "https://www.mongodb.com/docs/manual/reference/method/cursor.allowDiskUse/",
+          "note": null
+        },
+        {
+          "text": ".allowDiskUse(true) has no additional effect",
+          "source": "https://www.mongodb.com/docs/manual/reference/method/cursor.allowDiskUse/",
+          "note": null
+        },
+        {
+          "text": ".allowDiskUse(false) prohibits the query from writing temporary files to disk",
+          "source": "https://www.mongodb.com/docs/manual/reference/method/cursor.allowDiskUse/",
+          "note": null
+        },
+        {
+          "text": ".allowDiskUse() enables writing temporary files to disk",
+          "source": "https://www.mongodb.com/docs/manual/reference/method/cursor.allowDiskUse/",
+          "note": null
+        },
+        {
+          "text": ".allowDiskUse(true) enables writing temporary files to disk",
+          "source": "https://www.mongodb.com/docs/manual/reference/method/cursor.allowDiskUse/",
+          "note": null
+        },
+        {
+          "text": ".allowDiskUse(false) has no additional effect",
+          "source": "https://www.mongodb.com/docs/manual/reference/method/cursor.allowDiskUse/",
+          "note": null
+        },
+        {
+          "text": "- If the pipeline includes a sorting or grouping stage, and the [allowDiskUse](https://www.mongodb.com/docs/manual/reference/command/aggregate.md#std-label-aggregate-cmd-allowDiskUse) setting is enabled, the merge runs on a randomly-selected shard.",
+          "source": "https://www.mongodb.com/docs/manual/core/aggregation-pipeline-sharded-collections.md#behavior",
+          "note": null
+        },
+        {
+          "text": "A document that holds counters related to sort stages.",
+          "source": "https://www.mongodb.com/docs/manual/reference/command/serverStatus.md#metrics",
+          "note": null
+        },
+        {
+          "text": "The total number of writes to disk caused by sort stages.",
+          "source": "https://www.mongodb.com/docs/manual/reference/command/serverStatus.md#metrics",
+          "note": null
+        },
+        {
+          "text": "The following query uses the `options` parameter to enable `allowDiskUse`:",
+          "source": "https://www.mongodb.com/docs/manual/reference/method/db.collection.find.md#allowdiskuse-with-options",
+          "note": null
+        },
+        {
+          "text": "Sort merge stages, counted separately based on whether the stage applies a filter and whether the stage has more than 100 child stages.",
+          "source": "https://www.mongodb.com/docs/manual/reference/operator/aggregation/queryStats/",
+          "note": null
+        },
+        {
+          "text": "key.queryShape.allowDiskUse",
+          "source": "https://www.mongodb.com/docs/manual/reference/operator/aggregation/queryStats/",
+          "note": null
+        },
+        {
+          "text": "If the query bar is empty, you can click the filter bar to open the query autocomplete menu and view up to 50 recent or favorite queries. To scroll through your most recent queries, you can use the up ↑ and down ↓ arrow keys. If a query is highlighted on the menu, it displays a pop-up panel that shows the filter, project, and sort stages of the query. To select a query from the autocomplete menu, press Enter, press Tab, or click the query.",
+          "source": "https://www.mongodb.com/docs/atlas/atlas-ui/query/recent.md#query-autocomplete-menu",
+          "note": null
+        },
+        {
+          "text": "2) Add a sort stage to sort from youngest to oldest.",
+          "source": "https://www.mongodb.com/docs/manual/tutorial/aggregation-examples/filtered-subset.md#steps",
+          "note": null
+        },
+        {
+          "text": "2. Add a sort stage to sort from youngest to oldest.",
+          "source": "https://www.mongodb.com/docs/manual/tutorial/aggregation-examples/filtered-subset.md#steps",
+          "note": null
+        },
+        {
+          "text": "For more information on writing temporary files to disk, see allowDiskUse().",
+          "source": "https://www.mongodb.com/docs/manual/reference/log-messages/",
+          "note": null
+        },
+        {
+          "text": "An estimated number of bytes processed in the $sort stage.",
+          "source": "https://www.mongodb.com/docs/manual/reference/explain-results/",
+          "note": null
+        },
+        {
+          "text": "You may then use the following code to print all student names using this pagination function, using [`MaxKey`](https://www.mongodb.com/docs/manual/reference/mongodb-extended-json.md#mongodb-bsontype-MaxKey) to start from the largest possible key:",
+          "source": "https://www.mongodb.com/docs/manual/reference/method/cursor.skip.md#descending-order",
+          "note": null
+        },
+        {
+          "text": "The [`$skip`](https://www.mongodb.com/docs/manual/reference/operator/aggregation/skip.md#mongodb-pipeline-pipe.-skip) stage has the following prototype form:",
+          "source": "https://www.mongodb.com/docs/manual/reference/operator/aggregation/skip.md#definition",
+          "note": null
+        },
+        {
+          "text": "[`$skip`](https://www.mongodb.com/docs/manual/reference/operator/aggregation/skip.md#mongodb-pipeline-pipe.-skip) takes a positive integer that specifies the maximum number of documents to skip.",
+          "source": "https://www.mongodb.com/docs/manual/reference/operator/aggregation/skip.md#definition",
+          "note": null
+        },
+        {
+          "text": "This operation skips the first 5 documents passed to it by the pipeline. [`$skip`](https://www.mongodb.com/docs/manual/reference/operator/aggregation/skip.md#mongodb-pipeline-pipe.-skip) has no effect on the content of the documents it passes along the pipeline.",
+          "source": "https://www.mongodb.com/docs/manual/reference/operator/aggregation/skip.md#mongodb-shell",
+          "note": null
+        },
+        {
+          "text": "**Note: Sequence Optimization with $skip**",
+          "source": "https://www.mongodb.com/docs/manual/core/aggregation-pipeline-optimization.md#sort-limit-coalescence",
+          "note": null
+        }
+      ]
+    }
+  ],
+  "related": [
+    {
+      "concept": "pagination",
+      "relation": "is a part of MongoDB sort and pagination optimization",
+      "note": null
+    },
+    {
+      "concept": "cursor",
+      "relation": "is a part of MongoDB sort and pagination optimization",
+      "note": null
+    },
+    {
+      "concept": "index",
+      "relation": "is a related of MongoDB sort and pagination optimization",
+      "note": null
+    },
+    {
+      "concept": "count",
+      "relation": "is a part of MongoDB sort and pagination optimization",
+      "note": null
+    },
+    {
+      "concept": "query operator anti-pattern",
+      "relation": "is a problem of MongoDB sort and pagination optimization",
+      "note": null
+    },
+    {
+      "concept": "projection",
+      "relation": "is a part of MongoDB sort and pagination optimization",
+      "note": null
+    },
+    {
+      "concept": "sharded query targeting",
+      "relation": "is a part of MongoDB sort and pagination optimization",
+      "note": null
+    },
+    {
+      "concept": "$in",
+      "relation": "is a part of MongoDB sort and pagination optimization",
+      "note": null
+    },
+    {
+      "concept": "query shape",
+      "relation": "is a related of MongoDB sort and pagination optimization",
+      "note": null
+    },
+    {
+      "concept": "read preference",
+      "relation": "is a related of MongoDB sort and pagination optimization",
+      "note": null
+    },
+    {
+      "concept": "query optimization",
+      "relation": "is a hypernym of MongoDB sort and pagination optimization",
+      "note": null
+    }
+  ]
+}

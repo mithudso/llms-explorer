@@ -1,0 +1,394 @@
+{
+  "slug": "bucket-fragmentation-remediation-re-insert-merge",
+  "concept": "Bucket fragmentation remediation (re-insert/merge)",
+  "generated": "2026-10-20",
+  "summary": "Source-anchored research for Bucket fragmentation remediation (re-insert/merge). Run status: COMPLETED.",
+  "facets": [
+    {
+      "title": "Structure and components",
+      "facts": [
+        {
+          "text": "Reopening fills a bucket whose time window contains the incoming measurement. No reviewed source describes an operation that merges two existing buckets into one. The 9.0 manual pages on bucketing and compact, the 7.0, 8.0, 8.2, 8.3 and 9.0 release notes, and the server README describe no bucket merge or defragmentation command. Web searches of MongoDB Jira found no ticket that requests or implements a merge of underfilled buckets. The closest ticket, SERVER-61045 (opt-in compression of existing buckets), closed as Won't Do on 2025-04-07. (medium confidence) (verified as of 2026-10-20)",
+          "source": "https://raw.githubusercontent.com/mongodb/mongo/master/src/mongo/db/timeseries/README.md",
+          "note": null
+        },
+        {
+          "text": "MongoDB does not guarantee output order when $out writes into a time series collection, and the migration guide says to sort the data in the pipeline first. The guide's examples contain no $sort stage and name no sort key. Sorting by metaField and then timeField matches the documented insert guidance: the best-practices page says to insert measurements with identical metaField values in the same batch, and the server README says insertMany batches are organized by meta value and sorted ascending by time. (medium confidence)",
+          "source": "https://www.mongodb.com/docs/manual/core/timeseries/timeseries-migrate-with-aggregation/",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "How it works",
+      "facts": [
+        {
+          "text": "Bucket fragmentation means many sparsely filled, short-lived buckets. MongoDB's manual names two design causes. First, fine-grained or changing metaField values: the bucket count follows the number of unique metaField values. Second, a granularity finer than the interval between measurements from one source: granularity 'seconds' leads to multiple buckets per polling interval, many holding a single document. (high confidence)",
+          "source": "https://www.mongodb.com/docs/manual/core/timeseries/timeseries-considerations/",
+          "note": null
+        },
+        {
+          "text": "MongoDB's migration guides say to insert documents from oldest to newest when migrating or backfilling a time series collection. mongodump exports in natural order, and mongorestore --maintainInsertionOrder keeps that order. $out does not guarantee output order into a time series collection, so sort the data in the aggregation pipeline first. (high confidence)",
+          "source": "https://www.mongodb.com/docs/manual/core/timeseries/timeseries-migrate-with-tools/",
+          "note": null
+        },
+        {
+          "text": "A rebuild lasts only if the cause is gone. SERVER-89233 reports one bucket per document 'a while (several days usually)' after startup, and also after deleting a time series collection and inserting again. One affected user said each restart fixed the problem 'for about 3 days'. (medium confidence)",
+          "source": "https://jira.mongodb.org/browse/SERVER-89233",
+          "note": null
+        },
+        {
+          "text": "Existing uncompressed buckets are not compressed in place. MongoDB closed SERVER-61045 ('Provide mechanism to compress existing buckets') as Won't Do on 2025-04-07. The manual says time series collections use the compressed bucket format when data is appended into opened or reopened buckets, and the README says a closed V1 bucket is sorted and compressed as V2 the moment it is reopened. Inference: a rebuild is another way to get compressed buckets for legacy data. (medium confidence)",
+          "source": "https://jira.mongodb.org/browse/SERVER-61045",
+          "note": null
+        },
+        {
+          "text": "The number of buckets depends on the number of unique metaField values, because a measurement joins a bucket only when its metaField value matches exactly. Fine-grained or changing metaField values generate many sparsely packed, short-lived buckets. A granularity finer than the real interval between measurements from one source creates several buckets per polling interval, many holding a single document. (high confidence)",
+          "source": "https://www.mongodb.com/docs/manual/core/timeseries/timeseries-bucketing/",
+          "note": null
+        },
+        {
+          "text": "Few measurements per bucket is not always a defect that a rewrite can fix. When a series produces fewer than 1000 measurements per bucket span, the span ends the bucket, so only a wider span raises the fill: a coarser granularity, or a larger bucketMaxSpanSeconds with an equal bucketRoundingSeconds. MongoDB's 2026 bucket-behavior study reports count-driven rotation at high ingest and span-driven rotation at low ingest. (medium confidence)",
+          "source": "https://www.mongodb.com/docs/manual/core/timeseries/timeseries-considerations/",
+          "note": null
+        },
+        {
+          "text": "The bucket catalog keeps at most one open bucket per unique metaField value. When a measurement's timestamp passes the open bucket's span, the catalog closes that bucket. When the timestamp is earlier than the open bucket's minimum, the catalog archives the bucket. In both cases the catalog then opens a new bucket or reopens an old one, so a series that receives interleaved old and new timestamps switches buckets repeatedly. The matching counters are numBucketsClosedDueToTimeForward, numBucketsArchivedDueToTimeBackward and numBucketsReopened. (medium confidence)",
+          "source": "https://raw.githubusercontent.com/mongodb/mongo/master/src/mongo/db/timeseries/README.md",
+          "note": null
+        },
+        {
+          "text": "Bucket reopening is the built-in mechanism that behaves like a merge at insert time. When no open bucket fits an incoming measurement, the catalog reopens an archived bucket by its _id, or runs a query-based reopening against disk. The query requires an exact metaField match, a timeField range match, size and count filters, and a control.closed value that is missing or false. The reopened bucket takes the new measurements and is compressed on append. serverStatus counts these events in numBucketsReopened. SERVER-66685 (fetch an archived bucket from disk by _id) and SERVER-66690 (insert into cl",
+          "source": "https://raw.githubusercontent.com/mongodb/mongo/master/src/mongo/db/timeseries/README.md",
+          "note": null
+        },
+        {
+          "text": "Reopening and a rewrite also change the storage format. All time series collections use the compressed bucket format when data is appended to opened or reopened buckets. From 8.0, new buckets are created as V2 (compressed, sorted by time). A closed V1 bucket left by an upgrade is sorted and compressed as V2 the moment a measurement reopens it. (medium confidence) (verified as of 2026-10-14)",
+          "source": "https://raw.githubusercontent.com/mongodb/mongo/master/src/mongo/db/timeseries/README.md",
+          "note": null
+        },
+        {
+          "text": "Before MongoDB 8.2, keep each per-series insertMany batch inside one bucket span. SERVER-96753 records that a batch for one metadata value that spans several buckets by time produced extra buckets even when an existing bucket was eligible for reopening. Jira resolved it as 'Gone away' with fix version 8.2.0-rc0 on 2025-03-26. A forum reply that cites SERVER-96753 advises against inserting measurements that exceed a bucket's max span in one insert command. (medium confidence) (verified as of 2026-10-20)",
+          "source": "https://jira.mongodb.org/browse/SERVER-96753",
+          "note": null
+        },
+        {
+          "text": "Fix the cause before rewriting, because a rewrite into a collection with the same settings fragments again. The documented levers are: a metaField of stable identifiers that appear in filters; a granularity or custom bucket span matched to the interval between measurements from one source (a 5-minute source suits 'minutes' or 300 seconds); batches grouped by metaField and inserted with ordered: false; and a consistent field order. Percona's 2021 test write-up gives the granularity advice. A 2023 Medium guide gives the batching and stable-metaField advice. (high confidence)",
+          "source": "https://www.mongodb.com/docs/manual/core/timeseries/timeseries-best-practices/",
+          "note": null
+        },
+        {
+          "text": "No documented setting raises the 1000-measurement cap. A MongoDB forum reply of July 2024 says 1000 documents per bucket is the maximum, that granularity can lower it, and that the remedy for read slowdowns from many small buckets is to adjust granularity or aggregate measurements before storing. SERVER-88644 (Backlog) records that medium- and high-cardinality workloads would not benefit from higher count or size limits because their buckets close when time moves forward. (medium confidence) (verified as of 2026-10-20)",
+          "source": "https://www.mongodb.com/community/forums/t/timeseries-collections-increase-max-count-of-documents-per-bucket/288299",
+          "note": null
+        },
+        {
+          "text": "SERVER-105187 (Backlog, last updated 2025-07-14) names raising timeseriesBucketMinSize toward timeseriesBucketMaxSize as the current workaround for dynamic bucket sizing, because it effectively disables dynamic bucketing. The manual does not document these parameters, and a MongoDB forum reply says its author generally avoids undocumented features. (low confidence) (verified as of 2026-10-20)",
+          "source": "https://jira.mongodb.org/browse/SERVER-105187",
+          "note": null
+        },
+        {
+          "text": "numBucketsClosedDueToTimeBackward is a dead metric. SERVER-89158 (fixed in 8.0.0-rc7 and 8.1.0-rc0) removed it in favor of numBucketsArchivedDueToTimeBackward because it was never incremented above zero, yet the serverStatus and collStats manual pages still list it. Read numBucketsArchivedDueToTimeBackward to count out-of-order arrivals. (medium confidence) (verified as of 2026-10-20)",
+          "source": "https://jira.mongodb.org/browse/SERVER-89158",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "How-to and procedures",
+      "facts": [
+        {
+          "text": "To keep new buckets dense, send measurements with identical metaField values in the same insertMany batch, set ordered: false, keep field order consistent, and add each series' measurements in time order. MongoDB's best-practices page covers batching by metaField, ordered: false and field order. The migration page covers oldest-to-newest order. A third-party guide advises sorting by (metaField, timestamp) before insert. (high confidence)",
+          "source": "https://www.mongodb.com/docs/manual/core/timeseries/timeseries-best-practices/",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Measurements and reference values",
+      "facts": [
+        {
+          "text": "Default limits end a bucket at 1,000 measurements or 125 KiB, whichever comes first, or when a measurement falls outside the bucket's time span. The span is 1 hour for granularity 'seconds', 24 hours for 'minutes', 30 days for 'hours', or bucketMaxSpanSeconds on 6.3 and later. A bucket also closes when the active buckets do not fit the storage-engine cache, when the bucket catalog exceeds its memory budget (default 2.5% of system memory), when a conflicting operation such as a chunk migration or update changes it, and when mongod restarts. (high confidence) (verified as of 2026-10-19)",
+          "source": "https://www.mongodb.com/docs/manual/core/timeseries/timeseries-bucketing/",
+          "note": null
+        },
+        {
+          "text": "One practitioner reported (forum, 2024-06-04; MongoDB 7.0 with feature set 6.0 enabled, reported as version 6.0.5; metaField user id, granularity hours, about 40 billion events and 3 TB compressed) that reading a user's documents, deleting them and re-inserting them cut that user's buckets from 3,120 to 370 for the same 20,539 documents, and sped reads and writes by more than 10x. The poster called this 'a crude way of merging the buckets' and asked for a built-in function. The thread has no MongoDB staff reply. (low confidence)",
+          "source": "https://mongodb.com/community/forums/t/mongodb-v6-0-time-series-slowness-issue/283439",
+          "note": null
+        },
+        {
+          "text": "Cache-pressure fragmentation looks like bucketCount near the document count with a large numBucketsClosedDueToCachePressure. In one forum report (October 2023), a collection had about 25,000 buckets without system stress and about 420,000 under load, with numBucketsClosedDueToCachePressure about 415,000, avgNumMeasurementsPerCommit 1 and at least 3x the storage. SERVER-89233 (affects 7.0.4 and 7.0.5, created 2024-04-10) describes the same pattern on a sharded cluster. (high confidence)",
+          "source": "https://mongodb.com/community/forums/t/suboptimal-bucket-creation-in-timeseries-collection-due-to-cache-pressure/249863",
+          "note": null
+        },
+        {
+          "text": "MongoDB's release notes claim up to 195% higher throughput for time-series bulk insertions in 8.1 and list faster time-series bulk insertions again in 8.2, so a rewrite replayed through insertMany on 8.1 or later should run faster than on 8.0. These are vendor figures; no independent benchmark was found. (low confidence) (verified as of 2026-10-19)",
+          "source": "https://www.mongodb.com/docs/manual/release-notes/8.2/",
+          "note": null
+        },
+        {
+          "text": "A forum report from October 2023 measured the cache-pressure effect. One chunk of 25,000 series loaded without other load produced bucketCount 25,000 with avgNumMeasurementsPerCommit 17. The same chunk loaded during a load test produced about 420,000 buckets, avgNumMeasurementsPerCommit 1, and 415,000 closures from cache pressure. The reporter estimated at least 3x more space under stress. Later replies from February 2024 to March 2025 report the same symptom, a restart that helps for about 3 days, and no server parameter to change the bucket catalog's memory. (low confidence)",
+          "source": "https://mongodb.com/community/forums/t/suboptimal-bucket-creation-in-timeseries-collection-due-to-cache-pressure/249863",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Problems, failure modes and limitations",
+      "facts": [
+        {
+          "text": "A time series collection stores measurements in bucket documents. MongoDB adds a measurement to an existing bucket only if the metaField value is identical and the timestamp falls inside the bucket's time window. MongoDB creates a new bucket when no active bucket matches the metaField, when the timestamp is outside the range of every active bucket, or when the measurement exceeds the remaining size or count limit of every active bucket. (high confidence)",
+          "source": "https://www.mongodb.com/docs/manual/core/timeseries/timeseries-bucketing/",
+          "note": null
+        },
+        {
+          "text": "When an insert finds no suitable open bucket, the server can reopen a bucket from disk. Query-based reopening runs an aggregation on the buckets collection and takes one result ($limit 1). The match requires: the same meta value; control.closed absent or false; control.min.time at or before the measurement time and less than one max span before it; fewer than the maximum measurement count; and a BSON size under the bucket maximum size. Archived buckets are reopened by _id from a small in-memory record, without the query. Jira SERVER-66690 ('Insert into closed buckets identified via aggregation",
+          "source": "https://github.com/mongodb/mongo/blob/35647d07bc4bc11966c90fe7100eb1db0b0ac1d9/src/mongo/db/timeseries/bucket_catalog/bucket_catalog_helpers.cpp",
+          "note": null
+        },
+        {
+          "text": "The server no longer sets control.closed when it closes a bucket. SERVER-73193 (fix version 6.3.0-rc0, resolved 2023-01-30) removed that behavior and reserved the flag for Atlas Online Archive. The README says a bucket is permanently closed only by that flag. Query-based reopening now recognizes full buckets from their contents: the measurement count field (data.<timeField>.999 for a limit of 1000) and the BSON size. (high confidence)",
+          "source": "https://jira.mongodb.org/browse/SERVER-73193",
+          "note": null
+        },
+        {
+          "text": "Inference from the reopening filter: a bucket closed at the count limit, or at or above the size limit, fails the filter, so later inserts never add to it and only rewriting the data changes its contents. A smaller bucket closed for another reason (for example a time-span rollover or cache pressure) can be reopened by a later insert if it passes the filter and the {metaField, timeField} index exists. (medium confidence) (verified as of 2026-10-20)",
+          "source": "https://github.com/mongodb/mongo/blob/35647d07bc4bc11966c90fe7100eb1db0b0ac1d9/src/mongo/db/timeseries/bucket_catalog/bucket_catalog_helpers.cpp",
+          "note": null
+        },
+        {
+          "text": "The bucket catalog counters explain why buckets close: numBucketsClosedDueToCount, ...Size, ...SchemaChange, ...TimeForward, ...TimeBackward, ...MemoryThreshold and ...CachePressure, plus numBucketsOpenedDueToMetadata, numBucketsReopened and numBucketReopeningsFailed. The manual defines numBucketsReopened as buckets reopened because a document matched no open bucket but matched an existing non-full bucket, and numBucketsClosedDueToCachePressure as buckets closed because their size exceeds the dynamic, cache-derived limit. serverStatus.bucketCatalog documents them server-wide. collStats.timeser",
+          "source": "https://www.mongodb.com/docs/manual/reference/command/serverStatus/",
+          "note": null
+        },
+        {
+          "text": "$merge cannot write to a time series collection, although $merge can move data out of one into another collection. $out can write to a time series collection: the $out page says from 7.0.3 and 7.1, the migration page says from 7.0. $out takes timeField, metaField and either granularity or bucketMaxSpanSeconds with bucketRoundingSeconds (the two custom values must be equal). (high confidence) (verified as of 2026-10-14)",
+          "source": "https://www.mongodb.com/docs/manual/core/timeseries/timeseries-limitations/",
+          "note": null
+        },
+        {
+          "text": "Before 6.3, compact failed on time series collections ('can't compact a view'; the buckets collection gave 'can't compact a system namespace'). In October 2022 MongoDB staff said there was no easy way to reclaim unused space in a time series collection and suggested mongodump with mongorestore, or an initial sync from a secondary. SERVER-70679 fixed compact for time series collections in 6.3.0-rc0. (high confidence)",
+          "source": "https://mongodb.com/community/forums/t/cant-compact-time-series-collection/194072",
+          "note": null
+        },
+        {
+          "text": "Do not plan a backfill 'merge after the fact' step with $merge or $out. $merge cannot write to a time series collection, and $out replaces the whole target. Load staged data into a live time series collection with insertMany or mongorestore, in time order. (medium confidence) (verified as of 2026-10-14)",
+          "source": "https://www.mongodb.com/docs/manual/core/timeseries/timeseries-limitations/",
+          "note": null
+        },
+        {
+          "text": "The cache-derived bucket size limit is storageCacheSizeBytes / (2 x active-bucket count), clamped to at least the timeseriesBucketMinSize parameter and capped at the normal maximum. As the active-bucket count grows, the limit shrinks and buckets close early with reason kCachePressure. A 2023 forum poster derived the same formula and asked whether a minimum-size floor was missing. (medium confidence) (verified as of 2026-10-20)",
+          "source": "https://github.com/mongodb/mongo/blob/35647d07bc4bc11966c90fe7100eb1db0b0ac1d9/src/mongo/db/timeseries/bucket_catalog/bucket_catalog_internal.cpp",
+          "note": null
+        },
+        {
+          "text": "A time series bucket holds at most 1000 measurements or 125 KiB, whichever limit is reached first. MongoDB closes a bucket when an incoming timestamp falls outside the bucket's bounds in either direction, when the bucket reaches the count or size limit, when the open set exceeds the bucket catalog's memory or storage-cache allowance (default 2.5% of available system memory), when a conflicting operation such as a chunk migration or update changes its on-disk state, and when mongod restarts. A bucket that closes well below these limits is a fragment. (high confidence) (verified as of 2026-10-19",
+          "source": "https://www.mongodb.com/docs/manual/core/timeseries/timeseries-bucketing/",
+          "note": null
+        },
+        {
+          "text": "The $merge stage cannot write to a time series collection, but it can read from one. The $out stage writes to a time series collection from MongoDB 7.0.3 and 7.1. A MongoDB staff reply of 2024-10-28 says $merge into time series collections is unsupported, is on the roadmap with no committed date, and that $out or a custom script is the recommended route. The error a user hit was 'lock for timeseries is not allowed'. (high confidence) (verified as of 2026-10-20)",
+          "source": "https://www.mongodb.com/docs/manual/core/timeseries/timeseries-limitations/",
+          "note": null
+        },
+        {
+          "text": "To rewrite a fragmented time series collection on MongoDB 7.0.3 or later, run an aggregation that ends in $out with a timeseries option: timeField, metaField, and either granularity or bucketMaxSpanSeconds with bucketRoundingSeconds. If the target exists, $out builds a temporary collection, copies the index definitions, inserts the documents, and replaces the target with renameCollection and dropTarget: true. An existing target must be a time series collection, not a view, and the timeseries options in the stage must exactly match its options, so $out cannot change the bucketing parameters of",
+          "source": "https://www.mongodb.com/docs/manual/reference/operator/aggregation/out/",
+          "note": null
+        },
+        {
+          "text": "For a backfill or migration, insert documents in order from oldest to newest. The database-tools procedure relies on the natural-order export of mongodump and on the --maintainInsertionOrder option of mongorestore. It runs mongorestore with --noIndexRestore because mongorestore cannot create indexes on time series collections. In recent server code an insertMany batch is organized by meta value and sorted ascending by time. Earlier versions targeted buckets in the user's order, which bucketed time-descending batches poorly. (high confidence) (verified as of 2026-10-14)",
+          "source": "https://www.mongodb.com/docs/manual/core/timeseries/timeseries-migrate-with-tools/",
+          "note": null
+        },
+        {
+          "text": "Since MongoDB 6.2 the server lowers the maximum bucket size dynamically so that all active buckets use at most half of the WiredTiger cache (SERVER-69899). The manual says MongoDB may enforce a lower maximum size for high-cardinality data so the bucket working set fits the cache. serverStatus counts closures by this limit in numBucketsClosedDueToCachePressure and describes the limit as derived from the available storage-engine cache size and numBuckets. The design trades extra disk use and slower queries for fewer write-throughs, so high cardinality leaves small buckets. (high confidence) (ver",
+          "source": "https://jira.mongodb.org/browse/SERVER-69899",
+          "note": null
+        },
+        {
+          "text": "SERVER-89233 reports that on a sharded 7.0.4 cluster, several days after startup, newly inserted time series collections had about one bucket per document regardless of granularity or metaField settings, and stats() showed numBucketsClosedDueToCachePressure. Jira lists it as Fixed with fix versions 8.0.5 and 8.1.0-rc0 and affects versions 7.0.4 and 7.0.5. A v7.0 backport was requested, but no 7.0.x fix version is listed. SERVER-82798, fixed in 7.0.4 and 7.2.0-rc0, separately made the cache-derived limit respect the minimum bucket size. (high confidence) (verified as of 2026-10-20)",
+          "source": "https://jira.mongodb.org/browse/SERVER-89233",
+          "note": null
+        },
+        {
+          "text": "The bucket catalog archives or closes idle buckets when its memory use passes the server parameter timeseriesIdleBucketExpiryMemoryUsageThreshold, which the manual says defaults to 2.5% of available system memory. Archiving keeps a small in-memory record for quicker reopening. If memory still exceeds the limit after all idle open buckets are archived, the catalog drops archived-bucket entries. A bucket closed this way stays eligible for query-based reopening. (medium confidence) (verified as of 2026-10-14)",
+          "source": "https://raw.githubusercontent.com/mongodb/mongo/master/src/mongo/db/timeseries/README.md",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Comparisons and alternatives",
+      "facts": [
+        {
+          "text": "Two practical fragmentation indicators are bucketCount versus the document count, and the average control.count across the buckets collection (aggregate with $group and $avg: '$control.count' on system.buckets.<name>, valid before 9.0). In one MongoDB 7.0.2 forum report (February 2024), the same 120 million documents averaged 9.9 documents per bucket (12,151,933 buckets, 58.9 GB uncompressed, 599 MB of indexes) on one deployment and 81 per bucket (1,508,453 buckets, 20.3 GB uncompressed, 78 MB of indexes) on another. A third-party guide suggests a bucket fill target of 80-100%; MongoDB states",
+          "source": "https://www.mongodb.com/community/forums/t/why-timeseries-bucket-count-is-different-on-2-independent-environment-with-same-data/265066",
+          "note": null
+        },
+        {
+          "text": "$out replaces the whole target: it writes to a temporary collection, then renames it over the target with dropTarget: true. If the target already exists with timeseries options, it must be a time series collection (not a view) and the options must match exactly. $out cannot output to a sharded collection (per the $out versus $merge comparison table). $out therefore rebuilds a collection; it cannot append late or backfilled data to a live one. (medium confidence) (verified as of 2026-10-20)",
+          "source": "https://www.mongodb.com/docs/manual/reference/operator/aggregation/out/",
+          "note": null
+        },
+        {
+          "text": "Rebuild recipe assembled from the documented migration paths: create the target time series collection with the corrected metaField and with granularity (or bucketMaxSpanSeconds and bucketRoundingSeconds) set to the real per-series arrival interval, then load the data sorted by metaField and time. On 7.0.3 and later use $sort then $out. Otherwise use mongodump with mongorestore --maintainInsertionOrder, or an application insertMany with ordered: false. Unlike collMod, a rebuild applies the new span to historical data. MongoDB does not publish this as a named defragmentation procedure. (medium",
+          "source": "https://www.mongodb.com/docs/manual/core/timeseries/timeseries-migrate-with-aggregation/",
+          "note": null
+        },
+        {
+          "text": "Inference, not documented as a remedy: on a collection created before 6.3 that lacks the {metaField, timeField} index, creating that index lets the server run query-based reopening, so late measurements can fill existing non-full buckets instead of opening new ones. (low confidence)",
+          "source": "https://github.com/mongodb/mongo/blob/35647d07bc4bc11966c90fe7100eb1db0b0ac1d9/src/mongo/db/timeseries/README.md",
+          "note": null
+        },
+        {
+          "text": "SERVER-91523 (open, in backlog; affects 8.0.0-rc0 and 8.1.0-rc0; last updated 2025-02-10) reports that the reopening query cannot exclude full buckets once buckets are compressed, because the count field it tests is not readable in compressed buckets. The ticket says this 'can lead to a bucket being selected for reopening that we have no chance of inserting a new document into rather than selecting an actually viable candidate'. The current source still tests that field. (medium confidence) (verified as of 2026-10-20)",
+          "source": "https://jira.mongodb.org/browse/SERVER-91523",
+          "note": null
+        },
+        {
+          "text": "A schema change between an incoming document and the open bucket closes the bucket, and serverStatus counts these closures in numBucketsClosedDueToSchemaChange. The best-practices page gives the typical trigger: a field that is a populated array in one document and an empty array in the next makes the later documents stay uncompressed. Omit empty objects, arrays and strings instead of sending them. (medium confidence)",
+          "source": "https://www.mongodb.com/docs/manual/reference/command/serverStatus/",
+          "note": null
+        },
+        {
+          "text": "On MongoDB 7.0.0 to 7.0.15 and 8.0.0 to 8.0.3, a measurement delete replaces the bucket with a new one built from the remaining measurements, which can change the bucket's control.min time so it differs from the time encoded in its _id. SERVER-99527 reports that a delete with a non-metaField filter, followed by an insert into an adjacent time range, can then expire data early under TTL and return incomplete results for time-filtered queries. It requires the {metaField: 1, timeField: 1} index, or {timeField: 1} on a collection without a metaField. SERVER-94559 adds that in a collection sharded",
+          "source": "https://jira.mongodb.org/browse/SERVER-99527",
+          "note": null
+        },
+        {
+          "text": "Re-inserting measurements without first deleting the originals duplicates them. Time series collections have no _id index and do not require a unique _id, so MongoDB does not reject a repeated measurement. A forum report shows two records inserted twice producing three buckets instead of two. (medium confidence)",
+          "source": "https://www.mongodb.com/docs/manual/core/timeseries/timeseries-bucketing/",
+          "note": null
+        },
+        {
+          "text": "Reopening candidate selection has known gaps. SERVER-91523 (Backlog, affects 8.0.0-rc0 and 8.1.0-rc0) reports that the reopening pipeline's filter for excluding full buckets does not work once buckets are compressed, so the pipeline can pick a bucket that cannot accept the measurement instead of a viable one. SERVER-73193 (fixed in 6.3.0-rc0) defines a full bucket by the data.<timeField>.999 element or a size above 125 KiB, not by control.closed. Failed attempts show up in numBucketReopeningsFailed and numBucketFetchesFailed. (medium confidence) (verified as of 2026-10-20)",
+          "source": "https://jira.mongodb.org/browse/SERVER-91523",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Facts and statements",
+      "facts": [
+        {
+          "text": "In the server source (mongodb/mongo master, commit 35647d07, 2026-10-20), getRolloverAction maps four rollover reasons to a hard close: count, size, schema change and cache pressure. It maps time-forward to a soft close (code comment: remains eligible for reopening) and time-backward to an archive. A measurement with a schema incompatible with the open bucket therefore also ends that bucket. The README says a bucket closed for exceeding its time span stays eligible for reopening, and a bucket closed at the memory threshold stays eligible for query-based reopening. (medium confidence) (verified",
+          "source": "https://github.com/mongodb/mongo/blob/35647d07bc4bc11966c90fe7100eb1db0b0ac1d9/src/mongo/db/timeseries/bucket_catalog/rollover.cpp",
+          "note": null
+        },
+        {
+          "text": "Query-based reopening needs an index on {metaField: 1, timeField: 1}. If the index does not exist, the server skips the reopening query to avoid a collection scan. MongoDB creates this index by default only for time series collections created in 6.3 or later. (medium confidence) (verified as of 2026-10-20)",
+          "source": "https://github.com/mongodb/mongo/blob/35647d07bc4bc11966c90fe7100eb1db0b0ac1d9/src/mongo/db/timeseries/README.md",
+          "note": null
+        },
+        {
+          "text": "In decideQueryBasedReopening, the server turns query-based reopening off for an insert as soon as an open bucket for the same series is rolled over for any reason other than time-backward. Reopening by query therefore mainly serves late or out-of-order measurements. (low confidence) (verified as of 2026-10-20)",
+          "source": "https://github.com/mongodb/mongo/blob/35647d07bc4bc11966c90fe7100eb1db0b0ac1d9/src/mongo/db/timeseries/bucket_catalog/bucket_catalog.cpp",
+          "note": null
+        },
+        {
+          "text": "collMod can raise granularity or the custom bucket span but never lower it. A raise applies only to buckets created afterwards. Existing buckets keep their stored layout, so a granularity change does not merge existing buckets. (high confidence)",
+          "source": "https://www.mongodb.com/docs/manual/core/timeseries/timeseries-bucketing/",
+          "note": null
+        },
+        {
+          "text": "MongoDB 9.0 stores a time series collection as a single namespace holding compressed buckets, no longer a writable view over system.buckets.<name>, and adds renameCollection support for time series collections. Diagnostic scripts that aggregate over system.buckets.<name> therefore apply to 8.x and earlier. The repository README describes the view plus system.buckets layout as the 'viewful' form. (medium confidence) (verified as of 2026-10-20)",
+          "source": "https://www.mongodb.com/docs/manual/release-notes/9.0/",
+          "note": null
+        },
+        {
+          "text": "Choose a metaField that rarely or never changes and appears in filters; keep non-filter attributes as measurements. Set granularity, or bucketMaxSpanSeconds and bucketRoundingSeconds on 6.3 and later, to the interval between measurements from one source (a sensor reporting every 5 minutes fits 'minutes' or 300 seconds). Do not fix fragmentation by choosing 'hours': that groups up to 30 days per bucket and slows queries. (high confidence)",
+          "source": "https://www.mongodb.com/docs/manual/core/timeseries/timeseries-best-practices/",
+          "note": null
+        },
+        {
+          "text": "Before rebuilding, compare observed documents per bucket with what the bucket span allows. A series that emits fewer than 1,000 measurements per span is bounded by time, not by count. In a MongoDB solutions-architect test (M30 cluster, published 2026-02-23), low-ingestion devices kept one active bucket per device while granularity set the bucket lifetime. Low fill in that case is expected, not fragmentation. (medium confidence)",
+          "source": "https://www.mongodb.com/company/blog/technical/a-practical-study-of-mongodb-time-series-bucket-behavior",
+          "note": null
+        },
+        {
+          "text": "compact does not merge buckets. The manual describes it as an attempt to release unneeded disk space (obsolete blocks) to the operating system, with results that depend on free blocks and their location, and measured by collStats.freeStorageSize. In the server source, compact resolves the system.buckets namespace of a time series collection and calls compactCollection, with no bucket-merging logic. No MongoDB page found says compact reduces bucket count. (medium confidence) (verified as of 2026-10-20)",
+          "source": "https://www.mongodb.com/docs/manual/reference/command/compact/",
+          "note": null
+        },
+        {
+          "text": "MongoDB fixed SERVER-89233 in 8.0.5 and 8.1.0-rc0: the Jira fix versions say so and the 8.0 changelog lists it under 8.0.5. A backport to 7.0 was requested, but the 7.0 changelog (through 7.0.45) has no entry for it. (medium confidence) (verified as of 2026-10-20)",
+          "source": "https://jira.mongodb.org/browse/SERVER-89233",
+          "note": null
+        },
+        {
+          "text": "Community workarounds before the fix, none confirmed by MongoDB staff: restart mongod (a restart closes all buckets and resets the bucket catalog; one user got about 3 days of relief and another restarted daily), send time-gapped inserts, or write to one collection per day. (low confidence)",
+          "source": "https://mongodb.com/community/forums/t/suboptimal-bucket-creation-in-timeseries-collection-due-to-cache-pressure/249863",
+          "note": null
+        },
+        {
+          "text": "Out-of-order measurements inside one bucket promote it from V2 (compressed, sorted by time) to V3 (compressed, not sorted by time). The README says this is more likely during low-cardinality concurrent bulk loads, and that queries can be less performant on V3 buckets. (low confidence)",
+          "source": "https://github.com/mongodb/mongo/blob/35647d07bc4bc11966c90fe7100eb1db0b0ac1d9/src/mongo/db/timeseries/README.md",
+          "note": null
+        },
+        {
+          "text": "SERVER-60894 (created 2021-10-21) described the original problem: significantly out-of-order inserts closed buckets often, leaving many one-measurement buckets, and a restart closed all buckets. MongoDB resolved it as a duplicate of SERVER-66690, which shipped query-based reopening with fix version 6.2.0-rc0. (medium confidence)",
+          "source": "https://jira.mongodb.org/browse/SERVER-60894",
+          "note": null
+        },
+        {
+          "text": "A change to granularity, bucketMaxSpanSeconds or bucketRoundingSeconds applies to future bucketing only. The bucketing page states the change 'doesn't change how data is stored across existing buckets'. collMod can increase the span but never decrease it, and a collMod on the custom parameters must set bucketMaxSpanSeconds and bucketRoundingSeconds to the same value. (high confidence)",
+          "source": "https://www.mongodb.com/docs/manual/core/timeseries/timeseries-bucketing/",
+          "note": null
+        },
+        {
+          "text": "A mongod restart closes all buckets and resets the bucket catalog, so each restart can leave partially filled buckets behind. Later inserts can fill them only through reopening. SERVER-60894 says that after a restart effectively all buckets are closed and bucketing must start over. (high confidence)",
+          "source": "https://www.mongodb.com/docs/manual/core/timeseries/timeseries-bucketing/",
+          "note": null
+        },
+        {
+          "text": "The compact command attempts to release obsolete blocks to the operating system, and its effect depends on how many blocks are free and where they sit in the data file. MongoDB 6.3 added support for running compact on time series collections. Neither the compact manual page nor the 7.0 release note says that compact combines buckets, so compact reclaims space freed by deletes but does not raise bucket fill. (medium confidence) (verified as of 2026-10-20)",
+          "source": "https://www.mongodb.com/docs/manual/reference/command/compact/",
+          "note": null
+        },
+        {
+          "text": "A March 2026 OneUptime post tells operators to run compact after large backfills 'to rewrite fragmented buckets', to compact replica-set members one at a time, to backfill into a separate collection and 'merge after the fact', and to track fill with an aggregate over $control.count on system.buckets. A second post by the same author says compact 'can consolidate small buckets'. Neither post cites a source or shows a merge command. (low confidence) (verified as of 2026-10-20)",
+          "source": "https://oneuptime.com/blog/post/2026-03-31-mongodb-time-series-compression/view",
+          "note": null
+        },
+        {
+          "text": "Many concurrent writers on a low-cardinality series can deliver measurements out of order into one bucket. The server then promotes the compressed bucket from V2 (sorted by time) to V3 (not guaranteed sorted), and queries on V3 buckets can be slower. serverStatus reports these buckets in numCompressedBucketsConvertedToUnsorted. A replay that uses one ordered writer per series makes this less likely. (medium confidence) (verified as of 2026-10-14)",
+          "source": "https://raw.githubusercontent.com/mongodb/mongo/master/src/mongo/db/timeseries/README.md",
+          "note": null
+        },
+        {
+          "text": "MongoDB 9.0 allows renameCollection on time series collections, and its release notes list this as new in 9.0. $out already replaces an existing target atomically through renameCollection with dropTarget: true, so an $out rewrite into the same namespace needs no manual rename. (medium confidence) (verified as of 2026-10-19)",
+          "source": "https://www.mongodb.com/docs/manual/release-notes/9.0/",
+          "note": null
+        },
+        {
+          "text": "MongoDB allows collMod to increase the bucket span but never to decrease it, and collMod must set bucketMaxSpanSeconds and bucketRoundingSeconds to the same value. A March 2026 third-party recipe tells operators to raise only bucketMaxSpanSeconds before a backfill and gives no way to restore it. That recipe conflicts with the documented rules, and the widened span also applies to live ingest after the backfill. (medium confidence)",
+          "source": "https://www.mongodb.com/docs/manual/core/timeseries/timeseries-limitations/",
+          "note": null
+        },
+        {
+          "text": "Atlas Online Archive sets control.closed to true on each bucket it marks for archival. The collection then accepts no writes to that bucket, so inserts that would target it go to another bucket or open a new one. Server closures for span, size or memory do not set control.closed, and those buckets stay eligible for reopening. (high confidence)",
+          "source": "https://www.mongodb.com/docs/atlas/online-archive/manage-online-archive.md",
+          "note": null
+        },
+        {
+          "text": "serverStatus().bucketCatalog names why buckets end: numBucketsClosedDueToCount, numBucketsClosedDueToSize, numBucketsClosedDueToSchemaChange, numBucketsClosedDueToTimeForward, numBucketsClosedDueToMemoryThreshold, numBucketsClosedDueToCachePressure, numBucketsArchivedDueToTimeBackward and numBucketsArchivedDueToMemoryThreshold. numBucketsOpenedDueToMetadata counts buckets opened for a metaField value with no open bucket. collStats on a time series collection returns a timeseries section with bucketCount, avgBucketSize, numMeasurementsCommitted and avgNumMeasurementsPerCommit. (high confidence)",
+          "source": "https://www.mongodb.com/docs/manual/reference/command/serverStatus/",
+          "note": null
+        },
+        {
+          "text": "Direct reads of bucket documents depend on the server version. In 2023 MongoDB community staff warned that system.buckets documents are internal, may change without notice and may be compressed. The control.count field exists only in compressed buckets, so a fill histogram built on it misses V1 buckets. The server README says CRUD commands can address the bucket format directly with the rawData parameter, and the Atlas documentation runs delete with rawData: true on MongoDB 8.2 and later to remove buckets marked for archival. MongoDB 9.0 stores a time series collection as a single namespace, s",
+          "source": "https://www.mongodb.com/community/forums/t/how-overcome-if-possible-time-series-limitation-acting-directly-on-bucket-collection/228275",
+          "note": null
+        },
+        {
+          "text": "Triage by the dominant closure counter before choosing a remedy. A high numBucketsClosedDueToTimeForward points to a span shorter than the series interval or to high cardinality, and SERVER-88644 says higher count or size limits do not help those workloads. A high numBucketsArchivedDueToTimeBackward points to out-of-order arrival, which sorted batches and reopening address. A high numBucketsClosedDueToSchemaChange points to inconsistent document shapes. A high numBucketsClosedDueToCachePressure or numBucketsClosedDueToMemoryThreshold points to catalog or cache sizing, where SERVER-89233 lists",
+          "source": "https://www.mongodb.com/docs/manual/reference/command/serverStatus/",
+          "note": null
+        }
+      ]
+    }
+  ],
+  "related": []
+}

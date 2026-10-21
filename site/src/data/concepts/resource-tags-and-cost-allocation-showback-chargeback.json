@@ -1,0 +1,820 @@
+{
+  "slug": "resource-tags-and-cost-allocation-showback-chargeback",
+  "concept": "Resource Tags and Cost Allocation (Showback/Chargeback)",
+  "generated": "2026-10-19",
+  "summary": "Atlas resource tags are case-sensitive key-value pairs added to projects and clusters; Atlas copies cluster tags onto billing output (a Tag/<key> column in the invoice CSV and a tags field on Admin API invoice line items) so teams can build showback or chargeback reports, but tags are read when the CSV is generated or the API is called, so retagging mid-cycle rewrites the invoice view and clusters deleted before the export appear untagged. The FinOps Framework frames the same practice as allocation (apportioning costs to those responsible for them), built on an allocation strategy, a tagging strategy and a shared-cost strategy. This pack draws on 7 source pages across 4 host labels and covers definitions, structure, mechanism, parameters, how-to, examples, measures, problems, comparisons and history.",
+  "facets": [
+    {
+      "title": "Definitions",
+      "facts": [
+        {
+          "text": "The FinOps Framework defines allocation as apportioning costs to those responsible for them. Resource-level naming conventions and tags make that finer-grained. The strategy decides whether costs go to showback (to teams), chargeback (to finance) or cost-center allocation. Reports should surface spend not covered by the allocation metadata, and shared costs are split by a stated model (proportional, fixed or even). Tagging works better with automation and infrastructure as code.",
+          "source": "https://www.finops.org/framework/capabilities/allocation",
+          "note": null
+        },
+        {
+          "text": "Atlas resource tags are key-value pairs added to projects and clusters. Limits: 50 tags per cluster, keys and values up to 255 characters each, unique keys, and each tag value on at most 1,000 resources. Keys and values are case-sensitive, so environment and Environment are different keys.",
+          "source": "https://www.mongodb.com/docs/atlas/tags",
+          "note": null
+        },
+        {
+          "text": "The tagging or metadata strategy defining how usage and resources will be mapped to the defined parts of the organization.The tagging strategy primarily involves understanding what mix of data will be required, how resources will be segregated into accounts, how accounts will be grouped, how naming standards will be used, how tags or labels will be applied, and how all of that information will be aggregated. Tagging strategies must take into account the challenges of tagging compliance and consistency, differences in how resources can be tagged in different environments, and the fact that some",
+          "source": "https://www.finops.org/framework/capabilities/allocation",
+          "note": null
+        },
+        {
+          "text": "The shared cost strategy which defines how each set of shared resources will be allocated to budgets.Most organizations will also have shared costs to be allocated. Examples include support costs that benefit all users, centralized networking services, or shared environments (platforms, containers, etc.). While the ultimate goal of an organization may be full allocation of costs, the allocation and reporting of shared costs can be complex. Many early FinOps practices adopt an “informed ignore” approach where a business decision is explicitly made to centrally budget for shared cost items, rath",
+          "source": "https://www.finops.org/framework/capabilities/allocation",
+          "note": null
+        },
+        {
+          "text": "The allocation strategy defining how costs should be mapped to the organization.The allocation strategy primarily involves understanding and defining how the organization wishes to look at technology costs in order to do showback to various teams, chargeback to finance, or allocation to cost centers. See the Invoicing & Chargeback Capability for more information on the impact of Cost Allocation to Showback / Chargeback. There can be multiple layers of cost allocation and multiple ways to slice the cost and usage data. For example, finance may need to see costs divided by Cost Center or by type",
+          "source": "https://www.finops.org/framework/capabilities/allocation",
+          "note": null
+        },
+        {
+          "text": "Shifting Left in Allocation means ownership and metadata standards are enforced at the point a resource is created, not reconstructed later through tagging cleanup. At Crawl, ownership is recorded manually and inconsistently after deployment. Walk enforces required ownership and metadata fields as a precondition for provisioning, with an escalation path for changes exceeding agreed thresholds.",
+          "source": "https://www.finops.org/framework/capabilities/allocation",
+          "note": null
+        },
+        {
+          "text": "We are excited to introduce MongoDB Atlas' new resource tagging functionality. You can now organize and manage Atlas resources with improved efficiency by applying tags to categorize database deployments based on your business needs. In turn, you are empowered to better work with various tools and integrations within your technology stack in order to analyze costs, monitor resource consumption, and automate workflows at scale.",
+          "source": "https://mongodb.com/blog/post/operating-at-scale-using-resource-tags",
+          "note": null
+        },
+        {
+          "text": "Shared costs are not identified beyond common charges such as support, tax, etc.",
+          "source": "https://www.finops.org/framework/capabilities/allocation",
+          "note": "FinOps allocation maturity: Crawl"
+        },
+        {
+          "text": "Tags are key-value pairs that associate with a resource to provide additional context. For example, tagging a cluster with the key environment and value production would help to identify this cluster as being deployed to production. A tag can only have one value for a given key, on a particular resource. Therefore, this cluster could not have another tag with the key environment and the value production.",
+          "source": "https://mongodb.com/blog/post/operating-at-scale-using-resource-tags",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Structure and components",
+      "facts": [
+        {
+          "text": "The Atlas Architecture Center's FinOps path combines four mechanisms. Tags give cost allocation by department, project or cost center. The pending-invoices Admin API feeds external FinOps tools. Cross-organization billing gives one paying organization visibility across linked organizations. MongoDB Charts billing dashboards accept tag-based charts and filters. Cost Explorer groups only by organization, project, cluster and service, not by tag.",
+          "source": "https://www.mongodb.com/docs/atlas/architecture/current/billing-data/",
+          "note": null
+        },
+        {
+          "text": "In the invoice CSV, Atlas adds one column per tag key with the header Tag/<your key>, and the cell holds the tag value. The Admin API returns the tags in the results.lineItems.tags field of the Return All Pending Invoices for One Organization endpoint.",
+          "source": "https://www.mongodb.com/docs/atlas/billing/invoices",
+          "note": null
+        },
+        {
+          "text": "Plus, you can now leverage resource tags within billing invoices, which empowers you to categorize spending based on custom dimensions (such as cost center) and streamline financial reporting. These tags are available in the Invoice CSV export and the Invoices Admin API operation. Additionally and as part of our future roadmap, you will be able to apply tags to other resources, such as Projects.",
+          "source": "https://mongodb.com/blog/post/operating-at-scale-using-resource-tags",
+          "note": null
+        },
+        {
+          "text": "You can retrieve all your pending invoices with the Return All Pending Invoices for One Organization API endpoint. The endpoints response body contains the results.lineItems.tags field, which reflect the tags you applied to your resources (such as organizations and clusters). You can then feed this line-item-level billing data into external FinOps tools and reports track your Atlas spending by environment, team, or other tag values.",
+          "source": "https://www.mongodb.com/docs/atlas/architecture/current/billing-data/",
+          "note": null
+        },
+        {
+          "text": "Allocation will require three primary strategies: Allocation Strategy, Tagging Strategy and Shared Cost Strategy. Each is described below.",
+          "source": "https://www.finops.org/framework/capabilities/allocation",
+          "note": null
+        },
+        {
+          "text": "Accurate tag-based cost attribution is a core part of our FinOps practice. We use resource tags to allocate cloud spend across teams, track budgets, and produce monthly cost reports. When ephemeral clusters - which are a normal and frequent part of our infrastructure - show up as untagged, entire categories of spend become invisible to our reporting. This directly undermines our ability to manage and understand our cloud costs.",
+          "source": "https://feedback.mongodb.com/ideas/CUSTOMER-I-10624",
+          "note": null
+        },
+        {
+          "text": "Additionally, the commands atlas clusters describe, atlas clusters list, atlas serverless list, and atlas serverless describe will contain tags on the JSON output.",
+          "source": "https://mongodb.com/blog/post/operating-at-scale-using-resource-tags",
+          "note": null
+        },
+        {
+          "text": "Allocation defines how costs should be apportioned to those responsible for each component of that cost, whether directly or as a shared element. In the context of FinOps, this involves using account structures, tags, labels and derived metadata to identify categories to which we assign costs in a way that provides product managers, engineers, and other personas with a transparent and complete understanding of the cost of technology resources for which they are responsible.",
+          "source": "https://www.finops.org/framework/capabilities/allocation",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "How it works",
+      "facts": [
+        {
+          "text": "Per the 2023 GA announcement (updated 2025-03), tags usually appear on invoice line items within 48 hours of being added. Line items not billed at the cluster level are not eligible for tags, and cluster-related line items with no tag stay untagged. These statements pre-date the current docs, which also mention project tags, so recheck eligibility before relying on them.",
+          "source": "https://mongodb.com/blog/post/deployment-tags-billing-invoices-now-generally-available",
+          "note": null
+        },
+        {
+          "text": "Tags will typically appear on Invoice line items within 48 hours of being added to the deployment. Also, tags will not appear on cluster related line items that are not associated with a tag and line items not billed at the cluster level are not eligible for tagging at this time. The example below shows an example CSV export for the fictitious project, Leafy. This organization has two tag keys (Environment and Cost-Center) associated with different clusters. Notice that the cluster named “Blue” does not have the Cost-Center tag applied, so those cells are blank.",
+          "source": "https://mongodb.com/blog/post/deployment-tags-billing-invoices-now-generally-available",
+          "note": null
+        },
+        {
+          "text": "Resource tags that appear on invoice CSV files and those returned from the Atlas Admin API reflect your configuration of resource tags at the moment the CSV is generated or the API is invoked.",
+          "source": "https://www.mongodb.com/docs/atlas/billing/invoices",
+          "note": null
+        },
+        {
+          "text": "When you create resource tags in the Atlas UI, Atlas automatically suggests tag keys and values. We recommend that you apply the environment and application tag keys to every resource.",
+          "source": "https://www.mongodb.com/docs/atlas/tags",
+          "note": null
+        },
+        {
+          "text": "Shared costs are allocated to central budgets or platform teams directly and not charged back to cost centers or business units",
+          "source": "https://www.finops.org/framework/capabilities/allocation",
+          "note": "FinOps allocation maturity: Crawl"
+        },
+        {
+          "text": "Allocation mechanisms will typically include a combination of factors, such as accounts, projects or subscriptions which are identified by metadata or naming standard as belonging to specific cost centers, resources within shared cost pools which can be identified as belonging to a particular cost center, and some mechanisms for the distribution of shared costs",
+          "source": "https://www.finops.org/framework/capabilities/allocation",
+          "note": "FinOps allocation maturity: Walk"
+        },
+        {
+          "text": "With the flexibility to break down costs according to specific business units, engineering environments, or individual lines of business, organizations of all sizes can tailor their cost allocation requirements accordingly. By streamlining the reporting process and providing comprehensive financial visibility, customers are empowered with more informed decisions.",
+          "source": "https://mongodb.com/blog/post/deployment-tags-billing-invoices-now-generally-available",
+          "note": null
+        },
+        {
+          "text": "Shared cost process documented to enable and manage expectations of “fair share” onboarding of new cost centers/business units",
+          "source": "https://www.finops.org/framework/capabilities/allocation",
+          "note": "FinOps allocation maturity: Walk"
+        },
+        {
+          "text": "Shared cost process automated to enable “fair share” onboarding of new cost centers/business units",
+          "source": "https://www.finops.org/framework/capabilities/allocation",
+          "note": "FinOps allocation maturity: Run"
+        }
+      ]
+    },
+    {
+      "title": "Parameters and configuration",
+      "facts": [
+        {
+          "text": "You can have a maximum of 50 tags per cluster.",
+          "source": "https://www.mongodb.com/docs/atlas/tags",
+          "note": null
+        },
+        {
+          "text": "Each tag key can have a maximum of 255 characters.",
+          "source": "https://www.mongodb.com/docs/atlas/tags",
+          "note": null
+        },
+        {
+          "text": "Each tag value can have a maximum of 255 characters.",
+          "source": "https://www.mongodb.com/docs/atlas/tags",
+          "note": null
+        },
+        {
+          "text": "Each tag value can be associated with a maximum of 1,000 resources.",
+          "source": "https://www.mongodb.com/docs/atlas/tags",
+          "note": null
+        },
+        {
+          "text": "Tags keys and tag values are case sensitive. For example, Atlas accepts both environment and Environment as separate tag keys.",
+          "source": "https://www.mongodb.com/docs/atlas/tags",
+          "note": null
+        },
+        {
+          "text": "Each tag key must be unique.",
+          "source": "https://www.mongodb.com/docs/atlas/tags",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "How-to and procedures",
+      "facts": [
+        {
+          "text": "MongoDB's recommended tagging practice: use a standardized, case-sensitive format across all resource types, and use a consistent cost-allocation key such as cost-center or billing-unit. Also apply environment and application tags to every resource, use namespaces or prefixes for business units, enforce a mandatory-tag policy with regular checks for untagged deployments, and manage tags through the Admin API, Atlas CLI or Terraform provider.",
+          "source": "https://www.mongodb.com/docs/atlas/tags",
+          "note": null
+        },
+        {
+          "text": "To create or modify tags a user needs the Project Owner role on the project or the Organization Owner role on its parent organization. Atlas records every tag add, change or delete in the Project Activity Feed. Tags can be managed from the Atlas UI, Admin API, Atlas CLI, or the Terraform provider.",
+          "source": "https://www.mongodb.com/docs/atlas/tags",
+          "note": null
+        },
+        {
+          "text": "Use namespaces or prefixes to easily identify tags owned by different business units.",
+          "source": "https://mongodb.com/blog/post/deployment-tags-billing-invoices-now-generally-available",
+          "note": null
+        },
+        {
+          "text": "Another team prefers to use the Atlas CLI to create and manage their deployments. In the example below, they are using the --tag flag on the atlas clusters create operation to add tags to a new cluster named “TagsUsingAtlasCLI.”",
+          "source": "https://mongodb.com/blog/post/operating-at-scale-using-resource-tags",
+          "note": null
+        },
+        {
+          "text": "Don't include sensitive information such as Personally Identifiable Information (PII) or Protected Health Information (PHI) in your resource tags. Other MongoDB services, such as Billing, can access resource tags. MongoDB also sends cluster resource tags to DataDog and Prometheus integrations. Resource tags are not intended for private and sensitive data. To learn more, see Sensitive Information.",
+          "source": "https://www.mongodb.com/docs/atlas/tags",
+          "note": null
+        },
+        {
+          "text": "Use a standardized, case-sensitive format for tags, and apply it consistently across all resource types.",
+          "source": "https://www.mongodb.com/docs/atlas/tags",
+          "note": null
+        },
+        {
+          "text": "Create a tagging strategy that uses standard tags across all of your resource types.",
+          "source": "https://www.mongodb.com/docs/atlas/tags",
+          "note": null
+        },
+        {
+          "text": "Do not include any sensitive information such as Personally Identifiable Information (PII) or Protected Health Information (PHI) in resource tag keys or values.",
+          "source": "https://mongodb.com/blog/post/deployment-tags-billing-invoices-now-generally-available",
+          "note": null
+        },
+        {
+          "text": "Use a standard naming convention - including spelling, case, and punctuation for all tags.",
+          "source": "https://mongodb.com/blog/post/deployment-tags-billing-invoices-now-generally-available",
+          "note": null
+        },
+        {
+          "text": "If they wanted to add tags to existing serverless instances, they can use the Update One Serverless Instance operation to accomplish this. At this point, we have all of our deployments tagged with our required tags. We can use this information to see which clusters are associated with which departments, the different services that are running, as well as which environment they are running in. As a next step, the security team can easily set up deployment tags to detect security and compliance issues.",
+          "source": "https://mongodb.com/blog/post/operating-at-scale-using-resource-tags",
+          "note": null
+        },
+        {
+          "text": "Use the Atlas Administration API, the Atlas CLI , or the HashiCorp Terraform MongoDB Atlas Provider to programmatically manage tags across your resources.",
+          "source": "https://www.mongodb.com/docs/atlas/tags",
+          "note": null
+        },
+        {
+          "text": "To create or modify resource tags, you must have the Project Owner role for the project or the Organization Owner role on its parent organization.",
+          "source": "https://www.mongodb.com/docs/atlas/tags",
+          "note": null
+        },
+        {
+          "text": "Use automated tools such as Terraform or the Admin API to programmatically manage database deployments and tags.",
+          "source": "https://mongodb.com/blog/post/deployment-tags-billing-invoices-now-generally-available",
+          "note": null
+        },
+        {
+          "text": "You can also use any of the following Atlas CLI operations to create, update or modify tags on clusters or serverless instances.",
+          "source": "https://mongodb.com/blog/post/operating-at-scale-using-resource-tags",
+          "note": null
+        },
+        {
+          "text": "Add tags (key-value pairs) to your resources to better understand, organize, and identify your resources.",
+          "source": "https://www.mongodb.com/docs/atlas/tags",
+          "note": null
+        },
+        {
+          "text": "Use tags to categorize resources by purpose, environment, team, or billing center.",
+          "source": "https://www.mongodb.com/docs/atlas/tags",
+          "note": null
+        },
+        {
+          "text": "Determine how to allocate percentages of any shared cost items",
+          "source": "https://www.finops.org/framework/capabilities/allocation",
+          "note": "FinOps persona task"
+        },
+        {
+          "text": "Enforce and automate metadata standards for cost allocation metadata",
+          "source": "https://www.finops.org/framework/capabilities/allocation",
+          "note": "FinOps persona task"
+        }
+      ]
+    },
+    {
+      "title": "Examples and snippets",
+      "facts": [
+        {
+          "text": "Another team has scripts set up to manage deployments for their projects using the Atlas Admin API. This team manages serverless instances, so to create a new deployment with tags, they’d use the Create One Serverless Instance operation and include the tag keys and values in the request body. Here is an example of the body of that API call.",
+          "source": "https://mongodb.com/blog/post/operating-at-scale-using-resource-tags",
+          "note": null
+        },
+        {
+          "text": "Next, they confirm the cluster details using the atlas clusters describe command. Notice that all five tags are included in the output.",
+          "source": "https://mongodb.com/blog/post/operating-at-scale-using-resource-tags",
+          "note": null
+        },
+        {
+          "text": "Example: ACME Global Limited Shared effective cost for the month of July was $200,000 on cloud monitoring tools, security tools, cloud costs management tools, CSP (Cloud Service Provider) Premium Support Fees. ACME Global Cloud bill for July came to $1,200,000, broken down per Cost center/Product/Department as:",
+          "source": "https://www.finops.org/framework/capabilities/allocation",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Measurements and reference values",
+      "facts": [
+        {
+          "text": "Measures the effectiveness of cost attribution practices across an organization’s infrastructure. The formula calculates the percentage of total infrastructure costs that are directly and accurately attributed to the responsible teams, projects, or business units. A higher AAI indicates better financial transparency, more reliable Chargeback or Showback, and stronger alignment between costs and consumption, supporting accurate budgeting, forecasting, and FinOps decision-making. This KPI was developed by the FinOps for Data Center Working Group.",
+          "source": "https://www.finops.org/framework/capabilities/allocation",
+          "note": null
+        },
+        {
+          "text": "Measures the effectiveness of cost attribution practices across an organization’s infrastructure. The formula calculates the percentage of total infrastructure costs that are directly and accurately attributed to the responsible teams, projects, or business units. A higher AAI indicates better financial transparency, more reliable Chargeback or Showback, and stronger alignment between costs and consumption, supporting accurate",
+          "source": "https://www.finops.org/framework/capabilities/allocation",
+          "note": null
+        },
+        {
+          "text": "KPI: Percentage of costs with appropriate allocation metadata",
+          "source": "https://www.finops.org/framework/capabilities/allocation",
+          "note": "FinOps KPI example"
+        },
+        {
+          "text": "KPI: Quarterly improvement in the accuracy of cost allocations",
+          "source": "https://www.finops.org/framework/capabilities/allocation",
+          "note": "FinOps KPI example"
+        },
+        {
+          "text": "KPI: Percentage of resource deployments with missing allocation metadata",
+          "source": "https://www.finops.org/framework/capabilities/allocation",
+          "note": "FinOps KPI example"
+        },
+        {
+          "text": "KPI: Percentage increase in awareness and adherence to cost allocation practices",
+          "source": "https://www.finops.org/framework/capabilities/allocation",
+          "note": "FinOps KPI example"
+        }
+      ]
+    },
+    {
+      "title": "Problems, failure modes and limitations",
+      "facts": [
+        {
+          "text": "Because Atlas fetches tags at export time, clusters deleted before the export appear untagged on the invoice. A customer request filed 2026-06-24 (CUSTOMER-I-10624) asks Atlas to record tags when the cost is incurred. Its status is Started with 5 votes. On 2026-07-15 MongoDB said it is evaluating priority, with no timeline. The requester has no reliable workaround and matches creation and deletion logs to line items by hand.",
+          "source": "https://feedback.mongodb.com/ideas/CUSTOMER-I-10624",
+          "note": null
+        },
+        {
+          "text": "Invoice tags reflect the tag configuration at the moment the CSV is generated or the API is called. If a team retags a resource mid-billing-cycle, the whole invoice shows only the latest tags. Showback and chargeback reports must therefore treat tags as a snapshot, not a history.",
+          "source": "https://www.mongodb.com/docs/atlas/billing/invoices",
+          "note": null
+        },
+        {
+          "text": "Atlas stores tag values in plain text. Billing can read them, and Atlas sends cluster tags to the Datadog and Prometheus integrations. Tags must not hold PII or PHI.",
+          "source": "https://www.mongodb.com/docs/atlas/tags",
+          "note": null
+        },
+        {
+          "text": "Resource tags assigned to Atlas clusters are not preserved in invoices if the cluster is deleted before the invoice is exported. Atlas fetches tags live at export time rather than recording them when the cost is incurred. This means that any ephemeral cluster - correctly tagged throughout its entire lifetime - will appear as untagged in the invoice, making it impossible to attribute its costs to the right team, project, or cost center.",
+          "source": "https://feedback.mongodb.com/ideas/CUSTOMER-I-10624",
+          "note": null
+        },
+        {
+          "text": "Resource tags in invoices should reflect the state at the time of use, not export time. Atlas should record and persist resource tags at the time each cost event occurs, so that invoice exports always reflect the tag state that was true during the billing period - regardless of whether the cluster still exists at the time of download. This is consistent with how cost allocation tagging works in AWS and GCP.",
+          "source": "https://feedback.mongodb.com/ideas/CUSTOMER-I-10624",
+          "note": null
+        },
+        {
+          "text": "Once resource tags have been added to your database deployments these tags will appear on the Database Deployments page, as well as other areas of Atlas. For this reason, be sure not to include any sensitive information in tag keys or values because these values are stored in plain text and can be exposed in billing invoices, audit logging, and other operations on different resources.",
+          "source": "https://mongodb.com/blog/post/operating-at-scale-using-resource-tags",
+          "note": null
+        },
+        {
+          "text": "Currently, there is no reliable workaround. We have to manually cross-reference cluster creation and deletion logs with invoice line items to reconstruct cost attribution - a time-consuming and error-prone process. For short-lived clusters, this is often not feasible at all.",
+          "source": "https://feedback.mongodb.com/ideas/CUSTOMER-I-10624",
+          "note": null
+        },
+        {
+          "text": "Please be aware that if you reconfigure your resource tags within a billing cycle, your invoice reflects only the latest configuration of tags.",
+          "source": "https://www.mongodb.com/docs/atlas/billing/invoices",
+          "note": null
+        },
+        {
+          "text": "Tags or labels are used for some allocation, but cannot be used consistently, or not used for a majority of spend",
+          "source": "https://www.finops.org/framework/capabilities/allocation",
+          "note": "FinOps allocation maturity: Crawl"
+        }
+      ]
+    },
+    {
+      "title": "Comparisons and alternatives",
+      "facts": [
+        {
+          "text": "These resource tags differ from the pre-defined replica set tags that Atlas provides. You can't change those replica set tags. You can provide and manage these resource tags.",
+          "source": "https://www.mongodb.com/docs/atlas/tags",
+          "note": null
+        },
+        {
+          "text": "Other customers were naming their deployments after internal billing references instead of meaningful names for their development teams. Addressing this leads to an enhanced user experience, streamlined reporting processes, and ensures invoices can meet the unique cost allocation needs of our customers.",
+          "source": "https://mongodb.com/blog/post/deployment-tags-billing-invoices-now-generally-available",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Changes and history",
+      "facts": [
+        {
+          "text": "Cluster labels will be deprecated in a future release, and MongoDB strongly recommends resource tags instead.",
+          "source": "https://www.mongodb.com/docs/atlas/tags",
+          "note": null
+        },
+        {
+          "text": "Cluster labels will be deprecated in one of the future releases. We strongly recommend that you use resource tags instead.",
+          "source": "https://www.mongodb.com/docs/atlas/tags",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Facts and statements",
+      "facts": [
+        {
+          "text": "Let’s walk through a hypothetical scenario for my LeafyGreen Application, an online plant center: I manage several types of deployments with different purposes. My team primarily uses tags for resource management and our team’s tagging policy requires that every deployment has the application, environment, cost-center, type, and service tags. Let’s look at how this works in Atlas.",
+          "source": "https://mongodb.com/blog/post/operating-at-scale-using-resource-tags",
+          "note": null
+        },
+        {
+          "text": "Allocation from aggregated usage datasets can be done by splitting costs manually or using a known list of owners of accounts, projects, subscriptions, resource groups or other logical groupings of resources. Allocation granularity is enhanced using resource-level naming conventions and tags or labels applied to the data. Even more granular allocation, or allocation of shared cost elements can be accomplished using other sources such as the organization Configuration Management Database (CMDB), observability, or utilization data. The methods and intricacy of the allocation will generally incre",
+          "source": "https://www.finops.org/framework/capabilities/allocation",
+          "note": null
+        },
+        {
+          "text": "Today, billing-related tags are the recommended way to allocate costs based on dimensions unique to customer organizations. Previously, customers were exporting CSV invoices or using the Admin API to manually append additional metadata, and generate custom financial reports resulting in a significant amount of time lost.",
+          "source": "https://mongodb.com/blog/post/deployment-tags-billing-invoices-now-generally-available",
+          "note": null
+        },
+        {
+          "text": "In June, we announced MongoDB’s Atlas new resource tagging capability - built to provide a simple and easy way to organize and manage database deployments at scale. Today, we are pleased to announce the availability of these tags in billing invoice CSVs and Admin API operations.",
+          "source": "https://mongodb.com/blog/post/deployment-tags-billing-invoices-now-generally-available",
+          "note": null
+        },
+        {
+          "text": "Customers can get started today by adding tags to new or existing deployments using the Atlas UI, Admin API, or CLI. Once added, the tag keys will appear as column headings in the billing invoice CSV export and as a field in the Invoices payload for the Admin API calls.",
+          "source": "https://mongodb.com/blog/post/deployment-tags-billing-invoices-now-generally-available",
+          "note": null
+        },
+        {
+          "text": "Security risk management - use tags to identify which resources may contain sensitive information, or automate processes to detect security and compliance issues (e.g. Cluster A is a production deployment without backup enabled).",
+          "source": "https://mongodb.com/blog/post/operating-at-scale-using-resource-tags",
+          "note": null
+        },
+        {
+          "text": "Apply tags for cost allocation. Use a consistent tag key, such as cost-center or billing-unit, to associate related resources based on the billing entity or purpose. Doing so can help you perform cost allocation based on custom dimensions. To learn more, see Resource Tags on Invoices.",
+          "source": "https://www.mongodb.com/docs/atlas/tags",
+          "note": null
+        },
+        {
+          "text": "You can apply resource tags in Atlas for precise cost allocation by categorizing resources according to departments, projects, or cost centers. You can also group and analyze tagged resources in financial reports, providing a clear and organized view of how various teams or projects contribute to overall cloud spending. To learn more, see Resource Tags.",
+          "source": "https://www.mongodb.com/docs/atlas/architecture/current/billing-data/",
+          "note": null
+        },
+        {
+          "text": "Leveraging tags within billing invoices empowers customers to categorize spending based on custom dimensions (such as cost center) and streamline financial reporting.",
+          "source": "https://mongodb.com/blog/post/deployment-tags-billing-invoices-now-generally-available",
+          "note": null
+        },
+        {
+          "text": "Tags applied to Billing Invoices meet customers' critical needs by allowing them to categorize spending based on custom dimensions, optimizing financial reporting, and increasing trust and efficiency. Customers gain the flexibility to break down costs according to various business units, engineering environments, or specific lines of business, making financial analysis more efficient and more insightful than ever before.",
+          "source": "https://mongodb.com/blog/post/deployment-tags-billing-invoices-now-generally-available",
+          "note": null
+        },
+        {
+          "text": "Adding metadata such as the environment, application, team, or cost center can help you visually or programmatically identify, filter, or group related resources. You can also perform automation tasks in bulk using the existence of tags on database deployments.",
+          "source": "https://mongodb.com/blog/post/operating-at-scale-using-resource-tags",
+          "note": null
+        },
+        {
+          "text": "MongoDB’s Atlas resource tagging capability provides a simple and easy way to organize and manage database deployments at scale. Tags can be used to create cost allocation reports, support automation scripts, or detect security and compliance issues. Sign up for MongoDB Atlas, our cloud database service, to see tagging in action. Resource tagging is available in MongoDB Atlas, for clusters and serverless instances.",
+          "source": "https://mongodb.com/blog/post/operating-at-scale-using-resource-tags",
+          "note": null
+        },
+        {
+          "text": "Pull billing data programmatically to integrate with your FinOps tools for charge-back and accounting purposes within each department and application.",
+          "source": "https://www.mongodb.com/docs/atlas/architecture/current/billing-data/",
+          "note": null
+        },
+        {
+          "text": "You can use resource tags to help categorize your costs. Resource tags appear on invoice CSV files. For each tag key, Atlas adds another column to your CSV file with the header Tag/<your key> and the cell value <your value>.",
+          "source": "https://www.mongodb.com/docs/atlas/billing/invoices",
+          "note": null
+        },
+        {
+          "text": "Define and communicate a strategy that enforces mandatory tags on all database deployments. We recommend you start with identifying the environment and the application/service/workload.",
+          "source": "https://mongodb.com/blog/post/deployment-tags-billing-invoices-now-generally-available",
+          "note": null
+        },
+        {
+          "text": "Implement a tag governance routine that regularly checks for untagged or improperly tagged deployments.",
+          "source": "https://mongodb.com/blog/post/deployment-tags-billing-invoices-now-generally-available",
+          "note": null
+        },
+        {
+          "text": "Tagging strategy compliance is inconsistent",
+          "source": "https://www.finops.org/framework/capabilities/allocation",
+          "note": "FinOps allocation maturity: Crawl"
+        },
+        {
+          "text": "Tagging strategy for resources and hierarchy groupings is well-documented and followed",
+          "source": "https://www.finops.org/framework/capabilities/allocation",
+          "note": "FinOps allocation maturity: Walk"
+        },
+        {
+          "text": "Tagging compliance is consistent in key areas or applications but not universal",
+          "source": "https://www.finops.org/framework/capabilities/allocation",
+          "note": "FinOps allocation maturity: Walk"
+        },
+        {
+          "text": "Metadata compliance can be viewed in terms of how much of your spend is associated with accurate and meaningful allocation metadata, or at least organized within a recognizable hierarchy. As practices mature, a significant share of costs typically meets these criteria, enabling more reliable reporting and allocation.",
+          "source": "https://www.finops.org/framework/capabilities/allocation",
+          "note": null
+        },
+        {
+          "text": "You can use resource tags to categorize resources by purpose, environment, team, or billing center. You can add tags to your projects and clusters to better understand, organize, and identify these resources. Each tag is a key-value pair. For example, you might add an environment : production tag. In this example, you set the tag key to environment and you set the tag value to production. You can manage resource tags from the Atlas UI, Atlas Administration API, and Atlas CLI.",
+          "source": "https://www.mongodb.com/docs/atlas/tags",
+          "note": null
+        },
+        {
+          "text": "Whenever a user adds, modifies, or deletes a resource tag, Atlas reflects the event in the Project Activity Feed.",
+          "source": "https://www.mongodb.com/docs/atlas/tags",
+          "note": null
+        },
+        {
+          "text": "You can also get a list of resource tags for a deployment by retrieving deployment details with the Atlas Admin API, or view your tags in the Atlas console.",
+          "source": "https://www.mongodb.com/docs/atlas/billing/invoices",
+          "note": null
+        },
+        {
+          "text": "Cost management - use tags to create reports and view consumption by characteristics unique to your business.",
+          "source": "https://mongodb.com/blog/post/operating-at-scale-using-resource-tags",
+          "note": null
+        },
+        {
+          "text": "Resource management - use tags to easily identify or group related resources by team, service, application, or owner.",
+          "source": "https://mongodb.com/blog/post/operating-at-scale-using-resource-tags",
+          "note": null
+        },
+        {
+          "text": "Operations management - use tags to help teams audit and track whether resources meet certain business requirements.",
+          "source": "https://mongodb.com/blog/post/operating-at-scale-using-resource-tags",
+          "note": null
+        },
+        {
+          "text": "Automation - use tags on database deployments to automate workflows.",
+          "source": "https://mongodb.com/blog/post/operating-at-scale-using-resource-tags",
+          "note": null
+        },
+        {
+          "text": "Define and maintain a strategy to document apportionment of shared costs and impacts to allocation targets",
+          "source": "https://www.finops.org/framework/capabilities/allocation",
+          "note": null
+        },
+        {
+          "text": "Shared costs are split using an appropriate distribution model(s) (proportional, fixed, even-split) across the entirety of the organization",
+          "source": "https://www.finops.org/framework/capabilities/allocation",
+          "note": "FinOps allocation maturity: Walk"
+        },
+        {
+          "text": "Automation allows for multiple sources of data to be used to allocate shared costs at the level they can be where important to the organization (e.g. using metering tools to capture usage and augment billing data to attribute shared costs with greater accuracy)",
+          "source": "https://www.finops.org/framework/capabilities/allocation",
+          "note": "FinOps allocation maturity: Run"
+        },
+        {
+          "text": "Shared costs are distinguished from dedicated costs",
+          "source": "https://www.finops.org/framework/capabilities/allocation",
+          "note": "FinOps allocation maturity: Run"
+        },
+        {
+          "text": "These costs can arise due to shared resources, lack of proper cost allocation mechanisms, or simply inefficiencies in resource management. Unallocated costs can contribute to cloud wastage and make it difficult to accurately track and manage expenses. Identifying unallocated cost and reducing them by allocating, improves the cost allocation",
+          "source": "https://www.finops.org/framework/capabilities/allocation",
+          "note": null
+        },
+        {
+          "text": "Method of apportioning shared costs based on usage or spend proportional amount.",
+          "source": "https://www.finops.org/framework/capabilities/allocation",
+          "note": null
+        },
+        {
+          "text": "Total apportionment of Shared Costs / Total shared costs",
+          "source": "https://www.finops.org/framework/capabilities/allocation",
+          "note": null
+        },
+        {
+          "text": "Apply tags for resource organization. Use a consistent tag key, such as environment, application, team, or owner, to group resources.",
+          "source": "https://www.mongodb.com/docs/atlas/tags",
+          "note": null
+        },
+        {
+          "text": "Your recent tags appear under the suggested ones. This list includes tags previously used for other resources.",
+          "source": "https://www.mongodb.com/docs/atlas/tags",
+          "note": null
+        },
+        {
+          "text": "The Atlas Administration API provides a RESTful interface that allows you to programmatically access your billing data for use with external tools and reports. Combine this feature with resource tags to easily categorize your Atlas spending.",
+          "source": "https://www.mongodb.com/docs/atlas/architecture/current/billing-data/",
+          "note": null
+        },
+        {
+          "text": "You can also customize your billing dashboard by applying dashboard filters and adding new charts, including any charts that use tags that you've applied to your billing data.",
+          "source": "https://www.mongodb.com/docs/atlas/architecture/current/billing-data/",
+          "note": null
+        },
+        {
+          "text": "We started off by adding tags in the Atlas UI. Tags can be added whenever you create a deployment, or to an existing deployment on the Database Deployments page.",
+          "source": "https://mongodb.com/blog/post/operating-at-scale-using-resource-tags",
+          "note": null
+        },
+        {
+          "text": "Define strategies to assign and share cost and usage using accounts, tags, labels, and other metadata, creating accountability among teams and projects within an organization.",
+          "source": "https://www.finops.org/framework/capabilities/allocation",
+          "note": null
+        },
+        {
+          "text": "Define specific tags, labels, naming standards, grouping structures used to identify that a cost is in a particular grouping",
+          "source": "https://www.finops.org/framework/capabilities/allocation",
+          "note": null
+        },
+        {
+          "text": "Simple Allocation strategy where costs of accounts, projects or subscriptions are allocated to the business units, portfolios or cost centers using a list of accounts known to belong to specific cost centers or business units",
+          "source": "https://www.finops.org/framework/capabilities/allocation",
+          "note": "FinOps allocation maturity: Crawl"
+        },
+        {
+          "text": "Monthly challenges identifying the owners of unknown, untagged, unidentified accounts",
+          "source": "https://www.finops.org/framework/capabilities/allocation",
+          "note": "FinOps allocation maturity: Crawl"
+        },
+        {
+          "text": "Basic KPIs for Cost ALlocation are defined and manually created on an inconsistent cadence",
+          "source": "https://www.finops.org/framework/capabilities/allocation",
+          "note": "FinOps allocation maturity: Crawl"
+        },
+        {
+          "text": "Well-documented Allocation strategy identifying multiple mechanisms for allocating cost has been implemented but may not be used consistently or universally",
+          "source": "https://www.finops.org/framework/capabilities/allocation",
+          "note": "FinOps allocation maturity: Walk"
+        },
+        {
+          "text": "Infrequent investigation to identify unallocated, untagged, or unidentified cost elements",
+          "source": "https://www.finops.org/framework/capabilities/allocation",
+          "note": "FinOps allocation maturity: Walk"
+        },
+        {
+          "text": "Cost allocation can be done to an application or service level",
+          "source": "https://www.finops.org/framework/capabilities/allocation",
+          "note": "FinOps allocation maturity: Walk"
+        },
+        {
+          "text": "Shared cost strategy is well documented and understood for multiple elements of shared cost",
+          "source": "https://www.finops.org/framework/capabilities/allocation",
+          "note": "FinOps allocation maturity: Walk"
+        },
+        {
+          "text": "KPIs for cost allocation understood, but not automated",
+          "source": "https://www.finops.org/framework/capabilities/allocation",
+          "note": "FinOps allocation maturity: Walk"
+        },
+        {
+          "text": "Shared platform owners are able to showback costs generated by internal customers",
+          "source": "https://www.finops.org/framework/capabilities/allocation",
+          "note": "FinOps allocation maturity: Walk"
+        },
+        {
+          "text": "Direct allocation or consistent mechanisms for distributing shared cost items, and strategies for metadata, hierarchy and naming standards are being used consistently and effectively universally",
+          "source": "https://www.finops.org/framework/capabilities/allocation",
+          "note": "FinOps allocation maturity: Run"
+        },
+        {
+          "text": "Employing automation in the provisioning of resources to create consistency of resource and account tagging and metadata",
+          "source": "https://www.finops.org/framework/capabilities/allocation",
+          "note": "FinOps allocation maturity: Run"
+        },
+        {
+          "text": "Using mechanisms to automatically correct for or augment service provider tagging capabilities after receipt of billing data to achieve high allocation percentage compliance",
+          "source": "https://www.finops.org/framework/capabilities/allocation",
+          "note": "FinOps allocation maturity: Run"
+        },
+        {
+          "text": "Cost allocation is performed in near real time allowing for Product and Engineering Personas to better understand their monthly costs",
+          "source": "https://www.finops.org/framework/capabilities/allocation",
+          "note": "FinOps allocation maturity: Run"
+        },
+        {
+          "text": "Shared platform/service owners are able to fully allocate and chargeback costs generated by internal customers",
+          "source": "https://www.finops.org/framework/capabilities/allocation",
+          "note": "FinOps allocation maturity: Run"
+        },
+        {
+          "text": "Shared cost recovery reflects commercial discounts/commitment based discounts",
+          "source": "https://www.finops.org/framework/capabilities/allocation",
+          "note": "FinOps allocation maturity: Run"
+        },
+        {
+          "text": "Objective: Achieve comprehensive cost allocation to organizational units",
+          "source": "https://www.finops.org/framework/capabilities/allocation",
+          "note": "FinOps KPI example"
+        },
+        {
+          "text": "Objective: Ensure accurate and complete metadata for cost allocation",
+          "source": "https://www.finops.org/framework/capabilities/allocation",
+          "note": "FinOps KPI example"
+        },
+        {
+          "text": "Objective: Proactively address missing allocation metadata",
+          "source": "https://www.finops.org/framework/capabilities/allocation",
+          "note": "FinOps KPI example"
+        },
+        {
+          "text": "Objective: Continuously enhance the accuracy of cost allocations",
+          "source": "https://www.finops.org/framework/capabilities/allocation",
+          "note": "FinOps KPI example"
+        },
+        {
+          "text": "Objective: Improve understanding and adherence to cost allocation practices",
+          "source": "https://www.finops.org/framework/capabilities/allocation",
+          "note": "FinOps KPI example"
+        },
+        {
+          "text": "Overlay the organizational business metadata for each element of allocation metadata. For example: constructs like Project Names, Application IDs, Cost Center IDs, …etc.",
+          "source": "https://www.finops.org/framework/capabilities/allocation",
+          "note": null
+        },
+        {
+          "text": "Align roles for organizational P&L groupings to map cost ownership back to Invoicing & Chargeback activities",
+          "source": "https://www.finops.org/framework/capabilities/allocation",
+          "note": null
+        },
+        {
+          "text": "Consolidate existing tag/label standards and establish consistent naming conventions",
+          "source": "https://www.finops.org/framework/capabilities/allocation",
+          "note": null
+        }
+      ]
+    }
+  ],
+  "related": [
+    {
+      "concept": "Terraform provider",
+      "relation": "is a part of Resource Tags and Cost Allocation (Showback/Chargeback)",
+      "note": null
+    },
+    {
+      "concept": "FinOps Framework",
+      "relation": "is a related of Resource Tags and Cost Allocation (Showback/Chargeback)",
+      "note": null
+    },
+    {
+      "concept": "tagging policy",
+      "relation": "is a part of Resource Tags and Cost Allocation (Showback/Chargeback)",
+      "note": null
+    },
+    {
+      "concept": "tag limits",
+      "relation": "is a part of Resource Tags and Cost Allocation (Showback/Chargeback)",
+      "note": null
+    },
+    {
+      "concept": "Tag/ column",
+      "relation": "is a part of Resource Tags and Cost Allocation (Showback/Chargeback)",
+      "note": null
+    },
+    {
+      "concept": "tag use cases",
+      "relation": "is a related of Resource Tags and Cost Allocation (Showback/Chargeback)",
+      "note": null
+    },
+    {
+      "concept": "invoice line items",
+      "relation": "is a related of Resource Tags and Cost Allocation (Showback/Chargeback)",
+      "note": null
+    },
+    {
+      "concept": "tag privacy",
+      "relation": "is a problem of Resource Tags and Cost Allocation (Showback/Chargeback)",
+      "note": null
+    },
+    {
+      "concept": "Atlas CLI tag flag",
+      "relation": "is a part of Resource Tags and Cost Allocation (Showback/Chargeback)",
+      "note": null
+    },
+    {
+      "concept": "tag snapshot",
+      "relation": "is a problem of Resource Tags and Cost Allocation (Showback/Chargeback)",
+      "note": null
+    },
+    {
+      "concept": "Project Activity Feed",
+      "relation": "is a part of Resource Tags and Cost Allocation (Showback/Chargeback)",
+      "note": null
+    },
+    {
+      "concept": "cluster labels",
+      "relation": "is a related of Resource Tags and Cost Allocation (Showback/Chargeback)",
+      "note": null
+    },
+    {
+      "concept": "cross-organization billing",
+      "relation": "is a related of Resource Tags and Cost Allocation (Showback/Chargeback)",
+      "note": null
+    },
+    {
+      "concept": "MongoDB Charts",
+      "relation": "is a related of Resource Tags and Cost Allocation (Showback/Chargeback)",
+      "note": null
+    },
+    {
+      "concept": "Cost Explorer",
+      "relation": "is a related of Resource Tags and Cost Allocation (Showback/Chargeback)",
+      "note": null
+    }
+  ]
+}

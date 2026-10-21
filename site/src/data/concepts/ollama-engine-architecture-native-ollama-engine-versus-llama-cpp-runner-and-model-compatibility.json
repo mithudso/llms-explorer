@@ -1,31 +1,21 @@
 {
   "slug": "ollama-engine-architecture-native-ollama-engine-versus-llama-cpp-runner-and-model-compatibility",
-  "concept": "Ollama engine architecture",
-  "generated": "2026-10-14",
-  "summary": "Ollama's inference engine has changed over time: a May 2025 blog introduced Ollama's own new engine built on the GGML tensor library for multimodal models. Commit 9db4bdb (PR #16031, merged 2026-05-29, first in v0.30.0-rc32 and v0.30.0) removed the native Go engine and the vendored llama.cpp backend: GGUF models now run on upstream llama-server, pinned by LLAMA_CPP_VERSION, with a temporary compatibility layer, and safetensors models run on the MLX engine on Apple Silicon (the default there since v0.40.0). The runner is chosen per manifest (mlx, llamacpp or ggml) by runnerPreferences(). Units describing the native engine are marked as history.",
+  "concept": "Ollama engine architecture: native Ollama engine versus llama.cpp runner and model compatibility",
+  "generated": "2026-10-15",
+  "summary": "Source-anchored research for Ollama engine architecture: native Ollama engine versus llama.cpp runner and model compatibility. Run status: COMPLETED.",
   "facets": [
     {
       "title": "Structure and components",
       "facts": [
         {
-          "text": "This includes a temporary patch and compatibility layer for llama.cpp for Ollama specific GGUFs whose metadata or tensor layout does not match llama.cpp's current loaders. The goal is to minimize user disruption during a transition phase to llama.cpp-compatible GGUFs with manifest-list support. Ultimately this patch should be removed and Ollama should run against unmodified upstream loaders.",
+          "text": "Commit 9db4bdb (2026-05-29, PR #16031, 'runner: Remove CGO engines, use llama-server exclusively for GGML models') deleted the vendored GGML and llama.cpp backend, the CGO runner, the Go model implementations and sample. Its message says llama-server, built from upstream llama.cpp via FetchContent, is now the sole inference engine for GGUF models, and safetensors models run on the MLX engine. The first tag containing it is v0.30.0. The commit landed on main 2026-05-29. The first tag that contains it is v0.30.0-rc32 (5 commits later), then v0.30.0. The PR body calls the llama.cpp compatibility",
           "source": "https://github.com/ollama/ollama/pull/16031",
           "note": null
         },
         {
-          "text": "func (kv KV) OllamaEngineRequired() bool { return slices.Contains([]string{ \"bert\", \"deepseek2\", \"deepseekocr\", \"gemma3\", \"gemma3n\", \"gemma4\", \"gptoss\", \"gpt-oss\", \"laguna\", \"llama4\", \"mistral3\", \"mllama\", \"nemotron_h\", \"nemotron_h_moe\", \"nemotron_h_omni\", \"nomic-bert\", \"olmo3\", \"qwen25vl\", \"qwen3\", \"qwen3moe\", \"qwen35\", \"qwen35moe\", \"qwen3next\", \"qwen3vl\", \"qwen3vlmoe\", \"glm4moelite\", \"glmocr\", \"lfm2\", \"lfm2moe\", }, kv.Architecture()) }",
-          "source": "https://github.com/ollama/ollama/blob/v0.24.0/fs/ggml/ggml.go",
+          "text": "Release timing of the engine removal: the v0.30.0 GitHub release object shows publishedAt 2026-05-13 and createdAt 2026-06-01, and the v0.30.0 tag points at a commit dated 2026-06-01 that contains commit 9db4bdb (PR #16031, merged 2026-05-29). The v0.30.0 notes say Ollama 0.30 brings 'improved compatibility and performance using llama.cpp' that 'augments the MLX engine on Apple Silicon', and list known issues (laguna-xs.2 unsupported on Windows/Linux, llama3.2-vision unsupported, nomic-embed-text now lowercases input). Cite the tag, not the 2026-05-13 publish date, for when users got the chang",
+          "source": "https://github.com/ollama/ollama/releases/tag/v0.30.0",
           "note": null
-        },
-        {
-          "text": "Additional GPU support on Windows and Linux is provided via [Vulkan](https://www.vulkan.org/). Vulkan is enabled by default when the backend is installed. On Windows most GPU vendors drivers come bundled with Vulkan support and require no additional setup steps. Most Linux distributions require installing additional components, and you may have multiple options for Vulkan drivers between Mesa and GPU Vendor specific packages",
-          "source": "https://github.com/ollama/ollama/blob/main/docs/gpu.mdx#vulkan-gpu-support",
-          "note": null
-        },
-        {
-          "text": "The Ollama file format is an OCI container, where one of the layers is a GGUF file, another layer is a json file with sampler configuration, and a third layer is the chat template, translated from the upstream jinja templates into the Go template language. As Zetaphor points out, there is literally no reason for any of this to exist, since GGUF is already an extensible file format with support for arbitrary extra metadata.",
-          "source": "https://nobodywho.ooo/posts/notes-on-friends-dont-let-friends-use-ollama/",
-          "note": "Competitor post; may predate v0.30.0"
         }
       ]
     },
@@ -33,78 +23,18 @@
       "title": "How it works",
       "facts": [
         {
-          "text": "// MetadataForConfig returns the default manifest-list runner and weight format // for a model config. It is intentionally conservative: GGUF models created by // the legacy path are tagged ggml, while converted GGUF manifests can override // the runner to llamacpp when they are written. func MetadataForConfig(config model.ConfigV2) (runner, format string) { switch strings.ToLower(config.ModelFormat) { case FormatSafetensors: return RunnerMLX, FormatSafetensors case FormatGGUF, \"ggml\": return RunnerGGML, FormatGGUF default: return \"\", strings.ToLower(config.ModelFormat) } }",
-          "source": "https://github.com/ollama/ollama/blob/main/manifest/manifest.go",
+          "text": "Before v0.30.0, Ollama ran GGUF models on two in-process engines selected per model: the native Go 'Ollama engine' (runner/ollamarunner, model/models, ml/backend/ggml) and the llama.cpp-based llamarunner (llama/ vendored llama.cpp, CGO). In v0.24.0, llm/server.go used the Ollama engine when envconfig.NewEngine() (OLLAMA_NEW_ENGINE) was set or when the GGUF general.architecture was in the OllamaEngineRequired() list, and fell back to llamarunner if the model was not yet supported. (high confidence)",
+          "source": "https://github.com/ollama/ollama/blob/v0.24.0/llm/server.go",
           "note": null
         },
         {
-          "text": "Models downloaded with earlier versions of Ollama are upgraded in the background the first time you run them, for better performance and compatibility when running on llama.cpp.",
-          "source": "https://github.com/ollama/ollama/releases",
+          "text": "The compat shim is declared temporary. Package compatmigrate converts legacy Ollama-format GGUF manifests already in the local store into clean llama.cpp-compatible 'llamacpp' manifest-list children in the background, so users need not re-pull. Its header says the code is to be removed once manifest-list publishing has been live for enough releases, after which unmigrated local artifacts should be re-pulled. RunnerForManifest tags a GGUF 'ggml' when a compat detector fires and 'llamacpp' otherwise. (high confidence) (verified as of 2026-10-14)",
+          "source": "https://github.com/ollama/ollama/blob/main/compatmigrate/migrate.go",
           "note": null
         },
         {
-          "text": "// IsTopRunnerPreference reports whether runner is the first runner the // platform would select from a manifest list when no runner is requested. func IsTopRunnerPreference(runner string) bool { return canonicalRunner(runner) == runnerPreferences()[0] }",
-          "source": "https://github.com/ollama/ollama/blob/main/manifest/manifest.go",
-          "note": null
-        },
-        {
-          "text": "Ollama includes multiple LLM libraries compiled for different GPUs and CPU vector features. Ollama tries to pick the best one based on the capabilities of your system. If this autodetection has problems, or you run into other problems (e.g. crashes in your GPU) you can workaround this by forcing a specific LLM library. `cpu_avx2` will perform the best, followed by `cpu_avx` an the slowest but most compatible is `cpu`. Rosetta emulation under MacOS will work with the `cpu` library.",
-          "source": "https://github.com/ollama/ollama/blob/main/docs/troubleshooting.mdx#llm-libraries",
-          "note": "docs at main; wording may predate v0.30.0"
-        }
-      ]
-    },
-    {
-      "title": "How-to and procedures",
-      "facts": [
-        {
-          "text": "To make downgrading safe, Ollama keeps the original copy as a backup, so upgraded models are temporarily kept on disk. A future release will remove these backups automatically.",
-          "source": "https://github.com/ollama/ollama/releases",
-          "note": null
-        },
-        {
-          "text": "To import a single-file GGUF model, create a `Modelfile` containing:",
-          "source": "https://github.com/ollama/ollama/blob/main/docs/import.mdx#importing-a-gguf-model",
-          "note": null
-        }
-      ]
-    },
-    {
-      "title": "Problems, failure modes and limitations",
-      "facts": [
-        {
-          "text": "- Build option and dependency drift: changed `GGML_*` or `LLAMA_*` options, new `find_package` calls, generated assets, shader tools, or backend dependencies. Compare against `llama/server/CMakeLists.txt`, `llama/server/CMakePresets.json`, `cmake/local.cmake`, Dockerfiles, CI, and build scripts as needed. - Backend discovery contracts: GGML symbols used by `discover/native_probe*.go`, `ggml_backend_dev_props`, backend device type enums, backend registry loading, device ordering, visible-device filtering, and CUDA/ROCm/Vulkan/Metal runtime library behavior. - llama-server contracts: launch args",
-          "source": "https://github.com/ollama/ollama/blob/main/llama/README.md#what-to-review",
-          "note": null
-        },
-        {
-          "text": "// RunnerForManifest reports the runner a GGUF manifest should carry: ggml when // a compatibility detector fires, llamacpp otherwise. It reads GGUF headers // only, so it is cheap enough to run whenever a manifest is written. func RunnerForManifest(source model.Name, mf *manifest.Manifest) (string, error) { src, err := loadSourceModelFromManifest(source, mf) if err != nil { return \"\", err } defer src.Close()",
-          "source": "https://github.com/ollama/ollama/blob/main/compatmigrate/migrate.go#runnerformanifest-compatmigrate-migrate-go",
-          "note": null
-        },
-        {
-          "text": "Scanning the output of llama-server is turning out to be too error prone across llama.cpp updates, so this switches to a thin dynamic library load against the bundled GGML libraries so more details can be gathered from the API.",
-          "source": "https://github.com/ollama/ollama/commit/9db4bdbad6a4981ad761aa2b603e69e8fb83212c",
-          "note": null
-        },
-        {
-          "text": "The problems with this approach compound quickly. Ollama only auto-detects chat templates it already knows about from a hardcoded list. If a GGUF file has a valid Jinja chat template embedded in its metadata but it doesn’t match one of Ollama’s known templates, Ollama falls back to a bare {{ .Prompt }} template, silently breaking the model’s instruction format. The user has to manually extract the chat template from the GGUF, translate it into Go template syntax (which is different from Jinja), and write it into a Modelfile. Meanwhile, llama.cpp reads the embedded template and just uses it.",
-          "source": "https://sleepingrobots.com/dreams/stop-using-ollama/",
-          "note": "Critic post; may predate v0.30.0"
-        },
-        {
-          "text": "The Modelfile also locks users into Ollama’s Go template syntax, which is a different language from the Jinja templates that model creators actually publish. LM Studio accepts Jinja templates directly. llama.cpp reads them from the GGUF. Only Ollama requires you to translate between template languages, and gets it wrong often enough that entire GitHub issues are dedicated to mismatched templates between Ollama’s library and the upstream GGUF metadata.",
-          "source": "https://sleepingrobots.com/dreams/stop-using-ollama/",
-          "note": "Critic post; may predate v0.30.0"
-        },
-        {
-          "text": "The quantization limitation is particularly frustrating. Ollama only supports creating Q4_K_S, Q4_K_M, Q8_0, F16, and F32 quantizations. If you need Q5_K_M, Q6_K, or any IQ quant, formats that llama.cpp has supported for years, you’re out of luck unless you do the quantization yourself outside of Ollama. When a user asked about Q2_K support, the response was effectively “use a different tool.” For a project that markets itself as the easy way to run models, telling users to go elsewhere for basic quantization options is telling.",
-          "source": "https://sleepingrobots.com/dreams/stop-using-ollama/",
-          "note": "Critic post; may predate v0.30.0"
-        },
-        {
-          "text": "When Ollama starts up, it takes inventory of the GPUs present in the system to determine compatibility and how much VRAM is available. Sometimes this discovery can fail to find your GPUs. In general, running the latest driver will yield the best results.",
-          "source": "https://github.com/ollama/ollama/blob/main/docs/troubleshooting.mdx#nvidia-gpu-discovery",
+          "text": "Consequence for third-party and community GGUFs: with the native engine removed, a Hugging Face GGUF is loaded by the same upstream llama.cpp that other tools use, so a file that loads in stock llama.cpp at Ollama's pinned build should load in Ollama. Ollama's v0.30.0 notes advertise support for GGUF-based models from Hugging Face. The older failures came from the custom ggml fork: critics cite standard gpt-oss GGUFs failing because Ollama lacked a tensor type the model needed. (medium confidence) (verified as of 2026-10-14)",
+          "source": "https://github.com/ollama/ollama/releases/tag/v0.30.0",
           "note": null
         }
       ]
@@ -113,144 +43,9 @@
       "title": "Comparisons and alternatives",
       "facts": [
         {
-          "text": "145- var llamaModel *llama.Model 146- var tok tokenizer.Tokenizer 147- var err error 148: if envconfig.NewEngine() || f.KV().OllamaEngineRequired() { 149- if len(projectors) == 0 { 150- tok, err = model.NewTextProcessor(modelPath) 151- } else { 152- err = errors.New(\"split vision models aren't supported\") 153- } 154- if err != nil { 155- // To prepare for opt-out mode, instead of treating this as an error, we fallback to the old runner 156- slog.Debug(\"model not yet supported by Ollama engine, switching to compatibility mode\", \"model\", modelPath, \"error\", err) 157- } 158- } 159- i",
-          "source": "https://github.com/ollama/ollama/blob/v0.24.0/llm/server.go",
-          "note": null
-        },
-        {
-          "text": "// Ollama-format GGUF compatibility shim. // // Existing published GGUFs can differ from what llama.cpp expects in a // handful of per-architecture details: arch names, KV keys, tensor names, or // file layout. This shim detects those files during load and translates them // in memory so the rest of llama.cpp can load them unchanged. // // Two llama.cpp loader paths call into this namespace: // // 1. llama-model-loader.cpp (main model load): // translate_metadata() — mutate KVs / tensor metadata // should_skip_tensor() — filter weights_map population // // 2. to",
+          "text": "Ollama-format GGUFs published before the switch differ from upstream in arch names, KV keys, tensor names or file layout. llama/compat/ carries a patch (001-llama-cpp-hooks.patch) plus a shim that translates them in memory inside llama-server's loader. Per-architecture handlers cover gemma3, gemma3n, gemma4, gpt-oss, lfm2, mistral3, qwen35, qwen35moe, qwen3-vl, qwen2.5-vl, llama4, nemotron_h_moe, glm-ocr, deepseek-ocr, embeddinggemma and others. For any non-Ollama file every shim entry point is a no-op, and some handlers disable mmap because they transform tensors at load. (high confidence) (v",
           "source": "https://github.com/ollama/ollama/blob/main/llama/compat/llama-ollama-compat.h",
           "note": null
-        },
-        {
-          "text": "When a new model drops, say a new Qwen, Gemma, or DeepSeek variant, GGUFs typically appear on Hugging Face within hours, quantized by community members like Unsloth or Bartowski. With llama.cpp, you can run them immediately: llama-server -hf unsloth/Qwen3.5-35B-A3B-GGUF:Q4_K_M. One command, straight from Hugging Face, no intermediary.",
-          "source": "https://sleepingrobots.com/dreams/stop-using-ollama/",
-          "note": "Critic post"
-        },
-        {
-          "text": "llama.cpp is the engine. It has an OpenAI-compatible API server (llama-server), a built-in web UI, full control over context windows and sampling parameters, and consistently better throughput than Ollama. In February 2026, Gerganov’s ggml.ai joined Hugging Face to ensure the long-term sustainability of the project. It’s truly community-driven, MIT-licensed, and under active development with 450+ contributors.",
-          "source": "https://sleepingrobots.com/dreams/stop-using-ollama/",
-          "note": "Critic post"
-        },
-        {
-          "text": "* `ollama launch` now supports Qwen Code and can guide users through installing the Cline CLI when it is missing. * `ollama launch codex` now uses an isolated launch configuration, avoiding conflicts with a user's existing Codex settings. * Added llama.cpp backend compatibility support for Poolside's Laguna architecture. * The llama.cpp backend now includes cached prompt tokens in token accounting, improving usage reporting for requests with prompt cache hits. * The llama.cpp backend now ignores SSE ping comments, improving streaming compatibility with newer backend behavior. * The llama.cpp b",
-          "source": "https://github.com/ollama/ollama/releases/tag/v0.30.2#what-s-changed",
-          "note": null
-        },
-        {
-          "text": "Patches under `llama/compat/` are applied during configure. If a patch insertion point moved, regenerate the patch against a fresh checkout of the new ref rather than editing an already-patched `_deps/` tree.",
-          "source": "https://github.com/ollama/ollama/blob/main/llama/README.md#compatibility-patches",
-          "note": null
-        },
-        {
-          "text": "Benchmarks tell the story. Multiple community tests show llama.cpp running 1.8x faster than Ollama on the same hardware with the same model, 161 tokens per second versus 89. On CPU, the gap is 30-50%. A recent comparison on Qwen-3 Coder 32B showed ~70% higher throughput with llama.cpp. The performance overhead comes from Ollama’s daemon layer, poor GPU offloading heuristics, and a vendored backend that trails upstream.",
-          "source": "https://sleepingrobots.com/dreams/stop-using-ollama/",
-          "note": "Critic post; benchmark claim, undated"
-        }
-      ]
-    },
-    {
-      "title": "Changes and history",
-      "facts": [
-        {
-          "text": "The custom GGML fork was Ollama's inference backbone since launch, giving the team fine-grained control but requiring manual upstream syncing every time llama.cpp shipped quantization improvements or new architecture support. By switching to llama.cpp directly, Ollama inherits that project's release cadence, which typically adds support for new model families within days of their public release.",
-          "source": "https://aiweekly.co/alerts/ollama-drops-custom-ggml-fork-for-llamacpp",
-          "note": "Aggregator report on v0.30.0 pre-release; secondary source"
-        },
-        {
-          "text": "The result was the opposite. Ollama’s custom backend reintroduced bugs that llama.cpp had solved years ago. Community members flagged broken structured output support, vision model failures, and GGML assertion crashes across multiple versions. Models that worked fine in upstream llama.cpp failed in Ollama, including new releases like GPT-OSS 20B, where Ollama’s implementation lacked support for tensor types that the model required. Georgi Gerganov himself identified that Ollama had forked and made bad changes to GGML.",
-          "source": "https://sleepingrobots.com/dreams/stop-using-ollama/",
-          "note": "Critic post; describes pre-v0.30.0 native engine"
-        },
-        {
-          "text": "Ollama v0.30.0 replaces its custom GGML fork with a direct llama.cpp dependency, eliminating a layer of manual upstream maintenance.",
-          "source": "https://aiweekly.co/alerts/ollama-drops-custom-ggml-fork-for-llamacpp",
-          "note": "Aggregator report on v0.30.0 pre-release; secondary source"
-        },
-        {
-          "text": "Ollama's v0.30.0 pre-release removes the project's custom GGML fork and replaces it with a direct dependency on llama.cpp, collapsing a layer of internal maintenance that had quietly slowed down new model support for local users.",
-          "source": "https://aiweekly.co/alerts/ollama-drops-custom-ggml-fork-for-llamacpp",
-          "note": "Aggregator report on v0.30.0 pre-release; secondary source"
-        },
-        {
-          "text": "We set out to support a new engine that makes multimodal models first-class citizens, and getting Ollama’s partners to contribute more directly to the community via the GGML tensor library.",
-          "source": "https://ollama.com/blog/multimodal-models",
-          "note": "May 2025 blog; native engine, removed in v0.30.0"
-        },
-        {
-          "text": "Today, ggml/llama.cpp offers first-class support for text-only models. For multimodal systems, however, the text decoder and vision encoder are split into separate models and executed independently. Passing image embeddings from the vision model into the text model therefore demands model-specific logic in the orchestration layer that can break specific model implementations.",
-          "source": "https://ollama.com/blog/multimodal-models",
-          "note": "May 2025 blog; native engine, removed in v0.30.0"
-        },
-        {
-          "text": "Ollama is supporting the MXFP4 format natively without additional quantizations or conversions. New kernels are developed for Ollama’s new engine to support the MXFP4 format.",
-          "source": "https://ollama.com/blog/gpt-oss",
-          "note": "May 2025 blog; native engine, removed in v0.30.0"
-        },
-        {
-          "text": "In mid-2025, Ollama followed through on that distancing. They moved away from using llama.cpp as their inference backend and built a custom implementation directly on top of ggml, the lower-level tensor library that llama.cpp itself uses. Their stated reason was stability, llama.cpp moves fast and breaks things, and Ollama’s enterprise partners need reliability.",
-          "source": "https://sleepingrobots.com/dreams/stop-using-ollama/",
-          "note": "Critic post; describes pre-v0.30.0 native engine"
-        },
-        {
-          "text": "- The architectural change lowers the barrier for external contributors who already know llama.cpp internals but were deterred by Ollama's divergent fork. - Day 1 model support -- the interval between a model dropping on Hugging Face and running locally via Ollama -- should shrink measurably under this structure. - The shift also reduces Ollama's maintenance surface at a time when llama.cpp is absorbing significant upstream investment from hardware vendors.",
-          "source": "https://aiweekly.co/alerts/ollama-drops-custom-ggml-fork-for-llamacpp",
-          "note": "Aggregator report; secondary source"
-        },
-        {
-          "text": "Thank you to the GGML team for the tensor library that powers Ollama’s inference. Being able to access GGML directly from Go has given a portable way to design custom inference graphs and tackle harder model architectures not available before in Ollama.",
-          "source": "https://ollama.com/blog/multimodal-models",
-          "note": "May 2025 blog; native engine, removed in v0.30.0"
-        },
-        {
-          "text": "OpenAI utilizes quantization to reduce the memory footprint of the gpt-oss models. The models are post-trained with quantization of the mixture-of-experts (MoE) weights to MXFP4 format, where the weights are quantized to 4.25 bits per parameter. The MoE weights are responsible for 90+% of the total parameter count, and quantizing these to MXFP4 enables the smaller model to run on systems with as little as 16GB memory, and the larger model to fit on a single 80GB GPU.",
-          "source": "https://ollama.com/blog/gpt-oss",
-          "note": "May 2025 blog; native engine, removed in v0.30.0"
-        },
-        {
-          "text": "External contributors familiar with llama.cpp can now contribute to Ollama without learning a divergent internal fork.",
-          "source": "https://aiweekly.co/alerts/ollama-drops-custom-ggml-fork-for-llamacpp",
-          "note": "Aggregator report; secondary source"
-        },
-        {
-          "text": "Ollama users on production pipelines could hit breaking quantization or API behavior changes if llama.cpp's faster release cadence ships regressions that Ollama previously buffered against",
-          "source": "https://aiweekly.co/alerts/ollama-drops-custom-ggml-fork-for-llamacpp",
-          "note": "Aggregator speculation; secondary source"
-        },
-        {
-          "text": "How Ollama's existing custom patches and optimizations that lived inside the GGML fork will be upstreamed or discarded in the transition",
-          "source": "https://aiweekly.co/alerts/ollama-drops-custom-ggml-fork-for-llamacpp",
-          "note": "Aggregator open question; secondary source"
-        },
-        {
-          "text": "Essentially: (Ollama, llama.cpp) are now on the same dependency chain, removing a bottleneck that community developers had flagged as the primary source of model-availability lag.",
-          "source": "https://aiweekly.co/alerts/ollama-drops-custom-ggml-fork-for-llamacpp",
-          "note": "Aggregator report; secondary source"
-        },
-        {
-          "text": "Whether the direct llama.cpp dependency will be pinned to a specific release tag or track llama.cpp's main branch, which ships breaking changes frequently",
-          "source": "https://aiweekly.co/alerts/ollama-drops-custom-ggml-fork-for-llamacpp",
-          "note": "Aggregator open question; secondary source"
-        },
-        {
-          "text": "About a year ago, Ollama forked llama.cpp, building their own thing on top of the bits and pieces that they like.",
-          "source": "https://nobodywho.ooo/posts/notes-on-friends-dont-let-friends-use-ollama/",
-          "note": "Competitor post; describes pre-v0.30.0 state"
-        },
-        {
-          "text": "Ollama has so far relied on the ggml-org/llama.cpp project for model support and has instead focused on ease of use and model portability.",
-          "source": "https://ollama.com/blog/multimodal-models",
-          "note": "May 2025 blog; native engine, removed in v0.30.0"
-        },
-        {
-          "text": "As more multimodal models are released by major research labs, the task of supporting these models the way Ollama intends became more and more challenging.",
-          "source": "https://ollama.com/blog/multimodal-models",
-          "note": "May 2025 blog; native engine, removed in v0.30.0"
-        },
-        {
-          "text": "Within Ollama, each model is fully self-contained and can expose its own projection layer, aligned with how that model was trained. This isolation lets model creators implement and ship their code without patching multiple files or adding cascading if statements. They no longer need to understand a shared multimodal projection function or worry about breaking other models—they can focus solely on their own model and its training.",
-          "source": "https://ollama.com/blog/multimodal-models",
-          "note": "May 2025 blog; native engine, removed in v0.30.0"
         }
       ]
     },
@@ -258,330 +53,57 @@
       "title": "Facts and statements",
       "facts": [
         {
-          "text": "Remove the vendored GGML and llama.cpp backend, CGO runner, Go model implementations, and sample. llama-server (built from upstream llama.cpp via FetchContent) is now the sole inference engine for GGUF-based models. (Safetensor based models continue to run on the new MLX engine.) This allows us to more rapidly pick up new capabilities and fixes from llama.cpp as they come out.",
+          "text": "Pre-0.30 OllamaEngineRequired() listed these architectures for the native engine: bert, deepseek2, deepseekocr, gemma3, gemma3n, gemma4, gptoss/gpt-oss, laguna, llama4, mistral3, mllama, nemotron_h variants, nomic-bert, olmo3, qwen25vl, qwen3, qwen3moe, qwen35, qwen35moe, qwen3next, qwen3vl, qwen3vlmoe, glm4moelite, glmocr, lfm2, lfm2moe. Other architectures ran on llamarunner. (high confidence) (verified as of 2026-10-14)",
+          "source": "https://github.com/ollama/ollama/blob/v0.24.0/fs/ggml/ggml.go",
+          "note": null
+        },
+        {
+          "text": "The premise that Ollama still has a native Go engine alongside llama.cpp is out of date as of v0.40.4 (2026-10-12). The repo tree at main has no runner/ directory, no model/models, no ml/backend/ggml and no OLLAMA_NEW_ENGINE variable. The reported '0.30.x reintroduction of llama.cpp as a second backend' is a replacement, not an addition: v0.30.0 notes say llama.cpp 'augments the MLX engine on Apple Silicon', and the native Go GGML engine is gone. (high confidence) (verified as of 2026-10-14)",
           "source": "https://github.com/ollama/ollama/commit/9db4bdbad6a4981ad761aa2b603e69e8fb83212c",
           "note": null
         },
         {
-          "text": "runner: Remove CGO engines, use llama-server exclusively for GGML models (#16031)",
-          "source": "https://github.com/ollama/ollama/commit/9db4bdbad6a4981ad761aa2b603e69e8fb83212c",
+          "text": "Today Ollama has two inference backends. For GGUF it spawns the upstream llama-server binary (llm/llama_server.go, FindLlamaServer, launched with --model, --port and --host 127.0.0.1; one binary that loads GPU backends dynamically). For safetensors on Apple Silicon it runs the MLX engine (mlxrunner/). (high confidence) (verified as of 2026-10-14)",
+          "source": "https://github.com/ollama/ollama/blob/main/llm/llama_server.go",
           "note": null
         },
         {
-          "text": "// Package compatmigrate converts older Ollama-format GGUF manifests already // present in a local model store into llama.cpp-compatible manifest-list // children. // // This exists to bridge the llama-server transition without forcing users to // re-pull large models they already have on disk. The first load can still use // the temporary llama.cpp compatibility patch, while a best-effort background // migration materializes a clean llamacpp child for later loads. // // Once manifest-list publishing has been live for enough releases and stale // legacy-only local stores are no longer a practi",
-          "source": "https://github.com/ollama/ollama/blob/main/compatmigrate/migrate.go",
-          "note": null
-        },
-        {
-          "text": "853: if flag := cmd.Flags().Lookup(\"runner\"); flag != nil { 854: runner, err := cmd.Flags().GetString(\"runner\") 1453: rows = append(rows, []string{\"\", \"runner\", runner}) 1655: return \"runner\" 1701: if flag := cmd.Flags().Lookup(\"runner\"); flag != nil { 1702: runner, err = cmd.Flags().GetString(\"runner\") 2584: runCmd.Flags().String(\"runner\", \"\", \"Runner to use for manifest list selection (mlx, ggml, llamacpp)\") 2585: runCmd.Flags().MarkHidden(\"runner\") 2621: pullCmd.Flags().String(\"runner\", \"\", \"Runner to use for manifest list selection (mlx, ggml, llamacpp)\") 2622: pullCmd.Flags().MarkHid",
-          "source": "https://github.com/ollama/ollama/blob/main/cmd/cmd.go",
-          "note": null
-        },
-        {
-          "text": "curl -s localhost:11434/api/tags | jq -r '.models[].name' | while read -r m; do curl -s localhost:11434/api/show -d \"{\\\"model\\\":\\\"$m\\\"}\" | jq -r \\ 'select(any(.manifests[]?; .runner == \"llamacpp\")) | .manifests[] | select(.runner == \"ggml\") | .digest' done | sort -u | xargs -n1 ollama rm",
-          "source": "https://github.com/ollama/ollama/releases",
-          "note": null
-        },
-        {
-          "text": "Ollama 0.30 is now available, with improved compatibility and performance using [llama.cpp](https://github.com/ggml-org/llama.cpp). This augments the MLX engine on Apple Silicon, bringing support to a wider range of hardware.",
-          "source": "https://github.com/ollama/ollama/releases/tag/v0.30.0",
-          "note": null
-        },
-        {
-          "text": "Hugging Face eventually added support for ollama run hf.co/{repo}:{quant} by generating a Docker-style manifest on the fly, which partially addresses the availability problem. But even then, the file gets copied into Ollama’s hashed blob storage, you still can’t share the GGUF with other tools, and the template detection issues still apply. The fundamental architecture remains: Ollama inserts itself as a middleman between you and your models, and that middleman is slower, less capable, and less compatible than the tools it sits on top of.",
-          "source": "https://sleepingrobots.com/dreams/stop-using-ollama/",
-          "note": "Critic post"
-        },
-        {
-          "text": "RunnerMLX = \"mlx\" RunnerGGML = \"ggml\" RunnerLlamaCPP = \"llamacpp\"",
-          "source": "https://github.com/ollama/ollama/blob/main/manifest/manifest.go",
-          "note": null
-        },
-        {
-          "text": "`LLAMA_CPP_VERSION` pins Ollama's llama.cpp source. An update can change more than compilation: it can affect model loading, GPU discovery, scheduler inputs, runtime logs, streaming, and compatibility patches. Validate the upstream diff, the patched source Ollama actually builds, and the affected local paths.",
-          "source": "https://github.com/ollama/ollama/blob/main/llama/README.md#updating-llama-cpp",
-          "note": null
-        },
-        {
-          "text": "if compatibilityMigratorForSource(src) != nil { return manifest.RunnerGGML, nil } return manifest.RunnerLlamaCPP, nil }",
-          "source": "https://github.com/ollama/ollama/blob/main/compatmigrate/migrate.go#runnerformanifest-compatmigrate-migrate-go",
-          "note": null
-        },
-        {
-          "text": "Ollama’s entire inference capability comes from llama.cpp, the C++ inference engine created by Georgi Gerganov in March 2023. Gerganov’s project is what made it possible to run LLaMA models on consumer laptops at all, he hacked together the first version in an evening, and it kicked off the entire local LLM movement. Today llama.cpp has over 100,000 stars on GitHub, 450+ contributors, and is the foundation that nearly every GGUF-based tool depends on.",
-          "source": "https://sleepingrobots.com/dreams/stop-using-ollama/",
-          "note": "Critic post; opinion"
-        },
-        {
-          "text": "Ollama does not quantize GGUF models during import. Prepare and quantize them first with a GGUF tool such as llama.cpp's [`llama-quantize`](https://github.com/ggml-org/llama.cpp/tree/master/tools/quantize).",
-          "source": "https://github.com/ollama/ollama/blob/main/docs/import.mdx#importing-a-gguf-model",
-          "note": null
-        },
-        {
-          "text": "For runtime validation, build the full applicable native payload for the platform using the [developer guide](../docs/development.md): Metal on macOS arm64, and the available CUDA, ROCm, and Vulkan backends on Linux and Windows.",
-          "source": "https://github.com/ollama/ollama/blob/main/llama/README.md#end-to-end-testing",
-          "note": null
-        },
-        {
-          "text": "Ollama have tried to hide that their inference engine is actually llama.cpp wrapped in a Go server.",
-          "source": "https://nobodywho.ooo/posts/notes-on-friends-dont-let-friends-use-ollama/",
-          "note": "Competitor post; opinion"
-        },
-        {
-          "text": "228- MultiUserCache = Bool(\"OLLAMA_MULTIUSER_CACHE\") 229- // Enable the new Ollama engine 230: NewEngine = Bool(\"OLLAMA_NEW_ENGINE\") 231- // ContextLength sets the default context length 232- ContextLength = Uint(\"OLLAMA_CONTEXT_LENGTH\", 0) 233- // Auth enables authentication between the Ollama client and server -- 333- \"OLLAMA_CONTEXT_LENGTH\": {\"OLLAMA_CONTEXT_LENGTH\", ContextLength(), \"Context length to use unless otherwise specified (default: 4k/32k/256k based on VRAM)\"}, 334- \"OLLAMA_EDITOR\": {\"OLLAMA_EDITOR\", Editor(), \"Path to editor for interactive prompt editing (",
-          "source": "https://github.com/ollama/ollama/blob/v0.24.0/envconfig/config.go",
-          "note": null
-        },
-        {
-          "text": "This configure step fetches the pinned source and applies `llama/compat/` patches. Confirm the resulting checkout, usually `build/llama-server-cpu/_deps/llama_cpp-src`, resolves to the intended new ref. Do not trust an old or dirty `_deps/` checkout as validation. This is only a source and patch-application check; it is not runtime validation.",
-          "source": "https://github.com/ollama/ollama/blob/main/llama/README.md#workflow",
-          "note": null
-        },
-        {
-          "text": "Configure-only validation can miss missing sources, template instantiation problems, and link errors. Also check whether upstream now supports a locally patched model natively; if it does, the local patch may need removal or rebase.",
-          "source": "https://github.com/ollama/ollama/blob/main/llama/README.md#compatibility-patches",
-          "note": null
-        },
-        {
-          "text": "The model registry is worth examining. Ollama stores downloaded models using hashed filenames in its own format. If you’ve been pulling models through Ollama for months, you can’t just point llama.cpp or LM Studio at those files without extra work. You can bring your own GGUFs to Ollama via a Modelfile, but it’s deliberately friction-filled to take them out. This is a form of vendor lock-in that most users don’t notice until they try to leave.",
-          "source": "https://sleepingrobots.com/dreams/stop-using-ollama/",
-          "note": "Critic post"
-        },
-        {
-          "text": "Added support for multimodal embeddings through llama-server",
-          "source": "https://github.com/ollama/ollama/releases",
-          "note": null
-        },
-        {
-          "text": "Updated llama.cpp and the MLX engine",
-          "source": "https://github.com/ollama/ollama/releases",
-          "note": null
-        },
-        {
-          "text": "Updated llama.cpp, MLX, and XGrammar.",
-          "source": "https://github.com/ollama/ollama/releases",
-          "note": null
-        },
-        {
-          "text": "- Tightened Gemma 4 MoE model loading in the MLX engine - Updated the MLX engine to the latest version, including a new small-batch matmul kernel - Updated the underlying llama.cpp engine to build 9840 - Improved Gemma 4 multi-token prediction (MTP) performance",
-          "source": "https://github.com/ollama/ollama/releases/tag/v0.31.1#what-s-changed",
-          "note": null
-        },
-        {
-          "text": "This only deletes the backups. If you later downgrade to a version older than 0.40, you'll need to re-pull those models.",
-          "source": "https://github.com/ollama/ollama/releases",
-          "note": null
-        },
-        {
-          "text": "In this release, on Apple Silicon devices, model architectures supported by the MLX runtime will automatically run on MLX.",
-          "source": "https://github.com/ollama/ollama/releases",
-          "note": null
-        },
-        {
-          "text": "// Called from llama_model_loader's constructor, right after the arch is read. // `fname` is the model file path, captured here so later load-time hooks // (maybe_load_text_tensor) can read raw bytes from it. // // Returns true if the caller must disable mmap for this loader. Some // handlers transform tensor data via load_op (e.g. glm-ocr's gate+up // FFN concat), which is incompatible with the default mmap path: // the llama.cpp loader binds tensors directly to the mmap'd file region, // so there's nowhere to write the transformed bytes. Disabling mmap // makes the loader pre-allocate real b",
-          "source": "https://github.com/ollama/ollama/blob/main/llama/compat/llama-ollama-compat.h",
-          "note": null
-        },
-        {
-          "text": "The MLX engine enables running safetensor based models. On macOS arm64, MLX is enabled by default. On other platforms, MLX backends are selected with `OLLAMA_MLX_BACKENDS`.",
-          "source": "https://github.com/ollama/ollama/blob/main/docs/development.md#mlx-engine-optional",
-          "note": null
-        },
-        {
-          "text": "type Manifest struct { SchemaVersion int `json:\"schemaVersion\"` MediaType string `json:\"mediaType\"` ... func runnerPreferences() []string { if runtime.GOOS == \"darwin\" && runtime.GOARCH == \"arm64\" { return []string{RunnerMLX, RunnerLlamaCPP, RunnerGGML} }",
-          "source": "https://github.com/ollama/ollama/blob/main/manifest/manifest.go",
-          "note": null
-        },
-        {
-          "text": "On windows this now requires recent AMD driver versions to support ROCm v7 as llama.cpp currently does not support building against v6.",
-          "source": "https://github.com/ollama/ollama/commit/9db4bdbad6a4981ad761aa2b603e69e8fb83212c",
-          "note": null
-        },
-        {
-          "text": "This release brings support for a wider range of models, including GGUF-based models from Hugging Face and your own fine-tuned models along with faster performance on NVIDIA hardware.",
-          "source": "https://github.com/ollama/ollama/releases/tag/v0.30.0",
-          "note": null
-        },
-        {
-          "text": "You can tune GGML build options by setting `GGML_*` values during configure. For example, to disable CUDA flash attention kernels for local debugging:",
-          "source": "https://github.com/ollama/ollama/blob/main/docs/development.md#native-build-model",
-          "note": null
-        },
-        {
-          "text": "adc4aae9 2026-10-09T08:02:21-07:00 b11521 ec318f4d 2026-10-05T17:38:50-07:00 b11351 a8aaf9fc 2026-09-28T18:25:08-07:00 b11232 13e02471 2026-09-22T13:58:49-07:00 b11081 a43fad18 2026-09-15T13:13:31-07:00 b10969 c951dabe 2026-09-10T08:09:59-07:00 b10864 b1d1ccc9 2026-09-02T09:46:04-07:00 b10760 5ec58043 2026-09-01T16:24:15-07:00 b10729",
-          "source": "https://github.com/ollama/ollama/blob/main/LLAMA_CPP_VERSION#git-history-of-llama-cpp-version-git-log-local-clone-957c8cd",
-          "note": null
-        },
-        {
-          "text": "On all platforms except macOS arm64, to build GPU backends select the backends explicitly:",
-          "source": "https://github.com/ollama/ollama/blob/main/docs/development.md#native-build-model",
-          "note": null
-        },
-        {
-          "text": "Supported backend values are `cuda_v12`, `cuda_v13`, `rocm_v7_1`, `rocm_v7_2`, `vulkan`, `cuda_jetpack5`, and `cuda_jetpack6`.",
-          "source": "https://github.com/ollama/ollama/blob/main/docs/development.md#native-build-model",
-          "note": null
-        },
-        {
-          "text": "Updated llama.cpp with native decision model support",
-          "source": "https://github.com/ollama/ollama/releases",
-          "note": null
-        },
-        {
-          "text": "Models run on MLX on Apple Silicon by default",
-          "source": "https://github.com/ollama/ollama/releases",
-          "note": null
-        },
-        {
-          "text": "* `laguna-xs.2` is not yet supported on Windows/Linux. * `llama3.2-vision` is not yet supported * `nomic-embed-text` now converts inputs to lowercase per the model card where prior Ollama versions incorrectly preserved mixed case",
-          "source": "https://github.com/ollama/ollama/releases/tag/v0.30.0#known-issues",
-          "note": null
-        },
-        {
-          "text": "> [!NOTE] > Ollama includes native code compiled with CGO. From time to time these data structures can change and CGO can get out of sync resulting in unexpected crashes. You can force a full build of the native code by running `go clean -cache` first.",
-          "source": "https://github.com/ollama/ollama/blob/main/docs/development.md",
-          "note": "docs/development.md at main"
-        },
-        {
-          "text": "First, create a `Modelfile` with a `FROM` command which points to the directory containing your Safetensors weights:",
-          "source": "https://github.com/ollama/ollama/blob/main/docs/import.mdx#importing-a-model-from-safetensors-weights",
-          "note": null
-        },
-        {
-          "text": "For a split GGUF model, keep the original split filenames and use a wildcard that matches every shard.",
-          "source": "https://github.com/ollama/ollama/blob/main/docs/import.mdx#importing-a-gguf-model",
-          "note": null
-        },
-        {
-          "text": "First tag containing this commit: v0.30.0-rc32 (commit is v0.30.0-rc32~5). Also contained in v0.30.0 (tag commit dated 2026-06-01T13:46:41-07:00), v0.30.1, v0.30.2. Not contained in v0.29.x. Commit author date 2026-05-29T13:35:47-07:00.",
-          "source": "https://github.com/ollama/ollama/commit/9db4bdbad6a4981ad761aa2b603e69e8fb83212c#tag-containment-git-merge-base-is-ancestor-local-clone",
-          "note": null
-        },
-        {
-          "text": "v0.40.0 pin: b11351 v0.30.0 pin: b9452",
+          "text": "Ollama pins llama.cpp with the file LLAMA_CPP_VERSION (documented in llama/README.md, 'Updating llama.cpp'). The source is fetched at configure time via 'cmake -S llama/server --preset cpu' and patched by llama/compat/. At main on 2026-10-14 the pin is b11521 (commit adc4aae9, 2026-10-09). Git history of the file shows weekly bumps: b10864 (2026-09-10), b10969 (2026-09-15), b11081 (2026-09-22), b11232 (2026-09-28), b11351 (2026-10-05), b11521 (2026-10-09). The v0.40.0 tag pins b11351. The v0.31.1 release notes say 'updated the underlying llama.cpp engine to build 9840'. (high confidence) (veri",
           "source": "https://github.com/ollama/ollama/blob/main/LLAMA_CPP_VERSION",
           "note": null
-        }
-      ]
-    },
-    {
-      "title": "Disagreements",
-      "facts": [
-        {
-          "text": "The result was the opposite. Ollama’s custom backend reintroduced bugs that llama.cpp had solved years ago. Community members flagged broken structured output support, vision model failures, and GGML assertion crashes across multiple versions. Models that worked fine in upstream llama.cpp failed in Ollama, including new releases like GPT-OSS 20B, where Ollama’s implementation lacked support for tensor types that the model required. Georgi Gerganov himself identified that Ollama had forked and made bad changes to GGML.",
-          "source": "https://sleepingrobots.com/dreams/stop-using-ollama/",
-          "note": "Critic post; describes pre-v0.30.0 native engine",
-          "group": "c1"
         },
         {
-          "text": "We set out to support a new engine that makes multimodal models first-class citizens, and getting Ollama’s partners to contribute more directly to the community via the GGML tensor library.",
+          "text": "The runner is chosen per manifest, not by a flag: a manifest list carries children tagged runner mlx, ggml or llamacpp with format safetensors or gguf. runnerPreferences() in manifest/manifest.go picks mlx, then llamacpp, then ggml on darwin/arm64, and llamacpp, then ggml, then mlx elsewhere. A hidden --runner flag on run and pull (mlx, ggml, llamacpp) overrides the choice. As of v0.40.0 (2026-09-25), supported architectures run on MLX by default on Apple Silicon. No Ollama prose documentation describes runner selection; the evidence is the source code (manifest/manifest.go at commit 957c8cd,",
+          "source": "https://github.com/ollama/ollama/blob/main/manifest/manifest.go",
+          "note": null
+        },
+        {
+          "text": "Import behaviour: Ollama does not quantize GGUF models on import. docs/import.mdx tells users to quantize with llama.cpp's llama-quantize first, and supports single-file and split-shard GGUF via FROM with a wildcard. Chat templates stay Go templates in the Modelfile or manifest; a critic reports an unrecognised embedded Jinja template falls back to a bare prompt template until the user writes a TEMPLATE. (medium confidence) (verified as of 2026-10-14)",
+          "source": "https://github.com/ollama/ollama/blob/main/docs/import.mdx",
+          "note": null
+        },
+        {
+          "text": "RamaLama's README (main, last README commit 2026-10-02, fetched 2026-10-14) says: 'Ollama models are no longer compatible with llama.cpp, and support for the Ollama transport will be removed in a future release. Users should migrate to Hugging Face models.' This is consistent with the Ollama source: Ollama-format blobs of affected architectures need the in-tree compat patch that stock llama.cpp lacks. The llamacpp manifest children Ollama now writes are described as clean llama.cpp-compatible GGUFs, but the source does not show that the public registry serves them for every model, so a given p",
+          "source": "https://github.com/containers/ramalama/blob/main/README.md",
+          "note": null
+        },
+        {
+          "text": "Releases after the switch ship llama.cpp updates continuously and fix architecture support in compat patches: v0.30.2 added Laguna compatibility, ignored SSE ping comments, counted cached prompt tokens and detected load stalls from llama-server output; v0.31.1 updated llama.cpp to build 9840; v0.30.0 listed known issues (laguna-xs.2 on Windows/Linux, llama3.2-vision, nomic-embed-text lowercasing). (high confidence) (verified as of 2026-10-14)",
+          "source": "https://github.com/ollama/ollama/releases/tag/v0.30.2",
+          "note": null
+        },
+        {
+          "text": "An aggregator (aiweekly.co, 2026-05-14) reported that Ollama dropped its custom GGML fork for a direct llama.cpp dependency, tied to v0.30.0-rc15. The Ollama source confirms the direction (commit 9db4bdb); the aggregator's rc tag and framing are secondary. (low confidence) (verified as of 2026-05-14)",
+          "source": "https://aiweekly.co/alerts/ollama-drops-custom-ggml-fork-for-llamacpp",
+          "note": null
+        },
+        {
+          "text": "Ollama's May 2025 blog announced the original native engine, citing per-model self-contained implementations and better multimodal handling, and gpt-oss launched on it with MXFP4 kernels. That design was abandoned within about a year (commit 9db4bdb); advice about 'the Ollama engine', OLLAMA_NEW_ENGINE and ollamarunner applies only to versions up to v0.24.x. (medium confidence) (verified as of 2026-10-14)",
           "source": "https://ollama.com/blog/multimodal-models",
-          "note": "May 2025 blog; native engine, removed in v0.30.0",
-          "group": "c1"
+          "note": null
         }
       ]
     }
   ],
-  "related": [
-    {
-      "concept": "llama.cpp",
-      "relation": "is a part of Ollama engine architecture",
-      "note": null
-    },
-    {
-      "concept": "inference engine",
-      "relation": "is a synonym of Ollama engine architecture",
-      "note": null
-    },
-    {
-      "concept": "ggml",
-      "relation": "is a part of Ollama engine architecture",
-      "note": null
-    },
-    {
-      "concept": "GGUF",
-      "relation": "is a part of Ollama engine architecture",
-      "note": null
-    },
-    {
-      "concept": "model compatibility",
-      "relation": "is a measure of Ollama engine architecture",
-      "note": null
-    },
-    {
-      "concept": "manifest",
-      "relation": "is a part of Ollama engine architecture",
-      "note": null
-    },
-    {
-      "concept": "MLX",
-      "relation": "is a part of Ollama engine architecture",
-      "note": null
-    },
-    {
-      "concept": "runnerPreferences",
-      "relation": "is a part of Ollama engine architecture",
-      "note": null
-    },
-    {
-      "concept": "llama-server",
-      "relation": "is a part of Ollama engine architecture",
-      "note": null
-    },
-    {
-      "concept": "multimodal",
-      "relation": "is a part of Ollama engine architecture",
-      "note": null
-    },
-    {
-      "concept": "llama-quantize",
-      "relation": "is a part of Ollama engine architecture",
-      "note": null
-    },
-    {
-      "concept": "GPU backends",
-      "relation": "is a part of Ollama engine architecture",
-      "note": null
-    },
-    {
-      "concept": "v0.30.0",
-      "relation": "is a instance of Ollama engine architecture",
-      "note": null
-    },
-    {
-      "concept": "fork",
-      "relation": "is a problem of Ollama engine architecture",
-      "note": null
-    },
-    {
-      "concept": "Hugging Face",
-      "relation": "is a related of Ollama engine architecture",
-      "note": null
-    },
-    {
-      "concept": "MXFP4",
-      "relation": "is a part of Ollama engine architecture",
-      "note": null
-    },
-    {
-      "concept": "model architecture",
-      "relation": "is a part of Ollama engine architecture",
-      "note": null
-    },
-    {
-      "concept": "CGO",
-      "relation": "is a part of Ollama engine architecture",
-      "note": null
-    },
-    {
-      "concept": "upgraded in the background",
-      "relation": "is a part of Ollama engine architecture",
-      "note": null
-    },
-    {
-      "concept": "LLAMA_CPP_VERSION",
-      "relation": "is a part of Ollama engine architecture",
-      "note": null
-    }
-  ]
+  "related": []
 }

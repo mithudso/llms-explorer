@@ -1,5 +1,18 @@
 # Memory Log
 
+## v0.22.53 - 2026-10-20
+
+- TASK-737: audited both concept trees, llms packs, structured DR claims and generated website content. Recovered 209 missing exports. Website currency is 1,763 nodes, 1,441 references and 88,519 facts, with no unfiled references. Backups preserve older bodies; historical recovery retains research dates and richer references. Report: docs/research/concept-currency-audit-2026-10-20/README.md.
+- Research completion now refreshes reader JSON, tree JSON, context JSON, facts downloads and keyword search after Codex/native DR, LCA, canonical tree saves and CFE placement. Both trees pass validation. Existing semantic vectors remain frozen and aligned; deferred embeddings remain explicit. The source library stays private.
+- TASK-739: a durable ranked runner starts 102 eligible concepts in 31 source-sharing cohorts. Each uses Luna/max scouting, one conditional follow-up, a Sol/medium merge/gate and a 45-minute budget. It skips existing checkouts and updates both trees, llms files and website data before queue completion. The first cohort is ranked-902d7508. Paused suite work remains held by its original run.
+- Audit limits: older llms packs retain source-format and vocabulary findings; the audit does not independently certify their historical claims. Publication and final test receipts are recorded in the audit report.
+
+## v0.22.52 - 2026-10-20
+
+- TASK-734: Codex `/dr` now defaults to gpt-6-luna at max effort. Standard research performs deliberate source scouting in its first pass and runs one additional seeded Luna/max pass for deeper-source hits, missed floors, or an incomplete scout report. The merge and scope check remain Sol/medium. Explicit model and effort overrides apply to the scout too.
+- Codex `finish` compiles source-anchored llms packs for the topic and researched concepts into both the global hub's `llms-concepts/` and this repository's `outputs/llms-concepts/`. It merges both concept trees independently, preserves existing nodes and placement, and records backups and an artifact receipt. Export failures leave finalization retryable. Budget-exhausted packs carry their partial status; failed verification and empty runs do not promote research. Shared Claude files remain unchanged.
+- The generator persists these Codex overrides across future skill syncs. No commit, push, or publication is part of this change.
+
 ## v0.22.51 - 2026-10-18
 
 - TASK-727: a concept is "checked out" while an unfinished run holds it. Holders: an active website job, a /dr manifest in status `researching` (fresh within 24 h), an llmsx frontier batch `in-progress` without a result row, or a research-suite batch whose `register` stage is not done (paused counts). The scan lives in api/explorer_api/checkouts.py and is cached 60 s. GET /api/research returns `checked_out`; POST returns 409; the /tree/ panel shows the holder and no button. On 2026-10-18 the paused suite run mongodb-2026-10-14 holds 694 of its 707 concepts.

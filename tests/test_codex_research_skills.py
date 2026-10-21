@@ -1,0 +1,449 @@
+"""Transport and source-sync regression tests; no paid model calls or shared writes."""
+from __future__ import annotations
+
+import copy
+import importlib.util
+import io
+import json
+import os
+import shutil
+import subprocess
+import sys
+import tempfile
+import unittest
+from contextlib import redirect_stdout
+from pathlib import Path
+from types import SimpleNamespace
+from unittest.mock import patch
+
+REPO = Path(__file__).resolve().parents[1]
+
+
+def module_at(name, path):
+    spec = importlib.util.spec_from_file_location(name, path)
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return sys.modules.get(name, module)
+
+
+sync = module_at("research_sync", REPO / "scripts/sync_codex_research_skills.py")
+adapter = module_at("codex_dr_adapter", REPO / "scripts/codex_dr_run.py")
+
+
+class SyncTests(unittest.TestCase):
+    def setUp(self):
+        self.temp = tempfile.TemporaryDirectory()
+        self.addCleanup(self.temp.cleanup)
+        self.repo = Path(self.temp.name)
+        self.sources = self.repo / ".claude/skills"
+        self.canonical = self.repo / "canonical"
+        (self.repo / "scripts").mkdir()
+        (self.repo / "scripts/codex_dr_run.py").write_text("# Codex-only transport\n")
+        (self.repo / "scripts/codex_dr_artifacts.py").write_text("# Codex artifacts\n")
+        for skill in sync.SKILLS:
+            path = self.sources / skill / "SKILL.md"
+            path.parent.mkdir(parents=True)
+            path.write_text(f"---\nname: {skill}\nmodel: claude-sonnet-5-5\neffort: max\n---\nUse Sonnet `max` and `~/.claude/skill-consolidation/cvs_check.py`.\n")
+        for companion in ("references/tree-sync.md", "scripts/sync_trees.py"):
+            path = self.canonical / "concept-family-explorer" / companion
+            path.parent.mkdir(parents=True, exist_ok=True)
+            path.write_text("# Canonical companion\n")
+
+    def test_sync_is_idempotent_and_check_is_read_only(self):
+        check = sync.sync(self.repo, self.sources, self.canonical, check=True)
+        self.assertFalse(check["ok"])
+        self.assertFalse((self.repo / ".agents").exists())
+        result = sync.sync(self.repo, self.sources, self.canonical)
+        self.assertTrue(result["ok"])
+        self.assertTrue(sync.sync(self.repo, self.sources, self.canonical, check=True)["ok"])
+        self.assertEqual(sync.sync(self.repo, self.sources, self.canonical)["changed"], [])
+        path = self.repo / ".agents/skills/dr/SKILL.md"
+        text = path.read_text()
+        self.assertIn("model: gpt-6-luna\neffort: max", text)
+        self.assertIn("~/.claude/skill-consolidation/cvs_check.py", text)
+        self.assertNotIn("~/.Codex", text)
+
+    def test_existing_files_are_backed_up_before_sync(self):
+        sync.sync(self.repo, self.sources, self.canonical)
+        destination = self.repo / ".agents/skills/dr/SKILL.md"
+        destination.write_text("local content before sync")
+        result = sync.sync(self.repo, self.sources, self.canonical)
+        self.assertEqual((self.repo / result["backup"] / ".agents/skills/dr/SKILL.md").read_text(), "local content before sync")
+
+    def test_primary_wins_and_canonical_companion_provenance_is_recorded(self):
+        primary = self.sources / "concept-family-explorer/references/tree-sync.md"
+        primary.parent.mkdir(parents=True)
+        primary.write_text("# Repository companion\n")
+        outputs, manifest = sync.build(self.repo, self.sources, self.canonical)
+        self.assertEqual(outputs[Path(".agents/skills/concept-family-explorer/references/tree-sync.md")], primary.read_bytes())
+        companion = next(item for item in manifest["sources"] if item["file"] == "scripts/sync_trees.py")
+        self.assertEqual(companion["origin"], "canonical-companion")
+        self.assertEqual(len(companion["source_sha256"]), 64)
+
+    def test_missing_referenced_companion_fails_before_writing(self):
+        with self.assertRaisesRegex(ValueError, "missing CFE companion"):
+            sync.sync(self.repo, self.sources, self.repo / "missing")
+        self.assertFalse((self.repo / ".agents").exists())
+
+    def test_historical_study_facts_are_preserved(self):
+        original = "---\nname: dr\nmodel: claude-sonnet-5-5\neffort: max\n---\nUse Sonnet.\n## Changelog\nSonnet was 55 % of Fable price.\n"
+        translated = sync.translate(original, "dr", "SKILL.md")
+        self.assertIn("Use gpt-6.1-sol.", translated)
+        self.assertIn("Sonnet was 55 % of Fable price.", translated)
+
+    def test_obsolete_cap_is_removed_from_cfe_reference(self):
+        text = "| `maxConcepts` | 8 / run | Cap total concepts researched per run (a related cluster counts each concept; `/dr` calls may be fewer). |"
+        self.assertIn("unset", sync.translate(text, "concept-family-explorer", "references/saturation-and-loop-control.md"))
+
+    def test_generated_rabbithole_description_fits_loader_budget(self):
+        original = (REPO / ".claude/skills/rabbithole/SKILL.md").read_text()
+        rendered = sync.translate(original, "rabbithole", "SKILL.md")
+        # This source uses a folded description; test its scalar without adding
+        # a PyYAML dependency to the offline regression suite.
+        description = rendered.split("description: >-\n", 1)[1].split("\nname:", 1)[0]
+        folded = " ".join(line.strip() for line in description.splitlines())
+        self.assertLessEqual(len(folded), 1000)
+        self.assertIn("TRIGGER:", folded)
+        self.assertIn("SKIP:", folded)
+
+
+class AdapterTests(unittest.TestCase):
+    def test_role_mapping_and_efforts_are_explicit(self):
+        for source, expected in (("claude-sonnet-5-5", "gpt-6.1-sol"), ("fable", "gpt-6-astra"), ("claude-opus-4-6", "gpt-6-astra"), ("haiku", "gpt-6-luna")):
+            self.assertEqual(adapter.map_model(source), expected)
+        with self.assertRaisesRegex(ValueError, "unsupported research model"):
+            adapter.map_model("Codex-opus")
+        with self.assertRaisesRegex(ValueError, "unsupported reasoning effort"):
+            adapter.build_command("codex", "sonnet", "ultra", Path("/r"), Path("/research"), Path("/o"))
+
+    def test_command_is_isolated_and_tool_free_merge_disables_tools(self):
+        command = adapter.build_command("codex", "sonnet", "max", Path("/run"), Path("/research"), Path("/output"), tool_free=True)
+        self.assertEqual(command[:2], ["codex", "exec"])
+        for expected in ("--ignore-user-config", "--ephemeral", "--json", "workspace-write", 'model_reasoning_effort="max"', "mcp_servers={}", "skip_host_skill_discovery", 'web_search="disabled"', "shell_tool"):
+            self.assertIn(expected, command)
+        self.assertNotIn("--dangerously-bypass-approvals-and-sandbox", command)
+        self.assertNotIn("claude", command)
+
+    def test_json_events_preserve_full_merge_output_and_do_not_double_count_cache(self):
+        final = json.dumps({"clusters": [[i, i + 1] for i in range(150)], "off_topic": []})
+        raw = "\n".join(json.dumps(item) for item in (
+            {"type": "item.completed", "item": {"type": "web_search", "query": "test"}},
+            {"type": "item.completed", "item": {"type": "agent_message", "text": final}},
+            {"type": "turn.completed", "usage": {"input_tokens": 1000, "cached_input_tokens": 800, "output_tokens": 200}},
+        ))
+        parsed = adapter.parse_events(raw)
+        self.assertFalse(parsed["is_error"])
+        self.assertEqual(parsed["result"], final)
+        self.assertGreater(len(parsed["result"]), 600)
+        self.assertEqual(parsed["tokens"], 1200)
+        self.assertIsNone(parsed["cost_usd"])
+
+    def test_failure_and_incomplete_streams_remain_errors(self):
+        for raw in ("", "[]", "not json", '{"type":"turn.failed","error":{"message":"model unavailable"}}', '{"type":"item.completed","item":{"type":"error","message":"failed"}}', '{"type":"turn.completed","usage":{}}'):
+            self.assertTrue(adapter.parse_events(raw)["is_error"])
+
+    def test_nonfatal_cli_diagnostics_are_separate_from_model_failures(self):
+        raw = '\n'.join(json.dumps(event) for event in (
+            {"type": "item.completed", "item": {"type": "error", "message": "Under-development features enabled: skip_host_skill_discovery."}},
+            {"type": "item.completed", "item": {"type": "agent_message", "text": '{"ok":true}'}},
+            {"type": "turn.completed", "usage": {"input_tokens": 100, "output_tokens": 5}},
+        ))
+        parsed = adapter.parse_events(raw)
+        self.assertFalse(parsed["is_error"])
+        self.assertEqual(parsed["errors"], [])
+        self.assertEqual(len(parsed["warnings"]), 1)
+
+    def test_skill_disablement_follows_symlinks_without_mutating_catalogue(self):
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+            skill = root / "canonical/research"
+            skill.mkdir(parents=True)
+            (skill / "SKILL.md").write_text("---\nname: research\n---\n")
+            codex = root / "codex"
+            (codex / "skills").mkdir(parents=True)
+            alias = codex / "skills/claude-research"
+            alias.symlink_to(skill, target_is_directory=True)
+            with patch.dict(os.environ, {"CODEX_HOME": str(codex)}):
+                override = adapter.disabled_skill_config(root / "work")
+            self.assertIn(json.dumps(str(alias)), override)
+            self.assertIn(json.dumps(str(skill.resolve())), override)
+            self.assertIn(json.dumps(str(skill.resolve() / "SKILL.md")), override)
+            self.assertIn("enabled=false", override)
+            self.assertTrue(alias.is_symlink())
+
+    def test_workers_only_validate_and_use_codex_tools(self):
+        brief = "Use `WebSearch` and `WebFetch`, use the Write tool. Then `python3 /shared/dr_run.py concept-done run-slug /run/claims.json`."
+        translated = adapter.translate_brief(brief, "/shared/dr_run.py")
+        self.assertIn("claims-check /run/claims.json", translated)
+        self.assertNotIn("concept-done", translated)
+        self.assertNotIn("WebFetch", translated)
+        self.assertIn(str(Path(adapter.__file__).resolve()), translated)
+
+    def test_run_agent_logs_nonzero_exit_and_timeout(self):
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+            def atomic_write(path, text):
+                path.parent.mkdir(parents=True, exist_ok=True)
+                path.write_text(text)
+            shared = SimpleNamespace(run_dir=lambda slug: root / slug, RESEARCH_DIR=root,
+                                     atomic_write=atomic_write, _now=lambda: "2026-10-20T00:00:00Z", __file__="/shared/dr_run.py")
+            with patch.object(adapter, "codex_binary", return_value="codex"), patch.object(adapter.subprocess, "run", return_value=SimpleNamespace(stdout='{"type":"turn.completed","usage":{}}', stderr="model not enabled", returncode=1)):
+                result = adapter.run_agent(shared, {"slug": "run"}, "gate", "brief", "sonnet", "max", 3, 2)
+                self.assertTrue(result["is_error"])
+                self.assertIn("model not enabled", result["errors"][-1])
+            with patch.object(adapter, "codex_binary", return_value="codex"), patch.object(adapter.subprocess, "run", side_effect=subprocess.TimeoutExpired("codex", 2, output=b"partial", stderr=b"timeout")):
+                result = adapter.run_agent(shared, {"slug": "run"}, "probe", "brief", "sonnet", "high", 3, 2)
+                self.assertEqual(result["result"], "timed out after 2s")
+                self.assertEqual((root / "run/agents/probe.events.jsonl").read_text(), "partial")
+
+    @unittest.skipUnless((Path.home() / ".global-ai-hub/scripts/dr_run.py").exists(), "shared DR runtime not installed")
+    def test_shared_state_machine_adaptive_deep_and_gate_dry_runs(self):
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+            env = {**os.environ, "HUB_DIR": str(root), "DR_TELEMETRY": str(root / "telemetry.jsonl")}
+            command = [os.sys.executable, str(REPO / "scripts/codex_dr_run.py")]
+            def invoke(*args):
+                result = subprocess.run(command + list(args), env=env, capture_output=True, text=True, check=False)
+                self.assertEqual(result.returncode, 0, result.stderr)
+                return json.loads(result.stdout)
+            initialized = invoke("init", "Codex adapter smoke", "--slug", "adapter-smoke", "--depth", "standard", "--concepts", "Atomic publication")
+            self.assertIn("manifest", initialized["paths"])
+            adaptive = invoke("research", "adapter-smoke", "--dry-run")
+            self.assertEqual(adaptive["lane"], "adaptive")
+            self.assertEqual(adaptive["model"], "gpt-6-luna")
+            self.assertEqual(adaptive["effort"], "max")
+            self.assertEqual(adaptive["probe"], {"model": "gpt-6-luna", "effort": "max", "scout": True})
+            self.assertEqual(len(adaptive["briefs"]), 2)
+            self.assertIn("at least 6", Path(adaptive["briefs"][0]).read_text())
+            overridden = invoke("research", "adapter-smoke", "--model", "gpt-6-astra", "--effort", "medium", "--dry-run")
+            self.assertEqual(overridden["probe"]["model"], "gpt-6-astra")
+            self.assertEqual(overridden["probe"]["effort"], "medium")
+            deep = invoke("research", "adapter-smoke", "--lane", "deep", "--passes", "2", "--dry-run")
+            self.assertEqual(deep["passes"], 2)
+            for name in deep["briefs"]:
+                brief = Path(name).read_text()
+                self.assertIn("claims-check", brief)
+                self.assertNotIn("concept-done", brief)
+                self.assertNotIn("WebFetch", brief)
+            gate = invoke("gate", "adapter-smoke", "--dry-run")
+            self.assertTrue(gate["dry_run"])
+            self.assertIn("Codex web open", Path(gate["brief"]).read_text())
+            self.assertFalse((root / "telemetry.jsonl").exists())
+
+
+@unittest.skipUnless((Path.home() / ".global-ai-hub/scripts/dr_run.py").exists(), "shared DR runtime not installed")
+class ResearchFlowTests(unittest.TestCase):
+    def setUp(self):
+        temporary = tempfile.TemporaryDirectory()
+        self.addCleanup(temporary.cleanup)
+        self.root = Path(temporary.name)
+        self.repo = self.root / "repo"
+        self.hub = self.root / "hub"
+        environment = patch.dict(os.environ, {"HUB_DIR": str(self.hub),
+                                              "DR_TELEMETRY": str(self.root / "telemetry.jsonl"),
+                                              "LLMS_EXPLORER_REPO": str(self.repo)})
+        environment.start()
+        self.addCleanup(environment.stop)
+        self.shared = adapter.load_shared()
+        self.invoke("init", "Atomic publication", "--slug", "publication", "--concepts", "Rename durability")
+        self.calls = []
+        self.scout = {"tiers_seen": {tier: 0 for tier in self.shared.ESCALATE_TIERS}, "candidates": []}
+        self.doc = {"concept": "Rename durability", "summary": "Durable publication constraints.",
+                    "sources": [{"url": f"https://docs{i}.example/test", "tier": "docs"} for i in range(3)],
+                    "claims": [{"text": f"Publication constraint {i} applies after the rename operation.",
+                                "confidence": "low", "sources": ["https://docs0.example/test"],
+                                "section": "core"} for i in range(8)],
+                    "child_concepts": ["Directory synchronization"]}
+
+    def invoke(self, *args):
+        with redirect_stdout(io.StringIO()):
+            self.assertEqual(self.shared.main(list(args)), 0)
+
+    def worker(self, manifest, name, brief, model, effort, max_turns, timeout, **kwargs):
+        self.calls.append({"name": name, "brief": brief, "model": model, "effort": effort})
+        if name.endswith("-merge"):
+            result = '{"clusters": [], "off_topic": []}'
+        else:
+            doc = copy.deepcopy(self.doc)
+            if name.endswith("-probe"):
+                if self.scout is not None:
+                    doc["scout"] = copy.deepcopy(self.scout)
+                path = self.shared._probe_claims_path(manifest["slug"], "rename-durability")
+            else:
+                doc["claims"].append({"text": "A second pass found an additional durability constraint.",
+                                      "confidence": "low", "sources": ["https://docs1.example/test"]})
+                path = self.shared._pass_claims_path(manifest["slug"], "rename-durability", 1, 1)
+            self.shared.atomic_write(path, json.dumps(doc))
+            result = "claims written"
+        return {"name": name, "model": model, "effort": effort, "is_error": False,
+                "result": result, "tokens": 10, "seconds": 1, "num_turns": 1,
+                "cost_usd": None, "started": "2026-10-20T00:00:00Z", "finished": "2026-10-20T00:00:01Z"}
+
+    def research(self, *args):
+        with patch.object(self.shared, "run_agent", side_effect=self.worker), patch.object(self.shared, "claude_binary", return_value="codex"):
+            self.invoke("research", "publication", *args)
+        return self.shared.load_manifest("publication")["agents"]["rename-durability"]
+
+    def test_scout_hit_runs_exactly_one_seeded_second_pass_and_merges(self):
+        url = "https://engineering.example/deep-rename"
+        self.scout["candidates"].append({"url": url, "tier": "blog", "why": "Durability edge case"})
+        result = self.research()
+        self.assertEqual([call["model"] for call in self.calls], ["gpt-6-luna", "gpt-6-luna", "gpt-6.1-sol"])
+        self.assertEqual([call["effort"] for call in self.calls], ["max", "max", "medium"])
+        self.assertIn("SEED SOURCES", self.calls[1]["brief"])
+        self.assertIn(url, self.calls[1]["brief"])
+        self.assertEqual(result["pass_count"], 2)
+        self.assertIn("scout:blog", result["escalated_for"])
+        saved = json.loads((self.shared.run_dir("publication") / "claims/rename-durability.json").read_text())
+        self.assertEqual(len(saved["claims"]), 9)
+
+    def test_complete_docs_only_scout_stops_after_one_research_pass(self):
+        result = self.research()
+        self.assertEqual(len(self.calls), 2)  # research plus scope check
+        self.assertEqual(result["pass_count"], 1)
+        self.assertEqual(result["lane"], "probe")
+
+    def test_missing_scout_report_cannot_silently_skip_follow_up(self):
+        self.scout = None
+        result = self.research()
+        self.assertEqual(result["pass_count"], 2)
+        self.assertIn("scout report missing or incomplete", result["escalated_for"])
+
+    def test_claim_floor_also_triggers_follow_up(self):
+        self.doc["claims"] = self.doc["claims"][:2]
+        result = self.research()
+        self.assertIn("claims 2 < 8", result["escalated_for"])
+
+    def test_malformed_scout_report_triggers_follow_up(self):
+        self.scout = {"tiers_seen": "invalid", "candidates": ["invalid"]}
+        result = self.research()
+        self.assertEqual(result["pass_count"], 2)
+        self.assertIn("scout report missing or incomplete", result["escalated_for"])
+
+    def artifact_targets(self):
+        for relative in (".claude/skills/llms-concept-abstractor/scripts/concept_abstract.py",
+                         "scripts/codex_research_assets/concept-family-explorer/scripts/sync_trees.py",
+                         "scripts/research_site_sync.py", "scripts/recover_dr_packs.py",
+                         "scripts/publish_scrub.py", "scripts/check_publish_privacy.py",
+                         "site/tools/gen_concepts.py", "site/tools/gen_tree.py",
+                         "site/tools/gen_context.py", "site/tools/gen_concept_facts.py",
+                         "hub/scripts/concept_tree.py", "hub/scripts/research_site_hook.py"):
+            target = self.repo / relative
+            target.parent.mkdir(parents=True, exist_ok=True)
+            shutil.copy2(REPO / relative, target)
+        for root in (self.hub, self.repo):
+            path = root / "concept-tree/tree.json"
+            path.parent.mkdir(parents=True, exist_ok=True)
+            path.write_text(json.dumps([{"concept": f"Existing {root.name}", "slug": f"existing-{root.name}",
+                                         "parentConcept": None, "childConcepts": [], "skillId": None}]))
+
+    def render(self):
+        self.invoke("render", "publication", "--kind", "standalone",
+                    "--out", str(self.repo / ".agents/skills/publication/SKILL.md"),
+                    "--description", "Explain atomic publication and rename durability. TRIGGER: publication durability. SKIP: unrelated file operations.",
+                    "--keywords", "atomic,publication,rename,durability,fsync,directory,storage,filesystem")
+
+    def test_finish_creates_both_trees_and_both_llms_pack_copies(self):
+        self.research()
+        self.artifact_targets()
+        self.render()
+        self.invoke("finish", "publication", "--status", "COMPLETED", "--minutes", "1")
+        manifest = self.shared.load_manifest("publication")
+        self.assertEqual(manifest["status"], "finalized")
+        receipt = manifest["codex_artifacts"]
+        self.assertEqual(len(receipt["trees"]), 2)
+        self.assertEqual(len(receipt["packs"]), 4)  # topic + child, in each root
+        lint = module_at("test_artifact_llms_lint", REPO / "hub/scripts/llms_lint.py")
+        for root in (self.hub, self.repo):
+            nodes = json.loads((root / "concept-tree/tree.json").read_text())
+            self.assertIn(f"Existing {root.name}", [node["concept"] for node in nodes])
+            child = next(node for node in nodes if node["concept"] == "Rename durability")
+            self.assertEqual(child["parentConcept"], "Atomic publication")
+        self.assertEqual(len(json.loads((self.repo / "site/src/data/tree.json").read_text())["nodes"]), 3)
+        self.assertTrue((self.repo / "site/public/downloads/concepts/rename-durability.md").is_file())
+        for pack in receipt["packs"]:
+            path = Path(pack["path"])
+            for filename in ("llms.txt", "llms-full.txt", "llms-small.txt", "llms-facts.txt", "llms-vocabulary.txt"):
+                self.assertTrue((path / filename).is_file())
+                kind = "facts" if filename in ("llms-full.txt", "llms-small.txt") else None
+                report = lint.check(path / filename, kind=kind)
+                self.assertEqual(report["counts"]["high"], 0, report["findings"])
+            units = [json.loads(line) for line in (path / "units.jsonl").read_text().splitlines()]
+            self.assertEqual(len(units), 8)
+            self.assertTrue(all(unit["source_url"].startswith("https://") for unit in units))
+            self.assertTrue(all("low confidence" in unit["text"] for unit in units))
+            self.assertNotIn(str(self.root), (path / "llms-full.txt").read_text())
+        before = [(root / "concept-tree/tree.json").read_bytes() for root in (self.hub, self.repo)]
+        artifacts = module_at("test_dr_artifacts", REPO / "scripts/codex_dr_artifacts.py")
+        second = artifacts.finalize_artifacts(self.shared, manifest, self.shared.load_claims("publication"), "COMPLETED", self.repo)
+        self.assertTrue(all(not tree["changed"] for tree in second["trees"]))
+        self.assertTrue(all(not pack["changed"] for pack in second["packs"]))
+        self.assertEqual(before, [(root / "concept-tree/tree.json").read_bytes() for root in (self.hub, self.repo)])
+
+    def test_export_failure_leaves_finish_retryable(self):
+        self.research()
+        self.render()
+        with self.assertRaises(FileNotFoundError):
+            self.invoke("finish", "publication", "--status", "COMPLETED")
+        self.assertEqual(self.shared.load_manifest("publication")["status"], "research-complete")
+        self.artifact_targets()
+        self.invoke("finish", "publication", "--status", "COMPLETED")
+        self.assertEqual(self.shared.load_manifest("publication")["status"], "finalized")
+
+    def test_existing_pack_collision_refuses_before_changing_either_tree(self):
+        self.research()
+        self.artifact_targets()
+        self.render()
+        collision = self.repo / "outputs/llms-concepts/atomic-publication.llms"
+        collision.mkdir(parents=True)
+        (collision / "manifest.json").write_text('{"concept":"Another concept"}')
+        paths = [root / "concept-tree/tree.json" for root in (self.hub, self.repo)]
+        before = [path.read_bytes() for path in paths]
+        with self.assertRaisesRegex(ValueError, "another concept's pack"):
+            self.invoke("finish", "publication", "--status", "COMPLETED")
+        self.assertEqual(before, [path.read_bytes() for path in paths])
+        self.assertFalse((self.hub / "llms-concepts").exists())
+
+    def test_budget_exhausted_exports_completed_concepts_as_partial(self):
+        self.research()
+        self.artifact_targets()
+        self.invoke("finish", "publication", "--status", "BUDGET_EXHAUSTED")
+        manifest = self.shared.load_manifest("publication")
+        for receipt in manifest["codex_artifacts"]["packs"]:
+            pack = json.loads((Path(receipt["path"]) / "manifest.json").read_text())
+            self.assertEqual(pack["research_status"], "BUDGET_EXHAUSTED")
+
+    def test_no_recorded_claims_does_not_invent_packs_or_tree_nodes(self):
+        self.invoke("finish", "publication", "--status", "BUDGET_EXHAUSTED")
+        receipt = self.shared.load_manifest("publication")["codex_artifacts"]
+        self.assertEqual(receipt["skipped"], "no recorded claims")
+        self.assertEqual(receipt["packs"], [])
+
+    def test_finish_preserves_each_tree_slug_and_consumes_frontier_aliases(self):
+        self.research()
+        self.artifact_targets()
+        self.render()
+        manifest = self.shared.load_manifest("publication")
+        manifest["aliases"] = ["Old publication name"]
+        self.shared.save_manifest(manifest)
+        for root in (self.hub, self.repo):
+            path = root / "concept-tree/tree.json"
+            nodes = json.loads(path.read_text())
+            nodes[0]["childConcepts"] = ["Old publication name"]
+            nodes.append({"concept": "Atomic publication", "slug": f"publication-{root.name}",
+                          "parentConcept": None, "childConcepts": [], "skillId": None})
+            path.write_text(json.dumps(nodes))
+        self.invoke("finish", "publication", "--status", "COMPLETED")
+        for root in (self.hub, self.repo):
+            nodes = json.loads((root / "concept-tree/tree.json").read_text())
+            topic = next(node for node in nodes if node["concept"] == "Atomic publication")
+            self.assertEqual(topic["slug"], f"publication-{root.name}")
+            self.assertIn("Old publication name", topic["aliases"])
+            self.assertTrue(all("Old publication name" not in node["childConcepts"] for node in nodes))
+            packs = root / ("llms-concepts" if root == self.hub else "outputs/llms-concepts")
+            self.assertTrue((packs / "publication-hub.llms/llms-facts.txt").is_file())
+            self.assertTrue((packs / "publication-repo.llms/llms-facts.txt").is_file())
+
+
+if __name__ == "__main__":
+    unittest.main()
