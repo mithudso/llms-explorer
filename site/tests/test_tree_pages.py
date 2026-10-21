@@ -269,3 +269,11 @@ def test_tree_index_points_the_research_button_at_the_api(fixture_dist):
     html = (fixture_dist / "tree" / "index.html").read_text()
     assert 'id="facts-panel" class="facts-panel" aria-live="polite" data-api="https://' in html
     assert "/api/research" in html, "the panel script calls the research endpoint"
+
+
+def test_tree_panel_never_links_archived_source_reports(fixture_dist):
+    # /sources/ answers 404 at the edge, so the facts panel must render those
+    # citations as text instead of a clickable "source" link.
+    html = (fixture_dist / "tree" / "index.html").read_text()
+    assert "ARCHIVED.test(m[3])" in html
+    assert "!ARCHIVED.test(u)" in html
