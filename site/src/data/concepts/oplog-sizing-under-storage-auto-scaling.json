@@ -48,17 +48,17 @@
           "note": null
         },
         {
-          "text": "A fixed-size oplog avoids disk surprises but risks a window that is too short. A retention-hours oplog protects the window but can consume the disk. A Percona forum poster says `oplogMinRetentionHours` is 'only safe when automatic volume expansion is enabled', otherwise very bursty workloads 'would quickly result in disk-full errors'. Atlas couples the two: the Set Minimum Oplog Window procedure starts by verifying that storage auto-scaling is enabled, and Atlas offers a fixed oplog size only if you opt out of auto-scaling. MongoDB's own docs warn that a large retention period with high write",
+          "text": "A fixed-size oplog avoids disk surprises but risks a window that is too short. A retention-hours oplog protects the window but can consume the disk. A Percona forum poster says `oplogMinRetentionHours` is 'only safe when automatic volume expansion is enabled', otherwise very bursty workloads 'would quickly result in disk-full errors'. Atlas couples the two: the Set Minimum Oplog Window procedure starts by verifying that storage auto-scaling is enabled, and Atlas offers a fixed oplog size only if you opt out of auto-scaling. MongoDB's own docs warn that a large retention period with high write volume may exhaust disk space. (high confidence) (verified as of 2026-10-14)",
           "source": "https://forums.percona.com/t/feature-proposal-oplog-management/40411",
           "note": null
         },
         {
-          "text": "Reducing the oplog size does not return disk space. To reclaim it on a self-managed member, run `compact` against `local.oplog.rs` in a maintenance window: `compact` blocks all operations on that database and stops oplog synchronization, and the MongoDB tutorial says to step the primary down and compact the former primary as a secondary. After the oplog has grown past its maximum under `oplogMinRetentionHours`, the mongod may keep holding that disk space even when the oplog returns to its maximum size. Atlas says not to shrink the oplog to free disk space, because only `local.oplog.rs` benefit",
+          "text": "Reducing the oplog size does not return disk space. To reclaim it on a self-managed member, run `compact` against `local.oplog.rs` in a maintenance window: `compact` blocks all operations on that database and stops oplog synchronization, and the MongoDB tutorial says to step the primary down and compact the former primary as a secondary. After the oplog has grown past its maximum under `oplogMinRetentionHours`, the mongod may keep holding that disk space even when the oplog returns to its maximum size. Atlas says not to shrink the oplog to free disk space, because only `local.oplog.rs` benefits. (high confidence)",
           "source": "https://www.mongodb.com/docs/manual/reference/command/replSetResizeOplog/",
           "note": null
         },
         {
-          "text": "On the Percona Operator for MongoDB, a configuration snippet placed in `replsets.configuration` makes mongod create the oplog at the requested size only when the oplog is first created (the forum poster's description). The MongoDB docs confirm that mongod ignores a changed `replication.oplogSizeMB` once the oplog exists. So editing the custom resource or growing the PVC does not resize an existing oplog; use `replSetResizeOplog` on each member. The poster adds that a replaced node or a physical restore can leave a member with a different oplog size. (medium confidence) (verified as of 2026-03-",
+          "text": "On the Percona Operator for MongoDB, a configuration snippet placed in `replsets.configuration` makes mongod create the oplog at the requested size only when the oplog is first created (the forum poster's description). The MongoDB docs confirm that mongod ignores a changed `replication.oplogSizeMB` once the oplog exists. So editing the custom resource or growing the PVC does not resize an existing oplog; use `replSetResizeOplog` on each member. The poster adds that a replaced node or a physical restore can leave a member with a different oplog size. (medium confidence) (verified as of 2026-03-30)",
           "source": "https://forums.percona.com/t/feature-proposal-oplog-management/40411",
           "note": null
         },
@@ -123,7 +123,7 @@
           "note": null
         },
         {
-          "text": "Community report (MongoDB forum, January 2023): a user enabled Atlas auto-scaling while syncing about 2 GB of data. Within 24 hours the cluster grew from about 2 GB to about 130 GB; `datasize` was 1662 MB and `fsUsedSize` was 131,548 MB. The user found the oplog at 170 GB although it was, in the user's words, configured for a 990 MB maximum. The user then ran `atlas clusters advancedSettings update Cluster0 --oplogSizeMB 2500` and `atlas clusters advancedSettings update Cluster0 --oplogMinRetentionHours 0.25`, followed by `db.runCommand({ compact: \"oplog.rs\", \"force\": true })`, and the oplog b",
+          "text": "Community report (MongoDB forum, January 2023): a user enabled Atlas auto-scaling while syncing about 2 GB of data. Within 24 hours the cluster grew from about 2 GB to about 130 GB; `datasize` was 1662 MB and `fsUsedSize` was 131,548 MB. The user found the oplog at 170 GB although it was, in the user's words, configured for a 990 MB maximum. The user then ran `atlas clusters advancedSettings update Cluster0 --oplogSizeMB 2500` and `atlas clusters advancedSettings update Cluster0 --oplogMinRetentionHours 0.25`, followed by `db.runCommand({ compact: \"oplog.rs\", \"force\": true })`, and the oplog began purging. The report is unverified and predates the current Atlas docs. (low confidence)",
           "source": "https://www.mongodb.com/community/forums/t/huge-database-usage-with-auto-scaling-enabled/209954",
           "note": null
         },
@@ -148,7 +148,7 @@
           "note": null
         },
         {
-          "text": "Atlas Core storage auto-scaling is on by default. It triggers when disk space used reaches 90% on any node, targets 70% used on AWS, Azure and GCP, and only scales up. After it triggers, further auto-scaling and manual disk scaling may be unavailable for a few hours. Separately, Atlas blocks writes when free space drops below 4% of disk (disks of 20 GiB to 1.25 TiB), below 600 MiB (8 to 20 GiB), or below 50 GiB (1.25 TiB and up). On a 20 GiB to 1.25 TiB disk that leaves about 6 percentage points between the scale trigger and the write block (derived from the two pages). (medium confidence) (ve",
+          "text": "Atlas Core storage auto-scaling is on by default. It triggers when disk space used reaches 90% on any node, targets 70% used on AWS, Azure and GCP, and only scales up. After it triggers, further auto-scaling and manual disk scaling may be unavailable for a few hours. Separately, Atlas blocks writes when free space drops below 4% of disk (disks of 20 GiB to 1.25 TiB), below 600 MiB (8 to 20 GiB), or below 50 GiB (1.25 TiB and up). On a 20 GiB to 1.25 TiB disk that leaves about 6 percentage points between the scale trigger and the write block (derived from the two pages). (medium confidence) (verified as of 2026-10-20)",
           "source": "https://www.mongodb.com/docs/atlas/cluster-autoscaling-storage/",
           "note": null
         },
@@ -193,7 +193,7 @@
           "note": null
         },
         {
-          "text": "On AWS, Atlas can make at most 4 modifications per EBS volume in any rolling 24-hour period, and AWS usually takes about six hours to apply an increase (6 hours per TB for volumes over 1 TB). If another increase arrives inside that cooldown, Atlas provisions new volumes and syncs data from the old ones. A storage decrease always uses new volumes plus a data sync, with downtime on each node in turn. These rules apply when auto-scaling changes capacity. Percona's write-up on Kubernetes storage autoscaling makes the same point: EBS volumes can be resized once every six hours, so ingestion faster",
+          "text": "On AWS, Atlas can make at most 4 modifications per EBS volume in any rolling 24-hour period, and AWS usually takes about six hours to apply an increase (6 hours per TB for volumes over 1 TB). If another increase arrives inside that cooldown, Atlas provisions new volumes and syncs data from the old ones. A storage decrease always uses new volumes plus a data sync, with downtime on each node in turn. These rules apply when auto-scaling changes capacity. Percona's write-up on Kubernetes storage autoscaling makes the same point: EBS volumes can be resized once every six hours, so ingestion faster than the resize step makes the resize fail. (medium confidence) (verified as of 2026-10-18)",
           "source": "https://www.mongodb.com/docs/atlas/customize-storage/",
           "note": null
         },
@@ -293,7 +293,7 @@
           "note": null
         },
         {
-          "text": "During a mongosync migration, compare the oplog window (`db.getReplicationInfo().timeDiff`, smallest value across shards) with `lag.overallLagSeconds` from the mongosync `/progress` command. If the lag approaches the window, raise the window with `replSetResizeOplog` `minRetentionHours` (self-managed) or by setting the minimum oplog window (Atlas), or scale up the mongosync node. If unapplied operations roll off the source oplog, the sync fails and mongosync exits. Atlas also suggests a fixed oplog size for live migration and intensive data loads. (medium confidence) (verified as of 2026-10-14",
+          "text": "During a mongosync migration, compare the oplog window (`db.getReplicationInfo().timeDiff`, smallest value across shards) with `lag.overallLagSeconds` from the mongosync `/progress` command. If the lag approaches the window, raise the window with `replSetResizeOplog` `minRetentionHours` (self-managed) or by setting the minimum oplog window (Atlas), or scale up the mongosync node. If unapplied operations roll off the source oplog, the sync fails and mongosync exits. Atlas also suggests a fixed oplog size for live migration and intensive data loads. (medium confidence) (verified as of 2026-10-14)",
           "source": "https://www.mongodb.com/docs/mongosync/current/reference/oplog-sizing/",
           "note": null
         },

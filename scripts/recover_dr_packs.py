@@ -8,7 +8,7 @@ from pathlib import Path
 
 
 def plan(repo: Path, hub: Path, nodes: list[dict], load, scrub, current_run: str | None = None,
-         excluded_names=()) -> tuple[dict, dict, dict]:
+         excluded_names=(), withheld=()) -> tuple[dict, dict, dict]:
     runtime = hub / "scripts/dr_run.py"
     if not runtime.is_file():
         return {}, {}, {"recovered_packs": [], "skipped_runs": []}
@@ -123,10 +123,12 @@ def plan(repo: Path, hub: Path, nodes: list[dict], load, scrub, current_run: str
                 skipped.append({"run": candidate["run"], "concept": candidate["name"], "reason": "compiled claims did not render"})
                 continue
             packs[slug] = rendered
+            originals = {filename: (compiled / filename).read_text() for filename in artifacts.PACK_FILES}
+            public = artifacts.public_pack_files(repo, hub, originals, lca, withheld)
             for root in (hub / "llms-concepts", repo / "outputs/llms-concepts"):
                 for filename in artifacts.PACK_FILES:
                     path = root / f"{slug}.llms" / filename
-                    text = (compiled / filename).read_text()
+                    text = originals[filename] if root == hub / "llms-concepts" else public[filename]
                     if not path.is_file() or path.read_text() != text:
                         writes[path] = text
             recovered.append({"concept": candidate["name"], "slug": slug, "run": candidate["run"],

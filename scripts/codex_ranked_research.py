@@ -194,7 +194,7 @@ def execute(repo, hub, plan_path, max_cohorts=None):
 def execute_locked(repo, hub, plan_path, max_cohorts=None):
     plan = json.loads(plan_path.read_text())
     run_id = plan_path.parent.name
-    marker = Path.home() / ".llmsx/jobs/batches" / run_id / "run.json"
+    marker = Path(os.environ.get("LLMSX_HOME") or Path.home() / ".llmsx") / "jobs/batches" / run_id / "run.json"
     marker.parent.mkdir(parents=True, exist_ok=True)
     atomic(marker, {"root": run_id, "status": "in-progress",
                     "concepts": [name for cohort in plan["cohorts"] if cohort["status"] not in ("complete", "skipped") for name in cohort["concepts"]]})

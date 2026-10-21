@@ -65,9 +65,15 @@ concept. A failed gate leaves queue rows pending.
 The first cohort completed with 40 new facts and 10/10 sampled claims supported by
 the blind gate. Both trees and all website surfaces refreshed automatically.
 The [2026-10-21 resume snapshot](../ranked-queue-progress-2026-10-21.md) contains
-seven completed cohorts, 28 concepts and 291 structured claims. Its local website
-dataset has 1,465 references and 88,754 facts. Research continues after this
+eight completed cohorts, 32 concepts and 327 structured claims. Its local website
+dataset has 1,469 references and 88,790 facts. Research continues after this
 publication snapshot.
+
+The export repair restored 85 full claim statements in 26 hub packs and their
+repository peers without repeating research or changing research dates. All
+249 repository DR packs now use sanitized publication copies. A full scan
+finds no remaining clipped statements. Original source evidence and backups
+remain local.
 
 The first cohort researches `$elemMatch` array semantics, hint/internal query
 controls, plan scoring/EOF bonus and compound sort direction. Luna/max workers
@@ -106,6 +112,6 @@ fails because the repository Actions secret `LIBS_READ_TOKEN` is missing. The
 release remains unmerged until its CI gate passes.
 
 The initial release passed 309 full-suite tests. The 2026-10-21 resume snapshot
-passed 47 focused runtime tests and 298 site/publication tests in the isolated
+passed 52 focused runtime tests and 298 site/publication tests in the isolated
 release checkout. Build, publication policy, privacy, scoped lint and generated
 tree/context comparisons pass. The earlier Astro check passed.

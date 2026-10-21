@@ -36,3 +36,14 @@ def test_verification_includes_unchanged_packs_and_withholds_inaccessible_keys(t
         _, blocked = references.resolve(repo, hub, {})
     fetch.assert_not_called()
     assert blocked == ["SERVER-10002"]
+
+
+def test_repository_export_citations_are_verified_before_publication(tmp_path):
+    repo, hub = tmp_path / "repo", tmp_path / "hub"
+    ticket = "SERVER-" + "99118822"
+    changes = {repo / "outputs/llms-concepts/example.llms/units.jsonl": json.dumps({"source_url": "https://jira.mongodb.org/browse/" + ticket})}
+    with patch.object(references.subprocess, "run", return_value=SimpleNamespace(returncode=0, stdout='{"errorMessages":["Unauthorized"]}')) as fetch:
+        writes, blocked = references.resolve(repo, hub, changes)
+    assert fetch.call_count == 1
+    assert blocked == [ticket]
+    assert ticket in writes[hub / "research/.site-public-references.json"]

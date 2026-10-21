@@ -324,6 +324,7 @@ class ResearchFlowTests(unittest.TestCase):
         for relative in (".claude/skills/llms-concept-abstractor/scripts/concept_abstract.py",
                          "scripts/codex_research_assets/concept-family-explorer/scripts/sync_trees.py",
                          "scripts/research_site_sync.py", "scripts/recover_dr_packs.py",
+                         "scripts/codex_dr_artifacts.py", "scripts/repair_dr_exports.py",
                          "scripts/publish_scrub.py", "scripts/check_publish_privacy.py",
                          "site/tools/gen_concepts.py", "site/tools/gen_tree.py",
                          "site/tools/gen_context.py", "site/tools/gen_concept_facts.py",
@@ -389,6 +390,77 @@ class ResearchFlowTests(unittest.TestCase):
         self.artifact_targets()
         self.invoke("finish", "publication", "--status", "COMPLETED")
         self.assertEqual(self.shared.load_manifest("publication")["status"], "finalized")
+
+    def test_long_claim_keeps_caveat_confidence_and_verification_in_reader_exports(self):
+        text = "Publication durability depends on the filesystem and failure model. " * 15 + "Production warning: a completed rename alone does not prove durable recovery."
+        self.doc["claims"][0].update(text=text, volatile=True, verified_as_of="2026-10-21")
+        self.research()
+        self.artifact_targets()
+        self.render()
+        self.invoke("finish", "publication", "--status", "COMPLETED")
+        full = (self.repo / "outputs/llms-concepts/rename-durability.llms/llms-full.txt").read_text()
+        self.assertIn(text, full)
+        self.assertIn("(low confidence) (verified as of 2026-10-21)", full)
+        reader = json.loads((self.repo / "site/src/data/concepts/rename-durability.json").read_text())
+        facts = [fact["text"] for facet in reader["facets"] for fact in facet["facts"]]
+        self.assertTrue(any(text in fact and "verified as of 2026-10-21" in fact for fact in facts))
+        self.assertIn(text, (self.repo / "site/public/downloads/concepts/rename-durability.md").read_text())
+
+    def test_repository_exports_scrub_bodies_and_keep_private_hub_originals(self):
+        home = "/" + "Users" + "/operator/private/file"
+        identity = "f" * 24
+        ticket = "SERVER-" + "99119911"
+        source = "https://jira.mongodb.org/browse/" + ticket
+        self.doc["claims"][0]["text"] = f'Use {home} and ObjectId("{identity}"); see {source} and RestrictedReference.'
+        self.doc["claims"][0]["sources"] = [source]
+        self.doc["sources"].append({"url": source, "tier": "docs"})
+        self.research()
+        self.artifact_targets()
+        cache = self.hub / "research/.site-public-references.json"
+        cache.write_text(json.dumps({ticket: {"public": False, "checked": "2026-10-21T00:00:00+00:00"}}))
+        self.render()
+        with patch.dict(os.environ, {"PRIVACY_DENYLIST": "RestrictedReference"}):
+            self.invoke("finish", "publication", "--status", "COMPLETED")
+        hub = self.hub / "llms-concepts/rename-durability.llms"
+        public = self.repo / "outputs/llms-concepts/rename-durability.llms"
+        self.assertIn(home, (hub / "llms-full.txt").read_text())
+        self.assertIn(ticket, (hub / "units.jsonl").read_text())
+        artifacts = module_at("test_safe_pack_artifacts", REPO / "scripts/codex_dr_artifacts.py")
+        for name in artifacts.PACK_FILES:
+            content = (public / name).read_text()
+            for private in (home, identity, ticket, "RestrictedReference"):
+                self.assertNotIn(private, content, name)
+        safe = json.loads((public / "manifest.json").read_text())
+        for name, metadata in safe["files"].items():
+            self.assertEqual(metadata["bytes"], len((public / name).read_bytes()))
+
+    def test_export_repair_restores_units_preserves_dates_and_is_idempotent(self):
+        text = "Publication recovery needs an explicit failure model. " * 16 + "Final caveat: verify production durability."
+        self.doc["claims"][0]["text"] = text
+        self.research()
+        self.artifact_targets()
+        self.render()
+        self.invoke("finish", "publication", "--status", "COMPLETED")
+        hub_pack = self.hub / "llms-concepts/rename-durability.llms"
+        full = hub_pack / "llms-full.txt"
+        full.write_text(full.read_text().replace(text + " (low confidence)", (text + " (low confidence)")[:600]))
+        manifest = json.loads((hub_pack / "manifest.json").read_text())
+        manifest["generated"] = "2026-09-17"
+        (hub_pack / "manifest.json").write_text(json.dumps(manifest))
+        repair = module_at("test_dr_export_repair", REPO / "scripts/repair_dr_exports.py")
+        with patch.object(subprocess, "run", side_effect=AssertionError("repair must not research or fetch")):
+            report, writes = repair.plan(self.repo, self.hub)
+        self.assertNotIn(text, full.read_text(), "planning must stay read-only")
+        self.assertIn(text, writes[full])
+        fixed = json.loads(writes[hub_pack / "manifest.json"])
+        self.assertEqual(fixed["generated"], "2026-09-17")
+        self.assertEqual(fixed["kept_units"], 8)
+        self.assertTrue(any(row["restored_claims"] == 1 for row in report["packs"]))
+        for path, content in writes.items():
+            path.parent.mkdir(parents=True, exist_ok=True)
+            path.write_text(content)
+        _, remaining = repair.plan(self.repo, self.hub)
+        self.assertEqual(remaining, {})
 
     def test_private_finish_keeps_hub_packs_and_quarantines_repository_copy(self):
         self.research()

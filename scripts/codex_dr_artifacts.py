@@ -56,6 +56,15 @@ def compile_claims(lca, out: Path, name: str, slug: str, docs: list[dict], statu
             row.update(matched=[name], relations=["about"], relation="about", score=1.0,
                        facet=lca.heuristic_facet(row), keep=True)
             rows.append(row)
+    compile_rows(lca, out, name, slug, rows,
+                 {"summary": f"Source-anchored research for {name}. Run status: {status}.", "research_status": status})
+
+
+def compile_rows(lca, out: Path, name: str, slug: str, rows: list[dict], metadata: dict) -> None:
+    """Compile authored synthesis, preserving statements and research dates."""
+    out.mkdir(parents=True, exist_ok=True)
+    rows = [dict(row, matched=[name], relations=[row.get("relation", "about")],
+                 facet=row.get("facet", row.get("section", "facts")), keep=True) for row in rows]
     (out / "pool.jsonl").write_text("".join(json.dumps(row) + "\n" for row in rows))
     lexicon = {"concept": name, "slug": slug,
                "terms": [{"term": name, "relation": "self"}], "exclude": []}
@@ -64,11 +73,16 @@ def compile_claims(lca, out: Path, name: str, slug: str, docs: list[dict], statu
     with redirect_stdout(io.StringIO()):
         lca.main(["compile", "--out", str(out), "--concept", name,
                   "--lexicon", str(lexicon_path), "--keep-lead-ins",
-                  "--summary", f"Source-anchored research for {name}. Run status: {status}."])
+                  "--rights", "quote", "--budget-tokens", str(metadata.get("budget_tokens", 8000)),
+                  "--summary", metadata.get("summary", f"Source-anchored research for {name}.")])
     manifest_path = out / "manifest.json"
     manifest = json.loads(manifest_path.read_text())
     if manifest["kept_units"] != len(rows):
         raise ValueError(f"{name}: llms compilation lost claims ({len(rows)} -> {manifest['kept_units']})")
+    full = (out / "llms-full.txt").read_text()
+    for row in rows:
+        if re.sub(r"\s+", " ", row["text"]).strip() not in full:
+            raise ValueError(f"{name}: llms compilation clipped claim {row['id']}")
     # The compiler lists undefined terms twice: as unsourced bold entries and
     # in its explicit research-gap section. Keep the gap section, so a missing
     # definition never masquerades as a sourced vocabulary entry (lint C6).
@@ -78,10 +92,42 @@ def compile_claims(lca, out: Path, name: str, slug: str, docs: list[dict], statu
     vocabulary_path.write_text(vocabulary)
     manifest["files"]["llms-vocabulary.txt"] = {"bytes": len(vocabulary.encode()),
                                                  "tokens": lca._tokens_of(vocabulary)}
-    manifest["research_status"] = status
+    generated = metadata.get("generated", manifest["generated"])
+    for filename in PACK_FILES:
+        if filename.endswith(".txt"):
+            path = out / filename
+            path.write_text(path.read_text().replace("· generated " + manifest["generated"], "· generated " + generated))
+    graph = json.loads((out / "concept-graph.json").read_text())
+    graph["generated"] = generated
+    (out / "concept-graph.json").write_text(json.dumps(graph, indent=1, ensure_ascii=False) + "\n")
+    manifest.update({key: value for key, value in metadata.items() if key not in manifest})
+    manifest["generated"] = generated
+    for filename in manifest["files"]:
+        text = (out / filename).read_text()
+        manifest["files"][filename] = {"bytes": len(text.encode()), "tokens": lca._tokens_of(text)}
     manifest_path.write_text(json.dumps(manifest, indent=2) + "\n")
     if any(not (out / filename).is_file() for filename in PACK_FILES):
         raise ValueError(f"{name}: llms compiler did not produce all required files")
+
+
+def public_pack_files(repo: Path, hub: Path, files: dict, lca, withheld=()) -> dict:
+    """Recompile a publication-safe copy; leave private inputs untouched."""
+    scrub = load_module("codex_pack_scrub", repo / "scripts/publish_scrub.py")
+    website = load_module("codex_pack_publication", repo / "scripts/research_site_sync.py")
+    cache = hub / "research/.site-public-references.json"
+    blocked = set(withheld)
+    if cache.is_file():
+        blocked.update(key for key, value in json.loads(cache.read_text()).items() if not value["public"])
+    terms = [*scrub.gate.denylist(), *blocked]
+    metadata = website.publication_pack(json.loads(files["manifest.json"]), scrub, terms)
+    rows = [website.publication_pack(json.loads(line), scrub, terms)
+            for line in files["units.jsonl"].splitlines() if line.strip()]
+    if not rows or any(row.get("origin") != "dr" for row in rows):
+        raise ValueError("Repository claim export requires authored DR units")
+    with tempfile.TemporaryDirectory(prefix="public-dr-pack-") as temporary:
+        out = Path(temporary)
+        compile_rows(lca, out, metadata["concept"], metadata["slug"], rows, metadata)
+        return {filename: (out / filename).read_text() for filename in PACK_FILES}
 
 
 def finalize_artifacts(shared, manifest: dict, claims: dict[str, dict], status: str,
@@ -195,13 +241,26 @@ def finalize_artifacts(shared, manifest: dict, claims: dict[str, dict], status: 
             compiled = Path(temporary)
             for slug, name in jobs.items():
                 compile_claims(lca, compiled / slug, name, slug, documents[name], status)
+            originals = {slug: {filename: (compiled / slug / filename).read_text() for filename in PACK_FILES} for slug in jobs}
+            verifier = repo / "scripts/public_research_references.py"
+            reference_writes, withheld = {}, []
+            if verifier.is_file():
+                reference_writes, withheld = load_module("codex_pack_reference_check", verifier).resolve(
+                    repo, shared.HUB_DIR, {dest / filename: originals[slug][filename]
+                                          for label, dest, slug, _ in destinations if label == "repository"
+                                          for filename in PACK_FILES})
+            public = {slug: public_pack_files(repo, shared.HUB_DIR, originals[slug], lca, withheld)
+                      for label, _, slug, _ in destinations if label == "repository"}
+            for path, text in reference_writes.items():
+                shared.atomic_write(path, text)
             for label, dest, slug, name in destinations:
+                contents = originals[slug] if label == "hub" else public[slug]
                 changed = [filename for filename in PACK_FILES if not (dest / filename).is_file()
-                           or (dest / filename).read_bytes() != (compiled / slug / filename).read_bytes()]
+                           or (dest / filename).read_text() != contents[filename]]
                 if changed and dest.exists():
                     shutil.copytree(dest, backup / label / dest.name)
                 for filename in changed:
-                    shared.atomic_write(dest / filename, (compiled / slug / filename).read_text())
+                    shared.atomic_write(dest / filename, contents[filename])
                 pack_receipts.append({"target": label, "concept": name, "path": str(dest),
                                       "claims": sum(len(doc["claims"]) for doc in documents[name]),
                                       "changed": changed})

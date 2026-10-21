@@ -47,8 +47,10 @@ and merges both `~/.global-ai-hub/concept-tree/tree.json` and
 It writes `llms.txt`, `llms-full.txt`, `llms-small.txt`, `llms-facts.txt`, and
 `llms-vocabulary.txt`, plus units, graph and manifest, under both
 `~/.global-ai-hub/llms-concepts/<slug>.llms/` and
-`<repo>/outputs/llms-concepts/<slug>.llms/`. It retains original source URLs and
-confidence labels. Denylisted topics and descendants retain hub packs;
+`<repo>/outputs/llms-concepts/<slug>.llms/`. Authored statements retain their full
+text, caveats, confidence labels and verification dates. Hub packs retain original
+source URLs. Repository copies scrub private identifiers and withheld references.
+Denylisted topics and descendants retain hub packs;
 repository packs and website data exclude them. Existing repository copies are
 backed up before removal. Each tree is merged independently, with backups and
 publishable nodes preserved. The run records `artifacts/receipt.json` and `codex_artifacts` in its
