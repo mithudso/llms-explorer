@@ -100,6 +100,40 @@ class SiteSyncTests(unittest.TestCase):
         self.assertEqual(library.read_text(), "Third-party raw text must stay private.")
         self.assertNotIn("Private Topic", (self.repo / "concept-tree/tree.json").read_text())
 
+    def test_private_ancestor_removes_generic_descendant_packs_and_repo_exports(self):
+        private = node("Private Topic", "private-topic", children=["Generic descendant"])
+        child = node("Generic descendant", "generic-descendant", parent="Private Topic")
+        (self.hub / "concept-tree/tree.json").write_text(json.dumps([private, child]))
+        (self.repo / "site/src/data/concepts/generic-descendant.json").write_text(json.dumps(reader("generic descendant", "generic-descendant")))
+        self.save_pack("Generic descendant", "generic-descendant")
+        local_pack = self.repo / "outputs/llms-concepts/generic-descendant.llms"
+        shutil.copytree(self.hub / "llms-concepts/generic-descendant.llms", local_pack)
+        with patch.dict("os.environ", {"PRIVACY_DENYLIST": "Private Topic"}):
+            result = website.sync(self.repo, self.hub, apply=True)
+        self.assertFalse((self.repo / "site/src/data/concepts/generic-descendant.json").exists())
+        self.assertFalse((local_pack / "manifest.json").exists())
+        self.assertTrue((self.hub / "llms-concepts/generic-descendant.llms/manifest.json").exists())
+        self.assertEqual(result["website_packs_after"], 0)
+        self.assertTrue((self.repo / result["backup"] / "repository/outputs/llms-concepts/generic-descendant.llms/manifest.json").exists())
+
+    def test_new_pack_uses_canonical_tree_title_without_prior_reader(self):
+        for root in (self.repo, self.hub):
+            (root / "concept-tree/tree.json").write_text(json.dumps([node("Canonical title", "stable")]))
+        self.save_pack("Older editorial title", "stable")
+        website.sync(self.repo, self.hub, apply=True)
+        pack = json.loads((self.repo / "site/src/data/concepts/stable.json").read_text())
+        self.assertEqual(pack["concept"], "Canonical title")
+        self.assertIn("Canonical title", (self.repo / "site/public/search-keywords.json").read_text())
+
+    def test_canonical_pack_replaces_an_older_reader_title_without_a_conflict(self):
+        for root in (self.repo, self.hub):
+            (root / "concept-tree/tree.json").write_text(json.dumps([node("Canonical title", "stable")]))
+        self.save_pack("Canonical title", "stable")
+        path = self.repo / "site/src/data/concepts/stable.json"
+        path.write_text(json.dumps(reader("Older editorial title", "stable")))
+        website.sync(self.repo, self.hub, apply=True)
+        self.assertEqual(json.loads(path.read_text())["concept"], "Canonical title")
+
     def test_tree_slug_collision_stops_before_writing(self):
         (self.hub / "concept-tree/tree.json").write_text(json.dumps([node("Other identity", "root")]))
         before = (self.repo / "concept-tree/tree.json").read_bytes()
@@ -127,6 +161,7 @@ class SiteSyncTests(unittest.TestCase):
                                                          "fresh": reader("Fresh", "fresh")}, {"old": "new"})
         self.assertEqual(writes[binary], b"1234")
         self.assertEqual(json.loads(writes[meta])["items"][0]["slug"], "new")
+        self.assertEqual(json.loads(writes[meta])["items"][0]["summary"], "New")
         self.assertEqual(report["new_embeddings"], 0)
         self.assertEqual(report["keyword_concepts"], 2)
         self.assertEqual(report["deferred_semantic_concepts"], 1)

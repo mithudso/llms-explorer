@@ -108,7 +108,8 @@ def search_writes(repo: Path, packs: dict, redirects: dict) -> tuple[dict, dict]
             if slug not in packs or slug in indexed:
                 continue
             indexed.add(slug)
-            items.append({**item, "slug": slug, "concept": packs[slug]["concept"]})
+            items.append({**item, "slug": slug, "concept": packs[slug]["concept"],
+                          "summary": packs[slug].get("summary", "")})
             vectors.append(binary[index * width:(index + 1) * width])
         writes[meta_path] = json_text({**meta, "count": len(items), "items": items})
         writes[binary_path] = b"".join(vectors)
@@ -166,44 +167,63 @@ def plan(repo: Path, hub: Path, merge_tree: bool = True, current_run: str | None
     hub_nodes = nodes_at(hub / "concept-tree/tree.json")
     tree_hashes = {str(path): hashlib.sha256(path.read_bytes()).hexdigest()
                    for path in (repo / "concept-tree/tree.json", hub / "concept-tree/tree.json")}
-    safe_hub, excluded, removed_refs = scrub.filter_tree(hub_nodes, scrub.gate.denylist())
-    safe_repo, excluded_repo, _ = scrub.filter_tree(current_nodes, scrub.gate.denylist())
+    excluded_names = set()
+    # Follow private descendants across either tree until their different
+    # parent/child placements no longer add another excluded identity.
+    while True:
+        safe_hub, excluded, removed_refs = scrub.filter_tree(hub_nodes, scrub.gate.denylist(), excluded_names)
+        safe_repo, excluded_repo, _ = scrub.filter_tree(current_nodes, scrub.gate.denylist(), excluded_names)
+        discovered = set(excluded) | set(excluded_repo)
+        if discovered <= excluded_names:
+            break
+        excluded_names.update(discovered)
     merged = merge_nodes(safe_repo, safe_hub) if merge_tree else safe_repo
     baseline_errors = set(tree.ct.ConceptTree(current_nodes).validate())
     added_errors = set(tree.ct.ConceptTree(merged).validate()) - baseline_errors
     if added_errors:
         raise ValueError("concept tree merge adds problems: " + "; ".join(sorted(added_errors)))
     safe_names = {node["concept"] for node in safe_hub}
-    excluded_names = set(excluded) | set(excluded_repo)
     recovery = module("research_site_recovery", repo / "scripts/recover_dr_packs.py")
-    recovered_writes, recovered_packs, recovery_report = recovery.plan(repo, hub, safe_hub, module, scrub, current_run)
+    recovered_writes, recovered_packs, recovery_report = recovery.plan(
+        repo, hub, safe_hub, module, scrub, current_run, excluded_names)
+    excluded_identities = {name.casefold() for name in excluded_names}
+    excluded_slugs = {node["slug"] for node in [*hub_nodes, *current_nodes]
+                      if node["concept"].casefold() in excluded_identities}
+    def private_pack(pack):
+        return (pack["concept"].casefold() in excluded_identities or pack["slug"] in excluded_slugs
+                or scrub._matches(pack["concept"] + " " + pack["slug"], scrub.gate.denylist()))
     site_packs = {path.stem: read_json(path) for path in (repo / "site/src/data/concepts").glob("*.json")}
     selected = {slug: pack for slug, pack in site_packs.items()
-                if not scrub._matches(pack["concept"], scrub.gate.denylist())}
+                if not private_pack(pack)}
     excluded_pack_slugs = set(site_packs) - set(selected)
     classifications, stale, new, conflicts = {}, [], [], []
     owners = {node["slug"]: node for node in [*merged, *safe_hub]}
     title_normalizations = []
-    inputs = {}
+    inputs, excluded_repository_files = {}, []
     for root in (repo / "outputs/llms-concepts", hub / "llms-concepts"):
         for path in sorted(root.glob("*.llms")):
             candidate = concepts.build_one(path)
             if candidate is None or not candidate.get("facets"):
                 classifications[str(path.relative_to(root))] = "non-renderable"
                 continue
-            if candidate["concept"] in excluded_names or scrub._matches(candidate["concept"], scrub.gate.denylist()):
+            if private_pack(candidate):
                 classifications[path.name] = "excluded"
+                if root == repo / "outputs/llms-concepts":
+                    excluded_repository_files.extend(member for member in path.rglob("*") if member.is_file())
                 continue
             slug = candidate["slug"]
             previous = selected.get(slug)
-            if previous and previous["concept"].casefold() != candidate["concept"].casefold():
-                owner = owners.get(slug)
-                if owner and owner["concept"].casefold() in (previous["concept"].casefold(), candidate["concept"].casefold()):
-                    title_normalizations.append({"slug": slug, "pack_title": candidate["concept"], "tree_concept": owner["concept"]})
-                    candidate = {**candidate, "concept": owner["concept"]}
-                else:
-                    conflicts.append(slug)
-                    continue
+            owner = owners.get(slug)
+            compatible_owner = owner and owner["concept"].casefold() in (
+                (previous["concept"].casefold(), candidate["concept"].casefold())
+                if previous else (candidate["concept"].casefold(),))
+            if previous and previous["concept"].casefold() != candidate["concept"].casefold() and not compatible_owner:
+                conflicts.append(slug)
+                continue
+            if owner and candidate["concept"] != owner["concept"] and (
+                    previous is None or compatible_owner):
+                title_normalizations.append({"slug": slug, "pack_title": candidate["concept"], "tree_concept": owner["concept"]})
+                candidate = {**candidate, "concept": owner["concept"]}
             # An older pack cannot replace a newer committed research result.
             if previous and str(candidate.get("generated") or "") < str(previous.get("generated") or ""):
                 classifications[path.name] = "older-than-website"
@@ -234,6 +254,7 @@ def plan(repo: Path, hub: Path, merge_tree: bool = True, current_run: str | None
     registrations, pack_aliases = [], {}
     for slug, pack in list(selected.items()):
         if slug in by_slug:
+            selected[slug] = {**pack, "concept": by_slug[slug]["concept"]}
             continue
         hub_owner = hub_by_slug.get(slug)
         node = (by_name.get(pack["concept"].casefold()) or aliases.get(pack["concept"].casefold())
@@ -268,6 +289,7 @@ def plan(repo: Path, hub: Path, merge_tree: bool = True, current_run: str | None
         raise ValueError("pack registration adds tree problems: " + "; ".join(sorted(added_errors)))
     selected = {slug: publication_pack(pack, scrub, [*scrub.gate.denylist(), *withheld]) for slug, pack in selected.items()}
     writes = dict(recovered_writes)
+    writes.update({path: None for path in excluded_repository_files})
     for slug, pack in selected.items():
         if slug not in site_packs:
             new.append(slug)
@@ -321,7 +343,9 @@ def plan(repo: Path, hub: Path, merge_tree: bool = True, current_run: str | None
     if merged_hub != hub_nodes:
         writes[hub / "concept-tree/tree.json"] = json_text(merged_hub, indent=2)
     changes = {path: text for path, text in writes.items()
-               if not path.is_file() or path.read_bytes() != (text if isinstance(text, bytes) else text.encode())}
+               if (text is None and path.exists()) or
+               (text is not None and (not path.is_file() or
+                path.read_bytes() != (text if isinstance(text, bytes) else text.encode())))}
     report = {"hub_nodes": len(hub_nodes), "repository_nodes_before": len(current_nodes),
               "repository_nodes_after": len(merged), "excluded_private_nodes": len(excluded),
               "excluded_child_references": removed_refs,

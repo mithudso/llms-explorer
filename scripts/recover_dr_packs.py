@@ -7,7 +7,8 @@ import tempfile
 from pathlib import Path
 
 
-def plan(repo: Path, hub: Path, nodes: list[dict], load, scrub, current_run: str | None = None) -> tuple[dict, dict, dict]:
+def plan(repo: Path, hub: Path, nodes: list[dict], load, scrub, current_run: str | None = None,
+         excluded_names=()) -> tuple[dict, dict, dict]:
     runtime = hub / "scripts/dr_run.py"
     if not runtime.is_file():
         return {}, {}, {"recovered_packs": [], "skipped_runs": []}
@@ -16,6 +17,7 @@ def plan(repo: Path, hub: Path, nodes: list[dict], load, scrub, current_run: str
     lca = load("site_recovery_lca", repo / ".claude/skills/llms-concept-abstractor/scripts/concept_abstract.py")
     renderer = load("site_recovery_renderer", repo / "site/tools/gen_concepts.py")
     terms = scrub.gate.denylist()
+    excluded = {name.casefold() for name in excluded_names}
     by_name = {node["concept"].casefold(): node for node in nodes}
     by_slug = {node["slug"]: node for node in nodes}
     for node in nodes:
@@ -29,7 +31,8 @@ def plan(repo: Path, hub: Path, nodes: list[dict], load, scrub, current_run: str
             continue
         if manifest.get("status") not in ("finalized", "COMPLETED"):
             continue
-        if not isinstance(manifest.get("topic"), str) or scrub._matches(manifest["topic"], terms):
+        if (not isinstance(manifest.get("topic"), str) or manifest["topic"].casefold() in excluded
+                or scrub._matches(manifest["topic"], terms)):
             continue
         if manifest.get("exit_status", "COMPLETED") != "COMPLETED":
             continue
@@ -43,7 +46,8 @@ def plan(repo: Path, hub: Path, nodes: list[dict], load, scrub, current_run: str
                 doc = json.loads(claims_path.read_text())
             except (ValueError, OSError):
                 continue
-            if dr.validate_claims(doc) or scrub._matches(doc.get("concept", ""), terms):
+            if (dr.validate_claims(doc) or doc.get("concept", "").casefold() in excluded
+                    or scrub._matches(doc.get("concept", ""), terms)):
                 continue
             docs.append(doc)
         if not docs:
@@ -53,9 +57,13 @@ def plan(repo: Path, hub: Path, nodes: list[dict], load, scrub, current_run: str
                    **{doc["concept"]: [doc] for doc in docs if doc["concept"] != manifest["topic"]}})
         stamp = str(manifest.get("finished") or manifest.get("updated") or manifest.get("started") or "")
         for name, source_docs in groups.items():
+            if name.casefold() in excluded:
+                continue
             node = by_name.get(name.casefold()) or (by_slug.get(manifest.get("slug")) if name == manifest["topic"] else None)
             canonical_name = node["concept"] if node else name
             slug = node["slug"] if node else dr.slugify(name)
+            if scrub._matches(slug, terms):
+                continue
             fingerprint = hashlib.sha256(json.dumps(source_docs, sort_keys=True).encode()).hexdigest()
             old = candidates.get(slug)
             if old is None or stamp > old["stamp"]:
@@ -64,27 +72,33 @@ def plan(repo: Path, hub: Path, nodes: list[dict], load, scrub, current_run: str
     writes, packs, recovered = {}, {}, []
     with tempfile.TemporaryDirectory(prefix="recover-dr-packs-") as temporary:
         for slug, candidate in candidates.items():
-            destination = hub / "llms-concepts" / f"{slug}.llms"
-            existing = destination / "manifest.json"
-            if existing.is_file():
-                # Historical recovery fills gaps, preserving richer references.
-                if candidate["run"] != current_run:
-                    continue
+            destinations = [root / f"{slug}.llms" for root in
+                            (hub / "llms-concepts", repo / "outputs/llms-concepts")]
+            # Either destination can hold the fuller reference. Historical
+            # recovery must not overwrite it when only its peer is missing.
+            if candidate["run"] != current_run and any(path.exists() for path in destinations):
+                continue
+            existing_manifests = [path / "manifest.json" for path in destinations if path.exists()]
+            previous_manifests = []
+            for existing in existing_manifests:
                 try:
                     previous = json.loads(existing.read_text())
-                except ValueError:
+                except (ValueError, OSError):
                     skipped.append({"run": candidate["run"], "concept": candidate["name"], "reason": "malformed existing manifest"})
-                    continue
+                    break
                 if previous.get("concept", "").casefold() != candidate["name"].casefold():
                     skipped.append({"run": candidate["run"], "concept": candidate["name"], "reason": "pack identity conflict"})
-                    continue
-                if previous.get("dr_source_sha256") == candidate["sha256"]:
-                    continue
-                # Historical recovery fills gaps. A broad compiled reference
-                # may contain far more evidence than an older /dr claim list.
-                # Only a just-finished run may replace its own existing pack.
+                    break
                 if str(previous.get("generated") or "") > candidate["stamp"][:10]:
+                    break
+                previous_manifests.append(previous)
+            else:
+                if (len(previous_manifests) == len(destinations)
+                        and all(previous.get("dr_source_sha256") == candidate["sha256"]
+                                for previous in previous_manifests)):
                     continue
+            if len(previous_manifests) != len(existing_manifests):
+                continue
             compiled = Path(temporary) / slug
             try:
                 artifacts.compile_claims(lca, compiled, candidate["name"], slug, candidate["docs"], "COMPLETED")

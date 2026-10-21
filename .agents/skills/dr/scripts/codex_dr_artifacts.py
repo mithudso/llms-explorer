@@ -9,6 +9,7 @@ import json
 import os
 import re
 import shutil
+import sys
 import tempfile
 from contextlib import redirect_stdout
 from datetime import UTC, datetime
@@ -93,8 +94,10 @@ def finalize_artifacts(shared, manifest: dict, claims: dict[str, dict], status: 
     if not claims:
         return {"ok": True, "skipped": "no recorded claims", "packs": [], "trees": []}
     repo = repo or repository()
+    sys.path.insert(0, str(repo / "scripts"))
     lca = load_module("codex_dr_lca", repo / ".claude/skills/llms-concept-abstractor/scripts/concept_abstract.py")
     sync = load_module("codex_dr_tree_sync", repo / "scripts/codex_research_assets/concept-family-explorer/scripts/sync_trees.py")
+    scrub = load_module("codex_dr_publication_scrub", repo / "scripts/publish_scrub.py")
     ct = shared.concept_tree
     run = shared.run_dir(manifest["slug"])
     tree_paths = {"hub": shared.HUB_DIR / "concept-tree/tree.json",
@@ -154,12 +157,33 @@ def finalize_artifacts(shared, manifest: dict, claims: dict[str, dict], status: 
                 raise ValueError(f"DR tree merge refused for {path}: {sorted(new_problems)}")
             planned[label] = before, after
 
+        private_names = set()
+        if scrub._matches(" ".join(filter(None, (topic, cohort_parent, manifest.get("parent_concept")))), scrub.gate.denylist()):
+            private_names.update(documents)
+        while True:
+            discovered = set()
+            for _, after in planned.values():
+                _, excluded, _ = scrub.filter_tree(after, scrub.gate.denylist(), private_names)
+                discovered.update(excluded)
+            if discovered <= private_names:
+                break
+            private_names.update(discovered)
+        before, after = planned["repository"]
+        public_after, _, _ = scrub.filter_tree(after, scrub.gate.denylist(), private_names)
+        public_before, _, _ = scrub.filter_tree(before, scrub.gate.denylist(), private_names)
+        problems = set(ct.ConceptTree(public_after).validate()) - set(ct.ConceptTree(before).validate())
+        if len(public_after) < len(public_before) or problems:
+            raise ValueError(f"DR publication tree merge refused: {sorted(problems)}")
+        planned["repository"] = before, public_after
+
         destinations = [(label, root / f"{slug}.llms", slug, name)
                         for label, root in (("hub", shared.HUB_DIR / "llms-concepts"),
                                             ("repository", repo / "outputs/llms-concepts"))
-                        for slug, name in jobs.items()]
+                        for slug, name in jobs.items() if label == "hub" or name not in private_names]
+        excluded_destinations = [("repository", repo / "outputs/llms-concepts" / f"{slug}.llms", slug, name)
+                                 for slug, name in jobs.items() if name in private_names]
         # Check every destination before writing any packs or trees.
-        for _, dest, _, name in destinations:
+        for _, dest, _, name in [*destinations, *excluded_destinations]:
             if dest.exists():
                 old_manifest = dest / "manifest.json"
                 if not old_manifest.is_file() or json.loads(old_manifest.read_text()).get("concept") != name:
@@ -181,6 +205,10 @@ def finalize_artifacts(shared, manifest: dict, claims: dict[str, dict], status: 
                 pack_receipts.append({"target": label, "concept": name, "path": str(dest),
                                       "claims": sum(len(doc["claims"]) for doc in documents[name]),
                                       "changed": changed})
+        for label, dest, _, _ in excluded_destinations:
+            if dest.exists():
+                shutil.copytree(dest, backup / label / dest.name)
+                shutil.rmtree(dest)
         tree_receipts = []
         for label, path in tree_paths.items():
             before, after = planned[label]
@@ -192,6 +220,7 @@ def finalize_artifacts(shared, manifest: dict, claims: dict[str, dict], status: 
             tree_receipts.append({"target": label, "path": str(path),
                                   "before": len(before), "after": len(after), "changed": before != after})
         receipt = {"ok": True, "status": status, "packs": pack_receipts, "trees": tree_receipts,
+                   "excluded_repository_concepts": sorted(private_names & set(documents)),
                    "backup": str(backup) if backup.exists() else None}
     website = load_module("codex_dr_website", repo / "scripts/research_site_sync.py")
     receipt["website"] = website.sync(repo, shared.HUB_DIR, apply=True, merge_tree=False)

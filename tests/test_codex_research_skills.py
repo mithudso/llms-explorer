@@ -390,6 +390,45 @@ class ResearchFlowTests(unittest.TestCase):
         self.invoke("finish", "publication", "--status", "COMPLETED")
         self.assertEqual(self.shared.load_manifest("publication")["status"], "finalized")
 
+    def test_private_finish_keeps_hub_packs_and_quarantines_repository_copy(self):
+        self.research()
+        self.artifact_targets()
+        self.render()
+        old = self.repo / "outputs/llms-concepts/atomic-publication.llms"
+        old.mkdir(parents=True)
+        (old / "manifest.json").write_text(json.dumps({"concept": "Atomic publication"}))
+        (old / "llms-full.txt").write_text("Original private research.\n")
+        with patch.dict(os.environ, {"PRIVACY_DENYLIST": "Atomic publication"}):
+            self.invoke("finish", "publication", "--status", "COMPLETED")
+        receipt = self.shared.load_manifest("publication")["codex_artifacts"]
+        self.assertEqual({row["target"] for row in receipt["packs"]}, {"hub"})
+        self.assertEqual(set(receipt["excluded_repository_concepts"]), {"Atomic publication", "Rename durability"})
+        self.assertFalse(old.exists())
+        self.assertTrue((self.hub / "llms-concepts/rename-durability.llms/llms-full.txt").exists())
+        self.assertEqual((Path(receipt["backup"]) / "repository/atomic-publication.llms/llms-full.txt").read_text(), "Original private research.\n")
+        self.assertNotIn("Rename durability", (self.repo / "concept-tree/tree.json").read_text())
+
+    def test_historical_recovery_preserves_repository_pack_when_hub_peer_is_missing(self):
+        self.research()
+        self.artifact_targets()
+        self.render()
+        self.invoke("finish", "publication", "--status", "COMPLETED")
+        pack = self.repo / "outputs/llms-concepts/atomic-publication.llms/llms-full.txt"
+        pack.write_text(pack.read_text() + "\nAdditional retained evidence.\n")
+        before = pack.read_bytes()
+        shutil.rmtree(self.hub / "llms-concepts/atomic-publication.llms")
+        recovery = module_at("test_repository_recovery", REPO / "scripts/recover_dr_packs.py")
+        scrub = module_at("test_recovery_scrub", self.repo / "scripts/publish_scrub.py")
+        # The fixture runtime is already loaded; all other dependencies are real.
+        def load(name, path):
+            return self.shared if name == "site_recovery_dr" else module_at(name, path)
+        (self.hub / "scripts").mkdir(exist_ok=True)
+        (self.hub / "scripts/dr_run.py").touch()
+        (self.repo / "scripts/codex_dr_artifacts.py").write_text((REPO / "scripts/codex_dr_artifacts.py").read_text())
+        writes, _, _ = recovery.plan(self.repo, self.hub, self.shared.concept_tree.load_nodes(self.hub / "concept-tree/tree.json"), load, scrub)
+        self.assertFalse(any(path.is_relative_to(pack.parent) for path in writes))
+        self.assertEqual(pack.read_bytes(), before)
+
     def test_existing_pack_collision_refuses_before_changing_either_tree(self):
         self.research()
         self.artifact_targets()
