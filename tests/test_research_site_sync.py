@@ -87,6 +87,8 @@ class SiteSyncTests(unittest.TestCase):
 
     def test_private_concepts_and_source_library_text_do_not_enter_website(self):
         (self.hub / "concept-tree/tree.json").write_text(json.dumps([node("Root", "root"), node("Private Topic", "private-topic")]))
+        (self.repo / "concept-tree/tree.json").write_text(json.dumps([node("Root", "root"), node("Private Topic", "private-topic")]))
+        (self.repo / "site/src/data/concepts/private-topic.json").write_text(json.dumps(reader("Private Topic", "private-topic")))
         self.save_pack("Private Topic", "private-topic")
         library = self.hub / "research/.library/text/raw.txt"
         library.parent.mkdir(parents=True)
@@ -96,6 +98,7 @@ class SiteSyncTests(unittest.TestCase):
         self.assertEqual(result["excluded_private_nodes"], 1)
         self.assertFalse((self.repo / "site/src/data/concepts/private-topic.json").exists())
         self.assertEqual(library.read_text(), "Third-party raw text must stay private.")
+        self.assertNotIn("Private Topic", (self.repo / "concept-tree/tree.json").read_text())
 
     def test_tree_slug_collision_stops_before_writing(self):
         (self.hub / "concept-tree/tree.json").write_text(json.dumps([node("Other identity", "root")]))
