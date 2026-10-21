@@ -30,6 +30,13 @@ own exporter writes — not a second dialect invented here:
     rubric wants exactly one authoritative number per file, and this is where
     the site's twin generator and the serving headers read it from.
 
+``llms.txt`` and ``llms-full.txt`` are rendered by the shared ``llms-txt`` library
+(:func:`llms_txt.family.render_index` / :func:`~llms_txt.family.render_full`); this
+module maps the coverage report and corpus onto its ``IndexEntry`` and page types.
+``llms-small.txt`` (reference-class units cut at a *token* budget), ``llms-facts.txt``
+(per-topic anchors, the Gaps section) and ``llms-vocabulary.txt`` have no library
+equivalent and stay here.
+
 The size ladder is the point of the set: the index is small enough to hold in
 context, the small file is a budgeted middle, and the full file is the thing you
 fetch when you have decided you need it. :func:`build_family` enforces that the
@@ -42,6 +49,10 @@ import datetime as dt
 import json
 from collections.abc import Sequence
 from dataclasses import dataclass
+
+from llms_txt.family import IndexEntry
+from llms_txt.family import render_full as _lib_render_full
+from llms_txt.family import render_index as _lib_render_index
 
 from .coverage import CoverageReport, Topic
 from .ingest import Corpus
@@ -107,42 +118,34 @@ def render_index(report: CoverageReport, *, subject: str, generated: str,
     link into ``llms-facts.txt``'s anchors, which is what a standalone family
     has to do.
     """
-    lines = [f"# {subject}", "", f"> {_summary(report, subject)}", "",
-             _stamp(report, generated), ""]
-    if not report.topics:
-        lines += ["No topics were found in the supplied material.", ""]
-        return "\n".join(lines)
-
+    entries: list[IndexEntry] = []
     for topic in report.topics:
         target = (layout or {}).get(topic.slug) or f"llms-facts.txt#{topic.slug}"
-        lines += [f"## {topic.name}", ""]
-        lines.append(f"- [{topic.name}]({target}): {_describe(topic)}")
+        entries.append(IndexEntry(topic.name, target, _describe(topic), section=topic.name))
         for source in topic.sources[:6]:
             said = sum(1 for u in topic.units if u.source == source)
-            lines.append(f"- [{source}]({source}): {said} unit{'s' if said != 1 else ''}")
-        lines.append("")
-
+            entries.append(IndexEntry(source, source, f"{said} unit{'s' if said != 1 else ''}",
+                                      section=topic.name))
     if report.gaps:
-        lines += ["## Optional", "",
-                  "- [Coverage gaps](llms-facts.txt#gaps): "
-                  f"{len(report.gaps)} places this corpus is thin", ""]
-    return "\n".join(lines).rstrip() + "\n"
+        entries.append(IndexEntry("Coverage gaps", "llms-facts.txt#gaps",
+                                  f"{len(report.gaps)} places this corpus is thin",
+                                  optional=True))
+    text = _lib_render_index(entries, title=subject, summary=_summary(report, subject),
+                             generated=generated)
+    if not report.topics:
+        text = text.rstrip("\n") + "\n\nNo topics were found in the supplied material.\n"
+    return text
 
 
 def render_full(corpus: Corpus, *, subject: str, generated: str) -> str:
     """``llms-full.txt`` — the mintlify grammar, declared in line 1."""
-    header = [
-        f"<!-- llms-full grammar: {FULL_GRAMMAR} — per page: "
-        "'# Title' / 'Source: <url>' / blank / body -->",
-        f"<!-- {subject} · {len(corpus.pages)} pages · generated {generated} -->",
-        "",
-    ]
-    body: list[str] = []
-    for page in corpus.pages:
-        body += [f"# {page.title}", f"Source: {page.source}", "", page.body.strip(), "", "---", ""]
-    if body:
-        body = body[:-2]            # no trailing rule after the last page
-    return "\n".join([*header, *body]).rstrip() + "\n"
+    last = len(corpus.pages) - 1
+    # The pages are separated by a `---` rule (none after the last). The library writes a
+    # page's body verbatim, so the rule rides at the end of each body.
+    pages = [{"title": page.title, "url": page.source,
+              "text": page.body.strip() + ("\n\n---" if n < last else "")}
+             for n, page in enumerate(corpus.pages)]
+    return _lib_render_full(pages, title=subject, generated=generated)
 
 
 def _small_units(report: CoverageReport) -> list[Unit]:

@@ -8,7 +8,8 @@ HEAD), so the output depends only on committed content.
 
 Two rules reproduce the file added in PR 86:
   * shell `export` lines that set a *SECRET*, *KEY*, *TOKEN* or *PASSWORD* variable
-    keep the variable name but publish `<redacted>` as the value;
+    keep the variable name but publish `<redacted>` as the value (the shared llms-txt
+    library's default redaction set, `llms_txt.redact.redact`);
   * the directory summary lists tracked paths only (no build output or node_modules).
 
 Usage:
@@ -20,6 +21,12 @@ import re
 import subprocess
 import sys
 from pathlib import Path
+
+try:
+    from llms_txt.redact import redact
+except ImportError:  # pragma: no cover - environment problem, say how to fix it
+    sys.exit("build_root_llms_full: the llms-txt library is not installed "
+             "(pip install 'llms-txt @ git+https://github.com/mithudso/llms-txt')")
 
 REPO = Path(__file__).resolve().parents[1]
 
@@ -47,9 +54,6 @@ SUMMARY_DIRS = ["api", "hub", "llmsx", "site"]
 
 HEADING = re.compile(r"^(#{1,6})(\s.*)$")
 FENCE = re.compile(r"^\s*(```|~~~)")
-SECRET_EXPORT = re.compile(
-    r'^(\s*export\s+[A-Z0-9_]*(?:SECRET|KEY|TOKEN|PASSWORD)[A-Z0-9_]*=)"[^"]*"', re.MULTILINE
-)
 
 
 def git(*args: str) -> str:
@@ -70,10 +74,6 @@ def demote(text: str, by: int = 2) -> str:
                 line = "#" * min(6, len(m.group(1)) + by) + m.group(2)
         out.append(line)
     return "\n".join(out).strip("\n")
-
-
-def redact(text: str) -> str:
-    return SECRET_EXPORT.sub(r'\1"<redacted>"', text)
 
 
 def directory_summary(ref: str) -> list[str]:

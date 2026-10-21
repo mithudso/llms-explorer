@@ -75,6 +75,7 @@ recursed into unless `--members` names them.
 
 Run per `references/passes.md` (bundle map there): B0 first, then B1+B3 (`llms_lint.py`), B2,
 B4, B7 as concurrent subagents, B5/B6/B8/B9 inline. Collect every finding before any write.
+`scripts/llms_lint.py` wraps the shared `llms-txt` library (`pip install -e ~/dev/libraries/llms-txt`); without it the script prints a JSON install hint and exits 2.
 
 | Pass | Judges | Kind |
 |---|---|---|

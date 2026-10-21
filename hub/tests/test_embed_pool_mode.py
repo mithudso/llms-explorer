@@ -14,12 +14,16 @@ from pathlib import Path
 import pytest
 
 SCRIPTS = Path(__file__).resolve().parent.parent / "scripts"
+LAN = ("http://lan-gpu.example:11434=4,http://lan-laptop.example:11434=3,"
+       "http://localhost:11434=1")
 
 
 @pytest.fixture
 def ec(monkeypatch, tmp_path):
     """embed_core with its mode file redirected into tmp_path, and both env
     overrides cleared so the file is what decides."""
+    # The LAN fleet is configuration, not code: HUB_LAN_URLS supplies it (read at import).
+    monkeypatch.setenv("HUB_LAN_URLS", LAN)
     spec = importlib.util.spec_from_file_location(
         "embed_core_pool_mode", SCRIPTS / "embed_core.py")
     mod = importlib.util.module_from_spec(spec)
@@ -93,3 +97,66 @@ def test_write_is_atomic_leaving_no_tmp_behind(ec):
     ec.set_pool_mode("local")
     leftovers = list(ec.POOL_MODE_PATH.parent.glob("*.tmp"))
     assert leftovers == []
+
+
+def test_no_lan_address_is_built_in(monkeypatch, tmp_path):
+    """Without HUB_LAN_URLS or a saved lan_urls, "lan" mode is this machine only."""
+    monkeypatch.delenv("HUB_LAN_URLS", raising=False)
+    monkeypatch.delenv("HUB_OLLAMA_URLS", raising=False)
+    monkeypatch.delenv("OLLAMA_HOST", raising=False)
+    spec = importlib.util.spec_from_file_location("embed_core_nolan", SCRIPTS / "embed_core.py")
+    mod = importlib.util.module_from_spec(spec)
+    sys.modules["embed_core_nolan"] = mod
+    spec.loader.exec_module(mod)
+    monkeypatch.setattr(mod, "POOL_MODE_PATH", tmp_path / "pool_mode.json")
+    monkeypatch.setattr(mod, "_quiet", lambda url: False)
+    assert mod.pool_mode() == ("lan", mod.LOCAL_URLS)
+    assert [u for u, _w in mod._parse_hosts()] == ["http://localhost:11434"]
+
+
+def test_lan_urls_are_saved_and_survive_a_local_trip(ec, monkeypatch):
+    monkeypatch.delenv("HUB_LAN_URLS", raising=False)
+    ec.set_pool_mode("lan", "http://saved-a:11434=2,http://localhost:11434=1")
+    ec.set_pool_mode("local")
+    assert json.loads(ec.POOL_MODE_PATH.read_text())["lan_urls"].startswith("http://saved-a")
+    ec.set_pool_mode("lan")
+    assert [u for u, _w in ec._parse_hosts()] == ["http://saved-a:11434", "http://localhost:11434"]
+
+
+def test_the_pool_tries_hosts_by_weight_every_time(ec):
+    """Weight is a static priority (GPU box first, laptop only as a fallback), not a traffic
+    share: the library's weighted shuffle must be pinned to that order."""
+    pool = ec.make_pool()
+    for _ in range(50):
+        assert pool.order() == ["http://lan-gpu.example:11434", "http://lan-laptop.example:11434",
+                                "http://localhost:11434"]
+
+
+def test_embed_texts_fails_over_and_wraps_errors(ec, monkeypatch):
+    import json as _json
+    import urllib.error
+    from unittest import mock
+
+    calls = []
+
+    def fake_urlopen(req, timeout=None):
+        calls.append(req.full_url)
+        if "lan-gpu" in req.full_url:
+            raise urllib.error.URLError("down")
+        body = _json.loads(req.data)
+        resp = mock.MagicMock()
+        vecs = [[1.0, 2.0] for _ in body["input"]]
+        resp.read.return_value = _json.dumps({"embeddings": vecs}).encode()
+        resp.__enter__ = lambda s: s
+        resp.__exit__ = lambda s, *a: False
+        return resp
+
+    with mock.patch("urllib.request.urlopen", side_effect=fake_urlopen):
+        assert ec.embed_texts(["a", "b"], model="mxbai-embed-large") == [[1.0, 2.0]] * 2
+    assert calls[0].startswith("http://lan-gpu.example:11434/api/embed")   # priority host first
+    assert any("lan-laptop" in c for c in calls)                          # then the fallback
+
+    with mock.patch("urllib.request.urlopen", side_effect=urllib.error.URLError("down")):
+        monkeypatch.setattr(ec, "RETRY_ROUNDS", 0)
+        with pytest.raises(ec.EmbeddingUnavailable):
+            ec.embed_texts(["a"], model="mxbai-embed-large")
