@@ -94,8 +94,10 @@ It writes `llms.txt`, `llms-full.txt`, `llms-small.txt`, `llms-facts.txt`, and
 `llms-vocabulary.txt`, plus units, graph and manifest, under both
 `~/.global-ai-hub/llms-concepts/<slug>.llms/` and
 `<repo>/outputs/llms-concepts/<slug>.llms/`. It retains original source URLs and
-confidence labels. Each tree is merged independently, with backups and no node
-removal. The run records `artifacts/receipt.json` and `codex_artifacts` in its
+confidence labels. Denylisted topics and descendants retain hub packs;
+repository packs and website data exclude them. Existing repository copies are
+backed up before removal. Each tree is merged independently, with backups and
+publishable nodes preserved. The run records `artifacts/receipt.json` and `codex_artifacts` in its
 manifest. Completion also regenerates website reader JSON, tree JSON, context
 JSON and downloadable facts. Read `references/research-library.md`: /dr, CFE and
 rabbithole share source snapshots and extracts, and research briefs receive

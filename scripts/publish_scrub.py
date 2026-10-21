@@ -46,16 +46,17 @@ def _matches(text: str, terms: list[str]) -> bool:
     return any(t.lower() in low or t.lower() in slug for t in terms)
 
 
-def filter_tree(nodes: list[dict], terms: list[str]) -> tuple[list[dict], list[str], int]:
+def filter_tree(nodes: list[dict], terms: list[str], excluded_names=()) -> tuple[list[dict], list[str], int]:
     """Nodes minus every denylisted node and its descendants, with denylisted
     names also struck from `childConcepts` so they cannot surface as frontier
     leaves. Names are matched as written and as slugs, since gen_tree publishes
     both. Returns (kept, dropped concept names, child references removed)."""
-    if not terms:
+    if not terms and not excluded_names:
         return [dict(n) for n in nodes], [], 0
+    excluded = {name.casefold() for name in excluded_names}
     by = {n["concept"]: n for n in nodes}
     dropped = {n["concept"] for n in nodes
-               if _matches(" ".join([n.get("concept", ""), n.get("slug", ""),
+               if n["concept"].casefold() in excluded or _matches(" ".join([n.get("concept", ""), n.get("slug", ""),
                                      *(n.get("aliases") or [])]), terms)}
     stack = list(dropped)
     while stack:

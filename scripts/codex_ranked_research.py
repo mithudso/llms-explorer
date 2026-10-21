@@ -18,6 +18,7 @@ import signal
 import subprocess
 import sys
 import time
+import uuid
 from collections import defaultdict
 from datetime import UTC, datetime
 from pathlib import Path
@@ -59,6 +60,13 @@ def ranked_rows(text):
     return rows
 
 
+def cohort_id(names, revisit=False):
+    digest = hashlib.sha256(json.dumps(names).encode()).hexdigest()[:8]
+    # Persist this identity in the plan. A new revisit plan must perform new
+    # research, while resuming that same saved plan must keep its identity.
+    return f"ranked-{digest}" + (f"-r{uuid.uuid4().hex[:8]}" if revisit else "")
+
+
 def make_plan(repo, hub, source, size=4):
     ct = load("ranked_concept_tree", hub / "scripts/concept_tree.py")
     checkouts = load("ranked_checkouts", repo / "api/explorer_api/checkouts.py")
@@ -93,8 +101,7 @@ def make_plan(repo, hub, source, size=4):
         items.sort(key=lambda row: (row["rank"], -row["cvs"]))
         for start in range(0, len(items), size):
             batch = items[start:start + size]
-            digest = hashlib.sha256(json.dumps([row["concept"] for row in batch]).encode()).hexdigest()[:8]
-            cohorts.append({"id": f"ranked-{digest}", "parent": parent,
+            cohorts.append({"id": cohort_id([row["concept"] for row in batch], any(row["mode"] == "revisit" for row in batch)), "parent": parent,
                             "concepts": [row["concept"] for row in batch],
                             "priority": min(row["rank"] for row in batch), "status": "pending",
                             "source_strategy": "Shared parent evidence, source-library FTS and cached snapshots; child-specific claims."})
@@ -153,13 +160,14 @@ def complete_queue(shared, hub, names):
     queue = hub / "concept-tree/RESEARCH_QUEUE.md"
     with shared.locked(shared.RESEARCH_DIR / ".global.lock"):
         text = queue.read_text()
-        for name in names:
-            pattern = re.compile(r"^(\s*-\s*)\[ \](\s*Concept:\s*`" + re.escape(name) + r"`[^\n]*)$", re.MULTILINE)
-            text = pattern.sub(lambda match: match[1] + "[x]" + match[2], text)
+        wanted = {key(name) for name in names}
+        pattern = re.compile(r"^(\s*-\s*)\[ \](\s*Concept:\s*`)([^`\n]+)(`[^\n]*)$", re.MULTILINE)
+        text = pattern.sub(lambda match: (match[1] + "[x]" + match[2] + match[3] + match[4])
+                           if key(match[3]) in wanted else match[0], text)
         shared.atomic_write(queue, text)
 
 
-def eligible_now(repo, hub, cohort, run_id):
+def eligible_now(repo, hub, cohort, run_id, resume_names=()):
     checkouts = load("cohort_checkouts", repo / "api/explorer_api/checkouts.py")
     # The batch and its own /dr manifest are resumable holders of this work.
     own = {run_id, cohort["id"]}
@@ -169,8 +177,9 @@ def eligible_now(repo, hub, cohort, run_id):
     nodes = ct.load_nodes(hub / "concept-tree/tree.json")
     covered = {key(name) for node in nodes for name in [node["concept"], *node.get("aliases", [])]}
     revisit = {key(row["concept"]) for row in cohort.get("rows", []) if row.get("mode") == "revisit"}
-    return [name for name in cohort["concepts"] if key(name) not in held and key(name) in pending
-            and (key(name) not in covered or key(name) in revisit)]
+    resumable = {key(name) for name in resume_names}
+    return [name for name in cohort["concepts"] if key(name) not in held and
+            (key(name) in resumable or (key(name) in pending and (key(name) not in covered or key(name) in revisit)))]
 
 
 def execute(repo, hub, plan_path, max_cohorts=None):
@@ -188,29 +197,39 @@ def execute_locked(repo, hub, plan_path, max_cohorts=None):
     marker = Path.home() / ".llmsx/jobs/batches" / run_id / "run.json"
     marker.parent.mkdir(parents=True, exist_ok=True)
     atomic(marker, {"root": run_id, "status": "in-progress",
-                    "concepts": [name for cohort in plan["cohorts"] if cohort["status"] != "complete" for name in cohort["concepts"]]})
+                    "concepts": [name for cohort in plan["cohorts"] if cohort["status"] not in ("complete", "skipped") for name in cohort["concepts"]]})
     plan.update(status="running", pid=os.getpid(), started=datetime.now(UTC).isoformat())
+    plan.pop("error", None)
     atomic(plan_path, plan)
     adapter = [sys.executable, str(repo / "scripts/codex_dr_run.py")]
     env = {**os.environ, "HUB_DIR": str(hub), "LLMS_EXPLORER_REPO": str(repo)}
     os.environ.update(HUB_DIR=str(hub), LLMS_EXPLORER_REPO=str(repo))
-    shared = load("ranked_adapter", repo / "scripts/codex_dr_run.py").load_shared()
     completed = 0
+    cohort = None
     try:
+        shared = load("ranked_adapter", repo / "scripts/codex_dr_run.py").load_shared()
         for cohort in plan["cohorts"]:
-            if cohort["status"] == "complete":
+            if cohort["status"] in ("complete", "skipped"):
                 continue
             cohort["rows"] = [row for row in plan["rows"] if row["concept"] in cohort["concepts"]]
             if (plan_path.parent / "STOP").exists() or (max_cohorts is not None and completed >= max_cohorts):
                 break
             # Recheck other holders immediately before dispatch. The local batch
             # marker reserves this plan, so ignore only this plan's own label.
-            picked = eligible_now(repo, hub, cohort, run_id)
+            previous_path = shared.run_dir(cohort["id"]) / "manifest.json"
+            previous = shared.load_manifest(cohort["id"]) if previous_path.is_file() else {}
+            resume_names = ([row["name"] for row in previous.get("concepts", []) if row["status"] == "done"]
+                            if previous.get("ranked_queue_source") == str(plan_path) else [])
+            picked = eligible_now(repo, hub, cohort, run_id, resume_names)
+            if resume_names and any(name not in picked for name in resume_names):
+                raise RuntimeError("A resumable cohort concept is held by another run")
             if not picked:
                 cohort.update(status="skipped", note="No eligible concepts remain after checking coverage and other holders.")
                 atomic(plan_path, plan)
                 continue
             cohort.update(status="running", started=datetime.now(UTC).isoformat())
+            cohort.pop("error", None)
+            cohort.pop("stopped", None)
             atomic(plan_path, plan)
             slug = cohort["id"]
             log = plan_path.parent / f"{slug}.events.jsonl"
@@ -246,8 +265,8 @@ def execute_locked(repo, hub, plan_path, max_cohorts=None):
                 phase(adapter + ["finish", slug, "--status", "COMPLETED", "--stop-reason", "Ranked source-sharing cohort; scout and blind gate completed."])
             # A completed run with a failed website write can resume without
             # repeating paid research. This also checks all four website surfaces.
-            run_command([sys.executable, str(repo / "scripts/research_site_sync.py"), "--repo", str(repo),
-                         "--hub", str(hub), "--apply"], log, env, timeout=600)
+            phase([sys.executable, str(repo / "scripts/research_site_sync.py"), "--repo", str(repo),
+                   "--hub", str(hub), "--apply"], 600)
             complete_queue(shared, hub, picked)
             for name in picked:
                 with (marker.parent / "results.jsonl").open("a") as stream:
@@ -260,8 +279,9 @@ def execute_locked(repo, hub, plan_path, max_cohorts=None):
         atomic(plan_path, plan)
         atomic(marker, {"root": run_id, "status": plan["status"], "concepts": []})
         return 0
-    except (OSError, ValueError, RuntimeError, subprocess.TimeoutExpired) as error:
-        cohort.update(status="needs-review", error=str(error), stopped=datetime.now(UTC).isoformat())
+    except Exception as error:  # noqa: BLE001 — release reservations for every setup or phase failure.
+        if cohort is not None:
+            cohort.update(status="needs-review", error=str(error), stopped=datetime.now(UTC).isoformat())
         plan.update(status="needs-review", error=str(error))
         atomic(plan_path, plan)
         atomic(marker, {"root": run_id, "status": "needs-review", "concepts": []})

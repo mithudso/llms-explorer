@@ -1,0 +1,59 @@
+{
+  "slug": "atlas-search-regex-and-wildcard-operator-cost",
+  "concept": "Atlas Search regex and wildcard operator cost",
+  "generated": "2026-10-20",
+  "summary": "Source-anchored research for Atlas Search regex and wildcard operator cost. Run status: COMPLETED.",
+  "facets": [
+    {
+      "title": "Problems, failure modes and limitations",
+      "facts": [
+        {
+          "text": "Patterns with a leading wildcard, such as `*suffix` or `.*suffix.*`, are a higher-cost risk than a fixed-prefix pattern with a trailing wildcard. Lucene warns that leading `*` or `?` wildcard queries can be extremely slow, and Elasticsearch independently warns that leading wildcards increase term iterations. MongoDB's pattern-matching guide says a fixed-prefix query such as `UI-*` is likely fast enough for many workloads, but still recommends testing at scale. The cross-product documentation corroborates the pattern-shape risk; it does not establish Atlas-specific timing. (high confidence) (ve",
+          "source": "https://lucene.apache.org/core/10_4_0/core/org/apache/lucene/search/package-summary.html",
+          "note": null
+        },
+        {
+          "text": "Measure the $search stage separately from the rest of an aggregation. A community report involving a wildcard query also included a later $match, and the discussion attributed the extra latency to processing $search results after that stage. MongoDB's performance guidance recommends placing search logic inside $search and minimizing later blocking stages, so total pipeline time cannot be assigned to the wildcard operator alone. (medium confidence)",
+          "source": "https://www.reddit.com/r/mongodb/comments/1diurya",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Comparisons and alternatives",
+      "facts": [
+        {
+          "text": "Analyzer and field design change the query/index trade-off. MongoDB's engineering article says regex and wildcard scan indexed terms and long full-string lucene.keyword terms can be costly; it shows indexing only the pieces the application needs to enable direct term matches. For typeahead, MongoDB recommends autocomplete over regex for query performance, while its index guidance warns that autocomplete and n-gram indexing add tokens, index size, and build work. (high confidence) (verified as of 2026-10-14)",
+          "source": "https://medium.com/mongodb/mongodb-text-search-substring-pattern-matching-including-regex-and-wildcard-use-search-instead-3633c6f7e604",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Facts and statements",
+      "facts": [
+        {
+          "text": "MongoDB classifies Search queries using `regex` or `wildcard` as resource-intensive for the `mongot` node. Its pattern-matching guide explains that arbitrary substring patterns over full-string keyword terms can require broad or full term-index scans, with work affected by the number of unique values and the lengths of indexed strings. This is qualitative guidance, not an Atlas-specific latency multiplier. (high confidence) (verified as of 2026-10-14)",
+          "source": "https://www.mongodb.com/docs/search/performance/query-performance.md",
+          "note": null
+        },
+        {
+          "text": "Atlas Search `regex` and `wildcard` are term-level operators: MongoDB says their query patterns are not analyzed and that they match indexed terms. The field analyzer therefore changes their semantics. For example, `lucene.keyword` keeps a full string as one term, while a tokenizing analyzer can split it so a pattern containing a space no longer matches across the original full value. (high confidence) (verified as of 2026-10-14)",
+          "source": "https://www.mongodb.com/docs/search/query/operators-collectors/regex.md",
+          "note": null
+        },
+        {
+          "text": "Public reports do not establish a fixed cost ranking. A May 2025 user report says an Atlas Search wildcard query for *248* took up to 20 seconds on 800,000 documents and that a separate $match $regex comparison was as fast or faster. A March 2026 report describes better efficiency in its workload after replacing nGram with edgeGram and a trailing-prefix wildcard. The reports use different patterns and index designs, so treat them as workload-specific anecdotes. (medium confidence) (verified as of 2026-03-24)",
+          "source": "https://www.reddit.com/r/mongodb/comments/1keqj5z",
+          "note": null
+        },
+        {
+          "text": "For recurring substring or partial-identifier searches, indexing query-relevant n-grams can make a query a direct term match, while edge-grams plus a trailing-prefix wildcard can trade some index growth for fewer indexed tokens. MongoDB and Elastic documentation both warn that n-gram strategies increase index size; MongoDB also says autocomplete indexes using nGram can take longer to build. Choose the representation from the actual query patterns and validate it on representative data. (medium confidence)",
+          "source": "https://medium.com/mongodb/mongodb-text-search-substring-pattern-matching-including-regex-and-wildcard-use-search-instead-3633c6f7e604",
+          "note": null
+        }
+      ]
+    }
+  ],
+  "related": []
+}

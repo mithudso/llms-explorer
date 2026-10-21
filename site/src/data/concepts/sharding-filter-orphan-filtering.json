@@ -1,0 +1,74 @@
+{
+  "slug": "sharding-filter-orphan-filtering",
+  "concept": "SHARDING_FILTER orphan filtering",
+  "generated": "2026-10-21",
+  "summary": "Source-anchored research for SHARDING_FILTER orphan filtering. Run status: COMPLETED.",
+  "facets": [
+    {
+      "title": "Structure and components",
+      "facts": [
+        {
+          "text": "MongoDB's explain output places chunkSkips within each shard's executionStages. Huawei Cloud's FAQ, updated 2025-07-24, interprets it as orphan documents skipped on the current shard and warns that its sample check scans all documents on all shard nodes. Treat chunkSkips as query- and shard-scoped evidence, not a cluster-wide orphan inventory; this scope follows from the per-shard explain structure. (medium confidence) (verified as of 2025-07-24)",
+          "source": "https://www.mongodb.com/docs/v8.0/reference/explain-results/",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "How it works",
+      "facts": [
+        {
+          "text": "MongoDB's r6.0 query-planner code says it can omit INCLUDE_SHARD_FILTER when the query specifies the full shard key exactly, because that query can only target the owning shard. The current master regression test asserts that a full-shard-key equality plan omits SHARDING_FILTER and that partial-key or non-equality plans retain it. Therefore, absence can be a deliberate optimization and is not a cluster-wide check for orphan documents. (high confidence) (verified as of 2026-10-21)",
+          "source": "https://github.com/mongodb/mongo/blob/r6.0.0/src/mongo/db/query/get_executor.cpp",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Comparisons and alternatives",
+      "facts": [
+        {
+          "text": "In idealo's example, SHARDING_FILTER appears above FETCH in one candidate plan and between IXSCAN and FETCH in another; its counters show fewer records passed onward after filtering. Stage placement and counter comparisons therefore depend on the child stage and candidate plan rather than one fixed tree layout. (medium confidence)",
+          "source": "https://medium.com/idealo-tech-blog/what-slowed-down-the-queries-mongodb-chose-the-wrong-index-b673a41af2cd",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Facts and statements",
+      "facts": [
+        {
+          "text": "MongoDB defines SHARDING_FILTER as the explain-plan stage that filters orphan documents from shard results. An idealo production case shows the stage can reduce the number of records passed upward from its input stage. (high confidence)",
+          "source": "https://www.mongodb.com/docs/v8.0/reference/explain-results/",
+          "note": null
+        },
+        {
+          "text": "MongoDB Jira SERVER-105047 records an aggregation plan after a shard-key rename and $or match that returned an orphan twice while explain showed no SHARDING_FILTER. The issue is marked fixed for 7.0.32, 8.0.20, 8.2.2, and 8.3.0-rc0; Jira lists its last update as 2026-03-20. This is a fixed plan-shape bug, not evidence of a general current defect. (low confidence) (verified as of 2026-03-20)",
+          "source": "https://jira.mongodb.org/browse/SERVER-105047",
+          "note": null
+        },
+        {
+          "text": "MongoDB's Sharding Internals page explains that donor cleanup after a chunk migration can run asynchronously; if the primary crashes or fails over before RangeDeleter removes the donated range, documents can remain orphaned. Huawei Cloud's DRS FAQ also attributes orphaned documents to failed migrations or incomplete cleanup after abnormal shutdown. (medium confidence)",
+          "source": "https://github.com/mongodb/mongo/wiki/Sharding-Internals/ea79e3172b630d02be84d20c804c25fd20fced28",
+          "note": null
+        },
+        {
+          "text": "The MongoDB master test file checked on 2026-10-20 asserts that equality on every field of the shard key can elide SHARDING_FILTER in tested find and count cases; its compound-key cases retain the stage for a prefix-only predicate or an $in predicate. (medium confidence) (verified as of 2026-10-20)",
+          "source": "https://raw.githubusercontent.com/mongodb/mongo/master/jstests/sharding/query/queries_elide_shard_filter.js",
+          "note": null
+        },
+        {
+          "text": "Huawei Cloud's DRS FAQ, updated 2025-07-24, interprets chunkSkips at SHARDING_FILTER as the number of orphaned documents on the current shard. MongoDB's explain manual says internal output fields are not documented and may change, so verify this counter's meaning on the deployed version before treating it as an exact orphan inventory. (medium confidence) (verified as of 2025-07-24)",
+          "source": "https://support.huaweicloud.com/intl/es-us/drs_faq/drs_09_0101.html",
+          "note": null
+        },
+        {
+          "text": "In a 2020 report about its MongoDB 4.0 cluster, idealo showed one IXSCAN producing 112 records before SHARDING_FILTER and 42 records at the filter stage, illustrating that orphan filtering can reduce rows passed to a parent stage; those counts describe that workload only. (medium confidence) (verified as of 2020-10-02)",
+          "source": "https://medium.com/idealo-tech-blog/what-slowed-down-the-queries-mongodb-chose-the-wrong-index-b673a41af2cd",
+          "note": null
+        }
+      ]
+    }
+  ],
+  "related": []
+}

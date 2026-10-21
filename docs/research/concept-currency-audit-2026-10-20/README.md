@@ -63,8 +63,11 @@ Each cohort has a 45-minute budget. Claims and verification remain separate per
 concept. A failed gate leaves queue rows pending.
 
 The first cohort completed with 40 new facts and 10/10 sampled claims supported by
-the blind gate. Both trees and all website surfaces refreshed automatically. The
-current local dataset has 1,445 references and 88,559 facts.
+the blind gate. Both trees and all website surfaces refreshed automatically.
+The [2026-10-21 resume snapshot](../ranked-queue-progress-2026-10-21.md) contains
+seven completed cohorts, 28 concepts and 291 structured claims. Its local website
+dataset has 1,465 references and 88,754 facts. Research continues after this
+publication snapshot.
 
 The first cohort researches `$elemMatch` array semantics, hint/internal query
 controls, plan scoring/EOF bonus and compound sort direction. Luna/max workers
@@ -102,6 +105,7 @@ PR #214 contains the release. GitHub's shared-library installation currently
 fails because the repository Actions secret `LIBS_READ_TOKEN` is missing. The
 release remains unmerged until its CI gate passes.
 
-Local validation: 309 full-suite tests passed in the isolated release checkout.
-Two additional publication regressions bring the focused runtime suite to 38
-passing tests. Build, publication policy and Astro check pass.
+The initial release passed 309 full-suite tests. The 2026-10-21 resume snapshot
+passed 47 focused runtime tests and 298 site/publication tests in the isolated
+release checkout. Build, publication policy, privacy, scoped lint and generated
+tree/context comparisons pass. The earlier Astro check passed.
