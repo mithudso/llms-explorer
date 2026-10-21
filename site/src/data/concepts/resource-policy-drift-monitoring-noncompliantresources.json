@@ -1,0 +1,265 @@
+{
+  "slug": "resource-policy-drift-monitoring-noncompliantresources",
+  "concept": "Resource Policy Drift Monitoring (nonCompliantResources)",
+  "generated": "2026-10-19",
+  "summary": "Atlas Resource Policies block new non-conforming changes but do not fix or block resources that already exist; the Admin API endpoint GET /api/atlas/v2/orgs/{orgId}/nonCompliantResources (also atlas api resourcePolicies getNonCompliantResources, API version 2024-08-05) lists the projects, clusters or networks that violate current policies, and MongoDB docs strongly recommend polling it. The pack draws on 4 source URLs (Atlas resource policies docs, the Atlas CLI reference, a foojay tutorial and the Atlas blog) and covers definitions, monitoring guidance, autoscaling and shard-count false-positive pitfalls, policy rules and Terraform management.",
+  "facets": [
+    {
+      "title": "Definitions",
+      "facts": [
+        {
+          "text": "The endpoint is GET /api/atlas/v2/orgs/{orgId}/nonCompliantResources with Accept header application/vnd.atlas.2024-08-05+json. It returns the projects, clusters or networks in an organization that violate current resource policies. The Atlas CLI exposes it 1:1 as `atlas api resourcePolicies getNonCompliantResources --orgId <id> --version 2024-08-05`.",
+          "source": "https://www.mongodb.com/docs/atlas/cli/current/command/atlas-api-resourcePolicies-getNonCompliantResources/",
+          "note": null
+        },
+        {
+          "text": "Return all non-compliant resources for an organization.",
+          "source": "https://www.mongodb.com/docs/atlas/cli/current/command/atlas-api-resourcePolicies-getNonCompliantResources/",
+          "note": "CLI description"
+        },
+        {
+          "text": "This endpoint returns a list of projects, clusters, or networks that violate current policies.",
+          "source": "https://foojay.io/today/enforcing-governance-in-mongodb-atlas-with-resource-policies/",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "How it works",
+      "facts": [
+        {
+          "text": "A new policy applies to new clusters immediately. A non-compliant existing cluster can only be changed in ways that bring it into compliance (for example, if AWS is blocked, an AWS cluster can only move to Azure or Google Cloud).",
+          "source": "https://mongodb.com/docs/atlas/atlas-resource-policies",
+          "note": null
+        },
+        {
+          "text": "This Atlas Resource Policy applies to all new clusters. For existing clusters that do not comply with the Atlas Resource Policy, Atlas only allows users to make changes to the cluster which brings the cluster into compliance. For example, if cluster0 runs on AWS and you apply an Atlas Resource Policy that blocks clusters on AWS, the only change users could make to cluster0 while it is non-compliant is switching the cloud provider to Azure or Google Cloud.",
+          "source": "https://mongodb.com/docs/atlas/atlas-resource-policies",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Parameters and configuration",
+      "facts": [
+        {
+          "text": "Policies are allow-by-default and organization-wide, with per-project exclusions possible. Each policy needs a unique name (duplicate returns 400). Create, update and delete generate activity-feed events. Docs recommend several small policies over one large one, which keeps non-compliance reports attributable to a specific policy.",
+          "source": "https://mongodb.com/docs/atlas/atlas-resource-policies",
+          "note": null
+        },
+        {
+          "text": "By default, Atlas Resource Policies are organization-wide. These policies automatically enforce standards across all projects and clusters within the organization.",
+          "source": "https://mongodb.com/docs/atlas/atlas-resource-policies",
+          "note": null
+        },
+        {
+          "text": "However, Atlas provides flexibility. You can exclude specific projects from an Atlas Resource Policy. This functionality allows most projects to inherit consistent organization-wide standards while enabling exceptions for cases with unique requirements.",
+          "source": "https://mongodb.com/docs/atlas/atlas-resource-policies",
+          "note": null
+        },
+        {
+          "text": "Atlas Resource Policies are allow-by-default. If no Atlas Resource Policies exist, users can perform all actions on Atlas clusters that their Atlas user role allows.",
+          "source": "https://mongodb.com/docs/atlas/atlas-resource-policies",
+          "note": null
+        },
+        {
+          "text": "API version to use when calling the Atlas API endpoints [options: \"2024-08-05\"]. If not set by the user, defaults to the latest version or the profile's api_version config value if set. This value defaults to \"2024-08-05\".",
+          "source": "https://www.mongodb.com/docs/atlas/cli/current/command/atlas-api-resourcePolicies-getNonCompliantResources/",
+          "note": "Atlas CLI"
+        }
+      ]
+    },
+    {
+      "title": "How-to and procedures",
+      "facts": [
+        {
+          "text": "MongoDB docs strongly recommend proactively monitoring the list of non-compliant resources via the nonCompliantResources endpoint. Policies enforce end-state goals, not intermediate states, so a failing downstream component can temporarily leave a policy non-compliant.",
+          "source": "https://mongodb.com/docs/atlas/atlas-resource-policies",
+          "note": null
+        },
+        {
+          "text": "We strongly recommend that you proactively monitor your list of non-compliant resources using the /orgs/{ORG-ID}/nonCompliantResources endpoint. Atlas Resource Policies ensure compliance with defined goals but do not enforce intermediate or transitional states. For example, if a downstream component fails, the policy may temporarily enter a non-compliant intermediate state.",
+          "source": "https://mongodb.com/docs/atlas/atlas-resource-policies",
+          "note": null
+        },
+        {
+          "text": "To return a list of existing clusters that do not conform to your Atlas Resource Policy, use the GET /orgs/{ORG-ID}/nonCompliantResources resource.",
+          "source": "https://mongodb.com/docs/atlas/atlas-resource-policies",
+          "note": null
+        },
+        {
+          "text": "MongoDB Atlas treats replica sets as having a shard count of one internally. The policy above avoids marking replica sets as noncompliant by only evaluating when isConvertingToSharded is specified.",
+          "source": "https://mongodb.com/company/blog/innovation/control-mongodb-atlas-cluster-configurations-with-resource-policies",
+          "note": "Atlas blog"
+        },
+        {
+          "text": "If you enforce a minimum shard count greater than one, you must explicitly allow the transition state for cluster conversions in your policy (for example, && !context.cluster.isConvertingToSharded). Without this exception, Atlas blocks users from converting a replica set to a sharded cluster because the conversion process requires an intermediate state where the cluster has only one shard.",
+          "source": "https://mongodb.com/docs/atlas/atlas-resource-policies",
+          "note": null
+        },
+        {
+          "text": "Only use minShardCount to enforce minimums and maxShardCount to enforce maximums. Doing otherwise can cause policy evaluation errors.",
+          "source": "https://mongodb.com/company/blog/innovation/control-mongodb-atlas-cluster-configurations-with-resource-policies",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Examples and snippets",
+      "facts": [
+        {
+          "text": "In the example below, a public IP was already configured in the project. After applying the policy that blocks 0.0.0.0/0, the resource was not removed, but it was flagged as non-compliant:",
+          "source": "https://foojay.io/today/enforcing-governance-in-mongodb-atlas-with-resource-policies/",
+          "note": "foojay tutorial"
+        },
+        {
+          "text": "atlas api resourcePolicies getNonCompliantResources --version 2024-08-05 --orgId 4888442a3354817a7320eb61",
+          "source": "https://www.mongodb.com/docs/atlas/cli/current/command/atlas-api-resourcePolicies-getNonCompliantResources/",
+          "note": "Atlas CLI"
+        },
+        {
+          "text": "curl --request GET \\ --user \"<PUBLIC-KEY>:<PRIVATE-KEY>\" \\ --digest \\ --header \"Accept: application/vnd.atlas.2024-08-05+json\" \\ \"https://cloud.mongodb.com/api/atlas/v2/orgs/<ORG_ID>/nonCompliantResources?pretty=true\"",
+          "source": "https://foojay.io/today/enforcing-governance-in-mongodb-atlas-with-resource-policies/",
+          "note": "foojay tutorial"
+        }
+      ]
+    },
+    {
+      "title": "Problems, failure modes and limitations",
+      "facts": [
+        {
+          "text": "Atlas does not auto-remediate or block existing out-of-compliance resources. A resource that predates a policy stays unchanged and is only reported. Example: a pre-existing 0.0.0.0/0 access-list entry was not removed after a blocking policy was applied, but appeared as non-compliant.",
+          "source": "https://foojay.io/today/enforcing-governance-in-mongodb-atlas-with-resource-policies/",
+          "note": null
+        },
+        {
+          "text": "Shard-count false positives: Atlas treats a replica set as having one shard. A minShardCount policy above 1 without a cluster-type check flags every replica set in scope as non-compliant, flooding the endpoint. Use minShardCount only for minimums and maxShardCount only for maximums, and add the !context.cluster.isConvertingToSharded exception for replica-set-to-sharded conversions.",
+          "source": "https://mongodb.com/docs/atlas/atlas-resource-policies",
+          "note": null
+        },
+        {
+          "text": "If the auto-scaling limits on your existing cluster don't match the new Atlas Resource Policy, the cluster might exceed the policy's defined boundaries. To address this issue, use the /orgs/{ORG-ID}/nonCompliantResources endpoint to identify and monitor non-compliant resources so you can update them to meet policy requirements.",
+          "source": "https://mongodb.com/docs/atlas/atlas-resource-policies",
+          "note": null
+        },
+        {
+          "text": "If existing auto-scaling limits exceed a new Atlas Resource Policy, the cluster can continue to scale automatically beyond policy boundaries. However, you cannot manually scale the cluster beyond the policy limits. Use the /orgs/{ORG-ID}/nonCompliantResources endpoint to identify and monitor non-compliant resources.",
+          "source": "https://mongodb.com/docs/atlas/atlas-resource-policies",
+          "note": null
+        },
+        {
+          "text": "Autoscaling drift: if a cluster's existing autoscaling limits exceed a new policy's bounds, the cluster keeps scaling automatically beyond them, but manual scaling past the policy limits is refused. Docs say to use nonCompliantResources to find and fix such clusters, which matters for cost because compute autoscaling ceilings can stay above the cap.",
+          "source": "https://mongodb.com/docs/atlas/atlas-resource-policies",
+          "note": null
+        },
+        {
+          "text": "Atlas treats a replica set as having a shard count of one. If you enforce a minimum shard count greater than one without checking whether clusters are sharded clusters, all replica sets in the project are marked as non-compliant.",
+          "source": "https://mongodb.com/docs/atlas/atlas-resource-policies",
+          "note": null
+        },
+        {
+          "text": "⚠️ Important: MongoDB Atlas does not automatically fix or block existing resources. If a resource is out of compliance, it will remain unchanged — the system only reports the violation, enabling visibility without disruption.",
+          "source": "https://foojay.io/today/enforcing-governance-in-mongodb-atlas-with-resource-policies/",
+          "note": "foojay tutorial"
+        },
+        {
+          "text": "These scenarios aren’t isolated incidents. Without enforceable standards, MongoDB Atlas cluster configurations can drift away from architectural best practices and organizational policies. MongoDB Atlas Resource Policies solve this by making architectural standards technically enforceable, preventing configuration mistakes before clusters are deployed.",
+          "source": "https://mongodb.com/company/blog/innovation/control-mongodb-atlas-cluster-configurations-with-resource-policies",
+          "note": "Atlas blog"
+        }
+      ]
+    },
+    {
+      "title": "Facts and statements",
+      "facts": [
+        {
+          "text": "Policies can be managed with the Atlas Terraform provider (resource mongodbatlas_resource_policy; provider 1.33.0 or later needed for minimum-TLS and cipher-suite rules). The MongoDB docs describe no Terraform data source for nonCompliantResources, so drift monitoring is done by polling the API or CLI, for example from a scheduled job.",
+          "source": "https://mongodb.com/docs/atlas/atlas-resource-policies",
+          "note": "no Terraform data source documented"
+        },
+        {
+          "text": "These policies create multiple independent barriers to configuration problems. The disk size limit controls storage costs. The sharded cluster requirement ensures production deployments can scale horizontally. The minimum shard count prevents under-sharded deployments. The cluster tier restriction ensures production clusters use appropriately sized instances: not too small (below M30) to handle production workloads, and not unnecessarily large (above M60) without architectural review. The region restrictions meet data residency requirements. The wildcard blocking prevents network security viol",
+          "source": "https://mongodb.com/company/blog/innovation/control-mongodb-atlas-cluster-configurations-with-resource-policies",
+          "note": "cost relevance: disk size limit"
+        },
+        {
+          "text": "Support for Resource Policies is available in the MongoDB Atlas Terraform Provider. This allows teams to declare policies as code, apply them through CI/CD pipelines, and enforce configuration compliance continuously and audibly.",
+          "source": "https://foojay.io/today/enforcing-governance-in-mongodb-atlas-with-resource-policies/",
+          "note": "foojay tutorial"
+        }
+      ]
+    }
+  ],
+  "related": [
+    {
+      "concept": "Atlas Resource Policies",
+      "relation": "is a whole of Resource Policy Drift Monitoring (nonCompliantResources)",
+      "note": null
+    },
+    {
+      "concept": "non-compliant",
+      "relation": "is a synonym of Resource Policy Drift Monitoring (nonCompliantResources)",
+      "note": null
+    },
+    {
+      "concept": "resource policy drift",
+      "relation": "is a synonym of Resource Policy Drift Monitoring (nonCompliantResources)",
+      "note": null
+    },
+    {
+      "concept": "nonCompliantResources API",
+      "relation": "is a instance of Resource Policy Drift Monitoring (nonCompliantResources)",
+      "note": null
+    },
+    {
+      "concept": "monitor non-compliant resources",
+      "relation": "is a dependent of Resource Policy Drift Monitoring (nonCompliantResources)",
+      "note": null
+    },
+    {
+      "concept": "shard-count false positives",
+      "relation": "is a problem of Resource Policy Drift Monitoring (nonCompliantResources)",
+      "note": null
+    },
+    {
+      "concept": "no auto-remediation",
+      "relation": "is a problem of Resource Policy Drift Monitoring (nonCompliantResources)",
+      "note": null
+    },
+    {
+      "concept": "policy management rules",
+      "relation": "is a part of Resource Policy Drift Monitoring (nonCompliantResources)",
+      "note": null
+    },
+    {
+      "concept": "autoscaling drift",
+      "relation": "is a problem of Resource Policy Drift Monitoring (nonCompliantResources)",
+      "note": null
+    },
+    {
+      "concept": "existing clusters changes bring compliance",
+      "relation": "is a part of Resource Policy Drift Monitoring (nonCompliantResources)",
+      "note": null
+    },
+    {
+      "concept": "public access example",
+      "relation": "is a instance of Resource Policy Drift Monitoring (nonCompliantResources)",
+      "note": null
+    },
+    {
+      "concept": "mongodbatlas_resource_policy",
+      "relation": "is a instance of Resource Policy Drift Monitoring (nonCompliantResources)",
+      "note": null
+    },
+    {
+      "concept": "cost governance",
+      "relation": "is a related of Resource Policy Drift Monitoring (nonCompliantResources)",
+      "note": null
+    },
+    {
+      "concept": "Cedar",
+      "relation": "is a prerequisite of Resource Policy Drift Monitoring (nonCompliantResources)",
+      "note": null
+    }
+  ]
+}

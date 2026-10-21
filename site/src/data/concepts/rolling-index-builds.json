@@ -1,0 +1,409 @@
+{
+  "slug": "rolling-index-builds",
+  "concept": "Rolling index builds",
+  "generated": "2026-10-20",
+  "summary": "Source-anchored research for Rolling index builds. Run status: COMPLETED.",
+  "facets": [
+    {
+      "title": "Definitions",
+      "facts": [
+        {
+          "text": "Rolling index builds are not supported on Atlas Infinite clusters. (low confidence) (verified as of 2026-10-14)",
+          "source": "https://www.mongodb.com/docs/manual/core/rolling-index-builds/",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "How it works",
+      "facts": [
+        {
+          "text": "MongoDB's documentation states that rolling index builds lower the resiliency of the cluster and increase build duration. The Atlas, Ops Manager and Cloud Manager pages add that MongoDB only recommends rolling builds when regular index builds do not meet your needs. (high confidence)",
+          "source": "https://www.mongodb.com/docs/manual/core/rolling-index-builds/",
+          "note": null
+        },
+        {
+          "text": "MongoDB warns against running a rolling index build and a replicated (default) index build at the same time, because it might lead to unexpected issues such as broken builds and crash loops. (high confidence)",
+          "source": "https://www.mongodb.com/docs/manual/core/rolling-index-builds/",
+          "note": null
+        },
+        {
+          "text": "In Atlas, the Create Index dialog offers a 'Build in rolling process' option. Atlas then takes one node at a time out of the replica set, starting with the secondaries, starts it in standalone mode, builds the index, and returns the node to the set. Atlas says nodes may appear down while it builds offline and that this is expected. (medium confidence) (verified as of 2026-10-14)",
+          "source": "https://www.mongodb.com/docs/atlas/atlas-ui/indexes/",
+          "note": null
+        },
+        {
+          "text": "The alert's scope is the automated feature only. Indexes built with the documented manual rolling procedure are not affected. Unique indexes, including _id, are not affected because they are not created with the automated rolling process. (high confidence)",
+          "source": "https://www.mongodb.com/alerts/critical-alert-mongodb-rolling-index-build-issue-sept-2022",
+          "note": null
+        },
+        {
+          "text": "When a shard member is restarted as a standalone for a rolling build, the docs also have you comment out sharding.clusterRole and set skipShardingConfigurationChecks to true, in addition to the replica set changes. Remove both skipShardingConfigurationChecks and disableLogicalSessionCacheRefresh before restarting the member as a shard replica set member. (low confidence)",
+          "source": "https://www.mongodb.com/docs/manual/tutorial/build-indexes-on-sharded-clusters/",
+          "note": null
+        },
+        {
+          "text": "Starting in MongoDB 8.0, the sharded-cluster procedure points to the directShardOperations role for maintenance that runs commands directly against a shard. The docs warn that this role can make the cluster stop working correctly and may cause data corruption, so use it only for maintenance or under MongoDB support guidance, and stop using it when the maintenance ends. (low confidence)",
+          "source": "https://www.mongodb.com/docs/manual/tutorial/build-indexes-on-sharded-clusters/",
+          "note": null
+        },
+        {
+          "text": "A rolling build requires at least one replica set election, because the primary is stepped down so the former primary can be indexed. MongoDB states that rolling builds lower the resiliency of the cluster and increase build duration. (high confidence)",
+          "source": "https://www.mongodb.com/docs/manual/core/rolling-index-builds/",
+          "note": null
+        },
+        {
+          "text": "Before MongoDB 4.4, Percona says the best practice for creating an index was a rolling build, and many teams instead built directly on the primary and let the index replicate. ScaleGrid (2017) called rolling the preferred method because foreground builds block for hours and background builds run longer and still degrade performance. The MongoDB FAQ confirms that under featureCompatibilityVersion 4.0 the default foreground build holds the exclusive lock for the whole build. (medium confidence)",
+          "source": "https://www.percona.com/blog/commitquorum-in-index-creation-from-percona-server-for-mongodb-4-4/",
+          "note": null
+        },
+        {
+          "text": "While a member runs as a standalone it must use a different port than the replica set port, so other members and clients do not contact it, and the manual tells you to set the setParameter disableLogicalSessionCacheRefresh to true. When the member rejoins the set you must remove disableLogicalSessionCacheRefresh and restore the original port and replication.replSetName. (high confidence)",
+          "source": "https://www.mongodb.com/docs/manual/tutorial/build-indexes-on-replica-sets/",
+          "note": null
+        },
+        {
+          "text": "Atlas exposes rolling builds three ways: the 'Build in rolling process' option in the Create Index dialog of the Atlas UI; the Atlas CLI command atlas clusters indexes create ('Atlas builds the index in a rolling manner'); and the Atlas Admin API operation behind atlas api rollingIndex createRollingIndex (API version 2023-01-01). The CLI and API calls need the Project Data Access Admin role. (high confidence) (verified as of 2026-10-14)",
+          "source": "https://www.mongodb.com/docs/atlas/atlas-ui/indexes/",
+          "note": null
+        },
+        {
+          "text": "Never run a rolling index build and a default (replicated) index build at the same time. MongoDB warns this might lead to unexpected issues, such as broken builds and crash loops. Ops Manager and Cloud Manager tell you to request the builds sequentially. (high confidence)",
+          "source": "https://www.mongodb.com/docs/manual/core/rolling-index-builds/",
+          "note": null
+        },
+        {
+          "text": "Do not make rolling builds the default choice. Atlas, Ops Manager and Cloud Manager all state that rolling builds reduce cluster resiliency and increase build time, and that MongoDB only recommends them when regular index builds do not meet your needs. (high confidence)",
+          "source": "https://www.mongodb.com/docs/atlas/atlas-ui/indexes/",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "How-to and procedures",
+      "facts": [
+        {
+          "text": "To build in isolation, restart the member as a standalone: remove or comment out replication.replSetName (or --replSet) and use a different port. The different port keeps the other members and all clients from contacting the member while the index builds. (high confidence)",
+          "source": "https://www.mongodb.com/docs/manual/tutorial/build-indexes-on-replica-sets/",
+          "note": null
+        },
+        {
+          "text": "To avoid a default build that waits on an unreachable member without using a rolling build, pass the commitQuorum option to createIndex()/createIndexes() when you start the build. MongoDB also provides the setIndexCommitQuorum command to change the quorum of a build already in progress. Percona's test used commitQuorum 'majority' and the build finished with one of three voting nodes down. (high confidence)",
+          "source": "https://www.mongodb.com/docs/manual/core/index-creation/",
+          "note": null
+        },
+        {
+          "text": "To build safely after the SERVER-68925 incident, use the documented manual rolling procedure or upgrade the agent or server to a fixed version. To repair existing inconsistencies, MongoDB's alert says to run validate on each collection on each node and resync (logical initial sync) any node that fails. (medium confidence)",
+          "source": "https://www.mongodb.com/alerts/critical-alert-mongodb-rolling-index-build-issue-sept-2022",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Measurements and reference values",
+      "facts": [
+        {
+          "text": "MongoDB's current guidance is to use a rolling build only if average CPU utilization exceeds (N-1)/N-10%, where N is the number of CPU threads available to mongod, or if the WiredTiger cache fill ratio regularly exceeds 90%. If the deployment meets neither condition, MongoDB says to use the default index build. (high confidence) (verified as of 2026-10-14)",
+          "source": "https://www.mongodb.com/docs/manual/core/rolling-index-builds/",
+          "note": null
+        },
+        {
+          "text": "The alert names two triggers and two symptoms. Triggers: a secondary rolls back writes that updated the index, or a primary crashes within the journalCommitInterval (default 50 ms) of writes that updated the index. Symptoms: extra index entries that give wrong results for covered queries, and out-of-date or missing entries that give incomplete results for queries that use the index. (low confidence)",
+          "source": "https://www.mongodb.com/alerts/critical-alert-mongodb-rolling-index-build-issue-sept-2022",
+          "note": null
+        },
+        {
+          "text": "MongoDB's manual says to use a rolling build only in two cases: average CPU utilization exceeds (N-1)/N-10%, where N is the number of CPU threads available to mongod, or the WiredTiger cache fill ratio regularly exceeds 90%. In every other case the manual says to use the default index build. (high confidence) (verified as of 2026-10-14)",
+          "source": "https://www.mongodb.com/docs/manual/core/rolling-index-builds/",
+          "note": null
+        },
+        {
+          "text": "SERVER-68925 incident (2022): indexes created by the automated 'rolling index build' feature of Atlas, Cloud Manager and Ops Manager had WiredTiger table logging enabled. Affected indexes show log=(enabled=true) in the indexDetails.<index>.creationString field of the collStats output. After a secondary's replication rollback, or a primary crash within the journalCommitInterval (default 50 ms), such an index can hold extra entries (wrong covered-query results) or stale or missing entries (incomplete results). Unique indexes (including _id) and indexes built with the documented manual procedure",
+          "source": "https://www.mongodb.com/alerts/critical-alert-mongodb-rolling-index-build-issue-sept-2022",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Problems, failure modes and limitations",
+      "facts": [
+        {
+          "text": "Do not use the rolling procedure for a unique index unless you can stop all writes to the collection for the whole procedure. Otherwise members can end up with inconsistent data. If you cannot stop writes, build the unique index with createIndex() on the primary (replica set) or through mongos (sharded cluster). (high confidence)",
+          "source": "https://www.mongodb.com/docs/manual/tutorial/build-indexes-on-replica-sets/",
+          "note": null
+        },
+        {
+          "text": "Atlas offers rolling index builds only on M10+ clusters. The Atlas Administration API documentation says you cannot create a rolling index on an M0 free cluster or an M2/M5 shared cluster. (high confidence) (verified as of 2026-10-14)",
+          "source": "https://www.mongodb.com/docs/atlas/atlas-ui/indexes/",
+          "note": null
+        },
+        {
+          "text": "Atlas, Ops Manager and Cloud Manager do not support a unique rolling build. Atlas rejects a rolling build that sets the unique option with an error, the Atlas API reference says unique is unsupported for rolling indexes, and Ops Manager and Cloud Manager list unique as incompatible with rolling builds. (high confidence)",
+          "source": "https://www.mongodb.com/docs/atlas/atlas-ui/indexes/",
+          "note": null
+        },
+        {
+          "text": "Ops Manager and Cloud Manager name five design patterns that commonly trigger a restart loop in a rolling build: an index key that exceeds the index key limit; an index name that already exists; an index on more than one array field; an index on a collection that has the maximum number of text indexes; and a text index on a collection that has the maximum number of text indexes. (high confidence)",
+          "source": "https://www.mongodb.com/docs/ops-manager/current/data-explorer/indexes/",
+          "note": null
+        },
+        {
+          "text": "For possible inconsistencies the alert says to run validate on every collection on every node and to resync any node where validate reports failures. A logical initial sync remediates inconsistencies on a node. If you cannot tell which indexes are affected, resync the node or rebuild the indexes with the documented manual rolling process or, on MongoDB 4.4+, with the optimized non-blocking build. (low confidence)",
+          "source": "https://www.mongodb.com/alerts/critical-alert-mongodb-rolling-index-build-issue-sept-2022",
+          "note": null
+        },
+        {
+          "text": "If you restart a mongod as a standalone while it has an in-progress replicated index build, the mongod cannot restart that build. The build stays paused until you drop it manually. (low confidence)",
+          "source": "https://www.mongodb.com/docs/manual/core/index-creation/",
+          "note": null
+        },
+        {
+          "text": "Before building a unique index on a sharded collection, check that no document violates the constraint. If one shard holds a chunk with duplicates, the build can succeed on the shards without duplicates and fail on that shard, which leaves inconsistent indexes. Running dropIndex() through mongos removes the index from the collection on all shards. (high confidence)",
+          "source": "https://www.mongodb.com/docs/manual/tutorial/build-indexes-on-sharded-clusters/",
+          "note": null
+        },
+        {
+          "text": "Rolling builds are not available on every Atlas tier. The Atlas UI allows them only on M10 and larger clusters. The Atlas CLI reference says a rolling index cannot be created on an M0 free cluster or an M2/M5 shared cluster. The manual says the feature is not supported on Atlas Infinite clusters. (medium confidence) (verified as of 2026-10-14)",
+          "source": "https://www.mongodb.com/docs/atlas/atlas-ui/indexes/",
+          "note": null
+        },
+        {
+          "text": "The sharded-cluster procedure changed between doc versions. The 7.0 manual starts with 'A. Stop the Balancer' and runs sh.stopBalancer() on a mongos. The current manual starts with 'A. Stop Migrations' and runs setAllowMigrations with allowMigrations false for the one collection, then re-enables migrations in step E. On an unsharded collection the NamespaceNotSharded error can be ignored. (high confidence) (verified as of 2026-10-14)",
+          "source": "https://www.mongodb.com/docs/v7.0/tutorial/build-indexes-on-sharded-clusters/",
+          "note": null
+        },
+        {
+          "text": "Automated rolling builds do not support unique indexes. Atlas rejects a configuration that combines the rolling option with unique and returns an error. Ops Manager and Cloud Manager ignore the options unique, storageEngine, textIndexVersion and 2dsphereIndexVersion for rolling builds. MongoDB's 2022 alert also states that unique indexes are not created with the rolling index build process. (high confidence) (verified as of 2026-10-14)",
+          "source": "https://www.mongodb.com/docs/atlas/atlas-ui/indexes/",
+          "note": null
+        },
+        {
+          "text": "Do not use the manual rolling procedure for a unique index unless you can stop all writes to the collection for the whole procedure; otherwise the members can end up with inconsistent data. If you cannot stop writes, build the unique index with createIndex on the primary (on a mongos for a sharded cluster). (high confidence)",
+          "source": "https://www.mongodb.com/docs/manual/tutorial/build-indexes-on-replica-sets/",
+          "note": null
+        },
+        {
+          "text": "SERVER-68925 affected versions and fixes. Server fix versions: 4.2.23, 4.4.17, 5.0.12, 6.0.2 (also 6.1.0-rc1 and 6.2.0-rc0). The Ops Manager and Cloud Manager docs name the clusters at risk as 4.2.19-4.2.22, 4.4.13-4.4.16, 5.0.6-5.0.11 and 6.0.0-6.0.1, and name fixed agents as 12.0.11.7606 or later (Ops Manager) and 12.4.0.7703 or later (Cloud Manager). The ticket was created 2022-08-18 and resolved 2022-08-26. (high confidence)",
+          "source": "https://jira.mongodb.org/browse/SERVER-68925",
+          "note": null
+        },
+        {
+          "text": "Ops Manager and Cloud Manager automated rolling builds can enter a restart loop when the index cannot be built. Patterns that commonly trigger it: the index key exceeds the index key limit; the index name already exists; an index on more than one array field; a new text index on a collection that already has the maximum number of text indexes. (medium confidence)",
+          "source": "https://www.mongodb.com/docs/ops-manager/current/data-explorer/indexes/",
+          "note": null
+        },
+        {
+          "text": "A sharded collection has an inconsistent index when the shards that hold its chunks do not all have the same indexes with the same options. Rolling builds cause this when the build fails on one shard or uses a different specification, and a unique build can succeed on shards without duplicates but fail on the shard whose chunk has duplicates. The config server primary checks periodically (enableShardedIndexConsistencyCheck, shardedIndexConsistencyCheckIntervalMS), and serverStatus on it reports shardedIndexConsistency. (high confidence)",
+          "source": "https://www.mongodb.com/docs/manual/tutorial/build-indexes-on-sharded-clusters/",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Comparisons and alternatives",
+      "facts": [
+        {
+          "text": "A rolling index build creates an index on one replica set member at a time instead of on all members at once. MongoDB hides at most one member at a time, builds the index on it as a standalone, starts with the secondaries, and builds on the former primary last. (high confidence)",
+          "source": "https://www.mongodb.com/docs/manual/core/rolling-index-builds/",
+          "note": null
+        },
+        {
+          "text": "In May 2024 a user who sent unique:true to the Atlas rolling-index endpoint received HTTP 500 'Unexpected error' instead of a validation message. The same request without unique returned HTTP 202. (low confidence) (verified as of 2024-05-07)",
+          "source": "https://mongodb.com/community/forums/t/atlas-administration-api-request-body-schema-problems-create-rolling-index/279426",
+          "note": null
+        },
+        {
+          "text": "With the Percona Operator for MongoDB on Kubernetes you cannot simply stop mongod in a pod, because the health check fails and Kubernetes starts a replacement pod at once. The Operator's sleep-forever file in /data/db keeps the pod asleep without starting mongod. Then run mongod --shutdown, start a standalone mongod on another port (the example uses 27117), build the index, run db.shutdownServer(), and delete the file to resume. The author recommends doing this by hand rather than with automation unless you are very confident in it. (low confidence)",
+          "source": "https://www.percona.com/blog/how-to-perform-rolling-index-builds-with-percona-operator-for-mongodb/",
+          "note": null
+        },
+        {
+          "text": "A rolling index build creates the index on one replica set member at a time instead of on all data-bearing members at once. MongoDB takes at most one member out of service at a time, starts with the secondaries, builds the index on that member running as a standalone, and handles the primary last. (high confidence)",
+          "source": "https://www.mongodb.com/docs/manual/core/rolling-index-builds/",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Facts and statements",
+      "facts": [
+        {
+          "text": "A rolling build requires at least one replica set election. After every secondary has the index, the operator steps the primary down with rs.stepDown() and then builds on the former primary. (high confidence)",
+          "source": "https://www.mongodb.com/docs/manual/core/rolling-index-builds/",
+          "note": null
+        },
+        {
+          "text": "Since MongoDB 4.4 the default (non-rolling) index build on a replica set or sharded cluster runs simultaneously on all data-bearing members. The primary marks the index ready only after a commit quorum of data-bearing voting members, including itself, has finished building. The default commit quorum is votingMembers, meaning all data-bearing voting members. (high confidence)",
+          "source": "https://www.mongodb.com/docs/manual/core/index-creation/",
+          "note": null
+        },
+        {
+          "text": "Simultaneous index builds require featureCompatibilityVersion 4.4 or higher on every mongod in the replica set or sharded cluster. (low confidence)",
+          "source": "https://www.mongodb.com/docs/manual/core/index-creation/",
+          "note": null
+        },
+        {
+          "text": "Build on the secondaries one at a time, and let each member catch up on replication before starting the next one. Step the primary down and build on it last. (high confidence)",
+          "source": "https://www.mongodb.com/docs/manual/tutorial/build-indexes-on-replica-sets/",
+          "note": null
+        },
+        {
+          "text": "The replica set tutorial hides the secondary before taking it offline. On the primary, record the member's priority, then set priority to 0 and hidden to true with rs.reconfig(). After the build and catch-up, restore the original priority and set hidden to false with rs.reconfig(). (low confidence)",
+          "source": "https://www.mongodb.com/docs/manual/tutorial/build-indexes-on-replica-sets/",
+          "note": null
+        },
+        {
+          "text": "While a member runs as a standalone for the build, set the server parameter disableLogicalSessionCacheRefresh to true. Remove that parameter before restarting the member as a replica set member. (high confidence)",
+          "source": "https://www.mongodb.com/docs/manual/tutorial/build-indexes-on-replica-sets/",
+          "note": null
+        },
+        {
+          "text": "The member being built is out of the replica set during the build, so the oplog must cover the build time. MongoDB says to size the oplog so the build can finish without the member falling too far behind to catch up. Percona's worked example calls for a two-hour oplog window for a two-hour build, plus a margin. (high confidence)",
+          "source": "https://www.mongodb.com/docs/manual/tutorial/build-indexes-on-replica-sets/",
+          "note": null
+        },
+        {
+          "text": "On Atlas, a documented alternative to a rolling build is to scale the cluster up temporarily so it meets the requirements for a default index build. Atlas charges for the scaling. (high confidence)",
+          "source": "https://www.mongodb.com/docs/manual/tutorial/build-indexes-on-replica-sets/",
+          "note": null
+        },
+        {
+          "text": "The Atlas Administration API exposes rolling builds as 'Create One Rolling Index' (a POST to /api/atlas/v2/groups/{groupId}/clusters/{clusterName}/index, API version 2023-01-01), and the Atlas CLI wraps it as 'atlas api rollingIndex createRollingIndex'. The caller needs the Project Data Access Admin role. (medium confidence) (verified as of 2026-10-14)",
+          "source": "https://www.mongodb.com/docs/atlas/cli/current/command/atlas-api-rollingIndex-createRollingIndex/",
+          "note": null
+        },
+        {
+          "text": "Ops Manager and Cloud Manager Data Explorer can build indexes in a rolling fashion on replica sets and sharded clusters, but not on standalone deployments. The automation removes one node at a time from the cluster, starting with a secondary. (high confidence)",
+          "source": "https://www.mongodb.com/docs/ops-manager/current/data-explorer/indexes/",
+          "note": null
+        },
+        {
+          "text": "Ops Manager and Cloud Manager rolling builds are incompatible with the unique, storageEngine, textIndexVersion and 2dsphereIndexVersion index options. Ops Manager ignores these options if you set them. (high confidence)",
+          "source": "https://www.mongodb.com/docs/ops-manager/current/data-explorer/indexes/",
+          "note": null
+        },
+        {
+          "text": "If an Ops Manager or Cloud Manager rolling build succeeds on some nodes and fails on others, the automation cancels the build and removes the index from the nodes where it succeeded. It posts an activity feed event and emails the project owner. After an aborted rolling build, run listIndexes on each node to confirm the cancelled index is gone; otherwise the cluster might stay inconsistent. (high confidence)",
+          "source": "https://www.mongodb.com/docs/ops-manager/current/data-explorer/indexes/",
+          "note": null
+        },
+        {
+          "text": "In Ops Manager and Cloud Manager, request rolling and non-rolling index builds one after another, never at the same time. Wait for a running rolling build to finish before requesting another rolling build. (high confidence)",
+          "source": "https://www.mongodb.com/docs/ops-manager/current/data-explorer/indexes/",
+          "note": null
+        },
+        {
+          "text": "MongoDB's critical alert on rolling index builds (the URL is dated September 2022) says Atlas, Cloud Manager and Ops Manager 'rolling index builds' on MongoDB 4.2.19+, 4.4.13+, 5.0.6+ and 6.0.0+ could create indexes that are vulnerable to index key inconsistencies after a replication rollback or server crash. Affected indexes show log=(enabled=true) in the indexDetails.<indexName>.creationString field of collStats output. (high confidence)",
+          "source": "https://www.mongodb.com/alerts/critical-alert-mongodb-rolling-index-build-issue-sept-2022",
+          "note": null
+        },
+        {
+          "text": "Atlas deployed a fix on 2023-08-22 that makes rolling index builds safe on all MongoDB versions, though earlier builds may have affected some clusters. Cloud Manager needs MongoDB Agent 12.4.0.7703 or later. For Ops Manager the alert lists agents 11.0.20.7105-1+ (Ops Manager 5.0) and 12.0.11.7605-1+ (Ops Manager 6.0). Alternatively upgrade the cluster to 4.2.23+, 4.4.17+, 5.0.12+ or 6.0.2+. Upgrading does not repair indexes that are already inconsistent. (medium confidence) (verified as of 2026-10-14)",
+          "source": "https://www.mongodb.com/alerts/critical-alert-mongodb-rolling-index-build-issue-sept-2022",
+          "note": null
+        },
+        {
+          "text": "If a member stays out longer than the oplog window, it can no longer catch up by replication. It goes into RECOVERING with 'too stale to catch up' and needs a full initial sync, which can take hours to days depending on data size and network throughput. (high confidence)",
+          "source": "https://www.mongodb.com/docs/manual/core/replica-set-oplog/",
+          "note": null
+        },
+        {
+          "text": "A default build with the default commit quorum (votingMembers) waits for every data-bearing voting member. If one is unreachable, the build keeps running until that member returns. Percona showed this with one secondary down. (high confidence)",
+          "source": "https://www.mongodb.com/docs/manual/core/index-creation/",
+          "note": null
+        },
+        {
+          "text": "On a sharded cluster, first disable migrations for the collection with setAllowMigrations:false through mongos. Next run an aggregation with $collStats grouped by shard to find the shards that hold chunks. Then run the secondary-then-primary rolling sequence on those shards only, and finally re-enable migrations with setAllowMigrations:true. An unsharded collection returns NamespaceNotSharded for the setAllowMigrations command, which the docs say to ignore. (low confidence)",
+          "source": "https://www.mongodb.com/docs/manual/tutorial/build-indexes-on-sharded-clusters/",
+          "note": null
+        },
+        {
+          "text": "Do not run DDL operations while a rolling index build is in progress on a sharded cluster. (low confidence)",
+          "source": "https://www.mongodb.com/docs/manual/tutorial/build-indexes-on-sharded-clusters/",
+          "note": null
+        },
+        {
+          "text": "A manual rolling build across shards can leave a sharded collection with inconsistent indexes if it fails on one shard or builds a different index specification on one shard. The config server primary periodically checks for inconsistent indexes; configure the checks with enableShardedIndexConsistencyCheck and shardedIndexConsistencyCheckIntervalMS. serverStatus on the config server primary reports shardedIndexConsistency. (high confidence)",
+          "source": "https://www.mongodb.com/docs/manual/tutorial/build-indexes-on-sharded-clusters/",
+          "note": null
+        },
+        {
+          "text": "Since MongoDB 4.4 the default index build runs simultaneously on all data-bearing replica set members (only on shards that hold data for the collection in a sharded cluster). Every mongod needs featureCompatibilityVersion 4.4 or higher. The primary waits for a commit quorum of votes before it marks the index ready, and the default commitQuorum is votingMembers. (high confidence) (verified as of 2026-10-19)",
+          "source": "https://www.mongodb.com/docs/manual/core/index-creation/",
+          "note": null
+        },
+        {
+          "text": "Since featureCompatibilityVersion 4.2 the default (non-rolling) build holds the exclusive collection lock only at the start and the end of the build. The rest of the build yields to interleaved reads and writes. (high confidence)",
+          "source": "https://www.mongodb.com/docs/manual/faq/indexes/",
+          "note": null
+        },
+        {
+          "text": "Rolling builds apply to replica sets and sharded clusters, not to standalone mongod deployments. Data Explorer in Ops Manager and Cloud Manager does not support rolling builds for standalone deployments, and ScaleGrid notes that a standalone instance can only use a background build. (medium confidence)",
+          "source": "https://www.mongodb.com/docs/ops-manager/current/data-explorer/indexes/",
+          "note": null
+        },
+        {
+          "text": "Manual replica-set procedure, per secondary: on the primary, hide the member (set priority 0 and hidden 1 with rs.reconfig, saving the original priority); restart the member as a standalone; run createIndex on it; restart it as a replica set member and let replication catch up; then restore its priority and set hidden false. Repeat for each secondary. Last, run rs.stepDown() on the primary and repeat the steps on the former primary. (high confidence)",
+          "source": "https://www.mongodb.com/docs/manual/tutorial/build-indexes-on-replica-sets/",
+          "note": null
+        },
+        {
+          "text": "In the sharded-cluster procedure, a shard member restarted as a standalone must also set skipShardingConfigurationChecks to true (together with disableLogicalSessionCacheRefresh), and you must remove both parameters before it rejoins. The current manual also has you comment out replication.replSetName and sharding.clusterRole during the standalone window. (high confidence)",
+          "source": "https://www.mongodb.com/docs/manual/tutorial/build-indexes-on-sharded-clusters/",
+          "note": null
+        },
+        {
+          "text": "On a sharded cluster, build only on shards that hold chunks for the collection. The current manual finds them with db.getSiblingDB(db).getCollection(coll).aggregate([{$collStats:{}},{$group:{_id:'$ns',shard_list:{$addToSet:'$shard'}}}]). The manual also warns not to run DDL operations while the rolling build is in progress. (low confidence)",
+          "source": "https://www.mongodb.com/docs/manual/tutorial/build-indexes-on-sharded-clusters/",
+          "note": null
+        },
+        {
+          "text": "Size the oplog before starting. The oplog window must be longer than the time one member needs to build the index, or that member falls too far behind to catch up. Percona's example: a two-hour build needs at least a two-hour oplog window, plus margin. (high confidence)",
+          "source": "https://www.mongodb.com/docs/manual/tutorial/build-indexes-on-replica-sets/",
+          "note": null
+        },
+        {
+          "text": "During an Atlas UI rolling build, Atlas takes each node out of the replica set, starts it in standalone mode, builds the index, returns it to the set, and repeats node by node. Nodes may appear as down while Atlas builds offline; Atlas says this is expected behavior. (medium confidence) (verified as of 2026-10-14)",
+          "source": "https://www.mongodb.com/docs/atlas/atlas-ui/indexes/",
+          "note": null
+        },
+        {
+          "text": "Ops Manager and Cloud Manager Data Explorer remove one node at a time, starting with a secondary. They cancel a rolling build that does not succeed on every node and remove the index from the nodes where it was built. On cancellation they create an Activity Feed event and email the project owner the cluster, namespace, project, organization and a link to the event. (medium confidence)",
+          "source": "https://www.mongodb.com/docs/ops-manager/current/data-explorer/indexes/",
+          "note": null
+        },
+        {
+          "text": "In Ops Manager and Cloud Manager, request rolling and non-rolling index builds one at a time: wait for the running build to finish before requesting another, and wait for a running rolling build before requesting a second rolling build. By default up to three non-rolling index builds can run concurrently. (medium confidence) (verified as of 2026-10-14)",
+          "source": "https://www.mongodb.com/docs/ops-manager/current/data-explorer/indexes/",
+          "note": null
+        },
+        {
+          "text": "On Atlas, the documented alternative to a rolling build is to temporarily scale the cluster up to meet the requirements of a default index build. Atlas charges for the scaling, and the manual points to the Cluster Configuration Costs page. (high confidence)",
+          "source": "https://www.mongodb.com/docs/manual/tutorial/build-indexes-on-replica-sets/",
+          "note": null
+        },
+        {
+          "text": "Percona recommends rolling builds for teams with very tight SLAs or systems already close to peak capacity (2025), and its 2023 commitQuorum post still concludes that the best practice is to create indexes in a rolling manner even on 4.4 and later. (medium confidence)",
+          "source": "https://www.percona.com/blog/how-to-perform-rolling-index-builds-with-percona-operator-for-mongodb/",
+          "note": null
+        },
+        {
+          "text": "On Kubernetes, stopping mongod inside a pod fails the health check and Kubernetes replaces the pod. The Percona Operator workaround: create /data/db/sleep-forever (for example with kubectl exec ... touch) so the container entry point sleeps without starting mongod; generate the TLS PEM files by hand; start mongod as a standalone on another port without --replSet; build; delete the file so the pod resumes and catches up from the oplog. Do secondaries first, then rs.stepDown() the primary. Percona advises doing this manually unless you trust your automation. (medium confidence) (verified as of 2",
+          "source": "https://www.percona.com/blog/how-to-perform-rolling-index-builds-with-percona-operator-for-mongodb/",
+          "note": null
+        },
+        {
+          "text": "After an aborted or cancelled automated rolling build in Ops Manager or Cloud Manager, run listIndexes on each node to verify the cancelled index no longer exists. Otherwise the cluster might remain in an inconsistent state. (medium confidence)",
+          "source": "https://www.mongodb.com/docs/ops-manager/current/data-explorer/indexes/",
+          "note": null
+        },
+        {
+          "text": "Cloud Manager docs: after a rolling build, if the MongoDB database runs with featureCompatibilityVersion lower than 4.2, resync the head database so it takes the new index into account. (low confidence)",
+          "source": "https://www.mongodb.com/docs/cloud-manager/data-explorer/indexes/",
+          "note": null
+        }
+      ]
+    }
+  ],
+  "related": []
+}

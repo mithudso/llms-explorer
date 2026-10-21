@@ -1,0 +1,463 @@
+{
+  "slug": "matryoshka-dimension-truncation-for-vector-storage-cost",
+  "concept": "Matryoshka Dimension Truncation for Vector Storage Cost",
+  "generated": "2026-10-19",
+  "summary": "Matryoshka Representation Learning (MRL) trains an embedding model so that a leading prefix of the vector is itself a usable shorter embedding; truncating to 256, 512 or 1024 dimensions and re-normalizing cuts vector storage and index RAM roughly linearly at a small retrieval-quality cost, and stacks with Atlas automatic scalar (about 1/3.75 RAM) and binary (1/24 RAM) quantization. The pack draws on 5 sources (Voyage AI and Atlas Vector Search docs, an OpenAI post, a May 2026 arXiv study via a summary site, and a ZeroEntropy vendor post) and records one disagreement over whether truncation needs Matryoshka-trained models.",
+  "facets": [
+    {
+      "title": "Definitions",
+      "facts": [
+        {
+          "text": "Voyage AI documents that vector storage and compute cost scales linearly with embedding dimensionality and with bits per value; its Matryoshka embeddings let a 2048-dimension vector be truncated to its first 256, 512 or 1024 dimensions, each slightly lower in retrieval quality, and the docs show truncation followed by re-normalization.",
+          "source": "https://www.mongodb.com/docs/voyageai/tutorials/dimensions-and-quantization.md",
+          "note": null
+        },
+        {
+          "text": "Binary quantization involves assuming a midpoint of `0` for each dimension, which is typically appropriate for embeddings normalized to length `1` such as OpenAI's `text-embedding-3-large`. Then, each value in the vector is compared to the midpoint and assigned a binary value of `1` if it's greater than the midpoint and a binary value of `0` if it's less than or equal to the midpoint. In MongoDB Vector Search, this quantization reduces the vector embedding's RAM cost to one twenty-fourth (`1/24`) of the pre-quantization cost. The reason it's not `1/32` is because the data structure containing",
+          "source": "https://www.mongodb.com/docs/vector-search/indexes/vector-search-type.md#binary-quantization",
+          "note": null
+        },
+        {
+          "text": "[Scalar quantization](https://www.mongodb.com/docs/manual/reference/glossary.md#std-term-scalar-quantization) involves first identifying the minimum and maximum values for each dimension of the indexed vectors to establish a range of values for a dimension. Then, the range is divided into equally sized intervals or bins. Finally, each float value is mapped to a bin to convert the continuous float values into discrete integers. In MongoDB Vector Search, this quantization reduces the vector embedding's RAM cost to about one fourth (`1/3.75`) of the pre-quantization cost.",
+          "source": "https://www.mongodb.com/docs/vector-search/indexes/vector-search-type.md#scalar-quantization",
+          "note": null
+        },
+        {
+          "text": "Voyage AI embedding models support flexible dimensions and quantization to help you optimize storage and search costs for your vector-based applications. This page explains how to use these features to reduce costs while maintaining high retrieval quality.",
+          "source": "https://www.mongodb.com/docs/voyageai/tutorials/dimensions-and-quantization.md",
+          "note": null
+        },
+        {
+          "text": "Matryoshka Representation Learning (Kusupati et al., 2022) is one of the most enticing ideas in modern embedding training: train your model so that the first dimensions of any embedding are, on their own, a valid -dimensional embedding. Nest the objective at a log-spaced set of ‘s. Ship a single model and let the caller pick the dimension at inference time. OpenAI’s text-embedding-3 family does it, Voyage’s 3 and 4 familes do it, Cohere, Jina, Gemini — everyone does it. The conventional wisdom, stated plainly in the original paper, is that MRL is “as accurate as the independently trained count",
+          "source": "https://zeroentropy.dev/articles/matryoshka-is-dead/",
+          "note": "vendor blog"
+        },
+        {
+          "text": "Matryoshka embeddings are a special type of vector embedding that contains multiple valid embeddings of different sizes nested within a single vector. This gives you the flexibility to choose the dimensionality that best balances your performance and cost requirements.",
+          "source": "https://www.mongodb.com/docs/voyageai/tutorials/dimensions-and-quantization.md#matryoshka-embeddings",
+          "note": null
+        },
+        {
+          "text": "Quantization reduces the precision of embeddings by converting high-precision floating-point numbers into lower-precision formats. This process can dramatically reduce storage and computational costs while maintaining strong retrieval quality.",
+          "source": "https://www.mongodb.com/docs/voyageai/tutorials/dimensions-and-quantization.md#quantization",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Structure and components",
+      "facts": [
+        {
+          "text": "The latest Voyage embedding models generate Matryoshka embeddings and support multiple output dimensions directly through the `output_dimension` parameter. To learn more, see [Voyage AI Embedding and Reranking Models Overview.](https://www.mongodb.com/docs/voyageai/models.md#std-label-voyage-models)",
+          "source": "https://www.mongodb.com/docs/voyageai/tutorials/dimensions-and-quantization.md#matryoshka-embeddings",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "How it works",
+      "facts": [
+        {
+          "text": "OpenAI states the text-embedding-3 models can be shortened with the dimensions parameter (dropping trailing values) and that text-embedding-3-large cut to 256 dimensions still beats the full 1536-dimension text-embedding-ada-002 on MTEB; this is an OpenAI-reported figure, not independently verified here.",
+          "source": "https://openai.com/index/new-embedding-models-and-api-updates/",
+          "note": "OpenAI-reported figure, unverified"
+        },
+        {
+          "text": "MongoDB Vector Search rescoring involves re-ranking a subset of the top binary vector search results using their full-precision counterparts to ensure accurate search results from compressed vectors. This reduces the RAM cost to one twenty-fourth (`1/24`) compared to `float` quantization type. By default, Automated Embedding uses `euclidean` as the [similarity function.](https://www.mongodb.com/docs/vector-search/indexes/vector-search-type.md#std-label-avs-similarity-functions)",
+          "source": "https://www.mongodb.com/docs/vector-search/indexes/vector-search-type.md#binary-quantization",
+          "note": null
+        },
+        {
+          "text": "This phenomenon indicates that MRL induces a form of information packing or compression into the truncated (typically lower) subspaces, directly supporting its utility under heavy truncation scenarios. However, outside these high-compression regimes, this property may be redundant or even interfere with optimal performance on less heavily truncated embeddings.",
+          "source": "https://www.emergentmind.com/papers/2605.16608",
+          "note": null
+        },
+        {
+          "text": "The latest Voyage embedding models are trained using [quantization-aware training](https://arxiv.org/abs/1702.00758), which means they maintain high retrieval quality even when quantized. To learn more, see [Voyage AI Embedding and Reranking Models Overview.](https://www.mongodb.com/docs/voyageai/models.md#std-label-voyage-models)",
+          "source": "https://www.mongodb.com/docs/voyageai/tutorials/dimensions-and-quantization.md#quantization",
+          "note": null
+        },
+        {
+          "text": "Both of our new embedding models were trained with a techniqueA that allows developers to trade-off performance and cost of using embeddings. Specifically, developers can shorten embeddings (i.e. remove some numbers from the end of the sequence) without the embedding losing its concept-representing properties by passing in the dimensions API parameter. For example, on the MTEB benchmark, a text-embedding-3-large embedding can be shortened to a size of 256 while still outperforming an unshortened text-embedding-ada-002 embedding with a size of 1536.",
+          "source": "https://openai.com/index/new-embedding-models-and-api-updates/",
+          "note": null
+        },
+        {
+          "text": "When you run a query, MongoDB Vector Search converts the float value in the query vector into a binary vector using the same midpoint for efficient comparison between the query vector and indexed binary vectors. It then rescores by reevaluating the identified candidates in the binary comparison using the original float values associated with those results from the binary index to further refine the results. The full fidelity vectors are stored in their own data structure on disk, and are only referenced during rescoring when you configure binary quantization or when you perform exact search ag",
+          "source": "https://www.mongodb.com/docs/vector-search/indexes/vector-search-type.md#binary-quantization",
+          "note": null
+        },
+        {
+          "text": "By reducing either or both of these factors, you can dramatically lower costs without significantly impacting retrieval quality. Voyage AI models support two complementary techniques to achieve this:",
+          "source": "https://www.mongodb.com/docs/voyageai/tutorials/dimensions-and-quantization.md#overview",
+          "note": null
+        },
+        {
+          "text": "These techniques are enabled through [Matryoshka learning](https://arxiv.org/abs/2205.13147) and [quantization-aware training](https://arxiv.org/abs/1702.00758), which train the models to maintain quality even with reduced dimensions or quantized values.",
+          "source": "https://www.mongodb.com/docs/voyageai/tutorials/dimensions-and-quantization.md#overview",
+          "note": null
+        },
+        {
+          "text": "With Matryoshka learning, a single embedding contains a nested family of embeddings at various lengths. For example, a 2048-dimensional Voyage embedding contains valid embeddings at multiple shorter lengths:",
+          "source": "https://www.mongodb.com/docs/voyageai/tutorials/dimensions-and-quantization.md#how-matryoshka-embeddings-work",
+          "note": null
+        },
+        {
+          "text": "MRL concentrates information in the early dimensions by design. What’s less obvious is that this concentration is physical — it shows up in measurable changes to the geometry of the embedding space.",
+          "source": "https://zeroentropy.dev/articles/matryoshka-is-dead/",
+          "note": "vendor blog"
+        },
+        {
+          "text": "This is the underlying accounting. MRL doesn’t create free capacity at small dimensions. It redistributes capacity that was previously spread across all 2560 dimensions into a handful of early ones. For the downstream nearest-neighbor task, that redistribution has to come from somewhere, and the full representation is where it comes from.",
+          "source": "https://zeroentropy.dev/articles/matryoshka-is-dead/",
+          "note": "vendor blog"
+        }
+      ]
+    },
+    {
+      "title": "Parameters and configuration",
+      "facts": [
+        {
+          "text": "Atlas Vector Search fixes numDimensions in the index definition. For Voyage autoEmbed fields it accepts 256, 512, 1024 or 2048 (default 1024), and the autoEmbed fields quantization and numDimensions cannot be edited after creation; changing them means building a new index and deleting the old one.",
+          "source": "https://www.mongodb.com/docs/vector-search/indexes/vector-search-type.md",
+          "note": null
+        },
+        {
+          "text": "The `scalar` quantization type in Automated Embedding builds index with **scalar/int8 (1 byte) vectors**, which are provided by the embedding model. For Automated Embedding, this quantization reduces the vector embedding's storage and RAM cost to about one fourth compared the `float` quantization. By default, Automated Embedding uses `cosine` as the similarity function for this quantization type. This is the default quantization type for Automated Embedding.",
+          "source": "https://www.mongodb.com/docs/vector-search/indexes/vector-search-type.md#scalar-quantization",
+          "note": "autoEmbed"
+        },
+        {
+          "text": "`float` quantization stores the vector embeddings as 32-bit float values. This option provides the highest accuracy, but also the highest storage and RAM costs. By default, Automated Embedding uses `dotProduct` as the similarity function for this quantization type.",
+          "source": "https://www.mongodb.com/docs/vector-search/indexes/vector-search-type.md#float-quantization",
+          "note": "autoEmbed"
+        },
+        {
+          "text": "The `binaryNoRescore` quantization type in Automated Embedding builds index with binary (1 bit) vector values, which are provided by the embedding model. Compared to `binary` (binary quantization with rescoring), this option ensures faster query and lowers storage costs, but provides lower accuracy. By default, Automated Embedding uses `euclidean` as the [similarity function.](https://www.mongodb.com/docs/vector-search/indexes/vector-search-type.md#std-label-avs-similarity-functions)",
+          "source": "https://www.mongodb.com/docs/vector-search/indexes/vector-search-type.md#binarynorescore-quantization",
+          "note": "autoEmbed"
+        },
+        {
+          "text": "Binary quantization in Automated Embedding builds index with binary (1 bit) vector values, but also stores full-precision vectors. The full-precision vectors are provided by the embedding model and MongoDB Vector Search quantizes them to binary during index creation.",
+          "source": "https://www.mongodb.com/docs/vector-search/indexes/vector-search-type.md#binary-quantization",
+          "note": "autoEmbed"
+        },
+        {
+          "text": "Values for the `autoEmbed` type fields like `quantization`, `numDimensions`, `indexingMethod` and `similarity` are set by default if you omit them when you define the index.",
+          "source": "https://www.mongodb.com/docs/vector-search/indexes/vector-search-type.md#about-the-autoembed-type",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "How-to and procedures",
+      "facts": [
+        {
+          "text": "Truncate only models documented as Matryoshka-trained (Voyage 4 series, OpenAI text-embedding-3) and re-normalize after slicing; validate recall on your own queries at the target dimension before re-indexing, since quality retention depends on model, corpus and query mix.",
+          "source": "https://www.mongodb.com/docs/voyageai/tutorials/dimensions-and-quantization.md",
+          "note": "recommendation: Matryoshka-trained models only"
+        },
+        {
+          "text": "Truncate Matryoshka embeddings by keeping the leading subset of dimensions. The following example demonstrates how to truncate 1024-dimensional vectors to 256 dimensions:",
+          "source": "https://www.mongodb.com/docs/voyageai/tutorials/dimensions-and-quantization.md#how-to-truncate-matryoshka-embeddings",
+          "note": null
+        },
+        {
+          "text": "Compression strategies that rely solely on random truncation retain higher overall downstream efficacy across a wide truncation spectrum and avoid the computational/tuning overheads associated with MRL training, provided heavy truncation is not required.",
+          "source": "https://www.emergentmind.com/papers/2605.16608",
+          "note": null
+        },
+        {
+          "text": "This enables very flexible usage. For example, when using a vector data store that only supports embeddings up to 1024 dimensions long, developers can now still use our best embedding model text-embedding-3-large and specify a value of 1024 for the dimensions API parameter, which will shorten the embedding down from 3072 dimensions, trading off some accuracy in exchange for the smaller vector size.",
+          "source": "https://openai.com/index/new-embedding-models-and-api-updates/",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Examples and snippets",
+      "facts": [
+        {
+          "text": "```python — `import numpy as np` …",
+          "source": "https://www.mongodb.com/docs/voyageai/tutorials/dimensions-and-quantization.md#convert-float-to-binary-ubinary",
+          "note": "Voyage docs, quantization"
+        },
+        {
+          "text": "```python — `import voyageai` …",
+          "source": "https://www.mongodb.com/docs/voyageai/tutorials/dimensions-and-quantization.md#how-to-truncate-matryoshka-embeddings",
+          "note": "Voyage docs, truncate then normalize"
+        }
+      ]
+    },
+    {
+      "title": "Measurements and reference values",
+      "facts": [
+        {
+          "text": "Atlas automatic quantization cuts index RAM to about 1/3.75 of float32 for scalar (int8) and 1/24 for binary (not 1/32, because the HNSW graph is not compressed); binary requires numDimensions to be a multiple of 8. MongoDB recommends quantization for large collections (over 100,000 vectors). Because binary needs a multiple of 8, truncated dimension choices must respect that.",
+          "source": "https://www.mongodb.com/docs/vector-search/indexes/vector-search-type.md",
+          "note": null
+        },
+        {
+          "text": "Truncation and quantization are multiplicative, complementary levers: Voyage docs state 8-bit gives 4x and 1-bit gives 32x smaller vectors, so a 2048-dimension float32 vector (8 KB) truncated to 512 dimensions and binary-quantized is 64 bytes raw. Atlas's measured RAM ratio for binary is 1/24, so expect less than the raw arithmetic.",
+          "source": "https://www.mongodb.com/docs/voyageai/tutorials/dimensions-and-quantization.md",
+          "note": null
+        },
+        {
+          "text": "The paper shows that standard text encoders maintain high performance under truncation up to 70-80%, questioning the necessity of MRL for moderate compression.",
+          "source": "https://www.emergentmind.com/papers/2605.16608",
+          "note": null
+        },
+        {
+          "text": "The empirical findings demonstrate that across all baseline models — regardless of MRL intervention — embedding truncation up to approximately 70-80% of the original dimensionality incurs minimal performance degradation for both retrieval and classification. Only under severe size reduction (≥80% truncated) does MRL offer perceptible benefit, and even then, primarily in smaller models or certain domains.",
+          "source": "https://www.emergentmind.com/papers/2605.16608",
+          "note": null
+        },
+        {
+          "text": "Across all architectures and benchmarks, randomly truncated non-MRL models equal or surpass their MRL-trained counterparts in downstream accuracy up to the 80% truncation threshold, after which performance for non-MRL models degrades more sharply. This result directly refutes any blanket claim that MRL universally enhances robustness at all truncation levels.",
+          "source": "https://www.emergentmind.com/papers/2605.16608",
+          "note": null
+        },
+        {
+          "text": "The delta is roughly constant at +0.02 to +0.03 NDCG@10 from 2560 all the way down to 80 — including at full dimension. This is the core of the accounting argument from the previous section made numerical: MRL is paying the largest tax where you’d least expect it, at 2560 dims, because that’s the representation it had to redistribute away from in order to concentrate information in the early dims. The tax isn’t recovered at the low end either; the two approaches only converge at 40 dims, deep in the information-floor regime where both are capacity-bound and the projection’s edge collapses towa",
+          "source": "https://zeroentropy.dev/articles/matryoshka-is-dead/",
+          "note": "vendor blog, internal harness"
+        },
+        {
+          "text": "Despite this dramatic reduction in size, quantization-aware trained models like Voyage's maintain high retrieval quality. Supported Voyage models enable quantization by specifying the output data type with the `output_dtype` parameter:",
+          "source": "https://www.mongodb.com/docs/voyageai/tutorials/dimensions-and-quantization.md#how-quantization-works",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Problems, failure modes and limitations",
+      "facts": [
+        {
+          "text": "Second, the original MRL paper never tested text retrieval. Kusupati et al. evaluate retrieval exclusively on ImageNet-1K and ImageNet-4K image retrieval. No MS MARCO , no BEIR , no MTEB. The “as accurate as independently trained counterparts” claim is specifically a classification claim on ImageNet, at the noise floor of that benchmark. The translation of that claim to text retrieval is an inductive leap the field made on the provider side, not in the literature.",
+          "source": "https://zeroentropy.dev/articles/matryoshka-is-dead/",
+          "note": "vendor blog"
+        },
+        {
+          "text": "Only under severe compression does MRL's induced information compaction in lower embedding dimensions confer measurable advantages. For most practical scenarios, especially those requiring moderate compression, random or deterministic truncation of non-MRL embeddings achieves competitive or superior results. These findings suggest that research on embedding compression might more productively focus on general-purpose robustness and efficient truncation strategies beyond the MRL paradigm, and motivate new approaches to embedding design under resource constraints.",
+          "source": "https://www.emergentmind.com/papers/2605.16608",
+          "note": null
+        },
+        {
+          "text": "Each shorter version provides slightly lower retrieval quality than the full embedding, but requires less storage and computational resources.",
+          "source": "https://www.mongodb.com/docs/voyageai/tutorials/dimensions-and-quantization.md#how-matryoshka-embeddings-work",
+          "note": null
+        },
+        {
+          "text": "After creating the index, you can't edit certain fields in the `autoEmbed` type index definition. Specifically, you can't edit the `path`, `model`, `quantization`, and `numDimensions` fields in the index definition. However, you can edit or add `filter` type fields. If you need to change the index configuration for the `autoEmbed` type fields, you must create a new index with your desired configuration and then delete the old index.",
+          "source": "https://www.mongodb.com/docs/vector-search/indexes/vector-search-type.md#index-limitations",
+          "note": null
+        },
+        {
+          "text": "We’ve tried to present this argument carefully. We’re also aware that a blog post is not a substitute for your own measurements. If you’re evaluating zembed-1 against an MRL-trained alternative, the right thing to do is run both models against a representative slice of your own query–document pairs and look at the numbers. Our benchmarking harness is open source; the weights are on HuggingFace. If you find something we didn’t, we’d like to hear about it.",
+          "source": "https://zeroentropy.dev/articles/matryoshka-is-dead/",
+          "note": "vendor blog caveat"
+        },
+        {
+          "text": "You can change the [index definition](https://www.mongodb.com/docs/vector-search/indexes/vector-search-type.md#std-label-avs-types-vector-search) of an existing MongoDB Vector Search index from the Atlas UI, Atlas Administration API, Atlas CLI, [`mongosh`](https://www.mongodb.com/docs/mongodb-shell.md#mongodb-binary-bin.mongosh), or a supported [MongoDB Driver](https://www.mongodb.com/docs/drivers/). You can't rename an index or change the index type. If you need to change an index name or type, you must create a new index and delete the old one.",
+          "source": "https://www.mongodb.com/docs/vector-search/indexes/vector-search-type.md#edit-a-mongodb-vector-search-index",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Comparisons and alternatives",
+      "facts": [
+        {
+          "text": "ZeroEntropy (a competing embedding vendor) argues MRL is not lossless: on its internal 22-dataset harness a learned post-hoc projection beat the best MRL configuration by about 0.02-0.03 NDCG@10 from 2560 down to 80 dimensions, and it says the original MRL paper's equal-accuracy claim was shown on ImageNet, not text retrieval. The evaluation uses LLM-judged relevance and is unreplicated.",
+          "source": "https://zeroentropy.dev/articles/matryoshka-is-dead/",
+          "note": "vendor blog, unreplicated"
+        },
+        {
+          "text": "The findings cast doubt on the general efficacy of allocating model and training complexity to MRL when moderate dimensionality reductions suffice. The robustness of modern (contrastively trained) embeddings to simple deterministic truncation suggests an inherent efficiency in current representation learning objectives and architectures. MRL’s benefit is confined to extreme dimensionality constraints, as might be crucial for edge deployment or high-volume query scenarios. The implication is that MRL should only be considered when targeting vector size reductions above 80%, or where predictable",
+          "source": "https://www.emergentmind.com/papers/2605.16608",
+          "note": "paper summary"
+        },
+        {
+          "text": "A May 2026 study (arXiv 2605.16608) reports that truncated embeddings of ordinary non-MRL models are competitive with, and often beat, MRL-trained models up to roughly 70-80% size reduction; MRL helps mainly at heavier truncation (about 80%+), mostly for smaller models.",
+          "source": "https://www.emergentmind.com/papers/2605.16608",
+          "note": "study of non-MRL truncation"
+        },
+        {
+          "text": "The literature is correct that MRL beats post-hoc PCA . PCA is unsupervised: it maximizes variance in the embedding space, with no knowledge of the retrieval task. Our projection matrices are trained with the same reranker-distillation KL objective that trained zembed-1 itself — a supervised, task-aware objective that directly optimizes retrieval quality at the target dimension. The Mindstudio and Kusupati critiques of “post-hoc dimensionality reduction” apply to variance-based methods. They don’t apply to a learned, reranker -distilled projection.",
+          "source": "https://zeroentropy.dev/articles/matryoshka-is-dead/",
+          "note": "vendor blog"
+        },
+        {
+          "text": "This work demonstrates that text embedding models, when trained with standard contrastive objectives, are robust to truncation up to substantial levels, obviating the need for Matryoshka Representation Learning except under scenarios of very high (≥80%) dimensionality reduction. The empirical evidence is robust across model sizes, tasks, and architectures.",
+          "source": "https://www.emergentmind.com/papers/2605.16608",
+          "note": null
+        },
+        {
+          "text": "Matryoshka Representation Learning (MRL) is not lossless. On our eval harness, every MRL-trained configuration of zembed-1 sat on the same strict Pareto frontier. This frontier is structural: you can slide along it; you can’t move it. A learned, post-hoc projection dominates the entire MRL frontier — at full dim and at simultaneously.",
+          "source": "https://zeroentropy.dev/articles/matryoshka-is-dead/",
+          "note": "vendor blog, competing embedding vendor"
+        },
+        {
+          "text": "It demonstrates through comprehensive experiments on retrieval and classification tasks that MRL only offers benefits under extreme truncation (≥80%), especially in smaller models.",
+          "source": "https://www.emergentmind.com/papers/2605.16608",
+          "note": null
+        },
+        {
+          "text": "Third, we aren’t the only ones measuring the tax. Wen et al. (2025) conclude that MRL is “a costly and lossy method for adaptive representation,” and propose replacing it with sparse coding. SMEC (EMNLP 2025) frames the problem from a different angle — a learned per-dimension importance gate on top of MRL-trained embeddings — but reaches the same diagnosis: MRL’s nested loss leaves recoverable information on the table. Marqo’s CLIP + MRL study finds that a pre-truncation linear projection beats MRL on novel-document and zero-shot splits at small dimensions — consistent with the pattern we see",
+          "source": "https://zeroentropy.dev/articles/matryoshka-is-dead/",
+          "note": "vendor blog"
+        },
+        {
+          "text": "We should also be direct about what we’re giving up. MRL gives you one genuine property our projections don’t: any prefix of any length is a valid embedding. If your retrieval pipeline depends on adaptive single-vector reranking — shortlist at 64 dims, rerank at 2560 using the same stored vector, with arbitrary intermediate stages — that flexibility is worth something.",
+          "source": "https://zeroentropy.dev/articles/matryoshka-is-dead/",
+          "note": "vendor blog"
+        }
+      ]
+    },
+    {
+      "title": "Changes and history",
+      "facts": [
+        {
+          "text": "In the meantime: MRL served a purpose. It made flexible dimensions a product feature. It pushed the field to think about embedding geometry as something you shape during training rather than something you inherit from the loss. We’re grateful for the idea. We just don’t think it’s the best tool for the job anymore.",
+          "source": "https://zeroentropy.dev/articles/matryoshka-is-dead/",
+          "note": "vendor blog"
+        }
+      ]
+    },
+    {
+      "title": "Facts and statements",
+      "facts": [
+        {
+          "text": "The pursuit of storage- and compute-efficient text representations underpins several practical and large-scale NLP applications such as document retrieval and recommendation. Matryoshka Representation Learning (MRL) has become a prevalent training paradigm, enabling text encoder models to yield embeddable feature vectors at multiple, predetermined dimensionalities by truncation. The core hypothesis is that by explicitly optimizing for truncated embeddings, models achieve higher robustness to dimensionality reduction, especially under aggressive compression regimes. However, the actual necessit",
+          "source": "https://www.emergentmind.com/papers/2605.16608",
+          "note": null
+        },
+        {
+          "text": "We chose six fixed tiers because in practice every zembed-1 user we’ve talked to either stores at a fixed dimension or swaps dimensions at deploy time, not per-query. If you know you need continuous-dim truncation across the same stored vector, the trade-off goes the other way and MRL is the right tool. For the rest — the overwhelming majority of real-world RAG and search workloads — we think the to NDCG@10 we recover justifies the rigidity.",
+          "source": "https://zeroentropy.dev/articles/matryoshka-is-dead/",
+          "note": "vendor blog"
+        },
+        {
+          "text": "When we trained zembed-1 with MRL, we reproduced voyage-4’s NDCG@10 on our internal evals within noise. When we dropped MRL, we beat it. Voyage publicly confirms that all models in the Voyage 4 family use MRL. Both numbers are on our internal harness; we’ve open-sourced the benchmarking code at github.com/zeroentropy-ai/zbench so you can reproduce the comparison on your own data.",
+          "source": "https://zeroentropy.dev/articles/matryoshka-is-dead/",
+          "note": "vendor blog"
+        },
+        {
+          "text": "Abstract: Matryoshka Representation Learning (MRL) is a widely adopted approach for training text encoders so they provide useful text representations at various sizes, available by simply truncating the resulting vectors at sizes pre-determined at training time. Recent works have shown that randomly truncating text embeddings has minimal impact in downstream performance unless vectors are reduced in size by at least 70%, suggesting that embeddings are already robust to truncation without the use of MRL. However, no prior work has compared random truncation to MRL, so it is unclear how the two",
+          "source": "https://www.emergentmind.com/papers/2605.16608",
+          "note": "paper abstract"
+        },
+        {
+          "text": "Many databases that support vector storage and retrieval also support quantized embeddings, including MongoDB. To learn more about quantization in MongoDB Vector Search, see [About Quantization.](https://www.mongodb.com/docs/vector-search/indexes/vector-search-type.md#std-label-avs-quantization)",
+          "source": "https://www.mongodb.com/docs/voyageai/tutorials/dimensions-and-quantization.md#quantization",
+          "note": null
+        },
+        {
+          "text": "When we trained an MRL variant of zembed-1 — our 4B multilingual embedding model , released last month — and measured it against our internal evals, built from real-world retrieval traffic, that wasn’t what we saw.",
+          "source": "https://zeroentropy.dev/articles/matryoshka-is-dead/",
+          "note": "vendor blog"
+        }
+      ]
+    },
+    {
+      "title": "Disagreements",
+      "facts": [
+        {
+          "text": "A May 2026 study (arXiv 2605.16608) reports that truncated embeddings of ordinary non-MRL models are competitive with, and often beat, MRL-trained models up to roughly 70-80% size reduction; MRL helps mainly at heavier truncation (about 80%+), mostly for smaller models.",
+          "source": "https://www.emergentmind.com/papers/2605.16608",
+          "note": "study of non-MRL truncation",
+          "group": "c1"
+        },
+        {
+          "text": "Truncate only models documented as Matryoshka-trained (Voyage 4 series, OpenAI text-embedding-3) and re-normalize after slicing; validate recall on your own queries at the target dimension before re-indexing, since quality retention depends on model, corpus and query mix.",
+          "source": "https://www.mongodb.com/docs/voyageai/tutorials/dimensions-and-quantization.md",
+          "note": "recommendation: Matryoshka-trained models only",
+          "group": "c1"
+        },
+        {
+          "text": "The findings cast doubt on the general efficacy of allocating model and training complexity to MRL when moderate dimensionality reductions suffice. The robustness of modern (contrastively trained) embeddings to simple deterministic truncation suggests an inherent efficiency in current representation learning objectives and architectures. MRL’s benefit is confined to extreme dimensionality constraints, as might be crucial for edge deployment or high-volume query scenarios. The implication is that MRL should only be considered when targeting vector size reductions above 80%, or where predictable compression points are crucial.",
+          "source": "https://www.emergentmind.com/papers/2605.16608",
+          "note": "paper summary",
+          "group": "c1"
+        }
+      ]
+    }
+  ],
+  "related": [
+    {
+      "concept": "dimension truncation",
+      "relation": "is a synonym of Matryoshka Dimension Truncation for Vector Storage Cost",
+      "note": null
+    },
+    {
+      "concept": "quantization",
+      "relation": "is a dependent of Matryoshka Dimension Truncation for Vector Storage Cost",
+      "note": null
+    },
+    {
+      "concept": "vector storage cost",
+      "relation": "is a measure of Matryoshka Dimension Truncation for Vector Storage Cost",
+      "note": null
+    },
+    {
+      "concept": "Voyage AI embeddings",
+      "relation": "is a instance of Matryoshka Dimension Truncation for Vector Storage Cost",
+      "note": null
+    },
+    {
+      "concept": "shortened embeddings",
+      "relation": "is a synonym of Matryoshka Dimension Truncation for Vector Storage Cost",
+      "note": null
+    },
+    {
+      "concept": "retrieval quality loss",
+      "relation": "is a problem of Matryoshka Dimension Truncation for Vector Storage Cost",
+      "note": null
+    },
+    {
+      "concept": "scalar and binary quantization",
+      "relation": "is a dependent of Matryoshka Dimension Truncation for Vector Storage Cost",
+      "note": null
+    },
+    {
+      "concept": "text-embedding-3",
+      "relation": "is a instance of Matryoshka Dimension Truncation for Vector Storage Cost",
+      "note": null
+    },
+    {
+      "concept": "post-hoc projection",
+      "relation": "is a contrast of Matryoshka Dimension Truncation for Vector Storage Cost",
+      "note": null
+    },
+    {
+      "concept": "RAM reduction ratio",
+      "relation": "is a measure of Matryoshka Dimension Truncation for Vector Storage Cost",
+      "note": null
+    },
+    {
+      "concept": "numDimensions",
+      "relation": "is a part of Matryoshka Dimension Truncation for Vector Storage Cost",
+      "note": null
+    },
+    {
+      "concept": "truncation vs MRL study",
+      "relation": "is a instance of Matryoshka Dimension Truncation for Vector Storage Cost",
+      "note": null
+    },
+    {
+      "concept": "re-indexing",
+      "relation": "is a problem of Matryoshka Dimension Truncation for Vector Storage Cost",
+      "note": null
+    },
+    {
+      "concept": "autoEmbed dimension options",
+      "relation": "is a part of Matryoshka Dimension Truncation for Vector Storage Cost",
+      "note": null
+    },
+    {
+      "concept": "search node tier",
+      "relation": "is a related of Matryoshka Dimension Truncation for Vector Storage Cost",
+      "note": null
+    }
+  ]
+}

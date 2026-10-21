@@ -1,0 +1,678 @@
+{
+  "slug": "cost-governance-guardrails-resource-policies-and-iac-cost-controls",
+  "concept": "Cost Governance Guardrails (Resource Policies and IaC Cost Controls)",
+  "generated": "2026-10-19",
+  "summary": "Atlas cost guardrails are preventive or detective, and none hard-stops billing: the preventive control is Atlas Resource Policies, organization-level Cedar forbid-only rules that are allow-by-default and not retroactive and that cap cluster tier and auto-scaling bounds, disk size, clusters per project, topology, shard count, cloud provider and region, managed through the UI, the Atlas Administration API, Terraform (mongodbatlas_resource_policy), Pulumi or CloudFormation, while the detective controls are project-level \"Monthly pending invoice\" billing alerts, Cost Explorer, resource tags, and pausing or terminating dev and test clusters. The pack draws on 6 sources (MongoDB docs, MongoDB blog, Atlas Architecture Center, Pulumi registry, Foojay, MongoDB feedback portal) and covers definitions, parameters, mechanism, how-to, examples, problems and facts. It flags 1 disagreement, about whether a monthly project billing alert exists.",
+  "facets": [
+    {
+      "title": "Definitions",
+      "facts": [
+        {
+          "text": "Atlas Resource Policies are org-level, Cedar-based, forbid-only rules (permit is not supported). With no policies, users can do anything their role allows.",
+          "source": "https://www.mongodb.com/en-us/docs/atlas/atlas-resource-policies/",
+          "note": null
+        },
+        {
+          "text": "Resource Policies are organization-level rules in Atlas that are automatically enforced across all projects and clusters under that organization. Their goal is straightforward yet powerful: to restrict specific actions or configurations that could compromise security, increase costs, or violate compliance standards.",
+          "source": "https://foojay.io/today/enforcing-governance-in-mongodb-atlas-with-resource-policies/",
+          "note": null
+        },
+        {
+          "text": "MongoDB Atlas Resource Policies address this by defining and enforcing which cluster configurations are allowed across your organization, including approved cluster topologies (replica set, sharded, or global clusters) and minimum shard counts. These guardrails guide teams toward decisions that align with your architectural goals while creating the predictability needed for accurate capacity planning.",
+          "source": "https://mongodb.com/company/blog/innovation/control-mongodb-atlas-cluster-configurations-with-resource-policies",
+          "note": null
+        },
+        {
+          "text": "Atlas Resource Policies are controls that enable Organization Owners to constrain the specific configuration options available to developers when they create or configure Atlas clusters.",
+          "source": "https://www.mongodb.com/en-us/docs/atlas/atlas-resource-policies/",
+          "note": null
+        },
+        {
+          "text": "MongoDB uses the open-source Cedar policy language to define Atlas Resource Policies. Cedar's design balances expressiveness with simplicity, employing a concise syntax that streamlines both writing and understanding resource policies.",
+          "source": "https://www.mongodb.com/en-us/docs/atlas/atlas-resource-policies/",
+          "note": null
+        },
+        {
+          "text": "mongodbatlas.ResourcePolicy provides a Resource Policy resource. The resource lets you create, edit and delete resource policies to prevent misconfigurations and reduce the need for corrective interventions in your organization.",
+          "source": "https://www.pulumi.com/registry/packages/mongodbatlas/api-docs/resourcepolicy",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "How it works",
+      "facts": [
+        {
+          "text": "These policies create multiple independent barriers to configuration problems. The disk size limit controls storage costs. The sharded cluster requirement ensures production deployments can scale horizontally. The minimum shard count prevents under-sharded deployments. The cluster tier restriction ensures production clusters use appropriately sized instances: not too small (below M30) to handle production workloads, and not unnecessarily large (above M60) without architectural review. The region restrictions meet data residency requirements. The wildcard blocking prevents network security viol",
+          "source": "https://mongodb.com/company/blog/innovation/control-mongodb-atlas-cluster-configurations-with-resource-policies",
+          "note": null
+        },
+        {
+          "text": "Without proper tagging, your Atlas bill becomes obfuscated where it's impossible to track which teams or projects are driving costs. Resource tagging transforms your Cost Explorer into a powerful accountability tool, making it easy to identify cost trends, allocate expenses accurately, and spot optimization opportunities by department or workload type.",
+          "source": "https://mongodb.com/docs/atlas/architecture/current/cost-saving-config",
+          "note": null
+        },
+        {
+          "text": "Atlas Resource Policies are allow-by-default. If no Atlas Resource Policies exist, users can perform all actions on Atlas clusters that their Atlas user role allows.",
+          "source": "https://www.mongodb.com/en-us/docs/atlas/atlas-resource-policies/",
+          "note": null
+        },
+        {
+          "text": "By default, Atlas Resource Policies are organization-wide. These policies automatically enforce standards across all projects and clusters within the organization.",
+          "source": "https://www.mongodb.com/en-us/docs/atlas/atlas-resource-policies/",
+          "note": null
+        },
+        {
+          "text": "However, Atlas provides flexibility. You can exclude specific projects from an Atlas Resource Policy. This functionality allows most projects to inherit consistent organization-wide standards while enabling exceptions for cases with unique requirements.",
+          "source": "https://www.mongodb.com/en-us/docs/atlas/atlas-resource-policies/",
+          "note": null
+        },
+        {
+          "text": "Checks if the current operation is converting a replica set to a sharded cluster. Required when enforcing minimum shard counts to allow the initial transition.",
+          "source": "https://www.mongodb.com/en-us/docs/atlas/atlas-resource-policies/",
+          "note": null
+        },
+        {
+          "text": "This policy requires sharded clusters to have at least three shards and denies the use of replica sets (since all replica sets have only one shard), preventing the deployment of under-sharded configurations. The policy includes an important exception: !context.cluster.isConvertingToSharded. This exception allows existing clusters to transition through a temporary single-shard state during replica set to sharded cluster conversions.",
+          "source": "https://mongodb.com/company/blog/innovation/control-mongodb-atlas-cluster-configurations-with-resource-policies",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Parameters and configuration",
+      "facts": [
+        {
+          "text": "Terraform resource mongodbatlas_resource_policy takes org_id, name, optional description and a policies list whose body holds Cedar text. It is imported as {ORG_ID}-{POLICY_ID}. Policies can be committed and run through CI. Atlas docs also list the Admin API, UI and CloudFormation. Only Organization Owners can create, update or delete policies.",
+          "source": "https://www.pulumi.com/registry/packages/mongodbatlas/api-docs/resourcepolicy",
+          "note": null
+        },
+        {
+          "text": "Cost-relevant policy dimensions include min/max cluster tier and autoscaling bounds (minGeneralClassInstanceSizeValue, maxGeneralClassInstanceSizeValue), disk size (diskSizeGB), clusters per project (context.project.clustersInProject), topology, shard count, cloud provider and region. The tier cap does not cover Low CPU or NVMe SSD classes.",
+          "source": "https://www.mongodb.com/en-us/docs/atlas/atlas-resource-policies/",
+          "note": null
+        },
+        {
+          "text": "In addition to the Atlas UI and the Atlas Administration API, you can use the HashiCorp Terraform MongoDB Atlas Provider, MongoDB Atlas AWS CloudFormation Resources, or AWS CloudFormation to configure and manage Atlas Resource Policies.",
+          "source": "https://www.mongodb.com/en-us/docs/atlas/atlas-resource-policies/",
+          "note": null
+        },
+        {
+          "text": "Enforce minimum and maximum cluster tiers and auto-scaling sizes across your organization. If enabled, this policy prevents users from provisioning, updating, or auto-scaling clusters to a tier above or below a specified threshold.",
+          "source": "https://www.mongodb.com/en-us/docs/atlas/atlas-resource-policies/",
+          "note": null
+        },
+        {
+          "text": "Our implemented version of Cedar policy language supports only one Cedar policy per .cedar file, but you can list multiple Cedar policies (.cedar files) in your Atlas Resource Policy. Each .cedar file is identified in the Atlas Administration API response as a unique 24-hexadecimal character string after policies.id.",
+          "source": "https://www.mongodb.com/en-us/docs/atlas/atlas-resource-policies/",
+          "note": null
+        },
+        {
+          "text": "For example, ResourcePolicy::Region::\"aws:us-east-1\". For a list of available regions by cloud provider see Amazon Web Services (AWS), Google Cloud, or Microsoft Azure. When used with search.deployment.modify, contains the regions of MongoDB Search nodes after the request completes. For deletion operations, this value is empty.",
+          "source": "https://www.mongodb.com/en-us/docs/atlas/atlas-resource-policies/",
+          "note": null
+        },
+        {
+          "text": "The Official MongoDB Atlas Organization Module makes use of this resource and simplifies resource policy management.",
+          "source": "https://www.pulumi.com/registry/packages/mongodbatlas/api-docs/resourcepolicy",
+          "note": null
+        },
+        {
+          "text": "To create, update, or delete an Atlas Resource Policy, you must have Organization Owner access to Atlas.",
+          "source": "https://www.mongodb.com/en-us/docs/atlas/atlas-resource-policies/",
+          "note": null
+        },
+        {
+          "text": "Limit the number of clusters that can be created in a project.",
+          "source": "https://www.mongodb.com/en-us/docs/atlas/atlas-resource-policies/",
+          "note": null
+        },
+        {
+          "text": "Limit cluster deployment to specific cloud platforms (AWS, Google Cloud, Azure).",
+          "source": "https://www.mongodb.com/en-us/docs/atlas/atlas-resource-policies/",
+          "note": null
+        },
+        {
+          "text": "Restrict cluster deployment to designated regions within a cloud provider. For example, aws:us-east-1.",
+          "source": "https://www.mongodb.com/en-us/docs/atlas/atlas-resource-policies/",
+          "note": null
+        },
+        {
+          "text": "Enforce minimum and maximum disk size for all clusters.",
+          "source": "https://www.mongodb.com/en-us/docs/atlas/atlas-resource-policies/",
+          "note": null
+        },
+        {
+          "text": "Enforce the use of a specific cluster topology only (replica set, sharded cluster, or global cluster).",
+          "source": "https://www.mongodb.com/en-us/docs/atlas/atlas-resource-policies/",
+          "note": null
+        },
+        {
+          "text": "Enforce a minimum and maximum number of shards for sharded clusters.",
+          "source": "https://www.mongodb.com/en-us/docs/atlas/atlas-resource-policies/",
+          "note": null
+        },
+        {
+          "text": "Specifies the cluster topology: replica set, sharded cluster, or global cluster.",
+          "source": "https://www.mongodb.com/en-us/docs/atlas/atlas-resource-policies/",
+          "note": null
+        },
+        {
+          "text": "The current actual number of shards. Use only to enforce minimum shard counts. WARNING: Do not use this property to enforce maximums.",
+          "source": "https://www.mongodb.com/en-us/docs/atlas/atlas-resource-policies/",
+          "note": null
+        },
+        {
+          "text": "Sets the minimum cluster tier for scaling the cluster down to.",
+          "source": "https://www.mongodb.com/en-us/docs/atlas/atlas-resource-policies/",
+          "note": null
+        },
+        {
+          "text": "Specifies the number of clusters currently in a project.",
+          "source": "https://www.mongodb.com/en-us/docs/atlas/atlas-resource-policies/",
+          "note": null
+        },
+        {
+          "text": "Use minShardCount to enforce minimums only (for example, < 3) and maxShardCount to enforce maximums only (for example, > 10). Using opposite comparison operators with these properties causes policy evaluation errors.",
+          "source": "https://www.mongodb.com/en-us/docs/atlas/atlas-resource-policies/",
+          "note": null
+        },
+        {
+          "text": "Only use minShardCount to enforce minimums and maxShardCount to enforce maximums. Doing otherwise can cause policy evaluation errors.",
+          "source": "https://mongodb.com/company/blog/innovation/control-mongodb-atlas-cluster-configurations-with-resource-policies",
+          "note": null
+        },
+        {
+          "text": "Scaling down occurs once every six hours and must match specific conditions. To learn more, see Scaling Down a Cluster Tier.",
+          "source": "https://mongodb.com/docs/atlas/architecture/current/cost-saving-config",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "How-to and procedures",
+      "facts": [
+        {
+          "text": "Atlas cost guidance pairs detective controls with IaC levers: consistent tags (team, env, cost center) feed Cost Explorer; dev/test clusters can be paused (paused=true) or terminated via Terraform or the Admin API on a schedule; autoscale-down happens at most once per six hours; manual scale-down is suggested when usage stays below about 45% over 30 days.",
+          "source": "https://mongodb.com/docs/atlas/architecture/current/cost-saving-config",
+          "note": null
+        },
+        {
+          "text": "Project-level billing alert: Alerts > Add Project Alert > Billing > 'Monthly pending invoice ($) total is...' with an operator, threshold and notification channels. It tracks cumulative billed amount for the current calendar month. It notifies only and does not stop spend. The Atlas cost docs recommend an alert at a set amount (example $100).",
+          "source": "https://feedback.mongodb.com/ideas/CUSTOMER-I-10398",
+          "note": "monthly pending invoice alert exists at project level"
+        },
+        {
+          "text": "To create an Atlas Resource Policy, use the following procedure to construct a policy by using Cedar policy language and add to Atlas by using the Atlas UI, the Atlas Administration API, or Terraform.",
+          "source": "https://www.mongodb.com/en-us/docs/atlas/atlas-resource-policies/",
+          "note": null
+        },
+        {
+          "text": "Many teams start with larger clusters and forget to adjust as they learn their real usage patterns. Atlas offers Low CPU options for lighter workloads and flexible sizing that lets you match resources to reality instead of guesswork. Right-sizing is often the single biggest cost lever you can pull.",
+          "source": "https://mongodb.com/docs/atlas/architecture/current/cost-saving-config",
+          "note": null
+        },
+        {
+          "text": "For dedicated clusters, consider scaling down to a lower tier or pausing the cluster if you won't use it for an extended period.",
+          "source": "https://mongodb.com/docs/atlas/architecture/current/cost-saving-config",
+          "note": null
+        },
+        {
+          "text": "Consider terminating unused dev and test clusters after a set amount of time and sufficient email alerts to the cluster owner.",
+          "source": "https://mongodb.com/docs/atlas/architecture/current/cost-saving-config",
+          "note": null
+        },
+        {
+          "text": "To create an Atlas Resource Policy by using Terraform, configure the MongoDB Atlas Terraform Provider, then construct a policy by using Cedar policy language and specifying it in your main.tf Terraform file.",
+          "source": "https://www.mongodb.com/en-us/docs/atlas/atlas-resource-policies/",
+          "note": null
+        },
+        {
+          "text": "You can also manually move to a lower cluster tier by regularly monitoring the cluster's CPU, WireTiger cache, memory, and IOPs over a rolling 30 day period of normal use. Generally, if the usage is steadily below 45% of allocated resources, we recommend that you scale down.",
+          "source": "https://mongodb.com/docs/atlas/architecture/current/cost-saving-config",
+          "note": null
+        },
+        {
+          "text": "To create an Atlas Resource Policy using the Atlas Administration API, construct a policy using Cedar policy language and pass it in to the Atlas Administration API via a POST request using the policies parameter.",
+          "source": "https://www.mongodb.com/en-us/docs/atlas/atlas-resource-policies/",
+          "note": null
+        },
+        {
+          "text": "We recommend creating multiple, simple Atlas Resource Policies to make tracking easier. For example, if you want to restrict cloud provider and multiple regions, consider creating one Atlas Resource Policy that restricts the cloud provider and another Atlas Resource Policy that restricts the regions.",
+          "source": "https://www.mongodb.com/en-us/docs/atlas/atlas-resource-policies/",
+          "note": null
+        },
+        {
+          "text": "Terraform cluster resource by setting the termination_protection_enabled field to false.",
+          "source": "https://mongodb.com/docs/atlas/architecture/current/cost-saving-config",
+          "note": null
+        },
+        {
+          "text": "Enable a cron job to pause dev and test clusters during the night when no one actively develops against the cluster. You can pause clusters with the Atlas Administration API by setting the paused field to true when using either of the following methods:",
+          "source": "https://mongodb.com/docs/atlas/architecture/current/cost-saving-config",
+          "note": null
+        },
+        {
+          "text": "Atlas Administration API by using the Remove One Cluster endpoint.",
+          "source": "https://mongodb.com/docs/atlas/architecture/current/cost-saving-config",
+          "note": null
+        },
+        {
+          "text": "We strongly recommend that you proactively monitor your list of non-compliant resources using the /orgs/{ORG-ID}/nonCompliantResources endpoint. Atlas Resource Policies ensure compliance with defined goals but do not enforce intermediate or transitional states. For example, if a downstream component fails, the policy may temporarily enter a non-compliant intermediate state.",
+          "source": "https://www.mongodb.com/en-us/docs/atlas/atlas-resource-policies/",
+          "note": null
+        },
+        {
+          "text": "To return a list of existing clusters that do not conform to your Atlas Resource Policy, use the GET /orgs/{ORG-ID}/nonCompliantResources resource.",
+          "source": "https://www.mongodb.com/en-us/docs/atlas/atlas-resource-policies/",
+          "note": null
+        },
+        {
+          "text": "terraform import mongodbatlas_resource_policy.cloud_region 65def6ce0f722a1507105aa5-66f1c018dba9c04e7dcfaf36",
+          "source": "https://www.pulumi.com/registry/packages/mongodbatlas/api-docs/resourcepolicy",
+          "note": null
+        },
+        {
+          "text": "Implement minimum-shard-count policies when your organization has adopted sharded clusters and wants to ensure they are deployed properly. If you have had to add shards reactively during production incidents, enforcing minimums from the start prevents repeating that experience.",
+          "source": "https://mongodb.com/company/blog/innovation/control-mongodb-atlas-cluster-configurations-with-resource-policies",
+          "note": null
+        },
+        {
+          "text": "Enable auto-scaling on your cluster tier to match your usage and prevent over-provisioning.",
+          "source": "https://mongodb.com/docs/atlas/architecture/current/cost-saving-config",
+          "note": null
+        },
+        {
+          "text": "We recommend that you use M10 or M30 clusters for development and test environments. To learn more, see Atlas Cluster Size Guide.",
+          "source": "https://mongodb.com/docs/atlas/architecture/current/cost-saving-config",
+          "note": null
+        },
+        {
+          "text": "Regularly use the Cost Explorer tool to monitor spending patterns at the organization, project, cluster, and service levels. Set a frequency that works for your needs.",
+          "source": "https://mongodb.com/docs/atlas/architecture/current/cost-saving-config",
+          "note": null
+        },
+        {
+          "text": "Configure billing alerts for key thresholds, such as when your monthly costs exceed a certain amount. For example, set an alert when costs exceed $100. This proactive approach helps you avoid surprises.",
+          "source": "https://mongodb.com/docs/atlas/architecture/current/cost-saving-config",
+          "note": null
+        },
+        {
+          "text": "If you see unexpected changes on your invoice, check your cloud computing costs, which are often the largest portion of your bill. You can review cloud computing costs in the Summary By Service card of any invoice within the Atlas Billing section. The Summary By Service view shows the costs of all clusters by provider, tier, and region.",
+          "source": "https://mongodb.com/docs/atlas/architecture/current/cost-saving-config",
+          "note": null
+        },
+        {
+          "text": "Hi, MongoDB Atlas already supports monthly billing alerts at the project level. Please see attached screenshot for details.",
+          "source": "https://feedback.mongodb.com/ideas/CUSTOMER-I-10398",
+          "note": "MongoDB admin reply, Jan 2026: project-level monthly alert exists"
+        },
+        {
+          "text": "You can configure it by navigating to your project’s Alerts setting (not Organizational Alerts), selecting Billing as the category, and choosing “Monthly pending invoice ($) total is…” as the condition/metric. This lets you set a threshold for the accumulated billed amount in the current calendar month.",
+          "source": "https://feedback.mongodb.com/ideas/CUSTOMER-I-10398",
+          "note": null
+        },
+        {
+          "text": "Use Performance Advisor and cluster metrics to identify oversized clusters. Look for consistently low System Max: User CPU utilization (under 45%) or excess RAM that's never fully utilized. Then downsize to a tier that better matches your actual workload patterns.",
+          "source": "https://mongodb.com/docs/atlas/architecture/current/cost-saving-config",
+          "note": null
+        },
+        {
+          "text": "Apply consistent tags to your Atlas projects and clusters by team, environment, or cost center. Use descriptive tags like \"team-marketing\", \"env-production\", or \"project-mobile-app\" to create clear ownership and spending visibility across your organization.",
+          "source": "https://mongodb.com/docs/atlas/architecture/current/cost-saving-config",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Examples and snippets",
+      "facts": [
+        {
+          "text": "Example cost cap: forbid cluster.modify when min tier is below M30 or max tier is above M60; forbid diskSizeGB above 4096; forbid clustersInProject above 2. This blocks provisioning and manual or auto scaling outside the range.",
+          "source": "https://www.mongodb.com/en-us/docs/atlas/atlas-resource-policies/",
+          "note": null
+        },
+        {
+          "text": "Code Snippet// Prevent excessive storage costs forbid (principal, action == ResourcePolicy::Action::\"cluster.modify\", resource) when { context.cluster has diskSizeGB && context.cluster.diskSizeGB > 4096 };",
+          "source": "https://mongodb.com/company/blog/innovation/control-mongodb-atlas-cluster-configurations-with-resource-policies",
+          "note": "blog comment: prevent excessive storage costs"
+        },
+        {
+          "text": "\"body\": \"forbid (principal, action == ResourcePolicy::Action::\\\"cluster.modify\\\", resource) when { context.project.clustersInProject > 2 };\"",
+          "source": "https://www.mongodb.com/en-us/docs/atlas/atlas-resource-policies/",
+          "note": "forbid more than 2 clusters per project"
+        },
+        {
+          "text": "\"body\": \"forbid (principal, action == ResourcePolicy::Action::\\\"cluster.modify\\\", resource) when { context.cluster.cloudProviders.contains(ResourcePolicy::CloudProvider::\\\"gcp\\\") };\"",
+          "source": "https://www.mongodb.com/en-us/docs/atlas/atlas-resource-policies/",
+          "note": "forbid Google Cloud clusters"
+        },
+        {
+          "text": "\"body\": \"forbid(principal, action == ResourcePolicy::Action::\\\"cluster.modify\\\", resource) unless { context.cluster.cloudProviders == [ResourcePolicy::CloudProvider::\\\"gcp\\\"] };\"",
+          "source": "https://www.mongodb.com/en-us/docs/atlas/atlas-resource-policies/",
+          "note": "allow only Google Cloud clusters"
+        },
+        {
+          "text": "\"body\": \"forbid (principal, action == ResourcePolicy::Action::\\\"cluster.modify\\\", resource) when { resource in ResourcePolicy::Project::\\\"6217f7fff7957854e2d09179\\\" && context.cluster.cloudProviders == [ResourcePolicy::CloudProvider::\\\"gcp\\\"] };\"",
+          "source": "https://www.mongodb.com/en-us/docs/atlas/atlas-resource-policies/",
+          "note": null
+        },
+        {
+          "text": "\"body\": \"forbid (principal,action == ResourcePolicy::Action::\\\"cluster.modify\\\",resource) when {context.cluster.regions.contains(ResourcePolicy::Region::\\\"aws:us-east-1\\\")};\"",
+          "source": "https://www.mongodb.com/en-us/docs/atlas/atlas-resource-policies/",
+          "note": "forbid region aws:us-east-1"
+        },
+        {
+          "text": "\"body\": \"forbid(principal, action == ResourcePolicy::Action::\\\"cluster.modify\\\", resource) when { context.cluster.regions.containsAny([ResourcePolicy::Region::\\\"aws:us-east-1\\\", ResourcePolicy::Region::\\\"aws:us-west-1\\\", ResourcePolicy::Region::\\\"azure:westeurope\\\"]) };\"",
+          "source": "https://www.mongodb.com/en-us/docs/atlas/atlas-resource-policies/",
+          "note": null
+        },
+        {
+          "text": "\"body\": \"forbid(principal, action == ResourcePolicy::Action::\\\"cluster.modify\\\", resource) unless { [ResourcePolicy::Region::\\\"aws:us-east-1\\\", ResourcePolicy::Region::\\\"azure:westeurope\\\"].containsAll(context.cluster.regions) };\"",
+          "source": "https://www.mongodb.com/en-us/docs/atlas/atlas-resource-policies/",
+          "note": "allow only listed regions"
+        },
+        {
+          "text": "\"body\": \"forbid(principal, action == ResourcePolicy::Action::\\\"cluster.modify\\\", resource) when { (context.cluster has minGeneralClassInstanceSizeValue && context.cluster.minGeneralClassInstanceSizeValue < 30) || (context.cluster has maxGeneralClassInstanceSizeValue && context.cluster.maxGeneralClassInstanceSizeValue > 60) };\"",
+          "source": "https://www.mongodb.com/en-us/docs/atlas/atlas-resource-policies/",
+          "note": "forbid tiers outside M30 to M60"
+        },
+        {
+          "text": "\"body\": \"forbid (principal, action == ResourcePolicy::Action::\\\"cluster.modify\\\", resource) when { context.cluster has diskSizeGB && context.cluster.diskSizeGB > 4096 };\"",
+          "source": "https://www.mongodb.com/en-us/docs/atlas/atlas-resource-policies/",
+          "note": "forbid disk size above 4096 GB"
+        },
+        {
+          "text": "\"body\": \"forbid (principal, action == ResourcePolicy::Action::\\\"cluster.modify\\\", resource) when { context.cluster.minShardCount < 3 && !context.cluster.isConvertingToSharded };\"",
+          "source": "https://www.mongodb.com/en-us/docs/atlas/atlas-resource-policies/",
+          "note": "minimum 3 shards"
+        },
+        {
+          "text": "// Require sharded clusters for production scalability forbid (principal, action == ResourcePolicy::Action::\"cluster.modify\", resource) unless { context.cluster.clusterType == ResourcePolicy::ClusterType::\"sharded\" };",
+          "source": "https://mongodb.com/company/blog/innovation/control-mongodb-atlas-cluster-configurations-with-resource-policies",
+          "note": "require sharded clusters"
+        },
+        {
+          "text": "// Ensure adequate shard distribution forbid (principal, action == ResourcePolicy::Action::\"cluster.modify\", resource) when { context.cluster.minShardCount < 3 && !context.cluster.isConvertingToSharded };",
+          "source": "https://mongodb.com/company/blog/innovation/control-mongodb-atlas-cluster-configurations-with-resource-policies",
+          "note": "blog comment: ensure adequate shard distribution"
+        },
+        {
+          "text": "// Restrict cluster tier sizes (M30 minimum, M60 maximum) forbid (principal, action == ResourcePolicy::Action::\"cluster.modify\", resource) when { (context.cluster has minGeneralClassInstanceSizeValue && context.cluster.minGeneralClassInstanceSizeValue < 30) || (context.cluster has maxGeneralClassInstanceSizeValue && context.cluster.maxGeneralClassInstanceSizeValue > 60) };",
+          "source": "https://mongodb.com/company/blog/innovation/control-mongodb-atlas-cluster-configurations-with-resource-policies",
+          "note": "blog comment: M30 minimum, M60 maximum"
+        },
+        {
+          "text": "policies = [ { body = <<EOT forbid(principal, action == ResourcePolicy::Action::\"cluster.modify\", resource) unless { context.cluster.cloudProviders == [ResourcePolicy::CloudProvider::\"aws\"] }; EOT } ] }",
+          "source": "https://foojay.io/today/enforcing-governance-in-mongodb-atlas-with-resource-policies/",
+          "note": "Terraform HCL"
+        },
+        {
+          "text": "For example, context.cluster.minGeneralClassInstanceSizeValue < 30 matches clusters whose current tier or minimum auto-scaling size is less than M30.",
+          "source": "https://www.mongodb.com/en-us/docs/atlas/atlas-resource-policies/",
+          "note": null
+        },
+        {
+          "text": "For example, context.cluster.maxGeneralClassInstanceSizeValue < 60 matches clusters whose current tier or maximum auto-scaling size is less than M60.",
+          "source": "https://www.mongodb.com/en-us/docs/atlas/atlas-resource-policies/",
+          "note": null
+        },
+        {
+          "text": "const resourcePolicyResource = new mongodbatlas.ResourcePolicy(\"resourcePolicyResource\", { orgId: \"string\", policies: [{ body: \"string\", id: \"string\", }], description: \"string\", name: \"string\", });",
+          "source": "https://www.pulumi.com/registry/packages/mongodbatlas/api-docs/resourcepolicy",
+          "note": "Pulumi TypeScript"
+        },
+        {
+          "text": "For example, context.cluster.diskSizeGB < 100 matches clusters with less than 100 GB of storage.",
+          "source": "https://www.mongodb.com/en-us/docs/atlas/atlas-resource-policies/",
+          "note": null
+        },
+        {
+          "text": "For example, context.cluster.minShardCount < 3 matches clusters that currently have fewer than three shards.",
+          "source": "https://www.mongodb.com/en-us/docs/atlas/atlas-resource-policies/",
+          "note": null
+        },
+        {
+          "text": "For example, context.cluster.maxShardCount > 10 matches clusters that have more than ten shards.",
+          "source": "https://www.mongodb.com/en-us/docs/atlas/atlas-resource-policies/",
+          "note": null
+        },
+        {
+          "text": "For example, context.project.clustersInProject <= 3 matches projects with three or fewer clusters.",
+          "source": "https://www.mongodb.com/en-us/docs/atlas/atlas-resource-policies/",
+          "note": null
+        },
+        {
+          "text": "curl --request GET \\ --user \"<PUBLIC-KEY>:<PRIVATE-KEY>\" \\ --digest \\ --header \"Accept: application/vnd.atlas.2024-08-05+json\" \\ \"https://cloud.mongodb.com/api/atlas/v2/orgs/<ORG_ID>/nonCompliantResources?pretty=true\"",
+          "source": "https://foojay.io/today/enforcing-governance-in-mongodb-atlas-with-resource-policies/",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Problems, failure modes and limitations",
+      "facts": [
+        {
+          "text": "Gotchas: duplicate policy names return 400 Bad Request; one policy per .cedar file; a minimum shard count above 1 needs a !context.cluster.isConvertingToSharded exception or replica-set to sharded conversions are blocked; TLS policies need Terraform provider 1.33.0 or later.",
+          "source": "https://www.mongodb.com/en-us/docs/atlas/atlas-resource-policies/",
+          "note": null
+        },
+        {
+          "text": "Existing non-compliant clusters are not fixed or blocked. They can only be changed in ways that bring them into compliance, and are flagged via the /orgs/{ORG-ID}/nonCompliantResources endpoint. Existing autoscaling limits outside a new policy can still scale automatically, but manual scaling beyond policy limits is blocked.",
+          "source": "https://www.mongodb.com/en-us/docs/atlas/atlas-resource-policies/",
+          "note": null
+        },
+        {
+          "text": "Resource policies bound configuration, not total spend. No Atlas control found hard-stops billing. Policies only limit cluster shape, so spend can still grow through number of allowed clusters, storage use within the cap, or data transfer.",
+          "source": "https://www.mongodb.com/en-us/docs/atlas/atlas-resource-policies/",
+          "note": null
+        },
+        {
+          "text": "If the auto-scaling limits on your existing cluster don't match the new Atlas Resource Policy, the cluster might exceed the policy's defined boundaries. To address this issue, use the /orgs/{ORG-ID}/nonCompliantResources endpoint to identify and monitor non-compliant resources so you can update them to meet policy requirements.",
+          "source": "https://www.mongodb.com/en-us/docs/atlas/atlas-resource-policies/",
+          "note": null
+        },
+        {
+          "text": "If existing auto-scaling limits exceed a new Atlas Resource Policy, the cluster can continue to scale automatically beyond policy boundaries. However, you cannot manually scale the cluster beyond the policy limits. Use the /orgs/{ORG-ID}/nonCompliantResources endpoint to identify and monitor non-compliant resources.",
+          "source": "https://www.mongodb.com/en-us/docs/atlas/atlas-resource-policies/",
+          "note": null
+        },
+        {
+          "text": "Our budgets and cost controls are defined monthly, not daily.",
+          "source": "https://feedback.mongodb.com/ideas/CUSTOMER-I-10398",
+          "note": null
+        },
+        {
+          "text": "Atlas treats a replica set as having a shard count of one. If you enforce a minimum shard count greater than one without checking whether clusters are sharded clusters, all replica sets in the project are marked as non-compliant.",
+          "source": "https://www.mongodb.com/en-us/docs/atlas/atlas-resource-policies/",
+          "note": null
+        },
+        {
+          "text": "Each Atlas Resource Policy must have a unique name. If you attempt to create an Atlas Resource Policy with an existing name, the server returns a 400 (Bad Request) status code.",
+          "source": "https://www.mongodb.com/en-us/docs/atlas/atlas-resource-policies/",
+          "note": null
+        },
+        {
+          "text": "It's possible to create identical Atlas Resource Policies with different names. While this doesn't cause functional conflicts, it can lead to redundancy and confusion in policy management.",
+          "source": "https://www.mongodb.com/en-us/docs/atlas/atlas-resource-policies/",
+          "note": null
+        },
+        {
+          "text": "This Atlas Resource Policy applies to all new clusters. For existing clusters that do not comply with the Atlas Resource Policy, Atlas only allows users to make changes to the cluster which brings the cluster into compliance. For example, if cluster0 runs on AWS and you apply an Atlas Resource Policy that blocks clusters on AWS, the only change users could make to cluster0 while it is non-compliant is switching the cloud provider to Azure or Google Cloud.",
+          "source": "https://www.mongodb.com/en-us/docs/atlas/atlas-resource-policies/",
+          "note": null
+        },
+        {
+          "text": "If you enforce a minimum shard count greater than one, you must explicitly allow the transition state for cluster conversions in your policy (for example, && !context.cluster.isConvertingToSharded). Without this exception, Atlas blocks users from converting a replica set to a sharded cluster because the conversion process requires an intermediate state where the cluster has only one shard.",
+          "source": "https://www.mongodb.com/en-us/docs/atlas/atlas-resource-policies/",
+          "note": null
+        },
+        {
+          "text": "This policy doesn't restrict clusters with a cluster class of Low CPU or NVMe SSD.",
+          "source": "https://www.mongodb.com/en-us/docs/atlas/atlas-resource-policies/",
+          "note": null
+        },
+        {
+          "text": "MongoDB Atlas treats replica sets as having a shard count of one internally. The policy above avoids marking replica sets as noncompliant by only evaluating when isConvertingToSharded is specified.",
+          "source": "https://mongodb.com/company/blog/innovation/control-mongodb-atlas-cluster-configurations-with-resource-policies",
+          "note": null
+        },
+        {
+          "text": "MongoDB Atlas currently provides billing alerts based on daily usage (Daily amount billed ($) is above), but there is no equivalent alert based on monthly accumulated spend at the project level.",
+          "source": "https://feedback.mongodb.com/ideas/CUSTOMER-I-10398",
+          "note": "customer claim, Dec 2025: only daily billing alerts"
+        },
+        {
+          "text": "⚠️ Important: MongoDB Atlas does not automatically fix or block existing resources. If a resource is out of compliance, it will remain unchanged — the system only reports the violation, enabling visibility without disruption.",
+          "source": "https://foojay.io/today/enforcing-governance-in-mongodb-atlas-with-resource-policies/",
+          "note": null
+        },
+        {
+          "text": "Daily alerts are useful for detecting sudden spikes, but they do not reflect how budgets are actually managed, which is usually on a monthly basis.",
+          "source": "https://feedback.mongodb.com/ideas/CUSTOMER-I-10398",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Facts and statements",
+      "facts": [
+        {
+          "text": "This Pulumi package is based on the mongodbatlas Terraform Provider.",
+          "source": "https://www.pulumi.com/registry/packages/mongodbatlas/api-docs/resourcepolicy",
+          "note": null
+        },
+        {
+          "text": "Avoiding inconsistencies across environments, such as usage of unauthorized regions or unbounded autoscaling.",
+          "source": "https://foojay.io/today/enforcing-governance-in-mongodb-atlas-with-resource-policies/",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Disagreements",
+      "facts": [
+        {
+          "text": "Project-level billing alert: Alerts > Add Project Alert > Billing > 'Monthly pending invoice ($) total is...' with an operator, threshold and notification channels. It tracks cumulative billed amount for the current calendar month. It notifies only and does not stop spend. The Atlas cost docs recommend an alert at a set amount (example $100).",
+          "source": "https://feedback.mongodb.com/ideas/CUSTOMER-I-10398",
+          "note": "monthly pending invoice alert exists at project level",
+          "group": "c1"
+        },
+        {
+          "text": "MongoDB Atlas currently provides billing alerts based on daily usage (Daily amount billed ($) is above), but there is no equivalent alert based on monthly accumulated spend at the project level.",
+          "source": "https://feedback.mongodb.com/ideas/CUSTOMER-I-10398",
+          "note": "customer claim, Dec 2025: only daily billing alerts",
+          "group": "c1"
+        },
+        {
+          "text": "Hi, MongoDB Atlas already supports monthly billing alerts at the project level. Please see attached screenshot for details.",
+          "source": "https://feedback.mongodb.com/ideas/CUSTOMER-I-10398",
+          "note": "MongoDB admin reply, Jan 2026: project-level monthly alert exists",
+          "group": "c1"
+        }
+      ]
+    }
+  ],
+  "related": [
+    {
+      "concept": "Atlas Resource Policies",
+      "relation": "is a part of Cost Governance Guardrails (Resource Policies and IaC Cost Controls)",
+      "note": null
+    },
+    {
+      "concept": "forbid",
+      "relation": "is a part of Cost Governance Guardrails (Resource Policies and IaC Cost Controls)",
+      "note": null
+    },
+    {
+      "concept": "shard count limits",
+      "relation": "is a part of Cost Governance Guardrails (Resource Policies and IaC Cost Controls)",
+      "note": null
+    },
+    {
+      "concept": "autoscaling bounds",
+      "relation": "is a part of Cost Governance Guardrails (Resource Policies and IaC Cost Controls)",
+      "note": null
+    },
+    {
+      "concept": "cloud provider and region restriction",
+      "relation": "is a part of Cost Governance Guardrails (Resource Policies and IaC Cost Controls)",
+      "note": null
+    },
+    {
+      "concept": "nonCompliantResources",
+      "relation": "is a problem of Cost Governance Guardrails (Resource Policies and IaC Cost Controls)",
+      "note": null
+    },
+    {
+      "concept": "Terraform",
+      "relation": "is a instance of Cost Governance Guardrails (Resource Policies and IaC Cost Controls)",
+      "note": null
+    },
+    {
+      "concept": "infrastructure as code",
+      "relation": "is a part of Cost Governance Guardrails (Resource Policies and IaC Cost Controls)",
+      "note": null
+    },
+    {
+      "concept": "Cedar",
+      "relation": "is a part of Cost Governance Guardrails (Resource Policies and IaC Cost Controls)",
+      "note": null
+    },
+    {
+      "concept": "cluster tier bounds",
+      "relation": "is a part of Cost Governance Guardrails (Resource Policies and IaC Cost Controls)",
+      "note": null
+    },
+    {
+      "concept": "Atlas Administration API",
+      "relation": "is a related of Cost Governance Guardrails (Resource Policies and IaC Cost Controls)",
+      "note": null
+    },
+    {
+      "concept": "Organization Owner",
+      "relation": "is a prerequisite of Cost Governance Guardrails (Resource Policies and IaC Cost Controls)",
+      "note": null
+    },
+    {
+      "concept": "disk size cap",
+      "relation": "is a part of Cost Governance Guardrails (Resource Policies and IaC Cost Controls)",
+      "note": null
+    },
+    {
+      "concept": "clusters per project",
+      "relation": "is a part of Cost Governance Guardrails (Resource Policies and IaC Cost Controls)",
+      "note": null
+    },
+    {
+      "concept": "billing alert",
+      "relation": "is a part of Cost Governance Guardrails (Resource Policies and IaC Cost Controls)",
+      "note": null
+    },
+    {
+      "concept": "pause dev and test clusters",
+      "relation": "is a part of Cost Governance Guardrails (Resource Policies and IaC Cost Controls)",
+      "note": null
+    },
+    {
+      "concept": "mongodbatlas_resource_policy",
+      "relation": "is a instance of Cost Governance Guardrails (Resource Policies and IaC Cost Controls)",
+      "note": null
+    },
+    {
+      "concept": "Cost Explorer",
+      "relation": "is a part of Cost Governance Guardrails (Resource Policies and IaC Cost Controls)",
+      "note": null
+    },
+    {
+      "concept": "no hard spending cap",
+      "relation": "is a problem of Cost Governance Guardrails (Resource Policies and IaC Cost Controls)",
+      "note": null
+    },
+    {
+      "concept": "cluster topology restriction",
+      "relation": "is a part of Cost Governance Guardrails (Resource Policies and IaC Cost Controls)",
+      "note": null
+    }
+  ]
+}

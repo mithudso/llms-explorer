@@ -1,0 +1,165 @@
+{
+  "slug": "tcmalloc-per-cpu-caches",
+  "concept": "TCMalloc per-CPU caches",
+  "generated": "2026-10-15",
+  "summary": "Depth-first rabbithole dossier for TCMalloc per-CPU caches; source-anchored research pack.",
+  "facets": [
+    {
+      "title": "How it works",
+      "facts": [
+        {
+          "text": "[low] In per-CPU mode, TCMalloc allocates a single large block of memory and reserves a slab per CPU (typically 256 KiB), which can lead to a multi-mebibyte footprint on systems with many logical CPUs. Sources: https://google.github.io/tcmalloc/design.html",
+          "source": "~/.global-ai-hub/research/.pipeline/mongodb-2026-10-14/frb/tcmalloc-per-cpu-caches-f5a8ebda31/rabbithole-synthesis.md#core",
+          "note": null
+        },
+        {
+          "text": "[low] When threads exit in TCMalloc, their cached memory is returned to the middle-end. Sources: https://google.github.io/tcmalloc/design.html",
+          "source": "~/.global-ai-hub/research/.pipeline/mongodb-2026-10-14/frb/tcmalloc-per-cpu-caches-f5a8ebda31/rabbithole-synthesis.md#core",
+          "note": null
+        },
+        {
+          "text": "[low] TCMalloc's internal data structures overlay the shared struct rseq so that cpu_id_start becomes the upper four bytes of an internal cache pointer, writing zeroes into cpu_id_start with the topmost bit set to distinguish it from valid CPU numbers. Sources: https://lwn.net/Articles/1070072/",
+          "source": "~/.global-ai-hub/research/.pipeline/mongodb-2026-10-14/frb/tcmalloc-per-cpu-caches-f5a8ebda31/rabbithole-synthesis.md#core",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Problems, failure modes and limitations",
+      "facts": [
+        {
+          "text": "[high] If another application such as glibc registers an rseq structure before TCMalloc, TCMalloc cannot use rseq and will not enable per-CPU caches. Sources: https://www.mongodb.com/docs/manual/administration/tcmalloc-performance.md, https://www.percona.com/blog/memory-management-in-mongodb-8-0-testing-the-new-tcmalloc/",
+          "source": "~/.global-ai-hub/research/.pipeline/mongodb-2026-10-14/frb/tcmalloc-per-cpu-caches-f5a8ebda31/rabbithole-synthesis.md#troubleshooting",
+          "note": null
+        },
+        {
+          "text": "[low] In per-CPU mode, the maximum capacity of a size-class can be increased up to the per-CPU limit or the hard-coded size limit for that size-class, potentially stealing capacity from another size-class on the same CPU. Sources: https://google.github.io/tcmalloc/design.html",
+          "source": "~/.global-ai-hub/research/.pipeline/mongodb-2026-10-14/frb/tcmalloc-per-cpu-caches-f5a8ebda31/rabbithole-synthesis.md#core",
+          "note": null
+        },
+        {
+          "text": "[low] The static maximum capacity of each per-size-class array in per-CPU mode is determined at start time by the difference between the start of the array for that size-class and the next, and runtime storage cannot exceed this statically determined maximum. Sources: https://google.github.io/tcmalloc/design.html",
+          "source": "~/.global-ai-hub/research/.pipeline/mongodb-2026-10-14/frb/tcmalloc-per-cpu-caches-f5a8ebda31/rabbithole-synthesis.md#core",
+          "note": null
+        },
+        {
+          "text": "[low] Within a CPU, TCMalloc manages memory distribution across size-classes to keep cached memory below the limit, with the average amount cached being about half the limit. Sources: https://google.github.io/tcmalloc/design.html",
+          "source": "~/.global-ai-hub/research/.pipeline/mongodb-2026-10-14/frb/tcmalloc-per-cpu-caches-f5a8ebda31/rabbithole-synthesis.md#core",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Comparisons and alternatives",
+      "facts": [
+        {
+          "text": "[high] MongoDB 8.0 upgrades TCMalloc to a newer implementation aligned with upstream Google TCMalloc that uses per-CPU caches instead of per-thread caches to reduce memory fragmentation. (verified as of 2026-10-15) Sources: https://www.mongodb.com/company/blog/engineering/mongodb-8-0-improving-performance-avoiding-regressions, https://www.percona.com/blog/memory-management-in-mongodb-8-0-testing-the-new-tcmalloc/, https://www.percona.com/blog/percona-server-for-mongodb-8-0-the-most-performant-ever/",
+          "source": "~/.global-ai-hub/research/.pipeline/mongodb-2026-10-14/frb/tcmalloc-per-cpu-caches-f5a8ebda31/rabbithole-synthesis.md#core",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Facts and statements",
+      "facts": [
+        {
+          "text": "[high] The new TCMalloc per-CPU caches require Restartable Sequences (rseq) to function; without rseq, TCMalloc falls back to per-thread caches used by the legacy version. Sources: https://www.mongodb.com/docs/manual/administration/tcmalloc-performance.md, https://www.percona.com/blog/memory-management-in-mongodb-8-0-testing-the-new-tcmalloc/, https://google.github.io/tcmalloc/design.html",
+          "source": "~/.global-ai-hub/research/.pipeline/mongodb-2026-10-14/frb/tcmalloc-per-cpu-caches-f5a8ebda31/rabbithole-synthesis.md#core",
+          "note": null
+        },
+        {
+          "text": "[high] To enable TCMalloc per-CPU caches in MongoDB 8.0, glibc rseq registration must be disabled by setting GLIBC_TUNABLES=glibc.pthread.rseq=0 before starting mongod, and the Linux kernel must be version 4.18 or later. (verified as of 2026-10-15) Sources: https://www.mongodb.com/docs/manual/administration/tcmalloc-performance.md, https://www.percona.com/blog/memory-management-in-mongodb-8-0-testing-the-new-tcmalloc/, https://lwn.net/Articles/1070072/",
+          "source": "~/.global-ai-hub/research/.pipeline/mongodb-2026-10-14/frb/tcmalloc-per-cpu-caches-f5a8ebda31/rabbithole-synthesis.md#troubleshooting",
+          "note": null
+        },
+        {
+          "text": "[low] The amount of memory cached in per-CPU mode is limited per CPU by MallocExtension::SetMaxPerCpuCacheSize, meaning total cached memory depends on the number of active per-CPU caches and machines with higher CPU counts can cache more memory. Sources: https://google.github.io/tcmalloc/design.html",
+          "source": "~/.global-ai-hub/research/.pipeline/mongodb-2026-10-14/frb/tcmalloc-per-cpu-caches-f5a8ebda31/rabbithole-synthesis.md#core",
+          "note": null
+        },
+        {
+          "text": "[low] Windows uses the legacy TCMalloc version and does not support the updated TCMalloc with per-CPU caches introduced in MongoDB 8.0. Sources: https://www.mongodb.com/docs/manual/administration/tcmalloc-performance.md",
+          "source": "~/.global-ai-hub/research/.pipeline/mongodb-2026-10-14/frb/tcmalloc-per-cpu-caches-f5a8ebda31/rabbithole-synthesis.md#core",
+          "note": null
+        },
+        {
+          "text": "[low] In per-CPU mode, MallocExtension::ReleaseCpuMemory frees objects held in a specified CPU's caches to avoid holding memory on CPUs where the application no longer runs. Sources: https://google.github.io/tcmalloc/design.html",
+          "source": "~/.global-ai-hub/research/.pipeline/mongodb-2026-10-14/frb/tcmalloc-per-cpu-caches-f5a8ebda31/rabbithole-synthesis.md#core",
+          "note": null
+        },
+        {
+          "text": "[high] To verify TCMalloc is running with per-CPU caches, check that tcmalloc.usingPerCPUCaches is true and tcmalloc.tcmalloc.cpu_free is greater than 0 in serverStatus metrics. (verified as of 2026-10-15) Sources: https://www.mongodb.com/docs/manual/release-notes/8.0.md, https://www.mongodb.com/docs/manual/administration/tcmalloc-performance.md, https://www.percona.com/blog/memory-management-in-mongodb-8-0-testing-the-new-tcmalloc/",
+          "source": "~/.global-ai-hub/research/.pipeline/mongodb-2026-10-14/frb/tcmalloc-per-cpu-caches-f5a8ebda31/rabbithole-synthesis.md#troubleshooting",
+          "note": null
+        },
+        {
+          "text": "[low] TCMalloc uses restartable sequences to update per-CPU arrays without locking, ensuring that if a thread is interrupted, the sequence is restarted to maintain consistency. Sources: https://google.github.io/tcmalloc/design.html",
+          "source": "~/.global-ai-hub/research/.pipeline/mongodb-2026-10-14/frb/tcmalloc-per-cpu-caches-f5a8ebda31/rabbithole-synthesis.md#core",
+          "note": null
+        },
+        {
+          "text": "[low] The capacity of per-CPU free lists in TCMalloc is increased depending on alternation between underflows and overflows, and reduced if it has not been grown for a time. Sources: https://google.github.io/tcmalloc/design.html",
+          "source": "~/.global-ai-hub/research/.pipeline/mongodb-2026-10-14/frb/tcmalloc-per-cpu-caches-f5a8ebda31/rabbithole-synthesis.md#core",
+          "note": null
+        },
+        {
+          "text": "[low] The differences between per-thread and per-CPU modes in TCMalloc are confined to the implementations of malloc/new and free/delete. Sources: https://google.github.io/tcmalloc/design.html",
+          "source": "~/.global-ai-hub/research/.pipeline/mongodb-2026-10-14/frb/tcmalloc-per-cpu-caches-f5a8ebda31/rabbithole-synthesis.md#core",
+          "note": null
+        },
+        {
+          "text": "[high] The new TCMalloc version in MongoDB 8.0 changes the best practice for Transparent Huge Pages (THP), requiring THP to be enabled before mongod starts to benefit from the allocator, whereas earlier versions recommended disabling THP. (verified as of 2026-10-15) Sources: https://www.mongodb.com/docs/manual/release-notes/8.0.md, https://www.mongodb.com/docs/manual/administration/tcmalloc-performance.md, https://www.percona.com/blog/memory-management-in-mongodb-8-0-testing-the-new-tcmalloc/, https://www.percona.com/blog/percona-server-for-mongodb-8-0-the-most-performant-ever/",
+          "source": "~/.global-ai-hub/research/.pipeline/mongodb-2026-10-14/frb/tcmalloc-per-cpu-caches-f5a8ebda31/rabbithole-synthesis.md#core",
+          "note": null
+        },
+        {
+          "text": "[low] Starting in MongoDB 8.0, the tcmallocReleaseRate parameter specifies the TCMalloc release rate, whereas earlier versions used an older tcmalloc with a default tcmallocReleaseRate of 1. (verified as of 2026-10-15) Sources: https://www.mongodb.com/docs/manual/release-notes/8.0-compatibility.md",
+          "source": "~/.global-ai-hub/research/.pipeline/mongodb-2026-10-14/frb/tcmalloc-per-cpu-caches-f5a8ebda31/rabbithole-synthesis.md#core",
+          "note": null
+        },
+        {
+          "text": "[low] Prior to Linux kernel 6.19, the kernel updated cpu_id_start on every return from kernel to user space, providing TCMalloc with a signal; as of 6.19, this overwriting only happens if the thread migrates to a new CPU. (verified as of 2026-10-15) Sources: https://lwn.net/Articles/1070072/",
+          "source": "~/.global-ai-hub/research/.pipeline/mongodb-2026-10-14/frb/tcmalloc-per-cpu-caches-f5a8ebda31/rabbithole-synthesis.md#core",
+          "note": null
+        },
+        {
+          "text": "[low] Glibc version 2.35 and later also uses restartable sequences, which conflicts with TCMalloc's usage, requiring code using TCMalloc to be run with an environment variable set to prevent glibc from using rseq. (verified as of 2026-10-15) Sources: https://lwn.net/Articles/1070072/",
+          "source": "~/.global-ai-hub/research/.pipeline/mongodb-2026-10-14/frb/tcmalloc-per-cpu-caches-f5a8ebda31/rabbithole-synthesis.md#troubleshooting",
+          "note": null
+        },
+        {
+          "text": "[low] TCMalloc diagnostics showed heap_size of 77213437952 bytes, current_allocated_bytes of 72638896664, pageheap_free_bytes of 0, and 404 thread heaps in use with a page size of 4096. Sources: https://www.mydbops.com/blog/mongodb-plancache-memory-issue-sbe-fix",
+          "source": "~/.global-ai-hub/research/.pipeline/mongodb-2026-10-14/frb/tcmalloc-per-cpu-caches-f5a8ebda31/rabbithole-synthesis.md#troubleshooting",
+          "note": null
+        },
+        {
+          "text": "[low] TCMalloc pageheap metrics indicated committed_bytes of 75468595200, total_commit_bytes of 68210629558272, total_decommit_bytes of 68135160963072, and total_reserve_bytes of 77213437952. Sources: https://www.mydbops.com/blog/mongodb-plancache-memory-issue-sbe-fix",
+          "source": "~/.global-ai-hub/research/.pipeline/mongodb-2026-10-14/frb/tcmalloc-per-cpu-caches-f5a8ebda31/rabbithole-synthesis.md#troubleshooting",
+          "note": null
+        },
+        {
+          "text": "[low] TCMalloc configuration showed max_total_thread_cache_bytes of 1073741824 and aggressive_memory_decommit set to 1, with spinlock_total_delay_ns of 166869211835. Sources: https://www.mydbops.com/blog/mongodb-plancache-memory-issue-sbe-fix",
+          "source": "~/.global-ai-hub/research/.pipeline/mongodb-2026-10-14/frb/tcmalloc-per-cpu-caches-f5a8ebda31/rabbithole-synthesis.md#troubleshooting",
+          "note": null
+        }
+      ]
+    }
+  ],
+  "related": [
+    {
+      "concept": "TCMalloc",
+      "relation": "is a part of TCMalloc per-CPU caches",
+      "note": null
+    },
+    {
+      "concept": "per-CPU",
+      "relation": "is a part of TCMalloc per-CPU caches",
+      "note": null
+    },
+    {
+      "concept": "caches",
+      "relation": "is a part of TCMalloc per-CPU caches",
+      "note": null
+    }
+  ]
+}

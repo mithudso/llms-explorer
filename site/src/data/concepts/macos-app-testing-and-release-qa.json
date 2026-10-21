@@ -1,0 +1,419 @@
+{
+  "slug": "macos-app-testing-and-release-qa",
+  "concept": "macOS App Testing and Release QA",
+  "generated": "2026-10-02",
+  "summary": "Source-anchored research for macOS App Testing and Release QA. Run status: COMPLETED.",
+  "facets": [
+    {
+      "title": "Structure and components",
+      "facts": [
+        {
+          "text": "MetricKit crash data has practical limits: unsymbolicated call-stack JSON (MXCallStackTree exposes only JSONRepresentation), so you must keep dSYMs and symbolicate yourself; uncaught NSException detail is missing; and a Sentry integration notes MetricKit stack traces often contain only a few frames. (medium confidence)",
+          "source": "https://www.chimehq.com/blog/metrickit-crash-reporting",
+          "note": null
+        },
+        {
+          "text": "For a Mac tester, `log collect --output <path>.logarchive --last 5m` (or --start) makes a bounded logarchive of the unified log; sysdiagnose (Cmd-Opt-Ctrl-Shift-period, Activity Monitor, or `sudo sysdiagnose`) is broader but, per Apple, contains personal information. Log entries decay quickly (about 20% lost within five minutes in one measurement), so collect soon after reproducing. (medium confidence) (verified as of 2026-06-27)",
+          "source": "https://eclecticlight.co/2026/06/27/explainer-sysdiagnose-and-logarchives/",
+          "note": null
+        },
+        {
+          "text": "XCUITest and the Accessibility API (AXUIElement) are the same technology underneath; XCUITest is a restricted predefined layer. Raw AX use requires the host binary to be granted in System Settings > Privacy & Security > Accessibility before running. (medium confidence)",
+          "source": "https://research.macpaw.com/publications/how-to-parse-macos-app-ui",
+          "note": null
+        },
+        {
+          "text": "AX hierarchies can be wrong for NSHostingView-based UI; MacPaw uses a hit-test technique at coordinates to reach hidden layers. (low confidence)",
+          "source": "https://research.macpaw.com/publications/how-to-parse-macos-app-ui",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "How it works",
+      "facts": [
+        {
+          "text": "Apple Account sign-in in System Settings works in a macOS VM only when both host and guest run macOS 15 or later; it allows iCloud and Xcode account use, and development builds with restricted entitlements via provisioning profiles. (high confidence) (verified as of 2026-04-29)",
+          "source": "https://mjtsai.com/blog/2026/03/23/provisioning-profiles-in-mac-vms/",
+          "note": null
+        },
+        {
+          "text": "Tart VMs worked for installing an exact signed development candidate and driving guest UI without disturbing the host, but the same report left notarized release artifacts, hardware, multiple displays and live accounts unproven, and an unattended run failed when the guest screen locked until idle settings were changed. (low confidence)",
+          "source": "https://github.com/jdylanmc/notch/issues/100",
+          "note": null
+        },
+        {
+          "text": "MetricKit payloads are delivered only to the app process; to see them the developer must have the app forward them somewhere. Doing that off-device is data collection, so a zero-telemetry app can at most log them locally or let the user export them manually. (medium confidence)",
+          "source": "https://developer.apple.com/app-store/app-privacy-details/",
+          "note": null
+        },
+        {
+          "text": "A network denial appears as `Sandbox: <App>(<pid>) deny(1) network-outbound <path>` plus a `Violation:` line, Process, Identifier, and a thread backtrace. The `Violation:` line names the operation and the backtrace locates the offending code. Apple's own example is a denied connect to `/private/var/run/mDNSResponder`. (high confidence)",
+          "source": "https://developer.apple.com/documentation/security/discovering-and-diagnosing-app-sandbox-violations",
+          "note": null
+        },
+        {
+          "text": "Some sandbox denials never reach the violation log; they show only in the app's stderr (Xcode Debug pane) as lines such as `connect() failed path:/var/run/mDNSResponder ... Operation not permitted`, `Sandbox is preventing this process from reading networkd settings file`, or `Sandbox does not allow access to com.apple.dnssd.service`. A harness should capture both stderr and the unified log. (medium confidence)",
+          "source": "https://developer.apple.com/documentation/security/discovering-and-diagnosing-app-sandbox-violations",
+          "note": null
+        },
+        {
+          "text": "The system creates the sandbox container, `~/Library/Containers/<bundle-id>/`, when a sandboxed app first launches. Inside it the app has unrestricted read/write; it does not have unrestricted access to the home folder. `NSSearchPathForDirectoriesInDomains`-style lookups return container paths for a sandboxed app. (medium confidence)",
+          "source": "https://developer.apple.com/documentation/security/protecting-user-data-with-app-sandbox",
+          "note": null
+        },
+        {
+          "text": "App Review Information Notes allow up to 4000 bytes, and a reply to App Review allows 4000 characters with optional file attachment. The fetched pages state no attachment file-type list, per-file size cap or file count. Treat the video as a supplement and describe the flow in text. (medium confidence) (verified as of 2026-10-02)",
+          "source": "https://developer.apple.com/help/app-store-connect/reference/app-review-information",
+          "note": null
+        },
+        {
+          "text": "The App Store Connect build-upload API is a 4-step flow: POST BuildUploads (bundle version, platform), POST BuildUploadFiles (file name, size, asset type) returning PUT upload operations with headers and chunks, upload the chunks, then PATCH uploaded=true; state moves PROCESSING to COMPLETE and a webhook can signal it. macOS is a listed platform. (high confidence) (verified as of 2025-06-01)",
+          "source": "https://developer.apple.com/videos/play/wwdc2025/324/",
+          "note": null
+        },
+        {
+          "text": "After upload the build is processed and Apple emails when processing completes; processing-time validation failures arrive by email, so a successful altool/Transporter upload does not guarantee a usable build. (medium confidence)",
+          "source": "https://www.developer.apple.com/help/app-store-connect/manage-builds/upload-builds",
+          "note": null
+        },
+        {
+          "text": "ITMS-90296 'App Sandbox not enabled' reads: executables must include com.apple.security.app-sandbox = true. In one Nov 2024 case the root cause was AppleDouble ._* files / __MACOSX dirs and xattrs breaking the signature, not a missing entitlement. Check with codesign --verify -vvv and codesign --display --entitlements - on the .app before packaging. (medium confidence)",
+          "source": "https://developer.apple.com/forums/thread/768361",
+          "note": null
+        },
+        {
+          "text": "ITMS-90238 'Invalid Signature' occurs when a Developer ID-signed (notarized) app is submitted to the Mac App Store. Mac App Store builds need '3rd Party Mac Developer Application' signing and a '3rd Party Mac Developer Installer' signed pkg; keep a separate build for Developer ID. (low confidence)",
+          "source": "https://developer.apple.com/forums/thread/656984",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Measurements and reference values",
+      "facts": [
+        {
+          "text": "NLC applies system-wide to all apps, limiting uplink/downlink bandwidth, latency and packet loss, with separate DNS delay; presets run from '100% Loss' to 'WiFi 802.11ac' plus custom profiles. It has no per-app scoping, no profile hot-swap, no auto-disable timer and no menu bar indicator. (medium confidence)",
+          "source": "https://nshipster.com/network-link-conditioner/",
+          "note": null
+        },
+        {
+          "text": "The 100% Loss preset is the simplest offline simulation for a monitor: it exercises reachability-lost and recovery paths without touching Wi-Fi or Ethernet hardware. (low confidence)",
+          "source": "https://nshipster.com/network-link-conditioner/",
+          "note": null
+        },
+        {
+          "text": "dnctl configures dummynet pipes: bw (e.g. 300Kbit/s; 0 = unlimited), delay in ms (rounded to clock ticks, typically 10 ms), plr as a float 0..1 (1 = 100% loss) and queue size (default 50 slots). (high confidence)",
+          "source": "https://www.manpagez.com/man/8/dnctl/",
+          "note": null
+        },
+        {
+          "text": "Apple's published codec, size and length limits (H.264 High Profile Level 4.0 at 10-12 Mbps or ProRes 422 HQ; .mov/.m4v/.mp4; 500 MB; 15-30 s; Mac previews 1920x1080 landscape) are for App Store app previews. They are not documented as limits for App Review attachments, so they are a safe conservative target but not a rule. (low confidence) (verified as of 2026-10-02)",
+          "source": "https://developer.apple.com/help/app-store-connect/reference/app-information/app-preview-specifications",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Problems, failure modes and limitations",
+      "facts": [
+        {
+          "text": "A macOS VM on Apple silicon cannot sign into the Mac App Store, so TestFlight cannot be downloaded there and TestFlight builds cannot be run in a VM. Test TestFlight and App Store install paths on a physical Mac. (high confidence) (verified as of 2026-04-29)",
+          "source": "https://mjtsai.com/blog/2026/03/23/provisioning-profiles-in-mac-vms/",
+          "note": null
+        },
+        {
+          "text": "VM network connections always appear as Ethernet over NAT; macOS Arm guests have no virtual Wi-Fi adapter. Wi-Fi-specific behaviour (SSID, interface changes, roaming) of a network monitor cannot be validated in a VM. (high confidence)",
+          "source": "https://kb.parallels.com/en/128867",
+          "note": null
+        },
+        {
+          "text": "In an App Sandbox app, OSLogStore works only with the .currentProcessIdentifier scope; the .system scope and local() store fail. A sandboxed app cannot read other apps' or system logs, its own helper-process logs, or logs from earlier launches (PID changes). (medium confidence)",
+          "source": "https://mjtsai.com/blog/2021/12/10/oslogstore-on-monterey/",
+          "note": null
+        },
+        {
+          "text": "Antipattern: building an in-app 'send diagnostics' that uploads logs or MetricKit payloads automatically; it breaks a no-collection privacy label and, in a sandbox, would capture only the current process anyway. Prefer a user-initiated export (save a file the user chooses) or direct testers to `log collect` and TestFlight feedback. (low confidence)",
+          "source": "https://developer.apple.com/app-store/app-privacy-details/",
+          "note": null
+        },
+        {
+          "text": "To see sandbox denials, open Console, paste `type:error`, `subsystem:com.apple.sandbox.reporting` and `category:violation` into the search field (one at a time), save the search, click Start Streaming, then reproduce the problem. Apple's DTS post that first gave these terms was tested on macOS 12.2 and says the terms have changed over time. (high confidence) (verified as of 2026-10-02)",
+          "source": "https://developer.apple.com/documentation/security/discovering-and-diagnosing-app-sandbox-violations",
+          "note": null
+        },
+        {
+          "text": "Preflight checks such as `access()` never produce a sandbox violation report, so code that preflights can fail silently with no deny line. Apple also calls preflighting racy (TOCTOU). (medium confidence)",
+          "source": "https://developer.apple.com/forums/thread/702735",
+          "note": null
+        },
+        {
+          "text": "Verify a build is sandboxed two ways: the Sandbox column in Activity Monitor shows Yes, or `codesign -d --entitlements - <app>` lists `com.apple.security.app-sandbox`. A release smoke test can fail the build if that key is missing. (high confidence)",
+          "source": "https://developer.apple.com/documentation/security/protecting-user-data-with-app-sandbox",
+          "note": null
+        },
+        {
+          "text": "`sandbox-exec` is deprecated; its man page directs developers to App Sandbox instead. It cannot apply entitlements, so it is not a substitute for testing the real entitlement-signed build. (medium confidence)",
+          "source": "https://keith.github.io/xcode-man-pages/sandbox-exec.1.html",
+          "note": null
+        },
+        {
+          "text": "A sandbox profile that passes with one signing identity can fail with another: a Developer ID build was denied `mach-register`/`mach-lookup` that an Apple Distribution build was allowed with identical entitlements (Dec 2025 thread). Apple DTS recommended a Team-ID-prefixed app group. Ad-hoc or Developer ID sandbox runs may not reproduce Mac App Store behavior exactly, so re-verify on the store-signed (TestFlight) build. (low confidence) (verified as of 2025-12-01)",
+          "source": "https://developer.apple.com/forums/thread/808940",
+          "note": null
+        },
+        {
+          "text": "Beta App Review requires a beta app description and feedback email in Test Information (Account Holder, Admin or App Manager can set it; also settable via the Beta App Localizations API). Managed Apple Accounts in reserved domains cannot be used to test. (high confidence)",
+          "source": "https://developer.apple.com/help/app-store-connect/test-a-beta-version/provide-test-information",
+          "note": null
+        },
+        {
+          "text": "Transporter uploads missing an application identifier fail TestFlight eligibility with error 90886, and the build then does not appear in the App Store Connect build list; the same version number cannot simply be re-uploaded (bump the build number). (low confidence)",
+          "source": "https://developer.apple.com/forums/thread/748697",
+          "note": null
+        },
+        {
+          "text": "Apple does not support the Accessibility APIs in sandboxed apps. In a sandboxed menu bar app AXIsProcessTrusted returns false, the prompt never appears, and the app cannot be added in System Settings; with the com.apple.security.accessibility entitlement AX calls can still fail with .cannotComplete. A DTS engineer called this behaviour correct, in both local and TestFlight builds. (medium confidence) (verified as of 2026-10-02)",
+          "source": "https://developer.apple.com/forums/thread/794253",
+          "note": null
+        },
+        {
+          "text": "altool --validate-app preflights an archive; --upload-app is deprecated in favour of --upload-package. --type macos is a supported platform value; notarization is no longer supported by altool (use notarytool). (high confidence) (verified as of 2025-09-23)",
+          "source": "https://keith.github.io/xcode-man-pages/altool.7.html",
+          "note": null
+        },
+        {
+          "text": "altool API-key auth uses --apiKey and --apiIssuer; it looks for AuthKey_<key>.p8 in ./private_keys, ~/private_keys, ~/.private_keys, ~/.appstoreconnect/private_keys, or $API_PRIVATE_KEYS_DIR. Password sources can be plaintext, @keychain: or @env:. --output-format accepts xml, json, normal; exit code is 0 on success, 1 on failure. (medium confidence)",
+          "source": "https://keith.github.io/xcode-man-pages/altool.7.html",
+          "note": null
+        },
+        {
+          "text": "Transporter CLI (iTMSTransporter) uploads a macOS app with -m upload -assetFile app.pkg; -f cannot be used for apps and .itmsp delivery of apps is deprecated. Auth is -u/-p, -jwt, or -apiKey/-apiIssuer; -u/-p cannot be combined with the other two. -v controls verbosity (eXtreme default). (high confidence) (verified as of 2025-09-03)",
+          "source": "https://help.apple.com/itc/transporteruserguide/en.lproj/static.html",
+          "note": null
+        },
+        {
+          "text": "iTMSTransporter 4.1.x failed with 'ERROR: No value present' when using -jwt with -assetFile/-assetDescription starting around 30 Sep 2025; 4.0 and -apiKey/-apiIssuer worked. Apple gave no official response in the thread. (low confidence) (verified as of 2025-09-03)",
+          "source": "https://developer.apple.com/forums/thread/799220",
+          "note": null
+        },
+        {
+          "text": "With Xcode 26 altool, fastlane routed uploads through deprecated --upload-app and hit HTTP 409 on CREATE BUILD when several apps share a bundle ID prefix; workaround was --use-old-altool via DELIVER_ALTOOL_ADDITIONAL_UPLOAD_PARAMETERS. Treat as a pin-and-test hazard for release scripts. (low confidence) (verified as of 2025-09-23)",
+          "source": "https://github.com/fastlane/fastlane/issues/29698",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Comparisons and alternatives",
+      "facts": [
+        {
+          "text": "To verify what the app will actually see, use 'dscacheutil -q host -a name <host>' rather than dig, since dig reads /etc/resolv.conf and bypasses the macOS resolution chain. (low confidence)",
+          "source": "https://invisiblethreat.ca/technology/2025/04/12/macos-resolvers/",
+          "note": null
+        },
+        {
+          "text": "Since macOS 14 Sonoma, App Sandbox associates an app with its container by code signature. A different signature touching an existing container triggers a user prompt (for example 'differs from previously opened versions' or 'would like to access data from other apps'). Ad-hoc signatures change on every rebuild, so repeated ad-hoc test builds re-prompt. Apple DTS suggested trashing the container (`~/Library/Containers/<bundle-id>`) as a workaround and suspected a bug in one case. (medium confidence) (verified as of 2024-03-01)",
+          "source": "https://lapcatsoftware.com/articles/2023/6/1.html",
+          "note": null
+        },
+        {
+          "text": "Release-script pattern: run altool --validate-app (or Transporter verify) on the signed pkg, upload with an API key rather than an Apple ID password, capture --output-format json and the ITMS code, then confirm processing by email or API state before TestFlight. (low confidence)",
+          "source": "https://keith.github.io/xcode-man-pages/altool.7.html",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Facts and statements",
+      "facts": [
+        {
+          "text": "Apple's licence limits a Mac to two concurrently running macOS VMs; macOS blocks a third launch. A matrix of several macOS versions must run sequentially or use snapshots. (high confidence)",
+          "source": "https://eclecticlight.co/2026/04/29/virtualisation-on-apple-silicon-macs-is-different/",
+          "note": null
+        },
+        {
+          "text": "Virtualization framework (WWDC26) VZMacGuestProvisioningOptions lets the host set fullName, username, password, logsInAutomatically and enablesRemoteLogin at first start, enabling scripted fresh-user guests; the options are ignored if a user already exists in the guest. (medium confidence) (verified as of 2026-10-02)",
+          "source": "https://developer.apple.com/videos/play/wwdc2026/224/",
+          "note": null
+        },
+        {
+          "text": "A guest macOS version newer than the host's may not run; the guest range is Monterey and later on Apple silicon, so the latest-release row of the matrix needs a host at or above that release or a physical Mac. (medium confidence) (verified as of 2026-04-29)",
+          "source": "https://kb.parallels.com/en/128867",
+          "note": null
+        },
+        {
+          "text": "TestFlight builds for Mac are available for up to 90 days, with up to 100 internal and 10,000 external testers; the first build in a group needs Beta App Review. This bounds how long a physical-Mac TestFlight row stays valid. (medium confidence) (verified as of 2026-10-02)",
+          "source": "https://developer.apple.com/help/app-store-connect/test-a-beta-version/testflight-overview",
+          "note": null
+        },
+        {
+          "text": "Xcode Organizer's Crashes view covers both App Store and TestFlight builds across platforms including macOS, with feedback from TestFlight testers attached to crashes and an 'Open in Xcode' path from App Store Connect. (high confidence)",
+          "source": "https://developer.apple.com/videos/play/wwdc2021/10203/",
+          "note": null
+        },
+        {
+          "text": "Organizer reports need user consent: TestFlight users automatically agree to share data, but App Store users must agree to share crash and usage data with developers. Reports take several days to appear after release, and local (Xcode-run) builds produce none. Coverage of App Store crashes is therefore a subset of real crashes. (high confidence)",
+          "source": "https://help.apple.com/xcode/mac/current/en.lproj/dev9a80ab71d.html",
+          "note": null
+        },
+        {
+          "text": "MetricKit supports macOS 12 and later (MXCrashDiagnostic, hang, CPU and disk-write diagnostics), delivering diagnostics to the app via MXMetricManagerSubscriber; diagnostic payloads arrive immediately on iOS 15+/macOS 12+, whereas metric payloads arrive about once per day. (medium confidence) (verified as of 2026-10-02)",
+          "source": "https://docs.sentry.io/platforms/apple/guides/macos/configuration/metric-kit/",
+          "note": null
+        },
+        {
+          "text": "Logarchives from macOS 27 need macOS 26.2 or later to open, so QA machines and the developer's Mac must run recent enough releases to read archives collected from a macOS 27.x tester. (low confidence) (verified as of 2026-06-27)",
+          "source": "https://eclecticlight.co/2026/06/27/explainer-sysdiagnose-and-logarchives/",
+          "note": null
+        },
+        {
+          "text": "Apple's App Privacy Details say data processed only on device and never sent to a server is not 'collected' and need not be disclosed, and that developers are not responsible for disclosing data collected by Apple. Crash logs, performance data and other diagnostics sent to the developer must be disclosed. A zero-telemetry design that relies on Organizer plus manual `log collect` therefore avoids a Diagnostics disclosure for the app's own code. (medium confidence) (verified as of 2026-10-02)",
+          "source": "https://developer.apple.com/app-store/app-privacy-details/",
+          "note": null
+        },
+        {
+          "text": "Network Link Conditioner ships in Apple's 'Additional Tools for Xcode' download (Hardware folder, Network Link Conditioner.prefPane) and installs into System Settings; it is not bundled with the OS. (high confidence) (verified as of 2026-03-01)",
+          "source": "https://nshipster.com/network-link-conditioner/",
+          "note": null
+        },
+        {
+          "text": "Dummynet recipe on macOS: add 'dummynet-anchor ts' and 'anchor ts' to /etc/pf.conf, reload with pfctl -f, enable pf with 'pfctl -E', create a pipe with dnctl, then load rules such as 'dummynet out proto tcp from any to any port 6000 pipe 1' into the anchor with 'pfctl -a ts -f rules.txt'. (high confidence)",
+          "source": "https://blog.leiy.me/post/bw-throttling-on-mac/",
+          "note": null
+        },
+        {
+          "text": "Dummynet rules require an explicit 'in' or 'out' direction (enforced since OS X 10.10.3), and 'pfctl -sd' (undocumented) lists dummynet rules. (medium confidence)",
+          "source": "https://matt.simerson.net/2015/03/09/bandwidth-shaping-on-mac-os-x/",
+          "note": null
+        },
+        {
+          "text": "Teardown: 'pfctl -a <anchor> -F all' flushes only your anchor, and 'dnctl -q flush' removes pipes. Scoping to an anchor avoids dropping system pf rules. pf is disabled by default, so a harness that enables it should also restore the prior state afterwards. (medium confidence)",
+          "source": "https://blog.leiy.me/post/bw-throttling-on-mac/",
+          "note": null
+        },
+        {
+          "text": "Per-domain DNS faults: a file /etc/resolver/<domain> redirects that domain's queries to the nameserver it names, and 'scutil --dns' shows the resulting resolver entries with reachability. Pointing the file at an unroutable address is a plausible DNS blackhole, but no source reviewed demonstrates this exact technique. (low confidence)",
+          "source": "https://invisiblethreat.ca/technology/2025/04/12/macos-resolvers/",
+          "note": null
+        },
+        {
+          "text": "A forum report says pf rules were ignored by some processes (e.g. com.apple.geod, WebKit) on macOS 15.0.0-15.3.1 while 'block all' worked on 14.7.4; a DTS engineer pointed to another thread without a fix. Treat pf-based fault injection as unverified on each new macOS and smoke-test it with tcpdump before trusting results. (low confidence) (verified as of 2025-03-01)",
+          "source": "https://developer.apple.com/forums/thread/776914",
+          "note": null
+        },
+        {
+          "text": "NLC has a history of failing to load or disappearing after macOS updates; the usual workaround is moving the pane from ~/Library/PreferencePanes to /Library/PreferencePanes. (medium confidence) (verified as of 2026-03-01)",
+          "source": "https://nshipster.com/network-link-conditioner/",
+          "note": null
+        },
+        {
+          "text": "Re-signing ad-hoc with `codesign --force --deep --sign -` and no `--entitlements` strips `com.apple.security.app-sandbox` from the shipped app. The fix is to pass `--entitlements <file>` again or skip the re-sign. A harness for an ad-hoc sandboxed build must therefore assert the entitlement after the final signing step. (medium confidence)",
+          "source": "https://github.com/tomada1114/macos-app-template/issues/97",
+          "note": null
+        },
+        {
+          "text": "Denials from NetworkExtension appear with `System Policy: ... deny(1) system-privilege`, privilege `PRIV_NET_PRIVILEGED_NECP_MATCH`, logged by `sandboxd`; Apple's engineer said to identify whether BSD sockets or Network.framework is in use and read the backtrace. This matters if the monitor uses NE; it is not the same as a plain `network-outbound` deny. (low confidence)",
+          "source": "https://developer.apple.com/forums/thread/690455",
+          "note": null
+        },
+        {
+          "text": "On macOS, Shift-Command-5 opens the Screenshot tool with record-entire-screen, record-window and record-portion options. Recordings save as .mov files named 'Screen Recording <date/time>'. Options include microphone choice, timer, mouse pointer visibility, and an HDR or SDR capture format. (low confidence) (verified as of 2026-10-02)",
+          "source": "https://support.apple.com/guide/mac-help/take-screenshots-or-screen-recordings-mh26782/mac",
+          "note": null
+        },
+        {
+          "text": "Developers reported failed review-attachment uploads in App Store Connect (thread from March 2024). Renaming .MP4 to lowercase .mp4 fixed one case. Wrapping the file in a .zip fixed another. Rename to lowercase and zip are practical fallbacks. (low confidence) (verified as of 2026-10-02)",
+          "source": "https://developer.apple.com/forums/thread/749073",
+          "note": null
+        },
+        {
+          "text": "App Review's own forum tips say to put hardware-related demonstrations in the Notes field of the version's App Review Information. For hardware integration it asks for a video of the real hardware plus the app on a physical device, not only a screen recording. A network monitor needs no accessory, so a screen recording suffices. (low confidence)",
+          "source": "https://developer.apple.com/forums/thread/810791",
+          "note": null
+        },
+        {
+          "text": "Attach the recording to App Review Information or the reply as the default, so the reviewer needs no external access and the evidence stays with the submission. Use a link only if the upload fails or the file is too large, and then prefer a long-lived unlisted URL over an expiring share link, with the access note in Notes. This is inference from the documented 4000-byte Notes and attach-file support, not an Apple rule. (low confidence)",
+          "source": "https://developer.apple.com/help/app-store-connect/manage-submissions-to-app-review/reply-to-app-review-messages",
+          "note": null
+        },
+        {
+          "text": "Internal testing allows up to 100 App Store Connect team members (Account Holder, Admin, App Manager, Developer, Marketing roles); external allows up to 10,000 testers per app; a tester can install on up to 30 devices. (high confidence) (verified as of 2026-10-02)",
+          "source": "https://developer.apple.com/help/app-store-connect/test-a-beta-version/testflight-overview",
+          "note": null
+        },
+        {
+          "text": "Builds are testable for up to 90 days; after expiry testers lose access. Mac builds require Xcode 13 or later. (high confidence) (verified as of 2026-10-02)",
+          "source": "https://developer.apple.com/help/app-store-connect/test-a-beta-version/testflight-overview",
+          "note": null
+        },
+        {
+          "text": "External testing requires an internal group to exist first, then external groups; the first build of a version gets full Beta App Review, later builds of the same version may skip full review; max 6 builds submitted per 24 hours; testers join by email, CSV, or public link (optional 1-10,000 cap, filter by OS version). (high confidence) (verified as of 2026-10-02)",
+          "source": "https://developer.apple.com/help/app-store-connect/test-a-beta-version/invite-external-testers",
+          "note": null
+        },
+        {
+          "text": "Builds uploaded as 'TestFlight Internal Only' from Xcode or Xcode Cloud can only go to internal groups, skipping Beta App Review: use this for fast QA of a network monitor before an external round. (medium confidence)",
+          "source": "https://developer.apple.com/help/app-store-connect/test-a-beta-version/invite-external-testers",
+          "note": null
+        },
+        {
+          "text": "A sandboxed Mac App Store app with only unrestricted entitlements (com.apple.security.app-sandbox) may ship with no provisioning profile, but TestFlight rejects it with ITMS-90889 'missing a provisioning profile'. Apple DTS fix: add a restricted entitlement such as an empty Keychain Sharing group so Xcode embeds a profile; for non-Xcode builds embed a Mac App Store profile and add com.apple.application-identifier and com.apple.developer.team-identifier to the main app only. (medium confidence)",
+          "source": "https://developer.apple.com/forums/thread/733942",
+          "note": null
+        },
+        {
+          "text": "A build stuck at Missing Compliance waits on the encryption export question; setting ITSAppUsesNonExemptEncryption in Info.plist avoids the prompt on every upload. (low confidence)",
+          "source": "https://ptkd.com/journal/testflight-review-times-guide",
+          "note": null
+        },
+        {
+          "text": "Processing normally takes about 25 minutes on average; internal testers can install right after. Developers reported macOS builds stuck in Processing for 5+ days in Nov 2025 (Xcode 26.1) with no Apple reply; the reporter's workaround was uploading to App Store Connect another way. (medium confidence) (verified as of 2026-07-01)",
+          "source": "https://developer.apple.com/forums/thread/808301",
+          "note": null
+        },
+        {
+          "text": "External first-build review waits per Runway's tracker via ptkd: about 9.5 hours total in May 2025 and about 17 hours in July 2026 (15h39m waiting plus 1h28m in review); worst cases of multiple days reported. (low confidence) (verified as of 2026-07-01)",
+          "source": "https://ptkd.com/journal/testflight-review-times-guide",
+          "note": null
+        },
+        {
+          "text": "XCUITest can find a menu bar status item with app.menuBars.statusItems and click it; a launch test can assert existence with app.menuBars.statusItems.firstMatch without checking isHittable. (medium confidence)",
+          "source": "https://github.com/tomada1114/hintjump/pull/32",
+          "note": null
+        },
+        {
+          "text": "Content of a SwiftUI MenuBarExtra(.window) popover is not reliably in the accessibility tree under XCUITest; the safe launch guarantee is that the status item exists. Workaround: a DEBUG-only launch hook that opens the target window deterministically, or an NSStatusItem with an NSMenu and button accessibility label. (medium confidence)",
+          "source": "https://github.com/dylblake/NoteSide/pull/11",
+          "note": null
+        },
+        {
+          "text": "If Xcode runs fullscreen, the menu bar is hidden and the status item test fails with 'Element StatusItem ... is not hittable'. Leave fullscreen before the run, or post a CGEvent mouse move near the top edge to reveal the menu bar (a reported, self-described ugly workaround). (low confidence)",
+          "source": "https://developer.apple.com/forums/thread/773715",
+          "note": null
+        },
+        {
+          "text": "On macOS Sequoia and later, XCTest UI tests prompt for a password to enable UI automation before each run, blocking CI. The accepted forum fix is `automationmodetool enable-automationmode-without-authentication`; disabling SIP and editing TCC did not help. This is a user-to-user answer, not an Apple statement. (low confidence) (verified as of 2026-10-02)",
+          "source": "https://developer.apple.com/forums/thread/793307",
+          "note": null
+        },
+        {
+          "text": "Sandbox-safe alternatives to AX window inspection (CGWindow list, ScreenCaptureKit) need Screen Recording consent; AppleEvents exceptions are temporary and unsuitable for App Store distribution. A network monitor should not add them for testing. (low confidence)",
+          "source": "https://developer.apple.com/forums/thread/794253",
+          "note": null
+        },
+        {
+          "text": "Headless CI use: a shared Xcode scheme lets xcodebuild test run the UI test target without opening Xcode; the runner/helper needs Accessibility consent on first use. (low confidence)",
+          "source": "https://github.com/dylblake/NoteSide/pull/11",
+          "note": null
+        },
+        {
+          "text": "Apple lists four upload methods for builds: Xcode, Transporter (macOS app), altool via xcrun (validation and upload), and the App Store Connect API using JWTs. (high confidence)",
+          "source": "https://www.developer.apple.com/help/app-store-connect/manage-builds/upload-builds",
+          "note": null
+        }
+      ]
+    }
+  ],
+  "related": []
+}

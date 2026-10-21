@@ -1,0 +1,155 @@
+{
+  "slug": "read-your-own-writes",
+  "concept": "read your own writes",
+  "generated": "2026-10-15",
+  "summary": "Depth-first rabbithole dossier for read your own writes; source-anchored research pack.",
+  "facets": [
+    {
+      "title": "Definitions",
+      "facts": [
+        {
+          "text": "[high] Causal consistency is not limited to snapshot reads and applies across read concern levels, and MongoDB implemented a consistency level called causal consistency in 2017 (version 3.6). (verified as of 2026-10-15) Sources: https://emptysqua.re/blog/how-to-use-mongodb-causal-consistency/, https://dev.to/franckpachot/read-your-writes-on-replicas-postgresql-wait-for-lsn-and-mongodb-causal-consistency-4he2",
+          "source": "~/.global-ai-hub/research/.pipeline/mongodb-2026-10-14/frb/read-your-own-writes-bc52bba349/rabbithole-synthesis.md#core",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "How it works",
+      "facts": [
+        {
+          "text": "[high] Read-your-writes consistency guarantees that if a process performs a write, a subsequent read by that same process must observe the write's effects, but this guarantee does not apply to operations performed by different processes. Sources: https://www.mongodb.com/docs/manual/core/read-isolation-consistency-recency.md, https://jepsen.io/analyses/mongodb-3-6-4, https://jepsen.io/consistency/models/read-your-writes, https://www.allthingsdistributed.com/2008/12/eventually_consistent.html",
+          "source": "~/.global-ai-hub/research/.pipeline/mongodb-2026-10-14/frb/read-your-own-writes-bc52bba349/rabbithole-synthesis.md#core",
+          "note": null
+        },
+        {
+          "text": "[low] The anomalies that break the read-your-writes guarantee occur when a write executes on one primary timeline and a read executes on another where the majority committed write is not seen, or when a write with write concern 1 succeeds on a timeline that will ultimately roll back, whereas with read concern local, the causal read may occur on either timeline. Sources: https://mongodb.com/blog/post/casual-guarantees-anything-casual",
+          "source": "~/.global-ai-hub/research/.pipeline/mongodb-2026-10-14/frb/read-your-own-writes-bc52bba349/rabbithole-synthesis.md#core",
+          "note": null
+        },
+        {
+          "text": "[low] A write with write concern majority can only succeed when applied to a majority of nodes, and the causal read with read concern majority waits to see the write's time majority committed before returning success, ensuring that if the read sees the successful write, it will never roll back. Sources: https://mongodb.com/blog/post/casual-guarantees-anything-casual",
+          "source": "~/.global-ai-hub/research/.pipeline/mongodb-2026-10-14/frb/read-your-own-writes-bc52bba349/rabbithole-synthesis.md#core",
+          "note": null
+        },
+        {
+          "text": "[high] Monotonic write consistency guarantees that the system serializes the writes by the same process, and systems that do not guarantee this level of consistency are notoriously hard to program, while the causal relationships between operations could be an arbitrary directed acyclic graph (DAG). Sources: https://jepsen.io/analyses/mongodb-3-6-4, https://www.allthingsdistributed.com/2008/12/eventually_consistent.html",
+          "source": "~/.global-ai-hub/research/.pipeline/mongodb-2026-10-14/frb/read-your-own-writes-bc52bba349/rabbithole-synthesis.md#core",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Problems, failure modes and limitations",
+      "facts": [
+        {
+          "text": "[low] Writes with { w: 1 } can complete on either P old or P new, but writes to P old roll back, while writes with \"majority\" write concern can complete on P new but not P old. In the read concern majority / write concern majority scenario where Read 1 routes to S 1, Read 1 cannot return until the majority commit point has advanced on P old, which cannot occur until P old and S 1 can communicate with the rest of the replica set. Sources: https://www.mongodb.com/docs/manual/core/causal-consistency-read-write-concerns.md",
+          "source": "~/.global-ai-hub/research/.pipeline/mongodb-2026-10-14/frb/read-your-own-writes-bc52bba349/rabbithole-synthesis.md#troubleshooting",
+          "note": null
+        },
+        {
+          "text": "[high] If the write concern is not achieved within wtimeout, MongoDB returns a write concern error but does not undo successful data modifications; without wtimeout and with an unachievable write concern, the write blocks indefinitely. The node's most up-to-date reads with read concern local may include other writers' writes that have not yet been acknowledged and may be rolled back. Sources: https://www.mongodb.com/docs/manual/reference/write-concern.md, https://mongodb.com/blog/post/casual-guarantees-anything-casual",
+          "source": "~/.global-ai-hub/research/.pipeline/mongodb-2026-10-14/frb/read-your-own-writes-bc52bba349/rabbithole-synthesis.md#troubleshooting",
+          "note": null
+        },
+        {
+          "text": "[low] Only a successful write with write concern majority is guaranteed to be durable for any system failure and never roll back, while read concern local returns locally committed data whereas read concern majority returns data from the majority committed snapshot that will never roll back in the face of a primary election. Sources: https://mongodb.com/blog/post/casual-guarantees-anything-casual",
+          "source": "~/.global-ai-hub/research/.pipeline/mongodb-2026-10-14/frb/read-your-own-writes-bc52bba349/rabbithole-synthesis.md#core",
+          "note": null
+        },
+        {
+          "text": "[low] Read 1 cannot return until the majority commit point has advanced on P new past the time of Write 1, and Read 2 cannot return until the majority commit point has advanced on P new past the time of Write 2, ensuring that the read reflects the write's effects. Sources: https://www.mongodb.com/docs/manual/core/causal-consistency-read-write-concerns.md",
+          "source": "~/.global-ai-hub/research/.pipeline/mongodb-2026-10-14/frb/read-your-own-writes-bc52bba349/rabbithole-synthesis.md#troubleshooting",
+          "note": null
+        },
+        {
+          "text": "[low] In essence, the Client performs a Write operation to the Primary server, then tries to read the same Write, but the Read request goes to the Secondary, and the Write is still not replicated to the Secondary, so the Client cannot read his write. Sources: https://vkontech.com/causal-consistency-guarantees-in-mongodb-lamport-clock-cluster-time-operation-time-and-causally-consistent-sessions/",
+          "source": "~/.global-ai-hub/research/.pipeline/mongodb-2026-10-14/frb/read-your-own-writes-bc52bba349/rabbithole-synthesis.md#troubleshooting",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Facts and statements",
+      "facts": [
+        {
+          "text": "[high] In MongoDB, you can use causally consistent sessions to read your own writes if the writes request acknowledgment, and this guarantees read-your-writes behavior with any read preference that allows reading from secondaries as well as the primary. Sources: https://www.mongodb.com/docs/manual/reference/read-concern.md, https://emptysqua.re/blog/how-to-use-mongodb-causal-consistency/, https://dev.to/franckpachot/read-your-writes-on-replicas-postgresql-wait-for-lsn-and-mongodb-causal-consistency-4he2",
+          "source": "~/.global-ai-hub/research/.pipeline/mongodb-2026-10-14/frb/read-your-own-writes-bc52bba349/rabbithole-synthesis.md#core",
+          "note": null
+        },
+        {
+          "text": "[high] By adding versions on writes, the client discards reads of values with versions that precede the last-seen version, and in a causally consistent session, you’ll read your writes and get monotonic reads from secondaries. Sources: https://www.allthingsdistributed.com/2008/12/eventually_consistent.html, https://emptysqua.re/blog/how-to-use-mongodb-causal-consistency/",
+          "source": "~/.global-ai-hub/research/.pipeline/mongodb-2026-10-14/frb/read-your-own-writes-bc52bba349/rabbithole-synthesis.md#core",
+          "note": null
+        },
+        {
+          "text": "[high] A node can use the causal ordering to wait before performing a needed read or write, ensuring it happens after another operation, and in a causally consistent session, the session ensures later reads observe at least the effects of earlier writes regardless of which replica serves the read. Sources: https://mongodb.com/blog/post/casual-guarantees-anything-casual, https://dev.to/franckpachot/read-your-writes-on-replicas-postgresql-wait-for-lsn-and-mongodb-causal-consistency-4he2",
+          "source": "~/.global-ai-hub/research/.pipeline/mongodb-2026-10-14/frb/read-your-own-writes-bc52bba349/rabbithole-synthesis.md#core",
+          "note": null
+        },
+        {
+          "text": "[low] In the presence of node failures or network partitions, causally consistent sessions guarantee causal consistency only for reads with majority readConcern and writes with majority writeConcern, but in the absence of failures, causal consistency is guaranteed by all configurations including read concern local and write concern w1. Sources: http://muratbuffalo.blogspot.com/2024/04/implementation-of-cluster-wide-logical.html",
+          "source": "~/.global-ai-hub/research/.pipeline/mongodb-2026-10-14/frb/read-your-own-writes-bc52bba349/rabbithole-synthesis.md#core",
+          "note": null
+        },
+        {
+          "text": "[low] Causal consistency only guarantees the causal relationship of reads and writes that occur within the same session, and transactions may not have read-your-writes consistency if a transaction has to write to multiple shards or if the read and the earlier write take place in different sessions. Sources: https://www.mongodb.com/docs/manual/reference/parameters.md",
+          "source": "~/.global-ai-hub/research/.pipeline/mongodb-2026-10-14/frb/read-your-own-writes-bc52bba349/rabbithole-synthesis.md#core",
+          "note": null
+        },
+        {
+          "text": "[low] The majority snapshot may lack the most recent writes that have not yet been majority committed, and in the case where a write executed on a primary that later steps down, the definitive result may be that the write did not commit, but if the read sees the successful write, it committed on the new primary and will never roll back. Sources: https://mongodb.com/blog/post/casual-guarantees-anything-casual",
+          "source": "~/.global-ai-hub/research/.pipeline/mongodb-2026-10-14/frb/read-your-own-writes-bc52bba349/rabbithole-synthesis.md#core",
+          "note": null
+        },
+        {
+          "text": "[high] Queries on secondaries immediately after a { w: \"majority\" } write acknowledgment may read from the collection before the secondary applies changes from the write, and once P1 is reconnected to a majority of nodes, all of its writes since the timeline diverged are rolled back. Sources: https://www.mongodb.com/docs/manual/reference/write-concern.md, https://mongodb.com/blog/post/casual-guarantees-anything-casual",
+          "source": "~/.global-ai-hub/research/.pipeline/mongodb-2026-10-14/frb/read-your-own-writes-bc52bba349/rabbithole-synthesis.md#troubleshooting",
+          "note": null
+        },
+        {
+          "text": "[high] To guarantee causal consistency and read-your-writes in MongoDB, use the \"majority\" read concern and the { w: \"majority\" } write concern, as read concern \"majority\" is available with or without causally consistent sessions and transactions. Sources: https://www.mongodb.com/docs/manual/reference/read-concern.md, https://www.mongodb.com/docs/manual/reference/write-concern.md, https://mongodb.com/blog/post/casual-guarantees-anything-casual, https://emptysqua.re/blog/how-to-use-mongodb-causal-consistency/",
+          "source": "~/.global-ai-hub/research/.pipeline/mongodb-2026-10-14/frb/read-your-own-writes-bc52bba349/rabbithole-synthesis.md#core",
+          "note": null
+        },
+        {
+          "text": "[low] Read concern \"local\" is available with or without causally consistent sessions and transactions, but read concerns \"available\" and \"linearizable\" are unavailable for use with causally consistent sessions and transactions. Sources: https://www.mongodb.com/docs/manual/reference/read-concern.md",
+          "source": "~/.global-ai-hub/research/.pipeline/mongodb-2026-10-14/frb/read-your-own-writes-bc52bba349/rabbithole-synthesis.md#core",
+          "note": null
+        },
+        {
+          "text": "[low] The implicit default write concern in MongoDB is w: majority, and starting in MongoDB 8.0, { w: \"majority\" } writes return an acknowledgment after a majority of data-bearing members durably write the oplog entry, whereas earlier releases waited until members applied the write. (verified as of 2026-10-15) Sources: https://www.mongodb.com/docs/manual/reference/write-concern.md",
+          "source": "~/.global-ai-hub/research/.pipeline/mongodb-2026-10-14/frb/read-your-own-writes-bc52bba349/rabbithole-synthesis.md#core",
+          "note": null
+        },
+        {
+          "text": "[high] During a network partition or election, a read with read concern local routed to the former primary can miss a majority-committed write accepted by the new primary; two nodes can temporarily believe they are primary, but only the true primary can see and commit to a majority of nodes. Sources: https://www.mongodb.com/docs/manual/reference/write-concern.md, https://mongodb.com/blog/post/casual-guarantees-anything-casual",
+          "source": "~/.global-ai-hub/research/.pipeline/mongodb-2026-10-14/frb/read-your-own-writes-bc52bba349/rabbithole-synthesis.md#troubleshooting",
+          "note": null
+        }
+      ]
+    }
+  ],
+  "related": [
+    {
+      "concept": "read",
+      "relation": "is a part of read your own writes",
+      "note": null
+    },
+    {
+      "concept": "writes",
+      "relation": "is a part of read your own writes",
+      "note": null
+    },
+    {
+      "concept": "your",
+      "relation": "is a part of read your own writes",
+      "note": null
+    },
+    {
+      "concept": "own",
+      "relation": "is a part of read your own writes",
+      "note": null
+    }
+  ]
+}

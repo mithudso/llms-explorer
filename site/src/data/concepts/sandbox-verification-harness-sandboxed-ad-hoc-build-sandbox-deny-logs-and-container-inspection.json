@@ -1,0 +1,84 @@
+{
+  "slug": "sandbox-verification-harness-sandboxed-ad-hoc-build-sandbox-deny-logs-and-container-inspection",
+  "concept": "Sandbox verification harness sandboxed ad-hoc build sandbox-deny logs and container inspection",
+  "generated": "2026-10-02",
+  "summary": "Source-anchored research for Sandbox verification harness sandboxed ad-hoc build sandbox-deny logs and container inspection. Run status: COMPLETED.",
+  "facets": [
+    {
+      "title": "How it works",
+      "facts": [
+        {
+          "text": "A network denial appears as `Sandbox: <App>(<pid>) deny(1) network-outbound <path>` plus a `Violation:` line, Process, Identifier, and a thread backtrace. The `Violation:` line names the operation and the backtrace locates the offending code. Apple's own example is a denied connect to `/private/var/run/mDNSResponder`. (high confidence)",
+          "source": "https://developer.apple.com/documentation/security/discovering-and-diagnosing-app-sandbox-violations",
+          "note": null
+        },
+        {
+          "text": "Some sandbox denials never reach the violation log; they show only in the app's stderr (Xcode Debug pane) as lines such as `connect() failed path:/var/run/mDNSResponder ... Operation not permitted`, `Sandbox is preventing this process from reading networkd settings file`, or `Sandbox does not allow access to com.apple.dnssd.service`. A harness should capture both stderr and the unified log. (medium confidence)",
+          "source": "https://developer.apple.com/documentation/security/discovering-and-diagnosing-app-sandbox-violations",
+          "note": null
+        },
+        {
+          "text": "The system creates the sandbox container, `~/Library/Containers/<bundle-id>/`, when a sandboxed app first launches. Inside it the app has unrestricted read/write; it does not have unrestricted access to the home folder. `NSSearchPathForDirectoriesInDomains`-style lookups return container paths for a sandboxed app. (medium confidence)",
+          "source": "https://developer.apple.com/documentation/security/protecting-user-data-with-app-sandbox",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Problems, failure modes and limitations",
+      "facts": [
+        {
+          "text": "To see sandbox denials, open Console, paste `type:error`, `subsystem:com.apple.sandbox.reporting` and `category:violation` into the search field (one at a time), save the search, click Start Streaming, then reproduce the problem. Apple's DTS post that first gave these terms was tested on macOS 12.2 and says the terms have changed over time. (high confidence) (verified as of 2026-10-02)",
+          "source": "https://developer.apple.com/documentation/security/discovering-and-diagnosing-app-sandbox-violations",
+          "note": null
+        },
+        {
+          "text": "Preflight checks such as `access()` never produce a sandbox violation report, so code that preflights can fail silently with no deny line. Apple also calls preflighting racy (TOCTOU). (medium confidence)",
+          "source": "https://developer.apple.com/forums/thread/702735",
+          "note": null
+        },
+        {
+          "text": "Verify a build is sandboxed two ways: the Sandbox column in Activity Monitor shows Yes, or `codesign -d --entitlements - <app>` lists `com.apple.security.app-sandbox`. A release smoke test can fail the build if that key is missing. (high confidence)",
+          "source": "https://developer.apple.com/documentation/security/protecting-user-data-with-app-sandbox",
+          "note": null
+        },
+        {
+          "text": "`sandbox-exec` is deprecated; its man page directs developers to App Sandbox instead. It cannot apply entitlements, so it is not a substitute for testing the real entitlement-signed build. (medium confidence)",
+          "source": "https://keith.github.io/xcode-man-pages/sandbox-exec.1.html",
+          "note": null
+        },
+        {
+          "text": "A sandbox profile that passes with one signing identity can fail with another: a Developer ID build was denied `mach-register`/`mach-lookup` that an Apple Distribution build was allowed with identical entitlements (Dec 2025 thread). Apple DTS recommended a Team-ID-prefixed app group. Ad-hoc or Developer ID sandbox runs may not reproduce Mac App Store behavior exactly, so re-verify on the store-signed (TestFlight) build. (low confidence) (verified as of 2025-12-01)",
+          "source": "https://developer.apple.com/forums/thread/808940",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Comparisons and alternatives",
+      "facts": [
+        {
+          "text": "Since macOS 14 Sonoma, App Sandbox associates an app with its container by code signature. A different signature touching an existing container triggers a user prompt (for example 'differs from previously opened versions' or 'would like to access data from other apps'). Ad-hoc signatures change on every rebuild, so repeated ad-hoc test builds re-prompt. Apple DTS suggested trashing the container (`~/Library/Containers/<bundle-id>`) as a workaround and suspected a bug in one case. (medium confidence) (verified as of 2024-03-01)",
+          "source": "https://lapcatsoftware.com/articles/2023/6/1.html",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Facts and statements",
+      "facts": [
+        {
+          "text": "Re-signing ad-hoc with `codesign --force --deep --sign -` and no `--entitlements` strips `com.apple.security.app-sandbox` from the shipped app. The fix is to pass `--entitlements <file>` again or skip the re-sign. A harness for an ad-hoc sandboxed build must therefore assert the entitlement after the final signing step. (medium confidence)",
+          "source": "https://github.com/tomada1114/macos-app-template/issues/97",
+          "note": null
+        },
+        {
+          "text": "Denials from NetworkExtension appear with `System Policy: ... deny(1) system-privilege`, privilege `PRIV_NET_PRIVILEGED_NECP_MATCH`, logged by `sandboxd`; Apple's engineer said to identify whether BSD sockets or Network.framework is in use and read the backtrace. This matters if the monitor uses NE; it is not the same as a plain `network-outbound` deny. (low confidence)",
+          "source": "https://developer.apple.com/forums/thread/690455",
+          "note": null
+        }
+      ]
+    }
+  ],
+  "related": []
+}
