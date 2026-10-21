@@ -49,7 +49,7 @@ def library_seeds(shared, concept: dict) -> list[dict]:
                 metadata = shared.lib_find(row["url"])
                 if metadata and metadata.get("text_path") and metadata.get("age_days") is not None and metadata["age_days"] <= 30:
                     seeds.append({"url": row["url"], "tier": metadata.get("tier", "docs"),
-                                  "why": "Shared-library hit; verify relevance and freshness for this concept.",
+                                  "why": f"Shared-library source {metadata['id']}; verify relevance and freshness for this concept.",
                                   "library_id": metadata["id"]})
             if seeds:
                 return seeds

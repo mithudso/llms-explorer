@@ -14,6 +14,7 @@ import fcntl
 import hashlib
 import importlib.util
 import json
+import re
 import shutil
 import sys
 import tempfile
@@ -137,6 +138,11 @@ def publication_pack(pack: dict, scrub, terms: list[str]) -> dict:
             return value
         value, _ = scrub.scrub_home_paths(value)
         value, _ = scrub.scrub_addresses(value, terms)
+        # JSON escapes a quote after an example email as a backslash. The
+        # publication gate correctly treats that shape as a possible path.
+        value = re.sub(r"[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}",
+                       lambda match: match.group() if scrub.gate.RESERVED.search(match.group())
+                       else "user@example.test", value)
         for name, regex in identity_rules:
             def replace(match, name=name):
                 if any(item in match.group() for item in allowed) or scrub.gate.RESERVED.search(match.group()):
@@ -148,7 +154,8 @@ def publication_pack(pack: dict, scrub, terms: list[str]) -> dict:
     return clean(pack)
 
 
-def plan(repo: Path, hub: Path, merge_tree: bool = True, current_run: str | None = None) -> tuple[dict, dict[Path, str]]:
+def plan(repo: Path, hub: Path, merge_tree: bool = True, current_run: str | None = None,
+         withheld: tuple | list = ()) -> tuple[dict, dict[Path, str]]:
     sys.path.insert(0, str(repo / "scripts"))
     scrub = module("research_site_scrub", repo / "scripts/publish_scrub.py")
     concepts = module("research_site_concepts", repo / "site/tools/gen_concepts.py")
@@ -259,7 +266,7 @@ def plan(repo: Path, hub: Path, merge_tree: bool = True, current_run: str | None
     added_errors = set(tree.ct.ConceptTree(merged).validate()) - baseline_errors
     if added_errors:
         raise ValueError("pack registration adds tree problems: " + "; ".join(sorted(added_errors)))
-    selected = {slug: publication_pack(pack, scrub, scrub.gate.denylist()) for slug, pack in selected.items()}
+    selected = {slug: publication_pack(pack, scrub, [*scrub.gate.denylist(), *withheld]) for slug, pack in selected.items()}
     writes = dict(recovered_writes)
     for slug, pack in selected.items():
         if slug not in site_packs:
@@ -348,13 +355,27 @@ def sync(repo: Path, hub: Path, apply: bool = False, merge_tree: bool = True, cu
     lock_path.parent.mkdir(parents=True, exist_ok=True)
     with lock_path.open("a") as lock:
         fcntl.flock(lock, fcntl.LOCK_EX)
+        reference_cache = hub / "research/.site-public-references.json"
+        withheld = [key for key, value in read_json(reference_cache).items() if not value["public"]] if reference_cache.is_file() else []
         for attempt in range(3):
-            report, changes = plan(repo, hub, merge_tree, current_run)
+            report, changes = plan(repo, hub, merge_tree, current_run, withheld)
             if not apply or all(hashlib.sha256(Path(path).read_bytes()).hexdigest() == digest
                                 for path, digest in report["tree_input_hashes"].items()):
                 break
         else:
             raise ValueError("concept trees kept changing during refresh; retry when the current writer finishes")
+        if apply:
+            verifier_path = repo / "scripts/public_research_references.py"
+            if verifier_path.is_file():
+                verifier = module("research_public_references", verifier_path)
+                reference_writes, newly_withheld = verifier.resolve(repo, hub, changes)
+                if set(newly_withheld) != set(withheld):
+                    report, changes = plan(repo, hub, merge_tree, current_run, newly_withheld)
+                changes.update(reference_writes)
+            if not all(hashlib.sha256(Path(path).read_bytes()).hexdigest() == digest
+                       for path, digest in report["tree_input_hashes"].items()):
+                raise ValueError("A concept tree changed during reference verification; retry the refresh")
+        report["changed_files"] = [str(path.relative_to(repo)) if path.is_relative_to(repo) else "hub/" + str(path.relative_to(hub)) for path in changes]
         report["applied"] = apply
         if apply and changes:
             stamp = datetime.now(UTC).strftime("%Y%m%dT%H%M%S.%fZ")
