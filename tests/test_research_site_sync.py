@@ -141,6 +141,55 @@ class SiteSyncTests(unittest.TestCase):
             website.sync(self.repo, self.hub, apply=True)
         self.assertEqual(before, (self.repo / "concept-tree/tree.json").read_bytes())
 
+    def test_alias_backed_rename_keeps_url_placement_and_tree_references(self):
+        old = node("Old name", "stable-url", parent="Root", children=["Child"])
+        child = node("Child", "child", parent="Old name")
+        root = node("Root", "root", children=["Old name"])
+        renamed = {**old, "concept": "New name", "aliases": ["Old name"]}
+        for base, nodes in ((self.repo, [root, old, child]),
+                            (self.hub, [root, renamed, {**child, "parentConcept": "New name"}])):
+            (base / "concept-tree/tree.json").write_text(json.dumps(nodes))
+        (self.repo / "site/src/data/concepts/stable-url.json").write_text(json.dumps(reader("Old name", "stable-url")))
+        website.sync(self.repo, self.hub, apply=True)
+        for base in (self.repo, self.hub):
+            nodes = {n["concept"]: n for n in json.loads((base / "concept-tree/tree.json").read_text())}
+            self.assertNotIn("Old name", nodes)
+            self.assertEqual(nodes["New name"]["slug"], "stable-url")
+            self.assertEqual(nodes["New name"]["parentConcept"], "Root")
+            self.assertEqual(nodes["Root"]["childConcepts"], ["New name"])
+            self.assertEqual(nodes["Child"]["parentConcept"], "New name")
+        self.assertEqual(json.loads((self.repo / "site/src/data/concepts/stable-url.json").read_text())["concept"], "New name")
+        self.assertEqual(website.sync(self.repo, self.hub)["changed_files"], [])
+
+    def test_fresh_shorter_same_day_correction_replaces_retired_reader_facts(self):
+        self.save_pack()
+        old = reader("New concept", "new-concept", "Retired unsupported statement.")
+        old["facets"][0]["facts"].append({"text": "Another retired fact.", "source": "https://example.test/old"})
+        path = self.repo / "site/src/data/concepts/new-concept.json"
+        path.write_text(json.dumps(old))
+        result = website.sync(self.repo, self.hub, apply=True, authoritative_slugs=["new-concept"])
+        self.assertEqual(result["website_totals"]["facts"], 1)
+        for target in (path, self.repo / "site/public/downloads/concepts/new-concept.md",
+                       self.repo / "site/public/search-keywords.json"):
+            self.assertIn("New finding.", target.read_text())
+            self.assertNotIn("Retired", target.read_text())
+        self.assertEqual(website.sync(self.repo, self.hub)["changed_files"], [])
+
+    def test_canonicalization_retains_old_facts_download_without_duplicate_reader(self):
+        for base in (self.repo, self.hub):
+            (base / "concept-tree/tree.json").write_text(json.dumps([node("Canonical", "stable")]))
+        (self.repo / "site/src/data/concepts/old.json").write_text(json.dumps(reader("Canonical", "old")))
+        result = website.sync(self.repo, self.hub, apply=True)
+        downloads = self.repo / "site/public/downloads/concepts"
+        self.assertEqual((downloads / "old.md").read_text(), (downloads / "stable.md").read_text())
+        self.assertFalse((self.repo / "site/src/data/concepts/old.json").exists())
+        self.assertEqual(result["website_totals"]["concepts"], 1)
+        self.assertEqual(website.sync(self.repo, self.hub)["changed_files"], [])
+        with patch.dict("os.environ", {"PRIVACY_DENYLIST": "Canonical"}):
+            website.sync(self.repo, self.hub, apply=True)
+        self.assertFalse((downloads / "old.md").exists())
+        self.assertFalse((downloads / "stable.md").exists())
+
     def test_same_date_recovery_cannot_replace_a_richer_website_reference(self):
         self.save_pack()
         richer = reader("New concept", "new-concept")

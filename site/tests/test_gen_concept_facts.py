@@ -77,3 +77,19 @@ def test_site_url_comes_from_the_environment(monkeypatch):
     assert gen_concept_facts.default_site_url() == "https://docs.example.com"
     monkeypatch.delenv("SITE_URL")
     assert gen_concept_facts.default_site_url() == gen_concept_facts.DEFAULT_SITE_URL
+
+
+def test_alias_downloads_survive_regeneration_with_canonical_current_facts(tmp_path):
+    concepts, tree, out, sources = _fixture(tmp_path)
+    tree.write_text(json.dumps({**TREE, "redirects": {"old-kid": "kid", "older-kid": "old-kid"}}))
+    assert gen_concept_facts.build(concepts, tree, out, "https://ex.dev", sources) == 3
+    assert (out / "old-kid.md").read_text() == (out / "kid.md").read_text()
+    updated = {**PACK, "summary": "Corrected reference."}
+    (concepts / "kid.json").write_text(json.dumps(updated))
+    gen_concept_facts.build(concepts, tree, out, "https://ex.dev", sources)
+    for name in ("kid", "old-kid", "older-kid"):
+        assert "Corrected reference." in (out / f"{name}.md").read_text()
+        assert "https://ex.dev/tree/kid/" in (out / f"{name}.md").read_text()
+    (concepts / "kid.json").unlink()
+    assert gen_concept_facts.build(concepts, tree, out, "https://ex.dev", sources) == 0
+    assert list(out.iterdir()) == []

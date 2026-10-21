@@ -126,20 +126,42 @@ def render_pack(pack: dict, nodes: dict, site_url: str, sources_dir: Path) -> st
     return banner + text
 
 
+def download_texts(packs: dict, nodes: dict, redirects: dict, site_url: str,
+                   sources_dir: Path) -> dict:
+    """Retain published download URLs without duplicate reader/context packs."""
+    texts = {slug: render_pack(pack, nodes, site_url, sources_dir) for slug, pack in packs.items()}
+    for alias, target in redirects.items():
+        if alias in texts:
+            continue
+        if Path(alias).name != alias or alias in (".", ".."):
+            raise ValueError(f"Invalid facts download alias: {alias!r}")
+        seen = {alias}
+        while target not in texts and target in redirects:
+            if target in seen:
+                raise ValueError("Facts download redirect cycle")
+            seen.add(target)
+            target = redirects[target]
+        if target in texts:
+            texts[alias] = texts[target]
+    return texts
+
+
 def build(concepts_dir: Path, tree_path: Path, out: Path, site_url: str,
           sources_dir: Path) -> int:
-    nodes = json.loads(tree_path.read_text(encoding="utf-8")).get("nodes") or {}
+    tree = json.loads(tree_path.read_text(encoding="utf-8"))
+    nodes = tree.get("nodes") or {}
     if out.exists():
         shutil.rmtree(out)
     out.mkdir(parents=True, exist_ok=True)
-    n = 0
+    packs = {}
     for f in sorted(concepts_dir.glob("*.json")):
         pack = json.loads(f.read_text(encoding="utf-8"))
         pack.setdefault("slug", f.stem)
-        (out / f"{pack['slug']}.md").write_text(
-            render_pack(pack, nodes, site_url, sources_dir), encoding="utf-8")
-        n += 1
-    return n
+        packs[pack["slug"]] = pack
+    texts = download_texts(packs, nodes, tree.get("redirects", {}), site_url, sources_dir)
+    for slug, text in texts.items():
+        (out / f"{slug}.md").write_text(text, encoding="utf-8")
+    return len(texts)
 
 
 def main(argv=None) -> int:

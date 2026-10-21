@@ -242,6 +242,28 @@ def execute_locked(repo, hub, plan_path, max_cohorts=None):
                 return run_command(command, log, env, timeout=min(limit, remaining))
             phase(adapter + ["init", parent, "--slug", slug, "--concepts", "cohort initialization"])
             manifest = prepare_manifest(shared, slug, parent, picked, plan_path)
+            # A resumed manifest owns its original subset. Newly available
+            # concepts need their own research and gate, never its completion.
+            manifest_names = [row["name"] for row in manifest["concepts"]]
+            if not manifest_names:
+                raise RuntimeError("A cohort manifest has no researched concepts")
+            manifest_keys = {key(name) for name in manifest_names}
+            extra = [name for name in picked if key(name) not in manifest_keys]
+            if extra:
+                continuation = {**cohort, "id": cohort_id(extra, revisit=True),
+                                "concepts": extra, "status": "pending", "continuation_of": slug}
+                for field in ("error", "started", "finished", "stopped", "run", "deferred_to"):
+                    continuation.pop(field, None)
+                plan["cohorts"].insert(plan["cohorts"].index(cohort) + 1, continuation)
+                cohort["deferred_to"] = continuation["id"]
+            picked_keys = {key(value) for value in picked}
+            if any(key(name) not in picked_keys for name in manifest_names):
+                raise RuntimeError("A manifest concept is no longer eligible for this cohort")
+            if cohort["concepts"] != manifest_names:
+                cohort.setdefault("planned_concepts", cohort["concepts"])
+                cohort["concepts"] = manifest_names
+            picked = manifest_names
+            atomic(plan_path, plan)
             # Include pages saved by earlier /dr runs in the shared FTS index.
             phase([sys.executable, str(hub / "scripts/source_library.py"), "reconcile"], 300)
             if manifest["status"] != "finalized":
@@ -263,6 +285,12 @@ def execute_locked(repo, hub, plan_path, max_cohorts=None):
                 if dissent:
                     raise RuntimeError(f"blind claim gate needs review: {len(dissent)} non-supported verdicts")
                 phase(adapter + ["finish", slug, "--status", "COMPLETED", "--stop-reason", "Ranked source-sharing cohort; scout and blind gate completed."])
+            errors = []
+            documents = shared.load_claims(slug, errors)
+            if errors or any(row["status"] != "done" or row["slug"] not in documents
+                             or documents[row["slug"]].get("slug", row["slug"]) != row["slug"]
+                             for row in manifest["concepts"]):
+                raise RuntimeError(f"cohort completion requires validated manifest claims: {errors}")
             # A completed run with a failed website write can resume without
             # repeating paid research. This also checks all four website surfaces.
             phase([sys.executable, str(repo / "scripts/research_site_sync.py"), "--repo", str(repo),

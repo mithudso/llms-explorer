@@ -282,6 +282,7 @@ def finalize_artifacts(shared, manifest: dict, claims: dict[str, dict], status: 
                    "excluded_repository_concepts": sorted(private_names & set(documents)),
                    "backup": str(backup) if backup.exists() else None}
     website = load_module("codex_dr_website", repo / "scripts/research_site_sync.py")
-    receipt["website"] = website.sync(repo, shared.HUB_DIR, apply=True, merge_tree=False)
+    receipt["website"] = website.sync(repo, shared.HUB_DIR, apply=True, merge_tree=False,
+                                      authoritative_slugs=list(jobs))
     shared.atomic_write(run / "artifacts/receipt.json", json.dumps(receipt, indent=2) + "\n")
     return receipt
