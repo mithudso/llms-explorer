@@ -86,7 +86,7 @@ def test_finalized_owned_cohort_resumes_site_even_when_covered_and_queue_done(tm
     cohort = {"id": "test", "parent": "Root", "status": "needs-review", "concepts": ["A"], "error": "old failure"}
     ranked.atomic(plan, {"cohorts": [cohort], "rows": [{"concept": "A", "mode": "dr"}], "error": "old failure"})
     manifest = {"status": "finalized", "ranked_queue_source": str(plan),
-                "concepts": [{"name": "A", "status": "done"}]}
+                "concepts": [{"name": "A", "slug": "a", "status": "done"}]}
     ranked.atomic(tmp_path / "research/test/manifest.json", manifest)
     queue = tmp_path / "concept-tree/RESEARCH_QUEUE.md"
     queue.parent.mkdir()
@@ -94,6 +94,7 @@ def test_finalized_owned_cohort_resumes_site_even_when_covered_and_queue_done(tm
     shared = SimpleNamespace(run_dir=lambda slug: tmp_path / "research" / slug,
                              run_lock=lambda slug: nullcontext(), load_manifest=lambda slug: manifest,
                              save_manifest=lambda value: None, write_draft=lambda value: None,
+                             load_claims=lambda slug, errors: {"a": {"concept": "An editorial title bound with --as", "slug": "a"}},
                              RESEARCH_DIR=tmp_path / "research", locked=lambda path: nullcontext(),
                              atomic_write=lambda path, text: path.write_text(text))
     tree = SimpleNamespace(load_queue=lambda path: [{"concept": "A", "done": True}],
@@ -114,6 +115,83 @@ def test_finalized_owned_cohort_resumes_site_even_when_covered_and_queue_done(tm
     assert "error" not in result["cohorts"][0]
     assert any("research_site_sync.py" in command[1] for command in commands)
     assert not any("research" in command[2:3] or "gate" in command[2:3] for command in commands)
+
+
+def test_finalized_subset_defers_newly_eligible_concepts_without_completing_them(tmp_path, monkeypatch):
+    monkeypatch.setenv("LLMSX_HOME", str(tmp_path / "checkouts"))
+    plan = tmp_path / "batch/plan.json"
+    ranked.atomic(plan, {"cohorts": [{"id": "test", "parent": "Root", "status": "needs-review",
+                                      "concepts": ["A", "B"]}],
+                         "rows": [{"concept": name, "mode": "dr"} for name in ("A", "B")]})
+    manifest = {"status": "finalized", "ranked_queue_source": str(plan),
+                "concepts": [{"name": "A", "slug": "a", "status": "done"}]}
+    ranked.atomic(tmp_path / "research/test/manifest.json", manifest)
+    queue = tmp_path / "concept-tree/RESEARCH_QUEUE.md"
+    queue.parent.mkdir()
+    queue.write_text("- [ ] Concept: `A`\n- [ ] Concept: `B`\n")
+    manifests = {"test": manifest}
+    shared = SimpleNamespace(run_dir=lambda slug: tmp_path / "research" / slug,
+                             run_lock=lambda slug: nullcontext(), load_manifest=lambda slug: manifests[slug],
+                             save_manifest=lambda value: None, write_draft=lambda value: None,
+                             load_claims=lambda slug, errors: {row["slug"]: {"concept": row["name"]}
+                                                               for row in manifests[slug]["concepts"] if row["status"] == "done"},
+                             slugify=str.lower,
+                             RESEARCH_DIR=tmp_path / "research", locked=lambda path: nullcontext(),
+                             atomic_write=lambda path, text: path.write_text(text))
+    tree = SimpleNamespace(load_queue=lambda path: [{"concept": name, "done": False} for name in ("A", "B")],
+                           load_nodes=lambda path: [{"concept": "A", "aliases": []}])
+    def fake_load(name, path):
+        if name == "ranked_adapter":
+            return SimpleNamespace(load_shared=lambda: shared)
+        return SimpleNamespace(runs=list) if name == "cohort_checkouts" else tree
+    commands = []
+    def fake_command(command, *args, **kwargs):
+        commands.append(command)
+        if command[1].endswith("codex_dr_run.py"):
+            action, slug = command[2:4]
+            if action == "init":
+                slug = command[command.index("--slug") + 1]
+            if action == "init" and slug not in manifests:
+                manifests[slug] = {"status": "researching", "concepts": [{"name": "placeholder", "status": "pending"}]}
+            elif action == "research":
+                assert [row["name"] for row in manifests[slug]["concepts"]] == ["B"]
+                for row in manifests[slug]["concepts"]:
+                    row["status"] = "done"
+            elif action == "gate":
+                ranked.atomic(tmp_path / "research" / slug / "gate.json", {"verdicts": [{"verdict": "SUPPORTED"}]})
+    monkeypatch.setattr(ranked, "load", fake_load)
+    monkeypatch.setattr(ranked, "run_command", fake_command)
+    assert ranked.execute_locked(tmp_path, tmp_path, plan, max_cohorts=1) == 0
+    assert queue.read_text().splitlines() == ["- [x] Concept: `A`", "- [ ] Concept: `B`"]
+    result = json.loads(plan.read_text())
+    first, continuation = result["cohorts"]
+    assert first["status"] == "complete" and first["concepts"] == ["A"]
+    assert continuation["concepts"] == ["B"] and continuation["status"] == "pending"
+    assert continuation["id"] != first["id"]
+    successes = [json.loads(line) for line in (tmp_path / "checkouts/jobs/batches/batch/results.jsonl").read_text().splitlines()]
+    assert [row["concept"] for row in successes] == ["A"]
+    assert not any(command[2:3] == ["research"] for command in commands)
+    assert ranked.execute_locked(tmp_path, tmp_path, plan, max_cohorts=1) == 0
+    assert queue.read_text().splitlines() == ["- [x] Concept: `A`", "- [x] Concept: `B`"]
+    assert [command[3] for command in commands if command[2:3] == ["research"]] == [continuation["id"]]
+
+
+def test_finalized_manifest_without_validated_claims_cannot_complete_queue(tmp_path, monkeypatch):
+    monkeypatch.setenv("LLMSX_HOME", str(tmp_path / "checkouts"))
+    plan = tmp_path / "batch/plan.json"
+    ranked.atomic(plan, {"cohorts": [{"id": "test", "parent": "Root", "status": "needs-review", "concepts": ["A"]}], "rows": []})
+    manifest = {"status": "finalized", "ranked_queue_source": str(plan),
+                "concepts": [{"name": "A", "slug": "a", "status": "done"}]}
+    ranked.atomic(tmp_path / "research/test/manifest.json", manifest)
+    shared = SimpleNamespace(run_dir=lambda slug: tmp_path / "research" / slug,
+                             run_lock=lambda slug: nullcontext(), load_manifest=lambda slug: manifest,
+                             save_manifest=lambda value: None, write_draft=lambda value: None,
+                             load_claims=lambda slug, errors: {})
+    monkeypatch.setattr(ranked, "eligible_now", lambda *args: ["A"])
+    monkeypatch.setattr(ranked, "load", lambda *args: SimpleNamespace(load_shared=lambda: shared))
+    monkeypatch.setattr(ranked, "run_command", lambda *args, **kwargs: None)
+    assert ranked.execute_locked(tmp_path, tmp_path, plan) == 1
+    assert "validated manifest claims" in json.loads(plan.read_text())["error"]
 
 
 def test_custom_llmsx_home_reservation_is_visible_to_checkout_scanner(tmp_path, monkeypatch):

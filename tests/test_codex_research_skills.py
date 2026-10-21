@@ -391,6 +391,47 @@ class ResearchFlowTests(unittest.TestCase):
         self.invoke("finish", "publication", "--status", "COMPLETED")
         self.assertEqual(self.shared.load_manifest("publication")["status"], "finalized")
 
+    def test_finish_replaces_longer_same_day_reader_with_corrected_claims(self):
+        self.research()
+        self.artifact_targets()
+        self.render()
+        directory = self.repo / "site/src/data/concepts"
+        directory.mkdir(parents=True)
+        for name, slug in (("Atomic publication", "atomic-publication"),
+                           ("Rename durability", "rename-durability")):
+            old = {"slug": slug, "concept": name, "generated": self.shared._today(),
+                   "summary": name, "related": [], "facets": [{"title": "Facts", "facts": [
+                       {"text": f"Retired unsupported statement {index}.", "source": "https://example.test/old"}
+                       for index in range(9)]}]}
+            (directory / f"{slug}.json").write_text(json.dumps(old))
+        self.invoke("finish", "publication", "--status", "COMPLETED")
+        pack = json.loads((directory / "rename-durability.json").read_text())
+        self.assertEqual(sum(len(facet["facts"]) for facet in pack["facets"]), 8)
+        for target in (directory / "rename-durability.json",
+                       self.repo / "site/public/downloads/concepts/rename-durability.md",
+                       self.repo / "site/public/search-keywords.json"):
+            self.assertNotIn("Retired unsupported", target.read_text())
+            self.assertIn("Publication constraint", target.read_text())
+
+    def test_current_run_refresh_retry_keeps_correction_authority_without_recompiling(self):
+        self.research()
+        self.artifact_targets()
+        self.render()
+        self.invoke("finish", "publication", "--status", "COMPLETED")
+        runtime = self.hub / "scripts/dr_run.py"
+        runtime.parent.mkdir(exist_ok=True)
+        shutil.copy2(self.shared.__file__, runtime)
+        website = module_at("test_current_refresh", REPO / "scripts/research_site_sync.py")
+        website.sync(self.repo, self.hub, apply=True, current_run="publication")
+        path = self.repo / "site/src/data/concepts/rename-durability.json"
+        old = json.loads(path.read_text())
+        old["facets"][0]["facts"].append({"text": "Retired unsupported statement.", "source": "https://example.test/old"})
+        path.write_text(json.dumps(old))
+        result = website.sync(self.repo, self.hub, apply=True, current_run="publication")
+        self.assertEqual(result["dr_recovery"]["recovered_packs"], [])
+        self.assertNotIn("Retired unsupported", path.read_text())
+        self.assertIn("rename-durability", result["dr_recovery"]["current_run_slugs"])
+
     def test_long_claim_keeps_caveat_confidence_and_verification_in_reader_exports(self):
         text = "Publication durability depends on the filesystem and failure model. " * 15 + "Production warning: a completed rename alone does not prove durable recovery."
         self.doc["claims"][0].update(text=text, volatile=True, verified_as_of="2026-10-21")

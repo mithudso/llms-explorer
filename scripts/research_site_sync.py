@@ -53,6 +53,16 @@ def merge_nodes(destination: list[dict], source: list[dict]) -> list[dict]:
     taken = {node.get("slug") for node in result}
     for incoming in source:
         name = incoming["concept"]
+        owner = next((node for node in result if node.get("slug") == incoming.get("slug")), None)
+        if name not in by_name and owner:
+            if owner["concept"].casefold() in {alias.casefold() for alias in incoming.get("aliases", [])}:
+                old = owner["concept"]
+                owner["concept"] = name
+                owner["aliases"] = list(dict.fromkeys([*owner.get("aliases", []), old]))
+                by_name.pop(old)
+                by_name[name] = owner
+            elif name.casefold() in {alias.casefold() for alias in owner.get("aliases", [])}:
+                name = owner["concept"]
         if name not in by_name:
             node = copy.deepcopy(incoming)
             if node.get("slug") in taken:
@@ -72,7 +82,13 @@ def merge_nodes(destination: list[dict], source: list[dict]) -> list[dict]:
             for key in ("researchedAt", "sourcesCount", "conceptsCount", "summary", "cvs", "cvsDecision", "cvsScoredAt", "llmsFile"):
                 if incoming.get(key) not in (None, ""):
                     node[key] = incoming[key]
+    canonical = {alias: node["concept"] for node in result for alias in node.get("aliases", [])
+                 if alias not in by_name}
     for node in result:
+        if node.get("parentConcept") in canonical:
+            node["parentConcept"] = canonical[node["parentConcept"]]
+        node["childConcepts"] = list(dict.fromkeys(canonical.get(child, child)
+                                                   for child in node.get("childConcepts", [])))
         parent = node.get("parentConcept")
         if parent and parent in by_name:
             children = by_name[parent].setdefault("childConcepts", [])
@@ -159,7 +175,7 @@ def publication_pack(pack: dict, scrub, terms: list[str]) -> dict:
 
 
 def plan(repo: Path, hub: Path, merge_tree: bool = True, current_run: str | None = None,
-         withheld: tuple | list = ()) -> tuple[dict, dict[Path, str]]:
+         withheld: tuple | list = (), authoritative_slugs=()) -> tuple[dict, dict[Path, str]]:
     sys.path.insert(0, str(repo / "scripts"))
     scrub = module("research_site_scrub", repo / "scripts/publish_scrub.py")
     concepts = module("research_site_concepts", repo / "site/tools/gen_concepts.py")
@@ -189,6 +205,8 @@ def plan(repo: Path, hub: Path, merge_tree: bool = True, current_run: str | None
     recovery = module("research_site_recovery", repo / "scripts/recover_dr_packs.py")
     recovered_writes, recovered_packs, recovery_report = recovery.plan(
         repo, hub, safe_hub, module, scrub, current_run, excluded_names, withheld)
+    authoritative_slugs = set(authoritative_slugs) | set(recovery_report.get("current_run_slugs", [])) | {
+        row["slug"] for row in recovery_report["recovered_packs"] if row["run"] == current_run}
     excluded_identities = {name.casefold() for name in excluded_names}
     excluded_slugs = {node["slug"] for node in [*hub_nodes, *current_nodes]
                       if node["concept"].casefold() in excluded_identities}
@@ -233,7 +251,7 @@ def plan(repo: Path, hub: Path, merge_tree: bool = True, current_run: str | None
                 continue
             count_facts = lambda value: sum(len(facet.get("facts", [])) for facet in value.get("facets", []))
             if (previous and candidate.get("generated") == previous.get("generated")
-                    and count_facts(candidate) < count_facts(previous)):
+                    and count_facts(candidate) < count_facts(previous) and slug not in authoritative_slugs):
                 classifications[path.name] = "same-date-richer-website"
                 continue
             selected[slug] = candidate
@@ -266,7 +284,7 @@ def plan(repo: Path, hub: Path, merge_tree: bool = True, current_run: str | None
             canonical = node["slug"]
             previous = selected.get(canonical)
             count = lambda value: sum(len(facet.get("facts", [])) for facet in value.get("facets", []))
-            if (previous is None or str(pack.get("generated") or "") > str(previous.get("generated") or "")
+            if (slug in authoritative_slugs or previous is None or str(pack.get("generated") or "") > str(previous.get("generated") or "")
                     or (pack.get("generated") == previous.get("generated") and count(pack) > count(previous))):
                 selected[canonical] = {**pack, "slug": canonical, "concept": node["concept"]}
             node["slugAliases"] = list(dict.fromkeys([*(node.get("slugAliases") or []), slug]))
@@ -335,9 +353,13 @@ def plan(repo: Path, hub: Path, merge_tree: bool = True, current_run: str | None
         writes.update(search_changes)
         writes[repo / "site/src/data/tree.json"] = json.dumps(tree_data, indent=1, sort_keys=True) + "\n"
         writes[repo / "site/src/data/context.json"] = json_text(context_data, sort_keys=True)
-        for slug, pack in selected.items():
-            writes[repo / f"site/public/downloads/concepts/{slug}.md"] = facts.render_pack(
-                pack, tree_data["nodes"], facts.DEFAULT_SITE_URL, repo / "site/src/content/sources")
+        download_texts = facts.download_texts(selected, tree_data["nodes"], tree_data.get("redirects", {}),
+                                              facts.DEFAULT_SITE_URL, repo / "site/src/content/sources")
+        for slug, text in download_texts.items():
+            writes[repo / f"site/public/downloads/concepts/{slug}.md"] = text
+        for path in (repo / "site/public/downloads/concepts").glob("*.md"):
+            if path.stem not in download_texts:
+                writes[path] = None
     if merged != current_nodes:
         writes[repo / "concept-tree/tree.json"] = json_text(merged, indent=2)
     # Pack-only research becomes discoverable in the runtime tree too. Keep
@@ -368,15 +390,18 @@ def plan(repo: Path, hub: Path, merge_tree: bool = True, current_run: str | None
     # Obsolete data copies would otherwise re-enter context.json on the next
     # CI generation. Their URLs redirect and their original bodies are backed up.
     for slug in set(pack_aliases) | excluded_pack_slugs:
-        for path in (repo / f"site/src/data/concepts/{slug}.json",
-                     repo / f"site/public/downloads/concepts/{slug}.md"):
+        paths = [repo / f"site/src/data/concepts/{slug}.json"]
+        if slug in excluded_pack_slugs:
+            paths.append(repo / f"site/public/downloads/concepts/{slug}.md")
+        for path in paths:
             if path.exists():
                 changes[path] = None
     report["changed_files"] = [str(path.relative_to(repo)) if path.is_relative_to(repo) else "hub/" + str(path.relative_to(hub)) for path in changes]
     return report, changes
 
 
-def sync(repo: Path, hub: Path, apply: bool = False, merge_tree: bool = True, current_run: str | None = None) -> dict:
+def sync(repo: Path, hub: Path, apply: bool = False, merge_tree: bool = True,
+         current_run: str | None = None, authoritative_slugs=()) -> dict:
     # This serializes CFE, /dr, suite and batch writers' website refreshes.
     lock_path = repo / "tmp/research-site-sync.lock"
     lock_path.parent.mkdir(parents=True, exist_ok=True)
@@ -385,7 +410,7 @@ def sync(repo: Path, hub: Path, apply: bool = False, merge_tree: bool = True, cu
         reference_cache = hub / "research/.site-public-references.json"
         withheld = [key for key, value in read_json(reference_cache).items() if not value["public"]] if reference_cache.is_file() else []
         for attempt in range(3):
-            report, changes = plan(repo, hub, merge_tree, current_run, withheld)
+            report, changes = plan(repo, hub, merge_tree, current_run, withheld, authoritative_slugs)
             if not apply or all(hashlib.sha256(Path(path).read_bytes()).hexdigest() == digest
                                 for path, digest in report["tree_input_hashes"].items()):
                 break
@@ -397,7 +422,7 @@ def sync(repo: Path, hub: Path, apply: bool = False, merge_tree: bool = True, cu
                 verifier = module("research_public_references", verifier_path)
                 reference_writes, newly_withheld = verifier.resolve(repo, hub, changes)
                 if set(newly_withheld) != set(withheld):
-                    report, changes = plan(repo, hub, merge_tree, current_run, newly_withheld)
+                    report, changes = plan(repo, hub, merge_tree, current_run, newly_withheld, authoritative_slugs)
                 changes.update(reference_writes)
             if not all(hashlib.sha256(Path(path).read_bytes()).hexdigest() == digest
                        for path, digest in report["tree_input_hashes"].items()):

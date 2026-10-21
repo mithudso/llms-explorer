@@ -69,7 +69,7 @@ def plan(repo: Path, hub: Path, nodes: list[dict], load, scrub, current_run: str
             if old is None or stamp > old["stamp"]:
                 candidates[slug] = {"name": canonical_name, "docs": source_docs, "stamp": stamp,
                                     "sha256": fingerprint, "run": path.parent.name}
-    writes, packs, recovered = {}, {}, []
+    writes, packs, recovered, current_slugs = {}, {}, [], set()
     with tempfile.TemporaryDirectory(prefix="recover-dr-packs-") as temporary:
         for slug, candidate in candidates.items():
             destinations = [root / f"{slug}.llms" for root in
@@ -96,6 +96,8 @@ def plan(repo: Path, hub: Path, nodes: list[dict], load, scrub, current_run: str
                 if (len(previous_manifests) == len(destinations)
                         and all(previous.get("dr_source_sha256") == candidate["sha256"]
                                 for previous in previous_manifests)):
+                    if candidate["run"] == current_run:
+                        current_slugs.add(slug)
                     continue
             if len(previous_manifests) != len(existing_manifests):
                 continue
@@ -133,4 +135,7 @@ def plan(repo: Path, hub: Path, nodes: list[dict], load, scrub, current_run: str
                         writes[path] = text
             recovered.append({"concept": candidate["name"], "slug": slug, "run": candidate["run"],
                               "claims": sum(len(doc["claims"]) for doc in candidate["docs"])})
-    return writes, packs, {"recovered_packs": recovered, "skipped_runs": skipped}
+            if candidate["run"] == current_run:
+                current_slugs.add(slug)
+    return writes, packs, {"recovered_packs": recovered, "skipped_runs": skipped,
+                          "current_run_slugs": sorted(current_slugs)}
