@@ -65,8 +65,8 @@ concept. A failed gate leaves queue rows pending.
 The first cohort completed with 40 new facts and 10/10 sampled claims supported by
 the blind gate. Both trees and all website surfaces refreshed automatically.
 The [2026-10-21 resume snapshot](../ranked-queue-progress-2026-10-21.md) contains
-ten completed cohorts, 40 concepts and 389 structured claims. Its local website
-dataset has 1,477 references and 88,852 facts. Research continues after this
+eleven completed cohorts, 44 concepts and 442 structured claims. Its local website
+dataset has 1,481 references and 88,905 facts. Research continues after this
 publication snapshot.
 
 The export repair restored 85 full claim statements in 26 hub packs and their
@@ -113,5 +113,6 @@ release remains unmerged until its CI gate passes.
 
 The initial release passed 309 full-suite tests. The 2026-10-21 resume snapshot
 passed 52 focused runtime tests and 298 site/publication tests in the isolated
-release checkout. Build, publication policy, privacy, scoped lint and generated
+release checkout. The eleven-cohort snapshot passes 71 relevant generation,
+route, context and search tests. Build, publication policy, privacy, scoped lint and generated
 tree/context comparisons pass. The earlier Astro check passed.

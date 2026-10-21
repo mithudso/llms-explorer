@@ -1,9 +1,9 @@
 # Ranked research progress — 2026-10-21
 
-Ten of the 31 planned source-sharing cohorts have completed. They cover 40
-concepts and 389 structured claims. Thirty-six concepts add website references;
+Eleven of the 31 planned source-sharing cohorts have completed. They cover 44
+concepts and 442 structured claims. Forty concepts add website references;
 four transaction concepts refresh existing references. The publication snapshot
-contains 1,477 references and 88,852 facts. The queue continues independently.
+contains 1,481 references and 88,905 facts. The queue continues independently.
 
 | Cohort | Shared context | Concepts | Claims | Current blind sample |
 | --- | --- | ---: | ---: | --- |
@@ -17,11 +17,12 @@ contains 1,477 references and 88,852 facts. The queue continues independently.
 | ranked-ab842e47 | Storage sizing, S3 partitions and data lifecycle | 4 | 36 | 10/10 supported |
 | ranked-29798f23 | ERS, explain statistics, multikey paths and existence bounds | 4 | 22 | 10/10 supported |
 | ranked-8f7c06b1 | Atlas profiling, hints and index-filter migration | 4 | 40 | 10/10 supported |
+| ranked-3d355de6 | Atlas cost governance, tier bounds and embedding limits | 4 | 53 | 10/10 supported |
 
-All 40 concepts used Luna at max effort and triggered one seeded follow-up after
+All 44 concepts used Luna at max effort and triggered one seeded follow-up after
 the first pass's scout or evidence-floor check. Sol at medium effort merged the
 claims and ran the independent sample gates. These are sample checks, not
-verification of all 389 claims. All 100 current samples are supported. The
+verification of all 442 claims. All 110 current samples are supported. The
 runtime did not report usable dollar costs.
 
 The sixth cohort initially stopped with nine supported samples and one
@@ -37,19 +38,21 @@ Every completed cohort has separate packs for each concept in both local pack
 roots, with all eight required files present. Both trees, reader JSON, context,
 facts downloads and keyword search data refreshed before queue completion.
 Existing semantic vectors remain frozen under the embedding pause. The shared
-source-library index contains 9,372 sources and reconciled without errors before
+source-library index contains 9,397 sources and reconciled without errors before
 the next cohort. Raw
 source bodies, private library state and research execution logs stay local.
 
-The eleventh cohort researches automated embedding rate limits, autoscaling cost
-ceilings, Flex migration and Atlas tag-based cost allocation. The saved plan retains 21
+The twelfth cohort researches searchAfter pagination, covered counts, total-count
+strategies and collation/index-sort compatibility. The saved plan retains 20
 unfinished cohorts at this snapshot, including that active cohort. Other runs'
 held concepts remain excluded. A new gate dissent will stop the runner for
 review.
 
-The eleventh cohort's scout transports reported DNS failures after storing valid
-claim files. DNS now resolves, and the adapter retained those files and started
-the seeded follow-up passes. The ten completed cohorts were not repeated.
+The eleventh cohort's transports reported DNS failures after storing valid claim
+files. The adapter retained both validated pass documents for each concept and
+completed the seeded follow-ups, merges and blind gate. The original transport
+error records remain intact. All ten sampled claims passed. Earlier completed
+cohorts were not repeated.
 
 PR review fixes cover private descendants and repository packs, historical
 recovery when only one pack copy survives, canonical titles, current search
@@ -68,16 +71,19 @@ prior files. A full scan finds no clipped statements in the 249 DR packs, and
 the repair's check mode reports no pending changes. The publication privacy
 check passes across all 1,461 changed repository pack files.
 A legacy blog title now uses a descriptive public name so its generated citation
-fragments also pass the privacy check. The current release scan covers 6,019 files
+fragments also pass the privacy check. The current release scan covers 6,027 files
 with the local operator denylist. A second scan passes the five generated site
-llms text files and all 64 pack members for the eight newly completed concepts.
-Their 62 statements also retain full text in website readers and facts downloads.
+llms text files and all 32 pack members for the four newly completed concepts.
+Their 53 statements also retain full text in website readers and facts downloads.
 
 PR #214 carries the publication snapshot. Production publication still needs
 the repository Actions secret `LIBS_READ_TOKEN`, with read access to the two
 private shared-library repositories. The PR remains open until CI passes.
 
-Validation passed: 52 focused runtime tests and 298 site/publication tests in
-the isolated release checkout. Scoped Ruff, the full site build, publication
-policy, privacy scan and generated tree/context comparison passed. The active
-runtime's refresh check reports zero pending changes and zero unfiled references.
+The unchanged runtime passed 52 focused tests. The ten-cohort snapshot passed
+298 site/publication tests in the isolated release checkout. The eleven-cohort
+snapshot passes 71 relevant generation, route, context and search tests. Scoped
+Ruff, the full site build, publication policy, privacy scan and generated
+tree/context comparison passed. All 704 required pack members and 44 completed
+queue rows are verified. The earlier runtime refresh check reported zero pending
+changes and zero unfiled references.
