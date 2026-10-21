@@ -1,71 +1,79 @@
 #!/usr/bin/env python3
-"""embed_core.py — generalized Ollama embedding core for the global AI hub.
+"""embed_core.py — Ollama embedding core for the global AI hub.
 
-Ported/generalized from llm-memory-pyramid's semantic_index.py patterns:
-capacity-weighted multi-host Ollama pool, per-call failover, response-shape
-validation, and bounded retries. Stdlib-only.
+A thin shim over the shared `ollama-client` library (`OllamaPool` / `OllamaClient`: weighted
+multi-host pool, per-call failover, cooldown, retry with backoff, response-shape validation).
+What stays here is hub policy: where the host list comes from (`HUB_OLLAMA_URLS`, `OLLAMA_HOST`,
+the persisted pool-mode file), quiet hours, and the `embed_texts` / `EmbeddingUnavailable` API
+the rest of the hub imports.
 
 Usage:
   embed_core.py check          # verify every pool host + model is reachable
   embed_core.py pool           # show the current pool mode and hosts
   embed_core.py pool local     # travelling / off-LAN: this machine only
-  embed_core.py pool lan       # back on the LAN: full pool
+  embed_core.py pool lan       # back on the LAN: the saved LAN pool
+  embed_core.py pool lan "http://gpu:11434=4,http://localhost:11434=1"   # set + save the LAN pool
   embed_core.py pool custom "http://host:11434=2,http://localhost:11434=1"
 
 Env config (all optional):
-  HUB_OLLAMA_URLS   weighted host list, e.g.
-                    "http://192.0.2.63:11434=4,http://192.0.2.193:11434=3,http://localhost:11434=1"
-  HUB_EMBED_MODEL   embedding model name (default: mxbai-embed-large — the
-                    model available on the LAN Ollama hosts)
+  HUB_OLLAMA_URLS   weighted host list, e.g. "http://gpu:11434=4,http://localhost:11434=1"
+  HUB_LAN_URLS      the LAN pool used by `pool lan` mode (default: the lan_urls saved in
+                    pool_mode.json, else this machine only). No LAN address is built in.
+  HUB_EMBED_MODEL   embedding model name (default: mxbai-embed-large — the model the existing
+                    docset indexes were built with; changing it invalidates them)
   OLLAMA_HOST       single-host fallback honored when HUB_OLLAMA_URLS unset
 
 Precedence: HUB_OLLAMA_URLS, then OLLAMA_HOST, then the persisted pool mode
-(pool_mode.json), then LAN_URLS. The env vars stay per-process overrides; the
+(pool_mode.json), then the LAN pool. The env vars stay per-process overrides; the
 mode file is the one that survives a reboot and reaches launchd agents.
 """
 
 from __future__ import annotations
 
 import json
-import math
 import os
 import pathlib
+import random
 import sys
-import time
-import urllib.error
-import urllib.request
 
-# Pool: LAN embedding server (5080, 192.0.2.63 since the 2026-10-15 network
-# change) primary, the work laptop secondary (by mDNS name, so it survives the
-# DHCP lease it had at 192.0.2.214), this
-# machine as fallback. box_schedule drops the laptop from the pool during its
-# quiet hours (mon-fri 09:00-17:00).
-LAN_URLS = ("http://192.0.2.63:11434=4,http://box.test:11434=3,"
-            "http://localhost:11434=1")
-# Travel / off-LAN: every unreachable host costs a 10s+ timeout on every call,
-# which stalls hooks and routing, so away from the LAN the pool must collapse
-# to this machine. `embed_core.py pool local` writes that choice to
-# POOL_MODE_PATH; it persists across reboots and is read by launchd agents,
-# which do not inherit a shell's exported HUB_OLLAMA_URLS.
+from ollama_client import OllamaClient, OllamaPool, OllamaUnavailable, parse_urls
+
+# Pool modes. `lan` = the saved/env LAN pool, `local` = this machine only, `custom` = the urls
+# stored in the mode file. Travel / off-LAN: every unreachable host costs a 10s+ timeout on every
+# call, which stalls hooks and routing, so away from the LAN the pool must collapse to this
+# machine. `embed_core.py pool local` writes that choice to POOL_MODE_PATH; it persists across
+# reboots and is read by launchd agents, which do not inherit a shell's exported HUB_OLLAMA_URLS.
+# box_schedule drops a box from the pool during its quiet hours.
 LOCAL_URLS = "http://localhost:11434=1"
+# The LAN fleet is configuration, not code: HUB_LAN_URLS, or `pool lan "<urls>"` (saved in the
+# mode file as lan_urls). With neither, "lan" mode is this machine only.
+LAN_URLS = os.environ.get("HUB_LAN_URLS", "").strip() or LOCAL_URLS
 DEFAULT_URLS = LAN_URLS
 POOL_MODE_PATH = pathlib.Path(
     os.environ.get("HUB_DIR", str(pathlib.Path.home() / ".global-ai-hub"))) / "pool_mode.json"
 
 DEFAULT_MODEL = "mxbai-embed-large"
 
-# Per batch: 1 initial attempt + 3 retries (4 rounds total), backoff 5/15/30s.
-RETRY_DELAYS = (5, 15, 30)
+# Per batch: 1 initial attempt + 3 retries (4 rounds total), exponential backoff 5/10/20s.
+RETRY_ROUNDS = 3
+RETRY_BACKOFF = 5.0
 MAX_BATCH = 64      # cap texts per /api/embed request so timeouts stay meaningful
-MAX_DIMS = 8192     # sanity ceiling — known embedding models are well below this
-
-# Exceptions that mean "this host / this attempt failed" (retryable/failover).
-_NETWORK_ERRORS = (urllib.error.URLError, TimeoutError, OSError, ValueError,
-                   json.JSONDecodeError)
 
 
-class EmbeddingUnavailable(RuntimeError):
+class EmbeddingUnavailable(OllamaUnavailable):
     """Raised when every configured Ollama host fails after retries."""
+
+
+class _PriorityRng(random.Random):
+    """Makes OllamaPool order hosts by weight, highest first (ties keep list order).
+
+    The hub treats weight as a static priority, not a traffic share: the GPU box takes the work
+    and the work laptop is only a fallback. OllamaPool's default is a weighted random shuffle,
+    which would send ~3/8 of all traffic to the laptop. A constant draw makes the shuffle key
+    `0.5 ** (1 / weight)`, which is strictly increasing in weight."""
+
+    def random(self) -> float:  # noqa: D102
+        return 0.5
 
 
 def _quiet(url: str) -> bool:
@@ -78,33 +86,50 @@ def _quiet(url: str) -> bool:
         return False
 
 
-def pool_mode() -> tuple[str, str]:
-    """(mode, urls) from POOL_MODE_PATH. Any unreadable or unknown content
-    means the default pool: a corrupt mode file must not leave the hub with
-    no embedding host at all."""
+def _read_mode_file() -> dict:
     try:
         data = json.loads(POOL_MODE_PATH.read_text())
-        mode = str(data.get("mode", "")).lower()
     except (OSError, ValueError):
-        return ("lan", DEFAULT_URLS)
+        return {}
+    return data if isinstance(data, dict) else {}
+
+
+def _lan_urls(data: dict) -> str:
+    """The LAN pool: HUB_LAN_URLS, else lan_urls saved in the mode file, else this machine."""
+    return (os.environ.get("HUB_LAN_URLS", "").strip()
+            or str(data.get("lan_urls", "")).strip() or LAN_URLS)
+
+
+def pool_mode() -> tuple[str, str]:
+    """(mode, urls) from POOL_MODE_PATH. Any unreadable or unknown content
+    means the default (LAN) pool: a corrupt mode file must not leave the hub with
+    no embedding host at all."""
+    data = _read_mode_file()
+    mode = str(data.get("mode", "")).lower()
     if mode == "local":
         return ("local", LOCAL_URLS)
     if mode == "custom":
         urls = str(data.get("urls", "")).strip()
         if urls:
             return ("custom", urls)
-    return ("lan", DEFAULT_URLS)
+    return ("lan", _lan_urls(data))
 
 
 def set_pool_mode(mode: str, urls: str | None = None) -> tuple[str, str]:
     """Persist the pool mode. Written tmp-then-rename so a reader never sees a
-    half-written file."""
+    half-written file. `lan` with urls saves them as the LAN pool (and they survive a later
+    switch to `local`); `lan` without urls keeps the one already saved."""
     mode = mode.lower()
     if mode not in ("lan", "local", "custom"):
         raise ValueError(f"unknown pool mode {mode!r} (lan | local | custom)")
     if mode == "custom" and not (urls or "").strip():
         raise ValueError("custom mode needs a urls string")
-    payload = {"mode": mode}
+    payload: dict = {"mode": mode}
+    saved_lan = str(_read_mode_file().get("lan_urls", "")).strip()
+    if mode == "lan" and (urls or "").strip():
+        saved_lan = urls.strip()
+    if saved_lan:
+        payload["lan_urls"] = saved_lan
     if mode == "custom":
         payload["urls"] = urls.strip()
     POOL_MODE_PATH.parent.mkdir(parents=True, exist_ok=True)
@@ -119,20 +144,9 @@ def _parse_hosts() -> list[tuple[str, int]]:
     if not raw:
         single = os.environ.get("OLLAMA_HOST")
         raw = f"{single.rstrip('/')}=1" if single else pool_mode()[1]
-    hosts: list[tuple[str, int]] = []
-    for part in raw.split(","):
-        part = part.strip()
-        if not part:
-            continue
-        url, _, weight = part.partition("=")
-        url = url.strip().rstrip("/")
-        if not url.startswith(("http://", "https://")):
-            continue  # skip garbage entries rather than poisoning the pool
-        try:
-            w = max(1, int(weight)) if weight else 1
-        except ValueError:
-            w = 1
-        hosts.append((url, w))
+    # skip garbage entries (no http/https scheme) rather than poisoning the pool
+    parts = [p.strip() for p in raw.split(",")]
+    hosts = parse_urls(",".join(p for p in parts if p.startswith(("http://", "https://"))))
     # Drop any host inside its quiet hours (box_schedule). Without this a box
     # could be excluded from crawl/distill placement and still be hammered
     # with embedding traffic, which is the load that actually pins its RAM.
@@ -143,133 +157,53 @@ def _parse_hosts() -> list[tuple[str, int]]:
     return hosts
 
 
+def make_pool(*, retries: int | None = None, backoff: float | None = None) -> OllamaPool:
+    """A library pool over the current hub host list, in static priority order. Raises
+    EmbeddingUnavailable when no host is configured (an empty OllamaPool would silently
+    fall back to localhost)."""
+    hosts = _parse_hosts()
+    if not hosts:
+        raise EmbeddingUnavailable("no Ollama hosts configured — check HUB_OLLAMA_URLS")
+    return OllamaPool(
+        hosts,
+        retries=RETRY_ROUNDS if retries is None else retries,
+        backoff=RETRY_BACKOFF if backoff is None else backoff,
+        rng=_PriorityRng(),
+    )
+
+
 def embed_model() -> str:
     return os.environ.get("HUB_EMBED_MODEL", DEFAULT_MODEL)
 
 
-def _post_embed(base_url: str, model: str, texts: list[str], timeout: int) -> list[list[float]]:
-    payload = json.dumps({"model": model, "input": texts}).encode()
-    req = urllib.request.Request(
-        f"{base_url}/api/embed",
-        data=payload,
-        headers={"Content-Type": "application/json"},
-    )
-    with urllib.request.urlopen(req, timeout=timeout) as resp:
-        data = json.loads(resp.read())
-    # Shape validation: embeddings travel over plain LAN HTTP — never trust
-    # a malformed response into the index. Rejects non-dict bodies, count
-    # mismatches, non-finite values (json.loads accepts NaN/Infinity!),
-    # bools (int subclass), and absurd dimensionality.
-    if not isinstance(data, dict):
-        raise ValueError(f"non-object JSON response from {base_url}")
-    embs = data.get("embeddings")
-    if (not isinstance(embs, list) or len(embs) != len(texts)
-            or not all(isinstance(v, list) and v
-                       and all(isinstance(x, (int, float))
-                               and not isinstance(x, bool)
-                               and math.isfinite(x)
-                               for x in v)
-                       for v in embs)):
-        raise ValueError(f"malformed embeddings response from {base_url}")
-    dims = {len(v) for v in embs}
-    if len(dims) != 1 or dims.pop() > MAX_DIMS:
-        raise ValueError(f"inconsistent or absurd embedding dimensions from {base_url}")
-    return embs
-
-
-def _embed_batch(texts: list[str], model: str, timeout: int,
-                 dead_hosts: set[str], warned_hosts: set[str]) -> list[list[float]]:
-    """One batch across the pool. dead_hosts/warned_hosts are shared across
-    the batch loop of a single embed_texts() call, so a host found down on
-    batch 1 is skipped (not re-probed through the full retry ladder) on
-    batches 2..N — one degraded host must not turn a build into a hang."""
-    hosts = [(u, w) for u, w in _parse_hosts() if u not in dead_hosts]
-    if not hosts:
-        raise EmbeddingUnavailable(
-            "no usable Ollama hosts (configured empty, all garbage, or all "
-            "marked down this call) — check HUB_OLLAMA_URLS")
-    errors: list[str] = []
-    deadline = time.monotonic() + (timeout * 2)  # wall-clock cap per batch
-    # Hosts are always tried highest-weight first (the GPU box) -- if it's
-    # merely backlogged (accepts the connection, then sits on the request),
-    # a full `timeout` wait per host before ever reaching the next one turns
-    # one busy box into "the whole pool looks down" for minutes. Round 0
-    # gives every host a short, batch-scaled chance to respond fast; only
-    # once ALL hosts fail that fast pass do later rounds wait the full
-    # timeout (a real "maybe it recovers" retry, not a first resort).
-    fast_timeout = max(10, timeout // 8)
-    for round_no, delay in enumerate((0,) + RETRY_DELAYS):
-        if delay:
-            if time.monotonic() + delay > deadline:
-                break
-            time.sleep(delay)
-        attempt_timeout = fast_timeout if round_no == 0 else timeout
-        for base_url, _w in list(hosts):
-            try:
-                return _post_embed(base_url, model, texts, attempt_timeout)
-            except urllib.error.HTTPError as e:
-                errors.append(f"round{round_no} {base_url}: HTTP {e.code}")
-                if 400 <= e.code < 500:
-                    # Host-specific, non-retryable (e.g. model not pulled
-                    # there) — drop THIS host, keep the rest of the pool.
-                    dead_hosts.add(base_url)
-                    hosts = [(u, w) for u, w in hosts if u != base_url]
-                    _warn_once(warned_hosts, base_url,
-                               f"HTTP {e.code} for model '{model}' — host dropped this call")
-            except _NETWORK_ERRORS as e:
-                errors.append(f"round{round_no} {base_url}: {e}")
-                _warn_once(warned_hosts, base_url, str(e))
-            if not hosts:
-                break
-        if not hosts or time.monotonic() > deadline:
-            break
-    # Connect-level failures that exhausted the ladder: mark remaining hosts
-    # down for the rest of this call so later batches fail fast.
-    dead_hosts.update(u for u, _w in hosts)
-    raise EmbeddingUnavailable(
-        f"all Ollama hosts failed for model '{model}': " + " | ".join(errors))
-
-
-def _warn_once(warned: set[str], base_url: str, msg: str) -> None:
-    if base_url not in warned:
-        warned.add(base_url)
-        print(f"embed_core WARN: {base_url}: {msg}", file=sys.stderr)
-
-
 def embed_texts(texts: list[str], model: str | None = None, timeout: int = 120) -> list[list[float]]:
-    """Embed texts across the configured host pool, in sub-batches of
-    MAX_BATCH. Raises EmbeddingUnavailable when no host can serve a batch;
-    host-down knowledge is shared across the batches of one call."""
+    """Embed texts across the configured host pool, in sub-batches of MAX_BATCH.
+    Raises EmbeddingUnavailable when no host can serve a batch; host-down knowledge
+    (the pool's cooldown) is shared across the batches of one call."""
     if not texts:
         return []
     if not all(isinstance(t, str) for t in texts):
         raise EmbeddingUnavailable("embed_texts requires a list of str")
     model = model or embed_model()
-    if not _parse_hosts():
-        raise EmbeddingUnavailable("no Ollama hosts configured — check HUB_OLLAMA_URLS")
-    out: list[list[float]] = []
-    dead_hosts: set[str] = set()
-    warned_hosts: set[str] = set()
-    for i in range(0, len(texts), MAX_BATCH):
-        batch = texts[i:i + MAX_BATCH]
-        # Scale timeout with batch size (floor: the given timeout).
-        out.extend(_embed_batch(batch, model, max(timeout, 3 * len(batch)),
-                                dead_hosts, warned_hosts))
-    return out
+    client = OllamaClient(make_pool(), embed_model=model, batch_size=MAX_BATCH)
+    try:
+        # the client scales the timeout with batch size (floor: the given timeout)
+        return client.embed(texts, model=model, timeout=timeout)
+    except OllamaUnavailable as exc:
+        raise EmbeddingUnavailable(f"{exc} (model '{model}')") from exc
 
 
 def available_models(timeout: int = 5) -> dict[str, list[str]]:
     """Model names per reachable host (diagnostic helper)."""
     out: dict[str, list[str]] = {}
-    for base_url, _w in _parse_hosts():
+    hosts = _parse_hosts()
+    if not hosts:
+        return out
+    client = OllamaClient(OllamaPool(hosts, retries=0), embed_model=embed_model())
+    for base_url, _w in hosts:
         try:
-            with urllib.request.urlopen(f"{base_url}/api/tags", timeout=timeout) as resp:
-                data = json.loads(resp.read())
-            if not isinstance(data, dict):
-                raise ValueError("non-object JSON")
-            out[base_url] = [m.get("name", "?") for m in data.get("models", [])
-                             if isinstance(m, dict)]
-        except _NETWORK_ERRORS:
+            out[base_url] = client.list_models(base_url, timeout=timeout)
+        except (OllamaUnavailable, OSError, ValueError):
             out[base_url] = []
     return out
 

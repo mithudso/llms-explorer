@@ -2,39 +2,26 @@
 """
 Deduplicate hub facts against existing llms-facts.txt.
 
-Removes facts from hub_raw_facts that:
+Removes facts from llms-facts-mdb-context.jsonl that:
 1. Exactly match a line in llms-facts.txt (case-insensitive, ignoring [src:] tags)
 2. Are semantically similar (first 20 words appear in an existing fact)
 
 Output: hub_facts_deduped.jsonl with all facts still tagged with [src: filename]
+
+The matching rules live in the shared llms-txt library (`llms_txt.facts`); this script only
+wires the repo's files to it. `within=False` keeps the original behaviour of comparing the
+input only against llms-facts.txt, never against earlier input rows.
 """
 
-import re
 import sys
 from pathlib import Path
-from collections import defaultdict
 
-def extract_fact_text(line):
-    """Extract fact text without the [src:...] tag."""
-    # Remove [src: ...] tag at the end
-    fact = re.sub(r'\s*\[src:[^\]]*\]\s*$', '', line.strip())
-    return fact
+try:
+    from llms_txt.facts import dedup_facts_stats
+except ImportError:  # pragma: no cover - environment problem, say how to fix it
+    sys.exit("dedup_facts: the llms-txt library is not installed "
+             "(pip install 'llms-txt @ git+https://github.com/mithudso/llms-txt')")
 
-def extract_source_tag(line):
-    """Extract the [src:...] tag from a line."""
-    match = re.search(r'\[src:([^\]]+)\]', line)
-    if match:
-        return f"[src: {match.group(1)}]"
-    return ""
-
-def normalize_fact(text):
-    """Normalize fact text for comparison (lowercase, strip whitespace)."""
-    return text.lower().strip()
-
-def get_first_n_words(text, n=20):
-    """Extract first n words from text for semantic matching."""
-    words = text.split()[:n]
-    return ' '.join(words).lower()
 
 def main():
     project_root = Path(__file__).parent.parent
@@ -51,88 +38,25 @@ def main():
         sys.exit(1)
 
     print("Loading existing facts...")
-    existing_facts = set()
-    existing_first_words = defaultdict(list)  # first 20 words -> list of full facts
-
-    with open(existing_facts_file, encoding='utf-8', errors='ignore') as f:
-        for line_num, line in enumerate(f, 1):
-            line = line.rstrip('\n')
-            # Skip empty lines, headers, and comments
-            if not line or line.startswith('#') or line.startswith('##'):
-                continue
-
-            fact_text = extract_fact_text(line)
-            if fact_text:
-                normalized = normalize_fact(fact_text)
-                existing_facts.add(normalized)
-                first_words = get_first_n_words(fact_text, 20)
-                existing_first_words[first_words].append(fact_text)
-
-    print(f"  Loaded {len(existing_facts)} unique facts from llms-facts.txt")
+    with open(existing_facts_file, encoding="utf-8", errors="ignore") as f:
+        existing = f.read().splitlines()
 
     print("\nProcessing hub facts for deduplication...")
-    input_count = 0
-    output_count = 0
-    duplicates_exact = 0
-    duplicates_semantic = 0
+    with open(hub_facts_file, encoding="utf-8", errors="ignore") as f:
+        rows = f.read().splitlines()
+    kept, stats = dedup_facts_stats(rows, existing, within=False)
+    with open(output_file, "w", encoding="utf-8") as outfile:
+        outfile.writelines(row + "\n" for row in kept)
 
-    with open(hub_facts_file, encoding='utf-8', errors='ignore') as infile, \
-         open(output_file, 'w', encoding='utf-8') as outfile:
-
-        for line_num, line in enumerate(infile, 1):
-            line = line.rstrip('\n')
-
-            # Skip empty lines, headers, and comments
-            if not line or line.startswith('#') or line.startswith('##'):
-                continue
-
-            input_count += 1
-            fact_text = extract_fact_text(line)
-            source_tag = extract_source_tag(line)
-
-            if not fact_text:
-                continue
-
-            normalized_fact = normalize_fact(fact_text)
-
-            # Check for exact match
-            if normalized_fact in existing_facts:
-                duplicates_exact += 1
-                continue
-
-            # Check for semantic match (first 20 words)
-            first_words = get_first_n_words(fact_text, 20)
-            if first_words in existing_first_words:
-                duplicates_semantic += 1
-                continue
-
-            # Not a duplicate, write to output
-            # Ensure proper formatting: "- fact [src: ...]"
-            if not fact_text.startswith('- '):
-                fact_text = f"- {fact_text}"
-
-            if source_tag:
-                output_line = f"{fact_text} {source_tag}\n"
-            else:
-                output_line = f"{fact_text}\n"
-
-            outfile.write(output_line)
-            output_count += 1
-
-            if input_count % 10000 == 0:
-                print(f"  Processed {input_count} facts... ({output_count} output so far)")
-
-    total_duplicates = duplicates_exact + duplicates_semantic
-    dedup_ratio = (total_duplicates / input_count * 100) if input_count > 0 else 0
-
-    print(f"\n=== Deduplication Results ===")
-    print(f"Input facts:          {input_count:,}")
-    print(f"Exact matches:        {duplicates_exact:,}")
-    print(f"Semantic matches:     {duplicates_semantic:,}")
-    print(f"Total duplicates:     {total_duplicates:,}")
-    print(f"Output facts:         {output_count:,}")
-    print(f"Dedup ratio:          {dedup_ratio:.1f}%")
+    print("\n=== Deduplication Results ===")
+    print(f"Input facts:          {stats.input:,}")
+    print(f"Exact matches:        {stats.exact:,}")
+    print(f"Semantic matches:     {stats.prefix:,}")
+    print(f"Total duplicates:     {stats.duplicates:,}")
+    print(f"Output facts:         {stats.output:,}")
+    print(f"Dedup ratio:          {stats.ratio * 100:.1f}%")
     print(f"\nOutput file: {output_file}")
+
 
 if __name__ == "__main__":
     main()

@@ -1,6 +1,6 @@
-"""Pooled Ollama text-generation client (transport mirrors embed_core).
+"""Pooled Ollama text-generation client (transport: the shared ollama-client library).
 
-Hosts come from the same weighted pool as embeddings (HUB_OLLAMA_URLS,
+Hosts come from the same pool as embeddings (`embed_core.make_pool()`: HUB_OLLAMA_URLS,
 highest weight first), so generation load lands on the linux box before
 the M5. Single-shot failover, no retry ladder: generation callers are
 interactive or batch summarizers, not index builds.
@@ -16,10 +16,10 @@ from __future__ import annotations
 
 import json
 import os
-import urllib.error
 import urllib.request
 
 import embed_core
+from ollama_client import OllamaClient, OllamaUnavailable
 
 DEFAULT_LLM_MODEL = "qwen3:8b"
 DEFAULT_MESH_MODEL = "research"
@@ -89,29 +89,16 @@ def generate(prompt: str, model: str | None = None,
     mesh = mesh_url()
     if mesh:
         return _generate_mesh(prompt, model, timeout, options, think, mesh)
-    hosts = embed_core._parse_hosts()  # reuse pool parsing — one source of truth
-    if not hosts:
-        raise LLMUnavailable("no Ollama hosts configured — check HUB_OLLAMA_URLS")
-    errors: list[str] = []
-    body: dict = {"model": model, "prompt": prompt, "stream": False}
-    if options:
-        body["options"] = dict(options)
-    if think is not None:
-        body["think"] = think
-    for base_url, _w in hosts:
-        payload = json.dumps(body).encode()
-        req = urllib.request.Request(
-            f"{base_url}/api/generate", data=payload,
-            headers={"Content-Type": "application/json"})
-        try:
-            with urllib.request.urlopen(req, timeout=timeout) as resp:
-                data = json.loads(resp.read())
-        except Exception as e:  # network, HTTP, timeout, bad JSON — try next host
-            errors.append(f"{base_url}: {e}")
-            continue
-        text = data.get("response") if isinstance(data, dict) else None
-        if isinstance(text, str) and text:
-            return text
-        errors.append(f"{base_url}: malformed generate response")
-    raise LLMUnavailable(
-        f"all Ollama hosts failed to generate with '{model}': " + " | ".join(errors))
+    try:
+        pool = embed_core.make_pool(retries=0)  # reuse pool parsing — one source of truth
+    except embed_core.EmbeddingUnavailable as e:
+        raise LLMUnavailable(str(e)) from e
+    try:
+        text = OllamaClient(pool, model=model).generate(
+            prompt, model=model, options=options, think=think, timeout=timeout)
+    except OllamaUnavailable as e:
+        raise LLMUnavailable(
+            f"all Ollama hosts failed to generate with '{model}': {e}") from e
+    if not text:  # an empty completion is a failure, never a result
+        raise LLMUnavailable(f"Ollama returned an empty generate response for '{model}'")
+    return text

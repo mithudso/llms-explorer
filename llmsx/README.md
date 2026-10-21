@@ -5,7 +5,8 @@ llms-concept-abstractor concept packs, plus a thin invocation layer over the
 Claude skills SDK.
 
 **Scope, precisely.** `llmsx tree …` and `llmsx concepts list/show/serve` are
-read-only and install with zero third-party dependencies. `llmsx tui` and
+read-only and install with no third-party dependencies (the first-party, stdlib-only
+`llms-txt` library is the one requirement). `llmsx tui` and
 `llmsx concepts tui` need the `tui` extra; the concept-pack TUI's "edit"
 action opens `$EDITOR` on a pack file, which is a write. `llmsx family` and
 `llmsx optimize` need the `skills` extra and make an outbound network call to
