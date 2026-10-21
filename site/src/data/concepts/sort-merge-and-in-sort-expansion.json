@@ -13,7 +13,7 @@
           "note": null
         },
         {
-          "text": "'Explode for sort' is the planner rewrite that produces SORT_MERGE for sorted $in queries. If the leading fields of an index scan have point bounds (equality or $in) and the next index fields supply the requested sort, the planner replaces the one multi-interval IXSCAN with one IXSCAN per point combination and joins them with a merge-sort stage. For find({a:{$in:[1,2]}}).sort({b:1}) on index {a:1,b:1}, the planner builds the scans a:[1,1] and a:[2,2], each with b:[MinKey,MaxKey]. Each scan returns documents in b order, so the merge keeps that order and no blocking SORT is needed. (high confide",
+          "text": "'Explode for sort' is the planner rewrite that produces SORT_MERGE for sorted $in queries. If the leading fields of an index scan have point bounds (equality or $in) and the next index fields supply the requested sort, the planner replaces the one multi-interval IXSCAN with one IXSCAN per point combination and joins them with a merge-sort stage. For find({a:{$in:[1,2]}}).sort({b:1}) on index {a:1,b:1}, the planner builds the scans a:[1,1] and a:[2,2], each with b:[MinKey,MaxKey]. Each scan returns documents in b order, so the merge keeps that order and no blocking SORT is needed. (high confidence)",
           "source": "https://github.com/mongodb/mongo/blob/35647d07bc4bc11966c90fe7100eb1db0b0ac1d9/src/mongo/db/query/plan_enumerator/README.md",
           "note": null
         }
@@ -68,12 +68,12 @@
           "note": null
         },
         {
-          "text": "SBE plan cache and $in length: an exploded SBE plan has one branch per $in element, so the plan cache key encodes the $in length for queries with a sort. SERVER-83777 (7.0.5, 7.2.1, 7.3.0-rc0) caps the encoded length at internalQueryMaxScansToExplode + 1. SERVER-83712 (7.0.12, 7.3.3, 8.0.0-rc1, 8.1.0-rc0) stops encoding it when the query has no sort. SERVER-88892 (open) proposes runtime explosion so one cached plan fits every list length. Parameterized plans are explodable only if the interval tree is a constant or an $eq/$in node, which keeps the branch count stable. (high confidence) (verifi",
+          "text": "SBE plan cache and $in length: an exploded SBE plan has one branch per $in element, so the plan cache key encodes the $in length for queries with a sort. SERVER-83777 (7.0.5, 7.2.1, 7.3.0-rc0) caps the encoded length at internalQueryMaxScansToExplode + 1. SERVER-83712 (7.0.12, 7.3.3, 8.0.0-rc1, 8.1.0-rc0) stops encoding it when the query has no sort. SERVER-88892 (open) proposes runtime explosion so one cached plan fits every list length. Parameterized plans are explodable only if the interval tree is a constant or an $eq/$in node, which keeps the branch count stable. (high confidence) (verified as of 2026-10-20)",
           "source": "https://jira.mongodb.org/browse/SERVER-83777",
           "note": null
         },
         {
-          "text": "Security: explodeForSort() multiplied point-interval counts into numScans without overflow checks, so a crafted find-with-sort using large $in arrays on a suitable compound index could wrap the counter, bypass the maxScansToExplode check and exhaust memory during planning. An authenticated user with ordinary read/write privileges can trigger it (CVE-2026-82076, SERVER-128253, CWE-190, CVSS v4.0 7.1, v3.1 6.5). SERVER-128253 lists fixes in 7.0.41, 8.0.30, 8.2.13, 8.3.9 and 9.0.0-rc2; the CVE record lists no workaround. Master now guards the multiplication with a size_t maximum. (high confidence",
+          "text": "Security: explodeForSort() multiplied point-interval counts into numScans without overflow checks, so a crafted find-with-sort using large $in arrays on a suitable compound index could wrap the counter, bypass the maxScansToExplode check and exhaust memory during planning. An authenticated user with ordinary read/write privileges can trigger it (CVE-2026-82076, SERVER-128253, CWE-190, CVSS v4.0 7.1, v3.1 6.5). SERVER-128253 lists fixes in 7.0.41, 8.0.30, 8.2.13, 8.3.9 and 9.0.0-rc2; the CVE record lists no workaround. Master now guards the multiplication with a size_t maximum. (high confidence) (verified as of 2026-10-20)",
           "source": "https://cveawg.mitre.org/api/cve/CVE-2026-82076",
           "note": null
         },
@@ -128,7 +128,7 @@
           "note": null
         },
         {
-          "text": "For a parameterized $in in a query with a sort, the plan cache key includes the $in length capped at internalQueryMaxScansToExplode + 1, because the number of SORT_MERGE branches equals the number of $in values. All lists above the cap share one cache entry. SERVER-83777 added the cap (fixed in 7.0.5, 7.2.1 and 7.3.0-rc0). SERVER-83712 stopped adding the length when the query has no sort. SERVER-88892 (Open) proposes dropping the exact length from the SBE key by rebuilding the branches from bound parameter values when a plan is recovered. To keep cached plans valid, explosion of a parameterize",
+          "text": "For a parameterized $in in a query with a sort, the plan cache key includes the $in length capped at internalQueryMaxScansToExplode + 1, because the number of SORT_MERGE branches equals the number of $in values. All lists above the cap share one cache entry. SERVER-83777 added the cap (fixed in 7.0.5, 7.2.1 and 7.3.0-rc0). SERVER-83712 stopped adding the length when the query has no sort. SERVER-88892 (Open) proposes dropping the exact length from the SBE key by rebuilding the branches from bound parameter values when a plan is recovered. To keep cached plans valid, explosion of a parameterized scan requires each leading point field's bounds to come from an $eq, an $in, or a constant. (high confidence) (verified as of 2026-10-20)",
           "source": "https://github.com/mongodb/mongo/blob/35647d07bc4bc11966c90fe7100eb1db0b0ac1d9/src/mongo/db/query/canonical_query_encoder.cpp",
           "note": null
         },
@@ -223,7 +223,7 @@
           "note": null
         },
         {
-          "text": "Multikey indexes limit explosion. If an index is multikey but has no path-level multikey metadata, the planner never explodes it. If a multikey field falls inside the sort-providing suffix, the provided sort ends before that field. Before 8.1.0-rc0, any multikey field after the point prefix, even one after the sort fields, forced a blocking SORT. SERVER-56865 shows a SORT_MERGE plan on {e:1,s:1,r:1} turning into SORT after r became multikey. That ticket closed as Fixed in 8.1.0-rc0 on 2025-01-10, and the current code breaks out of the suffix loop instead of returning false. SERVER-97418 was cl",
+          "text": "Multikey indexes limit explosion. If an index is multikey but has no path-level multikey metadata, the planner never explodes it. If a multikey field falls inside the sort-providing suffix, the provided sort ends before that field. Before 8.1.0-rc0, any multikey field after the point prefix, even one after the sort fields, forced a blocking SORT. SERVER-56865 shows a SORT_MERGE plan on {e:1,s:1,r:1} turning into SORT after r became multikey. That ticket closed as Fixed in 8.1.0-rc0 on 2025-01-10, and the current code breaks out of the suffix loop instead of returning false. SERVER-97418 was closed as its duplicate. (high confidence) (verified as of 2026-10-20)",
           "source": "https://github.com/mongodb/mongo/blob/35647d07bc4bc11966c90fe7100eb1db0b0ac1d9/src/mongo/db/query/planner_analysis.cpp",
           "note": null
         },

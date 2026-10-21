@@ -61,6 +61,7 @@ def test_new_revisit_gets_a_fresh_identity():
 
 
 def test_adapter_setup_failure_releases_batch_checkout(tmp_path, monkeypatch):
+    monkeypatch.delenv("LLMSX_HOME", raising=False)
     monkeypatch.setattr(Path, "home", staticmethod(lambda: tmp_path / "home"))
     monkeypatch.setenv("HUB_DIR", str(tmp_path))
     monkeypatch.setenv("LLMS_EXPLORER_REPO", str(tmp_path))
@@ -77,6 +78,7 @@ def test_adapter_setup_failure_releases_batch_checkout(tmp_path, monkeypatch):
 
 
 def test_finalized_owned_cohort_resumes_site_even_when_covered_and_queue_done(tmp_path, monkeypatch):
+    monkeypatch.delenv("LLMSX_HOME", raising=False)
     monkeypatch.setattr(Path, "home", staticmethod(lambda: tmp_path / "home"))
     monkeypatch.setenv("HUB_DIR", str(tmp_path))
     monkeypatch.setenv("LLMS_EXPLORER_REPO", str(tmp_path))
@@ -112,3 +114,22 @@ def test_finalized_owned_cohort_resumes_site_even_when_covered_and_queue_done(tm
     assert "error" not in result["cohorts"][0]
     assert any("research_site_sync.py" in command[1] for command in commands)
     assert not any("research" in command[2:3] or "gate" in command[2:3] for command in commands)
+
+
+def test_custom_llmsx_home_reservation_is_visible_to_checkout_scanner(tmp_path, monkeypatch):
+    monkeypatch.setattr(Path, "home", staticmethod(lambda: tmp_path / "home"))
+    monkeypatch.setenv("HUB_DIR", str(tmp_path))
+    monkeypatch.setenv("LLMS_EXPLORER_REPO", str(tmp_path))
+    monkeypatch.setenv("LLMSX_HOME", str(tmp_path / "custom"))
+    checkouts = ranked.load("custom_home_checkouts", ROOT / "api/explorer_api/checkouts.py")
+    plan = tmp_path / "batch/plan.json"
+    ranked.atomic(plan, {"cohorts": [{"id": "test", "status": "pending", "concepts": ["A"]}], "rows": []})
+    observed = []
+    def broken(*args):
+        observed.extend(checkouts._llmsx_batches())
+        raise ImportError("stop after observing reservation")
+    monkeypatch.setattr(ranked, "load", broken)
+    assert ranked.execute_locked(tmp_path, tmp_path, plan) == 1
+    assert observed[0]["pending"] == ["A"]
+    assert (tmp_path / "custom/jobs/batches/batch/run.json").is_file()
+    assert not (tmp_path / "home/.llmsx/jobs/batches/batch/run.json").exists()

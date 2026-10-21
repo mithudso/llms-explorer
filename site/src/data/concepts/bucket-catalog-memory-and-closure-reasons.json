@@ -38,7 +38,7 @@
       "title": "How it works",
       "facts": [
         {
-          "text": "When catalog memory exceeds timeseriesIdleBucketExpiryMemoryUsageThreshold, expireIdleBuckets works through idle buckets. It archives an idle open bucket that can still take inserts and increments numBucketsArchivedDueToMemoryThreshold. It closes an idle bucket whose state conflicts with insertions and increments numBucketsClosedDueToMemoryThreshold; cleared or frozen buckets are only removed. If memory is still high, it drops archived records, also counted in numBucketsClosedDueToMemoryThreshold. Each call is bounded by timeseriesIdleBucketExpiryMaxCountPerAttempt (default 3). (high confidenc",
+          "text": "When catalog memory exceeds timeseriesIdleBucketExpiryMemoryUsageThreshold, expireIdleBuckets works through idle buckets. It archives an idle open bucket that can still take inserts and increments numBucketsArchivedDueToMemoryThreshold. It closes an idle bucket whose state conflicts with insertions and increments numBucketsClosedDueToMemoryThreshold; cleared or frozen buckets are only removed. If memory is still high, it drops archived records, also counted in numBucketsClosedDueToMemoryThreshold. Each call is bounded by timeseriesIdleBucketExpiryMaxCountPerAttempt (default 3). (high confidence) (verified as of 2026-10-20)",
           "source": "https://github.com/mongodb/mongo/blob/master/src/mongo/db/timeseries/bucket_catalog/bucket_catalog_internal.cpp",
           "note": null
         },
@@ -78,7 +78,7 @@
           "note": null
         },
         {
-          "text": "expireIdleBuckets works in this order. It archives each idle open bucket that can still accept inserts and counts it in numBucketsArchivedDueToMemoryThreshold. It removes a cleared or frozen idle bucket with no counter. It closes any other idle bucket and counts it in numBucketsClosedDueToMemoryThreshold. After the idle list is empty it closes archived entries and counts each in numBucketsClosedDueToMemoryThreshold. The server runs this only when it allocates a new bucket or loads a reopened bucket into the catalog, and it stops after timeseriesIdleBucketExpiryMaxCountPerAttempt expiries (defa",
+          "text": "expireIdleBuckets works in this order. It archives each idle open bucket that can still accept inserts and counts it in numBucketsArchivedDueToMemoryThreshold. It removes a cleared or frozen idle bucket with no counter. It closes any other idle bucket and counts it in numBucketsClosedDueToMemoryThreshold. After the idle list is empty it closes archived entries and counts each in numBucketsClosedDueToMemoryThreshold. The server runs this only when it allocates a new bucket or loads a reopened bucket into the catalog, and it stops after timeseriesIdleBucketExpiryMaxCountPerAttempt expiries (default 3; the loop test is <=, so up to 4 per call). Code reading of the pinned master source. (medium confidence) (verified as of 2026-10-20)",
           "source": "https://github.com/mongodb/mongo/blob/35647d07bc4bc11966c90fe7100eb1db0b0ac1d9/src/mongo/db/timeseries/bucket_catalog/bucket_catalog_internal.cpp",
           "note": null
         },
@@ -143,7 +143,7 @@
           "note": null
         },
         {
-          "text": "Suggested diagnostic order for too many small buckets (synthesis of the sources): (1) per collection, compare timeseries.bucketCount with documents inserted and read avgNumMeasurementsPerCommit; (2) see which numBucketsClosedDueTo* counter dominates; (3) if CachePressure, compare process-wide numBuckets x 2 x 128,000 with the configured WiredTiger cache, and on 7.0 or 8.0.4 and earlier look for stale counts after collection drops; (4) if MemoryThreshold counters rise, compare memoryUsage with the threshold (5% of RAM on 8.0.5 and later, about 2.5% before) and raise it; (5) reduce metaField car",
+          "text": "Suggested diagnostic order for too many small buckets (synthesis of the sources): (1) per collection, compare timeseries.bucketCount with documents inserted and read avgNumMeasurementsPerCommit; (2) see which numBucketsClosedDueTo* counter dominates; (3) if CachePressure, compare process-wide numBuckets x 2 x 128,000 with the configured WiredTiger cache, and on 7.0 or 8.0.4 and earlier look for stale counts after collection drops; (4) if MemoryThreshold counters rise, compare memoryUsage with the threshold (5% of RAM on 8.0.5 and later, about 2.5% before) and raise it; (5) reduce metaField cardinality. (medium confidence) (verified as of 2026-10-20)",
           "source": "https://mongodb.com/community/forums/t/suboptimal-bucket-creation-in-timeseries-collection-due-to-cache-pressure/249863",
           "note": null
         }
@@ -188,7 +188,7 @@
           "note": null
         },
         {
-          "text": "Active-bucket cardinality is node-wide. SERVER-105187 says the dynamic calculation 'combines the global cardinality of buckets across all collections', and the SERVER-89233 patch still passes catalog.globalExecutionStats.numActiveBuckets to determineRolloverAction. Many collections, for example one collection per day, can therefore shrink the size limit for new buckets in all of them. A forum poster attributed small buckets to iterating daily collections (Feb 22, 2024). Since SERVER-89233, dropping a collection subtracts its buckets from the global gauge. (medium confidence) (verified as of 20",
+          "text": "Active-bucket cardinality is node-wide. SERVER-105187 says the dynamic calculation 'combines the global cardinality of buckets across all collections', and the SERVER-89233 patch still passes catalog.globalExecutionStats.numActiveBuckets to determineRolloverAction. Many collections, for example one collection per day, can therefore shrink the size limit for new buckets in all of them. A forum poster attributed small buckets to iterating daily collections (Feb 22, 2024). Since SERVER-89233, dropping a collection subtracts its buckets from the global gauge. (medium confidence) (verified as of 2026-10-20)",
           "source": "https://jira.mongodb.org/browse/SERVER-105187",
           "note": null
         },
@@ -203,12 +203,12 @@
           "note": null
         },
         {
-          "text": "The manual lists seven closure triggers: time moving forward or backward past the bucket span; the document limit (default 1,000); the size limit (default 125 KiB, or up to 12 MiB when the bucket holds fewer than 10 measurements); active buckets not fitting the storage-engine cache; the catalog exceeding its total memory allocation; a conflicting operation such as a chunk migration or update; and a mongod restart. The defaults match timeseriesBucketMaxCount 1000, timeseriesBucketMaxSize 128000 bytes and timeseriesBucketMinCount 10 in the server source. (high confidence) (verified as of 2026-10",
+          "text": "The manual lists seven closure triggers: time moving forward or backward past the bucket span; the document limit (default 1,000); the size limit (default 125 KiB, or up to 12 MiB when the bucket holds fewer than 10 measurements); active buckets not fitting the storage-engine cache; the catalog exceeding its total memory allocation; a conflicting operation such as a chunk migration or update; and a mongod restart. The defaults match timeseriesBucketMaxCount 1000, timeseriesBucketMaxSize 128000 bytes and timeseriesBucketMinCount 10 in the server source. (high confidence) (verified as of 2026-10-20)",
           "source": "https://www.mongodb.com/docs/manual/core/timeseries/timeseries-bucketing/",
           "note": null
         },
         {
-          "text": "Two separate memory-driven paths close buckets early, and they use different counters. Catalog-memory expiry runs when bucketCatalog.memoryUsage exceeds timeseriesIdleBucketExpiryMemoryUsageThreshold: the server archives idle open buckets (numBucketsArchivedDueToMemoryThreshold) and, if usage stays over the limit, drops archived entries (numBucketsClosedDueToMemoryThreshold). The cache-derived size cap closes a growing bucket when the next measurement would exceed a limit computed from the WiredTiger cache size and the active-bucket count (numBucketsClosedDueToCachePressure). Do not read one f",
+          "text": "Two separate memory-driven paths close buckets early, and they use different counters. Catalog-memory expiry runs when bucketCatalog.memoryUsage exceeds timeseriesIdleBucketExpiryMemoryUsageThreshold: the server archives idle open buckets (numBucketsArchivedDueToMemoryThreshold) and, if usage stays over the limit, drops archived entries (numBucketsClosedDueToMemoryThreshold). The cache-derived size cap closes a growing bucket when the next measurement would exceed a limit computed from the WiredTiger cache size and the active-bucket count (numBucketsClosedDueToCachePressure). Do not read one family of counters as evidence about the other. (high confidence) (verified as of 2026-10-20)",
           "source": "https://github.com/mongodb/mongo/blob/35647d07bc4bc11966c90fe7100eb1db0b0ac1d9/src/mongo/db/timeseries/bucket_catalog/bucket_catalog_internal.cpp",
           "note": null
         },

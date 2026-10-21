@@ -1,5 +1,5 @@
 ---
-title: "TSE Strategy Backtest Scoreboard — Project Briefing"
+title: "Case Diagnosis Backtest Scoreboard — Project Briefing"
 description: "A first-person briefing on a git-backed scoreboard that backtests case-diagnosis strategies blind against resolved support cases, with how to read its scores and add a strategy."
 date: "2026-10-10"
 order: 6

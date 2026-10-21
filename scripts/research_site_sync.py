@@ -132,11 +132,14 @@ def publication_pack(pack: dict, scrub, terms: list[str]) -> dict:
         if isinstance(value, list):
             return [clean(item) for item in value]
         if isinstance(value, dict):
-            return {key: ("archived:private-reference" if key == "source" and isinstance(item, str)
+            return {clean(key): ("archived:private-reference" if key == "source" and isinstance(item, str)
                           and scrub._matches(item, terms) else clean(item))
                     for key, item in value.items()}
         if not isinstance(value, str):
             return value
+        value = re.sub(r"https?://[^\s<>\"'`\]\),]+",
+                       lambda match: "https://example.test/withheld-reference"
+                       if scrub._matches(match.group(), terms) else match.group(), value)
         value, _ = scrub.scrub_home_paths(value)
         value, _ = scrub.scrub_addresses(value, terms)
         # JSON escapes a quote after an example email as a backslash. The
@@ -185,7 +188,7 @@ def plan(repo: Path, hub: Path, merge_tree: bool = True, current_run: str | None
     safe_names = {node["concept"] for node in safe_hub}
     recovery = module("research_site_recovery", repo / "scripts/recover_dr_packs.py")
     recovered_writes, recovered_packs, recovery_report = recovery.plan(
-        repo, hub, safe_hub, module, scrub, current_run, excluded_names)
+        repo, hub, safe_hub, module, scrub, current_run, excluded_names, withheld)
     excluded_identities = {name.casefold() for name in excluded_names}
     excluded_slugs = {node["slug"] for node in [*hub_nodes, *current_nodes]
                       if node["concept"].casefold() in excluded_identities}

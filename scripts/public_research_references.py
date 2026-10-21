@@ -17,7 +17,8 @@ def resolve(repo: Path, hub: Path, changes: dict) -> tuple[dict, list[str]]:
     candidates = {path: path.read_text() for path in (repo / "site/src/data/concepts").glob("*.json")}
     candidates.update(changes)
     for path, value in candidates.items():
-        if path.is_relative_to(repo / "site/src/data/concepts") and isinstance(value, str):
+        if isinstance(value, str) and any(path.is_relative_to(root) for root in
+                                         (repo / "site/src/data/concepts", repo / "outputs/llms-concepts")):
             keys.update(re.findall(r"\bSERVER-\d+\b", value))
     keys -= existing
     def stale(value):
