@@ -120,6 +120,34 @@ def search_writes(repo: Path, packs: dict, redirects: dict) -> tuple[dict, dict]
                     "deferred_semantic_concepts": len(exclusions["items"]), "new_embeddings": 0}
 
 
+def publication_pack(pack: dict, scrub, terms: list[str]) -> dict:
+    """Publish documentation placeholders while retaining private originals."""
+    allowed = scrub.gate.allowlist()
+    identity_rules = [(name, regex) for name, regex, _ in scrub.gate.COMPILED
+                      if name in ("atlas object id", "email inside a path")]
+
+    def clean(value):
+        if isinstance(value, list):
+            return [clean(item) for item in value]
+        if isinstance(value, dict):
+            return {key: ("archived:private-reference" if key == "source" and isinstance(item, str)
+                          and scrub._matches(item, terms) else clean(item))
+                    for key, item in value.items()}
+        if not isinstance(value, str):
+            return value
+        value, _ = scrub.scrub_home_paths(value)
+        value, _ = scrub.scrub_addresses(value, terms)
+        for name, regex in identity_rules:
+            def replace(match, name=name):
+                if any(item in match.group() for item in allowed) or scrub.gate.RESERVED.search(match.group()):
+                    return match.group()
+                return "<object-id>" if name == "atlas object id" else "/user@example.test/"
+            value = regex.sub(replace, value)
+        return value
+
+    return clean(pack)
+
+
 def plan(repo: Path, hub: Path, merge_tree: bool = True, current_run: str | None = None) -> tuple[dict, dict[Path, str]]:
     sys.path.insert(0, str(repo / "scripts"))
     scrub = module("research_site_scrub", repo / "scripts/publish_scrub.py")
@@ -132,17 +160,20 @@ def plan(repo: Path, hub: Path, merge_tree: bool = True, current_run: str | None
     tree_hashes = {str(path): hashlib.sha256(path.read_bytes()).hexdigest()
                    for path in (repo / "concept-tree/tree.json", hub / "concept-tree/tree.json")}
     safe_hub, excluded, removed_refs = scrub.filter_tree(hub_nodes, scrub.gate.denylist())
-    merged = merge_nodes(current_nodes, safe_hub) if merge_tree else current_nodes
+    safe_repo, excluded_repo, _ = scrub.filter_tree(current_nodes, scrub.gate.denylist())
+    merged = merge_nodes(safe_repo, safe_hub) if merge_tree else safe_repo
     baseline_errors = set(tree.ct.ConceptTree(current_nodes).validate())
     added_errors = set(tree.ct.ConceptTree(merged).validate()) - baseline_errors
     if added_errors:
         raise ValueError("concept tree merge adds problems: " + "; ".join(sorted(added_errors)))
     safe_names = {node["concept"] for node in safe_hub}
-    excluded_names = set(excluded)
+    excluded_names = set(excluded) | set(excluded_repo)
     recovery = module("research_site_recovery", repo / "scripts/recover_dr_packs.py")
     recovered_writes, recovered_packs, recovery_report = recovery.plan(repo, hub, safe_hub, module, scrub, current_run)
     site_packs = {path.stem: read_json(path) for path in (repo / "site/src/data/concepts").glob("*.json")}
-    selected = dict(site_packs)
+    selected = {slug: pack for slug, pack in site_packs.items()
+                if not scrub._matches(pack["concept"], scrub.gate.denylist())}
+    excluded_pack_slugs = set(site_packs) - set(selected)
     classifications, stale, new, conflicts = {}, [], [], []
     owners = {node["slug"]: node for node in [*merged, *safe_hub]}
     title_normalizations = []
@@ -228,6 +259,7 @@ def plan(repo: Path, hub: Path, merge_tree: bool = True, current_run: str | None
     added_errors = set(tree.ct.ConceptTree(merged).validate()) - baseline_errors
     if added_errors:
         raise ValueError("pack registration adds tree problems: " + "; ".join(sorted(added_errors)))
+    selected = {slug: publication_pack(pack, scrub, scrub.gate.denylist()) for slug, pack in selected.items()}
     writes = dict(recovered_writes)
     for slug, pack in selected.items():
         if slug not in site_packs:
@@ -244,6 +276,18 @@ def plan(repo: Path, hub: Path, merge_tree: bool = True, current_run: str | None
             source = repo / "concept-tree" / name
             if source.is_file():
                 shutil.copy2(source, staged / "concept-tree" / name)
+        # New Codex skills are local runtime artifacts. Vendor their summaries
+        # so an isolated CI checkout reproduces the same generated tree.
+        summary_path = repo / "concept-tree/skill-summaries.json"
+        summaries = read_json(summary_path) if summary_path.is_file() else {}
+        for node in merged:
+            skill_id = node.get("skillId")
+            if skill_id and (repo / ".agents/skills" / skill_id / "SKILL.md").is_file():
+                summaries[skill_id] = tree.skill_summary(repo, skill_id, {})
+        if summaries:
+            summary_text = json_text(summaries, indent=2)
+            (staged / "concept-tree/skill-summaries.json").write_text(summary_text)
+            writes[summary_path] = summary_text
         for name in (".claude", ".agents"):
             if (repo / name).exists():
                 (staged / name).symlink_to(repo / name, target_is_directory=True)
@@ -257,7 +301,7 @@ def plan(repo: Path, hub: Path, merge_tree: bool = True, current_run: str | None
         context_data = context.build(None, staged_packs, staged_tree)
         search_changes, search_report = search_writes(repo, selected, tree_data.get("redirects", {}))
         writes.update(search_changes)
-        writes[repo / "site/src/data/tree.json"] = json_text(tree_data, sort_keys=True)
+        writes[repo / "site/src/data/tree.json"] = json.dumps(tree_data, indent=1, sort_keys=True) + "\n"
         writes[repo / "site/src/data/context.json"] = json_text(context_data, sort_keys=True)
         for slug, pack in selected.items():
             writes[repo / f"site/public/downloads/concepts/{slug}.md"] = facts.render_pack(
@@ -289,7 +333,7 @@ def plan(repo: Path, hub: Path, merge_tree: bool = True, current_run: str | None
               "changed_files": [str(path.relative_to(repo)) if path.is_relative_to(repo) else "hub/" + str(path.relative_to(hub)) for path in changes]}
     # Obsolete data copies would otherwise re-enter context.json on the next
     # CI generation. Their URLs redirect and their original bodies are backed up.
-    for slug in pack_aliases:
+    for slug in set(pack_aliases) | excluded_pack_slugs:
         for path in (repo / f"site/src/data/concepts/{slug}.json",
                      repo / f"site/public/downloads/concepts/{slug}.md"):
             if path.exists():

@@ -62,6 +62,10 @@ It rechecks before dispatch, locks each runner and records resumable progress.
 Each cohort has a 45-minute budget. Claims and verification remain separate per
 concept. A failed gate leaves queue rows pending.
 
+The first cohort completed with 40 new facts and 10/10 sampled claims supported by
+the blind gate. Both trees and all website surfaces refreshed automatically. The
+current local dataset has 1,445 references and 88,559 facts.
+
 The first cohort researches `$elemMatch` array semantics, hint/internal query
 controls, plan scoring/EOF bonus and compound sort direction. Luna/max workers
 receive relevant cached source seeds, scout for deeper sources, and trigger one
@@ -84,3 +88,15 @@ cd site && npm run check && npm run build
 Run the site tests after the build; both read `site/dist`. The artifact receipts
 and [audit metrics](audit.json) distinguish generated content from research
 quality. Publication uses an isolated checkout and green GitHub site CI.
+
+## Publication checks
+
+The audit verified 158 cited MongoDB issue references through anonymous HTTP 200
+responses from the official tracker. Their exact keys are in the existing privacy
+allowlist. Two references without anonymous metadata remain private. Generated
+examples replace network and object identifiers with documentation placeholders;
+original research stays intact locally.
+
+PR #214 contains the release. GitHub's shared-library installation currently
+fails because the repository Actions secret `LIBS_READ_TOKEN` is missing. The
+release remains unmerged until its CI gate passes.
