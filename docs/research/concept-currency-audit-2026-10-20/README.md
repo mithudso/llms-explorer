@@ -65,8 +65,8 @@ concept. A failed gate leaves queue rows pending.
 The first cohort completed with 40 new facts and 10/10 sampled claims supported by
 the blind gate. Both trees and all website surfaces refreshed automatically.
 The [2026-10-21 resume snapshot](../ranked-queue-progress-2026-10-21.md) contains
-eight completed cohorts, 32 concepts and 327 structured claims. Its local website
-dataset has 1,469 references and 88,790 facts. Research continues after this
+ten completed cohorts, 40 concepts and 389 structured claims. Its local website
+dataset has 1,477 references and 88,852 facts. Research continues after this
 publication snapshot.
 
 The export repair restored 85 full claim statements in 26 hub packs and their
