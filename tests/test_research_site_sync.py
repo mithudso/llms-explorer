@@ -122,6 +122,44 @@ class SiteSyncTests(unittest.TestCase):
             self.assertNotIn(private_name, path.read_text())
         self.assertIn(private_path, skill.read_text(), "private skill evidence stays intact")
 
+    def test_node_summary_is_sanitized_for_publication_without_changing_hub_prose(self):
+        home = "/Users/" + "operator/private/notes"
+        email = "person@" + "research-customer.dev"
+        summary = f"Use {home}. Contact {email}. PrivateWorkspace. " + "Evidence. " * 80
+        record = {**node("Root", "root"), "summary": summary}
+        (self.hub / "concept-tree/tree.json").write_text(json.dumps([record]))
+        with patch.dict("os.environ", {"PRIVACY_DENYLIST": "PrivateWorkspace"}):
+            website.sync(self.repo, self.hub, apply=True)
+        self.assertEqual(json.loads((self.hub / "concept-tree/tree.json").read_text())[0]["summary"], summary)
+        public = json.loads((self.repo / "concept-tree/tree.json").read_text())[0]["summary"]
+        self.assertGreater(len(public), 400, "node summaries retain their complete text")
+        for path in (self.repo / "concept-tree/tree.json", self.repo / "site/src/data/tree.json"):
+            self.assertNotIn(home, path.read_text())
+            self.assertNotIn(email, path.read_text())
+            self.assertNotIn("PrivateWorkspace", path.read_text())
+
+    def test_newer_alternate_pack_survives_canonical_title_normalization_in_both_orders(self):
+        directory = self.repo / "site/src/data/concepts"
+        alternate, canonical = directory / "alternate.json", directory / "canonical.json"
+        original_glob = Path.glob
+        for order in ((alternate, canonical), (canonical, alternate)):
+            with self.subTest(order=[path.stem for path in order]):
+                record = {**node("Canonical concept", "canonical"), "aliases": ["Old concept"]}
+                for root in (self.repo, self.hub):
+                    (root / "concept-tree/tree.json").write_text(json.dumps([record]))
+                alternate.write_text(json.dumps({**reader("Old concept", "alternate", "Newer evidence."), "generated": "2026-10-21"}))
+                canonical.write_text(json.dumps(reader("Canonical concept", "canonical", "Obsolete evidence.")))
+                def ordered_glob(path, pattern, *args, order=order, **kwargs):
+                    return iter(order) if path == directory and pattern == "*.json" else original_glob(path, pattern, *args, **kwargs)
+                with patch.object(Path, "glob", ordered_glob):
+                    website.sync(self.repo, self.hub, apply=True)
+                pack = json.loads(canonical.read_text())
+                self.assertEqual(pack["generated"], "2026-10-21")
+                self.assertIn("Newer evidence.", canonical.read_text())
+                self.assertNotIn("Obsolete evidence.", canonical.read_text())
+                self.assertFalse(alternate.exists())
+                self.assertIn("Newer evidence.", (self.repo / "site/public/downloads/concepts/alternate.md").read_text())
+
     def test_private_ancestor_removes_generic_descendant_packs_and_repo_exports(self):
         private = node("Private Topic", "private-topic", children=["Generic descendant"])
         child = node("Generic descendant", "generic-descendant", parent="Private Topic")

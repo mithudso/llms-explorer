@@ -65,8 +65,8 @@ concept. A failed gate leaves queue rows pending.
 The first cohort completed with 40 new facts and 10/10 sampled claims supported by
 the blind gate. Both trees and all website surfaces refreshed automatically.
 The [2026-10-21 resume snapshot](../ranked-queue-progress-2026-10-21.md) contains
-fourteen completed cohorts, 53 concepts and 530 structured claims. Its local website
-dataset has 1,490 references and 88,993 facts. Research continues after this
+fifteen completed cohorts, 57 concepts and 569 structured claims. Its local website
+dataset has 1,494 references and 89,032 facts. Research continues after this
 publication snapshot.
 
 The export repair restored 85 full claim statements in 26 hub packs and their
@@ -132,3 +132,18 @@ The final cleanup correction removes whole excluded repository pack directories
 with backups, including legacy empty directories. It passes 50 focused checks
 in both checkouts and permits a later private research finish. The hook Usage
 documentation passes eight hub script-help checks.
+
+The 2026-10-22 snapshot advances to fifteen cohorts: 57 concepts, 569 claims
+and 150 supported samples. Both GitHub CI workflows pass on 3ece6564. Two
+later review fixes sanitize public node summaries without changing private hub
+values, and retain current canonical pack winners regardless of iteration order.
+They pass 69 focused checks and two subtests in both checkouts. Cloudflare Pages
+still reports a failed build; diagnosing it needs a build log or refreshed
+Cloudflare authentication. Production still exposes the older 1,069-reference
+context index.
+
+The fifteen-cohort snapshot passes 278 site tests. Privacy checks pass 6,118
+release files and 37 generated llms/export files. All 912 required pack members
+and 57 completed queue rows are verified. All 39 latest statements retain full
+text in readers and downloads; generated tree/context data match. The CLI/TUI
+suite passes locally and in the previous green GitHub workflow.

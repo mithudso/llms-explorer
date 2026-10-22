@@ -260,7 +260,7 @@ def plan(repo: Path, hub: Path, merge_tree: bool = True, current_run: str | None
     registrations, pack_aliases = [], {}
     for slug, pack in list(selected.items()):
         if slug in by_slug:
-            selected[slug] = {**pack, "concept": by_slug[slug]["concept"]}
+            selected[slug] = {**selected[slug], "concept": by_slug[slug]["concept"]}
             continue
         hub_owner = hub_by_slug.get(slug)
         node = (by_name.get(pack["concept"].casefold()) or aliases.get(pack["concept"].casefold())
@@ -293,6 +293,12 @@ def plan(repo: Path, hub: Path, merge_tree: bool = True, current_run: str | None
     added_errors = set(tree.ct.ConceptTree(merged).validate()) - baseline_errors
     if added_errors:
         raise ValueError("pack registration adds tree problems: " + "; ".join(sorted(added_errors)))
+    # Preserve private hub prose before creating the repository-bound copy.
+    merged_hub = merge_nodes(hub_nodes, merged)
+    for node in merged:
+        if node.get("summary"):
+            node["summary"] = scrub.scrub_public_text(str(node["summary"]),
+                                                      [*scrub.gate.denylist(), *withheld])
     selected = {slug: publication_pack(pack, scrub, [*scrub.gate.denylist(), *withheld]) for slug, pack in selected.items()}
     writes = dict(recovered_writes)
     writes.update({path: None for path in excluded_repository_packs})
@@ -350,7 +356,6 @@ def plan(repo: Path, hub: Path, merge_tree: bool = True, current_run: str | None
         writes[repo / "concept-tree/tree.json"] = json_text(merged, indent=2)
     # Pack-only research becomes discoverable in the runtime tree too. Keep
     # private hub nodes and each tree's independent placement and stable URLs.
-    merged_hub = merge_nodes(hub_nodes, merged)
     if merged_hub != hub_nodes:
         writes[hub / "concept-tree/tree.json"] = json_text(merged_hub, indent=2)
     changes = {path: text for path, text in writes.items()
