@@ -126,7 +126,7 @@ def test_alias_case_and_whitespace_preserve_all_labels_and_parent_provenance(roo
 
 
 def test_guarded_formatting_equivalence_and_ambiguous_slug_collision(roots):
-    repo, hub = roots
+    _repo, hub = roots
     store(
         hub,
         [
@@ -202,7 +202,7 @@ def test_score_precedence_alias_inheritance_dates_and_cross_store_union(roots):
 
 
 def test_unknown_scores_stay_null_and_do_not_inherit_parent_score(roots):
-    repo, hub = roots
+    _repo, hub = roots
     store(
         hub,
         [node("MongoDB", children=["Unscored", "Bad score"], cvs=5)],
@@ -216,7 +216,7 @@ def test_unknown_scores_stay_null_and_do_not_inherit_parent_score(roots):
 
 
 def test_review_nodes_and_domain_containers_are_not_completed_by_node_presence(roots):
-    repo, hub = roots
+    _repo, hub = roots
     store(
         hub,
         [
@@ -237,7 +237,7 @@ def test_review_nodes_and_domain_containers_are_not_completed_by_node_presence(r
 
 
 def test_low_scores_unscored_alias_covered_and_held_are_rendered(roots):
-    repo, hub = roots
+    _repo, hub = roots
     store(
         hub,
         [
@@ -258,7 +258,7 @@ def test_low_scores_unscored_alias_covered_and_held_are_rendered(roots):
 
 
 def test_multiple_alias_reservations_preserve_every_holder(roots):
-    repo, hub = roots
+    _repo, hub = roots
     store(
         hub,
         [
@@ -272,7 +272,7 @@ def test_multiple_alias_reservations_preserve_every_holder(roots):
 
 
 def test_group_by_specific_source_pool_across_parents_and_prioritize_cvs(roots):
-    repo, hub = roots
+    _repo, hub = roots
     store(
         hub,
         [
@@ -319,7 +319,7 @@ def test_source_pool_matching_prefers_specific_product_surface():
 
 
 def test_queue_merge_is_append_only_and_preserves_history_and_non_mongodb_rows(roots):
-    repo, hub = roots
+    _repo, hub = roots
     existing = "# Queue\n\n- [ ] Concept: `Apple work` | Parent: `Apple`\n- [x] Concept: `Old MongoDB work` | Parent: `MongoDB`\n"
     store(
         hub,
@@ -354,7 +354,7 @@ def test_ranked_merge_preserves_older_foreign_content_and_is_idempotent(roots):
 def test_apply_checks_fingerprints_and_backs_up_changed_queue_without_tree_mutation(
     roots, tmp_path
 ):
-    repo, hub = roots
+    _repo, hub = roots
     original = "# Foreign queue\n\n- [ ] Concept: `Apple`\n"
     store(hub, [node("MongoDB", children=["New gap"])], text=original)
     result = inventory(roots)
@@ -393,7 +393,7 @@ def test_cli_defaults_to_read_only_json_and_never_creates_output(roots):
 
 
 def test_rerank_verified_overlay_updates_order_stats_and_gates(roots):
-    repo, hub = roots
+    _repo, hub = roots
     store(hub, [node("MongoDB", children=["Index A", "Index B", "Index gate"])])
     result = inventory(roots)
     rows = by_name(result)
@@ -419,7 +419,7 @@ def test_rerank_verified_overlay_updates_order_stats_and_gates(roots):
 
 
 def test_queue_backtick_labels_roundtrip_without_losing_formatting(roots):
-    repo, hub = roots
+    _repo, hub = roots
     name = "Reading indexed `$or` plans with explain"
     parent = "MongoDB `Planner`"
     store(hub, [node(parent, children=[name, "`$hint`"])])
@@ -434,7 +434,7 @@ def test_queue_backtick_labels_roundtrip_without_losing_formatting(roots):
 
 
 def test_apply_preserves_crlf_history_and_refuses_json_over_input(roots):
-    repo, hub = roots
+    _repo, hub = roots
     store(hub, [node("MongoDB", children=["Gap"])])
     path = hub / "concept-tree/RESEARCH_QUEUE.md"
     prefix = b"# History\r\n\r\n- [ ] Concept: `Apple`\r\n"
@@ -619,7 +619,7 @@ def test_private_score_records_retained_only_in_hub_sidecar(roots, checker, monk
 def test_unmarked_scores_do_not_persist_and_invalid_marked_scores_fail_before_writes(
     roots, checker
 ):
-    repo, hub = roots
+    _repo, hub = roots
     store(hub, [node("MongoDB", children=["Gap"])])
     result = inventory(roots)
     by_name(result)["Gap"].update(cvs=4.725, decision="RESEARCH", score={"kind": "queue"})
@@ -646,7 +646,7 @@ def test_unmarked_scores_do_not_persist_and_invalid_marked_scores_fail_before_wr
 
 
 def test_rejected_canonical_checker_keeps_sources_unchanged(roots, tmp_path):
-    repo, hub = roots
+    _repo, hub = roots
     store(hub, [node("MongoDB", children=["Gap"])])
     result = inventory(roots)
     marked_score(by_name(result)["Gap"])
@@ -669,7 +669,7 @@ def test_existing_ranked_generated_section_moves_ahead_of_old_bytes(roots):
 
 
 def test_rerank_accepts_abbreviated_axes_and_public_projection_cannot_apply(roots):
-    repo, hub = roots
+    _repo, hub = roots
     store(hub, [node("MongoDB", children=["Gap"])])
     result = inventory(roots)
     row = by_name(result)["Gap"]

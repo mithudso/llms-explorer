@@ -30,7 +30,7 @@ from pathlib import Path
 REPO = Path(__file__).resolve().parents[1]
 BEGIN = "<!-- mongodb-research-inventory:start -->"
 END = "<!-- mongodb-research-inventory:end -->"
-SEED = re.compile(r"\b(?:mongodb|atlas)\b", re.I)
+SEED = re.compile(r"\b(?:mongodb|atlas)\b", re.IGNORECASE)
 QUEUE = re.compile(
     r"^\s*-\s*\[(?P<done>[ xX])\]\s*Concept:\s*(?P<ticks>`+)(?P<concept>.+?)(?P=ticks)(?P<tags>.*)$"
 )
@@ -459,7 +459,7 @@ def source_family(concept, parents):
     """Name-specific source affinity wins; parent text is a conservative fallback."""
     profile = None
     for text in (concept, " ".join(parents)):
-        profile = next((f for f in FAMILIES if re.search(f[1], text, re.I)), None)
+        profile = next((f for f in FAMILIES if re.search(f[1], text, re.IGNORECASE)), None)
         if profile:
             break
     if profile is None:
@@ -474,7 +474,7 @@ def source_family(concept, parents):
     # affinity is known, keep the parent as a boundary instead of batching names
     # merely because they happen to sort next to each other.
     affinity = next(
-        (name for name, pattern in AFFINITIES.get(family, ()) if re.search(pattern, concept, re.I)),
+        (name for name, pattern in AFFINITIES.get(family, ()) if re.search(pattern, concept, re.IGNORECASE)),
         None,
     )
     if affinity is None:
@@ -571,7 +571,7 @@ def build_inventory(repo=REPO, hub=None, *, reservations=None, cohort_size=4):
         nodes = raw if isinstance(raw, list) else raw.get("nodes", [])
         scores = _json(scores_path, {})
         if not isinstance(nodes, list) or not isinstance(scores, dict):
-            raise ValueError(f"Invalid concept store: {root}")
+            raise TypeError(f"Invalid concept store: {root}")
         for path in (tree, scores_path, queue_path):
             inputs.append({"path": str(path), "sha256": _fingerprint(path)})
         queue = load_queue(queue_path)
@@ -989,8 +989,10 @@ def render_markdown(inventory):
         "",
         "All scores are stored evidence. Unscored concepts await real scoring. The legacy 3.2 cutoff does not filter this view.",
         "",
-        f"Canonical rows: **{stats['canonical_rows']}**; gaps/reviews: **{stats['canonical_gaps']}**; "
-        f"unscored gaps: **{stats['unscored_gaps']}**; held: **{stats['held_rows']}**.",
+        (
+            f"Canonical rows: **{stats['canonical_rows']}**; gaps/reviews: **{stats['canonical_gaps']}**; "
+            f"unscored gaps: **{stats['unscored_gaps']}**; held: **{stats['held_rows']}**."
+        ),
         "",
         "| # | CVS | decision | concept | parent | mode | tree state | cohort | holder |",
         "|---:|---:|---|---|---|---|---|---|---|",
