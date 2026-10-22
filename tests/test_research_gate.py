@@ -161,3 +161,21 @@ def test_legacy_gate_receipts_remain_readable(pinned):
     packet['packet_sha256'] = gate.digest({k: v for k, v in packet.items() if k != 'packet_sha256'})
     response.update(schema=gate.LEGACY_SCHEMA, packet_sha256=packet['packet_sha256'])
     assert gate.validate(packet, response, root)['all_supported']
+
+
+def test_canonical_judgments_come_from_the_verified_attempt_not_the_run_copy(pinned):
+    shared, manifest, _doc, root, packet, response = pinned
+    run = root.parent
+    destination = run / 'gate/attempts/one'
+    destination.parent.mkdir(parents=True)
+    root.rename(destination)
+    (destination / 'verdicts.json').write_text(json.dumps(response))
+    shared.run_dir = lambda slug: run
+    manifest['gate'] = {**gate.validate(packet, response, destination), 'attempt': 'gate/attempts/one'}
+    forged = copy.deepcopy(response)
+    forged['verdicts'][0]['evidence'][0]['evidence_id'] = 'ev:forged-projection'
+    (run / 'gate.json').write_text(json.dumps(forged))
+    report, judgments = gate.verify_current(shared, manifest, with_verdicts=True)
+    assert report['all_supported']
+    assert judgments[0]['evidence'][0]['evidence_id'] != 'ev:forged-projection'
+    assert judgments[0]['evidence'][0]['quote'] == packet['claims'][0]['text']

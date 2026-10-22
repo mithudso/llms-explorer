@@ -253,7 +253,7 @@ Write ONLY the response object to {root / 'verdicts.json'}. Preserve the packet 
 Return exactly one verdict per claim, with this JSON shape:
 {{"schema": "{packet.get('schema', SCHEMA)}", "packet_sha256": "{packet['packet_sha256']}", "verdicts": [
  {{"claim_id": "copy exact ID", "claim_sha256": "copy exact hash", "text": "copy FULL exact text",
-   "verdict": "SUPPORTED|NOT-IN-SOURCE|CONTRADICTED|UNVERIFIED|NO-FACTUAL-ASSERTION (auxiliary only)",
+   "verdict": "SUPPORTED|NOT-IN-SOURCE|CONTRADICTED|UNVERIFIED|NO-FACTUAL-ASSERTION",
    "rationale": "Explain what the evidence does and does not support.",
    "evidence": [{{"url": "cited URL", "source_id": "copy ID", "snapshot_sha256": "copy hash",
                  "start": 0, "end": 30, "quote": "exact Python character slice"}}]}}
@@ -264,7 +264,7 @@ Offsets are zero-based Python Unicode character offsets. No omissions, duplicate
 """
 
 
-def verify_current(shared, manifest: dict) -> dict:
+def verify_current(shared, manifest: dict, *, with_verdicts=False):
     receipt = manifest.get("gate", {})
     if receipt.get("schema") not in (SCHEMA, LEGACY_SCHEMA) or not receipt.get("validated") or receipt.get("is_error"):
         raise ValueError("completion requires a validated claim-bound gate")
@@ -281,10 +281,11 @@ def verify_current(shared, manifest: dict) -> dict:
         raise ValueError("canonical claims changed after their gate")
     if packet["manifest_binding"] != manifest_binding(manifest):
         raise ValueError("concept selection or depth changed after its gate")
-    report = validate(packet, json.loads((root / "verdicts.json").read_text()), root)
+    response = json.loads((root / "verdicts.json").read_text())
+    report = validate(packet, response, root)
     if report["packet_sha256"] != receipt["packet_sha256"] or not report["all_supported"]:
         raise ValueError("claim gate contains unresolved dissent")
-    return report
+    return (report, response['verdicts']) if with_verdicts else report
 
 
 def install(shared):

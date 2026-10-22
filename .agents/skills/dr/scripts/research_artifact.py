@@ -27,8 +27,7 @@ def build(shared, manifest, documents, status):
     spec.loader.exec_module(gate)
     strict = manifest.get('gate_contract_version') in (2, 3)
     if strict:
-        report = gate.verify_current(shared, manifest)
-        judgments = json.loads((shared.run_dir(manifest['slug']) / 'gate.json').read_text())['verdicts']
+        report, judgments = gate.verify_current(shared, manifest, with_verdicts=True)
     else:
         report, judgments = {'schema': 'legacy-unbound', 'coverage': None}, []
     verdicts = {row['claim_id']: row for row in judgments}

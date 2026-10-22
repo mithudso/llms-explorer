@@ -1,12 +1,12 @@
 # Concept knowledge contracts
 
-Implemented by TASK-840 after the research recorded in TASK-816. These changes preserve the canonical artifact and exact evidence-span architecture. They do not generate embeddings or deploy the website.
+Implemented by TASK-840 after the research recorded in TASK-816. These changes preserve the canonical artifact and exact evidence-span architecture. They do not generate embeddings or deploy to production.
 
 ## Research assertions
 
 New Codex runs record `gate_contract_version: 3` and use `research-gate/v3`. The independent judge reads each complete summary, disagreement and open question. These units are mandatory even when the ordinary claim sample is zero. This avoids relying on another model to extract all factual assertions from prose. The judge checks disagreement attributions and factual premises inside questions. `SUPPORTED` requires pinned source spans establishing the full assertion. A pure question can receive `NO-FACTUAL-ASSERTION`; structured claims cannot receive that verdict.
 
-Canonical artifacts store each auxiliary assertion's full text, source URLs, identity, verdict and evidence IDs. Editing prose after its gate invalidates completion. Artifact verification also rejects prose that differs from its stored judgment. Coverage reports distinguish structured claims from auxiliary assertions. Marginal supported-fact counts include structured claims only.
+Canonical compilation reads judgments directly from the verified gate attempt, rather than the mutable run-level copy. Canonical artifacts store each auxiliary assertion's full text, source URLs, identity, verdict and evidence IDs. Editing prose after its gate invalidates completion. Artifact verification also rejects prose that differs from its stored judgment. Coverage reports distinguish structured claims from auxiliary assertions. Marginal supported-fact counts include structured claims only.
 
 Version-2 gates remain readable and retain their original claim-only meaning. Old research is not silently upgraded to full-prose validation. New contracts apply to new runs; active version-2 runs keep their existing contract. The shared Claude runtime remains unchanged. The repository's generated Codex adapters carry the new behavior.
 
@@ -55,7 +55,7 @@ Regression tests use pinned synthetic evidence and fixed vectors. They cover ful
 
 Final local results on 2026-10-22:
 
-- Research, adapter and privacy suites: **201 passed**, plus **4 subtests passed**.
+- Research, adapter and privacy suites: **202 passed**, plus **4 subtests passed**.
 - Site suite after the production build: **284 passed**.
 - Hub suite: **549 passed**, with one existing scope-test failure. `test_scope_include_unscored_and_zero_threshold_restore_the_old_behaviour` reports `250 != 333`. The same failure reproduces on untouched upstream commit `7bb68955` in a separate checkout.
 - Production site build, site type checking, project-wide Ruff, generated-adapter synchronization and whitespace checks passed.
