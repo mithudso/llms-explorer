@@ -474,7 +474,11 @@ def source_family(concept, parents):
     # affinity is known, keep the parent as a boundary instead of batching names
     # merely because they happen to sort next to each other.
     affinity = next(
-        (name for name, pattern in AFFINITIES.get(family, ()) if re.search(pattern, concept, re.IGNORECASE)),
+        (
+            name
+            for name, pattern in AFFINITIES.get(family, ())
+            if re.search(pattern, concept, re.IGNORECASE)
+        ),
         None,
     )
     if affinity is None:
@@ -981,22 +985,70 @@ def _cell(value):
     return str(value if value is not None else "—").replace("|", "&#124;").replace("\n", " ")
 
 
+def _source_link(material):
+    title = material.get("title") or material["url"]
+    title = title.replace("[", r"\[").replace("]", r"\]")
+    url = material["url"].replace("(", "%28").replace(")", "%29").replace(" ", "%20")
+    return f"[{title}]({url})"
+
+
 def render_markdown(inventory):
     """Render the full view with no gate, truncation or omitted held/covered rows."""
     stats = inventory["stats"]
     lines = [
         "# MongoDB research queue and coverage inventory",
         "",
-        "All scores are stored evidence. Unscored concepts await real scoring. The legacy 3.2 cutoff does not filter this view.",
+        (
+            "Scores are priority judgments with provenance; source URLs are discovery leads. "
+            "Unscored concepts await real scoring. The legacy 3.2 cutoff does not filter this view."
+        ),
         "",
         (
             f"Canonical rows: **{stats['canonical_rows']}**; gaps/reviews: **{stats['canonical_gaps']}**; "
             f"unscored gaps: **{stats['unscored_gaps']}**; held: **{stats['held_rows']}**."
         ),
         "",
-        "| # | CVS | decision | concept | parent | mode | tree state | cohort | holder |",
-        "|---:|---:|---|---|---|---|---|---|---|",
+        "## Source-sharing cohorts",
+        "",
+        "Every gap and review candidate appears below, including held, low-scored and unscored concepts.",
+        "",
+        "| cohort | source family / affinity | members · CVS | shared discovery sources |",
+        "|---|---|---|---|",
     ]
+    by_id = {row["id"]: row for row in inventory["rows"]}
+    for cohort in sorted(inventory["cohorts"], key=lambda row: (row["priority"], row["id"])):
+        members = [
+            by_id[identity]
+            for identity in cohort["row_ids"]
+            if by_id[identity]["coverage_category"] != "covered"
+        ]
+        if not members:
+            continue
+        labels = [
+            f"{row['concept']} (CVS {row['cvs']:.3f})"
+            if row["cvs"] is not None
+            else f"{row['concept']} (unscored)"
+            for row in members
+        ]
+        sources = "; ".join(
+            _source_link(material) for material in cohort["likely_source_materials"]
+        )
+        cells = (
+            cohort["id"],
+            f"{cohort['source_family']} / {cohort['source_affinity']}",
+            "; ".join(labels),
+            sources,
+        )
+        lines.append("| " + " | ".join(_cell(value) for value in cells) + " |")
+    lines.extend(
+        [
+            "",
+            "## Full inventory",
+            "",
+            "| # | CVS | decision | concept | parent | mode | tree state | cohort | holder |",
+            "|---:|---:|---|---|---|---|---|---|---|",
+        ]
+    )
     for row in inventory["rows"]:
         lines.append(
             "| "

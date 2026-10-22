@@ -681,6 +681,118 @@ def test_rerank_accepts_abbreviated_axes_and_public_projection_cannot_apply(root
         queue.apply_inventory(queue.public_inventory(result))
 
 
+def test_cohort_table_shows_every_gap_and_review_with_scores_sources_and_stored_priority(roots):
+    _repo, hub = roots
+    store(
+        hub,
+        [
+            node(
+                "MongoDB",
+                children=[
+                    "Compound index A | B",
+                    "Index `quote` low",
+                    "Index unknown",
+                    "Held index",
+                ],
+            ),
+            node("Planner review", "MongoDB", sourcesCount=0),
+            node("Complete index", "MongoDB"),
+        ],
+        scores={
+            "Compound index A | B": {"cvs": 4.725},
+            "Index `quote` low": {"cvs": 2.1},
+            "Held index": {"cvs": 3.5},
+            "Planner review": {"cvs": 4.2},
+        },
+    )
+    result = inventory(roots, reservations={"Held index": "active worker"})
+    result["cohorts"].reverse()
+    before = json.dumps(result, sort_keys=True)
+    markdown = queue.render_markdown(result)
+    section = markdown.split("## Source-sharing cohorts\n", 1)[1].split("## Full inventory\n", 1)[0]
+    assert markdown.index("## Source-sharing cohorts") < markdown.index("## Full inventory")
+    expected = []
+    by_id = {row["id"]: row for row in result["rows"]}
+    for cohort in sorted(result["cohorts"], key=lambda row: (row["priority"], row["id"])):
+        if any(by_id[identity]["coverage_category"] != "covered" for identity in cohort["row_ids"]):
+            expected.append(cohort["id"])
+    actual = [
+        line.split("|")[1].strip()
+        for line in section.splitlines()
+        if line.startswith("| mongodb-cohort-")
+    ]
+    assert actual == expected
+    for row in result["rows"]:
+        if row["coverage_category"] == "covered":
+            assert f"{row['concept']} (CVS" not in section
+        else:
+            label = row["concept"].replace("|", "&#124;")
+            suffix = f"CVS {row['cvs']:.3f}" if row["cvs"] is not None else "unscored"
+            assert section.count(f"{label} ({suffix})") == 1
+            assert row["source_family"] in section and row["source_affinity"] in section
+    assert "https://www.mongodb.com/docs/manual/indexes/" in section
+    assert "https://www.mongodb.com/docs/manual/reference/explain-results/" in section
+    assert (
+        "Scores are priority judgments with provenance; source URLs are discovery leads."
+        in markdown
+    )
+    assert "All scores are stored evidence" not in markdown
+    assert before == json.dumps(result, sort_keys=True)
+
+
+def test_cohort_table_preserves_label_formatting_and_escapes_material_links(roots):
+    _repo, hub = roots
+    concept = "Index `$or` | bounds"
+    store(hub, [node("MongoDB", children=[concept])])
+    result = inventory(roots)
+    row = by_name(result)[concept]
+    cohort = next(cohort for cohort in result["cohorts"] if cohort["id"] == row["cohort_id"])
+    cohort["likely_source_materials"] = [
+        {
+            "title": "Server [manual] | source\nlinks",
+            "url": "https://www.mongodb.com/docs/manual/core/index-(bounds)/",
+        }
+    ]
+    section = queue.render_markdown(result).split("## Full inventory\n", 1)[0]
+    assert "Index `$or` &#124; bounds (unscored)" in section
+    assert (
+        r"[Server \[manual\] &#124; source links](https://www.mongodb.com/docs/manual/core/index-%28bounds%29/)"
+        in section
+    )
+
+
+def test_public_cohort_table_excludes_private_descendants_and_sanitizes_shared_materials(
+    roots, monkeypatch
+):
+    _repo, hub = roots
+    monkeypatch.setenv("PRIVACY_DENYLIST", "RestrictedCustomer")
+    store(
+        hub,
+        [
+            node("MongoDB", children=["RestrictedCustomer Indexes", "Public index"]),
+            node("RestrictedCustomer Indexes", "MongoDB", ["Index generic child"]),
+        ],
+    )
+    result = inventory(roots)
+    row = by_name(result)["Public index"]
+    cohort = next(cohort for cohort in result["cohorts"] if cohort["id"] == row["cohort_id"])
+    material = {
+        "title": "RestrictedCustomer /Users/real.operator/Library | manual",
+        "url": "https://example.test/RestrictedCustomer/source",
+    }
+    row["likely_source_materials"] = [material]
+    cohort["likely_source_materials"] = [material]
+    before = json.dumps(result, sort_keys=True)
+    safe = queue.public_inventory(result)
+    markdown = queue.render_markdown(safe)
+    assert "Public index (unscored)" in markdown
+    assert "https://example.test/withheld-reference" in markdown
+    assert "RestrictedCustomer" not in markdown
+    assert "Index generic child" not in markdown
+    assert "/Users/real.operator" not in markdown
+    assert before == json.dumps(result, sort_keys=True)
+
+
 @pytest.mark.parametrize("size", [0, 9])
 def test_invalid_cohort_size_is_rejected(roots, size):
     with pytest.raises(ValueError, match="cohort_size"):
