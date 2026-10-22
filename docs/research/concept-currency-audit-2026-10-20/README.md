@@ -107,10 +107,9 @@ examples replace network and object identifiers with documentation placeholders;
 original research stays intact locally. Completion verifies new issue references
 automatically and retries unavailable metadata later.
 
-PR #214 contains the release. The repository Actions secret `LIBS_READ_TOKEN`
-is now present, but fresh CI reports invalid-token authentication failures for
-both private shared libraries. The release remains unmerged until valid read
-access restores its CI gate.
+PR #214 contains the release. Its repository Actions credential now installs
+both private shared libraries. The final reviewed commit must pass CI before
+merging and publication.
 
 The initial release passed 309 full-suite tests. The 2026-10-21 resume snapshot
 passed 52 focused runtime tests and 298 site/publication tests in the isolated
@@ -128,3 +127,8 @@ The final fourteen-cohort snapshot passes 277 site tests and 25 privacy tests.
 The privacy scan covers 6,108 release files and thirteen generated llms/export
 files. Generated tree/context data match, all 848 required pack members exist,
 and all 53 completed queue rows have native research bindings.
+
+The final cleanup correction removes whole excluded repository pack directories
+with backups, including legacy empty directories. It passes 50 focused checks
+in both checkouts and permits a later private research finish. The hook Usage
+documentation passes eight hub script-help checks.
