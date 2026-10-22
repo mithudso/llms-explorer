@@ -61,6 +61,9 @@ def test_resume_retries_only_failed_stages_and_preserves_attempts(tmp_path, monk
     def success(value):
         return {'is_error': False, 'output': value, 'seconds': 1, 'usage': {}, 'tools': []}
     generation, judge = success(output), success(judged)
+    generation['input_sha256'] = bench.stage_fingerprint('generation', 'gpt-6-luna', 'max')
+    judge['input_sha256'] = bench.stage_fingerprint(bench.judge_prompt(output, packet), 'gpt-6-astra', 'high',
+                                                   upstream=generation['input_sha256'])
     if failed_stage in ('judge', 'invalid-judge'):
         bench.write(destination / 'generation/run.json', generation)
         failed = (success({**judged, 'output_sha256': 'stale'}) if failed_stage == 'invalid-judge'
@@ -90,3 +93,32 @@ def test_resume_retries_only_failed_stages_and_preserves_attempts(tmp_path, monk
     calls.clear()
     bench.cell(tmp_path, 'storage', 'gpt-6-luna', 'max', 'dr', False, 1)
     assert calls == [], 'valid successful stages must remain reusable'
+
+
+def test_prompt_changes_invalidate_generation_and_its_downstream_judge(tmp_path, monkeypatch, trial):
+    packet, output, judged = trial
+    bench.write(tmp_path / 'storage/packet.json', packet)
+    prompt = ['contract version one']
+    monkeypatch.setattr(bench, 'generation_prompt', lambda *args: prompt[0])
+    calls = []
+    def invoke(text, model, effort, target, timeout, live=False):
+        calls.append(target.name)
+        record = {'is_error': False, 'output': output if target.name == 'generation' else judged,
+                  'seconds': 1, 'usage': {}, 'tools': []}
+        bench.write(target / 'run.json', record)
+        return record
+    monkeypatch.setattr(bench, 'call', invoke)
+    def run():
+        return bench.cell(tmp_path, 'storage', 'gpt-6-luna', 'max', 'dr', False, 1)
+    assert run()['unique_supported_facts'] == 1
+    calls.clear()
+    run()
+    assert calls == []
+    prompt[0] = 'contract version two'
+    run()
+    assert calls == ['generation', 'judge']
+    calls.clear()
+    original = bench.judge_prompt
+    monkeypatch.setattr(bench, 'judge_prompt', lambda *args: 'New judge instructions. ' + original(*args))
+    run()
+    assert calls == ['judge']

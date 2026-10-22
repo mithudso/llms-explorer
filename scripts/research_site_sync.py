@@ -47,6 +47,25 @@ def nodes_at(path: Path) -> list[dict]:
 
 def merge_nodes(destination: list[dict], source: list[dict]) -> list[dict]:
     """Preserve destination placement and stable URLs; merge new evidence."""
+    # A completed merge is explicit only when a survivor owns BOTH the old name
+    # and old slug, and the absorbed slug is no longer live in that tree.
+    candidates = {}
+    for node in [*destination, *source]:
+        candidates.setdefault(node.get("slug"), []).append(node)
+    absorbed = {}
+    for authoritative in (destination, source):
+        live = {node.get("slug") for node in authoritative}
+        for survivor in authoritative:
+            aliases = {name.casefold() for name in survivor.get("aliases", [])}
+            for old in survivor.get("slugAliases", []):
+                if old in live:
+                    continue
+                for candidate in candidates.get(old, []):
+                    if candidate["concept"].casefold() in aliases:
+                        target = survivor["slug"]
+                        if old in absorbed and absorbed[old] != target:
+                            raise ValueError("conflicting explicit concept merges: " + old)
+                        absorbed[old] = target
     result = copy.deepcopy(destination)
     by_name = {node["concept"]: node for node in result}
     taken = {node.get("slug") for node in result}
@@ -81,6 +100,33 @@ def merge_nodes(destination: list[dict], source: list[dict]) -> list[dict]:
             for key in ("researchedAt", "sourcesCount", "conceptsCount", "summary", "cvs", "cvsDecision", "cvsScoredAt", "llmsFile"):
                 if incoming.get(key) not in (None, ""):
                     node[key] = incoming[key]
+    if absorbed:
+        edits = module("research_tree_merge", REPO / "hub/scripts/concept_tree.py")
+        for old, target in absorbed.items():
+            seen = {old}
+            while target in absorbed:
+                if target in seen:
+                    raise ValueError("cyclic explicit concept merges: " + old)
+                seen.add(target)
+                target = absorbed[target]
+            by_slug = {node["slug"]: node for node in result}
+            if old not in by_slug:
+                continue
+            if target not in by_slug:
+                raise ValueError("missing explicit merge survivor: " + target)
+            previous, survivor = by_slug[old], by_slug[target]
+            # A stale tree may still place the survivor below the absorbed
+            # node. Move it out before retiring that ancestor.
+            parents = {node["concept"]: node.get("parentConcept") for node in result}
+            parent, visited = survivor.get("parentConcept"), set()
+            while parent in parents and parent not in visited:
+                if parent == previous["concept"]:
+                    edits.reparent(result, survivor["concept"], previous.get("parentConcept"))
+                    break
+                visited.add(parent)
+                parent = parents[parent]
+            edits.merge(result, previous["concept"], survivor["concept"])
+        by_name = {node["concept"]: node for node in result}
     canonical = {alias: node["concept"] for node in result for alias in node.get("aliases", [])
                  if alias not in by_name}
     for node in result:

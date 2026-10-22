@@ -12,6 +12,12 @@ def digest(value):
     return hashlib.sha256(json.dumps(value, sort_keys=True, ensure_ascii=False, separators=(',', ':')).encode()).hexdigest()
 
 
+def claim_identity(slug, claim):
+    return {'concept_slug': slug, 'text': claim['text'], 'sources': sorted(set(claim['sources'])),
+            'confidence': claim['confidence'], 'verified_as_of': claim.get('verified_as_of'),
+            'volatile': bool(claim.get('volatile'))}
+
+
 def build(shared, manifest, documents, status):
     path = Path(__file__).with_name('research_gate.py')
     spec = importlib.util.spec_from_file_location('artifact_gate_contract', path)
@@ -25,7 +31,7 @@ def build(shared, manifest, documents, status):
         report, judgments = {'schema': 'legacy-unbound', 'coverage': None}, []
     verdicts = {row['claim_id']: row for row in judgments}
     rows = gate.claim_rows(manifest, documents)
-    identities = {(row['concept_slug'], row['text']): row for row in rows}
+    identities = {row['claim_id']: row for row in rows}
     tree_path = shared.HUB_DIR / 'concept-tree/tree.json'
     nodes = shared.concept_tree.load_nodes(tree_path)
     owners = {name.casefold(): node['slug'] for node in nodes for name in [node['concept'], *node.get('aliases', [])]}
@@ -40,7 +46,7 @@ def build(shared, manifest, documents, status):
     for slug, doc in enriched.items():
         doc['canonical_concept_id'] = concept_ids[doc['concept']]
         for claim in doc['claims']:
-            bound = identities[(slug, claim['text'])]
+            bound = identities['clm:' + digest(claim_identity(slug, claim))]
             judgment = verdicts.get(bound['claim_id'])
             claim['canonical_claim_id'] = bound['claim_id']
             claim['validation_status'] = 'SUPPORTED' if judgment else 'NOT-SAMPLED' if strict else 'LEGACY-UNBOUND'
@@ -66,9 +72,7 @@ def verify(artifact):
     verdicts = {row['claim_id']: row for row in artifact.get('gate_verdicts', [])}
     for slug, doc in artifact['documents'].items():
         for claim in doc['claims']:
-            identity = {'concept_slug': slug, 'text': claim['text'], 'sources': sorted(set(claim['sources'])),
-                        'confidence': claim['confidence'], 'verified_as_of': claim.get('verified_as_of'),
-                        'volatile': bool(claim.get('volatile'))}
+            identity = claim_identity(slug, claim)
             if claim['canonical_claim_id'] != 'clm:' + digest(identity):
                 raise ValueError('canonical claim identity does not match its statement version')
             if claim['canonical_claim_id'] in identities:

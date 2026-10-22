@@ -244,6 +244,11 @@ def estimate_cost(usage, rates):
             usage.get('output_tokens', 0) * rates['output_per_million']) / 1_000_000
 
 
+def stage_fingerprint(prompt, model, effort, live=False, upstream=None):
+    return fingerprint({'prompt': prompt, 'model': model, 'effort': effort,
+                        'live': live, 'upstream_sha256': upstream})
+
+
 def cell(out, domain, model, effort, skill, live, timeout):
     destination = out / 'cells' / f'{domain}__{skill}__{model}__{effort}__{"live" if live else "fixed"}'
     packet = json.loads((out / domain / 'packet.json').read_text())
@@ -261,12 +266,13 @@ def cell(out, domain, model, effort, skill, live, timeout):
                     any(not isinstance(claim[key], str) for key in ('text', 'source_id', 'quote'))):
                 raise ValueError('invalid benchmark claim')
 
-    def stage(name, prompt, model, effort, live=False, validate=None):
+    def stage(name, prompt, model, effort, live=False, validate=None, upstream=None):
         path = destination / name / 'run.json'
+        binding = stage_fingerprint(prompt, model, effort, live, upstream)
         if path.exists():
             try:
                 cached = json.loads(path.read_text())
-                if cached['is_error'] is False:
+                if cached['is_error'] is False and cached.get('input_sha256') == binding:
                     if not isinstance(cached['output'], dict):
                         raise TypeError('benchmark response must be an object')
                     validate(cached['output'])
@@ -280,6 +286,7 @@ def cell(out, domain, model, effort, skill, live, timeout):
             shutil.move(str(path.parent), str(saved))
         (destination / 'metrics.json').unlink(missing_ok=True)
         record = call(prompt, model, effort, destination / name, timeout, live)
+        record['input_sha256'] = binding
         if not record['is_error']:
             try:
                 if not isinstance(record['output'], dict):
@@ -287,14 +294,15 @@ def cell(out, domain, model, effort, skill, live, timeout):
                 validate(record['output'])
             except (ValueError, KeyError, TypeError) as error:
                 record.update(is_error=True, contract_error=str(error))
-                write(path, record)
+        write(path, record)
         return record
     generated = stage('generation', generation_prompt(packet, skill, live), model, effort, live,
                       validate=valid_generation)
     if generated['is_error']:
         return {'cell': destination.name, 'failed': 'generation'}
     judged = stage('judge', judge_prompt(generated['output'], packet), 'gpt-6-astra', 'high',
-                   validate=lambda value: metrics(generated['output'], value, packet))
+                   validate=lambda value: metrics(generated['output'], value, packet),
+                   upstream=generated['input_sha256'])
     if judged['is_error']:
         return {'cell': destination.name, 'failed': 'judge'}
     result = metrics(generated['output'], judged['output'], packet)
