@@ -571,6 +571,57 @@ class ResearchFlowTests(unittest.TestCase):
         self.assertEqual(before, [path.read_bytes() for path in paths])
         self.assertFalse((self.hub / "llms-concepts").exists())
 
+    def test_finish_replaces_alias_backed_old_manifest_titles_in_both_roots(self):
+        self.research()
+        self.artifact_targets()
+        self.render()
+        slugs = [f"stable-publication-{root.name}" for root in (self.hub, self.repo)]
+        for root in (self.hub, self.repo):
+            path = root / "concept-tree/tree.json"
+            nodes = json.loads(path.read_text())
+            nodes.append({"concept": "Atomic publication", "slug": f"stable-publication-{root.name}", "parentConcept": None,
+                          "childConcepts": [], "aliases": ["Old publication"]})
+            path.write_text(json.dumps(nodes))
+            for slug in slugs:
+                directory = root / ("llms-concepts" if root == self.hub else "outputs/llms-concepts") / (slug + ".llms")
+                directory.mkdir(parents=True)
+                (directory / "manifest.json").write_text(json.dumps({"concept": "Old publication"}))
+                (directory / "llms-full.txt").write_text("Old evidence preserved in backup.\n")
+        self.invoke("finish", "publication", "--status", "COMPLETED")
+        receipt = self.shared.load_manifest("publication")["codex_artifacts"]
+        for label, root in (("hub", self.hub), ("repository", self.repo)):
+            for slug in slugs:
+                directory = root / ("llms-concepts" if label == "hub" else "outputs/llms-concepts") / (slug + ".llms")
+                self.assertEqual(json.loads((directory / "manifest.json").read_text())["concept"], "Atomic publication")
+                saved = Path(receipt["backup"]) / label / (slug + ".llms")
+                self.assertEqual(json.loads((saved / "manifest.json").read_text())["concept"], "Old publication")
+                self.assertEqual((saved / "llms-full.txt").read_text(), "Old evidence preserved in backup.\n")
+
+    def test_current_run_recovery_accepts_alias_backed_old_export_titles(self):
+        self.research()
+        self.artifact_targets()
+        self.render()
+        self.invoke("finish", "publication", "--status", "COMPLETED")
+        for root in (self.hub, self.repo):
+            path = root / "concept-tree/tree.json"
+            nodes = json.loads(path.read_text())
+            next(n for n in nodes if n["concept"] == "Atomic publication")["aliases"] = ["Old publication"]
+            path.write_text(json.dumps(nodes))
+            manifest = root / ("llms-concepts" if root == self.hub else "outputs/llms-concepts") / "atomic-publication.llms/manifest.json"
+            old = json.loads(manifest.read_text()); old["concept"] = "Old publication"
+            manifest.write_text(json.dumps(old))
+        (self.hub / "scripts").mkdir(exist_ok=True)
+        (self.hub / "scripts/dr_run.py").touch()
+        recovery = module_at("test_alias_recovery", REPO / "scripts/recover_dr_packs.py")
+        scrub = module_at("test_alias_recovery_scrub", self.repo / "scripts/publish_scrub.py")
+        def load(name, path):
+            return self.shared if name == "site_recovery_dr" else module_at(name, path)
+        writes, _, report = recovery.plan(self.repo, self.hub, self.shared.concept_tree.load_nodes(self.hub / "concept-tree/tree.json"), load, scrub, current_run="publication")
+        self.assertIn("atomic-publication", report["current_run_slugs"])
+        for root in (self.hub, self.repo):
+            manifest = root / ("llms-concepts" if root == self.hub else "outputs/llms-concepts") / "atomic-publication.llms/manifest.json"
+            self.assertEqual(json.loads(writes[manifest])["concept"], "Atomic publication")
+
     def test_budget_exhausted_exports_completed_concepts_as_partial(self):
         self.research()
         self.artifact_targets()

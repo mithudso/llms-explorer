@@ -147,3 +147,10 @@ release files and 37 generated llms/export files. All 912 required pack members
 and 57 completed queue rows are verified. All 39 latest statements retain full
 text in readers and downloads; generated tree/context data match. The CLI/TUI
 suite passes locally and in the previous green GitHub workflow.
+
+The export replacement guard also recognizes explicit aliases on the stable
+slug owner, including copies of either tree's stable slug in both pack roots.
+Authoritative current-run recovery uses the same identity rule. Unrelated titles
+and missing manifests still fail before any write; historical recovery remains
+non-destructive. The fix passes 54 focused checks and two subtests in both
+checkouts, and the 22-file Codex skill profile is synchronized with backups.
