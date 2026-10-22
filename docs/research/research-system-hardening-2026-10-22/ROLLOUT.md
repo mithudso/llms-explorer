@@ -46,3 +46,12 @@ pages and three canonical downloads were checked against the final artifact.
 Retired wording is absent. The local website now contains 1,518 reader packs and
 89,213 facts. The saved plan has 23 completed cohorts and continues with cohort 24
 at Luna/max. This remains local publication; production deployment is unresolved.
+
+The subsequent release freeze retains those 23 completed cohorts (82 researched
+concepts, 808 structured claims). Cohort 24 stopped on 27 UNVERIFIED, 14 SUPPORTED
+and one NOT-IN-SOURCE verdict among 42 selected claims; it is excluded from the
+release. Cohorts 25-31 remain pending. PR 218 restores private dependency access
+for Cloudflare and refreshes the release to 1,518 readers and 89,213 facts. Clean
+builds also regenerate canonical JSON downloads from committed reader data.
+The credential repair has passed a live preview; production awaits the final
+release checks.
