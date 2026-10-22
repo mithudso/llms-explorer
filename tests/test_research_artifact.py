@@ -101,3 +101,37 @@ def test_new_concept_id_uses_the_same_collision_free_owner_before_and_after_upse
     tree_path.write_text(json.dumps(nodes))
     second, _ = artifact.build(shared, manifest, docs, 'COMPLETED')
     assert first['artifact_sha256'] == second['artifact_sha256']
+
+
+def test_temporal_applicability_versions_keep_history_without_changing_legacy_ids(tmp_path):
+    base = {'text': 'The option applies.', 'sources': ['https://example.test'], 'confidence': 'low'}
+    old = artifact.claim_identity('c', base)
+    assert 'temporal' not in old
+    temporal = {'valid_from': '2026-10-01', 'valid_to': '2026-11-01',
+                'applicability_version': 'v4', 'recorded_at': '2026-10-22T14:00:00Z'}
+    current = artifact.claim_identity('c', {**base, 'temporal': temporal})
+    assert artifact.digest(current) != artifact.digest(old)
+    assert current['temporal'] == temporal
+    changed = artifact.claim_identity('c', {**base, 'temporal': {**temporal, 'valid_to': None}})
+    assert artifact.digest(current) != artifact.digest(changed)
+    for bad in ({'valid_from': '2026-02-30'}, {'recorded_at': '2026-10-22'},
+                {'valid_from': '2026-11-01', 'valid_to': '2026-10-01'}, {'fetch_date': '2026-10-22'}):
+        with pytest.raises(ValueError, match='temporal'):
+            artifact.claim_identity('c', {**base, 'temporal': bad})
+
+
+def test_canonical_prose_cannot_retain_a_corrected_inference():
+    gate_spec = importlib.util.spec_from_file_location('prose_test_gate', Path(artifact.__file__).with_name('research_gate.py'))
+    gate = importlib.util.module_from_spec(gate_spec)
+    gate_spec.loader.exec_module(gate)
+    doc = {'summary': 'The evidence establishes a qualified result.', 'sources': [{'url': 'https://example.test'}], 'claims': []}
+    row = gate.auxiliary_rows('c', doc)[0]
+    doc['auxiliary_assertions'] = [{**row, 'validation_status': 'SUPPORTED', 'evidence_ids': ['ev:1']}]
+    value = {'schema': 'research-artifact/v1', 'assertion_contract_version': 3, 'documents': {'c': doc},
+             'gate_verdicts': [{**row, 'verdict': 'SUPPORTED', 'evidence': [{'evidence_id': 'ev:1'}]}]}
+    value['artifact_sha256'] = artifact.digest(value)
+    assert artifact.verify(value)
+    doc['summary'] += ' Therefore a stronger unsupported result follows.'
+    value['artifact_sha256'] = artifact.digest({k: v for k, v in value.items() if k != 'artifact_sha256'})
+    with pytest.raises(ValueError, match='auxiliary prose'):
+        artifact.verify(value)

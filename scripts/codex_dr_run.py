@@ -603,7 +603,14 @@ def load_shared(path: Path | None = None):
                 policy = SOURCE_LIBRARY_POLICY.replace("dr_run.py", str(Path(__file__).resolve()))
                 policy = policy.replace("`source_library.py", "`python3 ~/.global-ai-hub/scripts/source_library.py")
                 policy = policy.replace("~/.global-ai-hub/scripts/source_library.py", str(Path(__file__).with_name("research_library.py").resolve()))
-                brief = policy + "\n" + brief
+                brief = policy + "\n" + brief + (
+                    "\nOptional claim temporal metadata: temporal={valid_from, valid_to, "
+                    "applicability_version, recorded_at}. valid_to is exclusive. Use ISO dates "
+                    "or timezone-aware timestamps; recorded_at needs a timezone. Omit unknown "
+                    "fields or use null. Never infer applicability from fetch/verification dates. "
+                    "The independent gate checks complete summaries, disagreements and factual "
+                    "premises of open questions as well as selected claims. Cite disagreement "
+                    "positions explicitly and keep summaries within cited evidence.\n")
             return translate_brief(brief, str(path.resolve()))
         setattr(shared, symbol, wrapped)
     gate_path = Path(__file__).with_name("research_gate.py")
@@ -617,6 +624,20 @@ def load_shared(path: Path | None = None):
     provenance_spec.loader.exec_module(provenance)
     provenance.install(shared)
     shared.evidence_provenance = provenance
+    original_validate_claims = shared.validate_claims
+
+    def validate_claims(document):
+        errors = original_validate_claims(document)
+        if isinstance(document, dict) and isinstance(document.get('claims'), list):
+            for index, claim in enumerate(document['claims']):
+                if isinstance(claim, dict) and 'temporal' in claim:
+                    try:
+                        bound_gate._claims.validate_temporal(claim['temporal'])
+                    except ValueError as error:
+                        errors.append(f'claims[{index}]: {error}')
+        return errors
+
+    shared.validate_claims = validate_claims
     bound_gate.install(shared)
     return shared
 

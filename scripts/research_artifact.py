@@ -8,14 +8,17 @@ import json
 from pathlib import Path
 
 
+_claims_spec = importlib.util.spec_from_file_location('research_statement_contract', Path(__file__).with_name('research_claims.py'))
+_claims = importlib.util.module_from_spec(_claims_spec)
+_claims_spec.loader.exec_module(_claims)
+
+
 def digest(value):
     return hashlib.sha256(json.dumps(value, sort_keys=True, ensure_ascii=False, separators=(',', ':')).encode()).hexdigest()
 
 
 def claim_identity(slug, claim):
-    return {'concept_slug': slug, 'text': claim['text'], 'sources': sorted(set(claim['sources'])),
-            'confidence': claim['confidence'], 'verified_as_of': claim.get('verified_as_of'),
-            'volatile': bool(claim.get('volatile'))}
+    return _claims.claim_identity(slug, claim)
 
 
 def build(shared, manifest, documents, status):
@@ -159,6 +162,6 @@ def public_projection(files):
     result = {'schema': 'research-public-artifact/v1', 'concept': manifest['concept'], 'slug': manifest['slug'],
               'canonical_concept_id': manifest.get('canonical_concept_id'),
               'canonical_artifact_sha256': manifest.get('canonical_artifact_sha256'),
-              'claims': [{key: row[key] for key in ('id', 'text', 'source_url', 'also', 'validation_status', 'origin_validation_status', 'evidence_ids') if key in row} for row in rows]}
+              'claims': [{key: row[key] for key in ('id', 'text', 'source_url', 'also', 'validation_status', 'origin_validation_status', 'evidence_ids', 'temporal') if key in row} for row in rows]}
     result['projection_sha256'] = digest(result)
     return result

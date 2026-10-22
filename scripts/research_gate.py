@@ -5,12 +5,18 @@ Usage: imported by codex_dr_run.py; no standalone model or network calls.
 from __future__ import annotations
 
 import hashlib
+import importlib.util
 import json
 import re
 from collections import Counter
 from datetime import UTC, datetime
 from pathlib import Path
 from uuid import uuid4
+
+_claims_spec = importlib.util.spec_from_file_location('research_statement_contract', Path(__file__).with_name('research_claims.py'))
+_claims = importlib.util.module_from_spec(_claims_spec)
+_claims_spec.loader.exec_module(_claims)
+
 
 SCHEMA = "research-gate/v3"
 LEGACY_SCHEMA = "research-gate/v2"
@@ -31,6 +37,8 @@ def digest(value) -> str:
 
 def risks(claim: dict) -> list[str]:
     found = [name for name, pattern in RISK_RULES.items() if re.search(pattern, claim["text"], re.IGNORECASE)]
+    if claim.get("temporal"):
+        found.append("temporal-applicability")
     if claim.get("volatile"):
         found.append("volatile")
     return found
@@ -72,10 +80,7 @@ def claim_rows(manifest: dict, documents: dict) -> list[dict]:
         if document is None or (document["concept"] != concept["name"] and document.get("slug") != concept["slug"]):
             raise ValueError(f"gate requires current canonical claims for {concept['name']}")
         for claim in document["claims"]:
-            identity = {"concept_slug": concept["slug"], "text": claim["text"],
-                        "sources": sorted(set(claim["sources"])),
-                        "confidence": claim["confidence"], "verified_as_of": claim.get("verified_as_of"),
-                        "volatile": bool(claim.get("volatile"))}
+            identity = _claims.claim_identity(concept['slug'], claim)
             fingerprint = digest(identity)
             if fingerprint in seen:
                 raise ValueError(f"duplicate canonical claim in {concept['name']}")

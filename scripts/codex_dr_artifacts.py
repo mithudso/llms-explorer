@@ -68,7 +68,7 @@ def compile_claims(lca, out: Path, name: str, slug: str, docs: list[dict], statu
                             keywords=[doc["concept"]], origin="dr", also=urls[1:])
             row.update(matched=[name], relations=["about"], relation="about", score=1.0,
                        facet=lca.heuristic_facet(row), keep=True)
-            row.update({key: claim[key] for key in ("validation_status", "evidence_ids") if key in claim})
+            row.update({key: claim[key] for key in ("validation_status", "evidence_ids", "temporal") if key in claim})
             if doc.get("canonical_concept_id"):
                 row["canonical_concept_id"] = doc["canonical_concept_id"]
             rows.append(row)
@@ -108,7 +108,7 @@ def compile_rows(lca, out: Path, name: str, slug: str, rows: list[dict], metadat
         raise ValueError(f"{name}: llms compilation changed canonical identities")
     for unit in compiled_units:
         source = by_id[unit["id"]]
-        unit.update({key: source[key] for key in ("canonical_concept_id", "validation_status", "origin_validation_status", "evidence_ids") if key in source})
+        unit.update({key: source[key] for key in ("canonical_concept_id", "validation_status", "origin_validation_status", "evidence_ids", "temporal") if key in source})
     (out / "units.jsonl").write_text("".join(json.dumps(unit, ensure_ascii=False) + "\n" for unit in compiled_units))
     # The compiler lists undefined terms twice: as unsourced bold entries and
     # in its explicit research-gap section. Keep the gap section, so a missing
