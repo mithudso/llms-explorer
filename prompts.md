@@ -850,3 +850,7 @@ source provenance, canonical public/private projections. Ordered progress lives 
 Resume the saved ranked research plan. Preserve completed discovery, resolve
 claim-bound gate dissent against primary evidence and keep both trees, llms packs
 and generated website outputs current after each successful cohort.
+
+Outcome: cohort 23 completed after source-reviewed corrections and a fresh
+38-claim bound gate. Both roots and website outputs were verified, and the same
+plan started cohort 24. Diagnostic follow-up: PR 217.
