@@ -1,0 +1,374 @@
+{
+  "slug": "bucket-catalog-memory-and-closure-reasons",
+  "concept": "Bucket catalog memory and closure reasons",
+  "generated": "2026-10-20",
+  "summary": "Source-anchored research for Bucket catalog memory and closure reasons. Run status: COMPLETED.",
+  "facets": [
+    {
+      "title": "Definitions",
+      "facts": [
+        {
+          "text": "cacheSizeBytes in that formula is the configured WiredTiger cache size: getStorageCacheSizeBytes() multiplies getCacheSizeMB(), which returns the configured _wtConfig.cacheSizeMB. It is not live cache occupancy, eviction state or dirty ratio. 'Cache pressure' in kCachePressure and numBucketsClosedDueToCachePressure therefore names a computed budget, not an observed eviction condition. (medium confidence) (verified as of 2026-10-20)",
+          "source": "https://github.com/mongodb/mongo/blob/master/src/mongo/db/timeseries/timeseries_write_util.cpp",
+          "note": null
+        },
+        {
+          "text": "A mongod restart is a temporary workaround: it closes all buckets and resets the catalog, and one forum user reported relief for about three days after each restart (Feb 22, 2024). (medium confidence)",
+          "source": "https://www.mongodb.com/docs/manual/core/timeseries/timeseries-bucketing/",
+          "note": null
+        },
+        {
+          "text": "Restarting mongod is a mitigation, not a fix. It closes all buckets and resets the catalog (and any stale cardinality count), but users report relief lasting about three days (forum 2024-02-22) or restarting servers daily (feedback 2024-02-22). SERVER-89233 is fixed from 8.0.5. (medium confidence)",
+          "source": "https://www.mongodb.com/docs/manual/core/timeseries/timeseries-bucketing/",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Structure and components",
+      "facts": [
+        {
+          "text": "The bucket catalog is one mongod-wide in-memory structure (a ServiceContext decoration) split into 32 hard-coded lock stripes. It tracks open and archived buckets. mongod's tracking allocator measures its memory, and serverStatus reports that figure as bucketCatalog.memoryUsage. A mongod restart discards the catalog and closes all buckets. (high confidence)",
+          "source": "https://github.com/mongodb/mongo/blob/35647d07bc4bc11966c90fe7100eb1db0b0ac1d9/src/mongo/db/timeseries/bucket_catalog/global_bucket_catalog.cpp",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "How it works",
+      "facts": [
+        {
+          "text": "When catalog memory exceeds timeseriesIdleBucketExpiryMemoryUsageThreshold, expireIdleBuckets works through idle buckets. It archives an idle open bucket that can still take inserts and increments numBucketsArchivedDueToMemoryThreshold. It closes an idle bucket whose state conflicts with insertions and increments numBucketsClosedDueToMemoryThreshold; cleared or frozen buckets are only removed. If memory is still high, it drops archived records, also counted in numBucketsClosedDueToMemoryThreshold. Each call is bounded by timeseriesIdleBucketExpiryMaxCountPerAttempt (default 3). (high confidence) (verified as of 2026-10-20)",
+          "source": "https://github.com/mongodb/mongo/blob/master/src/mongo/db/timeseries/bucket_catalog/bucket_catalog_internal.cpp",
+          "note": null
+        },
+        {
+          "text": "determineRolloverReason checks in this order and returns the first match: time span forward, time backward, document count, size or cache pressure, schema incompatibility. Schema change therefore registers only when the earlier checks pass, and a comment in the function records an earlier bug where skipping the size check also skipped later checks and let mixed-schema data into a bucket. (low confidence) (verified as of 2026-10-20)",
+          "source": "https://github.com/mongodb/mongo/blob/master/src/mongo/db/timeseries/bucket_catalog/bucket_catalog_internal.cpp",
+          "note": null
+        },
+        {
+          "text": "A backward timestamp increments numBucketsArchivedDueToTimeBackward. The counter numBucketsClosedDueToTimeBackward is no longer emitted: SERVER-89158 (fixed in 8.0.0-rc7 and 8.1.0-rc0) removed it because it never rose above zero. The manual's serverStatus and collStats pages still list it. (high confidence) (verified as of 2026-10-20)",
+          "source": "https://jira.mongodb.org/browse/SERVER-89158",
+          "note": null
+        },
+        {
+          "text": "Symptom: nearly one bucket per document, avgNumMeasurementsPerCommit near 1, and a very large numBucketsClosedDueToCachePressure, usually days after startup. SERVER-89233 (sharded cluster, 7.0.4 and 7.0.5, created 2024-04-10) describes it. A forum poster saw bucketCount 25,000 and 17 measurements per commit when loading a collection on a fresh server, but about 420,000 buckets, 1 measurement per commit and about 415,000 cache-pressure closures when loading it after other collections (Oct 19, 2023). Replies through Mar 2025 report the same. (high confidence) (verified as of 2026-10-20)",
+          "source": "https://jira.mongodb.org/browse/SERVER-89233",
+          "note": null
+        },
+        {
+          "text": "SERVER-89233 is Fixed in 8.0.5 and 8.1.0-rc0 (resolved 2024-10-03). The ticket requested backports to 8.0 and 7.0, but it lists no 7.0.x fix version as of 2026-10-20. Commit 46e8db22 ('Track cardinality per-collection for time-series') replaced the catalog-wide uint32 counter numberOfActiveBuckets with per-collection numActiveBuckets gauges and subtracts a dropped collection's gauge from the global one. Neither the ticket nor the commit states a root cause. The reporter also hit the problem after dropping and re-inserting collections. (medium confidence) (verified as of 2026-10-20)",
+          "source": "https://jira.mongodb.org/browse/SERVER-89233",
+          "note": null
+        },
+        {
+          "text": "Dropping a collection, moving a chunk, an election, or a direct write such as an update or delete clears tracked buckets and can close them. stateManagement.trackedClearOperations counts clears whose bucket removal was deferred, and stateManagement.currentEra increments when a bucket is cleared. (medium confidence)",
+          "source": "https://www.mongodb.com/docs/manual/reference/command/serverStatus/",
+          "note": null
+        },
+        {
+          "text": "In MongoDB's internal medium- and high-cardinality workloads, buckets close because time moves forward, so raising the count or size limits would not help them (SERVER-88644, Backlog, created 2024-03-27). (low confidence) (verified as of 2026-10-20)",
+          "source": "https://jira.mongodb.org/browse/SERVER-88644",
+          "note": null
+        },
+        {
+          "text": "Each internal rollover reason maps to one of three actions. Count, schema change, cache pressure and size hard-close the bucket. A timestamp past the bucket's time span (time forward) soft-closes it, so it stays eligible for reopening. A timestamp earlier than the bucket's minimum time (time backward) archives it. If the bucket still holds uncommitted measurements, the server records the reason and acts when the last batch commits. (high confidence) (verified as of 2026-10-20)",
+          "source": "https://github.com/mongodb/mongo/blob/35647d07bc4bc11966c90fe7100eb1db0b0ac1d9/src/mongo/db/timeseries/bucket_catalog/rollover.h",
+          "note": null
+        },
+        {
+          "text": "expireIdleBuckets works in this order. It archives each idle open bucket that can still accept inserts and counts it in numBucketsArchivedDueToMemoryThreshold. It removes a cleared or frozen idle bucket with no counter. It closes any other idle bucket and counts it in numBucketsClosedDueToMemoryThreshold. After the idle list is empty it closes archived entries and counts each in numBucketsClosedDueToMemoryThreshold. The server runs this only when it allocates a new bucket or loads a reopened bucket into the catalog, and it stops after timeseriesIdleBucketExpiryMaxCountPerAttempt expiries (default 3; the loop test is <=, so up to 4 per call). Code reading of the pinned master source. (medium confidence) (verified as of 2026-10-20)",
+          "source": "https://github.com/mongodb/mongo/blob/35647d07bc4bc11966c90fe7100eb1db0b0ac1d9/src/mongo/db/timeseries/bucket_catalog/bucket_catalog_internal.cpp",
+          "note": null
+        },
+        {
+          "text": "The cache term is the configured WiredTiger cache size (storage engine getCacheSizeMB() x 1 MiB), not live cache occupancy. The bucket term is the process-wide count of open plus archived buckets across every time series collection (serverStatus bucketCatalog.numBuckets). numBucketsClosedDueToCachePressure therefore reflects a capacity ratio, not observed cache eviction, and a busy collection can shrink the cap of a quiet one. (high confidence) (verified as of 2026-10-20)",
+          "source": "https://github.com/mongodb/mongo/blob/35647d07bc4bc11966c90fe7100eb1db0b0ac1d9/src/mongo/db/timeseries/timeseries_write_util.cpp",
+          "note": null
+        },
+        {
+          "text": "Since 6.1.0 (SERVER-66683) a bucket that could still accept measurements but would close because of memory pressure or out-of-order inserts is archived instead. The per-stripe archive keeps only a hash of the bucket key and the bucket _id. A memory-driven closure is not permanent: the README says an archived entry dropped for memory remains eligible for query-based reopening, which needs a {metaField: 1, timeField: 1} index (created by default for collections made on 6.3 or later). Without that index no query-based reopening happens and a new bucket opens. (high confidence)",
+          "source": "https://jira.mongodb.org/browse/SERVER-66683",
+          "note": null
+        },
+        {
+          "text": "serverStatus().bucketCatalog (since 5.0) is process-wide. It reports numBuckets (open plus archived), numOpenBuckets, numIdleBuckets, numArchivedBuckets (numBuckets minus numOpenBuckets, floored at 0), memoryUsage in bytes, one counter per closure or archive reason, and a stateManagement block. Per-collection counters appear in $collStats storageStats output for time series collections. (high confidence) (verified as of 2026-10-20)",
+          "source": "https://www.mongodb.com/docs/manual/reference/command/serverStatus/",
+          "note": null
+        },
+        {
+          "text": "Inference, not stated by MongoDB: the divisor counts active buckets process-wide, so counts that were not released when a collection was dropped would inflate it and shrink every collection's cap until restart. Consistent evidence: the symptom persists after dropping and recreating collections; the fix is titled per-collection cardinality; master's removeCollectionExecutionGauges subtracts a removed collection's active-bucket count from the global gauge; users report relief only after restart. The ticket page states no root cause. (low confidence) (verified as of 2026-10-20)",
+          "source": "https://jira.mongodb.org/browse/SERVER-89233",
+          "note": null
+        },
+        {
+          "text": "Workaround for a collapsing cap: raise timeseriesBucketMinSize toward timeseriesBucketMaxSize (SERVER-105187, an unresolved Backlog ticket last updated 2025-07-14 that asks for a proper knob). The parameter is startup-only in 7.0.0 and startup-or-runtime from 7.3.0 and in 8.0.x. Cost: SERVER-69899 added the cap because uncapped buckets in high-cardinality workloads can exceed the WiredTiger cache and make each write hit disk. (medium confidence) (verified as of 2026-10-20)",
+          "source": "https://jira.mongodb.org/browse/SERVER-105187",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Measurements and reference values",
+      "facts": [
+        {
+          "text": "Before SERVER-95511, timeseriesIdleBucketExpiryMemoryUsageThreshold defaulted to 0, which meant 2.5% of system memory, and positive values were bytes (7.0 branch). SERVER-95511 (fixed in 8.0.5 and 8.1.0-rc0; commit of 2024-10-31) changed the default to 5. Values 1 to 100 now mean a percentage of system memory, values above 100 mean bytes, and zero or negative values fall back to 5%. (high confidence) (verified as of 2026-10-20)",
+          "source": "https://github.com/mongodb/mongo/blob/v7.0/src/mongo/db/timeseries/timeseries.idl",
+          "note": null
+        },
+        {
+          "text": "timeseriesIdleBucketExpiryMemoryUsageThreshold and timeseriesSideBucketCatalogMemoryUsageThreshold can be set at startup or at runtime; timeseriesBucketMaxCount is startup-only. Alibaba Cloud's MongoDB 8.0 parameter list agrees: no restart for the two thresholds, restart required for timeseriesBucketMaxCount (range 1 to 10000). The side catalog threshold takes bytes only (default 100 MB); Alibaba limits it to 52428800 through 209715200. (high confidence) (verified as of 2026-10-20)",
+          "source": "https://github.com/mongodb/mongo/blob/master/src/mongo/db/timeseries/timeseries.idl",
+          "note": null
+        },
+        {
+          "text": "Work out the expiry threshold as a percentage of total system RAM: 5% from 8.0.5, 2.5% before. Compare it with serverStatus().bucketCatalog.memoryUsage. Expiry runs only on bucket allocation or reopen, so a quiet node can keep memoryUsage above the threshold. (medium confidence) (verified as of 2026-10-20)",
+          "source": "https://github.com/mongodb/mongo/blob/master/src/mongo/db/timeseries/timeseries.idl",
+          "note": null
+        },
+        {
+          "text": "In a 7.0.2 replica set (Feb 2024), about 120.4 million documents produced 12,151,933 buckets (about 9.9 documents per bucket, avgBucketSize 4849) on a 128 GB host and 1,508,453 buckets (about 79.9 per bucket, avgBucketSize 13428) on a 16 GB host. The 16 GB host reported numBucketsClosedDueToCachePressure 1,050,343; the 128 GB host's closure counters were all zero. The larger host got the smaller buckets, so cache size alone does not predict bucket density. (low confidence) (verified as of 2026-10-20)",
+          "source": "https://www.mongodb.com/community/forums/t/why-timeseries-bucket-count-is-different-on-2-independent-environment-with-same-data/265066/",
+          "note": null
+        },
+        {
+          "text": "timeseriesIdleBucketExpiryMemoryUsageThreshold sets the catalog's memory budget and can be changed at startup or at runtime. From 8.0.5 and 8.1.0-rc0 (SERVER-95511) it defaults to 5. A value from 1 to 100 means a percentage of system memory. A value above 100 means bytes. Zero or a negative value resets to the 5% default. (high confidence) (verified as of 2026-10-20)",
+          "source": "https://github.com/mongodb/mongo/blob/35647d07bc4bc11966c90fe7100eb1db0b0ac1d9/src/mongo/db/timeseries/timeseries.idl",
+          "note": null
+        },
+        {
+          "text": "The manual's bucketing page (fetched 2026-10-19; its navigation labels the manual 9.0 Current) still says the catalog's default allocation is 2.5% of available system memory. That is right for 7.0 through 8.0.4 but not for 8.0.5 and later, where the source default is 5%. Alibaba Cloud's 8.0 parameter table also lists 5%. (high confidence) (verified as of 2026-10-20)",
+          "source": "https://www.mongodb.com/docs/manual/core/timeseries/timeseries-bucketing/",
+          "note": null
+        },
+        {
+          "text": "Suggested diagnostic order for too many small buckets (synthesis of the sources): (1) per collection, compare timeseries.bucketCount with documents inserted and read avgNumMeasurementsPerCommit; (2) see which numBucketsClosedDueTo* counter dominates; (3) if CachePressure, compare process-wide numBuckets x 2 x 128,000 with the configured WiredTiger cache, and on 7.0 or 8.0.4 and earlier look for stale counts after collection drops; (4) if MemoryThreshold counters rise, compare memoryUsage with the threshold (5% of RAM on 8.0.5 and later, about 2.5% before) and raise it; (5) reduce metaField cardinality. (medium confidence) (verified as of 2026-10-20)",
+          "source": "https://mongodb.com/community/forums/t/suboptimal-bucket-creation-in-timeseries-collection-due-to-cache-pressure/249863",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Problems, failure modes and limitations",
+      "facts": [
+        {
+          "text": "The manual lists six circumstances that close a bucket: time moving past the bucket span (forward or backward), the document limit (default 1000), the storage size limit (default 125 KiB, with a 12 MiB allowance for buckets under 10 documents, and the active bucket set not fitting the allowed storage engine cache size), the catalog exceeding its total memory allocation, a conflicting operation such as a chunk migration or update, and a mongod restart. (high confidence)",
+          "source": "https://www.mongodb.com/docs/manual/core/timeseries/timeseries-bucketing/",
+          "note": null
+        },
+        {
+          "text": "The cache-derived bucket size limit is cacheSizeBytes / (2 * activeBuckets), raised to at least timeseriesBucketMinSize (default 5120 bytes) and capped at timeseriesBucketMaxSize (default 128000 bytes, about 125 KiB). activeBuckets is the node-wide count of open plus archived buckets. If the next measurement would push a bucket past this limit, the bucket is hard-closed with rollover reason kCachePressure when the limit is below the normal maximum, and with kSize otherwise. (high confidence) (verified as of 2026-10-20)",
+          "source": "https://github.com/mongodb/mongo/blob/master/src/mongo/db/timeseries/bucket_catalog/bucket_catalog_internal.cpp",
+          "note": null
+        },
+        {
+          "text": "Default limits on master: timeseriesBucketMaxCount 1000 measurements, timeseriesBucketMaxSize 128000 bytes, timeseriesBucketMinCount 10, timeseriesBucketMinSize 5120 bytes, timeseriesIdleBucketExpiryMaxCountPerAttempt 3, timeseriesSideBucketCatalogMemoryUsageThreshold 104857600 bytes. A bucket with fewer than 10 measurements may grow past the size limit, up to 12 MiB. numBucketsKeptOpenDueToLargeMeasurements counts those buckets. (high confidence) (verified as of 2026-10-20)",
+          "source": "https://github.com/mongodb/mongo/blob/master/src/mongo/db/timeseries/timeseries.idl",
+          "note": null
+        },
+        {
+          "text": "serverStatus().bucketCatalog.numBuckets is the node-wide gauge of active buckets (open plus archived). The dynamic size limit uses the same gauge. numArchivedBuckets is numBuckets minus numOpenBuckets, clamped at zero. The bucketCatalog section returns an empty document while the catalog has no per-collection stats entries, that is, before any time series collection is used after startup. (high confidence) (verified as of 2026-10-20)",
+          "source": "https://github.com/mongodb/mongo/blob/master/src/mongo/db/timeseries/bucket_catalog/bucket_catalog_server_status.cpp",
+          "note": null
+        },
+        {
+          "text": "timeseriesBucketMinSize (default 5120 bytes, settable at startup and at runtime) is the floor of the cache-derived limit. SERVER-82798 (fixed in 7.0.4 and 7.2.0-rc0) made the dynamic calculation respect it. SERVER-105187 (Backlog, created 2025-05-17) says that raising it up to timeseriesBucketMaxSize effectively turns dynamic bucketing off, and proposes making the factor of 2 configurable. (medium confidence) (verified as of 2026-10-20)",
+          "source": "https://github.com/mongodb/mongo/blob/master/src/mongo/db/timeseries/timeseries.idl",
+          "note": null
+        },
+        {
+          "text": "With default limits, the dynamic limit starts to shrink buckets once active buckets exceed cacheSizeBytes / 256000, and it reaches the 5120-byte floor above cacheSizeBytes / 10240. For an 8 GiB WiredTiger cache those points are about 33,500 and about 839,000 active buckets. Compare serverStatus().bucketCatalog.numBuckets with these values. (medium confidence) (verified as of 2026-10-20)",
+          "source": "https://github.com/mongodb/mongo/blob/master/src/mongo/db/timeseries/bucket_catalog/bucket_catalog_internal.cpp",
+          "note": null
+        },
+        {
+          "text": "To find what closes buckets, divide each closure counter by numBucketInserts. A large numBucketsClosedDueToCachePressure share points at the dynamic size limit. Rising numBucketsArchivedDueToMemoryThreshold or numBucketsClosedDueToMemoryThreshold, with memoryUsage near the threshold, points at catalog memory. numBucketsClosedDueToTimeForward points at granularity or bucketMaxSpanSeconds. numBucketsClosedDueToSchemaChange points at field type changes. (medium confidence) (verified as of 2026-10-20)",
+          "source": "https://www.mongodb.com/docs/manual/reference/command/serverStatus/",
+          "note": null
+        },
+        {
+          "text": "Active-bucket cardinality is node-wide. SERVER-105187 says the dynamic calculation 'combines the global cardinality of buckets across all collections', and the SERVER-89233 patch still passes catalog.globalExecutionStats.numActiveBuckets to determineRolloverAction. Many collections, for example one collection per day, can therefore shrink the size limit for new buckets in all of them. A forum poster attributed small buckets to iterating daily collections (Feb 22, 2024). Since SERVER-89233, dropping a collection subtracts its buckets from the global gauge. (medium confidence) (verified as of 2026-10-20)",
+          "source": "https://jira.mongodb.org/browse/SERVER-105187",
+          "note": null
+        },
+        {
+          "text": "Raising timeseriesBucketMinSize to timeseriesBucketMaxSize switches off dynamic sizing but trades smaller buckets for WiredTiger cache risk. SERVER-69899 (fixed in 6.2.0-rc0) added the limit because many active buckets at the full 125 KiB could exceed the cache and make each document write trigger a disk write. Compare active buckets times bucket size with the cache before disabling it. (medium confidence) (verified as of 2026-10-20)",
+          "source": "https://jira.mongodb.org/browse/SERVER-69899",
+          "note": null
+        },
+        {
+          "text": "MongoDB engineers call the old 2.5% catalog memory default conservative and note that users often need to change the memory parameters. SERVER-95510 (2024-10-03, closed as a duplicate of SERVER-95511) says raising the limit in many deployments since 5.0 improved time series performance. Leaving the default unexamined on a high-cardinality node risks needless archiving and closing. (medium confidence) (verified as of 2026-10-20)",
+          "source": "https://jira.mongodb.org/browse/SERVER-95510",
+          "note": null
+        },
+        {
+          "text": "The manual lists seven closure triggers: time moving forward or backward past the bucket span; the document limit (default 1,000); the size limit (default 125 KiB, or up to 12 MiB when the bucket holds fewer than 10 measurements); active buckets not fitting the storage-engine cache; the catalog exceeding its total memory allocation; a conflicting operation such as a chunk migration or update; and a mongod restart. The defaults match timeseriesBucketMaxCount 1000, timeseriesBucketMaxSize 128000 bytes and timeseriesBucketMinCount 10 in the server source. (high confidence) (verified as of 2026-10-20)",
+          "source": "https://www.mongodb.com/docs/manual/core/timeseries/timeseries-bucketing/",
+          "note": null
+        },
+        {
+          "text": "Two separate memory-driven paths close buckets early, and they use different counters. Catalog-memory expiry runs when bucketCatalog.memoryUsage exceeds timeseriesIdleBucketExpiryMemoryUsageThreshold: the server archives idle open buckets (numBucketsArchivedDueToMemoryThreshold) and, if usage stays over the limit, drops archived entries (numBucketsClosedDueToMemoryThreshold). The cache-derived size cap closes a growing bucket when the next measurement would exceed a limit computed from the WiredTiger cache size and the active-bucket count (numBucketsClosedDueToCachePressure). Do not read one family of counters as evidence about the other. (high confidence) (verified as of 2026-10-20)",
+          "source": "https://github.com/mongodb/mongo/blob/35647d07bc4bc11966c90fe7100eb1db0b0ac1d9/src/mongo/db/timeseries/bucket_catalog/bucket_catalog_internal.cpp",
+          "note": null
+        },
+        {
+          "text": "Through 8.0.4 the same parameter took bytes only, and its default of 0 resolved to about 2.5% of system memory (the code multiplies system MB by 25 x 1024, which is 2.44%). SERVER-61195 (fixed 5.0.6 and 5.2.0) replaced an earlier fixed 100 MB limit with one that scales with RAM. SERVER-95510 recorded the default as 'a conservative 2.5%' in October 2024 and proposed 5%. (high confidence)",
+          "source": "https://github.com/mongodb/mongo/blob/r8.0.4/src/mongo/db/timeseries/timeseries_global_options.cpp",
+          "note": null
+        },
+        {
+          "text": "Since 6.2.0 (SERVER-69899) the server lowers the maximum bucket size so that all active buckets together use at most about half the WiredTiger cache. The limit is cacheBytes / (2 x activeBuckets), raised to at least timeseriesBucketMinSize (default 5,120 bytes) and capped at timeseriesBucketMaxSize (default 128,000 bytes). With no active buckets the static maximum applies. (high confidence) (verified as of 2026-10-20)",
+          "source": "https://jira.mongodb.org/browse/SERVER-69899",
+          "note": null
+        },
+        {
+          "text": "When a measurement would push a bucket past its effective size limit, the server reports kSize if the effective limit equals timeseriesBucketMaxSize and kCachePressure if the cache-derived limit is lower. A bucket with fewer than timeseriesBucketMinCount (default 10) measurements may grow past that limit, up to the smaller of 12 MiB and the cache-derived limit, and is counted once in numBucketsKeptOpenDueToLargeMeasurements. Beyond that ceiling it closes as kSize or kCachePressure by the same rule. (high confidence) (verified as of 2026-10-20)",
+          "source": "https://github.com/mongodb/mongo/blob/35647d07bc4bc11966c90fe7100eb1db0b0ac1d9/src/mongo/db/timeseries/bucket_catalog/bucket_catalog_internal.cpp",
+          "note": null
+        },
+        {
+          "text": "determineRolloverReason checks in this order: time forward, time backward, document count, size or cache pressure, then schema change. The first match wins, so a measurement that breaks both the size limit and the schema is counted as size or cache pressure, not schema change. Single-source code reading. (low confidence) (verified as of 2026-10-20)",
+          "source": "https://github.com/mongodb/mongo/blob/35647d07bc4bc11966c90fe7100eb1db0b0ac1d9/src/mongo/db/timeseries/bucket_catalog/bucket_catalog_internal.cpp",
+          "note": null
+        },
+        {
+          "text": "Reported failure mode: buckets shrink to about one measurement each. A 128 GB host with 50 time series collections showed bucketCount near 420,000, avgNumMeasurementsPerCommit 1 and about 415,000 numBucketsClosedDueToCachePressure for one collection (forum, 2023-10-19, version not stated). A 7.0.2 replica set with 128 GB nodes saw cache-pressure closures grow until restart (forum, 2024-02-19). SERVER-89233 reproduced 'bucket count equals document count' on a 7.0.4 sharded cluster several days after startup, and again after dropping and recreating collections. (high confidence)",
+          "source": "https://mongodb.com/community/forums/t/suboptimal-bucket-creation-in-timeseries-collection-due-to-cache-pressure/249863",
+          "note": null
+        },
+        {
+          "text": "Before the SERVER-82798 fix (7.0.4 and 7.2.0-rc0, resolved 2023-11-07) the cache-derived limit did not respect timeseriesBucketMinSize and could produce a very small maximum with few measurements per bucket. A forum poster suspected the same unused floor in October 2023. (medium confidence)",
+          "source": "https://jira.mongodb.org/browse/SERVER-82798",
+          "note": null
+        },
+        {
+          "text": "To raise catalog memory, set timeseriesIdleBucketExpiryMemoryUsageThreshold at runtime. From 8.0.5 prefer a percentage so the budget follows RAM when Atlas autoscaling resizes the node. SERVER-95510 cites support cases since 5.0 that needed higher limits. SERVER-95511 warns that fixed byte values risk out-of-memory errors after a scale-down. (medium confidence) (verified as of 2026-10-20)",
+          "source": "https://jira.mongodb.org/browse/SERVER-95510",
+          "note": null
+        },
+        {
+          "text": "timeseriesSideBucketCatalogMemoryUsageThreshold is a byte budget (default 104,857,600, startup or runtime) for a separate side bucket catalog. The IDL and Alibaba Cloud describe it as the level above which idle buckets in that catalog expire. SERVER-75176 (7.2.0-rc0) added a memory limit on the side catalog used by each time series update command and says an update over the limit should return an error; the ticket does not name the parameter. (medium confidence) (verified as of 2026-10-20)",
+          "source": "https://github.com/mongodb/mongo/blob/35647d07bc4bc11966c90fe7100eb1db0b0ac1d9/src/mongo/db/timeseries/timeseries.idl",
+          "note": null
+        },
+        {
+          "text": "Which closure reason dominates depends on write rate and span. In MongoDB's 2026 blog tests (M30, 10 devices) fast writers closed buckets on size or count, and slow writers closed them on time span. Read the counters accordingly: Size and Count are normal at high rates; TimeForward means the span is short relative to the write interval; SchemaChange means a field changed type; CachePressure and MemoryThreshold mean capacity limits. (medium confidence)",
+          "source": "https://mongodb.com/company/blog/technical/a-practical-study-of-mongodb-time-series-bucket-behavior",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Comparisons and alternatives",
+      "facts": [
+        {
+          "text": "A new bucket's start time rounds down to the granularity boundary (or bucketRoundingSeconds). Documents with slightly out-of-order timestamps that arrive close together therefore land in the same bucket instead of forcing a backward-time rollover. (high confidence)",
+          "source": "https://www.mongodb.com/docs/manual/core/timeseries/timeseries-bucketing/",
+          "note": null
+        },
+        {
+          "text": "bucketCatalog.stateManagement.currentEra starts at 0 and increments whenever a bucket is cleared; trackedClearOperations counts clears whose bucket removal was deferred, for example by a collection drop, a chunk migration or an election. Conflicting operations such as a chunk migration or an update close affected buckets instead of letting them take writes. (medium confidence) (verified as of 2026-10-20)",
+          "source": "https://www.mongodb.com/docs/manual/reference/command/serverStatus/",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Facts and statements",
+      "facts": [
+        {
+          "text": "mongod keeps one in-memory bucket catalog for all time series collections on the node. It holds the open buckets and a small record for each archived bucket, split across 32 hash stripes; a given metaField value always maps to the same stripe. Restarting mongod closes all buckets and resets the catalog. (high confidence)",
+          "source": "https://github.com/mongodb/mongo/blob/master/src/mongo/db/timeseries/README.md",
+          "note": null
+        },
+        {
+          "text": "expireIdleBuckets has two call sites in bucket_catalog_internal.cpp: allocating a new bucket (allocateBucket) and loading a reopened bucket (loadBucketIntoCatalog). It has no background timer, so a node that stops allocating or reopening buckets does not shed catalog memory. (low confidence) (verified as of 2026-10-20)",
+          "source": "https://github.com/mongodb/mongo/blob/master/src/mongo/db/timeseries/bucket_catalog/bucket_catalog_internal.cpp",
+          "note": null
+        },
+        {
+          "text": "Each rollover reason maps to one action. kTimeForward soft-closes the bucket, which stays eligible for reopening. kTimeBackward archives the bucket and keeps a small in-memory record. kCount, kSchemaChange, kCachePressure and kSize hard-close the bucket permanently. Archiving increments numBucketsArchivedDueToTimeBackward; each other reason increments its own numBucketsClosedDueTo counter. (high confidence) (verified as of 2026-10-20)",
+          "source": "https://github.com/mongodb/mongo/blob/master/src/mongo/db/timeseries/bucket_catalog/rollover.cpp",
+          "note": null
+        },
+        {
+          "text": "Catalog memory is measured with mongod's tracking allocator and reported in bytes as serverStatus().bucketCatalog.memoryUsage. The idle-expiry threshold is a share of total system RAM, not of the WiredTiger cache. (high confidence)",
+          "source": "https://www.mongodb.com/docs/manual/reference/command/serverStatus/",
+          "note": null
+        },
+        {
+          "text": "Closure counters appear node-wide in serverStatus().bucketCatalog and per collection under timeseries in collStats (db.collection.stats()). Both come from the function appendExecutionStatsToBuilder, which emits numBucketsClosedDueToCachePressure and numBucketsClosedDueToSchemaChange. The collStats reference lists neither counter. The SERVER-89233 reporter read numBucketsClosedDueToCachePressure from stats(). (high confidence) (verified as of 2026-10-20)",
+          "source": "https://github.com/mongodb/mongo/blob/master/src/mongo/db/timeseries/bucket_catalog/execution_stats.cpp",
+          "note": null
+        },
+        {
+          "text": "Bucket count follows distinct metaField values. Fine-grained or changing metaField values create many sparsely packed, short-lived buckets, which raises catalog cardinality. Choose a stable, coarse metaField and a granularity (or bucketMaxSpanSeconds) that matches the measurement interval. The manual warns that granularity 'seconds' on data arriving every 5 minutes gives multiple buckets per polling interval, many holding a single document. (high confidence)",
+          "source": "https://www.mongodb.com/docs/manual/core/timeseries/timeseries-bucketing/",
+          "note": null
+        },
+        {
+          "text": "Insert with insertMany, group measurements with the same metaField in the same batch, and set ordered to false (manual). The server design notes say insertMany batches are organized by meta value and sorted ascending by time; earlier versions targeted buckets per measurement in the order the client gave, which produced very sub-optimal bucketing for time-descending batches. (high confidence) (verified as of 2026-10-20)",
+          "source": "https://www.mongodb.com/docs/manual/core/timeseries/timeseries-best-practices/",
+          "note": null
+        },
+        {
+          "text": "Archiving keeps a small in-memory record, so a later measurement that fits can reopen the on-disk bucket cheaply. If no record exists, the server queries the bucket collection for a reopening candidate. numBucketsReopened, numBucketsFetched, numBucketQueriesFailed and numBucketReopeningsFailed show how well reopening works. (medium confidence) (verified as of 2026-10-20)",
+          "source": "https://github.com/mongodb/mongo/blob/master/src/mongo/db/timeseries/README.md",
+          "note": null
+        },
+        {
+          "text": "Query-based reopening needs the {metaField: 1, timeField: 1} index, which the server creates by default for time series collections created in 6.3 and later. Without that index the server does not use query-based reopening. (low confidence) (verified as of 2026-10-20)",
+          "source": "https://github.com/mongodb/mongo/blob/master/src/mongo/db/timeseries/README.md",
+          "note": null
+        },
+        {
+          "text": "Storing different BSON types in the same field path makes consecutive measurements schema-incompatible. The server hard-closes the bucket and increments numBucketsClosedDueToSchemaChange. Keep each field path to one type. (medium confidence) (verified as of 2026-10-20)",
+          "source": "https://www.mongodb.com/docs/manual/reference/command/serverStatus/",
+          "note": null
+        },
+        {
+          "text": "Forum users could not find a server parameter for bucket catalog memory (Mar 3, 2025). The parameter is timeseriesIdleBucketExpiryMemoryUsageThreshold. SERVER-95510 calls it undocumented (2024-10-03), and the current manual's bucketing page does not name it. (medium confidence) (verified as of 2026-10-20)",
+          "source": "https://mongodb.com/community/forums/t/suboptimal-bucket-creation-in-timeseries-collection-due-to-cache-pressure/249863",
+          "note": null
+        },
+        {
+          "text": "Derived from the formula and defaults (arithmetic, not stated by MongoDB): the cap drops below the 128,000-byte static maximum once active buckets exceed cacheBytes / 256,000, and reaches the 5,120-byte floor at cacheBytes / 10,240 active buckets. Setting timeseriesBucketMinSize at or above timeseriesBucketMaxSize keeps the cap at the static maximum; SERVER-105187 calls this effectively disabling dynamic bucketing. (medium confidence) (verified as of 2026-10-20)",
+          "source": "https://github.com/mongodb/mongo/blob/35647d07bc4bc11966c90fe7100eb1db0b0ac1d9/src/mongo/db/timeseries/bucket_catalog/bucket_catalog_internal.cpp",
+          "note": null
+        },
+        {
+          "text": "The manual's bucketCatalog table lists numBucketsClosedDueToTimeBackward, but current server code does not emit it: a backward timestamp archives the bucket and increments numBucketsArchivedDueToTimeBackward. The 7.0.0 source still had the Closed counter. (high confidence) (verified as of 2026-10-20)",
+          "source": "https://www.mongodb.com/docs/manual/reference/command/serverStatus/",
+          "note": null
+        },
+        {
+          "text": "SERVER-89233 is fixed in 8.0.5 and 8.1.0-rc0 by the commit 'Track cardinality per-collection for time-series' (2024-10-03). A 7.0 backport was requested, but the ticket lists no 7.0.x fix version (last updated 2025-04-25; checked 2026-10-20). (medium confidence) (verified as of 2026-10-20)",
+          "source": "https://jira.mongodb.org/browse/SERVER-89233",
+          "note": null
+        },
+        {
+          "text": "The manual's server-parameter reference does not list the time series bucket parameters (0 mentions of time series in the copy fetched 2026-10-20). A user reported finding no parameter that changes catalog memory (forum reply 2025-03-03; feedback idea 2024-02-22), although timeseriesIdleBucketExpiryMemoryUsageThreshold exists. The only third-party parameter listing found is Alibaba Cloud's 8.0 table. (medium confidence) (verified as of 2026-10-20)",
+          "source": "https://www.mongodb.com/docs/manual/reference/parameters/",
+          "note": null
+        },
+        {
+          "text": "A high-cardinality metaField creates one bucket per distinct value per time window, so it produces many sparse short-lived buckets. Each one adds to the active-bucket count that divides the WiredTiger cache in the dynamic size cap and to catalog memory. SERVER-69899 was written for exactly this high-cardinality case. Keep metaField values few and stable. (medium confidence)",
+          "source": "https://www.mongodb.com/docs/manual/core/timeseries/timeseries-bucketing/",
+          "note": null
+        },
+        {
+          "text": "Catalog memory and the WiredTiger cache are separate budgets. A closed bucket exists only as an on-disk document; MongoDB's 2026-02-23 blog says closed buckets are not pinned and are evicted by normal WiredTiger cache eviction. The budgets interact only through the cache-derived bucket size cap. (high confidence)",
+          "source": "https://mongodb.com/company/blog/technical/a-practical-study-of-mongodb-time-series-bucket-behavior",
+          "note": null
+        },
+        {
+          "text": "SERVER-94770 (fixed 8.0.5 and 8.1.0-rc0) reduced the memory footprint of archived buckets in the BucketCatalog. The ticket has no description, so the saving is unquantified. (low confidence) (verified as of 2026-10-20)",
+          "source": "https://jira.mongodb.org/browse/SERVER-94770",
+          "note": null
+        }
+      ]
+    }
+  ],
+  "related": []
+}

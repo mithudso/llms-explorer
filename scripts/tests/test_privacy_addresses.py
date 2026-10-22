@@ -14,6 +14,29 @@ import check_publish_privacy as gate
 import publish_scrub as scrub
 
 
+@pytest.mark.parametrize("approval", ["identifier", "url"])
+def test_public_citation_email_identifiers_keep_their_allowlisted_urls(approval):
+    message = "20240429191821.691726-1-helgaas@kernel.org"
+    url = "https://lore.kernel.org/linux-pci/" + message + "/"
+    allowed = {message if approval == "identifier" else url}
+    private = "person@" + "research-customer.dev"
+    text = f"Read {url} and contact {private}."
+    cleaned = scrub.scrub_public_text(text, allowed=allowed)
+    assert url in cleaned
+    assert private not in cleaned
+    assert "user@example.test" in cleaned
+    assert scrub.scrub_public_text(cleaned, allowed=allowed) == cleaned
+
+
+def test_allowlisted_message_does_not_approve_a_different_email_identifier():
+    message = "20240429191821.691726-1-helgaas@kernel.org"
+    different = "not-approved-" + message
+    url = "https://lore.kernel.org/linux-pci/" + different + "/"
+    cleaned = scrub.scrub_public_text(url, allowed={message})
+    assert different not in cleaned
+    assert cleaned == "https://lore.kernel.org/linux-pci/user@example.test/"
+
+
 def _findings(text: str, rel: str = "hub/scripts/x.py"):
     """Scan `text` as if it sat at `rel` inside the repo, leaving no trace."""
     p = Path(gate.REPO) / rel
@@ -109,6 +132,24 @@ def test_scrub_rewrites_mdns_targets_and_leaves_storage_local_alone():
 def test_scrub_redacts_denylist_terms_in_prose_only():
     assert scrub.scrub_addresses("box 203.0.113.9 aka SecretHost", ["SecretHost"], prose=True)[0] == "box 203.0.113.9 aka [redacted]"
     assert scrub.scrub_addresses("HOST = 'SecretHost'", ["SecretHost"], prose=False)[0] == "HOST = 'SecretHost'"
+
+
+def test_withheld_tracker_key_does_not_redact_a_longer_public_key():
+    public = "Public issue SERVER-12345: https://jira.mongodb.org/browse/SERVER-12345"
+    assert not scrub._matches(public, ["SERVER-123"])
+    assert scrub.scrub_addresses(public, ["SERVER-123"]) == (public, 0)
+    assert scrub.scrub_public_text(public, ["SERVER-123"], {"SERVER-12345"}) == public
+
+
+def test_withheld_tracker_key_redacts_exact_keys_and_derived_fragments():
+    private = "SERVER-123 and https://jira.mongodb.org/browse/SERVER-123#comment-1"
+    assert scrub._matches(private, ["SERVER-123"])
+    assert scrub._matches("server-123-commentary", ["SERVER-123"])
+    output = scrub.scrub_public_text(private, ["SERVER-123"], {"SERVER-12345"})
+    assert "SERVER-123" not in output
+    assert "https://example.test/withheld-reference" in output
+    assert scrub.scrub_public_text(output, ["SERVER-123"], {"SERVER-12345"}) == output
+    assert scrub.scrub_addresses("SecretHostSuffix", ["SecretHost"])[0] == "[redacted]Suffix"
 
 
 def test_scrub_rewrites_denylisted_mdns_host_in_code():

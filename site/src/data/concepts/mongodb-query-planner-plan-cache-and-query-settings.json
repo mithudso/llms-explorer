@@ -1,0 +1,2245 @@
+{
+  "slug": "mongodb-query-planner-plan-cache-and-query-settings",
+  "concept": "MongoDB query planner, plan cache, query settings and hints",
+  "generated": "2026-10-19",
+  "summary": "Hidden indexes are not visible to the query planner and cannot be used to support a query. (from www.mongodb.com)",
+  "facets": [
+    {
+      "title": "Definitions",
+      "facts": [
+        {
+          "text": "`planCacheKey` is a hash of the [plan cache query shape](https://www.mongodb.com/docs/manual/reference/glossary.md#std-term-plan-cache-query-shape), further distinguished by any available indexes for the shape.",
+          "source": "https://www.mongodb.com/docs/manual/core/query-plans.md#plancachekey",
+          "note": null
+        },
+        {
+          "text": "A query shape hash is a string that uniquely identifies the query shape. An example query shape hash is `\"F42757F1AEB68B4C5A6DE6182B29B01947C829C926BCC01226BDA4DDE799766C\"`.",
+          "source": "https://www.mongodb.com/docs/manual/reference/command/setQuerySettings.md#set-query-settings-by-passing-in-a-query-shape-hash",
+          "note": null
+        },
+        {
+          "text": "In the classic multi-planner, the winning plan is the query plan that produces the most results during the trial period while performing the least amount of work.",
+          "source": "https://www.mongodb.com/docs/manual/core/query-plans.md#query-plan-options",
+          "note": null
+        },
+        {
+          "text": "- Knobs that are not marked as settable through query settings",
+          "source": "https://www.mongodb.com/docs/manual/reference/command/setQuerySettings.md#query-knobs",
+          "note": null
+        },
+        {
+          "text": "This parameter is not configurable with query settings.",
+          "source": "https://www.mongodb.com/docs/manual/reference/parameters.md#general-parameters",
+          "note": null
+        },
+        {
+          "text": "- `$planCacheStats` is not allowed in:",
+          "source": "https://www.mongodb.com/docs/manual/reference/operator/aggregation/planCacheStats.md#restrictions",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Structure and components",
+      "facts": [
+        {
+          "text": "The settings document accepts indexHints, queryFramework (classic or sbe), reject, comment (8.0.4 and 8.1+), and in 9.0 queryKnobs (per-shape server parameter overrides, merged not replaced) and maxTimeMS (takes precedence over command-level maxTimeMS). Query knobs are part of the plan cache key; an FCV downgrade from 9.0 removes knobs and they are not restored on re-upgrade.",
+          "source": "https://www.mongodb.com/docs/manual/reference/command/setQuerySettings.md",
+          "note": null
+        },
+        {
+          "text": "Index filters are set with the [`planCacheSetFilter`](https://www.mongodb.com/docs/manual/reference/command/plancachesetfilter.md#mongodb-dbcommand-dbcmd.planCacheSetFilter) command and determine which indexes the planner evaluates for a [query shape](https://www.mongodb.com/docs/manual/reference/glossary.md#std-term-query-shape). A plan cache query shape consists of a combination of query, sort, and projection specifications. If an index filter exists for a given query shape, the planner only considers those indexes specified in the filter.",
+          "source": "https://www.mongodb.com/docs/manual/core/query-plans.md#index-filters",
+          "note": null
+        },
+        {
+          "text": "If an index filter exists for the query shape, MongoDB ignores hint(). Cluster query settings also take precedence: index hints in command fields are ignored if a matching query setting already contains index hints. Index hints do not affect query shape.",
+          "source": "https://www.mongodb.com/docs/manual/reference/method/cursor.hint.md",
+          "note": null
+        },
+        {
+          "text": "The [`dropIndexes`](https://www.mongodb.com/docs/manual/reference/command/dropindexes.md#mongodb-dbcommand-dbcmd.dropIndexes) operation only kills queries that are using the index being dropped. This may include queries considering the index as part of [query planning.](https://www.mongodb.com/docs/manual/core/query-plans.md#std-label-query-plans-query-optimization)",
+          "source": "https://www.mongodb.com/docs/manual/reference/command/dropIndexes.md#kill-related-queries-only",
+          "note": null
+        },
+        {
+          "text": "- Cluster query settings take precedence over query settings or index hints passed as a command field. MongoDB ignores index hints in command fields if a matching query setting already contains index hints.",
+          "source": "https://www.mongodb.com/docs/manual/reference/method/cursor.hint.md#behavior",
+          "note": null
+        },
+        {
+          "text": "Changing any shape component (e.g. the sort field from totalNumber to price) yields a different queryShapeHash and planCacheShapeHash; changing only literal values (dates) does not.",
+          "source": "https://www.mongodb.com/docs/manual/core/query-shapes/",
+          "note": null
+        },
+        {
+          "text": "Starting in MongoDB 8.0, the pre-existing query shape is renamed to the plan cache query shape, and the queryHash field is renamed planCacheShapeHash. For the components of a command that differentiate plan cache query shapes, see the plan cache query shape definition. MongoDB 8.0 uses the new query shape and the existing plan cache query shape as shown on this page.",
+          "source": "https://www.mongodb.com/docs/manual/core/query-shapes/",
+          "note": null
+        },
+        {
+          "text": "the overall structure of the find, aggregation, and distinct commands, which support a wider range of query shapes than the existing plan cache query shape.",
+          "source": "https://www.mongodb.com/docs/manual/core/query-shapes/",
+          "note": null
+        },
+        {
+          "text": "- the overall structure of the `find`, `aggregation`, and `distinct` commands, which support a wider range of query shapes than the existing plan cache query shape.",
+          "source": "https://www.mongodb.com/docs/manual/core/query-shapes.md",
+          "note": null
+        },
+        {
+          "text": "Hinting a partial index limits results to documents matching its filter expression; the index becomes part of the query's semantics.",
+          "source": "https://dev.to/mongodb/hint-in-mongodb-is-different-that-sql-optimizer-hints-they-force-indexes-4c33",
+          "note": null
+        },
+        {
+          "text": "Contains information on the selection of the query plan by the query optimizer.",
+          "source": "https://www.mongodb.com/docs/manual/reference/explain-results/",
+          "note": null
+        },
+        {
+          "text": "Optional. A flag that determines whether the index is hidden from the query planner. A hidden index is not evaluated as part of query plan selection.",
+          "source": "https://www.mongodb.com/docs/manual/reference/command/createIndexes/",
+          "note": null
+        },
+        {
+          "text": "Hides an existing index from the query planner. An index hidden from the query planner is not evaluated as part of query plan selection.",
+          "source": "https://www.mongodb.com/docs/manual/reference/method/db.collection.hideIndex/",
+          "note": null
+        },
+        {
+          "text": "The number of queries that contain the `_id` field. For these queries, MongoDB uses the default index on the `_id` field and skips all query plan analysis.",
+          "source": "https://www.mongodb.com/docs/manual/reference/command/serverStatus.md#metrics",
+          "note": null
+        },
+        {
+          "text": "Hides an existing index from the query planner. An [index hidden from the query planner](https://www.mongodb.com/docs/manual/core/index-hidden.md#std-label-index-type-hidden) is not evaluated as part of query plan selection.",
+          "source": "https://www.mongodb.com/docs/manual/reference/method/db.collection.hideIndex.md#definition",
+          "note": null
+        },
+        {
+          "text": "If you count the number of documents in the `movies` collection and include a hint that specifies that sparse index, the operation returns only the documents that contain the `rated` field.",
+          "source": "https://www.mongodb.com/docs/manual/core/index-sparse.md#sparse-index-and-incomplete-results",
+          "note": null
+        },
+        {
+          "text": "The `orders` collection contains the following index filters:",
+          "source": "https://www.mongodb.com/docs/manual/reference/command/planCacheClearFilters.md#clear-specific-index-filter-on-collection",
+          "note": null
+        },
+        {
+          "text": "The array of documents that contain the index filter information.",
+          "source": "https://www.mongodb.com/docs/manual/reference/command/planCacheListFilters.md#output",
+          "note": null
+        },
+        {
+          "text": "Contains metrics related to CBR when it is used during query planning. CBR evaluates multiple query plans and selects the most efficient plan based on estimated costs.",
+          "source": "https://www.mongodb.com/docs/manual/reference/operator/aggregation/queryStats/",
+          "note": null
+        },
+        {
+          "text": "Messages related to queries, including query planner activities. To specify the log level for QUERY components, set the systemLog.component.query.verbosity parameter.",
+          "source": "https://www.mongodb.com/docs/manual/reference/log-messages/",
+          "note": null
+        },
+        {
+          "text": "Messages related to queries, including query planner activities. To specify the log level for [`QUERY`](https://www.mongodb.com/docs/manual/reference/log-messages.md#mongodb-data-QUERY) components, set the [`systemLog.component.query.verbosity`](https://www.mongodb.com/docs/manual/reference/configuration-options.md#mongodb-setting-systemLog.component.query.verbosity) parameter.",
+          "source": "https://www.mongodb.com/docs/manual/reference/log-messages.md#components",
+          "note": null
+        },
+        {
+          "text": "When you downgrade the FCV from `9.0` to an earlier version, a migration updates the stored query settings. The migration removes every knob whose minimum FCV exceeds the target version and deletes any settings entry that still contains only default values. Re-upgrading to `9.0` does not restore the removed knobs. You must re-apply them with `setQuerySettings`.",
+          "source": "https://www.mongodb.com/docs/manual/reference/command/setQuerySettings.md#query-knobs",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "How it works",
+      "facts": [
+        {
+          "text": "- When an [index filter](https://www.mongodb.com/docs/manual/core/query-plans.md#std-label-index-filters) exists for the query shape, MongoDB ignores the [`hint()`.](https://www.mongodb.com/docs/manual/reference/method/cursor.hint.md#mongodb-method-cursor.hint)",
+          "source": "https://www.mongodb.com/docs/manual/reference/method/cursor.hint.md#behavior",
+          "note": null
+        },
+        {
+          "text": "planSummary alone does not show whether planning was expensive. Profiler entries carry fromMultiPlanner (true only when multiple candidate plans were evaluated) and replanned (true only when a cached plan was evicted and re-evaluated); both are omitted when false, e.g. for plan-cache hits.",
+          "source": "https://www.mongodb.com/docs/manual/reference/database-profiler/",
+          "note": null
+        },
+        {
+          "text": "Because index filters override the expected behavior of the planner as well as the [`hint()`](https://www.mongodb.com/docs/manual/reference/method/cursor.hint.md#mongodb-method-cursor.hint) method, use index filters sparingly.",
+          "source": "https://www.mongodb.com/docs/manual/core/query-plans.md#index-filters",
+          "note": null
+        },
+        {
+          "text": "Classic caching keys on a broadly parameterized query shape and stores only the index choice. SBE caching keys on a more conservative shape and stores a full SBE plan. SBE does not parameterize arrays, so find({a:'foo',b:[1]}) and find({a:'bar',b:[2]}) share a classic key but not an SBE key, and each new array value causes a miss and another multi-plan. SERVER-89436 (Needs Scheduling, no fix version) proposes layering the classic cache behind the SBE cache.",
+          "source": "https://jira.mongodb.org/browse/SERVER-89436",
+          "note": null
+        },
+        {
+          "text": "Because the values in the `query` predicate are insignificant in determining the plan cache query shape, the following command would also remove the second index filter:",
+          "source": "https://www.mongodb.com/docs/manual/reference/command/planCacheClearFilters.md#clear-specific-index-filter-on-collection",
+          "note": null
+        },
+        {
+          "text": "Number of slot-based execution engine query plans that were not found in the query cache because the query is ineligible for caching.",
+          "source": "https://www.mongodb.com/docs/manual/reference/command/serverStatus.md#plancache",
+          "note": null
+        },
+        {
+          "text": "The [query optimizer](https://www.mongodb.com/docs/manual/core/query-plans.md#std-label-read-operations-query-optimization) typically selects the optimal index for a specific operation. However, you can force MongoDB to use a specific index using the [`hint()`](https://www.mongodb.com/docs/manual/reference/method/cursor.hint.md#mongodb-method-cursor.hint) method. Use [`hint()`](https://www.mongodb.com/docs/manual/reference/method/cursor.hint.md#mongodb-method-cursor.hint) to support performance testing or when you are querying a field that appears in several indexes to ensure that MongoDB uses",
+          "source": "https://www.mongodb.com/docs/manual/core/query-optimization.md#use-index-hints",
+          "note": null
+        },
+        {
+          "text": "A hinted sparse index is used even when it would omit documents: the planner normally avoids a sparse index that gives incomplete results, but an explicit hint forces it and the query returns only documents containing the field. A hinted countDocuments with an empty predicate on a sparse index returns an incorrect count.",
+          "source": "https://www.mongodb.com/docs/current/core/index-sparse/",
+          "note": null
+        },
+        {
+          "text": "Starting in MongoDB 6.0.7, if a usable clustered index exists, the MongoDB query planner evaluates the clustered index against secondary indexes in the query planning process. When a query uses a clustered index, MongoDB performs a [bounded collection scan.](https://www.mongodb.com/docs/manual/reference/glossary.md#std-term-bounded-collection-scan)",
+          "source": "https://www.mongodb.com/docs/manual/core/clustered-collections.md#behavior",
+          "note": null
+        },
+        {
+          "text": "Removes [index filters](https://www.mongodb.com/docs/manual/core/query-plans.md#std-label-index-filters) on a collection. Although index filters only exist for the duration of the server process and do not persist after shutdown, you can also clear existing index filters with the [`planCacheClearFilters`](https://www.mongodb.com/docs/manual/reference/command/plancacheclearfilters.md#mongodb-dbcommand-dbcmd.planCacheClearFilters) command.",
+          "source": "https://www.mongodb.com/docs/manual/reference/command/planCacheClearFilters.md#definition",
+          "note": null
+        },
+        {
+          "text": "Number of classic execution engine query plans that were not found in the query cache because the query is ineligible for caching.",
+          "source": "https://www.mongodb.com/docs/manual/reference/command/serverStatus.md#plancache",
+          "note": null
+        },
+        {
+          "text": "| Parameter | Type | Description | | --- | --- | --- | | `index` | string or document | The index to \"hint\" or force MongoDB to use when performing the query. Specify the index either by the index name or by the index specification document. You can also specify `{ $natural : 1 }` to force the query to perform a forwards collection scan, or `{ $natural : -1 }` for a reverse collection scan. |",
+          "source": "https://www.mongodb.com/docs/manual/reference/method/cursor.hint.md#definition",
+          "note": null
+        },
+        {
+          "text": "Hinted index is the only index used, with no fallback to another index or collection scan; hinting by key pattern fails when several indexes share that pattern, so hint by name. min() and max() require a hint.",
+          "source": "https://dev.to/mongodb/hint-in-mongodb-is-different-that-sql-optimizer-hints-they-force-indexes-4c33",
+          "note": null
+        },
+        {
+          "text": "As with any hash function, two different query shapes may result in the same hash value. However, the occurrence of hash collisions between different query shapes is unlikely.",
+          "source": "https://www.mongodb.com/docs/manual/core/query-plans.md#plancacheshapehash",
+          "note": null
+        },
+        {
+          "text": "See [Plan Cache Flushes](https://www.mongodb.com/docs/manual/core/query-plans.md#std-label-query-plans-plan-cache-flushes) for additional scenarios that trigger changes to the plan cache.",
+          "source": "https://www.mongodb.com/docs/manual/core/query-plans.md#plan-cache-entry-state",
+          "note": null
+        },
+        {
+          "text": "fromPlanCache is true when the query planner is able to use a plan from the plan cache.",
+          "source": "https://www.mongodb.com/docs/manual/reference/operator/aggregation/queryStats/",
+          "note": null
+        },
+        {
+          "text": "Call this method on a query to override MongoDB's default index selection and [query optimization process](https://www.mongodb.com/docs/manual/core/query-plans.md#std-label-read-operations-query-optimization). Use [`db.collection.getIndexes()`](https://www.mongodb.com/docs/manual/reference/method/db.collection.getindexes.md#mongodb-method-db.collection.getIndexes) to return the list of current indexes on a collection.",
+          "source": "https://www.mongodb.com/docs/manual/reference/method/cursor.hint.md#definition",
+          "note": null
+        },
+        {
+          "text": "When evaluating the clauses in the [`$and`](https://www.mongodb.com/docs/manual/reference/operator/query/and.md#mongodb-query-op.-and) expression, MongoDB's query optimizer considers which indexes are available that could help satisfy clauses of the [`$and`](https://www.mongodb.com/docs/manual/reference/operator/query/and.md#mongodb-query-op.-and) expression when [selecting the best plan to execute.](https://www.mongodb.com/docs/manual/core/query-plans.md#std-label-read-operations-query-optimization)",
+          "source": "https://www.mongodb.com/docs/manual/reference/operator/query/and.md#behavior",
+          "note": null
+        },
+        {
+          "text": "Starting in MongoDB 8.3, if the FCV (feature compatibility version) is 8.3 or later, MongoDB backfills the `representativeQuery` field for query settings that you set with a query shape hash. When MongoDB runs a query that matches the query shape, it schedules the backfill. The backfill requires no action from you.",
+          "source": "https://www.mongodb.com/docs/manual/reference/command/setQuerySettings.md#set-query-settings-by-passing-in-a-query-shape-hash",
+          "note": null
+        },
+        {
+          "text": "Because `showDebugQueryShape` is `true`, the `debugQueryShape` document is included in the output. You can use the `queryShapeHash` identifier to locate the query settings. `queryShapeHash` and `debugQueryShape` are highlighted in this output:",
+          "source": "https://www.mongodb.com/docs/manual/reference/operator/aggregation/querySettings.md#mongodb-shell",
+          "note": null
+        },
+        {
+          "text": "Classic multi-planning picks the winner as the plan that returns the most results in the trial period while doing the least work. The winner is stored in the plan cache and reused for queries with the same plan cache query shape.",
+          "source": "https://www.mongodb.com/docs/current/core/query-plans/",
+          "note": null
+        },
+        {
+          "text": "For example, the following query causes MongoDB to use the `timestamp_1_metadata.sensorId_1` index:",
+          "source": "https://www.mongodb.com/docs/manual/core/timeseries/timeseries-secondary-index.md#specify-index-hints-for-time-series-collections",
+          "note": null
+        },
+        {
+          "text": "Per SERVER-90880, queries run in SBE use the classic plan cache by default; the SBE plan cache is used only when featureFlagSbeFull is on. In 8.0 only $group/$lookup-type queries tend to run in SBE.",
+          "source": "https://jira.mongodb.com/browse/SERVER-90880",
+          "note": null
+        },
+        {
+          "text": "When you sort based on an array field that is indexed with a [multikey index](https://www.mongodb.com/docs/manual/core/indexes/index-types/index-multikey.md#std-label-index-type-multikey), the query plan includes an [in-memory sort](https://www.mongodb.com/docs/manual/reference/glossary.md#std-term-in-memory-sort) stage unless both of the following are true:",
+          "source": "https://www.mongodb.com/docs/manual/core/indexes/index-types/index-multikey.md#sorting",
+          "note": null
+        },
+        {
+          "text": "Index properties affect how the query planner uses an index and how indexed documents are stored. You can specify index properties as optional parameters when you create an index.",
+          "source": "https://www.mongodb.com/docs/manual/core/indexes/index-properties.md",
+          "note": null
+        },
+        {
+          "text": "Starting in MongoDB 8.3, multi-planning with a cost-based ranker backup is the default plan selection mechanism for eligible queries. For a short trial period, the multi-planner attempts to find a plan capable of returning a result within the timeframe.",
+          "source": "https://www.mongodb.com/docs/manual/core/query-plans.md#query-plan-options",
+          "note": null
+        },
+        {
+          "text": "Index hints cause MongoDB to use a specific index for a query. Some operations on time series collections can only take advantage of an index if that index is specified in a hint.",
+          "source": "https://www.mongodb.com/docs/manual/core/timeseries/timeseries-secondary-index.md#specify-index-hints-for-time-series-collections",
+          "note": null
+        },
+        {
+          "text": "If you include a [`hint()`](https://www.mongodb.com/docs/manual/reference/method/cursor.hint.md#mongodb-method-cursor.hint) that specifies a [sparse index](https://www.mongodb.com/docs/manual/core/index-sparse.md#std-label-index-type-sparse) when you perform a [`count()`](https://www.mongodb.com/docs/manual/reference/method/cursor.count.md#mongodb-method-cursor.count) of all documents in a collection (i.e. with an empty query predicate), the sparse index is used even if the sparse index results in an incorrect count.",
+          "source": "https://www.mongodb.com/docs/manual/core/index-sparse.md#sparse-index-and-incomplete-results",
+          "note": null
+        },
+        {
+          "text": "Index filters exist for the duration of the server process and do not persist after shutdown. MongoDB also provides a command to manually remove filters.",
+          "source": "https://www.mongodb.com/docs/manual/core/query-plans.md#index-filters",
+          "note": null
+        },
+        {
+          "text": "fromMultiPlanner is true when the query planner evaluates multiple plans before choosing the winning execution plan for the query.",
+          "source": "https://www.mongodb.com/docs/manual/reference/operator/aggregation/queryStats/",
+          "note": null
+        },
+        {
+          "text": "The number of queries that exceeded the threshold that the [`maxEstimatedScanBytes`](https://www.mongodb.com/docs/manual/reference/parameters.md#mongodb-parameter-param.maxEstimatedScanBytes) parameter sets but that the server ran anyway because a `$natural` hint overrode the rejection.",
+          "source": "https://www.mongodb.com/docs/manual/reference/command/serverStatus.md#metrics",
+          "note": null
+        },
+        {
+          "text": "When using [Queryable Encryption](https://www.mongodb.com/docs/manual/core/queryable-encryption.md#std-label-qe-manual-feature-qe), the `$planCacheStats` stage omits operations against encrypted collections, even though the operations are cached as normal.",
+          "source": "https://www.mongodb.com/docs/manual/reference/operator/aggregation/planCacheStats.md#redaction",
+          "note": null
+        },
+        {
+          "text": "When the `allHosts` option is set to `false`, [`$planCacheStats`](https://www.mongodb.com/docs/manual/reference/operator/aggregation/plancachestats.md#mongodb-pipeline-pipe.-planCacheStats) follows the [read preference](https://www.mongodb.com/docs/manual/core/read-preference.md#std-label-read-preference) in selecting the host(s) from which to return the plan cache information.",
+          "source": "https://www.mongodb.com/docs/manual/reference/operator/aggregation/planCacheStats.md#read-preference",
+          "note": null
+        },
+        {
+          "text": "Each field has the form `{ \"value\": <value>, \"source\": <string> }`. When you set a query knob with the [`setQuerySettings`](https://www.mongodb.com/docs/manual/reference/command/setquerysettings.md#mongodb-dbcommand-dbcmd.setQuerySettings) command, MongoDB sets the `source` value to `\"querySettings\"`. When you set a query knob with [`setParameter`](https://www.mongodb.com/docs/manual/reference/command/setparameter.md#mongodb-dbcommand-dbcmd.setParameter), MongoDB sets the `source` value to `\"setParameter\"`.",
+          "source": "https://www.mongodb.com/docs/manual/reference/explain-results.md#query-knobs",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "How-to and procedures",
+      "facts": [
+        {
+          "text": "Set an [index filter](https://www.mongodb.com/docs/manual/core/query-plans.md#std-label-index-filters) for a collection. If an index filter already exists for the [plan cache query shape](https://www.mongodb.com/docs/manual/reference/glossary.md#std-term-plan-cache-query-shape), the command overrides the previous index filter.",
+          "source": "https://www.mongodb.com/docs/manual/reference/command/planCacheSetFilter.md#definition",
+          "note": null
+        },
+        {
+          "text": "To choose the best query plan, the query optimizer evaluates the [`indexes`](https://www.mongodb.com/docs/manual/reference/command/plancachelistfilters.md#mongodb-data-planCacheListFilters.filters.indexes) *and* the collection scan.",
+          "source": "https://www.mongodb.com/docs/manual/reference/command/planCacheListFilters.md#output",
+          "note": null
+        },
+        {
+          "text": "To provide more insight into the [query plan cache](https://www.mongodb.com/docs/manual/core/query-plans.md), MongoDB offers the `planCacheKey`.",
+          "source": "https://www.mongodb.com/docs/manual/core/query-plans.md#plancachekey",
+          "note": null
+        },
+        {
+          "text": "To see the query shapes for which cached query plans exist, see [Examples.](https://www.mongodb.com/docs/manual/reference/operator/aggregation/plancachestats.md#std-label-planCacheStats-examples)",
+          "source": "https://www.mongodb.com/docs/manual/reference/command/planCacheClear.md#command-fields",
+          "note": null
+        },
+        {
+          "text": "Use `$natural` in conjunction with `cursor.hint()` to perform a collection scan to return documents in [natural order.](https://www.mongodb.com/docs/manual/reference/glossary.md#std-term-natural-order)",
+          "source": "https://www.mongodb.com/docs/manual/reference/method/cursor.hint.md#natural",
+          "note": null
+        },
+        {
+          "text": "To add query settings for a query shape, use setQuerySettings.",
+          "source": "https://www.mongodb.com/docs/manual/core/query-shapes/",
+          "note": null
+        },
+        {
+          "text": "To verify that the slot-based execution engine is used, run the aggregation with the `explain` option. This option outputs information on the aggregation's query plan. For more information on using `explain` with aggregations, see [Return Information on Aggregation Pipeline Operation.](https://www.mongodb.com/docs/manual/reference/method/db.collection.aggregate.md#std-label-example-aggregate-method-explain-option)",
+          "source": "https://www.mongodb.com/docs/manual/core/aggregation-pipeline-optimization.md#slot-based-query-execution-engine-pipeline-optimizations",
+          "note": null
+        },
+        {
+          "text": "To return plan cache information for a particular query hash, the [`$planCacheStats`](https://www.mongodb.com/docs/manual/reference/operator/aggregation/plancachestats.md#mongodb-pipeline-pipe.-planCacheStats) stage can be followed by a [`$match`](https://www.mongodb.com/docs/manual/reference/operator/aggregation/match.md#mongodb-pipeline-pipe.-match) on the `planCacheKey` field.",
+          "source": "https://www.mongodb.com/docs/manual/reference/operator/aggregation/planCacheStats.md#find-cache-entry-details-for-a-query-hash",
+          "note": null
+        },
+        {
+          "text": "To delete query settings, you must provide either a [query shape](https://www.mongodb.com/docs/manual/core/query-shapes.md#std-label-query-shapes) hash string or a query shape to `removeQuerySettings`.",
+          "source": "https://www.mongodb.com/docs/manual/reference/command/removeQuerySettings.md#definition",
+          "note": null
+        },
+        {
+          "text": "To find a hash string or query shape, you can use a [`$querySettings`](https://www.mongodb.com/docs/manual/reference/operator/aggregation/querysettings.md#mongodb-pipeline-pipe.-querySettings) stage in an aggregation pipeline. The hash string is named `queryShapeHash` in the `$querySettings` output.",
+          "source": "https://www.mongodb.com/docs/manual/reference/command/removeQuerySettings.md#definition",
+          "note": null
+        },
+        {
+          "text": "To locate the query settings to delete, use the `queryShapeHash` string in this output:",
+          "source": "https://www.mongodb.com/docs/manual/reference/command/removeQuerySettings.md#examples",
+          "note": null
+        },
+        {
+          "text": "To hide an index, you must have [featureCompatibilityVersion](https://www.mongodb.com/docs/manual/reference/command/setfeaturecompatibilityversion.md#std-label-view-fcv) set to `7.0` or greater.",
+          "source": "https://www.mongodb.com/docs/manual/reference/command/collMod.md#hide-an-index-from-the-query-planner",
+          "note": null
+        },
+        {
+          "text": "To see the index used, run [`explain`](https://www.mongodb.com/docs/manual/reference/command/explain.md#mongodb-dbcommand-dbcmd.explain) on the operation:",
+          "source": "https://www.mongodb.com/docs/manual/reference/command/findAndModify.md#specify-hint-for-findandmodify-operations",
+          "note": null
+        },
+        {
+          "text": "To force MongoDB to use a particular index, use cursor.hint() (mongosh method) when testing indexes.",
+          "source": "https://www.mongodb.com/docs/manual/tutorial/equality-sort-range-rule/",
+          "note": null
+        },
+        {
+          "text": "To use an index with the [`max()`](https://www.mongodb.com/docs/manual/reference/method/cursor.max.md#mongodb-method-cursor.max) method, you must use the [`hint()`](https://www.mongodb.com/docs/manual/reference/method/cursor.hint.md#mongodb-method-cursor.hint) method to specify the index you want to use, except when the [`find()`](https://www.mongodb.com/docs/manual/reference/method/db.collection.find.md#mongodb-method-db.collection.find) query is an equality condition on the `_id` field.",
+          "source": "https://www.mongodb.com/docs/manual/reference/method/cursor.min.md#definition",
+          "note": null
+        },
+        {
+          "text": "To obtain the correct count of the number of documents in the `movies` collection, do not [`hint()`](https://www.mongodb.com/docs/manual/reference/method/cursor.hint.md#mongodb-method-cursor.hint) with a [sparse index](https://www.mongodb.com/docs/manual/core/index-sparse.md#std-label-index-type-sparse) when performing a count of all documents in a collection.",
+          "source": "https://www.mongodb.com/docs/manual/core/index-sparse.md#sparse-index-and-incomplete-results",
+          "note": null
+        },
+        {
+          "text": "To use the sparse index, explicitly specify the index with [`hint()`:](https://www.mongodb.com/docs/manual/reference/method/cursor.hint.md#mongodb-method-cursor.hint)",
+          "source": "https://www.mongodb.com/docs/manual/core/index-sparse.md#sparse-index-on-a-collection-cannot-return-complete-results",
+          "note": null
+        },
+        {
+          "text": "To view the query plan, click Explain in the query bar.",
+          "source": "https://www.mongodb.com/docs/manual/tutorial/analyze-query-plan/",
+          "note": null
+        },
+        {
+          "text": "To return information on [query plans](https://www.mongodb.com/docs/manual/core/query-plans.md#std-label-query-plans-query-optimization) and execution statistics of the query plans, MongoDB provides the following methods:",
+          "source": "https://www.mongodb.com/docs/manual/reference/explain-results.md",
+          "note": null
+        },
+        {
+          "text": "To bypass rejection for a specific query, add a `$natural` hint to the query.",
+          "source": "https://www.mongodb.com/docs/manual/reference/parameters.md#general-parameters",
+          "note": null
+        },
+        {
+          "text": "To remove query settings, use [`removeQuerySettings`](https://www.mongodb.com/docs/manual/reference/command/removequerysettings.md#mongodb-dbcommand-dbcmd.removeQuerySettings). To see current query settings, use a [`$querySettings`](https://www.mongodb.com/docs/manual/reference/operator/aggregation/querysettings.md#mongodb-pipeline-pipe.-querySettings) stage in an aggregation pipeline.",
+          "source": "https://www.mongodb.com/docs/manual/reference/command/setQuerySettings.md#definition",
+          "note": null
+        },
+        {
+          "text": "To add query settings and explore examples, see [`setQuerySettings`.](https://www.mongodb.com/docs/manual/reference/command/setquerysettings.md#mongodb-dbcommand-dbcmd.setQuerySettings)",
+          "source": "https://www.mongodb.com/docs/manual/reference/method/db.collection.distinct.md#query-settings",
+          "note": null
+        },
+        {
+          "text": "To delete query settings, use removeQuerySettings.",
+          "source": "https://www.mongodb.com/docs/manual/core/query-shapes/",
+          "note": null
+        },
+        {
+          "text": "To retrieve query settings, use a $querySettings stage in an aggregation pipeline.",
+          "source": "https://www.mongodb.com/docs/manual/core/query-shapes/",
+          "note": null
+        },
+        {
+          "text": "To remove query settings, use removeQuerySettings. To obtain the query settings, use a $querySettings stage in an aggregation pipeline.",
+          "source": "https://www.mongodb.com/docs/manual/reference/command/distinct/",
+          "note": null
+        },
+        {
+          "text": "To set the `reject` field, use `setQuerySettings`.",
+          "source": "https://www.mongodb.com/docs/manual/reference/command/serverStatus.md#metrics",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Examples and snippets",
+      "facts": [
+        {
+          "text": "```javascript — `db.runCommand(` …",
+          "source": "https://www.mongodb.com/docs/manual/reference/command/planCacheSetFilter.md#set-filter-on-plan-cache-query-shape-consisting-of-predicate-only",
+          "note": null
+        },
+        {
+          "text": "```javascript — `db.runCommand(` …",
+          "source": "https://www.mongodb.com/docs/manual/reference/command/planCacheSetFilter.md#set-filter-on-plan-cache-query-shape-consisting-of-predicate-projection-and-sort",
+          "note": null
+        },
+        {
+          "text": "```javascript — `db.runCommand(` …",
+          "source": "https://www.mongodb.com/docs/manual/reference/command/planCacheSetFilter.md#set-filter-on-plan-cache-query-shape-consisting-of-predicate-and-collation",
+          "note": null
+        },
+        {
+          "text": "```javascript — `db.adminCommand( {` …",
+          "source": "https://www.mongodb.com/docs/manual/reference/command/setQuerySettings.md#set-query-settings-by-passing-in-a-query-shape-hash",
+          "note": null
+        },
+        {
+          "text": "```javascript — `db.users.find().hint( { $natural : 1 } )` …",
+          "source": "https://www.mongodb.com/docs/manual/reference/method/cursor.hint.md#force-collection-scans",
+          "note": null
+        },
+        {
+          "text": "```javascript — `db.users.find().hint( { $natural : -1 } )` …",
+          "source": "https://www.mongodb.com/docs/manual/reference/method/cursor.hint.md#force-collection-scans",
+          "note": null
+        },
+        {
+          "text": "```javascript — `db.orders.aggregate( [` …",
+          "source": "https://www.mongodb.com/docs/manual/reference/operator/aggregation/planCacheStats.md#find-cache-entry-details-for-a-query-hash",
+          "note": null
+        },
+        {
+          "text": "```javascript — `queryShapeHash: 'AB8ECADEE8F0EB0F447A30744EB4813AE7E0BFEF523B0870CA10FCBC87F5D8F1'` …",
+          "source": "https://www.mongodb.com/docs/manual/core/query-shapes.md#matching-query-shapes",
+          "note": null
+        },
+        {
+          "text": "```javascript — `queryShapeHash: 'AC1ECADBE8F1EB0F417A30741AB4813BE7E0BFEF523B0870CA11FCBC87F1A8B2'` …",
+          "source": "https://www.mongodb.com/docs/manual/core/query-shapes.md#different-query-shape",
+          "note": null
+        },
+        {
+          "text": "```javascript — `db.adminCommand( {` …",
+          "source": "https://www.mongodb.com/docs/manual/reference/command/removeQuerySettings.md#provide-a-query-shape",
+          "note": null
+        },
+        {
+          "text": "```javascript — `db.adminCommand( {` …",
+          "source": "https://www.mongodb.com/docs/manual/reference/command/removeQuerySettings.md#provide-a-query-shape-hash-string",
+          "note": null
+        },
+        {
+          "text": "```javascript — `db.people.find(` …",
+          "source": "https://www.mongodb.com/docs/manual/tutorial/measure-index-use.md#control-index-use-with-hint",
+          "note": null
+        },
+        {
+          "text": "```java — `var hintPipeline = Arrays.asList(` …",
+          "source": "https://www.mongodb.com/docs/manual/core/timeseries/timeseries-secondary-index.md#specify-index-hints-for-time-series-collections",
+          "note": null
+        },
+        {
+          "text": "```javascript — `db.sensorData.find( { \"metadata.sensorId\": 5578 } ).hint( \"timestamp_1_metadata.sensorId_1\" )` …",
+          "source": "https://www.mongodb.com/docs/manual/core/timeseries/timeseries-secondary-index.md#specify-index-hints-for-time-series-collections",
+          "note": null
+        },
+        {
+          "text": "```python — `hint_result = list(collection.aggregate(` …",
+          "source": "https://www.mongodb.com/docs/manual/core/timeseries/timeseries-secondary-index.md#specify-index-hints-for-time-series-collections",
+          "note": null
+        },
+        {
+          "text": "```javascript — `db.users.find().hint( { age: 1 } )` …",
+          "source": "https://www.mongodb.com/docs/manual/reference/method/cursor.hint.md#specify-an-index",
+          "note": null
+        },
+        {
+          "text": "```javascript — `db.users.find().hint( \"age_1\" )` …",
+          "source": "https://www.mongodb.com/docs/manual/reference/method/cursor.hint.md#specify-an-index",
+          "note": null
+        },
+        {
+          "text": "```javascript — `db.products.find( { _id: { $in: [ 6, 7 ] } } ).min( { price: Decimal128(\"1.39\") } ).hint( { price: 1 } )` …",
+          "source": "https://www.mongodb.com/docs/manual/reference/method/cursor.min.md#interaction-with-index-selection",
+          "note": null
+        },
+        {
+          "text": "```javascript — `title: \"The Shawshank Redemption\",` …",
+          "source": "https://www.mongodb.com/docs/manual/reference/method/db.collection.aggregate.md#hint-an-index",
+          "note": null
+        },
+        {
+          "text": "```javascript — `db.orders.find(` …",
+          "source": "https://www.mongodb.com/docs/manual/reference/method/cursor.count.md#specify-the-index-to-use",
+          "note": null
+        },
+        {
+          "text": "```javascript — `db.movies.find().sort( { plot: -1 } ).hint( { plot: 1 } ).limit(5)` …",
+          "source": "https://www.mongodb.com/docs/manual/core/index-sparse.md#sparse-index-on-a-collection-cannot-return-complete-results",
+          "note": null
+        },
+        {
+          "text": "```javascript — `planCache : {` …",
+          "source": "https://www.mongodb.com/docs/manual/reference/command/serverStatus.md#plancache",
+          "note": null
+        },
+        {
+          "text": "```javascript — `\"query\" : { \"status\" : \"A\" },` …",
+          "source": "https://www.mongodb.com/docs/manual/reference/command/planCacheClearFilters.md#clear-specific-index-filter-on-collection",
+          "note": null
+        },
+        {
+          "text": "```javascript — `db.runCommand(` …",
+          "source": "https://www.mongodb.com/docs/manual/reference/command/planCacheSetFilter.md#syntax",
+          "note": null
+        },
+        {
+          "text": "```javascript — `db.movies.createIndex( { year: 1 } )` …",
+          "source": "https://www.mongodb.com/docs/manual/core/query-plans.md#plancachekey",
+          "note": null
+        },
+        {
+          "text": "```javascript — `{ \"item\": \"canvas\", \"qty\": 100, \"size\": { \"h\": 28, \"w\": 35.5, \"uom\": \"cm\" }, \"status\": \"A\" },` …",
+          "source": "https://www.mongodb.com/docs/manual/tutorial/insert-documents.md#insert-multiple-documents",
+          "note": null
+        },
+        {
+          "text": "```javascript — `{ \"item\": \"journal\", \"qty\": 25, \"tags\": [\"blank\", \"red\"], \"dim_cm\": [ 14, 21 ] },` …",
+          "source": "https://www.mongodb.com/docs/manual/tutorial/query-arrays.md#query-an-array-by-array-length",
+          "note": null
+        },
+        {
+          "text": "```javascript — `{ querySettings: { queryKnobs: { operationResponseMaxMS: <value> } } }` …",
+          "source": "https://www.mongodb.com/docs/manual/reference/parameters.md#general-parameters",
+          "note": null
+        },
+        {
+          "text": "```javascript — `querySettings: {` …",
+          "source": "https://www.mongodb.com/docs/manual/reference/command/serverStatus.md#querysettings",
+          "note": null
+        },
+        {
+          "text": "```javascript — `$planCacheStats: {` …",
+          "source": "https://www.mongodb.com/docs/manual/reference/operator/aggregation/planCacheStats.md#definition",
+          "note": null
+        },
+        {
+          "text": "```javascript — `db.orders.aggregate( [` …",
+          "source": "https://www.mongodb.com/docs/manual/reference/operator/aggregation/planCacheStats.md#return-information-for-all-entries-in-the-query-cache",
+          "note": null
+        },
+        {
+          "text": "```javascript — `db.aggregate( [` …",
+          "source": "https://www.mongodb.com/docs/manual/reference/operator/aggregation/querySettings.md#syntax",
+          "note": null
+        },
+        {
+          "text": "```javascript — `db.runCommand(` …",
+          "source": "https://www.mongodb.com/docs/manual/reference/command/planCacheClear.md#clear-all-cached-plans-for-a-collection",
+          "note": null
+        },
+        {
+          "text": "```javascript — `db.runCommand(` …",
+          "source": "https://www.mongodb.com/docs/manual/reference/command/planCacheListFilters.md#syntax",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Measurements and reference values",
+      "facts": [
+        {
+          "text": "Starting in MongoDB 5.0, the [plan cache](https://www.mongodb.com/docs/manual/core/query-plans.md#std-label-query-plans-query-optimization) will save full `plan cache` entries only if the cumulative size of the `plan caches` for all collections is lower than 0.5 GB. When the cumulative size of the `plan caches` for all collections exceeds this threshold, additional `plan cache` entries are stored without the following debug information:",
+          "source": "https://www.mongodb.com/docs/manual/core/query-plans.md#plan-cache-debug-info-size-limit",
+          "note": null
+        },
+        {
+          "text": "- A percentage of the system's total physical memory to allocate for the plan cache. For example, `\"8.5%\"`.",
+          "source": "https://www.mongodb.com/docs/manual/reference/parameters.md#slot-based-execution-parameters",
+          "note": null
+        },
+        {
+          "text": "- The exact amount of data to allocate for the plan cache in either `MB` or `GB`. For example, `\"100MB\"` or `\"1GB\"`.",
+          "source": "https://www.mongodb.com/docs/manual/reference/parameters.md#slot-based-execution-parameters",
+          "note": null
+        },
+        {
+          "text": "The classic multi-planner's trial is bounded to the larger of 10,000 storage reads or 30% of the collection (internalQueryPlanEvaluationCollFraction). SERVER-62981, fixed in 5.2.1/5.3.0, proposed internalQueryPlanEvaluationCollFractionSbe (default 0, meaning 10,000 reads per candidate) for SBE. The shipped SBE default was not confirmed.",
+          "source": "https://jira.mongodb.org/browse/SERVER-62981",
+          "note": null
+        },
+        {
+          "text": "Full $planCacheStats debug info (createdFromQuery, cachedPlan, creationExecStats, candidatePlanScores) is kept only while total plan cache size across all collections is under 0.5 GB (since 5.0). Since 6.3 the planCacheSize parameter sets the cache size, with a default of 5% of memory (per Percona).",
+          "source": "https://www.mongodb.com/docs/current/core/query-plans/",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Problems, failure modes and limitations",
+      "facts": [
+        {
+          "text": "| Field | Type | Description | | --- | --- | --- | | `distinct` | string | The name of the collection to query for distinct values. | | `key` | string | The field for which to return distinct values. | | `query` | document | Optional. A query that specifies the documents from which to retrieve the distinct values. | | `readConcern` | document | Optional. Specifies the [read concern.](https://www.mongodb.com/docs/manual/reference/glossary.md#std-term-read-concern) The `readConcern` option has the following syntax: `readConcern: { level: <value> }` Possible read concern levels are: [`\"local\"`](h",
+          "source": "https://www.mongodb.com/docs/manual/reference/command/distinct.md#command-fields",
+          "note": null
+        },
+        {
+          "text": "Settings can be set by passing a full find/distinct/aggregate command plus $db, or by passing an existing query shape hash string; the hash is obtainable from $querySettings (queryShapeHash), the profiler, or slow query logs. Hash-created settings lack representativeQuery until 8.3 (FCV 8.3+), which backfills it asynchronously, best effort.",
+          "source": "https://www.mongodb.com/docs/manual/reference/command/setQuerySettings.md",
+          "note": null
+        },
+        {
+          "text": "Explain exposes queryShapeHash and planCacheShapeHash at the top level; SERVER-91954 added it (fixed in 8.0.4 and 8.1.0-rc0, resolved 2024-09-20). Before that, the hash was only available from the slow query log/profiler or via setQuerySettings plus $querySettings.",
+          "source": "https://jira.mongodb.org/browse/SERVER-91954",
+          "note": null
+        },
+        {
+          "text": "A replanning loop occurs when data changes faster than the planner adapts. Causes: data-dependent filter values, non-selective indexes, near-tied plans, rapid cardinality change (bulk insert/delete, TTL, capped overwrite), and $or/$in/$regex with variable item counts. Diagnose with slow-log fields replanned: true, replanReason, planningTimeMicros, fromMultiPlanner, queryHash and planCacheKey.",
+          "source": "https://www.percona.com/blog/mongodb-query-plan-cache-explained-performance-pitfalls-and-re-planning/",
+          "note": null
+        },
+        {
+          "text": "Mitigations for plan instability: add more selective indexes, avoid generic queries, cap $or/$in value counts, use hint() as a short-term stabilizer, or use 8.0 query settings for a cluster-wide hint. Index filters (planCacheSetFilter) are deprecated from 8.0 in favor of query settings, and they do not persist across shutdown.",
+          "source": "https://www.percona.com/blog/mongodb-query-plan-cache-explained-performance-pitfalls-and-re-planning/",
+          "note": null
+        },
+        {
+          "text": "Query settings have more functionality than index filters. Also, index filters aren't persistent and you cannot easily create index filters for all cluster nodes. To add query settings and explore examples, see [`setQuerySettings`.](https://www.mongodb.com/docs/manual/reference/command/setquerysettings.md#mongodb-dbcommand-dbcmd.setQuerySettings)",
+          "source": "https://www.mongodb.com/docs/manual/core/query-plans.md#index-filters",
+          "note": null
+        },
+        {
+          "text": "| Field | Type | Description | | --- | --- | --- | | `query` | document | Optional. The query predicate of the plan cache query shape. Only the structure of the predicate, including the field names, are significant to the shape; the values in the query predicate are insignificant. | | `projection` | document | Optional. The projection associated with the plan cache query shape. | | `sort` | document | Optional. The sort associated with the plan cache query shape. | | `comment` | any | Optional. A user-provided comment to attach to this command. Once set, this comment appears alongside records",
+          "source": "https://www.mongodb.com/docs/manual/reference/command/planCacheClear.md#command-fields",
+          "note": null
+        },
+        {
+          "text": "The new 8.0 query shape covers find, distinct and aggregate (the entire pipeline) and powers setQuerySettings, operation rejection filters and $queryStats; the plan cache query shape supports plan caching, deprecated index filters and only a subset of aggregation.",
+          "source": "https://www.mongodb.com/docs/manual/core/query-shapes/",
+          "note": null
+        },
+        {
+          "text": "Slow-query entries and profiler documents include planCacheShapeHash (duplicate of queryHash since 8.0; queryHash is deprecated) and planCacheKey, to group slow queries by plan cache query shape. planCacheKey changes when supporting indexes are added or dropped; the shape hash does not.",
+          "source": "https://www.mongodb.com/docs/manual/reference/database-profiler/",
+          "note": null
+        },
+        {
+          "text": "[ { \"x.a\": { $gt: 85 } }, { \"x.b\": { $gt: 80 } } ]` However, you can specify compound conditions on the same identifier in a single filter document, such as in the following examples: `// Example 1 [ { $or: [{\"x.a\": {$gt: 85}}, {\"x.b\": {$gt: 80}}] } ] // Example 2 [ { $and: [{\"x.a\": {$gt: 85}}, {\"x.b\": {$gt: 80}}] } ] // Example 3 [ { \"x.a\": { $gt: 85 }, \"x.b\": { $gt: 80 } } ]` For examples, see [Array Update Operations with `arrayFilters`.](https://www.mongodb.com/docs/manual/reference/command/findandmodify.md#std-label-findAndModify-command-arrayFilters) `arrayFilters` is not available for u",
+          "source": "https://www.mongodb.com/docs/manual/reference/command/findAndModify.md#command-fields",
+          "note": null
+        },
+        {
+          "text": "Hidden indexes let you trial a drop: db.collection.hideIndex() (collMod index.hidden) removes the index from planner selection but keeps maintaining it, so unhide is instant. Requires featureCompatibilityVersion 7.0 or greater per the current manual; the _id index cannot be hidden; needs collMod privilege (dbAdmin).",
+          "source": "https://www.mongodb.com/docs/manual/reference/method/db.collection.hideIndex/",
+          "note": null
+        },
+        {
+          "text": "Index filters (planCacheSetFilter) are deprecated from 8.0; docs say use query settings instead because index filters are not persistent and cannot easily be created for all cluster nodes.",
+          "source": "https://www.mongodb.com/docs/manual/reference/command/planCacheSetFilter.md",
+          "note": null
+        },
+        {
+          "text": "reject: true rejects new matching queries but not in-progress ones. To re-enable, run setQuerySettings with reject:false alongside other settings; a settings document containing only reject:false returns an error, so use removeQuerySettings then set again.",
+          "source": "https://www.mongodb.com/docs/manual/reference/command/setQuerySettings.md",
+          "note": null
+        },
+        {
+          "text": "Early 8.0 bugs: SERVER-89118 (setQuerySettings could trip invariant 8758500 under concurrent removal, or removeQuerySettings then setQuerySettings via different mongoses) was fixed in 8.0.0-rc4; SERVER-89340 (setQuerySettings on an aggregate with $bucket failing with error 40199) was closed Won't Fix.",
+          "source": "https://jira.mongodb.org/browse/SERVER-89118",
+          "note": null
+        },
+        {
+          "text": "The above unsupported index types are ignored by the query planner in strict mode. For example, attempting to use a sparse index with cursor.hint() results in the following BadValue error:",
+          "source": "https://www.mongodb.com/docs/manual/reference/command/createIndexes/",
+          "note": null
+        },
+        {
+          "text": "- The above unsupported index types are ignored by the [query planner](https://www.mongodb.com/docs/manual/core/query-plans.md#std-label-query-plans-query-optimization) in [strict mode](https://www.mongodb.com/docs/manual/reference/stable-api.md#std-label-stable-api-strict-client). For example, attempting to use a `sparse` index with [`cursor.hint()`](https://www.mongodb.com/docs/manual/reference/method/cursor.hint.md#mongodb-method-cursor.hint) results in the following `BadValue` error:",
+          "source": "https://www.mongodb.com/docs/manual/reference/method/db.collection.createIndexes.md#stable-api",
+          "note": null
+        },
+        {
+          "text": "```text planner returned error :: caused by :: hint provided does not correspond to an existing index ```",
+          "source": "https://www.mongodb.com/docs/manual/reference/method/db.collection.createIndexes.md#stable-api",
+          "note": null
+        },
+        {
+          "text": "planCacheShapeHash (new in 8.0, a duplicate of the deprecated queryHash) depends only on query shape. planCacheKey depends on shape and the available indexes, so adding or dropping a supporting index can change planCacheKey but not planCacheShapeHash.",
+          "source": "https://www.mongodb.com/docs/current/core/query-plans/",
+          "note": null
+        },
+        {
+          "text": "Query settings have more functionality and are preferred over deprecated [index filters.](https://www.mongodb.com/docs/manual/core/query-plans.md#std-label-index-filters)",
+          "source": "https://www.mongodb.com/docs/manual/reference/method/db.collection.distinct.md#query-settings",
+          "note": null
+        },
+        {
+          "text": "planner returned error :: caused by :: hint provided does not",
+          "source": "https://www.mongodb.com/docs/manual/reference/command/createIndexes/",
+          "note": null
+        },
+        {
+          "text": "deprecated index filters. (Starting in MongoDB 8.0, use the new query settings for the new query shape.)",
+          "source": "https://www.mongodb.com/docs/manual/core/query-shapes/",
+          "note": null
+        },
+        {
+          "text": "The backfill runs asynchronously on a best-effort basis to limit the performance impact on your queries. A query setting isn't guaranteed to be backfilled the first time a matching query runs. If a backfill doesn't complete, MongoDB attempts it again the next time a matching query runs.",
+          "source": "https://www.mongodb.com/docs/manual/reference/command/setQuerySettings.md#set-query-settings-by-passing-in-a-query-shape-hash",
+          "note": null
+        },
+        {
+          "text": "To hold the additional representative queries, MongoDB 8.3 also increases the storage capacity for representative queries in query settings beyond the original 16 MB BSON document limit.",
+          "source": "https://www.mongodb.com/docs/manual/reference/command/setQuerySettings.md#set-query-settings-by-passing-in-a-query-shape-hash",
+          "note": null
+        },
+        {
+          "text": "planCacheKey to provide more insight into the query plan cache for slow queries.",
+          "source": "https://www.mongodb.com/docs/manual/reference/log-messages/",
+          "note": null
+        },
+        {
+          "text": "Starting in MongoDB 9.0, slow query logs include a `planRankerMethod` field that indicates which [query plan ranking mechanism](https://www.mongodb.com/docs/manual/core/query-plans.md#std-label-query-plan-options) selected the winning plan:",
+          "source": "https://www.mongodb.com/docs/manual/reference/sbe.md#check-slow-query-logs",
+          "note": null
+        },
+        {
+          "text": "- `planCacheKey` to provide more insight into the [query plan cache](https://www.mongodb.com/docs/manual/core/query-plans.md) for slow queries.",
+          "source": "https://www.mongodb.com/docs/manual/reference/log-messages.md#logging-slow-operations",
+          "note": null
+        },
+        {
+          "text": "| Field | Type | Description | | --- | --- | --- | | `limit` | integer | Optional. The maximum number of documents to count. | | `skip` | integer | Optional. The number of documents to skip before counting. | | `hint` | string or document | Optional. An index name or the index specification to use for the query. | | `maxTimeMS` | integer | Optional. The maximum amount of time to allow the count to run. |",
+          "source": "https://www.mongodb.com/docs/manual/reference/method/db.collection.countDocuments.md#parameters",
+          "note": null
+        },
+        {
+          "text": "| Field | Type | Description | | --- | --- | --- | | `limit` | integer | Optional. The maximum number of documents to count. | | `skip` | integer | Optional. The number of documents to skip before counting. | | `hint` | string or document | Optional. An index name hint or specification for the query. | | `maxTimeMS` | integer | Optional. The maximum amount of time to allow the query to run. | | `readConcern` | string | Optional. Specifies the [read concern](https://www.mongodb.com/docs/manual/reference/glossary.md#std-term-read-concern). The default level is [`\"local\"`.](https://www.mongodb.co",
+          "source": "https://www.mongodb.com/docs/manual/reference/method/db.collection.count.md#fields",
+          "note": null
+        },
+        {
+          "text": "To see an example log message for a query that used the slot-based execution engine, see [Slow Operation.](https://www.mongodb.com/docs/manual/reference/log-messages.md#std-label-log-message-json-examples-slow-op)",
+          "source": "https://www.mongodb.com/docs/manual/reference/sbe.md#check-slow-query-logs",
+          "note": null
+        },
+        {
+          "text": "To help identify slow queries with the same [plan cache query shape](https://www.mongodb.com/docs/manual/reference/glossary.md#std-term-plan-cache-query-shape), each plan cache query shape is associated with a query hash. The plan cache query shape hash is a hexadecimal string that represents a hash of the query shape and is dependent only on the query shape.",
+          "source": "https://www.mongodb.com/docs/manual/core/query-plans.md#plancacheshapehash",
+          "note": null
+        },
+        {
+          "text": "planCacheShapeHash to help identify slow queries with the same plan cache query shape.",
+          "source": "https://www.mongodb.com/docs/manual/reference/log-messages/",
+          "note": null
+        },
+        {
+          "text": "- `planCacheShapeHash` to help identify slow queries with the same [plan cache query shape.](https://www.mongodb.com/docs/manual/reference/glossary.md#std-term-plan-cache-query-shape)",
+          "source": "https://www.mongodb.com/docs/manual/reference/log-messages.md#logging-slow-operations",
+          "note": null
+        },
+        {
+          "text": "Since MongoDB 7.0, passing any $natural hint value other than 1 or -1 returns an error; earlier versions accepted invalid values such as 0, NaN, 'X' and -0.01.",
+          "source": "https://www.mongodb.com/docs/manual/reference/method/cursor.hint.md",
+          "note": null
+        },
+        {
+          "text": "[Hidden indexes](https://www.mongodb.com/docs/manual/core/index-hidden.md#std-label-index-type-hidden) are not visible to the [query planner](https://www.mongodb.com/docs/manual/core/query-plans.md#std-label-query-plans-query-optimization) and cannot be used to support a query.",
+          "source": "https://www.mongodb.com/docs/manual/core/indexes/index-properties.md#hidden-indexes",
+          "note": null
+        },
+        {
+          "text": "Hidden indexes are not visible to the query planner and cannot be used to support a query.",
+          "source": "https://www.mongodb.com/docs/manual/core/index-hidden/",
+          "note": null
+        },
+        {
+          "text": "- If a query includes a `$text` expression, you cannot use [`hint()`](https://www.mongodb.com/docs/manual/reference/method/cursor.hint.md#mongodb-method-cursor.hint) to specify which index to use for the query.",
+          "source": "https://www.mongodb.com/docs/manual/reference/operator/query/text.md#restrictions",
+          "note": null
+        },
+        {
+          "text": "- If you use [`hint()`](https://www.mongodb.com/docs/manual/reference/method/cursor.hint.md#mongodb-method-cursor.hint) on a [hidden index](https://www.mongodb.com/docs/manual/core/index-hidden.md) or an index that doesn't exist, the operation returns an error.",
+          "source": "https://www.mongodb.com/docs/manual/reference/method/cursor.hint.md#behavior",
+          "note": null
+        },
+        {
+          "text": "Starting in MongoDB 8.3, creating an index with the name of `\"_id_\"` or specifying a hint of `\"_id_\"` on time series collections returns an error.",
+          "source": "https://www.mongodb.com/docs/manual/core/timeseries/timeseries-limitations.md#hint-on-id-index",
+          "note": null
+        },
+        {
+          "text": "You cannot cursor.hint() a hidden index.",
+          "source": "https://www.mongodb.com/docs/manual/core/index-hidden/",
+          "note": null
+        },
+        {
+          "text": "If a sparse index would result in an incomplete result set for queries and sort operations, MongoDB will not use that index unless a [`hint()`](https://www.mongodb.com/docs/manual/reference/method/cursor.hint.md#mongodb-method-cursor.hint) explicitly specifies the index. See [Sparse Index On A Collection Cannot Return Complete Results](https://www.mongodb.com/docs/manual/core/index-sparse.md#std-label-sparse-index-incomplete-results) for an example.",
+          "source": "https://www.mongodb.com/docs/manual/core/index-sparse.md#sparse-index-and-incomplete-results",
+          "note": null
+        },
+        {
+          "text": "hint() cannot select the index for a query containing a $text expression.",
+          "source": "https://www.mongodb.com/docs/manual/reference/method/cursor.hint.md",
+          "note": null
+        },
+        {
+          "text": "Hint is applicable beyond find(): aggregate takes it as an options field, and update/delete/count accept it; a hardcoded hint naming a dropped or renamed index becomes a hard failure.",
+          "source": "https://oneuptime.com/blog/post/2026-03-31-mongodb-hint-force-index/view",
+          "note": null
+        },
+        {
+          "text": "Query settings have more functionality than index filters. Index filters aren't persistent, and you can't easily create index filters for all cluster nodes.",
+          "source": "https://www.mongodb.com/docs/manual/reference/command/setQuerySettings.md#query-settings-and-index-filters",
+          "note": null
+        },
+        {
+          "text": "Query settings have more functionality and are preferred over deprecated index filters.",
+          "source": "https://www.mongodb.com/docs/manual/reference/command/distinct/",
+          "note": null
+        },
+        {
+          "text": "- You cannot return the supported operation's query plan using `explain` or similar commands.",
+          "source": "https://www.mongodb.com/docs/manual/reference/limits.md#operations",
+          "note": null
+        },
+        {
+          "text": "Prior to MongoDB 7.0, [`$natural`](https://www.mongodb.com/docs/manual/reference/method/cursor.hint.md#mongodb-operator-metaOp.-natural) accepts incorrect type values, such as `0`, `NaN`, \"X\", and `-0.01`. After MongoDB 7.0, if you pass any value other than `1` and `-1` to [`$natural`](https://www.mongodb.com/docs/manual/reference/method/cursor.hint.md#mongodb-operator-metaOp.-natural), MongoDB returns an error.",
+          "source": "https://www.mongodb.com/docs/manual/reference/method/cursor.sort.md#return-in-natural-order",
+          "note": null
+        },
+        {
+          "text": "- Queries with `$text` cannot use [`$natural`](https://www.mongodb.com/docs/manual/reference/method/cursor.hint.md#mongodb-operator-metaOp.-natural) sort.",
+          "source": "https://www.mongodb.com/docs/manual/reference/operator/query/text.md#restrictions",
+          "note": null
+        },
+        {
+          "text": "To change the per-operation limit, set the [`internalQueryMaxMemoryUsageBytesPerOperation`](https://www.mongodb.com/docs/manual/reference/parameters.md#mongodb-parameter-param.internalQueryMaxMemoryUsageBytesPerOperation) parameter at startup, at runtime, or with query settings.",
+          "source": "https://www.mongodb.com/docs/manual/core/aggregation-pipeline-limits.md#per-operation-memory-limit",
+          "note": null
+        },
+        {
+          "text": "MongoDB automatically selects the engine to execute the query. In MongoDB versions earlier than 8.0, you cannot manually specify an engine for a particular query. Starting in MongoDB 8.0, you can use query settings to specify an engine for queries. For details, see [`setQuerySettings`.](https://www.mongodb.com/docs/manual/reference/command/setquerysettings.md#mongodb-dbcommand-dbcmd.setQuerySettings)",
+          "source": "https://www.mongodb.com/docs/manual/reference/sbe.md",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Comparisons and alternatives",
+      "facts": [
+        {
+          "text": "| Field | Type | Description | | --- | --- | --- | | `planCacheSetFilter` | string | The name of the collection for the index filter. | | `query` | document | The query predicate for the index filter. Only the predicate structure, including the field names, is used in the index filter. The field values in the query predicate are not used. Therefore, the query predicate in an index filter is used by similar queries that differ only in the field values. | | `sort` | document | Optional. The sort for the index filter. | | `projection` | document | Optional. The projection for the index filter. |",
+          "source": "https://www.mongodb.com/docs/manual/reference/command/planCacheSetFilter.md#command-fields",
+          "note": null
+        },
+        {
+          "text": "| Field | Type | Description | | --- | --- | --- | | `find` | string | The name of the collection or [view](https://www.mongodb.com/docs/manual/core/views.md#std-label-views-landing-page) to query. | | `filter` | document | Optional. The query predicate. If unspecified, all documents in the collection match the predicate. | | [sort](https://www.mongodb.com/docs/manual/reference/command/find.md#std-label-find-cmd-sort) | document | Optional. The sort specification for the ordering of the results. | | `projection` | document | Optional. The [projection specification](https://www.mongodb.com/docs",
+          "source": "https://www.mongodb.com/docs/manual/reference/command/find.md#command-fields",
+          "note": null
+        },
+        {
+          "text": "Starting in MongoDB 8.0, use query settings instead of adding [index filters](https://www.mongodb.com/docs/manual/core/query-plans.md#std-label-index-filters). Index filters are deprecated starting in MongoDB 8.0.",
+          "source": "https://www.mongodb.com/docs/manual/core/query-plans.md#index-filters",
+          "note": null
+        },
+        {
+          "text": "| State | Description | | --- | --- | | [Missing](https://www.mongodb.com/docs/manual/core/query-plans.md#std-label-cache-entry-missing) | No entry for this shape exists in the cache. For a query, if the cache entry state for a plan cache query shape is [Missing:](https://www.mongodb.com/docs/manual/core/query-plans.md#std-label-cache-entry-missing) Candidate plans are evaluated and a winning plan is selected.; The cache creates an entry for the plan cache query shape in state [Inactive](https://www.mongodb.com/docs/manual/core/query-plans.md#std-label-cache-entry-inactive) with a value that q",
+          "source": "https://www.mongodb.com/docs/manual/core/query-plans.md#plan-cache-entry-state",
+          "note": null
+        },
+        {
+          "text": "Query knobs are part of the hashed query settings, so they are also part of the [plan cache key](https://www.mongodb.com/docs/manual/core/query-plans.md#std-label-plan-cache-key). If you change a knob value, MongoDB produces a new plan cache key, so the planner creates a fresh plan instead of reusing a stale cached plan.",
+          "source": "https://www.mongodb.com/docs/manual/reference/command/setQuerySettings.md#query-knobs",
+          "note": null
+        },
+        {
+          "text": "Prior to MongoDB 6.0.7, if a [secondary index](https://www.mongodb.com/docs/manual/reference/glossary.md#std-term-secondary-index) existed on a clustered collection and the secondary index was usable by your query, the query planner selected the secondary index instead of the clustered index by default. In MongoDB 6.1 and prior, to use the clustered index, you must provide a hint because the [query optimizer](https://www.mongodb.com/docs/manual/core/query-plans.md#std-label-query-plans-query-optimization) does not automatically select the clustered index.",
+          "source": "https://www.mongodb.com/docs/manual/core/clustered-collections.md#behavior",
+          "note": null
+        },
+        {
+          "text": "Unlike `planCacheShapeHash`, `planCacheKey` is a function of both the query shape and the currently available indexes for the shape. That is, if indexes that can support the query shape are added/dropped, the `planCacheKey` value may change whereas the `planCacheShapeHash` value would not change.",
+          "source": "https://www.mongodb.com/docs/manual/core/query-plans.md#plancachekey",
+          "note": null
+        },
+        {
+          "text": "Starting in MongoDB 8.0, add query settings for query shapes instead of index filters for collections. Index filters are deprecated starting in MongoDB 8.0. Query settings have more functionality than index filters, and index filters aren't persistent after cluster shutdown.",
+          "source": "https://www.mongodb.com/docs/manual/core/query-shapes/",
+          "note": null
+        },
+        {
+          "text": "If one of the two boundaries is not specified, the query plan will be an index scan that is unbounded on one side. This may degrade performance compared to a query containing neither operator, or one that uses both operators to more tightly constrain the index scan.",
+          "source": "https://www.mongodb.com/docs/manual/reference/method/cursor.min.md#min-without-max",
+          "note": null
+        },
+        {
+          "text": "| Parameter | Type | Description | | --- | --- | --- | | `unique` | boolean | Optional. Creates a unique index so that the collection will not accept insertion or update of documents where the index key value matches an existing value in the index. Specify `true` to create a unique index. The default value is `false`. The option is *unavailable* for [hashed indexes.](https://www.mongodb.com/docs/manual/core/indexes/index-types/index-hashed.md#std-label-index-hashed-index) | | `name` | string | Optional. The name of the index. If unspecified, MongoDB generates an index name by concatenating the",
+          "source": "https://www.mongodb.com/docs/manual/reference/method/db.collection.createIndex.md#options-for-all-index-types",
+          "note": null
+        },
+        {
+          "text": "By hiding an index from the planner, you can evaluate the potential impact of dropping an index without actually dropping the index. If the impact is negative, you can unhide the index instead of having to recreate a dropped index. And because indexes are fully maintained while hidden, the indexes are immediately available for use once unhidden.",
+          "source": "https://www.mongodb.com/docs/manual/reference/method/db.collection.hideIndex/",
+          "note": null
+        },
+        {
+          "text": "MongoDB does not create an index on the `_id` field when you create a time series collection. This differs from regular collections which have an index on the `_id` field by default. Commands that specify a hint on the `_id` field on time series collections return an error unless you manually create an index on the `_id` field.",
+          "source": "https://www.mongodb.com/docs/manual/core/timeseries/timeseries-limitations.md#default-index",
+          "note": null
+        },
+        {
+          "text": "Hinting a hidden index or an index that does not exist returns an error rather than being ignored; the server error text is 'bad hint'.",
+          "source": "https://www.mongodb.com/docs/manual/reference/method/cursor.hint.md",
+          "note": null
+        },
+        {
+          "text": "Given these queries, the index with the [partial filter expression](https://www.mongodb.com/docs/manual/core/index-partial.md#std-label-partial-index-query-coverage) can support query operation 2 but *not* support query operation 1. Since the indexes available to support query operation 1 differs from query operation 2, the two queries have different `planCacheKey`.",
+          "source": "https://www.mongodb.com/docs/manual/core/query-plans.md#plancachekey",
+          "note": null
+        },
+        {
+          "text": "Applications may target different members of a replica set. As such, each replica set member might receive different read commands and have plan cache information that differs from other members. Nevertheless, running `$planCacheStats` on a replica set or a sharded cluster obeys the normal read preference rules. That is, on a replica set, the operation gathers plan cache information from just one member of replica set, and on a sharded cluster, the operation gathers plan cache information from just one member of each shard replica set.",
+          "source": "https://www.mongodb.com/docs/manual/reference/operator/aggregation/planCacheStats.md#read-preference",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Facts and statements",
+      "facts": [
+        {
+          "text": "The following example creates an index filter on the `orders` collection such that for queries that consist only of an equality match on the `status` field without any projection and sort, the query optimizer evaluates only the two specified indexes and the collection scan for the winning plan:",
+          "source": "https://www.mongodb.com/docs/manual/reference/command/planCacheSetFilter.md#set-filter-on-plan-cache-query-shape-consisting-of-predicate-only",
+          "note": null
+        },
+        {
+          "text": "The [query optimizer](https://www.mongodb.com/docs/manual/reference/glossary.md#std-term-query-optimizer) uses query settings as an additional input during query planning. Index hints in query settings restrict the set of indexes available to the planner, but don't guarantee that the planner will use the index. The planner can still select a collection scan as the winning plan for a given query shape hash.",
+          "source": "https://www.mongodb.com/docs/manual/reference/command/setQuerySettings.md#definition",
+          "note": null
+        },
+        {
+          "text": "Index filters only affect which indexes the planner evaluates; the planner may still select the collection scan as the winning plan for a given plan cache query shape.",
+          "source": "https://www.mongodb.com/docs/manual/core/query-plans.md#index-filters",
+          "note": null
+        },
+        {
+          "text": "Increasing the plan cache size adds more cached [plan cache query shapes](https://www.mongodb.com/docs/manual/reference/glossary.md#std-term-plan-cache-query-shape) for the [query planner](https://www.mongodb.com/docs/manual/core/query-plans.md#std-label-read-operations-query-optimization). This can improve query performance, but increases memory usage.",
+          "source": "https://www.mongodb.com/docs/manual/reference/parameters.md#slot-based-execution-parameters",
+          "note": null
+        },
+        {
+          "text": "Index hints in query settings (indexHints.allowedIndexes: index name, key pattern or $natural) only restrict the indexes available to the planner; they do not guarantee use, and the planner can still pick a collection scan.",
+          "source": "https://www.mongodb.com/docs/manual/reference/command/setQuerySettings.md",
+          "note": null
+        },
+        {
+          "text": "The following examples create a collection and add query settings for different commands. For all executions of a query shape on the cluster, the examples restrict the query planner to either using the hinted index, or a collection scan.",
+          "source": "https://www.mongodb.com/docs/manual/reference/command/setQuerySettings.md#examples",
+          "note": null
+        },
+        {
+          "text": "Lists the [index filters](https://www.mongodb.com/docs/manual/core/query-plans.md#std-label-index-filters) associated with [plan cache query shapes](https://www.mongodb.com/docs/manual/reference/glossary.md#std-term-plan-cache-query-shape) for a collection.",
+          "source": "https://www.mongodb.com/docs/manual/reference/command/planCacheListFilters.md#definition",
+          "note": null
+        },
+        {
+          "text": "```javascript queryPlanner: { winningPlan: { stage: 'SINGLE_SHARD', shards: [ { explainVersion: '1', ... namespace: 'test.pizzaOrders', indexFilterSet: false, parsedQuery: { orderDate: { '$gt': ISODate('2023-01-20T00:00:00.000Z') } }, querySettings: { indexHints: { ns: { db: 'test', coll: 'pizzaOrders' }, allowedIndexes: [ 'orderDate_1' ] }, queryFramework: 'classic', comment: 'Index hint for orderDate_1 index to improve query performance' }, ... } ... ] } } ```",
+          "source": "https://www.mongodb.com/docs/manual/reference/command/setQuerySettings.md#examples",
+          "note": null
+        },
+        {
+          "text": "Starting in MongoDB 6.0, an index filter uses the [collation](https://www.mongodb.com/docs/manual/reference/collation.md#std-label-collation) previously set using the [`planCacheSetFilter`](https://www.mongodb.com/docs/manual/reference/command/plancachesetfilter.md#mongodb-dbcommand-dbcmd.planCacheSetFilter) command.",
+          "source": "https://www.mongodb.com/docs/manual/core/query-plans.md#index-filters",
+          "note": null
+        },
+        {
+          "text": "The following example creates an index filter for the `orders` collection. The filter applies to queries whose predicate is an equality match on the `item` field, where only the `quantity` field is projected and an ascending sort by `order_date` is specified.",
+          "source": "https://www.mongodb.com/docs/manual/reference/command/planCacheSetFilter.md#set-filter-on-plan-cache-query-shape-consisting-of-predicate-projection-and-sort",
+          "note": null
+        },
+        {
+          "text": "The following example creates an index filter for the `orders` collection. The filter applies to queries whose predicate is an equality match on the `item` field and the collation `en_US` (English United States).",
+          "source": "https://www.mongodb.com/docs/manual/reference/command/planCacheSetFilter.md#set-filter-on-plan-cache-query-shape-consisting-of-predicate-and-collation",
+          "note": null
+        },
+        {
+          "text": "You can use query settings to add index hints, define [operation rejection filters](https://www.mongodb.com/docs/manual/tutorial/operation-rejection-filters.md#std-label-operation-rejection-filters), and set other fields for all executions of a given [query shape](https://www.mongodb.com/docs/manual/core/query-shapes.md#std-label-query-shapes) on a cluster. A cluster's query settings persist across restarts.",
+          "source": "https://www.mongodb.com/docs/manual/reference/command/setQuerySettings.md#definition",
+          "note": null
+        },
+        {
+          "text": "You can use query settings to set index hints, set operation rejection filters, and other fields. The settings apply to the query shape on the entire cluster. The cluster retains the settings after shutdown.",
+          "source": "https://www.mongodb.com/docs/manual/reference/command/distinct/",
+          "note": null
+        },
+        {
+          "text": "Specify the [plan cache query shape](https://www.mongodb.com/docs/manual/reference/glossary.md#std-term-plan-cache-query-shape) to remove a specific index filter. Omit the plan cache query shape to clear all index filters on a collection.",
+          "source": "https://www.mongodb.com/docs/manual/reference/command/planCacheClearFilters.md#definition",
+          "note": null
+        },
+        {
+          "text": "Number of slot-based execution engine query plans found in the query cache and reused to avoid the query planning phase.",
+          "source": "https://www.mongodb.com/docs/manual/reference/command/serverStatus.md#plancache",
+          "note": null
+        },
+        {
+          "text": "Number of slot-based execution engine query plans that were discarded and re-optimized.",
+          "source": "https://www.mongodb.com/docs/manual/reference/command/serverStatus.md#plancache",
+          "note": null
+        },
+        {
+          "text": "Both ranking mechanisms store the chosen plan in the **query plan cache** and reuse it for subsequent queries with the same [plan cache query shape](https://www.mongodb.com/docs/manual/reference/glossary.md#std-term-plan-cache-query-shape). The rest of this page describes plan cache behavior and related concepts that apply to both mechanisms.",
+          "source": "https://www.mongodb.com/docs/manual/core/query-plans.md#query-plan-options",
+          "note": null
+        },
+        {
+          "text": "Removes cached query plans for a collection. Specify a [plan cache query shape](https://www.mongodb.com/docs/manual/reference/glossary.md#std-term-plan-cache-query-shape) to remove cached query plans for that shape. Omit the plan cache query shape to clear all cached query plans.",
+          "source": "https://www.mongodb.com/docs/manual/reference/command/planCacheClear.md#definition",
+          "note": null
+        },
+        {
+          "text": "```javascript db.adminCommand( { setQuerySettings: { find: \"pizzaOrders\", filter: { orderDate: { $gt: ISODate( \"2023-01-20T00:00:00Z\" ) } }, sort: { totalNumber: 1 }, $db: \"test\" }, settings: { indexHints: { ns: { db: \"test\", coll: \"pizzaOrders\" }, allowedIndexes: [ \"orderDate_1\" ] }, queryFramework: \"classic\", comment: \"Index hint for orderDate_1 index to improve query performance\" } } ) ```",
+          "source": "https://www.mongodb.com/docs/manual/reference/command/setQuerySettings.md#examples",
+          "note": null
+        },
+        {
+          "text": "```javascript [ { queryShapeHash: 'AB8ECADEE8F0EB0F447A30744EB4813AE7E0BFEF523B0870CA10FCBC87F5D8F1', settings: { indexHints: [ { ns: { db: 'test', coll: 'pizzaOrders' }, allowedIndexes: [ 'orderDate_1' ] } ], queryFramework: 'classic', comment: 'Index hint for orderDate_1 index to improve query performance' }, representativeQuery: { find: 'pizzaOrders', filter: { orderDate: { '$gt': ISODate('2023-01-20T00:00:00.000Z') } }, sort: { totalNumber: 1 }, '$db': 'test' } } ] ```",
+          "source": "https://www.mongodb.com/docs/manual/reference/command/setQuerySettings.md#examples",
+          "note": null
+        },
+        {
+          "text": "```javascript db.adminCommand( { setQuerySettings: { distinct: \"pizzaOrders\", key: \"totalNumber\", query: { totalNumber: 10, orderDate :{ '$gt': ISODate('2023-01-20T00:00:00.000Z') } } , $db: \"test\" }, settings: { indexHints: { ns: { db: \"test\", coll: \"pizzaOrders\" }, allowedIndexes: [ \"orderDate_1\" ] }, queryFramework: \"classic\", comment: \"Index hint for orderDate_1 index to improve query performance\" } } ) ```",
+          "source": "https://www.mongodb.com/docs/manual/reference/command/setQuerySettings.md#examples",
+          "note": null
+        },
+        {
+          "text": "```javascript db.adminCommand( { setQuerySettings: { aggregate: \"pizzaOrders\", pipeline: [ { $match: { totalNumber: 10, orderDate :{ '$gt': ISODate('2023-01-20T00:00:00.000Z') } } }, { $group: { _id: \"$type\", totalMediumPizzaOrdersGroupedByType: { $sum: \"$totalNumber\" } } } ], $db: \"test\" }, settings: { indexHints: { ns: { db: \"test\", coll: \"pizzaOrders\" }, allowedIndexes: [ \"totalNumber_1\" ] }, queryFramework: \"classic\", comment: \"Index hint for totalNumber_1 index to improve query performance\" } } ) ```",
+          "source": "https://www.mongodb.com/docs/manual/reference/command/setQuerySettings.md#examples",
+          "note": null
+        },
+        {
+          "text": "Sets the size of the [plan cache](https://www.mongodb.com/docs/manual/core/query-plans.md#std-label-read-operations-query-optimization) only for the [slot-based query execution engine.](https://www.mongodb.com/docs/manual/reference/sbe.md#std-label-sbe-landing)",
+          "source": "https://www.mongodb.com/docs/manual/reference/parameters.md#slot-based-execution-parameters",
+          "note": null
+        },
+        {
+          "text": "cursor.hint() overrides MongoDB's default index selection and query optimization; the index is given by name or key specification document, or {$natural: 1} / {$natural: -1} forces a forward or reverse collection scan.",
+          "source": "https://www.mongodb.com/docs/manual/reference/method/cursor.hint.md",
+          "note": null
+        },
+        {
+          "text": "- Any DDL event clears the plan cache for the relevant collection. Example DDL events include dropping a collection, and creating, deleting, or hiding an index.",
+          "source": "https://www.mongodb.com/docs/manual/core/query-plans.md#plan-cache-flushes",
+          "note": null
+        },
+        {
+          "text": "For the plan cache query shape, the query optimizer will only consider indexed plans which use the index `{ item: 1, order_date: 1, quantity: 1 }`.",
+          "source": "https://www.mongodb.com/docs/manual/reference/command/planCacheSetFilter.md#set-filter-on-plan-cache-query-shape-consisting-of-predicate-projection-and-sort",
+          "note": null
+        },
+        {
+          "text": "For the plan cache query shape, the query optimizer only uses indexed plans that use the index `{ item: 1, order_date: 1, quantity: 1 }`.",
+          "source": "https://www.mongodb.com/docs/manual/reference/command/planCacheSetFilter.md#set-filter-on-plan-cache-query-shape-consisting-of-predicate-and-collation",
+          "note": null
+        },
+        {
+          "text": "A hinted query skips plan-cache trial and is planned directly from the hinted index (stated by one MongoDB author; not confirmed in official docs).",
+          "source": "https://dev.to/mongodb/hint-in-mongodb-is-different-that-sql-optimizer-hints-they-force-indexes-4c33",
+          "note": null
+        },
+        {
+          "text": "Verify applied settings via explain: queryPlanner output includes a querySettings block (indexHints, queryFramework, comment) and indexFilterSet:false; $querySettings with showDebugQueryShape:true also returns debugQueryShape for the shape.",
+          "source": "https://www.mongodb.com/docs/manual/reference/command/setQuerySettings.md",
+          "note": null
+        },
+        {
+          "text": "Winning plans that don't use a collection scan, an index scan, a count scan, a distinct scan, or a geospatial access path. A plan that only performs a text search increments both textMatch and otherAccessPath.",
+          "source": "https://www.mongodb.com/docs/manual/reference/operator/aggregation/queryStats/",
+          "note": null
+        },
+        {
+          "text": "[Index Filters](https://www.mongodb.com/docs/manual/core/query-plans.md#std-label-index-filters) can affect the choice of index used. See [Index Filters](https://www.mongodb.com/docs/manual/core/query-plans.md#std-label-index-filters) for details.",
+          "source": "https://www.mongodb.com/docs/manual/reference/method/db.collection.aggregate.md#return-information-on-aggregation-pipeline-operation",
+          "note": null
+        },
+        {
+          "text": "| Field | Type | Description | | --- | --- | --- | | `planCacheListFilters` | string | The name of the collection. | | `comment` | any | Optional. A user-provided comment to attach to this command. Once set, this comment appears alongside records of this command in the following locations: [mongod log messages](https://www.mongodb.com/docs/manual/reference/log-messages.md#std-label-log-messages-ref), in the `attr.command.cursor.comment` field.; [Database profiler](https://www.mongodb.com/docs/manual/reference/database-profiler.md#std-label-profiler) output, in the [`command.comment`](https://w",
+          "source": "https://www.mongodb.com/docs/manual/reference/command/planCacheListFilters.md#command-fields",
+          "note": null
+        },
+        {
+          "text": "| Number of matching documents | Query plan | Result | | --- | --- | --- | | 0 | Any | The method returns `null` | | 1 | Any | The method returns the document that satisfies the specified query criteria. | | 2 or more | Collection Scan | The method returns the first document according to the [natural order](https://www.mongodb.com/docs/manual/reference/glossary.md#std-term-natural-order). In [capped collections](https://www.mongodb.com/docs/manual/reference/glossary.md#std-term-capped-collection), natural order is the same as insertion order. | | 2 or more | Index Scan | The method returns the",
+          "source": "https://www.mongodb.com/docs/manual/reference/method/db.collection.findOne.md#definition",
+          "note": null
+        },
+        {
+          "text": "- Manually clear the entire plan cache using the [`PlanCache.clear()`](https://www.mongodb.com/docs/manual/reference/method/plancache.clear.md#mongodb-method-PlanCache.clear) method.",
+          "source": "https://www.mongodb.com/docs/manual/core/query-plans.md#plan-cache-flushes",
+          "note": null
+        },
+        {
+          "text": "- Manually clear specific plan cache entries using the [`PlanCache.clearPlansByQuery()`](https://www.mongodb.com/docs/manual/reference/method/plancache.clearplansbyquery.md#mongodb-method-PlanCache.clearPlansByQuery) method.",
+          "source": "https://www.mongodb.com/docs/manual/core/query-plans.md#plan-cache-flushes",
+          "note": null
+        },
+        {
+          "text": "The estimated size in bytes of a `plan cache` entry is available in the output of [`$planCacheStats`.](https://www.mongodb.com/docs/manual/reference/operator/aggregation/plancachestats.md#mongodb-pipeline-pipe.-planCacheStats)",
+          "source": "https://www.mongodb.com/docs/manual/core/query-plans.md#plan-cache-debug-info-size-limit",
+          "note": null
+        },
+        {
+          "text": "Number of classic execution engine query plans found in the query cache and reused to avoid the query planning phase.",
+          "source": "https://www.mongodb.com/docs/manual/reference/command/serverStatus.md#plancache",
+          "note": null
+        },
+        {
+          "text": "Number of classic execution engine query plans which were not found in the query cache and went through the query planning phase.",
+          "source": "https://www.mongodb.com/docs/manual/reference/command/serverStatus.md#plancache",
+          "note": null
+        },
+        {
+          "text": "Number of classic execution engine query plans that were discarded and re-optimized.",
+          "source": "https://www.mongodb.com/docs/manual/reference/command/serverStatus.md#plancache",
+          "note": null
+        },
+        {
+          "text": "- `planRankerMethod: \"cbr\"` indicates that the query planner chose the cost-based ranker.",
+          "source": "https://www.mongodb.com/docs/manual/reference/sbe.md#check-slow-query-logs",
+          "note": null
+        },
+        {
+          "text": "- `planRankerMethod: \"mp\"` indicates that the query planner chose the multi-planner.",
+          "source": "https://www.mongodb.com/docs/manual/reference/sbe.md#check-slow-query-logs",
+          "note": null
+        },
+        {
+          "text": "If you use `db.collection.countDocuments()` with an empty query filter, MongoDB performs a full collection scan which can be inefficient. To improve performance, this example specifies a [`hint()`](https://www.mongodb.com/docs/manual/reference/method/cursor.hint.md#mongodb-method-cursor.hint) to use the automatically generated `_id` index. Alternatively, you can use a query filter that finds all documents such as `{ \"_id\": { $gte: MinKey } }` to count all documents using an index.",
+          "source": "https://www.mongodb.com/docs/manual/reference/method/db.collection.countDocuments.md#count-all-documents-in-a-collection",
+          "note": null
+        },
+        {
+          "text": "The [query optimizer](https://www.mongodb.com/docs/manual/reference/glossary.md#std-term-query-optimizer) uses the query settings as an additional input during query planning, which affects the plan selected to run the query. You can also use query settings to block a query shape.",
+          "source": "https://www.mongodb.com/docs/manual/reference/method/db.collection.distinct.md#query-settings",
+          "note": null
+        },
+        {
+          "text": "The query optimizer uses the query settings as an additional input during query planning. The query settings affect the plan selected to run a query that has a matching query shape.",
+          "source": "https://www.mongodb.com/docs/manual/core/query-shapes/",
+          "note": null
+        },
+        {
+          "text": "| Field | Type | Literal or Normalized | | --- | --- | --- | | `key.queryShape.pipeline` | Array | Normalized | | `key.queryShape.explain` | Boolean | Literal | | `key.queryShape.allowDiskUse` | Boolean | Literal | | `key.queryShape.allowPartialResults` | Boolean | Literal | | `key.queryShape.collation` | Document | Literal | | `key.queryShape.hint` | String or Document | Normalized | | `key.queryShape.let` | Document | Normalized |",
+          "source": "https://www.mongodb.com/docs/manual/reference/operator/aggregation/queryStats.md#aggregate-command-query-shape",
+          "note": null
+        },
+        {
+          "text": "query settings, which you can add with setQuerySettings. (As you'll see later on this page, query settings specify indexes and execution settings for a query shape.)",
+          "source": "https://www.mongodb.com/docs/manual/core/query-shapes/",
+          "note": null
+        },
+        {
+          "text": "Query settings allow you to use an index for all executions of a query shape in a cluster. Also, to prevent an operation from causing excessive cluster workload, you can reject all operations associated with a query shape using an operation rejection filter.",
+          "source": "https://www.mongodb.com/docs/manual/core/query-shapes/",
+          "note": null
+        },
+        {
+          "text": "The array of indexes for the plan cache query shape.",
+          "source": "https://www.mongodb.com/docs/manual/reference/command/planCacheListFilters.md#output",
+          "note": null
+        },
+        {
+          "text": "- query settings, which you can add with [`setQuerySettings`](https://www.mongodb.com/docs/manual/reference/command/setquerysettings.md#mongodb-dbcommand-dbcmd.setQuerySettings). (As you'll see later on this page, query settings specify indexes and execution settings for a query shape.)",
+          "source": "https://www.mongodb.com/docs/manual/core/query-shapes.md",
+          "note": null
+        },
+        {
+          "text": "You can provide an existing query shape hash string in `setQuerySettings` and an updated `settings` document with `indexHints` and other fields:",
+          "source": "https://www.mongodb.com/docs/manual/reference/command/setQuerySettings.md#set-query-settings-by-passing-in-a-query-shape-hash",
+          "note": null
+        },
+        {
+          "text": "In current supported versions, the same query shape is expected to produce the same query shape hash across nodes and deployment types. To learn how the hash behaves across nodes, deployment types, and clusters, see [Query Shape Hash Stability.](https://www.mongodb.com/docs/manual/core/query-shapes.md#std-label-query-shape-hash-stability)",
+          "source": "https://www.mongodb.com/docs/manual/reference/command/setQuerySettings.md#set-query-settings-by-passing-in-a-query-shape-hash",
+          "note": null
+        },
+        {
+          "text": "- Use a [`$querySettings`](https://www.mongodb.com/docs/manual/reference/operator/aggregation/querysettings.md#mongodb-pipeline-pipe.-querySettings) stage in an [aggregation pipeline](https://www.mongodb.com/docs/manual/core/aggregation-pipeline.md#std-label-aggregation-pipeline) and examine the `queryShapeHash` field.",
+          "source": "https://www.mongodb.com/docs/manual/reference/command/setQuerySettings.md#set-query-settings-by-passing-in-a-query-shape-hash",
+          "note": null
+        },
+        {
+          "text": "The settings apply to the [query shape](https://www.mongodb.com/docs/manual/reference/operator/aggregation/querystats.md#std-label-queryStats-queryShape) on the entire cluster. The cluster retains the settings after shutdown.",
+          "source": "https://www.mongodb.com/docs/manual/reference/command/planCacheSetFilter.md#query-settings",
+          "note": null
+        },
+        {
+          "text": "- The same fields as a [`find`](https://www.mongodb.com/docs/manual/reference/command/find.md#mongodb-dbcommand-dbcmd.find), [`distinct`](https://www.mongodb.com/docs/manual/reference/command/distinct.md#mongodb-dbcommand-dbcmd.distinct), or [`aggregate`](https://www.mongodb.com/docs/manual/reference/command/aggregate.md#mongodb-dbcommand-dbcmd.aggregate) command. See the syntax sections on the pages for those commands for the fields you can include in `removeQuerySettings`.",
+          "source": "https://www.mongodb.com/docs/manual/reference/command/removeQuerySettings.md#provide-a-query-shape",
+          "note": null
+        },
+        {
+          "text": "Using `explain` ignores all existing plan cache entries and prevents the MongoDB query planner from creating a new plan cache entry.",
+          "source": "https://www.mongodb.com/docs/manual/core/query-plans.md#query-plan-options",
+          "note": null
+        },
+        {
+          "text": "The query plan cache does not persist if a [`mongod`](https://www.mongodb.com/docs/manual/reference/program/mongod.md#mongodb-binary-bin.mongod) restarts or shuts down. In addition:",
+          "source": "https://www.mongodb.com/docs/manual/core/query-plans.md#plan-cache-flushes",
+          "note": null
+        },
+        {
+          "text": "Specifies the maximum data size that a collection scan reads. At planning time, MongoDB rejects a query if the query plan requires an unbounded collection scan on a collection whose uncompressed logical data size exceeds this threshold. MongoDB measures the threshold in uncompressed logical bytes, which is equivalent to the `size` field that the [`collStats`](https://www.mongodb.com/docs/manual/reference/command/collstats.md#mongodb-dbcommand-dbcmd.collStats) command returns, and not the compressed on-disk size.",
+          "source": "https://www.mongodb.com/docs/manual/reference/parameters.md#general-parameters",
+          "note": null
+        },
+        {
+          "text": "Finds the distinct values for a specified field across a single collection. Returns a document containing an array of distinct values and an embedded document containing query statistics and the query plan.",
+          "source": "https://www.mongodb.com/docs/manual/reference/command/distinct/",
+          "note": null
+        },
+        {
+          "text": "A document that reports query plan cache statistics.",
+          "source": "https://www.mongodb.com/docs/manual/reference/command/serverStatus.md#plancache",
+          "note": null
+        },
+        {
+          "text": "Returns [plan cache](https://www.mongodb.com/docs/manual/core/query-plans.md#std-label-query-plans-query-optimization) information for a collection. The stage returns a document for each plan cache entry.",
+          "source": "https://www.mongodb.com/docs/manual/reference/operator/aggregation/planCacheStats.md#definition",
+          "note": null
+        },
+        {
+          "text": "`explain` ignores the plan cache. Instead, a set of candidate plans are generated, and a winner is chosen without consulting the plan cache. Furthermore, `explain` prevents the MongoDB query planner from caching the winning plan.",
+          "source": "https://www.mongodb.com/docs/manual/reference/explain-results.md",
+          "note": null
+        },
+        {
+          "text": "For more information about hints and query settings, see [Query Settings Syntax.](https://www.mongodb.com/docs/manual/reference/command/setquerysettings.md#std-label-setQuerySettings-syntax)",
+          "source": "https://www.mongodb.com/docs/manual/reference/command/setQuerySettings.md#definition",
+          "note": null
+        },
+        {
+          "text": "You can specify `{ $natural : 1 }` to force the query to perform a forwards collection scan:",
+          "source": "https://www.mongodb.com/docs/manual/reference/method/cursor.hint.md#force-collection-scans",
+          "note": null
+        },
+        {
+          "text": "You can also specify `{ $natural : -1 }` to force the query to perform a reverse collection scan:",
+          "source": "https://www.mongodb.com/docs/manual/reference/method/cursor.hint.md#force-collection-scans",
+          "note": null
+        },
+        {
+          "text": "$queryStats groups similar queries together by normalizing user-provided field values to their data types. For example, a filter specified as { item: 'card' } is normalized to { item : '?string'}. $queryStats also normalizes the values of some query options like hint and comment.",
+          "source": "https://www.mongodb.com/docs/manual/reference/operator/aggregation/queryStats/",
+          "note": null
+        },
+        {
+          "text": "Although the `planCacheSize` parameter existed in prior versions of MongoDB, it had no effect on the plan cache until version 6.3.",
+          "source": "https://www.mongodb.com/docs/manual/reference/parameters.md#slot-based-execution-parameters",
+          "note": null
+        },
+        {
+          "text": "Number of slot-based execution engine plans which were not found in the query cache and went through the query planning phase.",
+          "source": "https://www.mongodb.com/docs/manual/reference/command/serverStatus.md#plancache",
+          "note": null
+        },
+        {
+          "text": "Number of times the server performed a replan operation for the slot-based execution engine that produced a plan identical to one already in the query cache.",
+          "source": "https://www.mongodb.com/docs/manual/reference/command/serverStatus.md#plancache",
+          "note": null
+        },
+        {
+          "text": "- `queryFramework: \"classic\"` indicates that the classic engine executed the query.",
+          "source": "https://www.mongodb.com/docs/manual/reference/sbe.md#check-slow-query-logs",
+          "note": null
+        },
+        {
+          "text": "- `queryFramework: \"sbe\"` indicates that the slot-based query execution engine executed the query.",
+          "source": "https://www.mongodb.com/docs/manual/reference/sbe.md#check-slow-query-logs",
+          "note": null
+        },
+        {
+          "text": "system.profile.planCacheShapeHash",
+          "source": "https://www.mongodb.com/docs/manual/reference/database-profiler/",
+          "note": null
+        },
+        {
+          "text": "system.profile.planCacheKey",
+          "source": "https://www.mongodb.com/docs/manual/reference/database-profiler/",
+          "note": null
+        },
+        {
+          "text": "In MongoDB 8.0 and earlier versions, the existing plan cache query shape supports:",
+          "source": "https://www.mongodb.com/docs/manual/core/query-shapes/",
+          "note": null
+        },
+        {
+          "text": "the fields and operations also supported by the plan cache query shape. Examples: filter, sort, and projection.",
+          "source": "https://www.mongodb.com/docs/manual/core/query-shapes/",
+          "note": null
+        },
+        {
+          "text": "Starting in MongoDB 8.0, you can use a $querySettings pipeline stage to return query settings specified for each query shape.",
+          "source": "https://www.mongodb.com/docs/manual/core/query-shapes/",
+          "note": null
+        },
+        {
+          "text": "You can apply the same query settings to a query shape on every node in a deployment. Before you rely on query settings that you specify by query shape hash after a migration, such as from a replica set to a sharded cluster, or on a different cluster, verify that the hash still matches in the target deployment.",
+          "source": "https://www.mongodb.com/docs/manual/core/query-shapes/",
+          "note": null
+        },
+        {
+          "text": "MongoDB doesn't store these settings on the cluster, and they don't apply to other queries with the same query shape. To set query settings that persist for a query shape, use setQuerySettings.",
+          "source": "https://www.mongodb.com/docs/manual/reference/command/distinct/",
+          "note": null
+        },
+        {
+          "text": "MongoDB combines the settings that you pass in the command with any query settings stored on the cluster for the same query shape. If both settings specify the same field, the stored cluster setting takes precedence.",
+          "source": "https://www.mongodb.com/docs/manual/reference/command/distinct/",
+          "note": null
+        },
+        {
+          "text": "Prior to version 7.2, information on the number of plan cache query shapes was stored in the `query.planCacheTotalQueryShapes` field.",
+          "source": "https://www.mongodb.com/docs/manual/reference/command/serverStatus.md#plancache",
+          "note": null
+        },
+        {
+          "text": "The following aggregation pipeline uses [`$planCacheStats`](https://www.mongodb.com/docs/manual/reference/operator/aggregation/plancachestats.md#mongodb-pipeline-pipe.-planCacheStats) followed by a [`$match`](https://www.mongodb.com/docs/manual/reference/operator/aggregation/match.md#mongodb-pipeline-pipe.-match) stage to return specific information for a particular query hash:",
+          "source": "https://www.mongodb.com/docs/manual/reference/operator/aggregation/planCacheStats.md#find-cache-entry-details-for-a-query-hash",
+          "note": null
+        },
+        {
+          "text": "| Field | Type | Necessity | Description | | --- | --- | --- | --- | | `showDebugQueryShape` | boolean | Optional | If `true`, `$querySettings` returns a debugging version of the [query shape](https://www.mongodb.com/docs/manual/reference/glossary.md#std-term-query-shape) output. You'll see an example in the next section. For output details, see [Query Shape.](https://www.mongodb.com/docs/manual/reference/operator/aggregation/querystats.md#std-label-queryStats-queryShape) Default is `false`. |",
+          "source": "https://www.mongodb.com/docs/manual/reference/operator/aggregation/querySettings.md#command-fields",
+          "note": null
+        },
+        {
+          "text": "If a collection `orders` has the following plan cache query shape:",
+          "source": "https://www.mongodb.com/docs/manual/reference/command/planCacheClear.md#clear-cached-plans-for-a-plan-cache-query-shape",
+          "note": null
+        },
+        {
+          "text": "- To add query settings for a query shape, use [`setQuerySettings`.](https://www.mongodb.com/docs/manual/reference/command/setquerysettings.md#mongodb-dbcommand-dbcmd.setQuerySettings)",
+          "source": "https://www.mongodb.com/docs/manual/core/query-shapes.md#get-started",
+          "note": null
+        },
+        {
+          "text": "If you provide a query shape to `removeQuerySettings`, include the fields for the existing query settings shape to delete. The field values don't have to match. For example, if you have existing query settings for `find x=1` and provide `find x=100` to `removeQuerySettings`, `removeQuerySettings` deletes the query settings for `find x=1`.",
+          "source": "https://www.mongodb.com/docs/manual/reference/command/removeQuerySettings.md#definition",
+          "note": null
+        },
+        {
+          "text": "In the following syntax, you provide a query shape hash string in `removeQuerySettings`:",
+          "source": "https://www.mongodb.com/docs/manual/reference/command/removeQuerySettings.md#provide-a-query-shape-hash-string",
+          "note": null
+        },
+        {
+          "text": "| Field | Type | Necessity | Description | | --- | --- | --- | --- | | `removeQuerySettings` | document or string | Required | You can provide either: The same fields as those in a [`find`](https://www.mongodb.com/docs/manual/reference/command/find.md#mongodb-dbcommand-dbcmd.find), [`distinct`](https://www.mongodb.com/docs/manual/reference/command/distinct.md#mongodb-dbcommand-dbcmd.distinct), or [`aggregate`](https://www.mongodb.com/docs/manual/reference/command/aggregate.md#mongodb-dbcommand-dbcmd.aggregate) command, and a `$db` field with the database associated with the original command.;",
+          "source": "https://www.mongodb.com/docs/manual/reference/command/removeQuerySettings.md#command-fields",
+          "note": null
+        },
+        {
+          "text": "The following example uses `removeQuerySettings` to delete the query settings identified using `queryShapeHash` from the previous output:",
+          "source": "https://www.mongodb.com/docs/manual/reference/command/removeQuerySettings.md#examples",
+          "note": null
+        },
+        {
+          "text": "In MongoDB 8.0 the pre-existing query shape was renamed the plan cache query shape and its queryHash field was renamed planCacheShapeHash; the new query shape is identified by queryShapeHash. The two hashes differ in form (queryShapeHash is a 64-char hex string, planCacheShapeHash an 8-char hex string in the docs example).",
+          "source": "https://www.mongodb.com/docs/manual/core/query-shapes/",
+          "note": null
+        },
+        {
+          "text": "If the operation is successful but the `hidden` value has not changed (specifically, hiding an already hidden index or unhiding an already unhidden index), the command omits the `hidden_old` and `hidden_new` fields from the output.",
+          "source": "https://www.mongodb.com/docs/manual/reference/command/collMod.md#hide-an-index-from-the-query-planner",
+          "note": null
+        },
+        {
+          "text": "If you specify an index that does not exist, the operation errors.",
+          "source": "https://www.mongodb.com/docs/manual/reference/command/findAndModify.md#specify-hint-for-findandmodify-operations",
+          "note": null
+        },
+        {
+          "text": "Assume the following indexes exist on the `movies` collection:",
+          "source": "https://www.mongodb.com/docs/manual/reference/method/db.collection.aggregate.md#hint-an-index",
+          "note": null
+        },
+        {
+          "text": "Time in milliseconds the query planner spent on query optimization. This result doesn't include time spent optimizing inner $lookup queries.",
+          "source": "https://www.mongodb.com/docs/manual/reference/explain-results/",
+          "note": null
+        },
+        {
+          "text": "Filtering on `indexDetails` using either `indexDetailsKey` or `indexDetailsName` will only return a single matching index. If no exact match is found, `indexDetails` will show information on all indexes for the collection.",
+          "source": "https://www.mongodb.com/docs/manual/reference/method/db.collection.stats.md#index-filter-behavior",
+          "note": null
+        },
+        {
+          "text": "For any given query, the MongoDB query planner chooses and caches an efficient query plan given the available indexes. The planner can use either the classic multi-planner or the cost-based ranker (CBR) to select a plan.",
+          "source": "https://www.mongodb.com/docs/manual/core/query-plans.md",
+          "note": null
+        },
+        {
+          "text": "Unhides an existing index from the query planner. Once unhidden, the indexes are immediately available for use.",
+          "source": "https://www.mongodb.com/docs/manual/reference/method/db.collection.unhideIndex.md#definition",
+          "note": null
+        },
+        {
+          "text": "| Parameter | Type | Description | | --- | --- | --- | | `index` | string or document | Specifies the index to unhide from the query planner. You can specify the index either by the index name or by the index specification document. To find the index name or index specification document, you can use the [`db.collection.getIndexes()`](https://www.mongodb.com/docs/manual/reference/method/db.collection.getindexes.md#mongodb-method-db.collection.getIndexes) method. To unhide a [text](https://www.mongodb.com/docs/manual/core/indexes/index-types/index-text.md#std-label-index-type-text) index, specif",
+          "source": "https://www.mongodb.com/docs/manual/reference/method/db.collection.unhideIndex.md#parameters",
+          "note": null
+        },
+        {
+          "text": "Optional. Specify the index name, either as a string or a document. If specified, the query planner only considers plans using the hinted index. For more details, see Specify an Index.",
+          "source": "https://www.mongodb.com/docs/manual/reference/command/distinct/",
+          "note": null
+        },
+        {
+          "text": "- The query planner selects the wildcard index for satisfying the query predicate.",
+          "source": "https://www.mongodb.com/docs/manual/core/indexes/index-types/index-wildcard/reference/restrictions.md#queries-with-sort",
+          "note": null
+        },
+        {
+          "text": "- A city planner uses 2dsphere indexes to find parks that exist within city limits.",
+          "source": "https://www.mongodb.com/docs/manual/core/indexes/index-types/geospatial/2dsphere.md#use-cases",
+          "note": null
+        },
+        {
+          "text": "Specifies the index to hide from the query planner. You can specify the index either by the index name or by the index specification document.",
+          "source": "https://www.mongodb.com/docs/manual/reference/method/db.collection.hideIndex/",
+          "note": null
+        },
+        {
+          "text": "MongoDB offers the ability to hide or unhide indexes from the query planner. By hiding an index from the planner, you can evaluate the potential impact of dropping an index without actually dropping the index.",
+          "source": "https://www.mongodb.com/docs/manual/reference/method/db.collection.dropIndex.md#hidden-indexes",
+          "note": null
+        },
+        {
+          "text": "During the `$match` stage, the server can use an index if `$match` is the first stage in the pipeline, after any optimizations from the [query planner.](https://www.mongodb.com/docs/manual/core/query-plans.md#std-label-query-plans-query-optimization)",
+          "source": "https://www.mongodb.com/docs/manual/core/aggregation-pipeline-optimization.md#indexes",
+          "note": null
+        },
+        {
+          "text": "The following example [hides](https://www.mongodb.com/docs/manual/core/index-hidden.md#std-label-index-type-hidden) an existing index on the `orders` collection. Specifically, the operation hides the index with the specification `{ shippedDate: 1 }` from the query planner.",
+          "source": "https://www.mongodb.com/docs/manual/reference/command/collMod.md#hide-an-index-from-the-query-planner",
+          "note": null
+        },
+        {
+          "text": "Each pattern counter name lists the stages of the winning plan in order, starting with the access path stage. For example, ixscanFetchSort counts winning plans that use an index scan, fetch the matching documents, and then sort them.",
+          "source": "https://www.mongodb.com/docs/manual/reference/operator/aggregation/queryStats/",
+          "note": null
+        },
+        {
+          "text": "You can [hide an index](https://www.mongodb.com/docs/manual/core/index-hidden/) from the query planner to evaluate the potential impact of dropping an index without actually dropping the index.",
+          "source": "https://www.mongodb.com/docs/atlas/atlas-ui/indexes.md#hide-or-unhide-an-index",
+          "note": null
+        },
+        {
+          "text": "If the query plan changes to use a different index, the method may return a different document. If your use case requires that a particular record is chosen consistently, you must use the `options` document to specify a sort. For details on using `findOne()` with an `options` document, see the [example.](https://www.mongodb.com/docs/manual/reference/method/db.collection.findone.md#std-label-findOne-with-options)",
+          "source": "https://www.mongodb.com/docs/manual/reference/method/db.collection.findOne.md#definition",
+          "note": null
+        },
+        {
+          "text": "If the attempt is unsuccessful, MongoDB applies a set of rules to decide whether the multi-planner should continue or if CBR should evaluate the plans to determine the optimal solution. CBR evaluates each node in a plan based on a cost function and its cardinality estimations. MongoDB selects the plan with the lowest overall cost as the winning plan. Currently, MongoDB only invokes the CBR for a small amount of queries.",
+          "source": "https://www.mongodb.com/docs/manual/core/query-plans.md#query-plan-options",
+          "note": null
+        },
+        {
+          "text": "Queries that include a sort by [`$natural`](https://www.mongodb.com/docs/manual/reference/method/cursor.hint.md#mongodb-operator-metaOp.-natural) order do **not** use indexes to fulfill the query predicate with the following exception: If the query predicate is an equality condition on the `_id` field `{ _id: <value> }`, then the query with the sort by [`$natural`](https://www.mongodb.com/docs/manual/reference/method/cursor.hint.md#mongodb-operator-metaOp.-natural) order can use the `_id` index.",
+          "source": "https://www.mongodb.com/docs/manual/reference/method/cursor.sort.md#index-use",
+          "note": null
+        },
+        {
+          "text": "Specify the `$natural` operator to the [`hint()`](https://www.mongodb.com/docs/manual/reference/method/cursor.hint.md#mongodb-method-cursor.hint) method to prevent MongoDB from using *any* index:",
+          "source": "https://www.mongodb.com/docs/manual/tutorial/measure-index-use.md#control-index-use-with-hint",
+          "note": null
+        },
+        {
+          "text": "On a time series collection, you can specify hints using either the index name or the index key pattern. To get the names of the indexes on a collection, use the [`db.collection.getIndexes()`](https://www.mongodb.com/docs/manual/reference/method/db.collection.getindexes.md#mongodb-method-db.collection.getIndexes) method.",
+          "source": "https://www.mongodb.com/docs/manual/core/timeseries/timeseries-secondary-index.md#specify-index-hints-for-time-series-collections",
+          "note": null
+        },
+        {
+          "text": "On a time series collection, you can specify hints using either the index name or the index key pattern. To get the names of the indexes on a collection, use `GetIndexes()`.",
+          "source": "https://www.mongodb.com/docs/manual/core/timeseries/timeseries-secondary-index.md#specify-index-hints-for-time-series-collections",
+          "note": null
+        },
+        {
+          "text": "- On a [time series collections](https://www.mongodb.com/docs/manual/reference/glossary.md#std-term-time-series-collection), you can only specify hints using the index name, not the index key pattern.",
+          "source": "https://www.mongodb.com/docs/manual/reference/method/cursor.hint.md#behavior",
+          "note": null
+        },
+        {
+          "text": "Unless the [`find()`](https://www.mongodb.com/docs/manual/reference/method/db.collection.find.md#mongodb-method-db.collection.find) query is an equality condition on the `_id` field `{ _id: <value> }`, you must explicitly specify the index with the [`hint()`](https://www.mongodb.com/docs/manual/reference/method/cursor.hint.md#mongodb-method-cursor.hint) method to run [`min()`.](https://www.mongodb.com/docs/manual/reference/method/cursor.min.md#mongodb-method-cursor.min)",
+          "source": "https://www.mongodb.com/docs/manual/reference/method/cursor.min.md#example",
+          "note": null
+        },
+        {
+          "text": "You can specify an index name or pattern using the hint option.",
+          "source": "https://www.mongodb.com/docs/manual/reference/command/distinct/",
+          "note": null
+        },
+        {
+          "text": "The following operation explicitly hints to use the index `{ status: 1 }`:",
+          "source": "https://www.mongodb.com/docs/manual/reference/command/findAndModify.md#specify-hint-for-findandmodify-operations",
+          "note": null
+        },
+        {
+          "text": "The index that was used as a hint for the query",
+          "source": "https://www.mongodb.com/docs/manual/reference/operator/aggregation/queryStats/",
+          "note": null
+        },
+        {
+          "text": "The following aggregation operation includes the `hint` option to force the usage of the specified index:",
+          "source": "https://www.mongodb.com/docs/manual/reference/method/db.collection.aggregate.md#hint-an-index",
+          "note": null
+        },
+        {
+          "text": "MongoDB supports the use of [`hint()`](https://www.mongodb.com/docs/manual/reference/method/cursor.hint.md#mongodb-method-cursor.hint) with [`count()`](https://www.mongodb.com/docs/manual/reference/method/cursor.count.md#mongodb-method-cursor.count). See [Specify the Index to Use](https://www.mongodb.com/docs/manual/reference/method/cursor.count.md#std-label-count-method-hint) for an example.",
+          "source": "https://www.mongodb.com/docs/manual/reference/method/cursor.count.md#definition",
+          "note": null
+        },
+        {
+          "text": "On time series collections a hint may be given only by index name, not key pattern.",
+          "source": "https://www.mongodb.com/docs/manual/reference/method/cursor.hint.md",
+          "note": null
+        },
+        {
+          "text": "If one of the indexes were dropped, or if a new index `{ year: 1, title: 1 }` were added, the `planCacheKey` for both query operations will change.",
+          "source": "https://www.mongodb.com/docs/manual/core/query-plans.md#plancachekey",
+          "note": null
+        },
+        {
+          "text": "The following example adds query settings for a [`find`](https://www.mongodb.com/docs/manual/reference/command/find.md#mongodb-dbcommand-dbcmd.find) command. The example provides fields in `setQuerySettings` for the `find` command, and includes the `orderDate_1` index in `allowedIndexes`.",
+          "source": "https://www.mongodb.com/docs/manual/reference/command/setQuerySettings.md#examples",
+          "note": null
+        },
+        {
+          "text": "- To learn about query settings and indexes, see [`setQuerySettings`.](https://www.mongodb.com/docs/manual/reference/command/setquerysettings.md#mongodb-dbcommand-dbcmd.setQuerySettings)",
+          "source": "https://www.mongodb.com/docs/manual/indexes.md#learn-more",
+          "note": null
+        },
+        {
+          "text": "The following query can use the index since the query predicate includes the condition `password: { $exists: true }` that matches documents matched by the index filter expression `password: { $exists: true }`:",
+          "source": "https://www.mongodb.com/docs/manual/core/index-partial.md#query-coverage",
+          "note": null
+        },
+        {
+          "text": "The following example clears all index filters on the `orders` collection:",
+          "source": "https://www.mongodb.com/docs/manual/reference/command/planCacheClearFilters.md#clear-all-index-filters-on-a-collection",
+          "note": null
+        },
+        {
+          "text": "The following example clears the index filter containing the query on `Movie` and the collation `en_US` for the `orders` collection:",
+          "source": "https://www.mongodb.com/docs/manual/reference/command/planCacheClearFilters.md#clear-index-filter-containing-a-query-and-a-collation",
+          "note": null
+        },
+        {
+          "text": "Document listing the index filters. See [Output.](https://www.mongodb.com/docs/manual/reference/command/plancachelistfilters.md#std-label-planCacheListFilters-output)",
+          "source": "https://www.mongodb.com/docs/manual/reference/command/planCacheListFilters.md#definition",
+          "note": null
+        },
+        {
+          "text": "The query predicate associated with this filter. Although the [`query`](https://www.mongodb.com/docs/manual/reference/command/plancachelistfilters.md#mongodb-data-planCacheListFilters.filters.query) shows the specific values used to create the index filter, the values in the predicate are insignificant; i.e. query predicates cover similar queries that differ only in the values.",
+          "source": "https://www.mongodb.com/docs/manual/reference/command/planCacheListFilters.md#output",
+          "note": null
+        },
+        {
+          "text": "Any DDL event clears the plan cache for the relevant collection (drop collection; create, delete or hide an index). The cache is in memory only and is lost on mongod restart or shutdown. LRU eviction removes the least recently used entry regardless of state. Manual clearing uses getPlanCache().clear() or clearPlansByQuery().",
+          "source": "https://www.mongodb.com/docs/current/core/query-plans/",
+          "note": null
+        },
+        {
+          "text": "A boolean that indicates whether the query planner evaluated multiple plans before choosing the winning execution plan for the query.",
+          "source": "https://www.mongodb.com/docs/manual/reference/database-profiler/",
+          "note": null
+        },
+        {
+          "text": "A boolean that indicates whether the query system evicted a cached plan and re-evaluated all candidate plans.",
+          "source": "https://www.mongodb.com/docs/manual/reference/database-profiler/",
+          "note": null
+        },
+        {
+          "text": "For more information on optimizing queries, see explain and Query Plans.",
+          "source": "https://www.mongodb.com/docs/manual/tutorial/equality-sort-range-rule/",
+          "note": null
+        },
+        {
+          "text": "Documents Returned displays 3809 to indicate that the winning query plan returns 3,809 documents.",
+          "source": "https://www.mongodb.com/docs/manual/tutorial/analyze-query-plan/",
+          "note": null
+        },
+        {
+          "text": "A document that holds metrics on the cost-based ranking (CBR) of query plans.",
+          "source": "https://www.mongodb.com/docs/manual/reference/command/serverStatus.md#metrics",
+          "note": null
+        },
+        {
+          "text": "Number of times the cost-based ranker chose a winning plan.",
+          "source": "https://www.mongodb.com/docs/manual/reference/command/serverStatus.md#metrics",
+          "note": null
+        },
+        {
+          "text": "A histogram measuring the amount of time in microseconds spent on cost-based ranking query plans, which includes both sampling and ranking time.",
+          "source": "https://www.mongodb.com/docs/manual/reference/command/serverStatus.md#metrics",
+          "note": null
+        },
+        {
+          "text": "A histogram measuring the amount of time in microseconds the server spent on sampling during cost-based ranking of query plans.",
+          "source": "https://www.mongodb.com/docs/manual/reference/command/serverStatus.md#metrics",
+          "note": null
+        },
+        {
+          "text": "Amount of time in microseconds spent on cost-based ranking query plans, which includes both sampling and ranking time.",
+          "source": "https://www.mongodb.com/docs/manual/reference/command/serverStatus.md#metrics",
+          "note": null
+        },
+        {
+          "text": "Number of candidate plans compared by the cost-based ranker.",
+          "source": "https://www.mongodb.com/docs/manual/reference/command/serverStatus.md#metrics",
+          "note": null
+        },
+        {
+          "text": "Number of candidate plans for which the cost-based ranker could not estimate a cost.",
+          "source": "https://www.mongodb.com/docs/manual/reference/command/serverStatus.md#metrics",
+          "note": null
+        },
+        {
+          "text": "Number of candidate plans that tied in cost-based ranking.",
+          "source": "https://www.mongodb.com/docs/manual/reference/command/serverStatus.md#metrics",
+          "note": null
+        },
+        {
+          "text": "Amount of time in microseconds the server spent on sampling during cost-based ranking of query plans.",
+          "source": "https://www.mongodb.com/docs/manual/reference/command/serverStatus.md#metrics",
+          "note": null
+        },
+        {
+          "text": "Provides information on the query plan for the [`db.collection.find()`](https://www.mongodb.com/docs/manual/reference/method/db.collection.find.md#mongodb-method-db.collection.find) method.",
+          "source": "https://www.mongodb.com/docs/manual/reference/method/cursor.explain.md#definition",
+          "note": null
+        },
+        {
+          "text": "Counts of the overall shapes of the winning plans. Each winning plan matches at most one pattern.",
+          "source": "https://www.mongodb.com/docs/manual/reference/operator/aggregation/queryStats/",
+          "note": null
+        },
+        {
+          "text": "The metrics.queryPlanner.planShapeCounters document records how often MongoDB selected each plan shape for queries with the given key. Use these counters to learn which query plans your workload relies on most.",
+          "source": "https://www.mongodb.com/docs/manual/reference/operator/aggregation/queryStats/",
+          "note": null
+        },
+        {
+          "text": "Counts the overall shape of each winning plan. The patterns are mutually exclusive, so each query execution increments at most one pattern counter.",
+          "source": "https://www.mongodb.com/docs/manual/reference/operator/aggregation/queryStats/",
+          "note": null
+        },
+        {
+          "text": "A boolean that indicates whether the query system evicted a [cached plan](https://www.mongodb.com/docs/manual/core/query-plans.md#std-label-query-plans-query-optimization) and re-evaluated all candidate plans.",
+          "source": "https://www.mongodb.com/docs/manual/reference/database-profiler.md#output-fields",
+          "note": null
+        },
+        {
+          "text": "A string that indicates the specific reason a [cached plan](https://www.mongodb.com/docs/manual/core/query-plans.md#std-label-query-plans-query-optimization) was evicted.",
+          "source": "https://www.mongodb.com/docs/manual/reference/database-profiler.md#output-fields",
+          "note": null
+        },
+        {
+          "text": "The time, in microseconds, that the `find` or `aggregate` command spent in [query planning.](https://www.mongodb.com/docs/manual/core/query-plans.md#std-label-query-plans-query-optimization)",
+          "source": "https://www.mongodb.com/docs/manual/reference/database-profiler.md#output-fields",
+          "note": null
+        },
+        {
+          "text": "The following example clears all the cached query plans for the `orders` collection:",
+          "source": "https://www.mongodb.com/docs/manual/reference/command/planCacheClear.md#clear-all-cached-plans-for-a-collection",
+          "note": null
+        },
+        {
+          "text": "For more information on optimizing queries, see [`explain`](https://www.mongodb.com/docs/manual/reference/command/explain.md#mongodb-dbcommand-dbcmd.explain) and [Query Plans.](https://www.mongodb.com/docs/manual/core/query-plans.md#std-label-query-plans-query-optimization)",
+          "source": "https://www.mongodb.com/docs/manual/tutorial/equality-sort-range-guideline.md",
+          "note": null
+        },
+        {
+          "text": "For more information, see Query Plan Options.",
+          "source": "https://www.mongodb.com/docs/manual/reference/explain-results/",
+          "note": null
+        },
+        {
+          "text": "explain.queryPlanner.winningPlan",
+          "source": "https://www.mongodb.com/docs/manual/reference/explain-results/",
+          "note": null
+        },
+        {
+          "text": "explain.queryPlanner.winningPlan.stage",
+          "source": "https://www.mongodb.com/docs/manual/reference/explain-results/",
+          "note": null
+        },
+        {
+          "text": "explain.queryPlanner.winningPlan.type",
+          "source": "https://www.mongodb.com/docs/manual/reference/explain-results/",
+          "note": null
+        },
+        {
+          "text": "explain.queryPlanner.winningPlan.isCached",
+          "source": "https://www.mongodb.com/docs/manual/reference/explain-results/",
+          "note": null
+        },
+        {
+          "text": "explain.queryPlanner.winningPlan.costEstimate",
+          "source": "https://www.mongodb.com/docs/manual/reference/explain-results/",
+          "note": null
+        },
+        {
+          "text": "explain.queryPlanner.winningPlan.cardinalityEstimate",
+          "source": "https://www.mongodb.com/docs/manual/reference/explain-results/",
+          "note": null
+        },
+        {
+          "text": "explain.queryPlanner.winningPlan.numKeysEstimate",
+          "source": "https://www.mongodb.com/docs/manual/reference/explain-results/",
+          "note": null
+        },
+        {
+          "text": "explain.queryPlanner.winningPlan.numDocsEstimate",
+          "source": "https://www.mongodb.com/docs/manual/reference/explain-results/",
+          "note": null
+        },
+        {
+          "text": "explain.queryPlanner.winningPlan.estimatesMetadata",
+          "source": "https://www.mongodb.com/docs/manual/reference/explain-results/",
+          "note": null
+        },
+        {
+          "text": "explain.queryPlanner.winningPlan.estimatesMetadata.ceSource",
+          "source": "https://www.mongodb.com/docs/manual/reference/explain-results/",
+          "note": null
+        },
+        {
+          "text": "explain.queryPlanner.winningPlan.queryPlan",
+          "source": "https://www.mongodb.com/docs/manual/reference/explain-results/",
+          "note": null
+        },
+        {
+          "text": "explain.queryPlanner.winningPlan.queryPlan.stage",
+          "source": "https://www.mongodb.com/docs/manual/reference/explain-results/",
+          "note": null
+        },
+        {
+          "text": "explain.queryPlanner.winningPlan.queryPlan.type",
+          "source": "https://www.mongodb.com/docs/manual/reference/explain-results/",
+          "note": null
+        },
+        {
+          "text": "explain.queryPlanner.winningPlan.queryPlan.planNodeId",
+          "source": "https://www.mongodb.com/docs/manual/reference/explain-results/",
+          "note": null
+        },
+        {
+          "text": "explain.queryPlanner.winningPlan.slotBasedPlan",
+          "source": "https://www.mongodb.com/docs/manual/reference/explain-results/",
+          "note": null
+        },
+        {
+          "text": "explain.queryPlanner.winningPlan.slotBasedPlan.stages",
+          "source": "https://www.mongodb.com/docs/manual/reference/explain-results/",
+          "note": null
+        },
+        {
+          "text": "explain.queryPlanner.rejectedPlans",
+          "source": "https://www.mongodb.com/docs/manual/reference/explain-results/",
+          "note": null
+        },
+        {
+          "text": "The returned document may vary depending on the number of documents that match the query criteria, and the [query plan](https://www.mongodb.com/docs/manual/core/query-plans.md#std-label-query-plans-query-optimization) used:",
+          "source": "https://www.mongodb.com/docs/manual/reference/method/db.collection.findOne.md#definition",
+          "note": null
+        },
+        {
+          "text": "The [`$natural`](https://www.mongodb.com/docs/manual/reference/method/cursor.hint.md#mongodb-operator-metaOp.-natural) parameter returns items according to their [natural order](https://www.mongodb.com/docs/manual/reference/glossary.md#std-term-natural-order) within the database. This ordering is an internal implementation feature, and you should not rely on any particular ordering of the documents.",
+          "source": "https://www.mongodb.com/docs/manual/reference/method/cursor.sort.md#return-in-natural-order",
+          "note": null
+        },
+        {
+          "text": "The [`cursor.hint()`](https://www.mongodb.com/docs/manual/reference/method/cursor.hint.md#mongodb-method-cursor.hint) method has the following parameter:",
+          "source": "https://www.mongodb.com/docs/manual/reference/method/cursor.hint.md#definition",
+          "note": null
+        },
+        {
+          "text": "```javascript db.products.find().min( { item: 'apple', type: 'jonagold' } ).hint( { item: 1, type: 1 } ) ```",
+          "source": "https://www.mongodb.com/docs/manual/reference/method/cursor.min.md#example",
+          "note": null
+        },
+        {
+          "text": "```javascript db.products.find().min( { price: Decimal128(\"1.39\") } ).max( { price: Decimal128(\"1.99\") } ).hint( { price: 1 } ) ```",
+          "source": "https://www.mongodb.com/docs/manual/reference/method/cursor.min.md#example",
+          "note": null
+        },
+        {
+          "text": "The `planCacheShapeHash` and `planCacheKey` are available in:",
+          "source": "https://www.mongodb.com/docs/manual/core/query-plans.md#availability",
+          "note": null
+        },
+        {
+          "text": "- `PlanCache.listQueryShapes()` method/`planCacheListQueryShapes` command",
+          "source": "https://www.mongodb.com/docs/manual/core/query-plans.md#availability",
+          "note": null
+        },
+        {
+          "text": "- `PlanCache.getPlansByQuery()` method/`planCacheListPlans` command",
+          "source": "https://www.mongodb.com/docs/manual/core/query-plans.md#availability",
+          "note": null
+        },
+        {
+          "text": "`setQuerySettings` defines query settings used by the [`find`](https://www.mongodb.com/docs/manual/reference/command/find.md#mongodb-dbcommand-dbcmd.find), [`distinct`](https://www.mongodb.com/docs/manual/reference/command/distinct.md#mongodb-dbcommand-dbcmd.distinct), and [`aggregate`](https://www.mongodb.com/docs/manual/reference/command/aggregate.md#mongodb-dbcommand-dbcmd.aggregate) commands.",
+          "source": "https://www.mongodb.com/docs/manual/reference/command/setQuerySettings.md#definition",
+          "note": null
+        },
+        {
+          "text": "You can add or update query settings using either of the two syntax specifications shown in this section.",
+          "source": "https://www.mongodb.com/docs/manual/reference/command/setQuerySettings.md#syntax",
+          "note": null
+        },
+        {
+          "text": "- A `$db` field to specify the database for the query settings.",
+          "source": "https://www.mongodb.com/docs/manual/reference/command/setQuerySettings.md#set-query-settings-by-passing-in-a-query",
+          "note": null
+        },
+        {
+          "text": "The `settings` document in the `setQuerySettings` command takes the following fields:",
+          "source": "https://www.mongodb.com/docs/manual/reference/command/setQuerySettings.md#command-fields",
+          "note": null
+        },
+        {
+          "text": "2. Add query settings for a find command",
+          "source": "https://www.mongodb.com/docs/manual/reference/command/setQuerySettings.md#examples",
+          "note": null
+        },
+        {
+          "text": "3. (Optional) Verify the query settings",
+          "source": "https://www.mongodb.com/docs/manual/reference/command/setQuerySettings.md#examples",
+          "note": null
+        },
+        {
+          "text": "5. (Optional) Obtain the query settings",
+          "source": "https://www.mongodb.com/docs/manual/reference/command/setQuerySettings.md#examples",
+          "note": null
+        },
+        {
+          "text": "The following example uses a [`$querySettings`](https://www.mongodb.com/docs/manual/reference/operator/aggregation/querysettings.md#mongodb-pipeline-pipe.-querySettings) stage in an aggregation pipeline to obtain the query settings:",
+          "source": "https://www.mongodb.com/docs/manual/reference/command/setQuerySettings.md#examples",
+          "note": null
+        },
+        {
+          "text": "```javascript db.aggregate( [ { $querySettings: {} } ] ) ```",
+          "source": "https://www.mongodb.com/docs/manual/reference/command/setQuerySettings.md#examples",
+          "note": null
+        },
+        {
+          "text": "6. Add query settings for a distinct command",
+          "source": "https://www.mongodb.com/docs/manual/reference/command/setQuerySettings.md#examples",
+          "note": null
+        },
+        {
+          "text": "The following example adds query settings for a [`distinct`](https://www.mongodb.com/docs/manual/reference/command/distinct.md#mongodb-dbcommand-dbcmd.distinct) command:",
+          "source": "https://www.mongodb.com/docs/manual/reference/command/setQuerySettings.md#examples",
+          "note": null
+        },
+        {
+          "text": "7. Add query settings for an aggregate command",
+          "source": "https://www.mongodb.com/docs/manual/reference/command/setQuerySettings.md#examples",
+          "note": null
+        },
+        {
+          "text": "The following example adds query settings for an [`aggregate`](https://www.mongodb.com/docs/manual/reference/command/aggregate.md#mongodb-dbcommand-dbcmd.aggregate) command:",
+          "source": "https://www.mongodb.com/docs/manual/reference/command/setQuerySettings.md#examples",
+          "note": null
+        },
+        {
+          "text": "For more information about planCacheShapeHash and planCacheKey, see planCacheShapeHash and planCacheKey.",
+          "source": "https://www.mongodb.com/docs/manual/reference/database-profiler/",
+          "note": null
+        },
+        {
+          "text": "Before MongoDB 7.0.22, 8.0.5, and 8.1.0, planningTimeMicros might include non-planning work, such as a sharding metadata refresh. planningTimeMicros might also include cached-plan trial-run time, even if the query doesn't replan.",
+          "source": "https://www.mongodb.com/docs/manual/reference/database-profiler/",
+          "note": null
+        },
+        {
+          "text": "\"planCacheShapeHash\" : \"811451DD\",",
+          "source": "https://www.mongodb.com/docs/manual/reference/database-profiler/",
+          "note": null
+        },
+        {
+          "text": "\"planCacheKey\" : \"759981BA\",",
+          "source": "https://www.mongodb.com/docs/manual/reference/database-profiler/",
+          "note": null
+        },
+        {
+          "text": "Starting in MongoDB 9.0, you can also configure this parameter with query settings. To set query settings, use [`setQuerySettings`.](https://www.mongodb.com/docs/manual/reference/command/setquerysettings.md#mongodb-dbcommand-dbcmd.setQuerySettings)",
+          "source": "https://www.mongodb.com/docs/manual/reference/parameters.md#general-parameters",
+          "note": null
+        },
+        {
+          "text": "You can add query settings for [`find`](https://www.mongodb.com/docs/manual/reference/command/find.md#mongodb-dbcommand-dbcmd.find), [`distinct`](https://www.mongodb.com/docs/manual/reference/command/distinct.md#mongodb-dbcommand-dbcmd.distinct), and [`aggregate`](https://www.mongodb.com/docs/manual/reference/command/aggregate.md#mongodb-dbcommand-dbcmd.aggregate) commands.",
+          "source": "https://www.mongodb.com/docs/manual/reference/method/db.collection.distinct.md#query-settings",
+          "note": null
+        },
+        {
+          "text": "query planning in plan cache scenarios.",
+          "source": "https://www.mongodb.com/docs/manual/core/query-shapes/",
+          "note": null
+        },
+        {
+          "text": "planCacheShapeHash: '48E51110'",
+          "source": "https://www.mongodb.com/docs/manual/core/query-shapes/",
+          "note": null
+        },
+        {
+          "text": "planCacheShapeHash: '31A52130'",
+          "source": "https://www.mongodb.com/docs/manual/core/query-shapes/",
+          "note": null
+        },
+        {
+          "text": "querySettings: <document> // Added in MongoDB 9.0,",
+          "source": "https://www.mongodb.com/docs/manual/reference/command/distinct/",
+          "note": null
+        },
+        {
+          "text": "You can add query settings for find, distinct, and aggregate commands.",
+          "source": "https://www.mongodb.com/docs/manual/reference/command/distinct/",
+          "note": null
+        },
+        {
+          "text": "Total size of the plan cache in bytes.",
+          "source": "https://www.mongodb.com/docs/manual/reference/command/serverStatus.md#plancache",
+          "note": null
+        },
+        {
+          "text": "Prior to version 7.2, information on the plan cache size was stored in the `query.planCacheTotalSizeEstimateBytes` field.",
+          "source": "https://www.mongodb.com/docs/manual/reference/command/serverStatus.md#plancache",
+          "note": null
+        },
+        {
+          "text": "Document with configuration counts and usage for query settings.",
+          "source": "https://www.mongodb.com/docs/manual/reference/command/serverStatus.md#querysettings",
+          "note": null
+        },
+        {
+          "text": "Total number of query settings.",
+          "source": "https://www.mongodb.com/docs/manual/reference/command/serverStatus.md#querysettings",
+          "note": null
+        },
+        {
+          "text": "Total number of query settings that have the `reject` field set to `true`. To set the `reject` field, use `setQuerySettings`.",
+          "source": "https://www.mongodb.com/docs/manual/reference/command/serverStatus.md#querysettings",
+          "note": null
+        },
+        {
+          "text": "Total size in bytes for query settings.",
+          "source": "https://www.mongodb.com/docs/manual/reference/command/serverStatus.md#querysettings",
+          "note": null
+        },
+        {
+          "text": "The `$planCacheStats` stage must be the first stage in the pipeline. The stage has the following syntax:",
+          "source": "https://www.mongodb.com/docs/manual/reference/operator/aggregation/planCacheStats.md#definition",
+          "note": null
+        },
+        {
+          "text": "`$planCacheStats` must be the first stage in an aggregation pipeline.",
+          "source": "https://www.mongodb.com/docs/manual/reference/operator/aggregation/planCacheStats.md#pipeline",
+          "note": null
+        },
+        {
+          "text": "- `$planCacheStats` requires read concern level [`\"local\"`.](https://www.mongodb.com/docs/manual/reference/read-concern-local.md#mongodb-readconcern-readconcern.-local-)",
+          "source": "https://www.mongodb.com/docs/manual/reference/operator/aggregation/planCacheStats.md#restrictions",
+          "note": null
+        },
+        {
+          "text": "The output of `$planCacheStats` depends on the query engine used to complete the query. The value of the `version` field of the `$planCacheStats` indicates which query engine was used:",
+          "source": "https://www.mongodb.com/docs/manual/reference/operator/aggregation/planCacheStats.md#output",
+          "note": null
+        },
+        {
+          "text": "For queries that use the classic execution engine, `$planCacheStats` returns a document similar to the following:",
+          "source": "https://www.mongodb.com/docs/manual/reference/operator/aggregation/planCacheStats.md#classic-execution-engine",
+          "note": null
+        },
+        {
+          "text": "The following aggregation pipeline uses `$planCacheStats` to return information about the plan cache entries for the collection:",
+          "source": "https://www.mongodb.com/docs/manual/reference/operator/aggregation/planCacheStats.md#return-information-for-all-entries-in-the-query-cache",
+          "note": null
+        },
+        {
+          "text": "Returns query settings previously added with [`setQuerySettings`](https://www.mongodb.com/docs/manual/reference/command/setquerysettings.md#mongodb-dbcommand-dbcmd.setQuerySettings). The settings apply to the entire cluster. The cluster retains the settings after shutdown.",
+          "source": "https://www.mongodb.com/docs/manual/reference/operator/aggregation/querySettings.md#definition",
+          "note": null
+        },
+        {
+          "text": "If you use multiple pipeline stages, put `$querySettings` first in the pipeline.",
+          "source": "https://www.mongodb.com/docs/manual/reference/operator/aggregation/querySettings.md#syntax",
+          "note": null
+        },
+        {
+          "text": "`$querySettings` takes this field:",
+          "source": "https://www.mongodb.com/docs/manual/reference/operator/aggregation/querySettings.md#command-fields",
+          "note": null
+        },
+        {
+          "text": "2. Add the query settings",
+          "source": "https://www.mongodb.com/docs/manual/reference/operator/aggregation/querySettings.md#mongodb-shell",
+          "note": null
+        },
+        {
+          "text": "The following `setQuerySettings` example adds query settings:",
+          "source": "https://www.mongodb.com/docs/manual/reference/operator/aggregation/querySettings.md#mongodb-shell",
+          "note": null
+        },
+        {
+          "text": "3. Return the query settings",
+          "source": "https://www.mongodb.com/docs/manual/reference/operator/aggregation/querySettings.md#mongodb-shell",
+          "note": null
+        },
+        {
+          "text": "In [`mongosh`](https://www.mongodb.com/docs/mongodb-shell.md#std-program-mongosh), this command can also be run through the [`PlanCache.clear()`](https://www.mongodb.com/docs/manual/reference/method/plancache.clear.md#mongodb-method-PlanCache.clear) and [`PlanCache.clearPlansByQuery()`](https://www.mongodb.com/docs/manual/reference/method/plancache.clearplansbyquery.md#mongodb-method-PlanCache.clearPlansByQuery) helper methods.",
+          "source": "https://www.mongodb.com/docs/manual/reference/command/planCacheClear.md#definition",
+          "note": null
+        },
+        {
+          "text": "The [`planCacheListFilters`](https://www.mongodb.com/docs/manual/reference/command/plancachelistfilters.md#mongodb-dbcommand-dbcmd.planCacheListFilters) command returns the document with the following form:",
+          "source": "https://www.mongodb.com/docs/manual/reference/command/planCacheListFilters.md#output",
+          "note": null
+        },
+        {
+          "text": "For instance, a [`query`](https://www.mongodb.com/docs/manual/reference/command/plancachelistfilters.md#mongodb-data-planCacheListFilters.filters.query) predicate of `{ \"type\": \"electronics\", \"status\" : \"A\" }` covers the following query predicates:",
+          "source": "https://www.mongodb.com/docs/manual/reference/command/planCacheListFilters.md#output",
+          "note": null
+        },
+        {
+          "text": "\"planCacheShapeHash\":\"9C05019A\",",
+          "source": "https://www.mongodb.com/docs/manual/reference/log-messages/",
+          "note": null
+        },
+        {
+          "text": "\"planCacheKey\":\"C41063D6\",",
+          "source": "https://www.mongodb.com/docs/manual/reference/log-messages/",
+          "note": null
+        },
+        {
+          "text": "\"planCacheKey\": \"1D3DE690\",",
+          "source": "https://www.mongodb.com/docs/manual/reference/log-messages/",
+          "note": null
+        },
+        {
+          "text": "Deletes query settings previously added with [`setQuerySettings`.](https://www.mongodb.com/docs/manual/reference/command/setquerysettings.md#mongodb-dbcommand-dbcmd.setQuerySettings)",
+          "source": "https://www.mongodb.com/docs/manual/reference/command/removeQuerySettings.md#definition",
+          "note": null
+        },
+        {
+          "text": "You can delete query settings using either of the following syntax specifications.",
+          "source": "https://www.mongodb.com/docs/manual/reference/command/removeQuerySettings.md#syntax",
+          "note": null
+        },
+        {
+          "text": "The following example uses `$querySettings` to return the query settings:",
+          "source": "https://www.mongodb.com/docs/manual/reference/command/removeQuerySettings.md#examples",
+          "note": null
+        },
+        {
+          "text": "4. Delete the query settings",
+          "source": "https://www.mongodb.com/docs/manual/reference/command/removeQuerySettings.md#examples",
+          "note": null
+        },
+        {
+          "text": "```javascript db.adminCommand( { removeQuerySettings: \"F42757F1AEB68B4C5A6DE6182B29B01947C829C926BCC01226BDA4DDE799766C\" } ) ```",
+          "source": "https://www.mongodb.com/docs/manual/reference/command/removeQuerySettings.md#examples",
+          "note": null
+        },
+        {
+          "text": "planCacheShapeHash: <hexadecimal string>,",
+          "source": "https://www.mongodb.com/docs/manual/reference/explain-results/",
+          "note": null
+        },
+        {
+          "text": "planCacheKey: <hexadecimal string>,",
+          "source": "https://www.mongodb.com/docs/manual/reference/explain-results/",
+          "note": null
+        },
+        {
+          "text": "explain.queryPlanner.querySettings",
+          "source": "https://www.mongodb.com/docs/manual/reference/explain-results/",
+          "note": null
+        },
+        {
+          "text": "explain.queryPlanner.planCacheShapeHash",
+          "source": "https://www.mongodb.com/docs/manual/reference/explain-results/",
+          "note": null
+        },
+        {
+          "text": "explain.queryPlanner.planCacheKey",
+          "source": "https://www.mongodb.com/docs/manual/reference/explain-results/",
+          "note": null
+        },
+        {
+          "text": "Plan cache entries have three states. Missing: no entry exists, so plans are evaluated and an Inactive placeholder with a work value is created. Inactive: placeholder, not used to generate plans. Active: used to generate plans. A newly selected plan whose work value is less than or equal to the placeholder's replaces it and becomes Active. If the value is greater, the placeholder stays and its value is incremented. An Active entry whose work no longer meets the selection criterion drops to Inactive.",
+          "source": "https://www.mongodb.com/docs/current/core/query-plans/",
+          "note": null
+        },
+        {
+          "text": "The plan cache is local to each mongod, with no cluster-wide cache. Shards and replica set members can therefore choose different plans for the same shape.",
+          "source": "https://www.percona.com/blog/mongodb-query-plan-cache-explained-performance-pitfalls-and-re-planning/",
+          "note": null
+        }
+      ]
+    }
+  ],
+  "related": [
+    {
+      "concept": "index",
+      "relation": "is a hypernym of MongoDB query planner, plan cache, query settings and hints",
+      "note": null
+    },
+    {
+      "concept": "query planner",
+      "relation": "is a synonym of MongoDB query planner, plan cache, query settings and hints",
+      "note": null
+    },
+    {
+      "concept": "query settings",
+      "relation": "is a part of MongoDB query planner, plan cache, query settings and hints",
+      "note": null
+    },
+    {
+      "concept": "plan cache",
+      "relation": "is a part of MongoDB query planner, plan cache, query settings and hints",
+      "note": null
+    },
+    {
+      "concept": "query shape",
+      "relation": "is a part of MongoDB query planner, plan cache, query settings and hints",
+      "note": null
+    },
+    {
+      "concept": "hint",
+      "relation": "is a part of MongoDB query planner, plan cache, query settings and hints",
+      "note": null
+    },
+    {
+      "concept": "database profiler",
+      "relation": "is a part of MongoDB query planner, plan cache, query settings and hints",
+      "note": null
+    },
+    {
+      "concept": "query optimization",
+      "relation": "is a hypernym of MongoDB query planner, plan cache, query settings and hints",
+      "note": null
+    },
+    {
+      "concept": "slot-based execution engine",
+      "relation": "is a related of MongoDB query planner, plan cache, query settings and hints",
+      "note": null
+    },
+    {
+      "concept": "$currentOp",
+      "relation": "is a related of MongoDB query planner, plan cache, query settings and hints",
+      "note": null
+    },
+    {
+      "concept": "$indexStats",
+      "relation": "is a part of MongoDB query planner, plan cache, query settings and hints",
+      "note": null
+    }
+  ]
+}

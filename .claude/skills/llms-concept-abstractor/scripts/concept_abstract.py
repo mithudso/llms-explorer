@@ -1096,6 +1096,12 @@ def compile_pack(args) -> None:
     print(f"compile: {len(kept)} units → {out} · full ≈{files['llms-full.txt']['tokens']} tok · "
           f"small ≈{files['llms-small.txt']['tokens']} tok · {len(hosts)} sources · "
           f"{len(zero)} zero-hit terms · {len(conflicts)} conflicts")
+    # shared website completion hook
+    hub = Path(os.environ.get("HUB_DIR", str(Path.home() / ".global-ai-hub"))).expanduser()
+    if (hub / "research/.site-sync.json").is_file():
+        sys.path.insert(0, str(hub / "scripts"))
+        from research_site_hook import refresh
+        refresh(out, hub)
 
 
 

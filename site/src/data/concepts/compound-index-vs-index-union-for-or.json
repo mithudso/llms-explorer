@@ -1,0 +1,84 @@
+{
+  "slug": "compound-index-vs-index-union-for-or",
+  "concept": "Compound index vs index union for $or",
+  "generated": "2026-10-21",
+  "summary": "Source-anchored research for Compound index vs index union for $or. Run status: COMPLETED.",
+  "facets": [
+    {
+      "title": "Structure and components",
+      "facts": [
+        {
+          "text": "MongoDB's manual recommends `$in` when `$or` contains equality checks on the same field. That is a different query shape from a cross-field `$or` and should not be conflated with choosing between a compound index and branch indexes. (high confidence) (verified as of 2026-10-18)",
+          "source": "https://www.mongodb.com/docs/manual/reference/operator/query/or/",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "How it works",
+      "facts": [
+        {
+          "text": "When all $or clauses are index-supported, MongoDB can plan an OR stage over branch scans, and each clause can use its own index. If a clause lacks index support, MongoDB's manual says the query uses a collection scan. In classic explain output, an indexed $or exposes an OR stage with inputStages that list the child scans. (high confidence) (verified as of 2026-10-18)",
+          "source": "https://www.mongodb.com/docs/manual/reference/operator/query/or/",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Problems, failure modes and limitations",
+      "facts": [
+        {
+          "text": "Under compound-index prefix rules, `{a: 1, b: 1}` supports a lookup on `a` but not a lookup on `b` alone. For `$or: [{a: ...}, {b: ...}]`, that single compound index therefore cannot provide an efficient access path for both branches; MongoDB recommends indexes for each branch field. (high confidence) (verified as of 2026-10-14)",
+          "source": "https://www.mongodb.com/docs/manual/core/indexes/index-types/index-compound/",
+          "note": null
+        },
+        {
+          "text": "MongoDB Jira SERVER-34012 recorded quadratic planning time for very large same-index `$or` lists while unionizing index-bound intervals, and lists 5.0.0-rc0 as the fix version. This is historical planner interval-union behavior; it does not establish that multi-index `$or` result merging is generally slow. (low confidence) (verified as of 2021-05-11)",
+          "source": "https://jira.mongodb.org/browse/SERVER-34012",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Comparisons and alternatives",
+      "facts": [
+        {
+          "text": "A University of Sydney study evaluating MongoDB 7.0.1 found cases where its optimizer chose an index scan even though a collection scan ran faster. The study used range-query templates rather than an $or comparison, so it supports measuring the actual workload but does not establish whether an index union or a compound index wins. (medium confidence) (verified as of 2026-08-24)",
+          "source": "https://arxiv.org/html/2409.16544",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Facts and statements",
+      "facts": [
+        {
+          "text": "An independent practitioner post, updated January 25, 2026, reports a query shaped like `category = ... AND (price < ... OR quantity > ...)` where the planner selected `{category: 1, quantity: 1}` over `{category: 1, price: 1, quantity: 1}`. Treat this as a case report, not a planner guarantee, and inspect `explain` on the deployed server version. (medium confidence) (verified as of 2026-01-25)",
+          "source": "https://indraneilseal.ca/2024/05/20/how-mongodb-choose-optimal-path-for-or-operator/",
+          "note": null
+        },
+        {
+          "text": "There is no universal performance winner implied by index shape alone: MongoDB documents branch-specific `$or` scans and compound-index prefix behavior, while explain output varies with the query engine and plan. As an inference, compare equivalent predicates with `explain(\"executionStats\")` and representative data before preferring one compound scan over branch scans. (medium confidence) (verified as of 2026-10-20)",
+          "source": "https://www.mongodb.com/docs/manual/reference/operator/query/or/",
+          "note": null
+        },
+        {
+          "text": "An archived Stack Overflow report shows MongoDB 3.6.4 choosing `COLLSCAN` for `$or: [{f: 6}, {a: 1}]` despite a compound `{a: 1, b: 1, c: 1, d: 1, e: 1, f: 1}` index. It illustrates that containing both branch fields somewhere in a compound key does not guarantee indexed coverage for both branches; use current documentation for current behavior. (medium confidence) (verified as of 2019-08-23)",
+          "source": "https://stackoverflow.com/questions/57621226/mongodb-index-not-used-in-case-of-or-query?noredirect=1",
+          "note": null
+        },
+        {
+          "text": "A compound index stores fields in order and supports queries most efficiently through its leading prefix; it is not interchangeable with one independent index per $or branch. If branches share an equality predicate but filter different fields, branch-specific compound indexes such as {category: 1, price: 1} and {category: 1, quantity: 1} can give both branches useful bounds. Treat this as a pattern to measure, not a universal performance rule. (medium confidence)",
+          "source": "https://www.mongodb.com/docs/manual/core/indexes/index-types/index-compound/",
+          "note": null
+        },
+        {
+          "text": "MongoDB issue SERVER-46904 describes a contained $or plan trial where candidates can tie after the first branch is tested even though their different index choices for later branches have different full-query efficiency. (low confidence) (verified as of 2026-03-06)",
+          "source": "https://jira.mongodb.org/browse/SERVER-46904",
+          "note": null
+        }
+      ]
+    }
+  ],
+  "related": []
+}

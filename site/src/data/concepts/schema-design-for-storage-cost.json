@@ -1,0 +1,463 @@
+{
+  "slug": "schema-design-for-storage-cost",
+  "concept": "Schema Design for Storage Cost",
+  "generated": "2026-10-19",
+  "summary": "Schema design changes MongoDB storage bytes because BSON is self-describing: every document stores its own field names, so field-name length, value types (int32 versus string IDs, Date versus string), explicit nulls, stray metadata fields such as spring-data _class, and unneeded indexes all add on-disk size, while WiredTiger block compression shrinks the field-name effect sharply and bloated documents mainly cost RAM rather than disk. Drawn from 6 sources (Allegro and Percona measurements, MongoDB manual anti-pattern pages and a MongoDB 3.0 compression blog), covering definitions, mechanisms, measures, problems and comparisons; the sources disagree on how much short field names still save under compression.",
+  "facets": [
+    {
+      "title": "Definitions",
+      "facts": [
+        {
+          "text": "There are two important features related to storage that affect how space is used in MongoDB: BSON and dynamic schema.",
+          "source": "https://www.mongodb.com/blog/post/new-compression-options-mongodb-30",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Structure and components",
+      "facts": [
+        {
+          "text": "Shortening field names reduce expressiveness and does not provide considerable benefit for larger documents and where document overhead is not of significant concern. Shorter field names do not lessen the size of indexes because indexes have a predefined structure. In general, it is not necessary to use short field names.",
+          "source": "https://www.percona.com/blog/2016/03/24/percona-how-to-field-names-and-document-size-in-mongodb/",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "How it works",
+      "facts": [
+        {
+          "text": "Shorter field names do not shrink indexes: index entries hold key values with a predefined structure, not field names. Allegro also found index size unchanged when switching _id from string to int32.",
+          "source": "https://www.percona.com/blog/2016/03/24/percona-how-to-field-names-and-document-size-in-mongodb/",
+          "note": null
+        },
+        {
+          "text": "MongoDB's own guidance: field names compress well under WiredTiger block compression, so the additional benefit of short field names is modest; do not abbreviate to single letters because it obscures data.",
+          "source": "https://www.mongodb.com/blog/post/new-compression-options-mongodb-30",
+          "note": null
+        },
+        {
+          "text": "I am sorry I just saw this in my box. Wiredtiger is still just storing the BSON structure which has the field name, its bit length, and then its content for each field. The field name is stored as a regular string so it would still consume space on each entry, compression just detects this duplication and removes it. So you would still see this effect. However, it does not add padding in the way MMAP does avoid fragmentation, so if WiredTiger has compression set to None you could still see these effects. As I mentioned, more importantly, network and memory would still have the “full” form of t",
+          "source": "https://www.percona.com/blog/2016/03/24/percona-how-to-field-names-and-document-size-in-mongodb/",
+          "note": "author reply in the comment thread"
+        },
+        {
+          "text": "Fortunately, traditional schema is not the only way to be space efficient. Compression is very effective for repeating values like field names, as well as much of the data stored in documents.",
+          "source": "https://www.mongodb.com/blog/post/new-compression-options-mongodb-30",
+          "note": null
+        },
+        {
+          "text": "TokuMX uses standard compression algorithms like zlib to compress large chunks of data before writing the data to disk. That is the secret to TokuMX’s great compression. As a result, all documents stored on disk are compressed with many other documents as well. The field names create a lot of redundant data and zlib is great at compressing redundant data. Therefore, long field names should not have an impact on TokuMX.",
+          "source": "https://www.percona.com/blog/tokumx-tip-create-any-field-name-you-want/",
+          "note": null
+        },
+        {
+          "text": "MongoDB 3.0 introduces WiredTiger, a new storage engine that supports compression. WiredTiger manages disk I/O using pages. Each page contains many BSON documents. As pages are written to disk they are compressed by default, and when they are read into the cache from disk they are decompressed.",
+          "source": "https://www.mongodb.com/blog/post/new-compression-options-mongodb-30",
+          "note": null
+        },
+        {
+          "text": "MongoDB stores data in BSON, a binary encoding of JSON-like documents (BSON supports additional data types, such as dates, different types of numbers, binary). BSON is efficient to encode and decode, and it is easily traversable. However, BSON does not compress data, and it is possible its representation of data is actually larger than the JSON equivalent.",
+          "source": "https://www.mongodb.com/blog/post/new-compression-options-mongodb-30",
+          "note": null
+        },
+        {
+          "text": "The tradeoff is that with greater flexibility comes greater use of space. Field names are defined in every document. It is a best practice to use shorter field names when possible. However, it is also important not to take this too far – single letter field names or codes can obscure the field names, making it more difficult to use the data.",
+          "source": "https://www.mongodb.com/blog/post/new-compression-options-mongodb-30",
+          "note": null
+        },
+        {
+          "text": "One of the things users love about MongoDB’s document data model is dynamic schema. In most databases, the schema is described and maintained centrally in a catalog or system tables. Column names are stored once for all rows. This approach is efficient in terms of space, but it requires all data to be structured according to the schema. In MongoDB there is currently no central catalog: each document is self-describing. New fields can be added to a document without affecting other documents, and without registering the fields in a central catalog.",
+          "source": "https://www.mongodb.com/blog/post/new-compression-options-mongodb-30",
+          "note": null
+        },
+        {
+          "text": "Let’s start with some theory: the number of int32 type in Mongo has a fixed size of 4 bytes. The same number written as a String of characters has a size dependent on the number of digits; additionally it contains the length of the text (4 bytes) and a terminator character. For example, the text “0” is 12 bytes long and “1234567890” is 25 bytes long. So in theory we should get interesting results, but what does it look like in reality?",
+          "source": "https://blog.allegro.tech/2021/01/impact-of-the-data-model-on-the-MongoDB-database-size.html",
+          "note": null
+        },
+        {
+          "text": "If we use spring-data, each of our collections additionally contains a _class field storing the package and the name of the entity class containing the mapping for documents from this collection. This mechanism is used to support inheritance of model classes, that is not widely used. In most cases this field stores exactly the same values for each document what makes it useless. And how much does it cost? Let’s compare the following documents:",
+          "source": "https://blog.allegro.tech/2021/01/impact-of-the-data-model-on-the-MongoDB-database-size.html",
+          "note": null
+        },
+        {
+          "text": "To ensure an even debate, I want to break size down into two major areas: Field Optimization and Value Optimization. They both touch on all of the areas listed above except for sorting, which is only about value optimization.",
+          "source": "https://www.percona.com/blog/2016/03/24/percona-how-to-field-names-and-document-size-in-mongodb/",
+          "note": null
+        },
+        {
+          "text": "When we talk about field optimization, it is purely considering using smaller field names. This might seem obvious, but when your database field names become object properties in your application code, the developers want these to be expressive (i.e., longer and space-intensive).",
+          "source": "https://www.percona.com/blog/2016/03/24/percona-how-to-field-names-and-document-size-in-mongodb/",
+          "note": null
+        },
+        {
+          "text": "A common MongoDB tip is to create short field names to save storage space. Because MongoDB does not compress its data on disk and stores field names in each document, using longer field names leads to bigger documents which leads to more storage space usage. The downside here is developers find short field names unintuitive and difficult to use.",
+          "source": "https://www.percona.com/blog/tokumx-tip-create-any-field-name-you-want/",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "How-to and procedures",
+      "facts": [
+        {
+          "text": "To prevent bloated documents, restructure your schema with smaller documents and use document references to separate fields that aren't returned together. This approach reduces the working set size and improves performance.",
+          "source": "https://www.mongodb.com/docs/manual/data-modeling/design-antipatterns/bloated-documents/",
+          "note": null
+        },
+        {
+          "text": "You can also use MongoDB Atlas Performance Advisor (available for M10 clusters or higher) and MongoDB Compass to determine, hide, and drop unnecessary indexes.",
+          "source": "https://www.mongodb.com/docs/manual/data-modeling/design-antipatterns/unnecessary-indexes/",
+          "note": null
+        },
+        {
+          "text": "After you identify unnecessary indexes, you can use the db.collection.hideIndex() method to hide the indexes and evaluate their impact on the database before you remove them.",
+          "source": "https://www.mongodb.com/docs/manual/data-modeling/design-antipatterns/unnecessary-indexes/",
+          "note": null
+        },
+        {
+          "text": "If you determine the indexes are unnecessary and have a negative impact on performance, drop the indexes using the db.collection.dropIndexes() method.",
+          "source": "https://www.mongodb.com/docs/manual/data-modeling/design-antipatterns/unnecessary-indexes/",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Examples and snippets",
+      "facts": [
+        {
+          "text": "In the current schema, to display the information for the website's main page, all of the book information must be queried. To reduce document size and streamline queries, you can split the large document into two smaller collections.",
+          "source": "https://www.mongodb.com/docs/manual/data-modeling/design-antipatterns/bloated-documents/",
+          "note": null
+        },
+        {
+          "text": "To show this, we ran a little experiment. We created a 100 million document collection that stores first names, last names, and email addresses. We used two schemas. The first schema had long field names.",
+          "source": "https://www.percona.com/blog/tokumx-tip-create-any-field-name-you-want/",
+          "note": null
+        },
+        {
+          "text": "db.courses.aggregate( [ { $indexStats: { } } ] )",
+          "source": "https://www.mongodb.com/docs/manual/data-modeling/design-antipatterns/unnecessary-indexes/",
+          "note": null
+        },
+        {
+          "text": "db.courses.hideIndex( \"days_1\" )",
+          "source": "https://www.mongodb.com/docs/manual/data-modeling/design-antipatterns/unnecessary-indexes/",
+          "note": null
+        },
+        {
+          "text": "db.courses.dropIndexes( [ \"days_1\", \"time_1\", \"building_1\" ] )",
+          "source": "https://www.mongodb.com/docs/manual/data-modeling/design-antipatterns/unnecessary-indexes/",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Measurements and reference values",
+      "facts": [
+        {
+          "text": "BSON stores field names inside every document, so field-name length multiplies by document count. Allegro (MongoDB 4.4, snappy) measured a flat test document dropping from about 3.4MB to 2MB (about 40%) with shorter field names alone.",
+          "source": "https://blog.allegro.tech/2021/01/impact-of-the-data-model-on-the-MongoDB-database-size.html",
+          "note": null
+        },
+        {
+          "text": "Percona disputes treating compression as the whole story: document size also affects app memory, network transfer, the replication log, cache memory, compressor input and journal; only on-disk and journal involve compression. In its example, shorter field names cut a document from 54,879 to 41,392 bytes (about 25%).",
+          "source": "https://www.percona.com/blog/2016/03/24/percona-how-to-field-names-and-document-size-in-mongodb/",
+          "note": null
+        },
+        {
+          "text": "With TokuMX with zlib (which is the default setting), short names saved about 2.5% of disk space (from 4.38 GB to 4.27 GB).",
+          "source": "https://www.percona.com/blog/tokumx-tip-create-any-field-name-you-want/",
+          "note": null
+        },
+        {
+          "text": "With TokuMX uncompressed, short names saved about 17% of disk space, which makes sense because we are not getting the advantages of zlib.",
+          "source": "https://www.percona.com/blog/tokumx-tip-create-any-field-name-you-want/",
+          "note": null
+        },
+        {
+          "text": "When investigating the case with identifiers stored as strings, I checked whether manipulating the data type could reduce the index size. Unfortunately I did not succeed, so I decided to focus on the problem of redundant indexes.",
+          "source": "https://blog.allegro.tech/2021/01/impact-of-the-data-model-on-the-MongoDB-database-size.html",
+          "note": null
+        },
+        {
+          "text": "The difference is considerable, over 50%. Bearing in mind that the compression is enabled, I believe that the impact of the data itself is small and the result is caused by the schema of the collection containing only the key being half as small as the one with the key (1 field vs 2 fields). After removal of the _class field from a document with more fields, the difference expressed in percent will be much smaller of course. However, storing useless data does not make sense.",
+          "source": "https://blog.allegro.tech/2021/01/impact-of-the-data-model-on-the-MongoDB-database-size.html",
+          "note": null
+        },
+        {
+          "text": "With MongoDB, short names saved about 10% of disk space (from 22.47 GB to 20.42 GB).",
+          "source": "https://www.percona.com/blog/tokumx-tip-create-any-field-name-you-want/",
+          "note": null
+        },
+        {
+          "text": "avgObjSize: average document size, before compression,",
+          "source": "https://blog.allegro.tech/2021/01/impact-of-the-data-model-on-the-MongoDB-database-size.html",
+          "note": null
+        },
+        {
+          "text": "We ran this experiment on MongoDB 2.2.5, TokuMX uncompressed, and TokuMX with zlib compression (the compression settings are set when the collection is created). Below are the results of disk usage.",
+          "source": "https://www.percona.com/blog/tokumx-tip-create-any-field-name-you-want/",
+          "note": null
+        },
+        {
+          "text": "The result is even better than just flattening. Apart from the document’s key size, we achieved a decrease from 3.4MB to 2MB. Why does this happen even though we store exactly the same data?",
+          "source": "https://blog.allegro.tech/2021/01/impact-of-the-data-model-on-the-MongoDB-database-size.html",
+          "note": null
+        },
+        {
+          "text": "In this example, we changed phone numbers to integers and used the “Date Type” for dates (as already done in the devices document). The savings were much smaller than earlier, coming in at only 26 bytes, but this could have a significant impact when multiplied out to many fields and documents. If we had started this example quoting the floats as many people do, we would see more of a difference. But always watch out for numbers and dates shown as strings: these almost always waste space.",
+          "source": "https://www.percona.com/blog/2016/03/24/percona-how-to-field-names-and-document-size-in-mongodb/",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Problems, failure modes and limitations",
+      "facts": [
+        {
+          "text": "MongoDB lists unnecessary indexes (rarely used, redundant because a compound index covers them, or unused) as a schema anti-pattern that bloats storage and slows writes. Procedure: find them with $indexStats (run on every node), hide with hideIndex(), then dropIndexes(). Atlas Performance Advisor (M10+) and Compass also surface them.",
+          "source": "https://www.mongodb.com/docs/manual/data-modeling/design-antipatterns/unnecessary-indexes/",
+          "note": null
+        },
+        {
+          "text": "It is usually a good practice to cover each query with an index so that the number of collscan operations is as small as possible. This often leads to situations where we have too many indexes. We add more queries, create new indexes for them, and often it turns out that this newly created index takes over the queries of another one. As a result, we have to maintain many unnecessary indexes, wasting disk space and CPU time.",
+          "source": "https://blog.allegro.tech/2021/01/impact-of-the-data-model-on-the-MongoDB-database-size.html",
+          "note": null
+        },
+        {
+          "text": "Storing data fields that are related to each other but not accessed together can create bloated documents that lead to excessive RAM and bandwidth usage. The working set, consisting of frequently accessed data and indexes, is stored in the RAM allotment. When the working set fits in RAM, MongoDB can query from memory instead of from disk, which improves performance. However, if documents are too large, the working set might not fit into RAM, causing performance to degrade as MongoDB has to access data from disk.",
+          "source": "https://www.mongodb.com/docs/manual/data-modeling/design-antipatterns/bloated-documents/",
+          "note": null
+        },
+        {
+          "text": "Creating indexes for every query can lead to unnecessary indexes, which can degrade database performance. Unnecessary indexes might be rarely used, redundant due to coverage by another compound index, or not used at all. To optimize database performance, it's important to minimize the number of indexes you use. Identify and remove unnecessary indexes to maintain efficient query execution and resource use.",
+          "source": "https://www.mongodb.com/docs/manual/data-modeling/design-antipatterns/unnecessary-indexes/",
+          "note": null
+        },
+        {
+          "text": "$indexStats reports index usage metrics in the accesses field only for the node where the query runs. For more comprehensive index usage statistics, run $indexStats on each node in the cluster.",
+          "source": "https://www.mongodb.com/docs/manual/data-modeling/design-antipatterns/unnecessary-indexes/",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Comparisons and alternatives",
+      "facts": [
+        {
+          "text": "Compression sharply reduces the field-name saving: on uncompressed MongoDB 2.2.5, short names saved about 10% (22.47 GB to 20.42 GB, 100M synthetic docs); on TokuMX with zlib, long vs short names were 4.38 GB vs 4.27 GB (about 2.5%).",
+          "source": "https://www.percona.com/blog/tokumx-tip-create-any-field-name-you-want/",
+          "note": null
+        },
+        {
+          "text": "Flattening nested sub-documents saved about 0.4MB (3.4MB to 3MB, roughly 12% of the personal-data fields) in Allegro's synthetic test; a modest lever compared with type and field-name choices.",
+          "source": "https://blog.allegro.tech/2021/01/impact-of-the-data-model-on-the-MongoDB-database-size.html",
+          "note": null
+        },
+        {
+          "text": "Value types matter: Allegro found an int32 ID roughly halved on-disk collection size versus a string ID; Percona warns that numbers and dates stored as strings waste space. Enum labels replaced by ordinals saved little with snappy on but considerably more with compression off.",
+          "source": "https://blog.allegro.tech/2021/01/impact-of-the-data-model-on-the-MongoDB-database-size.html",
+          "note": null
+        },
+        {
+          "text": "Allegro (synthetic data): storing explicit nulls took more than 1MB per 1M documents versus omitting the field; removing the spring-data _class field cut a minimal test document by over 50%, though the percentage is much smaller for documents with many fields.",
+          "source": "https://blog.allegro.tech/2021/01/impact-of-the-data-model-on-the-MongoDB-database-size.html",
+          "note": null
+        },
+        {
+          "text": "Bloated documents (related fields not read together stored in one document) inflate the working set so it may stop fitting in RAM, and raise bandwidth. MongoDB's fix is to split hot fields and detail fields into separate linked collections; the trade-off is $lookup cost. This is mainly a RAM/IOPS cost lever (instance tier), not a disk-bytes lever.",
+          "source": "https://www.mongodb.com/docs/manual/data-modeling/design-antipatterns/bloated-documents/",
+          "note": null
+        },
+        {
+          "text": "It is interesting as the answer is both yes and no depending on the point of view. I should mention we can group the SE’s into two camps MMAPv1/ In-Memory vs. WT, PerconaFT, RocksDB (later two are available in the Percona Server for Mongo builds). The points I starred in the blog post denote the areas that the engine choice could affect the outcome. However, this is only relevant to the compression algorithm selected, and some have a few available. That is your “yes” area, however, the real focus of the article was around BSON implementation and what the drivers each get back from Mongo, what",
+          "source": "https://www.percona.com/blog/2016/03/24/percona-how-to-field-names-and-document-size-in-mongodb/",
+          "note": "author reply in the comment thread"
+        },
+        {
+          "text": "So, the conclusion here is that the short field names are not buying much for TokuMX. Therefore, create whatever field name you want. Don’t worry about the storage usage, because compression will handle it.",
+          "source": "https://www.percona.com/blog/tokumx-tip-create-any-field-name-you-want/",
+          "note": null
+        },
+        {
+          "text": "Further, only the last two items in the list (“*” starred) represent any part of the system that has compression (to date). Put another way, the conversation about compression only covers about 25% of the discussion about field names. MongoDB Inc’s comment is trying to sidestep nearly 75% of the rest of the conversation.",
+          "source": "https://www.percona.com/blog/2016/03/24/percona-how-to-field-names-and-document-size-in-mongodb/",
+          "note": null
+        },
+        {
+          "text": "Field names compress well in documents (the additional benefits of short field names are modest)",
+          "source": "https://www.mongodb.com/blog/post/new-compression-options-mongodb-30",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Facts and statements",
+      "facts": [
+        {
+          "text": "WiredTiger block compression covers collections (snappy default in 3.0, zlib optional) and prefix compression covers indexes; compression is page-level, so repeated field names across documents in a page compress well, while random and already-compressed binary data does not.",
+          "source": "https://www.mongodb.com/blog/post/new-compression-options-mongodb-30",
+          "note": null
+        },
+        {
+          "text": "In this blog post, we’ll discuss how shorter field names impact performance and document size in MongoDB.",
+          "source": "https://www.percona.com/blog/2016/03/24/percona-how-to-field-names-and-document-size-in-mongodb/",
+          "note": null
+        },
+        {
+          "text": "So I was tuning one of our services in order to speed up some MongoDB queries. Incidentally, my attention was caught by the size of one of the collections that contains archived objects and therefore is rarely used. Unfortunately I wasn’t able to reduce the size of the documents stored there, but I started to wonder: is it possible to store the same data in a more compact way? Mongo stores JSON that allows many different ways of expressing similar data, so there seems to be room for improvements.",
+          "source": "https://blog.allegro.tech/2021/01/impact-of-the-data-model-on-the-MongoDB-database-size.html",
+          "note": null
+        },
+        {
+          "text": "A watchful eye will notice that I used longer field names in the document after flattening. So instead of user.name and user.surname I made userName and userSurname. I did it automatically, a bit unconsciously, to make the resulting JSON more readable. However, if by changing only the schema of the document from compound to flat we managed to reduce the size of the data, maybe it is worth to go a step further and shorten the field names?",
+          "source": "https://blog.allegro.tech/2021/01/impact-of-the-data-model-on-the-MongoDB-database-size.html",
+          "note": null
+        },
+        {
+          "text": "TokuMX does not have this problem. With TokuMX, use whatever field name you want.",
+          "source": "https://www.percona.com/blog/tokumx-tip-create-any-field-name-you-want/",
+          "note": null
+        },
+        {
+          "text": "We generated random names and email addresses, so the actual data is not that naturally compressible. The first names were 10 random characters, the last name and email were each 20 random characters. If we used actual names and email addresses, the data would have compressed more, but that is not what wanted to test. We wanted to test the effect of field names.",
+          "source": "https://www.percona.com/blog/tokumx-tip-create-any-field-name-you-want/",
+          "note": null
+        },
+        {
+          "text": "In the beginning I decided to check ID fields. Not the collection primary key, mind you – it is ‘ObjectId’ type by default and generally shouldn’t be changed. I decided to focus on user and offers identifiers which, although numerical, are often saved as String in Mongo. I believe it comes partly due to the contract of our services - identifiers in JSON most often come as Strings and in this form they are later stored in our databases.",
+          "source": "https://blog.allegro.tech/2021/01/impact-of-the-data-model-on-the-MongoDB-database-size.html",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Disagreements",
+      "facts": [
+        {
+          "text": "Field names compress well in documents (the additional benefits of short field names are modest)",
+          "source": "https://www.mongodb.com/blog/post/new-compression-options-mongodb-30",
+          "note": null,
+          "group": "c1"
+        },
+        {
+          "text": "MongoDB's own guidance: field names compress well under WiredTiger block compression, so the additional benefit of short field names is modest; do not abbreviate to single letters because it obscures data.",
+          "source": "https://www.mongodb.com/blog/post/new-compression-options-mongodb-30",
+          "note": null,
+          "group": "c1"
+        },
+        {
+          "text": "BSON stores field names inside every document, so field-name length multiplies by document count. Allegro (MongoDB 4.4, snappy) measured a flat test document dropping from about 3.4MB to 2MB (about 40%) with shorter field names alone.",
+          "source": "https://blog.allegro.tech/2021/01/impact-of-the-data-model-on-the-MongoDB-database-size.html",
+          "note": null,
+          "group": "c1"
+        },
+        {
+          "text": "Compression sharply reduces the field-name saving: on uncompressed MongoDB 2.2.5, short names saved about 10% (22.47 GB to 20.42 GB, 100M synthetic docs); on TokuMX with zlib, long vs short names were 4.38 GB vs 4.27 GB (about 2.5%).",
+          "source": "https://www.percona.com/blog/tokumx-tip-create-any-field-name-you-want/",
+          "note": null,
+          "group": "c1"
+        },
+        {
+          "text": "Percona disputes treating compression as the whole story: document size also affects app memory, network transfer, the replication log, cache memory, compressor input and journal; only on-disk and journal involve compression. In its example, shorter field names cut a document from 54,879 to 41,392 bytes (about 25%).",
+          "source": "https://www.percona.com/blog/2016/03/24/percona-how-to-field-names-and-document-size-in-mongodb/",
+          "note": null,
+          "group": "c1"
+        },
+        {
+          "text": "Further, only the last two items in the list (“*” starred) represent any part of the system that has compression (to date). Put another way, the conversation about compression only covers about 25% of the discussion about field names. MongoDB Inc’s comment is trying to sidestep nearly 75% of the rest of the conversation.",
+          "source": "https://www.percona.com/blog/2016/03/24/percona-how-to-field-names-and-document-size-in-mongodb/",
+          "note": null,
+          "group": "c1"
+        },
+        {
+          "text": "With TokuMX with zlib (which is the default setting), short names saved about 2.5% of disk space (from 4.38 GB to 4.27 GB).",
+          "source": "https://www.percona.com/blog/tokumx-tip-create-any-field-name-you-want/",
+          "note": null,
+          "group": "c1"
+        },
+        {
+          "text": "So, the conclusion here is that the short field names are not buying much for TokuMX. Therefore, create whatever field name you want. Don’t worry about the storage usage, because compression will handle it.",
+          "source": "https://www.percona.com/blog/tokumx-tip-create-any-field-name-you-want/",
+          "note": null,
+          "group": "c1"
+        }
+      ]
+    }
+  ],
+  "related": [
+    {
+      "concept": "field name length",
+      "relation": "is a part of Schema Design for Storage Cost",
+      "note": "BSON stores field names inside every document"
+    },
+    {
+      "concept": "block compression interaction",
+      "relation": "is a dependent of Schema Design for Storage Cost",
+      "note": null
+    },
+    {
+      "concept": "storage cost",
+      "relation": "is a hypernym of Schema Design for Storage Cost",
+      "note": null
+    },
+    {
+      "concept": "TokuMX",
+      "relation": "is a instance of Schema Design for Storage Cost",
+      "note": null
+    },
+    {
+      "concept": "unnecessary indexes",
+      "relation": "is a problem of Schema Design for Storage Cost",
+      "note": null
+    },
+    {
+      "concept": "storage savings measurement",
+      "relation": "is a measure of Schema Design for Storage Cost",
+      "note": null
+    },
+    {
+      "concept": "value types",
+      "relation": "is a part of Schema Design for Storage Cost",
+      "note": null
+    },
+    {
+      "concept": "RAM and cache pressure",
+      "relation": "is a problem of Schema Design for Storage Cost",
+      "note": null
+    },
+    {
+      "concept": "BSON",
+      "relation": "is a part of Schema Design for Storage Cost",
+      "note": null
+    },
+    {
+      "concept": "null fields",
+      "relation": "is a part of Schema Design for Storage Cost",
+      "note": null
+    },
+    {
+      "concept": "embedding",
+      "relation": "is a part of Schema Design for Storage Cost",
+      "note": null
+    },
+    {
+      "concept": "document bloat",
+      "relation": "is a problem of Schema Design for Storage Cost",
+      "note": null
+    },
+    {
+      "concept": "index size",
+      "relation": "is a measure of Schema Design for Storage Cost",
+      "note": null
+    },
+    {
+      "concept": "$lookup trade-off",
+      "relation": "is a contrast of Schema Design for Storage Cost",
+      "note": null
+    }
+  ]
+}

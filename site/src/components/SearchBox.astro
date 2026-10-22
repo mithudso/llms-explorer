@@ -27,9 +27,9 @@ import meta from "../data/search-meta.json";
   <input
     type="search"
     id="semantic-search-input"
-    placeholder="Search the concept tree (semantic — try a question or a phrase)…"
+    placeholder="Search concepts — try a name, question, or phrase…"
     autocomplete="off"
-    aria-label="Semantic search over the concept tree"
+    aria-label="Search the concept tree"
   />
   <p id="semantic-search-status" role="status" aria-live="polite"></p>
   <ul id="semantic-search-results"></ul>
@@ -43,6 +43,7 @@ import meta from "../data/search-meta.json";
   // module actually runs — which is gated below on first user interaction,
   // not on page load.
   import type { FeatureExtractionPipeline } from "@huggingface/transformers";
+  import { keywordHits, type SearchItem } from "../scripts/concept-search";
   type Meta = { model: string; dim: number; count: number;
                 items: { slug: string; concept: string; summary: string }[] };
 
@@ -57,6 +58,7 @@ import meta from "../data/search-meta.json";
   let loadPromise: Promise<void> | null = null;
   let debounceTimer: ReturnType<typeof setTimeout> | undefined;
   let requestId = 0; // guards against an in-flight query resolving after a newer one
+  let keywordPromise: Promise<SearchItem[]> | null = null;
   const loadingMessage = "Loading the search model (one-time, ~30–90 MB, cached after)…";
 
   async function ensureLoaded(): Promise<void> {
@@ -103,15 +105,14 @@ import meta from "../data/search-meta.json";
     return scored.slice(0, k);
   }
 
-  function render(hits: { i: number; score: number }[]) {
+  function render(items: SearchItem[]) {
     results.innerHTML = "";
-    if (hits.length === 0) {
+    if (items.length === 0) {
       status.textContent = "No matches.";
       return;
     }
     status.textContent = "";
-    for (const h of hits) {
-      const item = meta.items[h.i];
+    for (const item of items) {
       const li = document.createElement("li");
       const a = document.createElement("a");
       a.href = `/tree/${item.slug}/`;
@@ -136,17 +137,34 @@ import meta from "../data/search-meta.json";
     }
     status.textContent = embedder ? "Searching…" : loadingMessage;
     let loaded = false;
+    let lexical: SearchItem[] = [];
     try {
+      keywordPromise ??= fetch("/search-keywords.json").then(async response => {
+        if (!response.ok) throw new Error(`search-keywords.json: ${response.status}`);
+        return (await response.json()).items;
+      }).catch(error => {
+        keywordPromise = null;
+        console.error("SearchBox: keyword index unavailable", error);
+        return [];
+      });
+      lexical = keywordHits(query, await keywordPromise);
+      if (id !== requestId) return;
+      if (lexical.length) render(lexical);
       await ensureLoaded();
       loaded = true;
       if (id !== requestId) return;
       status.textContent = "Searching…";
       const out = await embedder!(query, { pooling: "mean", normalize: true });
       if (id !== requestId) return;
-      const hits = cosineTopK(out.data as Float32Array, 8);
-      render(hits);
+      const semantic = cosineTopK(out.data as Float32Array, 8).map(hit => meta.items[hit.i]);
+      const merged = new Map([...lexical, ...semantic].map(item => [item.slug, item]));
+      render([...merged.values()].slice(0, 8));
     } catch (err) {
       if (id !== requestId) return;
+      if (lexical.length) {
+        status.textContent = "";
+        return;
+      }
       status.textContent = loaded
         ? "Search failed — reload this page to retry."
         : "Search model failed to load — edit your search to retry, or reload if it keeps failing.";

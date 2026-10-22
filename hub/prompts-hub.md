@@ -7,3 +7,8 @@
 - User request:
   - 1. I don't know what you mean by "persist these 25 gaps". If you mean commit your research and changes then yes, if you mean discard an hour of work so another process can look at them later, then no.
   - Make sure the concept trees in ~/dev/llms-explorer and ~/.global-ai-hub are updated with your findings and research. Add batch processing to the llms-explorer TUI, and then process the 686 row frontier labels.
+
+
+## Prompt — 2026-10-22 Cloudflare build repair
+
+The user restored Wrangler login and supplied a fine-grained GitHub key for private library access. Diagnose the Pages failure, configure encrypted credentials and verify the build while preserving private repositories.

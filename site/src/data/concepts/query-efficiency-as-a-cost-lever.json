@@ -1,0 +1,560 @@
+{
+  "slug": "query-efficiency-as-a-cost-lever",
+  "concept": "Query Efficiency as a Cost Lever",
+  "generated": "2026-10-19",
+  "summary": "Inefficient queries (collection scans, high scanned-to-returned ratios) burn CPU, disk I/O and WiredTiger cache, which can push a team toward a larger Atlas cluster tier; Atlas surfaces the signal through Query Targeting alerts (default 1000:1, ideal near 1), the Query Profiler and Performance Advisor index suggestions ranked by Impact, covered queries skip document reads, and every unused or redundant index adds write cost, storage and cache pressure. Drawn from 7 sources (MongoDB Atlas and manual pages, a community forum thread, Netdata and OneUptime guides, a third-party blog), covering definitions, mechanisms, parameters, how-to, measures and problems; no source states a measured tier reduction from tuning, and the evidence on the write penalty of many indexes is thin and disputed.",
+  "facets": [
+    {
+      "title": "Definitions",
+      "facts": [
+        {
+          "text": "A covered query is answered entirely from an index with no document reads. It requires all queried and returned fields in the index, _id excluded in the projection unless indexed, no null comparisons, and no array-field coverage on multikey indexes. On sharded collections the index must contain the shard key. MongoDB attributes the speed to index keys being smaller than documents and typically in RAM.",
+          "source": "https://www.mongodb.com/docs/manual/core/query-optimization/",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "How it works",
+      "facts": [
+        {
+          "text": "Overlapping indexes are redundant: Performance Advisor de-duplicates suggestions so only { a: 1, b: 1 } is suggested when { a: 1 } is its prefix.",
+          "source": "https://www.mongodb.com/docs/atlas/performance-advisor/index-ranking/",
+          "note": null
+        },
+        {
+          "text": "The Query Profiler contains several metrics you can use to pinpoint specific inefficient queries. You can visualize up to the past 24 hours of query operations. The Query Profiler can show the Examined : Returned Ratio (index keys examined to documents returned) of logged queries, which might help you identify the queries that triggered a Query Targeting: Scanned / Returned alert. The chart shows the number of index keys examined to fulfill a query relative to the actual number of returned documents.",
+          "source": "https://mongodb.com/docs/atlas/reference/alert-resolutions/query-targeting",
+          "note": null
+        },
+        {
+          "text": "The query targeting alert typically occurs when there is no index to support a query or queries or when an existing index only partially supports a query or queries.",
+          "source": "https://mongodb.com/docs/atlas/reference/alert-resolutions/query-targeting",
+          "note": null
+        },
+        {
+          "text": "$indexStats counters reset on mongod restart and internal operations can inflate them. Wait a full workload cycle (24h+ of normal load) before treating zero usage as removable, run it per shard primary on sharded clusters (not on mongos), and exclude _id and unique indexes.",
+          "source": "https://www.netdata.cloud/guides/mongodb/mongodb-unused-indexes/",
+          "note": null
+        },
+        {
+          "text": "Every insert and delete updates all indexes on a MongoDB collection; every update that modifies an indexed field updates every index containing that field. An unused index consumes WiredTiger cache space, increases write latency, and amplifies disk I/O. Over time, redundant indexes accumulate from schema migrations, abandoned query patterns, and exploratory tuning.",
+          "source": "https://www.netdata.cloud/guides/mongodb/mongodb-unused-indexes/",
+          "note": null
+        },
+        {
+          "text": "Query optimization improves the efficiency of read operations by reducing the amount of data that query operations need to process. Use indexes, projections, and query limits to enhance query performance and reduce resource consumption.",
+          "source": "https://www.mongodb.com/docs/manual/core/query-optimization/",
+          "note": null
+        },
+        {
+          "text": "Query Targeting: Scanned Objects / Returned alerts are triggered when the average number of documents scanned relative to the average number of documents returned server-wide across all operations during a sampling period exceeds a defined threshold. The default alert uses a 1000:1 threshold.",
+          "source": "https://mongodb.com/docs/atlas/reference/alert-resolutions/query-targeting",
+          "note": null
+        },
+        {
+          "text": "Write amplification. Every insert adds entries to all indexes. Every update that changes an indexed field deletes the old entry and inserts a new one in each affected index. Every delete removes entries from all indexes. An unnecessary index adds sustained disk I/O and CPU overhead to every write.",
+          "source": "https://www.netdata.cloud/guides/mongodb/mongodb-unused-indexes/",
+          "note": null
+        },
+        {
+          "text": "To establish recommended indexes, the Performance Advisor uses these metrics in a formula to calculate the Impact, or performance improvement that creating an index matching that query shape would cause. When the Performance Advisor suggests indexes, it ranks the indexes by their Impact. The Impact is determined by the total wasted bytes read.",
+          "source": "https://www.mongodb.com/docs/atlas/performance-advisor/index-ranking/",
+          "note": null
+        },
+        {
+          "text": "Since { a : 1 } is a prefix of { a : 1, b : 1 }, Performance Advisor suggests only { a : 1, b : 1 }. To learn more about index prefixes, see Prefixes.",
+          "source": "https://www.mongodb.com/docs/atlas/performance-advisor/index-ranking/",
+          "note": null
+        },
+        {
+          "text": "In a write-heavy environment, maintaining multiple indexes can lead to write amplification, where each insert, update, or delete involves modifying multiple structures (the data itself and the corresponding indexes), which drastically increases disk I/O.",
+          "source": "https://mongodb.com/community/forums/t/performance-impact-of-955-indexes-in-one-database/300227",
+          "note": null
+        },
+        {
+          "text": "Query optimization can occur both during development and later as your data usage and demand changes. As collections grow, a periodic review of query performance can help determine when clusters need to scale up or scale out.",
+          "source": "https://www.mongodb.com/docs/manual/core/query-optimization/",
+          "note": null
+        },
+        {
+          "text": "When you need a subset of fields from documents, you can improve performance by returning only the fields you need. Projections reduce network traffic and processing time.",
+          "source": "https://www.mongodb.com/docs/manual/core/query-optimization/",
+          "note": null
+        },
+        {
+          "text": "A covered query is a query that can be satisfied entirely using an index and doesn't have to examine any documents. An index covers a query when all of the following apply:",
+          "source": "https://www.mongodb.com/docs/manual/core/query-optimization/",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Parameters and configuration",
+      "facts": [
+        {
+          "text": "The default Query Targeting: Scanned Objects / Returned alert ratio differs slightly. The ratio of the average number of documents scanned to the average number of documents returned during a sampling period triggers this alert.",
+          "source": "https://mongodb.com/docs/atlas/reference/alert-resolutions/query-targeting",
+          "note": null
+        },
+        {
+          "text": "Also, the Performance Advisor suggests the index only if the difference between scanned documents and returned documents is greater than 500 for impacted queries.",
+          "source": "https://www.mongodb.com/docs/atlas/performance-advisor/index-ranking/",
+          "note": null
+        },
+        {
+          "text": "The Performance Advisor monitors queries that take longer than 100 milliseconds to execute and groups these queries into common query shapes. The Performance Advisor calculates the inefficiency of each query shape by considering the following aggregated metrics from queries which match the shape:",
+          "source": "https://www.mongodb.com/docs/atlas/performance-advisor/index-ranking/",
+          "note": null
+        },
+        {
+          "text": "The Performance Advisor doesn't suggest indexes that have more than 16 fields.",
+          "source": "https://www.mongodb.com/docs/atlas/performance-advisor/index-ranking/",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "How-to and procedures",
+      "facts": [
+        {
+          "text": "Index Analysis: Perform an audit of your indexes using the MongoDB explain function or the $indexStats command. Identify unused or underutilized indexes and remove them. Fewer indexes will reduce the write amplification problem and improve write performance.",
+          "source": "https://mongodb.com/community/forums/t/performance-impact-of-955-indexes-in-one-database/300227",
+          "note": null
+        },
+        {
+          "text": "flowchart TD A[Run $indexStats] --> B{Uptime > 24h?} B -->|No| C[Wait and re-check] B -->|Yes| D{Ops == 0?} D -->|No| E[Keep index] D -->|Yes| F{Redundant prefix?} F -->|Yes| G[Drop single-field index] F -->|No| H{Shard confirms unused?} H -->|No| E H -->|Yes| I[Drop during low traffic] I --> J[Monitor slow queries]",
+          "source": "https://www.netdata.cloud/guides/mongodb/mongodb-unused-indexes/",
+          "note": null
+        },
+        {
+          "text": "Correlate zero-ops indexes from $indexStats with MongoDB opcounters and opLatencies metrics to measure write amplification before and after removal.",
+          "source": "https://www.netdata.cloud/guides/mongodb/mongodb-unused-indexes/",
+          "note": null
+        },
+        {
+          "text": "Monitor WiredTiger cache dirty ratio and eviction rates to observe cache pressure relief after dropping large unused indexes.",
+          "source": "https://www.netdata.cloud/guides/mongodb/mongodb-unused-indexes/",
+          "note": null
+        },
+        {
+          "text": "Right-sizing MongoDB Atlas clusters requires collecting 2 weeks of CPU, memory, cache hit rate, and IOPS metrics, applying standard thresholds to identify over-provisioned tiers, verifying cache hit rates above 90% before downsizing, performing tier changes during low-traffic windows, and monitoring for 48 hours after changes. Enable auto-scaling as a safety net to handle unexpected load spikes after right-sizing.",
+          "source": "https://oneuptime.com/blog/post/2026-03-31-mongodb-right-size-atlas-clusters/markdown#summary",
+          "note": null
+        },
+        {
+          "text": "Add one or more indexes to better serve the inefficient queries.",
+          "source": "https://mongodb.com/docs/atlas/reference/alert-resolutions/query-targeting",
+          "note": null
+        },
+        {
+          "text": "To determine whether a query is a covered query, use the db.collection.explain() or the explain() method. See Covered Queries.",
+          "source": "https://www.mongodb.com/docs/manual/core/query-optimization/",
+          "note": null
+        },
+        {
+          "text": "Audit and optimize your indexes—remove unused or redundant indexes and switch to compound or partial indexes where applicable.",
+          "source": "https://mongodb.com/community/forums/t/performance-impact-of-955-indexes-in-one-database/300227",
+          "note": null
+        },
+        {
+          "text": "```text — `1. Opcounters - operations per second (helps size for throughput)` …",
+          "source": "https://oneuptime.com/blog/post/2026-03-31-mongodb-right-size-atlas-clusters/markdown#step-4-review-atlas-metrics-dashboard",
+          "note": null
+        },
+        {
+          "text": "To achieve a covered query, you must index projected fields. The ESR (Equality, Sort, Range) rule applies to the order of fields in the index.",
+          "source": "https://www.mongodb.com/docs/manual/core/query-optimization/",
+          "note": null
+        },
+        {
+          "text": "Uptime. The mongod process has been running for at least 24 hours under a representative workload. $indexStats counters reset on restart.",
+          "source": "https://www.netdata.cloud/guides/mongodb/mongodb-unused-indexes/",
+          "note": null
+        },
+        {
+          "text": "Run $indexStats as the first stage in an aggregation pipeline. It returns one document per index with fields including name, key, host, and an accesses document containing ops and a since timestamp.",
+          "source": "https://www.netdata.cloud/guides/mongodb/mongodb-unused-indexes/",
+          "note": null
+        },
+        {
+          "text": "Track slow query patterns and COLLSCAN indicators after index changes to catch regressions immediately.",
+          "source": "https://www.netdata.cloud/guides/mongodb/mongodb-unused-indexes/",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Examples and snippets",
+      "facts": [
+        {
+          "text": "db.collection.getIndexes() # View indexes db.collection.aggregate([ { $indexStats: {} } ]) # Get index usage stats",
+          "source": "https://mongodb.com/community/forums/t/performance-impact-of-955-indexes-in-one-database/300227",
+          "note": null
+        },
+        {
+          "text": "// Check index usage for a single collection db.collection.aggregate([{ $indexStats: {} }])",
+          "source": "https://www.netdata.cloud/guides/mongodb/mongodb-unused-indexes/",
+          "note": null
+        },
+        {
+          "text": "db.getCollectionNames().forEach(function(coll) { print(\"=== \" + coll + \" ===\"); db[coll].aggregate([{ $indexStats: {} }]).forEach(function(idx) { print(\" \" + idx.name + \": \" + idx.accesses.ops + \" ops\"); }); });",
+          "source": "https://www.netdata.cloud/guides/mongodb/mongodb-unused-indexes/",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Measurements and reference values",
+      "facts": [
+        {
+          "text": "Performance Advisor watches queries slower than 100 ms, groups them by shape, ranks suggested indexes by Impact (total wasted bytes read), and suggests an index only when scanned minus returned documents exceeds 500. The Impact formula is not published.",
+          "source": "https://www.mongodb.com/docs/atlas/performance-advisor/index-ranking/",
+          "note": null
+        },
+        {
+          "text": "No official MongoDB source found that quantifies or states that query/index tuning lets a cluster drop a tier. The query-targeting and Performance Advisor pages describe only performance impact, not cost. The tuning-to-smaller-tier link is an inference; third-party guidance suggests collecting about two weeks of metrics and checking cache hit rate above 90% before downsizing.",
+          "source": "https://oneuptime.com/blog/post/2026-03-31-mongodb-right-size-atlas-clusters/markdown",
+          "note": null
+        },
+        {
+          "text": "Write latency. Removing an unnecessary index should reduce per-write overhead. Compare opLatencies.writes before and after removal to confirm improvement.",
+          "source": "https://www.netdata.cloud/guides/mongodb/mongodb-unused-indexes/",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Problems, failure modes and limitations",
+      "facts": [
+        {
+          "text": "It is possible to receive a Query Targeting alert for an inefficient query without receiving index suggestions from the Performance Advisor if the query exceeds the slow query threshold and the ratio of scanned to returned documents is greater than the threshold specified in the alert.",
+          "source": "https://mongodb.com/docs/atlas/reference/alert-resolutions/query-targeting",
+          "note": null
+        },
+        {
+          "text": "The change streams cursors that the MongoDB Search process (mongot) uses to keep MongoDB Search indexes updated can contribute to the query targeting ratio and trigger query targeting alerts if the ratio is high.",
+          "source": "https://mongodb.com/docs/atlas/reference/alert-resolutions/query-targeting",
+          "note": null
+        },
+        {
+          "text": "Slow query log. A missing index often appears as COLLSCAN or as a sudden increase in the docsExamined to docsReturned ratio. Look for these patterns in the log.",
+          "source": "https://www.netdata.cloud/guides/mongodb/mongodb-unused-indexes/",
+          "note": null
+        },
+        {
+          "text": "On write-heavy workloads, each extra index adds fixed overhead to every write. In WiredTiger, index pages compete with documents for cache space. A large unused index reduces the RAM available to active data, forcing eviction threads to work harder. If eviction cannot keep pace, application threads perform page eviction directly, adding latency. Dropping an index based on stale statistics is a reliable way to turn a healthy query into a collection scan.",
+          "source": "https://www.netdata.cloud/guides/mongodb/mongodb-unused-indexes/",
+          "note": null
+        },
+        {
+          "text": "Indexes are great, but too many indexes can cause slower writes. That's because MongoDB also needs to update indexes when you update a document.",
+          "source": "https://thecodebarbarian.com/when-should-you-use-mongodb-indexes.html",
+          "note": null
+        },
+        {
+          "text": "The Performance Advisor provides the easiest and quickest way to create an index. The Performance Advisor monitors queries that MongoDB considers slow and recommends indexes to improve performance. Atlas dynamically adjusts your slow query threshold based on the execution time of operations across your cluster.",
+          "source": "https://mongodb.com/docs/atlas/reference/alert-resolutions/query-targeting",
+          "note": null
+        },
+        {
+          "text": "The performance issues you’re seeing—such as write queues, replication lag, and disk latency—are likely due to the combination of write-heavy workloads, a large number of collections with a high number of indexes, and suboptimal disk performance. Here’s an analysis of the potential performance impacts and strategies to mitigate them.",
+          "source": "https://mongodb.com/community/forums/t/performance-impact-of-955-indexes-in-one-database/300227",
+          "note": "forum answer attributes the slowness to several causes"
+        },
+        {
+          "text": "You may face dhandle(data handles) issue based on the count of your Collections and Indexes assuming you have other databases in this server apart from above mentioned one, Around 4 months ago we faced same issue in one of our on-premise replica set deployment which results in delayed checkpointing time, occasional operation failures and slow operation times.",
+          "source": "https://mongodb.com/community/forums/t/performance-impact-of-955-indexes-in-one-database/300227",
+          "note": null
+        },
+        {
+          "text": "What we have noticed is that since it is a write heavy deployment (Real Time metadata system) and popular collections grow quite quickly, we start to see write queues, an increase in replication lag and disk latency at 999ms (7200rpm disks) even though those collection sizes have only reached 400GB.",
+          "source": "https://mongodb.com/community/forums/t/performance-impact-of-955-indexes-in-one-database/300227",
+          "note": null
+        },
+        {
+          "text": "As collection sizes increase, disk seeks and I/O wait times will compound, leading to slower writes and an accumulation of operations in the write queue.",
+          "source": "https://mongodb.com/community/forums/t/performance-impact-of-955-indexes-in-one-database/300227",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Comparisons and alternatives",
+      "facts": [
+        {
+          "text": "Write-penalty magnitude is workload dependent. One author benchmark (N=1, laptop, 1000-index vs no-index updates) showed about 50% slower writes at 1000 indexes and a minimal penalty at 100 indexes or fewer, assuming indexes fit in RAM. A MongoDB forum thread on ~14 indexes per collection attributes slowness to mixed causes (many collections, dhandle count, disk) rather than index count alone.",
+          "source": "https://thecodebarbarian.com/when-should-you-use-mongodb-indexes.html",
+          "note": null
+        },
+        {
+          "text": "Atlas Scanned Objects / Returned alert fires when the server-wide average of documents scanned versus returned exceeds a threshold; the default is 1000:1. The Scanned / Returned alert (index keys examined) is not enabled by default. The ideal ratio is close to 1.",
+          "source": "https://mongodb.com/docs/atlas/reference/alert-resolutions/query-targeting",
+          "note": null
+        },
+        {
+          "text": "Immediately after removal, check the MongoDB slow query log for COLLSCAN on the affected collection. Run explain(\"executionStats\") on critical query shapes to confirm they still use an efficient index plan rather than scanning the collection.",
+          "source": "https://www.netdata.cloud/guides/mongodb/mongodb-unused-indexes/",
+          "note": null
+        },
+        {
+          "text": "Query plan changes. After removal, the optimizer may choose a different existing index. A query that used a dropped index might switch to another index rather than a COLLSCAN. Verify with explain() on critical query shapes.",
+          "source": "https://www.netdata.cloud/guides/mongodb/mongodb-unused-indexes/",
+          "note": null
+        },
+        {
+          "text": "The Atlas Query Profiler records operations that Atlas considers slow when compared to average execution time for all operations on your cluster.",
+          "source": "https://mongodb.com/docs/atlas/reference/alert-resolutions/query-targeting",
+          "note": null
+        },
+        {
+          "text": "In my experiences, indexes are not useful for small collections. I'd argue that if a collection has less than 10k documents, indexes don't give you much benefit. That's because collection scans are nearly instantaneous on 10k document collections, assuming the database isn't under high load.",
+          "source": "https://thecodebarbarian.com/when-should-you-use-mongodb-indexes.html",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Facts and statements",
+      "facts": [
+        {
+          "text": "A Query Targeting alert can fire with no Performance Advisor suggestion, so advisor output is not a complete list of inefficient queries; use explain(), Query Profiler or Namespace Insights too.",
+          "source": "https://mongodb.com/docs/atlas/reference/alert-resolutions/query-targeting",
+          "note": null
+        },
+        {
+          "text": "Every index must be updated on each write. Updates that change an indexed field remove and reinsert the entry in each affected index, so unused indexes add sustained disk I/O and CPU per write.",
+          "source": "https://www.mongodb.com/docs/manual/core/query-optimization/",
+          "note": null
+        },
+        {
+          "text": "In WiredTiger, index pages compete with documents for cache space, so a large unused index reduces memory for active data and can raise latency via application-thread eviction.",
+          "source": "https://www.netdata.cloud/guides/mongodb/mongodb-unused-indexes/",
+          "note": null
+        },
+        {
+          "text": "Atlas might not log the individual operations that contribute to the Query Targeting ratios due to automatically set thresholds. However, you can still use the Query Profiler and Query Targeting metrics to analyze and optimize query performance.",
+          "source": "https://mongodb.com/docs/atlas/reference/alert-resolutions/query-targeting",
+          "note": null
+        },
+        {
+          "text": "Query Targeting alerts often indicate inefficient queries.",
+          "source": "https://mongodb.com/docs/atlas/reference/alert-resolutions/query-targeting",
+          "note": null
+        },
+        {
+          "text": "Query Targeting: Scanned / Returned occurs if the number of index keys examined to fulfill a query relative to the actual number of returned documents meets or exceeds a user-defined threshold. This alert is not enabled by default.",
+          "source": "https://mongodb.com/docs/atlas/reference/alert-resolutions/query-targeting",
+          "note": null
+        },
+        {
+          "text": "The Query Profiler, which describes specific inefficient queries executed on the cluster.",
+          "source": "https://mongodb.com/docs/atlas/reference/alert-resolutions/query-targeting",
+          "note": null
+        },
+        {
+          "text": "If either of these metrics exceed the user-defined threshold, Atlas generates the corresponding Query Targeting: Scanned Objects / Returned or Query Targeting: Scanned / Returned alert.",
+          "source": "https://mongodb.com/docs/atlas/reference/alert-resolutions/query-targeting",
+          "note": null
+        },
+        {
+          "text": "The Performance Advisor de-duplicates overlapping indexes before it makes suggestions. For example, consider if the Performance Advisor calculates the following potential suggested indexes:",
+          "source": "https://www.mongodb.com/docs/atlas/performance-advisor/index-ranking/",
+          "note": null
+        },
+        {
+          "text": "Ideally, the ratio of scanned documents to returned documents should be close to 1. A high ratio negatively impacts query performance.",
+          "source": "https://mongodb.com/docs/atlas/reference/alert-resolutions/query-targeting",
+          "note": null
+        },
+        {
+          "text": "Query Targeting metrics, which highlight high ratios of objects scanned to objects returned.",
+          "source": "https://mongodb.com/docs/atlas/reference/alert-resolutions/query-targeting",
+          "note": null
+        },
+        {
+          "text": "You can also view Query Targeting ratios of operations in real-time using the Real-Time Performance Panel.",
+          "source": "https://mongodb.com/docs/atlas/reference/alert-resolutions/query-targeting",
+          "note": null
+        },
+        {
+          "text": "Learn how to right-size MongoDB Atlas clusters by analyzing CPU, memory, disk I/O, and connection metrics to select the optimal instance tier.",
+          "source": "https://oneuptime.com/blog/post/2026-03-31-mongodb-right-size-atlas-clusters/markdown",
+          "note": null
+        },
+        {
+          "text": "The Performance Advisor orders the indexes that it suggests by their respective Impact. Impact indicates the estimated performance improvement that the suggested index would bring.",
+          "source": "https://www.mongodb.com/docs/atlas/performance-advisor/index-ranking/",
+          "note": null
+        },
+        {
+          "text": "The type of query operation in the query shape affects the order of the fields used to construct the index. In general, the Performance Advisor ranks fields by their cardinality.",
+          "source": "https://www.mongodb.com/docs/atlas/performance-advisor/index-ranking/",
+          "note": null
+        },
+        {
+          "text": "if a write heavy single database split between 119 collections has an accumulation of 955 indexes, with an average of 14 indexes for each collection - what would the performance impact be?",
+          "source": "https://mongodb.com/community/forums/t/performance-impact-of-955-indexes-in-one-database/300227",
+          "note": null
+        },
+        {
+          "text": "The $indexStats aggregation stage exposes per-index operation counts, but counters reset on mongod restart and internal operations can inflate values. This guide covers detecting truly unused indexes, validating redundancy, and removing them without causing query regressions.",
+          "source": "https://www.netdata.cloud/guides/mongodb/mongodb-unused-indexes/",
+          "note": null
+        },
+        {
+          "text": "MongoDB indexes are key to getting consistent performance on large MongoDB collections. But MongoDB warns that too many indexes can also be bad for performance. So how many is \"too many\"? In this article, I'll run some basic experiments and provide some heuristics that I use to determine when indexes are necessary and when you have too many indexes.",
+          "source": "https://thecodebarbarian.com/when-should-you-use-mongodb-indexes.html",
+          "note": null
+        },
+        {
+          "text": "Cache pressure. Fewer indexes mean less cache churn per write. Watch the WiredTiger cache dirty ratio for downward pressure after cleanup.",
+          "source": "https://www.netdata.cloud/guides/mongodb/mongodb-unused-indexes/",
+          "note": null
+        },
+        {
+          "text": "For the specified index to cover the query, the projection document must explicitly specify _id: 0 to exclude the _id field from the result since the index doesn't include the _id field.",
+          "source": "https://www.mongodb.com/docs/manual/core/query-optimization/",
+          "note": null
+        },
+        {
+          "text": "This query scanned 10,000 documents and returned only 4 for a ratio of 2500, which is highly inefficient. No index keys were examined, so MongoDB scanned all documents in the collection, known as a collection scan.",
+          "source": "https://mongodb.com/docs/atlas/reference/alert-resolutions/query-targeting",
+          "note": null
+        },
+        {
+          "text": "Indicates the average number of documents examined relative to the average number of returned documents.",
+          "source": "https://mongodb.com/docs/atlas/reference/alert-resolutions/query-targeting",
+          "note": null
+        },
+        {
+          "text": "Indicates the number of index keys examined to fulfill a query relative to the actual number of returned documents.",
+          "source": "https://mongodb.com/docs/atlas/reference/alert-resolutions/query-targeting",
+          "note": null
+        },
+        {
+          "text": "Namespace Insights monitors collection-level query latency. You can view query latency metrics and statistics for certain hosts and operation types. Manage pinned namespaces and choose up to five namespaces to show in the corresponding query latency charts.",
+          "source": "https://mongodb.com/docs/atlas/reference/alert-resolutions/query-targeting",
+          "note": null
+        },
+        {
+          "text": "Disk and cache space. Index entries live in WiredTiger files on disk and are cached in memory. A large unused index reduces the cache available to active documents. On disk, the index contributes to storageSize that WiredTiger does not automatically return to the filesystem after data deletes.",
+          "source": "https://www.netdata.cloud/guides/mongodb/mongodb-unused-indexes/",
+          "note": null
+        },
+        {
+          "text": "On a sharded cluster, run this command on each shard primary individually. $indexStats on a mongos does not aggregate statistics across shards.",
+          "source": "https://www.netdata.cloud/guides/mongodb/mongodb-unused-indexes/",
+          "note": null
+        },
+        {
+          "text": "In sharded collections, $indexStats is local to each shard primary. An index may show zero usage on one shard but serve queries on another. Connect to each shard primary, run the command, and sum accesses.ops across all shards before concluding an index is globally unused.",
+          "source": "https://www.netdata.cloud/guides/mongodb/mongodb-unused-indexes/",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Disagreements",
+      "facts": [
+        {
+          "text": "The performance issues you’re seeing—such as write queues, replication lag, and disk latency—are likely due to the combination of write-heavy workloads, a large number of collections with a high number of indexes, and suboptimal disk performance. Here’s an analysis of the potential performance impacts and strategies to mitigate them.",
+          "source": "https://mongodb.com/community/forums/t/performance-impact-of-955-indexes-in-one-database/300227",
+          "note": "forum answer attributes the slowness to several causes",
+          "group": "c1"
+        },
+        {
+          "text": "In a write-heavy environment, maintaining multiple indexes can lead to write amplification, where each insert, update, or delete involves modifying multiple structures (the data itself and the corresponding indexes), which drastically increases disk I/O.",
+          "source": "https://mongodb.com/community/forums/t/performance-impact-of-955-indexes-in-one-database/300227",
+          "note": null,
+          "group": "c1"
+        },
+        {
+          "text": "Indexes are great, but too many indexes can cause slower writes. That's because MongoDB also needs to update indexes when you update a document.",
+          "source": "https://thecodebarbarian.com/when-should-you-use-mongodb-indexes.html",
+          "note": null,
+          "group": "c1"
+        },
+        {
+          "text": "Every index must be updated on each write. Updates that change an indexed field remove and reinsert the entry in each affected index, so unused indexes add sustained disk I/O and CPU per write.",
+          "source": "https://www.mongodb.com/docs/manual/core/query-optimization/",
+          "note": null,
+          "group": "c1"
+        },
+        {
+          "text": "Write-penalty magnitude is workload dependent. One author benchmark (N=1, laptop, 1000-index vs no-index updates) showed about 50% slower writes at 1000 indexes and a minimal penalty at 100 indexes or fewer, assuming indexes fit in RAM. A MongoDB forum thread on ~14 indexes per collection attributes slowness to mixed causes (many collections, dhandle count, disk) rather than index count alone.",
+          "source": "https://thecodebarbarian.com/when-should-you-use-mongodb-indexes.html",
+          "note": null,
+          "group": "c1"
+        }
+      ]
+    }
+  ],
+  "related": [
+    {
+      "concept": "index selection",
+      "relation": "is a part of Query Efficiency as a Cost Lever",
+      "note": null
+    },
+    {
+      "concept": "unused indexes",
+      "relation": "is a problem of Query Efficiency as a Cost Lever",
+      "note": null
+    },
+    {
+      "concept": "Performance Advisor",
+      "relation": "is a instance of Query Efficiency as a Cost Lever",
+      "note": null
+    },
+    {
+      "concept": "scanned-to-returned ratio",
+      "relation": "is a measure of Query Efficiency as a Cost Lever",
+      "note": "Atlas alert default 1000:1; ideal close to 1"
+    },
+    {
+      "concept": "alert threshold",
+      "relation": "is a measure of Query Efficiency as a Cost Lever",
+      "note": null
+    },
+    {
+      "concept": "index write cost",
+      "relation": "is a problem of Query Efficiency as a Cost Lever",
+      "note": null
+    },
+    {
+      "concept": "query shape",
+      "relation": "is a part of Query Efficiency as a Cost Lever",
+      "note": null
+    },
+    {
+      "concept": "covered query",
+      "relation": "is a part of Query Efficiency as a Cost Lever",
+      "note": null
+    },
+    {
+      "concept": "WiredTiger cache pressure",
+      "relation": "is a problem of Query Efficiency as a Cost Lever",
+      "note": null
+    },
+    {
+      "concept": "cost",
+      "relation": "is a hypernym of Query Efficiency as a Cost Lever",
+      "note": null
+    },
+    {
+      "concept": "collection scan",
+      "relation": "is a problem of Query Efficiency as a Cost Lever",
+      "note": null
+    },
+    {
+      "concept": "cluster tier",
+      "relation": "is a dependent of Query Efficiency as a Cost Lever",
+      "note": null
+    },
+    {
+      "concept": "explain",
+      "relation": "is a instance of Query Efficiency as a Cost Lever",
+      "note": null
+    }
+  ]
+}

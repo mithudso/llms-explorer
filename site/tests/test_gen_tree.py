@@ -109,6 +109,43 @@ def test_the_real_tree_describes_the_nodes_whose_skill_is_vendored():
     assert all(len(n["skillSummary"]) <= gen_tree.SKILL_SUMMARY_CHARS for n in described)
 
 
+def test_build_sanitizes_node_summaries_without_mutating_inputs(tmp_path, monkeypatch):
+    repo = _repo(tmp_path)
+    path = repo / "concept-tree/tree.json"
+    rows = json.loads(path.read_text())
+    home = "/Users/" + "operator/private/notes"
+    email = "person@" + "research-customer.dev"
+    rows[0]["summary"] = f"Use {home}, {email} and PrivateWorkspace. " + "Evidence. " * 80
+    path.write_text(json.dumps(rows))
+    before = path.read_bytes()
+    monkeypatch.setenv("PRIVACY_DENYLIST", "PrivateWorkspace")
+    summary = gen_tree.build(repo)["nodes"]["root"]["summary"]
+    assert home not in summary and email not in summary and "PrivateWorkspace" not in summary
+    assert len(summary) > 400
+    assert path.read_bytes() == before
+
+
+@pytest.mark.parametrize("source", [".claude", ".agents", "vendored"])
+def test_skill_summaries_scrub_private_prose_before_truncating(tmp_path, monkeypatch, source):
+    repo = _repo(tmp_path)
+    private_path = "/Users/" + "operator/private/notes"
+    private_name = "Private" + "Workspace"
+    text = "Use " + private_path + " for " + private_name + ". Contact analyst@corp.invalid."
+    monkeypatch.setenv("PRIVACY_DENYLIST", private_name)
+    if source == "vendored":
+        (repo / "concept-tree/skill-summaries.json").write_text(json.dumps({"root-skill": text}))
+    else:
+        skill = repo / source / "skills/root-skill/SKILL.md"
+        skill.parent.mkdir(parents=True)
+        skill.write_text("---\nname: root-skill\n---\n# Heading\n" + text)
+    summary = gen_tree.build(repo)["nodes"]["root"]["skillSummary"]
+    assert private_path not in summary and private_name not in summary
+    assert "analyst@corp.invalid" in summary, "reserved examples remain public"
+    assert "~/private/notes" in summary and "[redacted]" in summary
+    boundary = "x" * (gen_tree.SKILL_SUMMARY_CHARS - 5) + private_path
+    assert "operator" not in gen_tree.publication_summary(boundary)
+
+
 def test_real_tree_builds():
     out = gen_tree.build(SITE.parent)
     assert len(out["nodes"]) >= 30 and len(out["roots"]) >= 1

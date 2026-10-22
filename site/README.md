@@ -210,6 +210,21 @@ on `../hub/.venv`, which only exists after `hub/bootstrap.sh`. That is why the
 build command bootstraps first (`--no-tests`: Pages builds the site, CI runs
 the tests). The build image must have `python3`.
 
+Pages preview and production must each have an encrypted `LIBS_READ_TOKEN`.
+Use a fine-grained GitHub token restricted to `mithudso/ollama-client` and
+`mithudso/llms-txt`, with Contents read-only permission. The latter supplies the
+site's llms validator. `hub/bootstrap.sh` passes the token through Git askpass;
+it does not put credentials in clone URLs or Git configuration. Enter the token
+at Wrangler's hidden terminal prompt, once for each environment:
+
+```sh
+npx wrangler pages secret put LIBS_READ_TOKEN --project-name llms-explorer --env preview
+npx wrangler pages secret put LIBS_READ_TOKEN --project-name llms-explorer --env production
+```
+
+GitHub Actions secrets are separate from Pages secrets. A working Actions
+`LIBS_READ_TOKEN` does not configure Cloudflare automatically.
+
 | GitHub secret | Why |
 |---|---|
 | `PROMOTE_TOKEN` | a bot PAT with `contents:write`, used by the `promote` job. With the default `GITHUB_TOKEN` the fast-forward to `main` still lands but does not re-trigger Actions, so the main-only link check never runs on a promoted commit. |

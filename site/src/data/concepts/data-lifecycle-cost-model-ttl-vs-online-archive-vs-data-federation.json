@@ -1,0 +1,600 @@
+{
+  "slug": "data-lifecycle-cost-model-ttl-vs-online-archive-vs-data-federation",
+  "concept": "Data Lifecycle Cost Model (TTL vs Online Archive vs Data Federation)",
+  "generated": "2026-10-19",
+  "summary": "The cost choices for aging MongoDB Atlas data: a TTL index deletes expired documents (the data is gone), Online Archive moves infrequently accessed data to managed, read-only cloud object storage where it stays queryable through a federated endpoint, and Atlas Data Federation queries archived data or your own S3 bucket and bills data processed and data returned. Drawn from 6 sources (MongoDB manual and Atlas billing docs, a community forum thread, a third-party blog), covering definitions, mechanisms, how-to, parameters, billing measures, limits and comparisons.",
+  "facets": [
+    {
+      "title": "Definitions",
+      "facts": [
+        {
+          "text": "Atlas Online Archive automatically moves documents older than a configurable age from an Atlas cluster to fully managed S3-based object storage. The archived data remains queryable through a federated endpoint - you do not lose access to it. This reduces cluster storage costs while maintaining query access to historical data.",
+          "source": "https://oneuptime.com/blog/post/2026-03-31-mongodb-atlas-online-archive/markdown#what-is-atlas-online-archive",
+          "note": null
+        },
+        {
+          "text": "The MongoDB Online Archival feature is a fully managed service in which moves infrequently accessed data from your Atlas cluster to a MongoDB-managed read-only Federated Database Instance on a cloud object storage. In saying so, for using a managed service for archival, such as Atlas to S3, one should use Online Archival as:",
+          "source": "https://mongodb.com/community/forums/t/archiving-data-to-mongodb-online-archive-or-s3-archive-which-is-best-in-performance-and-cost/226699",
+          "note": null
+        },
+        {
+          "text": "Learn how to configure MongoDB Atlas Online Archive to automatically move old data from your Atlas cluster to cheaper S3-based storage while keeping it queryable.",
+          "source": "https://oneuptime.com/blog/post/2026-03-31-mongodb-atlas-online-archive/markdown",
+          "note": null
+        },
+        {
+          "text": "\"Time-to-live\" (TTL) indexes are special single-field indexes that MongoDB can use to automatically remove documents from a collection after a certain amount of time or at a specific clock time. Data expiration is useful for certain types of information like machine generated event data, logs, and session information that only need to persist in a database for a finite amount of time.",
+          "source": "https://www.mongodb.com/docs/current/core/index-ttl/",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Structure and components",
+      "facts": [
+        {
+          "text": "`partitionFields` control how archived data is organised on S3. Good partition choices enable partition pruning and faster queries on the archive.",
+          "source": "https://oneuptime.com/blog/post/2026-03-31-mongodb-atlas-online-archive/markdown#step-2-understand-archival-rule-fields",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "How it works",
+      "facts": [
+        {
+          "text": "MongoDB Atlas Online Archive automatically moves documents older than a configured threshold from your Atlas cluster to managed S3 storage, reducing cluster costs while maintaining query access via a federated endpoint. Connect to the federated URI to query hot and cold data together, use partition fields in filters for cost-efficient scans, and restore archived data back to the cluster with an aggregation `$merge` stage when needed.",
+          "source": "https://oneuptime.com/blog/post/2026-03-31-mongodb-atlas-online-archive/markdown#summary",
+          "note": null
+        },
+        {
+          "text": "TTL deletion runs on a single-threaded background task on the primary, roughly every 60 seconds; each index pass stops at 50,000 deletes or 1 second. A new TTL index or a lowered expireAfterSeconds can make a huge backlog eligible at once and cause heavy delete load; MongoDB advises creating it off-hours or pre-deleting in batches. Mass deletion can fragment storage and may need compact or initial sync to reclaim space.",
+          "source": "https://www.mongodb.com/docs/current/core/index-ttl/",
+          "note": null
+        },
+        {
+          "text": "The federated database instance page for Online Archive displays the amount of data that your federated database instance has processed and returned, and the number of queries run against it. However, it doesn't reflect the cost of your Online Archives, which is available in the Atlas billing page only.",
+          "source": "https://www.mongodb.com/docs/atlas/billing/online-archive/",
+          "note": null
+        },
+        {
+          "text": "Atlas creates a **federated database instance** automatically when you activate Online Archive. Connect to the federated endpoint to query both hot and cold data.",
+          "source": "https://oneuptime.com/blog/post/2026-03-31-mongodb-atlas-online-archive/markdown#step-3-query-archived-data-via-federated-endpoint",
+          "note": null
+        },
+        {
+          "text": "Atlas runs the archival process in the background. Archived documents are removed from the cluster and stored in Atlas-managed S3.",
+          "source": "https://oneuptime.com/blog/post/2026-03-31-mongodb-atlas-online-archive/markdown#step-1-create-an-archival-rule-in-atlas-ui",
+          "note": null
+        },
+        {
+          "text": "The TTL deletion process is a single-threaded background task, meaning that TTL deletions are not concurrent and may take longer under heavy workloads or when processing a large amount of expired documents.",
+          "source": "https://www.mongodb.com/docs/current/core/index-ttl/",
+          "note": null
+        },
+        {
+          "text": "After you create a TTL index, it might have a very large number of qualifying documents to delete at once. This large workload might cause performance issues on the server. To avoid these issues, plan to create the index during off hours, or delete qualifying documents in batches before you create the index for future documents.",
+          "source": "https://www.mongodb.com/docs/current/core/index-ttl/",
+          "note": null
+        },
+        {
+          "text": "Changing the expireAfterSeconds parameter does not trigger a complete index rebuild. However, reducing the expireAfterSeconds value can make many documents eligible for immediate deletion, potentially causing performance issues due to the increased delete operations.",
+          "source": "https://www.mongodb.com/docs/current/core/index-ttl/",
+          "note": null
+        },
+        {
+          "text": "The TTL background deletion process checks each TTL index for expired documents. For each TTL index, the background process deletes documents until one of the following conditions is met:",
+          "source": "https://www.mongodb.com/docs/current/core/index-ttl/",
+          "note": null
+        },
+        {
+          "text": "Then, the process moves on to the next index. After the process goes through each TTL index once, the current sub-pass is complete and a new sub-pass begins to check for remaining expired documents. A pass is complete when the TTL monitor has deleted all possible candidate documents from all TTL indexes.",
+          "source": "https://www.mongodb.com/docs/current/core/index-ttl/",
+          "note": null
+        },
+        {
+          "text": "On replica set members, the TTL background thread only deletes documents when a member is in state primary. The TTL background thread is idle when a member is in state secondary. Secondary members replicate deletion operations from the primary.",
+          "source": "https://www.mongodb.com/docs/current/core/index-ttl/",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Parameters and configuration",
+      "facts": [
+        {
+          "text": "The federated database instance can use object storage from only one cloud provider and from only one account within that provider.",
+          "source": "https://www.mongodb.com/docs/atlas/data-federation/supported-unsupported/limitations/",
+          "note": null
+        },
+        {
+          "text": "Federated database instances don't support documents larger than 16 MB.",
+          "source": "https://www.mongodb.com/docs/atlas/data-federation/supported-unsupported/limitations/",
+          "note": null
+        },
+        {
+          "text": "Object storage sources are read-only.",
+          "source": "https://www.mongodb.com/docs/atlas/data-federation/supported-unsupported/limitations/",
+          "note": null
+        },
+        {
+          "text": "Running more than 30 simultaneous queries on an federated database instance is not supported.",
+          "source": "https://www.mongodb.com/docs/atlas/data-federation/supported-unsupported/limitations/",
+          "note": null
+        },
+        {
+          "text": "Each project supports up to 25 federated database instances by default.",
+          "source": "https://www.mongodb.com/docs/atlas/data-federation/supported-unsupported/limitations/",
+          "note": null
+        },
+        {
+          "text": "The TTL index expireAfterSeconds value must be within 0 and 2147483647 inclusive.",
+          "source": "https://www.mongodb.com/docs/current/core/index-ttl/",
+          "note": null
+        },
+        {
+          "text": "TTL indexes are single-field indexes. Compound indexes do not support TTL and ignore the expireAfterSeconds option.",
+          "source": "https://www.mongodb.com/docs/current/core/index-ttl/",
+          "note": null
+        },
+        {
+          "text": "The _id field does not support TTL indexes.",
+          "source": "https://www.mongodb.com/docs/current/core/index-ttl/",
+          "note": null
+        },
+        {
+          "text": "Atlas monitoring tools do not cover Federated Database Instances.",
+          "source": "https://www.mongodb.com/docs/atlas/data-federation/supported-unsupported/limitations/",
+          "note": null
+        },
+        {
+          "text": "Each federated database instance runs in a specific cloud and region.",
+          "source": "https://www.mongodb.com/docs/atlas/data-federation/supported-unsupported/limitations/",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "How-to and procedures",
+      "facts": [
+        {
+          "text": "Cost controls for archive queries: configure query limits to cap processed data, run explain and multiply typical processed bytes by monthly query count, set billing alerts. The Online Archive federated-instance page shows bytes processed and query counts but not cost; cost appears only on the Atlas billing page.",
+          "source": "https://www.mongodb.com/docs/atlas/billing/online-archive/",
+          "note": null
+        },
+        {
+          "text": "Restoring archived data to the cluster requires pausing the archive, connecting to the archive-only endpoint and running a $merge aggregation, which incurs query charges; archive queries are also reported (anecdotally) to add seconds of latency.",
+          "source": "https://oneuptime.com/blog/post/2026-03-31-mongodb-atlas-online-archive/markdown",
+          "note": null
+        },
+        {
+          "text": "If you need archived data back in the cluster for processing, pause the archive first, then use Atlas Data Federation aggregation with `$merge` to write it back. Connect using the **archive-only** connection string.",
+          "source": "https://oneuptime.com/blog/post/2026-03-31-mongodb-atlas-online-archive/markdown#step-7-restore-archived-data-to-the-cluster",
+          "note": null
+        },
+        {
+          "text": "- Choose `partitionFields` that match your most common archive query filters. - Keep the `dateField` in the first partition position for time-range queries. - Test federated queries with `explain()` to verify partition pruning is active. - Use `expireAfterDays` conservatively at first; you can decrease it later to archive more aggressively.",
+          "source": "https://oneuptime.com/blog/post/2026-03-31-mongodb-atlas-online-archive/markdown#best-practices",
+          "note": null
+        },
+        {
+          "text": "To prevent excessive charges on your bill, create your Atlas Data Federation in the same AWS region as your S3 data source.",
+          "source": "https://mongodb.com/community/forums/t/archiving-data-to-mongodb-online-archive-or-s3-archive-which-is-best-in-performance-and-cost/226699",
+          "note": null
+        },
+        {
+          "text": "Target only archived data by connecting to the **archive-only** federated database instance (Atlas creates a separate connection string for archive-only queries in addition to the combined cluster + archive endpoint).",
+          "source": "https://oneuptime.com/blog/post/2026-03-31-mongodb-atlas-online-archive/markdown#step-4-query-only-the-archive-exclude-cluster-data",
+          "note": null
+        },
+        {
+          "text": "Before querying the archived data, we recommend using the explain method to optimize your queries. To calculate the monthly spend and approximate cost based on usage, consider the typical amount of data processed in the explain results and multiply it by the typical number of queries per month.",
+          "source": "https://www.mongodb.com/docs/atlas/billing/online-archive/",
+          "note": null
+        },
+        {
+          "text": "The recommended approach is to manually delete documents in small batches before updating the TTL index. This helps control the impact on your cluster.",
+          "source": "https://www.mongodb.com/docs/current/core/index-ttl/",
+          "note": null
+        },
+        {
+          "text": "Monitor the cost visualization and invoices on your Atlas billing page.",
+          "source": "https://www.mongodb.com/docs/atlas/billing/online-archive/",
+          "note": null
+        },
+        {
+          "text": "Configure billing alerts to avoid unexpected usage and charges.",
+          "source": "https://www.mongodb.com/docs/atlas/billing/online-archive/",
+          "note": null
+        },
+        {
+          "text": "To create a TTL index, use createIndex(). Specify an index field that is either a date type or an array that contains date type values. Use the expireAfterSeconds option to specify a TTL value in seconds.",
+          "source": "https://www.mongodb.com/docs/current/core/index-ttl/",
+          "note": null
+        },
+        {
+          "text": "1. Navigate to your cluster in Atlas. 2. Click **Online Archive** in the left sidebar. 3. Click **Configure Online Archive**. 4. Choose the database, collection, and date field to archive on (e.g., `createdAt`). 5. Set the age threshold: documents older than N days are archived. 6. Click **Next** and activate the rule.",
+          "source": "https://oneuptime.com/blog/post/2026-03-31-mongodb-atlas-online-archive/markdown#step-1-create-an-archival-rule-in-atlas-ui",
+          "note": null
+        },
+        {
+          "text": "You can pause archival to stop new documents from being moved without deleting existing archived data.",
+          "source": "https://oneuptime.com/blog/post/2026-03-31-mongodb-atlas-online-archive/markdown#step-6-pause-and-resume-archival",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Examples and snippets",
+      "facts": [
+        {
+          "text": "```mermaid — `flowchart LR` …",
+          "source": "https://oneuptime.com/blog/post/2026-03-31-mongodb-atlas-online-archive/markdown#what-is-atlas-online-archive",
+          "note": null
+        },
+        {
+          "text": "```javascript — `// Cost optimisation: always include partition fields in archive queries` …",
+          "source": "https://oneuptime.com/blog/post/2026-03-31-mongodb-atlas-online-archive/markdown#cost-model",
+          "note": null
+        },
+        {
+          "text": "```javascript — `const { MongoClient } = require(\"mongodb\");` …",
+          "source": "https://oneuptime.com/blog/post/2026-03-31-mongodb-atlas-online-archive/markdown#step-3-query-archived-data-via-federated-endpoint",
+          "note": null
+        },
+        {
+          "text": "```javascript — `// Pause the archive before restoring data, then connect to the archive-only endpoint` …",
+          "source": "https://oneuptime.com/blog/post/2026-03-31-mongodb-atlas-online-archive/markdown#step-7-restore-archived-data-to-the-cluster",
+          "note": null
+        },
+        {
+          "text": "```javascript — `// The archival rule in Atlas REST API format (for reference):` …",
+          "source": "https://oneuptime.com/blog/post/2026-03-31-mongodb-atlas-online-archive/markdown#step-2-understand-archival-rule-fields",
+          "note": null
+        },
+        {
+          "text": "```javascript — `// Use partition field filters to limit archive scans` …",
+          "source": "https://oneuptime.com/blog/post/2026-03-31-mongodb-atlas-online-archive/markdown#step-4-query-only-the-archive-exclude-cluster-data",
+          "note": null
+        },
+        {
+          "text": "```javascript — `// Use the Atlas Admin API to check archive status` …",
+          "source": "https://oneuptime.com/blog/post/2026-03-31-mongodb-atlas-online-archive/markdown#step-5-monitor-archive-activity",
+          "note": null
+        },
+        {
+          "text": "```javascript — `// Atlas Admin API - pause archival rule` …",
+          "source": "https://oneuptime.com/blog/post/2026-03-31-mongodb-atlas-online-archive/markdown#step-6-pause-and-resume-archival",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Measurements and reference values",
+      "facts": [
+        {
+          "text": "Data Federation charges 'Data Processed' (bytes read from the source, rounded up to the MB) and 'Data Returned/Transferred'; AWS-side return/transfer within a region is $0.01 per GB. Partitioning S3 data lets a query read one partition (1 GB of 10 GB) instead of the whole file, but a blank $match still reads everything.",
+          "source": "https://www.mongodb.com/docs/atlas/billing/data-federation/",
+          "note": null
+        },
+        {
+          "text": "Online Archive is billed through Atlas Data Federation: storage by GB and days stored (rate varies by cloud provider and region), plus $5.00 per TB of archived data processed with a 10 MB minimum per query, plus data returned/transferred.",
+          "source": "https://www.mongodb.com/docs/atlas/billing/online-archive/",
+          "note": null
+        },
+        {
+          "text": "Online Archive charges are based on: - **Data processed** per query ($5 per TB, 10 MB minimum per query) - optimise by using partition fields in queries. - **Data stored** in cloud object storage (GB per month) - significantly cheaper than Atlas cluster storage. - **Data returned/transferred** from queries.",
+          "source": "https://oneuptime.com/blog/post/2026-03-31-mongodb-atlas-online-archive/markdown#cost-model",
+          "note": null
+        },
+        {
+          "text": "Amount of archived data processed while querying the Online Archive, and the amount of data transferred and returned when you query your Online Archive. Note that Atlas charges $5.00 per TB of processed data, with a 10 MB minimum processed data per query. You can optionally configure query limits to control data processing charges for your Online Archive.",
+          "source": "https://www.mongodb.com/docs/atlas/billing/online-archive/",
+          "note": null
+        },
+        {
+          "text": "If you have no partitions or if Atlas Data Federation needs to read the entire file to return results for the query, you incur 10 GB of \"Data Processed\" cost.",
+          "source": "https://www.mongodb.com/docs/atlas/billing/data-federation/",
+          "note": null
+        },
+        {
+          "text": "If you have 10 partitions of 1 GB each, Atlas Data Federation targets and reads a single partition. Therefore, you incur 1 GB of \"Data Processed\" cost.",
+          "source": "https://www.mongodb.com/docs/atlas/billing/data-federation/",
+          "note": null
+        },
+        {
+          "text": "Atlas charges for the total number of bytes that Atlas Data Federation processes from your underlying sources, rounded up to the nearest megabyte. Atlas charges $5.00 per TB of processed data, with a 10 MB minimum processed data per query.",
+          "source": "https://www.mongodb.com/docs/atlas/billing/data-federation/",
+          "note": null
+        },
+        {
+          "text": "You incur \"Data Processed\" costs for the amount of data that Atlas Data Federation processes to return results for your queries in addition to the \"Data Returned\" cost for the amount of data that Atlas Data Federation returns. For example, for a 10 GB file, you incur the following \"Data Processed\" cost in addition to the \"Data Returned\" cost:",
+          "source": "https://www.mongodb.com/docs/atlas/billing/data-federation/",
+          "note": null
+        },
+        {
+          "text": "The number of bytes written by Data Federation during $out or $merge operations",
+          "source": "https://www.mongodb.com/docs/atlas/billing/data-federation/",
+          "note": null
+        },
+        {
+          "text": "Amount of data stored and accessed for Online Archive. You are charged on the basis of the gigabytes used and the number of days spent for data storage. The cost varies by the cloud provider and region. To learn more about the pricing for each region, go to the pricing page, scroll down to the Customize your deployment with tools & services section and click See pricing under Online Archive.",
+          "source": "https://www.mongodb.com/docs/atlas/billing/online-archive/",
+          "note": null
+        },
+        {
+          "text": "The number of bytes transferred between Data Federation query nodes while executing a query",
+          "source": "https://www.mongodb.com/docs/atlas/billing/data-federation/",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Problems, failure modes and limitations",
+      "facts": [
+        {
+          "text": "Federated query layer limits that scope the archive/federation option: no indexes on federated sources, object storage is read-only, no change streams or multi-document transactions, 30 concurrent queries per federated instance, 6-hour query limit, 16 MB document limit.",
+          "source": "https://www.mongodb.com/docs/atlas/data-federation/supported-unsupported/limitations/",
+          "note": null
+        },
+        {
+          "text": "Archive queries that omit the archive partition fields (for example createdAt) scan more data and cost more, so include partition-field filters.",
+          "source": "https://oneuptime.com/blog/post/2026-03-31-mongodb-atlas-online-archive/markdown",
+          "note": null
+        },
+        {
+          "text": "You can use partitioning strategies and compression in AWS S3 to reduce the amount of processed data. You can also configure query limits to limit the amount of data that Atlas Data Federation processes for your federated database instances and control costs.",
+          "source": "https://www.mongodb.com/docs/atlas/billing/data-federation/",
+          "note": null
+        },
+        {
+          "text": "If you exceed the simultaneous query limit, Atlas Data Federation returns an error with the ResourceExhausted error code (402).",
+          "source": "https://www.mongodb.com/docs/atlas/data-federation/supported-unsupported/limitations/",
+          "note": null
+        },
+        {
+          "text": "The TTL index does not guarantee that expired data is deleted immediately upon expiration. There may be a delay between the time that a document expires and the time that MongoDB removes the document from the database.",
+          "source": "https://www.mongodb.com/docs/current/core/index-ttl/",
+          "note": null
+        },
+        {
+          "text": "For time series collections, TTL indexes also remove a bucket of data when all documents inside it expire. This is equal to the upper timestamp limit of the bucket, plus the expireAfterSeconds value. For example, if a bucket covers data up until 2023-03-27T18:29:59Z and expireAfterSeconds is 300, the TTL index expires the bucket after 2023-03-27T18:34:59Z.",
+          "source": "https://www.mongodb.com/docs/current/core/index-ttl/",
+          "note": null
+        },
+        {
+          "text": "Queries sent to MongoDB Atlas Data Federation have a time limit of 6 hours. If maxTimeMS is set up, then the query timeout is the minimum of these two values, for example: min(maxTimeMS, 6 hours).",
+          "source": "https://www.mongodb.com/docs/atlas/data-federation/supported-unsupported/limitations/",
+          "note": null
+        },
+        {
+          "text": "Contact your product representative to increase the limit to up to 100 federated database instances",
+          "source": "https://www.mongodb.com/docs/atlas/data-federation/supported-unsupported/limitations/",
+          "note": null
+        },
+        {
+          "text": "Deleting many documents can fragment storage files, additionally impacting performance. You may need to run the compact command on your collection or perform a Initial Sync to reclaim space and optimize storage.",
+          "source": "https://www.mongodb.com/docs/current/core/index-ttl/",
+          "note": null
+        },
+        {
+          "text": "You cannot use createIndex() to change the value of expireAfterSeconds of an existing index. Instead, use the collMod database command. For details, see Change the expireAfterSeconds value for a TTL Index.",
+          "source": "https://www.mongodb.com/docs/current/core/index-ttl/",
+          "note": null
+        },
+        {
+          "text": "If a non-TTL single-field index already exists for a field, you cannot create a TTL index on the same field because you cannot create indexes that have the same key specification and differ only by the options. To change a non-TTL single-field index to a TTL index, use the collMod database command.",
+          "source": "https://www.mongodb.com/docs/current/core/index-ttl/",
+          "note": null
+        },
+        {
+          "text": "You cannot create indexes on federated data sources.",
+          "source": "https://www.mongodb.com/docs/atlas/data-federation/supported-unsupported/limitations/",
+          "note": null
+        },
+        {
+          "text": "Change streams and multi-document ACID transactions are not supported on federated sources.",
+          "source": "https://www.mongodb.com/docs/atlas/data-federation/supported-unsupported/limitations/",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Comparisons and alternatives",
+      "facts": [
+        {
+          "text": "A TTL index deletes documents; MongoDB's own TTL page tells users whose goal is reducing storage cost to consider Atlas Online Archive, which tiers infrequently accessed data to managed S3 instead of deleting it.",
+          "source": "https://www.mongodb.com/docs/current/core/index-ttl/",
+          "note": null
+        },
+        {
+          "text": "Online Archive is fully managed; pointing Data Federation at your own S3 bucket allows more tuning but adds complexity and ongoing management. Keep Data Federation in the same AWS region as the S3 source to avoid excess charges.",
+          "source": "https://mongodb.com/community/forums/t/archiving-data-to-mongodb-online-archive-or-s3-archive-which-is-best-in-performance-and-cost/226699",
+          "note": null
+        },
+        {
+          "text": "If you are removing documents to save on storage costs, consider Online Archive in MongoDB Atlas. Online Archive automatically archives infrequently accessed data to fully-managed S3 buckets for cost-effective data tiering.",
+          "source": "https://www.mongodb.com/docs/current/core/index-ttl/",
+          "note": null
+        },
+        {
+          "text": "Third-party blog figures of about $0.25/GB/month for cluster storage versus about $0.023/GB/month for Online Archive are unverified; the blog page fetched gave no per-GB rates, so these numbers do not hold as a cost basis.",
+          "source": "https://oneuptime.com/blog/post/2026-03-31-mongodb-atlas-online-archive/markdown",
+          "note": null
+        },
+        {
+          "text": "A performance consideration between the two is if you activate Online Archive for an AWS cluster, the cloud object storage exists in the same region in AWS as your cluster. For comparison, Atlas Data Federation provides an elastic pool of agents in the region that is nearest to your data where Atlas Data Federation can process the data for your queries. An additional note from a cost point of view, as per the Atlas Data Federations Regions documentation:",
+          "source": "https://mongodb.com/community/forums/t/archiving-data-to-mongodb-online-archive-or-s3-archive-which-is-best-in-performance-and-cost/226699",
+          "note": null
+        },
+        {
+          "text": "If you want to configure your own S3 buckets then you can configure Atlas Data Federation to access data in your AWS S3 buckets - More information regarding this on the Atlas Data Federation Overview documentation.",
+          "source": "https://mongodb.com/community/forums/t/archiving-data-to-mongodb-online-archive-or-s3-archive-which-is-best-in-performance-and-cost/226699",
+          "note": null
+        },
+        {
+          "text": "That said, there is a lot of nuance in deciding between the two options. Generally speaking using Data Federation can allow you to fine tune a lot of different parameters to your specific use case which can allow you to get the best possible performance, that said it can become very complex and does need to be managed over time.",
+          "source": "https://mongodb.com/community/forums/t/archiving-data-to-mongodb-online-archive-or-s3-archive-which-is-best-in-performance-and-cost/226699",
+          "note": null
+        },
+        {
+          "text": "Online Archive on the other hand is a fully managed solution, and we do have some really exciting improvements coming which will drastically improve query performance in the next few months.",
+          "source": "https://mongodb.com/community/forums/t/archiving-data-to-mongodb-online-archive-or-s3-archive-which-is-best-in-performance-and-cost/226699",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Facts and statements",
+      "facts": [
+        {
+          "text": "Data partitioning doesn't guarantee reduced data processing cost. For example, if you run a blank $match query, which queries all the data, Atlas Data Federation needs to read the entire collection to return the results for the query regardless of the number of partitions.",
+          "source": "https://www.mongodb.com/docs/atlas/billing/data-federation/",
+          "note": null
+        },
+        {
+          "text": "Atlas Online Archive depends on Atlas Data Federation. For limitations specific to Online Archive, see Limitations.",
+          "source": "https://www.mongodb.com/docs/atlas/data-federation/supported-unsupported/limitations/",
+          "note": null
+        },
+        {
+          "text": "Atlas encrypts your archived data in S3 using SSE.",
+          "source": "https://mongodb.com/community/forums/t/archiving-data-to-mongodb-online-archive-or-s3-archive-which-is-best-in-performance-and-cost/226699",
+          "note": null
+        },
+        {
+          "text": "Starting in MongoDB 7.0, you can create partial TTL indexes on time series collections. These indexes use the collection timeField as the key field, and require a partial filter expression on the metaField.",
+          "source": "https://www.mongodb.com/docs/current/core/index-ttl/",
+          "note": null
+        },
+        {
+          "text": "Time series collections include an optional expireAfterSeconds field. If you don't set expireAfterSeconds, a TTL index with a partialFilterExpression lets you set an expiration period for documents that match the filter. If you do set expireAfterSeconds, a partial TTL index lets you set a different, shorter expiration period for matching documents. You can only create a partialFilterExpression on the metaField.",
+          "source": "https://www.mongodb.com/docs/current/core/index-ttl/",
+          "note": null
+        },
+        {
+          "text": "Starting in MongoDB 7.0, you can create a partial TTL index on a time series collection's metaField. In earlier MongoDB versions, you can only create a TTL index for a time series collection's timeField.",
+          "source": "https://www.mongodb.com/docs/current/core/index-ttl/",
+          "note": null
+        },
+        {
+          "text": "If the expireAfterSeconds value of the collection is lower than the expireAfterSeconds of the partial TTL index, the collection deletes documents after the shorter time, so the TTL index has no effect.",
+          "source": "https://www.mongodb.com/docs/current/core/index-ttl/",
+          "note": null
+        },
+        {
+          "text": "Starting in MongoDB 5.1, you can add the expireAfterSeconds option to an existing single-field index. To change a non-TTL single-field index to a TTL index, use the collMod database command:",
+          "source": "https://www.mongodb.com/docs/current/core/index-ttl/",
+          "note": null
+        },
+        {
+          "text": "TTL indexes expire documents after the specified number of seconds has passed since the indexed field value.",
+          "source": "https://www.mongodb.com/docs/current/core/index-ttl/",
+          "note": null
+        },
+        {
+          "text": "Archived data stays in the provider's private network.",
+          "source": "https://www.mongodb.com/docs/atlas/data-federation/supported-unsupported/limitations/",
+          "note": null
+        },
+        {
+          "text": "It handles automatically transferring of data from Atlas to S3.",
+          "source": "https://mongodb.com/community/forums/t/archiving-data-to-mongodb-online-archive-or-s3-archive-which-is-best-in-performance-and-cost/226699",
+          "note": null
+        }
+      ]
+    }
+  ],
+  "related": [
+    {
+      "concept": "Data Federation",
+      "relation": "is a hyponym of Data Lifecycle Cost Model (TTL vs Online Archive vs Data Federation)",
+      "note": "query engine over your own S3 bucket or archived data"
+    },
+    {
+      "concept": "Online Archive",
+      "relation": "is a hyponym of Data Lifecycle Cost Model (TTL vs Online Archive vs Data Federation)",
+      "note": "managed tier to Atlas-managed object storage; archived data stays queryable"
+    },
+    {
+      "concept": "TTL index",
+      "relation": "is a hyponym of Data Lifecycle Cost Model (TTL vs Online Archive vs Data Federation)",
+      "note": "deletes expired documents; no retained cost, data gone"
+    },
+    {
+      "concept": "object storage",
+      "relation": "is a part of Data Lifecycle Cost Model (TTL vs Online Archive vs Data Federation)",
+      "note": null
+    },
+    {
+      "concept": "partition field",
+      "relation": "is a part of Data Lifecycle Cost Model (TTL vs Online Archive vs Data Federation)",
+      "note": null
+    },
+    {
+      "concept": "data processed",
+      "relation": "is a measure of Data Lifecycle Cost Model (TTL vs Online Archive vs Data Federation)",
+      "note": "billing meters for archive and federation queries"
+    },
+    {
+      "concept": "federation limitations",
+      "relation": "is a problem of Data Lifecycle Cost Model (TTL vs Online Archive vs Data Federation)",
+      "note": null
+    },
+    {
+      "concept": "query limits",
+      "relation": "is a part of Data Lifecycle Cost Model (TTL vs Online Archive vs Data Federation)",
+      "note": null
+    },
+    {
+      "concept": "cold data",
+      "relation": "is a related of Data Lifecycle Cost Model (TTL vs Online Archive vs Data Federation)",
+      "note": null
+    },
+    {
+      "concept": "Atlas billing",
+      "relation": "is a whole of Data Lifecycle Cost Model (TTL vs Online Archive vs Data Federation)",
+      "note": null
+    },
+    {
+      "concept": "TTL delete load",
+      "relation": "is a problem of Data Lifecycle Cost Model (TTL vs Online Archive vs Data Federation)",
+      "note": null
+    },
+    {
+      "concept": "restore archived data",
+      "relation": "is a problem of Data Lifecycle Cost Model (TTL vs Online Archive vs Data Federation)",
+      "note": null
+    },
+    {
+      "concept": "archive storage billing",
+      "relation": "is a measure of Data Lifecycle Cost Model (TTL vs Online Archive vs Data Federation)",
+      "note": null
+    },
+    {
+      "concept": "time series expiry",
+      "relation": "is a part of Data Lifecycle Cost Model (TTL vs Online Archive vs Data Federation)",
+      "note": null
+    },
+    {
+      "concept": "unfiltered archive query",
+      "relation": "is a problem of Data Lifecycle Cost Model (TTL vs Online Archive vs Data Federation)",
+      "note": null
+    },
+    {
+      "concept": "cost optimisation",
+      "relation": "is a hypernym of Data Lifecycle Cost Model (TTL vs Online Archive vs Data Federation)",
+      "note": null
+    },
+    {
+      "concept": "S3 archive",
+      "relation": "is a contrast of Data Lifecycle Cost Model (TTL vs Online Archive vs Data Federation)",
+      "note": null
+    },
+    {
+      "concept": "compact",
+      "relation": "is a related of Data Lifecycle Cost Model (TTL vs Online Archive vs Data Federation)",
+      "note": null
+    }
+  ]
+}
