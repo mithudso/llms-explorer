@@ -1,0 +1,74 @@
+{
+  "slug": "sbe-vs-classic-plan-cache-keys",
+  "concept": "SBE vs classic plan cache keys",
+  "generated": "2026-10-22",
+  "summary": "Source-anchored research for SBE vs classic plan cache keys. Run status: COMPLETED.",
+  "facets": [
+    {
+      "title": "How it works",
+      "facts": [
+        {
+          "text": "The classic cache generally parameterizes a broader set of query values than the SBE cache. SERVER-89436 gives queries with b:[1] and b:[2] as one classic key but distinct SBE keys because array values were not parameterized in that SBE cache design. That can produce more SBE-cache misses and multiplanning for workloads that vary array values; the ticket says the impact depends on workload. (high confidence) (verified as of 2025-04-11)",
+          "source": "https://jira.mongodb.org/browse/SERVER-89436",
+          "note": null
+        },
+        {
+          "text": "In explain and profiler output, planCacheShapeHash hashes only the plan-cache query shape, while planCacheKey hashes the cache-entry key and also depends on indexes currently available to support that shape. Adding or dropping a supporting index can change planCacheKey without changing planCacheShapeHash. A community explain example shows different planCacheKey and planCacheShapeHash values in the same output; a Percona walkthrough also shows a classic query retaining a planCacheKey when a scalar value changes, though its surrounding hash labels are internally inconsistent. (high confidence)",
+          "source": "https://www.mongodb.com/docs/manual/reference/explain-results/",
+          "note": null
+        },
+        {
+          "text": "Percona's worked profiler example reports queryFramework: classic alongside planCacheShapeHash and planCacheKey. When comparing observed keys, recording the engine field with both identifiers helps distinguish shape identity from cache-entry identity. (low confidence)",
+          "source": "https://www.percona.com/blog/mongodb-query-plan-cache-explained-performance-pitfalls-and-re-planning/",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Problems, failure modes and limitations",
+      "facts": [
+        {
+          "text": "The exact SBE key contents changed across releases. SERVER-83492 says older SBE keys encoded exact skip and limit values while classic keys did not, and records fixes in MongoDB 7.0.6, 7.2.1, and 7.3.0. Check the server version before applying that historical key-cardinality detail. (low confidence) (verified as of 2023-12-18)",
+          "source": "https://jira.mongodb.org/browse/SERVER-83492",
+          "note": null
+        },
+        {
+          "text": "SERVER-83492 records a historical asymmetry: encodeSBE() encoded exact skip and limit values in the plan cache key while encodeClassic() did not. The issue lists fixes in 7.0.6, 7.2.1, and 7.3.0-rc0, so this is not a claim about current releases. (medium confidence) (verified as of 2026-09-21)",
+          "source": "https://jira.mongodb.org/browse/SERVER-83492",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Comparisons and alternatives",
+      "facts": [
+        {
+          "text": "MongoDB's current source documents different internal encoders: the classic cache uses encodeClassic() and SBE uses encodeSBE(). For the same sample query, the README shows an[eqa,eqb]|ac|||fc versus an[eqa?,eqb?]|ac|||nnnnf|; the ? markers identify auto-parameterized match predicates. This establishes different internal encodings, not a version-independent promise about every public planCacheKey. (high confidence) (verified as of 2026-10-22)",
+          "source": "https://github.com/mongodb/mongo/blob/master/src/mongo/db/query/plan_cache/README.md",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Facts and statements",
+      "facts": [
+        {
+          "text": "Do not infer the cache implementation from queryFramework alone. MongoDB's SERVER-90415 records that 8.0 and master release builds switched SBE-executed queries to the classic plan cache by default, while the SBE cache remained available under featureFlagSbeFull. SERVER-90490 records a separate SBE-path key space so SBE-generated plans would not overlap keys used by the classic path. (high confidence) (verified as of 2024-11-04)",
+          "source": "https://jira.mongodb.org/browse/SERVER-90415",
+          "note": null
+        },
+        {
+          "text": "During the SBE-with-classic-cache transition, MongoDB found that classic key encoding did not incorporate hints even though SBE key encoding did. SERVER-91076 records that hinted queries needed to be excluded from plan-cache writes on that path; the issue lists fixes in 8.0.0-rc9 and 8.1.0-rc0. (medium confidence) (verified as of 2024-06-12)",
+          "source": "https://jira.mongodb.org/browse/SERVER-91076",
+          "note": null
+        },
+        {
+          "text": "A CNBlogs walkthrough proposes checking whether a single-value $in predicate and an equality predicate expose the same planCacheKey after canonicalization. Its example does not compare classic and SBE keys, so it is only a syntax-level test idea, not evidence that the engines share keys. (low confidence)",
+          "source": "https://www.cnblogs.com/davidwang456/p/22491074",
+          "note": null
+        }
+      ]
+    }
+  ],
+  "related": []
+}

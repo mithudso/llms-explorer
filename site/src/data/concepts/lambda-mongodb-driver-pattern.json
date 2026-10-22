@@ -1,105 +1,35 @@
 {
   "slug": "lambda-mongodb-driver-pattern",
   "concept": "Lambda MongoDB Driver Pattern",
-  "generated": "2026-10-15",
-  "summary": "Depth-first rabbithole dossier for Lambda MongoDB Driver Pattern; source-anchored research pack.",
+  "generated": "2026-10-22",
+  "summary": "Source-anchored research for Lambda MongoDB Driver Pattern. Run status: COMPLETED.",
   "facets": [
-    {
-      "title": "Definitions",
-      "facts": [
-        {
-          "text": "[low] Static initialization is the best place to open database connections to allow reuse across multiple invocations to the same execution environment. Sources: https://docs.aws.amazon.com/lambda/latest/dg/lambda-runtime-environment.html",
-          "source": "~/.global-ai-hub/research/.pipeline/mongodb-2026-10-14/frb/lambda-mongodb-driver-pattern-aa60e82e9c/rabbithole-synthesis.md#patterns",
-          "note": null
-        },
-        {
-          "text": "[low] Provisioned concurrency is the number of pre-initialized execution environments Lambda allocates to a function, and configuring it incurs additional charges to the AWS account. Sources: https://docs.aws.amazon.com/lambda/latest/dg/best-practices.html",
-          "source": "~/.global-ai-hub/research/.pipeline/mongodb-2026-10-14/frb/lambda-mongodb-driver-pattern-aa60e82e9c/rabbithole-synthesis.md#patterns",
-          "note": null
-        },
-        {
-          "text": "[low] FerretDB is an open-source (Apache 2.0) MongoDB-compatible database using PostgreSQL as a storage backend, releasing a Data API in v2 (February 2025) that replaces the Atlas Data API HTTP interface by translating MongoDB wire protocol commands into PostgreSQL queries. (verified as of 2026-10-14) Sources: https://blog.dreamfactory.com/the-best-atlas-data-api-alternatives-in-2026-a-complete-comparison",
-          "source": "~/.global-ai-hub/research/.pipeline/mongodb-2026-10-14/frb/lambda-mongodb-driver-pattern-aa60e82e9c/rabbithole-synthesis.md#core",
-          "note": null
-        },
-        {
-          "text": "[low] DreamFactory is a self-hosted platform (Apache 2.0 core, commercial enterprise edition) that auto-generates REST APIs for over 20 database types, including MongoDB, securing endpoints with API key authentication and role-based access control by default. Sources: https://blog.dreamfactory.com/the-best-atlas-data-api-alternatives-in-2026-a-complete-comparison",
-          "source": "~/.global-ai-hub/research/.pipeline/mongodb-2026-10-14/frb/lambda-mongodb-driver-pattern-aa60e82e9c/rabbithole-synthesis.md#core",
-          "note": null
-        },
-        {
-          "text": "[low] DreamFactory is not a drop-in replacement for the Atlas Data API request format, requiring client code updates from `/action/*` endpoints to its own REST format, and it treats MongoDB collections as tables, potentially requiring server-side scripting for complex operations. Sources: https://blog.dreamfactory.com/the-best-atlas-data-api-alternatives-in-2026-a-complete-comparison",
-          "source": "~/.global-ai-hub/research/.pipeline/mongodb-2026-10-14/frb/lambda-mongodb-driver-pattern-aa60e82e9c/rabbithole-synthesis.md#core",
-          "note": null
-        }
-      ]
-    },
     {
       "title": "How it works",
       "facts": [
         {
-          "text": "[low] Streaming SDAM is disabled by default on AWS Lambda and similar FaaS platforms, and drivers should revert SDAM monitoring to the legacy polling mechanism when a FaaS runtime is detected to improve developer experience. Sources: https://jira.mongodb.org/browse/DRIVERS-2578",
-          "source": "~/.global-ai-hub/research/.pipeline/mongodb-2026-10-14/frb/lambda-mongodb-driver-pattern-aa60e82e9c/rabbithole-synthesis.md#patterns",
+          "text": "The reuse boundary is one Lambda execution environment. Because each MongoClient owns its own per-server pool, Lambda scale-out can create separate pools in separate environments; module-scope caching does not set a fleet-wide Atlas connection cap. This is an inference from AWS's environment reuse guidance and MongoDB's per-client pool model. (high confidence)",
+          "source": "https://docs.aws.amazon.com/lambda/latest/dg/lambda-runtime-environment.html",
           "note": null
         },
         {
-          "text": "[low] Defining a new client object on each Lambda invocation causes the driver to create a new database connection per call, which is expensive and can exceed database connection limits. Sources: https://www.mongodb.com/docs/atlas/manage-connections-aws-lambda.md",
-          "source": "~/.global-ai-hub/research/.pipeline/mongodb-2026-10-14/frb/lambda-mongodb-driver-pattern-aa60e82e9c/rabbithole-synthesis.md#antipatterns",
+          "text": "AWS Lambda Managed Instances can run multiple Node.js requests concurrently in one execution environment, sharing global objects. When using this mode, isolate mutable request state and use a database client pool that supports concurrent operations; the MongoDB Node.js driver documents one MongoClient supporting multiple concurrent requests. (medium confidence) (verified as of 2026-10-22)",
+          "source": "https://docs.aws.amazon.com/lambda/latest/dg/lambda-managed-instances-nodejs-runtime.html",
           "note": null
         },
         {
-          "text": "[medium] The streaming protocol used by SDAM monitoring can result in socket timeouts when a Lambda runtime resumes after being frozen, as timeout callbacks expire while the handler is paused, causing the driver to believe MongoDB is unhealthy and clear the pool. (verified as of 2026-10-14) Sources: https://jira.mongodb.org/browse/DRIVERS-2578, https://jira.mongodb.org/browse/NODE-6839",
-          "source": "~/.global-ai-hub/research/.pipeline/mongodb-2026-10-14/frb/lambda-mongodb-driver-pattern-aa60e82e9c/rabbithole-synthesis.md#troubleshooting",
-          "note": null
-        },
-        {
-          "text": "[low] The `serverMonitoringMode` URI option can be set to `stream`, `poll`, or `auto`, and clients must not use dedicated connections to measure RTT when using the polling protocol. Sources: https://jira.mongodb.org/browse/DRIVERS-2578",
-          "source": "~/.global-ai-hub/research/.pipeline/mongodb-2026-10-14/frb/lambda-mongodb-driver-pattern-aa60e82e9c/rabbithole-synthesis.md#patterns",
-          "note": null
-        },
-        {
-          "text": "[low] In Node.js driver versions earlier than 6.18.0, idle connections were not closed when `minPoolSize` was 0, but starting in version 6.18.0, the pool correctly closes idle connections regardless of the `minPoolSize` setting. (verified as of 2026-10-14) Sources: https://www.mongodb.com/docs/drivers/node/current/connect/connection-options/connection-pools.md",
-          "source": "~/.global-ai-hub/research/.pipeline/mongodb-2026-10-14/frb/lambda-mongodb-driver-pattern-aa60e82e9c/rabbithole-synthesis.md#troubleshooting",
-          "note": null
-        },
-        {
-          "text": "[low] Background processes or callbacks initiated by a Lambda function that did not complete when the function ended will resume if Lambda reuses the execution environment. Sources: https://docs.aws.amazon.com/lambda/latest/dg/lambda-runtime-environment.html",
-          "source": "~/.global-ai-hub/research/.pipeline/mongodb-2026-10-14/frb/lambda-mongodb-driver-pattern-aa60e82e9c/rabbithole-synthesis.md#antipatterns",
-          "note": null
-        },
-        {
-          "text": "[low] If an SQS-triggered function's expected invocation time exceeds the queue's visibility timeout, updating the function configuration (UpdateFunctionConfiguration) could result in duplicate invocations; Lambda event source mappings also process each event at least once, so duplicate processing of records can occur. Sources: https://docs.aws.amazon.com/lambda/latest/dg/best-practices.html",
-          "source": "~/.global-ai-hub/research/.pipeline/mongodb-2026-10-14/frb/lambda-mongodb-driver-pattern-aa60e82e9c/rabbithole-synthesis.md#antipatterns",
-          "note": null
-        },
-        {
-          "text": "[low] Adding an IPv4 `/0` CIDR to a project access list triggers an alert email to all users with direct or indirect project roles. Sources: https://www.mongodb.com/docs/atlas/manage-connections-aws-lambda.md",
-          "source": "~/.global-ai-hub/research/.pipeline/mongodb-2026-10-14/frb/lambda-mongodb-driver-pattern-aa60e82e9c/rabbithole-synthesis.md#troubleshooting",
+          "text": "MongoDB's current Node.js driver guide says releases earlier than 6.18.0 did not close idle connections when minPoolSize was 0 during inactivity. Verify the driver version before relying on minPoolSize=0 to reclaim idle sockets. (low confidence) (verified as of 2026-10-14)",
+          "source": "https://www.mongodb.com/docs/drivers/node/current/connect/connection-options/connection-pools.md",
           "note": null
         }
       ]
     },
     {
-      "title": "Measurements and reference values",
+      "title": "How-to and procedures",
       "facts": [
         {
-          "text": "[high] AWS Lambda functions default to 128 MB of memory, configurable between 128 MB and 10,240 MB, where increasing memory also increases available virtual CPU to improve MongoDB driver performance. Sources: https://www.mongodb.com/docs/atlas/manage-connections-aws-lambda.md, https://docs.aws.amazon.com/lambda/latest/dg/best-practices.html",
-          "source": "~/.global-ai-hub/research/.pipeline/mongodb-2026-10-14/frb/lambda-mongodb-driver-pattern-aa60e82e9c/rabbithole-synthesis.md#patterns",
-          "note": null
-        },
-        {
-          "text": "[low] Cold starts typically occur in under 1% of invocations, lasting from under 100 ms to over 1 second, and provisioned concurrency pre-warms execution environments to avoid this. (verified as of 2026-10-14) Sources: https://docs.aws.amazon.com/lambda/latest/dg/lambda-runtime-environment.html",
-          "source": "~/.global-ai-hub/research/.pipeline/mongodb-2026-10-14/frb/lambda-mongodb-driver-pattern-aa60e82e9c/rabbithole-synthesis.md#patterns",
-          "note": null
-        },
-        {
-          "text": "[low] Lambda shutdown timeouts vary by extension type: 0 ms for no extensions, 500 ms for internal extensions, and 2,000 ms for external extensions, after which Lambda sends a `SIGKILL` signal if the runtime or extension does not respond. (verified as of 2026-10-14) Sources: https://docs.aws.amazon.com/lambda/latest/dg/lambda-runtime-environment.html",
-          "source": "~/.global-ai-hub/research/.pipeline/mongodb-2026-10-14/frb/lambda-mongodb-driver-pattern-aa60e82e9c/rabbithole-synthesis.md#core",
-          "note": null
-        },
-        {
-          "text": "[low] Lambda terminates execution environments every few hours for maintenance, and each environment provides between 512 MB and 10,240 MB of disk space in the `/tmp` directory. (verified as of 2026-10-14) Sources: https://docs.aws.amazon.com/lambda/latest/dg/lambda-runtime-environment.html",
-          "source": "~/.global-ai-hub/research/.pipeline/mongodb-2026-10-14/frb/lambda-mongodb-driver-pattern-aa60e82e9c/rabbithole-synthesis.md#core",
+          "text": "Use context.callbackWaitsForEmptyEventLoop=false only with callback-style Node.js handlers; MongoDB's Lambda guide says the setting does not apply to async handlers. AWS currently documents callback-based handlers only for Node.js 22 and earlier runtimes. (high confidence) (verified as of 2026-10-22)",
+          "source": "https://www.mongodb.com/docs/atlas/manage-connections-aws-lambda.md",
           "note": null
         }
       ]
@@ -108,88 +38,13 @@
       "title": "Problems, failure modes and limitations",
       "facts": [
         {
-          "text": "[low] To optimize Lambda connections to Atlas, set `maxIdleTimeMS` to 60000 to close connections after 1 minute of idle time. If the function connects to a sharded cluster with many shards, also set `srvMaxHosts=3` in the connection string to limit the number of hosts the driver connects to. Sources: https://www.mongodb.com/docs/atlas/manage-connections-aws-lambda.md",
-          "source": "~/.global-ai-hub/research/.pipeline/mongodb-2026-10-14/frb/lambda-mongodb-driver-pattern-aa60e82e9c/rabbithole-synthesis.md#patterns",
+          "text": "AWS Lambda can purge idle connections, so a later invocation cannot assume an idle socket remains usable. MongoDB's Node.js driver exposes maxIdleTimeMS and minPoolSize to control idle pool behavior; tune these with the workload and test invocations after long idle periods. (medium confidence) (verified as of 2026-10-14)",
+          "source": "https://docs.aws.amazon.com/lambda/latest/dg/best-practices.html",
           "note": null
         },
         {
-          "text": "[low] The `CreateEventSourceMapping` BatchSize parameter controls the maximum records per invoke, and Lambda reads records until a full batch, batching window expiry, or 6 MB payload limit is reached; a batching window can be configured to buffer records for up to 5 minutes. Sources: https://docs.aws.amazon.com/lambda/latest/dg/best-practices.html",
-          "source": "~/.global-ai-hub/research/.pipeline/mongodb-2026-10-14/frb/lambda-mongodb-driver-pattern-aa60e82e9c/rabbithole-synthesis.md#patterns",
-          "note": null
-        },
-        {
-          "text": "[low] Lambda purges idle connections over time, so attempting to reuse an idle connection results in a connection error; use the runtime's keep-alive directive to maintain persistent connections. SDK clients and database connections should be initialized outside the handler, and static assets cached in `/tmp`. Sources: https://docs.aws.amazon.com/lambda/latest/dg/best-practices.html",
-          "source": "~/.global-ai-hub/research/.pipeline/mongodb-2026-10-14/frb/lambda-mongodb-driver-pattern-aa60e82e9c/rabbithole-synthesis.md#patterns",
-          "note": null
-        },
-        {
-          "text": "[low] If a function relies on mutable state that cannot be stored in memory within the handler, consider creating a separate function or separate versions for each user. Sources: https://docs.aws.amazon.com/lambda/latest/dg/best-practices.html",
-          "source": "~/.global-ai-hub/research/.pipeline/mongodb-2026-10-14/frb/lambda-mongodb-driver-pattern-aa60e82e9c/rabbithole-synthesis.md#patterns",
-          "note": null
-        },
-        {
-          "text": "[low] Deleting Lambda functions that are no longer used keeps them from counting against the deployment package size limit. Sources: https://docs.aws.amazon.com/lambda/latest/dg/best-practices.html",
-          "source": "~/.global-ai-hub/research/.pipeline/mongodb-2026-10-14/frb/lambda-mongodb-driver-pattern-aa60e82e9c/rabbithole-synthesis.md#patterns",
-          "note": null
-        },
-        {
-          "text": "[low] The `maxIdleTimeMS` option defines the maximum idle time for a connection before the pool removes and replaces it, and the `waitQueueTimeoutMS` option sets the maximum milliseconds a request can wait for a socket, defaulting to 0 (no limit). Sources: https://www.mongodb.com/docs/drivers/node/current/connect/connection-options/connection-pools.md",
-          "source": "~/.global-ai-hub/research/.pipeline/mongodb-2026-10-14/frb/lambda-mongodb-driver-pattern-aa60e82e9c/rabbithole-synthesis.md#core",
-          "note": null
-        },
-        {
-          "text": "[low] The driver does not limit the number of requests waiting for sockets, making it the application's responsibility to limit pool size to bound queuing during load spikes. Sources: https://www.mongodb.com/docs/drivers/node/current/connect/connection-options/connection-pools.md",
-          "source": "~/.global-ai-hub/research/.pipeline/mongodb-2026-10-14/frb/lambda-mongodb-driver-pattern-aa60e82e9c/rabbithole-synthesis.md#core",
-          "note": null
-        },
-        {
-          "text": "[low] MongoDB deprecated the Atlas Data API as part of the Atlas App Services shutdown, with an end-of-life date of September 30, 2025, affecting HTTP-based access including Data API, Custom HTTPS Endpoints, Device Sync, Device SDKs, GraphQL API, Functions, Static Hosting, and Edge Server. (verified as of 2026-10-14) Sources: https://blog.dreamfactory.com/the-best-atlas-data-api-alternatives-in-2026-a-complete-comparison",
-          "source": "~/.global-ai-hub/research/.pipeline/mongodb-2026-10-14/frb/lambda-mongodb-driver-pattern-aa60e82e9c/rabbithole-synthesis.md#core",
-          "note": null
-        },
-        {
-          "text": "[low] For functions using provisioned concurrency, SnapStart, or Lambda Managed Instances (where the 10-second Init limit does not apply), the Init time limit is 130 seconds or the configured function timeout (maximum 900 seconds), whichever is higher; the function's timeout setting limits the duration of the entire `Invoke` phase. (verified as of 2026-10-14) Sources: https://docs.aws.amazon.com/lambda/latest/dg/lambda-runtime-environment.html",
-          "source": "~/.global-ai-hub/research/.pipeline/mongodb-2026-10-14/frb/lambda-mongodb-driver-pattern-aa60e82e9c/rabbithole-synthesis.md#core",
-          "note": null
-        },
-        {
-          "text": "[low] Adding `0.0.0.0/0` to the IP access list allows cluster access from anywhere in the public Internet, which is an antipattern; if private networking is not used, connecting via a NAT gateway with a mapped Elastic IP is recommended. Sources: https://www.mongodb.com/docs/atlas/manage-connections-aws-lambda.md",
-          "source": "~/.global-ai-hub/research/.pipeline/mongodb-2026-10-14/frb/lambda-mongodb-driver-pattern-aa60e82e9c/rabbithole-synthesis.md#antipatterns",
-          "note": null
-        },
-        {
-          "text": "[low] If a high `connections.active` value and elevated query latency are observed, set `minPoolSize` closer to `maxPoolSize`; if connection spikes occur during deployments, consider setting `maxPoolSize` to limit total connections per instance. Sources: https://www.mongodb.com/docs/manual/troubleshooting/connection-storms.md",
-          "source": "~/.global-ai-hub/research/.pipeline/mongodb-2026-10-14/frb/lambda-mongodb-driver-pattern-aa60e82e9c/rabbithole-synthesis.md#troubleshooting",
-          "note": null
-        },
-        {
-          "text": "[low] Each MongoDB Atlas cluster tier enforces a maximum number of concurrent incoming connections per node, and upgrading to a higher tier increases this limit if the connection count is near the cap. Sources: https://www.mongodb.com/docs/manual/troubleshooting/connection-storms.md",
-          "source": "~/.global-ai-hub/research/.pipeline/mongodb-2026-10-14/frb/lambda-mongodb-driver-pattern-aa60e82e9c/rabbithole-synthesis.md#troubleshooting",
-          "note": null
-        },
-        {
-          "text": "[low] The Telemetry API emits `INIT_START`, `INIT_RUNTIME_DONE`, and `INIT_REPORT` events with `phase=invoke` for suppressed inits, and error information for `Init` or `Restore` phase failures is emitted in `INIT_REPORT` or `RESTORE_REPORT` logs respectively. Sources: https://docs.aws.amazon.com/lambda/latest/dg/lambda-runtime-environment.html",
-          "source": "~/.global-ai-hub/research/.pipeline/mongodb-2026-10-14/frb/lambda-mongodb-driver-pattern-aa60e82e9c/rabbithole-synthesis.md#troubleshooting",
-          "note": null
-        }
-      ]
-    },
-    {
-      "title": "Comparisons and alternatives",
-      "facts": [
-        {
-          "text": "[low] Atlas supports AWS IAM authentication for clusters running MongoDB 7.0 or higher, allowing connections via assumed IAM roles instead of hardcoded credentials, which are a security risk if exposed in the Lambda environment. (verified as of 2026-10-14) Sources: https://www.mongodb.com/docs/atlas/manage-connections-aws-lambda.md",
-          "source": "~/.global-ai-hub/research/.pipeline/mongodb-2026-10-14/frb/lambda-mongodb-driver-pattern-aa60e82e9c/rabbithole-synthesis.md#patterns",
-          "note": null
-        },
-        {
-          "text": "[low] Instead of making synchronous API calls to CloudWatch, use EMF to emit metrics through the function's logs. Sources: https://docs.aws.amazon.com/lambda/latest/dg/best-practices.html",
-          "source": "~/.global-ai-hub/research/.pipeline/mongodb-2026-10-14/frb/lambda-mongodb-driver-pattern-aa60e82e9c/rabbithole-synthesis.md#patterns",
-          "note": null
-        },
-        {
-          "text": "[low] When processing batches from streams like Kinesis or DynamoDB Streams, enable partial batch response to allow Lambda to retry only failed records instead of the entire batch. Sources: https://docs.aws.amazon.com/lambda/latest/dg/best-practices.html",
-          "source": "~/.global-ai-hub/research/.pipeline/mongodb-2026-10-14/frb/lambda-mongodb-driver-pattern-aa60e82e9c/rabbithole-synthesis.md#patterns",
+          "text": "Lambda can purge idle connections, so reuse does not guarantee an old socket remains usable. AWS warns that reusing a purged idle connection can error; Atlas recommends maxIdleTimeMS=60000 to reduce serverless timeout errors. (high confidence) (verified as of 2026-10-14)",
+          "source": "https://docs.aws.amazon.com/lambda/latest/dg/best-practices.html",
           "note": null
         }
       ]
@@ -198,153 +53,22 @@
       "title": "Facts and statements",
       "facts": [
         {
-          "text": "[low] A `MongoClient` configured with `maxIdleTimeMS` and `minPoolSize` set to 0 is optimal for workloads with sustained periods of low activity. Sources: https://www.mongodb.com/docs/drivers/node/current/connect/connection-options/connection-pools.md",
-          "source": "~/.global-ai-hub/research/.pipeline/mongodb-2026-10-14/frb/lambda-mongodb-driver-pattern-aa60e82e9c/rabbithole-synthesis.md#patterns",
+          "text": "For standard AWS Lambda, create one Node.js MongoClient outside the handler and reuse it across warm invocations handled by the same execution environment. AWS documents execution-environment resource reuse, MongoDB's Atlas guide shows a module-scope client, and the Serverless Framework example implements the same pattern. Google's Atlas tutorial demonstrates the same instance-local pattern for Cloud Functions. (high confidence)",
+          "source": "https://www.mongodb.com/docs/atlas/manage-connections-aws-lambda.md",
           "note": null
         },
         {
-          "text": "[low] To avoid excessive socket timeouts, reduce the number of connections the driver can maintain by specifying the `maxPoolSize` option. Sources: https://www.mongodb.com/docs/drivers/node/current/connect/connection-options/connection-pools.md",
-          "source": "~/.global-ai-hub/research/.pipeline/mongodb-2026-10-14/frb/lambda-mongodb-driver-pattern-aa60e82e9c/rabbithole-synthesis.md#patterns",
+          "text": "Each MongoClient maintains pools per server and opens monitoring sockets in addition to application connections. Set pool limits against expected Lambda concurrency and MongoDB topology; maxPoolSize is not a total connection cap for the deployment. (medium confidence) (verified as of 2026-10-14)",
+          "source": "https://www.mongodb.com/docs/drivers/node/current/connect/connection-options/connection-pools.md",
           "note": null
         },
         {
-          "text": "[high] For Lambda handlers taking a callback, setting `callbackWaitsForEmptyEventLoop` to false allows the function to return without closing the MongoDB connection, though this is not applicable for async handlers. Sources: https://www.mongodb.com/docs/atlas/manage-connections-aws-lambda.md, https://mongoosejs.com/docs/lambda.html",
-          "source": "~/.global-ai-hub/research/.pipeline/mongodb-2026-10-14/frb/lambda-mongodb-driver-pattern-aa60e82e9c/rabbithole-synthesis.md#patterns",
-          "note": null
-        },
-        {
-          "text": "[low] The Connection Example for Lambda reuses existing database connections to speed up communication and keep connection counts reasonable, and for best performance, the client object should be created once and stored for reuse across invocations. Sources: https://www.mongodb.com/docs/atlas/manage-connections-aws-lambda.md",
-          "source": "~/.global-ai-hub/research/.pipeline/mongodb-2026-10-14/frb/lambda-mongodb-driver-pattern-aa60e82e9c/rabbithole-synthesis.md#patterns",
-          "note": null
-        },
-        {
-          "text": "[low] Upgrading an AWS Lambda function to Mongoose v8 (which uses MongoDB driver 6) has caused constant reconnection issues to return, whereas MongoDB Driver 4.5.0 had previously fixed this issue. (verified as of 2026-10-14) Sources: https://jira.mongodb.org/browse/NODE-6839",
-          "source": "~/.global-ai-hub/research/.pipeline/mongodb-2026-10-14/frb/lambda-mongodb-driver-pattern-aa60e82e9c/rabbithole-synthesis.md#troubleshooting",
-          "note": null
-        },
-        {
-          "text": "[low] Connecting to Atlas over private networking using a Network Peering connection allows restricting the IP access list to only private IP addresses. Sources: https://www.mongodb.com/docs/atlas/manage-connections-aws-lambda.md",
-          "source": "~/.global-ai-hub/research/.pipeline/mongodb-2026-10-14/frb/lambda-mongodb-driver-pattern-aa60e82e9c/rabbithole-synthesis.md#patterns",
-          "note": null
-        },
-        {
-          "text": "[low] The rate at which Lambda reads data from Kinesis scales linearly with the number of shards. Sources: https://docs.aws.amazon.com/lambda/latest/dg/best-practices.html",
-          "source": "~/.global-ai-hub/research/.pipeline/mongodb-2026-10-14/frb/lambda-mongodb-driver-pattern-aa60e82e9c/rabbithole-synthesis.md#patterns",
-          "note": null
-        },
-        {
-          "text": "[low] The `maxPoolSize` option sets the maximum number of concurrent connections the pool maintains, defaulting to 100, while `minPoolSize` sets the minimum number of concurrent connections, defaulting to 0. Sources: https://www.mongodb.com/docs/drivers/node/current/connect/connection-options/connection-pools.md",
-          "source": "~/.global-ai-hub/research/.pipeline/mongodb-2026-10-14/frb/lambda-mongodb-driver-pattern-aa60e82e9c/rabbithole-synthesis.md#core",
-          "note": null
-        },
-        {
-          "text": "[low] The `maxConnecting` option determines the number of connections the pool can create in parallel at any time, and the driver ensures at least `minPoolSize` connections are always in the pool. Sources: https://www.mongodb.com/docs/drivers/node/current/connect/connection-options/connection-pools.md",
-          "source": "~/.global-ai-hub/research/.pipeline/mongodb-2026-10-14/frb/lambda-mongodb-driver-pattern-aa60e82e9c/rabbithole-synthesis.md#core",
-          "note": null
-        },
-        {
-          "text": "[low] Each `MongoClient` instance opens up to two monitoring connections per server in the topology, so a client connected to a three-node replica set opens six monitoring sockets. Sources: https://www.mongodb.com/docs/drivers/node/current/connect/connection-options/connection-pools.md",
-          "source": "~/.global-ai-hub/research/.pipeline/mongodb-2026-10-14/frb/lambda-mongodb-driver-pattern-aa60e82e9c/rabbithole-synthesis.md#core",
-          "note": null
-        },
-        {
-          "text": "[low] With default `maxPoolSize` and queries only to the primary node, a `MongoClient` can have at most 106 open sockets (100 pool connections + 6 monitoring); querying secondaries can increase total connections to 306. Sources: https://www.mongodb.com/docs/drivers/node/current/connect/connection-options/connection-pools.md",
-          "source": "~/.global-ai-hub/research/.pipeline/mongodb-2026-10-14/frb/lambda-mongodb-driver-pattern-aa60e82e9c/rabbithole-synthesis.md#core",
-          "note": null
-        },
-        {
-          "text": "[low] Calling `MongoClient.close()` closes only inactive sockets and existing sessions/transactions, but does not directly terminate ongoing operations. Sources: https://www.mongodb.com/docs/drivers/node/current/connect/connection-options/connection-pools.md",
-          "source": "~/.global-ai-hub/research/.pipeline/mongodb-2026-10-14/frb/lambda-mongodb-driver-pattern-aa60e82e9c/rabbithole-synthesis.md#core",
-          "note": null
-        },
-        {
-          "text": "[low] If a Lambda function connects to a sharded cluster with many shards, performance issues may occur (a ten-shard cluster connects to thirty mongos instances by default); `srvMaxHosts` limits the hosts. Separately, tuning `maxIdleTimeMS` can help reduce timeout errors from serverless functions. Sources: https://www.mongodb.com/docs/atlas/manage-connections-aws-lambda.md",
-          "source": "~/.global-ai-hub/research/.pipeline/mongodb-2026-10-14/frb/lambda-mongodb-driver-pattern-aa60e82e9c/rabbithole-synthesis.md#troubleshooting",
-          "note": null
-        },
-        {
-          "text": "[low] MongoDB is expected to send a hello response every `heartbeatFrequencyMS` (10 seconds), and the driver normally does not timeout on `socketTimeout` set to `connectTimeoutMS` (30 seconds) plus `heartbeatFrequencyMS` (10 seconds) = 40 seconds. Sources: https://jira.mongodb.org/browse/NODE-6839",
-          "source": "~/.global-ai-hub/research/.pipeline/mongodb-2026-10-14/frb/lambda-mongodb-driver-pattern-aa60e82e9c/rabbithole-synthesis.md#troubleshooting",
-          "note": null
-        },
-        {
-          "text": "[low] FerretDB is fundamentally a migration off MongoDB to PostgreSQL, not a replacement for the Atlas Data API on an existing MongoDB cluster. Sources: https://blog.dreamfactory.com/the-best-atlas-data-api-alternatives-in-2026-a-complete-comparison",
-          "source": "~/.global-ai-hub/research/.pipeline/mongodb-2026-10-14/frb/lambda-mongodb-driver-pattern-aa60e82e9c/rabbithole-synthesis.md#core",
-          "note": null
-        },
-        {
-          "text": "[low] Lambda execution environments run function invocations for up to 15 minutes by default, with durable functions running up to one year, while the `Init` phase is limited to 10 seconds unless provisioned concurrency, SnapStart, or Managed Instances are used. (verified as of 2026-10-14) Sources: https://docs.aws.amazon.com/lambda/latest/dg/lambda-runtime-environment.html",
-          "source": "~/.global-ai-hub/research/.pipeline/mongodb-2026-10-14/frb/lambda-mongodb-driver-pattern-aa60e82e9c/rabbithole-synthesis.md#core",
-          "note": null
-        },
-        {
-          "text": "[low] AWS Cost Anomaly Detection uses data from AWS Cost Explorer, which has a delay of up to 24 hours, meaning it can take up to 24 hours to detect an anomaly after usage occurs. Sources: https://docs.aws.amazon.com/lambda/latest/dg/best-practices.html",
-          "source": "~/.global-ai-hub/research/.pipeline/mongodb-2026-10-14/frb/lambda-mongodb-driver-pattern-aa60e82e9c/rabbithole-synthesis.md#tools",
-          "note": null
-        },
-        {
-          "text": "[low] To monitor Kinesis stream processing, use CloudWatch on IteratorAge, for example an alarm with a maximum setting of 30000 (30 seconds). Sources: https://docs.aws.amazon.com/lambda/latest/dg/best-practices.html",
-          "source": "~/.global-ai-hub/research/.pipeline/mongodb-2026-10-14/frb/lambda-mongodb-driver-pattern-aa60e82e9c/rabbithole-synthesis.md#tools",
-          "note": null
-        },
-        {
-          "text": "[low] Function memory usage is determined per-invoke and can be viewed in Amazon CloudWatch, where each invoke creates a `REPORT:` entry containing a `Max Memory Used:` field to determine if memory is over- or under-provisioned. Sources: https://docs.aws.amazon.com/lambda/latest/dg/best-practices.html",
-          "source": "~/.global-ai-hub/research/.pipeline/mongodb-2026-10-14/frb/lambda-mongodb-driver-pattern-aa60e82e9c/rabbithole-synthesis.md#tools",
-          "note": null
-        },
-        {
-          "text": "[low] Internal API updates may be backwards-incompatible, leading to unintended consequences such as invocation failures if a function depends on these non-public APIs. Sources: https://docs.aws.amazon.com/lambda/latest/dg/best-practices.html",
-          "source": "~/.global-ai-hub/research/.pipeline/mongodb-2026-10-14/frb/lambda-mongodb-driver-pattern-aa60e82e9c/rabbithole-synthesis.md#antipatterns",
-          "note": null
-        },
-        {
-          "text": "[low] Steadily increasing connection counts correlating with request volume may indicate a new `MongoClient` is instantiated per request; implementing `MongoClient` as a single shared instance across operations resolves this. Sources: https://www.mongodb.com/docs/manual/troubleshooting/connection-storms.md",
-          "source": "~/.global-ai-hub/research/.pipeline/mongodb-2026-10-14/frb/lambda-mongodb-driver-pattern-aa60e82e9c/rabbithole-synthesis.md#troubleshooting",
-          "note": null
-        },
-        {
-          "text": "[low] On sharded clusters, each `mongos` router maintains connection pools on each shard, and the number of `taskExecutor` connection pools per router can be limited by setting the `taskExecutorPoolSize` parameter. Sources: https://www.mongodb.com/docs/manual/troubleshooting/connection-storms.md",
-          "source": "~/.global-ai-hub/research/.pipeline/mongodb-2026-10-14/frb/lambda-mongodb-driver-pattern-aa60e82e9c/rabbithole-synthesis.md#troubleshooting",
-          "note": null
-        },
-        {
-          "text": "[low] If a Lambda function crashes or times out during the `Invoke` phase, Lambda resets the execution environment, but this reset does not clear the `/tmp` directory content before the next init phase. Sources: https://docs.aws.amazon.com/lambda/latest/dg/lambda-runtime-environment.html",
-          "source": "~/.global-ai-hub/research/.pipeline/mongodb-2026-10-14/frb/lambda-mongodb-driver-pattern-aa60e82e9c/rabbithole-synthesis.md#troubleshooting",
-          "note": null
-        },
-        {
-          "text": "[low] If an unintended volume of invocations is observed, setting the function reserved concurrency to 0 immediately throttles all invocations while code is updated. Sources: https://docs.aws.amazon.com/lambda/latest/dg/best-practices.html",
-          "source": "~/.global-ai-hub/research/.pipeline/mongodb-2026-10-14/frb/lambda-mongodb-driver-pattern-aa60e82e9c/rabbithole-synthesis.md#troubleshooting",
-          "note": null
-        },
-        {
-          "text": "[low] If a synchronous function experiences throttling due to traffic exceeding Lambda's scaling rate, specific strategies can be used to improve throttle tolerance. Sources: https://docs.aws.amazon.com/lambda/latest/dg/best-practices.html",
-          "source": "~/.global-ai-hub/research/.pipeline/mongodb-2026-10-14/frb/lambda-mongodb-driver-pattern-aa60e82e9c/rabbithole-synthesis.md#troubleshooting",
+          "text": "Each MongoClient maintains a pool for each server. The current Node.js driver docs list maxPoolSize=100 by default and up to two additional monitoring sockets per server per client, so estimate connection use across both topology and Lambda environments. (high confidence) (verified as of 2026-10-14)",
+          "source": "https://www.mongodb.com/docs/drivers/node/current/connect/connection-options/connection-pools.md",
           "note": null
         }
       ]
     }
   ],
-  "related": [
-    {
-      "concept": "Lambda",
-      "relation": "is a part of Lambda MongoDB Driver Pattern",
-      "note": null
-    },
-    {
-      "concept": "MongoDB",
-      "relation": "is a part of Lambda MongoDB Driver Pattern",
-      "note": null
-    },
-    {
-      "concept": "Pattern",
-      "relation": "is a part of Lambda MongoDB Driver Pattern",
-      "note": null
-    },
-    {
-      "concept": "Driver",
-      "relation": "is a part of Lambda MongoDB Driver Pattern",
-      "note": null
-    }
-  ]
+  "related": []
 }

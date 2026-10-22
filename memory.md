@@ -859,3 +859,10 @@
 ## 2026-10-22 — Cloudflare private-library build authentication
 - TASK-742: restored Wrangler OAuth exposed the exact Pages failure: pip could not authenticate while cloning ollama-client. The site also needs private llms-txt for validation. The user supplied a fine-grained read-only key for both repositories. It was verified and installed as encrypted LIBS_READ_TOKEN in preview and production. Values remain out of repository files and logs.
 - Bootstrap uses host- and repository-restricted Git askpass when that variable is set. Missing Pages credentials fail before installation. Credential-plumbing and CI configuration tests pass; clean bootstrap and live preview validation are in progress.
+
+
+## 2026-10-22 — Validated research release refresh
+- Cloudflare preview c1287f64 successfully deployed the credential repair. Clean bootstrap, dependency checks, validator import and the full local site build pass. Both private library repositories retain their visibility.
+- The release snapshot now contains 1,518 reader packs and 89,213 facts from the latest validated work. All 38 cohort 23 claim IDs, evidence IDs and supported verdicts survive in the readers and canonical downloads. The operator privacy gate passes with 27 private denylist rules. Embeddings remain paused.
+- Clean builds now recreate canonical research JSON downloads from committed reader data. The same projection function serves research refresh and CI. A regression verifies clean generation and retirement when a pack becomes legacy or is removed.
+- Cohort 24 stopped for source review: 27 UNVERIFIED, 14 SUPPORTED and one NOT-IN-SOURCE verdict among 42 selected claims. Its unfinished results are excluded. Cohorts 25-31 remain pending. Production publication awaits final exact-head checks.

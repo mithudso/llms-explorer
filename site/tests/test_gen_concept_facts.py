@@ -72,6 +72,28 @@ def test_a_removed_pack_does_not_linger(tmp_path):
     assert (out / "kid.md").exists()
 
 
+def test_clean_build_recreates_canonical_download_and_removes_stale_receipts(tmp_path):
+    concepts, tree, out, sources = _fixture(tmp_path)
+    claim = {"text": "A supported statement.", "source": "https://example.test/source",
+             "claimId": "clm:test", "validationStatus": "SUPPORTED", "evidenceIds": ["ev:test"]}
+    pack = {**PACK, "canonicalArtifactSha256": "a" * 64, "canonicalConceptId": "concept:test",
+            "facets": [{"title": "Facts", "facts": [claim]}]}
+    (concepts / "kid.json").write_text(json.dumps(pack))
+    gen_concept_facts.build(concepts, tree, out, "https://ex.dev", sources)
+    research = out.parent / "research"
+    artifact = json.loads((research / "kid.json").read_text())
+    assert artifact["schema"] == "research-public-artifact/v1"
+    assert artifact["canonicalArtifactSha256"] == "a" * 64
+    assert artifact["canonicalConceptId"] == "concept:test"
+    assert artifact["claims"] == [claim]
+    (research / "removed.json").write_text("stale")
+    # Replacing a bound pack with legacy research must retire its old receipt.
+    (concepts / "kid.json").write_text(json.dumps(PACK))
+    gen_concept_facts.build(concepts, tree, out, "https://ex.dev", sources)
+    assert list(research.iterdir()) == []
+    assert (out / "kid.md").is_file()
+
+
 def test_site_url_comes_from_the_environment(monkeypatch):
     monkeypatch.setenv("SITE_URL", "https://docs.example.com/")
     assert gen_concept_facts.default_site_url() == "https://docs.example.com"

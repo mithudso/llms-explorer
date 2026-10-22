@@ -325,12 +325,8 @@ def plan(repo: Path, hub: Path, merge_tree: bool = True, current_run: str | None
         elif pack != site_packs[slug]:
             stale.append(slug)
         writes[repo / f"site/src/data/concepts/{slug}.json"] = json_text(pack, indent=2)
-        if pack.get("canonicalArtifactSha256"):
-            artifact = {"schema": "research-public-artifact/v1", "concept": pack["concept"], "slug": slug,
-                        "canonicalArtifactSha256": pack["canonicalArtifactSha256"],
-                        "canonicalConceptId": pack.get("canonicalConceptId"),
-                        "claims": [fact for facet in pack["facets"] for fact in facet["facts"]]}
-            writes[repo / f"site/public/downloads/research/{slug}.json"] = json_text(artifact, indent=2)
+    for slug, text in facts.research_download_texts(selected).items():
+        writes[repo / f"site/public/downloads/research/{slug}.json"] = text
     for path in (repo / "site/public/downloads/research").glob("*.json"):
         if path.stem not in selected or not selected[path.stem].get("canonicalArtifactSha256"):
             writes[path] = None
