@@ -26,9 +26,17 @@ def resolve(repo: Path, hub: Path, changes: dict) -> tuple[dict, list[str]]:
             return datetime.now(UTC) - datetime.fromisoformat(value["checked"]) > timedelta(days=1)
         except (KeyError, ValueError):
             return True
-    keys.update(key for key, value in cache.items() if not value["public"] and stale(value))
-    if len(keys) > 200:
+    new_keys = keys - cache.keys()
+    if len(new_keys) > 200:
         raise ValueError("More than 200 new public tracker references need verification; split this refresh")
+    # Current content takes priority. Old failed citations remain withheld while
+    # bounded, oldest-first retries drain the cache across later refreshes.
+    stale_keys = {key for key, value in cache.items() if not value["public"] and stale(value)}
+    oldest = lambda key: (str(cache[key].get("checked", "")), key)
+    current_stale = sorted(stale_keys & keys, key=oldest)
+    background = sorted(stale_keys - keys, key=oldest)
+    checks = [*sorted(new_keys), *current_stale, *background][:200]
+    keys.update(checks)
 
     def check(key):
         if key in cache and (cache[key]["public"] or not stale(cache[key])):
@@ -45,7 +53,7 @@ def resolve(repo: Path, hub: Path, changes: dict) -> tuple[dict, list[str]]:
         return key, {"public": public, "checked": datetime.now(UTC).isoformat()}
 
     with ThreadPoolExecutor(max_workers=8) as pool:
-        cache.update(pool.map(check, sorted(keys)))
+        cache.update(pool.map(check, checks))
     accepted = sorted(key for key in keys if cache[key]["public"])
     blocked = sorted(key for key, value in cache.items() if not value["public"])
     writes = {}

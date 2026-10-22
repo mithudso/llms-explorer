@@ -65,8 +65,8 @@ concept. A failed gate leaves queue rows pending.
 The first cohort completed with 40 new facts and 10/10 sampled claims supported by
 the blind gate. Both trees and all website surfaces refreshed automatically.
 The [2026-10-21 resume snapshot](../ranked-queue-progress-2026-10-21.md) contains
-thirteen completed cohorts, 52 concepts and 521 structured claims. Its local website
-dataset has 1,489 references and 88,984 facts. Research continues after this
+fourteen completed cohorts, 53 concepts and 530 structured claims. Its local website
+dataset has 1,490 references and 88,993 facts. Research continues after this
 publication snapshot.
 
 The export repair restored 85 full claim statements in 26 hub packs and their
@@ -108,8 +108,9 @@ original research stays intact locally. Completion verifies new issue references
 automatically and retries unavailable metadata later.
 
 PR #214 contains the release. The repository Actions secret `LIBS_READ_TOKEN`
-is now present. Fresh CI must verify its private-library access. The release
-remains unmerged until its CI gate passes.
+is now present, but fresh CI reports invalid-token authentication failures for
+both private shared libraries. The release remains unmerged until valid read
+access restores its CI gate.
 
 The initial release passed 309 full-suite tests. The 2026-10-21 resume snapshot
 passed 52 focused runtime tests and 298 site/publication tests in the isolated
@@ -118,3 +119,12 @@ checkouts and 299 site/publication tests. They preserve canonical download alias
 apply current research corrections, reconcile renames and constrain resumed queue
 completion to validated manifest concepts. Build, publication policy, privacy, scoped lint and generated
 tree/context comparisons pass. The earlier Astro check passed.
+
+Two later review fixes sanitize direct and vendored skill summaries before
+publication and retry stale negative citation checks in bounded batches. Their
+69 focused checks and 25 privacy checks pass. Unchecked citations stay withheld.
+
+The final fourteen-cohort snapshot passes 277 site tests and 25 privacy tests.
+The privacy scan covers 6,108 release files and thirteen generated llms/export
+files. Generated tree/context data match, all 848 required pack members exist,
+and all 53 completed queue rows have native research bindings.

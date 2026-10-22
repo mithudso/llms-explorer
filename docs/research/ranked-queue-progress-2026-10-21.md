@@ -1,9 +1,9 @@
 # Ranked research progress — 2026-10-21
 
-Thirteen of the 31 planned source-sharing cohorts have completed. They cover 52
-concepts and 521 structured claims. Forty-eight concepts add website references;
+Fourteen of the 31 planned source-sharing cohorts have completed. They cover 53
+concepts and 530 structured claims. Forty-nine concepts add website references;
 four transaction concepts refresh existing references. The publication snapshot
-contains 1,489 references and 88,984 facts. The queue continues independently.
+contains 1,490 references and 88,993 facts. The queue continues independently.
 
 | Cohort | Shared context | Concepts | Claims | Current blind sample |
 | --- | --- | ---: | ---: | --- |
@@ -20,11 +20,12 @@ contains 1,489 references and 88,984 facts. The queue continues independently.
 | ranked-3d355de6 | Atlas cost governance, tier bounds and embedding limits | 4 | 53 | 10/10 supported |
 | ranked-a7641cd8 | Pagination, covered counts and collation | 4 | 34 | 10/10 supported |
 | ranked-1cb7f7b2 | Wildcard planning, random-key inserts and index drops | 4 | 45 | 10/10 supported |
+| ranked-5991fa24 | Drop-index suggestion API semantics | 1 | 9 | 10/10 supported |
 
-All 52 concepts used Luna at max effort and triggered one seeded follow-up after
+All 53 concepts used Luna at max effort and triggered one seeded follow-up after
 the first pass's scout or evidence-floor check. Sol at medium effort merged the
 claims and ran the independent sample gates. These are sample checks, not
-verification of all 521 claims. All 130 current samples are supported. The
+verification of all 530 claims. All 140 current samples are supported. The
 runtime did not report usable dollar costs.
 
 The sixth cohort initially stopped with nine supported samples and one
@@ -40,12 +41,12 @@ Every completed cohort has separate packs for each concept in both local pack
 roots, with all eight required files present. Both trees, reader JSON, context,
 facts downloads and keyword search data refreshed before queue completion.
 Existing semantic vectors remain frozen under the embedding pause. The shared
-source-library index contains 9,482 sources and reconciled without errors before
-the next cohort. Raw
-source bodies, private library state and research execution logs stay local.
+source-library index reconciled 9,482 sources without errors before the
+fourteenth cohort. Raw source bodies, private library state and research execution logs stay local.
 
-The fourteenth cohort researches the drop-index suggestions endpoint. The saved plan retains 18
-unfinished cohorts at this snapshot, including that active cohort. Other runs'
+The fifteenth cohort researches Flex spending limits, Elastic Billing, billing
+alerts and marketplace billing transitions. The saved plan retains 17 unfinished
+cohorts at this snapshot, including that next cohort. Other runs'
 held concepts remain excluded. A new gate dissent will stop the runner for
 review.
 
@@ -72,10 +73,10 @@ prior files. A full scan finds no clipped statements in the 249 DR packs, and
 the repair's check mode reports no pending changes. The publication privacy
 check passes across all 1,461 changed repository pack files.
 A legacy blog title now uses a descriptive public name so its generated citation
-fragments also pass the privacy check. The current release scan covers 6,106 files
+fragments also pass the privacy check. The current release scan covers 6,108 files
 with the local operator denylist. A second scan passes the five generated site
-llms text files and all 32 pack members for the four newly completed concepts.
-The latest 45 statements also retain full text in website readers and facts downloads.
+llms text files and all eight pack members for the latest completed concept.
+The latest nine statements also retain full text in website readers and facts downloads.
 
 Four subsequent review fixes make finalized subset manifests authoritative for
 queue completion, dispatch newly eligible concepts separately, reconcile explicit
@@ -84,19 +85,26 @@ history. Current-run retries retain correction authority without recompiling
 unchanged exports. Canonicalization preserves 63 old facts-download URLs through
 canonical copies, including after a clean build; context and search retain one
 reader per concept. Private or removed targets do not retain alias downloads.
-All 52 completed concepts have validated native manifest/claim bindings; this
+All 53 completed concepts have validated native manifest/claim bindings; this
 queue has no completions outside its researched manifests. The updated runtime
-has backups and passed its local checks. The runner restarted at the completed
-thirteenth-cohort boundary as PID 42167 and continues the same saved plan.
+has backups and passed its local checks. The runner completed the fourteenth cohort before a brief maintenance stop to
+install the next reviewed runtime fixes. The restarted runner is PID 56457 and continues the same saved plan.
+
+Two additional review fixes sanitize direct and vendored skill summaries through
+the shared publication scrubber before truncation and tree generation. Stale
+negative citation checks retry in bounded batches; unchecked entries remain
+withheld and cannot block unrelated refreshes. These changes pass 69 focused
+checks and 25 privacy checks. Runtime installation preserves backed-up originals.
 
 PR #214 carries the publication snapshot. The repository Actions secret
-`LIBS_READ_TOKEN` is now present. Fresh CI must verify its access to both private
-shared-library repositories before the release can merge and publish.
+`LIBS_READ_TOKEN` is now present, but fresh CI reports invalid-token authentication
+failures for both private shared-library repositories. Publication requires a
+valid credential with read access to both repositories and green CI.
 
-The review fixes pass 64 focused checks, including five facts-generator tests,
-in both checkouts. The isolated release also passes 299 site/publication tests
-and 72 relevant checks against the final thirteen-cohort dataset.
+The first four review fixes passed 64 focused checks in both checkouts. The
+subsequent summary and citation fixes pass 69 focused checks in both checkouts.
+The final fourteen-cohort snapshot passes 277 site tests and 25 privacy tests.
 Scoped Ruff, the full site build, publication policy, privacy scan and generated
-tree/context comparison passed. All 832 required pack members and 52 completed
-queue rows are verified. The earlier runtime refresh check reported zero pending
-changes and zero unfiled references.
+tree/context comparisons pass. All 848 required pack members and 53 completed
+queue rows are verified. The installed runtime refresh reports zero unfiled
+references and no pending pack recovery.

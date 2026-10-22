@@ -100,6 +100,28 @@ class SiteSyncTests(unittest.TestCase):
         self.assertEqual(library.read_text(), "Third-party raw text must stay private.")
         self.assertNotIn("Private Topic", (self.repo / "concept-tree/tree.json").read_text())
 
+    def test_skill_summary_map_and_build_tree_publish_only_sanitized_prose(self):
+        private_path = "/Users/" + "operator/private/notes"
+        private_name = "Private" + "Workspace"
+        text = "Use " + private_path + " for " + private_name + "."
+        root = {**node("Root", "root"), "skillId": "root-skill"}
+        for base in (self.repo, self.hub):
+            (base / "concept-tree/tree.json").write_text(json.dumps([root]))
+        summaries = self.repo / "concept-tree/skill-summaries.json"
+        summaries.write_text(json.dumps({"inherited-skill": text}))
+        skill = self.repo / ".agents/skills/root-skill/SKILL.md"
+        skill.parent.mkdir(parents=True)
+        skill.write_text("# Root\n" + text)
+        with patch.dict("os.environ", {"PRIVACY_DENYLIST": private_name}):
+            website.sync(self.repo, self.hub, apply=True)
+        values = json.loads(summaries.read_text())
+        self.assertEqual(values["inherited-skill"], values["root-skill"])
+        self.assertIn("~/private/notes", values["root-skill"])
+        for path in (summaries, self.repo / "site/src/data/tree.json"):
+            self.assertNotIn(private_path, path.read_text())
+            self.assertNotIn(private_name, path.read_text())
+        self.assertIn(private_path, skill.read_text(), "private skill evidence stays intact")
+
     def test_private_ancestor_removes_generic_descendant_packs_and_repo_exports(self):
         private = node("Private Topic", "private-topic", children=["Generic descendant"])
         child = node("Generic descendant", "generic-descendant", parent="Private Topic")
