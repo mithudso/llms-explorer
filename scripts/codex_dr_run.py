@@ -7,8 +7,10 @@ import json
 import os
 import re
 import shutil
+import signal
 import subprocess
 import sys
+import threading
 import time
 from pathlib import Path
 
@@ -17,6 +19,9 @@ EFFORTS = ("low", "medium", "high", "xhigh", "max")
 MODEL_ALIASES = {"sonnet": MODELS[0], "opus": MODELS[1], "fable": MODELS[1], "haiku": MODELS[2]}
 DEFAULT_RESEARCH_MODEL = "gpt-6-luna"
 DEFAULT_RESEARCH_EFFORT = "max"
+_WORKERS = set()
+_WORKERS_LOCK = threading.RLock()
+_WORKERS_CANCELLED = False
 SOURCE_LIBRARY_POLICY = """SHARED RESEARCH LIBRARY — required before external retrieval:
 Use the single private library at ~/.global-ai-hub/research/.library/. Search
 `python3 ~/.global-ai-hub/scripts/source_library.py search \"<concept and distinctive terms>\" --top 6 --per-source 1 --brief`.
@@ -191,6 +196,59 @@ def translate_brief(brief: str, shared_path: str) -> str:
     return brief
 
 
+def _kill_worker_group(process):
+    try:
+        os.killpg(process.pid, signal.SIGKILL)
+    except ProcessLookupError:
+        pass
+
+
+def install_worker_cleanup():
+    def terminate(signum, frame):
+        global _WORKERS_CANCELLED
+        with _WORKERS_LOCK:
+            _WORKERS_CANCELLED = True
+            workers = list(_WORKERS)
+        for worker in workers:
+            _kill_worker_group(worker)
+        for worker in workers:
+            worker.wait()
+        raise SystemExit(128 + signum)
+
+    # The ranked runner also stops whole phases. Their isolated worker groups
+    # must be stopped before the adapter exits on that outer deadline.
+    for signum in (signal.SIGTERM, signal.SIGINT):
+        signal.signal(signum, terminate)
+
+
+def run_worker(command, brief: str, run_dir: Path, timeout: int):
+    with _WORKERS_LOCK:
+        if _WORKERS_CANCELLED:
+            raise OSError("research phase was cancelled")
+    process = subprocess.Popen(command, stdin=subprocess.PIPE, stdout=subprocess.PIPE,
+                               stderr=subprocess.PIPE, cwd=run_dir, text=True,
+                               start_new_session=True)
+    with _WORKERS_LOCK:
+        _WORKERS.add(process)
+        cancelled = _WORKERS_CANCELLED
+    try:
+        if cancelled:
+            _kill_worker_group(process)
+            process.wait()
+            raise OSError("research phase was cancelled")
+        try:
+            stdout, stderr = process.communicate(brief, timeout=timeout)
+        except subprocess.TimeoutExpired:
+            # Enforce the hard deadline even if tools ignore SIGTERM or close pipes.
+            _kill_worker_group(process)
+            stdout, stderr = process.communicate()
+            raise subprocess.TimeoutExpired(command, timeout, output=stdout, stderr=stderr) from None
+        return subprocess.CompletedProcess(command, process.returncode, stdout, stderr)
+    finally:
+        with _WORKERS_LOCK:
+            _WORKERS.discard(process)
+
+
 def run_agent(shared, manifest: dict, name: str, brief: str, model: str, effort: str,
               max_turns: int, timeout: int, tools: str | None = None, allowed: str | None = None) -> dict:
     run_dir = shared.run_dir(manifest["slug"])
@@ -212,7 +270,7 @@ def run_agent(shared, manifest: dict, name: str, brief: str, model: str, effort:
         if timeout <= 0:
             raise ValueError("agent timeout must be positive")
         command = build_command(binary, model, effort, run_dir, shared.RESEARCH_DIR, output, tool_free=tools == "")
-        process = subprocess.run(command, input=brief, cwd=run_dir, capture_output=True, text=True, timeout=timeout, check=False)
+        process = run_worker(command, brief, run_dir, timeout)
         raw, stderr = process.stdout, process.stderr
         summary.update(parse_events(raw))
         # The full final message is required by merge clustering; never truncate it.
@@ -393,4 +451,5 @@ def main(argv=None) -> int:
 
 
 if __name__ == "__main__":
+    install_worker_cleanup()
     raise SystemExit(main())

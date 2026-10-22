@@ -102,7 +102,7 @@ quality. Publication uses an isolated checkout and green GitHub site CI.
 
 The audit verified 248 cited MongoDB issue references through anonymous HTTP 200
 responses from the official tracker. Their exact keys are in the existing privacy
-allowlist. Two references without anonymous metadata remain private. Generated
+allowlist. Two references without anonymous metadata were initially withheld. Generated
 examples replace network and object identifiers with documentation placeholders;
 original research stays intact locally. Completion verifies new issue references
 automatically and retries unavailable metadata later.
@@ -164,3 +164,10 @@ records across nine readers per checkout. Fact counts, unrelated facts and
 metadata remain unchanged. Downloads and keyword search use the repaired URLs;
 the runtime refresh preserves them. A repeated repair preview is empty, and
 local backups preserve the original files.
+
+Withheld SERVER issue keys now match complete identifiers in both filtering and
+replacement. Research worker timeouts kill their isolated process groups and
+retain partial output. Adapter phase termination also stops those isolated groups.
+The release passes 94 focused tests and two subtests, including real child-process
+regressions. The live allowlist check preserves all 427 public issue keys. Its
+citation cache has no currently withheld keys at this check.
