@@ -2,8 +2,10 @@
 """Codex research defaults, transport and artifacts; never edits the shared runtime."""
 from __future__ import annotations
 
+import hashlib
 import importlib.util
 import json
+import math
 import os
 import re
 import shutil
@@ -14,6 +16,7 @@ import threading
 import time
 from pathlib import Path
 from urllib.parse import urlsplit
+from uuid import uuid4
 
 MODELS = ("gpt-6.1-sol", "gpt-6-astra", "gpt-6-luna")
 EFFORTS = ("low", "medium", "high", "xhigh", "max")
@@ -306,7 +309,7 @@ def run_worker(command, brief: str, run_dir: Path, timeout: int):
             _WORKERS.discard(process)
 
 
-def run_agent(shared, manifest: dict, name: str, brief: str, model: str, effort: str,
+def _run_agent_once(shared, manifest: dict, name: str, brief: str, model: str, effort: str,
               max_turns: int, timeout: int, tools: str | None = None, allowed: str | None = None) -> dict:
     run_dir = shared.run_dir(manifest["slug"])
     brief = translate_brief(brief, str(Path(shared.__file__).resolve()))
@@ -352,6 +355,64 @@ def run_agent(shared, manifest: dict, name: str, brief: str, model: str, effort:
     shared.atomic_write(run_dir / "agents" / f"{name}.events.jsonl", raw)
     shared.atomic_write(run_dir / "agents" / f"{name}.log", stderr)
     shared.atomic_write(run_dir / "agents" / f"{name}.json", json.dumps(summary, indent=1) + "\n")
+    return summary
+
+
+def transient_failure(summary):
+    if not summary.get("is_error"):
+        return False
+    message = json.dumps([summary.get("result"), summary.get("errors")]).casefold()
+    return bool(re.search(r"capacity|overloaded|rate.limit|\b429\b|\b50[234]\b|connection (?:reset|closed)|temporar|timed out|no completed codex turn|invalid codex json|worker output format", message))
+
+
+def run_agent(shared, manifest, name, brief, model, effort, max_turns, timeout, tools=None, allowed=None):
+    """Resume paid workers by exact brief and output hashes; retain every attempt."""
+    run = shared.run_dir(manifest["slug"])
+    identity = hashlib.sha256(json.dumps([brief, map_model(model), effort, tools]).encode()).hexdigest()
+    checkpoint = run / "checkpoints/workers" / (identity + ".json")
+    match = re.search(r"OUTPUT[^\n]*\n([^\n]+)", brief)
+    output = Path(match[1].strip().strip('`')) if match else None
+    if output is not None and not output.resolve().is_relative_to(run.resolve()):
+        output = None
+    try:
+        saved = json.loads(checkpoint.read_text())
+        if saved["identity"] == identity and (tools == "" or (output and output.is_file() and
+                hashlib.sha256(output.read_bytes()).hexdigest() == saved["output_sha256"])):
+            return {**saved["summary"], "resumed": True, "reused_tokens": saved["summary"].get("tokens"), "tokens": 0, "cost_usd": None, "seconds": 0}
+    except (OSError, ValueError, KeyError):
+        pass
+    deadline, attempts = time.monotonic() + timeout, []
+    for number in range(3):
+        summary = _run_agent_once(shared, manifest, name, brief, model, effort, max_turns,
+                                  max(1, math.ceil(deadline - time.monotonic())), tools, allowed)
+        if not summary.get("is_error") and output is not None:
+            try:
+                document = json.loads(output.read_text())
+                errors = shared.validate_claims(document) if hasattr(shared, "validate_claims") else []
+                if errors:
+                    raise ValueError("; ".join(errors))
+            except (OSError, ValueError) as error:
+                summary.update(is_error=True, result=f"worker output format: {error}")
+        attempt = run / "agents/attempts" / name / uuid4().hex
+        for suffix in ("md",):
+            shared.atomic_write(attempt / ("brief." + suffix), brief)
+        for suffix in ("json", "events.jsonl", "log", "last-message.txt"):
+            src = run / "agents" / f"{name}.{suffix}"
+            if src.is_file():
+                shared.atomic_write(attempt / ("worker." + suffix), src.read_text())
+        shared.atomic_write(attempt / "validated-summary.json", json.dumps(summary, indent=2) + "\n")
+        attempts.append({"path": str(attempt.relative_to(run)), "tokens": summary.get("tokens", 0),
+                         "seconds": summary.get("seconds", 0), "is_error": summary.get("is_error")})
+        if not transient_failure(summary) or number == 2 or deadline - time.monotonic() < 10:
+            break
+        time.sleep(min(2 ** number, max(0, deadline - time.monotonic())))
+    summary["attempts"] = attempts
+    summary["tokens"] = sum(a["tokens"] or 0 for a in attempts)
+    summary["seconds"] = sum(a["seconds"] or 0 for a in attempts)
+    shared.atomic_write(run / "agents" / (name + ".json"), json.dumps(summary, indent=2) + "\n")
+    if not summary.get("is_error") and (tools == "" or (output and output.is_file())):
+        shared.atomic_write(checkpoint, json.dumps({"identity": identity, "summary": summary,
+            "output_sha256": hashlib.sha256(output.read_bytes()).hexdigest() if output else None}, indent=2))
     return summary
 
 

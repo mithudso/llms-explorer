@@ -819,3 +819,37 @@ class MarginalInformationTests(unittest.TestCase):
         self.assertEqual(result['novel_accepted_facts'], 1)
         self.assertEqual(result['novel_mechanisms'], 1)
         self.assertIsNone(result['supported_novel_facts'])
+
+class RecoveryTests(unittest.TestCase):
+    def test_transient_retry_preserves_attempts_and_reuses_exact_worker_output(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            def atomic(path, text):
+                path.parent.mkdir(parents=True, exist_ok=True)
+                path.write_text(text)
+            shared = SimpleNamespace(run_dir=lambda slug: root, atomic_write=atomic)
+            target = root / 'claims/probe.json'
+            calls = []
+            def once(*args, **kwargs):
+                calls.append(1)
+                atomic(root / 'agents/probe.events.jsonl', f'event {len(calls)}')
+                if len(calls) == 1:
+                    return {'is_error': True, 'result': 'model capacity temporarily unavailable', 'tokens': 2}
+                atomic(target, '{"claims": []}')
+                return {'is_error': False, 'result': 'done', 'tokens': 3}
+            brief = f'OUTPUT — write exactly this file:\n{target}\n'
+            with patch.object(adapter, '_run_agent_once', side_effect=once), patch.object(adapter.time, 'sleep'):
+                first = adapter.run_agent(shared, {'slug': 'run'}, 'probe', brief, 'sonnet', 'medium', 1, 120)
+                self.assertEqual(first['tokens'], 5)
+                self.assertEqual(len(first['attempts']), 2)
+                self.assertEqual(len(list((root / 'agents/attempts/probe').iterdir())), 2)
+                second = adapter.run_agent(shared, {'slug': 'run'}, 'probe', brief, 'sonnet', 'medium', 1, 120)
+                self.assertTrue(second['resumed'])
+                self.assertEqual(len(calls), 2)
+                target.write_text('changed')
+                adapter.run_agent(shared, {'slug': 'run'}, 'probe', brief, 'sonnet', 'medium', 1, 120)
+                self.assertEqual(len(calls), 3)
+
+    def test_substantive_errors_are_not_transient(self):
+        for error in ('CONTRADICTED', 'gate quote does not match', 'permission denied', 'model not enabled'):
+            self.assertFalse(adapter.transient_failure({'is_error': True, 'result': error}))

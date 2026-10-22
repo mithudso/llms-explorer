@@ -18,3 +18,12 @@ runtime until all phases pass integrated checks. Historical gates remain legacy.
    records novel exact-normalized facts, mechanism-language counts and origin
    proxies. Supported novelty counts only gate-selected evidence and remains a
    lower bound. Validation: 71 focused tests and Ruff pass.
+
+3. **Verified:** workers keep private briefs/events/errors and summaries for every
+   attempt. Recognized transport/capacity/format failures retry at most twice
+   within the original deadline. Gate response-format errors receive one fresh
+   attempt; evidence mismatches and dissent stop. Exact worker inputs and output
+   hashes permit reuse. Ranked research, render, gate, export and local website
+   stages have separate content-bound checkpoints. Local publication never means
+   remote deployment. Validation: 75 focused tests and Ruff pass, including
+   transient recovery, output corruption and failed-stage resume.

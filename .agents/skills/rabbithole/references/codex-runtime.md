@@ -37,6 +37,14 @@ the adaptive lane, so its standard default is 1 (two research passes in total).
 
 ## Research and shared resources
 
+Workers preserve every private attempt and retry recognized transient failures
+at most twice within the original deadline. Format-only gate failures get one
+fresh attempt; substantive dissent and evidence binding failures stop. Exact
+brief/model/effort and matching output hashes permit worker reuse. Ranked runs
+checkpoint research, gate, render, export and local website generation separately.
+A website retry never repeats completed paid discovery. Remote deployment is a
+separate operation and never follows from a local-publication receipt.
+
 New runs use research-gate/v2. Gate input predetermines all version/default,
 numeric, API, security and volatile claims plus a deterministic ordinary sample
 (standard: ten, quick: zero, saturate: all). Quick still checks risky claims.

@@ -230,7 +230,7 @@ def install(shared):
         shared.save_manifest(manifest)
         return manifest
 
-    def gate(args):
+    def gate_once(args):
         manifest = shared.load_manifest(args.slug)
         sample = args.sample or ("all" if manifest["depth"] == "saturate" else 0 if manifest["depth"] == "quick" else 10)
         stamp = datetime.now(UTC).strftime("%Y%m%dT%H%M%S.%fZ") + "-" + uuid4().hex[:8]
@@ -250,6 +250,7 @@ def install(shared):
             shared.atomic_write(root / "validation.json", json.dumps(receipt, indent=2) + "\n")
             with shared.run_lock(args.slug):
                 current = shared.load_manifest(args.slug)
+                current["gate_contract_version"] = 2
                 current["gate"] = receipt
                 shared.save_manifest(current)
             shared._print({"ok": False, **receipt})
@@ -302,5 +303,16 @@ def install(shared):
         shared._print({"ok": error is None, **receipt})
         return 0 if error is None else 1
 
+    def gate(args):
+        result = gate_once(args)
+        if result and not args.dry_run:
+            message = shared.load_manifest(args.slug).get("gate", {}).get("error", "")
+            # One fresh format-only attempt. Evidence mismatches and dissent stop.
+            if message.startswith(("Expecting value:", "Expecting property name", "Unterminated string")) or (
+                    "No such file" in message and "verdicts.json" in message):
+                result = gate_once(args)
+        return result
+
     shared._create_run = create
     shared.cmd_gate = gate
+    shared.verify_current_gate = lambda manifest: verify_current(shared, manifest)

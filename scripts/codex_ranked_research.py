@@ -267,24 +267,57 @@ def execute_locked(repo, hub, plan_path, max_cohorts=None):
             # Include pages saved by earlier /dr runs in the shared FTS index.
             phase([sys.executable, str(hub / "scripts/source_library.py"), "reconcile"], 300)
             if manifest["status"] != "finalized":
-                phase(adapter + ["research", slug, "--max-parallel", "4"])
+                strict = manifest.get("gate_contract_version") == 2
+                checkpoints = load("research_checkpoints", repo / "scripts/research_checkpoints.py") if strict else None
+                stages = shared.run_dir(slug) / "checkpoints/stages.json"
+                claim_paths = [shared.run_dir(slug) / "claims" / (c["slug"] + ".json") for c in manifest["concepts"]]
+                if any(c["status"] != "done" for c in manifest["concepts"]):
+                    phase(adapter + ["research", slug, "--max-parallel", "4"])
                 manifest = shared.load_manifest(slug)
                 errors = []
-                shared.load_claims(slug, errors)
+                current_claims = shared.load_claims(slug, errors)
                 if errors or any(concept["status"] != "done" for concept in manifest["concepts"]):
                     raise RuntimeError(f"cohort has blocked or invalid claims: {errors}")
+                if strict:
+                    checkpoints.run_stage(stages, "research", current_claims, claim_paths, lambda: None)
                 output = repo / ".agents/skills" / slug / "SKILL.md"
-                phase(adapter + ["render", slug, "--kind", "standalone", "--out", str(output),
+                render_command = adapter + ["render", slug, "--kind", "standalone", "--out", str(output),
                                       "--description", f"Explain {parent} through source-anchored concept research. TRIGGER: {parent}. SKIP: unrelated topics.",
-                                      "--keywords", "research,concepts,reference,sources,mechanism,limits,operations,validation"])
-                phase(adapter + ["gate", slug, "--model", "gpt-6.1-sol", "--effort", "medium"], 1200)
+                                      "--keywords", "research,concepts,reference,sources,mechanism,limits,operations,validation"]
+                if strict:
+                    checkpoints.run_stage(stages, "render", current_claims, [output], lambda command=render_command: phase(command))
+                else:
+                    phase(render_command)
+                gate_current = False
+                if strict:
+                    try:
+                        shared.verify_current_gate(manifest)
+                        gate_current = True
+                    except (ValueError, OSError, KeyError):
+                        receipt = manifest.get("gate", {})
+                        if "non-supported" in (receipt.get("error") or ""):
+                            packet = json.loads((shared.run_dir(slug) / receipt["attempt"] / "packet.json").read_text())
+                            # The gate's canonical digest uses compact JSON.
+                            now = {k: hashlib.sha256(json.dumps(v, sort_keys=True, ensure_ascii=False, separators=(",", ":")).encode()).hexdigest()
+                                   for k, v in current_claims.items()}
+                            if packet["inputs"] == now:
+                                raise RuntimeError("Substantive gate dissent requires reviewed claim correction") from None
+                if not gate_current:
+                    phase(adapter + ["gate", slug, "--model", "gpt-6.1-sol", "--effort", "medium"], 1200)
+                if strict:
+                    shared.verify_current_gate(shared.load_manifest(slug))
+                    checkpoints.run_stage(stages, "gate", current_claims, [shared.run_dir(slug) / "gate.json"], lambda: None)
                 gate = json.loads((shared.run_dir(slug) / "gate.json").read_text())
                 if not gate.get("verdicts"):
                     raise RuntimeError("Blind claim gate returned no verdicts")
                 dissent = [row for row in gate["verdicts"] if row.get("verdict") != "SUPPORTED"]
                 if dissent:
                     raise RuntimeError(f"blind claim gate needs review: {len(dissent)} non-supported verdicts")
-                phase(adapter + ["finish", slug, "--status", "COMPLETED", "--stop-reason", "Ranked source-sharing cohort; scout and blind gate completed."])
+                finish_command = adapter + ["finish", slug, "--status", "COMPLETED", "--stop-reason", "Ranked source-sharing cohort; scout and blind gate completed."]
+                if strict:
+                    checkpoints.run_stage(stages, "export", current_claims, [shared.run_dir(slug) / "artifacts/receipt.json"], lambda command=finish_command: phase(command))
+                else:
+                    phase(finish_command)
             errors = []
             documents = shared.load_claims(slug, errors)
             if errors or any(row["status"] != "done" or row["slug"] not in documents
@@ -293,8 +326,14 @@ def execute_locked(repo, hub, plan_path, max_cohorts=None):
                 raise RuntimeError(f"cohort completion requires validated manifest claims: {errors}")
             # A completed run with a failed website write can resume without
             # repeating paid research. This also checks all four website surfaces.
-            phase([sys.executable, str(repo / "scripts/research_site_sync.py"), "--repo", str(repo),
-                   "--hub", str(hub), "--apply"], 600)
+            site_command = [sys.executable, str(repo / "scripts/research_site_sync.py"), "--repo", str(repo), "--hub", str(hub), "--apply"]
+            if manifest.get("gate_contract_version") == 2:
+                checkpoints = load("research_checkpoints", repo / "scripts/research_checkpoints.py")
+                checkpoints.run_stage(shared.run_dir(slug) / "checkpoints/stages.json", "local-publication", documents,
+                    [repo / "site/src/data/tree.json", repo / "site/src/data/context.json", repo / "site/src/data/concepts"],
+                    lambda command=site_command: phase(command, 600))
+            else:
+                phase(site_command, 600)
             complete_queue(shared, hub, picked)
             for name in picked:
                 with (marker.parent / "results.jsonl").open("a") as stream:
