@@ -86,7 +86,7 @@ def plan(repo: Path, hub: Path, nodes: list[dict], load, scrub, current_run: str
                 except (ValueError, OSError):
                     skipped.append({"run": candidate["run"], "concept": candidate["name"], "reason": "malformed existing manifest"})
                     break
-                if previous.get("concept", "").casefold() != candidate["name"].casefold():
+                if not artifacts.pack_identity_matches(previous.get("concept"), candidate["name"], slug, nodes):
                     skipped.append({"run": candidate["run"], "concept": candidate["name"], "reason": "pack identity conflict"})
                     break
                 if str(previous.get("generated") or "") > candidate["stamp"][:10]:

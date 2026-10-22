@@ -38,6 +38,17 @@ def repository() -> Path:
     return Path.home() / "dev/llms-explorer"
 
 
+def pack_identity_matches(old_name, name: str, slug: str, nodes: list[dict]) -> bool:
+    """An explicit alias on the stable-slug owner establishes rename identity."""
+    if not isinstance(old_name, str):
+        return False
+    if old_name.casefold() == name.casefold():
+        return True
+    return any(node.get("slug") == slug and node["concept"].casefold() == name.casefold()
+               and old_name.casefold() in {alias.casefold() for alias in (node.get("aliases") or []) if isinstance(alias, str)}
+               for node in nodes)
+
+
 def compile_claims(lca, out: Path, name: str, slug: str, docs: list[dict], status: str) -> None:
     """Use the existing compiler with trusted rows; no lossy text re-harvest."""
     out.mkdir(parents=True, exist_ok=True)
@@ -229,10 +240,12 @@ def finalize_artifacts(shared, manifest: dict, claims: dict[str, dict], status: 
         excluded_destinations = [("repository", repo / "outputs/llms-concepts" / f"{slug}.llms", slug, name)
                                  for slug, name in jobs.items() if name in private_names]
         # Check every destination before writing any packs or trees.
-        for _, dest, _, name in [*destinations, *excluded_destinations]:
+        owners = [node for before, after in planned.values() for node in [*after, *before]]
+        for _, dest, slug, name in [*destinations, *excluded_destinations]:
             if dest.exists():
                 old_manifest = dest / "manifest.json"
-                if not old_manifest.is_file() or json.loads(old_manifest.read_text()).get("concept") != name:
+                if not old_manifest.is_file() or not pack_identity_matches(
+                        json.loads(old_manifest.read_text()).get("concept"), name, slug, owners):
                     raise ValueError(f"refusing to replace another concept's pack: {dest}")
         staging = run / "artifacts"
         staging.mkdir(parents=True, exist_ok=True)

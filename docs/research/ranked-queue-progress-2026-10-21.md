@@ -1,5 +1,7 @@
 # Ranked research progress — updated 2026-10-22
 
+Live queue update: 16 cohorts have completed (61 concepts, 610 claims). The next cohort is running. The validated PR snapshot below stops after cohort fifteen.
+
 Fifteen of the 31 planned source-sharing cohorts have completed. They cover 57
 concepts and 569 structured claims. Fifty-three concepts add website references;
 four transaction concepts refresh existing references. The publication snapshot
@@ -127,3 +129,10 @@ Scoped Ruff, the full site build, publication policy, privacy scan and generated
 tree/context comparisons pass. All 912 required pack members and 57 completed
 queue rows are verified. The installed runtime refresh reports zero unfiled
 references and no pending pack recovery.
+
+The export replacement guard also recognizes explicit aliases on the stable
+slug owner, including copies of either tree's stable slug in both pack roots.
+Authoritative current-run recovery uses the same identity rule. Unrelated titles
+and missing manifests still fail before any write; historical recovery remains
+non-destructive. The fix passes 54 focused checks and two subtests in both
+checkouts, and the 22-file Codex skill profile is synchronized with backups.
