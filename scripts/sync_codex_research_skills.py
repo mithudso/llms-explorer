@@ -93,6 +93,16 @@ the adaptive lane, so its standard default is 1 (two research passes in total).
 
 ## Research and shared resources
 
+Finish freezes research-artifact/v1 from current canonical statements and the
+current bound gate. Immutable claim IDs identify exact statement versions; concept
+IDs follow the hub tree's stable owner. SUPPORTED and NOT-SAMPLED stay distinct.
+The artifact drives both trees, all eight pack members, reader/keyword data and
+facts/canonical JSON downloads. Public projections scrub private data and preserve
+approved citations. Redacted wording is labeled REDACTED-PROJECTION. Projection
+writes share a durable preimage journal and roll back on failure. An interrupted
+transaction is restored before retry. Source snapshots, quotes and raw logs stay
+private. Embeddings remain paused.
+
 Workers preserve every private attempt and retry recognized transient failures
 at most twice within the original deadline. Format-only gate failures get one
 fresh attempt; substantive dissent and evidence binding failures stop. Exact
@@ -292,7 +302,7 @@ def build(repo: Path, source_root: Path, canonical_root: Path | None) -> tuple[d
             provenance["sources"].append({"skill": skill, "file": relative, "origin": label, "source_sha256": digest(data), "output_sha256": digest(rendered)})
         outputs[Path(".agents/skills") / skill / "references/codex-runtime.md"] = RUNTIME.encode()
         outputs[Path(".agents/skills") / skill / "references/research-library.md"] = LIBRARY_REFERENCE.encode()
-    for filename in ("codex_dr_run.py", "codex_dr_artifacts.py", "research_gate.py", "research_library.py", "research_provenance.py"):
+    for filename in ("codex_dr_run.py", "codex_dr_artifacts.py", "research_gate.py", "research_library.py", "research_provenance.py", "research_artifact.py", "research_transaction.py"):
         adapter = repo / "scripts" / filename
         if not adapter.is_file():
             raise ValueError(f"missing tracked Codex adapter: {adapter}")

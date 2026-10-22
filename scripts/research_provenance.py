@@ -117,6 +117,18 @@ def evidence_id(snapshot, start, end, quote):
     return 'ev:' + digest([snapshot['source_id'], snapshot['snapshot_sha256'], start, end, quote])
 
 
+def record_evidence(library, span):
+    snapshot = {'source_id': span['source_id'], 'snapshot_sha256': span['snapshot_sha256'],
+                'snapshot_path': str(Path(library) / 'provenance/snapshots' / (span['snapshot_sha256'] + '.txt'))}
+    identity = evidence_id(snapshot, span['start'], span['end'], span['quote'])
+    if span.get('evidence_id') != identity:
+        raise ValueError('evidence identity changed before archival')
+    with lock(library):
+        immutable(Path(library) / 'provenance/evidence' / (identity[3:] + '.json'),
+                  (json.dumps(span, sort_keys=True, ensure_ascii=False) + '\n').encode())
+    return identity
+
+
 def bundle(shared, manifest, documents):
     library = shared.RESEARCH_DIR / '.library'
     concepts, sources = {}, {}

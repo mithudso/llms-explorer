@@ -828,3 +828,10 @@
   evidence spans and completion checks replace unbound verdict tallies. Historical
   receipts remain legacy. 68 focused tests pass. See the ordered research report.
 - Preserve the active queue runtime until all six phases pass integration.
+- All six hardening phases implemented in order and verified. Runtime code and
+  report: `docs/research/research-system-hardening-2026-10-22/README.md`.
+- Six live-assisted domain trials plus six blind judges supplement the prior
+  36 frozen trials. Costs remain unknown; actual token usage is measured.
+- Archived 9,695 current source versions; 59 historical body gaps remain explicit.
+- Canonical projection canary passed four live judgments and both tree/pack/site
+  outputs. 127 research tests + two subtests and 278 built-site tests pass.

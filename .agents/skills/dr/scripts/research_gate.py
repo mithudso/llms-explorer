@@ -280,6 +280,11 @@ def install(shared):
             report = validate(packet, response, root)
             if not report["all_supported"]:
                 raise ValueError("claim gate has unresolved non-supported verdicts")
+            provenance = getattr(shared, "evidence_provenance", None)
+            if provenance:
+                for judgment in response["verdicts"]:
+                    for span in judgment.get("evidence", []):
+                        provenance.record_evidence(shared.RESEARCH_DIR / ".library", span)
             shared.atomic_write(shared.run_dir(args.slug) / "gate.json", json.dumps({**response, **report}, indent=2) + "\n")
         except (OSError, ValueError, KeyError, TypeError) as failure:
             error = str(failure)
