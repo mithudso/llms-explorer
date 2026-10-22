@@ -32,7 +32,7 @@ def test_unsampled_claim_cannot_be_relabelled_supported():
 
 
 @pytest.mark.parametrize(('key', 'value'), [('sources', ['https://other.example.test']),
-    ('confidence', 'medium'), ('verified_as_of', '2026-10-22'), ('volatile', True)])
+    ('confidence', 'medium'), ('verified_as_of', '2026-10-22'), ('volatile', True), ('temporal', {'applicability_version': 'v4'})])
 def test_build_retains_equal_text_with_distinct_complete_identities(tmp_path, key, value):
     def write(path, text):
         path.parent.mkdir(parents=True, exist_ok=True)
@@ -60,7 +60,7 @@ def test_equal_worded_claims_keep_both_ids_and_evidence_through_compile_reader_a
     downloads = load('identity_projection_downloads', 'site/tools/gen_concept_facts.py')
     claim = {'text': 'The same precise claim.', 'confidence': 'high', 'validation_status': 'SUPPORTED'}
     claims = [{**claim, 'sources': ['https://example.test', f'https://secondary.test/{n}'],
-               'canonical_claim_id': f'clm:{n}', 'evidence_ids': [f'ev:{n}']} for n in range(2)]
+               'canonical_claim_id': f'clm:{n}', 'evidence_ids': [f'ev:{n}'], 'temporal': {'applicability_version': 'v4'}} for n in range(2)]
     pack_dir = tmp_path / 'c.llms'
     compiler.compile_claims(lca, pack_dir, 'C', 'c', [{'concept': 'C', 'claims': claims}],
                             'COMPLETED', artifact_sha='a' * 64, concept_id='concept:c')
@@ -71,6 +71,7 @@ def test_equal_worded_claims_keep_both_ids_and_evidence_through_compile_reader_a
     public = json.loads(downloads.research_download_texts({'c': pack})['c'])
     assert public['claims'] == facts
     assert all(fact['validationStatus'] == 'SUPPORTED' for fact in public['claims'])
+    assert all(fact['temporal'] == {'applicability_version': 'v4'} for fact in public['claims'])
 
 
 def test_new_concept_id_uses_the_same_collision_free_owner_before_and_after_upsert(tmp_path):

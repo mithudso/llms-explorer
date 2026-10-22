@@ -3,16 +3,19 @@
 Absent or null dates mean unknown. valid_to is exclusive. recorded_at is the
 researcher's observation time, never a substitute for source fetch or verification.
 """
+import re
 from datetime import UTC, date, datetime
 
 
 def _instant(value, *, timestamp=False):
     if not isinstance(value, str):
-        raise ValueError('temporal dates must be ISO strings or null')
+        raise ValueError('temporal dates must be ISO strings or null')  # noqa: TRY004
     try:
-        if not timestamp and len(value) == 10:
+        if not timestamp and re.fullmatch(r'\d{4}-\d{2}-\d{2}', value):
             return datetime.combine(date.fromisoformat(value), datetime.min.time(), UTC)
-        result = datetime.fromisoformat(value.replace('Z', '+00:00'))
+        if not re.match(r'^\d{4}-\d{2}-\d{2}T', value):
+            raise ValueError('timestamp needs an ISO date and T separator')
+        result = datetime.fromisoformat(value)
         if result.tzinfo is None:
             raise ValueError('timestamp needs a timezone')
         return result.astimezone(UTC)

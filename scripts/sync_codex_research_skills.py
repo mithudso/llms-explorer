@@ -111,7 +111,7 @@ checkpoint research, gate, render, export and local website generation separatel
 A website retry never repeats completed paid discovery. Remote deployment is a
 separate operation and never follows from a local-publication receipt.
 
-New runs use research-gate/v2. Gate input predetermines all version/default,
+New runs use research-gate/v3. Gate input predetermines all version/default,
 numeric, API, security and volatile claims plus a deterministic ordinary sample
 (standard: ten, quick: zero, saturate: all). Quick still checks risky claims.
 Each verdict must preserve the exact full claim, ID and hash, and bind exact

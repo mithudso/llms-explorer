@@ -169,6 +169,10 @@ def scrub_public_text(text: str, terms=(), allowed=None) -> str:
                 return match.group()
             return "<object-id>" if name == "atlas object id" else "/user@example.test/"
         text = regex.sub(replace, text)
+    # The publication gate matches literal substrings too, including prose
+    # outside addresses and URLs. Use that same rule before lexical indexing.
+    for term in sorted({term for term in terms if term}, key=len, reverse=True):
+        text = re.sub(_term_pattern(term), "[redacted]", text, flags=re.IGNORECASE)
     return text
 
 

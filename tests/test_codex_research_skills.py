@@ -563,7 +563,11 @@ class ResearchFlowTests(unittest.TestCase):
                        self.repo / "site/public/downloads/concepts/rename-durability.md",
                        self.repo / "site/public/search-keywords.json"):
             self.assertNotIn("Retired unsupported", target.read_text())
-            self.assertIn("Publication constraint", target.read_text())
+            if target.name == 'search-keywords.json':
+                tokens = json.loads(target.read_text())['items'][0]['text'].split()
+                self.assertTrue({'publication', 'constraint'} <= set(tokens))
+            else:
+                self.assertIn("Publication constraint", target.read_text())
 
     def test_current_run_refresh_retry_keeps_correction_authority_without_recompiling(self):
         self.research()

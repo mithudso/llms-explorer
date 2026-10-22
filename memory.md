@@ -878,3 +878,7 @@
 - Completion edge cases (TASK-805): alias/case variants normalize to canonical owner titles before tree upsert, retaining original requested titles for privacy checks and grouping all contributing documents. Existing routes and curated parent placement remain intact. Cancellation transitions batch reservations to cancelled, preserves pending work and checkpoints, and re-raises the original exit status. All 159 research tests plus four subtests pass.
 
 - Reader/checkpoint review fixes (TASK-805): canonical readers project structured units directly, preserving equal-worded claims with distinct IDs and evidence. Fresh worker attempts archive previous output and must write a new claims file before checkpoint success. Exact checkpoint reuse remains available. All six existing canonical readers rebuild without changes; the isolated research suite passes 162 tests plus four subtests.
+
+### 2026-10-22 — Four concept knowledge recommendations (TASK-840)
+
+Implemented prospective full-prose gates, optional temporal claim history, chunk-aware hybrid retrieval and full lexical coverage, and exact embedding/query revision bindings on `codex/knowledge-strategies-implementation-20261022`. See `docs/architecture/concept-knowledge-contracts.md` for compatibility behavior. Existing research receipts remain versioned; frozen vectors remain byte-identical. No embeddings or deployment were performed. Validation evidence is recorded with TASK-840.

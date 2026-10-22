@@ -14,6 +14,7 @@ import fcntl
 import hashlib
 import importlib.util
 import json
+import re
 import shutil
 import sys
 import tempfile
@@ -146,20 +147,38 @@ def merge_nodes(destination: list[dict], source: list[dict]) -> list[dict]:
     return result
 
 
+def semantic_input(pack: dict) -> str:
+    """Match site/tools/search_representation.mjs concept-prefix/v2 exactly."""
+    facts = [fact['text'] for facet in pack.get('facets', []) for fact in facet.get('facts', [])]
+    return '. '.join(value for value in [pack['concept'], pack.get('summary'), *facts] if value)[:2000]
+
+
+def representation_digest(value) -> str:
+    raw = value if isinstance(value, bytes) else json.dumps(
+        value, sort_keys=True, ensure_ascii=False, separators=(',', ':')).encode()
+    return hashlib.sha256(raw).hexdigest()
+
+
 def search_writes(repo: Path, packs: dict, redirects: dict) -> tuple[dict, dict]:
     """Keep frozen vectors row-aligned; give every pack keyword coverage."""
     writes = {}
     keyword = []
     for slug, pack in sorted(packs.items()):
         facts = [fact["text"] for facet in pack.get("facets", []) for fact in facet.get("facts", [])]
+        full_text = " ".join([pack["concept"], pack.get("summary", ""), *facts])
+        # The client tests token membership, so repeated prose adds download
+        # cost without adding lexical coverage. Keep every distinct token.
+        vocabulary = " ".join(sorted(set(re.findall(r"[\w$]+", full_text.lower()))))
         keyword.append({"slug": slug, "concept": pack["concept"], "summary": pack.get("summary", ""),
-                        "text": " ".join([pack["concept"], pack.get("summary", ""), *facts])[:2500]})
-    writes[repo / "site/public/search-keywords.json"] = json_text({"items": keyword})
+                        "text": vocabulary})
+    writes[repo / "site/public/search-keywords.json"] = json_text({"text_format": "token-vocabulary/v1", "items": keyword})
     meta_path = repo / "site/src/data/search-meta.json"
     binary_path = repo / "site/public/search-index.bin"
     indexed = set()
     if meta_path.is_file() and binary_path.is_file():
         meta, binary = read_json(meta_path), binary_path.read_bytes()
+        if meta.get('index_sha256') and meta['index_sha256'] != representation_digest(binary):
+            raise ValueError('Existing semantic index hash does not match its metadata')
         width = meta["dim"] * 4
         if len(binary) != len(meta["items"]) * width or meta["count"] != len(meta["items"]):
             raise ValueError("Existing semantic metadata and vectors are not row-aligned")
@@ -169,10 +188,29 @@ def search_writes(repo: Path, packs: dict, redirects: dict) -> tuple[dict, dict]
             if slug not in packs or slug in indexed:
                 continue
             indexed.add(slug)
-            items.append({**item, "slug": slug, "concept": packs[slug]["concept"],
+            vector = binary[index * width:(index + 1) * width]
+            binding = copy.deepcopy(item.get('embedding') or {
+                'schema': 'embedding-representation/v1', 'state': 'unknown',
+                'unit_id': 'concept:' + item['slug'], 'input_sha256': None,
+                'vector_encoding': 'float32-le/v1', 'text_encoding': 'utf-8',
+                'artifact_sha256': None, 'encoder_sha256': None})
+            if binding.get('vector_sha256') and binding['vector_sha256'] != representation_digest(vector):
+                raise ValueError('Frozen vector does not match its representation binding')
+            if binding.get('encoder_sha256') and binding['encoder_sha256'] != representation_digest(meta.get('encoder')):
+                raise ValueError('Frozen vector encoder revision changed')
+            binding['vector_sha256'] = representation_digest(vector)
+            binding['current_input_sha256'] = representation_digest(semantic_input(packs[slug]).encode())
+            binding['current_artifact_sha256'] = packs[slug].get('canonicalArtifactSha256') or representation_digest(packs[slug])
+            if binding.get('input_sha256'):
+                binding['state'] = 'current' if (
+                    binding['input_sha256'] == binding['current_input_sha256']
+                    and binding.get('artifact_sha256') == binding['current_artifact_sha256']
+                    and binding['unit_id'] == 'concept:' + slug) else 'stale'
+            items.append({**item, 'embedding': binding, "slug": slug, "concept": packs[slug]["concept"],
                           "summary": packs[slug].get("summary", "")})
             vectors.append(binary[index * width:(index + 1) * width])
-        writes[meta_path] = json_text({**meta, "count": len(items), "items": items})
+        writes[meta_path] = json_text({**meta, "count": len(items), "items": items,
+                                     'index_sha256': representation_digest(b''.join(vectors))})
         writes[binary_path] = b"".join(vectors)
     exclusions = {"version": "1.0.0", "items": [
         {"slug": slug, "concept": packs[slug]["concept"],

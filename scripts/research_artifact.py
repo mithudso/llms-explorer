@@ -7,7 +7,6 @@ import importlib.util
 import json
 from pathlib import Path
 
-
 _claims_spec = importlib.util.spec_from_file_location('research_statement_contract', Path(__file__).with_name('research_claims.py'))
 _claims = importlib.util.module_from_spec(_claims_spec)
 _claims_spec.loader.exec_module(_claims)
