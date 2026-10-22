@@ -131,6 +131,28 @@ def scrub_addresses(text: str, terms: list[str] = (), prose: bool = True) -> tup
     return text, n
 
 
+def scrub_public_text(text: str, terms=(), allowed=None) -> str:
+    """Sanitize public prose before truncation or JSON serialization."""
+    allowed = gate.allowlist() if allowed is None else allowed
+    text = re.sub(r"https?://[^\s<>\"'`\]\),]+",
+                  lambda match: "https://example.test/withheld-reference"
+                  if _matches(match.group(), terms) else match.group(), text)
+    text, _ = scrub_home_paths(text)
+    text, _ = scrub_addresses(text, terms)
+    text = re.sub(r"[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}",
+                  lambda match: match.group() if gate.RESERVED.search(match.group())
+                  else "user@example.test", text)
+    for name, regex, _ in gate.COMPILED:
+        if name not in ("atlas object id", "email inside a path"):
+            continue
+        def replace(match, name=name):
+            if any(item in match.group() for item in allowed) or gate.RESERVED.search(match.group()):
+                return match.group()
+            return "<object-id>" if name == "atlas object id" else "/user@example.test/"
+        text = regex.sub(replace, text)
+    return text
+
+
 def scrub_address_files(paths, terms: list[str] = ()) -> list[tuple[str, int]]:
     done = []
     for p in _targets(paths, ADDRESS_EXTS):

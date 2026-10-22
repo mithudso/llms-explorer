@@ -14,7 +14,6 @@ import fcntl
 import hashlib
 import importlib.util
 import json
-import re
 import shutil
 import sys
 import tempfile
@@ -141,8 +140,6 @@ def search_writes(repo: Path, packs: dict, redirects: dict) -> tuple[dict, dict]
 def publication_pack(pack: dict, scrub, terms: list[str]) -> dict:
     """Publish documentation placeholders while retaining private originals."""
     allowed = scrub.gate.allowlist()
-    identity_rules = [(name, regex) for name, regex, _ in scrub.gate.COMPILED
-                      if name in ("atlas object id", "email inside a path")]
 
     def clean(value):
         if isinstance(value, list):
@@ -153,23 +150,7 @@ def publication_pack(pack: dict, scrub, terms: list[str]) -> dict:
                     for key, item in value.items()}
         if not isinstance(value, str):
             return value
-        value = re.sub(r"https?://[^\s<>\"'`\]\),]+",
-                       lambda match: "https://example.test/withheld-reference"
-                       if scrub._matches(match.group(), terms) else match.group(), value)
-        value, _ = scrub.scrub_home_paths(value)
-        value, _ = scrub.scrub_addresses(value, terms)
-        # JSON escapes a quote after an example email as a backslash. The
-        # publication gate correctly treats that shape as a possible path.
-        value = re.sub(r"[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}",
-                       lambda match: match.group() if scrub.gate.RESERVED.search(match.group())
-                       else "user@example.test", value)
-        for name, regex in identity_rules:
-            def replace(match, name=name):
-                if any(item in match.group() for item in allowed) or scrub.gate.RESERVED.search(match.group()):
-                    return match.group()
-                return "<object-id>" if name == "atlas object id" else "/user@example.test/"
-            value = regex.sub(replace, value)
-        return value
+        return scrub.scrub_public_text(value, terms, allowed)
 
     return clean(pack)
 
@@ -329,7 +310,8 @@ def plan(repo: Path, hub: Path, merge_tree: bool = True, current_run: str | None
         # New Codex skills are local runtime artifacts. Vendor their summaries
         # so an isolated CI checkout reproduces the same generated tree.
         summary_path = repo / "concept-tree/skill-summaries.json"
-        summaries = read_json(summary_path) if summary_path.is_file() else {}
+        summaries = {key: tree.publication_summary(value, [*scrub.gate.denylist(), *withheld])
+                     for key, value in (read_json(summary_path) if summary_path.is_file() else {}).items()}
         for node in merged:
             skill_id = node.get("skillId")
             if skill_id and (repo / ".agents/skills" / skill_id / "SKILL.md").is_file():
