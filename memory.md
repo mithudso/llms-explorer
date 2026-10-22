@@ -835,3 +835,15 @@
 - Archived 9,695 current source versions; 59 historical body gaps remain explicit.
 - Canonical projection canary passed four live judgments and both tree/pack/site
   outputs. 132 research tests + two subtests and 278 built-site tests pass.
+
+## 2026-10-22 — Ranked cohort 23 citation recovery
+- TASK-793 resumes the existing ranked plan after 22 completed cohorts. Discovery
+  remains intact. Primary-source review corrected seven claim records and pinned
+  three previously missing forum source bodies in the private library.
+- The gate now names the claim and URL when evidence binding fails. The judge
+  brief explicitly forbids borrowing citations from other claims in the packet,
+  including for non-supported verdicts. All four verdict types have regression
+  coverage. The isolated research suite passes 136 tests plus two subtests.
+- PR 216 merged into PR 214. Exact-head GitHub checks pass at 9746633389, while
+  Cloudflare Pages still fails without an accessible first-error log. Local
+  publication remains distinct from production deployment.
