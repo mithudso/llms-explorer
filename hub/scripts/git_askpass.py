@@ -1,5 +1,9 @@
 #!/usr/bin/env python3
-"""Supply the scoped library secret only to Git's expected GitHub prompts."""
+"""Supply the scoped library secret only to Git's expected GitHub prompts.
+
+Usage: Git invokes this helper with its credential prompt. hub/bootstrap.sh sets
+GIT_ASKPASS to this file when LIBS_READ_TOKEN is available.
+"""
 from __future__ import annotations
 
 import os

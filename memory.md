@@ -866,3 +866,5 @@
 - The release snapshot now contains 1,518 reader packs and 89,213 facts from the latest validated work. All 38 cohort 23 claim IDs, evidence IDs and supported verdicts survive in the readers and canonical downloads. The operator privacy gate passes with 27 private denylist rules. Embeddings remain paused.
 - Clean builds now recreate canonical research JSON downloads from committed reader data. The same projection function serves research refresh and CI. A regression verifies clean generation and retirement when a pack becomes legacy or is removed.
 - Cohort 24 stopped for source review: 27 UNVERIFIED, 14 SUPPORTED and one NOT-IN-SOURCE verdict among 42 selected claims. Its unfinished results are excluded. Cohorts 25-31 remain pending. Production publication awaits final exact-head checks.
+
+- Full release CI found one helper-documentation failure (`git_askpass.py lacks a Usage section`). Added the missing invocation documentation; credential and script-discovery regressions pass. Other release API, privacy, lint, site-build, CodeQL and Cloudflare checks passed. The updated release will be checked again before production.
