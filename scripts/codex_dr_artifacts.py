@@ -379,7 +379,7 @@ def _transactional_finalize(shared, manifest: dict, claims: dict[str, dict], sta
         stored = canonical.verify(json.loads(path.read_text()))
         if stored != artifact:
             raise ValueError("canonical artifact changed during projection")
-        if manifest.get("gate_contract_version") == 2:
+        if manifest.get("gate_contract_version") in (2, 3):
             shared.verify_current_gate(shared.load_manifest(manifest["slug"]))
         receipt["canonical_artifact"] = {"sha256": artifact["artifact_sha256"], "path": str(path),
                                          "validation": artifact["validation"]}

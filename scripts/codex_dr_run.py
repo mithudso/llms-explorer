@@ -556,7 +556,7 @@ def load_shared(path: Path | None = None):
             claims = shared.load_claims(args.slug, errors)
             if errors:
                 raise ValueError("cannot export invalid claims: " + "; ".join(errors))
-            if claims and args.status in ("COMPLETED", "BUDGET_EXHAUSTED") and manifest.get("gate_contract_version") == 2:
+            if claims and args.status in ("COMPLETED", "BUDGET_EXHAUSTED") and manifest.get("gate_contract_version") in (2, 3):
                 bound_gate.verify_current(shared, manifest)
                 manifest["research_telemetry"] = research_telemetry(shared, args.slug)
             if args.status in ("COMPLETED", "BUDGET_EXHAUSTED"):
