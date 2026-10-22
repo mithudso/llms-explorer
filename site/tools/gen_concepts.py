@@ -56,6 +56,18 @@ RELATED_RE = re.compile(
 #: Not a facet — vocabulary/coverage bookkeeping, not researched content.
 SKIP_SECTIONS = {"vocabulary"}
 
+# The abstractor's section keys and public headings. Canonical packs retain
+# structured units, so their identities never need to be inferred from Markdown.
+FACET_TITLES = {
+    "definition": "Definitions", "structure": "Structure and components",
+    "mechanism": "How it works", "parameters": "Parameters and configuration",
+    "how-to": "How-to and procedures", "examples": "Examples and snippets",
+    "measures": "Measurements and reference values",
+    "problems": "Problems, failure modes and limitations",
+    "comparisons": "Comparisons and alternatives", "history": "Changes and history",
+    "questions": "Open questions", "facts": "Facts and statements", "quotes": "Quotes",
+}
+
 
 def is_concept_abstractor_pack(manifest: dict[str, Any]) -> bool:
     """True for real `llms-concept-abstractor` output, false for anything else
@@ -206,6 +218,29 @@ def parse_related(index_text: str) -> list[dict[str, Any]]:
     return related
 
 
+def canonical_facets(units: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    """Project each structured claim directly, including equal-worded claims."""
+    by_section: dict[str, list[dict[str, Any]]] = {}
+    for unit in units:
+        fact = {
+            "text": scrub_home_path(unit["text"]),
+            "source": scrub_home_path(unit["source_url"]),
+            "note": unit.get("note"),
+            "claimId": unit["id"],
+            "validationStatus": unit.get("validation_status", "LEGACY-UNBOUND"),
+            "evidenceIds": unit.get("evidence_ids", []),
+        }
+        if unit.get("origin_validation_status"):
+            fact["originValidationStatus"] = unit["origin_validation_status"]
+        if fact["text"] != unit["text"] or fact["source"] != unit["source_url"]:
+            fact.setdefault("originValidationStatus", fact["validationStatus"])
+            fact["validationStatus"] = "REDACTED-PROJECTION"
+        by_section.setdefault(unit.get("section", "facts"), []).append(fact)
+    sections = [*FACET_TITLES, *(key for key in by_section if key not in FACET_TITLES)]
+    return [{"title": FACET_TITLES.get(key, key), "facts": by_section[key]}
+            for key in sections if key in by_section]
+
+
 def build_one(pack_dir: Path) -> dict[str, Any] | None:
     """One pack's JSON, or `None` if it is missing, malformed, or not a real
     concept-abstractor pack."""
@@ -235,19 +270,7 @@ def build_one(pack_dir: Path) -> dict[str, Any] | None:
         pack["canonicalConceptId"] = manifest.get("canonical_concept_id")
         units_path = pack_dir / "units.jsonl"
         units = [json.loads(line) for line in units_path.read_text().splitlines() if line.strip()]
-        by_fact = {(" ".join(scrub_home_path(row["text"]).split()),
-                    scrub_home_path(row["source_url"])): row for row in units}
-        for facet in pack["facets"]:
-            for fact in facet["facts"]:
-                unit = by_fact.get((" ".join(fact["text"].split()), fact["source"]))
-                if unit is None:
-                    raise ValueError(f"{manifest['slug']}: reader fact lost its canonical identity")
-                fact.update(claimId=unit["id"],
-                            validationStatus=unit.get("validation_status", "LEGACY-UNBOUND"),
-                            evidenceIds=unit.get("evidence_ids", []))
-                if scrub_home_path(unit["text"]) != unit["text"]:
-                    fact["originValidationStatus"] = fact["validationStatus"]
-                    fact["validationStatus"] = "REDACTED-PROJECTION"
+        pack["facets"] = canonical_facets(units)
     return pack
 
 

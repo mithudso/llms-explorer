@@ -47,6 +47,32 @@ def test_build_retains_equal_text_with_distinct_complete_identities(tmp_path, ke
     assert len({c['canonical_claim_id'] for c in result['documents']['c']['claims']}) == 2
 
 
+def test_equal_worded_claims_keep_both_ids_and_evidence_through_compile_reader_and_download(tmp_path):
+    root = Path(__file__).resolve().parents[1]
+    def load(name, relative):
+        module_spec = importlib.util.spec_from_file_location(name, root / relative)
+        module = importlib.util.module_from_spec(module_spec)
+        module_spec.loader.exec_module(module)
+        return module
+    lca = load('identity_projection_lca', '.claude/skills/llms-concept-abstractor/scripts/concept_abstract.py')
+    compiler = load('identity_projection_compiler', 'scripts/codex_dr_artifacts.py')
+    reader = load('identity_projection_reader', 'site/tools/gen_concepts.py')
+    downloads = load('identity_projection_downloads', 'site/tools/gen_concept_facts.py')
+    claim = {'text': 'The same precise claim.', 'confidence': 'high', 'validation_status': 'SUPPORTED'}
+    claims = [{**claim, 'sources': ['https://example.test', f'https://secondary.test/{n}'],
+               'canonical_claim_id': f'clm:{n}', 'evidence_ids': [f'ev:{n}']} for n in range(2)]
+    pack_dir = tmp_path / 'c.llms'
+    compiler.compile_claims(lca, pack_dir, 'C', 'c', [{'concept': 'C', 'claims': claims}],
+                            'COMPLETED', artifact_sha='a' * 64, concept_id='concept:c')
+    pack = reader.build_one(pack_dir)
+    facts = [fact for facet in pack['facets'] for fact in facet['facts']]
+    assert len(facts) == 2
+    assert {fact['claimId']: fact['evidenceIds'] for fact in facts} == {'clm:0': ['ev:0'], 'clm:1': ['ev:1']}
+    public = json.loads(downloads.research_download_texts({'c': pack})['c'])
+    assert public['claims'] == facts
+    assert all(fact['validationStatus'] == 'SUPPORTED' for fact in public['claims'])
+
+
 def test_new_concept_id_uses_the_same_collision_free_owner_before_and_after_upsert(tmp_path):
     root = Path(__file__).resolve().parents[1]
     def load(name, path):
