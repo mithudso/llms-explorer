@@ -69,3 +69,9 @@ reconcile explicit concept merges before redirects, and retain distinct canonica
 claim identities when statement text matches but provenance differs. All 150
 research tests plus four subtests pass. The full site build passes on the upgraded
 local Node.js 26.7.0. The validated research snapshot remains frozen.
+
+Cancellation now reaches the ranked phase and its worker cleanup before the
+parent exits. Immutable evidence becomes visible only after a complete flushed
+write. Canonical concept IDs use collision-free planned hub slugs and remain
+stable after upsert. All 154 research tests plus four subtests pass, including
+real-process cancellation and partial-write regressions.

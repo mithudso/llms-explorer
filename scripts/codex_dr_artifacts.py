@@ -225,6 +225,8 @@ def _finalize_artifacts(shared, manifest: dict, claims: dict[str, dict], status:
                     jobs[slug] = node["concept"]
                     node["llmsFile"] = f"{slug}.llms/llms-facts.txt"
                     if artifact:
+                        if label == "hub" and slug != artifact["concept_slugs"][node["concept"]]:
+                            raise ValueError("hub slug differs from frozen canonical owner: " + node["concept"])
                         node["canonicalConceptId"] = artifact["concept_ids"][node["concept"]]
                         node["canonicalArtifactSha256"] = artifact["artifact_sha256"]
             # Preserve init --alias semantics for frontier placeholders in
