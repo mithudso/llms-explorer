@@ -425,9 +425,6 @@ def _sync(repo: Path, hub: Path, apply: bool = False, merge_tree: bool = True,
     with lock_path.open("a") as lock:
         fcntl.flock(lock, fcntl.LOCK_EX)
         transactions = module("site_projection_transaction", Path(__file__).with_name("research_transaction.py")) if apply else None
-        if apply and transaction is None:
-            for prior in sorted((repo / "tmp/research-site-sync-backups").glob("*/transaction/journal.json")):
-                transactions.recover(prior.parent)
         reference_cache = hub / "research/.site-public-references.json"
         withheld = [key for key, value in read_json(reference_cache).items() if not value["public"]] if reference_cache.is_file() else []
         for attempt in range(3):
@@ -462,7 +459,8 @@ def _sync(repo: Path, hub: Path, apply: bool = False, merge_tree: bool = True,
                         shutil.copytree(path, saved, symlinks=True)
                     else:
                         shutil.copy2(path, saved)
-            current = transaction or transactions.Transaction(backup / "transaction")
+            current = transaction or transactions.Transaction(backup / "transaction",
+                                                              registry=transactions.registry_dir(hub / "research"))
             try:
                 for path, text in changes.items():
                     current.write(path, text)
@@ -484,6 +482,8 @@ def sync(repo: Path, hub: Path, apply: bool = False, merge_tree: bool = True,
     path.parent.mkdir(parents=True, exist_ok=True)
     with path.open("a") as lock:
         fcntl.flock(lock, fcntl.LOCK_EX)
+        transactions = module("site_recovery_transaction", Path(__file__).with_name("research_transaction.py"))
+        transactions.recover_pending(hub / "research", repo)
         return _sync(repo, hub, apply, merge_tree, current_run, authoritative_slugs)
 
 

@@ -55,3 +55,11 @@ for Cloudflare and refreshes the release to 1,518 readers and 89,213 facts. Clea
 builds also regenerate canonical JSON downloads from committed reader data.
 The credential repair has passed a live preview; production awaits the final
 release checks.
+
+Final review strengthened two recovery paths. A private shared registry makes
+interrupted native and standalone projection journals visible across checkouts.
+Both writers recover pending journals under the global lock before publishing.
+Benchmark resume preserves failed attempts and retries unsuccessful or malformed
+stages while retaining valid successful stages. The research suite passes 143
+tests plus two subtests, including cross-run and cross-checkout regressions.
+These repairs do not change the frozen research snapshot or run paid models.
