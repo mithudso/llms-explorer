@@ -222,7 +222,7 @@ def build_one(pack_dir: Path) -> dict[str, Any] | None:
     index_path = pack_dir / "llms.txt"
     if not full_path.is_file() or not index_path.is_file():
         return None
-    return {
+    pack = {
         "slug": manifest["slug"],
         "concept": manifest["concept"],
         "generated": manifest.get("generated", ""),
@@ -230,6 +230,25 @@ def build_one(pack_dir: Path) -> dict[str, Any] | None:
         "facets": parse_facets(full_path.read_text(encoding="utf-8")),
         "related": parse_related(index_path.read_text(encoding="utf-8")),
     }
+    if manifest.get("canonical_artifact_sha256"):
+        pack["canonicalArtifactSha256"] = manifest["canonical_artifact_sha256"]
+        pack["canonicalConceptId"] = manifest.get("canonical_concept_id")
+        units_path = pack_dir / "units.jsonl"
+        units = [json.loads(line) for line in units_path.read_text().splitlines() if line.strip()]
+        by_fact = {(" ".join(scrub_home_path(row["text"]).split()),
+                    scrub_home_path(row["source_url"])): row for row in units}
+        for facet in pack["facets"]:
+            for fact in facet["facts"]:
+                unit = by_fact.get((" ".join(fact["text"].split()), fact["source"]))
+                if unit is None:
+                    raise ValueError(f"{manifest['slug']}: reader fact lost its canonical identity")
+                fact.update(claimId=unit["id"],
+                            validationStatus=unit.get("validation_status", "LEGACY-UNBOUND"),
+                            evidenceIds=unit.get("evidence_ids", []))
+                if scrub_home_path(unit["text"]) != unit["text"]:
+                    fact["originValidationStatus"] = fact["validationStatus"]
+                    fact["validationStatus"] = "REDACTED-PROJECTION"
+    return pack
 
 
 def build(hub_dir: Path) -> dict[str, dict[str, Any]]:

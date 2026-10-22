@@ -33,7 +33,7 @@ class SiteSyncTests(unittest.TestCase):
         self.addCleanup(temporary.cleanup)
         self.root = Path(temporary.name)
         self.repo, self.hub = self.root / "repo", self.root / "hub"
-        for relative in ("scripts/research_site_sync.py", "scripts/recover_dr_packs.py", "scripts/publish_scrub.py",
+        for relative in ("scripts/research_site_sync.py", "scripts/recover_dr_packs.py", "scripts/research_transaction.py", "scripts/publish_scrub.py",
                          "scripts/check_publish_privacy.py", "site/tools/gen_tree.py", "site/tools/gen_concepts.py",
                          "site/tools/gen_context.py", "site/tools/gen_concept_facts.py", "hub/scripts/concept_tree.py",
                          "hub/scripts/research_site_hook.py"):

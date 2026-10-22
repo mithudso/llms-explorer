@@ -145,9 +145,13 @@ def publication_pack(pack: dict, scrub, terms: list[str]) -> dict:
         if isinstance(value, list):
             return [clean(item) for item in value]
         if isinstance(value, dict):
-            return {clean(key): ("archived:private-reference" if key == "source" and isinstance(item, str)
+            result = {clean(key): ("archived:private-reference" if key == "source" and isinstance(item, str)
                           and scrub._matches(item, terms) else clean(item))
                     for key, item in value.items()}
+            if value.get("validationStatus") and any(result.get(k) != value.get(k) for k in ("text", "source")):
+                result["originValidationStatus"] = value["validationStatus"]
+                result["validationStatus"] = "REDACTED-PROJECTION"
+            return result
         if not isinstance(value, str):
             return value
         return scrub.scrub_public_text(value, terms, allowed)
@@ -321,6 +325,19 @@ def plan(repo: Path, hub: Path, merge_tree: bool = True, current_run: str | None
         elif pack != site_packs[slug]:
             stale.append(slug)
         writes[repo / f"site/src/data/concepts/{slug}.json"] = json_text(pack, indent=2)
+        if pack.get("canonicalArtifactSha256"):
+            artifact = {"schema": "research-public-artifact/v1", "concept": pack["concept"], "slug": slug,
+                        "canonicalArtifactSha256": pack["canonicalArtifactSha256"],
+                        "canonicalConceptId": pack.get("canonicalConceptId"),
+                        "claims": [fact for facet in pack["facets"] for fact in facet["facts"]]}
+            writes[repo / f"site/public/downloads/research/{slug}.json"] = json_text(artifact, indent=2)
+    for path in (repo / "site/public/downloads/research").glob("*.json"):
+        if path.stem not in selected or not selected[path.stem].get("canonicalArtifactSha256"):
+            writes[path] = None
+    for excluded_directory in excluded_repository_packs:
+        path = repo / "outputs/research-artifacts" / (excluded_directory.stem + ".json")
+        if path.exists():
+            writes[path] = None
     # Generate against the complete planned snapshot before changing real files.
     with tempfile.TemporaryDirectory(prefix="research-site-plan-") as temporary:
         staged = Path(temporary)
@@ -404,13 +421,17 @@ def plan(repo: Path, hub: Path, merge_tree: bool = True, current_run: str | None
     return report, changes
 
 
-def sync(repo: Path, hub: Path, apply: bool = False, merge_tree: bool = True,
-         current_run: str | None = None, authoritative_slugs=()) -> dict:
+def _sync(repo: Path, hub: Path, apply: bool = False, merge_tree: bool = True,
+         current_run: str | None = None, authoritative_slugs=(), transaction=None) -> dict:
     # This serializes CFE, /dr, suite and batch writers' website refreshes.
     lock_path = repo / "tmp/research-site-sync.lock"
     lock_path.parent.mkdir(parents=True, exist_ok=True)
     with lock_path.open("a") as lock:
         fcntl.flock(lock, fcntl.LOCK_EX)
+        transactions = module("site_projection_transaction", Path(__file__).with_name("research_transaction.py")) if apply else None
+        if apply and transaction is None:
+            for prior in sorted((repo / "tmp/research-site-sync-backups").glob("*/transaction/journal.json")):
+                transactions.recover(prior.parent)
         reference_cache = hub / "research/.site-public-references.json"
         withheld = [key for key, value in read_json(reference_cache).items() if not value["public"]] if reference_cache.is_file() else []
         for attempt in range(3):
@@ -445,22 +466,29 @@ def sync(repo: Path, hub: Path, apply: bool = False, merge_tree: bool = True,
                         shutil.copytree(path, saved, symlinks=True)
                     else:
                         shutil.copy2(path, saved)
-            for path, text in changes.items():
-                if text is None:
-                    if path.is_dir() and not path.is_symlink():
-                        shutil.rmtree(path)
-                    else:
-                        path.unlink(missing_ok=True)
-                    continue
-                path.parent.mkdir(parents=True, exist_ok=True)
-                temporary = path.with_name(path.name + ".research-sync-tmp")
-                if isinstance(text, bytes):
-                    temporary.write_bytes(text)
-                else:
-                    temporary.write_text(text, encoding="utf-8")
-                temporary.replace(path)
+            current = transaction or transactions.Transaction(backup / "transaction")
+            try:
+                for path, text in changes.items():
+                    current.write(path, text)
+                if transaction is None:
+                    current.commit()
+            except BaseException:
+                if transaction is None:
+                    current.rollback()
+                raise
             report["backup"] = str(backup.relative_to(repo))
         return report
+
+
+def sync(repo: Path, hub: Path, apply: bool = False, merge_tree: bool = True,
+         current_run: str | None = None, authoritative_slugs=(), transaction=None) -> dict:
+    if transaction is not None or not apply:
+        return _sync(repo, hub, apply, merge_tree, current_run, authoritative_slugs, transaction)
+    path = hub / "research/.global.lock"
+    path.parent.mkdir(parents=True, exist_ok=True)
+    with path.open("a") as lock:
+        fcntl.flock(lock, fcntl.LOCK_EX)
+        return _sync(repo, hub, apply, merge_tree, current_run, authoritative_slugs)
 
 
 def main(argv=None) -> int:

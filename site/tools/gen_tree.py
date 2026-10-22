@@ -180,6 +180,8 @@ def build(repo_root: Path, today: str | None = None,
             "summary": scrub.scrub_public_text(str(n.get("summary") or ""), scrub.gate.denylist()),
             "skillSummary": skill_summary(repo_root, n.get("skillId"), vendored),
             "hasPack": (concepts_dir / f"{slug}.json").is_file(),
+            **{key: n[key] for key in ("canonicalConceptId", "canonicalArtifactSha256")
+               if n.get(key)},
             "artifacts": {},
         }
         if n.get("cvs") is not None:

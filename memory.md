@@ -821,3 +821,17 @@
 - Installed six spokes under `mongodb-operations-expert/references/`, hub v1.2.1 (sko: 2H+9M → 1H+3M; Pass H 10/10, 0 false positives); 33 `/lca` packs under `~/.global-ai-hub/llms-concepts/` (2,466 units, 28 conflicts, every probe 10/10) with vector+keyword indexes; family index `mongodb-cost-optimization-family.llms`.
 - Trees: hub 1536 → 1604, site `concept-tree/tree.json` 1532 → 1571 via `sync_trees.py` (merge-only, no new validate problems); `site/src/data/tree.json` regenerated. Reader pages NOT generated (extractive packs need owner approval, per the 2026-10-14 Ollama rule).
 - Lessons: `EnterWorktree` mid-run kills running subagents' Bash (cwd pinned to the shared checkout) — enter the worktree before spawning; the worktree guard also rejects compound/heredoc commands and the bare word `source`, so helpers were written with the Write tool and run as plain commands. One transient API DNS error killed five delegates; relaunch with resume notes cost ~10 min. Tooling bugs surfaced: `misc-catch-all-ext2-manifest.json:304` spoke named `references` corrupts `referents.mjs --repair`; `mongodb-manifest.json` has zero spokes for the operations hub.
+
+## 2026-10-22 — Ordered research hardening
+- Isolated branch `codex/research-system-hardening-20261022` starts at 4ab5697.
+- Phase 1 introduces prospective research-gate/v2. Exact claims, immutable bodies,
+  evidence spans and completion checks replace unbound verdict tallies. Historical
+  receipts remain legacy. 68 focused tests pass. See the ordered research report.
+- Preserve the active queue runtime until all six phases pass integration.
+- All six hardening phases implemented in order and verified. Runtime code and
+  report: `docs/research/research-system-hardening-2026-10-22/README.md`.
+- Six live-assisted domain trials plus six blind judges supplement the prior
+  36 frozen trials. Costs remain unknown; actual token usage is measured.
+- Archived 9,695 current source versions; 59 historical body gaps remain explicit.
+- Canonical projection canary passed four live judgments and both tree/pack/site
+  outputs. 132 research tests + two subtests and 278 built-site tests pass.

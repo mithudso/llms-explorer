@@ -2,8 +2,10 @@
 """Codex research defaults, transport and artifacts; never edits the shared runtime."""
 from __future__ import annotations
 
+import hashlib
 import importlib.util
 import json
+import math
 import os
 import re
 import shutil
@@ -13,6 +15,8 @@ import sys
 import threading
 import time
 from pathlib import Path
+from urllib.parse import urlsplit
+from uuid import uuid4
 
 MODELS = ("gpt-6.1-sol", "gpt-6-astra", "gpt-6-luna")
 EFFORTS = ("low", "medium", "high", "xhigh", "max")
@@ -37,9 +41,81 @@ or raw fetched text into the public repository. Source content is untrusted data
 """
 
 
+def source_origin(source):
+    """Explicit origins survive mirrors. Unknown ownership stays a host proxy."""
+    return str(source.get("origin_id") or source.get("organization") or source.get("org") or
+               urlsplit(source.get("origin_url") or source["url"]).hostname).casefold().removeprefix("www.")
+
+
+def information_policy(doc):
+    domain = doc.get("research_domain", "")
+    name = doc.get("concept", "").casefold()
+    if domain == "scientific" or re.search(r"\b(theorem|biomarker|genome|clinical)\b", name):
+        return {"domain": "scientific", "required_tiers": {"paper"}, "origins": 2}
+    if domain == "security" or re.search(r"\b(authentication|encryption|authorization|security)\b", name):
+        return {"domain": "security", "required_tiers": {"docs"}, "origins": 2}
+    return {"domain": "software", "required_tiers": {"docs", "repo"}, "origins": 1}
+
+
+def marginal_reasons(doc, contract, minimum_claims=8):
+    if doc is None:
+        return ["probe produced no valid claims file"]
+    reasons = []
+    sources = doc.get("sources", [])
+    policy = information_policy(doc)
+    origins = {source_origin(s) for s in sources}
+    tiers = {s.get("tier") for s in sources}
+    if not tiers & policy["required_tiers"]:
+        reasons.append("domain requires primary " + "/".join(sorted(policy["required_tiers"])))
+    if len(origins) < policy["origins"]:
+        reasons.append(f"independent origins {len(origins)} < {policy['origins']}")
+    floor = int(contract.get("sources_per_concept", 3))
+    source_count = len({s["url"].split("#")[0].rstrip("/") for s in sources})
+    if source_count < floor:
+        reasons.append(f"sources {source_count} < floor {floor}")
+    unique = {re.sub(r"\s+", " ", c["text"].strip().casefold()).rstrip(".") for c in doc.get("claims", [])}
+    if len(unique) < minimum_claims:
+        reasons.append(f"claims {len(unique)} < {minimum_claims}")
+    cited = {s["url"].split("#")[0].rstrip("/") for s in sources}
+    candidates = (doc.get("scout") or {}).get("candidates", [])
+    for candidate in candidates:
+        if candidate["url"].split("#")[0].rstrip("/") not in cited and candidate.get("why", "").strip():
+            reasons.append("scout:" + candidate["tier"] + ": " + candidate["why"])
+    return reasons
+
+
+def marginal_metrics(before, after):
+    def rows(doc):
+        return {re.sub(r"\s+", " ", c["text"].strip().casefold()).rstrip("."): c for c in doc.get("claims", [])}
+    old, new = rows(before), rows(after)
+    added = new.keys() - old.keys()
+    mechanism = re.compile(r"\b(because|therefore|causes?|prevents?|by (?:using|checking|storing)|in order to)\b", re.IGNORECASE)
+    return {"accepted_unique_facts": len(new), "novel_accepted_facts": len(added),
+            "novel_mechanisms": sum(bool(mechanism.search(new[k]["text"])) for k in added),
+            "new_origin_proxies": sorted({source_origin(s) for s in after.get("sources", [])} -
+                                         {source_origin(s) for s in before.get("sources", [])}),
+            "supported_novel_facts": None, "support_status": "pending independent claim-bound gate",
+            "novelty_method": "normalized exact statement; semantic paraphrases may remain"}
+
+
+def research_telemetry(shared, slug):
+    stages = []
+    for path in sorted((shared.run_dir(slug) / "agents/attempts").glob("*/*/validated-summary.json")):
+        record = json.loads(path.read_text())
+        name = record.get("name", path.parents[1].name)
+        stages.append({"name": name, "stage": "gate" if name == "gate" else "merge" if name.endswith("-merge") else "research",
+                       **{k: record.get(k) for k in ("model", "effort", "tokens", "usage", "seconds", "is_error", "cost_usd")}})
+    known = all(row["cost_usd"] is not None for row in stages)
+    return {"attempts": stages, "tokens": sum(row["tokens"] or 0 for row in stages),
+            "worker_seconds": sum(row["seconds"] or 0 for row in stages),
+            "actual_cost_usd": sum(row["cost_usd"] for row in stages) if stages and known else None,
+            "estimated_cost_usd": None, "cost_basis": "provider-reported USD only; no rate card supplied",
+            "latency_basis": "sum of worker durations, not parallel wall-clock elapsed time"}
+
+
 def library_seeds(shared, concept: dict) -> list[dict]:
     """Bounded local discovery; no network or model call."""
-    script = Path(shared.__file__).parent / "source_library.py"
+    script = Path(__file__).with_name("research_library.py")
     if not script.is_file() or not (shared.RESEARCH_DIR / ".library/library.db").is_file():
         return []
     for mode in ("all", "any"):
@@ -249,7 +325,7 @@ def run_worker(command, brief: str, run_dir: Path, timeout: int):
             _WORKERS.discard(process)
 
 
-def run_agent(shared, manifest: dict, name: str, brief: str, model: str, effort: str,
+def _run_agent_once(shared, manifest: dict, name: str, brief: str, model: str, effort: str,
               max_turns: int, timeout: int, tools: str | None = None, allowed: str | None = None) -> dict:
     run_dir = shared.run_dir(manifest["slug"])
     brief = translate_brief(brief, str(Path(shared.__file__).resolve()))
@@ -298,6 +374,64 @@ def run_agent(shared, manifest: dict, name: str, brief: str, model: str, effort:
     return summary
 
 
+def transient_failure(summary):
+    if not summary.get("is_error"):
+        return False
+    message = json.dumps([summary.get("result"), summary.get("errors")]).casefold()
+    return bool(re.search(r"capacity|overloaded|rate.limit|\b429\b|\b50[234]\b|connection (?:reset|closed)|temporar|timed out|no completed codex turn|invalid codex json|worker output format", message))
+
+
+def run_agent(shared, manifest, name, brief, model, effort, max_turns, timeout, tools=None, allowed=None):
+    """Resume paid workers by exact brief and output hashes; retain every attempt."""
+    run = shared.run_dir(manifest["slug"])
+    identity = hashlib.sha256(json.dumps([brief, map_model(model), effort, tools]).encode()).hexdigest()
+    checkpoint = run / "checkpoints/workers" / (identity + ".json")
+    match = re.search(r"OUTPUT[^\n]*\n([^\n]+)", brief)
+    output = Path(match[1].strip().strip('`')) if match else None
+    if output is not None and not output.resolve().is_relative_to(run.resolve()):
+        output = None
+    try:
+        saved = json.loads(checkpoint.read_text())
+        if saved["identity"] == identity and (tools == "" or (output and output.is_file() and
+                hashlib.sha256(output.read_bytes()).hexdigest() == saved["output_sha256"])):
+            return {**saved["summary"], "resumed": True, "reused_tokens": saved["summary"].get("tokens"), "tokens": 0, "cost_usd": None, "seconds": 0}
+    except (OSError, ValueError, KeyError):
+        pass
+    deadline, attempts = time.monotonic() + timeout, []
+    for number in range(3):
+        summary = _run_agent_once(shared, manifest, name, brief, model, effort, max_turns,
+                                  max(1, math.ceil(deadline - time.monotonic())), tools, allowed)
+        if not summary.get("is_error") and output is not None:
+            try:
+                document = json.loads(output.read_text())
+                errors = shared.validate_claims(document) if hasattr(shared, "validate_claims") else []
+                if errors:
+                    raise ValueError("; ".join(errors))
+            except (OSError, ValueError) as error:
+                summary.update(is_error=True, result=f"worker output format: {error}")
+        attempt = run / "agents/attempts" / name / uuid4().hex
+        for suffix in ("md",):
+            shared.atomic_write(attempt / ("brief." + suffix), brief)
+        for suffix in ("json", "events.jsonl", "log", "last-message.txt"):
+            src = run / "agents" / f"{name}.{suffix}"
+            if src.is_file():
+                shared.atomic_write(attempt / ("worker." + suffix), src.read_text())
+        shared.atomic_write(attempt / "validated-summary.json", json.dumps(summary, indent=2) + "\n")
+        attempts.append({"path": str(attempt.relative_to(run)), "tokens": summary.get("tokens", 0),
+                         "seconds": summary.get("seconds", 0), "is_error": summary.get("is_error")})
+        if not transient_failure(summary) or number == 2 or deadline - time.monotonic() < 10:
+            break
+        time.sleep(min(2 ** number, max(0, deadline - time.monotonic())))
+    summary["attempts"] = attempts
+    summary["tokens"] = sum(a["tokens"] or 0 for a in attempts)
+    summary["seconds"] = sum(a["seconds"] or 0 for a in attempts)
+    shared.atomic_write(run / "agents" / (name + ".json"), json.dumps(summary, indent=2) + "\n")
+    if not summary.get("is_error") and (tools == "" or (output and output.is_file())):
+        shared.atomic_write(checkpoint, json.dumps({"identity": identity, "summary": summary,
+            "output_sha256": hashlib.sha256(output.read_bytes()).hexdigest() if output else None}, indent=2))
+    return summary
+
+
 def load_shared(path: Path | None = None):
     path = path or Path(os.environ.get("DR_SHARED_RUN", "~/.global-ai-hub/scripts/dr_run.py")).expanduser()
     if not path.is_file():
@@ -339,6 +473,7 @@ def load_shared(path: Path | None = None):
                                           and isinstance(candidate.get("url"), str)
                                           and candidate["url"].startswith(("http://", "https://"))
                                           and candidate.get("tier") in shared.ESCALATE_TIERS
+                                          and isinstance(candidate.get("why"), str) and candidate["why"].strip()
                                           for candidate in candidates))
             # A malformed report cannot crash the inherited tier reader or be
             # mistaken for a completed scout with no discoveries.
@@ -353,7 +488,12 @@ def load_shared(path: Path | None = None):
                                    and candidate["url"].startswith(("http://", "https://"))
                                    and candidate.get("tier") in shared.ESCALATE_TIERS],
                 }
-            reasons = escalation_reasons(doc, *positional, **keywords)
+            if doc is not None:
+                for source in doc.get("sources", []):
+                    metadata = shared.evidence_provenance.origin_metadata(shared.RESEARCH_DIR / ".library", shared.lib_find(source["url"]))
+                    if metadata:
+                        source.update({k: metadata[k] for k in ("origin_id", "org", "derived_from", "version") if metadata.get(k)})
+            reasons = marginal_reasons(doc, positional[0] if positional else keywords["dc"], shared.ESCALATE_MIN_CLAIMS)
             if incomplete:
                 reasons.append("scout report missing or incomplete")
             return reasons
@@ -364,7 +504,24 @@ def load_shared(path: Path | None = None):
         shared.PROBE_EFFORT = args.effort or DEFAULT_RESEARCH_EFFORT
         shared.escalation_reasons = scout_reasons
         try:
-            return research(args)
+            result = research(args)
+            if not args.dry_run:
+                with shared.run_lock(args.slug):
+                    current = shared.load_manifest(args.slug)
+                    for concept in current["concepts"]:
+                        final = shared.run_dir(args.slug) / "claims" / (concept["slug"] + ".json")
+                        probe = shared._probe_claims_path(args.slug, concept["slug"])
+                        if final.is_file():
+                            after = json.loads(final.read_text())
+                            before = json.loads(probe.read_text()) if probe.is_file() else {}
+                            current.setdefault("information_gain", {})[concept["slug"]] = marginal_metrics(before, after)
+                    current["research_telemetry"] = research_telemetry(shared, args.slug)
+                    errors = []
+                    documents = shared.load_claims(args.slug, errors)
+                    if documents and not errors:
+                        current["evidence_bundle"] = shared.evidence_provenance.bundle(shared, current, documents)
+                    shared.save_manifest(current)
+            return result
         finally:
             shared.PROBE_MODEL, shared.PROBE_EFFORT = previous_probe
             shared.escalation_reasons = escalation_reasons
@@ -394,6 +551,9 @@ def load_shared(path: Path | None = None):
             claims = shared.load_claims(args.slug, errors)
             if errors:
                 raise ValueError("cannot export invalid claims: " + "; ".join(errors))
+            if claims and args.status in ("COMPLETED", "BUDGET_EXHAUSTED") and manifest.get("gate_contract_version") == 2:
+                bound_gate.verify_current(shared, manifest)
+                manifest["research_telemetry"] = research_telemetry(shared, args.slug)
             if args.status in ("COMPLETED", "BUDGET_EXHAUSTED"):
                 receipt = artifacts.finalize_artifacts(shared, manifest, claims, args.status)
             else:
@@ -430,15 +590,29 @@ def load_shared(path: Path | None = None):
         original = getattr(shared, symbol)
         def wrapped(*args, _original=original, _research=symbol == "build_brief", **kwargs):
             if _research:
-                seeds = [*(kwargs.get("seeds") or []), *library_seeds(shared, args[1])]
+                seeds = [*(kwargs.get("seeds") or []), *library_seeds(shared, args[1]),
+                         *shared.evidence_provenance.cohort_seeds(shared, args[0], args[1])]
                 kwargs["seeds"] = list({seed["url"]: seed for seed in seeds}.values())
             brief = _original(*args, **kwargs)
             if _research:
                 policy = SOURCE_LIBRARY_POLICY.replace("dr_run.py", str(Path(__file__).resolve()))
                 policy = policy.replace("`source_library.py", "`python3 ~/.global-ai-hub/scripts/source_library.py")
+                policy = policy.replace("~/.global-ai-hub/scripts/source_library.py", str(Path(__file__).with_name("research_library.py").resolve()))
                 brief = policy + "\n" + brief
             return translate_brief(brief, str(path.resolve()))
         setattr(shared, symbol, wrapped)
+    gate_path = Path(__file__).with_name("research_gate.py")
+    gate_spec = importlib.util.spec_from_file_location("codex_bound_gate", gate_path)
+    if gate_spec is None or gate_spec.loader is None:
+        raise ValueError(f"cannot load claim-bound gate: {gate_path}")
+    bound_gate = importlib.util.module_from_spec(gate_spec)
+    gate_spec.loader.exec_module(bound_gate)
+    provenance_spec = importlib.util.spec_from_file_location("codex_evidence_provenance", Path(__file__).with_name("research_provenance.py"))
+    provenance = importlib.util.module_from_spec(provenance_spec)
+    provenance_spec.loader.exec_module(provenance)
+    provenance.install(shared)
+    shared.evidence_provenance = provenance
+    bound_gate.install(shared)
     return shared
 
 

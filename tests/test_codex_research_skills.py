@@ -42,6 +42,9 @@ class SyncTests(unittest.TestCase):
         (self.repo / "scripts").mkdir()
         (self.repo / "scripts/codex_dr_run.py").write_text("# Codex-only transport\n")
         (self.repo / "scripts/codex_dr_artifacts.py").write_text("# Codex artifacts\n")
+        (self.repo / "scripts/research_gate.py").write_text("# Claim-bound gate\n")
+        for name in ("research_library.py", "research_provenance.py", "research_artifact.py", "research_transaction.py"):
+            (self.repo / "scripts" / name).write_text("# Evidence provenance\n")
         for skill in sync.SKILLS:
             path = self.sources / skill / "SKILL.md"
             path.parent.mkdir(parents=True)
@@ -330,8 +333,41 @@ class ResearchFlowTests(unittest.TestCase):
                     "child_concepts": ["Directory synchronization"]}
 
     def invoke(self, *args):
+        if args[0] == "finish" and not self.shared.load_manifest("publication").get("gate"):
+            self.fixture_gate()
         with redirect_stdout(io.StringIO()):
             self.assertEqual(self.shared.main(list(args)), 0)
+
+    def fixture_gate(self):
+        """Artifact fixtures pass the real gate with pinned synthetic evidence."""
+        errors = []
+        documents = self.shared.load_claims("publication", errors)
+        if errors or not documents:
+            return
+        body = "\n".join(c["text"] for d in documents.values() for c in d["claims"])
+        text = self.root / "fixture-source.txt"
+        text.write_text(body)
+        for url in {u for d in documents.values() for c in d["claims"] for u in c["sources"]}:
+            self.shared.lib_snapshot(url, "docs", "Synthetic test evidence", text_file=str(text))
+
+        def judge(manifest, name, brief, *args, **kwargs):
+            root = max((self.shared.run_dir("publication") / "gate/attempts").iterdir())
+            packet = json.loads((root / "packet.json").read_text())
+            verdicts = []
+            for claim in packet["claims"]:
+                url = claim["sources"][0]
+                src = packet["sources"][url]
+                start = body.index(claim["text"])
+                verdicts.append({**{k: claim[k] for k in ("claim_id", "claim_sha256", "text")},
+                    "verdict": "SUPPORTED", "rationale": "Synthetic fixture quotes the complete exact statement.",
+                    "evidence": [{"url": url, "source_id": src["source_id"], "snapshot_sha256": src["snapshot_sha256"],
+                                  "start": start, "end": start + len(claim["text"]), "quote": claim["text"]}]})
+            (root / "verdicts.json").write_text(json.dumps({"schema": packet["schema"],
+                "packet_sha256": packet["packet_sha256"], "verdicts": verdicts}))
+            return {"is_error": False}
+
+        with patch.object(self.shared, "run_agent", side_effect=judge), redirect_stdout(io.StringIO()):
+            self.assertEqual(self.shared.main(["gate", "publication", "--refetch-cap", "0"]), 0)
 
     def worker(self, manifest, name, brief, model, effort, max_turns, timeout, **kwargs):
         self.calls.append({"name": name, "brief": brief, "model": model, "effort": effort})
@@ -367,7 +403,7 @@ class ResearchFlowTests(unittest.TestCase):
         self.assertIn("SEED SOURCES", self.calls[1]["brief"])
         self.assertIn(url, self.calls[1]["brief"])
         self.assertEqual(result["pass_count"], 2)
-        self.assertIn("scout:blog", result["escalated_for"])
+        self.assertTrue(any(r.startswith("scout:blog") for r in result["escalated_for"]))
         saved = json.loads((self.shared.run_dir("publication") / "claims/rename-durability.json").read_text())
         self.assertEqual(len(saved["claims"]), 9)
 
@@ -379,6 +415,12 @@ class ResearchFlowTests(unittest.TestCase):
 
     def test_missing_scout_report_cannot_silently_skip_follow_up(self):
         self.scout = None
+        result = self.research()
+        self.assertEqual(result["pass_count"], 2)
+        self.assertIn("scout report missing or incomplete", result["escalated_for"])
+
+    def test_scout_discovery_without_a_gap_cannot_silently_skip_follow_up(self):
+        self.scout["candidates"].append({"url": "https://paper.test/deeper", "tier": "paper"})
         result = self.research()
         self.assertEqual(result["pass_count"], 2)
         self.assertIn("scout report missing or incomplete", result["escalated_for"])
@@ -397,7 +439,8 @@ class ResearchFlowTests(unittest.TestCase):
     def artifact_targets(self):
         for relative in (".claude/skills/llms-concept-abstractor/scripts/concept_abstract.py",
                          "scripts/codex_research_assets/concept-family-explorer/scripts/sync_trees.py",
-                         "scripts/research_site_sync.py", "scripts/recover_dr_packs.py",
+                         "scripts/research_site_sync.py", "scripts/recover_dr_packs.py", "scripts/research_transaction.py",
+                         "scripts/research_gate.py", "scripts/research_artifact.py",
                          "scripts/codex_dr_artifacts.py", "scripts/repair_dr_exports.py",
                          "scripts/publish_scrub.py", "scripts/check_publish_privacy.py",
                          "site/tools/gen_concepts.py", "site/tools/gen_tree.py",
@@ -755,6 +798,186 @@ class ResearchFlowTests(unittest.TestCase):
             packs = root / ("llms-concepts" if root == self.hub else "outputs/llms-concepts")
             self.assertTrue((packs / "publication-hub.llms/llms-facts.txt").is_file())
             self.assertTrue((packs / "publication-repo.llms/llms-facts.txt").is_file())
+
+
+    def test_explicit_recorded_scope_binding_keeps_the_planned_canonical_identity(self):
+        self.doc["concept"] = "Editorial durability title"
+        self.research()
+        self.artifact_targets()
+        self.render()
+        self.invoke("finish", "publication", "--status", "COMPLETED")
+        receipt = self.shared.load_manifest("publication")["codex_artifacts"]
+        canonical = json.loads(Path(receipt["canonical_artifact"]["path"]).read_text())
+        doc = canonical["documents"]["rename-durability"]
+        self.assertEqual(doc["concept"], "Rename durability")
+        self.assertEqual(doc["recorded_concept_title"], "Editorial durability title")
+        for root in (self.hub, self.repo):
+            nodes = json.loads((root / "concept-tree/tree.json").read_text())
+            self.assertIn("Rename durability", {n["concept"] for n in nodes})
+            self.assertNotIn("Editorial durability title", {n["concept"] for n in nodes})
+
+    def test_private_editorial_binding_keeps_its_generic_planned_concept_private(self):
+        self.doc["concept"] = "PrivateProjectLabel durability"
+        self.research()
+        self.artifact_targets()
+        self.render()
+        with patch.dict(os.environ, {"PRIVACY_DENYLIST": "PrivateProjectLabel"}):
+            self.invoke("finish", "publication", "--status", "COMPLETED")
+        self.assertTrue((self.hub / "llms-concepts/rename-durability.llms").exists())
+        self.assertFalse((self.repo / "outputs/llms-concepts/rename-durability.llms").exists())
+        self.assertFalse((self.repo / "site/src/data/concepts/rename-durability.json").exists())
+        website = module_at("test_persistent_private_binding", self.repo / "scripts/research_site_sync.py")
+        website.sync(self.repo, self.hub, apply=True)
+        self.assertFalse((self.repo / "site/src/data/concepts/rename-durability.json").exists())
+
+    def test_canonical_ids_survive_packs_readers_and_downloads(self):
+        self.research()
+        self.artifact_targets()
+        self.render()
+        self.invoke("finish", "publication", "--status", "COMPLETED")
+        manifest = self.shared.load_manifest("publication")
+        receipt = manifest["codex_artifacts"]
+        canonical = json.loads(Path(receipt["canonical_artifact"]["path"]).read_text())
+        claims = canonical["documents"]["rename-durability"]["claims"]
+        identities = {c["canonical_claim_id"] for c in claims}
+        for root in (self.hub, self.repo):
+            nodes = json.loads((root / "concept-tree/tree.json").read_text())
+            child = next(n for n in nodes if n["concept"] == "Rename durability")
+            self.assertEqual(child["canonicalConceptId"], canonical["documents"]["rename-durability"]["canonical_concept_id"])
+        self.assertTrue(all(c["validation_status"] == "SUPPORTED" and c["evidence_ids"] for c in claims))
+        for root in (self.hub / "llms-concepts", self.repo / "outputs/llms-concepts"):
+            units = [json.loads(line) for line in (root / "rename-durability.llms/units.jsonl").read_text().splitlines()]
+            self.assertEqual({c["id"] for c in units}, identities)
+            self.assertTrue(all(c["validation_status"] == "SUPPORTED" for c in units))
+        reader = json.loads((self.repo / "site/src/data/concepts/rename-durability.json").read_text())
+        self.assertEqual({c["claimId"] for f in reader["facets"] for c in f["facts"]}, identities)
+        download = json.loads((self.repo / "site/public/downloads/research/rename-durability.json").read_text())
+        self.assertEqual({c["claimId"] for c in download["claims"]}, identities)
+        public = json.loads((self.repo / "outputs/research-artifacts/rename-durability.json").read_text())
+        self.assertEqual({c["id"] for c in public["claims"]}, identities)
+        self.assertNotIn("snapshot_path", json.dumps(public))
+        self.assertNotIn("quote", json.dumps(public))
+        keyword = json.loads((self.repo / "site/public/search-keywords.json").read_text())
+        self.assertIn("rename-durability", {r["slug"] for r in keyword["items"]})
+
+    def test_projection_failure_rolls_back_both_roots_and_resumes(self):
+        self.research()
+        self.artifact_targets()
+        self.render()
+        self.fixture_gate()
+        before = {root: (root / "concept-tree/tree.json").read_bytes() for root in (self.hub, self.repo)}
+        original = Path.replace
+        failed = []
+        def fail_once(path, target):
+            if Path(target).name == "search-keywords.json" and not failed:
+                failed.append(True)
+                raise OSError("injected website write failure")
+            return original(path, target)
+        with patch.object(Path, "replace", fail_once), redirect_stdout(io.StringIO()), self.assertRaises(OSError):
+            self.shared.main(["finish", "publication", "--status", "COMPLETED"])
+        for root, body in before.items():
+            self.assertEqual((root / "concept-tree/tree.json").read_bytes(), body)
+        self.assertFalse((self.hub / "llms-concepts/rename-durability.llms").exists())
+        self.assertFalse((self.repo / "outputs/llms-concepts/rename-durability.llms").exists())
+        self.assertFalse((self.repo / "site/src/data/concepts/rename-durability.json").exists())
+        self.assertNotEqual(self.shared.load_manifest("publication")["status"], "finalized")
+        self.invoke("finish", "publication", "--status", "COMPLETED")
+        self.assertEqual(self.shared.load_manifest("publication")["status"], "finalized")
+        self.assertEqual(len(list((self.shared.run_dir("publication") / "artifacts/canonical").glob("*.json"))), 1)
+
+    def test_recovery_refuses_claims_edited_after_their_canonical_gate(self):
+        self.research()
+        self.artifact_targets()
+        self.render()
+        self.invoke("finish", "publication", "--status", "COMPLETED")
+        runtime = self.hub / "scripts/dr_run.py"
+        runtime.parent.mkdir(exist_ok=True)
+        shutil.copy2(self.shared.__file__, runtime)
+        claims = self.shared.run_dir("publication") / "claims/rename-durability.json"
+        document = json.loads(claims.read_text())
+        document["claims"][0]["text"] += " An unchecked revision."
+        claims.write_text(json.dumps(document))
+        recovery = module_at("test_stale_canonical_recovery", REPO / "scripts/recover_dr_packs.py")
+        scrub = module_at("test_stale_canonical_scrub", self.repo / "scripts/publish_scrub.py")
+        def load(name, path):
+            return self.shared if name == "site_recovery_dr" else module_at(name, path)
+        writes, _, report = recovery.plan(self.repo, self.hub,
+            self.shared.concept_tree.load_nodes(self.hub / "concept-tree/tree.json"), load, scrub, current_run="publication")
+        self.assertEqual(writes, {})
+        self.assertTrue(any("canonical claims changed" in row["reason"] for row in report["skipped_runs"]))
+
+    def test_changed_canonical_claim_cannot_finish_after_successful_gate(self):
+        self.research()
+        self.artifact_targets()
+        self.render()
+        self.fixture_gate()
+        path = self.shared.run_dir("publication") / "claims/rename-durability.json"
+        doc = json.loads(path.read_text())
+        doc["claims"][0]["text"] += " Changed after judgment."
+        path.write_text(json.dumps(doc))
+        with self.assertRaisesRegex(ValueError, "claims changed"):
+            self.shared.main(["finish", "publication", "--status", "COMPLETED"])
+
+
+class MarginalInformationTests(unittest.TestCase):
+    def test_cited_blog_alone_does_not_trigger_another_pass(self):
+        doc = {'concept': 'Compiler', 'sources': [{'url': 'https://vendor.test/docs', 'tier': 'docs'},
+               {'url': 'https://vendor.test/blog', 'tier': 'blog'}, {'url': 'https://other.test/page', 'tier': 'docs'}],
+               'claims': [{'text': f'Constraint {i}'} for i in range(8)],
+               'scout': {'candidates': [{'url': 'https://vendor.test/blog', 'tier': 'blog', 'why': 'Already read'}]}}
+        self.assertEqual(adapter.marginal_reasons(doc, {'sources_per_concept': 3}), [])
+        doc['scout']['candidates'].append({'url': 'https://new.test/paper', 'tier': 'paper', 'why': 'Explains a failure mechanism'})
+        self.assertIn('scout:paper', adapter.marginal_reasons(doc, {})[0])
+
+    def test_domain_policy_and_mirror_origins(self):
+        doc = {'concept': 'Authentication', 'sources': [{'url': f'https://mirror{i}.test', 'origin_id': 'vendor', 'tier': 'docs'} for i in range(3)],
+               'claims': [{'text': f'Constraint {i}'} for i in range(8)]}
+        self.assertIn('independent origins 1 < 2', adapter.marginal_reasons(doc, {}))
+        doc['concept'] = 'A clinical biomarker'
+        self.assertTrue(any('paper' in r for r in adapter.marginal_reasons(doc, {})))
+
+    def test_novelty_counts_unique_facts_and_mechanisms_honestly(self):
+        before = {'claims': [{'text': 'An existing fact.'}], 'sources': []}
+        after = {'claims': [{'text': 'AN existing fact'}, {'text': 'The lock prevents concurrent updates.'}],
+                 'sources': [{'url': 'https://example.test/docs'}]}
+        result = adapter.marginal_metrics(before, after)
+        self.assertEqual(result['novel_accepted_facts'], 1)
+        self.assertEqual(result['novel_mechanisms'], 1)
+        self.assertIsNone(result['supported_novel_facts'])
+
+class RecoveryTests(unittest.TestCase):
+    def test_transient_retry_preserves_attempts_and_reuses_exact_worker_output(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            def atomic(path, text):
+                path.parent.mkdir(parents=True, exist_ok=True)
+                path.write_text(text)
+            shared = SimpleNamespace(run_dir=lambda slug: root, atomic_write=atomic)
+            target = root / 'claims/probe.json'
+            calls = []
+            def once(*args, **kwargs):
+                calls.append(1)
+                atomic(root / 'agents/probe.events.jsonl', f'event {len(calls)}')
+                if len(calls) == 1:
+                    return {'is_error': True, 'result': 'model capacity temporarily unavailable', 'tokens': 2}
+                atomic(target, '{"claims": []}')
+                return {'is_error': False, 'result': 'done', 'tokens': 3}
+            brief = f'OUTPUT — write exactly this file:\n{target}\n'
+            with patch.object(adapter, '_run_agent_once', side_effect=once), patch.object(adapter.time, 'sleep'):
+                first = adapter.run_agent(shared, {'slug': 'run'}, 'probe', brief, 'sonnet', 'medium', 1, 120)
+                self.assertEqual(first['tokens'], 5)
+                self.assertEqual(len(first['attempts']), 2)
+                self.assertEqual(len(list((root / 'agents/attempts/probe').iterdir())), 2)
+                second = adapter.run_agent(shared, {'slug': 'run'}, 'probe', brief, 'sonnet', 'medium', 1, 120)
+                self.assertTrue(second['resumed'])
+                self.assertEqual(len(calls), 2)
+                target.write_text('changed')
+                adapter.run_agent(shared, {'slug': 'run'}, 'probe', brief, 'sonnet', 'medium', 1, 120)
+                self.assertEqual(len(calls), 3)
+
+    def test_substantive_errors_are_not_transient(self):
+        for error in ('CONTRADICTED', 'gate quote does not match', 'permission denied', 'model not enabled'):
+            self.assertFalse(adapter.transient_failure({'is_error': True, 'result': error}))
 
 
 if __name__ == "__main__":

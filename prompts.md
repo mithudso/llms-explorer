@@ -834,3 +834,11 @@ Outcome: checked-out detection across website jobs, /dr runs, explorer batches a
 > Run the full-suite skill on mongodb cost optimization
 
 Outcome: `/full-suite` run — scout (mongodb.com and docs llms.txt found), CFE plan (33 rows, 23 researched in 4 cohorts), round 1 (68 harvested, 6 researched as cohort E), rounds 2–3 empty, two blind gates (4 corroborated gaps researched as cohort F; 5 more queued), 33 packs + family rollup, trees synced, hub audited. Verdict SATURATION-DISSENT. Report: `docs/research/mongodb-cost-optimization-full-suite-2026-10-19/README.md`.
+
+## Prompt — 2026-10-22
+
+> Implement all six research-system improvements in the submitted order.
+
+Tracking: exact gate binding, marginal information, stage recovery, wider benchmark,
+source provenance, canonical public/private projections. Ordered progress lives in
+`docs/research/research-system-hardening-2026-10-22/README.md`.
