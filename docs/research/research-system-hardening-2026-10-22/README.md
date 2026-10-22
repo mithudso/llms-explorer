@@ -27,3 +27,19 @@ runtime until all phases pass integrated checks. Historical gates remain legacy.
    stages have separate content-bound checkpoints. Local publication never means
    remote deployment. Validation: 75 focused tests and Ruff pass, including
    transient recovery, output corruption and failed-stage resume.
+
+4. **Verified:** the expanded harness supports /dr, CFE and rabbithole, fixed or
+   live-assisted retrieval, three domains, exact full-statement blind judgments,
+   quote matching, unique supported facts, mechanisms, contradictions and hierarchy.
+   Completed six live-assisted /dr generation trials and six Astra/high blind
+   judgments. All six used live search. See [comparison.md](comparison.md).
+   The preserved prior baseline contains 36 frozen-evidence trials spanning all
+   three skills, three models and two efforts, kept separate from this canary.
+   Sol/medium yielded 56 accepted facts across 18 grounded concepts in 247 seconds;
+   Luna/max yielded 17 across 8 in 421 seconds. Input tokens were 203,606 versus
+   536,994; output tokens were 8,185 versus 46,580. Model and effort vary together.
+   Reference facts await human review. Rejection includes missing pinned evidence,
+   not only factual contradiction. USD is unknown; optional estimates require a
+   dated sourced rate card and avoid double-counting cached tokens.
+   Validation: 92 focused tests and Ruff pass. Raw evidence and execution logs are
+   private; the public report contains aggregate measurements only.

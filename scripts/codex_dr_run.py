@@ -97,6 +97,21 @@ def marginal_metrics(before, after):
             "novelty_method": "normalized exact statement; semantic paraphrases may remain"}
 
 
+def research_telemetry(shared, slug):
+    stages = []
+    for path in sorted((shared.run_dir(slug) / "agents/attempts").glob("*/*/validated-summary.json")):
+        record = json.loads(path.read_text())
+        name = record.get("name", path.parents[1].name)
+        stages.append({"name": name, "stage": "gate" if name == "gate" else "merge" if name.endswith("-merge") else "research",
+                       **{k: record.get(k) for k in ("model", "effort", "tokens", "usage", "seconds", "is_error", "cost_usd")}})
+    known = all(row["cost_usd"] is not None for row in stages)
+    return {"attempts": stages, "tokens": sum(row["tokens"] or 0 for row in stages),
+            "worker_seconds": sum(row["seconds"] or 0 for row in stages),
+            "actual_cost_usd": sum(row["cost_usd"] for row in stages) if stages and known else None,
+            "estimated_cost_usd": None, "cost_basis": "provider-reported USD only; no rate card supplied",
+            "latency_basis": "sum of worker durations, not parallel wall-clock elapsed time"}
+
+
 def library_seeds(shared, concept: dict) -> list[dict]:
     """Bounded local discovery; no network or model call."""
     script = Path(shared.__file__).parent / "source_library.py"
@@ -493,6 +508,7 @@ def load_shared(path: Path | None = None):
                             after = json.loads(final.read_text())
                             before = json.loads(probe.read_text()) if probe.is_file() else {}
                             current.setdefault("information_gain", {})[concept["slug"]] = marginal_metrics(before, after)
+                    current["research_telemetry"] = research_telemetry(shared, args.slug)
                     shared.save_manifest(current)
             return result
         finally:
@@ -526,6 +542,7 @@ def load_shared(path: Path | None = None):
                 raise ValueError("cannot export invalid claims: " + "; ".join(errors))
             if claims and args.status in ("COMPLETED", "BUDGET_EXHAUSTED") and manifest.get("gate_contract_version") == 2:
                 bound_gate.verify_current(shared, manifest)
+                manifest["research_telemetry"] = research_telemetry(shared, args.slug)
             if args.status in ("COMPLETED", "BUDGET_EXHAUSTED"):
                 receipt = artifacts.finalize_artifacts(shared, manifest, claims, args.status)
             else:
