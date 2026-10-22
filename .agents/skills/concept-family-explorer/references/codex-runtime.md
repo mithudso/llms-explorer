@@ -22,10 +22,14 @@ and `-c 'model_reasoning_effort="max"'` (or the requested effort).
 
 Codex `/dr` defaults to `gpt-6-luna` at `max` effort. Standard research runs one
 Luna/max research pass with deliberate scouting for deeper sources. When the scout
-finds papers, source code, issue threads, postmortems, or engineering blogs, the
+finds unread deeper evidence with a stated information gap, the
 adapter runs one additional Luna/max pass seeded with those discoveries and merges
-both results. Missing source/claim floors or an incomplete scout report also trigger
-that follow-up. A complete docs-only result stops after the first pass. The merge
+both results. Domain-specific primary-source and independent-origin requirements, missing
+source/unique-claim floors or an incomplete scout report also trigger
+that follow-up. Already-read non-doc sources alone do not trigger repetition. A complete result
+meeting the domain requirements stops after the first pass. Each run records
+normalized unique facts, novel mechanisms and origin proxies. Gate-confirmed
+novel facts are a lower bound; unaudited facts are never labeled supported. The merge
 and scope check remain `gpt-6.1-sol` at `medium`. Explicit model/effort overrides
 apply to both standard research passes. Quick keeps one low-effort pass; saturate
 keeps two independent max-effort passes. `--passes` counts additional passes in

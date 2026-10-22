@@ -401,7 +401,7 @@ class ResearchFlowTests(unittest.TestCase):
         self.assertIn("SEED SOURCES", self.calls[1]["brief"])
         self.assertIn(url, self.calls[1]["brief"])
         self.assertEqual(result["pass_count"], 2)
-        self.assertIn("scout:blog", result["escalated_for"])
+        self.assertTrue(any(r.startswith("scout:blog") for r in result["escalated_for"]))
         saved = json.loads((self.shared.run_dir("publication") / "claims/rename-durability.json").read_text())
         self.assertEqual(len(saved["claims"]), 9)
 
@@ -793,3 +793,29 @@ class ResearchFlowTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+class MarginalInformationTests(unittest.TestCase):
+    def test_cited_blog_alone_does_not_trigger_another_pass(self):
+        doc = {'concept': 'Compiler', 'sources': [{'url': 'https://vendor.test/docs', 'tier': 'docs'},
+               {'url': 'https://vendor.test/blog', 'tier': 'blog'}, {'url': 'https://other.test/page', 'tier': 'docs'}],
+               'claims': [{'text': f'Constraint {i}'} for i in range(8)],
+               'scout': {'candidates': [{'url': 'https://vendor.test/blog', 'tier': 'blog', 'why': 'Already read'}]}}
+        self.assertEqual(adapter.marginal_reasons(doc, {'sources_per_concept': 3}), [])
+        doc['scout']['candidates'].append({'url': 'https://new.test/paper', 'tier': 'paper', 'why': 'Explains a failure mechanism'})
+        self.assertIn('scout:paper', adapter.marginal_reasons(doc, {})[0])
+
+    def test_domain_policy_and_mirror_origins(self):
+        doc = {'concept': 'Authentication', 'sources': [{'url': f'https://mirror{i}.test', 'origin_id': 'vendor', 'tier': 'docs'} for i in range(3)],
+               'claims': [{'text': f'Constraint {i}'} for i in range(8)]}
+        self.assertIn('independent origins 1 < 2', adapter.marginal_reasons(doc, {}))
+        doc['concept'] = 'A clinical biomarker'
+        self.assertTrue(any('paper' in r for r in adapter.marginal_reasons(doc, {})))
+
+    def test_novelty_counts_unique_facts_and_mechanisms_honestly(self):
+        before = {'claims': [{'text': 'An existing fact.'}], 'sources': []}
+        after = {'claims': [{'text': 'AN existing fact'}, {'text': 'The lock prevents concurrent updates.'}],
+                 'sources': [{'url': 'https://example.test/docs'}]}
+        result = adapter.marginal_metrics(before, after)
+        self.assertEqual(result['novel_accepted_facts'], 1)
+        self.assertEqual(result['novel_mechanisms'], 1)
+        self.assertIsNone(result['supported_novel_facts'])

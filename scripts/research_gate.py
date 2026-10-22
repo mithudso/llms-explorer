@@ -286,6 +286,18 @@ def install(shared):
             current["gate_contract_version"] = 2
             current["gate"] = receipt
             current.setdefault("agents", {})["gate"] = {**summary, "counts": report.get("counts", {})}
+            if not error:
+                for concept in current["concepts"]:
+                    metric = current.get("information_gain", {}).get(concept["slug"])
+                    probe = shared._probe_claims_path(args.slug, concept["slug"])
+                    if metric is not None and probe.is_file():
+                        prior = {re.sub(r"\s+", " ", c["text"].strip().casefold()).rstrip(".")
+                                 for c in json.loads(probe.read_text())["claims"]}
+                        metric["supported_novel_facts"] = sum(
+                            row["concept_slug"] == concept["slug"] and
+                            re.sub(r"\s+", " ", row["text"].strip().casefold()).rstrip(".") not in prior
+                            for row in packet["claims"])
+                        metric["support_status"] = "gate-validated lower bound; unselected claims remain unaudited"
             shared.save_manifest(current)
         shared._print({"ok": error is None, **receipt})
         return 0 if error is None else 1
