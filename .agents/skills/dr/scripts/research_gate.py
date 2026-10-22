@@ -168,7 +168,8 @@ def validate(packet: dict, response: dict, root: Path) -> dict:
             if (not source or span["url"] not in claim["sources"] or not source.get("available")
                     or span.get("source_id") != source["source_id"]
                     or span.get("snapshot_sha256") != source["snapshot_sha256"]):
-                raise ValueError("gate evidence is not bound to a cited source snapshot")
+                url = span.get("url") if isinstance(span, dict) else None
+                raise ValueError(f"gate evidence is not bound to a cited source snapshot (claim {identity}, URL {url})")
             text = evidence_text(packet, root, source)
             start, end = span.get("start"), span.get("end")
             if (type(start) is not int or type(end) is not int or not 0 <= start < end <= len(text)
@@ -192,6 +193,11 @@ All risky claims are included. The packet predetermines the remaining sample; ne
 Read the pinned evidence files. Codex web open can provide context, but only pinned source spans can
 support a verdict. Missing source text means UNVERIFIED; do not invent a quote or silently fetch a
 different version. Check full entailment, numbers, defaults, versions, API routes and permissions.
+For EVERY verdict, each evidence URL must appear in that exact claim's sources list, not merely
+in the packet or another claim. Copy source_id and snapshot_sha256 from that URL's source row.
+This also applies to non-supported verdicts. Explain uncited context in the rationale without
+attaching an uncited span. If no available cited source provides evidence, use an empty evidence
+list with a non-supported verdict. Check these bindings before writing the response.
 Write ONLY the response object to {root / 'verdicts.json'}. Preserve the packet and evidence files.
 Return exactly one verdict per claim, with this JSON shape:
 {{"schema": "{SCHEMA}", "packet_sha256": "{packet['packet_sha256']}", "verdicts": [

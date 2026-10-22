@@ -842,3 +842,11 @@ Outcome: `/full-suite` run — scout (mongodb.com and docs llms.txt found), CFE 
 Tracking: exact gate binding, marginal information, stage recovery, wider benchmark,
 source provenance, canonical public/private projections. Ordered progress lives in
 `docs/research/research-system-hardening-2026-10-22/README.md`.
+
+## Prompt — 2026-10-22 continuation
+
+> continue
+
+Resume the saved ranked research plan. Preserve completed discovery, resolve
+claim-bound gate dissent against primary evidence and keep both trees, llms packs
+and generated website outputs current after each successful cohort.
