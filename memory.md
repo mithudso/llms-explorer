@@ -835,3 +835,8 @@
 - Archived 9,695 current source versions; 59 historical body gaps remain explicit.
 - Canonical projection canary passed four live judgments and both tree/pack/site
   outputs. 132 research tests + two subtests and 278 built-site tests pass.
+
+
+## 2026-10-22 — Cloudflare private-library build authentication
+- TASK-742: restored Wrangler OAuth exposed the exact Pages failure: pip could not authenticate while cloning ollama-client. The site also needs private llms-txt for validation. The user supplied a fine-grained read-only key for both repositories. It was verified and installed as encrypted LIBS_READ_TOKEN in preview and production. Values remain out of repository files and logs.
+- Bootstrap uses host- and repository-restricted Git askpass when that variable is set. Missing Pages credentials fail before installation. Credential-plumbing and CI configuration tests pass; clean bootstrap and live preview validation are in progress.
