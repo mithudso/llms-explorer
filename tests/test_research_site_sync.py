@@ -77,6 +77,43 @@ class SiteSyncTests(unittest.TestCase):
         self.assertFalse(transactions.recover(tx.root))
         self.assertEqual((self.hub / "concept-tree/tree.json").read_bytes(), published)
 
+    def test_explicit_merge_retires_absorbed_node_and_preserves_reader_in_both_directions(self):
+        original = [node("Root", "root", children=["Source", "Destination"]),
+                    node("Source", "source", parent="Root", children=["Leaf"]),
+                    node("Destination", "destination", parent="Root"), node("Leaf", "leaf", parent="Source")]
+        merged = [node("Root", "root", children=["Destination"]),
+                  {**node("Destination", "destination", parent="Root", children=["Leaf"]),
+                   "aliases": ["Source"], "slugAliases": ["source"]},
+                  node("Leaf", "leaf", parent="Destination")]
+        for authoritative in (self.hub, self.repo):
+            with self.subTest(authoritative=authoritative.name):
+                for root in (self.hub, self.repo):
+                    (root / "concept-tree/tree.json").write_text(json.dumps(merged if root == authoritative else original))
+                readers = self.repo / "site/src/data/concepts"
+                (readers / "destination.json").unlink(missing_ok=True)
+                (readers / "source.json").write_text(json.dumps(reader("Source", "source", "Preserved original research.")))
+                website.sync(self.repo, self.hub, apply=True)
+                tree = json.loads((self.repo / "site/src/data/tree.json").read_text())
+                self.assertNotIn("source", tree["nodes"])
+                self.assertEqual(tree["redirects"]["source"], "destination")
+                self.assertIn("Preserved original research.", (readers / "destination.json").read_text())
+                self.assertFalse((readers / "source.json").exists())
+                for root in (self.hub, self.repo):
+                    nodes = json.loads((root / "concept-tree/tree.json").read_text())
+                    self.assertNotIn("Source", {n["concept"] for n in nodes})
+                    self.assertEqual(next(n for n in nodes if n["concept"] == "Leaf")["parentConcept"], "Destination")
+
+    def test_merge_can_retire_a_stale_ancestor_of_the_survivor(self):
+        stale = [node("Root", "root", children=["Source"]),
+                 node("Source", "source", parent="Root", children=["Destination"]),
+                 node("Destination", "destination", parent="Source")]
+        authoritative = [node("Root", "root", children=["Destination"]),
+                         {**node("Destination", "destination", parent="Root"),
+                          "aliases": ["Source"], "slugAliases": ["source"]}]
+        result = website.merge_nodes(stale, authoritative)
+        self.assertEqual({n["concept"] for n in result}, {"Root", "Destination"})
+        self.assertEqual(next(n for n in result if n["concept"] == "Destination")["parentConcept"], "Root")
+
     def test_refresh_keeps_legacy_research_and_updates_all_website_surfaces(self):
         legacy = self.repo / "site/src/data/concepts/legacy.json"
         legacy.write_text(json.dumps(reader("Legacy", "legacy")))

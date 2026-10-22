@@ -63,3 +63,9 @@ Benchmark resume preserves failed attempts and retries unsuccessful or malformed
 stages while retaining valid successful stages. The research suite passes 143
 tests plus two subtests, including cross-run and cross-checkout regressions.
 These repairs do not change the frozen research snapshot or run paid models.
+
+Further release regressions bind benchmark cache reuse to exact stage inputs,
+reconcile explicit concept merges before redirects, and retain distinct canonical
+claim identities when statement text matches but provenance differs. All 150
+research tests plus four subtests pass. The full site build passes on the upgraded
+local Node.js 26.7.0. The validated research snapshot remains frozen.
