@@ -35,20 +35,33 @@ def build(shared, manifest, documents, status):
     tree_path = shared.HUB_DIR / 'concept-tree/tree.json'
     nodes = shared.concept_tree.load_nodes(tree_path)
     owners = {node['concept'].casefold(): node['slug'] for node in nodes}
+    titles = {node['concept'].casefold(): node['concept'] for node in nodes}
     for node in nodes:
         for alias in node.get('aliases', []):
             owners.setdefault(alias.casefold(), node['slug'])
+            titles.setdefault(alias.casefold(), node['concept'])
     enriched = copy.deepcopy(documents)
     planned = {c['slug']: c['name'] for c in manifest['concepts']}
     for slug, doc in enriched.items():
+        requested = planned[slug]
+        original = doc['concept']
         if doc['concept'] != planned[slug]:
             doc['recorded_concept_title'] = doc['concept']
-            doc['concept'] = planned[slug]
+        canonical = titles.get(requested.casefold(), requested)
+        if canonical != requested:
+            doc.setdefault('recorded_concept_title', requested)
+        if canonical not in (original, requested) or original != requested:
+            doc['recorded_concept_titles'] = list(dict.fromkeys([
+                original, requested, *doc.get('recorded_concept_titles', [])]))
+        doc['concept'] = canonical
+        if 'child_concepts' in doc:
+            doc['child_concepts'] = list(dict.fromkeys(titles.get(name.casefold(), name) for name in doc['child_concepts']))
+    topic = titles.get(manifest['topic'].casefold(), manifest['topic'])
     names = list(dict.fromkeys(doc['concept'] for doc in enriched.values()))
     if not manifest.get('cohort_parent'):
-        names = [manifest['topic'], *[name for name in names if name != manifest['topic']]]
-    if manifest['topic'] not in names:
-        names.append(manifest['topic'])
+        names = [topic, *[name for name in names if name != topic]]
+    if topic not in names:
+        names.append(topic)
     taken = {node['slug'] for node in nodes}
     concept_slugs = {}
     for name in names:
@@ -70,10 +83,12 @@ def build(shared, manifest, documents, status):
             claim['canonical_claim_id'] = bound['claim_id']
             claim['validation_status'] = 'SUPPORTED' if judgment else 'NOT-SAMPLED' if strict else 'LEGACY-UNBOUND'
             claim['evidence_ids'] = sorted({e['evidence_id'] for e in (judgment or {}).get('evidence', []) if e.get('evidence_id')})
-    artifact = {'schema': 'research-artifact/v1', 'run': manifest['slug'], 'topic': manifest['topic'], 'status': status,
+    artifact = {'schema': 'research-artifact/v1', 'run': manifest['slug'], 'topic': topic, 'status': status,
                 'input_hashes': {slug: digest(doc) for slug, doc in sorted(documents.items())},
                 'validation': report, 'gate_verdicts': judgments, 'concept_ids': concept_ids,
                 'concept_slugs': concept_slugs, 'documents': enriched}
+    if topic != manifest['topic']:
+        artifact['requested_topic'] = manifest['topic']
     artifact['artifact_sha256'] = digest(artifact)
     destination = shared.run_dir(manifest['slug']) / 'artifacts/canonical' / (artifact['artifact_sha256'] + '.json')
     content = json.dumps(artifact, indent=2, ensure_ascii=False, sort_keys=True) + '\n'

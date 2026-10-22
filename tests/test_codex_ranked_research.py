@@ -270,3 +270,32 @@ def test_custom_llmsx_home_reservation_is_visible_to_checkout_scanner(tmp_path, 
     assert observed[0]["pending"] == ["A"]
     assert (tmp_path / "custom/jobs/batches/batch/run.json").is_file()
     assert not (tmp_path / "home/.llmsx/jobs/batches/batch/run.json").exists()
+
+
+@pytest.mark.parametrize('cancel', [SystemExit(143), KeyboardInterrupt()])
+@pytest.mark.parametrize('stage', ['setup', 'phase'])
+def test_cancellation_releases_batch_marker_without_completing_pending_concepts(tmp_path, monkeypatch, cancel, stage):
+    monkeypatch.setenv('LLMSX_HOME', str(tmp_path / 'checkouts'))
+    monkeypatch.setenv('HUB_DIR', str(tmp_path))
+    monkeypatch.setenv('LLMS_EXPLORER_REPO', str(tmp_path))
+    checkouts = ranked.load('cancelled_batch_checkouts', ROOT / 'api/explorer_api/checkouts.py')
+    plan = tmp_path / 'batch/plan.json'
+    ranked.atomic(plan, {'cohorts': [{'id': 'test', 'parent': 'Root', 'status': 'pending', 'concepts': ['A']}], 'rows': []})
+    def cancelled(*args, **kwargs):
+        raise cancel
+    if stage == 'setup':
+        monkeypatch.setattr(ranked, 'load', cancelled)
+    else:
+        shared = SimpleNamespace(run_dir=lambda slug: tmp_path / 'research' / slug)
+        monkeypatch.setattr(ranked, 'load', lambda *args: SimpleNamespace(load_shared=lambda: shared))
+        monkeypatch.setattr(ranked, 'eligible_now', lambda *args: ['A'])
+        monkeypatch.setattr(ranked, 'run_command', cancelled)
+    with pytest.raises(type(cancel)) as caught:
+        ranked.execute_locked(tmp_path, tmp_path, plan)
+    assert caught.value is cancel
+    marker = json.loads((tmp_path / 'checkouts/jobs/batches/batch/run.json').read_text())
+    assert marker['status'] == 'cancelled' and marker['concepts'] == []
+    saved = json.loads(plan.read_text())
+    assert saved['status'] == 'cancelled'
+    assert saved['cohorts'][0]['status'] == ('pending' if stage == 'setup' else 'cancelled')
+    assert checkouts._llmsx_batches() == []
