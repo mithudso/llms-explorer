@@ -834,4 +834,4 @@
   36 frozen trials. Costs remain unknown; actual token usage is measured.
 - Archived 9,695 current source versions; 59 historical body gaps remain explicit.
 - Canonical projection canary passed four live judgments and both tree/pack/site
-  outputs. 127 research tests + two subtests and 278 built-site tests pass.
+  outputs. 132 research tests + two subtests and 278 built-site tests pass.

@@ -101,3 +101,11 @@ def test_completion_rejects_changed_claims_and_selection(pinned):
     with pytest.raises(ValueError, match='selection or depth'): gate.verify_current(shared, manifest)
     manifest['gate']['is_error'] = True
     with pytest.raises(ValueError, match='validated'): gate.verify_current(shared, manifest)
+
+
+def test_editorial_title_requires_an_explicit_recorded_slug_binding(pinned):
+    _shared, manifest, doc, *_rest = pinned
+    doc['concept'] = 'Editorial title'
+    with pytest.raises(ValueError, match='canonical claims'): gate.claim_rows(manifest, {'durability': doc})
+    doc['slug'] = 'durability'
+    assert gate.claim_rows(manifest, {'durability': doc})[0]['concept'] == 'Durability'

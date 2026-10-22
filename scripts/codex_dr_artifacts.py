@@ -240,6 +240,10 @@ def _finalize_artifacts(shared, manifest: dict, claims: dict[str, dict], status:
             planned[label] = before, after
 
         private_names = set()
+        for name, source_documents in documents.items():
+            if any(scrub._matches(doc.get("recorded_concept_title", ""), scrub.gate.denylist())
+                   for doc in source_documents):
+                private_names.add(name)
         if scrub._matches(" ".join(filter(None, (topic, cohort_parent, manifest.get("parent_concept")))), scrub.gate.denylist()):
             private_names.update(documents)
         while True:
@@ -250,6 +254,10 @@ def _finalize_artifacts(shared, manifest: dict, claims: dict[str, dict], status:
             if discovered <= private_names:
                 break
             private_names.update(discovered)
+        for _, target_nodes in planned.values():
+            for node in target_nodes:
+                if node["concept"] in private_names:
+                    node["publicationPrivate"] = True
         before, after = planned["repository"]
         public_after, _, _ = scrub.filter_tree(after, scrub.gate.denylist(), private_names)
         public_before, _, _ = scrub.filter_tree(before, scrub.gate.denylist(), private_names)

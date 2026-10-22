@@ -40,7 +40,7 @@ def claim_rows(manifest: dict, documents: dict) -> list[dict]:
         if concept["status"] != "done":
             continue
         document = documents.get(concept["slug"])
-        if document is None or document["concept"] != concept["name"]:
+        if document is None or (document["concept"] != concept["name"] and document.get("slug") != concept["slug"]):
             raise ValueError(f"gate requires current canonical claims for {concept['name']}")
         for claim in document["claims"]:
             identity = {"concept_slug": concept["slug"], "text": claim["text"],

@@ -72,7 +72,11 @@ def plan(repo: Path, hub: Path, nodes: list[dict], load, scrub, current_run: str
             docs.append(doc)
         if canonical is not None:
             allowed = {doc["concept"] for doc in docs}
-            docs = [doc for doc in canonical["documents"].values() if doc["concept"] in allowed]
+            allowed_slugs = {doc.get("slug") for doc in docs}
+            docs = [doc for slug, doc in canonical["documents"].items()
+                    if (slug in allowed_slugs or doc["concept"] in allowed)
+                    and doc["concept"].casefold() not in excluded
+                    and not scrub._matches(doc["concept"], terms)]
         if not docs:
             continue
         groups = ({doc["concept"]: [doc] for doc in docs} if manifest.get("cohort_parent") else

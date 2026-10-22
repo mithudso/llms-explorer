@@ -68,17 +68,22 @@ runtime until all phases pass integrated checks. Historical gates remain legacy.
    A live Sol/medium gate supported four real SQLite claims with exact pinned
    source spans, then completed both trees and four pack copies in an isolated
    end-to-end canary. [Canary proof](canonical-canary.json).
-   Validation: 129 research tests plus two subtests; 278 site tests after a full
+   Validation: 132 research tests plus two subtests; 278 site tests after a full
    build; Ruff and profile sync checks; publication-policy check; privacy scan of
    6,124 files with 27 operator denylist terms and zero findings. Three new
    end-to-end tests initially escaped collection; their placement was corrected,
    and they now execute and pass. Embeddings remain paused.
 
-Historical research retains its original validation status. The ranked queue
+Historical research retains its original validation status. The ranked queue initially
 stopped after 21 completed cohorts on substantive date dissent in cohort 22.
+The rollout corrected the reviewed dissent, passed all 26 bound judgments and
+resumed the plan. See [ROLLOUT.md](ROLLOUT.md).
 Remote Cloudflare deployment remains blocked separately; local build success does
 not establish remote publication.
 
 The historical recovery path also revalidates v2 gates and restores immutable
 canonical documents. It refuses claims edited after their gate. Legacy recovery
 retains its existing status and never gains v2 certification.
+
+Explicit recorded `--as` slug bindings preserve the planned canonical identity;
+unbound title substitutions fail. Private editorial bindings remain hub-only.

@@ -30,8 +30,13 @@ def build(shared, manifest, documents, status):
     nodes = shared.concept_tree.load_nodes(tree_path)
     owners = {name.casefold(): node['slug'] for node in nodes for name in [node['concept'], *node.get('aliases', [])]}
     enriched = copy.deepcopy(documents)
+    planned = {c['slug']: c['name'] for c in manifest['concepts']}
+    for slug, doc in enriched.items():
+        if doc['concept'] != planned[slug]:
+            doc['recorded_concept_title'] = doc['concept']
+            doc['concept'] = planned[slug]
     concept_ids = {name: 'concept:' + digest(owners.get(name.casefold(), shared.slugify(name)))
-                   for name in {manifest['topic'], *(doc['concept'] for doc in documents.values())}}
+                   for name in {manifest['topic'], *(doc['concept'] for doc in enriched.values())}}
     for slug, doc in enriched.items():
         doc['canonical_concept_id'] = concept_ids[doc['concept']]
         for claim in doc['claims']:

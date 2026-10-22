@@ -800,6 +800,36 @@ class ResearchFlowTests(unittest.TestCase):
             self.assertTrue((packs / "publication-repo.llms/llms-facts.txt").is_file())
 
 
+    def test_explicit_recorded_scope_binding_keeps_the_planned_canonical_identity(self):
+        self.doc["concept"] = "Editorial durability title"
+        self.research()
+        self.artifact_targets()
+        self.render()
+        self.invoke("finish", "publication", "--status", "COMPLETED")
+        receipt = self.shared.load_manifest("publication")["codex_artifacts"]
+        canonical = json.loads(Path(receipt["canonical_artifact"]["path"]).read_text())
+        doc = canonical["documents"]["rename-durability"]
+        self.assertEqual(doc["concept"], "Rename durability")
+        self.assertEqual(doc["recorded_concept_title"], "Editorial durability title")
+        for root in (self.hub, self.repo):
+            nodes = json.loads((root / "concept-tree/tree.json").read_text())
+            self.assertIn("Rename durability", {n["concept"] for n in nodes})
+            self.assertNotIn("Editorial durability title", {n["concept"] for n in nodes})
+
+    def test_private_editorial_binding_keeps_its_generic_planned_concept_private(self):
+        self.doc["concept"] = "PrivateProjectLabel durability"
+        self.research()
+        self.artifact_targets()
+        self.render()
+        with patch.dict(os.environ, {"PRIVACY_DENYLIST": "PrivateProjectLabel"}):
+            self.invoke("finish", "publication", "--status", "COMPLETED")
+        self.assertTrue((self.hub / "llms-concepts/rename-durability.llms").exists())
+        self.assertFalse((self.repo / "outputs/llms-concepts/rename-durability.llms").exists())
+        self.assertFalse((self.repo / "site/src/data/concepts/rename-durability.json").exists())
+        website = module_at("test_persistent_private_binding", self.repo / "scripts/research_site_sync.py")
+        website.sync(self.repo, self.hub, apply=True)
+        self.assertFalse((self.repo / "site/src/data/concepts/rename-durability.json").exists())
+
     def test_canonical_ids_survive_packs_readers_and_downloads(self):
         self.research()
         self.artifact_targets()
