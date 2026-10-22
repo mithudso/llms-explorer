@@ -58,6 +58,30 @@ def test_mismatched_source_cannot_be_archived(tmp_path):
     with pytest.raises(ValueError, match='hash'): provenance.archive(tmp_path, meta)
 
 
+def test_partial_immutable_write_never_publishes_a_truncated_snapshot(tmp_path, monkeypatch):
+    target = tmp_path / 'snapshots/evidence.txt'
+    factory = provenance.tempfile.NamedTemporaryFile
+    def partial(*args, **kwargs):
+        stream = factory(*args, **kwargs)
+        original_write = stream.write
+        def fail(body):
+            original_write(body[:3])
+            raise OSError('injected disk full')
+        stream.write = fail
+        return stream
+    with monkeypatch.context() as patch:
+        patch.setattr(provenance.tempfile, 'NamedTemporaryFile', partial)
+        with pytest.raises(OSError, match='disk full'):
+            provenance.immutable(target, b'complete immutable evidence')
+    assert not target.exists()
+    assert list(target.parent.iterdir()) == []
+    provenance.immutable(target, b'complete immutable evidence')
+    assert target.read_bytes() == b'complete immutable evidence'
+    with pytest.raises(ValueError, match='content changed'):
+        provenance.immutable(target, b'different evidence')
+    assert target.read_bytes() == b'complete immutable evidence'
+
+
 def test_cohort_shares_sources_but_preserves_concept_specific_claims_and_gaps(tmp_path):
     metadata = source(tmp_path)
     shared = SimpleNamespace(RESEARCH_DIR=tmp_path / 'research', lib_find=lambda url: metadata)

@@ -34,15 +34,34 @@ def build(shared, manifest, documents, status):
     identities = {row['claim_id']: row for row in rows}
     tree_path = shared.HUB_DIR / 'concept-tree/tree.json'
     nodes = shared.concept_tree.load_nodes(tree_path)
-    owners = {name.casefold(): node['slug'] for node in nodes for name in [node['concept'], *node.get('aliases', [])]}
+    owners = {node['concept'].casefold(): node['slug'] for node in nodes}
+    for node in nodes:
+        for alias in node.get('aliases', []):
+            owners.setdefault(alias.casefold(), node['slug'])
     enriched = copy.deepcopy(documents)
     planned = {c['slug']: c['name'] for c in manifest['concepts']}
     for slug, doc in enriched.items():
         if doc['concept'] != planned[slug]:
             doc['recorded_concept_title'] = doc['concept']
             doc['concept'] = planned[slug]
-    concept_ids = {name: 'concept:' + digest(owners.get(name.casefold(), shared.slugify(name)))
-                   for name in {manifest['topic'], *(doc['concept'] for doc in enriched.values())}}
+    names = list(dict.fromkeys(doc['concept'] for doc in enriched.values()))
+    if not manifest.get('cohort_parent'):
+        names = [manifest['topic'], *[name for name in names if name != manifest['topic']]]
+    if manifest['topic'] not in names:
+        names.append(manifest['topic'])
+    taken = {node['slug'] for node in nodes}
+    concept_slugs = {}
+    for name in names:
+        slug = owners.get(name.casefold())
+        if slug is None:
+            base, suffix = shared.slugify(name), 2
+            slug = base
+            while slug in taken:
+                slug, suffix = f'{base}-{suffix}', suffix + 1
+            taken.add(slug)
+            owners[name.casefold()] = slug
+        concept_slugs[name] = slug
+    concept_ids = {name: 'concept:' + digest(slug) for name, slug in concept_slugs.items()}
     for slug, doc in enriched.items():
         doc['canonical_concept_id'] = concept_ids[doc['concept']]
         for claim in doc['claims']:
@@ -53,10 +72,11 @@ def build(shared, manifest, documents, status):
             claim['evidence_ids'] = sorted({e['evidence_id'] for e in (judgment or {}).get('evidence', []) if e.get('evidence_id')})
     artifact = {'schema': 'research-artifact/v1', 'run': manifest['slug'], 'topic': manifest['topic'], 'status': status,
                 'input_hashes': {slug: digest(doc) for slug, doc in sorted(documents.items())},
-                'validation': report, 'gate_verdicts': judgments, 'concept_ids': concept_ids, 'documents': enriched}
+                'validation': report, 'gate_verdicts': judgments, 'concept_ids': concept_ids,
+                'concept_slugs': concept_slugs, 'documents': enriched}
     artifact['artifact_sha256'] = digest(artifact)
     destination = shared.run_dir(manifest['slug']) / 'artifacts/canonical' / (artifact['artifact_sha256'] + '.json')
-    content = json.dumps(artifact, indent=2, ensure_ascii=False) + '\n'
+    content = json.dumps(artifact, indent=2, ensure_ascii=False, sort_keys=True) + '\n'
     if destination.exists() and destination.read_text() != content:
         raise ValueError('immutable canonical artifact changed')
     if not destination.exists():

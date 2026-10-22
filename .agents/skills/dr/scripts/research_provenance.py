@@ -5,7 +5,9 @@ import fcntl
 import gzip
 import hashlib
 import json
+import os
 import re
+import tempfile
 from contextlib import contextmanager
 from datetime import UTC, datetime
 from pathlib import Path
@@ -35,12 +37,26 @@ def atomic(path, value):
 
 def immutable(path, body):
     path.parent.mkdir(parents=True, exist_ok=True)
-    try:
-        with path.open('xb') as stream:
-            stream.write(body)
-    except FileExistsError:
+    if path.exists():
         if path.read_bytes() != body:
             raise ValueError('immutable evidence content changed: ' + path.name)
+        return
+    temporary = None
+    try:
+        with tempfile.NamedTemporaryFile(dir=path.parent, prefix=path.name + '.', suffix='.tmp', delete=False) as stream:
+            temporary = Path(stream.name)
+            if stream.write(body) != len(body):
+                raise OSError('incomplete immutable evidence write')
+            stream.flush()
+            os.fsync(stream.fileno())
+        try:
+            os.link(temporary, path)
+        except FileExistsError:
+            if path.read_bytes() != body:
+                raise ValueError('immutable evidence content changed: ' + path.name) from None
+    finally:
+        if temporary is not None:
+            temporary.unlink(missing_ok=True)
 
 
 def archive(library, metadata):

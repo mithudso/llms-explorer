@@ -113,20 +113,53 @@ def make_plan(repo, hub, source, size=4):
 
 def run_command(command, log, env, timeout=7200):
     started = time.monotonic()
-    process = subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True,
-                               env=env, start_new_session=True)
+    process, cancelled, cleaning = None, None, False
+    previous = {}
+    def cancel(signum, frame):
+        nonlocal cancelled
+        cancelled = signum
+        if process is not None and not cleaning:
+            raise SystemExit(128 + signum)
+    def stop():
+        try:
+            os.killpg(process.pid, signal.SIGTERM)
+        except ProcessLookupError:
+            pass
+        try:
+            return process.communicate(timeout=10)
+        except subprocess.TimeoutExpired:
+            try:
+                os.killpg(process.pid, signal.SIGKILL)
+            except ProcessLookupError:
+                pass
+            return process.communicate()
     try:
+        for signum in (signal.SIGINT, signal.SIGTERM):
+            previous[signum] = signal.signal(signum, cancel)
+        if cancelled:
+            raise SystemExit(128 + cancelled)
+        process = subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True,
+                                   env=env, start_new_session=True)
+        if cancelled:
+            raise SystemExit(128 + cancelled)
         stdout, stderr = process.communicate(timeout=timeout)
     except subprocess.TimeoutExpired:
-        os.killpg(process.pid, signal.SIGTERM)
-        try:
-            stdout, stderr = process.communicate(timeout=10)
-        except subprocess.TimeoutExpired:
-            os.killpg(process.pid, signal.SIGKILL)
-            stdout, stderr = process.communicate()
+        cleaning = True
+        stdout, stderr = stop()
         with log.open("a") as stream:
             stream.write(json.dumps({"command": command, "timed_out": True, "stdout": stdout, "stderr": stderr}) + "\n")
         raise RuntimeError("Cohort phase exceeded its remaining time budget") from None
+    except BaseException:
+        if process is not None:
+            cleaning = True
+            stdout, stderr = stop()
+            with log.open("a") as stream:
+                stream.write(json.dumps({"command": command, "cancelled": True, "signal": cancelled,
+                                         "stdout": stdout, "stderr": stderr}) + "\n")
+        raise
+    finally:
+        for signum, handler in previous.items():
+            signal.signal(signum, handler)
     with log.open("a") as stream:
         stream.write(json.dumps({"command": command, "seconds": round(time.monotonic() - started, 2),
                                  "returncode": process.returncode, "stdout": stdout, "stderr": stderr}) + "\n")

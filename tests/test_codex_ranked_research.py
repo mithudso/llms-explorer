@@ -1,9 +1,16 @@
 """Ranked automation preserves queue identity and resumes without model calls."""
 import importlib.util
 import json
+import os
+import signal
+import subprocess
+import sys
+import time
 from contextlib import nullcontext
 from pathlib import Path
 from types import SimpleNamespace
+
+import pytest
 
 ROOT = Path(__file__).resolve().parents[1]
 spec = importlib.util.spec_from_file_location("ranked", ROOT / "scripts/codex_ranked_research.py")
@@ -15,6 +22,58 @@ def test_ranked_parser_keeps_literal_pipes_and_parent():
     rows = ranked.ranked_rows("| 1 | 4.2 | RESEARCH | A | B | Parent | dr | pending |")
     assert rows[0]["concept"] == "A|B"
     assert rows[0]["parent"] == "Parent"
+
+
+@pytest.mark.parametrize('signum', [signal.SIGINT, signal.SIGTERM])
+def test_cancelling_ranked_parent_stops_phase_and_isolated_worker(tmp_path, signum):
+    ready = tmp_path / 'ready.json'
+    phase = tmp_path / 'phase.py'
+    phase.write_text('''import json, os, signal, subprocess, sys, time
+from pathlib import Path
+worker = subprocess.Popen([sys.executable, '-c', 'import time; time.sleep(30)'], start_new_session=True)
+def stop(signum, frame):
+    worker.kill()
+    worker.wait()
+    raise SystemExit(128 + signum)
+signal.signal(signal.SIGTERM, stop)
+ready = Path(sys.argv[1])
+temporary = ready.with_suffix('.tmp')
+temporary.write_text(json.dumps({'phase': os.getpid(), 'worker': worker.pid}))
+temporary.replace(ready)
+time.sleep(30)
+''')
+    runner = tmp_path / 'runner.py'
+    runner.write_text(f'''import importlib.util, os, sys
+from pathlib import Path
+spec = importlib.util.spec_from_file_location('ranked_cancel', {str(ROOT / 'scripts/codex_ranked_research.py')!r})
+ranked = importlib.util.module_from_spec(spec)
+spec.loader.exec_module(ranked)
+ranked.run_command([sys.executable, {str(phase)!r}, {str(ready)!r}], Path({str(tmp_path / 'phase.log')!r}), os.environ, timeout=30)
+''')
+    parent = subprocess.Popen([sys.executable, str(runner)], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    children = {}
+    try:
+        deadline = time.monotonic() + 5
+        while not ready.exists() and time.monotonic() < deadline:
+            time.sleep(0.02)
+        assert ready.exists(), 'phase failed to start'
+        children = json.loads(ready.read_text())
+        parent.send_signal(signum)
+        parent.communicate(timeout=5)
+        assert parent.returncode == 128 + signum
+        for pid in children.values():
+            with pytest.raises(ProcessLookupError):
+                os.kill(pid, 0)
+        assert json.loads((tmp_path / 'phase.log').read_text())['cancelled']
+    finally:
+        if parent.poll() is None:
+            parent.kill()
+            parent.communicate()
+        for pid in children.values():
+            try:
+                os.kill(pid, signal.SIGKILL)
+            except ProcessLookupError:
+                pass
 
 
 def test_manifest_preserves_commas_collision_identity_and_resume(tmp_path):
