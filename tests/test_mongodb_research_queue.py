@@ -336,14 +336,16 @@ def test_queue_merge_is_append_only_and_preserves_history_and_non_mongodb_rows(r
     assert "Concept: `Low`" in merged and "Concept: `Unknown`" in merged
     assert "Concept: `Canonical`" not in merged
     assert queue.merge_queue(merged, result) == merged
-    assert "CVS: `1.40`" in merged
+    assert "CVS: `1.400`" in merged
 
 
 def test_ranked_merge_preserves_older_foreign_content_and_is_idempotent(roots):
     original = "# Older ranked queue\n\n| Apple | 4.9 |\n"
     result = inventory(roots)
     merged = queue.merge_ranked(original, result)
-    assert merged.startswith(original)
+    assert merged.startswith(queue.BEGIN)
+    assert merged.endswith(original)
+    assert "Previous ranked snapshot (retained)" in merged
     assert queue.merge_ranked(merged, result) == merged
     with pytest.raises(ValueError, match="Ambiguous"):
         queue.merge_ranked(queue.BEGIN + queue.BEGIN + queue.END, result)
@@ -443,6 +445,240 @@ def test_apply_preserves_crlf_history_and_refuses_json_over_input(roots):
     assert path.read_bytes() == prefix
     queue.apply_inventory(result)
     assert path.read_bytes().startswith(prefix)
+
+
+def marked_score(row, *, rationale="Specific operational value and documented source coverage"):
+    row.update(
+        cvs=4.725,
+        decision="RESEARCH",
+        score={
+            "kind": "cfe-model",
+            "cvs": 4.725,
+            "axes": {"rel": 5, "use": 5, "nov": 4, "int": 4.5, "via": 5},
+            "rationale": rationale,
+            "scoredAt": "2026-10-22",
+            "subject": "mongodb",
+        },
+    )
+
+
+@pytest.fixture
+def checker(tmp_path):
+    # Exercise the subprocess handoff without depending on an operator install.
+    # The real canonical checker is separately exercised in local verification.
+    path = tmp_path / "cvs_check.py"
+    path.write_text(
+        "import json,sys\nx=json.load(sys.stdin)\n"
+        "assert sys.argv[1:] == ['-', '--threshold', '0']\n"
+        "assert all(r['cvs'] == 4.725 and r['interest'] == 4.5 for r in x['rows'])\n"
+    )
+    return path
+
+
+def test_private_parent_and_generic_descendants_stay_hub_only(roots, monkeypatch):
+    repo, hub = roots
+    monkeypatch.setenv("PRIVACY_DENYLIST", "Restricted Customer")
+    store(
+        hub,
+        [
+            node("MongoDB", children=["Restricted Customer Workflow", "Public gap"]),
+            node("Restricted Customer Workflow", "MongoDB", ["Generic child"]),
+            node("Generic child", "Restricted Customer Workflow", ["Generic frontier"]),
+        ],
+        text="- [ ] Concept: `Queued leaf` | Parent: `Generic frontier`\n",
+    )
+    store(repo, [], text="# Retained\n- [ ] Concept: `Apple`\n")
+    result = inventory(roots)
+    safe = queue.public_inventory(result)
+    assert result["publication"]["withheld_rows"] == 4
+    assert set(by_name(safe)) == {"MongoDB", "Public gap"}
+    queue.apply_inventory(result, json_path=repo / "concept-tree/mongodb-inventory.json")
+    assert "Generic frontier" in (hub / "concept-tree/RESEARCH_QUEUE.md").read_text()
+    for name in ("RESEARCH_QUEUE.md", "RESEARCH_QUEUE_RANKED.md", "mongodb-inventory.json"):
+        text = (repo / "concept-tree" / name).read_text()
+        for private in ("Restricted Customer", "Generic child", "Generic frontier", "Queued leaf"):
+            assert private not in text
+    assert "Apple" in (repo / "concept-tree/RESEARCH_QUEUE.md").read_text()
+    assert (hub / "research/.queue-inventory-backups").is_dir()
+    assert not list((repo / "concept-tree").glob("*.bak-mongodb-*"))
+
+
+def test_public_json_removes_occurrence_paths_and_scrubs_operator_metadata(roots):
+    repo, hub = roots
+    store(hub, [node("MongoDB", children=["Gap"])])
+    result = inventory(roots, reservations={"gap": "/Users/real.operator/private-run"})
+    row = by_name(result)["Gap"]
+    row["score"] = {
+        "path": "/private/raw/library/source.json",
+        "rationale": "From /Users/real.operator/private-run",
+    }
+    safe = queue.public_inventory(result)
+    text = json.dumps(safe)
+    assert "/Users/real.operator" not in text
+    assert "/private/raw/library" not in text
+    assert str(hub) not in text and str(repo) not in text
+    assert "path" not in by_name(safe)["Gap"]["originals"][0]
+    assert "repo" not in safe and "hub" not in safe and "inputs" not in safe
+
+
+def test_worktree_uses_primary_checkout_private_policy(roots, tmp_path):
+    repo, hub = roots
+    primary = tmp_path / "primary"
+    git_dir = primary / ".git/worktrees/test"
+    git_dir.mkdir(parents=True)
+    (git_dir / "commondir").write_text("../..")
+    (repo / ".git").write_text("gitdir: " + str(git_dir))
+    (primary / ".privacy-denylist").write_text("Restricted Customer\n")
+    store(hub, [node("MongoDB", children=["Restricted Customer Workflow"])])
+    result = inventory(roots)
+    assert result["publication"]["withheld_rows"] == 1
+    assert set(by_name(queue.public_inventory(result))) == {"MongoDB"}
+    (primary / ".privacy-denylist").write_text("Changed Policy\n")
+    with pytest.raises(RuntimeError, match="input changed"):
+        queue.apply_inventory(result)
+
+
+def test_historical_slug_alias_and_publication_private_flag_exclude_descendants(roots):
+    repo, hub = roots
+    store(
+        hub,
+        [
+            node("MongoDB", children=["Private container"]),
+            node("Private container", "MongoDB", ["Current child"], publicationPrivate=True),
+            node(
+                "Current child",
+                "Private container",
+                aliases=["Old child"],
+                slugAliases=["old-child"],
+            ),
+        ],
+    )
+    store(repo, [node("Old child", children=["Old grandchild"], slug="old-child")])
+    result = inventory(roots)
+    assert {"Private container", "Current child", "Old grandchild"} <= set(by_name(result))
+    assert set(by_name(queue.public_inventory(result))) == {"MongoDB"}
+
+
+def test_marked_scores_persist_precision_provenance_history_and_reload_after_queue_completion(
+    roots, checker
+):
+    repo, hub = roots
+    old = {
+        "Gap": {"cvs": 2.2, "scoredAt": "2026-09-01", "rationale": "Old retained rationale"},
+        "Non-Mongo record": {"cvs": 1.3},
+    }
+    store(hub, [node("MongoDB", children=["Gap"])], scores=old)
+    store(repo, scores=old)
+    result = inventory(roots)
+    marked_score(by_name(result)["Gap"])
+    queue.rerank_inventory(result)
+    queue.apply_inventory(result, cvs_checker=checker)
+    for root in roots:
+        saved = json.loads((root / "concept-tree/cvs-scores.json").read_text())
+        assert saved["Gap"]["cvs"] == 4.725
+        assert saved["Gap"]["axes"]["interest"] == 4.5
+        assert saved["Gap"]["scoredAt"] == "2026-10-22"
+        assert saved["Gap"]["subject"] == "mongodb"
+        assert saved["Gap"]["history"] == [old["Gap"]]
+        assert saved["Non-Mongo record"] == old["Non-Mongo record"]
+        path = root / "concept-tree/RESEARCH_QUEUE.md"
+        path.write_text(path.read_text().replace("- [ ]", "- [x]"))
+    fresh = inventory(roots)
+    assert by_name(fresh)["Gap"]["cvs"] == 4.725
+    assert by_name(fresh)["Gap"]["score"]["rationale"].startswith("Specific operational")
+    assert by_name(fresh)["Gap"]["score"]["record_kind"] == "cfe-model"
+    assert "4.725" in queue.render_markdown(fresh)
+
+
+def test_private_score_records_retained_only_in_hub_sidecar(roots, checker, monkeypatch):
+    repo, hub = roots
+    monkeypatch.setenv("PRIVACY_DENYLIST", "Restricted Customer")
+    store(
+        hub,
+        [
+            node("MongoDB", children=["Restricted Customer Workflow", "Public gap"]),
+            node("Restricted Customer Workflow", "MongoDB", ["Generic gap"]),
+        ],
+    )
+    store(repo, scores={"Generic gap": {"cvs": 2.0}})
+    result = inventory(roots)
+    marked_score(by_name(result)["Generic gap"])
+    marked_score(
+        by_name(result)["Public gap"],
+        rationale="Restricted Customer example /Users/real.operator/work",
+    )
+    queue.apply_inventory(result, cvs_checker=checker)
+    hub_scores = json.loads((hub / "concept-tree/cvs-scores.json").read_text())
+    public_scores = json.loads((repo / "concept-tree/cvs-scores.json").read_text())
+    assert "Generic gap" in hub_scores and "Generic gap" not in public_scores
+    assert "Restricted Customer" in hub_scores["Public gap"]["rationale"]
+    assert "Restricted Customer" not in public_scores["Public gap"]["rationale"]
+    assert "/Users/real.operator" not in json.dumps(public_scores)
+
+
+def test_unmarked_scores_do_not_persist_and_invalid_marked_scores_fail_before_writes(
+    roots, checker
+):
+    repo, hub = roots
+    store(hub, [node("MongoDB", children=["Gap"])])
+    result = inventory(roots)
+    by_name(result)["Gap"].update(cvs=4.725, decision="RESEARCH", score={"kind": "queue"})
+    queue.apply_inventory(result, cvs_checker=checker)
+    assert json.loads((hub / "concept-tree/cvs-scores.json").read_text()) == {}
+    result = inventory(roots)
+    marked_score(by_name(result)["Gap"])
+    by_name(result)["Gap"]["score"].pop("rationale")
+    before = {
+        str(p): p.read_bytes()
+        for root in roots
+        for p in (root / "concept-tree").glob("*")
+        if p.is_file()
+    }
+    with pytest.raises(ValueError, match="missing rationale"):
+        queue.apply_inventory(result, cvs_checker=checker)
+    after = {
+        str(p): p.read_bytes()
+        for root in roots
+        for p in (root / "concept-tree").glob("*")
+        if p.is_file()
+    }
+    assert before == after
+
+
+def test_rejected_canonical_checker_keeps_sources_unchanged(roots, tmp_path):
+    repo, hub = roots
+    store(hub, [node("MongoDB", children=["Gap"])])
+    result = inventory(roots)
+    marked_score(by_name(result)["Gap"])
+    checker = tmp_path / "reject.py"
+    checker.write_text("raise SystemExit(1)\n")
+    before = (hub / "concept-tree/cvs-scores.json").read_bytes()
+    with pytest.raises(ValueError, match="Canonical CVS checker rejected"):
+        queue.apply_inventory(result, cvs_checker=checker)
+    assert (hub / "concept-tree/cvs-scores.json").read_bytes() == before
+
+
+def test_existing_ranked_generated_section_moves_ahead_of_old_bytes(roots):
+    old = "# Previous data\n\nOld bytes\n"
+    inventory_value = inventory(roots)
+    previous_generated = old + queue.BEGIN + "\nold generated\n" + queue.END
+    merged = queue.merge_ranked(previous_generated, inventory_value)
+    assert merged.startswith(queue.BEGIN)
+    assert merged.index("Previous ranked snapshot (retained)") < merged.index(old)
+    assert queue.merge_ranked(merged, inventory_value) == merged
+
+
+def test_rerank_accepts_abbreviated_axes_and_public_projection_cannot_apply(roots):
+    repo, hub = roots
+    store(hub, [node("MongoDB", children=["Gap"])])
+    result = inventory(roots)
+    row = by_name(result)["Gap"]
+    marked_score(row)
+    row["score"]["axes"]["via"] = 1
+    queue.rerank_inventory(result)
+    assert row["eligibility"] == "hard-gated-review"
+    with pytest.raises(ValueError, match="full private"):
+        queue.apply_inventory(queue.public_inventory(result))
 
 
 @pytest.mark.parametrize("size", [0, 9])

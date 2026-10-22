@@ -3,12 +3,14 @@
 
 The default CLI only prints JSON or Markdown. ``--apply`` takes the shared
 research lock, checks input hashes, backs up changed files, and updates generated
-views plus append-only queue additions. It never rewrites a tree or score.
+views, append-only hub queue additions, and explicitly marked validated scores.
+The repository receives only publication-safe projections. Trees never change.
 """
 
 from __future__ import annotations
 
 import argparse
+import copy
 import fcntl
 import hashlib
 import importlib.util
@@ -16,6 +18,8 @@ import json
 import math
 import os
 import re
+import subprocess
+import sys
 import tempfile
 import unicodedata
 from collections import Counter, defaultdict
@@ -257,6 +261,184 @@ def load_reservations(repo, hub):
     return held
 
 
+def _load_module(name, path):
+    spec = importlib.util.spec_from_file_location(name, path)
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+
+def _privacy_roots(repo):
+    """Worktrees inherit the primary checkout's gitignored operator policy."""
+    repo = Path(repo)
+    roots = [repo]
+    pointer = repo / ".git"
+    if pointer.is_file():
+        value = pointer.read_text().strip()
+        if value.startswith("gitdir: "):
+            git_dir = (repo / value.removeprefix("gitdir: ")).resolve()
+            common = git_dir / "commondir"
+            if common.is_file():
+                primary = (git_dir / common.read_text().strip()).resolve().parent
+                if primary not in roots:
+                    roots.append(primary)
+    return roots
+
+
+def _publication_tools(repo):
+    # Load the existing policy without taking a cached module from another
+    # checkout, or leaving an altered module/search path in the parent process.
+    scripts = Path(repo) / "scripts"
+    if not (scripts / "publish_scrub.py").exists():
+        scripts = REPO / "scripts"
+    gate = _load_module("mongodb_privacy_gate", scripts / "check_publish_privacy.py")
+    gate.REPO = str(repo)
+    previous = sys.modules.get("check_publish_privacy")
+    sys.modules["check_publish_privacy"] = gate
+    try:
+        scrub = _load_module("mongodb_publication_scrub", scripts / "publish_scrub.py")
+    finally:
+        if previous is None:
+            sys.modules.pop("check_publish_privacy", None)
+        else:
+            sys.modules["check_publish_privacy"] = previous
+    terms, allowed, config = list(gate.denylist()), list(gate.allowlist()), []
+    for root in _privacy_roots(repo):
+        for filename, values in ((".privacy-denylist", terms), (".privacy-allowlist", allowed)):
+            path = root / filename
+            config.append({"path": str(path), "sha256": _fingerprint(path)})
+            if path.exists():
+                values.extend(
+                    line.strip()
+                    for line in path.read_text().splitlines()
+                    if line.strip() and not line.startswith("#")
+                )
+    return scrub, sorted(set(terms)), sorted(set(allowed)), config
+
+
+def _publication_state(inventory):
+    """Close the existing publication policy over both trees and all frontier edges."""
+    scrub, terms, allowed, config = _publication_tools(inventory["repo"])
+    by_name, parent_edges = {}, []
+
+    def add(node):
+        name = node.get("concept")
+        if not name:
+            return
+        target = by_name.setdefault(
+            name, {"concept": name, "childConcepts": [], "aliases": [], "slugAliases": []}
+        )
+        for field in ("childConcepts", "aliases", "slugAliases"):
+            target[field] = list(dict.fromkeys([*target[field], *(node.get(field) or [])]))
+        if node.get("slug"):
+            target.setdefault("slug", node["slug"])
+            target["slugAliases"] = list(dict.fromkeys([*target["slugAliases"], node["slug"]]))
+        if node.get("publicationPrivate") is True:
+            target["publicationPrivate"] = True
+        if node.get("parentConcept"):
+            parent_edges.append((node["parentConcept"], name))
+
+    for root in (inventory["hub"], inventory["repo"]):
+        value = _json(Path(root) / "concept-tree/tree.json", [])
+        for node in value if isinstance(value, list) else value.get("nodes", []):
+            add(node)
+    for row in inventory["rows"]:
+        add({"concept": row["concept"], "aliases": row["original_labels"]})
+        for parent in row["parents"]:
+            parent_edges.append((parent, row["concept"]))
+    for parent, child in parent_edges:
+        add({"concept": parent, "childConcepts": [child]})
+    nodes = list(by_name.values())
+    for node in nodes:
+        if any(scrub._matches(slug, terms) for slug in node["slugAliases"]):
+            node["publicationPrivate"] = True
+    excluded = set()
+    while True:
+        _, dropped, _ = scrub.filter_tree(nodes, terms, excluded)
+        discovered = set(dropped)
+        known = {key(name) for name in excluded | discovered}
+        private_slugs = set()
+        for node in nodes:
+            names = {node["concept"], *node["aliases"]}
+            if known & {key(name) for name in names}:
+                discovered.update(names)
+                private_slugs.update(node["slugAliases"])
+        for node in nodes:
+            if set(node["slugAliases"]) & private_slugs:
+                discovered.update({node["concept"], *node["aliases"]})
+        if discovered <= excluded:
+            break
+        excluded.update(discovered)
+    excluded_keys = {key(name) for name in excluded}
+    private_ids = {
+        row["id"]
+        for row in inventory["rows"]
+        if excluded_keys & {key(label) for label in row["original_labels"]}
+    }
+    return {
+        "scrub": scrub,
+        "terms": sorted(set(terms) | excluded),
+        "allowed": allowed,
+        "excluded": excluded,
+        "private_ids": private_ids,
+        "config": config,
+    }
+
+
+def _public_clean(value, state):
+    if isinstance(value, dict):
+        return {
+            _public_clean(k, state): _public_clean(v, state)
+            for k, v in value.items()
+            if k not in {"path", "raw", "inputs", "repo", "hub", "config", "private_ids"}
+        }
+    if isinstance(value, list):
+        return [_public_clean(item, state) for item in value]
+    if isinstance(value, str):
+        return state["scrub"].scrub_public_text(value, state["terms"], state["allowed"])
+    return value
+
+
+def public_inventory(inventory, *, _state=None):
+    """Return a sanitized publication projection; retain the original privately."""
+    state = _state or _publication_state(inventory)
+    result = copy.deepcopy(inventory)
+    result["rows"] = [row for row in result["rows"] if row["id"] not in state["private_ids"]]
+    result["publication"] = {"scope": "public", "withheld_rows": len(state["private_ids"])}
+    rerank_inventory(result)
+    return _public_clean(result, state)
+
+
+def _public_existing(text, state):
+    excluded = {key(name) for name in state["excluded"]}
+    lines = []
+    for line in text.splitlines(keepends=True):
+        match = QUEUE.match(line.rstrip("\r\n"))
+        if match:
+            name = _unquote(match["concept"], match["ticks"])
+            tags = {
+                key(m["tag"]): _unquote(m["value"], m["ticks"])
+                for m in TAGS.finditer(match["tags"])
+            }
+            if any(
+                key(value) in excluded or state["scrub"]._matches(value, state["terms"])
+                for value in (name, tags.get("parent") or "")
+            ):
+                continue
+        cells = [cell.strip() for cell in line.strip().strip("|").split("|")]
+        if (
+            len(cells) >= 7
+            and cells[0].isdigit()
+            and any(
+                key(value) in excluded or state["scrub"]._matches(value, state["terms"])
+                for value in cells[3:5]
+            )
+        ):
+            continue
+        lines.append(line)
+    return state["scrub"].scrub_public_text("".join(lines), state["terms"], state["allowed"])
+
+
 class Identities:
     def __init__(self):
         self.roots = {}
@@ -337,7 +519,7 @@ def _score_order(record):
 
 def priority(row):
     score = row["cvs"]
-    axes = (row.get("score") or {}).get("axes") or {}
+    axes = _axes(row.get("score"))
     return (
         score is None,
         -(score or 0),
@@ -347,6 +529,22 @@ def priority(row):
         key(row["concept"]),
         row["id"],
     )
+
+
+def _axes(score):
+    names = {
+        "relevance": "rel",
+        "usefulness": "use",
+        "novelty": "nov",
+        "interest": "int",
+        "viability": "via",
+    }
+    values = (score or {}).get("axes") or score or {}
+    return {
+        name: values.get(name, values.get(short))
+        for name, short in names.items()
+        if values.get(name, values.get(short)) is not None
+    }
 
 
 def build_inventory(repo=REPO, hub=None, *, reservations=None, cohort_size=4):
@@ -570,6 +768,10 @@ def build_inventory(repo=REPO, hub=None, *, reservations=None, cohort_size=4):
                 decision=record.get("decision"),
                 subject=record.get("subject"),
                 axes=record.get("axes"),
+                record_kind=record.get("kind"),
+                rationale=record.get("rationale"),
+                provenance=record.get("provenance"),
+                history=record.get("history"),
             )
             if rec:
                 grouped[identity]["scores"].append(rec)
@@ -676,7 +878,17 @@ def build_inventory(repo=REPO, hub=None, *, reservations=None, cohort_size=4):
         "stats": {"store_node_counts": {s["source"]: len(s["nodes"]) for s in stores}},
         "rows": rows,
     }
-    return rerank_inventory(result)
+    rerank_inventory(result)
+    state = _publication_state(result)
+    result["inputs"].extend(state["config"])
+    result["publication"] = {
+        "scope": "private",
+        "withheld_rows": len(state["private_ids"]),
+        "environment_sha256": hashlib.sha256(
+            os.environ.get("PRIVACY_DENYLIST", "").encode()
+        ).hexdigest(),
+    }
+    return result
 
 
 def rerank_inventory(inventory):
@@ -690,7 +902,7 @@ def rerank_inventory(inventory):
     cohort_size = inventory["policy"]["cohort_size"]
     for row in rows:
         score = row.get("score")
-        axes = (score or {}).get("axes") or {}
+        axes = _axes(score)
         if row["reservation_holder"]:
             row["eligibility"] = "held"
         elif row["coverage_category"] == "covered":
@@ -790,7 +1002,7 @@ def render_markdown(inventory):
                 _cell(x)
                 for x in (
                     row["rank"],
-                    f"{row['cvs']:.2f}" if row["cvs"] is not None else None,
+                    f"{row['cvs']:.3f}" if row["cvs"] is not None else None,
                     row["decision"],
                     row["concept"],
                     "; ".join(row["parents"]),
@@ -836,7 +1048,7 @@ def merge_queue(existing, inventory):
         parent = row["parents"][0] if row["parents"] else "MongoDB"
         line = f"- [ ] Concept: {_quote(row['concept'])} | Parent: {_quote(parent)} | Mode: `{'revisit' if 'review' in row['coverage_category'] else 'dr'}`"
         if row["cvs"] is not None:
-            line += f" | CVS: `{row['cvs']:.2f}`"
+            line += f" | CVS: `{row['cvs']:.3f}`"
         line += f" | Inventory-ID: `{row['id']}` | Cohort: `{row['cohort_id']}`"
         additions.append(line)
     if not additions:
@@ -857,8 +1069,15 @@ def merge_ranked(existing, inventory):
         if existing.count(BEGIN) != 1 or existing.count(END) != 1:
             raise ValueError("Ambiguous MongoDB generated section")
         start, end = existing.index(BEGIN), existing.index(END) + len(END)
+        if start:
+            retained = existing[:start] + existing[end:]
+            return section + "\n\n## Previous ranked snapshot (retained)\n\n" + retained
         return existing[:start] + section + existing[end:]
-    return existing + ("\n\n" if existing else "") + section + "\n"
+    return (
+        section
+        + "\n"
+        + ("\n## Previous ranked snapshot (retained)\n\n" + existing if existing else "")
+    )
 
 
 @contextmanager
@@ -893,13 +1112,117 @@ def _text(path):
     return path.read_bytes().decode("utf-8") if path.exists() else ""
 
 
-def apply_inventory(inventory, *, json_path=None):
+def _verified_score_records(inventory):
+    """Export only producer-validated CFE overlays, never a hand-set queue CVS.
+
+    The scoring producer runs the canonical cvs_check.py arithmetic/gate check.
+    The cfe-model kind is its explicit handoff marker. This boundary checks all
+    five bounded axes and required provenance before allowing persistence.
+    """
+    records = {}
+    names = {
+        "relevance": "rel",
+        "usefulness": "use",
+        "novelty": "nov",
+        "interest": "int",
+        "viability": "via",
+    }
+    for row in inventory["rows"]:
+        score = row.get("score") or {}
+        if score.get("kind") != "cfe-model":
+            continue
+        raw_axes = score.get("axes") or score
+        axes = {name: raw_axes.get(name, raw_axes.get(short)) for name, short in names.items()}
+        for value in [row.get("cvs"), *axes.values()]:
+            if (
+                isinstance(value, bool)
+                or not isinstance(value, (int, float))
+                or not math.isfinite(value)
+                or not 0 <= value <= 5
+            ):
+                raise ValueError(
+                    "Marked CFE score needs five bounded axes and a numeric CVS: " + row["id"]
+                )
+        for field in ("scoredAt", "subject", "rationale"):
+            if not isinstance(score.get(field), str) or not score[field].strip():
+                raise ValueError("Marked CFE score is missing " + field + ": " + row["id"])
+        if row.get("decision") not in {"RESEARCH", "REFRESH", "SKIP"}:
+            raise ValueError("Marked CFE score is missing a valid decision: " + row["id"])
+        records[row["concept"]] = {
+            **copy.deepcopy(score),
+            "cvs": row["cvs"],
+            "decision": row["decision"],
+            "axes": axes,
+            "kind": "cfe-model",
+            "inventory_id": row["id"],
+            "validation": "producer-validated-cfe-model",
+        }
+    return records
+
+
+def _merge_score_records(existing, records):
+    result = copy.deepcopy(existing)
+    for name, record in records.items():
+        previous = result.get(name)
+        current = copy.deepcopy(record)
+        if isinstance(previous, dict):
+            history = copy.deepcopy(previous.get("history") or [])
+            prior = {k: v for k, v in previous.items() if k != "history"}
+            if (
+                prior != {k: v for k, v in current.items() if k != "history"}
+                and prior not in history
+            ):
+                history.append(prior)
+            if history:
+                current["history"] = history
+        result[name] = current
+    return result
+
+
+def _check_cfe_records(records, checker=None):
+    if not records:
+        return
+    checker = Path(checker or Path.home() / ".claude/skill-consolidation/cvs_check.py")
+    if not checker.is_file():
+        raise ValueError("Canonical CVS checker is required to persist marked scores")
+    rows = [
+        {"concept": name, **record["axes"], "cvs": record["cvs"], "decision": record["decision"]}
+        for name, record in records.items()
+    ]
+    result = subprocess.run(
+        [sys.executable, str(checker), "-", "--threshold", "0"],
+        input=json.dumps({"threshold": 0, "rows": rows}),
+        text=True,
+        capture_output=True,
+        check=False,
+    )
+    if result.returncode:
+        # The checker can print private concept names; keep its body out of a
+        # public report or exception. The parent retains the private score file.
+        raise ValueError("Canonical CVS checker rejected marked score arithmetic or decisions")
+
+
+def _public_scores(scores, state):
+    excluded = {key(name) for name in state["excluded"]}
+    safe = {
+        name: record
+        for name, record in scores.items()
+        if key(name) not in excluded and not state["scrub"]._matches(name, state["terms"])
+    }
+    return _public_clean(safe, state)
+
+
+def apply_inventory(inventory, *, json_path=None, persist_scores=True, cvs_checker=None):
     """Explicit parent-invoked write path; lock, stale-input guard and backups.
 
     Idempotent when called with a newly built inventory. Does not change input
-    tree/score files or release reservations. All pre-existing queue rows remain.
+    trees or release reservations. Hub queue history remains intact. Repository
+    outputs use publication exclusions and sanitized text. Marked, previously
+    validated cfe-model overlays persist to score sidecars when enabled.
     """
     changed = []
+    if inventory.get("publication", {}).get("scope") == "public":
+        raise ValueError("Apply requires the full private inventory snapshot")
     hub, repo = Path(inventory["hub"]), Path(inventory["repo"])
     with _lock(hub):
         for source in inventory["inputs"]:
@@ -907,12 +1230,31 @@ def apply_inventory(inventory, *, json_path=None):
                 raise RuntimeError(
                     f"Inventory input changed; rebuild before applying: {source['path']}"
                 )
+        environment = hashlib.sha256(os.environ.get("PRIVACY_DENYLIST", "").encode()).hexdigest()
+        if inventory.get("publication", {}).get("environment_sha256", environment) != environment:
+            raise RuntimeError("Publication environment changed; rebuild before applying")
+        state = _publication_state(inventory)
+        public = public_inventory(inventory, _state=state)
+        records = _verified_score_records(inventory) if persist_scores else {}
+        _check_cfe_records(records, cvs_checker)
         updates = {}
         for root in dict.fromkeys((hub, repo)):
             directory = root / "concept-tree"
             queue, ranked = directory / "RESEARCH_QUEUE.md", directory / "RESEARCH_QUEUE_RANKED.md"
-            updates[queue] = merge_queue(_text(queue), inventory)
-            updates[ranked] = merge_ranked(_text(ranked), inventory)
+            publishing = root == repo and root != hub
+            projection = public if publishing else inventory
+            queue_text = _public_existing(_text(queue), state) if publishing else _text(queue)
+            ranked_text = _public_existing(_text(ranked), state) if publishing else _text(ranked)
+            updates[queue] = merge_queue(queue_text, projection)
+            updates[ranked] = merge_ranked(ranked_text, projection)
+            scores_path = directory / "cvs-scores.json"
+            if records or publishing:
+                merged = _merge_score_records(_json(scores_path, {}), records)
+                if publishing:
+                    merged = _public_scores(merged, state)
+                updates[scores_path] = (
+                    json.dumps(merged, indent=1, ensure_ascii=False, sort_keys=True) + "\n"
+                )
         if json_path is not None:
             json_path = Path(json_path).expanduser().resolve()
             protected = {Path(source["path"]).resolve() for source in inventory["inputs"]} | {
@@ -920,7 +1262,8 @@ def apply_inventory(inventory, *, json_path=None):
             }
             if json_path in protected:
                 raise ValueError("JSON output must not overwrite an input or queue view")
-            updates[json_path] = json.dumps(inventory, indent=2, ensure_ascii=False) + "\n"
+            projection = public if json_path.is_relative_to(repo) else inventory
+            updates[json_path] = json.dumps(projection, indent=2, ensure_ascii=False) + "\n"
         # Prepare every output before mutating any destination.
         stamp = datetime.now(UTC).strftime("%Y%m%dT%H%M%S%fZ")
         for path, content in updates.items():
@@ -929,7 +1272,11 @@ def apply_inventory(inventory, *, json_path=None):
                 continue
             backup = None
             if original is not None:
-                backup = path.with_name(path.name + ".bak-mongodb-" + stamp)
+                backup = (
+                    hub / "research/.queue-inventory-backups" / stamp / path.relative_to(repo)
+                    if path.is_relative_to(repo) and not path.is_relative_to(hub)
+                    else path.with_name(path.name + ".bak-mongodb-" + stamp)
+                )
                 _write(backup, original)
             _write(path, content)
             changed.append({"path": str(path), "backup": str(backup) if backup else None})
@@ -942,6 +1289,12 @@ def main(argv=None):
     parser.add_argument("--hub", type=Path, default=Path.home() / ".global-ai-hub")
     parser.add_argument("--format", choices=("json", "markdown"), default="json")
     parser.add_argument("--cohort-size", type=int, default=4)
+    parser.add_argument(
+        "--public", action="store_true", help="Print only the sanitized publication projection"
+    )
+    parser.add_argument(
+        "--no-persist-scores", action="store_true", help="Do not persist marked cfe-model overlays"
+    )
     parser.add_argument(
         "--reservations",
         type=Path,
@@ -967,10 +1320,14 @@ def main(argv=None):
     if args.apply:
         result = {
             "stats": inventory["stats"],
-            "changed": apply_inventory(inventory, json_path=args.json_output),
+            "changed": apply_inventory(
+                inventory, json_path=args.json_output, persist_scores=not args.no_persist_scores
+            ),
         }
         print(json.dumps(result, indent=2))
     else:
+        if args.public:
+            inventory = public_inventory(inventory)
         print(
             render_markdown(inventory)
             if args.format == "markdown"
