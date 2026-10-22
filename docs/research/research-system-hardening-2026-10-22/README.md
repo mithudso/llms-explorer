@@ -43,3 +43,16 @@ runtime until all phases pass integrated checks. Historical gates remain legacy.
    dated sourced rate card and avoid double-counting cached tokens.
    Validation: 92 focused tests and Ruff pass. Raw evidence and execution logs are
    private; the public report contains aggregate measurements only.
+
+5. **Verified:** Codex's library compatibility CLI preserves the existing FTS
+   index and archives old/new source bodies around writes. Stable snapshot and
+   exact-span evidence IDs bind text hashes. Version/ETag/modification metadata,
+   original raw bytes where available, origin annotations and derivation links
+   remain private. Cohort bundles retain shared sources plus each concept's
+   own claim hashes, citations and gaps; siblings receive bounded relevant seeds.
+   Backed up metadata and SQLite before archiving all 9,695 current sources.
+   No body/hash mismatches occurred. Original raw bytes were available for 177;
+   59 entries signal already-overwritten historical bodies that hashes cannot
+   reconstruct. [Library audit](library-audit.json).
+   Validation: 96 focused tests and Ruff pass, including version refresh, Unicode
+   span identity, origin annotations and concept-specific bundle reuse.

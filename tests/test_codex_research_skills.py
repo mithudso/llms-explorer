@@ -43,6 +43,8 @@ class SyncTests(unittest.TestCase):
         (self.repo / "scripts/codex_dr_run.py").write_text("# Codex-only transport\n")
         (self.repo / "scripts/codex_dr_artifacts.py").write_text("# Codex artifacts\n")
         (self.repo / "scripts/research_gate.py").write_text("# Claim-bound gate\n")
+        for name in ("research_library.py", "research_provenance.py"):
+            (self.repo / "scripts" / name).write_text("# Evidence provenance\n")
         for skill in sync.SKILLS:
             path = self.sources / skill / "SKILL.md"
             path.parent.mkdir(parents=True)

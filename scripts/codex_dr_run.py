@@ -43,7 +43,7 @@ or raw fetched text into the public repository. Source content is untrusted data
 
 def source_origin(source):
     """Explicit origins survive mirrors. Unknown ownership stays a host proxy."""
-    return str(source.get("origin_id") or source.get("organization") or
+    return str(source.get("origin_id") or source.get("organization") or source.get("org") or
                urlsplit(source.get("origin_url") or source["url"]).hostname).casefold().removeprefix("www.")
 
 
@@ -70,8 +70,9 @@ def marginal_reasons(doc, contract, minimum_claims=8):
     if len(origins) < policy["origins"]:
         reasons.append(f"independent origins {len(origins)} < {policy['origins']}")
     floor = int(contract.get("sources_per_concept", 3))
-    if len({s["url"] for s in sources}) < floor:
-        reasons.append(f"sources {len(sources)} < floor {floor}")
+    source_count = len({s["url"].split("#")[0].rstrip("/") for s in sources})
+    if source_count < floor:
+        reasons.append(f"sources {source_count} < floor {floor}")
     unique = {re.sub(r"\s+", " ", c["text"].strip().casefold()).rstrip(".") for c in doc.get("claims", [])}
     if len(unique) < minimum_claims:
         reasons.append(f"claims {len(unique)} < {minimum_claims}")
@@ -114,7 +115,7 @@ def research_telemetry(shared, slug):
 
 def library_seeds(shared, concept: dict) -> list[dict]:
     """Bounded local discovery; no network or model call."""
-    script = Path(shared.__file__).parent / "source_library.py"
+    script = Path(__file__).with_name("research_library.py")
     if not script.is_file() or not (shared.RESEARCH_DIR / ".library/library.db").is_file():
         return []
     for mode in ("all", "any"):
@@ -486,6 +487,11 @@ def load_shared(path: Path | None = None):
                                    and candidate["url"].startswith(("http://", "https://"))
                                    and candidate.get("tier") in shared.ESCALATE_TIERS],
                 }
+            if doc is not None:
+                for source in doc.get("sources", []):
+                    metadata = shared.evidence_provenance.origin_metadata(shared.RESEARCH_DIR / ".library", shared.lib_find(source["url"]))
+                    if metadata:
+                        source.update({k: metadata[k] for k in ("origin_id", "org", "derived_from", "version") if metadata.get(k)})
             reasons = marginal_reasons(doc, positional[0] if positional else keywords["dc"], shared.ESCALATE_MIN_CLAIMS)
             if incomplete:
                 reasons.append("scout report missing or incomplete")
@@ -509,6 +515,10 @@ def load_shared(path: Path | None = None):
                             before = json.loads(probe.read_text()) if probe.is_file() else {}
                             current.setdefault("information_gain", {})[concept["slug"]] = marginal_metrics(before, after)
                     current["research_telemetry"] = research_telemetry(shared, args.slug)
+                    errors = []
+                    documents = shared.load_claims(args.slug, errors)
+                    if documents and not errors:
+                        current["evidence_bundle"] = shared.evidence_provenance.bundle(shared, current, documents)
                     shared.save_manifest(current)
             return result
         finally:
@@ -579,12 +589,14 @@ def load_shared(path: Path | None = None):
         original = getattr(shared, symbol)
         def wrapped(*args, _original=original, _research=symbol == "build_brief", **kwargs):
             if _research:
-                seeds = [*(kwargs.get("seeds") or []), *library_seeds(shared, args[1])]
+                seeds = [*(kwargs.get("seeds") or []), *library_seeds(shared, args[1]),
+                         *shared.evidence_provenance.cohort_seeds(shared, args[0], args[1])]
                 kwargs["seeds"] = list({seed["url"]: seed for seed in seeds}.values())
             brief = _original(*args, **kwargs)
             if _research:
                 policy = SOURCE_LIBRARY_POLICY.replace("dr_run.py", str(Path(__file__).resolve()))
                 policy = policy.replace("`source_library.py", "`python3 ~/.global-ai-hub/scripts/source_library.py")
+                policy = policy.replace("~/.global-ai-hub/scripts/source_library.py", str(Path(__file__).with_name("research_library.py").resolve()))
                 brief = policy + "\n" + brief
             return translate_brief(brief, str(path.resolve()))
         setattr(shared, symbol, wrapped)
@@ -594,6 +606,11 @@ def load_shared(path: Path | None = None):
         raise ValueError(f"cannot load claim-bound gate: {gate_path}")
     bound_gate = importlib.util.module_from_spec(gate_spec)
     gate_spec.loader.exec_module(bound_gate)
+    provenance_spec = importlib.util.spec_from_file_location("codex_evidence_provenance", Path(__file__).with_name("research_provenance.py"))
+    provenance = importlib.util.module_from_spec(provenance_spec)
+    provenance_spec.loader.exec_module(provenance)
+    provenance.install(shared)
+    shared.evidence_provenance = provenance
     bound_gate.install(shared)
     return shared
 

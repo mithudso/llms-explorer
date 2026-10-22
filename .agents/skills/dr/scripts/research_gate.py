@@ -87,7 +87,10 @@ def _source(shared, url: str, out: Path, fetch: bool) -> dict:
         raise ValueError(f"source snapshot hash mismatch: {url}")
     destination = out / "evidence" / f"{sha}.txt"
     shared.atomic_write(destination, text)
-    return {"url": url, "canonical_url": metadata.get("url", url), "source_id": metadata["id"],
+    provenance = getattr(shared, "evidence_provenance", None)
+    library = shared.RESEARCH_DIR / ".library" if provenance else None
+    snapshot = provenance.archive(library, provenance.origin_metadata(library, metadata)) if provenance else {}
+    return {**(snapshot or {}), "url": url, "canonical_url": metadata.get("url", url), "source_id": metadata["id"],
             "available": True, "snapshot_sha256": sha, "fetched_at": metadata.get("fetched_at"),
             "file": str(destination.relative_to(out)), "chars": len(text)}
 
@@ -171,6 +174,10 @@ def validate(packet: dict, response: dict, root: Path) -> dict:
             if (type(start) is not int or type(end) is not int or not 0 <= start < end <= len(text)
                     or span.get("quote") != text[start:end] or len(text[start:end].strip()) < min(20, len(text.strip()))):
                 raise ValueError("gate quote does not match the exact source span")
+            expected_evidence_id = "ev:" + digest([source["source_id"], source["snapshot_sha256"], start, end, span["quote"]])
+            if span.get("evidence_id") and span["evidence_id"] != expected_evidence_id:
+                raise ValueError("gate evidence ID does not match its source span")
+            span["evidence_id"] = expected_evidence_id
         counts[verdict] += 1
     return {"schema": SCHEMA, "packet_sha256": expected_hash, "validated": True,
             "counts": dict(counts), "coverage": packet["coverage"],

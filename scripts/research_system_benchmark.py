@@ -77,7 +77,7 @@ def excerpt(text, terms, limit=24000):
 
 
 def prepare(out):
-    library = Path.home() / '.global-ai-hub/scripts/source_library.py'
+    library = ROOT / 'scripts/research_library.py'
     for domain, config in DOMAINS.items():
         destination = out / domain / 'packet.json'
         if destination.exists():
