@@ -54,6 +54,29 @@ class SiteSyncTests(unittest.TestCase):
         (directory / "llms.txt").write_text(f"# {name}\n\n> Reference.\n")
         (directory / "llms-full.txt").write_text(f"# {name}\n\n## Facts\n\n- [statement] New finding. — https://example.test/primary\n")
 
+    def test_other_run_is_recovered_before_standalone_sync_publishes(self):
+        transactions = website.module("test_pending_native", REPO / "scripts/research_transaction.py")
+        tx = transactions.Transaction(self.hub / "research/run-a/artifacts/transactions/old")
+        tx.write(self.repo / "concept-tree/tree.json", "interrupted invalid JSON")
+        self.save_pack()
+        website.sync(self.repo, self.hub, apply=True)
+        published = (self.repo / "concept-tree/tree.json").read_bytes()
+        self.assertIn(b"New concept", published)
+        self.assertFalse(transactions.recover(tx.root))
+        self.assertEqual((self.repo / "concept-tree/tree.json").read_bytes(), published)
+
+    def test_registered_sync_from_another_checkout_is_recovered_before_publication(self):
+        transactions = website.module("test_pending_other_checkout", REPO / "scripts/research_transaction.py")
+        tx = transactions.Transaction(self.root / "other-checkout/tmp/research-site-sync-backups/old/transaction",
+                                      registry=transactions.registry_dir(self.hub / "research"))
+        tx.write(self.hub / "concept-tree/tree.json", "interrupted invalid JSON")
+        self.save_pack()
+        website.sync(self.repo, self.hub, apply=True)
+        published = (self.hub / "concept-tree/tree.json").read_bytes()
+        self.assertIn(b"New concept", published)
+        self.assertFalse(transactions.recover(tx.root))
+        self.assertEqual((self.hub / "concept-tree/tree.json").read_bytes(), published)
+
     def test_refresh_keeps_legacy_research_and_updates_all_website_surfaces(self):
         legacy = self.repo / "site/src/data/concepts/legacy.json"
         legacy.write_text(json.dumps(reader("Legacy", "legacy")))

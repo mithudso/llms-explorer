@@ -12,6 +12,7 @@ import importlib.util
 import json
 import os
 import re
+import shutil
 import statistics
 import subprocess
 import tempfile
@@ -246,15 +247,54 @@ def estimate_cost(usage, rates):
 def cell(out, domain, model, effort, skill, live, timeout):
     destination = out / 'cells' / f'{domain}__{skill}__{model}__{effort}__{"live" if live else "fixed"}'
     packet = json.loads((out / domain / 'packet.json').read_text())
-    def stage(name, prompt, model, effort, live=False):
+    def valid_generation(output):
+        for key in ('claims', 'concepts'):
+            rows = output[key]
+            if not isinstance(rows, list) or any(not isinstance(row, dict) for row in rows):
+                raise ValueError('invalid benchmark ' + key)
+            ids = [row['id'] for row in rows]
+            if any(not isinstance(value, str) or not value for value in ids) or len(set(ids)) != len(ids):
+                raise ValueError('invalid benchmark IDs')
+        concepts = {row['id'] for row in output['concepts']}
+        for claim in output['claims']:
+            if (claim['concept_id'] not in concepts or
+                    any(not isinstance(claim[key], str) for key in ('text', 'source_id', 'quote'))):
+                raise ValueError('invalid benchmark claim')
+
+    def stage(name, prompt, model, effort, live=False, validate=None):
         path = destination / name / 'run.json'
         if path.exists():
-            return json.loads(path.read_text())
-        return call(prompt, model, effort, destination / name, timeout, live)
-    generated = stage('generation', generation_prompt(packet, skill, live), model, effort, live)
+            try:
+                cached = json.loads(path.read_text())
+                if cached['is_error'] is False:
+                    if not isinstance(cached['output'], dict):
+                        raise TypeError('benchmark response must be an object')
+                    validate(cached['output'])
+                    return cached
+            except (ValueError, KeyError, TypeError):
+                pass
+        if path.parent.exists():
+            # Keep every failed or interrupted attempt, including its raw logs.
+            saved = destination / 'attempts' / name / datetime.now(UTC).strftime('%Y%m%dT%H%M%S.%fZ')
+            saved.parent.mkdir(parents=True, exist_ok=True)
+            shutil.move(str(path.parent), str(saved))
+        (destination / 'metrics.json').unlink(missing_ok=True)
+        record = call(prompt, model, effort, destination / name, timeout, live)
+        if not record['is_error']:
+            try:
+                if not isinstance(record['output'], dict):
+                    raise TypeError('benchmark response must be an object')
+                validate(record['output'])
+            except (ValueError, KeyError, TypeError) as error:
+                record.update(is_error=True, contract_error=str(error))
+                write(path, record)
+        return record
+    generated = stage('generation', generation_prompt(packet, skill, live), model, effort, live,
+                      validate=valid_generation)
     if generated['is_error']:
         return {'cell': destination.name, 'failed': 'generation'}
-    judged = stage('judge', judge_prompt(generated['output'], packet), 'gpt-6-astra', 'high')
+    judged = stage('judge', judge_prompt(generated['output'], packet), 'gpt-6-astra', 'high',
+                   validate=lambda value: metrics(generated['output'], value, packet))
     if judged['is_error']:
         return {'cell': destination.name, 'failed': 'judge'}
     result = metrics(generated['output'], judged['output'], packet)

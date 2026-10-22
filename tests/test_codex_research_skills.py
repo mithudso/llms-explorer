@@ -508,6 +508,19 @@ class ResearchFlowTests(unittest.TestCase):
         self.invoke("finish", "publication", "--status", "COMPLETED")
         self.assertEqual(self.shared.load_manifest("publication")["status"], "finalized")
 
+    def test_finish_recovers_other_run_before_publishing_new_shared_state(self):
+        self.research()
+        self.artifact_targets()
+        self.render()
+        transactions = module_at("test_other_run_recovery", REPO / "scripts/research_transaction.py")
+        tx = transactions.Transaction(self.hub / "research/older-run/artifacts/transactions/old")
+        tx.write(self.hub / "concept-tree/tree.json", "interrupted invalid JSON")
+        self.invoke("finish", "publication", "--status", "COMPLETED")
+        published = (self.hub / "concept-tree/tree.json").read_bytes()
+        self.assertIn(b"Rename durability", published)
+        self.assertFalse(transactions.recover(tx.root))
+        self.assertEqual((self.hub / "concept-tree/tree.json").read_bytes(), published)
+
     def test_finish_replaces_longer_same_day_reader_with_corrected_claims(self):
         self.research()
         self.artifact_targets()
