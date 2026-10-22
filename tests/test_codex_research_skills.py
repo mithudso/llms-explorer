@@ -981,6 +981,50 @@ class MarginalInformationTests(unittest.TestCase):
         self.assertIsNone(result['supported_novel_facts'])
 
 class RecoveryTests(unittest.TestCase):
+    def test_new_worker_cannot_checkpoint_a_preexisting_claims_file(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            target = root / 'claims.json'
+            previous = '{"claims": [{"text": "Earlier research."}]}'
+            target.write_text(previous)
+            def atomic(path, text):
+                path.parent.mkdir(parents=True, exist_ok=True)
+                path.write_text(text)
+            shared = SimpleNamespace(run_dir=lambda slug: root, atomic_write=atomic)
+            brief = f'OUTPUT — write exactly this file:\n{target}\nNew research brief.\n'
+            with patch.object(adapter, '_run_agent_once', return_value={
+                    'is_error': False, 'result': 'Could not write the requested file.', 'tokens': 2}):
+                result = adapter.run_agent(shared, {'slug': 'run'}, 'probe', brief, 'sonnet', 'medium', 1, 2)
+            self.assertTrue(result['is_error'])
+            self.assertFalse(target.exists())
+            self.assertFalse(list(root.glob('checkpoints/workers/*.json')))
+            archived = list(root.glob('agents/attempts/probe/*/previous-output.json'))
+            self.assertEqual([path.read_text() for path in archived], [previous])
+
+    def test_retry_cannot_accept_output_written_by_its_failed_predecessor(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            target = root / 'claims.json'
+            def atomic(path, text):
+                path.parent.mkdir(parents=True, exist_ok=True)
+                path.write_text(text)
+            shared = SimpleNamespace(run_dir=lambda slug: root, atomic_write=atomic)
+            calls = []
+            def once(*args, **kwargs):
+                calls.append(1)
+                if len(calls) == 1:
+                    target.write_text('{"claims": []}')
+                    return {'is_error': True, 'result': 'connection reset', 'tokens': 1}
+                self.assertFalse(target.exists())
+                return {'is_error': False, 'result': 'No new file written.', 'tokens': 2}
+            brief = f'OUTPUT — write exactly this file:\n{target}\n'
+            with patch.object(adapter, '_run_agent_once', side_effect=once), patch.object(adapter.time, 'sleep'):
+                result = adapter.run_agent(shared, {'slug': 'run'}, 'probe', brief, 'sonnet', 'medium', 1, 120)
+            self.assertTrue(result['is_error'])
+            self.assertEqual(len(calls), 3)
+            self.assertFalse(list(root.glob('checkpoints/workers/*.json')))
+            self.assertEqual(len(list(root.glob('agents/attempts/probe/*/previous-output.json'))), 1)
+
     def test_transient_retry_preserves_attempts_and_reuses_exact_worker_output(self):
         with tempfile.TemporaryDirectory() as temporary:
             root = Path(temporary)

@@ -399,6 +399,12 @@ def run_agent(shared, manifest, name, brief, model, effort, max_turns, timeout, 
         pass
     deadline, attempts = time.monotonic() + timeout, []
     for number in range(3):
+        attempt = run / "agents/attempts" / name / uuid4().hex
+        attempt.mkdir(parents=True, exist_ok=True)
+        # Exact checkpoint reuse above is the only path that may accept old
+        # output. A new attempt must create its own file, even after a retry.
+        if output is not None and output.exists():
+            output.replace(attempt / "previous-output.json")
         summary = _run_agent_once(shared, manifest, name, brief, model, effort, max_turns,
                                   max(1, math.ceil(deadline - time.monotonic())), tools, allowed)
         if not summary.get("is_error") and output is not None:
@@ -409,7 +415,6 @@ def run_agent(shared, manifest, name, brief, model, effort, max_turns, timeout, 
                     raise ValueError("; ".join(errors))
             except (OSError, ValueError) as error:
                 summary.update(is_error=True, result=f"worker output format: {error}")
-        attempt = run / "agents/attempts" / name / uuid4().hex
         for suffix in ("md",):
             shared.atomic_write(attempt / ("brief." + suffix), brief)
         for suffix in ("json", "events.jsonl", "log", "last-message.txt"):
