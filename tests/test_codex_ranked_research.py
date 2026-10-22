@@ -113,10 +113,66 @@ def test_queue_completion_uses_planning_identity(tmp_path):
     assert queue.read_text().splitlines() == ["- [x] Concept: `A,   B` | Parent: `Root`", "- [ ] Concept: `A, B extra`"]
 
 
+def test_queue_completion_updates_both_roots_without_adding_private_names(tmp_path):
+    hub, repo = tmp_path / "hub", tmp_path / "repo"
+    for root in (hub, repo):
+        (root / "concept-tree").mkdir(parents=True)
+        (root / "concept-tree/RESEARCH_QUEUE.md").write_text('- [ ] Concept: `Public`\n')
+    queue = hub / "concept-tree/RESEARCH_QUEUE.md"
+    queue.write_text(queue.read_text() + '- [ ] Concept: `Private`\n')
+    shared = SimpleNamespace(RESEARCH_DIR=tmp_path / "research", locked=lambda path: nullcontext(),
+                             atomic_write=lambda path, text: path.write_text(text))
+    ranked.complete_queue(shared, hub, ["Public", "Private"], repo)
+    assert '[x]' in queue.read_text()
+    assert (repo / "concept-tree/RESEARCH_QUEUE.md").read_text() == '- [x] Concept: `Public`\n'
+
+
+def test_queue_completion_preserves_literal_inline_code_and_other_rows(tmp_path):
+    queue = tmp_path / 'concept-tree/RESEARCH_QUEUE.md'
+    queue.parent.mkdir()
+    queue.write_text('- [ ] Concept: ``The `$in` operator`` | Parent: `Root`\n'
+                     '- [ ] Concept: `Another concept` | Parent: `Root`\n')
+    shared = SimpleNamespace(RESEARCH_DIR=tmp_path / 'research', locked=lambda path: nullcontext(),
+                             atomic_write=lambda path, text: path.write_text(text))
+    ranked.complete_queue(shared, tmp_path, ['The `$in` operator'])
+    assert queue.read_text().splitlines() == ['- [x] Concept: ``The `$in` operator`` | Parent: `Root`',
+                                             '- [ ] Concept: `Another concept` | Parent: `Root`']
+
+
 def test_new_revisit_gets_a_fresh_identity():
     names = ["Previously researched"]
     assert ranked.cohort_id(names) == ranked.cohort_id(names)
     assert ranked.cohort_id(names, revisit=True) != ranked.cohort_id(names, revisit=True)
+
+
+def test_continue_on_review_processes_other_cohorts_without_retrying_dissent(tmp_path, monkeypatch):
+    plan = tmp_path / 'plan.json'
+    ranked.atomic(plan, {'continue_on_review': True, 'cohorts': [
+        {'id': 'a', 'status': 'pending'}, {'id': 'b', 'status': 'pending'}]})
+    calls = []
+    def execute(repo, hub, path):
+        value = json.loads(path.read_text())
+        pending = next(row for row in value['cohorts'] if row['status'] == 'pending')
+        calls.append(pending['id'])
+        pending['status'] = 'needs-review' if pending['id'] == 'a' else 'complete'
+        ranked.atomic(path, value)
+        return 1 if pending['id'] == 'a' else 0
+    monkeypatch.setattr(ranked, 'execute_locked', execute)
+    assert ranked.execute_all(tmp_path, tmp_path, plan) == 0
+    assert calls == ['a', 'b']
+    assert json.loads(plan.read_text())['cohorts'][0]['status'] == 'needs-review'
+
+
+def test_continue_on_review_stops_on_setup_failure_without_advancing(tmp_path, monkeypatch):
+    plan = tmp_path / 'plan.json'
+    ranked.atomic(plan, {'continue_on_review': True, 'cohorts': [{'id': 'a', 'status': 'pending'}]})
+    calls = []
+    def execute(*args):
+        calls.append(1)
+        return 1
+    monkeypatch.setattr(ranked, 'execute_locked', execute)
+    assert ranked.execute_all(tmp_path, tmp_path, plan) == 1
+    assert len(calls) == 1
 
 
 def test_adapter_setup_failure_releases_batch_checkout(tmp_path, monkeypatch):
@@ -197,7 +253,8 @@ def test_finalized_subset_defers_newly_eligible_concepts_without_completing_them
                              slugify=str.lower,
                              RESEARCH_DIR=tmp_path / "research", locked=lambda path: nullcontext(),
                              atomic_write=lambda path, text: path.write_text(text))
-    tree = SimpleNamespace(load_queue=lambda path: [{"concept": name, "done": False} for name in ("A", "B")],
+    tree = SimpleNamespace(load_queue=lambda path: [{"concept": name, "done": False, "line": index}
+                                                   for index, name in enumerate(("A", "B"), 1)],
                            load_nodes=lambda path: [{"concept": "A", "aliases": []}])
     def fake_load(name, path):
         if name == "ranked_adapter":
