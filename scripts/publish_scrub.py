@@ -139,14 +139,20 @@ def scrub_public_text(text: str, terms=(), allowed=None) -> str:
                   if _matches(match.group(), terms) else match.group(), text)
     text, _ = scrub_home_paths(text)
     text, _ = scrub_addresses(text, terms)
-    text = re.sub(r"[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}",
-                  lambda match: match.group() if gate.RESERVED.search(match.group())
+    email = re.compile(r"[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}")
+    approved_emails = {address for value in allowed if "@" in value
+                       for address in email.findall(value)} if "@" in text else set()
+    text = email.sub(lambda match: match.group() if (gate.RESERVED.search(match.group())
+                                                    or match.group() in approved_emails)
                   else "user@example.test", text)
     for name, regex, _ in gate.COMPILED:
         if name not in ("atlas object id", "email inside a path"):
             continue
         def replace(match, name=name):
             if any(item in match.group() for item in allowed) or gate.RESERVED.search(match.group()):
+                return match.group()
+            addresses = email.findall(match.group()) if name == "email inside a path" else []
+            if addresses and all(address in approved_emails for address in addresses):
                 return match.group()
             return "<object-id>" if name == "atlas object id" else "/user@example.test/"
         text = regex.sub(replace, text)

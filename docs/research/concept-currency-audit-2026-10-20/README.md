@@ -134,7 +134,7 @@ in both checkouts and permits a later private research finish. The hook Usage
 documentation passes eight hub script-help checks.
 
 The 2026-10-22 snapshot advances to fifteen cohorts: 57 concepts, 569 claims
-and 150 supported samples. Both GitHub CI workflows pass on 3ece6564. Two
+and 150 supported samples. Both GitHub CI workflows pass on e8d23d3d. Two
 later review fixes sanitize public node summaries without changing private hub
 values, and retain current canonical pack winners regardless of iteration order.
 They pass 69 focused checks and two subtests in both checkouts. Cloudflare Pages
@@ -154,3 +154,13 @@ Authoritative current-run recovery uses the same identity rule. Unrelated titles
 and missing manifests still fail before any write; historical recovery remains
 non-destructive. The fix passes 54 focused checks and two subtests in both
 checkouts, and the 22-file Codex skill profile is synchronized with backups.
+
+Historical private name aliases and slug aliases now participate in the full
+exclusion closure before recovery, reader selection and repository pack cleanup.
+The shared scrubber also preserves explicitly allowlisted mailing-list message
+identifiers. Both checkouts pass 84 focused tests and two subtests, including
+28 privacy tests. The source-faithful repair restores 22 original public citation
+records across nine readers per checkout. Fact counts, unrelated facts and
+metadata remain unchanged. Downloads and keyword search use the repaired URLs;
+the runtime refresh preserves them. A repeated repair preview is empty, and
+local backups preserve the original files.

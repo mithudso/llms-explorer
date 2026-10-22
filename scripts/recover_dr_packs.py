@@ -8,7 +8,7 @@ from pathlib import Path
 
 
 def plan(repo: Path, hub: Path, nodes: list[dict], load, scrub, current_run: str | None = None,
-         excluded_names=(), withheld=()) -> tuple[dict, dict, dict]:
+         excluded_names=(), withheld=(), excluded_slugs=()) -> tuple[dict, dict, dict]:
     runtime = hub / "scripts/dr_run.py"
     if not runtime.is_file():
         return {}, {}, {"recovered_packs": [], "skipped_runs": []}
@@ -32,6 +32,7 @@ def plan(repo: Path, hub: Path, nodes: list[dict], load, scrub, current_run: str
         if manifest.get("status") not in ("finalized", "COMPLETED"):
             continue
         if (not isinstance(manifest.get("topic"), str) or manifest["topic"].casefold() in excluded
+                or manifest.get("slug") in excluded_slugs
                 or scrub._matches(manifest["topic"], terms)):
             continue
         if manifest.get("exit_status", "COMPLETED") != "COMPLETED":
@@ -42,6 +43,8 @@ def plan(repo: Path, hub: Path, nodes: list[dict], load, scrub, current_run: str
             continue
         docs = []
         for claims_path in sorted((path.parent / "claims").glob("*.json")):
+            if claims_path.stem in excluded_slugs:
+                continue
             try:
                 doc = json.loads(claims_path.read_text())
             except (ValueError, OSError):
@@ -62,7 +65,7 @@ def plan(repo: Path, hub: Path, nodes: list[dict], load, scrub, current_run: str
             node = by_name.get(name.casefold()) or (by_slug.get(manifest.get("slug")) if name == manifest["topic"] else None)
             canonical_name = node["concept"] if node else name
             slug = node["slug"] if node else dr.slugify(name)
-            if scrub._matches(slug, terms):
+            if slug in excluded_slugs or scrub._matches(slug, terms):
                 continue
             fingerprint = hashlib.sha256(json.dumps(source_docs, sort_keys=True).encode()).hexdigest()
             old = candidates.get(slug)

@@ -168,12 +168,24 @@ def plan(repo: Path, hub: Path, merge_tree: bool = True, current_run: str | None
     tree_hashes = {str(path): hashlib.sha256(path.read_bytes()).hexdigest()
                    for path in (repo / "concept-tree/tree.json", hub / "concept-tree/tree.json")}
     excluded_names = set()
+    identities = [({node["concept"], *(node.get("aliases") or [])},
+                   {slug for slug in [node.get("slug"), *(node.get("slugAliases") or [])] if slug})
+                  for node in [*hub_nodes, *current_nodes]]
     # Follow private descendants across either tree until their different
     # parent/child placements no longer add another excluded identity.
     while True:
         safe_hub, excluded, removed_refs = scrub.filter_tree(hub_nodes, scrub.gate.denylist(), excluded_names)
         safe_repo, excluded_repo, _ = scrub.filter_tree(current_nodes, scrub.gate.denylist(), excluded_names)
         discovered = set(excluded) | set(excluded_repo)
+        known = {name.casefold() for name in discovered | excluded_names}
+        private_slugs = set()
+        for names, slugs in identities:
+            if known & {name.casefold() for name in names}:
+                discovered.update(names)
+                private_slugs.update(slugs)
+        for names, slugs in identities:
+            if slugs & private_slugs:
+                discovered.update(names)
         if discovered <= excluded_names:
             break
         excluded_names.update(discovered)
@@ -183,14 +195,15 @@ def plan(repo: Path, hub: Path, merge_tree: bool = True, current_run: str | None
     if added_errors:
         raise ValueError("concept tree merge adds problems: " + "; ".join(sorted(added_errors)))
     safe_names = {node["concept"] for node in safe_hub}
+    excluded_identities = {name.casefold() for name in excluded_names}
+    excluded_slugs = {slug for names, slugs in identities for slug in slugs
+                      if excluded_identities & {name.casefold() for name in names}}
     recovery = module("research_site_recovery", repo / "scripts/recover_dr_packs.py")
     recovered_writes, recovered_packs, recovery_report = recovery.plan(
-        repo, hub, safe_hub, module, scrub, current_run, excluded_names, withheld)
+        repo, hub, safe_hub, module, scrub, current_run, excluded_names, withheld,
+        excluded_slugs=excluded_slugs)
     authoritative_slugs = set(authoritative_slugs) | set(recovery_report.get("current_run_slugs", [])) | {
         row["slug"] for row in recovery_report["recovered_packs"] if row["run"] == current_run}
-    excluded_identities = {name.casefold() for name in excluded_names}
-    excluded_slugs = {node["slug"] for node in [*hub_nodes, *current_nodes]
-                      if node["concept"].casefold() in excluded_identities}
     def private_pack(pack):
         return (pack["concept"].casefold() in excluded_identities or pack["slug"] in excluded_slugs
                 or scrub._matches(pack["concept"] + " " + pack["slug"], scrub.gate.denylist()))

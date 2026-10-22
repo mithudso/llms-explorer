@@ -622,6 +622,26 @@ class ResearchFlowTests(unittest.TestCase):
             manifest = root / ("llms-concepts" if root == self.hub else "outputs/llms-concepts") / "atomic-publication.llms/manifest.json"
             self.assertEqual(json.loads(writes[manifest])["concept"], "Atomic publication")
 
+    def test_recovery_withholds_private_slug_alias_even_when_claim_title_differs(self):
+        self.research()
+        self.artifact_targets()
+        self.render()
+        self.invoke("finish", "publication", "--status", "COMPLETED")
+        claims = self.shared.run_dir("publication") / "claims"
+        for path in claims.glob("*.json"):
+            path.rename(claims / "old-child.json")
+        (self.hub / "scripts").mkdir(exist_ok=True)
+        (self.hub / "scripts/dr_run.py").touch()
+        recovery = module_at("test_private_slug_recovery", REPO / "scripts/recover_dr_packs.py")
+        scrub = module_at("test_private_slug_recovery_scrub", self.repo / "scripts/publish_scrub.py")
+        def load(name, path):
+            return self.shared if name == "site_recovery_dr" else module_at(name, path)
+        writes, _, report = recovery.plan(self.repo, self.hub, [], load, scrub,
+                                          current_run="publication", excluded_slugs={"old-child"})
+        self.assertEqual(writes, {})
+        self.assertEqual(report["recovered_packs"], [])
+        self.assertTrue((claims / "old-child.json").is_file())
+
     def test_budget_exhausted_exports_completed_concepts_as_partial(self):
         self.research()
         self.artifact_targets()

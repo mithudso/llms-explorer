@@ -14,6 +14,29 @@ import check_publish_privacy as gate
 import publish_scrub as scrub
 
 
+@pytest.mark.parametrize("approval", ["identifier", "url"])
+def test_public_citation_email_identifiers_keep_their_allowlisted_urls(approval):
+    message = "20240429191821.691726-1-helgaas@kernel.org"
+    url = "https://lore.kernel.org/linux-pci/" + message + "/"
+    allowed = {message if approval == "identifier" else url}
+    private = "person@" + "research-customer.dev"
+    text = f"Read {url} and contact {private}."
+    cleaned = scrub.scrub_public_text(text, allowed=allowed)
+    assert url in cleaned
+    assert private not in cleaned
+    assert "user@example.test" in cleaned
+    assert scrub.scrub_public_text(cleaned, allowed=allowed) == cleaned
+
+
+def test_allowlisted_message_does_not_approve_a_different_email_identifier():
+    message = "20240429191821.691726-1-helgaas@kernel.org"
+    different = "not-approved-" + message
+    url = "https://lore.kernel.org/linux-pci/" + different + "/"
+    cleaned = scrub.scrub_public_text(url, allowed={message})
+    assert different not in cleaned
+    assert cleaned == "https://lore.kernel.org/linux-pci/user@example.test/"
+
+
 def _findings(text: str, rel: str = "hub/scripts/x.py"):
     """Scan `text` as if it sat at `rel` inside the repo, leaving no trace."""
     p = Path(gate.REPO) / rel

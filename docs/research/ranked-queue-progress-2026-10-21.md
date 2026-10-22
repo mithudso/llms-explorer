@@ -1,6 +1,6 @@
 # Ranked research progress — updated 2026-10-22
 
-Live queue update: 16 cohorts have completed (61 concepts, 610 claims). The next cohort is running. The validated PR snapshot below stops after cohort fifteen.
+Live queue check on 2026-10-22: 19 cohorts have completed (68 concepts, 679 claims). Cohort twenty is running. The validated PR snapshot below stops after cohort fifteen.
 
 Fifteen of the 31 planned source-sharing cohorts have completed. They cover 57
 concepts and 569 structured claims. Fifty-three concepts add website references;
@@ -47,12 +47,12 @@ Existing semantic vectors remain frozen under the embedding pause. The shared
 source-library index reconciled 9,509 sources without errors before the
 sixteenth cohort. Raw source bodies, private library state and research execution logs stay local.
 
-The sixteenth cohort researches index prefix compression, partial TTL indexes,
-partial unique indexes for soft delete and AND_SORTED/AND_HASH plan stages. The
-saved plan retains 16 unfinished cohorts at this snapshot, including that active
-cohort. Other runs'
-held concepts remain excluded. A new gate dissent will stop the runner for
-review.
+The next four completed cohorts cover index compression and partial indexes,
+the Lambda driver pattern, MongoDB MCP permissions and natural-language query
+generation, and time-series planning. Cohort twenty researches plan-cache
+statistics and keys, min/max hints, and identifier privacy. The live plan retains
+12 unfinished cohorts at this check. Other runs' held concepts remain excluded.
+A new gate dissent will stop the runner for review.
 
 The eleventh cohort's transports reported DNS failures after storing valid claim
 files. The adapter retained both validated pass documents for each concept and
@@ -114,7 +114,7 @@ have regression coverage. These changes pass 69 focused checks and two subtests
 in both checkouts. The installed source has backups.
 
 PR #214 carries the publication snapshot. Both GitHub CI workflows pass on
-3ece6564, including hub/API tests, site build, CLI/TUI tests and generated-data
+e8d23d3d, including hub/API tests, site build, CLI/TUI tests and generated-data
 checks. The latest fixes and cohort data require a fresh CI run. Cloudflare Pages
 still reports a failed build, and its private log is unavailable because the local
 Wrangler authentication expired and Computer Use permissions are pending. The
@@ -124,7 +124,7 @@ user was asked for the first failing log lines or refreshed sign-in. Production
 The first four review fixes passed 64 focused checks in both checkouts. The
 subsequent summary and citation fixes pass 69 focused checks in both checkouts.
 The final fifteen-cohort snapshot passes 278 site tests and 25 privacy tests.
-The CLI/TUI suite also passes locally and in GitHub CI on 3ece6564.
+The CLI/TUI suite also passes locally and in GitHub CI on e8d23d3d.
 Scoped Ruff, the full site build, publication policy, privacy scan and generated
 tree/context comparisons pass. All 912 required pack members and 57 completed
 queue rows are verified. The installed runtime refresh reports zero unfiled
@@ -136,3 +136,13 @@ Authoritative current-run recovery uses the same identity rule. Unrelated titles
 and missing manifests still fail before any write; historical recovery remains
 non-destructive. The fix passes 54 focused checks and two subtests in both
 checkouts, and the 22-file Codex skill profile is synchronized with backups.
+
+Two further review fixes keep private descendants excluded through historical
+name aliases and slug aliases, and preserve explicitly allowlisted public mailing-list
+identifiers in citation URLs. The source fix passes 84 focused tests and two
+subtests in both checkouts, including 28 privacy tests. An exact-match repair
+restores 22 citation records across nine readers in each checkout from the
+original public Git snapshot. It preserves all fact counts, unrelated facts and
+metadata. Regenerated downloads and keyword search retain the original URLs.
+The live runtime refresh preserves the repairs, and a repeated repair preview
+finds no changes. Local backups retain all previous files.

@@ -190,6 +190,32 @@ class SiteSyncTests(unittest.TestCase):
         self.assertFalse(empty.exists())
         self.assertTrue((self.repo / receipt["backup"] / "repository/outputs/llms-concepts/private-topic.llms/nested").is_dir())
 
+    def test_private_descendant_name_and_slug_aliases_cannot_reenter_publication(self):
+        private = node("Private Topic", "private-topic", children=["Canonical child"])
+        child = {**node("Canonical child", "canonical-child", parent="Private Topic"),
+                 "aliases": ["Old child"], "slugAliases": ["old-child"]}
+        (self.hub / "concept-tree/tree.json").write_text(json.dumps([private, child]))
+        stale = node("Old child", "old-child", children=["Legacy descendant"])
+        descendant = node("Legacy descendant", "legacy-descendant", parent="Old child")
+        (self.repo / "concept-tree/tree.json").write_text(json.dumps([stale, descendant]))
+        readers = self.repo / "site/src/data/concepts"
+        (readers / "old-child.json").write_text(json.dumps(reader("Unrecorded editorial title", "old-child")))
+        (readers / "older-editorial.json").write_text(json.dumps(reader("Old child", "older-editorial")))
+        self.save_pack("Old child", "old-child")
+        repository_pack = self.repo / "outputs/llms-concepts/old-child.llms"
+        shutil.copytree(self.hub / "llms-concepts/old-child.llms", repository_pack)
+        with patch.dict("os.environ", {"PRIVACY_DENYLIST": "Private Topic"}):
+            receipt = website.sync(self.repo, self.hub, apply=True)
+        self.assertFalse((readers / "old-child.json").exists())
+        self.assertFalse((readers / "older-editorial.json").exists())
+        self.assertFalse(repository_pack.exists())
+        self.assertTrue((self.hub / "llms-concepts/old-child.llms/manifest.json").is_file())
+        self.assertEqual(receipt["website_packs_after"], 0)
+        for path in (self.repo / "concept-tree/tree.json", self.repo / "site/src/data/tree.json",
+                     self.repo / "site/src/data/context.json", self.repo / "site/public/search-keywords.json"):
+            self.assertNotIn("Old child", path.read_text())
+            self.assertNotIn("Legacy descendant", path.read_text())
+
     def test_new_pack_uses_canonical_tree_title_without_prior_reader(self):
         for root in (self.repo, self.hub):
             (root / "concept-tree/tree.json").write_text(json.dumps([node("Canonical title", "stable")]))
