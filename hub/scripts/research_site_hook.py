@@ -1,4 +1,13 @@
-"""Refresh the bound website after canonical research writes; stdlib only."""
+"""Refresh the bound website after canonical research writes; stdlib only.
+
+Usage (Python, called by the concept-tree and research writers):
+    from research_site_hook import refresh
+    refresh(changed_path, hub, run=finished_run_slug)
+
+The optional run identifies authoritative current research. The hook reads the
+website binding from research/.site-sync.json under the hub. An absent binding
+or RESEARCH_SITE_SYNC_DISABLED=1 disables the hook.
+"""
 from __future__ import annotations
 
 import json

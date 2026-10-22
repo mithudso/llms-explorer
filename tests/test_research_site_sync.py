@@ -134,9 +134,23 @@ class SiteSyncTests(unittest.TestCase):
             result = website.sync(self.repo, self.hub, apply=True)
         self.assertFalse((self.repo / "site/src/data/concepts/generic-descendant.json").exists())
         self.assertFalse((local_pack / "manifest.json").exists())
+        self.assertFalse(local_pack.exists(), "excluded pack must not leave an empty destination")
         self.assertTrue((self.hub / "llms-concepts/generic-descendant.llms/manifest.json").exists())
         self.assertEqual(result["website_packs_after"], 0)
         self.assertTrue((self.repo / result["backup"] / "repository/outputs/llms-concepts/generic-descendant.llms/manifest.json").exists())
+
+    def test_legacy_empty_excluded_repository_pack_is_removed(self):
+        private = node("Private Topic", "private-topic")
+        (self.hub / "concept-tree/tree.json").write_text(json.dumps([private]))
+        empty = self.repo / "outputs/llms-concepts/private-topic.llms"
+        (empty / "nested").mkdir(parents=True)
+        with patch.dict("os.environ", {"PRIVACY_DENYLIST": "Private Topic"}):
+            preview = website.sync(self.repo, self.hub)
+            self.assertTrue(empty.exists(), "preview must keep the directory")
+            self.assertIn("outputs/llms-concepts/private-topic.llms", preview["changed_files"])
+            receipt = website.sync(self.repo, self.hub, apply=True)
+        self.assertFalse(empty.exists())
+        self.assertTrue((self.repo / receipt["backup"] / "repository/outputs/llms-concepts/private-topic.llms/nested").is_dir())
 
     def test_new_pack_uses_canonical_tree_title_without_prior_reader(self):
         for root in (self.repo, self.hub):

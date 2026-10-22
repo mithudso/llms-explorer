@@ -201,9 +201,13 @@ def plan(repo: Path, hub: Path, merge_tree: bool = True, current_run: str | None
     classifications, stale, new, conflicts = {}, [], [], []
     owners = {node["slug"]: node for node in [*merged, *safe_hub]}
     title_normalizations = []
-    inputs, excluded_repository_files = {}, []
+    inputs, excluded_repository_packs = {}, []
     for root in (repo / "outputs/llms-concepts", hub / "llms-concepts"):
         for path in sorted(root.glob("*.llms")):
+            if root == repo / "outputs/llms-concepts" and path.stem in excluded_slugs:
+                excluded_repository_packs.append(path)
+                classifications[path.name] = "excluded"
+                continue
             candidate = concepts.build_one(path)
             if candidate is None or not candidate.get("facets"):
                 classifications[str(path.relative_to(root))] = "non-renderable"
@@ -211,7 +215,7 @@ def plan(repo: Path, hub: Path, merge_tree: bool = True, current_run: str | None
             if private_pack(candidate):
                 classifications[path.name] = "excluded"
                 if root == repo / "outputs/llms-concepts":
-                    excluded_repository_files.extend(member for member in path.rglob("*") if member.is_file())
+                    excluded_repository_packs.append(path)
                 continue
             slug = candidate["slug"]
             previous = selected.get(slug)
@@ -291,7 +295,7 @@ def plan(repo: Path, hub: Path, merge_tree: bool = True, current_run: str | None
         raise ValueError("pack registration adds tree problems: " + "; ".join(sorted(added_errors)))
     selected = {slug: publication_pack(pack, scrub, [*scrub.gate.denylist(), *withheld]) for slug, pack in selected.items()}
     writes = dict(recovered_writes)
-    writes.update({path: None for path in excluded_repository_files})
+    writes.update({path: None for path in excluded_repository_packs})
     for slug, pack in selected.items():
         if slug not in site_packs:
             new.append(slug)
@@ -419,10 +423,16 @@ def sync(repo: Path, hub: Path, apply: bool = False, merge_tree: bool = True,
                     saved = backup / (Path("repository") / path.relative_to(repo) if path.is_relative_to(repo)
                                       else Path("hub") / path.relative_to(hub))
                     saved.parent.mkdir(parents=True, exist_ok=True)
-                    shutil.copy2(path, saved)
+                    if path.is_dir():
+                        shutil.copytree(path, saved, symlinks=True)
+                    else:
+                        shutil.copy2(path, saved)
             for path, text in changes.items():
                 if text is None:
-                    path.unlink(missing_ok=True)
+                    if path.is_dir() and not path.is_symlink():
+                        shutil.rmtree(path)
+                    else:
+                        path.unlink(missing_ok=True)
                     continue
                 path.parent.mkdir(parents=True, exist_ok=True)
                 temporary = path.with_name(path.name + ".research-sync-tmp")

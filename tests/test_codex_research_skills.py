@@ -521,6 +521,21 @@ class ResearchFlowTests(unittest.TestCase):
         self.assertEqual((Path(receipt["backup"]) / "repository/atomic-publication.llms/llms-full.txt").read_text(), "Original private research.\n")
         self.assertNotIn("Rename durability", (self.repo / "concept-tree/tree.json").read_text())
 
+    def test_publication_filter_allows_a_later_private_finish(self):
+        self.research()
+        self.artifact_targets()
+        self.render()
+        self.invoke("finish", "publication", "--status", "COMPLETED")
+        website = module_at("test_private_filter_then_finish", self.repo / "scripts/research_site_sync.py")
+        with patch.dict(os.environ, {"PRIVACY_DENYLIST": "Atomic publication"}):
+            website.sync(self.repo, self.hub, apply=True)
+            self.assertFalse((self.repo / "outputs/llms-concepts/atomic-publication.llms").exists())
+            self.invoke("init", "Atomic publication", "--slug", "publication", "--refresh")
+            self.invoke("finish", "publication", "--status", "COMPLETED")
+        receipt = self.shared.load_manifest("publication")["codex_artifacts"]
+        self.assertEqual({row["target"] for row in receipt["packs"]}, {"hub"})
+        self.assertTrue((self.hub / "llms-concepts/atomic-publication.llms/manifest.json").is_file())
+
     def test_historical_recovery_preserves_repository_pack_when_hub_peer_is_missing(self):
         self.research()
         self.artifact_targets()

@@ -96,10 +96,16 @@ negative citation checks retry in bounded batches; unchecked entries remain
 withheld and cannot block unrelated refreshes. These changes pass 69 focused
 checks and 25 privacy checks. Runtime installation preserves backed-up originals.
 
-PR #214 carries the publication snapshot. The repository Actions secret
-`LIBS_READ_TOKEN` is now present, but fresh CI reports invalid-token authentication
-failures for both private shared-library repositories. Publication requires a
-valid credential with read access to both repositories and green CI.
+A final review correction removes excluded repository packs as whole backed-up
+directories, including legacy empty directories. Private hub originals remain
+intact. Preview makes no deletion, and a later private research finish succeeds.
+The correction passes 50 focused checks in both checkouts. Full hub CI also
+required a Python Usage section for the research website hook; its eight
+script-help checks pass.
+
+PR #214 carries the publication snapshot. The repository Actions credential now
+installs both private shared libraries, and API CI passes. The final reviewed
+commit must pass the full hub and site gates before merging and publication.
 
 The first four review fixes passed 64 focused checks in both checkouts. The
 subsequent summary and citation fixes pass 69 focused checks in both checkouts.
