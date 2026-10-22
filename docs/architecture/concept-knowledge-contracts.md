@@ -52,3 +52,11 @@ When the embedding pause is explicitly lifted, generate a candidate using separa
 ## Verification
 
 Regression tests use pinned synthetic evidence and fixed vectors. They cover full-prose selection, historical receipts, temporal identity and projections, duplicate fusion votes, repeated page URLs, late facts, model and revision cache separation, provider digest drift, text/vector tampering, Unicode input hashes and browser compatibility checks. No test downloads a model or generates production embeddings.
+
+Final local results on 2026-10-22:
+
+- Research, adapter and privacy suites: **201 passed**, plus **4 subtests passed**.
+- Site suite after the production build: **284 passed**.
+- Hub suite: **549 passed**, with one existing scope-test failure. `test_scope_include_unscored_and_zero_threshold_restore_the_old_behaviour` reports `250 != 333`. The same failure reproduces on untouched upstream commit `7bb68955` in a separate checkout.
+- Production site build, site type checking, project-wide Ruff, generated-adapter synchronization and whitespace checks passed.
+- The final changed-file privacy scan found **0 findings**. The semantic binary has no diff from upstream.
