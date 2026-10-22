@@ -379,6 +379,13 @@ def execute_locked(repo, hub, plan_path, max_cohorts=None):
         atomic(plan_path, plan)
         atomic(marker, {"root": run_id, "status": plan["status"], "concepts": []})
         return 0
+    except (KeyboardInterrupt, SystemExit):
+        if cohort is not None and cohort["status"] not in ("complete", "skipped"):
+            cohort.update(status="cancelled", stopped=datetime.now(UTC).isoformat())
+        plan.update(status="cancelled")
+        atomic(plan_path, plan)
+        atomic(marker, {"root": run_id, "status": "cancelled", "concepts": []})
+        raise
     except Exception as error:  # noqa: BLE001 — release reservations for every setup or phase failure.
         if cohort is not None:
             cohort.update(status="needs-review", error=str(error), stopped=datetime.now(UTC).isoformat())

@@ -521,6 +521,28 @@ class ResearchFlowTests(unittest.TestCase):
         self.assertFalse(transactions.recover(tx.root))
         self.assertEqual((self.hub / "concept-tree/tree.json").read_bytes(), published)
 
+    def test_finish_resolves_case_and_alias_owners_before_tree_upsert(self):
+        self.research()
+        self.artifact_targets()
+        self.render()
+        for root in (self.hub, self.repo):
+            path = root / "concept-tree/tree.json"
+            nodes = json.loads(path.read_text())
+            topic = "Atomic publication" if root == self.repo else "Atomic Publication"
+            child = "Rename durability" if root == self.repo else "Filesystem Rename Durability"
+            nodes += [{"concept": topic, "slug": "stable-topic", "aliases": ["Atomic publication", "Atomic Publication"],
+                       "parentConcept": None, "childConcepts": [child], "skillId": None},
+                      {"concept": child, "slug": "stable-child", "aliases": ["Rename durability", "Filesystem Rename Durability"],
+                       "parentConcept": topic, "childConcepts": [], "skillId": None}]
+            path.write_text(json.dumps(nodes))
+        self.invoke("finish", "publication", "--status", "COMPLETED")
+        for root in (self.hub, self.repo):
+            nodes = json.loads((root / "concept-tree/tree.json").read_text())
+            self.assertTrue({f"Existing {root.name}", "Atomic Publication", "Filesystem Rename Durability"} <= {n["concept"] for n in nodes})
+            self.assertFalse({"Atomic publication", "Rename durability"} & {n["concept"] for n in nodes})
+            self.assertEqual(next(n for n in nodes if n["concept"] == "Filesystem Rename Durability")["slug"], "stable-child")
+        self.assertTrue((self.repo / "site/src/data/concepts/stable-child.json").is_file())
+
     def test_finish_replaces_longer_same_day_reader_with_corrected_claims(self):
         self.research()
         self.artifact_targets()

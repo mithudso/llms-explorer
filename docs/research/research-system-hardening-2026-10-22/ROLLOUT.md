@@ -75,3 +75,8 @@ parent exits. Immutable evidence becomes visible only after a complete flushed
 write. Canonical concept IDs use collision-free planned hub slugs and remain
 stable after upsert. All 154 research tests plus four subtests pass, including
 real-process cancellation and partial-write regressions.
+
+Alias and capitalization variants now normalize to existing owners before tree
+upsert, while retaining requested titles for privacy checks and every contributing
+document. Cancellation also releases batch reservations without discarding pending
+work or checkpoints. All 159 research tests plus four subtests pass.

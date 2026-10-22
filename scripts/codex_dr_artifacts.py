@@ -181,12 +181,14 @@ def _finalize_artifacts(shared, manifest: dict, claims: dict[str, dict], status:
     run = shared.run_dir(manifest["slug"])
     tree_paths = {"hub": shared.HUB_DIR / "concept-tree/tree.json",
                   "repository": repo / "concept-tree/tree.json"}
-    topic = manifest["topic"]
-    by_name = {doc["concept"]: doc for doc in claims.values()}
+    topic = artifact["topic"] if artifact else manifest["topic"]
+    by_name = {}
+    for doc in claims.values():
+        by_name.setdefault(doc["concept"], []).append(doc)
     cohort_parent = manifest.get("cohort_parent")
-    documents = ({name: [doc] for name, doc in by_name.items()} if cohort_parent else
+    documents = (by_name if cohort_parent else
                  {topic: list(claims.values()),
-                  **{name: [doc] for name, doc in by_name.items() if name != topic}})
+                  **{name: docs for name, docs in by_name.items() if name != topic}})
     today = shared._today()
     stamp = datetime.now(UTC).strftime("%Y%m%dT%H%M%S.%fZ")
     backup = run / "artifacts/backups" / stamp
@@ -198,7 +200,17 @@ def _finalize_artifacts(shared, manifest: dict, claims: dict[str, dict], status:
                 raise ValueError(f"DR artifact tree not found: {path}")
             before = ct.load_nodes(path)
             after = copy.deepcopy(before)
-            existing = {node["concept"]: node for node in before}
+            def owner_title(value, nodes=after):
+                titles = {node["concept"].casefold(): node["concept"] for node in nodes}
+                for node in nodes:
+                    for alias in node.get("aliases", []):
+                        titles.setdefault(alias.casefold(), node["concept"])
+                return titles.get(value.casefold(), value) if value else value
+            for name in documents:
+                current = owner_title(name)
+                if current != name:
+                    ct.rename(after, current, name)
+            existing = {node["concept"]: node for node in after}
             for name, docs in documents.items():
                 children = [child for doc in docs for child in doc.get("child_concepts", [])]
                 if name == topic:
@@ -212,7 +224,7 @@ def _finalize_artifacts(shared, manifest: dict, claims: dict[str, dict], status:
                     skill_id = f"{manifest['hub']}/references/{skill_id}.md"
                 sync.upsert(ct, after, {
                     "concept": name, "skillId": skill_id if ct.skill_paths(skill_id) else None,
-                    "parentConcept": parent, "childConcepts": children,
+                    "parentConcept": owner_title(parent), "childConcepts": [owner_title(child) for child in children],
                     "aliases": manifest.get("aliases", []) if name == topic else [],
                     "sourcesCount": len({url for doc in docs for claim in doc["claims"] for url in claim["sources"]}),
                     "conceptsCount": len(docs), "researchedAt": today,
@@ -243,10 +255,10 @@ def _finalize_artifacts(shared, manifest: dict, claims: dict[str, dict], status:
 
         private_names = set()
         for name, source_documents in documents.items():
-            if any(scrub._matches(doc.get("recorded_concept_title", ""), scrub.gate.denylist())
-                   for doc in source_documents):
+            if any(scrub._matches(title, scrub.gate.denylist()) for doc in source_documents
+                   for title in [doc.get("recorded_concept_title", ""), *doc.get("recorded_concept_titles", [])]):
                 private_names.add(name)
-        if scrub._matches(" ".join(filter(None, (topic, cohort_parent, manifest.get("parent_concept")))), scrub.gate.denylist()):
+        if scrub._matches(" ".join(filter(None, (topic, manifest["topic"], cohort_parent, manifest.get("parent_concept")))), scrub.gate.denylist()):
             private_names.update(documents)
         while True:
             discovered = set()
