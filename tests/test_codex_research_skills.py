@@ -419,6 +419,12 @@ class ResearchFlowTests(unittest.TestCase):
         self.assertEqual(result["pass_count"], 2)
         self.assertIn("scout report missing or incomplete", result["escalated_for"])
 
+    def test_scout_discovery_without_a_gap_cannot_silently_skip_follow_up(self):
+        self.scout["candidates"].append({"url": "https://paper.test/deeper", "tier": "paper"})
+        result = self.research()
+        self.assertEqual(result["pass_count"], 2)
+        self.assertIn("scout report missing or incomplete", result["escalated_for"])
+
     def test_claim_floor_also_triggers_follow_up(self):
         self.doc["claims"] = self.doc["claims"][:2]
         result = self.research()
@@ -434,6 +440,7 @@ class ResearchFlowTests(unittest.TestCase):
         for relative in (".claude/skills/llms-concept-abstractor/scripts/concept_abstract.py",
                          "scripts/codex_research_assets/concept-family-explorer/scripts/sync_trees.py",
                          "scripts/research_site_sync.py", "scripts/recover_dr_packs.py", "scripts/research_transaction.py",
+                         "scripts/research_gate.py", "scripts/research_artifact.py",
                          "scripts/codex_dr_artifacts.py", "scripts/repair_dr_exports.py",
                          "scripts/publish_scrub.py", "scripts/check_publish_privacy.py",
                          "site/tools/gen_concepts.py", "site/tools/gen_tree.py",
@@ -847,6 +854,27 @@ class ResearchFlowTests(unittest.TestCase):
         self.invoke("finish", "publication", "--status", "COMPLETED")
         self.assertEqual(self.shared.load_manifest("publication")["status"], "finalized")
         self.assertEqual(len(list((self.shared.run_dir("publication") / "artifacts/canonical").glob("*.json"))), 1)
+
+    def test_recovery_refuses_claims_edited_after_their_canonical_gate(self):
+        self.research()
+        self.artifact_targets()
+        self.render()
+        self.invoke("finish", "publication", "--status", "COMPLETED")
+        runtime = self.hub / "scripts/dr_run.py"
+        runtime.parent.mkdir(exist_ok=True)
+        shutil.copy2(self.shared.__file__, runtime)
+        claims = self.shared.run_dir("publication") / "claims/rename-durability.json"
+        document = json.loads(claims.read_text())
+        document["claims"][0]["text"] += " An unchecked revision."
+        claims.write_text(json.dumps(document))
+        recovery = module_at("test_stale_canonical_recovery", REPO / "scripts/recover_dr_packs.py")
+        scrub = module_at("test_stale_canonical_scrub", self.repo / "scripts/publish_scrub.py")
+        def load(name, path):
+            return self.shared if name == "site_recovery_dr" else module_at(name, path)
+        writes, _, report = recovery.plan(self.repo, self.hub,
+            self.shared.concept_tree.load_nodes(self.hub / "concept-tree/tree.json"), load, scrub, current_run="publication")
+        self.assertEqual(writes, {})
+        self.assertTrue(any("canonical claims changed" in row["reason"] for row in report["skipped_runs"]))
 
     def test_changed_canonical_claim_cannot_finish_after_successful_gate(self):
         self.research()

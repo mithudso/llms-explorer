@@ -41,6 +41,23 @@ def plan(repo: Path, hub: Path, nodes: list[dict], load, scrub, current_run: str
         if isinstance(gate, dict) and (gate.get("counts") or {}).get("CONTRADICTED", 0):
             skipped.append({"run": path.parent.name, "reason": "unresolved claim contradiction"})
             continue
+        canonical = None
+        if manifest.get("gate_contract_version") == 2:
+            try:
+                contract = load("recovery_bound_gate", repo / "scripts/research_gate.py")
+                dr.HUB_DIR, dr.RESEARCH_DIR = hub, hub / "research"
+                contract.verify_current(dr, manifest)
+                canonical_api = load("recovery_canonical_artifact", repo / "scripts/research_artifact.py")
+                reference = manifest["codex_artifacts"]["canonical_artifact"]
+                artifact_path = Path(reference["path"]).resolve()
+                if not artifact_path.is_relative_to((path.parent / "artifacts/canonical").resolve()):
+                    raise ValueError("canonical artifact path escapes its run")
+                canonical = canonical_api.verify(json.loads(artifact_path.read_text()))
+                if canonical["artifact_sha256"] != reference["sha256"]:
+                    raise ValueError("canonical artifact receipt mismatch")
+            except (KeyError, OSError, ValueError, TypeError) as error:
+                skipped.append({"run": path.parent.name, "reason": f"canonical recovery refused: {error}"})
+                continue
         docs = []
         for claims_path in sorted((path.parent / "claims").glob("*.json")):
             if claims_path.stem in excluded_slugs:
@@ -53,6 +70,9 @@ def plan(repo: Path, hub: Path, nodes: list[dict], load, scrub, current_run: str
                     or scrub._matches(doc.get("concept", ""), terms)):
                 continue
             docs.append(doc)
+        if canonical is not None:
+            allowed = {doc["concept"] for doc in docs}
+            docs = [doc for doc in canonical["documents"].values() if doc["concept"] in allowed]
         if not docs:
             continue
         groups = ({doc["concept"]: [doc] for doc in docs} if manifest.get("cohort_parent") else
@@ -71,7 +91,8 @@ def plan(repo: Path, hub: Path, nodes: list[dict], load, scrub, current_run: str
             old = candidates.get(slug)
             if old is None or stamp > old["stamp"]:
                 candidates[slug] = {"name": canonical_name, "docs": source_docs, "stamp": stamp,
-                                    "sha256": fingerprint, "run": path.parent.name}
+                                    "sha256": fingerprint, "run": path.parent.name, "canonical": canonical,
+                                    "concept_id": canonical["concept_ids"].get(name) if canonical else None}
     writes, packs, recovered, current_slugs = {}, {}, [], set()
     with tempfile.TemporaryDirectory(prefix="recover-dr-packs-") as temporary:
         for slug, candidate in candidates.items():
@@ -106,7 +127,10 @@ def plan(repo: Path, hub: Path, nodes: list[dict], load, scrub, current_run: str
                 continue
             compiled = Path(temporary) / slug
             try:
-                artifacts.compile_claims(lca, compiled, candidate["name"], slug, candidate["docs"], "COMPLETED")
+                canonical = candidate["canonical"]
+                artifacts.compile_claims(lca, compiled, candidate["name"], slug, candidate["docs"], "COMPLETED",
+                                        canonical["artifact_sha256"] if canonical else None,
+                                        candidate["concept_id"])
             except ValueError as error:
                 skipped.append({"run": candidate["run"], "concept": candidate["name"], "reason": str(error)})
                 continue

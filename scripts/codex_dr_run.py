@@ -473,6 +473,7 @@ def load_shared(path: Path | None = None):
                                           and isinstance(candidate.get("url"), str)
                                           and candidate["url"].startswith(("http://", "https://"))
                                           and candidate.get("tier") in shared.ESCALATE_TIERS
+                                          and isinstance(candidate.get("why"), str) and candidate["why"].strip()
                                           for candidate in candidates))
             # A malformed report cannot crash the inherited tier reader or be
             # mistaken for a completed scout with no discoveries.
