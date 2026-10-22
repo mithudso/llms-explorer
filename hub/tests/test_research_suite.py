@@ -42,6 +42,12 @@ QUEUE = """\
 """
 
 
+@pytest.fixture(autouse=True)
+def isolated_queue(tmp_path, monkeypatch):
+    """ConceptTree fixtures must not import the operator's live research queue."""
+    monkeypatch.setattr(ct, "QUEUE_PATH", tmp_path / "absent-queue.md")
+
+
 @pytest.fixture
 def tree(tmp_path, monkeypatch):
     p = tmp_path / "tree.json"

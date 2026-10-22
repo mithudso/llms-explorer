@@ -394,6 +394,23 @@ class ResearchFlowTests(unittest.TestCase):
             self.invoke("research", "publication", *args)
         return self.shared.load_manifest("publication")["agents"]["rename-durability"]
 
+    def test_source_plan_and_reviewed_scope_reach_only_their_concept_workers(self):
+        manifest = self.shared.load_manifest("publication")
+        manifest["cohort_source_materials"] = [{"url": "https://docs.example/durability", "title": "Durability manual"}]
+        manifest["cohort_scopes"] = {
+            "Rename durability": {"bounded_scope": "Directory durability after replacement", "cautions": ["Do not infer an incident from its label."]},
+            "Different concept": {"bounded_scope": "OUT_OF_SCOPE_TEST_SENTINEL"},
+        }
+        self.shared.save_manifest(manifest)
+        self.research()
+        briefs = [call["brief"] for call in self.calls if not call["name"].endswith("-merge")]
+        self.assertTrue(briefs)
+        for brief in briefs:
+            self.assertIn("https://docs.example/durability", brief)
+            self.assertIn("Directory durability after replacement", brief)
+            self.assertIn("Do not infer unsupported attributions", brief)
+            self.assertNotIn("OUT_OF_SCOPE_TEST_SENTINEL", brief)
+
     def test_scout_hit_runs_exactly_one_seeded_second_pass_and_merges(self):
         url = "https://engineering.example/deep-rename"
         self.scout["candidates"].append({"url": url, "tier": "blog", "why": "Durability edge case"})

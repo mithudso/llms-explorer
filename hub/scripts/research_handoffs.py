@@ -5,6 +5,11 @@ The private ``handoffs.json`` receipt pins a source batch listing and a durable
 target plan identity. Target progress may change, but its ``handoff_assignments``
 mapping must remain immutable. No receipt means no transferred reservations.
 Invalid receipts raise HandoffError; callers must keep reservations or refuse work.
+
+Usage:
+    python3 research_handoffs.py validate --source-run RUN
+    python3 research_handoffs.py create --source-run RUN --target-plan PLAN
+        --concept NAME --provenance TEXT
 """
 
 from __future__ import annotations
