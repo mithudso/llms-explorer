@@ -26,3 +26,8 @@ Delta: Record the first source-gate failure and continue the remaining MongoDB l
 - `AKO Deletion Protection v2.0` failed the independent-source gate with only two new hosts after excluding inherited parent sources. It remains unresolved and was not registered. The runner is now processing `AKO Dry Run Mode`.
 - The runner refreshed parent context from a 419-URL cohort, bringing the cached-page total to 216 of 588 candidate URLs. It records 380 retrieval misses. Future resumes read `failedUrls` from the Firecrawl receipt and skip known failures; newly referenced URLs still enter the batch.
 - After the run pauses or completes, reconcile the append-only `results.jsonl`, update the row ledger and report, sync only completed findings to both trees, validate both trees, then commit scoped source/research changes. Do not claim completion until every exact label has a terminal outcome.
+
+
+## 2026-10-22 — Cloudflare private-library build authentication
+- TASK-742: restored Wrangler OAuth exposed the exact Pages failure: pip could not authenticate while cloning ollama-client. The site also needs private llms-txt for validation. The user supplied a fine-grained read-only key for both repositories. It was verified and installed as encrypted LIBS_READ_TOKEN in preview and production. Values remain out of repository files and logs.
+- Bootstrap uses host- and repository-restricted Git askpass when that variable is set. Missing Pages credentials fail before installation. Credential-plumbing and CI configuration tests pass; clean bootstrap and live preview validation are in progress.

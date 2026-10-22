@@ -842,3 +842,8 @@ Outcome: `/full-suite` run — scout (mongodb.com and docs llms.txt found), CFE 
 Tracking: exact gate binding, marginal information, stage recovery, wider benchmark,
 source provenance, canonical public/private projections. Ordered progress lives in
 `docs/research/research-system-hardening-2026-10-22/README.md`.
+
+
+## Prompt — 2026-10-22 Cloudflare build repair
+
+The user restored Wrangler login and supplied a fine-grained GitHub key for private library access. Diagnose the Pages failure, configure encrypted credentials and verify the build while preserving private repositories.
