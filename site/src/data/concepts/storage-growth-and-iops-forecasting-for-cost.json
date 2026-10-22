@@ -1,0 +1,613 @@
+{
+  "slug": "storage-growth-and-iops-forecasting-for-cost",
+  "concept": "Storage Growth and IOPS Forecasting for Cost",
+  "generated": "2026-10-19",
+  "summary": "On Atlas Core dedicated clusters, storage is billed on the full provisioned amount, and storage auto-scaling is on by default, triggers at 90% used on any node, sizes the new disk to 70% used and only scales up, which can force a tier upgrade when the disk would exceed the tier's maximum. IOPS is tied to disk size on Gen1, Azure and GCP, while Gen2 Dedicated clusters bill a size-based baseline plus separately billed IOPS; storage cannot be shrunk in place, so Atlas provisions new volumes and resyncs with per-node downtime, and AWS EBS limits volume modifications to four per rolling 24 hours. Drawn from 6 source pages (Atlas docs, the AWS EBS guide, a MongoDB forum thread) across measures, problems, parameters and mechanism; the sources disagree on whether storage can be reduced in place.",
+  "facets": [
+    {
+      "title": "Definitions",
+      "facts": [
+        {
+          "text": "Atlas uses storage auto-scaling to help you automatically increase your cluster storage capacity. The following sections describe how Atlas scales storage on an Atlas Core cluster and how storage scaling can change the cluster tier.",
+          "source": "https://www.mongodb.com/docs/atlas/cluster-autoscaling-storage/",
+          "note": null
+        },
+        {
+          "text": "If you are not changing the volume type, then volume size and performance modifications must be within the limits of the current volume type. If you are changing the volume type, then volume size and performance modifications must be within the limits of the target volume type. For more information, see Amazon EBS volume types",
+          "source": "https://docs.aws.amazon.com/ebs/latest/userguide/ebs-modify-volume.html",
+          "note": null
+        },
+        {
+          "text": "With Amazon EBS Elastic Volumes, you can increase the volume size, change the volume type, or adjust the performance of your EBS volumes. If your instance supports Elastic Volumes, you can do so without detaching the volume or restarting the instance. This enables you to continue using your application while the changes take effect.",
+          "source": "https://docs.aws.amazon.com/ebs/latest/userguide/ebs-modify-volume.html",
+          "note": null
+        },
+        {
+          "text": "By default, Atlas sets the minimum oplog retention window to 24 hours. This means that, unless you set the minimum oplog retention window to a particular custom value, the mongod for the Atlas cluster retains all oplog entries for at least 24 hours and until the oplog reaches the maximum size that MongoDB best practices permit.",
+          "source": "https://www.mongodb.com/docs/atlas/customize-storage/",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "How it works",
+      "facts": [
+        {
+          "text": "If the volume modification cooldown period has passed, Atlas reduces IOPS in place without restarting nodes. If the cooldown period has not passed, Atlas may provision new volumes and sync data, which causes a rolling restart.",
+          "source": "https://www.mongodb.com/docs/atlas/customize-storage/",
+          "note": null
+        },
+        {
+          "text": "This auto-scaling logic reduces the downtime in cases when your storage settings don't match your workload.",
+          "source": "https://www.mongodb.com/docs/atlas/cluster-autoscaling-storage/",
+          "note": null
+        },
+        {
+          "text": "For the first change, Atlas modifies data volumes in place without downtime when increasing disk size.",
+          "source": "https://www.mongodb.com/docs/atlas/customize-storage/",
+          "note": null
+        },
+        {
+          "text": "When you increase a cluster's storage capacity, Atlas modifies the size of the servers' data volumes in a rolling manner with zero downtime. Atlas increases the storage capacity in place without copying data or performing an initial sync.",
+          "source": "https://www.mongodb.com/docs/atlas/customize-storage/",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Parameters and configuration",
+      "facts": [
+        {
+          "text": "On Azure, if you enable auto-scaling on a cluster deployed in one of the regions that support Extended Storage/IOPS, and the current IOPS is lower than the default IOPS for the auto-scaled disk size, Atlas increases the alloted number of IOPS in the IOPS slider and notifies you in the UI. To learn more, see Configure Extended Storage/IOPS on Azure.",
+          "source": "https://www.mongodb.com/docs/atlas/cluster-autoscaling-storage/",
+          "note": null
+        },
+        {
+          "text": "The available provisioned IOPS range for a Gen1 cluster relates to disk storage capacity. Changing your Gen1 cluster's storage capacity changes the range of available provisioned IOPS.",
+          "source": "https://www.mongodb.com/docs/atlas/customize-storage/",
+          "note": null
+        },
+        {
+          "text": "The available High Performance IOPS range for a Gen2 cluster is unrelated to disk storage capacity.",
+          "source": "https://www.mongodb.com/docs/atlas/customize-storage/",
+          "note": null
+        },
+        {
+          "text": "Standard IOPS use AWS General Purpose SSD volumes, which are designed to deliver their baseline performance 99% of the time. High Performance IOPS use AWS Provisioned IOPs SSD volumes, which are designed to deliver their provisioned performance 99.9% of the time.",
+          "source": "https://www.mongodb.com/docs/atlas/customize-storage/",
+          "note": null
+        },
+        {
+          "text": "For clusters hosted on AWS you can use Provisioned IOPS and High Performance IOPS for Gen1 and Gen2 Dedicated clusters, respectively.",
+          "source": "https://www.mongodb.com/docs/atlas/customize-storage/",
+          "note": null
+        },
+        {
+          "text": "Provisioned IOPS and High Performance IOPS let you customize the maximum IOPS rate for your AWS-hosted cluster with additional performance benefits. Provisioned IOPS and High Performance IOPS refer to the same concept, though Gen1 clusters use Provision IOPS in the Atlas UI and Gen2 clusters use High Performance IOPS. For simplicity, we use High Performance IOPS to refer to both here.",
+          "source": "https://www.mongodb.com/docs/atlas/customize-storage/",
+          "note": null
+        },
+        {
+          "text": "Provision IOPS if you are using Gen1 clusters.",
+          "source": "https://www.mongodb.com/docs/atlas/customize-storage/",
+          "note": null
+        },
+        {
+          "text": "High Performance IOPS if you are using Gen2 cluster.",
+          "source": "https://www.mongodb.com/docs/atlas/customize-storage/",
+          "note": null
+        },
+        {
+          "text": "For Gen2 Dedicated clusters, you provision additional IOPS and scale storage capacity independently, so scaling one doesn't necessitate scaling the other. Because provisioning additional IOPS and scaling storage capacity are independent, Atlas bills for each separately.",
+          "source": "https://www.mongodb.com/docs/atlas/customize-storage/",
+          "note": null
+        },
+        {
+          "text": "Clusters hosted on AWS make a distinction between Standard IOPS and Provisioned or High Performance IOPS. This distinction stems from the cluster's underlying SSD volumes, and is exclusive to clusters hosted on AWS.",
+          "source": "https://www.mongodb.com/docs/atlas/customize-storage/",
+          "note": null
+        },
+        {
+          "text": "High Performance IOPS are supported only for M30+ tier clusters on AWS. To use High Performance IOPS for your M30+ tier AWS cluster, next to IOPS under the Cluster Tier section, select one of the following options:",
+          "source": "https://www.mongodb.com/docs/atlas/customize-storage/",
+          "note": null
+        },
+        {
+          "text": "On Atlas Core clusters, storage performance scales with storage capacity. On Atlas Infinite clusters, the cluster tier determines the storage IOPS and storage throughput values. To review the storage performance for each tier, see Atlas Infinite Storage IOPs and Throughput Values per Cluster Tier.",
+          "source": "https://www.mongodb.com/docs/atlas/customize-storage/",
+          "note": null
+        },
+        {
+          "text": "Initially, when you choose an Azure Low CPU or General cluster, Atlas assigns the default storage size and IOPS based on the tier you choose.",
+          "source": "https://www.mongodb.com/docs/atlas/customize-storage/",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "How-to and procedures",
+      "facts": [
+        {
+          "text": "If you want your IOPS rate to scale automatically with your cluster's storage capacity, don't select Provision IOPS when you create your AWS Gen1 M30+ tier cluster. The cluster uses standard IOPS by default.",
+          "source": "https://www.mongodb.com/docs/atlas/customize-storage/",
+          "note": null
+        },
+        {
+          "text": "You can opt out of cluster storage auto-scaling by de-selecting the Storage Scaling checkbox in the Auto-scale section. If you opt out of storage auto-scaling, Atlas manages the oplog size as follows:",
+          "source": "https://www.mongodb.com/docs/atlas/customize-storage/",
+          "note": null
+        },
+        {
+          "text": "To opt out of cluster storage scaling, un-check the Storage Scaling checkbox in the Auto-scale section.",
+          "source": "https://www.mongodb.com/docs/atlas/cluster-autoscaling-storage/",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Measurements and reference values",
+      "facts": [
+        {
+          "text": "The maximum storage capacity for an M30 cluster is 480 GB. If you have an M30 cluster with the maximum storage allocated and your disk space used reaches 90%, a storage auto-scaling event requires raising your storage capacity to 600 GB. In this case, Atlas scales your cluster tier up to M40 because this is the lowest cluster tier that can support the new required storage capacity. On Azure, if you deployed the cluster in one of the regions that support Extended Storage/IOPS, Atlas also automatically increases IOPS to match the IOPS level for that tier's cluster. To learn more, see Configure E",
+          "source": "https://www.mongodb.com/docs/atlas/cluster-autoscaling-storage/",
+          "note": null
+        },
+        {
+          "text": "Atlas storage auto-scaling is enabled by default. It raises disk when used space reaches 90% on any node and sizes the new disk to reach 70% used on AWS, Azure and GCP. It only scales up.",
+          "source": "https://www.mongodb.com/docs/atlas/cluster-autoscaling-storage/",
+          "note": null
+        },
+        {
+          "text": "If a customer sets a custom storage size, Atlas bills the full custom amount and does not deduct the tier's default storage. Example: a 10 GB M10 raised to 50 GB is billed for 50 GB, not for the extra 40 GB.",
+          "source": "https://www.mongodb.com/docs/atlas/billing/cluster-configuration-costs",
+          "note": null
+        },
+        {
+          "text": "Plan for roughly 20% more disk than compressed data size under WiredTiger, because buffer, journal and log files and a no-overwrite engine consume space. Size forecasts from disk used, not from logical data size.",
+          "source": "https://www.mongodb.com/docs/atlas/customize-storage/",
+          "note": null
+        },
+        {
+          "text": "This section applies to Atlas Core clusters. On an Atlas Core cluster, cluster storage is the disk attached to each node, and diskSizeGB sets its size. Atlas enables cluster storage auto-scaling by default. Atlas automatically increases cluster storage when disk space used reaches 90% for any node in the cluster.",
+          "source": "https://www.mongodb.com/docs/atlas/cluster-autoscaling-storage/",
+          "note": null
+        },
+        {
+          "text": "On AWS, Azure, and GCP clusters, Atlas increases cluster storage capacity to achieve 70% disk space used. To learn more, see Change Storage Capacity or IOPS on AWS, Change Storage Capacity and IOPS on Azure, and Change Storage Capacity on Google Cloud.",
+          "source": "https://www.mongodb.com/docs/atlas/cluster-autoscaling-storage/",
+          "note": null
+        },
+        {
+          "text": "MongoDB uses a small portion of your specified storage capacity for buffer files, journal files, and log files to ensure proper cluster operation. In no-overwrite storage engines like the WiredTiger storage engine, you should expect to use approximately 20% more disk space than your compressed data occupies.",
+          "source": "https://www.mongodb.com/docs/atlas/customize-storage/",
+          "note": null
+        },
+        {
+          "text": "If you scale down the cluster's storage, Atlas uses the previous oplog-to-disk ratio to scale down the oplog proportionately. For example, if you scale from 100 GB to 50 GB with an oplog of 25 GB (ratio of 0.25), the new oplog size would also have a ratio of 0.25, which would make it 12.5 GB. The only exception is if the new oplog size is less than 5% of the storage capacity (or less than 10% for NVMe storage). In that case, Atlas uses the higher value for the oplog size, which would be 5% of the storage capacity (10% for NVMe storage).",
+          "source": "https://www.mongodb.com/docs/atlas/customize-storage/",
+          "note": null
+        },
+        {
+          "text": "If previous changes are completed, AWS usually takes about six hours to increase storage capacity or IOPS. However, this time frame can vary depending on the data size stored on disk. To learn more, see the AWS documentation. Atlas supports more changes within the time frame for volume modification changes.",
+          "source": "https://www.mongodb.com/docs/atlas/customize-storage/",
+          "note": null
+        },
+        {
+          "text": "The minimum standard IOPS for M30+ tier clusters is 3000. The standard IOPS value remains at 3000 unless you set the cluster storage size to 1TB or more. If the storage for your M30+ cluster meets or exceeds 1TB, Atlas increases the standard IOPS rate using an IOPS to a storage ratio of 3:1, up to 16k IOPS for AWS network storage volumes.",
+          "source": "https://www.mongodb.com/docs/atlas/customize-storage/",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Problems, failure modes and limitations",
+      "facts": [
+        {
+          "text": "On AWS M40+ clusters with fast disk pre-warming, Atlas may temporarily provision a higher-performance volume when replacing or adding a node. That cost lands on the monthly storage line, so storage cost can run above forecast in months with node replacements.",
+          "source": "https://www.mongodb.com/docs/atlas/billing/cluster-configuration-costs",
+          "note": null
+        },
+        {
+          "text": "Atlas auto-scaling needs a large enough oplog window: the minimum oplog retention window must be up to 60 seconds times GB of disk configured, and Atlas delays a scaling event until the oplog covers the estimated scaling time. Heavy writes can outrun auto-scaling, so docs advise avoiding high-speed writes when planning to scale up.",
+          "source": "https://www.mongodb.com/docs/atlas/customize-storage/",
+          "note": null
+        },
+        {
+          "text": "If an auto-scaled disk would exceed the current tier's maximum storage, Atlas raises the cluster tier even when tier scaling is disabled (docs example: M30 to M40 when 600 GB is needed). This also disables automatic tier scale-down, so storage growth can silently raise the compute line item.",
+          "source": "https://www.mongodb.com/docs/atlas/cluster-autoscaling-storage/",
+          "note": null
+        },
+        {
+          "text": "AWS EBS allows at most four modifications per volume in a rolling 24 hours and a volume resize can take hours. Atlas delays further capacity or IOPS changes until AWS permits another, so a fast-growing cluster can hit the cap during bulk loads.",
+          "source": "https://www.mongodb.com/docs/atlas/customize-storage/",
+          "note": null
+        },
+        {
+          "text": "Atlas cannot shrink storage in place on AWS, Azure or GCP. It provisions new volumes and resyncs from the old ones, which causes downtime on each node during the sync, and sync time grows with data size. Over-provisioning is therefore sticky cost, so do not size up speculatively.",
+          "source": "https://www.mongodb.com/docs/atlas/customize-storage/",
+          "note": null
+        },
+        {
+          "text": "If a tier scale-down target cannot support the current disk capacity or IOPS, Atlas does not scale the cluster down. An oversized disk therefore blocks compute savings.",
+          "source": "https://www.mongodb.com/docs/atlas/cluster-autoscaling-storage/",
+          "note": null
+        },
+        {
+          "text": "When Atlas attempts to automatically scale your cluster storage capacity as part of auto-scaling, it might need to scale your storage outside of the bounds that your current cluster tier supports. To help ensure that your cluster doesn't experience any downtime, Atlas scales your cluster tier (in addition to cluster storage) to accommodate the new storage capacity.",
+          "source": "https://www.mongodb.com/docs/atlas/cluster-autoscaling-storage/",
+          "note": null
+        },
+        {
+          "text": "Storage on an Atlas Infinite cluster grows with your data, so there is no storage auto-scaling to configure or opt out of. To control costs, you set a maximum storage size when you create or modify the cluster. Atlas blocks writes when the cluster reaches that limit.",
+          "source": "https://www.mongodb.com/docs/atlas/cluster-autoscaling-storage/",
+          "note": null
+        },
+        {
+          "text": "If Atlas attempts to scale your cluster tier down and the target tier can't support your current disk capacity, provisioned IOPS, or both, Atlas doesn't scale your cluster down. In this scenario, Atlas updates your auto-scaling settings based on the relationship between your current cluster tier and the configured maximum cluster tier:",
+          "source": "https://www.mongodb.com/docs/atlas/cluster-autoscaling-storage/",
+          "note": null
+        },
+        {
+          "text": "On M40+ AWS clusters that don't use NVMe storage, Atlas consumes an EBS volume modification to support fast disk pre-warming during a Cloud-based initial sync. To learn more, see Enable or Disable Fast Disk Pre-Warming.",
+          "source": "https://www.mongodb.com/docs/atlas/customize-storage/",
+          "note": null
+        },
+        {
+          "text": "NVMe clusters auto-scale to the next higher tier when 90% of storage is full, because storage cannot grow independently. This makes capacity planning a tier-cost decision.",
+          "source": "https://www.mongodb.com/docs/atlas/nvme-storage/",
+          "note": null
+        },
+        {
+          "text": "How Atlas handles additional changes within a given period depends on AWS limits for EBS volume modifications. AWS restricts EBS volume size and throughput adjustments to a maximum of four modifications per volume within a rolling 24-hour period. After this limit is reached, Atlas delays additional storage capacity or IOPS changes for that volume until AWS allows another modification.",
+          "source": "https://www.mongodb.com/docs/atlas/customize-storage/",
+          "note": null
+        },
+        {
+          "text": "For Azure clusters that support Extended Storage/IOPS, you can make up to four disk IOPS/throughput changes within any 24-hour period. If you reach this limit, Atlas replaces the virtual machine (VM) to bypass this limitation.",
+          "source": "https://www.mongodb.com/docs/atlas/customize-storage/",
+          "note": null
+        },
+        {
+          "text": "If your region doesn't support extended storage, you can change storage capacity only in preset amounts and can't change the IOPS using the slider.",
+          "source": "https://www.mongodb.com/docs/atlas/customize-storage/",
+          "note": null
+        },
+        {
+          "text": "Azure has volume modification cooldown periods that might limit how frequently you can make storage changes.",
+          "source": "https://www.mongodb.com/docs/atlas/customize-storage/",
+          "note": null
+        },
+        {
+          "text": "In an auto-scaling event, Atlas might increase the cluster tier even if Cluster Tier Scaling is disabled, if the current tier doesn't have the required storage capacity.",
+          "source": "https://www.mongodb.com/docs/atlas/cluster-autoscaling-storage/",
+          "note": null
+        },
+        {
+          "text": "AWS doesn't allow you to reduce storage capacity in place.",
+          "source": "https://www.mongodb.com/docs/atlas/customize-storage/",
+          "note": null
+        },
+        {
+          "text": "Azure doesn't allow decreasing the storage capacity in place. Atlas can reduce storage capacity by first provisioning new volumes and then syncing data from the old to the new volumes with an in-place data sync process. This works around the Azure limitation, but there is downtime on each node during the sync.",
+          "source": "https://www.mongodb.com/docs/atlas/customize-storage/",
+          "note": null
+        },
+        {
+          "text": "However, Google Cloud doesn't allow in-place storage capacity reduction. If you reduce the storage capacity of a cluster, Atlas provisions new volumes, and then syncs data from the old to the new volumes with an in-place data sync process. This works around the Google Cloud limitation, but there is downtime on each node during the sync.",
+          "source": "https://www.mongodb.com/docs/atlas/customize-storage/",
+          "note": null
+        },
+        {
+          "text": "TL;DR: You can’t scale down storage directly in Atlas (on AWS), but you can migrate to a smaller cluster if needed.",
+          "source": "https://www.mongodb.com/community/forums/t/scale-down-cluster-storage-with-no-downtime/312168",
+          "note": "MongoDB staff reply, Feb 2025"
+        },
+        {
+          "text": "The guide you linked says: “Atlas can reduce storage capacity in place. Atlas provisions new volumes then syncs data from the old to the new volumes. This works around the AWS limitation.”",
+          "source": "https://www.mongodb.com/community/forums/t/scale-down-cluster-storage-with-no-downtime/312168",
+          "note": "Poster quotes Atlas docs and support"
+        },
+        {
+          "text": "If you enable extended storage, this slows down initial syncs and cross-project snapshot restores, and can reduce high availability. Enabling extended storage is a temporary solution for clusters that might require additional storage capacity in the future. We recommend that you enable sharding for long-term expanded storage capacity.",
+          "source": "https://www.mongodb.com/docs/atlas/customize-storage/",
+          "note": null
+        },
+        {
+          "text": "Atlas disables disk auto-scaling if you specify one cluster tier class for the base nodes and another, different cluster tier class for the analytics nodes. For example, if you specify a General cluster class for operational nodes in the Base Tier, and a Low-CPU cluster class for analytics nodes in the Analytics Tier, Atlas disables disk auto-scaling with the following error message: Disk auto-scaling is not yet available for clusters with mixed instance classes.",
+          "source": "https://www.mongodb.com/docs/atlas/cluster-autoscaling-storage/",
+          "note": null
+        },
+        {
+          "text": "After disk auto-scaling triggers, subsequent disk auto-scaling and manual disk scaling may be unavailable for a few hours.",
+          "source": "https://www.mongodb.com/docs/atlas/cluster-autoscaling-storage/",
+          "note": null
+        },
+        {
+          "text": "When Atlas overrides your maximum cluster tier, it also disables your cluster from automatically scaling down. To re-enable downward auto-scaling, configure it in Cluster Settings. See also Considerations for Downward Scaling of Cluster Tier.",
+          "source": "https://www.mongodb.com/docs/atlas/cluster-autoscaling-storage/",
+          "note": null
+        },
+        {
+          "text": "If the cluster is currently at the configured maximum cluster tier, Atlas disables the cluster from automatically scaling down because all smaller tiers wouldn't be able to accommodate the necessary storage settings. If you want to re-enable downward auto-scaling, you must do so manually from your Cluster Settings.",
+          "source": "https://www.mongodb.com/docs/atlas/cluster-autoscaling-storage/",
+          "note": null
+        },
+        {
+          "text": "If the cluster isn't currently at the configured maximum cluster tier, Atlas raises the minimum cluster tier to the current cluster tier. In this case, Atlas doesn't disable downward auto-scaling.",
+          "source": "https://www.mongodb.com/docs/atlas/cluster-autoscaling-storage/",
+          "note": null
+        },
+        {
+          "text": "You can make a maximum of 4 modifications per EBS volume within any 24-hour period. If you reach this limit, Atlas cannot modify that volume until the 24-hour window resets.",
+          "source": "https://www.mongodb.com/docs/atlas/customize-storage/",
+          "note": null
+        },
+        {
+          "text": "Atlas provisions new volumes and syncs the data from the old volumes. If Atlas provisions new volumes, you can access your cluster. You can't access nodes that AWS modifies until AWS attaches the new volume.",
+          "source": "https://www.mongodb.com/docs/atlas/customize-storage/",
+          "note": null
+        },
+        {
+          "text": "Some EBS volume changes are delayed because AWS has reached the maximum number of allowed EBS volume modifications for this volume within a 24-hour period.",
+          "source": "https://www.mongodb.com/docs/atlas/customize-storage/",
+          "note": null
+        },
+        {
+          "text": "After you initiate a volume modification, you must wait for that modification to reach the completed state before you can initiate another modification for the same volume. You can modify a volume up to four times within a rolling 24-hour period, as long as the volume is in the in-use or available state, and all previous modifications for that volume are completed. If you exceed this limit, you get an error message that indicates when you can perform your next modification.",
+          "source": "https://docs.aws.amazon.com/ebs/latest/userguide/ebs-modify-volume.html",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Comparisons and alternatives",
+      "facts": [
+        {
+          "text": "Atlas Core storage speed is tied to capacity on Gen1, Azure and GCP: raising capacity raises max IOPS at no extra charge, and extra IOPS beyond that costs more. On AWS Gen1, choosing a custom speed (Fast/Fastest) switches the volume from general-purpose SSD to provisioned-IOPS SSD and adds cost.",
+          "source": "https://www.mongodb.com/docs/atlas/billing/cluster-configuration-costs",
+          "note": null
+        },
+        {
+          "text": "Atlas can reduce storage capacity by first provisioning new volumes and then syncing data from the old to the new volumes with an in-place data sync process. This works around the AWS limitation, but there is downtime on each node during the sync. Unlike capacity increases, Atlas always uses this process for capacity decreases, regardless of the volume modification cooldown period.",
+          "source": "https://www.mongodb.com/docs/atlas/customize-storage/",
+          "note": "Current Atlas docs"
+        },
+        {
+          "text": "Unlike AWS, Google Cloud doesn't have volume modification cooldown periods. Therefore, storage changes can be made immediately without waiting for previous modifications to complete.",
+          "source": "https://www.mongodb.com/docs/atlas/customize-storage/",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Facts and statements",
+      "facts": [
+        {
+          "text": "Paused clusters still incur storage charges for the default storage; no other service or transfer charges apply.",
+          "source": "https://www.mongodb.com/docs/atlas/billing/cluster-configuration-costs",
+          "note": null
+        },
+        {
+          "text": "Gen2 Dedicated clusters (M30+, AWS/GCP) charge for storage including a baseline IOPS tied to disk size, and bill Extended Standard IOPS separately above that baseline. After switching Gen1 to Gen2, Atlas recommends re-tuning capacity and IOPS independently to cut cost.",
+          "source": "https://www.mongodb.com/docs/atlas/billing/cluster-configuration-costs",
+          "note": null
+        },
+        {
+          "text": "Replica sets are limited to 4 TB per node. Beyond that, Atlas recommends sharding for long-term growth; extended storage is a temporary fix that slows initial syncs and can reduce availability.",
+          "source": "https://www.mongodb.com/docs/atlas/customize-storage/",
+          "note": null
+        },
+        {
+          "text": "You can set the minimum oplog retention window to a particular value in the Atlas UI. For storage auto-scaling to complete successfully, Atlas requires the minimum oplog retention window (oplogMinRetentionHours) to be up to (60 seconds) * (GB of disk space configured).",
+          "source": "https://www.mongodb.com/docs/atlas/customize-storage/",
+          "note": null
+        },
+        {
+          "text": "Atlas waits until the cooldown period expires, then modifies the hosts' data volumes in place without downtime. This takes less time than provisioning new volumes and syncing data from the old to the new volumes. If you modify the disk size within 4 hours of a previous disk modification, Atlas prioritizes compute upscaling first, then disk modification.",
+          "source": "https://www.mongodb.com/docs/atlas/customize-storage/",
+          "note": null
+        },
+        {
+          "text": "Atlas enables cluster storage auto-scaling by default. If you choose to use storage auto-scaling, Atlas manages the oplog entries based on the minimum oplog retention window (oplogMinRetentionHours) setting. The oplog entries are time-stamped. The oplog window is the time difference between the newest and the oldest timestamps in the oplog.",
+          "source": "https://www.mongodb.com/docs/atlas/customize-storage/",
+          "note": null
+        },
+        {
+          "text": "On an Atlas Core cluster, Atlas delays an auto-scaling event until the oplog window covers the estimated scaling time. To keep the window from blocking scaling, set the minimum oplog retention window.",
+          "source": "https://www.mongodb.com/docs/atlas/customize-storage/",
+          "note": null
+        },
+        {
+          "text": "On an Atlas Infinite cluster, the minimum oplog retention window doesn't affect auto-scaling. To learn more, see Oplog on Atlas Infinite clusters.",
+          "source": "https://www.mongodb.com/docs/atlas/customize-storage/",
+          "note": null
+        },
+        {
+          "text": "If your region supports extended storage, you can use the Storage slider to increase the default storage capacity within the same tier. Atlas also increases IOPS to correspond to the increased storage size.",
+          "source": "https://www.mongodb.com/docs/atlas/customize-storage/",
+          "note": null
+        },
+        {
+          "text": "Customizing storage is billed at the full custom amount, not the increment over the tier default. Every data-bearing node carries that storage, so storage customization multiplies with node count.",
+          "source": "https://www.mongodb.com/docs/atlas/billing/cluster-configuration-costs/",
+          "note": null
+        },
+        {
+          "text": "If, after you increase the storage volume's size, the increased number of IOPS still isn't sufficient, and the cluster's tier is in a region that supports extended storage, you can further extend the number of IOPS using the IOPS slider, without changing the cluster tier.",
+          "source": "https://www.mongodb.com/docs/atlas/customize-storage/",
+          "note": null
+        },
+        {
+          "text": "In addition, you can also expand the total cluster storage beyond the default limits for the cluster's tier in regions that support extended storage. You enable extended storage sizes in the Project Settings.",
+          "source": "https://www.mongodb.com/docs/atlas/customize-storage/",
+          "note": null
+        },
+        {
+          "text": "If your region doesn't support extended storage, you can increase the disk capacity in preset amounts. In this case, Atlas doesn't increase IOPS.",
+          "source": "https://www.mongodb.com/docs/atlas/customize-storage/",
+          "note": null
+        },
+        {
+          "text": "If you change to another region or to a multi-region cluster, the specific storage volume capabilities or extended storage might be unavailable. The Atlas UI notifies you that your IOPS will be reduced. This change might impact the application's performance, the speed of restoring data from a backup, or copying backups from these regions to other regions. To preserve the same performance, continue using the same region. To learn more, see regions that support extended storage.",
+          "source": "https://www.mongodb.com/docs/atlas/customize-storage/",
+          "note": null
+        },
+        {
+          "text": "You can change the number of IOPS for M40+ Atlas clusters for regions that support extended storage.",
+          "source": "https://www.mongodb.com/docs/atlas/customize-storage/",
+          "note": null
+        },
+        {
+          "text": "For Low CPU or General clusters deployed on Azure, you can extend IOPS and the data volumes' storage capacity in the Atlas UI.",
+          "source": "https://www.mongodb.com/docs/atlas/customize-storage/",
+          "note": null
+        },
+        {
+          "text": "For new clusters, Atlas automatically enables cluster tier auto-scaling and storage auto-scaling.",
+          "source": "https://www.mongodb.com/docs/atlas/customize-storage/",
+          "note": null
+        },
+        {
+          "text": "If you change the volume type from gp2 to gp3 without specifying IOPS or throughput performance, Amazon EBS automatically provisions performance. It uses either the equivalent performance of the source gp2 volume or the baseline gp3 performance, whichever is higher.",
+          "source": "https://docs.aws.amazon.com/ebs/latest/userguide/ebs-modify-volume.html",
+          "note": null
+        },
+        {
+          "text": "Volume modifications are performed on a best-effort basis, and they can take from a few minutes to a few hours to complete, depending on the requested volume configuration. Typically, A 1-TiB volume can take up to six hours to be modified. However, the time does not always scale linearly with the volume size - a larger volume might take less time, and a smaller volume might take more time.",
+          "source": "https://docs.aws.amazon.com/ebs/latest/userguide/ebs-modify-volume.html",
+          "note": null
+        },
+        {
+          "text": "In some high-volume bulk write scenarios, such as migrations, the cluster might not maintain the configured minimum oplog retention window. Plan migrations and other write-intensive operations accordingly.",
+          "source": "https://www.mongodb.com/docs/atlas/customize-storage/",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Disagreements",
+      "facts": [
+        {
+          "text": "TL;DR: You can’t scale down storage directly in Atlas (on AWS), but you can migrate to a smaller cluster if needed.",
+          "source": "https://www.mongodb.com/community/forums/t/scale-down-cluster-storage-with-no-downtime/312168",
+          "note": "MongoDB staff reply, Feb 2025",
+          "group": "c1"
+        },
+        {
+          "text": "The guide you linked says: “Atlas can reduce storage capacity in place. Atlas provisions new volumes then syncs data from the old to the new volumes. This works around the AWS limitation.”",
+          "source": "https://www.mongodb.com/community/forums/t/scale-down-cluster-storage-with-no-downtime/312168",
+          "note": "Poster quotes Atlas docs and support",
+          "group": "c1"
+        },
+        {
+          "text": "Atlas can reduce storage capacity by first provisioning new volumes and then syncing data from the old to the new volumes with an in-place data sync process. This works around the AWS limitation, but there is downtime on each node during the sync. Unlike capacity increases, Atlas always uses this process for capacity decreases, regardless of the volume modification cooldown period.",
+          "source": "https://www.mongodb.com/docs/atlas/customize-storage/",
+          "note": "Current Atlas docs",
+          "group": "c1"
+        }
+      ]
+    }
+  ],
+  "related": [
+    {
+      "concept": "IOPS",
+      "relation": "is a synonym of Storage Growth and IOPS Forecasting for Cost",
+      "note": null
+    },
+    {
+      "concept": "custom storage size",
+      "relation": "is a part of Storage Growth and IOPS Forecasting for Cost",
+      "note": null
+    },
+    {
+      "concept": "High Performance IOPS",
+      "relation": "is a hyponym of Storage Growth and IOPS Forecasting for Cost",
+      "note": null
+    },
+    {
+      "concept": "storage shrink",
+      "relation": "is a problem of Storage Growth and IOPS Forecasting for Cost",
+      "note": null
+    },
+    {
+      "concept": "EBS modification limit",
+      "relation": "is a problem of Storage Growth and IOPS Forecasting for Cost",
+      "note": null
+    },
+    {
+      "concept": "4 TB per node",
+      "relation": "is a measure of Storage Growth and IOPS Forecasting for Cost",
+      "note": null
+    },
+    {
+      "concept": "Gen2 Dedicated",
+      "relation": "is a related of Storage Growth and IOPS Forecasting for Cost",
+      "note": null
+    },
+    {
+      "concept": "oplog window",
+      "relation": "is a problem of Storage Growth and IOPS Forecasting for Cost",
+      "note": null
+    },
+    {
+      "concept": "disk used",
+      "relation": "is a related of Storage Growth and IOPS Forecasting for Cost",
+      "note": null
+    },
+    {
+      "concept": "EBS volume type",
+      "relation": "is a related of Storage Growth and IOPS Forecasting for Cost",
+      "note": null
+    },
+    {
+      "concept": "volume modification cooldown",
+      "relation": "is a problem of Storage Growth and IOPS Forecasting for Cost",
+      "note": null
+    },
+    {
+      "concept": "90% used",
+      "relation": "is a measure of Storage Growth and IOPS Forecasting for Cost",
+      "note": null
+    },
+    {
+      "concept": "full custom amount",
+      "relation": "is a measure of Storage Growth and IOPS Forecasting for Cost",
+      "note": null
+    },
+    {
+      "concept": "tier upgrade from storage",
+      "relation": "is a problem of Storage Growth and IOPS Forecasting for Cost",
+      "note": null
+    },
+    {
+      "concept": "scale-down blocked",
+      "relation": "is a problem of Storage Growth and IOPS Forecasting for Cost",
+      "note": null
+    },
+    {
+      "concept": "70% used",
+      "relation": "is a measure of Storage Growth and IOPS Forecasting for Cost",
+      "note": null
+    },
+    {
+      "concept": "WiredTiger overhead",
+      "relation": "is a measure of Storage Growth and IOPS Forecasting for Cost",
+      "note": null
+    },
+    {
+      "concept": "fast disk pre-warming",
+      "relation": "is a problem of Storage Growth and IOPS Forecasting for Cost",
+      "note": null
+    },
+    {
+      "concept": "paused cluster",
+      "relation": "is a instance of Storage Growth and IOPS Forecasting for Cost",
+      "note": null
+    },
+    {
+      "concept": "Live Migration to a smaller cluster",
+      "relation": "is a instance of Storage Growth and IOPS Forecasting for Cost",
+      "note": null
+    }
+  ]
+}

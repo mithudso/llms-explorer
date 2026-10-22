@@ -71,7 +71,9 @@ DEFAULT_MIN_CVS = 3.2
 # under ~/dev (a repo's .claude/skills is live for sessions in that repo, and
 # research written there is linked from the tree like any other skill).
 SKILLS_DIRS = (Path.home() / ".claude" / "skills", HUB_DIR / "skills",
-               *sorted((Path.home() / "dev").glob("*/.claude/skills")))
+               Path.home() / ".codex" / "skills",
+               *sorted((Path.home() / "dev").glob("*/.claude/skills")),
+               *sorted((Path.home() / "dev").glob("*/.agents/skills")))
 
 # "- [ ] Concept: `X` | Parent: `Y` | Mode: `Z` | CVS: `3.45`"  — all tags optional
 _QUEUE_RE = re.compile(
@@ -132,6 +134,8 @@ def save_nodes(nodes: list[dict], path: Path | None = None) -> None:
     tmp = p.with_suffix(".json.tmp")
     tmp.write_text(json.dumps(nodes, indent=2, ensure_ascii=False) + "\n")
     tmp.replace(p)
+    from research_site_hook import refresh
+    refresh(p, HUB_DIR)
 
 
 # --------------------------------------------------------------------------- #

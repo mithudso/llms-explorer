@@ -1,0 +1,465 @@
+{
+  "slug": "vector-search-quantization-and-embedding-storage-cost",
+  "concept": "Vector Search Quantization and Embedding Storage Cost",
+  "generated": "2026-10-19",
+  "summary": "Atlas Vector Search can shrink embedding memory with automatic scalar (int8) or binary (int1) quantization or by ingesting pre-quantized BSON binData vectors, cutting mongot RAM by 3.75x for scalar and 24x for binary because the HNSW graph itself does not shrink. Full-fidelity vectors stay on disk for rescoring and exact search, so disk use does not fall and the Atlas UI Size metric can rise, while the Required Memory metric estimates query-time RAM. Binary quantization needs rescoring and suits high-dimension, zero-centred embeddings, and all savings figures are vendor-reported; this pack draws on 4 source pages (MongoDB docs and blog, Elastic, Azure AI Search) across mechanism, measures, comparisons, parameters and history.",
+  "facets": [
+    {
+      "title": "Definitions",
+      "facts": [
+        {
+          "text": "Binary quantization involves assuming a midpoint of `0` for each dimension, which is typically appropriate for embeddings normalized to length `1` such as OpenAI's `text-embedding-3-large`. Then, each value in the vector is compared to the midpoint and assigned a binary value of `1` if it's greater than the midpoint and a binary value of `0` if it's less than or equal to the midpoint. In MongoDB Vector Search, this quantization reduces the vector embedding's RAM cost to one twenty-fourth (`1/24`) of the pre-quantization cost. The reason it's not `1/32` is because the data structure containing",
+          "source": "https://www.mongodb.com/docs/vector-search/about/vector-quantization.md#binary-quantization",
+          "note": null
+        },
+        {
+          "text": "Scalar quantization—converting a float point into an integer—is generally used when it's crucial to maintain search accuracy on par with full-precision vectors. Meanwhile, binary quantization—converting a float point into a single bit of 0 or 1—is more suitable for scenarios where storage and memory efficiency are paramount, and a slight reduction in search accuracy is acceptable. If you’re interested in learning more about this process, check out our documentation.",
+          "source": "https://mongodb.com/blog/post/binary-quantization-rescoring-96-less-memory-faster-search",
+          "note": null
+        },
+        {
+          "text": "Binary quantization compresses high-dimensional vectors by representing each component as a single bit, either 0 or 1. This method drastically reduces the memory footprint and accelerates vector comparison operations, which are crucial for search and retrieval tasks. Benchmark tests show up to 96% reduction in vector index size.",
+          "source": "https://learn.microsoft.com/en-my/Azure/search/vector-search-how-to-quantization",
+          "note": null
+        },
+        {
+          "text": "Rescoring is an optional technique used to offset information loss due to vector quantization. During query execution, it uses oversampling to pick up extra vectors, and supplemental information to rescore initial results found by the query. Supplemental information is either uncompressed original full-precision vectors - or for binary quantization only - you have the option of rescoring using the binary quantized document candidates against the query vector.",
+          "source": "https://learn.microsoft.com/en-my/Azure/search/vector-search-how-to-quantization",
+          "note": null
+        },
+        {
+          "text": "[Scalar quantization](https://www.mongodb.com/docs/manual/reference/glossary.md#std-term-scalar-quantization) involves first identifying the minimum and maximum values for each dimension of the indexed vectors to establish a range of values for a dimension. Then, the range is divided into equally sized intervals or bins. Finally, each float value is mapped to a bin to convert the continuous float values into discrete integers. In MongoDB Vector Search, this quantization reduces the vector embedding's RAM cost to about one fourth (`1/3.75`) of the pre-quantization cost.",
+          "source": "https://www.mongodb.com/docs/vector-search/about/vector-quantization.md#scalar-quantization",
+          "note": null
+        },
+        {
+          "text": "Quantization is the process of shrinking full-fidelity vectors into fewer bits. It reduces the amount of main memory required to store each vector in a MongoDB Vector Search index by indexing the reduced representation vectors instead. This allows for storage of more vectors or vectors with higher dimensions. Therefore, quantization reduces resource consumption and improves speed. We recommend quantization for applications with a large number of vectors, such as over 100,000.",
+          "source": "https://www.mongodb.com/docs/vector-search/about/vector-quantization.md#about-quantization",
+          "note": null
+        },
+        {
+          "text": "[BinData](https://www.mongodb.com/docs/manual/reference/method/BinData.md#std-label-server-binData-method) is a BSON (Binary Javascript Object Notation) data type that stores binary data. It compresses your vector embeddings and requires about three times less disk space in your cluster compared to embeddings that use a standard `float32` array. To learn more, see [Vector Compression.](https://www.mongodb.com/docs/vector-search/crud-embeddings/create-embeddings-manual.md#std-label-avs-vector-compression)",
+          "source": "https://www.mongodb.com/docs/vector-search/about/vector-quantization.md#benefits",
+          "note": null
+        },
+        {
+          "text": "Scalar quantization reduces the resolution of each number within each vector embedding. Instead of describing each number as a 16-bit or 32-bit floating point number, it uses an 8-bit integer. It identifies a range of numbers (typically 99th percentile minimum and maximum) and divides them into a finite number of levels or bin, assigning each bin an identifier. In 8-bit scalar quantization, there are 2^8, or 256, possible bins.",
+          "source": "https://learn.microsoft.com/en-my/Azure/search/vector-search-how-to-quantization",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "How it works",
+      "facts": [
+        {
+          "text": "Full-fidelity vectors remain on disk and are read only for rescoring (binary) or exact (ENN) search. Quantization therefore does not reduce disk use, and the Atlas UI Size metric can look larger because it counts the HNSW graph, quantized vectors and full vectors. The Required Memory metric is the one to use for query-time RAM.",
+          "source": "https://www.mongodb.com/docs/vector-search/about/vector-quantization.md",
+          "note": null
+        },
+        {
+          "text": "When you run a query, MongoDB Vector Search converts the float value in the query vector into a binary vector using the same midpoint for efficient comparison between the query vector and indexed binary vectors. It then rescores by reevaluating the identified candidates in the binary comparison using the original float values associated with those results from the binary index to further refine the results. The full fidelity vectors are stored in their own data structure on disk, and are only referenced during rescoring when you configure binary quantization or when you perform exact search ag",
+          "source": "https://www.mongodb.com/docs/vector-search/about/vector-quantization.md#binary-quantization",
+          "note": null
+        },
+        {
+          "text": "When you view your quantized index [in the Atlas UI](https://www.mongodb.com/docs/vector-search/indexes/vector-search-type.md#std-label-avs-view-index-procedure), the index size might appear larger than an index without quantization. This is because the Size metric represents the *total data stored*, which includes the [Hierarchical Navigable Small Worlds](https://arxiv.org/abs/1603.09320) graph (in memory), the quantized vectors (in memory), and the full-fidelity vectors (on disk). To estimate the amount of memory used by the index at query-time, refer to the Required Memory metric.",
+          "source": "https://www.mongodb.com/docs/vector-search/about/vector-quantization.md#considerations",
+          "note": null
+        },
+        {
+          "text": "Scalar quantization preserves recall for these models because these models are all trained to be quantization aware. Therefore, [recall](https://www.mongodb.com/docs/manual/reference/glossary.md#std-term-recall) degradation for scalar quantized embeddings produced by these models is minimal even at lower dimensions like 384.",
+          "source": "https://www.mongodb.com/docs/vector-search/about/vector-quantization.md#prerequisites",
+          "note": null
+        },
+        {
+          "text": "Azure AI Search supports scalar and binary quantization for reducing the size of vectors in a search index. Quantization is recommended because it reduces both memory and disk storage for float16 and float32 embeddings. To offset the effects of lossy compression, you can add oversampling and rescoring.",
+          "source": "https://learn.microsoft.com/en-my/Azure/search/vector-search-how-to-quantization",
+          "note": null
+        },
+        {
+          "text": "\"rescoreStorageMethod\": \"preserveOriginals\" rescores vector search results with the original full-precision vectors can result in adjustments to search score and rankings, promoting the more relevant matches as determined by the rescoring step. For binary quantization, you can set rescoreStorageMethod to discardOriginals to further reduce storage, without reducing quality. Original vectors aren't needed for binary quantization.",
+          "source": "https://learn.microsoft.com/en-my/Azure/search/vector-search-how-to-quantization",
+          "note": null
+        },
+        {
+          "text": "rescoringOptions are a collection of properties used to offset lossy compression by rescoring query results using the original full-precision vectors that exist prior to quantization. For rescoring to work, you must have the vector instance that provides this content. Setting rescoreStorageMethod to discardOriginals prevents you from using enableRescoring or defaultOversampling. For more information about vector storage, see Eliminate optional vector instances from storage.",
+          "source": "https://learn.microsoft.com/en-my/Azure/search/vector-search-how-to-quantization",
+          "note": null
+        },
+        {
+          "text": "Oversampled k candidates are rescored using either the uncompressed original vectors for scalar quantization, or the dot product of binary quantization.",
+          "source": "https://learn.microsoft.com/en-my/Azure/search/vector-search-how-to-quantization",
+          "note": null
+        },
+        {
+          "text": "Oversampling for scalar quantized vectors requires the availability of the original full precision vectors. Oversampling for binary quantized vectors can use either full precision vectors (preserveOriginals) or the dot product of the binary vector (discardOriginals). If you're optimizing vector storage, make sure to keep the full precision vectors in the index if you need them for rescoring purposes. For more information, see Eliminate optional vector instances from storage.",
+          "source": "https://learn.microsoft.com/en-my/Azure/search/vector-search-how-to-quantization",
+          "note": null
+        },
+        {
+          "text": "The RAM saving is below the vector-value ratio because the HNSW graph structure is not compressed. Sizing must therefore budget graph memory separately from vector memory.",
+          "source": "https://www.mongodb.com/docs/vector-search/about/vector-quantization.md",
+          "note": null
+        },
+        {
+          "text": "Because Atlas keeps full vectors on disk plus a quantized copy in memory, enabling quantization raises total disk need while lowering RAM need. Disk and memory must be sized separately when choosing a tier or search node.",
+          "source": "https://www.mongodb.com/docs/vector-search/about/vector-quantization.md",
+          "note": null
+        },
+        {
+          "text": "Empirical evidence demonstrates that incorporating a rescoring step when working with binary quantized vectors can dramatically enhance search accuracy, as shown in Figure 2 below.",
+          "source": "https://mongodb.com/blog/post/binary-quantization-rescoring-96-less-memory-faster-search",
+          "note": null
+        },
+        {
+          "text": "Only HNSW graphs allow rescoring. Exhaustive KNN doesn't support rescoring because by definition, all vectors are scanned at query time, which makes rescoring and oversampling irrelevant.",
+          "source": "https://learn.microsoft.com/en-my/Azure/search/vector-search-how-to-quantization",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Parameters and configuration",
+      "facts": [
+        {
+          "text": "Ingesting pre-quantized BSON BinData vectors (float32, int8, int1 subtypes) needs about three times less disk space than a standard float32 array. Requirements: MongoDB 6.0.11/7.0.2 or later and a supported driver (Node.js 6.11+, PyMongo 4.10+, Java 5.3.1+). int1 supports euclidean similarity only and needs dimensions in multiples of 8.",
+          "source": "https://www.mongodb.com/docs/vector-search/about/vector-quantization.md",
+          "note": null
+        },
+        {
+          "text": "| Requirement | For `int1` Ingestion | For `int8` Ingestion | For Automatic Scalar Quantization | For Automatic Binary Quantization | | --- | --- | --- | --- | --- | | Requires index definition settings | No | No | Yes | Yes | | Requires BSON (Binary Javascript Object Notation) `binData` format | Yes | Yes | No | No | | Storage on mongod | `binData(int1)` | `binData(int8)` | `binData(float32)``array(double)` | `binData(float32)``array(double)` | | Supported Similarity method | `euclidean` | `cosine``euclidean``dotProduct` | `cosine``euclidean``dotProduct` | `cosine``euclidean``dotProduct` | |",
+          "source": "https://www.mongodb.com/docs/vector-search/about/vector-quantization.md#requirements",
+          "note": null
+        },
+        {
+          "text": "Enabling automatic quantization is a per-field index-definition setting (quantization: scalar or binary) that triggers an index rebuild and needs no query change. Max dimensions are 8192. Non-float-array values are silently skipped. MongoDB suggests it for collections over about 100,000 vectors.",
+          "source": "https://www.mongodb.com/docs/vector-search/about/vector-quantization.md",
+          "note": null
+        },
+        {
+          "text": "You can configure MongoDB Vector Search to automatically quantize float vector embeddings in your collection to reduced representation types, such as `int8` (scalar) and `binary` in your vector indexes.",
+          "source": "https://www.mongodb.com/docs/vector-search/about/vector-quantization.md#how-to-enable-automatic-quantization-of-vectors",
+          "note": null
+        },
+        {
+          "text": "In a new or existing MongoDB Vector Search index, specify one of the following quantization types in the `fields.quantization` field for your [index definition:](https://www.mongodb.com/docs/vector-search/indexes/vector-search-type.md#std-label-avs-index-definition)",
+          "source": "https://www.mongodb.com/docs/vector-search/about/vector-quantization.md#procedure",
+          "note": null
+        },
+        {
+          "text": "If you specify automatic quantization on data that is not an array of float values, MongoDB Vector Search silently ignores that vector instead of indexing it, and those vectors will be skipped. Since Atlas stores float values (both 32-bit and 64-bit) as the `double` type internally, embeddings from models that output either precision will work with automatic quantization.",
+          "source": "https://www.mongodb.com/docs/vector-search/about/vector-quantization.md#procedure",
+          "note": null
+        },
+        {
+          "text": "To set or change the quantization type, specify a `quantization` field value of either `scalar` or `binary` in your index definition. This triggers an index rebuild similar to any other index definition change. The specified quantization type applies to all indexed vectors and query vectors at query-time. You don't need to change your query as your query vectors are automatically quantized.",
+          "source": "https://www.mongodb.com/docs/vector-search/about/vector-quantization.md#how-to-enable-automatic-quantization-of-vectors",
+          "note": null
+        },
+        {
+          "text": "Atlas stores all floating-point values as the `double` data type internally; therefore, both 32-bit and 64-bit embeddings are compatible with automatic quantization without conversion.",
+          "source": "https://www.mongodb.com/docs/vector-search/about/vector-quantization.md#requirements",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "How-to and procedures",
+      "facts": [
+        {
+          "text": "MongoDB Vector Search also supports ingestion and indexing of scalar and binary quantized vectors from certain embedding models. If you don't already have quantized vectors, you can convert your embeddings to BSON (Binary Javascript Object Notation) [BinData](https://www.mongodb.com/docs/manual/reference/method/BinData.md#std-label-server-binData-method) vectors with `float32`, `int1`, or `int8` subtype.",
+          "source": "https://www.mongodb.com/docs/vector-search/about/vector-quantization.md#how-to-ingest-pre-quantized-vectors",
+          "note": null
+        },
+        {
+          "text": "If you don't already have `binData` vectors, you can convert your embeddings to this format by using any supported driver before writing your data to a collection. The following procedure walks you through the steps for converting your embeddings to the [BinData](https://www.mongodb.com/docs/manual/reference/method/BinData.md#std-label-server-binData-method) vectors with `float32`, `int8`, and `int1` subtypes.",
+          "source": "https://www.mongodb.com/docs/vector-search/about/vector-quantization.md#benefits",
+          "note": null
+        },
+        {
+          "text": "We recommend automatic quantization if you have large number of full fidelity vectors, typically over 100,000 vectors. After quantization, you index reduced representation vectors without compromising the accuracy when retrieving vectors.",
+          "source": "https://www.mongodb.com/docs/vector-search/about/vector-quantization.md#use-cases",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Measurements and reference values",
+      "facts": [
+        {
+          "text": "MongoDB Vector Search provides native capabilities for scalar quantization as well as binary quantization with rescoring. Automatic quantization increases scalability and cost savings for your applications by reducing the computational resources for efficient processing of your vectors. Automatic quantization reduces the RAM for `mongot` by 3.75x for scalar and by 24x for binary; the vector values shrink by 4x and 32x respectively, but [Hierarchical Navigable Small Worlds](https://arxiv.org/abs/1603.09320) graph itself does not shrink. This improves performance, even at the highest volume and",
+          "source": "https://www.mongodb.com/docs/vector-search/about/vector-quantization.md#benefits",
+          "note": null
+        },
+        {
+          "text": "Atlas automatic scalar quantization (int8) cuts mongot RAM by 3.75x and automatic binary quantization (int1) by 24x. Vector values themselves shrink 4x and 32x.",
+          "source": "https://www.mongodb.com/docs/vector-search/about/vector-quantization.md",
+          "note": null
+        },
+        {
+          "text": "MongoDB's 96% figure for binary quantization with rescoring is processing-memory reduction in MongoDB's own tests, not total storage. The post names no dataset or model, gives no chart values and uses 50 queries.",
+          "source": "https://mongodb.com/blog/post/binary-quantization-rescoring-96-less-memory-faster-search",
+          "note": null
+        },
+        {
+          "text": "This subtype also allows you to index your vectors with alternate types such as `int1` or `int8` vectors, reducing the memory needed to build the MongoDB Vector Search index for your collection. It reduces the RAM for `mongot` by 3.75x for scalar and by 24x for binary; the vector values shrink by 4x and 32x respectively, but the [Hierarchical Navigable Small Worlds](https://arxiv.org/abs/1603.09320) graph itself doesn't shrink.",
+          "source": "https://www.mongodb.com/docs/vector-search/about/vector-quantization.md#benefits",
+          "note": null
+        },
+        {
+          "text": "MongoDB Vector Search rescoring involves re-ranking a subset of the top binary vector search results using their full-precision counterparts to ensure accurate search results from compressed vectors. This reduces the RAM cost to one twenty-fourth (`1/24`) compared to `float` quantization type. By default, Automated Embedding uses `euclidean` as the [similarity function.](https://www.mongodb.com/docs/vector-search/indexes/vector-search-type.md#std-label-avs-similarity-functions)",
+          "source": "https://www.mongodb.com/docs/vector-search/about/vector-quantization.md#binary-quantization",
+          "note": null
+        },
+        {
+          "text": "BBQ is a leap forward in quantization for Lucene and Elasticsearch, reducing float32 dimensions to bits, delivering ~95% memory reduction while maintaining high ranking quality. BBQ outperforms traditional approaches like Product Quantization (PQ) in indexing speed (20-30x less quantization time), query speed (2-5x faster queries), with no additional loss in accuracy.",
+          "source": "https://www.elastic.co/search-labs/de/blog/better-binary-quantization-lucene-elasticsearch",
+          "note": null
+        },
+        {
+          "text": "And as Figure 3 shows, in our tests, binary quantization reduced processing memory requirement by 96% while retaining up to 95% search accuracy and improving query performance.",
+          "source": "https://mongodb.com/blog/post/binary-quantization-rescoring-96-less-memory-faster-search",
+          "note": "MongoDB's own tests; no dataset named"
+        },
+        {
+          "text": "The `scalar` quantization type in Automated Embedding builds index with **scalar/int8 (1 byte) vectors**, which are provided by the embedding model. For Automated Embedding, this quantization reduces the vector embedding's storage and RAM cost to about one fourth compared the `float` quantization. By default, Automated Embedding uses `cosine` as the similarity function for this quantization type. This is the default quantization type for Automated Embedding.",
+          "source": "https://www.mongodb.com/docs/vector-search/about/vector-quantization.md#scalar-quantization",
+          "note": null
+        },
+        {
+          "text": "Scalar quantization compresses float values into narrower data types. AI Search currently supports int8, which is 8 bits, reducing vector index size fourfold.",
+          "source": "https://learn.microsoft.com/en-my/Azure/search/vector-search-how-to-quantization",
+          "note": null
+        },
+        {
+          "text": "Binary quantization converts floats into binary bits, which takes up 1 bit. This results in up to 28 times reduced vector index size.",
+          "source": "https://learn.microsoft.com/en-my/Azure/search/vector-search-how-to-quantization",
+          "note": null
+        },
+        {
+          "text": "Here, 1bit quantization and HNSW gets above 90% recall with only 3x oversampling.",
+          "source": "https://www.elastic.co/search-labs/de/blog/better-binary-quantization-lucene-elasticsearch",
+          "note": null
+        },
+        {
+          "text": "This data set has 138M floating point vectors of 1024 dimensions. Without any quantization, this would require around 535 GB of memory with HNSW. With better-binary-quantization, the estimate drops to around 19GB.",
+          "source": "https://www.elastic.co/search-labs/de/blog/better-binary-quantization-lucene-elasticsearch",
+          "note": null
+        },
+        {
+          "text": "`float` quantization stores the vector embeddings as 32-bit float values. This option provides the highest accuracy, but also the highest storage and RAM costs. By default, Automated Embedding uses `dotProduct` as the similarity function for this quantization type.",
+          "source": "https://www.mongodb.com/docs/vector-search/about/vector-quantization.md#float-quantization",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Problems, failure modes and limitations",
+      "facts": [
+        {
+          "text": "Binary quantization is risky for low-dimension embeddings. Elastic's own post notes a smaller speed advantage on 384-dimension-class E5-small, and Azure advises testing quality or using scalar below 1024 dimensions. Validate recall on your own data before downsizing a tier.",
+          "source": "https://learn.microsoft.com/en-my/Azure/search/vector-search-how-to-quantization",
+          "note": null
+        },
+        {
+          "text": "In Elasticsearch 8.16 and in Lucene, we have introduced what we call \"Better Binary Quantization\". Naive binary quantization is exceptionally lossy and achieving adequate recall requires gathering 10x or 100x additional neighbors to rerank. This just doesn't cut it.",
+          "source": "https://www.elastic.co/search-labs/de/blog/better-binary-quantization-lucene-elasticsearch",
+          "note": "Naive binary, without rescoring"
+        }
+      ]
+    },
+    {
+      "title": "Comparisons and alternatives",
+      "facts": [
+        {
+          "text": "Independent vendors corroborate the shape of the trade-off. Azure AI Search says int8 gives a 4x and binary up to 28x vector index size reduction, and that binary works best above 1024 dimensions with zero-centred embeddings. Elastic calls naive binary quantization exceptionally lossy and needing 10x-100x reranking candidates. Elastic's improved BBQ reaches over 90% recall at 3x oversampling on 1024-dimension Cohere vectors.",
+          "source": "https://learn.microsoft.com/en-my/Azure/search/vector-search-how-to-quantization",
+          "note": null
+        },
+        {
+          "text": "MongoDB recommends binary quantization with rescoring for most embedding models, and scalar quantization for lower-dimension models that are not quantization-aware trained. Scalar gave the highest average recall in MongoDB's own chart. Binary assumes a zero midpoint, so it suits normalised embeddings.",
+          "source": "https://www.mongodb.com/docs/vector-search/about/vector-quantization.md",
+          "note": null
+        },
+        {
+          "text": "Compared to scalar quantization, binary quantization further reduces memory usage, leading to lower costs and improved scalability—but also a decline in search accuracy. To mitigate this, when “binary” is chosen in the “quantization” index parameter, Atlas Vector Search incorporates an automatic rescoring step, which involves re-ranking a subset of the top binary vector search results using their full-precision counterparts, ensuring that the final search results are highly accurate despite the initial vector compression.",
+          "source": "https://mongodb.com/blog/post/binary-quantization-rescoring-96-less-memory-faster-search",
+          "note": null
+        },
+        {
+          "text": "The `binaryNoRescore` quantization type in Automated Embedding builds index with binary (1 bit) vector values, which are provided by the embedding model. Compared to `binary` (binary quantization with rescoring), this option ensures faster query and lowers storage costs, but provides lower accuracy. By default, Automated Embedding uses `euclidean` as the [similarity function.](https://www.mongodb.com/docs/vector-search/indexes/vector-search-type.md#std-label-avs-similarity-functions)",
+          "source": "https://www.mongodb.com/docs/vector-search/about/vector-quantization.md#binarynorescore-quantization",
+          "note": null
+        },
+        {
+          "text": "For most embedding models, we recommend binary quantization with rescoring. If you want to use lower dimension models that are not QAT (Quantization-Aware-Trained), use scalar quantization because it has less representational loss and therefore, incurs less representational capacity loss.",
+          "source": "https://www.mongodb.com/docs/vector-search/about/vector-quantization.md#how-to-enable-automatic-quantization-of-vectors",
+          "note": null
+        },
+        {
+          "text": "It's particularly effective for embeddings with dimensions greater than 1024. For smaller dimensions, we recommend testing the quality of binary quantization, or trying scalar instead. Additionally, we’ve found binary quantization performs very well when embeddings are centered around zero. Most popular embedding models offered by OpenAI, Cohere, and Mistral are centered around zero.",
+          "source": "https://learn.microsoft.com/en-my/Azure/search/vector-search-how-to-quantization",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Changes and history",
+      "facts": [
+        {
+          "text": "We are excited to share that several new vector quantization capabilities are now available in public preview in MongoDB Atlas Vector Search: support for binary quantized vector ingestion, automatic scalar quantization, and automatic binary quantization and rescoring.",
+          "source": "https://mongodb.com/blog/post/binary-quantization-rescoring-96-less-memory-faster-search",
+          "note": "Original text; later update says GA"
+        },
+        {
+          "text": "Update 4/29/2025: The vector quantization capabilities mentioned in this blog are now generally available.",
+          "source": "https://mongodb.com/blog/post/binary-quantization-rescoring-96-less-memory-faster-search",
+          "note": "Blog update 2025-04-29"
+        }
+      ]
+    },
+    {
+      "title": "Facts and statements",
+      "facts": [
+        {
+          "text": "Binary quantization in Automated Embedding builds index with binary (1 bit) vector values, but also stores full-precision vectors. The full-precision vectors are provided by the embedding model and MongoDB Vector Search quantizes them to binary during index creation.",
+          "source": "https://www.mongodb.com/docs/vector-search/about/vector-quantization.md#binary-quantization",
+          "note": null
+        },
+        {
+          "text": "Azure lets binary-quantized indexes discard original vectors (discardOriginals) and rescore with the binary dot product, saving disk. Atlas documents no equivalent: binary rescoring there reads full-fidelity float vectors from disk.",
+          "source": "https://learn.microsoft.com/en-my/Azure/search/vector-search-how-to-quantization",
+          "note": "Azure feature; Atlas has no equivalent"
+        },
+        {
+          "text": "It’s worth noting that even though the quantized vectors are used for indexing and search, their full-fidelity vectors are still stored on disk to support rescoring. Furthermore, retaining the full-fidelity vectors enables developers to perform exact vector search for experimental, high-precision use cases, such as evaluating the search accuracy of quantized vectors produced by different embedding model providers, as needed. For more on evaluating the accuracy of quantized vectors, please see our documentation.",
+          "source": "https://mongodb.com/blog/post/binary-quantization-rescoring-96-less-memory-faster-search",
+          "note": null
+        },
+        {
+          "text": "Embedding models output float32 vectors, often too large for efficient processing and practical apps. Elasticsearch supports int8 scalar quantization to reduce vector size while preserving performance. Other methods reduce retrieval quality and are impractical for real world use. In Elasticsearch 8.16 and Lucene, we introduced Better Binary Quantization (BBQ), a new approach developed from insights drawn from a recent technique - dubbed “RaBitQ” - proposed by researchers from Nanyang Technological University, Singapore.",
+          "source": "https://www.elastic.co/search-labs/de/blog/better-binary-quantization-lucene-elasticsearch",
+          "note": null
+        },
+        {
+          "text": "With the new “quantization” index definition parameters, developers can choose to use full-fidelity vectors by specifying “none,” or they can quantize vector embeddings by specifying the desired quantization type—”scalar” or “binary” (Figure 1). This native quantization capability supports vector embeddings from any model provider as well as MongoDB’s BinData float32 vector subtype.",
+          "source": "https://mongodb.com/blog/post/binary-quantization-rescoring-96-less-memory-faster-search",
+          "note": null
+        },
+        {
+          "text": "BSON (Binary Javascript Object Notation) [BinData](https://www.mongodb.com/docs/manual/reference/method/BinData.md#std-label-server-binData-method) vectors with `float32`, `int1`, and `int8` subtypes is supported by the following drivers:",
+          "source": "https://www.mongodb.com/docs/vector-search/about/vector-quantization.md#supported-drivers",
+          "note": null
+        },
+        {
+          "text": "MongoDB Vector Search supports automatic quantization of your float vector embeddings (both 32-bit and 64-bit). It also supports ingesting and indexing your pre-quantized scalar and binary vectors from certain embedding models.",
+          "source": "https://www.mongodb.com/docs/vector-search/about/vector-quantization.md",
+          "note": null
+        },
+        {
+          "text": "Effective quantization methods—specifically scalar and binary quantization—can now be done automatically in Atlas Vector Search. This makes it easier and more cost-effective for developers to use Atlas Vector Search to unlock a wide range of applications, particularly those requiring over a million vectors.",
+          "source": "https://mongodb.com/blog/post/binary-quantization-rescoring-96-less-memory-faster-search",
+          "note": null
+        },
+        {
+          "text": "truncationDimension taps inherent capabilities of the text-embedding-3 models to \"encode information at different granularities and allows a single embedding to adapt to the computational constraints of downstream tasks\" (see Matryoshka Representation Learning). You can use truncated dimensions with or without rescoring options. For more information about how this feature is implemented in Azure AI Search, see Truncate dimensions using MRL compression.",
+          "source": "https://learn.microsoft.com/en-my/Azure/search/vector-search-how-to-quantization",
+          "note": null
+        }
+      ]
+    }
+  ],
+  "related": [
+    {
+      "concept": "Atlas Vector Search",
+      "relation": "is a instance of Vector Search Quantization and Embedding Storage Cost",
+      "note": null
+    },
+    {
+      "concept": "binary quantization",
+      "relation": "is a hyponym of Vector Search Quantization and Embedding Storage Cost",
+      "note": null
+    },
+    {
+      "concept": "rescoring",
+      "relation": "is a part of Vector Search Quantization and Embedding Storage Cost",
+      "note": null
+    },
+    {
+      "concept": "embedding model",
+      "relation": "is a related of Vector Search Quantization and Embedding Storage Cost",
+      "note": null
+    },
+    {
+      "concept": "scalar quantization",
+      "relation": "is a hyponym of Vector Search Quantization and Embedding Storage Cost",
+      "note": null
+    },
+    {
+      "concept": "embedding storage",
+      "relation": "is a measure of Vector Search Quantization and Embedding Storage Cost",
+      "note": null
+    },
+    {
+      "concept": "full-fidelity vectors",
+      "relation": "is a measure of Vector Search Quantization and Embedding Storage Cost",
+      "note": null
+    },
+    {
+      "concept": "recall",
+      "relation": "is a problem of Vector Search Quantization and Embedding Storage Cost",
+      "note": null
+    },
+    {
+      "concept": "dimensions",
+      "relation": "is a measure of Vector Search Quantization and Embedding Storage Cost",
+      "note": null
+    },
+    {
+      "concept": "BinData",
+      "relation": "is a part of Vector Search Quantization and Embedding Storage Cost",
+      "note": null
+    },
+    {
+      "concept": "HNSW graph",
+      "relation": "is a part of Vector Search Quantization and Embedding Storage Cost",
+      "note": null
+    },
+    {
+      "concept": "mongot RAM",
+      "relation": "is a measure of Vector Search Quantization and Embedding Storage Cost",
+      "note": null
+    },
+    {
+      "concept": "Elastic",
+      "relation": "is a contrast of Vector Search Quantization and Embedding Storage Cost",
+      "note": null
+    },
+    {
+      "concept": "index rebuild",
+      "relation": "is a related of Vector Search Quantization and Embedding Storage Cost",
+      "note": null
+    },
+    {
+      "concept": "Automated Embedding",
+      "relation": "is a instance of Vector Search Quantization and Embedding Storage Cost",
+      "note": null
+    },
+    {
+      "concept": "zero-centred",
+      "relation": "is a problem of Vector Search Quantization and Embedding Storage Cost",
+      "note": null
+    },
+    {
+      "concept": "search node tier",
+      "relation": "is a related of Vector Search Quantization and Embedding Storage Cost",
+      "note": null
+    },
+    {
+      "concept": "generally available",
+      "relation": "is a related of Vector Search Quantization and Embedding Storage Cost",
+      "note": null
+    }
+  ]
+}

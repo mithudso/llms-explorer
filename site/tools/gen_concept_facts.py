@@ -126,20 +126,63 @@ def render_pack(pack: dict, nodes: dict, site_url: str, sources_dir: Path) -> st
     return banner + text
 
 
+def download_texts(packs: dict, nodes: dict, redirects: dict, site_url: str,
+                   sources_dir: Path) -> dict:
+    """Retain published download URLs without duplicate reader/context packs."""
+    texts = {slug: render_pack(pack, nodes, site_url, sources_dir) for slug, pack in packs.items()}
+    for alias, target in redirects.items():
+        if alias in texts:
+            continue
+        if Path(alias).name != alias or alias in (".", ".."):
+            raise ValueError(f"Invalid facts download alias: {alias!r}")
+        seen = {alias}
+        while target not in texts and target in redirects:
+            if target in seen:
+                raise ValueError("Facts download redirect cycle")
+            seen.add(target)
+            target = redirects[target]
+        if target in texts:
+            texts[alias] = texts[target]
+    return texts
+
+
+def research_download_texts(packs: dict) -> dict[str, str]:
+    """Recreate public canonical artifacts from committed reader data in CI."""
+    result = {}
+    for slug, pack in packs.items():
+        if not pack.get("canonicalArtifactSha256"):
+            continue
+        artifact = {"schema": "research-public-artifact/v1",
+                    "concept": pack["concept"], "slug": slug,
+                    "canonicalArtifactSha256": pack["canonicalArtifactSha256"],
+                    "canonicalConceptId": pack.get("canonicalConceptId"),
+                    "claims": [fact for facet in pack["facets"] for fact in facet["facts"]]}
+        result[slug] = json.dumps(artifact, ensure_ascii=False, indent=2) + "\n"
+    return result
+
+
 def build(concepts_dir: Path, tree_path: Path, out: Path, site_url: str,
           sources_dir: Path) -> int:
-    nodes = json.loads(tree_path.read_text(encoding="utf-8")).get("nodes") or {}
+    tree = json.loads(tree_path.read_text(encoding="utf-8"))
+    nodes = tree.get("nodes") or {}
     if out.exists():
         shutil.rmtree(out)
     out.mkdir(parents=True, exist_ok=True)
-    n = 0
+    packs = {}
     for f in sorted(concepts_dir.glob("*.json")):
         pack = json.loads(f.read_text(encoding="utf-8"))
         pack.setdefault("slug", f.stem)
-        (out / f"{pack['slug']}.md").write_text(
-            render_pack(pack, nodes, site_url, sources_dir), encoding="utf-8")
-        n += 1
-    return n
+        packs[pack["slug"]] = pack
+    texts = download_texts(packs, nodes, tree.get("redirects", {}), site_url, sources_dir)
+    for slug, text in texts.items():
+        (out / f"{slug}.md").write_text(text, encoding="utf-8")
+    research_out = out.parent / "research"
+    if research_out.exists():
+        shutil.rmtree(research_out)
+    research_out.mkdir(parents=True)
+    for slug, text in research_download_texts(packs).items():
+        (research_out / f"{slug}.json").write_text(text, encoding="utf-8")
+    return len(texts)
 
 
 def main(argv=None) -> int:

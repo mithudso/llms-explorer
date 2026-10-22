@@ -1,0 +1,822 @@
+{
+  "slug": "scheduled-and-predictive-scaling-for-atlas-cost",
+  "concept": "Scheduled and Predictive Scaling for Atlas Cost",
+  "generated": "2026-10-19",
+  "summary": "Atlas has no documented native time-of-day tier schedule, so time-pattern cost control comes from two mechanisms: predictive auto-scaling, which scales eligible clusters up ahead of forecast cyclical spikes and never scales down, and customer-run pause and resume schedules for non-production dedicated clusters, where a paused cluster is charged for storage only and auto-resumes after 30 days. Reactive scale-down stays conservative (a 24-hour cooldown and 4-hour low-load window), so spiky batch workloads can sit on a larger tier for many hours. The pack holds 127 source-anchored units from 8 sources (5 hosts: MongoDB docs and engineering blog, a prototype write-up, a third-party pause guide, a customer feedback thread) across 11 facets, with 2 conflicts over scale-down rules and prototype versus shipped planner behavior.",
+  "facets": [
+    {
+      "title": "Definitions",
+      "facts": [
+        {
+          "text": "What it is: Predictive auto-scaling is an enhancement to Atlas auto-scaling. This predictive system uses demand forecasting to anticipate workload surges, meaning clusters' compute can scale up preemptively using past cyclical patterns, providing clusters with the necessary resources before a workload spike occurs. Note that this only occurs in scale-up events; scale-down is still triggered only by existing scaling logic. This enhancement adheres to the min and max cluster tiers configured by users.",
+          "source": "https://www.mongodb.com/products/updates/predictive-auto-scaling-for-mongodb-atlas",
+          "note": "Product update, 2025-11-19"
+        },
+        {
+          "text": "Pausing Atlas clusters during off-hours is the most straightforward cost-saving measure for non-production environments. Use the Atlas CLI for ad-hoc operations and GitHub Actions scheduled workflows to automate pause at end-of-day and resume at start-of-day. Always wait for the cluster to reach `IDLE` state before running application workloads after resuming.",
+          "source": "https://oneuptime.com/blog/post/2026-03-31-mongodb-atlas-pause-resume-clusters/markdown#summary",
+          "note": null
+        },
+        {
+          "text": "Predictive auto-scaling is an extension of auto-scaling.",
+          "source": "https://www.mongodb.com/docs/atlas/cluster-autoscaling-compute-core/",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Structure and components",
+      "facts": [
+        {
+          "text": "Forecaster: tries to predict each replica set's future workload",
+          "source": "https://mongodb.com/company/blog/engineering/mongodb-predictive-auto-scaling-an-experiment",
+          "note": "2023 prototype component"
+        },
+        {
+          "text": "Estimator: estimates CPU% for any workload, any instance size",
+          "source": "https://mongodb.com/company/blog/engineering/mongodb-predictive-auto-scaling-an-experiment",
+          "note": "2023 prototype component"
+        },
+        {
+          "text": "Planner: chooses the cheapest instance that satisfies forecasted demand",
+          "source": "https://mongodb.com/company/blog/engineering/mongodb-predictive-auto-scaling-an-experiment",
+          "note": "2023 prototype component"
+        },
+        {
+          "text": "By combining these components, we forecast each metric separately, creating a \"Long-Term Forecaster\" for each. Despite the name, the Long-Term Forecaster doesn't project far into the future; it's trained on several weeks of data to capture patterns, then predicts a few hours ahead.",
+          "source": "https://mongodb.com/company/blog/engineering/mongodb-predictive-auto-scaling-an-experiment",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "How it works",
+      "facts": [
+        {
+          "text": "Reactive scale-down is conservative. Atlas scales down only if the cluster was not scaled, provisioned or unpaused in the past 24 hours and no node restarted in the past 12 hours. Normalized system CPU must be below 45% for at least the last 10 minutes and the last 4 hours. WiredTiger cache must be below 90% and projected memory at the lower tier below 60% over the same windows. Checks start only when down-scaling is enabled, not retroactively. Atlas moves down one tier at a time.",
+          "source": "https://www.mongodb.com/docs/atlas/cluster-autoscaling-compute-core/",
+          "note": null
+        },
+        {
+          "text": "Predictive auto-scaling only triggers scale-up events ahead of forecast cyclical spikes; scale-down is still triggered only by the existing reactive logic, and predictive scaling respects the user's configured min and max cluster tiers. It needs no setup beyond enabling auto-scaling.",
+          "source": "https://www.mongodb.com/products/updates/predictive-auto-scaling-for-mongodb-atlas",
+          "note": null
+        },
+        {
+          "text": "Predictive auto-scaling only supports upscaling. There is no predictive down-scaling. Atlas uses reactive auto-scaling to automatically scale down the cluster when the workload decreases.",
+          "source": "https://www.mongodb.com/docs/atlas/cluster-autoscaling-compute-core/",
+          "note": null
+        },
+        {
+          "text": "Atlas uses reactive and predictive auto-scaling for cluster tiers. Atlas chooses its auto-scaling mechanism based on your cluster's type, tier, and workload pattern.",
+          "source": "https://www.mongodb.com/docs/atlas/cluster-autoscaling-compute-core/",
+          "note": null
+        },
+        {
+          "text": "In all of Atlas documentation, whenever the auto-scaling term is used without the word \"predictive\", it refers to the reactive auto-scaling mechanism. See also predictive auto-scaling.",
+          "source": "https://www.mongodb.com/docs/atlas/cluster-autoscaling-compute-core/",
+          "note": null
+        },
+        {
+          "text": "When you create a new cluster, Atlas enables auto-scaling (predictive and reactive) for cluster tier and cluster storage. (Predictive auto-scaling only affects cluster tier and doesn't affect storage.) You don't need to explicitly enable auto-scaling. If you prefer, you can opt out for cluster tier and cluster storage.",
+          "source": "https://www.mongodb.com/docs/atlas/cluster-autoscaling-compute-core/",
+          "note": null
+        },
+        {
+          "text": "So the Planner’s plan is to use M40 servers until it would be overloaded, then switch to M50 during the peak, then switch back. Notice the replica set should start scaling up 15 minutes before the overload arrives, so the scale-up is complete in time to avoid overload. It starts scaling down as soon as the risk of overload has passed.",
+          "source": "https://emptysqua.re/blog/mongodb-predictive-scaling-experiment/",
+          "note": "Prototype planner; shipped version scales up only"
+        },
+        {
+          "text": "Predictive auto-scaling. Atlas uses machine learning to anticipate future scaling needs based on historical usage patterns and attempts to trigger scaling events before the forecasted workload spike arrives.",
+          "source": "https://www.mongodb.com/docs/atlas/cluster-autoscaling-compute-core/",
+          "note": null
+        },
+        {
+          "text": "Predictive auto-scaling is powered by a machine learning model based on historical patterns. Atlas analyzes resource utilization on the primary node to make scaling decisions. The model predicts when resource utilization will be high based on historical usage patterns, and Atlas scales the cluster up if the model forecasts high resource utilization. MongoDB updates the model and its criteria continuously to optimize Atlas performance.",
+          "source": "https://www.mongodb.com/docs/atlas/cluster-autoscaling-compute-core/",
+          "note": null
+        },
+        {
+          "text": "You can often predict a load spike before it arrives. Maybe it happens at the same time every day, or there’s always a spike at midnight on a Friday when you run a certain batch job. Or maybe it’s not cyclical, but load is rising steadily, and it’s a reasonable guess that it will keep rising for a while. MongoDB Atlas’s reactive auto-scaler handles these spikes, but scaling to the right size takes several minutes. What if MongoDB Atlas could use these temporal patterns—cycles and trends—to scale up a replica set before it’s overloaded?",
+          "source": "https://mongodb.com/company/blog/engineering/mongodb-predictive-auto-scaling-an-experiment",
+          "note": null
+        },
+        {
+          "text": "Reactive auto-scaling. Atlas uses thresholds, and not prediction, to trigger scaling events based on current resource usage. Reactive auto-scaling occurs after sustained high or low resource usage. To learn more, see Reactive Auto-Scaling for Cluster Tier.",
+          "source": "https://www.mongodb.com/docs/atlas/cluster-autoscaling-compute-core/",
+          "note": null
+        },
+        {
+          "text": "Reactive auto-scaling works on a rolling basis, and the process doesn't incur any downtime. Atlas maintains a primary node during this process, but the nodes are upgraded one-by-one and are unavailable while being upgraded.",
+          "source": "https://www.mongodb.com/docs/atlas/cluster-autoscaling-compute-core/",
+          "note": null
+        },
+        {
+          "text": "The exact reactive auto-scaling criteria are subject to change in order to ensure appropriate cluster resource utilization.",
+          "source": "https://www.mongodb.com/docs/atlas/cluster-autoscaling-compute-core/",
+          "note": null
+        },
+        {
+          "text": "Seamlessly fall back to reactive auto-scaling when changes to the cluster workload fall outside of predictable patterns and are non-cyclical or unpredictable.",
+          "source": "https://www.mongodb.com/docs/atlas/cluster-autoscaling-compute-core/",
+          "note": null
+        },
+        {
+          "text": "On Atlas Core clusters, if you deploy Search Nodes separately, Atlas rebuilds the MongoDB Search indexes to restore the data on the Search Nodes that it deleted when you paused the Atlas cluster.",
+          "source": "https://mongodb.com/docs/atlas/pause-terminate-cluster/",
+          "note": null
+        },
+        {
+          "text": "The reactive algorithm wants to keep replica sets the perfect size. But it doesn’t react instantly to every change, because it also wants to avoid scaling too frequently. Besides, no matter how quickly the algorithm reacts, the scaling operation itself takes a few minutes to change the replica set’s server sizes. To radically improve auto-scaling, we needed an algorithm that could see the future.",
+          "source": "https://mongodb.com/company/blog/engineering/mongodb-predictive-auto-scaling-an-experiment",
+          "note": null
+        },
+        {
+          "text": "What can we do when the Long-Term Forecaster isn't trustworthy? We didn't want to fall back to purely-reactive scaling; we can still do better than that.",
+          "source": "https://mongodb.com/company/blog/engineering/mongodb-predictive-auto-scaling-an-experiment",
+          "note": null
+        },
+        {
+          "text": "Atlas begins checking these conditions from the moment you enable downscaling, not retroactively. Even if your cluster met these conditions before you enabled downscaling, Atlas will not scale down until the required time windows have elapsed since you enabled the feature.",
+          "source": "https://www.mongodb.com/docs/atlas/cluster-autoscaling-compute-core/",
+          "note": null
+        },
+        {
+          "text": "When you pause a cluster, Atlas deletes all data from the Search Nodes. Atlas creates new search nodes and automatically rebuilds the MongoDB Search indexes when you resume the Atlas cluster. While Atlas rebuilds the MongoDB Search indexes, the $search and $vectorSearch pipeline stages are unavailable. When you resume the cluster, Atlas only has metrics from the new search nodes as Atlas doesn't retain any MongoDB Search metrics from before you paused the cluster.",
+          "source": "https://mongodb.com/docs/atlas/pause-terminate-cluster/",
+          "note": null
+        },
+        {
+          "text": "If you have a Backup Compliance Policy enabled, when you resume a cluster, Atlas automatically enables Cloud Backup. If the Backup Compliance Policy has the Require Point in Time Restore to all clusters option set to On, Atlas automatically enables Continuous Cloud Backup and adjusts the restore window according to the Backup Compliance Policy. Atlas automatically modifies the backup to meet the minimum requirements of the Backup Compliance Policy.",
+          "source": "https://mongodb.com/docs/atlas/pause-terminate-cluster/",
+          "note": null
+        },
+        {
+          "text": "In certain scenarios, pausing a cluster pauses its required maintenance tasks. When you unpause the cluster, these maintenance tasks may start immediately, which could delay cluster availability.",
+          "source": "https://mongodb.com/docs/atlas/pause-terminate-cluster/",
+          "note": null
+        },
+        {
+          "text": "Depending on your cluster tier, Atlas either pauses clusters automatically or when you manually initiate it.",
+          "source": "https://mongodb.com/docs/atlas/pause-terminate-cluster/",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Parameters and configuration",
+      "facts": [
+        {
+          "text": "Predictive auto-scaling eligibility: General or Low-CPU class, tier M30 or larger, auto-scaling enabled (if down-scaling is on, the minimum size must be M30 or larger), cluster active at least two weeks, no NVMe storage, not AWS Gen2 dedicated. It applies only to electable and read-only nodes, not search or analytics nodes. M10/M20 never qualify.",
+          "source": "https://www.mongodb.com/docs/atlas/cluster-autoscaling-compute-core/",
+          "note": null
+        },
+        {
+          "text": "Defaults and bounds: in the Atlas UI, 'allow cluster to be scaled down' is checked by default on new clusters, but via the Admin API auto-scaling must be enabled explicitly. Default maximum size is one tier above the current tier and default minimum is the current tier. Scaling never leaves the min/max range or crosses from General to Low-CPU class. Setting these bounds is the cost cap.",
+          "source": "https://www.mongodb.com/docs/atlas/cluster-autoscaling-compute-core/",
+          "note": null
+        },
+        {
+          "text": "Pause rules: M10+ clusters without NVMe storage can be paused for up to 30 days, after which Atlas resumes them. Atlas charges paused clusters for storage only, with no other service or data transfer charges. A resumed cluster must run at least 60 minutes before it can be paused again. Pausing needs disk usage below 95% and a healthy cluster. Flex clusters cannot be paused. Free clusters are auto-paused after 30 days of inactivity.",
+          "source": "https://mongodb.com/docs/atlas/pause-terminate-cluster/",
+          "note": null
+        },
+        {
+          "text": "If you pause your cluster, predictive auto-scaling requires two consecutive weeks of activity before it can resume.",
+          "source": "https://www.mongodb.com/docs/atlas/cluster-autoscaling-compute-core/",
+          "note": null
+        },
+        {
+          "text": "Predictive auto-scaling applies only to electable and read-only nodes. Atlas doesn't use predictive auto-scaling for search or analytics nodes.",
+          "source": "https://www.mongodb.com/docs/atlas/cluster-autoscaling-compute-core/",
+          "note": "Predictive auto-scaling eligibility"
+        },
+        {
+          "text": "Currently autoscaling is predefined with conditions like scale up: The Average CPU Utilization has exceeded 75% for the past hour. The Memory Utilization has exceeded 75% for the past hour. scale down: The average CPU Utilization and Memory Utilization over the past 24 hours is below 50%. The cluster hasn't been scaled down (manually or automatically) in the past 24 hours.",
+          "source": "https://feedback.mongodb.com/ideas/CUSTOMER-I-9126",
+          "note": "Customer feedback thread, older rules"
+        },
+        {
+          "text": "Cluster tier auto-scaling works on cluster tiers in General and Low-CPU classes, but not on clusters in the Local NVMe SSD class.",
+          "source": "https://www.mongodb.com/docs/atlas/cluster-autoscaling-compute-core/",
+          "note": "Cluster tier auto-scaling eligibility"
+        },
+        {
+          "text": "Atlas hasn't provisioned or unpaused the cluster in the past 24 hours.",
+          "source": "https://www.mongodb.com/docs/atlas/cluster-autoscaling-compute-core/",
+          "note": "Scale-down condition"
+        },
+        {
+          "text": "You must allow a recently resumed cluster to run for at least 60 minutes before pausing the cluster again. This allows the cluster to process all the maintenance jobs that were queued while it was paused.",
+          "source": "https://mongodb.com/docs/atlas/pause-terminate-cluster/",
+          "note": "Pause rule"
+        },
+        {
+          "text": "Scaling down occurs once every six hours and must match specific conditions. To learn more, see Scaling Down a Cluster Tier.",
+          "source": "https://mongodb.com/docs/atlas/architecture/current/cost-saving-config",
+          "note": "Cost-saving page wording"
+        },
+        {
+          "text": "scale down by one tier after 4 hours of underload.",
+          "source": "https://emptysqua.re/blog/mongodb-predictive-scaling-experiment/",
+          "note": "2024 blog; current docs state different thresholds"
+        },
+        {
+          "text": "```text — `- Pausing is available on M10+ dedicated tiers only (not M0/Flex/Serverless/NVMe)` …",
+          "source": "https://oneuptime.com/blog/post/2026-03-31-mongodb-atlas-pause-resume-clusters/markdown#limitations",
+          "note": null
+        },
+        {
+          "text": "Have auto-scaling enabled. If you enable down-scaling, auto-scaling minimum instance size must be equal to or greater than M30.",
+          "source": "https://www.mongodb.com/docs/atlas/cluster-autoscaling-compute-core/",
+          "note": "Predictive auto-scaling eligibility"
+        },
+        {
+          "text": "Atlas hasn't scaled the cluster down (manually or automatically) in the past 24 hours.",
+          "source": "https://www.mongodb.com/docs/atlas/cluster-autoscaling-compute-core/",
+          "note": "Scale-down condition"
+        },
+        {
+          "text": "Atlas hasn't stopped and restarted any cluster nodes in the past 12 hours.",
+          "source": "https://www.mongodb.com/docs/atlas/cluster-autoscaling-compute-core/",
+          "note": "Scale-down condition"
+        },
+        {
+          "text": "The average Normalized System CPU is below 45% of resources available to the cluster over at least the last 10 minutes AND the last 4 hours. Atlas uses the \"4 hours average\" checkpoint as an indication that the CPU load has settled down on the observed level. Atlas uses the \"10 minutes average\" checkpoint as an indication that no recent CPU spikes have occurred that Atlas didn't capture with the \"4 hour average\" checkpoint.",
+          "source": "https://www.mongodb.com/docs/atlas/cluster-autoscaling-compute-core/",
+          "note": "Scale-down condition"
+        },
+        {
+          "text": "For M10 and M20 tiers, Atlas applies the 45% CPU threshold relative to the instance baseline CPU utilization rather than the standard 100% baseline. Using 20% as a lower-end estimate, the effective absolute CPU threshold for scale-down is approximately 9% (45% of 20%).",
+          "source": "https://www.mongodb.com/docs/atlas/cluster-autoscaling-compute-core/",
+          "note": "Scale-down condition, M10 and M20"
+        },
+        {
+          "text": "The average WiredTiger cache usage is below 90% of the maximum WiredTiger cache size for at least the last 10 minutes AND the last 4 hours at the current cluster tier size. This indicates to Atlas that the current cluster isn't overloaded.",
+          "source": "https://www.mongodb.com/docs/atlas/cluster-autoscaling-compute-core/",
+          "note": "Scale-down condition"
+        },
+        {
+          "text": "The Projected Memory Utilization at the new lower cluster tier is below 60% for at least the last 10 minutes AND the last 4 hours.",
+          "source": "https://www.mongodb.com/docs/atlas/cluster-autoscaling-compute-core/",
+          "note": "Scale-down condition"
+        },
+        {
+          "text": "90%: The current tier's WiredTiger cache usage must be below 90% of its maximum size.",
+          "source": "https://www.mongodb.com/docs/atlas/cluster-autoscaling-compute-core/",
+          "note": "Scale-down condition"
+        },
+        {
+          "text": "60%: The Projected Memory Utilization on the new lower tier must be below 60%.",
+          "source": "https://www.mongodb.com/docs/atlas/cluster-autoscaling-compute-core/",
+          "note": "Scale-down condition"
+        },
+        {
+          "text": "The average Normalized System CPU and System Memory Utilization over the past 24 hours is below 50% of resources available to the cluster.",
+          "source": "https://www.mongodb.com/docs/atlas/cluster-autoscaling-compute-core/",
+          "note": "Scale-down condition, analytics nodes"
+        },
+        {
+          "text": "Not use NVMe storage or belong to the Local NVMe SSD cluster class.",
+          "source": "https://www.mongodb.com/docs/atlas/cluster-autoscaling-compute-core/",
+          "note": "Predictive auto-scaling eligibility"
+        },
+        {
+          "text": "Review the Allow cluster to be scaled down option that is checked by default when you create a new cluster in the Atlas UI.",
+          "source": "https://www.mongodb.com/docs/atlas/cluster-autoscaling-compute-core/",
+          "note": null
+        },
+        {
+          "text": "To pause or resume a cluster, you must have Project Cluster Manager access or higher to the project.",
+          "source": "https://mongodb.com/docs/atlas/pause-terminate-cluster/",
+          "note": "Permission needed to pause or resume"
+        },
+        {
+          "text": "You can pause a cluster only if it's healthy. You can see an indication of a cluster's health in the Clusters view in the Atlas UI, and learn more about how cluster health is monitored by reviewing important cluster metrics. You can retry pausing an unhealthy cluster after it returns to a healthy state.",
+          "source": "https://mongodb.com/docs/atlas/pause-terminate-cluster/",
+          "note": "Pause rule"
+        },
+        {
+          "text": "You can pause a cluster only if its disk space usage is lower than 95%. To monitor disk space usage, see Review Cluster Metrics.",
+          "source": "https://mongodb.com/docs/atlas/pause-terminate-cluster/",
+          "note": "Pause rule"
+        },
+        {
+          "text": "Atlas automatically pauses all inactive Free clusters (formerly known as M0) after 30 days.",
+          "source": "https://mongodb.com/docs/atlas/pause-terminate-cluster/",
+          "note": "Free clusters, not dedicated tiers"
+        },
+        {
+          "text": "If you don't resume an M10+ cluster within 30 days, Atlas resumes the cluster.",
+          "source": "https://mongodb.com/docs/atlas/pause-terminate-cluster/",
+          "note": "Pause rule"
+        },
+        {
+          "text": "scale up by one tier after 1 hour of overload,",
+          "source": "https://emptysqua.re/blog/mongodb-predictive-scaling-experiment/",
+          "note": "2024 blog; current docs state different thresholds"
+        },
+        {
+          "text": "Overload is defined as over 75% CPU or RAM utilization, and underload is less than 50% of either. (Details here.) Atlas only scales between adjacent tiers, e.g. if an M60 replica set is underloaded, Atlas will scale it down to M50, but not directly to any tier smaller than that. If the customer’s demand changes dramatically, it takes several scaling operations to reach the optimum server size. This means servers can be overloaded or underloaded for long periods! An underloaded server is a waste of money. An overloaded server is bad for performance, and if it’s really slammed it could interfere",
+          "source": "https://emptysqua.re/blog/mongodb-predictive-scaling-experiment/",
+          "note": "2024 blog; current docs state different thresholds"
+        }
+      ]
+    },
+    {
+      "title": "How-to and procedures",
+      "facts": [
+        {
+          "text": "Right-sizing guidance from MongoDB: if usage stays steadily below 45% of allocated resources over a rolling 30-day period, manually move down a tier. Right-sizing is described as often the single biggest cost lever, and Atlas also recommends M10 or M30 for dev/test.",
+          "source": "https://mongodb.com/docs/atlas/architecture/current/cost-saving-config",
+          "note": null
+        },
+        {
+          "text": "Atlas has no documented native time-of-day tier schedule. MongoDB's cost guidance for dev/test is to run a cron job that pauses clusters overnight by setting the Admin API 'paused' field to true on the Modify One Cluster endpoint, or via the Terraform cluster resource. A third-party walkthrough does this with GitHub Actions cron (resume 08:00 UTC, pause 20:00 UTC on weekdays) calling a PATCH with paused true/false.",
+          "source": "https://mongodb.com/docs/atlas/architecture/current/cost-saving-config",
+          "note": null
+        },
+        {
+          "text": "You can also manually move to a lower cluster tier by regularly monitoring the cluster's CPU, WireTiger cache, memory, and IOPs over a rolling 30 day period of normal use. Generally, if the usage is steadily below 45% of allocated resources, we recommend that you scale down.",
+          "source": "https://mongodb.com/docs/atlas/architecture/current/cost-saving-config",
+          "note": null
+        },
+        {
+          "text": "To trigger predictive auto-scaling, your cluster must maintain continuous activity logs for two weeks. Once it meets this criterion, the system enables predictive auto-scaling.",
+          "source": "https://www.mongodb.com/docs/atlas/cluster-autoscaling-compute-core/",
+          "note": null
+        },
+        {
+          "text": "To optimize resource utilization and improve cost profile, Atlas reactive auto-scaling detects sustained higher demand and short-term peak traffic and adjusts cluster tier based on real-time resource usage.",
+          "source": "https://www.mongodb.com/docs/atlas/cluster-autoscaling-compute-core/",
+          "note": null
+        },
+        {
+          "text": "To pause a cluster with the Atlas Administration API, see Modify One Cluster.",
+          "source": "https://mongodb.com/docs/atlas/pause-terminate-cluster/",
+          "note": null
+        },
+        {
+          "text": "Enable a cron job to pause dev and test clusters during the night when no one actively develops against the cluster. You can pause clusters with the Atlas Administration API by setting the paused field to true when using either of the following methods:",
+          "source": "https://mongodb.com/docs/atlas/architecture/current/cost-saving-config",
+          "note": null
+        },
+        {
+          "text": "To optimize costs, Atlas reactively scales down nodes in your cluster under the conditions described in this section.",
+          "source": "https://www.mongodb.com/docs/atlas/cluster-autoscaling-compute-core/",
+          "note": null
+        },
+        {
+          "text": "To calculate Projected Memory Utilization, Atlas starts with the current memory usage, visible as System Memory: Memory Used (bytes) in Atlas metrics. Atlas subtracts the current WiredTiger cache usage, adds 80% of the maximum WiredTiger cache size on the new lower tier, then divides the result by that tier's total RAM.",
+          "source": "https://www.mongodb.com/docs/atlas/cluster-autoscaling-compute-core/",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Examples and snippets",
+      "facts": [
+        {
+          "text": "```bash — `# Pause a cluster` …",
+          "source": "https://oneuptime.com/blog/post/2026-03-31-mongodb-atlas-pause-resume-clusters/markdown#pausing-a-cluster-with-the-atlas-cli",
+          "note": null
+        },
+        {
+          "text": "```bash — `PUBLIC_KEY=\"your-public-key\"` …",
+          "source": "https://oneuptime.com/blog/post/2026-03-31-mongodb-atlas-pause-resume-clusters/markdown#pausing-via-the-admin-api",
+          "note": null
+        },
+        {
+          "text": "```yaml — `name: Atlas Dev Cluster Schedule` …",
+          "source": "https://oneuptime.com/blog/post/2026-03-31-mongodb-atlas-pause-resume-clusters/markdown#automating-pause-resume-with-github-actions",
+          "note": null
+        },
+        {
+          "text": "atlas clusters pause <clusterName> [options]",
+          "source": "https://mongodb.com/docs/atlas/pause-terminate-cluster/",
+          "note": "Atlas CLI"
+        },
+        {
+          "text": "```bash — `#!/usr/bin/env bash` …",
+          "source": "https://oneuptime.com/blog/post/2026-03-31-mongodb-atlas-pause-resume-clusters/markdown#waiting-for-the-cluster-to-resume",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Measurements and reference values",
+      "facts": [
+        {
+          "text": "The claim that nightly/weekend pausing of dev and staging clusters cuts cost by '60% or more' appears only in a vendor-neutral blog with no calculation. Treat it as an illustrative figure. A 12h weekday window is about 64% of weekly hours, but storage billing continues while paused, so actual savings are lower than compute-only arithmetic.",
+          "source": "https://oneuptime.com/blog/post/2026-03-31-mongodb-atlas-pause-resume-clusters/markdown",
+          "note": null
+        },
+        {
+          "text": "The prototype has a Forecaster, an Estimator and a Planner. In MongoDB's simulation on 2023 data from 10,000 opted-in replica sets, the average replica set would have saved about 9 cents per hour versus the reactive scaler. The planner targets 50-75% CPU. The authors extrapolate millions of dollars a year across Atlas. This is simulated on historical data, not measured in production.",
+          "source": "https://mongodb.com/company/blog/engineering/mongodb-predictive-auto-scaling-an-experiment",
+          "note": "Vendor simulation on 2023 data, not production"
+        },
+        {
+          "text": "With both forecasts and CPU estimates, the Planner can choose the cheapest instance size that we guess can handle the next 15 minutes of customer demand without exceeding 75% CPU. Our experiment showed that this predictive scaler, compared to the reactive scaler in use during the test period, would've stayed closer to the CPU target and reduced over- and under-utilization. For the average replica set it saved 9 cents an hour. That could translate to millions of dollars a year if the predictive scaler were enabled for all MongoDB Atlas users.",
+          "source": "https://mongodb.com/company/blog/engineering/mongodb-predictive-auto-scaling-an-experiment",
+          "note": "Simulation on 2023 data"
+        },
+        {
+          "text": "MongoDB Atlas allows M10+ dedicated clusters to be paused when not in use. A paused cluster stops charging for compute while retaining all data and configuration. Pausing development and staging clusters outside working hours can reduce costs by 60% or more.",
+          "source": "https://oneuptime.com/blog/post/2026-03-31-mongodb-atlas-pause-resume-clusters/markdown#overview",
+          "note": "Illustrative 60% figure; storage billing not mentioned"
+        },
+        {
+          "text": "Atlas only charges paused clusters for storage. Atlas does not charge for any other services or data transfer on paused clusters.",
+          "source": "https://mongodb.com/docs/atlas/pause-terminate-cluster/",
+          "note": "Pause billing rule"
+        },
+        {
+          "text": "The Forecasters and Estimator cooperate to predict each replica set's future CPU on any instance size available. For example, they might predict that 20 minutes in the future, some replica set will use 90% CPU if it's on M40 servers, and 60% CPU if it's on more powerful M50 servers.",
+          "source": "https://mongodb.com/company/blog/engineering/mongodb-predictive-auto-scaling-an-experiment",
+          "note": null
+        },
+        {
+          "text": "Most MongoDB Atlas replica sets have daily seasonality. About 25% have weekly seasonality. Generally, if a replica set has weekly seasonality, it also has daily seasonality. Hourly seasonality is rare, and anyway, it isn't helpful for planning a scaling operation that takes a quarter-hour. Replica sets with sufficient daily/weekly seasonality are predictable by the Long-Term Forecaster.",
+          "source": "https://mongodb.com/company/blog/engineering/mongodb-predictive-auto-scaling-an-experiment",
+          "note": null
+        },
+        {
+          "text": "The Forecasters predict customer demand, but we still need to know whether CPU utilization will be within the target range (50-75%). That's the Estimator's job. The Estimator takes the forecasted demand and an instance size (defined by CPU and memory), and outputs the projected CPU.",
+          "source": "https://mongodb.com/company/blog/engineering/mongodb-predictive-auto-scaling-an-experiment",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Problems, failure modes and limitations",
+      "facts": [
+        {
+          "text": "Pausing side effects relevant to schedule design: Atlas deletes Search Node data and rebuilds the search indexes on resume (search queries are unavailable meanwhile). Backups stop while paused. Maintenance tasks queued during the pause may start immediately on resume and delay availability.",
+          "source": "https://mongodb.com/docs/atlas/pause-terminate-cluster/",
+          "note": null
+        },
+        {
+          "text": "Spiky batch workloads suffer from slow scale-down: a user reported a daily 1.5-hour pipeline that scales M20 to M30 but then stays at M30 for about 22.5 hours before scaling back, and asked for a configurable scale-down window. The request (created Aug 2022, 194 votes) had no staff reply on the page. This is one anecdote, not a measured finding.",
+          "source": "https://feedback.mongodb.com/ideas/CUSTOMER-I-9126",
+          "note": "Single user anecdote"
+        },
+        {
+          "text": "Predictive auto-scaling might not be able to predict non-cyclical and highly dynamic workload spikes in any eligible cluster. In these cases, Atlas relies on reactive auto-scaling.",
+          "source": "https://www.mongodb.com/docs/atlas/cluster-autoscaling-compute-core/",
+          "note": null
+        },
+        {
+          "text": "In cases when Atlas can't use predictive auto-scaling to scale up the cluster, it falls back to using reactive auto-scaling.",
+          "source": "https://www.mongodb.com/docs/atlas/cluster-autoscaling-compute-core/",
+          "note": null
+        },
+        {
+          "text": "I have a set of pipelines i run that take 1 h 30 mins to complete. I run this process once a day. Scale up from M20 to M30 occurs , but then wastes 22.30 hours at M30 before scaling down back. I need the ability to configure the scale down window to much less.",
+          "source": "https://feedback.mongodb.com/ideas/CUSTOMER-I-9126",
+          "note": "Customer feedback thread"
+        },
+        {
+          "text": "Autoscaling with custom conditions to scale up( change 1 hour to adjustable time) or down(change fixed 24 hours to adjustable time)",
+          "source": "https://feedback.mongodb.com/ideas/CUSTOMER-I-9126",
+          "note": "Customer feedback thread"
+        },
+        {
+          "text": "On an Atlas Core cluster, you can't select a minimum cluster tier that is below the current disk configuration of your cluster. If your storage increases beyond what is supported by your minimum cluster tier, and Atlas increases your clusters storage configuration beyond what your minimum cluster tier supports, then Atlas automatically adjusts your minimum cluster tier to a tier that supports the current storage requirements of your cluster.",
+          "source": "https://www.mongodb.com/docs/atlas/cluster-autoscaling-compute-core/",
+          "note": null
+        },
+        {
+          "text": "For each replica set, its history is an input to the Short-Term and Long-Term Forecasters. (We'll explain why we have two Forecasters soon.) The Forecasters must be retrained every few minutes, as new samples arrive. We sampled 25 million points in time from random replica sets in MongoDB Atlas. Each of these samples includes a count of operations per second, an instance size, and the CPU utilization at that moment. We used this to train the Estimator, which can predict the CPU utilization for any amount of customer demand and any instance size. This is a hard problem, since we can't see our c",
+          "source": "https://mongodb.com/company/blog/engineering/mongodb-predictive-auto-scaling-an-experiment",
+          "note": null
+        },
+        {
+          "text": "So we added a \"self-censoring\" mechanism to our prototype: the Long-Term Forecaster scores its own confidence based on its recent accuracy, and only trusts its prediction if its recent error has been small.",
+          "source": "https://mongodb.com/company/blog/engineering/mongodb-predictive-auto-scaling-an-experiment",
+          "note": null
+        },
+        {
+          "text": "So we prototyped a \"Short-Term Forecaster\"; this model uses only the last hour or two of data and does trend interpolation. We compared this to a naïve baseline Forecaster, which assumes the future will look like the last observation, and found that trend interpolation beats the baseline 68% of the time (29% reduction in error).",
+          "source": "https://mongodb.com/company/blog/engineering/mongodb-predictive-auto-scaling-an-experiment",
+          "note": null
+        },
+        {
+          "text": "Using a regression model based on boosted decision trees trained on millions of samples, we've achieved fairly accurate results. For around 45% of replica sets, our error rate is under 7%, allowing us to make precise scaling decisions. For another 42%, the model is somewhat less accurate but useful in extreme cases. We exclude the remaining 13% of replica sets with higher error rates from predictive scaling.",
+          "source": "https://mongodb.com/company/blog/engineering/mongodb-predictive-auto-scaling-an-experiment",
+          "note": null
+        },
+        {
+          "text": "You can't pause Flex clusters. Atlas doesn't automatically pause inactive Flex clusters.",
+          "source": "https://mongodb.com/docs/atlas/pause-terminate-cluster/",
+          "note": null
+        },
+        {
+          "text": "-This 24 hours time for scale down should be made flexible/adjustable to suit customers requirement. -One hour time to scale up should be adjustable to scale up faster. This may need for some critical application.",
+          "source": "https://feedback.mongodb.com/ideas/CUSTOMER-I-9126",
+          "note": "Customer feedback thread"
+        },
+        {
+          "text": "if we consider this to scale up seeing higher load for last 1 hours, why can't this be done for downscale too. Pretty easy.",
+          "source": "https://feedback.mongodb.com/ideas/CUSTOMER-I-9126",
+          "note": "Customer feedback thread"
+        },
+        {
+          "text": "+1 the 24 hour scale down time is way too long to handle applications that experience all their load during business hours, for example.",
+          "source": "https://feedback.mongodb.com/ideas/CUSTOMER-I-9126",
+          "note": "Customer feedback thread"
+        }
+      ]
+    },
+    {
+      "title": "Comparisons and alternatives",
+      "facts": [
+        {
+          "text": "Only seasonal workloads benefit. The long-term forecaster had about 3% connection-forecast error on seasonal clusters versus 50% on non-seasonal ones. Most Atlas replica sets have daily seasonality and about 25% also have weekly seasonality (weekly usually implies daily; hourly seasonality is rare). The estimator excluded 13% of replica sets. A self-censoring check stops the forecaster being trusted when its recent error is high.",
+          "source": "https://mongodb.com/company/blog/engineering/mongodb-predictive-auto-scaling-an-experiment",
+          "note": null
+        },
+        {
+          "text": "Atlas evaluates memory-based scaling using projected memory utilization, which differs from the System Memory Utilization shown in the Atlas UI. If a scale-down does not occur when System Memory Utilization appears low, contact MongoDB Support.",
+          "source": "https://www.mongodb.com/docs/atlas/cluster-autoscaling-compute-core/",
+          "note": null
+        },
+        {
+          "text": "In the two years since, MongoDB has used these results to develop a production-grade predictive auto-scaler. The algorithms are different, and the code is new—the experiment is more of a godparent to the product, rather than its parent. In November 2025, we began rolling it out in MongoDB Atlas. All customers who enabled auto-scaling (about a third) will soon have both predictive and reactive auto-scaling. This first version is conservative, it only uses predictions to scale replica sets up. If load declines, the reactive auto-scaler will scale the replica set back down after a few hours.",
+          "source": "https://mongodb.com/company/blog/engineering/mongodb-predictive-auto-scaling-an-experiment",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Changes and history",
+      "facts": [
+        {
+          "text": "The Nov 2025 product update says rollout began Nov 3 on some existing auto-scaling clusters and would reach all eligible clusters over the following months. The Apr 2026 engineering post says about a third of customers had enabled auto-scaling and would soon get both predictive and reactive scaling.",
+          "source": "https://www.mongodb.com/products/updates/predictive-auto-scaling-for-mongodb-atlas",
+          "note": null
+        },
+        {
+          "text": "How to get started: This functionality began rolling out on November 3rd to some existing auto-scaling clusters and will be available for all eligible clusters in the next few months. No additional setup or configuration is required to utilize this new feature other than enabling auto-scaling for the cluster.",
+          "source": "https://www.mongodb.com/products/updates/predictive-auto-scaling-for-mongodb-atlas",
+          "note": "Product update, 2025-11-19"
+        }
+      ]
+    },
+    {
+      "title": "Facts and statements",
+      "facts": [
+        {
+          "text": "If you create a cluster in Atlas and it's eligible for reactive auto-scaling and eligible for predictive auto-scaling, both predictive and reactive auto-scaling mechanisms are enabled by default for the new cluster if you use the Atlas UI. Atlas then uses auto-scaling mechanisms based on your cluster's type, tier, and workload. If you use the Atlas Administration API, you must explicitly enable auto-scaling.",
+          "source": "https://www.mongodb.com/docs/atlas/cluster-autoscaling-compute-core/",
+          "note": null
+        },
+        {
+          "text": "Scale up to increase capability with a higher cluster tier, using either reactive or predictive auto-scaling, depending on cluster and workload eligibility.",
+          "source": "https://www.mongodb.com/docs/atlas/cluster-autoscaling-compute-core/",
+          "note": null
+        },
+        {
+          "text": "If you use independent shard scaling, and add one or more shards after predictive auto-scaling was already enabled and active on the cluster, these new shards don't auto-scale predictively until their workload patterns have been established, two weeks later. In the meantime, these shards use reactive auto-scaling behavior in Atlas.",
+          "source": "https://www.mongodb.com/docs/atlas/cluster-autoscaling-compute-core/",
+          "note": null
+        },
+        {
+          "text": "Why it matters: Prior to predictive auto-scaling, scale-up events have only been reactive, only being triggered after a spike in demand is observed. Predictive auto-scaling reduces resource constraints and maintains consistent query performance and availability during predictable, cyclical spikes (e.g., daily morning usage, scheduled batch jobs, or seasonal trends). This helps teams to stay ahead of demand by proactively handling dynamic workloads that see large, rapid, and predictable increases in workload.",
+          "source": "https://www.mongodb.com/products/updates/predictive-auto-scaling-for-mongodb-atlas",
+          "note": null
+        },
+        {
+          "text": "In 2023, we prototyped predictive auto-scaling. We wanted to see if it was possible to predict rises and falls in load on MongoDB Atlas replica sets. We researched which machine learning models made the best predictions, and estimated how much a predictive auto-scaler could improve performance and save our customers money. MongoDB has now rolled out predictive auto-scaling. The production version of the algorithm is quite different from the prototype, and so far, it only scales replica sets up before a predicted load spike; we rely on the existing reactive algorithm to scale them down afterwar",
+          "source": "https://mongodb.com/company/blog/engineering/mongodb-predictive-auto-scaling-an-experiment",
+          "note": null
+        },
+        {
+          "text": "In addition, Atlas might use predictive auto-scaling if your cluster is eligible and its workload is cyclical and predictable.",
+          "source": "https://www.mongodb.com/docs/atlas/cluster-autoscaling-compute-core/",
+          "note": null
+        },
+        {
+          "text": "Back in 2023, MongoDB Atlas’s autoscaling was only reactive. The reactive auto-scaling algorithm scales up after a few minutes of overload, or a few hours of underload. It only scales between adjacent tiers; for example, if an M60 replica set is underloaded, Atlas will scale it down to M50, but not directly to any tier smaller than that. If the customer's demand changes dramatically, it takes several scaling operations to reach the optimum server size. This means servers can be overloaded or underloaded for a while. An underloaded server costs the customer more than necessary. An overloaded se",
+          "source": "https://mongodb.com/company/blog/engineering/mongodb-predictive-auto-scaling-an-experiment",
+          "note": null
+        },
+        {
+          "text": "Pause and resume MongoDB Atlas clusters on a schedule to save costs on non-production environments using the Atlas CLI, Admin API, and GitHub Actions.",
+          "source": "https://oneuptime.com/blog/post/2026-03-31-mongodb-atlas-pause-resume-clusters/markdown",
+          "note": null
+        },
+        {
+          "text": "Atlas cluster tier reactive auto-scaling is available for all dedicated Atlas Core cluster tiers under the General and the Low-CPU cluster classes. Reactive auto-scaling is also available for Atlas Infinite clusters.",
+          "source": "https://www.mongodb.com/docs/atlas/cluster-autoscaling-compute-core/",
+          "note": null
+        },
+        {
+          "text": "Atlas uses demand-forecasting for host resource utilization and performs preemptive scaling up of your cluster compute to ensure optimal resource utilization. With predictive auto-scaling, Atlas attempts to scale up your cluster proactively, ahead of cyclical workload spikes.",
+          "source": "https://www.mongodb.com/docs/atlas/cluster-autoscaling-compute-core/",
+          "note": null
+        },
+        {
+          "text": "Predictive auto-scaling applies only to compute, not storage.",
+          "source": "https://www.mongodb.com/docs/atlas/cluster-autoscaling-compute-core/",
+          "note": null
+        },
+        {
+          "text": "Predictive auto-scaling respects existing auto-scaling minimum and maximum instance sizes.",
+          "source": "https://www.mongodb.com/docs/atlas/cluster-autoscaling-compute-core/",
+          "note": null
+        },
+        {
+          "text": "Who it’s for: Customers who enable auto-scaling on their clusters to automatically handle increases and decreases in usage and traffic. This is ideal for users with cyclical or seasonal workloads such as batch jobs or applications with predictable, cyclical high user demand (such as consistent daily or weekly spikes).",
+          "source": "https://www.mongodb.com/products/updates/predictive-auto-scaling-for-mongodb-atlas",
+          "note": null
+        },
+        {
+          "text": "Our experiment showed that predictive auto-scaling could work in MongoDB Atlas, and we learned important facts: only some replica sets are predictable, and short-term trends are often better signals than daily and weekly cycles.",
+          "source": "https://mongodb.com/company/blog/engineering/mongodb-predictive-auto-scaling-an-experiment",
+          "note": null
+        },
+        {
+          "text": "For dedicated clusters, consider scaling down to a lower tier or pausing the cluster if you won't use it for an extended period.",
+          "source": "https://mongodb.com/docs/atlas/architecture/current/cost-saving-config",
+          "note": null
+        },
+        {
+          "text": "If predictive up-scaling is scheduled to happen within the next 1 hour, Atlas skips reactive down-scaling.",
+          "source": "https://www.mongodb.com/docs/atlas/cluster-autoscaling-compute-core/",
+          "note": null
+        },
+        {
+          "text": "Decrease the current cluster tier to a lower cluster tier using reactive auto-scaling.",
+          "source": "https://www.mongodb.com/docs/atlas/cluster-autoscaling-compute-core/",
+          "note": null
+        },
+        {
+          "text": "I can’t tell you a release date. Par for a public blog post, but still disappointing, I know. In this case we honestly need more experiments before we can plan a release. A private beta for a few customers will come soon. Before we can unleash a complex algorithm on our customers’ replica sets we need a lot more confidence in its accuracy, and a lot of safeguards. We’ll always need the reactive auto-scaler to handle unexpected changes in demand. But I’m excited at the prospect of eventually saving a ton of money and electricity with precise and proactive auto-scaling.",
+          "source": "https://emptysqua.re/blog/mongodb-predictive-scaling-experiment/",
+          "note": null
+        },
+        {
+          "text": "In the chart below, the long-term forecaster learns from the previous two weeks of data (left of the vertical dotted red line) and accurately predicts the next few hours (prediction in green on the far right).",
+          "source": "https://mongodb.com/company/blog/engineering/mongodb-predictive-auto-scaling-an-experiment",
+          "note": null
+        },
+        {
+          "text": "But only some replica sets have seasonality! For non-seasonal replica sets, the Long-Term Forecaster's prediction of customer-driven metrics is unusable.",
+          "source": "https://mongodb.com/company/blog/engineering/mongodb-predictive-auto-scaling-an-experiment",
+          "note": null
+        },
+        {
+          "text": "Matthieu and I performed an experiment over the last year to see if predictive scaling was possible in the MongoDB Atlas DBaaS.",
+          "source": "https://emptysqua.re/blog/mongodb-predictive-scaling-experiment/",
+          "note": null
+        },
+        {
+          "text": "What’s next? Matthieu and other MongoDB people are improving the Estimator’s accuracy by adding more customer-driven metrics, and estimating more hardware metrics: not just CPU, but also memory, and perhaps co-modeling CPU and memory to capture interactions between them. We want to investigate the minority of customers with bad estimates and ensure the Estimator works for them too. We’ll try building specialized Estimators for each cloud provider and each MongoDB version. MongoDB can’t see our customers’ data or queries, but we can gather statistics on query shapes—maybe we could use this to i",
+          "source": "https://emptysqua.re/blog/mongodb-predictive-scaling-experiment/",
+          "note": null
+        },
+        {
+          "text": "Atlas includes the WiredTiger cache in this calculation to make it more likely that clusters with a full cache, but otherwise low traffic, scale down. Scaling down requires both of the following thresholds to pass:",
+          "source": "https://www.mongodb.com/docs/atlas/cluster-autoscaling-compute-core/",
+          "note": null
+        },
+        {
+          "text": "These conditions ensure that Atlas scales down operational nodes in your cluster to prevent high utilization states.",
+          "source": "https://www.mongodb.com/docs/atlas/cluster-autoscaling-compute-core/",
+          "note": null
+        },
+        {
+          "text": "Consider terminating unused dev and test clusters after a set amount of time and sufficient email alerts to the cluster owner. You can terminate a cluster with the following methods:",
+          "source": "https://mongodb.com/docs/atlas/architecture/current/cost-saving-config",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Disagreements",
+      "facts": [
+        {
+          "text": "Predictive auto-scaling only triggers scale-up events ahead of forecast cyclical spikes; scale-down is still triggered only by the existing reactive logic, and predictive scaling respects the user's configured min and max cluster tiers. It needs no setup beyond enabling auto-scaling.",
+          "source": "https://www.mongodb.com/products/updates/predictive-auto-scaling-for-mongodb-atlas",
+          "note": null,
+          "group": "c2"
+        },
+        {
+          "text": "Predictive auto-scaling only supports upscaling. There is no predictive down-scaling. Atlas uses reactive auto-scaling to automatically scale down the cluster when the workload decreases.",
+          "source": "https://www.mongodb.com/docs/atlas/cluster-autoscaling-compute-core/",
+          "note": null,
+          "group": "c2"
+        },
+        {
+          "text": "So the Planner’s plan is to use M40 servers until it would be overloaded, then switch to M50 during the peak, then switch back. Notice the replica set should start scaling up 15 minutes before the overload arrives, so the scale-up is complete in time to avoid overload. It starts scaling down as soon as the risk of overload has passed.",
+          "source": "https://emptysqua.re/blog/mongodb-predictive-scaling-experiment/",
+          "note": "Prototype planner; shipped version scales up only",
+          "group": "c2"
+        },
+        {
+          "text": "Reactive scale-down is conservative. Atlas scales down only if the cluster was not scaled, provisioned or unpaused in the past 24 hours and no node restarted in the past 12 hours. Normalized system CPU must be below 45% for at least the last 10 minutes and the last 4 hours. WiredTiger cache must be below 90% and projected memory at the lower tier below 60% over the same windows. Checks start only when down-scaling is enabled, not retroactively. Atlas moves down one tier at a time.",
+          "source": "https://www.mongodb.com/docs/atlas/cluster-autoscaling-compute-core/",
+          "note": null,
+          "group": "c1"
+        },
+        {
+          "text": "Atlas hasn't scaled the cluster down (manually or automatically) in the past 24 hours.",
+          "source": "https://www.mongodb.com/docs/atlas/cluster-autoscaling-compute-core/",
+          "note": "Scale-down condition",
+          "group": "c1"
+        },
+        {
+          "text": "The average Normalized System CPU is below 45% of resources available to the cluster over at least the last 10 minutes AND the last 4 hours. Atlas uses the \"4 hours average\" checkpoint as an indication that the CPU load has settled down on the observed level. Atlas uses the \"10 minutes average\" checkpoint as an indication that no recent CPU spikes have occurred that Atlas didn't capture with the \"4 hour average\" checkpoint.",
+          "source": "https://www.mongodb.com/docs/atlas/cluster-autoscaling-compute-core/",
+          "note": "Scale-down condition",
+          "group": "c1"
+        },
+        {
+          "text": "Scaling down occurs once every six hours and must match specific conditions. To learn more, see Scaling Down a Cluster Tier.",
+          "source": "https://mongodb.com/docs/atlas/architecture/current/cost-saving-config",
+          "note": "Cost-saving page wording",
+          "group": "c1"
+        }
+      ]
+    }
+  ],
+  "related": [
+    {
+      "concept": "auto-scaling",
+      "relation": "is a part of Scheduled and Predictive Scaling for Atlas Cost",
+      "note": null
+    },
+    {
+      "concept": "pause",
+      "relation": "is a part of Scheduled and Predictive Scaling for Atlas Cost",
+      "note": null
+    },
+    {
+      "concept": "reactive scaling",
+      "relation": "is a contrast of Scheduled and Predictive Scaling for Atlas Cost",
+      "note": null
+    },
+    {
+      "concept": "scale-down",
+      "relation": "is a part of Scheduled and Predictive Scaling for Atlas Cost",
+      "note": null
+    },
+    {
+      "concept": "scale-down conditions",
+      "relation": "is a measure of Scheduled and Predictive Scaling for Atlas Cost",
+      "note": null
+    },
+    {
+      "concept": "cost",
+      "relation": "is a related of Scheduled and Predictive Scaling for Atlas Cost",
+      "note": null
+    },
+    {
+      "concept": "eligibility",
+      "relation": "is a problem of Scheduled and Predictive Scaling for Atlas Cost",
+      "note": null
+    },
+    {
+      "concept": "Admin API",
+      "relation": "is a instance of Scheduled and Predictive Scaling for Atlas Cost",
+      "note": null
+    },
+    {
+      "concept": "paused clusters storage",
+      "relation": "is a measure of Scheduled and Predictive Scaling for Atlas Cost",
+      "note": null
+    },
+    {
+      "concept": "min/max cluster tier",
+      "relation": "is a part of Scheduled and Predictive Scaling for Atlas Cost",
+      "note": null
+    },
+    {
+      "concept": "dev/test",
+      "relation": "is a related of Scheduled and Predictive Scaling for Atlas Cost",
+      "note": null
+    },
+    {
+      "concept": "savings",
+      "relation": "is a measure of Scheduled and Predictive Scaling for Atlas Cost",
+      "note": null
+    },
+    {
+      "concept": "right-sizing",
+      "relation": "is a near-synonym of Scheduled and Predictive Scaling for Atlas Cost",
+      "note": null
+    },
+    {
+      "concept": "spiky batch workloads",
+      "relation": "is a instance of Scheduled and Predictive Scaling for Atlas Cost",
+      "note": null
+    },
+    {
+      "concept": "Atlas Infinite",
+      "relation": "is a contrast of Scheduled and Predictive Scaling for Atlas Cost",
+      "note": null
+    }
+  ]
+}

@@ -1,0 +1,420 @@
+{
+  "slug": "multi-region-and-cross-cloud-data-transfer-costs",
+  "concept": "Multi-Region and Cross-Cloud Data Transfer Costs",
+  "generated": "2026-10-19",
+  "summary": "Atlas passes cloud-provider data transfer charges through to customers, tabulated daily by provider and by the regions of the source and destination nodes, and the MongoDB on AWS pricing page lists $0.01/GB same region, $0.02/GB cross-region and $0.09/GB internet. For most customers transfer is under 10% of the bill, multi-region clusters can cost more depending on the added regions, queries from on-premises, across cloud providers or between continents cost the most, and replication and heartbeat traffic is billed on the Same Region line. Drawn from 5 source pages (Atlas docs, the MongoDB on AWS pricing page, a 2020 forum thread, an AWS NLB billing notice, a 2019 blog) across measures, mechanism, how-to, problems and comparisons; two disagreements are listed.",
+  "facets": [
+    {
+      "title": "Definitions",
+      "facts": [
+        {
+          "text": "The \" Atlas AWS Data Transfer (Same Region) \" is for data transfers and traffic between cluster nodes and data transferred between an application located in the same region as your cluster.",
+          "source": "https://www.mongodb.com/community/forums/t/aws-atlas-data-transfer-usage/553",
+          "note": null
+        },
+        {
+          "text": "Atlas tabulates data transfer costs daily. Pricing varies by cloud provider and by the region of the source and destination nodes. This page describes sources of data transfer costs, pricing by provider, and strategies to reduce costs.",
+          "source": "https://mongodb.com/docs/atlas/billing/data-transfer-costs",
+          "note": null
+        },
+        {
+          "text": "Atlas charges for data transfer between your Atlas node and another node.",
+          "source": "https://mongodb.com/docs/atlas/billing/data-transfer-costs",
+          "note": null
+        },
+        {
+          "text": "Backup type and schedule also affects data transfer. Please refer to this documentation.",
+          "source": "https://www.mongodb.com/community/forums/t/aws-atlas-data-transfer-usage/553",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Structure and components",
+      "facts": [
+        {
+          "text": "These charges will be included in invoices as part of the existing \"Atlas AWS Data Transfer (Same Region)\" SKU line item. Therefore, you can expect the charges for this line item to increase.",
+          "source": "https://intercom-help.mongodb.com/en/articles/11100710-mongodb-atlas-billing-changes-due-to-aws-updates",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "How it works",
+      "facts": [
+        {
+          "text": "This issue specifically impacts the use of the cross-zone Network Load Balancer (NLB) feature when the NLB and the target are in different availability zones (AZ). AWS intends for data sent between the NLB (AZ 1) and the target (AZ 2) to incur data transfer (DT) charges. This is charged at $0.01/GB for ingress and egress data at both the source and the destination. Due to a previous under-metering issue, AWS has not been charging for DT on the NLB (where applicable). Specifically, AWS had been correctly charging for DT on the target. However, the NLB portion of the DTAZ was not being charged.",
+          "source": "https://intercom-help.mongodb.com/en/articles/11100710-mongodb-atlas-billing-changes-due-to-aws-updates",
+          "note": null
+        },
+        {
+          "text": "Recently, AWS identified an issue with intra-regional data transfer metering when using the cross zone Network Load Balancer (NLB) feature, which resulted in AWS under-charging for data transfer usage when using the cross zone NLB feature. MongoDB Atlas deploys cross-zone NLBs for our private endpoint service (AWS PrivateLink).",
+          "source": "https://intercom-help.mongodb.com/en/articles/11100710-mongodb-atlas-billing-changes-due-to-aws-updates",
+          "note": null
+        },
+        {
+          "text": "AWS will begin correctly billing for this usage from May 1, 2025. This update may result in a change to your Atlas bill. This is because MongoDB passes through cloud provider data transfer costs. AWS has stated that they will not retroactively charge for the underbilled usage.",
+          "source": "https://intercom-help.mongodb.com/en/articles/11100710-mongodb-atlas-billing-changes-due-to-aws-updates",
+          "note": null
+        },
+        {
+          "text": "The traffic between the nodes in your Atlas cluster includes heartbeats and data replication between nodes.",
+          "source": "https://www.mongodb.com/community/forums/t/aws-atlas-data-transfer-usage/553",
+          "note": null
+        },
+        {
+          "text": "The heartbeats occur regularly whenever the cluster is running, but are small in size. Replication involves propagating changes (writes, deletions, index builds, etc.) from the Primary to the Secondaries.",
+          "source": "https://www.mongodb.com/community/forums/t/aws-atlas-data-transfer-usage/553",
+          "note": null
+        },
+        {
+          "text": "All replica set members exchange heartbeats with each other. Any driver that connects will also communicate to each member to maintain correct state of the replica set. That’s before any writes come to the server. Any write will be replicated to each of the secondaries.",
+          "source": "https://www.mongodb.com/community/forums/t/aws-atlas-data-transfer-usage/553",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "How-to and procedures",
+      "facts": [
+        {
+          "text": "Documented mitigations: use the 'nearest' read preference for cross-region reads, send cross-region writes from the Highest Priority Region, keep clients in the cluster's region and provider, project only needed fields, and enable driver network compression. Atlas already compresses intra-cluster traffic.",
+          "source": "https://mongodb.com/docs/atlas/billing/data-transfer-costs",
+          "note": null
+        },
+        {
+          "text": "MongoDB recommends reviewing this document on best practices to optimize and reduce data transfer cost. In many cases, taking advantage of things like enabling network compression can reduce the amount of data transferred.",
+          "source": "https://intercom-help.mongodb.com/en/articles/11100710-mongodb-atlas-billing-changes-due-to-aws-updates",
+          "note": null
+        },
+        {
+          "text": "Enable network compression in your client driver to compress data between the client and the server. As an example, you can configure the network compression option for your Node.js driver. Atlas always compresses intra-cluster communication. To learn more, see the Driver's Documentation.",
+          "source": "https://mongodb.com/docs/atlas/billing/data-transfer-costs",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Measurements and reference values",
+      "facts": [
+        {
+          "text": "Traffic between cluster nodes (replication of writes, deletes and index builds, plus heartbeats) and traffic between an app in the same region and the cluster is billed on the 'Atlas AWS Data Transfer (Same Region)' line. A MongoDB employee estimated heartbeats at about 6.2 to 6.8 GB/day per replica set, roughly $0.06 to $0.07/day, in a 2020 thread.",
+          "source": "https://www.mongodb.com/community/forums/t/aws-atlas-data-transfer-usage/553",
+          "note": null
+        },
+        {
+          "text": "MongoDB's AWS pricing page lists Atlas data transfer at $0.01/GB same region, $0.02/GB cross-region and $0.09/GB internet. M0, M2 and M5 are exempt. The page gives no date for these rates, while its instance pricing says January 2022.",
+          "source": "https://mongodb.com/mongodb-on-aws/pricing",
+          "note": null
+        },
+        {
+          "text": "MongoDB states that data transfer is under 10% of the bill for most Atlas customers, depending on usage patterns. This is a general statement, not a guarantee for a multi-region or cross-cloud topology.",
+          "source": "https://mongodb.com/mongodb-on-aws/pricing",
+          "note": null
+        },
+        {
+          "text": "MongoDB on AWS pricing page, data transfer fees (Transfer path, Price): Same region $0.01/GB; Cross-region $0.02/GB; Internet $0.09/GB.",
+          "source": "https://mongodb.com/mongodb-on-aws/pricing#data-transfer-fees",
+          "note": null
+        },
+        {
+          "text": "That last “$0.01/GB in each direction” is the misleading bit. Effectively, cross-AZ data transfer in AWS costs 2¢ per gigabyte and each gigabyte transferred counts as 2GB on the bill: once for sending and once for receiving.",
+          "source": "https://www.lastweekinaws.com/blog/aws-cross-az-data-transfer-costs-more-than-aws-says",
+          "note": null
+        },
+        {
+          "text": "02/12/20 Atlas AWS Data Transfer (Same Region) (N. Virginia) 7.477 GB",
+          "source": "https://www.mongodb.com/community/forums/t/aws-atlas-data-transfer-usage/553",
+          "note": "72-hour sample, about 2.5 GB/day"
+        },
+        {
+          "text": "For most Atlas customers, data transfer fees amount to less than 10% of their bill, but depend on your specific usage patterns. Note: Data transfer fees are not assessed on M0, M2, and M5 instances.",
+          "source": "https://mongodb.com/mongodb-on-aws/pricing",
+          "note": null
+        },
+        {
+          "text": "The bulk of the data transfer usage (>99%) is for the ‘Same Region’.",
+          "source": "https://www.mongodb.com/community/forums/t/aws-atlas-data-transfer-usage/553",
+          "note": null
+        },
+        {
+          "text": "The vast majority of Atlas customers spend less than 10% of their budget on data transfer. If you are spending significantly more, some of these optimizations may reduce your data transfer costs:",
+          "source": "https://mongodb.com/docs/atlas/billing/data-transfer-costs",
+          "note": null
+        },
+        {
+          "text": "The vast majority of Atlas customers spend less than 10% of their budget on data transfer.",
+          "source": "https://www.mongodb.com/community/forums/t/aws-atlas-data-transfer-usage/553",
+          "note": null
+        },
+        {
+          "text": "Hi Aasish, a typical MongoDB replica set in MongoDB Atlas will push approximately 6.2 to 6.8 GB per day in the form of the heartbeats between replicas that Asya mentioned (which in turn do cost $0.06 to $0.07 per day in in-region data transfer).",
+          "source": "https://www.mongodb.com/community/forums/t/aws-atlas-data-transfer-usage/553",
+          "note": "Staff estimate, 2020 thread"
+        },
+        {
+          "text": "I have about 50KB of application data in an atlas cluster. However, the daily AWS data transfer is a few GB every day. How do I figure out why a few KiloBytes is resulting in a few GigaBytes of data transfer every single day ?",
+          "source": "https://www.mongodb.com/community/forums/t/aws-atlas-data-transfer-usage/553",
+          "note": null
+        },
+        {
+          "text": "The reason I received was the intercommunication between your nodes which make up your cluster. They are in ‘constant’ contact with each other. Plus Atlas provides monitoring of your cluster which also required data transfer. At the end of the month I believe it was around 2% of the total bill.",
+          "source": "https://www.mongodb.com/community/forums/t/aws-atlas-data-transfer-usage/553",
+          "note": null
+        },
+        {
+          "text": "The following morning, my bill yielded the answers: I was charged exactly 20¢ for 20GB of data transfer in us-west-2.",
+          "source": "https://www.lastweekinaws.com/blog/aws-cross-az-data-transfer-costs-more-than-aws-says",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Problems, failure modes and limitations",
+      "facts": [
+        {
+          "text": "AWS fixed under-metering of cross-zone NLB data transfer on 2025-05-01. Atlas uses cross-zone NLBs for its AWS PrivateLink endpoint service. MongoDB covered the cost through 2025-05-15, then expected invoices to rise about 1.0% on average, on the 'Atlas AWS Data Transfer (Same Region)' line.",
+          "source": "https://intercom-help.mongodb.com/en/articles/11100710-mongodb-atlas-billing-changes-due-to-aws-updates",
+          "note": null
+        },
+        {
+          "text": "Log export to external services routes through the Atlas control plane in AWS us-east-1 regardless of cluster region or provider. A cluster outside us-east-1 pays cross-region or inter-cloud charges on top of internet egress.",
+          "source": "https://mongodb.com/docs/atlas/billing/data-transfer-costs",
+          "note": null
+        },
+        {
+          "text": "Export Logs to External Services routes log traffic through the Atlas control plane in AWS us-east-1, regardless of your cluster's region or cloud provider. If your cluster is not in AWS us-east-1, you incur cross-region or inter-cloud data transfer charges in addition to Internet egress costs.",
+          "source": "https://mongodb.com/docs/atlas/billing/data-transfer-costs",
+          "note": null
+        },
+        {
+          "text": "Push Logs to AWS S3 exports logs directly from the data node to an S3 bucket in the cluster's region. Standard Internet egress costs apply.",
+          "source": "https://mongodb.com/docs/atlas/billing/data-transfer-costs",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Comparisons and alternatives",
+      "facts": [
+        {
+          "text": "Raw AWS billing: cross-AZ transfer is billed $0.01/GB in each direction, so about $0.02/GB effective. A 2019 test of US inter-region transfer (Virginia to Oregon) billed only the sender, about $0.02/GB. That test found inter-region the same per-GB cost as cross-AZ, not double as the pricing table implied.",
+          "source": "https://www.lastweekinaws.com/blog/aws-cross-az-data-transfer-costs-more-than-aws-says",
+          "note": null
+        },
+        {
+          "text": "This table clearly suggests that data transfer is twice as much between regions as it is between different availability zones. (Data still wants to get the hell out of Ohio.)",
+          "source": "https://www.lastweekinaws.com/blog/aws-cross-az-data-transfer-costs-more-than-aws-says",
+          "note": "2019 AWS pricing table, as read by the blog"
+        },
+        {
+          "text": "As for the inter-region experiment, the results show I was billed 20¢ on the sending side and nothing on the receiving side, which is exactly what you would expect per the documentation.",
+          "source": "https://www.lastweekinaws.com/blog/aws-cross-az-data-transfer-costs-more-than-aws-says",
+          "note": "2019 blog experiment, sender-only billing"
+        }
+      ]
+    },
+    {
+      "title": "Facts and statements",
+      "facts": [
+        {
+          "text": "Multi-region clusters can incur higher data transfer costs depending on the number and location of added regions. Atlas compresses intra-cluster communication. The data transfer page does not say whether same-region or cross-AZ replication traffic is billed.",
+          "source": "https://www.mongodb.com/docs/atlas/billing/data-transfer-costs",
+          "note": "Replica-set view of the same page"
+        },
+        {
+          "text": "Atlas data transfer cost depends on the cloud provider hosting the cluster. The docs rank paths from lowest to highest cost, and name queries from on-premises into Atlas, traffic across cloud providers, and traffic between continents on one provider as the highest-cost paths.",
+          "source": "https://mongodb.com/docs/atlas/billing/data-transfer-costs",
+          "note": null
+        },
+        {
+          "text": "Atlas does not charge for incoming data transfer to a cluster, and the Atlas Live Migration Service is free.",
+          "source": "https://mongodb.com/docs/atlas/billing/data-transfer-costs",
+          "note": null
+        },
+        {
+          "text": "Multi-region clusters might have higher data transfer costs, depending on the number and location of additional regions and the number of clusters per region. The docs give no formula or worked example.",
+          "source": "https://mongodb.com/docs/atlas/billing/data-transfer-costs",
+          "note": null
+        },
+        {
+          "text": "Queries from on-premises environments into Atlas, across cloud providers, or between continents on the same cloud provider incur the greatest data transfer costs.",
+          "source": "https://mongodb.com/docs/atlas/billing/data-transfer-costs",
+          "note": null
+        },
+        {
+          "text": "Data transferred “in” to and “out” from … across Availability Zones … in the same AWS Region is charged at $0.01/GB in each direction.",
+          "source": "https://www.lastweekinaws.com/blog/aws-cross-az-data-transfer-costs-more-than-aws-says",
+          "note": null
+        },
+        {
+          "text": "Multi-region clusters might have higher data transfer costs depending on the number and location of additional regions, as well as the number of clusters deployed to each region.",
+          "source": "https://mongodb.com/docs/atlas/billing/data-transfer-costs",
+          "note": null
+        },
+        {
+          "text": "MongoDB hosts and operates the free Atlas Live Migration Service to help you migrate existing MongoDB databases to MongoDB Atlas. MongoDB doesn't charge for any incoming data transfers to an Atlas cluster. Learn more about migrating to Atlas.",
+          "source": "https://mongodb.com/docs/atlas/billing/data-transfer-costs",
+          "note": null
+        },
+        {
+          "text": "While application traffic drives the majority of your costs, essential platform operations contribute small amounts of additional data transfer to your aggregate billing. These background processes ensure the health, security, and performance of your deployment.",
+          "source": "https://mongodb.com/docs/atlas/billing/data-transfer-costs",
+          "note": null
+        },
+        {
+          "text": "Starting May 15, 2025, you may notice a slight increase on your Atlas organizations's monthly invoices. This reflects corrected charges for AWS NLB data transfer.",
+          "source": "https://intercom-help.mongodb.com/en/articles/11100710-mongodb-atlas-billing-changes-due-to-aws-updates",
+          "note": null
+        },
+        {
+          "text": "In summary, AWS’s data transfer pricing documentation has thus been misunderstood for a long period of time–and the cheapest data transfer in all of AWS is between Virginia and Ohio.",
+          "source": "https://www.lastweekinaws.com/blog/aws-cross-az-data-transfer-costs-more-than-aws-says",
+          "note": null
+        },
+        {
+          "text": "MongoDB Atlas offers a perpetual free tier and usage-based pricing for as little as $9/mo for a shared instance or $60/mo dedicated. You’re only charged per instance hour actually running and a flat rate for data transfer, so changing configurations is no big deal.",
+          "source": "https://mongodb.com/mongodb-on-aws/pricing",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Disagreements",
+      "facts": [
+        {
+          "text": "Raw AWS billing: cross-AZ transfer is billed $0.01/GB in each direction, so about $0.02/GB effective. A 2019 test of US inter-region transfer (Virginia to Oregon) billed only the sender, about $0.02/GB. That test found inter-region the same per-GB cost as cross-AZ, not double as the pricing table implied.",
+          "source": "https://www.lastweekinaws.com/blog/aws-cross-az-data-transfer-costs-more-than-aws-says",
+          "note": null,
+          "group": "c1"
+        },
+        {
+          "text": "This table clearly suggests that data transfer is twice as much between regions as it is between different availability zones. (Data still wants to get the hell out of Ohio.)",
+          "source": "https://www.lastweekinaws.com/blog/aws-cross-az-data-transfer-costs-more-than-aws-says",
+          "note": "2019 AWS pricing table, as read by the blog",
+          "group": "c1"
+        },
+        {
+          "text": "As for the inter-region experiment, the results show I was billed 20¢ on the sending side and nothing on the receiving side, which is exactly what you would expect per the documentation.",
+          "source": "https://www.lastweekinaws.com/blog/aws-cross-az-data-transfer-costs-more-than-aws-says",
+          "note": "2019 blog experiment, sender-only billing",
+          "group": "c1"
+        },
+        {
+          "text": "02/12/20 Atlas AWS Data Transfer (Same Region) (N. Virginia) 7.477 GB",
+          "source": "https://www.mongodb.com/community/forums/t/aws-atlas-data-transfer-usage/553",
+          "note": "72-hour sample, about 2.5 GB/day",
+          "group": "c2"
+        },
+        {
+          "text": "Hi Aasish, a typical MongoDB replica set in MongoDB Atlas will push approximately 6.2 to 6.8 GB per day in the form of the heartbeats between replicas that Asya mentioned (which in turn do cost $0.06 to $0.07 per day in in-region data transfer).",
+          "source": "https://www.mongodb.com/community/forums/t/aws-atlas-data-transfer-usage/553",
+          "note": "Staff estimate, 2020 thread",
+          "group": "c2"
+        }
+      ]
+    }
+  ],
+  "related": [
+    {
+      "concept": "cross-cloud",
+      "relation": "is a part of Multi-Region and Cross-Cloud Data Transfer Costs",
+      "note": null
+    },
+    {
+      "concept": "same-region",
+      "relation": "is a part of Multi-Region and Cross-Cloud Data Transfer Costs",
+      "note": null
+    },
+    {
+      "concept": "replication traffic",
+      "relation": "is a part of Multi-Region and Cross-Cloud Data Transfer Costs",
+      "note": null
+    },
+    {
+      "concept": "cross-region",
+      "relation": "is a part of Multi-Region and Cross-Cloud Data Transfer Costs",
+      "note": null
+    },
+    {
+      "concept": "cross-AZ",
+      "relation": "is a part of Multi-Region and Cross-Cloud Data Transfer Costs",
+      "note": null
+    },
+    {
+      "concept": "per-GB rate",
+      "relation": "is a measure of Multi-Region and Cross-Cloud Data Transfer Costs",
+      "note": null
+    },
+    {
+      "concept": "Atlas AWS Data Transfer (Same Region)",
+      "relation": "is a instance of Multi-Region and Cross-Cloud Data Transfer Costs",
+      "note": null
+    },
+    {
+      "concept": "10% of the bill",
+      "relation": "is a measure of Multi-Region and Cross-Cloud Data Transfer Costs",
+      "note": null
+    },
+    {
+      "concept": "private endpoint",
+      "relation": "is a part of Multi-Region and Cross-Cloud Data Transfer Costs",
+      "note": null
+    },
+    {
+      "concept": "sender-only billing",
+      "relation": "is a measure of Multi-Region and Cross-Cloud Data Transfer Costs",
+      "note": null
+    },
+    {
+      "concept": "internet egress",
+      "relation": "is a part of Multi-Region and Cross-Cloud Data Transfer Costs",
+      "note": null
+    },
+    {
+      "concept": "driver compression",
+      "relation": "is a dependent of Multi-Region and Cross-Cloud Data Transfer Costs",
+      "note": null
+    },
+    {
+      "concept": "log export",
+      "relation": "is a problem of Multi-Region and Cross-Cloud Data Transfer Costs",
+      "note": null
+    },
+    {
+      "concept": "AWS NLB metering fix",
+      "relation": "is a problem of Multi-Region and Cross-Cloud Data Transfer Costs",
+      "note": null
+    },
+    {
+      "concept": "incoming data transfer",
+      "relation": "is a problem of Multi-Region and Cross-Cloud Data Transfer Costs",
+      "note": null
+    },
+    {
+      "concept": "on-premises",
+      "relation": "is a part of Multi-Region and Cross-Cloud Data Transfer Costs",
+      "note": null
+    },
+    {
+      "concept": "between continents",
+      "relation": "is a part of Multi-Region and Cross-Cloud Data Transfer Costs",
+      "note": null
+    },
+    {
+      "concept": "M0, M2 and M5",
+      "relation": "is a measure of Multi-Region and Cross-Cloud Data Transfer Costs",
+      "note": null
+    },
+    {
+      "concept": "read preference",
+      "relation": "is a dependent of Multi-Region and Cross-Cloud Data Transfer Costs",
+      "note": null
+    },
+    {
+      "concept": "Highest Priority Region",
+      "relation": "is a dependent of Multi-Region and Cross-Cloud Data Transfer Costs",
+      "note": null
+    }
+  ]
+}

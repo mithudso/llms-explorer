@@ -1,5 +1,21 @@
 # Prompts Log
 
+## Prompt v64 - 2026-10-20
+
+> Make sure that all concept runs update the website in ~/dev/llms-explorer, also do an audit of the current concept trees, the llms files, and other research and what shows up on the website and make sure the website is up to speed with the latest.
+>
+> And then start researching the concepts in /Users/mitch.hudson/.global-ai-hub/concept-tree/RESEARCH_QUEUE_RANKED.md in groups of concepts that have likely common sources and make sure the /dr /cfe and /rabbithole skills use the research library that shares sources among common concepts.
+
+Scope: TASK-737 and TASK-739. Audit and refresh published concept content, make completion automatic, preserve private source snapshots and existing research, then start bounded ranked cohorts with source reuse. Delta: memory 0.22.52 to 0.22.53; site 0.0.13 to 0.0.14; prompt v63 to v64.
+
+## Prompt v63 - 2026-10-20
+
+> Set the default mode of the /dr skill that codex uses to luna max, and make sure that a scout process runs that looks for deeper sources and if found to do a 2nd run.
+>
+> Make sure that any /dr run updates the ~/.global-ai-hub/ skill tree, and the skill tree in ~/dev/llms-explorer, and create the llms files
+
+Scope: TASK-734. Set Codex research defaults and scout-triggered follow-up. Make successful completion generate the five llms text files and merge both local concept trees. Preserve source URLs and existing concepts. Keep changes reproducible through the backed-up skill generator.
+
 ## Prompt v62 - 2026-10-10
 
 > signed in
@@ -818,3 +834,28 @@ Outcome: checked-out detection across website jobs, /dr runs, explorer batches a
 > Run the full-suite skill on mongodb cost optimization
 
 Outcome: `/full-suite` run — scout (mongodb.com and docs llms.txt found), CFE plan (33 rows, 23 researched in 4 cohorts), round 1 (68 harvested, 6 researched as cohort E), rounds 2–3 empty, two blind gates (4 corroborated gaps researched as cohort F; 5 more queued), 33 packs + family rollup, trees synced, hub audited. Verdict SATURATION-DISSENT. Report: `docs/research/mongodb-cost-optimization-full-suite-2026-10-19/README.md`.
+
+## Prompt — 2026-10-22
+
+> Implement all six research-system improvements in the submitted order.
+
+Tracking: exact gate binding, marginal information, stage recovery, wider benchmark,
+source provenance, canonical public/private projections. Ordered progress lives in
+`docs/research/research-system-hardening-2026-10-22/README.md`.
+
+## Prompt — 2026-10-22 continuation
+
+> continue
+
+Resume the saved ranked research plan. Preserve completed discovery, resolve
+claim-bound gate dissent against primary evidence and keep both trees, llms packs
+and generated website outputs current after each successful cohort.
+
+Outcome: cohort 23 completed after source-reviewed corrections and a fresh
+38-claim bound gate. Both roots and website outputs were verified, and the same
+plan started cohort 24. Diagnostic follow-up: PR 217.
+
+
+## Prompt — 2026-10-22 Cloudflare build repair
+
+The user restored Wrangler login and supplied a fine-grained GitHub key for private library access. Diagnose the Pages failure, configure encrypted credentials and verify the build while preserving private repositories.

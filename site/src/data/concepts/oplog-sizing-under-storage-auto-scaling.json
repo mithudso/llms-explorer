@@ -1,0 +1,374 @@
+{
+  "slug": "oplog-sizing-under-storage-auto-scaling",
+  "concept": "Oplog sizing under storage auto-scaling",
+  "generated": "2026-10-20",
+  "summary": "Source-anchored research for Oplog sizing under storage auto-scaling. Run status: COMPLETED.",
+  "facets": [
+    {
+      "title": "Definitions",
+      "facts": [
+        {
+          "text": "The oplog is a capped collection, but it can grow past its configured size to avoid deleting the majority commit point. Treat oplogSizeMB and the replSetResizeOplog size as targets, not hard caps. (high confidence)",
+          "source": "https://www.mongodb.com/docs/manual/core/replica-set-oplog/",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Structure and components",
+      "facts": [
+        {
+          "text": "With a minimum retention period (storage.oplogMinRetentionHours, --oplogMinRetentionHours, or minRetentionHours in replSetResizeOplog), mongod removes an entry only when the oplog has reached its maximum size and the entry is older than the configured hours on the host wall clock. A value of 0 means size-only truncation. To honor the window the oplog can grow without constraint, which may reduce or exhaust disk under high write volume and a long window. Clock drift between cluster components can skew retention. (high confidence)",
+          "source": "https://www.mongodb.com/docs/manual/reference/command/replSetResizeOplog/",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "How it works",
+      "facts": [
+        {
+          "text": "A mongod with `oplogMinRetentionHours` removes an oplog entry only when the oplog has reached its maximum size and the entry is older than the configured hours. Because of this, the oplog can grow without constraint to keep entries for the configured hours, and MongoDB warns this may reduce or exhaust disk space under high write volume with a large retention period. Separately, the oplog can exceed its configured size to avoid deleting the majority commit point. Alibaba Cloud's docs describe the same effect: high write rates can make the oplog grow well beyond `oplogSizeMB`. (high confidence)",
+          "source": "https://www.mongodb.com/docs/manual/reference/configuration-options/",
+          "note": null
+        },
+        {
+          "text": "On an Atlas Core cluster, Atlas delays an auto-scaling event until the oplog window covers the estimated scaling time. Atlas raises an alert when auto-scaling does not start for this reason, for example `Auto-scaling: Disk auto-scaling didn't initiate due to insufficient oplog size`, `Auto-scaling: Compute auto-scaling didn't initiate for base tier due to insufficient oplog size` and `Auto-scaling: Predictive auto-scaling did not initiate for base tier due to insufficient oplog size`. The documented fix is to set the minimum oplog window. (high confidence) (verified as of 2026-10-14)",
+          "source": "https://www.mongodb.com/docs/atlas/cluster-autoscaling/",
+          "note": null
+        },
+        {
+          "text": "A burst of high-speed writes, such as a bulk insert or a migration, can outrun Atlas auto-scaling, because scaling needs time to prepare and copy data to new disks. Atlas says auto-scaling might not occur during such a burst, and that during migrations or other high-volume bulk writes the cluster might not hold the configured minimum oplog window. Atlas advises scaling up in advance of bulk inserts. (high confidence) (verified as of 2026-10-14)",
+          "source": "https://www.mongodb.com/docs/atlas/cluster-autoscaling-storage/",
+          "note": null
+        },
+        {
+          "text": "Sources converge on a 24-hour baseline for the oplog window. Atlas defaults the minimum oplog window to 24 hours. Alibaba Cloud says to keep the window at 24 hours or longer. Percona's PMM advisor warns when the window is below 24 hours and recommends 24 to 48 hours. MongoDB's operations checklist says the window should cover normal maintenance and downtime windows and the time to restore a member from the last backup. (high confidence) (verified as of 2026-10-14)",
+          "source": "https://www.mongodb.com/docs/atlas/customize-storage/",
+          "note": null
+        },
+        {
+          "text": "A fixed-size oplog avoids disk surprises but risks a window that is too short. A retention-hours oplog protects the window but can consume the disk. A Percona forum poster says `oplogMinRetentionHours` is 'only safe when automatic volume expansion is enabled', otherwise very bursty workloads 'would quickly result in disk-full errors'. Atlas couples the two: the Set Minimum Oplog Window procedure starts by verifying that storage auto-scaling is enabled, and Atlas offers a fixed oplog size only if you opt out of auto-scaling. MongoDB's own docs warn that a large retention period with high write volume may exhaust disk space. (high confidence) (verified as of 2026-10-14)",
+          "source": "https://forums.percona.com/t/feature-proposal-oplog-management/40411",
+          "note": null
+        },
+        {
+          "text": "Reducing the oplog size does not return disk space. To reclaim it on a self-managed member, run `compact` against `local.oplog.rs` in a maintenance window: `compact` blocks all operations on that database and stops oplog synchronization, and the MongoDB tutorial says to step the primary down and compact the former primary as a secondary. After the oplog has grown past its maximum under `oplogMinRetentionHours`, the mongod may keep holding that disk space even when the oplog returns to its maximum size. Atlas says not to shrink the oplog to free disk space, because only `local.oplog.rs` benefits. (high confidence)",
+          "source": "https://www.mongodb.com/docs/manual/reference/command/replSetResizeOplog/",
+          "note": null
+        },
+        {
+          "text": "On the Percona Operator for MongoDB, a configuration snippet placed in `replsets.configuration` makes mongod create the oplog at the requested size only when the oplog is first created (the forum poster's description). The MongoDB docs confirm that mongod ignores a changed `replication.oplogSizeMB` once the oplog exists. So editing the custom resource or growing the PVC does not resize an existing oplog; use `replSetResizeOplog` on each member. The poster adds that a replaced node or a physical restore can leave a member with a different oplog size. (medium confidence) (verified as of 2026-03-30)",
+          "source": "https://forums.percona.com/t/feature-proposal-oplog-management/40411",
+          "note": null
+        },
+        {
+          "text": "On Atlas Core, the oplog gates auto-scaling: Atlas delays an auto-scaling event until the oplog window covers the estimated scaling time. When the oplog is too small, Atlas raises these alerts: 'Disk auto-scaling didn't initiate due to insufficient oplog size', 'Compute auto-scaling didn't initiate for base tier (or analytics tier) due to insufficient oplog size', and 'Predictive auto-scaling did not initiate for base tier due to insufficient oplog size'. The documented remedy is to set the Minimum Oplog Window. (high confidence) (verified as of 2026-10-14)",
+          "source": "https://www.mongodb.com/docs/atlas/cluster-autoscaling/",
+          "note": null
+        },
+        {
+          "text": "Burst loads can push the Atlas Replication Oplog Window under its alert threshold: a user whose mongoimport upserted 290k records twice a day saw the window fall below 1 hour. A responder saw no harm in a larger oplog beyond extra disk use and suggested tuning flow control. (low confidence)",
+          "source": "https://www.mongodb.com/community/forums/t/mongoimport-causing-oplog-window-alert-should-i-increase-size/223248",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "How-to and procedures",
+      "facts": [
+        {
+          "text": "To read the current oplog state on a member: `db.getSiblingDB(\"local\").oplog.rs.stats(1024*1024).maxSize` returns the maximum oplog size in MB; `rs.printReplicationInfo()` shows the oplog size and time range; `db.getReplicationInfo().timeDiff` returns the oplog window in seconds (on a sharded cluster, take the smallest value across shards); `serverStatus` reports `oplogTruncation.oplogMinRetentionHours`. (high confidence)",
+          "source": "https://www.mongodb.com/docs/manual/reference/command/replSetResizeOplog/",
+          "note": null
+        },
+        {
+          "text": "To reclaim disk on Atlas after reducing the oplog, a 2022 forum answer says: run compact on each secondary, use Test failover to step the primary down, then compact the former primary. MongoDB's manual says not to compact the primary and to schedule compact in a maintenance window because it blocks oplog sync; Atlas says only the oplog collection benefits from the reclaimed space. (medium confidence)",
+          "source": "https://www.mongodb.com/community/forums/t/mongodb-atlas-compact-oplog-rs/178227",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Measurements and reference values",
+      "facts": [
+        {
+          "text": "On self-managed MongoDB, the mongod process sizes the oplog once, when a member first creates it. With WiredTiger on Unix and Windows the default is 5% of free disk space, with a 990 MB minimum and a 50 GB maximum (192 MB on 64-bit macOS). After the oplog exists, changing `replication.oplogSizeMB` has no effect. The MongoDB docs describe no mechanism that grows the oplog when the disk or volume grows; only `replSetResizeOplog` changes the size. (high confidence)",
+          "source": "https://www.mongodb.com/docs/manual/core/replica-set-oplog/",
+          "note": null
+        },
+        {
+          "text": "`replSetResizeOplog` works only on WiredTiger and in-memory members. It changes the maximum oplog size (minimum 990 MB, maximum 1 PB) and, optionally, `minRetentionHours`, without a restart. It does not replicate, so run it on every replica set member; the MongoDB procedure resizes the secondaries first and the primary last. The command is not supported on Atlas clusters. (high confidence)",
+          "source": "https://www.mongodb.com/docs/manual/reference/command/replSetResizeOplog/",
+          "note": null
+        },
+        {
+          "text": "When Atlas rescales a user-set oplog after a storage change, it holds the oplog at 5% of storage (10% for NVMe) on scale-up, up to a best-practice maximum. On scale-down it keeps the previous oplog-to-disk ratio: scaling 100 GB to 50 GB with a 25 GB oplog (ratio 0.25) gives 12.5 GB. If the result would fall below 5% of storage (10% for NVMe), Atlas uses 5% (10%) instead. Only the Atlas storage page states these rules. (low confidence) (verified as of 2026-10-18)",
+          "source": "https://www.mongodb.com/docs/atlas/customize-storage/",
+          "note": null
+        },
+        {
+          "text": "Atlas Core storage auto-scaling starts when disk space used reaches 90% on any node. On AWS, Azure and GCP it raises capacity to reach 70% used. It scales storage up only; you reduce storage manually from the Edit Cluster page. After a disk auto-scaling event, further auto-scaling and manual disk scaling may be unavailable for a few hours. (high confidence) (verified as of 2026-10-18)",
+          "source": "https://www.mongodb.com/docs/atlas/cluster-autoscaling-storage/",
+          "note": null
+        },
+        {
+          "text": "If a storage auto-scale needs more capacity than the current cluster tier supports, Atlas raises the cluster tier too, even when cluster tier scaling is disabled. Example from the Atlas docs: an M30 at its 480 GB maximum that must grow to 600 GB moves to M40. Atlas enforces minimum disk-to-RAM ratios of 60:1 for M10 to M40 and 120:1 above M40. (medium confidence) (verified as of 2026-10-18)",
+          "source": "https://www.mongodb.com/docs/atlas/cluster-autoscaling-storage/",
+          "note": null
+        },
+        {
+          "text": "Initial sync and migration tools put extra oplog data on the destination disk. The MongoDB operations checklist says a member restored by initial sync needs enough disk space in its `local` database to hold the oplog records pulled during the data copy; the oplog window does not need to cover the copy. The mongosync docs give an example: migrating 10 GB of data needs 10 GB for the data plus another 10 GB for the insert oplog entries from the initial sync. (medium confidence)",
+          "source": "https://www.mongodb.com/docs/manual/administration/production-checklist-operations/",
+          "note": null
+        },
+        {
+          "text": "Community report (MongoDB forum, January 2023): a user enabled Atlas auto-scaling while syncing about 2 GB of data. Within 24 hours the cluster grew from about 2 GB to about 130 GB; `datasize` was 1662 MB and `fsUsedSize` was 131,548 MB. The user found the oplog at 170 GB although it was, in the user's words, configured for a 990 MB maximum. The user then ran `atlas clusters advancedSettings update Cluster0 --oplogSizeMB 2500` and `atlas clusters advancedSettings update Cluster0 --oplogMinRetentionHours 0.25`, followed by `db.runCommand({ compact: \"oplog.rs\", \"force\": true })`, and the oplog began purging. The report is unverified and predates the current Atlas docs. (low confidence)",
+          "source": "https://www.mongodb.com/community/forums/t/huge-database-usage-with-auto-scaling-enabled/209954",
+          "note": null
+        },
+        {
+          "text": "Alibaba Cloud ApsaraDB for MongoDB sets the default oplog size at 10% of total disk space (a 500 GB disk gives a 50 GB oplog) and states that the oplog scales automatically when you increase disk space. Changing `replication.oplogSizeMB` or `storage.oplogMinRetentionHours` in the console takes effect immediately without a restart. The default `oplogMinRetentionHours` is 0. (low confidence) (verified as of 2026-10-20)",
+          "source": "https://help.aliyun.com/en/mongodb/use-cases/best-practices-and-risks-for-oplog-settings",
+          "note": null
+        },
+        {
+          "text": "On self-managed MongoDB with WiredTiger, mongod creates the oplog once, when a replica set member first starts. The default size is 5% of free disk space, with a 990 MB floor and a 50 GB cap. Changing replication.oplogSizeMB later does not resize an existing oplog; only replSetResizeOplog does, with no restart. Because the size is fixed at creation, later disk growth does not enlarge the oplog (this follows from the docs; no page states it in those words). (high confidence)",
+          "source": "https://www.mongodb.com/docs/manual/core/replica-set-oplog/",
+          "note": null
+        },
+        {
+          "text": "If storage auto-scaling is off and you set no oplog size, Atlas sizes the oplog at 5% of disk when the cluster is created (General and Low-CPU) or 10% (NVMe). On EBS (non-NVMe) dedicated clusters Atlas scales the oplog to match the new disk size when storage changes. On NVMe clusters the oplog is tied to instance size, and Atlas re-syncs it when the cluster tier changes. (medium confidence) (verified as of 2026-10-14)",
+          "source": "https://www.mongodb.com/docs/atlas/customize-storage/",
+          "note": null
+        },
+        {
+          "text": "With a custom oplog size, Atlas scales the oplog up as storage grows so it stays at 5% of capacity (10% on NVMe), capped at a best-practice maximum. When storage shrinks, Atlas keeps the earlier oplog-to-disk ratio (100 GB to 50 GB with a 25 GB oplog gives 12.5 GB) but never goes below 5% (10% NVMe). With auto-scaling on, a storage decrease also scales the oplog down to fit the smaller disk. (medium confidence) (verified as of 2026-10-14)",
+          "source": "https://www.mongodb.com/docs/atlas/customize-storage/",
+          "note": null
+        },
+        {
+          "text": "Atlas Core storage auto-scaling is on by default. It triggers when disk space used reaches 90% on any node, targets 70% used on AWS, Azure and GCP, and only scales up. After it triggers, further auto-scaling and manual disk scaling may be unavailable for a few hours. Separately, Atlas blocks writes when free space drops below 4% of disk (disks of 20 GiB to 1.25 TiB), below 600 MiB (8 to 20 GiB), or below 50 GiB (1.25 TiB and up). On a 20 GiB to 1.25 TiB disk that leaves about 6 percentage points between the scale trigger and the write block (derived from the two pages). (medium confidence) (verified as of 2026-10-20)",
+          "source": "https://www.mongodb.com/docs/atlas/cluster-autoscaling-storage/",
+          "note": null
+        },
+        {
+          "text": "Size from the workload. Percona's PMM advisor warns when the window is under 24 hours and recommends 24 to 48 hours (oplog size = rate in GB/hour x 24 or x 48). Alibaba ApsaraDB advises at least 24 hours and a window long enough to cover an initial sync copy. MongoDB's manual calls the default enough for many workloads (a 5%-of-free-disk oplog that fills in 24 hours lets a secondary stay offline up to 24 hours). Atlas defaults to a 24-hour minimum window. (medium confidence)",
+          "source": "https://docs.percona.com/percona-monitoring-and-management/3/advisors/checks/mongodb-oplog-sizing.html",
+          "note": null
+        },
+        {
+          "text": "Alibaba Cloud ApsaraDB for MongoDB uses a different model: the default oplog is 10% of total disk space, it scales automatically when you increase disk space, and replication.oplogSizeMB is editable in the console without a restart. The same page warns that high write rates can push the oplog well beyond oplogSizeMB. (low confidence) (verified as of 2026-10-20)",
+          "source": "https://help.aliyun.com/en/mongodb/use-cases/best-practices-and-risks-for-oplog-settings",
+          "note": null
+        },
+        {
+          "text": "With config-managed or operator-managed fleets, editing oplogSizeMB in the config file or a Kubernetes custom resource does not resize an existing oplog. Run replSetResizeOplog on each member (secondaries first), then update the config value so the size also survives restarts. In a Percona Operator 1.15.0 report the custom resource held oplogSizeMB: 15360 while rs.printReplicationInfo() showed about 5064 MB. (medium confidence)",
+          "source": "https://forums.percona.com/t/mongod-configuration/29286",
+          "note": null
+        },
+        {
+          "text": "A long minimum retention plus bursty writes can balloon the oplog and, with auto-scaling on, the disk. Two Atlas users reported this in 2022-2023: an M10 with a 10 GB disk auto-scaled to 14 GB because local.oplog.rs consumed the storage, and another cluster holding about 2 GB of data auto-scaled to about 130 GB of disk with the oplog reported at 170 GB despite a 990 MB configured maximum. Both are user reports, not confirmed by MongoDB staff; the documented retention rule is consistent with them. (medium confidence)",
+          "source": "https://www.mongodb.com/community/forums/t/mongodb-atlas-compact-oplog-rs/178227",
+          "note": null
+        },
+        {
+          "text": "A February 2023 forum report: after auto-scaling from M10 to M30 an Atlas user's oplog window kept shrinking (about 3 days before, with 34 GB free after) and the oplog size looked unchanged. The thread got no resolution. Current Atlas docs describe retention-window management when storage auto-scaling is on, so check whether the cluster opted out of auto-scaling or set a custom oplog size. (low confidence)",
+          "source": "https://www.mongodb.com/community/forums/t/oplog-window-best-practice-value/215225",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Problems, failure modes and limitations",
+      "facts": [
+        {
+          "text": "Atlas allows a fixed oplog size (`oplogSizeMB`, under Set Oplog Size) only after you opt out of storage auto-scaling and set the minimum oplog window to 0. The minimum is 990 MB. Atlas returns an error if the chosen size would leave less than 25% of the disk free. The value is the uncompressed oplog size, not the size on disk, and on sharded clusters it applies to each shard. Atlas does not support `replSetResizeOplog`. (high confidence) (verified as of 2026-10-14)",
+          "source": "https://www.mongodb.com/docs/atlas/cluster-additional-settings/",
+          "note": null
+        },
+        {
+          "text": "With Atlas storage auto-scaling turned off and no oplog size set, Atlas creates the oplog at 5% of disk size for General and Low-CPU clusters and at 10% for NVMe clusters. On dedicated EBS (non-NVMe) clusters, Atlas rescales the oplog to match a new disk size. On NVMe clusters, the oplog size follows the instance size, because NVMe storage cannot be resized independently. (medium confidence) (verified as of 2026-10-14)",
+          "source": "https://www.mongodb.com/docs/atlas/customize-storage/",
+          "note": null
+        },
+        {
+          "text": "On AWS, Atlas can make at most 4 modifications per EBS volume in any rolling 24-hour period, and AWS usually takes about six hours to apply an increase (6 hours per TB for volumes over 1 TB). If another increase arrives inside that cooldown, Atlas provisions new volumes and syncs data from the old ones. A storage decrease always uses new volumes plus a data sync, with downtime on each node in turn. These rules apply when auto-scaling changes capacity. Percona's write-up on Kubernetes storage autoscaling makes the same point: EBS volumes can be resized once every six hours, so ingestion faster than the resize step makes the resize fail. (medium confidence) (verified as of 2026-10-18)",
+          "source": "https://www.mongodb.com/docs/atlas/customize-storage/",
+          "note": null
+        },
+        {
+          "text": "Reducing the oplog size or the minimum retention period truncates the oldest oplog entries. MongoDB lists the consequences: open change streams may be invalidated, secondaries that have not replicated the truncated entries may need resynchronization, and `mongodump --oplog` backups may miss entries from before the truncation. `replSetResizeOplog` also holds an exclusive lock on the oplog while it runs. On Atlas, entries removed by an oplog reduction cannot be accessed or restored. (high confidence)",
+          "source": "https://www.mongodb.com/docs/manual/reference/command/replSetResizeOplog/",
+          "note": null
+        },
+        {
+          "text": "A member that has fallen off the oplog shows these signs. Atlas logs of secondary or unhealthy nodes contain `We are too stale to use <node>:27017 as a sync source.` The node stays in STARTUP2 or RECOVERING for a long time and needs an initial sync. Alibaba Cloud describes the same state as RECOVERING with a 'too stale to catch up' error. A secondary can catch up by replication only if its connection is restored within the oplog window. (high confidence)",
+          "source": "https://www.mongodb.com/docs/atlas/reference/alert-resolutions/replication-oplog/",
+          "note": null
+        },
+        {
+          "text": "The Atlas Kubernetes Operator's AtlasDeployment resource exposes `oplogMinRetentionHours` and `oplogSizeMB`; a null value means the cluster uses the default that Atlas calculates. The same documentation says the maximum memory allowed for the selected cluster tier and the oplog size can limit storage auto-scaling. (medium confidence) (verified as of 2026-10-14)",
+          "source": "https://www.mongodb.com/docs/atlas/operator/current/atlasdeployment-custom-resource/",
+          "note": null
+        },
+        {
+          "text": "Scope note for Atlas Infinite: storage grows with data, there is no storage auto-scaling to configure, and Atlas blocks writes at the maximum storage you set. You cannot set the oplog size on an Atlas Infinite cluster. The storage layer handles replication, so a node cannot fall behind the oplog window. The `local.oplog.rs` collection serves change streams and some internal functions, counts toward stored data and storage cost, and the minimum oplog retention window does not affect auto-scaling. (high confidence) (verified as of 2026-10-14)",
+          "source": "https://www.mongodb.com/docs/atlas/infinite/atlas-infinite-architecture/",
+          "note": null
+        },
+        {
+          "text": "On Atlas, a fixed oplog size (Set Oplog Size, replication.oplogSizeMB) can be set only after you opt out of storage auto-scaling and set Minimum Oplog Window to 0. The minimum is 990 MB, the value is the uncompressed oplog size, and Atlas returns an error if the size would leave less than 25% of disk free. The replSetResizeOplog command is not supported on Atlas. (high confidence) (verified as of 2026-10-14)",
+          "source": "https://www.mongodb.com/docs/atlas/cluster-additional-settings/",
+          "note": null
+        },
+        {
+          "text": "The Atlas storage page says that for storage auto-scaling to complete, the minimum oplog retention window (oplogMinRetentionHours) must be up to '(60 seconds) * (GB of disk space configured)'. The unit pairing is unclear as written: read literally, the limit falls below the 24-hour default on any disk smaller than 1,440 GB. (low confidence) (verified as of 2026-10-18)",
+          "source": "https://www.mongodb.com/docs/atlas/customize-storage/",
+          "note": null
+        },
+        {
+          "text": "The oplog window is the time between the newest and oldest oplog timestamps. It depends on oplog size and write rate, and a secondary that is disconnected longer than the window cannot catch up by replication. To size an oplog, multiply the peak oplog write rate (GB per hour) by the target number of hours. (high confidence)",
+          "source": "https://www.mongodb.com/docs/manual/core/replica-set-oplog/",
+          "note": null
+        },
+        {
+          "text": "Do not shrink the oplog to free disk for data: only local.oplog.rs can use the space. Shrinking the oplog or its retention truncates the oldest entries, which can invalidate open change streams, force secondaries to resync, and leave mongodump --oplog backups missing entries; Atlas cannot recover entries removed by a reduction. (high confidence)",
+          "source": "https://www.mongodb.com/docs/atlas/cluster-additional-settings/",
+          "note": null
+        },
+        {
+          "text": "A secondary that fell off the oplog shows 'We are too stale to use <node>:27017 as a sync source.' in Atlas logs, or sits in STARTUP2/RECOVERING for a long time, and needs an initial sync. Alibaba's page describes the same failure (a 'too stale to catch up' error and RECOVERING). Atlas fixes: raise the oplog above the peak Oplog GB/Hour, add storage first if there is not enough free space to resize, and use majority write concern to slow the primary. (high confidence)",
+          "source": "https://www.mongodb.com/docs/atlas/reference/alert-resolutions/replication-oplog/",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Comparisons and alternatives",
+      "facts": [
+        {
+          "text": "On an Atlas Core cluster, storage auto-scaling is on by default. While it is on, Atlas manages the oplog by the minimum oplog retention window (`oplogMinRetentionHours`, 24 hours by default) rather than by a fixed size. The mongod keeps every entry for at least that window and until the oplog reaches the largest size that MongoDB best practice permits. (high confidence) (verified as of 2026-10-14)",
+          "source": "https://www.mongodb.com/docs/atlas/customize-storage/",
+          "note": null
+        },
+        {
+          "text": "A Percona forum poster (2026-03-27) believes the Percona Operator for MongoDB does not do oplog management. A reply on 2026-03-30 says it is not sure this should be handled automatically, suggests a Jira feature request, and suggests `oplogMinRetentionHours` instead of a fixed size in MB. The poster adds that `oplogMinRetentionHours` does not automatically replicate to new or replaced replicas. (low confidence) (verified as of 2026-03-30)",
+          "source": "https://forums.percona.com/t/feature-proposal-oplog-management/40411",
+          "note": null
+        },
+        {
+          "text": "Community report (MongoDB forum, February 2023): after Atlas auto-scaled a cluster from M10 to M30, the replication oplog window kept shrinking instead of growing. Before scaling the window was about 3 days. The poster had 34 GB free, wrote about 90 MB/h (about 2 GB/day), and believed the oplog was still at its initial default size. No reply explained the behavior. The thread predates the current Atlas docs. (low confidence)",
+          "source": "https://www.mongodb.com/community/forums/t/oplog-window-best-practice-value/215225",
+          "note": null
+        },
+        {
+          "text": "On Atlas Infinite (public preview), the oplog collection local.oplog.rs does not serve replication, because the storage layer replicates. It serves change streams and some internal functions, counts toward stored data and storage cost, and is retained for at least 24 hours by default. You cannot set the oplog size, the minimum oplog window does not affect auto-scaling, and storage grows with data rather than auto-scaling. (high confidence) (verified as of 2026-10-14)",
+          "source": "https://www.mongodb.com/docs/atlas/infinite/atlas-infinite-architecture/",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Facts and statements",
+      "facts": [
+        {
+          "text": "The Atlas storage page states this rule for auto-scaling to succeed: 'Atlas requires the minimum oplog retention window (oplogMinRetentionHours) to be up to (60 seconds) * (GB of disk space configured).' The page does not define the units and does not say whether the rule is a floor or a cap. (low confidence) (verified as of 2026-10-18)",
+          "source": "https://www.mongodb.com/docs/atlas/customize-storage/",
+          "note": null
+        },
+        {
+          "text": "Atlas exposes three oplog metrics: `Oplog GB/Hour` (average uncompressed oplog data the primary generates per hour), `Replication Oplog Window` (estimated hours of operations in the primary's oplog, based on oplog churn) and `Replication Headroom` (oplog window minus secondary replication lag; Atlas Core only). Atlas has alerts named `Replication Oplog Window is (X)` and `Oplog Data Per Hour is (X)`. If replication lag exceeds the oplog window and headroom reaches zero, the secondary needs a full resync. (high confidence) (verified as of 2026-10-14)",
+          "source": "https://www.mongodb.com/docs/atlas/review-available-metrics/",
+          "note": null
+        },
+        {
+          "text": "Three independent sources size the oplog from the write rate and a target window, not from disk size. Atlas says to set the oplog above the peak `Oplog GB/Hour` value. Percona's PMM advisor gives `oplog_size = Oplog rate (GB/Hr) * 24` for a 24-hour window (multiply by 48 for 48 hours). Alibaba Cloud says to estimate the generation rate as oplog size divided by oplog window. (high confidence)",
+          "source": "https://www.mongodb.com/docs/atlas/reference/alert-resolutions/replication-oplog/",
+          "note": null
+        },
+        {
+          "text": "Some workloads fill the oplog without growing disk use. The MongoDB manual lists multi-document updates (each is rewritten as individual operations to stay idempotent), deletes that match inserts in volume, and many in-place updates. Alibaba Cloud lists batch updates, frequent inserts and deletes, and repeated in-place updates to the same documents. (high confidence)",
+          "source": "https://www.mongodb.com/docs/manual/core/replica-set-oplog/",
+          "note": null
+        },
+        {
+          "text": "During a mongosync migration, compare the oplog window (`db.getReplicationInfo().timeDiff`, smallest value across shards) with `lag.overallLagSeconds` from the mongosync `/progress` command. If the lag approaches the window, raise the window with `replSetResizeOplog` `minRetentionHours` (self-managed) or by setting the minimum oplog window (Atlas), or scale up the mongosync node. If unapplied operations roll off the source oplog, the sync fails and mongosync exits. Atlas also suggests a fixed oplog size for live migration and intensive data loads. (medium confidence) (verified as of 2026-10-14)",
+          "source": "https://www.mongodb.com/docs/mongosync/current/reference/oplog-sizing/",
+          "note": null
+        },
+        {
+          "text": "In a Percona Operator cluster, new or recreated PVCs are bootstrapped from the volume request in the immutable StatefulSet, not from the latest resized size. Percona's guidance is to set the autoresizer annotations on those PVCs so they grow enough for replication to proceed. (low confidence)",
+          "source": "https://www.percona.com/blog/storage-autoscaling-with-percona-operator-for-mongodb/",
+          "note": null
+        },
+        {
+          "text": "On an Atlas Core cluster with storage auto-scaling on (the default), Atlas manages oplog entries by the minimum oplog retention window (oplogMinRetentionHours), not by a size you choose. The default window is 24 hours: mongod keeps every entry at least that long, and beyond that until the oplog reaches the maximum size MongoDB best practices permit. The Atlas UI setting Set Minimum Oplog Window maps to storage.oplogMinRetentionHours on each mongod. (high confidence) (verified as of 2026-10-14)",
+          "source": "https://www.mongodb.com/docs/atlas/customize-storage/",
+          "note": null
+        },
+        {
+          "text": "Resize a self-managed member with db.adminCommand({replSetResizeOplog: 1, size: Double(16000)}) (size in MB; minimum 990, maximum 1 PB). The command takes an exclusive lock on the oplog, and it does not replicate: run it on every member, secondaries first, primary last. Read the current maximum with db.getSiblingDB('local').oplog.rs.stats(1024*1024).maxSize and the retention with db.getSiblingDB('admin').serverStatus().oplogTruncation.oplogMinRetentionHours. (high confidence)",
+          "source": "https://www.mongodb.com/docs/manual/reference/command/replSetResizeOplog/",
+          "note": null
+        },
+        {
+          "text": "Shrinking the oplog does not return disk space immediately. Run compact on local.oplog.rs in a maintenance window. compact blocks oplog synchronization on that member, and MongoDB says not to run it on the primary: step the primary down first. compact gives no benefit after you increase the oplog size. (high confidence)",
+          "source": "https://www.mongodb.com/docs/manual/tutorial/change-oplog-size/",
+          "note": null
+        },
+        {
+          "text": "On Atlas, set oplog values in the cluster Additional Settings (Set Minimum Oplog Window, Set Oplog Size) or with the Atlas CLI: atlas clusters advancedSettings update <cluster> --oplogMinRetentionHours <float> --oplogSizeMB <int> (M10+ clusters only). To see the current oplog size and replication lag on Atlas, run rs.printReplicationInfo() in mongosh as an Atlas admin. A 2023 user report used the two CLI flags to shrink an oversized oplog after the UI setting seemed to do nothing. (medium confidence) (verified as of 2026-10-14)",
+          "source": "https://www.mongodb.com/docs/atlas/cli/current/command/atlas-clusters-advancedSettings-update/",
+          "note": null
+        },
+        {
+          "text": "Atlas charts the oplog as Oplog GB/Hour, Replication Oplog Window, Replication Lag and Replication Headroom. Two alert conditions cover it: 'Replication Oplog Window is (X)' (time left in the primary's oplog at the current write rate) and 'Oplog Data Per Hour is (X)'. Atlas tells you to size the oplog above the peak value on the Oplog GB / Hour chart. (high confidence)",
+          "source": "https://www.mongodb.com/docs/atlas/reference/alert-resolutions/replication-oplog/",
+          "note": null
+        },
+        {
+          "text": "A MongoDB community answer (February 2023, poster role not shown on the page) suggests an oplog window that covers a weekend and any planned maintenance window. (low confidence)",
+          "source": "https://www.mongodb.com/community/forums/t/oplog-window-best-practice-value/215225",
+          "note": null
+        },
+        {
+          "text": "Keep the oplog window longer than your longest storage-change operation. On AWS, the first disk increase modifies volumes in place, but a later increase inside the cooldown (6 hours for volumes under 1 TB, 6 hours per TB above) provisions new volumes and syncs data, and every decrease does so with downtime on each node. Atlas Core delays an auto-scaling event until the oplog window covers the estimated scaling time. (medium confidence) (verified as of 2026-10-18)",
+          "source": "https://www.mongodb.com/docs/atlas/customize-storage/",
+          "note": null
+        },
+        {
+          "text": "Oplog volume follows operations, not data size. MongoDB lists three workloads that need a larger oplog without much disk growth: multi-document updates (each becomes individual idempotent operations), deletes roughly equal to inserts, and many in-place updates. A storage auto-scale event is therefore a poor proxy for oplog need; track Oplog GB/Hour instead (an inference from the two pages). (medium confidence)",
+          "source": "https://www.mongodb.com/docs/manual/core/replica-set-oplog/",
+          "note": null
+        },
+        {
+          "text": "Atlas default pattern: leave storage auto-scaling on and tune the oplog in hours with Minimum Oplog Window, not in MB, so the oplog follows write volume and disk. For live migration or an intensive data load where a fixed oplog helps, Atlas documents this sequence: opt out of storage auto-scaling, set Minimum Oplog Window to 0, then set Oplog Size in MB (raise it if the lag time shown in the Atlas UI during migration approaches the replication lag from rs.printReplicationInfo()). (medium confidence) (verified as of 2026-10-14)",
+          "source": "https://www.mongodb.com/docs/atlas/cluster-additional-settings/",
+          "note": null
+        },
+        {
+          "text": "A minimum retention set at runtime with replSetResizeOplog does not survive a restart unless storage.oplogMinRetentionHours (or --oplogMinRetentionHours) is updated too; MongoDB's docs tell you to update the config to persist it. SERVER-122046 reports that the size is written to the catalog while the time value stays in memory; MongoDB closed the ticket as Won't Do on 2026-04-16, so no fix was made. (high confidence) (verified as of 2026-04-16)",
+          "source": "https://jira.mongodb.org/browse/SERVER-122046",
+          "note": null
+        },
+        {
+          "text": "Do not rely on auto-scaling to absorb a bulk load. Atlas says automatic scaling might not occur during a burst such as a bulk insert, and that in high-volume bulk writes such as migrations the cluster might not hold the configured minimum oplog window. Scale storage and set the window before the load. (high confidence) (verified as of 2026-10-14)",
+          "source": "https://www.mongodb.com/docs/atlas/cluster-autoscaling-storage/",
+          "note": null
+        },
+        {
+          "text": "Do not run replSetResizeOplog on Atlas. MongoDB's reference lists the command as unsupported on Atlas and points to Set Minimum Oplog Window; Atlas's Set Oplog Size section says the same. A March 2026 third-party post (OneUptime) shows replSetResizeOplog with minRetentionHours: 24 on Atlas without citing Atlas documentation. (high confidence)",
+          "source": "https://www.mongodb.com/docs/manual/reference/command/replSetResizeOplog/",
+          "note": null
+        },
+        {
+          "text": "In the same 2022 thread the user observed that the Disk Usage figure feeding the Atlas storage autoscaler followed the primary's size; after compacting the primary the user could reduce the disk. This is one user's observation, not documented behavior. (low confidence)",
+          "source": "https://www.mongodb.com/community/forums/t/mongodb-atlas-compact-oplog-rs/178227",
+          "note": null
+        }
+      ]
+    }
+  ],
+  "related": []
+}

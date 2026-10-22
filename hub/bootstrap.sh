@@ -26,6 +26,16 @@ case "${1:-}" in
   *) echo "usage: sh hub/bootstrap.sh [--all-tests|--no-tests]" >&2; exit 2 ;;
 esac
 
+# GitHub Actions supplies Git credentials separately. Pages supplies this scoped
+# secret; askpass keeps it out of clone URLs, command arguments and Git config.
+if [ -n "${LIBS_READ_TOKEN:-}" ]; then
+  export GIT_ASKPASS="$HERE/scripts/git_askpass.py"
+  export GIT_TERMINAL_PROMPT=0
+elif [ "${CF_PAGES:-}" = 1 ]; then
+  echo "Cloudflare Pages requires LIBS_READ_TOKEN with Contents read access to ollama-client and llms-txt in both preview and production." >&2
+  exit 1
+fi
+
 [ -d .venv ] || python3 -m venv .venv
 .venv/bin/python -m pip install -q --upgrade pip
 # requirements-dev.txt carries the test toolchain plus mcp and pyyaml, so no

@@ -1,0 +1,429 @@
+{
+  "slug": "shard-key-design-and-resharding-as-cost-levers",
+  "concept": "Shard Key Design and Resharding as Cost Levers",
+  "generated": "2026-10-20",
+  "summary": "Source-anchored research for Shard Key Design and Resharding as Cost Levers. Run status: COMPLETED.",
+  "facets": [
+    {
+      "title": "Definitions",
+      "facts": [
+        {
+          "text": "On Atlas, each shard is a replica set, so a sharded cluster's data-bearing nodes equal the replication factor times the shard count, and every added shard adds one full replica set to the bill. Atlas also runs three config servers billed at a separate rate that the cluster tier and storage choices do not change, and the limits page fixes the config server tier at M30. (high confidence) (verified as of 2026-10-14)",
+          "source": "https://www.mongodb.com/docs/atlas/billing/cluster-configuration-costs/",
+          "note": null
+        },
+        {
+          "text": "Scatter-gather is not always waste. MongoDB says aggregations over large data can use it to run in parallel on all shards, and multi-shard reads over large data can lower latency. Netdata frames the problem as frequency: OLTP lookups that omit the shard key, not reporting or cross-shard aggregation. (high confidence)",
+          "source": "https://www.mongodb.com/docs/manual/core/sharding-choose-a-shard-key/",
+          "note": null
+        },
+        {
+          "text": "Resharding fails if _id values are not globally unique, and duplicate _id values can also block chunk migration. Copy the data of each duplicate into a new document, then delete the duplicates. (low confidence)",
+          "source": "https://www.mongodb.com/docs/manual/core/sharding-reshard-a-collection/",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Structure and components",
+      "facts": [
+        {
+          "text": "mongos targets one shard, or a subset, only when the filter contains the shard key or a prefix of a compound shard key. Otherwise it broadcasts to all shards (scatter-gather), waits for every response and merges the results. MongoDB says queries that involve multiple shards per request do not scale linearly as shards are added, and on clusters with many shards they perform significantly worse than single-shard queries. (high confidence)",
+          "source": "https://www.mongodb.com/docs/manual/core/sharded-cluster-query-router/",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "How it works",
+      "facts": [
+        {
+          "text": "Atlas limits how far per-shard sizing can follow a skewed shard key. The smallest shard must stay within two tiers of the largest, and Atlas scales smaller shards up when the largest one scales. Every shard must keep the same storage capacity and the same electable, read-only and analytics node counts. Inference from those rules: a shard key that leaves one shard much fuller or hotter than the rest still raises the cost of the other shards. (medium confidence) (verified as of 2026-10-19)",
+          "source": "https://www.mongodb.com/docs/atlas/cluster-sharding/",
+          "note": null
+        },
+        {
+          "text": "A reshard can force spend before the new shard key pays off. The manual says to increase storage when space or I/O headroom is short and to pick a higher instance size when CPU headroom is short. On Atlas it says to move to the next storage tier for the reshard and downgrade afterwards. (medium confidence) (verified as of 2026-10-20)",
+          "source": "https://www.mongodb.com/docs/manual/core/sharding-reshard-a-collection/",
+          "note": null
+        },
+        {
+          "text": "`analyzeShardKey` (MongoDB 7.0+) scores a candidate or current shard key from data and sampled queries. `keyCharacteristics` reports distinct values (cardinality), the most common values and their frequency, and monotonicity. `readWriteDistribution` reports the share of single-shard, multi-shard and scatter-gather reads and writes, and how often each of 100 key ranges is hit; the default of 100 exists because the goal is a key that scales to 100 shards. (high confidence)",
+          "source": "https://www.mongodb.com/docs/manual/reference/command/analyzeShardKey/",
+          "note": null
+        },
+        {
+          "text": "MongoDB says horizontal scaling can cost less than high-end hardware but adds infrastructure and maintenance complexity, and tells teams to pick the shard key carefully even though resharding is possible later. Its Atlas guidance is to shard when a dataset exceeds one server's capacity. Percona advises choosing the right key up front, watching chunk distribution, and resharding early while the collection is small; a MongoDB community answer says to scale vertically to the ceiling first. (medium confidence)",
+          "source": "https://www.mongodb.com/docs/manual/sharding/",
+          "note": null
+        },
+        {
+          "text": "Queries that omit the shard key are broadcast to every shard, and MongoDB says they do not scale linearly as shards are added; on a cluster with many shards they perform significantly worse than single-shard queries. Each added shard then buys less throughput for those queries. MongoDB's fix is to reshard when the common queries lack the shard key, or when range queries hit a hashed key. Large aggregations are the exception, where parallel scatter-gather can help. (high confidence)",
+          "source": "https://www.mongodb.com/docs/v8.0/core/sharding-troubleshooting-shard-keys/",
+          "note": null
+        },
+        {
+          "text": "Plan reshard windows from `$currentOp`, not from a guess. `remainingOperationTimeEstimatedSecs` starts at -1 and is pessimistic, because it sets the catch-up estimate equal to the clone time. MongoDB gives no duration figure beyond the 5-minute minimum; Percona says a terabyte-scale reshard 'could take several hours or even days in the worst scenario'. (medium confidence)",
+          "source": "https://www.mongodb.com/docs/manual/core/sharding-reshard-a-collection/",
+          "note": null
+        },
+        {
+          "text": "A shard key's cardinality, value frequency and monotonic growth decide how evenly MongoDB spreads data and load. Cardinality caps the number of chunks the balancer can create, because one key value can live in only one chunk. A key with 7 distinct values (continent) allows at most 7 chunks, so shards beyond the seventh add cost without adding capacity. (high confidence)",
+          "source": "https://www.mongodb.com/docs/manual/core/sharding-choose-a-shard-key/",
+          "note": null
+        },
+        {
+          "text": "A shard key that grows monotonically (order_id, timestamp) sends every insert to the chunk bounded by MaxKey, or by MinKey if the key decreases. The shard that owns that chunk becomes the write bottleneck, and reads of recent data land on it too. The hot chunk moves to another shard when it splits, but load stays concentrated on one shard at a time. MongoDB's remedies are hashed sharding or resharding. (high confidence)",
+          "source": "https://www.mongodb.com/docs/manual/core/sharding-choose-a-shard-key/",
+          "note": null
+        },
+        {
+          "text": "Atlas Online Archive files for a collection are marked Orphaned when resharding, moveCollection or unshardCollection completes. You must create a new archive for the same database, collection and fields, which is possible only if no other archive for that combination is Active. (high confidence) (verified as of 2026-10-14)",
+          "source": "https://www.mongodb.com/docs/manual/core/sharding-reshard-a-collection/",
+          "note": null
+        },
+        {
+          "text": "From MongoDB 8.0, reshardCollection with forceRedistribution: true reshards on the same key. Use it to spread data onto newly added shards or into different zones, and to remove shards faster. MongoDB documents it as faster than chunk migrations because resharding writes to all shards in parallel while each shard joins only one chunk migration at a time, and it leaves no orphaned documents. It rewrites data across every shard not in a draining state. (medium confidence) (verified as of 2026-10-14)",
+          "source": "https://www.mongodb.com/docs/manual/core/reshard-to-same-key/",
+          "note": null
+        },
+        {
+          "text": "Resharding to the same key rewrites the collection, which MongoDB lists as a way to reclaim disk space. MongoDB 8.3 adds rewriteCollection for this: it rewrites a sharded collection on the same shard key to redistribute data when shards are added or removed, or to reclaim space, with the same two-second write-block, storage, I/O and CPU prerequisites. Inference: Atlas bills provisioned storage, so reclaimed space cuts cost only if the volume is then reduced. (medium confidence) (verified as of 2026-10-14)",
+          "source": "https://www.mongodb.com/docs/manual/core/reshard-to-same-key/",
+          "note": null
+        },
+        {
+          "text": "Changing a document's shard key value so that it belongs to a range on another shard forces a cross-shard move and an internal transaction. MongoDB advises avoiding keys with a high percentageOfShardKeyUpdates; such updates are supported only as retryable writes or in a transaction, with a batch size of 1. (high confidence)",
+          "source": "https://www.mongodb.com/docs/manual/reference/command/analyzeShardKey/",
+          "note": null
+        },
+        {
+          "text": "Atlas bills backup storage for the config server replica set as well as for data. A topology change such as adding a shard can make Atlas keep more than one full snapshot per replica set or shard, which raises backup storage cost because less of the data is stored incrementally. (low confidence) (verified as of 2026-10-18)",
+          "source": "https://www.mongodb.com/docs/atlas/billing/cluster-configuration-costs/",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Measurements and reference values",
+      "facts": [
+        {
+          "text": "Resharding needs free space on each recipient shard of at least ((collection storage size + index size) x 2) / shard count. The manual's example is a 2 TB collection with 400 GB of indexes over four shards, which needs 1.2 TB free per shard. The cluster should also run below 50% I/O and 80% CPU. The 8.0 same-key pages add a minimum 24-hour oplog window. (high confidence) (verified as of 2026-10-20)",
+          "source": "https://www.mongodb.com/docs/manual/core/sharding-reshard-a-collection/",
+          "note": null
+        },
+        {
+          "text": "On 2010-10-04 Foursquare's two-shard MongoDB cluster, sharded by user id into 200 evenly distributed chunks, was down about 11 hours. Check-ins grew unevenly: one shard reached about 67 GB on a 66 GB-RAM host and began paging to disk. Adding a third shard did not help at first, because moving about 5% of the small (about 300-byte) documents left the pages as full as before. Recovery took about 4 hours of offline compaction, then more shards, after which each shard needed about 20 GB of RAM. (high confidence)",
+          "source": "https://groups.google.com/group/mongodb-user/browse_thread/thread/528a94f287e9d77e",
+          "note": null
+        },
+        {
+          "text": "A Percona customer ran a 5-shard cluster of more than 50 TB where one shard held over 75% of the data and workload, and thousands of jumbo chunks existed, some about 200 GB. Before 5.0 the fix was a new, larger cluster and custom migration scripts that took weeks; Percona says it 'came at some cost in terms of new machines, development effort, and time'. (low confidence)",
+          "source": "https://www.percona.com/blog/resharding-in-mongodb-5-0/",
+          "note": null
+        },
+        {
+          "text": "Netdata's hot-shard guide treats a shard handling more than 40% of total traffic as a hotspot and suggests sizing each shard to absorb 1.5 times its fair share of traffic without saturating tickets or cache. These are vendor heuristics, not MongoDB guidance, and the guide gives no shard count for the 40% figure. (low confidence)",
+          "source": "https://www.netdata.cloud/guides/mongodb/mongodb-sharding-hot-shard/",
+          "note": null
+        },
+        {
+          "text": "MongoDB's 8.0 launch (2024-10-02) says its sharding improvements 'distribute data across shards up to 50 times faster and at up to 50% lower starting cost'; the press-release subhead says they 'reduce single-shard cluster costs by up to 50%'. MongoDB's release and blog name no baseline, and SD Times reports the comparison as against MongoDB 7.0. (high confidence)",
+          "source": "https://www.mongodb.com/press/mongo-db-announces-general-availability-of-mongo-db-8-0",
+          "note": null
+        },
+        {
+          "text": "Independent evidence for the 50x figure is thin and shows a smaller gain. Percona resharded a 3.5 GB collection from `{name: 1}` to `{email: 1}` on two idle 2-shard clusters (3 nodes per shard, 4 CPUs and 16 GB per node). It took about 3 minutes on 7.0.18 and just under 1 minute on 8.0.8, roughly 3x. InfoQ's launch coverage carries no sharding benchmark and quotes a Percona lead engineer cautioning 'let's not get too excited just yet' about 8.0 performance claims. (medium confidence)",
+          "source": "https://www.percona.com/blog/scaling-smarter-what-you-have-missed-in-mongodb-8-0/",
+          "note": null
+        },
+        {
+          "text": "Inference, not stated by MongoDB: the manual credits the 8.0 speed-up to natural-order scanning plus clone-then-index and says same-key resharding beats chunk migrations because it writes to all shards in parallel, so the 50x headline probably describes best-case data distribution when adding shards, not a general speed-up of every reshard. (low confidence)",
+          "source": "https://www.mongodb.com/docs/manual/core/reshard-to-same-key/",
+          "note": null
+        },
+        {
+          "text": "Atlas list prices roughly double with each tier step. AWS us-east-1 base rates with default storage: M30 $0.54/hr, M40 $1.04, M50 $2.00, M60 $3.95, M80 $7.30 (step ratios 1.85x to 1.98x). Prices vary by cloud, region and storage. Inference: if a hot shard forces every shard up one tier, the shard bill roughly doubles. (medium confidence) (verified as of 2026-10-18)",
+          "source": "https://www.mongodb.com/pricing",
+          "note": null
+        },
+        {
+          "text": "Before MongoDB 5.0, changing a shard key meant dumping and reloading with the application offline (MongoDB: several days for a 10 TB+ collection on three shards) or running two clusters side by side with custom migration (MongoDB: one user needed three months for 10 billion documents). Percona describes a customer with 5 shards and over 50 TB where one shard held more than 75% of data and workload and carried thousands of jumbo chunks, some 200 GB; the fix was a new cluster with more shards and weeks of scripted migration. (high confidence)",
+          "source": "https://www.mongodb.com/blog/post/scale-out-without-fear-friction-live-resharding-mongodb",
+          "note": null
+        },
+        {
+          "text": "Published reshard timings are sparse and not comparable. MongoDB's Atlas proof of concept (2022, 5.0 era) resharded 100 GB in 2 h 45 min on 4 shards and 5 h 30 min on 2 shards, and says duration scales roughly linearly with data size and shard count. Percona's June 2025 test on an idle two-shard cluster resharded 3.5 GB in about 3 min on 7.0.18 and just under 1 min on 8.0.8, and warns that terabyte-scale collections could take hours or days in the worst case. (medium confidence) (verified as of 2025-06-26)",
+          "source": "https://www.mongodb.com/blog/post/scale-out-without-fear-friction-live-resharding-mongodb",
+          "note": null
+        },
+        {
+          "text": "In MongoDB's proof of concept, reads on the collection were unaffected during resharding. When the cluster was CPU-bound, write latency rose 5-10% during cloning and 20-50% during the apply phase. Percona's 2021 test on a 200 MB collection called resharding quite expensive, mainly in CPU, with disk latency spikes above 20 ms. MongoDB advises scaling the cluster up before resharding when CPU exceeds 80% or I/O exceeds 50%, then scaling back down, and resharding off-peak where possible. (medium confidence) (verified as of 2023-01-31)",
+          "source": "https://www.mongodb.com/blog/post/scale-out-without-fear-friction-live-resharding-mongodb",
+          "note": null
+        },
+        {
+          "text": "The balancer evens out data size per shard, not request load. A collection counts as balanced when shard sizes differ by less than three times the range size (384 MB at the default 128 MB range size). A shard joins one migration at a time, so n shards run at most n/2 simultaneous migrations. Inference: a well-balanced dataset can still run hot on one shard if the key concentrates traffic. (medium confidence)",
+          "source": "https://www.mongodb.com/docs/manual/core/sharding-balancer-administration/",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Problems, failure modes and limitations",
+      "facts": [
+        {
+          "text": "Equal chunk counts do not mean equal load. The balancer moves whole chunks, starts migrating only when a collection's data differs between shards by three times the range size (default 128 MB, so 384 MB), and lets each shard join one migration at a time. It cannot redistribute traffic inside a chunk and skips jumbo chunks. Foursquare's cluster held 200 evenly distributed chunks, yet one shard outgrew its RAM. (high confidence)",
+          "source": "https://www.mongodb.com/docs/manual/core/sharding-balancer-administration/",
+          "note": null
+        },
+        {
+          "text": "Resharding blocks writes to the collection for up to about two seconds at cut-over, and the application must tolerate that latency. If it cannot, MongoDB says to refine the shard key instead, or, for same-key moves, to use chunk migrations. From 8.2 the donor shard blocks writes once the remaining-time estimate falls under 500 ms, and `commitReshardCollection` lets the operator force the block early. (high confidence) (verified as of 2026-10-20)",
+          "source": "https://www.mongodb.com/docs/manual/core/sharding-reshard-a-collection/",
+          "note": null
+        },
+        {
+          "text": "Only one collection can be resharded at a time, and a run lasts at least 5 minutes. `addShard`, `removeShard` and `dropDatabase` wait until it finishes, so a long reshard delays scale-out and scale-in. `createIndexes`, `dropIndexes`, `drop`, `collMod` and `renameCollection` are not allowed on the collection meanwhile, and index builds that overlap may fail silently. (high confidence) (verified as of 2026-10-20)",
+          "source": "https://www.mongodb.com/docs/manual/core/sharding-reshard-a-collection/",
+          "note": null
+        },
+        {
+          "text": "To cut shard count, start all drains together: removing one shard at a time limits migration throughput because a shard joins only one chunk migration at a time. MongoDB says resharding with `forceRedistribution` removes shards faster than chunk migration. On Atlas, lowering the shard count removes shards in descending `_id` order, uses `moveCollection` for unsharded collections on 8.0, needs the balancer on to drain sharded collections, and uses the offline `movePrimary` for anything `moveCollection` cannot move. (medium confidence) (verified as of 2026-10-20)",
+          "source": "https://www.mongodb.com/docs/manual/tutorial/remove-shards-from-cluster/",
+          "note": null
+        },
+        {
+          "text": "Jumbo chunks mean the shard key has too little cardinality or its values occur unevenly. The balancer cannot split or move them, so they pin storage and load on one shard and cause hotspots and disk imbalance. MongoDB's remedies are to refine the key with a suffix, reshard onto a higher-cardinality key, or use hashed sharding to even out value distribution. (high confidence)",
+          "source": "https://www.mongodb.com/docs/v8.0/core/sharding-troubleshooting-shard-keys/",
+          "note": null
+        },
+        {
+          "text": "On Atlas, sharding needs an M30 or larger cluster, and converting a replica set to a sharded cluster cannot be reversed. Choosing sharding is therefore a one-way step: the cluster can later shrink its shard count (the docs allow 1 to 70 shards) but cannot return to a plain replica set. (low confidence) (verified as of 2026-10-20)",
+          "source": "https://www.mongodb.com/docs/atlas/scale-cluster/",
+          "note": null
+        },
+        {
+          "text": "Resharding has side effects to plan for. MongoDB Search indexes become unavailable and must be rebuilt by hand, Atlas Online Archive files are marked Orphaned, Queryable Encryption collections are unsupported, duplicate `_id` values make the run fail, and a retryable write can be retried for only 5 minutes afterwards before it fails with `IncompleteTransactionHistory`. (medium confidence)",
+          "source": "https://www.mongodb.com/docs/manual/core/sharding-reshard-a-collection/",
+          "note": null
+        },
+        {
+          "text": "Time series collections can be resharded only from MongoDB 8.0.10, and every shard must run 8.0.10 or later. `analyzeShardKey` does not run against time series collections, so the shard key for one cannot be pre-tested with it. (medium confidence) (verified as of 2026-10-20)",
+          "source": "https://www.mongodb.com/docs/manual/core/sharding-reshard-a-collection/",
+          "note": null
+        },
+        {
+          "text": "A shard key value that appears in many documents produces a chunk that cannot split (a jumbo chunk). MongoDB traces jumbo chunks to insufficient cardinality or unevenly distributed value frequency, and says they become storage, read and write bottlenecks. Fixes: refine the key with a suffix field, reshard to a higher-cardinality key, or use hashed sharding. (high confidence)",
+          "source": "https://www.mongodb.com/docs/manual/core/sharding-troubleshooting-shard-keys/",
+          "note": null
+        },
+        {
+          "text": "Atlas independent shard scaling lets each shard run a different cluster tier, and on AWS and Azure a different disk performance, so a heavily loaded shard can be sized up without resizing the others. Node counts per shard, storage capacity and NVMe tier must still match across shards. With compute auto-scaling, Atlas keeps the smallest shard within two tiers of the largest and scales smaller shards up when needed. Shards on different cluster classes (M30 General, M40 Low-CPU) cannot be auto-scaled. (medium confidence) (verified as of 2026-10-14)",
+          "source": "https://www.mongodb.com/docs/atlas/cluster-sharding/",
+          "note": null
+        },
+        {
+          "text": "Read and write distribution metrics need query sampling: enable configureQueryAnalyzer on the collection first (the docs example uses mode full, samplesPerSecond 5). MongoDB says representative metrics can need several days of sampling. Without samples the distribution metrics are missing or zero. Run the command with a secondary or secondaryPreferred read preference to limit load. (medium confidence)",
+          "source": "https://www.mongodb.com/docs/manual/reference/command/analyzeShardKey/",
+          "note": null
+        },
+        {
+          "text": "Free storage required on each recipient shard before resharding is ((collection size + index size) x 2) / shard count, assuming a 24-hour oplog window. Example: 2 TB of data plus 400 GB of indexes over four shards needs 1.2 TB free per shard. I/O capacity must be below 50% and CPU load below 80%. The database does not enforce these limits; missing them can fill the disk and shut a node down, slow the workload or lengthen the run. On Atlas you may need the next storage tier during the operation and can downgrade afterwards. (high confidence) (verified as of 2026-10-14)",
+          "source": "https://www.mongodb.com/docs/manual/core/sharding-reshard-a-collection/",
+          "note": null
+        },
+        {
+          "text": "Resharding blocks writes to the collection briefly before cut-over. The how-to pages tell you to tolerate two seconds. The block starts once the estimated remaining time drops below a threshold: two seconds up to MongoDB 8.0.12, 500 ms from 8.0.13 and in 8.2. commitReshardCollection blocks writes early to force completion when the current estimate is acceptable. If the workload cannot tolerate the block, MongoDB suggests refining the shard key instead. (high confidence) (verified as of 2026-10-14)",
+          "source": "https://www.mongodb.com/docs/manual/core/sharding-reshard-a-collection/",
+          "note": null
+        },
+        {
+          "text": "After resharding, MongoDB Search (Atlas Search) indexes on the collection become unavailable and must be rebuilt by hand. Collections that use Queryable Encryption cannot be resharded. Index builds started during resharding can fail silently, so do not create indexes while it runs and do not start it while an index build is in progress. (high confidence) (verified as of 2026-10-14)",
+          "source": "https://www.mongodb.com/docs/manual/core/sharding-reshard-a-collection/",
+          "note": null
+        },
+        {
+          "text": "Only one collection can be resharded at a time, and addShard, removeShard and dropDatabase on the host database wait until resharding finishes. Resharding always takes at least five minutes (demoMode bypasses this for tests). Retryable writes started before or during resharding can be retried for up to five minutes afterwards; later retries fail with IncompleteTransactionHistory. (medium confidence) (verified as of 2026-10-14)",
+          "source": "https://www.mongodb.com/docs/manual/core/sharding-reshard-a-collection/",
+          "note": null
+        },
+        {
+          "text": "From MongoDB 8.0, sh.shardAndDistributeCollection() shards a collection and immediately reshards it onto the same key, so data spreads across shards without waiting for the balancer. MongoDB calls the balancer's range-deletion cleanup slow and resource intensive, and recommends the new method when the deployment meets the resharding resource requirements. (medium confidence) (verified as of 2026-10-14)",
+          "source": "https://www.mongodb.com/docs/manual/core/sharding-data-partitioning/",
+          "note": null
+        },
+        {
+          "text": "refineCollectionShardKey adds suffix fields to the existing key and updates chunk and zone ranges as metadata, without moving data immediately. A supporting index must exist first, and existing key fields must keep their range or hashed type. It fixes jumbo chunks caused by low cardinality. MongoDB's rule: if the cluster meets the resharding criteria, reshard, because resharding fixes distribution more effectively; if it does not, or cannot take the write block, refine. (high confidence)",
+          "source": "https://www.mongodb.com/docs/manual/reference/command/refineCollectionShardKey/",
+          "note": null
+        },
+        {
+          "text": "Signs of a poor shard key: explain('executionStats') through mongos lists every shard in the shards array, or aggregation explain shows mergeType and splitPipeline across shards; the mongos slow-query log shows nShards equal to the total shard count; one shard runs hot while others idle (monotonic or skewed key), or all shards spike together for one query pattern (broadcast). MongoDB also ties decreased query performance over time to scatter-gather. First check whether your most common queries include the shard key. (medium confidence)",
+          "source": "https://www.mongodb.com/docs/manual/core/sharded-cluster-query-router/",
+          "note": null
+        },
+        {
+          "text": "reshardCollection fails with 'The shard key provided does not have enough cardinality to make the required number of chunks' when the new key cannot yield numInitialChunks chunks; retry with a lower numInitialChunks. The default is 90 and resharding creates at least numInitialChunks - 1 chunks, so clusters with more than 90 shards should raise it. A hashed key prefix makes resharding ignore numInitialChunks. (high confidence)",
+          "source": "https://www.mongodb.com/docs/manual/reference/command/reshardCollection/",
+          "note": null
+        },
+        {
+          "text": "Time series collections can be resharded from MongoDB 8.0.10, and every shard must run 8.0.10 or later. analyzeShardKey does not support time series collections, so candidate keys for them cannot be scored with it. (medium confidence) (verified as of 2026-10-14)",
+          "source": "https://www.mongodb.com/docs/manual/core/sharding-reshard-a-collection/",
+          "note": null
+        },
+        {
+          "text": "Before tuning shard keys, check whether the workload needs sharding. MongoDB frames sharding as the answer once vertical scaling hits practical limits, and says horizontal scaling trades lower hardware cost for infrastructure complexity. The Atlas price list covers unsharded tiers up to 4 TB (M700, 768 GB RAM) and points to sharded clusters beyond 4 TB. On Atlas, converting a replica set to a sharded cluster cannot be reversed, and sharding needs M30 or larger. (medium confidence) (verified as of 2026-10-14)",
+          "source": "https://www.mongodb.com/docs/manual/sharding/",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Comparisons and alternatives",
+      "facts": [
+        {
+          "text": "MongoDB's rule: if the cluster meets the resharding criteria, reshard instead of refining the shard key; if it does not, refine. `refineCollectionShardKey` (4.4+) only appends suffix fields, such as `{customer_id: 1}` to `{customer_id: 1, order_id: 1}`, must not change a field's ranged or hashed type, and targets jumbo chunks from insufficient cardinality. (high confidence)",
+          "source": "https://www.mongodb.com/docs/manual/core/sharding-change-a-shard-key/",
+          "note": null
+        },
+        {
+          "text": "Some access patterns turn a shard key into a recurring cost. analyzeShardKey flags writes that change a document's shard key (they move the document across shards through an internal transaction) and writes that cannot target one shard (expensive internal transactions). After a reshard, operations that filter on the old key instead of the full new key use a two-phase write protocol that broadcasts to several shards, so MongoDB tells teams to switch their filters to the new key. (medium confidence)",
+          "source": "https://www.mongodb.com/docs/manual/reference/command/analyzeShardKey/",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Facts and statements",
+      "facts": [
+        {
+          "text": "MongoDB judges a shard key on cardinality, value frequency and monotonic change. Cardinality caps the number of chunks the balancer can create. The manual's example: a `continent` key has cardinality 7, so at most 7 chunks exist and 'adding more than seven shards would not provide any benefit'. On such a key every shard past the cap is paid for and unused. (high confidence)",
+          "source": "https://www.mongodb.com/docs/manual/core/sharding-choose-a-shard-key/",
+          "note": null
+        },
+        {
+          "text": "A monotonically increasing or decreasing shard key sends every new insert to the chunk that owns MaxKey (or MinKey), so the shard holding that chunk becomes the write bottleneck. The analyzeShardKey docs add that the balancer must compete with the incoming inserts, so data is likely unbalanced most of the time. MongoDB's documented remedy is hashed sharding, and both MongoDB and Netdata list resharding onto a non-monotonic key as the fix for an existing collection. (high confidence)",
+          "source": "https://www.mongodb.com/docs/manual/core/sharding-choose-a-shard-key/",
+          "note": null
+        },
+        {
+          "text": "Atlas can set a different cluster tier for each shard, and different IOPS per shard on AWS and Azure, through the Admin API, CLI or Terraform. With compute auto-scaling on, Atlas evaluates each shard on its own by default, so a hot shard can scale up while the others stay put. Clusters created before 2024-12-09 default to cluster-wide scaling. (high confidence) (verified as of 2026-10-19)",
+          "source": "https://www.mongodb.com/docs/atlas/cluster-sharding/",
+          "note": null
+        },
+        {
+          "text": "A config shard (MongoDB 8.0+) merges the config-server role into an existing shard's replica set, so the cluster runs one replica set fewer. MongoDB says this costs less than a dedicated config server and has no measurable performance impact at low shard counts. Queryable Encryption collections and on-prem queryable backups require a dedicated config server, and Atlas switches a cluster from a config shard to a dedicated config server above five shards. Percona calls the saving minimal on large clusters. (medium confidence) (verified as of 2026-10-18)",
+          "source": "https://www.mongodb.com/docs/manual/core/config-shard/",
+          "note": null
+        },
+        {
+          "text": "MongoDB does not enforce the resharding resource requirements. Too little headroom can fill the disk and shut the database down, degrade performance, or stretch the run. Resharding is write-intensive and raises the oplog rate, so MongoDB advises a fixed or larger oplog, and both MongoDB and Percona advise running it in a low-traffic or maintenance window. (high confidence)",
+          "source": "https://www.mongodb.com/docs/manual/core/sharding-reshard-a-collection/",
+          "note": null
+        },
+        {
+          "text": "`analyzeShardKey` works on unsharded collections, so a team can test a candidate key before paying to shard or reshard. It does not block reads or writes, defaults to secondary reads through mongos, and accepts a looser supporting index than `shardCollection` needs, so a candidate key can be analyzed before that index exists. (high confidence)",
+          "source": "https://www.mongodb.com/docs/manual/reference/command/analyzeShardKey/",
+          "note": null
+        },
+        {
+          "text": "`analyzeShardKey` has limits that can mislead a cost decision. Read and write distribution metrics are zero unless `configureQueryAnalyzer` sampling ran first, and representative metrics can need several days of sampling. Key-characteristics metrics default to a 10 million-document sample, count orphan documents, and the monotonicity check can be wrong after chunk migrations. The command is unsupported on Atlas Flex clusters, standalones, time series and Queryable Encryption collections. (medium confidence)",
+          "source": "https://www.mongodb.com/docs/manual/reference/command/analyzeShardKey/",
+          "note": null
+        },
+        {
+          "text": "MongoDB 8.0 added `moveCollection`, which moves one unsharded collection to another shard, and `unshardCollection`, which moves a sharded collection onto one shard (default: the shard with the least data) and removes its shard key. Both run at least 5 minutes, block `addShard`, `removeShard` and config-server transitions until they finish, and leave MongoDB Search indexes to be rebuilt by hand. `unshardCollection` also needs a two-second write block and raises the oplog rate. Neither supports Queryable Encryption collections. (medium confidence)",
+          "source": "https://www.mongodb.com/docs/manual/reference/command/moveCollection/",
+          "note": null
+        },
+        {
+          "text": "Resharding to the same key (8.0, `forceRedistribution: true`) is a data-movement tool: MongoDB lists adding shards faster, removing shards faster, moving data between zones, reclaiming disk space by rewriting a collection, and sharding a populated collection of any size. It writes to all shards in parallel, while the balancer lets each shard join only one chunk migration at a time (at most n/2 migrations in an n-shard cluster), and it leaves no orphan documents. (medium confidence)",
+          "source": "https://www.mongodb.com/docs/manual/core/reshard-to-same-key/",
+          "note": null
+        },
+        {
+          "text": "For a low-cardinality or high-frequency key, MongoDB suggests a compound key that adds a high-cardinality or unique field. Netdata warns that compound keys enlarge the index and make range queries less efficient. A compound hashed key keeps a non-hashed prefix for zone ranges while the hashed field evens out distribution, and a compound index can hold only one hashed field. (medium confidence)",
+          "source": "https://www.mongodb.com/docs/manual/core/sharding-choose-a-shard-key/",
+          "note": null
+        },
+        {
+          "text": "Hashed sharding spreads inserts evenly, which fixes monotonic keys, but gives up range targeting: range queries on the shard key become broadcast operations while equality matches still reach one shard. Ranged sharding is the default, keeps nearby values together, and works best with high cardinality, low frequency and non-monotonic values. (high confidence)",
+          "source": "https://www.mongodb.com/docs/manual/core/hashed-sharding/",
+          "note": null
+        },
+        {
+          "text": "Before resharding existed there was no in-place fix. A MongoDB staff answer lists reshard (5.0+), refine (4.4+) and, on older versions, copying into a new collection with pre-split chunks. Percona's 50 TB customer avoided downtime with a new, larger cluster and custom migration scripts that took weeks. (medium confidence)",
+          "source": "https://www.mongodb.com/community/forums/t/how-exactly-would-you-fix-a-sharded-cluster-with-bad-distribution-in-a-production-environment/112013",
+          "note": null
+        },
+        {
+          "text": "Hashed sharding spreads documents and writes evenly, including for monotonically growing fields such as ObjectId and timestamps. The price is targeting: documents with close key values land on different chunks, so range queries on the shard key are more likely to be broadcast. Equality matches still target one shard. (high confidence)",
+          "source": "https://www.mongodb.com/docs/manual/core/hashed-sharding/",
+          "note": null
+        },
+        {
+          "text": "On Atlas Core, billing counts data-bearing nodes: replication factor x number of shards. Each node is charged for its cluster tier and its storage. Enabling sharding adds three config servers at a separate rate that does not depend on the tier or storage you choose. Each added shard therefore adds a full replica set to the bill. (medium confidence) (verified as of 2026-10-14)",
+          "source": "https://www.mongodb.com/docs/atlas/billing/cluster-configuration-costs/",
+          "note": null
+        },
+        {
+          "text": "Sharded Atlas clusters created before 9 December 2024 default to cluster-wide scaling, where all shards share one tier. With auto-scaling, newer clusters default to independent shard scaling. Per-shard tiers can be set only through the Atlas Administration API, Atlas CLI or Terraform, not the Atlas UI. After that, the Atlas Cluster Builder UI can no longer manage the cluster, and a tier change made in the UI changes every shard. (medium confidence) (verified as of 2026-10-14)",
+          "source": "https://www.mongodb.com/docs/atlas/cluster-sharding/",
+          "note": null
+        },
+        {
+          "text": "analyzeShardKey (MongoDB 7.0+) scores a candidate or current shard key from sampled documents and sampled queries, without blocking reads or writes. keyCharacteristics reports cardinality (numDistinctValues), frequency (mostCommonValues) and monotonicity. readWriteDistribution reports the share of single-shard, multi-shard and scatter-gather reads and writes, plus per-range read and write counts that expose hot ranges. It runs on Atlas clusters except Flex, and on a sharded cluster it must run through mongos. (high confidence)",
+          "source": "https://www.mongodb.com/docs/manual/reference/command/analyzeShardKey/",
+          "note": null
+        },
+        {
+          "text": "MongoDB's reading guide for analyzeShardKey output: prefer a large numDistinctValues; mostCommonValues frequencies that are small relative to numDocsSampled; monotonicity type 'not monotonic'; low percentageOfScatterGatherReads and percentageOfScatterGatherWrites; low percentageOfShardKeyUpdates; and numReadsByRange and numWritesByRange without heavy skew. The default of 100 ranges reflects a goal of a key that scales to 100 shards. (medium confidence)",
+          "source": "https://www.mongodb.com/docs/manual/reference/command/analyzeShardKey/",
+          "note": null
+        },
+        {
+          "text": "reshardCollection (MongoDB 5.0+) changes a collection's shard key online. The config server primary coordinates; shards act as donors and recipients. Phases: initialization, clone, index build, apply and catch-up, commit. At commit each recipient renames its temporary collection to the live name and each donor drops the old one. abortReshardCollection works only until the commit phase. (high confidence)",
+          "source": "https://www.mongodb.com/docs/manual/reference/command/reshardCollection/",
+          "note": null
+        },
+        {
+          "text": "Resharding is write-intensive and raises the oplog growth rate. MongoDB advises a fixed oplog size to stop unbounded growth and a larger oplog so secondaries do not go stale. unshardCollection carries the same advice. (high confidence)",
+          "source": "https://www.mongodb.com/docs/manual/core/sharding-reshard-a-collection/",
+          "note": null
+        },
+        {
+          "text": "MongoDB 8.0 added moveCollection and unshardCollection. moveCollection moves one unsharded collection to a chosen shard. unshardCollection collapses a sharded collection onto one shard (the least-loaded shard if none is named) and removes its shard key. Both take at least five minutes, need a tolerance of about two seconds of blocked writes, need (collection + index) x 2 free bytes on the destination, and block addShard and removeShard while running. Atlas supports reshardCollection and unshardCollection only on M30+ sharded Atlas Core clusters; moveCollection is unsupported on M0 and Flex. (high confidence) (verified as of 2026-10-14)",
+          "source": "https://www.mongodb.com/docs/manual/reference/command/moveCollection/",
+          "note": null
+        },
+        {
+          "text": "Inference: unshardCollection and moveCollection give two levers that need no new shard key. Unshard a collection that no longer needs sharding, and place small unsharded collections on lightly loaded shards. MongoDB does not present either as a cost measure. (low confidence)",
+          "source": "https://www.mongodb.com/docs/manual/reference/command/moveCollection/",
+          "note": null
+        },
+        {
+          "text": "Updates, deletes and findAndModify calls that lack the full shard key (and _id) use a two-phase write protocol that broadcasts to several shards and can significantly reduce performance. Queries that still filter on the old key after a reshard take this path. Update the application to filter on the new key. MongoDB and Percona both advise filtering on both the old and new keys while the reshard runs. (high confidence)",
+          "source": "https://www.mongodb.com/docs/manual/core/sharding-reshard-a-collection/",
+          "note": null
+        },
+        {
+          "text": "A compound shard key serves only prefix filters. With key {a, b, c}, filters on {a} or {a, b} are targeted, but a filter on {b} alone is broadcast. updateMany and deleteMany broadcast unless the filter specifies the full shard key. A lookup by a non-key field (email, on a collection keyed by tenant_id and user_id) therefore fans out to every shard. (high confidence)",
+          "source": "https://www.mongodb.com/docs/manual/core/sharded-cluster-query-router/",
+          "note": null
+        },
+        {
+          "text": "Worked example: an orders collection sharded on order_id needs scatter-gather to fetch one customer's orders. The compound key {customer_id: 1, order_id: 1} keeps a customer's orders on one shard and keeps cardinality high. MongoDB's general advice is to add a unique or low-frequency field to a high-frequency key, and to add a second field to a low-cardinality key. (medium confidence)",
+          "source": "https://www.mongodb.com/blog/post/scale-out-without-fear-friction-live-resharding-mongodb",
+          "note": null
+        },
+        {
+          "text": "From MongoDB 8.0 a config server can also hold application data (a config shard). MongoDB says this costs less than a dedicated config server, which is its own replica set, with no measurable performance impact at low shard counts. On Atlas a cluster moves automatically from config shard to dedicated config server above five shards, and a config shard auto-scales. Percona calls it a cost saver for smaller clusters, and a DBA quoted by InfoQ praised its cost reduction. (medium confidence) (verified as of 2026-10-18)",
+          "source": "https://www.mongodb.com/docs/manual/core/config-shard/",
+          "note": null
+        }
+      ]
+    }
+  ],
+  "related": []
+}

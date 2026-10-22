@@ -25,8 +25,10 @@ from pathlib import Path
 HERE = Path(__file__).resolve().parents[1]
 REPO = HERE.parent
 sys.path.insert(0, str(REPO / "hub" / "scripts"))
+sys.path.insert(0, str(REPO / "scripts"))
 
 import concept_tree as ct  # noqa: E402  — the queue grammar, shared with the TUI and the MCP tools
+import publish_scrub as scrub  # noqa: E402
 
 SKILL_SUMMARY_CHARS = 400
 # A skillId → summary map the snapshot refresh may vendor beside the tree, for
@@ -55,13 +57,18 @@ def _scores(repo_root: Path) -> dict[str, dict]:
     return ct.load_scores(repo_root / "concept-tree" / "cvs-scores.json")
 
 
+def publication_summary(text: str, terms=None) -> str:
+    terms = scrub.gate.denylist() if terms is None else terms
+    return scrub.scrub_public_text(str(text), terms).strip()[:SKILL_SUMMARY_CHARS]
+
+
 def _skill_summaries(repo_root: Path) -> dict[str, str]:
     """`skillId → summary`, from the map the refresh vendors if there is one."""
     path = repo_root / "concept-tree" / SUMMARIES
     if not path.is_file():
         return {}
     data = json.loads(path.read_text(encoding="utf-8"))
-    return {k: str(v).strip()[:SKILL_SUMMARY_CHARS] for k, v in data.items() if v}
+    return {k: publication_summary(v) for k, v in data.items() if v}
 
 
 def skill_summary(repo_root: Path, skill_id: str | None, vendored: dict[str, str]) -> str:
@@ -74,6 +81,8 @@ def skill_summary(repo_root: Path, skill_id: str | None, vendored: dict[str, str
     if not skill_id:
         return ""
     f = repo_root / ".claude" / "skills" / skill_id / "SKILL.md"
+    if not f.is_file():
+        f = repo_root / ".agents" / "skills" / skill_id / "SKILL.md"
     if f.is_file():
         text = f.read_text(encoding="utf-8", errors="ignore")
         if text.startswith("---"):
@@ -82,8 +91,8 @@ def skill_summary(repo_root: Path, skill_id: str | None, vendored: dict[str, str
         body = "\n".join(ln for ln in text.splitlines()
                          if ln.strip() and not ln.startswith("#"))
         if body.strip():
-            return body[:SKILL_SUMMARY_CHARS].strip()
-    return vendored.get(skill_id, "")
+            return publication_summary(body)
+    return publication_summary(vendored.get(skill_id, ""))
 
 
 def queue_frontier(repo_root: Path) -> list[dict]:
@@ -168,9 +177,11 @@ def build(repo_root: Path, today: str | None = None,
             "children": children, "researchedAt": n.get("researchedAt"),
             "sourcesCount": n.get("sourcesCount", 0), "conceptsCount": n.get("conceptsCount", 0),
             "aliases": n.get("aliases") or [], "state": _state(n),
-            "summary": str(n.get("summary") or ""),
+            "summary": scrub.scrub_public_text(str(n.get("summary") or ""), scrub.gate.denylist()),
             "skillSummary": skill_summary(repo_root, n.get("skillId"), vendored),
             "hasPack": (concepts_dir / f"{slug}.json").is_file(),
+            **{key: n[key] for key in ("canonicalConceptId", "canonicalArtifactSha256")
+               if n.get(key)},
             "artifacts": {},
         }
         if n.get("cvs") is not None:

@@ -1,0 +1,390 @@
+{
+  "slug": "terraform-tag-enforcement-and-policy-as-code-for-atlas-cost",
+  "concept": "Terraform Tag Enforcement and Policy-as-Code for Atlas Cost",
+  "generated": "2026-10-19",
+  "summary": "Atlas resource tags are key-value pairs on clusters that flow into invoice CSVs and the Admin API pending-invoice lineItems.tags field, so MongoDB recommends enforcing mandatory tags and managing them through Terraform; the mongodbatlas provider exposes tags as a set of objects and has no AWS-style default_tags, leaving enforcement to modules plus plan-time Sentinel or OPA policy in HCP Terraform, for which no Atlas-specific example was found. The pack draws on 6 source URLs (Atlas tags docs, the invoice-tags GA post, the Architecture Center, provider issue 2006, HCP Terraform policy docs and the AWS default_tags post) across definitions, tag rules and limits, billing behaviour, provider limitations and policy mechanics.",
+  "facets": [
+    {
+      "title": "Definitions",
+      "facts": [
+        {
+          "text": "Atlas resource tags are key-value pairs; max 50 tags per cluster, keys and values up to 255 characters, keys unique and case sensitive ('environment' and 'Environment' are distinct). Managing them needs Project Owner or Organization Owner role.",
+          "source": "https://www.mongodb.com/docs/atlas/tags",
+          "note": null
+        },
+        {
+          "text": "This topic provides overview information about policies in HCP Terraform. Policies are rules that let you validate that Terraform plans comply with security rules and best practices. You can use Terraform policy with both workspaces and Stacks. Sentinel and OPA policy sets only support workspaces.",
+          "source": "https://developer.hashicorp.com/terraform/cloud-docs/policy-enforcement",
+          "note": "HCP Terraform"
+        },
+        {
+          "text": "Sentinel: HashiCorp's policy-as-code framework",
+          "source": "https://developer.hashicorp.com/terraform/cloud-docs/policy-enforcement",
+          "note": "HCP Terraform"
+        },
+        {
+          "text": "You can apply resource tags in Atlas for precise cost allocation by categorizing resources according to departments, projects, or cost centers. You can also group and analyze tagged resources in financial reports, providing a clear and organized view of how various teams or projects contribute to overall cloud spending. To learn more, see Resource Tags.",
+          "source": "https://www.mongodb.com/docs/atlas/architecture/current/billing-data/",
+          "note": null
+        },
+        {
+          "text": "Leveraging tags within billing invoices empowers customers to categorize spending based on custom dimensions (such as cost center) and streamline financial reporting.",
+          "source": "https://mongodb.com/blog/post/deployment-tags-billing-invoices-now-generally-available",
+          "note": null
+        },
+        {
+          "text": "Terraform policy (beta): Native HCL-based policy framework",
+          "source": "https://developer.hashicorp.com/terraform/cloud-docs/policy-enforcement",
+          "note": "HCP Terraform, beta"
+        },
+        {
+          "text": "You can use resource tags to categorize resources by purpose, environment, team, or billing center. You can add tags to your projects and clusters to better understand, organize, and identify these resources. Each tag is a key-value pair. For example, you might add an environment : production tag. In this example, you set the tag key to environment and you set the tag value to production. You can manage resource tags from the Atlas UI, Atlas Administration API, and Atlas CLI.",
+          "source": "https://www.mongodb.com/docs/atlas/tags",
+          "note": null
+        },
+        {
+          "text": "OPA: Open Policy Agent with Rego language",
+          "source": "https://developer.hashicorp.com/terraform/cloud-docs/policy-enforcement",
+          "note": "HCP Terraform"
+        }
+      ]
+    },
+    {
+      "title": "How it works",
+      "facts": [
+        {
+          "text": "Tags reach billing: tag keys appear as column headings in the invoice CSV export and as a field in the Admin API invoice payload; the pending-invoices endpoint returns results.lineItems.tags. Tags typically show on line items within 48 hours of being added.",
+          "source": "https://mongodb.com/blog/post/deployment-tags-billing-invoices-now-generally-available",
+          "note": null
+        },
+        {
+          "text": "HCP Terraform evaluates Sentinel or OPA policy sets against the plan on each workspace run; failed policies can stop the run depending on enforcement level, and permitted users can override. Each policy set uses one framework, but sets from different frameworks can be attached to one workspace. A newer HCL-based 'Terraform policy' (beta) also covers Stacks.",
+          "source": "https://developer.hashicorp.com/terraform/cloud-docs/policy-enforcement",
+          "note": null
+        },
+        {
+          "text": "You can apply Terraform policy sets with both workspaces and Stacks, while Sentinel and OPA only support workspaces.",
+          "source": "https://developer.hashicorp.com/terraform/cloud-docs/policy-enforcement",
+          "note": null
+        },
+        {
+          "text": "Tags will typically appear on Invoice line items within 48 hours of being added to the deployment. Also, tags will not appear on cluster related line items that are not associated with a tag and line items not billed at the cluster level are not eligible for tagging at this time. The example below shows an example CSV export for the fictitious project, Leafy. This organization has two tag keys (Environment and Cost-Center) associated with different clusters. Notice that the cluster named “Blue” does not have the Cost-Center tag applied, so those cells are blank.",
+          "source": "https://mongodb.com/blog/post/deployment-tags-billing-invoices-now-generally-available",
+          "note": null
+        },
+        {
+          "text": "You can retrieve all your pending invoices with the Return All Pending Invoices for One Organization API endpoint. The endpoints response body contains the results.lineItems.tags field, which reflect the tags you applied to your resources (such as organizations and clusters). You can then feed this line-item-level billing data into external FinOps tools and reports track your Atlas spending by environment, team, or other tag values.",
+          "source": "https://www.mongodb.com/docs/atlas/architecture/current/billing-data/",
+          "note": null
+        },
+        {
+          "text": "You can apply policies globally or apply them to specific projects, workspaces, Stacks, or deployments. HCP Terraform checks the Terraform plan against the policy set during each run. A policy set can only contain policies written in a single policy framework, but you can apply multiple policy sets using different frameworks to the same workspace or Stack.",
+          "source": "https://developer.hashicorp.com/terraform/cloud-docs/policy-enforcement",
+          "note": null
+        },
+        {
+          "text": "HCP Terraform displays policy results for each policy set. Depending on their enforcement level, failed policies can stop the run. You can override failed policies with the right permissions.",
+          "source": "https://developer.hashicorp.com/terraform/cloud-docs/policy-enforcement",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Parameters and configuration",
+      "facts": [
+        {
+          "text": "Tags keys and tag values are case sensitive. For example, Atlas accepts both environment and Environment as separate tag keys.",
+          "source": "https://www.mongodb.com/docs/atlas/tags",
+          "note": null
+        },
+        {
+          "text": "Whenever a user adds, modifies, or deletes a resource tag, Atlas reflects the event in the Project Activity Feed.",
+          "source": "https://www.mongodb.com/docs/atlas/tags",
+          "note": null
+        },
+        {
+          "text": "To create or modify resource tags, you must have the Project Owner role for the project or the Organization Owner role on its parent organization.",
+          "source": "https://www.mongodb.com/docs/atlas/tags",
+          "note": null
+        },
+        {
+          "text": "You can have a maximum of 50 tags per cluster.",
+          "source": "https://www.mongodb.com/docs/atlas/tags",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "How-to and procedures",
+      "facts": [
+        {
+          "text": "A plan-time tag policy for Atlas would check mongodbatlas_advanced_cluster resources in the plan for required tag keys (e.g. environment, application, cost-center) and fail on missing keys. No published Atlas-specific Sentinel/OPA example was found; HashiCorp's own tag examples target AWS and Azure resources.",
+          "source": "https://developer.hashicorp.com/terraform/cloud-docs/policy-enforcement",
+          "note": "no published Atlas example found"
+        },
+        {
+          "text": "MongoDB's guidance: define a strategy enforcing mandatory tags on all deployments (start with environment and application), use a standard case-sensitive format, use namespaces/prefixes per business unit, manage tags via Terraform or Admin API, and run a governance routine that checks for untagged or improperly tagged deployments. Cost keys suggested: cost-center or billing-unit.",
+          "source": "https://mongodb.com/blog/post/deployment-tags-billing-invoices-now-generally-available",
+          "note": null
+        },
+        {
+          "text": "Apply tags for cost allocation. Use a consistent tag key, such as cost-center or billing-unit, to associate related resources based on the billing entity or purpose. Doing so can help you perform cost allocation based on custom dimensions. To learn more, see Resource Tags on Invoices.",
+          "source": "https://www.mongodb.com/docs/atlas/tags",
+          "note": null
+        },
+        {
+          "text": "Create a tagging strategy that uses standard tags across all of your resource types.",
+          "source": "https://www.mongodb.com/docs/atlas/tags",
+          "note": null
+        },
+        {
+          "text": "You can author policies in the appropriate format for the policy framework of your choice, or implement pre-written Terraform policy or Sentinel policies created and maintained by HashiCorp. Pre-written policies enforce common standards, such as PCI DSS. Refer to Pre-written policy library for information about publicly available pre-written policies.",
+          "source": "https://developer.hashicorp.com/terraform/cloud-docs/policy-enforcement",
+          "note": null
+        },
+        {
+          "text": "Customers can get started today by adding tags to new or existing deployments using the Atlas UI, Admin API, or CLI. Once added, the tag keys will appear as column headings in the billing invoice CSV export and as a field in the Invoices payload for the Admin API calls.",
+          "source": "https://mongodb.com/blog/post/deployment-tags-billing-invoices-now-generally-available",
+          "note": null
+        },
+        {
+          "text": "Apply tags for resource organization. Use a consistent tag key, such as environment, application, team, or owner, to group resources.",
+          "source": "https://www.mongodb.com/docs/atlas/tags",
+          "note": null
+        },
+        {
+          "text": "Define and communicate a strategy that enforces mandatory tags on all database deployments. We recommend you start with identifying the environment and the application/service/workload.",
+          "source": "https://mongodb.com/blog/post/deployment-tags-billing-invoices-now-generally-available",
+          "note": null
+        },
+        {
+          "text": "You can manually write custom policies in Sentinel or OPA framework format, or implement pre-written Sentinel policies created and maintained by HashiCorp. Pre-written Sentinal policies enforce common standards, such as PCI DSS. Refer to Pre-written policy library for information about publicly available pre-written policies. For information about writing custom Sentinel policies, refer to the Sentinel documentation.",
+          "source": "https://developer.hashicorp.com/terraform/cloud-docs/policy-enforcement",
+          "note": null
+        },
+        {
+          "text": "Although the UI allows you author and store policies in the application, we recommend storing policies in a VCS to implement a policy-as-code workflow, which ensures standardization, security, and auditability. You can also create policy sets programmatically using the API. Refer to Managing Policy Sets for details.",
+          "source": "https://developer.hashicorp.com/terraform/cloud-docs/policy-enforcement",
+          "note": null
+        },
+        {
+          "text": "Use automated tools such as Terraform or the Admin API to programmatically manage database deployments and tags.",
+          "source": "https://mongodb.com/blog/post/deployment-tags-billing-invoices-now-generally-available",
+          "note": null
+        },
+        {
+          "text": "When you create resource tags in the Atlas UI, Atlas automatically suggests tag keys and values. We recommend that you apply the environment and application tag keys to every resource.",
+          "source": "https://www.mongodb.com/docs/atlas/tags",
+          "note": null
+        },
+        {
+          "text": "Implement a tag governance routine that regularly checks for untagged or improperly tagged deployments.",
+          "source": "https://mongodb.com/blog/post/deployment-tags-billing-invoices-now-generally-available",
+          "note": null
+        },
+        {
+          "text": "Use a standardized, case-sensitive format for tags, and apply it consistently across all resource types.",
+          "source": "https://www.mongodb.com/docs/atlas/tags",
+          "note": null
+        },
+        {
+          "text": "Use a standard naming convention - including spelling, case, and punctuation for all tags.",
+          "source": "https://mongodb.com/blog/post/deployment-tags-billing-invoices-now-generally-available",
+          "note": null
+        },
+        {
+          "text": "Use namespaces or prefixes to easily identify tags owned by different business units.",
+          "source": "https://mongodb.com/blog/post/deployment-tags-billing-invoices-now-generally-available",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Examples and snippets",
+      "facts": [
+        {
+          "text": "dynamic \"tags\" { for_each = local.tags content { key = tags.key value = tags.value } }",
+          "source": "https://github.com/mongodb/terraform-provider-mongodbatlas/issues/2006",
+          "note": "issue 2006"
+        },
+        {
+          "text": "lifecycle { ignore_changes = [ tags[\"costcenter\"], tags[\"environment\"], tags[\"projectcode\"] ] }",
+          "source": "https://github.com/mongodb/terraform-provider-mongodbatlas/issues/2006",
+          "note": "issue 2006, fails"
+        }
+      ]
+    },
+    {
+      "title": "Problems, failure modes and limitations",
+      "facts": [
+        {
+          "text": "In the mongodbatlas provider, tags on mongodbatlas_advanced_cluster are written with a map-like literal (tags = { Key = \"Value\" }) in the registry example but are 'effectively implemented as a set of objects' per a maintainer, so lifecycle ignore_changes cannot target a single tag key such as tags[\"costcenter\"]. The issue was closed March 14, 2024 with no schema change visible.",
+          "source": "https://github.com/mongodb/terraform-provider-mongodbatlas/issues/2006",
+          "note": null
+        },
+        {
+          "text": "Invoice tagging scope is limited: line items not billed at the cluster level are not eligible for tagging, and cluster line items without a given tag key show blank cells for that column. Untagged spend therefore remains in any report.",
+          "source": "https://mongodb.com/blog/post/deployment-tags-billing-invoices-now-generally-available",
+          "note": null
+        },
+        {
+          "text": "Do not put PII/PHI in tags: Billing and other MongoDB services can read them, and cluster tags are sent to Datadog and Prometheus integrations. Tag changes are recorded in the Project Activity Feed.",
+          "source": "https://www.mongodb.com/docs/atlas/tags",
+          "note": null
+        },
+        {
+          "text": "For ex. it could be some internal policy to update Production cluster tags to change \"costcenter\" or \"project code\" but without",
+          "source": "https://github.com/mongodb/terraform-provider-mongodbatlas/issues/2006",
+          "note": "issue 2006 use case"
+        },
+        {
+          "text": "Don't include sensitive information such as Personally Identifiable Information (PII) or Protected Health Information (PHI) in your resource tags. Other MongoDB services, such as Billing, can access resource tags. MongoDB also sends cluster resource tags to DataDog and Prometheus integrations. Resource tags are not intended for private and sensitive data. To learn more, see Sensitive Information.",
+          "source": "https://www.mongodb.com/docs/atlas/tags",
+          "note": null
+        },
+        {
+          "text": "Terraform policy requires Terraform v1.16alpha or later. To enable alpha builds of Terraform, navigate to your organization's Settings page, select General from the left navigation, and enable the Show Terraform pre-releases setting.",
+          "source": "https://developer.hashicorp.com/terraform/cloud-docs/policy-enforcement",
+          "note": "HCP Terraform, beta"
+        },
+        {
+          "text": "Thank you for brining this up. The tags attribute is effectively implemented as a set of objects meaning they do not have an addressable key for referencing specific elements.",
+          "source": "https://github.com/mongodb/terraform-provider-mongodbatlas/issues/2006",
+          "note": "provider maintainer reply"
+        }
+      ]
+    },
+    {
+      "title": "Comparisons and alternatives",
+      "facts": [
+        {
+          "text": "AWS provider default_tags (since v3.38.0, April 30 2021) is a provider-block feature where resource-level tags win and Auto Scaling Groups are excluded. The Atlas registry page for advanced_cluster documents no provider-level default tags, so Atlas tags must be set per resource or merged in a module via locals and merge().",
+          "source": "https://www.hashicorp.com/en/blog/default-tags-in-the-terraform-aws-provider",
+          "note": null
+        },
+        {
+          "text": "These resource tags differ from the pre-defined replica set tags that Atlas provides. You can't change those replica set tags. You can provide and manage these resource tags.",
+          "source": "https://www.mongodb.com/docs/atlas/tags",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Changes and history",
+      "facts": [
+        {
+          "text": "In June, we announced MongoDB’s Atlas new resource tagging capability - built to provide a simple and easy way to organize and manage database deployments at scale. Today, we are pleased to announce the availability of these tags in billing invoice CSVs and Admin API operations.",
+          "source": "https://mongodb.com/blog/post/deployment-tags-billing-invoices-now-generally-available",
+          "note": null
+        },
+        {
+          "text": "We will keep this in consideration as we expand resource tagging support for new resources, and also how the existing tagging implementations can be improved. I would advise to create a feature request with these details so we can keep track of user demand for this use case.",
+          "source": "https://github.com/mongodb/terraform-provider-mongodbatlas/issues/2006",
+          "note": "provider maintainer reply"
+        },
+        {
+          "text": "Cluster labels will be deprecated in one of the future releases. We strongly recommend that you use resource tags instead.",
+          "source": "https://www.mongodb.com/docs/atlas/tags",
+          "note": null
+        }
+      ]
+    }
+  ],
+  "related": [
+    {
+      "concept": "Terraform",
+      "relation": "is a related of Terraform Tag Enforcement and Policy-as-Code for Atlas Cost",
+      "note": null
+    },
+    {
+      "concept": "policy-as-code",
+      "relation": "is a synonym of Terraform Tag Enforcement and Policy-as-Code for Atlas Cost",
+      "note": null
+    },
+    {
+      "concept": "tag enforcement",
+      "relation": "is a synonym of Terraform Tag Enforcement and Policy-as-Code for Atlas Cost",
+      "note": null
+    },
+    {
+      "concept": "tags in billing",
+      "relation": "is a part of Terraform Tag Enforcement and Policy-as-Code for Atlas Cost",
+      "note": null
+    },
+    {
+      "concept": "Sentinel",
+      "relation": "is a hyponym of Terraform Tag Enforcement and Policy-as-Code for Atlas Cost",
+      "note": null
+    },
+    {
+      "concept": "cost allocation",
+      "relation": "is a dependent of Terraform Tag Enforcement and Policy-as-Code for Atlas Cost",
+      "note": null
+    },
+    {
+      "concept": "OPA",
+      "relation": "is a hyponym of Terraform Tag Enforcement and Policy-as-Code for Atlas Cost",
+      "note": null
+    },
+    {
+      "concept": "policy set",
+      "relation": "is a part of Terraform Tag Enforcement and Policy-as-Code for Atlas Cost",
+      "note": null
+    },
+    {
+      "concept": "tag best practices",
+      "relation": "is a prerequisite of Terraform Tag Enforcement and Policy-as-Code for Atlas Cost",
+      "note": null
+    },
+    {
+      "concept": "tag limits",
+      "relation": "is a measure of Terraform Tag Enforcement and Policy-as-Code for Atlas Cost",
+      "note": null
+    },
+    {
+      "concept": "tags as set of objects",
+      "relation": "is a problem of Terraform Tag Enforcement and Policy-as-Code for Atlas Cost",
+      "note": null
+    },
+    {
+      "concept": "mongodbatlas provider",
+      "relation": "is a instance of Terraform Tag Enforcement and Policy-as-Code for Atlas Cost",
+      "note": null
+    },
+    {
+      "concept": "no sensitive data in tags",
+      "relation": "is a problem of Terraform Tag Enforcement and Policy-as-Code for Atlas Cost",
+      "note": null
+    },
+    {
+      "concept": "suggested tag keys",
+      "relation": "is a part of Terraform Tag Enforcement and Policy-as-Code for Atlas Cost",
+      "note": null
+    },
+    {
+      "concept": "Pending Invoices API",
+      "relation": "is a instance of Terraform Tag Enforcement and Policy-as-Code for Atlas Cost",
+      "note": null
+    },
+    {
+      "concept": "policy enforcement",
+      "relation": "is a related of Terraform Tag Enforcement and Policy-as-Code for Atlas Cost",
+      "note": null
+    },
+    {
+      "concept": "cluster labels",
+      "relation": "is a contrast of Terraform Tag Enforcement and Policy-as-Code for Atlas Cost",
+      "note": null
+    },
+    {
+      "concept": "tag drift",
+      "relation": "is a problem of Terraform Tag Enforcement and Policy-as-Code for Atlas Cost",
+      "note": null
+    },
+    {
+      "concept": "default_tags",
+      "relation": "is a contrast of Terraform Tag Enforcement and Policy-as-Code for Atlas Cost",
+      "note": null
+    }
+  ]
+}
