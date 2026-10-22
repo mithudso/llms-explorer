@@ -20,12 +20,14 @@ A `/dr` manifest that has said ``researching`` for more than
 cutoff, because a paused suite is resumed by hand days later.
 
 The scan reads a few hundred small files, so its result is cached for
-:data:`CACHE_SECONDS`.
+:data:`CACHE_SECONDS`. Suites with handoff receipts are revalidated on every
+scan request because their reservations depend on a separate target plan.
 """
 
 from __future__ import annotations
 
 import datetime as dt
+import importlib.util
 import json
 import os
 import re
@@ -38,6 +40,8 @@ DR_STALE_HOURS = 24
 SUITE_LAST_STAGE = "register"
 
 _cache: tuple[float, list[dict[str, Any]], dict[str, str]] | None = None
+_cache_handoffs = False
+_handoffs: Any = None
 
 
 def hub_dir() -> Path:
@@ -119,12 +123,33 @@ def _llmsx_batches() -> list[dict[str, Any]]:
     return runs
 
 
+def _suite_transfers(source: Path) -> set[str]:
+    """Load the shared validator even for standalone spec_from_file_location imports."""
+    global _handoffs
+    if not (source / "handoffs.json").exists():
+        return set()
+    try:
+        if _handoffs is None:
+            path = Path(__file__).resolve().parents[2] / "hub/scripts/research_handoffs.py"
+            spec = importlib.util.spec_from_file_location("_checkout_research_handoffs", path)
+            if spec is None or spec.loader is None:
+                return set()
+            module = importlib.util.module_from_spec(spec)
+            spec.loader.exec_module(module)
+            _handoffs = module
+        return _handoffs.validate_handoffs(source)
+    except (ImportError, OSError, ValueError, TypeError):
+        # Invalid or unavailable proof never weakens a reservation.
+        return set()
+
+
 def _suites() -> list[dict[str, Any]]:
     runs = []
     for listing in (hub_dir() / "research" / ".pipeline").glob("*/batches.json"):
         batches = _json(listing)
         if not isinstance(batches, list):
             continue
+        transferred = _suite_transfers(listing.parent)
         held: list[str] = []
         total = 0
         newest = None
@@ -139,7 +164,7 @@ def _suites() -> list[dict[str, Any]]:
             last = stages.get(SUITE_LAST_STAGE) if isinstance(stages, dict) else None
             if isinstance(last, dict) and last.get("status") == "done":
                 continue
-            held.extend(names)
+            held.extend(n for n in names if n not in transferred)
             newest = max(filter(None, (newest, _mtime(state_file))), default=None)
         if not held:
             continue
@@ -185,10 +210,14 @@ def _scan() -> tuple[list[dict[str, Any]], dict[str, str]]:
 def snapshot() -> tuple[list[dict[str, Any]], dict[str, str]]:
     """``(runs, {normalised concept: holder label})``, cached for
     :data:`CACHE_SECONDS`."""
-    global _cache
+    global _cache, _cache_handoffs
     now = time.monotonic()
-    if _cache is None or now - _cache[0] > CACHE_SECONDS:
+    # A transferred reservation depends on a separate mutable plan. Recheck
+    # each time so a missing/changed plan cannot remain released in the cache.
+    handoffs = any((hub_dir() / "research" / ".pipeline").glob("*/handoffs.json"))
+    if _cache is None or _cache_handoffs or handoffs or now - _cache[0] > CACHE_SECONDS:
         _cache = (now, *_scan())
+        _cache_handoffs = handoffs
     return _cache[1], _cache[2]
 
 
@@ -202,14 +231,25 @@ def now_iso() -> str:
 
 
 QUEUE_ROW = re.compile(
-    r"^- \[(?P<done>[ xX])\] Concept: `(?P<concept>[^`]+)`"
-    r"(?: \| Parent: `(?P<parent>[^`]*)`)?(?:.*?\| Cluster: `(?P<cluster>[^`]*)`)?")
+    r"^\s*-\s*\[(?P<done>[ xX])\]\s*Concept:\s*"
+    r"(?P<ticks>`+)(?!`)(?P<concept>.+?)(?<!`)(?P=ticks)(?!`)(?=\s*(?:\||$))(?P<tags>.*)$")
+QUEUE_TAG = re.compile(
+    r"\|\s*(?P<tag>[^:|]+):\s*(?P<ticks>`+)(?!`)"
+    r"(?P<value>.*?)(?<!`)(?P=ticks)(?!`)(?=\s*(?:\||$))")
+
+
+def _queue_unquote(value: str, ticks: str) -> str:
+    # The inventory writer pads names that start/end with a backtick so the
+    # name's ticks stay separate from its longer Markdown delimiter.
+    if len(ticks) > 1 and value.startswith(" ") and value.endswith(" "):
+        return value[1:-1]
+    return value
 
 
 def research_queue(repo: Path, show: int = 25) -> dict[str, Any]:
     """Counts and the next rows of ``concept-tree/RESEARCH_QUEUE.md``: the
-    backlog nothing has checked out yet. Same row grammar as llmsx
-    ``load_queue``."""
+    backlog nothing has checked out yet. Accept ordinary single-backtick
+    labels and the inventory writer's longer delimiters for embedded ticks."""
     path = repo / "concept-tree" / "RESEARCH_QUEUE.md"
     try:
         lines = path.read_text(encoding="utf-8").splitlines()
@@ -225,12 +265,16 @@ def research_queue(repo: Path, show: int = 25) -> dict[str, Any]:
             done += 1
             continue
         pending += 1
-        if len(nxt) < show and _key(m["concept"]) not in held:
-            nxt.append({"concept": m["concept"], "parent": m["parent"] or None,
-                        "cluster": m["cluster"] or None})
+        concept = _queue_unquote(m["concept"], m["ticks"])
+        if len(nxt) < show and _key(concept) not in held:
+            tags = {tag["tag"].strip().casefold(): _queue_unquote(tag["value"], tag["ticks"])
+                    for tag in QUEUE_TAG.finditer(m["tags"])}
+            nxt.append({"concept": concept, "parent": tags.get("parent") or None,
+                        "cluster": tags.get("cluster") or None})
     return {"pending": pending, "done": done, "next": nxt, "available": True}
 
 
 def clear_cache() -> None:
-    global _cache
+    global _cache, _cache_handoffs
     _cache = None
+    _cache_handoffs = False

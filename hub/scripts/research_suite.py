@@ -55,6 +55,7 @@ from pathlib import Path
 from urllib.parse import urlsplit
 
 import concept_tree as ct
+from research_handoffs import HandoffError, guard_handoff_batches, suite_lock
 
 HUB = ct.HUB_DIR
 dr = sl = None  # hub-owned modules (dr_run, source_library); this repo's CI has no hub checkout
@@ -1299,6 +1300,8 @@ def synthesis_markdown(doc: dict) -> str:
 
 
 def stage_register(run: Path, b: dict, repo: Path) -> None:
+    if not guard_handoff_batches(run, [b]):
+        return
     import frontier_research_batch as frb
 
     d = bdir(run, b["id"])
@@ -1310,6 +1313,8 @@ def stage_register(run: Path, b: dict, repo: Path) -> None:
     for f in sorted((d / "validated").glob("*.json")):
         doc = json.loads(f.read_text(encoding="utf-8"))
         concept = doc["concept"]
+        if concept not in b["concepts"]:
+            raise HandoffError(f"Cached registration concept {concept!r} is outside its source batch")
         if concept in done:
             continue
         if len(doc.get("claims", [])) < MIN_CLAIMS:
@@ -1341,6 +1346,10 @@ def stage_register(run: Path, b: dict, repo: Path) -> None:
 # pipeline driver
 # --------------------------------------------------------------------------- #
 def run_pipeline(run: Path, batches: list[dict], cfg: argparse.Namespace, repo: Path) -> int:
+    batches = guard_handoff_batches(run, batches)
+    if not batches:
+        log("No source batches remain after reservation handoffs")
+        return 0
     order = ["discover", "snapshot", "extract", "synth", "validate", "register"]
     workers = {"discover": cfg.discover_jobs, "snapshot": cfg.snapshot_jobs, "extract": 1, "synth": 1,
                "validate": cfg.validate_jobs, "register": 1}  # fmt: skip
@@ -1498,8 +1507,16 @@ def cmd_scope(a) -> int:
 
 
 def cmd_run(a) -> int:
-    load_hub_modules()
     run = run_root(a.run)
+    try:
+        with suite_lock(run):
+            return _cmd_run_locked(a, run)
+    except HandoffError as exc:
+        log(f"source suite cannot resume: {exc}")
+        return 4
+
+
+def _cmd_run_locked(a, run: Path) -> int:
     batches = json.loads((run / "batches.json").read_text(encoding="utf-8"))
     if a.only:
         batches = [b for b in batches if b["id"] in set(a.only)]
@@ -1507,6 +1524,13 @@ def cmd_run(a) -> int:
         batches = [b for b in batches if b["id"] in set(a.pilot_pick)]
     elif a.pilot:
         batches = batches[: a.pilot]
+    # Check before importing hub modules, preflight, metadata writes or any
+    # cached stage dispatch. A mixed batch needs an explicit new scope.
+    batches = guard_handoff_batches(run, batches)
+    if not batches:
+        log("No source batches remain after reservation handoffs")
+        return 0
+    load_hub_modules()
     (run / "run.json").write_text(json.dumps({"started": now(), "discover": DISCOVER, "validate": VALIDATE, "workhorse": LLM_MODEL,
                                               "llm_url": LLM_URL, "max_usd": a.max_usd, "args": vars(a)}, indent=1, default=str), encoding="utf-8")  # fmt: skip
     try:
