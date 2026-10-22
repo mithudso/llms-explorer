@@ -847,3 +847,10 @@
 - PR 216 merged into PR 214. Exact-head GitHub checks pass at 9746633389, while
   Cloudflare Pages still fails without an accessible first-error log. Local
   publication remains distinct from production deployment.
+- Cohort 23 is complete after all 38 structured claims passed against the final
+  documents. Eight claim records and five auxiliary-note entries were corrected;
+  four missing source bodies were recovered privately. All 48 pack members, three
+  readers and three canonical downloads are verified. The website contains 1,518
+  reader packs and 89,213 facts. The saved plan continues cohort 24 as PID 35759.
+- The broad auxiliary prose coverage gap remains tracked as KNOW-796. Structured
+  claim support counts do not establish automated review of every reader sentence.

@@ -27,7 +27,22 @@ to the packet but were absent from their particular claim's citations. The stric
 gate rejected them and also exposed substantive dissent. The follow-up makes the
 judge's claim-specific citation requirement explicit and reports the offending
 claim ID and URL. Four adversarial cases exercise this rejection for every verdict
-type. Primary-source review corrected seven canonical claim records, recovered
-three missing source bodies privately and preserved the original worker receipts.
-The independent gate is rerun after these corrections; the original failed attempt
-remains intact.
+type. Primary-source review corrected eight canonical claim records, recovered
+four missing source bodies privately and preserved the original worker receipts.
+The final independent gate supported all 38 structured claims after correcting
+five auxiliary-note entries. Changing those notes invalidated the earlier gate
+even though every structured claim record remained unchanged. All attempts remain
+intact. The gate count covers structured claims; it does not establish automatic
+entailment review of every summary or disagreement sentence.
+
+The diagnostic follow-up is [PR 217](https://github.com/mithudso/llms-explorer/pull/217).
+Its research suite passes 136 tests plus two subtests. Publication privacy,
+Ruff and profile synchronization checks pass. A read-only audit before cohort 23
+found all 1,264 expected pack members for 79 concepts in 22 completed cohorts and
+no stale generated website files.
+
+Cohort 23 then completed its final transaction. All 48 pack members, three reader
+pages and three canonical downloads were checked against the final artifact.
+Retired wording is absent. The local website now contains 1,518 reader packs and
+89,213 facts. The saved plan has 23 completed cohorts and continues with cohort 24
+at Luna/max. This remains local publication; production deployment is unresolved.
