@@ -5,8 +5,8 @@ The runtime and generated Codex DR/CFE/rabbithole skills are installed in the
 working checkout. Backups precede every replaced file. The shared Claude runtime
 and unrelated working changes are preserved. Luna/max remains the default.
 
-Review: [draft PR 216](https://github.com/mithudso/llms-explorer/pull/216), stacked
-on PR 214. Validation: 132 research tests plus two subtests, 278 built-site tests,
+Review: [merged PR 216](https://github.com/mithudso/llms-explorer/pull/216), merged
+into PR 214. Validation: 132 research tests plus two subtests, 278 built-site tests,
 30 publication privacy tests, Ruff/profile checks, full site build, operator
 privacy scan and a live four-claim canonical projection canary.
 
@@ -21,3 +21,37 @@ The local website contains 1,515 reader packs and 89,175 facts after cohort 22.
 These counts describe this rollout snapshot, not a perpetual live status.
 Production Cloudflare deployment remains separately blocked under the existing
 release task. Local validation does not establish remote publication.
+
+Cohort 23 exposed a narrower citation failure: five valid source spans belonged
+to the packet but were absent from their particular claim's citations. The strict
+gate rejected them and also exposed substantive dissent. The follow-up makes the
+judge's claim-specific citation requirement explicit and reports the offending
+claim ID and URL. Four adversarial cases exercise this rejection for every verdict
+type. Primary-source review corrected eight canonical claim records, recovered
+four missing source bodies privately and preserved the original worker receipts.
+The final independent gate supported all 38 structured claims after correcting
+five auxiliary-note entries. Changing those notes invalidated the earlier gate
+even though every structured claim record remained unchanged. All attempts remain
+intact. The gate count covers structured claims; it does not establish automatic
+entailment review of every summary or disagreement sentence.
+
+The diagnostic follow-up is [PR 217](https://github.com/mithudso/llms-explorer/pull/217).
+Its research suite passes 136 tests plus two subtests. Publication privacy,
+Ruff and profile synchronization checks pass. A read-only audit before cohort 23
+found all 1,264 expected pack members for 79 concepts in 22 completed cohorts and
+no stale generated website files.
+
+Cohort 23 then completed its final transaction. All 48 pack members, three reader
+pages and three canonical downloads were checked against the final artifact.
+Retired wording is absent. The local website now contains 1,518 reader packs and
+89,213 facts. The saved plan has 23 completed cohorts and continues with cohort 24
+at Luna/max. This remains local publication; production deployment is unresolved.
+
+The subsequent release freeze retains those 23 completed cohorts (82 researched
+concepts, 808 structured claims). Cohort 24 stopped on 27 UNVERIFIED, 14 SUPPORTED
+and one NOT-IN-SOURCE verdict among 42 selected claims; it is excluded from the
+release. Cohorts 25-31 remain pending. PR 218 restores private dependency access
+for Cloudflare and refreshes the release to 1,518 readers and 89,213 facts. Clean
+builds also regenerate canonical JSON downloads from committed reader data.
+The credential repair has passed a live preview; production awaits the final
+release checks.

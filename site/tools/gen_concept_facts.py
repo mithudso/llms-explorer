@@ -146,6 +146,21 @@ def download_texts(packs: dict, nodes: dict, redirects: dict, site_url: str,
     return texts
 
 
+def research_download_texts(packs: dict) -> dict[str, str]:
+    """Recreate public canonical artifacts from committed reader data in CI."""
+    result = {}
+    for slug, pack in packs.items():
+        if not pack.get("canonicalArtifactSha256"):
+            continue
+        artifact = {"schema": "research-public-artifact/v1",
+                    "concept": pack["concept"], "slug": slug,
+                    "canonicalArtifactSha256": pack["canonicalArtifactSha256"],
+                    "canonicalConceptId": pack.get("canonicalConceptId"),
+                    "claims": [fact for facet in pack["facets"] for fact in facet["facts"]]}
+        result[slug] = json.dumps(artifact, ensure_ascii=False, indent=2) + "\n"
+    return result
+
+
 def build(concepts_dir: Path, tree_path: Path, out: Path, site_url: str,
           sources_dir: Path) -> int:
     tree = json.loads(tree_path.read_text(encoding="utf-8"))
@@ -161,6 +176,12 @@ def build(concepts_dir: Path, tree_path: Path, out: Path, site_url: str,
     texts = download_texts(packs, nodes, tree.get("redirects", {}), site_url, sources_dir)
     for slug, text in texts.items():
         (out / f"{slug}.md").write_text(text, encoding="utf-8")
+    research_out = out.parent / "research"
+    if research_out.exists():
+        shutil.rmtree(research_out)
+    research_out.mkdir(parents=True)
+    for slug, text in research_download_texts(packs).items():
+        (research_out / f"{slug}.json").write_text(text, encoding="utf-8")
     return len(texts)
 
 
