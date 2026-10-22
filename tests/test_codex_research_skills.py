@@ -7,9 +7,11 @@ import io
 import json
 import os
 import shutil
+import signal
 import subprocess
 import sys
 import tempfile
+import time
 import unittest
 from contextlib import redirect_stdout
 from pathlib import Path
@@ -187,14 +189,86 @@ class AdapterTests(unittest.TestCase):
                 path.write_text(text)
             shared = SimpleNamespace(run_dir=lambda slug: root / slug, RESEARCH_DIR=root,
                                      atomic_write=atomic_write, _now=lambda: "2026-10-20T00:00:00Z", __file__="/shared/dr_run.py")
-            with patch.object(adapter, "codex_binary", return_value="codex"), patch.object(adapter.subprocess, "run", return_value=SimpleNamespace(stdout='{"type":"turn.completed","usage":{}}', stderr="model not enabled", returncode=1)):
+            with patch.object(adapter, "codex_binary", return_value="codex"), patch.object(adapter, "run_worker", return_value=SimpleNamespace(stdout='{"type":"turn.completed","usage":{}}', stderr="model not enabled", returncode=1)):
                 result = adapter.run_agent(shared, {"slug": "run"}, "gate", "brief", "sonnet", "max", 3, 2)
                 self.assertTrue(result["is_error"])
                 self.assertIn("model not enabled", result["errors"][-1])
-            with patch.object(adapter, "codex_binary", return_value="codex"), patch.object(adapter.subprocess, "run", side_effect=subprocess.TimeoutExpired("codex", 2, output=b"partial", stderr=b"timeout")):
+            with patch.object(adapter, "codex_binary", return_value="codex"), patch.object(adapter, "run_worker", side_effect=subprocess.TimeoutExpired("codex", 2, output=b"partial", stderr=b"timeout")):
                 result = adapter.run_agent(shared, {"slug": "run"}, "probe", "brief", "sonnet", "high", 3, 2)
                 self.assertEqual(result["result"], "timed out after 2s")
                 self.assertEqual((root / "run/agents/probe.events.jsonl").read_text(), "partial")
+
+    @unittest.skipUnless(os.name == "posix", "worker process groups require POSIX")
+    def test_worker_preserves_input_output_and_exit_status(self):
+        with tempfile.TemporaryDirectory() as temp:
+            code = "import sys;print(sys.stdin.read());print('worker error',file=sys.stderr);sys.exit(7)"
+            result = adapter.run_worker([sys.executable, "-c", code], "research brief", Path(temp), 5)
+            self.assertEqual(result.returncode, 7)
+            self.assertEqual(result.stdout, "research brief\n")
+            self.assertEqual(result.stderr, "worker error\n")
+
+    @unittest.skipUnless(os.name == "posix", "worker process groups require POSIX")
+    def test_worker_timeout_terminates_a_term_ignoring_delayed_writer(self):
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+            ready, late = root / "child.pid", root / "late-write"
+            child = ("import os,signal,time;from pathlib import Path;"
+                     "signal.signal(signal.SIGTERM,signal.SIG_IGN);"
+                     f"Path({str(ready)!r}).write_text(str(os.getpid()));"
+                     f"time.sleep(1.2);Path({str(late)!r}).write_text('too late')")
+            parent = ("import subprocess,sys,time;"
+                      f"subprocess.Popen([sys.executable,'-c',{child!r}],"
+                      "stdout=subprocess.DEVNULL,stderr=subprocess.DEVNULL);"
+                      "print('partial evidence',flush=True);time.sleep(30)")
+            try:
+                with self.assertRaises(subprocess.TimeoutExpired) as caught:
+                    adapter.run_worker([sys.executable, "-c", parent], "brief", root, 0.5)
+                self.assertTrue(ready.exists(), "the delayed writer must have started")
+                self.assertIn("partial evidence", caught.exception.stdout)
+                time.sleep(1.3)
+                self.assertFalse(late.exists(), "a failed worker must not write later")
+            finally:
+                if ready.exists():
+                    try:
+                        os.kill(int(ready.read_text()), signal.SIGKILL)
+                    except ProcessLookupError:
+                        pass
+
+    @unittest.skipUnless(os.name == "posix", "worker process groups require POSIX")
+    def test_phase_termination_stops_isolated_worker_groups(self):
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+            ready, late = root / "worker.pid", root / "late-write"
+            worker = ("import os,signal,time;from pathlib import Path;"
+                      "signal.signal(signal.SIGTERM,signal.SIG_IGN);"
+                      f"Path({str(ready)!r}).write_text(str(os.getpid()));"
+                      f"time.sleep(1.2);Path({str(late)!r}).write_text('too late')")
+            phase = ("import importlib.util;from pathlib import Path;"
+                     f"s=importlib.util.spec_from_file_location('adapter',{adapter.__file__!r});"
+                     "m=importlib.util.module_from_spec(s);s.loader.exec_module(m);"
+                     "m.install_worker_cleanup();"
+                     f"m.run_worker([{sys.executable!r},'-c',{worker!r}],'brief',Path({str(root)!r}),30)")
+            process = subprocess.Popen([sys.executable, "-c", phase], stdout=subprocess.PIPE,
+                                       stderr=subprocess.PIPE, text=True)
+            try:
+                deadline = time.monotonic() + 5
+                while not ready.exists() and time.monotonic() < deadline and process.poll() is None:
+                    time.sleep(0.01)
+                self.assertTrue(ready.exists(), "the isolated worker must have started")
+                process.terminate()
+                process.communicate(timeout=5)
+                self.assertEqual(process.returncode, 128 + signal.SIGTERM)
+                time.sleep(1.3)
+                self.assertFalse(late.exists(), "a stopped phase must not leave a live worker")
+            finally:
+                if process.poll() is None:
+                    process.kill()
+                process.communicate()
+                if ready.exists():
+                    try:
+                        os.kill(int(ready.read_text()), signal.SIGKILL)
+                    except ProcessLookupError:
+                        pass
 
     @unittest.skipUnless((Path.home() / ".global-ai-hub/scripts/dr_run.py").exists(), "shared DR runtime not installed")
     def test_shared_state_machine_adaptive_deep_and_gate_dry_runs(self):

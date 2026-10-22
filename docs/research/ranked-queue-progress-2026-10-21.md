@@ -1,6 +1,6 @@
 # Ranked research progress — updated 2026-10-22
 
-Live queue check on 2026-10-22: 19 cohorts have completed (68 concepts, 679 claims). Cohort twenty is running. The validated PR snapshot below stops after cohort fifteen.
+Live queue check on 2026-10-22: 21 cohorts have completed (76 concepts, 744 claims). Cohort twenty-two is running. The validated PR snapshot below stops after cohort fifteen.
 
 Fifteen of the 31 planned source-sharing cohorts have completed. They cover 57
 concepts and 569 structured claims. Fifty-three concepts add website references;
@@ -47,11 +47,11 @@ Existing semantic vectors remain frozen under the embedding pause. The shared
 source-library index reconciled 9,509 sources without errors before the
 sixteenth cohort. Raw source bodies, private library state and research execution logs stay local.
 
-The next four completed cohorts cover index compression and partial indexes,
+The next six completed cohorts cover index compression and partial indexes,
 the Lambda driver pattern, MongoDB MCP permissions and natural-language query
-generation, and time-series planning. Cohort twenty researches plan-cache
-statistics and keys, min/max hints, and identifier privacy. The live plan retains
-12 unfinished cohorts at this check. Other runs' held concepts remain excluded.
+generation, time-series planning, plan-cache statistics and keys, and advanced
+explain/cardinality estimation. The live plan retains ten unfinished cohorts at
+this check. Other runs' held concepts remain excluded.
 A new gate dissent will stop the runner for review.
 
 The eleventh cohort's transports reported DNS failures after storing valid claim
@@ -146,3 +146,17 @@ original public Git snapshot. It preserves all fact counts, unrelated facts and
 metadata. Regenerated downloads and keyword search retain the original URLs.
 The live runtime refresh preserves the repairs, and a repeated repair preview
 finds no changes. Local backups retain all previous files.
+
+The latest review fixes match withheld SERVER issue keys at identifier boundaries
+while preserving ordinary operator denylist rules. Worker deadlines terminate
+the whole isolated process group and preserve partial logs. Phase termination
+also stops isolated worker groups before adapter exit. The release passes 94
+focused tests and two subtests, including real delayed-writer subprocess checks.
+All 427 approved issue keys in the live allowlist remain unchanged; its cache has
+no currently withheld keys. The Codex transport profile is regenerated.
+
+Cohort twenty-one stopped when Sol reported "Selected model is at capacity"
+during its independent gate. The failed gate evidence was backed up. The saved
+plan resumed without repeating discovery; the claim hashes and research-agent
+receipts are unchanged. The fresh gate supports all ten samples. Both pack roots,
+both trees and the local website completed before cohort twenty-two started.

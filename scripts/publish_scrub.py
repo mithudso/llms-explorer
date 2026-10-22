@@ -41,9 +41,22 @@ def _slug(name: str) -> str:
     return re.sub(r"-+", "-", s)
 
 
+def _term_pattern(term: str) -> str:
+    # The citation verifier withholds SERVER issue keys. A different issue
+    # can share their numeric prefix; ordinary operator terms stay substrings.
+    pattern = re.escape(term)
+    return rf"\b{pattern}\b" if re.fullmatch(r"SERVER-\d+", term, re.IGNORECASE) else pattern
+
+
 def _matches(text: str, terms: list[str]) -> bool:
     low, slug = text.lower(), _slug(text)
-    return any(t.lower() in low or t.lower() in slug for t in terms)
+    for term in terms:
+        if re.fullmatch(r"SERVER-\d+", term, re.IGNORECASE):
+            if re.search(_term_pattern(term), low, re.IGNORECASE) or re.search(_term_pattern(term), slug, re.IGNORECASE):
+                return True
+        elif term.lower() in low or term.lower() in slug:
+            return True
+    return False
 
 
 def filter_tree(nodes: list[dict], terms: list[str], excluded_names=()) -> tuple[list[dict], list[str], int]:
@@ -126,7 +139,7 @@ def scrub_addresses(text: str, terms: list[str] = (), prose: bool = True) -> tup
             n += k
     if prose:
         for term in terms:
-            text, k = re.subn(re.escape(term), "[redacted]", text, flags=re.IGNORECASE)
+            text, k = re.subn(_term_pattern(term), "[redacted]", text, flags=re.IGNORECASE)
             n += k
     return text, n
 
