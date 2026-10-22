@@ -7,15 +7,17 @@ import importlib.util
 import json
 from pathlib import Path
 
+_claims_spec = importlib.util.spec_from_file_location('research_statement_contract', Path(__file__).with_name('research_claims.py'))
+_claims = importlib.util.module_from_spec(_claims_spec)
+_claims_spec.loader.exec_module(_claims)
+
 
 def digest(value):
     return hashlib.sha256(json.dumps(value, sort_keys=True, ensure_ascii=False, separators=(',', ':')).encode()).hexdigest()
 
 
 def claim_identity(slug, claim):
-    return {'concept_slug': slug, 'text': claim['text'], 'sources': sorted(set(claim['sources'])),
-            'confidence': claim['confidence'], 'verified_as_of': claim.get('verified_as_of'),
-            'volatile': bool(claim.get('volatile'))}
+    return _claims.claim_identity(slug, claim)
 
 
 def build(shared, manifest, documents, status):
@@ -23,10 +25,9 @@ def build(shared, manifest, documents, status):
     spec = importlib.util.spec_from_file_location('artifact_gate_contract', path)
     gate = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(gate)
-    strict = manifest.get('gate_contract_version') == 2
+    strict = manifest.get('gate_contract_version') in (2, 3)
     if strict:
-        report = gate.verify_current(shared, manifest)
-        judgments = json.loads((shared.run_dir(manifest['slug']) / 'gate.json').read_text())['verdicts']
+        report, judgments = gate.verify_current(shared, manifest, with_verdicts=True)
     else:
         report, judgments = {'schema': 'legacy-unbound', 'coverage': None}, []
     verdicts = {row['claim_id']: row for row in judgments}
@@ -83,10 +84,20 @@ def build(shared, manifest, documents, status):
             claim['canonical_claim_id'] = bound['claim_id']
             claim['validation_status'] = 'SUPPORTED' if judgment else 'NOT-SAMPLED' if strict else 'LEGACY-UNBOUND'
             claim['evidence_ids'] = sorted({e['evidence_id'] for e in (judgment or {}).get('evidence', []) if e.get('evidence_id')})
+        if manifest.get('gate_contract_version') == 3:
+            doc['auxiliary_assertions'] = []
+            for row in gate.auxiliary_rows(slug, doc):
+                judgment = verdicts.get(row['claim_id'])
+                if not judgment or judgment['verdict'] not in ('SUPPORTED', gate.NO_ASSERTION):
+                    raise ValueError('factual auxiliary prose lacks its current gate judgment')
+                doc['auxiliary_assertions'].append({**row, 'validation_status': judgment['verdict'],
+                    'evidence_ids': sorted({e['evidence_id'] for e in judgment.get('evidence', [])})})
     artifact = {'schema': 'research-artifact/v1', 'run': manifest['slug'], 'topic': topic, 'status': status,
                 'input_hashes': {slug: digest(doc) for slug, doc in sorted(documents.items())},
                 'validation': report, 'gate_verdicts': judgments, 'concept_ids': concept_ids,
                 'concept_slugs': concept_slugs, 'documents': enriched}
+    if manifest.get('gate_contract_version') == 3:
+        artifact['assertion_contract_version'] = 3
     if topic != manifest['topic']:
         artifact['requested_topic'] = manifest['topic']
     artifact['artifact_sha256'] = digest(artifact)
@@ -105,7 +116,27 @@ def verify(artifact):
         raise ValueError('canonical artifact hash mismatch')
     identities = set()
     verdicts = {row['claim_id']: row for row in artifact.get('gate_verdicts', [])}
+    gate = None
+    if artifact.get('assertion_contract_version') == 3:
+        spec = importlib.util.spec_from_file_location('artifact_prose_contract', Path(__file__).with_name('research_gate.py'))
+        gate = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(gate)
     for slug, doc in artifact['documents'].items():
+        if gate:
+            expected = gate.auxiliary_rows(slug, doc)
+            actual = doc.get('auxiliary_assertions', [])
+            if len(expected) != len(actual):
+                raise ValueError('canonical auxiliary prose coverage changed')
+            for row, assertion in zip(expected, actual):
+                judgment = verdicts.get(row['claim_id'], {})
+                evidence_ids = sorted({e['evidence_id'] for e in judgment.get('evidence', [])})
+                if (any(assertion.get(k) != v for k, v in row.items())
+                        or judgment.get('text') != row['text']
+                        or judgment.get('verdict') not in ('SUPPORTED', gate.NO_ASSERTION)
+                        or assertion.get('validation_status') != judgment['verdict']
+                        or assertion.get('evidence_ids') != evidence_ids
+                        or (judgment['verdict'] == 'SUPPORTED' and not evidence_ids)):
+                    raise ValueError('canonical auxiliary prose judgment does not match its version')
         for claim in doc['claims']:
             identity = claim_identity(slug, claim)
             if claim['canonical_claim_id'] != 'clm:' + digest(identity):
@@ -129,6 +160,6 @@ def public_projection(files):
     result = {'schema': 'research-public-artifact/v1', 'concept': manifest['concept'], 'slug': manifest['slug'],
               'canonical_concept_id': manifest.get('canonical_concept_id'),
               'canonical_artifact_sha256': manifest.get('canonical_artifact_sha256'),
-              'claims': [{key: row[key] for key in ('id', 'text', 'source_url', 'also', 'validation_status', 'origin_validation_status', 'evidence_ids') if key in row} for row in rows]}
+              'claims': [{key: row[key] for key in ('id', 'text', 'source_url', 'also', 'validation_status', 'origin_validation_status', 'evidence_ids', 'temporal') if key in row} for row in rows]}
     result['projection_sha256'] = digest(result)
     return result

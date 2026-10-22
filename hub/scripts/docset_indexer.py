@@ -33,6 +33,7 @@ from __future__ import annotations
 import argparse
 import hashlib
 import json
+from io import StringIO
 import math
 import os
 import re
@@ -41,6 +42,7 @@ import threading
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
+import embedding_contract
 import embed_core  # noqa: E402
 
 # expanduser: env blocks from launchd/MCP-client JSON pass literal '~' through
@@ -106,13 +108,13 @@ def base_key(key: str) -> str:
     return key[:-len(FACTS_SUFFIX)] if key.endswith(FACTS_SUFFIX) else key
 
 
-def load_units(path: Path) -> list[dict]:
+def load_units(path: Path, *, content: str | None = None) -> list[dict]:
     """A docset_refine all_units.jsonl -> index rows (no vectors yet). A
     snippet embeds as its caption plus the code body so a query for a
     command hits the block that contains it; url carries the anchor."""
     rows = []
     seen: set[str] = set()
-    with path.open(encoding="utf-8") as fh:
+    with (path.open(encoding="utf-8") if content is None else StringIO(content)) as fh:
         for n, line in enumerate(fh):
             line = line.strip()
             if not line:
@@ -169,6 +171,30 @@ def chunk_page(text: str, size: int = CHUNK_CHARS, overlap: int = CHUNK_OVERLAP)
 # ---------------------------------------------------------------------------
 # storage adapters
 # ---------------------------------------------------------------------------
+
+def _bind_rows(rows, meta):
+    rows, meta = [dict(row) for row in rows], dict(meta)
+    dimensions = {len(row['vector']) for row in rows}
+    models = {row['model'] for row in rows}
+    if len(dimensions) > 1 or (models and models != {meta['model']}):
+        raise ValueError('docset replacement mixes incompatible embedding spaces')
+    contract = meta.get('embedding_contract') or embedding_contract.encoder(
+        meta['model'], embed_core.embed_revision(meta['model']), next(iter(dimensions), 0))
+    for row in rows:
+        if contract['model'] != row['model'] or contract['dim'] != len(row['vector']):
+            raise ValueError('docset encoder contract does not match its vectors')
+        if row.get('embedding_binding'):
+            embedding_contract.verify(row['embedding_binding'], row['text'], contract, row['vector'])
+            if (row['embedding_binding']['unit_id'] != row['id']
+                    or (meta.get('source_sha256') is not None
+                        and row['embedding_binding']['artifact_sha256'] != meta['source_sha256'])):
+                raise ValueError('embedding binding belongs to another unit or source artifact')
+        else:
+            row['embedding_binding'] = embedding_contract.bind(
+                row['text'], row['id'], meta.get('source_sha256'), contract, row['vector'])
+    meta['embedding_contract'] = contract
+    return rows, meta
+
 
 def _hit(score, url, seq, text, unit_type=None, origin=None) -> dict:
     hit = {"score": round(score, 4), "url": url, "seq": seq, "text": text}
@@ -236,7 +262,7 @@ class SqliteStore:
         # Facts rows carry their unit type/origin; older databases gain the
         # columns in place (ALTER is idempotent via the check).
         cols = {r[1] for r in self.db.execute("PRAGMA table_info(chunks)").fetchall()}
-        for col in ("unit_type", "origin"):
+        for col in ("unit_type", "origin", "embedding_binding"):
             if col not in cols:
                 self.db.execute(f"ALTER TABLE chunks ADD COLUMN {col} TEXT")
 
@@ -283,28 +309,44 @@ class SqliteStore:
         with self._lock:
             self._ensure_kw()
             rows = self.db.execute(
-                "SELECT url, seq, snippet(kw, 3, '[', ']', ' … ', 24), bm25(kw)"
+                "SELECT url, seq, text, snippet(kw, 3, '[', ']', ' … ', 24), bm25(kw)"
                 " FROM kw WHERE docset=? AND kw MATCH ? ORDER BY bm25(kw) LIMIT ?",
                 (key, match, top)).fetchall()
-        return [{"score": round(-s, 4), "url": u, "seq": q, "snippet": sn}
-                for u, q, sn, s in rows]
+        return [{"score": round(-s, 4), "url": u, "seq": q, "text": text, "snippet": sn}
+                for u, q, text, sn, s in rows]
 
     def replace_docset(self, key, rows, meta, pages=None):
+        rows, meta = _bind_rows(rows, meta)
         with self._lock, self.db:
             self.db.execute("DELETE FROM chunks WHERE docset=?", (key,))
             self.db.executemany(
                 "INSERT OR REPLACE INTO chunks"
-                " (docset, chunk_id, url, seq, text, vector, model, unit_type, origin)"
-                " VALUES (?,?,?,?,?,?,?,?,?)",
+                " (docset, chunk_id, url, seq, text, vector, model, unit_type, origin, embedding_binding)"
+                " VALUES (?,?,?,?,?,?,?,?,?,?)",
                 [(key, r["id"], r["url"], r["seq"], r["text"],
-                  json.dumps(r["vector"]), r["model"], r.get("unit_type"), r.get("origin"))
+                  json.dumps(r["vector"]), r["model"], r.get("unit_type"), r.get("origin"), json.dumps(r["embedding_binding"]))
                  for r in rows],
             )
             self._write_meta(key, meta, len(rows), self.backend)
             self._write_pages(key, pages)
 
+    def docset_contract(self, key):
+        with self._lock:
+            self.db.execute('CREATE TABLE IF NOT EXISTS embedding_contracts '
+                            '(docset TEXT PRIMARY KEY, contract TEXT)')
+            row = self.db.execute('SELECT contract FROM embedding_contracts WHERE docset=?', (key,)).fetchone()
+        return json.loads(row[0]) if row else None
+
     def _write_meta(self, key, meta, chunk_count, backend):
         """Registry row. Caller holds _lock and the transaction."""
+        self.db.execute('CREATE TABLE IF NOT EXISTS embedding_contracts '
+                        '(docset TEXT PRIMARY KEY, contract TEXT)')
+        contract = meta.get('embedding_contract')
+        if contract:
+            self.db.execute('INSERT OR REPLACE INTO embedding_contracts VALUES (?,?)',
+                            (key, json.dumps(contract, sort_keys=True)))
+        else:
+            self.db.execute('DELETE FROM embedding_contracts WHERE docset=?', (key,))
         self.db.execute(
             "INSERT OR REPLACE INTO docsets VALUES (?,?,?,?,?,?,datetime('now'))",
             (key, meta["source_path"], meta["pages"], chunk_count,
@@ -355,13 +397,16 @@ class SqliteStore:
                 alt.close()
         with self._lock:
             rows = self.db.execute(
-                "SELECT url, seq, text, vector, unit_type, origin FROM chunks WHERE docset=?",
+                "SELECT url, seq, text, vector, unit_type, origin, embedding_binding FROM chunks WHERE docset=?",
                 (key,)).fetchall()
+        contract = self.docset_contract(key)
         qmag = math.sqrt(sum(x * x for x in qvec)) or 1.0
         scored = []
         mismatched = 0
-        for url, seq, text, vec_json, unit_type, origin in rows:
+        for url, seq, text, vec_json, unit_type, origin, binding_json in rows:
             v = json.loads(vec_json)
+            if binding_json:
+                embedding_contract.verify(json.loads(binding_json), text, contract, v)
             if len(v) != len(qvec):
                 mismatched += 1  # different embedding model — cosine meaningless
                 continue
@@ -490,6 +535,7 @@ class ChromaStore:
         # Stage-then-swap: populate a staging collection fully BEFORE touching
         # the existing one, so a mid-write failure never destroys the last
         # good index (the previous version stays queryable throughout).
+        rows, meta = _bind_rows(rows, meta)
         staging = f"{key}__staging"
         try:
             self.client.delete_collection(staging)
@@ -505,7 +551,8 @@ class ChromaStore:
                     documents=[r["text"] for r in batch],
                     metadatas=[{"url": r["url"], "seq": r["seq"],
                                 "unit_type": r.get("unit_type") or "",
-                                "origin": r.get("origin") or ""} for r in batch],
+                                "origin": r.get("origin") or "",
+                                "embedding_binding": json.dumps(r["embedding_binding"])} for r in batch],
                 )
         except Exception:
             try:
@@ -532,11 +579,14 @@ class ChromaStore:
                 return alt.query(key, qvec, top)
             finally:
                 alt.close()
+        contract = self.docset_contract(key)
         col = self.client.get_collection(key)
         res = col.query(query_embeddings=[qvec], n_results=top,
                         include=["documents", "metadatas", "distances"])
         out = []
         for doc, md, dist in zip(res["documents"][0], res["metadatas"][0], res["distances"][0]):
+            if md.get('embedding_binding'):
+                embedding_contract.verify(json.loads(md['embedding_binding']), doc, contract, None)
             out.append(_hit(1.0 - dist, md["url"], md["seq"], doc,
                             md.get("unit_type"), md.get("origin")))
         return out
@@ -586,6 +636,9 @@ class ChromaStore:
 
     def list_docsets(self, include_facts: bool = False):
         return self.registry.list_docsets(include_facts=include_facts)
+
+    def docset_contract(self, key):
+        return self.registry.docset_contract(key)
 
     def docset_model(self, key):
         return self.registry.docset_model(key)
@@ -681,7 +734,8 @@ def cmd_index_units(args) -> int:
         return 2
     key = facts_key(args.name)
     model = args.model or embed_core.embed_model()
-    units = load_units(src)
+    source_bytes = src.read_bytes()
+    units = load_units(src, content=source_bytes.decode("utf-8"))
     if not units:
         print(f"ERROR: no units in {src}", file=sys.stderr)
         return 2
@@ -710,7 +764,7 @@ def cmd_index_units(args) -> int:
     except Exception as e:
         print(f"ERROR: storage backend unavailable: {e}", file=sys.stderr)
         return 2
-    store.replace_docset(key, rows, {"source_path": str(src), "pages": 0, "model": model},
+    store.replace_docset(key, rows, {"source_path": str(src), "pages": 0, "model": model, "source_sha256": embedding_contract.digest(source_bytes)},
                          pages=[])
     print(json.dumps({"docset": key, "backend": store.backend, "units": len(rows),
                       "failed_units": failed, "fail_pct": round(fail_pct, 2),
@@ -722,7 +776,8 @@ def cmd_index(args) -> int:
     if getattr(args, "units", False):
         return cmd_index_units(args)
     src = Path(args.mirror).expanduser()
-    text = src.read_text(errors="ignore")
+    source_bytes = src.read_bytes()
+    text = source_bytes.decode("utf-8", errors="ignore").replace("\r\n", "\n").replace("\r", "\n")
     pages = parse_mirror(text)
     if not pages:
         # Bannerless input is still indexable — treat the whole file as one
@@ -774,7 +829,7 @@ def cmd_index(args) -> int:
         return 2
     store.replace_docset(key, rows, {
         "source_path": str(Path(args.mirror).expanduser()),
-        "pages": len(pages), "model": model,
+        "pages": len(pages), "model": model, "source_sha256": embedding_contract.digest(source_bytes),
     }, pages=pages)
     print(json.dumps({
         "docset": key, "backend": store.backend, "pages": len(pages),
@@ -796,7 +851,10 @@ def cmd_query(args) -> int:
     # model puts the query in a different embedding space (wrong or no results).
     model = store.docset_model(key) or embed_core.embed_model()
     try:
-        qvec = embed_core.embed_texts([args.question], model=model)[0]
+        contract = store.docset_contract(key)
+        embedding_contract.check_query(contract, model, embed_core.embed_revision(model))
+        qvec = embed_core.embed_texts([(contract or {}).get('query_prefix', '') + args.question], model=model)[0]
+        embedding_contract.check_query(contract, model, embed_core.embed_revision(model), len(qvec))
     except embed_core.EmbeddingUnavailable as e:
         print(f"ERROR: {e}", file=sys.stderr)
         return 2

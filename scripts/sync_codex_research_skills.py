@@ -111,12 +111,12 @@ checkpoint research, gate, render, export and local website generation separatel
 A website retry never repeats completed paid discovery. Remote deployment is a
 separate operation and never follows from a local-publication receipt.
 
-New runs use research-gate/v2. Gate input predetermines all version/default,
+New runs use research-gate/v3. Gate input predetermines all version/default,
 numeric, API, security and volatile claims plus a deterministic ordinary sample
 (standard: ten, quick: zero, saturate: all). Quick still checks risky claims.
 Each verdict must preserve the exact full claim, ID and hash, and bind exact
 Unicode evidence spans to pinned source snapshot hashes. Missing, duplicate,
-altered or stale judgments fail. Non-supported verdicts stop promotion. Finish
+altered or stale judgments fail. New runs gate complete summaries, disagreements and open-question factual premises; pure questions receive an explicit NO-FACTUAL-ASSERTION verdict. Optional claim temporal metadata preserves validity intervals, applicability versions and observation timestamps without inferring dates from source fetches. Non-supported verdicts stop promotion. Finish
 rechecks the canonical inputs and evidence; legacy receipts are not v2 evidence.
 Private gate attempts and raw source bodies stay outside public outputs.
 
@@ -223,7 +223,7 @@ def translate(text: str, skill: str, relative: str) -> str:
     if skill == "dr":
         text = text.replace("on for a new artifact at `standard`/`saturate`, off at `quick` and on refresh", "required before promotion; quick checks every risky claim")
         text = re.sub(r"(?m)^(\| quick \|.*)$", lambda match: match[0].replace("| off |", "| all risky claims |"), text)
-        text = re.sub(r"(?m)^4\. \*\*Blind claim gate\*\*.*$", "4. **Blind claim gate**, required before promotion: `python3 .agents/skills/dr/scripts/codex_dr_run.py gate <slug>` validates research-gate/v2 inputs. It predetermines every risky claim plus ten ordinary claims at standard, every risky claim at quick, and all claims at saturate. The independent Sol/medium judge preserves the complete canonical text and ID, and supplies exact Unicode evidence spans bound to immutable source hashes. Missing/duplicate/substituted/stale judgments fail. Any non-supported verdict stops promotion. Review and correct the canonical claims, rerun the gate, then render and finish. Demoting confidence alone does not bypass the gate. Every attempt remains private; finish rechecks the current claim and evidence hashes. See `references/codex-runtime.md`.", text)
+        text = re.sub(r"(?m)^4\. \*\*Blind claim gate\*\*.*$", "4. **Blind claim gate**, required before promotion: `python3 .agents/skills/dr/scripts/codex_dr_run.py gate <slug>` validates research-gate/v3 inputs. It judges every complete summary, disagreement and open-question premise. It predetermines every risky claim plus ten ordinary claims at standard, every risky claim at quick, and all claims at saturate. The independent Sol/medium judge preserves the complete canonical text and ID, and supplies exact Unicode evidence spans bound to immutable source hashes. Missing/duplicate/substituted/stale judgments fail. Any non-supported verdict stops promotion. Review and correct the canonical claims, rerun the gate, then render and finish. Demoting confidence alone does not bypass the gate. Every attempt remains private; finish rechecks the current claim and evidence hashes. See `references/codex-runtime.md`.", text)
         if relative == "SKILL.md":
             text = re.sub(r"(?m)^model: .+$", "model: gpt-6-luna", text, count=1)
             text = re.sub(r"(?m)^effort: .+$", "effort: max", text, count=1)
@@ -302,7 +302,7 @@ def build(repo: Path, source_root: Path, canonical_root: Path | None) -> tuple[d
             provenance["sources"].append({"skill": skill, "file": relative, "origin": label, "source_sha256": digest(data), "output_sha256": digest(rendered)})
         outputs[Path(".agents/skills") / skill / "references/codex-runtime.md"] = RUNTIME.encode()
         outputs[Path(".agents/skills") / skill / "references/research-library.md"] = LIBRARY_REFERENCE.encode()
-    for filename in ("codex_dr_run.py", "codex_dr_artifacts.py", "research_gate.py", "research_library.py", "research_provenance.py", "research_artifact.py", "research_transaction.py"):
+    for filename in ("codex_dr_run.py", "codex_dr_artifacts.py", "research_gate.py", "research_claims.py", "research_library.py", "research_provenance.py", "research_artifact.py", "research_transaction.py"):
         adapter = repo / "scripts" / filename
         if not adapter.is_file():
             raise ValueError(f"missing tracked Codex adapter: {adapter}")

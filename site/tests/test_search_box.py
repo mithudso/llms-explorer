@@ -17,6 +17,7 @@ import { readFileSync } from 'node:fs';
 import { stripTypeScriptTypes } from 'node:module';
 import { setImmediate as nextTurn } from 'node:timers/promises';
 import vm from 'node:vm';
+import { webcrypto } from 'node:crypto';
 
 const source = readFileSync(process.argv[2], 'utf8').match(/<script>([\s\S]*?)<\/script>/)[1];
 const keywordPath = process.argv[2].replace(
@@ -52,10 +53,12 @@ function deferred() {
   return { promise, resolve, reject };
 }
 
-function mount({ failLoads = 0, delayLoad = null, delayQuery = null, keywordItems = [] } = {}) {
+function mount({ failLoads = 0, delayLoad = null, delayQuery = null,
+                 keywordItems = [], encoder = null, indexHash = null } = {}) {
   const input = new Element(), status = new Element(), results = new Element();
   const meta = new Element();
   meta.textContent = JSON.stringify({ model: 'test-model', count: 2, dim: 2,
+    encoder, index_sha256: indexHash,
     items: [{ slug: 'first', concept: 'First', summary: 'first result' },
             { slug: 'latest', concept: 'Latest', summary: 'latest result' }] });
   const elements = { 'semantic-search-input': input, 'semantic-search-status': status,
@@ -65,7 +68,7 @@ function mount({ failLoads = 0, delayLoad = null, delayQuery = null, keywordItem
   const state = { loads: 0, fetches: 0, queries: [], errors: [], settings: [], badVectors: false };
   const timers = new Map();
   let timerId = 0;
-  const context = vm.createContext({ Float32Array,
+  const context = vm.createContext({ Float32Array, Uint8Array, crypto: webcrypto,
     console: { error: (...args) => state.errors.push(args) },
     document: { getElementById: id => elements[id], createElement: () => new Element() },
     setTimeout: handler => { timers.set(++timerId, handler); return timerId; },
@@ -78,7 +81,8 @@ function mount({ failLoads = 0, delayLoad = null, delayQuery = null, keywordItem
       return { ok: true, arrayBuffer: async () =>
         new Float32Array(state.badVectors ? [1, 0] : [1, 0, 0, 1]).buffer };
     },
-    loadTransformers: async () => ({ env, pipeline: async () => {
+    loadTransformers: async () => ({ env, pipeline: async (task, model, options) => {
+      state.pipelineOptions = options;
       state.loads++;
       state.settings.push({ wasmCache: env.useWasmCache, threads: env.backends.onnx.wasm.numThreads,
         modelCache: env.useBrowserCache });
@@ -184,6 +188,27 @@ if (scenario === 'runtime_configuration') {
   await search(page, 'fresh research');
   assert.equal(firstLink(page), '/tree/new-concept/');
   assert.equal(page.results.children.length, 3);
+} else if (scenario === 'pinned_revision_and_payload') {
+  const encoder = {schema: 'embedding-representation/v1', model: 'test-model', dim: 2,
+    model_revision: 'a'.repeat(40), pooling: 'mean', normalization: 'l2',
+    query_preprocessing: 'identity/v1', query_prefix: '', cache_revision: 'site-query/v2'};
+  const page = mount({ encoder });
+  await search(page, 'latest');
+  assert.equal(firstLink(page), '/tree/latest/');
+  assert.equal(page.state.pipelineOptions.revision, 'a'.repeat(40));
+  const bad = mount({ encoder: {...encoder, model: 'wrong-model'} });
+  await search(bad, 'latest');
+  assert.equal(bad.state.loads, 0);
+  const mixed = mount({ indexHash: '0'.repeat(64) });
+  await search(mixed, 'latest');
+  await flush();
+  assert.equal(mixed.state.loads, 0);
+  assert.equal(mixed.results.children.length, 0);
+} else if (scenario === 'late_keyword_without_embeddings') {
+  const page = mount({ failLoads: 1, keywordItems: [{slug:'long', concept:'Long', summary:'',
+    text:'prefix '.repeat(800) + ' rare_identifier_late_caveat'}] });
+  await search(page, 'rare_identifier_late_caveat');
+  assert.equal(firstLink(page), '/tree/long/');
 } else {
   throw new Error('unknown scenario: ' + scenario);
 }
@@ -202,6 +227,8 @@ assert.deepEqual(unhandled, [], 'event handlers must catch download and inferenc
     "clear_query_during_load",
     "keyword_fallback_when_model_fails",
     "keyword_and_semantic_merge",
+    "pinned_revision_and_payload",
+    "late_keyword_without_embeddings",
 ])
 def test_search_failure_and_race_handling(scenario):
     run = subprocess.run(["node", "--input-type=module", "-e", HARNESS, scenario, str(SOURCE)],

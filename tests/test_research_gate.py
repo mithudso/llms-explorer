@@ -21,7 +21,7 @@ def pinned():
         body = root / 'body.txt'
         body.write_text(text)
         doc = {'concept': 'Durability', 'claims': [{'text': text[15:], 'confidence': 'high', 'sources': ['https://example.org/docs']}]}
-        manifest = {'slug': 'test', 'depth': 'standard', 'concepts': [{'name': 'Durability', 'slug': 'durability', 'status': 'done'}]}
+        manifest = {'slug': 'test', 'gate_contract_version': 3, 'depth': 'standard', 'concepts': [{'name': 'Durability', 'slug': 'durability', 'status': 'done'}]}
         def write(path, content):
             path.parent.mkdir(parents=True, exist_ok=True)
             path.write_text(content)
@@ -126,3 +126,56 @@ def test_editorial_title_requires_an_explicit_recorded_slug_binding(pinned):
     with pytest.raises(ValueError, match='canonical claims'): gate.claim_rows(manifest, {'durability': doc})
     doc['slug'] = 'durability'
     assert gate.claim_rows(manifest, {'durability': doc})[0]['concept'] == 'Durability'
+
+
+def test_all_auxiliary_prose_is_mandatory_even_without_claim_sampling(pinned):
+    shared, manifest, doc, root, *_ = pinned
+    doc.update(summary='An unsupported inference survives in the summary.',
+               sources=[{'url': 'https://example.org/docs'}],
+               disagreements=[{'text': 'The source establishes a different limit.', 'sources': ['https://example.org/docs']}],
+               open_questions=['Which workload should be tested next?'])
+    packet = gate.prepare(shared, manifest, root, 0, 0)
+    assert {r['assertion_kind'] for r in packet['claims']} == {'summary', 'disagreement', 'open_question'}
+    assert packet['claims'][0]['text'] == doc['summary']
+    assert all(r['sources'] == ['https://example.org/docs'] for r in packet['claims'])
+    manifest['gate_contract_version'] = 2
+    legacy = gate.prepare(shared, manifest, root, 'all', 0)
+    assert legacy['schema'] == gate.LEGACY_SCHEMA
+    assert len(legacy['claims']) == 1
+
+
+def test_no_assertion_verdict_cannot_bypass_a_structured_claim(pinned):
+    *_, root, packet, response = pinned
+    response['verdicts'][0].update(verdict=gate.NO_ASSERTION, evidence=[])
+    with pytest.raises(ValueError, match='invalid verdict'):
+        gate.validate(packet, response, root)
+    packet['claims'][0]['assertion_kind'] = 'open_question'
+    packet['packet_sha256'] = gate.digest({k: v for k, v in packet.items() if k != 'packet_sha256'})
+    response['packet_sha256'] = packet['packet_sha256']
+    assert gate.validate(packet, response, root)['all_supported']
+
+
+def test_legacy_gate_receipts_remain_readable(pinned):
+    *_, root, packet, response = pinned
+    packet['schema'] = gate.LEGACY_SCHEMA
+    packet['packet_sha256'] = gate.digest({k: v for k, v in packet.items() if k != 'packet_sha256'})
+    response.update(schema=gate.LEGACY_SCHEMA, packet_sha256=packet['packet_sha256'])
+    assert gate.validate(packet, response, root)['all_supported']
+
+
+def test_canonical_judgments_come_from_the_verified_attempt_not_the_run_copy(pinned):
+    shared, manifest, _doc, root, packet, response = pinned
+    run = root.parent
+    destination = run / 'gate/attempts/one'
+    destination.parent.mkdir(parents=True)
+    root.rename(destination)
+    (destination / 'verdicts.json').write_text(json.dumps(response))
+    shared.run_dir = lambda slug: run
+    manifest['gate'] = {**gate.validate(packet, response, destination), 'attempt': 'gate/attempts/one'}
+    forged = copy.deepcopy(response)
+    forged['verdicts'][0]['evidence'][0]['evidence_id'] = 'ev:forged-projection'
+    (run / 'gate.json').write_text(json.dumps(forged))
+    report, judgments = gate.verify_current(shared, manifest, with_verdicts=True)
+    assert report['all_supported']
+    assert judgments[0]['evidence'][0]['evidence_id'] != 'ev:forged-projection'
+    assert judgments[0]['evidence'][0]['quote'] == packet['claims'][0]['text']

@@ -12,15 +12,26 @@ class Hit:
     snippet: str = ""      # <=400 chars of matched content
     meta: dict = field(default_factory=dict)
 
+    @property
+    def unit_key(self) -> tuple[str, str]:
+        """A citation URL can contain several independently retrievable units."""
+        return self.source, self.meta.get("unit_id", self.ref)
+
 
 def rrf(ranklists: list[list[Hit]], k: int = 60) -> list[Hit]:
-    """Fuse ranked lists; dedupe on (source, ref); keep first-seen snippet/meta."""
+    """Fuse unit ranks, with at most one vote per unit per input list."""
+    if type(k) is not int or k < 0:
+        raise ValueError("RRF k must be a non-negative integer")
     scores: dict[tuple[str, str], float] = {}
     first: dict[tuple[str, str], Hit] = {}
     for lst in ranklists:
-        for rank, hit in enumerate(lst):
-            key = (hit.source, hit.ref)
-            scores[key] = scores.get(key, 0.0) + 1.0 / (k + rank + 1)
+        seen = set()
+        for hit in lst:
+            key = hit.unit_key
+            if key in seen:
+                continue
+            seen.add(key)
+            scores[key] = scores.get(key, 0.0) + 1.0 / (k + len(seen))
             first.setdefault(key, hit)
     out = [
         Hit(h.source, h.ref, scores[key], h.snippet, h.meta)

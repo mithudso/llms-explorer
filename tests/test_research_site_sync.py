@@ -331,7 +331,10 @@ class SiteSyncTests(unittest.TestCase):
         self.assertEqual(result["website_totals"]["facts"], 1)
         for target in (path, self.repo / "site/public/downloads/concepts/new-concept.md",
                        self.repo / "site/public/search-keywords.json"):
-            self.assertIn("New finding.", target.read_text())
+            if target.name == 'search-keywords.json':
+                self.assertIn('finding', json.loads(target.read_text())['items'][0]['text'].split())
+            else:
+                self.assertIn("New finding.", target.read_text())
             self.assertNotIn("Retired", target.read_text())
         self.assertEqual(website.sync(self.repo, self.hub)["changed_files"], [])
 
@@ -390,3 +393,60 @@ class SiteSyncTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+def test_late_facts_receive_keyword_coverage_without_new_vectors(tmp_path):
+    pack = reader('Long concept', 'long', 'prefix ' * 800)
+    pack['facets'][0]['facts'].append({'text': 'rare_identifier_late_caveat', 'source': 'https://example.test'})
+    writes, report = website.search_writes(tmp_path, {'long': pack}, {})
+    keyword = json.loads(writes[tmp_path / 'site/public/search-keywords.json'])
+    assert 'rare_identifier_late_caveat' in keyword['items'][0]['text'].split()
+    assert report['new_embeddings'] == 0
+
+
+def test_frozen_vectors_keep_unknown_provenance_and_detect_stale_bound_text(tmp_path):
+    meta_path = tmp_path / 'site/src/data/search-meta.json'
+    binary_path = tmp_path / 'site/public/search-index.bin'
+    meta_path.parent.mkdir(parents=True)
+    binary_path.parent.mkdir(parents=True)
+    pack = reader('Before', 'c')
+    binary = b'1234'
+    binary_path.write_bytes(binary)
+    meta = {'model': 'm', 'dim': 1, 'count': 1, 'items': [{'slug': 'c', 'concept': 'Before', 'summary': 'Before'}]}
+    meta_path.write_text(json.dumps(meta))
+    writes, _ = website.search_writes(tmp_path, {'c': pack}, {})
+    item = json.loads(writes[meta_path])['items'][0]
+    assert item['embedding']['state'] == 'unknown'
+    assert item['embedding']['input_sha256'] is None
+    assert writes[binary_path] == binary
+    meta['encoder'] = {'preprocessing': 'concept-prefix/v2'}
+    item['embedding'].update(input_sha256=item['embedding']['current_input_sha256'],
+        artifact_sha256=item['embedding']['current_artifact_sha256'],
+        encoder_sha256=website.representation_digest(meta['encoder']))
+    meta['items'] = [item]
+    meta_path.write_text(json.dumps(meta))
+    writes, _ = website.search_writes(tmp_path, {'c': pack}, {})
+    assert json.loads(writes[meta_path])['items'][0]['embedding']['state'] == 'current'
+    pack['summary'] = 'After an evidence correction'
+    writes, _ = website.search_writes(tmp_path, {'c': pack}, {})
+    binding = json.loads(writes[meta_path])['items'][0]['embedding']
+    assert binding['state'] == 'stale'
+    assert binding['input_sha256'] != binding['current_input_sha256']
+    assert writes[binary_path] == binary
+    binary_path.write_bytes(b'5678')
+    with __import__('pytest').raises(ValueError, match='representation binding'):
+        website.search_writes(tmp_path, {'c': pack}, {})
+
+
+def test_literal_prose_redaction_preserves_original_validation_status():
+    scrub = website.module('literal_prose_scrub', REPO / 'scripts/publish_scrub.py')
+    original = reader('Example', 'example', 'A RestrictedReference caveat occurs after the early facts.')
+    fact = original['facets'][0]['facts'][0]
+    fact.update(validationStatus='SUPPORTED', claimId='clm:example', evidenceIds=['ev:example'])
+    safe = website.publication_pack(original, scrub, ['RestrictedReference'])
+    projected = safe['facets'][0]['facts'][0]
+    assert 'RestrictedReference' not in projected['text']
+    assert projected['validationStatus'] == 'REDACTED-PROJECTION'
+    assert projected['originValidationStatus'] == 'SUPPORTED'
+    assert projected['evidenceIds'] == ['ev:example']
+    assert 'RestrictedReference' in fact['text']

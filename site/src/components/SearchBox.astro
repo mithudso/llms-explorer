@@ -45,6 +45,10 @@ import meta from "../data/search-meta.json";
   import type { FeatureExtractionPipeline } from "@huggingface/transformers";
   import { keywordHits, type SearchItem } from "../scripts/concept-search";
   type Meta = { model: string; dim: number; count: number;
+                index_sha256?: string;
+                encoder?: {schema: string; model: string; model_revision: string; dim: number;
+                  pooling: string; normalization: string; query_preprocessing: string;
+                  query_prefix: string; cache_revision: string};
                 items: { slug: string; concept: string; summary: string }[] };
 
   const input = document.getElementById("semantic-search-input") as HTMLInputElement;
@@ -78,12 +82,27 @@ import meta from "../data/search-meta.json";
           "re-run gen_search_index.mjs"
         );
       }
+      if (meta.encoder) {
+        const encoder = meta.encoder;
+        if (encoder.schema !== "embedding-representation/v1" || encoder.model !== meta.model
+          || encoder.dim !== meta.dim || !/^[a-f0-9]{40}$/.test(encoder.model_revision)
+          || encoder.pooling !== "mean" || encoder.normalization !== "l2"
+          || encoder.query_preprocessing !== "identity/v1" || encoder.cache_revision !== "site-query/v2") {
+          throw new Error("Search query encoder is incompatible with the recorded index revision");
+        }
+      }
+      if (meta.index_sha256) {
+        const hash = await crypto.subtle.digest("SHA-256", buf);
+        const actual = Array.from(new Uint8Array(hash), b => b.toString(16).padStart(2, "0")).join("");
+        if (actual !== meta.index_sha256) throw new Error("Search vector payload does not match its revision");
+      }
       // Transformers' WASM cache turns the runtime .mjs into a blob URL.
       // Single-threaded ONNX also avoids its cross-origin worker blob preload.
       // Use the library's versioned HTTPS runtime paths; model caching stays on.
       env.useWasmCache = false;
       env.backends.onnx.wasm!.numThreads = 1;
-      embedder = await pipeline("feature-extraction", meta.model);
+      embedder = await pipeline("feature-extraction", meta.model,
+        meta.encoder ? { revision: meta.encoder.model_revision } : {});
       vectors = loadedVectors;
     })().catch((err) => {
       loadPromise = null; // allow the next search to retry a failed download
@@ -154,7 +173,7 @@ import meta from "../data/search-meta.json";
       loaded = true;
       if (id !== requestId) return;
       status.textContent = "Searching…";
-      const out = await embedder!(query, { pooling: "mean", normalize: true });
+      const out = await embedder!((meta.encoder?.query_prefix ?? "") + query, { pooling: "mean", normalize: true });
       if (id !== requestId) return;
       const semantic = cosineTopK(out.data as Float32Array, 8).map(hit => meta.items[hit.i]);
       const merged = new Map([...lexical, ...semantic].map(item => [item.slug, item]));

@@ -859,3 +859,9 @@ plan started cohort 24. Diagnostic follow-up: PR 217.
 ## Prompt — 2026-10-22 Cloudflare build repair
 
 The user restored Wrangler login and supplied a fine-grained GitHub key for private library access. Diagnose the Pages failure, configure encrypted credentials and verify the build while preserving private repositories.
+
+### 2026-10-22 — Implement research recommendations (TASK-840)
+
+User: "Implement all 4 recommendations."
+
+Scope: validate factual auxiliary prose; preserve canonical evidence with optional temporal metadata; correct retrieval-unit identity and lexical coverage; bind embeddings and query caches to exact revisions. Implementation uses an isolated branch and preserves the embedding pause.

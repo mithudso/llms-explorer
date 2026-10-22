@@ -43,7 +43,7 @@ class SyncTests(unittest.TestCase):
         (self.repo / "scripts/codex_dr_run.py").write_text("# Codex-only transport\n")
         (self.repo / "scripts/codex_dr_artifacts.py").write_text("# Codex artifacts\n")
         (self.repo / "scripts/research_gate.py").write_text("# Claim-bound gate\n")
-        for name in ("research_library.py", "research_provenance.py", "research_artifact.py", "research_transaction.py"):
+        for name in ("research_claims.py", "research_library.py", "research_provenance.py", "research_artifact.py", "research_transaction.py"):
             (self.repo / "scripts" / name).write_text("# Evidence provenance\n")
         for skill in sync.SKILLS:
             path = self.sources / skill / "SKILL.md"
@@ -344,7 +344,7 @@ class ResearchFlowTests(unittest.TestCase):
         documents = self.shared.load_claims("publication", errors)
         if errors or not documents:
             return
-        body = "\n".join(c["text"] for d in documents.values() for c in d["claims"])
+        body = "\n".join(text for d in documents.values() for text in [d["summary"], *[c["text"] for c in d["claims"]], *[r["text"] for r in d.get("disagreements", [])], *d.get("open_questions", [])])
         text = self.root / "fixture-source.txt"
         text.write_text(body)
         for url in {u for d in documents.values() for c in d["claims"] for u in c["sources"]}:
@@ -440,7 +440,7 @@ class ResearchFlowTests(unittest.TestCase):
         for relative in (".claude/skills/llms-concept-abstractor/scripts/concept_abstract.py",
                          "scripts/codex_research_assets/concept-family-explorer/scripts/sync_trees.py",
                          "scripts/research_site_sync.py", "scripts/recover_dr_packs.py", "scripts/research_transaction.py",
-                         "scripts/research_gate.py", "scripts/research_artifact.py",
+                         "scripts/research_gate.py", "scripts/research_claims.py", "scripts/research_artifact.py",
                          "scripts/codex_dr_artifacts.py", "scripts/repair_dr_exports.py",
                          "scripts/publish_scrub.py", "scripts/check_publish_privacy.py",
                          "site/tools/gen_concepts.py", "site/tools/gen_tree.py",
@@ -563,7 +563,11 @@ class ResearchFlowTests(unittest.TestCase):
                        self.repo / "site/public/downloads/concepts/rename-durability.md",
                        self.repo / "site/public/search-keywords.json"):
             self.assertNotIn("Retired unsupported", target.read_text())
-            self.assertIn("Publication constraint", target.read_text())
+            if target.name == 'search-keywords.json':
+                tokens = json.loads(target.read_text())['items'][0]['text'].split()
+                self.assertTrue({'publication', 'constraint'} <= set(tokens))
+            else:
+                self.assertIn("Publication constraint", target.read_text())
 
     def test_current_run_refresh_retry_keeps_correction_authority_without_recompiling(self):
         self.research()

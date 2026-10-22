@@ -300,7 +300,7 @@ def execute_locked(repo, hub, plan_path, max_cohorts=None):
             # Include pages saved by earlier /dr runs in the shared FTS index.
             phase([sys.executable, str(hub / "scripts/source_library.py"), "reconcile"], 300)
             if manifest["status"] != "finalized":
-                strict = manifest.get("gate_contract_version") == 2
+                strict = manifest.get("gate_contract_version") in (2, 3)
                 checkpoints = load("research_checkpoints", repo / "scripts/research_checkpoints.py") if strict else None
                 stages = shared.run_dir(slug) / "checkpoints/stages.json"
                 claim_paths = [shared.run_dir(slug) / "claims" / (c["slug"] + ".json") for c in manifest["concepts"]]
@@ -360,7 +360,7 @@ def execute_locked(repo, hub, plan_path, max_cohorts=None):
             # A completed run with a failed website write can resume without
             # repeating paid research. This also checks all four website surfaces.
             site_command = [sys.executable, str(repo / "scripts/research_site_sync.py"), "--repo", str(repo), "--hub", str(hub), "--apply"]
-            if manifest.get("gate_contract_version") == 2:
+            if manifest.get("gate_contract_version") in (2, 3):
                 checkpoints = load("research_checkpoints", repo / "scripts/research_checkpoints.py")
                 checkpoints.run_stage(shared.run_dir(slug) / "checkpoints/stages.json", "local-publication", documents,
                     [repo / "site/src/data/tree.json", repo / "site/src/data/context.json", repo / "site/src/data/concepts"],

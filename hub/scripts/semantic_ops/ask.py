@@ -116,7 +116,8 @@ def log_query(query: str, hits: list[Hit]) -> None:
         # must not compare the latter against its cosine threshold.
         rec = {"ts": time.time(), "query": query,
                "reranked": bool(hits) and all(h.meta.get("reranked") for h in hits[:10]),
-               "top": [{"source": h.source, "ref": h.ref, "score": h.score}
+               "top": [{"source": h.source, "ref": h.ref,
+                        "unit_id": h.unit_key[1], "score": h.score}
                        for h in hits[:10]]}
         path = history_path()
         path.parent.mkdir(parents=True, exist_ok=True)
