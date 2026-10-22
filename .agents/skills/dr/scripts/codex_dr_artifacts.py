@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import copy
+import hashlib
 import importlib.util
 import io
 import json
@@ -11,7 +12,7 @@ import re
 import shutil
 import sys
 import tempfile
-from contextlib import redirect_stdout
+from contextlib import nullcontext, redirect_stdout
 from datetime import UTC, datetime
 from pathlib import Path
 
@@ -49,7 +50,8 @@ def pack_identity_matches(old_name, name: str, slug: str, nodes: list[dict]) -> 
                for node in nodes)
 
 
-def compile_claims(lca, out: Path, name: str, slug: str, docs: list[dict], status: str) -> None:
+def compile_claims(lca, out: Path, name: str, slug: str, docs: list[dict], status: str,
+                   artifact_sha: str | None = None, concept_id: str | None = None) -> None:
     """Use the existing compiler with trusted rows; no lossy text re-harvest."""
     out.mkdir(parents=True, exist_ok=True)
     rows = []
@@ -61,14 +63,20 @@ def compile_claims(lca, out: Path, name: str, slug: str, docs: list[dict], statu
             text = f"{claim['text']} ({claim['confidence']} confidence)"
             if claim.get("verified_as_of"):
                 text += f" (verified as of {claim['verified_as_of']})"
-            row = lca._unit(f"dr{len(rows) + 1:06d}", "statement", text, urls[0],
+            row = lca._unit(claim.get("canonical_claim_id", f"dr{len(rows) + 1:06d}"), "statement", text, urls[0],
                             heading=f"{doc['concept']} > {claim.get('section', 'core')}",
                             keywords=[doc["concept"]], origin="dr", also=urls[1:])
             row.update(matched=[name], relations=["about"], relation="about", score=1.0,
                        facet=lca.heuristic_facet(row), keep=True)
+            row.update({key: claim[key] for key in ("validation_status", "evidence_ids") if key in claim})
+            if doc.get("canonical_concept_id"):
+                row["canonical_concept_id"] = doc["canonical_concept_id"]
             rows.append(row)
     compile_rows(lca, out, name, slug, rows,
-                 {"summary": f"Source-anchored research for {name}. Run status: {status}.", "research_status": status})
+                 {"summary": f"Source-anchored research for {name}. Run status: {status}.", "research_status": status,
+                  **({"canonical_artifact_sha256": artifact_sha,
+                      "canonical_concept_id": concept_id or next((d["canonical_concept_id"] for d in docs if d["concept"] == name),
+                                                   "concept:" + hashlib.sha256(slug.encode()).hexdigest())} if artifact_sha else {})})
 
 
 def compile_rows(lca, out: Path, name: str, slug: str, rows: list[dict], metadata: dict) -> None:
@@ -94,6 +102,14 @@ def compile_rows(lca, out: Path, name: str, slug: str, rows: list[dict], metadat
     for row in rows:
         if re.sub(r"\s+", " ", row["text"]).strip() not in full:
             raise ValueError(f"{name}: llms compilation clipped claim {row['id']}")
+    by_id = {row["id"]: row for row in rows}
+    compiled_units = [json.loads(line) for line in (out / "units.jsonl").read_text().splitlines() if line.strip()]
+    if {row["id"] for row in compiled_units} != set(by_id):
+        raise ValueError(f"{name}: llms compilation changed canonical identities")
+    for unit in compiled_units:
+        source = by_id[unit["id"]]
+        unit.update({key: source[key] for key in ("canonical_concept_id", "validation_status", "origin_validation_status", "evidence_ids") if key in source})
+    (out / "units.jsonl").write_text("".join(json.dumps(unit, ensure_ascii=False) + "\n" for unit in compiled_units))
     # The compiler lists undefined terms twice: as unsourced bold entries and
     # in its explicit research-gap section. Keep the gap section, so a missing
     # definition never masquerades as a sourced vocabulary entry (lint C6).
@@ -133,6 +149,12 @@ def public_pack_files(repo: Path, hub: Path, files: dict, lca, withheld=()) -> d
     metadata = website.publication_pack(json.loads(files["manifest.json"]), scrub, terms)
     rows = [website.publication_pack(json.loads(line), scrub, terms)
             for line in files["units.jsonl"].splitlines() if line.strip()]
+    originals = {row["id"]: row for row in map(json.loads, files["units.jsonl"].splitlines()) if row}
+    for row in rows:
+        original = originals[row["id"]]
+        if any(row.get(key) != original.get(key) for key in ("text", "source_url", "also")) and "validation_status" in row:
+            row["origin_validation_status"] = row["validation_status"]
+            row["validation_status"] = "REDACTED-PROJECTION"
     if not rows or any(row.get("origin") != "dr" for row in rows):
         raise ValueError("Repository claim export requires authored DR units")
     with tempfile.TemporaryDirectory(prefix="public-dr-pack-") as temporary:
@@ -141,8 +163,8 @@ def public_pack_files(repo: Path, hub: Path, files: dict, lca, withheld=()) -> d
         return {filename: (out / filename).read_text() for filename in PACK_FILES}
 
 
-def finalize_artifacts(shared, manifest: dict, claims: dict[str, dict], status: str,
-                       repo: Path | None = None) -> dict:
+def _finalize_artifacts(shared, manifest: dict, claims: dict[str, dict], status: str,
+                       repo: Path | None = None, transaction=None, artifact=None) -> dict:
     """Back up and merge each tree independently; mirror packs in both roots.
 
     Callers hold the run lock. The global DR lock serializes this operation with
@@ -169,7 +191,7 @@ def finalize_artifacts(shared, manifest: dict, claims: dict[str, dict], status: 
     stamp = datetime.now(UTC).strftime("%Y%m%dT%H%M%S.%fZ")
     backup = run / "artifacts/backups" / stamp
 
-    with shared.locked(shared.RESEARCH_DIR / ".global.lock"):
+    with nullcontext() if transaction else shared.locked(shared.RESEARCH_DIR / ".global.lock"):
         planned, jobs = {}, {}
         for label, path in tree_paths.items():
             if not path.is_file():
@@ -202,6 +224,9 @@ def finalize_artifacts(shared, manifest: dict, claims: dict[str, dict], status: 
                         raise ValueError(f"DR pack slug collision: {slug}")
                     jobs[slug] = node["concept"]
                     node["llmsFile"] = f"{slug}.llms/llms-facts.txt"
+                    if artifact:
+                        node["canonicalConceptId"] = artifact["concept_ids"][node["concept"]]
+                        node["canonicalArtifactSha256"] = artifact["artifact_sha256"]
             # Preserve init --alias semantics for frontier placeholders in
             # both trees. A name with its own researched node stays intact.
             known_names = {node["concept"] for node in after}
@@ -215,6 +240,10 @@ def finalize_artifacts(shared, manifest: dict, claims: dict[str, dict], status: 
             planned[label] = before, after
 
         private_names = set()
+        for name, source_documents in documents.items():
+            if any(scrub._matches(doc.get("recorded_concept_title", ""), scrub.gate.denylist())
+                   for doc in source_documents):
+                private_names.add(name)
         if scrub._matches(" ".join(filter(None, (topic, cohort_parent, manifest.get("parent_concept")))), scrub.gate.denylist()):
             private_names.update(documents)
         while True:
@@ -225,6 +254,10 @@ def finalize_artifacts(shared, manifest: dict, claims: dict[str, dict], status: 
             if discovered <= private_names:
                 break
             private_names.update(discovered)
+        for _, target_nodes in planned.values():
+            for node in target_nodes:
+                if node["concept"] in private_names:
+                    node["publicationPrivate"] = True
         before, after = planned["repository"]
         public_after, _, _ = scrub.filter_tree(after, scrub.gate.denylist(), private_names)
         public_before, _, _ = scrub.filter_tree(before, scrub.gate.denylist(), private_names)
@@ -247,13 +280,17 @@ def finalize_artifacts(shared, manifest: dict, claims: dict[str, dict], status: 
                 if not old_manifest.is_file() or not pack_identity_matches(
                         json.loads(old_manifest.read_text()).get("concept"), name, slug, owners):
                     raise ValueError(f"refusing to replace another concept's pack: {dest}")
+            if transaction:
+                transaction.remember(dest)
         staging = run / "artifacts"
         staging.mkdir(parents=True, exist_ok=True)
         pack_receipts = []
         with tempfile.TemporaryDirectory(prefix="compile-", dir=staging) as temporary:
             compiled = Path(temporary)
             for slug, name in jobs.items():
-                compile_claims(lca, compiled / slug, name, slug, documents[name], status)
+                compile_claims(lca, compiled / slug, name, slug, documents[name], status,
+                               artifact["artifact_sha256"] if artifact else None,
+                               artifact["concept_ids"][name] if artifact else None)
             originals = {slug: {filename: (compiled / slug / filename).read_text() for filename in PACK_FILES} for slug in jobs}
             verifier = repo / "scripts/public_research_references.py"
             reference_writes, withheld = {}, []
@@ -264,6 +301,15 @@ def finalize_artifacts(shared, manifest: dict, claims: dict[str, dict], status: 
                                           for filename in PACK_FILES})
             public = {slug: public_pack_files(repo, shared.HUB_DIR, originals[slug], lca, withheld)
                       for label, _, slug, _ in destinations if label == "repository"}
+            if artifact:
+                canonical = load_module("canonical_public_projection", Path(__file__).with_name("research_artifact.py"))
+                for slug, contents in public.items():
+                    projection = canonical.public_projection(contents)
+                    shared.atomic_write(repo / "outputs/research-artifacts" / (slug + ".json"), json.dumps(projection, indent=2) + "\n")
+                for _, _, slug, _ in excluded_destinations:
+                    path = repo / "outputs/research-artifacts" / (slug + ".json")
+                    if path.exists():
+                        transaction.write(path, None)
             for path, text in reference_writes.items():
                 shared.atomic_write(path, text)
             for label, dest, slug, name in destinations:
@@ -296,6 +342,45 @@ def finalize_artifacts(shared, manifest: dict, claims: dict[str, dict], status: 
                    "backup": str(backup) if backup.exists() else None}
     website = load_module("codex_dr_website", repo / "scripts/research_site_sync.py")
     receipt["website"] = website.sync(repo, shared.HUB_DIR, apply=True, merge_tree=False,
-                                      authoritative_slugs=list(jobs))
+                                      authoritative_slugs=list(jobs), transaction=transaction)
     shared.atomic_write(run / "artifacts/receipt.json", json.dumps(receipt, indent=2) + "\n")
     return receipt
+
+
+def _transactional_finalize(shared, manifest: dict, claims: dict[str, dict], status: str,
+                       repo: Path | None = None) -> dict:
+    if not claims:
+        return {"ok": True, "skipped": "no recorded claims", "packs": [], "trees": []}
+    canonical = load_module("canonical_research_artifact", Path(__file__).with_name("research_artifact.py"))
+    transactions = load_module("research_projection_transaction", Path(__file__).with_name("research_transaction.py"))
+    root = shared.run_dir(manifest["slug"]) / "artifacts/transactions"
+    for prior in sorted(root.glob("*/journal.json")):
+        transactions.recover(prior.parent)
+    artifact, path = canonical.build(shared, manifest, claims, status)
+    transaction = transactions.Transaction(root / datetime.now(UTC).strftime("%Y%m%dT%H%M%S.%fZ"))
+    original = shared.atomic_write
+    shared.atomic_write = transaction.write
+    try:
+        receipt = _finalize_artifacts(shared, manifest, artifact["documents"], status, repo, transaction, artifact)
+        stored = canonical.verify(json.loads(path.read_text()))
+        if stored != artifact:
+            raise ValueError("canonical artifact changed during projection")
+        if manifest.get("gate_contract_version") == 2:
+            shared.verify_current_gate(shared.load_manifest(manifest["slug"]))
+        receipt["canonical_artifact"] = {"sha256": artifact["artifact_sha256"], "path": str(path),
+                                         "validation": artifact["validation"]}
+        receipt["transaction"] = str(transaction.root / "journal.json")
+        transaction.write(shared.run_dir(manifest["slug"]) / "artifacts/receipt.json", json.dumps(receipt, indent=2) + "\n")
+        transaction.commit()
+        return receipt
+    except BaseException:
+        transaction.rollback()
+        raise
+    finally:
+        shared.atomic_write = original
+
+
+def finalize_artifacts(shared, manifest: dict, claims: dict[str, dict], status: str,
+                       repo: Path | None = None) -> dict:
+    with shared.locked(shared.RESEARCH_DIR / ".global.lock"):
+        return _transactional_finalize(shared, manifest, claims, status, repo)

@@ -192,7 +192,7 @@ handoff list for `concept-family-explorer` — this skill never chases them itse
 # Shared research library and completion
 
 All three workflows use `~/.global-ai-hub/research/.library/`. Before web retrieval,
-search `python3 ~/.global-ai-hub/scripts/source_library.py search "<distinctive concept terms>" --top 6 --per-source 1 --brief`.
+search `python3 .agents/skills/dr/scripts/research_library.py search "<distinctive concept terms>" --top 6 --per-source 1 --brief`.
 Read relevant chunks or `get --id <id> --max-chars 16000`; check `lookup --url <url>`
 for freshness. `/dr source lookup` also checks this same library. Reuse cached
 extracts through `/dr source facts` only when their source content hash is current.

@@ -22,16 +22,47 @@ and `-c 'model_reasoning_effort="max"'` (or the requested effort).
 
 Codex `/dr` defaults to `gpt-6-luna` at `max` effort. Standard research runs one
 Luna/max research pass with deliberate scouting for deeper sources. When the scout
-finds papers, source code, issue threads, postmortems, or engineering blogs, the
+finds unread deeper evidence with a stated information gap, the
 adapter runs one additional Luna/max pass seeded with those discoveries and merges
-both results. Missing source/claim floors or an incomplete scout report also trigger
-that follow-up. A complete docs-only result stops after the first pass. The merge
+both results. Domain-specific primary-source and independent-origin requirements, missing
+source/unique-claim floors or an incomplete scout report also trigger
+that follow-up. Already-read non-doc sources alone do not trigger repetition. A complete result
+meeting the domain requirements stops after the first pass. Each run records
+normalized unique facts, novel mechanisms and origin proxies. Gate-confirmed
+novel facts are a lower bound; unaudited facts are never labeled supported. The merge
 and scope check remain `gpt-6.1-sol` at `medium`. Explicit model/effort overrides
 apply to both standard research passes. Quick keeps one low-effort pass; saturate
 keeps two independent max-effort passes. `--passes` counts additional passes in
 the adaptive lane, so its standard default is 1 (two research passes in total).
 
 ## Research and shared resources
+
+Finish freezes research-artifact/v1 from current canonical statements and the
+current bound gate. Immutable claim IDs identify exact statement versions; concept
+IDs follow the hub tree's stable owner. SUPPORTED and NOT-SAMPLED stay distinct.
+The artifact drives both trees, all eight pack members, reader/keyword data and
+facts/canonical JSON downloads. Public projections scrub private data and preserve
+approved citations. Redacted wording is labeled REDACTED-PROJECTION. Projection
+writes share a durable preimage journal and roll back on failure. An interrupted
+transaction is restored before retry. Source snapshots, quotes and raw logs stay
+private. Embeddings remain paused.
+
+Workers preserve every private attempt and retry recognized transient failures
+at most twice within the original deadline. Format-only gate failures get one
+fresh attempt; substantive dissent and evidence binding failures stop. Exact
+brief/model/effort and matching output hashes permit worker reuse. Ranked runs
+checkpoint research, gate, render, export and local website generation separately.
+A website retry never repeats completed paid discovery. Remote deployment is a
+separate operation and never follows from a local-publication receipt.
+
+New runs use research-gate/v2. Gate input predetermines all version/default,
+numeric, API, security and volatile claims plus a deterministic ordinary sample
+(standard: ten, quick: zero, saturate: all). Quick still checks risky claims.
+Each verdict must preserve the exact full claim, ID and hash, and bind exact
+Unicode evidence spans to pinned source snapshot hashes. Missing, duplicate,
+altered or stale judgments fail. Non-supported verdicts stop promotion. Finish
+rechecks the canonical inputs and evidence; legacy receipts are not v2 evidence.
+Private gate attempts and raw source bodies stay outside public outputs.
 
 From the repository root, use
 `python3 .agents/skills/dr/scripts/codex_dr_run.py <subcommand> ...` for every

@@ -64,12 +64,12 @@ def filter_tree(nodes: list[dict], terms: list[str], excluded_names=()) -> tuple
     names also struck from `childConcepts` so they cannot surface as frontier
     leaves. Names are matched as written and as slugs, since gen_tree publishes
     both. Returns (kept, dropped concept names, child references removed)."""
-    if not terms and not excluded_names:
+    if not terms and not excluded_names and not any(n.get("publicationPrivate") is True for n in nodes):
         return [dict(n) for n in nodes], [], 0
     excluded = {name.casefold() for name in excluded_names}
     by = {n["concept"]: n for n in nodes}
     dropped = {n["concept"] for n in nodes
-               if n["concept"].casefold() in excluded or _matches(" ".join([n.get("concept", ""), n.get("slug", ""),
+               if n.get("publicationPrivate") is True or n["concept"].casefold() in excluded or _matches(" ".join([n.get("concept", ""), n.get("slug", ""),
                                      *(n.get("aliases") or [])]), terms)}
     stack = list(dropped)
     while stack:
