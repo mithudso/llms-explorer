@@ -399,7 +399,7 @@ Every frontier concept, grouped by shared parent (at most 8 per cluster), cluste
 - [ ] Concept: `Cloud HSM Atlas` | Parent: `MongoDB Atlas on GCP` | Mode: `dr` | Cluster: `MongoDB Atlas on GCP (1 of 5)`
 - [ ] Concept: `Cloud Monitoring Atlas Metrics` | Parent: `MongoDB Atlas on GCP` | Mode: `dr` | Cluster: `MongoDB Atlas on GCP (2 of 5)`
 - [ ] Concept: `Cloud NAT for Atlas` | Parent: `MongoDB Atlas on GCP` | Mode: `dr` | Cluster: `MongoDB Atlas on GCP (2 of 5)`
-- [ ] Concept: `Cloud Run Atlas Connection Pooling` | Parent: `MongoDB Atlas on GCP` | Mode: `dr` | Cluster: `MongoDB Atlas on GCP (2 of 5)`
+- [x] Concept: `Cloud Run Atlas Connection Pooling` | Parent: `MongoDB Atlas on GCP` | Mode: `dr` | Cluster: `MongoDB Atlas on GCP (2 of 5)`
 - [ ] Concept: `Atlas Data Federation GCS` | Parent: `MongoDB Atlas on GCP` | Mode: `dr` | Cluster: `MongoDB Atlas on GCP (2 of 5)`
 - [ ] Concept: `Atlas GCP EDP Credits` | Parent: `MongoDB Atlas on GCP` | Mode: `dr` | Cluster: `MongoDB Atlas on GCP (2 of 5)`
 - [ ] Concept: `Atlas Envelope Encryption GCP` | Parent: `MongoDB Atlas on GCP` | Mode: `dr` | Cluster: `MongoDB Atlas on GCP (2 of 5)`
@@ -531,7 +531,7 @@ Every frontier concept, grouped by shared parent (at most 8 per cluster), cluste
 - [ ] Concept: `SRV DNS Seedlist Format` | Parent: `MongoDB Connection String URI` | Mode: `dr` | Cluster: `MongoDB Connection String URI`
 - [ ] Concept: `Authentication Mechanisms` | Parent: `MongoDB Connection String URI` | Mode: `dr` | Cluster: `MongoDB Connection String URI`
 - [ ] Concept: `TLS/SSL Configuration` | Parent: `MongoDB Connection String URI` | Mode: `dr` | Cluster: `MongoDB Connection String URI`
-- [ ] Concept: `Connection Pool Tuning` | Parent: `MongoDB Connection String URI` | Mode: `dr` | Cluster: `MongoDB Connection String URI`
+- [x] Concept: `Connection Pool Tuning` | Parent: `MongoDB Connection String URI` | Mode: `dr` | Cluster: `MongoDB Connection String URI`
 - [ ] Concept: `Read Preference` | Parent: `MongoDB Connection String URI` | Mode: `dr` | Cluster: `MongoDB Connection String URI`
 - [ ] Concept: `Wire Protocol Compression` | Parent: `MongoDB Connection String URI` | Mode: `dr` | Cluster: `MongoDB Connection String URI`
 - [ ] Concept: `CSOT Client-Side Operations Timeout` | Parent: `MongoDB Connection String URI` | Mode: `dr` | Cluster: `MongoDB Connection String URI`
@@ -553,7 +553,7 @@ Every frontier concept, grouped by shared parent (at most 8 per cluster), cluste
 - [ ] Concept: `Config server / shards / mongos upgrade sequence` | Parent: `MongoDB Upgrade Paths` | Mode: `dr` | Cluster: `MongoDB Upgrade Paths (1 of 4)`
 - [ ] Concept: `Config shard caveat (8.0+)` | Parent: `MongoDB Upgrade Paths` | Mode: `dr` | Cluster: `MongoDB Upgrade Paths (1 of 4)`
 - [ ] Concept: `Disk pre-warming SOP (Cookie 7.0→8.0 lesson)` | Parent: `MongoDB Upgrade Paths` | Mode: `dr` | Cluster: `MongoDB Upgrade Paths (1 of 4)`
-- [ ] Concept: `Driver compatibility matrix (Java/Node/Python/.NET/Go)` | Parent: `MongoDB Upgrade Paths` | Mode: `dr` | Cluster: `MongoDB Upgrade Paths (2 of 4)`
+- [x] Concept: `Driver compatibility matrix (Java/Node/Python/.NET/Go)` | Parent: `MongoDB Upgrade Paths` | Mode: `dr` | Cluster: `MongoDB Upgrade Paths (2 of 4)`
 - [ ] Concept: `Driver mismatch failure mode` | Parent: `MongoDB Upgrade Paths` | Mode: `dr` | Cluster: `MongoDB Upgrade Paths (2 of 4)`
 - [ ] Concept: `Error Envelope and customer sign-off` | Parent: `MongoDB Upgrade Paths` | Mode: `dr` | Cluster: `MongoDB Upgrade Paths (2 of 4)`
 - [ ] Concept: `Upgrade event coverage (pre/during/post)` | Parent: `MongoDB Upgrade Paths` | Mode: `dr` | Cluster: `MongoDB Upgrade Paths (2 of 4)`
@@ -4196,7 +4196,7 @@ Every frontier concept, grouped by shared parent (at most 8 per cluster), cluste
 
 ## Exhaustive MongoDB inventory additions
 
-- [ ] Concept: `Connection pooling and connection-storm control for Atlas (serverless and Lambda clients)` | Parent: `Cluster Tier Limits and Feature Gates as Cost Drivers (Connections, IOPS Caps, Minimum Tiers)` | Mode: `dr` | CVS: `4.725` | Inventory-ID: `mongodb-f87842d57963ee96` | Cohort: `mongodb-cohort-2a03c480ee30`
+- [x] Concept: `Connection pooling and connection-storm control for Atlas (serverless and Lambda clients)` | Parent: `Cluster Tier Limits and Feature Gates as Cost Drivers (Connections, IOPS Caps, Minimum Tiers)` | Mode: `dr` | CVS: `4.725` | Inventory-ID: `mongodb-f87842d57963ee96` | Cohort: `mongodb-cohort-2a03c480ee30`
 - [ ] Concept: `$queryStats aggregation stage` | Parent: `Database Profiler vs Query Profiler` | Mode: `dr` | CVS: `4.450` | Inventory-ID: `mongodb-fc9325d08a92f24b` | Cohort: `mongodb-cohort-5bc61fcfe3ec`
 - [ ] Concept: `Connection pool sizing and connection-storm control for Atlas (serverless and Lambda clients)` | Parent: `Cluster Tier Limits and Feature Gates as Cost Drivers (Connections, IOPS Caps, Minimum Tiers)` | Mode: `dr` | CVS: `4.450` | Inventory-ID: `mongodb-2f1fbe31e1058a42` | Cohort: `mongodb-cohort-394bc420b0bf`
 - [ ] Concept: `Delete propagation and reconciliation for $merge-maintained views` | Parent: `Read Offload via Caching and Precomputed Views ($merge/$out, Computed Pattern)` | Mode: `dr` | CVS: `4.375` | Inventory-ID: `mongodb-ca53ac7eb7938f77` | Cohort: `mongodb-cohort-a17745affdcc`

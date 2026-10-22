@@ -59,6 +59,13 @@ Completion applies to this run-start backlog. New descendants stay visible as
 a separate backlog. A queued concept, high CVS score or source-discovery lead
 does not establish completed research.
 
+The user paused the run after the second cohort to reload updated skills.
+Four concepts completed export with all 43 structured claims supported. The
+second cohort remains withheld: its 54-claim draft has three unverified
+claims among 50 checked claims. The saved plan has 913 pending concepts and
+16 review concepts. Both research and automatic continuation are stopped.
+Keep the user STOP marker until an explicit request to resume.
+
 ## Source review
 
 The 15 initial review entries received a primary-source audit and a second
@@ -77,8 +84,9 @@ planning assumptions; each new DR result still needs its normal claim gate.
 
 ## Validation
 
-304 focused research, queue, handoff and completion tests passed, plus four
-subtests. Full configured Ruff passes for the changed root scripts and tests.
+313 focused research, queue, handoff and completion tests passed, plus four
+subtests. The final cohort-view module passes 32 rendering/privacy fixtures.
+Full configured Ruff passes for the changed root scripts and tests.
 The DR skill overlay check passes for all 27 synchronized files. Publication
 projection and identity-preserving queue regressions pass. No Node.js
 compatibility tests were run.
