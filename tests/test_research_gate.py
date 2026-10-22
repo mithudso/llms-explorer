@@ -84,6 +84,23 @@ def test_dissent_is_never_rewritten_as_support(pinned):
     assert not gate.validate(packet, response, root)['all_supported']
 
 
+@pytest.mark.parametrize('verdict', ['SUPPORTED', 'NOT-IN-SOURCE', 'CONTRADICTED', 'UNVERIFIED'])
+def test_packet_source_cannot_be_borrowed_from_another_claim(pinned, verdict):
+    *_, root, packet, response = pinned
+    original_url = response['verdicts'][0]['evidence'][0]['url']
+    other_url = 'https://example.org/another-claims-source'
+    packet['sources'][other_url] = {**packet['sources'][original_url], 'url': other_url}
+    packet['packet_sha256'] = gate.digest({key: value for key, value in packet.items() if key != 'packet_sha256'})
+    response['packet_sha256'] = packet['packet_sha256']
+    judgment = response['verdicts'][0]
+    judgment['verdict'] = verdict
+    judgment['evidence'][0]['url'] = other_url
+    with pytest.raises(ValueError, match='not bound') as error:
+        gate.validate(packet, response, root)
+    assert judgment['claim_id'] in str(error.value)
+    assert other_url in str(error.value)
+
+
 def test_completion_rejects_changed_claims_and_selection(pinned):
     shared, manifest, doc, root, packet, response = pinned
     run = root.parent

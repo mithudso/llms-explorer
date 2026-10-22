@@ -836,6 +836,25 @@
 - Canonical projection canary passed four live judgments and both tree/pack/site
   outputs. 132 research tests + two subtests and 278 built-site tests pass.
 
+## 2026-10-22 — Ranked cohort 23 citation recovery
+- TASK-793 resumes the existing ranked plan after 22 completed cohorts. Discovery
+  remains intact. Primary-source review corrected seven claim records and pinned
+  three previously missing forum source bodies in the private library.
+- The gate now names the claim and URL when evidence binding fails. The judge
+  brief explicitly forbids borrowing citations from other claims in the packet,
+  including for non-supported verdicts. All four verdict types have regression
+  coverage. The isolated research suite passes 136 tests plus two subtests.
+- PR 216 merged into PR 214. Exact-head GitHub checks pass at 9746633389, while
+  Cloudflare Pages still fails without an accessible first-error log. Local
+  publication remains distinct from production deployment.
+- Cohort 23 is complete after all 38 structured claims passed against the final
+  documents. Eight claim records and five auxiliary-note entries were corrected;
+  four missing source bodies were recovered privately. All 48 pack members, three
+  readers and three canonical downloads are verified. The website contains 1,518
+  reader packs and 89,213 facts. The saved plan continues cohort 24 as PID 35759.
+- The broad auxiliary prose coverage gap remains tracked as KNOW-796. Structured
+  claim support counts do not establish automated review of every reader sentence.
+
 
 ## 2026-10-22 — Cloudflare private-library build authentication
 - TASK-742: restored Wrangler OAuth exposed the exact Pages failure: pip could not authenticate while cloning ollama-client. The site also needs private llms-txt for validation. The user supplied a fine-grained read-only key for both repositories. It was verified and installed as encrypted LIBS_READ_TOKEN in preview and production. Values remain out of repository files and logs.
