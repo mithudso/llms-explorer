@@ -354,10 +354,10 @@ def _transactional_finalize(shared, manifest: dict, claims: dict[str, dict], sta
     canonical = load_module("canonical_research_artifact", Path(__file__).with_name("research_artifact.py"))
     transactions = load_module("research_projection_transaction", Path(__file__).with_name("research_transaction.py"))
     root = shared.run_dir(manifest["slug"]) / "artifacts/transactions"
-    for prior in sorted(root.glob("*/journal.json")):
-        transactions.recover(prior.parent)
+    transactions.recover_pending(shared.RESEARCH_DIR, repo or repository())
     artifact, path = canonical.build(shared, manifest, claims, status)
-    transaction = transactions.Transaction(root / datetime.now(UTC).strftime("%Y%m%dT%H%M%S.%fZ"))
+    transaction = transactions.Transaction(root / datetime.now(UTC).strftime("%Y%m%dT%H%M%S.%fZ"),
+                                           registry=transactions.registry_dir(shared.RESEARCH_DIR))
     original = shared.atomic_write
     shared.atomic_write = transaction.write
     try:
