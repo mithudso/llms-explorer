@@ -394,6 +394,8 @@ def load_shared(path: Path | None = None):
             claims = shared.load_claims(args.slug, errors)
             if errors:
                 raise ValueError("cannot export invalid claims: " + "; ".join(errors))
+            if claims and args.status in ("COMPLETED", "BUDGET_EXHAUSTED") and manifest.get("gate_contract_version") == 2:
+                bound_gate.verify_current(shared, manifest)
             if args.status in ("COMPLETED", "BUDGET_EXHAUSTED"):
                 receipt = artifacts.finalize_artifacts(shared, manifest, claims, args.status)
             else:
@@ -439,6 +441,13 @@ def load_shared(path: Path | None = None):
                 brief = policy + "\n" + brief
             return translate_brief(brief, str(path.resolve()))
         setattr(shared, symbol, wrapped)
+    gate_path = Path(__file__).with_name("research_gate.py")
+    gate_spec = importlib.util.spec_from_file_location("codex_bound_gate", gate_path)
+    if gate_spec is None or gate_spec.loader is None:
+        raise ValueError(f"cannot load claim-bound gate: {gate_path}")
+    bound_gate = importlib.util.module_from_spec(gate_spec)
+    gate_spec.loader.exec_module(bound_gate)
+    bound_gate.install(shared)
     return shared
 
 

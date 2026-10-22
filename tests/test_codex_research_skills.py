@@ -42,6 +42,7 @@ class SyncTests(unittest.TestCase):
         (self.repo / "scripts").mkdir()
         (self.repo / "scripts/codex_dr_run.py").write_text("# Codex-only transport\n")
         (self.repo / "scripts/codex_dr_artifacts.py").write_text("# Codex artifacts\n")
+        (self.repo / "scripts/research_gate.py").write_text("# Claim-bound gate\n")
         for skill in sync.SKILLS:
             path = self.sources / skill / "SKILL.md"
             path.parent.mkdir(parents=True)
@@ -330,8 +331,41 @@ class ResearchFlowTests(unittest.TestCase):
                     "child_concepts": ["Directory synchronization"]}
 
     def invoke(self, *args):
+        if args[0] == "finish" and not self.shared.load_manifest("publication").get("gate"):
+            self.fixture_gate()
         with redirect_stdout(io.StringIO()):
             self.assertEqual(self.shared.main(list(args)), 0)
+
+    def fixture_gate(self):
+        """Artifact fixtures pass the real gate with pinned synthetic evidence."""
+        errors = []
+        documents = self.shared.load_claims("publication", errors)
+        if errors or not documents:
+            return
+        body = "\n".join(c["text"] for d in documents.values() for c in d["claims"])
+        text = self.root / "fixture-source.txt"
+        text.write_text(body)
+        for url in {u for d in documents.values() for c in d["claims"] for u in c["sources"]}:
+            self.shared.lib_snapshot(url, "docs", "Synthetic test evidence", text_file=str(text))
+
+        def judge(manifest, name, brief, *args, **kwargs):
+            root = max((self.shared.run_dir("publication") / "gate/attempts").iterdir())
+            packet = json.loads((root / "packet.json").read_text())
+            verdicts = []
+            for claim in packet["claims"]:
+                url = claim["sources"][0]
+                src = packet["sources"][url]
+                start = body.index(claim["text"])
+                verdicts.append({**{k: claim[k] for k in ("claim_id", "claim_sha256", "text")},
+                    "verdict": "SUPPORTED", "rationale": "Synthetic fixture quotes the complete exact statement.",
+                    "evidence": [{"url": url, "source_id": src["source_id"], "snapshot_sha256": src["snapshot_sha256"],
+                                  "start": start, "end": start + len(claim["text"]), "quote": claim["text"]}]})
+            (root / "verdicts.json").write_text(json.dumps({"schema": packet["schema"],
+                "packet_sha256": packet["packet_sha256"], "verdicts": verdicts}))
+            return {"is_error": False}
+
+        with patch.object(self.shared, "run_agent", side_effect=judge), redirect_stdout(io.StringIO()):
+            self.assertEqual(self.shared.main(["gate", "publication", "--refetch-cap", "0"]), 0)
 
     def worker(self, manifest, name, brief, model, effort, max_turns, timeout, **kwargs):
         self.calls.append({"name": name, "brief": brief, "model": model, "effort": effort})

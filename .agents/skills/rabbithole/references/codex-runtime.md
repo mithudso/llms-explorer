@@ -33,6 +33,15 @@ the adaptive lane, so its standard default is 1 (two research passes in total).
 
 ## Research and shared resources
 
+New runs use research-gate/v2. Gate input predetermines all version/default,
+numeric, API, security and volatile claims plus a deterministic ordinary sample
+(standard: ten, quick: zero, saturate: all). Quick still checks risky claims.
+Each verdict must preserve the exact full claim, ID and hash, and bind exact
+Unicode evidence spans to pinned source snapshot hashes. Missing, duplicate,
+altered or stale judgments fail. Non-supported verdicts stop promotion. Finish
+rechecks the canonical inputs and evidence; legacy receipts are not v2 evidence.
+Private gate attempts and raw source bodies stay outside public outputs.
+
 From the repository root, use
 `python3 .agents/skills/dr/scripts/codex_dr_run.py <subcommand> ...` for every
 `dr_run.py` operation below. From another working directory, use this helper's
