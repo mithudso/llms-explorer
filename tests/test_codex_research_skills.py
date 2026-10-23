@@ -528,9 +528,13 @@ class ResearchFlowTests(unittest.TestCase):
             path = Path(pack["path"])
             for filename in ("llms.txt", "llms-full.txt", "llms-small.txt", "llms-facts.txt", "llms-vocabulary.txt"):
                 self.assertTrue((path / filename).is_file())
-                kind = "facts" if filename in ("llms-full.txt", "llms-small.txt") else None
-                report = lint.check(path / filename, kind=kind)
+                report = lint.check(path / filename)
                 self.assertEqual(report["counts"]["high"], 0, report["findings"])
+                if filename in ("llms-full.txt", "llms-small.txt"):
+                    from llms_txt import split_llms_full
+                    pages = split_llms_full((path / filename).read_text())
+                    self.assertEqual(len(pages), 1)
+                    self.assertTrue(pages[0].url.startswith("https://llms-explorer.com/tree/"))
             units = [json.loads(line) for line in (path / "units.jsonl").read_text().splitlines()]
             self.assertEqual(len(units), 8)
             self.assertTrue(all(unit["source_url"].startswith("https://") for unit in units))
