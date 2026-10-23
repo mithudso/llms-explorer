@@ -1,10 +1,10 @@
-<!-- llms-explorer concept facts · https://llms-explorer.com/tree/siri-app-actions-confirmation-and-contextual-cues/ · pack 2026-10-23 · ~1648 tokens -->
+<!-- llms-explorer concept facts · https://llms-explorer.com/tree/siri-app-actions-confirmation-and-contextual-cues/ · pack 2026-10-23 · ~1668 tokens -->
 
 # Siri app actions confirmation and contextual cues
 
 > Source-anchored research for Siri app actions confirmation and contextual cues. Run status: COMPLETED.
 
-5 facets · 13 facts · page: https://llms-explorer.com/tree/siri-app-actions-confirmation-and-contextual-cues/
+Parent: [Apple Intelligence](https://llms-explorer.com/tree/apple-intelligence/) · 5 facets · 13 facts · page: https://llms-explorer.com/tree/siri-app-actions-confirmation-and-contextual-cues/
 
 ## Definitions
 

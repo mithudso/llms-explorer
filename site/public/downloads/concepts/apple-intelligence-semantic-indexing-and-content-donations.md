@@ -1,10 +1,10 @@
-<!-- llms-explorer concept facts · https://llms-explorer.com/tree/apple-intelligence-semantic-indexing-and-content-donations/ · pack 2026-10-23 · ~1388 tokens -->
+<!-- llms-explorer concept facts · https://llms-explorer.com/tree/apple-intelligence-semantic-indexing-and-content-donations/ · pack 2026-10-23 · ~1409 tokens -->
 
 # Apple Intelligence semantic indexing and content donations
 
 > Source-anchored research for Apple Intelligence semantic indexing and content donations. Run status: COMPLETED.
 
-3 facets · 9 facts · page: https://llms-explorer.com/tree/apple-intelligence-semantic-indexing-and-content-donations/
+Parent: [Apple Intelligence](https://llms-explorer.com/tree/apple-intelligence/) · 3 facets · 9 facts · page: https://llms-explorer.com/tree/apple-intelligence-semantic-indexing-and-content-donations/
 
 ## How it works
 

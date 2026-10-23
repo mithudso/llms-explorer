@@ -6,7 +6,7 @@ description: >-
   Explain Apple Intelligence product features, privacy and developer integration.
   TRIGGER: Apple Intelligence eligibility; Siri AI; Writing Tools; Visual Intelligence;
   image provenance; Shortcuts Use Model; managed controls; Private Cloud Compute;
-  ChatGPT consent; App Schemas and AppIntentsTesting; Foundation Models capability,
+  ChatGPT consent; App Schemas, content transfer and AppIntentsTesting; Foundation Models capability,
   provider, guardrails and OS changes. Read the matching dated reference first.
   SKIP: MLX-LM training or runtime APIs -> mlx-lm-expert; new source research -> dr.
 category: developer
@@ -31,15 +31,16 @@ sources when the question requires a more recent answer than the reference provi
 
 | Question or implementation surface | Reference |
 | --- | --- |
-| Shortcuts Use Model; managed controls; communication summaries; accessibility | [apple-automation-operations-1](references/apple-intelligence-20261023-automation-operations-1.md) |
-| PCC trust and verification; privacy reports; ChatGPT consent; AFM/ADM architecture | [apple-privacy-foundations-1](references/apple-intelligence-20261023-privacy-foundations-1.md) |
-| Siri personal context; availability matrix; Visual Intelligence; Writing Tools | [apple-product-basics-1](references/apple-intelligence-20261023-product-basics-1.md) |
-| PCC cloud expansion; eligibility and quotas; provider release status; adapter lifecycle | [apple-cloud-provider-1](references/apple-intelligence-20261023-cloud-provider-1.md) |
-| Opt-in personalization; App Schemas; safe app actions and contextual cues; content donations | [apple-system-integration-1](references/apple-intelligence-20261023-system-integration-1.md) |
-| Foundation Models guardrails; evaluation and OS regressions; context errors; multimodal contracts | [apple-developer-reliability-1](references/apple-intelligence-20261023-developer-reliability-1.md) |
-| Image Playground; Photos editing; Live Translation; Genmoji and Image Wand | [apple-creative-communication-1](references/apple-intelligence-20261023-creative-communication-1.md) |
-| AppIntentsTesting fixtures, assertions and test limits for Siri/entity integration | [apple-round1-system-testing](references/apple-intelligence-20261023-round1-system-testing.md) |
-| Image edit provenance, metadata, SynthID and export boundaries | [apple-round1-image-provenance](references/apple-intelligence-20261023-round1-image-provenance.md) |
+| Shortcuts Use Model; managed controls; communication summaries; accessibility | [Automation and managed workflows](references/apple-intelligence-20261023-automation-operations-1.md) |
+| PCC trust and verification; privacy reports; ChatGPT consent; AFM/ADM architecture | [Privacy and model foundations](references/apple-intelligence-20261023-privacy-foundations-1.md) |
+| Siri personal context; availability matrix; Visual Intelligence; Writing Tools | [Product features and eligibility](references/apple-intelligence-20261023-product-basics-1.md) |
+| PCC cloud expansion; eligibility and quotas; provider release status; adapter lifecycle | [Cloud providers and lifecycle](references/apple-intelligence-20261023-cloud-provider-1.md) |
+| Opt-in personalization; App Schemas; safe app actions and contextual cues; content donations | [Siri and app integration](references/apple-intelligence-20261023-system-integration-1.md) |
+| Foundation Models guardrails; evaluation and OS regressions; context errors; multimodal contracts | [Developer reliability and safety](references/apple-intelligence-20261023-developer-reliability-1.md) |
+| Image Playground; Photos editing; Live Translation; Genmoji and Image Wand | [Creative tools and communication](references/apple-intelligence-20261023-creative-communication-1.md) |
+| AppIntentsTesting fixtures, assertions and test limits for Siri/entity integration | [App Intents testing](references/apple-intelligence-20261023-round1-system-testing.md) |
+| Image edit provenance, metadata, SynthID and export boundaries | [Image provenance](references/apple-intelligence-20261023-round1-image-provenance.md) |
+| AppEntity Transferable representations, standard content conversion and existing-entity lookup versus import creation | [Cross-app content transfer](references/apple-intelligence-20261023-round2-cross-app-transfer.md) |
 
 ## Evidence and neighboring coverage
 

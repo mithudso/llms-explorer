@@ -1,10 +1,10 @@
-<!-- llms-explorer concept facts · https://llms-explorer.com/tree/app-schemas-integration-for-siri-ai/ · pack 2026-10-23 · ~1768 tokens -->
+<!-- llms-explorer concept facts · https://llms-explorer.com/tree/app-schemas-integration-for-siri-ai/ · pack 2026-10-23 · ~1789 tokens -->
 
 # App Schemas integration for Siri AI
 
 > Source-anchored research for App Schemas integration for Siri AI. Run status: COMPLETED.
 
-3 facets · 15 facts · page: https://llms-explorer.com/tree/app-schemas-integration-for-siri-ai/
+Parent: [Apple Intelligence](https://llms-explorer.com/tree/apple-intelligence/) · 3 facets · 15 facts · page: https://llms-explorer.com/tree/app-schemas-integration-for-siri-ai/
 
 ## Structure and components
 
