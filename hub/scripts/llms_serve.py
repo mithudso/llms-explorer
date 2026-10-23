@@ -14,6 +14,7 @@ Two sources, one root index (spec v2: H1, blockquote, H2 link lists):
   /m/<key>/llms.txt             an index GENERATED from that file's pages (title + Source)
   /t/<slug>/llms.txt            a topical file (docset_refine topical): facts by concept
   /t/<slug>/llms-facts.txt      (also llms-vocabulary.txt, manifest.json)
+  /t/<slug>/concept-graph.json  the concept graph linked by the topical index
   /m/<key>/pages/<n>.md         one page of it
   /health                       liveness
 
@@ -57,7 +58,7 @@ CHARS_PER_TOKEN = 4
 EXPORT_FILES = ("llms.txt", "llms-full.txt", "llms-small.txt", "llms-facts.txt", "manifest.json")
 TOPICAL_FILES = (
     "llms.txt", "llms-full.txt", "llms-small.txt", "llms-facts.txt",
-    "llms-vocabulary.txt", "manifest.json",
+    "llms-vocabulary.txt", "manifest.json", "concept-graph.json",
 )
 # `llms-concepts/` is where concept packs actually live and what the MCP server's
 # hub_concept_library / hub_llms_serve read. The default used to be `llms-topical/`,
@@ -174,7 +175,7 @@ def render_mirror_index(entry: dict, pages: list[dict], base: str) -> str:
         "## Pages",
         "",
     ]
-    for n, p in enumerate(pages, 1):
+    for p in pages:
         desc = _first_sentence(p.get("text", ""))
         line = f"- [{p.get('title') or p['url']}]({p['url']})"
         out.append(line + (f": {desc}" if desc else ""))
