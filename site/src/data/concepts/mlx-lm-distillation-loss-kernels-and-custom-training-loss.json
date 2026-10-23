@@ -1,0 +1,197 @@
+{
+  "slug": "mlx-lm-distillation-loss-kernels-and-custom-training-loss",
+  "concept": "MLX-LM distillation loss kernels and custom training loss",
+  "generated": "2026-10-23",
+  "summary": "Source-anchored research for MLX-LM distillation loss kernels and custom training loss. Run status: COMPLETED.",
+  "facets": [
+    {
+      "title": "How it works",
+      "facts": [
+        {
+          "text": "The current MLX-LM tuner loss module implements `kl_div_loss` and `js_div_loss` using `mx.fast.metal_kernel` forward kernels and hand-written VJPs registered with `mx.custom_function`; it uses composed MLX loss operations when Metal is unavailable. The dynamic quantization implementation imports and calls `kl_div_loss`. (high confidence) (verified as of 2026-10-23)",
+          "source": "https://github.com/ml-explore/mlx-lm/blob/main/mlx_lm/tuner/losses.py",
+          "note": null,
+          "claimId": "clm:9e79e881bd06afa32a6a61d3e4225e287e90062ab55f7dafb36a000fe218c306",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:6061bef719fc37a4642154573dcfe80a1d5bc5b489fcfa96a628533b7f86d9c6",
+            "ev:aee5e3ad466277e94bdd889c659a9d1cc5f835bfab02c23fd343a9c4e16e437b",
+            "ev:cc3060ca384cb0e30a2a0d83de9a41ae4ff7785f546e18e1ac8477ba43d8f24e"
+          ]
+        },
+        {
+          "text": "In the source snapshot checked on 2026-10-23, `mlx_lm.tuner.losses` implements per-last-axis KL and JS losses with custom Metal forward and backward kernels when `can_run_metal()` is true; `kl_div_loss` otherwise normalizes both logits with log-sum-exp and calls `mlx.nn.losses.kl_div_loss` with no reduction. (high confidence) (verified as of 2026-10-23)",
+          "source": "https://github.com/ml-explore/mlx-lm/blob/main/mlx_lm/tuner/losses.py",
+          "note": null,
+          "claimId": "clm:e24d8ab57996d3853c3200e46b8cea1e5b02e22417320bc5729859f1ac4f6437",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:6061bef719fc37a4642154573dcfe80a1d5bc5b489fcfa96a628533b7f86d9c6",
+            "ev:cc3060ca384cb0e30a2a0d83de9a41ae4ff7785f546e18e1ac8477ba43d8f24e"
+          ]
+        },
+        {
+          "text": "Independent MLX tooling documents broader distillation orchestration: MLXSmith describes offline teacher-generated responses followed by student SFT and online preference distillation using student-generated candidates, teacher scoring, and an importance-sampled loss; AutoContext describes an in-process path with student rollouts, a frozen teacher, and per-token reverse KL. These are external workflows, not evidence of a built-in MLX-LM teacher-student trainer. (high confidence) (verified as of 2026-10-23)",
+          "source": "https://github.com/Hmbown/MLXSmith/blob/main/docs/cli/distillation.md",
+          "note": null,
+          "claimId": "clm:9f6a2e8b17ddd2e71a5578bbfb6a40512df247cb20a1e213688af2a90d1d5bcc",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:75d5bedc64897e8b06fceac3c112e5a5050f24b568660305e554daa40d5ef5bf",
+            "ev:ed55678b68a3cb681359a658bfe9d426abdec26869f67d96de17fc38482c52a7",
+            "ev:f2c8a9cb10d78661b0cf057b74cf6e62688695668b12a59ff441e95037bd46ba"
+          ]
+        },
+        {
+          "text": "trainer.default_loss uses inputs=batch[:,:-1] and targets=batch[:,1:]. It constructs one-based token positions and includes only lengths[:,0] <= position <= lengths[:,1], multiplies per-token cross-entropy by that mask, and returns the float32 sum divided by ntoks together with ntoks=mask.sum(). This is the literal supplied-boundary rule, not a guarantee that every padded target is excluded: iterate_batches records an L-token sequence with upper length L, so when that row is padded, shifted target position L (original index L, the first padding token) is still included by the inclusive upper comparison. (low confidence) (verified as of 2026-10-23)",
+          "source": "https://raw.githubusercontent.com/ml-explore/mlx-lm/0d4d3d04f8ab7ce4a51e7209e8615755a48ba94d/mlx_lm/tuner/trainer.py",
+          "note": null,
+          "claimId": "clm:d60cc21f3a1b043d2e34bab617c70966126f93a23aaa5cba9c7ee4e43ceff841",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:95c28a5070332478b5fcfc0d9e5464d7d60d2d5020726326a717a2a6bbbdbb13"
+          ]
+        }
+      ]
+    },
+    {
+      "title": "Comparisons and alternatives",
+      "facts": [
+        {
+          "text": "The Metal `kl_div_loss(logits_q, logits_p)` path computes KL(softmax(logits_p) || softmax(logits_q)) and returns a gradient for `logits_q` but zeros for `logits_p`. AutoContext documents its on-policy distillation objective as reverse KL(student || teacher), so callers must account for this gradient direction instead of assuming the helper directly implements that reverse-KL objective. (medium confidence) (verified as of 2026-10-23)",
+          "source": "https://github.com/ml-explore/mlx-lm/blob/main/mlx_lm/tuner/losses.py",
+          "note": null,
+          "claimId": "clm:f7dc1d75134dd69754032efc1fadb2de339ec2de49df07d1393a12e37112da0f",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:94e333dc9bebf7bcc5862d257d6266963c80ea480c1062b42914fefe6ee547ac",
+            "ev:d07c8be7074b6035dd783eb94f5ca401689db3337d82915738f5a8ea733b6ff4",
+            "ev:f2c8a9cb10d78661b0cf057b74cf6e62688695668b12a59ff441e95037bd46ba"
+          ]
+        },
+        {
+          "text": "MLX-LM's DWQ path uses teacher logits computed on demand or optionally precomputed top-logit targets, and computes KL between the quantized model's logits and those targets. dwq_quantize explicitly unfreezes scales and biases on affine quantized layers below 8 bits, then optimizes the full model.trainable_parameters() collection; exclusivity to those scales and biases depends on which other parameters were already frozen. This is teacher-guided quantization fine-tuning rather than general student-architecture distillation. (high confidence) (verified as of 2026-10-23)",
+          "source": "https://github.com/ml-explore/mlx-lm/blob/main/mlx_lm/quant/dwq.py",
+          "note": null,
+          "claimId": "clm:6757ec488345a8dc56b38f6ef2d51d3525aafc79bd1156c5d1f16a43f1ec43e2",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:34a1211f15e40b5c176b082039973016aa752ccfee737e5aa2904a89fac88240",
+            "ev:bbab4c41ef61d9d380a3c9272ac4dfafcf2809c34d5896f613dcfffbae1b0d1e"
+          ]
+        },
+        {
+          "text": "An open MLX-LM issue filed on 2026-09-17 describes DWQ as present but general structural knowledge distillation as missing, and proposes off-policy distillation followed by on-policy rollouts. The issue page showed no maintainer response when checked on 2026-10-23, so it records a user request rather than a repository roadmap commitment. (medium confidence) (verified as of 2026-10-23)",
+          "source": "https://github.com/ml-explore/mlx-lm/issues/1900",
+          "note": null,
+          "claimId": "clm:3d386b9437781d0cc67c604ad3e3d9c70c71b66f41a79e09bcf8ec0c945af9c8",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:370df3db76d9c0c12ea5bf2046e060c53cda2dab70ea57df7b1cd2300680b149"
+          ]
+        },
+        {
+          "text": "kl_div_loss(logits_q,logits_p) and js_div_loss(logits_q,logits_p) take unnormalized logits with vocabulary on the last axis; normalization is internal. Their public results omit that vocabulary axis and retain the preceding batch/token positions, so the caller supplies token masking and reduction rather than expecting a scalar training loss. The Metal custom VJPs compute the logits_q gradient and explicitly return zeros_like(logits_p) for the target gradient. (low confidence) (verified as of 2026-10-23)",
+          "source": "https://raw.githubusercontent.com/ml-explore/mlx-lm/0d4d3d04f8ab7ce4a51e7209e8615755a48ba94d/mlx_lm/tuner/losses.py",
+          "note": null,
+          "claimId": "clm:89cb6083d07ceb8ef0f94f93a8b628ec9858c1c5eb455cf3d5a1fa94afb203b2",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:2c403d07b4af91d9f918ff3f72cd668f2838241a9e6f8f04ff70c34da7020c72",
+            "ev:da76ade26f13be85a0a3e8360f8f481ea36a6155476c044d56b5f606fa748dbf"
+          ]
+        }
+      ]
+    },
+    {
+      "title": "Facts and statements",
+      "facts": [
+        {
+          "text": "`mlx_lm.tuner.trainer.train` and `evaluate` accept a `loss` callable that defaults to masked next-token cross-entropy; training differentiates the callable with `nn.value_and_grad(model, loss)`, and the callable returns a loss value and token count. This is a Python-level custom-loss hook; separate teacher loading and rollout orchestration are supplied by caller or external code. (high confidence) (verified as of 2026-10-23)",
+          "source": "https://github.com/ml-explore/mlx-lm/blob/main/mlx_lm/tuner/trainer.py",
+          "note": null,
+          "claimId": "clm:9cad33244fdae488e1c513bb638ff21cd54f62686ff499799ccc957e8b5c6c47",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:ed55678b68a3cb681359a658bfe9d426abdec26869f67d96de17fc38482c52a7",
+            "ev:f2c8a9cb10d78661b0cf057b74cf6e62688695668b12a59ff441e95037bd46ba"
+          ]
+        },
+        {
+          "text": "`kl_div_loss(logits_q, logits_p)` returns one loss value per position (`logits_q.shape[:-1]`); its custom VJP computes a gradient for `logits_q` and returns zeros for `logits_p`. MLX-LM's dynamic quantization sensitivity path computes targets with the original model and differentiates the quantized model against them, using the second KL input as fixed reference logits. (high confidence) (verified as of 2026-10-23)",
+          "source": "https://github.com/ml-explore/mlx-lm/blob/main/mlx_lm/tuner/losses.py",
+          "note": null,
+          "claimId": "clm:0d77d1989a854eb557c6ddd7143ebe934de72ce327d434dc71431da9853631e2",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:d07c8be7074b6035dd783eb94f5ca401689db3337d82915738f5a8ea733b6ff4",
+            "ev:f02a95e7c8eb15685a3b31e16dfd4f46044a37cbafaf7568d63191589305fb10"
+          ]
+        },
+        {
+          "text": "An upstream issue opened on 2026-09-17 asks for a native general structural knowledge-distillation framework. This is scoped: MLX-LM already has low-level KL/JS loss kernels and uses teacher-reference KL in quantization sensitivity estimation, but its generic trainer hook is not itself a general teacher/student training pipeline. (medium confidence) (verified as of 2026-10-23)",
+          "source": "https://github.com/ml-explore/mlx-lm/issues/1900",
+          "note": null,
+          "claimId": "clm:12867235c1e4faf5b94ff2b1e47aa7f2f48ad1aa42bf19b59613e44ada90fa7b",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:370df3db76d9c0c12ea5bf2046e060c53cda2dab70ea57df7b1cd2300680b149",
+            "ev:a6966e992149c7483821a60ac19bcacf1d4ebb3c26692ab028b74c342e2a3ee5",
+            "ev:d07c8be7074b6035dd783eb94f5ca401689db3337d82915738f5a8ea733b6ff4",
+            "ev:ed55678b68a3cb681359a658bfe9d426abdec26869f67d96de17fc38482c52a7",
+            "ev:f02a95e7c8eb15685a3b31e16dfd4f46044a37cbafaf7568d63191589305fb10"
+          ]
+        },
+        {
+          "text": "MLX's `value_and_grad` pattern differentiates a scalar objective. In its pipeline-training example, Matt Beton uses `sum(output * stop_gradient(upstream_gradient))` as an auxiliary scalar for intermediate-stage backpropagation; MLX-LM's KL kernel similarly provides an explicit VJP for its custom Metal computation. (medium confidence)",
+          "source": "https://mattbeton.com/blog/pipeline-parallel-apple-silicon.html",
+          "note": null,
+          "claimId": "clm:55124607c83a4d0504f2c75f0065db4ee0f75deeea04f1c2a2c258e59e6c7066",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:cb7ea87cfb4f7ce2a0015315a812f3c778bcf0c10c5afd9eba5ac19c7312729c",
+            "ev:d07c8be7074b6035dd783eb94f5ca401689db3337d82915738f5a8ea733b6ff4"
+          ]
+        },
+        {
+          "text": "Independent MLX-related implementations document higher-level distillation patterns: MLXSmith separates offline teacher-generated SFT from online preference distillation, while `mlx-go-lm` exposes weighted cross-entropy/KL/JS terms and APIs for precomputing teacher logits. (medium confidence) (verified as of 2026-10-23)",
+          "source": "https://github.com/Hmbown/MLXSmith/blob/main/docs/cli/distillation.md",
+          "note": null,
+          "claimId": "clm:d2152a421cb2dbd7b01777866f04edea65776dedb5a93847911ff8e43170e307",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:2318777afeb84bb2759637cc39687c5f16f32934bf704307da28debddcb97636",
+            "ev:2ea7a976859ab8b5434dad2c3b702390f4422c8412ec50548823676b74c04cff",
+            "ev:74cbb67625c72f79adbe35e43c2759c8a561564143ff0d6fb8942d4ab91227ea",
+            "ev:75d5bedc64897e8b06fceac3c112e5a5050f24b568660305e554daa40d5ef5bf"
+          ]
+        },
+        {
+          "text": "A Python caller supplies train(...,loss=my_loss). train builds nn.value_and_grad(model,loss), then invokes it as loss_value_and_grad(model,*batch); the standard batch iterator yields (token_batch,lengths), so my_loss receives (model,token_batch,lengths) and must return (scalar_loss,token_count). The scalar drives differentiation; token_count supports reporting and weighted evaluation. (low confidence) (verified as of 2026-10-23)",
+          "source": "https://raw.githubusercontent.com/ml-explore/mlx-lm/0d4d3d04f8ab7ce4a51e7209e8615755a48ba94d/mlx_lm/tuner/trainer.py",
+          "note": null,
+          "claimId": "clm:0b6ea0dbaa9a36f74a60f01a27157b14a77f072bdd923f5f92bf28517906ddea",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:afcba790da764ab56984457c995dc92a19b5b0d288e19fc7fff33cbca6841085"
+          ]
+        },
+        {
+          "text": "At 0d4d3d04f8ab, the native mlx_lm.lora CLI parser exposes fine-tuning and optimizer settings but no generic teacher/student or custom-loss selector. Its train_model call invokes train without overriding loss, so the default next-token objective applies. A general distillation workflow must supply teacher loading, targets, alignment and a custom Python loss/integration; low-level KL/JS primitives or the separate DWQ path do not establish such a CLI workflow. (medium confidence) (verified as of 2026-10-23)",
+          "source": "https://raw.githubusercontent.com/ml-explore/mlx-lm/0d4d3d04f8ab7ce4a51e7209e8615755a48ba94d/mlx_lm/lora.py",
+          "note": null,
+          "claimId": "clm:e8b1e216903cec0da90f65d9cb1d89648321dd6751909c1b682830df53506126",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:26fe56dab4c226e86cdd227fbe604ee9369950ebafd72bb8f8d63fb370578ea1",
+            "ev:5e6b18c56cd40921d66992f124ff512d42a5761377fdf0d718dbf0f2dbb0d290",
+            "ev:edb05d1899f3baba558e68dc4c57ea67666c59c638b37269cfef7a1657d54255"
+          ]
+        }
+      ]
+    }
+  ],
+  "related": [],
+  "canonicalArtifactSha256": "49aeffa4269dfcc4748e37cb304aa33bb133baefc4b00f8305efbeeac63eac4e",
+  "canonicalConceptId": "concept:76131eb76fb791467184bdde9c873f8b86dab56d3334d16d5f399b0164d1a3e3"
+}

@@ -1,0 +1,249 @@
+{
+  "slug": "mlx-lm-native-request-cancellation-and-generation-resource-lifecycle",
+  "concept": "MLX-LM native request cancellation and generation resource lifecycle",
+  "generated": "2026-10-23",
+  "summary": "Source-anchored research for MLX-LM native request cancellation and generation resource lifecycle. Run status: COMPLETED.",
+  "facets": [
+    {
+      "title": "How it works",
+      "facts": [
+        {
+          "text": "The current mlx_lm.server keeps an LRUPromptCache on its ResponseGenerator and inserts extracted prompt-segment KV caches into it. An issue report describes BrokenPipeError on disconnected responses while request sequences remained in the cache, but the reporter says they could not establish whether disconnections caused or accelerated the deadlock; a disconnect should not be assumed to free cached KV or be treated as a proven root cause. (medium confidence) (verified as of 2026-10-23)",
+          "source": "https://github.com/ml-explore/mlx-lm/blob/main/mlx_lm/server.py",
+          "note": null,
+          "claimId": "clm:771f784d1bd7155142d34438cd9f2b6452b89c4a6f6246e69ff2d741829fda76",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:5d56c07612dfbf4755ded35033d1a67afd3100194f13a94517610b6d166cf776",
+            "ev:66f4451903c852614d08c16bc430f74a02c43075f3c09ff4fcd9fecc55cdc2e5",
+            "ev:a9abaa5763d789066e9b44cb95083dd8e940b1b1b4f66c51b7e8d240683ea547"
+          ]
+        },
+        {
+          "text": "At pinned 0d4d3d04f8ab, APIHandler.handle_completion observes connection failures when wfile.write or flush raises during keepalive, SSE, or final response output; it does not poll for disconnects. ResponseGenerator.generate first returns ctx and a lazy _inner response iterator. Only consumption of that iterator invokes keepalive_callback on queued progress tuples. handle_completion consumes it inside the response try block, whose finally calls ctx.stop(), including when a keepalive or response write fails there. (low confidence) (verified as of 2026-10-23)",
+          "source": "https://raw.githubusercontent.com/ml-explore/mlx-lm/0d4d3d04f8ab7ce4a51e7209e8615755a48ba94d/mlx_lm/server.py",
+          "note": null,
+          "claimId": "clm:79f23a21bce61624cabd8aab7d778476f27d977f24a7dd2e3e5c961b876f9f95",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:6067fdbb2198e8997a20e7642f242c7a92cd9d7b0ded4f43cd9b51dc6d5e9aea",
+            "ev:ea553adb74957b95761fbbe33c1a7fbd6eee307d649e9a10b5c622f52655d924"
+          ]
+        }
+      ]
+    },
+    {
+      "title": "Problems, failure modes and limitations",
+      "facts": [
+        {
+          "text": "stream_generate enters wired_limit around generation. When maybe_set_recommended_wired_limit returns a prior limit, wired_limit synchronizes the supplied streams (or the default synchronization path) and restores that limit in finally. If the helper returns None, wired_limit yields and returns without that synchronization or restoration. Closing or exhausting an entered generator unwinds its context; LM Studio's sequential adapter explicitly closes its wrapped stream in finally. (high confidence) (verified as of 2026-10-23)",
+          "source": "https://github.com/ml-explore/mlx-lm/blob/main/mlx_lm/generate.py",
+          "note": null,
+          "claimId": "clm:75b69712f88fa9dd4c4d512b4e9190ef55a1d22e20c6b62ee561b2c6bddb9eb7",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:1b6341c5491c1fb530c7ae1a82471c632152947d3b0ecb052bbf308bea5c8bb5",
+            "ev:2e7ddc1281ca9378c3b1f2f007521c26dab01738d9581bc1adf980ccbcb74399",
+            "ev:6bb56b2d5a3d8865783c35e24980a041e65ac1d466343a5b714c873501608641"
+          ]
+        }
+      ]
+    },
+    {
+      "title": "Comparisons and alternatives",
+      "facts": [
+        {
+          "text": "After the native worker exits its normal while-not-_stop loop, _generate calls model_provider.reset(), deletes self.prompt_cache, and runs gc.collect() in the generation thread under its stream. These statements are after the loop rather than a universal finally around _generate, so they do not establish cleanup after every exception or immediate release to the operating system. (low confidence) (verified as of 2026-10-23)",
+          "source": "https://raw.githubusercontent.com/ml-explore/mlx-lm/0d4d3d04f8ab7ce4a51e7209e8615755a48ba94d/mlx_lm/server.py",
+          "note": null,
+          "claimId": "clm:a47c3b778985e324903014eaafb3168ddd438f776d4b26109349f3309958a53d",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:39baa45bddf920c899e1ca8393dca0c49e61be8c0366d347938302dee9cca2d2"
+          ]
+        },
+        {
+          "text": "Native cancellation is cooperative at explicit checks rather than a demonstrated in-flight Metal interrupt. Batched _generate shares removal UIDs across distributed workers before remove(); sequential _serve_single instead raises NotImplementedError if it observes ctx._should_stop while _is_distributed is true. That exception is caught and sent to the response queue. Distributed and sequential stop handling therefore have different limits. (low confidence) (verified as of 2026-10-23)",
+          "source": "https://raw.githubusercontent.com/ml-explore/mlx-lm/0d4d3d04f8ab7ce4a51e7209e8615755a48ba94d/mlx_lm/server.py",
+          "note": null,
+          "claimId": "clm:dbfebe9711f3f3a66cec14d7c8565370bac8f8809580d8a9632bfe1010c4bedc",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:39baa45bddf920c899e1ca8393dca0c49e61be8c0366d347938302dee9cca2d2",
+            "ev:3fd9157821b574602d932d9014f570aecaf235b0975f27bad94af944cf9128c2",
+            "ev:d7adeb00dacb425ca23b53fc789f3523e7f61fc9cdbb0118f127ed1059e9e49f"
+          ]
+        }
+      ]
+    },
+    {
+      "title": "Facts and statements",
+      "facts": [
+        {
+          "text": "In the current upstream snapshot, mlx_lm.generate.stream_generate returns a lazy Python generator and its signature has no request ID or explicit cancellation-token argument; callers must provide cancellation through the code that owns and controls iteration. (high confidence) (verified as of 2026-10-23)",
+          "source": "https://github.com/ml-explore/mlx-lm/blob/main/mlx_lm/generate.py",
+          "note": null,
+          "claimId": "clm:38b2bf78e739d1c18767daec13f499a9192a355f9d09cebacc35955708cb4961",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:3e4fe4e3d77134d818624f27d701eb75d3d91d1bd33ba00847d8e1c407fefd94"
+          ]
+        },
+        {
+          "text": "LM Studio's adapter adds request-scoped cancellation around MLX-LM: sequential generation uses a request ID mapped to a threading.Event, checks it while waiting for the generation lock and between iterator steps, closes the underlying stream, and removes the pending-request entry; batched generation removes the matching BatchGenerator sequence and reports RequestCancelled. Adapter shutdown joins its worker, drops the model reference, runs garbage collection, and clears the MLX allocator cache. (high confidence) (verified as of 2026-10-23)",
+          "source": "https://github.com/lmstudio-ai/mlx-engine/blob/main/mlx_engine/generate.py",
+          "note": null,
+          "claimId": "clm:9cd23b406febd36ea83e5f4a07f9b238935dab7f01ed104da8fe21ab90775bd7",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:108f59e6cfcf596c3d2ca78deda489622be9b3aad88060dbf533fd16609c250b",
+            "ev:1b6341c5491c1fb530c7ae1a82471c632152947d3b0ecb052bbf308bea5c8bb5",
+            "ev:4a85f6ac5aa7483c37b4939e8ed12698bc2a77f669ec6d99bdf8b580000cad07",
+            "ev:c42c23b52c8f49f1d16603681bbde1ff1bf2c39eff7814eee8d7254174eeb55e",
+            "ev:ebb3a6685e46365c75a1da87446a4757afd65e522e4ca01625ce85eaaae3e11c"
+          ]
+        },
+        {
+          "text": "A thread-backed server needs to propagate disconnect cancellation to its generation worker: the mlx-openai-server issue reports that Starlette stopped consuming the async iterator while the worker kept decoding, and its proposed fix sets a threading.Event from the async generator's finally block for the worker to check. LM Studio's client documentation also treats cancel() as an explicit operation and warns that simply breaking iteration loses the partial result and final prediction statistics. (medium confidence) (verified as of 2026-10-23)",
+          "source": "https://github.com/cubist38/mlx-openai-server/issues/269",
+          "note": null,
+          "claimId": "clm:9a51fd8f41937b8c408a6b7bc0a9bdd8f1e9ad076841f73723d2e1c8dbfa075f",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:23089fafd8ce8508d851cbc58eb85ec59fb8c8fae668f0c0b38b6948178bee19",
+            "ev:7dd25baf47ef99dd686c89b4e5053d2886ec9df44c144bd832151eb95aa3f0be"
+          ]
+        },
+        {
+          "text": "In MLX-LM source at 0d4d3d04f8ab checked on 2026-10-23, stream_generate is a Python generator with no request ID or explicit cancellation-token parameter; generate_step accepts an optional prompt_cache and updates it in place. The stock server distinguishes ResponseGenerator._stop, which stops its generation thread, from per-request GenerationContext._should_stop and stop(). Its generation paths check the request flag, and the HTTP response handler calls ctx.stop() in finally. These mechanisms do not establish a measured disconnect-to-stop latency or immediate interruption of an MLX evaluation already in progress. (medium confidence) (verified as of 2026-10-23)",
+          "source": "https://github.com/ml-explore/mlx-lm/blob/main/mlx_lm/generate.py",
+          "note": null,
+          "claimId": "clm:86c260dc5c7926a5760be92e150715fea5f04df3078d07848c78069f45a8f83e",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:14465858b9f893c90de8ae7d2d5584b8bf887e1570d6881b9d113d48599e986c",
+            "ev:39baa45bddf920c899e1ca8393dca0c49e61be8c0366d347938302dee9cca2d2",
+            "ev:3fd9157821b574602d932d9014f570aecaf235b0975f27bad94af944cf9128c2",
+            "ev:5877881defc962ae389163d5295b3fc5ef21a743b0599a63630e7bc9ffe53a2b",
+            "ev:6bb56b2d5a3d8865783c35e24980a041e65ac1d466343a5b714c873501608641",
+            "ev:c237db5dc09c5fe078324aaa10b0190fb3b33423098babca7b9f645d1784d169",
+            "ev:ea553adb74957b95761fbbe33c1a7fbd6eee307d649e9a10b5c622f52655d924"
+          ]
+        },
+        {
+          "text": "LM Studio's mlx-engine implements request-scoped cancellation in both generation modes: its sequential iterator close() calls cancel_request(request_id) and closes the underlying stream in a finally block; its batched remove(request_id) queues cancellation, removes the batch UID, and sends RequestCancelled to that request's response queue. (high confidence) (verified as of 2026-10-23)",
+          "source": "https://github.com/lmstudio-ai/mlx-engine/blob/main/mlx_engine/generate.py",
+          "note": null,
+          "claimId": "clm:8d31b6deb299641dcf96fe7417cfab24bbc65d493014629018034f20e6026aee",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:1b6341c5491c1fb530c7ae1a82471c632152947d3b0ecb052bbf308bea5c8bb5",
+            "ev:c42c23b52c8f49f1d16603681bbde1ff1bf2c39eff7814eee8d7254174eeb55e",
+            "ev:ebb3a6685e46365c75a1da87446a4757afd65e522e4ca01625ce85eaaae3e11c"
+          ]
+        },
+        {
+          "text": "LM Studio's TypeScript SDK exposes caller cancellation through OngoingPrediction.cancel() or an AbortController signal and reports userStopped; this is a serving/client API around the model runtime, not a cancellation parameter on MLX-LM's core generator. (medium confidence) (verified as of 2026-10-23)",
+          "source": "https://lmstudio.ai/docs/typescript/llm-prediction/cancelling-predictions",
+          "note": null,
+          "claimId": "clm:5dbf28b90b505b64f78fa8016803c3c44127035e8ce4ef70a38775a78a7991d4",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:3e4fe4e3d77134d818624f27d701eb75d3d91d1bd33ba00847d8e1c407fefd94",
+            "ev:eb3c628549842a4b32fc0b2e16e5a3813f7d92eebd529e65a3aaa25150c7d566"
+          ]
+        },
+        {
+          "text": "A cubist38 server report for v1.7.0 found that a client disconnect left its background worker generating until completion unless the wrapper propagated cancellation. The proposed fix set a threading.Event in the async stream's finally block and checked it in the worker loop; the report says this stopped generation within one token. (medium confidence) (verified as of 2026-03-31)",
+          "source": "https://github.com/cubist38/mlx-openai-server/issues/269",
+          "note": null,
+          "claimId": "clm:ed1d7789068df4778e0a967ce11dc4347c940a8538d091749ac9cde013734c44",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:7dd25baf47ef99dd686c89b4e5053d2886ec9df44c144bd832151eb95aa3f0be"
+          ]
+        },
+        {
+          "text": "A later cubist38 report for mlx-openai-server v1.8.1 and mlx_lm 0.31.1 said the continuous-batching path could ignore client disconnects, run to natural EOS, or leave a batch slot hung despite cancellation bookkeeping. Treat disconnect cancellation as path-specific and verify the real batched request path. (medium confidence) (verified as of 2026-05-13)",
+          "source": "https://github.com/cubist38/mlx-openai-server/issues/302",
+          "note": null,
+          "claimId": "clm:90ce60536149d679614bb5643422cb15a4ce3b1c440fba22250e5e114ff2516a",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:b417ebd718e482772c258d69dd35b86387d0d004cb67c241792372de4f99b9d2"
+          ]
+        },
+        {
+          "text": "As checked on 2026-10-23, upstream ModelProvider._load() drops model references, runs gc.collect(), and calls mx.clear_cache() before loading a replacement. The server keeps LRUPromptCache separately and the model-load path does not trim that cache; issue #1757 reported that retained prompt-cache KV entries can keep old-model memory alive, so allocator clearing and prompt-cache eviction are separate lifetimes. (medium confidence) (verified as of 2026-10-23)",
+          "source": "https://github.com/ml-explore/mlx-lm/blob/main/mlx_lm/server.py",
+          "note": null,
+          "claimId": "clm:b46f2b63bfcf5359d6a87e7c3bbee111c1804948c6c64d491a171378ec5e1e6b",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:a9abaa5763d789066e9b44cb95083dd8e940b1b1b4f66c51b7e8d240683ea547",
+            "ev:bffb8372e474a5fa053b62530d4d8d7826bed0029d9a927cbeeeae3e2e6f21c3",
+            "ev:e606d69cf2c04c1eec67e1fea1034b068a250465663a889627bf77b769ea1748"
+          ]
+        },
+        {
+          "text": "A Sep 14, 2026 report from a paged-KV benchmark describes KVCache.__del__ calling close() on a garbage-collection thread that does not own the MLX stream, raising RuntimeError: There is no Stream(gpu, 3) in current thread. The report is specific to a paged-cache implementation and does not establish that the standard upstream cache has the same teardown bug. (low confidence) (verified as of 2026-09-14)",
+          "source": "https://github.com/ml-explore/mlx-lm/issues/1888",
+          "note": null,
+          "claimId": "clm:bc7e0b93a5447d47aadd4d8104ffad1c3cc9bf6ae949f5e3d4923805f373738f",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:a8c523cfe4c95dd1bd6e0d05e3da5b93a13785bbcdfd9f98a9a79b953b650e9e"
+          ]
+        },
+        {
+          "text": "A Sep 5, 2026 paged-KV proposal describes page reference counting and cleanup on completion, cancellation, and errors, with local validation; it asks for upstream direction before preparing a PR. Treat it as prototype evidence, not a shipped MLX-LM request-cancellation API. (medium confidence) (verified as of 2026-09-05)",
+          "source": "https://github.com/ml-explore/mlx-lm/issues/1849",
+          "note": null,
+          "claimId": "clm:47ae1730ae5ad19b199a9f91a56f755b55654bf30a554200966e3247f7d8a436",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:e9f98dfb9dbe1d066382c4d0fd8c5d45d14c877aa634127a3e9f6fc0c04cdcd1"
+          ]
+        },
+        {
+          "text": "ResponseGenerator.generate queues (response_queue, request, generation_args) and waits for the worker to return a GenerationContext. In this pinned _generate/_next_request path there is no queued-request _should_stop check before context creation. The caller receives the native stop handle only after the worker creates and queues ctx; do not assume pre-dequeue cancellation is implemented. (low confidence) (verified as of 2026-10-23)",
+          "source": "https://raw.githubusercontent.com/ml-explore/mlx-lm/0d4d3d04f8ab7ce4a51e7209e8615755a48ba94d/mlx_lm/server.py",
+          "note": null,
+          "claimId": "clm:160f49c64fca8f6d252d47b5fbe87586b065f5d3f6f7367bc667a8723e2519a4",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:39baa45bddf920c899e1ca8393dca0c49e61be8c0366d347938302dee9cca2d2",
+            "ev:3fd9157821b574602d932d9014f570aecaf235b0975f27bad94af944cf9128c2",
+            "ev:6067fdbb2198e8997a20e7642f242c7a92cd9d7b0ded4f43cd9b51dc6d5e9aea",
+            "ev:b2cd11724eed58e6d994652ce4e6689c8407351f795c5833ebb459f2802dfc42"
+          ]
+        },
+        {
+          "text": "In batched _generate, cancellation is observed after batch_generator.next() returns prompt progress or generated responses: the worker reads result[\"ctx\"]._should_stop and collects the UID. In sequential _serve_single, the prefill progress callback only queues counts; it does not inspect ctx._should_stop. That sequential flag is checked after a generated response is queued and its token appended to cache_key, then non-distributed execution breaks the generation loop. (low confidence) (verified as of 2026-10-23)",
+          "source": "https://raw.githubusercontent.com/ml-explore/mlx-lm/0d4d3d04f8ab7ce4a51e7209e8615755a48ba94d/mlx_lm/server.py",
+          "note": null,
+          "claimId": "clm:1570dac4843e43c2bfe57c1417b9a0d5bcbfa5c54546d499b8121789662b3811",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:39baa45bddf920c899e1ca8393dca0c49e61be8c0366d347938302dee9cca2d2",
+            "ev:3fd9157821b574602d932d9014f570aecaf235b0975f27bad94af944cf9128c2"
+          ]
+        },
+        {
+          "text": "For stopped native batch requests, _generate shares uids_to_remove, calls batch_generator.remove(uids_to_remove), and pops their batch_results entries. BatchGenerator.remove defaults return_prompt_caches=False and removes matching queued, prompt, or generation entries. The different text-stop finish path explicitly requests return_prompt_caches=True and inserts those returned caches into LRUPromptCache; stop-flag removal does not take that path, while previously inserted segment caches are separate entries. (medium confidence) (verified as of 2026-10-23)",
+          "source": "https://raw.githubusercontent.com/ml-explore/mlx-lm/0d4d3d04f8ab7ce4a51e7209e8615755a48ba94d/mlx_lm/server.py",
+          "note": null,
+          "claimId": "clm:551cf622a3e21a4f88fadaded4dd23d38f5dea0d6d512d6394d8f4db6667123f",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:39baa45bddf920c899e1ca8393dca0c49e61be8c0366d347938302dee9cca2d2",
+            "ev:b97855e0c4f114acd329cd2935d4a49dd251ba554f19d60af35d777428b1341d"
+          ]
+        }
+      ]
+    }
+  ],
+  "related": [],
+  "canonicalArtifactSha256": "ada64e50f5ed1439eb8a040404a1e1bc80d65e1b4f586fc55d21f6c69f34a44d",
+  "canonicalConceptId": "concept:70ed1fd1d00cba373f5feb46001e691329279a1d3339eaa7225125cf16b33d80"
+}

@@ -1,0 +1,206 @@
+{
+  "slug": "pipeline-parallel-backpropagation-on-apple-silicon-with-mlx-train",
+  "concept": "Pipeline parallel backpropagation on Apple silicon with mlx-train",
+  "generated": "2026-10-23",
+  "summary": "Source-anchored research for Pipeline parallel backpropagation on Apple silicon with mlx-train. Run status: COMPLETED.",
+  "facets": [
+    {
+      "title": "Structure and components",
+      "facts": [
+        {
+          "text": "mlx-train splits the model into contiguous transformer-layer PipelineSlice modules: rank 0 embeds token IDs, later ranks accept hidden states, and the final slice applies normalization and the language-model head before producing logits for the loss. (high confidence) (verified as of 2026-10-23)",
+          "source": "https://github.com/MattBeton/mlx-train/blob/main/mlx_train/ppp.py",
+          "note": null,
+          "claimId": "clm:b99ade174f7e3e613204f47a7cfd17dd6628c492eb3d968e8ee959472165c9e5",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:d34dcdcb958473f2bdca3a040b1b355339296d53e403589a7446d0781b7fc937"
+          ]
+        }
+      ]
+    },
+    {
+      "title": "How it works",
+      "facts": [
+        {
+          "text": "The published mlx-train schedule processes one batch at a time. The author leaves multi-minibatch schedules such as 1F1B and GPipe as future work because overlapping minibatches requires preserving the right activations and model state for each backward pass. (medium confidence) (verified as of 2026-10-23)",
+          "source": "https://mattbeton.com/blog/pipeline-parallel-apple-silicon.html",
+          "note": null,
+          "claimId": "clm:7c4f57257bb1d5584968ce7682fba6105f264d5d41b0594c8cd115d20066be3c",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:8f02c8e0644fc66db15e9697ea09df065ab65a5f4c43f88fb8bb1d62b2a0ed2d",
+            "ev:ad82b444e175b9e7889d9548c8a44ab2add701f412c56ef9742deb6bf3bc6161"
+          ]
+        },
+        {
+          "text": "This pipeline-training implementation belongs to external MattBeton/mlx-train at ee8aea37ffd3adb95bf6c03c936afb3ea79d3fe7. Its load_configure_model slices a loaded MLX-LM model into PipelineSlice when distributed=\"pp\", and its own train loop calls train_step_pp. Native mlx_lm.lora instead calls mlx_lm.tuner.trainer.train; these sources do not make the external prototype a supported native pipeline-training option or prove current-version compatibility. (medium confidence) (verified as of 2026-10-23)",
+          "source": "https://raw.githubusercontent.com/ml-explore/mlx-lm/0d4d3d04f8ab7ce4a51e7209e8615755a48ba94d/mlx_lm/lora.py",
+          "note": null,
+          "claimId": "clm:60645d1e88877e00f37e0963b291a9cd05313f71077cfc019a3c92e787948cf8",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:285f5988673c4afb21e9bfb1d5f2e78c8a823b839434de3ef6a99eabb1e6d592",
+            "ev:77bb602920ec813f6a590aab459834082e3dc2171425022952e3eceaff9e98c0",
+            "ev:77d2e55a226553ca560ba25263b65ba556c93697903155b4034cb56de57e7ada",
+            "ev:834059774fd19d9a3153598c4545ab7d8f8f54650d0f7fccda25930eafb32a90"
+          ]
+        }
+      ]
+    },
+    {
+      "title": "Comparisons and alternatives",
+      "facts": [
+        {
+          "text": "Inside build_graph, nonfinal local_loss is sum(y_loc*stop_gradient(dy_loc)); differentiation seeds the local reverse pass with the received downstream cotangent. Nonzero ranks use mx.value_and_grad(local_loss,argnums=(0,1)) to obtain parameter gradients and the stage-input gradient dx, then send dx to rank-1. Rank zero in a multi-stage pipeline differentiates parameters only; the final rank differentiates masked_loss instead of a downstream-cotangent surrogate.  (low confidence) (verified as of 2026-10-23)",
+          "source": "https://raw.githubusercontent.com/MattBeton/mlx-train/ee8aea37ffd3adb95bf6c03c936afb3ea79d3fe7/mlx_train/ppp.py",
+          "note": null,
+          "claimId": "clm:d73c81dd28e98f76e81966d03adbb6d76450eedcb03fe320064b72f564f43c14",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:453aa8669436a2165afb4f2159d560bad442eea73c7032d9120d078970b6b6b1"
+          ]
+        },
+        {
+          "text": "Stage allocation in load_configure_model and _rank_bounds uses per=total_layers//world_size, start=rank*per, and end=(rank+1)*per except that the last rank receives the remainder through total_layers. PipelineSlice owns that contiguous layer slice; only start=0 owns token embeddings and only end=total owns norm/output projection. build_graph assumes these rank roles and compatible (B,L,H) boundaries rather than validating arbitrary layer assignments. The pinned allocation has no explicit rejection for world_size greater than total_layers, which can produce empty slices.  (medium confidence) (verified as of 2026-10-23)",
+          "source": "https://raw.githubusercontent.com/MattBeton/mlx-train/ee8aea37ffd3adb95bf6c03c936afb3ea79d3fe7/mlx_train/model.py",
+          "note": null,
+          "claimId": "clm:fb2f8e0637140a2f43a24f398f99e986ff307cc3149d305c02bb18e05f19314d",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:29f00ff08101607ef0230ba895249404aa6b7cdbeeb13657207e0809cae8454d",
+            "ev:7b8328aab042a19422f2083f747b9450866aa968cf7400b5b60adacdc9c34a7b"
+          ]
+        },
+        {
+          "text": "write_adapters_distributed in mlx_train/model.py assembles stage adapters. It maps each slice-local layers/h index to a canonical (start+local_layer_index,parameter_tail) identity, gathers LoRA tensors neighbor-to-neighbor toward rank zero, and matches those identities to a lazy reference model's official parameter keys. Rank zero asserts no reference LoRA key is missing, saves adapters.safetensors and adapter_config.json, and all ranks synchronize. The reference-key mapping preserves model-wide layer identities instead of reusing each slice's local layer numbering.  (low confidence) (verified as of 2026-10-23)",
+          "source": "https://raw.githubusercontent.com/MattBeton/mlx-train/ee8aea37ffd3adb95bf6c03c936afb3ea79d3fe7/mlx_train/model.py",
+          "note": null,
+          "claimId": "clm:a110dedc95ed87dcafe7776a93880003f616481efb8e5d2f56b0ea1d2e8cf46c",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:e6d92d52ba59197c11c3a9aa29de3c4e1a91b6d0b4f98d4929d8f546576b0873"
+          ]
+        }
+      ]
+    },
+    {
+      "title": "Facts and statements",
+      "facts": [
+        {
+          "text": "Pipeline parallel training divides a sequential model across stages. Activations move downstream during the forward pass, then boundary gradients move upstream during backprop so each stage can compute gradients for its parameters and input. (high confidence)",
+          "source": "https://mattbeton.com/blog/pipeline-parallel-apple-silicon.html",
+          "note": null,
+          "claimId": "clm:f7505ee9270a2b8f2f56ae3f97476f975cdc5e092c8ad203113b7edb4da88eba",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:e98eaa90246e28f60b8f6b6799bfc9b9326ffa7f3b81805e70537a724b0359b3"
+          ]
+        },
+        {
+          "text": "MLX's core mx.value_and_grad requires a scalar loss (or a tuple whose first value is scalar) and accepts argnums to select input positions for gradients. A stage can use it to differentiate with respect to both model parameters and its input activation; mlx.nn.value_and_grad is the parameter-oriented helper. (high confidence) (verified as of 2026-10-23)",
+          "source": "https://ml-explore.github.io/mlx/build/html/python/_autosummary/mlx.core.value_and_grad.html",
+          "note": null,
+          "claimId": "clm:12a91620192ca2de9155d75bad5763f50ba6bdf7415307df68e28a01e3facd64",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:4b85c0641f3ecba3f1b77172b16dee45c874c1f55a710d37ddc127caa6454e8d",
+            "ev:d3f2dd87347e006d33168ad06210392c5a763e71f543e3548a1dccedef20e198"
+          ]
+        },
+        {
+          "text": "For a nonfinal stage, ppp.py defines a scalar local loss as the sum of the stage output multiplied by the stopped received cotangent. Differentiating this surrogate seeds the local reverse pass with that cotangent; mx.value_and_grad with argnums=(0,1) returns gradients for trainable parameters and the stage input. (high confidence) (verified as of 2026-10-23)",
+          "source": "https://github.com/MattBeton/mlx-train/blob/main/mlx_train/ppp.py",
+          "note": null,
+          "claimId": "clm:81a64316cb2a623a6615d86dbb521e8a38d254f248b51eed4fa894c098e254f8",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:47b0207ddd5083bc952a1552fbe501b48ee74184ff584c69c0d43d2ddb1b560a",
+            "ev:6fd65df201abd02b984d71707cc1b2a303c8c524cf78df9db41559d2a6b22172"
+          ]
+        },
+        {
+          "text": "The blog explains that an unconstrained lazy graph may schedule a blocking backward recv before the forward send that enables it. Its single-eval proof of concept adds a forward-before-backward dependency; the large-model path instead evaluates forward and backward phases in order. In ppp.py at ee8aea37ffd3, the send expression precedes the cotangent recv expression in Python, but the _depends_like call is commented out, so expression construction alone does not guarantee their lazy execution order. The README documents two-step forward/backward evaluation; the stage code also computes an input cotangent for the prior rank. (medium confidence) (verified as of 2026-10-23)",
+          "source": "https://mattbeton.com/blog/pipeline-parallel-apple-silicon.html",
+          "note": null,
+          "claimId": "clm:14779211114b12c5d04bcd13eeba220f53df2e30e0cdabf0aac5200970777412",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:4be424d00653952d64d7f00b1dcd5a247b75be544f5b8cb60fb83af5c5f0f988",
+            "ev:803f6db62fe3ca1796bfcd96512b3c65e0057d7eb86cfc0ba8ebec26f9fc0f5d",
+            "ev:f9943945ea32f126192f3109a058ed93e93cf72fccebac5c8c78b3ece60b6dcb"
+          ]
+        },
+        {
+          "text": "Apple's WWDC26 material documents MLX-LM's --pipeline option for distributed inference and demonstrates distributed fine-tuning by replicating the model and processing separate batches. It does not demonstrate a native pipeline-parallel backprop training interface, so inference support alone does not establish that training feature. (medium confidence) (verified as of 2026-10-23)",
+          "source": "https://developer.apple.com/videos/play/wwdc2026/233/",
+          "note": null,
+          "claimId": "clm:724fa8c76edf78f572201ce2252b7cce046ea1f8ec92ae0f81cbb385ab2ea6d4",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:22d227a84330452b3b3bdee5274f280f6bbc35f15322a9843eb71cfc57a39a36",
+            "ev:515b57ee62c7e7a27269d06c05ab196a6d774b1053b3975ee8c301bd29610906"
+          ]
+        },
+        {
+          "text": "Pipeline backpropagation reverses the message direction: every rank except the final rank receives the output cotangent from the next rank; the final rank instead differentiates masked_loss. The stages compute local parameter gradients, and nonzero ranks also compute and send their input-boundary cotangent to rank-1. Rank 0 has no preceding stage. (high confidence)",
+          "source": "https://github.com/MattBeton/mlx-train/blob/main/mlx_train/ppp.py",
+          "note": null,
+          "claimId": "clm:3ed13b56c3944b7667a29300252c0c295809092ea1930178781ab38696f76120",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:f9943945ea32f126192f3109a058ed93e93cf72fccebac5c8c78b3ece60b6dcb"
+          ]
+        },
+        {
+          "text": "The current repository exposes activation and gradient send/receive tokens and documents separate forward and backward evaluation phases. The project article reports that a single evaluation graph could leave ranks waiting on blocking receives long enough to time out on a large model; the staged evaluation limits each wait to the relevant communication phase. (medium confidence) (verified as of 2026-10-23)",
+          "source": "https://github.com/MattBeton/mlx-train",
+          "note": null,
+          "claimId": "clm:6629d0dd2bda6b5eed74c0a50520a8a09498953e18c243d027c6b7caa28646cc",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:803f6db62fe3ca1796bfcd96512b3c65e0057d7eb86cfc0ba8ebec26f9fc0f5d",
+            "ev:d5be86e4185f98319bb2d3c317278f61f8814d3c5222d3fd981e4e5ab9a45290",
+            "ev:d82ed19ac022c6f20e739c9d8d4370a474fb7dbbdc2e1f044839d6cad9492114"
+          ]
+        },
+        {
+          "text": "The project article describes a one-batch-at-a-time schedule. GPipe uses batch splitting to overlap microbatches, and PipeDream admits multiple minibatches into the pipeline to reduce idle stalls; that comparison shows the mlx-train example's pipeline-parallel label alone does not establish high utilization or a speedup. (high confidence)",
+          "source": "https://mattbeton.com/blog/pipeline-parallel-apple-silicon.html",
+          "note": null,
+          "claimId": "clm:1944346598b429abdecc8c0f0ae98cd9ecaf04bc63f55fc4aad0fb821ff0b333",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:2b0f6234c5e1178014d0567af54919b64c7ed6018e606cb93a64fd538e11269a",
+            "ev:a39fbdffd39c5e7e0a24c863e4dd6dcfc369fc2168c7632401b4ec9e60616764",
+            "ev:ad82b444e175b9e7889d9548c8a44ab2add701f412c56ef9742deb6bf3bc6161",
+            "ev:b411af3736022461364831ad04b02ebe5eb665a19142a3a95378217e7e4b63d5"
+          ]
+        },
+        {
+          "text": "build_graph(model:PipelineSlice,tokens,targets,lengths) constructs lazy stage-local forward/loss/gradient arrays and a tokens_out communication dictionary, then returns (loss,g_s,tokens_out). Noninitial ranks recv (B,L,H) bfloat16 activations from rank-1; nonfinal ranks send their (B,L,H) outputs to rank+1 and receive downstream cotangents. It does not by itself execute a forward-before-backward schedule. Asserts check nonfinal output rank and hidden width, and the dependency-like ordering call is commented out.  (low confidence) (verified as of 2026-10-23)",
+          "source": "https://raw.githubusercontent.com/MattBeton/mlx-train/ee8aea37ffd3adb95bf6c03c936afb3ea79d3fe7/mlx_train/ppp.py",
+          "note": null,
+          "claimId": "clm:01655860decfefac8f5117552b1e24f75ff4db3de2f35dfeb981114d7810840e",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:f9943945ea32f126192f3109a058ed93e93cf72fccebac5c8c78b3ece60b6dcb"
+          ]
+        },
+        {
+          "text": "train_step_pp shifts a batch into inputs/targets, calls build_graph, and groups its y/x and dx/dy tokens into forward and backward evaluation lists. It loops stages forward with barriers to evaluate receive/send work, loops stages backward with barriers to evaluate cotangent receive/send work, then applies optimizer.update(model,g_s) and evaluates model/optimizer state. This explicit evaluation schedule supplies ordering; Python send-expression construction alone does not.  (low confidence) (verified as of 2026-10-23)",
+          "source": "https://raw.githubusercontent.com/MattBeton/mlx-train/ee8aea37ffd3adb95bf6c03c936afb3ea79d3fe7/mlx_train/train.py",
+          "note": null,
+          "claimId": "clm:acc918cc172d923d2b6650923d620156f78424317b29eeb1e92c0a7c8e6cc4c1",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:d06871259967ff2a5f7cdd157917e3e4c6052f21ce1254391b4a7ee03cc5d8f4"
+          ]
+        }
+      ]
+    }
+  ],
+  "related": [],
+  "canonicalArtifactSha256": "1f8488fc840991ba6c2334e390a5cd3c10fc9629ef0a8ff98d4093ca85d7837c",
+  "canonicalConceptId": "concept:053122f93aa2ecf9ea5ffbf8d58324b4eb8313a5cec8d564a93c39d4599da168"
+}

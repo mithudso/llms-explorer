@@ -869,3 +869,8 @@ The user restored Wrangler login and supplied a fine-grained GitHub key for priv
 ## Prompt v66 - 2026-10-22T15:24:04.146296+00:00
 - User request:
   - stop after the current iteration. Will need to reload the updated skills.
+
+## Prompt — 2026-10-23 MLX-LM full suite
+
+- User request: run the full-suite skill on mlx-lm.
+- Applied the current uncapped CFE mapping, source-gated Codex research, concept packs, family rollup, audits and repository delivery. Preserve embeddings and concurrent work.

@@ -1,0 +1,194 @@
+{
+  "slug": "mlx-lm-python-generation-and-streaming-contracts",
+  "concept": "MLX-LM Python generation and streaming contracts",
+  "generated": "2026-10-23",
+  "summary": "Source-anchored research for MLX-LM Python generation and streaming contracts. Run status: COMPLETED.",
+  "facets": [
+    {
+      "title": "How it works",
+      "facts": [
+        {
+          "text": "`stream_generate` is a generator of `GenerationResponse` objects, not strings. Callers read each response's `.text`; that field may be empty. Ordinary per-token responses have `finish_reason=None`, and the final response reports `stop` for EOS or `length` when generation ends at the token cap. (high confidence) (verified as of 2026-10-23)",
+          "source": "https://github.com/ml-explore/mlx-lm/blob/main/mlx_lm/generate.py",
+          "note": null,
+          "claimId": "clm:8a02e9a03c16f6ac54254b52766f69c177dec1a827173e4d9ed28abd7c8e467c",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:4128a4f9944109ffd82cfdd4bfb9fbae66a4a2ab1695f8f28bd28f484e24bf4b",
+            "ev:d3d9cc66b0b013ffec7276a4a8d585090d5add7c95ebc8bd9981ce9904f26051"
+          ]
+        },
+        {
+          "text": "The current implementation creates its default generation stream with `mx.new_thread_local_stream`. A third-party reproduction on MLX-LM 0.31.3 reported `RuntimeError: There is no Stream(gpu, N) in current thread` when a sliding-window model was loaded on one thread and generated on another; keep load and generation on the same thread for affected model and runtime combinations until verified locally. (medium confidence) (verified as of 2026-10-23)",
+          "source": "https://github.com/ml-explore/mlx-lm/blob/main/mlx_lm/generate.py",
+          "note": null,
+          "claimId": "clm:f601aa46944e12a7c3e4af287e562294c895457a69495a528853913d274458a9",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:c49e71cf5d82b15903201eff34facca0c2efc8beca3e9d065a924543b07f0300",
+            "ev:d9742b53cd0d20e7f9bea52b936ec925445d5304ab901931b143d65cfdb44b38"
+          ]
+        },
+        {
+          "text": "generate is the whole-response helper: it iterates stream_generate, concatenates each response.text segment, and returns the generated continuation when text exists; verbose=True prints the generated text and final token, speed, and memory statistics. (high confidence) (verified as of 2026-10-23)",
+          "source": "https://github.com/ml-explore/mlx-lm/blob/main/mlx_lm/generate.py",
+          "note": null,
+          "claimId": "clm:043e3e75b8592da78b10f587dbbf5baa83ed6b0acf3ec4b473c1251b2741f8d3",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:57c43fc6242ffc0a7ac8a4ac32a68a889cb6f3279da17babda8eaaad9e77b7d9"
+          ]
+        },
+        {
+          "text": "The inspected `generate` function is annotated to return `str`, but its empty-output path returns `None` when `verbose=True`. With the default `verbose=False`, the same empty-output case returns an empty string. This control-flow distinction requires indentation-preserving source evidence. (medium confidence) (verified as of 2026-10-23)",
+          "source": "https://github.com/ml-explore/mlx-lm/blob/main/mlx_lm/generate.py",
+          "note": null,
+          "claimId": "clm:790cb3ea13842e3bafbef7455c5d4177bb2603a1d2dd64876f1c92e5dae76132",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:1fbf2c22fbe510e5d2d48bc46c7f1c2e8b57746869a6195434f47556904de5e7"
+          ]
+        }
+      ]
+    },
+    {
+      "title": "Problems, failure modes and limitations",
+      "facts": [
+        {
+          "text": "In current upstream main, stream_generate yields intermediate responses with finish_reason=None, then finalizes the detokenizer and yields a terminal response marked stop for EOS or length when the token limit ends generation. If EOS ends generation, the terminal response's token field still contains the EOS token, although that token is not appended to decoded text. (low confidence) (verified as of 2026-10-23)",
+          "source": "https://github.com/ml-explore/mlx-lm/blob/main/mlx_lm/generate.py",
+          "note": null,
+          "claimId": "clm:76476d14a85cc0e47339435114b650ed5b211e8d2c7cf51163cbeb24e50aad0a",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:a120a798fbc66e56776741fa2eeeb05564b587a7a6a28fe00444b3e26968a796"
+          ]
+        },
+        {
+          "text": "Current upstream main rejects stream_generate(max_tokens=0) with ValueError and directs callers to use -1 for no token limit. (low confidence) (verified as of 2026-10-23)",
+          "source": "https://github.com/ml-explore/mlx-lm/blob/main/mlx_lm/generate.py",
+          "note": null,
+          "claimId": "clm:4371fd1de8fcca56fb08fcb6a7ceb10c811fa5190413e0d23471deccf528795c",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:65dc97cd8223eb1fed9d68a0dcaf97589336cdd21aefb4ab44b9379edf22ba51"
+          ]
+        }
+      ]
+    },
+    {
+      "title": "Facts and statements",
+      "facts": [
+        {
+          "text": "At revision 0d4d3d04, `generate(model, tokenizer, prompt, ...)` concatenates streamed `.text` values and normally returns a Python string. If the assembled text is empty, `verbose=True` prints `No text generated for this prompt` and returns `None`; the default `verbose=False` path returns the empty string. (medium confidence) (verified as of 2026-10-23)",
+          "source": "https://github.com/ml-explore/mlx-lm/blob/main/mlx_lm/generate.py",
+          "note": null,
+          "claimId": "clm:a503065257e84e205a31eea995a19407c5d85f438770912e1b3a5c1b6b561fb5",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:1fbf2c22fbe510e5d2d48bc46c7f1c2e8b57746869a6195434f47556904de5e7"
+          ]
+        },
+        {
+          "text": "Advancing `stream_generate(..., max_tokens=0)` raises `ValueError` in the current `main` implementation. A third-party guide still says this path raises `UnboundLocalError`; that note is stale relative to the current source. (medium confidence) (verified as of 2026-10-23)",
+          "source": "https://github.com/ml-explore/mlx-lm/blob/main/mlx_lm/generate.py",
+          "note": null,
+          "claimId": "clm:355ace9c5cfdd2112bf65c99db7e475210734c48ceaba5f72c13603fdb2a4312",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:6999118c5e9ca7cf66e0bfbd4d2a0d6f601939134ddd4d805518c88d2915a2c7",
+            "ev:a3639a7af462338b4b2722658c2ff5b7477c76c55ea1a7d0e83da17561da7c4f"
+          ]
+        },
+        {
+          "text": "The documented `stream_generate` prompt types are `str`, `mx.array`, and `List[int]`. A Transformers `BatchEncoding` returned by `apply_chat_template` can violate that input shape: an MLX-LM issue traced a server crash on Transformers 5.0+ to a chat-template call that omitted `return_dict=False`. (medium confidence) (verified as of 2026-10-23)",
+          "source": "https://github.com/ml-explore/mlx-lm/blob/main/mlx_lm/generate.py",
+          "note": null,
+          "claimId": "clm:d5ffa369a5c8a06a03c6c5da290e8f059e770883c3df1647e8b73ee9f7b53df8",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:0409e2adaf86dde71e14244119423da9512f857a952388d7fe59690fcf74723c",
+            "ev:f950f39ed1245d2f881275fa87f3b7100abb5b5f7b9dd5c88700278667f37e0d"
+          ]
+        },
+        {
+          "text": "A supplied `prompt_cache` is updated in place. An open MLX-LM issue still reports that direct calls with extending prompts lack first-class prefix-aware reuse, so callers using that pattern must track which tokens the cache represents and trim it themselves. (medium confidence) (verified as of 2026-10-23)",
+          "source": "https://github.com/ml-explore/mlx-lm/blob/main/mlx_lm/generate.py",
+          "note": null,
+          "claimId": "clm:e9e680659ec73754de783478d4ddfeea7382d158b809bb60acaa201580465b1f",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:1c62213938a7a3fc6530f5c1e4882ce33fe0ca163c7d3c44b070f1f29e45191c",
+            "ev:9c9b7eba890b8eb60fbb54b4e5494e941ff5e92d2e50e7119cd2a0a629761960"
+          ]
+        },
+        {
+          "text": "The current mlx_lm package exports load, generate, and stream_generate at package top level; load returns the (model, tokenizer) pair used by the generation helpers. (high confidence) (verified as of 2026-10-23)",
+          "source": "https://github.com/ml-explore/mlx-lm/blob/main/mlx_lm/__init__.py",
+          "note": null,
+          "claimId": "clm:99c42f3b6d2832943c43f17a1590f9a4bdc5b89254b3ea85206db633b629e83b",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:2651bce200532178be86310982f2cde2120b34cc7ec9e5d44fc29bcc540cfc3a",
+            "ev:638a05df18aa88e4477de346fac2b1a9f3ef70a35b8b1d5982048ede88209c46"
+          ]
+        },
+        {
+          "text": "stream_generate returns a Python generator and accepts a prompt as str, mx.array, or List[int]; it tokenizes string prompts internally and yields GenerationResponse objects. (high confidence) (verified as of 2026-10-23)",
+          "source": "https://github.com/ml-explore/mlx-lm/blob/main/mlx_lm/generate.py",
+          "note": null,
+          "claimId": "clm:e3cacb6bae7daa7e458d220855d7fd9c3ab0a4a8570e9a8e65a2b9d3732972c2",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:5c6eddfcd38bc15af840d269a6c9ce69120106dd48e9908e3e31a85a39421948",
+            "ev:d3d9cc66b0b013ffec7276a4a8d585090d5add7c95ebc8bd9981ce9904f26051"
+          ]
+        },
+        {
+          "text": "GenerationResponse.text is the next decoded text segment and may be empty; each response also carries the token, log probabilities, draft-model flag, prompt and generation token counts and rates, peak memory, and optional finish_reason. (high confidence) (verified as of 2026-10-23)",
+          "source": "https://github.com/ml-explore/mlx-lm/blob/main/mlx_lm/generate.py",
+          "note": null,
+          "claimId": "clm:d82d80172b86be2aca57c30bba3059a2a0a2c9be7ada4408d9f0e33d37700e30",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:4128a4f9944109ffd82cfdd4bfb9fbae66a4a2ab1695f8f28bd28f484e24bf4b"
+          ]
+        },
+        {
+          "text": "Pass revision=\"<branch, tag, or commit hash>\" to load(path_or_hf_repo, revision=...) to select the Hugging Face model revision. The loader forwards revision to its download helper; pin an immutable commit for reproducible remote model selection. (low confidence) (verified as of 2026-10-23)",
+          "source": "https://raw.githubusercontent.com/ml-explore/mlx-lm/0d4d3d04f8ab7ce4a51e7209e8615755a48ba94d/mlx_lm/utils.py",
+          "note": null,
+          "claimId": "clm:03d449bf6613e1f62891b38b83107bd96315ba1c62b6ada4354715ef8e379384",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:473f2493aeae2991f5cb5ae83987c182e34489eaad589837c3d1fee8bca3e5d0"
+          ]
+        },
+        {
+          "text": "With an existing prompt_cache, generate_step forwards the supplied prompt tokens to the model with that cache; it does not detect an already cached prefix or strip duplicate tokens. Callers must pass only the uncached suffix and ensure that the cache matches the preceding token history. The supplied cache is mutated in place. (low confidence) (verified as of 2026-10-23)",
+          "source": "https://raw.githubusercontent.com/ml-explore/mlx-lm/0d4d3d04f8ab7ce4a51e7209e8615755a48ba94d/mlx_lm/generate.py",
+          "note": null,
+          "claimId": "clm:d35f1ce4d837a77f1b4c856ceba71766153e1004d9ea1e86892bede027e632ec",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:19732731abb6385a0c7f59d40e1fc25eaf3df8a28df68e48fe0aa57d019fb1b7"
+          ]
+        },
+        {
+          "text": "stream_generate requires a draft_model to use the same tokenizer as the main model. The native CLI checks draft_tokenizer.vocab_size against tokenizer.vocab_size and raises ValueError(\"Draft model tokenizer does not match model tokenizer.\") on a mismatch; equal vocabulary sizes alone do not prove identical token mappings. (low confidence) (verified as of 2026-10-23)",
+          "source": "https://raw.githubusercontent.com/ml-explore/mlx-lm/0d4d3d04f8ab7ce4a51e7209e8615755a48ba94d/mlx_lm/generate.py",
+          "note": null,
+          "claimId": "clm:0a54da5bf83afca9f838b1f57a68b1928608ee9b2e60a815020572d9ffac1b89",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:2ca5925eb237240f00a10a62c08b998e42623d48bf1b36da1b4a20fff8ad3bce",
+            "ev:c3e939b058ba222286e5f4b97ab996cfd15b2737311a6f64c688b38559f80ba8"
+          ]
+        }
+      ]
+    }
+  ],
+  "related": [],
+  "canonicalArtifactSha256": "5f9aa436d410184127ee8b41bd2899308b3e027395fd0cd18a2d45127c6b5fcc",
+  "canonicalConceptId": "concept:de5265b58d1f8c6609a3323896ae2b665bd5ce4ed24984eb76a92833fcf1ae6e"
+}
