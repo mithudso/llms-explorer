@@ -1,0 +1,33 @@
+<!-- llms-explorer concept facts · https://llms-explorer.com/tree/visual-intelligence-and-siri-camera-workflows/ · pack 2026-10-23 · ~1467 tokens -->
+
+# Visual Intelligence and Siri Camera workflows
+
+> Source-anchored research for Visual Intelligence and Siri Camera workflows. Run status: COMPLETED.
+
+Parent: [Apple Intelligence](https://llms-explorer.com/tree/apple-intelligence/) · 5 facets · 11 facts · page: https://llms-explorer.com/tree/visual-intelligence-and-siri-camera-workflows/
+
+## Definitions
+
+- On iPhone, standard Visual Intelligence is a camera-driven workflow: activate it with Camera Control or, on supported models, an available alternative such as the Action button, Lock Screen control, or Control Center; aim at a scene to look up place details, identify plants and animals, read or act on text, create calendar events, or search for visually similar images. (high confidence) (verified as of 2026-10-23) — [source](https://support.apple.com/guide/iphone/use-visual-intelligence-iph12eb1545e/ios)
+
+## How it works
+
+- When Siri AI (Beta) is enabled, the iPhone Camera app offers Siri mode, which uses Visual Intelligence. Start from Camera Control or an alternate activation route, tap Siri, and point the camera; then tap a suggested action, ask Siri for information, ask a specific question, or search for similar images. Users can swipe down on a Siri answer to continue with follow-up questions. (high confidence) (verified as of 2026-10-23) — [source](https://support.apple.com/en-nz/guide/iphone/iphu1x9m94ybz8j/27/ios/27)
+- The ChatGPT route is an optional, user-configured extension. OpenAI's guide says that on a supported iPhone without Siri AI, the user can open Visual Intelligence, frame an object, select Ask, and type or dictate a follow-up; Apple says the ChatGPT extension must be turned on for this handoff. When Siri AI is used, OpenAI directs users to Apple's Siri mode in Camera instructions. (high confidence) (verified as of 2026-10-23) — [source](https://help.openai.com/en/articles/10269382-setting-up-chatgpt-with-apple-intelligence)
+- OpenAI's setup article says requests, attachments the user chooses to share, and limited information needed to process a request are sent to ChatGPT; after sign-in, the user's account settings and OpenAI privacy policies apply. (low confidence) (verified as of 2026-10-23) — [source](https://help.openai.com/en/articles/10269382-setting-up-chatgpt-with-apple-intelligence)
+
+## Problems, failure modes and limitations
+
+- A 20 October 2025 TidBITS hands-on report about iOS 26 records repeated Google-unavailable messages and Etsy result actions failing during the reviewer's tests. This is a dated observation from that test session, not a current provider-wide failure rate. (low confidence) — [source](https://tidbits.com/2025/10/20/visual-intelligence-occasionally-useful-but-often-flawed/)
+
+## Comparisons and alternatives
+
+- Third-party Visual Intelligence search requires app-side integration: Apple's framework passes camera or screenshot context in a SemanticContentDescriptor to an App Intents IntentValueQuery, and the app returns matching entities that users can open in that app. Inference: search results come from apps that implement this integration, rather than from arbitrary apps by default. (high confidence) (verified as of 2026-10-23) — [source](https://developer.apple.com/documentation/visualintelligence/integrating-your-app-with-visual-intelligence)
+
+## Facts and statements
+
+- On iPhone, Visual Intelligence can analyze on-screen content by taking a screenshot with Side plus Volume Up. Depending on the screenshot, actions include web image search, highlighting one object for search, asking ChatGPT about the screen, creating a Calendar event, opening a relevant website, summarizing or reading text aloud, and looking up identified plants or animals. (high confidence) (verified as of 2026-10-22) — [source](https://support.apple.com/guide/iphone/learn-iphone-screen-visual-intelligence-emvqp5vyxukx/27/ios/27)
+- As of 2026-10-23, Apple labels Siri AI as a beta on iOS 27 and requires an Apple Intelligence-capable iPhone, matching Siri and device languages, and an eligible Apple Account region. Apple’s current Siri AI support page says the service is available in English and that activation joins a waitlist with variable wait times; Apple says Siri AI is unavailable on iOS in the EU. (high confidence) (verified as of 2026-10-23) — [source](https://support.apple.com/en-us/127893)
+- Visual Intelligence has different entry surfaces by device: Apple documents Siri mode in Camera on iPhone, screenshot gestures on iPhone and iPad, and a keyboard shortcut on Mac. In iPadOS 27, users can highlight screen content with Apple Pencil; in macOS 27, users can select a screen window and invoke Visual Intelligence with Shift–Command–Space. (high confidence) (verified as of 2026-10-23) — [source](https://support.apple.com/en-us/127893)
+- The user-facing Search and Ask routes have distinct handoffs. Apple says Search is subject to the search provider’s terms and privacy policy, while Ask requires the ChatGPT extension; independent iOS 26 coverage describes Search results from Google, Etsy, and supported apps, and Ask sending the captured image to ChatGPT for analysis. These routes are explicit choices in the interface, not evidence that every Visual Intelligence recognition action is a ChatGPT request. (high confidence) (verified as of 2026-10-23) — [source](https://support.apple.com/guide/iphone/use-visual-intelligence-iph12eb1545e/ios)
+- Apple's 2026 developer session says Visual Intelligence is available on iPadOS and macOS as well as iOS; screenshots are the primary input on iPad and Mac, while camera capture is a common iPhone path. Apple also describes Visual Intelligence experiences on iPhone, iPad, Mac, and Vision Pro in its September 2026 software rollout announcement. (high confidence) (verified as of 2026-10-23) — [source](https://developer.apple.com/videos/play/wwdc2026/297/)
