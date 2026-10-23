@@ -4627,3 +4627,7 @@ Every frontier concept, grouped by shared parent (at most 8 per cluster), cluste
 - [ ] Concept: `Workload isolation with tagged secondaries and Atlas analytics nodes` | Parent: `Long-running secondary reads in sharded clusters` | Mode: `dr` | Inventory-ID: `mongodb-48de7a278d0d4126` | Cohort: `mongodb-cohort-f904d78870ba`
 - [ ] Concept: `Zone sharding and Global Cluster shard keys` | Parent: `Shard Key Design and Resharding as Cost Levers` | Mode: `dr` | Inventory-ID: `mongodb-097c5c30db2cddc7` | Cohort: `mongodb-cohort-10c4dfe24a29`
 - [ ] Concept: `Zone sharding and region-aware shard keys` | Parent: `Shard Key Design and Resharding as Cost Levers` | Mode: `dr` | Inventory-ID: `mongodb-96f5d5a08cab86fe` | Cohort: `mongodb-cohort-4683dc82ce3c`
+- [ ] Concept: `Apple Intelligence Home camera summaries and video search` | Parent: `Apple Intelligence` | Mode: `dr` | CVS: `4.85`
+- [ ] Concept: `Safari Apple Intelligence browsing and generated extension workflows` | Parent: `Apple Intelligence` | Mode: `dr` | CVS: `4.40`
+- [ ] Concept: `Describe a Shortcut natural-language automation authoring` | Parent: `Shortcuts Use Model and intelligent automation` | Mode: `dr` | CVS: `4.30`
+- [ ] Concept: `Siri content loading through UIKit drag interactions` | Parent: `Siri app actions confirmation and contextual cues` | Mode: `dr` | CVS: `3.70`
