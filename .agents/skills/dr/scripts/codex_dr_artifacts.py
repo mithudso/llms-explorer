@@ -81,6 +81,10 @@ def compile_claims(lca, out: Path, name: str, slug: str, docs: list[dict], statu
 
 def compile_rows(lca, out: Path, name: str, slug: str, rows: list[dict], metadata: dict) -> None:
     """Compile authored synthesis, preserving statements and research dates."""
+    from llms_txt import Document, IndexEntry, render_full, render_index
+    from llms_txt.lint import parse_index, parse_vocab_line
+    from llms_txt.split import heading_slug
+
     out.mkdir(parents=True, exist_ok=True)
     rows = [dict(row, matched=[name], relations=[row.get("relation", "about")],
                  facet=row.get("facet", row.get("section", "facts")), keep=True) for row in rows]
@@ -127,6 +131,40 @@ def compile_rows(lca, out: Path, name: str, slug: str, rows: list[dict], metadat
     graph = json.loads((out / "concept-graph.json").read_text())
     graph["generated"] = generated
     (out / "concept-graph.json").write_text(json.dumps(graph, indent=1, ensure_ascii=False) + "\n")
+    # These catalogues synthesize multiple sources. Their document owner is the
+    # concept reader, while each unchanged unit retains its external citation.
+    site = load_module("codex_pack_site_urls", repository() / "site/tools/gen_concept_facts.py")
+    reader_url = f"{site.default_site_url()}/tree/{slug}/"
+    for filename in ("llms-full.txt", "llms-small.txt"):
+        path = out / filename
+        catalogue = path.read_text()
+        path.write_text(render_full([Document(name, reader_url, catalogue)],
+                                    title=name, generated=generated))
+    # Describe the emitted vocabulary and graph, without inventing definitions
+    # or neighbours. Keep the compiler's navigation through the shared parser.
+    defined = sum(bool(parsed and parsed[2]) for line in vocabulary.splitlines()
+                  if (parsed := parse_vocab_line(line)))
+    undefined = manifest["lexicon"]["terms"] - defined
+    manifest["lexicon"].update(defined=defined, undefined=undefined)
+    descriptions = {
+        "llms-small.txt": "Budgeted selection of complete units by facet",
+        "llms-full.txt": "Every kept unit by facet with original source citations",
+        "llms-vocabulary.txt": f"{defined} defined terms; {undefined} named, not yet defined terms",
+        "concept-graph.json": f"{len(graph['nodes'])} nodes; {len(graph['edges'])} relation edges",
+    }
+    index = parse_index((out / "llms.txt").read_text())
+    entries = []
+    for entry in index["entries"]:
+        description = descriptions.get(entry["url"], entry["notes"])
+        if entry["url"] in descriptions and entry["url"].endswith(".txt"):
+            description += f" — ≈{lca._tokens_of((out / entry['url']).read_text())} tokens"
+        url = entry["url"]
+        if entry["section"] == "Facets":
+            url = "llms-full.txt#" + heading_slug(entry["name"])
+        entries.append(IndexEntry(entry["name"], url, description, entry["section"],
+                                  optional=entry["section"] == "Optional"))
+    (out / "llms.txt").write_text(render_index(entries, title=index["h1"][0][1],
+        summary=" ".join(text for _, text in index["blockquote"]), generated=generated))
     manifest.update({key: value for key, value in metadata.items() if key not in manifest})
     manifest["generated"] = generated
     for filename in manifest["files"]:
