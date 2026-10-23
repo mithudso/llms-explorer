@@ -1,5 +1,9 @@
 # Memory Log
 
+## Codex research defaults - 2026-10-23
+
+- TASK-880: Codex DR, concept-family-explorer and rabbithole default to `gpt-6.1-sol` with `medium` effort. The generator, research/scout dispatch at every depth, and new ranked plans apply the setting. Explicit overrides and saved run plans retain their settings. Pass structure and verification requirements remain intact. See docs/codex-research-defaults.md.
+
 ## Research process comparison - 2026-10-22
 
 - TASK-854 compares updated DR/CFE/rabbithole contracts with the 36 original model-comparison outputs. It freezes the original SQLite packet, tasks, models, efforts, repetitions and output budgets. Both arms receive fresh blind Astra/high judgments with full-statement binding. Results: docs/research/research-process-comparison-2026-10-22/. Raw work remains in its ignored private directory.

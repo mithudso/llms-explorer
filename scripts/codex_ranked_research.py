@@ -113,8 +113,8 @@ def make_plan(repo, hub, source, size=4):
                             "source_strategy": "Shared parent evidence, source-library FTS and cached snapshots; child-specific claims."})
     cohorts.sort(key=lambda cohort: cohort["priority"])
     return {"created": datetime.now(UTC).isoformat(), "source": str(source),
-            "source_sha256": hashlib.sha256(text.encode()).hexdigest(), "model": "gpt-6-luna",
-            "effort": "max", "rows": rows, "cohorts": cohorts, "status": "planned"}
+            "source_sha256": hashlib.sha256(text.encode()).hexdigest(), "model": "gpt-6.1-sol",
+            "effort": "medium", "rows": rows, "cohorts": cohorts, "status": "planned"}
 
 
 def run_command(command, log, env, timeout=7200):

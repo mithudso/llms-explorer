@@ -21,6 +21,7 @@ def inventory():
 
 def test_low_scores_and_reviews_are_accounted_for_without_blocking_runnable_members():
     plan = module.make_plan(inventory(), created="2026-10-22")
+    assert (plan["model"], plan["effort"]) == ("gpt-6.1-sol", "medium")
     assert len(plan["rows"]) == len(plan["handoff_assignments"]) == 4
     assert [c["status"] for c in plan["cohorts"]] == ["pending", "needs-review", "skipped"]
     run = plan["cohorts"][0]

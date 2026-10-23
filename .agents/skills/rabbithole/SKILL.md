@@ -16,7 +16,7 @@ name: rabbithole
 version: "1.1.0"
 updated: "2026-10-20"
 model: gpt-6.1-sol
-effort: max
+effort: medium
 category: meta
 tags: [concept-depth, exhaustive-research, saturation, orchestration]
 keywords:
@@ -106,7 +106,7 @@ depth does.
 
 ### Step 2 — Pass 0: broad draft
 
-One ordinary research pass (reuse `/dr` through the Codex adapter; use `research --lane deep --passes 2` for two independent gpt-6-luna `max` passes merged by the shared runtime, or read `seedMaterial` first if given): mechanism in plain terms, the sub-parts/phases it decomposes into, the two or three
+One ordinary research pass (reuse `/dr` through the Codex adapter; use `research --lane deep --passes 2` for two independent gpt-6.1-sol `medium` passes merged by the shared runtime, or read `seedMaterial` first if given): mechanism in plain terms, the sub-parts/phases it decomposes into, the two or three
 most-cited primary sources, the obvious edge cases. This draft is the baseline every later
 pass is measured against — write it down as a flat list of atomic claims (one fact per line),
 not prose, so Step 4's new-information count is countable.

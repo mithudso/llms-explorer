@@ -24,6 +24,19 @@ def test_ranked_parser_keeps_literal_pipes_and_parent():
     assert rows[0]["parent"] == "Parent"
 
 
+def test_new_ranked_plan_uses_sol_medium(tmp_path, monkeypatch):
+    source = tmp_path / "ranked.md"
+    source.write_text("| 1 | 4.2 | RESEARCH | New concept | Parent | dr | pending |\n")
+    tree = SimpleNamespace(load_nodes=lambda path: [], load_queue=lambda path: [
+        {"concept": "New concept", "done": False}])
+    checkouts = SimpleNamespace(_scan=lambda: (None, {}))
+    monkeypatch.setattr(ranked, "load", lambda name, path: checkouts if name == "ranked_checkouts" else tree)
+    monkeypatch.setattr(ranked, "queue_parser", lambda repo: None)
+    plan = ranked.make_plan(tmp_path, tmp_path, source)
+    assert (plan["model"], plan["effort"]) == ("gpt-6.1-sol", "medium")
+    assert plan["cohorts"][0]["concepts"] == ["New concept"]
+
+
 @pytest.mark.parametrize('signum', [signal.SIGINT, signal.SIGTERM])
 def test_cancelling_ranked_parent_stops_phase_and_isolated_worker(tmp_path, signum):
     ready = tmp_path / 'ready.json'
