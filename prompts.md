@@ -1,5 +1,11 @@
 # Prompts Log
 
+## Prompt v66 - 2026-10-23
+
+> Update the codex versions of the skills to use medium effort and sol.
+
+Scope: TASK-880. Apply Sol/medium to the three Codex research skills, their generator and runtime defaults, and new ranked plans. Preserve explicit overrides, existing research plans and the shared Claude runtime. Verify and deliver through a merged PR.
+
 ## Prompt v65 - 2026-10-22
 
 > Run a comparison of the updated research process with the old research process using the model comparison tests as a baseline.
