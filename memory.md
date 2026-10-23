@@ -1,5 +1,10 @@
 # Memory Log
 
+## Research process comparison - 2026-10-22
+
+- TASK-854 compares updated DR/CFE/rabbithole contracts with the 36 original model-comparison outputs. It freezes the original SQLite packet, tasks, models, efforts, repetitions and output budgets. Both arms receive fresh blind Astra/high judgments with full-statement binding. Results: docs/research/research-process-comparison-2026-10-22/. Raw work remains in its ignored private directory.
+- This is a bounded synthesis comparison with historical controls. It does not measure live retrieval, adaptive follow-up yield, runtime gate accuracy or publication performance. Functional checks separately pass 131 existing research tests and eight comparison checks. Active research runs, both trees, the shared source library and website content remain outside the experiment.
+
 ## v0.22.53 - 2026-10-20
 
 - TASK-737: audited both concept trees, llms packs, structured DR claims and generated website content. Recovered 209 missing exports. Website currency is 1,763 nodes, 1,441 references and 88,519 facts, with no unfiled references. Backups preserve older bodies; historical recovery retains research dates and richer references. Report: docs/research/concept-currency-audit-2026-10-20/README.md.
