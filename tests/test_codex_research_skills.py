@@ -394,6 +394,23 @@ class ResearchFlowTests(unittest.TestCase):
             self.invoke("research", "publication", *args)
         return self.shared.load_manifest("publication")["agents"]["rename-durability"]
 
+    def test_source_plan_and_reviewed_scope_reach_only_their_concept_workers(self):
+        manifest = self.shared.load_manifest("publication")
+        manifest["cohort_source_materials"] = [{"url": "https://docs.example/durability", "title": "Durability manual"}]
+        manifest["cohort_scopes"] = {
+            "Rename durability": {"bounded_scope": "Directory durability after replacement", "cautions": ["Do not infer an incident from its label."]},
+            "Different concept": {"bounded_scope": "OUT_OF_SCOPE_TEST_SENTINEL"},
+        }
+        self.shared.save_manifest(manifest)
+        self.research()
+        briefs = [call["brief"] for call in self.calls if not call["name"].endswith("-merge")]
+        self.assertTrue(briefs)
+        for brief in briefs:
+            self.assertIn("https://docs.example/durability", brief)
+            self.assertIn("Directory durability after replacement", brief)
+            self.assertIn("Do not infer unsupported attributions", brief)
+            self.assertNotIn("OUT_OF_SCOPE_TEST_SENTINEL", brief)
+
     def test_scout_hit_runs_exactly_one_seeded_second_pass_and_merges(self):
         url = "https://engineering.example/deep-rename"
         self.scout["candidates"].append({"url": url, "tier": "blog", "why": "Durability edge case"})
@@ -864,6 +881,26 @@ class ResearchFlowTests(unittest.TestCase):
         website = module_at("test_persistent_private_binding", self.repo / "scripts/research_site_sync.py")
         website.sync(self.repo, self.hub, apply=True)
         self.assertFalse((self.repo / "site/src/data/concepts/rename-durability.json").exists())
+
+    def test_source_sharing_preserves_each_new_concepts_original_parent(self):
+        self.research()
+        self.artifact_targets()
+        for root in (self.hub, self.repo):
+            path = root / 'concept-tree/tree.json'
+            nodes = json.loads(path.read_text())
+            nodes.append({'concept': 'Specific durability parent', 'slug': 'specific-durability-parent',
+                          'parentConcept': None, 'childConcepts': [], 'skillId': None})
+            path.write_text(json.dumps(nodes))
+        manifest = self.shared.load_manifest('publication')
+        manifest.update(cohort_parent='Shared source family',
+                        cohort_parents={'Rename durability': 'Specific durability parent'})
+        self.shared.save_manifest(manifest)
+        self.render()
+        self.invoke('finish', 'publication', '--status', 'COMPLETED')
+        for root in (self.hub, self.repo):
+            nodes = json.loads((root / 'concept-tree/tree.json').read_text())
+            child = next(node for node in nodes if node['concept'] == 'Rename durability')
+            self.assertEqual(child['parentConcept'], 'Specific durability parent')
 
     def test_canonical_ids_survive_packs_readers_and_downloads(self):
         self.research()
