@@ -1,6 +1,6 @@
 # Apple Intelligence full suite
 
-**Status: in progress.** This is a recoverable planning checkpoint, not a completed research result or saturation claim.
+**Status: in progress.** Eight concepts and 101 claims have passed all-claim verification and canonical export. This remains an unfinished family run, without a saturation claim.
 
 The run maps 44 candidates across five neighborhoods. Canonical CVS validation passed all 44 rows. It selects 28 concepts in seven source-sharing cohorts; 16 candidates are covered, duplicate, out of scope, or below the viability threshold. There is no family topic-count or wall-clock cap. Three evidence-grounded frontier re-expansions are available.
 
@@ -166,3 +166,18 @@ Candidate owners: F1, F8. Status: pending research unless every referenced owner
 Which Apple Intelligence assistive workflows are documented, and how can users retain control and appropriate reliance?
 
 Candidate owners: A10. Status: pending research unless every referenced owner is HAVE.
+
+## Verified export checkpoint
+
+The following concepts passed their full claim gates and have eight-member canonical packs. Their source bodies and private verification attempts remain outside the repository.
+
+- Private Cloud Compute trust architecture and verification
+- Apple Intelligence Reports and user privacy controls
+- External intelligence and ChatGPT handoff consent
+- AFM 3 and ADM model family architecture evolution
+- Siri AI personal context and onscreen awareness
+- Apple Intelligence availability and release matrix
+- Visual Intelligence and Siri Camera workflows
+- Writing Tools and Write with Siri workflows
+
+The remaining cohorts, frontier re-expansion, skill and family audits, and final delivery are still active. Semantic assets remain frozen; keyword readers include these verified concepts.
