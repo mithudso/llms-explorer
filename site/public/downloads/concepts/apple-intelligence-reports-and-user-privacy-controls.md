@@ -1,10 +1,10 @@
-<!-- llms-explorer concept facts · https://llms-explorer.com/tree/apple-intelligence-reports-and-user-privacy-controls/ · pack 2026-10-23 · ~1235 tokens -->
+<!-- llms-explorer concept facts · https://llms-explorer.com/tree/apple-intelligence-reports-and-user-privacy-controls/ · pack 2026-10-23 · ~1275 tokens -->
 
 # Apple Intelligence Reports and user privacy controls
 
 > Source-anchored research for Apple Intelligence Reports and user privacy controls. Run status: COMPLETED.
 
-5 facets · 9 facts · page: https://llms-explorer.com/tree/apple-intelligence-reports-and-user-privacy-controls/
+Parent: [Private Cloud Compute trust architecture and verification](https://llms-explorer.com/tree/private-cloud-compute-trust-architecture-and-verification/) · 5 facets · 9 facts · page: https://llms-explorer.com/tree/apple-intelligence-reports-and-user-privacy-controls/
 
 ## Structure and components
 

@@ -1,10 +1,10 @@
-<!-- llms-explorer concept facts · https://llms-explorer.com/tree/siri-ai-personal-context-and-onscreen-awareness/ · pack 2026-10-23 · ~1405 tokens -->
+<!-- llms-explorer concept facts · https://llms-explorer.com/tree/siri-ai-personal-context-and-onscreen-awareness/ · pack 2026-10-23 · ~1426 tokens -->
 
 # Siri AI personal context and onscreen awareness
 
 > Source-anchored research for Siri AI personal context and onscreen awareness. Run status: COMPLETED.
 
-3 facets · 11 facts · page: https://llms-explorer.com/tree/siri-ai-personal-context-and-onscreen-awareness/
+Parent: [Apple Intelligence](https://llms-explorer.com/tree/apple-intelligence/) · 3 facets · 11 facts · page: https://llms-explorer.com/tree/siri-ai-personal-context-and-onscreen-awareness/
 
 ## How it works
 

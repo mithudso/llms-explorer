@@ -1,0 +1,25 @@
+<!-- llms-explorer concept facts · https://llms-explorer.com/tree/foundation-models-adapter-lifecycle-across-os-releases/ · pack 2026-10-23 · ~1117 tokens -->
+
+# Foundation Models adapter lifecycle across OS releases
+
+> Source-anchored research for Foundation Models adapter lifecycle across OS releases. Run status: COMPLETED.
+
+Parent: [Apple Foundation Models framework](https://llms-explorer.com/tree/apple-foundation-models-framework/) · 3 facets · 9 facts · page: https://llms-explorer.com/tree/foundation-models-adapter-lifecycle-across-os-releases/
+
+## Problems, failure modes and limitations
+
+- A third-party client issue opened in July 2026 treated .fmadapter files as version-locked and proposed a clear startup error if an OS update swaps the base model. The issue was a deferred and closed proposal, not an implementation test, so it records a developer's maintenance concern but does not verify runtime behavior. (low confidence) (verified as of 2026-10-23) — [source](https://github.com/Arthur-Ficial/apfel/issues/362)
+- In a June 2026 asset-pack troubleshooting thread, an Apple Frameworks Engineer said an on-demand Background Asset must be made local with ensureLocalAvailability(of:requireLatestVersion:) before constructing SystemLanguageModel.Adapter(name:). The original poster later said the error persisted after following that advice, so the thread does not confirm a complete fix. (low confidence) — [source](https://developer.apple.com/forums/thread/829108)
+- A 2025 forum report that initially described a toolkit v0.2.0 load failure as a base-model incompatibility was later resolved by an Apple Frameworks Engineer as an invalid adapter identifier: a hyphenated name failed validation, and changing it to an underscore worked. That report is not evidence that the OS had changed the adapter's base model. (low confidence) — [source](https://developer.apple.com/forums/thread/794839)
+
+## Comparisons and alternatives
+
+- Apple recommends evaluating adapters with a use-case-specific process for each model version, using quantitative and qualitative checks and evaluating safety. Its guide also says to host the roughly 160 MB adapter as a Background Assets download instead of bundling all version variants in the app. (high confidence) (verified as of 2026-10-05) — [source](https://developer.apple.com/apple-intelligence/foundation-models-adapter)
+
+## Facts and statements
+
+- Each custom adapter is compatible with one specific system-model version. Apple says developers supporting devices with different system-model versions need a different adapter for each version; the toolkit versions include the matching model assets. (high confidence) (verified as of 2026-10-05) — [source](https://developer.apple.com/apple-intelligence/foundation-models-adapter)
+- Apple's adapter page lists beta toolkit versions 0.1.0 and 0.2.0 as removed, identifies 26.0.0 as the last release, lists OS 26 compatibility, and explicitly says the toolkit is incompatible with OS 27 and later. (high confidence) (verified as of 2026-10-05) — [source](https://developer.apple.com/apple-intelligence/foundation-models-adapter)
+- Apple staff confirmed in June and July 2026 Developer Forums replies that custom adapters are no longer supported as of OS 27. A Frameworks Engineer pointed developers to the on-device base models or their own Core ML or Core AI models, and said Background Assets remains available for delivering custom models. (high confidence) (verified as of 2026-10-05) — [source](https://developer.apple.com/forums/thread/829108)
+- Apple's current training page says the Apple Developer Program Account Holder must request the adapter entitlement to deploy adapters; the entitlement is not required for local training or testing, and toolkit downloads require program membership and acceptance of toolkit terms. A developer's 2026 post reports that the request page said Apple was no longer accepting requests, so the page does not establish whether requests are currently open. (medium confidence) (verified as of 2026-10-23) — [source](https://developer.apple.com/apple-intelligence/foundation-models-adapter)
+- The cited public material does not establish whether an adapter call from an app built against OS 26 continues to work after a device upgrades to OS 27, throws, or degrades silently. An independent migration guide marks this legacy-binary runtime behavior untested; Apple's page states that the adapter training toolkit is incompatible with OS 27 and later. (medium confidence) (verified as of 2026-10-10) — [source](https://developer.apple.com/apple-intelligence/foundation-models-adapter)

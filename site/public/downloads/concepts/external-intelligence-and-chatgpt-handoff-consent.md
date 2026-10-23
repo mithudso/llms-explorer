@@ -1,10 +1,10 @@
-<!-- llms-explorer concept facts · https://llms-explorer.com/tree/external-intelligence-and-chatgpt-handoff-consent/ · pack 2026-10-23 · ~1681 tokens -->
+<!-- llms-explorer concept facts · https://llms-explorer.com/tree/external-intelligence-and-chatgpt-handoff-consent/ · pack 2026-10-23 · ~1702 tokens -->
 
 # External intelligence and ChatGPT handoff consent
 
 > Source-anchored research for External intelligence and ChatGPT handoff consent. Run status: COMPLETED.
 
-3 facets · 14 facts · page: https://llms-explorer.com/tree/external-intelligence-and-chatgpt-handoff-consent/
+Parent: [Apple Intelligence](https://llms-explorer.com/tree/apple-intelligence/) · 3 facets · 14 facts · page: https://llms-explorer.com/tree/external-intelligence-and-chatgpt-handoff-consent/
 
 ## How it works
 
