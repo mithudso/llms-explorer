@@ -1,5 +1,11 @@
 # Repository Agent Catalog
 
+## Task completion
+
+Follow [the task delivery rule](docs/agent-task-completion.md). Completed work must
+be verified, committed, pushed, opened as a PR, and merged into the remote default
+branch without another routine permission request. Preserve other active work.
+
 | Agent Name | Scope | Description | Tools / Commands |
 |---|---|---|---|
 | `code-deep-optimizer` | Entire repo | Multi-pass static code optimizer, lint, security, and verification loop. | `uv`, `ruff`, `pytest`, `npm` |
