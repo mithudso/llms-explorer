@@ -218,7 +218,8 @@ def _finalize_artifacts(shared, manifest: dict, claims: dict[str, dict], status:
                 # Keep each target's curated placement. Only new nodes receive
                 # the run's proposed parent, and sync.upsert handles missing parents.
                 parent = existing[name].get("parentConcept") if name in existing else (
-                    cohort_parent or (manifest.get("parent_concept") if name == topic else topic))
+                    manifest.get("cohort_parents", {}).get(name) or cohort_parent
+                    or (manifest.get("parent_concept") if name == topic else topic))
                 skill_id = manifest.get("skill_id") or manifest["slug"]
                 if manifest.get("kind") == "spoke" and manifest.get("hub"):
                     skill_id = f"{manifest['hub']}/references/{skill_id}.md"
