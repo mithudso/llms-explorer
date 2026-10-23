@@ -65,9 +65,12 @@ def prepare(out, baseline):
     for source in sorted((baseline / 'cells').iterdir()):
         identity = json.loads((source / 'identity.json').read_text())
         skill = identity['skill']
-        old = (source / 'generation/prompt.txt').read_text()
+        old_path = source / 'generation/prompt.txt'
+        if not old_path.exists():
+            raise ValueError('Missing private baseline prompt archive; restore the retained baseline prompts before prepare')
+        old = old_path.read_text()
         old_hashes.setdefault(skill, set()).add(digest(old.encode()))
-        new, _ = bench.prompt(skill, evidence)
+        new, updated_skill_sha = bench.prompt(skill, evidence)
         # Include the mandatory current companions explicitly. Tools are disabled,
         # so a worker cannot follow the SKILL.md references by reading files.
         companions = '\n'.join((ROOT / '.agents/skills' / skill / 'references' / name).read_text()
@@ -81,7 +84,10 @@ def prepare(out, baseline):
             path = out / 'private' / arm / source.name
             path.mkdir(parents=True, exist_ok=True)
             (path / 'generation-prompt.txt').write_text(prompt)
-            write(path / 'identity.json', identity)
+            arm_identity = {**identity, 'generation_prompt_sha256': digest(prompt.encode()), 'arm': arm}
+            if arm == 'updated':
+                arm_identity['skill_sha256'] = updated_skill_sha
+            write(path / 'identity.json', arm_identity)
         old_record = json.loads((source / 'generation/run.json').read_text())
         if old_record['is_error']:
             raise ValueError('Baseline contains a failed generation')
@@ -307,6 +313,12 @@ def reconcile(out):
     write(out / 'attempt-selection.json', {'policy': 'first valid bound attempt; never select by score', 'selections': selections})
 
 
+def matched_rows(rows):
+    cells = {arm: {row['cell'] for row in rows if row['arm'] == arm} for arm in ('old', 'updated')}
+    paired = cells['old'] & cells['updated']
+    return [row for row in rows if row['cell'] in paired]
+
+
 def run(out, workers, timeout):
     lock_path = out / 'private/comparison.lock'
     lock_path.parent.mkdir(parents=True, exist_ok=True)
@@ -407,10 +419,11 @@ def report(out):
                 row['quote_length_violations'] = sum(not 12 <= len(c.get('quote', '').split()) <= 40 for c in gen['output']['claims'])
                 rows.append(row)
     write(out / 'results.json', rows)
+    comparable = matched_rows(rows)
     summary = []
     for model in bench.MODELS:
         for effort in bench.EFFORTS:
-            by_arm = {arm: [r for r in rows if (r['arm'], r['model'], r['effort']) == (arm, model, effort)] for arm in ('old', 'updated')}
+            by_arm = {arm: [r for r in comparable if (r['arm'], r['model'], r['effort']) == (arm, model, effort)] for arm in ('old', 'updated')}
             for arm, group in by_arm.items():
                 if not group:
                     continue
@@ -424,6 +437,32 @@ def report(out):
                 result['mean_output_tokens'] = statistics.mean(r['usage'].get('output_tokens', 0) for r in group)
                 summary.append(result)
     write(out / 'summary.json', summary)
+    overall = []
+    for arm in ('old', 'updated'):
+        group = [row for row in comparable if row['arm'] == arm]
+        if not group:
+            continue
+        count = sum(row['claims'] for row in group)
+        overall.append({'arm': arm, 'paired_trials': len(group), 'raw_claims': count,
+            'quality_percent': 100 * sum(row['supported_atomic_claims'] for row in group) / count,
+            'source_support_percent': 100 * sum(row['source_supported_claims'] for row in group) / count,
+            **{key: statistics.mean(row[key] for row in group) for key in
+               ('grounded_unique_concepts', 'supported_atomic_claims', 'reference_coverage', 'mean_depth', 'seconds')},
+            'mean_input_tokens': statistics.mean(row['usage'].get('input_tokens', 0) for row in group),
+            'mean_output_tokens': statistics.mean(row['usage'].get('output_tokens', 0) for row in group)})
+    write(out / 'overall.json', overall)
+    overall_lines = []
+    if len(overall) == 2:
+        old, updated = overall
+        overall_lines = [f"Matched pairs: {old['paired_trials']}.", '',
+                         '| Measure | Old | Updated |', '|---|---:|---:|']
+        for label, key, places in [('Accepted-claim quality (%)', 'quality_percent', 2),
+                ('Grounded concepts per trial', 'grounded_unique_concepts', 2),
+                ('Accepted claims per trial', 'supported_atomic_claims', 2),
+                ('Reference coverage /24', 'reference_coverage', 2),
+                ('Claim depth /3', 'mean_depth', 2),
+                ('Successful-generation seconds', 'seconds', 1)]:
+            overall_lines.append(f'| {label} | {old[key]:.{places}f} | {updated[key]:.{places}f} |')
     by_cell = {(r['arm'], r['cell']): r for r in rows}
     paired = []
     keys = ('grounded_unique_concepts', 'supported_atomic_claims', 'quality_percent',
@@ -446,18 +485,45 @@ def report(out):
     drift = [{'cell': r['cell'], 'fresh_judge_minus_original': {k: round(r[k] - original_by_cell[r['cell']][k], 4)
               for k in keys if k != 'mechanisms'}} for r in rows if r['arm'] == 'old']
     write(out / 'judge-drift.json', drift)
-    attempts = [json.loads(path.read_text()) for path in (out / 'private').glob('*/*/*/attempts/*/run.json')]
+    attempt_records = [(path, json.loads(path.read_text())) for path in (out / 'private').glob('*/*/*/attempts/*/run.json')]
+    attempts = [record for _, record in attempt_records]
+    failed_attempts = []
+    for path, record in attempt_records:
+        if not record.get('is_error'):
+            continue
+        details = str(record.get('errors', []))
+        kind = ('deadline' if record.get('returncode') == -9 else
+                'transport-routing' if 'workspace routing discovery failed' in details else
+                'provider-capacity' if 'at capacity' in details else
+                'schema-binding' if record.get('validation_error') else 'transport-or-format')
+        arm, cell, phase, _, number, _ = path.relative_to(out / 'private').parts
+        failed_attempts.append({'arm': arm, 'cell': cell, 'phase': phase, 'attempt': number, 'kind': kind})
+    write(out / 'attempt-failures.json', failed_attempts)
+    completed = {(row['arm'], row['cell']) for row in rows}
+    unscored = []
+    for arm in ('old', 'updated'):
+        for cell in protocol['cells']:
+            if (arm, cell['cell']) not in completed:
+                path = out / 'private' / arm / cell['cell'] / 'generation/run.json'
+                generated = json.loads(path.read_text()) if path.exists() else {}
+                unscored.append({'arm': arm, 'cell': cell['cell'],
+                                 'phase': 'judge' if generated and not generated.get('is_error') else 'generation',
+                                 'status': 'unscored'})
+    write(out / 'failures.json', unscored)
     incomplete_attempts = sum(not path.with_name('run.json').exists()
                               for path in (out / 'private').glob('*/*/*/attempts/*/prompt.txt'))
     metadata_path = out / 'execution-metadata.json'
     execution_metadata = json.loads(metadata_path.read_text()) if metadata_path.exists() else {}
     model_catalog = json.loads((ROOT / protocol['baseline_directory'] / 'models.json').read_text())
     write(out / 'execution.json', {'expected_new_generations': 36, 'expected_fresh_judgments': 72,
-          'completed_new_generations': sum((out / 'private/updated' / c['cell'] / 'generation/run.json').exists() for c in protocol['cells']),
+          'completed_new_generations': sum(not json.loads(path.read_text()).get('is_error')
+                                          for path in (out / 'private/updated').glob('*/generation/run.json')),
+          'scored_arm_trials': len(rows), 'paired_cells': len(paired),
           'recorded_attempts': len(attempts), 'failed_attempts': sum(bool(r.get('is_error')) for r in attempts),
           'attempts_without_final_telemetry': incomplete_attempts,
           'aggregate_usage_complete': incomplete_attempts == 0,
           'attempt_seconds': sum(r['seconds'] for r in attempts),
+          'attempt_latency_basis': 'sum of recorded worker durations; excludes missing telemetry; not elapsed wall-clock time',
           'usage_all_attempts': {k: sum(r.get('usage', {}).get(k, 0) for r in attempts)
                                  for k in ('input_tokens', 'cached_input_tokens', 'output_tokens')},
           'actual_cost_usd': None, 'current_cli_version': execution_metadata.get('cli_version'),
@@ -466,6 +532,8 @@ def report(out):
     lines = ['# Research process comparison', '',
              'Historical old-contract outputs and fresh updated-contract outputs use the original frozen SQLite evidence, three stages, three models, two efforts and two repetitions. Both arms receive fresh blind Astra/high judgments with identical full-statement binding and scoring. Models and efforts stay fixed within each pair.', '',
              'This measures bounded research-stage synthesis. It does not execute live discovery, adaptive follow-ups, production gates, resume, source sharing or publication. The updated prompts include the mandatory current runtime and library companions. Their additional context is part of this process comparison.', '',
+             'The primary table uses only completed matched cells. Every old/new pair has the same skill, model, effort and repetition. Unmatched completed control scores remain in results.json and do not change the paired means.', '',
+             *overall_lines, '',
              '| Model | Effort | Arm | n | Grounded concepts | Accepted claims | Quality | Coverage /24 | Depth /3 | Seconds | Output tokens |',
              '|---|---|---|---:|---:|---:|---:|---:|---:|---:|---:|']
     for r in summary:
@@ -479,6 +547,7 @@ def report(out):
             mean = lambda key, group=group: statistics.mean(r[key] for r in group)
             lines.append(f"| {skill} | {len(group)} | {mean('grounded_unique_concepts'):+.2f} | {mean('supported_atomic_claims'):+.2f} | {mean('quality_percent'):+.2f} | {mean('reference_coverage'):+.2f} | {mean('mean_depth'):+.3f} | {mean('seconds'):+.1f} |")
     lines += ['', f'{len(rows)} of 72 arm-trials scored. Quality pools accepted unique atomic claims across raw claims. Other measures are per-trial means. Generation timing excludes judges and any failed attempts; all attempt records remain private. Historical timings reflect the earlier scheduling and service conditions. USD is unknown.', '',
+              'failures.json lists currently unscored cells. attempt-failures.json retains failed attempts even after successful recovery. These failures receive no invented quality score. execution.json records measured retry usage and gaps in attempt telemetry.', '',
               'Two repetitions and one topic do not establish statistical superiority. The 24-concept/36-claim caps can hide breadth differences. One model judge supplies semantic assessments. Reference coverage is the original provisional 24-item rubric. Differences may reflect service drift and sampling as well as contract changes; these are historical controls, not simultaneous fresh old-process runs. No full-workflow speedup or accuracy claim follows from these trials.', '']
     (out / 'comparison.md').write_text('\n'.join(lines))
     print(json.dumps({'scored': len(rows), 'expected': 72, 'report': str(out / 'comparison.md')}))

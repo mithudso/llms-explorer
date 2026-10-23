@@ -3,7 +3,9 @@
 ## Research process comparison - 2026-10-22
 
 - TASK-854 compares updated DR/CFE/rabbithole contracts with the 36 original model-comparison outputs. It freezes the original SQLite packet, tasks, models, efforts, repetitions and output budgets. Both arms receive fresh blind Astra/high judgments with full-statement binding. Results: docs/research/research-process-comparison-2026-10-22/. Raw work remains in its ignored private directory.
-- This is a bounded synthesis comparison with historical controls. It does not measure live retrieval, adaptive follow-up yield, runtime gate accuracy or publication performance. Functional checks separately pass 131 existing research tests and eight comparison checks. Active research runs, both trees, the shared source library and website content remain outside the experiment.
+- This is a bounded synthesis comparison with historical controls. It does not measure live retrieval, adaptive follow-up yield, runtime gate accuracy or publication performance. Functional checks separately pass 131 existing research tests and ten comparison checks. Active research runs, both trees, the shared source library and website content remain outside the experiment.
+
+- Results: 35 matched pairs show accepted claim quality 95.27% to 95.37%, reference coverage 9.40 to 9.03 of 24, and depth 2.45 to 2.44 of 3. One Astra/max CFE generation remained unscored after capacity/deadline failures. PR 222 carries the public report and harness; raw records remain private.
 
 ## v0.22.53 - 2026-10-20
 

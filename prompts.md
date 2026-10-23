@@ -6,6 +6,8 @@
 
 Scope: TASK-854. Reuse the 36-trial fixed-source model benchmark as historical controls, generate a matched updated-contract matrix, blind-score both versions consistently, verify the current runtime controls separately, and save reproducible results with explicit historical-control and bounded-stage limits. Preserve active runs and original evidence.
 
+Outcome: all 36 updated cells were attempted. The report contains 35 completed matched pairs and one explicit provider-capacity failure, with common blind judgments, full attempt accounting and regression validation. Delivery: PR 222.
+
 ## Prompt v64 - 2026-10-20
 
 > Make sure that all concept runs update the website in ~/dev/llms-explorer, also do an audit of the current concept trees, the llms files, and other research and what shows up on the website and make sure the website is up to speed with the latest.

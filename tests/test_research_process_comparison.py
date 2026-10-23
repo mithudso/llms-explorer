@@ -1,6 +1,9 @@
 """Adversarial checks for process-comparison identity and fair scoring."""
+import contextlib
 import copy
 import importlib.util
+import io
+import json
 import tempfile
 import unittest
 from pathlib import Path
@@ -97,6 +100,27 @@ class BoundComparisonTests(unittest.TestCase):
                     'output': self.output, 'score': score})
             result, number = comparison.earliest_valid(folder, 'same', comparison.validate_generation)
             self.assertEqual((number, result['score']), ('002', 20))
+
+    def test_unmatched_controls_cannot_change_the_process_comparison(self):
+        rows = [{'arm': 'old', 'cell': 'paired', 'quality': 20},
+                {'arm': 'old', 'cell': 'unfinished', 'quality': 100},
+                {'arm': 'updated', 'cell': 'paired', 'quality': 30}]
+        pairs = comparison.matched_rows(rows)
+        self.assertEqual([(row['arm'], row['quality']) for row in pairs], [('old', 20), ('updated', 30)])
+
+    def test_status_never_prints_process_arguments_or_credentials(self):
+        table = ('PID PPID ELAPSED COMMAND\n'
+                 '5 1 00:02 npm exec service --token PRIVATE_TOKEN_SENTINEL\n'
+                 '7 1 00:03 python3 research_process_comparison.py run --workers 2\n'
+                 '8 7 00:01 codex --output-last-message /study/research-process-comparison-2026-10-22/private/old/cell/judge/attempts/001/response.json --token PRIVATE_TOKEN_SENTINEL\n')
+        output = io.StringIO()
+        with patch.object(comparison.sys, 'argv', ['comparison', 'status']), \
+                patch.object(comparison.subprocess, 'run') as process, contextlib.redirect_stdout(output):
+            process.return_value.stdout = table
+            self.assertEqual(comparison.main(), 0)
+        self.assertEqual([row['pid'] for row in json.loads(output.getvalue())], [7, 8])
+        self.assertNotIn('PRIVATE_TOKEN_SENTINEL', output.getvalue())
+        self.assertNotIn('--token', output.getvalue())
 
 
 if __name__ == '__main__':
