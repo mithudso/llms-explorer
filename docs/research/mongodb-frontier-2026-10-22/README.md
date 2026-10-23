@@ -59,12 +59,14 @@ Completion applies to this run-start backlog. New descendants stay visible as
 a separate backlog. A queued concept, high CVS score or source-discovery lead
 does not establish completed research.
 
-The user paused the run after the second cohort to reload updated skills.
-Four concepts completed export with all 43 structured claims supported. The
-second cohort remains withheld: its 54-claim draft has three unverified
-claims among 50 checked claims. The saved plan has 913 pending concepts and
-16 review concepts. Both research and automatic continuation are stopped.
-Keep the user STOP marker until an explicit request to resume.
+The user renewed the complete research instruction after the skill reload.
+The uncapped runner resumed after validating all 517 handoffs and preserving
+the prior STOP marker as a backup. At resume, four concepts had completed
+export with all 43 structured claims supported, 913 concepts were pending,
+and 16 concepts required review. The second cohort remains withheld until
+three missing source snapshots pass a fresh all-claim gate. Independent
+cohorts continue by CVS, starting with time-series cardinality, bucketing,
+active buckets and diagnostic counters.
 
 ## Source review
 
@@ -90,3 +92,8 @@ Full configured Ruff passes for the changed root scripts and tests.
 The DR skill overlay check passes for all 27 synchronized files. Publication
 projection and identity-preserving queue regressions pass. No Node.js
 compatibility tests were run.
+
+The resumed run exposed a gate prompt omission: the validator requires a
+minimum evidence-quote length, but the brief did not state it. The brief now
+states the existing requirement. All 22 gate tests, scoped Ruff and the
+27-file skill synchronization check pass after this correction.

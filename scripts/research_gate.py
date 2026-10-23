@@ -208,6 +208,9 @@ Return exactly one verdict per claim, with this JSON shape:
                  "start": 0, "end": 30, "quote": "exact Python character slice"}}]}}
 ]}}
 SUPPORTED requires at least one exact evidence span establishing the entire claim.
+Every evidence quote must contain at least 20 characters after stripping leading and trailing
+whitespace, or the complete stripped source text if that source is shorter than 20 characters.
+Choose a larger exact slice when needed; never pad or change source text to meet this minimum.
 If no span establishes the full statement, use the appropriate non-supported verdict.
 Offsets are zero-based Python Unicode character offsets. No omissions, duplicates or extra claims.
 """
