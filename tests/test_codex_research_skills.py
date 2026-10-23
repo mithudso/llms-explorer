@@ -6,6 +6,7 @@ import importlib.util
 import io
 import json
 import os
+import re
 import shutil
 import signal
 import subprocess
@@ -113,6 +114,22 @@ class SyncTests(unittest.TestCase):
 
 
 class AdapterTests(unittest.TestCase):
+    def test_leading_api_code_survives_legacy_markdown_sanitizer(self):
+        def legacy(value):
+            text = re.sub(r"<!--.*?-->", "", str(value), flags=re.DOTALL)
+            text = re.sub(r"\s+", " ", text).strip()
+            return re.sub(r"^[\s#>\-*=`|]+", "", text).strip()
+
+        normalize = adapter.preserve_leading_inline_code(legacy)
+        claim = "`mlx_lm.tuner.trainer.train()` computes gradients."
+        self.assertNotEqual(legacy(claim), claim)
+        self.assertEqual(normalize(claim), claim)
+        self.assertEqual(normalize("<!-- hidden instruction -->\n" + claim), claim)
+        for text in ("```python\nrun()\n```", "# heading\n---", "`unclosed code"):
+            with self.subTest(text=text):
+                self.assertEqual(normalize(text), legacy(text))
+        self.assertNotIn("\n", normalize("`api()`\n# heading\n---"))
+
     def test_role_mapping_and_efforts_are_explicit(self):
         for source, expected in (("claude-sonnet-5-5", "gpt-6.1-sol"), ("fable", "gpt-6-astra"), ("claude-opus-4-6", "gpt-6-astra"), ("haiku", "gpt-6-luna")):
             self.assertEqual(adapter.map_model(source), expected)
