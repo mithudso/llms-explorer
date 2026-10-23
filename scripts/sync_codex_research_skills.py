@@ -68,18 +68,20 @@ to detect source drift; omit `--check` to sync with an automatic backup.
 | Opus / Fable | `gpt-6-astra` |
 | Haiku | `gpt-6-luna` |
 
+All three Codex research skills default to `gpt-6.1-sol` at `medium` effort.
+The aliases above remain available for explicit overrides; they do not select defaults.
 This maps workflow tiers, not equivalent model capability or price. Claude study
 results in inherited changelogs describe Claude runs only. Codex comparisons live
 in the repository research benchmark report. Supported reasoning efforts on this
 installation are `low`, `medium`, `high`, `xhigh`, and `max`; retain the requested
 effort. The skill's `model` and `effort` frontmatter document defaults. They do not
 switch the active Codex session. Headless invocations enforce them with `--model`
-and `-c 'model_reasoning_effort="max"'` (or the requested effort).
+and `-c 'model_reasoning_effort="medium"'` (or the requested effort).
 
-Codex `/dr` defaults to `gpt-6-luna` at `max` effort. Standard research runs one
-Luna/max research pass with deliberate scouting for deeper sources. When the scout
+Codex `/dr` defaults to `gpt-6.1-sol` at `medium` effort. Standard research runs one
+Sol/medium research pass with deliberate scouting for deeper sources. When the scout
 finds unread deeper evidence with a stated information gap, the
-adapter runs one additional Luna/max pass seeded with those discoveries and merges
+adapter runs one additional Sol/medium pass seeded with those discoveries and merges
 both results. Domain-specific primary-source and independent-origin requirements, missing
 source/unique-claim floors or an incomplete scout report also trigger
 that follow-up. Already-read non-doc sources alone do not trigger repetition. A complete result
@@ -87,8 +89,8 @@ meeting the domain requirements stops after the first pass. Each run records
 normalized unique facts, novel mechanisms and origin proxies. Gate-confirmed
 novel facts are a lower bound; unaudited facts are never labeled supported. The merge
 and scope check remain `gpt-6.1-sol` at `medium`. Explicit model/effort overrides
-apply to both standard research passes. Quick keeps one low-effort pass; saturate
-keeps two independent max-effort passes. `--passes` counts additional passes in
+apply to both standard research passes. Quick keeps one medium-effort pass; saturate
+keeps two independent medium-effort passes. `--passes` counts additional passes in
 the adaptive lane, so its standard default is 1 (two research passes in total).
 
 ## Research and shared resources
@@ -214,8 +216,6 @@ def translate(text: str, skill: str, relative: str) -> str:
         text = text[:history_match.start()] + "CODEX_HISTORY_PLACEHOLDER\n" + text[history_match.end():]
     text = active_translation(text)
     text = text.replace("~/.global-ai-hub/scripts/source_library.py", ".agents/skills/dr/scripts/research_library.py")
-    if history is not None:
-        text = text.replace("CODEX_HISTORY_PLACEHOLDER\n", history)
     if relative == "SKILL.md":
         frontmatter_end = text.index("\n---", 4) + len("\n---")
         note = "\n\nRead `references/codex-runtime.md` and `references/research-library.md` before executing this workflow. They define\nCodex model selection, shared-source reuse, website completion, and resource paths.\n"
@@ -224,13 +224,10 @@ def translate(text: str, skill: str, relative: str) -> str:
         text = text.replace("on for a new artifact at `standard`/`saturate`, off at `quick` and on refresh", "required before promotion; quick checks every risky claim")
         text = re.sub(r"(?m)^(\| quick \|.*)$", lambda match: match[0].replace("| off |", "| all risky claims |"), text)
         text = re.sub(r"(?m)^4\. \*\*Blind claim gate\*\*.*$", "4. **Blind claim gate**, required before promotion: `python3 .agents/skills/dr/scripts/codex_dr_run.py gate <slug>` validates research-gate/v2 inputs. It predetermines every risky claim plus ten ordinary claims at standard, every risky claim at quick, and all claims at saturate. The independent Sol/medium judge preserves the complete canonical text and ID, and supplies exact Unicode evidence spans bound to immutable source hashes. Missing/duplicate/substituted/stale judgments fail. Any non-supported verdict stops promotion. Review and correct the canonical claims, rerun the gate, then render and finish. Demoting confidence alone does not bypass the gate. Every attempt remains private; finish rechecks the current claim and evidence hashes. See `references/codex-runtime.md`.", text)
-        if relative == "SKILL.md":
-            text = re.sub(r"(?m)^model: .+$", "model: gpt-6-luna", text, count=1)
-            text = re.sub(r"(?m)^effort: .+$", "effort: max", text, count=1)
         text = text.replace("Nothing about a run is written anywhere else until Phase 2 installs the finished skill.", "Research stays there until Phase 2 installs the skill and Phase 3 exports llms packs and merges both concept trees.")
-        text = re.sub(r"(?m)^\| standard \|.*$", "| standard | 5, cap 8 | 3 URLs; domain origin policy | 1 | no | adaptive: gpt-6-luna `max` research + scout, then one additional gpt-6-luna `max` pass on deeper-source or floor evidence (2 research passes total when triggered; ≤4 in flight) | all risky claims plus 10 ordinary claims | `--meta --no-sync` (spoke) / full `--no-sync` (standalone) |", text)
-        text = re.sub(r"(?m)^(\| saturate \|.*)$", lambda match: match[0].replace("gpt-6.1-sol", "gpt-6-luna"), text)
-        text = re.sub(r"(?m)^4\. \*\*Fan-out, one command:\*\*.*$", "4. **Fan-out, one command:** `python3 .agents/skills/dr/scripts/codex_dr_run.py research <slug>` runs slim headless `codex exec` agents for every pending concept. At `standard`, the adaptive lane starts one gpt-6-luna `max` research pass that also scouts for deeper sources (`--probe-scout`, on by default). Its brief requires at least six searches for postmortems, engineering blogs, issue trackers, forums, source code, and papers; `source put` for each relevant hit; and a top-level `scout` report with `tiers_seen` and `candidates`. If the scout finds unread deeper evidence with a stated gap, domain-specific primary-source or origin requirements or source/unique-claim floors are missed, or the scout report is incomplete, the adapter automatically runs ONE additional gpt-6-luna `max` pass. The second pass receives the first pass's sources and scout candidates as SEED SOURCES, non-docs first, to read and investigate more deeply. That is two research passes total, merged into `claims/<slug>.json`. A complete result meeting domain requirements stops after the first pass; already-read source tiers alone do not trigger repetition. `saturate` uses two independent gpt-6-luna `max` passes; `quick` uses one gpt-6-luna `low` pass. The merge and scope check use one tool-less gpt-6.1-sol `medium` call, including when the first pass stands alone. The harness drops off-topic claims to `claims/passes/<slug>-off-topic.json`, prunes orphaned sources, and records `off_topic_dropped`. Workers run `claims-check`; only the parent records `concept-done`. At most four agents run at once by default. `--lane`, `--passes N`, `--model`, and `--effort` override the defaults; model and effort apply to the scout too. Each worker gets a bounded brief under `<run dir>/briefs/`, no skill catalogue, and no MCP servers. Measured token usage lands in `<run dir>/agents/<concept>.json`; cost stays unknown unless reported. `research --dry-run` writes the briefs without running models. If the Codex CLI is unavailable, dispatch those briefs with the harness's subagent tool at the same model and effort, then record the merged claims through the adapter.", text)
+        text = re.sub(r"(?m)^\| standard \|.*$", "| standard | 5, cap 8 | 3 URLs; domain origin policy | 1 | no | adaptive: gpt-6.1-sol `medium` research + scout, then one additional gpt-6.1-sol `medium` pass on deeper-source or floor evidence (2 research passes total when triggered; ≤4 in flight) | all risky claims plus 10 ordinary claims | `--meta --no-sync` (spoke) / full `--no-sync` (standalone) |", text)
+        text = re.sub(r"(?m)^(\| saturate \|.*)$", lambda match: match[0].replace("`max`", "`medium`"), text)
+        text = re.sub(r"(?m)^4\. \*\*Fan-out, one command:\*\*.*$", "4. **Fan-out, one command:** `python3 .agents/skills/dr/scripts/codex_dr_run.py research <slug>` runs slim headless `codex exec` agents for every pending concept. At `standard`, the adaptive lane starts one gpt-6.1-sol `medium` research pass that also scouts for deeper sources (`--probe-scout`, on by default). Its brief requires at least six searches for postmortems, engineering blogs, issue trackers, forums, source code, and papers; `source put` for each relevant hit; and a top-level `scout` report with `tiers_seen` and `candidates`. If the scout finds unread deeper evidence with a stated gap, domain-specific primary-source or origin requirements or source/unique-claim floors are missed, or the scout report is incomplete, the adapter automatically runs ONE additional gpt-6.1-sol `medium` pass. The second pass receives the first pass's sources and scout candidates as SEED SOURCES, non-docs first, to read and investigate more deeply. That is two research passes total, merged into `claims/<slug>.json`. A complete result meeting domain requirements stops after the first pass; already-read source tiers alone do not trigger repetition. `saturate` uses two independent gpt-6.1-sol `medium` passes; `quick` uses one gpt-6.1-sol `medium` pass. The merge and scope check use one tool-less gpt-6.1-sol `medium` call, including when the first pass stands alone. The harness drops off-topic claims to `claims/passes/<slug>-off-topic.json`, prunes orphaned sources, and records `off_topic_dropped`. Workers run `claims-check`; only the parent records `concept-done`. At most four agents run at once by default. `--lane`, `--passes N`, `--model`, and `--effort` override the defaults; model and effort apply to the scout too. Each worker gets a bounded brief under `<run dir>/briefs/`, no skill catalogue, and no MCP servers. Measured token usage lands in `<run dir>/agents/<concept>.json`; cost stays unknown unless reported. `research --dry-run` writes the briefs without running models. If the Codex CLI is unavailable, dispatch those briefs with the harness's subagent tool at the same model and effort, then record the merged claims through the adapter.", text)
         text = text.replace("an agent ends by running `codex_dr_run.py concept-done` itself;", "workers run `codex_dr_run.py claims-check`; the parent alone records merged claims with `concept-done`;")
         text = text.replace("The source cache holds provenance only (URL, title, tier, date), not page bodies, so gate fetches are real fetches.", "The source cache can hold text bodies as well as provenance. The gate reads a fresh cached text body when available; a provenance-only hit requires a real fetch.")
         text = text.replace("`~/.global-ai-hub/concept-tree/tree.json`, written only by `codex_dr_run.py finish`.", "`~/.global-ai-hub/concept-tree/tree.json`, written by `codex_dr_run.py finish` and merge-only tree synchronization after placement.")
@@ -259,19 +256,28 @@ def translate(text: str, skill: str, relative: str) -> str:
         text = text.replace("under its own authority threshold of 5 concepts / 3 sources", "under its depth-specific independent-source floor")
         text = text.replace("below its own authority threshold of 5 concepts / 3 sources", "below its depth-specific independent-source floor")
         # CFE source still describes the old uniform deep lane; DR owns defaults.
-        text = re.sub(r"Its research lane is two independent.*?unless the user asked for a different lane\.", "Its standard research lane is adaptive: one gpt-6-luna `max` research pass scouts for deeper sources and triggers one additional seeded gpt-6-luna `max` pass on source-tier or floor evidence (two research passes total). Saturate always uses two independent Luna/max passes. The adapter preserves the merge and scope gate at gpt-6.1-sol `medium`. Do not override model, effort, passes, or lane unless the user requests it.", text)
+        text = re.sub(r"Its research lane is two independent.*?unless the user asked for a different lane\.", "Its standard research lane is adaptive: one gpt-6.1-sol `medium` research pass scouts for deeper sources and triggers one additional seeded gpt-6.1-sol `medium` pass on source-tier or floor evidence (two research passes total). Saturate always uses two independent Sol/medium passes. The adapter preserves the merge and scope gate at gpt-6.1-sol `medium`. Do not override model, effort, passes, or lane unless the user requests it.", text)
     if skill == "rabbithole":
         # The inherited folded description exceeds Codex's 1000-character cap.
         text = text.replace("Narrow inverse of concept-family-explorer:", "Inverse of concept-family-explorer:")
         text = text.replace("take ONE already-named concept and exhaust it", "exhaust ONE named concept")
-        text = re.sub(r"One ordinary research pass \(reuse.*?given\):", "One ordinary research pass (reuse `/dr` through the Codex adapter; use `research --lane deep --passes 2` for two independent gpt-6-luna `max` passes merged by the shared runtime, or read `seedMaterial` first if given):", text, flags=re.DOTALL)
+        text = re.sub(r"One ordinary research pass \(reuse.*?given\):", "One ordinary research pass (reuse `/dr` through the Codex adapter; use `research --lane deep --passes 2` for two independent gpt-6.1-sol `medium` passes merged by the shared runtime, or read `seedMaterial` first if given):", text, flags=re.DOTALL)
+    # Apply the Codex default only to active model/effort instructions. Restore
+    # historical changelogs afterward so prior study settings remain exact.
+    text = re.sub(r"\bgpt-6(?:\.1-sol|-astra|-luna)\b", "gpt-6.1-sol", text)
+    text = re.sub(r"(gpt-6\.1-sol\s+)`(?:low|high|xhigh|max)`", r"\1`medium`", text)
+    if relative == "SKILL.md":
+        text = re.sub(r"(?m)^model: .+$", "model: gpt-6.1-sol", text, count=1)
+        text = re.sub(r"(?m)^effort: .+$", "effort: medium", text, count=1)
+    if history is not None:
+        text = text.replace("CODEX_HISTORY_PLACEHOLDER\n", history)
     return text + historical
 
 
 def build(repo: Path, source_root: Path, canonical_root: Path | None) -> tuple[dict[Path, bytes], dict]:
     outputs: dict[Path, bytes] = {}
-    provenance = {"schema": "codex-research-sync/v1", "models": MODEL_MAP, "effort": "max",
-                  "dr_defaults": {"model": "gpt-6-luna", "effort": "max", "lane": "adaptive",
+    provenance = {"schema": "codex-research-sync/v1", "models": MODEL_MAP, "effort": "medium",
+                  "dr_defaults": {"model": "gpt-6.1-sol", "effort": "medium", "lane": "adaptive",
                                   "scout": True, "follow_up_passes": 1}, "sources": []}
     for skill in SKILLS:
         primary = source_root / skill

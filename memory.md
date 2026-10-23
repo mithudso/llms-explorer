@@ -1,5 +1,16 @@
 # Memory Log
 
+## Codex research defaults - 2026-10-23
+
+- TASK-880: Codex DR, concept-family-explorer and rabbithole default to `gpt-6.1-sol` with `medium` effort. The generator, research/scout dispatch at every depth, and new ranked plans apply the setting. Explicit overrides and saved run plans retain their settings. Pass structure and verification requirements remain intact. See docs/codex-research-defaults.md.
+
+## Research process comparison - 2026-10-22
+
+- TASK-854 compares updated DR/CFE/rabbithole contracts with the 36 original model-comparison outputs. It freezes the original SQLite packet, tasks, models, efforts, repetitions and output budgets. Both arms receive fresh blind Astra/high judgments with full-statement binding. Results: docs/research/research-process-comparison-2026-10-22/. Raw work remains in its ignored private directory.
+- This is a bounded synthesis comparison with historical controls. It does not measure live retrieval, adaptive follow-up yield, runtime gate accuracy or publication performance. Functional checks separately pass 131 existing research tests and ten comparison checks. Active research runs, both trees, the shared source library and website content remain outside the experiment.
+
+- Results: 35 matched pairs show accepted claim quality 95.27% to 95.37%, reference coverage 9.40 to 9.03 of 24, and depth 2.45 to 2.44 of 3. One Astra/max CFE generation remained unscored after capacity/deadline failures. PR 222 carries the public report and harness; raw records remain private.
+
 ## v0.22.53 - 2026-10-20
 
 - TASK-737: audited both concept trees, llms packs, structured DR claims and generated website content. Recovered 209 missing exports. Website currency is 1,763 nodes, 1,441 references and 88,519 facts, with no unfiled references. Backups preserve older bodies; historical recovery retains research dates and richer references. Report: docs/research/concept-currency-audit-2026-10-20/README.md.
@@ -888,3 +899,7 @@ TASK-832: Exhaustive MongoDB inventory accounts for 1,383 canonical rows and all
 ## 2026-10-22 — MongoDB research paused for skill reload
 
 TASK-832 is paused at the user request for an updated-skill reload. Both queues retain the complete CVS-ranked and source-grouped run-start inventory. Four concepts completed both roots, 64 pack members, four readers and canonical downloads; their fresh gate supports all 43 structured claims. The second four-concept iteration ended with 47 of 50 checked claims supported and three unverified; its 54-claim draft remains withheld. The saved plan has 913 pending concepts and 16 explicit review concepts. The user STOP remains in place; the ranked runner and automatic continuation controller have exited. Resume requires a later user instruction. The local website has 1,530 readers and 89,514 facts, including eight earlier strategy concepts; no new embeddings. All 27 DR skill overlays pass sync validation. Current focused suite:313 tests plus four subtests; added cohort-view fixtures:32 passed. Next-session source gaps and exact claim bindings are in the private next-resume.json beside the frozen plan. Draft PR220 retains code and public queue snapshots.
+
+## 2026-10-23 — MLX-LM full suite
+
+The MLX-LM suite scores 53 candidates and adds 21 researched concepts in eight references, 27 canonical concept/cohort packs and a categorical family index. All 302 statements passed snapshot-bound all-claim gates. All 42 small/full answer tests meet their thresholds; 210 fixed question-bank entries remain reproducible. The third frontier expansion found no above-threshold gap. The verdict is map-bounded coverage, with only one empty round and no frontier-saturation claim. Keyword coverage is verified separately from the paused semantic layer. No new embeddings, global router rebuild or manual deployment ran. The source comparison distinguishes stable v0.32.2 from pinned main. External training integrations remain explicitly external and untested at runtime. The report and verification are in docs/research/mlx-lm-full-suite-2026-10-23/. The leading-inline-code renderer fix shipped independently in PR223, merge d3d7e01d7cc880c24622feb691af038947e5a67e.

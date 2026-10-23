@@ -74,7 +74,7 @@ def make_plan(inventory, *, created=None, execution_labels=None):
     fingerprint = hashlib.sha256(json.dumps(inventory, sort_keys=True, ensure_ascii=False).encode()).hexdigest()
     return {"schema": "mongodb-dr-plan/v1", "plan_id": "mongodb-" + fingerprint[:20],
             "created": created or datetime.now(UTC).isoformat(), "domain": "mongodb",
-            "inventory_sha256": fingerprint, "model": "gpt-6-luna", "effort": "max",
+            "inventory_sha256": fingerprint, "model": "gpt-6.1-sol", "effort": "medium",
             "gate_model": "gpt-6.1-sol", "gate_effort": "medium", "status": "planned",
             "scope": "Run-start backlog; new descendants remain a separate backlog.",
             "rows": rows, "cohorts": cohorts, "handoff_assignments": assignments}

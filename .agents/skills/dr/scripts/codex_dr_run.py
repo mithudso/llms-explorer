@@ -21,8 +21,8 @@ from uuid import uuid4
 MODELS = ("gpt-6.1-sol", "gpt-6-astra", "gpt-6-luna")
 EFFORTS = ("low", "medium", "high", "xhigh", "max")
 MODEL_ALIASES = {"sonnet": MODELS[0], "opus": MODELS[1], "fable": MODELS[1], "haiku": MODELS[2]}
-DEFAULT_RESEARCH_MODEL = "gpt-6-luna"
-DEFAULT_RESEARCH_EFFORT = "max"
+DEFAULT_RESEARCH_MODEL = "gpt-6.1-sol"
+DEFAULT_RESEARCH_EFFORT = "medium"
 _WORKERS = set()
 _WORKERS_LOCK = threading.RLock()
 _WORKERS_CANCELLED = False
@@ -437,6 +437,22 @@ def run_agent(shared, manifest, name, brief, model, effort, max_turns, timeout, 
     return summary
 
 
+def preserve_leading_inline_code(normalize):
+    """Keep balanced inline code while retaining the shared Markdown guards."""
+    def inline_safe(value):
+        # The trusted prefix lets the shared normalizer remove comments and
+        # flatten whitespace without mistaking an inline span for a fence.
+        prefix = "Inline claim: "
+        candidate = normalize(prefix + str(value))
+        if candidate.startswith(prefix):
+            candidate = candidate[len(prefix):]
+            if re.match(r"^`[^`\r\n]+`(?!`)", candidate):
+                return candidate
+        return normalize(value)
+
+    return inline_safe
+
+
 def load_shared(path: Path | None = None):
     path = path or Path(os.environ.get("DR_SHARED_RUN", "~/.global-ai-hub/scripts/dr_run.py")).expanduser()
     if not path.is_file():
@@ -449,10 +465,12 @@ def load_shared(path: Path | None = None):
     for symbol in ("main", "run_agent", "build_brief", "build_gate_brief", "atomic_write", "run_dir", "_now"):
         if not callable(getattr(shared, symbol, None)):
             raise TypeError(f"shared DR runtime is incompatible: missing {symbol}")
+    if callable(getattr(shared, "md_text", None)):
+        shared.md_text = preserve_leading_inline_code(shared.md_text)
     shared.run_agent = lambda *args, **kwargs: run_agent(shared, *args, **kwargs)
     shared.claude_binary = codex_binary  # Existing availability checks now check Codex.
     shared.AGENT_MODEL_BY_DEPTH = {depth: DEFAULT_RESEARCH_MODEL for depth in shared.AGENT_MODEL_BY_DEPTH}
-    shared.AGENT_EFFORT_BY_DEPTH.update(standard=DEFAULT_RESEARCH_EFFORT, saturate=DEFAULT_RESEARCH_EFFORT)
+    shared.AGENT_EFFORT_BY_DEPTH = {depth: DEFAULT_RESEARCH_EFFORT for depth in shared.AGENT_EFFORT_BY_DEPTH}
     # The scout is the first research pass. A hit launches ONE further pass,
     # giving standard research two passes in total rather than three.
     shared.AGENT_PASSES_BY_DEPTH["standard"] = 1
@@ -581,11 +599,11 @@ def load_shared(path: Path | None = None):
         subcommands = next(action.choices for action in parser._actions if action.dest == "cmd")
         for action in subcommands["research"]._actions:
             if action.dest == "model":
-                action.help = "research and scout model (default: gpt-6-luna)"
+                action.help = "research and scout model (default: gpt-6.1-sol)"
             elif action.dest == "effort":
-                action.help = "research and scout effort (default: quick=low standard=max saturate=max)"
+                action.help = "research and scout effort (default: medium at every depth)"
             elif action.dest == "lane":
-                action.help = "quick=single standard=adaptive saturate=deep; adaptive runs a Luna max scout, then one seeded follow-up on deeper-source or floor evidence"
+                action.help = "quick=single standard=adaptive saturate=deep; adaptive runs a Sol medium scout, then one seeded follow-up on deeper-source or floor evidence"
             elif action.dest == "passes":
                 action.help = "follow-up agents per concept in adaptive, total agents in deep (default: quick=1 standard=1 saturate=2)"
         return parser

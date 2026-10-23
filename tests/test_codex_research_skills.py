@@ -6,6 +6,7 @@ import importlib.util
 import io
 import json
 import os
+import re
 import shutil
 import signal
 import subprocess
@@ -64,7 +65,10 @@ class SyncTests(unittest.TestCase):
         self.assertEqual(sync.sync(self.repo, self.sources, self.canonical)["changed"], [])
         path = self.repo / ".agents/skills/dr/SKILL.md"
         text = path.read_text()
-        self.assertIn("model: gpt-6-luna\neffort: max", text)
+        for skill in sync.SKILLS:
+            rendered = (self.repo / ".agents/skills" / skill / "SKILL.md").read_text()
+            self.assertIn("model: gpt-6.1-sol\neffort: medium", rendered)
+            self.assertIn("Use gpt-6.1-sol `medium`", rendered)
         self.assertIn("~/.claude/skill-consolidation/cvs_check.py", text)
         self.assertNotIn("~/.Codex", text)
 
@@ -113,6 +117,22 @@ class SyncTests(unittest.TestCase):
 
 
 class AdapterTests(unittest.TestCase):
+    def test_leading_api_code_survives_legacy_markdown_sanitizer(self):
+        def legacy(value):
+            text = re.sub(r"<!--.*?-->", "", str(value), flags=re.DOTALL)
+            text = re.sub(r"\s+", " ", text).strip()
+            return re.sub(r"^[\s#>\-*=`|]+", "", text).strip()
+
+        normalize = adapter.preserve_leading_inline_code(legacy)
+        claim = "`mlx_lm.tuner.trainer.train()` computes gradients."
+        self.assertNotEqual(legacy(claim), claim)
+        self.assertEqual(normalize(claim), claim)
+        self.assertEqual(normalize("<!-- hidden instruction -->\n" + claim), claim)
+        for text in ("```python\nrun()\n```", "# heading\n---", "`unclosed code"):
+            with self.subTest(text=text):
+                self.assertEqual(normalize(text), legacy(text))
+        self.assertNotIn("\n", normalize("`api()`\n# heading\n---"))
+
     def test_role_mapping_and_efforts_are_explicit(self):
         for source, expected in (("claude-sonnet-5-5", "gpt-6.1-sol"), ("fable", "gpt-6-astra"), ("claude-opus-4-6", "gpt-6-astra"), ("haiku", "gpt-6-luna")):
             self.assertEqual(adapter.map_model(source), expected)
@@ -287,16 +307,17 @@ class AdapterTests(unittest.TestCase):
             self.assertIn("manifest", initialized["paths"])
             adaptive = invoke("research", "adapter-smoke", "--dry-run")
             self.assertEqual(adaptive["lane"], "adaptive")
-            self.assertEqual(adaptive["model"], "gpt-6-luna")
-            self.assertEqual(adaptive["effort"], "max")
-            self.assertEqual(adaptive["probe"], {"model": "gpt-6-luna", "effort": "max", "scout": True})
+            self.assertEqual(adaptive["model"], "gpt-6.1-sol")
+            self.assertEqual(adaptive["effort"], "medium")
+            self.assertEqual(adaptive["probe"], {"model": "gpt-6.1-sol", "effort": "medium", "scout": True})
             self.assertEqual(len(adaptive["briefs"]), 2)
             self.assertIn("at least 6", Path(adaptive["briefs"][0]).read_text())
-            overridden = invoke("research", "adapter-smoke", "--model", "gpt-6-astra", "--effort", "medium", "--dry-run")
+            overridden = invoke("research", "adapter-smoke", "--model", "gpt-6-astra", "--effort", "max", "--dry-run")
             self.assertEqual(overridden["probe"]["model"], "gpt-6-astra")
-            self.assertEqual(overridden["probe"]["effort"], "medium")
+            self.assertEqual(overridden["probe"]["effort"], "max")
             deep = invoke("research", "adapter-smoke", "--lane", "deep", "--passes", "2", "--dry-run")
             self.assertEqual(deep["passes"], 2)
+            self.assertEqual((deep["model"], deep["effort"]), ("gpt-6.1-sol", "medium"))
             for name in deep["briefs"]:
                 brief = Path(name).read_text()
                 self.assertIn("claims-check", brief)
@@ -306,6 +327,13 @@ class AdapterTests(unittest.TestCase):
             self.assertTrue(gate["dry_run"])
             self.assertIn("Codex web open", Path(gate["brief"]).read_text())
             self.assertFalse((root / "telemetry.jsonl").exists())
+            for depth, lane, passes in (("quick", "single", 1), ("saturate", "deep", 2)):
+                slug = "adapter-" + depth
+                invoke("init", "Codex depth defaults", "--slug", slug, "--depth", depth,
+                       "--concepts", "Atomic publication")
+                result = invoke("research", slug, "--dry-run")
+                self.assertEqual((result["model"], result["effort"]), ("gpt-6.1-sol", "medium"))
+                self.assertEqual((result["lane"], result["passes"]), (lane, passes))
 
 
 @unittest.skipUnless((Path.home() / ".global-ai-hub/scripts/dr_run.py").exists(), "shared DR runtime not installed")
@@ -415,8 +443,8 @@ class ResearchFlowTests(unittest.TestCase):
         url = "https://engineering.example/deep-rename"
         self.scout["candidates"].append({"url": url, "tier": "blog", "why": "Durability edge case"})
         result = self.research()
-        self.assertEqual([call["model"] for call in self.calls], ["gpt-6-luna", "gpt-6-luna", "gpt-6.1-sol"])
-        self.assertEqual([call["effort"] for call in self.calls], ["max", "max", "medium"])
+        self.assertEqual([call["model"] for call in self.calls], ["gpt-6.1-sol"] * 3)
+        self.assertEqual([call["effort"] for call in self.calls], ["medium"] * 3)
         self.assertIn("SEED SOURCES", self.calls[1]["brief"])
         self.assertIn(url, self.calls[1]["brief"])
         self.assertEqual(result["pass_count"], 2)

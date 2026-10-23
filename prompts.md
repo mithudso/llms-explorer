@@ -1,5 +1,19 @@
 # Prompts Log
 
+## Prompt v66 - 2026-10-23
+
+> Update the codex versions of the skills to use medium effort and sol.
+
+Scope: TASK-880. Apply Sol/medium to the three Codex research skills, their generator and runtime defaults, and new ranked plans. Preserve explicit overrides, existing research plans and the shared Claude runtime. Verify and deliver through a merged PR.
+
+## Prompt v65 - 2026-10-22
+
+> Run a comparison of the updated research process with the old research process using the model comparison tests as a baseline.
+
+Scope: TASK-854. Reuse the 36-trial fixed-source model benchmark as historical controls, generate a matched updated-contract matrix, blind-score both versions consistently, verify the current runtime controls separately, and save reproducible results with explicit historical-control and bounded-stage limits. Preserve active runs and original evidence.
+
+Outcome: all 36 updated cells were attempted. The report contains 35 completed matched pairs and one explicit provider-capacity failure, with common blind judgments, full attempt accounting and regression validation. Delivery: PR 222.
+
 ## Prompt v64 - 2026-10-20
 
 > Make sure that all concept runs update the website in ~/dev/llms-explorer, also do an audit of the current concept trees, the llms files, and other research and what shows up on the website and make sure the website is up to speed with the latest.
@@ -869,3 +883,8 @@ The user restored Wrangler login and supplied a fine-grained GitHub key for priv
 ## Prompt v66 - 2026-10-22T15:24:04.146296+00:00
 - User request:
   - stop after the current iteration. Will need to reload the updated skills.
+
+## Prompt — 2026-10-23 MLX-LM full suite
+
+- User request: run the full-suite skill on mlx-lm.
+- Applied the current uncapped CFE mapping, source-gated Codex research, concept packs, family rollup, audits and repository delivery. Preserve embeddings and concurrent work.

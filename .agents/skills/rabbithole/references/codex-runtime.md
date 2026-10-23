@@ -12,18 +12,20 @@ to detect source drift; omit `--check` to sync with an automatic backup.
 | Opus / Fable | `gpt-6-astra` |
 | Haiku | `gpt-6-luna` |
 
+All three Codex research skills default to `gpt-6.1-sol` at `medium` effort.
+The aliases above remain available for explicit overrides; they do not select defaults.
 This maps workflow tiers, not equivalent model capability or price. Claude study
 results in inherited changelogs describe Claude runs only. Codex comparisons live
 in the repository research benchmark report. Supported reasoning efforts on this
 installation are `low`, `medium`, `high`, `xhigh`, and `max`; retain the requested
 effort. The skill's `model` and `effort` frontmatter document defaults. They do not
 switch the active Codex session. Headless invocations enforce them with `--model`
-and `-c 'model_reasoning_effort="max"'` (or the requested effort).
+and `-c 'model_reasoning_effort="medium"'` (or the requested effort).
 
-Codex `/dr` defaults to `gpt-6-luna` at `max` effort. Standard research runs one
-Luna/max research pass with deliberate scouting for deeper sources. When the scout
+Codex `/dr` defaults to `gpt-6.1-sol` at `medium` effort. Standard research runs one
+Sol/medium research pass with deliberate scouting for deeper sources. When the scout
 finds unread deeper evidence with a stated information gap, the
-adapter runs one additional Luna/max pass seeded with those discoveries and merges
+adapter runs one additional Sol/medium pass seeded with those discoveries and merges
 both results. Domain-specific primary-source and independent-origin requirements, missing
 source/unique-claim floors or an incomplete scout report also trigger
 that follow-up. Already-read non-doc sources alone do not trigger repetition. A complete result
@@ -31,8 +33,8 @@ meeting the domain requirements stops after the first pass. Each run records
 normalized unique facts, novel mechanisms and origin proxies. Gate-confirmed
 novel facts are a lower bound; unaudited facts are never labeled supported. The merge
 and scope check remain `gpt-6.1-sol` at `medium`. Explicit model/effort overrides
-apply to both standard research passes. Quick keeps one low-effort pass; saturate
-keeps two independent max-effort passes. `--passes` counts additional passes in
+apply to both standard research passes. Quick keeps one medium-effort pass; saturate
+keeps two independent medium-effort passes. `--passes` counts additional passes in
 the adaptive lane, so its standard default is 1 (two research passes in total).
 
 ## Research and shared resources
