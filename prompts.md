@@ -1,5 +1,13 @@
 # Prompts Log
 
+## Prompt v67 - 2026-10-24
+
+> run the rabbithole skill on tuis  look into and record information on all of the tuis mentioned here: https://github.com/rothgar/awesome-tuis
+
+Scope: TASK-909. Pin every awesome-tuis entry, acquire first-party project evidence, record complete catalog coverage separately from rabbithole depth saturation, research TUI architecture through the Codex adapter, verify canonical claims and persist qualified outputs. Use Sol/medium. Preserve divergent main and ongoing MongoDB research. Delta: prompt v66 to v67.
+
+Outcome: all 718 listed rows recorded with first-party source scope and two explicit404 gaps; 65 architecture claims after six measured depth passes; current semantic gates support 150 selected statements. Both-tree and scoped website exports verified. Final CI/merge receipts follow in the research report.
+
 ## Prompt v66 - 2026-10-23
 
 > Update the codex versions of the skills to use medium effort and sol.

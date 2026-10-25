@@ -1,5 +1,14 @@
 # Memory Log
 
+## v0.22.54 - 2026-10-24
+
+- TASK-909 records the complete Awesome TUIs inventory pinned to 98a107625c87cca75cd5785afcb61a91e46bb6af. Catalog: 718 distinct listed URLs, 717 shared metadata acquisition groups, 13 categories. All rows have profiles: 678 README records, 36 official pages, two cached historical excerpts, two explicit GitHub404 gaps (kagan, tuiserial). Verified 1,393 private source bodies. Square Tic Tac Toe has its own subtree README and is distinct from the LearnByExample collection.
+- Two canonical DR runs preserve 718 attributed catalog observations and 65 architecture claims. Independent bound gates pass 101 catalog claims and 49 architecture claims (all risky plus ten ordinary each); 633 other unique statements retain NOT-SAMPLED. Depth baseline 18 plus passes 14/9/7/6/6/5 ends at 65. Rates: 43.75%, 21.95%, 14.58%, 11.11%, 10%, 7.69%. BUDGET_EXHAUSTED at default maxPasses=6; no saturation finding.
+- Fixed parked-domain/redirect provenance, procedural README excerpts mislabeled as descriptions, parent-repository scope, one overbroad Bubble Tea statement and unreadable xterm source text. Failed attempts remain private. Auxiliary checkpoints belong below claims/passes; direct claims/*.json checkpoints inflated rendering and failed the canonical gate. KNOW-915 and KNOW-916 preserve these concrete lessons.
+- Three accepted packs export into both the global hub and repository, with reader/tree/context/facts/keyword data. Final scoped generation preserves every non-TUI leaf file and tree node against the frozen baseline. Broad finish website receipts remain historical. Existing vectors remain unchanged. Raw sources, provenance and gates stay private. No user-level skill or registry rebuild was added.
+- Report: docs/research/awesome-tuis-2026-10-24/README.md; catalog: catalog.md and catalog.json; checks: verification.json. Private runs: /Users/mitch/.global-ai-hub/research/awesome-tuis-2026-10-24/ and /Users/mitch/.global-ai-hub/research/awesome-tuis-catalog-2026-10-24/.
+- Delta: prompt v66 to v67; memory 0.22.53 to 0.22.54; catalog 1.0.0 to 1.0.1; report 1.0.0 to 1.1.0. Remaining: final independent export audit, repository CI and remote merge. Continue those steps without repeating source acquisition or paid discovery. Further depth is follow-up from 65 canonical claims. Preserve shared main's two unpublished commits and other worktrees.
+
 ## Codex research defaults - 2026-10-23
 
 - TASK-880: Codex DR, concept-family-explorer and rabbithole default to `gpt-6.1-sol` with `medium` effort. The generator, research/scout dispatch at every depth, and new ranked plans apply the setting. Explicit overrides and saved run plans retain their settings. Pass structure and verification requirements remain intact. See docs/codex-research-defaults.md.
