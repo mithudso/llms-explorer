@@ -6,7 +6,7 @@
 
 Scope: TASK-909. Pin every awesome-tuis entry, acquire first-party project evidence, record complete catalog coverage separately from rabbithole depth saturation, research TUI architecture through the Codex adapter, verify canonical claims and persist qualified outputs. Use Sol/medium. Preserve divergent main and ongoing MongoDB research. Delta: prompt v66 to v67.
 
-Outcome: all 718 listed rows recorded with first-party source scope and two explicit404 gaps; 65 architecture claims after six measured depth passes; current semantic gates support 150 selected statements. Both-tree and scoped website exports verified. Final CI/merge receipts follow in the research report.
+Outcome: all 718 listed rows recorded with first-party source scope and two explicit404 gaps; 65 architecture claims after six measured depth passes; current semantic gates support 150 selected statements. Both-tree and scoped website exports verified. Delivery and final CI/merge receipt: https://github.com/mithudso/llms-explorer/pull/232
 
 ## Prompt v66 - 2026-10-23
 

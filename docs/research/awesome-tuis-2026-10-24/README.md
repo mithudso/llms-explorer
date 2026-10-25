@@ -42,3 +42,11 @@ The independent DR semantic gates check every risky claim and a deterministic or
 Reuse the existing run manifests and source library. Do not repeat acquired projects or paid baseline research. Start further architecture depth from the 65 canonical claims and the saved six-pass ledger. A future depth run still needs two consecutive rates below 5% to establish saturation. Recheck the two 404 links if a renamed official project becomes discoverable. The source catalog is complete as an inventory survey; project-specific depth and runtime acceptance remain separate work.
 
 The isolated delivery preserves the shared checkout's divergent unpublished main commits and every other active research run. See `verification.json` for final claim gates and export/delivery receipts.
+
+## Delivery
+
+Independent audit reports no remaining Medium or High findings. Current CI and merge status:
+
+https://github.com/mithudso/llms-explorer/pull/232
+
+All changed repository paths and permanent file URLs are listed in `files.md`. No source acquisition, paid discovery or local export steps remain.
