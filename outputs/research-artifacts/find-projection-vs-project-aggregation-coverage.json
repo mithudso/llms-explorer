@@ -1,0 +1,240 @@
+{
+  "schema": "research-public-artifact/v1",
+  "concept": "Find projection vs $project aggregation coverage",
+  "slug": "find-projection-vs-project-aggregation-coverage",
+  "canonical_concept_id": "concept:bc0bfe1403bc5bd00e3ba4ac5d7b1764a284243b3735f07670743e96cb252b5b",
+  "canonical_artifact_sha256": "5fb74665b6b95386462b7465aeca599d96dde96bf3a74923466d1479f405b1ea",
+  "claims": [
+    {
+      "id": "clm:0b07e9c2af1b6472c9218f8d76235f22c5589039829324d75bf67e099406d4bb",
+      "text": "A narrow scalar example is an index {sensorId: 1, ts: -1} serving an equality filter on sensorId, descending ts order, and projection {sensorId: 1, ts: 1, _id: 0}; adding a requested field absent from that index requires fetching documents. (high confidence)",
+      "source_url": "https://www.mongodb.com/docs/manual/core/query-optimization/",
+      "also": [
+        "https://blog.earezki.com/books/unbound-mongodb-at-scale/ch11/"
+      ],
+      "validation_status": "SUPPORTED",
+      "evidence_ids": [
+        "ev:0dbf7ca4a9fdb0547d5c96b71cb55541de493f4e3ec0f74ede86767d99a7502a"
+      ]
+    },
+    {
+      "id": "clm:2cd44b5c329ed8babb5d40def40e40c8320f09ab0090e44f34360ada69b88ef3",
+      "text": "Projection reduces returned data and network traffic, but document reads disappear only when a covered plan can answer the query from an index; an IXSCAN followed by FETCH still reads collection documents. (high confidence)",
+      "source_url": "https://www.mongodb.com/docs/manual/core/query-optimization/",
+      "also": [
+        "https://blog.frogred8.dev/docs_en/023_mongodb_covered_query/",
+        "https://www.devadvisor.io/blog/08-2026_mongodb-distinct-scan-covered-index/",
+        "https://dba.stackexchange.com/questions/198444/how-mongodb-projection-affects-performance"
+      ],
+      "validation_status": "SUPPORTED",
+      "evidence_ids": [
+        "ev:60a9dfc59d243282d8a11575afb27509054ea87dcc91fe0f5314ed54bd38c0ed",
+        "ev:8fbae019eb0bb1d67ab8d07e569a264320b67134d9e4ab59404479285b9506d1",
+        "ev:9347323078297e8f2032d35fdd543928dbcd6fcdf8bf30ee124bb228dc4fb233"
+      ]
+    },
+    {
+      "id": "clm:0aadc2df9496ba2cadc025b28f91cc22d8a3972869d0b8d4b6b0bed2ac339a3a",
+      "text": "For ordinary scalar-field coverage, the fields needed by the query and the returned fields must be available from the same index. Explicitly exclude _id when it is absent from that index; an index that includes _id can instead return it without violating this requirement. (high confidence)",
+      "source_url": "https://www.mongodb.com/docs/manual/core/query-optimization/",
+      "also": [
+        "https://blog.frogred8.dev/docs_en/023_mongodb_covered_query/",
+        "https://darkmannn.dev/posts/indexing-in-mongodb/"
+      ],
+      "validation_status": "SUPPORTED",
+      "evidence_ids": [
+        "ev:8fbae019eb0bb1d67ab8d07e569a264320b67134d9e4ab59404479285b9506d1"
+      ]
+    },
+    {
+      "id": "clm:ff947f944492e4fdf142f662401a650a154b40f14aef07d1b92c98c3c032e3e8",
+      "text": "find() and $project include _id by default. If the candidate covering index omits _id, explicitly project _id: 0; otherwise retrieving _id can force a document fetch even when every other requested field is indexed. (high confidence)",
+      "source_url": "https://www.mongodb.com/docs/manual/core/query-optimization/",
+      "also": [
+        "https://www.mongodb.com/docs/manual/reference/method/db.collection.find/",
+        "https://www.mongodb.com/docs/manual/reference/operator/aggregation/project/",
+        "https://nicholasjohnson.com/mongo-course/find-projection/",
+        "https://blog.earezki.com/books/unbound-mongodb-at-scale/ch11/"
+      ],
+      "validation_status": "SUPPORTED",
+      "evidence_ids": [
+        "ev:4f8167dd9af719eee7e2c074c2f37bafdc67f60b88da92347812df9c4df99348",
+        "ev:7eae307658a5d405ef9b6151b079de41aaceefd7c4f4bbd92d7e101a60d6387c",
+        "ev:8fbae019eb0bb1d67ab8d07e569a264320b67134d9e4ab59404479285b9506d1"
+      ]
+    },
+    {
+      "id": "clm:c208c5994240fea286278e2dcd7f14ed41c06b9a79a02790b9eab60890c2e4fe",
+      "text": "Verify coverage with explain execution statistics and the actual winning plan: an index-only plan has no document-fetch ancestor of its index scan, and totalDocsExamined should be zero. An IXSCAN by itself is insufficient because a FETCH can sit above it. (high confidence)",
+      "source_url": "https://www.mongodb.com/docs/manual/reference/explain-results/",
+      "also": [
+        "https://blog.earezki.com/books/unbound-mongodb-at-scale/ch11/",
+        "https://dba.stackexchange.com/questions/198444/how-mongodb-projection-affects-performance"
+      ],
+      "validation_status": "SUPPORTED",
+      "evidence_ids": [
+        "ev:0dbf7ca4a9fdb0547d5c96b71cb55541de493f4e3ec0f74ede86767d99a7502a",
+        "ev:56b968e74b199cf25924a16188fdea5debd3bc31a1af6e2449a3e70195aa0d68"
+      ]
+    },
+    {
+      "id": "clm:58690369498bb4581ef0a726314aa59ea606d69cdb1b932535df709977dc0125",
+      "text": "A $match filter independent of projected computations can move ahead of projection stages; a filter on a computed result cannot simply move before the stage that computes it. This constrains assumptions about index access when shaping output. (low confidence)",
+      "source_url": "https://www.mongodb.com/docs/manual/core/aggregation-pipeline-optimization/",
+      "also": [],
+      "validation_status": "SUPPORTED",
+      "evidence_ids": [
+        "ev:d3de667e962c8a5bb4ab67c002a278878563bd842a5600d35194a3638249188e"
+      ]
+    },
+    {
+      "id": "clm:68ee75bd6ac06be34887297ecf4e118c4df0a1f31eb434f32a0a88a8c92821e6",
+      "text": "find() sorts on original field values before applying projection. Aggregation stage order and optimizer dependencies matter: a $sort preceded by $project can lose index-backed sorting, and moving a computed projection across sort plus limit can change which documents raise errors. (high confidence)",
+      "source_url": "https://www.mongodb.com/docs/manual/reference/method/db.collection.find/",
+      "also": [
+        "https://www.mongodb.com/docs/manual/core/aggregation-pipeline-optimization/",
+        "https://jira.mongodb.org/browse/SERVER-54128"
+      ],
+      "validation_status": "SUPPORTED",
+      "evidence_ids": [
+        "ev:77eff6dbb7c5bef7be21aeef5e6fe4753b665540a7cbd06fef555172b389cc0a",
+        "ev:a9b96ee27db01192ffd21c29d9ab902e446bc03048cbf3c22a8daad7e05bfc22",
+        "ev:f24ad3c3ba70be2a99b7ad570fc0b396428382ac4d165b574fca206c7afb18db"
+      ]
+    },
+    {
+      "id": "clm:32393c072c56023f21b00724b307af0154c33b4cb038ec18f90f7e1e1e632144",
+      "text": "In its update dated 2026-10-22, SERVER-135176 reports a presence-sensitive aggregation example where projection pushdown makes an indexed pipeline return $type as null for a missing field; the index-free pipeline returns missing. The report does not identify affected or fixed release versions, so it cannot establish a release-wide exposure range. (low confidence) (verified as of 2026-10-22)",
+      "source_url": "https://jira.mongodb.org/browse/SERVER-135176",
+      "also": [],
+      "validation_status": "SUPPORTED",
+      "evidence_ids": [
+        "ev:3fc0a1e5f3f114f7daa3c15d28fabb79e89184a87303c1c2e35d5d5293b946a6"
+      ]
+    },
+    {
+      "id": "clm:77e00a8c42d4084dd46afff676f439d33ac65e8844870e758216b938b3e3852b",
+      "text": "For the scalar inclusion examples, explain(\"executionStats\") distinguishes PROJECTION_COVERED over IXSCAN with totalDocsExamined: 0 from a projection over FETCH and IXSCAN with positive document examinations. Inspect actual executions with matching data rather than equating index use with coverage. (high confidence)",
+      "source_url": "https://blog.frogred8.dev/docs_en/023_mongodb_covered_query/",
+      "also": [
+        "https://darkmannn.dev/posts/indexing-in-mongodb/"
+      ],
+      "validation_status": "SUPPORTED",
+      "evidence_ids": [
+        "ev:70c0f186306bd7e10ad3acb95a8541f089ee2177c266004dc3529336883e51e0",
+        "ev:9347323078297e8f2032d35fdd543928dbcd6fcdf8bf30ee124bb228dc4fb233"
+      ]
+    },
+    {
+      "id": "clm:99b0f446eb7d25543f39a950dc9aa8b551185e03b66dfa6ada0ba1a481fce80a",
+      "text": "MongoDB issue SERVER-134945 reports a reproducer where adding $count enables covered input and changes a downstream missing-field match result because an absent indexed path is materialized as null. Treat this as a reported correctness edge case, and verify missing-versus-null behavior on the deployed build rather than generalizing it to all versions. (low confidence)",
+      "source_url": "https://jira.mongodb.org/browse/SERVER-134945",
+      "also": [],
+      "validation_status": "SUPPORTED",
+      "evidence_ids": [
+        "ev:594fde43fae4cc6bb543c4eca034ec9bf897939d8160415ee1bf473f23e5cf73"
+      ]
+    },
+    {
+      "id": "clm:f257d4b7eddf6f134a271c7113240a193c59e084e28daf770916a715801f9cbd",
+      "text": "SERVER-54128 documents a historical correctness bug where a computed projection pushed before sort plus limit could raise an error on a document that the original pipeline would discard. The issue describes pushing required input fields instead of eagerly evaluating the computed projection. (low confidence)",
+      "source_url": "https://jira.mongodb.org/browse/SERVER-54128",
+      "also": [],
+      "validation_status": "SUPPORTED",
+      "evidence_ids": [
+        "ev:f24ad3c3ba70be2a99b7ad570fc0b396428382ac4d165b574fca206c7afb18db"
+      ]
+    },
+    {
+      "id": "clm:eb25e4ad9057d45a466033db6307d618cf88dd6fa59d98a0c2be710bbd79190d",
+      "text": "Aggregation can also use a covering index for its input-stage query. Coverage is a property of the optimized dependencies and selected plan, so replacing find projection with $project does not by itself establish or eliminate coverage. The API comparison is an inference from the documented find coverage rules and aggregation index support. (high confidence)",
+      "source_url": "https://www.mongodb.com/docs/manual/core/query-optimization/",
+      "also": [
+        "https://www.mongodb.com/docs/manual/core/aggregation-pipeline-optimization/",
+        "https://www.mongodb.com/docs/manual/reference/explain-results/"
+      ],
+      "validation_status": "SUPPORTED",
+      "evidence_ids": [
+        "ev:398d00600e221d0aada957bbb474278c8a4c60f0afbc1333af662109547c60ff",
+        "ev:6b02c00de9aad8fd815f7cd3b25b624c62ee4440876d89f1309d0cbd90154da9",
+        "ev:8fbae019eb0bb1d67ab8d07e569a264320b67134d9e4ab59404479285b9506d1"
+      ]
+    },
+    {
+      "id": "clm:d43f893986ea100d3a0af7ac6a4d4a847ba9fe6a82caa4e818154630654fdd69",
+      "text": "Current documented find projection accepts aggregation expressions, including computing new fields and replacing existing field values. The older blanket distinction that only aggregation $project can compute output fields is therefore inaccurate. (low confidence)",
+      "source_url": "https://www.mongodb.com/docs/manual/reference/method/db.collection.find/",
+      "also": [],
+      "validation_status": "SUPPORTED",
+      "evidence_ids": [
+        "ev:1742c7eefd30994d88bf5f3634d04567b16ffa20d6a10e87ac685056f19930b3",
+        "ev:d83b6f1bfa62b869046c957777f4087c0e63b7503d49395c46904bf235f20b81"
+      ]
+    },
+    {
+      "id": "clm:7ca06ce73e149752c889c8f800de7b4f6af589dab508845dbbb58735e93aae90",
+      "text": "Both find projection and aggregation $project support inclusion, exclusion, computed values, and default inclusion of _id. Their overlapping output capabilities do not guarantee identical execution plans. (medium confidence)",
+      "source_url": "https://www.mongodb.com/docs/manual/reference/method/db.collection.find/",
+      "also": [
+        "https://www.mongodb.com/docs/manual/reference/operator/aggregation/project/"
+      ],
+      "validation_status": "SUPPORTED",
+      "evidence_ids": [
+        "ev:7eae307658a5d405ef9b6151b079de41aaceefd7c4f4bbd92d7e101a60d6387c",
+        "ev:8d084bfb597ec0b7bd2928604033278694b1672e31bd5a4b19b11e6c78ce6a3a",
+        "ev:cab7e3f018316549fb872b504b44da2ba9684b16dc7257e641f94433f3c4f89c"
+      ]
+    },
+    {
+      "id": "clm:38320f5940241c344a6bc025ed7b84cf77f3d516810e08c1c4fbcf652919f01f",
+      "text": "MongoDB automatically determines the subset of document fields needed by an aggregation pipeline. Adding an early or middle $project solely to reduce fields passed downstream is usually unlikely to improve performance; $project typically belongs at the end to select client output. (high confidence)",
+      "source_url": "https://www.mongodb.com/docs/manual/core/aggregation-pipeline-optimization/",
+      "also": [
+        "https://www.mongodb.com/docs/manual/reference/operator/aggregation/project/",
+        "https://www.mongodb.com/docs/manual/core/query-optimization/"
+      ],
+      "validation_status": "SUPPORTED",
+      "evidence_ids": [
+        "ev:c502bb95837d180dfd20642c4ddb08e46abf4bbb311f9f5d664fa4c94bd7a100"
+      ]
+    },
+    {
+      "id": "clm:571860c1d5f663c62658c100a745b6f46fc14d50b016f3e548afb583f2bdb084",
+      "text": "A production write-up traced unnecessary document reads to a Spring Data include projection that implicitly retained _id. Explicitly excluding _id removed the document-fetch work, while repeated index values still crossed the network; coverage alone did not remove that remaining work. (medium confidence)",
+      "source_url": "https://www.devadvisor.io/blog/08-2026_mongodb-distinct-scan-covered-index/",
+      "also": [
+        "https://www.mongodb.com/docs/manual/core/query-optimization/"
+      ],
+      "validation_status": "SUPPORTED",
+      "evidence_ids": [
+        "ev:9e1aba19d3688be8589f070f47361bc74edfc3c4916737e4d0145e9bf8f17ef2"
+      ]
+    },
+    {
+      "id": "clm:94412607cd9e64fd4c83bdcb09cd0ef60f706502ef91716e6d1641e5fa5e6e01",
+      "text": "A covered query obtains its predicate inputs and returned fields from the same index without examining collection documents. All required fields, including fields needed internally, must be available; null-equality predicates are a documented restriction. (high confidence)",
+      "source_url": "https://www.mongodb.com/docs/manual/core/query-optimization/",
+      "also": [
+        "https://www.mongodb.com/docs/manual/reference/explain-results/"
+      ],
+      "validation_status": "SUPPORTED",
+      "evidence_ids": [
+        "ev:8fbae019eb0bb1d67ab8d07e569a264320b67134d9e4ab59404479285b9506d1"
+      ]
+    },
+    {
+      "id": "clm:4a538912564903f2c41b8ae1b8e55257942877fd614485b3a7d508cb15ff7785",
+      "text": "Since MongoDB 4.4, find projections accept aggregation expressions and can create or replace output fields. An old statement that computed projections require the $project pipeline stage is not a valid modern API distinction. (high confidence)",
+      "source_url": "https://www.mongodb.com/docs/manual/reference/method/db.collection.find/",
+      "also": [
+        "https://jira.mongodb.org/browse/JAVA-5089"
+      ],
+      "validation_status": "SUPPORTED",
+      "evidence_ids": [
+        "ev:1742c7eefd30994d88bf5f3634d04567b16ffa20d6a10e87ac685056f19930b3",
+        "ev:1d3499d4cf8808df060fee8d9eff25aec40f61692d904888178e7415e95e0f98"
+      ]
+    }
+  ],
+  "projection_sha256": "6ad20cd4a7fd59b051e2fd9f100b5fefb1f327d72b074d87c0551391bddfe6f5"
+}
