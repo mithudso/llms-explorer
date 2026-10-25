@@ -4631,3 +4631,36 @@ Every frontier concept, grouped by shared parent (at most 8 per cluster), cluste
 - [ ] Concept: `Safari Apple Intelligence browsing and generated extension workflows` | Parent: `Apple Intelligence` | Mode: `dr` | CVS: `4.40`
 - [ ] Concept: `Describe a Shortcut natural-language automation authoring` | Parent: `Shortcuts Use Model and intelligent automation` | Mode: `dr` | CVS: `4.30`
 - [ ] Concept: `Siri content loading through UIKit drag interactions` | Parent: `Siri app actions confirmation and contextual cues` | Mode: `dr` | CVS: `3.70`
+- [ ] Concept: `Queryable Encryption prefix, suffix and substring query configuration` | Parent: `MongoDB Security Architecture` | Mode: `dr` | CVS: `4.65`
+- [ ] Concept: `Change-stream point-in-time images and retention lifecycle` | Parent: `MongoDB Replication` | Mode: `dr` | CVS: `4.50`
+- [ ] Concept: `Client-side encryption DEK rewrapping with rewrapManyDataKey` | Parent: `MongoDB Security Architecture` | Mode: `dr` | CVS: `4.50`
+- [ ] Concept: `Load-balanced cursor and transaction connection pinning` | Parent: `CMAP Connection Pooling` | Mode: `dr` | CVS: `4.50`
+- [ ] Concept: `MongoClient bulkWrite multi-namespace batching and result cursors` | Parent: `MongoDB Driver Internals` | Mode: `dr` | CVS: `4.50`
+- [ ] Concept: `Queryable Encryption ESC/ECOC metadata compaction and leakage tradeoffs` | Parent: `MongoDB Security Architecture` | Mode: `dr` | CVS: `4.50`
+- [ ] Concept: `Replication flow-control tickets and majority-commit lag diagnosis` | Parent: `MongoDB Replication` | Mode: `dr` | CVS: `4.50`
+- [ ] Concept: `Resharding catch-up critical section and commit boundary` | Parent: `Shard Key Design and Resharding as Cost Levers` | Mode: `dr` | CVS: `4.50`
+- [ ] Concept: `Sharding catalog consistency checks beyond index parity` | Parent: `Shard Key Design and Resharding as Cost Levers` | Mode: `dr` | CVS: `4.50`
+- [ ] Concept: `Tracked query memory across explain, currentOp and profiler` | Parent: `MongoDB Monitoring and Observability` | Mode: `dr` | CVS: `4.45`
+- [ ] Concept: `Atlas Online Archive pause, expiration and deletion lifecycle boundaries` | Parent: `MongoDB Atlas Online Archive` | Mode: `dr` | CVS: `4.40`
+- [ ] Concept: `Atlas Stream Processing per-event vector search enrichment` | Parent: `MongoDB Atlas Stream Processing` | Mode: `dr` | CVS: `4.40`
+- [ ] Concept: `Atlas Data Federation single-collection proxy optimization` | Parent: `MongoDB Atlas Data Federation` | Mode: `dr` | CVS: `4.25`
+- [ ] Concept: `Atlas Online Archive sharding identity safety and orphan recovery` | Parent: `MongoDB Atlas Online Archive` | Mode: `dr` | CVS: `4.25`
+- [ ] Concept: `Atlas Stream Processing cached lookup TTL and eviction` | Parent: `MongoDB Atlas Stream Processing` | Mode: `dr` | CVS: `4.25`
+- [ ] Concept: `Atlas Stream Processing partition idleness versus window idleness` | Parent: `MongoDB Atlas Stream Processing` | Mode: `dr` | CVS: `4.25`
+- [ ] Concept: `Atlas Stream Processing resumable initial sync and source retention` | Parent: `MongoDB Atlas Stream Processing` | Mode: `dr` | CVS: `4.25`
+- [ ] Concept: `Atlas Stream Processing throttle rate limits and backpressure` | Parent: `MongoDB Atlas Stream Processing` | Mode: `dr` | CVS: `4.25`
+- [ ] Concept: `MongoDB Search concurrent segment execution` | Parent: `MongoDB Atlas Search` | Mode: `dr` | CVS: `4.25`
+- [ ] Concept: `MongoDB Search searchNodePreference routing and result consistency` | Parent: `MongoDB Atlas Search` | Mode: `dr` | CVS: `4.25`
+- [ ] Concept: `Queryable Encryption contention and range-index tuning` | Parent: `MongoDB Security Architecture` | Mode: `dr` | CVS: `4.25`
+- [ ] Concept: `Sharded routing-cache invalidation and stale-metadata diagnosis` | Parent: `MongoDB Query Shape Optimization: Sort, Pagination, Operators and Sharded Targeting` | Mode: `dr` | CVS: `4.25`
+- [ ] Concept: `Split change-stream event fragments and fragment-token recovery` | Parent: `MongoDB Replication` | Mode: `dr` | CVS: `4.25`
+- [ ] Concept: `Targeted mirrored reads for replica cache warming` | Parent: `MongoDB Replication` | Mode: `dr` | CVS: `4.25`
+- [ ] Concept: `NoWritesPerformed and retryable batch outcome ambiguity` | Parent: `Retryable Writes` | Mode: `dr` | CVS: `4.15`
+- [ ] Concept: `validate full versus BSON conformance checks across upgrades` | Parent: `Corruption (validate, --repair, wt CLI)` | Mode: `dr` | CVS: `4.05`
+- [ ] Concept: `Awaitable hello streaming monitoring and FaaS polling` | Parent: `SDAM Topology State Machine` | Mode: `dr` | CVS: `4.05`
+- [ ] Concept: `Atlas Stream Processing Lambda external functions and error semantics` | Parent: `MongoDB Atlas Stream Processing` | Mode: `dr` | CVS: `4.00`
+- [ ] Concept: `Atlas Stream Processing regional failover processor semantics` | Parent: `MongoDB Atlas Stream Processing` | Mode: `dr` | CVS: `4.00`
+- [ ] Concept: `MongoDB Search synonym map update propagation and validation` | Parent: `MongoDB Atlas Search` | Mode: `dr` | CVS: `4.00`
+- [ ] Concept: `Aggregation EJSON round-tripping and BSON type preservation` | Parent: `MongoDB Aggregation Pipeline` | Mode: `dr` | CVS: `4.00`
+- [ ] Concept: `Query-settings representative-query backfill and FCV boundaries` | Parent: `MongoDB query planner, plan cache, query settings and hints` | Mode: `dr` | CVS: `3.90`
+- [ ] Concept: `BinData subtype-aware aggregation dispatch and invalid inputs` | Parent: `BSON BinData vector ingestion` | Mode: `dr` | CVS: `3.40`
