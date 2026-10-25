@@ -708,7 +708,7 @@ def render(catalog):
                 )
             out.extend("Limitation: " + x for x in entry.get("limitations", []))
             out.append("")
-    return "\n".join(out) + "\n"
+    return "\n".join(out).rstrip() + "\n"
 
 
 def validate(catalog):
