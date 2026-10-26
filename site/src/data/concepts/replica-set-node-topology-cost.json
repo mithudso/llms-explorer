@@ -1,0 +1,538 @@
+{
+  "slug": "replica-set-node-topology-cost",
+  "concept": "Replica Set Node Topology Cost",
+  "generated": "2026-10-19",
+  "summary": "An Atlas replica set's cost scales with the number and tier of its data-bearing nodes: electable nodes must total 3, 5 or 7, read-only and analytics nodes add capacity without voting, and each data-bearing node is billed at the cluster tier's hourly rate plus its storage. Analytics nodes can use a different tier priced prorated per node, while arbiters are documented only for self-managed sets and the sources disagree on whether the three-node minimum is justified for test environments. Drawn from 9 source pages (MongoDB Atlas docs, manual and blog, forum threads, IBM Community and oneuptime blogs) across definitions, parameters, mechanism, problems and how-to.",
+  "facets": [
+    {
+      "title": "Definitions",
+      "facts": [
+        {
+          "text": "[1](1, 2) On Atlas Core clusters, data-bearing servers are the machines that run the nodes holding your application data. In a sharded cluster, each shard is a replica set whose members are the data-bearing servers. Sharded clusters may also use config servers, which are billed separately from the data-bearing servers.",
+          "source": "https://www.mongodb.com/docs/atlas/billing/cluster-configuration-costs/",
+          "note": null
+        },
+        {
+          "text": "An arbiter has exactly 1 election vote. By default an arbiter has priority 0.",
+          "source": "https://www.mongodb.com/docs/manual/core/replica-set-arbiter/",
+          "note": null
+        },
+        {
+          "text": "MongoDB Atlas pricing is consumption based, i.e. every cluster tier has an hourly price attached. In addition to consumption charges displayed in MongoDB Atlas Cluster Configuration UI, data transfer, backup and support charges are added on top of hourly price.",
+          "source": "https://community.ibm.com/community/user/blogs/manish-negandhi/2026/04/14/optimizing-mongodb-atlas-cost",
+          "note": null
+        },
+        {
+          "text": "Use read-only nodes to optimize local reads in the nodes' respective service areas.",
+          "source": "https://www.mongodb.com/docs/atlas/cluster-config/multi-cloud-distribution/",
+          "note": null
+        },
+        {
+          "text": "We’re excited to announce analytics node tiers for MongoDB Atlas. Analytics node tiers provide greater control and flexibility by allowing you to customize the exact infrastructure you need for your analytics workloads.",
+          "source": "https://www.mongodb.com/company/blog/product-release-announcements/introducing-ability-independently-scale-atlas-analytics-node-tiers",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Structure and components",
+      "facts": [
+        {
+          "text": "On Atlas Infinite clusters, data-bearing servers don't apply. Atlas stores and manages your data in a storage layer that is separate from the compute layer. The electable, read-only, and analytics nodes are compute nodes that access data in the storage layer. To learn more, see MongoDB Atlas Infinite: Architecture.",
+          "source": "https://www.mongodb.com/docs/atlas/billing/cluster-configuration-costs/",
+          "note": null
+        },
+        {
+          "text": "A standard replica set contains a primary node for reads and writes and two secondary nodes that are read only. Analytics nodes provide an additional read-only node that is dedicated to analytical reads.",
+          "source": "https://www.mongodb.com/company/blog/product-release-announcements/introducing-ability-independently-scale-atlas-analytics-node-tiers",
+          "note": null
+        },
+        {
+          "text": "Sharded clusters include additional nodes. The electable nodes on the dedicated Config Server Replica Set (CSRS) count towards the total number of allowable nodes. Each sharded cluster has an additional electable node per region as part of the dedicated CSRS. To learn more, see Replica Set Config Servers.",
+          "source": "https://www.mongodb.com/docs/atlas/cluster-config/multi-cloud-distribution/",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "How it works",
+      "facts": [
+        {
+          "text": "An arbiter holds no data and votes in elections, giving two data-bearing members an odd vote count at lower cost. The manual recommends at most one arbiter, warns that PSA sets can suffer performance problems with w:majority when a secondary lags, and warns that PSA shards can lose availability. The manual page covers self-managed sets and does not mention Atlas.",
+          "source": "https://www.mongodb.com/docs/manual/core/replica-set-arbiter/",
+          "note": null
+        },
+        {
+          "text": "Setting the analytics tier significantly below the base tier can cause replication lag; the analytics node might fall off the oplog. On Atlas Core, analytics storage size must match the base tab, so a small analytics tier does not shrink storage cost; mixing General and Low-CPU across the tabs disables disk auto-scaling.",
+          "source": "https://www.mongodb.com/docs/atlas/cluster-config/multi-cloud-distribution/",
+          "note": null
+        },
+        {
+          "text": "An analytics node tier can be set larger or smaller than the base tier. A tier on the Analytics Tier tab is priced like the same tier on the Base Tier tab, with the price adjusted prorated per node when it differs. Atlas shows the price in the UI at create or edit time.",
+          "source": "https://www.mongodb.com/docs/atlas/cluster-config/multi-cloud-distribution/",
+          "note": null
+        },
+        {
+          "text": "Customizing storage is billed at the full custom amount, not the increment over the tier default. Every data-bearing node carries that storage, so storage customization multiplies with node count.",
+          "source": "https://www.mongodb.com/docs/atlas/billing/cluster-configuration-costs/",
+          "note": null
+        },
+        {
+          "text": "A cluster tier selected on the Analytics Tier tab is priced the same as a cluster tier selected on the Base Tier tab. However, when an Analytics Tier is higher or lower than the Base Tier, the price adjusts accordingly on a prorated per-node basis. The pricing appears in the Atlas UI when you create or edit a cluster. To learn more, see, Manage Billing.",
+          "source": "https://www.mongodb.com/docs/atlas/cluster-config/multi-cloud-distribution/",
+          "note": null
+        },
+        {
+          "text": "The write concern \"majority\" can cause performance issues if a secondary is unavailable or lagging. For advice on how to mitigate these issues, see Mitigate Performance Issues in Self-Managed PSA Replica Sets.",
+          "source": "https://www.mongodb.com/docs/manual/core/replica-set-arbiter/",
+          "note": null
+        },
+        {
+          "text": "Teams with inconsistent needs may want to decrease their analytics node tier below that of their operational nodes. The ability to set a lower tier gives you flexibility and cost savings when you have fewer users or analytics are not your top priority.",
+          "source": "https://www.mongodb.com/company/blog/product-release-announcements/introducing-ability-independently-scale-atlas-analytics-node-tiers",
+          "note": null
+        },
+        {
+          "text": "Atlas provides different cluster tiers. Each cluster tier has a default RAM capacity, storage capacity, and maximum storage speed. The cluster's per-hour charge includes these default values. Atlas uses the selected cluster when deploying all the data-bearing [1] servers in your cluster.",
+          "source": "https://www.mongodb.com/docs/atlas/billing/cluster-configuration-costs/",
+          "note": null
+        },
+        {
+          "text": "Traffic between cluster nodes (replication of writes, deletes and index builds, plus heartbeats) and traffic between an app in the same region and the cluster is billed on the 'Atlas AWS Data Transfer (Same Region)' line. A MongoDB employee estimated heartbeats at about 6.2 to 6.8 GB/day per replica set, roughly $0.06 to $0.07/day, in a 2020 thread.",
+          "source": "https://www.mongodb.com/community/forums/t/aws-atlas-data-transfer-usage/553",
+          "note": "Invoice line per forum thread; docs silent"
+        },
+        {
+          "text": "Teams with large user bases using their BI dashboards may want to increase their analytics node tiers above that of their operational nodes. Choosing a higher tier can be useful when you have many users or require more memory to serve analytics needs. Scaling up the entire cluster tier would be costly, but scaling up just your analytics node tiers helps optimize the cost.",
+          "source": "https://www.mongodb.com/company/blog/product-release-announcements/introducing-ability-independently-scale-atlas-analytics-node-tiers",
+          "note": null
+        },
+        {
+          "text": "Having a large number of regions or having nodes spread across long distances may lead to long election times or replication lag.",
+          "source": "https://www.mongodb.com/docs/atlas/cluster-config/multi-cloud-distribution/",
+          "note": null
+        },
+        {
+          "text": "When you migrate electable nodes from one region to another, Atlas immediately provisions new nodes and deprovisions old ones. Atlas does not wait for MongoDB Search indexes to finish building in the new region before deprovisioning old nodes, so you might experience MongoDB Search downtime during the creation of new indexes.",
+          "source": "https://www.mongodb.com/docs/atlas/cluster-config/multi-cloud-distribution/",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Parameters and configuration",
+      "facts": [
+        {
+          "text": "Atlas requires the total number of electable nodes across all providers and regions in a cluster to be 3, 5, or 7. Electable nodes provide high availability and can become primary.",
+          "source": "https://www.mongodb.com/docs/atlas/cluster-config/multi-cloud-distribution/",
+          "note": null
+        },
+        {
+          "text": "The total number of electable nodes across all providers and regions in the cluster must equal 3, 5, or 7.",
+          "source": "https://www.mongodb.com/docs/atlas/cluster-config/multi-cloud-distribution/",
+          "note": null
+        },
+        {
+          "text": "Atlas limits the total number of nodes in other regions in one project to a total of 100, not including: - Google Cloud regions communicating with each other - Free clusters - Flex clusters",
+          "source": "https://www.mongodb.com/docs/atlas/cluster-config/multi-cloud-distribution/",
+          "note": null
+        },
+        {
+          "text": "The number of availability zones, zones, or fault domains in a region has no effect on the number of MongoDB nodes Atlas can deploy. MongoDB Atlas clusters are always made of replica sets with a minimum of three MongoDB nodes.",
+          "source": "https://www.mongodb.com/docs/atlas/cluster-config/multi-cloud-distribution/",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "How-to and procedures",
+      "facts": [
+        {
+          "text": "Changing an electable node to read-only is done by adding a read-only node and removing an electable node in one operation. Atlas does not guarantee that an analytics node keeps its hostname after a topology change, so connection strings should use replica set tags, not hostnames.",
+          "source": "https://www.mongodb.com/docs/atlas/cluster-config/multi-cloud-distribution/",
+          "note": null
+        },
+        {
+          "text": "To improve the redundancy and availability of a cluster, increase the number of electable nodes in that region. Every Atlas cluster has a Highest Priority region. If your cluster spans multiple regions, you can select which cloud provider region should be the Highest Priority.",
+          "source": "https://www.mongodb.com/docs/atlas/cluster-config/multi-cloud-distribution/",
+          "note": null
+        },
+        {
+          "text": "In some circumstances (such as when you have a primary and a secondary, but cost constraints prohibit adding another secondary), you may choose to add an arbiter to your replica set. An arbiter participates in elections for primary but an arbiter does not have a copy of the data set and cannot become a primary.",
+          "source": "https://www.mongodb.com/docs/manual/core/replica-set-arbiter/",
+          "note": null
+        },
+        {
+          "text": "Use analytics nodes to isolate queries which you do not wish to contend with your operational workload. Analytics nodes help handle data analysis operations, such as reporting queries from BI Connector for Atlas. To direct queries to analytics nodes, use pre-defined replica set tags.",
+          "source": "https://www.mongodb.com/docs/atlas/cluster-config/multi-cloud-distribution/",
+          "note": null
+        },
+        {
+          "text": "Use a single arbiter to avoid problems with data consistency. Multiple arbiters prevent the reliable use of the majority write concern.",
+          "source": "https://www.mongodb.com/docs/manual/core/replica-set-arbiter/",
+          "note": null
+        },
+        {
+          "text": "To add these nodes to an Atlas Infinite cluster, specify the number of Nodes for each node type. Atlas deploys the nodes in the same region as the Atlas Infinite cluster, so you don't select a cloud provider or region for them. To learn which regions Atlas Infinite clusters support, see the Atlas Infinite Support column in the Amazon Web Services (AWS) regions table.",
+          "source": "https://www.mongodb.com/docs/atlas/cluster-config/multi-cloud-distribution/",
+          "note": null
+        },
+        {
+          "text": "To avoid this scenario, use at most a single arbiter.",
+          "source": "https://www.mongodb.com/docs/manual/core/replica-set-arbiter/",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Measurements and reference values",
+      "facts": [
+        {
+          "text": "Third-party guidance suggests downgrading one tier when average CPU is below 20% and peak below 40%, and claims 30-60% savings from combined optimizations. These are unverified estimates, not MongoDB figures.",
+          "source": "https://oneuptime.com/blog/post/2026-03-31-mongodb-optimize-atlas-costs/view",
+          "note": "Unverified third-party estimate"
+        }
+      ]
+    },
+    {
+      "title": "Problems, failure modes and limitations",
+      "facts": [
+        {
+          "text": "To ensure that a write will persist after the failure of a primary node, the majority write concern requires a majority of nodes to acknowledge a write operation. Arbiters do not store any data, but they do contribute to the number of nodes in a replica set. When a replica set has multiple arbiters it is less likely that a majority of data bearing nodes will be available after a node failure.",
+          "source": "https://www.mongodb.com/docs/manual/core/replica-set-arbiter/",
+          "note": null
+        },
+        {
+          "text": "Read-only and analytics nodes do not participate in elections, cannot become primary, and so provide no high availability. Analytics nodes are available on dedicated (M10+) clusters only, not Free or Flex.",
+          "source": "https://www.mongodb.com/docs/atlas/cluster-config/multi-cloud-distribution/",
+          "note": null
+        },
+        {
+          "text": "Read-only nodes don't provide high availability because they don't participate in elections. They can't become the primary for their cluster. To direct queries to read-only nodes, use pre-defined replica set tags.",
+          "source": "https://www.mongodb.com/docs/atlas/cluster-config/multi-cloud-distribution/",
+          "note": null
+        },
+        {
+          "text": "Atlas enforces a three-node minimum for dedicated replica sets, so a test environment pays for two idle secondaries. A MongoDB staff reply (Sept 2024) defended the minimum for availability; the requester rejected it.",
+          "source": "https://www.mongodb.com/community/forums/t/feature-request-possibility-to-reduce-number-of-nodes-in-replicaset-for-stg-test-environments/296384",
+          "note": "Forum thread, Sept 2024"
+        },
+        {
+          "text": "Multi-region clusters can incur higher data transfer costs depending on the number and location of added regions. Atlas compresses intra-cluster communication. The data transfer page does not say whether same-region or cross-AZ replication traffic is billed.",
+          "source": "https://www.mongodb.com/docs/atlas/billing/data-transfer-costs",
+          "note": null
+        },
+        {
+          "text": "Analytics nodes don't provide high availability because they don't participate in elections. They can't become the primary for their cluster.",
+          "source": "https://www.mongodb.com/docs/atlas/cluster-config/multi-cloud-distribution/",
+          "note": null
+        },
+        {
+          "text": "You cannot change a shard key using a transaction if the replica set has an arbiter. Arbiters cannot participate in the data operations required for multi-shard transactions.",
+          "source": "https://www.mongodb.com/docs/manual/core/replica-set-arbiter/",
+          "note": null
+        },
+        {
+          "text": "Starting in MongoDB 5.3, support for multiple arbiters in a replica set is disabled by default. If you attempt to add multiple arbiters to a replica set, the server returns an error:",
+          "source": "https://www.mongodb.com/docs/manual/core/replica-set-arbiter/",
+          "note": null
+        },
+        {
+          "text": "absolutely understand what you’re saying… the three-node minimum on Atlas might seem like overkill for a test environment, especially if you’re trying to keep costs low. But the thing is, that setup is what helps ensure high availability, even on the lower tiers. but it’s not just for production—having three nodes means if one goes down (like during maintenance or some unexpected issue), your environment stays available.",
+          "source": "https://www.mongodb.com/community/forums/t/feature-request-possibility-to-reduce-number-of-nodes-in-replicaset-for-stg-test-environments/296384",
+          "note": "MongoDB staff reply: needed for availability"
+        },
+        {
+          "text": "If one wants high availability for the environment, one sets the desired number of instances accordingly, so I don’t buy the explanation about high availability. No environment (perhaps very few exceptions) needs the same availability for their test stg as they need for their production environment.",
+          "source": "https://www.mongodb.com/community/forums/t/feature-request-possibility-to-reduce-number-of-nodes-in-replicaset-for-stg-test-environments/296384",
+          "note": "Requester rejects availability argument"
+        },
+        {
+          "text": "You can deploy analytics nodes for dedicated (M10 or higher) clusters only. You can't add analytics nodes on Free clusters or Flex clusters.",
+          "source": "https://www.mongodb.com/docs/atlas/cluster-config/multi-cloud-distribution/",
+          "note": null
+        },
+        {
+          "text": "Transactions whose write operations span multiple shards will error and abort if any transaction operation reads from or writes to a shard that contains an arbiter.",
+          "source": "https://www.mongodb.com/docs/manual/core/replica-set-arbiter/",
+          "note": null
+        },
+        {
+          "text": "MongoServerError: Multiple arbiters are not allowed unless all nodes",
+          "source": "https://www.mongodb.com/docs/manual/core/replica-set-arbiter/",
+          "note": null
+        },
+        {
+          "text": "Differently from competitors (e.g.: docdb), atlas forces a minimum of 3 nodes no matter what, and this doesn’t make any sense for a test environment, where we just want to be able to run staging applications on. As a consequence, this incurs 2 totally unutilized nodes we are paying for every month, increasing the costs considerably. Please consider enabling downsizing for test environments!",
+          "source": "https://www.mongodb.com/community/forums/t/feature-request-possibility-to-reduce-number-of-nodes-in-replicaset-for-stg-test-environments/296384",
+          "note": null
+        },
+        {
+          "text": "One thing is instance type, another thing is number of instances. I don’t want to have a lower/slower tear. I want to have fewer instances running and under no use, spending resources unnecessarily…",
+          "source": "https://www.mongodb.com/community/forums/t/feature-request-possibility-to-reduce-number-of-nodes-in-replicaset-for-stg-test-environments/296384",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Comparisons and alternatives",
+      "facts": [
+        {
+          "text": "Using a primary-secondary-arbiter (PSA) architecture for shards in a sharded cluster can cause a loss of availability if a data-bearing secondary is unavailable. A PSA cluster differs from a typical replica set: In a sharded cluster, shards perform w: majority write concern operations that cannot complete if the remaining cluster members required to confirm an operation have an arbiter.",
+          "source": "https://www.mongodb.com/docs/manual/core/replica-set-arbiter/",
+          "note": null
+        },
+        {
+          "text": "MongoDB positions a smaller analytics tier as a cost saving versus scaling the whole cluster tier for BI workloads. The announcement gives no price figures.",
+          "source": "https://www.mongodb.com/company/blog/product-release-announcements/introducing-ability-independently-scale-atlas-analytics-node-tiers",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Facts and statements",
+      "facts": [
+        {
+          "text": "Atlas deploys all data-bearing servers in a cluster at the selected cluster tier, and the per-hour charge covers that tier's default RAM and storage. Each added data-bearing node is therefore a full node at the same hourly tier cost, except analytics nodes with a separate tier.",
+          "source": "https://www.mongodb.com/docs/atlas/billing/cluster-configuration-costs/",
+          "note": null
+        },
+        {
+          "text": "Your workloads can vary greatly between analytics and operational nodes. To help manage this issue, for M10+ clusters, you can select a cluster tier appropriately sized for your analytics workload. You can select a cluster tier for your analytics nodes that's larger or smaller than the cluster tier selected for your electable and read-only nodes (operational nodes). This functionality helps to ensure that you get the performance required for your transactional and analytical queries without over or under provisioning your entire cluster for your analytical workload.",
+          "source": "https://www.mongodb.com/docs/atlas/cluster-config/multi-cloud-distribution/",
+          "note": null
+        },
+        {
+          "text": "For example, in the following replica set with 2 data-bearing members (the primary and a secondary), an arbiter allows the set to have an odd number of votes to break a tie:",
+          "source": "https://www.mongodb.com/docs/manual/core/replica-set-arbiter/",
+          "note": null
+        },
+        {
+          "text": "For a replica set, the number of data-bearing nodes equals the replication factor.",
+          "source": "https://www.mongodb.com/docs/atlas/billing/cluster-configuration-costs/",
+          "note": null
+        },
+        {
+          "text": "If you select a cluster tier on the Analytics Tier tab significantly below the cluster tier selected on the Base Tier tab, replication lag might result. The analytics node might fall off the oplog altogether.",
+          "source": "https://www.mongodb.com/docs/atlas/cluster-config/multi-cloud-distribution/",
+          "note": null
+        },
+        {
+          "text": "If you have a cluster named foo123 containing an analytics node foo123-shard-00-03-a1b2c.mongodb.net:27017, Atlas does not guarantee that specific host name will continue to refer to an analytics node after a topology change, such as scaling a cluster to modify its number of nodes or regions.",
+          "source": "https://www.mongodb.com/docs/atlas/cluster-config/multi-cloud-distribution/",
+          "note": null
+        },
+        {
+          "text": "If you change the Highest Priority provider or region in an active multi-region cluster, Atlas selects a new primary node in the provider and region that you specify (assuming that the number of nodes in each provider and region remains the same and nothing else is modified).",
+          "source": "https://www.mongodb.com/docs/atlas/cluster-config/multi-cloud-distribution/",
+          "note": null
+        },
+        {
+          "text": "Source write queries from your Highest Priority Region whenever possible. For more information on region priorities, see Electable Nodes for High Availability.",
+          "source": "https://www.mongodb.com/docs/atlas/billing/data-transfer-costs",
+          "note": null
+        },
+        {
+          "text": "You can change an electable node to a read-only node by adding a read-only node and removing an electable node at the same time. To learn more, see Change Workload Purpose of Nodes.",
+          "source": "https://www.mongodb.com/docs/atlas/cluster-config/multi-cloud-distribution/",
+          "note": null
+        },
+        {
+          "text": "For a sharded cluster, the number of data-bearing nodes equals the replication factor multiplied by the number of shards.",
+          "source": "https://www.mongodb.com/docs/atlas/billing/cluster-configuration-costs/",
+          "note": null
+        },
+        {
+          "text": "Do not run an arbiter on systems that also host the primary or the secondary members of the replica set.",
+          "source": "https://www.mongodb.com/docs/manual/core/replica-set-arbiter/",
+          "note": null
+        },
+        {
+          "text": "On Atlas Core clusters, if you select a General cluster tier on the Analytics Tier tab and a Low-CPU cluster tier on the Base Tier tab, disk auto-scaling isn't supported for the cluster. Disk auto-scaling also isn't supported if you select a General cluster tier on the Base Tier tab and a Low-CPU cluster tier on the Analytics Tier tab.",
+          "source": "https://www.mongodb.com/docs/atlas/cluster-config/multi-cloud-distribution/",
+          "note": null
+        },
+        {
+          "text": "On Atlas Core clusters, storage size must match between the Base Tier tab and Analytics Tier tab. You can set the storage size on the Base Tier tab. Atlas expands the storage of an Atlas Infinite cluster as your data grows, so you don't set a storage size.",
+          "source": "https://www.mongodb.com/docs/atlas/cluster-config/multi-cloud-distribution/",
+          "note": null
+        },
+        {
+          "text": "On Atlas Core clusters, if you want to select the Local NVME SSD class on the Base Tier tab, the Analytics Tier tab must have the same tier level selected. Atlas Infinite clusters don't support locally attached NVMe SSD storage in public preview.",
+          "source": "https://www.mongodb.com/docs/atlas/cluster-config/multi-cloud-distribution/",
+          "note": null
+        },
+        {
+          "text": "Until now, analytics nodes in MongoDB’s Atlas clusters have used the same cluster tier as all other nodes. However, operational and analytical workloads can vary greatly in terms of resource requirements. Analytics node tiers allow you to enhance the performance of your analytics workloads by choosing the best tier size for your needs. This means you can choose an analytics node tier larger or smaller than the operational nodes in your cluster. This added level of customization ensures you achieve the performance required for both transactional and analytical queries — without the need to over",
+          "source": "https://www.mongodb.com/company/blog/product-release-announcements/introducing-ability-independently-scale-atlas-analytics-node-tiers",
+          "note": null
+        },
+        {
+          "text": "Atlas sets the node in the first row of the Electable nodes table as the Highest Priority region. Atlas prioritizes nodes in this region for primary eligibility. Other nodes rank in the order that they appear. For more information, see Member Priority.",
+          "source": "https://www.mongodb.com/docs/atlas/cluster-config/multi-cloud-distribution/",
+          "note": null
+        },
+        {
+          "text": "Atlas does not guarantee that host names remain consistent with respect to node types during topology changes.",
+          "source": "https://www.mongodb.com/docs/atlas/cluster-config/multi-cloud-distribution/",
+          "note": null
+        },
+        {
+          "text": "For Atlas Infinite clusters in public preview, specify the number of Nodes. Atlas deploys them in the same region as the Atlas Infinite cluster. For Atlas Core clusters, click Add a region to select a region, then specify the number of Nodes for that region.",
+          "source": "https://www.mongodb.com/docs/atlas/cluster-config/multi-cloud-distribution/",
+          "note": null
+        },
+        {
+          "text": "On Atlas Infinite clusters in public preview, Atlas deploys all nodes in one region on AWS. You can deploy read-only and analytics nodes to isolate workloads from your primary node. To learn more, see Workload Isolation on Atlas Infinite clusters.",
+          "source": "https://www.mongodb.com/docs/atlas/cluster-config/multi-cloud-distribution/",
+          "note": null
+        },
+        {
+          "text": "After you add your analytics nodes, you can select a cluster tier appropriately sized for your analytics workload.",
+          "source": "https://www.mongodb.com/docs/atlas/cluster-config/multi-cloud-distribution/",
+          "note": null
+        },
+        {
+          "text": "Atlas Infinite clusters don't support adding additional electable nodes.",
+          "source": "https://www.mongodb.com/docs/atlas/cluster-config/multi-cloud-distribution/",
+          "note": null
+        },
+        {
+          "text": "Atlas charges the cluster cost and data storage cost for each data-bearing node [1] in your cluster.",
+          "source": "https://www.mongodb.com/docs/atlas/billing/cluster-configuration-costs/",
+          "note": null
+        },
+        {
+          "text": "If a secondary node falls behind the primary, and the cluster is reconfigured, votes from multiple arbiters can elect the node that had fallen behind. The new primary will not have the unreplicated writes even though the writes could have been majority committed by the old configuration. The result is data loss.",
+          "source": "https://www.mongodb.com/docs/manual/core/replica-set-arbiter/",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Disagreements",
+      "facts": [
+        {
+          "text": "Atlas enforces a three-node minimum for dedicated replica sets, so a test environment pays for two idle secondaries. A MongoDB staff reply (Sept 2024) defended the minimum for availability; the requester rejected it.",
+          "source": "https://www.mongodb.com/community/forums/t/feature-request-possibility-to-reduce-number-of-nodes-in-replicaset-for-stg-test-environments/296384",
+          "note": "Forum thread, Sept 2024",
+          "group": "c1"
+        },
+        {
+          "text": "absolutely understand what you’re saying… the three-node minimum on Atlas might seem like overkill for a test environment, especially if you’re trying to keep costs low. But the thing is, that setup is what helps ensure high availability, even on the lower tiers. but it’s not just for production—having three nodes means if one goes down (like during maintenance or some unexpected issue), your environment stays available.",
+          "source": "https://www.mongodb.com/community/forums/t/feature-request-possibility-to-reduce-number-of-nodes-in-replicaset-for-stg-test-environments/296384",
+          "note": "MongoDB staff reply: needed for availability",
+          "group": "c1"
+        },
+        {
+          "text": "If one wants high availability for the environment, one sets the desired number of instances accordingly, so I don’t buy the explanation about high availability. No environment (perhaps very few exceptions) needs the same availability for their test stg as they need for their production environment.",
+          "source": "https://www.mongodb.com/community/forums/t/feature-request-possibility-to-reduce-number-of-nodes-in-replicaset-for-stg-test-environments/296384",
+          "note": "Requester rejects availability argument",
+          "group": "c1"
+        }
+      ]
+    }
+  ],
+  "related": [
+    {
+      "concept": "analytics node",
+      "relation": "is a part of Replica Set Node Topology Cost",
+      "note": null
+    },
+    {
+      "concept": "arbiter",
+      "relation": "is a part of Replica Set Node Topology Cost",
+      "note": null
+    },
+    {
+      "concept": "electable node",
+      "relation": "is a part of Replica Set Node Topology Cost",
+      "note": null
+    },
+    {
+      "concept": "data-bearing node",
+      "relation": "is a part of Replica Set Node Topology Cost",
+      "note": null
+    },
+    {
+      "concept": "base tier",
+      "relation": "is a part of Replica Set Node Topology Cost",
+      "note": null
+    },
+    {
+      "concept": "election",
+      "relation": "is a measure of Replica Set Node Topology Cost",
+      "note": null
+    },
+    {
+      "concept": "high availability",
+      "relation": "is a measure of Replica Set Node Topology Cost",
+      "note": null
+    },
+    {
+      "concept": "read-only node",
+      "relation": "is a part of Replica Set Node Topology Cost",
+      "note": null
+    },
+    {
+      "concept": "three-node minimum",
+      "relation": "is a problem of Replica Set Node Topology Cost",
+      "note": null
+    },
+    {
+      "concept": "majority write concern",
+      "relation": "is a problem of Replica Set Node Topology Cost",
+      "note": null
+    },
+    {
+      "concept": "Highest Priority region",
+      "relation": "is a part of Replica Set Node Topology Cost",
+      "note": null
+    },
+    {
+      "concept": "replication lag",
+      "relation": "is a problem of Replica Set Node Topology Cost",
+      "note": null
+    },
+    {
+      "concept": "data transfer",
+      "relation": "is a related of Replica Set Node Topology Cost",
+      "note": null
+    },
+    {
+      "concept": "multi-region",
+      "relation": "is a related of Replica Set Node Topology Cost",
+      "note": null
+    },
+    {
+      "concept": "replica set tags",
+      "relation": "is a related of Replica Set Node Topology Cost",
+      "note": null
+    },
+    {
+      "concept": "hourly tier cost",
+      "relation": "is a measure of Replica Set Node Topology Cost",
+      "note": null
+    },
+    {
+      "concept": "replication factor",
+      "relation": "is a measure of Replica Set Node Topology Cost",
+      "note": null
+    },
+    {
+      "concept": "prorated per node",
+      "relation": "is a measure of Replica Set Node Topology Cost",
+      "note": null
+    },
+    {
+      "concept": "cost optimization",
+      "relation": "is a hypernym of Replica Set Node Topology Cost",
+      "note": null
+    },
+    {
+      "concept": "storage customization",
+      "relation": "is a measure of Replica Set Node Topology Cost",
+      "note": null
+    }
+  ]
+}

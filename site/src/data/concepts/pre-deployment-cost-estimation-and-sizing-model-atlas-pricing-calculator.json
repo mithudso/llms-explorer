@@ -1,0 +1,650 @@
+{
+  "slug": "pre-deployment-cost-estimation-and-sizing-model-atlas-pricing-calculator",
+  "concept": "Pre-Deployment Cost Estimation and Sizing Model (Atlas Pricing Calculator)",
+  "generated": "2026-10-19",
+  "summary": "A pre-deployment Atlas cost estimate has two steps: size the tier from RAM and the working set (WiredTiger cache is 50% of physical RAM on M40+ and 25% on M30 and smaller; M30+ is recommended for production), then price it as the cluster hourly rate plus storage, backup including PITR, data transfer and add-ons, the cost drivers that the MongoDB pricing page and its Pricing Calculator list. The pack holds 91 source-anchored units from 4 sources (3 hosts: MongoDB docs and pricing page, a third-party pricing guide, a right-sizing guide) across 10 facets, mostly worked examples and facts, with one conflict over whether the hourly rate applies per node or per cluster.",
+  "facets": [
+    {
+      "title": "Definitions",
+      "facts": [
+        {
+          "text": "Memory refers to the total physical RAM available on each data bearing node of your Atlas cluster. For example, an M30 Atlas Core cluster standard replica set is configured with 8 GB RAM on each of the 3 data bearing nodes.",
+          "source": "https://www.mongodb.com/docs/atlas/sizing-tier-selection/",
+          "note": null
+        },
+        {
+          "text": "Choosing the correct Atlas cluster tier and configuration is an important step in setting up a successful production MongoDB deployment. You can always modify a cluster at a later time, but getting started with the right configuration is possible with a few calculations based on your data set size and network requirements.",
+          "source": "https://www.mongodb.com/docs/atlas/sizing-tier-selection/",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Structure and components",
+      "facts": [
+        {
+          "text": "MongoDB's pricing page directs users to an 'Atlas Core' Pricing Calculator for estimating monthly cost, and lists the drivers: cluster tier and type, cloud provider and region, data storage (data plus indexes), data transfer (mainly egress and cross-region), backup (snapshots and oplogs), and add-ons such as Stream Processing and dedicated Search Nodes.",
+          "source": "https://www.mongodb.com/pricing",
+          "note": null
+        },
+        {
+          "text": "MongoDB Atlas pricing runs from $0 on the free tier to more than $33 per hour on the largest dedicated cluster, billed by the hour. The cluster rate is only part of the story. Most teams get surprised by the backups, data transfer, and add-on services on the same invoice, not the tier they picked.",
+          "source": "https://amnic.com/blogs/mongodb-atlas-pricing-tiers-real-costs-and-how-to-control-them",
+          "note": null
+        },
+        {
+          "text": "Backup services: Costs are based on the region and the monthly storage consumed by snapshots and oplogs for continuous backups. Note that backup services are not available for the Free tier.",
+          "source": "https://www.mongodb.com/pricing",
+          "note": "Atlas FAQ: cost drivers"
+        },
+        {
+          "text": "(Cluster $/hr x 730 hrs x nodes) + (storage GB x $/GB) + (backup GB x $/GB) + (egress GB x $/GB) + multi-region multiplier",
+          "source": "https://amnic.com/blogs/mongodb-atlas-pricing-tiers-real-costs-and-how-to-control-them",
+          "note": "Third-party formula"
+        },
+        {
+          "text": "An Atlas Infinite cluster has the same amount of RAM at each cluster tier as an Atlas Core cluster, but a different number of nodes and a separate storage layer. To learn more, see MongoDB Atlas Infinite: Architecture.",
+          "source": "https://www.mongodb.com/docs/atlas/sizing-tier-selection/",
+          "note": null
+        },
+        {
+          "text": "Cluster tier and type: The selected tier is the foundational cost driver. Higher tiers provide more dedicated resources and capabilities.",
+          "source": "https://www.mongodb.com/pricing",
+          "note": "Atlas FAQ: cost drivers"
+        },
+        {
+          "text": "Cloud provider and region: Costs vary slightly across AWS, Google Cloud, and Azure, and between different geographic regions.",
+          "source": "https://www.mongodb.com/pricing",
+          "note": "Atlas FAQ: cost drivers"
+        },
+        {
+          "text": "Data transfer (networking): Charges mainly apply to data moving out of your Atlas cluster (egress) or between different regions/cloud providers. Inbound data transfers are typically free. Free and Flex tiers are not charged for outgoing data.",
+          "source": "https://www.mongodb.com/pricing",
+          "note": "Atlas FAQ: cost drivers"
+        },
+        {
+          "text": "Data storage: Includes the size of your data and indexes.",
+          "source": "https://www.mongodb.com/pricing",
+          "note": "Atlas FAQ: cost drivers"
+        }
+      ]
+    },
+    {
+      "title": "How it works",
+      "facts": [
+        {
+          "text": "Atlas tabulates usage daily and invoices monthly. Dedicated clusters bill by the hour of uptime, so a cluster you spin up for a test and forget to pause keeps charging around the clock. Flex bills by usage tier per hour. Incoming data transfer is free; outgoing is not. No annual commitment is required. The mechanics match any cloud billing cycle: metered usage, daily accrual, monthly invoice, and a long tail of easy-to-miss line items, similar to token-metered API products like Llama API pricing where the headline rate hides the units that accumulate on the bill.",
+          "source": "https://amnic.com/blogs/mongodb-atlas-pricing-tiers-real-costs-and-how-to-control-them",
+          "note": null
+        },
+        {
+          "text": "Dedicated clusters support Cluster Auto-Scaling. On an Atlas Core cluster, cluster tier auto-scaling is enabled by default when you create the cluster in the Atlas UI, and disabled by default when you create it with the Atlas Administration API. With auto-scaling enabled, Atlas automatically scales your cluster tier and, for Atlas Core clusters, your storage capacity, in response to cluster usage. Auto-scaling allows your cluster to adapt to your current workload and reduce the need to make manual optimizations.",
+          "source": "https://www.mongodb.com/docs/atlas/sizing-tier-selection/",
+          "note": null
+        },
+        {
+          "text": "The preceding figures apply to Atlas Core clusters. On an Atlas Infinite cluster, storage IOPS and storage throughput are fixed for each cluster tier. For the per-tier values, see Atlas Infinite Storage IOPs and Throughput Values per Cluster Tier. An Atlas Infinite cluster also has one standby node unless you add read-only or analytics nodes. When you estimate read bandwidth, divide the per-node figure across the nodes that can serve reads.",
+          "source": "https://www.mongodb.com/docs/atlas/sizing-tier-selection/",
+          "note": null
+        },
+        {
+          "text": "Data transfer and egress: The single most common cause of bill shock. Incoming data is free, outgoing and cross-region traffic bills per gigabyte, from $0.01 same-region to $0.09-$0.23 for internet egress by provider. Cross-region reads from secondaries are not free either. A widely reported case shows an M40 cluster costing $500 per month with a $1,200 data-transfer bill, more than double the compute. Exactly the hidden cloud cost that never shows up in a capacity graph.",
+          "source": "https://amnic.com/blogs/mongodb-atlas-pricing-tiers-real-costs-and-how-to-control-them",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Parameters and configuration",
+      "facts": [
+        {
+          "text": "An Atlas cluster can support a number of client connections which is determined by its cluster tier. For example, M30 clusters support up to 3000 simultaneous connections and M200 clusters support up to 128,000 simultaneous connections. To learn more, see Connection Limits and Cluster Tier.",
+          "source": "https://www.mongodb.com/docs/atlas/sizing-tier-selection/",
+          "note": null
+        },
+        {
+          "text": "A cache hit rate below 90% indicates the working set does not fit in RAM.",
+          "source": "https://oneuptime.com/blog/post/2026-03-31-mongodb-right-size-atlas-clusters/view",
+          "note": "Same article's script uses 95% in code"
+        },
+        {
+          "text": "Examples below use 730 hours per month and AWS us-east-1 rates ($0.30/GB storage, $0.14/GB snapshot backup, $0.09/GB internet egress).",
+          "source": "https://amnic.com/blogs/mongodb-atlas-pricing-tiers-real-costs-and-how-to-control-them",
+          "note": "Assumed AWS us-east-1 rates"
+        },
+        {
+          "text": "Metric Downsize If Upsize If CPU (p95) < 20% > 70% RAM Utilization < 50% > 85% Disk IOPS (p95) < 30% of max > 80% of max Query Latency p95 Improves on smaller > 100ms on current Connections < 20% of max > 80% of max",
+          "source": "https://oneuptime.com/blog/post/2026-03-31-mongodb-right-size-atlas-clusters/view",
+          "note": "Third-party thresholds"
+        },
+        {
+          "text": "Revert immediately if p95 CPU exceeds 80% or query latency increases significantly.",
+          "source": "https://oneuptime.com/blog/post/2026-03-31-mongodb-right-size-atlas-clusters/view",
+          "note": "Third-party threshold"
+        }
+      ]
+    },
+    {
+      "title": "How-to and procedures",
+      "facts": [
+        {
+          "text": "Atlas sizing starts from RAM: the working set is all indexes plus frequently accessed documents. To estimate it, take total index space from db.stats() and assume a percentage of data space is accessed frequently.",
+          "source": "https://www.mongodb.com/docs/atlas/sizing-tier-selection/",
+          "note": null
+        },
+        {
+          "text": "All network traffic between cluster nodes and between clients consuming data from your Atlas cluster impact network bandwidth. For purposes of cluster sizing, consider the maximum traffic that any node on your cluster will bear and use this as the basis for selecting an adequate Atlas cluster tier.",
+          "source": "https://www.mongodb.com/docs/atlas/sizing-tier-selection/",
+          "note": null
+        },
+        {
+          "text": "Right-size clusters running under 45% CPU, pause idle non-production clusters, keep data in one region to cut egress, tune backup retention, and allocate spend per team so owners can see and act on their share.",
+          "source": "https://amnic.com/blogs/mongodb-atlas-pricing-tiers-real-costs-and-how-to-control-them",
+          "note": "Third-party FAQ"
+        },
+        {
+          "text": "Right-size clusters: Pause development or testing clusters when not in use. Alternatively, terminate them if no longer required. For Dedicated clusters, use auto-scaling to adjust cluster storage and/or tier based on real-time CPU and memory utilization.",
+          "source": "https://www.mongodb.com/pricing",
+          "note": "Atlas FAQ: cutting cost after launch"
+        },
+        {
+          "text": "To estimate the size of the working set, you can either perform a calculation using the information obtained from db.stats() for the total index space and assume a percentage of your data space will be accessed frequently, or you can estimate your memory requirements based on educated assumptions.",
+          "source": "https://www.mongodb.com/docs/atlas/sizing-tier-selection/",
+          "note": null
+        },
+        {
+          "text": "Estimate your monthly Atlas Core costs with our new Pricing Calculator.",
+          "source": "https://www.mongodb.com/pricing",
+          "note": "Pricing page pointer to the calculator"
+        },
+        {
+          "text": "You can find the average document size for a database with the db.stats() method. Multiply the average document size (avgObjSize) by the number of documents served per second to estimate your bandwidth requirements.",
+          "source": "https://www.mongodb.com/docs/atlas/sizing-tier-selection/",
+          "note": null
+        },
+        {
+          "text": "Right-sizing recovers the most spend fastest. Clusters running consistently under 45% CPU are over-provisioned, and idle non-production clusters bill compute around the clock until someone pauses them, so right-sizing and scheduled pausing commonly reclaim 30% to 60% of a wasteful bill. Consistent AWS tagging makes idle resources easy to find in the first place.",
+          "source": "https://amnic.com/blogs/mongodb-atlas-pricing-tiers-real-costs-and-how-to-control-them",
+          "note": "Third-party guide"
+        },
+        {
+          "text": "1. Opcounters - operations per second (helps size for throughput) 2. Connections - peak vs available 3. Network - bytes in/out (helps estimate bandwidth) 4. WiredTiger Cache - bytes in cache vs dirty bytes 5. System CPU - distinguish user (app) vs iowait (disk) 6. Disk IOPS - compare against instance IOPS limits",
+          "source": "https://oneuptime.com/blog/post/2026-03-31-mongodb-right-size-atlas-clusters/view",
+          "note": "Third-party guide"
+        }
+      ]
+    },
+    {
+      "title": "Examples and snippets",
+      "facts": [
+        {
+          "text": "In this example, you need at least 344 GB of physical RAM to accommodate the WiredTiger cache and a 172 GB working set. The following table lists suitable Atlas cluster tiers:",
+          "source": "https://www.mongodb.com/docs/atlas/sizing-tier-selection/",
+          "note": "Docs worked example: mobile game"
+        },
+        {
+          "text": "A popular mobile game has 512 GB of data and 32 GB of indexes. The game’s internal system data occupies 16 GB, and the rest is player profile data. A player's profile is required to be in memory while the player is active in the game. About 25% of all players are active at any point in time. The system data is used constantly and it must fit completely in RAM for optimal game performance. All indexes must also fit in RAM for the fastest query response time. The memory sizing is as follows:",
+          "source": "https://www.mongodb.com/docs/atlas/sizing-tier-selection/",
+          "note": "Docs worked example: mobile game"
+        },
+        {
+          "text": "M300 has sufficient RAM, and there is room to scale vertically to higher cluster tiers.",
+          "source": "https://www.mongodb.com/docs/atlas/sizing-tier-selection/",
+          "note": "Docs tier table note, AWS rows"
+        },
+        {
+          "text": "M300 has sufficient RAM, and there is room to scale vertically to a higher cluster tier.",
+          "source": "https://www.mongodb.com/docs/atlas/sizing-tier-selection/",
+          "note": "Docs tier table note, Azure rows"
+        },
+        {
+          "text": "Second-region cluster (3-node M30): $1,182.60",
+          "source": "https://amnic.com/blogs/mongodb-atlas-pricing-tiers-real-costs-and-how-to-control-them",
+          "note": "Third-party example 4: multi-region M30"
+        },
+        {
+          "text": "To run these databases completely in memory, you would need a minimum of 0.68 GB of physical RAM, as WiredTiger uses 50% of the physical RAM and we need at least 0.34 GB to fit the working set in memory.",
+          "source": "https://www.mongodb.com/docs/atlas/sizing-tier-selection/",
+          "note": "Docs worked example: sample data sets"
+        },
+        {
+          "text": "WiredTiger dedicates 50% of physical RAM to the WiredTiger cache, so the minimum total physical RAM required to accommodate your working set is twice the working set.",
+          "source": "https://www.mongodb.com/docs/atlas/sizing-tier-selection/",
+          "note": "Docs worked example: mobile game"
+        },
+        {
+          "text": "The cluster is 78% of the bill here, so the biggest lever at this scale is right-sizing, not egress.",
+          "source": "https://amnic.com/blogs/mongodb-atlas-pricing-tiers-real-costs-and-how-to-control-them",
+          "note": "Third-party example 2: M10"
+        },
+        {
+          "text": "Backup with PITR: 200 GB x ~$1.00 blended = $200.00 (roughly 17% of cluster)",
+          "source": "https://amnic.com/blogs/mongodb-atlas-pricing-tiers-real-costs-and-how-to-control-them",
+          "note": "Third-party example 3: M30"
+        },
+        {
+          "text": "M300 has sufficient RAM, but there are no higher tiers available if vertical scaling is required.",
+          "source": "https://www.mongodb.com/docs/atlas/sizing-tier-selection/",
+          "note": "Docs tier table note, GCP rows"
+        },
+        {
+          "text": "The multi-region multiplier lives mostly in duplicated compute and backup, not cross-region transfer, which is a common misdiagnosis.",
+          "source": "https://amnic.com/blogs/mongodb-atlas-pricing-tiers-real-costs-and-how-to-control-them",
+          "note": "Third-party example 4: multi-region M30"
+        },
+        {
+          "text": "Cluster: Flex base tier at $0.011/hr x 730 hrs = $8.03",
+          "source": "https://amnic.com/blogs/mongodb-atlas-pricing-tiers-real-costs-and-how-to-control-them",
+          "note": "Third-party example 1: Flex"
+        },
+        {
+          "text": "Cluster: 3-node M10 replica set at $0.08/hr x 730 x 3 = $175.20",
+          "source": "https://amnic.com/blogs/mongodb-atlas-pricing-tiers-real-costs-and-how-to-control-them",
+          "note": "Third-party example 2: M10"
+        },
+        {
+          "text": "Cluster: 3-node M30 replica set at $0.54/hr x 730 x 3 = $1,182.60",
+          "source": "https://amnic.com/blogs/mongodb-atlas-pricing-tiers-real-costs-and-how-to-control-them",
+          "note": "Third-party example 3: M30"
+        },
+        {
+          "text": "A 3-node M40 cluster runs about $500 per month in compute. Put a heavy analytics service in a different region pulling 15 TB per month across regions at $0.02/GB and you add $300 in replication egress alone. Push the same 15 TB to the public internet at $0.09/GB and you add $1,350, more than double the compute. Keep the client in-region and the same workload costs a fraction. It is the same trap that inflates multi-cloud costs more broadly.",
+          "source": "https://amnic.com/blogs/mongodb-atlas-pricing-tiers-real-costs-and-how-to-control-them",
+          "note": "Third-party example 5: egress-heavy"
+        },
+        {
+          "text": "Example 2: Entry production on M10 (single-region, small SaaS)",
+          "source": "https://amnic.com/blogs/mongodb-atlas-pricing-tiers-real-costs-and-how-to-control-them",
+          "note": "Third-party example 2 heading: M10"
+        },
+        {
+          "text": "Example 3: Standard production on M30 (single-region)",
+          "source": "https://amnic.com/blogs/mongodb-atlas-pricing-tiers-real-costs-and-how-to-control-them",
+          "note": "Third-party example 3 heading: M30"
+        },
+        {
+          "text": "Example 4: Same M30 workload, multi-region for resilience",
+          "source": "https://amnic.com/blogs/mongodb-atlas-pricing-tiers-real-costs-and-how-to-control-them",
+          "note": "Third-party example 4 heading: multi-region M30"
+        },
+        {
+          "text": "Given these requirements, you can expect an average working set to require 172 GB of RAM.",
+          "source": "https://www.mongodb.com/docs/atlas/sizing-tier-selection/",
+          "note": "Docs worked example: mobile game"
+        },
+        {
+          "text": "Storage: 50 GB x $0.30 = $15.00",
+          "source": "https://amnic.com/blogs/mongodb-atlas-pricing-tiers-real-costs-and-how-to-control-them",
+          "note": "Third-party example 2: M10"
+        },
+        {
+          "text": "Backup: 50 GB x $0.14 (standard snapshots, 30-day retention) = $7.00",
+          "source": "https://amnic.com/blogs/mongodb-atlas-pricing-tiers-real-costs-and-how-to-control-them",
+          "note": "Third-party example 2: M10"
+        },
+        {
+          "text": "Advanced Security add-on (+15% of cluster): $26.28",
+          "source": "https://amnic.com/blogs/mongodb-atlas-pricing-tiers-real-costs-and-how-to-control-them",
+          "note": "Third-party example 2: M10"
+        },
+        {
+          "text": "Storage: 200 GB x $0.30 = $60.00",
+          "source": "https://amnic.com/blogs/mongodb-atlas-pricing-tiers-real-costs-and-how-to-control-them",
+          "note": "Third-party example 3: M30"
+        },
+        {
+          "text": "Primary region cluster: $1,182.60",
+          "source": "https://amnic.com/blogs/mongodb-atlas-pricing-tiers-real-costs-and-how-to-control-them",
+          "note": "Third-party example 4: multi-region M30"
+        }
+      ]
+    },
+    {
+      "title": "Measurements and reference values",
+      "facts": [
+        {
+          "text": "A third-party manual formula is (cluster $/hr x 730 hrs x nodes) + storage + backup + egress + multi-region multiplier. Its worked example: single-region M30 about $1,535/month (cluster $1,182.60, storage $60, PITR on 200 GB about $200, 1 TB egress $92.16), and a two-region M30 about $2,997, roughly 2x, driven mostly by duplicated compute and backup.",
+          "source": "https://amnic.com/blogs/mongodb-atlas-pricing-tiers-real-costs-and-how-to-control-them",
+          "note": null
+        },
+        {
+          "text": "WiredTiger cache is 50% of physical RAM on M40+ and 25% on M30 and smaller, so physical RAM needed is about twice the working set on M40+. The docs' worked example: a 172 GB working set needs at least 344 GB RAM, which lands on M300.",
+          "source": "https://www.mongodb.com/docs/atlas/sizing-tier-selection/",
+          "note": null
+        },
+        {
+          "text": "Post-launch right-sizing uses at least 2 weeks of hourly metrics. One guide's thresholds: downsize if p95 CPU <20% or RAM <50%; upsize if p95 CPU >70% or RAM >85%; cache hit rate below about 90-95% suggests the working set does not fit in RAM.",
+          "source": "https://oneuptime.com/blog/post/2026-03-31-mongodb-right-size-atlas-clusters/view",
+          "note": null
+        },
+        {
+          "text": "Right-sizing MongoDB Atlas clusters requires collecting 2 weeks of CPU, memory, cache hit rate, and IOPS metrics, applying standard thresholds to identify over-provisioned tiers, verifying cache hit rates above 90% before downsizing, performing tier changes during low-traffic windows, and monitoring for 48 hours after changes. Enable auto-scaling as a safety net to handle unexpected load spikes after right-sizing.",
+          "source": "https://oneuptime.com/blog/post/2026-03-31-mongodb-right-size-atlas-clusters/view",
+          "note": null
+        },
+        {
+          "text": "Right-sizing means choosing the smallest Atlas tier that satisfies your performance requirements with headroom for peak load. Under-sized clusters cause latency spikes and timeouts. Over-sized clusters waste money - teams commonly run clusters at 10-15% average CPU utilization while paying for much more capacity.",
+          "source": "https://oneuptime.com/blog/post/2026-03-31-mongodb-right-size-atlas-clusters/view",
+          "note": null
+        },
+        {
+          "text": "By default, for M40 or larger clusters, WiredTiger dedicates 50% or more of physical RAM for the WiredTiger cache. The remaining memory is reserved for the following uses:",
+          "source": "https://www.mongodb.com/docs/atlas/sizing-tier-selection/",
+          "note": null
+        },
+        {
+          "text": "By default, for M30 or smaller clusters, WiredTiger dedicates 25% of physical RAM for the WiredTiger cache.",
+          "source": "https://www.mongodb.com/docs/atlas/sizing-tier-selection/",
+          "note": null
+        },
+        {
+          "text": "Backups: Snapshots bill per gigabyte per month: $0.14-$0.19 on AWS, $0.08-$0.12 on Google Cloud, $0.34-$0.65 on Azure. PITR adds more, and a 500 GB database with long retention can add $300-$400 per month. Budgets plan for ~10% of cluster cost; PITR reality is 20-25%.",
+          "source": "https://amnic.com/blogs/mongodb-atlas-pricing-tiers-real-costs-and-how-to-control-them",
+          "note": null
+        },
+        {
+          "text": "Cluster storage scaling applies to Atlas Core clusters. It automatically increases your cluster storage capacity when 90% of disk capacity is used. This setting is enabled by default to help ensure that your cluster can always support sudden influxes of data. To opt out of cluster storage scaling, un-check the Storage Scaling checkbox in the Auto-scale section.",
+          "source": "https://www.mongodb.com/docs/atlas/sizing-tier-selection/",
+          "note": null
+        },
+        {
+          "text": "Add-on uplifts: Advanced Security adds 15% to your cluster cost; Database Auditing adds 10%. These are percentages of the cluster rate, so they scale up when your cluster does.",
+          "source": "https://amnic.com/blogs/mongodb-atlas-pricing-tiers-real-costs-and-how-to-control-them",
+          "note": null
+        },
+        {
+          "text": "Scale Your ProjectStarts at $56.94/month",
+          "source": "https://www.mongodb.com/pricing",
+          "note": "Pricing page, Dedicated entry price"
+        }
+      ]
+    },
+    {
+      "title": "Problems, failure modes and limitations",
+      "facts": [
+        {
+          "text": "Egress can dominate small clusters: one guide's example of 15 TB/month to the internet at $0.09/GB adds $1,350, over twice the roughly $500 compute of a 3-node M40. It also says PITR can push backup from about 10% to 20-25% of cluster cost, using an assumed blended $1.00/GB rate.",
+          "source": "https://amnic.com/blogs/mongodb-atlas-pricing-tiers-real-costs-and-how-to-control-them",
+          "note": null
+        },
+        {
+          "text": "Pre-deployment estimates do not capture auto-scaling: auto-scaling raises the tier within a user-set min/max, and storage auto-scales when 90% of disk is used. Budget at the configured maximum tier as the worst case.",
+          "source": "https://www.mongodb.com/docs/atlas/sizing-tier-selection/",
+          "note": null
+        },
+        {
+          "text": "Tier jumps are not linear. Moving from M10 to M30 is not three times the cost, it is closer to six to eight times, because each jump bundles more RAM, vCPU, and storage you cannot buy piecemeal. Budgeting as if the next tier is a small step is where projections break, which is why cloud cost forecasting beats guessing.",
+          "source": "https://amnic.com/blogs/mongodb-atlas-pricing-tiers-real-costs-and-how-to-control-them",
+          "note": null
+        },
+        {
+          "text": "If you select a cluster tier without sufficient RAM, such as an Azure M200 with 256 GB RAM, sharding is required.",
+          "source": "https://www.mongodb.com/docs/atlas/sizing-tier-selection/",
+          "note": null
+        },
+        {
+          "text": "Flex answers years of surprise-serverless-bill complaints. Base of about $8 per month, usage on top by operations per second, capped at $30 per month so a runaway workload cannot produce a shock. Includes 5 GB storage and no data-transfer charge.",
+          "source": "https://amnic.com/blogs/mongodb-atlas-pricing-tiers-real-costs-and-how-to-control-them",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Comparisons and alternatives",
+      "facts": [
+        {
+          "text": "The maximum cluster tier to which your cluster can automatically scale up. By default, this setting is set to the next cluster tier compared to your current cluster tier.",
+          "source": "https://www.mongodb.com/docs/atlas/sizing-tier-selection/",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Facts and statements",
+      "facts": [
+        {
+          "text": "Pricing-page rules for line items: inbound transfer is typically free; egress and cross-region traffic is billed at cloud-provider rates; Free and Flex are not charged for outgoing data; backup cost depends on region and monthly snapshot plus oplog storage for continuous backup.",
+          "source": "https://www.mongodb.com/pricing",
+          "note": null
+        },
+        {
+          "text": "Atlas recommends M30+ for production. M10/M20 suit low-traffic production, and sustained load on them may degrade performance over time. The pricing page likewise positions M10/M20 as pre-production or small non-critical, and M30+ as dedicated-vCPU performance tiers.",
+          "source": "https://www.mongodb.com/docs/atlas/sizing-tier-selection/",
+          "note": null
+        },
+        {
+          "text": "MongoDB restructured its lower tiers, so a lot of older guides are now wrong. The legacy M2 and M5 shared clusters and the standalone Serverless instances were retired and folded into the Flex tier, which went generally available and began auto-migrating existing serverless instances onto Free, Flex, or Dedicated clusters based on usage. All figures below are verified against the official MongoDB Atlas pricing page; exact RAM and hourly rates shift slightly by cloud provider and region.",
+          "source": "https://amnic.com/blogs/mongodb-atlas-pricing-tiers-real-costs-and-how-to-control-them",
+          "note": null
+        },
+        {
+          "text": "Usually data transfer, backups, add-on services, or an over-provisioned or unpaused cluster, not the base rate. Egress and cross-region traffic in particular can exceed the cluster fee itself.",
+          "source": "https://amnic.com/blogs/mongodb-atlas-pricing-tiers-real-costs-and-how-to-control-them",
+          "note": null
+        },
+        {
+          "text": "Before right-sizing, collect at least 2 weeks of metrics covering weekday and weekend patterns:",
+          "source": "https://oneuptime.com/blog/post/2026-03-31-mongodb-right-size-atlas-clusters/view",
+          "note": null
+        },
+        {
+          "text": "The number that matters for budgeting is rarely the sticker rate. Your true bill is the cluster rate plus storage, backups, data transfer, and any add-ons you enable, a base-plus-drivers pattern common across most cloud service pricing models.",
+          "source": "https://amnic.com/blogs/mongodb-atlas-pricing-tiers-real-costs-and-how-to-control-them",
+          "note": null
+        },
+        {
+          "text": "MongoDB uses the WiredTiger cache to hold most recently used data and indexes. The working set is the sum of all the indexes plus the set of documents that are accessed frequently. If your working set fits in RAM, then MongoDB can serve queries from memory, which provides the fastest query response times.",
+          "source": "https://www.mongodb.com/docs/atlas/sizing-tier-selection/",
+          "note": null
+        },
+        {
+          "text": "Atlas Infinite clusters don't have Atlas Core storage auto-scaling. Atlas Infinite storage is decoupled from compute and grows independently of the cluster tier. To learn more, see Compute Auto-Scaling on Atlas Infinite.",
+          "source": "https://www.mongodb.com/docs/atlas/sizing-tier-selection/",
+          "note": null
+        },
+        {
+          "text": "Learn how to right-size MongoDB Atlas clusters by analyzing CPU, memory, disk I/O, and connection metrics to select the optimal instance tier.",
+          "source": "https://oneuptime.com/blog/post/2026-03-31-mongodb-right-size-atlas-clusters/view",
+          "note": null
+        },
+        {
+          "text": "It ranges from $0 on the free M0 tier to $8-$30 on Flex and roughly $58 per month upward for a dedicated M10, before storage, backups, and data transfer. A standard production M30 replica set commonly lands between $1,500 and $2,200 per month.",
+          "source": "https://amnic.com/blogs/mongodb-atlas-pricing-tiers-real-costs-and-how-to-control-them",
+          "note": null
+        },
+        {
+          "text": "Atlas Infinite supports M10 through M60 cluster tiers in public preview, so the M200 figure doesn't apply to an Atlas Infinite cluster.",
+          "source": "https://www.mongodb.com/docs/atlas/sizing-tier-selection/",
+          "note": null
+        },
+        {
+          "text": "Atlas runs on AWS, Azure, and Google Cloud, and the underlying provider changes your bill. Cluster hourly rates, backup storage, and data transfer differ by provider and region. Google Cloud tends to have the cheapest backup storage, Azure the most expensive, and AWS us-east-1 is often the lowest-cost compute region.",
+          "source": "https://amnic.com/blogs/mongodb-atlas-pricing-tiers-real-costs-and-how-to-control-them",
+          "note": "Third-party guide"
+        },
+        {
+          "text": "Atlas instances provide faster bandwidth speeds at the higher tiers. Instances which are backed by AWS provide up to 10 gigabits per second at the M30 level, while the M200 level provides up to 25 gigabits per second.",
+          "source": "https://www.mongodb.com/docs/atlas/sizing-tier-selection/",
+          "note": null
+        },
+        {
+          "text": "Recommend M30 or Larger Clusters for Production Use",
+          "source": "https://www.mongodb.com/docs/atlas/sizing-tier-selection/",
+          "note": null
+        },
+        {
+          "text": "M30 and higher clusters are recommended for production environments. You can use M10 and M20 clusters as production environments for low-traffic applications. Clusters with sustained loads on M10 and M20 tiers may experience degraded performance over time.",
+          "source": "https://www.mongodb.com/docs/atlas/sizing-tier-selection/",
+          "note": null
+        },
+        {
+          "text": "Cluster tier scaling automatically scales your cluster tier up or down in response to various cluster metrics. To opt out of cluster tier auto-scaling, un-check the Cluster Tier Scaling checkbox in the Auto-scale section.",
+          "source": "https://www.mongodb.com/docs/atlas/sizing-tier-selection/",
+          "note": null
+        },
+        {
+          "text": "The minimum cluster tier to which your cluster can scale down. By default, this setting is set to the current cluster tier.",
+          "source": "https://www.mongodb.com/docs/atlas/sizing-tier-selection/",
+          "note": null
+        },
+        {
+          "text": "Dedicated (M10 & M20): Suitable for pre-production and small, non-critical workloads. These tiers utilize shared vCPUs and support replica set deployments offering fully featured access to Atlas.",
+          "source": "https://www.mongodb.com/pricing",
+          "note": null
+        },
+        {
+          "text": "Dedicated (M30+): Recommended for performance-critical and high-traffic workloads, supporting both replica sets and sharded clusters with fully featured access to Atlas with dedicated vCPUs.",
+          "source": "https://www.mongodb.com/pricing",
+          "note": null
+        },
+        {
+          "text": "Clusters can always be scaled up from any tier as requirements expand. If unsure, MongoDB recommends starting with a lower tier and monitoring performance before adjusting. For all Dedicated tiers, use auto-scaling to adjust cluster tier and storage as workloads evolve.",
+          "source": "https://www.mongodb.com/pricing",
+          "note": null
+        },
+        {
+          "text": "Search, vector search, stream processing: Dedicated Atlas Search Nodes bill per node-hour with a two-node minimum. Atlas Vector Search has no separate charge but runs on your cluster or Search Nodes, so you pay the underlying compute. Atlas Stream Processing bills per instance-hour plus a per-document rate.",
+          "source": "https://amnic.com/blogs/mongodb-atlas-pricing-tiers-real-costs-and-how-to-control-them",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Disagreements",
+      "facts": [
+        {
+          "text": "Scale Your ProjectStarts at $56.94/month",
+          "source": "https://www.mongodb.com/pricing",
+          "note": "Pricing page, Dedicated entry price",
+          "group": "c1"
+        },
+        {
+          "text": "(Cluster $/hr x 730 hrs x nodes) + (storage GB x $/GB) + (backup GB x $/GB) + (egress GB x $/GB) + multi-region multiplier",
+          "source": "https://amnic.com/blogs/mongodb-atlas-pricing-tiers-real-costs-and-how-to-control-them",
+          "note": "Third-party formula",
+          "group": "c1"
+        },
+        {
+          "text": "Cluster: 3-node M10 replica set at $0.08/hr x 730 x 3 = $175.20",
+          "source": "https://amnic.com/blogs/mongodb-atlas-pricing-tiers-real-costs-and-how-to-control-them",
+          "note": "Third-party example 2: M10",
+          "group": "c1"
+        },
+        {
+          "text": "Cluster: 3-node M30 replica set at $0.54/hr x 730 x 3 = $1,182.60",
+          "source": "https://amnic.com/blogs/mongodb-atlas-pricing-tiers-real-costs-and-how-to-control-them",
+          "note": "Third-party example 3: M30",
+          "group": "c1"
+        },
+        {
+          "text": "It ranges from $0 on the free M0 tier to $8-$30 on Flex and roughly $58 per month upward for a dedicated M10, before storage, backups, and data transfer. A standard production M30 replica set commonly lands between $1,500 and $2,200 per month.",
+          "source": "https://amnic.com/blogs/mongodb-atlas-pricing-tiers-real-costs-and-how-to-control-them",
+          "note": null,
+          "group": "c1"
+        }
+      ]
+    }
+  ],
+  "related": [
+    {
+      "concept": "M30",
+      "relation": "is a instance of Pre-Deployment Cost Estimation and Sizing Model (Atlas Pricing Calculator)",
+      "note": null
+    },
+    {
+      "concept": "cluster tier",
+      "relation": "is a part of Pre-Deployment Cost Estimation and Sizing Model (Atlas Pricing Calculator)",
+      "note": null
+    },
+    {
+      "concept": "cost",
+      "relation": "is a related of Pre-Deployment Cost Estimation and Sizing Model (Atlas Pricing Calculator)",
+      "note": null
+    },
+    {
+      "concept": "sizing",
+      "relation": "is a synonym of Pre-Deployment Cost Estimation and Sizing Model (Atlas Pricing Calculator)",
+      "note": null
+    },
+    {
+      "concept": "egress",
+      "relation": "is a part of Pre-Deployment Cost Estimation and Sizing Model (Atlas Pricing Calculator)",
+      "note": null
+    },
+    {
+      "concept": "WiredTiger cache",
+      "relation": "is a part of Pre-Deployment Cost Estimation and Sizing Model (Atlas Pricing Calculator)",
+      "note": null
+    },
+    {
+      "concept": "cost formula",
+      "relation": "is a measure of Pre-Deployment Cost Estimation and Sizing Model (Atlas Pricing Calculator)",
+      "note": null
+    },
+    {
+      "concept": "working set",
+      "relation": "is a part of Pre-Deployment Cost Estimation and Sizing Model (Atlas Pricing Calculator)",
+      "note": null
+    },
+    {
+      "concept": "auto-scaling",
+      "relation": "is a dependent of Pre-Deployment Cost Estimation and Sizing Model (Atlas Pricing Calculator)",
+      "note": null
+    },
+    {
+      "concept": "estimate",
+      "relation": "is a related of Pre-Deployment Cost Estimation and Sizing Model (Atlas Pricing Calculator)",
+      "note": null
+    },
+    {
+      "concept": "PITR",
+      "relation": "is a part of Pre-Deployment Cost Estimation and Sizing Model (Atlas Pricing Calculator)",
+      "note": null
+    },
+    {
+      "concept": "Flex",
+      "relation": "is a instance of Pre-Deployment Cost Estimation and Sizing Model (Atlas Pricing Calculator)",
+      "note": null
+    },
+    {
+      "concept": "right-sizing thresholds",
+      "relation": "is a measure of Pre-Deployment Cost Estimation and Sizing Model (Atlas Pricing Calculator)",
+      "note": null
+    },
+    {
+      "concept": "Atlas Infinite",
+      "relation": "is a contrast of Pre-Deployment Cost Estimation and Sizing Model (Atlas Pricing Calculator)",
+      "note": null
+    },
+    {
+      "concept": "cost drivers",
+      "relation": "is a part of Pre-Deployment Cost Estimation and Sizing Model (Atlas Pricing Calculator)",
+      "note": null
+    },
+    {
+      "concept": "add-on",
+      "relation": "is a part of Pre-Deployment Cost Estimation and Sizing Model (Atlas Pricing Calculator)",
+      "note": null
+    },
+    {
+      "concept": "multi-region",
+      "relation": "is a part of Pre-Deployment Cost Estimation and Sizing Model (Atlas Pricing Calculator)",
+      "note": null
+    },
+    {
+      "concept": "M30 or larger",
+      "relation": "is a near-synonym of Pre-Deployment Cost Estimation and Sizing Model (Atlas Pricing Calculator)",
+      "note": null
+    },
+    {
+      "concept": "network traffic",
+      "relation": "is a part of Pre-Deployment Cost Estimation and Sizing Model (Atlas Pricing Calculator)",
+      "note": null
+    },
+    {
+      "concept": "vertical scaling",
+      "relation": "is a part of Pre-Deployment Cost Estimation and Sizing Model (Atlas Pricing Calculator)",
+      "note": null
+    }
+  ]
+}

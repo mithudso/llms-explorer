@@ -1,0 +1,125 @@
+{
+  "slug": "metafield-cardinality-and-active-bucket-count",
+  "concept": "metaField cardinality and active-bucket count",
+  "generated": "2026-10-23",
+  "summary": "Source-anchored research for metaField cardinality and active-bucket count. Run status: COMPLETED.",
+  "facets": [
+    {
+      "title": "How it works",
+      "facts": [
+        {
+          "text": "The BucketCatalog's open-bucket set is a runtime set, not the collection's historical bucket count. MongoDB's server README says it maintains open buckets and has an invariant of at most one open bucket per unique meta value. Therefore, high cardinality raises the potential open-bucket count when more distinct metadata values receive writes concurrently, while historical metadata values alone do not imply that an open bucket exists. (high confidence) (verified as of 2026-10-20)",
+          "source": "https://github.com/mongodb/mongo/blob/master/src/mongo/db/timeseries/README.md",
+          "note": null,
+          "claimId": "clm:0bd32264df91c5810aaf9420e254ac089d867e6dedf82eb761d7ebe871cf59f8",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:4cd44b4b13a8300909a5333079fd2779c1ebb795c079103fc52428fee13a0c6a",
+            "ev:7e31a1281e1a0bdc173c677787b855987fb63d1fc71bdb8d817e72adb658bc0c",
+            "ev:7f0b5f36f1281cdfc47c66bf29535f1a5defd91df5a8d49385241b8264245476"
+          ]
+        },
+        {
+          "text": "When BucketCatalog memory exceeds its threshold, MongoDB archives or closes idle open buckets. Archiving removes most of a bucket's in-memory catalog state but retains a small record for reopening; if memory remains over the threshold, MongoDB also removes archived entries. This makes the runtime active-bucket count sensitive to catalog memory pressure and bucket state. (high confidence) (verified as of 2026-10-20)",
+          "source": "https://github.com/mongodb/mongo/blob/master/src/mongo/db/timeseries/README.md",
+          "note": null,
+          "claimId": "clm:a207db7b7d9da65da6a2da8d06aa174b890cb498a74fdb052d91dd9b722bff24",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:2295a0f21eba592c4397e52ac212f114f05db8453bbe743f9bc9d066ab9fe37e"
+          ]
+        }
+      ]
+    },
+    {
+      "title": "Problems, failure modes and limitations",
+      "facts": [
+        {
+          "text": "A MongoDB Community user reported slow inserts with roughly 100–1000 metaField series identifiers. The same workload also had batches that could arrive out of global time order and many measurement fields, so the report does not isolate cardinality as the cause. (low confidence)",
+          "source": "https://www.mongodb.com/community/forums/t/time-series-inserts-unreasonably-slow/217400",
+          "note": null,
+          "claimId": "clm:b6d0285a4618ebefbdf7cb7e2035b9aed2937d3840e758e24959589148018d80",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:c5127b691eb6ce215265f4c230be137ae8ba12eec139063a878dfbce0dc95b5a"
+          ]
+        }
+      ]
+    },
+    {
+      "title": "Comparisons and alternatives",
+      "facts": [
+        {
+          "text": "MongoDB groups measurements into a bucket only when their metaField values match and their timeField values are close. Its manual says bucket count depends on the number of unique metaField values and that fine-grained or dynamic values can produce sparse, short-lived buckets with lower storage and query efficiency. This is a scoped risk rather than a universal failure rule: the manual also says compressed time-series workloads can support high cardinality. (high confidence) (verified as of 2026-10-14)",
+          "source": "https://www.mongodb.com/docs/manual/core/timeseries/timeseries-bucketing.md",
+          "note": null,
+          "claimId": "clm:5974495cf9a8c0920b182853bfa69bbe3ac26bccfef8c7ca185e0970aa27866e",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:65a81a1c0989e60a3eaf95a9c6d8a742b8920182a41a660302f8b400b1a1de75",
+            "ev:a0d74146748a3ffdcc2d81e73638a062b7e3806f9fa1cbee173ec82d51e19d0b"
+          ]
+        },
+        {
+          "text": "SERVER-89233 recorded a cache-pressure bug in MongoDB 7.0.4/7.0.5 where bucket count could equal document count regardless of granularity or metaField settings. Jira lists fixes in 8.0.5 and 8.1.0-rc0, so this is a resolved version-specific anomaly rather than a general cardinality rule. (low confidence) (verified as of 2025-04-25)",
+          "source": "https://jira.mongodb.org/browse/SERVER-89233",
+          "note": null,
+          "claimId": "clm:eda21da1cb41152f659f4d4461c927312158d04fe56a987c6ec9b778a761b5c5",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:44675475e0d7f3a9a48b84809510221b88a42b69f42e6703d2b66ee15a400372"
+          ]
+        },
+        {
+          "text": "Percona's October 20, 2021 MongoDB 5.0 example reused three stock metadata values across minute-by-minute measurements and reported totalSize of 5,357,568 bytes for the time-series collection versus 21,934,080 bytes for a regular collection, about a 4.1x difference. The test did not vary metadata cardinality, and its regular-collection comparison had no secondary index, so it does not establish a general cardinality threshold. (low confidence) (verified as of 2021-10-20)",
+          "source": "https://www.percona.com/blog/mongodb-5-0-time-series-collections/",
+          "note": null,
+          "claimId": "clm:05e0a7a4cf78d5e339b4256efc15540315df47655f5249d6d79309e7a63ca71d",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:cecb94885dca5f1c8c77d27130681b69ca387c9c08e056748de6ed224fb23d43"
+          ]
+        }
+      ]
+    },
+    {
+      "title": "Facts and statements",
+      "facts": [
+        {
+          "text": "MongoDB's server README defines an active bucket as either open or archived. An archived bucket remains on disk with a small in-memory catalog record, while a closed bucket exists only on disk. Thus the active-bucket count includes buckets that are not open for immediate writes and does not equal the number of full bucket payloads resident in memory. (high confidence) (verified as of 2026-10-20)",
+          "source": "https://github.com/mongodb/mongo/blob/master/src/mongo/db/timeseries/README.md",
+          "note": null,
+          "claimId": "clm:78a4c463053f419fcadc1ab01bfd885b018f22e1a7f1d0a17247ab87a9bec6a3",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:7f0b5f36f1281cdfc47c66bf29535f1a5defd91df5a8d49385241b8264245476"
+          ]
+        },
+        {
+          "text": "Percona's historical MongoDB 5.0 example describes metaField as optional series metadata that may be a scalar or object and reuses metadata objects to distinguish stock streams. This illustrates metaField as series identity, but it does not measure current BucketCatalog or active-bucket counts. (medium confidence)",
+          "source": "https://www.percona.com/blog/mongodb-5-0-time-series-collections/",
+          "note": null,
+          "claimId": "clm:9b7be5d46f7e1a08ed1ba394064ff6a43ad5572ceb57f913931134662a9847a6",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:0cca95e96a04f199b0cd1fa1675ac76563bfd3faf3134fdc6379e678e9a59665",
+            "ev:e154672347dc14c41c0210504bd02cdda4f850818e77cd16d37b5ec7b2aa4f6b"
+          ]
+        },
+        {
+          "text": "MongoDB's implementation README states that the BucketCatalog maintains at most one open bucket per unique meta value, but defines an active bucket as either open or archived. Archived entries retain a small in-memory record, while fully closed buckets exist only on disk. Therefore unique metaField count, open-bucket count, active-catalog bucket count, and total stored bucket-document count are different measures; unique metaField count alone is not an exact active-catalog count. (high confidence) (verified as of 2026-10-20)",
+          "source": "https://github.com/mongodb/mongo/blob/master/src/mongo/db/timeseries/README.md",
+          "note": null,
+          "claimId": "clm:f8e45c16f8ca7050c537d641745eb1eab4d91bbea1e4d80746af850de29b3747",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:3e321899bded2df66d70f5af4b4a4c7c9ca3347dbe4d9e8526aeeca17267e912"
+          ]
+        }
+      ]
+    }
+  ],
+  "related": [],
+  "canonicalArtifactSha256": "1563e1eeaad24d626c0d91166b50ce2af9f7d6cea399d487229680befe57f00c",
+  "canonicalConceptId": "concept:12f17accc011dd4ef80d5b8e2a94722d18e2fbd9b72da72f07411f6aa27d3bf7"
+}

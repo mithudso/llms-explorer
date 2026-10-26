@@ -1,5 +1,35 @@
 # Prompts Log
 
+## Prompt v66 - 2026-10-23
+
+> Update the codex versions of the skills to use medium effort and sol.
+
+Scope: TASK-880. Apply Sol/medium to the three Codex research skills, their generator and runtime defaults, and new ranked plans. Preserve explicit overrides, existing research plans and the shared Claude runtime. Verify and deliver through a merged PR.
+
+## Prompt v65 - 2026-10-22
+
+> Run a comparison of the updated research process with the old research process using the model comparison tests as a baseline.
+
+Scope: TASK-854. Reuse the 36-trial fixed-source model benchmark as historical controls, generate a matched updated-contract matrix, blind-score both versions consistently, verify the current runtime controls separately, and save reproducible results with explicit historical-control and bounded-stage limits. Preserve active runs and original evidence.
+
+Outcome: all 36 updated cells were attempted. The report contains 35 completed matched pairs and one explicit provider-capacity failure, with common blind judgments, full attempt accounting and regression validation. Delivery: PR 222.
+
+## Prompt v64 - 2026-10-20
+
+> Make sure that all concept runs update the website in ~/dev/llms-explorer, also do an audit of the current concept trees, the llms files, and other research and what shows up on the website and make sure the website is up to speed with the latest.
+>
+> And then start researching the concepts in /Users/mitch.hudson/.global-ai-hub/concept-tree/RESEARCH_QUEUE_RANKED.md in groups of concepts that have likely common sources and make sure the /dr /cfe and /rabbithole skills use the research library that shares sources among common concepts.
+
+Scope: TASK-737 and TASK-739. Audit and refresh published concept content, make completion automatic, preserve private source snapshots and existing research, then start bounded ranked cohorts with source reuse. Delta: memory 0.22.52 to 0.22.53; site 0.0.13 to 0.0.14; prompt v63 to v64.
+
+## Prompt v63 - 2026-10-20
+
+> Set the default mode of the /dr skill that codex uses to luna max, and make sure that a scout process runs that looks for deeper sources and if found to do a 2nd run.
+>
+> Make sure that any /dr run updates the ~/.global-ai-hub/ skill tree, and the skill tree in ~/dev/llms-explorer, and create the llms files
+
+Scope: TASK-734. Set Codex research defaults and scout-triggered follow-up. Make successful completion generate the five llms text files and merge both local concept trees. Preserve source URLs and existing concepts. Keep changes reproducible through the backed-up skill generator.
+
 ## Prompt v62 - 2026-10-10
 
 > signed in
@@ -818,3 +848,45 @@ Outcome: checked-out detection across website jobs, /dr runs, explorer batches a
 > Run the full-suite skill on mongodb cost optimization
 
 Outcome: `/full-suite` run — scout (mongodb.com and docs llms.txt found), CFE plan (33 rows, 23 researched in 4 cohorts), round 1 (68 harvested, 6 researched as cohort E), rounds 2–3 empty, two blind gates (4 corroborated gaps researched as cohort F; 5 more queued), 33 packs + family rollup, trees synced, hub audited. Verdict SATURATION-DISSENT. Report: `docs/research/mongodb-cost-optimization-full-suite-2026-10-19/README.md`.
+
+
+## Prompt — 2026-10-22 continuation
+
+> continue
+
+Resumed the existing ranked plan without repeating discovery, reviewed cohort-23 dissent against primary sources and retained strict claim-local evidence binding.
+
+Outcome: cohort 23 finalized both trees, llms packs and website from a fresh 38-claim gate; the existing plan continued cohort 24.
+
+
+## Prompt — 2026-10-22 Cloudflare key installation
+
+The user placed a fine-grained GitHub key in a private local file. Configure Cloudflare private-library access and finish the existing research publication. Keep repository visibility and source-library privacy intact.
+
+
+## Prompt — 2026-10-22 concept knowledge strategies
+
+> Run the proposed family-map and focused-rabbithole prompt for better concept research, knowledge storage, retrieval and embeddings. Ground recommendations in the current system and primary evidence; deliver dossiers, controlled comparisons, a recommended architecture, experiment/migration plans and remaining questions. Preserve paused embeddings and treat implementation as proposed work.
+
+Tracking: TASK-816. Report: docs/research/concept-knowledge-strategies-2026-10-22/README.md.
+
+## Prompt — 2026-10-22 Cloudflare build focus
+
+The user asked to stop Node compatibility testing and focus on the failing Cloudflare build. Inspected the failed production log, confirmed private GitHub clone authentication as the cause, and followed the repaired production deployment to success. Verified the actual published content.
+
+Outcome: seven concepts,42 genuine depth passes,129 fully evidence-gated claims, one inaccessible-source claim withheld. Final report includes verified architecture, prioritized map, three dossier files, comparison/experiment and migration/rollback plans, and remaining research queue. Normal private/public artifact projection completed in the isolated worktree; no embeddings or deployment.
+
+
+## Prompt v65 - 2026-10-22T14:28:08.805748+00:00
+- User request:
+  - Look at all the frontier and unresearched mongodb concepts and update the research queue to contain them all grouped by concepts that will share source materials. and prioritized by cvs score. Then begin researching them until complete.
+
+
+## Prompt v66 - 2026-10-22T15:24:04.146296+00:00
+- User request:
+  - stop after the current iteration. Will need to reload the updated skills.
+
+## Prompt v67 - 2026-10-22 MongoDB complete-queue continuation
+
+- User request: Look at all frontier and unresearched MongoDB concepts, include them all in the research queue grouped by shared source materials and prioritized by CVS, then research them until complete.
+- Resumed TASK-832 after loading updated skills. Preserve the frozen exhaustive plan, validated handoffs, verified completions and existing source-review gates.

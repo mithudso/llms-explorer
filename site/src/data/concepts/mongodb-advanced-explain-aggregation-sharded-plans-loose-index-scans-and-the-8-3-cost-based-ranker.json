@@ -1,0 +1,1425 @@
+{
+  "slug": "mongodb-advanced-explain-aggregation-sharded-plans-loose-index-scans-and-the-8-3-cost-based-ranker",
+  "concept": "MongoDB Advanced Explain: Aggregation, Sharded Plans, Loose Index Scans and the 8.3 Cost-Based Ranker",
+  "generated": "2026-10-19",
+  "summary": "Advanced explain output covers spill statistics for blocking aggregation stages (usedDisk, spilledBytes and the per-stage memory limit), sharded plans (SHARD_MERGE, splitPipeline with shardsPart and mergerPart, mergeType), the $sort+$group $first loose index scan that explain reports as DISTINCT_SCAN, and the 8.3 cost-based ranker with its costEstimate and cardinalityEstimate fields. Compiled from MongoDB manual and JIRA pages plus the run's verified claims.",
+  "facets": [
+    {
+      "title": "Definitions",
+      "facts": [
+        {
+          "text": "Classic multi-planner winner is the plan that produces the most results during the trial while doing the least work; the winning multi-planner score is reported in explain executionStats-era fields, distinct from CBR costEstimate.",
+          "source": "https://www.mongodb.com/docs/v8.3/core/query-plans/",
+          "note": null
+        },
+        {
+          "text": "- If `$lookup` is the last stage or all stages after `$lookup` can be executed using the slot-based execution engine, the `queryPlanner` object is in the top-level `explain` output object (`explain.queryPlanner`).",
+          "source": "https://www.mongodb.com/docs/manual/core/aggregation-pipeline-optimization.md#lookup-optimization",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Structure and components",
+      "facts": [
+        {
+          "text": "Planning time (optimizationTimeMillis) excludes time spent optimizing inner $lookup queries. Since 8.0 rejectedPlans contain only the find portion; earlier versions could include aggregation stages such as $group.",
+          "source": "https://www.mongodb.com/docs/manual/reference/explain-results/",
+          "note": null
+        },
+        {
+          "text": "| Field | Description | Applicable Stages | | --- | --- | --- | | `docsExamined` | Specifies the number of documents scanned during the query execution stage. | `COLLSCAN`, `FETCH` | | `keysExamined` | For query execution stages that scan an index `keysExamined` is the total number of in-bounds and out-of-bounds keys that are examined in the process of the index scan. If the index scan consists of a single contiguous range of keys, only in-bounds keys need to be examined. If the index bounds consists of several key ranges, the index scan execution process may examine out-of-bounds keys in orde",
+          "source": "https://www.mongodb.com/docs/manual/reference/explain-results.md#unsharded-collections",
+          "note": null
+        },
+        {
+          "text": "Starting in MongoDB 9.0, when you run `explain` in a mimumum of [executionStats](https://www.mongodb.com/docs/manual/reference/method/db.collection.explain.md#std-label-explain-method-executionStats) verbosity mode, aggregation stages that use the classic query execution engine output a `expressionEvaluationPeakMemoryBytes` field. This field contains the peak memory usage, in bytes, from expression evaluation during stage execution.",
+          "source": "https://www.mongodb.com/docs/manual/reference/explain-results.md#aggregation-stages-with-expression-memory-tracking",
+          "note": null
+        },
+        {
+          "text": "The explain field mergeType reports where the merger part runs; the documented examples show mongos and anyShard. Search summaries of the docs also list specificShard (with a mergeShard field naming the shard) and router, but the page text for those was not directly verified.",
+          "source": "https://www.practical-mongodb-aggregations.com/guides/sharding.html",
+          "note": null
+        },
+        {
+          "text": "If you run [`explain`](https://www.mongodb.com/docs/manual/reference/command/explain.md#mongodb-dbcommand-dbcmd.explain) on a `$setWindowsFields` operation, the output contains a `peakTrackedMemBytes` field that contains the maximum number of bytes of tracked memory in use. For more information, see [`explain.executionStats.peakTrackedMemBytes`.](https://www.mongodb.com/docs/manual/reference/explain-results.md#mongodb-data-explain.executionStats.peakTrackedMemBytes)",
+          "source": "https://www.mongodb.com/docs/manual/reference/operator/aggregation/setWindowFields.md#explain-output",
+          "note": null
+        },
+        {
+          "text": "When you downgrade the FCV from `9.0` to an earlier version, a migration updates the stored query settings. The migration removes every knob whose minimum FCV exceeds the target version and deletes any settings entry that still contains only default values. Re-upgrading to `9.0` does not restore the removed knobs. You must re-apply them with `setQuerySettings`.",
+          "source": "https://www.mongodb.com/docs/manual/reference/command/setQuerySettings.md#query-knobs",
+          "note": null
+        },
+        {
+          "text": "The second case occurs when the merge part of the split pipeline contains a stage which may write temporary data to disk, such as $group, and the client has specified allowDiskUse:true. In this case, assuming that there are no other stages in the merge pipeline which require the primary shard, the merge runs on a randomly-selected shard in the set of shards targeted by the aggregation.",
+          "source": "https://www.mongodb.com/docs/manual/core/sharded-cluster-query-router/",
+          "note": null
+        },
+        {
+          "text": "The random-shard merge exists so the merger part has more disk space available for spilling blocking stages when allowDiskUse is true; with allowDiskUse false, streaming-only mergers stay on mongos.",
+          "source": "https://www.practical-mongodb-aggregations.com/guides/sharding.html",
+          "note": null
+        },
+        {
+          "text": "The first case occurs when the merge part of the split pipeline contains a stage which *must* run on a specific shard. For instance, if `$lookup` requires access to an unsharded collection in the same database as the sharded collection on which the aggregation is running, the merge runs on the shard that hosts the unsharded collection.",
+          "source": "https://www.mongodb.com/docs/manual/core/sharded-cluster-query-router.md#routing-and-results-process",
+          "note": null
+        },
+        {
+          "text": "Contains partial execution information captured during the plan selection phase for both the winning and rejected plans. The field is present only if explain runs in allPlansExecution verbosity mode.",
+          "source": "https://www.mongodb.com/docs/manual/reference/explain-results/",
+          "note": null
+        },
+        {
+          "text": "Object that contains two fields: true and false. Each field counts the number of matching queries where the value of usedDisk is true or false, respectively.",
+          "source": "https://www.mongodb.com/docs/manual/reference/operator/aggregation/queryStats/",
+          "note": null
+        },
+        {
+          "text": "When splitting the aggregation pipeline into two parts, the pipeline is split to ensure that the shards perform as many stages as possible with consideration for optimization.",
+          "source": "https://www.mongodb.com/docs/manual/core/aggregation-pipeline-sharded-collections.md#optimization",
+          "note": null
+        },
+        {
+          "text": "Contains metrics related to CBR when it is used during query planning. CBR evaluates multiple query plans and selects the most efficient plan based on estimated costs.",
+          "source": "https://www.mongodb.com/docs/manual/reference/operator/aggregation/queryStats/",
+          "note": null
+        },
+        {
+          "text": "Contains metrics related to the number of documents sampled during cost-based ranking for queries with the given key.",
+          "source": "https://www.mongodb.com/docs/manual/reference/operator/aggregation/queryStats/",
+          "note": null
+        },
+        {
+          "text": "Contains counts for each cardinality estimation method used during cost-based ranking. Each field represents the number of times a particular estimation method was used.",
+          "source": "https://www.mongodb.com/docs/manual/reference/operator/aggregation/queryStats/",
+          "note": null
+        },
+        {
+          "text": "mergeType shows where the stage of the merge happens (\"anyShard\", \"specificShard\", or \"router\"). When mergeType is specificShard, the aggregate output includes a mergeShard property that contains the shard ID of the merging shard.",
+          "source": "https://www.mongodb.com/docs/manual/core/sharded-cluster-query-router/",
+          "note": null
+        },
+        {
+          "text": "If the query optimizer uses the cost-based ranker, the output contains several additional fields.",
+          "source": "https://www.mongodb.com/docs/manual/reference/explain-results/",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "How it works",
+      "facts": [
+        {
+          "text": "CVE-2026-4358 (published 2026-03-17): a crafted $lookup aggregation by an authenticated user with write privileges can trigger a double-free or use-after-free in the SBE engine when an in-memory hash table is spilled to disk. CVSS v4 6.1 medium, v3 7.5.",
+          "source": "https://www.tenable.com/cve/CVE-2026-4358",
+          "note": null
+        },
+        {
+          "text": "Starting in MongoDB 8.3, multi-planning with a CBR backup is the default plan selection mechanism for eligible queries. For a short trial period, the multi-planner attempts to find a plan capable of returning a result set within this short timeframe. If the attempt is unsuccessful, MongoDB applies a set of rules to determine whether the multi-planner should continue or if CBR should evaluate each node in the plan to determine the optimal plan.",
+          "source": "https://www.mongodb.com/docs/manual/reference/explain-results.md#queryplanner",
+          "note": null
+        },
+        {
+          "text": "Explain output for CBR plans adds costEstimate, cardinalityEstimate, numKeysEstimate, numDocsEstimate and estimatesMetadata.ceSource per stage, marked new in 8.3.3. ceSource values: sampling, heuristics (only when sampling fails), mixed, metadata, code. A large gap between numKeysEstimate and costEstimate can indicate a problem with the winning plan.",
+          "source": "https://www.mongodb.com/docs/manual/reference/explain-results/",
+          "note": null
+        },
+        {
+          "text": "Percona lists reduced multi-planning cost among 8.3 performance improvements and says the new serverStatus counters and explain output show when CBR was used and how often it won; it gives no CBR-specific benchmark.",
+          "source": "https://www.percona.com/blog/percona-server-for-mongodb-8-3-technical-preview-is-now-available/",
+          "note": null
+        },
+        {
+          "text": "Merge location rules: if the pipeline starts with an exact $match on the shard key and has no $out or $lookup, the whole pipeline runs on the one matching shard (no split); otherwise results merge on mongos, except $out/$lookup cases and a randomly selected shard when a sort or group stage runs with allowDiskUse enabled.",
+          "source": "https://www.mongodb.com/docs/v7.0/core/aggregation-pipeline-sharded-collections/",
+          "note": null
+        },
+        {
+          "text": "| Counter | Description | | --- | --- | | `collscan``clusteredCollscan` | Collection scans, counted separately based on whether the scan uses the [clustered index.](https://www.mongodb.com/docs/manual/core/clustered-collections.md#std-label-clustered-collections) | | `coveredIxscan` | Index scans that don't fetch documents. | | `ixscanFetch` | Index scans that fetch documents. | | `countScan` | Scans that count index keys without returning documents. | | `distinctScan``distinctScanFetch` | Scans that skip duplicate index keys, counted separately based on whether the scan fetches documents. | |",
+          "source": "https://www.mongodb.com/docs/manual/reference/operator/aggregation/queryStats.md#access-path-counters",
+          "note": null
+        },
+        {
+          "text": "Official $group docs advise: if a pipeline sorts and groups on the same field and $group uses only $first/$last, add an index on the grouped field matching the sort order. They also say $group of the form {_id:'$<field>'} can result in DISTINCT_SCAN, and to confirm via explain results.",
+          "source": "https://www.mongodb.com/docs/manual/reference/operator/aggregation/group.md",
+          "note": null
+        },
+        {
+          "text": "- Use an index to satisfy the sort so that MongoDB doesn't sort documents in memory. To learn more, see [Sort and Index Use.](https://www.mongodb.com/docs/manual/reference/method/cursor.sort.md#std-label-sort-index-use)",
+          "source": "https://www.mongodb.com/docs/manual/core/aggregation-pipeline-limits.md#per-operation-memory-limit",
+          "note": null
+        },
+        {
+          "text": "- Filter documents with [`$match`](https://www.mongodb.com/docs/manual/reference/operator/aggregation/match.md#mongodb-pipeline-pipe.-match) as early as possible in the pipeline so that later stages process fewer documents. To learn more, see [Aggregation Pipeline Optimization.](https://www.mongodb.com/docs/manual/core/aggregation-pipeline-optimization.md#std-label-agg-pipeline-optimization)",
+          "source": "https://www.mongodb.com/docs/manual/core/aggregation-pipeline-limits.md#per-operation-memory-limit",
+          "note": null
+        },
+        {
+          "text": "Starting in MongoDB 8.3, multi-planning with a cost-based ranker backup is the default plan selection mechanism for eligible queries. For a short trial period, the multi-planner attempts to find a plan capable of returning a result within the timeframe.",
+          "source": "https://www.mongodb.com/docs/manual/core/query-plans.md#query-plan-options",
+          "note": null
+        },
+        {
+          "text": "When explain is run in either executionStats or allPlansExecution verbosity mode, certain aggregation stages that may spill to disk have additional output. These stages include $sort, $group, $setWindowFields, $bucketAuto, $graphLookup, and $lookup (when using the slot-based execution engine). Starting in MongoDB 8.1, this also includes $text queries that use the TextOr execution stage.",
+          "source": "https://www.mongodb.com/docs/manual/reference/explain-results/",
+          "note": null
+        },
+        {
+          "text": "The Explain Plan doesn't show aggregation pipeline stages such as [`$merge`](https://www.mongodb.com/docs/manual/reference/operator/aggregation/merge.md#mongodb-pipeline-pipe.-merge) and [`$out`](https://www.mongodb.com/docs/manual/reference/operator/aggregation/out.md#mongodb-pipeline-pipe.-out) because Atlas ignores all out stages from the aggregation before running the explain plan.",
+          "source": "https://www.mongodb.com/docs/atlas/atlas-ui/query-plan.md#about-this-task",
+          "note": null
+        },
+        {
+          "text": "Each field has the form `{ \"value\": <value>, \"source\": <string> }`. When you set a query knob with the [`setQuerySettings`](https://www.mongodb.com/docs/manual/reference/command/setquerysettings.md#mongodb-dbcommand-dbcmd.setQuerySettings) command, MongoDB sets the `source` value to `\"querySettings\"`. When you set a query knob with [`setParameter`](https://www.mongodb.com/docs/manual/reference/command/setparameter.md#mongodb-dbcommand-dbcmd.setParameter), MongoDB sets the `source` value to `\"setParameter\"`.",
+          "source": "https://www.mongodb.com/docs/manual/reference/explain-results.md#query-knobs",
+          "note": null
+        },
+        {
+          "text": "The [`$search`](https://www.mongodb.com/docs/search/query/aggregation-stages/search.md#mongodb-pipeline-pipe.-search) aggregation stage is not restricted to 100 megabytes of RAM because it runs in a separate process.",
+          "source": "https://www.mongodb.com/docs/manual/core/aggregation-pipeline-limits.md#memory-restrictions",
+          "note": null
+        },
+        {
+          "text": "- Using `{ allowDiskUse: true }` to allow writing temporary files out to disk when `allowDiskUseByDefault` is set to `false`",
+          "source": "https://www.mongodb.com/docs/manual/reference/parameters.md#general-parameters",
+          "note": null
+        },
+        {
+          "text": "- Using `{ allowDiskUse: false }` to prohibit writing temporary files out to disk when `allowDiskUseByDefault` is set to `true`",
+          "source": "https://www.mongodb.com/docs/manual/reference/parameters.md#general-parameters",
+          "note": null
+        },
+        {
+          "text": "When [`mongod`](https://www.mongodb.com/docs/manual/reference/program/mongod.md#mongodb-binary-bin.mongod) generates index keys on a field that holds an array, [`mongod`](https://www.mongodb.com/docs/manual/reference/program/mongod.md#mongodb-binary-bin.mongod) generates an index key for each array element. For compound indexes, [`mongod`](https://www.mongodb.com/docs/manual/reference/program/mongod.md#mongodb-binary-bin.mongod) calculates the [cartesian product](https://www.mongodb.com/docs/manual/reference/glossary.md#std-term-cartesian-product) of the sets of keys that are generated for eac",
+          "source": "https://www.mongodb.com/docs/manual/reference/limits.md#indexes",
+          "note": null
+        },
+        {
+          "text": "In some instances, such as when running in a container that is configured to use less RAM than the amount of memory provisioned for the host, you must account for the limits. You may need to configure the WiredTiger cache to an appropriate value, as WiredTiger may not account for the memory limits of the specific container in certain cases.",
+          "source": "https://www.mongodb.com/docs/manual/reference/program/mongod.md#wiredtiger-options",
+          "note": null
+        },
+        {
+          "text": "usedDisk is true when the query writes data to temporary files due to memory restrictions.",
+          "source": "https://www.mongodb.com/docs/manual/reference/operator/aggregation/queryStats/",
+          "note": null
+        },
+        {
+          "text": "A query that exceeds either 100 megabytes or the available memory spills to disk. It writes intermediate data to storage to save memory, which can cause lowered performance. Use the [`allowDiskUseByDefault`](https://www.mongodb.com/docs/manual/reference/parameters.md#mongodb-parameter-param.allowDiskUseByDefault) parameter or [`cursor.allowDiskUse()`](https://www.mongodb.com/docs/manual/reference/method/cursor.allowdiskuse.md#mongodb-method-cursor.allowDiskUse) method to configure this behavior.",
+          "source": "https://www.mongodb.com/docs/manual/tutorial/query-documents.md#query-spill",
+          "note": null
+        },
+        {
+          "text": "- If the deployment is a sharded cluster, a shard removal may cause an open change stream cursor to close. The closed change stream cursor may not be fully resumable.",
+          "source": "https://www.mongodb.com/docs/manual/reference/method/db.collection.watch.md#behavior",
+          "note": null
+        },
+        {
+          "text": "For example, `$group` operations of the following form can result in a `DISTINCT_SCAN`:",
+          "source": "https://www.mongodb.com/docs/manual/reference/operator/aggregation/group.md#retrieve-distinct-values",
+          "note": null
+        },
+        {
+          "text": "When run without [localOps:true](https://www.mongodb.com/docs/manual/reference/operator/aggregation/currentop.md#std-label-currentOp-stage-localOps) on the [`mongos`](https://www.mongodb.com/docs/manual/reference/program/mongos.md#mongodb-binary-bin.mongos), the transaction information is per shard.",
+          "source": "https://www.mongodb.com/docs/manual/reference/operator/aggregation/currentOp.md#mongos-composite-view-output",
+          "note": null
+        },
+        {
+          "text": "When run on a [`mongos`](https://www.mongodb.com/docs/manual/reference/program/mongos.md#mongodb-binary-bin.mongos) without [localOps:true](https://www.mongodb.com/docs/manual/reference/operator/aggregation/currentop.md#std-label-currentOp-stage-localOps), the transaction information is per shard.",
+          "source": "https://www.mongodb.com/docs/manual/reference/operator/aggregation/currentOp.md#mongos-per-shard-output",
+          "note": null
+        },
+        {
+          "text": "When run on a [`mongos`](https://www.mongodb.com/docs/manual/reference/program/mongos.md#mongodb-binary-bin.mongos), [`$currentOp`](https://www.mongodb.com/docs/manual/reference/operator/aggregation/currentop.md#mongodb-pipeline-pipe.-currentOp) returns the opids in the format of `\"<shardName>:<opid on that shard>\"`; e.g.",
+          "source": "https://www.mongodb.com/docs/manual/reference/method/db.killOp.md#kill-write-operations",
+          "note": null
+        },
+        {
+          "text": "After the mongos receives responses from all shards, it merges the data and returns the result document. The performance of a broadcast operation depends on the overall load of the cluster, as well as variables like network latency, individual shard load, and number of documents returned per shard. Whenever possible, favor operations that result in targeted operation over those that result in a broadcast operation.",
+          "source": "https://www.mongodb.com/docs/manual/core/sharded-cluster-query-router/",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "How-to and procedures",
+      "facts": [
+        {
+          "text": "To see whether your operation results in a `DISTINCT_SCAN`, check your operation's [explain results.](https://www.mongodb.com/docs/manual/reference/explain-results.md#std-label-explain-results)",
+          "source": "https://www.mongodb.com/docs/manual/reference/operator/aggregation/group.md#retrieve-distinct-values",
+          "note": null
+        },
+        {
+          "text": "To determine whether a pipeline uses indexes, review the query plan and look for `IXSCAN` or `DISTINCT_SCAN` plans.",
+          "source": "https://www.mongodb.com/docs/manual/core/aggregation-pipeline-optimization.md#indexes",
+          "note": null
+        },
+        {
+          "text": "To check per-operation memory usage, use these [`serverStatus`](https://www.mongodb.com/docs/manual/reference/command/serverstatus.md#mongodb-dbcommand-dbcmd.serverStatus) metrics:",
+          "source": "https://www.mongodb.com/docs/manual/reference/limits.md#operations",
+          "note": null
+        },
+        {
+          "text": "To learn more about memory limits, see [Memory Use.](https://www.mongodb.com/docs/manual/core/wiredtiger.md#std-label-wiredtiger-RAM)",
+          "source": "https://www.mongodb.com/docs/manual/reference/program/mongod.md#wiredtiger-options",
+          "note": null
+        },
+        {
+          "text": "To analyze query performance, see Interpret Explain Plan Results.",
+          "source": "https://www.mongodb.com/docs/manual/core/query-optimization/",
+          "note": null
+        },
+        {
+          "text": "To help you better understand the performance of your pipeline, you can view your pipeline's explain plan. You can view the explain plan at any point while creating or editing your pipeline.",
+          "source": "https://www.mongodb.com/docs/atlas/atlas-ui/agg-pipeline-builder/view-pipeline-explain-plan.md",
+          "note": null
+        },
+        {
+          "text": "To learn more, see Query Knobs.",
+          "source": "https://www.mongodb.com/docs/manual/reference/explain-results/",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Examples and snippets",
+      "facts": [
+        {
+          "text": "```javascript — `metrics : {` …",
+          "source": "https://www.mongodb.com/docs/manual/reference/command/serverStatus.md#metrics",
+          "note": null
+        },
+        {
+          "text": "```javascript — `executionStats: {` …",
+          "source": "https://www.mongodb.com/docs/manual/reference/explain-results.md#unsharded-collections",
+          "note": null
+        },
+        {
+          "text": "```javascript — `\"op\" : \"query\",` …",
+          "source": "https://www.mongodb.com/docs/manual/reference/database-profiler.md#find-operation",
+          "note": null
+        },
+        {
+          "text": "```none — `\"version\" : 1,` …",
+          "source": "https://www.mongodb.com/docs/manual/reference/operator/aggregation/planCacheStats.md#classic-execution-engine",
+          "note": null
+        },
+        {
+          "text": "```javascript — `\"shard\" : \"shardB\",` …",
+          "source": "https://www.mongodb.com/docs/manual/reference/operator/aggregation/currentOp.md#mongos-per-shard-output",
+          "note": null
+        },
+        {
+          "text": "```javascript — `\"inprog\": [` …",
+          "source": "https://www.mongodb.com/docs/manual/reference/method/db.currentOp.md#standalone",
+          "note": null
+        },
+        {
+          "text": "```javascript — `\"t\":{\"$date\":\"2026-08-14T13:36:19.194-04:00\"},\"s\":\"D1\",` …",
+          "source": "https://www.mongodb.com/docs/manual/reference/operator/aggregation/queryStats/toggle-logging.md#querystats-output-included",
+          "note": null
+        },
+        {
+          "text": "```bash — `mongod --setParameter allowDiskUseByDefault=false` …",
+          "source": "https://www.mongodb.com/docs/manual/reference/parameters.md#general-parameters",
+          "note": null
+        },
+        {
+          "text": "```javascript — `db.adminCommand(` …",
+          "source": "https://www.mongodb.com/docs/manual/reference/parameters.md#general-parameters",
+          "note": null
+        },
+        {
+          "text": "```javascript — `key: {` …",
+          "source": "https://www.mongodb.com/docs/manual/reference/operator/aggregation/queryStats.md#transformed-example",
+          "note": null
+        },
+        {
+          "text": "```javascript — `\"t\":{` …",
+          "source": "https://www.mongodb.com/docs/manual/reference/log-messages.md#slow-operation",
+          "note": null
+        },
+        {
+          "text": "```javascript — `\"t\": {` …",
+          "source": "https://www.mongodb.com/docs/manual/reference/log-messages.md#query-memory-limit-exceeded",
+          "note": null
+        },
+        {
+          "text": "```javascript — `db.adminCommand( {` …",
+          "source": "https://www.mongodb.com/docs/manual/reference/command/setQuerySettings.md#set-query-settings-by-passing-in-a-query",
+          "note": null
+        },
+        {
+          "text": "```javascript — `db.adminCommand( {` …",
+          "source": "https://www.mongodb.com/docs/manual/reference/command/setQuerySettings.md#set-query-settings-by-passing-in-a-query-shape-hash",
+          "note": null
+        },
+        {
+          "text": "```csharp — `// Indexes on ``timeField`` descending are more performant because they` …",
+          "source": "https://www.mongodb.com/docs/manual/core/timeseries/timeseries-secondary-index.md#last-point-queries-on-time-series-collections",
+          "note": null
+        },
+        {
+          "text": "```java — `// Indexes on ``timeField`` descending are more performant because they` …",
+          "source": "https://www.mongodb.com/docs/manual/core/timeseries/timeseries-secondary-index.md#last-point-queries-on-time-series-collections",
+          "note": null
+        },
+        {
+          "text": "```javascript — `// Indexes on ``timeField`` descending are more performant because they` …",
+          "source": "https://www.mongodb.com/docs/manual/core/timeseries/timeseries-secondary-index.md#last-point-queries-on-time-series-collections",
+          "note": null
+        },
+        {
+          "text": "```python — `# Indexes on ``timeField`` descending are more performant because they` …",
+          "source": "https://www.mongodb.com/docs/manual/core/timeseries/timeseries-secondary-index.md#last-point-queries-on-time-series-collections",
+          "note": null
+        },
+        {
+          "text": "```javascript — `{ querySettings: { queryKnobs: { operationResponseMaxMS: <value> } } }` …",
+          "source": "https://www.mongodb.com/docs/manual/reference/parameters.md#general-parameters",
+          "note": null
+        },
+        {
+          "text": "```javascript — `db.runCommand( { serverStatus: 1, metrics: { query: { multiPlanner: { histograms: false } } } } )` …",
+          "source": "https://www.mongodb.com/docs/manual/reference/command/serverStatus.md#behavior",
+          "note": null
+        },
+        {
+          "text": "```none — `'$lookup': {` …",
+          "source": "https://www.mongodb.com/docs/manual/reference/explain-results.md#execution-plan-statistics-for-query-with-lookup-pipeline-stage",
+          "note": null
+        },
+        {
+          "text": "```json — `\"ns\": \"test.names\",` …",
+          "source": "https://www.mongodb.com/docs/manual/reference/operator/aggregation/shardedDataDistribution.md#return-all-sharded-data-distibution-metrics",
+          "note": null
+        },
+        {
+          "text": "```javascript — `db.aggregate([` …",
+          "source": "https://www.mongodb.com/docs/manual/reference/operator/aggregation/shardedDataDistribution.md#return-metrics-for-a-specific-shard",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Problems, failure modes and limitations",
+      "facts": [
+        {
+          "text": "Starting in MongoDB 9.0 a per-operation memory limit (internalQueryMaxMemoryUsageBytesPerOperation, default max of 1 GB or 20% of server memory) covers combined tracked memory of blocking stages and expressions. It does not change per-stage spilling. Overruns return QueryExceededMemoryLimitNoDiskUseAllowed (292, when allowDiskUse is false) or ExceededMemoryLimit (146).",
+          "source": "https://www.mongodb.com/docs/manual/core/aggregation-pipeline-limits.md",
+          "note": null
+        },
+        {
+          "text": "| **MongoDB Version** | **Changes** | | --- | --- | | 6.1 | Slow operation log messages include [cache refresh time fields.](https://www.mongodb.com/docs/manual/reference/log-messages.md#std-label-log-messages-cache-refresh-times) | | 6.2 | Slow operation log messages include a `queryFramework` field that indicates which query engine executed the query: `queryFramework: \"classic\"` indicates that the classic engine executed the query.; `queryFramework: \"sbe\"` indicates that the slot-based query execution engine executed the query. | | 6.3 | Slow operation log messages and [database profiler](ht",
+          "source": "https://www.mongodb.com/docs/manual/reference/log-messages.md#version-specific-changes",
+          "note": null
+        },
+        {
+          "text": "Since MongoDB 6.0 the allowDiskUseByDefault parameter decides whether stages needing more than 100 MB of memory write temporary files (true) or raise an error (false). Per-command {allowDiskUse: true|false} overrides it.",
+          "source": "https://www.mongodb.com/docs/manual/core/aggregation-pipeline-limits.md",
+          "note": null
+        },
+        {
+          "text": "$push and $addToSet inside $group cannot spill: each hits a separate 100 MB cap and fails with 'used too much memory and cannot spill to disk. Memory limit: 104857600 bytes' even with allowDiskUse: true. Fix by restructuring (filter or limit first, two-step group, $topN), not by flag.",
+          "source": "https://www.netdata.cloud/guides/mongodb/mongodb-exceeded-memory-limit-group-sort/",
+          "note": null
+        },
+        {
+          "text": "Profiler and diagnostic log lines carry a usedDisk indicator when any stage wrote temporary files, so spills show up in slow-query logs without re-running explain.",
+          "source": "https://www.mongodb.com/docs/manual/core/aggregation-pipeline-limits.md",
+          "note": null
+        },
+        {
+          "text": "Mitigations for memory pressure: use an index-backed sort, put $limit after $sort, and filter with $match early. On sharded clusters, allowDiskUse on a sorting or grouping stage may move the merge to a randomly selected shard.",
+          "source": "https://www.mongodb.com/docs/manual/core/aggregation-pipeline-limits.md",
+          "note": null
+        },
+        {
+          "text": "| Field | Type | Literal or Normalized | Description | | --- | --- | --- | --- | | `key` | Document | Literal | Contains the query shape and additional query attributes that group a set of queries together | | `key.queryShape` | Document | Literal | Contains attributes used to group similar queries together. For more information, see [Query Shape.](https://www.mongodb.com/docs/manual/reference/operator/aggregation/querystats.md#std-label-queryStats-queryShape) | | `key.client` | Document | Literal | Describes client information associated with the key | | `key.client.application` | Document |",
+          "source": "https://www.mongodb.com/docs/manual/reference/operator/aggregation/queryStats.md#output",
+          "note": null
+        },
+        {
+          "text": "Starting in MongoDB 8.3, the query engine limits the `TextOr` stage memory usage to 100 megabytes. The `TextOr` stage processes [`$text`](https://www.mongodb.com/docs/manual/reference/operator/query/text.md#mongodb-query-op.-text) queries that read text score metadata. For example, `TextOr` processes queries that sort results by text score. If the `TextOr` stage exceeds this limit:",
+          "source": "https://www.mongodb.com/docs/manual/reference/operator/query/text.md#memory-limits",
+          "note": null
+        },
+        {
+          "text": "Starting in MongoDB 9.0, MongoDB limits the total amount of memory that a single query operation can use. The limit applies to the combined memory of all memory-tracked stages of the operation.",
+          "source": "https://www.mongodb.com/docs/manual/core/aggregation-pipeline-limits.md#per-operation-memory-limit",
+          "note": null
+        },
+        {
+          "text": "To check if MongoDB must perform an in-memory sort, append cursor.explain() to the query and check the explain results. If the query plan contains a SORT stage, then MongoDB must perform an in-memory sort operation subject to the 100 megabyte memory limit.",
+          "source": "https://www.mongodb.com/docs/manual/reference/method/cursor.allowDiskUse/",
+          "note": null
+        },
+        {
+          "text": "planCacheShapeHash (added 8.0, duplicate of deprecated queryHash) depends only on query shape; planCacheKey depends on shape plus available indexes, so adding or dropping an index changes the key but not the shape hash.",
+          "source": "https://www.mongodb.com/docs/v8.3/core/query-plans/",
+          "note": null
+        },
+        {
+          "text": "Third-party guidance calls CBR the primary plan-regression risk in an 8.0 to 8.3 upgrade (claimed 5-50x slowdowns on some shapes) and recommends capturing plan shapes before upgrade and diffing after. This is an unquantified vendor-blog opinion, not measured evidence; no independent benchmark of CBR plan quality was found.",
+          "source": "https://minervadb.com/mongodb-performance-troubleshooting/",
+          "note": null
+        },
+        {
+          "text": "Starting in MongoDB 9.0, MongoDB tracks the memory that [`$nearSphere`](https://www.mongodb.com/docs/manual/reference/operator/query/nearsphere.md#mongodb-query-op.-nearSphere) uses to buffer results and to remove duplicate records. If the query exceeds the 100 megabyte memory limit for the stage, MongoDB ends the query and returns an error.",
+          "source": "https://www.mongodb.com/docs/manual/reference/operator/query/nearSphere.md#memory-use",
+          "note": null
+        },
+        {
+          "text": "Statistics for the $queryStats stage are tracked in a virtual collection that is stored in-memory. The memory limit for the virtual collection is 1% of the system's total memory.",
+          "source": "https://www.mongodb.com/docs/manual/reference/operator/aggregation/queryStats/",
+          "note": null
+        },
+        {
+          "text": "Starting in MongoDB 9.0, if a query operation exceeds the per-operation memory limit and cannot spill to disk, MongoDB ends the operation with the ExceededMemoryLimit error. MongoDB also writes the following log message:",
+          "source": "https://www.mongodb.com/docs/manual/reference/log-messages/",
+          "note": null
+        },
+        {
+          "text": "When a query shape has query knobs set through setQuerySettings or setParameter, slow query log entries include a queryKnobs document. The document shows the effective value of each knob and where the value comes from, with the same shape as the explain output. For details, see Query Knobs.",
+          "source": "https://www.mongodb.com/docs/manual/reference/log-messages/",
+          "note": null
+        },
+        {
+          "text": "Aggregation pipelines which call `$bottom` are subject to the [100 MB limit](https://www.mongodb.com/docs/manual/core/aggregation-pipeline-limits.md#std-label-agg-memory-restrictions). If this limit is exceeded for an individual group, the aggregation fails with an error.",
+          "source": "https://www.mongodb.com/docs/manual/reference/operator/aggregation/bottom.md#memory-limit-considerations",
+          "note": null
+        },
+        {
+          "text": "To change the per-operation limit, set the [`internalQueryMaxMemoryUsageBytesPerOperation`](https://www.mongodb.com/docs/manual/reference/parameters.md#mongodb-parameter-param.internalQueryMaxMemoryUsageBytesPerOperation) parameter at startup, at runtime, or with query settings.",
+          "source": "https://www.mongodb.com/docs/manual/core/aggregation-pipeline-limits.md#per-operation-memory-limit",
+          "note": null
+        },
+        {
+          "text": "For memory-intensive expressions that the per-operation limit does not cover, MongoDB applies a limit on the maximum memory that a subset of expressions can use. The default of this limit is 100 megabytes. To change this limit, set the [`internalQueryMaxSingleExpressionMemoryUsageBytes`](https://www.mongodb.com/docs/manual/reference/parameters.md#mongodb-parameter-param.internalQueryMaxSingleExpressionMemoryUsageBytes) parameter at startup or at runtime.",
+          "source": "https://www.mongodb.com/docs/manual/core/aggregation-pipeline-limits.md#per-operation-memory-limit",
+          "note": null
+        },
+        {
+          "text": "- Add a [`$limit`](https://www.mongodb.com/docs/manual/reference/operator/aggregation/limit.md#mongodb-pipeline-pipe.-limit) stage after a [`$sort`](https://www.mongodb.com/docs/manual/reference/operator/aggregation/sort.md#mongodb-pipeline-pipe.-sort) stage so that the sort keeps only the documents you need. To learn more, see [$sort and $limit Memory Optimization.](https://www.mongodb.com/docs/manual/reference/operator/aggregation/sort.md#std-label-sort-limit-sequence)",
+          "source": "https://www.mongodb.com/docs/manual/core/aggregation-pipeline-limits.md#per-operation-memory-limit",
+          "note": null
+        },
+        {
+          "text": "| Field | Type | Description | | --- | --- | --- | | `distinct` | string | The name of the collection to query for distinct values. | | `key` | string | The field for which to return distinct values. | | `query` | document | Optional. A query that specifies the documents from which to retrieve the distinct values. | | `readConcern` | document | Optional. Specifies the [read concern.](https://www.mongodb.com/docs/manual/reference/glossary.md#std-term-read-concern) The `readConcern` option has the following syntax: `readConcern: { level: <value> }` Possible read concern levels are: [`\"local\"`](h",
+          "source": "https://www.mongodb.com/docs/manual/reference/command/distinct.md#command-fields",
+          "note": null
+        },
+        {
+          "text": "Starting in MongoDB 9.0, slow query logs include a `planRankerMethod` field that indicates which [query plan ranking mechanism](https://www.mongodb.com/docs/manual/core/query-plans.md#std-label-query-plan-options) selected the winning plan:",
+          "source": "https://www.mongodb.com/docs/manual/reference/sbe.md#check-slow-query-logs",
+          "note": null
+        },
+        {
+          "text": "Some stages can't output any documents until they have processed all incoming documents. These pipeline stages must keep their stage output in RAM until all incoming documents are processed. As a result, these pipeline stages may require more space than the 100 MB limit.",
+          "source": "https://www.mongodb.com/docs/manual/core/aggregation-pipeline-limits.md#memory-restrictions",
+          "note": null
+        },
+        {
+          "text": "If the [`$group`](https://www.mongodb.com/docs/manual/reference/operator/aggregation/group.md#mongodb-pipeline-pipe.-group) stage exceeds 100 megabytes of RAM, MongoDB writes data to temporary files. However, if the [allowDiskUse](https://www.mongodb.com/docs/manual/reference/command/aggregate.md#std-label-aggregate-cmd-allowDiskUse) option is set to `false`, `$group` returns an error. For more information, refer to [aggregation pipeline limits.](https://www.mongodb.com/docs/manual/core/aggregation-pipeline-limits.md#std-label-agg-pipeline-limits)",
+          "source": "https://www.mongodb.com/docs/manual/reference/operator/aggregation/group.md#group-and-memory-restrictions",
+          "note": null
+        },
+        {
+          "text": "If MongoDB cannot obtain the sort order with an index scan, then MongoDB uses a top-k sort algorithm. This algorithm buffers the first `k` results (or last, depending on the sort order) seen so far by the underlying index or collection access. If the memory footprint of these `k` results exceeds 100 megabytes, MongoDB automatically writes temporary files to disk unless the query specifies [`cursor.allowDiskUse()`](https://www.mongodb.com/docs/manual/reference/method/cursor.allowdiskuse.md#mongodb-method-cursor.allowDiskUse) with a value of `false` (in which case, the query fails).",
+          "source": "https://www.mongodb.com/docs/manual/reference/method/cursor.sort.md#limit-results",
+          "note": null
+        },
+        {
+          "text": "createIndexes supports building one or more indexes on a collection. createIndexes uses a combination of memory and temporary files on disk to build indexes. In self-hosted MongoDB deployments, the default value of the maxIndexBuildMemoryUsageMegabytes parameter is 200 megabytes per createIndexes command. createIndexes shares the memory limit equally among all the indexes it builds. For example, if you build 10 indexes with one createIndexes command, MongoDB allocates each index 20 megabytes for the index build process. When you reach the memory limit, MongoDB creates temporary files in the _t",
+          "source": "https://www.mongodb.com/docs/manual/reference/command/createIndexes/",
+          "note": null
+        },
+        {
+          "text": "In self-hosted MongoDB deployments, you can change the memory limit for index builds by setting the maxIndexBuildMemoryUsageMegabytes parameter. Increasing this parameter is only necessary in rare cases. Such cases include running many simultaneous index builds with a single createIndexes command or indexing a data set larger than 500GB. You can also set maxNumActiveUserIndexBuilds to adjust how many index builds can run concurrently.",
+          "source": "https://www.mongodb.com/docs/manual/reference/command/createIndexes/",
+          "note": null
+        },
+        {
+          "text": "If the [`$graphLookup`](https://www.mongodb.com/docs/manual/reference/operator/aggregation/graphlookup.md#mongodb-pipeline-pipe.-graphLookup) stage exceeds 100 megabytes of memory and the `allowDiskUse` option is set to `false`, [`$graphLookup`](https://www.mongodb.com/docs/manual/reference/operator/aggregation/graphlookup.md#mongodb-pipeline-pipe.-graphLookup) returns an error.",
+          "source": "https://www.mongodb.com/docs/manual/reference/operator/aggregation/graphLookup.md#memory",
+          "note": null
+        },
+        {
+          "text": "Only queries that match a large number of documents reach the limit. To reduce the memory that the query requires, specify `maxDistance` to restrict the search area. This memory counts toward the per-operation memory limit. To learn more, see [Per-Operation Memory Limit.](https://www.mongodb.com/docs/manual/core/aggregation-pipeline-limits.md#std-label-operation-memory-limit)",
+          "source": "https://www.mongodb.com/docs/manual/reference/operator/query/nearSphere.md#memory-use",
+          "note": null
+        },
+        {
+          "text": "- If `allowDiskUse` is `false`, the query fails with an exceeded memory limit error.",
+          "source": "https://www.mongodb.com/docs/manual/reference/operator/query/text.md#memory-limits",
+          "note": null
+        },
+        {
+          "text": "In earlier versions, the `TextOr` stage had no memory limit and consumed RAM without restrictions, risking out-of-memory (OOM) errors.",
+          "source": "https://www.mongodb.com/docs/manual/reference/operator/query/text.md#memory-limits",
+          "note": null
+        },
+        {
+          "text": "- If [`allowDiskUseByDefault`](https://www.mongodb.com/docs/manual/reference/parameters.md#mongodb-parameter-param.allowDiskUseByDefault) is set to `false`, pipeline stages that require more than 100 megabytes of memory to execute raise an error by default. You can enable writing temporary files to disk for specific `find` or `aggregate` using the `{ allowDiskUse: true }` option.",
+          "source": "https://www.mongodb.com/docs/manual/core/aggregation-pipeline-limits.md#memory-restrictions",
+          "note": null
+        },
+        {
+          "text": "In addition to the per-stage limit, a single operation can use no more memory than the [per-operation memory limit.](https://www.mongodb.com/docs/manual/core/aggregation-pipeline-limits.md#std-label-operation-memory-limit)",
+          "source": "https://www.mongodb.com/docs/manual/core/aggregation-pipeline-limits.md#memory-restrictions",
+          "note": null
+        },
+        {
+          "text": "The per-operation limit is separate from the 100 megabyte per-stage memory limit and doesn't change how stages spill to disk. To learn about the per-stage limit, see [Memory Restrictions.](https://www.mongodb.com/docs/manual/core/aggregation-pipeline-limits.md#std-label-agg-memory-restrictions)",
+          "source": "https://www.mongodb.com/docs/manual/core/aggregation-pipeline-limits.md#per-operation-memory-limit",
+          "note": null
+        },
+        {
+          "text": "Most operations use much less memory than the limit. If an operation returns a memory limit error, reduce the memory that the operation requires by performing one or more of the following actions:",
+          "source": "https://www.mongodb.com/docs/manual/core/aggregation-pipeline-limits.md#per-operation-memory-limit",
+          "note": null
+        },
+        {
+          "text": "Specifies the maximum amount of memory that all memory-tracked stages of a single operation can collectively use. This parameter sets the [per-operation memory limit](https://www.mongodb.com/docs/manual/core/aggregation-pipeline-limits.md#std-label-operation-memory-limit). To learn which stages and expressions MongoDB tracks and what happens when an operation exceeds the limit, see [Per-Operation Memory Limit.](https://www.mongodb.com/docs/manual/core/aggregation-pipeline-limits.md#std-label-operation-memory-limit)",
+          "source": "https://www.mongodb.com/docs/manual/reference/parameters.md#general-parameters",
+          "note": null
+        },
+        {
+          "text": "Specifies the maximum amount of memory that a subset of memory-intensive expressions can use during expression evaluation. MongoDB applies this limit when the per-operation memory limit does not apply to the operation. To learn about the per-operation memory limit, see [Per-Operation Memory Limit.](https://www.mongodb.com/docs/manual/core/aggregation-pipeline-limits.md#std-label-operation-memory-limit)",
+          "source": "https://www.mongodb.com/docs/manual/reference/parameters.md#general-parameters",
+          "note": null
+        },
+        {
+          "text": "As each stage in a `$facet` executes, the resulting document is limited to 100 megabytes. Note the [allowDiskUse](https://www.mongodb.com/docs/manual/reference/command/aggregate.md#std-label-aggregate-cmd-allowDiskUse) flag doesn't affect the 100 megabyte size limit, since `$facet` can't spill to disk.",
+          "source": "https://www.mongodb.com/docs/manual/reference/operator/aggregation/facet.md#considerations",
+          "note": null
+        },
+        {
+          "text": "The view's underlying aggregation pipeline is subject to the 100 megabyte memory limit for blocking sort and blocking group operations.",
+          "source": "https://www.mongodb.com/docs/manual/core/views.md#view-pipelines",
+          "note": null
+        },
+        {
+          "text": "Use allowDiskUse() to either allow or prohibit writing temporary files on disk when a pipeline stage exceeds the 100 megabyte limit. Starting in MongoDB 6.0, operations that require greater than 100 megabytes of memory automatically write data to temporary files by default.",
+          "source": "https://www.mongodb.com/docs/manual/reference/method/cursor.allowDiskUse/",
+          "note": null
+        },
+        {
+          "text": "Since reading.timestamp is not included in an index, MongoDB must perform an in-memory sort operation to return results in the requested sort order. By specifying cursor.allowDiskUse(false), MongoDB cannot process the sort operation if it requires more than 100 megabytes of system memory. If the operation requires more than 100 megabytes of system memory, MongoDB would return an error.",
+          "source": "https://www.mongodb.com/docs/manual/reference/method/cursor.allowDiskUse/",
+          "note": null
+        },
+        {
+          "text": "The optimization still applies when `allowDiskUse` is `true` and the `n` items exceed the [aggregation memory limit.](https://www.mongodb.com/docs/manual/core/aggregation-pipeline-limits.md#std-label-agg-memory-restrictions)",
+          "source": "https://www.mongodb.com/docs/manual/core/aggregation-pipeline-optimization.md#sort-limit-coalescence",
+          "note": null
+        },
+        {
+          "text": "Current configured value of the maximum amount of memory in bytes that all memory-tracked stages of a single query operation may collectively use. Use this metric to correlate failures with the configured memory limit.",
+          "source": "https://www.mongodb.com/docs/manual/reference/command/serverStatus.md#metrics",
+          "note": null
+        },
+        {
+          "text": "Number of times since startup that a query operation failed because it exceeded memory-tracking limits. Use this metric to determine whether the memory limit is too low for your workload.",
+          "source": "https://www.mongodb.com/docs/manual/reference/command/serverStatus.md#metrics",
+          "note": null
+        },
+        {
+          "text": "Largest amount of memory in bytes tracked for a single operation since startup. Use this metric to determine an appropriate per-operation memory limit for your workload.",
+          "source": "https://www.mongodb.com/docs/manual/reference/command/serverStatus.md#metrics",
+          "note": null
+        },
+        {
+          "text": "An [initial sync](https://www.mongodb.com/docs/manual/core/replica-set-sync.md#std-label-replica-set-sync) populates only one collection at a time and has no risk of exceeding the memory limit. However, it is possible for a user to start index builds on multiple collections in multiple databases simultaneously.",
+          "source": "https://www.mongodb.com/docs/manual/reference/limits.md#indexes",
+          "note": null
+        },
+        {
+          "text": "To view the [`memory limit`](https://www.mongodb.com/docs/manual/reference/command/hostinfo.md#mongodb-data-hostInfo.system.memLimitMB), the value that WiredTiger utilizes as the maximum amount of RAM available use the [`hostInfo`](https://www.mongodb.com/docs/manual/reference/command/hostinfo.md#mongodb-dbcommand-dbcmd.hostInfo) command.",
+          "source": "https://www.mongodb.com/docs/manual/reference/program/mongod.md#wiredtiger-options",
+          "note": null
+        },
+        {
+          "text": "The [`$bucket`](https://www.mongodb.com/docs/manual/reference/operator/aggregation/bucket.md#mongodb-pipeline-pipe.-bucket) stage has a limit of 100 megabytes of RAM. By default, if the stage exceeds this limit, [`$bucket`](https://www.mongodb.com/docs/manual/reference/operator/aggregation/bucket.md#mongodb-pipeline-pipe.-bucket) returns an error. To allow more space for stage processing, use the [allowDiskUse](https://www.mongodb.com/docs/manual/reference/command/aggregate.md#std-label-aggregate-cmd-allowDiskUse) option to enable aggregation pipeline stages to write data to temporary files.",
+          "source": "https://www.mongodb.com/docs/manual/reference/operator/aggregation/bucket.md#bucket-and-memory-restrictions",
+          "note": null
+        },
+        {
+          "text": "When a [`$sort`](https://www.mongodb.com/docs/manual/reference/operator/aggregation/sort.md#mongodb-pipeline-pipe.-sort) precedes a [`$limit`](https://www.mongodb.com/docs/manual/reference/operator/aggregation/limit.md#mongodb-pipeline-pipe.-limit) and there are no intervening stages that modify the number of documents, the optimizer can coalesce the [`$limit`](https://www.mongodb.com/docs/manual/reference/operator/aggregation/limit.md#mongodb-pipeline-pipe.-limit) into the [`$sort`](https://www.mongodb.com/docs/manual/reference/operator/aggregation/sort.md#mongodb-pipeline-pipe.-sort). This a",
+          "source": "https://www.mongodb.com/docs/manual/reference/operator/aggregation/sort.md#sort-and-limit-memory-optimization",
+          "note": null
+        },
+        {
+          "text": "The [`$bucketAuto`](https://www.mongodb.com/docs/manual/reference/operator/aggregation/bucketauto.md#mongodb-pipeline-pipe.-bucketAuto) stage has a limit of 100 megabytes of RAM. By default, if the stage exceeds this limit, MongoDB automatically writes temporary files to disk. For details, see [`allowDiskUseByDefault`.](https://www.mongodb.com/docs/manual/reference/parameters.md#mongodb-parameter-param.allowDiskUseByDefault)",
+          "source": "https://www.mongodb.com/docs/manual/reference/operator/aggregation/bucketAuto.md#bucketauto-and-memory-restrictions",
+          "note": null
+        },
+        {
+          "text": "- A single [`$accumulator`](https://www.mongodb.com/docs/manual/reference/operator/aggregation/accumulator.md#mongodb-group-grp.-accumulator) operation exceeds its specified memory limit. If you specify the [`allowDiskUse`](https://www.mongodb.com/docs/manual/reference/method/db.collection.aggregate.md#mongodb-method-db.collection.aggregate) option, the operator stores the in-progress operation on disk and finishes the operation in memory. Once the operation finishes, the results from disk and memory are merged together using the [merge](https://www.mongodb.com/docs/manual/reference/operator/a",
+          "source": "https://www.mongodb.com/docs/manual/reference/operator/aggregation/accumulator.md#merge-two-states-with-merge",
+          "note": null
+        },
+        {
+          "text": "Slow query log messages contain new metrics if the query execution writes temporary files to disk. These metrics are prefixed by the query execution stage that caused the query to exceed the memory limit. For example, sortSpills indicates the number of times that the sort stage of query execution wrote temporary files to disk.",
+          "source": "https://www.mongodb.com/docs/manual/reference/log-messages/",
+          "note": null
+        },
+        {
+          "text": "\"msg\": \"Query exceeded the memory limit\",",
+          "source": "https://www.mongodb.com/docs/manual/reference/log-messages/",
+          "note": null
+        },
+        {
+          "text": "\"error\": \"expression evaluation needs too much memory. Needs: 1140850688 bytes. Local memory limit: 1073741824 bytes. Global memory used: 1140850688 bytes. Global memory limit: 1073741824 bytes.\"",
+          "source": "https://www.mongodb.com/docs/manual/reference/log-messages/",
+          "note": null
+        },
+        {
+          "text": "The error attribute is a string that contains the details of the memory overage. The details include the operation that exceeded the limit, the amount of memory in use, and the applicable memory limit. MongoDB also returns this string to the client in the ExceededMemoryLimit error.",
+          "source": "https://www.mongodb.com/docs/manual/reference/log-messages/",
+          "note": null
+        },
+        {
+          "text": "MongoDB writes this log message only when an operation exceeds the per-operation memory limit and cannot spill to disk. If a stage that can spill to disk exceeds the limit and allowDiskUse is false, MongoDB ends the operation with the QueryExceededMemoryLimitNoDiskUseAllowed error and does not write this log message.",
+          "source": "https://www.mongodb.com/docs/manual/reference/log-messages/",
+          "note": null
+        },
+        {
+          "text": "To learn how MongoDB limits memory usage during aggregation, see [Per-Operation Memory Limit.](https://www.mongodb.com/docs/manual/core/aggregation-pipeline-limits.md#std-label-operation-memory-limit)",
+          "source": "https://www.mongodb.com/docs/manual/reference/explain-results.md#aggregation-stages-with-expression-memory-tracking",
+          "note": null
+        },
+        {
+          "text": "To learn how MongoDB limits memory usage during aggregation, see Per-Operation Memory Limit.",
+          "source": "https://www.mongodb.com/docs/manual/reference/explain-results/",
+          "note": null
+        },
+        {
+          "text": "Index key order must fit the group key: the index {user:1,timestamp:-1,request:1} did not give DISTINCT_SCAN for $group by request after $sort by timestamp. Reindexing to {user:1,request:1,timestamp:-1} with $sort {request:1,timestamp:-1} did, but the output came back ordered by request. A MongoDB engineer's fix was a second $sort by timestamp after $group, followed by $limit, which the optimizer coalesces into a top-k.",
+          "source": "https://www.mongodb.com/community/forums/t/poor-performance-of-getting-most-recent-distinct-values-full-index-scan/208264",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Comparisons and alternatives",
+      "facts": [
+        {
+          "text": "| Field | Type | Description | | --- | --- | --- | | `find` | string | The name of the collection or [view](https://www.mongodb.com/docs/manual/core/views.md#std-label-views-landing-page) to query. | | `filter` | document | Optional. The query predicate. If unspecified, all documents in the collection match the predicate. | | [sort](https://www.mongodb.com/docs/manual/reference/command/find.md#std-label-find-cmd-sort) | document | Optional. The sort specification for the ordering of the results. | | `projection` | document | Optional. The [projection specification](https://www.mongodb.com/docs",
+          "source": "https://www.mongodb.com/docs/manual/reference/command/find.md#command-fields",
+          "note": null
+        },
+        {
+          "text": "| Field | Field Type | Necessity | Description | | --- | --- | --- | --- | | `setQuerySettings` | document or string | Required | You can provide either: The same fields as those in a [`find`](https://www.mongodb.com/docs/manual/reference/command/find.md#mongodb-dbcommand-dbcmd.find), [`distinct`](https://www.mongodb.com/docs/manual/reference/command/distinct.md#mongodb-dbcommand-dbcmd.distinct), or [`aggregate`](https://www.mongodb.com/docs/manual/reference/command/aggregate.md#mongodb-dbcommand-dbcmd.aggregate) command, and a `$db` field with the database associated with the original command",
+          "source": "https://www.mongodb.com/docs/manual/reference/command/setQuerySettings.md#command-fields",
+          "note": null
+        },
+        {
+          "text": "| Option | Description | | --- | --- | | allowDiskUse | Whether or not pipelines that require more than 100 megabytes of memory to execute write to temporary files on disk. For details, see [`cursor.allowDiskUse()`.](https://www.mongodb.com/docs/manual/reference/method/cursor.allowdiskuse.md#mongodb-method-cursor.allowDiskUse) | | allowPartialResults | For queries against a sharded collection, allows the command (or subsequent getMore commands) to return partial results, rather than an error, if one or more queried shards are unavailable. | | awaitData | If the cursor is a a tailable-await cur",
+          "source": "https://www.mongodb.com/docs/manual/reference/method/db.collection.find.md#options",
+          "note": null
+        },
+        {
+          "text": "Starting in MongoDB 9.0, you can use the `queryKnobs` setting to override internal server parameters for a single [query shape](https://www.mongodb.com/docs/manual/core/query-shapes.md#std-label-query-shapes) instead of the whole instance. Set the `queryKnobs` field for targeted queries to mitigate the impact of one regressed shape without changing behavior for other workloads on the same deployment.",
+          "source": "https://www.mongodb.com/docs/manual/reference/command/setQuerySettings.md#query-knobs",
+          "note": null
+        },
+        {
+          "text": "CBR scores each plan node with a cost function and cardinality estimates and picks the plan with the lowest top-level costEstimate. The docs state MongoDB currently invokes CBR for only a small number of queries; eligibility rules and the continue-vs-CBR fallback rules are not published in the query-plans page.",
+          "source": "https://www.mongodb.com/docs/v8.3/core/query-plans/",
+          "note": null
+        },
+        {
+          "text": "| Counter | Description | | --- | --- | | `collscanNoFilter``collscanWithFilter` | Collection scan stages, counted separately based on whether the stage applies a filter. | | `ixscanNoFilter``ixscanWithFilter` | Index scan stages, counted separately based on whether the stage applies a filter. | | `fetchNoFilter``fetchWithFilter` | Fetch stages, counted separately based on whether the stage applies a filter. | | `andHashNoFilter``andHashWithFilter` | Hash-based index intersection stages, counted separately based on whether the stage applies a filter. | | `andSorted` | Sorted index intersection",
+          "source": "https://www.mongodb.com/docs/manual/reference/operator/aggregation/queryStats.md#node-counters",
+          "note": null
+        },
+        {
+          "text": "For example, you can override the [`notablescan`](https://www.mongodb.com/docs/manual/reference/parameters.md#mongodb-parameter-param.notablescan) server parameter for a single query shape instead of the whole instance by setting `queryKnobs` to `{ noTableScan: true }`.",
+          "source": "https://www.mongodb.com/docs/manual/reference/command/setQuerySettings.md#query-knobs",
+          "note": null
+        },
+        {
+          "text": "Unlike [`setParameter`](https://www.mongodb.com/docs/manual/reference/command/setparameter.md#mongodb-dbcommand-dbcmd.setParameter), which applies per process and can differ between nodes, MongoDB applies the same `queryKnobs` values across the whole cluster for the matching query shape.",
+          "source": "https://www.mongodb.com/docs/manual/reference/command/setQuerySettings.md#query-knobs",
+          "note": null
+        },
+        {
+          "text": "Correctness bug SERVER-97238: with data {mk:[1,2,3], notMk:4}, index {notMk:1, mk:1}, and $group _id:$notMk acc:{$first:'$mk'}, a distinct scan returned acc:1 instead of [1,2,3]. The planner only checked for multikey fields before the distinct key, not the projected field. Affected 4.2 through 8.0; fixed in 8.1.0-rc0 (resolved 2025-02-08). On older servers, a $first over an array field covered by a multikey index entry is a result-correctness risk.",
+          "source": "https://jira.mongodb.org/browse/SERVER-97238",
+          "note": null
+        },
+        {
+          "text": "- [`QueryExceededMemoryLimitNoDiskUseAllowed`](https://www.mongodb.com/docs/manual/reference/error-codes.md#mongodb-error-292) when a stage that can spill to disk exceeds the limit and `allowDiskUse` is `false`. Run the operation with `{ allowDiskUse: true }` so that the stage spills to disk instead of failing.",
+          "source": "https://www.mongodb.com/docs/manual/core/aggregation-pipeline-limits.md#per-operation-memory-limit",
+          "note": null
+        },
+        {
+          "text": "Query knobs are part of the hashed query settings, so they are also part of the [plan cache key](https://www.mongodb.com/docs/manual/core/query-plans.md#std-label-plan-cache-key). If you change a knob value, MongoDB produces a new plan cache key, so the planner creates a fresh plan instead of reusing a stale cached plan.",
+          "source": "https://www.mongodb.com/docs/manual/reference/command/setQuerySettings.md#query-knobs",
+          "note": null
+        },
+        {
+          "text": "- On a sharded cluster if `$currentOp` is run with [localOps:true](https://www.mongodb.com/docs/manual/reference/operator/aggregation/currentop.md#std-label-currentOp-stage-localOps). The transaction information is a composite view rather than per shard.",
+          "source": "https://www.mongodb.com/docs/manual/reference/operator/aggregation/currentOp.md#output-fields",
+          "note": null
+        },
+        {
+          "text": "For a collection in a replica set or a [non-sharded collection](https://www.mongodb.com/docs/manual/sharding.md#std-label-sharded-vs-non-sharded-collections) in a cluster, `$collStats` outputs a single document. For a [sharded collection](https://www.mongodb.com/docs/manual/sharding.md#std-label-sharded-vs-non-sharded-collections), `$collStats` outputs one document per shard. The output document includes the following fields:",
+          "source": "https://www.mongodb.com/docs/manual/reference/operator/aggregation/collStats.md#definition",
+          "note": null
+        },
+        {
+          "text": "`$collStats` outputs one document per shard when run on [sharded collections](https://www.mongodb.com/docs/manual/sharding.md#std-label-sharded-vs-non-sharded-collections). Each output document contains a `shard` field with the name of the shard the document corresponds to.",
+          "source": "https://www.mongodb.com/docs/manual/reference/operator/aggregation/collStats.md#collstats-on-sharded-collections",
+          "note": null
+        },
+        {
+          "text": "A pipeline starting with $sort and then $group using only $first (or only $last) can be planned as a DISTINCT_SCAN over a matching index. It reads about one index entry per group instead of the whole index. The original ticket's example: index {x:1,y:1}, $sort {x:1,y:1}, $group by x with $first y, which previously did a full index scan.",
+          "source": "https://jira.mongodb.org/browse/SERVER-9507",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Facts and statements",
+      "facts": [
+        {
+          "text": "The explain results page also documents peakTrackedMemBytes (8.1 table) and, from MongoDB 9.0, expressionEvaluationPeakMemoryBytes for classic-engine stages ($addFields, $bucketAuto, $graphLookup, $lookup, among others) at executionStats verbosity or higher.",
+          "source": "https://www.mongodb.com/docs/manual/reference/explain-results/",
+          "note": null
+        },
+        {
+          "text": "With executionStats or allPlansExecution, spill-capable stages ($sort, $group, $setWindowFields, $bucketAuto, $graphLookup, and $lookup only under the slot-based engine) report usedDisk, spills, spilledBytes (estimate before compression), spilledRecords and spilledDataStorageSize. MongoDB 8.1 adds $text queries using the TextOr stage.",
+          "source": "https://www.mongodb.com/docs/manual/reference/explain-results/",
+          "note": null
+        },
+        {
+          "text": "A $lookup stage in executionStats or allPlansExecution explain (since 5.0) reports totalDocsExamined, totalKeysExamined, collectionScans, indexesUsed and executionTimeMillisEstimate, so inner-side collection scans are visible.",
+          "source": "https://www.mongodb.com/docs/manual/reference/explain-results/",
+          "note": null
+        },
+        {
+          "text": "MongoDB 6.0+ can run $lookup in the slot-based engine only if all preceding stages are also SBE-eligible, so the same pipeline may or may not produce $lookup spill metrics depending on engine selection.",
+          "source": "https://www.mongodb.com/docs/manual/reference/explain-results/",
+          "note": null
+        },
+        {
+          "text": "Hash-based $lookup (HashLookupStage in SBE) is chosen by heuristics only for small data, so spilling is possible but very unlikely; the regular SBE HashJoinStage did not support spilling. The improvement ticket SERVER-74293 is unresolved with a proposal to close it Won't Do.",
+          "source": "https://jira.mongodb.org/browse/SERVER-74293",
+          "note": null
+        },
+        {
+          "text": "Aggregation explain on a multi-shard run reports a splitPipeline with shardsPart (stages executed on each shard) and mergerPart (stages executed once at the merge point), plus a shards section keyed by shard name; a single-shard or unsharded run shows only a flat stages array with no splitPipeline.",
+          "source": "https://jira.mongodb.org/browse/SERVER-18444",
+          "note": null
+        },
+        {
+          "text": "Starting in MongoDB 9.0, `explain` outputs the following field:",
+          "source": "https://www.mongodb.com/docs/manual/reference/explain-results.md#query-knobs",
+          "note": null
+        },
+        {
+          "text": "8.3.3 (June 9, 2026) added CBR observability: explain output (SERVER-115402), serverStatus metrics (SERVER-120369, under metrics.query.cbr incl. count, choseWinningPlan, numPlans, numPlansFailedCostEstimation, numPlansTiedCostEstimation, samplingMicros) and $queryStats metrics (SERVER-117199); SERVER-118434 made CBR eligible during query planning.",
+          "source": "https://www.mongodb.com/docs/manual/release-notes/8.3/",
+          "note": null
+        },
+        {
+          "text": "Both the classic multi-planner and CBR store the chosen plan in the plan cache and reuse it for the same plan cache query shape; explain ignores existing plan cache entries and creates none. A bad plan chosen once can therefore persist for a shape until a DDL event, LRU eviction, restart or manual clear.",
+          "source": "https://www.mongodb.com/docs/v8.3/core/query-plans/",
+          "note": null
+        },
+        {
+          "text": "**Changed in version 8.3**",
+          "source": "https://www.mongodb.com/docs/manual/reference/operator/query/text.md#memory-limits",
+          "note": null
+        },
+        {
+          "text": "- `SHARD_MERGE` for merging results from shards",
+          "source": "https://www.mongodb.com/docs/manual/reference/explain-results.md#classic-execution-engine",
+          "note": null
+        },
+        {
+          "text": "Float that represents the estimated abstract cost units used to execute the cost-based ranker per stage. The cost-based ranker chooses the plan with the lowest top level `costEstimate`.",
+          "source": "https://www.mongodb.com/docs/manual/reference/explain-results.md#unsharded-collections",
+          "note": null
+        },
+        {
+          "text": "Float that represents the estimated number of documents or keys produced by the stage of the cost-based ranker.",
+          "source": "https://www.mongodb.com/docs/manual/reference/explain-results.md#unsharded-collections",
+          "note": null
+        },
+        {
+          "text": "A significant difference between the `numKeysEstimate` and the `costEstimate` can indicate issues with the `winningPlan`.",
+          "source": "https://www.mongodb.com/docs/manual/reference/explain-results.md#unsharded-collections",
+          "note": null
+        },
+        {
+          "text": "Merge-sort visibility: from 4.2 the merge sort moved into $mergeCursors and vanished from explain's mergerPart (4.0 showed a $sort with mergePresorted:true); SERVER-57383 restored it by showing $mergeCursors at the front of mergerPart, fixed in 5.3.0 (resolved 2022-01-20). The practical-aggregations guide describes the omission as affecting 4.2 to 5.2 only.",
+          "source": "https://jira.mongodb.org/browse/SERVER-57383",
+          "note": null
+        },
+        {
+          "text": "The older explain boolean needsPrimaryShardMerger was targeted for replacement by a merger-type field (SERVER-30480, fixed 3.5.12, 2017-08-21); the ticket notes the exact merging shard may be unknown at explain time.",
+          "source": "https://jira.mongodb.org/browse/SERVER-30480",
+          "note": null
+        },
+        {
+          "text": "Single-shard targeted aggregations: SERVER-18444 (fixed 3.1.4, 2015) asked that explain state the pipeline ran directly on one shard and name its host; before that such runs showed no shard identity.",
+          "source": "https://jira.mongodb.org/browse/SERVER-18444",
+          "note": null
+        },
+        {
+          "text": "MongoDB documents explain output as intended for humans, subject to change between releases, and says split-pipeline optimizations can change; do not hard-code parsers against field layout, and note output differs between classic and slot-based engines.",
+          "source": "https://www.mongodb.com/docs/v7.0/core/aggregation-pipeline-sharded-collections/",
+          "note": null
+        },
+        {
+          "text": "The explain execution statistics provide the peak memory for the entire query and also for each blocking stage. If there is only one blocking stage, the query and stage `peakTrackedMemBytes` values are the same.",
+          "source": "https://www.mongodb.com/docs/manual/reference/explain-results.md#unsharded-collections",
+          "note": null
+        },
+        {
+          "text": "explain.executionStats.peakTrackedMemBytes",
+          "source": "https://www.mongodb.com/docs/manual/reference/explain-results/",
+          "note": null
+        },
+        {
+          "text": "MongoDB 9.0 release notes document no change to CBR or multi-planner selection. Planner-adjacent 9.0 additions: querySettings passable per find/distinct/aggregate command (not stored; stored cluster settings win on conflict), queryKnobs to override internal server parameters per query shape, and per-shape maxTimeMS, all requiring FCV 9.0 for the latter two.",
+          "source": "https://www.mongodb.com/docs/manual/release-notes/9.0/",
+          "note": null
+        },
+        {
+          "text": "peakTrackedMemBytes: <long>, // Starting in 8.3",
+          "source": "https://www.mongodb.com/docs/manual/reference/explain-results/",
+          "note": null
+        },
+        {
+          "text": "The `winningPlan.queryPlan.inputStage.stage` is `DISTINCT_SCAN`, which indicates that the index was used. For more information on the explain plan output, see [Explain Results.](https://www.mongodb.com/docs/manual/reference/explain-results.md#std-label-explain-results)",
+          "source": "https://www.mongodb.com/docs/manual/core/timeseries/timeseries-secondary-index.md#last-point-queries-on-time-series-collections",
+          "note": null
+        },
+        {
+          "text": "In some cases, the query planner uses a `DISTINCT_SCAN` index plan that returns one document per index key value. `DISTINCT_SCAN` executes faster than `IXSCAN` if there are multiple documents per key value. However, index scan parameters might affect the time comparison of `DISTINCT_SCAN` and `IXSCAN`.",
+          "source": "https://www.mongodb.com/docs/manual/core/aggregation-pipeline-optimization.md#indexes",
+          "note": null
+        },
+        {
+          "text": "Query knobs set through query settings always appear, even if their value equals the default. However, `explain` output omits query knobs that you have not explicitly set.",
+          "source": "https://www.mongodb.com/docs/manual/reference/explain-results.md#query-knobs",
+          "note": null
+        },
+        {
+          "text": "explain.queryPlanner.winningPlan.costEstimate",
+          "source": "https://www.mongodb.com/docs/manual/reference/explain-results/",
+          "note": null
+        },
+        {
+          "text": "explain.queryPlanner.winningPlan.cardinalityEstimate",
+          "source": "https://www.mongodb.com/docs/manual/reference/explain-results/",
+          "note": null
+        },
+        {
+          "text": "explain.queryPlanner.winningPlan.numKeysEstimate",
+          "source": "https://www.mongodb.com/docs/manual/reference/explain-results/",
+          "note": null
+        },
+        {
+          "text": "explain.queryPlanner.winningPlan.numDocsEstimate",
+          "source": "https://www.mongodb.com/docs/manual/reference/explain-results/",
+          "note": null
+        },
+        {
+          "text": "explain.queryPlanner.winningPlan.estimatesMetadata",
+          "source": "https://www.mongodb.com/docs/manual/reference/explain-results/",
+          "note": null
+        },
+        {
+          "text": "explain.queryPlanner.winningPlan.estimatesMetadata.ceSource",
+          "source": "https://www.mongodb.com/docs/manual/reference/explain-results/",
+          "note": null
+        },
+        {
+          "text": "explain.executionStats.executionStages.executionTimeMillisEstimate",
+          "source": "https://www.mongodb.com/docs/manual/reference/explain-results/",
+          "note": null
+        },
+        {
+          "text": "explain.executionTimeMillisEstimate",
+          "source": "https://www.mongodb.com/docs/manual/reference/explain-results/",
+          "note": null
+        },
+        {
+          "text": "Explain evidence: with index {a:1,b:1,c:1}, $match a:1, $sort {b:1,c:1}, $group _id:$b with $first accumulators, executionStats show FETCH over DISTINCT_SCAN with keysExamined 11, totalDocsExamined 10, nReturned 10 for 10 groups (indexBounds a:[1,1], b and c full range). Compare with PostgreSQL, which read ~200,000 rows for the same result.",
+          "source": "https://dev.to/franckpachot/firstlast-per-group-postgresql-distinct-on-and-mongodb-distinctscan-performance-1e9d",
+          "note": null
+        },
+        {
+          "text": "In sharded explain, the SHARD_MERGE stage merges results from shards, and queryPlanner.winningPlan.shards is an array with one entry per accessed shard carrying shardName, connectionString, serverInfo, namespace, parsedQuery, planCacheShapeHash and the per-shard winning plan.",
+          "source": "https://www.mongodb.com/docs/manual/reference/explain-results/",
+          "note": null
+        },
+        {
+          "text": "Pipeline stages that require more than 100 megabytes of memory to execute write temporary files to disk by default. These temporary files last for the duration of the pipeline execution and can influence storage space on your instance.",
+          "source": "https://www.mongodb.com/docs/manual/reference/parameters.md#general-parameters",
+          "note": null
+        },
+        {
+          "text": "**Changed in version 9.0**",
+          "source": "https://www.mongodb.com/docs/manual/reference/method/db.collection.explain.md#explain-and-write-operations",
+          "note": null
+        },
+        {
+          "text": "The explain results can include execution statistics for queries that use a $lookup pipeline stage. To include those execution statistics, you must run the explain operation in one of these execution verbosity modes:",
+          "source": "https://www.mongodb.com/docs/manual/reference/explain-results/",
+          "note": null
+        },
+        {
+          "text": "Each knob keeps the type, bounds, and default of its underlying server parameter, and `setQuerySettings` runs the same validation that [`setParameter`](https://www.mongodb.com/docs/manual/reference/command/setparameter.md#mongodb-dbcommand-dbcmd.setParameter) runs. `setQuerySettings` rejects the following values:",
+          "source": "https://www.mongodb.com/docs/manual/reference/command/setQuerySettings.md#query-knobs",
+          "note": null
+        },
+        {
+          "text": "explain ignores the plan cache. Instead, a set of candidate plans are generated, and a winner is chosen without consulting the plan cache. Furthermore, explain prevents the MongoDB query planner from caching the winning plan.",
+          "source": "https://www.mongodb.com/docs/manual/reference/explain-results/",
+          "note": null
+        },
+        {
+          "text": "- If the pipeline includes a sorting or grouping stage, and the [allowDiskUse](https://www.mongodb.com/docs/manual/reference/command/aggregate.md#std-label-aggregate-cmd-allowDiskUse) setting is enabled, the merge runs on a randomly-selected shard.",
+          "source": "https://www.mongodb.com/docs/manual/core/aggregation-pipeline-sharded-collections.md#behavior",
+          "note": null
+        },
+        {
+          "text": "Starting in MongoDB 6.0, if the server requires more than 100 megabytes of memory for a pipeline execution stage, MongoDB automatically writes temporary files to disk unless that query specifies { allowDiskUse: false }.",
+          "source": "https://www.mongodb.com/docs/manual/tutorial/sort-results-with-indexes/",
+          "note": null
+        },
+        {
+          "text": "system.profile.peakTrackedMemBytes",
+          "source": "https://www.mongodb.com/docs/manual/reference/database-profiler/",
+          "note": null
+        },
+        {
+          "text": "Only appears if usedDisk is true.",
+          "source": "https://www.mongodb.com/docs/manual/reference/database-profiler/",
+          "note": null
+        },
+        {
+          "text": "\"peakTrackedMemBytes\" : Long(795),",
+          "source": "https://www.mongodb.com/docs/manual/reference/database-profiler/",
+          "note": null
+        },
+        {
+          "text": "- If `allowDiskUse` is `true`, the stage spills intermediate results to disk.",
+          "source": "https://www.mongodb.com/docs/manual/reference/operator/query/text.md#memory-limits",
+          "note": null
+        },
+        {
+          "text": "Starting in MongoDB 6.0, the [`allowDiskUseByDefault`](https://www.mongodb.com/docs/manual/reference/parameters.md#mongodb-parameter-param.allowDiskUseByDefault) parameter controls whether pipeline stages that require more than 100 megabytes of memory to execute write temporary files to disk by default.",
+          "source": "https://www.mongodb.com/docs/manual/core/aggregation-pipeline-limits.md#memory-restrictions",
+          "note": null
+        },
+        {
+          "text": "- If [`allowDiskUseByDefault`](https://www.mongodb.com/docs/manual/reference/parameters.md#mongodb-parameter-param.allowDiskUseByDefault) is set to `true`, pipeline stages that require more than 100 megabytes of memory to execute write temporary files to disk by default. You can disable writing temporary files to disk for specific `find` or `aggregate` commands using the `{ allowDiskUse: false }` option.",
+          "source": "https://www.mongodb.com/docs/manual/core/aggregation-pipeline-limits.md#memory-restrictions",
+          "note": null
+        },
+        {
+          "text": "The [profiler log messages](https://www.mongodb.com/docs/manual/tutorial/manage-the-database-profiler.md#std-label-database-profiler) and [diagnostic log messages](https://www.mongodb.com/docs/manual/reference/log-messages.md#std-label-log-messages-ref) includes a `usedDisk` indicator if any aggregation stage wrote data to temporary files due to [memory restrictions.](https://www.mongodb.com/docs/manual/core/aggregation-pipeline-limits.md#std-label-agg-memory-restrictions)",
+          "source": "https://www.mongodb.com/docs/manual/core/aggregation-pipeline-limits.md#memory-restrictions",
+          "note": null
+        },
+        {
+          "text": "Individual `find` and `aggregate` commands can override the [`allowDiskUseByDefault`](https://www.mongodb.com/docs/manual/reference/parameters.md#mongodb-parameter-param.allowDiskUseByDefault) parameter by either:",
+          "source": "https://www.mongodb.com/docs/manual/reference/parameters.md#general-parameters",
+          "note": null
+        },
+        {
+          "text": "*Default*: 104857600 (100 megabytes)",
+          "source": "https://www.mongodb.com/docs/manual/reference/parameters.md#general-parameters",
+          "note": null
+        },
+        {
+          "text": "The following command sets `internalQueryMaxSingleExpressionMemoryUsageBytes` to `104857600` (100 megabytes) at runtime:",
+          "source": "https://www.mongodb.com/docs/manual/reference/parameters.md#general-parameters",
+          "note": null
+        },
+        {
+          "text": "The following command sets `internalQueryMaxSingleExpressionMemoryUsageBytes` to `104857600` (100 megabytes) at startup:",
+          "source": "https://www.mongodb.com/docs/manual/reference/parameters.md#general-parameters",
+          "note": null
+        },
+        {
+          "text": "Starting in MongoDB 6.0, pipeline stages that require more than 100 megabytes of memory to execute write temporary files to disk by default.",
+          "source": "https://www.mongodb.com/docs/manual/reference/method/cursor.allowDiskUse/",
+          "note": null
+        },
+        {
+          "text": "cursor.allowDiskUse() has no effect on sort operations answered using an index or non-indexed (\"in-memory\") sort operations which require less than 100 megabytes of memory. For more complete documentation on in-memory sorts and sort index use, see Sort and Index Use.",
+          "source": "https://www.mongodb.com/docs/manual/reference/method/cursor.allowDiskUse/",
+          "note": null
+        },
+        {
+          "text": "usedDisk: {true: Long(\"0\"), false: Long(\"1\")},",
+          "source": "https://www.mongodb.com/docs/manual/reference/operator/aggregation/queryStats/",
+          "note": null
+        },
+        {
+          "text": "<executionPart>Spills indicates the number of times the corresponding query execution stage wrote temporary files to disk.",
+          "source": "https://www.mongodb.com/docs/manual/reference/log-messages/",
+          "note": null
+        },
+        {
+          "text": "<executionPart>SpilledBytes indicates the size, in bytes, of the memory released by writing temporary files to disk.",
+          "source": "https://www.mongodb.com/docs/manual/reference/log-messages/",
+          "note": null
+        },
+        {
+          "text": "<executionPart>SpilledDataStorageSize indicates the size, in bytes, of disk space used for temporary files.",
+          "source": "https://www.mongodb.com/docs/manual/reference/log-messages/",
+          "note": null
+        },
+        {
+          "text": "<executionPart>SpilledRecords indicates the number of records written to temporary files on disk.",
+          "source": "https://www.mongodb.com/docs/manual/reference/log-messages/",
+          "note": null
+        },
+        {
+          "text": "The following stages report `expressionEvaluationPeakMemoryBytes`:",
+          "source": "https://www.mongodb.com/docs/manual/reference/explain-results.md#aggregation-stages-with-expression-memory-tracking",
+          "note": null
+        },
+        {
+          "text": "spilledBytes: <long long>,",
+          "source": "https://www.mongodb.com/docs/manual/reference/explain-results/",
+          "note": null
+        },
+        {
+          "text": "spilledRecords: <long long>,",
+          "source": "https://www.mongodb.com/docs/manual/reference/explain-results/",
+          "note": null
+        },
+        {
+          "text": "spilledDataStorageSize: <long long>,",
+          "source": "https://www.mongodb.com/docs/manual/reference/explain-results/",
+          "note": null
+        },
+        {
+          "text": "[`cursor.allowDiskUse()`](https://www.mongodb.com/docs/manual/reference/method/cursor.allowdiskuse.md#mongodb-method-cursor.allowDiskUse) has no effect on sort operations answered using an index *or* non-indexed (\"in-memory\") sort operations which require less than 100 megabytes of memory. For more complete documentation on in-memory sorts and sort index use, see [Sort and Index Use.](https://www.mongodb.com/docs/manual/reference/method/cursor.sort.md#std-label-sort-index-use)",
+          "source": "https://www.mongodb.com/docs/manual/reference/method/cursor.allowDiskUse.md#supports-large-non-indexed-sorts-only",
+          "note": null
+        },
+        {
+          "text": "After you upgrade a cluster from MongoDB 8.x to 9.0, metric totals in Query Shape Insights may appear significantly different than before the upgrade. This difference reflects the change in sampling method, not a change in your cluster's workload.",
+          "source": "https://www.mongodb.com/docs/atlas/query-shape-insights.md#how-atlas-collects-query-shape-statistics",
+          "note": null
+        },
+        {
+          "text": "Optimizations are subject to change between releases.",
+          "source": "https://www.mongodb.com/docs/manual/core/aggregation-pipeline-sharded-collections.md#optimization",
+          "note": null
+        },
+        {
+          "text": "Number of slot-based execution engine plans which were not found in the query cache and went through the query planning phase.",
+          "source": "https://www.mongodb.com/docs/manual/reference/command/serverStatus.md#plancache",
+          "note": null
+        },
+        {
+          "text": "The peak memory usage, in bytes, tracked during stage execution.",
+          "source": "https://www.mongodb.com/docs/manual/reference/explain-results/",
+          "note": null
+        },
+        {
+          "text": "Details the completed execution of the winning plan as a tree of stages; i.e. a stage can have an inputStage or multiple inputStages.",
+          "source": "https://www.mongodb.com/docs/manual/reference/explain-results/",
+          "note": null
+        },
+        {
+          "text": "For any given query, the MongoDB query planner chooses and caches an efficient query plan given the available indexes. The planner can use either the classic multi-planner or the cost-based ranker (CBR) to select a plan.",
+          "source": "https://www.mongodb.com/docs/manual/core/query-plans.md",
+          "note": null
+        },
+        {
+          "text": "If the attempt is unsuccessful, MongoDB applies a set of rules to decide whether the multi-planner should continue or if CBR should evaluate the plans to determine the optimal solution. CBR evaluates each node in a plan based on a cost function and its cardinality estimations. MongoDB selects the plan with the lowest overall cost as the winning plan. Currently, MongoDB only invokes the CBR for a small amount of queries.",
+          "source": "https://www.mongodb.com/docs/manual/core/query-plans.md#query-plan-options",
+          "note": null
+        },
+        {
+          "text": "- On a sharded cluster if `$currentOp` is run *without* [localOps:true](https://www.mongodb.com/docs/manual/reference/operator/aggregation/currentop.md#std-label-currentOp-stage-localOps). The transaction information is per shard.",
+          "source": "https://www.mongodb.com/docs/manual/reference/operator/aggregation/currentOp.md#output-fields",
+          "note": null
+        },
+        {
+          "text": "\"executionTimeMillisEstimate\" : 0,",
+          "source": "https://www.mongodb.com/docs/manual/reference/database-profiler/",
+          "note": null
+        },
+        {
+          "text": "\"executionTimeMillisEstimate\" : 103771,",
+          "source": "https://www.mongodb.com/docs/manual/reference/database-profiler/",
+          "note": null
+        },
+        {
+          "text": "The number of documents to sample per shard key [range](https://www.mongodb.com/docs/manual/core/sharding-choose-a-shard-key.md#std-label-shard-key-range). Must be a value greater than zero and less than or equal to `10000`.",
+          "source": "https://www.mongodb.com/docs/manual/reference/parameters.md#sharding-parameters",
+          "note": null
+        },
+        {
+          "text": "A document that holds metrics on the cost-based ranking (CBR) of query plans.",
+          "source": "https://www.mongodb.com/docs/manual/reference/command/serverStatus.md#metrics",
+          "note": null
+        },
+        {
+          "text": "Number of times the cost-based ranker chose a winning plan.",
+          "source": "https://www.mongodb.com/docs/manual/reference/command/serverStatus.md#metrics",
+          "note": null
+        },
+        {
+          "text": "Number of times the server used the cost-based ranker.",
+          "source": "https://www.mongodb.com/docs/manual/reference/command/serverStatus.md#metrics",
+          "note": null
+        },
+        {
+          "text": "A document that holds cost-based ranker histograms.",
+          "source": "https://www.mongodb.com/docs/manual/reference/command/serverStatus.md#metrics",
+          "note": null
+        },
+        {
+          "text": "A histogram measuring the amount of time in microseconds spent on cost-based ranking query plans, which includes both sampling and ranking time.",
+          "source": "https://www.mongodb.com/docs/manual/reference/command/serverStatus.md#metrics",
+          "note": null
+        },
+        {
+          "text": "A histogram measuring the number of plans in the candidate set used by the cost-based ranker.",
+          "source": "https://www.mongodb.com/docs/manual/reference/command/serverStatus.md#metrics",
+          "note": null
+        },
+        {
+          "text": "A histogram measuring the amount of time in microseconds the server spent on sampling during cost-based ranking of query plans.",
+          "source": "https://www.mongodb.com/docs/manual/reference/command/serverStatus.md#metrics",
+          "note": null
+        },
+        {
+          "text": "Amount of time in microseconds spent on cost-based ranking query plans, which includes both sampling and ranking time.",
+          "source": "https://www.mongodb.com/docs/manual/reference/command/serverStatus.md#metrics",
+          "note": null
+        },
+        {
+          "text": "Number of candidate plans compared by the cost-based ranker.",
+          "source": "https://www.mongodb.com/docs/manual/reference/command/serverStatus.md#metrics",
+          "note": null
+        },
+        {
+          "text": "Number of candidate plans for which the cost-based ranker could not estimate a cost.",
+          "source": "https://www.mongodb.com/docs/manual/reference/command/serverStatus.md#metrics",
+          "note": null
+        },
+        {
+          "text": "Number of candidate plans that tied in cost-based ranking.",
+          "source": "https://www.mongodb.com/docs/manual/reference/command/serverStatus.md#metrics",
+          "note": null
+        },
+        {
+          "text": "Amount of time in microseconds the server spent on sampling during cost-based ranking of query plans.",
+          "source": "https://www.mongodb.com/docs/manual/reference/command/serverStatus.md#metrics",
+          "note": null
+        },
+        {
+          "text": "Aggregates the total number of microseconds spent in the classic multiplanner.",
+          "source": "https://www.mongodb.com/docs/manual/reference/command/serverStatus.md#metrics",
+          "note": null
+        },
+        {
+          "text": "Aggregates the total number of \"works\" performed in the classic multiplanner.",
+          "source": "https://www.mongodb.com/docs/manual/reference/command/serverStatus.md#metrics",
+          "note": null
+        },
+        {
+          "text": "Aggregates the total number of invocations of the classic multiplanner.",
+          "source": "https://www.mongodb.com/docs/manual/reference/command/serverStatus.md#metrics",
+          "note": null
+        },
+        {
+          "text": "Aggregates the total number of microseconds spent in the slot-based execution engine multiplanner.",
+          "source": "https://www.mongodb.com/docs/manual/reference/command/serverStatus.md#metrics",
+          "note": null
+        },
+        {
+          "text": "Aggregates the total number of reads done in the slot-based execution engine multiplanner.",
+          "source": "https://www.mongodb.com/docs/manual/reference/command/serverStatus.md#metrics",
+          "note": null
+        },
+        {
+          "text": "Aggregates the total number of invocations of the slot-based execution engine multiplanner.",
+          "source": "https://www.mongodb.com/docs/manual/reference/command/serverStatus.md#metrics",
+          "note": null
+        },
+        {
+          "text": "A histogram measuring the number of microseconds spent in an invocation of the classic multiplanner.",
+          "source": "https://www.mongodb.com/docs/manual/reference/command/serverStatus.md#metrics",
+          "note": null
+        },
+        {
+          "text": "A histogram measuring the number of \"works\" performed during an invocation of the classic multiplanner.",
+          "source": "https://www.mongodb.com/docs/manual/reference/command/serverStatus.md#metrics",
+          "note": null
+        },
+        {
+          "text": "A histogram measuring the number of plans in the candidate set during an invocation of the classic multiplanner.",
+          "source": "https://www.mongodb.com/docs/manual/reference/command/serverStatus.md#metrics",
+          "note": null
+        },
+        {
+          "text": "A histogram measuring the number of microseconds spent in an invocation of the slot-based execution engine multiplanner.",
+          "source": "https://www.mongodb.com/docs/manual/reference/command/serverStatus.md#metrics",
+          "note": null
+        },
+        {
+          "text": "A histogram measuring the number of reads during an invocation of the slot-based execution engine multiplanner.",
+          "source": "https://www.mongodb.com/docs/manual/reference/command/serverStatus.md#metrics",
+          "note": null
+        },
+        {
+          "text": "A histogram measuring the number of plans in the candidate set during an invocation of the slot-based execution engine multiplanner.",
+          "source": "https://www.mongodb.com/docs/manual/reference/command/serverStatus.md#metrics",
+          "note": null
+        },
+        {
+          "text": "- The default `_id` index; however, the `_id` index only enforces the uniqueness constraint **per shard** if the `_id` field is not the shard key.",
+          "source": "https://www.mongodb.com/docs/manual/core/index-unique.md#sharded-clusters-and-unique-indexes",
+          "note": null
+        },
+        {
+          "text": "Total number of documents sampled during cost-based ranking.",
+          "source": "https://www.mongodb.com/docs/manual/reference/operator/aggregation/queryStats/",
+          "note": null
+        },
+        {
+          "text": "Maximum number of documents sampled during cost-based ranking.",
+          "source": "https://www.mongodb.com/docs/manual/reference/operator/aggregation/queryStats/",
+          "note": null
+        },
+        {
+          "text": "Minimum number of documents sampled during cost-based ranking.",
+          "source": "https://www.mongodb.com/docs/manual/reference/operator/aggregation/queryStats/",
+          "note": null
+        },
+        {
+          "text": "Sum of squares of the number of documents sampled during cost-based ranking.",
+          "source": "https://www.mongodb.com/docs/manual/reference/operator/aggregation/queryStats/",
+          "note": null
+        },
+        {
+          "text": "Number of times sampling-based cardinality estimation was used.",
+          "source": "https://www.mongodb.com/docs/manual/reference/operator/aggregation/queryStats/",
+          "note": null
+        },
+        {
+          "text": "Join stages, counted separately by join algorithm: hash join, nested loop join, indexed nested loop join, and index probe.",
+          "source": "https://www.mongodb.com/docs/manual/reference/operator/aggregation/queryStats/",
+          "note": null
+        },
+        {
+          "text": "Winning plans that don't use a collection scan, an index scan, a count scan, a distinct scan, or a geospatial access path. A plan that only performs a text search increments both textMatch and otherAccessPath.",
+          "source": "https://www.mongodb.com/docs/manual/reference/operator/aggregation/queryStats/",
+          "note": null
+        },
+        {
+          "text": "splitPipeline shows which operations in your pipeline have run on individual shards.",
+          "source": "https://www.mongodb.com/docs/manual/core/sharded-cluster-query-router/",
+          "note": null
+        },
+        {
+          "text": "Available tabs: other tabs: classic-sample-output, sbe-sample-output, unsharded, sharded, cbr -->",
+          "source": "https://www.mongodb.com/docs/manual/reference/explain-results.md",
+          "note": null
+        },
+        {
+          "text": "- `planRankerMethod: \"cbr\"` indicates that the query planner chose the cost-based ranker.",
+          "source": "https://www.mongodb.com/docs/manual/reference/sbe.md#check-slow-query-logs",
+          "note": null
+        },
+        {
+          "text": "cardinalityEstimate: <float>,",
+          "source": "https://www.mongodb.com/docs/manual/reference/explain-results/",
+          "note": null
+        },
+        {
+          "text": "estimatesMetadata: { ceSource: '<string>' },",
+          "source": "https://www.mongodb.com/docs/manual/reference/explain-results/",
+          "note": null
+        },
+        {
+          "text": "numKeysEstimate: <float>,",
+          "source": "https://www.mongodb.com/docs/manual/reference/explain-results/",
+          "note": null
+        },
+        {
+          "text": "estimatesMetadata: { ceSource: '<string>'} ,",
+          "source": "https://www.mongodb.com/docs/manual/reference/explain-results/",
+          "note": null
+        },
+        {
+          "text": "executionTimeMillisEstimate: <int>,",
+          "source": "https://www.mongodb.com/docs/manual/reference/explain-results/",
+          "note": null
+        },
+        {
+          "text": "executionTimeMillisEstimate: <long>",
+          "source": "https://www.mongodb.com/docs/manual/reference/explain-results/",
+          "note": null
+        },
+        {
+          "text": "SERVER-9507 (the $first optimization) was fixed in 4.1.4 (resolved 2018-09-26). SERVER-37304 extended it to $group expressions using exclusively $last by running the DISTINCT_SCAN in reverse; fixed in 6.3.0-rc0 (resolved 2022-12-08).",
+          "source": "https://jira.mongodb.org/browse/SERVER-9507",
+          "note": null
+        },
+        {
+          "text": "Planner conditions (per a MongoDB author's description): a matching index with the right sort order (scan direction may be flipped), and group fields not multikey. If met, the pipeline is rewritten to DISTINCT_SCAN plus a $groupByDistinct. This is a single-author description, not the manual.",
+          "source": "https://dev.to/franckpachot/firstlast-per-group-postgresql-distinct-on-and-mongodb-distinctscan-performance-1e9d",
+          "note": null
+        },
+        {
+          "text": "Rewrite from $sort+$group($first/$last) to $group with $top/$bottom (dropping the blocking $sort) is only a proposal: SERVER-85213 is Backlog with no fix version (last updated 2025-10-24), split into SERVER-87590 ($first/$last) and SERVER-87591 ($firstN/$lastN). DISTINCT_SCAN with $top/$bottom (SERVER-84347) is closed.",
+          "source": "https://jira.mongodb.org/browse/SERVER-85213",
+          "note": null
+        }
+      ]
+    }
+  ],
+  "related": [
+    {
+      "concept": "cost-based ranker",
+      "relation": "is a part of MongoDB advanced explain: aggregation spills, sharded plans, loose index scans and the cost-based ranker",
+      "note": null
+    },
+    {
+      "concept": "explain plan",
+      "relation": "is a related of MongoDB advanced explain: aggregation spills, sharded plans, loose index scans and the cost-based ranker",
+      "note": null
+    },
+    {
+      "concept": "MongoDB 8.3",
+      "relation": "is a related of MongoDB advanced explain: aggregation spills, sharded plans, loose index scans and the cost-based ranker",
+      "note": null
+    },
+    {
+      "concept": "aggregation explain",
+      "relation": "is a part of MongoDB advanced explain: aggregation spills, sharded plans, loose index scans and the cost-based ranker",
+      "note": null
+    },
+    {
+      "concept": "sharded explain",
+      "relation": "is a part of MongoDB advanced explain: aggregation spills, sharded plans, loose index scans and the cost-based ranker",
+      "note": null
+    },
+    {
+      "concept": "DISTINCT_SCAN",
+      "relation": "is a part of MongoDB advanced explain: aggregation spills, sharded plans, loose index scans and the cost-based ranker",
+      "note": null
+    }
+  ]
+}

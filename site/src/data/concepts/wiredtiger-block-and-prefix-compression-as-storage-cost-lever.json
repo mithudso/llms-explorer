@@ -1,0 +1,581 @@
+{
+  "slug": "wiredtiger-block-and-prefix-compression-as-storage-cost-lever",
+  "concept": "WiredTiger Block and Prefix Compression as Storage Cost Lever",
+  "generated": "2026-10-19",
+  "summary": "WiredTiger compresses MongoDB collection data with block compression (snappy by default, zlib and zstd optional, zstd by default for time series collections) and compresses index keys with prefix compression (on by default), which cuts on-disk bytes and so the provisioned storage bill at the price of extra CPU; collection data stays uncompressed in the WiredTiger cache. Drawn from 6 sources (MongoDB manual and FAQ, WiredTiger documentation, a Percona benchmark, two third-party blogs), covering definitions, mechanisms, parameters, how-to, measures, problems and comparisons; the sources disagree on whether compact recompresses existing data and on typical compression ratios.",
+  "facets": [
+    {
+      "title": "Definitions",
+      "facts": [
+        {
+          "text": "zlib and zstd are the alternative block compressors, set globally with storage.wiredTiger.collectionConfig.blockCompressor, or per collection/index at creation (e.g. configString block_compressor=zstd). Index prefix compression is disabled with storage.wiredTiger.indexConfig.prefixCompression.",
+          "source": "https://www.mongodb.com/docs/manual/core/wiredtiger/",
+          "note": null
+        },
+        {
+          "text": "When it comes to optimizing MongoDB, compression is a key lever for reducing storage footprint, minimizing I/O bottlenecks, and even speeding up data transfer. The benefits are clear: significant cost savings and the ability to handle more data within the same infrastructure. But with options available, which method should you choose?",
+          "source": "https://www.percona.com/blog/compression-methods-in-mongodb-snappy-vs-zstd/",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "How it works",
+      "facts": [
+        {
+          "text": "When data is written to disk, MongoDB compresses it with a specified block compression method and then writes it to disk. When this data block is read, it decompresses it in memory and presents it to the incoming request.",
+          "source": "https://www.percona.com/blog/compression-methods-in-mongodb-snappy-vs-zstd/",
+          "note": null
+        },
+        {
+          "text": "WiredTiger does not store information with file blocks to identify the compression engine used to compressed the block. Applications wanting to upgrade to some future compression engine (without requiring a file dump and re-load), should ensure each compressed block includes enough information to identify the compression engine used, so its compression code can correctly decompress old and new blocks.",
+          "source": "https://source.wiredtiger.com/develop/compression.html",
+          "note": null
+        },
+        {
+          "text": "If any new collection is created in the default manner, it will always be the default snappy or compression method specified in the mongod config file.",
+          "source": "https://www.percona.com/blog/compression-methods-in-mongodb-snappy-vs-zstd/",
+          "note": null
+        },
+        {
+          "text": "Data in the filesystem cache is the same as the on-disk format, including benefits of any compression for data files. The filesystem cache is used by the operating system to reduce disk I/O.",
+          "source": "https://www.mongodb.com/docs/manual/core/wiredtiger/",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Parameters and configuration",
+      "facts": [
+        {
+          "text": "zstd level defaults to 6 in WiredTiger and is tunable (MongoDB blockCompressorQuality 1-22 per blogs). WiredTiger does not store which compressor wrote a block.",
+          "source": "https://source.wiredtiger.com/develop/compression.html",
+          "note": null
+        },
+        {
+          "text": "For indexes, to disable prefix compression, use the storage.wiredTiger.indexConfig.prefixCompression setting.",
+          "source": "https://www.mongodb.com/docs/manual/core/wiredtiger/",
+          "note": null
+        },
+        {
+          "text": "blockCompressorQuality specifies the level of compression applied when using the zstd compressor. Values can range from 1 to 22.",
+          "source": "https://www.percona.com/blog/compression-methods-in-mongodb-snappy-vs-zstd/",
+          "note": null
+        },
+        {
+          "text": "The default compression level for the zlib compression is Z_DEFAULT_COMPRESSION (see the zlib documentation for further information); compression can be configured to other levels using the additional configuration argument compression_level.",
+          "source": "https://source.wiredtiger.com/develop/compression.html",
+          "note": null
+        },
+        {
+          "text": "The default compression level for the zstd compression is 6; compression can be configured to other levels using the additional configuration argument compression_level.",
+          "source": "https://source.wiredtiger.com/develop/compression.html",
+          "note": null
+        },
+        {
+          "text": "The higher the specified value for zstdCompressionLevel, the higher the compression which is applied. So, it becomes very important to test for the optimal required use case before implementing it in production.",
+          "source": "https://www.percona.com/blog/compression-methods-in-mongodb-snappy-vs-zstd/",
+          "note": null
+        },
+        {
+          "text": "In the above example, blockCompressorQuality is set to 6, which is the default.",
+          "source": "https://www.percona.com/blog/compression-methods-in-mongodb-snappy-vs-zstd/",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "How-to and procedures",
+      "facts": [
+        {
+          "text": "To specify an alternate compression algorithm or no compression, use the storage.wiredTiger.collectionConfig.blockCompressor setting.",
+          "source": "https://www.mongodb.com/docs/manual/core/wiredtiger/",
+          "note": null
+        },
+        {
+          "text": "To change compression on an existing collection, update the `blockCompressor` in `mongod.conf`, restart MongoDB, then compact the collection to rewrite its data with the new compressor:",
+          "source": "https://oneuptime.com/blog/post/2026-03-31-mongodb-snappy-zlib-zstd-compression/markdown#recompressing-an-existing-collection",
+          "note": null
+        },
+        {
+          "text": "To enable network compression in mongod and mongos, you can specify the compression algorithm by adding the following line to the configuration file.",
+          "source": "https://www.percona.com/blog/compression-methods-in-mongodb-snappy-vs-zstd/",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Examples and snippets",
+      "facts": [
+        {
+          "text": "```yaml — `storage:` …",
+          "source": "https://oneuptime.com/blog/post/2026-03-31-mongodb-snappy-zlib-zstd-compression/markdown#setting-compression-in-mongod-conf",
+          "note": null
+        },
+        {
+          "text": "```javascript — `db.createCollection(\"logs\", {` …",
+          "source": "https://oneuptime.com/blog/post/2026-03-31-mongodb-snappy-zlib-zstd-compression/markdown#setting-compression-per-collection",
+          "note": null
+        },
+        {
+          "text": "```javascript — `db.getCollectionInfos({ name: \"logs\" })[0].options.storageEngine` …",
+          "source": "https://oneuptime.com/blog/post/2026-03-31-mongodb-snappy-zlib-zstd-compression/markdown#checking-current-compression",
+          "note": null
+        },
+        {
+          "text": "storage: engine: wiredTiger wiredTiger: collectionConfig: blockCompressor: zstd blockCompressorQuality: 6 #(available since v5.0) engineConfig: cacheSizeGB: 4",
+          "source": "https://www.percona.com/blog/compression-methods-in-mongodb-snappy-vs-zstd/",
+          "note": null
+        },
+        {
+          "text": "db.createCollection(\"user\", {storageEngine: {wiredTiger: {configString: \"block_compressor=zstd\"}}})",
+          "source": "https://www.percona.com/blog/compression-methods-in-mongodb-snappy-vs-zstd/",
+          "note": null
+        },
+        {
+          "text": "```text — `OLTP (high frequency reads/writes): Snappy or Zstd` …",
+          "source": "https://oneuptime.com/blog/post/2026-03-31-mongodb-snappy-zlib-zstd-compression/markdown#recommendations-by-workload",
+          "note": null
+        },
+        {
+          "text": "```yaml — `storage:` …",
+          "source": "https://oneuptime.com/blog/post/2026-03-31-mongodb-snappy-zlib-zstd-compression/markdown#index-compression",
+          "note": null
+        },
+        {
+          "text": "```javascript — `// After updating blockCompressor in mongod.conf and restarting mongod` …",
+          "source": "https://oneuptime.com/blog/post/2026-03-31-mongodb-snappy-zlib-zstd-compression/markdown#recompressing-an-existing-collection",
+          "note": null
+        },
+        {
+          "text": "```javascript — `// Benchmark storage usage per algorithm` …",
+          "source": "https://oneuptime.com/blog/post/2026-03-31-mongodb-snappy-zlib-zstd-compression/markdown#zstd",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Measurements and reference values",
+      "facts": [
+        {
+          "text": "Percona test (PSMDB 6.0.4, 4vCPU/14GB): 14.95GB of data became 10.75GB with snappy and 7.69GB with zstd level 6, with average CPU 34% vs 31.72%. Percona concludes snappy suits write-heavy low-CPU workloads and zstd suits read-heavy or storage-saving goals.",
+          "source": "https://www.percona.com/blog/compression-methods-in-mongodb-snappy-vs-zstd/",
+          "note": null
+        },
+        {
+          "text": "Another test (Vicuesoft, 9.79KB avg docs) measured 711.54MB snappy, 449.48MB zlib, 380.43MB zstd. Ratios are data-dependent; MongoDB itself says the ratio depends on the data and library, and gives no universal figure. Blog ranges (snappy 2-3x, zstd 3-5x) are generic estimates.",
+          "source": "https://vicuesoft.com/blog/titles/MongoDB_compression_options",
+          "note": null
+        },
+        {
+          "text": "| Algorithm | Default | Compression Ratio | CPU Cost | Use Case | |-----------|---------|-------------------|----------|-----------------------------| | Snappy | Yes | Moderate (2-3x) | Very Low | General purpose, low latency | | Zlib | No | High (3-5x) | Medium | Storage-constrained systems | | Zstd | No | High (3-5x) | Low-Med | Best ratio with low CPU cost |",
+          "source": "https://oneuptime.com/blog/post/2026-03-31-mongodb-snappy-zlib-zstd-compression/markdown#compression-overview",
+          "note": "generic blog ratio ranges, not measured"
+        },
+        {
+          "text": "db.collection.totalIndexSize() to return the index sizes in bytes for the collection. If an index uses prefix compression (which is the default for WiredTiger), the returned size reflects the compressed size.",
+          "source": "https://www.mongodb.com/docs/manual/faq/storage/",
+          "note": null
+        },
+        {
+          "text": "Zlib (gzip-compatible) achieves better compression than Snappy but at 3-4x the CPU cost. It is suitable for archival collections or analytics workloads where you query infrequently but want to minimize storage.",
+          "source": "https://oneuptime.com/blog/post/2026-03-31-mongodb-snappy-zlib-zstd-compression/markdown#zlib",
+          "note": null
+        },
+        {
+          "text": "If an index uses prefix compression (which is the default for WiredTiger), the returned size for that index reflects the compressed size.",
+          "source": "https://www.mongodb.com/docs/manual/faq/storage/",
+          "note": null
+        },
+        {
+          "text": "db.collection.storageSize() to return the size in bytes of the collection on disk storage. If collection data is compressed (which is the default for WiredTiger), the storage size reflects the compressed size and may be smaller than the value returned by db.collection.dataSize().",
+          "source": "https://www.mongodb.com/docs/manual/faq/storage/",
+          "note": null
+        },
+        {
+          "text": "Snappy prioritizes speed over ratio. It compresses and decompresses very fast (300-500 MB/s), making it ideal for workloads where CPU is scarce or latency is critical - such as OLTP systems with high read/write throughput.",
+          "source": "https://oneuptime.com/blog/post/2026-03-31-mongodb-snappy-zlib-zstd-compression/markdown#snappy",
+          "note": null
+        },
+        {
+          "text": "db.collection.dataSize() to return the uncompressed data size in bytes for the collection.",
+          "source": "https://www.mongodb.com/docs/manual/faq/storage/",
+          "note": null
+        },
+        {
+          "text": "The amount of empty space available for reuse by WiredTiger is reflected in the output of db.collection.stats() under the heading wiredTiger.block-manager.file bytes available for reuse.",
+          "source": "https://www.mongodb.com/docs/manual/faq/storage/",
+          "note": null
+        },
+        {
+          "text": "To view the size of the data allocated for each index, use the db.collection.stats() method and check the indexSizes field in the returned document.",
+          "source": "https://www.mongodb.com/docs/manual/faq/storage/",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Problems, failure modes and limitations",
+      "facts": [
+        {
+          "text": "Changing the global blockCompressor affects only newly created collections; existing collections keep their compressor. Blogs say compact does not recompress, so switching needs copy to a new collection (or dump/restore).",
+          "source": "https://oneuptime.com/blog/post/2026-03-31-mongodb-snappy-zlib-zstd-compression/markdown",
+          "note": null
+        },
+        {
+          "text": "Deleted-document space is reused inside data files but not returned to the OS except via compact or resyncing a replica set member; dropping a collection or index frees its space. Compression savings therefore do not shrink billed disk until space is reclaimed.",
+          "source": "https://www.mongodb.com/docs/manual/faq/storage/",
+          "note": null
+        },
+        {
+          "text": "Restart MongoDB for this to take effect on new collections. Existing collections retain their original compression.",
+          "source": "https://oneuptime.com/blog/post/2026-03-31-mongodb-snappy-zlib-zstd-compression/markdown#setting-compression-in-mongod-conf",
+          "note": null
+        },
+        {
+          "text": "Note that network compression can have a significant impact on network performance and CPU usage. In my case, there was hardly anything else running, so I did not see any significant CPU usage.",
+          "source": "https://www.percona.com/blog/compression-methods-in-mongodb-snappy-vs-zstd/",
+          "note": null
+        },
+        {
+          "text": "I’ve created a collection using the below command with a specific block compression method. This does not affect any existing collection or any new collection being created after this.",
+          "source": "https://www.percona.com/blog/compression-methods-in-mongodb-snappy-vs-zstd/",
+          "note": null
+        },
+        {
+          "text": "The WiredTiger storage engine maintains lists of empty records in data files as it deletes documents. This space can be reused by WiredTiger, but will not be returned to the operating system unless under very specific circumstances.",
+          "source": "https://www.mongodb.com/docs/manual/faq/storage/",
+          "note": null
+        },
+        {
+          "text": "To allow the WiredTiger storage engine to release this empty space to the operating system, you can de-fragment your data file. This can be achieved by resyncing a replica set member or using the compact command.",
+          "source": "https://www.mongodb.com/docs/manual/faq/storage/",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Comparisons and alternatives",
+      "facts": [
+        {
+          "text": "WiredTiger supports three compression algorithms for collection data: Snappy (default), Zlib, and Zstd. Each makes a different trade-off between compression ratio and CPU overhead. Choosing the right one can significantly reduce storage costs or improve throughput.",
+          "source": "https://oneuptime.com/blog/post/2026-03-31-mongodb-snappy-zlib-zstd-compression/markdown",
+          "note": null
+        },
+        {
+          "text": "Zstd is the best default choice for most MongoDB deployments as it achieves high compression ratios with relatively low CPU overhead. Use Snappy when write latency is critical and CPU is at a premium. Reserve Zlib for archival workloads where maximum compression is needed and query frequency is low. Configure compression per collection to match the access pattern of each dataset.",
+          "source": "https://oneuptime.com/blog/post/2026-03-31-mongodb-snappy-zlib-zstd-compression/markdown#summary",
+          "note": null
+        },
+        {
+          "text": "Zstd (Zstandard) provides compression ratios close to Zlib at speeds close to Snappy. It is generally the best choice for new deployments. MongoDB added Zstd support in version 4.2.",
+          "source": "https://oneuptime.com/blog/post/2026-03-31-mongodb-snappy-zlib-zstd-compression/markdown#zstd",
+          "note": null
+        },
+        {
+          "text": "Ultimately, the choice between Snappy and Zstd compression in MongoDB hinges on your specific workload and performance priorities. Snappy often excels in write-heavy scenarios demanding lower CPU overhead, while Zstd typically offers superior compression ratios beneficial for read-intensive workloads or significant storage savings. By understanding these trade-offs for both data block and network-level compression, and ideally testing their impact on your specific application, you can make an informed decision to optimize storage efficiency and database performance in your MongoDB deployment.",
+          "source": "https://www.percona.com/blog/compression-methods-in-mongodb-snappy-vs-zstd/",
+          "note": null
+        },
+        {
+          "text": "This post will compare two prominent compression algorithms used in MongoDB: Snappy vs. Zstd. We’ll examine their application for data block compression and discuss Zstd’s role in network compression, helping you understand the trade-offs and make informed decisions for your specific use case.",
+          "source": "https://www.percona.com/blog/compression-methods-in-mongodb-snappy-vs-zstd/",
+          "note": null
+        },
+        {
+          "text": "Zstd typically offers a higher compression ratio than snappy, meaning that it can compress data more effectively and achieve a smaller compressed size for the same input data.",
+          "source": "https://www.percona.com/blog/compression-methods-in-mongodb-snappy-vs-zstd/",
+          "note": null
+        },
+        {
+          "text": "Block compression is a type of compression that compresses data in blocks rather than compressing the entire data set at once. Block compression can improve performance by allowing data to be read and written in smaller chunks.",
+          "source": "https://www.percona.com/blog/compression-methods-in-mongodb-snappy-vs-zstd/",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Facts and statements",
+      "facts": [
+        {
+          "text": "WiredTiger uses snappy block compression for most collections and prefix compression for all indexes by default; time-series collections default to zstd. Compression costs extra CPU in exchange for lower storage use.",
+          "source": "https://www.mongodb.com/docs/manual/core/wiredtiger/",
+          "note": null
+        },
+        {
+          "text": "The ratio of compressed data to uncompressed data depends on your data and the compression library used. By default, collection data in WiredTiger use Snappy block compression; zlib and zstd compression is also available. Index data use prefix compression by default.",
+          "source": "https://www.mongodb.com/docs/manual/faq/storage/",
+          "note": null
+        },
+        {
+          "text": "This section explains how to configure WiredTiger's builtin support for the lz4, snappy, zlib, zstd and iaa compression engines.",
+          "source": "https://source.wiredtiger.com/develop/compression.html",
+          "note": null
+        },
+        {
+          "text": "Collection data in the WiredTiger internal cache is uncompressed, so block compression saves disk, not cache RAM. The filesystem cache holds the compressed on-disk format. Index prefix compression deduplicates common prefixes and also reduces index RAM in the cache.",
+          "source": "https://www.mongodb.com/docs/manual/core/wiredtiger/",
+          "note": null
+        },
+        {
+          "text": "It supports the same compression algorithms for network compression, i.e., snappy, zstd, and zlib. All these compression algorithms have various compression ratios and CPU needs.",
+          "source": "https://www.percona.com/blog/compression-methods-in-mongodb-snappy-vs-zstd/",
+          "note": null
+        },
+        {
+          "text": "By default, WiredTiger uses block compression with the snappy compression library for most collections and prefix compression for all indexes. However, the default block compression for time-series collections is zstd.",
+          "source": "https://www.mongodb.com/docs/manual/core/wiredtiger/",
+          "note": null
+        },
+        {
+          "text": "MongoDB offers various block compression methods used by the WiredTiger storage engine, like snappy, zlib, and zstd.",
+          "source": "https://www.percona.com/blog/compression-methods-in-mongodb-snappy-vs-zstd/",
+          "note": null
+        },
+        {
+          "text": "By default, WiredTiger uses Snappy block compression for all collections and prefix compression for all indexes. Compression defaults are configurable at a global level and can also be set on a per-collection and per-index basis during collection and index creation.",
+          "source": "https://www.mongodb.com/docs/manual/core/wiredtiger/",
+          "note": null
+        },
+        {
+          "text": "Compare Snappy, Zlib, and Zstd compression algorithms in MongoDB WiredTiger and learn which to choose based on CPU, storage, and performance trade-offs.",
+          "source": "https://oneuptime.com/blog/post/2026-03-31-mongodb-snappy-zlib-zstd-compression/markdown",
+          "note": null
+        },
+        {
+          "text": "storageSize() reports compressed on-disk size and can be smaller than dataSize(); totalIndexSize() reflects prefix-compressed size. Compare these to measure savings.",
+          "source": "https://www.mongodb.com/docs/manual/faq/storage/",
+          "note": null
+        },
+        {
+          "text": "net: compression: compressors: snappy,zstd,zlib",
+          "source": "https://www.percona.com/blog/compression-methods-in-mongodb-snappy-vs-zstd/",
+          "note": null
+        },
+        {
+          "text": "WiredTiger journal is compressed using the snappy compression library. To specify a different compression algorithm or no compression, use the storage.wiredTiger.engineConfig.journalCompressor setting. For details on changing the journal compressor, see Change WiredTiger Journal Compressor.",
+          "source": "https://www.mongodb.com/docs/manual/core/wiredtiger/",
+          "note": null
+        },
+        {
+          "text": "Collection data in the WiredTiger internal cache is uncompressed and uses a different representation from the on-disk format. Block compression can provide significant on-disk storage savings, but data must be uncompressed to be manipulated by the server.",
+          "source": "https://www.mongodb.com/docs/manual/core/wiredtiger/",
+          "note": null
+        },
+        {
+          "text": "Indexes loaded in the WiredTiger internal cache have a different data representation to the on-disk format, but can still take advantage of index prefix compression to reduce RAM usage. Index prefix compression deduplicates common prefixes from indexed fields.",
+          "source": "https://www.mongodb.com/docs/manual/core/wiredtiger/",
+          "note": null
+        },
+        {
+          "text": "By default, MongoDB provides a snappy block compression method for storage and network communication.",
+          "source": "https://www.percona.com/blog/compression-methods-in-mongodb-snappy-vs-zstd/",
+          "note": null
+        },
+        {
+          "text": "Zstandard Compression or zstd, another newer block compression method provided by MongoDB starting for v4.2, provides higher compression rates. Zstd is a compression library that Facebook developed.",
+          "source": "https://www.percona.com/blog/compression-methods-in-mongodb-snappy-vs-zstd/",
+          "note": null
+        },
+        {
+          "text": "Indexes use prefix compression by default, which is separate from block compression. Prefix compression reduces index size by deduplicating common key prefixes and is always recommended:",
+          "source": "https://oneuptime.com/blog/post/2026-03-31-mongodb-snappy-zlib-zstd-compression/markdown#index-compression",
+          "note": null
+        },
+        {
+          "text": "The WiredTiger journal is also compressed by default. For information on journal compression, see Journal.",
+          "source": "https://www.mongodb.com/docs/manual/core/wiredtiger/",
+          "note": null
+        },
+        {
+          "text": "Snappy compression is designed to be fast and efficient regarding memory usage, making it a good fit for MongoDB workloads. Snappy is a compression library developed by Google.",
+          "source": "https://www.percona.com/blog/compression-methods-in-mongodb-snappy-vs-zstd/",
+          "note": null
+        },
+        {
+          "text": "Percona Server for MongoDB (PSMDB) supports all types of compression and enterprise-grade features for free. I am using PSMDB 6.0.4 here.",
+          "source": "https://www.percona.com/blog/compression-methods-in-mongodb-snappy-vs-zstd/",
+          "note": null
+        },
+        {
+          "text": "MongoDB also offers network compression.",
+          "source": "https://www.percona.com/blog/compression-methods-in-mongodb-snappy-vs-zstd/",
+          "note": null
+        },
+        {
+          "text": "The client should also use at least one or the same compression method specified in the config to have data over the network compressed, or the data between the client and server would be uncompressed.",
+          "source": "https://www.percona.com/blog/compression-methods-in-mongodb-snappy-vs-zstd/",
+          "note": null
+        },
+        {
+          "text": "With WiredTiger, MongoDB supports compression for all collections and indexes. Compression minimizes storage use at the expense of additional CPU.",
+          "source": "https://www.mongodb.com/docs/manual/core/wiredtiger/",
+          "note": null
+        },
+        {
+          "text": "Compression settings are also configurable on a per-collection and per-index basis during collection and index creation. See Specify Storage Engine Options and db.collection.createIndex() storageEngine option.",
+          "source": "https://www.mongodb.com/docs/manual/core/wiredtiger/",
+          "note": null
+        },
+        {
+          "text": "WiredTiger may be extended by adding custom compression engines; see WT_COMPRESSOR for more information.",
+          "source": "https://source.wiredtiger.com/develop/compression.html",
+          "note": null
+        },
+        {
+          "text": "For most workloads, the default compression settings balance storage efficiency and processing requirements.",
+          "source": "https://www.mongodb.com/docs/manual/core/wiredtiger/",
+          "note": null
+        },
+        {
+          "text": "Or use `mongodump` / `mongorestore` to a new collection with the desired compressor.",
+          "source": "https://oneuptime.com/blog/post/2026-03-31-mongodb-snappy-zlib-zstd-compression/markdown#recompressing-an-existing-collection",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Disagreements",
+      "facts": [
+        {
+          "text": "| Algorithm | Default | Compression Ratio | CPU Cost | Use Case | |-----------|---------|-------------------|----------|-----------------------------| | Snappy | Yes | Moderate (2-3x) | Very Low | General purpose, low latency | | Zlib | No | High (3-5x) | Medium | Storage-constrained systems | | Zstd | No | High (3-5x) | Low-Med | Best ratio with low CPU cost |",
+          "source": "https://oneuptime.com/blog/post/2026-03-31-mongodb-snappy-zlib-zstd-compression/markdown#compression-overview",
+          "note": "generic blog ratio ranges, not measured",
+          "group": "c2"
+        },
+        {
+          "text": "Percona test (PSMDB 6.0.4, 4vCPU/14GB): 14.95GB of data became 10.75GB with snappy and 7.69GB with zstd level 6, with average CPU 34% vs 31.72%. Percona concludes snappy suits write-heavy low-CPU workloads and zstd suits read-heavy or storage-saving goals.",
+          "source": "https://www.percona.com/blog/compression-methods-in-mongodb-snappy-vs-zstd/",
+          "note": null,
+          "group": "c2"
+        },
+        {
+          "text": "Another test (Vicuesoft, 9.79KB avg docs) measured 711.54MB snappy, 449.48MB zlib, 380.43MB zstd. Ratios are data-dependent; MongoDB itself says the ratio depends on the data and library, and gives no universal figure. Blog ranges (snappy 2-3x, zstd 3-5x) are generic estimates.",
+          "source": "https://vicuesoft.com/blog/titles/MongoDB_compression_options",
+          "note": null,
+          "group": "c2"
+        },
+        {
+          "text": "Changing the global blockCompressor affects only newly created collections; existing collections keep their compressor. Blogs say compact does not recompress, so switching needs copy to a new collection (or dump/restore).",
+          "source": "https://oneuptime.com/blog/post/2026-03-31-mongodb-snappy-zlib-zstd-compression/markdown",
+          "note": null,
+          "group": "c1"
+        },
+        {
+          "text": "To change compression on an existing collection, update the `blockCompressor` in `mongod.conf`, restart MongoDB, then compact the collection to rewrite its data with the new compressor:",
+          "source": "https://oneuptime.com/blog/post/2026-03-31-mongodb-snappy-zlib-zstd-compression/markdown#recompressing-an-existing-collection",
+          "note": null,
+          "group": "c1"
+        },
+        {
+          "text": "```javascript — `// After updating blockCompressor in mongod.conf and restarting mongod` …",
+          "source": "https://oneuptime.com/blog/post/2026-03-31-mongodb-snappy-zlib-zstd-compression/markdown#recompressing-an-existing-collection",
+          "note": null,
+          "group": "c1"
+        }
+      ]
+    }
+  ],
+  "related": [
+    {
+      "concept": "WiredTiger",
+      "relation": "is a hypernym of WiredTiger Block and Prefix Compression as Storage Cost Lever",
+      "note": null
+    },
+    {
+      "concept": "zstd",
+      "relation": "is a hyponym of WiredTiger Block and Prefix Compression as Storage Cost Lever",
+      "note": "default for time series collections; best ratio in the cited tests"
+    },
+    {
+      "concept": "snappy",
+      "relation": "is a hyponym of WiredTiger Block and Prefix Compression as Storage Cost Lever",
+      "note": "default block compressor for most collections"
+    },
+    {
+      "concept": "block compression",
+      "relation": "is a hyponym of WiredTiger Block and Prefix Compression as Storage Cost Lever",
+      "note": "compresses collection data blocks on disk; saves disk, not cache RAM"
+    },
+    {
+      "concept": "prefix compression",
+      "relation": "is a hyponym of WiredTiger Block and Prefix Compression as Storage Cost Lever",
+      "note": "deduplicates common key prefixes in indexes; also reduces index RAM"
+    },
+    {
+      "concept": "blockCompressor setting",
+      "relation": "is a instance of WiredTiger Block and Prefix Compression as Storage Cost Lever",
+      "note": null
+    },
+    {
+      "concept": "zlib",
+      "relation": "is a hyponym of WiredTiger Block and Prefix Compression as Storage Cost Lever",
+      "note": null
+    },
+    {
+      "concept": "compression ratio",
+      "relation": "is a measure of WiredTiger Block and Prefix Compression as Storage Cost Lever",
+      "note": null
+    },
+    {
+      "concept": "compression CPU cost",
+      "relation": "is a problem of WiredTiger Block and Prefix Compression as Storage Cost Lever",
+      "note": null
+    },
+    {
+      "concept": "provisioned storage cost",
+      "relation": "is a dependent of WiredTiger Block and Prefix Compression as Storage Cost Lever",
+      "note": null
+    },
+    {
+      "concept": "storageSize",
+      "relation": "is a measure of WiredTiger Block and Prefix Compression as Storage Cost Lever",
+      "note": null
+    },
+    {
+      "concept": "uncompressed",
+      "relation": "is a contrast of WiredTiger Block and Prefix Compression as Storage Cost Lever",
+      "note": null
+    },
+    {
+      "concept": "disk space reclaim",
+      "relation": "is a problem of WiredTiger Block and Prefix Compression as Storage Cost Lever",
+      "note": null
+    },
+    {
+      "concept": "network compression",
+      "relation": "is a related of WiredTiger Block and Prefix Compression as Storage Cost Lever",
+      "note": null
+    },
+    {
+      "concept": "WiredTiger cache",
+      "relation": "is a whole of WiredTiger Block and Prefix Compression as Storage Cost Lever",
+      "note": null
+    },
+    {
+      "concept": "existing collections keep compressor",
+      "relation": "is a problem of WiredTiger Block and Prefix Compression as Storage Cost Lever",
+      "note": null
+    },
+    {
+      "concept": "journal compression",
+      "relation": "is a part of WiredTiger Block and Prefix Compression as Storage Cost Lever",
+      "note": null
+    },
+    {
+      "concept": "Percona benchmark",
+      "relation": "is a instance of WiredTiger Block and Prefix Compression as Storage Cost Lever",
+      "note": null
+    },
+    {
+      "concept": "lz4",
+      "relation": "is a hyponym of WiredTiger Block and Prefix Compression as Storage Cost Lever",
+      "note": "WiredTiger builtin compressor; not a MongoDB option"
+    },
+    {
+      "concept": "iaa",
+      "relation": "is a hyponym of WiredTiger Block and Prefix Compression as Storage Cost Lever",
+      "note": "WiredTiger builtin Intel accelerator compressor"
+    }
+  ]
+}

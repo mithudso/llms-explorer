@@ -7,3 +7,7 @@
 - User request:
   - 1. I don't know what you mean by "persist these 25 gaps". If you mean commit your research and changes then yes, if you mean discard an hour of work so another process can look at them later, then no.
   - Make sure the concept trees in ~/dev/llms-explorer and ~/.global-ai-hub are updated with your findings and research. Add batch processing to the llms-explorer TUI, and then process the 686 row frontier labels.
+
+## Prompt — 2026-10-22 Cloudflare build focus
+
+The user asked to stop Node compatibility testing and focus on the failing Cloudflare build. Inspected the failed production log, confirmed private GitHub clone authentication as the cause, and followed the repaired production deployment to success. Verified the actual published content.

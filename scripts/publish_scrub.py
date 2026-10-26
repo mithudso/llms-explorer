@@ -41,21 +41,35 @@ def _slug(name: str) -> str:
     return re.sub(r"-+", "-", s)
 
 
+def _term_pattern(term: str) -> str:
+    # The citation verifier withholds SERVER issue keys. A different issue
+    # can share their numeric prefix; ordinary operator terms stay substrings.
+    pattern = re.escape(term)
+    return rf"\b{pattern}\b" if re.fullmatch(r"SERVER-\d+", term, re.IGNORECASE) else pattern
+
+
 def _matches(text: str, terms: list[str]) -> bool:
     low, slug = text.lower(), _slug(text)
-    return any(t.lower() in low or t.lower() in slug for t in terms)
+    for term in terms:
+        if re.fullmatch(r"SERVER-\d+", term, re.IGNORECASE):
+            if re.search(_term_pattern(term), low, re.IGNORECASE) or re.search(_term_pattern(term), slug, re.IGNORECASE):
+                return True
+        elif term.lower() in low or term.lower() in slug:
+            return True
+    return False
 
 
-def filter_tree(nodes: list[dict], terms: list[str]) -> tuple[list[dict], list[str], int]:
+def filter_tree(nodes: list[dict], terms: list[str], excluded_names=()) -> tuple[list[dict], list[str], int]:
     """Nodes minus every denylisted node and its descendants, with denylisted
     names also struck from `childConcepts` so they cannot surface as frontier
     leaves. Names are matched as written and as slugs, since gen_tree publishes
     both. Returns (kept, dropped concept names, child references removed)."""
-    if not terms:
+    if not terms and not excluded_names and not any(n.get("publicationPrivate") is True for n in nodes):
         return [dict(n) for n in nodes], [], 0
+    excluded = {name.casefold() for name in excluded_names}
     by = {n["concept"]: n for n in nodes}
     dropped = {n["concept"] for n in nodes
-               if _matches(" ".join([n.get("concept", ""), n.get("slug", ""),
+               if n.get("publicationPrivate") is True or n["concept"].casefold() in excluded or _matches(" ".join([n.get("concept", ""), n.get("slug", ""),
                                      *(n.get("aliases") or [])]), terms)}
     stack = list(dropped)
     while stack:
@@ -125,9 +139,37 @@ def scrub_addresses(text: str, terms: list[str] = (), prose: bool = True) -> tup
             n += k
     if prose:
         for term in terms:
-            text, k = re.subn(re.escape(term), "[redacted]", text, flags=re.IGNORECASE)
+            text, k = re.subn(_term_pattern(term), "[redacted]", text, flags=re.IGNORECASE)
             n += k
     return text, n
+
+
+def scrub_public_text(text: str, terms=(), allowed=None) -> str:
+    """Sanitize public prose before truncation or JSON serialization."""
+    allowed = gate.allowlist() if allowed is None else allowed
+    text = re.sub(r"https?://[^\s<>\"'`\]\),]+",
+                  lambda match: "https://example.test/withheld-reference"
+                  if _matches(match.group(), terms) else match.group(), text)
+    text, _ = scrub_home_paths(text)
+    text, _ = scrub_addresses(text, terms)
+    email = re.compile(r"[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}")
+    approved_emails = {address for value in allowed if "@" in value
+                       for address in email.findall(value)} if "@" in text else set()
+    text = email.sub(lambda match: match.group() if (gate.RESERVED.search(match.group())
+                                                    or match.group() in approved_emails)
+                  else "user@example.test", text)
+    for name, regex, _ in gate.COMPILED:
+        if name not in ("atlas object id", "email inside a path"):
+            continue
+        def replace(match, name=name):
+            if any(item in match.group() for item in allowed) or gate.RESERVED.search(match.group()):
+                return match.group()
+            addresses = email.findall(match.group()) if name == "email inside a path" else []
+            if addresses and all(address in approved_emails for address in addresses):
+                return match.group()
+            return "<object-id>" if name == "atlas object id" else "/user@example.test/"
+        text = regex.sub(replace, text)
+    return text
 
 
 def scrub_address_files(paths, terms: list[str] = ()) -> list[tuple[str, int]]:

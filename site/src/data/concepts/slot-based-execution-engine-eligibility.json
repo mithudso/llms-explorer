@@ -1,0 +1,89 @@
+{
+  "slug": "slot-based-execution-engine-eligibility",
+  "concept": "Slot-based execution engine eligibility",
+  "generated": "2026-10-22",
+  "summary": "Source-anchored research for Slot-based execution engine eligibility. Run status: COMPLETED.",
+  "facets": [
+    {
+      "title": "How it works",
+      "facts": [
+        {
+          "text": "Starting in MongoDB 5.2, `$group` can run in SBE when it is the first pipeline stage or every preceding stage can also run in SBE. This condition establishes eligibility for `$group`; later unsupported stages can still prevent the whole pipeline from running in SBE. (high confidence) (verified as of 2026-10-22)",
+          "source": "https://www.mongodb.com/docs/manual/reference/operator/aggregation/group.md",
+          "note": null
+        },
+        {
+          "text": "The current MongoDB time-series query README lists SBE-lowering conditions: unpacked fields must be statically known, the pipeline must not sort on the timeField or use the last-point optimization, and event and meta filters must use SBE-supported expressions. If a condition fails, the entire pipeline runs in classic. If the conditions pass, SBE lowers the supported prefix; the whole pipeline runs in SBE only when every stage is supported. (medium confidence) (verified as of 2026-10-22)",
+          "source": "https://github.com/mongodb/mongo/blob/master/src/mongo/db/query/timeseries/README.md",
+          "note": null
+        },
+        {
+          "text": "MongoDB's SERVER-71032 issue describes a query that was eligible for SBE but whose plan still fell back to the classic engine when SBE plan construction did not produce a usable plan. This is a historical implementation case from 2022, not evidence that every current release has the same fallback behavior. (low confidence) (verified as of 2022-11-02)",
+          "source": "https://jira.mongodb.org/browse/SERVER-71032",
+          "note": null
+        },
+        {
+          "text": "SBE should not be treated as a universal speedup. MongoDB documentation describes improved performance in most cases, while a 2026 study comparing MongoDB 6.0.3 and 8.2.5 reports results varying by aggregation shape, including faster $match plus $group tests and slower unbounded $project tests. The study compares server versions and does not isolate SBE as the cause of those differences. (medium confidence) (verified as of 2026-03-31)",
+          "source": "https://www.mongodb.com/docs/manual/reference/sbe.md",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Measurements and reference values",
+      "facts": [
+        {
+          "text": "SBE eligibility does not guarantee better performance. MongoDB's manual says SBE improves performance and reduces CPU and memory costs in most cases. A 2021 MongoDB server issue reported up to 30% regression for small point queries during SBE plan construction; that is a historical, workload-specific result, not a current baseline. (medium confidence) (verified as of 2021-01-22)",
+          "source": "https://www.mongodb.com/docs/manual/reference/sbe.md",
+          "note": null
+        },
+        {
+          "text": "A May 2026 benchmark of a synthetic aggregation workload reported that `$match` plus `$count` used `COUNT_SCAN` on MongoDB 6.0.3 and SBE `GROUP` on MongoDB 8.2.5, with 4 ms measured in each setup. This example shows a version-dependent execution path for one query shape; it does not establish behavior or performance for time-series workloads. (medium confidence) (verified as of 2026-05-15)",
+          "source": "https://www.researchgate.net/publication/404944555_MongoDB_Aggregation_Pipeline_Performance_Analysis_of_Query_Plan_Selection_and_Optimizer_Behavior_Across_Versions_and_Collection_Scales",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Problems, failure modes and limitations",
+      "facts": [
+        {
+          "text": "Confirm the engine that actually ran with explain or slow-query logs. SBE explain output includes `queryPlanner.winningPlan.slotBasedPlan`; slow-query logs use `queryFramework: \"sbe\"` or `queryFramework: \"classic\"`. MongoDB's aggregation guide also identifies `GROUP` and `EQ_LOOKUP` stages as SBE signals. (high confidence)",
+          "source": "https://www.mongodb.com/docs/manual/reference/sbe.md",
+          "note": null
+        },
+        {
+          "text": "Verify the engine used for the specific operation: SBE explain output includes explain.queryPlanner.winningPlan.slotBasedPlan, and slow-operation logs identify the framework with queryFramework: \"sbe\" or queryFramework: \"classic\". Explain ignores the plan cache, so it reports the plan chosen for that explain run. (high confidence) (verified as of 2026-10-22)",
+          "source": "https://www.mongodb.com/docs/manual/reference/sbe.md",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Comparisons and alternatives",
+      "facts": [
+        {
+          "text": "Engine availability also depends on distribution: Percona Server for MongoDB 6.0 release documentation lists upstream change SERVER-94166 as disabling the SBE query engine in its 6.0 line. Check the deployed fork and release instead of assuming upstream MongoDB eligibility rules imply SBE is enabled. (medium confidence)",
+          "source": "https://docs.percona.com/legacy-documentation/percona-server-for-mongodb/Percona-Server-for-MongoDB-6.0.25-20.pdf",
+          "note": null
+        }
+      ]
+    },
+    {
+      "title": "Facts and statements",
+      "facts": [
+        {
+          "text": "MongoDB selects an execution engine per query. SBE eligibility depends on support for the query's operators and expressions; ineligible queries use the classic engine, and the supported surface changes by server version. An independent SBE implementation account also describes a deliberately limited virtual-machine instruction set, which is consistent with operator coverage acting as an eligibility boundary. (high confidence) (verified as of 2026-10-22)",
+          "source": "https://www.mongodb.com/docs/manual/reference/sbe.md",
+          "note": null
+        },
+        {
+          "text": "Percona's release notes for Percona Server for MongoDB 6.0.17-14 list SERVER-94166 as disabling SBE in that 6.0 fork. This is specific to that Percona build and does not describe the upstream MongoDB engine-selection default. (low confidence) (verified as of 2024-09-18)",
+          "source": "https://docs.percona.com/legacy-documentation/percona-server-for-mongodb/Percona-Server-for-MongoDB-6.0.25-20.pdf",
+          "note": null
+        }
+      ]
+    }
+  ],
+  "related": []
+}

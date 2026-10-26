@@ -1,0 +1,135 @@
+{
+  "schema": "research-public-artifact/v1",
+  "concept": "dropIndexes locking and rollback by rebuild",
+  "slug": "dropindexes-locking-and-rollback-by-rebuild",
+  "canonical_concept_id": "concept:b4e75ff3bfb0993375852683bc303bc8c092db44b7018c941e591447c7bd0767",
+  "canonical_artifact_sha256": "8af13f232e5635b5fe7fd29bd2f6f5d96b0b3d8f9ac85fbc1277323407a78ecf",
+  "claims": [
+    {
+      "id": "clm:9e411c98120f4c64cd6b3cdf15bc7a70bc3be4fb1e6cd99a3832132ac7805b74",
+      "text": "Recreating a dropped index is a new index build, not an instant rollback. MongoDB documents that builds on populated collections briefly hold an exclusive collection lock at the beginning and end, and that builds during write-heavy workloads can reduce write performance and take longer; plan the rebuild for representative load and monitor it. (high confidence)",
+      "source_url": "https://www.mongodb.com/docs/manual/core/index-creation/",
+      "also": [
+        "https://www.mongodb.com/community/forums/t/rebuilding-the-indices/298551",
+        "https://www.netdata.cloud/guides/mongodb/mongodb-unused-indexes/"
+      ],
+      "validation_status": "SUPPORTED",
+      "evidence_ids": [
+        "ev:4e956d4c872da6caf210b6fa423dd40644fe38be554b6843b4a1543056f5d53f",
+        "ev:a75a84ce9bdbf3c80de0f84afd441e3b24922f2decc3247d81ca4c29e6f6666b",
+        "ev:b3203f89c305275c5016da18ebca92bc984a2356c2b99ab4fe21c552fae228da",
+        "ev:b3d1a161a3707e426d319f1268d182c627c11ba6bc5eb089c352cc18691389a5"
+      ]
+    },
+    {
+      "id": "clm:6c38fd4fb1c0057ba017478f2daea16e5516023345ded8bd057f57b846d045f2",
+      "text": "dropIndexes kills queries that use the index being removed, including queries still considering it during planning. After the drop, the planner cannot use that index; reads can regress if the remaining plan is slower, so validate critical query shapes and representative traffic before and after removal. (medium confidence)",
+      "source_url": "https://www.mongodb.com/docs/v8.0/reference/command/dropindexes/",
+      "also": [
+        "https://www.mongodb.com/docs/manual/reference/command/dropIndexes.md",
+        "https://www.netdata.cloud/guides/mongodb/mongodb-unused-indexes/"
+      ],
+      "validation_status": "SUPPORTED",
+      "evidence_ids": [
+        "ev:1f411e005eecab3dbc4116bcf109fb7f9cb8eefbaefceb15a7a3de90ad51ddf9",
+        "ev:35e60cd8324eefc4d3d63f4d3087cf78e439b921b7579c5ad9f172408e4d9ee0",
+        "ev:ee54c8fbca186a15a5073da2ba369323d44ac5b298e709af8671fd156dd76c9c"
+      ]
+    },
+    {
+      "id": "clm:05ae9530f9793c715c69ddd61a310123e09fd9b436b44421967f486c136145c7",
+      "text": "Rebuilding a dropped unique index can fail if conflicting values were written while the unique constraint was absent. MongoDB checks existing and concurrently written documents for unique-constraint violations during the build and terminates the build if violations remain, so duplicate data must be resolved before the unique index can be restored. (high confidence) (verified as of 2026-10-23)",
+      "source_url": "https://www.mongodb.com/docs/manual/core/index-creation/",
+      "also": [
+        "https://www.mongodb.com/docs/manual/reference/method/db.collection.createIndex/",
+        "https://www.mongodb.com/docs/v8.0/reference/command/dropindexes/"
+      ],
+      "validation_status": "SUPPORTED",
+      "evidence_ids": [
+        "ev:8bf44d06d6928dd814f678ad99a2482d1ba6a2bbf22f98e74a0a2f771f73ae2e"
+      ]
+    },
+    {
+      "id": "clm:ce431a3907b82c349a45879c695a5b09c5f5cb9e8a222612d9704da943c4e575",
+      "text": "Hiding an index is the reversible test: MongoDB keeps maintaining a hidden index, excludes it from planning, and makes it immediately available again when unhidden. After the index is actually dropped, recovery requires recreating the equivalent index with createIndex rather than unhiding it. (high confidence)",
+      "source_url": "https://www.mongodb.com/docs/manual/reference/command/dropIndexes.md",
+      "also": [
+        "https://www.mongodb.com/docs/manual/core/index-hidden/",
+        "https://www.mongodb.com/docs/manual/reference/method/db.collection.createIndex/",
+        "https://www.percona.com/blog/want-mongodb-performance-you-will-need-to-add-and-remove-indexes/",
+        "https://www.mongodb.com/community/forums/t/rebuilding-the-indices/298551"
+      ],
+      "validation_status": "SUPPORTED",
+      "evidence_ids": [
+        "ev:1871b8dad92dab83d12c509c97c520984f72d4ee3784b75c4c62b0de03d85a9e",
+        "ev:86fd02a11d96348af76fd0b432ce278cebfdafafa20e184f9a344e3ee8038c64",
+        "ev:9c09bda2dd93c4c63129774b9b204c461e45ba3b862e58cb5a2377ac4ef252c2",
+        "ev:f2d4e6359107f233a4eab3b91b7ad0654ef9cf4c30e9c008dbf88dd9b93db919"
+      ]
+    },
+    {
+      "id": "clm:23f9f0ec9978e54ef1fac29dcf4fe6bd42f31466de5840832bca72624be98491",
+      "text": "A rebuild after a drop is a new createIndex operation on the current collection data, not an immediate reversal of dropIndexes. MongoDB documents that index builds on populated collections hold an exclusive collection lock briefly at the start and end, while yielding to reads and writes during the rest of the build; this build-lock behavior differs from dropIndexes holding its lock for the full removal operation. (high confidence) (verified as of 2026-10-23)",
+      "source_url": "https://www.mongodb.com/docs/manual/reference/method/db.collection.dropIndex/",
+      "also": [
+        "https://www.mongodb.com/docs/manual/reference/method/db.collection.createIndex/",
+        "https://www.mongodb.com/docs/manual/core/index-creation/",
+        "https://www.mongodb.com/docs/manual/tutorial/manage-indexes/",
+        "https://www.mongodb.com/docs/v7.0/reference/command/dropindexes/",
+        "https://www.mongodb.com/docs/v8.0/reference/command/dropindexes/"
+      ],
+      "validation_status": "SUPPORTED",
+      "evidence_ids": [
+        "ev:7719075226af0ac001bdcbb2ea588810abc8bb832594a8d260ce81d4f76bf9d6",
+        "ev:b3203f89c305275c5016da18ebca92bc984a2356c2b99ab4fe21c552fae228da",
+        "ev:cfabde8e8ef7b0ed89bc8ac0487d4f3a3081245f72b34440b2b79d43c258b208"
+      ]
+    },
+    {
+      "id": "clm:413eb1548dccfd7c546f5bfc121f240d185991d859696d18d30ee65c3d3399bc",
+      "text": "Dropping an unused index can reduce write and storage overhead, but removing an index used by read queries can change plans and cause slower scans. Netdata advises dropping during lower traffic and monitoring lock waits and query plans afterward; Percona describes the read benefit and write and storage costs of indexes, supporting workload-specific validation rather than treating every unused-index result as safe for removal. (medium confidence)",
+      "source_url": "https://www.netdata.cloud/guides/mongodb/mongodb-unused-indexes/",
+      "also": [
+        "https://www.percona.com/blog/want-mongodb-performance-you-will-need-to-add-and-remove-indexes/"
+      ],
+      "validation_status": "SUPPORTED",
+      "evidence_ids": [
+        "ev:10e423b1624d8a4b338aaac89e62ef960b7e910532b72b730c2575d6c188d68e",
+        "ev:35cb79d766a5ea93d0029bf5295fd796c5a1631ba00f24f33aa2d7f2a648afe5",
+        "ev:35e60cd8324eefc4d3d63f4d3087cf78e439b921b7579c5ad9f172408e4d9ee0",
+        "ev:7355303f8ccea952039413877f856d73b5b9618bd1faeea3438579351afd9522"
+      ]
+    },
+    {
+      "id": "clm:cfa6dddf8ea0edde12cfb7471c6dcbd35521d333e263236a7b551e0a881dfdda",
+      "text": "The MongoDB 7.0 and 8.0 command manuals describe the same dropIndexes locking behavior: it holds an exclusive lock on the target collection for the command's duration, and subsequent operations on that collection wait for release. The manuals do not describe this as an 8.0 change or as a database-wide lock; an independent operations guide dates the move from database to collection lock scope to MongoDB 4.2. (high confidence) (verified as of 2026-10-23)",
+      "source_url": "https://www.mongodb.com/docs/v7.0/reference/command/dropindexes/",
+      "also": [
+        "https://www.mongodb.com/docs/v8.0/reference/command/dropindexes/",
+        "https://www.mydbops.com/blog/terminate-in-progress-index-builds-in-mongodb-series-3",
+        "https://www.netdata.cloud/guides/mongodb/mongodb-unused-indexes/"
+      ],
+      "validation_status": "SUPPORTED",
+      "evidence_ids": [
+        "ev:22293dae381abf53f096a02f233af5dbcb7e41261718b22e585e1dc3decef24a",
+        "ev:25af25efed0d6da3e3d3db5d7c0097ca14b31fed3f8ff23139b622d488fc5089",
+        "ev:ec14170de8cb4e3f3c4eb1bfaadb46320fbe67cf005794178a8ffb10609b9b3e"
+      ]
+    },
+    {
+      "id": "clm:b94f86f79a11cc2d6ca55bbc03498840bd954caaf5494a4bb4b4c1fd40a0cb84",
+      "text": "Before dropping a production index to test its query impact, MongoDB recommends hiding it. Hidden indexes remain maintained and can be unhidden if performance degrades, restoring planner availability without a rebuild; they also continue to use disk and memory and receive write updates, so hiding does not remove index-maintenance overhead. (high confidence)",
+      "source_url": "https://www.mongodb.com/docs/manual/core/index-hidden/",
+      "also": [
+        "https://www.mongodb.com/docs/manual/tutorial/manage-indexes/"
+      ],
+      "validation_status": "SUPPORTED",
+      "evidence_ids": [
+        "ev:86fd02a11d96348af76fd0b432ce278cebfdafafa20e184f9a344e3ee8038c64",
+        "ev:be6fb5645b582231d0ca0dddec22f97c038ee7d914713d2206a6d28f4e3beb29",
+        "ev:f2d4e6359107f233a4eab3b91b7ad0654ef9cf4c30e9c008dbf88dd9b93db919"
+      ]
+    }
+  ],
+  "projection_sha256": "8b4c3cab25409465cf34b8c60c527acc1e913b1655ef613004e885547565c502"
+}
