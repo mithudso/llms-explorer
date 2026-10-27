@@ -1,0 +1,98 @@
+{
+  "slug": "wiredtiger-cache-sizing-and-working-set-fit",
+  "concept": "WiredTiger cache sizing and working-set fit",
+  "generated": "2026-10-23",
+  "summary": "Source-anchored research for WiredTiger cache sizing and working-set fit. Run status: COMPLETED.",
+  "facets": [
+    {
+      "title": "How it works",
+      "facts": [
+        {
+          "text": "WiredTiger stores uncompressed collection pages in its internal cache, while the OS filesystem cache can retain compressed database-file pages. A hot working set larger than the WiredTiger cache therefore does not cause a physical disk read on every cache miss when the needed page remains in filesystem cache, although it adds page-load and decompression cost; misses from both caches expose the workload to disk performance. (high confidence)",
+          "source": "https://www.mongodb.com/docs/manual/faq/diagnostics.md",
+          "note": null,
+          "claimId": "clm:9657e91274052c446ef0792ba46e9a5ff1daffc178846a8e37d2598f4252aa03",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:0b9af249ad1917400d68a5aa38be5e9f2d29ecb074ee151494fe6f81142cfb2e",
+            "ev:3722ba9e04ba93de43fed9d2a802ff6095f64a970345dfef2909bc99e8c9a15e",
+            "ev:6dcd828b2327ec74ff6ed3b04ff9544e4b32aae9fcc07bab1f687ff6e76722a4"
+          ]
+        },
+        {
+          "text": "serverStatus.wiredTiger.cache exposes current and configured cache bytes, bytes read into cache, dirty bytes, and eviction counters. A sustained high Read into rate means WiredTiger is loading pages frequently, but it does not prove physical disk reads because the OS filesystem cache may serve those reads. Correlate cache and eviction counters with host cached and available memory and disk read metrics. (high confidence)",
+          "source": "https://www.mongodb.com/docs/manual/faq/diagnostics.md",
+          "note": null,
+          "claimId": "clm:28439b155737e85927d2e0184d0e050d3b12d23c4d8f7b0c4582a0c30b63559a",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:2ff6395e2eb5f0fe8c16a007451e11491d0ec043bffed98f2e9717d8cd9e227d",
+            "ev:389b2765a09079984f99c8fa77f91a5c7771645b36353600ada4dd6d9c99d4d1",
+            "ev:f400458bc38c0c7a63713d044f85b8f6666aba3f2f6e58e27c031a9d82a357ab"
+          ]
+        },
+        {
+          "text": "MongoDB's current WiredTiger README describes a pressure path where WiredTiger can recruit application threads to perform eviction after cache utilization reaches its trigger. Time spent by application threads evicting can delay operations, so cache pressure may raise latency even when OS caching reduces physical disk reads. (medium confidence) (verified as of 2026-10-21)",
+          "source": "https://github.com/mongodb/mongo/blob/master/src/mongo/db/storage/wiredtiger/README.md?plain=1",
+          "note": null,
+          "claimId": "clm:f6f9fc688cadd3c1c5ee91adb1136d91cdb0ca61616e82cf907f4777f9adc2f6",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:a18fb5e00396f16b2ffc3a14cad1441e135d3450c835dc8b123cdf8b83b84bb0",
+            "ev:f400458bc38c0c7a63713d044f85b8f6666aba3f2f6e58e27c031a9d82a357ab"
+          ]
+        }
+      ]
+    },
+    {
+      "title": "Measurements and reference values",
+      "facts": [
+        {
+          "text": "The MongoDB manual snapshot verified on 2026-10-14 documents the default WiredTiger internal-cache size as the larger of 50% of (RAM minus 1 GB) or 0.256 GB. This setting limits the internal cache, not all mongod memory. The manual says to leave room for filesystem cache and other RAM consumers, to reduce the cache when multiple mongod instances share a host, and to avoid raising it above the default without a specific need. (high confidence) (verified as of 2026-10-14)",
+          "source": "https://www.mongodb.com/docs/manual/faq/diagnostics.md",
+          "note": null,
+          "claimId": "clm:78c8b6d2f3b451a54be658ea09e8b5e488aa0ae92cb12b99d2ee359dae40b9af",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:7f29709a8489b05a56586f044a57e7e8ed8bb6df56b72050e0c472cf76fdd568",
+            "ev:cb444fb476a97a382922e11d89f1d9f24f183cf9a95823bddbe6a358cd6ebeb3",
+            "ev:e096edddcd14e7d4c1c1049b2c731c9f9f70048154ca64793151c03770f2c650"
+          ]
+        },
+        {
+          "text": "The MongoDB manual currently gives the default WiredTiger internal cache as the greater of 50% of (RAM minus 1 GB) or 256 MB. That default assumes one mongod per machine. Container memory limits, multiple mongod processes, and other memory consumers require additional headroom; MongoDB advises against raising the internal cache above its default without a workload-specific need. (high confidence) (verified as of 2026-10-18)",
+          "source": "https://www.mongodb.com/docs/manual/core/wiredtiger/",
+          "note": null,
+          "claimId": "clm:c6951bac812fd6ebdb75030ef913f0a78151271958bf347735c6063857364fc7",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:150c3861b913e7ab62aed22cb7ec8f04666c5a95b92ddf8d0852aba190d40732",
+            "ev:91eeb5565b6ada0f4ea8d482fddb429448dd803ab83b9713cf06aeb4a2c9edf7",
+            "ev:ca4d032bd6648645b8fbd4e5a7d495c483b283d17e7bbcbf8428729c94168d49"
+          ]
+        }
+      ]
+    },
+    {
+      "title": "Comparisons and alternatives",
+      "facts": [
+        {
+          "text": "Diagnose cache fit with correlated trends rather than cache occupancy alone. MongoDB exposes current and maximum cache bytes, pages read into cache, dirty bytes, and pages evicted by application threads through serverStatus().wiredTiger.cache. Its WiredTiger integration notes that reaching an eviction trigger can recruit application threads, and Percona and IBM guidance pairs cache and eviction indicators with disk reads, page faults, swap, or disk latency when investigating pressure. (medium confidence)",
+          "source": "https://www.mongodb.com/docs/manual/faq/diagnostics.md",
+          "note": null,
+          "claimId": "clm:4d1dd4817518147a1b8135600c35d9bfef44a51f994025f87eafa13b8c81e5d1",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:2ff6395e2eb5f0fe8c16a007451e11491d0ec043bffed98f2e9717d8cd9e227d",
+            "ev:5f286cba52344bf9e73cb12b52226707931ce71ab1f18c422cf84dfc80ff5743",
+            "ev:a18fb5e00396f16b2ffc3a14cad1441e135d3450c835dc8b123cdf8b83b84bb0",
+            "ev:b2e04ea56ebd6442ee809a0f23b7adca58e69f825dee57bcb8329225a22bc430"
+          ]
+        }
+      ]
+    }
+  ],
+  "related": [],
+  "canonicalArtifactSha256": "a77e0348b1e574ae8a2934406590748985db08d17c54412e4e450dabdae17e6f",
+  "canonicalConceptId": "concept:bc17fd5001caf38e820f7faa52b3e9461be93f4e222199f1434542f22c62aa80"
+}

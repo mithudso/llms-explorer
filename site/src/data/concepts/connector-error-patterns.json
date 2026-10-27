@@ -1,0 +1,170 @@
+{
+  "slug": "connector-error-patterns",
+  "concept": "Connector Error Patterns",
+  "generated": "2026-10-23",
+  "summary": "Source-anchored research for Connector Error Patterns. Run status: COMPLETED.",
+  "facets": [
+    {
+      "title": "How it works",
+      "facts": [
+        {
+          "text": "For reads, the current connector defaults to FAILFAST, which throws when a document does not match the expected schema; PERMISSIVE sets incompatible values to null and can store the invalid document as Extended JSON, while DROPMALFORMED ignores the document. Batch schema inference samples records, so separate document/schema parsing failures from connection and runtime errors. (high confidence) (verified as of 2026-10-23)",
+          "source": "https://www.mongodb.com/docs/spark-connector/current/streaming-mode/streaming-read-config.md",
+          "note": null,
+          "claimId": "clm:21fa5978a80d44d4f9f15ece1c2ada0391581ee51628318584d5e070cf95006b",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:018a284c07cb44c0a188ca9c6b92133913129f5713129dc62bf1b7ab5284b8e5",
+            "ev:ce8d0e0632d22fd5556f1eb2fcc3655bee6f44bb366fe4be4f59878173f8f1ac"
+          ]
+        }
+      ]
+    },
+    {
+      "title": "Problems, failure modes and limitations",
+      "facts": [
+        {
+          "text": "Connector/runtime compatibility is version-specific: MongoDB lists Connector 11.1.0 with Spark 4.0 or later and MongoDB 4.2 or later; the 11.0 release adds Spark 4.0 support, which requires Scala 2.13, and Spark says Scala applications must use the same Scala version as the Spark build. Compare the connector version, Spark runtime, and Scala artifact suffix when a linkage error appears. (high confidence) (verified as of 2026-10-23)",
+          "source": "https://www.mongodb.com/docs/spark-connector/current/",
+          "note": null,
+          "claimId": "clm:455ead5a135ea464918cb2e95117d6119525162cb10e8415c87e2193e3b7962e",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:0ea76bda9b83deedae53a111cf67b3edbc2da09c44473deb42d2bd555c5df22a",
+            "ev:72ca4f5e68b4b95bbd2d961ef8d9729eb75a2daa1890b935e1d2aec96951931b",
+            "ev:c042d34b16d6182cd7a04d60c6d84ca29136f43f27c21537f0cebc53ef9286dc"
+          ]
+        },
+        {
+          "text": "A connection timeout can come from a versioned option-name mismatch: a Databricks report for Connector 10.0.5 timed out while using spark.mongodb.input.uri, and the author later marked spark.mongodb.read.connection.uri as the working option. Current MongoDB read configuration uses the spark.mongodb.read. namespace. Check the configuration key expected by the installed connector before treating a timeout as proof of network failure. (medium confidence) (verified as of 2026-10-14)",
+          "source": "https://community.databricks.com/t5/data-engineering/why-i-m-getting-connection-timeout-when-connecting-to/td-p/14866",
+          "note": null,
+          "claimId": "clm:1f9adaa40d8375d46b47445a96eb4b5b1b0ed21c234763bf2502e5f8560f89bf",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:661bab363bb2e05dbcce74fcbed0804d237d1b0f0b899896a13a9c37909281cb",
+            "ev:dead7099c2e2fc8692c331f015bb2158d10e94c8a45beb0c3507e6e24b8f6ff6"
+          ]
+        },
+        {
+          "text": "On Databricks standard access compute with Unity Catalog, a MongoDB read can fail with SparkSecurityException [INSUFFICIENT_PERMISSIONS] for SELECT on ANY FILE even when the same runtime and package work on dedicated compute. Databricks attributes this case to custom data-source access not being governed by Unity Catalog and recommends Lakehouse Federation or dedicated compute; its current Spark data-source guidance also excludes custom third-party Spark JARs from standard and serverless compute. (high confidence) (verified as of 2026-09-28)",
+          "source": "https://kb.databricks.com/en_US/data-sources/error-when-trying-to-read-data-from-mongodb",
+          "note": null,
+          "claimId": "clm:8d7e4a2f3243b5c7b32e5da382c0e6b69faf178e44baa888520b2d7d4a4097f5",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:4135f061d4aa46c5b08405ef35e8e4e249d15b6817daf1cfa1ab129709a56458",
+            "ev:cbd67317109dc47ca1f6b2e1db9d8dfa4bf0bb5047508ce613359573db7c5b70"
+          ]
+        },
+        {
+          "text": "Connector 10.0 and later uses the Spark provider name mongodb. A MongoDB forum report with Failed to find the data source: mongo shows format(\"mongo\") even though the author says the connector JAR was installed; the thread does not confirm the cause. Databricks documentation says custom connector JARs must be installed on the cluster and that third-party Spark JARs are supported only on dedicated compute. Check the provider name, artifact/Scala suffix, and runtime classpath before treating a provider-discovery error as a database failure. (medium confidence) (verified as of 2026-10-14)",
+          "source": "https://www.mongodb.com/docs/spark-connector/current/getting-started.md",
+          "note": null,
+          "claimId": "clm:5bf9d7a53a6eeba1742c951143848cb30597b570cd88f1fc23ad4118d669596a",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:23ee1b3afd98f25cd76acd0df61e667321aacb8eabc539d696112552ab1dcfbf",
+            "ev:4135f061d4aa46c5b08405ef35e8e4e249d15b6817daf1cfa1ab129709a56458",
+            "ev:e64680b957eee9a40d30cbcd0bf67d1ac8544ea01584048ec75e1e2df0904549"
+          ]
+        },
+        {
+          "text": "When MongoTypeConversionException says Cannot cast STRING into a DoubleType, Databricks identifies a mismatch between the source value and the Spark schema, with ANSI compliance enforcing strict conversion. Its guidance is to validate and align source types; disabling ANSI can return nulls and hide invalid values. MongoDB's schemaHints option can specify known field types during inference, but it does not repair inconsistent source data. (medium confidence) (verified as of 2026-10-14)",
+          "source": "https://kb.databricks.com/sql/job-failures-when-running-apache-spark-jobs-processing-mongodb-data",
+          "note": null,
+          "claimId": "clm:4c9c8dd6695d4b063b8c6241886481a970f0b24500297f4b72d66c27dc0e4995",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:04f33ece326c0087eb3e165591372b94eceec167bfcd3e2bdf73f6c88226c9cd",
+            "ev:da7c516881629d7eb42a2288ed3eb1b5fcb0e679b3f31869fe7e584b8c1aa905"
+          ]
+        },
+        {
+          "text": "If a read fails with the MongoDB server response Invalid $project: FieldPath field names may not start with '$', inspect the generated projection and field-path semantics. A report for Connector 10.2.2/Spark 3.3.4 shows this server-side error for a dollar-prefixed key. MongoDB stores dollar-prefixed field names but restricts their direct queryability; its documentation describes using $getField with $literal to retrieve such a field. This signature alone does not indicate a classpath or transport failure. (medium confidence)",
+          "source": "https://www.mongodb.com/community/forums/t/mongo-spark-connector-fails-to-load-data-when-the-document-has-key-prefixed-with/278675",
+          "note": null,
+          "claimId": "clm:af3f1cc13f3e243d158b467f6e49555e812143ad94257a13c27aeac5360f3876",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:23daa0723f9c981f122aafdfa5d86374f1e9d05bb406c27cbf8bd181f6af6a51",
+            "ev:2a741da3eba4619e3ad72eb95160b9b34acaa2eb050b3485d6c8cac7e4ffe33e",
+            "ev:714e2d03472be5e0cf70fe740f18b7e9f2308bd08948817ca8292ecdd204743f",
+            "ev:85f36e9e731e9bd431cd460e75fa69b15d9d55c3df9a861aad63b82bcc4380de",
+            "ev:b68e149b9304f277b7ad0b6d9b00da4026cf142015589c9a4427ccc6d4337ba9"
+          ]
+        }
+      ]
+    },
+    {
+      "title": "Comparisons and alternatives",
+      "facts": [
+        {
+          "text": "One Databricks community report describes a driver restart after sampleSize=100000 and mergeSchema=true on documents with 100+ fields; a responder attributes it to schema-inference memory and suggests an explicit schema or smaller sample. The report uses the older spark.mongodb.connection.uri option and the thread questions whether it is the newer connector, so treat this as a version-specific lead rather than a current connector threshold. (low confidence) (verified as of 2026-02-10)",
+          "source": "https://community.databricks.com/t5/data-engineering/mongodb-to-databricks-driver-killed-and-compute-re-attached/td-p/147811",
+          "note": null,
+          "claimId": "clm:c11d9fd3436e6fed48f7c0aaf25885d677267edde2801ff27245a80bf01e8ec9",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:478ae0d0810205563fc8f3e45613eb88ff19efa7a56b0579c060bfb776d9d9e5"
+          ]
+        },
+        {
+          "text": "A legacy 2019 dependency-resolution report for mongo-spark-connector_2.11:2.2.0 showed module not found alongside Maven Central and Bintray hostname-resolution failures; the repository maintainer also said that requested release was no longer available. A module-not-found error can therefore originate in artifact coordinates, repository availability, or network resolution rather than connector runtime behavior. This v2 example does not diagnose current v10 or v11 installations. (low confidence)",
+          "source": "https://github.com/sindbach/mongodb-spark-docker/issues/5",
+          "note": null,
+          "claimId": "clm:03229b33d76322ea8c2a174a640c5109543e8b68906f4f36b3cfb1cae8006ea6",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:7b0e6186862cd8512cfbd6eebd173844a6c5ce2afde1fdc28c7705dcc22f7472",
+            "ev:c84d9c2b1f4319e6ef96330913d322ff89bb23b5ca2a30bd2069ee29220be95f"
+          ]
+        }
+      ]
+    },
+    {
+      "title": "Facts and statements",
+      "facts": [
+        {
+          "text": "Community reports show NoSuchMethodError in version-alignment cases: a July 2023 Databricks report for Connector 10.2.0 on Databricks 13.2/Spark 3.4.0 showed missing DataType.sameType and later reported this case fixed in Databricks Runtime 13.3 LTS; a separate November 2023 upgrade report showed missing RowEncoder.apply on Databricks 14.x/Spark 3.5.0, and a MongoDB forum report showed StructType.toAttributes missing with a Scala 2.13 connector JAR on Spark compiled for Scala 2.12. These examples make API or binary alignment a diagnosis to check, not a universal explanation. (medium confidence)",
+          "source": "https://community.databricks.com/t5/data-engineering/mongodb-spark-connector-v10-x-read-error-on-databricks-13-x/m-p/38530",
+          "note": null,
+          "claimId": "clm:d0631e81efa5777e8aecebdc4d60548798ac39867bb7c4b1bd65f8079e906e1a",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:42c6a4844fa77df75ca896f0d2307eede9bc131ee0ee698410b479a44f616f23",
+            "ev:79736f411121d37709ad609ea73f5d3bd4836001ca8ef85294d65b787db25e75",
+            "ev:cd0910ec9201b778981f7a36fe7c81699ff5275bcefe023e939dbb901c8f3e25",
+            "ev:eb80ac5666e586550eed729c52f71fcedc5d49a99703c741f1c5f273638ea030"
+          ]
+        },
+        {
+          "text": "Driver-side client success does not rule out Spark JVM TLS or worker reachability failures. One Atlas report shows SSLHandshakeException with PKIX path building failed while CA files were stored in DBFS; a Databricks Runtime 14.3/Spark 3.5.0 DocumentDB report timed out despite PyMongo working, and its author later said that adding a JVM truststore resolved the case. Check JVM certificate trust and executor DNS, routes, and port 27017 access before attributing this signature to credentials or a connector defect; these are user reports, not a universal diagnosis. (medium confidence) (verified as of 2026-01-12)",
+          "source": "https://www.mongodb.com/community/forums/t/mongodb-spark-driver-not-connecting-to-mongodb-atlas-cluster-through-databricks/227797",
+          "note": null,
+          "claimId": "clm:fcd344f361011d30ee1f577e08c0211d1848293e5d92845be1c48e5983c86400",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:45bb00dd8a632e1e80360155dc326781569a424fc2987c9f60f0cd2568743bb7",
+            "ev:49c01f4afa1675bd0b2c52dcd2505e1f94092e3861d626691742bdce4317f78a"
+          ]
+        },
+        {
+          "text": "Connector compatibility changes by release: MongoDB states that Connector 11.0 adds Spark 4.0 and later support and that Spark 4.0 requires Scala 2.13, while Connector 10.7 supports Spark 3.2 through 3.5. Compare the runtime Spark version and Scala binary suffix with the connector artifact before attributing a NoSuchMethodError to connector code. A Databricks 13.2/Spark 3.4.0 report for Connector 10.2.0 with the _2.12 artifact showed DataType.sameType missing and later said DBR 13.3 LTS fixed that case. (medium confidence) (verified as of 2026-10-14)",
+          "source": "https://www.mongodb.com/docs/spark-connector/current/release-notes.md",
+          "note": null,
+          "claimId": "clm:b3b0ec95901b58ef771a718d7432c7e6cf249852447cb8be239ab1dafa772bbc",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:42c6a4844fa77df75ca896f0d2307eede9bc131ee0ee698410b479a44f616f23",
+            "ev:6206ead8299d7ae2382d2f28c55db017e9022f2d12addf8fd4e02a3b2cbceb3d",
+            "ev:cd0910ec9201b778981f7a36fe7c81699ff5275bcefe023e939dbb901c8f3e25"
+          ]
+        }
+      ]
+    }
+  ],
+  "related": [],
+  "canonicalArtifactSha256": "b5dc3a168e8030ddfdff88f2e0389443344fc75b6bce11f7f2b627e78554c961",
+  "canonicalConceptId": "concept:c6ebe22f33e8e2c948848e1a3ae813223824a3f07ab3cbffdf09aaf7b2502e3c"
+}

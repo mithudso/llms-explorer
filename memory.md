@@ -842,6 +842,23 @@
 - Trees: hub 1536 → 1604, site `concept-tree/tree.json` 1532 → 1571 via `sync_trees.py` (merge-only, no new validate problems); `site/src/data/tree.json` regenerated. Reader pages NOT generated (extractive packs need owner approval, per the 2026-10-14 Ollama rule).
 - Lessons: `EnterWorktree` mid-run kills running subagents' Bash (cwd pinned to the shared checkout) — enter the worktree before spawning; the worktree guard also rejects compound/heredoc commands and the bare word `source`, so helpers were written with the Write tool and run as plain commands. One transient API DNS error killed five delegates; relaunch with resume notes cost ~10 min. Tooling bugs surfaced: `misc-catch-all-ext2-manifest.json:304` spoke named `references` corrupts `referents.mjs --repair`; `mongodb-manifest.json` has zero spokes for the operations hub.
 
+## 2026-10-22 — Research hardening rollout
+- All six ordered phases are installed from codex/research-system-hardening-20261022. See docs/research/research-system-hardening-2026-10-22/ROLLOUT.md and draft PR 216.
+- 132 research tests plus two subtests, 278 built-site tests, 30 privacy tests and the live canonical canary pass. Luna/max stays the default; embeddings stay paused.
+- Cohort 22 passed 26 full bound judgments after reviewed corrections and completed both trees and packs. The saved ranked plan continues with cohort 23. Remote Cloudflare deployment remains blocked separately.
+
+
+## 2026-10-22 — Cohort 23 recovery continuation
+- TASK-793: Seven canonical claim records corrected against primary source evidence, with three missing forum bodies recovered privately. Prior discovery receipts remain unchanged. Gate instructions forbid borrowing citations across claims; failures now identify claim and URL. All four verdict types have regression coverage. Fresh 38-claim gate is running under the saved ranked plan.
+- 136 research tests plus two subtests pass, with publication privacy checks clean. PR 216 has merged into PR 214 at 9746633389. Cloudflare still fails and production publication remains separate.
+
+- Cohort 23 recovery completed: eight claim records and five auxiliary notes corrected; four missing source bodies recovered. Final gate supports all 38 structured claims. Verified all 48 pack members, three readers, three canonical downloads and the completed transaction. Website: 1,518 reader packs, 89,213 facts. Plan has 23 complete cohorts and cohort 24 running as PID 35759. Original discovery receipts remain unchanged. Draft PR 217 contains the diagnostic fix; source bodies stay private. KNOW-796 tracks the broader auxiliary prose gate coverage gap.
+
+
+## 2026-10-22 — Cloudflare deployment repair and release freeze
+- TASK-742: installed the user-provided scoped library key as encrypted LIBS_READ_TOKEN in both Pages environments. The key remains private; both library repositories remain private. Clean bootstrap and a live Cloudflare preview pass.
+- Installed the restricted Git askpass helper, regression tests and clean-build canonical JSON generation into this checkout after preserving private preimages. Unrelated changes remain intact.
+- Isolated PR 218 refreshes release PR 214 to 23 completed cohorts, 1,518 readers and 89,213 facts. Cohort 24 needs source review and is excluded; 25-31 remain pending. Final publication checks are in progress.
 ## 2026-10-22 — Ordered research hardening
 - Isolated branch `codex/research-system-hardening-20261022` starts at 4ab5697.
 - Phase 1 introduces prospective research-gate/v2. Exact claims, immutable bodies,
@@ -900,6 +917,18 @@
 - Reader/checkpoint review fixes (TASK-805): canonical readers project structured units directly, preserving equal-worded claims with distinct IDs and evidence. Fresh worker attempts archive previous output and must write a new claims file before checkpoint success. Exact checkpoint reuse remains available. All six existing canonical readers rebuild without changes; the isolated research suite passes 162 tests plus four subtests.
 
 
+## 2026-10-22 — Concept knowledge strategy research
+- TASK-816 runs concept-family-explorer inventory and seven focused rabbitholes for research stopping, prose entailment, temporal provenance, rank fusion, representation granularity, evaluation and embedding migration. Forty-two deepening passes reached the default six-pass caps while productive; no saturation claim.
+- Verified current architecture and reproduced duplicate-page RRF inflation without embeddings. Strategy and controlled experiment plan are in docs/research/concept-knowledge-strategies-2026-10-22/. Embeddings remain paused; production changes remain proposals.
+- Private run concept-knowledge-strategies-20261022 preserves source snapshots, pass ledgers and gate attempts. Initial all-claim gate supported 123/129, rejected five stale verification dates and one abstract overgeneralization; sources refreshed and statement narrowed before a fresh gate. One additional inaccessible-source claim remains withheld. Generated artifact work is isolated in the concept-strategies worktree.
+
+## 2026-10-22 — Cloudflare production research release completed
+
+PR 214 merged as 7bb689556a6a8368288f9e42df935b261e3157ec. Cloudflare production deployment fcbf9538-d75b-4095-bdf3-2f095182ea94 succeeded at 13:22:06 UTC. The original blocker was private ollama-client clone authentication in hub/bootstrap.sh. Encrypted LIBS_READ_TOKEN and restricted Git askpass fixed it while both dependencies remain private. Actual llms-explorer.com verification passes current totals (1,518 readers and 89,213 facts), all 93 selected downloads, three reader routes, four llms files and six retired-route 404 responses. No additional Node compatibility tests were run after the user redirected work to Cloudflare logs. Research release and final review tasks TASK-742/TASK-805 are complete. Cohort 24 remains withheld for source review; cohorts 25–31 remain pending.
+
+- TASK-816 final: fresh full gate SUPPORTED129/129; source versions and prior dissent preserved. Exported eight pack sets into both roots (128 members), eight readers and canonical downloads. Final isolated projection:1,522 readers,1,844 nodes, zero pending refresh changes, zero original-policy privacy findings, new_embeddings=0. Four inherited privacy-failing readers held locally; shared policy and private originals unchanged. KNOW-834 records the production projection gap. Native run ended BUDGET_EXHAUSTED solely at the six-pass depth caps. Report and experiment plan complete; implementation, user-level skill registration and whole-tree optimization remain proposed/deferred.
+
+
 ## 2026-10-22 — Exhaustive MongoDB source-sharing research
 
 TASK-832: Exhaustive MongoDB inventory accounts for 1,383 canonical rows and all 1,556 original labels. Research scope contains 933 candidates: 887 frontier and 46 refresh reviews. All are scored (151 inherited and 782 new CFE Sol/max assessments, canonical arithmetic check passed). Both queue views preserve low scores and source-sharing cohorts. The private frozen plan has 918 runnable candidates, 15 explicit scope/source reviews, and 450 covered rows. Transferred 517 paused-suite reservations through validated immutable receipts while preserving every original batch, state and evidence file. Luna/max DR began at the highest CVS cohort, with four workers, shared source cache, scouting, conditional deep follow-up, bound Sol/medium gate, and both-tree/llms/site completion. The run-start backlog defines completion scope; new descendants remain separate. Embeddings remain paused. Plan and private logs: ~/.global-ai-hub/research/.ranked/mongodb-2026-10-22/. Worktree: ../llms-explorer-mongodb-frontier. Existing dirty work and historical tasks remain intact.
@@ -909,6 +938,20 @@ TASK-832: Exhaustive MongoDB inventory accounts for 1,383 canonical rows and all
 
 TASK-832 is paused at the user request for an updated-skill reload. Both queues retain the complete CVS-ranked and source-grouped run-start inventory. Four concepts completed both roots, 64 pack members, four readers and canonical downloads; their fresh gate supports all 43 structured claims. The second four-concept iteration ended with 47 of 50 checked claims supported and three unverified; its 54-claim draft remains withheld. The saved plan has 913 pending concepts and 16 explicit review concepts. The user STOP remains in place; the ranked runner and automatic continuation controller have exited. Resume requires a later user instruction. The local website has 1,530 readers and 89,514 facts, including eight earlier strategy concepts; no new embeddings. All 27 DR skill overlays pass sync validation. Current focused suite:313 tests plus four subtests; added cohort-view fixtures:32 passed. Next-session source gaps and exact claim bindings are in the private next-resume.json beside the frozen plan. Draft PR220 retains code and public queue snapshots.
 
+## 2026-10-22 — MongoDB complete-queue research resumed
+
+The user renewed the instruction to research every MongoDB frontier and unresearched concept, grouped by shared sources and ordered by CVS. This supersedes the preceding pause. Reloaded all 27 Codex research skill overlays and verified no sync drift. Revalidated 517 reservation handoffs, backed up the paused plan and STOP marker, and resumed the existing uncapped runner. Original concept assignments remain unchanged. Resume counts: four completed, 913 pending and 16 under review. The next cohort covers time-series cardinality, bucketing, active buckets and counters. A separate source-repair worker owns the three missing-source judgments in Server Selection Algorithm, preserves prior attempts, and will run an all-claim gate before promotion. No embeddings or remote deployment. TASK-832 remains in progress.
+
+The resumed audit confirms all 933 candidates are scored and present in the appropriate private/public queues; remaining dispatch groups have no CVS inversions. Time-series discovery produced 33 claims and an all-claim gate is running. The repaired cohort's full review supports its three original source gaps but reveals two missing Read Concern conditions and a too-short exact evidence span; it remains withheld while canonical corrections and a fresh gate proceed. KNOW-857 records the concrete span failure. Added the existing minimum quote length to the judge brief without changing validation. All 22 gate tests, scoped Ruff, diff checks and 27-file skill synchronization pass. A private checkpoint controller waits for verified repaired export, reconciles it under the runner lock and resumes all remaining work. It respects a replaced STOP marker.
 ## 2026-10-23 — MLX-LM full suite
 
 The MLX-LM suite scores 53 candidates and adds 21 researched concepts in eight references, 27 canonical concept/cohort packs and a categorical family index. All 302 statements passed snapshot-bound all-claim gates. All 42 small/full answer tests meet their thresholds; 210 fixed question-bank entries remain reproducible. The third frontier expansion found no above-threshold gap. The verdict is map-bounded coverage, with only one empty round and no frontier-saturation claim. Keyword coverage is verified separately from the paused semantic layer. No new embeddings, global router rebuild or manual deployment ran. The source comparison distinguishes stable v0.32.2 from pinned main. External training integrations remain explicitly external and untested at runtime. The report and verification are in docs/research/mlx-lm-full-suite-2026-10-23/. The leading-inline-code renderer fix shipped independently in PR223, merge d3d7e01d7cc880c24622feb691af038947e5a67e.
+# Repository reconciliation — 2026-10-26
+
+Reconciled checkpoint PR #234 against current main in an isolated worktree.
+Keep main's newer research code and common verified packs. Retain the 230
+checkpoint-only concepts and the original checkpoint history. Regenerate site
+projections together and preserve frozen semantic vectors. Local scratch and
+the three vendor mirrors rejected by secret protection stay outside delivery.
+See docs/research/repository-reconciliation-2026-10-26.md for the conflict policy
+and verification scope. Delivery completes after passing checks and merge.

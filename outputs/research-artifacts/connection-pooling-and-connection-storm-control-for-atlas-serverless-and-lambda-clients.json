@@ -1,0 +1,148 @@
+{
+  "schema": "research-public-artifact/v1",
+  "concept": "Connection pooling and connection-storm control for Atlas (serverless and Lambda clients)",
+  "slug": "connection-pooling-and-connection-storm-control-for-atlas-serverless-and-lambda-clients",
+  "canonical_concept_id": "concept:660eafe973d0502852e15bd3eba823c07993edb6f9f1354e94875035494e622a",
+  "canonical_artifact_sha256": "8428861c4433ffaad95379bbe6f524f4c5d35ef4f3d7af86cd69189899ab45c0",
+  "claims": [
+    {
+      "id": "clm:146d3c36de282256d93f28d8846df7f22402c23a482aeefb175a80508a627a33",
+      "text": "maxPoolSize limits one connection pool, not the total connections from a Lambda fleet. MongoDB warns that separate clients create independent pools, and AWS provisions separate execution environments for concurrent requests, so per-client limits alone cannot cap fleet-wide Atlas connections. (high confidence)",
+      "source_url": "https://www.mongodb.com/docs/manual/reference/connection-string-options.md",
+      "also": [
+        "https://www.mongodb.com/docs/manual/troubleshooting/connection-storms.md",
+        "https://docs.aws.amazon.com/lambda/latest/dg/lambda-concurrency.html"
+      ],
+      "validation_status": "SUPPORTED",
+      "evidence_ids": [
+        "ev:363b764bb78b41d365a856024bd2e60bcea9a05876290b09248c3d14c7cba181",
+        "ev:73788c5da964c17feb0b54e57287ebcc5b267485cbf55ae212323d2091f0d152"
+      ]
+    },
+    {
+      "id": "clm:c4fa63037363d9d23cffcb59c90f615dbc2d4851b64b8ffe97de5849ce64229d",
+      "text": "maxConnecting limits simultaneous connection establishment within one pool. MongoDB says raising it speeds pool growth but increases connection-storm risk, while a value that is too low can throttle pool fill and increase tail latency; it does not limit the number of Lambda environments. (medium confidence) (verified as of 2026-10-14)",
+      "source_url": "https://www.mongodb.com/docs/manual/reference/connection-string-options.md",
+      "also": [
+        "https://github.com/mongodb/agent-skills/blob/main/plugins/mongodb-atlas/skills/mongodb-connection/SKILL.md"
+      ],
+      "validation_status": "SUPPORTED",
+      "evidence_ids": [
+        "ev:bab625f750038ebecbe84a83c31acb2b01055f31dd6e4f35dabeaeed1a2ee50a"
+      ]
+    },
+    {
+      "id": "clm:bc318e5c0a0430678bead3438ad784060365ce89aa90250ad04bbbaaa478642a",
+      "text": "MongoDB recommends checking sudden changes in connections.current, connections.active, connections.totalCreated, TLS handshake time, server logs, and Atlas Connections graphs when diagnosing a connection storm; request-driven scale-out can produce connection setup errors even when connection-limit exhaustion is not established. (medium confidence)",
+      "source_url": "https://www.mongodb.com/docs/manual/troubleshooting/connection-storms.md",
+      "also": [
+        "https://www.mongodb.com/community/forums/t/serverselectiontimeouterror-error-messages-when-we-make-performance-test/264255"
+      ],
+      "validation_status": "SUPPORTED",
+      "evidence_ids": [
+        "ev:8fae7065ec5f6f09c62e5eb45facbbb6f7da6ad53617a5efe56b97c13fe79134",
+        "ev:a4d81a9e2df3394b49a82bab2e258c3a20bea28f338d9583a676f79af5d1de6f"
+      ]
+    },
+    {
+      "id": "clm:f6fce40d9f441c514556c2a374d2e73554a671f9fc5e6f5484c5c85de55173fe",
+      "text": "Atlas sets maximum incoming connections per node based on cluster tier and class; sharded-cluster limits apply per mongos router. When an application reaches the applicable limit, Atlas can reject connections, and a higher tier can raise the per-node ceiling. (high confidence) (verified as of 2026-10-14)",
+      "source_url": "https://www.mongodb.com/docs/atlas/reference/atlas-limits.md",
+      "also": [
+        "https://www.mongodb.com/docs/manual/troubleshooting/connection-storms.md"
+      ],
+      "validation_status": "SUPPORTED",
+      "evidence_ids": [
+        "ev:af2d3cf988e099c66554952b91b48997bfe7c43658f881804564a24ab927d2c8",
+        "ev:b867593650e4104e8870f6a122b88e86f483c0063f2483f528aaef560b092876"
+      ]
+    },
+    {
+      "id": "clm:a755b1b4403942d76baf96ac4056f7abbbf74dbcfb025ebdf95ed90be3a47da3",
+      "text": "As of 2026-10-22, Lambda Managed Instances with Node.js can process multiple concurrent requests in one execution environment and share global state across them. This differs from standard Lambda's one-in-flight-request-per-environment model, so standard Lambda's environment-to-pool arithmetic should not be applied unchanged. (high confidence) (verified as of 2026-10-22)",
+      "source_url": "https://docs.aws.amazon.com/lambda/latest/dg/lambda-managed-instances-nodejs-runtime.html",
+      "also": [
+        "https://docs.aws.amazon.com/lambda/latest/dg/lambda-concurrency.html"
+      ],
+      "validation_status": "SUPPORTED",
+      "evidence_ids": [
+        "ev:07a52ee0f3984041c140bd93af60fed576e6b001dd1a1d1d45dade731d8cdc1b",
+        "ev:30529b7358abd574e055f1c54e8d97643c668b6886eee02a289033667059e6d2",
+        "ev:73788c5da964c17feb0b54e57287ebcc5b267485cbf55ae212323d2091f0d152"
+      ]
+    },
+    {
+      "id": "clm:91bd33b5d011275f0c3d2098d83924168ea8668dca53e88d6e2b689c15bcf59e",
+      "text": "For standard AWS Lambda functions, create one MongoClient outside the handler and reuse it across warm invocations in that execution environment. Creating a new MongoClient for every invocation creates independent pools and can exhaust database connection limits. (high confidence)",
+      "source_url": "https://www.mongodb.com/docs/atlas/manage-connections-aws-lambda.md",
+      "also": [
+        "https://docs.aws.amazon.com/lambda/latest/dg/best-practices.html",
+        "https://www.mongodb.com/docs/manual/troubleshooting/connection-storms.md",
+        "https://docs.aws.amazon.com/lambda/latest/dg/lambda-runtime-environment.html",
+        "https://docs.aws.amazon.com/lambda/latest/dg/lambda-concurrency.html",
+        "https://www.serverless.com/examples/aws-node-mongodb-atlas"
+      ],
+      "validation_status": "SUPPORTED",
+      "evidence_ids": [
+        "ev:22c78b3c77e2062cbd67d8a21d6fe5f9f1147e9996df53c12ec1cd6415a33c3b",
+        "ev:363b764bb78b41d365a856024bd2e60bcea9a05876290b09248c3d14c7cba181",
+        "ev:7b1c9780dbe7fa5224f963529cd133bf217c6341500976ba2c9f308d893d546b"
+      ]
+    },
+    {
+      "id": "clm:6ea777faa7c2280e069700401caa1a746517fbd0b28444006ed900770a6c6f53",
+      "text": "For standard Lambda functions, reserved concurrency caps the maximum number of concurrent invocations and can bound the number of active execution environments and their client pools during a spike. Invocations are throttled at the configured ceiling, so this limits downstream connection pressure by trading away excess request concurrency. (high confidence) (verified as of 2026-10-22)",
+      "source_url": "https://docs.aws.amazon.com/lambda/latest/dg/lambda-concurrency.html",
+      "also": [
+        "https://docs.aws.amazon.com/lambda/latest/dg/best-practices.html",
+        "https://www.mongodb.com/community/forums/t/serverselectiontimeouterror-error-messages-when-we-make-performance-test/264255",
+        "https://api.stackexchange.com/2.3/questions/79707293?site=stackoverflow&filter=withbody"
+      ],
+      "validation_status": "SUPPORTED",
+      "evidence_ids": [
+        "ev:73788c5da964c17feb0b54e57287ebcc5b267485cbf55ae212323d2091f0d152",
+        "ev:dbd51634d8d8c780eab45d34d362e10afaa0a0ae21fcd62ab3fb44e9d249c12d"
+      ]
+    },
+    {
+      "id": "clm:8f3e9d17b9aaa5dd0a41f44adeb9e5f2fe0d33e04838fd280b2bee1c9c0a51e4",
+      "text": "In a July 2025 Stack Overflow question, the author reported that about ten Lambda functions were triggered per second and that each created a ten-connection pool. The author reported temporarily setting SQS batch size, Lambda reserved concurrency and maxConnectionPoolSize to one, and explicitly called this workaround neither scalable nor ideal. These are the author's reported settings, not validated MongoDB driver option names or general defaults. (low confidence) (verified as of 2025-07-19)",
+      "source_url": "https://api.stackexchange.com/2.3/questions/79707293?site=stackoverflow&filter=withbody",
+      "also": [],
+      "validation_status": "SUPPORTED",
+      "evidence_ids": [
+        "ev:17d854edbd2e36ae7ff663ef7baf47bde575472679d97461de816ebfa36c8703"
+      ]
+    },
+    {
+      "id": "clm:83c5eb6a6bea54f3e11510f21ce91f495ef97223e26a6623e5cee79834dd890b",
+      "text": "In standard Lambda, scale-out adds execution environments as simultaneous requests exceed available environments. Each environment can hold its own MongoClient and independent pool, so client reuse within warm environments does not make total Atlas connection demand independent of Lambda scale. OneUptime's serverless example illustrates this multiplication but does not report a measured Atlas capacity result. (high confidence)",
+      "source_url": "https://docs.aws.amazon.com/lambda/latest/dg/lambda-concurrency.html",
+      "also": [
+        "https://www.mongodb.com/docs/manual/troubleshooting/connection-storms.md",
+        "https://oneuptime.com/blog/post/2026-03-31-mongodb-configure-connection-pool-serverless/view"
+      ],
+      "validation_status": "SUPPORTED",
+      "evidence_ids": [
+        "ev:363b764bb78b41d365a856024bd2e60bcea9a05876290b09248c3d14c7cba181",
+        "ev:4207f3cba2f7fc953ae240f3d797fea373f0cccb774a494c2896ac1cbda560e2",
+        "ev:73788c5da964c17feb0b54e57287ebcc5b267485cbf55ae212323d2091f0d152",
+        "ev:84731674fdf28d779595b8945027e06cbd837211f42b55f40bc3409f85804012"
+      ]
+    },
+    {
+      "id": "clm:35d7f94fef1b437316c9eb894f3bfa9c986f1f5d382e9c1ae6dc946cbfb54f0d",
+      "text": "Lambda can purge idle connections, so a cached client does not guarantee that every pooled socket remains usable across warm invocations. AWS recommends keep-alive behavior, and MongoDB's Lambda guidance says tuning maxIdleTimeMS can reduce serverless timeout errors. (medium confidence)",
+      "source_url": "https://docs.aws.amazon.com/lambda/latest/dg/best-practices.html",
+      "also": [
+        "https://www.mongodb.com/docs/atlas/manage-connections-aws-lambda.md"
+      ],
+      "validation_status": "SUPPORTED",
+      "evidence_ids": [
+        "ev:8c70db2ff1141eeff419604cb46d8cd4739a80afb918250f96581735f9204d45",
+        "ev:c7d16480246832531970adb5535933f75879e4455a6209e8d987d82efd44d3f4"
+      ]
+    }
+  ],
+  "projection_sha256": "68cc69900bcbb2312bfbaeb9d8f6dade9317f7c9bb56c069678eeb5671fb895f"
+}

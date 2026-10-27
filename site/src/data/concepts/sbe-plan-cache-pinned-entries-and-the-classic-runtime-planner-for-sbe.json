@@ -1,0 +1,196 @@
+{
+  "slug": "sbe-plan-cache-pinned-entries-and-the-classic-runtime-planner-for-sbe",
+  "concept": "SBE plan cache pinned entries and the classic runtime planner for SBE",
+  "generated": "2026-10-23",
+  "summary": "Source-anchored research for SBE plan cache pinned entries and the classic runtime planner for SBE. Run status: COMPLETED.",
+  "facets": [
+    {
+      "title": "How it works",
+      "facts": [
+        {
+          "text": "The SBE $planCacheStats representation includes an isPinned field, so operators can distinguish pinned entries when inspecting plan-cache statistics. (high confidence) (verified as of 2026-10-22)",
+          "source": "https://github.com/mongodb/mongo/blob/master/src/mongo/db/query/explain.cpp",
+          "note": null,
+          "claimId": "clm:2b7ae98ddb0788595385b1064cb44380725419b3a1f5fb152ed09afa29e021a2",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:e45c7aa496e18a81497621d8e1ed1860cc7a00ab1132e8776b98b67e3b13762d",
+            "ev:eb29227242673a91ab180db13c2b4f1d31c2a55337184549328724ebfe1c9842"
+          ]
+        },
+        {
+          "text": "[redacted] documents a historical race where one reader inserted a pinned SBE entry because it saw only one plan while another reader with a different index view finished multiplanning and collided with that entry; the issue lists fixes in 6.0.0-rc2 and 6.1.0-rc0. (low confidence) (verified as of 2023-10-29)",
+          "source": "https://example.test/withheld-reference",
+          "note": null,
+          "claimId": "clm:50024b197d22cfc05ee0bebac1a753891d9c5758ec3121356b479b4320221178",
+          "validationStatus": "REDACTED-PROJECTION",
+          "evidenceIds": [
+            "ev:0979aab8f1a29d5bd64e1cd531d868c9f709b92c3b89f89d600ccbca64e1a2d5",
+            "ev:41b110ad5e215bdf297302e0e63f4875f984358be1696515ad90c6f9d5ee1bc4"
+          ],
+          "originValidationStatus": "SUPPORTED"
+        },
+        {
+          "text": "The classic_runtime_planner_for_sbe implementation supports both cache sources: it lowers a classic-cache QuerySolution into an SBE plan tree, while the SBE-cache path recovers a stored SBE tree. The planner name describes its planning mechanism, not one cache format. (high confidence) (verified as of 2026-10-20)",
+          "source": "https://github.com/mongodb/mongo/blob/master/src/mongo/db/exec/runtime_planners/classic_runtime_planner_for_sbe/cached_planner.cpp",
+          "note": null,
+          "claimId": "clm:3bca4705c58ca53c78031246a16bb8e9758744717535f537fe5275ca342c813f",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:6ff4a9d1d6e44cb19e3a25eae60cc2fae134d62983f794d76e1b3b4d6a126c6a"
+          ]
+        },
+        {
+          "text": "Do not identify every no-works/no-reads entry as pinned. MongoDB's Jira distinguishes a special rooted $or branch entry for SBE subplanning, which also stores neither metric because rooted-$or replanning is unsupported. The current executor source still has a TODO to investigate removing that restriction. (medium confidence) (verified as of 2026-10-20)",
+          "source": "https://jira.mongodb.org/browse/SERVER-91095",
+          "note": null,
+          "claimId": "clm:0841088f2e9fe3c75abfb75100306b8283d186a2a73e6be002693fa0db453446",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:9cdcd35f5f5856a64bc77eef55bc8a2202f6d32bb21c9aa3ee207582ba0e0d61",
+            "ev:fe411fe8d87bc2bc9b31a7377f060e9f5444b24cdc867a586e4a16235669f1f6"
+          ]
+        },
+        {
+          "text": "JusDB's December 8, 2025 article reports an SBE plan-cache eviction defect for MongoDB 7.0 but does not attribute that growth to pinned entries. The article therefore does not establish that pinning itself causes unbounded cache growth. (low confidence) (verified as of 2025-12-08)",
+          "source": "https://www.jusdb.com/blog/mongodb-plancache-memory-issue-sbe-fix",
+          "note": null,
+          "claimId": "clm:3ac32c6cd453ed8014ed698c5bd7cf327daa5ea7b4b84d4575dd28391584baed",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:437b1ae4a6fc1aebf4e60fae253ba1f0d5a116543b1604b53c408551ae8ff9a6",
+            "ev:45f0cff59a6830cf936ea9d585d9c7412372c86f60c9b55aafe352dcb220a8f5"
+          ]
+        }
+      ]
+    },
+    {
+      "title": "Problems, failure modes and limitations",
+      "facts": [
+        {
+          "text": "Percona's April 2026 plan-cache explainer presents classic works-based trial and replanning behavior; its example slow-query record identifies queryFramework as classic. Treat it as outside context for classic behavior, not direct evidence for pinned SBE read-budget semantics. (low confidence)",
+          "source": "https://www.percona.com/blog/mongodb-query-plan-cache-explained-performance-pitfalls-and-re-planning/",
+          "note": null,
+          "claimId": "clm:51b7bdc0c583cd2a95f51e98d86d56ba74e29c019ff983c28959bb32ad6945fc",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:7b8a340912450568f63eccc5bbeacf3650682a544051328cadea3931679cb85b",
+            "ev:c6de4d97a01eebc2cd18c8a9eaaab6cc7afbd5a3f1f07cbfd0161918a07fce7b"
+          ]
+        }
+      ]
+    },
+    {
+      "title": "Comparisons and alternatives",
+      "facts": [
+        {
+          "text": "For a nonpinned SBE-cache entry with `decisionReads`, `attemptToUsePlan` runs an SBE trial with a read budget of `internalQueryCacheEvictionRatio` times `decisionReads`; SERVER-85238 defines the cached read count as total keys examined plus total documents examined. Entries without `decisionReads` bypass this trial. The SBE-cache path can replan a cached foreign `$lookup` hash join before the trial if that join is no longer eligible. This differs from the classic-engine works feedback described by Percona. (medium confidence) (verified as of 2026-10-20)",
+          "source": "https://jira.mongodb.org/browse/SERVER-85238",
+          "note": null,
+          "claimId": "clm:d4de3c1f65f70f32e889b019959f43176c1108a8c62595bca0999b13356b1c51",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:3f8035505a22fd3eb495bd32cc13ccbcee1bff99a0f4de8da145744e154e5720",
+            "ev:7b8a340912450568f63eccc5bbeacf3650682a544051328cadea3931679cb85b",
+            "ev:8fd647d47ccc5030e5966bdbb184dcde5c15ebc4c32b604df5c524e938b8bcac",
+            "ev:c499644baa016939e436f328f44f3e1bb8a41c3aef98519f2d56de13d11aeeac",
+            "ev:f53ed1b790a2d513d0f1a93eed02e2d1a8755d0ceb3d40dbdffbc8c276cc3601"
+          ]
+        }
+      ]
+    },
+    {
+      "title": "Facts and statements",
+      "facts": [
+        {
+          "text": "MongoDB's plan-cache README says the classic cache is per collection, the SBE cache is one cache per `mongod`, and each SBE entry wraps a complete `sbe::PlanStage` execution tree. In the pinned `get_executor.cpp` source, a class-hierarchy comment names both classic-cache and SBE-cache helper variants; the file defines the classic-cache helper and mentions the SBE-cache variant only in that comment. (high confidence) (verified as of 2026-10-20)",
+          "source": "https://github.com/mongodb/mongo/blob/master/src/mongo/db/query/plan_cache/README.md",
+          "note": null,
+          "claimId": "clm:7af0c53bbf9d2976a7995b0aaadf3cbfe3d7e40a6aa379de4c76e4ee5d9bf0bc",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:0d255da6d0cffc723029181294df829ceb5e28af5b7fdcc87592c0d7eb1df16a",
+            "ev:11bdb4be79631bcf5e12ff26301de0b9720312b97b0725fd2032f76f8a9d1451",
+            "ev:9581884944c70c8cdeccad8aa3785f8587d4e4fb0c2a816ce8d653965b486328",
+            "ev:dc569022e4bd029a5b6d9928edfc57ad21e8bcc27603a3cecf2b1f6bb1cce49e"
+          ]
+        },
+        {
+          "text": "In classic_runtime_planner_for_sbe, attemptToUsePlan treats a missing decisionReads value as a pinned-entry signal and returns SingleSolutionPassthroughPlanner before building the normal TrialRunTracker read-budget trial. MongoDB's README names single-solution and rooted $or queries as pinned examples and says standard cache eviction can still remove pinned plans. (high confidence) (verified as of 2026-10-20)",
+          "source": "https://github.com/mongodb/mongo/blob/master/src/mongo/db/exec/runtime_planners/classic_runtime_planner_for_sbe/cached_planner.cpp",
+          "note": null,
+          "claimId": "clm:af8d7f71aa2bd214af4e011e7e13fbb5cba4da0905d21904e0e88f79da57724f",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:8fd647d47ccc5030e5966bdbb184dcde5c15ebc4c32b604df5c524e938b8bcac",
+            "ev:c499644baa016939e436f328f44f3e1bb8a41c3aef98519f2d56de13d11aeeac",
+            "ev:fb1907a67835b4b92254ccad0e3384879ae7df1bb8a80da0598f0e66dc107223"
+          ]
+        },
+        {
+          "text": "For a nonpinned SBE cache hit with decisionReads, the SBE classic runtime planner sets the trial read budget to internalQueryCacheEvictionRatio multiplied by decisionReads; it deactivates the entry and replans if TrialRunTracker exhausts that budget. SERVER-85238 defines the cached decision read count as totalKeysExamined plus totalDocsExamined. (high confidence) (verified as of 2026-10-20)",
+          "source": "https://github.com/mongodb/mongo/blob/master/src/mongo/db/exec/runtime_planners/classic_runtime_planner_for_sbe/cached_planner.cpp",
+          "note": null,
+          "claimId": "clm:52c6c0de2853157c8818a9b81d960528e5621ade32fb05f690c263c0c2dfb2bc",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:3f8035505a22fd3eb495bd32cc13ccbcee1bff99a0f4de8da145744e154e5720",
+            "ev:8fd647d47ccc5030e5966bdbb184dcde5c15ebc4c32b604df5c524e938b8bcac",
+            "ev:c499644baa016939e436f328f44f3e1bb8a41c3aef98519f2d56de13d11aeeac",
+            "ev:f53ed1b790a2d513d0f1a93eed02e2d1a8755d0ceb3d40dbdffbc8c276cc3601"
+          ]
+        },
+        {
+          "text": "The pinned-entry passthrough does not cover every forced-replan path: PlannerGeneratorFromSbeCacheEntry checks whether a cached foreign $lookup hash-join remains eligible before it calls attemptToUsePlan, and calls replan if that eligibility check fails. (high confidence) (verified as of 2026-10-20)",
+          "source": "https://github.com/mongodb/mongo/blob/master/src/mongo/db/exec/runtime_planners/classic_runtime_planner_for_sbe/cached_planner.cpp",
+          "note": null,
+          "claimId": "clm:aedc459394aed36ed15e70ef40b73cb25540d965c8ae042ad468a442d8c0f5c4",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:3f8035505a22fd3eb495bd32cc13ccbcee1bff99a0f4de8da145744e154e5720",
+            "ev:8fd647d47ccc5030e5966bdbb184dcde5c15ebc4c32b604df5c524e938b8bcac"
+          ]
+        },
+        {
+          "text": "The supplied canonical_query_encoder.cpp commit uses separate legacy key tags for classic plans, SBE-compatible non-subplanner plans, and SBE $or subplanner entries. The distinct subplanner tag means that an entry without ordinary reads or works should not automatically be classified as a pinned entry. (high confidence)",
+          "source": "https://github.com/mongodb/mongo/blob/35647d07bc4bc11966c90fe7100eb1db0b0ac1d9/src/mongo/db/query/canonical_query_encoder.cpp",
+          "note": null,
+          "claimId": "clm:04139bfcd665415254b16151e0cadd3a3b305125e782089bc3442982494e7aae",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:ab37b083bfa772ff6d82c7d0505ffe49dd08ca681ebd5da1aff8e55b6221ba55",
+            "ev:fe411fe8d87bc2bc9b31a7377f060e9f5444b24cdc867a586e4a16235669f1f6"
+          ]
+        },
+        {
+          "text": "JusDB's December 8, 2025 article reports a MongoDB 7.0 SBE plan-cache eviction defect and says the fix starts in 7.0.4 or 7.1; this is historical cache-size and eviction context, not evidence about pinned-entry trial behavior. (low confidence) (verified as of 2025-12-08)",
+          "source": "https://www.jusdb.com/blog/mongodb-plancache-memory-issue-sbe-fix",
+          "note": null,
+          "claimId": "clm:993b15b541ec12b5502bd79dfb90af73aad6900bf8ed556da2ac6a1592797ee5",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:45f0cff59a6830cf936ea9d585d9c7412372c86f60c9b55aafe352dcb220a8f5",
+            "ev:624a12485b18e7c46aacf80addfe88bd3c423c4be470f4d47d65be9f56e49d8c",
+            "ev:b53566e54d3ec2b67a85cf7faee2456a766df0bda1a77d667ea1018f86e9f406"
+          ]
+        },
+        {
+          "text": "The plan-cache README identifies single-solution and rooted `$or` plans as pinned examples in the SBE cache. Pinned entries lack ordinary `works` or `reads` feedback and bypass the normal read-budget trial, although standard cache eviction can still remove them. The pinned `cached_planner.cpp` path checks whether a cached foreign `$lookup` hash join remains eligible before `attemptToUsePlan` checks `decisionReads` for the pinned-entry bypass; if that join is no longer eligible, the planner replans immediately. The sources therefore support skipping threshold-based cached-plan validation for pinned entries, but not a guarantee that every replan path is bypassed. (high confidence) (verified as of 2026-10-20)",
+          "source": "https://github.com/mongodb/mongo/blob/master/src/mongo/db/query/plan_cache/README.md",
+          "note": null,
+          "claimId": "clm:7129aea6435e6e2fbf7f6c1a1d274b6b595b9e25177c14cbafb2df99f1221492",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:3f8035505a22fd3eb495bd32cc13ccbcee1bff99a0f4de8da145744e154e5720",
+            "ev:8fd647d47ccc5030e5966bdbb184dcde5c15ebc4c32b604df5c524e938b8bcac",
+            "ev:fb1907a67835b4b92254ccad0e3384879ae7df1bb8a80da0598f0e66dc107223",
+            "ev:fe411fe8d87bc2bc9b31a7377f060e9f5444b24cdc867a586e4a16235669f1f6"
+          ]
+        }
+      ]
+    }
+  ],
+  "related": [],
+  "canonicalArtifactSha256": "ada6cc52d81cb0dc72e4003d87a0cafd014db6f996c693408ec80b62c8e1e2f8",
+  "canonicalConceptId": "concept:011c36ac4cc4623cd067a14a42a082c817e02df91cdded5c1c60e9523e290c91"
+}

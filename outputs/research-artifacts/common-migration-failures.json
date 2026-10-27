@@ -1,0 +1,125 @@
+{
+  "schema": "research-public-artifact/v1",
+  "concept": "Common Migration Failures",
+  "slug": "common-migration-failures",
+  "canonical_concept_id": "concept:852411d126289b799a9dfb3d168824210ee9462495407205994e9ba8f0381b42",
+  "canonical_artifact_sha256": "d09001ffdb6809798f0f348375937196f90ae9b7c765514a6145b71bebd28aab",
+  "claims": [
+    {
+      "id": "clm:787358981fcdb6628890ae88b10afe0faf6376a3324d619eacc4b8cee552da21",
+      "text": "For oplog-dependent initial sync and CDC workflows, size source retention to preserve the history each workflow still needs: MongoDB says a logical initial sync restarts if it finds an oplog gap during oplog application and requires a window covering those apply phases; Percona ClusterSync, which uses change streams, says sync fails when needed source oplog operations expire before processing; AWS DMS says its task fails if oplog records expire before DMS reads them. (high confidence) (verified as of 2026-10-23)",
+      "source_url": "https://www.mongodb.com/docs/manual/core/replica-set-sync/",
+      "also": [
+        "https://docs.percona.com/percona-clustersync-for-mongodb/oplog-sizing.html",
+        "https://docs.aws.amazon.com/dms/latest/userguide/CHAP_Source.MongoDB.html"
+      ],
+      "validation_status": "SUPPORTED",
+      "evidence_ids": [
+        "ev:71f71d3967a959a04c08f42f1c13759dbeb0fa67997f0881a583811c06f176d4",
+        "ev:8189e1141a098922632c64a8647b2a1036a1ff14e5d460b409b3b5a484a9d706",
+        "ev:af55d6de719f72c9321623133508e985fc8233915f2c403220f33e542630ab3e"
+      ]
+    },
+    {
+      "id": "clm:0b7c835918c2981b59329d84b73e3d20f4263c51666fccd7f0827b8910567591",
+      "text": "AWS DMS documents MongoDB data-shape constraints that can block or narrow a migration: table mode requires consistent types for each field and does not replicate fields absent from target columns; its homogeneous MongoDB-compatible flow does not support inconsistent _id types or time-series collection migration. (medium confidence) (verified as of 2026-10-23)",
+      "source_url": "https://docs.aws.amazon.com/dms/latest/userguide/CHAP_Source.MongoDB.html",
+      "also": [
+        "https://docs.aws.amazon.com/dms/latest/userguide/dm-data-providers-source-mongodb.html"
+      ],
+      "validation_status": "SUPPORTED",
+      "evidence_ids": [
+        "ev:52700b762dba740f108d12a8c47419d74d0839503381dbb60e58213b6a0944e8",
+        "ev:56760e1967a013d417d215f829117005fa0d050cacb40b9ad4c68dca547e5f4b",
+        "ev:e88cfa77084d3a0ad5dcd3eaf18539d0342248434932265f9a3d84f8d1c67b62"
+      ]
+    },
+    {
+      "id": "clm:69af51fe6fda7dc90e4ddc3ccd8a866230a87ff1c2edd762b800294cde03becb",
+      "text": "A MongoDB logical initial sync used to seed a destination can restart if oplog entries needed during clone and apply no longer fit within the source oplog window; the target also needs disk for the oplog buffer. MongoDB documents these restart conditions, and a production case report describes sync failure and disk exhaustion under high oplog generation. (high confidence)",
+      "source_url": "https://www.mongodb.com/docs/manual/core/replica-set-sync/",
+      "also": [
+        "https://database-investigator.com/2019/01/03/initial-sync-running-out-of-space/",
+        "https://www.haptik.ai/tech/migrating-terabytes-of-mongodb-across-clouds-with-minimal-disruption"
+      ],
+      "validation_status": "SUPPORTED",
+      "evidence_ids": [
+        "ev:22ca06db99287c637d799ca35db3dbbd21768441b39e8521de2e8208531b62eb",
+        "ev:71f71d3967a959a04c08f42f1c13759dbeb0fa67997f0881a583811c06f176d4"
+      ]
+    },
+    {
+      "id": "clm:e3d09ef28c2887d02da28b39aff3ca520250a3e35d83d7756bbe5067e3bc3581",
+      "text": "Relational-to-MongoDB document construction can fail when legacy records contain null or missing values, failed numeric conversions, or incomplete relationships; a value with the expected shape can still be factually wrong. MongoDB schema validation enforces configured field types and ranges, but shape validation alone cannot establish historical truth. (medium confidence)",
+      "source_url": "https://gonzalosimon.hashnode.dev/migrating-data-without-trusting-the-data",
+      "also": [
+        "https://www.mongodb.com/docs/manual/core/schema-validation/"
+      ],
+      "validation_status": "SUPPORTED",
+      "evidence_ids": [
+        "ev:13bc938fc205e64045698bad847a1e40b2b737bc2ad7b7b3338b37388d8ddaef",
+        "ev:ea92457ec7d67062a717b4ca87784b00980d75165d26b477c5f378be7003e6af"
+      ]
+    },
+    {
+      "id": "clm:6d5b40734e53721020f89319aecf1a55931810e27242c72d7d469510dd0366be",
+      "text": "A MongoDB change-stream consumer used for migration CDC cannot resume from a token whose event has fallen out of the participating oplog; MongoDB reports ChangeStreamHistoryLost for that condition. A cross-cloud migration case report describes monitoring resume-token health and lag, disk use, and source-to-delta document counts while bulk copy and change capture ran together. (medium confidence)",
+      "source_url": "https://github.com/mongodb/mongo/blob/master/docs/change_streams.md",
+      "also": [
+        "https://www.haptik.ai/tech/migrating-terabytes-of-mongodb-across-clouds-with-minimal-disruption"
+      ],
+      "validation_status": "SUPPORTED",
+      "evidence_ids": [
+        "ev:e66c1fb47fffc0f3618abf153acb960e73520410ce36d9000c05cb027219bbf0",
+        "ev:f15f43fa34cb9d34a5c1dc2db78333534e90b9ff32044bca3e1e1038d8942911"
+      ]
+    },
+    {
+      "id": "clm:341465bc790f9fefab03e510c93c4702ccc7360f8c963bf5286e5f689bd79ca9",
+      "text": "Network interruption handling differs by tool: MongoDB native initial sync may resume after temporary network errors, but persistent errors restart it from the beginning; Percona ClusterSync documents that its initial sync is non-resumable and restarts from scratch after failure. (medium confidence) (verified as of 2026-10-23)",
+      "source_url": "https://www.mongodb.com/docs/manual/core/replica-set-sync/",
+      "also": [
+        "https://docs.percona.com/percona-operator-for-mongodb/latest/limitations.html"
+      ],
+      "validation_status": "SUPPORTED",
+      "evidence_ids": [
+        "ev:9cac093233522bb85fc1e3721de09e247a0110b0bf8e5d9d569b68e095dec335",
+        "ev:a144c7f34d21d030c5805ca30aa071fdcf50019c58d05bb00db786c04b10bef2"
+      ]
+    },
+    {
+      "id": "clm:2bced061748e373624505747e69c53cf665872bda1a916a46298660cf9ebab4c",
+      "text": "MongoDB documents a rare mongosync embedded-verifier false positive: differing document field order across source nodes can make verification fail even when mongosync copied the documents correctly. (low confidence) (verified as of 2026-10-23)",
+      "source_url": "https://www.mongodb.com/docs/mongosync/current/reference/verification/embedded/",
+      "also": [],
+      "validation_status": "SUPPORTED",
+      "evidence_ids": [
+        "ev:e7ff100ab98a9fac267730f550928c3aa81693b4dd8fbfad22c86ddbe4c8ba07"
+      ]
+    },
+    {
+      "id": "clm:69fee861fe04169e243351d2bf5f2c2f9ef097e8a3d8bbce99ddfbc5fdc19c62",
+      "text": "Verification needs to match the workload and collection features: MongoDB says document-count comparison only verifies successful sync for insert-only workloads, while the embedded verifier skips capped, TTL-indexed, and non-default-collation collections; MongoDB also describes checks across documents, views, and indexes. (high confidence) (verified as of 2026-10-23)",
+      "source_url": "https://www.mongodb.com/docs/mongosync/current/reference/verification/",
+      "also": [
+        "https://www.mongodb.com/docs/mongosync/current/reference/verification/embedded/"
+      ],
+      "validation_status": "SUPPORTED",
+      "evidence_ids": [
+        "ev:d1b7dcd25a8a170ba4312930c43f964a6a2e34becd90293dbd530be558ab1531",
+        "ev:e887ca1806cf7da49db8b88e50941ee65700b45a760af15d9d91f40dfaa094f1"
+      ]
+    },
+    {
+      "id": "clm:bd6573d2f11c116ff3014c1f74d4a1111f232a9d199f78c17aac99cb39923615",
+      "text": "Percona ClusterSync requires the same major MongoDB version on source and target and does not synchronize users, roles, or system.* collections; a migration that assumes full-cluster copying must provision this state separately. (low confidence) (verified as of 2026-09-08)",
+      "source_url": "https://docs.percona.com/percona-operator-for-mongodb/latest/limitations.html",
+      "also": [],
+      "validation_status": "SUPPORTED",
+      "evidence_ids": [
+        "ev:9184e746cc50a81ec489c789d5a8ca2a703704ddc7b7adef922bb301305deabb"
+      ]
+    }
+  ],
+  "projection_sha256": "ff10d59a3bf388080d5bba0228f49e532dbd46bcf83fcb05e38ec08b39491d63"
+}
