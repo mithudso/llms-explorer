@@ -11,3 +11,7 @@
 ## Prompt — 2026-10-22 Cloudflare build focus
 
 The user asked to stop Node compatibility testing and focus on the failing Cloudflare build. Inspected the failed production log, confirmed private GitHub clone authentication as the cause, and followed the repaired production deployment to success. Verified the actual published content.
+
+## Prompt — 2026-10-22 Cloudflare build repair
+
+The user restored Wrangler login and supplied a fine-grained GitHub key for private library access. Diagnose the Pages failure, configure encrypted credentials and verify the build while preserving private repositories.

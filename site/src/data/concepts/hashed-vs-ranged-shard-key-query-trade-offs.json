@@ -1,0 +1,167 @@
+{
+  "slug": "hashed-vs-ranged-shard-key-query-trade-offs",
+  "concept": "Hashed vs ranged shard key query trade-offs",
+  "generated": "2026-10-24",
+  "summary": "Source-anchored research for Hashed vs ranged shard key query trade-offs. Run status: COMPLETED.",
+  "facets": [
+    {
+      "title": "How it works",
+      "facts": [
+        {
+          "text": "Choose the key and distribution strategy from the workload: frequent selective ranges favor preserving range locality, whereas monotonic insert pressure can favor hashing. Test both data skew and common query predicates because good write distribution alone does not establish good read performance. (high confidence)",
+          "source": "https://www.mongodb.com/docs/manual/core/ranged-sharding.md",
+          "note": null,
+          "claimId": "clm:849195c6a74598934c58dedae072ebd86bb4e261a75d44fd6be40da923bc9779",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:1fc3780e8f2cf6a89fda10298b07d25a8074411f0772fe86b0a92352e1b60b49",
+            "ev:5909539daf236837104718c2a4451d1207f9da43dfdce1dcb5bc05a9266b595e",
+            "ev:aecff68abdca9e05be6b53552464c82b661e1076bab57a318fd62680c05296fb"
+          ]
+        }
+      ]
+    },
+    {
+      "title": "Problems, failure modes and limitations",
+      "facts": [
+        {
+          "text": "For a single-field hashed shard key, a range predicate on the original field cannot exploit its natural order for shard pruning and generally requires scatter-gather across owning shards. This is a routing penalty, not a prohibition on range queries. (medium confidence)",
+          "source": "https://www.mongodb.com/docs/manual/core/hashed-sharding.md",
+          "note": null,
+          "claimId": "clm:a80e3ed5ec83902f00e9663efa39a7e1dea11e35144e88aa743311263b0c6083",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:2be51253a4837389d040615ffb6bab110d81640da318a336019b0e238f9883b2",
+            "ev:e93a7b25858f3811eec05f7c3b9bcdf99d91a3a605dac1d2e5f154e3888d654a"
+          ]
+        },
+        {
+          "text": "Yorkie’s sharding design selected ranged project_id and doc_id keys around project- and document-scoped queries, including pagination and sequence ranges. The same design records high project_id frequency as a scalability risk and proposes a compound key as a possible remedy. (low confidence)",
+          "source": "https://github.com/yorkie-team/yorkie/issues/673",
+          "note": null,
+          "claimId": "clm:1726f3433b3d210355e5aca459ee35fcc8ba8f4d499417bedf4a4b6bb18b4e21",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:ae064d12aeb8971e9ade64b2f5b5604865f7c26b0482460b5ccd4a49765c2546",
+            "ev:d9be788008972df7ec22dc07cba31e006270c331cbf531774305b934e6a62525"
+          ]
+        }
+      ]
+    },
+    {
+      "title": "Facts and statements",
+      "facts": [
+        {
+          "text": "Ranged sharding partitions the original shard-key value space into contiguous ranges. Nearby values can share a chunk or shard, allowing selective range queries to contact only the shards holding the relevant ranges; a range query is not guaranteed to reach just one shard. (high confidence)",
+          "source": "https://www.mongodb.com/docs/manual/core/ranged-sharding.md",
+          "note": null,
+          "claimId": "clm:002eb1f56f865502c0f16ef57a4475c7692cea19ba4cf59d1f1d5c13f5d7bd04",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:4a13b12c5a72d88d70aae558d827e9e4a771bc4dcac7cb2c9470a575a58e02c4",
+            "ev:9bce94e564aa51bddf63a9878acfa877cbd07aa8395e512da9e3a84ea086858e"
+          ]
+        },
+        {
+          "text": "For a monotonically increasing ranged shard key, new inserts concentrate in the chunk ending at MaxKey and its owning shard. Hashing a sufficiently diverse key spreads inserts across the hash space and can relieve this write bottleneck. (high confidence)",
+          "source": "https://www.mongodb.com/docs/manual/core/hashed-sharding.md",
+          "note": null,
+          "claimId": "clm:ee4af074688dd95d7fb42d61b55f46229c653753df3fbbfb6b4ad79fb079f4bd",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:5909539daf236837104718c2a4451d1207f9da43dfdce1dcb5bc05a9266b595e"
+          ]
+        },
+        {
+          "text": "mongos can route an equality match on a single-field hashed shard key to one shard; MongoDB computes the hash internally, so applications supply the original value. (high confidence)",
+          "source": "https://www.mongodb.com/docs/manual/core/hashed-sharding.md",
+          "note": null,
+          "claimId": "clm:d09a47e53c75193b5ebd9dab3b991f99c0174172d10f5013928a05ebe5c05640",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:590033c26dbe48a9b871cba1b7b4fbd4ae3bbd87bb902a813b1a16d0a230e905"
+          ]
+        },
+        {
+          "text": "Hashing does not create new distinct values or split documents sharing the same complete shard-key value. Low cardinality and frequent repeated values can still concentrate data and workload; a discriminating compound key can provide additional split points. (high confidence)",
+          "source": "https://www.alibabacloud.com/help/en/mongodb/use-cases/introduction-to-apsaradb-for-mongodb-sharded-cluster-instances",
+          "note": null,
+          "claimId": "clm:d16f599fa8eff8134f68f495debb1d912eaaedd1a36d9ac6268b5f987bf4a57c",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:8ba2bb4294800b49fbf1de962ff62ad1b22fc872888ce3d99e22c5076b9948e5",
+            "ev:b6850c4bc9e11d1dcb6d5a0da037b54c8a1f53eb532d97cd2e5995c22154f2b5",
+            "ev:d54bb9c2c7adb102ea1fea1a3666596e818d6218b2ea67e8011adfbe46390305"
+          ]
+        },
+        {
+          "text": "Compound hashed keys can retain non-hashed leading fields for zone ranges while hashing another field for distribution. Zone ranges on a hashed field refer to hash values, so they do not preserve the original field’s geographic or numeric ordering. (medium confidence)",
+          "source": "https://www.mongodb.com/docs/manual/core/hashed-sharding.md",
+          "note": null,
+          "claimId": "clm:ce53c076d570d1405ee036876f86fbda28f393badada30db5a01a1b1cfe7f7b2",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:8b72cd2a04bbc6b6612ea95c3e74b00b888a38f7e4a2963109c020859fadb3a0",
+            "ev:d6ffe5e8bdc08cf055c530a44da3a0a3fd8cb4cefbb42c924b786de69460b534"
+          ]
+        },
+        {
+          "text": "MongoDB SERVER-72987 documents a historical analyzeShardKey classification bug: it treated hashed-key range queries as targeting a variable subset of shards although they target all shards. The issue records a fix for 6.3.0-rc0; this historical record does not establish a defect in current releases. (low confidence)",
+          "source": "https://jira.mongodb.org/browse/SERVER-72987",
+          "note": null,
+          "claimId": "clm:56bf320f0a295360a5af20e1e6a649d0157cc143275328a407d9b2511a1c4d77",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:e426c864518d29ab28ed77c2d90829bad7970fc551964a51eaae40c6a7516b96"
+          ]
+        },
+        {
+          "text": "A hashed timestamp can spread IoT log writes while device-ID reads still contact all shards. Alibaba’s workload example instead recommends a ranged device-ID-plus-timestamp key for frequent per-device time-window queries; this recommendation depends on the stated workload. (low confidence)",
+          "source": "https://www.alibabacloud.com/help/en/mongodb/use-cases/introduction-to-apsaradb-for-mongodb-sharded-cluster-instances",
+          "note": null,
+          "claimId": "clm:10136b73ff7cfb274857eb818d24708c5e45a3123f75fa20d7521afaec043c3b",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:06b494f1c72bb6526564c87b90bce3f194c66cf22b162e29b3a824bcf15a847d"
+          ]
+        },
+        {
+          "text": "Hashing a shard-key field destroys locality in its original value order. A range predicate on that hashed field therefore loses the routing advantage of ranged sharding and is more likely to require a cluster-wide broadcast. (high confidence)",
+          "source": "https://www.mongodb.com/docs/manual/core/hashed-sharding.md",
+          "note": null,
+          "claimId": "clm:cd70689988c968369b3635a785a53f7bf21103134c0a1281172480b8e89c9112",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:2be51253a4837389d040615ffb6bab110d81640da318a336019b0e238f9883b2"
+          ]
+        },
+        {
+          "text": "For ordinary reads without a usable shard-key predicate or compound-key prefix, mongos must broadcast to the shards and merge their results. Switching between hashed and ranged placement does not by itself fix an access pattern that omits the routing key. (high confidence)",
+          "source": "https://www.mongodb.com/docs/manual/core/sharding-choose-a-shard-key.md",
+          "note": null,
+          "claimId": "clm:86d8fdecb71e16fbd9b32165d62084ea6e1c00cc04c0e10952270a83b24ecac8",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:14268947648f33940ac2acf402a4e720edd5d1ef457235a66233e0d44c83cd81",
+            "ev:80ba0bb193ebbc50e1fe5750a9604611003ea1cb39f4d0b31aaf885cda4464de",
+            "ev:9f0e314c3e37a7c1abf18bb70d15a7778a4731ebb8dccfbb0e18d914f2ec6051"
+          ]
+        },
+        {
+          "text": "Compound hashed keys can combine non-hashed leading fields with a hashed field. A usable leading-key predicate can restrict routing to a shard set, while hashed values distribute data within that scope; a prefix predicate need not identify one shard. (high confidence)",
+          "source": "https://www.mongodb.com/docs/manual/core/hashed-sharding.md",
+          "note": null,
+          "claimId": "clm:a9deffbb2ae035dfc6d554709f49cb03890e932c31bc69ff1479a9c7617cafbb",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:1ed4a20f4e855c25aa944e519e0bbbdbe605ecb86a9beb5b39bed5ab9be28902",
+            "ev:d6ffe5e8bdc08cf055c530a44da3a0a3fd8cb4cefbb42c924b786de69460b534"
+          ]
+        }
+      ]
+    }
+  ],
+  "related": [],
+  "canonicalArtifactSha256": "5fb74665b6b95386462b7465aeca599d96dde96bf3a74923466d1479f405b1ea",
+  "canonicalConceptId": "concept:146d6b18747cc4ce70a3992d4f3cf5737f3f1e64e3674d0a1192079dc0ff7787"
+}

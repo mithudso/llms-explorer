@@ -1,0 +1,182 @@
+{
+  "schema": "research-public-artifact/v1",
+  "concept": "MLX-LM stateful logits processor rollback during speculative decoding",
+  "slug": "mlx-lm-stateful-logits-processor-rollback-during-speculative-decoding",
+  "canonical_concept_id": "concept:d605fca4bf58050461f68da591ee608f8b29f050ad96de6132126b4324953e62",
+  "canonical_artifact_sha256": "ada64e50f5ed1439eb8a040404a1e1bc80d65e1b4f586fc55d21f6c69f34a44d",
+  "claims": [
+    {
+      "id": "clm:57b983f078f2dcf3137493d45f758b17829f9d8494bbf042fe0f4d5ef90d0988",
+      "text": "Historical issue #1156 names mtp_generate_step and proposes a lazy-evaluation explanation that a maintainer disputes. The reviewed generate.py at 0d4d3d04f8ab defines speculative_generate_step and contains no mtp_generate_step definition. Keep the historical report separate from this pinned path; do not treat its proposed fix as evidence that the pinned speculative path implements generic processor-state rollback. (medium confidence) (verified as of 2026-10-23)",
+      "source_url": "https://raw.githubusercontent.com/ml-explore/mlx-lm/0d4d3d04f8ab7ce4a51e7209e8615755a48ba94d/mlx_lm/generate.py",
+      "also": [
+        "https://github.com/ml-explore/mlx-lm/issues/1156"
+      ],
+      "validation_status": "SUPPORTED",
+      "evidence_ids": [
+        "ev:7cd27560895805784e6dbbd980bffff6db4db5ff18e3f18004b0075e7ab232d8",
+        "ev:c07d072534ad533b30280b266f616048aa3039a3c38bf81f47b4e82af5c7d9f2"
+      ]
+    },
+    {
+      "id": "clm:8ff00c0ae92d88547260150f92f72eb845d6572a18cf0f717883c97f507cb491",
+      "text": "LM Studio's mlx-engine creates an Outlines JSONLogitsProcessor when json_schema is set and passes it to MLX-LM stream_generate alongside draft_model; thus structured decoding can enter the same speculative generation interface where processor-state rollback matters. (medium confidence) (verified as of 2026-10-23)",
+      "source_url": "https://github.com/lmstudio-ai/mlx-engine/blob/main/mlx_engine/generate.py",
+      "also": [
+        "https://github.com/ml-explore/mlx-lm/blob/main/mlx_lm/generate.py"
+      ],
+      "validation_status": "SUPPORTED",
+      "evidence_ids": [
+        "ev:108f59e6cfcf596c3d2ca78deda489622be9b3aad88060dbf533fd16609c250b",
+        "ev:3e4fe4e3d77134d818624f27d701eb75d3d91d1bd33ba00847d8e1c407fefd94"
+      ]
+    },
+    {
+      "id": "clm:33a4efc52a33179eecda2894bfd4d5dd077360639bd5200ff00d3b2ce285323f",
+      "text": "A downstream MLX MTP integration documented routing constrained requests to BatchGenerator when its speculative path could not preserve stateful grammar, budget, and penalty processors. This is a fallback option when the speculative loop lacks processor state and rollback support. (medium confidence) (verified as of 2026-10-05)",
+      "source_url": "https://github.com/jundot/omlx/issues/2399",
+      "also": [
+        "https://docs.metrale.ai/deep-dives/mtp"
+      ],
+      "validation_status": "SUPPORTED",
+      "evidence_ids": [
+        "ev:e8e042139319e68fe023b9796ce3d712550dbe5ecf0d501f07b582e7c79a5e0b"
+      ]
+    },
+    {
+      "id": "clm:d54d3b6b47d6719be6130e2f775ab6f9022541f9c0c198078688fe2506bd2ca1",
+      "text": "A caller-owned LogitsProcessor becomes stateful when its object or closure mutates an FSM, grammar matcher, or counter across calls. Its callable contract takes (tokens, logits) and returns revised logits; it has no native state object or snapshot argument. Because speculative code invokes it before acceptance is known, per-call mutation can outlive a rejected candidate. (medium confidence) (verified as of 2026-10-23)",
+      "source_url": "https://raw.githubusercontent.com/ml-explore/mlx-lm/0d4d3d04f8ab7ce4a51e7209e8615755a48ba94d/mlx_lm/generate.py",
+      "also": [
+        "https://raw.githubusercontent.com/ml-explore/mlx-lm/0d4d3d04f8ab7ce4a51e7209e8615755a48ba94d/mlx_lm/sample_utils.py",
+        "https://github.com/ml-explore/mlx-lm/pull/1196"
+      ],
+      "validation_status": "SUPPORTED",
+      "evidence_ids": [
+        "ev:3bd135dd3998435350a55804745617ca8f12d73b64706da48255628e3dfb84d2",
+        "ev:7cd27560895805784e6dbbd980bffff6db4db5ff18e3f18004b0075e7ab232d8",
+        "ev:7dc40f72d5a0a195550fa43f4367cd5281fed5d9b3630960c72a1c7266b47690"
+      ]
+    },
+    {
+      "id": "clm:aef3095e2812711a29b227a530b8dc9f6208b13262d5e1a2017844c714a96607",
+      "text": "After acceptance/rejection, speculative_generate_step truncates prev_tokens by max(num_draft-n,1) positions and calls _rewind_cache(num_draft,n). That helper trims model_cache by num_draft-n and draft_cache by max(num_draft-n-1,0); finally calls it again when leaving the loop. This restores native token/cache bookkeeping but invokes no snapshot/restore callback on caller-owned processor state. (low confidence) (verified as of 2026-10-23)",
+      "source_url": "https://raw.githubusercontent.com/ml-explore/mlx-lm/0d4d3d04f8ab7ce4a51e7209e8615755a48ba94d/mlx_lm/generate.py",
+      "also": [],
+      "validation_status": "SUPPORTED",
+      "evidence_ids": [
+        "ev:7cd27560895805784e6dbbd980bffff6db4db5ff18e3f18004b0075e7ab232d8"
+      ]
+    },
+    {
+      "id": "clm:744f15d86f1d4d2c8d59fc671f26ac1b3c20693984a08d1db2a82e711b5f9720",
+      "text": "Processor integration guidance: reconstruct derived FSM/counter state from the supplied token history on each call, including after a shorter history replaces a provisional one; do not assume calls advance an accepted prefix monotonically. A mutable external FSM needs a reset-and-replay or equivalent snapshot/rollback capability for rejected candidates, coordinated by its integration because the native callable interface supplies no such lifecycle callbacks. The upstream thinking-budget discussion explicitly contrasts stateless recomputation with a proposed save_state()/restore_state() protocol. (medium confidence) (verified as of 2026-10-23)",
+      "source_url": "https://raw.githubusercontent.com/ml-explore/mlx-lm/0d4d3d04f8ab7ce4a51e7209e8615755a48ba94d/mlx_lm/generate.py",
+      "also": [
+        "https://github.com/ml-explore/mlx-lm/pull/1196"
+      ],
+      "validation_status": "SUPPORTED",
+      "evidence_ids": [
+        "ev:3bd135dd3998435350a55804745617ca8f12d73b64706da48255628e3dfb84d2",
+        "ev:7cd27560895805784e6dbbd980bffff6db4db5ff18e3f18004b0075e7ab232d8"
+      ]
+    },
+    {
+      "id": "clm:3466112302e080c4218bdc2d3c17c6816835e41c6b4853409f7eda93804e0ce5",
+      "text": "In MTP speculative decoding, a stateful processor can mutate on a candidate token that is later rejected; if its state is not restored or rebuilt from the accepted prefix, grammar or counter state can drift from the generated history. (high confidence)",
+      "source_url": "https://github.com/ml-explore/mlx-lm/pull/1196",
+      "also": [
+        "https://github.com/ml-explore/mlx-lm/issues/1175",
+        "https://github.com/jundot/omlx/issues/2399",
+        "https://docs.metrale.ai/deep-dives/mtp"
+      ],
+      "validation_status": "SUPPORTED",
+      "evidence_ids": [
+        "ev:3bd135dd3998435350a55804745617ca8f12d73b64706da48255628e3dfb84d2",
+        "ev:b034e1e22d1c9edf68e7c4a7a4f98b0cbf3e28955a6631cc03c9f9645c049753",
+        "ev:e8e042139319e68fe023b9796ce3d712550dbe5ecf0d501f07b582e7c79a5e0b"
+      ]
+    },
+    {
+      "id": "clm:12afd95a97a0d443a6c953133df665aa27b733461e19d240b4a6f244a285324d",
+      "text": "MLX-LM's MTP work corrected stale prev_tokens handling and rejected-draft history separately from processor state. The thinking-budget processor can still advance during verification for a bonus token that is later rejected; the maintainer says recomputing state from accepted token history or adding an explicit save_state()/restore_state() protocol would prevent counter drift. (high confidence) (verified as of 2026-10-23)",
+      "source_url": "https://github.com/ml-explore/mlx-lm/issues/1175",
+      "also": [
+        "https://github.com/ml-explore/mlx-lm/pull/990",
+        "https://github.com/ml-explore/mlx-lm/pull/1196",
+        "https://github.com/ml-explore/mlx-lm/blob/main/mlx_lm/sample_utils.py"
+      ],
+      "validation_status": "SUPPORTED",
+      "evidence_ids": [
+        "ev:2de0059271b9be4a75c387e897999dd4f7f5d9c95e3219b50918c19579a72a0a",
+        "ev:3bd135dd3998435350a55804745617ca8f12d73b64706da48255628e3dfb84d2"
+      ]
+    },
+    {
+      "id": "clm:264238df63f53d8611887131e765c41b0be6e494c8f648a61583d94d8b7a4799",
+      "text": "The current mlx-lm main speculative_generate_step calls logits processors during draft and verification _step calls, then rejection cleanup truncates prev_tokens and trims model caches; the public LogitsProcessor alias is only Callable[[mx.array, mx.array], mx.array], so the interface exposes no generic processor-state rollback hook. (high confidence) (verified as of 2026-10-23)",
+      "source_url": "https://github.com/ml-explore/mlx-lm/blob/main/mlx_lm/generate.py",
+      "also": [
+        "https://github.com/ml-explore/mlx-lm/blob/main/mlx_lm/sample_utils.py",
+        "https://github.com/ml-explore/mlx-lm/pull/1196",
+        "https://github.com/ml-explore/mlx-lm/pull/990"
+      ],
+      "validation_status": "SUPPORTED",
+      "evidence_ids": [
+        "ev:161d31eaa3e631661a0cca35201acdf8ca7b88d3556dbb98b60e8b00b2b90660",
+        "ev:a22a59d8f4e4199d6b80ffe9bbd6fcde6d0ef99ca0bcb473a6b38bbe3f666b91"
+      ]
+    },
+    {
+      "id": "clm:a863d22bc480d2d6b4fa93bcd6009f48ab6cb88aa68ee8c8b9a2537d01daf931",
+      "text": "Two remedies are described for stateful processors: recompute state from the accepted token history on each call, or add processor state snapshot and restore around speculative verification; the latter is a proposed interface need, not a generic method in the reviewed MLX-LM callable API. (medium confidence) (verified as of 2026-10-23)",
+      "source_url": "https://github.com/ml-explore/mlx-lm/pull/1196",
+      "also": [
+        "https://github.com/ml-explore/mlx-lm/blob/main/mlx_lm/sample_utils.py",
+        "https://docs.metrale.ai/deep-dives/mtp"
+      ],
+      "validation_status": "SUPPORTED",
+      "evidence_ids": [
+        "ev:3bd135dd3998435350a55804745617ca8f12d73b64706da48255628e3dfb84d2",
+        "ev:a22a59d8f4e4199d6b80ffe9bbd6fcde6d0ef99ca0bcb473a6b38bbe3f666b91"
+      ]
+    },
+    {
+      "id": "clm:2853e60f34569c3c60454769f4ee781703a3728c0703acd92196a307378529be",
+      "text": "Independent MTP guidance also treats this as accepted-prefix bookkeeping: Metrale says sampler state must track accepted tokens and rejected drafts must be unwound, while an OMLX MTP discussion says a grammar matcher must advance on accepted tokens and roll back on rejected drafts. (high confidence)",
+      "source_url": "https://docs.metrale.ai/deep-dives/mtp",
+      "also": [
+        "https://github.com/jundot/omlx/issues/2399",
+        "https://github.com/ml-explore/mlx-lm/pull/1196"
+      ],
+      "validation_status": "SUPPORTED",
+      "evidence_ids": [
+        "ev:b034e1e22d1c9edf68e7c4a7a4f98b0cbf3e28955a6631cc03c9f9645c049753",
+        "ev:e8e042139319e68fe023b9796ce3d712550dbe5ecf0d501f07b582e7c79a5e0b"
+      ]
+    },
+    {
+      "id": "clm:a12ca899d5a45bd600f60b29fe3e72d4e01ee21096fc3d7a0fdde3893793592a",
+      "text": "In speculative_generate_step at 0d4d3d04f8ab, _draft_generate calls _step(draft_model, draft_cache, y) for each proposal. _step appends y to prev_tokens and invokes _process_and_sample(prev_tokens, logits), which applies processors in list order before logsumexp normalization and sampling. Thus processors run while proposals are being formed, not only for accepted output tokens. (low confidence) (verified as of 2026-10-23)",
+      "source_url": "https://raw.githubusercontent.com/ml-explore/mlx-lm/0d4d3d04f8ab7ce4a51e7209e8615755a48ba94d/mlx_lm/generate.py",
+      "also": [],
+      "validation_status": "SUPPORTED",
+      "evidence_ids": [
+        "ev:20fea3b3de78b6e22eb7d541231f7c44a1f08c485b8da6476ea611c9fed9d20b",
+        "ev:af9a6f5c69d7bf6f85a5d2eb66de26cd777e77478912cf789bcfc4be67d514ab"
+      ]
+    },
+    {
+      "id": "clm:22bca4d603498c2d25d4bddad53c64e77ca3f2645ccae71d248bbb9fca66712c",
+      "text": "Before main-model verification, speculative_generate_step truncates prev_tokens to remove the draft-side context extension and calls _step(model, model_cache, concatenated_input_and_drafts, num_draft+1). For n_predict>1, _step first shortens y by n_predict-1 positions; on each prediction it appends the current y to prev_tokens, calls processors with that history and logits[:, i, :], and uses the sampled main-model y for the next prediction. These are the pinned implementation inputs, not a guarantee that every processor call corresponds to an accepted token. (low confidence) (verified as of 2026-10-23)",
+      "source_url": "https://raw.githubusercontent.com/ml-explore/mlx-lm/0d4d3d04f8ab7ce4a51e7209e8615755a48ba94d/mlx_lm/generate.py",
+      "also": [],
+      "validation_status": "SUPPORTED",
+      "evidence_ids": [
+        "ev:20fea3b3de78b6e22eb7d541231f7c44a1f08c485b8da6476ea611c9fed9d20b",
+        "ev:af9a6f5c69d7bf6f85a5d2eb66de26cd777e77478912cf789bcfc4be67d514ab"
+      ]
+    }
+  ],
+  "projection_sha256": "625335636d002c814db9d3684eeb5326471801ae0189741c8d71e1366e462278"
+}

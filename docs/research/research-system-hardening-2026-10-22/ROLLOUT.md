@@ -46,3 +46,37 @@ pages and three canonical downloads were checked against the final artifact.
 Retired wording is absent. The local website now contains 1,518 reader packs and
 89,213 facts. The saved plan has 23 completed cohorts and continues with cohort 24
 at Luna/max. This remains local publication; production deployment is unresolved.
+
+The subsequent release freeze retains those 23 completed cohorts (82 researched
+concepts, 808 structured claims). Cohort 24 stopped on 27 UNVERIFIED, 14 SUPPORTED
+and one NOT-IN-SOURCE verdict among 42 selected claims; it is excluded from the
+release. Cohorts 25-31 remain pending. PR 218 restores private dependency access
+for Cloudflare and refreshes the release to 1,518 readers and 89,213 facts. Clean
+builds also regenerate canonical JSON downloads from committed reader data.
+The credential repair has passed a live preview; production awaits the final
+release checks.
+
+Final review strengthened two recovery paths. A private shared registry makes
+interrupted native and standalone projection journals visible across checkouts.
+Both writers recover pending journals under the global lock before publishing.
+Benchmark resume preserves failed attempts and retries unsuccessful or malformed
+stages while retaining valid successful stages. The research suite passes 143
+tests plus two subtests, including cross-run and cross-checkout regressions.
+These repairs do not change the frozen research snapshot or run paid models.
+
+Further release regressions bind benchmark cache reuse to exact stage inputs,
+reconcile explicit concept merges before redirects, and retain distinct canonical
+claim identities when statement text matches but provenance differs. All 150
+research tests plus four subtests pass. The full site build passes on the upgraded
+local Node.js 26.7.0. The validated research snapshot remains frozen.
+
+Cancellation now reaches the ranked phase and its worker cleanup before the
+parent exits. Immutable evidence becomes visible only after a complete flushed
+write. Canonical concept IDs use collision-free planned hub slugs and remain
+stable after upsert. All 154 research tests plus four subtests pass, including
+real-process cancellation and partial-write regressions.
+
+Alias and capitalization variants now normalize to existing owners before tree
+upsert, while retaining requested titles for privacy checks and every contributing
+document. Cancellation also releases batch reservations without discarding pending
+work or checkpoints. All 159 research tests plus four subtests pass.

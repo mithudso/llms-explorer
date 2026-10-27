@@ -1,5 +1,14 @@
 # Memory Log
 
+## v0.22.54 - 2026-10-24
+
+- TASK-909 records the complete Awesome TUIs inventory pinned to 98a107625c87cca75cd5785afcb61a91e46bb6af. Catalog: 718 distinct listed URLs, 717 shared metadata acquisition groups, 13 categories. All rows have profiles: 678 README records, 36 official pages, two cached historical excerpts, two explicit GitHub404 gaps (kagan, tuiserial). Verified 1,393 private source bodies. Square Tic Tac Toe has its own subtree README and is distinct from the LearnByExample collection.
+- Two canonical DR runs preserve 718 attributed catalog observations and 65 architecture claims. Independent bound gates pass 101 catalog claims and 49 architecture claims (all risky plus ten ordinary each); 633 other unique statements retain NOT-SAMPLED. Depth baseline 18 plus passes 14/9/7/6/6/5 ends at 65. Rates: 43.75%, 21.95%, 14.58%, 11.11%, 10%, 7.69%. BUDGET_EXHAUSTED at default maxPasses=6; no saturation finding.
+- Fixed parked-domain/redirect provenance, procedural README excerpts mislabeled as descriptions, parent-repository scope, one overbroad Bubble Tea statement and unreadable xterm source text. Failed attempts remain private. Auxiliary checkpoints belong below claims/passes; direct claims/*.json checkpoints inflated rendering and failed the canonical gate. KNOW-915 and KNOW-916 preserve these concrete lessons.
+- Three accepted packs export into both the global hub and repository, with reader/tree/context/facts/keyword data. Final scoped generation preserves every non-TUI leaf file and tree node against the frozen baseline. Broad finish website receipts remain historical. Existing vectors remain unchanged. Raw sources, provenance and gates stay private. No user-level skill or registry rebuild was added.
+- Report: docs/research/awesome-tuis-2026-10-24/README.md; catalog: catalog.md and catalog.json; checks: verification.json. Private runs: /Users/mitch/.global-ai-hub/research/awesome-tuis-2026-10-24/ and /Users/mitch/.global-ai-hub/research/awesome-tuis-catalog-2026-10-24/.
+- Delta: prompt v66 to v67; memory 0.22.53 to 0.22.54; catalog 1.0.0 to 1.0.1; report 1.0.0 to 1.1.0. No research or local export steps remain. Independent audit passes. Delivery is tracked at https://github.com/mithudso/llms-explorer/pull/232 ; consult its live CI and merge state before resuming any delivery step. Do not repeat source acquisition or paid discovery. Further depth is follow-up from 65 canonical claims. Preserve shared main's two unpublished commits and other worktrees.
+
 ## Codex research defaults - 2026-10-23
 
 - TASK-880: Codex DR, concept-family-explorer and rabbithole default to `gpt-6.1-sol` with `medium` effort. The generator, research/scout dispatch at every depth, and new ranked plans apply the setting. Explicit overrides and saved run plans retain their settings. Pass structure and verification requirements remain intact. See docs/codex-research-defaults.md.
@@ -850,6 +859,54 @@
 - TASK-742: installed the user-provided scoped library key as encrypted LIBS_READ_TOKEN in both Pages environments. The key remains private; both library repositories remain private. Clean bootstrap and a live Cloudflare preview pass.
 - Installed the restricted Git askpass helper, regression tests and clean-build canonical JSON generation into this checkout after preserving private preimages. Unrelated changes remain intact.
 - Isolated PR 218 refreshes release PR 214 to 23 completed cohorts, 1,518 readers and 89,213 facts. Cohort 24 needs source review and is excluded; 25-31 remain pending. Final publication checks are in progress.
+## 2026-10-22 — Ordered research hardening
+- Isolated branch `codex/research-system-hardening-20261022` starts at 4ab5697.
+- Phase 1 introduces prospective research-gate/v2. Exact claims, immutable bodies,
+  evidence spans and completion checks replace unbound verdict tallies. Historical
+  receipts remain legacy. 68 focused tests pass. See the ordered research report.
+- Preserve the active queue runtime until all six phases pass integration.
+- All six hardening phases implemented in order and verified. Runtime code and
+  report: `docs/research/research-system-hardening-2026-10-22/README.md`.
+- Six live-assisted domain trials plus six blind judges supplement the prior
+  36 frozen trials. Costs remain unknown; actual token usage is measured.
+- Archived 9,695 current source versions; 59 historical body gaps remain explicit.
+- Canonical projection canary passed four live judgments and both tree/pack/site
+  outputs. 132 research tests + two subtests and 278 built-site tests pass.
+
+## 2026-10-22 — Ranked cohort 23 citation recovery
+- TASK-793 resumes the existing ranked plan after 22 completed cohorts. Discovery
+  remains intact. Primary-source review corrected seven claim records and pinned
+  three previously missing forum source bodies in the private library.
+- The gate now names the claim and URL when evidence binding fails. The judge
+  brief explicitly forbids borrowing citations from other claims in the packet,
+  including for non-supported verdicts. All four verdict types have regression
+  coverage. The isolated research suite passes 136 tests plus two subtests.
+- PR 216 merged into PR 214. Exact-head GitHub checks pass at 9746633389, while
+  Cloudflare Pages still fails without an accessible first-error log. Local
+  publication remains distinct from production deployment.
+- Cohort 23 is complete after all 38 structured claims passed against the final
+  documents. Eight claim records and five auxiliary-note entries were corrected;
+  four missing source bodies were recovered privately. All 48 pack members, three
+  readers and three canonical downloads are verified. The website contains 1,518
+  reader packs and 89,213 facts. The saved plan continues cohort 24 as PID 35759.
+- The broad auxiliary prose coverage gap remains tracked as KNOW-796. Structured
+  claim support counts do not establish automated review of every reader sentence.
+
+
+## 2026-10-22 — Cloudflare private-library build authentication
+- TASK-742: restored Wrangler OAuth exposed the exact Pages failure: pip could not authenticate while cloning ollama-client. The site also needs private llms-txt for validation. The user supplied a fine-grained read-only key for both repositories. It was verified and installed as encrypted LIBS_READ_TOKEN in preview and production. Values remain out of repository files and logs.
+- Bootstrap uses host- and repository-restricted Git askpass when that variable is set. Missing Pages credentials fail before installation. Credential-plumbing and CI configuration tests pass; clean bootstrap and live preview validation are in progress.
+
+
+## 2026-10-22 — Validated research release refresh
+- Cloudflare preview c1287f64 successfully deployed the credential repair. Clean bootstrap, dependency checks, validator import and the full local site build pass. Both private library repositories retain their visibility.
+- The release snapshot now contains 1,518 reader packs and 89,213 facts from the latest validated work. All 38 cohort 23 claim IDs, evidence IDs and supported verdicts survive in the readers and canonical downloads. The operator privacy gate passes with 27 private denylist rules. Embeddings remain paused.
+- Clean builds now recreate canonical research JSON downloads from committed reader data. The same projection function serves research refresh and CI. A regression verifies clean generation and retirement when a pack becomes legacy or is removed.
+- Cohort 24 stopped for source review: 27 UNVERIFIED, 14 SUPPORTED and one NOT-IN-SOURCE verdict among 42 selected claims. Its unfinished results are excluded. Cohorts 25-31 remain pending. Production publication awaits final exact-head checks.
+
+- Full release CI found one helper-documentation failure (`git_askpass.py lacks a Usage section`). Added the missing invocation documentation; credential and script-discovery regressions pass. Other release API, privacy, lint, site-build, CodeQL and Cloudflare checks passed. The updated release will be checked again before production.
+
+- Final review fixes (TASK-805): native finish and standalone site sync recover all registered shared projection journals under the global lock. Cross-checkout interrupted writes roll back before new publication, so a later resume cannot erase another run's updates. Legacy journals in all nine local checkouts are complete. Failed or malformed benchmark stages preserve raw attempts and retry independently; successful stages remain cached. Isolated research regressions pass 143 tests plus two subtests. No paid model calls or research-content changes were needed.
 
 - Subsequent final-review fixes (TASK-805): benchmark receipts require exact prompt/model/effort/retrieval fingerprints and bind downstream judges to generation inputs. Explicit name-and-slug merge aliases retire absorbed nodes and preserve canonical reader routes. Artifact enrichment uses full claim identities, retaining equal text with different sources, confidence or verification metadata. All 150 research tests plus four subtests pass. The full site build also passes under upgraded Node.js 26.7.0; cf CLI 1.0.0-beta.19 works.
 
@@ -886,3 +943,15 @@ TASK-832 is paused at the user request for an updated-skill reload. Both queues 
 The user renewed the instruction to research every MongoDB frontier and unresearched concept, grouped by shared sources and ordered by CVS. This supersedes the preceding pause. Reloaded all 27 Codex research skill overlays and verified no sync drift. Revalidated 517 reservation handoffs, backed up the paused plan and STOP marker, and resumed the existing uncapped runner. Original concept assignments remain unchanged. Resume counts: four completed, 913 pending and 16 under review. The next cohort covers time-series cardinality, bucketing, active buckets and counters. A separate source-repair worker owns the three missing-source judgments in Server Selection Algorithm, preserves prior attempts, and will run an all-claim gate before promotion. No embeddings or remote deployment. TASK-832 remains in progress.
 
 The resumed audit confirms all 933 candidates are scored and present in the appropriate private/public queues; remaining dispatch groups have no CVS inversions. Time-series discovery produced 33 claims and an all-claim gate is running. The repaired cohort's full review supports its three original source gaps but reveals two missing Read Concern conditions and a too-short exact evidence span; it remains withheld while canonical corrections and a fresh gate proceed. KNOW-857 records the concrete span failure. Added the existing minimum quote length to the judge brief without changing validation. All 22 gate tests, scoped Ruff, diff checks and 27-file skill synchronization pass. A private checkpoint controller waits for verified repaired export, reconciles it under the runner lock and resumes all remaining work. It respects a replaced STOP marker.
+## 2026-10-23 — MLX-LM full suite
+
+The MLX-LM suite scores 53 candidates and adds 21 researched concepts in eight references, 27 canonical concept/cohort packs and a categorical family index. All 302 statements passed snapshot-bound all-claim gates. All 42 small/full answer tests meet their thresholds; 210 fixed question-bank entries remain reproducible. The third frontier expansion found no above-threshold gap. The verdict is map-bounded coverage, with only one empty round and no frontier-saturation claim. Keyword coverage is verified separately from the paused semantic layer. No new embeddings, global router rebuild or manual deployment ran. The source comparison distinguishes stable v0.32.2 from pinned main. External training integrations remain explicitly external and untested at runtime. The report and verification are in docs/research/mlx-lm-full-suite-2026-10-23/. The leading-inline-code renderer fix shipped independently in PR223, merge d3d7e01d7cc880c24622feb691af038947e5a67e.
+# Repository reconciliation — 2026-10-26
+
+Reconciled checkpoint PR #234 against current main in an isolated worktree.
+Keep main's newer research code and common verified packs. Retain the 230
+checkpoint-only concepts and the original checkpoint history. Regenerate site
+projections together and preserve frozen semantic vectors. Local scratch and
+the three vendor mirrors rejected by secret protection stay outside delivery.
+See docs/research/repository-reconciliation-2026-10-26.md for the conflict policy
+and verification scope. Delivery completes after passing checks and merge.

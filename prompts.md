@@ -1,5 +1,13 @@
 # Prompts Log
 
+## Prompt v67 - 2026-10-24
+
+> run the rabbithole skill on tuis  look into and record information on all of the tuis mentioned here: https://github.com/rothgar/awesome-tuis
+
+Scope: TASK-909. Pin every awesome-tuis entry, acquire first-party project evidence, record complete catalog coverage separately from rabbithole depth saturation, research TUI architecture through the Codex adapter, verify canonical claims and persist qualified outputs. Use Sol/medium. Preserve divergent main and ongoing MongoDB research. Delta: prompt v66 to v67.
+
+Outcome: all 718 listed rows recorded with first-party source scope and two explicit404 gaps; 65 architecture claims after six measured depth passes; current semantic gates support 150 selected statements. Both-tree and scoped website exports verified. Delivery and final CI/merge receipt: https://github.com/mithudso/llms-explorer/pull/232
+
 ## Prompt v66 - 2026-10-23
 
 > Update the codex versions of the skills to use medium effort and sol.
@@ -849,6 +857,13 @@ Outcome: checked-out detection across website jobs, /dr runs, explorer batches a
 
 Outcome: `/full-suite` run — scout (mongodb.com and docs llms.txt found), CFE plan (33 rows, 23 researched in 4 cohorts), round 1 (68 harvested, 6 researched as cohort E), rounds 2–3 empty, two blind gates (4 corroborated gaps researched as cohort F; 5 more queued), 33 packs + family rollup, trees synced, hub audited. Verdict SATURATION-DISSENT. Report: `docs/research/mongodb-cost-optimization-full-suite-2026-10-19/README.md`.
 
+## Prompt — 2026-10-22
+
+> Implement all six research-system improvements in the submitted order.
+
+Tracking: exact gate binding, marginal information, stage recovery, wider benchmark,
+source provenance, canonical public/private projections. Ordered progress lives in
+`docs/research/research-system-hardening-2026-10-22/README.md`.
 
 ## Prompt — 2026-10-22 continuation
 
@@ -878,6 +893,21 @@ Outcome: seven concepts,42 genuine depth passes,129 fully evidence-gated claims,
 
 
 ## Prompt v65 - 2026-10-22T14:28:08.805748+00:00
+Resume the saved ranked research plan. Preserve completed discovery, resolve
+claim-bound gate dissent against primary evidence and keep both trees, llms packs
+and generated website outputs current after each successful cohort.
+
+Outcome: cohort 23 completed after source-reviewed corrections and a fresh
+38-claim bound gate. Both roots and website outputs were verified, and the same
+plan started cohort 24. Diagnostic follow-up: PR 217.
+
+
+## Prompt — 2026-10-22 Cloudflare build repair
+
+The user restored Wrangler login and supplied a fine-grained GitHub key for private library access. Diagnose the Pages failure, configure encrypted credentials and verify the build while preserving private repositories.
+
+
+## Prompt v65 - 2026-10-22T14:28:08.808848+00:00
 - User request:
   - Look at all the frontier and unresearched mongodb concepts and update the research queue to contain them all grouped by concepts that will share source materials. and prioritized by cvs score. Then begin researching them until complete.
 
@@ -890,3 +920,13 @@ Outcome: seven concepts,42 genuine depth passes,129 fully evidence-gated claims,
 
 - User request: Look at all frontier and unresearched MongoDB concepts, include them all in the research queue grouped by shared source materials and prioritized by CVS, then research them until complete.
 - Resumed TASK-832 after loading updated skills. Preserve the frozen exhaustive plan, validated handoffs, verified completions and existing source-review gates.
+## Prompt — 2026-10-23 MLX-LM full suite
+
+- User request: run the full-suite skill on mlx-lm.
+- Applied the current uncapped CFE mapping, source-gated Codex research, concept packs, family rollup, audits and repository delivery. Preserve embeddings and concurrent work.
+# Repository reconciliation — 2026-10-26
+
+User requested committing pending changes and updating this checkout to latest
+main. Reconcile existing draft PR #234, preserve local scratch and blocked vendor
+mirrors, run the required checks, merge the reviewed result, and synchronize the
+shared checkout. Preserve newer main fixes and unique checkpoint research.

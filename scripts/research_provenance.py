@@ -134,14 +134,30 @@ def evidence_id(snapshot, start, end, quote):
 
 
 def record_evidence(library, span):
+    """Keep stable span identity and preserve distinct citation envelopes."""
     snapshot = {'source_id': span['source_id'], 'snapshot_sha256': span['snapshot_sha256'],
                 'snapshot_path': str(Path(library) / 'provenance/snapshots' / (span['snapshot_sha256'] + '.txt'))}
     identity = evidence_id(snapshot, span['start'], span['end'], span['quote'])
     if span.get('evidence_id') != identity:
         raise ValueError('evidence identity changed before archival')
+    body = (json.dumps(span, sort_keys=True, ensure_ascii=False) + '\n').encode()
     with lock(library):
-        immutable(Path(library) / 'provenance/evidence' / (identity[3:] + '.json'),
-                  (json.dumps(span, sort_keys=True, ensure_ascii=False) + '\n').encode())
+        root = Path(library) / 'provenance'
+        primary = root / 'evidence' / (identity[3:] + '.json')
+        if primary.exists():
+            saved = json.loads(primary.read_text(encoding='utf-8'))
+            fields = ('source_id', 'snapshot_sha256', 'start', 'end', 'quote', 'evidence_id')
+            if not isinstance(saved, dict) or any(
+                    type(saved.get(key)) is not type(span[key]) or saved.get(key) != span[key]
+                    for key in fields):
+                raise ValueError('immutable evidence content changed: ' + primary.name)
+            # URLs and other envelope metadata are not part of evidence_id.
+            # Never replace an earlier envelope when a source has aliases.
+            if saved != span:
+                observation = root / 'evidence-observations' / identity[3:] / (digest(span) + '.json')
+                immutable(observation, body)
+        else:
+            immutable(primary, body)
     return identity
 
 

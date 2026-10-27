@@ -27,6 +27,22 @@ Delta: Record the first source-gate failure and continue the remaining MongoDB l
 - The runner refreshed parent context from a 419-URL cohort, bringing the cached-page total to 216 of 588 candidate URLs. It records 380 retrieval misses. Future resumes read `failedUrls` from the Firecrawl receipt and skip known failures; newly referenced URLs still enter the batch.
 - After the run pauses or completes, reconcile the append-only `results.jsonl`, update the row ledger and report, sync only completed findings to both trees, validate both trees, then commit scoped source/research changes. Do not claim completion until every exact label has a terminal outcome.
 
+
+## 2026-10-22 — Cloudflare private-library build authentication
+- TASK-742: restored Wrangler OAuth exposed the exact Pages failure: pip could not authenticate while cloning ollama-client. The site also needs private llms-txt for validation. The user supplied a fine-grained read-only key for both repositories. It was verified and installed as encrypted LIBS_READ_TOKEN in preview and production. Values remain out of repository files and logs.
+- Bootstrap uses host- and repository-restricted Git askpass when that variable is set. Missing Pages credentials fail before installation. Credential-plumbing and CI configuration tests pass; clean bootstrap and live preview validation are in progress.
+
+
+## 2026-10-22 — Validated research release refresh
+- Cloudflare preview c1287f64 successfully deployed the credential repair. Clean bootstrap, dependency checks, validator import and the full local site build pass. Both private library repositories retain their visibility.
+- The release snapshot now contains 1,518 reader packs and 89,213 facts from the latest validated work. All 38 cohort 23 claim IDs, evidence IDs and supported verdicts survive in the readers and canonical downloads. The operator privacy gate passes with 27 private denylist rules. Embeddings remain paused.
+- Clean builds now recreate canonical research JSON downloads from committed reader data. The same projection function serves research refresh and CI. A regression verifies clean generation and retirement when a pack becomes legacy or is removed.
+- Cohort 24 stopped for source review: 27 UNVERIFIED, 14 SUPPORTED and one NOT-IN-SOURCE verdict among 42 selected claims. Its unfinished results are excluded. Cohorts 25-31 remain pending. Production publication awaits final exact-head checks.
+
+- Full release CI found one helper-documentation failure (`git_askpass.py lacks a Usage section`). Added the missing invocation documentation; credential and script-discovery regressions pass. Other release API, privacy, lint, site-build, CodeQL and Cloudflare checks passed. The updated release will be checked again before production.
+
+- Final review fixes (TASK-805): native finish and standalone site sync recover all registered shared projection journals under the global lock. Cross-checkout interrupted writes roll back before new publication, so a later resume cannot erase another run's updates. Legacy journals in all nine local checkouts are complete. Failed or malformed benchmark stages preserve raw attempts and retry independently; successful stages remain cached. Isolated research regressions pass 143 tests plus two subtests. No paid model calls or research-content changes were needed.
+
 - Subsequent final-review fixes (TASK-805): benchmark receipts require exact prompt/model/effort/retrieval fingerprints and bind downstream judges to generation inputs. Explicit name-and-slug merge aliases retire absorbed nodes and preserve canonical reader routes. Artifact enrichment uses full claim identities, retaining equal text with different sources, confidence or verification metadata. All 150 research tests plus four subtests pass. The full site build also passes under upgraded Node.js 26.7.0; cf CLI 1.0.0-beta.19 works.
 
 - Further release review fixes (TASK-805): cancelling the ranked parent now stops and waits for its detached phase and isolated workers, with bounded escalation. Immutable evidence writes flush a complete temporary file before atomic installation, so disk failures remain retryable. Canonical concept IDs freeze collision-free hub slugs before projection and verify the actual hub allocation. Canonical serialization is deterministic. All 154 research tests plus four subtests pass; no paid research or content refresh was repeated.
