@@ -1,5 +1,13 @@
 # Memory Log
 
+## v0.22.57 - 2026-10-27
+
+- TASK-929 checkpoint: sealed depth passes 1–5 yield 52/128 (40.625%), 16/144 (11.111%), 22/164 (13.415%, after two retirements), 27/191 (14.136%) and 18/209 (8.612%). Each sealed snapshot has matching hashes, IDs, claim/delta counts and independent evidence review. Pass 6 is the final hard-cap pass. The verdict must be BUDGET_EXHAUSTED because pass 5 exceeded 5%; two low passes cannot occur before the cap.
+- TASK-931 remains in progress. Private root: /Users/mitch/.global-ai-hub/research/hermes-agent-rabbithole-2026-10-27. Depth author will write final metrics/dossier/handoff, then adapter claims-check and concept-done. Parent must render the dossier, gate all final structured claims, finish dual-root/site outputs, set existing depthPass/depthVerdict/researchDir metadata and run explicit worktree site sync. Source bodies and raw logs remain private. Embeddings stay paused.
+- PR 242 is draft at https://github.com/mithudso/llms-explorer/pull/242 . Its checkpoint head 409294f1 passes all CI, including private libraries, API, hub, site and CLI/TUI tests. The user’s subsequent gh auth login device attempt timed out; existing keyring authentication still passes auth status and PR read. No new login or credential rotation is needed. Authentication codes are omitted from project logs.
+- The site binding uses the /Users/mitch.hudson alias that resolves to /Users/mitch/dev/llms-explorer, the original divergent checkout. Preserve it. During depth metadata edits, hold the research global lock, disable the implicit site hook, save both trees with the canonical helper, release the lock, then explicitly refresh /Users/mitch/dev/worktrees/llms-explorer-hermes-rabbithole-20261027. The adapter finish selects that worktree explicitly.
+- Remaining: pass 6 and final canonical recording; render/all-claim gate; finish/tag/site refresh; site build/tests/privacy; final scoped commit/push/CI/merge and worktree cleanup. Delta: memory 0.22.56 to 0.22.57; prompt v68 to v69; research report 1.0.2 to 1.0.3.
+
 ## v0.22.56 - 2026-10-27
 
 - TASK-929 checkpoint: pass 3 adds 22/164 atoms (13.415%) after retiring two methodological interpretations from the factual claim set. The first three rates are 40.625%, 11.111%, 13.415%; no saturation. TASK-931 continues pass 4 with durable gateway admission, crash recovery, authorization and scheduler/session concurrency. Exact private passage/hash bindings and independent audit are preserved under /Users/mitch/.global-ai-hub/research/hermes-agent-rabbithole-2026-10-27/depth/.
