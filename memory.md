@@ -2,7 +2,7 @@
 
 ## v0.22.55 - 2026-10-27
 
-- TASK-944 added21new pending MongoDB topics across13parents after26scored proposals and independent source/fact-layer review. Both trees, queues and scores preserve metadata and254historical files. The54-topic native plan groups research into29cohorts with Sol/medium and four workers. Preserve completed local and unavailable remote plans.
+- TASK-944 added21new pending MongoDB topics across13parents after26scored proposals and independent source/fact-layer review. Both trees, queues and scores preserve metadata and254historical files. The54-topic native plan is running from the separate mongodb-queue-20261027 worktree in29cohorts with Sol/medium and four workers.129focused tests and the site build pass. Preserve completed local and unavailable remote plans.
 - Continuation: docs/research/mongodb-frontier-research-2026-10-27/memory.md. Delta: memory0.22.54 to0.22.55; promptv67 tov68.
 
 ## v0.22.54 - 2026-10-24

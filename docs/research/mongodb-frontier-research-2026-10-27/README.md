@@ -1,8 +1,8 @@
 # MongoDB frontier research — October27,2026
 
-Version: 1.1.0
-Delta: 1.0.0 to1.1.0; completed source, novelty and CVS review.
-Status:21pending additions applied and locally verified;54-topic research plan ready.
+Version: 1.2.0
+Delta: 1.1.0 to1.2.0; guarded application,129tests and native research launch.
+Status:21pending additions applied and verified;54-topic native research runner started.
 
 This round examined26proposals. It retained21new local gaps under13existing parents and recorded5covered proposals as SKIP. All26rows passed the canonical CVS checker. Independent review verified68source reads and235exact private spans. These are planning inputs; no new claim research is certified by this expansion. No saturation assertion is made.
 
@@ -55,3 +55,9 @@ Pending candidates receive raw parent child links, unchecked queue rows and CVS 
 Parent task TASK-944; inventory TASK-945; expansion TASK-946; research/delivery TASK-947. Versioned state and the exact prompt are adjacent. Runtime checkout: /Users/mitch/dev/worktrees/llms-explorer-mongodb-queue-20261027. New plan: /Users/mitch/.global-ai-hub/research/.ranked/mongodb-local-20261027/plan.json. Source: /Users/mitch/.global-ai-hub/research/.ranked/mongodb-local-20261027/round-source.md.
 
 The launch accounts for every eligible topic in this54-concept input, with no concept-count cap. Research progress and planning coverage are separate. The original divergent checkout remains preserved. Read live progress with the native status command in memory.md.
+
+## Execution snapshot
+
+The runner started at 2026-10-27T16:59:20.218492+00:00. The plan has54eligible topics in29cohorts. The active cohort is ranked-40fb1cf4, with four concepts: Queryable Encryption string queries, pre-authentication resource limits, DEK rewrapping and encrypted metadata compaction. The live processes use gpt-6.1-sol at medium effort. Research and gates remain in progress; process liveness is not claim completion.
+
+Local validation passed129focused tests and the site build/publication policy. Both queue prefixes and existing node metadata are preserved;254historical plan/manifest/pipeline files are unchanged. Native scratch idempotence changed0bytes. All21new candidates remain pending until native completion passes its own gates.
