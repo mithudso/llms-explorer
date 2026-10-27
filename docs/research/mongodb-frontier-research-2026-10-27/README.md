@@ -1,14 +1,14 @@
-# MongoDB frontier research — October27,2026
+# MongoDB frontier research — October 27, 2026
 
-Version: 1.2.0
-Delta: 1.1.0 to1.2.0; guarded application,129tests and native research launch.
-Status:21pending additions applied and verified;54-topic native research runner started.
+Version: 1.3.0
+Delta: 1.2.0 to 1.3.0; independent live verification and preview authentication failure recorded.
+Status: 21 pending topics added; 54-topic research queue running; PR 243 awaits preview credential repair.
 
-This round examined26proposals. It retained21new local gaps under13existing parents and recorded5covered proposals as SKIP. All26rows passed the canonical CVS checker. Independent review verified68source reads and235exact private spans. These are planning inputs; no new claim research is certified by this expansion. No saturation assertion is made.
+This pass reviewed 26 proposals. It retained 21 new local gaps under 13 existing parents and recorded five covered proposals as SKIP. The canonical CVS checker passed all 26 rows. An independent audit verified 68 source reads and 235 exact private spans. These are qualified research inputs. This expansion certifies no new researched claims and makes no saturation assertion.
 
-The earlier expansion left33locally pending concepts. The native ownership and coverage check accepted all54concepts in29source-sharing cohorts. It preserves the completed October24 local plan, the unavailable October22 remote plan and prior reservations. Remote overlap remains unknown.
+The new native plan combines 33 earlier pending topics with these 21 additions. Its ownership and coverage check accepted all 54 topics in 29 source-sharing cohorts. The completed October 24 local plan, the unavailable October 22 remote plan, and older reservations remain intact. Remote overlap remains unknown.
 
-## New research topics
+## New topics
 
 | Topic | Parent | CVS |
 |---|---|---:|
@@ -36,28 +36,30 @@ The earlier expansion left33locally pending concepts. The native ownership and c
 
 ## Covered proposals
 
-- ODM index synchronization and simple-collation upgrade hazards — existing fact-level coverage; Novelty0 hard gate.
-- Aggregation array-element index variables and scoping — existing fact-level coverage; Novelty0 hard gate.
-- Full-text TextOr memory limits and disk spilling — existing fact-level coverage; Novelty0 hard gate.
-- Time-series single-namespace storage and rename compatibility — existing fact-level coverage; Novelty0 hard gate.
-- GeoJSON precedence and mixed-coordinate index rebuilds — existing fact-level coverage; Novelty0 hard gate.
+- ODM index synchronization and simple-collation upgrade hazards — existing fact-level coverage; Novelty 0 hard gate.
+- Aggregation array-element index variables and scoping — existing fact-level coverage; Novelty 0 hard gate.
+- Full-text TextOr memory limits and disk spilling — existing fact-level coverage; Novelty 0 hard gate.
+- Time-series single-namespace storage and rename compatibility — existing fact-level coverage; Novelty 0 hard gate.
+- GeoJSON precedence and mixed-coordinate index rebuilds — existing fact-level coverage; Novelty 0 hard gate.
 
-The review also corrected server-internal parent placement, separated generic coverage from narrower missing deltas, and preserved version and backport limits. Full rationales and primary-source leads are in scores.json. Source snapshots and exact spans remain private.
+The audit corrected three server-internal parent placements, narrowed partial overlaps, and preserved version and backport limits. The score table retains rationales and primary-source URLs. Source bodies and exact evidence spans stay private.
 
-## Research contract
+## Research execution
 
-Use the current repository adapter, gpt-6.1-sol at medium effort, four concurrent workers, the private shared source library, deliberate deeper-source scouting and one conditional follow-up. Group cohorts by parent and likely shared sources. Each concept retains separate claims, origin qualification and verification. Bound gate verdicts pin current claims and immutable source spans. Non-supported gates withhold promotion while independent remaining cohorts continue.
+The native runner started at 2026-10-27T16:59:20Z. It uses gpt-6.1-sol at medium effort, four workers, the shared private source library, deeper-source scouting, and one conditional follow-up. Each concept retains separate claims and origin qualification. Bound gates pin the current claims and immutable source spans. Non-supported gates withhold promotion while independent cohorts continue.
 
-Pending candidates receive raw parent child links, unchecked queue rows and CVS scores. They receive no new researched dates, claims or skills. Native completion must export both trees, llms packs and local website data before its queue rows complete. Source bodies, evidence spans and model logs remain private. Embeddings and paused model services remain paused.
+The first cohort, ranked-40fb1cf4, covers encryption string queries, pre-authentication limits, DEK rewrapping, and encrypted metadata compaction. Independent live verification observed four workers and 56 registered source URLs with substantive cached bodies. No claims, gates, or promotions existed at that observation. Process liveness does not establish research completion.
+
+Native completion must export both trees, llms packs, and local website data before completing queue rows. The batch marker reserves exactly 54 topics. The DR holder also displays the existing cohort parent, so the combined reservation display contains 55 labels. Actual research assignments remain 54. Embeddings and paused model services stay paused.
+
+## Validation and delivery
+
+Local checks passed 129 focused tests and the site build/publication policy. Both trees retain their existing node metadata and queue prefixes. All 254 protected historical files are unchanged. Native scratch idempotence changed zero bytes. Pending labels received no new research dates, claims, or skills.
+
+PR 243 is a draft while Cloudflare preview fails to authenticate to the private ollama-client dependency. The downloaded build log reports: `remote: Invalid username or token. Password authentication is not supported for Git operations.` The existing Preview LIBS_READ_TOKEN needs user replacement. GitHub checks have passed except the longer site workflow, which was still running at this snapshot. No failing check is bypassed.
+
+https://github.com/mithudso/llms-explorer/pull/243
 
 ## Continuation
 
-Parent task TASK-944; inventory TASK-945; expansion TASK-946; research/delivery TASK-947. Versioned state and the exact prompt are adjacent. Runtime checkout: /Users/mitch/dev/worktrees/llms-explorer-mongodb-queue-20261027. New plan: /Users/mitch/.global-ai-hub/research/.ranked/mongodb-local-20261027/plan.json. Source: /Users/mitch/.global-ai-hub/research/.ranked/mongodb-local-20261027/round-source.md.
-
-The launch accounts for every eligible topic in this54-concept input, with no concept-count cap. Research progress and planning coverage are separate. The original divergent checkout remains preserved. Read live progress with the native status command in memory.md.
-
-## Execution snapshot
-
-The runner started at 2026-10-27T16:59:20.218492+00:00. The plan has54eligible topics in29cohorts. The active cohort is ranked-40fb1cf4, with four concepts: Queryable Encryption string queries, pre-authentication resource limits, DEK rewrapping and encrypted metadata compaction. The live processes use gpt-6.1-sol at medium effort. Research and gates remain in progress; process liveness is not claim completion.
-
-Local validation passed129focused tests and the site build/publication policy. Both queue prefixes and existing node metadata are preserved;254historical plan/manifest/pipeline files are unchanged. Native scratch idempotence changed0bytes. All21new candidates remain pending until native completion passes its own gates.
+TASK-944 tracks expansion and initiation; TASK-947 tracks delivery. TASK-950 owns the continuing 54-topic queue. Preserve the active runtime checkout at /Users/mitch/dev/worktrees/llms-explorer-mongodb-queue-20261027. The new plan is /Users/mitch/.global-ai-hub/research/.ranked/mongodb-local-20261027/plan.json. Source and launch receipts are beside it. Exact commands and remaining steps are in memory.md. There is no concept-count cap. The original divergent checkout remains preserved.

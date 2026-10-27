@@ -2,8 +2,9 @@
 
 ## v0.22.55 - 2026-10-27
 
-- TASK-944 added21new pending MongoDB topics across13parents after26scored proposals and independent source/fact-layer review. Both trees, queues and scores preserve metadata and254historical files. The54-topic native plan is running from the separate mongodb-queue-20261027 worktree in29cohorts with Sol/medium and four workers.129focused tests and the site build pass. Preserve completed local and unavailable remote plans.
-- Continuation: docs/research/mongodb-frontier-research-2026-10-27/memory.md. Delta: memory0.22.54 to0.22.55; promptv67 tov68.
+- TASK-944 added 21 pending MongoDB topics across 13 parents after 26 scored proposals and independent source/fact-layer review. Both trees, queues, and scores preserve metadata and 254 historical files. The 54-topic native plan is running in 29 cohorts with four Sol/medium workers. TASK-950 owns its continuing outcomes. All 129 focused tests and the site build pass.
+- PR 243 is a draft because Cloudflare preview cannot authenticate to private ollama-client. The existing Preview LIBS_READ_TOKEN needs user replacement; no failing check was bypassed. Preserve the active runtime checkout and old plans.
+- Continuation: docs/research/mongodb-frontier-research-2026-10-27/memory.md. Delta: memory 0.22.54 to 0.22.55; prompt v67 to v68.
 
 ## v0.22.54 - 2026-10-24
 
