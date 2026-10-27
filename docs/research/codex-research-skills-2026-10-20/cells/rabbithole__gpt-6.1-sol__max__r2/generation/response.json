@@ -1,0 +1,335 @@
+{
+  "concepts": [
+    {"id":"c1","name":"SQLite WAL checkpointing","parent":"c2","neighborhood":"internal","decision":"RESEARCH","reason":"This is the sole concept being deepened."},
+    {"id":"c2","name":"SQLite write-ahead logging","parent":"SQLite database journaling","neighborhood":"parent","decision":"SKIP","reason":"The parent mechanism supplies context but exceeds the checkpointing boundary."},
+    {"id":"c3","name":"Automatic checkpointing","parent":"c1","neighborhood":"sub-concept","decision":"RESEARCH","reason":"Its triggers and configuration control checkpoint invocation."},
+    {"id":"c4","name":"Reader end marks","parent":"c1","neighborhood":"internal","decision":"RESEARCH","reason":"Reader end marks constrain checkpoint progress."},
+    {"id":"c5","name":"Partial checkpoint progress","parent":"c1","neighborhood":"internal","decision":"RESEARCH","reason":"Progress tracking explains how interrupted checkpoint work resumes."},
+    {"id":"c6","name":"WAL recycling","parent":"c1","neighborhood":"internal","decision":"RESEARCH","reason":"Recycling conditions distinguish checkpoint completion from file truncation."},
+    {"id":"c7","name":"WAL-size read penalty","parent":"c1","neighborhood":"internal","decision":"RESEARCH","reason":"The read penalty explains a performance motivation for checkpointing."},
+    {"id":"c8","name":"Checkpoint durability barriers","parent":"c1","neighborhood":"internal","decision":"RESEARCH","reason":"Synchronization ordering governs checkpoint safety."},
+    {"id":"c9","name":"SQLITE_CHECKPOINT_PASSIVE","parent":"c1","neighborhood":"sub-concept","decision":"RESEARCH","reason":"This mode defines checkpoint behavior without waiting for readers or writers."},
+    {"id":"c10","name":"SQLITE_CHECKPOINT_FULL","parent":"c1","neighborhood":"sub-concept","decision":"RESEARCH","reason":"This mode adds explicit completion and concurrency conditions."},
+    {"id":"c11","name":"SQLITE_CHECKPOINT_RESTART","parent":"c1","neighborhood":"sub-concept","decision":"RESEARCH","reason":"This mode adds conditions for restarting the WAL."},
+    {"id":"c12","name":"SQLITE_CHECKPOINT_TRUNCATE","parent":"c1","neighborhood":"sub-concept","decision":"RESEARCH","reason":"This mode adds physical truncation to checkpoint completion."},
+    {"id":"c13","name":"SQLITE_CHECKPOINT_NOOP","parent":"c1","neighborhood":"sub-concept","decision":"RESEARCH","reason":"This mode exposes checkpoint status without checkpointing frames."},
+    {"id":"c14","name":"Checkpoint lock","parent":"c1","neighborhood":"internal","decision":"RESEARCH","reason":"This lock controls competition between checkpoint operations."},
+    {"id":"c15","name":"Writer lock during checkpoints","parent":"c1","neighborhood":"internal","decision":"RESEARCH","reason":"Writer-lock acquisition explains waiting in stronger checkpoint modes."},
+    {"id":"c16","name":"Busy-handler fallback","parent":"c1","neighborhood":"internal","decision":"RESEARCH","reason":"Fallback behavior qualifies the stronger modes' completion guarantees."},
+    {"id":"c17","name":"Checkpoint starvation","parent":"c1","neighborhood":"internal","decision":"RESEARCH","reason":"Overlapping readers expose a checkpoint progress failure mode."},
+    {"id":"c18","name":"Large-transaction checkpoint limits","parent":"c1","neighborhood":"internal","decision":"RESEARCH","reason":"Large transactions expose reset boundaries and the packet's dated historical change."},
+    {"id":"c19","name":"Checkpoint frame counters","parent":"c1","neighborhood":"internal","decision":"RESEARCH","reason":"Counter semantics determine how checkpoint progress can be observed."},
+    {"id":"c20","name":"Rollback journaling","parent":"SQLite database journaling","neighborhood":"adjacent","decision":"SKIP","reason":"Its recovery mechanism belongs in a separate investigation."},
+    {"id":"c21","name":"WAL commit protocol","parent":"c2","neighborhood":"sibling","decision":"SKIP","reason":"Transaction commit mechanics extend beyond checkpointing."},
+    {"id":"c22","name":"WAL-index reader lookup","parent":"c2","neighborhood":"sibling","decision":"SKIP","reason":"Reader lookup internals extend beyond the wal-index's checkpoint progress role."}
+  ],
+  "claims": [
+    {
+      "id":"f1",
+      "concept_id":"c1",
+      "text":"Checkpointing moves WAL transactions back into the database.",
+      "source_id":"S1",
+      "quote":"Moving the WAL file transactions back into the database is called a \" checkpoint \".",
+      "pass":0
+    },
+    {
+      "id":"f2",
+      "concept_id":"c3",
+      "text":"With the default 1000-page threshold, a COMMIT leaving the WAL at 1000 pages or more triggers an automatic checkpoint.",
+      "source_id":"S1",
+      "quote":"By default, SQLite will automatically checkpoint whenever a COMMIT occurs that causes the WAL file to be 1000 pages or more in size, or when the last database connection on a database file closes.",
+      "pass":0
+    },
+    {
+      "id":"f3",
+      "concept_id":"c3",
+      "text":"Automatic checkpoints use PASSIVE mode.",
+      "source_id":"S1",
+      "quote":"All checkpoints initiated by sqlite3_wal_checkpoint() and by the automatic checkpoint mechanism are PASSIVE.",
+      "pass":0
+    },
+    {
+      "id":"f4",
+      "concept_id":"c4",
+      "text":"A reader's end mark identifies the last valid WAL commit record when its read operation begins.",
+      "source_id":"S1",
+      "quote":"When a read operation begins on a WAL-mode database, it first remembers the location of the last valid commit record in the WAL. Call this point the \"end mark\".",
+      "pass":0
+    },
+    {
+      "id":"f5",
+      "concept_id":"c4",
+      "text":"A concurrent checkpoint must stop when it reaches a WAL page past any current reader's end mark.",
+      "source_id":"S1",
+      "quote":"A checkpoint can run concurrently with readers, however the checkpoint must stop when it reaches a page in the WAL that is past the end mark of any current reader.",
+      "pass":0
+    },
+    {
+      "id":"f6",
+      "concept_id":"c5",
+      "text":"A partial checkpoint records progress in the wal-index so its next invocation resumes from that position.",
+      "source_id":"S1",
+      "quote":"The checkpoint remembers (in the wal-index) how far it got and will resume transferring content from the WAL to the database from where it left off on the next invocation.",
+      "pass":0
+    },
+    {
+      "id":"f7",
+      "concept_id":"c6",
+      "text":"Checkpointing normally causes WAL reuse from the beginning without truncation, with journal_size_limit identified as an exception.",
+      "source_id":"S1",
+      "quote":"The checkpoint does not normally truncate the WAL file (unless the journal_size_limit pragma is set). Instead, it merely causes SQLite to start overwriting the WAL file from the beginning.",
+      "pass":0
+    },
+    {
+      "id":"f8",
+      "concept_id":"c9",
+      "text":"SQLITE_CHECKPOINT_PASSIVE checkpoints as many frames as possible without waiting for readers or writers to finish.",
+      "source_id":"S2",
+      "quote":"SQLITE_CHECKPOINT_PASSIVE Checkpoint as many frames as possible without waiting for any database readers or writers to finish, then sync the database file if all frames in the log were checkpointed.",
+      "pass":0
+    },
+    {
+      "id":"f9",
+      "concept_id":"c10",
+      "text":"SQLITE_CHECKPOINT_FULL waits until no writer remains and all readers use the most recent snapshot, then checkpoints all log frames and syncs the database file.",
+      "source_id":"S2",
+      "quote":"until there is no database writer and all readers are reading from the most recent database snapshot. It then checkpoints all frames in the log file and syncs the database file.",
+      "pass":0
+    },
+    {
+      "id":"f10",
+      "concept_id":"c7",
+      "text":"WAL growth degrades read performance because readers must check the WAL for content.",
+      "source_id":"S1",
+      "quote":"read performance deteriorates as the WAL file grows in size since each reader must check the WAL file for the content",
+      "pass":0
+    },
+    {
+      "id":"f11",
+      "concept_id":"c4",
+      "text":"Advancing a checkpoint past a current reader's end mark could overwrite database content that reader is actively using.",
+      "source_id":"S1",
+      "quote":"The checkpoint has to stop at that point because otherwise it might overwrite part of the database file that the reader is actively using.",
+      "pass":1
+    },
+    {
+      "id":"f12",
+      "concept_id":"c8",
+      "text":"The WAL must be synced to persistent storage before checkpointing moves its content into the database.",
+      "source_id":"S1",
+      "quote":"The WAL must be synced to persistent storage prior to moving content from the WAL into the database",
+      "pass":1
+    },
+    {
+      "id":"f13",
+      "concept_id":"c8",
+      "text":"The database file must be synced before the WAL is reset.",
+      "source_id":"S1",
+      "quote":"The WAL must be synced to persistent storage prior to moving content from the WAL into the database and the database file must be synced prior to resetting the WAL.",
+      "pass":1
+    },
+    {
+      "id":"f14",
+      "concept_id":"c6",
+      "text":"The writer rewinds the WAL when its entire contents have been transferred and synced and no readers are using the WAL.",
+      "source_id":"S1",
+      "quote":"if the entire WAL has been transferred into the database and synced and if no readers are making use of the WAL, then the writer will rewind the WAL back to the beginning",
+      "pass":1
+    },
+    {
+      "id":"f15",
+      "concept_id":"c11",
+      "text":"After checkpointing, SQLITE_CHECKPOINT_RESTART waits until all readers use only the database file, ensuring that the next writer restarts the WAL from its beginning.",
+      "source_id":"S2",
+      "quote":"after checkpointing the log file it blocks (calls the busy-handler callback ) until all readers are reading from the database file only. This ensures that the next writer will restart the log file from the beginning.",
+      "pass":1
+    },
+    {
+      "id":"f16",
+      "concept_id":"c12",
+      "text":"SQLITE_CHECKPOINT_TRUNCATE adds truncation of the log to zero bytes immediately before successful return to SQLITE_CHECKPOINT_RESTART behavior.",
+      "source_id":"S2",
+      "quote":"SQLITE_CHECKPOINT_TRUNCATE This mode works the same way as SQLITE_CHECKPOINT_RESTART with the addition that it also truncates the log file to zero bytes just prior to a successful return.",
+      "pass":1
+    },
+    {
+      "id":"f17",
+      "concept_id":"c13",
+      "text":"SQLITE_CHECKPOINT_NOOP checkpoints zero frames while providing status through *pnLog and *pnCkpt.",
+      "source_id":"S2",
+      "quote":"SQLITE_CHECKPOINT_NOOP This mode always checkpoints zero frames. The only reason to invoke a NOOP checkpoint is to access the values returned by sqlite3_wal_checkpoint_v2() via output parameters *pnLog and *pnCkpt.",
+      "pass":1
+    },
+    {
+      "id":"f18",
+      "concept_id":"c9",
+      "text":"SQLITE_CHECKPOINT_PASSIVE never invokes the busy-handler callback.",
+      "source_id":"S2",
+      "quote":"The busy-handler callback is never invoked in the SQLITE_CHECKPOINT_PASSIVE mode. On the other hand, passive mode might leave the checkpoint unfinished if there are concurrent readers or writers.",
+      "pass":1
+    },
+    {
+      "id":"f19",
+      "concept_id":"c10",
+      "text":"While SQLITE_CHECKPOINT_FULL is pending, it blocks new writers but allows new readers to continue unimpeded.",
+      "source_id":"S2",
+      "quote":"This mode blocks new database writers while it is pending, but new database readers are allowed to continue unimpeded.",
+      "pass":1
+    },
+    {
+      "id":"f20",
+      "concept_id":"c11",
+      "text":"S2 states that pending SQLITE_CHECKPOINT_RESTART blocks new writer attempts but does not impede readers.",
+      "source_id":"S2",
+      "quote":"Like SQLITE_CHECKPOINT_FULL, this mode blocks new database writer attempts while it is pending, but does not impede readers.",
+      "pass":1
+    },
+    {
+      "id":"f21",
+      "concept_id":"c1",
+      "text":"S1 warns that readers might block while SQLITE_CHECKPOINT_RESTART or SQLITE_CHECKPOINT_TRUNCATE is running.",
+      "source_id":"S1",
+      "quote":"The disadvantage of using SQLITE_CHECKPOINT_RESTART and SQLITE_CHECKPOINT_TRUNCATE is that readers might block while the checkpoint is running.",
+      "pass":2
+    },
+    {
+      "id":"f22",
+      "concept_id":"c14",
+      "text":"Checkpoint calls require an exclusive checkpoint lock and return SQLITE_BUSY if another process's checkpoint prevents acquisition.",
+      "source_id":"S2",
+      "quote":"All calls obtain an exclusive \"checkpoint\" lock on the database file. If any other process is running a checkpoint operation at the same time, the lock cannot be obtained and SQLITE_BUSY is returned.",
+      "pass":2
+    },
+    {
+      "id":"f23",
+      "concept_id":"c14",
+      "text":"Failure to acquire the checkpoint lock does not invoke even a configured busy handler.",
+      "source_id":"S2",
+      "quote":"the lock cannot be obtained and SQLITE_BUSY is returned. Even if there is a busy-handler configured, it will not be invoked in this case.",
+      "pass":2
+    },
+    {
+      "id":"f24",
+      "concept_id":"c15",
+      "text":"SQLITE_CHECKPOINT_FULL, SQLITE_CHECKPOINT_RESTART and SQLITE_CHECKPOINT_TRUNCATE invoke a configured busy handler if they cannot immediately acquire the exclusive writer lock.",
+      "source_id":"S2",
+      "quote":"The SQLITE_CHECKPOINT_FULL, RESTART and TRUNCATE modes also obtain the exclusive \"writer\" lock on the database file. If the writer lock cannot be obtained immediately, and a busy-handler is configured, it is invoked",
+      "pass":2
+    },
+    {
+      "id":"f25",
+      "concept_id":"c16",
+      "text":"If the busy handler returns 0 while acquiring the writer lock or waiting for readers, checkpointing falls back to SQLITE_CHECKPOINT_PASSIVE behavior.",
+      "source_id":"S2",
+      "quote":"If the busy-handler returns 0 before the writer lock is obtained or while waiting for database readers, the checkpoint operation proceeds from that point in the same way as SQLITE_CHECKPOINT_PASSIVE",
+      "pass":2
+    },
+    {
+      "id":"f26",
+      "concept_id":"c16",
+      "text":"The fallback to SQLITE_CHECKPOINT_PASSIVE after the busy handler stops waiting returns SQLITE_BUSY.",
+      "source_id":"S2",
+      "quote":"the checkpoint operation proceeds from that point in the same way as SQLITE_CHECKPOINT_PASSIVE - checkpointing as many frames as possible without blocking any further. SQLITE_BUSY is returned in this case.",
+      "pass":2
+    },
+    {
+      "id":"f27",
+      "concept_id":"c3",
+      "text":"Passing N equal to zero or a negative value to sqlite3_wal_autocheckpoint() disables automatic checkpoints.",
+      "source_id":"S3",
+      "quote":"Passing zero or a negative value as the N parameter disables automatic checkpoints entirely.",
+      "pass":2
+    },
+    {
+      "id":"f28",
+      "concept_id":"c3",
+      "text":"Registering a sqlite3_wal_hook() callback disables automatic checkpointing configured through sqlite3_wal_autocheckpoint().",
+      "source_id":"S3",
+      "quote":"Likewise, registering a callback using sqlite3_wal_hook() disables the automatic checkpoint mechanism configured by this function.",
+      "pass":2
+    },
+    {
+      "id":"f29",
+      "concept_id":"c17",
+      "text":"Continuously overlapping read transactions can starve checkpoint completion and allow unbounded WAL growth.",
+      "source_id":"S1",
+      "quote":"However, if a database has many concurrent overlapping readers and there is always at least one active reader, then no checkpoints will be able to complete and hence the WAL file will grow without bound.",
+      "pass":2
+    },
+    {
+      "id":"f30",
+      "concept_id":"c18",
+      "text":"The WAL cannot be reset in the middle of a write transaction.",
+      "source_id":"S1",
+      "quote":"A checkpoint can only complete when no other transactions are running, which means the WAL file cannot be reset in the middle of a write transaction.",
+      "pass":2
+    },
+    {
+      "id":"f31",
+      "concept_id":"c18",
+      "text":"As of SQLite 3.11.0 (2016-02-15), pages changed by a transaction should be written into the WAL only once.",
+      "source_id":"S1",
+      "quote":"As of SQLite version 3.11.0 (2016-02-15), the WAL file for a single transaction should be proportional in size to the transaction itself. Pages that are changed by the transaction should only be written into the WAL file once.",
+      "pass":3
+    },
+    {
+      "id":"f32",
+      "concept_id":"c18",
+      "text":"Older SQLite versions could write the same page into the WAL multiple times when a transaction exceeded the page cache.",
+      "source_id":"S1",
+      "quote":"However, with older versions of SQLite, the same page might be written into the WAL file multiple times if the transaction grows larger than the page cache.",
+      "pass":3
+    },
+    {
+      "id":"f33",
+      "concept_id":"c8",
+      "text":"With PRAGMA synchronous set to NORMAL in WAL mode, checkpointing is the only operation that issues an I/O barrier or sync operation.",
+      "source_id":"S1",
+      "quote":"Note that with PRAGMA synchronous set to NORMAL, the checkpoint is the only operation to issue an I/O barrier or sync operation (fsync() on unix or FlushFileBuffers() on windows).",
+      "pass":3
+    },
+    {
+      "id":"f34",
+      "concept_id":"c19",
+      "text":"For a single named database, *pnLog reports the WAL frame count, or -1 when an error or non-WAL mode prevents checkpointing.",
+      "source_id":"S2",
+      "quote":"*pnLog is set to the total number of frames in the log file or to -1 if the checkpoint could not run because of an error or because the database is not in WAL mode",
+      "pass":3
+    },
+    {
+      "id":"f35",
+      "concept_id":"c19",
+      "text":"The checkpointed-frame count in *pnCkpt includes frames checkpointed before the current call.",
+      "source_id":"S2",
+      "quote":"*pnCkpt is set to the total number of checkpointed frames in the log file (including any that were already checkpointed before the function was called)",
+      "pass":3
+    },
+    {
+      "id":"f36",
+      "concept_id":"c19",
+      "text":"When checkpointing all attached WAL databases, the values written to *pnLog and *pnCkpt are undefined.",
+      "source_id":"S2",
+      "quote":"the specified operation is attempted on all WAL databases attached to database connection db. In this case the values written to output parameters *pnLog and *pnCkpt are undefined.",
+      "pass":3
+    }
+  ],
+  "passes": [
+    {"pass":0,"new_claims":10,"total_claims":10,"new_information_rate":1.0},
+    {"pass":1,"new_claims":10,"total_claims":20,"new_information_rate":0.5},
+    {"pass":2,"new_claims":10,"total_claims":30,"new_information_rate":0.3333333333333333},
+    {"pass":3,"new_claims":6,"total_claims":36,"new_information_rate":0.16666666666666666}
+  ],
+  "handoffs": [
+    {"concept_id":"c20","name":"Rollback journaling","target":"concept-family-explorer","reason":"Investigate its recovery mechanism separately from WAL checkpointing."},
+    {"concept_id":"c21","name":"WAL commit protocol","target":"concept-family-explorer","reason":"Investigate transaction append and commit mechanics as a sibling operation."},
+    {"concept_id":"c22","name":"WAL-index reader lookup","target":"concept-family-explorer","reason":"Investigate page lookup and shared-memory internals separately from checkpoint progress tracking."}
+  ],
+  "verdict":"BUDGET_EXHAUSTED",
+  "limitations": [
+    "Only the frozen S1-S3 extracts were used; runtime behavior and external sources were not checked.",
+    "All six deepening questions were considered against the accumulated claims. Mechanism, limits, exceptions and primary-source wording supplied evidence. Historical evidence is limited to S1's 3.11.0 large-transaction change; no independent expert disagreement or earliest checkpoint source is supplied.",
+    "S1 warns that RESTART/TRUNCATE may block readers (f21), while S2 says RESTART does not impede readers (f20) and TRUNCATE inherits RESTART behavior (f16). The packet does not explain this tension or establish a disagreement between identified experts.",
+    "S1 lists three checkpoint subtypes and later mentions RESET; S2 lists five explicit mode constants. The packet establishes neither a chronology for these descriptions nor a RESET alias.",
+    "The hard budget ended after three deepening passes at a new-information rate of 6/36, or 16.67%. No two consecutive passes scored below 5%, so depth saturation is not established. At least one further pass could examine unexpanded checkpoint timing, hook replacement, reader-gap mitigation and multi-database dispatch/error details; a precise remaining-pass estimate is unsupported."
+  ]
+}

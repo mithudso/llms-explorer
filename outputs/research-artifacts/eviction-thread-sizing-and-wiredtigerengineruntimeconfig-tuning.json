@@ -1,0 +1,255 @@
+{
+  "schema": "research-public-artifact/v1",
+  "concept": "Eviction thread sizing and wiredTigerEngineRuntimeConfig tuning",
+  "slug": "eviction-thread-sizing-and-wiredtigerengineruntimeconfig-tuning",
+  "canonical_concept_id": "concept:47076b8658d13e5919be2fa314e77991083af730a76f9994387cdbffd69e50bb",
+  "canonical_artifact_sha256": "76d76ce2663de94dd9f1886653f94a668a49b4679f47e85c6e9fca713e649db4",
+  "claims": [
+    {
+      "id": "clm:f9bffd288c0d51f9eafee3293ae879f306996a020c154b8915789bdcc6595ed2",
+      "text": "Before increasing workers, examine whether eviction can supply enough candidates. WT-18829 describes a high-data-handle customer workload in which candidate supply capped throughput and extra workers did not help. The issue uses FTDC but explicitly labels the per-tree dirty-content distribution as an inference because the needed per-collection statistics were absent. (low confidence)",
+      "source_url": "https://jira.mongodb.org/browse/WT-18829",
+      "also": [],
+      "validation_status": "SUPPORTED",
+      "evidence_ids": [
+        "ev:5e8ac3c4b61f37260886393bb2c5167af1860b30ef60e209d1913b3aeb483213"
+      ]
+    },
+    {
+      "id": "clm:fbd0c547ac7318b758302e9dd24be0f05ef4dc1dbc0fee0e2c9a2d14f17e2f88",
+      "text": "The runtime configuration mechanism is db.adminCommand({setParameter:1,wiredTigerEngineRuntimeConfig:\"eviction=(threads_min=4,threads_max=4)\"}). The values illustrate syntax, not a tuning recommendation. MongoDB documents this parameter as runtime-only; startup persistence requires a separate startup configuration mechanism. (high confidence)",
+      "source_url": "https://www.mongodb.com/docs/manual/reference/parameters/",
+      "also": [
+        "https://groups.google.com/g/wiredtiger-users/c/zNVzB6ZrYt4/m/YHjzWb2ECQAJ"
+      ],
+      "validation_status": "SUPPORTED",
+      "evidence_ids": [
+        "ev:35f2fc09549a3ddb4952cfb40386750e2bd8375c943c111d4c969738b9ea8f98",
+        "ev:ba2e530f3b15e7f5a61aa9ce27776f77d1951a6a3012168023c2580be05e50cb"
+      ]
+    },
+    {
+      "id": "clm:a40f6a8a7963707382a7a097cb8042b7dbb88df644cc3639ab3b4b5339de5416",
+      "text": "Do not set dirty eviction target equal to dirty eviction trigger: the maintainer explanation says this leaves almost no recovery margin after foreground work stalls. The architecture guide requires each target to remain below its corresponding trigger. (high confidence)",
+      "source_url": "https://groups.google.com/g/wiredtiger-users/c/zNVzB6ZrYt4/m/YHjzWb2ECQAJ",
+      "also": [
+        "https://source.wiredtiger.com/develop/arch-eviction.html"
+      ],
+      "validation_status": "SUPPORTED",
+      "evidence_ids": [
+        "ev:7391a65e6e2ee416e433b2c21355441b238d48bd36e3c31fd86edfd9e49a0f04",
+        "ev:82acbbc2f561580376cc214be6297115373792a8fd0ca408c951036edadeffdb"
+      ]
+    },
+    {
+      "id": "clm:695d4b48eb4f943a3763b155fcd9dd0329df437713c1a5bb7ec7f626fb67d2ac",
+      "text": "Percona's 2020 bulk-load case changed several settings together: 20 eviction threads, lower dirty thresholds, and a WiredTiger cache whose size Percona recorded as 1 Gb. The case supports workload-specific experimentation; it does not isolate the benefit of thread count. More eviction work consumes I/O bandwidth and compression CPU. (low confidence)",
+      "source_url": "https://www.percona.com/blog/tuning-mongodb-for-bulk-loads/",
+      "also": [],
+      "validation_status": "SUPPORTED",
+      "evidence_ids": [
+        "ev:e85275e30af4459b169202e0d1463126320ddd6cd53671e79089eed502295c06"
+      ]
+    },
+    {
+      "id": "clm:6a5d459ca3ddfd1535e7ec0225ac228533698bc43fc966d31895028dbdf91831",
+      "text": "More eviction threads can reduce throughput. WT-14601 reports this in a YCSB 100% update workload: extra workers increased page write-back and application threads waited more often for eviction to finish. This is a workload counterexample, not a universal scaling result. (low confidence)",
+      "source_url": "https://jira.mongodb.org/browse/WT-14601",
+      "also": [],
+      "validation_status": "SUPPORTED",
+      "evidence_ids": [
+        "ev:ba4518455083ce9630b21166020211cf955ec823ae0867123a1bc55081cad624"
+      ]
+    },
+    {
+      "id": "clm:1e3d84386595b5f5fc4e10c07b0b17389478a061f9f732d31ed885c8b71763d5",
+      "text": "In its May 2020 bulk-load case, Percona combined 20 fixed eviction threads, a WiredTiger cache recorded as 1 Gb, and dirty target/trigger values of 1%/5%. These simultaneous interventions do not isolate the benefit of thread count and should not be copied as a general production recipe. (low confidence)",
+      "source_url": "https://www.percona.com/blog/tuning-mongodb-for-bulk-loads/",
+      "also": [],
+      "validation_status": "SUPPORTED",
+      "evidence_ids": [
+        "ev:4bf8faec35ec62c54a18dbe87c856cfe12d348e6dd2ac480840bdbc0928b12dc",
+        "ev:fa9c4c2de3f7211980dc9c609903d03f68d7a04681ea0e3493bd9630e314811e"
+      ]
+    },
+    {
+      "id": "clm:85778d1720e8f387abbf0ef7ad5897691464599b547eda2f09d952fd28123eef",
+      "text": "Eviction thread sizing controls background cache reclamation. If background workers cannot keep up and a trigger is reached, application threads assist with eviction, which can increase operation latency. Overall cache pressure and dirty-data pressure have separate target/trigger pairs. (high confidence)",
+      "source_url": "https://source.wiredtiger.com/develop/tune_cache.html",
+      "also": [
+        "https://www.percona.com/blog/tuning-mongodb-for-bulk-loads/",
+        "https://source.wiredtiger.com/develop/arch-eviction.html"
+      ],
+      "validation_status": "SUPPORTED",
+      "evidence_ids": [
+        "ev:241c5a62a9460571140113a8c245c4ea2ea9721caa1970decdfd1afd12d3eca6"
+      ]
+    },
+    {
+      "id": "clm:4aa4418fe213be1211431f299b31332d62db9331fed3b8739b9dc05736f516b1",
+      "text": "Historical guidance must remain version-scoped: Percona's 2020 article and Ampere's MongoDB 6.0.3 guide describe an upper limit of 20 workers. The cached development configuration source instead permits 1\u201364 for both thread bounds; those older limits must not be presented as universal current limits. (high confidence) (verified as of 2026-10-21)",
+      "source_url": "https://www.percona.com/blog/tuning-mongodb-for-bulk-loads/",
+      "also": [
+        "https://www.amperecomputing.com/tuning-guides/mongoDB-tuning-guide",
+        "https://github.com/mongodb/mongo/blob/master/src/third_party/wiredtiger/dist/api_data.py"
+      ],
+      "validation_status": "SUPPORTED",
+      "evidence_ids": [
+        "ev:0c6a301ef98455d698c27c916a4826a32fb6040848b679c73bb45112b2c9a2b5",
+        "ev:0d12dd7358076332d2c5a45cdb61500cdc193f0c506ca8c15bea61697d10dcf5",
+        "ev:3cb7e3f7c72ca312c8c5a2a8055610f813ecd1d012dd98d3f2bc93e50fd09ebe",
+        "ev:496e86a9582fc7a9e6aa560d0d9f1048028295b2c66c6670d61a14cb549fa614",
+        "ev:fa9c4c2de3f7211980dc9c609903d03f68d7a04681ea0e3493bd9630e314811e"
+      ]
+    },
+    {
+      "id": "clm:f2d43fea4550cb7a47e6ccde40419a5989ca5d5b7ad575bd31270686592c4088",
+      "text": "Overall cache occupancy alone cannot explain application-thread eviction. Dirty-content and update-content triggers also recruit application threads, so investigate those pressure dimensions before concluding that the background thread count is too small. (medium confidence)",
+      "source_url": "https://source.wiredtiger.com/develop/arch-eviction.html",
+      "also": [
+        "https://source.wiredtiger.com/develop/tune_cache.html"
+      ],
+      "validation_status": "SUPPORTED",
+      "evidence_ids": [
+        "ev:e75406166c430a7a514a4f8d1fa738d400cd68a93b32fbef0192f4ade98b81e3"
+      ]
+    },
+    {
+      "id": "clm:1eb941e749c0b2830354031589d1a525f16fa1c7d389843dda8327dd1e830448",
+      "text": "Treat thread count as a workload experiment rather than a universal constant: WT-2898 identifies workload, hardware and OS dependence, while Percona reports that additional workers consume I/O bandwidth and CPU for compression. Increasing workers requires spare resources. (high confidence)",
+      "source_url": "https://jira.mongodb.org/browse/WT-2898",
+      "also": [
+        "https://www.percona.com/blog/tuning-mongodb-for-bulk-loads/"
+      ],
+      "validation_status": "SUPPORTED",
+      "evidence_ids": [
+        "ev:0fad28f1bd51e85d9023f0bdbb144915b3bb68abef2253a83e411e6ac76da14e",
+        "ev:52333eeae8bdf723051d19ac7bfe58dc7edbac0186b67c0a2170c3c8c398bd02"
+      ]
+    },
+    {
+      "id": "clm:e160450365f687458610606089fd6436037189764031ba58a6fc8805e73fb8d7",
+      "text": "MongoDB documentation advises changing wiredTigerEngineRuntimeConfig only under MongoDB engineer direction. A maintainer warned in 2017 that runtime eviction reconfiguration can disrupt throughput; Percona also observed client blocking during reconfiguration. Schedule and measure any approved change rather than assuming it is operationally free. (high confidence)",
+      "source_url": "https://www.mongodb.com/docs/manual/reference/parameters/",
+      "also": [
+        "https://groups.google.com/g/wiredtiger-users/c/zNVzB6ZrYt4/m/YHjzWb2ECQAJ",
+        "https://www.percona.com/blog/tuning-mongodb-for-bulk-loads/"
+      ],
+      "validation_status": "SUPPORTED",
+      "evidence_ids": [
+        "ev:20965cb04809ce05a6a50b9c51f2d8e317944eb8de74ea1af0e6507d0cf56d5b",
+        "ev:35f2fc09549a3ddb4952cfb40386750e2bd8375c943c111d4c969738b9ea8f98",
+        "ev:49553cb48a7c4b75da0d8c72841adf892b76aa38793f1cd957175a565c1c68f4"
+      ]
+    },
+    {
+      "id": "clm:ecfac948891620de6be4811a5fa11a3c50d3e7135a6ed25caa5fd245941d3b08",
+      "text": "Ampere's MongoDB tuning guide demonstrates a setParameter example for wiredTigerEngineRuntimeConfig using eviction=(threads_min=4,threads_max=8), while Percona's May 2020 bulk-load case describes the four-thread default and shows a 20/20 runtime command. These are distinct examples, not a shared recommendation; choose values for the workload and server version. (medium confidence)",
+      "source_url": "https://www.percona.com/blog/tuning-mongodb-for-bulk-loads/",
+      "also": [
+        "https://www.amperecomputing.com/tuning-guides/mongoDB-tuning-guide"
+      ],
+      "validation_status": "SUPPORTED",
+      "evidence_ids": [
+        "ev:0d12dd7358076332d2c5a45cdb61500cdc193f0c506ca8c15bea61697d10dcf5",
+        "ev:e85275e30af4459b169202e0d1463126320ddd6cd53671e79089eed502295c06",
+        "ev:fa9c4c2de3f7211980dc9c609903d03f68d7a04681ea0e3493bd9630e314811e"
+      ]
+    },
+    {
+      "id": "clm:dad128f45eaa29559a2b45765b241427b9c88a182496f09a75cc43c70f85edbc",
+      "text": "WiredTiger allows eviction configuration at connection open and through WT_CONNECTION::reconfigure. MongoDB runtime recipes and startup configuration are separate mechanisms; a runtime setParameter example alone is not evidence that the change persists after restart. (high confidence)",
+      "source_url": "https://source.wiredtiger.com/develop/tune_cache.html",
+      "also": [
+        "https://www.percona.com/blog/tuning-mongodb-for-bulk-loads/",
+        "https://oneuptime.com/blog/post/2026-03-31-mongodb-wiredtiger-cache-eviction/view"
+      ],
+      "validation_status": "SUPPORTED",
+      "evidence_ids": [
+        "ev:c9882e7137c55d8074869d5dafc393d113584054e8d2e613bd8ce9a822806b07",
+        "ev:fe92fabfd3ab9264bdfaf77109e734f8a888492bf30899c307d1ca03031df9c2"
+      ]
+    },
+    {
+      "id": "clm:f7cc56bc0a4d46197b0c5737d8b931a1a69b278ce896902ce624799f8c3646e9",
+      "text": "For tuning verification, correlate cache occupancy and dirty bytes with application-thread eviction and operation latency. Percona used monitoring to diagnose checkpoint-related stalls; OneUptime illustrates inspecting serverStatus().wiredTiger.cache. A full cache by itself does not establish that additional workers will improve performance. (medium confidence)",
+      "source_url": "https://www.percona.com/blog/tuning-mongodb-for-bulk-loads/",
+      "also": [
+        "https://oneuptime.com/blog/post/2026-03-31-mongodb-wiredtiger-cache-eviction/view",
+        "https://source.wiredtiger.com/develop/tune_cache.html"
+      ],
+      "validation_status": "SUPPORTED",
+      "evidence_ids": [
+        "ev:381534d6f88dc016d94e4015ccd74fab20fa950159e7237441d1f0ee8950fe8b",
+        "ev:aa5ecc65f191329e66086c701d8be72594625c597407e8121b247ee8c248e005",
+        "ev:abd0209d8ddcccd6ebb4369fc91ce36fd14de915af7f62bda043854e9e826066"
+      ]
+    },
+    {
+      "id": "clm:4a1424f9a86ddf256c0f6981756c639aff88438b924756eef7577b3047a59ea3",
+      "text": "The MongoDB master IDL snapshot exposes wiredTigerEvictionThreadsMin and wiredTigerEvictionThreadsMax at startup and runtime, each with default 4 and range 1\u201364. The embedded WiredTiger development API configuration instead defaults to minimum 1 and maximum 8. Distinguish MongoDB defaults from standalone engine defaults, and check the deployed release before using the newer named parameters. (high confidence) (verified as of 2026-10-20)",
+      "source_url": "https://raw.githubusercontent.com/mongodb/mongo/master/src/mongo/db/storage/wiredtiger/wiredtiger_global_options.idl",
+      "also": [
+        "https://github.com/mongodb/mongo/blob/master/src/third_party/wiredtiger/dist/api_data.py"
+      ],
+      "validation_status": "SUPPORTED",
+      "evidence_ids": [
+        "ev:0c6a301ef98455d698c27c916a4826a32fb6040848b679c73bb45112b2c9a2b5",
+        "ev:d312d4406c42bccb6de30bb1613b17aeedeb4d1786f14154e01b40b5ff1cddc4"
+      ]
+    },
+    {
+      "id": "clm:aa03328ddfea6b2cc6a9f28e86a16a36e176d2a1082e2218fff318fe01f16685",
+      "text": "Ampere\u2019s guide, updated 2024-11-05 and written around MongoDB 6.0.3, says thread bounds should match but demonstrates threads_min=4,threads_max=8. Its example is internally inconsistent with that advice and does not establish an optimal setting. (low confidence)",
+      "source_url": "https://www.amperecomputing.com/tuning-guides/mongoDB-tuning-guide",
+      "also": [],
+      "validation_status": "SUPPORTED",
+      "evidence_ids": [
+        "ev:0d12dd7358076332d2c5a45cdb61500cdc193f0c506ca8c15bea61697d10dcf5",
+        "ev:3cb7e3f7c72ca312c8c5a2a8055610f813ecd1d012dd98d3f2bc93e50fd09ebe",
+        "ev:5199acfd34b436660baf31944470c05a2a49ea81b4a2ad66321457057ebbdf08"
+      ]
+    },
+    {
+      "id": "clm:16c204a1603ea3c4c2993c462a3bdf7e8b37e6a3c6971007f8433296ab7c7994",
+      "text": "Historically, SERVER-28026 disabled adaptive eviction-thread sizing for MongoDB 3.2 and 3.4 by setting both bounds to four. The heuristic introduced by WT-2898 assumed a sufficiently large maximum and startup behavior representative of steady-state load; this history does not prove unequal bounds are always wrong today. (high confidence)",
+      "source_url": "https://jira.mongodb.org/browse/SERVER-28026",
+      "also": [
+        "https://jira.mongodb.org/browse/WT-2898"
+      ],
+      "validation_status": "SUPPORTED",
+      "evidence_ids": [
+        "ev:52333eeae8bdf723051d19ac7bfe58dc7edbac0186b67c0a2170c3c8c398bd02",
+        "ev:7a3e8c45dcc97fb89fddac8f099aa21cf82d2ec3d8e4658cc230bcfecfba310a"
+      ]
+    },
+    {
+      "id": "clm:1773371a40691677233eb435d376ee54b1a0d37582855d40a8e48ef82047b8ea",
+      "text": "In the MongoDB master source snapshot retrieved on 2026-10-20, wiredTigerEvictionThreadsMin and wiredTigerEvictionThreadsMax both default to four, accept values from 1 through 64, and support startup/runtime updates. KV-engine callbacks translate updates into WiredTiger reconfigure strings. This is development-source evidence, not a guarantee for any released binary. (high confidence) (verified as of 2026-10-20)",
+      "source_url": "https://raw.githubusercontent.com/mongodb/mongo/master/src/mongo/db/storage/wiredtiger/wiredtiger_global_options.idl",
+      "also": [
+        "https://raw.githubusercontent.com/mongodb/mongo/master/src/mongo/db/storage/wiredtiger/wiredtiger_kv_engine.cpp"
+      ],
+      "validation_status": "SUPPORTED",
+      "evidence_ids": [
+        "ev:a162f35a29710ec842edb7971a0a6e96db2acc29573e5aa943ff93b09948caed",
+        "ev:d312d4406c42bccb6de30bb1613b17aeedeb4d1786f14154e01b40b5ff1cddc4"
+      ]
+    },
+    {
+      "id": "clm:63dc42da2a3e6ff272afd0b432d37448a40517bba0529f51c0ce772384a25379",
+      "text": "For diagnosis, compare cache and dirty pressure, eviction work and foreground latency before and after a controlled tuning change. Percona used time-series metrics to identify dirty-page accumulation; WiredTiger recommends page-eviction statistics to assess cache behavior. A changed thread count alone is not evidence of improvement. (medium confidence)",
+      "source_url": "https://www.percona.com/blog/tuning-mongodb-for-bulk-loads/",
+      "also": [
+        "https://source.wiredtiger.com/develop/tune_cache.html"
+      ],
+      "validation_status": "SUPPORTED",
+      "evidence_ids": [
+        "ev:0f91ed4436b9a870d0e98a88d0eae74061dd17c2fb9b8383289b249ea505ce50",
+        "ev:4cf07ca5b64e1149c76171fef94028db7d044430870e168cec100b0cb2708853",
+        "ev:ab4f4e9e4c8349067961a2ea6c790bc3fefee77011ac12cba4e21742d254c662"
+      ]
+    }
+  ],
+  "projection_sha256": "01dc94f433e0cf49920b56e443c40188b19e90a5f21f0fe21eb7835e36e6c6f3"
+}

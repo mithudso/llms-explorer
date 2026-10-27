@@ -1,0 +1,196 @@
+{
+  "slug": "shard-key-design-for-multi-tenancy",
+  "concept": "Shard Key Design for Multi-Tenancy",
+  "generated": "2026-10-23",
+  "summary": "Source-anchored research for Shard Key Design for Multi-Tenancy. Run status: COMPLETED.",
+  "facets": [
+    {
+      "title": "Structure and components",
+      "facts": [
+        {
+          "text": "Evaluate candidate keys against distinct-value cardinality, value frequency and tenant skew, insert monotonicity, and common query shapes. High cardinality alone does not guarantee balanced load. Queries that omit the shard key or the prefix of a compound shard key require scatter-gather across the shards that may contain matching data. (high confidence)",
+          "source": "https://www.mongodb.com/docs/manual/core/sharding-choose-a-shard-key/",
+          "note": null,
+          "claimId": "clm:0e031e8dbcf8c1d6baf8ab2e31f6ff5df28b8e2f727f36acbc5db93dd6204811",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:6ed8230e97dd285fe49633104060c14def1e52af1eec2518b7a02330bfceb24e",
+            "ev:cc56d67ef6e94a56bb7c70574406ee2770ec213b7071fde1bd418e948715fff2",
+            "ev:eb3a5c15a5bb02c7b5802de2089b8f9b2416f5ccd521a8796b82030c0ad62075"
+          ]
+        }
+      ]
+    },
+    {
+      "title": "How it works",
+      "facts": [
+        {
+          "text": "Choose the key and query shapes together. Queries that include relevant shard-key fields can target shard ranges, while queries without the shard key are broadcast across shards. A tenant-first key or prefix is useful when tenant filtering is common; adding a suffix can let a large tenant's data occupy ranges on multiple shards. (medium confidence)",
+          "source": "https://www.mongodb.com/docs/manual/core/sharding-choose-a-shard-key/",
+          "note": null,
+          "claimId": "clm:ba6c285abdab691bcedbb09fa5ffd8595ddc60317ee3b285bc96d3d38b94bbbe",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:232f3b72438e4bcf8934534ac221dde8287e86877c2b2c990582032d93cbe289",
+            "ev:6be1f019aec39f4311ddf12a8f0f9ef548e11ad682e356e96c6b25a3563a3a1b",
+            "ev:e03a4ee34d0162eaa0c7b73814877125ea1eb421ad4bf025d59607e36d087989"
+          ]
+        },
+        {
+          "text": "For a shared-collection multi-tenant design, store tenantId on every document and include it in every query. When tenant-scoped reads and writes dominate, including tenantId in the shard key aligns routing with the application’s tenant boundary; the boundary remains logical and must be enforced in application code. (medium confidence)",
+          "source": "https://www.mongodb.com/docs/atlas/build-multi-tenant-arch.md",
+          "note": null,
+          "claimId": "clm:52552bb94cdbc79f94d93af4a29878526f6caaed771e7a4dc24a2b8ebfe3dbb4",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:06fec0c613d866fe508df1859e8c6929cdd0c3a648461d5d1e0a9cdc31ed2ecd",
+            "ev:abb661368f86bdb5f18dec86e33fa9d1f86d22f310ee48ce197041c688fd210a"
+          ]
+        },
+        {
+          "text": "When tenant sizes vary widely, a compound key with tenantId as a prefix and a varied suffix, such as {tenantId: 1, userId: 1} or {tenant_id: 1, _id: \"hashed\"}, adds split points within a tenant. Queries using the tenantId prefix can target the shard or shards holding that tenant’s ranges; a large tenant can span multiple shards, so tenant-only queries may reach more than one shard. (medium confidence)",
+          "source": "https://www.mongodb.com/docs/manual/core/sharding-choose-a-shard-key/",
+          "note": null,
+          "claimId": "clm:f239a01dffed88864dd9502fa65f2e6209108752189dde01451b2e97981b3231",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:2df53a55b4d68cc553ab6bebda34fc5ed17cae6cbea74f2938acd3edd0150919",
+            "ev:c186de15b95c9d4706437154a3bf54df9ef10aa35675ee2e9b3186f99699d093",
+            "ev:cb4ab387e1de5fcfc0117fa0ee488e025c6cbe9031c6ce27a349a5b0ef3e32cc",
+            "ev:cc56d67ef6e94a56bb7c70574406ee2770ec213b7071fde1bd418e948715fff2"
+          ]
+        }
+      ]
+    },
+    {
+      "title": "Problems, failure modes and limitations",
+      "facts": [
+        {
+          "text": "With a range shard key consisting only of tenantId, all documents for a tenant share one shard-key value. MongoDB can place each unique shard-key value in only one chunk, so a very large or active tenant cannot be split by tenantId alone and can concentrate storage or workload on one shard. This favors per-tenant locality when tenant sizes and activity are reasonably balanced, but risks a hotspot or indivisible chunk when they are skewed. (high confidence)",
+          "source": "https://www.mongodb.com/docs/manual/core/sharding-choose-a-shard-key/",
+          "note": null,
+          "claimId": "clm:13eaf9c55ae56b76f165414afc12f5ff1715cf1218de824e8a22b51bf866f070",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:c12344ee8403a31e7b26ea3dceccb82293459a4b1f943191ac4794402de5abda",
+            "ev:cc56d67ef6e94a56bb7c70574406ee2770ec213b7071fde1bd418e948715fff2"
+          ]
+        },
+        {
+          "text": "Hashing tenantId can distribute different tenant values across shards and reduce hotspots from sequentially assigned tenant IDs, but range queries on the hashed field are less efficient. Hashing tenantId alone still gives each tenant one shard-key value, so it cannot split an unusually large tenant by itself. To preserve tenant-based targeting while allowing a large tenant to span ranges, one option is a compound key with tenantId as a prefix and a suffix that varies within the tenant (which may be hashed). A different high-cardinality shard key, such as hashed _id, can also distribute data, but tenant-only queries that omit that key are broadcast across shards. (high confidence)",
+          "source": "https://www.mongodb.com/docs/manual/core/hashed-sharding/",
+          "note": null,
+          "claimId": "clm:d465e2e2484b610042a34fe6a420c62f71ca0661499ee83094680aa58e39d989",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:2372a26fce07f1c1c15843d6399ec7fab1f84bb23132b572434ad2c0acdb29f3",
+            "ev:2df53a55b4d68cc553ab6bebda34fc5ed17cae6cbea74f2938acd3edd0150919",
+            "ev:38a0e70532f02bdc0e066fb1ea75a99d1a9668c88d8ec57d51a3a282da48a85e",
+            "ev:cc56d67ef6e94a56bb7c70574406ee2770ec213b7071fde1bd418e948715fff2",
+            "ev:d00f33f9820ccc7ef80d8ccf52e5da9b8a0f7818ddd762a079d5d17d1e86cc96"
+          ]
+        }
+      ]
+    },
+    {
+      "title": "Facts and statements",
+      "facts": [
+        {
+          "text": "Evaluate a shard-key candidate by cardinality, frequency of each value, monotonicity, and the common query patterns. High cardinality alone does not guarantee even distribution. (high confidence)",
+          "source": "https://www.mongodb.com/docs/manual/core/sharding-choose-a-shard-key/",
+          "note": null,
+          "claimId": "clm:b881eabd0d8bbfe0b013f3bafb8004c1619f7f130584bdf68e458488fa3b9df5",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:04b7f25f9dd333b177746e1cf79cc8f2f9df9f1fee280d37bb7eec024f950040",
+            "ev:4d08fb77dee84f608e0a3e093340c486c41177444f20b5c54d718780e46f978b",
+            "ev:6be1f019aec39f4311ddf12a8f0f9ef548e11ad682e356e96c6b25a3563a3a1b"
+          ]
+        },
+        {
+          "text": "A compound key such as {tenantId: 1, _id: 1} adds split points within each tenant's key range. This can make a high-frequency tenant value splittable across chunks while retaining tenantId as the key prefix. Yorkie's MongoDB design documents the same pattern with project_id and a hashed _id suffix after limited project_id values concentrated data on a few chunks. (high confidence)",
+          "source": "https://www.mongodb.com/docs/manual/core/sharding-choose-a-shard-key/",
+          "note": null,
+          "claimId": "clm:89354348682a4a934bc991546d26787daf2bfb7806f693956551c62b9ce02d4c",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:1d8061dc0c480a2c88c7e48aa8512081fd2fd56635391e902af46f46fa4e90de",
+            "ev:cc56d67ef6e94a56bb7c70574406ee2770ec213b7071fde1bd418e948715fff2",
+            "ev:e03a4ee34d0162eaa0c7b73814877125ea1eb421ad4bf025d59607e36d087989"
+          ]
+        },
+        {
+          "text": "For insert-heavy workloads with monotonic suffix values, a compound hashed key such as {tenantId: 1, _id: \"hashed\"} can distribute inserts more evenly within the tenant-prefixed key space. Hashed shard keys trade range locality on the hashed field for more even distribution; MongoDB supports one hashed field in a compound hashed key. (high confidence) (verified as of 2026-10-19)",
+          "source": "https://www.mongodb.com/docs/manual/core/hashed-sharding/",
+          "note": null,
+          "claimId": "clm:5c046777bf065e636b1058558d33c65d772de25d90340dd92c861263850cce63",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:2df53a55b4d68cc553ab6bebda34fc5ed17cae6cbea74f2938acd3edd0150919",
+            "ev:d00f33f9820ccc7ef80d8ccf52e5da9b8a0f7818ddd762a079d5d17d1e86cc96",
+            "ev:e03a4ee34d0162eaa0c7b73814877125ea1eb421ad4bf025d59607e36d087989"
+          ]
+        },
+        {
+          "text": "In shared collections, tenantId is logical segmentation: queries must filter by tenantId and the application tier must enforce tenant access controls. MongoDB's Vector Search guidance also uses tenant_id as a prefilter for tenant-scoped searches. (high confidence)",
+          "source": "https://www.mongodb.com/docs/atlas/build-multi-tenant-arch.md",
+          "note": null,
+          "claimId": "clm:52ede5823c34dffb87f0b42ab772b3d9f153c3cfa0445fccac339bfbe5c10063",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:abb661368f86bdb5f18dec86e33fa9d1f86d22f310ee48ce197041c688fd210a",
+            "ev:ba0cf8d07aa533fc2d565abe3808ff6aa146a45f9b245833acb5fe3e4ff7b223"
+          ]
+        },
+        {
+          "text": "Zones can associate shard-key value ranges with selected shards, supporting placement policies such as grouping tenant-ID ranges. Zones control where ranges reside; they do not create split points for repeated tenantId values in a tenant-only key. (high confidence)",
+          "source": "https://www.mongodb.com/docs/manual/core/zone-sharding/",
+          "note": null,
+          "claimId": "clm:3d363dc4c43c09f24f365d00a2309daab969d4e7142e5c321dfb9a6901d6b1ac",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:c21a8ebe82b3914e979dc5a00346fca1d64ca70eabe8ddb2bb2630111c6d1234",
+            "ev:cc56d67ef6e94a56bb7c70574406ee2770ec213b7071fde1bd418e948715fff2",
+            "ev:e4c00e0faab34f1df789000afe649f0ecbf8c1ec8fb9a6819a9a3239d9092daf"
+          ]
+        },
+        {
+          "text": "A non-MongoDB outlier-handling example is Datadog Husky: it assigns a variable shard count per tenant from observed traffic and changes future placements as load changes. This illustrates an application-managed placement strategy, not behavior provided by MongoDB's native shard key. (low confidence)",
+          "source": "https://www.datadoghq.com/blog/engineering/husky-deep-dive/",
+          "note": null,
+          "claimId": "clm:d1fa8feb04e2c45687bd785a96325c02601893f21752a117f393cd23ddf6c3b9",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:d86922939716cfb267cb0ba82ef0e5609a59f353e0d9e30c2e668017d22de1bb"
+          ]
+        },
+        {
+          "text": "MongoDB zones can constrain shard-key ranges to designated shards for deliberate placement. For tenant placement, the range boundaries must use fields in the shard key; if the key field is hashed, zone ranges refer to hashed values and do not map predictably to the original tenantId values. Zones control placement, while shared-collection tenant access remains an application-level security responsibility. (medium confidence)",
+          "source": "https://www.mongodb.com/docs/manual/core/zone-sharding/",
+          "note": null,
+          "claimId": "clm:ca13cebfffe992b8aa3cac0fb6bf37f40e9104d5e6a1bbbd0d5b238d511c42a8",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:abb661368f86bdb5f18dec86e33fa9d1f86d22f310ee48ce197041c688fd210a",
+            "ev:c16bc11c9ebabc719ad39be9dfac6585691bfa3d8a6fe2eac27d8a09f4f4e193",
+            "ev:c21a8ebe82b3914e979dc5a00346fca1d64ca70eabe8ddb2bb2630111c6d1234",
+            "ev:ddf9cfd77fad2ac6200c24f539c6305fec45c78a336b7abf16c072e90b666212"
+          ]
+        },
+        {
+          "text": "Before committing to a shard key, MongoDB’s analyzeShardKey can use sampled queries to report key cardinality, frequency, monotonicity, query targeting, and read/write distribution. MongoDB documents this capability as available starting in version 7.0. (medium confidence) (verified as of 2026-10-19)",
+          "source": "https://www.mongodb.com/docs/manual/core/sharding-choose-a-shard-key/",
+          "note": null,
+          "claimId": "clm:5353ffd68c98a57da2a35b11d6bdc2401984b7c8437b178b855bfd401c2cf47e",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:cad6cea16160b1e0d019860fb0ad4e1f1637882b3d22d329727358c873444341"
+          ]
+        }
+      ]
+    }
+  ],
+  "related": [],
+  "canonicalArtifactSha256": "9056fec983145fa12323098b261f6dabe38c4afe0da224a7878ae60b31c89a12",
+  "canonicalConceptId": "concept:293294eeeac2c39b4443244bcfd65ca82b4fd79f069b67fec52e21c3ac284335"
+}

@@ -47,8 +47,9 @@ def test_build_retains_equal_text_with_distinct_complete_identities(tmp_path, ke
     assert len({c['canonical_claim_id'] for c in result['documents']['c']['claims']}) == 2
 
 
-def test_equal_worded_claims_keep_both_ids_and_evidence_through_compile_reader_and_download(tmp_path):
+def test_equal_worded_claims_keep_both_ids_and_evidence_through_compile_reader_and_download(tmp_path, monkeypatch):
     root = Path(__file__).resolve().parents[1]
+    monkeypatch.setenv('LLMS_EXPLORER_REPO', str(root))
     def load(name, relative):
         module_spec = importlib.util.spec_from_file_location(name, root / relative)
         module = importlib.util.module_from_spec(module_spec)

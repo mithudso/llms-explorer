@@ -1,0 +1,149 @@
+{
+  "schema": "research-public-artifact/v1",
+  "concept": "Multikey index sort bounds",
+  "slug": "multikey-index-sort-bounds",
+  "canonical_concept_id": "concept:02fb7c1000648d4bc08e5c0f63e97c93c9c65c8961bfc92b60adb72be068378a",
+  "canonical_artifact_sha256": "4c76e02f862401485bf19d49d73372e38216ffebf416b0e175a1c3e6da48afab",
+  "claims": [
+    {
+      "id": "clm:a28868a63dc6680f28450a5b5567116147cb87f354560385d5df15e6e0f533c4",
+      "text": "Tighter multikey filter bounds are not evidence that a sort is index-provided. For example, $elemMatch can intersect two array predicates into narrower bounds, but an array sort must still satisfy the separate full-bounds and path-prefix restrictions. This is an inference from the documented filtering and sorting rules. (medium confidence)",
+      "source_url": "https://www.mongodb.com/docs/manual/core/indexes/index-types/index-multikey/multikey-index-bounds/",
+      "also": [
+        "https://www.mongodb.com/docs/manual/core/indexes/index-types/index-multikey.md"
+      ],
+      "validation_status": "SUPPORTED",
+      "evidence_ids": [
+        "ev:5db195dc7107037e33b32875a985bafaf5e3fe6369f838c5a793139915dac48b",
+        "ev:63bc64e01b9417b7888a66912dbdb5252e85311d34f608b19a64bb530718bc7f"
+      ]
+    },
+    {
+      "id": "clm:f564218015476481391cfcbfa101084a27ede3a6f5d2c1185879997bded941be",
+      "text": "Full bounds on a.c do not by themselves permit an index-provided sort when a is an array: bounding a.b in index {'a.b':1,'a.c':1} can hide the a.c element that should determine order. SERVER-31898 explains this shared-prefix constraint; SERVER-32525 supplies an older reproduction of index-dependent ordering. (high confidence)",
+      "source_url": "https://jira.mongodb.org/browse/SERVER-31898",
+      "also": [
+        "https://jira.mongodb.org/browse/SERVER-32525"
+      ],
+      "validation_status": "SUPPORTED",
+      "evidence_ids": [
+        "ev:68cc025b817d2bcad4606e0086c1ad8d62c548232c1ea15c3ddabd14640ead99",
+        "ev:e1071c923a6886a3dd4d043191923e3d18abf09d8fda6c6c236e12fc3e87d330"
+      ]
+    },
+    {
+      "id": "clm:6875897467e5343c7452e5147423425f667dd4692b3fc8efaf7a5dbdb695435d",
+      "text": "To investigate multikey sort performance, inspect how the actual query plan uses the index and check whether a separate sort remains. Index use for document selection alone does not establish index-provided ordering. This verification method follows from explain's purpose and the documented multikey exception. (medium confidence)",
+      "source_url": "https://www.percona.com/blog/mongodb-index-usage-and-mongodb-explain-part-1/",
+      "also": [
+        "https://www.mongodb.com/docs/manual/tutorial/sort-results-with-indexes.md"
+      ],
+      "validation_status": "SUPPORTED",
+      "evidence_ids": [
+        "ev:0f85e9aa63bbf3257ab06be0cb0a0d0eace4d9913cdded7d20e98e81ad219137",
+        "ev:44e86b38e527aad582418b66a9dc2d8949e4b4cabc3bceded6ab6516ea1164fb"
+      ]
+    },
+    {
+      "id": "clm:d238400da376f3900f12f3157a5011909f00d791ebd6bf63dda1b1bf8ea31b59",
+      "text": "A Stack Overflow question reports that `find({}, { _id: 1 }).sort({teamIds: 1}).limit(25)` examined 52,320 keys and 51,412 documents beneath a `SORT` stage on a MongoDB 3.6.8 primary, while the author reports 25 keys and documents on a 3.6.7 secondary. This is a version-specific user report, not a prediction for current MongoDB. (low confidence)",
+      "source_url": "https://stackoverflow.com/questions/61900275/mongodb-index-usage-differs-for-same-query-on-different-hosts",
+      "also": [],
+      "validation_status": "SUPPORTED",
+      "evidence_ids": [
+        "ev:4a24830ef2e573d6c0b27ceb1f4d1238d876aeb59a14d2109fe540e1d74f85fa"
+      ]
+    },
+    {
+      "id": "clm:e11de7e8545b40cf764bd64a5c38bdc84e5c2c717e66e496cf75f6d9dfd7a46c",
+      "text": "An October 2019 Stack Overflow report describes a sharded MongoDB 3.6.3 collection with a multikey index on `transfers.amount` and a descending sort on that subfield; the user reports an error stating that the sort used more than 33554432 bytes of RAM. Treat it as an unreplicated historical symptom, not a current memory limit or proof that all multikey sorts block. (low confidence)",
+      "source_url": "https://stackoverflow.com/questions/58314180/mongodb-multikey-index-seems-like-not-being-used-when-sort",
+      "also": [],
+      "validation_status": "SUPPORTED",
+      "evidence_ids": [
+        "ev:bf2536ef2a565bba84ff97e0400988c1448779ffbdce46ccb49688b96f4d6e1b"
+      ]
+    },
+    {
+      "id": "clm:1062728768bc920179788b9b06256d238f8cc6fd8ad0f534371e54df72520bc1",
+      "text": "To assess an array sort, inspect indexBounds and multiKeyPaths alongside SORT and execution counters rather than treating IXSCAN or limit() as proof that sorting is cheap. A plan can use an index and still perform a blocking sort; the historical teamIds example demonstrates exactly that shape. (medium confidence)",
+      "source_url": "https://stackoverflow.com/questions/61900275/mongodb-index-usage-differs-for-same-query-on-different-hosts",
+      "also": [
+        "https://dev.to/franckpachot/mongodb-multikey-indexes-and-index-bound-optimization-ol9",
+        "https://www.mongodb.com/docs/manual/tutorial/sort-results-with-indexes.md"
+      ],
+      "validation_status": "SUPPORTED",
+      "evidence_ids": [
+        "ev:0f85e9aa63bbf3257ab06be0cb0a0d0eace4d9913cdded7d20e98e81ad219137",
+        "ev:4a24830ef2e573d6c0b27ceb1f4d1238d876aeb59a14d2109fe540e1d74f85fa"
+      ]
+    },
+    {
+      "id": "clm:deffbbd89ea9508987ae1cdaed6aac5ecf1b0b4f1c7af61b4378369248732249",
+      "text": "For sorting on an array field indexed by a multikey index, MongoDB documents a separate in-memory sort unless both conditions hold: all sort fields have [MinKey, MaxKey] index bounds, and no bounded multikey-indexed field shares a path prefix with the sort pattern. These conditions supplement normal index sort eligibility; they do not guarantee the planner chooses that index. (high confidence)",
+      "source_url": "https://www.mongodb.com/docs/manual/core/indexes/index-types/index-multikey.md",
+      "also": [
+        "https://www.mongodb.com/docs/manual/tutorial/sort-results-with-indexes.md",
+        "https://jira.mongodb.org/browse/SERVER-31898"
+      ],
+      "validation_status": "SUPPORTED",
+      "evidence_ids": [
+        "ev:63bc64e01b9417b7888a66912dbdb5252e85311d34f608b19a64bb530718bc7f",
+        "ev:68cc025b817d2bcad4606e0086c1ad8d62c548232c1ea15c3ddabd14640ead99",
+        "ev:d96cd78d06406c40bae9f12733397eecc806f3a4e764e5427da4824c10972938"
+      ]
+    },
+    {
+      "id": "clm:e212f5b2abfbd19b6d3cd34a5ad291a883990bd9245d9bf5979e815ac246f45a",
+      "text": "Ascending array sorts use the lowest array element; descending sorts use the highest. A predicate restricting matching array elements does not redefine the document's sort key. SERVER-31898 illustrates why scanning only myArray >= 5 would misorder arrays [1,6,7] and [3,4,5]. (high confidence)",
+      "source_url": "https://jira.mongodb.org/browse/SERVER-19402",
+      "also": [
+        "https://jira.mongodb.org/browse/SERVER-31898",
+        "https://dev.to/franckpachot/from-relational-algebra-to-document-semantics-b00"
+      ],
+      "validation_status": "SUPPORTED",
+      "evidence_ids": [
+        "ev:68cc025b817d2bcad4606e0086c1ad8d62c548232c1ea15c3ddabd14640ead99",
+        "ev:c95287c107aec0cffb7ebc9314304f5e4efeb394befdfb99c5021f33a2e896a2"
+      ]
+    },
+    {
+      "id": "clm:a2c2a87e3355b4fc093d99a7be1df08c48baf49ffd29087dddb270655d8a80c4",
+      "text": "Changing independent array comparisons to $elemMatch changes query meaning as well as enabling bound intersection. Codevra's worked example contrasts scores [70,100] with [92]: independent >=90 and <=95 predicates match both documents, while the same-element condition matches only [92]. Treat this as a semantic decision before optimizing an array filter that precedes sorting. (high confidence)",
+      "source_url": "https://www.mongodb.com/docs/manual/core/indexes/index-types/index-multikey/multikey-index-bounds/",
+      "also": [
+        "https://www.codevra.org/mongodb/mongodb-multikey-index-limits"
+      ],
+      "validation_status": "SUPPORTED",
+      "evidence_ids": [
+        "ev:5db195dc7107037e33b32875a985bafaf5e3fe6369f838c5a793139915dac48b",
+        "ev:f584754eb723d8a2beef3d271572dcfc1b7c07f89e64448a0d0d6793c572a92c"
+      ]
+    },
+    {
+      "id": "clm:2e7cd9fd154ade07aa3d1a0e964ca1692238b3cfaeb0b177549e7329031fd2fd",
+      "text": "A multikey index creates separate entries for distinct array values, so one document can have multiple index entries. For array sorting, MongoDB generates the set of keys for the sort pattern and uses the minimum key by index ordering as the document-level sort key; an individual entry is therefore not generally the document's sort key. (medium confidence)",
+      "source_url": "https://www.mongodb.com/docs/manual/core/indexes/index-types/index-multikey.md",
+      "also": [
+        "https://www.percona.com/blog/mongodb-index-usage-and-mongodb-explain-part-1/",
+        "https://jira.mongodb.org/browse/SERVER-19402"
+      ],
+      "validation_status": "SUPPORTED",
+      "evidence_ids": [
+        "ev:3aa640055d680eea7fdb348e16ff115ec5819fd1041d83dfbd99489710b8a882",
+        "ev:8f10daf2b4e856679504358a44163a690d4587ad8e605bc4e02a21caddfaced3"
+      ]
+    },
+    {
+      "id": "clm:367b7cfa1fe68f091f945ee807f7783ab602fc69ed94b612c9c312985857c18d",
+      "text": "For a single array sort field, ascending order uses its lowest-valued element and descending order its highest-valued element. The SERVER-19402 change replaced earlier find behavior that selected an in-bounds element using the query predicate; restricting array keys can therefore omit the value needed for the document's sort order. (low confidence)",
+      "source_url": "https://jira.mongodb.org/browse/SERVER-19402",
+      "also": [],
+      "validation_status": "SUPPORTED",
+      "evidence_ids": [
+        "ev:c95287c107aec0cffb7ebc9314304f5e4efeb394befdfb99c5021f33a2e896a2"
+      ]
+    }
+  ],
+  "projection_sha256": "c5943bbd67ae51d4f6d59fa71d74821306b7de4db29048d3f5b06610beaa78b3"
+}

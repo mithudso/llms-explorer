@@ -869,6 +869,30 @@ source provenance, canonical public/private projections. Ordered progress lives 
 
 > continue
 
+Resumed the existing ranked plan without repeating discovery, reviewed cohort-23 dissent against primary sources and retained strict claim-local evidence binding.
+
+Outcome: cohort 23 finalized both trees, llms packs and website from a fresh 38-claim gate; the existing plan continued cohort 24.
+
+
+## Prompt — 2026-10-22 Cloudflare key installation
+
+The user placed a fine-grained GitHub key in a private local file. Configure Cloudflare private-library access and finish the existing research publication. Keep repository visibility and source-library privacy intact.
+
+
+## Prompt — 2026-10-22 concept knowledge strategies
+
+> Run the proposed family-map and focused-rabbithole prompt for better concept research, knowledge storage, retrieval and embeddings. Ground recommendations in the current system and primary evidence; deliver dossiers, controlled comparisons, a recommended architecture, experiment/migration plans and remaining questions. Preserve paused embeddings and treat implementation as proposed work.
+
+Tracking: TASK-816. Report: docs/research/concept-knowledge-strategies-2026-10-22/README.md.
+
+## Prompt — 2026-10-22 Cloudflare build focus
+
+The user asked to stop Node compatibility testing and focus on the failing Cloudflare build. Inspected the failed production log, confirmed private GitHub clone authentication as the cause, and followed the repaired production deployment to success. Verified the actual published content.
+
+Outcome: seven concepts,42 genuine depth passes,129 fully evidence-gated claims, one inaccessible-source claim withheld. Final report includes verified architecture, prioritized map, three dossier files, comparison/experiment and migration/rollback plans, and remaining research queue. Normal private/public artifact projection completed in the isolated worktree; no embeddings or deployment.
+
+
+## Prompt v65 - 2026-10-22T14:28:08.805748+00:00
 Resume the saved ranked research plan. Preserve completed discovery, resolve
 claim-bound gate dissent against primary evidence and keep both trees, llms packs
 and generated website outputs current after each successful cohort.
@@ -892,7 +916,17 @@ The user restored Wrangler login and supplied a fine-grained GitHub key for priv
 - User request:
   - stop after the current iteration. Will need to reload the updated skills.
 
+## Prompt v67 - 2026-10-22 MongoDB complete-queue continuation
+
+- User request: Look at all frontier and unresearched MongoDB concepts, include them all in the research queue grouped by shared source materials and prioritized by CVS, then research them until complete.
+- Resumed TASK-832 after loading updated skills. Preserve the frozen exhaustive plan, validated handoffs, verified completions and existing source-review gates.
 ## Prompt — 2026-10-23 MLX-LM full suite
 
 - User request: run the full-suite skill on mlx-lm.
 - Applied the current uncapped CFE mapping, source-gated Codex research, concept packs, family rollup, audits and repository delivery. Preserve embeddings and concurrent work.
+# Repository reconciliation — 2026-10-26
+
+User requested committing pending changes and updating this checkout to latest
+main. Reconcile existing draft PR #234, preserve local scratch and blocked vendor
+mirrors, run the required checks, merge the reviewed result, and synchronize the
+shared checkout. Preserve newer main fixes and unique checkpoint research.

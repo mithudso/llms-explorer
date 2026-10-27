@@ -1,0 +1,206 @@
+{
+  "slug": "sharded-time-series-rebuild-and-resharding",
+  "concept": "Sharded time series rebuild and resharding",
+  "generated": "2026-10-23",
+  "summary": "Source-anchored research for Sharded time series rebuild and resharding. Run status: COMPLETED.",
+  "facets": [
+    {
+      "title": "How it works",
+      "facts": [
+        {
+          "text": "The documented resharding flow redistributes collection data through a temporary collection and cutover, while MongoDB's time-series server README describes measurements stored in bucket documents. Neither source promises that resharding coalesces underfilled time-series buckets; whether it reduces bucket fragmentation is an inference that must be measured on the target workload. (medium confidence)",
+          "source": "https://www.mongodb.com/docs/manual/tutorial/resharding-for-adding-and-removing-shards/",
+          "note": null,
+          "claimId": "clm:e3a36214632009ee10d7d9f696070b8487d92b93c4b9a9f42527bee2a26afbec",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:1be1927b58b64f859034c3ef91753fac3aa315df856b81258293aed8b44d8580",
+            "ev:e00fe2bd5b7ea9b87852259887b48ee4b62c74c671a5a211d3ffe1637ce7acd1"
+          ]
+        },
+        {
+          "text": "For a logical rebuild into a time-series collection, MongoDB supports $out starting in 7.0. The migration guide says $out does not guarantee output order, so sort first when order matters, and says to recreate secondary indexes after migration. (high confidence)",
+          "source": "https://www.mongodb.com/docs/v8.3/core/timeseries/timeseries-migrate-with-aggregation/",
+          "note": null,
+          "claimId": "clm:d1890e1fcfbaac002618be22e42ee4854ce482e65de83e0c347988ccf251922b",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:431420bbb03e62d7783c4372b4287d51b528c46a88b3b9b0a28047cb0a830d47"
+          ]
+        },
+        {
+          "text": "MongoDB Jira records that cloning time-series collections, including through resharding and mongodump/mongorestore, could mis-set the mixed-schema bucket flag for collections created before version 5.2. The issue lists affected versions 6.0.0-6.0.16, 7.0.0-7.0.12, and 7.1-7.3.3, and advises validating affected collections and setting the flag true when needed. (low confidence) (verified as of 2026-10-22)",
+          "source": "https://jira.mongodb.org/browse/SERVER-91194",
+          "note": null,
+          "claimId": "clm:4fd83b3296dc01d820a6d246fea6231719a8156a145c1b037b722134343a5aaa",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:ad2d20c27edf9ea7e6aec27804333c7b1a7ad510b7fcebb335c21eb60d3fb298"
+          ]
+        }
+      ]
+    },
+    {
+      "title": "Measurements and reference values",
+      "facts": [
+        {
+          "text": "MongoDB describes resharding as cloning collection data, building indexes, catching up pending writes, and committing a cutover. Its preparation guide calls for recipient-shard free space of at least 2 × (collection size + index size) divided by the destination shard count, a 24-hour oplog window, I/O below 50%, CPU below 80%, and tolerance for about two seconds of blocked writes. Treat resharding as a planned collection-wide workload. (high confidence) (verified as of 2026-10-23)",
+          "source": "https://www.mongodb.com/docs/manual/core/sharding-reshard-a-collection.md",
+          "note": null,
+          "claimId": "clm:72bd737d8110b1757086998b3ec3cfc77feadfb77c751c230a2fec8617818ccd",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:f3643f108dbc6cbd884651a683d4bc5b1dfc1fa81dcf5fbe5defad9ef918d75f"
+          ]
+        },
+        {
+          "text": "Percona's 2025 benchmark compared resharding an ordinary 3.5 GB people collection on idle two-shard clusters: it reports about three minutes on MongoDB 7.0.18 and under one minute on 8.0.8. The author says larger datasets and loaded clusters need more testing; this is not a time-series benchmark and should not predict time-series reshard duration. (low confidence) (verified as of 2025-06-26)",
+          "source": "https://www.percona.com/blog/scaling-smarter-what-you-have-missed-in-mongodb-8-0/",
+          "note": null,
+          "claimId": "clm:f6bc0c747502399ef917bc832c197b60edce4aec14e4bde9b711e27d1fae21be",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:40e1ad7fdd85309acf9a280a76c440538a10deb6bffadd3d59f97d5742b7c896"
+          ]
+        }
+      ]
+    },
+    {
+      "title": "Problems, failure modes and limitations",
+      "facts": [
+        {
+          "text": "MongoDB documents native time-series resharding starting in 8.0.10, provided every shard in the collection runs 8.0.10 or later. A valid time-series shard key can use the `metaField`, its subfields, the `timeField`, or combinations of those fields. The `timeField` must be ranged and appear last. Shard keys containing the `timeField` are deprecated starting in MongoDB 8.0, and using only the `timeField` is discouraged because its monotonic values may concentrate writes on one chunk. (high confidence) (verified as of 2026-10-20)",
+          "source": "https://www.mongodb.com/docs/manual/core/timeseries/timeseries-limitations/",
+          "note": null,
+          "claimId": "clm:fbf9c84cacd5cc1dc0f12cce1b404d698023ebc1a644a5adb5189c2b843fd7f9",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:185abf6a205c600a67360d6b504881318718f074b6b36dafe701dfa6241cff81",
+            "ev:552e8c71132606baa55461fa902e4d77eb679fb6b4cb2d9eb9367663c19df96b"
+          ]
+        },
+        {
+          "text": "Percona Backup for MongoDB's current logical-restore documentation says sharded time-series collections are not supported. This is a PBM restore limitation and does not establish a MongoDB server limitation or the support status of other backup tools. (low confidence) (verified as of 2026-10-23)",
+          "source": "https://docs.percona.com/percona-backup-mongodb/latest/usage/restore.html",
+          "note": null,
+          "claimId": "clm:045756d6572480558fdafe050e6467ef976caf735814272d473ddfc9ff6bb240",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:21694f7fbc962be6e1adda58e488a34457da66249576671ba0d3d199844ac573"
+          ]
+        },
+        {
+          "text": "MongoDB documents an aggregation `$out` workflow for writing measurements into a time-series collection, but `$out` cannot target a sharded collection. It is therefore not a direct rebuild path for a sharded time-series target. (high confidence) (verified as of 2026-10-20)",
+          "source": "https://www.mongodb.com/docs/manual/core/timeseries/timeseries-migrate-with-aggregation/",
+          "note": null,
+          "claimId": "clm:10e5e0c857f5131c6d491c218b553af7f4f2a24ca6ae3e8432c334f7b7cb2c1d",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:5cf3a423f302def8b55e4441b61547ff01920b40ff560acd5acd4d961b42263d",
+            "ev:c267e902af608dcd3b9dba6a2cdd6d56e78202278e72845800474bbf03fa20a1"
+          ]
+        },
+        {
+          "text": "Alibaba Cloud's ApsaraDB MongoDB 8 guide says `moveCollection` cannot move time-series collections. That restriction applies to moving an unsharded collection to a shard and is separate from MongoDB's documented `reshardCollection` support for sharded time-series collections. (medium confidence) (verified as of 2026-10-23)",
+          "source": "https://help.aliyun.com/en/mongodb/product-overview/features-of-mongodb-8-0",
+          "note": null,
+          "claimId": "clm:6397b19fb41233e1e29206504496f74134c92ec3a2d0270fa1642eed55709f1e",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:42cb35080214d43b9b4abc415b257ab48aac6dc4a7b0386e64aa1b27c5ef780f",
+            "ev:552e8c71132606baa55461fa902e4d77eb679fb6b4cb2d9eb9367663c19df96b"
+          ]
+        }
+      ]
+    },
+    {
+      "title": "Comparisons and alternatives",
+      "facts": [
+        {
+          "text": "MongoDB Jira issue SERVER-111411 records `forceRedistribution` failing on a time-series collection whose metaField was named `metadata` instead of `meta`. Jira lists fixes in 8.0.28, 8.2.10, and 8.3.0-rc0; the recorded workaround for affected versions was to name the metaField `meta`. Check the patch version before relying on same-key resharding. (medium confidence) (verified as of 2026-07-20)",
+          "source": "https://jira.mongodb.org/browse/SERVER-111411",
+          "note": null,
+          "claimId": "clm:18bf210720cd6cb06591cb31e5e93e298a78b04ea2765a0780fbb2c3657410e8",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:6a4a801c64ee3953af7e6875e9123fbaacdf81224559d9c4a5bc19bf9ebd1637"
+          ]
+        },
+        {
+          "text": "As of 2026-10-23, MongoDB Jira marked SERVER-111834 unresolved; it reports that $out into an existing time-series target can recreate the default index even when that index was dropped beforehand. Inspect the post-rebuild index set instead of assuming the previous index state is preserved. (medium confidence) (verified as of 2026-10-23)",
+          "source": "https://www.mongodb.com/docs/v8.3/core/timeseries/timeseries-migrate-with-aggregation/",
+          "note": null,
+          "claimId": "clm:b4bca142657d77d3e9377fada8eb6760ceb8df3571171216fdacb9589327328c",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:f0dc6e8a70766c3e42b5e7e651afe1de0af58cc7148523743adb9d6783d53b83"
+          ]
+        },
+        {
+          "text": "In MongoDB's default viewful time-series implementation, the user-facing collection is a view over `system.buckets`, and queries unpack stored buckets into measurements. The server README also describes viewless time-series collections, so this representation is not universal. MongoDB's `$out` migration guide writes measurement documents to a time-series target, making it a logical-data rebuild rather than a copy of internal bucket documents. (medium confidence)",
+          "source": "https://github.com/mongodb/mongo/blob/master/src/mongo/db/timeseries/README.md",
+          "note": null,
+          "claimId": "clm:44b5cb1c3435cea106a46509bce92ef4432cccf5e25fbb5660daae90dc9ca0a5",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:431420bbb03e62d7783c4372b4287d51b528c46a88b3b9b0a28047cb0a830d47",
+            "ev:904c98718e3cb25fb2d4b527d47a8c5301188bdf5573474d9056eeb2d155a2b6",
+            "ev:e00fe2bd5b7ea9b87852259887b48ee4b62c74c671a5a211d3ffe1637ce7acd1"
+          ]
+        }
+      ]
+    },
+    {
+      "title": "Facts and statements",
+      "facts": [
+        {
+          "text": "Tencent's MongoDB product guide, last updated 2024-01-15, lists native time-series support and live resharding in separate MongoDB 5.0 subsections. It does not state that MongoDB 5.0 could reshard time-series collections. MongoDB's manual says time-series resharding is supported starting in 8.0.10. (medium confidence)",
+          "source": "https://main.qcloudimg.com/raw/document/intl/product/pdf/240_620_en.pdf",
+          "note": null,
+          "claimId": "clm:42bf9279a1142c6ca774d0784240d118e21f6d094b6c327445cf816d46e9b878",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:185abf6a205c600a67360d6b504881318718f074b6b36dafe701dfa6241cff81",
+            "ev:e09c2a74a8ade82ac3d776f7ab99b02263894572e15b88f2f2e4cfa9c12bd844"
+          ]
+        },
+        {
+          "text": "MongoDB documents same-key resharding with `reshardCollection` and `forceRedistribution: true` as a way to rewrite a collection and reclaim disk space. Taken together with the time-series support statement, this implies a native same-key rewrite path for eligible sharded time-series collections. The documentation does not promise that this path reduces time-series bucket count or specifically repairs bucket fragmentation. (medium confidence) (verified as of 2026-10-20)",
+          "source": "https://www.mongodb.com/docs/manual/core/reshard-to-same-key/",
+          "note": null,
+          "claimId": "clm:4e08ab412a83aac125700c729e309c6c843242ee0b77314d61a25cd89c3838ec",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:185abf6a205c600a67360d6b504881318718f074b6b36dafe701dfa6241cff81",
+            "ev:2bf34803d7af92415d72e59279ac2367f9ba92de341ea2f43569673b8ec4c8b8"
+          ]
+        },
+        {
+          "text": "MongoDB 8.3 documents `rewriteCollection` as rewriting a sharded collection under the same shard key to redistribute data or reclaim disk space. Its command page does not state whether time-series collections are accepted. The time-series limitations page separately documents time-series resharding from version 8.0.10 but does not connect that support statement to `rewriteCollection`. Treat `rewriteCollection` support for time-series as unconfirmed. (low confidence) (verified as of 2026-10-23)",
+          "source": "https://www.mongodb.com/docs/v8.3/reference/command/rewritecollection/",
+          "note": null,
+          "claimId": "clm:eace0b360b381b1c5888402b6d4386789aa040140c4f1c2c99e35517b443f31a",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:552e8c71132606baa55461fa902e4d77eb679fb6b4cb2d9eb9367663c19df96b",
+            "ev:55d374f54ca4bc219f15a642a75285ed55703614356d9590e9678f62500799ae"
+          ]
+        },
+        {
+          "text": "Percona's 2025 MongoDB 8 resharding overview says its test used a small collection and warns that a terabyte-scale collection may take hours or days in the worst case. This is generic resharding commentary, not a time-series benchmark, so it does not predict a sharded time-series rewrite duration. (low confidence) (verified as of 2025-06-26)",
+          "source": "https://www.percona.com/blog/scaling-smarter-what-you-have-missed-in-mongodb-8-0/",
+          "note": null,
+          "claimId": "clm:b681842b566a355d99ac4f1fc8ef2795b88d25990f263b7f293b3672271d0c04",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:2390cf2573d58954d0aad5d3e67d4631b2eaa2c247af4031fab4c90376193030",
+            "ev:e88af160353944cb825d0a0cd06618fcc8f41aec5ca0d4163cc3605f0999d1a3"
+          ]
+        }
+      ]
+    }
+  ],
+  "related": [],
+  "canonicalArtifactSha256": "94a2854e38d6f41aeab42823bd7298e04d92f6e8b4f2e1d4f0599266d6af2139",
+  "canonicalConceptId": "concept:724f651a0b9056187cb6ec31d8a8c637d5144fbd3502ffd813bca4d10fe6caf7"
+}

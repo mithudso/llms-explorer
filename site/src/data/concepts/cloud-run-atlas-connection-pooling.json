@@ -1,0 +1,139 @@
+{
+  "slug": "cloud-run-atlas-connection-pooling",
+  "concept": "Cloud Run Atlas Connection Pooling",
+  "generated": "2026-10-22",
+  "summary": "Source-anchored research for Cloud Run Atlas Connection Pooling. Run status: COMPLETED.",
+  "facets": [
+    {
+      "title": "How it works",
+      "facts": [
+        {
+          "text": "MongoDB recommends reusing one MongoClient per process. Combined with Cloud Run's independently scaled instances, this means each instance has its own process-local client pool and the service's potential connection count grows with active instances and the connected topology. This is a capacity inference; it does not mean every pool reaches its ceiling. (medium confidence) (verified as of 2026-10-20)",
+          "source": "https://www.mongodb.com/docs/drivers/node/current/connect/connection-options/connection-pools/",
+          "note": null,
+          "claimId": "clm:d68b6fa4d4aad0b81bd02e18665ec42df69593a0e24e8cea9557c49292ac4c40",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:078a446001642155c43966f94200b8600829c42004f35f6bc783bfffe44b1823",
+            "ev:14d9eab976ee2f0fcb80605535719a9d6db71a9ef255995cb37f4d60e4c70b0e",
+            "ev:d242fb3062b1534b3e8d853ce82d3e6994084ebde38e2c415169b3753b993700"
+          ]
+        },
+        {
+          "text": "Cloud Run concurrency limits simultaneous requests per instance, not MongoDB sockets. For a fixed request volume, lower concurrency can require more instances, while higher concurrency can let fewer instances serve traffic when the application handles parallel work; because client pools are process-local, concurrency changes the number of pools indirectly. (medium confidence) (verified as of 2026-10-20)",
+          "source": "https://docs.cloud.google.com/run/docs/about-concurrency",
+          "note": null,
+          "claimId": "clm:fa3cb4c7e5bb46da63af8bab3ef2df3046d53cf81bf47a2742a2ea657f23c9bd",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:078a446001642155c43966f94200b8600829c42004f35f6bc783bfffe44b1823",
+            "ev:d242fb3062b1534b3e8d853ce82d3e6994084ebde38e2c415169b3753b993700"
+          ]
+        }
+      ]
+    },
+    {
+      "title": "Problems, failure modes and limitations",
+      "facts": [
+        {
+          "text": "In a Node.js Cloud Run service, follow the driver's one-MongoClient-per-process reuse recommendation and place the reusable client outside per-request logic. Google's Cloud Run guide says global-scope objects can be reused by later requests on the same instance, but whether an individual request benefits from that reuse cannot be known ahead of time. (high confidence)",
+          "source": "https://www.mongodb.com/docs/drivers/node/current/connect/connection-options/connection-pools/",
+          "note": null,
+          "claimId": "clm:c35147bceb48e43c56f6876efc79cb4421077b91c0695cdafe158f9b50fefb9f",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:14d9eab976ee2f0fcb80605535719a9d6db71a9ef255995cb37f4d60e4c70b0e",
+            "ev:f2640ca9803f31c4956cb65c06a49b8c4b7fc8d155608ed6278946247d1f0af3"
+          ]
+        },
+        {
+          "text": "Cloud Run concurrency and maximum-instance settings affect the connection envelope: lower concurrency can require more instances for the same traffic, and a maximum-instance setting can limit connections to a backing database but may be exceeded briefly during traffic spikes. Set these controls against the application's tested concurrency and Atlas connection budget, with headroom for temporary scale-out. (medium confidence) (verified as of 2026-10-20)",
+          "source": "https://docs.cloud.google.com/run/docs/about-concurrency",
+          "note": null,
+          "claimId": "clm:718d946e13c35156304df4d7e7f57578be32f0673218713d81535dde92de80cd",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:078a446001642155c43966f94200b8600829c42004f35f6bc783bfffe44b1823",
+            "ev:522eb584e7e7051e17b1542a2df645dbbdd5110a2087b5c9dd4af35ef551556f"
+          ]
+        },
+        {
+          "text": "Google documents the Cloud Run maximum-instance setting as a way to limit connections to a backing database and recommends a service-level cap. The configured maximum can be exceeded briefly during traffic spikes, and separate revision limits can overlap during deployments, so a pool budget should include headroom. (medium confidence) (verified as of 2026-10-20)",
+          "source": "https://docs.cloud.google.com/run/docs/configuring/max-instances",
+          "note": null,
+          "claimId": "clm:ba1151ce2143cb3b44c5868c221efefb909adeab1f13df664d1fa97dbe457fe9",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:522eb584e7e7051e17b1542a2df645dbbdd5110a2087b5c9dd4af35ef551556f",
+            "ev:7e0e37de09427ec2d5f3cb9469abe9e42743b952549913791cf41b7691ea26d9"
+          ]
+        }
+      ]
+    },
+    {
+      "title": "Comparisons and alternatives",
+      "facts": [
+        {
+          "text": "Each MongoClient owns a pool for each server in its topology, and Cloud Run instances cannot share process-local pools. Estimate Atlas connection pressure across all simultaneously live clients and instances rather than treating one Cloud Run service as one pool. (medium confidence)",
+          "source": "https://www.mongodb.com/docs/drivers/node/current/connect/connection-options/connection-pools/",
+          "note": null,
+          "claimId": "clm:6c785c6b75f12f25a939186777c12df33ec6e7ba666dd4b7f5971965d49dfab7",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:1eae7652470e6248eab6d64a7c3f1a71fe882a7428d7497edb1edf2efae4d08d",
+            "ev:d242fb3062b1534b3e8d853ce82d3e6994084ebde38e2c415169b3753b993700"
+          ]
+        },
+        {
+          "text": "Atlas sets concurrent open-connection limits by cluster tier and class; the limits apply per node, or per mongos router for sharded clusters. Atlas documents new-connection-per-second limits separately, with applicability depending on tier and MongoDB version, and says its autoscaling responds to memory and compute use rather than connection count by itself. (low confidence) (verified as of 2026-10-20)",
+          "source": "https://www.mongodb.com/docs/atlas/reference/atlas-limits/",
+          "note": null,
+          "claimId": "clm:cb96cc047952fdc502a762a83a19a984b1e4e137cbe8ad7d8462a728fae64956",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:b64aa809326d3c6dd898fdb86733a2f5069ecc14a384cd0c3b7e303a3f516f7f"
+          ]
+        }
+      ]
+    },
+    {
+      "title": "Facts and statements",
+      "facts": [
+        {
+          "text": "Revel's public field report describes multiple Cloud Run Spring Boot services connecting to Atlas and attributes near-cap connection counts during scale-out to each container holding its own pool. The report's suggested pool, concurrency, and instance settings were proposals for that workload, not general defaults or validated results. (low confidence)",
+          "source": "https://www.linkedin.com/posts/revelapp_mongodb-serverless-cloudrun-activity-7349493964648951808-1XxD",
+          "note": null,
+          "claimId": "clm:eb73c7122740854a08081cf51c47353dde1404a8df91c6cde241fcec1b0e327e",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:1eae7652470e6248eab6d64a7c3f1a71fe882a7428d7497edb1edf2efae4d08d"
+          ]
+        },
+        {
+          "text": "The current Node.js driver documentation says each MongoClient has a pool for each server, opens application sockets on demand, defaults maxPoolSize to 100 per pool, and opens up to two additional monitoring connections per server. The 100 value is a per-server ceiling, not the number every Cloud Run instance necessarily opens. (low confidence) (verified as of 2026-10-22)",
+          "source": "https://www.mongodb.com/docs/drivers/node/current/connect/connection-options/connection-pools/",
+          "note": null,
+          "claimId": "clm:0bdeea529fbd9e08c2c95fedb5c5764b444d206a2bc59f5c8df63c701e0fbdda",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:d242fb3062b1534b3e8d853ce82d3e6994084ebde38e2c415169b3753b993700"
+          ]
+        },
+        {
+          "text": "A May 2022 Stack Overflow question reports up to 130 Atlas connections while its author saw five or six Cloud Run instances. The author's accepted self-answer proposes rapid scale-out and Mongoose's pool ceiling as the explanation. This is one author's workload report and proposed diagnosis, not a measured general connection count per Cloud Run instance. (low confidence) (verified as of 2022-05-07)",
+          "source": "https://api.stackexchange.com/2.3/questions/72086236?site=stackoverflow&filter=withbody",
+          "note": null,
+          "claimId": "clm:27c73a3c0d6de9b6bc6d4175e715bc65ec8b0f85d19d342875dd6c1d0cd0260f",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:7322a01ff85fade00f604650aed5c5b18438aa459c989e365dc6a0c387e96548",
+            "ev:c58f88ea481f8a9e6d0b1f5e0dc6ea8770e0d3394430be2e688aa1f12f02b071"
+          ]
+        }
+      ]
+    }
+  ],
+  "related": [],
+  "canonicalArtifactSha256": "8428861c4433ffaad95379bbe6f524f4c5d35ef4f3d7af86cd69189899ab45c0",
+  "canonicalConceptId": "concept:245603a2c9c23fee20185782f82aec1bc7726205b102c30e0e8d7d1fc8966bb2"
+}
