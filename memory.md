@@ -1,5 +1,11 @@
 # Memory Log
 
+## v0.22.56 - 2026-10-27
+
+- TASK-929 checkpoint: pass 3 adds 22/164 atoms (13.415%) after retiring two methodological interpretations from the factual claim set. The first three rates are 40.625%, 11.111%, 13.415%; no saturation. TASK-931 continues pass 4 with durable gateway admission, crash recovery, authorization and scheduler/session concurrency. Exact private passage/hash bindings and independent audit are preserved under /Users/mitch/.global-ai-hub/research/hermes-agent-rabbithole-2026-10-27/depth/.
+- CI correction: run 40462066989 was triggered by dependabot[bot]. GitHub withholds ordinary Actions secrets in that context. It does not prove invalid LIBS_READ_TOKEN; the earlier secret-refresh request was withdrawn. KNOW-934 now records the scoped observation. Test this branch's ordinary draft PR before diagnosing credentials.
+- Remaining: finish depth loop; record final claims; render and gate all claims; persist dual-root/site outputs and existing depthPass/depthVerdict tags; final tests, CI and delivery. Preserve shared divergent main and paused embeddings. Delta: memory 0.22.55 to 0.22.56; research report 1.0.1 to 1.0.2. Prompt remains v68.
+
 ## v0.22.55 - 2026-10-27
 
 - TASK-929: started Rabbithole research on Nous Research Hermes Agent. Isolated checkout: /Users/mitch/dev/worktrees/llms-explorer-hermes-rabbithole-20261027, branch research/hermes-agent-rabbithole-20261027 from origin/main. Preserve shared /Users/mitch/dev/llms-explorer main (four local commits, seventeen remote commits).

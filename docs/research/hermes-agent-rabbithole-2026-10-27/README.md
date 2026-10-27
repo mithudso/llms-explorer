@@ -1,7 +1,7 @@
 # Hermes Agent Rabbithole research
 
-Version: 1.0.1
-Delta: 1.0.0 to 1.0.1; preserve completed baseline and first two depth passes.
+Version: 1.0.2
+Delta: 1.0.1 to 1.0.2; record pass 3, two retired interpretations and corrected CI preflight.
 Date: 2026-10-27
 Task: TASK-929
 Status: IN-PROGRESS
@@ -31,8 +31,9 @@ The shared main checkout has diverged from origin/main. This work uses /Users/mi
 | Baseline | 76 normalized from 24 raw rows | 76 | Baseline |
 | Depth 1 | 52 | 128 | 40.625% |
 | Depth 2 | 16 | 144 | 11.111% |
+| Depth 3 | 22 | 164 (two prior interpretations retired) | 13.415% |
 
-Corrections, splitting and rephrasing do not earn novelty. The first two depth passes remain above the saturation threshold. Baseline and depth worker event logs disclose a skill-catalog isolation limitation; this run does not establish a clean context-isolation gate. Fetched source bodies alone do not establish a substantive research read. Claim-specific source passages, hashes and reviewer checks address evidence separately.
+Corrections, splitting and rephrasing do not earn novelty. All three completed depth passes remain above the saturation threshold. These candidate counts precede the final bound all-claim gate. Baseline and depth worker event logs disclose a skill-catalog isolation limitation; this run does not establish a clean context-isolation gate. Fetched source bodies alone do not establish a substantive research read. Claim-specific source passages, hashes and reviewer checks address evidence separately.
 
 Local API tests pass 281 cases. Local hub tests pass 594 cases with one skip. Missing declared private libraries were loaded into an isolated verification target; shared virtual environments remain unchanged. The inspected GitHub Actions failures came from Dependabot PRs. GitHub withholds ordinary Actions secrets in that context, so these failures do not prove LIBS_READ_TOKEN is invalid. This branch’s own PR CI remains the delivery gate.
 
