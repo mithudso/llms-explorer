@@ -1,5 +1,11 @@
 # Prompts Log
 
+## Prompt v70 - 2026-10-27
+
+> Using the skills and reference files you just created optimize the local and remote hermes setups using best practices and make sure it all works correctly, choose the best memory and context servers and set those up, and optimize whatever you can optimize on this and on the 5080 box.
+
+Scope: TASK-939 and stages TASK-940 through TASK-943. Audit and configure both actual Hermes installations, select a compact memory/context stack, install the source-backed operations skill, preserve active owners and paused services, then verify live CLI, MCP and persistence behavior. Keep accepted research and source gates frozen. Delta: prompt v69 to v70; memory 0.22.59 to 0.22.60.
+
 ## Prompt v69 - 2026-10-27
 
 User follow-up command:
