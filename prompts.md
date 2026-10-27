@@ -1,5 +1,11 @@
 # Prompts Log
 
+## Prompt v68 - 2026-10-27
+
+> continue researching the research list. Expand the mongodb concept list and begin researching those topics.
+
+Scope: TASK-944. Continue the independent local MongoDB queue, expand source-backed pending concepts and begin native research. Preserve frozen plans and paused embeddings. Delta: prompt v67 to v68.
+
 ## Prompt v67 - 2026-10-24
 
 > run the rabbithole skill on tuis  look into and record information on all of the tuis mentioned here: https://github.com/rothgar/awesome-tuis
