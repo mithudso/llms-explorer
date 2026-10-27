@@ -1,0 +1,813 @@
+# Hermes Agent — depth dossier
+
+Version 2 (delta from version 1: final scope clarification and source-count accounting). Verified source review date: 2026-10-27. Depth verdict: BUDGET_EXHAUSTED.
+Atomic curve: 52/128 (40.625%) → 16/144 (11.111%) → 22/164 (13.415%) → 27/191 (14.136%) → 18/209 (8.612%) → 19/226 (8.407%).
+
+Baseline 24 compound rows normalized to 76 distinct atoms; final 226 atoms. Splitting and wording/citation repair received zero novelty credit.
+
+## Definition and boundary
+
+Hermes Agent is a self-hostable model/tool harness with curated memory, procedural skills, gateway and scheduling. Pass 6 compares the exact frozen PAST Hermes adapter with cached current code, traces additional retry producer and script policy branches, and adds dated schema/rollback failure histories. Independent commercial operator Neogen Media reports credential impersonation across shared-UID profiles and silent scheduled outages. Every addition is low confidence and scoped to its source revision or attributed report. No Hermes execution occurred; live behavior and whole-benchmark reproducibility remain open.
+
+Scope: execution loop, context/memory, learned skills, tool/gateway boundaries, security, deployment failure modes, history/evolution and disagreements inside Nous Research Hermes Agent. Siblings are handoffs only.
+
+## Mechanism and subparts
+
+The claim index below separates execution and tool orchestration; memory/skill retention and approval; compression/retry recovery; gateway admission and scheduler durability; trust/containment boundaries. Every factual statement retains its own citations and revision qualifiers.
+
+## History and evolution
+
+- **H143** A 25 October 2026 compressor fix commit records that a rebase lost the overload-budget reset, causing a later isolated overload to escalate prematurely after a successful summary. [low confidence; 2026-10-27]
+  - https://api.github.com/repos/NousResearch/hermes-agent/commits/2a0e464c27727abfd5e7b669eb0bfe50a430f599
+- **H144** In the 26 October 2026 PR #144684 discussion, repository collaborator teknium1 reports a ruling to use one prepared summary per compaction and retain all newer messages in the tail. [low confidence; source-specific date]
+  - https://api.github.com/repos/NousResearch/hermes-agent/issues/144684/comments
+- **H145** PAST-Bench selects Hermes v2026.4.16 and freezes its framework snapshots and benchmark adapters at artifact revision 0b56a98. [low confidence; 2026-10-27]
+  - https://arxiv.org/html/2608.04003v1
+- **H160** Sleeper Channels cites Hermes commit 98d75dea5a86aec599b1e081f8bbe9170bd3f964 dated 27 April 2026 and release v0.11.0 dated 23 April 2026. [low confidence; 2026-10-27]
+  - https://arxiv.org/html/2605.13471v1
+- **H163** VantaSoft reports an in-place update breaking nine running agents on 13 August 2026, after which it adopted side-by-side versions with a single-step switch and retained rollback version on 22 August. [low confidence; 2026-10-27]
+  - https://www.vantasoft.com/insights/hermes-agent-review
+- **H191** PR #96195 proposed rereading and merging memory during save_to_disk, but the retrieved October 27 API record still marks it open and unmerged. [low confidence; 2026-10-27]
+  - https://api.github.com/repos/NousResearch/hermes-agent/pulls/96195
+
+## Edge cases and failure modes
+
+The following factual index includes conditional failure paths and bounded observations. Live per-adapter parity, crash timing and concurrency outcomes were not executed; those remain open gaps.
+
+- **H019** The detailed guide distinguishes curated memory from session_search. [low confidence; 2026-10-27]
+  - https://github.com/NousResearch/hermes-agent/blob/69f73ec5f11f5a945cc864f29c4e2ad2307eaec3/website/docs/user-guide/features/memory.md
+- **H020** Past CLI and messaging conversations are stored in SQLite. [low confidence; 2026-10-27]
+  - https://github.com/NousResearch/hermes-agent/blob/69f73ec5f11f5a945cc864f29c4e2ad2307eaec3/website/docs/user-guide/features/memory.md
+- **H021** Session search uses SQLite FTS5. [low confidence; 2026-10-27]
+  - https://github.com/NousResearch/hermes-agent/blob/69f73ec5f11f5a945cc864f29c4e2ad2307eaec3/website/docs/user-guide/features/memory.md
+- **H022** The detailed guide says session_search returns actual messages without LLM summarization. [low confidence; 2026-10-27]
+  - https://github.com/NousResearch/hermes-agent/blob/69f73ec5f11f5a945cc864f29c4e2ad2307eaec3/website/docs/user-guide/features/memory.md
+- **H023** Memory overflow returns an error requiring consolidation or removal before retrying. [low confidence; 2026-10-27]
+  - https://github.com/NousResearch/hermes-agent/blob/69f73ec5f11f5a945cc864f29c4e2ad2307eaec3/website/docs/user-guide/features/memory.md
+- **H035** Local inference can remove cloud-model API charges for those inference calls. [low confidence; 2026-10-21]
+  - https://build.nvidia.com/spark/hermes-agent
+- **H036** Optional messaging channels and external tool calls can transmit data despite local inference. [low confidence; 2026-10-21]
+  - https://build.nvidia.com/spark/hermes-agent
+- **H037** NVIDIA warns that agent actions and messaging can expose local files. [low confidence; 2026-10-21]
+  - https://build.nvidia.com/spark/hermes-agent
+- **H038** Upstream security policy describes Hermes as a single-tenant personal agent. [low confidence; 2026-10-27]
+  - https://github.com/NousResearch/hermes-agent/blob/69f73ec5f11f5a945cc864f29c4e2ad2307eaec3/SECURITY.md
+- **H039** Upstream security policy treats OS isolation as the boundary against adversarial model output. [low confidence; 2026-10-27]
+  - https://github.com/NousResearch/hermes-agent/blob/69f73ec5f11f5a945cc864f29c4e2ad2307eaec3/SECURITY.md
+- **H040** Approval gates, redaction and scanners are heuristic controls. [low confidence; 2026-10-27]
+  - https://github.com/NousResearch/hermes-agent/blob/69f73ec5f11f5a945cc864f29c4e2ad2307eaec3/SECURITY.md
+- **H041** Those heuristic controls do not contain hostile execution. [low confidence; 2026-10-27]
+  - https://github.com/NousResearch/hermes-agent/blob/69f73ec5f11f5a945cc864f29c4e2ad2307eaec3/SECURITY.md
+- **H066** The security guide documents approvals.mode off as bypassing recoverable dangerous-command prompts, while hardline blocks and operator deny rules still apply. [low confidence; 2026-10-27]
+  - https://hermes-agent.nousresearch.com/docs/user-guide/security
+  - https://github.com/NousResearch/hermes-agent/blob/69f73ec5f11f5a945cc864f29c4e2ad2307eaec3/tools/approval.py
+- **H067** The security guide documents YOLO as bypassing recoverable dangerous-command approval prompts, with hardline blocks and operator deny rules retained. [low confidence; 2026-10-27]
+  - https://hermes-agent.nousresearch.com/docs/user-guide/security
+  - https://github.com/NousResearch/hermes-agent/blob/69f73ec5f11f5a945cc864f29c4e2ad2307eaec3/tools/approval.py
+- **H072** VantaSoft reports operating its own maintained Hermes-derived deployment. [low confidence; 2026-10-26]
+  - https://www.vantasoft.com/insights/hermes-agent-review
+- **H073** VantaSoft reports recurring scheduled work as useful. [low confidence; 2026-10-26]
+  - https://www.vantasoft.com/insights/hermes-agent-review
+- **H074** VantaSoft warns that saved procedures do not guarantee reliable habits. [low confidence; 2026-10-26]
+  - https://www.vantasoft.com/insights/hermes-agent-review
+- **H075** VantaSoft says one person must own deployment upkeep. [low confidence; 2026-10-26]
+  - https://www.vantasoft.com/insights/hermes-agent-review
+- **H076** VantaSoft sells a Hermes service and has a commercial interest in its observations. [low confidence; 2026-10-26]
+  - https://www.vantasoft.com/insights/hermes-agent-review
+- **H087** The outer-loop error handler stops immediately for interpreter-shutdown errors rather than retrying. [low confidence; 2026-10-27]
+  - https://github.com/NousResearch/hermes-agent/blob/69f73ec5f11f5a945cc864f29c4e2ad2307eaec3/agent/turn_loop_errors.py
+- **H088** The outer-loop error handler uses traceback module names to stop deterministic local post-processing errors without repeated API-path retries. [low confidence; 2026-10-27]
+  - https://github.com/NousResearch/hermes-agent/blob/69f73ec5f11f5a945cc864f29c4e2ad2307eaec3/agent/turn_loop_errors.py
+- **H089** Escaped API-path exceptions are bounded by a per-turn cap equal to min(_MAX_OUTER_LOOP_ERRORS, max(1, agent.max_iterations)). [low confidence; 2026-10-27]
+  - https://github.com/NousResearch/hermes-agent/blob/69f73ec5f11f5a945cc864f29c4e2ad2307eaec3/agent/turn_loop_errors.py
+- **H090** The outer-loop error handler inserts error tool results for unanswered tool_call IDs before another iteration can proceed. [low confidence; 2026-10-27]
+  - https://github.com/NousResearch/hermes-agent/blob/69f73ec5f11f5a945cc864f29c4e2ad2307eaec3/agent/turn_loop_errors.py
+- **H091** The loop guide documents refreshing credentials on 401/403 errors before provider failover. [low confidence; 2026-10-27]
+  - https://github.com/NousResearch/hermes-agent/blob/69f73ec5f11f5a945cc864f29c4e2ad2307eaec3/website/docs/developer-guide/agent-loop.md
+- **H092** The loop guide documents provider fallback after three consecutive Codex Responses continuations containing neither visible text nor a tool call. [low confidence; 2026-10-27]
+  - https://github.com/NousResearch/hermes-agent/blob/69f73ec5f11f5a945cc864f29c4e2ad2307eaec3/website/docs/developer-guide/agent-loop.md
+- **H098** The compression guide says provider-proven context overflow bypasses the summary-failure cooldown for a bounded recovery attempt. [low confidence; 2026-10-27]
+  - https://github.com/NousResearch/hermes-agent/blob/69f73ec5f11f5a945cc864f29c4e2ad2307eaec3/website/docs/developer-guide/context-compression-and-caching.md
+- **H099** The summary helper returns None without invoking the LLM when a deterministic summary-route pin is active. [low confidence; 2026-10-27]
+  - https://github.com/NousResearch/hermes-agent/blob/69f73ec5f11f5a945cc864f29c4e2ad2307eaec3/agent/context_compressor_summary.py
+- **H115** stage_write catches pending-store disk errors and returns a record without committing the requested memory or skill write. [low confidence; 2026-10-27]
+  - https://github.com/NousResearch/hermes-agent/blob/69f73ec5f11f5a945cc864f29c4e2ad2307eaec3/tools/write_approval.py
+- **H116** On the normal command-guard path, approvals.deny rules are checked before YOLO or approvals.mode off can bypass recoverable prompts. [low confidence; 2026-10-27]
+  - https://github.com/NousResearch/hermes-agent/blob/69f73ec5f11f5a945cc864f29c4e2ad2307eaec3/tools/approval.py
+- **H117** On the normal command-guard path, catastrophic-command and runtime-self-deletion blocks precede recoverable approval bypasses. [low confidence; 2026-10-27]
+  - https://github.com/NousResearch/hermes-agent/blob/69f73ec5f11f5a945cc864f29c4e2ad2307eaec3/tools/approval.py
+- **H124** The pinned security policy requires authorization rechecking rather than treating a session ID as an authorization boundary. [low confidence; 2026-10-27]
+  - https://github.com/NousResearch/hermes-agent/blob/69f73ec5f11f5a945cc864f29c4e2ad2307eaec3/SECURITY.md
+- **H125** The pinned security policy treats all callers within one adapter allowlist as equally trusted. [low confidence; 2026-10-27]
+  - https://github.com/NousResearch/hermes-agent/blob/69f73ec5f11f5a945cc864f29c4e2ad2307eaec3/SECURITY.md
+- **H126** The gateway guide says a started admission whose owner dies becomes unknown and pauses its session FIFO instead of being automatically replayed. [low confidence; 2026-10-27]
+  - https://github.com/NousResearch/hermes-agent/blob/69f73ec5f11f5a945cc864f29c4e2ad2307eaec3/website/docs/developer-guide/gateway-internals.md
+  - https://github.com/NousResearch/hermes-agent/blob/69f73ec5f11f5a945cc864f29c4e2ad2307eaec3/hermes_state_runtime.py
+- **H129** At commit 69f73ec5f11f5a945cc864f29c4e2ad2307eaec3, a nonterminal summary failure with abort_on_summary_failure false inserts a deterministic fallback summary before assembling head, summary and tail. [low confidence; 2026-10-27]
+  - https://github.com/NousResearch/hermes-agent/blob/69f73ec5f11f5a945cc864f29c4e2ad2307eaec3/agent/context_compressor.py
+- **H130** At commit 69f73ec5f11f5a945cc864f29c4e2ad2307eaec3, terminal summary failure flags or abort_on_summary_failure true make the ordinary failed-summary path return the canonical unpruned message list; a pre-LLM feasibility skip reaches fallback assembly without that abort-helper call. [low confidence; 2026-10-27]
+  - https://github.com/NousResearch/hermes-agent/blob/69f73ec5f11f5a945cc864f29c4e2ad2307eaec3/agent/context_compressor.py
+- **H131** At commit 69f73ec5f11f5a945cc864f29c4e2ad2307eaec3, an execute_code-only tool-call batch refunds one iteration even when it contains multiple execute_code calls. [low confidence; 2026-10-27]
+  - https://github.com/NousResearch/hermes-agent/blob/69f73ec5f11f5a945cc864f29c4e2ad2307eaec3/agent/turn_tool_round.py
+- **H132** At commit 69f73ec5f11f5a945cc864f29c4e2ad2307eaec3, redirected-message and rebuilt-for-fallback restarts refund the logical iteration only while their shared restart_count remains within max_retries. [low confidence; 2026-10-27]
+  - https://github.com/NousResearch/hermes-agent/blob/69f73ec5f11f5a945cc864f29c4e2ad2307eaec3/agent/turn_iteration_prep.py
+- **H134** At commit 69f73ec5f11f5a945cc864f29c4e2ad2307eaec3, nonretryable provider errors can attempt one stale-credential refresh before eligible fallback activation. [low confidence; 2026-10-27]
+  - https://github.com/NousResearch/hermes-agent/blob/69f73ec5f11f5a945cc864f29c4e2ad2307eaec3/agent/turn_api_error.py
+- **H135** At commit 69f73ec5f11f5a945cc864f29c4e2ad2307eaec3, successful provider fallback exits the API retry block with rebuilt-message restart armed so preflight checks the fallback context window. [low confidence; 2026-10-27]
+  - https://github.com/NousResearch/hermes-agent/blob/69f73ec5f11f5a945cc864f29c4e2ad2307eaec3/agent/turn_api_error.py
+- **H136** At commit 69f73ec5f11f5a945cc864f29c4e2ad2307eaec3, retry exhaustion can rebuild the primary transport once per API-call block before trying the fallback chain. [low confidence; 2026-10-27]
+  - https://github.com/NousResearch/hermes-agent/blob/69f73ec5f11f5a945cc864f29c4e2ad2307eaec3/agent/turn_api_error.py
+- **H137** At commit 69f73ec5f11f5a945cc864f29c4e2ad2307eaec3, post-exhaustion auto-recovery admits overloaded, server_error and timeout classes only when no answer has reached the user and configured cycles remain. [low confidence; 2026-10-27]
+  - https://github.com/NousResearch/hermes-agent/blob/69f73ec5f11f5a945cc864f29c4e2ad2307eaec3/agent/turn_recovery_autorecover.py
+- **H138** At commit 69f73ec5f11f5a945cc864f29c4e2ad2307eaec3, the auto-recovery wait uses jittered exponential delays capped at 60 seconds, while provider Retry-After may extend a wait up to 120 seconds. [low confidence; 2026-10-27]
+  - https://github.com/NousResearch/hermes-agent/blob/69f73ec5f11f5a945cc864f29c4e2ad2307eaec3/agent/turn_recovery_autorecover.py
+- **H139** At commit 69f73ec5f11f5a945cc864f29c4e2ad2307eaec3, gateway authorization with no environment allowlist falls through to false unless an explicit grant, qualifying adapter policy or allow-all setting admits the source. [low confidence; 2026-10-27]
+  - https://github.com/NousResearch/hermes-agent/blob/69f73ec5f11f5a945cc864f29c4e2ad2307eaec3/gateway/authz_mixin.py
+- **H140** At commit 69f73ec5f11f5a945cc864f29c4e2ad2307eaec3, legacy startup auto-resume skips a session if its owner fails the current authorization check or that check raises. [low confidence; 2026-10-27]
+  - https://github.com/NousResearch/hermes-agent/blob/69f73ec5f11f5a945cc864f29c4e2ad2307eaec3/gateway/run_startup.py
+- **H141** At commit 69f73ec5f11f5a945cc864f29c4e2ad2307eaec3, RecoverableHandleCache uses per-path single-flight opens and exponential retry delay capped at 60 seconds after database-open failures. [low confidence; 2026-10-27]
+  - https://github.com/NousResearch/hermes-agent/blob/69f73ec5f11f5a945cc864f29c4e2ad2307eaec3/gateway/session_db_recovery.py
+- **H142** At commit 69f73ec5f11f5a945cc864f29c4e2ad2307eaec3, RecoverableHandleCache.close_all advances a generation so an earlier in-flight open cannot repopulate the drained cache. [low confidence; 2026-10-27]
+  - https://github.com/NousResearch/hermes-agent/blob/69f73ec5f11f5a945cc864f29c4e2ad2307eaec3/gateway/session_db_recovery.py
+- **H164** NVIDIA reports that an older DeepSeek V4.1 Flash configuration failed tool continuation with duplicate reasoning fields, whereas the recommended V4 Flash 0731 path passed Hermes tool use with medium reasoning. [low confidence; 2026-10-27]
+  - https://build.nvidia.com/spark/hermes-agent/troubleshooting.md
+- **H165** NVIDIA documents that noninteractive Ubuntu SSH shells can omit Hermes from PATH because .bashrc returns before the installer-added PATH lines. [low confidence; 2026-10-27]
+  - https://build.nvidia.com/spark/hermes-agent/troubleshooting.md
+- **H166** NVIDIA documents that Hermes core chat can still work when missing Linux dependencies prevent Playwright browser tools from working. [low confidence; 2026-10-27]
+  - https://build.nvidia.com/spark/hermes-agent/troubleshooting.md
+- **H168** At the pinned revision, admit_session_input limits a session to 32 queued admissions, including when unknown work pauses its FIFO. [low confidence; 2026-10-27]
+  - https://github.com/NousResearch/hermes-agent/blob/69f73ec5f11f5a945cc864f29c4e2ad2307eaec3/hermes_state_runtime.py
+- **H177** The May 2026 Telegram report #24457 observed unrestricted DMs with GATEWAY_ALLOW_ALL_USERS=true on Hermes v0.12.0. [low confidence; 2026-10-27]
+  - https://api.github.com/repos/NousResearch/hermes-agent/issues/24457
+- **H178** At the pinned revision, cron recovery can mark a live external owner unknown after silence exceeds max(3 × inactivity timeout, script timeout, 7200 seconds). [low confidence; 2026-10-27]
+  - https://github.com/NousResearch/hermes-agent/blob/69f73ec5f11f5a945cc864f29c4e2ad2307eaec3/cron/executions.py
+- **H179** At the pinned revision, cron recovery leaves live-owner claims alone when the inactivity timeout is unlimited or nonfinite. [low confidence; 2026-10-27]
+  - https://github.com/NousResearch/hermes-agent/blob/69f73ec5f11f5a945cc864f29c4e2ad2307eaec3/cron/executions.py
+- **H180** At the pinned revision, cron’s interrupted-execution sweep skips claims owned by its own process. [low confidence; 2026-10-27]
+  - https://github.com/NousResearch/hermes-agent/blob/69f73ec5f11f5a945cc864f29c4e2ad2307eaec3/cron/executions.py
+- **H182** The September 2026 report #115692 describes a live but deadlocked v0.21.3 external cron worker blocking subsequent runs for over two hours. [low confidence; 2026-10-27]
+  - https://api.github.com/repos/NousResearch/hermes-agent/issues/115692
+- **H184** At the pinned revision, MemoryStore refuses mutation when an existing target file cannot be read or decoded. [low confidence; 2026-10-27]
+  - https://github.com/NousResearch/hermes-agent/blob/69f73ec5f11f5a945cc864f29c4e2ad2307eaec3/tools/memory_tool_store.py
+- **H185** At the pinned revision, MemoryStore’s file-lock helper yields without an OS lock if neither fcntl nor msvcrt is available. [low confidence; 2026-10-27]
+  - https://github.com/NousResearch/hermes-agent/blob/69f73ec5f11f5a945cc864f29c4e2ad2307eaec3/tools/memory_tool_store.py
+- **H190** At the pinned revision, a failed skill-batch snapshot restore preserves the half-applied skill and retains recovery snapshots. [low confidence; 2026-10-27]
+  - https://github.com/NousResearch/hermes-agent/blob/69f73ec5f11f5a945cc864f29c4e2ad2307eaec3/tools/skill_manager_batch.py
+  - https://github.com/NousResearch/hermes-agent/blob/69f73ec5f11f5a945cc864f29c4e2ad2307eaec3/tests/tools/test_skill_manage_batch.py
+- **H192** At the pinned revision, settle_with_retry gives transient storage settlement failures two further attempts after delays of 0.5 and 2 seconds. [low confidence; 2026-10-27]
+  - https://github.com/NousResearch/hermes-agent/blob/69f73ec5f11f5a945cc864f29c4e2ad2307eaec3/gateway/session_settlement_recovery.py
+- **H193** At the pinned revision, recover_failed_settlement retries storage errors while marking a claim unknown at one-second intervals. [low confidence; 2026-10-27]
+  - https://github.com/NousResearch/hermes-agent/blob/69f73ec5f11f5a945cc864f29c4e2ad2307eaec3/gateway/session_settlement_recovery.py
+- **H195** At commit 69f73ec5f11f5a945cc864f29c4e2ad2307eaec3, an exception during the enabled agent-created skill security scan is logged and returns no blocking error. [low confidence; 2026-10-27]
+  - https://github.com/NousResearch/hermes-agent/blob/69f73ec5f11f5a945cc864f29c4e2ad2307eaec3/tools/skill_manager_tool.py
+- **H199** At commit 69f73ec5f11f5a945cc864f29c4e2ad2307eaec3, project-skill quarantine returns an existing in-memory decision keyed by resolved skill-directory path before calling the content-hash scanner again. [low confidence; 2026-10-27]
+  - https://github.com/NousResearch/hermes-agent/blob/69f73ec5f11f5a945cc864f29c4e2ad2307eaec3/agent/skill_utils.py
+- **H200** At commit 69f73ec5f11f5a945cc864f29c4e2ad2307eaec3, HTTP 413 recovery measures compression progress in serialized message bytes, accepting fewer messages or a byte count below 95% of the previous size before rebuilding the request. [low confidence; 2026-10-27]
+  - https://github.com/NousResearch/hermes-agent/blob/69f73ec5f11f5a945cc864f29c4e2ad2307eaec3/agent/turn_overflow.py
+- **H201** At commit 69f73ec5f11f5a945cc864f29c4e2ad2307eaec3, within the compression-attempt cap, a parseable available-output budget sets an ephemeral output cap from the smaller usable local/provider allowance minus 64 tokens, floored at one token, and permits retry if supplementary compression raises. [low confidence; 2026-10-27]
+  - https://github.com/NousResearch/hermes-agent/blob/69f73ec5f11f5a945cc864f29c4e2ad2307eaec3/agent/turn_overflow.py
+- **H202** At commit 69f73ec5f11f5a945cc864f29c4e2ad2307eaec3, an output-cap error without a parseable allowed budget ends the turn without attempting context compression and does not mark compression_exhausted. [low confidence; 2026-10-27]
+  - https://github.com/NousResearch/hermes-agent/blob/69f73ec5f11f5a945cc864f29c4e2ad2307eaec3/agent/turn_overflow.py
+- **H203** At commit 69f73ec5f11f5a945cc864f29c4e2ad2307eaec3, a local endpoint context rejection with no run of four or more digits and an estimated request plus output reservation below half the known window ends as a retryable server_error without compressing or marking compression_exhausted. [low confidence; 2026-10-27]
+  - https://github.com/NousResearch/hermes-agent/blob/69f73ec5f11f5a945cc864f29c4e2ad2307eaec3/agent/turn_overflow.py
+- **H204** At commit 69f73ec5f11f5a945cc864f29c4e2ad2307eaec3, a status-less transport disconnect on a recognized reasoning model is classified as timeout before the generic disconnect-plus-large-session overflow heuristic. [low confidence; 2026-10-27]
+  - https://github.com/NousResearch/hermes-agent/blob/69f73ec5f11f5a945cc864f29c4e2ad2307eaec3/agent/error_classifier.py
+- **H205** The 12 October 2026 fix 412512365ffd723c624673615cb200ccd58e067e changed Hermes memory patch from replacing every occurrence inside the selected entry to refusing repeated old_text spans in both single and batch edits. [low confidence; 2026-10-27]
+  - https://api.github.com/repos/NousResearch/hermes-agent/commits/412512365ffd723c624673615cb200ccd58e067e
+  - https://github.com/NousResearch/hermes-agent/blob/5e0ec82d1f257b14edbc292efc913927ac482a13/tools/memory_tool_store.py
+  - https://github.com/NousResearch/hermes-agent/blob/412512365ffd723c624673615cb200ccd58e067e/tools/memory_tool_store.py
+- **H206** The 24 September 2026 fix 4638864a7438c2d6da0a547f6ddcc4743faab149 repaired adopted-directory skill-batch rollback that left supporting files behind while reporting all touched skills rolled back; rollback now tracks and removes the batch’s written files. [low confidence; 2026-10-27]
+  - https://api.github.com/repos/NousResearch/hermes-agent/commits/4638864a7438c2d6da0a547f6ddcc4743faab149
+  - https://github.com/NousResearch/hermes-agent/blob/85ac36f2ec4f78e75a95bd46af3be01b244d2461/tools/skill_manager_batch.py
+  - https://github.com/NousResearch/hermes-agent/blob/4638864a7438c2d6da0a547f6ddcc4743faab149/tools/skill_manager_batch.py
+- **H207** The 26 October 2026 fix 765933299d885e850390ed1d8e4fd4d37fae8342 removed a prepared-summary rejection based on a newly moved tail cut that could discard a completed background summary and cause a second inline summary call. [low confidence; 2026-10-27]
+  - https://api.github.com/repos/NousResearch/hermes-agent/commits/765933299d885e850390ed1d8e4fd4d37fae8342
+  - https://github.com/NousResearch/hermes-agent/blob/44bf3ee91cd80bffd9c61854f641b67edcb7de1a/agent/prepared_compaction.py
+  - https://github.com/NousResearch/hermes-agent/blob/44bf3ee91cd80bffd9c61854f641b67edcb7de1a/agent/context_compressor_window.py
+  - https://github.com/NousResearch/hermes-agent/blob/765933299d885e850390ed1d8e4fd4d37fae8342/agent/context_compressor_window.py
+- **H208** In the 26 October 2026 fix 52a01bd2f2ffd0cbb363f60eb127ee929dba3396, the maintainer reports four consecutive empty_post_handoff_window no-ops on Gemini 2.5 Flash with a 64,000-token window; pricing rows through the newest handoff at zero allowed the next automatic compaction to proceed. [low confidence; 2026-10-27]
+  - https://api.github.com/repos/NousResearch/hermes-agent/commits/52a01bd2f2ffd0cbb363f60eb127ee929dba3396
+  - https://github.com/NousResearch/hermes-agent/blob/9182739a2922704c9fdc779f58b65bb6ccc42b48/agent/context_compressor_tail.py
+  - https://github.com/NousResearch/hermes-agent/blob/52a01bd2f2ffd0cbb363f60eb127ee929dba3396/agent/context_compressor_tail.py
+- **H209** The 21 May 2026 upstream report #29559 describes Hermes v2026.5.16 on macOS with GLM-5.1 reducing 124 messages to 15 after a connection-error summary failure and losing task context. [low confidence; 2026-10-27]
+  - https://api.github.com/repos/NousResearch/hermes-agent/issues/29559
+- **H210** The 13 October 2026 memory-action removal commit cf2ffb3cbff02e953299ee5d93b96252c4dc4930 attributes sibling-fact loss from whole-entry replace misuse to an NVIDIA trial with 19 of 40 Opus 4.8 tasks. [low confidence; 2026-10-27]
+  - https://api.github.com/repos/NousResearch/hermes-agent/commits/cf2ffb3cbff02e953299ee5d93b96252c4dc4930
+- **H211** At commit 69f73ec5f11f5a945cc864f29c4e2ad2307eaec3, the inline-shell preprocessor applies its 4,000-character output-elision limit after subprocess.run has captured stdout and stderr. [low confidence; 2026-10-27]
+  - https://github.com/NousResearch/hermes-agent/blob/69f73ec5f11f5a945cc864f29c4e2ad2307eaec3/agent/skill_preprocessing.py
+- **H216** At commit 69f73ec5f11f5a945cc864f29c4e2ad2307eaec3, execute_code applies check_execute_code_guard to the whole Python script before local or remote dispatch, and Docker host access is passed to that guard. [low confidence; 2026-10-27]
+  - https://github.com/NousResearch/hermes-agent/blob/69f73ec5f11f5a945cc864f29c4e2ad2307eaec3/tools/code_execution_tool.py
+- **H217** At commit 69f73ec5f11f5a945cc864f29c4e2ad2307eaec3, _sandbox_tools_for returns the complete SANDBOX_ALLOWED_TOOLS set when its intersection with enabled_tools is empty. [low confidence; 2026-10-27]
+  - https://github.com/NousResearch/hermes-agent/blob/69f73ec5f11f5a945cc864f29c4e2ad2307eaec3/tools/code_execution_tool.py
+- **H219** At commit 69f73ec5f11f5a945cc864f29c4e2ad2307eaec3, linked skill-file serving rejects literal parent traversal and paths whose resolved target escapes the skill root. [low confidence; 2026-10-27]
+  - https://github.com/NousResearch/hermes-agent/blob/69f73ec5f11f5a945cc864f29c4e2ad2307eaec3/tools/skills_tool_plugin.py
+  - https://github.com/NousResearch/hermes-agent/blob/69f73ec5f11f5a945cc864f29c4e2ad2307eaec3/tools/path_security.py
+- **H220** At commit 69f73ec5f11f5a945cc864f29c4e2ad2307eaec3, successful recover_before_classification and recover_after_classification branches return continue before the API-error handler increments retry_count. [low confidence; 2026-10-27]
+  - https://github.com/NousResearch/hermes-agent/blob/69f73ec5f11f5a945cc864f29c4e2ad2307eaec3/agent/turn_api_error.py
+- **H221** At commit 69f73ec5f11f5a945cc864f29c4e2ad2307eaec3, classified overflow with compression disabled returns a terminal context_overflow failure before automatic compaction, except when the error describes an output cap. [low confidence; 2026-10-27]
+  - https://github.com/NousResearch/hermes-agent/blob/69f73ec5f11f5a945cc864f29c4e2ad2307eaec3/agent/turn_recovery.py
+- **H222** At commit 69f73ec5f11f5a945cc864f29c4e2ad2307eaec3, a rate-limit error with a parseable wrapped output-token budget is exempted from eager rate-limit fallback so output-cap recovery can handle it. [low confidence; 2026-10-27]
+  - https://github.com/NousResearch/hermes-agent/blob/69f73ec5f11f5a945cc864f29c4e2ad2307eaec3/agent/turn_recovery.py
+- **H223** The 24 September 2026 fix fb4dbf77fcb9f0a348b80c8fc3f5ed1e171d1213 stopped skill-batch rollback from deleting an adopted pre-existing directory and foreign files placed there during the batch. [low confidence; 2026-10-27]
+  - https://api.github.com/repos/NousResearch/hermes-agent/commits/fb4dbf77fcb9f0a348b80c8fc3f5ed1e171d1213
+  - https://github.com/NousResearch/hermes-agent/blob/153e865252a5ccddcbd831a27bff57789a21100c/tools/skill_manager_batch.py
+  - https://github.com/NousResearch/hermes-agent/blob/fb4dbf77fcb9f0a348b80c8fc3f5ed1e171d1213/tools/skill_manager_batch.py
+- **H224** The 13 October 2026 commit a7e50a1db95eb33532b28d7efd6825cf48deacca reports that removing memory replace also removed required-content wording, after which missing-content patch calls looped to the retry cap in four of fourteen Qwen3.8-27B consolidation trials. [low confidence; 2026-10-27]
+  - https://api.github.com/repos/NousResearch/hermes-agent/commits/a7e50a1db95eb33532b28d7efd6825cf48deacca
+- **H225** The 17 September 2026 fix 75a0649a180d24aa0d09ba1d4be76746ec5fc9f4 changed skill-operation schemas to separate per-action objects and moved argument-shape checks before any batch operation applies, addressing repeated wrong-text-slot calls. [low confidence; 2026-10-27]
+  - https://api.github.com/repos/NousResearch/hermes-agent/commits/75a0649a180d24aa0d09ba1d4be76746ec5fc9f4
+- **H226** In its production report updated 14 September 2026, Neogen Media says a global-model change caused unpinned cron jobs to refuse execution, accumulating roughly 2,975 failures across three subordinate agents during a six-day outage. [low confidence; 2026-10-27]
+  - https://neogenmedia.com/blog/hermes-agent-in-production
+- **H227** In its production report updated 14 September 2026, Neogen Media reports that profiles sharing one Unix UID could read each other’s credentials and that an HR session using the apex key authenticated as apex. [low confidence; 2026-10-27]
+  - https://neogenmedia.com/blog/hermes-agent-in-production
+- **H228** Neogen Media’s report updated 14 September 2026 attributes three Telegram bots answering as one profile to Hermes v0.19.0’s recoverable-session fallback omitting the profile name from its lookup. [low confidence; 2026-10-27]
+  - https://neogenmedia.com/blog/hermes-agent-in-production
+- **H229** In its production report updated 14 September 2026, Neogen Media says a root-run cron edit created a root-owned mode-0600 jobs file, after which the non-root scheduler failed every tick while reporting 27 active jobs. [low confidence; 2026-10-27]
+  - https://neogenmedia.com/blog/hermes-agent-in-production
+- **H230** In its production report updated 14 September 2026, Neogen Media says tools tested with explicitly supplied environment variables would fail under its running gateway because those profile variables were absent; it changed the tools to self-load the profile environment. [low confidence; 2026-10-27]
+  - https://neogenmedia.com/blog/hermes-agent-in-production
+
+## Disagreements and evidence qualifications
+
+- The documentation overview advertises FTS5 cross-session recall with LLM summarization, while the detailed Persistent Memory guide says session_search returns actual database messages with no LLM summarization. Use the detailed guide for the documented search mechanism and verify the installed revision.
+  - https://hermes-agent.nousresearch.com/docs/
+  - https://hermes-agent.nousresearch.com/docs/user-guide/features/memory
+- NVIDIA's playbook, updated 21 October 2026, warns that leaving Telegram allowed user IDs blank lets anyone use the bot. Upstream SECURITY.md read on 27 October requires enabled network adapters to refuse dispatch until an allowlist exists and calls fail-open behavior a bug. These descriptions conflict; do not infer actual installed behavior without a version-specific check.
+  - https://build.nvidia.com/spark/hermes-agent
+  - https://github.com/NousResearch/hermes-agent/blob/main/SECURITY.md
+- The project markets a self-improving learning loop. This describes implemented retention and skill-management mechanisms; PAST-Bench reports uneven behavioral gains, and VantaSoft cautions that writing a lesson does not make it a reliable habit. The sources address different levels of evidence rather than establishing a direct contradiction.
+  - https://github.com/NousResearch/hermes-agent
+  - https://arxiv.org/abs/2608.04003
+  - https://www.vantasoft.com/insights/hermes-agent-review
+- The pinned memory guide says session_search has no truncation and describes three shapes; pinned session_search code implements four shapes and whole-session bookend truncation. No-LLM retrieval remains supported by both.
+  - https://github.com/NousResearch/hermes-agent/blob/69f73ec5f11f5a945cc864f29c4e2ad2307eaec3/website/docs/user-guide/features/memory.md
+  - https://github.com/NousResearch/hermes-agent/blob/69f73ec5f11f5a945cc864f29c4e2ad2307eaec3/tools/session_search_tool.py
+- The pinned skills guide opening says all skills live in the default skills directory, while later sections explicitly allow create_dir and external_dirs. Treat the opening as a default description, not an exhaustive search-path contract.
+  - https://github.com/NousResearch/hermes-agent/blob/69f73ec5f11f5a945cc864f29c4e2ad2307eaec3/website/docs/user-guide/features/skills.md
+- A _skill_catalog comment says explicit skill_view loads ignore platform/disabled gates, but the skill_view body rejects unsupported platforms and disabled skills. This pass records the executable checks rather than inferring comment chronology.
+  - https://github.com/NousResearch/hermes-agent/blob/69f73ec5f11f5a945cc864f29c4e2ad2307eaec3/tools/skills_tool.py
+- Pinned compression Phase 3 documentation says a failed summary drops the middle without summary. Executable compress() instead either returns canonical messages on abort or supplies deterministic fallback before assembly. Prepared/feasibility branches have distinct conditions; no runtime test was performed.
+  - https://github.com/NousResearch/hermes-agent/blob/69f73ec5f11f5a945cc864f29c4e2ad2307eaec3/website/docs/developer-guide/context-compression-and-caching.md
+  - https://github.com/NousResearch/hermes-agent/blob/69f73ec5f11f5a945cc864f29c4e2ad2307eaec3/agent/context_compressor.py
+- CarryoverBench Appendix A.1 describes a Hermes bridge for Nanobot; released main c6f0b6e contains a direct provider.chat loop and no _hermes_bridge.py tree entry. Experimental source parity remains unresolved.
+  - https://arxiv.org/html/2610.28425v1
+  - https://github.com/igloomatics/CarryoverBench/blob/c6f0b6ee3cd2a2d99321f8eedcf0da0e93d579fa/nanobot/agent/loop.py
+- NVIDIA overview says blank allowed IDs admits everyone; pinned October central authorization denies absent explicit grants, adapter policy or allow-all. Source/version/adapter scope is unresolved.
+  - https://build.nvidia.com/spark/hermes-agent
+- PAST-Bench reports Hermes+ average improvements alongside slight DeepSeek/Opus regressions, a procedural interaction and an overall gap difference below run variation.
+  - https://arxiv.org/html/2608.04003v1
+- Pinned Telegram message intake may pass unknown DMs onward for pairing, while callback fallback denies absent allowlist/explicit global allow-all. Historical #24457 explicitly enabled global allow-all. These operation/version distinctions narrow but do not resolve NVIDIA’s unversioned blank-ID warning.
+  - https://github.com/NousResearch/hermes-agent/blob/69f73ec5f11f5a945cc864f29c4e2ad2307eaec3/plugins/platforms/telegram/adapter.py
+  - https://api.github.com/repos/NousResearch/hermes-agent/issues/24457
+  - https://build.nvidia.com/spark/hermes-agent
+- Pinned skill creation scanning logs exceptions and permits continuation; pinned project-skill quarantine instead blocks scanner exceptions. They are different trust surfaces, so neither establishes a universal fail-open or fail-closed skill policy.
+  - https://github.com/NousResearch/hermes-agent/blob/69f73ec5f11f5a945cc864f29c4e2ad2307eaec3/tools/skill_manager_tool.py
+  - https://github.com/NousResearch/hermes-agent/blob/69f73ec5f11f5a945cc864f29c4e2ad2307eaec3/agent/skill_utils.py
+- The project-skills guide promises content-change rescans; is_quarantined_project_skill first returns a path-keyed in-memory decision. The lifetime and external invalidation of that decision were not established, so live rescan behavior remains open.
+  - https://github.com/NousResearch/hermes-agent/blob/69f73ec5f11f5a945cc864f29c4e2ad2307eaec3/website/docs/user-guide/features/skills.md
+  - https://github.com/NousResearch/hermes-agent/blob/69f73ec5f11f5a945cc864f29c4e2ad2307eaec3/agent/skill_utils.py
+
+## Open gaps
+
+- No Hermes runtime or dependencies were executed; static source review cannot establish deployed behavior.
+- Run bounded empty-allowlist tests per enabled gateway adapter, including explicit grants, role/pairing and profile scope; central authorization alone is not full adapter parity.
+- Canonical native admission/storage/resolve transitions and epoch/generation/head fencing are now statically traced; live ownership-lock loss, settlement failure recovery and every non-native adapter remain unexecuted.
+- Inspect full context-overflow classifier and retry restart producer graph; exact total attempts depend on configuration and multiple recovery ladders.
+- Prepared-compaction reviewer reports are author evidence; our pass did not reproduce the timing or call-count experiments.
+- Resolve executable behavior of feasibility-skip/deterministic-pin paths with abort_on_summary_failure true in a bounded real test; helper comments and conditional assembly paths require care.
+- PAST-Bench byline affiliations are absent from read arXiv HTML/PDF; Gen-Verse repository ownership is not proof of an institutional affiliation. Do not count arXiv as an author organization.
+- Sleeper Channels byline affiliations remain unverified in the read arXiv body/PDF; a search lead identifies a journal version but that primary version was not fetched.
+- CarryoverBench does not pin a Hermes source commit in the read paper. Released main c6f0b6e lacks _hermes_bridge.py in the recursive tree; its nanobot loop calls provider.chat directly, unlike Appendix A.1’s bridge description. Reconcile released code with experimental revision before claiming reproducibility.
+- NVIDIA playbook frontmatter updated date is August 4, while visible Last Updated says October 21. Its blank allowed-ID warning differs from pinned central authorization; exact adapter/version/setup remains unresolved.
+- Author analysis H011: What capabilities and models show durable benefit in independent long-horizon deployments beyond synthetic isolated task families?
+- Author analysis H065: What version-pinned independent experiments test prompt-injection resistance across each Hermes persistence surface and model?
+- Run per-adapter absent/empty/explicit-empty/wildcard authorization tests with profile/pairing/role/delegation scope; Telegram static inspection cannot settle NVIDIA’s exact installed setup.
+- Probe concurrent approval of the same pending record and crashes between successful application and JSON deletion; no deduplication/claim protocol was established in the inspected handler.
+- Verify deployed lock backends and cooperating-writer discipline; MemoryStore yields unlocked if both fcntl and msvcrt are absent.
+- Exercise same-process cron deadlocks, unlimited inactivity settings and external worker orphan cleanup; current sweep does not terminate wedged processes.
+- Determine the precise merged commits for stale memory-target pinning and skill rollback preservation; test comments describe prior failures but do not supply full merge chronology.
+- No Hermes installation, Hermes runtime tests or Hermes inference calls were executed. Static recovery branches do not establish installed behavior or total wall-clock retries.
+- Inspect project-quarantine cache invalidation outside is_quarantined_project_skill before claiming automatic content-change rescanning in a running process.
+- Exact stale matched_entry pinning and failed-copytree rollback-preservation introduction commits remain unresolved; the September adopted-directory cleanup fix is a different rollback defect.
+- Confirm whether feasibility-skip fallback commits under abort_on_summary_failure=true in the deployed host; static compress() bypasses the helper, but host fencing/feasibility can prevent reaching this path.
+- Historical #29559 (May v2026.5.16), September v0.21.3 reports, and October pinned behavior are distinct. No common deployed checkout was tested.
+- VantaSoft uses a maintained fork and its own exact-draft/financial approval rules; its incidents do not validate upstream-default safety.
+- NVIDIA’s V4 Flash 0731 tool-continuation QA does not establish a V4.1 fix or a specific Hermes commit; blank-ID adapter/version conflict remains unresolved.
+- Inline Bash is statically direct host execution when enabled. Descendant-process cleanup, environment delegation, output-memory pressure and actual operator containment were not tested.
+- PAST Hermes adapter file parity was checked between the cited 0b56a98 snapshot and cached current adapter; the full commit identity is unverified in the cited snapshot. Whole vendored Hermes/Hermes+ snapshots, runner deadlines and intervention bodies remain unverified.
+- The frozen benchmark adapter sleeps one second by default for persistence review; actual asynchronous completion and cross-episode capture timing were not executed.
+- Determine whether _sandbox_tools_for empty-intersection expansion is narrowed by downstream RPC dispatch and runtime tool visibility; no disabled-tool bypass is established.
+- Neogen Media reports v0.19.0 Telegram session-scope collision and deployment incidents, but its full source/image digest is absent. No October reproduction or merged fix chronology was retrieved.
+- The parent of fb4dbf77 already preserves half-applied state after copytree failure. Exact H190 introduction is earlier than that parent but still unresolved.
+- Full-repository project-quarantine invalidation callers were not searched; the inspected same-module cache-clear helper does not invalidate the quarantine dictionary.
+
+## Atomic factual index with citations
+
+
+### core
+
+- **H001** Hermes Agent is Nous Research's self-hostable autonomous agent harness. [low confidence; 2026-10-27]
+  - https://github.com/NousResearch/hermes-agent
+- **H002** The public Hermes Agent repository uses the MIT license. [low confidence; 2026-10-27]
+  - https://github.com/NousResearch/hermes-agent
+- **H003** The Hermes harness connects language models to tools. [low confidence; 2026-10-27]
+  - https://github.com/NousResearch/hermes-agent/blob/69f73ec5f11f5a945cc864f29c4e2ad2307eaec3/website/docs/developer-guide/agent-loop.md
+- **H008** The documented Hermes learning loop retains small persistent facts. [low confidence; 2026-10-27]
+  - https://github.com/NousResearch/hermes-agent/blob/69f73ec5f11f5a945cc864f29c4e2ad2307eaec3/website/docs/user-guide/features/memory.md
+- **H009** The documented Hermes learning loop retains reusable procedural skills. [low confidence; 2026-10-27]
+  - https://github.com/NousResearch/hermes-agent/blob/69f73ec5f11f5a945cc864f29c4e2ad2307eaec3/website/docs/user-guide/features/skills.md
+- **H010** The skill_manage tool can create, patch and delete skills. [low confidence; 2026-10-27]
+  - https://github.com/NousResearch/hermes-agent/blob/69f73ec5f11f5a945cc864f29c4e2ad2307eaec3/website/docs/user-guide/features/skills.md
+- **H012** The memory guide assigns agent notes to MEMORY.md. [low confidence; 2026-10-27]
+  - https://github.com/NousResearch/hermes-agent/blob/69f73ec5f11f5a945cc864f29c4e2ad2307eaec3/website/docs/user-guide/features/memory.md
+- **H013** The memory guide assigns user preferences to USER.md. [low confidence; 2026-10-27]
+  - https://github.com/NousResearch/hermes-agent/blob/69f73ec5f11f5a945cc864f29c4e2ad2307eaec3/website/docs/user-guide/features/memory.md
+- **H014** The documented default MEMORY.md limit is 2,200 characters. [low confidence; 2026-10-27]
+  - https://github.com/NousResearch/hermes-agent/blob/69f73ec5f11f5a945cc864f29c4e2ad2307eaec3/website/docs/user-guide/features/memory.md
+- **H015** The documented default USER.md limit is 1,375 characters. [low confidence; 2026-10-27]
+  - https://github.com/NousResearch/hermes-agent/blob/69f73ec5f11f5a945cc864f29c4e2ad2307eaec3/website/docs/user-guide/features/memory.md
+- **H016** Hermes loads a frozen memory snapshot into the system prompt at session start. [low confidence; 2026-10-27]
+  - https://github.com/NousResearch/hermes-agent/blob/69f73ec5f11f5a945cc864f29c4e2ad2307eaec3/website/docs/user-guide/features/memory.md
+- **H017** Accepted or ungated memory writes persist immediately. [low confidence; 2026-10-27]
+  - https://github.com/NousResearch/hermes-agent/blob/69f73ec5f11f5a945cc864f29c4e2ad2307eaec3/website/docs/user-guide/features/memory.md
+  - https://github.com/NousResearch/hermes-agent/blob/69f73ec5f11f5a945cc864f29c4e2ad2307eaec3/tools/write_approval.py
+- **H018** Accepted memory writes enter the frozen system-prompt snapshot on the next session. [low confidence; 2026-10-27]
+  - https://github.com/NousResearch/hermes-agent/blob/69f73ec5f11f5a945cc864f29c4e2ad2307eaec3/website/docs/user-guide/features/memory.md
+- **H053** Hermes Agent is open source. [low confidence; source-specific date]
+  - https://github.com/NousResearch/hermes-agent
+- **H054** The documented Hermes learning loop includes recall of past conversations. [low confidence; source-specific date]
+  - https://github.com/NousResearch/hermes-agent
+- **H055** Hermes supports multiple model providers, including Nous Portal, OpenRouter, OpenAI and custom endpoints. [low confidence; 2026-10-27]
+  - https://github.com/NousResearch/hermes-agent
+- **H077** At the pinned revision, run_agent.py exposes the AIAgent facade while agent/conversation_loop.py drives a user turn. [low confidence; 2026-10-27]
+  - https://github.com/NousResearch/hermes-agent/blob/69f73ec5f11f5a945cc864f29c4e2ad2307eaec3/website/docs/developer-guide/agent-loop.md
+- **H078** The documented turn lifecycle appends tool results to conversation history and makes another model request when the response contains tool calls. [low confidence; 2026-10-27]
+  - https://github.com/NousResearch/hermes-agent/blob/69f73ec5f11f5a945cc864f29c4e2ad2307eaec3/website/docs/developer-guide/agent-loop.md
+- **H079** The documented text-response path persists the session before returning the final response. [low confidence; 2026-10-27]
+  - https://github.com/NousResearch/hermes-agent/blob/69f73ec5f11f5a945cc864f29c4e2ad2307eaec3/website/docs/developer-guide/agent-loop.md
+- **H082** Each parent or child AIAgent owns a separate IterationBudget counter. [low confidence; 2026-10-27]
+  - https://github.com/NousResearch/hermes-agent/blob/69f73ec5f11f5a945cc864f29c4e2ad2307eaec3/agent/iteration_budget.py
+- **H083** The iteration-budget module documents a default parent limit of 500 iterations. [low confidence; 2026-10-27]
+  - https://github.com/NousResearch/hermes-agent/blob/69f73ec5f11f5a945cc864f29c4e2ad2307eaec3/agent/iteration_budget.py
+- **H084** The iteration-budget module documents a default delegated-agent limit of 50 iterations. [low confidence; 2026-10-27]
+  - https://github.com/NousResearch/hermes-agent/blob/69f73ec5f11f5a945cc864f29c4e2ad2307eaec3/agent/iteration_budget.py
+- **H085** Total parent-plus-child iterations can exceed the parent iteration cap. [low confidence; 2026-10-27]
+  - https://github.com/NousResearch/hermes-agent/blob/69f73ec5f11f5a945cc864f29c4e2ad2307eaec3/agent/iteration_budget.py
+- **H086** IterationBudget.refund gives back a consumed iteration, and its class documentation identifies execute_code turns as refundable. [low confidence; 2026-10-27]
+  - https://github.com/NousResearch/hermes-agent/blob/69f73ec5f11f5a945cc864f29c4e2ad2307eaec3/agent/iteration_budget.py
+- **H100** The pinned memory guide says memory patch replaces only the uniquely matched old_text span within an entry. [low confidence; 2026-10-27]
+  - https://github.com/NousResearch/hermes-agent/blob/69f73ec5f11f5a945cc864f29c4e2ad2307eaec3/website/docs/user-guide/features/memory.md
+- **H101** The pinned memory guide says the removed memory replace action now returns an error directing the caller to patch. [low confidence; 2026-10-27]
+  - https://github.com/NousResearch/hermes-agent/blob/69f73ec5f11f5a945cc864f29c4e2ad2307eaec3/website/docs/user-guide/features/memory.md
+- **H102** The pinned memory guide preserves pre-removal staged replace writes, while executable replay requires a verifiable pinned destructive target. [low confidence; 2026-10-27]
+  - https://github.com/NousResearch/hermes-agent/blob/69f73ec5f11f5a945cc864f29c4e2ad2307eaec3/website/docs/user-guide/features/memory.md
+  - https://github.com/NousResearch/hermes-agent/blob/69f73ec5f11f5a945cc864f29c4e2ad2307eaec3/tools/memory_tool.py
+- **H103** The memory guide checks character capacity on the final result of an operations batch rather than each intermediate removal or addition. [low confidence; 2026-10-27]
+  - https://github.com/NousResearch/hermes-agent/blob/69f73ec5f11f5a945cc864f29c4e2ad2307eaec3/website/docs/user-guide/features/memory.md
+- **H104** The memory guide requires one top-level target for a memory-tool batch and rejects conflicting operation targets before writing or staging. [low confidence; 2026-10-27]
+  - https://github.com/NousResearch/hermes-agent/blob/69f73ec5f11f5a945cc864f29c4e2ad2307eaec3/website/docs/user-guide/features/memory.md
+- **H105** The memory guide says disabling both built-in stores removes the memory tool while leaving an enabled external memory provider unaffected. [low confidence; 2026-10-27]
+  - https://github.com/NousResearch/hermes-agent/blob/69f73ec5f11f5a945cc864f29c4e2ad2307eaec3/website/docs/user-guide/features/memory.md
+- **H106** The memory guide says disabling the memory toolset also hides external memory-provider tools. [low confidence; 2026-10-27]
+  - https://github.com/NousResearch/hermes-agent/blob/69f73ec5f11f5a945cc864f29c4e2ad2307eaec3/website/docs/user-guide/features/memory.md
+- **H133** At commit 69f73ec5f11f5a945cc864f29c4e2ad2307eaec3, compressed-message restarts refund the iteration and increment retry_count. [low confidence; 2026-10-27]
+  - https://github.com/NousResearch/hermes-agent/blob/69f73ec5f11f5a945cc864f29c4e2ad2307eaec3/agent/turn_iteration_prep.py
+- **H143** A 25 October 2026 compressor fix commit records that a rebase lost the overload-budget reset, causing a later isolated overload to escalate prematurely after a successful summary. [low confidence; 2026-10-27]
+  - https://api.github.com/repos/NousResearch/hermes-agent/commits/2a0e464c27727abfd5e7b669eb0bfe50a430f599
+- **H144** In the 26 October 2026 PR #144684 discussion, repository collaborator teknium1 reports a ruling to use one prepared summary per compaction and retain all newer messages in the tail. [low confidence; source-specific date]
+  - https://api.github.com/repos/NousResearch/hermes-agent/issues/144684/comments
+
+### tools
+
+- **H004** Hermes exposes a terminal interface. [low confidence; 2026-10-21]
+  - https://build.nvidia.com/spark/hermes-agent
+- **H005** Hermes exposes a messaging gateway supporting Telegram, Discord and Slack. [low confidence; 2026-10-21]
+  - https://build.nvidia.com/spark/hermes-agent
+- **H006** Hermes includes built-in cron scheduling. [low confidence; 2026-10-21]
+  - https://build.nvidia.com/spark/hermes-agent
+- **H007** NVIDIA documents connecting Hermes to a locally served vLLM endpoint. [low confidence; 2026-10-21]
+  - https://build.nvidia.com/spark/hermes-agent
+- **H029** The skills guide says skills.write_approval defaults to false. [low confidence; 2026-10-27]
+  - https://github.com/NousResearch/hermes-agent/blob/69f73ec5f11f5a945cc864f29c4e2ad2307eaec3/website/docs/user-guide/features/skills.md
+- **H030** When the write-approval module loads successfully, enabling skills.write_approval stages skill_manage changes for approval. [low confidence; 2026-10-27]
+  - https://github.com/NousResearch/hermes-agent/blob/69f73ec5f11f5a945cc864f29c4e2ad2307eaec3/website/docs/user-guide/features/skills.md
+  - https://github.com/NousResearch/hermes-agent/blob/69f73ec5f11f5a945cc864f29c4e2ad2307eaec3/tools/skill_manager_tool.py
+- **H031** The skill-write approval gate includes background-review changes. [low confidence; 2026-10-27]
+  - https://github.com/NousResearch/hermes-agent/blob/69f73ec5f11f5a945cc864f29c4e2ad2307eaec3/website/docs/user-guide/features/skills.md
+- **H032** Successfully persisted pending skill changes survive restarts. [low confidence; 2026-10-27]
+  - https://github.com/NousResearch/hermes-agent/blob/69f73ec5f11f5a945cc864f29c4e2ad2307eaec3/website/docs/user-guide/features/skills.md
+  - https://github.com/NousResearch/hermes-agent/blob/69f73ec5f11f5a945cc864f29c4e2ad2307eaec3/tools/write_approval.py
+- **H033** Pending skill changes can be inspected, approved or rejected. [low confidence; 2026-10-27]
+  - https://github.com/NousResearch/hermes-agent/blob/69f73ec5f11f5a945cc864f29c4e2ad2307eaec3/website/docs/user-guide/features/skills.md
+- **H034** Skill-write approval is separate from the dangerous-pattern scanner. [low confidence; 2026-10-27]
+  - https://github.com/NousResearch/hermes-agent/blob/69f73ec5f11f5a945cc864f29c4e2ad2307eaec3/website/docs/user-guide/features/skills.md
+- **H056** Hermes scheduled tasks can deliver results to chat. [low confidence; 2026-10-27]
+  - https://hermes-agent.nousresearch.com/docs/
+- **H058** The /learn command can turn documents, websites or demonstrated workflows into reusable skills. [low confidence; 2026-10-27]
+  - https://github.com/NousResearch/hermes-agent/blob/69f73ec5f11f5a945cc864f29c4e2ad2307eaec3/website/docs/user-guide/features/skills.md
+- **H059** For large /learn sources, Hermes can create a concise entry document with topic references loaded on demand. [low confidence; 2026-10-27]
+  - https://github.com/NousResearch/hermes-agent/blob/69f73ec5f11f5a945cc864f29c4e2ad2307eaec3/website/docs/user-guide/features/skills.md
+- **H080** The documented tool executor reinserts concurrent tool results in original call order. [low confidence; 2026-10-27]
+  - https://github.com/NousResearch/hermes-agent/blob/69f73ec5f11f5a945cc864f29c4e2ad2307eaec3/website/docs/developer-guide/agent-loop.md
+- **H081** The loop guide says interactive tools such as clarify force sequential execution. [low confidence; 2026-10-27]
+  - https://github.com/NousResearch/hermes-agent/blob/69f73ec5f11f5a945cc864f29c4e2ad2307eaec3/website/docs/developer-guide/agent-loop.md
+- **H107** At the pinned revision, session_search selects browse, discovery, whole-session read or anchored scroll behavior from its arguments. [low confidence; 2026-10-27]
+  - https://github.com/NousResearch/hermes-agent/blob/69f73ec5f11f5a945cc864f29c4e2ad2307eaec3/tools/session_search_tool.py
+- **H108** At the pinned revision, a whole-session session_search read may return first/last bookends with truncated=true. [low confidence; 2026-10-27]
+  - https://github.com/NousResearch/hermes-agent/blob/69f73ec5f11f5a945cc864f29c4e2ad2307eaec3/tools/session_search_tool.py
+- **H109** A bare session ID lookup in session_search does not scan other profiles when the current profile has no matching session. [low confidence; 2026-10-27]
+  - https://github.com/NousResearch/hermes-agent/blob/69f73ec5f11f5a945cc864f29c4e2ad2307eaec3/tools/session_search_tool.py
+- **H110** session_search permits explicit read-only access to another named profile database. [low confidence; 2026-10-27]
+  - https://github.com/NousResearch/hermes-agent/blob/69f73ec5f11f5a945cc864f29c4e2ad2307eaec3/tools/session_search_tool.py
+- **H111** With memory.write_approval enabled, evaluate_gate attempts inline approval for foreground memory writes when an answering channel exists. [low confidence; 2026-10-27]
+  - https://github.com/NousResearch/hermes-agent/blob/69f73ec5f11f5a945cc864f29c4e2ad2307eaec3/tools/write_approval.py
+- **H112** With write approval enabled, evaluate_gate stages background-review memory writes. [low confidence; 2026-10-27]
+  - https://github.com/NousResearch/hermes-agent/blob/69f73ec5f11f5a945cc864f29c4e2ad2307eaec3/tools/write_approval.py
+- **H113** If inline memory approval has no answering channel or cannot be delivered, evaluate_gate stages the write. [low confidence; 2026-10-27]
+  - https://github.com/NousResearch/hermes-agent/blob/69f73ec5f11f5a945cc864f29c4e2ad2307eaec3/tools/write_approval.py
+- **H114** write_approval_enabled treats invalid configuration values or configuration-load exceptions as gate disabled. [low confidence; 2026-10-27]
+  - https://github.com/NousResearch/hermes-agent/blob/69f73ec5f11f5a945cc864f29c4e2ad2307eaec3/tools/write_approval.py
+- **H118** The container guard fast path still evaluates operator approvals.deny rules. [low confidence; 2026-10-27]
+  - https://github.com/NousResearch/hermes-agent/blob/69f73ec5f11f5a945cc864f29c4e2ad2307eaec3/tools/approval.py
+- **H119** The combined command guard applies separate configured approval policies to single-query, cron and unattended-platform contexts when no interactive approval channel exists. [low confidence; 2026-10-27]
+  - https://github.com/NousResearch/hermes-agent/blob/69f73ec5f11f5a945cc864f29c4e2ad2307eaec3/tools/approval.py
+- **H120** request_tool_approval requests fail-closed behavior when an unrecognized noninteractive context has no human approval bridge. [low confidence; 2026-10-27]
+  - https://github.com/NousResearch/hermes-agent/blob/69f73ec5f11f5a945cc864f29c4e2ad2307eaec3/tools/approval.py
+- **H121** At the pinned revision, skill_view rejects a disabled skill even when explicitly requested by name. [low confidence; 2026-10-27]
+  - https://github.com/NousResearch/hermes-agent/blob/69f73ec5f11f5a945cc864f29c4e2ad2307eaec3/tools/skills_tool.py
+- **H127** The gateway guide says startup recovery rechecks authorization before dispatching previously queued native inputs. [low confidence; 2026-10-27]
+  - https://github.com/NousResearch/hermes-agent/blob/69f73ec5f11f5a945cc864f29c4e2ad2307eaec3/website/docs/developer-guide/gateway-internals.md
+  - https://github.com/NousResearch/hermes-agent/blob/69f73ec5f11f5a945cc864f29c4e2ad2307eaec3/gateway/session_envelope.py
+  - https://github.com/NousResearch/hermes-agent/blob/69f73ec5f11f5a945cc864f29c4e2ad2307eaec3/gateway/session_authority.py
+- **H128** The architecture guide describes cron runs as fresh AIAgent instances without conversation history. [low confidence; 2026-10-27]
+  - https://github.com/NousResearch/hermes-agent/blob/69f73ec5f11f5a945cc864f29c4e2ad2307eaec3/website/docs/developer-guide/architecture.md
+- **H194** At commit 69f73ec5f11f5a945cc864f29c4e2ad2307eaec3, scanning agent-created skill mutations is opt-in through skills.guard_agent_created, whose default is false. [low confidence; 2026-10-27]
+  - https://github.com/NousResearch/hermes-agent/blob/69f73ec5f11f5a945cc864f29c4e2ad2307eaec3/tools/skill_manager_tool.py
+- **H196** At commit 69f73ec5f11f5a945cc864f29c4e2ad2307eaec3, enabling skills.inline_shell expands single-line inline shell snippets during skill preprocessing with a direct Bash subprocess in the skill directory; the option defaults to false. [low confidence; 2026-10-27]
+  - https://github.com/NousResearch/hermes-agent/blob/69f73ec5f11f5a945cc864f29c4e2ad2307eaec3/agent/skill_preprocessing.py
+- **H197** At commit 69f73ec5f11f5a945cc864f29c4e2ad2307eaec3, inline-shell preprocessing suppresses expansion for skills identified as community Hub installs, including nested skills and installs exposed through another profile’s skills tree. [low confidence; 2026-10-27]
+  - https://github.com/NousResearch/hermes-agent/blob/69f73ec5f11f5a945cc864f29c4e2ad2307eaec3/agent/skill_preprocessing.py
+- **H198** At commit 69f73ec5f11f5a945cc864f29c4e2ad2307eaec3, project-skill quarantine blocks dangerous verdicts and scanner failures, while a caution verdict alone does not quarantine the skill. [low confidence; 2026-10-27]
+  - https://github.com/NousResearch/hermes-agent/blob/69f73ec5f11f5a945cc864f29c4e2ad2307eaec3/agent/skill_utils.py
+- **H212** In the PAST-Bench Hermes adapter source snapshot at abbreviated revision 0b56a98, before a response has been cached, the Hermes adapter rejects follow-up step IDs or externally supplied tool results because it runs in one-shot mode. [low confidence; 2026-10-27]
+  - https://github.com/Gen-Verse/PAST-Bench/blob/0b56a98/src/past_bench/runtime/adapters/hermes.py
+- **H213** In the PAST-Bench Hermes adapter source snapshot at abbreviated revision 0b56a98, the Hermes adapter defaults skip_context_files to true. [low confidence; 2026-10-27]
+  - https://github.com/Gen-Verse/PAST-Bench/blob/0b56a98/src/past_bench/runtime/adapters/hermes.py
+- **H214** In the PAST-Bench Hermes adapter source snapshot at abbreviated revision 0b56a98, the Hermes adapter defaults its post-conversation background-review wait to one second with persistence enabled and zero otherwise. [low confidence; 2026-10-27]
+  - https://github.com/Gen-Verse/PAST-Bench/blob/0b56a98/src/past_bench/runtime/adapters/hermes.py
+- **H215** At commit 69f73ec5f11f5a945cc864f29c4e2ad2307eaec3, execute_code defaults to project mode; strict mode changes its working directory and interpreter, while environment scrubbing and the tool whitelist apply to both. [low confidence; 2026-10-27]
+  - https://github.com/NousResearch/hermes-agent/blob/69f73ec5f11f5a945cc864f29c4e2ad2307eaec3/tools/code_execution_tool.py
+- **H218** At commit 69f73ec5f11f5a945cc864f29c4e2ad2307eaec3, serving a plugin skill’s main document defaults to preprocessing it through preprocess_skill_content; a preprocessing exception logs a message and serves the original content. [low confidence; 2026-10-27]
+  - https://github.com/NousResearch/hermes-agent/blob/69f73ec5f11f5a945cc864f29c4e2ad2307eaec3/tools/skills_tool_plugin.py
+
+### patterns
+
+- **H024** The skills catalog supplies skill names and descriptions. [low confidence; 2026-10-27]
+  - https://github.com/NousResearch/hermes-agent/blob/69f73ec5f11f5a945cc864f29c4e2ad2307eaec3/website/docs/user-guide/features/skills.md
+- **H025** skill_view loads a selected skill on demand. [low confidence; 2026-10-27]
+  - https://github.com/NousResearch/hermes-agent/blob/69f73ec5f11f5a945cc864f29c4e2ad2307eaec3/website/docs/user-guide/features/skills.md
+- **H026** Skill reference files load separately on demand. [low confidence; 2026-10-27]
+  - https://github.com/NousResearch/hermes-agent/blob/69f73ec5f11f5a945cc864f29c4e2ad2307eaec3/website/docs/user-guide/features/skills.md
+- **H027** Hermes skills follow the Agent Skills standard. [low confidence; 2026-10-27]
+  - https://github.com/NousResearch/hermes-agent/blob/69f73ec5f11f5a945cc864f29c4e2ad2307eaec3/website/docs/user-guide/features/skills.md
+- **H028** Hermes skills normally live in the Hermes home's skills directory. [low confidence; 2026-10-27]
+  - https://github.com/NousResearch/hermes-agent/blob/69f73ec5f11f5a945cc864f29c4e2ad2307eaec3/website/docs/user-guide/features/skills.md
+- **H042** A sandboxed terminal backend confines shell and file-tool operations. [low confidence; 2026-10-27]
+  - https://github.com/NousResearch/hermes-agent/blob/69f73ec5f11f5a945cc864f29c4e2ad2307eaec3/SECURITY.md
+- **H043** Terminal sandboxing does not contain host-side code execution, MCP subprocesses, plugins or hooks. [low confidence; 2026-10-27]
+  - https://github.com/NousResearch/hermes-agent/blob/69f73ec5f11f5a945cc864f29c4e2ad2307eaec3/SECURITY.md
+- **H044** Upstream policy supports whole-process-tree isolation for untrusted inputs or shared deployments. [low confidence; 2026-10-27]
+  - https://github.com/NousResearch/hermes-agent/blob/69f73ec5f11f5a945cc864f29c4e2ad2307eaec3/SECURITY.md
+- **H057** By default, local, hub-installed and agent-created skills share the profile’s skills directory. [low confidence; 2026-10-27]
+  - https://github.com/NousResearch/hermes-agent/blob/69f73ec5f11f5a945cc864f29c4e2ad2307eaec3/website/docs/user-guide/features/skills.md
+- **H093** The compression guide describes replacing old tool results over 200 characters outside the protected tail before invoking the summary model. [low confidence; 2026-10-27]
+  - https://github.com/NousResearch/hermes-agent/blob/69f73ec5f11f5a945cc864f29c4e2ad2307eaec3/website/docs/developer-guide/context-compression-and-caching.md
+- **H094** The compression guide aligns compression boundaries to keep tool-call/result groups together. [low confidence; 2026-10-27]
+  - https://github.com/NousResearch/hermes-agent/blob/69f73ec5f11f5a945cc864f29c4e2ad2307eaec3/website/docs/developer-guide/context-compression-and-caching.md
+- **H095** The compression guide says pruned skill content receives a SKILL_PRUNED marker instructing the agent to reload it. [low confidence; 2026-10-27]
+  - https://github.com/NousResearch/hermes-agent/blob/69f73ec5f11f5a945cc864f29c4e2ad2307eaec3/website/docs/developer-guide/context-compression-and-caching.md
+- **H096** The compression guide exempts skills preloaded into the system prompt with -s or skills.auto_load from conversation compaction. [low confidence; 2026-10-27]
+  - https://github.com/NousResearch/hermes-agent/blob/69f73ec5f11f5a945cc864f29c4e2ad2307eaec3/website/docs/developer-guide/context-compression-and-caching.md
+- **H097** The compression guide bounds ordinary protected-tail size by a token budget, so protect_last_n does not guarantee preservation of every requested row. [low confidence; 2026-10-27]
+  - https://github.com/NousResearch/hermes-agent/blob/69f73ec5f11f5a945cc864f29c4e2ad2307eaec3/website/docs/developer-guide/context-compression-and-caching.md
+- **H122** The skills guide allows skills.create_dir to redirect newly created skills outside the default skills directory. [low confidence; 2026-10-27]
+  - https://github.com/NousResearch/hermes-agent/blob/69f73ec5f11f5a945cc864f29c4e2ad2307eaec3/website/docs/user-guide/features/skills.md
+- **H123** The skills guide says skill_manage modifies existing skills where they were found, including external_dirs. [low confidence; 2026-10-27]
+  - https://github.com/NousResearch/hermes-agent/blob/69f73ec5f11f5a945cc864f29c4e2ad2307eaec3/website/docs/user-guide/features/skills.md
+- **H161** VantaSoft reports that 41 of its 118 scheduled jobs bypassed the AI model and delivered plain-program results directly to chat on 26 October 2026. [low confidence; 2026-10-27]
+  - https://www.vantasoft.com/insights/hermes-agent-review
+- **H162** VantaSoft reports replacing a repeatedly mistaken publishing timestamp procedure with a rejected blank marker filled only at release, with no recurrence logged after 14 October 2026. [low confidence; 2026-10-27]
+  - https://www.vantasoft.com/insights/hermes-agent-review
+- **H163** VantaSoft reports an in-place update breaking nine running agents on 13 August 2026, after which it adopted side-by-side versions with a single-step switch and retained rollback version on 22 August. [low confidence; 2026-10-27]
+  - https://www.vantasoft.com/insights/hermes-agent-review
+- **H167** At the pinned revision, admit_session_input raises admission_conflict if a payload or intent changes for an existing principal/session/request tuple. [low confidence; 2026-10-27]
+  - https://github.com/NousResearch/hermes-agent/blob/69f73ec5f11f5a945cc864f29c4e2ad2307eaec3/hermes_state_runtime.py
+- **H169** At the pinned revision, claim_session_input refuses a FIFO head that differs from the admission validated during preclaim checks. [low confidence; 2026-10-27]
+  - https://github.com/NousResearch/hermes-agent/blob/69f73ec5f11f5a945cc864f29c4e2ad2307eaec3/hermes_state_runtime.py
+  - https://github.com/NousResearch/hermes-agent/blob/69f73ec5f11f5a945cc864f29c4e2ad2307eaec3/gateway/session_authority.py
+- **H170** At the pinned revision, settling a started admission requires the current runtime epoch and matching admission-owner and session generation. [low confidence; 2026-10-27]
+  - https://github.com/NousResearch/hermes-agent/blob/69f73ec5f11f5a945cc864f29c4e2ad2307eaec3/hermes_state_runtime.py
+- **H171** At the pinned revision, resolve_unknown_session_input can preserve a finished result captured by the same owner after a settlement-write failure. [low confidence; 2026-10-27]
+  - https://github.com/NousResearch/hermes-agent/blob/69f73ec5f11f5a945cc864f29c4e2ad2307eaec3/hermes_state_runtime.py
+- **H172** The pinned native Telegram crash-recovery test expects revoked callers’ queued admissions to remain executable and drain after later reauthorization. [low confidence; 2026-10-27]
+  - https://github.com/NousResearch/hermes-agent/blob/69f73ec5f11f5a945cc864f29c4e2ad2307eaec3/tests/gateway/test_native_telegram_startup_recovery.py
+- **H173** At the pinned revision, native-route recovery validates both the stored sender and the current route/session/adapter binding before queued dispatch. [low confidence; 2026-10-27]
+  - https://github.com/NousResearch/hermes-agent/blob/69f73ec5f11f5a945cc864f29c4e2ad2307eaec3/gateway/session_envelope.py
+- **H174** At the pinned revision, native admission validation honors an adapter’s authorization_is_upstream declaration when deciding whether to delegate authorization. [low confidence; 2026-10-27]
+  - https://github.com/NousResearch/hermes-agent/blob/69f73ec5f11f5a945cc864f29c4e2ad2307eaec3/gateway/session_envelope.py
+- **H175** At the pinned revision, Telegram’s button-callback fallback denies an empty TELEGRAM_ALLOWED_USERS list unless GATEWAY_ALLOW_ALL_USERS is truthy. [low confidence; 2026-10-27]
+  - https://github.com/NousResearch/hermes-agent/blob/69f73ec5f11f5a945cc864f29c4e2ad2307eaec3/plugins/platforms/telegram/adapter.py
+- **H176** At the pinned revision, Telegram’s message intake prefilter can forward an unconfigured or pairing-eligible DM to the gateway before final authorization. [low confidence; 2026-10-27]
+  - https://github.com/NousResearch/hermes-agent/blob/69f73ec5f11f5a945cc864f29c4e2ad2307eaec3/plugins/platforms/telegram/adapter.py
+- **H181** At the pinned revision, cron recovery fences its unknown-state update against changes to the observed progress timestamp. [low confidence; 2026-10-27]
+  - https://github.com/NousResearch/hermes-agent/blob/69f73ec5f11f5a945cc864f29c4e2ad2307eaec3/cron/executions.py
+  - https://github.com/NousResearch/hermes-agent/blob/69f73ec5f11f5a945cc864f29c4e2ad2307eaec3/tests/cron/test_stale_running_recovery.py
+- **H183** At the pinned revision, MemoryStore._mutate rereads the target file inside _file_lock before changing and atomically replacing it. [low confidence; 2026-10-27]
+  - https://github.com/NousResearch/hermes-agent/blob/69f73ec5f11f5a945cc864f29c4e2ad2307eaec3/tools/memory_tool_store.py
+- **H186** At the pinned revision, approval of a staged memory removal refuses to act if the pinned full entry has changed. [low confidence; 2026-10-27]
+  - https://github.com/NousResearch/hermes-agent/blob/69f73ec5f11f5a945cc864f29c4e2ad2307eaec3/tools/memory_tool_store.py
+  - https://github.com/NousResearch/hermes-agent/blob/69f73ec5f11f5a945cc864f29c4e2ad2307eaec3/tests/tools/test_write_approval.py
+- **H187** At the pinned revision, apply_memory_pending refuses destructive legacy records without a pinned matched_entry. [low confidence; 2026-10-27]
+  - https://github.com/NousResearch/hermes-agent/blob/69f73ec5f11f5a945cc864f29c4e2ad2307eaec3/tools/memory_tool.py
+- **H188** At the pinned revision, pending-write approval applies a change before attempting best-effort deletion of its pending record. [low confidence; 2026-10-27]
+  - https://github.com/NousResearch/hermes-agent/blob/69f73ec5f11f5a945cc864f29c4e2ad2307eaec3/hermes_cli/write_approval_commands.py
+  - https://github.com/NousResearch/hermes-agent/blob/69f73ec5f11f5a945cc864f29c4e2ad2307eaec3/tools/write_approval.py
+- **H189** At the pinned revision, a skill batch holds all target mutation locks in stable path order from snapshot through commit or rollback. [low confidence; 2026-10-27]
+  - https://github.com/NousResearch/hermes-agent/blob/69f73ec5f11f5a945cc864f29c4e2ad2307eaec3/tools/skill_manager_tool.py
+  - https://github.com/NousResearch/hermes-agent/blob/69f73ec5f11f5a945cc864f29c4e2ad2307eaec3/tools/skill_manager_batch.py
+
+### methodology
+
+- **H045** The 20 October 2026 CarryoverBench paper reports reduced but nonzero carryover attacks when transferring its memory-resurfaced attack channel to Hermes. [low confidence; source-specific date]
+  - https://arxiv.org/abs/2610.28425
+- **H046** The reported CarryoverBench Hermes result applies to its tested channel and setup, not every Hermes deployment. [low confidence; source-specific date]
+  - https://arxiv.org/abs/2610.28425
+- **H047** The May 2026 Sleeper Channels paper discusses Hermes memory, skills and scheduled work as persistent-injection surfaces. [low confidence; source-specific date]
+  - https://arxiv.org/abs/2605.13471
+- **H048** Sleeper Channels demonstrates its end-to-end cron attack on a different runtime from Hermes. [low confidence; source-specific date]
+  - https://arxiv.org/abs/2605.13471
+- **H049** Sleeper Channels describes empirical evaluation as follow-on work, rather than presenting a Hermes exploit benchmark. [low confidence; source-specific date]
+  - https://arxiv.org/abs/2605.13471
+- **H050** Folkfox's 6 October 2026 review says it checked documentation rather than testing every feature. [low confidence; source-specific date]
+  - https://folkfox.com/hermes-agent-review-twenty-promises-checked/
+- **H051** Folkfox's review says it did not audit code. [low confidence; source-specific date]
+  - https://folkfox.com/hermes-agent-review-twenty-promises-checked/
+- **H060** The security guide documents user authorization as a control. [low confidence; 2026-10-27]
+  - https://hermes-agent.nousresearch.com/docs/user-guide/security
+- **H061** The security guide documents dangerous-command approval as a control. [low confidence; 2026-10-27]
+  - https://hermes-agent.nousresearch.com/docs/user-guide/security
+- **H062** The security guide documents optional file-write restrictions. [low confidence; 2026-10-27]
+  - https://hermes-agent.nousresearch.com/docs/user-guide/security
+- **H063** The security guide documents container isolation. [low confidence; 2026-10-27]
+  - https://hermes-agent.nousresearch.com/docs/user-guide/security
+- **H064** The security guide documents context-file scanning. [low confidence; 2026-10-27]
+  - https://hermes-agent.nousresearch.com/docs/user-guide/security
+- **H069** PAST-Bench compares matched fresh-session sequences with retention enabled or disabled. [low confidence; 2026-08-04]
+  - https://arxiv.org/abs/2608.04003
+- **H070** PAST-Bench authors report uneven improvement across capabilities and models. [low confidence; 2026-08-04]
+  - https://arxiv.org/abs/2608.04003
+- **H071** PAST-Bench introduces Hermes+, which extends Hermes with five targeted interventions across stages of the agent loop. [low confidence; 2026-08-04]
+  - https://arxiv.org/abs/2608.04003
+- **H145** PAST-Bench selects Hermes v2026.4.16 and freezes its framework snapshots and benchmark adapters at artifact revision 0b56a98. [low confidence; 2026-10-27]
+  - https://arxiv.org/html/2608.04003v1
+- **H146** PAST-Bench stops Hermes and Hermes+ at a final response, 50 iterations or a 300-second timeout. [low confidence; 2026-10-27]
+  - https://arxiv.org/html/2608.04003v1
+- **H147** PAST-Bench reports that Hermes+ raises the mean overall persistence gap from +0.13 to +0.15, with the difference smaller than run-to-run variation. [low confidence; 2026-10-27]
+  - https://arxiv.org/html/2608.04003v1
+- **H148** In PAST-Bench cross-model transfer, Hermes+ slightly regresses relative to Hermes with DeepSeek-V4-Pro and Claude Opus 4.6. [low confidence; 2026-10-27]
+  - https://arxiv.org/html/2608.04003v1
+- **H149** PAST-Bench’s Hermes+ E2 intervention stores typed, scoped memory bindings and renders the current in-scope binding while suppressing superseded entries. [low confidence; 2026-10-27]
+  - https://arxiv.org/html/2608.04003v1
+- **H150** PAST-Bench’s Hermes+ E4 intervention blocks a draft answer that depends on prior state until a persistence read occurs. [low confidence; 2026-10-27]
+  - https://arxiv.org/html/2608.04003v1
+- **H151** PAST-Bench’s Hermes+ E5 intervention writes the corrected authoritative binding at episode close and synchronously flushes it to the persistent store. [low confidence; 2026-10-27]
+  - https://arxiv.org/html/2608.04003v1
+- **H152** PAST-Bench characterizes its mechanism-evidence score as consistency with an expected persistence pathway rather than proof of causal necessity. [low confidence; 2026-10-27]
+  - https://arxiv.org/html/2608.04003v1
+- **H153** For MiniMax-M2.7 in PAST-Bench, Hermes+ uses 31,859 tokens per episode versus Hermes’ 12,615, while mean wall time is 77.4 seconds versus 70.5 seconds. [low confidence; 2026-10-27]
+  - https://arxiv.org/html/2608.04003v1
+- **H154** CarryoverBench’s Hermes runtime ablation reruns 36 Latent variants on four non-reasoning model configurations, excluding Gemini-3.1-Pro. [low confidence; 2026-10-27]
+  - https://arxiv.org/html/2610.28425v1
+- **H155** CarryoverBench Table 6 reports Hermes Latent ASR of 27.8% for Qwen3-235B-A22B, 5.6% for Claude-Sonnet-4.6, 8.3% for GLM-5 and 2.8% for GPT-5.4. [low confidence; 2026-10-27]
+  - https://arxiv.org/html/2610.28425v1
+- **H156** CarryoverBench counts a Hermes trial as successful when planting succeeds and at least one of five fresh follow-up sessions triggers a verifier-detected action. [low confidence; 2026-10-27]
+  - https://arxiv.org/html/2610.28425v1
+- **H157** CarryoverBench attributes declining Hermes trigger rates for Qwen and GLM to agents treating prior output artifacts as completed work while the planted memory remains intact. [low confidence; 2026-10-27]
+  - https://arxiv.org/html/2610.28425v1
+- **H158** In CarryoverBench’s Hermes trials, the authors report zero scanner matches among 89 payload files and no remove or replace invocation by the memory-review pipeline. [low confidence; 2026-10-27]
+  - https://arxiv.org/html/2610.28425v1
+- **H159** CarryoverBench says its identical, topically aligned Latent follow-up prompts make conditional trigger rates an upper bound on realistic trigger rates. [low confidence; 2026-10-27]
+  - https://arxiv.org/html/2610.28425v1
+- **H160** Sleeper Channels cites Hermes commit 98d75dea5a86aec599b1e081f8bbe9170bd3f964 dated 27 April 2026 and release v0.11.0 dated 23 April 2026. [low confidence; 2026-10-27]
+  - https://arxiv.org/html/2605.13471v1
+- **H191** PR #96195 proposed rereading and merging memory during save_to_disk, but the retrieved October 27 API record still marks it open and unmerged. [low confidence; 2026-10-27]
+  - https://api.github.com/repos/NousResearch/hermes-agent/pulls/96195
+
+### antipatterns
+
+- **H035** Local inference can remove cloud-model API charges for those inference calls. [low confidence; 2026-10-21]
+  - https://build.nvidia.com/spark/hermes-agent
+- **H036** Optional messaging channels and external tool calls can transmit data despite local inference. [low confidence; 2026-10-21]
+  - https://build.nvidia.com/spark/hermes-agent
+- **H037** NVIDIA warns that agent actions and messaging can expose local files. [low confidence; 2026-10-21]
+  - https://build.nvidia.com/spark/hermes-agent
+- **H038** Upstream security policy describes Hermes as a single-tenant personal agent. [low confidence; 2026-10-27]
+  - https://github.com/NousResearch/hermes-agent/blob/69f73ec5f11f5a945cc864f29c4e2ad2307eaec3/SECURITY.md
+- **H039** Upstream security policy treats OS isolation as the boundary against adversarial model output. [low confidence; 2026-10-27]
+  - https://github.com/NousResearch/hermes-agent/blob/69f73ec5f11f5a945cc864f29c4e2ad2307eaec3/SECURITY.md
+- **H040** Approval gates, redaction and scanners are heuristic controls. [low confidence; 2026-10-27]
+  - https://github.com/NousResearch/hermes-agent/blob/69f73ec5f11f5a945cc864f29c4e2ad2307eaec3/SECURITY.md
+- **H041** Those heuristic controls do not contain hostile execution. [low confidence; 2026-10-27]
+  - https://github.com/NousResearch/hermes-agent/blob/69f73ec5f11f5a945cc864f29c4e2ad2307eaec3/SECURITY.md
+- **H066** The security guide documents approvals.mode off as bypassing recoverable dangerous-command prompts, while hardline blocks and operator deny rules still apply. [low confidence; 2026-10-27]
+  - https://hermes-agent.nousresearch.com/docs/user-guide/security
+  - https://github.com/NousResearch/hermes-agent/blob/69f73ec5f11f5a945cc864f29c4e2ad2307eaec3/tools/approval.py
+- **H067** The security guide documents YOLO as bypassing recoverable dangerous-command approval prompts, with hardline blocks and operator deny rules retained. [low confidence; 2026-10-27]
+  - https://hermes-agent.nousresearch.com/docs/user-guide/security
+  - https://github.com/NousResearch/hermes-agent/blob/69f73ec5f11f5a945cc864f29c4e2ad2307eaec3/tools/approval.py
+- **H116** On the normal command-guard path, approvals.deny rules are checked before YOLO or approvals.mode off can bypass recoverable prompts. [low confidence; 2026-10-27]
+  - https://github.com/NousResearch/hermes-agent/blob/69f73ec5f11f5a945cc864f29c4e2ad2307eaec3/tools/approval.py
+- **H117** On the normal command-guard path, catastrophic-command and runtime-self-deletion blocks precede recoverable approval bypasses. [low confidence; 2026-10-27]
+  - https://github.com/NousResearch/hermes-agent/blob/69f73ec5f11f5a945cc864f29c4e2ad2307eaec3/tools/approval.py
+- **H124** The pinned security policy requires authorization rechecking rather than treating a session ID as an authorization boundary. [low confidence; 2026-10-27]
+  - https://github.com/NousResearch/hermes-agent/blob/69f73ec5f11f5a945cc864f29c4e2ad2307eaec3/SECURITY.md
+- **H125** The pinned security policy treats all callers within one adapter allowlist as equally trusted. [low confidence; 2026-10-27]
+  - https://github.com/NousResearch/hermes-agent/blob/69f73ec5f11f5a945cc864f29c4e2ad2307eaec3/SECURITY.md
+- **H164** NVIDIA reports that an older DeepSeek V4.1 Flash configuration failed tool continuation with duplicate reasoning fields, whereas the recommended V4 Flash 0731 path passed Hermes tool use with medium reasoning. [low confidence; 2026-10-27]
+  - https://build.nvidia.com/spark/hermes-agent/troubleshooting.md
+- **H165** NVIDIA documents that noninteractive Ubuntu SSH shells can omit Hermes from PATH because .bashrc returns before the installer-added PATH lines. [low confidence; 2026-10-27]
+  - https://build.nvidia.com/spark/hermes-agent/troubleshooting.md
+- **H166** NVIDIA documents that Hermes core chat can still work when missing Linux dependencies prevent Playwright browser tools from working. [low confidence; 2026-10-27]
+  - https://build.nvidia.com/spark/hermes-agent/troubleshooting.md
+- **H168** At the pinned revision, admit_session_input limits a session to 32 queued admissions, including when unknown work pauses its FIFO. [low confidence; 2026-10-27]
+  - https://github.com/NousResearch/hermes-agent/blob/69f73ec5f11f5a945cc864f29c4e2ad2307eaec3/hermes_state_runtime.py
+- **H179** At the pinned revision, cron recovery leaves live-owner claims alone when the inactivity timeout is unlimited or nonfinite. [low confidence; 2026-10-27]
+  - https://github.com/NousResearch/hermes-agent/blob/69f73ec5f11f5a945cc864f29c4e2ad2307eaec3/cron/executions.py
+- **H180** At the pinned revision, cron’s interrupted-execution sweep skips claims owned by its own process. [low confidence; 2026-10-27]
+  - https://github.com/NousResearch/hermes-agent/blob/69f73ec5f11f5a945cc864f29c4e2ad2307eaec3/cron/executions.py
+- **H184** At the pinned revision, MemoryStore refuses mutation when an existing target file cannot be read or decoded. [low confidence; 2026-10-27]
+  - https://github.com/NousResearch/hermes-agent/blob/69f73ec5f11f5a945cc864f29c4e2ad2307eaec3/tools/memory_tool_store.py
+- **H185** At the pinned revision, MemoryStore’s file-lock helper yields without an OS lock if neither fcntl nor msvcrt is available. [low confidence; 2026-10-27]
+  - https://github.com/NousResearch/hermes-agent/blob/69f73ec5f11f5a945cc864f29c4e2ad2307eaec3/tools/memory_tool_store.py
+- **H195** At commit 69f73ec5f11f5a945cc864f29c4e2ad2307eaec3, an exception during the enabled agent-created skill security scan is logged and returns no blocking error. [low confidence; 2026-10-27]
+  - https://github.com/NousResearch/hermes-agent/blob/69f73ec5f11f5a945cc864f29c4e2ad2307eaec3/tools/skill_manager_tool.py
+- **H199** At commit 69f73ec5f11f5a945cc864f29c4e2ad2307eaec3, project-skill quarantine returns an existing in-memory decision keyed by resolved skill-directory path before calling the content-hash scanner again. [low confidence; 2026-10-27]
+  - https://github.com/NousResearch/hermes-agent/blob/69f73ec5f11f5a945cc864f29c4e2ad2307eaec3/agent/skill_utils.py
+- **H211** At commit 69f73ec5f11f5a945cc864f29c4e2ad2307eaec3, the inline-shell preprocessor applies its 4,000-character output-elision limit after subprocess.run has captured stdout and stderr. [low confidence; 2026-10-27]
+  - https://github.com/NousResearch/hermes-agent/blob/69f73ec5f11f5a945cc864f29c4e2ad2307eaec3/agent/skill_preprocessing.py
+- **H216** At commit 69f73ec5f11f5a945cc864f29c4e2ad2307eaec3, execute_code applies check_execute_code_guard to the whole Python script before local or remote dispatch, and Docker host access is passed to that guard. [low confidence; 2026-10-27]
+  - https://github.com/NousResearch/hermes-agent/blob/69f73ec5f11f5a945cc864f29c4e2ad2307eaec3/tools/code_execution_tool.py
+- **H217** At commit 69f73ec5f11f5a945cc864f29c4e2ad2307eaec3, _sandbox_tools_for returns the complete SANDBOX_ALLOWED_TOOLS set when its intersection with enabled_tools is empty. [low confidence; 2026-10-27]
+  - https://github.com/NousResearch/hermes-agent/blob/69f73ec5f11f5a945cc864f29c4e2ad2307eaec3/tools/code_execution_tool.py
+- **H219** At commit 69f73ec5f11f5a945cc864f29c4e2ad2307eaec3, linked skill-file serving rejects literal parent traversal and paths whose resolved target escapes the skill root. [low confidence; 2026-10-27]
+  - https://github.com/NousResearch/hermes-agent/blob/69f73ec5f11f5a945cc864f29c4e2ad2307eaec3/tools/skills_tool_plugin.py
+  - https://github.com/NousResearch/hermes-agent/blob/69f73ec5f11f5a945cc864f29c4e2ad2307eaec3/tools/path_security.py
+- **H227** In its production report updated 14 September 2026, Neogen Media reports that profiles sharing one Unix UID could read each other’s credentials and that an HR session using the apex key authenticated as apex. [low confidence; 2026-10-27]
+  - https://neogenmedia.com/blog/hermes-agent-in-production
+
+### troubleshooting
+
+- **H019** The detailed guide distinguishes curated memory from session_search. [low confidence; 2026-10-27]
+  - https://github.com/NousResearch/hermes-agent/blob/69f73ec5f11f5a945cc864f29c4e2ad2307eaec3/website/docs/user-guide/features/memory.md
+- **H020** Past CLI and messaging conversations are stored in SQLite. [low confidence; 2026-10-27]
+  - https://github.com/NousResearch/hermes-agent/blob/69f73ec5f11f5a945cc864f29c4e2ad2307eaec3/website/docs/user-guide/features/memory.md
+- **H021** Session search uses SQLite FTS5. [low confidence; 2026-10-27]
+  - https://github.com/NousResearch/hermes-agent/blob/69f73ec5f11f5a945cc864f29c4e2ad2307eaec3/website/docs/user-guide/features/memory.md
+- **H022** The detailed guide says session_search returns actual messages without LLM summarization. [low confidence; 2026-10-27]
+  - https://github.com/NousResearch/hermes-agent/blob/69f73ec5f11f5a945cc864f29c4e2ad2307eaec3/website/docs/user-guide/features/memory.md
+- **H023** Memory overflow returns an error requiring consolidation or removal before retrying. [low confidence; 2026-10-27]
+  - https://github.com/NousResearch/hermes-agent/blob/69f73ec5f11f5a945cc864f29c4e2ad2307eaec3/website/docs/user-guide/features/memory.md
+- **H072** VantaSoft reports operating its own maintained Hermes-derived deployment. [low confidence; 2026-10-26]
+  - https://www.vantasoft.com/insights/hermes-agent-review
+- **H073** VantaSoft reports recurring scheduled work as useful. [low confidence; 2026-10-26]
+  - https://www.vantasoft.com/insights/hermes-agent-review
+- **H074** VantaSoft warns that saved procedures do not guarantee reliable habits. [low confidence; 2026-10-26]
+  - https://www.vantasoft.com/insights/hermes-agent-review
+- **H075** VantaSoft says one person must own deployment upkeep. [low confidence; 2026-10-26]
+  - https://www.vantasoft.com/insights/hermes-agent-review
+- **H076** VantaSoft sells a Hermes service and has a commercial interest in its observations. [low confidence; 2026-10-26]
+  - https://www.vantasoft.com/insights/hermes-agent-review
+- **H087** The outer-loop error handler stops immediately for interpreter-shutdown errors rather than retrying. [low confidence; 2026-10-27]
+  - https://github.com/NousResearch/hermes-agent/blob/69f73ec5f11f5a945cc864f29c4e2ad2307eaec3/agent/turn_loop_errors.py
+- **H088** The outer-loop error handler uses traceback module names to stop deterministic local post-processing errors without repeated API-path retries. [low confidence; 2026-10-27]
+  - https://github.com/NousResearch/hermes-agent/blob/69f73ec5f11f5a945cc864f29c4e2ad2307eaec3/agent/turn_loop_errors.py
+- **H089** Escaped API-path exceptions are bounded by a per-turn cap equal to min(_MAX_OUTER_LOOP_ERRORS, max(1, agent.max_iterations)). [low confidence; 2026-10-27]
+  - https://github.com/NousResearch/hermes-agent/blob/69f73ec5f11f5a945cc864f29c4e2ad2307eaec3/agent/turn_loop_errors.py
+- **H090** The outer-loop error handler inserts error tool results for unanswered tool_call IDs before another iteration can proceed. [low confidence; 2026-10-27]
+  - https://github.com/NousResearch/hermes-agent/blob/69f73ec5f11f5a945cc864f29c4e2ad2307eaec3/agent/turn_loop_errors.py
+- **H091** The loop guide documents refreshing credentials on 401/403 errors before provider failover. [low confidence; 2026-10-27]
+  - https://github.com/NousResearch/hermes-agent/blob/69f73ec5f11f5a945cc864f29c4e2ad2307eaec3/website/docs/developer-guide/agent-loop.md
+- **H092** The loop guide documents provider fallback after three consecutive Codex Responses continuations containing neither visible text nor a tool call. [low confidence; 2026-10-27]
+  - https://github.com/NousResearch/hermes-agent/blob/69f73ec5f11f5a945cc864f29c4e2ad2307eaec3/website/docs/developer-guide/agent-loop.md
+- **H098** The compression guide says provider-proven context overflow bypasses the summary-failure cooldown for a bounded recovery attempt. [low confidence; 2026-10-27]
+  - https://github.com/NousResearch/hermes-agent/blob/69f73ec5f11f5a945cc864f29c4e2ad2307eaec3/website/docs/developer-guide/context-compression-and-caching.md
+- **H099** The summary helper returns None without invoking the LLM when a deterministic summary-route pin is active. [low confidence; 2026-10-27]
+  - https://github.com/NousResearch/hermes-agent/blob/69f73ec5f11f5a945cc864f29c4e2ad2307eaec3/agent/context_compressor_summary.py
+- **H115** stage_write catches pending-store disk errors and returns a record without committing the requested memory or skill write. [low confidence; 2026-10-27]
+  - https://github.com/NousResearch/hermes-agent/blob/69f73ec5f11f5a945cc864f29c4e2ad2307eaec3/tools/write_approval.py
+- **H126** The gateway guide says a started admission whose owner dies becomes unknown and pauses its session FIFO instead of being automatically replayed. [low confidence; 2026-10-27]
+  - https://github.com/NousResearch/hermes-agent/blob/69f73ec5f11f5a945cc864f29c4e2ad2307eaec3/website/docs/developer-guide/gateway-internals.md
+  - https://github.com/NousResearch/hermes-agent/blob/69f73ec5f11f5a945cc864f29c4e2ad2307eaec3/hermes_state_runtime.py
+- **H129** At commit 69f73ec5f11f5a945cc864f29c4e2ad2307eaec3, a nonterminal summary failure with abort_on_summary_failure false inserts a deterministic fallback summary before assembling head, summary and tail. [low confidence; 2026-10-27]
+  - https://github.com/NousResearch/hermes-agent/blob/69f73ec5f11f5a945cc864f29c4e2ad2307eaec3/agent/context_compressor.py
+- **H130** At commit 69f73ec5f11f5a945cc864f29c4e2ad2307eaec3, terminal summary failure flags or abort_on_summary_failure true make the ordinary failed-summary path return the canonical unpruned message list; a pre-LLM feasibility skip reaches fallback assembly without that abort-helper call. [low confidence; 2026-10-27]
+  - https://github.com/NousResearch/hermes-agent/blob/69f73ec5f11f5a945cc864f29c4e2ad2307eaec3/agent/context_compressor.py
+- **H131** At commit 69f73ec5f11f5a945cc864f29c4e2ad2307eaec3, an execute_code-only tool-call batch refunds one iteration even when it contains multiple execute_code calls. [low confidence; 2026-10-27]
+  - https://github.com/NousResearch/hermes-agent/blob/69f73ec5f11f5a945cc864f29c4e2ad2307eaec3/agent/turn_tool_round.py
+- **H132** At commit 69f73ec5f11f5a945cc864f29c4e2ad2307eaec3, redirected-message and rebuilt-for-fallback restarts refund the logical iteration only while their shared restart_count remains within max_retries. [low confidence; 2026-10-27]
+  - https://github.com/NousResearch/hermes-agent/blob/69f73ec5f11f5a945cc864f29c4e2ad2307eaec3/agent/turn_iteration_prep.py
+- **H134** At commit 69f73ec5f11f5a945cc864f29c4e2ad2307eaec3, nonretryable provider errors can attempt one stale-credential refresh before eligible fallback activation. [low confidence; 2026-10-27]
+  - https://github.com/NousResearch/hermes-agent/blob/69f73ec5f11f5a945cc864f29c4e2ad2307eaec3/agent/turn_api_error.py
+- **H135** At commit 69f73ec5f11f5a945cc864f29c4e2ad2307eaec3, successful provider fallback exits the API retry block with rebuilt-message restart armed so preflight checks the fallback context window. [low confidence; 2026-10-27]
+  - https://github.com/NousResearch/hermes-agent/blob/69f73ec5f11f5a945cc864f29c4e2ad2307eaec3/agent/turn_api_error.py
+- **H136** At commit 69f73ec5f11f5a945cc864f29c4e2ad2307eaec3, retry exhaustion can rebuild the primary transport once per API-call block before trying the fallback chain. [low confidence; 2026-10-27]
+  - https://github.com/NousResearch/hermes-agent/blob/69f73ec5f11f5a945cc864f29c4e2ad2307eaec3/agent/turn_api_error.py
+- **H137** At commit 69f73ec5f11f5a945cc864f29c4e2ad2307eaec3, post-exhaustion auto-recovery admits overloaded, server_error and timeout classes only when no answer has reached the user and configured cycles remain. [low confidence; 2026-10-27]
+  - https://github.com/NousResearch/hermes-agent/blob/69f73ec5f11f5a945cc864f29c4e2ad2307eaec3/agent/turn_recovery_autorecover.py
+- **H138** At commit 69f73ec5f11f5a945cc864f29c4e2ad2307eaec3, the auto-recovery wait uses jittered exponential delays capped at 60 seconds, while provider Retry-After may extend a wait up to 120 seconds. [low confidence; 2026-10-27]
+  - https://github.com/NousResearch/hermes-agent/blob/69f73ec5f11f5a945cc864f29c4e2ad2307eaec3/agent/turn_recovery_autorecover.py
+- **H139** At commit 69f73ec5f11f5a945cc864f29c4e2ad2307eaec3, gateway authorization with no environment allowlist falls through to false unless an explicit grant, qualifying adapter policy or allow-all setting admits the source. [low confidence; 2026-10-27]
+  - https://github.com/NousResearch/hermes-agent/blob/69f73ec5f11f5a945cc864f29c4e2ad2307eaec3/gateway/authz_mixin.py
+- **H140** At commit 69f73ec5f11f5a945cc864f29c4e2ad2307eaec3, legacy startup auto-resume skips a session if its owner fails the current authorization check or that check raises. [low confidence; 2026-10-27]
+  - https://github.com/NousResearch/hermes-agent/blob/69f73ec5f11f5a945cc864f29c4e2ad2307eaec3/gateway/run_startup.py
+- **H141** At commit 69f73ec5f11f5a945cc864f29c4e2ad2307eaec3, RecoverableHandleCache uses per-path single-flight opens and exponential retry delay capped at 60 seconds after database-open failures. [low confidence; 2026-10-27]
+  - https://github.com/NousResearch/hermes-agent/blob/69f73ec5f11f5a945cc864f29c4e2ad2307eaec3/gateway/session_db_recovery.py
+- **H142** At commit 69f73ec5f11f5a945cc864f29c4e2ad2307eaec3, RecoverableHandleCache.close_all advances a generation so an earlier in-flight open cannot repopulate the drained cache. [low confidence; 2026-10-27]
+  - https://github.com/NousResearch/hermes-agent/blob/69f73ec5f11f5a945cc864f29c4e2ad2307eaec3/gateway/session_db_recovery.py
+- **H177** The May 2026 Telegram report #24457 observed unrestricted DMs with GATEWAY_ALLOW_ALL_USERS=true on Hermes v0.12.0. [low confidence; 2026-10-27]
+  - https://api.github.com/repos/NousResearch/hermes-agent/issues/24457
+- **H178** At the pinned revision, cron recovery can mark a live external owner unknown after silence exceeds max(3 × inactivity timeout, script timeout, 7200 seconds). [low confidence; 2026-10-27]
+  - https://github.com/NousResearch/hermes-agent/blob/69f73ec5f11f5a945cc864f29c4e2ad2307eaec3/cron/executions.py
+- **H182** The September 2026 report #115692 describes a live but deadlocked v0.21.3 external cron worker blocking subsequent runs for over two hours. [low confidence; 2026-10-27]
+  - https://api.github.com/repos/NousResearch/hermes-agent/issues/115692
+- **H190** At the pinned revision, a failed skill-batch snapshot restore preserves the half-applied skill and retains recovery snapshots. [low confidence; 2026-10-27]
+  - https://github.com/NousResearch/hermes-agent/blob/69f73ec5f11f5a945cc864f29c4e2ad2307eaec3/tools/skill_manager_batch.py
+  - https://github.com/NousResearch/hermes-agent/blob/69f73ec5f11f5a945cc864f29c4e2ad2307eaec3/tests/tools/test_skill_manage_batch.py
+- **H192** At the pinned revision, settle_with_retry gives transient storage settlement failures two further attempts after delays of 0.5 and 2 seconds. [low confidence; 2026-10-27]
+  - https://github.com/NousResearch/hermes-agent/blob/69f73ec5f11f5a945cc864f29c4e2ad2307eaec3/gateway/session_settlement_recovery.py
+- **H193** At the pinned revision, recover_failed_settlement retries storage errors while marking a claim unknown at one-second intervals. [low confidence; 2026-10-27]
+  - https://github.com/NousResearch/hermes-agent/blob/69f73ec5f11f5a945cc864f29c4e2ad2307eaec3/gateway/session_settlement_recovery.py
+- **H200** At commit 69f73ec5f11f5a945cc864f29c4e2ad2307eaec3, HTTP 413 recovery measures compression progress in serialized message bytes, accepting fewer messages or a byte count below 95% of the previous size before rebuilding the request. [low confidence; 2026-10-27]
+  - https://github.com/NousResearch/hermes-agent/blob/69f73ec5f11f5a945cc864f29c4e2ad2307eaec3/agent/turn_overflow.py
+- **H201** At commit 69f73ec5f11f5a945cc864f29c4e2ad2307eaec3, within the compression-attempt cap, a parseable available-output budget sets an ephemeral output cap from the smaller usable local/provider allowance minus 64 tokens, floored at one token, and permits retry if supplementary compression raises. [low confidence; 2026-10-27]
+  - https://github.com/NousResearch/hermes-agent/blob/69f73ec5f11f5a945cc864f29c4e2ad2307eaec3/agent/turn_overflow.py
+- **H202** At commit 69f73ec5f11f5a945cc864f29c4e2ad2307eaec3, an output-cap error without a parseable allowed budget ends the turn without attempting context compression and does not mark compression_exhausted. [low confidence; 2026-10-27]
+  - https://github.com/NousResearch/hermes-agent/blob/69f73ec5f11f5a945cc864f29c4e2ad2307eaec3/agent/turn_overflow.py
+- **H203** At commit 69f73ec5f11f5a945cc864f29c4e2ad2307eaec3, a local endpoint context rejection with no run of four or more digits and an estimated request plus output reservation below half the known window ends as a retryable server_error without compressing or marking compression_exhausted. [low confidence; 2026-10-27]
+  - https://github.com/NousResearch/hermes-agent/blob/69f73ec5f11f5a945cc864f29c4e2ad2307eaec3/agent/turn_overflow.py
+- **H204** At commit 69f73ec5f11f5a945cc864f29c4e2ad2307eaec3, a status-less transport disconnect on a recognized reasoning model is classified as timeout before the generic disconnect-plus-large-session overflow heuristic. [low confidence; 2026-10-27]
+  - https://github.com/NousResearch/hermes-agent/blob/69f73ec5f11f5a945cc864f29c4e2ad2307eaec3/agent/error_classifier.py
+- **H205** The 12 October 2026 fix 412512365ffd723c624673615cb200ccd58e067e changed Hermes memory patch from replacing every occurrence inside the selected entry to refusing repeated old_text spans in both single and batch edits. [low confidence; 2026-10-27]
+  - https://api.github.com/repos/NousResearch/hermes-agent/commits/412512365ffd723c624673615cb200ccd58e067e
+  - https://github.com/NousResearch/hermes-agent/blob/5e0ec82d1f257b14edbc292efc913927ac482a13/tools/memory_tool_store.py
+  - https://github.com/NousResearch/hermes-agent/blob/412512365ffd723c624673615cb200ccd58e067e/tools/memory_tool_store.py
+- **H206** The 24 September 2026 fix 4638864a7438c2d6da0a547f6ddcc4743faab149 repaired adopted-directory skill-batch rollback that left supporting files behind while reporting all touched skills rolled back; rollback now tracks and removes the batch’s written files. [low confidence; 2026-10-27]
+  - https://api.github.com/repos/NousResearch/hermes-agent/commits/4638864a7438c2d6da0a547f6ddcc4743faab149
+  - https://github.com/NousResearch/hermes-agent/blob/85ac36f2ec4f78e75a95bd46af3be01b244d2461/tools/skill_manager_batch.py
+  - https://github.com/NousResearch/hermes-agent/blob/4638864a7438c2d6da0a547f6ddcc4743faab149/tools/skill_manager_batch.py
+- **H207** The 26 October 2026 fix 765933299d885e850390ed1d8e4fd4d37fae8342 removed a prepared-summary rejection based on a newly moved tail cut that could discard a completed background summary and cause a second inline summary call. [low confidence; 2026-10-27]
+  - https://api.github.com/repos/NousResearch/hermes-agent/commits/765933299d885e850390ed1d8e4fd4d37fae8342
+  - https://github.com/NousResearch/hermes-agent/blob/44bf3ee91cd80bffd9c61854f641b67edcb7de1a/agent/prepared_compaction.py
+  - https://github.com/NousResearch/hermes-agent/blob/44bf3ee91cd80bffd9c61854f641b67edcb7de1a/agent/context_compressor_window.py
+  - https://github.com/NousResearch/hermes-agent/blob/765933299d885e850390ed1d8e4fd4d37fae8342/agent/context_compressor_window.py
+- **H208** In the 26 October 2026 fix 52a01bd2f2ffd0cbb363f60eb127ee929dba3396, the maintainer reports four consecutive empty_post_handoff_window no-ops on Gemini 2.5 Flash with a 64,000-token window; pricing rows through the newest handoff at zero allowed the next automatic compaction to proceed. [low confidence; 2026-10-27]
+  - https://api.github.com/repos/NousResearch/hermes-agent/commits/52a01bd2f2ffd0cbb363f60eb127ee929dba3396
+  - https://github.com/NousResearch/hermes-agent/blob/9182739a2922704c9fdc779f58b65bb6ccc42b48/agent/context_compressor_tail.py
+  - https://github.com/NousResearch/hermes-agent/blob/52a01bd2f2ffd0cbb363f60eb127ee929dba3396/agent/context_compressor_tail.py
+- **H209** The 21 May 2026 upstream report #29559 describes Hermes v2026.5.16 on macOS with GLM-5.1 reducing 124 messages to 15 after a connection-error summary failure and losing task context. [low confidence; 2026-10-27]
+  - https://api.github.com/repos/NousResearch/hermes-agent/issues/29559
+- **H210** The 13 October 2026 memory-action removal commit cf2ffb3cbff02e953299ee5d93b96252c4dc4930 attributes sibling-fact loss from whole-entry replace misuse to an NVIDIA trial with 19 of 40 Opus 4.8 tasks. [low confidence; 2026-10-27]
+  - https://api.github.com/repos/NousResearch/hermes-agent/commits/cf2ffb3cbff02e953299ee5d93b96252c4dc4930
+- **H220** At commit 69f73ec5f11f5a945cc864f29c4e2ad2307eaec3, successful recover_before_classification and recover_after_classification branches return continue before the API-error handler increments retry_count. [low confidence; 2026-10-27]
+  - https://github.com/NousResearch/hermes-agent/blob/69f73ec5f11f5a945cc864f29c4e2ad2307eaec3/agent/turn_api_error.py
+- **H221** At commit 69f73ec5f11f5a945cc864f29c4e2ad2307eaec3, classified overflow with compression disabled returns a terminal context_overflow failure before automatic compaction, except when the error describes an output cap. [low confidence; 2026-10-27]
+  - https://github.com/NousResearch/hermes-agent/blob/69f73ec5f11f5a945cc864f29c4e2ad2307eaec3/agent/turn_recovery.py
+- **H222** At commit 69f73ec5f11f5a945cc864f29c4e2ad2307eaec3, a rate-limit error with a parseable wrapped output-token budget is exempted from eager rate-limit fallback so output-cap recovery can handle it. [low confidence; 2026-10-27]
+  - https://github.com/NousResearch/hermes-agent/blob/69f73ec5f11f5a945cc864f29c4e2ad2307eaec3/agent/turn_recovery.py
+- **H223** The 24 September 2026 fix fb4dbf77fcb9f0a348b80c8fc3f5ed1e171d1213 stopped skill-batch rollback from deleting an adopted pre-existing directory and foreign files placed there during the batch. [low confidence; 2026-10-27]
+  - https://api.github.com/repos/NousResearch/hermes-agent/commits/fb4dbf77fcb9f0a348b80c8fc3f5ed1e171d1213
+  - https://github.com/NousResearch/hermes-agent/blob/153e865252a5ccddcbd831a27bff57789a21100c/tools/skill_manager_batch.py
+  - https://github.com/NousResearch/hermes-agent/blob/fb4dbf77fcb9f0a348b80c8fc3f5ed1e171d1213/tools/skill_manager_batch.py
+- **H224** The 13 October 2026 commit a7e50a1db95eb33532b28d7efd6825cf48deacca reports that removing memory replace also removed required-content wording, after which missing-content patch calls looped to the retry cap in four of fourteen Qwen3.8-27B consolidation trials. [low confidence; 2026-10-27]
+  - https://api.github.com/repos/NousResearch/hermes-agent/commits/a7e50a1db95eb33532b28d7efd6825cf48deacca
+- **H225** The 17 September 2026 fix 75a0649a180d24aa0d09ba1d4be76746ec5fc9f4 changed skill-operation schemas to separate per-action objects and moved argument-shape checks before any batch operation applies, addressing repeated wrong-text-slot calls. [low confidence; 2026-10-27]
+  - https://api.github.com/repos/NousResearch/hermes-agent/commits/75a0649a180d24aa0d09ba1d4be76746ec5fc9f4
+- **H226** In its production report updated 14 September 2026, Neogen Media says a global-model change caused unpinned cron jobs to refuse execution, accumulating roughly 2,975 failures across three subordinate agents during a six-day outage. [low confidence; 2026-10-27]
+  - https://neogenmedia.com/blog/hermes-agent-in-production
+- **H228** Neogen Media’s report updated 14 September 2026 attributes three Telegram bots answering as one profile to Hermes v0.19.0’s recoverable-session fallback omitting the profile name from its lookup. [low confidence; 2026-10-27]
+  - https://neogenmedia.com/blog/hermes-agent-in-production
+- **H229** In its production report updated 14 September 2026, Neogen Media says a root-run cron edit created a root-owned mode-0600 jobs file, after which the non-root scheduler failed every tick while reporting 27 active jobs. [low confidence; 2026-10-27]
+  - https://neogenmedia.com/blog/hermes-agent-in-production
+- **H230** In its production report updated 14 September 2026, Neogen Media says tools tested with explicitly supplied environment variables would fail under its running gateway because those profile variables were absent; it changed the tools to self-load the profile environment. [low confidence; 2026-10-27]
+  - https://neogenmedia.com/blog/hermes-agent-in-production
+
+## Author methodology and lineage
+
+The final file retains 111 source records; 85 distinct source URLs are cited by active factual claims. Contextual source records are retained without pretending every one supports an active claim.
+
+This is accumulated author research, not independent gate acceptance. The raw baseline, atomic normalization mapping, every pass/delta, source bodies, exact support bindings and worker receipts remain private. H011/H052/H065/H068 methodological implications were moved out of factual claims, with immutable retirement mapping. Sources can disagree; no averaged conclusion substitutes for their exact setup/revision.
+
+Five verified independent source organizations are conservatively counted (Nous Research, NVIDIA, VantaSoft, Neogen Media, Folkfox). Four qualify the substantive primary floor; Folkfox reports its own documentation audit. Operational reports are bounded to the authors’ deployments and version evidence. Paper author affiliations and artifact-revision limitations remain explicit rather than inflating independence.
+
+Depth stop: BUDGET_EXHAUSTED. Last novelty rate: 8.407%. Parent must separately gate, render, persist and verify publication.
+Additional-pass estimate (author judgment): two to three focused source passes could still pay off on whole vendored benchmark snapshots/experimental bridge correspondence, overflow producer paths and historical introduction commits. Per-adapter authorization and concurrent crash/recovery behavior require bounded executable experiments; static research alone cannot settle those.

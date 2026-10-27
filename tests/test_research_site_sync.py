@@ -388,5 +388,43 @@ class SiteSyncTests(unittest.TestCase):
         self.assertFalse((self.repo / "site/src/data/tree.json").exists())
 
 
+    def test_scoped_refresh_preserves_other_reader_bytes_and_all_claim_citations(self):
+        self.save_pack("Target", "target")
+        self.save_pack("Untouched", "untouched")
+        untouched = self.repo / "site/src/data/concepts/untouched.json"
+        baseline = json.dumps(reader("Untouched", "untouched", "Keep this accepted wording."),
+                              separators=(",", ":")) + "\n"
+        untouched.write_text(baseline)
+        target = self.hub / "llms-concepts/target.llms"
+        manifest = json.loads((target / "manifest.json").read_text())
+        manifest.update(canonical_artifact_sha256="a" * 64, canonical_concept_id="concept:target")
+        (target / "manifest.json").write_text(json.dumps(manifest))
+        unit = {"id": "clm:target", "text": "A supported two-source statement.",
+                "source_url": "https://example.test/primary",
+                "also": ["https://example.test/secondary"], "section": "facts",
+                "validation_status": "SUPPORTED", "evidence_ids": ["ev:target"]}
+        (target / "units.jsonl").write_text(json.dumps(unit) + "\n")
+
+        report = website.sync(self.repo, self.hub, apply=True, merge_tree=False,
+                              only_slugs=["target"])
+
+        self.assertEqual(untouched.read_bytes(), baseline.encode())
+        self.assertEqual(report["reader_scope"], ["target"])
+        self.assertNotIn("untouched", report["changed_website_packs"])
+        projected = json.loads((self.repo / "site/src/data/concepts/target.json").read_text())
+        fact = projected["facets"][0]["facts"][0]
+        self.assertEqual(fact["also"], unit["also"])
+        downloaded = json.loads((self.repo / "site/public/downloads/research/target.json").read_text())
+        self.assertEqual(downloaded["claims"][0]["also"], unit["also"])
+        markdown = (self.repo / "site/public/downloads/concepts/target.md").read_text()
+        self.assertIn("[source](https://example.test/primary)", markdown)
+        self.assertIn("[also](https://example.test/secondary)", markdown)
+
+    def test_scoped_refresh_rejects_unknown_or_unsafe_reader_names(self):
+        for slug in ("missing", "../escape"):
+            with self.subTest(slug=slug), self.assertRaises(ValueError):
+                website.sync(self.repo, self.hub, only_slugs=[slug])
+
+
 if __name__ == "__main__":
     unittest.main()

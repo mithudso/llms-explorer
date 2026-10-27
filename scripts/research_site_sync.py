@@ -206,7 +206,10 @@ def publication_pack(pack: dict, scrub, terms: list[str]) -> dict:
 
 
 def plan(repo: Path, hub: Path, merge_tree: bool = True, current_run: str | None = None,
-         withheld: tuple | list = (), authoritative_slugs=()) -> tuple[dict, dict[Path, str]]:
+         withheld: tuple | list = (), authoritative_slugs=(), only_slugs=()) -> tuple[dict, dict[Path, str]]:
+    only_slugs = set(only_slugs)
+    if any(not slug or Path(slug).name != slug or slug in (".", "..") for slug in only_slugs):
+        raise ValueError("reader scope must contain plain concept slugs")
     sys.path.insert(0, str(repo / "scripts"))
     scrub = module("research_site_scrub", repo / "scripts/publish_scrub.py")
     concepts = module("research_site_concepts", repo / "site/tools/gen_concepts.py")
@@ -249,9 +252,16 @@ def plan(repo: Path, hub: Path, merge_tree: bool = True, current_run: str | None
     excluded_slugs = {slug for names, slugs in identities for slug in slugs
                       if excluded_identities & {name.casefold() for name in names}}
     recovery = module("research_site_recovery", repo / "scripts/recover_dr_packs.py")
-    recovered_writes, recovered_packs, recovery_report = recovery.plan(
-        repo, hub, safe_hub, module, scrub, current_run, excluded_names, withheld,
-        excluded_slugs=excluded_slugs)
+    if only_slugs:
+        # Explicit scoped refreshes use already exported packs. Historical
+        # recovery is a separate operation and must not add unrelated readers.
+        recovered_writes, recovered_packs = {}, {}
+        recovery_report = {"recovered_packs": [], "current_run_slugs": [],
+                           "skipped": "explicit reader scope"}
+    else:
+        recovered_writes, recovered_packs, recovery_report = recovery.plan(
+            repo, hub, safe_hub, module, scrub, current_run, excluded_names, withheld,
+            excluded_slugs=excluded_slugs)
     authoritative_slugs = set(authoritative_slugs) | set(recovery_report.get("current_run_slugs", [])) | {
         row["slug"] for row in recovery_report["recovered_packs"] if row["run"] == current_run}
     def private_pack(pack):
@@ -267,6 +277,8 @@ def plan(repo: Path, hub: Path, merge_tree: bool = True, current_run: str | None
     inputs, excluded_repository_packs = {}, []
     for root in (repo / "outputs/llms-concepts", hub / "llms-concepts"):
         for path in sorted(root.glob("*.llms")):
+            if only_slugs and path.stem not in only_slugs:
+                continue
             if root == repo / "outputs/llms-concepts" and path.stem in excluded_slugs:
                 excluded_repository_packs.append(path)
                 classifications[path.name] = "excluded"
@@ -322,6 +334,8 @@ def plan(repo: Path, hub: Path, merge_tree: bool = True, current_run: str | None
     aliases = {alias.casefold(): node for node in merged for alias in node.get("aliases", [])}
     registrations, pack_aliases = [], {}
     for slug, pack in list(selected.items()):
+        if only_slugs and slug not in only_slugs:
+            continue
         if slug in by_slug:
             selected[slug] = {**selected[slug], "concept": by_slug[slug]["concept"]}
             continue
@@ -362,10 +376,16 @@ def plan(repo: Path, hub: Path, merge_tree: bool = True, current_run: str | None
         if node.get("summary"):
             node["summary"] = scrub.scrub_public_text(str(node["summary"]),
                                                       [*scrub.gate.denylist(), *withheld])
-    selected = {slug: publication_pack(pack, scrub, [*scrub.gate.denylist(), *withheld]) for slug, pack in selected.items()}
+    missing = only_slugs - set(selected)
+    if missing:
+        raise ValueError("scoped reader packs not found: " + ", ".join(sorted(missing)))
+    selected = {slug: publication_pack(pack, scrub, [*scrub.gate.denylist(), *withheld])
+                if not only_slugs or slug in only_slugs else pack for slug, pack in selected.items()}
     writes = dict(recovered_writes)
     writes.update({path: None for path in excluded_repository_packs})
     for slug, pack in selected.items():
+        if only_slugs and slug not in only_slugs:
+            continue
         if slug not in site_packs:
             new.append(slug)
         elif pack != site_packs[slug]:
@@ -434,7 +454,8 @@ def plan(repo: Path, hub: Path, merge_tree: bool = True, current_run: str | None
                if (text is None and path.exists()) or
                (text is not None and (not path.is_file() or
                 path.read_bytes() != (text if isinstance(text, bytes) else text.encode())))}
-    report = {"hub_nodes": len(hub_nodes), "repository_nodes_before": len(current_nodes),
+    report = {"reader_scope": sorted(only_slugs),
+              "hub_nodes": len(hub_nodes), "repository_nodes_before": len(current_nodes),
               "repository_nodes_after": len(merged), "excluded_private_nodes": len(excluded),
               "excluded_child_references": removed_refs,
               "hub_only_publishable_nodes": sorted(safe_names - {node["concept"] for node in current_nodes}),
@@ -464,7 +485,7 @@ def plan(repo: Path, hub: Path, merge_tree: bool = True, current_run: str | None
 
 
 def _sync(repo: Path, hub: Path, apply: bool = False, merge_tree: bool = True,
-         current_run: str | None = None, authoritative_slugs=(), transaction=None) -> dict:
+         current_run: str | None = None, authoritative_slugs=(), transaction=None, only_slugs=()) -> dict:
     # This serializes CFE, /dr, suite and batch writers' website refreshes.
     lock_path = repo / "tmp/research-site-sync.lock"
     lock_path.parent.mkdir(parents=True, exist_ok=True)
@@ -474,7 +495,7 @@ def _sync(repo: Path, hub: Path, apply: bool = False, merge_tree: bool = True,
         reference_cache = hub / "research/.site-public-references.json"
         withheld = [key for key, value in read_json(reference_cache).items() if not value["public"]] if reference_cache.is_file() else []
         for attempt in range(3):
-            report, changes = plan(repo, hub, merge_tree, current_run, withheld, authoritative_slugs)
+            report, changes = plan(repo, hub, merge_tree, current_run, withheld, authoritative_slugs, only_slugs)
             if not apply or all(hashlib.sha256(Path(path).read_bytes()).hexdigest() == digest
                                 for path, digest in report["tree_input_hashes"].items()):
                 break
@@ -486,7 +507,7 @@ def _sync(repo: Path, hub: Path, apply: bool = False, merge_tree: bool = True,
                 verifier = module("research_public_references", verifier_path)
                 reference_writes, newly_withheld = verifier.resolve(repo, hub, changes)
                 if set(newly_withheld) != set(withheld):
-                    report, changes = plan(repo, hub, merge_tree, current_run, newly_withheld, authoritative_slugs)
+                    report, changes = plan(repo, hub, merge_tree, current_run, newly_withheld, authoritative_slugs, only_slugs)
                 changes.update(reference_writes)
             if not all(hashlib.sha256(Path(path).read_bytes()).hexdigest() == digest
                        for path, digest in report["tree_input_hashes"].items()):
@@ -521,16 +542,16 @@ def _sync(repo: Path, hub: Path, apply: bool = False, merge_tree: bool = True,
 
 
 def sync(repo: Path, hub: Path, apply: bool = False, merge_tree: bool = True,
-         current_run: str | None = None, authoritative_slugs=(), transaction=None) -> dict:
+         current_run: str | None = None, authoritative_slugs=(), transaction=None, only_slugs=()) -> dict:
     if transaction is not None or not apply:
-        return _sync(repo, hub, apply, merge_tree, current_run, authoritative_slugs, transaction)
+        return _sync(repo, hub, apply, merge_tree, current_run, authoritative_slugs, transaction, only_slugs)
     path = hub / "research/.global.lock"
     path.parent.mkdir(parents=True, exist_ok=True)
     with path.open("a") as lock:
         fcntl.flock(lock, fcntl.LOCK_EX)
         transactions = module("site_recovery_transaction", Path(__file__).with_name("research_transaction.py"))
         transactions.recover_pending(hub / "research", repo)
-        return _sync(repo, hub, apply, merge_tree, current_run, authoritative_slugs)
+        return _sync(repo, hub, apply, merge_tree, current_run, authoritative_slugs, only_slugs=only_slugs)
 
 
 def main(argv=None) -> int:
@@ -542,11 +563,14 @@ def main(argv=None) -> int:
     parser.add_argument("--no-merge-tree", action="store_true")
     parser.add_argument("--report", type=Path)
     parser.add_argument("--run", help="just-finished DR run whose claims may update its existing packs")
+    parser.add_argument("--only-slug", action="append", default=[],
+                        help="refresh only this exported reader/pack; repeat for several (skips historical recovery)")
     args = parser.parse_args(argv)
     if args.apply and args.check:
         parser.error("--apply and --check are mutually exclusive")
     try:
-        report = sync(args.repo.resolve(), args.hub.expanduser().resolve(), args.apply, not args.no_merge_tree, args.run)
+        report = sync(args.repo.resolve(), args.hub.expanduser().resolve(), args.apply, not args.no_merge_tree,
+                      args.run, only_slugs=args.only_slug)
     except (OSError, ValueError) as error:
         parser.exit(2, f"research site refresh failed: {error}\n")
     if args.report:
