@@ -1,5 +1,18 @@
 # Memory Log
 
+## v0.22.59 - 2026-10-27
+
+- TASK-932 local publication checks complete. Guarded receipt v6 proves all 1,823 non-Hermes readers match baseline, both source trees preserve unrelated data, and 226 facts retain 226 primary plus 27 secondary citation occurrences. Explicit --only-slug hermes-agent --no-merge-tree refresh succeeded after the small scope/citation generator repairs. Frozen claims/artifact identities are unchanged.
+- Final site/projection tests: 305 passed plus six subtests, with the build completed first and API/hub test dependencies available. Earlier race/dependency attempts remain in private logs. Build emits 2,282 pages; publication policy, Ruff and privacy gates pass. API earlier passed 281; hub passed 594 with one skip. Existing global tree warnings and eight Medium site-llms findings remain; no new High site-llms finding exists. No claim of globally clean trees or live Hermes behavior is made.
+- Research run is BUDGET_EXHAUSTED at six depth passes, with 226 supported structured claims, 85 claim-cited URLs and 111 reference records. Stable dossier: /Users/mitch/.global-ai-hub/research/hermes-agent-rabbithole-2026-10-27/dossier.md. Exact source snapshots, rejected gate attempt, three-prefix correction and private unvalidated annotations stay preserved. Two to three additional targeted source passes may still pay off.
+- Remaining: final scoped Git commit/push, current-head CI, merge, delivery receipt and worktree removal. PR: https://github.com/mithudso/llms-explorer/pull/242 . Original divergent main and paused services remain unchanged. Delta: memory 0.22.58 to 0.22.59; research report 1.0.4. Prompt v69 includes the auth follow-up without the one-time code.
+
+## v0.22.58 - 2026-10-27
+
+- TASK-929: six Hermes depth passes complete at BUDGET_EXHAUSTED, 226 atoms and 85 claim-cited URLs (111 bibliography records). The last rate is 8.407%; no saturation. Gate 1 returned 223 SUPPORTED/3 UNVERIFIED for unbound full revision identity. Exact guarded narrowing changed only three prefixes. Gate 2 passed all 226; canonical SHA b861b7e5e0c6f308c428d94096e0723197ce1265fae871a0fa7a15c239f604cb; frozen artifact SHA 12a1f33044dd010ab5d2d80a6d2686fa2bd5ff8b6c0a86cc09401a41ecde3bde.
+- Both concept pack roots contain eight members/226 supported units. Canonical trees carry established depth tags. Projection checks found lost secondary URLs and 12 incidental reader rewrites. Small generator repairs retain also[] in readers/JSON/Markdown and add explicit --only-slug scope; --run alone is not a scope filter. The final --only-slug hermes-agent --no-merge-tree refresh preserves all 1,823 unrelated reader hashes and other node data. KNOW-936/KNOW-937 record the triggers and repairs.
+- Focused regressions: 48 passed plus six subtests; Ruff passed. Final build/site tests are running. Parent TASK-932 remains in progress for final validation, scoped commit/push, current CI, merge and worktree cleanup. Original divergent main and paused embeddings remain untouched. Stable local dossier is in the private run, so removing the delivery worktree does not remove the result. Delta: memory 0.22.57 to 0.22.58; report 1.0.3 to 1.0.4; dossier 1.0.1 to 1.0.2. Prompt remains v69.
+
 ## v0.22.57 - 2026-10-27
 
 - TASK-929 checkpoint: sealed depth passes 1–5 yield 52/128 (40.625%), 16/144 (11.111%), 22/164 (13.415%, after two retirements), 27/191 (14.136%) and 18/209 (8.612%). Each sealed snapshot has matching hashes, IDs, claim/delta counts and independent evidence review. Pass 6 is the final hard-cap pass. The verdict must be BUDGET_EXHAUSTED because pass 5 exceeded 5%; two low passes cannot occur before the cap.
