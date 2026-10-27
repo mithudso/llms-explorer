@@ -34,7 +34,7 @@ The shared main checkout has diverged from origin/main. This work uses /Users/mi
 
 Corrections, splitting and rephrasing do not earn novelty. The first two depth passes remain above the saturation threshold. Baseline and depth worker event logs disclose a skill-catalog isolation limitation; this run does not establish a clean context-isolation gate. Fetched source bodies alone do not establish a substantive research read. Claim-specific source passages, hashes and reviewer checks address evidence separately.
 
-Local API tests pass 281 cases. Local hub tests pass 594 cases with one skip. Missing declared private libraries were loaded into an isolated verification target; shared virtual environments remain unchanged. Existing GitHub Actions failures reject private dependency credentials from LIBS_READ_TOKEN. Remote delivery requires that credential to work and CI to pass.
+Local API tests pass 281 cases. Local hub tests pass 594 cases with one skip. Missing declared private libraries were loaded into an isolated verification target; shared virtual environments remain unchanged. The inspected GitHub Actions failures came from Dependabot PRs. GitHub withholds ordinary Actions secrets in that context, so these failures do not prove LIBS_READ_TOKEN is invalid. This branch’s own PR CI remains the delivery gate.
 
 ## Remaining work
 
