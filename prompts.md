@@ -1,5 +1,11 @@
 # Prompts Log
 
+## Prompt v68 - 2026-10-27
+
+> Run the rabbithole skill on hermes agent
+
+Scope: Nous Research Hermes Agent only. TASK-929; scope/baseline TASK-930, deepening TASK-931, gate/persistence/delivery TASK-932. Use two independent Sol/medium baseline workers, then up to six measured depth passes. Preserve divergent shared main, source privacy, existing research and paused embeddings. Finalize through the DR runtime with bound gate, dual-root packs and website refresh. Delta: prompt v67 to v68.
+
 ## Prompt v67 - 2026-10-24
 
 > run the rabbithole skill on tuis  look into and record information on all of the tuis mentioned here: https://github.com/rothgar/awesome-tuis

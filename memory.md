@@ -1,5 +1,14 @@
 # Memory Log
 
+## v0.22.55 - 2026-10-27
+
+- TASK-929: started Rabbithole research on Nous Research Hermes Agent. Isolated checkout: /Users/mitch/dev/worktrees/llms-explorer-hermes-rabbithole-20261027, branch research/hermes-agent-rabbithole-20261027 from origin/main. Preserve shared /Users/mitch/dev/llms-explorer main (four local commits, seventeen remote commits).
+- Seed: /Users/mitch/dev/llms-explorer/outputs/exports/hermes-agent.nousresearch.com.llms/llms-full.txt. Recheck volatile facts. KNOW-881 selects Sol/medium and replaces the old Luna/max policy.
+- Run: /Users/mitch/.global-ai-hub/research/hermes-agent-rabbithole-2026-10-27. Scope: internal architecture, skill learning, memory, execution/gateway boundaries, security, evolution and disagreements. Keep siblings as handoff items.
+- Depth checkpoint: pass 1 added 52/128 atoms (40.625%); pass 2 added 16/144 (11.111%). Pass 3 is active. Baseline complete: two independent Sol/medium workers, 24 raw rows normalized to 76 unique atoms; splitting/rephrasing earns zero novelty. TASK-930 complete; TASK-931 runs sequential depth passes. Independent audit is checking claim-specific citations and substantive read bindings. API: 281 passed. Hub: 594 passed, 1 skipped. Isolated private dependency target leaves shared virtual environments unchanged.
+- Delivery risk: existing Actions run 40462066989 rejects LIBS_READ_TOKEN for private llms-txt and ollama-client with Invalid username or token. The old credential repair in KNOW-760 is historical; this is a recurrence. Preserve green-CI requirement. Website preflight reports 2,166 preexisting generated-file differences before Hermes persistence; save verification/site-before-report.json as the baseline.
+- Remaining: measured depth passes; final structured claims and exact evidence review; render and bound gate; finish both tree/pack roots and generated website; scoped validation and Git delivery. Embeddings stay paused. Delta: memory 0.22.54 to 0.22.55.
+
 ## v0.22.54 - 2026-10-24
 
 - TASK-909 records the complete Awesome TUIs inventory pinned to 98a107625c87cca75cd5785afcb61a91e46bb6af. Catalog: 718 distinct listed URLs, 717 shared metadata acquisition groups, 13 categories. All rows have profiles: 678 README records, 36 official pages, two cached historical excerpts, two explicit GitHub404 gaps (kagan, tuiserial). Verified 1,393 private source bodies. Square Tic Tac Toe has its own subtree README and is distinct from the LearnByExample collection.
