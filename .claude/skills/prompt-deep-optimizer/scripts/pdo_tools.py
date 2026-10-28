@@ -7,10 +7,11 @@ Stdlib only, no third-party imports, no network. Safe to run repeatedly.
 Subcommands
 -----------
   tokens     estimate token count and return the Step 1a.3 routing decision
+             (--one-off / --fragment supply the two conjuncts the text cannot)
   editdist   edit-distance ratio between two prompt versions (Step 5 cond. 4
              fallback when convergence_check.py is unavailable)
   scan       flag apparent secrets/PII so Step 4 redaction is not eyeballed
-  backup     copy a target aside before a --write run
+  backup     copy a target aside before a --write run (--iter N: per-iteration copy)
   selfcheck  validate a run manifest (Step 6f)
 """
 from __future__ import annotations
@@ -21,15 +22,32 @@ import pathlib
 import re
 import shutil
 import sys
+import time
 
-# --- Step 5 exit statuses. STALLED replaced the misleading CONVERGED token. ---
+# --- Exit statuses a run may report (SKILL.md Step 5 conditions 1-7, the Step 5
+# do-nothing path, and the Step 6a0 blind-gate dissent). STALLED replaced the
+# misleading CONVERGED token; CONVERGED is accepted as its legacy alias. A status
+# may carry a qualifier after the token, e.g. "OSCILLATING (cycling)",
+# "OSCILLATING (cycling + stable-rewrite)" or "STALLED, shipped iteration 2
+# rewrite (0/1/2) over iteration 3 (0/1/4)"; only the leading token is checked.
 VALID_STATUS = {
     "CLEAN", "NO_CHANGE", "STALLED", "OSCILLATING",
-    "CAPPED", "DRIFT_DEADLOCK", "BUDGET_EXHAUSTED",
+    "CAPPED", "DRIFT_DEADLOCK", "BUDGET_EXHAUSTED", "BLIND-AUDIT-DISSENT",
 }
 LEGACY_STATUS = {"CONVERGED": "STALLED"}
-VALID_EVIDENCE = {"EXECUTED", "ISOLATED", "SIMULATED"}
-EXPECTED_SECTIONS = list(range(1, 12))  # Step 6b items 1-11
+VALID_EVIDENCE = {"EXECUTED", "ISOLATED", "SIMULATED", "N/A"}  # N/A = gate did not run (e.g. NO_CHANGE)
+# Step 6b output order. Items 1-8 appear on every run (3 may be omitted when the
+# reader already holds the file, 4 when the status is NO_CHANGE). Items 9-12 are
+# conditional: 9 (redaction footer) only when redactions > 0, 10 (variant
+# registration) only for library prompts, 11 (write-back footer) only when the
+# target was written, 12 (empirical result) only on empirical-mode runs.
+# A present optional item must keep its position.
+REQUIRED_SECTIONS = list(range(1, 9))    # 1-8
+OPTIONAL_SECTIONS = [9, 10, 11, 12]
+# Central backup root shared with every optimizer in the family (canonical
+# contract: ~/.claude/skill-consolidation/convergence-and-severity.md,
+# "Pre-write snapshot & rollback"). Never a sibling <path>.bak file.
+BACKUP_ROOT = pathlib.Path.home() / ".claude" / "skill-consolidation" / "backups"
 
 SMALL_PROFILE_TOKENS = 600
 INLINE_LIMIT_TOKENS = 4000
@@ -40,7 +58,19 @@ SECRET_PATTERNS = [
     ("aws_access_key", r"\bAKIA[0-9A-Z]{16}\b"),
     ("openai_key", r"\bsk-[A-Za-z0-9]{20,}\b"),
     ("anthropic_key", r"\bsk-ant-[A-Za-z0-9\-_]{20,}\b"),
+    # GitHub ships two unrelated token shapes. gh[pousr]_ is the classic set;
+    # github_pat_ is the fine-grained format introduced later. A pattern list
+    # carrying only the first misses every modern PAT, which is how a live
+    # token reached a public branch on 2026-09-09.
     ("github_token", r"\bgh[pousr]_[A-Za-z0-9]{20,}\b"),
+    ("github_pat_finegrained", r"\bgithub_pat_[A-Za-z0-9_]{22,}\b"),
+    ("openai_project_key", r"\bsk-proj-[A-Za-z0-9\-_]{20,}\b"),
+    ("google_api_key", r"\bAIza[0-9A-Za-z\-_]{35}\b"),
+    ("stripe_live_key", r"\b[sr]k_live_[A-Za-z0-9]{20,}\b"),
+    ("npm_token", r"\bnpm_[A-Za-z0-9]{36}\b"),
+    ("huggingface_token", r"\bhf_[A-Za-z0-9]{34}\b"),
+    ("pypi_token", r"\bpypi-[A-Za-z0-9\-_]{32,}\b"),
+    ("gitlab_pat", r"\bglpat-[A-Za-z0-9\-_]{20,}\b"),
     ("slack_token", r"\bxox[abprs]-[A-Za-z0-9\-]{10,}\b"),
     ("jwt", r"\beyJ[A-Za-z0-9_\-]{10,}\.[A-Za-z0-9_\-]{10,}\.[A-Za-z0-9_\-]{10,}\b"),
     ("private_key_block", r"-----BEGIN [A-Z ]*PRIVATE KEY-----"),
@@ -63,19 +93,34 @@ def est_tokens(text: str) -> int:
 
 # --------------------------------------------------------------------------- tokens
 def cmd_tokens(a) -> int:
+    """Step 1a.3 routing. The size band is measured here; the two conjuncts the
+    skill states in prose are passed as flags, because the helper cannot read
+    them off the text: --one-off (the prompt is one-off/exploratory, so an
+    under-threshold prompt is offered to prompt-helper-optimizer) and
+    --fragment (fragment mode is active, which disables the small profile).
+    Without the flags the helper assumes a production prompt in full mode."""
     text = sys.stdin.read() if a.path == "-" else _read(a.path)
     n = est_tokens(text)
     if n > INLINE_LIMIT_TOKENS:
-        decision, profile = "ask-for-file-path", "standard"
+        band = "over-inline-limit"
     elif n < SMALL_PROFILE_TOKENS:
-        decision, profile = "offer-handoff-to-ph", "small"
+        band = "under-small-threshold"
     else:
-        decision, profile = "proceed", "standard"
+        band = "standard"
+    if band == "over-inline-limit" and a.path == "-":
+        decision = "ask-for-file-path"
+    elif band == "under-small-threshold" and a.one_off:
+        decision = "offer-handoff-to-prompt-helper-optimizer"
+    else:
+        decision = "proceed"
+    profile = "small" if (band == "under-small-threshold" and not a.fragment) else "standard"
     print(json.dumps({
-        "chars": len(text), "est_tokens": n,
+        "chars": len(text), "est_tokens": n, "band": band,
+        "one_off": bool(a.one_off), "fragment": bool(a.fragment),
         "profile": profile, "routing": decision,
         "small_threshold": SMALL_PROFILE_TOKENS,
         "inline_limit": INLINE_LIMIT_TOKENS,
+        "evidence": "EXECUTED",
     }, indent=2))
     return 0
 
@@ -132,17 +177,35 @@ def cmd_scan(a) -> int:
 
 # --------------------------------------------------------------------------- backup
 def cmd_backup(a) -> int:
-    src = pathlib.Path(a.path)
+    src = pathlib.Path(a.path).resolve()
     if not src.is_file():
         print(json.dumps({"ok": False, "error": f"not a file: {src}"}))
         return 1
-    dst = src.with_name(f"{src.name}.pdo-bak-{a.run_id}")
-    if dst.exists():
-        print(json.dumps({"ok": False, "error": f"backup already exists: {dst.name}"}))
+    # --iter copies a candidate (scratch file) under the target's name; the
+    # target on disk is never the candidate, so --from is required with --iter.
+    content_src = src
+    if a.iter is not None:
+        if not a.src_from:
+            print(json.dumps({"ok": False, "error": "--iter requires --from <candidate-file>"}))
+            return 1
+        content_src = pathlib.Path(a.src_from).resolve()
+        if not content_src.is_file():
+            print(json.dumps({"ok": False, "error": f"not a file: {content_src}"}))
+            return 1
+    run_id = a.run_id or time.strftime("%Y%m%d-%H%M%S")
+    if not re.fullmatch(r"[A-Za-z0-9._-]{1,64}", run_id):
+        print(json.dumps({"ok": False, "error": "run-id must match [A-Za-z0-9._-]{1,64}"}))
         return 1
-    shutil.copy2(src, dst)
+    # Contract form: backups/<skill>-<YYYYMMDD-HHMMSS>/<filename>.
+    run_dir = BACKUP_ROOT / f"prompt-deep-optimizer-{run_id}"
+    dst = run_dir / (f"{src.name}.iter{a.iter}" if a.iter is not None else src.name)
+    if dst.exists():
+        print(json.dumps({"ok": False, "error": f"backup already exists: {dst}"}))
+        return 1
+    run_dir.mkdir(parents=True, exist_ok=True)
+    shutil.copy2(content_src, dst)
     print(json.dumps({
-        "ok": True, "backup": dst.name,
+        "ok": True, "run_id": run_id, "copied_from": str(content_src), "backup_path": str(dst), "source": str(src),
         "restore_command": f"cp {dst} {src}",
         "evidence": "EXECUTED",
     }, indent=2))
@@ -158,19 +221,38 @@ def cmd_selfcheck(a) -> int:
         return 1
 
     failed, notes = [], []
-    status = m.get("status")
+    raw_status = m.get("status")
+    status = raw_status
+    if isinstance(status, str):
+        # Keep the leading token; drop any qualifier such as "(cycling)" or
+        # ", shipped iteration 2 rewrite (0/1/2) over iteration 3 (0/1/4)".
+        tok = re.match(r"\s*([A-Z][A-Z0-9_\-]*)", status)
+        status = tok.group(1) if tok else status
     if status in LEGACY_STATUS:
         notes.append(f"status {status!r} is the legacy token for {LEGACY_STATUS[status]!r}")
         status = LEGACY_STATUS[status]
 
-    # 1 — status is one of the seven documented Step 5 exits
+    # 1 — status is one of the documented exit tokens (qualifier stripped)
     if status not in VALID_STATUS:
-        failed.append(f"status: {m.get('status')!r} not in {sorted(VALID_STATUS)}")
+        failed.append(f"status: {raw_status!r} not in {sorted(VALID_STATUS)}")
 
-    # 2 — Step 6b section list complete and in order
-    if m.get("sections") != EXPECTED_SECTIONS:
-        missing = sorted(set(EXPECTED_SECTIONS) - set(m.get("sections") or []))
-        failed.append(f"sections: expected 1-11 in order; missing/misordered {missing or m.get('sections')}")
+    # 2 — Step 6b section list: 1-8 present in order; 9-11 optional but in place
+    secs = m.get("sections")
+    required = [x for x in REQUIRED_SECTIONS
+                if not (x == 3 and m.get("original_omitted"))      # reader holds the file
+                and not (x == 4 and status == "NO_CHANGE")]         # no rewrite to show
+    if not isinstance(secs, list) or secs[:len(required)] != required:
+        failed.append(f"sections: items {required} must lead in order; got {secs!r}")
+    else:
+        tail = secs[len(required):]
+        if any(x not in OPTIONAL_SECTIONS for x in tail) or tail != sorted(tail) or len(tail) != len(set(tail)):
+            failed.append(f"sections: after 1-8 only 9/10/11/12 may follow, each once, ascending; got {tail!r}")
+        if m.get("redactions") and 9 not in tail:
+            failed.append("sections: redactions > 0 but item 9 (redaction footer) absent")
+        if m.get("wrote_target") and 11 not in tail:
+            failed.append("sections: wrote_target true but item 11 (write-back footer) absent")
+        if m.get("empirical") and 12 not in tail:
+            failed.append("sections: empirical true but item 12 (empirical result) absent")
 
     # 3 — a CLEAN exit must actually be clean
     fin = m.get("final") or {}
@@ -185,10 +267,13 @@ def cmd_selfcheck(a) -> int:
         if grade not in VALID_EVIDENCE:
             failed.append(f"evidence[{gate}]: {grade!r} not in {sorted(VALID_EVIDENCE)}")
 
-    # 5 — active pass count is within the documented catalogue
+    # 5 — active pass count is within the catalogue, and when the manifest
+    #     lists the N/A passes, active + skipped must account for all 16
     ap = m.get("active_passes")
     if not isinstance(ap, int) or not 1 <= ap <= 16:
         failed.append(f"active_passes: {ap!r} outside 1-16")
+    elif isinstance(m.get("skipped"), list) and ap + len(m["skipped"]) != 16:
+        failed.append(f"active_passes {ap} + skipped {len(m['skipped'])} != 16 passes")
 
     # 6 — a write must be accompanied by a backup
     if m.get("wrote_target") and not m.get("backup_path"):
@@ -221,6 +306,10 @@ def main() -> int:
 
     t = sub.add_parser("tokens", help="token estimate + routing decision")
     t.add_argument("path", help="file path, or - for stdin")
+    t.add_argument("--one-off", action="store_true",
+                   help="prompt is one-off/exploratory (enables the under-threshold handoff)")
+    t.add_argument("--fragment", action="store_true",
+                   help="fragment mode is active (disables the small profile)")
     t.set_defaults(fn=cmd_tokens)
 
     e = sub.add_parser("editdist", help="edit-distance ratio between two versions")
@@ -232,7 +321,10 @@ def main() -> int:
     s.set_defaults(fn=cmd_scan)
 
     b = sub.add_parser("backup", help="copy a target aside before --write")
-    b.add_argument("path"); b.add_argument("--run-id", required=True)
+    b.add_argument("path")
+    b.add_argument("--run-id", help="run stamp; defaults to YYYYMMDD-HHMMSS")
+    b.add_argument("--iter", type=int, help="write <file>.iter<N> (per-iteration copy) instead of the pre-write backup")
+    b.add_argument("--from", dest="src_from", help="with --iter: the scratch file holding the iteration-N candidate")
     b.set_defaults(fn=cmd_backup)
 
     c = sub.add_parser("selfcheck", help="validate a run manifest")

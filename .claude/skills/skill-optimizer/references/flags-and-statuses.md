@@ -7,6 +7,7 @@ Complete flag list and exit-status vocabulary for `/sko`. The `## Invocation` se
 | Flag | Effect | Defined in |
 |---|---|---|
 | `--meta` (aliases `--structural`, `--meta-only`, `--structural-only`) | Structural-only mode: wiring/registry/validation, skip content-quality passes | `## Structural-only mode`, `references/structural-mode.md` |
+| `--read-only` | Run every pass, triage, and the report; write nothing anywhere (no target, wrapper, peer, changelog, rebuild, or index writes); single iteration (`--max-iter=1` implied); implies `--dry-run` in empirical mode; the read-only routing verify still runs. convergence-loop-runner's "dry run" input maps to this flag, not to `--dry-run` | Step 5, Step 6, Step 7 |
 | `--eval` | With `--meta`, add the Pass H trigger eval (opt-in) | Structural-only mode |
 | `--eval=measured` | Force the Pass H measured harness (skill-creator `run_eval`) instead of predicted | Pass H (`references/passes.md`) |
 | `--rewrite-desc` | With `--meta`, also run Pass M (description rewrite) | Structural-only mode |
@@ -22,6 +23,12 @@ Complete flag list and exit-status vocabulary for `/sko`. The `## Invocation` se
 | `--no-promote` | Empirical mode: opt out of gated auto-promote (still evaluates) | Empirical mode, `champion-challenger.md` |
 
 When driven by an outer loop, invoke with `--max-iter=1 --no-sync` per outer iteration and sync once after the outer loop converges (see `## Invocation → When driven by an outer loop`).
+
+## Argument forms and unknown flags
+
+- The target is a skill id, a `SKILL.md` (or legacy `context.md`/`manifest.yaml`) path, or a `~/.claude/commands/<name>.md` wrapper name with or without its leading `/`; a wrapper resolves to the skill it invokes (SKILL.md Step 1, wrapper resolution) and is linted for drift by Pass G.
+- A flag not in the table above is an error, not a hint: stop before Step 1, print this table, and ask once. Never drop or reinterpret an unknown flag silently; a typo such as `--max-iters=2` would otherwise run a full-length loop.
+- `--dry-run` is the empirical-mode flag (evaluate, do not promote); it does **not** suppress writes. `--read-only` does.
 
 ## Exit statuses
 
