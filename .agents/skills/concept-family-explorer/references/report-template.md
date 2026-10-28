@@ -7,7 +7,7 @@ SKILL body — they are logic, not part of the skeleton below.
 
 ```markdown
 # Concept Family Explorer — <subject>
-*Run: <date> · budget: maxConcepts=<explicit n or unset>, maxRounds=<n>[, budgetMinutes=<n> · wall: <m> min] · threshold: <x>/5*
+*Run: <date> · concept-count budget: <user-supplied n | none>, maxRounds=<n>[, budgetMinutes=<n> · wall: <m> min] · threshold: <x>/5*
 
 ## Conceptual family map
 <the 5-neighborhood map; mark HAVE / STALE / GAP>
@@ -36,9 +36,14 @@ Reached by: [frontier saturation (SATURATED-FRONTIER) | coverage saturation (SAT
 State the per-round new-information rate (new above-threshold gaps /
 cumulative candidates scored) — treat ~5% as a starting default, not
 validated truth.
-Concepts processed: <n>[ / <maxConcepts> only if explicitly set] concepts via <k> /dr calls; <r>/<maxRounds> rounds[; wall <m> min]   ← mandatory line
+Concepts processed: <n>/<explicit maxConcepts | all queued> via <k> /dr calls; <r>/<maxRounds> rounds[; wall <m> min]   ← mandatory line
 <if budget: list the unresearched above-threshold queue + suggested re-run; include wall time when budgetMinutes was set>
 
 ## Updated concept tree
 <new/updated nodes and their parent/child links>
+Tree sync (Step 9d), one line per tree:
+- mdb-context-hub: <written | skipped: reason>
+- global-ai-hub (`~/.global-ai-hub/concept-tree/tree.json`): <written N add / M update, K queued | REFUSED: reason | skipped: reason>
+- website (`concept-tree/tree.json` → `site/src/data/tree.json`): <written + regenerated, branch <name> | REFUSED: reason | skipped: reason>
+Never write "synced" for a tree the helper did not write.
 ```

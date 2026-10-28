@@ -74,14 +74,14 @@ BODY_HARD_TOKENS = 6000   # Pass N High
 PRELOAD_SOFT_TOKENS = 8000
 PRELOAD_HARD_TOKENS = 20000
 
-SECRET_PATTERNS = [
+LEAK_SHAPES = [
     ("aws-access-key", re.compile(r"\bAKIA[0-9A-Z]{16}\b")),
     ("openai-style-key", re.compile(r"\bsk-[A-Za-z0-9_-]{20,}\b")),
     ("github-token", re.compile(r"\bgh[pousr]_[A-Za-z0-9]{30,}\b")),
     ("slack-token", re.compile(r"\bxox[baprs]-[A-Za-z0-9-]{10,}\b")),
     ("private-key-block", re.compile(r"-----BEGIN [A-Z ]*PRIVATE KEY-----")),
     ("jwt", re.compile(r"\beyJ[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]{10,}\b")),
-    ("password-assignment", re.compile(r"(?i)\b(password|passwd|secret|api[_-]?key|token)\s*[:=]\s*['\"][^'\"]{6,}['\"]")),
+    ("credential-assignment", re.compile(r"(?i)\b(password|passwd|secret|api[_-]?key|token)\s*[:=]\s*['\"][^'\"]{6,}['\"]")),
 ]
 ASK_USER_PATTERNS = re.compile(
     r"(?i)\b(ask the user|ask the caller|wait for (the )?(user|confirmation|approval)|AskUserQuestion|prompt the user for)\b"
@@ -440,7 +440,7 @@ def schema(args) -> None:
                     add("H", "Medium", "mcp-server-unknown", f"`mcpServers` entry `{e}` is not configured in ~/.claude.json, .mcp.json or settings")
             elif isinstance(e, dict):
                 blob = json.dumps(e)
-                for label, rx in SECRET_PATTERNS:
+                for label, rx in LEAK_SHAPES:
                     if rx.search(blob):
                         add("J", "High", "mcp-inline-secret", f"inline MCP definition contains a {label}; reference an env var instead")
                         break
@@ -457,7 +457,7 @@ def schema(args) -> None:
         add("E", "High", "asks-user-in-background", "body asks the user for input but `background: true` means nobody can answer; return status blocked instead")
     elif ASK_USER_PATTERNS.search(body):
         add("E", "Medium", "asks-user", "body asks the user / waits for confirmation; a subagent should return `blocked` naming the question")
-    for label, rx in SECRET_PATTERNS:
+    for label, rx in LEAK_SHAPES:
         for i, line in enumerate(body.splitlines(), 1):
             if rx.search(line):
                 add("J", "High", "secret-in-body", f"{label} at body line {i}; redact and move to the environment")
