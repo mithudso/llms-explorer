@@ -7,24 +7,25 @@
 ## What the advisory track is (and is not)
 
 The fix-track (the 18 passes) finds **objective defects** that can be applied in place, verified by
-the build/lint/test gate, and converged to zero. Some valuable review output is not that shape —
+the build/lint/test gate, and converged to zero. Some valuable review output is not that shape:
 *new features, better architecture, tooling you don't have yet*. Those are **recommendations**, not
 fixes:
 
-- **Report-only.** Never auto-applied. Auto-adding a feature or rewriting an architecture changes
-  observable behavior, which the behavior-drift guard forbids.
-- **Never gates convergence.** Advisory items carry an advisory severity (**Suggest** / **Consider**)
-  that never enters the Medium+ exit math. You cannot "converge to zero suggestions."
-- **Opt-in.** Off by default; run only under `--suggest`, so the core run stays a tight fixer.
-- **Evidence-grounded.** Every item cites a concrete signal in the code — a `// TODO`, a missing
-  `switch` case, a stub, a deprecated API in use. No blue-sky suggestions.
+- **Report-only by default.** Never auto-applied in standard runs. Auto-adding a feature or rewriting an architecture changes observable behavior, which the behavior-drift guard forbids unless `--implement-features` / `--auto-improve` is explicitly passed.
+- **Never gates convergence.** Advisory items carry an advisory severity (**Suggest** / **Consider**) that never enters the Medium+ exit math. You cannot "converge to zero suggestions."
+- **Opt-in.** Off by default; run only under `--suggest` (report-only) or `--implement-features` / `--auto-improve` (identify and implement).
+- **Evidence-grounded.** Every item cites a concrete signal in the code: a `// TODO`, a missing `switch` case, a stub, a deprecated API in use, or an identifiable missing application capability.
+
+### Implementing features & improvements (`--implement-features` / `--auto-improve`)
+
+When `--implement-features` (or `--auto-improve`) is provided, cdo overrides the report-only constraint for the features it identifies: after the structural loop exits `CLEAN` or `CONVERGED`, it implements each evidence-grounded feature in its own verified round. Full procedure, ordering, and bounds: `references/implement-features.md`.
 
 ## Dispatch (agent fan-out)
 
 Under `--suggest`, the advisory passes run as a **6th parallel bundle** alongside the five fix-track
 group bundles (single-file / top-level mode). In repo mode, the per-file advisory pass (A1) runs
 inside each per-file subagent; the repo-scope advisory passes (A2, A3) run once at the top level
-with the other repo-scope passes (M3, T2, T3). No nested dispatch — a per-file subagent never spawns
+with the other repo-scope passes (M3, T2, T3, the T4 sweep and cross-file M2). No nested dispatch: a per-file subagent never spawns
 further subagents.
 
 ## The three passes
@@ -41,7 +42,7 @@ Only improvements the code itself *signals*. Each finding names the signal:
   retry it doesn't offer.
 
 Do **not** propose features the code gives no signal for. Delegate domain judgment per Stage 0
-(e.g. `api-design-patterns` for an API surface, `frontend-ui` for a component).
+(e.g. `software-engineering-patterns (references/api-design-patterns.md)` for an API surface, `frontend-ui` for a component).
 
 ### A2 — Architecture & design recommendations (repo scope)
 

@@ -110,7 +110,7 @@ verdict. **No-rounds-left precedence:** when corroborated gaps arrive but
 `maxRounds` (or another budget cap) is already exhausted, skip the extra
 round and exit `SATURATION-DISSENT` immediately, listing the gaps — never
 run a round no budget permits, and never report frontier saturation over
-corroborated dissent. On a dissent exit Steps 9–9c still run as normal over
+corroborated dissent. On a dissent exit Steps 9–9d still run as normal over
 everything researched this run (only the corroborated-but-unresearched gaps
 stay open, listed in the verdict). If no isolated dispatch is available, run the gate in-context with
 prior rationale set aside and label it "blind gate: in-context". Budget and
@@ -131,7 +131,10 @@ frontier saturation because it cannot speak to concepts the map never named.
 When you stop here, note that the map itself bounded the result.
 
 ### 3. Budget exhausted (soft stop — NOT true saturation)
-`maxConcepts`, `maxRounds`, or the wall-clock budget (`budgetMinutes`) hit.
+An explicit user-supplied `maxConcepts`, `maxRounds`, or wall-clock budget
+(`budgetMinutes`) is hit. No concept-count budget applies by default. The
+initial run-start frontier is processed in full unless the user sets an
+explicit count or time budget.
 When `budgetMinutes` is set, check elapsed time after each `/dr` return and
 each re-expansion round per the canonical Budget contract
 (`~/.claude/skill-consolidation/convergence-and-severity.md` §Budget
@@ -144,8 +147,9 @@ completeness. When you stop here you **must**:
 - recommend a re-run with a larger budget to continue.
 
 On this path Steps 9/9b (optimization + rebalance) are **skipped and listed as
-owed work** — but Step 9c's batch sync and Step 10's report always run:
-persistence completeness is never budget-gated.
+owed work** — but Step 9c's batch sync, Step 9d's tree sync (which also queues
+the unresearched above-threshold list into both trees' `RESEARCH_QUEUE.md`), and
+Step 10's report always run: persistence completeness is never budget-gated.
 
 Never report budget exhaustion as "saturated." The user needs to know the family
 still has worthwhile gaps that budget — not evidence — left unfilled.
@@ -158,7 +162,8 @@ skill index and burn enormous time. Guards:
 
 | Guard | Default | Why |
 | --- | --- | --- |
-| `maxConcepts` | 8 / run | Cap total concepts researched per run (a related cluster counts each concept; `/dr` calls may be fewer). |
+| `maxConcepts` | unset | Process every above-threshold concept from the run-start snapshot. A user may set an explicit count; related cohorts count each concept, while `/dr` calls may be fewer. |
+| Cohort synthesis | ≤8 concepts per `/dr` subgroup | Share cached parent facts and scraped sources, but preserve independent child claims and authority checks. Split larger cohorts and process every subgroup. |
 | `maxRounds` | 3 | Cap frontier re-expansions; the frontier rarely yields after 3. |
 | `budgetMinutes` | unset | Optional wall-clock cap (`--budget-minutes=N`); checked after each `/dr` return and each round per the canonical §Budget contract (cited above); remaining budget propagates into each `/dr` invocation. |
 | Viability gate | `Via ≤ 1 → SKIP` | Never spend a run on an un-sourceable concept. |
@@ -167,7 +172,9 @@ skill index and burn enormous time. Guards:
 | dryRun first | recommended | On an unfamiliar subject, plan-only first so the user approves scope before spend. |
 
 State the budget you used in the report so a re-run can pick up where you left
-off. If the user gives no budget, use defaults and say so.
+off. If the user gives no concept or time budget, report that the full scored
+queue was processed. Keep `maxRounds=3` as the separate default for frontier
+re-expansions after the starting snapshot.
 
 ## Dedup against coverage (the cheapest win)
 
@@ -185,7 +192,7 @@ above) — never re-page the whole tree mid-run.
 Round 0  map → 27 candidates across 5 neighborhoods (≥5 each — floor met)
          inventory → HAVE: APE, OPRO, ProTeGi (in prompt-deep-optimizer)
                      GAP: GEPA, TextGrad, EvoPrompt, DSPy/MIPROv2, PromptBreeder, …
-         score → 24 gaps scored; 5 ≥ 3.2; select all 5 (budget 8, room left)
+         score → 24 gaps scored; 5 ≥ 3.2; queue all 5 (no count budget)
          /dr "GEPA, TextGrad, EvoPrompt"  (related cluster → one skill)
          /dr "DSPy MIPROv2"
          /dr "PromptBreeder"
@@ -206,7 +213,7 @@ Optimize  /sko on the 3 new/updated skills with --no-sync (all standalone —
 Verdict   Reached by: frontier saturation (SATURATED-FRONTIER).
           New-information rate: R1 0/26 (0%; 2 new candidates scored, both
           below threshold), R2 0/26 (0%), gate 0 corroborated.
-          Budget used: 5/8 concepts via 3 /dr calls; 2/3 rounds.
+          Concepts processed: 5/all queued via 3 /dr calls; 2/3 rounds.
 ```
 
 The trace shows the ideal shape: one productive round, then the frontier

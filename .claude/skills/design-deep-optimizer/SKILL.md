@@ -1,51 +1,43 @@
 ---
 name: design-deep-optimizer
-description: >-
-  Multi-stage design & image critique-and-fix optimizer for graphic/brand & UI/UX screens; sibling
-  of code-deep-optimizer/document-critique. Ingests a screenshot, URL, code (HTML/CSS), or spec and
-  runs an 11-pass critique (hierarchy, gestalt, typography, color, usability heuristics/Laws of UX,
-  WCAG, affective/trust, metrics, brand-parity, hallucination guard) over the frontend-ui spokes;
-  severity-rates Blocker→Nit and, for code-backed designs, applies Medium+ fixes to convergence
-  (re-render/contrast/axe verified). Image/URL/spec inputs get critique-only findings. TRIGGER:
-  "critique/optimize this design|mockup|UI|screen|landing page|brand asset", "/deso", "review this
-  screenshot's design", "run a design critique", "improve this UI's visual design". SKIP: producing
-  a NEW design (web-design / ui-ux-pro-max); one narrow question (the matching frontend-ui spoke);
-  prose (document-critique); code logic (code-deep-optimizer); photographic or AI-generated-image
-  critique.
+description: "Multi-stage design & image critique-and-fix optimizer for graphic/brand & UI/UX screens; sibling of code-deep-optimizer/document-critique. Ingests a screenshot, URL, code (HTML/CSS), or spec and runs an 11-pass critique (hierarchy, gestalt, typography, color, usability heuristics/Laws of UX, WCAG, affective/trust, metrics, brand-parity, hallucination guard) over the frontend-ui spokes; severity-rates Blocker\u2192Nit and, for code-backed designs, applies Medium+ fixes to convergence (re-render/contrast/axe verified). Image/URL/spec inputs get critique-only findings. TRIGGER: \"critique/optimize this design|mockup|UI|screen|landing page|brand asset\", \"/deso\", \"review this screenshot's design\", \"run a design critique\", \"improve this UI's visual design\". SKIP: evals -> deep-eval-optimizer; producing a NEW design (web-design / ui-ux-pro-max); one narrow question (the matching frontend-ui spoke); prose (document-critique); code logic (code-deep-optimizer); photographic\
+  \ or AI-generated-image critique."
 origin: local
-version: 1.2.0
-updated: "2026-06-23"
+version: 1.3.0
+updated: '2026-09-29'
 category: developer
-tags: [design-critique, optimizer, convergence-loop, ui-ux, accessibility, visual-design, verify-gate]
+tags:
+- design-critique
+- optimizer
+- convergence-loop
+- ui-ux
+- accessibility
+- visual-design
+- verify-gate
 related_skills:
-  - visual-design-principles-and-critique
-  - usability-heuristics-laws-of-ux
-  - computational-aesthetics-ui-metrics
-  - vision-model-design-critique
-  - misc-catch-all
-  - frontend-ui
-  - code-deep-optimizer
-  - writing-expert
+- visual-design-principles-and-critique
+- usability-heuristics-laws-of-ux
+- computational-aesthetics-ui-metrics
+- vision-model-design-critique
+- misc-catch-all
+- frontend-ui
+- code-deep-optimizer
+- writing-expert
 whenToUse:
-  - "critique or optimize this design / mockup / UI screen / landing page / brand asset"
-  - "run /deso on this screenshot or component"
-  - "review this UI screenshot's visual design and tell me what to fix"
-  - "improve this HTML/CSS component's design until it's clean"
-  - "is this design any good — hierarchy, spacing, contrast, trust?"
+- critique or optimize this design / mockup / UI screen / landing page / brand asset
+- run /deso on this screenshot or component
+- review this UI screenshot's visual design and tell me what to fix
+- improve this HTML/CSS component's design until it's clean
+- "is this design any good \u2014 hierarchy, spacing, contrast, trust?"
 whenNotToUse:
-  - "produce a NEW design from scratch (use web-design / ui-ux-pro-max)"
-  - "one narrow design question (use the matching frontend-ui spoke directly)"
-  - "prose or documentation review (use document-critique / ddo)"
-  - "code logic/security/perf review (use code-deep-optimizer)"
-  - "aesthetic critique of a photograph or AI-generated image (out of scope)"
+- produce a NEW design from scratch (use web-design / ui-ux-pro-max)
+- one narrow design question (use the matching frontend-ui spoke directly)
+- prose or documentation review (use document-critique / ddo)
+- code logic/security/perf review (use code-deep-optimizer)
+- aesthetic critique of a photograph or AI-generated image (out of scope)
 metadata:
-  changelog: |
-    2026-06-23 v1.1.0->1.2.0 — Empirical mode now default-on (gated auto-promote + persist) per § Default policy in the shared contract — for code-backed designs with held-out metrics + must-pass checks the gate auto-runs and persists the champion across runs (prior archived for rollback); mandatory holdout rotation/budget/noise vs reusable-holdout overfitting; honest guarantee = monotonically non-decreasing on the held-out metric, not "better every run"; opt out --dry-run/--no-promote/--structural-only; image/URL/spec inputs stay critique-only. Per operator request.
-    2026-06-23 v1.0.1->1.1.0 — added Empirical mode (champion–challenger held-out loop) section citing the new shared contract ~/.claude/skill-consolidation/champion-challenger.md; calibration: score = held-out a11y/aesthetic metric (axe pass rate, contrast pass count, computational-aesthetic score), must-pass veto = WCAG AA contrast on all text + no axe criticals + brand-token parity. Per operator request.
-    2026-06-16 v1.0.0 — created via concept-family-explorer Phase B + skill-creator. Orchestrates
-    the 6 visual-design knowledge spokes built in the same run. Input-adaptive: auto-fix
-    convergence loop for code-backed designs, critique-only for image/URL/spec. Pending
-    skill-optimizer pass.
+  changelog: "2026-06-23 v1.1.0->1.2.0 \u2014 Empirical mode now default-on (gated auto-promote + persist) per \xA7 Default policy in the shared contract \u2014 for code-backed designs with held-out metrics + must-pass checks the gate auto-runs and persists the champion across runs (prior archived for rollback); mandatory holdout rotation/budget/noise vs reusable-holdout overfitting; honest guarantee = monotonically non-decreasing on the held-out metric, not \"better every run\"; opt out --dry-run/--no-promote/--structural-only; image/URL/spec inputs stay critique-only. Per operator request.\n2026-06-23 v1.0.1->1.1.0 \u2014 added Empirical mode (champion\u2013challenger held-out loop) section citing the new shared contract ~/.claude/skill-consolidation/champion-challenger.md; calibration: score = held-out a11y/aesthetic metric (axe pass rate, contrast pass count, computational-aesthetic score), must-pass veto = WCAG AA contrast on all text + no axe criticals + brand-token parity. Per operator\
+    \ request.\n2026-06-16 v1.0.0 \u2014 created via concept-family-explorer Phase B + skill-creator. Orchestrates\nthe 6 visual-design knowledge spokes built in the same run. Input-adaptive: auto-fix\nconvergence loop for code-backed designs, critique-only for image/URL/spec. Pending\nskill-optimizer pass.\n"
 ---
 
 # Design Deep Optimizer
@@ -163,7 +155,7 @@ first run.
 **Bundle A: Composition & visual** (`visual-design-principles-and-critique`)
 - **P0 Intent & context**: what is this, for whom, what brand/constraints; sets what "good" means. Use `--context` if supplied; otherwise infer and state the assumption.
 - **P1 Visual hierarchy & composition**: focal point, scanning path (Z/F/Gutenberg), gestalt grouping, C.R.A.P., balance, scale, white space. The squint/blur test.
-- **P2 Typography & legibility**: type hierarchy, pairing, measure, rhythm (`visual-design-principles-and-critique` P2). **Micro-typography & type-craft defects** — widows/orphans/runts, rag/rivers/bad breaks, kerning/tracking ("keming"), baseline-grid rhythm, H&J/justified gaps, hanging punctuation, glyph crimes (curly vs straight quotes, en/em dashes, faux small caps, old-style/tabular figures, faux bold/italic), and "type crimes" (faux condensed/stretched, ransom-note mixing) — now have a dedicated DETECT→RATE→FIX catalog: `references/micro-typography-craft.md` (frontend-ui hub). Load it for the typography pass.
+- **P2 Typography & legibility**: type hierarchy, pairing, measure, rhythm (`visual-design-principles-and-critique` P2). **Micro-typography & type-craft defects** — widows/orphans/runts, rag/rivers/bad breaks, kerning/tracking ("keming"), baseline-grid rhythm, H&J/justified gaps, hanging punctuation, glyph crimes (curly vs straight quotes, en/em dashes, faux small caps, old-style/tabular figures, faux bold/italic), and "type crimes" (faux condensed/stretched, ransom-note mixing) — now have a dedicated DETECT→RATE→FIX catalog: `frontend-ui/references/micro-typography-craft.md` (frontend-ui hub). Load it for the typography pass.
 - **P3 Color & contrast**: harmony, palette discipline, semantic color; WCAG contrast math (→ `frontend-ui` (references/accessibility-ux-reviewer.md)).
 
 **Bundle B: Interaction & accessibility** (UI screens; mostly `N/A` for static brand assets)

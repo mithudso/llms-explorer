@@ -1,18 +1,9 @@
 ---
 name: deep-query-optimizer
-description: >-
-  SQL member of the deep-optimizer family: a multi-pass review-and-fix optimizer for a
-  SQL query or file. Detects the dialect (Postgres/MySQL/SQLite/SQL Server), audits
-  sargability, index design, joins and N+1, predicate logic, projection, pagination,
-  subqueries/CTEs, and the EXPLAIN plan; severity-rates findings; applies every Medium+
-  rewrite in place; and when a DB connection exists, verifies via EXPLAIN/EXPLAIN ANALYZE
-  that the plan improved and the result set is unchanged, backing out regressions and
-  looping to convergence. Recommends index DDL. TRIGGER: "optimize this
-  SQL", "run dqo", "tune this query", "why is this query slow", "what index for this
-  query", full-scan/N+1/deep-paging SQL. SKIP: MongoDB/MQL → deep-mongodb-mql-query-optimizer
-  (/dmqo); warehouse/dbt or SQL schema modeling → da-data-engineering-platform; ORM or
-  app-layer N+1 in code → code-deep-optimizer; one-shot advice with no query →
-  software-engineering-patterns; prose → ddo; prompts → prompt-deep-optimizer.
+description: "SQL member of the deep-optimizer family: a multi-pass review-and-fix optimizer for a SQL query or file. Detects the dialect (Postgres/MySQL/SQLite/SQL Server), audits sargability, index design, joins and N+1, predicate logic, projection, pagination, subqueries/CTEs, and the EXPLAIN plan; severity-rates findings; applies every Medium+ rewrite in place; and when a DB connection exists, verifies via EXPLAIN/EXPLAIN ANALYZE that the plan improved and the result set is unchanged, backing out regressions and looping to convergence. Recommends index DDL. TRIGGER: \"optimize this SQL\", \"run dqo\", \"tune this query\", \"why is this query slow\", \"what index for this query\", full-scan/N+1/deep-paging SQL. SKIP: evals -> deep-eval-optimizer; MongoDB/MQL \u2192 deep-mongodb-mql-query-optimizer (/dmqo); warehouse/dbt or SQL schema modeling \u2192 da-data-engineering-platform; ORM or app-layer N+1 in code \u2192 code-deep-optimizer; one-shot advice with no query \u2192 software-engineering-patterns;\
+  \ prose \u2192 ddo; prompts \u2192 prompt-deep-optimizer."
+version: 1.1.0
+updated: '2026-09-29'
 ---
 
 # Deep Query Optimizer (`/dqo`)

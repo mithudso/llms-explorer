@@ -1,6 +1,6 @@
 # Prompt-deep-optimizer audit passes (A–P)
 
-Per-pass definitions for 16 evaluation domains, grouped into 5 parallel-dispatch bundles. Extracted from `SKILL.md` (Step 2) to stay under Pass J token budget. Step 2 dispatch reads this file to build subagent bundles; each subagent gets **only its group's passes**. Grouping rationale, dispatch rules, small-artifact profile, subagent-budget rules, skip-protocol table stay inline in `SKILL.md` Step 2 — control flow, not reference.
+Per-pass definitions for 16 evaluation domains, grouped into 5 parallel-dispatch bundles. Extracted from `SKILL.md` (Step 2) to stay under Pass J token budget. Step 2 dispatch reads this file to build subagent bundles; each subagent gets **only its group's passes**. Grouping rationale, dispatch rules, small-artifact profile, and subagent-budget rules stay inline in `SKILL.md` Step 2 (control flow, not reference); the skip-protocol table lives here, below.
 
 Group → passes: **Group 1 — Intent & Output** (A, D, M); **Group 2 — Context & Inputs** (B, C, N); **Group 3 — Process & Tools** (E, F, G); **Group 4 — Safety & Robustness** (H, I, O); **Group 5 — Structure, Model & Algorithm** (J, K, L, P).
 

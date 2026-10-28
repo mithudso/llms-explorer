@@ -50,7 +50,9 @@ there.
    declaring the skill persisted; on failure re-run `tam_concept_tree_link`
    and re-verify. (The live tree already contains an anonymous node with no
    concept name — unswept integrity defects are real, and an unlinked child is
-   invisible to every future parent-down inventory.)
+   invisible to every future parent-down inventory.) This covers the
+   mdb-context-hub tree only — the `~/.global-ai-hub` and website file trees
+   are written once, at SKILL.md Step 9d (`references/tree-sync.md`).
 5. **Sync once, verify it stuck — AT STEP 9c, not here.** Steps 1–4 run per
    skill as its agent returns; this step and steps 6–7 are deferred to
    SKILL.md Step 9c (after the Step 9b rebalance, which can re-file skills) and
