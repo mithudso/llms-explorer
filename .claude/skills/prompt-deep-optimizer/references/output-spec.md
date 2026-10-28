@@ -1,6 +1,6 @@
 # Prompt-deep-optimizer Step 6 — verify and output (full procedure)
 
-Verify/output mechanics extracted from `SKILL.md` Step 6 to keep body under Pass J token budget. `SKILL.md` Step 6 keeps the 11-item output-order checklist plus a pointer here; read this file at verify-and-output phase. 6a0 blind re-audit gate and 6a.5 cross-model gate wire canonical guardrails in `~/.claude/skill-consolidation/convergence-and-severity.md`.
+Verify/output mechanics extracted from `SKILL.md` Step 6 to keep body under Pass J token budget. `SKILL.md` Step 6 keeps the 12-item output-order checklist plus a pointer here; read this file at verify-and-output phase. 6a0 blind re-audit gate and 6a.5 cross-model gate wire canonical guardrails in `~/.claude/skill-consolidation/convergence-and-severity.md`.
 
 ### 6a0. Blind re-audit gate (CLEAN exits only — runs before 6a)
 
@@ -25,7 +25,7 @@ Self-check gate — graded `SIMULATED` by construction, since the model that wro
 
 If user provided sample input, predict output under both prompts and confirm equivalence in result type/shape (not necessarily identical wording).
 
-**Re-do limit (drift-deadlock guard):** if gate fails (any of steps 3, 4, or 5) and re-doing rewrite without offending finding produces another drift in SAME iteration, repeat at most twice. If third re-do also drifts, halt loop with `Status: DRIFT_DEADLOCK` and surface every unresolved offending finding as `BLOCKED` row in Changes-made table. Never silently apply drifting rewrite.
+**Re-do limit (drift-deadlock guard):** if the gate fails (any of steps 3, 4, or 5), re-do the rewrite without the offending finding, at most twice in the same iteration. If the second re-do also drifts (three drift failures in this iteration, the limit in `operations.md` § Budget and caps), halt the loop with `Status: DRIFT_DEADLOCK` and surface every unresolved offending finding as `BLOCKED` row in Changes-made table. Never silently apply drifting rewrite.
 
 ### 6a2. Behavioral smoke test (run once, on the final candidate only)
 
@@ -65,12 +65,16 @@ Opt-in only — never auto-enabled. After 6a/6a2 pass and before final output, o
    | 2 | A | High | Goal still implicit on first read | Could not infer goal from context | BLOCKED | n/a |
    | 3 | I | Medium | Injection guard missing | (same finding as iter 1, already applied) | CYCLING | n/a — excluded |
 
-7. **Summary line** — `Iterations: N. Active passes: X/16. Profile: small | standard. Final: 0 critical, 0 high, 0 medium, K low. Token delta: ±N tokens (sign+reason). Status: CLEAN | NO_CHANGE | STALLED | OSCILLATING | CAPPED | DRIFT_DEADLOCK | BUDGET_EXHAUSTED | BLIND-AUDIT-DISSENT. Smoke: PASS | FAIL | N/A (<reason>) [grade]. Evidence: 6a0=<grade> 6a2=<grade> edit-dist=<grade>.` Append any `routing:`, `degraded:`, `contract:`, `telemetry:`, or `max-iter clamped` note raised during the run. (`STALLED` is the current token for the no-progress exit; older runs report it as `CONVERGED`.) When best-of-pool selection shipped earlier iteration, append selection note (e.g. `— shipped iteration 2 rewrite (0/1/2) over iteration 3 (0/1/4)`); when `--budget-minutes` passed, append wall time.
+7. **Summary line** — `Iterations: N. Active passes: X/16. Profile: small | standard. Final: 0 critical, 0 high, 0 medium, K low. Token delta: ±N tokens (sign+reason). Status: CLEAN | NO_CHANGE | STALLED | OSCILLATING | CAPPED | DRIFT_DEADLOCK | BUDGET_EXHAUSTED | BLIND-AUDIT-DISSENT. Smoke: PASS | FAIL | N/A (<reason>) [grade]. Evidence: 6a0=<grade> 6a2=<grade> edit-dist=<grade>.` Append every annotation raised during the run: `routing:`, `mode:`, `degraded:`, `contract:`, `telemetry:`, `blind gate:`, `budget:`, `max-iter clamped`. The Step 6f manifest's `status` carries the bare token; qualifiers stay in this line. (`STALLED` is the current token for the no-progress exit; older runs report it as `CONVERGED`.) When best-of-pool selection shipped earlier iteration, append selection note (e.g. `— shipped iteration 2 rewrite (0/1/2) over iteration 3 (0/1/4)`); when `--budget-minutes` passed, append wall time.
 8. **Algorithm recommendation** — picked row from decision table below + one-paragraph rationale + specific infrastructure needed (training set size, metric name, harness).
 9. **Redaction footer** (if any) — `Redacted N secret/PII value(s) from the rewrite — restore the original values before deployment.` Counts come from `pdo_tools.py scan`, not from reading.
 10. **Variant registration (library prompts only)** — only when (i) source prompt resolved to existing library promptId or caller asked to save, AND (ii) top-level pdo invocation (when running under prompt-optimizer-loop agent, its Stage 4 owns registration — skip here): register `pre-pdo-<YYYY-MM-DD>` (original) and `pdo-<YYYY-MM-DD>` (optimized) variants per that agent's Stage 4 convention — on same-day versionId collision, suffix `-2`, then `-3` — and print rollback call `tam_activate_prompt_variant(<prompt-id>, pre-pdo-<date>)`. On CLEAN exits saved variant/tag records (original, optimized, findings) triple, enabling on-demand re-audit of past-certified prompts after pdo pass-logic change (sample 3; new Medium+ findings in previously-clean artifacts measure optimizer's own behavior change) — not automatic on every version bump. Caveat: `tam_compare_prompt_variants` is textual diff, not outcome engine — A/B outcome data still comes from running both variants. Otherwise omit item from output entirely.
 
-11. **Write-back footer** (`--write` runs only) — the path written, the backup path from `pdo_tools.py backup`, and the literal restore command `cp <path>.pdo-bak-<run-id> <path>`. Omit the item entirely on report-only runs.
+11. **Write-back footer** (`--write` runs only) — the path written, the `backup_path` from `pdo_tools.py backup` (under `~/.claude/skill-consolidation/backups/prompt-deep-optimizer-<run-id>/`), and the literal restore command `cp <backup_path> <path>`. Omit the item entirely on report-only runs.
+
+12. **Empirical result** (empirical-mode runs only) — the champion–challenger output per `champion-challenger.md` § Output: winner, scores, experiment log, remaining failures, stop condition, and the confirmation-set note. Omit the item entirely on structural-only runs.
+
+Items 9–12 are conditional; when present they keep this order.
 
 After emitting output, append telemetry rows per canonical Telemetry schema in `~/.claude/skill-consolidation/convergence-and-severity.md` (one JSONL row per executed pass; append is fail-safe — a write error never blocks the run, but it is never invisible either: add `telemetry: write failed (<reason>)` to the Summary line), and flag any iteration ≥ 3 that closed zero Medium+ findings as a wasted iteration in the Summary.
 
@@ -93,14 +97,14 @@ A `SIMULATED` result is reported as `SIMULATED — self-assessed, not executed a
 Emit a manifest of what this run actually produced, then have it checked by a program rather than by yourself:
 
 ```json
-{"status":"CLEAN","iterations":3,"active_passes":13,"profile":"standard",
+{"status":"CLEAN","iterations":3,"active_passes":13,"skipped":["F","N","O"],"profile":"standard",
  "final":{"critical":0,"high":0,"medium":0,"low":1},
- "sections":[1,2,3,4,5,6,7,8,9,10,11],
+ "sections":[1,2,3,4,5,6,7,8],
  "evidence":{"6a0":"ISOLATED","6a2":"SIMULATED","edit_distance":"EXECUTED"},
  "blocked_rows":0,"redactions":0,"wrote_target":false}
 ```
 
-Run `python3 ~/.claude/skills/prompt-deep-optimizer/scripts/pdo_tools.py selfcheck --manifest <file>`. It verifies the section list is complete and in order, that `status` is one of the seven Step 5 exits, that a `CLEAN` status carries zero Critical/High/Medium, that no gate is reported as a bare PASS without an evidence grade, that `wrote_target: true` appears only alongside a backup path, and that the active-pass count matches the skip table. Repair what it names, re-run once, and report the second result whatever it is, as `self-check: N/M`. A self-check you graded yourself is not a self-check.
+Run `python3 ~/.claude/skills/prompt-deep-optimizer/scripts/pdo_tools.py selfcheck --manifest <file>`. `status` is the bare exit token (qualifiers go in the Summary line). Optional keys: `skipped` (the N/A pass letters), `backup_path` (required when `wrote_target` is true), `empirical` (true on empirical-mode runs, which then include section 12), `original_omitted` (true when item 3 was omitted because the reader holds the file). A `NO_CHANGE` run has no item 4 and reports gates that did not run as `N/A`. The eight checks: (1) `status` is one of the eight documented exit tokens (`CONVERGED` accepted as the legacy alias of `STALLED`); (2) `sections` lists 1–8 in order (3 may be absent when `original_omitted`, 4 when `status` is `NO_CHANGE`), followed only by any of 9/10/11/12 ascending, with 9 present when `redactions` > 0, 11 when `wrote_target` is true, and 12 when `empirical` is true; (3) a `CLEAN` status carries zero Critical/High/Medium; (4) every gate in `evidence` carries one of the three grades or `N/A` (gate did not run), and at least one gate is reported; (5) `active_passes` is within 1–16 and, when `skipped` is supplied, `active_passes + len(skipped) == 16`; (6) `wrote_target: true` appears only alongside `backup_path`; (7) a `CLEAN` status carries no `blocked_rows`; (8) `profile` is `small` or `standard`. Repair what it names, re-run once, and report the second result whatever it is, as `self-check: N/8`. A self-check you graded yourself is not a self-check.
 
 ### 6c. Algorithm decision table
 
@@ -112,6 +116,7 @@ Map Pass P findings to specific algorithm:
 | None | Yes | Any | **None — structural only; collect data first** | A metric with no labelled examples has nothing to score. Name the metric in the recommendation and state the minimum set to gather (~30 pairs) so the next run has a row to land on. |
 | <30 paired ex | Yes | Any | **OPRO on the available set, reported as under-powered** | A metric over <30 examples overfits fast. Run it, but state the sample size beside every score and treat any gain under the noise floor as unproven. |
 | <30 paired ex | No | Standalone | **APE** | Diversity sampling without a metric works on small data. |
+| ≥30 paired ex | No | Standalone | **APE** | No metric to score against; diversity sampling is the only grounded search. |
 | <30 paired ex | No | Multi-step pipeline | **APE per step** | Same as the ≥30 no-metric pipeline case; joint optimization needs a metric. |
 | ≥30 paired ex | No | Multi-step pipeline | **APE per step** | No metric available; apply APE independently to each prompt. Joint optimization (MIPROv2) requires metric — degrade gracefully to per-step APE. |
 | ≥30 paired ex | Yes | Standalone | **OPRO or ProTeGi** | Metric-driven; ProTeGi for textual gradients, OPRO for prompt-as-optimizer. |
@@ -148,13 +153,13 @@ Intent-preservation check: trivially equivalent (no rewrite).
 
 Original prompt unchanged.
 
-Iteration log (abbreviated 4-column form for the do-nothing path; full 8-column schema in Step 5 — use it whenever iterations > 1):
+Iteration log (abbreviated 4-column form for the do-nothing path; full 9-column schema in Step 5 — use it whenever iterations > 1):
 | Iter | Active passes | Findings (C/H/M/L) | Action |
 | 1    | 13/16         | 0/0/0/2            | Stop — clean |
 
 Changes-made table: empty.
 
-Summary: Iterations: 1. Final: 0 critical, 0 high, 0 medium, 2 low. Token delta: 0. Smoke: N/A (NO_CHANGE).
+Summary: Iterations: 1. Active passes: 13/16. Profile: standard. Final: 0 critical, 0 high, 0 medium, 2 low. Token delta: 0 tokens (structure-only change). Status: NO_CHANGE. Smoke: N/A (NO_CHANGE). Evidence: 6a0=n/a 6a2=n/a edit-dist=n/a. routing: proceed.
 
 Algorithm recommendation: <decision table row based on Pass P findings>.
 ```

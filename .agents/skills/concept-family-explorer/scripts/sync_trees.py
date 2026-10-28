@@ -23,7 +23,7 @@ Per-target guarantees:
     report (dangling parent, non-reciprocal link, duplicate, uninstalled skill)
   * a parent with no node in that tree is NOT invented — the concept is
     promoted to a root in that target and the note says so
-  * --apply updates local files only; it never commits, pushes, or deploys
+  * the site target refuses `--apply` on main/master (branch or worktree first)
 
 Spec (JSON, file or `-` for stdin):
   {"researched": [{"concept": "...", "skillId": "...", "parentConcept": "...",
@@ -188,12 +188,22 @@ def _branch(repo: Path) -> str:
 
 
 def regen(repo: Path, hub: Path, slugs: list[str]) -> list[str]:
-    command = [sys.executable, str(repo / "scripts/research_site_sync.py"),
-               "--repo", str(repo), "--hub", str(hub), "--apply"]
-    result = subprocess.run(command, capture_output=True, text=True, check=False)
-    if result.returncode:
-        raise RuntimeError("website regeneration failed: " + (result.stderr or result.stdout)[-1500:])
-    return ["[regen] concept readers, tree, context and facts: ok", result.stdout.strip()]
+    py = repo / "hub" / ".venv" / "bin" / "python"
+    py = py if py.exists() else Path(sys.executable)
+    steps = []
+    if any((hub / "llms-concepts" / f"{s}.llms").is_dir() for s in slugs):
+        steps.append(("gen_concepts", [str(py), "site/tools/gen_concepts.py"]))
+    steps.append(("gen_tree", [str(py), "site/tools/gen_tree.py"]))
+    out = []
+    for name, cmd in steps:
+        r = subprocess.run(cmd, cwd=repo, capture_output=True, text=True)
+        out.append(f"[regen] {name}: {'ok' if r.returncode == 0 else 'FAILED'}")
+        if r.returncode:
+            out.append("  " + (r.stderr or r.stdout).strip().splitlines()[-1])
+            return out
+    stat = subprocess.run(["git", "-C", str(repo), "diff", "--stat", "--", "site/src/data", "concept-tree"],
+                          capture_output=True, text=True).stdout.rstrip()
+    return out + [stat or "  (no tracked changes)"]
 
 
 def main(argv=None) -> int:
@@ -212,16 +222,16 @@ def main(argv=None) -> int:
     ok_all, slugs = True, []
     for label in [t.strip() for t in a.targets.split(",") if t.strip()]:
         root = hub if label == "hub" else repo
+        if label == "site" and a.apply and _branch(repo) in ("main", "master"):
+            print(f"[site] REFUSED: {repo} is on {_branch(repo)} — use a branch or worktree")
+            ok_all = False
+            continue
         ok, lines, s = sync_target(label, root / "concept-tree" / "tree.json",
                                    root / "concept-tree" / "RESEARCH_QUEUE.md", spec, ct, a.apply, today)
         print("\n".join(lines))
         ok_all &= ok
         if label == "site" and ok and a.apply and a.regen:
-            try:
-                print("\n".join(regen(repo, hub, s)))
-            except (OSError, RuntimeError) as error:
-                print(str(error), file=sys.stderr)
-                ok_all = False
+            print("\n".join(regen(repo, hub, s)))
     return 0 if ok_all else 1
 
 
