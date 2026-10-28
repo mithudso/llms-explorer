@@ -1,5 +1,17 @@
 # Prompts Log
 
+## Prompt v70 - 2026-10-27
+
+> I refreshed the libs read token
+
+Scope: TASK-944/TASK-947. Record the user-confirmed token refresh, verify a fresh Cloudflare preview and final checks, then merge only after they pass. The confirmation does not establish credential validity. Delta: prompt v69 to v70.
+
+## Prompt v69 - 2026-10-27
+
+> how's it going?
+
+Scope: report the current MongoDB plan outcomes and publication checks from live verification; keep local finalization, withheld research and remote publication distinct. Delta: prompt v68 to v69.
+
 ## Prompt v68 - 2026-10-27
 
 > continue researching the research list. Expand the mongodb concept list and begin researching those topics.

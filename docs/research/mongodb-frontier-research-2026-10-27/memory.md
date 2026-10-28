@@ -1,10 +1,18 @@
 # MongoDB research continuation
 
-Version: 1.4.0
-Delta: 1.3.0 to 1.4.0; independent launch verification, continuing task, and publication blocker.
-Status: expansion verified; research running; preview credential repair required before merge.
+Version: 1.5.0
+Delta: 1.4.0 to 1.5.0; user follow-ups, finished dispatch outcomes and pending token/preview verification.
+Status: expansion/initiation verified; dispatch finished with withheld outcomes; private dependency authentication verified; preview build and delivery pending.
 
-## Completed
+## Current status as of 2026-10-28T03:41:01Z
+
+Independent verification at 2026-10-28T03:41:01Z found controller PID 25579 absent. The saved plan is `needs-review`, with zero running or pending cohorts. Ten cohorts covering 15 concepts finalized locally with receipts. Nineteen cohorts covering 39 concepts remain withheld. Completed outputs contain 230 canonical claims: 213 gate-supported and 17 ordinary claims that remain NOT-SAMPLED. Across all latest saved gates, totals are 736 SUPPORTED, 29 UNVERIFIED, 18 NOT-IN-SOURCE and two CONTRADICTED. The queue has not achieved full research success.
+
+Preserve /Users/mitch/dev/worktrees/llms-explorer-mongodb-queue-20261027 and its result artifacts even though the controller exited. Review withheld outcomes and successful local results through a separate result-review/publication scope. Do not rebuild the plan or repeat completed research. Local finalization does not establish deployed website publication.
+
+The user confirmed: "I refreshed the libs read token". All GitHub workflows passed on the old pushed head 400bf0308588c7ac532109af6f505a275f0cc051; its existing Cloudflare check failed. Root triggered fresh preview deployment b1333c2c-1377-4c21-a4ed-ee38b389620c for that head. At 2026-10-28T03:43:39.282Z, the new build reached `llms-explorer-site@0.0.14 prebuild`, proving private dependency fetch/authentication succeeded. The deployment remains active; a completed preview and final checks are pending. Root will verify all checks on the final pushed head and merge only after they pass. No merge or completed deployment is claimed here.
+
+## Verified expansion and historical launch
 
 - Added 21 pending topics across 13 existing parents in both trees. Stored 26 CVS rows, including five covered skips. No researched nodes were created.
 - Independent planning audit passed 68 reads and 235 exact spans. Native preservation checks passed for node metadata, queue prefixes, and 254 historical files. Scratch idempotence changed zero bytes.
@@ -16,7 +24,7 @@ Status: expansion verified; research running; preview credential repair required
 TASK-944 tracks expansion/initiation. Inventory TASK-945 and expansion TASK-946 are complete. Delivery TASK-947 remains active. TASK-950 owns the continuing full queue. KNOW-948 preserves the independent local-plan boundary.
 
 Publication checkout: /Users/mitch/dev/worktrees/llms-explorer-mongodb-research-20261027, branch research/mongodb-frontier-20261027.
-Active runtime checkout: /Users/mitch/dev/worktrees/llms-explorer-mongodb-queue-20261027, branch research/mongodb-queue-live-20261027. Keep it while the runner is active.
+Result runtime checkout: /Users/mitch/dev/worktrees/llms-explorer-mongodb-queue-20261027, branch research/mongodb-queue-live-20261027. Preserve it and its unreviewed results after controller exit.
 Plan: /Users/mitch/.global-ai-hub/research/.ranked/mongodb-local-20261027/plan.json
 Launch receipt: /Users/mitch/.global-ai-hub/research/.ranked/mongodb-local-20261027/launch.json
 Live continuation: /Users/mitch/.global-ai-hub/research/.ranked/mongodb-local-20261027/memory.md
@@ -26,7 +34,7 @@ Private discovery and guarded receipts: /Users/mitch/.global-ai-hub/research/.fr
 
 The completed October 24 local plan and unavailable October 22 remote plan retain their identities. Remote overlap is unknown. Preserve all old reservations, unrelated dirty work, other worktrees, and the divergent original /Users/mitch/dev/llms-explorer main. Embeddings, indexing services, and Ollama remain paused. Source-library reuse and native keyword publication follow the research contract.
 
-The batch marker reserves exactly 54 topic names. The native DR holder additionally displays the existing parent, MongoDB Security Architecture. Its combined display therefore contains 55 labels; actual assignments remain 54. A started runner does not make the queue complete. Bound gates and both-tree/pack/site persistence are still required for each result. Substantive dissent stays withheld while independent cohorts continue.
+At launch, the batch marker reserved exactly 54 topic names. The native DR holder additionally displayed the existing parent, MongoDB Security Architecture, so that historical combined display contained 55 labels. Actual assignments remain 54. The current outcome counts above supersede that launch-state display. Substantive dissent remains withheld; successful local results require separate review and publication.
 
 ## Read or resume
 
@@ -34,15 +42,15 @@ The batch marker reserves exactly 54 topic names. The native DR holder additiona
 /Users/mitch/dev/worktrees/llms-explorer-mongodb-queue-20261027/llmsx/.venv/bin/python /Users/mitch/dev/worktrees/llms-explorer-mongodb-queue-20261027/scripts/codex_ranked_research.py status --repo /Users/mitch/dev/worktrees/llms-explorer-mongodb-queue-20261027 --hub /Users/mitch/.global-ai-hub --plan /Users/mitch/.global-ai-hub/research/.ranked/mongodb-local-20261027/plan.json
 ```
 
-If no runner remains alive, use the same command with `run` instead of `status` and append `--continue-on-review`. Native .runner.lock rejects duplicate owners. Never rebuild the saved plan or repeat completed discovery. Inspect existing dissent before retrying unchanged claims.
+The controller has finished dispatch, and the plan has no running or pending cohorts. Read existing outcomes with `status`; do not automatically restart unchanged dissent. Correct specific claims or evidence before a fresh bound gate. Preserve native checkpoints and the saved plan. Never rebuild the plan or repeat completed discovery. Native .runner.lock rejects duplicate owners when execution is needed after reviewed corrections.
 
 ## Remaining delivery
 
-PR 243 is committed, pushed, and deliberately kept as a draft. Cloudflare preview fails in hub/bootstrap.sh cloning the private ollama-client repository: `remote: Invalid username or token. Password authentication is not supported for Git operations.` The existing Preview LIBS_READ_TOKEN needs user replacement. Do not reuse a broad GitHub OAuth token or bypass failing CI. The signed-in Chrome Beta tab is already on the preview settings.
+PR 243 remains a draft pending fresh preview and final-check verification. The previous preview failed in hub/bootstrap.sh while cloning private ollama-client: `remote: Invalid username or token. Password authentication is not supported for Git operations.` That failure is historical. The user has now confirmed refreshing the existing Preview LIBS_READ_TOKEN. Fresh deployment b1333c2c-1377-4c21-a4ed-ee38b389620c reached `llms-explorer-site@0.0.14 prebuild` at 2026-10-28T03:43:39.282Z, verifying private dependency fetch/authentication. The deployment is still active; its completed preview and final checks remain pending.
 
 https://github.com/mithudso/llms-explorer/pull/243
 https://dash.cloudflare.com/b41ba4dc457dce7653c93af955ecc462/pages/view/llms-explorer/settings/preview
 
-After the user refreshes the secret, retry only this preview deployment, wait for every check to pass, mark PR 243 ready, and squash-merge it. Remove only the clean publication worktree and its merged branch. Preserve the active runtime worktree and ongoing results. Resume publication of those results through a separate review branch once their gates pass.
+Root will push the scoped continuation update, verify every check on the final head, mark PR 243 ready and squash-merge only after all checks pass. Do not reuse a broad GitHub OAuth token or bypass failed checks. Remove only the clean publication worktree and its merged branch after confirmed delivery. Preserve the result runtime worktree. Research result review/publication remains separate from this planning/initiation PR.
 
-Root and the earlier writer lost Stele transport. A fresh graph writer is reconciling TASK-950 links and the fact-level novelty lesson. The same Cloudflare credential failure already exists as KNOW-938 from PR 242. Do not duplicate it.
+Graph bookkeeping is handled separately. TASK-950 tracks continuing outcomes, and KNOW-952 records fact-level novelty checks. The existing preview credential gap is KNOW-938; do not duplicate it. Keep historical records distinct from this current token-refresh and dispatch-finished checkpoint.
