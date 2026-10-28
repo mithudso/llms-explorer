@@ -1,5 +1,20 @@
 # Memory Log
 
+## v0.22.56 - 2026-10-27
+
+- User follow-ups: "how's it going?" and "I refreshed the libs read token". Prompt versions advance from v68 to v70. Fresh preview b1333c2c-1377-4c21-a4ed-ee38b389620c reached `llms-explorer-site@0.0.14 prebuild` at 2026-10-28T03:43:39.282Z. Private dependency fetch/authentication succeeded; the full preview and final checks remain pending.
+- Independent verifier at 2026-10-28T03:41:01Z: the controller exited, plan `needs-review`, zero running/pending cohorts. Ten cohorts / 15 concepts finalized locally; 19 cohorts / 39 concepts remain withheld. Completed outputs have 213 SUPPORTED judgments across 230 canonical claims, with 17 ordinary claims NOT-SAMPLED. Latest saved gates total 736 SUPPORTED, 29 UNVERIFIED, 18 NOT-IN-SOURCE and two CONTRADICTED. TASK-950 retains full-queue review; preserve the runtime checkout and all results for separate review/publication.
+- Old head 400bf0308588c7ac532109af6f505a275f0cc051 passed all GitHub workflows; its existing Cloudflare check failed. Fresh preview b1333c2c-1377-4c21-a4ed-ee38b389620c reached prebuild at 2026-10-28T03:43:39.282Z, verifying private dependency fetch/authentication after the user refresh. The deployment is still active. Root will verify the final pushed commit and merge PR 243 only after all checks pass. No completed deployment, merged PR or deployed research success is claimed.
+- Continuation: /Users/mitch/dev/worktrees/llms-explorer-mongodb-research-20261027/docs/research/mongodb-frontier-research-2026-10-27/memory.md. Delta: memory 0.22.55 to 0.22.56; prompt v68 to v70; scoped continuation 1.4.0 to 1.5.0.
+
+## v0.22.55 - 2026-10-27 (historical launch snapshot)
+
+This snapshot is superseded by v0.22.56 above. Its running-controller and required-token-refresh statements describe the earlier state.
+
+- TASK-944 added 21 pending MongoDB topics across 13 parents after 26 scored proposals and independent source/fact-layer review. Both trees, queues, and scores preserve metadata and 254 historical files. The 54-topic native plan is running in 29 cohorts with four Sol/medium workers. TASK-950 owns its continuing outcomes. All 129 focused tests and the site build pass.
+- PR 243 is a draft because Cloudflare preview cannot authenticate to private ollama-client. The existing Preview LIBS_READ_TOKEN needs user replacement; no failing check was bypassed. Preserve the active runtime checkout and old plans.
+- Continuation: docs/research/mongodb-frontier-research-2026-10-27/memory.md. Delta: memory 0.22.54 to 0.22.55; prompt v67 to v68.
+
 ## v0.22.54 - 2026-10-24
 
 - TASK-909 records the complete Awesome TUIs inventory pinned to 98a107625c87cca75cd5785afcb61a91e46bb6af. Catalog: 718 distinct listed URLs, 717 shared metadata acquisition groups, 13 categories. All rows have profiles: 678 README records, 36 official pages, two cached historical excerpts, two explicit GitHub404 gaps (kagan, tuiserial). Verified 1,393 private source bodies. Square Tic Tac Toe has its own subtree README and is distinct from the LearnByExample collection.
