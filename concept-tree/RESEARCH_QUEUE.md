@@ -4664,3 +4664,24 @@ Every frontier concept, grouped by shared parent (at most 8 per cluster), cluste
 - [ ] Concept: `Aggregation EJSON round-tripping and BSON type preservation` | Parent: `MongoDB Aggregation Pipeline` | Mode: `dr` | CVS: `4.00`
 - [ ] Concept: `Query-settings representative-query backfill and FCV boundaries` | Parent: `MongoDB query planner, plan cache, query settings and hints` | Mode: `dr` | CVS: `3.90`
 - [ ] Concept: `BinData subtype-aware aggregation dispatch and invalid inputs` | Parent: `BSON BinData vector ingestion` | Mode: `dr` | CVS: `3.40`
+- [ ] Concept: `Concurrent multi-document transaction admission limits` | Parent: `MongoDB Transactions` | Mode: `dr` | CVS: `4.65`
+- [ ] Concept: `Constraint validation adoption and existing-document guarantees` | Parent: `mongodb-schema-design` | Mode: `dr` | CVS: `4.65`
+- [ ] Concept: `Overload-aware remote targeting and read-preference fallback` | Parent: `Read Preference` | Mode: `dr` | CVS: `4.65`
+- [ ] Concept: `Pre-authentication message and buffer resource limits` | Parent: `MongoDB Security Architecture` | Mode: `dr` | CVS: `4.65`
+- [ ] Concept: `Shard draining cancellation, status and commit protocol` | Parent: `Sharded Cluster Cost Economics` | Mode: `dr` | CVS: `4.65`
+- [ ] Concept: `Atlas load-shedding backpressure and retry-budget handling` | Parent: `MongoDB Driver Internals` | Mode: `dr` | CVS: `4.45`
+- [ ] Concept: `Atlas snapshot-copy regions synchronized with cluster topology` | Parent: `MongoDB Backup and Restore` | Mode: `dr` | CVS: `4.45`
+- [ ] Concept: `Change-stream oplog-position and retry-error diagnostics` | Parent: `MongoDB Monitoring and Observability` | Mode: `dr` | CVS: `4.45`
+- [ ] Concept: `Audit-log TCP peer attribution behind PROXY protocol` | Parent: `MongoDB Security Architecture` | Mode: `dr` | CVS: `4.40`
+- [ ] Concept: `Config-server task-executor pool fan-out during 9.0 upgrades` | Parent: `MongoDB Upgrade Paths` | Mode: `dr` | CVS: `4.35`
+- [ ] Concept: `BSON ingest validation and wireObjectCheck deprecation boundaries` | Parent: `MongoDB Security Architecture` | Mode: `dr` | CVS: `4.25`
+- [ ] Concept: `Geospatial key-extraction error paths and redaction-aware diagnostics` | Parent: `MongoDB Geospatial` | Mode: `dr` | CVS: `4.25`
+- [ ] Concept: `X.509 internal authorization alongside LDAP authorization` | Parent: `MongoDB Security Architecture` | Mode: `dr` | CVS: `4.25`
+- [ ] Concept: `Session catalog partitioning and contention diagnostics` | Parent: `MongoDB Performance Troubleshooting` | Mode: `dr` | CVS: `4.25`
+- [ ] Concept: `Aggregation binary hashing and hashed-index key separation` | Parent: `MongoDB Aggregation Pipeline` | Mode: `dr` | CVS: `4.20`
+- [ ] Concept: `Atlas database and Search load-shedding eligibility boundaries` | Parent: `MongoDB Atlas` | Mode: `dr` | CVS: `4.20`
+- [ ] Concept: `Embedded-to-dedicated config server transition protocol` | Parent: `Sharded Cluster Cost Economics` | Mode: `dr` | CVS: `4.20`
+- [ ] Concept: `Native JSON container shorthand parsing and type boundaries` | Parent: `MongoDB Aggregation Pipeline` | Mode: `dr` | CVS: `4.05`
+- [ ] Concept: `Numeric-base conversion in aggregation expressions` | Parent: `MongoDB Aggregation Pipeline` | Mode: `dr` | CVS: `3.90`
+- [ ] Concept: `Pre-epoch date arithmetic upgrade compatibility` | Parent: `MongoDB Aggregation Pipeline` | Mode: `dr` | CVS: `3.80`
+- [ ] Concept: `ObjectId generation inside aggregation and update expressions` | Parent: `MongoDB Aggregation Pipeline` | Mode: `dr` | CVS: `3.60`
