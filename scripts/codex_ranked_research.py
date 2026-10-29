@@ -21,6 +21,7 @@ import time
 import uuid
 from collections import defaultdict
 from datetime import UTC, datetime
+from html import unescape
 from pathlib import Path
 
 REPO = Path(__file__).resolve().parents[1]
@@ -38,10 +39,36 @@ def key(name):
 
 
 def atomic(path, value):
+    if isinstance(value, dict) and "rows" in value and "cohorts" in value:
+        sync_row_outcomes(value)
     path.parent.mkdir(parents=True, exist_ok=True)
     temporary = path.with_suffix(path.suffix + ".tmp")
     temporary.write_text(json.dumps(value, indent=2, ensure_ascii=False) + "\n")
     temporary.replace(path)
+
+
+def sync_row_outcomes(plan):
+    """Cohort checkpoints, including later completion receipts, own row status."""
+    outcomes = {}
+    for cohort in plan.get("cohorts", []):
+        elsewhere = {key(name) for name in cohort.get("completed_elsewhere", [])}
+        for name in cohort.get("concepts", []):
+            outcomes[key(name)] = "complete" if key(name) in elsewhere else cohort["status"]
+    for row in plan.get("rows", []):
+        if key(row["concept"]) in outcomes:
+            row["status"] = outcomes[key(row["concept"])]
+
+
+def reviewed_gate_current(shared, cohort):
+    """Only an independently verified current gate permits explicit review resume."""
+    try:
+        manifest = shared.load_manifest(cohort["id"])
+        if not manifest.get("concepts") or any(row["status"] != "done" for row in manifest["concepts"]):
+            return False
+        shared.verify_current_gate(manifest)
+        return True
+    except (OSError, ValueError, KeyError):
+        return False
 
 
 def ranked_rows(text):
@@ -55,7 +82,7 @@ def ranked_rows(text):
         except ValueError:
             continue
         rows.append({"rank": int(cells[0]), "cvs": score, "decision": cells[2],
-                     "concept": "|".join(cells[3:-3]), "parent": cells[-3],
+                     "concept": unescape("|".join(cells[3:-3])), "parent": unescape(cells[-3]),
                      "mode": cells[-2], "ranked_state": cells[-1]})
     return rows
 
@@ -234,13 +261,13 @@ def eligible_now(repo, hub, cohort, run_id, resume_names=()):
             (key(name) in resumable or (key(name) in pending and (key(name) not in covered or key(name) in revisit)))]
 
 
-def execute(repo, hub, plan_path, max_cohorts=None):
+def execute(repo, hub, plan_path, max_cohorts=None, retry_reviewed=False):
     with (plan_path.parent / ".runner.lock").open("a") as lock:
         try:
             fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
         except BlockingIOError:
             raise RuntimeError("This ranked plan already has a runner") from None
-        return execute_locked(repo, hub, plan_path, max_cohorts)
+        return execute_locked(repo, hub, plan_path, max_cohorts, retry_reviewed=retry_reviewed)
 
 
 def execute_all(repo, hub, plan_path):
@@ -268,7 +295,7 @@ def _execute_all_locked(repo, hub, plan_path):
             return result
 
 
-def execute_locked(repo, hub, plan_path, max_cohorts=None):
+def execute_locked(repo, hub, plan_path, max_cohorts=None, retry_reviewed=False):
     plan = json.loads(plan_path.read_text())
     run_id = plan_path.parent.name
     marker = Path(os.environ.get("LLMSX_HOME") or Path.home() / ".llmsx") / "jobs/batches" / run_id / "run.json"
@@ -286,9 +313,14 @@ def execute_locked(repo, hub, plan_path, max_cohorts=None):
     try:
         shared = load("ranked_adapter", repo / "scripts/codex_dr_run.py").load_shared()
         for cohort in plan["cohorts"]:
-            if cohort["status"] in ("complete", "skipped") or (
-                    plan.get("continue_on_review") and cohort["status"] == "needs-review"):
+            if cohort["status"] in ("complete", "skipped"):
                 continue
+            if cohort["status"] == "needs-review":
+                if retry_reviewed:
+                    if not reviewed_gate_current(shared, cohort):
+                        continue
+                elif plan.get("continue_on_review"):
+                    continue
             cohort["rows"] = [row for row in plan["rows"] if row["concept"] in cohort["concepts"]]
             if (plan_path.parent / "STOP").exists() or (max_cohorts is not None and completed >= max_cohorts):
                 break
@@ -463,7 +495,11 @@ def main(argv=None):
     parser.add_argument("--max-cohorts", type=int)
     parser.add_argument("--continue-on-review", action="store_true",
                         help="Keep evidence dissent withheld and process independent remaining cohorts")
+    parser.add_argument("--retry-reviewed", action="store_true",
+                        help="Resume withheld cohorts only after their current independent gates pass")
     args = parser.parse_args(argv)
+    if args.retry_reviewed and (args.action != "run" or args.continue_on_review):
+        parser.error("--retry-reviewed requires run and cannot combine with --continue-on-review")
     if args.action == "plan":
         result = make_plan(args.repo, args.hub, args.source or args.hub / "concept-tree/RESEARCH_QUEUE_RANKED.md", args.size)
         atomic(args.plan, result)
@@ -479,7 +515,7 @@ def main(argv=None):
         if args.max_cohorts is not None:
             parser.error("--continue-on-review cannot be combined with --max-cohorts")
         return execute_all(args.repo, args.hub, args.plan)
-    return execute(args.repo, args.hub, args.plan, args.max_cohorts)
+    return execute(args.repo, args.hub, args.plan, args.max_cohorts, retry_reviewed=args.retry_reviewed)
 
 
 if __name__ == "__main__":
