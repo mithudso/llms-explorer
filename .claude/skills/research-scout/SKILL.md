@@ -2,9 +2,9 @@
 name: research-scout
 description: Scouts web source leads for LLMS-Explorer's pending research queue and proposes source-backed frontier concepts. Use Antigravity or another fast lookup agent before /dr or concept-family-explorer; saves private, resumable JSON handoffs. Does not perform full research, approve claims, or update the concept tree.
 metadata:
-  version: "1.0.0"
+  version: "1.1.0"
   updated: "2026-10-29"
-  delta: "Initial queue and frontier source scouting contract."
+  delta: "1.0.0 to 1.1.0: bounded consumer seeds and headless worker bridges; schema stays 1.0.0."
 ---
 
 # Research scout
@@ -106,6 +106,13 @@ Never claim exhaustive frontier coverage from a bounded scout pass.
 python3 <skill-dir>/scripts/scout.py check <run-dir>/scout.json
 python3 <skill-dir>/scripts/scout.py render <run-dir>/scout.json
 ```
+
+Consumers read [references/consumer.md](references/consumer.md). The `seeds`
+command returns at most six candidate URLs with exact parent checks and source
+provenance. It keeps payloads small while the original bundle retains full notes.
+Claude workers receive these through `scripts/with_scout.py`; the repository's
+Codex research adapter uses the same reader automatically. Neither bridge grants
+evidence credit. Schema v1.0.0 bundles remain compatible.
 
 Report the full paths to `scout.json`, `handoff.md` and `memory.md`, the selected
 concept count, readable versus inaccessible leads, proposed concepts, and gaps.
