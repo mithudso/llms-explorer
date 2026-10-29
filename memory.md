@@ -1,5 +1,36 @@
 # Memory Log
 
+## v0.22.70 - 2026-10-29
+
+- Integrated concurrently merged scout delivery PR247 at4f26f720 into queue repair PR248 without rewriting history. Preserved both prompt/memory tracks and renumbered queue repair entries to memory0.22.67-69 and prompts74-75 to remove collisions.
+- All280 site tests pass after installing the API dependencies declared by the site bootstrap. Earlier queue/claim tests,25-term privacy and independent publication/preservation audits pass. New final-head CI must validate the integrated source before readiness.
+- The current request explicitly asks to synchronize the site at /Users/mitch/dev/llms-explorer. After merged delivery, switch that clean checkout to a new attached branch tracking origin/main and retain its divergent main reference unchanged. This task-specific request supplies the checkout choice that the older scout task left unresolved.
+- Delta: memory0.22.69 to0.22.70. Remaining: integrated final-head CI, merged delivery, actual checkout/mirror/CLI metadata sync and local loaded acceptance.
+
+## v0.22.69 - 2026-10-29
+
+- Queue repair and publication projections are complete. All54 MongoDB concepts in29 cohorts and four Apple concepts are finalized. The combined855 canonical claims retain825 supported sampled judgments and30 ordinary NOT-SAMPLED claims. Independent semantic review closed an additional Apple callback delivery error. Historical qualifications remain legacy.
+- Restored17 completed historical research directories and the original Apple evidence, with1,851 recovered file hashes verified. Restored58 existing qualified packs to missing live hub paths (464 files). All702 frozen evidence files and170 retained-runtime files remain byte-identical.
+- Hub queue299 unique/108 pending; repository queue4,651/4,588 pending. All694 paused reservations remain unchanged. Lossless identity parsers, explicit held/coverage states, parent/alias repairs, atomic ranked row outcomes and current-supported-only retry are implemented. Reconciliation and site sync repeat with zero changes.
+- Public tree2,203 nodes;1,881 concept readers;95,448 facts. Hermes publication stays deferred. The clean hub delivery contains1,948 nodes from1,885 committed nodes; unrelated live dirty work remains preserved.
+- Validation: vendored hub596 passed; research/script333 passed and7 subtests; focused changed-path109 passed and4 subtests; clean hub1,143 passed/42 skipped; full site build/publication policy and real25-term privacy gate passed. The first site test run lacked declared API dependencies; those were installed from the actual API manifest and both affected tests now pass. The full site suite passed all280 tests with the complete declared environment.
+- Versions: llmsx0.2.6 to0.2.7; site0.0.14 to0.0.15. Prompt v75 remains current. Remaining: final CI, merged delivery and safe synchronization of the user's original checkout without rewriting divergent main. Delta remains disabled; an already-loaded Claude session requires /reload-plugins --force.
+- Progress: [completed] evidence/queue/tree/site repair; [completed] independent audits and preservation; [in progress] tested delivery and local acceptance. Delta: memory0.22.68 to0.22.69.
+
+## v0.22.68 - 2026-10-29
+
+- Steering request: disable all Delta hooks. Ran the native Claude plugin disable command for delta@zed-industries at user scope. Only enabledPlugins.delta@zed-industries changed from true to false. Backup and verification receipt: /Users/mitch/.claude/backups/disable-delta-hooks-20261029/. No Delta project overrides or Codex Delta registrations were found. Already loaded Claude sessions require plugin reload to unload the old module. Other plugins and hooks are unchanged.
+- Queue repair continues under v0.22.67. Parser regressions pass; corrected ranked resume requires a fresh current supported gate. Initial safe site refresh synchronized15 qualified MongoDB results, with1,838 readers and94,823 facts; the unfinished Hermes publication stays deferred. Recovered17 historical completed runs and the four-concept Apple run from the verified original host:1,851 files /121,447,580 bytes passed SHA256 checks. MongoDB workers are correcting/re-gating19 cohorts; a third worker handles the recovered Apple evidence. Finalization is serialized into the publication checkout.
+- Progress: [completed] preservation and recovery; [completed] Delta hook configuration; [in progress] queue reconciliation, evidence repair and serial publication; [open] full validation, local checkout sync and PR delivery. Delta: Prompt v74 to v74; memory0.22.67 to0.22.68.
+
+## v0.22.67 - 2026-10-29
+
+- User authorizes resolving audit findings, synchronizing the repository website and the .global-ai-hub tree, then commit/push/PR. Worktree: /Users/mitch/dev/worktrees/llms-explorer-queue-sync-20261029; branch fix/research-queue-sync-20261029; initial base 22a6e948. Preserve shared main dbed74f0 and every unrelated worktree.
+- Constraints: preserve existing nodes, slugs, placement, research dates and immutable source/gate attempts. Keep the paused October14 suite and embedding/indexing services paused. Existing claims and source snapshots are the starting point; do not repeat completed discovery or promote saved dissent. Private source bodies remain private. The hub and repository queues have different coverage and must not replace each other wholesale.
+- Existing checkpoint: /Users/mitch/.global-ai-hub/research/.ranked/mongodb-local-20261027/plan.json has ten complete cohorts / 15 local concepts and nineteen needs-review cohorts / 39 concepts. Saved non-supported judgments total 49. TASK-950 retains the existing research history. Stele rejects new task creation at its monthly write limit; this disk record is the tracker fallback.
+- Recovery risk: continue_on_review=true makes the ranked runner skip needs-review cohorts. Plain restart does not repair them. Claim corrections must precede fresh gates; plan reconciliation must use current bound completion evidence instead of stale row fields.
+- Progress: [in progress] preservation baseline and repair plan; [open] parser and queue/outcome reconciliation; [open] targeted evidence repairs and fresh gates; [open] synchronize both trees and qualified site projections; [open] independent validation and final local acceptance; [open] commit/push/PR delivery.
+- Delta: prompt v72 to v73; memory 0.22.62 to 0.22.67.
 ## v0.22.66 - 2026-10-29
 
 - TASK-954 report v1.0.1 passed final independent readback. The timestamped census v1.1.0 and its table agree; syntactic suffix removal is not labeled semantic metadata, and citation occurrences are distinguished from distinct URLs. Final validation: 103 tests, including 20 scout cases and existing research handoff tests; Ruff; 27-file generated mirror parity; skill metadata; changed-file privacy; whitespace; and site build/publication policy all pass. No Antigravity or research-model calls ran.

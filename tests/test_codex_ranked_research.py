@@ -18,6 +18,39 @@ ranked = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(ranked)
 
 
+def test_atomic_updates_stale_rows_from_cohort_checkpoints(tmp_path):
+    path = tmp_path / 'plan.json'
+    plan = {'rows': [{'concept': 'Done', 'status': 'pending'},
+                     {'concept': 'Blocked', 'status': 'pending'},
+                     {'concept': 'Later result', 'status': 'pending'}],
+            'cohorts': [{'id': 'a', 'status': 'complete', 'concepts': ['Done']},
+                        {'id': 'b', 'status': 'needs-review', 'concepts': ['Blocked']},
+                        {'id': 'c', 'status': 'pending', 'concepts': ['Later result'],
+                         'completed_elsewhere': ['Later result']}]}
+    ranked.atomic(path, plan)
+    assert [row['status'] for row in json.loads(path.read_text())['rows']] == [
+        'complete', 'needs-review', 'complete']
+
+
+def test_review_resume_requires_current_supported_gate_and_completed_claims():
+    manifest = {'concepts': [{'status': 'done'}]}
+    shared = SimpleNamespace(load_manifest=lambda slug: manifest,
+                             verify_current_gate=lambda value: None)
+    assert ranked.reviewed_gate_current(shared, {'id': 'reviewed'})
+    def stale(value):
+        raise ValueError('stale input or non-supported verdict')
+    shared.verify_current_gate = stale
+    assert not ranked.reviewed_gate_current(shared, {'id': 'reviewed'})
+    shared.verify_current_gate = lambda value: None
+    manifest['concepts'][0]['status'] = 'pending'
+    assert not ranked.reviewed_gate_current(shared, {'id': 'reviewed'})
+
+
+def test_review_resume_flag_cannot_enable_unbounded_review_retry():
+    with pytest.raises(SystemExit):
+        ranked.main(['run', '--plan', 'plan.json', '--retry-reviewed', '--continue-on-review'])
+
+
 def test_ranked_parser_keeps_literal_pipes_and_parent():
     rows = ranked.ranked_rows("| 1 | 4.2 | RESEARCH | A | B | Parent | dr | pending |")
     assert rows[0]["concept"] == "A|B"

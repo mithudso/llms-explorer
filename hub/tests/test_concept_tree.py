@@ -34,6 +34,22 @@ QUEUE = """# Concept Research Queue
 """
 
 
+def test_queue_preserves_embedded_ticks_and_reordered_metadata(tmp_path):
+    path = tmp_path / "queue.md"
+    path.write_text(
+        '- [ ] Concept: ``Reading `$or` plans`` | CVS: `4.15` | Mode: `dr` '
+        '| Parent: ``Index `$or` union``\n'
+        '- [x] Concept: `` `$natural` `` | Parent: `Query planner`\n'
+        '- [ ] Concept: ``unterminated`\n'
+    )
+    assert ct.load_queue(path) == [
+        {"concept": "Reading `$or` plans", "parentConcept": "Index `$or` union",
+         "mode": "dr", "cvs": 4.15, "done": False},
+        {"concept": "`$natural`", "parentConcept": "Query planner",
+         "mode": None, "cvs": None, "done": True},
+    ]
+
+
 @pytest.fixture
 def tree(tmp_path, monkeypatch):
     tp = tmp_path / "tree.json"

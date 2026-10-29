@@ -10,17 +10,17 @@ tree) was pre-registered directly in tree.json with these 11 as its named childC
 they resolve to the right parent regardless of what order the batch researches them in. Queued
 here too so `hub/scripts/frontier_research_batch.py`'s own frontier scan picks them up.
 
-- [ ] Concept: `Copart Salvage Auctions` | Parent: `Used Car Auctions and Buying`
-- [ ] Concept: `IAAI Salvage Auctions` | Parent: `Used Car Auctions and Buying`
-- [ ] Concept: `AutoBidMaster International Bidding` | Parent: `Used Car Auctions and Buying`
-- [ ] Concept: `Reading a Salvage Auction Listing` | Parent: `Used Car Auctions and Buying`
-- [ ] Concept: `Salvage Auction Bidding Strategy` | Parent: `Used Car Auctions and Buying`
-- [ ] Concept: `Individual Buyer Best Practices at Salvage Auctions` | Parent: `Used Car Auctions and Buying`
-- [ ] Concept: `Salvage and Clean-Title Vehicle Valuation` | Parent: `Used Car Auctions and Buying`
-- [ ] Concept: `Auction Vehicle Repair Cost Estimation` | Parent: `Used Car Auctions and Buying`
-- [ ] Concept: `Newbie Mistakes in Used Car Buying` | Parent: `Used Car Auctions and Buying`
-- [ ] Concept: `Best-Value Used Car Selection` | Parent: `Used Car Auctions and Buying`
-- [ ] Concept: `Low-Cost Alternative Car-Buying Channels` | Parent: `Used Car Auctions and Buying`
+- [ ] Concept: `Copart Salvage Auctions` | Parent: `Used Car Auctions and Buying` | Queue-state: `coverage-review`
+- [ ] Concept: `IAAI Salvage Auctions` | Parent: `Used Car Auctions and Buying` | Queue-state: `coverage-review`
+- [ ] Concept: `AutoBidMaster International Bidding` | Parent: `Used Car Auctions and Buying` | Queue-state: `coverage-review`
+- [ ] Concept: `Reading a Salvage Auction Listing` | Parent: `Used Car Auctions and Buying` | Queue-state: `coverage-review`
+- [ ] Concept: `Salvage Auction Bidding Strategy` | Parent: `Used Car Auctions and Buying` | Queue-state: `coverage-review`
+- [ ] Concept: `Individual Buyer Best Practices at Salvage Auctions` | Parent: `Used Car Auctions and Buying` | Queue-state: `coverage-review`
+- [ ] Concept: `Salvage and Clean-Title Vehicle Valuation` | Parent: `Used Car Auctions and Buying` | Queue-state: `coverage-review`
+- [ ] Concept: `Auction Vehicle Repair Cost Estimation` | Parent: `Used Car Auctions and Buying` | Queue-state: `coverage-review`
+- [ ] Concept: `Newbie Mistakes in Used Car Buying` | Parent: `Used Car Auctions and Buying` | Queue-state: `coverage-review`
+- [ ] Concept: `Best-Value Used Car Selection` | Parent: `Used Car Auctions and Buying` | Queue-state: `coverage-review`
+- [ ] Concept: `Low-Cost Alternative Car-Buying Channels` | Parent: `Used Car Auctions and Buying` | Queue-state: `coverage-review`
 
 ## Flagged for re-research: 2026-09-14 batch (thin/unsourced)
 
@@ -31,12 +31,12 @@ this tree requires. Never merged into tree.json. Keeping outputs/ as-is; queuing
 names here so they get real research (e.g. via hub/scripts/frontier_research_batch.py)
 instead of being silently treated as done.
 
-- [ ] Concept: `Atlas Alerts Pub/Sub Escalation` | Parent: `MongoDB Atlas on GCP` | Note: thin/unsourced batch-2026-09-14, needs real re-research
-- [ ] Concept: `Atlas Audit Logs Cloud Logging` | Parent: `MongoDB Atlas on GCP` | Note: thin/unsourced batch-2026-09-14, needs real re-research
+- [ ] Concept: `Atlas Alerts Pub/Sub Escalation` | Parent: `MongoDB Atlas on GCP` | Note: thin/unsourced batch-2026-09-14, needs real re-research | Queue-state: `held`
+- [ ] Concept: `Atlas Audit Logs Cloud Logging` | Parent: `MongoDB Atlas on GCP` | Note: thin/unsourced batch-2026-09-14, needs real re-research | Queue-state: `held`
 - [ ] Concept: `ETL vs ELT` | Parent: `Data Acquisition and Sampling` | Note: thin/unsourced batch-2026-09-14, needs real re-research
-- [ ] Concept: `GCP Marketplace Atlas Billing` | Parent: `MongoDB Atlas on GCP` | Note: thin/unsourced batch-2026-09-14, needs real re-research
-- [ ] Concept: `GCP Private Service Connect` | Parent: `MongoDB Atlas on GCP` | Note: thin/unsourced batch-2026-09-14, needs real re-research
-- [ ] Concept: `GCP Regions Atlas Mapping` | Parent: `MongoDB Atlas on GCP` | Note: thin/unsourced batch-2026-09-14, needs real re-research
+- [ ] Concept: `GCP Marketplace Atlas Billing` | Parent: `MongoDB Atlas on GCP` | Note: thin/unsourced batch-2026-09-14, needs real re-research | Queue-state: `held`
+- [ ] Concept: `GCP Private Service Connect` | Parent: `MongoDB Atlas on GCP` | Note: thin/unsourced batch-2026-09-14, needs real re-research | Queue-state: `held`
+- [ ] Concept: `GCP Regions Atlas Mapping` | Parent: `MongoDB Atlas on GCP` | Note: thin/unsourced batch-2026-09-14, needs real re-research | Queue-state: `held-review` | Mode: `revisit`
 - [ ] Concept: `API Key Management` | Parent: `Global AI Hub Research Corpus` | Note: thin/unsourced batch-2026-09-14, needs real re-research; no specific existing parent found, filed under the catch-all root pending a real placement decision
 - [ ] Concept: `Access Control Lists (ACLs)` | Parent: `Global AI Hub Research Corpus` | Note: thin/unsourced batch-2026-09-14, needs real re-research; no specific existing parent found, filed under the catch-all root pending a real placement decision
 - [ ] Concept: `Audit Logging Compliance` | Parent: `Global AI Hub Research Corpus` | Note: thin/unsourced batch-2026-09-14, needs real re-research; no specific existing parent found, filed under the catch-all root pending a real placement decision
@@ -75,7 +75,7 @@ instead of being silently treated as done.
 - [ ] Concept: `Delta Lake` | Parent: `Global AI Hub Research Corpus` | Note: thin/unsourced batch-2026-09-14, needs real re-research; no specific existing parent found, filed under the catch-all root pending a real placement decision
 - [ ] Concept: `Disk Throughput` | Parent: `Global AI Hub Research Corpus` | Note: thin/unsourced batch-2026-09-14, needs real re-research; no specific existing parent found, filed under the catch-all root pending a real placement decision
 - [ ] Concept: `Encryption At Rest` | Parent: `Global AI Hub Research Corpus` | Note: thin/unsourced batch-2026-09-14, needs real re-research; no specific existing parent found, filed under the catch-all root pending a real placement decision
-- [ ] Concept: `Encryption In Transit` | Parent: `Global AI Hub Research Corpus` | Note: thin/unsourced batch-2026-09-14, needs real re-research; no specific existing parent found, filed under the catch-all root pending a real placement decision
+- [ ] Concept: `Encryption In Transit` | Parent: `Global AI Hub Research Corpus` | Note: thin/unsourced batch-2026-09-14, needs real re-research; no specific existing parent found, filed under the catch-all root pending a real placement decision | Also-parent: `MongoDB Security Architecture` | Queue-state: `held` | Previous-records: `` - [ ] Concept: `Encryption in Transit` | Parent: `MongoDB Security Architecture` | Mode: `dr` | Cluster: `MongoDB Security Architecture` ``
 - [ ] Concept: `Execution Plan` | Parent: `Global AI Hub Research Corpus` | Note: thin/unsourced batch-2026-09-14, needs real re-research; no specific existing parent found, filed under the catch-all root pending a real placement decision
 - [ ] Concept: `Failover Mechanism` | Parent: `Global AI Hub Research Corpus` | Note: thin/unsourced batch-2026-09-14, needs real re-research; no specific existing parent found, filed under the catch-all root pending a real placement decision
 - [ ] Concept: `Fast Path` | Parent: `Global AI Hub Research Corpus` | Note: thin/unsourced batch-2026-09-14, needs real re-research; no specific existing parent found, filed under the catch-all root pending a real placement decision
@@ -97,7 +97,7 @@ instead of being silently treated as done.
 - [ ] Concept: `Heap Allocation` | Parent: `Global AI Hub Research Corpus` | Note: thin/unsourced batch-2026-09-14, needs real re-research; no specific existing parent found, filed under the catch-all root pending a real placement decision
 - [ ] Concept: `Heartbeat Monitoring` | Parent: `Global AI Hub Research Corpus` | Note: thin/unsourced batch-2026-09-14, needs real re-research; no specific existing parent found, filed under the catch-all root pending a real placement decision
 - [ ] Concept: `High Availability` | Parent: `Global AI Hub Research Corpus` | Note: thin/unsourced batch-2026-09-14, needs real re-research; no specific existing parent found, filed under the catch-all root pending a real placement decision
-- [ ] Concept: `IAM Role Atlas API Access` | Parent: `Global AI Hub Research Corpus` | Note: thin/unsourced batch-2026-09-14, needs real re-research; no specific existing parent found, filed under the catch-all root pending a real placement decision
+- [ ] Concept: `IAM Role Atlas API Access` | Parent: `Global AI Hub Research Corpus` | Note: thin/unsourced batch-2026-09-14, needs real re-research; no specific existing parent found, filed under the catch-all root pending a real placement decision | Queue-state: `coverage-review`
 - [ ] Concept: `IP Access List GCP` | Parent: `Global AI Hub Research Corpus` | Note: thin/unsourced batch-2026-09-14, needs real re-research; no specific existing parent found, filed under the catch-all root pending a real placement decision
 - [ ] Concept: `Iceberg Table Format` | Parent: `Global AI Hub Research Corpus` | Note: thin/unsourced batch-2026-09-14, needs real re-research; no specific existing parent found, filed under the catch-all root pending a real placement decision
 - [ ] Concept: `Identity Management` | Parent: `Global AI Hub Research Corpus` | Note: thin/unsourced batch-2026-09-14, needs real re-research; no specific existing parent found, filed under the catch-all root pending a real placement decision
@@ -149,669 +149,667 @@ instead of being silently treated as done.
 
 Every frontier concept, grouped by shared parent (at most 8 per cluster), clusters about mongodb first. The explorer researches one cluster per job.
 
-- [ ] Concept: `Federated Query on Archive` | Parent: `MongoDB Atlas Online Archive` | Mode: `dr` | Cluster: `MongoDB Atlas Online Archive`
-- [ ] Concept: `Archive Cost Model` | Parent: `MongoDB Atlas Online Archive` | Mode: `dr` | Cluster: `MongoDB Atlas Online Archive`
-- [ ] Concept: `Archive Restore` | Parent: `MongoDB Atlas Online Archive` | Mode: `dr` | Cluster: `MongoDB Atlas Online Archive`
-- [ ] Concept: `Archive Monitoring` | Parent: `MongoDB Atlas Online Archive` | Mode: `dr` | Cluster: `MongoDB Atlas Online Archive`
-- [ ] Concept: `Archive Anti-Patterns` | Parent: `MongoDB Atlas Online Archive` | Mode: `dr` | Cluster: `MongoDB Atlas Online Archive`
-- [ ] Concept: `App Services Rules and Permissions` | Parent: `MongoDB Atlas App Services` | Mode: `dr` | Cluster: `MongoDB Atlas App Services`
-- [ ] Concept: `App Services Schema Validation` | Parent: `MongoDB Atlas App Services` | Mode: `dr` | Cluster: `MongoDB Atlas App Services`
-- [ ] Concept: `Atlas GraphQL API (EOL)` | Parent: `MongoDB Atlas App Services` | Mode: `dr` | Cluster: `MongoDB Atlas App Services`
-- [ ] Concept: `Atlas Data API (EOL)` | Parent: `MongoDB Atlas App Services` | Mode: `dr` | Cluster: `MongoDB Atlas App Services`
-- [ ] Concept: `Custom HTTPS Endpoints (EOL)` | Parent: `MongoDB Atlas App Services` | Mode: `dr` | Cluster: `MongoDB Atlas App Services`
-- [ ] Concept: `App Services Values and Secrets` | Parent: `MongoDB Atlas App Services` | Mode: `dr` | Cluster: `MongoDB Atlas App Services`
-- [ ] Concept: `App Services Deployment Model` | Parent: `MongoDB Atlas App Services` | Mode: `dr` | Cluster: `MongoDB Atlas App Services`
-- [ ] Concept: `App Services Migration Paths` | Parent: `MongoDB Atlas App Services` | Mode: `dr` | Cluster: `MongoDB Atlas App Services`
-- [ ] Concept: `Atlas Search Anti-Patterns` | Parent: `MongoDB Atlas Search` | Mode: `dr` | Cluster: `MongoDB Atlas Search (1 of 2)`
-- [ ] Concept: `Atlas Search Architecture` | Parent: `MongoDB Atlas Search` | Mode: `dr` | Cluster: `MongoDB Atlas Search (1 of 2)`
-- [ ] Concept: `Autocomplete` | Parent: `MongoDB Atlas Search` | Mode: `dr` | Cluster: `MongoDB Atlas Search (1 of 2)`
-- [ ] Concept: `Custom Analyzers` | Parent: `MongoDB Atlas Search` | Mode: `dr` | Cluster: `MongoDB Atlas Search (1 of 2)`
-- [ ] Concept: `Faceted Search` | Parent: `MongoDB Atlas Search` | Mode: `dr` | Cluster: `MongoDB Atlas Search (1 of 2)`
-- [ ] Concept: `Search Highlighting` | Parent: `MongoDB Atlas Search` | Mode: `dr` | Cluster: `MongoDB Atlas Search (2 of 2)`
-- [ ] Concept: `Search Index Mapping` | Parent: `MongoDB Atlas Search` | Mode: `dr` | Cluster: `MongoDB Atlas Search (2 of 2)`
-- [ ] Concept: `Atlas Search Nodes` | Parent: `MongoDB Atlas Search` | Mode: `dr` | Cluster: `MongoDB Atlas Search (2 of 2)`
-- [ ] Concept: `Relevance Scoring` | Parent: `MongoDB Atlas Search` | Mode: `dr` | Cluster: `MongoDB Atlas Search (2 of 2)`
-- [ ] Concept: `Chart Types` | Parent: `MongoDB Atlas Charts` | Mode: `dr` | Cluster: `MongoDB Atlas Charts`
-- [ ] Concept: `Data Sources` | Parent: `MongoDB Atlas Charts` | Mode: `dr` | Cluster: `MongoDB Atlas Charts`
-- [ ] Concept: `Dashboards` | Parent: `MongoDB Atlas Charts` | Mode: `dr` | Cluster: `MongoDB Atlas Charts`
-- [ ] Concept: `Embedded Charts` | Parent: `MongoDB Atlas Charts` | Mode: `dr` | Cluster: `MongoDB Atlas Charts`
-- [ ] Concept: `Embedding SDK` | Parent: `MongoDB Atlas Charts` | Mode: `dr` | Cluster: `MongoDB Atlas Charts`
-- [ ] Concept: `Charts REST API` | Parent: `MongoDB Atlas Charts` | Mode: `dr` | Cluster: `MongoDB Atlas Charts`
-- [ ] Concept: `Cost Model` | Parent: `MongoDB Atlas Charts` | Mode: `dr` | Cluster: `MongoDB Atlas Charts`
-- [ ] Concept: `Quick Reference` | Parent: `MongoDB Atlas Charts` | Mode: `dr` | Cluster: `MongoDB Atlas Charts`
-- [ ] Concept: `write-model-strategies` | Parent: `mongodb-kafka-connector` | Mode: `dr` | Cluster: `mongodb-kafka-connector`
-- [ ] Concept: `DLQ-error-handling` | Parent: `mongodb-kafka-connector` | Mode: `dr` | Cluster: `mongodb-kafka-connector`
-- [ ] Concept: `schema-registry-integration` | Parent: `mongodb-kafka-connector` | Mode: `dr` | Cluster: `mongodb-kafka-connector`
-- [ ] Concept: `MSK-Connect-deployment` | Parent: `mongodb-kafka-connector` | Mode: `dr` | Cluster: `mongodb-kafka-connector`
-- [ ] Concept: `Connection Registry` | Parent: `MongoDB Atlas Stream Processing` | Mode: `dr` | Cluster: `MongoDB Atlas Stream Processing (1 of 2)`
-- [ ] Concept: `Dead Letter Queue (DLQ)` | Parent: `MongoDB Atlas Stream Processing` | Mode: `dr` | Cluster: `MongoDB Atlas Stream Processing (1 of 2)`
-- [ ] Concept: `Hopping Windows` | Parent: `MongoDB Atlas Stream Processing` | Mode: `dr` | Cluster: `MongoDB Atlas Stream Processing (1 of 2)`
-- [ ] Concept: `Stream Processing Instance (SPI)` | Parent: `MongoDB Atlas Stream Processing` | Mode: `dr` | Cluster: `MongoDB Atlas Stream Processing (1 of 2)`
-- [ ] Concept: `Stream Processor Monitoring` | Parent: `MongoDB Atlas Stream Processing` | Mode: `dr` | Cluster: `MongoDB Atlas Stream Processing (1 of 2)`
-- [ ] Concept: `Stream Processor Pipeline` | Parent: `MongoDB Atlas Stream Processing` | Mode: `dr` | Cluster: `MongoDB Atlas Stream Processing (2 of 2)`
-- [ ] Concept: `Session Windows` | Parent: `MongoDB Atlas Stream Processing` | Mode: `dr` | Cluster: `MongoDB Atlas Stream Processing (2 of 2)`
-- [ ] Concept: `Tumbling Windows` | Parent: `MongoDB Atlas Stream Processing` | Mode: `dr` | Cluster: `MongoDB Atlas Stream Processing (2 of 2)`
-- [ ] Concept: `Watermarks and Late-Event Tolerance` | Parent: `MongoDB Atlas Stream Processing` | Mode: `dr` | Cluster: `MongoDB Atlas Stream Processing (2 of 2)`
-- [ ] Concept: `Atlas Activity Feed` | Parent: `MongoDB Atlas IAM and RBAC` | Mode: `dr` | Cluster: `MongoDB Atlas IAM and RBAC (1 of 3)`
-- [ ] Concept: `Atlas Auth Tier Feature Matrix M0 Flex M10` | Parent: `MongoDB Atlas IAM and RBAC` | Mode: `dr` | Cluster: `MongoDB Atlas IAM and RBAC (1 of 3)`
-- [ ] Concept: `Atlas AWS IAM Database Auth` | Parent: `MongoDB Atlas IAM and RBAC` | Mode: `dr` | Cluster: `MongoDB Atlas IAM and RBAC (1 of 3)`
-- [ ] Concept: `Atlas IAM Compliance Mapping` | Parent: `MongoDB Atlas IAM and RBAC` | Mode: `dr` | Cluster: `MongoDB Atlas IAM and RBAC (1 of 3)`
-- [ ] Concept: `Atlas Custom Database Roles` | Parent: `MongoDB Atlas IAM and RBAC` | Mode: `dr` | Cluster: `MongoDB Atlas IAM and RBAC (1 of 3)`
-- [ ] Concept: `Atlas Database Auditing` | Parent: `MongoDB Atlas IAM and RBAC` | Mode: `dr` | Cluster: `MongoDB Atlas IAM and RBAC (1 of 3)`
-- [ ] Concept: `Atlas Database Users` | Parent: `MongoDB Atlas IAM and RBAC` | Mode: `dr` | Cluster: `MongoDB Atlas IAM and RBAC (2 of 3)`
-- [ ] Concept: `Atlas IdP Group to Role Mapping` | Parent: `MongoDB Atlas IAM and RBAC` | Mode: `dr` | Cluster: `MongoDB Atlas IAM and RBAC (2 of 3)`
-- [ ] Concept: `Atlas LDAPS (Deprecated 8.0)` | Parent: `MongoDB Atlas IAM and RBAC` | Mode: `dr` | Cluster: `MongoDB Atlas IAM and RBAC (2 of 3)`
-- [ ] Concept: `Atlas Log Push SIEM` | Parent: `MongoDB Atlas IAM and RBAC` | Mode: `dr` | Cluster: `MongoDB Atlas IAM and RBAC (2 of 3)`
-- [ ] Concept: `Atlas Organization Roles` | Parent: `MongoDB Atlas IAM and RBAC` | Mode: `dr` | Cluster: `MongoDB Atlas IAM and RBAC (2 of 3)`
-- [ ] Concept: `Atlas Organization Teams` | Parent: `MongoDB Atlas IAM and RBAC` | Mode: `dr` | Cluster: `MongoDB Atlas IAM and RBAC (2 of 3)`
-- [ ] Concept: `Atlas Programmatic API Keys (Legacy)` | Parent: `MongoDB Atlas IAM and RBAC` | Mode: `dr` | Cluster: `MongoDB Atlas IAM and RBAC (3 of 3)`
-- [ ] Concept: `Atlas Project Roles (15 Purpose-Built)` | Parent: `MongoDB Atlas IAM and RBAC` | Mode: `dr` | Cluster: `MongoDB Atlas IAM and RBAC (3 of 3)`
-- [ ] Concept: `Atlas SCRAM-SHA-256` | Parent: `MongoDB Atlas IAM and RBAC` | Mode: `dr` | Cluster: `MongoDB Atlas IAM and RBAC (3 of 3)`
-- [ ] Concept: `Atlas Three-Tier Identity Model` | Parent: `MongoDB Atlas IAM and RBAC` | Mode: `dr` | Cluster: `MongoDB Atlas IAM and RBAC (3 of 3)`
-- [ ] Concept: `Atlas X.509 Certificate Auth` | Parent: `MongoDB Atlas IAM and RBAC` | Mode: `dr` | Cluster: `MongoDB Atlas IAM and RBAC (3 of 3)`
-- [ ] Concept: `Atlas IP access list for service accounts` | Parent: `Atlas Identity Federation and Resource Policy Boundaries` | Mode: `dr` | Cluster: `Atlas Identity Federation and Resource Policy Boundaries`
-- [ ] Concept: `Atlas WIF built-in vs callback authentication` | Parent: `Atlas Identity Federation and Resource Policy Boundaries` | Mode: `dr` | Cluster: `Atlas Identity Federation and Resource Policy Boundaries`
-- [ ] Concept: `Atlas federated database users and groups` | Parent: `Atlas Identity Federation and Resource Policy Boundaries` | Mode: `dr` | Cluster: `Atlas Identity Federation and Resource Policy Boundaries`
-- [ ] Concept: `Atlas org mapping and domain mapping` | Parent: `Atlas Identity Federation and Resource Policy Boundaries` | Mode: `dr` | Cluster: `Atlas Identity Federation and Resource Policy Boundaries`
-- [ ] Concept: `Entra ID group overage in Atlas` | Parent: `Atlas Identity Federation and Resource Policy Boundaries` | Mode: `dr` | Cluster: `Atlas Identity Federation and Resource Policy Boundaries`
-- [ ] Concept: `Federated database user mapping by sub/groups claim` | Parent: `Atlas Identity Federation and Resource Policy Boundaries` | Mode: `dr` | Cluster: `Atlas Identity Federation and Resource Policy Boundaries`
-- [ ] Concept: `Service account secret rotation` | Parent: `Atlas Identity Federation and Resource Policy Boundaries` | Mode: `dr` | Cluster: `Atlas Identity Federation and Resource Policy Boundaries`
-- [ ] Concept: `Terraform mongodbatlas_service_account without initial secret` | Parent: `Atlas Identity Federation and Resource Policy Boundaries` | Mode: `dr` | Cluster: `Atlas Identity Federation and Resource Policy Boundaries`
-- [ ] Concept: `Atlas nonCompliantResources endpoint` | Parent: `Atlas Resource Policies Cedar` | Mode: `dr` | Cluster: `Atlas Resource Policies Cedar`
-- [ ] Concept: `Cedar forbid-only policy patterns for Atlas` | Parent: `Atlas Resource Policies Cedar` | Mode: `dr` | Cluster: `Atlas Resource Policies Cedar`
-- [ ] Concept: `Atlas Terraform mongodbatlas_resource_policy` | Parent: `Atlas Resource Policies Cedar` | Mode: `dr` | Cluster: `Atlas Resource Policies Cedar`
-- [ ] Concept: `Atlas Admin API Date Versioned Media Types` | Parent: `MongoDB Atlas Infrastructure as Code` | Mode: `dr` | Cluster: `MongoDB Atlas Infrastructure as Code (1 of 4)`
-- [ ] Concept: `Atlas Admin API v2 REST` | Parent: `MongoDB Atlas Infrastructure as Code` | Mode: `dr` | Cluster: `MongoDB Atlas Infrastructure as Code (1 of 4)`
-- [ ] Concept: `AKO Deletion Protection v2.0` | Parent: `MongoDB Atlas Infrastructure as Code` | Mode: `dr` | Cluster: `MongoDB Atlas Infrastructure as Code (1 of 4)`
-- [ ] Concept: `AKO Dry Run Mode` | Parent: `MongoDB Atlas Infrastructure as Code` | Mode: `dr` | Cluster: `MongoDB Atlas Infrastructure as Code (1 of 4)`
-- [ ] Concept: `Backup Compliance Policy One-Way` | Parent: `MongoDB Atlas Infrastructure as Code` | Mode: `dr` | Cluster: `MongoDB Atlas Infrastructure as Code (1 of 4)`
-- [ ] Concept: `Atlas CLI Scripting` | Parent: `MongoDB Atlas Infrastructure as Code` | Mode: `dr` | Cluster: `MongoDB Atlas Infrastructure as Code (1 of 4)`
-- [ ] Concept: `Atlas CLI Terraform Plugin` | Parent: `MongoDB Atlas Infrastructure as Code` | Mode: `dr` | Cluster: `MongoDB Atlas Infrastructure as Code (1 of 4)`
-- [ ] Concept: `CloudFormation Third Party Activation` | Parent: `MongoDB Atlas Infrastructure as Code` | Mode: `dr` | Cluster: `MongoDB Atlas Infrastructure as Code (2 of 4)`
-- [ ] Concept: `Atlas IaC Anti-Patterns` | Parent: `MongoDB Atlas Infrastructure as Code` | Mode: `dr` | Cluster: `MongoDB Atlas Infrastructure as Code (2 of 4)`
-- [ ] Concept: `Atlas IaC Migration Paths` | Parent: `MongoDB Atlas Infrastructure as Code` | Mode: `dr` | Cluster: `MongoDB Atlas Infrastructure as Code (2 of 4)`
-- [ ] Concept: `Atlas IaC Tool Decision Matrix` | Parent: `MongoDB Atlas Infrastructure as Code` | Mode: `dr` | Cluster: `MongoDB Atlas Infrastructure as Code (2 of 4)`
-- [ ] Concept: `Atlas IP Access List Ownership Conflict` | Parent: `MongoDB Atlas Infrastructure as Code` | Mode: `dr` | Cluster: `MongoDB Atlas Infrastructure as Code (2 of 4)`
-- [ ] Concept: `atlas kubernetes config generate` | Parent: `MongoDB Atlas Infrastructure as Code` | Mode: `dr` | Cluster: `MongoDB Atlas Infrastructure as Code (2 of 4)`
-- [ ] Concept: `Atlas Kubernetes Operator AKO v2.14` | Parent: `MongoDB Atlas Infrastructure as Code` | Mode: `dr` | Cluster: `MongoDB Atlas Infrastructure as Code (2 of 4)`
-- [ ] Concept: `mongodbatlas_advanced_cluster Resource` | Parent: `MongoDB Atlas Infrastructure as Code` | Mode: `dr` | Cluster: `MongoDB Atlas Infrastructure as Code (3 of 4)`
-- [ ] Concept: `moved Block Migration Pattern` | Parent: `MongoDB Atlas Infrastructure as Code` | Mode: `dr` | Cluster: `MongoDB Atlas Infrastructure as Code (3 of 4)`
-- [ ] Concept: `Multi-Environment Terraform Directories vs Workspaces` | Parent: `MongoDB Atlas Infrastructure as Code` | Mode: `dr` | Cluster: `MongoDB Atlas Infrastructure as Code (3 of 4)`
-- [ ] Concept: `Programmatic API Keys Legacy Auth` | Parent: `MongoDB Atlas Infrastructure as Code` | Mode: `dr` | Cluster: `MongoDB Atlas Infrastructure as Code (3 of 4)`
-- [ ] Concept: `Pulumi mongodbatlas Provider` | Parent: `MongoDB Atlas Infrastructure as Code` | Mode: `dr` | Cluster: `MongoDB Atlas Infrastructure as Code (3 of 4)`
-- [ ] Concept: `Service Account OAuth 2.0 Authentication` | Parent: `MongoDB Atlas Infrastructure as Code` | Mode: `dr` | Cluster: `MongoDB Atlas Infrastructure as Code (3 of 4)`
-- [ ] Concept: `Service Account per Environment Pattern` | Parent: `MongoDB Atlas Infrastructure as Code` | Mode: `dr` | Cluster: `MongoDB Atlas Infrastructure as Code (3 of 4)`
-- [ ] Concept: `Terraform Drift Detection` | Parent: `MongoDB Atlas Infrastructure as Code` | Mode: `dr` | Cluster: `MongoDB Atlas Infrastructure as Code (4 of 4)`
-- [ ] Concept: `Terraform Import generate-config-out` | Parent: `MongoDB Atlas Infrastructure as Code` | Mode: `dr` | Cluster: `MongoDB Atlas Infrastructure as Code (4 of 4)`
-- [ ] Concept: `Terraform Atlas Provider v2.x` | Parent: `MongoDB Atlas Infrastructure as Code` | Mode: `dr` | Cluster: `MongoDB Atlas Infrastructure as Code (4 of 4)`
-- [ ] Concept: `Workload Identity Federation Atlas` | Parent: `MongoDB Atlas Infrastructure as Code` | Mode: `dr` | Cluster: `MongoDB Atlas Infrastructure as Code (4 of 4)`
-- [ ] Concept: `Atlas Cluster IaC` | Parent: `MongoDB Atlas Terraform Provider` | Mode: `dr` | Cluster: `MongoDB Atlas Terraform Provider`
-- [ ] Concept: `Atlas Networking IaC` | Parent: `MongoDB Atlas Terraform Provider` | Mode: `dr` | Cluster: `MongoDB Atlas Terraform Provider`
-- [ ] Concept: `Atlas RBAC IaC` | Parent: `MongoDB Atlas Terraform Provider` | Mode: `dr` | Cluster: `MongoDB Atlas Terraform Provider`
-- [ ] Concept: `Atlas Encryption IaC` | Parent: `MongoDB Atlas Terraform Provider` | Mode: `dr` | Cluster: `MongoDB Atlas Terraform Provider`
-- [ ] Concept: `Atlas Backup IaC` | Parent: `MongoDB Atlas Terraform Provider` | Mode: `dr` | Cluster: `MongoDB Atlas Terraform Provider`
-- [ ] Concept: `Terraform Provider v2 Migration` | Parent: `MongoDB Atlas Terraform Provider` | Mode: `dr` | Cluster: `MongoDB Atlas Terraform Provider`
-- [ ] Concept: `Common Pitfalls` | Parent: `MongoDB Realm Mobile Sync` | Mode: `dr` | Cluster: `MongoDB Realm Mobile Sync (1 of 2)`
-- [ ] Concept: `Sync Configuration` | Parent: `MongoDB Realm Mobile Sync` | Mode: `dr` | Cluster: `MongoDB Realm Mobile Sync (1 of 2)`
-- [ ] Concept: `Conflict Resolution` | Parent: `MongoDB Realm Mobile Sync` | Mode: `dr` | Cluster: `MongoDB Realm Mobile Sync (1 of 2)`
-- [ ] Concept: `Atlas Device Sync Overview` | Parent: `MongoDB Realm Mobile Sync` | Mode: `dr` | Cluster: `MongoDB Realm Mobile Sync (1 of 2)`
-- [ ] Concept: `Flexible Sync` | Parent: `MongoDB Realm Mobile Sync` | Mode: `dr` | Cluster: `MongoDB Realm Mobile Sync (1 of 2)`
-- [ ] Concept: `Realm Object Model` | Parent: `MongoDB Realm Mobile Sync` | Mode: `dr` | Cluster: `MongoDB Realm Mobile Sync (2 of 2)`
-- [ ] Concept: `Offline-First Patterns` | Parent: `MongoDB Realm Mobile Sync` | Mode: `dr` | Cluster: `MongoDB Realm Mobile Sync (2 of 2)`
-- [ ] Concept: `Partition-Based Sync (Legacy)` | Parent: `MongoDB Realm Mobile Sync` | Mode: `dr` | Cluster: `MongoDB Realm Mobile Sync (2 of 2)`
-- [ ] Concept: `Permissions Model` | Parent: `MongoDB Realm Mobile Sync` | Mode: `dr` | Cluster: `MongoDB Realm Mobile Sync (2 of 2)`
-- [ ] Concept: `Realm SDK Languages and Platforms` | Parent: `MongoDB Realm Mobile Sync` | Mode: `dr` | Cluster: `MongoDB Realm Mobile Sync (2 of 2)`
-- [ ] Concept: `Asymmetric Sync` | Parent: `MongoDB Atlas Device SDK` | Mode: `dr` | Cluster: `MongoDB Atlas Device SDK (1 of 2)`
-- [ ] Concept: `Client Reset Strategies` | Parent: `MongoDB Atlas Device SDK` | Mode: `dr` | Cluster: `MongoDB Atlas Device SDK (1 of 2)`
-- [ ] Concept: `Atlas Edge Server` | Parent: `MongoDB Atlas Device SDK` | Mode: `dr` | Cluster: `MongoDB Atlas Device SDK (1 of 2)`
-- [ ] Concept: `Flexible Sync Subscriptions` | Parent: `MongoDB Atlas Device SDK` | Mode: `dr` | Cluster: `MongoDB Atlas Device SDK (1 of 2)`
-- [ ] Concept: `Flutter Dart Realm SDK` | Parent: `MongoDB Atlas Device SDK` | Mode: `dr` | Cluster: `MongoDB Atlas Device SDK (1 of 2)`
-- [ ] Concept: `Offline-First Mobile` | Parent: `MongoDB Atlas Device SDK` | Mode: `dr` | Cluster: `MongoDB Atlas Device SDK (2 of 2)`
-- [ ] Concept: `Realm Authentication` | Parent: `MongoDB Atlas Device SDK` | Mode: `dr` | Cluster: `MongoDB Atlas Device SDK (2 of 2)`
-- [ ] Concept: `Realm Migration` | Parent: `MongoDB Atlas Device SDK` | Mode: `dr` | Cluster: `MongoDB Atlas Device SDK (2 of 2)`
-- [ ] Concept: `Atlas Device Sync` | Parent: `MongoDB Atlas Device SDK` | Mode: `dr` | Cluster: `MongoDB Atlas Device SDK (2 of 2)`
-- [ ] Concept: `Connection Troubleshooting` | Parent: `MongoDB Atlas AWS Networking` | Mode: `dr` | Cluster: `MongoDB Atlas AWS Networking (1 of 2)`
-- [ ] Concept: `DNS and SRV Records` | Parent: `MongoDB Atlas AWS Networking` | Mode: `dr` | Cluster: `MongoDB Atlas AWS Networking (1 of 2)`
-- [ ] Concept: `EDP Credits` | Parent: `MongoDB Atlas AWS Networking` | Mode: `dr` | Cluster: `MongoDB Atlas AWS Networking (1 of 2)`
-- [ ] Concept: `EventBridge Integration` | Parent: `MongoDB Atlas AWS Networking` | Mode: `dr` | Cluster: `MongoDB Atlas AWS Networking (1 of 2)`
-- [ ] Concept: `IAM Authentication` | Parent: `MongoDB Atlas AWS Networking` | Mode: `dr` | Cluster: `MongoDB Atlas AWS Networking (1 of 2)`
-- [ ] Concept: `KMS Encryption at Rest` | Parent: `MongoDB Atlas AWS Networking` | Mode: `dr` | Cluster: `MongoDB Atlas AWS Networking (1 of 2)`
-- [ ] Concept: `Lambda Integration` | Parent: `MongoDB Atlas AWS Networking` | Mode: `dr` | Cluster: `MongoDB Atlas AWS Networking (1 of 2)`
-- [ ] Concept: `Multi-Region Networking` | Parent: `MongoDB Atlas AWS Networking` | Mode: `dr` | Cluster: `MongoDB Atlas AWS Networking (2 of 2)`
-- [ ] Concept: `Network Access Lists` | Parent: `MongoDB Atlas AWS Networking` | Mode: `dr` | Cluster: `MongoDB Atlas AWS Networking (2 of 2)`
-- [ ] Concept: `Security Groups` | Parent: `MongoDB Atlas AWS Networking` | Mode: `dr` | Cluster: `MongoDB Atlas AWS Networking (2 of 2)`
-- [ ] Concept: `Terraform Atlas Provider` | Parent: `MongoDB Atlas AWS Networking` | Mode: `dr` | Cluster: `MongoDB Atlas AWS Networking (2 of 2)`
-- [ ] Concept: `TLS Encryption` | Parent: `MongoDB Atlas AWS Networking` | Mode: `dr` | Cluster: `MongoDB Atlas AWS Networking (2 of 2)`
-- [ ] Concept: `Transit Gateway Patterns` | Parent: `MongoDB Atlas AWS Networking` | Mode: `dr` | Cluster: `MongoDB Atlas AWS Networking (2 of 2)`
-- [ ] Concept: `VPC Peering` | Parent: `MongoDB Atlas AWS Networking` | Mode: `dr` | Cluster: `MongoDB Atlas AWS Networking (2 of 2)`
-- [ ] Concept: `Atlas Cloud Backup (snapshots)` | Parent: `MongoDB Backup and Restore` | Mode: `dr` | Cluster: `MongoDB Backup and Restore`
-- [ ] Concept: `Continuous Cloud Backup (PITR)` | Parent: `MongoDB Backup and Restore` | Mode: `dr` | Cluster: `MongoDB Backup and Restore`
-- [ ] Concept: `Queryable Backups` | Parent: `MongoDB Backup and Restore` | Mode: `dr` | Cluster: `MongoDB Backup and Restore`
-- [ ] Concept: `Ops Manager Backup` | Parent: `MongoDB Backup and Restore` | Mode: `dr` | Cluster: `MongoDB Backup and Restore`
-- [ ] Concept: `Restore Workflows` | Parent: `MongoDB Backup and Restore` | Mode: `dr` | Cluster: `MongoDB Backup and Restore`
-- [ ] Concept: `Cross-Region Snapshot Copy` | Parent: `MongoDB Backup and Restore` | Mode: `dr` | Cluster: `MongoDB Backup and Restore`
-- [ ] Concept: `Backup Verification and Tabletop Exercises` | Parent: `MongoDB Backup and Restore` | Mode: `dr` | Cluster: `MongoDB Backup and Restore`
-- [ ] Concept: `Backup Anti-Patterns` | Parent: `MongoDB Backup and Restore` | Mode: `dr` | Cluster: `MongoDB Backup and Restore`
-- [ ] Concept: `Backup Cost Optimization` | Parent: `MongoDB Atlas Cost Optimization` | Mode: `dr` | Cluster: `MongoDB Atlas Cost Optimization (1 of 2)`
-- [ ] Concept: `Cluster Pause` | Parent: `MongoDB Atlas Cost Optimization` | Mode: `dr` | Cluster: `MongoDB Atlas Cost Optimization (1 of 2)`
-- [ ] Concept: `Common Cost Overruns` | Parent: `MongoDB Atlas Cost Optimization` | Mode: `dr` | Cluster: `MongoDB Atlas Cost Optimization (1 of 2)`
-- [ ] Concept: `Elastic Compute Autoscaling` | Parent: `MongoDB Atlas Cost Optimization` | Mode: `dr` | Cluster: `MongoDB Atlas Cost Optimization (1 of 2)`
-- [ ] Concept: `Index Storage Cost` | Parent: `MongoDB Atlas Cost Optimization` | Mode: `dr` | Cluster: `MongoDB Atlas Cost Optimization (1 of 2)`
-- [ ] Concept: `Instance Right-Sizing` | Parent: `MongoDB Atlas Cost Optimization` | Mode: `dr` | Cluster: `MongoDB Atlas Cost Optimization (1 of 2)`
-- [ ] Concept: `Cost Monitoring` | Parent: `MongoDB Atlas Cost Optimization` | Mode: `dr` | Cluster: `MongoDB Atlas Cost Optimization (2 of 2)`
-- [ ] Concept: `Network Egress Costs` | Parent: `MongoDB Atlas Cost Optimization` | Mode: `dr` | Cluster: `MongoDB Atlas Cost Optimization (2 of 2)`
-- [ ] Concept: `Reserved Capacity and Committed Use` | Parent: `MongoDB Atlas Cost Optimization` | Mode: `dr` | Cluster: `MongoDB Atlas Cost Optimization (2 of 2)`
-- [ ] Concept: `Storage Autoscaling` | Parent: `MongoDB Atlas Cost Optimization` | Mode: `dr` | Cluster: `MongoDB Atlas Cost Optimization (2 of 2)`
-- [ ] Concept: `Storage Tier Selection` | Parent: `MongoDB Atlas Cost Optimization` | Mode: `dr` | Cluster: `MongoDB Atlas Cost Optimization (2 of 2)`
-- [ ] Concept: `Tier 0 Tier 1 Tier 2 Strategy` | Parent: `MongoDB Atlas Cost Optimization` | Mode: `dr` | Cluster: `MongoDB Atlas Cost Optimization (2 of 2)`
-- [ ] Concept: `Serverless Cold Start Behavior` | Parent: `MongoDB Atlas Flex and Serverless Tiers` | Mode: `dr` | Cluster: `MongoDB Atlas Flex and Serverless Tiers (1 of 2)`
-- [ ] Concept: `Flex Cost Break-Even Analysis` | Parent: `MongoDB Atlas Flex and Serverless Tiers` | Mode: `dr` | Cluster: `MongoDB Atlas Flex and Serverless Tiers (1 of 2)`
-- [ ] Concept: `Flex vs Dedicated Decision Matrix` | Parent: `MongoDB Atlas Flex and Serverless Tiers` | Mode: `dr` | Cluster: `MongoDB Atlas Flex and Serverless Tiers (1 of 2)`
-- [ ] Concept: `Serverless Deprecation and EOL` | Parent: `MongoDB Atlas Flex and Serverless Tiers` | Mode: `dr` | Cluster: `MongoDB Atlas Flex and Serverless Tiers (1 of 2)`
-- [ ] Concept: `M0 Free Tier vs Flex Comparison` | Parent: `MongoDB Atlas Flex and Serverless Tiers` | Mode: `dr` | Cluster: `MongoDB Atlas Flex and Serverless Tiers (1 of 2)`
-- [ ] Concept: `M2 M5 Migration to Flex` | Parent: `MongoDB Atlas Flex and Serverless Tiers` | Mode: `dr` | Cluster: `MongoDB Atlas Flex and Serverless Tiers (1 of 2)`
-- [ ] Concept: `Atlas Flex Pricing Model` | Parent: `MongoDB Atlas Flex and Serverless Tiers` | Mode: `dr` | Cluster: `MongoDB Atlas Flex and Serverless Tiers (2 of 2)`
-- [ ] Concept: `Serverless RPU WPU Billing` | Parent: `MongoDB Atlas Flex and Serverless Tiers` | Mode: `dr` | Cluster: `MongoDB Atlas Flex and Serverless Tiers (2 of 2)`
-- [ ] Concept: `Atlas Flex Technical Limits` | Parent: `MongoDB Atlas Flex and Serverless Tiers` | Mode: `dr` | Cluster: `MongoDB Atlas Flex and Serverless Tiers (2 of 2)`
-- [ ] Concept: `Flex Tooling Migration Terraform K8s CLI` | Parent: `MongoDB Atlas Flex and Serverless Tiers` | Mode: `dr` | Cluster: `MongoDB Atlas Flex and Serverless Tiers (2 of 2)`
-- [ ] Concept: `Atlas Flex Unsupported Features` | Parent: `MongoDB Atlas Flex and Serverless Tiers` | Mode: `dr` | Cluster: `MongoDB Atlas Flex and Serverless Tiers (2 of 2)`
-- [ ] Concept: `Atlas on Azure` | Parent: `MongoDB Atlas Multi-Cloud` | Mode: `dr` | Cluster: `MongoDB Atlas Multi-Cloud (1 of 2)`
-- [ ] Concept: `Azure Partnership and MACC` | Parent: `MongoDB Atlas Multi-Cloud` | Mode: `dr` | Cluster: `MongoDB Atlas Multi-Cloud (1 of 2)`
-- [ ] Concept: `Azure Private Link for Atlas` | Parent: `MongoDB Atlas Multi-Cloud` | Mode: `dr` | Cluster: `MongoDB Atlas Multi-Cloud (1 of 2)`
-- [ ] Concept: `Multi-Cloud Billing` | Parent: `MongoDB Atlas Multi-Cloud` | Mode: `dr` | Cluster: `MongoDB Atlas Multi-Cloud (1 of 2)`
-- [ ] Concept: `Cross-Cloud Egress Costs` | Parent: `MongoDB Atlas Multi-Cloud` | Mode: `dr` | Cluster: `MongoDB Atlas Multi-Cloud (1 of 2)`
-- [ ] Concept: `Multi-Cloud DR Pattern` | Parent: `MongoDB Atlas Multi-Cloud` | Mode: `dr` | Cluster: `MongoDB Atlas Multi-Cloud (1 of 2)`
-- [ ] Concept: `Multi-Cloud Failure Modes` | Parent: `MongoDB Atlas Multi-Cloud` | Mode: `dr` | Cluster: `MongoDB Atlas Multi-Cloud (2 of 2)`
-- [ ] Concept: `Atlas on GCP` | Parent: `MongoDB Atlas Multi-Cloud` | Mode: `dr` | Cluster: `MongoDB Atlas Multi-Cloud (2 of 2)`
-- [ ] Concept: `GCP Partnership and Marketplace` | Parent: `MongoDB Atlas Multi-Cloud` | Mode: `dr` | Cluster: `MongoDB Atlas Multi-Cloud (2 of 2)`
-- [ ] Concept: `GCP Private Service Connect for Atlas` | Parent: `MongoDB Atlas Multi-Cloud` | Mode: `dr` | Cluster: `MongoDB Atlas Multi-Cloud (2 of 2)`
-- [ ] Concept: `Multi-Cloud Global Clusters` | Parent: `MongoDB Atlas Multi-Cloud` | Mode: `dr` | Cluster: `MongoDB Atlas Multi-Cloud (2 of 2)`
-- [ ] Concept: `Multi-Cloud Replica Sets` | Parent: `MongoDB Atlas Multi-Cloud` | Mode: `dr` | Cluster: `MongoDB Atlas Multi-Cloud (2 of 2)`
-- [ ] Concept: `Atlas App Services Cost Model` | Parent: `MongoDB Atlas Triggers and Functions` | Mode: `dr` | Cluster: `MongoDB Atlas Triggers and Functions (1 of 2)`
-- [ ] Concept: `Authentication Triggers` | Parent: `MongoDB Atlas Triggers and Functions` | Mode: `dr` | Cluster: `MongoDB Atlas Triggers and Functions (1 of 2)`
-- [ ] Concept: `Change Data Capture Patterns` | Parent: `MongoDB Atlas Triggers and Functions` | Mode: `dr` | Cluster: `MongoDB Atlas Triggers and Functions (1 of 2)`
-- [ ] Concept: `Database Triggers` | Parent: `MongoDB Atlas Triggers and Functions` | Mode: `dr` | Cluster: `MongoDB Atlas Triggers and Functions (1 of 2)`
-- [ ] Concept: `Function Context Object` | Parent: `MongoDB Atlas Triggers and Functions` | Mode: `dr` | Cluster: `MongoDB Atlas Triggers and Functions (1 of 2)`
-- [ ] Concept: `HTTPS Endpoints` | Parent: `MongoDB Atlas Triggers and Functions` | Mode: `dr` | Cluster: `MongoDB Atlas Triggers and Functions (1 of 2)`
-- [ ] Concept: `Atlas Functions JavaScript Runtime` | Parent: `MongoDB Atlas Triggers and Functions` | Mode: `dr` | Cluster: `MongoDB Atlas Triggers and Functions (2 of 2)`
-- [ ] Concept: `Realm Migration Paths` | Parent: `MongoDB Atlas Triggers and Functions` | Mode: `dr` | Cluster: `MongoDB Atlas Triggers and Functions (2 of 2)`
-- [ ] Concept: `Scheduled Triggers` | Parent: `MongoDB Atlas Triggers and Functions` | Mode: `dr` | Cluster: `MongoDB Atlas Triggers and Functions (2 of 2)`
-- [ ] Concept: `Trigger Error Handling and Suspension` | Parent: `MongoDB Atlas Triggers and Functions` | Mode: `dr` | Cluster: `MongoDB Atlas Triggers and Functions (2 of 2)`
-- [ ] Concept: `Trigger and Function Anti-Patterns` | Parent: `MongoDB Atlas Triggers and Functions` | Mode: `dr` | Cluster: `MongoDB Atlas Triggers and Functions (2 of 2)`
-- [ ] Concept: `Atlas Search Lucene Architecture` | Parent: `MongoDB Atlas Search and Vector Search` | Mode: `dr` | Cluster: `MongoDB Atlas Search and Vector Search`
-- [ ] Concept: `Atlas Vector Search HNSW IVF` | Parent: `MongoDB Atlas Search and Vector Search` | Mode: `dr` | Cluster: `MongoDB Atlas Search and Vector Search`
-- [ ] Concept: `RAG Patterns with Vector Search` | Parent: `MongoDB Atlas Search and Vector Search` | Mode: `dr` | Cluster: `MongoDB Atlas Search and Vector Search`
-- [ ] Concept: `Atlas Search Analyzers and Tokenizers` | Parent: `MongoDB Atlas Search and Vector Search` | Mode: `dr` | Cluster: `MongoDB Atlas Search and Vector Search`
-- [ ] Concept: `Stored Source Performance Optimization` | Parent: `MongoDB Atlas Search and Vector Search` | Mode: `dr` | Cluster: `MongoDB Atlas Search and Vector Search`
-- [ ] Concept: `Auto Embedding Voyage AI` | Parent: `MongoDB Atlas Search and Vector Search` | Mode: `dr` | Cluster: `MongoDB Atlas Search and Vector Search`
-- [ ] Concept: `Search Nodes Dedicated Infrastructure` | Parent: `MongoDB Atlas Search and Vector Search` | Mode: `dr` | Cluster: `MongoDB Atlas Search and Vector Search`
-- [ ] Concept: `Lexical Prefilters for Vector Search` | Parent: `MongoDB Atlas Search and Vector Search` | Mode: `dr` | Cluster: `MongoDB Atlas Search and Vector Search`
-- [ ] Concept: `Express MongoDB Driver Pattern` | Parent: `Atlas Data API Removal` | Mode: `dr` | Cluster: `Atlas Data API Removal`
-- [ ] Concept: `FastAPI Motor Pattern` | Parent: `Atlas Data API Removal` | Mode: `dr` | Cluster: `Atlas Data API Removal`
-- [ ] Concept: `Lambda MongoDB Driver Pattern` | Parent: `Atlas Data API Removal` | Mode: `dr` | Cluster: `Atlas Data API Removal`
-- [ ] Concept: `Delbridge Data API` | Parent: `Atlas Data API Removal` | Mode: `dr` | Cluster: `Atlas Data API Removal`
-- [ ] Concept: `RESTHeart` | Parent: `Atlas Data API Removal` | Mode: `dr` | Cluster: `Atlas Data API Removal`
-- [ ] Concept: `Atlas GraphQL API Removal` | Parent: `Atlas Data API Removal` | Mode: `dr` | Cluster: `Atlas Data API Removal`
-- [ ] Concept: `mongosqld Architecture` | Parent: `MongoDB BI Connector and SQL Access` | Mode: `dr` | Cluster: `MongoDB BI Connector and SQL Access`
-- [ ] Concept: `DRDL Schema Management` | Parent: `MongoDB BI Connector and SQL Access` | Mode: `dr` | Cluster: `MongoDB BI Connector and SQL Access`
-- [ ] Concept: `BI Connector Authentication` | Parent: `MongoDB BI Connector and SQL Access` | Mode: `dr` | Cluster: `MongoDB BI Connector and SQL Access`
-- [ ] Concept: `SQL-to-MQL Translation` | Parent: `MongoDB BI Connector and SQL Access` | Mode: `dr` | Cluster: `MongoDB BI Connector and SQL Access`
-- [ ] Concept: `BI Connector EOL Migration` | Parent: `MongoDB BI Connector and SQL Access` | Mode: `dr` | Cluster: `MongoDB BI Connector and SQL Access`
-- [ ] Concept: `HTTP Data Access Replacements` | Parent: `MongoDB BI Connector and SQL Access` | Mode: `dr` | Cluster: `MongoDB BI Connector and SQL Access`
-- [ ] Concept: `Azure App Service Atlas` | Parent: `MongoDB Atlas on Azure` | Mode: `dr` | Cluster: `MongoDB Atlas on Azure (1 of 5)`
-- [ ] Concept: `Atlas Application Insights OTel` | Parent: `MongoDB Atlas on Azure` | Mode: `dr` | Cluster: `MongoDB Atlas on Azure (1 of 5)`
-- [ ] Concept: `AtlasGov Azure Government` | Parent: `MongoDB Atlas on Azure` | Mode: `dr` | Cluster: `MongoDB Atlas on Azure (1 of 5)`
-- [ ] Concept: `Atlas Bicep Private Endpoint` | Parent: `MongoDB Atlas on Azure` | Mode: `dr` | Cluster: `MongoDB Atlas on Azure (1 of 5)`
-- [ ] Concept: `Azure Container Apps Atlas` | Parent: `MongoDB Atlas on Azure` | Mode: `dr` | Cluster: `MongoDB Atlas on Azure (1 of 5)`
-- [ ] Concept: `Entra ID OIDC Workforce Federation` | Parent: `MongoDB Atlas on Azure` | Mode: `dr` | Cluster: `MongoDB Atlas on Azure (1 of 5)`
-- [ ] Concept: `Entra ID Workload Identity Federation` | Parent: `MongoDB Atlas on Azure` | Mode: `dr` | Cluster: `MongoDB Atlas on Azure (1 of 5)`
-- [ ] Concept: `Azure Event Hub Atlas Stream Processing` | Parent: `MongoDB Atlas on Azure` | Mode: `dr` | Cluster: `MongoDB Atlas on Azure (2 of 5)`
-- [ ] Concept: `ExpressRoute Atlas Connectivity` | Parent: `MongoDB Atlas on Azure` | Mode: `dr` | Cluster: `MongoDB Atlas on Azure (2 of 5)`
-- [ ] Concept: `Azure Functions Atlas Connection Pooling` | Parent: `MongoDB Atlas on Azure` | Mode: `dr` | Cluster: `MongoDB Atlas on Azure (2 of 5)`
-- [ ] Concept: `Hub-and-Spoke Atlas Networking` | Parent: `MongoDB Atlas on Azure` | Mode: `dr` | Cluster: `MongoDB Atlas on Azure (2 of 5)`
-- [ ] Concept: `Atlas Key Rotation AKV` | Parent: `MongoDB Atlas on Azure` | Mode: `dr` | Cluster: `MongoDB Atlas on Azure (2 of 5)`
-- [ ] Concept: `Azure Key Vault Atlas BYOK` | Parent: `MongoDB Atlas on Azure` | Mode: `dr` | Cluster: `MongoDB Atlas on Azure (2 of 5)`
-- [ ] Concept: `Azure Key Vault RBAC Atlas` | Parent: `MongoDB Atlas on Azure` | Mode: `dr` | Cluster: `MongoDB Atlas on Azure (2 of 5)`
-- [ ] Concept: `KMS Failsafe Behavior Atlas` | Parent: `MongoDB Atlas on Azure` | Mode: `dr` | Cluster: `MongoDB Atlas on Azure (3 of 5)`
-- [ ] Concept: `Atlas LDAP Azure AD DS` | Parent: `MongoDB Atlas on Azure` | Mode: `dr` | Cluster: `MongoDB Atlas on Azure (3 of 5)`
-- [ ] Concept: `Atlas MACC Eligibility` | Parent: `MongoDB Atlas on Azure` | Mode: `dr` | Cluster: `MongoDB Atlas on Azure (3 of 5)`
-- [ ] Concept: `Azure Marketplace Atlas Billing` | Parent: `MongoDB Atlas on Azure` | Mode: `dr` | Cluster: `MongoDB Atlas on Azure (3 of 5)`
-- [ ] Concept: `Atlas Azure Monitor Metrics` | Parent: `MongoDB Atlas on Azure` | Mode: `dr` | Cluster: `MongoDB Atlas on Azure (3 of 5)`
-- [ ] Concept: `Azure Native MongoDB ANM` | Parent: `MongoDB Atlas on Azure` | Mode: `dr` | Cluster: `MongoDB Atlas on Azure (3 of 5)`
-- [ ] Concept: `NSG Rules for Atlas` | Parent: `MongoDB Atlas on Azure` | Mode: `dr` | Cluster: `MongoDB Atlas on Azure (3 of 5)`
-- [ ] Concept: `Azure OpenAI Atlas Vector Search` | Parent: `MongoDB Atlas on Azure` | Mode: `dr` | Cluster: `MongoDB Atlas on Azure (4 of 5)`
-- [ ] Concept: `Azure Private DNS Resolver` | Parent: `MongoDB Atlas on Azure` | Mode: `dr` | Cluster: `MongoDB Atlas on Azure (4 of 5)`
-- [ ] Concept: `Atlas Private DNS Zones Azure` | Parent: `MongoDB Atlas on Azure` | Mode: `dr` | Cluster: `MongoDB Atlas on Azure (4 of 5)`
-- [ ] Concept: `Atlas Azure Regions Mapping` | Parent: `MongoDB Atlas on Azure` | Mode: `dr` | Cluster: `MongoDB Atlas on Azure (4 of 5)`
-- [ ] Concept: `Atlas SAML Entra ID` | Parent: `MongoDB Atlas on Azure` | Mode: `dr` | Cluster: `MongoDB Atlas on Azure (4 of 5)`
-- [ ] Concept: `Atlas Secretless KV Authentication` | Parent: `MongoDB Atlas on Azure` | Mode: `dr` | Cluster: `MongoDB Atlas on Azure (4 of 5)`
-- [ ] Concept: `Atlas Azure Security Compliance` | Parent: `MongoDB Atlas on Azure` | Mode: `dr` | Cluster: `MongoDB Atlas on Azure (4 of 5)`
-- [ ] Concept: `Atlas Sentinel Log Integration` | Parent: `MongoDB Atlas on Azure` | Mode: `dr` | Cluster: `MongoDB Atlas on Azure (5 of 5)`
-- [ ] Concept: `Azure Service Bus Atlas Triggers` | Parent: `MongoDB Atlas on Azure` | Mode: `dr` | Cluster: `MongoDB Atlas on Azure (5 of 5)`
-- [ ] Concept: `Azure Synapse Atlas Data Federation` | Parent: `MongoDB Atlas on Azure` | Mode: `dr` | Cluster: `MongoDB Atlas on Azure (5 of 5)`
-- [ ] Concept: `Atlas Terraform Azure Provider` | Parent: `MongoDB Atlas on Azure` | Mode: `dr` | Cluster: `MongoDB Atlas on Azure (5 of 5)`
-- [ ] Concept: `Atlas Azure Troubleshooting Playbook` | Parent: `MongoDB Atlas on Azure` | Mode: `dr` | Cluster: `MongoDB Atlas on Azure (5 of 5)`
-- [ ] Concept: `BigQuery Atlas Dataflow CDC` | Parent: `MongoDB Atlas on GCP` | Mode: `dr` | Cluster: `MongoDB Atlas on GCP (1 of 5)`
-- [ ] Concept: `Cloud Build Atlas API Auth` | Parent: `MongoDB Atlas on GCP` | Mode: `dr` | Cluster: `MongoDB Atlas on GCP (1 of 5)`
-- [ ] Concept: `Cloud DNS Private Zone for Atlas` | Parent: `MongoDB Atlas on GCP` | Mode: `dr` | Cluster: `MongoDB Atlas on GCP (1 of 5)`
-- [ ] Concept: `Cloud DNS Terraform Atlas` | Parent: `MongoDB Atlas on GCP` | Mode: `dr` | Cluster: `MongoDB Atlas on GCP (1 of 5)`
-- [ ] Concept: `Cloud Functions Gen2 Atlas` | Parent: `MongoDB Atlas on GCP` | Mode: `dr` | Cluster: `MongoDB Atlas on GCP (1 of 5)`
-- [ ] Concept: `Cloud HSM Atlas` | Parent: `MongoDB Atlas on GCP` | Mode: `dr` | Cluster: `MongoDB Atlas on GCP (1 of 5)`
-- [ ] Concept: `Cloud Monitoring Atlas Metrics` | Parent: `MongoDB Atlas on GCP` | Mode: `dr` | Cluster: `MongoDB Atlas on GCP (2 of 5)`
-- [ ] Concept: `Cloud NAT for Atlas` | Parent: `MongoDB Atlas on GCP` | Mode: `dr` | Cluster: `MongoDB Atlas on GCP (2 of 5)`
+- [ ] Concept: `Federated Query on Archive` | Parent: `MongoDB Atlas Online Archive` | Mode: `dr` | Cluster: `MongoDB Atlas Online Archive` | Queue-state: `held`
+- [ ] Concept: `Archive Cost Model` | Parent: `MongoDB Atlas Online Archive` | Mode: `dr` | Cluster: `MongoDB Atlas Online Archive` | Queue-state: `held`
+- [ ] Concept: `Archive Restore` | Parent: `MongoDB Atlas Online Archive` | Mode: `dr` | Cluster: `MongoDB Atlas Online Archive` | Queue-state: `held`
+- [ ] Concept: `Archive Monitoring` | Parent: `MongoDB Atlas Online Archive` | Mode: `dr` | Cluster: `MongoDB Atlas Online Archive` | Queue-state: `held`
+- [ ] Concept: `Archive Anti-Patterns` | Parent: `MongoDB Atlas Online Archive` | Mode: `dr` | Cluster: `MongoDB Atlas Online Archive` | Queue-state: `held`
+- [ ] Concept: `App Services Rules and Permissions` | Parent: `MongoDB Atlas App Services` | Mode: `dr` | Cluster: `MongoDB Atlas App Services` | Queue-state: `held`
+- [ ] Concept: `App Services Schema Validation` | Parent: `MongoDB Atlas App Services` | Mode: `revisit` | Cluster: `MongoDB Atlas App Services` | Queue-state: `held-review`
+- [ ] Concept: `Atlas GraphQL API (EOL)` | Parent: `MongoDB Atlas App Services` | Mode: `revisit` | Cluster: `MongoDB Atlas App Services` | Queue-state: `held-review`
+- [ ] Concept: `Atlas Data API (EOL)` | Parent: `MongoDB Atlas App Services` | Mode: `revisit` | Cluster: `MongoDB Atlas App Services` | Queue-state: `held-review`
+- [ ] Concept: `Custom HTTPS Endpoints (EOL)` | Parent: `MongoDB Atlas App Services` | Mode: `revisit` | Cluster: `MongoDB Atlas App Services` | Queue-state: `held-review`
+- [ ] Concept: `App Services Values and Secrets` | Parent: `MongoDB Atlas App Services` | Mode: `revisit` | Cluster: `MongoDB Atlas App Services` | Queue-state: `held-review`
+- [ ] Concept: `App Services Deployment Model` | Parent: `MongoDB Atlas App Services` | Mode: `dr` | Cluster: `MongoDB Atlas App Services` | Queue-state: `held`
+- [ ] Concept: `App Services Migration Paths` | Parent: `MongoDB Atlas App Services` | Mode: `revisit` | Cluster: `MongoDB Atlas App Services` | Queue-state: `held-review`
+- [ ] Concept: `Atlas Search Anti-Patterns` | Parent: `MongoDB Atlas Search` | Mode: `revisit` | Cluster: `MongoDB Atlas Search (1 of 2)` | Queue-state: `held-review`
+- [ ] Concept: `Atlas Search Architecture` | Parent: `MongoDB Atlas Search` | Mode: `revisit` | Cluster: `MongoDB Atlas Search (1 of 2)` | Queue-state: `held-review`
+- [ ] Concept: `Autocomplete` | Parent: `MongoDB Atlas Search` | Mode: `dr` | Cluster: `MongoDB Atlas Search (1 of 2)` | Queue-state: `held`
+- [ ] Concept: `Custom Analyzers` | Parent: `MongoDB Atlas Search` | Mode: `dr` | Cluster: `MongoDB Atlas Search (1 of 2)` | Queue-state: `held`
+- [ ] Concept: `Faceted Search` | Parent: `MongoDB Atlas Search` | Mode: `dr` | Cluster: `MongoDB Atlas Search (1 of 2)` | Queue-state: `held`
+- [ ] Concept: `Search Highlighting` | Parent: `MongoDB Atlas Search` | Mode: `revisit` | Cluster: `MongoDB Atlas Search (2 of 2)` | Queue-state: `held-review`
+- [ ] Concept: `Search Index Mapping` | Parent: `MongoDB Atlas Search` | Mode: `revisit` | Cluster: `MongoDB Atlas Search (2 of 2)` | Queue-state: `held-review`
+- [ ] Concept: `Atlas Search Nodes` | Parent: `MongoDB Atlas Search` | Mode: `dr` | Cluster: `MongoDB Atlas Search (2 of 2)` | Queue-state: `held`
+- [ ] Concept: `Relevance Scoring` | Parent: `MongoDB Atlas Search` | Mode: `dr` | Cluster: `MongoDB Atlas Search (2 of 2)` | Queue-state: `held`
+- [ ] Concept: `Chart Types` | Parent: `MongoDB Atlas Charts` | Mode: `revisit` | Cluster: `MongoDB Atlas Charts` | Queue-state: `held-review`
+- [ ] Concept: `Data Sources` | Parent: `MongoDB Atlas Charts` | Mode: `revisit` | Cluster: `MongoDB Atlas Charts` | Queue-state: `held-review`
+- [ ] Concept: `Dashboards` | Parent: `MongoDB Atlas Charts` | Mode: `revisit` | Cluster: `MongoDB Atlas Charts` | Queue-state: `held-review`
+- [ ] Concept: `Embedded Charts` | Parent: `MongoDB Atlas Charts` | Mode: `revisit` | Cluster: `MongoDB Atlas Charts` | Queue-state: `held-review`
+- [ ] Concept: `Embedding SDK` | Parent: `MongoDB Atlas Charts` | Mode: `revisit` | Cluster: `MongoDB Atlas Charts` | Queue-state: `held-review`
+- [ ] Concept: `Charts REST API` | Parent: `MongoDB Atlas Charts` | Mode: `revisit` | Cluster: `MongoDB Atlas Charts` | Queue-state: `held-review`
+- [ ] Concept: `Cost Model` | Parent: `MongoDB Atlas Charts` | Mode: `revisit` | Cluster: `MongoDB Atlas Charts` | Queue-state: `held-review`
+- [ ] Concept: `Quick Reference` | Parent: `MongoDB Atlas Charts` | Mode: `revisit` | Cluster: `MongoDB Atlas Charts` | Queue-state: `held-review`
+- [ ] Concept: `write-model-strategies` | Parent: `mongodb-kafka-connector` | Mode: `dr` | Cluster: `mongodb-kafka-connector` | Queue-state: `held`
+- [ ] Concept: `DLQ-error-handling` | Parent: `mongodb-kafka-connector` | Mode: `dr` | Cluster: `mongodb-kafka-connector` | Queue-state: `held`
+- [ ] Concept: `schema-registry-integration` | Parent: `mongodb-kafka-connector` | Mode: `dr` | Cluster: `mongodb-kafka-connector` | Queue-state: `held`
+- [ ] Concept: `MSK-Connect-deployment` | Parent: `mongodb-kafka-connector` | Mode: `dr` | Cluster: `mongodb-kafka-connector` | Queue-state: `held`
+- [ ] Concept: `Connection Registry` | Parent: `MongoDB Atlas Stream Processing` | Mode: `dr` | Cluster: `MongoDB Atlas Stream Processing (1 of 2)` | Queue-state: `held`
+- [ ] Concept: `Dead Letter Queue (DLQ)` | Parent: `MongoDB Atlas Stream Processing` | Mode: `dr` | Cluster: `MongoDB Atlas Stream Processing (1 of 2)` | Queue-state: `held`
+- [ ] Concept: `Hopping Windows` | Parent: `MongoDB Atlas Stream Processing` | Mode: `revisit` | Cluster: `MongoDB Atlas Stream Processing (1 of 2)` | Queue-state: `held-review`
+- [ ] Concept: `Stream Processing Instance (SPI)` | Parent: `MongoDB Atlas Stream Processing` | Mode: `dr` | Cluster: `MongoDB Atlas Stream Processing (1 of 2)` | Queue-state: `held`
+- [ ] Concept: `Stream Processor Monitoring` | Parent: `MongoDB Atlas Stream Processing` | Mode: `dr` | Cluster: `MongoDB Atlas Stream Processing (1 of 2)` | Queue-state: `held`
+- [ ] Concept: `Stream Processor Pipeline` | Parent: `MongoDB Atlas Stream Processing` | Mode: `revisit` | Cluster: `MongoDB Atlas Stream Processing (2 of 2)` | Queue-state: `held-review`
+- [ ] Concept: `Session Windows` | Parent: `MongoDB Atlas Stream Processing` | Mode: `revisit` | Cluster: `MongoDB Atlas Stream Processing (2 of 2)` | Queue-state: `held-review`
+- [ ] Concept: `Tumbling Windows` | Parent: `MongoDB Atlas Stream Processing` | Mode: `revisit` | Cluster: `MongoDB Atlas Stream Processing (2 of 2)` | Queue-state: `held-review`
+- [ ] Concept: `Watermarks and Late-Event Tolerance` | Parent: `MongoDB Atlas Stream Processing` | Mode: `dr` | Cluster: `MongoDB Atlas Stream Processing (2 of 2)` | Queue-state: `held`
+- [ ] Concept: `Atlas Activity Feed` | Parent: `MongoDB Atlas IAM and RBAC` | Mode: `revisit` | Cluster: `MongoDB Atlas IAM and RBAC (1 of 3)` | Queue-state: `held-review`
+- [ ] Concept: `Atlas Auth Tier Feature Matrix M0 Flex M10` | Parent: `MongoDB Atlas IAM and RBAC` | Mode: `dr` | Cluster: `MongoDB Atlas IAM and RBAC (1 of 3)` | Queue-state: `held`
+- [ ] Concept: `Atlas AWS IAM Database Auth` | Parent: `MongoDB Atlas IAM and RBAC` | Mode: `dr` | Cluster: `MongoDB Atlas IAM and RBAC (1 of 3)` | Queue-state: `held`
+- [ ] Concept: `Atlas IAM Compliance Mapping` | Parent: `MongoDB Atlas IAM and RBAC` | Mode: `revisit` | Cluster: `MongoDB Atlas IAM and RBAC (1 of 3)` | Queue-state: `held-review`
+- [ ] Concept: `Atlas Custom Database Roles` | Parent: `MongoDB Atlas IAM and RBAC` | Mode: `dr` | Cluster: `MongoDB Atlas IAM and RBAC (1 of 3)` | Queue-state: `held`
+- [ ] Concept: `Atlas Database Auditing` | Parent: `MongoDB Atlas IAM and RBAC` | Mode: `dr` | Cluster: `MongoDB Atlas IAM and RBAC (1 of 3)` | Queue-state: `held`
+- [ ] Concept: `Atlas Database Users` | Parent: `MongoDB Atlas IAM and RBAC` | Mode: `dr` | Cluster: `MongoDB Atlas IAM and RBAC (2 of 3)` | Queue-state: `held`
+- [ ] Concept: `Atlas IdP Group to Role Mapping` | Parent: `MongoDB Atlas IAM and RBAC` | Mode: `dr` | Cluster: `MongoDB Atlas IAM and RBAC (2 of 3)` | Queue-state: `held`
+- [ ] Concept: `Atlas LDAPS (Deprecated 8.0)` | Parent: `MongoDB Atlas IAM and RBAC` | Mode: `revisit` | Cluster: `MongoDB Atlas IAM and RBAC (2 of 3)` | Queue-state: `held-review`
+- [ ] Concept: `Atlas Log Push SIEM` | Parent: `MongoDB Atlas IAM and RBAC` | Mode: `revisit` | Cluster: `MongoDB Atlas IAM and RBAC (2 of 3)` | Queue-state: `held-review`
+- [ ] Concept: `Atlas Organization Roles` | Parent: `MongoDB Atlas IAM and RBAC` | Mode: `revisit` | Cluster: `MongoDB Atlas IAM and RBAC (2 of 3)` | Queue-state: `held-review`
+- [ ] Concept: `Atlas Organization Teams` | Parent: `MongoDB Atlas IAM and RBAC` | Mode: `revisit` | Cluster: `MongoDB Atlas IAM and RBAC (2 of 3)` | Queue-state: `held-review`
+- [ ] Concept: `Atlas Programmatic API Keys (Legacy)` | Parent: `MongoDB Atlas IAM and RBAC` | Mode: `revisit` | Cluster: `MongoDB Atlas IAM and RBAC (3 of 3)` | Queue-state: `held-review`
+- [ ] Concept: `Atlas Project Roles (15 Purpose-Built)` | Parent: `MongoDB Atlas IAM and RBAC` | Mode: `dr` | Cluster: `MongoDB Atlas IAM and RBAC (3 of 3)` | Queue-state: `held`
+- [ ] Concept: `Atlas SCRAM-SHA-256` | Parent: `MongoDB Atlas IAM and RBAC` | Mode: `dr` | Cluster: `MongoDB Atlas IAM and RBAC (3 of 3)` | Queue-state: `held`
+- [ ] Concept: `Atlas Three-Tier Identity Model` | Parent: `MongoDB Atlas IAM and RBAC` | Mode: `revisit` | Cluster: `MongoDB Atlas IAM and RBAC (3 of 3)` | Queue-state: `held-review`
+- [ ] Concept: `Atlas X.509 Certificate Auth` | Parent: `MongoDB Atlas IAM and RBAC` | Mode: `dr` | Cluster: `MongoDB Atlas IAM and RBAC (3 of 3)` | Queue-state: `held`
+- [ ] Concept: `Atlas IP access list for service accounts` | Parent: `Atlas Identity Federation and Resource Policy Boundaries` | Mode: `revisit` | Cluster: `Atlas Identity Federation and Resource Policy Boundaries` | Queue-state: `held-review`
+- [ ] Concept: `Atlas WIF built-in vs callback authentication` | Parent: `Atlas Identity Federation and Resource Policy Boundaries` | Mode: `revisit` | Cluster: `Atlas Identity Federation and Resource Policy Boundaries` | Queue-state: `held-review`
+- [ ] Concept: `Atlas federated database users and groups` | Parent: `Atlas Identity Federation and Resource Policy Boundaries` | Mode: `revisit` | Cluster: `Atlas Identity Federation and Resource Policy Boundaries` | Queue-state: `held-review`
+- [ ] Concept: `Atlas org mapping and domain mapping` | Parent: `Atlas Identity Federation and Resource Policy Boundaries` | Mode: `revisit` | Cluster: `Atlas Identity Federation and Resource Policy Boundaries` | Queue-state: `held-review`
+- [ ] Concept: `Entra ID group overage in Atlas` | Parent: `Atlas Identity Federation and Resource Policy Boundaries` | Mode: `revisit` | Cluster: `Atlas Identity Federation and Resource Policy Boundaries` | Queue-state: `held-review`
+- [ ] Concept: `Federated database user mapping by sub/groups claim` | Parent: `Atlas Identity Federation and Resource Policy Boundaries` | Mode: `revisit` | Cluster: `Atlas Identity Federation and Resource Policy Boundaries` | Queue-state: `held-review`
+- [ ] Concept: `Service account secret rotation` | Parent: `Atlas Identity Federation and Resource Policy Boundaries` | Mode: `revisit` | Cluster: `Atlas Identity Federation and Resource Policy Boundaries` | Queue-state: `held-review`
+- [ ] Concept: `Terraform mongodbatlas_service_account without initial secret` | Parent: `Atlas Identity Federation and Resource Policy Boundaries` | Mode: `revisit` | Cluster: `Atlas Identity Federation and Resource Policy Boundaries` | Queue-state: `held-review`
+- [ ] Concept: `Atlas nonCompliantResources endpoint` | Parent: `Atlas Resource Policies Cedar` | Mode: `revisit` | Cluster: `Atlas Resource Policies Cedar` | Queue-state: `held-review`
+- [ ] Concept: `Cedar forbid-only policy patterns for Atlas` | Parent: `Atlas Resource Policies Cedar` | Mode: `revisit` | Cluster: `Atlas Resource Policies Cedar` | Queue-state: `held-review`
+- [ ] Concept: `Atlas Terraform mongodbatlas_resource_policy` | Parent: `Atlas Resource Policies Cedar` | Mode: `dr` | Cluster: `Atlas Resource Policies Cedar` | Queue-state: `held`
+- [ ] Concept: `Atlas Admin API Date Versioned Media Types` | Parent: `MongoDB Atlas Infrastructure as Code` | Mode: `dr` | Cluster: `MongoDB Atlas Infrastructure as Code (1 of 4)` | Queue-state: `held`
+- [ ] Concept: `Atlas Admin API v2 REST` | Parent: `MongoDB Atlas Infrastructure as Code` | Mode: `dr` | Cluster: `MongoDB Atlas Infrastructure as Code (1 of 4)` | Queue-state: `held`
+- [ ] Concept: `AKO Deletion Protection v2.0` | Parent: `MongoDB Atlas Infrastructure as Code` | Mode: `dr` | Cluster: `MongoDB Atlas Infrastructure as Code (1 of 4)` | Queue-state: `held`
+- [ ] Concept: `AKO Dry Run Mode` | Parent: `MongoDB Atlas Infrastructure as Code` | Mode: `revisit` | Cluster: `MongoDB Atlas Infrastructure as Code (1 of 4)` | Queue-state: `held-review`
+- [ ] Concept: `Backup Compliance Policy One-Way` | Parent: `MongoDB Atlas Infrastructure as Code` | Mode: `dr` | Cluster: `MongoDB Atlas Infrastructure as Code (1 of 4)` | Queue-state: `held`
+- [ ] Concept: `Atlas CLI Scripting` | Parent: `MongoDB Atlas Infrastructure as Code` | Mode: `revisit` | Cluster: `MongoDB Atlas Infrastructure as Code (1 of 4)` | Queue-state: `held-review`
+- [ ] Concept: `Atlas CLI Terraform Plugin` | Parent: `MongoDB Atlas Infrastructure as Code` | Mode: `revisit` | Cluster: `MongoDB Atlas Infrastructure as Code (1 of 4)` | Queue-state: `held-review`
+- [ ] Concept: `CloudFormation Third Party Activation` | Parent: `MongoDB Atlas Infrastructure as Code` | Mode: `dr` | Cluster: `MongoDB Atlas Infrastructure as Code (2 of 4)` | Queue-state: `held`
+- [ ] Concept: `Atlas IaC Anti-Patterns` | Parent: `MongoDB Atlas Infrastructure as Code` | Mode: `dr` | Cluster: `MongoDB Atlas Infrastructure as Code (2 of 4)` | Queue-state: `held`
+- [ ] Concept: `Atlas IaC Migration Paths` | Parent: `MongoDB Atlas Infrastructure as Code` | Mode: `dr` | Cluster: `MongoDB Atlas Infrastructure as Code (2 of 4)` | Queue-state: `held`
+- [ ] Concept: `Atlas IaC Tool Decision Matrix` | Parent: `MongoDB Atlas Infrastructure as Code` | Mode: `dr` | Cluster: `MongoDB Atlas Infrastructure as Code (2 of 4)` | Queue-state: `held`
+- [ ] Concept: `Atlas IP Access List Ownership Conflict` | Parent: `MongoDB Atlas Infrastructure as Code` | Mode: `revisit` | Cluster: `MongoDB Atlas Infrastructure as Code (2 of 4)` | Queue-state: `held-review`
+- [ ] Concept: `atlas kubernetes config generate` | Parent: `MongoDB Atlas Infrastructure as Code` | Mode: `revisit` | Cluster: `MongoDB Atlas Infrastructure as Code (2 of 4)` | Queue-state: `held-review`
+- [ ] Concept: `Atlas Kubernetes Operator AKO v2.14` | Parent: `MongoDB Atlas Infrastructure as Code` | Mode: `revisit` | Cluster: `MongoDB Atlas Infrastructure as Code (2 of 4)` | Queue-state: `held-review`
+- [ ] Concept: `mongodbatlas_advanced_cluster Resource` | Parent: `MongoDB Atlas Infrastructure as Code` | Mode: `dr` | Cluster: `MongoDB Atlas Infrastructure as Code (3 of 4)` | Queue-state: `held`
+- [ ] Concept: `moved Block Migration Pattern` | Parent: `MongoDB Atlas Infrastructure as Code` | Mode: `dr` | Cluster: `MongoDB Atlas Infrastructure as Code (3 of 4)` | Queue-state: `held`
+- [ ] Concept: `Multi-Environment Terraform Directories vs Workspaces` | Parent: `MongoDB Atlas Infrastructure as Code` | Mode: `revisit` | Cluster: `MongoDB Atlas Infrastructure as Code (3 of 4)` | Queue-state: `held-review`
+- [ ] Concept: `Programmatic API Keys Legacy Auth` | Parent: `MongoDB Atlas Infrastructure as Code` | Mode: `revisit` | Cluster: `MongoDB Atlas Infrastructure as Code (3 of 4)` | Queue-state: `held-review`
+- [ ] Concept: `Pulumi mongodbatlas Provider` | Parent: `MongoDB Atlas Infrastructure as Code` | Mode: `dr` | Cluster: `MongoDB Atlas Infrastructure as Code (3 of 4)` | Queue-state: `held`
+- [ ] Concept: `Service Account OAuth 2.0 Authentication` | Parent: `MongoDB Atlas Infrastructure as Code` | Mode: `dr` | Cluster: `MongoDB Atlas Infrastructure as Code (3 of 4)` | Queue-state: `held`
+- [ ] Concept: `Service Account per Environment Pattern` | Parent: `MongoDB Atlas Infrastructure as Code` | Mode: `revisit` | Cluster: `MongoDB Atlas Infrastructure as Code (3 of 4)` | Queue-state: `held-review`
+- [ ] Concept: `Terraform Drift Detection` | Parent: `MongoDB Atlas Infrastructure as Code` | Mode: `dr` | Cluster: `MongoDB Atlas Infrastructure as Code (4 of 4)` | Queue-state: `held`
+- [ ] Concept: `Terraform Import generate-config-out` | Parent: `MongoDB Atlas Infrastructure as Code` | Mode: `dr` | Cluster: `MongoDB Atlas Infrastructure as Code (4 of 4)` | Queue-state: `held`
+- [ ] Concept: `Terraform Atlas Provider v2.x` | Parent: `MongoDB Atlas Infrastructure as Code` | Mode: `dr` | Cluster: `MongoDB Atlas Infrastructure as Code (4 of 4)` | Queue-state: `held`
+- [ ] Concept: `Workload Identity Federation Atlas` | Parent: `MongoDB Atlas Infrastructure as Code` | Mode: `dr` | Cluster: `MongoDB Atlas Infrastructure as Code (4 of 4)` | Queue-state: `held`
+- [ ] Concept: `Atlas Cluster IaC` | Parent: `MongoDB Atlas Terraform Provider` | Mode: `revisit` | Cluster: `MongoDB Atlas Terraform Provider` | Queue-state: `held-review`
+- [ ] Concept: `Atlas Networking IaC` | Parent: `MongoDB Atlas Terraform Provider` | Mode: `dr` | Cluster: `MongoDB Atlas Terraform Provider` | Queue-state: `held`
+- [ ] Concept: `Atlas RBAC IaC` | Parent: `MongoDB Atlas Terraform Provider` | Mode: `dr` | Cluster: `MongoDB Atlas Terraform Provider` | Queue-state: `held`
+- [ ] Concept: `Atlas Encryption IaC` | Parent: `MongoDB Atlas Terraform Provider` | Mode: `dr` | Cluster: `MongoDB Atlas Terraform Provider` | Queue-state: `held`
+- [ ] Concept: `Atlas Backup IaC` | Parent: `MongoDB Atlas Terraform Provider` | Mode: `dr` | Cluster: `MongoDB Atlas Terraform Provider` | Queue-state: `held`
+- [ ] Concept: `Terraform Provider v2 Migration` | Parent: `MongoDB Atlas Terraform Provider` | Mode: `dr` | Cluster: `MongoDB Atlas Terraform Provider` | Queue-state: `held`
+- [ ] Concept: `Common Pitfalls` | Parent: `MongoDB Realm Mobile Sync` | Mode: `dr` | Cluster: `MongoDB Realm Mobile Sync (1 of 2)` | Queue-state: `held`
+- [ ] Concept: `Sync Configuration` | Parent: `MongoDB Realm Mobile Sync` | Mode: `revisit` | Cluster: `MongoDB Realm Mobile Sync (1 of 2)` | Queue-state: `held-review`
+- [ ] Concept: `Conflict Resolution` | Parent: `MongoDB Realm Mobile Sync` | Mode: `dr` | Cluster: `MongoDB Realm Mobile Sync (1 of 2)` | Queue-state: `held`
+- [ ] Concept: `Atlas Device Sync Overview` | Parent: `MongoDB Realm Mobile Sync` | Mode: `dr` | Cluster: `MongoDB Realm Mobile Sync (1 of 2)` | Queue-state: `held`
+- [ ] Concept: `Flexible Sync` | Parent: `MongoDB Realm Mobile Sync` | Mode: `dr` | Cluster: `MongoDB Realm Mobile Sync (1 of 2)` | Queue-state: `held`
+- [ ] Concept: `Realm Object Model` | Parent: `MongoDB Realm Mobile Sync` | Mode: `revisit` | Cluster: `MongoDB Realm Mobile Sync (2 of 2)` | Queue-state: `held-review`
+- [ ] Concept: `Offline-First Patterns` | Parent: `MongoDB Realm Mobile Sync` | Mode: `dr` | Cluster: `MongoDB Realm Mobile Sync (2 of 2)` | Queue-state: `held`
+- [ ] Concept: `Partition-Based Sync (Legacy)` | Parent: `MongoDB Realm Mobile Sync` | Mode: `revisit` | Cluster: `MongoDB Realm Mobile Sync (2 of 2)` | Queue-state: `held-review`
+- [ ] Concept: `Permissions Model` | Parent: `MongoDB Realm Mobile Sync` | Mode: `dr` | Cluster: `MongoDB Realm Mobile Sync (2 of 2)` | Queue-state: `held`
+- [ ] Concept: `Realm SDK Languages and Platforms` | Parent: `MongoDB Realm Mobile Sync` | Mode: `dr` | Cluster: `MongoDB Realm Mobile Sync (2 of 2)` | Queue-state: `held`
+- [ ] Concept: `Asymmetric Sync` | Parent: `MongoDB Atlas Device SDK` | Mode: `revisit` | Cluster: `MongoDB Atlas Device SDK (1 of 2)` | Queue-state: `held-review`
+- [ ] Concept: `Client Reset Strategies` | Parent: `MongoDB Atlas Device SDK` | Mode: `revisit` | Cluster: `MongoDB Atlas Device SDK (1 of 2)` | Queue-state: `held-review`
+- [ ] Concept: `Atlas Edge Server` | Parent: `MongoDB Atlas Device SDK` | Mode: `revisit` | Cluster: `MongoDB Atlas Device SDK (1 of 2)` | Queue-state: `held-review`
+- [ ] Concept: `Flexible Sync Subscriptions` | Parent: `MongoDB Atlas Device SDK` | Mode: `revisit` | Cluster: `MongoDB Atlas Device SDK (1 of 2)` | Queue-state: `held-review`
+- [ ] Concept: `Flutter Dart Realm SDK` | Parent: `MongoDB Atlas Device SDK` | Mode: `revisit` | Cluster: `MongoDB Atlas Device SDK (1 of 2)` | Queue-state: `held-review`
+- [ ] Concept: `Offline-First Mobile` | Parent: `MongoDB Atlas Device SDK` | Mode: `revisit` | Cluster: `MongoDB Atlas Device SDK (2 of 2)` | Queue-state: `held-review`
+- [ ] Concept: `Realm Authentication` | Parent: `MongoDB Atlas Device SDK` | Mode: `revisit` | Cluster: `MongoDB Atlas Device SDK (2 of 2)` | Queue-state: `held-review`
+- [ ] Concept: `Realm Migration` | Parent: `MongoDB Atlas Device SDK` | Mode: `revisit` | Cluster: `MongoDB Atlas Device SDK (2 of 2)` | Queue-state: `held-review`
+- [ ] Concept: `Atlas Device Sync` | Parent: `MongoDB Atlas Device SDK` | Mode: `revisit` | Cluster: `MongoDB Atlas Device SDK (2 of 2)` | Queue-state: `held-review`
+- [ ] Concept: `Connection Troubleshooting` | Parent: `MongoDB Atlas AWS Networking` | Mode: `revisit` | Cluster: `MongoDB Atlas AWS Networking (1 of 2)` | Queue-state: `held-review`
+- [ ] Concept: `DNS and SRV Records` | Parent: `MongoDB Atlas AWS Networking` | Mode: `revisit` | Cluster: `MongoDB Atlas AWS Networking (1 of 2)` | Queue-state: `held-review`
+- [ ] Concept: `EDP Credits` | Parent: `MongoDB Atlas AWS Networking` | Mode: `revisit` | Cluster: `MongoDB Atlas AWS Networking (1 of 2)` | Queue-state: `held-review`
+- [ ] Concept: `EventBridge Integration` | Parent: `MongoDB Atlas AWS Networking` | Mode: `revisit` | Cluster: `MongoDB Atlas AWS Networking (1 of 2)` | Queue-state: `held-review`
+- [ ] Concept: `IAM Authentication` | Parent: `MongoDB Atlas AWS Networking` | Mode: `revisit` | Cluster: `MongoDB Atlas AWS Networking (1 of 2)` | Queue-state: `held-review`
+- [ ] Concept: `KMS Encryption at Rest` | Parent: `MongoDB Atlas AWS Networking` | Mode: `revisit` | Cluster: `MongoDB Atlas AWS Networking (1 of 2)` | Queue-state: `held-review`
+- [ ] Concept: `Lambda Integration` | Parent: `MongoDB Atlas AWS Networking` | Mode: `revisit` | Cluster: `MongoDB Atlas AWS Networking (1 of 2)` | Queue-state: `held-review`
+- [ ] Concept: `Multi-Region Networking` | Parent: `MongoDB Atlas AWS Networking` | Mode: `revisit` | Cluster: `MongoDB Atlas AWS Networking (2 of 2)` | Queue-state: `held-review`
+- [ ] Concept: `Network Access Lists` | Parent: `MongoDB Atlas AWS Networking` | Mode: `revisit` | Cluster: `MongoDB Atlas AWS Networking (2 of 2)` | Queue-state: `held-review`
+- [ ] Concept: `Security Groups` | Parent: `MongoDB Atlas AWS Networking` | Mode: `revisit` | Cluster: `MongoDB Atlas AWS Networking (2 of 2)` | Queue-state: `held-review`
+- [ ] Concept: `Terraform Atlas Provider` | Parent: `MongoDB Atlas AWS Networking` | Mode: `revisit` | Cluster: `MongoDB Atlas AWS Networking (2 of 2)` | Queue-state: `held-review`
+- [ ] Concept: `TLS Encryption` | Parent: `MongoDB Atlas AWS Networking` | Mode: `revisit` | Cluster: `MongoDB Atlas AWS Networking (2 of 2)` | Queue-state: `held-review`
+- [ ] Concept: `Transit Gateway Patterns` | Parent: `MongoDB Atlas AWS Networking` | Mode: `revisit` | Cluster: `MongoDB Atlas AWS Networking (2 of 2)` | Queue-state: `held-review`
+- [ ] Concept: `VPC Peering` | Parent: `MongoDB Atlas AWS Networking` | Mode: `revisit` | Cluster: `MongoDB Atlas AWS Networking (2 of 2)` | Queue-state: `held-review`
+- [ ] Concept: `Atlas Cloud Backup (snapshots)` | Parent: `MongoDB Backup and Restore` | Mode: `revisit` | Cluster: `MongoDB Backup and Restore` | Queue-state: `held-review`
+- [ ] Concept: `Continuous Cloud Backup (PITR)` | Parent: `MongoDB Backup and Restore` | Mode: `revisit` | Cluster: `MongoDB Backup and Restore` | Queue-state: `held-review`
+- [ ] Concept: `Queryable Backups` | Parent: `MongoDB Backup and Restore` | Mode: `dr` | Cluster: `MongoDB Backup and Restore` | Queue-state: `held`
+- [ ] Concept: `Ops Manager Backup` | Parent: `MongoDB Backup and Restore` | Mode: `dr` | Cluster: `MongoDB Backup and Restore` | Queue-state: `held`
+- [ ] Concept: `Restore Workflows` | Parent: `MongoDB Backup and Restore` | Mode: `dr` | Cluster: `MongoDB Backup and Restore` | Queue-state: `held`
+- [ ] Concept: `Cross-Region Snapshot Copy` | Parent: `MongoDB Backup and Restore` | Mode: `revisit` | Cluster: `MongoDB Backup and Restore` | Queue-state: `held-review`
+- [ ] Concept: `Backup Verification and Tabletop Exercises` | Parent: `MongoDB Backup and Restore` | Mode: `revisit` | Cluster: `MongoDB Backup and Restore` | Queue-state: `held-review`
+- [ ] Concept: `Backup Anti-Patterns` | Parent: `MongoDB Backup and Restore` | Mode: `dr` | Cluster: `MongoDB Backup and Restore` | Queue-state: `held`
+- [ ] Concept: `Backup Cost Optimization` | Parent: `MongoDB Atlas Cost Optimization` | Mode: `revisit` | Cluster: `MongoDB Atlas Cost Optimization (1 of 2)` | Queue-state: `held-review`
+- [ ] Concept: `Cluster Pause` | Parent: `MongoDB Atlas Cost Optimization` | Mode: `revisit` | Cluster: `MongoDB Atlas Cost Optimization (1 of 2)` | Queue-state: `held-review`
+- [ ] Concept: `Common Cost Overruns` | Parent: `MongoDB Atlas Cost Optimization` | Mode: `revisit` | Cluster: `MongoDB Atlas Cost Optimization (1 of 2)` | Queue-state: `held-review`
+- [ ] Concept: `Elastic Compute Autoscaling` | Parent: `MongoDB Atlas Cost Optimization` | Mode: `revisit` | Cluster: `MongoDB Atlas Cost Optimization (1 of 2)` | Queue-state: `held-review`
+- [ ] Concept: `Index Storage Cost` | Parent: `MongoDB Atlas Cost Optimization` | Mode: `revisit` | Cluster: `MongoDB Atlas Cost Optimization (1 of 2)` | Queue-state: `held-review`
+- [ ] Concept: `Instance Right-Sizing` | Parent: `MongoDB Atlas Cost Optimization` | Mode: `revisit` | Cluster: `MongoDB Atlas Cost Optimization (1 of 2)` | Queue-state: `held-review`
+- [ ] Concept: `Cost Monitoring` | Parent: `MongoDB Atlas Cost Optimization` | Mode: `revisit` | Cluster: `MongoDB Atlas Cost Optimization (2 of 2)` | Queue-state: `held-review`
+- [ ] Concept: `Network Egress Costs` | Parent: `MongoDB Atlas Cost Optimization` | Mode: `revisit` | Cluster: `MongoDB Atlas Cost Optimization (2 of 2)` | Queue-state: `held-review`
+- [ ] Concept: `Reserved Capacity and Committed Use` | Parent: `MongoDB Atlas Cost Optimization` | Mode: `revisit` | Cluster: `MongoDB Atlas Cost Optimization (2 of 2)` | Queue-state: `held-review`
+- [ ] Concept: `Storage Autoscaling` | Parent: `MongoDB Atlas Cost Optimization` | Mode: `revisit` | Cluster: `MongoDB Atlas Cost Optimization (2 of 2)` | Queue-state: `held-review`
+- [ ] Concept: `Storage Tier Selection` | Parent: `MongoDB Atlas Cost Optimization` | Mode: `revisit` | Cluster: `MongoDB Atlas Cost Optimization (2 of 2)` | Queue-state: `held-review`
+- [ ] Concept: `Tier 0 Tier 1 Tier 2 Strategy` | Parent: `MongoDB Atlas Cost Optimization` | Mode: `revisit` | Cluster: `MongoDB Atlas Cost Optimization (2 of 2)` | Queue-state: `held-review`
+- [ ] Concept: `Serverless Cold Start Behavior` | Parent: `MongoDB Atlas Flex and Serverless Tiers` | Mode: `dr` | Cluster: `MongoDB Atlas Flex and Serverless Tiers (1 of 2)` | Queue-state: `held`
+- [ ] Concept: `Flex Cost Break-Even Analysis` | Parent: `MongoDB Atlas Flex and Serverless Tiers` | Mode: `dr` | Cluster: `MongoDB Atlas Flex and Serverless Tiers (1 of 2)` | Queue-state: `held`
+- [ ] Concept: `Flex vs Dedicated Decision Matrix` | Parent: `MongoDB Atlas Flex and Serverless Tiers` | Mode: `dr` | Cluster: `MongoDB Atlas Flex and Serverless Tiers (1 of 2)` | Queue-state: `held`
+- [ ] Concept: `Serverless Deprecation and EOL` | Parent: `MongoDB Atlas Flex and Serverless Tiers` | Mode: `dr` | Cluster: `MongoDB Atlas Flex and Serverless Tiers (1 of 2)` | Queue-state: `held`
+- [ ] Concept: `M0 Free Tier vs Flex Comparison` | Parent: `MongoDB Atlas Flex and Serverless Tiers` | Mode: `dr` | Cluster: `MongoDB Atlas Flex and Serverless Tiers (1 of 2)` | Queue-state: `held`
+- [ ] Concept: `M2 M5 Migration to Flex` | Parent: `MongoDB Atlas Flex and Serverless Tiers` | Mode: `dr` | Cluster: `MongoDB Atlas Flex and Serverless Tiers (1 of 2)` | Queue-state: `held`
+- [ ] Concept: `Atlas Flex Pricing Model` | Parent: `MongoDB Atlas Flex and Serverless Tiers` | Mode: `dr` | Cluster: `MongoDB Atlas Flex and Serverless Tiers (2 of 2)` | Queue-state: `held`
+- [ ] Concept: `Serverless RPU WPU Billing` | Parent: `MongoDB Atlas Flex and Serverless Tiers` | Mode: `dr` | Cluster: `MongoDB Atlas Flex and Serverless Tiers (2 of 2)` | Queue-state: `held`
+- [ ] Concept: `Atlas Flex Technical Limits` | Parent: `MongoDB Atlas Flex and Serverless Tiers` | Mode: `dr` | Cluster: `MongoDB Atlas Flex and Serverless Tiers (2 of 2)` | Queue-state: `held`
+- [ ] Concept: `Flex Tooling Migration Terraform K8s CLI` | Parent: `MongoDB Atlas Flex and Serverless Tiers` | Mode: `revisit` | Cluster: `MongoDB Atlas Flex and Serverless Tiers (2 of 2)` | Queue-state: `held-review`
+- [ ] Concept: `Atlas Flex Unsupported Features` | Parent: `MongoDB Atlas Flex and Serverless Tiers` | Mode: `dr` | Cluster: `MongoDB Atlas Flex and Serverless Tiers (2 of 2)` | Queue-state: `held`
+- [ ] Concept: `Atlas on Azure` | Parent: `MongoDB Atlas Multi-Cloud` | Mode: `dr` | Cluster: `MongoDB Atlas Multi-Cloud (1 of 2)` | Queue-state: `held`
+- [ ] Concept: `Azure Partnership and MACC` | Parent: `MongoDB Atlas Multi-Cloud` | Mode: `dr` | Cluster: `MongoDB Atlas Multi-Cloud (1 of 2)` | Queue-state: `held`
+- [ ] Concept: `Azure Private Link for Atlas` | Parent: `MongoDB Atlas Multi-Cloud` | Mode: `dr` | Cluster: `MongoDB Atlas Multi-Cloud (1 of 2)` | Queue-state: `held`
+- [ ] Concept: `Multi-Cloud Billing` | Parent: `MongoDB Atlas Multi-Cloud` | Mode: `dr` | Cluster: `MongoDB Atlas Multi-Cloud (1 of 2)` | Queue-state: `held`
+- [ ] Concept: `Cross-Cloud Egress Costs` | Parent: `MongoDB Atlas Multi-Cloud` | Mode: `dr` | Cluster: `MongoDB Atlas Multi-Cloud (1 of 2)` | Queue-state: `held`
+- [ ] Concept: `Multi-Cloud DR Pattern` | Parent: `MongoDB Atlas Multi-Cloud` | Mode: `dr` | Cluster: `MongoDB Atlas Multi-Cloud (1 of 2)` | Queue-state: `held`
+- [ ] Concept: `Multi-Cloud Failure Modes` | Parent: `MongoDB Atlas Multi-Cloud` | Mode: `dr` | Cluster: `MongoDB Atlas Multi-Cloud (2 of 2)` | Queue-state: `held`
+- [ ] Concept: `Atlas on GCP` | Parent: `MongoDB Atlas Multi-Cloud` | Mode: `dr` | Cluster: `MongoDB Atlas Multi-Cloud (2 of 2)` | Queue-state: `held`
+- [ ] Concept: `GCP Partnership and Marketplace` | Parent: `MongoDB Atlas Multi-Cloud` | Mode: `dr` | Cluster: `MongoDB Atlas Multi-Cloud (2 of 2)` | Queue-state: `held`
+- [ ] Concept: `GCP Private Service Connect for Atlas` | Parent: `MongoDB Atlas Multi-Cloud` | Mode: `dr` | Cluster: `MongoDB Atlas Multi-Cloud (2 of 2)` | Queue-state: `held`
+- [ ] Concept: `Multi-Cloud Global Clusters` | Parent: `MongoDB Atlas Multi-Cloud` | Mode: `dr` | Cluster: `MongoDB Atlas Multi-Cloud (2 of 2)` | Queue-state: `held`
+- [ ] Concept: `Multi-Cloud Replica Sets` | Parent: `MongoDB Atlas Multi-Cloud` | Mode: `revisit` | Cluster: `MongoDB Atlas Multi-Cloud (2 of 2)` | Queue-state: `held-review`
+- [ ] Concept: `Atlas App Services Cost Model` | Parent: `MongoDB Atlas Triggers and Functions` | Mode: `dr` | Cluster: `MongoDB Atlas Triggers and Functions (1 of 2)` | Queue-state: `held`
+- [ ] Concept: `Authentication Triggers` | Parent: `MongoDB Atlas Triggers and Functions` | Mode: `dr` | Cluster: `MongoDB Atlas Triggers and Functions (1 of 2)` | Queue-state: `held`
+- [ ] Concept: `Change Data Capture Patterns` | Parent: `MongoDB Atlas Triggers and Functions` | Mode: `revisit` | Cluster: `MongoDB Atlas Triggers and Functions (1 of 2)` | Queue-state: `held-review`
+- [ ] Concept: `Database Triggers` | Parent: `MongoDB Atlas Triggers and Functions` | Mode: `dr` | Cluster: `MongoDB Atlas Triggers and Functions (1 of 2)` | Queue-state: `held`
+- [ ] Concept: `Function Context Object` | Parent: `MongoDB Atlas Triggers and Functions` | Mode: `revisit` | Cluster: `MongoDB Atlas Triggers and Functions (1 of 2)` | Queue-state: `held-review`
+- [ ] Concept: `HTTPS Endpoints` | Parent: `MongoDB Atlas Triggers and Functions` | Mode: `revisit` | Cluster: `MongoDB Atlas Triggers and Functions (1 of 2)` | Queue-state: `held-review`
+- [ ] Concept: `Atlas Functions JavaScript Runtime` | Parent: `MongoDB Atlas Triggers and Functions` | Mode: `dr` | Cluster: `MongoDB Atlas Triggers and Functions (2 of 2)` | Queue-state: `held`
+- [ ] Concept: `Realm Migration Paths` | Parent: `MongoDB Atlas Triggers and Functions` | Mode: `dr` | Cluster: `MongoDB Atlas Triggers and Functions (2 of 2)` | Queue-state: `held`
+- [ ] Concept: `Scheduled Triggers` | Parent: `MongoDB Atlas Triggers and Functions` | Mode: `dr` | Cluster: `MongoDB Atlas Triggers and Functions (2 of 2)` | Queue-state: `held`
+- [ ] Concept: `Trigger Error Handling and Suspension` | Parent: `MongoDB Atlas Triggers and Functions` | Mode: `dr` | Cluster: `MongoDB Atlas Triggers and Functions (2 of 2)` | Queue-state: `held`
+- [ ] Concept: `Trigger and Function Anti-Patterns` | Parent: `MongoDB Atlas Triggers and Functions` | Mode: `revisit` | Cluster: `MongoDB Atlas Triggers and Functions (2 of 2)` | Queue-state: `held-review`
+- [ ] Concept: `Atlas Search Lucene Architecture` | Parent: `MongoDB Atlas Search and Vector Search` | Mode: `dr` | Cluster: `MongoDB Atlas Search and Vector Search` | Queue-state: `held`
+- [ ] Concept: `Atlas Vector Search HNSW IVF` | Parent: `MongoDB Atlas Search and Vector Search` | Mode: `dr` | Cluster: `MongoDB Atlas Search and Vector Search` | Queue-state: `held`
+- [ ] Concept: `RAG Patterns with Vector Search` | Parent: `MongoDB Atlas Search and Vector Search` | Mode: `revisit` | Cluster: `MongoDB Atlas Search and Vector Search` | Queue-state: `held-review`
+- [ ] Concept: `Atlas Search Analyzers and Tokenizers` | Parent: `MongoDB Atlas Search and Vector Search` | Mode: `dr` | Cluster: `MongoDB Atlas Search and Vector Search` | Queue-state: `held`
+- [ ] Concept: `Stored Source Performance Optimization` | Parent: `MongoDB Atlas Search and Vector Search` | Mode: `dr` | Cluster: `MongoDB Atlas Search and Vector Search` | Queue-state: `held`
+- [ ] Concept: `Auto Embedding Voyage AI` | Parent: `MongoDB Atlas Search and Vector Search` | Mode: `dr` | Cluster: `MongoDB Atlas Search and Vector Search` | Queue-state: `held`
+- [ ] Concept: `Search Nodes Dedicated Infrastructure` | Parent: `MongoDB Atlas Search and Vector Search` | Mode: `dr` | Cluster: `MongoDB Atlas Search and Vector Search` | Queue-state: `held`
+- [ ] Concept: `Lexical Prefilters for Vector Search` | Parent: `MongoDB Atlas Search and Vector Search` | Mode: `dr` | Cluster: `MongoDB Atlas Search and Vector Search` | Queue-state: `held`
+- [ ] Concept: `Express MongoDB Driver Pattern` | Parent: `Atlas Data API Removal` | Mode: `dr` | Cluster: `Atlas Data API Removal` | Queue-state: `coverage-review`
+- [ ] Concept: `FastAPI Motor Pattern` | Parent: `Atlas Data API Removal` | Mode: `dr` | Cluster: `Atlas Data API Removal` | Queue-state: `coverage-review`
+- [x] Concept: `Lambda MongoDB Driver Pattern` | Parent: `Atlas Data API Removal` | Mode: `dr` | Cluster: `Atlas Data API Removal`
+- [ ] Concept: `Delbridge Data API` | Parent: `Atlas Data API Removal` | Mode: `dr` | Cluster: `Atlas Data API Removal` | Queue-state: `coverage-review`
+- [ ] Concept: `RESTHeart` | Parent: `Atlas Data API Removal` | Mode: `dr` | Cluster: `Atlas Data API Removal` | Queue-state: `coverage-review`
+- [ ] Concept: `Atlas GraphQL API Removal` | Parent: `Atlas Data API Removal` | Mode: `revisit` | Cluster: `Atlas Data API Removal` | Queue-state: `held-review`
+- [ ] Concept: `mongosqld Architecture` | Parent: `MongoDB BI Connector and SQL Access` | Mode: `dr` | Cluster: `MongoDB BI Connector and SQL Access` | Queue-state: `held`
+- [ ] Concept: `DRDL Schema Management` | Parent: `MongoDB BI Connector and SQL Access` | Mode: `dr` | Cluster: `MongoDB BI Connector and SQL Access` | Queue-state: `held`
+- [ ] Concept: `BI Connector Authentication` | Parent: `MongoDB BI Connector and SQL Access` | Mode: `dr` | Cluster: `MongoDB BI Connector and SQL Access` | Queue-state: `held`
+- [ ] Concept: `SQL-to-MQL Translation` | Parent: `MongoDB BI Connector and SQL Access` | Mode: `dr` | Cluster: `MongoDB BI Connector and SQL Access` | Queue-state: `held`
+- [ ] Concept: `BI Connector EOL Migration` | Parent: `MongoDB BI Connector and SQL Access` | Mode: `dr` | Cluster: `MongoDB BI Connector and SQL Access` | Queue-state: `held`
+- [ ] Concept: `HTTP Data Access Replacements` | Parent: `MongoDB BI Connector and SQL Access` | Mode: `dr` | Cluster: `MongoDB BI Connector and SQL Access` | Queue-state: `held`
+- [ ] Concept: `Azure App Service Atlas` | Parent: `MongoDB Atlas on Azure` | Mode: `dr` | Cluster: `MongoDB Atlas on Azure (1 of 5)` | Queue-state: `held`
+- [ ] Concept: `Atlas Application Insights OTel` | Parent: `MongoDB Atlas on Azure` | Mode: `dr` | Cluster: `MongoDB Atlas on Azure (1 of 5)` | Queue-state: `held`
+- [ ] Concept: `AtlasGov Azure Government` | Parent: `MongoDB Atlas on Azure` | Mode: `revisit` | Cluster: `MongoDB Atlas on Azure (1 of 5)` | Queue-state: `held-review`
+- [ ] Concept: `Atlas Bicep Private Endpoint` | Parent: `MongoDB Atlas on Azure` | Mode: `revisit` | Cluster: `MongoDB Atlas on Azure (1 of 5)` | Queue-state: `held-review`
+- [ ] Concept: `Azure Container Apps Atlas` | Parent: `MongoDB Atlas on Azure` | Mode: `dr` | Cluster: `MongoDB Atlas on Azure (1 of 5)` | Queue-state: `held`
+- [ ] Concept: `Entra ID OIDC Workforce Federation` | Parent: `MongoDB Atlas on Azure` | Mode: `dr` | Cluster: `MongoDB Atlas on Azure (1 of 5)` | Queue-state: `held`
+- [ ] Concept: `Entra ID Workload Identity Federation` | Parent: `MongoDB Atlas on Azure` | Mode: `dr` | Cluster: `MongoDB Atlas on Azure (1 of 5)` | Queue-state: `held`
+- [ ] Concept: `Azure Event Hub Atlas Stream Processing` | Parent: `MongoDB Atlas on Azure` | Mode: `dr` | Cluster: `MongoDB Atlas on Azure (2 of 5)` | Queue-state: `held`
+- [ ] Concept: `ExpressRoute Atlas Connectivity` | Parent: `MongoDB Atlas on Azure` | Mode: `dr` | Cluster: `MongoDB Atlas on Azure (2 of 5)` | Queue-state: `held`
+- [ ] Concept: `Azure Functions Atlas Connection Pooling` | Parent: `MongoDB Atlas on Azure` | Mode: `dr` | Cluster: `MongoDB Atlas on Azure (2 of 5)` | Queue-state: `held`
+- [ ] Concept: `Hub-and-Spoke Atlas Networking` | Parent: `MongoDB Atlas on Azure` | Mode: `revisit` | Cluster: `MongoDB Atlas on Azure (2 of 5)` | Queue-state: `held-review`
+- [ ] Concept: `Atlas Key Rotation AKV` | Parent: `MongoDB Atlas on Azure` | Mode: `dr` | Cluster: `MongoDB Atlas on Azure (2 of 5)` | Queue-state: `held`
+- [ ] Concept: `Azure Key Vault Atlas BYOK` | Parent: `MongoDB Atlas on Azure` | Mode: `dr` | Cluster: `MongoDB Atlas on Azure (2 of 5)` | Queue-state: `held`
+- [ ] Concept: `Azure Key Vault RBAC Atlas` | Parent: `MongoDB Atlas on Azure` | Mode: `revisit` | Cluster: `MongoDB Atlas on Azure (2 of 5)` | Queue-state: `held-review`
+- [ ] Concept: `KMS Failsafe Behavior Atlas` | Parent: `MongoDB Atlas on Azure` | Mode: `dr` | Cluster: `MongoDB Atlas on Azure (3 of 5)` | Queue-state: `held`
+- [ ] Concept: `Atlas LDAP Azure AD DS` | Parent: `MongoDB Atlas on Azure` | Mode: `revisit` | Cluster: `MongoDB Atlas on Azure (3 of 5)` | Queue-state: `held-review`
+- [ ] Concept: `Atlas MACC Eligibility` | Parent: `MongoDB Atlas on Azure` | Mode: `revisit` | Cluster: `MongoDB Atlas on Azure (3 of 5)` | Queue-state: `held-review`
+- [ ] Concept: `Azure Marketplace Atlas Billing` | Parent: `MongoDB Atlas on Azure` | Mode: `dr` | Cluster: `MongoDB Atlas on Azure (3 of 5)` | Queue-state: `held`
+- [ ] Concept: `Atlas Azure Monitor Metrics` | Parent: `MongoDB Atlas on Azure` | Mode: `dr` | Cluster: `MongoDB Atlas on Azure (3 of 5)` | Queue-state: `held`
+- [ ] Concept: `Azure Native MongoDB ANM` | Parent: `MongoDB Atlas on Azure` | Mode: `revisit` | Cluster: `MongoDB Atlas on Azure (3 of 5)` | Queue-state: `held-review`
+- [ ] Concept: `NSG Rules for Atlas` | Parent: `MongoDB Atlas on Azure` | Mode: `dr` | Cluster: `MongoDB Atlas on Azure (3 of 5)` | Queue-state: `held`
+- [ ] Concept: `Azure OpenAI Atlas Vector Search` | Parent: `MongoDB Atlas on Azure` | Mode: `revisit` | Cluster: `MongoDB Atlas on Azure (4 of 5)` | Queue-state: `held-review`
+- [ ] Concept: `Azure Private DNS Resolver` | Parent: `MongoDB Atlas on Azure` | Mode: `revisit` | Cluster: `MongoDB Atlas on Azure (4 of 5)` | Queue-state: `held-review`
+- [ ] Concept: `Atlas Private DNS Zones Azure` | Parent: `MongoDB Atlas on Azure` | Mode: `revisit` | Cluster: `MongoDB Atlas on Azure (4 of 5)` | Queue-state: `held-review`
+- [ ] Concept: `Atlas Azure Regions Mapping` | Parent: `MongoDB Atlas on Azure` | Mode: `revisit` | Cluster: `MongoDB Atlas on Azure (4 of 5)` | Queue-state: `held-review`
+- [ ] Concept: `Atlas SAML Entra ID` | Parent: `MongoDB Atlas on Azure` | Mode: `dr` | Cluster: `MongoDB Atlas on Azure (4 of 5)` | Queue-state: `held`
+- [ ] Concept: `Atlas Secretless KV Authentication` | Parent: `MongoDB Atlas on Azure` | Mode: `revisit` | Cluster: `MongoDB Atlas on Azure (4 of 5)` | Queue-state: `held-review`
+- [ ] Concept: `Atlas Azure Security Compliance` | Parent: `MongoDB Atlas on Azure` | Mode: `dr` | Cluster: `MongoDB Atlas on Azure (4 of 5)` | Queue-state: `held`
+- [ ] Concept: `Atlas Sentinel Log Integration` | Parent: `MongoDB Atlas on Azure` | Mode: `dr` | Cluster: `MongoDB Atlas on Azure (5 of 5)` | Queue-state: `held`
+- [ ] Concept: `Azure Service Bus Atlas Triggers` | Parent: `MongoDB Atlas on Azure` | Mode: `dr` | Cluster: `MongoDB Atlas on Azure (5 of 5)` | Queue-state: `held`
+- [ ] Concept: `Azure Synapse Atlas Data Federation` | Parent: `MongoDB Atlas on Azure` | Mode: `revisit` | Cluster: `MongoDB Atlas on Azure (5 of 5)` | Queue-state: `held-review`
+- [ ] Concept: `Atlas Terraform Azure Provider` | Parent: `MongoDB Atlas on Azure` | Mode: `dr` | Cluster: `MongoDB Atlas on Azure (5 of 5)` | Queue-state: `held`
+- [ ] Concept: `Atlas Azure Troubleshooting Playbook` | Parent: `MongoDB Atlas on Azure` | Mode: `dr` | Cluster: `MongoDB Atlas on Azure (5 of 5)` | Queue-state: `held`
+- [ ] Concept: `BigQuery Atlas Dataflow CDC` | Parent: `MongoDB Atlas on GCP` | Mode: `dr` | Cluster: `MongoDB Atlas on GCP (1 of 5)` | Queue-state: `held`
+- [ ] Concept: `Cloud Build Atlas API Auth` | Parent: `MongoDB Atlas on GCP` | Mode: `revisit` | Cluster: `MongoDB Atlas on GCP (1 of 5)` | Queue-state: `held-review`
+- [ ] Concept: `Cloud DNS Private Zone for Atlas` | Parent: `MongoDB Atlas on GCP` | Mode: `dr` | Cluster: `MongoDB Atlas on GCP (1 of 5)` | Queue-state: `held`
+- [ ] Concept: `Cloud DNS Terraform Atlas` | Parent: `MongoDB Atlas on GCP` | Mode: `dr` | Cluster: `MongoDB Atlas on GCP (1 of 5)` | Queue-state: `held`
+- [ ] Concept: `Cloud Functions Gen2 Atlas` | Parent: `MongoDB Atlas on GCP` | Mode: `dr` | Cluster: `MongoDB Atlas on GCP (1 of 5)` | Queue-state: `held`
+- [ ] Concept: `Cloud HSM Atlas` | Parent: `MongoDB Atlas on GCP` | Mode: `revisit` | Cluster: `MongoDB Atlas on GCP (1 of 5)` | Queue-state: `held-review`
+- [ ] Concept: `Cloud Monitoring Atlas Metrics` | Parent: `MongoDB Atlas on GCP` | Mode: `dr` | Cluster: `MongoDB Atlas on GCP (2 of 5)` | Queue-state: `held`
+- [ ] Concept: `Cloud NAT for Atlas` | Parent: `MongoDB Atlas on GCP` | Mode: `dr` | Cluster: `MongoDB Atlas on GCP (2 of 5)` | Queue-state: `held`
 - [x] Concept: `Cloud Run Atlas Connection Pooling` | Parent: `MongoDB Atlas on GCP` | Mode: `dr` | Cluster: `MongoDB Atlas on GCP (2 of 5)`
-- [ ] Concept: `Atlas Data Federation GCS` | Parent: `MongoDB Atlas on GCP` | Mode: `dr` | Cluster: `MongoDB Atlas on GCP (2 of 5)`
-- [ ] Concept: `Atlas GCP EDP Credits` | Parent: `MongoDB Atlas on GCP` | Mode: `dr` | Cluster: `MongoDB Atlas on GCP (2 of 5)`
-- [ ] Concept: `Atlas Envelope Encryption GCP` | Parent: `MongoDB Atlas on GCP` | Mode: `dr` | Cluster: `MongoDB Atlas on GCP (2 of 5)`
-- [ ] Concept: `GCP Forwarding Rule Quota` | Parent: `MongoDB Atlas on GCP` | Mode: `dr` | Cluster: `MongoDB Atlas on GCP (2 of 5)`
-- [ ] Concept: `GKE Atlas Kubernetes Operator` | Parent: `MongoDB Atlas on GCP` | Mode: `dr` | Cluster: `MongoDB Atlas on GCP (2 of 5)`
-- [ ] Concept: `GKE NodeLocal DNSCache Atlas` | Parent: `MongoDB Atlas on GCP` | Mode: `dr` | Cluster: `MongoDB Atlas on GCP (3 of 5)`
-- [ ] Concept: `GCP Global Access PSC` | Parent: `MongoDB Atlas on GCP` | Mode: `dr` | Cluster: `MongoDB Atlas on GCP (3 of 5)`
-- [ ] Concept: `Google Cloud KMS BYOK` | Parent: `MongoDB Atlas on GCP` | Mode: `dr` | Cluster: `MongoDB Atlas on GCP (3 of 5)`
-- [ ] Concept: `Google Cloud Partner of Year` | Parent: `MongoDB Atlas on GCP` | Mode: `dr` | Cluster: `MongoDB Atlas on GCP (3 of 5)`
-- [ ] Concept: `Google Distributed Cloud GDC` | Parent: `MongoDB Atlas on GCP` | Mode: `dr` | Cluster: `MongoDB Atlas on GCP (3 of 5)`
-- [ ] Concept: `Google Workspace SAML Federation` | Parent: `MongoDB Atlas on GCP` | Mode: `dr` | Cluster: `MongoDB Atlas on GCP (3 of 5)`
-- [ ] Concept: `KMS Key Rotation Atlas` | Parent: `MongoDB Atlas on GCP` | Mode: `dr` | Cluster: `MongoDB Atlas on GCP (3 of 5)`
-- [ ] Concept: `KMS Unavailability Failsafe` | Parent: `MongoDB Atlas on GCP` | Mode: `dr` | Cluster: `MongoDB Atlas on GCP (3 of 5)`
-- [ ] Concept: `Looker Atlas BI Connector` | Parent: `MongoDB Atlas on GCP` | Mode: `dr` | Cluster: `MongoDB Atlas on GCP (4 of 5)`
-- [ ] Concept: `PSC Legacy Migration` | Parent: `MongoDB Atlas on GCP` | Mode: `dr` | Cluster: `MongoDB Atlas on GCP (4 of 5)`
-- [ ] Concept: `PSC Port-Mapped Architecture` | Parent: `MongoDB Atlas on GCP` | Mode: `dr` | Cluster: `MongoDB Atlas on GCP (4 of 5)`
-- [ ] Concept: `PSC Terraform GCP` | Parent: `MongoDB Atlas on GCP` | Mode: `dr` | Cluster: `MongoDB Atlas on GCP (4 of 5)`
-- [ ] Concept: `GCP Shared VPC` | Parent: `MongoDB Atlas on GCP` | Mode: `dr` | Cluster: `MongoDB Atlas on GCP (4 of 5)`
-- [ ] Concept: `MongoDB for Startups GCP` | Parent: `MongoDB Atlas on GCP` | Mode: `dr` | Cluster: `MongoDB Atlas on GCP (5 of 5)`
-- [ ] Concept: `Atlas Stream Processing Pub/Sub` | Parent: `MongoDB Atlas on GCP` | Mode: `dr` | Cluster: `MongoDB Atlas on GCP (5 of 5)`
-- [ ] Concept: `Atlas Terraform GCP Provider` | Parent: `MongoDB Atlas on GCP` | Mode: `dr` | Cluster: `MongoDB Atlas on GCP (5 of 5)`
-- [ ] Concept: `Atlas GCP Troubleshooting` | Parent: `MongoDB Atlas on GCP` | Mode: `dr` | Cluster: `MongoDB Atlas on GCP (5 of 5)`
-- [ ] Concept: `Vertex AI Atlas Vector Search` | Parent: `MongoDB Atlas on GCP` | Mode: `dr` | Cluster: `MongoDB Atlas on GCP (5 of 5)`
-- [ ] Concept: `GCP VPC Peering` | Parent: `MongoDB Atlas on GCP` | Mode: `dr` | Cluster: `MongoDB Atlas on GCP (5 of 5)`
-- [ ] Concept: `GCP Workload Identity Federation OIDC` | Parent: `MongoDB Atlas on GCP` | Mode: `dr` | Cluster: `MongoDB Atlas on GCP (5 of 5)`
-- [ ] Concept: `HNSW Index Parameters` | Parent: `MongoDB Atlas Vector Search` | Mode: `dr` | Cluster: `MongoDB Atlas Vector Search`
-- [ ] Concept: `Vector Quantization` | Parent: `MongoDB Atlas Vector Search` | Mode: `dr` | Cluster: `MongoDB Atlas Vector Search`
-- [ ] Concept: `Hybrid Search` | Parent: `MongoDB Atlas Vector Search` | Mode: `dr` | Cluster: `MongoDB Atlas Vector Search`
-- [ ] Concept: `Voyage AI Embeddings` | Parent: `MongoDB Atlas Vector Search` | Mode: `dr` | Cluster: `MongoDB Atlas Vector Search`
-- [ ] Concept: `RAG Patterns` | Parent: `MongoDB Atlas Vector Search` | Mode: `dr` | Cluster: `MongoDB Atlas Vector Search`
-- [ ] Concept: `Search Nodes` | Parent: `MongoDB Atlas Vector Search` | Mode: `dr` | Cluster: `MongoDB Atlas Vector Search`
-- [ ] Concept: `Embedding Pipelines` | Parent: `MongoDB Atlas Vector Search` | Mode: `dr` | Cluster: `MongoDB Atlas Vector Search`
-- [ ] Concept: `Multi-Vector Patterns` | Parent: `MongoDB Atlas Vector Search` | Mode: `dr` | Cluster: `MongoDB Atlas Vector Search`
-- [ ] Concept: `MongoDB Atlas Data Federation` | Parent: `MongoDB Atlas` | Mode: `dr` | Cluster: `MongoDB Atlas`
-- [ ] Concept: `MongoDB 8.0 WT Improvements (TCMalloc, ExpressPlan)` | Parent: `WiredTiger Storage Engine Internals` | Mode: `dr` | Cluster: `WiredTiger Storage Engine Internals (1 of 3)`
-- [ ] Concept: `Application Thread Eviction` | Parent: `WiredTiger Storage Engine Internals` | Mode: `dr` | Cluster: `WiredTiger Storage Engine Internals (1 of 3)`
-- [ ] Concept: `Block Compression (snappy/zlib/zstd)` | Parent: `WiredTiger Storage Engine Internals` | Mode: `dr` | Cluster: `WiredTiger Storage Engine Internals (1 of 3)`
-- [ ] Concept: `Block Manager and Page Sizing` | Parent: `WiredTiger Storage Engine Internals` | Mode: `dr` | Cluster: `WiredTiger Storage Engine Internals (1 of 3)`
-- [ ] Concept: `Cache Architecture` | Parent: `WiredTiger Storage Engine Internals` | Mode: `dr` | Cluster: `WiredTiger Storage Engine Internals (1 of 3)`
-- [ ] Concept: `Corruption (validate, --repair, wt CLI)` | Parent: `WiredTiger Storage Engine Internals` | Mode: `dr` | Cluster: `WiredTiger Storage Engine Internals (1 of 3)`
-- [ ] Concept: `Query Planning and Plan Cache` | Parent: `MongoDB Performance Troubleshooting` | Mode: `dr` | Cluster: `MongoDB Performance Troubleshooting`
-- [ ] Concept: `Index Analysis` | Parent: `MongoDB Performance Troubleshooting` | Mode: `dr` | Cluster: `MongoDB Performance Troubleshooting`
-- [ ] Concept: `Explain Plan Interpretation` | Parent: `MongoDB Performance Troubleshooting` | Mode: `dr` | Cluster: `MongoDB Performance Troubleshooting`
-- [ ] Concept: `Performance Diagnostic Workflow` | Parent: `MongoDB Performance Troubleshooting` | Mode: `dr` | Cluster: `MongoDB Performance Troubleshooting`
-- [ ] Concept: `MongoDB Drivers` | Parent: `MongoDB Developer Patterns` | Mode: `dr` | Cluster: `MongoDB Developer Patterns`
-- [ ] Concept: `mongosh Reference` | Parent: `MongoDB Developer Patterns` | Mode: `dr` | Cluster: `MongoDB Developer Patterns`
-- [ ] Concept: `Atlas CLI` | Parent: `MongoDB Developer Patterns` | Mode: `dr` | Cluster: `MongoDB Developer Patterns`
-- [ ] Concept: `Error Codes and Troubleshooting` | Parent: `MongoDB Developer Patterns` | Mode: `dr` | Cluster: `MongoDB Developer Patterns`
-- [ ] Concept: `Customer Troubleshooting Playbooks` | Parent: `MongoDB Developer Patterns` | Mode: `dr` | Cluster: `MongoDB Developer Patterns`
-- [ ] Concept: `Server Selection Algorithm` | Parent: `MongoDB Driver Internals` | Mode: `dr` | Cluster: `MongoDB Driver Internals`
-- [ ] Concept: `Retryable Reads` | Parent: `MongoDB Driver Internals` | Mode: `dr` | Cluster: `MongoDB Driver Internals`
-- [ ] Concept: `Read and Write Concerns` | Parent: `MongoDB Driver Internals` | Mode: `dr` | Cluster: `MongoDB Driver Internals`
-- [ ] Concept: `Sessions` | Parent: `MongoDB Driver Internals` | Mode: `dr` | Cluster: `MongoDB Driver Internals`
-- [ ] Concept: `Multi-document Transactions` | Parent: `MongoDB Driver Internals` | Mode: `dr` | Cluster: `MongoDB Driver Internals`
-- [ ] Concept: `DNS SRV Discovery` | Parent: `MongoDB Driver Internals` | Mode: `dr` | Cluster: `MongoDB Driver Internals`
-- [ ] Concept: `TLS and OCSP` | Parent: `MongoDB Driver Internals` | Mode: `dr` | Cluster: `MongoDB Driver Internals`
-- [ ] Concept: `Spark Connector vs Alternatives` | Parent: `MongoDB Spark Connector and Databricks Integration` | Mode: `dr` | Cluster: `MongoDB Spark Connector and Databricks Integration (1 of 2)`
-- [ ] Concept: `Batch Reads and Aggregation Pushdown` | Parent: `MongoDB Spark Connector and Databricks Integration` | Mode: `dr` | Cluster: `MongoDB Spark Connector and Databricks Integration (1 of 2)`
-- [ ] Concept: `Batch Writes and Idempotency` | Parent: `MongoDB Spark Connector and Databricks Integration` | Mode: `dr` | Cluster: `MongoDB Spark Connector and Databricks Integration (1 of 2)`
-- [ ] Concept: `Connector Error Patterns` | Parent: `MongoDB Spark Connector and Databricks Integration` | Mode: `dr` | Cluster: `MongoDB Spark Connector and Databricks Integration (1 of 2)`
-- [ ] Concept: `Partitioner Strategies` | Parent: `MongoDB Spark Connector and Databricks Integration` | Mode: `dr` | Cluster: `MongoDB Spark Connector and Databricks Integration (1 of 2)`
-- [ ] Concept: `Performance Tuning Checklist` | Parent: `MongoDB Spark Connector and Databricks Integration` | Mode: `dr` | Cluster: `MongoDB Spark Connector and Databricks Integration (1 of 2)`
-- [ ] Concept: `Schema Inference and Type Promotion` | Parent: `MongoDB Spark Connector and Databricks Integration` | Mode: `dr` | Cluster: `MongoDB Spark Connector and Databricks Integration (2 of 2)`
-- [ ] Concept: `Streaming Write Semantics` | Parent: `MongoDB Spark Connector and Databricks Integration` | Mode: `dr` | Cluster: `MongoDB Spark Connector and Databricks Integration (2 of 2)`
-- [ ] Concept: `Structured Streaming with Change Streams` | Parent: `MongoDB Spark Connector and Databricks Integration` | Mode: `dr` | Cluster: `MongoDB Spark Connector and Databricks Integration (2 of 2)`
-- [ ] Concept: `Spark Connector V10 Architecture` | Parent: `MongoDB Spark Connector and Databricks Integration` | Mode: `dr` | Cluster: `MongoDB Spark Connector and Databricks Integration (2 of 2)`
-- [ ] Concept: `Databricks Workspace Integration` | Parent: `MongoDB Spark Connector and Databricks Integration` | Mode: `dr` | Cluster: `MongoDB Spark Connector and Databricks Integration (2 of 2)`
-- [ ] Concept: `Error Code Lookup` | Parent: `MongoDB KB Articles` | Mode: `dr` | Cluster: `MongoDB KB Articles`
-- [ ] Concept: `Connectivity Troubleshooting` | Parent: `MongoDB KB Articles` | Mode: `dr` | Cluster: `MongoDB KB Articles`
-- [ ] Concept: `Replica Set Support Articles` | Parent: `MongoDB KB Articles` | Mode: `dr` | Cluster: `MongoDB KB Articles`
-- [ ] Concept: `Performance KB Articles` | Parent: `MongoDB KB Articles` | Mode: `dr` | Cluster: `MongoDB KB Articles`
-- [ ] Concept: `Security KB Articles` | Parent: `MongoDB KB Articles` | Mode: `dr` | Cluster: `MongoDB KB Articles`
-- [ ] Concept: `Authentication Methods` | Parent: `MongoDB Security Architecture` | Mode: `dr` | Cluster: `MongoDB Security Architecture`
-- [ ] Concept: `Atlas RBAC` | Parent: `MongoDB Security Architecture` | Mode: `dr` | Cluster: `MongoDB Security Architecture`
-- [ ] Concept: `Network Security Layers` | Parent: `MongoDB Security Architecture` | Mode: `dr` | Cluster: `MongoDB Security Architecture`
-- [ ] Concept: `Self-Managed Security Config` | Parent: `MongoDB Security Architecture` | Mode: `dr` | Cluster: `MongoDB Security Architecture`
-- [ ] Concept: `Org and Project Governance` | Parent: `MongoDB Security Architecture` | Mode: `dr` | Cluster: `MongoDB Security Architecture`
-- [ ] Concept: `Encryption in Transit` | Parent: `MongoDB Security Architecture` | Mode: `dr` | Cluster: `MongoDB Security Architecture`
-- [ ] Concept: `Secrets Management` | Parent: `MongoDB Security Architecture` | Mode: `dr` | Cluster: `MongoDB Security Architecture`
-- [ ] Concept: `Atlas Security Posture Checklist` | Parent: `MongoDB Security Architecture` | Mode: `dr` | Cluster: `MongoDB Security Architecture`
-- [ ] Concept: `Atlas Access Control and RBAC` | Parent: `MongoDB Compliance and Regulatory` | Mode: `dr` | Cluster: `MongoDB Compliance and Regulatory (1 of 2)`
-- [ ] Concept: `Atlas Audit Logging` | Parent: `MongoDB Compliance and Regulatory` | Mode: `dr` | Cluster: `MongoDB Compliance and Regulatory (1 of 2)`
-- [ ] Concept: `Audit-Ready Architecture and Evidence Collection` | Parent: `MongoDB Compliance and Regulatory` | Mode: `dr` | Cluster: `MongoDB Compliance and Regulatory (1 of 2)`
-- [ ] Concept: `BYOK Key Management` | Parent: `MongoDB Compliance and Regulatory` | Mode: `dr` | Cluster: `MongoDB Compliance and Regulatory (1 of 2)`
-- [ ] Concept: `Atlas Compliance Certifications` | Parent: `MongoDB Compliance and Regulatory` | Mode: `dr` | Cluster: `MongoDB Compliance and Regulatory (1 of 2)`
-- [ ] Concept: `Common Audit Findings and Remediation` | Parent: `MongoDB Compliance and Regulatory` | Mode: `dr` | Cluster: `MongoDB Compliance and Regulatory (1 of 2)`
-- [ ] Concept: `Data Residency and EU Sovereignty` | Parent: `MongoDB Compliance and Regulatory` | Mode: `dr` | Cluster: `MongoDB Compliance and Regulatory (2 of 2)`
-- [ ] Concept: `Encryption Requirements (At-Rest, In-Transit, Field-Level)` | Parent: `MongoDB Compliance and Regulatory` | Mode: `dr` | Cluster: `MongoDB Compliance and Regulatory (2 of 2)`
-- [ ] Concept: `FedRAMP and AtlasGov` | Parent: `MongoDB Compliance and Regulatory` | Mode: `dr` | Cluster: `MongoDB Compliance and Regulatory (2 of 2)`
-- [ ] Concept: `Compliance Gaps and Shared Responsibility` | Parent: `MongoDB Compliance and Regulatory` | Mode: `dr` | Cluster: `MongoDB Compliance and Regulatory (2 of 2)`
-- [ ] Concept: `HIPAA BAA and ePHI Configuration` | Parent: `MongoDB Compliance and Regulatory` | Mode: `dr` | Cluster: `MongoDB Compliance and Regulatory (2 of 2)`
-- [ ] Concept: `PCI DSS Scoping and Tokenization` | Parent: `MongoDB Compliance and Regulatory` | Mode: `dr` | Cluster: `MongoDB Compliance and Regulatory (2 of 2)`
-- [ ] Concept: `Change Point Detection` | Parent: `MongoDB Performance Regression Detection and Testing Methodology` | Mode: `dr` | Cluster: `MongoDB Performance Regression Detection and Testing Methodology`
-- [ ] Concept: `Coefficient of Variation / Run-to-Run Noise Control` | Parent: `MongoDB Performance Regression Detection and Testing Methodology` | Mode: `dr` | Cluster: `MongoDB Performance Regression Detection and Testing Methodology`
-- [ ] Concept: `CI Performance Regression Gating` | Parent: `MongoDB Performance Regression Detection and Testing Methodology` | Mode: `dr` | Cluster: `MongoDB Performance Regression Detection and Testing Methodology`
-- [ ] Concept: `Canary and Shadow-Traffic Comparison` | Parent: `MongoDB Performance Regression Detection and Testing Methodology` | Mode: `dr` | Cluster: `MongoDB Performance Regression Detection and Testing Methodology`
-- [ ] Concept: `MongoDB Major-Version Upgrade Regression Detection` | Parent: `MongoDB Performance Regression Detection and Testing Methodology` | Mode: `dr` | Cluster: `MongoDB Performance Regression Detection and Testing Methodology`
-- [ ] Concept: `YCSB Workload Reference` | Parent: `MongoDB Performance Benchmarking` | Mode: `dr` | Cluster: `MongoDB Performance Benchmarking`
-- [ ] Concept: `Workload Characterization` | Parent: `MongoDB Performance Benchmarking` | Mode: `dr` | Cluster: `MongoDB Performance Benchmarking`
-- [ ] Concept: `Connection Pool Benchmarking` | Parent: `MongoDB Performance Benchmarking` | Mode: `dr` | Cluster: `MongoDB Performance Benchmarking`
-- [ ] Concept: `Index Effectiveness Measurement` | Parent: `MongoDB Performance Benchmarking` | Mode: `dr` | Cluster: `MongoDB Performance Benchmarking`
-- [ ] Concept: `Baseline Methodology` | Parent: `MongoDB Performance Benchmarking` | Mode: `dr` | Cluster: `MongoDB Performance Benchmarking`
-- [ ] Concept: `Atlas Tier Selection` | Parent: `MongoDB Performance Benchmarking` | Mode: `dr` | Cluster: `MongoDB Performance Benchmarking`
-- [ ] Concept: `Benchmarking Anti-Patterns` | Parent: `MongoDB Performance Benchmarking` | Mode: `dr` | Cluster: `MongoDB Performance Benchmarking`
-- [ ] Concept: `Benchmark Result Reporting` | Parent: `MongoDB Performance Benchmarking` | Mode: `dr` | Cluster: `MongoDB Performance Benchmarking`
-- [ ] Concept: `Cluster Tier Selection` | Parent: `MongoDB Capacity Planning` | Mode: `dr` | Cluster: `MongoDB Capacity Planning (1 of 2)`
-- [ ] Concept: `Common Sizing Mistakes` | Parent: `MongoDB Capacity Planning` | Mode: `dr` | Cluster: `MongoDB Capacity Planning (1 of 2)`
-- [ ] Concept: `Connection Capacity` | Parent: `MongoDB Capacity Planning` | Mode: `dr` | Cluster: `MongoDB Capacity Planning (1 of 2)`
-- [ ] Concept: `Growth Signals` | Parent: `MongoDB Capacity Planning` | Mode: `dr` | Cluster: `MongoDB Capacity Planning (1 of 2)`
-- [ ] Concept: `IOPS Forecasting` | Parent: `MongoDB Capacity Planning` | Mode: `dr` | Cluster: `MongoDB Capacity Planning (1 of 2)`
-- [ ] Concept: `Oplog Sizing` | Parent: `MongoDB Capacity Planning` | Mode: `dr` | Cluster: `MongoDB Capacity Planning (1 of 2)`
-- [ ] Concept: `Atlas Performance Advisor` | Parent: `MongoDB Capacity Planning` | Mode: `dr` | Cluster: `MongoDB Capacity Planning (2 of 2)`
-- [ ] Concept: `Read vs Write Distribution` | Parent: `MongoDB Capacity Planning` | Mode: `dr` | Cluster: `MongoDB Capacity Planning (2 of 2)`
-- [ ] Concept: `Sharding Triggers` | Parent: `MongoDB Capacity Planning` | Mode: `dr` | Cluster: `MongoDB Capacity Planning (2 of 2)`
-- [ ] Concept: `Storage Growth Modeling` | Parent: `MongoDB Capacity Planning` | Mode: `dr` | Cluster: `MongoDB Capacity Planning (2 of 2)`
-- [ ] Concept: `Capacity Testing` | Parent: `MongoDB Capacity Planning` | Mode: `dr` | Cluster: `MongoDB Capacity Planning (2 of 2)`
-- [ ] Concept: `Working Set Sizing` | Parent: `MongoDB Capacity Planning` | Mode: `dr` | Cluster: `MongoDB Capacity Planning (2 of 2)`
-- [ ] Concept: `Multi-Tenancy Anti-Patterns` | Parent: `MongoDB Multi-Tenancy` | Mode: `dr` | Cluster: `MongoDB Multi-Tenancy (1 of 2)`
-- [ ] Concept: `Billing and Cost Chargeback` | Parent: `MongoDB Multi-Tenancy` | Mode: `dr` | Cluster: `MongoDB Multi-Tenancy (1 of 2)`
-- [ ] Concept: `Connection Pooling Strategies` | Parent: `MongoDB Multi-Tenancy` | Mode: `dr` | Cluster: `MongoDB Multi-Tenancy (1 of 2)`
-- [ ] Concept: `Atlas Projects as Hard Isolation` | Parent: `MongoDB Multi-Tenancy` | Mode: `dr` | Cluster: `MongoDB Multi-Tenancy (1 of 2)`
-- [ ] Concept: `RBAC and Connection Security` | Parent: `MongoDB Multi-Tenancy` | Mode: `dr` | Cluster: `MongoDB Multi-Tenancy (1 of 2)`
-- [ ] Concept: `Row-Level Security Patterns` | Parent: `MongoDB Multi-Tenancy` | Mode: `dr` | Cluster: `MongoDB Multi-Tenancy (2 of 2)`
-- [ ] Concept: `Schema Design for Multi-Tenancy` | Parent: `MongoDB Multi-Tenancy` | Mode: `dr` | Cluster: `MongoDB Multi-Tenancy (2 of 2)`
-- [ ] Concept: `Shard Key Design for Multi-Tenancy` | Parent: `MongoDB Multi-Tenancy` | Mode: `dr` | Cluster: `MongoDB Multi-Tenancy (2 of 2)`
-- [ ] Concept: `Tenant Isolation Models` | Parent: `MongoDB Multi-Tenancy` | Mode: `dr` | Cluster: `MongoDB Multi-Tenancy (2 of 2)`
-- [ ] Concept: `Tenant Lifecycle Operations` | Parent: `MongoDB Multi-Tenancy` | Mode: `dr` | Cluster: `MongoDB Multi-Tenancy (2 of 2)`
-- [ ] Concept: `Standard URI Format` | Parent: `MongoDB Connection String URI` | Mode: `dr` | Cluster: `MongoDB Connection String URI`
-- [ ] Concept: `SRV DNS Seedlist Format` | Parent: `MongoDB Connection String URI` | Mode: `dr` | Cluster: `MongoDB Connection String URI`
-- [ ] Concept: `Authentication Mechanisms` | Parent: `MongoDB Connection String URI` | Mode: `dr` | Cluster: `MongoDB Connection String URI`
-- [ ] Concept: `TLS/SSL Configuration` | Parent: `MongoDB Connection String URI` | Mode: `dr` | Cluster: `MongoDB Connection String URI`
+- [ ] Concept: `Atlas Data Federation GCS` | Parent: `MongoDB Atlas on GCP` | Mode: `revisit` | Cluster: `MongoDB Atlas on GCP (2 of 5)` | Queue-state: `held-review`
+- [ ] Concept: `Atlas GCP EDP Credits` | Parent: `MongoDB Atlas on GCP` | Mode: `dr` | Cluster: `MongoDB Atlas on GCP (2 of 5)` | Queue-state: `held`
+- [ ] Concept: `Atlas Envelope Encryption GCP` | Parent: `MongoDB Atlas on GCP` | Mode: `revisit` | Cluster: `MongoDB Atlas on GCP (2 of 5)` | Queue-state: `held-review`
+- [ ] Concept: `GCP Forwarding Rule Quota` | Parent: `MongoDB Atlas on GCP` | Mode: `dr` | Cluster: `MongoDB Atlas on GCP (2 of 5)` | Queue-state: `held`
+- [ ] Concept: `GKE Atlas Kubernetes Operator` | Parent: `MongoDB Atlas on GCP` | Mode: `revisit` | Cluster: `MongoDB Atlas on GCP (2 of 5)` | Queue-state: `held-review`
+- [ ] Concept: `GKE NodeLocal DNSCache Atlas` | Parent: `MongoDB Atlas on GCP` | Mode: `revisit` | Cluster: `MongoDB Atlas on GCP (3 of 5)` | Queue-state: `held-review`
+- [ ] Concept: `GCP Global Access PSC` | Parent: `MongoDB Atlas on GCP` | Mode: `dr` | Cluster: `MongoDB Atlas on GCP (3 of 5)` | Queue-state: `held`
+- [ ] Concept: `Google Cloud KMS BYOK` | Parent: `MongoDB Atlas on GCP` | Mode: `dr` | Cluster: `MongoDB Atlas on GCP (3 of 5)` | Queue-state: `held`
+- [ ] Concept: `Google Cloud Partner of Year` | Parent: `MongoDB Atlas on GCP` | Mode: `dr` | Cluster: `MongoDB Atlas on GCP (3 of 5)` | Queue-state: `held`
+- [ ] Concept: `Google Distributed Cloud GDC` | Parent: `MongoDB Atlas on GCP` | Mode: `revisit` | Cluster: `MongoDB Atlas on GCP (3 of 5)` | Queue-state: `held-review`
+- [ ] Concept: `Google Workspace SAML Federation` | Parent: `MongoDB Atlas on GCP` | Mode: `revisit` | Cluster: `MongoDB Atlas on GCP (3 of 5)` | Queue-state: `held-review`
+- [ ] Concept: `KMS Key Rotation Atlas` | Parent: `MongoDB Atlas on GCP` | Mode: `dr` | Cluster: `MongoDB Atlas on GCP (3 of 5)` | Queue-state: `held`
+- [ ] Concept: `KMS Unavailability Failsafe` | Parent: `MongoDB Atlas on GCP` | Mode: `dr` | Cluster: `MongoDB Atlas on GCP (3 of 5)` | Queue-state: `held`
+- [ ] Concept: `Looker Atlas BI Connector` | Parent: `MongoDB Atlas on GCP` | Mode: `dr` | Cluster: `MongoDB Atlas on GCP (4 of 5)` | Queue-state: `held`
+- [ ] Concept: `PSC Legacy Migration` | Parent: `MongoDB Atlas on GCP` | Mode: `dr` | Cluster: `MongoDB Atlas on GCP (4 of 5)` | Queue-state: `held`
+- [ ] Concept: `PSC Port-Mapped Architecture` | Parent: `MongoDB Atlas on GCP` | Mode: `dr` | Cluster: `MongoDB Atlas on GCP (4 of 5)` | Queue-state: `held`
+- [ ] Concept: `PSC Terraform GCP` | Parent: `MongoDB Atlas on GCP` | Mode: `dr` | Cluster: `MongoDB Atlas on GCP (4 of 5)` | Queue-state: `held`
+- [ ] Concept: `GCP Shared VPC` | Parent: `MongoDB Atlas on GCP` | Mode: `dr` | Cluster: `MongoDB Atlas on GCP (4 of 5)` | Queue-state: `held`
+- [ ] Concept: `MongoDB for Startups GCP` | Parent: `MongoDB Atlas on GCP` | Mode: `dr` | Cluster: `MongoDB Atlas on GCP (5 of 5)` | Queue-state: `held`
+- [ ] Concept: `Atlas Stream Processing Pub/Sub` | Parent: `MongoDB Atlas on GCP` | Mode: `dr` | Cluster: `MongoDB Atlas on GCP (5 of 5)` | Queue-state: `held`
+- [ ] Concept: `Atlas Terraform GCP Provider` | Parent: `MongoDB Atlas on GCP` | Mode: `dr` | Cluster: `MongoDB Atlas on GCP (5 of 5)` | Queue-state: `held`
+- [ ] Concept: `Atlas GCP Troubleshooting` | Parent: `MongoDB Atlas on GCP` | Mode: `dr` | Cluster: `MongoDB Atlas on GCP (5 of 5)` | Queue-state: `held`
+- [ ] Concept: `Vertex AI Atlas Vector Search` | Parent: `MongoDB Atlas on GCP` | Mode: `revisit` | Cluster: `MongoDB Atlas on GCP (5 of 5)` | Queue-state: `held-review`
+- [ ] Concept: `GCP VPC Peering` | Parent: `MongoDB Atlas on GCP` | Mode: `dr` | Cluster: `MongoDB Atlas on GCP (5 of 5)` | Queue-state: `held`
+- [ ] Concept: `GCP Workload Identity Federation OIDC` | Parent: `MongoDB Atlas on GCP` | Mode: `dr` | Cluster: `MongoDB Atlas on GCP (5 of 5)` | Queue-state: `held`
+- [ ] Concept: `HNSW Index Parameters` | Parent: `MongoDB Atlas Vector Search` | Mode: `revisit` | Cluster: `MongoDB Atlas Vector Search` | Queue-state: `held-review`
+- [ ] Concept: `Vector Quantization` | Parent: `MongoDB Atlas Vector Search` | Mode: `dr` | Cluster: `MongoDB Atlas Vector Search` | Queue-state: `held`
+- [ ] Concept: `Hybrid Search` | Parent: `MongoDB Atlas Vector Search` | Mode: `dr` | Cluster: `MongoDB Atlas Vector Search` | Queue-state: `held`
+- [ ] Concept: `Voyage AI Embeddings` | Parent: `MongoDB Atlas Vector Search` | Mode: `dr` | Cluster: `MongoDB Atlas Vector Search` | Queue-state: `held`
+- [ ] Concept: `RAG Patterns` | Parent: `MongoDB Atlas Vector Search` | Mode: `revisit` | Cluster: `MongoDB Atlas Vector Search` | Queue-state: `held-review`
+- [ ] Concept: `Search Nodes` | Parent: `MongoDB Atlas Vector Search` | Mode: `dr` | Cluster: `MongoDB Atlas Vector Search` | Queue-state: `held`
+- [ ] Concept: `Embedding Pipelines` | Parent: `MongoDB Atlas Vector Search` | Mode: `dr` | Cluster: `MongoDB Atlas Vector Search` | Queue-state: `held`
+- [ ] Concept: `Multi-Vector Patterns` | Parent: `MongoDB Atlas Vector Search` | Mode: `dr` | Cluster: `MongoDB Atlas Vector Search` | Queue-state: `held`
+- [ ] Concept: `MongoDB Atlas Data Federation` | Parent: `MongoDB Atlas` | Mode: `dr` | Cluster: `MongoDB Atlas` | Queue-state: `coverage-review`
+- [ ] Concept: `MongoDB 8.0 WT Improvements (TCMalloc, ExpressPlan)` | Parent: `WiredTiger Storage Engine Internals` | Mode: `revisit` | Cluster: `WiredTiger Storage Engine Internals (1 of 3)` | Queue-state: `held-review`
+- [ ] Concept: `Application Thread Eviction` | Parent: `WiredTiger Storage Engine Internals` | Mode: `revisit` | Cluster: `WiredTiger Storage Engine Internals (1 of 3)` | Queue-state: `held-review`
+- [ ] Concept: `Block Compression (snappy/zlib/zstd)` | Parent: `WiredTiger Storage Engine Internals` | Mode: `revisit` | Cluster: `WiredTiger Storage Engine Internals (1 of 3)` | Queue-state: `held-review`
+- [ ] Concept: `Block Manager and Page Sizing` | Parent: `WiredTiger Storage Engine Internals` | Mode: `revisit` | Cluster: `WiredTiger Storage Engine Internals (1 of 3)` | Queue-state: `held-review`
+- [ ] Concept: `Cache Architecture` | Parent: `WiredTiger Storage Engine Internals` | Mode: `revisit` | Cluster: `WiredTiger Storage Engine Internals (1 of 3)` | Queue-state: `held-review`
+- [ ] Concept: `Corruption (validate, --repair, wt CLI)` | Parent: `WiredTiger Storage Engine Internals` | Mode: `revisit` | Cluster: `WiredTiger Storage Engine Internals (1 of 3)` | Queue-state: `held-review`
+- [ ] Concept: `Query Planning and Plan Cache` | Parent: `MongoDB Performance Troubleshooting` | Mode: `dr` | Cluster: `MongoDB Performance Troubleshooting` | Queue-state: `held`
+- [ ] Concept: `Index Analysis` | Parent: `MongoDB Performance Troubleshooting` | Mode: `dr` | Cluster: `MongoDB Performance Troubleshooting` | Queue-state: `held`
+- [ ] Concept: `Explain Plan Interpretation` | Parent: `MongoDB Performance Troubleshooting` | Mode: `dr` | Cluster: `MongoDB Performance Troubleshooting` | Queue-state: `held`
+- [ ] Concept: `Performance Diagnostic Workflow` | Parent: `MongoDB Performance Troubleshooting` | Mode: `dr` | Cluster: `MongoDB Performance Troubleshooting` | Queue-state: `held`
+- [ ] Concept: `MongoDB Drivers` | Parent: `MongoDB Developer Patterns` | Mode: `dr` | Cluster: `MongoDB Developer Patterns` | Queue-state: `coverage-review`
+- [ ] Concept: `mongosh Reference` | Parent: `MongoDB Developer Patterns` | Mode: `dr` | Cluster: `MongoDB Developer Patterns` | Queue-state: `coverage-review`
+- [ ] Concept: `Atlas CLI` | Parent: `MongoDB Developer Patterns` | Mode: `dr` | Cluster: `MongoDB Developer Patterns` | Queue-state: `coverage-review`
+- [ ] Concept: `Error Codes and Troubleshooting` | Parent: `MongoDB Developer Patterns` | Mode: `dr` | Cluster: `MongoDB Developer Patterns` | Queue-state: `coverage-review`
+- [ ] Concept: `Customer Troubleshooting Playbooks` | Parent: `MongoDB Developer Patterns` | Mode: `dr` | Cluster: `MongoDB Developer Patterns` | Queue-state: `held`
+- [ ] Concept: `Server Selection Algorithm` | Parent: `MongoDB Driver Internals` | Mode: `revisit` | Cluster: `MongoDB Driver Internals` | Queue-state: `held-review`
+- [ ] Concept: `Retryable Reads` | Parent: `MongoDB Driver Internals` | Mode: `dr` | Cluster: `MongoDB Driver Internals` | Queue-state: `held`
+- [ ] Concept: `Read and Write Concerns` | Parent: `MongoDB Driver Internals` | Mode: `dr` | Cluster: `MongoDB Driver Internals` | Queue-state: `held`
+- [ ] Concept: `Sessions` | Parent: `MongoDB Driver Internals` | Mode: `dr` | Cluster: `MongoDB Driver Internals` | Queue-state: `held`
+- [ ] Concept: `Multi-document Transactions` | Parent: `MongoDB Driver Internals` | Mode: `dr` | Cluster: `MongoDB Driver Internals` | Also-parent: `MongoDB Transactions` | Queue-state: `coverage-review` | Previous-records: `` - [ ] Concept: `Multi-Document Transactions` | Parent: `MongoDB Transactions` | Mode: `dr` | Cluster: `MongoDB Transactions (1 of 2)` ``
+- [ ] Concept: `DNS SRV Discovery` | Parent: `MongoDB Driver Internals` | Mode: `dr` | Cluster: `MongoDB Driver Internals` | Queue-state: `held`
+- [ ] Concept: `TLS and OCSP` | Parent: `MongoDB Driver Internals` | Mode: `dr` | Cluster: `MongoDB Driver Internals` | Queue-state: `held`
+- [ ] Concept: `Spark Connector vs Alternatives` | Parent: `MongoDB Spark Connector and Databricks Integration` | Mode: `revisit` | Cluster: `MongoDB Spark Connector and Databricks Integration (1 of 2)` | Queue-state: `held-review`
+- [ ] Concept: `Batch Reads and Aggregation Pushdown` | Parent: `MongoDB Spark Connector and Databricks Integration` | Mode: `dr` | Cluster: `MongoDB Spark Connector and Databricks Integration (1 of 2)` | Queue-state: `held`
+- [ ] Concept: `Batch Writes and Idempotency` | Parent: `MongoDB Spark Connector and Databricks Integration` | Mode: `revisit` | Cluster: `MongoDB Spark Connector and Databricks Integration (1 of 2)` | Queue-state: `held-review`
+- [ ] Concept: `Connector Error Patterns` | Parent: `MongoDB Spark Connector and Databricks Integration` | Mode: `revisit` | Cluster: `MongoDB Spark Connector and Databricks Integration (1 of 2)` | Queue-state: `held-review`
+- [ ] Concept: `Partitioner Strategies` | Parent: `MongoDB Spark Connector and Databricks Integration` | Mode: `revisit` | Cluster: `MongoDB Spark Connector and Databricks Integration (1 of 2)` | Queue-state: `held-review`
+- [ ] Concept: `Performance Tuning Checklist` | Parent: `MongoDB Spark Connector and Databricks Integration` | Mode: `revisit` | Cluster: `MongoDB Spark Connector and Databricks Integration (1 of 2)` | Queue-state: `held-review`
+- [ ] Concept: `Schema Inference and Type Promotion` | Parent: `MongoDB Spark Connector and Databricks Integration` | Mode: `dr` | Cluster: `MongoDB Spark Connector and Databricks Integration (2 of 2)` | Queue-state: `held`
+- [ ] Concept: `Streaming Write Semantics` | Parent: `MongoDB Spark Connector and Databricks Integration` | Mode: `revisit` | Cluster: `MongoDB Spark Connector and Databricks Integration (2 of 2)` | Queue-state: `held-review`
+- [ ] Concept: `Structured Streaming with Change Streams` | Parent: `MongoDB Spark Connector and Databricks Integration` | Mode: `dr` | Cluster: `MongoDB Spark Connector and Databricks Integration (2 of 2)` | Queue-state: `held`
+- [ ] Concept: `Spark Connector V10 Architecture` | Parent: `MongoDB Spark Connector and Databricks Integration` | Mode: `revisit` | Cluster: `MongoDB Spark Connector and Databricks Integration (2 of 2)` | Queue-state: `held-review`
+- [ ] Concept: `Databricks Workspace Integration` | Parent: `MongoDB Spark Connector and Databricks Integration` | Mode: `revisit` | Cluster: `MongoDB Spark Connector and Databricks Integration (2 of 2)` | Queue-state: `held-review`
+- [ ] Concept: `Error Code Lookup` | Parent: `MongoDB KB Articles` | Mode: `revisit` | Cluster: `MongoDB KB Articles` | Queue-state: `held-review`
+- [ ] Concept: `Connectivity Troubleshooting` | Parent: `MongoDB KB Articles` | Mode: `dr` | Cluster: `MongoDB KB Articles` | Queue-state: `held`
+- [ ] Concept: `Replica Set Support Articles` | Parent: `MongoDB KB Articles` | Mode: `dr` | Cluster: `MongoDB KB Articles` | Queue-state: `held`
+- [ ] Concept: `Performance KB Articles` | Parent: `MongoDB KB Articles` | Mode: `revisit` | Cluster: `MongoDB KB Articles` | Queue-state: `held-review`
+- [ ] Concept: `Security KB Articles` | Parent: `MongoDB KB Articles` | Mode: `revisit` | Cluster: `MongoDB KB Articles` | Queue-state: `held-review`
+- [ ] Concept: `Authentication Methods` | Parent: `MongoDB Security Architecture` | Mode: `dr` | Cluster: `MongoDB Security Architecture` | Queue-state: `held`
+- [ ] Concept: `Atlas RBAC` | Parent: `MongoDB Security Architecture` | Mode: `dr` | Cluster: `MongoDB Security Architecture` | Queue-state: `held`
+- [ ] Concept: `Network Security Layers` | Parent: `MongoDB Security Architecture` | Mode: `dr` | Cluster: `MongoDB Security Architecture` | Queue-state: `held`
+- [ ] Concept: `Self-Managed Security Config` | Parent: `MongoDB Security Architecture` | Mode: `dr` | Cluster: `MongoDB Security Architecture` | Queue-state: `held`
+- [ ] Concept: `Org and Project Governance` | Parent: `MongoDB Security Architecture` | Mode: `dr` | Cluster: `MongoDB Security Architecture` | Queue-state: `held`
+- [ ] Concept: `Secrets Management` | Parent: `MongoDB Security Architecture` | Mode: `dr` | Cluster: `MongoDB Security Architecture` | Queue-state: `held`
+- [ ] Concept: `Atlas Security Posture Checklist` | Parent: `MongoDB Security Architecture` | Mode: `dr` | Cluster: `MongoDB Security Architecture` | Queue-state: `held`
+- [ ] Concept: `Atlas Access Control and RBAC` | Parent: `MongoDB Compliance and Regulatory` | Mode: `revisit` | Cluster: `MongoDB Compliance and Regulatory (1 of 2)` | Queue-state: `held-review`
+- [ ] Concept: `Atlas Audit Logging` | Parent: `MongoDB Compliance and Regulatory` | Mode: `dr` | Cluster: `MongoDB Compliance and Regulatory (1 of 2)` | Queue-state: `held`
+- [ ] Concept: `Audit-Ready Architecture and Evidence Collection` | Parent: `MongoDB Compliance and Regulatory` | Mode: `dr` | Cluster: `MongoDB Compliance and Regulatory (1 of 2)` | Queue-state: `held`
+- [ ] Concept: `BYOK Key Management` | Parent: `MongoDB Compliance and Regulatory` | Mode: `dr` | Cluster: `MongoDB Compliance and Regulatory (1 of 2)` | Queue-state: `held`
+- [ ] Concept: `Atlas Compliance Certifications` | Parent: `MongoDB Compliance and Regulatory` | Mode: `revisit` | Cluster: `MongoDB Compliance and Regulatory (1 of 2)` | Queue-state: `held-review`
+- [ ] Concept: `Common Audit Findings and Remediation` | Parent: `MongoDB Compliance and Regulatory` | Mode: `dr` | Cluster: `MongoDB Compliance and Regulatory (1 of 2)` | Queue-state: `held`
+- [ ] Concept: `Data Residency and EU Sovereignty` | Parent: `MongoDB Compliance and Regulatory` | Mode: `dr` | Cluster: `MongoDB Compliance and Regulatory (2 of 2)` | Queue-state: `held`
+- [ ] Concept: `Encryption Requirements (At-Rest, In-Transit, Field-Level)` | Parent: `MongoDB Compliance and Regulatory` | Mode: `revisit` | Cluster: `MongoDB Compliance and Regulatory (2 of 2)` | Queue-state: `held-review`
+- [ ] Concept: `FedRAMP and AtlasGov` | Parent: `MongoDB Compliance and Regulatory` | Mode: `dr` | Cluster: `MongoDB Compliance and Regulatory (2 of 2)` | Queue-state: `held`
+- [ ] Concept: `Compliance Gaps and Shared Responsibility` | Parent: `MongoDB Compliance and Regulatory` | Mode: `revisit` | Cluster: `MongoDB Compliance and Regulatory (2 of 2)` | Queue-state: `held-review`
+- [ ] Concept: `HIPAA BAA and ePHI Configuration` | Parent: `MongoDB Compliance and Regulatory` | Mode: `dr` | Cluster: `MongoDB Compliance and Regulatory (2 of 2)` | Queue-state: `held`
+- [ ] Concept: `PCI DSS Scoping and Tokenization` | Parent: `MongoDB Compliance and Regulatory` | Mode: `dr` | Cluster: `MongoDB Compliance and Regulatory (2 of 2)` | Queue-state: `held`
+- [ ] Concept: `Change Point Detection` | Parent: `MongoDB Performance Regression Detection and Testing Methodology` | Mode: `revisit` | Cluster: `MongoDB Performance Regression Detection and Testing Methodology` | Queue-state: `held-review`
+- [ ] Concept: `Coefficient of Variation / Run-to-Run Noise Control` | Parent: `MongoDB Performance Regression Detection and Testing Methodology` | Mode: `revisit` | Cluster: `MongoDB Performance Regression Detection and Testing Methodology` | Queue-state: `held-review`
+- [ ] Concept: `CI Performance Regression Gating` | Parent: `MongoDB Performance Regression Detection and Testing Methodology` | Mode: `revisit` | Cluster: `MongoDB Performance Regression Detection and Testing Methodology` | Queue-state: `held-review`
+- [ ] Concept: `Canary and Shadow-Traffic Comparison` | Parent: `MongoDB Performance Regression Detection and Testing Methodology` | Mode: `revisit` | Cluster: `MongoDB Performance Regression Detection and Testing Methodology` | Queue-state: `held-review`
+- [ ] Concept: `MongoDB Major-Version Upgrade Regression Detection` | Parent: `MongoDB Performance Regression Detection and Testing Methodology` | Mode: `revisit` | Cluster: `MongoDB Performance Regression Detection and Testing Methodology` | Queue-state: `held-review`
+- [ ] Concept: `YCSB Workload Reference` | Parent: `MongoDB Performance Benchmarking` | Mode: `dr` | Cluster: `MongoDB Performance Benchmarking` | Queue-state: `held`
+- [ ] Concept: `Workload Characterization` | Parent: `MongoDB Performance Benchmarking` | Mode: `dr` | Cluster: `MongoDB Performance Benchmarking` | Queue-state: `held`
+- [ ] Concept: `Connection Pool Benchmarking` | Parent: `MongoDB Performance Benchmarking` | Mode: `dr` | Cluster: `MongoDB Performance Benchmarking` | Queue-state: `held`
+- [ ] Concept: `Index Effectiveness Measurement` | Parent: `MongoDB Performance Benchmarking` | Mode: `dr` | Cluster: `MongoDB Performance Benchmarking` | Queue-state: `held`
+- [ ] Concept: `Baseline Methodology` | Parent: `MongoDB Performance Benchmarking` | Mode: `dr` | Cluster: `MongoDB Performance Benchmarking` | Queue-state: `held`
+- [ ] Concept: `Atlas Tier Selection` | Parent: `MongoDB Performance Benchmarking` | Mode: `dr` | Cluster: `MongoDB Performance Benchmarking` | Queue-state: `held`
+- [ ] Concept: `Benchmarking Anti-Patterns` | Parent: `MongoDB Performance Benchmarking` | Mode: `dr` | Cluster: `MongoDB Performance Benchmarking` | Queue-state: `held`
+- [ ] Concept: `Benchmark Result Reporting` | Parent: `MongoDB Performance Benchmarking` | Mode: `dr` | Cluster: `MongoDB Performance Benchmarking` | Queue-state: `held`
+- [ ] Concept: `Cluster Tier Selection` | Parent: `MongoDB Capacity Planning` | Mode: `dr` | Cluster: `MongoDB Capacity Planning (1 of 2)` | Queue-state: `held`
+- [ ] Concept: `Common Sizing Mistakes` | Parent: `MongoDB Capacity Planning` | Mode: `revisit` | Cluster: `MongoDB Capacity Planning (1 of 2)` | Queue-state: `held-review`
+- [ ] Concept: `Connection Capacity` | Parent: `MongoDB Capacity Planning` | Mode: `revisit` | Cluster: `MongoDB Capacity Planning (1 of 2)` | Queue-state: `held-review`
+- [ ] Concept: `Growth Signals` | Parent: `MongoDB Capacity Planning` | Mode: `revisit` | Cluster: `MongoDB Capacity Planning (1 of 2)` | Queue-state: `held-review`
+- [ ] Concept: `IOPS Forecasting` | Parent: `MongoDB Capacity Planning` | Mode: `dr` | Cluster: `MongoDB Capacity Planning (1 of 2)` | Queue-state: `held`
+- [ ] Concept: `Oplog Sizing` | Parent: `MongoDB Capacity Planning` | Mode: `revisit` | Cluster: `MongoDB Capacity Planning (1 of 2)` | Queue-state: `held-review`
+- [ ] Concept: `Atlas Performance Advisor` | Parent: `MongoDB Capacity Planning` | Mode: `dr` | Cluster: `MongoDB Capacity Planning (2 of 2)` | Queue-state: `held`
+- [ ] Concept: `Read vs Write Distribution` | Parent: `MongoDB Capacity Planning` | Mode: `revisit` | Cluster: `MongoDB Capacity Planning (2 of 2)` | Queue-state: `held-review`
+- [ ] Concept: `Sharding Triggers` | Parent: `MongoDB Capacity Planning` | Mode: `revisit` | Cluster: `MongoDB Capacity Planning (2 of 2)` | Queue-state: `held-review`
+- [ ] Concept: `Storage Growth Modeling` | Parent: `MongoDB Capacity Planning` | Mode: `dr` | Cluster: `MongoDB Capacity Planning (2 of 2)` | Queue-state: `held`
+- [ ] Concept: `Capacity Testing` | Parent: `MongoDB Capacity Planning` | Mode: `revisit` | Cluster: `MongoDB Capacity Planning (2 of 2)` | Queue-state: `held-review`
+- [ ] Concept: `Working Set Sizing` | Parent: `MongoDB Capacity Planning` | Mode: `revisit` | Cluster: `MongoDB Capacity Planning (2 of 2)` | Queue-state: `held-review`
+- [ ] Concept: `Multi-Tenancy Anti-Patterns` | Parent: `MongoDB Multi-Tenancy` | Mode: `dr` | Cluster: `MongoDB Multi-Tenancy (1 of 2)` | Queue-state: `held`
+- [ ] Concept: `Billing and Cost Chargeback` | Parent: `MongoDB Multi-Tenancy` | Mode: `dr` | Cluster: `MongoDB Multi-Tenancy (1 of 2)` | Queue-state: `held`
+- [ ] Concept: `Connection Pooling Strategies` | Parent: `MongoDB Multi-Tenancy` | Mode: `dr` | Cluster: `MongoDB Multi-Tenancy (1 of 2)` | Queue-state: `held`
+- [ ] Concept: `Atlas Projects as Hard Isolation` | Parent: `MongoDB Multi-Tenancy` | Mode: `dr` | Cluster: `MongoDB Multi-Tenancy (1 of 2)` | Queue-state: `held`
+- [ ] Concept: `RBAC and Connection Security` | Parent: `MongoDB Multi-Tenancy` | Mode: `dr` | Cluster: `MongoDB Multi-Tenancy (1 of 2)` | Queue-state: `held`
+- [ ] Concept: `Row-Level Security Patterns` | Parent: `MongoDB Multi-Tenancy` | Mode: `dr` | Cluster: `MongoDB Multi-Tenancy (2 of 2)` | Queue-state: `held`
+- [ ] Concept: `Schema Design for Multi-Tenancy` | Parent: `MongoDB Multi-Tenancy` | Mode: `dr` | Cluster: `MongoDB Multi-Tenancy (2 of 2)` | Queue-state: `held`
+- [ ] Concept: `Shard Key Design for Multi-Tenancy` | Parent: `MongoDB Multi-Tenancy` | Mode: `revisit` | Cluster: `MongoDB Multi-Tenancy (2 of 2)` | Queue-state: `held-review`
+- [ ] Concept: `Tenant Isolation Models` | Parent: `MongoDB Multi-Tenancy` | Mode: `dr` | Cluster: `MongoDB Multi-Tenancy (2 of 2)` | Queue-state: `held`
+- [ ] Concept: `Tenant Lifecycle Operations` | Parent: `MongoDB Multi-Tenancy` | Mode: `dr` | Cluster: `MongoDB Multi-Tenancy (2 of 2)` | Queue-state: `held`
+- [ ] Concept: `Standard URI Format` | Parent: `MongoDB Connection String URI` | Mode: `revisit` | Cluster: `MongoDB Connection String URI` | Queue-state: `held-review`
+- [ ] Concept: `SRV DNS Seedlist Format` | Parent: `MongoDB Connection String URI` | Mode: `dr` | Cluster: `MongoDB Connection String URI` | Queue-state: `held`
+- [ ] Concept: `Authentication Mechanisms` | Parent: `MongoDB Connection String URI` | Mode: `dr` | Cluster: `MongoDB Connection String URI` | Queue-state: `held`
+- [ ] Concept: `TLS/SSL Configuration` | Parent: `MongoDB Connection String URI` | Mode: `dr` | Cluster: `MongoDB Connection String URI` | Queue-state: `held`
 - [x] Concept: `Connection Pool Tuning` | Parent: `MongoDB Connection String URI` | Mode: `dr` | Cluster: `MongoDB Connection String URI`
-- [ ] Concept: `Read Preference` | Parent: `MongoDB Connection String URI` | Mode: `dr` | Cluster: `MongoDB Connection String URI`
-- [ ] Concept: `Wire Protocol Compression` | Parent: `MongoDB Connection String URI` | Mode: `dr` | Cluster: `MongoDB Connection String URI`
-- [ ] Concept: `CSOT Client-Side Operations Timeout` | Parent: `MongoDB Connection String URI` | Mode: `dr` | Cluster: `MongoDB Connection String URI`
-- [ ] Concept: `Distributed Sharded Transactions` | Parent: `MongoDB Transactions` | Mode: `dr` | Cluster: `MongoDB Transactions (1 of 2)`
-- [ ] Concept: `Driver Examples` | Parent: `MongoDB Transactions` | Mode: `dr` | Cluster: `MongoDB Transactions (1 of 2)`
-- [ ] Concept: `Multi-Document Transactions` | Parent: `MongoDB Transactions` | Mode: `dr` | Cluster: `MongoDB Transactions (1 of 2)`
-- [ ] Concept: `Performance Impact` | Parent: `MongoDB Transactions` | Mode: `dr` | Cluster: `MongoDB Transactions (1 of 2)`
-- [ ] Concept: `Read Concern` | Parent: `MongoDB Transactions` | Mode: `dr` | Cluster: `MongoDB Transactions (1 of 2)`
-- [ ] Concept: `Replica Set Transactions` | Parent: `MongoDB Transactions` | Mode: `dr` | Cluster: `MongoDB Transactions (2 of 2)`
-- [ ] Concept: `Retryable Transactions` | Parent: `MongoDB Transactions` | Mode: `dr` | Cluster: `MongoDB Transactions (2 of 2)`
-- [ ] Concept: `Transaction Anti-Patterns` | Parent: `MongoDB Transactions` | Mode: `dr` | Cluster: `MongoDB Transactions (2 of 2)`
-- [ ] Concept: `Transaction Limits` | Parent: `MongoDB Transactions` | Mode: `dr` | Cluster: `MongoDB Transactions (2 of 2)`
-- [ ] Concept: `Write Concern` | Parent: `MongoDB Transactions` | Mode: `dr` | Cluster: `MongoDB Transactions (2 of 2)`
-- [ ] Concept: `Arbiter handling and PSA topology` | Parent: `MongoDB Upgrade Paths` | Mode: `dr` | Cluster: `MongoDB Upgrade Paths (1 of 4)`
-- [ ] Concept: `Binary downgrade window` | Parent: `MongoDB Upgrade Paths` | Mode: `dr` | Cluster: `MongoDB Upgrade Paths (1 of 4)`
-- [ ] Concept: `Change-stream resumability` | Parent: `MongoDB Upgrade Paths` | Mode: `dr` | Cluster: `MongoDB Upgrade Paths (1 of 4)`
-- [ ] Concept: `Cold-cache latency regression` | Parent: `MongoDB Upgrade Paths` | Mode: `dr` | Cluster: `MongoDB Upgrade Paths (1 of 4)`
-- [ ] Concept: `Common upgrade failures` | Parent: `MongoDB Upgrade Paths` | Mode: `dr` | Cluster: `MongoDB Upgrade Paths (1 of 4)`
-- [ ] Concept: `Config server / shards / mongos upgrade sequence` | Parent: `MongoDB Upgrade Paths` | Mode: `dr` | Cluster: `MongoDB Upgrade Paths (1 of 4)`
-- [ ] Concept: `Config shard caveat (8.0+)` | Parent: `MongoDB Upgrade Paths` | Mode: `dr` | Cluster: `MongoDB Upgrade Paths (1 of 4)`
-- [ ] Concept: `Disk pre-warming SOP (Cookie 7.0→8.0 lesson)` | Parent: `MongoDB Upgrade Paths` | Mode: `dr` | Cluster: `MongoDB Upgrade Paths (1 of 4)`
+- [ ] Concept: `Read Preference` | Parent: `MongoDB Connection String URI` | Mode: `revisit` | Cluster: `MongoDB Connection String URI` | Queue-state: `held-review`
+- [ ] Concept: `Wire Protocol Compression` | Parent: `MongoDB Connection String URI` | Mode: `dr` | Cluster: `MongoDB Connection String URI` | Queue-state: `held`
+- [ ] Concept: `CSOT Client-Side Operations Timeout` | Parent: `MongoDB Connection String URI` | Mode: `revisit` | Cluster: `MongoDB Connection String URI` | Queue-state: `held-review`
+- [ ] Concept: `Distributed Sharded Transactions` | Parent: `MongoDB Transactions` | Mode: `dr` | Cluster: `MongoDB Transactions (1 of 2)` | Queue-state: `coverage-review`
+- [ ] Concept: `Driver Examples` | Parent: `MongoDB Transactions` | Mode: `dr` | Cluster: `MongoDB Transactions (1 of 2)` | Queue-state: `coverage-review`
+- [ ] Concept: `Performance Impact` | Parent: `MongoDB Transactions` | Mode: `dr` | Cluster: `MongoDB Transactions (1 of 2)` | Queue-state: `coverage-review`
+- [ ] Concept: `Read Concern` | Parent: `MongoDB Transactions` | Mode: `revisit` | Cluster: `MongoDB Transactions (1 of 2)` | Queue-state: `held-review`
+- [ ] Concept: `Replica Set Transactions` | Parent: `MongoDB Transactions` | Mode: `dr` | Cluster: `MongoDB Transactions (2 of 2)` | Queue-state: `coverage-review`
+- [ ] Concept: `Retryable Transactions` | Parent: `MongoDB Transactions` | Mode: `dr` | Cluster: `MongoDB Transactions (2 of 2)` | Queue-state: `coverage-review`
+- [ ] Concept: `Transaction Anti-Patterns` | Parent: `MongoDB Transactions` | Mode: `dr` | Cluster: `MongoDB Transactions (2 of 2)` | Queue-state: `coverage-review`
+- [ ] Concept: `Transaction Limits` | Parent: `MongoDB Transactions` | Mode: `dr` | Cluster: `MongoDB Transactions (2 of 2)` | Queue-state: `coverage-review`
+- [ ] Concept: `Write Concern` | Parent: `MongoDB Transactions` | Mode: `revisit` | Cluster: `MongoDB Transactions (2 of 2)` | Queue-state: `held-review`
+- [ ] Concept: `Arbiter handling and PSA topology` | Parent: `MongoDB Upgrade Paths` | Mode: `dr` | Cluster: `MongoDB Upgrade Paths (1 of 4)` | Queue-state: `held`
+- [ ] Concept: `Binary downgrade window` | Parent: `MongoDB Upgrade Paths` | Mode: `dr` | Cluster: `MongoDB Upgrade Paths (1 of 4)` | Queue-state: `held`
+- [ ] Concept: `Change-stream resumability` | Parent: `MongoDB Upgrade Paths` | Mode: `dr` | Cluster: `MongoDB Upgrade Paths (1 of 4)` | Queue-state: `held`
+- [ ] Concept: `Cold-cache latency regression` | Parent: `MongoDB Upgrade Paths` | Mode: `dr` | Cluster: `MongoDB Upgrade Paths (1 of 4)` | Queue-state: `held`
+- [ ] Concept: `Common upgrade failures` | Parent: `MongoDB Upgrade Paths` | Mode: `revisit` | Cluster: `MongoDB Upgrade Paths (1 of 4)` | Queue-state: `held-review`
+- [ ] Concept: `Config server / shards / mongos upgrade sequence` | Parent: `MongoDB Upgrade Paths` | Mode: `dr` | Cluster: `MongoDB Upgrade Paths (1 of 4)` | Queue-state: `held`
+- [ ] Concept: `Config shard caveat (8.0+)` | Parent: `MongoDB Upgrade Paths` | Mode: `dr` | Cluster: `MongoDB Upgrade Paths (1 of 4)` | Queue-state: `held`
+- [ ] Concept: `Disk pre-warming SOP (Cookie 7.0→8.0 lesson)` | Parent: `MongoDB Upgrade Paths` | Mode: `dr` | Cluster: `MongoDB Upgrade Paths (1 of 4)` | Queue-state: `held`
 - [x] Concept: `Driver compatibility matrix (Java/Node/Python/.NET/Go)` | Parent: `MongoDB Upgrade Paths` | Mode: `dr` | Cluster: `MongoDB Upgrade Paths (2 of 4)`
-- [ ] Concept: `Driver mismatch failure mode` | Parent: `MongoDB Upgrade Paths` | Mode: `dr` | Cluster: `MongoDB Upgrade Paths (2 of 4)`
-- [ ] Concept: `Error Envelope and customer sign-off` | Parent: `MongoDB Upgrade Paths` | Mode: `dr` | Cluster: `MongoDB Upgrade Paths (2 of 4)`
-- [ ] Concept: `Upgrade event coverage (pre/during/post)` | Parent: `MongoDB Upgrade Paths` | Mode: `dr` | Cluster: `MongoDB Upgrade Paths (2 of 4)`
-- [ ] Concept: `FCV pinning and downgrade preservation window` | Parent: `MongoDB Upgrade Paths` | Mode: `dr` | Cluster: `MongoDB Upgrade Paths (2 of 4)`
-- [ ] Concept: `FCV unpinned too early` | Parent: `MongoDB Upgrade Paths` | Mode: `dr` | Cluster: `MongoDB Upgrade Paths (2 of 4)`
-- [ ] Concept: `In-flight index builds` | Parent: `MongoDB Upgrade Paths` | Mode: `dr` | Cluster: `MongoDB Upgrade Paths (2 of 4)`
-- [ ] Concept: `Index build commit quorum (8.0 nuance)` | Parent: `MongoDB Upgrade Paths` | Mode: `dr` | Cluster: `MongoDB Upgrade Paths (2 of 4)`
-- [ ] Concept: `Index build conflicts` | Parent: `MongoDB Upgrade Paths` | Mode: `dr` | Cluster: `MongoDB Upgrade Paths (3 of 4)`
-- [ ] Concept: `Java driver 4.10 and 5.x retry semantics` | Parent: `MongoDB Upgrade Paths` | Mode: `dr` | Cluster: `MongoDB Upgrade Paths (3 of 4)`
-- [ ] Concept: `mongos version skew failure` | Parent: `MongoDB Upgrade Paths` | Mode: `dr` | Cluster: `MongoDB Upgrade Paths (3 of 4)`
-- [ ] Concept: `mongos version skew rules` | Parent: `MongoDB Upgrade Paths` | Mode: `dr` | Cluster: `MongoDB Upgrade Paths (3 of 4)`
-- [ ] Concept: `Oplog window overflow` | Parent: `MongoDB Upgrade Paths` | Mode: `dr` | Cluster: `MongoDB Upgrade Paths (3 of 4)`
-- [ ] Concept: `Oplog window sizing` | Parent: `MongoDB Upgrade Paths` | Mode: `dr` | Cluster: `MongoDB Upgrade Paths (3 of 4)`
-- [ ] Concept: `Point of No Return` | Parent: `MongoDB Upgrade Paths` | Mode: `dr` | Cluster: `MongoDB Upgrade Paths (3 of 4)`
-- [ ] Concept: `Pre-upgrade safety checks` | Parent: `MongoDB Upgrade Paths` | Mode: `dr` | Cluster: `MongoDB Upgrade Paths (3 of 4)`
-- [ ] Concept: `PSA topology stepdown failure` | Parent: `MongoDB Upgrade Paths` | Mode: `dr` | Cluster: `MongoDB Upgrade Paths (4 of 4)`
-- [ ] Concept: `Upgrade rollback playbook` | Parent: `MongoDB Upgrade Paths` | Mode: `dr` | Cluster: `MongoDB Upgrade Paths (4 of 4)`
-- [ ] Concept: `Rolling replica-set upgrade` | Parent: `MongoDB Upgrade Paths` | Mode: `dr` | Cluster: `MongoDB Upgrade Paths (4 of 4)`
-- [ ] Concept: `Straight-to-8 jump pattern` | Parent: `MongoDB Upgrade Paths` | Mode: `dr` | Cluster: `MongoDB Upgrade Paths (4 of 4)`
-- [ ] Concept: `Version upgrade paths (4.4 → 5.0 → 6.0 → 7.0 → 8.0)` | Parent: `MongoDB Upgrade Paths` | Mode: `dr` | Cluster: `MongoDB Upgrade Paths (4 of 4)`
-- [ ] Concept: `WiredTiger cache warm-up` | Parent: `MongoDB Upgrade Paths` | Mode: `dr` | Cluster: `MongoDB Upgrade Paths (4 of 4)`
-- [ ] Concept: `allowDiskUse-100MB-stage` | Parent: `mongodb-aggregation-stages-deep` | Mode: `dr` | Cluster: `mongodb-aggregation-stages-deep`
-- [ ] Concept: `explain-executionStats-usedDisk` | Parent: `mongodb-aggregation-stages-deep` | Mode: `dr` | Cluster: `mongodb-aggregation-stages-deep`
-- [ ] Concept: `Pipeline Stages Reference` | Parent: `MongoDB Aggregation Pipeline` | Mode: `dr` | Cluster: `MongoDB Aggregation Pipeline`
-- [ ] Concept: `Pipeline Optimization` | Parent: `MongoDB Aggregation Pipeline` | Mode: `dr` | Cluster: `MongoDB Aggregation Pipeline`
-- [ ] Concept: `Window Functions ($setWindowFields)` | Parent: `MongoDB Aggregation Pipeline` | Mode: `dr` | Cluster: `MongoDB Aggregation Pipeline`
-- [ ] Concept: `Time Series Aggregation` | Parent: `MongoDB Aggregation Pipeline` | Mode: `dr` | Cluster: `MongoDB Aggregation Pipeline`
-- [ ] Concept: `Memory Limits and allowDiskUse` | Parent: `MongoDB Aggregation Pipeline` | Mode: `dr` | Cluster: `MongoDB Aggregation Pipeline`
-- [ ] Concept: `Driver Examples (Node.js, Python, Java)` | Parent: `MongoDB Aggregation Pipeline` | Mode: `dr` | Cluster: `MongoDB Aggregation Pipeline`
-- [ ] Concept: `MongoDB 8.0 Block Processing` | Parent: `mongodb-time-series` | Mode: `dr` | Cluster: `mongodb-time-series (1 of 2)`
-- [ ] Concept: `Bucket Architecture and Columnar Compression` | Parent: `mongodb-time-series` | Mode: `dr` | Cluster: `mongodb-time-series (1 of 2)`
-- [ ] Concept: `Atlas Charts Integration` | Parent: `mongodb-time-series` | Mode: `dr` | Cluster: `mongodb-time-series (1 of 2)`
-- [ ] Concept: `Time Series Collection Creation (timeField, metaField, granularity)` | Parent: `mongodb-time-series` | Mode: `dr` | Cluster: `mongodb-time-series (1 of 2)`
-- [ ] Concept: `Granularity Anti-Patterns` | Parent: `mongodb-time-series` | Mode: `dr` | Cluster: `mongodb-time-series (1 of 2)`
-- [ ] Concept: `metaField Cardinality Anti-Patterns` | Parent: `mongodb-time-series` | Mode: `dr` | Cluster: `mongodb-time-series (1 of 2)`
-- [ ] Concept: `Migration from Regular Collections` | Parent: `mongodb-time-series` | Mode: `dr` | Cluster: `mongodb-time-series (2 of 2)`
-- [ ] Concept: `Secondary Indexes on Time Series` | Parent: `mongodb-time-series` | Mode: `dr` | Cluster: `mongodb-time-series (2 of 2)`
-- [ ] Concept: `Time Series Sharding Patterns` | Parent: `mongodb-time-series` | Mode: `dr` | Cluster: `mongodb-time-series (2 of 2)`
-- [ ] Concept: `Atlas Triggers Workarounds (no change streams)` | Parent: `mongodb-time-series` | Mode: `dr` | Cluster: `mongodb-time-series (2 of 2)`
-- [ ] Concept: `TTL and Automatic Bucket Deletion` | Parent: `mongodb-time-series` | Mode: `dr` | Cluster: `mongodb-time-series (2 of 2)`
-- [ ] Concept: `Working Set Sizing for Time Series` | Parent: `mongodb-time-series` | Mode: `dr` | Cluster: `mongodb-time-series (2 of 2)`
-- [ ] Concept: `Cluster-to-Cluster Sync Phases` | Parent: `MongoDB Migration Patterns` | Mode: `dr` | Cluster: `MongoDB Migration Patterns (1 of 2)`
-- [ ] Concept: `Common Migration Failures` | Parent: `MongoDB Migration Patterns` | Mode: `dr` | Cluster: `MongoDB Migration Patterns (1 of 2)`
-- [ ] Concept: `Cutover Strategies` | Parent: `MongoDB Migration Patterns` | Mode: `dr` | Cluster: `MongoDB Migration Patterns (1 of 2)`
-- [ ] Concept: `Atlas Live Migration` | Parent: `MongoDB Migration Patterns` | Mode: `dr` | Cluster: `MongoDB Migration Patterns (1 of 2)`
-- [ ] Concept: `mongomirror Deprecation` | Parent: `MongoDB Migration Patterns` | Mode: `dr` | Cluster: `MongoDB Migration Patterns (1 of 2)`
-- [ ] Concept: `MongoSync GA Tool` | Parent: `MongoDB Migration Patterns` | Mode: `dr` | Cluster: `MongoDB Migration Patterns (2 of 2)`
-- [ ] Concept: `Relational Migrator` | Parent: `MongoDB Migration Patterns` | Mode: `dr` | Cluster: `MongoDB Migration Patterns (2 of 2)`
-- [ ] Concept: `Schema Transformation` | Parent: `MongoDB Migration Patterns` | Mode: `dr` | Cluster: `MongoDB Migration Patterns (2 of 2)`
-- [ ] Concept: `Sharded Cluster Migrations` | Parent: `MongoDB Migration Patterns` | Mode: `dr` | Cluster: `MongoDB Migration Patterns (2 of 2)`
-- [ ] Concept: `Migration Validation Patterns` | Parent: `MongoDB Migration Patterns` | Mode: `dr` | Cluster: `MongoDB Migration Patterns (2 of 2)`
-- [ ] Concept: `Compound Indexes and ESR Rule` | Parent: `MongoDB Indexes Deep Dive` | Mode: `dr` | Cluster: `MongoDB Indexes Deep Dive (1 of 2)`
-- [ ] Concept: `Hashed Indexes` | Parent: `MongoDB Indexes Deep Dive` | Mode: `dr` | Cluster: `MongoDB Indexes Deep Dive (1 of 2)`
-- [ ] Concept: `Hidden Indexes` | Parent: `MongoDB Indexes Deep Dive` | Mode: `dr` | Cluster: `MongoDB Indexes Deep Dive (1 of 2)`
-- [ ] Concept: `hint() and Index Forcing` | Parent: `MongoDB Indexes Deep Dive` | Mode: `dr` | Cluster: `MongoDB Indexes Deep Dive (1 of 2)`
-- [ ] Concept: `Index Anti-Patterns` | Parent: `MongoDB Indexes Deep Dive` | Mode: `dr` | Cluster: `MongoDB Indexes Deep Dive (1 of 2)`
-- [ ] Concept: `Index Build Strategies` | Parent: `MongoDB Indexes Deep Dive` | Mode: `dr` | Cluster: `MongoDB Indexes Deep Dive (1 of 2)`
-- [ ] Concept: `Index Intersection` | Parent: `MongoDB Indexes Deep Dive` | Mode: `dr` | Cluster: `MongoDB Indexes Deep Dive (1 of 2)`
-- [ ] Concept: `Index Selectivity and Covering Queries` | Parent: `MongoDB Indexes Deep Dive` | Mode: `dr` | Cluster: `MongoDB Indexes Deep Dive (1 of 2)`
-- [ ] Concept: `Multikey Indexes` | Parent: `MongoDB Indexes Deep Dive` | Mode: `dr` | Cluster: `MongoDB Indexes Deep Dive (2 of 2)`
-- [ ] Concept: `Partial Indexes` | Parent: `MongoDB Indexes Deep Dive` | Mode: `dr` | Cluster: `MongoDB Indexes Deep Dive (2 of 2)`
-- [ ] Concept: `Single-Field Indexes` | Parent: `MongoDB Indexes Deep Dive` | Mode: `dr` | Cluster: `MongoDB Indexes Deep Dive (2 of 2)`
-- [ ] Concept: `Sparse Indexes` | Parent: `MongoDB Indexes Deep Dive` | Mode: `dr` | Cluster: `MongoDB Indexes Deep Dive (2 of 2)`
-- [ ] Concept: `Text Indexes` | Parent: `MongoDB Indexes Deep Dive` | Mode: `dr` | Cluster: `MongoDB Indexes Deep Dive (2 of 2)`
-- [ ] Concept: `TTL Indexes` | Parent: `MongoDB Indexes Deep Dive` | Mode: `dr` | Cluster: `MongoDB Indexes Deep Dive (2 of 2)`
-- [ ] Concept: `Unique Indexes` | Parent: `MongoDB Indexes Deep Dive` | Mode: `dr` | Cluster: `MongoDB Indexes Deep Dive (2 of 2)`
-- [ ] Concept: `Wildcard Indexes` | Parent: `MongoDB Indexes Deep Dive` | Mode: `dr` | Cluster: `MongoDB Indexes Deep Dive (2 of 2)`
-- [ ] Concept: `GeoJSON Object Types` | Parent: `MongoDB Geospatial` | Mode: `dr` | Cluster: `MongoDB Geospatial`
-- [ ] Concept: `Radius Unit Conversions` | Parent: `MongoDB Geospatial` | Mode: `dr` | Cluster: `MongoDB Geospatial`
-- [ ] Concept: `Geospatial $lookup Patterns` | Parent: `MongoDB Geospatial` | Mode: `dr` | Cluster: `MongoDB Geospatial`
-- [ ] Concept: `Geospatial Anti-Patterns` | Parent: `MongoDB Geospatial` | Mode: `dr` | Cluster: `MongoDB Geospatial`
-- [ ] Concept: `Compass Aggregation Pipeline Builder` | Parent: `MongoDB Compass` | Mode: `dr` | Cluster: `MongoDB Compass (1 of 2)`
-- [ ] Concept: `Compass Anti-Patterns` | Parent: `MongoDB Compass` | Mode: `dr` | Cluster: `MongoDB Compass (1 of 2)`
-- [ ] Concept: `Compass Connection Management` | Parent: `MongoDB Compass` | Mode: `dr` | Cluster: `MongoDB Compass (1 of 2)`
-- [ ] Concept: `Compass CRUD and Documents Tab` | Parent: `MongoDB Compass` | Mode: `dr` | Cluster: `MongoDB Compass (1 of 2)`
-- [ ] Concept: `Compass Data Import Export` | Parent: `MongoDB Compass` | Mode: `dr` | Cluster: `MongoDB Compass (1 of 2)`
-- [ ] Concept: `Compass Data Modeling ER Diagrams` | Parent: `MongoDB Compass` | Mode: `dr` | Cluster: `MongoDB Compass (1 of 2)`
-- [ ] Concept: `Compass Editions` | Parent: `MongoDB Compass` | Mode: `dr` | Cluster: `MongoDB Compass (1 of 2)`
-- [ ] Concept: `Compass Explain Plan Visualizer` | Parent: `MongoDB Compass` | Mode: `dr` | Cluster: `MongoDB Compass (2 of 2)`
-- [ ] Concept: `Compass Index Management` | Parent: `MongoDB Compass` | Mode: `dr` | Cluster: `MongoDB Compass (2 of 2)`
-- [ ] Concept: `Compass Natural Language Query` | Parent: `MongoDB Compass` | Mode: `dr` | Cluster: `MongoDB Compass (2 of 2)`
-- [ ] Concept: `Compass Performance Insights` | Parent: `MongoDB Compass` | Mode: `dr` | Cluster: `MongoDB Compass (2 of 2)`
-- [ ] Concept: `Compass Plugins and Extensibility` | Parent: `MongoDB Compass` | Mode: `dr` | Cluster: `MongoDB Compass (2 of 2)`
-- [ ] Concept: `Compass Real-Time Performance Monitoring` | Parent: `MongoDB Compass` | Mode: `dr` | Cluster: `MongoDB Compass (2 of 2)`
-- [ ] Concept: `Compass Schema Analysis` | Parent: `MongoDB Compass` | Mode: `dr` | Cluster: `MongoDB Compass (2 of 2)`
-- [ ] Concept: `Associate Atlas Administrator` | Parent: `MongoDB University & Certification` | Mode: `dr` | Cluster: `MongoDB University & Certification (1 of 2)`
-- [ ] Concept: `Associate Data Modeler` | Parent: `MongoDB University & Certification` | Mode: `dr` | Cluster: `MongoDB University & Certification (1 of 2)`
-- [ ] Concept: `Associate DBA Certification` | Parent: `MongoDB University & Certification` | Mode: `dr` | Cluster: `MongoDB University & Certification (1 of 2)`
-- [ ] Concept: `Associate Developer Certification` | Parent: `MongoDB University & Certification` | Mode: `dr` | Cluster: `MongoDB University & Certification (1 of 2)`
-- [ ] Concept: `Credly Digital Badges` | Parent: `MongoDB University & Certification` | Mode: `dr` | Cluster: `MongoDB University & Certification (1 of 2)`
-- [ ] Concept: `Instructor-Led Training` | Parent: `MongoDB University & Certification` | Mode: `dr` | Cluster: `MongoDB University & Certification (2 of 2)`
-- [ ] Concept: `Learning Paths by Role` | Parent: `MongoDB University & Certification` | Mode: `dr` | Cluster: `MongoDB University & Certification (2 of 2)`
-- [ ] Concept: `MongoDB University Platform` | Parent: `MongoDB University & Certification` | Mode: `dr` | Cluster: `MongoDB University & Certification (2 of 2)`
-- [ ] Concept: `Skill Badges (free micro-credentials)` | Parent: `MongoDB University & Certification` | Mode: `dr` | Cluster: `MongoDB University & Certification (2 of 2)`
-- [ ] Concept: `TAM Positioning Playbook` | Parent: `MongoDB University & Certification` | Mode: `dr` | Cluster: `MongoDB University & Certification (2 of 2)`
-- [ ] Concept: `express execution path` | Parent: `MongoDB 8.0 performance changes & read-path regressions vs 7.0` | Mode: `dr` | Cluster: `MongoDB 8.0 performance changes & read-path regressions vs 7.0`
-- [ ] Concept: `SBE vs classic engine defaults` | Parent: `MongoDB 8.0 performance changes & read-path regressions vs 7.0` | Mode: `dr` | Cluster: `MongoDB 8.0 performance changes & read-path regressions vs 7.0`
-- [ ] Concept: `TCMalloc per-CPU caches` | Parent: `MongoDB 8.0 performance changes & read-path regressions vs 7.0` | Mode: `dr` | Cluster: `MongoDB 8.0 performance changes & read-path regressions vs 7.0`
-- [ ] Concept: `majority-ack write concern change` | Parent: `MongoDB 8.0 performance changes & read-path regressions vs 7.0` | Mode: `dr` | Cluster: `MongoDB 8.0 performance changes & read-path regressions vs 7.0`
-- [ ] Concept: `minor-version compatibility rule` | Parent: `MongoDB Java driver 5.x version timeline & 8.0 compatibility` | Mode: `dr` | Cluster: `MongoDB Java driver 5.x version timeline & 8.0 compatibility`
-- [ ] Concept: `Atlas Metrics and Dashboards` | Parent: `MongoDB Monitoring and Observability` | Mode: `dr` | Cluster: `MongoDB Monitoring and Observability`
-- [ ] Concept: `Atlas Alerts` | Parent: `MongoDB Monitoring and Observability` | Mode: `dr` | Cluster: `MongoDB Monitoring and Observability`
-- [ ] Concept: `Datadog Integration` | Parent: `MongoDB Monitoring and Observability` | Mode: `dr` | Cluster: `MongoDB Monitoring and Observability`
-- [ ] Concept: `Prometheus Integration` | Parent: `MongoDB Monitoring and Observability` | Mode: `dr` | Cluster: `MongoDB Monitoring and Observability`
-- [ ] Concept: `New Relic Integration` | Parent: `MongoDB Monitoring and Observability` | Mode: `dr` | Cluster: `MongoDB Monitoring and Observability`
-- [ ] Concept: `Slow Query Monitoring` | Parent: `MongoDB Monitoring and Observability` | Mode: `dr` | Cluster: `MongoDB Monitoring and Observability`
-- [ ] Concept: `Replication Lag Monitoring` | Parent: `MongoDB Monitoring and Observability` | Mode: `dr` | Cluster: `MongoDB Monitoring and Observability`
-- [ ] Concept: `Connection Metrics` | Parent: `MongoDB Monitoring and Observability` | Mode: `dr` | Cluster: `MongoDB Monitoring and Observability`
-- [ ] Concept: `Sustained overload / soak testing (memory leaks, connection pool exhaustion, WiredTiger cache thrashing, ticket starvation, oplog window shrinkage)` | Parent: `MongoDB Stress, Soak, and Chaos-Resilience Testing` | Mode: `dr` | Cluster: `MongoDB Stress, Soak, and Chaos-Resilience Testing`
-- [ ] Concept: `Breaking-point / overload testing methodology (first bottleneck vs visible symptom, cascading failure, thundering herd, cache-eviction death spiral)` | Parent: `MongoDB Stress, Soak, and Chaos-Resilience Testing` | Mode: `dr` | Cluster: `MongoDB Stress, Soak, and Chaos-Resilience Testing`
-- [ ] Concept: `Chaos-style resilience testing under load (kill primary during peak writes, network partition, disk-full/IO-stall injection)` | Parent: `MongoDB Stress, Soak, and Chaos-Resilience Testing` | Mode: `dr` | Cluster: `MongoDB Stress, Soak, and Chaos-Resilience Testing`
-- [ ] Concept: `Safe execution against non-production Atlas (cluster isolation, guardrails, cost/cleanup discipline)` | Parent: `MongoDB Stress, Soak, and Chaos-Resilience Testing` | Mode: `dr` | Cluster: `MongoDB Stress, Soak, and Chaos-Resilience Testing`
-- [ ] Concept: `Ops Manager Admin API` | Parent: `MongoDB Ops Manager and Cloud Manager` | Mode: `dr` | Cluster: `MongoDB Ops Manager and Cloud Manager (1 of 5)`
-- [ ] Concept: `MongoDB Agent (Automation, Monitoring, Backup)` | Parent: `MongoDB Ops Manager and Cloud Manager` | Mode: `dr` | Cluster: `MongoDB Ops Manager and Cloud Manager (1 of 5)`
-- [ ] Concept: `Ops Manager Application` | Parent: `MongoDB Ops Manager and Cloud Manager` | Mode: `dr` | Cluster: `MongoDB Ops Manager and Cloud Manager (1 of 5)`
-- [ ] Concept: `Application Database (App DB)` | Parent: `MongoDB Ops Manager and Cloud Manager` | Mode: `dr` | Cluster: `MongoDB Ops Manager and Cloud Manager (1 of 5)`
-- [ ] Concept: `Ops Manager Architecture` | Parent: `MongoDB Ops Manager and Cloud Manager` | Mode: `dr` | Cluster: `MongoDB Ops Manager and Cloud Manager (1 of 5)`
-- [ ] Concept: `Automation Agent` | Parent: `MongoDB Ops Manager and Cloud Manager` | Mode: `dr` | Cluster: `MongoDB Ops Manager and Cloud Manager (1 of 5)`
-- [ ] Concept: `Backup Daemon` | Parent: `MongoDB Ops Manager and Cloud Manager` | Mode: `dr` | Cluster: `MongoDB Ops Manager and Cloud Manager (1 of 5)`
-- [ ] Concept: `Backup Daemon HA and Failure Domains` | Parent: `MongoDB Ops Manager and Cloud Manager` | Mode: `dr` | Cluster: `MongoDB Ops Manager and Cloud Manager (2 of 5)`
-- [ ] Concept: `Backup Daemon and Head DB` | Parent: `MongoDB Ops Manager and Cloud Manager` | Mode: `dr` | Cluster: `MongoDB Ops Manager and Cloud Manager (2 of 5)`
-- [ ] Concept: `Blockstore Snapshot Storage` | Parent: `MongoDB Ops Manager and Cloud Manager` | Mode: `dr` | Cluster: `MongoDB Ops Manager and Cloud Manager (2 of 5)`
-- [ ] Concept: `Blockstore and Snapshot Stores` | Parent: `MongoDB Ops Manager and Cloud Manager` | Mode: `dr` | Cluster: `MongoDB Ops Manager and Cloud Manager (2 of 5)`
-- [ ] Concept: `Common Failure Modes` | Parent: `MongoDB Ops Manager and Cloud Manager` | Mode: `dr` | Cluster: `MongoDB Ops Manager and Cloud Manager (2 of 5)`
-- [ ] Concept: `Continuous Backup with PITR` | Parent: `MongoDB Ops Manager and Cloud Manager` | Mode: `dr` | Cluster: `MongoDB Ops Manager and Cloud Manager (2 of 5)`
-- [ ] Concept: `Cross-DC App DB Placement` | Parent: `MongoDB Ops Manager and Cloud Manager` | Mode: `dr` | Cluster: `MongoDB Ops Manager and Cloud Manager (2 of 5)`
-- [ ] Concept: `Enterprise Advanced Licensing` | Parent: `MongoDB Ops Manager and Cloud Manager` | Mode: `dr` | Cluster: `MongoDB Ops Manager and Cloud Manager (3 of 5)`
-- [ ] Concept: `Filesystem Snapshot Storage` | Parent: `MongoDB Ops Manager and Cloud Manager` | Mode: `dr` | Cluster: `MongoDB Ops Manager and Cloud Manager (3 of 5)`
-- [ ] Concept: `Cloud Manager Free/Standard/Premium Tiers` | Parent: `MongoDB Ops Manager and Cloud Manager` | Mode: `dr` | Cluster: `MongoDB Ops Manager and Cloud Manager (3 of 5)`
-- [ ] Concept: `Goal-State Automation Configuration` | Parent: `MongoDB Ops Manager and Cloud Manager` | Mode: `dr` | Cluster: `MongoDB Ops Manager and Cloud Manager (3 of 5)`
-- [ ] Concept: `Ops Manager High Availability` | Parent: `MongoDB Ops Manager and Cloud Manager` | Mode: `dr` | Cluster: `MongoDB Ops Manager and Cloud Manager (3 of 5)`
-- [ ] Concept: `Kubernetes Operator Deployment` | Parent: `MongoDB Ops Manager and Cloud Manager` | Mode: `dr` | Cluster: `MongoDB Ops Manager and Cloud Manager (3 of 5)`
-- [ ] Concept: `LDAP and Federation` | Parent: `MongoDB Ops Manager and Cloud Manager` | Mode: `dr` | Cluster: `MongoDB Ops Manager and Cloud Manager (3 of 5)`
-- [ ] Concept: `Ops Manager LDAP/Kerberos/SAML/OIDC Federation` | Parent: `MongoDB Ops Manager and Cloud Manager` | Mode: `dr` | Cluster: `MongoDB Ops Manager and Cloud Manager (4 of 5)`
-- [ ] Concept: `Live Migration to Atlas` | Parent: `MongoDB Ops Manager and Cloud Manager` | Mode: `dr` | Cluster: `MongoDB Ops Manager and Cloud Manager (4 of 5)`
-- [ ] Concept: `Live Migration to Atlas via mongosync` | Parent: `MongoDB Ops Manager and Cloud Manager` | Mode: `dr` | Cluster: `MongoDB Ops Manager and Cloud Manager (4 of 5)`
-- [ ] Concept: `Local Mode and Air-Gap Deployments` | Parent: `MongoDB Ops Manager and Cloud Manager` | Mode: `dr` | Cluster: `MongoDB Ops Manager and Cloud Manager (4 of 5)`
-- [ ] Concept: `Migration Host Provisioning` | Parent: `MongoDB Ops Manager and Cloud Manager` | Mode: `dr` | Cluster: `MongoDB Ops Manager and Cloud Manager (4 of 5)`
-- [ ] Concept: `Monitoring Agent` | Parent: `MongoDB Ops Manager and Cloud Manager` | Mode: `dr` | Cluster: `MongoDB Ops Manager and Cloud Manager (4 of 5)`
-- [ ] Concept: `Multi-Org Scale Patterns` | Parent: `MongoDB Ops Manager and Cloud Manager` | Mode: `dr` | Cluster: `MongoDB Ops Manager and Cloud Manager (4 of 5)`
-- [ ] Concept: `OpenTelemetry MongoDB Receiver` | Parent: `MongoDB Ops Manager and Cloud Manager` | Mode: `dr` | Cluster: `MongoDB Ops Manager and Cloud Manager (5 of 5)`
-- [ ] Concept: `PagerDuty/Datadog/Splunk Integration` | Parent: `MongoDB Ops Manager and Cloud Manager` | Mode: `dr` | Cluster: `MongoDB Ops Manager and Cloud Manager (5 of 5)`
-- [ ] Concept: `S3-Compatible Snapshot Storage with Object Lock` | Parent: `MongoDB Ops Manager and Cloud Manager` | Mode: `dr` | Cluster: `MongoDB Ops Manager and Cloud Manager (5 of 5)`
-- [ ] Concept: `Source Oplog Window Sizing for Migration` | Parent: `MongoDB Ops Manager and Cloud Manager` | Mode: `dr` | Cluster: `MongoDB Ops Manager and Cloud Manager (5 of 5)`
-- [ ] Concept: `Upgrade Procedures` | Parent: `MongoDB Ops Manager and Cloud Manager` | Mode: `dr` | Cluster: `MongoDB Ops Manager and Cloud Manager (5 of 5)`
-- [ ] Concept: `Version Manifest Mirroring` | Parent: `MongoDB Ops Manager and Cloud Manager` | Mode: `dr` | Cluster: `MongoDB Ops Manager and Cloud Manager (5 of 5)`
-- [ ] Concept: `Workforce and Workload Identity Federation` | Parent: `MongoDB Ops Manager and Cloud Manager` | Mode: `dr` | Cluster: `MongoDB Ops Manager and Cloud Manager (5 of 5)`
+- [ ] Concept: `Driver mismatch failure mode` | Parent: `MongoDB Upgrade Paths` | Mode: `dr` | Cluster: `MongoDB Upgrade Paths (2 of 4)` | Queue-state: `held`
+- [ ] Concept: `Error Envelope and customer sign-off` | Parent: `MongoDB Upgrade Paths` | Mode: `dr` | Cluster: `MongoDB Upgrade Paths (2 of 4)` | Queue-state: `held`
+- [ ] Concept: `Upgrade event coverage (pre/during/post)` | Parent: `MongoDB Upgrade Paths` | Mode: `revisit` | Cluster: `MongoDB Upgrade Paths (2 of 4)` | Queue-state: `held-review`
+- [ ] Concept: `FCV pinning and downgrade preservation window` | Parent: `MongoDB Upgrade Paths` | Mode: `dr` | Cluster: `MongoDB Upgrade Paths (2 of 4)` | Queue-state: `held`
+- [ ] Concept: `FCV unpinned too early` | Parent: `MongoDB Upgrade Paths` | Mode: `dr` | Cluster: `MongoDB Upgrade Paths (2 of 4)` | Queue-state: `held`
+- [ ] Concept: `In-flight index builds` | Parent: `MongoDB Upgrade Paths` | Mode: `dr` | Cluster: `MongoDB Upgrade Paths (2 of 4)` | Queue-state: `held`
+- [ ] Concept: `Index build commit quorum (8.0 nuance)` | Parent: `MongoDB Upgrade Paths` | Mode: `dr` | Cluster: `MongoDB Upgrade Paths (2 of 4)` | Queue-state: `held`
+- [ ] Concept: `Index build conflicts` | Parent: `MongoDB Upgrade Paths` | Mode: `dr` | Cluster: `MongoDB Upgrade Paths (3 of 4)` | Queue-state: `held`
+- [ ] Concept: `Java driver 4.10 and 5.x retry semantics` | Parent: `MongoDB Upgrade Paths` | Mode: `dr` | Cluster: `MongoDB Upgrade Paths (3 of 4)` | Queue-state: `held`
+- [ ] Concept: `mongos version skew failure` | Parent: `MongoDB Upgrade Paths` | Mode: `dr` | Cluster: `MongoDB Upgrade Paths (3 of 4)` | Queue-state: `held`
+- [ ] Concept: `mongos version skew rules` | Parent: `MongoDB Upgrade Paths` | Mode: `dr` | Cluster: `MongoDB Upgrade Paths (3 of 4)` | Queue-state: `held`
+- [ ] Concept: `Oplog window overflow` | Parent: `MongoDB Upgrade Paths` | Mode: `dr` | Cluster: `MongoDB Upgrade Paths (3 of 4)` | Queue-state: `held`
+- [ ] Concept: `Oplog window sizing` | Parent: `MongoDB Upgrade Paths` | Mode: `dr` | Cluster: `MongoDB Upgrade Paths (3 of 4)` | Queue-state: `held`
+- [ ] Concept: `Point of No Return` | Parent: `MongoDB Upgrade Paths` | Mode: `revisit` | Cluster: `MongoDB Upgrade Paths (3 of 4)` | Queue-state: `held-review`
+- [ ] Concept: `Pre-upgrade safety checks` | Parent: `MongoDB Upgrade Paths` | Mode: `dr` | Cluster: `MongoDB Upgrade Paths (3 of 4)` | Queue-state: `held`
+- [ ] Concept: `PSA topology stepdown failure` | Parent: `MongoDB Upgrade Paths` | Mode: `dr` | Cluster: `MongoDB Upgrade Paths (4 of 4)` | Queue-state: `held`
+- [ ] Concept: `Upgrade rollback playbook` | Parent: `MongoDB Upgrade Paths` | Mode: `revisit` | Cluster: `MongoDB Upgrade Paths (4 of 4)` | Queue-state: `held-review`
+- [ ] Concept: `Rolling replica-set upgrade` | Parent: `MongoDB Upgrade Paths` | Mode: `dr` | Cluster: `MongoDB Upgrade Paths (4 of 4)` | Queue-state: `held`
+- [ ] Concept: `Straight-to-8 jump pattern` | Parent: `MongoDB Upgrade Paths` | Mode: `revisit` | Cluster: `MongoDB Upgrade Paths (4 of 4)` | Queue-state: `held-review`
+- [ ] Concept: `Version upgrade paths (4.4 → 5.0 → 6.0 → 7.0 → 8.0)` | Parent: `MongoDB Upgrade Paths` | Mode: `dr` | Cluster: `MongoDB Upgrade Paths (4 of 4)` | Queue-state: `held`
+- [ ] Concept: `WiredTiger cache warm-up` | Parent: `MongoDB Upgrade Paths` | Mode: `dr` | Cluster: `MongoDB Upgrade Paths (4 of 4)` | Queue-state: `held`
+- [ ] Concept: `allowDiskUse-100MB-stage` | Parent: `mongodb-aggregation-stages-deep` | Mode: `dr` | Cluster: `mongodb-aggregation-stages-deep` | Queue-state: `held`
+- [ ] Concept: `explain-executionStats-usedDisk` | Parent: `mongodb-aggregation-stages-deep` | Mode: `dr` | Cluster: `mongodb-aggregation-stages-deep` | Queue-state: `held`
+- [ ] Concept: `Pipeline Stages Reference` | Parent: `MongoDB Aggregation Pipeline` | Mode: `revisit` | Cluster: `MongoDB Aggregation Pipeline` | Queue-state: `held-review`
+- [ ] Concept: `Pipeline Optimization` | Parent: `MongoDB Aggregation Pipeline` | Mode: `revisit` | Cluster: `MongoDB Aggregation Pipeline` | Queue-state: `held-review`
+- [ ] Concept: `Window Functions ($setWindowFields)` | Parent: `MongoDB Aggregation Pipeline` | Mode: `revisit` | Cluster: `MongoDB Aggregation Pipeline` | Queue-state: `held-review`
+- [ ] Concept: `Time Series Aggregation` | Parent: `MongoDB Aggregation Pipeline` | Mode: `revisit` | Cluster: `MongoDB Aggregation Pipeline` | Queue-state: `held-review`
+- [ ] Concept: `Memory Limits and allowDiskUse` | Parent: `MongoDB Aggregation Pipeline` | Mode: `revisit` | Cluster: `MongoDB Aggregation Pipeline` | Queue-state: `held-review`
+- [ ] Concept: `Driver Examples (Node.js, Python, Java)` | Parent: `MongoDB Aggregation Pipeline` | Mode: `revisit` | Cluster: `MongoDB Aggregation Pipeline` | Queue-state: `held-review`
+- [ ] Concept: `MongoDB 8.0 Block Processing` | Parent: `mongodb-time-series` | Mode: `dr` | Cluster: `mongodb-time-series (1 of 2)` | Queue-state: `held`
+- [ ] Concept: `Bucket Architecture and Columnar Compression` | Parent: `mongodb-time-series` | Mode: `dr` | Cluster: `mongodb-time-series (1 of 2)` | Queue-state: `held`
+- [ ] Concept: `Atlas Charts Integration` | Parent: `mongodb-time-series` | Mode: `dr` | Cluster: `mongodb-time-series (1 of 2)` | Queue-state: `held`
+- [ ] Concept: `Time Series Collection Creation (timeField, metaField, granularity)` | Parent: `mongodb-time-series` | Mode: `dr` | Cluster: `mongodb-time-series (1 of 2)` | Queue-state: `held`
+- [ ] Concept: `Granularity Anti-Patterns` | Parent: `mongodb-time-series` | Mode: `dr` | Cluster: `mongodb-time-series (1 of 2)` | Queue-state: `held`
+- [ ] Concept: `metaField Cardinality Anti-Patterns` | Parent: `mongodb-time-series` | Mode: `dr` | Cluster: `mongodb-time-series (1 of 2)` | Queue-state: `held`
+- [ ] Concept: `Migration from Regular Collections` | Parent: `mongodb-time-series` | Mode: `dr` | Cluster: `mongodb-time-series (2 of 2)` | Queue-state: `held`
+- [ ] Concept: `Secondary Indexes on Time Series` | Parent: `mongodb-time-series` | Mode: `dr` | Cluster: `mongodb-time-series (2 of 2)` | Queue-state: `held`
+- [ ] Concept: `Time Series Sharding Patterns` | Parent: `mongodb-time-series` | Mode: `dr` | Cluster: `mongodb-time-series (2 of 2)` | Queue-state: `held`
+- [ ] Concept: `Atlas Triggers Workarounds (no change streams)` | Parent: `mongodb-time-series` | Mode: `dr` | Cluster: `mongodb-time-series (2 of 2)` | Queue-state: `held`
+- [ ] Concept: `TTL and Automatic Bucket Deletion` | Parent: `mongodb-time-series` | Mode: `dr` | Cluster: `mongodb-time-series (2 of 2)` | Queue-state: `held`
+- [ ] Concept: `Working Set Sizing for Time Series` | Parent: `mongodb-time-series` | Mode: `dr` | Cluster: `mongodb-time-series (2 of 2)` | Queue-state: `held`
+- [ ] Concept: `Cluster-to-Cluster Sync Phases` | Parent: `MongoDB Migration Patterns` | Mode: `dr` | Cluster: `MongoDB Migration Patterns (1 of 2)` | Queue-state: `held`
+- [ ] Concept: `Common Migration Failures` | Parent: `MongoDB Migration Patterns` | Mode: `revisit` | Cluster: `MongoDB Migration Patterns (1 of 2)` | Queue-state: `held-review`
+- [ ] Concept: `Cutover Strategies` | Parent: `MongoDB Migration Patterns` | Mode: `revisit` | Cluster: `MongoDB Migration Patterns (1 of 2)` | Queue-state: `held-review`
+- [ ] Concept: `Atlas Live Migration` | Parent: `MongoDB Migration Patterns` | Mode: `revisit` | Cluster: `MongoDB Migration Patterns (1 of 2)` | Queue-state: `held-review`
+- [ ] Concept: `mongomirror Deprecation` | Parent: `MongoDB Migration Patterns` | Mode: `dr` | Cluster: `MongoDB Migration Patterns (1 of 2)` | Queue-state: `held`
+- [ ] Concept: `MongoSync GA Tool` | Parent: `MongoDB Migration Patterns` | Mode: `dr` | Cluster: `MongoDB Migration Patterns (2 of 2)` | Queue-state: `held`
+- [ ] Concept: `Relational Migrator` | Parent: `MongoDB Migration Patterns` | Mode: `revisit` | Cluster: `MongoDB Migration Patterns (2 of 2)` | Queue-state: `held-review`
+- [ ] Concept: `Schema Transformation` | Parent: `MongoDB Migration Patterns` | Mode: `dr` | Cluster: `MongoDB Migration Patterns (2 of 2)` | Queue-state: `held`
+- [ ] Concept: `Sharded Cluster Migrations` | Parent: `MongoDB Migration Patterns` | Mode: `dr` | Cluster: `MongoDB Migration Patterns (2 of 2)` | Queue-state: `held`
+- [ ] Concept: `Migration Validation Patterns` | Parent: `MongoDB Migration Patterns` | Mode: `dr` | Cluster: `MongoDB Migration Patterns (2 of 2)` | Queue-state: `held`
+- [ ] Concept: `Compound Indexes and ESR Rule` | Parent: `MongoDB Indexes Deep Dive` | Mode: `dr` | Cluster: `MongoDB Indexes Deep Dive (1 of 2)` | Queue-state: `held`
+- [ ] Concept: `Hashed Indexes` | Parent: `MongoDB Indexes Deep Dive` | Mode: `dr` | Cluster: `MongoDB Indexes Deep Dive (1 of 2)` | Queue-state: `held`
+- [ ] Concept: `Hidden Indexes` | Parent: `MongoDB Indexes Deep Dive` | Mode: `dr` | Cluster: `MongoDB Indexes Deep Dive (1 of 2)` | Queue-state: `held`
+- [ ] Concept: `hint() and Index Forcing` | Parent: `MongoDB Indexes Deep Dive` | Mode: `dr` | Cluster: `MongoDB Indexes Deep Dive (1 of 2)` | Queue-state: `held`
+- [ ] Concept: `Index Anti-Patterns` | Parent: `MongoDB Indexes Deep Dive` | Mode: `dr` | Cluster: `MongoDB Indexes Deep Dive (1 of 2)` | Queue-state: `held`
+- [ ] Concept: `Index Build Strategies` | Parent: `MongoDB Indexes Deep Dive` | Mode: `dr` | Cluster: `MongoDB Indexes Deep Dive (1 of 2)` | Queue-state: `held`
+- [ ] Concept: `Index Intersection` | Parent: `MongoDB Indexes Deep Dive` | Mode: `dr` | Cluster: `MongoDB Indexes Deep Dive (1 of 2)` | Queue-state: `held`
+- [ ] Concept: `Index Selectivity and Covering Queries` | Parent: `MongoDB Indexes Deep Dive` | Mode: `dr` | Cluster: `MongoDB Indexes Deep Dive (1 of 2)` | Queue-state: `held`
+- [ ] Concept: `Multikey Indexes` | Parent: `MongoDB Indexes Deep Dive` | Mode: `dr` | Cluster: `MongoDB Indexes Deep Dive (2 of 2)` | Queue-state: `held`
+- [ ] Concept: `Partial Indexes` | Parent: `MongoDB Indexes Deep Dive` | Mode: `dr` | Cluster: `MongoDB Indexes Deep Dive (2 of 2)` | Queue-state: `held`
+- [ ] Concept: `Single-Field Indexes` | Parent: `MongoDB Indexes Deep Dive` | Mode: `dr` | Cluster: `MongoDB Indexes Deep Dive (2 of 2)` | Queue-state: `held`
+- [ ] Concept: `Sparse Indexes` | Parent: `MongoDB Indexes Deep Dive` | Mode: `dr` | Cluster: `MongoDB Indexes Deep Dive (2 of 2)` | Queue-state: `held`
+- [ ] Concept: `Text Indexes` | Parent: `MongoDB Indexes Deep Dive` | Mode: `dr` | Cluster: `MongoDB Indexes Deep Dive (2 of 2)` | Queue-state: `held`
+- [ ] Concept: `TTL Indexes` | Parent: `MongoDB Indexes Deep Dive` | Mode: `revisit` | Cluster: `MongoDB Indexes Deep Dive (2 of 2)` | Queue-state: `held-review`
+- [ ] Concept: `Unique Indexes` | Parent: `MongoDB Indexes Deep Dive` | Mode: `revisit` | Cluster: `MongoDB Indexes Deep Dive (2 of 2)` | Queue-state: `held-review`
+- [ ] Concept: `Wildcard Indexes` | Parent: `MongoDB Indexes Deep Dive` | Mode: `dr` | Cluster: `MongoDB Indexes Deep Dive (2 of 2)` | Queue-state: `held`
+- [ ] Concept: `GeoJSON Object Types` | Parent: `MongoDB Geospatial` | Mode: `dr` | Cluster: `MongoDB Geospatial` | Queue-state: `held`
+- [ ] Concept: `Radius Unit Conversions` | Parent: `MongoDB Geospatial` | Mode: `dr` | Cluster: `MongoDB Geospatial` | Queue-state: `held`
+- [ ] Concept: `Geospatial $lookup Patterns` | Parent: `MongoDB Geospatial` | Mode: `dr` | Cluster: `MongoDB Geospatial` | Queue-state: `held`
+- [ ] Concept: `Geospatial Anti-Patterns` | Parent: `MongoDB Geospatial` | Mode: `dr` | Cluster: `MongoDB Geospatial` | Queue-state: `held`
+- [ ] Concept: `Compass Aggregation Pipeline Builder` | Parent: `MongoDB Compass` | Mode: `dr` | Cluster: `MongoDB Compass (1 of 2)` | Queue-state: `held`
+- [ ] Concept: `Compass Anti-Patterns` | Parent: `MongoDB Compass` | Mode: `revisit` | Cluster: `MongoDB Compass (1 of 2)` | Queue-state: `held-review`
+- [ ] Concept: `Compass Connection Management` | Parent: `MongoDB Compass` | Mode: `dr` | Cluster: `MongoDB Compass (1 of 2)` | Queue-state: `held`
+- [ ] Concept: `Compass CRUD and Documents Tab` | Parent: `MongoDB Compass` | Mode: `revisit` | Cluster: `MongoDB Compass (1 of 2)` | Queue-state: `held-review`
+- [ ] Concept: `Compass Data Import Export` | Parent: `MongoDB Compass` | Mode: `dr` | Cluster: `MongoDB Compass (1 of 2)` | Queue-state: `held`
+- [ ] Concept: `Compass Data Modeling ER Diagrams` | Parent: `MongoDB Compass` | Mode: `revisit` | Cluster: `MongoDB Compass (1 of 2)` | Queue-state: `held-review`
+- [ ] Concept: `Compass Editions` | Parent: `MongoDB Compass` | Mode: `dr` | Cluster: `MongoDB Compass (1 of 2)` | Queue-state: `held`
+- [ ] Concept: `Compass Explain Plan Visualizer` | Parent: `MongoDB Compass` | Mode: `dr` | Cluster: `MongoDB Compass (2 of 2)` | Queue-state: `held`
+- [ ] Concept: `Compass Index Management` | Parent: `MongoDB Compass` | Mode: `revisit` | Cluster: `MongoDB Compass (2 of 2)` | Queue-state: `held-review`
+- [ ] Concept: `Compass Natural Language Query` | Parent: `MongoDB Compass` | Mode: `dr` | Cluster: `MongoDB Compass (2 of 2)` | Queue-state: `held`
+- [ ] Concept: `Compass Performance Insights` | Parent: `MongoDB Compass` | Mode: `revisit` | Cluster: `MongoDB Compass (2 of 2)` | Queue-state: `held-review`
+- [ ] Concept: `Compass Plugins and Extensibility` | Parent: `MongoDB Compass` | Mode: `dr` | Cluster: `MongoDB Compass (2 of 2)` | Queue-state: `held`
+- [ ] Concept: `Compass Real-Time Performance Monitoring` | Parent: `MongoDB Compass` | Mode: `dr` | Cluster: `MongoDB Compass (2 of 2)` | Queue-state: `held`
+- [ ] Concept: `Compass Schema Analysis` | Parent: `MongoDB Compass` | Mode: `dr` | Cluster: `MongoDB Compass (2 of 2)` | Queue-state: `held`
+- [ ] Concept: `Associate Atlas Administrator` | Parent: `MongoDB University & Certification` | Mode: `dr` | Cluster: `MongoDB University & Certification (1 of 2)` | Queue-state: `held`
+- [ ] Concept: `Associate Data Modeler` | Parent: `MongoDB University & Certification` | Mode: `dr` | Cluster: `MongoDB University & Certification (1 of 2)` | Queue-state: `held`
+- [ ] Concept: `Associate DBA Certification` | Parent: `MongoDB University & Certification` | Mode: `dr` | Cluster: `MongoDB University & Certification (1 of 2)` | Queue-state: `held`
+- [ ] Concept: `Associate Developer Certification` | Parent: `MongoDB University & Certification` | Mode: `dr` | Cluster: `MongoDB University & Certification (1 of 2)` | Queue-state: `held`
+- [ ] Concept: `Credly Digital Badges` | Parent: `MongoDB University & Certification` | Mode: `dr` | Cluster: `MongoDB University & Certification (1 of 2)` | Queue-state: `held`
+- [ ] Concept: `Instructor-Led Training` | Parent: `MongoDB University & Certification` | Mode: `dr` | Cluster: `MongoDB University & Certification (2 of 2)` | Queue-state: `held`
+- [ ] Concept: `Learning Paths by Role` | Parent: `MongoDB University & Certification` | Mode: `dr` | Cluster: `MongoDB University & Certification (2 of 2)` | Queue-state: `held`
+- [ ] Concept: `MongoDB University Platform` | Parent: `MongoDB University & Certification` | Mode: `dr` | Cluster: `MongoDB University & Certification (2 of 2)` | Queue-state: `held`
+- [ ] Concept: `Skill Badges (free micro-credentials)` | Parent: `MongoDB University & Certification` | Mode: `dr` | Cluster: `MongoDB University & Certification (2 of 2)` | Queue-state: `held`
+- [ ] Concept: `TAM Positioning Playbook` | Parent: `MongoDB University & Certification` | Mode: `dr` | Cluster: `MongoDB University & Certification (2 of 2)` | Queue-state: `held`
+- [ ] Concept: `express execution path` | Parent: `MongoDB 8.0 performance changes & read-path regressions vs 7.0` | Mode: `revisit` | Cluster: `MongoDB 8.0 performance changes & read-path regressions vs 7.0` | Queue-state: `held-review`
+- [ ] Concept: `SBE vs classic engine defaults` | Parent: `MongoDB 8.0 performance changes & read-path regressions vs 7.0` | Mode: `revisit` | Cluster: `MongoDB 8.0 performance changes & read-path regressions vs 7.0` | Queue-state: `held-review`
+- [ ] Concept: `TCMalloc per-CPU caches` | Parent: `MongoDB 8.0 performance changes & read-path regressions vs 7.0` | Mode: `revisit` | Cluster: `MongoDB 8.0 performance changes & read-path regressions vs 7.0` | Queue-state: `held-review`
+- [ ] Concept: `majority-ack write concern change` | Parent: `MongoDB 8.0 performance changes & read-path regressions vs 7.0` | Mode: `revisit` | Cluster: `MongoDB 8.0 performance changes & read-path regressions vs 7.0` | Queue-state: `held-review`
+- [ ] Concept: `minor-version compatibility rule` | Parent: `MongoDB Java driver 5.x version timeline & 8.0 compatibility` | Mode: `dr` | Cluster: `MongoDB Java driver 5.x version timeline & 8.0 compatibility` | Queue-state: `held`
+- [ ] Concept: `Atlas Metrics and Dashboards` | Parent: `MongoDB Monitoring and Observability` | Mode: `dr` | Cluster: `MongoDB Monitoring and Observability` | Queue-state: `held`
+- [ ] Concept: `Atlas Alerts` | Parent: `MongoDB Monitoring and Observability` | Mode: `dr` | Cluster: `MongoDB Monitoring and Observability` | Queue-state: `held`
+- [ ] Concept: `Datadog Integration` | Parent: `MongoDB Monitoring and Observability` | Mode: `revisit` | Cluster: `MongoDB Monitoring and Observability` | Queue-state: `held-review`
+- [ ] Concept: `Prometheus Integration` | Parent: `MongoDB Monitoring and Observability` | Mode: `dr` | Cluster: `MongoDB Monitoring and Observability` | Queue-state: `held`
+- [ ] Concept: `New Relic Integration` | Parent: `MongoDB Monitoring and Observability` | Mode: `revisit` | Cluster: `MongoDB Monitoring and Observability` | Queue-state: `held-review`
+- [ ] Concept: `Slow Query Monitoring` | Parent: `MongoDB Monitoring and Observability` | Mode: `dr` | Cluster: `MongoDB Monitoring and Observability` | Queue-state: `held`
+- [ ] Concept: `Replication Lag Monitoring` | Parent: `MongoDB Monitoring and Observability` | Mode: `revisit` | Cluster: `MongoDB Monitoring and Observability` | Queue-state: `held-review`
+- [ ] Concept: `Connection Metrics` | Parent: `MongoDB Monitoring and Observability` | Mode: `dr` | Cluster: `MongoDB Monitoring and Observability` | Queue-state: `held`
+- [ ] Concept: `Sustained overload / soak testing (memory leaks, connection pool exhaustion, WiredTiger cache thrashing, ticket starvation, oplog window shrinkage)` | Parent: `MongoDB Stress, Soak, and Chaos-Resilience Testing` | Mode: `revisit` | Cluster: `MongoDB Stress, Soak, and Chaos-Resilience Testing` | Queue-state: `held-review`
+- [ ] Concept: `Breaking-point / overload testing methodology (first bottleneck vs visible symptom, cascading failure, thundering herd, cache-eviction death spiral)` | Parent: `MongoDB Stress, Soak, and Chaos-Resilience Testing` | Mode: `revisit` | Cluster: `MongoDB Stress, Soak, and Chaos-Resilience Testing` | Queue-state: `held-review`
+- [ ] Concept: `Chaos-style resilience testing under load (kill primary during peak writes, network partition, disk-full/IO-stall injection)` | Parent: `MongoDB Stress, Soak, and Chaos-Resilience Testing` | Mode: `dr` | Cluster: `MongoDB Stress, Soak, and Chaos-Resilience Testing` | Queue-state: `held`
+- [ ] Concept: `Safe execution against non-production Atlas (cluster isolation, guardrails, cost/cleanup discipline)` | Parent: `MongoDB Stress, Soak, and Chaos-Resilience Testing` | Mode: `dr` | Cluster: `MongoDB Stress, Soak, and Chaos-Resilience Testing` | Queue-state: `held`
+- [ ] Concept: `Ops Manager Admin API` | Parent: `MongoDB Ops Manager and Cloud Manager` | Mode: `dr` | Cluster: `MongoDB Ops Manager and Cloud Manager (1 of 5)` | Queue-state: `held`
+- [ ] Concept: `MongoDB Agent (Automation, Monitoring, Backup)` | Parent: `MongoDB Ops Manager and Cloud Manager` | Mode: `dr` | Cluster: `MongoDB Ops Manager and Cloud Manager (1 of 5)` | Queue-state: `held`
+- [ ] Concept: `Ops Manager Application` | Parent: `MongoDB Ops Manager and Cloud Manager` | Mode: `revisit` | Cluster: `MongoDB Ops Manager and Cloud Manager (1 of 5)` | Queue-state: `held-review`
+- [ ] Concept: `Application Database (App DB)` | Parent: `MongoDB Ops Manager and Cloud Manager` | Mode: `dr` | Cluster: `MongoDB Ops Manager and Cloud Manager (1 of 5)` | Queue-state: `held`
+- [ ] Concept: `Ops Manager Architecture` | Parent: `MongoDB Ops Manager and Cloud Manager` | Mode: `revisit` | Cluster: `MongoDB Ops Manager and Cloud Manager (1 of 5)` | Queue-state: `held-review`
+- [ ] Concept: `Automation Agent` | Parent: `MongoDB Ops Manager and Cloud Manager` | Mode: `dr` | Cluster: `MongoDB Ops Manager and Cloud Manager (1 of 5)` | Queue-state: `held`
+- [ ] Concept: `Backup Daemon` | Parent: `MongoDB Ops Manager and Cloud Manager` | Mode: `revisit` | Cluster: `MongoDB Ops Manager and Cloud Manager (1 of 5)` | Queue-state: `held-review`
+- [ ] Concept: `Backup Daemon HA and Failure Domains` | Parent: `MongoDB Ops Manager and Cloud Manager` | Mode: `dr` | Cluster: `MongoDB Ops Manager and Cloud Manager (2 of 5)` | Queue-state: `held`
+- [ ] Concept: `Backup Daemon and Head DB` | Parent: `MongoDB Ops Manager and Cloud Manager` | Mode: `revisit` | Cluster: `MongoDB Ops Manager and Cloud Manager (2 of 5)` | Queue-state: `held-review`
+- [ ] Concept: `Blockstore Snapshot Storage` | Parent: `MongoDB Ops Manager and Cloud Manager` | Mode: `dr` | Cluster: `MongoDB Ops Manager and Cloud Manager (2 of 5)` | Queue-state: `held`
+- [ ] Concept: `Blockstore and Snapshot Stores` | Parent: `MongoDB Ops Manager and Cloud Manager` | Mode: `dr` | Cluster: `MongoDB Ops Manager and Cloud Manager (2 of 5)` | Queue-state: `held`
+- [ ] Concept: `Common Failure Modes` | Parent: `MongoDB Ops Manager and Cloud Manager` | Mode: `revisit` | Cluster: `MongoDB Ops Manager and Cloud Manager (2 of 5)` | Queue-state: `held-review`
+- [ ] Concept: `Continuous Backup with PITR` | Parent: `MongoDB Ops Manager and Cloud Manager` | Mode: `dr` | Cluster: `MongoDB Ops Manager and Cloud Manager (2 of 5)` | Queue-state: `held`
+- [ ] Concept: `Cross-DC App DB Placement` | Parent: `MongoDB Ops Manager and Cloud Manager` | Mode: `dr` | Cluster: `MongoDB Ops Manager and Cloud Manager (2 of 5)` | Queue-state: `held`
+- [ ] Concept: `Enterprise Advanced Licensing` | Parent: `MongoDB Ops Manager and Cloud Manager` | Mode: `dr` | Cluster: `MongoDB Ops Manager and Cloud Manager (3 of 5)` | Queue-state: `held`
+- [ ] Concept: `Filesystem Snapshot Storage` | Parent: `MongoDB Ops Manager and Cloud Manager` | Mode: `dr` | Cluster: `MongoDB Ops Manager and Cloud Manager (3 of 5)` | Queue-state: `held`
+- [ ] Concept: `Cloud Manager Free/Standard/Premium Tiers` | Parent: `MongoDB Ops Manager and Cloud Manager` | Mode: `dr` | Cluster: `MongoDB Ops Manager and Cloud Manager (3 of 5)` | Queue-state: `held`
+- [ ] Concept: `Goal-State Automation Configuration` | Parent: `MongoDB Ops Manager and Cloud Manager` | Mode: `dr` | Cluster: `MongoDB Ops Manager and Cloud Manager (3 of 5)` | Queue-state: `held`
+- [ ] Concept: `Ops Manager High Availability` | Parent: `MongoDB Ops Manager and Cloud Manager` | Mode: `dr` | Cluster: `MongoDB Ops Manager and Cloud Manager (3 of 5)` | Queue-state: `held`
+- [ ] Concept: `Kubernetes Operator Deployment` | Parent: `MongoDB Ops Manager and Cloud Manager` | Mode: `revisit` | Cluster: `MongoDB Ops Manager and Cloud Manager (3 of 5)` | Queue-state: `held-review`
+- [ ] Concept: `LDAP and Federation` | Parent: `MongoDB Ops Manager and Cloud Manager` | Mode: `dr` | Cluster: `MongoDB Ops Manager and Cloud Manager (3 of 5)` | Queue-state: `held`
+- [ ] Concept: `Ops Manager LDAP/Kerberos/SAML/OIDC Federation` | Parent: `MongoDB Ops Manager and Cloud Manager` | Mode: `revisit` | Cluster: `MongoDB Ops Manager and Cloud Manager (4 of 5)` | Queue-state: `held-review`
+- [ ] Concept: `Live Migration to Atlas` | Parent: `MongoDB Ops Manager and Cloud Manager` | Mode: `dr` | Cluster: `MongoDB Ops Manager and Cloud Manager (4 of 5)` | Queue-state: `held`
+- [ ] Concept: `Live Migration to Atlas via mongosync` | Parent: `MongoDB Ops Manager and Cloud Manager` | Mode: `dr` | Cluster: `MongoDB Ops Manager and Cloud Manager (4 of 5)` | Queue-state: `held`
+- [ ] Concept: `Local Mode and Air-Gap Deployments` | Parent: `MongoDB Ops Manager and Cloud Manager` | Mode: `dr` | Cluster: `MongoDB Ops Manager and Cloud Manager (4 of 5)` | Queue-state: `held`
+- [ ] Concept: `Migration Host Provisioning` | Parent: `MongoDB Ops Manager and Cloud Manager` | Mode: `dr` | Cluster: `MongoDB Ops Manager and Cloud Manager (4 of 5)` | Queue-state: `held`
+- [ ] Concept: `Monitoring Agent` | Parent: `MongoDB Ops Manager and Cloud Manager` | Mode: `revisit` | Cluster: `MongoDB Ops Manager and Cloud Manager (4 of 5)` | Queue-state: `held-review`
+- [ ] Concept: `Multi-Org Scale Patterns` | Parent: `MongoDB Ops Manager and Cloud Manager` | Mode: `revisit` | Cluster: `MongoDB Ops Manager and Cloud Manager (4 of 5)` | Queue-state: `held-review`
+- [ ] Concept: `OpenTelemetry MongoDB Receiver` | Parent: `MongoDB Ops Manager and Cloud Manager` | Mode: `dr` | Cluster: `MongoDB Ops Manager and Cloud Manager (5 of 5)` | Queue-state: `held`
+- [ ] Concept: `PagerDuty/Datadog/Splunk Integration` | Parent: `MongoDB Ops Manager and Cloud Manager` | Mode: `dr` | Cluster: `MongoDB Ops Manager and Cloud Manager (5 of 5)` | Queue-state: `held`
+- [ ] Concept: `S3-Compatible Snapshot Storage with Object Lock` | Parent: `MongoDB Ops Manager and Cloud Manager` | Mode: `dr` | Cluster: `MongoDB Ops Manager and Cloud Manager (5 of 5)` | Queue-state: `held`
+- [ ] Concept: `Source Oplog Window Sizing for Migration` | Parent: `MongoDB Ops Manager and Cloud Manager` | Mode: `dr` | Cluster: `MongoDB Ops Manager and Cloud Manager (5 of 5)` | Queue-state: `held`
+- [ ] Concept: `Upgrade Procedures` | Parent: `MongoDB Ops Manager and Cloud Manager` | Mode: `dr` | Cluster: `MongoDB Ops Manager and Cloud Manager (5 of 5)` | Queue-state: `held`
+- [ ] Concept: `Version Manifest Mirroring` | Parent: `MongoDB Ops Manager and Cloud Manager` | Mode: `dr` | Cluster: `MongoDB Ops Manager and Cloud Manager (5 of 5)` | Queue-state: `held`
+- [ ] Concept: `Workforce and Workload Identity Federation` | Parent: `MongoDB Ops Manager and Cloud Manager` | Mode: `revisit` | Cluster: `MongoDB Ops Manager and Cloud Manager (5 of 5)` | Queue-state: `held-review`
 - [ ] Concept: `Security Policy Audit` | Parent: `Security Compliance Auditor` | Mode: `dr` | Cluster: `Security Compliance Auditor`
 - [ ] Concept: `Compliance Gap Analysis` | Parent: `Security Compliance Auditor` | Mode: `dr` | Cluster: `Security Compliance Auditor`
-- [ ] Concept: `MongoDB AI Policy Scanning` | Parent: `Security Compliance Auditor` | Mode: `dr` | Cluster: `Security Compliance Auditor`
+- [ ] Concept: `MongoDB AI Policy Scanning` | Parent: `Security Compliance Auditor` | Mode: `dr` | Cluster: `Security Compliance Auditor` | Queue-state: `held`
 - [ ] Concept: `Codebase Security Review` | Parent: `Security Compliance Auditor` | Mode: `dr` | Cluster: `Security Compliance Auditor`
 - [ ] Concept: `AWS RDS Proxy` | Parent: `Database Proxies & Query-Optimization Middleware` | Mode: `dr` | Cluster: `Database Proxies & Query-Optimization Middleware (1 of 2)`
 - [ ] Concept: `Connection pooling & multiplexing` | Parent: `Database Proxies & Query-Optimization Middleware` | Mode: `dr` | Cluster: `Database Proxies & Query-Optimization Middleware (1 of 2)`
 - [ ] Concept: `Credential brokering (IAM / Secrets Manager)` | Parent: `Database Proxies & Query-Optimization Middleware` | Mode: `dr` | Cluster: `Database Proxies & Query-Optimization Middleware (1 of 2)`
 - [ ] Concept: `Failover acceleration & proxy-tier HA (SPOF, sidecar vs centralized vs Keepalived)` | Parent: `Database Proxies & Query-Optimization Middleware` | Mode: `dr` | Cluster: `Database Proxies & Query-Optimization Middleware (1 of 2)`
 - [ ] Concept: `MariaDB MaxScale` | Parent: `Database Proxies & Query-Optimization Middleware` | Mode: `dr` | Cluster: `Database Proxies & Query-Optimization Middleware (1 of 2)`
-- [ ] Concept: `mongos as MongoDB's native router & why MongoDB rarely uses third-party proxies` | Parent: `Database Proxies & Query-Optimization Middleware` | Mode: `dr` | Cluster: `Database Proxies & Query-Optimization Middleware (1 of 2)`
+- [ ] Concept: `mongos as MongoDB's native router & why MongoDB rarely uses third-party proxies` | Parent: `Database Proxies & Query-Optimization Middleware` | Mode: `revisit` | Cluster: `Database Proxies & Query-Optimization Middleware (1 of 2)` | Queue-state: `held-review`
 - [ ] Concept: `PgBouncer` | Parent: `Database Proxies & Query-Optimization Middleware` | Mode: `dr` | Cluster: `Database Proxies & Query-Optimization Middleware (1 of 2)`
 - [ ] Concept: `PgCat & Pgpool-II` | Parent: `Database Proxies & Query-Optimization Middleware` | Mode: `dr` | Cluster: `Database Proxies & Query-Optimization Middleware (1 of 2)`
-- [ ] Concept: `DATE criteria date format specifications` | Parent: `DATE Criteria` | Mode: `dr` | Cluster: `DATE Criteria`
-- [ ] Concept: `DATE criteria field types and formats` | Parent: `DATE Criteria` | Mode: `dr` | Cluster: `DATE Criteria`
-- [ ] Concept: `DATE vs CUSTOM criteria selection` | Parent: `DATE Criteria` | Mode: `dr` | Cluster: `DATE Criteria`
-- [ ] Concept: `Online Archive query performance optimization` | Parent: `DATE Criteria` | Mode: `dr` | Cluster: `DATE Criteria`
-- [ ] Concept: `Partition fields constraints for DATE rules` | Parent: `DATE Criteria` | Mode: `dr` | Cluster: `DATE Criteria`
-- [ ] Concept: `expireAfterDays data age calculation` | Parent: `DATE Criteria` | Mode: `dr` | Cluster: `DATE Criteria`
-- [ ] Concept: `CUSTOM Criteria` | Parent: `Archive Rules` | Mode: `dr` | Cluster: `Archive Rules`
-- [ ] Concept: `Archive Schedule Window` | Parent: `Archive Rules` | Mode: `dr` | Cluster: `Archive Rules`
-- [ ] Concept: `Archive Data Expiration Rule` | Parent: `Archive Rules` | Mode: `dr` | Cluster: `Archive Rules`
-- [ ] Concept: `Index Sufficiency Warning` | Parent: `Archive Rules` | Mode: `dr` | Cluster: `Archive Rules`
-- [ ] Concept: `Time Series Archive Rules` | Parent: `Archive Rules` | Mode: `dr` | Cluster: `Archive Rules`
-- [ ] Concept: `Online Archive Terraform Resource` | Parent: `Archive Rules` | Mode: `dr` | Cluster: `Archive Rules`
-- [ ] Concept: `Partition Field Count Limits (DATE vs CUSTOM)` | Parent: `Partition Fields` | Mode: `dr` | Cluster: `Partition Fields`
-- [ ] Concept: `Partition Field Leftmost-Prefix Ordering` | Parent: `Partition Fields` | Mode: `dr` | Cluster: `Partition Fields`
-- [ ] Concept: `Partition Field Type Enum Docs-vs-Spec Disagreement` | Parent: `Partition Fields` | Mode: `dr` | Cluster: `Partition Fields`
-- [ ] Concept: `Partition Field Cardinality and the 2023-06-07 Storage Engine Change` | Parent: `Partition Fields` | Mode: `dr` | Cluster: `Partition Fields`
-- [ ] Concept: `Partition Field Immutability and Merge-Delete-Recreate Migration` | Parent: `Partition Fields` | Mode: `dr` | Cluster: `Partition Fields`
-- [ ] Concept: `Online Archive Data Access and Data Seek Query Cost Model` | Parent: `Partition Fields` | Mode: `dr` | Cluster: `Partition Fields`
-- [ ] Concept: `change-stream-resume-token` | Parent: `kafka-source-connector` | Mode: `dr` | Cluster: `kafka-source-connector`
-- [ ] Concept: `heartbeat-configuration` | Parent: `kafka-source-connector` | Mode: `dr` | Cluster: `kafka-source-connector`
-- [ ] Concept: `startup-mode-copy-existing` | Parent: `kafka-source-connector` | Mode: `dr` | Cluster: `kafka-source-connector`
-- [ ] Concept: `bulk-write-ordering` | Parent: `kafka-sink-connector` | Mode: `dr` | Cluster: `kafka-sink-connector`
-- [ ] Concept: `outbox-pattern` | Parent: `CDC-patterns` | Mode: `dr` | Cluster: `CDC-patterns`
-- [ ] Concept: `exactly-once-semantics` | Parent: `CDC-patterns` | Mode: `dr` | Cluster: `CDC-patterns`
-- [ ] Concept: `debezium-handlers` | Parent: `CDC-patterns` | Mode: `dr` | Cluster: `CDC-patterns`
-- [ ] Concept: `OAuth2 Token Exchange` | Parent: `Atlas Service Accounts` | Mode: `dr` | Cluster: `Atlas Service Accounts`
-- [ ] Concept: `Secret Rotation` | Parent: `Atlas Service Accounts` | Mode: `dr` | Cluster: `Atlas Service Accounts`
-- [ ] Concept: `Service Account Roles` | Parent: `Atlas Service Accounts` | Mode: `dr` | Cluster: `Atlas Service Accounts`
-- [ ] Concept: `Terraform Integration` | Parent: `Atlas Service Accounts` | Mode: `dr` | Cluster: `Atlas Service Accounts`
-- [ ] Concept: `Atlas CLI Integration` | Parent: `Atlas Service Accounts` | Mode: `dr` | Cluster: `Atlas Service Accounts`
-- [ ] Concept: `Bypass SAML mode` | Parent: `Atlas Federated Authentication` | Mode: `dr` | Cluster: `Atlas Federated Authentication (1 of 2)`
-- [ ] Concept: `Connected organizations` | Parent: `Atlas Federated Authentication` | Mode: `dr` | Cluster: `Atlas Federated Authentication (1 of 2)`
-- [ ] Concept: `Domain verification` | Parent: `Atlas Federated Authentication` | Mode: `dr` | Cluster: `Atlas Federated Authentication (1 of 2)`
-- [ ] Concept: `Federation Management Console` | Parent: `Atlas Federated Authentication` | Mode: `dr` | Cluster: `Atlas Federated Authentication (1 of 2)`
-- [ ] Concept: `Group-to-role mapping` | Parent: `Atlas Federated Authentication` | Mode: `dr` | Cluster: `Atlas Federated Authentication (1 of 2)`
-- [ ] Concept: `IdP configuration (Entra ID)` | Parent: `Atlas Federated Authentication` | Mode: `dr` | Cluster: `Atlas Federated Authentication (2 of 2)`
-- [ ] Concept: `IdP configuration (Okta)` | Parent: `Atlas Federated Authentication` | Mode: `dr` | Cluster: `Atlas Federated Authentication (2 of 2)`
-- [ ] Concept: `JIT user provisioning` | Parent: `Atlas Federated Authentication` | Mode: `dr` | Cluster: `Atlas Federated Authentication (2 of 2)`
-- [ ] Concept: `SAML 2.0 SSO flow` | Parent: `Atlas Federated Authentication` | Mode: `dr` | Cluster: `Atlas Federated Authentication (2 of 2)`
-- [ ] Concept: `SCIM provisioning` | Parent: `Atlas Federated Authentication` | Mode: `dr` | Cluster: `Atlas Federated Authentication (2 of 2)`
-- [ ] Concept: `BM25 IDF corpus statistics` | Parent: `Atlas Hybrid Fusion and BM25 Diagnostics` | Mode: `dr` | Cluster: `Atlas Hybrid Fusion and BM25 Diagnostics`
-- [ ] Concept: `BM25 term frequency saturation and field length normalization` | Parent: `Atlas Hybrid Fusion and BM25 Diagnostics` | Mode: `dr` | Cluster: `Atlas Hybrid Fusion and BM25 Diagnostics`
-- [ ] Concept: `Fusion score normalization strategies` | Parent: `Atlas Hybrid Fusion and BM25 Diagnostics` | Mode: `dr` | Cluster: `Atlas Hybrid Fusion and BM25 Diagnostics`
-- [ ] Concept: `Per-query fusion weighting` | Parent: `Atlas Hybrid Fusion and BM25 Diagnostics` | Mode: `dr` | Cluster: `Atlas Hybrid Fusion and BM25 Diagnostics`
-- [ ] Concept: `Ranked and scored input pipeline eligibility` | Parent: `Atlas Hybrid Fusion and BM25 Diagnostics` | Mode: `dr` | Cluster: `Atlas Hybrid Fusion and BM25 Diagnostics`
-- [ ] Concept: `MongoSQL ODBC Driver` | Parent: `Atlas SQL Interface MongoSQL` | Mode: `dr` | Cluster: `Atlas SQL Interface MongoSQL`
-- [ ] Concept: `Atlas SQL Schema Builder` | Parent: `Atlas SQL Interface MongoSQL` | Mode: `dr` | Cluster: `Atlas SQL Interface MongoSQL`
-- [ ] Concept: `Power BI DirectQuery` | Parent: `Atlas SQL Interface MongoSQL` | Mode: `dr` | Cluster: `Atlas SQL Interface MongoSQL`
-- [ ] Concept: `Tableau Certified Connector` | Parent: `Atlas SQL Interface MongoSQL` | Mode: `dr` | Cluster: `Atlas SQL Interface MongoSQL`
-- [ ] Concept: `BI Connector to MongoSQL Migration` | Parent: `Atlas SQL Interface MongoSQL` | Mode: `dr` | Cluster: `Atlas SQL Interface MongoSQL`
-- [ ] Concept: `Encryption at Rest (KMIP, AES-256-CBC/GCM)` | Parent: `WiredTiger Storage Engine Internals` | Mode: `dr` | Cluster: `WiredTiger Storage Engine Internals (2 of 3)`
-- [ ] Concept: `Journal (Write-Ahead Log)` | Parent: `WiredTiger Storage Engine Internals` | Mode: `dr` | Cluster: `WiredTiger Storage Engine Internals (2 of 3)`
-- [ ] Concept: `Long-Running Transactions and Cache Pressure` | Parent: `WiredTiger Storage Engine Internals` | Mode: `dr` | Cluster: `WiredTiger Storage Engine Internals (2 of 3)`
-- [ ] Concept: `In-Memory Storage Engine (Enterprise)` | Parent: `WiredTiger Storage Engine Internals` | Mode: `dr` | Cluster: `WiredTiger Storage Engine Internals (2 of 3)`
-- [ ] Concept: `MVCC and Snapshot Isolation` | Parent: `WiredTiger Storage Engine Internals` | Mode: `dr` | Cluster: `WiredTiger Storage Engine Internals (2 of 3)`
-- [ ] Concept: `Prefix Compression (indexes)` | Parent: `WiredTiger Storage Engine Internals` | Mode: `dr` | Cluster: `WiredTiger Storage Engine Internals (3 of 3)`
-- [ ] Concept: `Reconciliation and Page Splitting` | Parent: `WiredTiger Storage Engine Internals` | Mode: `dr` | Cluster: `WiredTiger Storage Engine Internals (3 of 3)`
-- [ ] Concept: `Timestamp APIs (oldest/stable/pinned)` | Parent: `WiredTiger Storage Engine Internals` | Mode: `dr` | Cluster: `WiredTiger Storage Engine Internals (3 of 3)`
-- [ ] Concept: `wiredTigerEngineRuntimeConfig` | Parent: `WiredTiger Storage Engine Internals` | Mode: `dr` | Cluster: `WiredTiger Storage Engine Internals (3 of 3)`
-- [ ] Concept: `WT_CACHE_FULL / Cache Pressure Troubleshooting` | Parent: `WiredTiger Storage Engine Internals` | Mode: `dr` | Cluster: `WiredTiger Storage Engine Internals (3 of 3)`
-- [ ] Concept: `client sessions` | Parent: `Causal Consistency` | Mode: `dr` | Cluster: `Causal Consistency`
-- [ ] Concept: `afterClusterTime` | Parent: `Causal Consistency` | Mode: `dr` | Cluster: `Causal Consistency`
-- [ ] Concept: `operationTime` | Parent: `Causal Consistency` | Mode: `dr` | Cluster: `Causal Consistency`
-- [ ] Concept: `clusterTime` | Parent: `Causal Consistency` | Mode: `dr` | Cluster: `Causal Consistency`
-- [ ] Concept: `read your own writes` | Parent: `Causal Consistency` | Mode: `dr` | Cluster: `Causal Consistency`
-- [ ] Concept: `monotonic reads` | Parent: `Causal Consistency` | Mode: `dr` | Cluster: `Causal Consistency`
-- [ ] Concept: `implicit vs explicit sessions` | Parent: `Causal Consistency` | Mode: `dr` | Cluster: `Causal Consistency`
-- [ ] Concept: `cross-service causal tokens` | Parent: `Causal Consistency` | Mode: `dr` | Cluster: `Causal Consistency`
-- [ ] Concept: `FTDC and Log Tooling` | Parent: `Atlas Diagnostics Expert` | Mode: `dr` | Cluster: `Atlas Diagnostics Expert`
-- [ ] Concept: `KB-Backed Troubleshooting` | Parent: `Atlas Diagnostics Expert` | Mode: `dr` | Cluster: `Atlas Diagnostics Expert`
-- [ ] Concept: `Diagnostic Tool Design` | Parent: `Atlas Diagnostics Expert` | Mode: `dr` | Cluster: `Atlas Diagnostics Expert`
-- [ ] Concept: `Atlas Triage Workflows` | Parent: `Atlas Diagnostics Expert` | Mode: `dr` | Cluster: `Atlas Diagnostics Expert`
-- [ ] Concept: `M30 specs & connection limits` | Parent: `Atlas cluster tiers (M30) & major-version upgrade mechanics` | Mode: `dr` | Cluster: `Atlas cluster tiers (M30) & major-version upgrade mechanics`
-- [ ] Concept: `rolling upgrade & elections` | Parent: `Atlas cluster tiers (M30) & major-version upgrade mechanics` | Mode: `dr` | Cluster: `Atlas cluster tiers (M30) & major-version upgrade mechanics`
-- [ ] Concept: `FCV pinning no-downgrade rule` | Parent: `Atlas cluster tiers (M30) & major-version upgrade mechanics` | Mode: `dr` | Cluster: `Atlas cluster tiers (M30) & major-version upgrade mechanics`
-- [ ] Concept: `Atlas Gen2 ARM hardware` | Parent: `Atlas cluster tiers (M30) & major-version upgrade mechanics` | Mode: `dr` | Cluster: `Atlas cluster tiers (M30) & major-version upgrade mechanics`
-- [ ] Concept: `Maintenance Window Configuration` | Parent: `Atlas Maintenance Windows` | Mode: `dr` | Cluster: `Atlas Maintenance Windows`
-- [ ] Concept: `Rolling Maintenance Procedure` | Parent: `Atlas Maintenance Windows` | Mode: `dr` | Cluster: `Atlas Maintenance Windows`
-- [ ] Concept: `Deferring Maintenance` | Parent: `Atlas Maintenance Windows` | Mode: `dr` | Cluster: `Atlas Maintenance Windows`
-- [ ] Concept: `Emergency Security Patches` | Parent: `Atlas Maintenance Windows` | Mode: `dr` | Cluster: `Atlas Maintenance Windows`
-- [ ] Concept: `Maintenance Impact Minimization` | Parent: `Atlas Maintenance Windows` | Mode: `dr` | Cluster: `Atlas Maintenance Windows`
-- [ ] Concept: `Sharded Cluster Maintenance` | Parent: `Atlas Maintenance Windows` | Mode: `dr` | Cluster: `Atlas Maintenance Windows`
-- [ ] Concept: `local read concern` | Parent: `Read Concern Levels` | Mode: `dr` | Cluster: `Read Concern Levels`
-- [ ] Concept: `available read concern` | Parent: `Read Concern Levels` | Mode: `dr` | Cluster: `Read Concern Levels`
-- [ ] Concept: `majority read concern` | Parent: `Read Concern Levels` | Mode: `dr` | Cluster: `Read Concern Levels`
-- [ ] Concept: `linearizable read concern` | Parent: `Read Concern Levels` | Mode: `dr` | Cluster: `Read Concern Levels`
-- [ ] Concept: `snapshot read concern` | Parent: `Read Concern Levels` | Mode: `dr` | Cluster: `Read Concern Levels`
-- [ ] Concept: `majority commit point mechanics` | Parent: `Read Concern Levels` | Mode: `dr` | Cluster: `Read Concern Levels`
-- [ ] Concept: `read concern in sharding` | Parent: `Read Concern Levels` | Mode: `dr` | Cluster: `Read Concern Levels`
-- [ ] Concept: `initial-sync-and-cdc` | Parent: `mongosync` | Mode: `dr` | Cluster: `mongosync (1 of 2)`
-- [ ] Concept: `atlas-live-migration-comparison` | Parent: `mongosync` | Mode: `dr` | Cluster: `mongosync (1 of 2)`
-- [ ] Concept: `loadlevel-tuning` | Parent: `mongosync` | Mode: `dr` | Cluster: `mongosync (1 of 2)`
-- [ ] Concept: `namespace-filtering` | Parent: `mongosync` | Mode: `dr` | Cluster: `mongosync (1 of 2)`
-- [ ] Concept: `oplog-window-sizing` | Parent: `mongosync` | Mode: `dr` | Cluster: `mongosync (1 of 2)`
-- [ ] Concept: `resume-and-checkpoint` | Parent: `mongosync` | Mode: `dr` | Cluster: `mongosync (2 of 2)`
-- [ ] Concept: `reverse-sync-cutover` | Parent: `mongosync` | Mode: `dr` | Cluster: `mongosync (2 of 2)`
-- [ ] Concept: `mongosync-state-machine` | Parent: `mongosync` | Mode: `dr` | Cluster: `mongosync (2 of 2)`
-- [ ] Concept: `tls-x509-auth` | Parent: `mongosync` | Mode: `dr` | Cluster: `mongosync (2 of 2)`
-- [ ] Concept: `verification-modes` | Parent: `mongosync` | Mode: `dr` | Cluster: `mongosync (2 of 2)`
+- [ ] Concept: `DATE criteria date format specifications` | Parent: `DATE Criteria` | Mode: `revisit` | Cluster: `DATE Criteria` | Queue-state: `held-review`
+- [ ] Concept: `DATE criteria field types and formats` | Parent: `DATE Criteria` | Mode: `revisit` | Cluster: `DATE Criteria` | Queue-state: `held-review`
+- [ ] Concept: `DATE vs CUSTOM criteria selection` | Parent: `DATE Criteria` | Mode: `revisit` | Cluster: `DATE Criteria` | Queue-state: `held-review`
+- [ ] Concept: `Online Archive query performance optimization` | Parent: `DATE Criteria` | Mode: `revisit` | Cluster: `DATE Criteria` | Queue-state: `held-review`
+- [ ] Concept: `Partition fields constraints for DATE rules` | Parent: `DATE Criteria` | Mode: `revisit` | Cluster: `DATE Criteria` | Queue-state: `held-review`
+- [ ] Concept: `expireAfterDays data age calculation` | Parent: `DATE Criteria` | Mode: `revisit` | Cluster: `DATE Criteria` | Queue-state: `held-review`
+- [ ] Concept: `CUSTOM Criteria` | Parent: `Archive Rules` | Mode: `revisit` | Cluster: `Archive Rules` | Queue-state: `held-review`
+- [ ] Concept: `Archive Schedule Window` | Parent: `Archive Rules` | Mode: `revisit` | Cluster: `Archive Rules` | Queue-state: `held-review`
+- [ ] Concept: `Archive Data Expiration Rule` | Parent: `Archive Rules` | Mode: `revisit` | Cluster: `Archive Rules` | Queue-state: `held-review`
+- [ ] Concept: `Index Sufficiency Warning` | Parent: `Archive Rules` | Mode: `revisit` | Cluster: `Archive Rules` | Queue-state: `held-review`
+- [ ] Concept: `Time Series Archive Rules` | Parent: `Archive Rules` | Mode: `revisit` | Cluster: `Archive Rules` | Queue-state: `held-review`
+- [ ] Concept: `Online Archive Terraform Resource` | Parent: `Archive Rules` | Mode: `revisit` | Cluster: `Archive Rules` | Queue-state: `held-review`
+- [ ] Concept: `Partition Field Count Limits (DATE vs CUSTOM)` | Parent: `Online Archive partition-field selection` | Mode: `dr` | Cluster: `Partition Fields`
+- [ ] Concept: `Partition Field Leftmost-Prefix Ordering` | Parent: `Online Archive partition-field selection` | Mode: `dr` | Cluster: `Partition Fields`
+- [ ] Concept: `Partition Field Type Enum Docs-vs-Spec Disagreement` | Parent: `Online Archive partition-field selection` | Mode: `dr` | Cluster: `Partition Fields`
+- [ ] Concept: `Partition Field Cardinality and the 2023-06-07 Storage Engine Change` | Parent: `Online Archive partition-field selection` | Mode: `dr` | Cluster: `Partition Fields`
+- [ ] Concept: `Partition Field Immutability and Merge-Delete-Recreate Migration` | Parent: `Online Archive partition-field selection` | Mode: `dr` | Cluster: `Partition Fields`
+- [ ] Concept: `Online Archive Data Access and Data Seek Query Cost Model` | Parent: `Online Archive partition-field selection` | Mode: `dr` | Cluster: `Partition Fields`
+- [ ] Concept: `change-stream-resume-token` | Parent: `kafka-source-connector` | Mode: `dr` | Cluster: `kafka-source-connector` | Queue-state: `held`
+- [ ] Concept: `heartbeat-configuration` | Parent: `kafka-source-connector` | Mode: `dr` | Cluster: `kafka-source-connector` | Queue-state: `held`
+- [ ] Concept: `startup-mode-copy-existing` | Parent: `kafka-source-connector` | Mode: `dr` | Cluster: `kafka-source-connector` | Queue-state: `held`
+- [ ] Concept: `bulk-write-ordering` | Parent: `kafka-sink-connector` | Mode: `dr` | Cluster: `kafka-sink-connector` | Queue-state: `held`
+- [ ] Concept: `outbox-pattern` | Parent: `CDC-patterns` | Mode: `dr` | Cluster: `CDC-patterns` | Queue-state: `held`
+- [ ] Concept: `exactly-once-semantics` | Parent: `CDC-patterns` | Mode: `dr` | Cluster: `CDC-patterns` | Queue-state: `held`
+- [ ] Concept: `debezium-handlers` | Parent: `CDC-patterns` | Mode: `dr` | Cluster: `CDC-patterns` | Queue-state: `held`
+- [ ] Concept: `OAuth2 Token Exchange` | Parent: `Atlas Service Accounts` | Mode: `revisit` | Cluster: `Atlas Service Accounts` | Queue-state: `held-review`
+- [ ] Concept: `Secret Rotation` | Parent: `Atlas Service Accounts` | Mode: `revisit` | Cluster: `Atlas Service Accounts` | Queue-state: `held-review`
+- [ ] Concept: `Service Account Roles` | Parent: `Atlas Service Accounts` | Mode: `revisit` | Cluster: `Atlas Service Accounts` | Queue-state: `held-review`
+- [ ] Concept: `Terraform Integration` | Parent: `Atlas Service Accounts` | Mode: `revisit` | Cluster: `Atlas Service Accounts` | Queue-state: `held-review`
+- [ ] Concept: `Atlas CLI Integration` | Parent: `Atlas Service Accounts` | Mode: `revisit` | Cluster: `Atlas Service Accounts` | Queue-state: `held-review`
+- [ ] Concept: `Bypass SAML mode` | Parent: `Atlas Federated Authentication` | Mode: `revisit` | Cluster: `Atlas Federated Authentication (1 of 2)` | Queue-state: `held-review`
+- [ ] Concept: `Connected organizations` | Parent: `Atlas Federated Authentication` | Mode: `revisit` | Cluster: `Atlas Federated Authentication (1 of 2)` | Queue-state: `held-review`
+- [ ] Concept: `Domain verification` | Parent: `Atlas Federated Authentication` | Mode: `revisit` | Cluster: `Atlas Federated Authentication (1 of 2)` | Queue-state: `held-review`
+- [ ] Concept: `Federation Management Console` | Parent: `Atlas Federated Authentication` | Mode: `revisit` | Cluster: `Atlas Federated Authentication (1 of 2)` | Queue-state: `held-review`
+- [ ] Concept: `Group-to-role mapping` | Parent: `Atlas Federated Authentication` | Mode: `revisit` | Cluster: `Atlas Federated Authentication (1 of 2)` | Queue-state: `held-review`
+- [ ] Concept: `IdP configuration (Entra ID)` | Parent: `Atlas Federated Authentication` | Mode: `revisit` | Cluster: `Atlas Federated Authentication (2 of 2)` | Queue-state: `held-review`
+- [ ] Concept: `IdP configuration (Okta)` | Parent: `Atlas Federated Authentication` | Mode: `revisit` | Cluster: `Atlas Federated Authentication (2 of 2)` | Queue-state: `held-review`
+- [ ] Concept: `JIT user provisioning` | Parent: `Atlas Federated Authentication` | Mode: `revisit` | Cluster: `Atlas Federated Authentication (2 of 2)` | Queue-state: `held-review`
+- [ ] Concept: `SAML 2.0 SSO flow` | Parent: `Atlas Federated Authentication` | Mode: `revisit` | Cluster: `Atlas Federated Authentication (2 of 2)` | Queue-state: `held-review`
+- [ ] Concept: `SCIM provisioning` | Parent: `Atlas Federated Authentication` | Mode: `revisit` | Cluster: `Atlas Federated Authentication (2 of 2)` | Queue-state: `held-review`
+- [ ] Concept: `BM25 IDF corpus statistics` | Parent: `Atlas Hybrid Fusion and BM25 Diagnostics` | Mode: `revisit` | Cluster: `Atlas Hybrid Fusion and BM25 Diagnostics` | Queue-state: `held-review`
+- [ ] Concept: `BM25 term frequency saturation and field length normalization` | Parent: `Atlas Hybrid Fusion and BM25 Diagnostics` | Mode: `revisit` | Cluster: `Atlas Hybrid Fusion and BM25 Diagnostics` | Queue-state: `held-review`
+- [ ] Concept: `Fusion score normalization strategies` | Parent: `Atlas Hybrid Fusion and BM25 Diagnostics` | Mode: `revisit` | Cluster: `Atlas Hybrid Fusion and BM25 Diagnostics` | Queue-state: `held-review`
+- [ ] Concept: `Per-query fusion weighting` | Parent: `Atlas Hybrid Fusion and BM25 Diagnostics` | Mode: `revisit` | Cluster: `Atlas Hybrid Fusion and BM25 Diagnostics` | Queue-state: `held-review`
+- [ ] Concept: `Ranked and scored input pipeline eligibility` | Parent: `Atlas Hybrid Fusion and BM25 Diagnostics` | Mode: `revisit` | Cluster: `Atlas Hybrid Fusion and BM25 Diagnostics` | Queue-state: `held-review`
+- [ ] Concept: `MongoSQL ODBC Driver` | Parent: `Atlas SQL Interface MongoSQL` | Mode: `revisit` | Cluster: `Atlas SQL Interface MongoSQL` | Queue-state: `held-review`
+- [ ] Concept: `Atlas SQL Schema Builder` | Parent: `Atlas SQL Interface MongoSQL` | Mode: `revisit` | Cluster: `Atlas SQL Interface MongoSQL` | Queue-state: `held-review`
+- [ ] Concept: `Power BI DirectQuery` | Parent: `Atlas SQL Interface MongoSQL` | Mode: `revisit` | Cluster: `Atlas SQL Interface MongoSQL` | Queue-state: `held-review`
+- [ ] Concept: `Tableau Certified Connector` | Parent: `Atlas SQL Interface MongoSQL` | Mode: `revisit` | Cluster: `Atlas SQL Interface MongoSQL` | Queue-state: `held-review`
+- [ ] Concept: `BI Connector to MongoSQL Migration` | Parent: `Atlas SQL Interface MongoSQL` | Mode: `revisit` | Cluster: `Atlas SQL Interface MongoSQL` | Queue-state: `held-review`
+- [ ] Concept: `Encryption at Rest (KMIP, AES-256-CBC/GCM)` | Parent: `WiredTiger Storage Engine Internals` | Mode: `revisit` | Cluster: `WiredTiger Storage Engine Internals (2 of 3)` | Queue-state: `held-review`
+- [ ] Concept: `Journal (Write-Ahead Log)` | Parent: `WiredTiger Storage Engine Internals` | Mode: `dr` | Cluster: `WiredTiger Storage Engine Internals (2 of 3)` | Queue-state: `held`
+- [ ] Concept: `Long-Running Transactions and Cache Pressure` | Parent: `WiredTiger Storage Engine Internals` | Mode: `dr` | Cluster: `WiredTiger Storage Engine Internals (2 of 3)` | Queue-state: `held`
+- [ ] Concept: `In-Memory Storage Engine (Enterprise)` | Parent: `WiredTiger Storage Engine Internals` | Mode: `revisit` | Cluster: `WiredTiger Storage Engine Internals (2 of 3)` | Queue-state: `held-review`
+- [ ] Concept: `MVCC and Snapshot Isolation` | Parent: `WiredTiger Storage Engine Internals` | Mode: `dr` | Cluster: `WiredTiger Storage Engine Internals (2 of 3)` | Queue-state: `held`
+- [ ] Concept: `Prefix Compression (indexes)` | Parent: `WiredTiger Storage Engine Internals` | Mode: `dr` | Cluster: `WiredTiger Storage Engine Internals (3 of 3)` | Queue-state: `held`
+- [ ] Concept: `Reconciliation and Page Splitting` | Parent: `WiredTiger Storage Engine Internals` | Mode: `revisit` | Cluster: `WiredTiger Storage Engine Internals (3 of 3)` | Queue-state: `held-review`
+- [ ] Concept: `Timestamp APIs (oldest/stable/pinned)` | Parent: `WiredTiger Storage Engine Internals` | Mode: `revisit` | Cluster: `WiredTiger Storage Engine Internals (3 of 3)` | Queue-state: `held-review`
+- [ ] Concept: `wiredTigerEngineRuntimeConfig` | Parent: `WiredTiger Storage Engine Internals` | Mode: `revisit` | Cluster: `WiredTiger Storage Engine Internals (3 of 3)` | Queue-state: `held-review`
+- [ ] Concept: `WT_CACHE_FULL / Cache Pressure Troubleshooting` | Parent: `WiredTiger Storage Engine Internals` | Mode: `dr` | Cluster: `WiredTiger Storage Engine Internals (3 of 3)` | Queue-state: `held`
+- [ ] Concept: `client sessions` | Parent: `Causal Consistency` | Mode: `revisit` | Cluster: `Causal Consistency` | Queue-state: `held-review`
+- [ ] Concept: `afterClusterTime` | Parent: `Causal Consistency` | Mode: `revisit` | Cluster: `Causal Consistency` | Queue-state: `held-review`
+- [ ] Concept: `operationTime` | Parent: `Causal Consistency` | Mode: `revisit` | Cluster: `Causal Consistency` | Queue-state: `held-review`
+- [ ] Concept: `clusterTime` | Parent: `Causal Consistency` | Mode: `revisit` | Cluster: `Causal Consistency` | Queue-state: `held-review`
+- [ ] Concept: `read your own writes` | Parent: `Causal Consistency` | Mode: `revisit` | Cluster: `Causal Consistency` | Queue-state: `held-review`
+- [ ] Concept: `monotonic reads` | Parent: `Causal Consistency` | Mode: `revisit` | Cluster: `Causal Consistency` | Queue-state: `held-review`
+- [ ] Concept: `implicit vs explicit sessions` | Parent: `Causal Consistency` | Mode: `revisit` | Cluster: `Causal Consistency` | Queue-state: `held-review`
+- [ ] Concept: `cross-service causal tokens` | Parent: `Causal Consistency` | Mode: `revisit` | Cluster: `Causal Consistency` | Queue-state: `held-review`
+- [ ] Concept: `FTDC and Log Tooling` | Parent: `Atlas Diagnostics Expert` | Mode: `dr` | Cluster: `Atlas Diagnostics Expert` | Queue-state: `coverage-review`
+- [ ] Concept: `KB-Backed Troubleshooting` | Parent: `Atlas Diagnostics Expert` | Mode: `dr` | Cluster: `Atlas Diagnostics Expert` | Queue-state: `coverage-review`
+- [ ] Concept: `Diagnostic Tool Design` | Parent: `Atlas Diagnostics Expert` | Mode: `dr` | Cluster: `Atlas Diagnostics Expert` | Queue-state: `coverage-review`
+- [ ] Concept: `Atlas Triage Workflows` | Parent: `Atlas Diagnostics Expert` | Mode: `dr` | Cluster: `Atlas Diagnostics Expert` | Queue-state: `coverage-review`
+- [ ] Concept: `M30 specs & connection limits` | Parent: `Atlas cluster tiers (M30) & major-version upgrade mechanics` | Mode: `revisit` | Cluster: `Atlas cluster tiers (M30) & major-version upgrade mechanics` | Queue-state: `held-review`
+- [ ] Concept: `rolling upgrade & elections` | Parent: `Atlas cluster tiers (M30) & major-version upgrade mechanics` | Mode: `revisit` | Cluster: `Atlas cluster tiers (M30) & major-version upgrade mechanics` | Queue-state: `held-review`
+- [ ] Concept: `FCV pinning no-downgrade rule` | Parent: `Atlas cluster tiers (M30) & major-version upgrade mechanics` | Mode: `revisit` | Cluster: `Atlas cluster tiers (M30) & major-version upgrade mechanics` | Queue-state: `held-review`
+- [ ] Concept: `Atlas Gen2 ARM hardware` | Parent: `Atlas cluster tiers (M30) & major-version upgrade mechanics` | Mode: `revisit` | Cluster: `Atlas cluster tiers (M30) & major-version upgrade mechanics` | Queue-state: `held-review`
+- [ ] Concept: `Maintenance Window Configuration` | Parent: `Atlas Maintenance Windows` | Mode: `revisit` | Cluster: `Atlas Maintenance Windows` | Queue-state: `held-review`
+- [ ] Concept: `Rolling Maintenance Procedure` | Parent: `Atlas Maintenance Windows` | Mode: `revisit` | Cluster: `Atlas Maintenance Windows` | Queue-state: `held-review`
+- [ ] Concept: `Deferring Maintenance` | Parent: `Atlas Maintenance Windows` | Mode: `revisit` | Cluster: `Atlas Maintenance Windows` | Queue-state: `held-review`
+- [ ] Concept: `Emergency Security Patches` | Parent: `Atlas Maintenance Windows` | Mode: `revisit` | Cluster: `Atlas Maintenance Windows` | Queue-state: `held-review`
+- [ ] Concept: `Maintenance Impact Minimization` | Parent: `Atlas Maintenance Windows` | Mode: `revisit` | Cluster: `Atlas Maintenance Windows` | Queue-state: `held-review`
+- [ ] Concept: `Sharded Cluster Maintenance` | Parent: `Atlas Maintenance Windows` | Mode: `revisit` | Cluster: `Atlas Maintenance Windows` | Queue-state: `held-review`
+- [ ] Concept: `local read concern` | Parent: `Read Concern Levels` | Mode: `dr` | Cluster: `Read Concern Levels` | Queue-state: `held`
+- [ ] Concept: `available read concern` | Parent: `Read Concern Levels` | Mode: `revisit` | Cluster: `Read Concern Levels` | Queue-state: `held-review`
+- [ ] Concept: `majority read concern` | Parent: `Read Concern Levels` | Mode: `dr` | Cluster: `Read Concern Levels` | Queue-state: `held`
+- [ ] Concept: `linearizable read concern` | Parent: `Read Concern Levels` | Mode: `dr` | Cluster: `Read Concern Levels` | Queue-state: `held`
+- [ ] Concept: `snapshot read concern` | Parent: `Read Concern Levels` | Mode: `dr` | Cluster: `Read Concern Levels` | Queue-state: `held`
+- [ ] Concept: `majority commit point mechanics` | Parent: `Read Concern Levels` | Mode: `dr` | Cluster: `Read Concern Levels` | Queue-state: `held`
+- [ ] Concept: `read concern in sharding` | Parent: `Read Concern Levels` | Mode: `dr` | Cluster: `Read Concern Levels` | Queue-state: `held`
+- [ ] Concept: `initial-sync-and-cdc` | Parent: `mongosync` | Mode: `revisit` | Cluster: `mongosync (1 of 2)` | Queue-state: `held-review`
+- [ ] Concept: `atlas-live-migration-comparison` | Parent: `mongosync` | Mode: `dr` | Cluster: `mongosync (1 of 2)` | Queue-state: `held`
+- [ ] Concept: `loadlevel-tuning` | Parent: `mongosync` | Mode: `dr` | Cluster: `mongosync (1 of 2)` | Queue-state: `held`
+- [ ] Concept: `namespace-filtering` | Parent: `mongosync` | Mode: `dr` | Cluster: `mongosync (1 of 2)` | Queue-state: `held`
+- [ ] Concept: `oplog-window-sizing` | Parent: `mongosync` | Mode: `dr` | Cluster: `mongosync (1 of 2)` | Queue-state: `held`
+- [ ] Concept: `resume-and-checkpoint` | Parent: `mongosync` | Mode: `revisit` | Cluster: `mongosync (2 of 2)` | Queue-state: `held-review`
+- [ ] Concept: `reverse-sync-cutover` | Parent: `mongosync` | Mode: `dr` | Cluster: `mongosync (2 of 2)` | Queue-state: `held`
+- [ ] Concept: `mongosync-state-machine` | Parent: `mongosync` | Mode: `dr` | Cluster: `mongosync (2 of 2)` | Queue-state: `held`
+- [ ] Concept: `tls-x509-auth` | Parent: `mongosync` | Mode: `revisit` | Cluster: `mongosync (2 of 2)` | Queue-state: `held-review`
+- [ ] Concept: `verification-modes` | Parent: `mongosync` | Mode: `dr` | Cluster: `mongosync (2 of 2)` | Queue-state: `held`
 - [ ] Concept: `Severity scale (Blocking / Major / Medium / Minor / Nit)` | Parent: `Document Critique` | Mode: `dr` | Cluster: `Document Critique`
 - [ ] Concept: `Convergence loop with 3-iteration cap` | Parent: `Document Critique` | Mode: `dr` | Cluster: `Document Critique`
 - [ ] Concept: `Adversarial injection and hallucination guard` | Parent: `Document Critique` | Mode: `dr` | Cluster: `Document Critique`
@@ -1071,18 +1069,18 @@ Every frontier concept, grouped by shared parent (at most 8 per cluster), cluste
 - [ ] Concept: `Sales-Enablement One-Pager Species` | Parent: `One-Pager Writing` | Mode: `dr` | Cluster: `One-Pager Writing (2 of 2)`
 - [ ] Concept: `Section Budget for One Page` | Parent: `One-Pager Writing` | Mode: `dr` | Cluster: `One-Pager Writing (2 of 2)`
 - [ ] Concept: `Working Backwards Lineage` | Parent: `One-Pager Writing` | Mode: `dr` | Cluster: `One-Pager Writing (2 of 2)`
-- [ ] Concept: `Auditing the vocabulary of system prompts and instruction files` | Parent: `Prompt-side control of LLM lexical tics` | Mode: `dr` | Cluster: `Prompt-side control of LLM lexical tics (1 of 2)`
+- [ ] Concept: `Auditing the vocabulary of system prompts and instruction files` | Parent: `Prompt-side control of LLM lexical tics` | Mode: `dr` | Cluster: `Prompt-side control of LLM lexical tics (1 of 2)` | Queue-state: `coverage-review`
 - [ ] Concept: `Base vs instruct repetition behaviour` | Parent: `Prompt-side control of LLM lexical tics` | Mode: `dr` | Cluster: `Prompt-side control of LLM lexical tics (1 of 2)`
-- [ ] Concept: `Context-borne lexical contagion` | Parent: `Prompt-side control of LLM lexical tics` | Mode: `dr` | Cluster: `Prompt-side control of LLM lexical tics (1 of 2)`
+- [ ] Concept: `Context-borne lexical contagion` | Parent: `Prompt-side control of LLM lexical tics` | Mode: `dr` | Cluster: `Prompt-side control of LLM lexical tics (1 of 2)` | Queue-state: `coverage-review`
 - [ ] Concept: `Decoding-time suppression as alternative to prompt lists` | Parent: `Prompt-side control of LLM lexical tics` | Mode: `dr` | Cluster: `Prompt-side control of LLM lexical tics (1 of 2)`
 - [ ] Concept: `Exemplar diversity and unintended pattern pickup` | Parent: `Prompt-side control of LLM lexical tics` | Mode: `dr` | Cluster: `Prompt-side control of LLM lexical tics (1 of 2)`
-- [ ] Concept: `Few-shot exemplars versus banned-word lists for style control` | Parent: `Prompt-side control of LLM lexical tics` | Mode: `dr` | Cluster: `Prompt-side control of LLM lexical tics (1 of 2)`
+- [ ] Concept: `Few-shot exemplars versus banned-word lists for style control` | Parent: `Prompt-side control of LLM lexical tics` | Mode: `dr` | Cluster: `Prompt-side control of LLM lexical tics (1 of 2)` | Queue-state: `coverage-review`
 - [ ] Concept: `Prompt-format mirroring in output` | Parent: `Prompt-side control of LLM lexical tics` | Mode: `dr` | Cluster: `Prompt-side control of LLM lexical tics (1 of 2)`
 - [ ] Concept: `Formatting mirroring` | Parent: `Prompt-side control of LLM lexical tics` | Mode: `dr` | Cluster: `Prompt-side control of LLM lexical tics (1 of 2)`
 - [ ] Concept: `Ironic rebound mechanism in attention heads` | Parent: `Prompt-side control of LLM lexical tics` | Mode: `dr` | Cluster: `Prompt-side control of LLM lexical tics (2 of 2)`
 - [ ] Concept: `Linting instruction files for emphatic language` | Parent: `Prompt-side control of LLM lexical tics` | Mode: `dr` | Cluster: `Prompt-side control of LLM lexical tics (2 of 2)`
-- [ ] Concept: `Negative-instruction backfire in style prompts` | Parent: `Prompt-side control of LLM lexical tics` | Mode: `dr` | Cluster: `Prompt-side control of LLM lexical tics (2 of 2)`
-- [ ] Concept: `Positive substitution style guides` | Parent: `Prompt-side control of LLM lexical tics` | Mode: `dr` | Cluster: `Prompt-side control of LLM lexical tics (2 of 2)`
+- [ ] Concept: `Negative-instruction backfire in style prompts` | Parent: `Prompt-side control of LLM lexical tics` | Mode: `dr` | Cluster: `Prompt-side control of LLM lexical tics (2 of 2)` | Queue-state: `coverage-review`
+- [ ] Concept: `Positive substitution style guides` | Parent: `Prompt-side control of LLM lexical tics` | Mode: `dr` | Cluster: `Prompt-side control of LLM lexical tics (2 of 2)` | Queue-state: `coverage-review`
 - [ ] Concept: `Prohibition plus named replacement` | Parent: `Prompt-side control of LLM lexical tics` | Mode: `dr` | Cluster: `Prompt-side control of LLM lexical tics (2 of 2)`
 - [ ] Concept: `Structural priming in generation` | Parent: `Prompt-side control of LLM lexical tics` | Mode: `dr` | Cluster: `Prompt-side control of LLM lexical tics (2 of 2)`
 - [ ] Concept: `Prompt style matching output style` | Parent: `Prompt-side control of LLM lexical tics` | Mode: `dr` | Cluster: `Prompt-side control of LLM lexical tics (2 of 2)`
@@ -1223,68 +1221,68 @@ Every frontier concept, grouped by shared parent (at most 8 per cluster), cluste
 - [ ] Concept: `founder voice` | Parent: `Founder Letter Writing` | Mode: `dr` | Cluster: `Founder Letter Writing (2 of 2)`
 - [ ] Concept: `what I was wrong about` | Parent: `Founder Letter Writing` | Mode: `dr` | Cluster: `Founder Letter Writing (2 of 2)`
 - [ ] Concept: `Baseline-frequency test for style words` | Parent: `LLM engineering-metaphor tics: term of art versus reflexive tic` | Mode: `dr` | Cluster: `LLM engineering-metaphor tics: term of art versus reflexive tic (1 of 2)`
-- [ ] Concept: `Candor and sincerity marker tics` | Parent: `LLM engineering-metaphor tics: term of art versus reflexive tic` | Mode: `dr` | Cluster: `LLM engineering-metaphor tics: term of art versus reflexive tic (1 of 2)`
+- [ ] Concept: `Candor and sincerity marker tics` | Parent: `LLM engineering-metaphor tics: term of art versus reflexive tic` | Mode: `dr` | Cluster: `LLM engineering-metaphor tics: term of art versus reflexive tic (1 of 2)` | Queue-state: `coverage-review`
 - [ ] Concept: `Excess-vocabulary detection method` | Parent: `LLM engineering-metaphor tics: term of art versus reflexive tic` | Mode: `dr` | Cluster: `LLM engineering-metaphor tics: term of art versus reflexive tic (1 of 2)`
-- [ ] Concept: `Literal-referent rewriting protocol` | Parent: `LLM engineering-metaphor tics: term of art versus reflexive tic` | Mode: `dr` | Cluster: `LLM engineering-metaphor tics: term of art versus reflexive tic (1 of 2)`
+- [ ] Concept: `Literal-referent rewriting protocol` | Parent: `LLM engineering-metaphor tics: term of art versus reflexive tic` | Mode: `dr` | Cluster: `LLM engineering-metaphor tics: term of art versus reflexive tic (1 of 2)` | Queue-state: `coverage-review`
 - [ ] Concept: `Mixed metaphors as a collapse symptom` | Parent: `LLM engineering-metaphor tics: term of art versus reflexive tic` | Mode: `dr` | Cluster: `LLM engineering-metaphor tics: term of art versus reflexive tic (1 of 2)`
 - [ ] Concept: `Orbital argumentation and catachresis in LLM prose` | Parent: `LLM engineering-metaphor tics: term of art versus reflexive tic` | Mode: `dr` | Cluster: `LLM engineering-metaphor tics: term of art versus reflexive tic (1 of 2)`
 - [ ] Concept: `Referent-first drafting prompts` | Parent: `LLM engineering-metaphor tics: term of art versus reflexive tic` | Mode: `dr` | Cluster: `LLM engineering-metaphor tics: term of art versus reflexive tic (1 of 2)`
 - [ ] Concept: `RLHF annotator-dialect hypothesis` | Parent: `LLM engineering-metaphor tics: term of art versus reflexive tic` | Mode: `dr` | Cluster: `LLM engineering-metaphor tics: term of art versus reflexive tic (1 of 2)`
-- [ ] Concept: `Source-domain collapse in LLM metaphor` | Parent: `LLM engineering-metaphor tics: term of art versus reflexive tic` | Mode: `dr` | Cluster: `LLM engineering-metaphor tics: term of art versus reflexive tic (2 of 2)`
+- [ ] Concept: `Source-domain collapse in LLM metaphor` | Parent: `LLM engineering-metaphor tics: term of art versus reflexive tic` | Mode: `dr` | Cluster: `LLM engineering-metaphor tics: term of art versus reflexive tic (2 of 2)` | Queue-state: `coverage-review`
 - [ ] Concept: `Stance adverbs (genuinely, quietly)` | Parent: `LLM engineering-metaphor tics: term of art versus reflexive tic` | Mode: `dr` | Cluster: `LLM engineering-metaphor tics: term of art versus reflexive tic (2 of 2)`
 - [ ] Concept: `Sycophantic openers` | Parent: `LLM engineering-metaphor tics: term of art versus reflexive tic` | Mode: `dr` | Cluster: `LLM engineering-metaphor tics: term of art versus reflexive tic (2 of 2)`
-- [ ] Concept: `Term of art versus reflexive tic` | Parent: `LLM engineering-metaphor tics: term of art versus reflexive tic` | Mode: `dr` | Cluster: `LLM engineering-metaphor tics: term of art versus reflexive tic (2 of 2)`
+- [ ] Concept: `Term of art versus reflexive tic` | Parent: `LLM engineering-metaphor tics: term of art versus reflexive tic` | Mode: `dr` | Cluster: `LLM engineering-metaphor tics: term of art versus reflexive tic (2 of 2)` | Queue-state: `coverage-review`
 - [ ] Concept: `Typicality bias in preference data` | Parent: `LLM engineering-metaphor tics: term of art versus reflexive tic` | Mode: `dr` | Cluster: `LLM engineering-metaphor tics: term of art versus reflexive tic (2 of 2)`
-- [ ] Concept: `Engineering-metaphor vocabulary tics in LLM output` | Parent: `LLM engineering-metaphor tics: term of art versus reflexive tic` | Mode: `dr` | Cluster: `LLM engineering-metaphor tics: term of art versus reflexive tic (2 of 2)`
+- [ ] Concept: `Engineering-metaphor vocabulary tics in LLM output` | Parent: `LLM engineering-metaphor tics: term of art versus reflexive tic` | Mode: `dr` | Cluster: `LLM engineering-metaphor tics: term of art versus reflexive tic (2 of 2)` | Queue-state: `coverage-review`
 - [ ] Concept: `Word-swap hook filtering` | Parent: `LLM engineering-metaphor tics: term of art versus reflexive tic` | Mode: `dr` | Cluster: `LLM engineering-metaphor tics: term of art versus reflexive tic (2 of 2)`
 - [ ] Concept: `Awards-and-recognition boilerplate` | Parent: `LLM rhetorical-pattern tells in prose` | Mode: `dr` | Cluster: `LLM rhetorical-pattern tells in prose (1 of 2)`
-- [ ] Concept: `Contrastive negation and false-dichotomy framing` | Parent: `LLM rhetorical-pattern tells in prose` | Mode: `dr` | Cluster: `LLM rhetorical-pattern tells in prose (1 of 2)`
+- [ ] Concept: `Contrastive negation and false-dichotomy framing` | Parent: `LLM rhetorical-pattern tells in prose` | Mode: `dr` | Cluster: `LLM rhetorical-pattern tells in prose (1 of 2)` | Queue-state: `coverage-review`
 - [ ] Concept: `Excess-vocabulary lists` | Parent: `LLM rhetorical-pattern tells in prose` | Mode: `dr` | Cluster: `LLM rhetorical-pattern tells in prose (1 of 2)`
 - [ ] Concept: `Four- and five-item list extension` | Parent: `LLM rhetorical-pattern tells in prose` | Mode: `dr` | Cluster: `LLM rhetorical-pattern tells in prose (1 of 2)`
 - [ ] Concept: `Human style convergence from LLM exposure` | Parent: `LLM rhetorical-pattern tells in prose` | Mode: `dr` | Cluster: `LLM rhetorical-pattern tells in prose (1 of 2)`
 - [ ] Concept: `Inanimate-subject participles` | Parent: `LLM rhetorical-pattern tells in prose` | Mode: `dr` | Cluster: `LLM rhetorical-pattern tells in prose (1 of 2)`
 - [ ] Concept: `Perplexity as detection signal` | Parent: `LLM rhetorical-pattern tells in prose` | Mode: `dr` | Cluster: `LLM rhetorical-pattern tells in prose (1 of 2)`
-- [ ] Concept: `Rhythm uniformity and burstiness` | Parent: `LLM rhetorical-pattern tells in prose` | Mode: `dr` | Cluster: `LLM rhetorical-pattern tells in prose (1 of 2)`
+- [ ] Concept: `Rhythm uniformity and burstiness` | Parent: `LLM rhetorical-pattern tells in prose` | Mode: `dr` | Cluster: `LLM rhetorical-pattern tells in prose (1 of 2)` | Queue-state: `coverage-review`
 - [ ] Concept: `RLHF-induced rhetorical overuse` | Parent: `LLM rhetorical-pattern tells in prose` | Mode: `dr` | Cluster: `LLM rhetorical-pattern tells in prose (2 of 2)`
 - [ ] Concept: `Sentence-length variance metrics` | Parent: `LLM rhetorical-pattern tells in prose` | Mode: `dr` | Cluster: `LLM rhetorical-pattern tells in prose (2 of 2)`
-- [ ] Concept: `Significance inflation and promotional puffery` | Parent: `LLM rhetorical-pattern tells in prose` | Mode: `dr` | Cluster: `LLM rhetorical-pattern tells in prose (2 of 2)`
-- [ ] Concept: `Trailing participial analysis phrases` | Parent: `LLM rhetorical-pattern tells in prose` | Mode: `dr` | Cluster: `LLM rhetorical-pattern tells in prose (2 of 2)`
+- [ ] Concept: `Significance inflation and promotional puffery` | Parent: `LLM rhetorical-pattern tells in prose` | Mode: `dr` | Cluster: `LLM rhetorical-pattern tells in prose (2 of 2)` | Queue-state: `coverage-review`
+- [ ] Concept: `Trailing participial analysis phrases` | Parent: `LLM rhetorical-pattern tells in prose` | Mode: `dr` | Cluster: `LLM rhetorical-pattern tells in prose (2 of 2)` | Queue-state: `coverage-review`
 - [ ] Concept: `Travel-brochure register` | Parent: `LLM rhetorical-pattern tells in prose` | Mode: `dr` | Cluster: `LLM rhetorical-pattern tells in prose (2 of 2)`
 - [ ] Concept: `Tricolon of near-synonyms` | Parent: `LLM rhetorical-pattern tells in prose` | Mode: `dr` | Cluster: `LLM rhetorical-pattern tells in prose (2 of 2)`
-- [ ] Concept: `Tricolon and rule-of-three lists` | Parent: `LLM rhetorical-pattern tells in prose` | Mode: `dr` | Cluster: `LLM rhetorical-pattern tells in prose (2 of 2)`
+- [ ] Concept: `Tricolon and rule-of-three lists` | Parent: `LLM rhetorical-pattern tells in prose` | Mode: `dr` | Cluster: `LLM rhetorical-pattern tells in prose (2 of 2)` | Queue-state: `coverage-review`
 - [ ] Concept: `Vague attribution to third parties` | Parent: `LLM rhetorical-pattern tells in prose` | Mode: `dr` | Cluster: `LLM rhetorical-pattern tells in prose (2 of 2)`
 - [ ] Concept: `Baseline contamination by AI text` | Parent: `Measuring LLM lexical tics: excess vocabulary, baselines, drift` | Mode: `dr` | Cluster: `Measuring LLM lexical tics: excess vocabulary, baselines, drift (1 of 2)`
 - [ ] Concept: `Content-word vs style-word annotation` | Parent: `Measuring LLM lexical tics: excess vocabulary, baselines, drift` | Mode: `dr` | Cluster: `Measuring LLM lexical tics: excess vocabulary, baselines, drift (1 of 2)`
 - [ ] Concept: `Counterfactual frequency projection` | Parent: `Measuring LLM lexical tics: excess vocabulary, baselines, drift` | Mode: `dr` | Cluster: `Measuring LLM lexical tics: excess vocabulary, baselines, drift (1 of 2)`
 - [ ] Concept: `Era-tagging tic entries` | Parent: `Measuring LLM lexical tics: excess vocabulary, baselines, drift` | Mode: `dr` | Cluster: `Measuring LLM lexical tics: excess vocabulary, baselines, drift (1 of 2)`
-- [ ] Concept: `Excess-vocabulary frequency method` | Parent: `Measuring LLM lexical tics: excess vocabulary, baselines, drift` | Mode: `dr` | Cluster: `Measuring LLM lexical tics: excess vocabulary, baselines, drift (1 of 2)`
+- [ ] Concept: `Excess-vocabulary frequency method` | Parent: `Measuring LLM lexical tics: excess vocabulary, baselines, drift` | Mode: `dr` | Cluster: `Measuring LLM lexical tics: excess vocabulary, baselines, drift (1 of 2)` | Queue-state: `coverage-review`
 - [ ] Concept: `Frequency ratio vs frequency gap` | Parent: `Measuring LLM lexical tics: excess vocabulary, baselines, drift` | Mode: `dr` | Cluster: `Measuring LLM lexical tics: excess vocabulary, baselines, drift (1 of 2)`
-- [ ] Concept: `Human baselines and control words for tic detection` | Parent: `Measuring LLM lexical tics: excess vocabulary, baselines, drift` | Mode: `dr` | Cluster: `Measuring LLM lexical tics: excess vocabulary, baselines, drift (1 of 2)`
+- [ ] Concept: `Human baselines and control words for tic detection` | Parent: `Measuring LLM lexical tics: excess vocabulary, baselines, drift` | Mode: `dr` | Cluster: `Measuring LLM lexical tics: excess vocabulary, baselines, drift (1 of 2)` | Queue-state: `coverage-review`
 - [ ] Concept: `Humanizer tools and paraphrase evasion` | Parent: `Measuring LLM lexical tics: excess vocabulary, baselines, drift` | Mode: `dr` | Cluster: `Measuring LLM lexical tics: excess vocabulary, baselines, drift (1 of 2)`
-- [ ] Concept: `Maintaining a living tic list` | Parent: `Measuring LLM lexical tics: excess vocabulary, baselines, drift` | Mode: `dr` | Cluster: `Measuring LLM lexical tics: excess vocabulary, baselines, drift (2 of 2)`
+- [ ] Concept: `Maintaining a living tic list` | Parent: `Measuring LLM lexical tics: excess vocabulary, baselines, drift` | Mode: `dr` | Cluster: `Measuring LLM lexical tics: excess vocabulary, baselines, drift (2 of 2)` | Queue-state: `coverage-review`
 - [ ] Concept: `Non-native writer false positives` | Parent: `Measuring LLM lexical tics: excess vocabulary, baselines, drift` | Mode: `dr` | Cluster: `Measuring LLM lexical tics: excess vocabulary, baselines, drift (2 of 2)`
 - [ ] Concept: `Per-model idiolect profiles` | Parent: `Measuring LLM lexical tics: excess vocabulary, baselines, drift` | Mode: `dr` | Cluster: `Measuring LLM lexical tics: excess vocabulary, baselines, drift (2 of 2)`
 - [ ] Concept: `Perplexity and burstiness detectors` | Parent: `Measuring LLM lexical tics: excess vocabulary, baselines, drift` | Mode: `dr` | Cluster: `Measuring LLM lexical tics: excess vocabulary, baselines, drift (2 of 2)`
 - [ ] Concept: `Retiring decayed tics` | Parent: `Measuring LLM lexical tics: excess vocabulary, baselines, drift` | Mode: `dr` | Cluster: `Measuring LLM lexical tics: excess vocabulary, baselines, drift (2 of 2)`
 - [ ] Concept: `RLHF-induced lexical overrepresentation` | Parent: `Measuring LLM lexical tics: excess vocabulary, baselines, drift` | Mode: `dr` | Cluster: `Measuring LLM lexical tics: excess vocabulary, baselines, drift (2 of 2)`
-- [ ] Concept: `Stylometry and AI-text detector limits` | Parent: `Measuring LLM lexical tics: excess vocabulary, baselines, drift` | Mode: `dr` | Cluster: `Measuring LLM lexical tics: excess vocabulary, baselines, drift (2 of 2)`
-- [ ] Concept: `Tic drift across model versions` | Parent: `Measuring LLM lexical tics: excess vocabulary, baselines, drift` | Mode: `dr` | Cluster: `Measuring LLM lexical tics: excess vocabulary, baselines, drift (2 of 2)`
+- [ ] Concept: `Stylometry and AI-text detector limits` | Parent: `Measuring LLM lexical tics: excess vocabulary, baselines, drift` | Mode: `dr` | Cluster: `Measuring LLM lexical tics: excess vocabulary, baselines, drift (2 of 2)` | Queue-state: `coverage-review`
+- [ ] Concept: `Tic drift across model versions` | Parent: `Measuring LLM lexical tics: excess vocabulary, baselines, drift` | Mode: `dr` | Cluster: `Measuring LLM lexical tics: excess vocabulary, baselines, drift (2 of 2)` | Queue-state: `coverage-review`
 - [ ] Concept: `Agent attribution trailers` | Parent: `LLM tells in code, commit messages, comments and READMEs` | Mode: `dr` | Cluster: `LLM tells in code, commit messages, comments and READMEs (1 of 3)`
 - [ ] Concept: `Agent commit-style fingerprinting` | Parent: `LLM tells in code, commit messages, comments and READMEs` | Mode: `dr` | Cluster: `LLM tells in code, commit messages, comments and READMEs (1 of 3)`
 - [ ] Concept: `Badge walls and generated project-structure trees` | Parent: `LLM tells in code, commit messages, comments and READMEs` | Mode: `dr` | Cluster: `LLM tells in code, commit messages, comments and READMEs (1 of 3)`
 - [ ] Concept: `Ceremonial layering` | Parent: `LLM tells in code, commit messages, comments and READMEs` | Mode: `dr` | Cluster: `LLM tells in code, commit messages, comments and READMEs (1 of 3)`
-- [ ] Concept: `Code comment narration and over-explanation` | Parent: `LLM tells in code, commit messages, comments and READMEs` | Mode: `dr` | Cluster: `LLM tells in code, commit messages, comments and READMEs (1 of 3)`
-- [ ] Concept: `Defensive-code and over-engineering signatures` | Parent: `LLM tells in code, commit messages, comments and READMEs` | Mode: `dr` | Cluster: `LLM tells in code, commit messages, comments and READMEs (1 of 3)`
+- [ ] Concept: `Code comment narration and over-explanation` | Parent: `LLM tells in code, commit messages, comments and READMEs` | Mode: `dr` | Cluster: `LLM tells in code, commit messages, comments and READMEs (1 of 3)` | Queue-state: `coverage-review`
+- [ ] Concept: `Defensive-code and over-engineering signatures` | Parent: `LLM tells in code, commit messages, comments and READMEs` | Mode: `dr` | Cluster: `LLM tells in code, commit messages, comments and READMEs (1 of 3)` | Queue-state: `coverage-review`
 - [ ] Concept: `Detector false positives on plain writing` | Parent: `LLM tells in code, commit messages, comments and READMEs` | Mode: `dr` | Cluster: `LLM tells in code, commit messages, comments and READMEs (2 of 3)`
 - [ ] Concept: `Docstring over-completeness` | Parent: `LLM tells in code, commit messages, comments and READMEs` | Mode: `dr` | Cluster: `LLM tells in code, commit messages, comments and READMEs (2 of 3)`
 - [ ] Concept: `Duplication over reuse` | Parent: `LLM tells in code, commit messages, comments and READMEs` | Mode: `dr` | Cluster: `LLM tells in code, commit messages, comments and READMEs (2 of 3)`
-- [ ] Concept: `Good engineering prose versus a tell` | Parent: `LLM tells in code, commit messages, comments and READMEs` | Mode: `dr` | Cluster: `LLM tells in code, commit messages, comments and READMEs (2 of 3)`
+- [ ] Concept: `Good engineering prose versus a tell` | Parent: `LLM tells in code, commit messages, comments and READMEs` | Mode: `dr` | Cluster: `LLM tells in code, commit messages, comments and READMEs (2 of 3)` | Queue-state: `coverage-review`
 - [ ] Concept: `Invented changelog entries` | Parent: `LLM tells in code, commit messages, comments and READMEs` | Mode: `dr` | Cluster: `LLM tells in code, commit messages, comments and READMEs (2 of 3)`
 - [ ] Concept: `Message-code inconsistency` | Parent: `LLM tells in code, commit messages, comments and READMEs` | Mode: `dr` | Cluster: `LLM tells in code, commit messages, comments and READMEs (2 of 3)`
-- [ ] Concept: `Commit message and PR description tells` | Parent: `LLM tells in code, commit messages, comments and READMEs` | Mode: `dr` | Cluster: `LLM tells in code, commit messages, comments and READMEs (3 of 3)`
+- [ ] Concept: `Commit message and PR description tells` | Parent: `LLM tells in code, commit messages, comments and READMEs` | Mode: `dr` | Cluster: `LLM tells in code, commit messages, comments and READMEs (3 of 3)` | Queue-state: `coverage-review`
 - [ ] Concept: `Meta comments (e.g. 'added for X')` | Parent: `LLM tells in code, commit messages, comments and READMEs` | Mode: `dr` | Cluster: `LLM tells in code, commit messages, comments and READMEs (3 of 3)`
 - [ ] Concept: `Placeholder and debug debris` | Parent: `LLM tells in code, commit messages, comments and READMEs` | Mode: `dr` | Cluster: `LLM tells in code, commit messages, comments and READMEs (3 of 3)`
-- [ ] Concept: `README and changelog boilerplate tells` | Parent: `LLM tells in code, commit messages, comments and READMEs` | Mode: `dr` | Cluster: `LLM tells in code, commit messages, comments and READMEs (3 of 3)`
+- [ ] Concept: `README and changelog boilerplate tells` | Parent: `LLM tells in code, commit messages, comments and READMEs` | Mode: `dr` | Cluster: `LLM tells in code, commit messages, comments and READMEs (3 of 3)` | Queue-state: `coverage-review`
 - [ ] Concept: `Specificity test for a sentence` | Parent: `LLM tells in code, commit messages, comments and READMEs` | Mode: `dr` | Cluster: `LLM tells in code, commit messages, comments and READMEs (3 of 3)`
 - [ ] Concept: `What-versus-why comment distinction` | Parent: `LLM tells in code, commit messages, comments and READMEs` | Mode: `dr` | Cluster: `LLM tells in code, commit messages, comments and READMEs (3 of 3)`
 - [ ] Concept: `Promotional adjective lists` | Parent: `Vague attribution and promotional register in LLM prose` | Mode: `dr` | Cluster: `Vague attribution and promotional register in LLM prose (1 of 2)`
@@ -1292,25 +1290,25 @@ Every frontier concept, grouped by shared parent (at most 8 per cluster), cluste
 - [ ] Concept: `Connective words implying unsupported relations` | Parent: `Vague attribution and promotional register in LLM prose` | Mode: `dr` | Cluster: `Vague attribution and promotional register in LLM prose (1 of 2)`
 - [ ] Concept: `Cultural-heritage significance framing` | Parent: `Vague attribution and promotional register in LLM prose` | Mode: `dr` | Cluster: `Vague attribution and promotional register in LLM prose (1 of 2)`
 - [ ] Concept: `Dropping attribution for undisputed claims` | Parent: `Vague attribution and promotional register in LLM prose` | Mode: `dr` | Cluster: `Vague attribution and promotional register in LLM prose (1 of 2)`
-- [ ] Concept: `Editorial commentary in neutral prose` | Parent: `Vague attribution and promotional register in LLM prose` | Mode: `dr` | Cluster: `Vague attribution and promotional register in LLM prose (1 of 2)`
+- [ ] Concept: `Editorial commentary in neutral prose` | Parent: `Vague attribution and promotional register in LLM prose` | Mode: `dr` | Cluster: `Vague attribution and promotional register in LLM prose (1 of 2)` | Queue-state: `coverage-review`
 - [ ] Concept: `Overgeneralised consensus from one source` | Parent: `Vague attribution and promotional register in LLM prose` | Mode: `dr` | Cluster: `Vague attribution and promotional register in LLM prose (1 of 2)`
 - [ ] Concept: `Passive voice hiding the agent` | Parent: `Vague attribution and promotional register in LLM prose` | Mode: `dr` | Cluster: `Vague attribution and promotional register in LLM prose (1 of 2)`
-- [ ] Concept: `Peacock terms and undue emphasis` | Parent: `Vague attribution and promotional register in LLM prose` | Mode: `dr` | Cluster: `Vague attribution and promotional register in LLM prose (2 of 2)`
+- [ ] Concept: `Peacock terms and undue emphasis` | Parent: `Vague attribution and promotional register in LLM prose` | Mode: `dr` | Cluster: `Vague attribution and promotional register in LLM prose (2 of 2)` | Queue-state: `coverage-review`
 - [ ] Concept: `Positive-sentiment drift in preference-tuned models` | Parent: `Vague attribution and promotional register in LLM prose` | Mode: `dr` | Cluster: `Vague attribution and promotional register in LLM prose (2 of 2)`
-- [ ] Concept: `Rewriting with named sources and plain claims` | Parent: `Vague attribution and promotional register in LLM prose` | Mode: `dr` | Cluster: `Vague attribution and promotional register in LLM prose (2 of 2)`
+- [ ] Concept: `Rewriting with named sources and plain claims` | Parent: `Vague attribution and promotional register in LLM prose` | Mode: `dr` | Cluster: `Vague attribution and promotional register in LLM prose (2 of 2)` | Queue-state: `coverage-review`
 - [ ] Concept: `Significance and legacy inflation` | Parent: `Vague attribution and promotional register in LLM prose` | Mode: `dr` | Cluster: `Vague attribution and promotional register in LLM prose (2 of 2)`
-- [ ] Concept: `Travel-brochure and promotional register` | Parent: `Vague attribution and promotional register in LLM prose` | Mode: `dr` | Cluster: `Vague attribution and promotional register in LLM prose (2 of 2)`
+- [ ] Concept: `Travel-brochure and promotional register` | Parent: `Vague attribution and promotional register in LLM prose` | Mode: `dr` | Cluster: `Vague attribution and promotional register in LLM prose (2 of 2)` | Queue-state: `coverage-review`
 - [ ] Concept: `Verifying rewritten attributions against source text` | Parent: `Vague attribution and promotional register in LLM prose` | Mode: `dr` | Cluster: `Vague attribution and promotional register in LLM prose (2 of 2)`
 - [ ] Concept: `Attribution vs voice in neutral prose` | Parent: `Vague attribution and promotional register in LLM prose` | Mode: `dr` | Cluster: `Vague attribution and promotional register in LLM prose (2 of 2)`
-- [ ] Concept: `Vague attribution and weasel wording` | Parent: `Vague attribution and promotional register in LLM prose` | Mode: `dr` | Cluster: `Vague attribution and promotional register in LLM prose (2 of 2)`
+- [ ] Concept: `Vague attribution and weasel wording` | Parent: `Vague attribution and promotional register in LLM prose` | Mode: `dr` | Cluster: `Vague attribution and promotional register in LLM prose (2 of 2)` | Queue-state: `coverage-review`
 - [ ] Concept: `Career of metaphor` | Parent: `Mixed metaphors and catachresis as signs of reflexive figurative language` | Mode: `dr` | Cluster: `Mixed metaphors and catachresis as signs of reflexive figurative language (1 of 2)`
-- [ ] Concept: `Conceptual metaphor source domains in technical prose` | Parent: `Mixed metaphors and catachresis as signs of reflexive figurative language` | Mode: `dr` | Cluster: `Mixed metaphors and catachresis as signs of reflexive figurative language (1 of 2)`
-- [ ] Concept: `Dead versus live metaphors in engineering writing` | Parent: `Mixed metaphors and catachresis as signs of reflexive figurative language` | Mode: `dr` | Cluster: `Mixed metaphors and catachresis as signs of reflexive figurative language (1 of 2)`
+- [ ] Concept: `Conceptual metaphor source domains in technical prose` | Parent: `Mixed metaphors and catachresis as signs of reflexive figurative language` | Mode: `dr` | Cluster: `Mixed metaphors and catachresis as signs of reflexive figurative language (1 of 2)` | Queue-state: `coverage-review`
+- [ ] Concept: `Dead versus live metaphors in engineering writing` | Parent: `Mixed metaphors and catachresis as signs of reflexive figurative language` | Mode: `dr` | Cluster: `Mixed metaphors and catachresis as signs of reflexive figurative language (1 of 2)` | Queue-state: `coverage-review`
 - [ ] Concept: `Deliberate metaphor theory` | Parent: `Mixed metaphors and catachresis as signs of reflexive figurative language` | Mode: `dr` | Cluster: `Mixed metaphors and catachresis as signs of reflexive figurative language (1 of 2)`
-- [ ] Concept: `Edit protocol for colliding metaphors` | Parent: `Mixed metaphors and catachresis as signs of reflexive figurative language` | Mode: `dr` | Cluster: `Mixed metaphors and catachresis as signs of reflexive figurative language (1 of 2)`
+- [ ] Concept: `Edit protocol for colliding metaphors` | Parent: `Mixed metaphors and catachresis as signs of reflexive figurative language` | Mode: `dr` | Cluster: `Mixed metaphors and catachresis as signs of reflexive figurative language (1 of 2)` | Queue-state: `coverage-review`
 - [ ] Concept: `Kimmel corpus study of mixed metaphor` | Parent: `Mixed metaphors and catachresis as signs of reflexive figurative language` | Mode: `dr` | Cluster: `Mixed metaphors and catachresis as signs of reflexive figurative language (1 of 2)`
-- [ ] Concept: `Mixed metaphor and catachresis` | Parent: `Mixed metaphors and catachresis as signs of reflexive figurative language` | Mode: `dr` | Cluster: `Mixed metaphors and catachresis as signs of reflexive figurative language (1 of 2)`
-- [ ] Concept: `Metaphor collision as a detection signal` | Parent: `Mixed metaphors and catachresis as signs of reflexive figurative language` | Mode: `dr` | Cluster: `Mixed metaphors and catachresis as signs of reflexive figurative language (1 of 2)`
+- [ ] Concept: `Mixed metaphor and catachresis` | Parent: `Mixed metaphors and catachresis as signs of reflexive figurative language` | Mode: `dr` | Cluster: `Mixed metaphors and catachresis as signs of reflexive figurative language (1 of 2)` | Queue-state: `coverage-review`
+- [ ] Concept: `Metaphor collision as a detection signal` | Parent: `Mixed metaphors and catachresis as signs of reflexive figurative language` | Mode: `dr` | Cluster: `Mixed metaphors and catachresis as signs of reflexive figurative language (1 of 2)` | Queue-state: `coverage-review`
 - [ ] Concept: `Metaphor conventionality gradient` | Parent: `Mixed metaphors and catachresis as signs of reflexive figurative language` | Mode: `dr` | Cluster: `Mixed metaphors and catachresis as signs of reflexive figurative language (2 of 2)`
 - [ ] Concept: `Per-clause MIPVU-style word labelling` | Parent: `Mixed metaphors and catachresis as signs of reflexive figurative language` | Mode: `dr` | Cluster: `Mixed metaphors and catachresis as signs of reflexive figurative language (2 of 2)`
 - [ ] Concept: `Quintilian on abusio` | Parent: `Mixed metaphors and catachresis as signs of reflexive figurative language` | Mode: `dr` | Cluster: `Mixed metaphors and catachresis as signs of reflexive figurative language (2 of 2)`
@@ -1318,24 +1316,24 @@ Every frontier concept, grouped by shared parent (at most 8 per cluster), cluste
 - [ ] Concept: `Source-domain lexicon overlap check` | Parent: `Mixed metaphors and catachresis as signs of reflexive figurative language` | Mode: `dr` | Cluster: `Mixed metaphors and catachresis as signs of reflexive figurative language (2 of 2)`
 - [ ] Concept: `Technical debt as finance metaphor` | Parent: `Mixed metaphors and catachresis as signs of reflexive figurative language` | Mode: `dr` | Cluster: `Mixed metaphors and catachresis as signs of reflexive figurative language (2 of 2)`
 - [ ] Concept: `War and journey metaphors in engineering` | Parent: `Mixed metaphors and catachresis as signs of reflexive figurative language` | Mode: `dr` | Cluster: `Mixed metaphors and catachresis as signs of reflexive figurative language (2 of 2)`
-- [ ] Concept: `Consequences for tic lists and detectors` | Parent: `Human adoption of LLM vocabulary and its effect on tic baselines` | Mode: `dr` | Cluster: `Human adoption of LLM vocabulary and its effect on tic baselines (1 of 2)`
+- [ ] Concept: `Consequences for tic lists and detectors` | Parent: `Human adoption of LLM vocabulary and its effect on tic baselines` | Mode: `dr` | Cluster: `Human adoption of LLM vocabulary and its effect on tic baselines (1 of 2)` | Queue-state: `coverage-review`
 - [ ] Concept: `Cross-cultural style convergence in AI-assisted writing` | Parent: `Human adoption of LLM vocabulary and its effect on tic baselines` | Mode: `dr` | Cluster: `Human adoption of LLM vocabulary and its effect on tic baselines (1 of 2)`
 - [ ] Concept: `Excess-frequency counterfactual` | Parent: `Human adoption of LLM vocabulary and its effect on tic baselines` | Mode: `dr` | Cluster: `Human adoption of LLM vocabulary and its effect on tic baselines (1 of 2)`
 - [ ] Concept: `Exposure-to-active-vocabulary mechanism` | Parent: `Human adoption of LLM vocabulary and its effect on tic baselines` | Mode: `dr` | Cluster: `Human adoption of LLM vocabulary and its effect on tic baselines (1 of 2)`
-- [ ] Concept: `Feedback loop and baseline contamination` | Parent: `Human adoption of LLM vocabulary and its effect on tic baselines` | Mode: `dr` | Cluster: `Human adoption of LLM vocabulary and its effect on tic baselines (1 of 2)`
-- [ ] Concept: `Homogenization of professional and scientific prose` | Parent: `Human adoption of LLM vocabulary and its effect on tic baselines` | Mode: `dr` | Cluster: `Human adoption of LLM vocabulary and its effect on tic baselines (1 of 2)`
-- [ ] Concept: `Measuring convergence against pre-LLM baselines` | Parent: `Human adoption of LLM vocabulary and its effect on tic baselines` | Mode: `dr` | Cluster: `Human adoption of LLM vocabulary and its effect on tic baselines (1 of 2)`
+- [ ] Concept: `Feedback loop and baseline contamination` | Parent: `Human adoption of LLM vocabulary and its effect on tic baselines` | Mode: `dr` | Cluster: `Human adoption of LLM vocabulary and its effect on tic baselines (1 of 2)` | Queue-state: `coverage-review`
+- [ ] Concept: `Homogenization of professional and scientific prose` | Parent: `Human adoption of LLM vocabulary and its effect on tic baselines` | Mode: `dr` | Cluster: `Human adoption of LLM vocabulary and its effect on tic baselines (1 of 2)` | Queue-state: `coverage-review`
+- [ ] Concept: `Measuring convergence against pre-LLM baselines` | Parent: `Human adoption of LLM vocabulary and its effect on tic baselines` | Mode: `dr` | Cluster: `Human adoption of LLM vocabulary and its effect on tic baselines (1 of 2)` | Queue-state: `coverage-review`
 - [ ] Concept: `Model-to-human vocabulary loop` | Parent: `Human adoption of LLM vocabulary and its effect on tic baselines` | Mode: `dr` | Cluster: `Human adoption of LLM vocabulary and its effect on tic baselines (1 of 2)`
 - [ ] Concept: `Peer-review homogenization` | Parent: `Human adoption of LLM vocabulary and its effect on tic baselines` | Mode: `dr` | Cluster: `Human adoption of LLM vocabulary and its effect on tic baselines (2 of 2)`
 - [ ] Concept: `Perplexity detector bias` | Parent: `Human adoption of LLM vocabulary and its effect on tic baselines` | Mode: `dr` | Cluster: `Human adoption of LLM vocabulary and its effect on tic baselines (2 of 2)`
 - [ ] Concept: `Pre-2022 frozen corpora as clean baselines` | Parent: `Human adoption of LLM vocabulary and its effect on tic baselines` | Mode: `dr` | Cluster: `Human adoption of LLM vocabulary and its effect on tic baselines (2 of 2)`
-- [ ] Concept: `Human adoption of LLM vocabulary in speech and writing` | Parent: `Human adoption of LLM vocabulary and its effect on tic baselines` | Mode: `dr` | Cluster: `Human adoption of LLM vocabulary and its effect on tic baselines (2 of 2)`
+- [ ] Concept: `Human adoption of LLM vocabulary in speech and writing` | Parent: `Human adoption of LLM vocabulary and its effect on tic baselines` | Mode: `dr` | Cluster: `Human adoption of LLM vocabulary and its effect on tic baselines (2 of 2)` | Queue-state: `coverage-review`
 - [ ] Concept: `Speech vs writing adoption` | Parent: `Human adoption of LLM vocabulary and its effect on tic baselines` | Mode: `dr` | Cluster: `Human adoption of LLM vocabulary and its effect on tic baselines (2 of 2)`
 - [ ] Concept: `Synthetic control for lexical change` | Parent: `Human adoption of LLM vocabulary and its effect on tic baselines` | Mode: `dr` | Cluster: `Human adoption of LLM vocabulary and its effect on tic baselines (2 of 2)`
 - [ ] Concept: `Web prevalence of AI text as corpus contamination` | Parent: `Human adoption of LLM vocabulary and its effect on tic baselines` | Mode: `dr` | Cluster: `Human adoption of LLM vocabulary and its effect on tic baselines (2 of 2)`
 - [ ] Concept: `Weighting and dating tic lists` | Parent: `Human adoption of LLM vocabulary and its effect on tic baselines` | Mode: `dr` | Cluster: `Human adoption of LLM vocabulary and its effect on tic baselines (2 of 2)`
 - [ ] Concept: `BLUF and Minto Pyramid Frameworks` | Parent: `Writing and Documentation` | Mode: `dr` | Cluster: `Writing and Documentation`
-- [ ] Concept: `SCQA Framework` | Parent: `Writing and Documentation` | Mode: `dr` | Cluster: `Writing and Documentation`
+- [ ] Concept: `SCQA Framework` | Parent: `Writing and Documentation` | Mode: `dr` | Cluster: `Writing and Documentation` | Also-parent: `Reporting and Communication` | Previous-records: `` - [ ] Concept: `SCQA framework` | Parent: `Reporting and Communication` | Mode: `dr` | Cluster: `Reporting and Communication (2 of 2)` ``
 - [ ] Concept: `Tone Calibration by Audience` | Parent: `Writing and Documentation` | Mode: `dr` | Cluster: `Writing and Documentation`
 - [ ] Concept: `Williams Sentence Craft (nominalization, Given/New)` | Parent: `Writing and Documentation` | Mode: `dr` | Cluster: `Writing and Documentation`
 - [ ] Concept: `Zinsser Four Enemies of Clutter` | Parent: `Writing and Documentation` | Mode: `dr` | Cluster: `Writing and Documentation`
@@ -1621,10 +1619,10 @@ Every frontier concept, grouped by shared parent (at most 8 per cluster), cluste
 - [ ] Concept: `Scripting surfaces (cliclick, MouseTools, Hammerspoon, AppleScript System Events, PyObjC/pyautogui)` | Parent: `macOS Programmatic Input Control (CGEvent synthesis, event taps, cursor warping, TCC gates, remapping & pointer tuning)` | Mode: `dr` | Cluster: `macOS Programmatic Input Control (CGEvent synthesis, event taps, cursor warping, TCC gates, remapping & pointer tuning) (2 of 2)`
 - [ ] Concept: `Pointer-tuning tools (LinearMouse, Mos, SteerMouse, USB Overdrive, BetterTouchTool)` | Parent: `macOS Programmatic Input Control (CGEvent synthesis, event taps, cursor warping, TCC gates, remapping & pointer tuning)` | Mode: `dr` | Cluster: `macOS Programmatic Input Control (CGEvent synthesis, event taps, cursor warping, TCC gates, remapping & pointer tuning) (2 of 2)`
 - [ ] Concept: `workflow orchestration` | Parent: `data engineering and pipelines` | Mode: `dr` | Cluster: `data engineering and pipelines`
-- [ ] Concept: `dbt analytics engineering` | Parent: `data engineering and pipelines` | Mode: `dr` | Cluster: `data engineering and pipelines`
+- [ ] Concept: `dbt analytics engineering` | Parent: `data engineering and pipelines` | Mode: `dr` | Cluster: `data engineering and pipelines` | Also-parent: `Data Analysis Tools and Languages` | Previous-records: `` - [ ] Concept: `dbt Analytics Engineering` | Parent: `Data Analysis Tools and Languages` | Mode: `dr` | Cluster: `Data Analysis Tools and Languages (1 of 2)` ``
 - [ ] Concept: `lakehouse architectures` | Parent: `data engineering and pipelines` | Mode: `dr` | Cluster: `data engineering and pipelines`
 - [ ] Concept: `batch vs streaming Lambda Kappa` | Parent: `data engineering and pipelines` | Mode: `dr` | Cluster: `data engineering and pipelines`
-- [ ] Concept: `data contracts` | Parent: `data engineering and pipelines` | Mode: `dr` | Cluster: `data engineering and pipelines`
+- [ ] Concept: `data contracts` | Parent: `data engineering and pipelines` | Mode: `dr` | Cluster: `data engineering and pipelines` | Also-parent: `Data Acquisition and Sampling` | Previous-records: `` - [ ] Concept: `Data Contracts` | Parent: `Data Acquisition and Sampling` | Mode: `dr` | Cluster: `Data Acquisition and Sampling (1 of 2)` ``
 - [ ] Concept: `data quality testing` | Parent: `data engineering and pipelines` | Mode: `dr` | Cluster: `data engineering and pipelines`
 - [ ] Concept: `pipeline observability` | Parent: `data engineering and pipelines` | Mode: `dr` | Cluster: `data engineering and pipelines`
 - [ ] Concept: `Kafka` | Parent: `streaming analytics` | Mode: `dr` | Cluster: `streaming analytics`
@@ -1933,7 +1931,6 @@ Every frontier concept, grouped by shared parent (at most 8 per cluster), cluste
 - [ ] Concept: `Sequential Testing mSPRT O'Brien-Fleming` | Parent: `A/B Testing and Causal Inference` | Mode: `dr` | Cluster: `A/B Testing and Causal Inference (2 of 2)`
 - [ ] Concept: `Synthetic Control` | Parent: `A/B Testing and Causal Inference` | Mode: `dr` | Cluster: `A/B Testing and Causal Inference (2 of 2)`
 - [ ] Concept: `APIs and Pagination` | Parent: `Data Acquisition and Sampling` | Mode: `dr` | Cluster: `Data Acquisition and Sampling (1 of 2)`
-- [ ] Concept: `Data Contracts` | Parent: `Data Acquisition and Sampling` | Mode: `dr` | Cluster: `Data Acquisition and Sampling (1 of 2)`
 - [ ] Concept: `Database Extraction and CDC` | Parent: `Data Acquisition and Sampling` | Mode: `dr` | Cluster: `Data Acquisition and Sampling (1 of 2)`
 - [ ] Concept: `File Formats` | Parent: `Data Acquisition and Sampling` | Mode: `dr` | Cluster: `Data Acquisition and Sampling (1 of 2)`
 - [ ] Concept: `Sampling Methodology` | Parent: `Data Acquisition and Sampling` | Mode: `dr` | Cluster: `Data Acquisition and Sampling (1 of 2)`
@@ -1942,7 +1939,6 @@ Every frontier concept, grouped by shared parent (at most 8 per cluster), cluste
 - [ ] Concept: `Streaming Ingest` | Parent: `Data Acquisition and Sampling` | Mode: `dr` | Cluster: `Data Acquisition and Sampling (2 of 2)`
 - [ ] Concept: `Surveys and Primary Collection` | Parent: `Data Acquisition and Sampling` | Mode: `dr` | Cluster: `Data Acquisition and Sampling (2 of 2)`
 - [ ] Concept: `Web Scraping` | Parent: `Data Acquisition and Sampling` | Mode: `dr` | Cluster: `Data Acquisition and Sampling (2 of 2)`
-- [ ] Concept: `dbt Analytics Engineering` | Parent: `Data Analysis Tools and Languages` | Mode: `dr` | Cluster: `Data Analysis Tools and Languages (1 of 2)`
 - [ ] Concept: `Jupyter JupyterLab VS Code` | Parent: `Data Analysis Tools and Languages` | Mode: `dr` | Cluster: `Data Analysis Tools and Languages (1 of 2)`
 - [ ] Concept: `Marimo Reactive Notebooks` | Parent: `Data Analysis Tools and Languages` | Mode: `dr` | Cluster: `Data Analysis Tools and Languages (1 of 2)`
 - [ ] Concept: `Notebook Anti-patterns` | Parent: `Data Analysis Tools and Languages` | Mode: `dr` | Cluster: `Data Analysis Tools and Languages (1 of 2)`
@@ -2094,7 +2090,6 @@ Every frontier concept, grouped by shared parent (at most 8 per cluster), cluste
 - [ ] Concept: `Notebook-as-report (Jupyter / Quarto / Observable / R Markdown)` | Parent: `Reporting and Communication` | Mode: `dr` | Cluster: `Reporting and Communication (2 of 2)`
 - [ ] Concept: `Recommendation framing with confidence levels` | Parent: `Reporting and Communication` | Mode: `dr` | Cluster: `Reporting and Communication (2 of 2)`
 - [ ] Concept: `Reproducibility appendix` | Parent: `Reporting and Communication` | Mode: `dr` | Cluster: `Reporting and Communication (2 of 2)`
-- [ ] Concept: `SCQA framework` | Parent: `Reporting and Communication` | Mode: `dr` | Cluster: `Reporting and Communication (2 of 2)`
 - [ ] Concept: `Technical report structure (IMRaD)` | Parent: `Reporting and Communication` | Mode: `dr` | Cluster: `Reporting and Communication (2 of 2)`
 - [ ] Concept: `Uncertainty taxonomy` | Parent: `Reporting and Communication` | Mode: `dr` | Cluster: `Reporting and Communication (2 of 2)`
 - [ ] Concept: `Bayesian Modeling Stan PyMC` | Parent: `Statistical Modeling` | Mode: `dr` | Cluster: `Statistical Modeling (1 of 2)`
@@ -2306,7 +2301,7 @@ Every frontier concept, grouped by shared parent (at most 8 per cluster), cluste
 - [ ] Concept: `Automated attack generation (GCG, PAIR, TAP, red-teamer LLMs)` | Parent: `AI Red-Teaming and Security-Testing Tooling` | Mode: `dr` | Cluster: `AI Red-Teaming and Security-Testing Tooling`
 - [ ] Concept: `Benchmarks (AdvBench, HarmBench, JailbreakBench, AgentDojo)` | Parent: `AI Red-Teaming and Security-Testing Tooling` | Mode: `dr` | Cluster: `AI Red-Teaming and Security-Testing Tooling`
 - [ ] Concept: `Commercial continuous red-teaming (Lakera/Gandalf, Cisco AI Defense, Mindgard)` | Parent: `AI Red-Teaming and Security-Testing Tooling` | Mode: `dr` | Cluster: `AI Red-Teaming and Security-Testing Tooling`
-- [ ] Concept: `Process & governance (OWASP GenAI Red Teaming Guide, MITRE ATLAS, NIST AI RMF, red-team-in-CI)` | Parent: `AI Red-Teaming and Security-Testing Tooling` | Mode: `dr` | Cluster: `AI Red-Teaming and Security-Testing Tooling`
+- [ ] Concept: `Process & governance (OWASP GenAI Red Teaming Guide, MITRE ATLAS, NIST AI RMF, red-team-in-CI)` | Parent: `AI Red-Teaming and Security-Testing Tooling` | Mode: `dr` | Cluster: `AI Red-Teaming and Security-Testing Tooling` | Queue-state: `held`
 - [ ] Concept: `Cascaded vs speech-to-speech architecture` | Parent: `Voice and Real-Time Agent Design` | Mode: `dr` | Cluster: `Voice and Real-Time Agent Design`
 - [ ] Concept: `Real-time APIs (OpenAI Realtime gpt-realtime, Gemini Live)` | Parent: `Voice and Real-Time Agent Design` | Mode: `dr` | Cluster: `Voice and Real-Time Agent Design`
 - [ ] Concept: `Turn detection & barge-in (VAD, semantic, Deepgram Flux, backchannel)` | Parent: `Voice and Real-Time Agent Design` | Mode: `dr` | Cluster: `Voice and Real-Time Agent Design`
@@ -2341,21 +2336,21 @@ Every frontier concept, grouped by shared parent (at most 8 per cluster), cluste
 - [ ] Concept: `The Three Gulfs (Specification/Generalization/Comprehension)` | Parent: `Eval-Driven Development for LLM Apps` | Mode: `dr` | Cluster: `Eval-Driven Development for LLM Apps (2 of 2)`
 - [ ] Concept: `Tooling (promptfoo, DeepEval, Ragas, Braintrust, LangSmith)` | Parent: `Eval-Driven Development for LLM Apps` | Mode: `dr` | Cluster: `Eval-Driven Development for LLM Apps (2 of 2)`
 - [ ] Concept: `Anti-laziness prompt legacy` | Parent: `Instruction-file hygiene for LLM lexical tics: linting, mirroring, hook filtering` | Mode: `dr` | Cluster: `Instruction-file hygiene for LLM lexical tics: linting, mirroring, hook filtering (1 of 2)`
-- [ ] Concept: `Hook-based filtering of agent output` | Parent: `Instruction-file hygiene for LLM lexical tics: linting, mirroring, hook filtering` | Mode: `dr` | Cluster: `Instruction-file hygiene for LLM lexical tics: linting, mirroring, hook filtering (1 of 2)`
+- [ ] Concept: `Hook-based filtering of agent output` | Parent: `Instruction-file hygiene for LLM lexical tics: linting, mirroring, hook filtering` | Mode: `dr` | Cluster: `Instruction-file hygiene for LLM lexical tics: linting, mirroring, hook filtering (1 of 2)` | Queue-state: `coverage-review`
 - [ ] Concept: `Classifying hits: ban list vs example vs prose` | Parent: `Instruction-file hygiene for LLM lexical tics: linting, mirroring, hook filtering` | Mode: `dr` | Cluster: `Instruction-file hygiene for LLM lexical tics: linting, mirroring, hook filtering (1 of 2)`
-- [ ] Concept: `Emphatic language in prompts and overtriggering` | Parent: `Instruction-file hygiene for LLM lexical tics: linting, mirroring, hook filtering` | Mode: `dr` | Cluster: `Instruction-file hygiene for LLM lexical tics: linting, mirroring, hook filtering (1 of 2)`
+- [ ] Concept: `Emphatic language in prompts and overtriggering` | Parent: `Instruction-file hygiene for LLM lexical tics: linting, mirroring, hook filtering` | Mode: `dr` | Cluster: `Instruction-file hygiene for LLM lexical tics: linting, mirroring, hook filtering (1 of 2)` | Queue-state: `coverage-review`
 - [ ] Concept: `Few-shot example style leakage` | Parent: `Instruction-file hygiene for LLM lexical tics: linting, mirroring, hook filtering` | Mode: `dr` | Cluster: `Instruction-file hygiene for LLM lexical tics: linting, mirroring, hook filtering (1 of 2)`
-- [ ] Concept: `Linting instruction files for seeded vocabulary` | Parent: `Instruction-file hygiene for LLM lexical tics: linting, mirroring, hook filtering` | Mode: `dr` | Cluster: `Instruction-file hygiene for LLM lexical tics: linting, mirroring, hook filtering (1 of 2)`
+- [ ] Concept: `Linting instruction files for seeded vocabulary` | Parent: `Instruction-file hygiene for LLM lexical tics: linting, mirroring, hook filtering` | Mode: `dr` | Cluster: `Instruction-file hygiene for LLM lexical tics: linting, mirroring, hook filtering (1 of 2)` | Queue-state: `coverage-review`
 - [ ] Concept: `Fixed prompt-set regression harness for style` | Parent: `Instruction-file hygiene for LLM lexical tics: linting, mirroring, hook filtering` | Mode: `dr` | Cluster: `Instruction-file hygiene for LLM lexical tics: linting, mirroring, hook filtering (1 of 2)`
 - [ ] Concept: `Negative instructions vs positive framing` | Parent: `Instruction-file hygiene for LLM lexical tics: linting, mirroring, hook filtering` | Mode: `dr` | Cluster: `Instruction-file hygiene for LLM lexical tics: linting, mirroring, hook filtering (1 of 2)`
 - [ ] Concept: `Per-model prompt migration` | Parent: `Instruction-file hygiene for LLM lexical tics: linting, mirroring, hook filtering` | Mode: `dr` | Cluster: `Instruction-file hygiene for LLM lexical tics: linting, mirroring, hook filtering (2 of 2)`
 - [ ] Concept: `Positive framing of format instructions` | Parent: `Instruction-file hygiene for LLM lexical tics: linting, mirroring, hook filtering` | Mode: `dr` | Cluster: `Instruction-file hygiene for LLM lexical tics: linting, mirroring, hook filtering (2 of 2)`
 - [ ] Concept: `PostToolUse updatedToolOutput` | Parent: `Instruction-file hygiene for LLM lexical tics: linting, mirroring, hook filtering` | Mode: `dr` | Cluster: `Instruction-file hygiene for LLM lexical tics: linting, mirroring, hook filtering (2 of 2)`
-- [ ] Concept: `Prompt-format mirroring and structural priming in output` | Parent: `Instruction-file hygiene for LLM lexical tics: linting, mirroring, hook filtering` | Mode: `dr` | Cluster: `Instruction-file hygiene for LLM lexical tics: linting, mirroring, hook filtering (2 of 2)`
+- [ ] Concept: `Prompt-format mirroring and structural priming in output` | Parent: `Instruction-file hygiene for LLM lexical tics: linting, mirroring, hook filtering` | Mode: `dr` | Cluster: `Instruction-file hygiene for LLM lexical tics: linting, mirroring, hook filtering (2 of 2)` | Queue-state: `coverage-review`
 - [ ] Concept: `Stop hook nag-once pattern` | Parent: `Instruction-file hygiene for LLM lexical tics: linting, mirroring, hook filtering` | Mode: `dr` | Cluster: `Instruction-file hygiene for LLM lexical tics: linting, mirroring, hook filtering (2 of 2)`
 - [ ] Concept: `Synonym substitution after word bans` | Parent: `Instruction-file hygiene for LLM lexical tics: linting, mirroring, hook filtering` | Mode: `dr` | Cluster: `Instruction-file hygiene for LLM lexical tics: linting, mirroring, hook filtering (2 of 2)`
 - [ ] Concept: `Tic-word list curation per model` | Parent: `Instruction-file hygiene for LLM lexical tics: linting, mirroring, hook filtering` | Mode: `dr` | Cluster: `Instruction-file hygiene for LLM lexical tics: linting, mirroring, hook filtering (2 of 2)`
-- [ ] Concept: `Verifying a vocabulary fix with before-and-after tic rates` | Parent: `Instruction-file hygiene for LLM lexical tics: linting, mirroring, hook filtering` | Mode: `dr` | Cluster: `Instruction-file hygiene for LLM lexical tics: linting, mirroring, hook filtering (2 of 2)`
+- [ ] Concept: `Verifying a vocabulary fix with before-and-after tic rates` | Parent: `Instruction-file hygiene for LLM lexical tics: linting, mirroring, hook filtering` | Mode: `dr` | Cluster: `Instruction-file hygiene for LLM lexical tics: linting, mirroring, hook filtering (2 of 2)` | Queue-state: `coverage-review`
 - [ ] Concept: `Context-as-managed-resource / RAM framing (Karpathy LLM-as-OS)` | Parent: `LLM Context Engineering` | Mode: `dr` | Cluster: `LLM Context Engineering`
 - [ ] Concept: `Context rot / lost-in-the-middle / effective-vs-advertised length (NoLiMa, RULER)` | Parent: `LLM Context Engineering` | Mode: `dr` | Cluster: `LLM Context Engineering`
 - [ ] Concept: `Compaction & context editing (auto-compact ~95%, Claude memory tool)` | Parent: `LLM Context Engineering` | Mode: `dr` | Cluster: `LLM Context Engineering`
@@ -2399,18 +2394,18 @@ Every frontier concept, grouped by shared parent (at most 8 per cluster), cluste
 - [ ] Concept: `Attractor states in aligned models` | Parent: `Why LLMs converge on the same words: mode collapse and post-training lexical effects` | Mode: `dr` | Cluster: `Why LLMs converge on the same words: mode collapse and post-training lexical effects (1 of 3)`
 - [ ] Concept: `Base-model vs aligned-model sampling` | Parent: `Why LLMs converge on the same words: mode collapse and post-training lexical effects` | Mode: `dr` | Cluster: `Why LLMs converge on the same words: mode collapse and post-training lexical effects (1 of 3)`
 - [ ] Concept: `Distillation as a homogeneity confounder` | Parent: `Why LLMs converge on the same words: mode collapse and post-training lexical effects` | Mode: `dr` | Cluster: `Why LLMs converge on the same words: mode collapse and post-training lexical effects (1 of 3)`
-- [ ] Concept: `Diversity-restoring decoding and prompting` | Parent: `Why LLMs converge on the same words: mode collapse and post-training lexical effects` | Mode: `dr` | Cluster: `Why LLMs converge on the same words: mode collapse and post-training lexical effects (1 of 3)`
+- [ ] Concept: `Diversity-restoring decoding and prompting` | Parent: `Why LLMs converge on the same words: mode collapse and post-training lexical effects` | Mode: `dr` | Cluster: `Why LLMs converge on the same words: mode collapse and post-training lexical effects (1 of 3)` | Queue-state: `coverage-review`
 - [ ] Concept: `Human-feedback emulation experiments` | Parent: `Why LLMs converge on the same words: mode collapse and post-training lexical effects` | Mode: `dr` | Cluster: `Why LLMs converge on the same words: mode collapse and post-training lexical effects (2 of 3)`
 - [ ] Concept: `Infinity-Chat benchmark` | Parent: `Why LLMs converge on the same words: mode collapse and post-training lexical effects` | Mode: `dr` | Cluster: `Why LLMs converge on the same words: mode collapse and post-training lexical effects (2 of 3)`
-- [ ] Concept: `Inter-model homogeneity in open-ended generation` | Parent: `Why LLMs converge on the same words: mode collapse and post-training lexical effects` | Mode: `dr` | Cluster: `Why LLMs converge on the same words: mode collapse and post-training lexical effects (2 of 3)`
+- [ ] Concept: `Inter-model homogeneity in open-ended generation` | Parent: `Why LLMs converge on the same words: mode collapse and post-training lexical effects` | Mode: `dr` | Cluster: `Why LLMs converge on the same words: mode collapse and post-training lexical effects (2 of 3)` | Queue-state: `coverage-review`
 - [ ] Concept: `KL-regularised optimal policy sharpening` | Parent: `Why LLMs converge on the same words: mode collapse and post-training lexical effects` | Mode: `dr` | Cluster: `Why LLMs converge on the same words: mode collapse and post-training lexical effects (2 of 3)`
-- [ ] Concept: `Post-training effects on LLM vocabulary` | Parent: `Why LLMs converge on the same words: mode collapse and post-training lexical effects` | Mode: `dr` | Cluster: `Why LLMs converge on the same words: mode collapse and post-training lexical effects (2 of 3)`
+- [ ] Concept: `Post-training effects on LLM vocabulary` | Parent: `Why LLMs converge on the same words: mode collapse and post-training lexical effects` | Mode: `dr` | Cluster: `Why LLMs converge on the same words: mode collapse and post-training lexical effects (2 of 3)` | Queue-state: `coverage-review`
 - [ ] Concept: `Markdown and em-dash fingerprinting` | Parent: `Why LLMs converge on the same words: mode collapse and post-training lexical effects` | Mode: `dr` | Cluster: `Why LLMs converge on the same words: mode collapse and post-training lexical effects (2 of 3)`
 - [ ] Concept: `Markdown and em-dash fingerprints` | Parent: `Why LLMs converge on the same words: mode collapse and post-training lexical effects` | Mode: `dr` | Cluster: `Why LLMs converge on the same words: mode collapse and post-training lexical effects (3 of 3)`
 - [ ] Concept: `Preference-stage lexical shift metrics` | Parent: `Why LLMs converge on the same words: mode collapse and post-training lexical effects` | Mode: `dr` | Cluster: `Why LLMs converge on the same words: mode collapse and post-training lexical effects (3 of 3)`
-- [ ] Concept: `Pretraining versus alignment attribution of lexical tics` | Parent: `Why LLMs converge on the same words: mode collapse and post-training lexical effects` | Mode: `dr` | Cluster: `Why LLMs converge on the same words: mode collapse and post-training lexical effects (3 of 3)`
+- [ ] Concept: `Pretraining versus alignment attribution of lexical tics` | Parent: `Why LLMs converge on the same words: mode collapse and post-training lexical effects` | Mode: `dr` | Cluster: `Why LLMs converge on the same words: mode collapse and post-training lexical effects (3 of 3)` | Queue-state: `coverage-review`
 - [ ] Concept: `Temperature and truncation sampler tuning` | Parent: `Why LLMs converge on the same words: mode collapse and post-training lexical effects` | Mode: `dr` | Cluster: `Why LLMs converge on the same words: mode collapse and post-training lexical effects (3 of 3)`
-- [ ] Concept: `Mode collapse and typicality bias in preference tuning` | Parent: `Why LLMs converge on the same words: mode collapse and post-training lexical effects` | Mode: `dr` | Cluster: `Why LLMs converge on the same words: mode collapse and post-training lexical effects (3 of 3)`
+- [ ] Concept: `Mode collapse and typicality bias in preference tuning` | Parent: `Why LLMs converge on the same words: mode collapse and post-training lexical effects` | Mode: `dr` | Cluster: `Why LLMs converge on the same words: mode collapse and post-training lexical effects (3 of 3)` | Queue-state: `coverage-review`
 - [ ] Concept: `Constitutional AI / RLCAI` | Parent: `LLM Alignment and Post-Training` | Mode: `dr` | Cluster: `LLM Alignment and Post-Training (1 of 2)`
 - [ ] Concept: `DPO (Direct Preference Optimization)` | Parent: `LLM Alignment and Post-Training` | Mode: `dr` | Cluster: `LLM Alignment and Post-Training (1 of 2)`
 - [ ] Concept: `DPO-Variant Family (IPO/KTO/ORPO/SimPO/CPO)` | Parent: `LLM Alignment and Post-Training` | Mode: `dr` | Cluster: `LLM Alignment and Post-Training (1 of 2)`
@@ -2594,8 +2589,8 @@ Every frontier concept, grouped by shared parent (at most 8 per cluster), cluste
 - [ ] Concept: `MLC-LLM` | Parent: `On-Device & Local LLM Runtimes` | Mode: `dr` | Cluster: `On-Device & Local LLM Runtimes (3 of 4)`
 - [ ] Concept: `MLC-LLM & MLCEngine (universal/compiled deploy)` | Parent: `On-Device & Local LLM Runtimes` | Mode: `dr` | Cluster: `On-Device & Local LLM Runtimes (3 of 4)`
 - [ ] Concept: `Mobile on-device runtimes (MediaPipe to LiteRT-LM, ONNX Runtime GenAI / QNN)` | Parent: `On-Device & Local LLM Runtimes` | Mode: `dr` | Cluster: `On-Device & Local LLM Runtimes (3 of 4)`
-- [ ] Concept: `Ollama (llama.cpp engine since 0.30, Modelfile, library)` | Parent: `On-Device & Local LLM Runtimes` | Mode: `dr` | Cluster: `On-Device & Local LLM Runtimes (3 of 4)`
-- [ ] Concept: `Ollama Modelfile & local model library` | Parent: `On-Device & Local LLM Runtimes` | Mode: `dr` | Cluster: `On-Device & Local LLM Runtimes (3 of 4)`
+- [ ] Concept: `Ollama (llama.cpp engine since 0.30, Modelfile, library)` | Parent: `On-Device & Local LLM Runtimes` | Mode: `dr` | Cluster: `On-Device & Local LLM Runtimes (3 of 4)` | Queue-state: `coverage-review`
+- [ ] Concept: `Ollama Modelfile & local model library` | Parent: `On-Device & Local LLM Runtimes` | Mode: `dr` | Cluster: `On-Device & Local LLM Runtimes (3 of 4)` | Queue-state: `coverage-review`
 - [ ] Concept: `ONNX Runtime GenAI` | Parent: `On-Device & Local LLM Runtimes` | Mode: `dr` | Cluster: `On-Device & Local LLM Runtimes (4 of 4)`
 - [ ] Concept: `Runtime-choice matrix for Linux + RTX 5080 16GB eGPU` | Parent: `On-Device & Local LLM Runtimes` | Mode: `dr` | Cluster: `On-Device & Local LLM Runtimes (4 of 4)`
 - [ ] Concept: `vLLM and SGLang on a single consumer GPU` | Parent: `On-Device & Local LLM Runtimes` | Mode: `dr` | Cluster: `On-Device & Local LLM Runtimes (4 of 4)`
@@ -2663,21 +2658,21 @@ Every frontier concept, grouped by shared parent (at most 8 per cluster), cluste
 - [ ] Concept: `pci_bridge_d3_possible() and port runtime PM` | Parent: `PCIe power management and error handling for a Thunderbolt eGPU: ASPM, D3cold, runtime PM, AER and DPC` | Mode: `dr` | Cluster: `PCIe power management and error handling for a Thunderbolt eGPU: ASPM, D3cold, runtime PM, AER and DPC (2 of 2)`
 - [ ] Concept: `s2idle vs deep suspend with an eGPU` | Parent: `PCIe power management and error handling for a Thunderbolt eGPU: ASPM, D3cold, runtime PM, AER and DPC` | Mode: `dr` | Cluster: `PCIe power management and error handling for a Thunderbolt eGPU: ASPM, D3cold, runtime PM, AER and DPC (2 of 2)`
 - [ ] Concept: `Xid 79 triage from AER precursors` | Parent: `PCIe power management and error handling for a Thunderbolt eGPU: ASPM, D3cold, runtime PM, AER and DPC` | Mode: `dr` | Cluster: `PCIe power management and error handling for a Thunderbolt eGPU: ASPM, D3cold, runtime PM, AER and DPC (2 of 2)`
-- [ ] Concept: `16 GB VRAM residency budgeting (weights + KV cache)` | Parent: `Blackwell sm_120 local-LLM inference stack on Linux: llama.cpp, Ollama, PyTorch and vLLM over a Thunderbolt eGPU` | Mode: `dr` | Cluster: `Blackwell sm_120 local-LLM inference stack on Linux: llama.cpp, Ollama, PyTorch and vLLM over a Thunderbolt eGPU`
+- [ ] Concept: `16 GB VRAM residency budgeting (weights + KV cache)` | Parent: `Blackwell sm_120 local-LLM inference stack on Linux: llama.cpp, Ollama, PyTorch and vLLM over a Thunderbolt eGPU` | Mode: `dr` | Cluster: `Blackwell sm_120 local-LLM inference stack on Linux: llama.cpp, Ollama, PyTorch and vLLM over a Thunderbolt eGPU` | Queue-state: `coverage-review`
 - [ ] Concept: `MoE expert CPU offload traffic over a Thunderbolt tunnel` | Parent: `Blackwell sm_120 local-LLM inference stack on Linux: llama.cpp, Ollama, PyTorch and vLLM over a Thunderbolt eGPU` | Mode: `dr` | Cluster: `Blackwell sm_120 local-LLM inference stack on Linux: llama.cpp, Ollama, PyTorch and vLLM over a Thunderbolt eGPU`
 - [ ] Concept: `Ollama cuda_v12/cuda_v13 backend selection and NVML dependency` | Parent: `Blackwell sm_120 local-LLM inference stack on Linux: llama.cpp, Ollama, PyTorch and vLLM over a Thunderbolt eGPU` | Mode: `dr` | Cluster: `Blackwell sm_120 local-LLM inference stack on Linux: llama.cpp, Ollama, PyTorch and vLLM over a Thunderbolt eGPU`
 - [ ] Concept: `PyTorch cu126/cu128/cu130 wheel matrix and driver floors` | Parent: `Blackwell sm_120 local-LLM inference stack on Linux: llama.cpp, Ollama, PyTorch and vLLM over a Thunderbolt eGPU` | Mode: `dr` | Cluster: `Blackwell sm_120 local-LLM inference stack on Linux: llama.cpp, Ollama, PyTorch and vLLM over a Thunderbolt eGPU`
 - [ ] Concept: `llama.cpp CMAKE_CUDA_ARCHITECTURES for sm_120 and MXFP4/NVFP4 kernels` | Parent: `Blackwell sm_120 local-LLM inference stack on Linux: llama.cpp, Ollama, PyTorch and vLLM over a Thunderbolt eGPU` | Mode: `dr` | Cluster: `Blackwell sm_120 local-LLM inference stack on Linux: llama.cpp, Ollama, PyTorch and vLLM over a Thunderbolt eGPU`
 - [ ] Concept: `vLLM consumer-Blackwell kernels (NVFP4, FlashInfer, bitsandbytes gaps)` | Parent: `Blackwell sm_120 local-LLM inference stack on Linux: llama.cpp, Ollama, PyTorch and vLLM over a Thunderbolt eGPU` | Mode: `dr` | Cluster: `Blackwell sm_120 local-LLM inference stack on Linux: llama.cpp, Ollama, PyTorch and vLLM over a Thunderbolt eGPU`
 - [ ] Concept: `Chunked Prefill Memory Bounds` | Parent: `16 GB VRAM residency budgeting` | Mode: `dr` | Cluster: `16 GB VRAM residency budgeting (1 of 2)`
-- [ ] Concept: `Context Sizing Budgets on 16GB VRAM` | Parent: `16 GB VRAM residency budgeting` | Mode: `dr` | Cluster: `16 GB VRAM residency budgeting (1 of 2)`
+- [ ] Concept: `Context Sizing Budgets on 16GB VRAM` | Parent: `16 GB VRAM residency budgeting` | Mode: `dr` | Cluster: `16 GB VRAM residency budgeting (1 of 2)` | Queue-state: `coverage-review`
 - [ ] Concept: `FP8 and INT4 KV Cache Quantization` | Parent: `16 GB VRAM residency budgeting` | Mode: `dr` | Cluster: `16 GB VRAM residency budgeting (1 of 2)`
 - [ ] Concept: `GGUF k-quants` | Parent: `16 GB VRAM residency budgeting` | Mode: `dr` | Cluster: `16 GB VRAM residency budgeting (1 of 2)`
-- [ ] Concept: `GQA KV Cache Memory Mechanics` | Parent: `16 GB VRAM residency budgeting` | Mode: `dr` | Cluster: `16 GB VRAM residency budgeting (1 of 2)`
+- [ ] Concept: `GQA KV Cache Memory Mechanics` | Parent: `16 GB VRAM residency budgeting` | Mode: `dr` | Cluster: `16 GB VRAM residency budgeting (1 of 2)` | Queue-state: `coverage-review`
 - [ ] Concept: `NVFP4 on Blackwell sm_120` | Parent: `16 GB VRAM residency budgeting` | Mode: `dr` | Cluster: `16 GB VRAM residency budgeting (2 of 2)`
 - [ ] Concept: `PagedAttention and Memory Fragmentation` | Parent: `16 GB VRAM residency budgeting` | Mode: `dr` | Cluster: `16 GB VRAM residency budgeting (2 of 2)`
 - [ ] Concept: `Sliding Window Attention` | Parent: `16 GB VRAM residency budgeting` | Mode: `dr` | Cluster: `16 GB VRAM residency budgeting (2 of 2)`
-- [ ] Concept: `Weight Quantization Footprints` | Parent: `16 GB VRAM residency budgeting` | Mode: `dr` | Cluster: `16 GB VRAM residency budgeting (2 of 2)`
+- [ ] Concept: `Weight Quantization Footprints` | Parent: `16 GB VRAM residency budgeting` | Mode: `dr` | Cluster: `16 GB VRAM residency budgeting (2 of 2)` | Queue-state: `coverage-review`
 - [ ] Concept: `FSP boot chain (kfspWaitForResponse) and GSP-FMC bootstrap` | Parent: `NVIDIA GSP and FSP firmware boot diagnostics on Blackwell under the open kernel modules` | Mode: `dr` | Cluster: `NVIDIA GSP and FSP firmware boot diagnostics on Blackwell under the open kernel modules`
 - [ ] Concept: `KMD/firmware blob version mismatch` | Parent: `NVIDIA GSP and FSP firmware boot diagnostics on Blackwell under the open kernel modules` | Mode: `dr` | Cluster: `NVIDIA GSP and FSP firmware boot diagnostics on Blackwell under the open kernel modules`
 - [ ] Concept: `NVreg_EnableGpuFirmwareLogs and reading GSP logs` | Parent: `NVIDIA GSP and FSP firmware boot diagnostics on Blackwell under the open kernel modules` | Mode: `dr` | Cluster: `NVIDIA GSP and FSP firmware boot diagnostics on Blackwell under the open kernel modules`
@@ -2987,7 +2982,7 @@ Every frontier concept, grouped by shared parent (at most 8 per cluster), cluste
 - [ ] Concept: `semantic vs lexical deduplication` | Parent: `LLM document extraction and text distillation pipeline` | Mode: `dr` | Cluster: `LLM document extraction and text distillation pipeline`
 - [ ] Concept: `hybrid retrieval fusion and reranking` | Parent: `LLM document extraction and text distillation pipeline` | Mode: `dr` | Cluster: `LLM document extraction and text distillation pipeline`
 - [ ] Concept: `structured output constraints` | Parent: `LLM document extraction and text distillation pipeline` | Mode: `dr` | Cluster: `LLM document extraction and text distillation pipeline`
-- [ ] Concept: `extraction evaluation frameworks` | Parent: `LLM document extraction and text distillation pipeline` | Mode: `dr` | Cluster: `LLM document extraction and text distillation pipeline`
+- [ ] Concept: `extraction evaluation frameworks` | Parent: `LLM document extraction and text distillation pipeline` | Mode: `dr` | Cluster: `LLM document extraction and text distillation pipeline` | Queue-state: `coverage-review`
 - [ ] Concept: `HumanEval MBPP CodeXGLUE benchmarks` | Parent: `Code generation model benchmarks and quantization impact` | Mode: `dr` | Cluster: `Code generation model benchmarks and quantization impact`
 - [ ] Concept: `quantization impact on code accuracy` | Parent: `Code generation model benchmarks and quantization impact` | Mode: `dr` | Cluster: `Code generation model benchmarks and quantization impact`
 - [ ] Concept: `code model hallucination rates` | Parent: `Code generation model benchmarks and quantization impact` | Mode: `dr` | Cluster: `Code generation model benchmarks and quantization impact`
@@ -3874,38 +3869,38 @@ Every frontier concept, grouped by shared parent (at most 8 per cluster), cluste
 - [ ] Concept: `Evolutionary Event Detection` | Parent: `Scientific Phylogenetics (ETE Toolkit)` | Mode: `dr` | Cluster: `Scientific Phylogenetics (ETE Toolkit)`
 - [ ] Concept: `NCBI Taxonomy Integration` | Parent: `Scientific Phylogenetics (ETE Toolkit)` | Mode: `dr` | Cluster: `Scientific Phylogenetics (ETE Toolkit)`
 - [ ] Concept: `Tree Visualization` | Parent: `Scientific Phylogenetics (ETE Toolkit)` | Mode: `dr` | Cluster: `Scientific Phylogenetics (ETE Toolkit)`
-- [ ] Concept: `Ollama Architecture and GGUF Memory-Mapping` | Parent: `Local Model Performance Evaluation: Ollama, MLX, and Hardware Architectures` | Mode: `dr` | Cluster: `Local Model Performance Evaluation: Ollama, MLX, and Hardware Architectures (1 of 3)`
+- [ ] Concept: `Ollama Architecture and GGUF Memory-Mapping` | Parent: `Local Model Performance Evaluation: Ollama, MLX, and Hardware Architectures` | Mode: `dr` | Cluster: `Local Model Performance Evaluation: Ollama, MLX, and Hardware Architectures (1 of 3)` | Queue-state: `coverage-review`
 - [ ] Concept: `GDDR7 Channel Bandwidth` | Parent: `Local Model Performance Evaluation: Ollama, MLX, and Hardware Architectures` | Mode: `dr` | Cluster: `Local Model Performance Evaluation: Ollama, MLX, and Hardware Architectures (1 of 3)`
 - [ ] Concept: `GDDR7 Peak Throughput` | Parent: `Local Model Performance Evaluation: Ollama, MLX, and Hardware Architectures` | Mode: `dr` | Cluster: `Local Model Performance Evaluation: Ollama, MLX, and Hardware Architectures (1 of 3)`
-- [ ] Concept: `Gemma4-12B Cross-Platform Residency and Benchmarking` | Parent: `Local Model Performance Evaluation: Ollama, MLX, and Hardware Architectures` | Mode: `dr` | Cluster: `Local Model Performance Evaluation: Ollama, MLX, and Hardware Architectures (1 of 3)`
+- [ ] Concept: `Gemma4-12B Cross-Platform Residency and Benchmarking` | Parent: `Local Model Performance Evaluation: Ollama, MLX, and Hardware Architectures` | Mode: `dr` | Cluster: `Local Model Performance Evaluation: Ollama, MLX, and Hardware Architectures (1 of 3)` | Queue-state: `coverage-review`
 - [ ] Concept: `GGML Metal Kernel Dispatch Overhead` | Parent: `Local Model Performance Evaluation: Ollama, MLX, and Hardware Architectures` | Mode: `dr` | Cluster: `Local Model Performance Evaluation: Ollama, MLX, and Hardware Architectures (1 of 3)`
 - [ ] Concept: `GGUF Alignment` | Parent: `Local Model Performance Evaluation: Ollama, MLX, and Hardware Architectures` | Mode: `dr` | Cluster: `Local Model Performance Evaluation: Ollama, MLX, and Hardware Architectures (1 of 3)`
-- [ ] Concept: `Inference Metrics Framework: TTFT TPS and Memory Profiling` | Parent: `Local Model Performance Evaluation: Ollama, MLX, and Hardware Architectures` | Mode: `dr` | Cluster: `Local Model Performance Evaluation: Ollama, MLX, and Hardware Architectures (1 of 3)`
+- [ ] Concept: `Inference Metrics Framework: TTFT TPS and Memory Profiling` | Parent: `Local Model Performance Evaluation: Ollama, MLX, and Hardware Architectures` | Mode: `dr` | Cluster: `Local Model Performance Evaluation: Ollama, MLX, and Hardware Architectures (1 of 3)` | Queue-state: `coverage-review`
 - [ ] Concept: `Inter-token Latency Jitter` | Parent: `Local Model Performance Evaluation: Ollama, MLX, and Hardware Architectures` | Mode: `dr` | Cluster: `Local Model Performance Evaluation: Ollama, MLX, and Hardware Architectures (2 of 3)`
 - [ ] Concept: `MLX KV Cache Quantization` | Parent: `Local Model Performance Evaluation: Ollama, MLX, and Hardware Architectures` | Mode: `dr` | Cluster: `Local Model Performance Evaluation: Ollama, MLX, and Hardware Architectures (2 of 3)`
 - [ ] Concept: `Memory Bandwidth Scaling Limit` | Parent: `Local Model Performance Evaluation: Ollama, MLX, and Hardware Architectures` | Mode: `dr` | Cluster: `Local Model Performance Evaluation: Ollama, MLX, and Hardware Architectures (2 of 3)`
 - [ ] Concept: `Metal Command Buffer Offload` | Parent: `Local Model Performance Evaluation: Ollama, MLX, and Hardware Architectures` | Mode: `dr` | Cluster: `Local Model Performance Evaluation: Ollama, MLX, and Hardware Architectures (2 of 3)`
 - [ ] Concept: `Multi-Token Prediction Heads` | Parent: `Local Model Performance Evaluation: Ollama, MLX, and Hardware Architectures` | Mode: `dr` | Cluster: `Local Model Performance Evaluation: Ollama, MLX, and Hardware Architectures (2 of 3)`
 - [ ] Concept: `Quantization Block Matrix` | Parent: `Local Model Performance Evaluation: Ollama, MLX, and Hardware Architectures` | Mode: `dr` | Cluster: `Local Model Performance Evaluation: Ollama, MLX, and Hardware Architectures (2 of 3)`
-- [ ] Concept: `Qwen3.6-35B-MLX Sizing and Throughput Profiling` | Parent: `Local Model Performance Evaluation: Ollama, MLX, and Hardware Architectures` | Mode: `dr` | Cluster: `Local Model Performance Evaluation: Ollama, MLX, and Hardware Architectures (2 of 3)`
+- [ ] Concept: `Qwen3.6-35B-MLX Sizing and Throughput Profiling` | Parent: `Local Model Performance Evaluation: Ollama, MLX, and Hardware Architectures` | Mode: `dr` | Cluster: `Local Model Performance Evaluation: Ollama, MLX, and Hardware Architectures (2 of 3)` | Queue-state: `coverage-review`
 - [ ] Concept: `Static Activation Buffers` | Parent: `Local Model Performance Evaluation: Ollama, MLX, and Hardware Architectures` | Mode: `dr` | Cluster: `Local Model Performance Evaluation: Ollama, MLX, and Hardware Architectures (3 of 3)`
 - [ ] Concept: `Thunderbolt 5 Bus Latency` | Parent: `Local Model Performance Evaluation: Ollama, MLX, and Hardware Architectures` | Mode: `dr` | Cluster: `Local Model Performance Evaluation: Ollama, MLX, and Hardware Architectures (3 of 3)`
 - [ ] Concept: `TTFT Compute Bound Analysis` | Parent: `Local Model Performance Evaluation: Ollama, MLX, and Hardware Architectures` | Mode: `dr` | Cluster: `Local Model Performance Evaluation: Ollama, MLX, and Hardware Architectures (3 of 3)`
-- [ ] Concept: `MLX Unified Memory vs eGPU GDDR7 Hardware Architecture` | Parent: `Local Model Performance Evaluation: Ollama, MLX, and Hardware Architectures` | Mode: `dr` | Cluster: `Local Model Performance Evaluation: Ollama, MLX, and Hardware Architectures (3 of 3)`
+- [ ] Concept: `MLX Unified Memory vs eGPU GDDR7 Hardware Architecture` | Parent: `Local Model Performance Evaluation: Ollama, MLX, and Hardware Architectures` | Mode: `dr` | Cluster: `Local Model Performance Evaluation: Ollama, MLX, and Hardware Architectures (3 of 3)` | Queue-state: `coverage-review`
 - [ ] Concept: `Wired Memory Instrumentation` | Parent: `Local Model Performance Evaluation: Ollama, MLX, and Hardware Architectures` | Mode: `dr` | Cluster: `Local Model Performance Evaluation: Ollama, MLX, and Hardware Architectures (3 of 3)`
 - [ ] Concept: `Zero-Copy Unified Pointer Passing` | Parent: `Local Model Performance Evaluation: Ollama, MLX, and Hardware Architectures` | Mode: `dr` | Cluster: `Local Model Performance Evaluation: Ollama, MLX, and Hardware Architectures (3 of 3)`
 - [ ] Concept: `Asymmetric KV Cache Quantization` | Parent: `Local Inference Acceleration: Memory Architectures, Metal Kernels, and Latency Optimization` | Mode: `dr` | Cluster: `Local Inference Acceleration: Memory Architectures, Metal Kernels, and Latency Optimization (1 of 3)`
 - [ ] Concept: `Context Threshold Compaction` | Parent: `Local Inference Acceleration: Memory Architectures, Metal Kernels, and Latency Optimization` | Mode: `dr` | Cluster: `Local Inference Acceleration: Memory Architectures, Metal Kernels, and Latency Optimization (1 of 3)`
 - [ ] Concept: `Draft Model Amortization` | Parent: `Local Inference Acceleration: Memory Architectures, Metal Kernels, and Latency Optimization` | Mode: `dr` | Cluster: `Local Inference Acceleration: Memory Architectures, Metal Kernels, and Latency Optimization (1 of 3)`
-- [ ] Concept: `GDDR7 Channel Bandwidth and Peak Throughput` | Parent: `Local Inference Acceleration: Memory Architectures, Metal Kernels, and Latency Optimization` | Mode: `dr` | Cluster: `Local Inference Acceleration: Memory Architectures, Metal Kernels, and Latency Optimization (1 of 3)`
+- [ ] Concept: `GDDR7 Channel Bandwidth and Peak Throughput` | Parent: `Local Inference Acceleration: Memory Architectures, Metal Kernels, and Latency Optimization` | Mode: `dr` | Cluster: `Local Inference Acceleration: Memory Architectures, Metal Kernels, and Latency Optimization (1 of 3)` | Queue-state: `coverage-review`
 - [ ] Concept: `GDDR7 Channel Interleaving` | Parent: `Local Inference Acceleration: Memory Architectures, Metal Kernels, and Latency Optimization` | Mode: `dr` | Cluster: `Local Inference Acceleration: Memory Architectures, Metal Kernels, and Latency Optimization (1 of 3)`
 - [ ] Concept: `GEMM vs GEMV Scaling` | Parent: `Local Inference Acceleration: Memory Architectures, Metal Kernels, and Latency Optimization` | Mode: `dr` | Cluster: `Local Inference Acceleration: Memory Architectures, Metal Kernels, and Latency Optimization (1 of 3)`
-- [ ] Concept: `GGML Metal Kernel Dispatch and Command Buffer Offload` | Parent: `Local Inference Acceleration: Memory Architectures, Metal Kernels, and Latency Optimization` | Mode: `dr` | Cluster: `Local Inference Acceleration: Memory Architectures, Metal Kernels, and Latency Optimization (1 of 3)`
-- [ ] Concept: `GGUF Alignment and Quantization Block Matrix` | Parent: `Local Inference Acceleration: Memory Architectures, Metal Kernels, and Latency Optimization` | Mode: `dr` | Cluster: `Local Inference Acceleration: Memory Architectures, Metal Kernels, and Latency Optimization (1 of 3)`
+- [ ] Concept: `GGML Metal Kernel Dispatch and Command Buffer Offload` | Parent: `Local Inference Acceleration: Memory Architectures, Metal Kernels, and Latency Optimization` | Mode: `dr` | Cluster: `Local Inference Acceleration: Memory Architectures, Metal Kernels, and Latency Optimization (1 of 3)` | Queue-state: `coverage-review`
+- [ ] Concept: `GGUF Alignment and Quantization Block Matrix` | Parent: `Local Inference Acceleration: Memory Architectures, Metal Kernels, and Latency Optimization` | Mode: `dr` | Cluster: `Local Inference Acceleration: Memory Architectures, Metal Kernels, and Latency Optimization (1 of 3)` | Queue-state: `coverage-review`
 - [ ] Concept: `Host Synchronization Bubbles` | Parent: `Local Inference Acceleration: Memory Architectures, Metal Kernels, and Latency Optimization` | Mode: `dr` | Cluster: `Local Inference Acceleration: Memory Architectures, Metal Kernels, and Latency Optimization (2 of 3)`
-- [ ] Concept: `MLX KV Cache Quantization and Zero-Copy Pointer Passing` | Parent: `Local Inference Acceleration: Memory Architectures, Metal Kernels, and Latency Optimization` | Mode: `dr` | Cluster: `Local Inference Acceleration: Memory Architectures, Metal Kernels, and Latency Optimization (2 of 3)`
+- [ ] Concept: `MLX KV Cache Quantization and Zero-Copy Pointer Passing` | Parent: `Local Inference Acceleration: Memory Architectures, Metal Kernels, and Latency Optimization` | Mode: `dr` | Cluster: `Local Inference Acceleration: Memory Architectures, Metal Kernels, and Latency Optimization (2 of 3)` | Queue-state: `coverage-review`
 - [ ] Concept: `MTP Speculative Verification` | Parent: `Local Inference Acceleration: Memory Architectures, Metal Kernels, and Latency Optimization` | Mode: `dr` | Cluster: `Local Inference Acceleration: Memory Architectures, Metal Kernels, and Latency Optimization (2 of 3)`
-- [ ] Concept: `Multi-Token Prediction Heads and Speculative Decoding` | Parent: `Local Inference Acceleration: Memory Architectures, Metal Kernels, and Latency Optimization` | Mode: `dr` | Cluster: `Local Inference Acceleration: Memory Architectures, Metal Kernels, and Latency Optimization (2 of 3)`
+- [ ] Concept: `Multi-Token Prediction Heads and Speculative Decoding` | Parent: `Local Inference Acceleration: Memory Architectures, Metal Kernels, and Latency Optimization` | Mode: `dr` | Cluster: `Local Inference Acceleration: Memory Architectures, Metal Kernels, and Latency Optimization (2 of 3)` | Queue-state: `coverage-review`
 - [ ] Concept: `PAM3 Modulation` | Parent: `Local Inference Acceleration: Memory Architectures, Metal Kernels, and Latency Optimization` | Mode: `dr` | Cluster: `Local Inference Acceleration: Memory Architectures, Metal Kernels, and Latency Optimization (2 of 3)`
 - [ ] Concept: `PCIe Tunneling Protocol` | Parent: `Local Inference Acceleration: Memory Architectures, Metal Kernels, and Latency Optimization` | Mode: `dr` | Cluster: `Local Inference Acceleration: Memory Architectures, Metal Kernels, and Latency Optimization (2 of 3)`
 - [ ] Concept: `Metal Pipeline State Caching` | Parent: `Local Inference Acceleration: Memory Architectures, Metal Kernels, and Latency Optimization` | Mode: `dr` | Cluster: `Local Inference Acceleration: Memory Architectures, Metal Kernels, and Latency Optimization (2 of 3)`
@@ -3913,298 +3908,298 @@ Every frontier concept, grouped by shared parent (at most 8 per cluster), cluste
 - [ ] Concept: `SIMD Aligned Memory Vectorization` | Parent: `Local Inference Acceleration: Memory Architectures, Metal Kernels, and Latency Optimization` | Mode: `dr` | Cluster: `Local Inference Acceleration: Memory Architectures, Metal Kernels, and Latency Optimization (3 of 3)`
 - [ ] Concept: `Static Scratchpad Workspace` | Parent: `Local Inference Acceleration: Memory Architectures, Metal Kernels, and Latency Optimization` | Mode: `dr` | Cluster: `Local Inference Acceleration: Memory Architectures, Metal Kernels, and Latency Optimization (3 of 3)`
 - [ ] Concept: `Super-block Quantization Scales` | Parent: `Local Inference Acceleration: Memory Architectures, Metal Kernels, and Latency Optimization` | Mode: `dr` | Cluster: `Local Inference Acceleration: Memory Architectures, Metal Kernels, and Latency Optimization (3 of 3)`
-- [ ] Concept: `Thunderbolt 5 Bus Latency and Bandwidth Scaling Limit` | Parent: `Local Inference Acceleration: Memory Architectures, Metal Kernels, and Latency Optimization` | Mode: `dr` | Cluster: `Local Inference Acceleration: Memory Architectures, Metal Kernels, and Latency Optimization (3 of 3)`
+- [ ] Concept: `Thunderbolt 5 Bus Latency and Bandwidth Scaling Limit` | Parent: `Local Inference Acceleration: Memory Architectures, Metal Kernels, and Latency Optimization` | Mode: `dr` | Cluster: `Local Inference Acceleration: Memory Architectures, Metal Kernels, and Latency Optimization (3 of 3)` | Queue-state: `coverage-review`
 - [ ] Concept: `Thunderbolt Retimer Jitter` | Parent: `Local Inference Acceleration: Memory Architectures, Metal Kernels, and Latency Optimization` | Mode: `dr` | Cluster: `Local Inference Acceleration: Memory Architectures, Metal Kernels, and Latency Optimization (3 of 3)`
-- [ ] Concept: `TTFT Compute Bound Analysis and Inter-token Latency Jitter` | Parent: `Local Inference Acceleration: Memory Architectures, Metal Kernels, and Latency Optimization` | Mode: `dr` | Cluster: `Local Inference Acceleration: Memory Architectures, Metal Kernels, and Latency Optimization (3 of 3)`
-- [ ] Concept: `Wired Memory Instrumentation and Static Activation Buffers` | Parent: `Local Inference Acceleration: Memory Architectures, Metal Kernels, and Latency Optimization` | Mode: `dr` | Cluster: `Local Inference Acceleration: Memory Architectures, Metal Kernels, and Latency Optimization (3 of 3)`
+- [ ] Concept: `TTFT Compute Bound Analysis and Inter-token Latency Jitter` | Parent: `Local Inference Acceleration: Memory Architectures, Metal Kernels, and Latency Optimization` | Mode: `dr` | Cluster: `Local Inference Acceleration: Memory Architectures, Metal Kernels, and Latency Optimization (3 of 3)` | Queue-state: `coverage-review`
+- [ ] Concept: `Wired Memory Instrumentation and Static Activation Buffers` | Parent: `Local Inference Acceleration: Memory Architectures, Metal Kernels, and Latency Optimization` | Mode: `dr` | Cluster: `Local Inference Acceleration: Memory Architectures, Metal Kernels, and Latency Optimization (3 of 3)` | Queue-state: `coverage-review`
 - [ ] Concept: `Wired Page Allocation` | Parent: `Local Inference Acceleration: Memory Architectures, Metal Kernels, and Latency Optimization` | Mode: `dr` | Cluster: `Local Inference Acceleration: Memory Architectures, Metal Kernels, and Latency Optimization (3 of 3)`
-- [ ] Concept: `16-bit Sub-channel Bursts` | Parent: `Local Inference Micro-Architectures: Signaling, Quantization Superblocks, and Kernel Pipeline Scheduling` | Mode: `dr` | Cluster: `Local Inference Micro-Architectures: Signaling, Quantization Superblocks, and Kernel Pipeline Scheduling (1 of 3)`
+- [ ] Concept: `16-bit Sub-channel Bursts` | Parent: `Local Inference Micro-Architectures: Signaling, Quantization Superblocks, and Kernel Pipeline Scheduling` | Mode: `dr` | Cluster: `Local Inference Micro-Architectures: Signaling, Quantization Superblocks, and Kernel Pipeline Scheduling (1 of 3)` | Queue-state: `coverage-review`
 - [ ] Concept: `Affine Value Block Scaling` | Parent: `Local Inference Micro-Architectures: Signaling, Quantization Superblocks, and Kernel Pipeline Scheduling` | Mode: `dr` | Cluster: `Local Inference Micro-Architectures: Signaling, Quantization Superblocks, and Kernel Pipeline Scheduling (1 of 3)`
 - [ ] Concept: `Arithmetic Intensity Thresholds` | Parent: `Local Inference Micro-Architectures: Signaling, Quantization Superblocks, and Kernel Pipeline Scheduling` | Mode: `dr` | Cluster: `Local Inference Micro-Architectures: Signaling, Quantization Superblocks, and Kernel Pipeline Scheduling (1 of 3)`
-- [ ] Concept: `Asymmetric KV Cache Quantization Algorithms` | Parent: `Local Inference Micro-Architectures: Signaling, Quantization Superblocks, and Kernel Pipeline Scheduling` | Mode: `dr` | Cluster: `Local Inference Micro-Architectures: Signaling, Quantization Superblocks, and Kernel Pipeline Scheduling (1 of 3)`
+- [ ] Concept: `Asymmetric KV Cache Quantization Algorithms` | Parent: `Local Inference Micro-Architectures: Signaling, Quantization Superblocks, and Kernel Pipeline Scheduling` | Mode: `dr` | Cluster: `Local Inference Micro-Architectures: Signaling, Quantization Superblocks, and Kernel Pipeline Scheduling (1 of 3)` | Queue-state: `coverage-review`
 - [ ] Concept: `Asynchronous Command Queue Overlap` | Parent: `Local Inference Micro-Architectures: Signaling, Quantization Superblocks, and Kernel Pipeline Scheduling` | Mode: `dr` | Cluster: `Local Inference Micro-Architectures: Signaling, Quantization Superblocks, and Kernel Pipeline Scheduling (1 of 3)`
 - [ ] Concept: `Batch Matrix Amortization` | Parent: `Local Inference Micro-Architectures: Signaling, Quantization Superblocks, and Kernel Pipeline Scheduling` | Mode: `dr` | Cluster: `Local Inference Micro-Architectures: Signaling, Quantization Superblocks, and Kernel Pipeline Scheduling (1 of 3)`
 - [ ] Concept: `Credit-Based Flow Control Delays` | Parent: `Local Inference Micro-Architectures: Signaling, Quantization Superblocks, and Kernel Pipeline Scheduling` | Mode: `dr` | Cluster: `Local Inference Micro-Architectures: Signaling, Quantization Superblocks, and Kernel Pipeline Scheduling (1 of 3)`
 - [ ] Concept: `DRAM Latency Hiding` | Parent: `Local Inference Micro-Architectures: Signaling, Quantization Superblocks, and Kernel Pipeline Scheduling` | Mode: `dr` | Cluster: `Local Inference Micro-Architectures: Signaling, Quantization Superblocks, and Kernel Pipeline Scheduling (1 of 3)`
-- [ ] Concept: `GEMM Compute Scaling vs GEMV Memory-Bandwidth Bounds` | Parent: `Local Inference Micro-Architectures: Signaling, Quantization Superblocks, and Kernel Pipeline Scheduling` | Mode: `dr` | Cluster: `Local Inference Micro-Architectures: Signaling, Quantization Superblocks, and Kernel Pipeline Scheduling (2 of 3)`
+- [ ] Concept: `GEMM Compute Scaling vs GEMV Memory-Bandwidth Bounds` | Parent: `Local Inference Micro-Architectures: Signaling, Quantization Superblocks, and Kernel Pipeline Scheduling` | Mode: `dr` | Cluster: `Local Inference Micro-Architectures: Signaling, Quantization Superblocks, and Kernel Pipeline Scheduling (2 of 3)` | Queue-state: `coverage-review`
 - [ ] Concept: `Hierarchical Quantization Scales` | Parent: `Local Inference Micro-Architectures: Signaling, Quantization Superblocks, and Kernel Pipeline Scheduling` | Mode: `dr` | Cluster: `Local Inference Micro-Architectures: Signaling, Quantization Superblocks, and Kernel Pipeline Scheduling (2 of 3)`
 - [ ] Concept: `Key Outlier Channels` | Parent: `Local Inference Micro-Architectures: Signaling, Quantization Superblocks, and Kernel Pipeline Scheduling` | Mode: `dr` | Cluster: `Local Inference Micro-Architectures: Signaling, Quantization Superblocks, and Kernel Pipeline Scheduling (2 of 3)`
-- [ ] Concept: `Metal Pipeline State Caching and Kernel Dispatch Bubbles` | Parent: `Local Inference Micro-Architectures: Signaling, Quantization Superblocks, and Kernel Pipeline Scheduling` | Mode: `dr` | Cluster: `Local Inference Micro-Architectures: Signaling, Quantization Superblocks, and Kernel Pipeline Scheduling (2 of 3)`
+- [ ] Concept: `Metal Pipeline State Caching and Kernel Dispatch Bubbles` | Parent: `Local Inference Micro-Architectures: Signaling, Quantization Superblocks, and Kernel Pipeline Scheduling` | Mode: `dr` | Cluster: `Local Inference Micro-Architectures: Signaling, Quantization Superblocks, and Kernel Pipeline Scheduling (2 of 3)` | Queue-state: `coverage-review`
 - [ ] Concept: `MTLBinaryArchive Serialization` | Parent: `Local Inference Micro-Architectures: Signaling, Quantization Superblocks, and Kernel Pipeline Scheduling` | Mode: `dr` | Cluster: `Local Inference Micro-Architectures: Signaling, Quantization Superblocks, and Kernel Pipeline Scheduling (2 of 3)`
-- [ ] Concept: `Multi-Token Prediction Speculative Verification and Draft Amortization` | Parent: `Local Inference Micro-Architectures: Signaling, Quantization Superblocks, and Kernel Pipeline Scheduling` | Mode: `dr` | Cluster: `Local Inference Micro-Architectures: Signaling, Quantization Superblocks, and Kernel Pipeline Scheduling (2 of 3)`
+- [ ] Concept: `Multi-Token Prediction Speculative Verification and Draft Amortization` | Parent: `Local Inference Micro-Architectures: Signaling, Quantization Superblocks, and Kernel Pipeline Scheduling` | Mode: `dr` | Cluster: `Local Inference Micro-Architectures: Signaling, Quantization Superblocks, and Kernel Pipeline Scheduling (2 of 3)` | Queue-state: `coverage-review`
 - [ ] Concept: `Nyquist Frequency Attenuation` | Parent: `Local Inference Micro-Architectures: Signaling, Quantization Superblocks, and Kernel Pipeline Scheduling` | Mode: `dr` | Cluster: `Local Inference Micro-Architectures: Signaling, Quantization Superblocks, and Kernel Pipeline Scheduling (2 of 3)`
-- [ ] Concept: `PAM3 Modulation and GDDR7 Channel Interleaving` | Parent: `Local Inference Micro-Architectures: Signaling, Quantization Superblocks, and Kernel Pipeline Scheduling` | Mode: `dr` | Cluster: `Local Inference Micro-Architectures: Signaling, Quantization Superblocks, and Kernel Pipeline Scheduling (2 of 3)`
-- [ ] Concept: `PCIe Protocol Tunneling and Thunderbolt Retimer Jitter` | Parent: `Local Inference Micro-Architectures: Signaling, Quantization Superblocks, and Kernel Pipeline Scheduling` | Mode: `dr` | Cluster: `Local Inference Micro-Architectures: Signaling, Quantization Superblocks, and Kernel Pipeline Scheduling (3 of 3)`
-- [ ] Concept: `Shared Buffer Storage Modes and Zero-Copy Passing` | Parent: `Local Inference Micro-Architectures: Signaling, Quantization Superblocks, and Kernel Pipeline Scheduling` | Mode: `dr` | Cluster: `Local Inference Micro-Architectures: Signaling, Quantization Superblocks, and Kernel Pipeline Scheduling (3 of 3)`
-- [ ] Concept: `SIMD Aligned Memory Vectorization and Super-block K-Quants` | Parent: `Local Inference Micro-Architectures: Signaling, Quantization Superblocks, and Kernel Pipeline Scheduling` | Mode: `dr` | Cluster: `Local Inference Micro-Architectures: Signaling, Quantization Superblocks, and Kernel Pipeline Scheduling (3 of 3)`
+- [ ] Concept: `PAM3 Modulation and GDDR7 Channel Interleaving` | Parent: `Local Inference Micro-Architectures: Signaling, Quantization Superblocks, and Kernel Pipeline Scheduling` | Mode: `dr` | Cluster: `Local Inference Micro-Architectures: Signaling, Quantization Superblocks, and Kernel Pipeline Scheduling (2 of 3)` | Queue-state: `coverage-review`
+- [ ] Concept: `PCIe Protocol Tunneling and Thunderbolt Retimer Jitter` | Parent: `Local Inference Micro-Architectures: Signaling, Quantization Superblocks, and Kernel Pipeline Scheduling` | Mode: `dr` | Cluster: `Local Inference Micro-Architectures: Signaling, Quantization Superblocks, and Kernel Pipeline Scheduling (3 of 3)` | Queue-state: `coverage-review`
+- [ ] Concept: `Shared Buffer Storage Modes and Zero-Copy Passing` | Parent: `Local Inference Micro-Architectures: Signaling, Quantization Superblocks, and Kernel Pipeline Scheduling` | Mode: `dr` | Cluster: `Local Inference Micro-Architectures: Signaling, Quantization Superblocks, and Kernel Pipeline Scheduling (3 of 3)` | Queue-state: `coverage-review`
+- [ ] Concept: `SIMD Aligned Memory Vectorization and Super-block K-Quants` | Parent: `Local Inference Micro-Architectures: Signaling, Quantization Superblocks, and Kernel Pipeline Scheduling` | Mode: `dr` | Cluster: `Local Inference Micro-Architectures: Signaling, Quantization Superblocks, and Kernel Pipeline Scheduling (3 of 3)` | Queue-state: `coverage-review`
 - [ ] Concept: `SIMD Cacheline Boundaries` | Parent: `Local Inference Micro-Architectures: Signaling, Quantization Superblocks, and Kernel Pipeline Scheduling` | Mode: `dr` | Cluster: `Local Inference Micro-Architectures: Signaling, Quantization Superblocks, and Kernel Pipeline Scheduling (3 of 3)`
 - [ ] Concept: `Speculative Acceptance Thresholds` | Parent: `Local Inference Micro-Architectures: Signaling, Quantization Superblocks, and Kernel Pipeline Scheduling` | Mode: `dr` | Cluster: `Local Inference Micro-Architectures: Signaling, Quantization Superblocks, and Kernel Pipeline Scheduling (3 of 3)`
 - [ ] Concept: `Sub-microsecond Kernel Dispatch` | Parent: `Local Inference Micro-Architectures: Signaling, Quantization Superblocks, and Kernel Pipeline Scheduling` | Mode: `dr` | Cluster: `Local Inference Micro-Architectures: Signaling, Quantization Superblocks, and Kernel Pipeline Scheduling (3 of 3)`
 - [ ] Concept: `TLP Encapsulation Overhead` | Parent: `Local Inference Micro-Architectures: Signaling, Quantization Superblocks, and Kernel Pipeline Scheduling` | Mode: `dr` | Cluster: `Local Inference Micro-Architectures: Signaling, Quantization Superblocks, and Kernel Pipeline Scheduling (3 of 3)`
 - [ ] Concept: `Unified Coherency Protocol` | Parent: `Local Inference Micro-Architectures: Signaling, Quantization Superblocks, and Kernel Pipeline Scheduling` | Mode: `dr` | Cluster: `Local Inference Micro-Architectures: Signaling, Quantization Superblocks, and Kernel Pipeline Scheduling (3 of 3)`
-- [ ] Concept: `Global Context Hub Architecture` | Parent: `Research & Knowledge Tooling`
-- [ ] Concept: `Concept Tree Tracking` | Parent: `Global Context Hub Architecture`
-- [ ] Concept: `3D Force-Directed Graphs` | Parent: `Concept Tree Tracking`
-- [ ] Concept: `Library Registries` | Parent: `Global Context Hub Architecture`
-- [ ] Concept: `MCP Server Library` | Parent: `Library Registries`
-- [ ] Concept: `Repo Scenarios Library` | Parent: `Library Registries`
-- [ ] Concept: `URL Reference Library` | Parent: `Library Registries`
-- [ ] Concept: `Shared Code Library` | Parent: `Library Registries`
-- [ ] Concept: `Execution and Telemetry` | Parent: `Global Context Hub Architecture`
-- [ ] Concept: `File Analysis and Logs` | Parent: `Execution and Telemetry`
-- [ ] Concept: `Agent and Role Bindings` | Parent: `Execution and Telemetry`
-- [ ] Concept: `Code and Prompts` | Parent: `Global Context Hub Architecture`
-- [ ] Concept: `Reusable Coding Patterns` | Parent: `Code and Prompts`
-- [ ] Concept: `Prompt Optimization and Variants` | Parent: `Code and Prompts`
-- [ ] Concept: `Aider Persistent Memory Hooks` | Parent: `Execution and Telemetry`
-- [ ] Concept: `Stdlib-Only Python Architecture` | Parent: `Execution and Telemetry`
-- [ ] Concept: `Cross-Browser and Mobile Web Programming` | Parent: `Web & Frontend Development`
-- [ ] Concept: `Cross-Browser Extension and Userscript Portability` | Parent: `Cross-Browser and Mobile Web Programming`
-- [ ] Concept: `Browser Engine Differences and Feature Detection` | Parent: `Cross-Browser and Mobile Web Programming`
-- [ ] Concept: `Cross-Browser Testing and Debugging` | Parent: `Cross-Browser and Mobile Web Programming`
-- [ ] Concept: `Mobile-Web and Browser Security Differences` | Parent: `Cross-Browser and Mobile Web Programming`
-- [ ] Concept: `Membership Ecommerce` | Parent: `Business & Enterprise`
-- [ ] Concept: `Members-Only and Wholesale Pricing` | Parent: `Membership Ecommerce`
-- [ ] Concept: `Squarespace Commerce and Payments` | Parent: `Membership Ecommerce`
-- [ ] Concept: `Membership Site Architecture` | Parent: `Membership Ecommerce`
-- [ ] Concept: `Membership Platforms Build vs Buy` | Parent: `Membership Ecommerce`
-- [ ] Concept: `Web-to-Native App Packaging` | Parent: `Cross-Browser and Mobile Web Programming`
-- [ ] Concept: `High-Risk Payments and Chargeback Management` | Parent: `Membership Ecommerce`
-- [ ] Concept: `Ecommerce Sales-Tax Nexus Compliance` | Parent: `Membership Ecommerce`
-- [ ] Concept: `llms.txt and LLM-readable documentation` | Parent: `Research & Knowledge Tooling`
-- [ ] Concept: `llms.txt specification v2` | Parent: `llms.txt and LLM-readable documentation`
-- [ ] Concept: `llms-full.txt page grammars` | Parent: `llms.txt and LLM-readable documentation`
-- [ ] Concept: `llms.txt generation tooling` | Parent: `llms.txt and LLM-readable documentation`
-- [ ] Concept: `llms.txt ecosystem evidence` | Parent: `llms.txt and LLM-readable documentation`
-- [ ] Concept: `llms.txt recreation and family aggregation` | Parent: `llms.txt and LLM-readable documentation`
-- [ ] Concept: `LLM document extraction and text distillation pipeline` | Parent: `LLM engineering and local deployment`
-- [ ] Concept: `Accessibility and UX Review` | Parent: `Frontend Design`
-- [ ] Concept: `Multi-Agent Workflow Builder` | Parent: `AI Agent Ecosystems`
-- [ ] Concept: `Case MCP Server Guide` | Parent: `TAM Operating Reference`
-- [ ] Concept: `Case Tracker` | Parent: `TAM Operating Reference`
-- [ ] Concept: `Chrome Extension Development` | Parent: `Web & Frontend Development`
-- [ ] Concept: `Chrome Extension Security` | Parent: `Chrome Extension Development`
-- [ ] Concept: `Code Review` | Parent: `Software Engineering Patterns`
-- [ ] Concept: `Debugging Techniques` | Parent: `Software Engineering Patterns`
-- [ ] Concept: `Dexie and IndexedDB Local-First` | Parent: `Chrome Extension Development`
-- [ ] Concept: `Dmux Multi-Agent Workflows` | Parent: `AI Agent Ecosystems`
-- [ ] Concept: `eBay Listing Automation` | Parent: `SaaS APIs & Integrations`
-- [ ] Concept: `Frontend Design UI/UX Expert` | Parent: `Frontend Design`
-- [ ] Concept: `Glean Developer Integration` | Parent: `SaaS APIs & Integrations`
-- [ ] Concept: `Google Workspace CLI` | Parent: `SaaS APIs & Integrations`
-- [ ] Concept: `HTML and CSS` | Parent: `Frontend Design`
-- [ ] Concept: `JavaScript and Node.js Debugging` | Parent: `Debugging Techniques`
-- [ ] Concept: `JavaScript and Node.js` | Parent: `Programming Languages`
-- [ ] Concept: `Jira Developer Expert` | Parent: `SaaS APIs & Integrations`
-- [ ] Concept: `LLM Integration Patterns` | Parent: `LLM Models and APIs`
-- [ ] Concept: `Monday.com Developer` | Parent: `SaaS APIs & Integrations`
-- [ ] Concept: `MongoDB Performance Troubleshooting` | Parent: `MongoDB Expert Knowledge`
-- [ ] Concept: `Order CLI` | Parent: `SaaS APIs & Integrations`
-- [ ] Concept: `Performance Profiling Expert` | Parent: `Software Engineering Patterns`
-- [ ] Concept: `Platform Adapter Review` | Parent: `Chrome Extension Development`
-- [ ] Concept: `Salesforce Developer Expert` | Parent: `SaaS APIs & Integrations`
-- [ ] Concept: `Security Compliance Auditor` | Parent: `Security & Identity`
-- [ ] Concept: `Security Review` | Parent: `Security & Identity`
-- [ ] Concept: `Software Architecture` | Parent: `Software Engineering Patterns`
-- [ ] Concept: `TAM Operating Reference` | Parent: `Business & Enterprise`
-- [ ] Concept: `Testing and Vitest Expert` | Parent: `Software Engineering Patterns`
-- [ ] Concept: `TypeScript Expert` | Parent: `Programming Languages`
-- [ ] Concept: `Vanilla JS UI Patterns` | Parent: `Frontend Design`
-- [ ] Concept: `MongoDB Backup and Restore` | Parent: `MongoDB Atlas`
-- [ ] Concept: `MongoDB Atlas Triggers and Functions` | Parent: `MongoDB Atlas`
-- [ ] Concept: `MongoDB Driver Internals` | Parent: `MongoDB Developer Patterns`
-- [ ] Concept: `MongoDB Performance Benchmarking` | Parent: `MongoDB Expert Knowledge`
-- [ ] Concept: `MongoDB Spark Connector and Databricks Integration` | Parent: `MongoDB Developer Patterns`
-- [ ] Concept: `MongoDB Atlas Analytics Node` | Parent: `MongoDB Atlas`
-- [ ] Concept: `Atlas Service Accounts` | Parent: `MongoDB Atlas`
-- [ ] Concept: `MongoDB Connection String URI` | Parent: `MongoDB Expert Knowledge`
-- [ ] Concept: `Incident Comms` | Parent: `Writing and Documentation`
-- [ ] Concept: `Data Analysis Definitions and Scope` | Parent: `Data Analysis Foundations and Theory`
-- [ ] Concept: `Measurement Theory` | Parent: `Data Analysis Foundations and Theory`
-- [ ] Concept: `Probability Theory` | Parent: `Data Analysis Foundations and Theory`
-- [ ] Concept: `Statistical Inference Foundations` | Parent: `Data Analysis Foundations and Theory`
-- [ ] Concept: `Information Theory` | Parent: `Data Analysis Foundations and Theory`
-- [ ] Concept: `Epistemology of Data` | Parent: `Data Analysis Foundations and Theory`
-- [ ] Concept: `Process Frameworks` | Parent: `Data Analysis Lifecycle`
-- [ ] Concept: `Problem Framing` | Parent: `Data Analysis Lifecycle`
-- [ ] Concept: `Levels of Measurement` | Parent: `Measurement Theory`
-- [ ] Concept: `Probability Distributions` | Parent: `Probability Theory`
-- [ ] Concept: `Data Analysis vs Analytics vs Data` | Parent: `Data Analysis Definitions and Scope`
-- [ ] Concept: `Analysis vs Synthesis` | Parent: `Data Analysis Definitions and Scope`
-- [ ] Concept: `Quantitative vs Qualitative Analysis` | Parent: `Data Analysis Definitions and Scope`
-- [ ] Concept: `Nominal Scale` | Parent: `Levels of Measurement`
-- [ ] Concept: `Ordinal Scale` | Parent: `Levels of Measurement`
-- [ ] Concept: `Interval Scale` | Parent: `Levels of Measurement`
-- [ ] Concept: `Ratio Scale` | Parent: `Levels of Measurement`
-- [ ] Concept: `Discrete vs Continuous Variables` | Parent: `Measurement Theory`
-- [ ] Concept: `Reliability and Validity` | Parent: `Measurement Theory`
-- [ ] Concept: `Operationalization and Constructs` | Parent: `Measurement Theory`
-- [ ] Concept: `Random Variables` | Parent: `Probability Theory`
-- [ ] Concept: `Probability Mass and Density Functions` | Parent: `Probability Theory`
-- [ ] Concept: `Normal Distribution` | Parent: `Probability Distributions`
-- [ ] Concept: `Binomial Distribution` | Parent: `Probability Distributions`
-- [ ] Concept: `Poisson Distribution` | Parent: `Probability Distributions`
-- [ ] Concept: `Exponential Distribution` | Parent: `Probability Distributions`
-- [ ] Concept: `Uniform Distribution` | Parent: `Probability Distributions`
-- [ ] Concept: `Joint Marginal Conditional Probability` | Parent: `Probability Theory`
-- [ ] Concept: `Bayes Theorem` | Parent: `Probability Theory`
-- [ ] Concept: `Law of Large Numbers` | Parent: `Probability Theory`
-- [ ] Concept: `Central Limit Theorem` | Parent: `Probability Theory`
-- [ ] Concept: `Expectation Variance Covariance` | Parent: `Probability Theory`
-- [ ] Concept: `Population vs Sample` | Parent: `Statistical Inference Foundations`
-- [ ] Concept: `Sampling Distributions and Standard Error` | Parent: `Statistical Inference Foundations`
-- [ ] Concept: `Frequentist vs Bayesian Paradigms` | Parent: `Statistical Inference Foundations`
-- [ ] Concept: `Estimation Theory` | Parent: `Statistical Inference Foundations`
-- [ ] Concept: `Correlation vs Causation` | Parent: `Epistemology of Data`
-- [ ] Concept: `Inductive vs Deductive Reasoning` | Parent: `Epistemology of Data`
-- [ ] Concept: `Reproducibility and Replicability` | Parent: `Epistemology of Data`
-- [ ] Concept: `CRISP-DM` | Parent: `Process Frameworks`
-- [ ] Concept: `KDD Process` | Parent: `Process Frameworks`
-- [ ] Concept: `SEMMA` | Parent: `Process Frameworks`
-- [ ] Concept: `OSEMN` | Parent: `Process Frameworks`
-- [ ] Concept: `TDSP` | Parent: `Process Frameworks`
-- [ ] Concept: `Business Research Question Definition` | Parent: `Problem Framing`
-- [ ] Concept: `Hypothesis Formulation` | Parent: `Problem Framing`
-- [ ] Concept: `Data Cleaning and Preparation` | Parent: `Data Analysis`
-- [ ] Concept: `Exploratory Data Analysis` | Parent: `Data Analysis`
-- [ ] Concept: `Statistical Modeling` | Parent: `Data Analysis`
-- [ ] Concept: `Data Analysis Tools and Languages` | Parent: `Data Analysis`
-- [ ] Concept: `Data Ethics and Privacy` | Parent: `Data Analysis`
-- [ ] Concept: `A/B Testing and Causal Inference` | Parent: `Data Analysis`
-- [ ] Concept: `data engineering and pipelines` | Parent: `Data Analysis`
-- [ ] Concept: `streaming analytics` | Parent: `Data Analysis`
-- [ ] Concept: `forecasting` | Parent: `Data Analysis`
-- [ ] Concept: `feature engineering and feature stores` | Parent: `Data Analysis`
-- [ ] Concept: `Behavior-Change Psychology for Customer Adoption` | Parent: `Applied Human Psychology`
-- [ ] Concept: `Python Concurrency (asyncio, Structured Concurrency, anyio/trio)` | Parent: `Programming Languages`
-- [ ] Concept: `Python CLI & TUI Application Development` | Parent: `Programming Languages`
-- [ ] Concept: `Python Metaprogramming & the Data Model` | Parent: `Programming Languages`
-- [ ] Concept: `Packaging Python Apps as Standalone Distributables` | Parent: `Programming Languages`
-- [ ] Concept: `Python Logging & Application Observability` | Parent: `Programming Languages`
-- [ ] Concept: `Python Data Modeling (dataclasses, attrs, msgspec)` | Parent: `Programming Languages`
-- [ ] Concept: `Python AST, Codegen & Source Transformation` | Parent: `Programming Languages`
-- [ ] Concept: `mongodb-schema-design` | Parent: `MongoDB Expert Knowledge`
-- [ ] Concept: `Data Analysis`
-- [ ] Concept: `Human Psychology` | Parent: `Sciences & Human Behavior`
-- [ ] Concept: `Programming Languages` | Parent: `Software Engineering`
-- [ ] Concept: `Software Engineering Patterns` | Parent: `Software Engineering`
-- [ ] Concept: `Python Patterns and Best Practices` | Parent: `Programming Languages`
-- [ ] Concept: `TAM account management` | Parent: `TAM Operating Reference`
-- [ ] Concept: `Software Engineering & Distributed Computing` | Parent: `Software Engineering`
-- [ ] Concept: `Blockchain protocols` | Parent: `Finance, Markets & Blockchain`
-- [ ] Concept: `Global AI Hub Research Corpus` | Parent: `Research & Knowledge Tooling`
-- [ ] Concept: `Vision-Model / Multimodal-LLM Design Critique Technique` | Parent: `Multimodal & Vision-Language Model Architecture`
-- [ ] Concept: `Usability Heuristic Evaluation and Laws of UX` | Parent: `Frontend Design`
-- [ ] Concept: `Visual Design Principles as a Critique Rubric + Design-Critique Methodology` | Parent: `Web & Frontend Development`
-- [ ] Concept: `Computational Aesthetics & Automated UI-Quality Metrics` | Parent: `Frontend Design`
-- [ ] Concept: `Learned / ML-based Query Optimization` | Parent: `Machine Learning`
-- [ ] Concept: `Database Proxies & Query-Optimization Middleware` | Parent: `Software Engineering Patterns`
-- [ ] Concept: `Enterprise Vendor Management, Procurement & Third-Party / Operational-Resilience Risk (Buyer-Side)` | Parent: `Financial-Services Accounts`
-- [ ] Concept: `Big-Bank IT and Infrastructure Landscape` | Parent: `Financial-Services Accounts`
-- [ ] Concept: `Customer Satisfaction and Loyalty Science` | Parent: `Applied Human Psychology`
-- [ ] Concept: `Algorithmic Discovery & Superoptimization` | Parent: `AI Agent Ecosystems`
-- [ ] Concept: `Dialogue Craft` | Parent: `Writing and Documentation`
-- [ ] Concept: `MongoDB Stress, Soak, and Chaos-Resilience Testing` | Parent: `MongoDB Expert Knowledge`
-- [ ] Concept: `MongoDB Performance Regression Detection and Testing Methodology` | Parent: `MongoDB Performance Benchmarking`
-- [ ] Concept: `MongoDB 8.0 performance changes & read-path regressions vs 7.0` | Parent: `MongoDB Expert Knowledge`
-- [ ] Concept: `MongoDB Java driver 5.x version timeline & 8.0 compatibility` | Parent: `MongoDB Expert Knowledge`
-- [ ] Concept: `Atlas cluster tiers (M30) & major-version upgrade mechanics` | Parent: `MongoDB Expert Knowledge`
-- [ ] Concept: `North Carolina real estate agency licensing and commission rules` | Parent: `Personal Life & Property`
-- [ ] Concept: `NCREC licensing provisional broker broker BIC` | Parent: `North Carolina real estate agency licensing and commission rules`
-- [ ] Concept: `NC agency relationships and WWREA disclosure` | Parent: `North Carolina real estate agency licensing and commission rules`
-- [ ] Concept: `NC buyer-agency agreements and NAR settlement compensation` | Parent: `North Carolina real estate agency licensing and commission rules`
-- [ ] Concept: `NC Offer to Purchase and Contract Form 2-T` | Parent: `North Carolina real estate agency licensing and commission rules`
-- [ ] Concept: `NC closing deeds and title` | Parent: `North Carolina real estate agency licensing and commission rules`
-- [ ] Concept: `NC Residential Property Disclosure Act (G.S. Chapter 47E)` | Parent: `North Carolina real estate agency licensing and commission rules`
-- [ ] Concept: `NC Coastal and Flood Real Estate (CAMA, flood disclosure, coastal insurance)` | Parent: `North Carolina real estate agency licensing and commission rules`
-- [ ] Concept: `Logitech HID++ 2.0 Multi-Host Switching (Easy-Switch, feature 0x1814)` | Parent: `Cross-Computer Input Sharing (software KVM + hardware KVM / DDC-CI switching)`
-- [ ] Concept: `Cross-Computer Input Sharing (software KVM + hardware KVM / DDC-CI switching)` | Parent: `DevOps, Infrastructure & Observability`
-- [ ] Concept: `macOS Programmatic Input Control (CGEvent synthesis, event taps, cursor warping, TCC gates, remapping & pointer tuning)` | Parent: `Cross-Computer Input Sharing (software KVM + hardware KVM / DDC-CI switching)`
-- [ ] Concept: `Apple Universal Control (Continuity edge-crossing input sharing)` | Parent: `Cross-Computer Input Sharing (software KVM + hardware KVM / DDC-CI switching)`
-- [ ] Concept: `DNS Caching` | Parent: `DevOps, Infrastructure & Observability`
-- [ ] Concept: `Python supply-chain threat landscape 2025-2026` | Parent: `Python Supply-Chain & Application Security`
-- [ ] Concept: `llms.txt and the AI-discovery standards family` | Parent: `llms.txt and LLM-readable documentation`
-- [ ] Concept: `MongoDB autoCompact` | Parent: `MongoDB Expert Knowledge`
-- [ ] Concept: `Background-Compaction Skip/EMA Heuristic` | Parent: `WiredTiger Compaction Algorithm`
-- [ ] Concept: `WiredTiger Compaction Algorithm` | Parent: `MongoDB autoCompact`
-- [ ] Concept: `autoCompact Atlas-Specific Behavior` | Parent: `MongoDB autoCompact`
-- [ ] Concept: `autoCompact Checkpoint Interaction` | Parent: `MongoDB autoCompact`
-- [ ] Concept: `autoCompact Cluster Topology Behavior` | Parent: `MongoDB autoCompact`
-- [ ] Concept: `autoCompact Lifecycle and Persistence` | Parent: `MongoDB autoCompact`
-- [ ] Concept: `autoCompact and Replica-Set Write Blocking` | Parent: `MongoDB autoCompact`
-- [ ] Concept: `autoCompact freeSpaceTargetMB Gating` | Parent: `MongoDB autoCompact`
-- [ ] Concept: `autoCompact runOnce vs Continuous Mode` | Parent: `MongoDB autoCompact`
-- [ ] Concept: `Used Car Auctions and Buying` | Parent: `Personal Life & Property`
-- [ ] Concept: `LLM engineering-metaphor tics: term of art versus reflexive tic` | Parent: `Writing and Documentation`
-- [ ] Concept: `LLM rhetorical-pattern tells in prose` | Parent: `Writing and Documentation`
-- [ ] Concept: `Measuring LLM lexical tics: excess vocabulary, baselines, drift` | Parent: `Writing and Documentation`
-- [ ] Concept: `Why LLMs converge on the same words: mode collapse and post-training lexical effects` | Parent: `LLM Alignment and Post-Training`
-- [ ] Concept: `Prompt-side control of LLM lexical tics` | Parent: `AI Collaboration Writing`
-- [ ] Concept: `Instruction-file hygiene for LLM lexical tics: linting, mirroring, hook filtering` | Parent: `LLM Context Engineering`
-- [ ] Concept: `LLM tells in code, commit messages, comments and READMEs` | Parent: `Writing and Documentation`
-- [ ] Concept: `Vague attribution and promotional register in LLM prose` | Parent: `Writing and Documentation`
-- [ ] Concept: `Mixed metaphors and catachresis as signs of reflexive figurative language` | Parent: `Writing and Documentation`
-- [ ] Concept: `Human adoption of LLM vocabulary and its effect on tic baselines` | Parent: `Writing and Documentation`
-- [ ] Concept: `LLM engineering and local deployment` | Parent: `LLM Models and APIs`
-- [ ] Concept: `Job search and career operations` | Parent: `Business & Enterprise`
-- [ ] Concept: `Market mechanics and trading infrastructure` | Parent: `Trading and Investing — Active Trading & How Financial Markets Work (Family Root)`
-- [ ] Concept: `Linux eGPU for LLM Inference (Thunderbolt 3/4/5, USB4, OCuLink)` | Parent: `Local LLM Inference on Consumer Hardware (RTX 5080 eGPU, Linux, Remote Access)`
-- [ ] Concept: `RTX 5080 / Blackwell Consumer CUDA Stack on Linux (sm_120)` | Parent: `Local LLM Inference on Consumer Hardware (RTX 5080 eGPU, Linux, Remote Access)`
-- [ ] Concept: `Remote access to a local LLM server` | Parent: `Local LLM Inference on Consumer Hardware (RTX 5080 eGPU, Linux, Remote Access)`
-- [ ] Concept: `Exposed local-LLM server security` | Parent: `Local LLM Inference on Consumer Hardware (RTX 5080 eGPU, Linux, Remote Access)`
-- [ ] Concept: `Hybrid CPU+GPU MoE expert offload` | Parent: `Local LLM Inference on Consumer Hardware (RTX 5080 eGPU, Linux, Remote Access)`
-- [ ] Concept: `Model picks for the 16GB VRAM + 64GB RAM tier (2026)` | Parent: `Local LLM Inference on Consumer Hardware (RTX 5080 eGPU, Linux, Remote Access)`
-- [ ] Concept: `Local LLM Troubleshooting Playbook and Recommended Settings (Ollama, LM Studio, llama-server)` | Parent: `Local LLM Inference on Consumer Hardware (RTX 5080 eGPU, Linux, Remote Access)`
-- [ ] Concept: `OpenClaw and personal-agent gateways on local models` | Parent: `Local LLM Inference on Consumer Hardware (RTX 5080 eGPU, Linux, Remote Access)`
-- [ ] Concept: `Local LLM Inference on Consumer Hardware (RTX 5080 eGPU, Linux, Remote Access)` | Parent: `LLM Models and APIs`
-- [ ] Concept: `DDR5 and Host Tuning for CPU-Side LLM Inference and MoE Offload` | Parent: `Local LLM Inference on Consumer Hardware (RTX 5080 eGPU, Linux, Remote Access)`
-- [ ] Concept: `Open WebUI deployment and hardening as the remote chat front end` | Parent: `Local LLM Inference on Consumer Hardware (RTX 5080 eGPU, Linux, Remote Access)`
-- [ ] Concept: `FP8 / NVFP4 / MXFP4 Safetensors Serving on vLLM and SGLang (single 16GB sm_120 card)` | Parent: `Local LLM Inference on Consumer Hardware (RTX 5080 eGPU, Linux, Remote Access)`
-- [ ] Concept: `PCIe tunneling over Thunderbolt 4 and USB4` | Parent: `Thunderbolt eGPU on Linux for local LLM inference`
-- [ ] Concept: `Ollama CUDA detection and GPU verification` | Parent: `Thunderbolt eGPU on Linux for local LLM inference`
-- [ ] Concept: `AI & LLM Engineering`
-- [ ] Concept: `Prompting & Agent Skills` | Parent: `AI & LLM Engineering`
-- [ ] Concept: `Research & Knowledge Tooling` | Parent: `AI & LLM Engineering`
-- [ ] Concept: `Software Engineering`
-- [ ] Concept: `Web & Frontend Development` | Parent: `Software Engineering`
-- [ ] Concept: `SaaS APIs & Integrations` | Parent: `Software Engineering`
-- [ ] Concept: `Security & Identity` | Parent: `Software Engineering`
-- [ ] Concept: `Developer Tooling & Repo Automation` | Parent: `Software Engineering`
-- [ ] Concept: `Business & Enterprise`
-- [ ] Concept: `Financial-Services Accounts` | Parent: `Business & Enterprise`
-- [ ] Concept: `Finance, Markets & Blockchain`
-- [ ] Concept: `Personal Life & Property`
-- [ ] Concept: `Sciences & Human Behavior`
-- [ ] Concept: `Retrieval & RAG` | Parent: `AI & LLM Engineering`
-- [ ] Concept: `Document Extraction & Text Distillation` | Parent: `Research & Knowledge Tooling`
-- [ ] Concept: `Archive Rules` | Parent: `MongoDB Atlas Online Archive`
-- [ ] Concept: `Partition Fields` | Parent: `MongoDB Atlas Online Archive`
-- [ ] Concept: `16 GB VRAM residency budgeting` | Parent: `Blackwell sm_120 local-LLM inference stack on Linux: llama.cpp, Ollama, PyTorch and vLLM over a Thunderbolt eGPU`
-- [ ] Concept: `Local Model Performance Evaluation: Ollama, MLX, and Hardware Architectures`
-- [ ] Concept: `Local Inference Acceleration: Memory Architectures, Metal Kernels, and Latency Optimization` | Parent: `Local Model Performance Evaluation: Ollama, MLX, and Hardware Architectures`
-- [ ] Concept: `Local Inference Micro-Architectures: Signaling, Quantization Superblocks, and Kernel Pipeline Scheduling` | Parent: `Local Inference Acceleration: Memory Architectures, Metal Kernels, and Latency Optimization`
-- [ ] Concept: `DATE Criteria` | Parent: `Archive Rules`
-- [ ] Concept: `LiteLLM gateway and SDK engineering` | Parent: `AI Gateways & LLM Proxy Infrastructure`
-- [ ] Concept: `Atlas Identity Federation and Resource Policy Boundaries` | Parent: `MongoDB Atlas IAM and RBAC`
-- [ ] Concept: `Atlas Hybrid Fusion and BM25 Diagnostics` | Parent: `MongoDB Atlas Search and Vector Search`
-- [ ] Concept: `Shard Key Design and Resharding as Cost Levers` | Parent: `MongoDB Atlas Cost Optimization` | Mode: `dr`
-- [ ] Concept: `Read Offload via Caching and Precomputed Views ($merge/$out, Computed Pattern)` | Parent: `MongoDB Atlas Cost Optimization` | Mode: `dr`
-- [ ] Concept: `Platform Consolidation TCO (Atlas Search/Vector Search vs Separate Search or Vector DB)` | Parent: `MongoDB Atlas Cost Optimization` | Mode: `dr`
-- [ ] Concept: `Migration and Cutover Cost (Live Migration, mongosync, Dual-Running, Egress)` | Parent: `MongoDB Atlas Cost Optimization` | Mode: `dr`
-- [ ] Concept: `Cluster Tier Limits and Feature Gates as Cost Drivers (Connections, IOPS Caps, Minimum Tiers)` | Parent: `MongoDB Atlas Cost Optimization` | Mode: `dr`
+- [ ] Concept: `Global Context Hub Architecture` | Parent: `Research & Knowledge Tooling` | Queue-state: `coverage-review`
+- [ ] Concept: `Concept Tree Tracking` | Parent: `Global Context Hub Architecture` | Queue-state: `coverage-review`
+- [ ] Concept: `3D Force-Directed Graphs` | Parent: `Concept Tree Tracking` | Queue-state: `coverage-review`
+- [ ] Concept: `Library Registries` | Parent: `Global Context Hub Architecture` | Queue-state: `coverage-review`
+- [ ] Concept: `MCP Server Library` | Parent: `Library Registries` | Queue-state: `coverage-review`
+- [ ] Concept: `Repo Scenarios Library` | Parent: `Library Registries` | Queue-state: `coverage-review`
+- [ ] Concept: `URL Reference Library` | Parent: `Library Registries` | Queue-state: `coverage-review`
+- [ ] Concept: `Shared Code Library` | Parent: `Library Registries` | Queue-state: `coverage-review`
+- [ ] Concept: `Execution and Telemetry` | Parent: `Global Context Hub Architecture` | Queue-state: `coverage-review`
+- [ ] Concept: `File Analysis and Logs` | Parent: `Execution and Telemetry` | Queue-state: `coverage-review`
+- [ ] Concept: `Agent and Role Bindings` | Parent: `Execution and Telemetry` | Queue-state: `coverage-review`
+- [ ] Concept: `Code and Prompts` | Parent: `Global Context Hub Architecture` | Queue-state: `coverage-review`
+- [ ] Concept: `Reusable Coding Patterns` | Parent: `Code and Prompts` | Queue-state: `coverage-review`
+- [ ] Concept: `Prompt Optimization and Variants` | Parent: `Code and Prompts` | Queue-state: `coverage-review`
+- [ ] Concept: `Aider Persistent Memory Hooks` | Parent: `Execution and Telemetry` | Queue-state: `coverage-review`
+- [ ] Concept: `Stdlib-Only Python Architecture` | Parent: `Execution and Telemetry` | Queue-state: `coverage-review`
+- [ ] Concept: `Cross-Browser and Mobile Web Programming` | Parent: `Web & Frontend Development` | Queue-state: `coverage-review`
+- [ ] Concept: `Cross-Browser Extension and Userscript Portability` | Parent: `Cross-Browser and Mobile Web Programming` | Queue-state: `coverage-review`
+- [ ] Concept: `Browser Engine Differences and Feature Detection` | Parent: `Cross-Browser and Mobile Web Programming` | Queue-state: `coverage-review`
+- [ ] Concept: `Cross-Browser Testing and Debugging` | Parent: `Cross-Browser and Mobile Web Programming` | Queue-state: `coverage-review`
+- [ ] Concept: `Mobile-Web and Browser Security Differences` | Parent: `Cross-Browser and Mobile Web Programming` | Queue-state: `coverage-review`
+- [ ] Concept: `Membership Ecommerce` | Parent: `Business & Enterprise` | Queue-state: `coverage-review`
+- [ ] Concept: `Members-Only and Wholesale Pricing` | Parent: `Membership Ecommerce` | Queue-state: `coverage-review`
+- [ ] Concept: `Squarespace Commerce and Payments` | Parent: `Membership Ecommerce` | Queue-state: `coverage-review`
+- [ ] Concept: `Membership Site Architecture` | Parent: `Membership Ecommerce` | Queue-state: `coverage-review`
+- [ ] Concept: `Membership Platforms Build vs Buy` | Parent: `Membership Ecommerce` | Queue-state: `coverage-review`
+- [ ] Concept: `Web-to-Native App Packaging` | Parent: `Cross-Browser and Mobile Web Programming` | Queue-state: `coverage-review`
+- [ ] Concept: `High-Risk Payments and Chargeback Management` | Parent: `Membership Ecommerce` | Queue-state: `coverage-review`
+- [ ] Concept: `Ecommerce Sales-Tax Nexus Compliance` | Parent: `Membership Ecommerce` | Queue-state: `coverage-review`
+- [ ] Concept: `llms.txt and LLM-readable documentation` | Parent: `Research & Knowledge Tooling` | Queue-state: `coverage-review`
+- [ ] Concept: `llms.txt specification v2` | Parent: `llms.txt and LLM-readable documentation` | Queue-state: `coverage-review`
+- [ ] Concept: `llms-full.txt page grammars` | Parent: `llms.txt and LLM-readable documentation` | Queue-state: `coverage-review`
+- [ ] Concept: `llms.txt generation tooling` | Parent: `llms.txt and LLM-readable documentation` | Queue-state: `coverage-review`
+- [ ] Concept: `llms.txt ecosystem evidence` | Parent: `llms.txt and LLM-readable documentation` | Queue-state: `coverage-review`
+- [ ] Concept: `llms.txt recreation and family aggregation` | Parent: `llms.txt and LLM-readable documentation` | Queue-state: `coverage-review`
+- [ ] Concept: `LLM document extraction and text distillation pipeline` | Parent: `LLM engineering and local deployment` | Queue-state: `coverage-review`
+- [ ] Concept: `Accessibility and UX Review` | Parent: `Frontend Design` | Queue-state: `coverage-review`
+- [ ] Concept: `Multi-Agent Workflow Builder` | Parent: `AI Agent Ecosystems` | Queue-state: `coverage-review`
+- [ ] Concept: `Case MCP Server Guide` | Parent: `TAM Operating Reference` | Queue-state: `coverage-review`
+- [ ] Concept: `Case Tracker` | Parent: `TAM Operating Reference` | Queue-state: `coverage-review`
+- [ ] Concept: `Chrome Extension Development` | Parent: `Web & Frontend Development` | Queue-state: `coverage-review`
+- [ ] Concept: `Chrome Extension Security` | Parent: `Chrome Extension Development` | Queue-state: `coverage-review`
+- [ ] Concept: `Code Review` | Parent: `Software Engineering Patterns` | Queue-state: `coverage-review`
+- [ ] Concept: `Debugging Techniques` | Parent: `Software Engineering Patterns` | Queue-state: `coverage-review`
+- [ ] Concept: `Dexie and IndexedDB Local-First` | Parent: `Chrome Extension Development` | Queue-state: `coverage-review`
+- [ ] Concept: `Dmux Multi-Agent Workflows` | Parent: `AI Agent Ecosystems` | Queue-state: `coverage-review`
+- [ ] Concept: `eBay Listing Automation` | Parent: `SaaS APIs & Integrations` | Queue-state: `coverage-review`
+- [ ] Concept: `Frontend Design UI/UX Expert` | Parent: `Frontend Design` | Queue-state: `coverage-review`
+- [ ] Concept: `Glean Developer Integration` | Parent: `SaaS APIs & Integrations` | Queue-state: `coverage-review`
+- [ ] Concept: `Google Workspace CLI` | Parent: `SaaS APIs & Integrations` | Queue-state: `coverage-review`
+- [ ] Concept: `HTML and CSS` | Parent: `Frontend Design` | Queue-state: `coverage-review`
+- [ ] Concept: `JavaScript and Node.js Debugging` | Parent: `Debugging Techniques` | Queue-state: `coverage-review`
+- [ ] Concept: `JavaScript and Node.js` | Parent: `Programming Languages` | Queue-state: `coverage-review`
+- [ ] Concept: `Jira Developer Expert` | Parent: `SaaS APIs & Integrations` | Queue-state: `coverage-review`
+- [ ] Concept: `LLM Integration Patterns` | Parent: `LLM Models and APIs` | Queue-state: `coverage-review`
+- [ ] Concept: `Monday.com Developer` | Parent: `SaaS APIs & Integrations` | Queue-state: `coverage-review`
+- [ ] Concept: `MongoDB Performance Troubleshooting` | Parent: `MongoDB Expert Knowledge` | Queue-state: `coverage-review`
+- [ ] Concept: `Order CLI` | Parent: `SaaS APIs & Integrations` | Queue-state: `coverage-review`
+- [ ] Concept: `Performance Profiling Expert` | Parent: `Software Engineering Patterns` | Queue-state: `coverage-review`
+- [ ] Concept: `Platform Adapter Review` | Parent: `Chrome Extension Development` | Queue-state: `coverage-review`
+- [ ] Concept: `Salesforce Developer Expert` | Parent: `SaaS APIs & Integrations` | Queue-state: `coverage-review`
+- [ ] Concept: `Security Compliance Auditor` | Parent: `Security & Identity` | Queue-state: `coverage-review`
+- [ ] Concept: `Security Review` | Parent: `Security & Identity` | Queue-state: `coverage-review`
+- [ ] Concept: `Software Architecture` | Parent: `Software Engineering Patterns` | Queue-state: `coverage-review`
+- [ ] Concept: `TAM Operating Reference` | Parent: `Business & Enterprise` | Queue-state: `coverage-review`
+- [ ] Concept: `Testing and Vitest Expert` | Parent: `Software Engineering Patterns` | Queue-state: `coverage-review`
+- [ ] Concept: `TypeScript Expert` | Parent: `Programming Languages` | Queue-state: `coverage-review`
+- [ ] Concept: `Vanilla JS UI Patterns` | Parent: `Frontend Design` | Queue-state: `coverage-review`
+- [ ] Concept: `MongoDB Backup and Restore` | Parent: `MongoDB Atlas` | Queue-state: `coverage-review`
+- [ ] Concept: `MongoDB Atlas Triggers and Functions` | Parent: `MongoDB Atlas` | Queue-state: `coverage-review`
+- [ ] Concept: `MongoDB Driver Internals` | Parent: `MongoDB Developer Patterns` | Queue-state: `coverage-review`
+- [ ] Concept: `MongoDB Performance Benchmarking` | Parent: `MongoDB Expert Knowledge` | Queue-state: `coverage-review`
+- [ ] Concept: `MongoDB Spark Connector and Databricks Integration` | Parent: `MongoDB Developer Patterns` | Queue-state: `coverage-review`
+- [ ] Concept: `MongoDB Atlas Analytics Node` | Parent: `MongoDB Atlas` | Queue-state: `coverage-review`
+- [ ] Concept: `Atlas Service Accounts` | Parent: `MongoDB Atlas` | Queue-state: `coverage-review`
+- [ ] Concept: `MongoDB Connection String URI` | Parent: `MongoDB Expert Knowledge` | Queue-state: `coverage-review`
+- [ ] Concept: `Incident Comms` | Parent: `Writing and Documentation` | Queue-state: `coverage-review`
+- [ ] Concept: `Data Analysis Definitions and Scope` | Parent: `Data Analysis Foundations and Theory` | Queue-state: `coverage-review`
+- [ ] Concept: `Measurement Theory` | Parent: `Data Analysis Foundations and Theory` | Queue-state: `coverage-review`
+- [ ] Concept: `Probability Theory` | Parent: `Data Analysis Foundations and Theory` | Queue-state: `coverage-review`
+- [ ] Concept: `Statistical Inference Foundations` | Parent: `Data Analysis Foundations and Theory` | Queue-state: `coverage-review`
+- [ ] Concept: `Information Theory` | Parent: `Data Analysis Foundations and Theory` | Queue-state: `coverage-review`
+- [ ] Concept: `Epistemology of Data` | Parent: `Data Analysis Foundations and Theory` | Queue-state: `coverage-review`
+- [ ] Concept: `Process Frameworks` | Parent: `Data Analysis Lifecycle` | Queue-state: `coverage-review`
+- [ ] Concept: `Problem Framing` | Parent: `Data Analysis Lifecycle` | Queue-state: `coverage-review`
+- [ ] Concept: `Levels of Measurement` | Parent: `Measurement Theory` | Queue-state: `coverage-review`
+- [ ] Concept: `Probability Distributions` | Parent: `Probability Theory` | Queue-state: `coverage-review`
+- [ ] Concept: `Data Analysis vs Analytics vs Data` | Parent: `Data Analysis Definitions and Scope` | Queue-state: `coverage-review`
+- [ ] Concept: `Analysis vs Synthesis` | Parent: `Data Analysis Definitions and Scope` | Queue-state: `coverage-review`
+- [ ] Concept: `Quantitative vs Qualitative Analysis` | Parent: `Data Analysis Definitions and Scope` | Queue-state: `coverage-review`
+- [ ] Concept: `Nominal Scale` | Parent: `Levels of Measurement` | Queue-state: `coverage-review`
+- [ ] Concept: `Ordinal Scale` | Parent: `Levels of Measurement` | Queue-state: `coverage-review`
+- [ ] Concept: `Interval Scale` | Parent: `Levels of Measurement` | Queue-state: `coverage-review`
+- [ ] Concept: `Ratio Scale` | Parent: `Levels of Measurement` | Queue-state: `coverage-review`
+- [ ] Concept: `Discrete vs Continuous Variables` | Parent: `Measurement Theory` | Queue-state: `coverage-review`
+- [ ] Concept: `Reliability and Validity` | Parent: `Measurement Theory` | Queue-state: `coverage-review`
+- [ ] Concept: `Operationalization and Constructs` | Parent: `Measurement Theory` | Queue-state: `coverage-review`
+- [ ] Concept: `Random Variables` | Parent: `Probability Theory` | Queue-state: `coverage-review`
+- [ ] Concept: `Probability Mass and Density Functions` | Parent: `Probability Theory` | Queue-state: `coverage-review`
+- [ ] Concept: `Normal Distribution` | Parent: `Probability Distributions` | Queue-state: `coverage-review`
+- [ ] Concept: `Binomial Distribution` | Parent: `Probability Distributions` | Queue-state: `coverage-review`
+- [ ] Concept: `Poisson Distribution` | Parent: `Probability Distributions` | Queue-state: `coverage-review`
+- [ ] Concept: `Exponential Distribution` | Parent: `Probability Distributions` | Queue-state: `coverage-review`
+- [ ] Concept: `Uniform Distribution` | Parent: `Probability Distributions` | Queue-state: `coverage-review`
+- [ ] Concept: `Joint Marginal Conditional Probability` | Parent: `Probability Theory` | Queue-state: `coverage-review`
+- [ ] Concept: `Bayes Theorem` | Parent: `Probability Theory` | Queue-state: `coverage-review`
+- [ ] Concept: `Law of Large Numbers` | Parent: `Probability Theory` | Queue-state: `coverage-review`
+- [ ] Concept: `Central Limit Theorem` | Parent: `Probability Theory` | Queue-state: `coverage-review`
+- [ ] Concept: `Expectation Variance Covariance` | Parent: `Probability Theory` | Queue-state: `coverage-review`
+- [ ] Concept: `Population vs Sample` | Parent: `Statistical Inference Foundations` | Queue-state: `coverage-review`
+- [ ] Concept: `Sampling Distributions and Standard Error` | Parent: `Statistical Inference Foundations` | Queue-state: `coverage-review`
+- [ ] Concept: `Frequentist vs Bayesian Paradigms` | Parent: `Statistical Inference Foundations` | Queue-state: `coverage-review`
+- [ ] Concept: `Estimation Theory` | Parent: `Statistical Inference Foundations` | Queue-state: `coverage-review`
+- [ ] Concept: `Correlation vs Causation` | Parent: `Epistemology of Data` | Queue-state: `coverage-review`
+- [ ] Concept: `Inductive vs Deductive Reasoning` | Parent: `Epistemology of Data` | Queue-state: `coverage-review`
+- [ ] Concept: `Reproducibility and Replicability` | Parent: `Epistemology of Data` | Queue-state: `coverage-review`
+- [ ] Concept: `CRISP-DM` | Parent: `Process Frameworks` | Queue-state: `coverage-review`
+- [ ] Concept: `KDD Process` | Parent: `Process Frameworks` | Queue-state: `coverage-review`
+- [ ] Concept: `SEMMA` | Parent: `Process Frameworks` | Queue-state: `coverage-review`
+- [ ] Concept: `OSEMN` | Parent: `Process Frameworks` | Queue-state: `coverage-review`
+- [ ] Concept: `TDSP` | Parent: `Process Frameworks` | Queue-state: `coverage-review`
+- [ ] Concept: `Business Research Question Definition` | Parent: `Problem Framing` | Queue-state: `coverage-review`
+- [ ] Concept: `Hypothesis Formulation` | Parent: `Problem Framing` | Queue-state: `coverage-review`
+- [ ] Concept: `Data Cleaning and Preparation` | Parent: `Data Analysis` | Queue-state: `coverage-review`
+- [ ] Concept: `Exploratory Data Analysis` | Parent: `Data Analysis` | Queue-state: `coverage-review`
+- [ ] Concept: `Statistical Modeling` | Parent: `Data Analysis` | Queue-state: `coverage-review`
+- [ ] Concept: `Data Analysis Tools and Languages` | Parent: `Data Analysis` | Queue-state: `coverage-review`
+- [ ] Concept: `Data Ethics and Privacy` | Parent: `Data Analysis` | Queue-state: `coverage-review`
+- [ ] Concept: `A/B Testing and Causal Inference` | Parent: `Data Analysis` | Queue-state: `coverage-review`
+- [ ] Concept: `data engineering and pipelines` | Parent: `Data Analysis` | Queue-state: `coverage-review`
+- [ ] Concept: `streaming analytics` | Parent: `Data Analysis` | Queue-state: `coverage-review`
+- [ ] Concept: `forecasting` | Parent: `Data Analysis` | Queue-state: `coverage-review`
+- [ ] Concept: `feature engineering and feature stores` | Parent: `Data Analysis` | Queue-state: `coverage-review`
+- [ ] Concept: `Behavior-Change Psychology for Customer Adoption` | Parent: `Applied Human Psychology` | Queue-state: `coverage-review`
+- [ ] Concept: `Python Concurrency (asyncio, Structured Concurrency, anyio/trio)` | Parent: `Programming Languages` | Queue-state: `coverage-review`
+- [ ] Concept: `Python CLI & TUI Application Development` | Parent: `Programming Languages` | Queue-state: `coverage-review`
+- [ ] Concept: `Python Metaprogramming & the Data Model` | Parent: `Programming Languages` | Queue-state: `coverage-review`
+- [ ] Concept: `Packaging Python Apps as Standalone Distributables` | Parent: `Programming Languages` | Queue-state: `coverage-review`
+- [ ] Concept: `Python Logging & Application Observability` | Parent: `Programming Languages` | Queue-state: `coverage-review`
+- [ ] Concept: `Python Data Modeling (dataclasses, attrs, msgspec)` | Parent: `Programming Languages` | Queue-state: `coverage-review`
+- [ ] Concept: `Python AST, Codegen & Source Transformation` | Parent: `Programming Languages` | Queue-state: `coverage-review`
+- [ ] Concept: `mongodb-schema-design` | Parent: `MongoDB Expert Knowledge` | Queue-state: `held-review` | Mode: `revisit`
+- [ ] Concept: `Data Analysis` | Queue-state: `coverage-review`
+- [ ] Concept: `Human Psychology` | Parent: `Sciences & Human Behavior` | Queue-state: `coverage-review`
+- [ ] Concept: `Programming Languages` | Parent: `Software Engineering` | Queue-state: `coverage-review`
+- [ ] Concept: `Software Engineering Patterns` | Parent: `Software Engineering` | Queue-state: `coverage-review`
+- [ ] Concept: `Python Patterns and Best Practices` | Parent: `Programming Languages` | Queue-state: `coverage-review`
+- [ ] Concept: `TAM account management` | Parent: `TAM Operating Reference` | Queue-state: `coverage-review`
+- [ ] Concept: `Software Engineering & Distributed Computing` | Parent: `Software Engineering` | Queue-state: `coverage-review`
+- [ ] Concept: `Blockchain protocols` | Parent: `Finance, Markets & Blockchain` | Queue-state: `coverage-review`
+- [ ] Concept: `Global AI Hub Research Corpus` | Parent: `Research & Knowledge Tooling` | Queue-state: `coverage-review`
+- [ ] Concept: `Vision-Model / Multimodal-LLM Design Critique Technique` | Parent: `Multimodal & Vision-Language Model Architecture` | Queue-state: `coverage-review`
+- [ ] Concept: `Usability Heuristic Evaluation and Laws of UX` | Parent: `Frontend Design` | Queue-state: `coverage-review`
+- [ ] Concept: `Visual Design Principles as a Critique Rubric + Design-Critique Methodology` | Parent: `Web & Frontend Development` | Queue-state: `coverage-review`
+- [ ] Concept: `Computational Aesthetics & Automated UI-Quality Metrics` | Parent: `Frontend Design` | Queue-state: `coverage-review`
+- [ ] Concept: `Learned / ML-based Query Optimization` | Parent: `Machine Learning` | Queue-state: `coverage-review`
+- [ ] Concept: `Database Proxies & Query-Optimization Middleware` | Parent: `Software Engineering Patterns` | Queue-state: `coverage-review`
+- [ ] Concept: `Enterprise Vendor Management, Procurement & Third-Party / Operational-Resilience Risk (Buyer-Side)` | Parent: `Financial-Services Accounts` | Queue-state: `coverage-review`
+- [ ] Concept: `Big-Bank IT and Infrastructure Landscape` | Parent: `Financial-Services Accounts` | Queue-state: `coverage-review`
+- [ ] Concept: `Customer Satisfaction and Loyalty Science` | Parent: `Applied Human Psychology` | Queue-state: `coverage-review`
+- [ ] Concept: `Algorithmic Discovery & Superoptimization` | Parent: `AI Agent Ecosystems` | Queue-state: `coverage-review`
+- [ ] Concept: `Dialogue Craft` | Parent: `Writing and Documentation` | Queue-state: `coverage-review`
+- [ ] Concept: `MongoDB Stress, Soak, and Chaos-Resilience Testing` | Parent: `MongoDB Expert Knowledge` | Queue-state: `coverage-review`
+- [ ] Concept: `MongoDB Performance Regression Detection and Testing Methodology` | Parent: `MongoDB Performance Benchmarking` | Queue-state: `coverage-review`
+- [ ] Concept: `MongoDB 8.0 performance changes & read-path regressions vs 7.0` | Parent: `MongoDB Expert Knowledge` | Queue-state: `coverage-review`
+- [ ] Concept: `MongoDB Java driver 5.x version timeline & 8.0 compatibility` | Parent: `MongoDB Expert Knowledge` | Queue-state: `coverage-review`
+- [ ] Concept: `Atlas cluster tiers (M30) & major-version upgrade mechanics` | Parent: `MongoDB Expert Knowledge` | Queue-state: `coverage-review`
+- [ ] Concept: `North Carolina real estate agency licensing and commission rules` | Parent: `Personal Life & Property` | Queue-state: `coverage-review`
+- [ ] Concept: `NCREC licensing provisional broker broker BIC` | Parent: `North Carolina real estate agency licensing and commission rules` | Queue-state: `coverage-review`
+- [ ] Concept: `NC agency relationships and WWREA disclosure` | Parent: `North Carolina real estate agency licensing and commission rules` | Queue-state: `coverage-review`
+- [ ] Concept: `NC buyer-agency agreements and NAR settlement compensation` | Parent: `North Carolina real estate agency licensing and commission rules` | Queue-state: `coverage-review`
+- [ ] Concept: `NC Offer to Purchase and Contract Form 2-T` | Parent: `North Carolina real estate agency licensing and commission rules` | Queue-state: `coverage-review`
+- [ ] Concept: `NC closing deeds and title` | Parent: `North Carolina real estate agency licensing and commission rules` | Queue-state: `coverage-review`
+- [ ] Concept: `NC Residential Property Disclosure Act (G.S. Chapter 47E)` | Parent: `North Carolina real estate agency licensing and commission rules` | Queue-state: `coverage-review`
+- [ ] Concept: `NC Coastal and Flood Real Estate (CAMA, flood disclosure, coastal insurance)` | Parent: `North Carolina real estate agency licensing and commission rules` | Queue-state: `coverage-review`
+- [ ] Concept: `Logitech HID++ 2.0 Multi-Host Switching (Easy-Switch, feature 0x1814)` | Parent: `Cross-Computer Input Sharing (software KVM + hardware KVM / DDC-CI switching)` | Queue-state: `coverage-review`
+- [ ] Concept: `Cross-Computer Input Sharing (software KVM + hardware KVM / DDC-CI switching)` | Parent: `DevOps, Infrastructure & Observability` | Queue-state: `coverage-review`
+- [ ] Concept: `macOS Programmatic Input Control (CGEvent synthesis, event taps, cursor warping, TCC gates, remapping & pointer tuning)` | Parent: `Cross-Computer Input Sharing (software KVM + hardware KVM / DDC-CI switching)` | Queue-state: `coverage-review`
+- [ ] Concept: `Apple Universal Control (Continuity edge-crossing input sharing)` | Parent: `Cross-Computer Input Sharing (software KVM + hardware KVM / DDC-CI switching)` | Queue-state: `coverage-review`
+- [ ] Concept: `DNS Caching` | Parent: `DevOps, Infrastructure & Observability` | Queue-state: `coverage-review`
+- [ ] Concept: `Python supply-chain threat landscape 2025-2026` | Parent: `Python Supply-Chain & Application Security` | Queue-state: `coverage-review`
+- [ ] Concept: `llms.txt and the AI-discovery standards family` | Parent: `llms.txt and LLM-readable documentation` | Queue-state: `coverage-review`
+- [ ] Concept: `MongoDB autoCompact` | Parent: `MongoDB Expert Knowledge` | Queue-state: `coverage-review`
+- [ ] Concept: `Background-Compaction Skip/EMA Heuristic` | Parent: `WiredTiger Compaction Algorithm` | Queue-state: `coverage-review`
+- [ ] Concept: `WiredTiger Compaction Algorithm` | Parent: `MongoDB autoCompact` | Queue-state: `coverage-review`
+- [ ] Concept: `autoCompact Atlas-Specific Behavior` | Parent: `MongoDB autoCompact` | Queue-state: `coverage-review`
+- [ ] Concept: `autoCompact Checkpoint Interaction` | Parent: `MongoDB autoCompact` | Queue-state: `coverage-review`
+- [ ] Concept: `autoCompact Cluster Topology Behavior` | Parent: `MongoDB autoCompact` | Queue-state: `coverage-review`
+- [ ] Concept: `autoCompact Lifecycle and Persistence` | Parent: `MongoDB autoCompact` | Queue-state: `coverage-review`
+- [ ] Concept: `autoCompact and Replica-Set Write Blocking` | Parent: `MongoDB autoCompact` | Queue-state: `coverage-review`
+- [ ] Concept: `autoCompact freeSpaceTargetMB Gating` | Parent: `MongoDB autoCompact` | Queue-state: `coverage-review`
+- [ ] Concept: `autoCompact runOnce vs Continuous Mode` | Parent: `MongoDB autoCompact` | Queue-state: `coverage-review`
+- [ ] Concept: `Used Car Auctions and Buying` | Parent: `Personal Life & Property` | Queue-state: `coverage-review`
+- [ ] Concept: `LLM engineering-metaphor tics: term of art versus reflexive tic` | Parent: `Writing and Documentation` | Queue-state: `coverage-review`
+- [ ] Concept: `LLM rhetorical-pattern tells in prose` | Parent: `Writing and Documentation` | Queue-state: `coverage-review`
+- [ ] Concept: `Measuring LLM lexical tics: excess vocabulary, baselines, drift` | Parent: `Writing and Documentation` | Queue-state: `coverage-review`
+- [ ] Concept: `Why LLMs converge on the same words: mode collapse and post-training lexical effects` | Parent: `LLM Alignment and Post-Training` | Queue-state: `coverage-review`
+- [ ] Concept: `Prompt-side control of LLM lexical tics` | Parent: `AI Collaboration Writing` | Queue-state: `coverage-review`
+- [ ] Concept: `Instruction-file hygiene for LLM lexical tics: linting, mirroring, hook filtering` | Parent: `LLM Context Engineering` | Queue-state: `coverage-review`
+- [ ] Concept: `LLM tells in code, commit messages, comments and READMEs` | Parent: `Writing and Documentation` | Queue-state: `coverage-review`
+- [ ] Concept: `Vague attribution and promotional register in LLM prose` | Parent: `Writing and Documentation` | Queue-state: `coverage-review`
+- [ ] Concept: `Mixed metaphors and catachresis as signs of reflexive figurative language` | Parent: `Writing and Documentation` | Queue-state: `coverage-review`
+- [ ] Concept: `Human adoption of LLM vocabulary and its effect on tic baselines` | Parent: `Writing and Documentation` | Queue-state: `coverage-review`
+- [ ] Concept: `LLM engineering and local deployment` | Parent: `LLM Models and APIs` | Queue-state: `coverage-review`
+- [ ] Concept: `Job search and career operations` | Parent: `Business & Enterprise` | Queue-state: `coverage-review`
+- [ ] Concept: `Market mechanics and trading infrastructure` | Parent: `Trading and Investing — Active Trading & How Financial Markets Work (Family Root)` | Queue-state: `coverage-review`
+- [ ] Concept: `Linux eGPU for LLM Inference (Thunderbolt 3/4/5, USB4, OCuLink)` | Parent: `Local LLM Inference on Consumer Hardware (RTX 5080 eGPU, Linux, Remote Access)` | Queue-state: `coverage-review`
+- [ ] Concept: `RTX 5080 / Blackwell Consumer CUDA Stack on Linux (sm_120)` | Parent: `Local LLM Inference on Consumer Hardware (RTX 5080 eGPU, Linux, Remote Access)` | Queue-state: `coverage-review`
+- [ ] Concept: `Remote access to a local LLM server` | Parent: `Local LLM Inference on Consumer Hardware (RTX 5080 eGPU, Linux, Remote Access)` | Queue-state: `coverage-review`
+- [ ] Concept: `Exposed local-LLM server security` | Parent: `Local LLM Inference on Consumer Hardware (RTX 5080 eGPU, Linux, Remote Access)` | Queue-state: `coverage-review`
+- [ ] Concept: `Hybrid CPU+GPU MoE expert offload` | Parent: `Local LLM Inference on Consumer Hardware (RTX 5080 eGPU, Linux, Remote Access)` | Queue-state: `coverage-review`
+- [ ] Concept: `Model picks for the 16GB VRAM + 64GB RAM tier (2026)` | Parent: `Local LLM Inference on Consumer Hardware (RTX 5080 eGPU, Linux, Remote Access)` | Queue-state: `coverage-review`
+- [ ] Concept: `Local LLM Troubleshooting Playbook and Recommended Settings (Ollama, LM Studio, llama-server)` | Parent: `Local LLM Inference on Consumer Hardware (RTX 5080 eGPU, Linux, Remote Access)` | Queue-state: `coverage-review`
+- [ ] Concept: `OpenClaw and personal-agent gateways on local models` | Parent: `Local LLM Inference on Consumer Hardware (RTX 5080 eGPU, Linux, Remote Access)` | Queue-state: `coverage-review`
+- [ ] Concept: `Local LLM Inference on Consumer Hardware (RTX 5080 eGPU, Linux, Remote Access)` | Parent: `LLM Models and APIs` | Queue-state: `coverage-review`
+- [ ] Concept: `DDR5 and Host Tuning for CPU-Side LLM Inference and MoE Offload` | Parent: `Local LLM Inference on Consumer Hardware (RTX 5080 eGPU, Linux, Remote Access)` | Queue-state: `coverage-review`
+- [ ] Concept: `Open WebUI deployment and hardening as the remote chat front end` | Parent: `Local LLM Inference on Consumer Hardware (RTX 5080 eGPU, Linux, Remote Access)` | Queue-state: `coverage-review`
+- [ ] Concept: `FP8 / NVFP4 / MXFP4 Safetensors Serving on vLLM and SGLang (single 16GB sm_120 card)` | Parent: `Local LLM Inference on Consumer Hardware (RTX 5080 eGPU, Linux, Remote Access)` | Queue-state: `coverage-review`
+- [ ] Concept: `PCIe tunneling over Thunderbolt 4 and USB4` | Parent: `Thunderbolt eGPU on Linux for local LLM inference` | Queue-state: `coverage-review`
+- [ ] Concept: `Ollama CUDA detection and GPU verification` | Parent: `Thunderbolt eGPU on Linux for local LLM inference` | Queue-state: `coverage-review`
+- [ ] Concept: `AI & LLM Engineering` | Queue-state: `coverage-review`
+- [ ] Concept: `Prompting & Agent Skills` | Parent: `AI & LLM Engineering` | Queue-state: `coverage-review`
+- [ ] Concept: `Research & Knowledge Tooling` | Parent: `AI & LLM Engineering` | Queue-state: `coverage-review`
+- [ ] Concept: `Software Engineering` | Queue-state: `coverage-review`
+- [ ] Concept: `Web & Frontend Development` | Parent: `Software Engineering` | Queue-state: `coverage-review`
+- [ ] Concept: `SaaS APIs & Integrations` | Parent: `Software Engineering` | Queue-state: `coverage-review`
+- [ ] Concept: `Security & Identity` | Parent: `Software Engineering` | Queue-state: `coverage-review`
+- [ ] Concept: `Developer Tooling & Repo Automation` | Parent: `Software Engineering` | Queue-state: `coverage-review`
+- [ ] Concept: `Business & Enterprise` | Queue-state: `coverage-review`
+- [ ] Concept: `Financial-Services Accounts` | Parent: `Business & Enterprise` | Queue-state: `coverage-review`
+- [ ] Concept: `Finance, Markets & Blockchain` | Queue-state: `coverage-review`
+- [ ] Concept: `Personal Life & Property` | Queue-state: `coverage-review`
+- [ ] Concept: `Sciences & Human Behavior` | Queue-state: `coverage-review`
+- [ ] Concept: `Retrieval & RAG` | Parent: `AI & LLM Engineering` | Queue-state: `coverage-review`
+- [ ] Concept: `Document Extraction & Text Distillation` | Parent: `Research & Knowledge Tooling` | Queue-state: `coverage-review`
+- [ ] Concept: `Archive Rules` | Parent: `MongoDB Atlas Online Archive` | Queue-state: `coverage-review`
+- [ ] Concept: `Partition Fields` | Parent: `MongoDB Atlas Online Archive` | Queue-state: `held`
+- [ ] Concept: `16 GB VRAM residency budgeting` | Parent: `Blackwell sm_120 local-LLM inference stack on Linux: llama.cpp, Ollama, PyTorch and vLLM over a Thunderbolt eGPU` | Queue-state: `coverage-review`
+- [ ] Concept: `Local Model Performance Evaluation: Ollama, MLX, and Hardware Architectures` | Queue-state: `coverage-review`
+- [ ] Concept: `Local Inference Acceleration: Memory Architectures, Metal Kernels, and Latency Optimization` | Parent: `Local Model Performance Evaluation: Ollama, MLX, and Hardware Architectures` | Queue-state: `coverage-review`
+- [ ] Concept: `Local Inference Micro-Architectures: Signaling, Quantization Superblocks, and Kernel Pipeline Scheduling` | Parent: `Local Inference Acceleration: Memory Architectures, Metal Kernels, and Latency Optimization` | Queue-state: `coverage-review`
+- [ ] Concept: `DATE Criteria` | Parent: `Archive Rules` | Queue-state: `coverage-review`
+- [ ] Concept: `LiteLLM gateway and SDK engineering` | Parent: `AI Gateways & LLM Proxy Infrastructure` | Queue-state: `coverage-review`
+- [ ] Concept: `Atlas Identity Federation and Resource Policy Boundaries` | Parent: `MongoDB Atlas IAM and RBAC` | Queue-state: `coverage-review`
+- [ ] Concept: `Atlas Hybrid Fusion and BM25 Diagnostics` | Parent: `MongoDB Atlas Search and Vector Search` | Queue-state: `coverage-review`
+- [ ] Concept: `Shard Key Design and Resharding as Cost Levers` | Parent: `MongoDB Atlas Cost Optimization` | Mode: `dr` | Queue-state: `coverage-review`
+- [ ] Concept: `Read Offload via Caching and Precomputed Views ($merge/$out, Computed Pattern)` | Parent: `MongoDB Atlas Cost Optimization` | Mode: `dr` | Queue-state: `coverage-review`
+- [ ] Concept: `Platform Consolidation TCO (Atlas Search/Vector Search vs Separate Search or Vector DB)` | Parent: `MongoDB Atlas Cost Optimization` | Mode: `dr` | Queue-state: `coverage-review`
+- [ ] Concept: `Migration and Cutover Cost (Live Migration, mongosync, Dual-Running, Egress)` | Parent: `MongoDB Atlas Cost Optimization` | Mode: `dr` | Queue-state: `coverage-review`
+- [ ] Concept: `Cluster Tier Limits and Feature Gates as Cost Drivers (Connections, IOPS Caps, Minimum Tiers)` | Parent: `MongoDB Atlas Cost Optimization` | Mode: `dr` | Queue-state: `coverage-review`
 
 
 ## Exhaustive MongoDB inventory additions
 
 - [x] Concept: `Connection pooling and connection-storm control for Atlas (serverless and Lambda clients)` | Parent: `Cluster Tier Limits and Feature Gates as Cost Drivers (Connections, IOPS Caps, Minimum Tiers)` | Mode: `dr` | CVS: `4.725` | Inventory-ID: `mongodb-f87842d57963ee96` | Cohort: `mongodb-cohort-2a03c480ee30`
-- [ ] Concept: `$queryStats aggregation stage` | Parent: `Database Profiler vs Query Profiler` | Mode: `dr` | CVS: `4.450` | Inventory-ID: `mongodb-fc9325d08a92f24b` | Cohort: `mongodb-cohort-5bc61fcfe3ec`
-- [ ] Concept: `Connection pool sizing and connection-storm control for Atlas (serverless and Lambda clients)` | Parent: `Cluster Tier Limits and Feature Gates as Cost Drivers (Connections, IOPS Caps, Minimum Tiers)` | Mode: `dr` | CVS: `4.450` | Inventory-ID: `mongodb-2f1fbe31e1058a42` | Cohort: `mongodb-cohort-394bc420b0bf`
+- [ ] Concept: `$queryStats aggregation stage` | Parent: `Database Profiler vs Query Profiler` | Mode: `dr` | CVS: `4.450` | Inventory-ID: `mongodb-fc9325d08a92f24b` | Cohort: `mongodb-cohort-5bc61fcfe3ec` | Queue-state: `coverage-review`
+- [ ] Concept: `Connection pool sizing and connection-storm control for Atlas (serverless and Lambda clients)` | Parent: `Cluster Tier Limits and Feature Gates as Cost Drivers (Connections, IOPS Caps, Minimum Tiers)` | Mode: `dr` | CVS: `4.450` | Inventory-ID: `mongodb-2f1fbe31e1058a42` | Cohort: `mongodb-cohort-394bc420b0bf` | Queue-state: `coverage-review`
 - [ ] Concept: `Delete propagation and reconciliation for $merge-maintained views` | Parent: `Read Offload via Caching and Precomputed Views ($merge/$out, Computed Pattern)` | Mode: `dr` | CVS: `4.375` | Inventory-ID: `mongodb-ca53ac7eb7938f77` | Cohort: `mongodb-cohort-a17745affdcc`
 - [ ] Concept: `$queryStats and $currentOp as alternatives to the profiler` | Parent: `Database Profiler vs Query Profiler` | Mode: `dr` | CVS: `4.350` | Inventory-ID: `mongodb-43e566a9f0877fdd` | Cohort: `mongodb-cohort-37db21a08633`
 - [ ] Concept: `Idempotent incremental refresh design for $merge (high-water marks, delete handling)` | Parent: `Read Offload via Caching and Precomputed Views ($merge/$out, Computed Pattern)` | Mode: `dr` | CVS: `4.350` | Inventory-ID: `mongodb-cda5307f33b4a8cd` | Cohort: `mongodb-cohort-a17745affdcc`
 - [ ] Concept: `Index build commit quorum and hung builds` | Parent: `Index build resource limits (maxNumActiveUserIndexBuilds, disk space)` | Mode: `dr` | CVS: `4.350` | Inventory-ID: `mongodb-4a35364ee8642200` | Cohort: `mongodb-cohort-f9facb8a936d`
-- [ ] Concept: `WiredTiger cache sizing and working-set fit` | Parent: `Read Offload via Caching and Precomputed Views ($merge/$out, Computed Pattern)` | Mode: `dr` | CVS: `4.325` | Inventory-ID: `mongodb-0831aa6a730c33af` | Cohort: `mongodb-cohort-394bc420b0bf`
-- [ ] Concept: `Disk IOPS Burst Credit Depletion Playbook` | Parent: `Atlas Triage Workflows` | Mode: `revisit` | CVS: `4.300` | Inventory-ID: `mongodb-ecfb036c4afe2ff2` | Cohort: `mongodb-cohort-9922e3b2a7ac`
+- [ ] Concept: `WiredTiger cache sizing and working-set fit` | Parent: `Read Offload via Caching and Precomputed Views ($merge/$out, Computed Pattern)` | Mode: `dr` | CVS: `4.325` | Inventory-ID: `mongodb-0831aa6a730c33af` | Cohort: `mongodb-cohort-394bc420b0bf` | Queue-state: `coverage-review`
+- [ ] Concept: `Disk IOPS Burst Credit Depletion Playbook` | Parent: `Atlas Triage Workflows` | Mode: `revisit` | CVS: `4.300` | Inventory-ID: `mongodb-ecfb036c4afe2ff2` | Cohort: `mongodb-cohort-9922e3b2a7ac` | Queue-state: `held-review`
 - [ ] Concept: `Index filters (planCacheSetFilter) deprecation and migration to query settings` | Parent: `Operation rejection filters` | Mode: `dr` | CVS: `4.275` | Inventory-ID: `mongodb-55e65f5d4cc3196b` | Cohort: `mongodb-cohort-f9facb8a936d`
 - [ ] Concept: `Read concern available, secondary reads and orphaned documents` | Parent: `Covered queries on sharded collections` | Mode: `dr` | CVS: `4.275` | Inventory-ID: `mongodb-c0c218d6058d6708` | Cohort: `mongodb-cohort-0dd7f5e50450`
 - [ ] Concept: `Unique and TTL index side effects on removal` | Parent: `Hidden indexes and safe index removal` | Mode: `dr` | CVS: `4.275` | Inventory-ID: `mongodb-c6e55a2528d91131` | Cohort: `mongodb-cohort-f9facb8a936d`
@@ -4260,7 +4255,7 @@ Every frontier concept, grouped by shared parent (at most 8 per cluster), cluste
 - [ ] Concept: `Reverse sync and rollback-window economics` | Parent: `Migration and Cutover Cost (Live Migration, mongosync, Dual-Running, Egress)` | Mode: `dr` | CVS: `3.925` | Inventory-ID: `mongodb-7655d46620fe7e30` | Cohort: `mongodb-cohort-b62cb9f27cd5`
 - [ ] Concept: `Cache stampede protection: leases, request coalescing, TTL jitter` | Parent: `Read Offload via Caching and Precomputed Views ($merge/$out, Computed Pattern)` | Mode: `dr` | CVS: `3.900` | Inventory-ID: `mongodb-706c1e6361758778` | Cohort: `mongodb-cohort-a17745affdcc`
 - [ ] Concept: `Dedicated Search Node storage and compute sizing` | Parent: `Atlas Search index sync lag and search-node sizing` | Mode: `dr` | CVS: `3.875` | Inventory-ID: `mongodb-e2b4909feecca57a` | Cohort: `mongodb-cohort-1e0eea1b3fda`
-- [ ] Concept: `MongoDB Monitoring and Observability` | Parent: `MongoDB Expert Knowledge` | Mode: `revisit` | CVS: `3.875` | Inventory-ID: `mongodb-99cac3ce4e627e93` | Cohort: `mongodb-cohort-4c4a60fe08de`
+- [ ] Concept: `MongoDB Monitoring and Observability` | Parent: `MongoDB Expert Knowledge` | Mode: `revisit` | CVS: `3.875` | Inventory-ID: `mongodb-99cac3ce4e627e93` | Cohort: `mongodb-cohort-4c4a60fe08de` | Queue-state: `held-review`
 - [ ] Concept: `Plan cache entry lifecycle: Inactive and Active entries and works growth` | Parent: `Replanning loops and replanReason` | Mode: `dr` | CVS: `3.875` | Inventory-ID: `mongodb-4e03ff1169490c95` | Cohort: `mongodb-cohort-4aa44e0b555f`
 - [ ] Concept: `serverStatus metrics.query.planCache counters` | Parent: `Replanning loops and replanReason` | Mode: `dr` | CVS: `3.875` | Inventory-ID: `mongodb-21cfa0b88853e4ef` | Cohort: `mongodb-cohort-d9e0d0a7e0fe`
 - [ ] Concept: `Standalone mongosync hosting and sizing` | Parent: `Migration and Cutover Cost (Live Migration, mongosync, Dual-Running, Egress)` | Mode: `dr` | CVS: `3.875` | Inventory-ID: `mongodb-7925b47a64e7b3de` | Cohort: `mongodb-cohort-1e0eea1b3fda`
@@ -4268,7 +4263,7 @@ Every frontier concept, grouped by shared parent (at most 8 per cluster), cluste
 - [ ] Concept: `Atlas Query Insights: Query Shape Insights and Namespace Insights` | Parent: `Database Profiler vs Query Profiler` | Mode: `dr` | CVS: `3.850` | Inventory-ID: `mongodb-e62e1e5f0a14a6c0` | Cohort: `mongodb-cohort-7c5bb7692dd2`
 - [ ] Concept: `Hidden and priority-0 members during maintenance` | Parent: `Rolling index builds` | Mode: `dr` | CVS: `3.850` | Inventory-ID: `mongodb-10c4b1be8766477e` | Cohort: `mongodb-cohort-0decd84b4936`
 - [ ] Concept: `Hybrid search ($rankFusion) vs two-system fusion TCO` | Parent: `Platform Consolidation TCO (Atlas Search/Vector Search vs Separate Search or Vector DB)` | Mode: `dr` | CVS: `3.850` | Inventory-ID: `mongodb-11efb59e53667c2b` | Cohort: `mongodb-cohort-81f8b3311f8f`
-- [ ] Concept: `maxTimeMS (Server-side Operation Timeout)` | Parent: `Client Side Operations Timeout (CSOT)` | Mode: `revisit` | CVS: `3.850` | Inventory-ID: `mongodb-d0ac0cf8d779b245` | Cohort: `mongodb-cohort-f7898c0e7b37`
+- [ ] Concept: `maxTimeMS (Server-side Operation Timeout)` | Parent: `Client Side Operations Timeout (CSOT)` | Mode: `revisit` | CVS: `3.850` | Inventory-ID: `mongodb-d0ac0cf8d779b245` | Cohort: `mongodb-cohort-f7898c0e7b37` | Queue-state: `held-review`
 - [ ] Concept: `Relational-to-MongoDB migration cost (Relational Migrator)` | Parent: `Migration and Cutover Cost (Live Migration, mongosync, Dual-Running, Egress)` | Mode: `dr` | CVS: `3.850` | Inventory-ID: `mongodb-2a5ba92b53dbdf49` | Cohort: `mongodb-cohort-81f8b3311f8f`
 - [ ] Concept: `Rolling resync (initial sync) as a space-reclaim technique on Atlas` | Parent: `Atlas storage auto-scaling and disk reclaim via compact` | Mode: `dr` | CVS: `3.850` | Inventory-ID: `mongodb-5b5b4cfcf84799ff` | Cohort: `mongodb-cohort-1ea1a94ccad7`
 - [ ] Concept: `UUIDv4 versus UUIDv7 key locality` | Parent: `Random-key (hashed/UUID) index insert behavior` | Mode: `dr` | CVS: `3.850` | Inventory-ID: `mongodb-44df64c27395c94f` | Cohort: `mongodb-cohort-7a36032fa829`
@@ -4276,7 +4271,7 @@ Every frontier concept, grouped by shared parent (at most 8 per cluster), cluste
 - [ ] Concept: `Flex-to-Dedicated migration triggers (500 ops/sec, 5 GB, feature gates)` | Parent: `Cluster Tier Limits and Feature Gates as Cost Drivers (Connections, IOPS Caps, Minimum Tiers)` | Mode: `dr` | CVS: `3.825` | Inventory-ID: `mongodb-6ce47e86e19dad6f` | Cohort: `mongodb-cohort-2350070cfddf`
 - [ ] Concept: `Search Node tier selection: S10, High-CPU vs Low-CPU vs storage-optimized` | Parent: `Platform Consolidation TCO (Atlas Search/Vector Search vs Separate Search or Vector DB)` | Mode: `dr` | CVS: `3.825` | Inventory-ID: `mongodb-983c9002cb539e0a` | Cohort: `mongodb-cohort-1e0eea1b3fda`
 - [ ] Concept: `Embedded verifier and post-migration data verification cost` | Parent: `Migration and Cutover Cost (Live Migration, mongosync, Dual-Running, Egress)` | Mode: `dr` | CVS: `3.800` | Inventory-ID: `mongodb-1f8a6036de438274` | Cohort: `mongodb-cohort-df647968356b`
-- [ ] Concept: `mtools Log Analysis Integration` | Parent: `FTDC and Log Tooling` | Mode: `revisit` | CVS: `3.800` | Inventory-ID: `mongodb-4f3b50f2f6bbfee0` | Cohort: `mongodb-cohort-2f2019ed2bed`
+- [ ] Concept: `mtools Log Analysis Integration` | Parent: `FTDC and Log Tooling` | Mode: `revisit` | CVS: `3.800` | Inventory-ID: `mongodb-4f3b50f2f6bbfee0` | Cohort: `mongodb-cohort-2f2019ed2bed` | Queue-state: `held-review`
 - [ ] Concept: `Atlas invoice tag coverage and cost export reconciliation` | Parent: `Atlas tag taxonomy for showback and chargeback` | Mode: `dr` | CVS: `3.775` | Inventory-ID: `mongodb-df9f123599ebe33f` | Cohort: `mongodb-cohort-df647968356b`
 - [ ] Concept: `Config server placement and cost (dedicated vs embedded)` | Parent: `Independent shard scaling and per-shard tiering` | Mode: `dr` | CVS: `3.775` | Inventory-ID: `mongodb-eb3caa0d55a39552` | Cohort: `mongodb-cohort-df647968356b`
 - [ ] Concept: `Exporting $indexStats metrics with mongodb_exporter and PMM` | Parent: `Unused index detection with $indexStats` | Mode: `dr` | CVS: `3.775` | Inventory-ID: `mongodb-0b46e1f993a1159c` | Cohort: `mongodb-cohort-47810d9cad68`
@@ -4296,7 +4291,7 @@ Every frontier concept, grouped by shared parent (at most 8 per cluster), cluste
 - [ ] Concept: `Destination right-sizing after cutover` | Parent: `Migration and Cutover Cost (Live Migration, mongosync, Dual-Running, Egress)` | Mode: `dr` | CVS: `3.700` | Inventory-ID: `mongodb-f61d9a822b83c2cc` | Cohort: `mongodb-cohort-12c8de3441e5`
 - [ ] Concept: `Initial sync index build memory limits` | Parent: `Index build resource limits (maxNumActiveUserIndexBuilds, disk space)` | Mode: `dr` | CVS: `3.700` | Inventory-ID: `mongodb-241793c17bb3b2cc` | Cohort: `mongodb-cohort-5bfe624adc9e`
 - [ ] Concept: `Mixed-schema measurement predicate safety` | Parent: `Bucket-level predicate rewriting for measurement operators` | Mode: `dr` | CVS: `3.700` | Inventory-ID: `mongodb-486aa566eb9f3fec` | Cohort: `mongodb-cohort-7c5bb7692dd2`
-- [ ] Concept: `Oplog windows and Search initial-sync recovery` | Parent: `Atlas Search index sync lag and search-node sizing` | Mode: `dr` | CVS: `3.700` | Inventory-ID: `mongodb-85b45d8030420f41` | Cohort: `mongodb-cohort-913d52e0a273`
+- [ ] Concept: `Oplog windows and Search initial-sync recovery` | Parent: `Atlas Search index sync lag and search-node sizing` | Mode: `dr` | CVS: `3.700` | Inventory-ID: `mongodb-85b45d8030420f41` | Cohort: `mongodb-cohort-913d52e0a273` | Queue-state: `coverage-review`
 - [ ] Concept: `per-accumulator explain memory statistics` | Parent: `$group accumulator memory caps` | Mode: `dr` | CVS: `3.700` | Inventory-ID: `mongodb-66052fda66c0dd23` | Cohort: `mongodb-cohort-975ece847641`
 - [ ] Concept: `Query settings and index filters as plan pinning` | Parent: `Replanning loops and replanReason` | Mode: `dr` | CVS: `3.700` | Inventory-ID: `mongodb-de4657c9ed97854c` | Cohort: `mongodb-cohort-5bfe624adc9e`
 - [ ] Concept: `Atlas managed slow operation threshold and Performance Advisor index suggestions` | Parent: `Database Profiler vs Query Profiler` | Mode: `dr` | CVS: `3.675` | Inventory-ID: `mongodb-dadb3de5ec7b8a6b` | Cohort: `mongodb-cohort-5bfe624adc9e`
@@ -4304,11 +4299,11 @@ Every frontier concept, grouped by shared parent (at most 8 per cluster), cluste
 - [ ] Concept: `External sorter spill files in dbpath/_tmp` | Parent: `Resumable index builds` | Mode: `dr` | CVS: `3.675` | Inventory-ID: `mongodb-63ce4d2c03fecae1` | Cohort: `mongodb-cohort-764a0cebd142`
 - [ ] Concept: `MongoDB Search eventual consistency and replication-lag metrics` | Parent: `Atlas Search index sync lag and search-node sizing` | Mode: `dr` | CVS: `3.675` | Inventory-ID: `mongodb-bf53032042a472a5` | Cohort: `mongodb-cohort-913d52e0a273`
 - [ ] Concept: `Terraform management of asymmetric sharded clusters (replication_specs, use_effective_fields)` | Parent: `Independent shard scaling and per-shard tiering` | Mode: `dr` | CVS: `3.675` | Inventory-ID: `mongodb-d49655fd3c7cff9e` | Cohort: `mongodb-cohort-913d52e0a273`
-- [ ] Concept: `Deadline Propagation and Context Cancellation in MongoDB Drivers` | Parent: `Client Side Operations Timeout (CSOT)` | Mode: `revisit` | CVS: `3.650` | Inventory-ID: `mongodb-8d0b14734f9fa55b` | Cohort: `mongodb-cohort-b245a56e13e9`
+- [ ] Concept: `Deadline Propagation and Context Cancellation in MongoDB Drivers` | Parent: `Client Side Operations Timeout (CSOT)` | Mode: `revisit` | CVS: `3.650` | Inventory-ID: `mongodb-8d0b14734f9fa55b` | Cohort: `mongodb-cohort-b245a56e13e9` | Queue-state: `held-review`
 - [ ] Concept: `Execution-guided text-to-MQL refinement` | Parent: `Natural language to MongoDB query generation` | Mode: `dr` | CVS: `3.650` | Inventory-ID: `mongodb-c830a49b1716607f` | Cohort: `mongodb-cohort-ea7ac08cebd8`
 - [ ] Concept: `Kubernetes operator PVC resizing and oplog management (Percona, MongoDB Controllers for Kubernetes)` | Parent: `Oplog sizing under storage auto-scaling` | Mode: `dr` | CVS: `3.650` | Inventory-ID: `mongodb-f8df8715fc512ffc` | Cohort: `mongodb-cohort-12c8de3441e5`
 - [ ] Concept: `MongoDB rolling index builds` | Parent: `Resumable index builds` | Mode: `dr` | CVS: `3.650` | Inventory-ID: `mongodb-a16b483837d9ea51` | Cohort: `mongodb-cohort-e6cb6d77e219`
-- [ ] Concept: `SERVER JIRA Ticket Regression Mapping` | Parent: `KB-Backed Troubleshooting` | Mode: `revisit` | CVS: `3.650` | Inventory-ID: `mongodb-c328495ef486c250` | Cohort: `mongodb-cohort-03dd84b04983`
+- [ ] Concept: `SERVER JIRA Ticket Regression Mapping` | Parent: `KB-Backed Troubleshooting` | Mode: `revisit` | CVS: `3.650` | Inventory-ID: `mongodb-c328495ef486c250` | Cohort: `mongodb-cohort-03dd84b04983` | Queue-state: `held-review`
 - [ ] Concept: `Burstable M10/M20 CPU credits and the M30 production threshold` | Parent: `Cluster Tier Limits and Feature Gates as Cost Drivers (Connections, IOPS Caps, Minimum Tiers)` | Mode: `dr` | CVS: `3.625` | Inventory-ID: `mongodb-8c2c7ba4cb87f068` | Cohort: `mongodb-cohort-f78d07b225d9`
 - [ ] Concept: `Burstable M10/M20 CPU-credit throttling and when to move to M30` | Parent: `Cluster Tier Limits and Feature Gates as Cost Drivers (Connections, IOPS Caps, Minimum Tiers)` | Mode: `dr` | CVS: `3.625` | Inventory-ID: `mongodb-6c7186204e8017d6` | Cohort: `mongodb-cohort-f78d07b225d9`
 - [ ] Concept: `Primary-driven index builds and write-rate throttles` | Parent: `Index build resource limits (maxNumActiveUserIndexBuilds, disk space)` | Mode: `dr` | CVS: `3.625` | Inventory-ID: `mongodb-971ffff4d9ee3092` | Cohort: `mongodb-cohort-e6cb6d77e219`
@@ -4323,91 +4318,91 @@ Every frontier concept, grouped by shared parent (at most 8 per cluster), cluste
 - [ ] Concept: `Sparse versus partial index equivalence` | Parent: `MongoDB Compound Index Design: ESR, Selectivity, Covering and Multikey Bounds` | Mode: `dr` | CVS: `3.600` | Inventory-ID: `mongodb-681c3ccf51360db2` | Cohort: `mongodb-cohort-abca1e204b79`
 - [ ] Concept: `Terraform state reconciliation after a Flex-to-Dedicated conversion` | Parent: `Flex Limitations and migration to Dedicated` | Mode: `dr` | CVS: `3.600` | Inventory-ID: `mongodb-99c3b85f8ea2f600` | Cohort: `mongodb-cohort-0444cf01e935`
 - [ ] Concept: `Atlas billing alert notification delivery` | Parent: `Admin API alert configurations for billing events` | Mode: `dr` | CVS: `3.575` | Inventory-ID: `mongodb-daf5f04ff38e5b74` | Cohort: `mongodb-cohort-f78d07b225d9`
-- [ ] Concept: `MongoDB Atlas` | Parent: `MongoDB Expert Knowledge` | Mode: `revisit` | CVS: `3.575` | Inventory-ID: `mongodb-d1d04a296fca07e0` | Cohort: `mongodb-cohort-586d5ccba289`
+- [ ] Concept: `MongoDB Atlas` | Parent: `MongoDB Expert Knowledge` | Mode: `revisit` | CVS: `3.575` | Inventory-ID: `mongodb-d1d04a296fca07e0` | Cohort: `mongodb-cohort-586d5ccba289` | Queue-state: `held-review`
 - [ ] Concept: `Redundant and prefix index detection` | Parent: `Hidden indexes and safe index removal` | Mode: `dr` | CVS: `3.575` | Inventory-ID: `mongodb-fcb9495dd1174a73` | Cohort: `mongodb-cohort-abca1e204b79`
 - [ ] Concept: `Search Node network transfer and multi-region cost` | Parent: `Platform Consolidation TCO (Atlas Search/Vector Search vs Separate Search or Vector DB)` | Mode: `dr` | CVS: `3.575` | Inventory-ID: `mongodb-ba06efd5a3a65ecb` | Cohort: `mongodb-cohort-9950ed680654`
 - [ ] Concept: `Terraform mongodbatlas_advanced_cluster per-shard replication_specs migration` | Parent: `Independent shard scaling and per-shard tiering` | Mode: `dr` | CVS: `3.575` | Inventory-ID: `mongodb-83cd6ae06eff3d17` | Cohort: `mongodb-cohort-5e672971d3c4`
 - [x] Concept: `Find projection vs $project aggregation coverage` | Parent: `MongoDB Query Shape Optimization: Sort, Pagination, Operators and Sharded Targeting` | Mode: `dr` | CVS: `3.550` | Inventory-ID: `mongodb-25e982368df65bca` | Cohort: `mongodb-cohort-353b35c18a09`
-- [ ] Concept: `Multiplanner scoring and tie-breakers` | Parent: `SORT_MERGE and $in sort expansion` | Mode: `dr` | CVS: `3.550` | Inventory-ID: `mongodb-29d0dd392fb6801c` | Cohort: `mongodb-cohort-71089ad6ce1a`
+- [ ] Concept: `Multiplanner scoring and tie-breakers` | Parent: `SORT_MERGE and $in sort expansion` | Mode: `dr` | CVS: `3.550` | Inventory-ID: `mongodb-29d0dd392fb6801c` | Cohort: `mongodb-cohort-71089ad6ce1a` | Queue-state: `coverage-review`
 - [ ] Concept: `Rolling index builds on Kubernetes with the Percona Operator` | Parent: `Rolling index builds` | Mode: `dr` | CVS: `3.550` | Inventory-ID: `mongodb-49e91c2695d1a6f8` | Cohort: `mongodb-cohort-abca1e204b79`
-- [ ] Concept: `SBE plan cache pinned entries and the classic runtime planner for SBE` | Parent: `Replanning loops and replanReason` | Mode: `dr` | CVS: `3.550` | Inventory-ID: `mongodb-e67c70b79575bbfb` | Cohort: `mongodb-cohort-71089ad6ce1a`
+- [ ] Concept: `SBE plan cache pinned entries and the classic runtime planner for SBE` | Parent: `Replanning loops and replanReason` | Mode: `dr` | CVS: `3.550` | Inventory-ID: `mongodb-e67c70b79575bbfb` | Cohort: `mongodb-cohort-71089ad6ce1a` | Queue-state: `coverage-review`
 - [ ] Concept: `Atlas Query Profiler and Operation Throttling metrics` | Parent: `Operation rejection filters` | Mode: `dr` | CVS: `3.525` | Inventory-ID: `mongodb-00788b1b3bb92bad` | Cohort: `mongodb-cohort-4d0d9f95af71`
 - [ ] Concept: `Atlas tag enforcement through Terraform and APIs` | Parent: `Atlas tag taxonomy for showback and chargeback` | Mode: `dr` | CVS: `3.525` | Inventory-ID: `mongodb-87e87c1dd2080346` | Cohort: `mongodb-cohort-0444cf01e935`
 - [ ] Concept: `Config shard (embedded config server) cost trade-off` | Parent: `Shard Key Design and Resharding as Cost Levers` | Mode: `dr` | CVS: `3.525` | Inventory-ID: `mongodb-65c27c0dfba72a11` | Cohort: `mongodb-cohort-372a6407eb6e`
 - [ ] Concept: `External sorter spill files and the _tmp directory` | Parent: `Index build resource limits (maxNumActiveUserIndexBuilds, disk space)` | Mode: `dr` | CVS: `3.525` | Inventory-ID: `mongodb-3026c7d51b5d2f7d` | Cohort: `mongodb-cohort-4d0d9f95af71`
-- [ ] Concept: `Flex backup and recovery planning` | Parent: `Flex Limitations and migration to Dedicated` | Mode: `dr` | CVS: `3.525` | Inventory-ID: `mongodb-993aec1833eb6e6c` | Cohort: `mongodb-cohort-734b288e14c5`
+- [ ] Concept: `Flex backup and recovery planning` | Parent: `Flex Limitations and migration to Dedicated` | Mode: `dr` | CVS: `3.525` | Inventory-ID: `mongodb-993aec1833eb6e6c` | Cohort: `mongodb-cohort-734b288e14c5` | Queue-state: `coverage-review`
 - [ ] Concept: `Gen2 clusters and Extended Standard IOPS economics` | Parent: `Cluster Tier Limits and Feature Gates as Cost Drivers (Connections, IOPS Caps, Minimum Tiers)` | Mode: `dr` | CVS: `3.525` | Inventory-ID: `mongodb-4437555c82bb9745` | Cohort: `mongodb-cohort-12c8de3441e5`
 - [ ] Concept: `internalQueryMaxScansToExplode and maxScansToExplodeReached` | Parent: `SORT_MERGE and $in sort expansion` | Mode: `dr` | CVS: `3.525` | Inventory-ID: `mongodb-c7bd06d38432e9c2` | Cohort: `mongodb-cohort-4d0d9f95af71`
-- [ ] Concept: `Atlas security add-on uplifts (auditing, LDAP, customer-managed keys, private endpoints)` | Parent: `Cluster Tier Limits and Feature Gates as Cost Drivers (Connections, IOPS Caps, Minimum Tiers)` | Mode: `dr` | CVS: `3.500` | Inventory-ID: `mongodb-22325bda55f48ce0` | Cohort: `mongodb-cohort-3e9502b80e34`
+- [ ] Concept: `Atlas security add-on uplifts (auditing, LDAP, customer-managed keys, private endpoints)` | Parent: `Cluster Tier Limits and Feature Gates as Cost Drivers (Connections, IOPS Caps, Minimum Tiers)` | Mode: `dr` | CVS: `3.500` | Inventory-ID: `mongodb-22325bda55f48ce0` | Cohort: `mongodb-cohort-3e9502b80e34` | Queue-state: `coverage-review`
 - [ ] Concept: `Automated rolling builds in Atlas, Cloud Manager and Ops Manager` | Parent: `Rolling index builds` | Mode: `dr` | CVS: `3.500` | Inventory-ID: `mongodb-601bc1adb5c8a1da` | Cohort: `mongodb-cohort-0decd84b4936`
-- [ ] Concept: `FTDC Storage Overhead & Retention Budgeting` | Parent: `FTDC and Log Tooling` | Mode: `revisit` | CVS: `3.500` | Inventory-ID: `mongodb-e34ce7cf92471e4c` | Cohort: `mongodb-cohort-b7c969c2a118`
+- [ ] Concept: `FTDC Storage Overhead & Retention Budgeting` | Parent: `FTDC and Log Tooling` | Mode: `revisit` | CVS: `3.500` | Inventory-ID: `mongodb-e34ce7cf92471e4c` | Cohort: `mongodb-cohort-b7c969c2a118` | Queue-state: `held-review`
 - [ ] Concept: `Collation-aware index key size` | Parent: `Collation and index sort compatibility` | Mode: `dr` | CVS: `3.475` | Inventory-ID: `mongodb-f68a7b59a5714970` | Cohort: `mongodb-cohort-abca1e204b79`
-- [ ] Concept: `Ops Manager Profiler` | Parent: `Database Profiler vs Query Profiler` | Mode: `dr` | CVS: `3.475` | Inventory-ID: `mongodb-d0254b9e675051e0` | Cohort: `mongodb-cohort-9767e9fb3174`
+- [ ] Concept: `Ops Manager Profiler` | Parent: `Database Profiler vs Query Profiler` | Mode: `dr` | CVS: `3.475` | Inventory-ID: `mongodb-d0254b9e675051e0` | Cohort: `mongodb-cohort-9767e9fb3174` | Queue-state: `coverage-review`
 - [ ] Concept: `Refresh scheduling on Atlas (Scheduled Triggers, cron, secondary or analytics reads)` | Parent: `Read Offload via Caching and Precomputed Views ($merge/$out, Computed Pattern)` | Mode: `dr` | CVS: `3.475` | Inventory-ID: `mongodb-5d657d5afb5dd01f` | Cohort: `mongodb-cohort-d9cc5fb1cc98`
-- [ ] Concept: `path-level multikey tracking` | Parent: `explain multiKeyPaths interpretation` | Mode: `dr` | CVS: `3.450` | Inventory-ID: `mongodb-ac1652e7c2bfd255` | Cohort: `mongodb-cohort-17654ec3dcbe`
-- [ ] Concept: `Percona PMM mongolog versus profiler query source` | Parent: `Database Profiler vs Query Profiler` | Mode: `dr` | CVS: `3.450` | Inventory-ID: `mongodb-788180d569d7d884` | Cohort: `mongodb-cohort-2b640565deb6`
+- [ ] Concept: `path-level multikey tracking` | Parent: `explain multiKeyPaths interpretation` | Mode: `dr` | CVS: `3.450` | Inventory-ID: `mongodb-ac1652e7c2bfd255` | Cohort: `mongodb-cohort-17654ec3dcbe` | Queue-state: `coverage-review`
+- [ ] Concept: `Percona PMM mongolog versus profiler query source` | Parent: `Database Profiler vs Query Profiler` | Mode: `dr` | CVS: `3.450` | Inventory-ID: `mongodb-788180d569d7d884` | Cohort: `mongodb-cohort-2b640565deb6` | Queue-state: `coverage-review`
 - [ ] Concept: `Plan cache invalidation on index DDL (hide, drop, create)` | Parent: `Hidden indexes and safe index removal` | Mode: `dr` | CVS: `3.450` | Inventory-ID: `mongodb-190b283c18d76a07` | Cohort: `mongodb-cohort-71089ad6ce1a`
-- [ ] Concept: `Atlas Real-Time Performance Panel` | Parent: `Database Profiler vs Query Profiler` | Mode: `dr` | CVS: `3.425` | Inventory-ID: `mongodb-8789f69d361dfdf9` | Cohort: `mongodb-cohort-27f762df4c87`
-- [ ] Concept: `Atlas Administration API rolling index endpoint` | Parent: `Rolling index builds` | Mode: `dr` | CVS: `3.400` | Inventory-ID: `mongodb-1d8cdf7b5a1b8ece` | Cohort: `mongodb-cohort-17654ec3dcbe`
+- [ ] Concept: `Atlas Real-Time Performance Panel` | Parent: `Database Profiler vs Query Profiler` | Mode: `dr` | CVS: `3.425` | Inventory-ID: `mongodb-8789f69d361dfdf9` | Cohort: `mongodb-cohort-27f762df4c87` | Queue-state: `coverage-review`
+- [ ] Concept: `Atlas Administration API rolling index endpoint` | Parent: `Rolling index builds` | Mode: `dr` | CVS: `3.400` | Inventory-ID: `mongodb-1d8cdf7b5a1b8ece` | Cohort: `mongodb-cohort-17654ec3dcbe` | Queue-state: `coverage-review`
 - [x] Concept: `Collation-based case-insensitive equality` | Parent: `MongoDB Query Shape Optimization: Sort, Pagination, Operators and Sharded Targeting` | Mode: `dr` | CVS: `3.400` | Inventory-ID: `mongodb-4617d3df0f456a1b` | Cohort: `mongodb-cohort-6a7dac291e46`
 - [ ] Concept: `Cost-based ranker plan selection for sorted queries (8.3+)` | Parent: `SORT_MERGE and $in sort expansion` | Mode: `dr` | CVS: `3.400` | Inventory-ID: `mongodb-56ea3f475182e73c` | Cohort: `mongodb-cohort-372a6407eb6e`
-- [ ] Concept: `Covered queries and projection design` | Parent: `Query Efficiency as a Cost Lever` | Mode: `dr` | CVS: `3.400` | Inventory-ID: `mongodb-8c1f45c525ccf3e4` | Cohort: `mongodb-cohort-9860e797131c`
-- [ ] Concept: `MongoDB primary-driven index builds (PDIB)` | Parent: `Resumable index builds` | Mode: `dr` | CVS: `3.400` | Inventory-ID: `mongodb-f5fe8246bc1f373b` | Cohort: `mongodb-cohort-17654ec3dcbe`
-- [ ] Concept: `Multikey index sort bounds` | Parent: `MongoDB Query Shape Optimization: Sort, Pagination, Operators and Sharded Targeting` | Mode: `dr` | CVS: `3.400` | Inventory-ID: `mongodb-628fedbd91c89a1e` | Cohort: `mongodb-cohort-17654ec3dcbe`
-- [ ] Concept: `Primary-driven index builds` | Parent: `Resumable index builds` | Mode: `dr` | CVS: `3.400` | Inventory-ID: `mongodb-c1bd38937e366405` | Cohort: `mongodb-cohort-dc5f0dc5f337`
+- [ ] Concept: `Covered queries and projection design` | Parent: `Query Efficiency as a Cost Lever` | Mode: `dr` | CVS: `3.400` | Inventory-ID: `mongodb-8c1f45c525ccf3e4` | Cohort: `mongodb-cohort-9860e797131c` | Queue-state: `coverage-review`
+- [ ] Concept: `MongoDB primary-driven index builds (PDIB)` | Parent: `Resumable index builds` | Mode: `dr` | CVS: `3.400` | Inventory-ID: `mongodb-f5fe8246bc1f373b` | Cohort: `mongodb-cohort-17654ec3dcbe` | Queue-state: `coverage-review`
+- [ ] Concept: `Multikey index sort bounds` | Parent: `MongoDB Query Shape Optimization: Sort, Pagination, Operators and Sharded Targeting` | Mode: `dr` | CVS: `3.400` | Inventory-ID: `mongodb-628fedbd91c89a1e` | Cohort: `mongodb-cohort-17654ec3dcbe` | Queue-state: `coverage-review`
+- [ ] Concept: `Primary-driven index builds` | Parent: `Resumable index builds` | Mode: `dr` | CVS: `3.400` | Inventory-ID: `mongodb-c1bd38937e366405` | Cohort: `mongodb-cohort-dc5f0dc5f337` | Queue-state: `coverage-review`
 - [ ] Concept: `Index usage measurement with $indexStats` | Parent: `Hidden indexes and safe index removal` | Mode: `dr` | CVS: `3.375` | Inventory-ID: `mongodb-6f5f321045e0edf3` | Cohort: `mongodb-cohort-dc5f0dc5f337`
-- [ ] Concept: `Interval evaluation trees and parameterized plan caching` | Parent: `SORT_MERGE and $in sort expansion` | Mode: `dr` | CVS: `3.350` | Inventory-ID: `mongodb-877171bb4e49da96` | Cohort: `mongodb-cohort-46673b83291a`
-- [ ] Concept: `Atlas Infinite fixed-IOPS tiers and decoupled storage` | Parent: `Cluster Tier Limits and Feature Gates as Cost Drivers (Connections, IOPS Caps, Minimum Tiers)` | Mode: `dr` | CVS: `3.325` | Inventory-ID: `mongodb-c385a05c16af82e4` | Cohort: `mongodb-cohort-b7c969c2a118`
-- [ ] Concept: `MongoDB Realm Mobile Sync` | Parent: `MongoDB Atlas` | Mode: `revisit` | CVS: `3.325` | Inventory-ID: `mongodb-aa6c118bd17c4c4d` | Cohort: `mongodb-cohort-faa5aa005f8b`
+- [ ] Concept: `Interval evaluation trees and parameterized plan caching` | Parent: `SORT_MERGE and $in sort expansion` | Mode: `dr` | CVS: `3.350` | Inventory-ID: `mongodb-877171bb4e49da96` | Cohort: `mongodb-cohort-46673b83291a` | Queue-state: `coverage-review`
+- [ ] Concept: `Atlas Infinite fixed-IOPS tiers and decoupled storage` | Parent: `Cluster Tier Limits and Feature Gates as Cost Drivers (Connections, IOPS Caps, Minimum Tiers)` | Mode: `dr` | CVS: `3.325` | Inventory-ID: `mongodb-c385a05c16af82e4` | Cohort: `mongodb-cohort-b7c969c2a118` | Queue-state: `coverage-review`
+- [ ] Concept: `MongoDB Realm Mobile Sync` | Parent: `MongoDB Atlas` | Mode: `revisit` | CVS: `3.325` | Inventory-ID: `mongodb-aa6c118bd17c4c4d` | Cohort: `mongodb-cohort-faa5aa005f8b` | Queue-state: `held-review`
 - [ ] Concept: `Atlas Performance Advisor drop-index recommendations` | Parent: `Hidden indexes and safe index removal` | Mode: `dr` | CVS: `3.300` | Inventory-ID: `mongodb-50ec9dcdbff2ae63` | Cohort: `mongodb-cohort-dc5f0dc5f337`
 - [ ] Concept: `Counter-document pattern` | Parent: `MongoDB Query Shape Optimization: Sort, Pagination, Operators and Sharded Targeting` | Mode: `dr` | CVS: `3.300` | Inventory-ID: `mongodb-0c0b0a1154fd4e2f` | Cohort: `mongodb-cohort-6a7dac291e46`
-- [ ] Concept: `Field-name abbreviation trade-offs` | Parent: `Schema Design for Storage Cost` | Mode: `dr` | CVS: `3.300` | Inventory-ID: `mongodb-650613677dbd2261` | Cohort: `mongodb-cohort-d4596a7c1ce4`
-- [ ] Concept: `M10 shared-vCPU dedicated tier economics` | Parent: `Atlas Flex Pricing and Flex-vs-Dedicated Break-Even` | Mode: `dr` | CVS: `3.300` | Inventory-ID: `mongodb-aa673735c7a186fc` | Cohort: `mongodb-cohort-b7c969c2a118`
+- [ ] Concept: `Field-name abbreviation trade-offs` | Parent: `Schema Design for Storage Cost` | Mode: `dr` | CVS: `3.300` | Inventory-ID: `mongodb-650613677dbd2261` | Cohort: `mongodb-cohort-d4596a7c1ce4` | Queue-state: `coverage-review`
+- [ ] Concept: `M10 shared-vCPU dedicated tier economics` | Parent: `Atlas Flex Pricing and Flex-vs-Dedicated Break-Even` | Mode: `dr` | CVS: `3.300` | Inventory-ID: `mongodb-aa673735c7a186fc` | Cohort: `mongodb-cohort-b7c969c2a118` | Queue-state: `coverage-review`
 - [ ] Concept: `Tailable cursors and maxAwaitTimeMS` | Parent: `MongoDB Query Shape Optimization: Sort, Pagination, Operators and Sharded Targeting` | Mode: `dr` | CVS: `3.300` | Inventory-ID: `mongodb-bfbf617cf85a9d45` | Cohort: `mongodb-cohort-6a7dac291e46`
-- [ ] Concept: `Eviction thread sizing and wiredTigerEngineRuntimeConfig tuning` | Parent: `WiredTiger cache eviction and dirty ratio` | Mode: `dr` | CVS: `3.275` | Inventory-ID: `mongodb-02d995b3895148bd` | Cohort: `mongodb-cohort-b7c969c2a118`
+- [ ] Concept: `Eviction thread sizing and wiredTigerEngineRuntimeConfig tuning` | Parent: `WiredTiger cache eviction and dirty ratio` | Mode: `dr` | CVS: `3.275` | Inventory-ID: `mongodb-02d995b3895148bd` | Cohort: `mongodb-cohort-b7c969c2a118` | Queue-state: `coverage-review`
 - [ ] Concept: `Atlas backup/PITR and data transfer cost drivers` | Parent: `Atlas Pricing Programs, Cost Governance and TCO` | Mode: `dr` | CVS: `3.250` | Inventory-ID: `mongodb-33cd7f0ef85a1717` | Cohort: `mongodb-cohort-372a6407eb6e`
-- [ ] Concept: `Atlas index build tier defaults` | Parent: `Index build resource limits (maxNumActiveUserIndexBuilds, disk space)` | Mode: `dr` | CVS: `3.250` | Inventory-ID: `mongodb-9b3f6cc7e3d3ac23` | Cohort: `mongodb-cohort-88cc8939dcad`
+- [ ] Concept: `Atlas index build tier defaults` | Parent: `Index build resource limits (maxNumActiveUserIndexBuilds, disk space)` | Mode: `dr` | CVS: `3.250` | Inventory-ID: `mongodb-9b3f6cc7e3d3ac23` | Cohort: `mongodb-cohort-88cc8939dcad` | Queue-state: `coverage-review`
 - [ ] Concept: `Atlas Query Shape Insights and Namespace Insights` | Parent: `Database Profiler vs Query Profiler` | Mode: `dr` | CVS: `3.250` | Inventory-ID: `mongodb-cbc35723dae300d2` | Cohort: `mongodb-cohort-2b640565deb6`
-- [ ] Concept: `Atlas tier-fixed index build limits` | Parent: `Index build resource limits (maxNumActiveUserIndexBuilds, disk space)` | Mode: `dr` | CVS: `3.250` | Inventory-ID: `mongodb-ce4a0cb22fbb3201` | Cohort: `mongodb-cohort-88cc8939dcad`
+- [ ] Concept: `Atlas tier-fixed index build limits` | Parent: `Index build resource limits (maxNumActiveUserIndexBuilds, disk space)` | Mode: `dr` | CVS: `3.250` | Inventory-ID: `mongodb-ce4a0cb22fbb3201` | Cohort: `mongodb-cohort-88cc8939dcad` | Queue-state: `coverage-review`
 - [ ] Concept: `Rolling index builds as a resource-limited alternative` | Parent: `Index build resource limits (maxNumActiveUserIndexBuilds, disk space)` | Mode: `dr` | CVS: `3.250` | Inventory-ID: `mongodb-524ff443222313b4` | Cohort: `mongodb-cohort-dc5f0dc5f337`
-- [ ] Concept: `Atlas Query Shape Insights` | Parent: `MongoDB Explain Plans, Query Planner and Plan Cache` | Mode: `dr` | CVS: `3.200` | Inventory-ID: `mongodb-4fdb99e4891908d0` | Cohort: `mongodb-cohort-2b640565deb6`
+- [ ] Concept: `Atlas Query Shape Insights` | Parent: `MongoDB Explain Plans, Query Planner and Plan Cache` | Mode: `dr` | CVS: `3.200` | Inventory-ID: `mongodb-4fdb99e4891908d0` | Cohort: `mongodb-cohort-2b640565deb6` | Queue-state: `coverage-review`
 - [ ] Concept: `MongoDB CBR CE source metadata` | Parent: `ceSource cardinality estimation (sampling vs heuristics)` | Mode: `dr` | CVS: `3.200` | Inventory-ID: `mongodb-f4b4df52106131ad` | Cohort: `mongodb-cohort-bae29937ea6d`
-- [ ] Concept: `Namespace Insights` | Parent: `MongoDB Query Optimization Tooling: Compass Explain, Atlas Query Insights and Performance Advisor` | Mode: `dr` | CVS: `3.200` | Inventory-ID: `mongodb-4ae8627725bdc8e0` | Cohort: `mongodb-cohort-9fc6f09a3009`
+- [ ] Concept: `Namespace Insights` | Parent: `MongoDB Query Optimization Tooling: Compass Explain, Atlas Query Insights and Performance Advisor` | Mode: `dr` | CVS: `3.200` | Inventory-ID: `mongodb-4ae8627725bdc8e0` | Cohort: `mongodb-cohort-9fc6f09a3009` | Queue-state: `coverage-review`
 - [ ] Concept: `Sparse and partial indexes for $exists` | Parent: `MongoDB Query Shape Optimization: Sort, Pagination, Operators and Sharded Targeting` | Mode: `dr` | CVS: `3.200` | Inventory-ID: `mongodb-41f6434505be256e` | Cohort: `mongodb-cohort-c9a59177a281`
-- [ ] Concept: `Lambda Managed Instances and MongoClient concurrency safety` | Parent: `Lambda MongoDB Driver Pattern` | Mode: `dr` | CVS: `3.175` | Inventory-ID: `mongodb-c56934954429e244` | Cohort: `mongodb-cohort-fa8ff6ffdd98`
-- [ ] Concept: `Organization-scoped alert configuration API` | Parent: `Admin API alert configurations for billing events` | Mode: `dr` | CVS: `3.175` | Inventory-ID: `mongodb-9507fa25c7d06b40` | Cohort: `mongodb-cohort-fa8ff6ffdd98`
-- [ ] Concept: `$function and server-side JavaScript hardening` | Parent: `MongoDB Query Shape Optimization: Sort, Pagination, Operators and Sharded Targeting` | Mode: `dr` | CVS: `3.150` | Inventory-ID: `mongodb-96aa57b9e6f1d8f2` | Cohort: `mongodb-cohort-9cff09d95361`
-- [ ] Concept: `Atlas Charts billing dashboards` | Parent: `Atlas Billing Mechanics and Cost Visibility` | Mode: `dr` | CVS: `3.150` | Inventory-ID: `mongodb-1585ac28474d20d9` | Cohort: `mongodb-cohort-91cc19c76420`
-- [ ] Concept: `Atlas Infinite fixed per-tier IOPS and public-preview feature exclusions` | Parent: `Cluster Tier Limits and Feature Gates as Cost Drivers (Connections, IOPS Caps, Minimum Tiers)` | Mode: `dr` | CVS: `3.150` | Inventory-ID: `mongodb-926e1c744b633b85` | Cohort: `mongodb-cohort-88cc8939dcad`
-- [ ] Concept: `Credit expiry and History table` | Parent: `Atlas Billing Mechanics and Cost Visibility` | Mode: `dr` | CVS: `3.150` | Inventory-ID: `mongodb-51d2f0001920e1e6` | Cohort: `mongodb-cohort-91cc19c76420`
-- [ ] Concept: `Index hints on time series collections` | Parent: `MongoDB Time-Series Query and Index Optimization` | Mode: `dr` | CVS: `3.150` | Inventory-ID: `mongodb-7eea626bfebceba6` | Cohort: `mongodb-cohort-7e83aa58193c`
-- [ ] Concept: `Primary-driven index builds (spill to a replicated table)` | Parent: `Index build resource limits (maxNumActiveUserIndexBuilds, disk space)` | Mode: `dr` | CVS: `3.150` | Inventory-ID: `mongodb-9ac00e735a7f32be` | Cohort: `mongodb-cohort-5e672971d3c4`
-- [ ] Concept: `Atlas marketplace private offers` | Parent: `Atlas Cost Commitments, Cross-Org Billing and FinOps Tooling` | Mode: `dr` | CVS: `3.100` | Inventory-ID: `mongodb-be13cc5ab72690be` | Cohort: `mongodb-cohort-91cc19c76420`
-- [ ] Concept: `Client Side Field Level Encryption (CSFLE)` | Parent: `Client Side Operations Timeout (CSOT)` | Mode: `revisit` | CVS: `3.100` | Inventory-ID: `mongodb-7cc7652d0546c019` | Cohort: `mongodb-cohort-2030af7213e7`
-- [ ] Concept: `Gen1 vs Gen2 storage and IOPS billing` | Parent: `Atlas Cluster Topology and Tier Economics` | Mode: `dr` | CVS: `3.100` | Inventory-ID: `mongodb-cfed93e5e3217b53` | Cohort: `mongodb-cohort-91cc19c76420`
-- [ ] Concept: `SBE $lookup pushdown and hash join` | Parent: `MongoDB Advanced Explain: Aggregation, Sharded Plans, Loose Index Scans and the 8.3 Cost-Based Ranker` | Mode: `dr` | CVS: `3.100` | Inventory-ID: `mongodb-dd877ae5b4fdc443` | Cohort: `mongodb-cohort-468120abc19f`
-- [ ] Concept: `Shared-cost allocation rules for managed database services` | Parent: `Atlas tag taxonomy for showback and chargeback` | Mode: `dr` | CVS: `3.075` | Inventory-ID: `mongodb-7fed8a5c0e525682` | Cohort: `mongodb-cohort-d3e5f243dcb1`
-- [ ] Concept: `Atlas Admin API invoice endpoints` | Parent: `Atlas Billing and Invoice Anatomy` | Mode: `dr` | CVS: `3.050` | Inventory-ID: `mongodb-95f163645ff4d869` | Cohort: `mongodb-cohort-1675dc046d34`
+- [ ] Concept: `Lambda Managed Instances and MongoClient concurrency safety` | Parent: `Lambda MongoDB Driver Pattern` | Mode: `dr` | CVS: `3.175` | Inventory-ID: `mongodb-c56934954429e244` | Cohort: `mongodb-cohort-fa8ff6ffdd98` | Queue-state: `coverage-review`
+- [ ] Concept: `Organization-scoped alert configuration API` | Parent: `Admin API alert configurations for billing events` | Mode: `dr` | CVS: `3.175` | Inventory-ID: `mongodb-9507fa25c7d06b40` | Cohort: `mongodb-cohort-fa8ff6ffdd98` | Queue-state: `coverage-review`
+- [ ] Concept: `$function and server-side JavaScript hardening` | Parent: `MongoDB Query Shape Optimization: Sort, Pagination, Operators and Sharded Targeting` | Mode: `dr` | CVS: `3.150` | Inventory-ID: `mongodb-96aa57b9e6f1d8f2` | Cohort: `mongodb-cohort-9cff09d95361` | Queue-state: `coverage-review`
+- [ ] Concept: `Atlas Charts billing dashboards` | Parent: `Atlas Billing Mechanics and Cost Visibility` | Mode: `dr` | CVS: `3.150` | Inventory-ID: `mongodb-1585ac28474d20d9` | Cohort: `mongodb-cohort-91cc19c76420` | Queue-state: `coverage-review`
+- [ ] Concept: `Atlas Infinite fixed per-tier IOPS and public-preview feature exclusions` | Parent: `Cluster Tier Limits and Feature Gates as Cost Drivers (Connections, IOPS Caps, Minimum Tiers)` | Mode: `dr` | CVS: `3.150` | Inventory-ID: `mongodb-926e1c744b633b85` | Cohort: `mongodb-cohort-88cc8939dcad` | Queue-state: `coverage-review`
+- [ ] Concept: `Credit expiry and History table` | Parent: `Atlas Billing Mechanics and Cost Visibility` | Mode: `dr` | CVS: `3.150` | Inventory-ID: `mongodb-51d2f0001920e1e6` | Cohort: `mongodb-cohort-91cc19c76420` | Queue-state: `coverage-review`
+- [ ] Concept: `Index hints on time series collections` | Parent: `MongoDB Time-Series Query and Index Optimization` | Mode: `dr` | CVS: `3.150` | Inventory-ID: `mongodb-7eea626bfebceba6` | Cohort: `mongodb-cohort-7e83aa58193c` | Queue-state: `coverage-review`
+- [ ] Concept: `Primary-driven index builds (spill to a replicated table)` | Parent: `Index build resource limits (maxNumActiveUserIndexBuilds, disk space)` | Mode: `dr` | CVS: `3.150` | Inventory-ID: `mongodb-9ac00e735a7f32be` | Cohort: `mongodb-cohort-5e672971d3c4` | Queue-state: `coverage-review`
+- [ ] Concept: `Atlas marketplace private offers` | Parent: `Atlas Cost Commitments, Cross-Org Billing and FinOps Tooling` | Mode: `dr` | CVS: `3.100` | Inventory-ID: `mongodb-be13cc5ab72690be` | Cohort: `mongodb-cohort-91cc19c76420` | Queue-state: `coverage-review`
+- [ ] Concept: `Client Side Field Level Encryption (CSFLE)` | Parent: `Client Side Operations Timeout (CSOT)` | Mode: `revisit` | CVS: `3.100` | Inventory-ID: `mongodb-7cc7652d0546c019` | Cohort: `mongodb-cohort-2030af7213e7` | Queue-state: `held-review`
+- [ ] Concept: `Gen1 vs Gen2 storage and IOPS billing` | Parent: `Atlas Cluster Topology and Tier Economics` | Mode: `dr` | CVS: `3.100` | Inventory-ID: `mongodb-cfed93e5e3217b53` | Cohort: `mongodb-cohort-91cc19c76420` | Queue-state: `coverage-review`
+- [ ] Concept: `SBE $lookup pushdown and hash join` | Parent: `MongoDB Advanced Explain: Aggregation, Sharded Plans, Loose Index Scans and the 8.3 Cost-Based Ranker` | Mode: `dr` | CVS: `3.100` | Inventory-ID: `mongodb-dd877ae5b4fdc443` | Cohort: `mongodb-cohort-468120abc19f` | Queue-state: `coverage-review`
+- [ ] Concept: `Shared-cost allocation rules for managed database services` | Parent: `Atlas tag taxonomy for showback and chargeback` | Mode: `dr` | CVS: `3.075` | Inventory-ID: `mongodb-7fed8a5c0e525682` | Cohort: `mongodb-cohort-d3e5f243dcb1` | Queue-state: `coverage-review`
+- [ ] Concept: `Atlas Admin API invoice endpoints` | Parent: `Atlas Billing and Invoice Anatomy` | Mode: `dr` | CVS: `3.050` | Inventory-ID: `mongodb-95f163645ff4d869` | Cohort: `mongodb-cohort-1675dc046d34` | Queue-state: `coverage-review`
 - [ ] Concept: `Atlas Infinite compute auto-scaling` | Parent: `Atlas Cost Planning: Region Pricing, Estimation, Scheduled Scaling and Competitor TCO` | Mode: `dr` | CVS: `3.050` | Inventory-ID: `mongodb-0e173d1a4a7be744` | Cohort: `mongodb-cohort-97d0be9985d2`
-- [ ] Concept: `Auto-scaling tier ranges` | Parent: `Atlas Cluster Topology and Tier Economics` | Mode: `dr` | CVS: `3.050` | Inventory-ID: `mongodb-912dd90d8980ae92` | Cohort: `mongodb-cohort-88cc8939dcad`
-- [ ] Concept: `Backup and PITR cost modelling` | Parent: `Atlas Cost Planning: Region Pricing, Estimation, Scheduled Scaling and Competitor TCO` | Mode: `dr` | CVS: `3.050` | Inventory-ID: `mongodb-7957a71b8005114a` | Cohort: `mongodb-cohort-d3e5f243dcb1`
-- [ ] Concept: `Cedar policy authoring for cluster size and autoscaling caps` | Parent: `Atlas Cost Commitments, Cross-Org Billing and FinOps Tooling` | Mode: `dr` | CVS: `3.050` | Inventory-ID: `mongodb-28c3a0f533452bc5` | Cohort: `mongodb-cohort-047d3a5eff67`
-- [ ] Concept: `Gen1 vs Gen2 IOPS billing` | Parent: `Storage Growth and IOPS Forecasting for Cost` | Mode: `dr` | CVS: `3.050` | Inventory-ID: `mongodb-a61b2707340ba6da` | Cohort: `mongodb-cohort-d3e5f243dcb1`
-- [ ] Concept: `MongoDB Developer Patterns` | Parent: `MongoDB Expert Knowledge` | Mode: `revisit` | CVS: `3.050` | Inventory-ID: `mongodb-243b0c55e1170da3` | Cohort: `mongodb-cohort-586d5ccba289`
-- [ ] Concept: `Multi-region cluster cost premium` | Parent: `Atlas Cost Planning: Region Pricing, Estimation, Scheduled Scaling and Competitor TCO` | Mode: `dr` | CVS: `3.050` | Inventory-ID: `mongodb-9fdf26d536b91015` | Cohort: `mongodb-cohort-d3e5f243dcb1`
-- [ ] Concept: `Pause/resume automation with Terraform or GitHub Actions` | Parent: `Atlas Cost Planning: Region Pricing, Estimation, Scheduled Scaling and Competitor TCO` | Mode: `dr` | CVS: `3.050` | Inventory-ID: `mongodb-072eec3613eb7532` | Cohort: `mongodb-cohort-1675dc046d34`
-- [ ] Concept: `Right-sizing from Atlas metrics` | Parent: `Atlas Cost Planning: Region Pricing, Estimation, Scheduled Scaling and Competitor TCO` | Mode: `dr` | CVS: `3.050` | Inventory-ID: `mongodb-f9b0361626e95678` | Cohort: `mongodb-cohort-047d3a5eff67`
-- [ ] Concept: ``Same-field `$or` to `$in` rewrite`` | Parent: `Compound index vs index union for $or` | Mode: `dr` | CVS: `3.050` | Inventory-ID: `mongodb-24b4ec4143de82f7` | Cohort: `mongodb-cohort-68aac318a142`
+- [ ] Concept: `Auto-scaling tier ranges` | Parent: `Atlas Cluster Topology and Tier Economics` | Mode: `dr` | CVS: `3.050` | Inventory-ID: `mongodb-912dd90d8980ae92` | Cohort: `mongodb-cohort-88cc8939dcad` | Queue-state: `coverage-review`
+- [ ] Concept: `Backup and PITR cost modelling` | Parent: `Atlas Cost Planning: Region Pricing, Estimation, Scheduled Scaling and Competitor TCO` | Mode: `dr` | CVS: `3.050` | Inventory-ID: `mongodb-7957a71b8005114a` | Cohort: `mongodb-cohort-d3e5f243dcb1` | Queue-state: `coverage-review`
+- [ ] Concept: `Cedar policy authoring for cluster size and autoscaling caps` | Parent: `Atlas Cost Commitments, Cross-Org Billing and FinOps Tooling` | Mode: `dr` | CVS: `3.050` | Inventory-ID: `mongodb-28c3a0f533452bc5` | Cohort: `mongodb-cohort-047d3a5eff67` | Queue-state: `coverage-review`
+- [ ] Concept: `Gen1 vs Gen2 IOPS billing` | Parent: `Storage Growth and IOPS Forecasting for Cost` | Mode: `dr` | CVS: `3.050` | Inventory-ID: `mongodb-a61b2707340ba6da` | Cohort: `mongodb-cohort-d3e5f243dcb1` | Queue-state: `coverage-review`
+- [ ] Concept: `MongoDB Developer Patterns` | Parent: `MongoDB Expert Knowledge` | Mode: `revisit` | CVS: `3.050` | Inventory-ID: `mongodb-243b0c55e1170da3` | Cohort: `mongodb-cohort-586d5ccba289` | Queue-state: `held-review`
+- [ ] Concept: `Multi-region cluster cost premium` | Parent: `Atlas Cost Planning: Region Pricing, Estimation, Scheduled Scaling and Competitor TCO` | Mode: `dr` | CVS: `3.050` | Inventory-ID: `mongodb-9fdf26d536b91015` | Cohort: `mongodb-cohort-d3e5f243dcb1` | Queue-state: `coverage-review`
+- [ ] Concept: `Pause/resume automation with Terraform or GitHub Actions` | Parent: `Atlas Cost Planning: Region Pricing, Estimation, Scheduled Scaling and Competitor TCO` | Mode: `dr` | CVS: `3.050` | Inventory-ID: `mongodb-072eec3613eb7532` | Cohort: `mongodb-cohort-1675dc046d34` | Queue-state: `coverage-review`
+- [ ] Concept: `Right-sizing from Atlas metrics` | Parent: `Atlas Cost Planning: Region Pricing, Estimation, Scheduled Scaling and Competitor TCO` | Mode: `dr` | CVS: `3.050` | Inventory-ID: `mongodb-f9b0361626e95678` | Cohort: `mongodb-cohort-047d3a5eff67` | Queue-state: `coverage-review`
+- [ ] Concept: ``Same-field `$or` to `$in` rewrite`` | Parent: `Compound index vs index union for $or` | Mode: `dr` | CVS: `3.050` | Inventory-ID: `mongodb-24b4ec4143de82f7` | Cohort: `mongodb-cohort-68aac318a142` | Queue-state: `coverage-review`
 - [ ] Concept: `EU Data Act switching charges and in-parallel egress` | Parent: `Migration and Cutover Cost (Live Migration, mongosync, Dual-Running, Egress)` | Mode: `dr` | CVS: `3.025` | Inventory-ID: `mongodb-d72b938404e888d1` | Cohort: `mongodb-cohort-9519d30d12be`
-- [ ] Concept: `$groupByDistinct internal stage` | Parent: `MongoDB Advanced Explain: Aggregation, Sharded Plans, Loose Index Scans and the 8.3 Cost-Based Ranker` | Mode: `dr` | CVS: `3.000` | Inventory-ID: `mongodb-5d21f894eb00e4db` | Cohort: `mongodb-cohort-468120abc19f`
-- [ ] Concept: `Analytics node tier prorating` | Parent: `Atlas Cluster Topology and Tier Economics` | Mode: `dr` | CVS: `3.000` | Inventory-ID: `mongodb-e44a05f678750f34` | Cohort: `mongodb-cohort-047d3a5eff67`
+- [ ] Concept: `$groupByDistinct internal stage` | Parent: `MongoDB Advanced Explain: Aggregation, Sharded Plans, Loose Index Scans and the 8.3 Cost-Based Ranker` | Mode: `dr` | CVS: `3.000` | Inventory-ID: `mongodb-5d21f894eb00e4db` | Cohort: `mongodb-cohort-468120abc19f` | Queue-state: `coverage-review`
+- [ ] Concept: `Analytics node tier prorating` | Parent: `Atlas Cluster Topology and Tier Economics` | Mode: `dr` | CVS: `3.000` | Inventory-ID: `mongodb-e44a05f678750f34` | Cohort: `mongodb-cohort-047d3a5eff67` | Queue-state: `coverage-review`
 - [ ] Concept: `Atlas-only feature lock-in and exit cost` | Parent: `Atlas Pricing Programs, Cost Governance and TCO` | Mode: `dr` | CVS: `3.000` | Inventory-ID: `mongodb-dad75167e372f795` | Cohort: `mongodb-cohort-ec3558b1401a`
 - [ ] Concept: `AWS Marketplace EDP drawdown for Atlas` | Parent: `Atlas Cost Commitments, Cross-Org Billing and FinOps Tooling` | Mode: `dr` | CVS: `3.000` | Inventory-ID: `mongodb-24f205c548a05790` | Cohort: `mongodb-cohort-ec3558b1401a`
 - [ ] Concept: `Backup and PIT oplog storage region billing` | Parent: `Atlas Cluster Topology and Tier Economics` | Mode: `dr` | CVS: `3.000` | Inventory-ID: `mongodb-55169fce81931358` | Cohort: `mongodb-cohort-ec3558b1401a`
 - [ ] Concept: `Cost Explorer filters for AI services` | Parent: `Atlas AI Services Pricing (Agent Engine and Voyage AI)` | Mode: `dr` | CVS: `3.000` | Inventory-ID: `mongodb-3455606a49d0ae97` | Cohort: `mongodb-cohort-e570f811eac4`
-- [ ] Concept: `PII Masking & Query Hash Anonymization` | Parent: `Diagnostic Tool Design` | Mode: `revisit` | CVS: `3.000` | Inventory-ID: `mongodb-d67878358f98ad51` | Cohort: `mongodb-cohort-d624439a89da`
+- [ ] Concept: `PII Masking & Query Hash Anonymization` | Parent: `Diagnostic Tool Design` | Mode: `revisit` | CVS: `3.000` | Inventory-ID: `mongodb-d67878358f98ad51` | Cohort: `mongodb-cohort-d624439a89da` | Queue-state: `held-review`
 - [ ] Concept: `Query limits and billing alerts for archive spend` | Parent: `Data Lifecycle Cost Model (TTL vs Online Archive vs Data Federation)` | Mode: `dr` | CVS: `3.000` | Inventory-ID: `mongodb-af8bfd1b3f4a9a17` | Cohort: `mongodb-cohort-e570f811eac4`
-- [ ] Concept: `Support line items per cloud provider on invoices` | Parent: `Atlas Billing Mechanics and Cost Visibility` | Mode: `dr` | CVS: `3.000` | Inventory-ID: `mongodb-9b823f0f1fba9804` | Cohort: `mongodb-cohort-7b4b502e3f24`
+- [ ] Concept: `Support line items per cloud provider on invoices` | Parent: `Atlas Billing Mechanics and Cost Visibility` | Mode: `dr` | CVS: `3.000` | Inventory-ID: `mongodb-9b823f0f1fba9804` | Cohort: `mongodb-cohort-7b4b502e3f24` | Queue-state: `coverage-review`
 - [ ] Concept: `Atlas Infinite oplog and storage cost` | Parent: `Oplog sizing under storage auto-scaling` | Mode: `dr` | CVS: `2.975` | Inventory-ID: `mongodb-f54190428672705c` | Cohort: `mongodb-cohort-e570f811eac4`
 - [ ] Concept: `Cloud exit-credit programs and EU Data Act in-parallel egress` | Parent: `Migration and Cutover Cost (Live Migration, mongosync, Dual-Running, Egress)` | Mode: `dr` | CVS: `2.975` | Inventory-ID: `mongodb-2a049fdcae415842` | Cohort: `mongodb-cohort-9519d30d12be`
 - [ ] Concept: `Hyperscaler exit-egress waiver programs (AWS, Google Cloud, Azure)` | Parent: `Migration and Cutover Cost (Live Migration, mongosync, Dual-Running, Egress)` | Mode: `dr` | CVS: `2.975` | Inventory-ID: `mongodb-57ad2f2520b1d24c` | Cohort: `mongodb-cohort-21439db8c935`
@@ -4424,8 +4419,8 @@ Every frontier concept, grouped by shared parent (at most 8 per cluster), cluste
 - [ ] Concept: `Oplog sizing in Kubernetes operators and managed MongoDB-compatible services` | Parent: `Oplog sizing under storage auto-scaling` | Mode: `dr` | CVS: `2.850` | Inventory-ID: `mongodb-010e200700708f00` | Cohort: `mongodb-cohort-d75e388f7c62`
 - [ ] Concept: `Persisting index usage metrics across restarts (PMM/monitoring)` | Parent: `MongoDB Explain Plans, Query Planner and Plan Cache` | Mode: `dr` | CVS: `2.850` | Inventory-ID: `mongodb-23dc66c763b719d7` | Cohort: `mongodb-cohort-e4ebaf2ad65a`
 - [ ] Concept: `Scale-down tuning for spiky batch workloads` | Parent: `Atlas Cost Planning: Region Pricing, Estimation, Scheduled Scaling and Competitor TCO` | Mode: `dr` | CVS: `2.850` | Inventory-ID: `mongodb-110b9d56520f4ac1` | Cohort: `mongodb-cohort-97d0be9985d2`
-- [ ] Concept: `Amazon DocumentDB profiler (CloudWatch Logs)` | Parent: `Database Profiler vs Query Profiler` | Mode: `dr` | CVS: `2.825` | Inventory-ID: `mongodb-78fdc802398495b2` | Cohort: `mongodb-cohort-9767e9fb3174`
-- [ ] Concept: `Client-side operation timeout (CSOT)` | Parent: `MongoDB Query Shape Optimization: Sort, Pagination, Operators and Sharded Targeting` | Mode: `dr` | CVS: `2.800` | Inventory-ID: `mongodb-57629268b2c2e6cb` | Cohort: `mongodb-cohort-9cff09d95361`
+- [ ] Concept: `Amazon DocumentDB profiler (CloudWatch Logs)` | Parent: `Database Profiler vs Query Profiler` | Mode: `dr` | CVS: `2.825` | Inventory-ID: `mongodb-78fdc802398495b2` | Cohort: `mongodb-cohort-9767e9fb3174` | Queue-state: `coverage-review`
+- [ ] Concept: `Client-side operation timeout (CSOT)` | Parent: `MongoDB Query Shape Optimization: Sort, Pagination, Operators and Sharded Targeting` | Mode: `dr` | CVS: `2.800` | Inventory-ID: `mongodb-57629268b2c2e6cb` | Cohort: `mongodb-cohort-9cff09d95361` | Queue-state: `coverage-review`
 - [ ] Concept: `Collation-based case-insensitive indexes as a $regex alternative` | Parent: `MongoDB Query Optimization Tooling: Compass Explain, Atlas Query Insights and Performance Advisor` | Mode: `dr` | CVS: `2.800` | Inventory-ID: `mongodb-f91e30bd5aaf2ccd` | Cohort: `mongodb-cohort-e4ebaf2ad65a`
 - [ ] Concept: `Intra-cluster replication transfer billing` | Parent: `Atlas Cluster Topology and Tier Economics` | Mode: `dr` | CVS: `2.800` | Inventory-ID: `mongodb-34bba6054db50a88` | Cohort: `mongodb-cohort-6adc93138105`
 - [ ] Concept: `Retroactive support billing on reactivation` | Parent: `Atlas Billing Mechanics and Cost Visibility` | Mode: `dr` | CVS: `2.800` | Inventory-ID: `mongodb-ea29c899a57b0a5e` | Cohort: `mongodb-cohort-fd6aad8dc2b9`
@@ -4433,8 +4428,8 @@ Every frontier concept, grouped by shared parent (at most 8 per cluster), cluste
 - [ ] Concept: `Atlas billing alert configuration via Admin API` | Parent: `Atlas Pricing Programs, Cost Governance and TCO` | Mode: `dr` | CVS: `2.750` | Inventory-ID: `mongodb-e34eab21447b18d4` | Cohort: `mongodb-cohort-fd6aad8dc2b9`
 - [ ] Concept: `Percona PMM mongolog query source` | Parent: `Database Profiler vs Query Profiler` | Mode: `dr` | CVS: `2.725` | Inventory-ID: `mongodb-29d81049e9589a0a` | Cohort: `mongodb-cohort-ac46fd55c1a0`
 - [ ] Concept: `Atlas PrivateLink regional endpoint rates` | Parent: `Atlas Cost Planning: Region Pricing, Estimation, Scheduled Scaling and Competitor TCO` | Mode: `dr` | CVS: `2.700` | Inventory-ID: `mongodb-0a6ce44bfef7c552` | Cohort: `mongodb-cohort-18067a89fb07`
-- [ ] Concept: `Quantile Estimation (DDSketch)` | Parent: `Client Side Operations Timeout (CSOT)` | Mode: `revisit` | CVS: `2.700` | Inventory-ID: `mongodb-ef65b93b811e6c1a` | Cohort: `mongodb-cohort-f7898c0e7b37`
-- [ ] Concept: `Atlas CLI Failure Scenarios` | Parent: `Atlas CLI` | Mode: `revisit` | CVS: `2.650` | Inventory-ID: `mongodb-c681ba5fc3682f30` | Cohort: `mongodb-cohort-c2b116f7efea`
+- [ ] Concept: `Quantile Estimation (DDSketch)` | Parent: `Client Side Operations Timeout (CSOT)` | Mode: `revisit` | CVS: `2.700` | Inventory-ID: `mongodb-ef65b93b811e6c1a` | Cohort: `mongodb-cohort-f7898c0e7b37` | Queue-state: `held-review`
+- [ ] Concept: `Atlas CLI Failure Scenarios` | Parent: `Atlas CLI` | Mode: `revisit` | CVS: `2.650` | Inventory-ID: `mongodb-c681ba5fc3682f30` | Cohort: `mongodb-cohort-c2b116f7efea` | Queue-state: `held-review`
 - [ ] Concept: `Atlas included-replica pricing vs per-instance HA billing` | Parent: `Atlas Cost Planning: Region Pricing, Estimation, Scheduled Scaling and Competitor TCO` | Mode: `dr` | CVS: `2.650` | Inventory-ID: `mongodb-4fc92e3a76fc64a9` | Cohort: `mongodb-cohort-fd6aad8dc2b9`
 - [ ] Concept: `Egress and data transfer estimation` | Parent: `Atlas Cost Planning: Region Pricing, Estimation, Scheduled Scaling and Competitor TCO` | Mode: `dr` | CVS: `2.650` | Inventory-ID: `mongodb-7f3ba3ad9cb271c0` | Cohort: `mongodb-cohort-18067a89fb07`
 - [ ] Concept: `queryKnobs and per-command querySettings` | Parent: `MongoDB Advanced Explain: Aggregation, Sharded Plans, Loose Index Scans and the 8.3 Cost-Based Ranker` | Mode: `dr` | CVS: `2.650` | Inventory-ID: `mongodb-0f7e0554d978cb8e` | Cohort: `mongodb-cohort-084d16e6bda5`
@@ -4450,14 +4445,14 @@ Every frontier concept, grouped by shared parent (at most 8 per cluster), cluste
 - [ ] Concept: `Rolling index build table-logging incident` | Parent: `Rolling index builds` | Mode: `dr` | CVS: `2.550` | Inventory-ID: `mongodb-82f5b1f3a52c8ad2` | Cohort: `mongodb-cohort-f73749345fb5`
 - [ ] Concept: `Search node tier sizing for vector indexes` | Parent: `Atlas Cost Commitments, Cross-Org Billing and FinOps Tooling` | Mode: `dr` | CVS: `2.550` | Inventory-ID: `mongodb-6019089339a51f59` | Cohort: `mongodb-cohort-35906b911c05`
 - [ ] Concept: `explodeForSort integer overflow (CVE-2026-82076)` | Parent: `SORT_MERGE and $in sort expansion` | Mode: `dr` | CVS: `2.525` | Inventory-ID: `mongodb-6f3be80e7ee2148e` | Cohort: `mongodb-cohort-084d16e6bda5`
-- [ ] Concept: `MongoDB Drivers Architecture Internals` | Parent: `MongoDB Drivers` | Mode: `dr` | CVS: `2.500` | Inventory-ID: `mongodb-1a9448e0f3318606` | Cohort: `mongodb-cohort-b245a56e13e9`
-- [ ] Concept: `MongoDB Drivers Benchmark Metrics` | Parent: `MongoDB Drivers` | Mode: `dr` | CVS: `2.500` | Inventory-ID: `mongodb-a09d610a47871a5a` | Cohort: `mongodb-cohort-bf9495060320`
-- [ ] Concept: `MongoDB Drivers Failure Scenarios` | Parent: `MongoDB Drivers` | Mode: `dr` | CVS: `2.500` | Inventory-ID: `mongodb-c397efc5d1f2c451` | Cohort: `mongodb-cohort-bf9495060320`
-- [ ] Concept: `MongoDB Drivers Operational Runbook` | Parent: `MongoDB Drivers` | Mode: `dr` | CVS: `2.500` | Inventory-ID: `mongodb-e5ea512b67616c18` | Cohort: `mongodb-cohort-bf9495060320`
-- [ ] Concept: `mongosh Reference Architecture Internals` | Parent: `mongosh Reference` | Mode: `dr` | CVS: `2.500` | Inventory-ID: `mongodb-015ac78e13ef9f05` | Cohort: `mongodb-cohort-500f97098aa4`
-- [ ] Concept: `mongosh Reference Benchmark Metrics` | Parent: `mongosh Reference` | Mode: `dr` | CVS: `2.500` | Inventory-ID: `mongodb-befcb053ca0a00f9` | Cohort: `mongodb-cohort-500f97098aa4`
-- [ ] Concept: `mongosh Reference Failure Scenarios` | Parent: `mongosh Reference` | Mode: `dr` | CVS: `2.500` | Inventory-ID: `mongodb-54bb769be94b269e` | Cohort: `mongodb-cohort-500f97098aa4`
-- [ ] Concept: `mongosh Reference Operational Runbook` | Parent: `mongosh Reference` | Mode: `dr` | CVS: `2.500` | Inventory-ID: `mongodb-f651139da18b243e` | Cohort: `mongodb-cohort-500f97098aa4`
+- [ ] Concept: `MongoDB Drivers Architecture Internals` | Parent: `MongoDB Drivers` | Mode: `dr` | CVS: `2.500` | Inventory-ID: `mongodb-1a9448e0f3318606` | Cohort: `mongodb-cohort-b245a56e13e9` | Queue-state: `held`
+- [ ] Concept: `MongoDB Drivers Benchmark Metrics` | Parent: `MongoDB Drivers` | Mode: `dr` | CVS: `2.500` | Inventory-ID: `mongodb-a09d610a47871a5a` | Cohort: `mongodb-cohort-bf9495060320` | Queue-state: `held`
+- [ ] Concept: `MongoDB Drivers Failure Scenarios` | Parent: `MongoDB Drivers` | Mode: `dr` | CVS: `2.500` | Inventory-ID: `mongodb-c397efc5d1f2c451` | Cohort: `mongodb-cohort-bf9495060320` | Queue-state: `held`
+- [ ] Concept: `MongoDB Drivers Operational Runbook` | Parent: `MongoDB Drivers` | Mode: `dr` | CVS: `2.500` | Inventory-ID: `mongodb-e5ea512b67616c18` | Cohort: `mongodb-cohort-bf9495060320` | Queue-state: `held`
+- [ ] Concept: `mongosh Reference Architecture Internals` | Parent: `mongosh Reference` | Mode: `dr` | CVS: `2.500` | Inventory-ID: `mongodb-015ac78e13ef9f05` | Cohort: `mongodb-cohort-500f97098aa4` | Queue-state: `held`
+- [ ] Concept: `mongosh Reference Benchmark Metrics` | Parent: `mongosh Reference` | Mode: `dr` | CVS: `2.500` | Inventory-ID: `mongodb-befcb053ca0a00f9` | Cohort: `mongodb-cohort-500f97098aa4` | Queue-state: `held`
+- [ ] Concept: `mongosh Reference Failure Scenarios` | Parent: `mongosh Reference` | Mode: `dr` | CVS: `2.500` | Inventory-ID: `mongodb-54bb769be94b269e` | Cohort: `mongodb-cohort-500f97098aa4` | Queue-state: `held`
+- [ ] Concept: `mongosh Reference Operational Runbook` | Parent: `mongosh Reference` | Mode: `dr` | CVS: `2.500` | Inventory-ID: `mongodb-f651139da18b243e` | Cohort: `mongodb-cohort-500f97098aa4` | Queue-state: `held`
 - [ ] Concept: `Backup storage rates by region` | Parent: `Atlas Cost Planning: Region Pricing, Estimation, Scheduled Scaling and Competitor TCO` | Mode: `dr` | CVS: `2.450` | Inventory-ID: `mongodb-f982a1742cbb79f2` | Cohort: `mongodb-cohort-a9c2cc4bbf19`
 - [ ] Concept: `Cosmos DB RU estimation for MongoDB workloads` | Parent: `Atlas Cost Planning: Region Pricing, Estimation, Scheduled Scaling and Competitor TCO` | Mode: `dr` | CVS: `2.450` | Inventory-ID: `mongodb-1a844e0df74a38de` | Cohort: `mongodb-cohort-97d0be9985d2`
 - [ ] Concept: `Proportional minimum-commit allocation` | Parent: `Atlas Cost Commitments, Cross-Org Billing and FinOps Tooling` | Mode: `dr` | CVS: `2.450` | Inventory-ID: `mongodb-fb538eb4250cda06` | Cohort: `mongodb-cohort-86157c3fe16f`
@@ -4468,11 +4463,11 @@ Every frontier concept, grouped by shared parent (at most 8 per cluster), cluste
 - [ ] Concept: `Journal compression` | Parent: `Storage and Data-Lifecycle Cost Levers` | Mode: `dr` | CVS: `2.350` | Inventory-ID: `mongodb-48df1b736c264578` | Cohort: `mongodb-cohort-dab118cd8660`
 - [ ] Concept: `Billing incidents and refunds` | Parent: `Atlas Billing and Invoice Anatomy` | Mode: `dr` | CVS: `2.300` | Inventory-ID: `mongodb-a048ccb7e608b58b` | Cohort: `mongodb-cohort-3da97516cefc`
 - [ ] Concept: `PostgreSQL invalid-index cleanup and REINDEX CONCURRENTLY` | Parent: `Resumable index builds` | Mode: `dr` | CVS: `2.300` | Inventory-ID: `mongodb-1f6a5f22aae30ad4` | Cohort: `mongodb-cohort-f73749345fb5`
-- [ ] Concept: `Error Codes and Troubleshooting Benchmark Metrics` | Parent: `Error Codes and Troubleshooting` | Mode: `revisit` | CVS: `2.250` | Inventory-ID: `mongodb-98c4cfdb6c7f87db` | Cohort: `mongodb-cohort-256d4ce7d86f`
+- [ ] Concept: `Error Codes and Troubleshooting Benchmark Metrics` | Parent: `Error Codes and Troubleshooting` | Mode: `revisit` | CVS: `2.250` | Inventory-ID: `mongodb-98c4cfdb6c7f87db` | Cohort: `mongodb-cohort-256d4ce7d86f` | Queue-state: `held-review`
 - [ ] Concept: `Unlinking an organization` | Parent: `Atlas Cost Commitments, Cross-Org Billing and FinOps Tooling` | Mode: `dr` | CVS: `2.250` | Inventory-ID: `mongodb-c63c368f0dede092` | Cohort: `mongodb-cohort-86157c3fe16f`
 - [ ] Concept: `SQL Server resumable index operations: ELEVATE_RESUMABLE and resumable constraints` | Parent: `Resumable index builds` | Mode: `dr` | CVS: `2.200` | Inventory-ID: `mongodb-257362073fe4e362` | Cohort: `mongodb-cohort-41eb8b5e0dea`
 - [ ] Concept: `Cosmos DB for MongoDB wildcard differences` | Parent: `MongoDB Wildcard and Hidden Indexes, Index Builds and Index Overhead` | Mode: `dr` | CVS: `2.150` | Inventory-ID: `mongodb-7323eb0342be4b6c` | Cohort: `mongodb-cohort-86b55445bd3c`
-- [ ] Concept: `MongoDB KB Articles` | Parent: `MongoDB Expert Knowledge` | Mode: `revisit` | CVS: `2.150` | Inventory-ID: `mongodb-cd5d1bb84c993043` | Cohort: `mongodb-cohort-586d5ccba289`
+- [ ] Concept: `MongoDB KB Articles` | Parent: `MongoDB Expert Knowledge` | Mode: `revisit` | CVS: `2.150` | Inventory-ID: `mongodb-cd5d1bb84c993043` | Cohort: `mongodb-cohort-586d5ccba289` | Queue-state: `held-review`
 - [ ] Concept: `Charts billing ingestion for linked orgs` | Parent: `Atlas Cost Commitments, Cross-Org Billing and FinOps Tooling` | Mode: `dr` | CVS: `2.000` | Inventory-ID: `mongodb-ce6e8e8d76e9c72e` | Cohort: `mongodb-cohort-3da97516cefc`
 - [ ] Concept: `$out-based time series rewrite and cutover` | Parent: `Bucket fragmentation remediation (re-insert/merge)` | Mode: `dr` | Inventory-ID: `mongodb-869013037a0a4c33` | Cohort: `mongodb-cohort-3022ccaa53d4`
 - [ ] Concept: `analyzeShardKey and query sampling` | Parent: `Shard Key Design and Resharding as Cost Levers` | Mode: `dr` | Inventory-ID: `mongodb-779f34dfa36f6756` | Cohort: `mongodb-cohort-1dac3676df3d`
@@ -4483,14 +4478,14 @@ Every frontier concept, grouped by shared parent (at most 8 per cluster), cluste
 - [ ] Concept: `Atlas analytics nodes and read preference tags` | Parent: `Long-running secondary reads in sharded clusters` | Mode: `dr` | Inventory-ID: `mongodb-c9679101de543f34` | Cohort: `mongodb-cohort-e69312b26075`
 - [ ] Concept: `Atlas auto-scaling gating by oplog window and its alerts` | Parent: `Oplog sizing under storage auto-scaling` | Mode: `dr` | Inventory-ID: `mongodb-2a06abfc749f181d` | Cohort: `mongodb-cohort-5e672971d3c4`
 - [ ] Concept: `Atlas Automated Embedding economics (Voyage tokens vs external embedding service)` | Parent: `Platform Consolidation TCO (Atlas Search/Vector Search vs Separate Search or Vector DB)` | Mode: `dr` | Inventory-ID: `mongodb-4bee35475c703fbe` | Cohort: `mongodb-cohort-35906b911c05`
-- [ ] Concept: `Atlas compute auto-scaling for sharded clusters` | Parent: `Independent shard scaling and per-shard tiering` | Mode: `dr` | Inventory-ID: `mongodb-8a8588d225b66629` | Cohort: `mongodb-cohort-8b82362773b9`
+- [ ] Concept: `Atlas compute auto-scaling for sharded clusters` | Parent: `Independent shard scaling and per-shard tiering` | Mode: `dr` | Inventory-ID: `mongodb-8a8588d225b66629` | Cohort: `mongodb-cohort-8b82362773b9` | Queue-state: `coverage-review`
 - [ ] Concept: `Atlas disk decrease by volume replacement on AWS, Azure and GCP` | Parent: `Atlas storage auto-scaling and disk reclaim via compact` | Mode: `dr` | Inventory-ID: `mongodb-13c6b1eeb704e59e` | Cohort: `mongodb-cohort-3b4316e64eee`
 - [ ] Concept: `Atlas disk write-blocking thresholds and recovery` | Parent: `Atlas storage auto-scaling and disk reclaim via compact` | Mode: `dr` | Inventory-ID: `mongodb-929575493d4087d5` | Cohort: `mongodb-cohort-3b4316e64eee`
 - [ ] Concept: `Atlas independent shard scaling and auto-scaling` | Parent: `Shard Key Design and Resharding as Cost Levers` | Mode: `dr` | Inventory-ID: `mongodb-d45298dbbaa4894d` | Cohort: `mongodb-cohort-1dac3676df3d`
 - [ ] Concept: `Atlas independent shard scaling and per-shard auto-scaling` | Parent: `Shard Key Design and Resharding as Cost Levers` | Mode: `dr` | Inventory-ID: `mongodb-52309d79b2670167` | Cohort: `mongodb-cohort-1dac3676df3d`
 - [ ] Concept: `Atlas Infinite oplog and storage-layer replication` | Parent: `Oplog sizing under storage auto-scaling` | Mode: `dr` | Inventory-ID: `mongodb-850019f33a974bd2` | Cohort: `mongodb-cohort-c7d0683f9a0f`
 - [ ] Concept: `Atlas Infinite storage metering and max storage limit` | Parent: `Atlas storage auto-scaling and disk reclaim via compact` | Mode: `dr` | Inventory-ID: `mongodb-290473cfefc454a9` | Cohort: `mongodb-cohort-3b4316e64eee`
-- [ ] Concept: `Atlas Infinite storage model (max storage limit, no auto-scaling)` | Parent: `Atlas storage auto-scaling and disk reclaim via compact` | Mode: `dr` | Inventory-ID: `mongodb-a2f56f7f5271253e` | Cohort: `mongodb-cohort-6ab138bc6f1d`
+- [ ] Concept: `Atlas Infinite storage model (max storage limit, no auto-scaling)` | Parent: `Atlas storage auto-scaling and disk reclaim via compact` | Mode: `dr` | Inventory-ID: `mongodb-a2f56f7f5271253e` | Cohort: `mongodb-cohort-6ab138bc6f1d` | Queue-state: `coverage-review`
 - [ ] Concept: `Atlas Minimum Oplog Window (oplogMinRetentionHours)` | Parent: `Oplog sizing under storage auto-scaling` | Mode: `dr` | Inventory-ID: `mongodb-5d31399755f14ab9` | Cohort: `mongodb-cohort-24b0679b9049`
 - [ ] Concept: `Atlas minimum oplog window (oplogMinRetentionHours) tuning` | Parent: `Oplog sizing under storage auto-scaling` | Mode: `dr` | Inventory-ID: `mongodb-c85605b2cc4dc9d2` | Cohort: `mongodb-cohort-24b0679b9049`
 - [ ] Concept: `Atlas Search index behaviour with $out versus $merge targets` | Parent: `Read Offload via Caching and Precomputed Views ($merge/$out, Computed Pattern)` | Mode: `dr` | Inventory-ID: `mongodb-1b80802c72c7649a` | Cohort: `mongodb-cohort-0665dca27c0a`
@@ -4504,18 +4499,18 @@ Every frontier concept, grouped by shared parent (at most 8 per cluster), cluste
 - [ ] Concept: `Atlas Vector Search numCandidates tuning and recall measurement against ENN` | Parent: `Atlas Vector Search automatic quantization and rescoring` | Mode: `dr` | Inventory-ID: `mongodb-ac984432ae410e27` | Cohort: `mongodb-cohort-98c51e22efb6`
 - [ ] Concept: `Atlas Vector Search RAM sizing and automatic quantization` | Parent: `Platform Consolidation TCO (Atlas Search/Vector Search vs Separate Search or Vector DB)` | Mode: `dr` | Inventory-ID: `mongodb-7a014dcb5be07f3c` | Cohort: `mongodb-cohort-98c51e22efb6`
 - [ ] Concept: `Atlas write-blocking thresholds and Intelligent Workload Management` | Parent: `Atlas storage auto-scaling and disk reclaim via compact` | Mode: `dr` | Inventory-ID: `mongodb-a5b02b4713b48099` | Cohort: `mongodb-cohort-6ab138bc6f1d`
-- [ ] Concept: `Automated Embedding (autoEmbed) quantization types` | Parent: `Atlas Vector Search automatic quantization and rescoring` | Mode: `dr` | Inventory-ID: `mongodb-1672753667a8a066` | Cohort: `mongodb-cohort-98c51e22efb6`
-- [ ] Concept: `Automated Embedding (autoEmbed) quantization types including binaryNoRescore` | Parent: `Atlas Vector Search automatic quantization and rescoring` | Mode: `dr` | Inventory-ID: `mongodb-939c6afccdc05227` | Cohort: `mongodb-cohort-f88c9da58c84`
+- [ ] Concept: `Automated Embedding (autoEmbed) quantization types` | Parent: `Atlas Vector Search automatic quantization and rescoring` | Mode: `dr` | Inventory-ID: `mongodb-1672753667a8a066` | Cohort: `mongodb-cohort-98c51e22efb6` | Queue-state: `coverage-review`
+- [ ] Concept: `Automated Embedding (autoEmbed) quantization types including binaryNoRescore` | Parent: `Atlas Vector Search automatic quantization and rescoring` | Mode: `dr` | Inventory-ID: `mongodb-939c6afccdc05227` | Cohort: `mongodb-cohort-f88c9da58c84` | Queue-state: `coverage-review`
 - [ ] Concept: `Balancer control for long reads (balancing window, configureCollectionBalancing, _waitForDelete)` | Parent: `Long-running secondary reads in sharded clusters` | Mode: `dr` | Inventory-ID: `mongodb-c4f1160e54c251fc` | Cohort: `mongodb-cohort-e69312b26075`
-- [ ] Concept: `Balancer data-size policy and zone-aware migration` | Parent: `Independent shard scaling and per-shard tiering` | Mode: `dr` | Inventory-ID: `mongodb-ba374350fd1b2bfc` | Cohort: `mongodb-cohort-8b82362773b9`
+- [ ] Concept: `Balancer data-size policy and zone-aware migration` | Parent: `Independent shard scaling and per-shard tiering` | Mode: `dr` | Inventory-ID: `mongodb-ba374350fd1b2bfc` | Cohort: `mongodb-cohort-8b82362773b9` | Queue-state: `coverage-review`
 - [ ] Concept: `Balancer windows and per-collection balancing control` | Parent: `Long-running secondary reads in sharded clusters` | Mode: `dr` | Inventory-ID: `mongodb-696982ad112245fe` | Cohort: `mongodb-cohort-e69312b26075`
 - [ ] Concept: `Balancer, chunk migration and jumbo chunk remediation` | Parent: `Shard Key Design and Resharding as Cost Levers` | Mode: `dr` | Inventory-ID: `mongodb-e9767d35bd3564d7` | Cohort: `mongodb-cohort-66a141be9c53`
 - [ ] Concept: `Blocking sort memory limit and allowDiskUse` | Parent: `SORT_MERGE and $in sort expansion` | Mode: `dr` | Inventory-ID: `mongodb-2ec006134792b0c5` | Cohort: `mongodb-cohort-99762008d157`
 - [ ] Concept: `Bucket archiving and query-based reopening` | Parent: `Bucket catalog memory and closure reasons` | Mode: `dr` | Inventory-ID: `mongodb-6f7952f8bc36e6ac` | Cohort: `mongodb-cohort-c34b35a5f187`
-- [ ] Concept: `Bucket catalog stripes, state registry and eras` | Parent: `Bucket catalog memory and closure reasons` | Mode: `dr` | Inventory-ID: `mongodb-0a3be19203e9172f` | Cohort: `mongodb-cohort-c34b35a5f187`
-- [ ] Concept: `Bucket reopening and the {metaField, timeField} index requirement` | Parent: `Bucket fragmentation remediation (re-insert/merge)` | Mode: `dr` | Inventory-ID: `mongodb-0a10b489706a380f` | Cohort: `mongodb-cohort-3022ccaa53d4`
+- [ ] Concept: `Bucket catalog stripes, state registry and eras` | Parent: `Bucket catalog memory and closure reasons` | Mode: `dr` | Inventory-ID: `mongodb-0a3be19203e9172f` | Cohort: `mongodb-cohort-c34b35a5f187` | Queue-state: `coverage-review`
+- [ ] Concept: `Bucket reopening and the {metaField, timeField} index requirement` | Parent: `Bucket fragmentation remediation (re-insert/merge)` | Mode: `dr` | Inventory-ID: `mongodb-0a10b489706a380f` | Cohort: `mongodb-cohort-3022ccaa53d4` | Queue-state: `coverage-review`
 - [ ] Concept: `Cache-derived dynamic bucket size limit` | Parent: `Bucket catalog memory and closure reasons` | Mode: `dr` | Inventory-ID: `mongodb-2c58908da1fa80b5` | Cohort: `mongodb-cohort-c34b35a5f187`
-- [ ] Concept: `Cache-pressure early bucket closure and bucket catalog memory` | Parent: `Bucket fragmentation remediation (re-insert/merge)` | Mode: `dr` | Inventory-ID: `mongodb-64ee8f1a399655a0` | Cohort: `mongodb-cohort-3022ccaa53d4`
+- [ ] Concept: `Cache-pressure early bucket closure and bucket catalog memory` | Parent: `Bucket fragmentation remediation (re-insert/merge)` | Mode: `dr` | Inventory-ID: `mongodb-64ee8f1a399655a0` | Cohort: `mongodb-cohort-3022ccaa53d4` | Queue-state: `coverage-review`
 - [ ] Concept: `Chunk migration commit, range deleter and orphan cleanup internals` | Parent: `Long-running secondary reads in sharded clusters` | Mode: `dr` | Inventory-ID: `mongodb-b61f815eb024910f` | Cohort: `mongodb-cohort-e69312b26075`
 - [ ] Concept: `Clustered collection insert locality` | Parent: `Random-key (hashed/UUID) index insert behavior` | Mode: `dr` | Inventory-ID: `mongodb-882d953d06ecf092` | Cohort: `mongodb-cohort-ead4605ef88b`
 - [ ] Concept: `Co-located vs dedicated mongot decision thresholds and failure modes` | Parent: `Platform Consolidation TCO (Atlas Search/Vector Search vs Separate Search or Vector DB)` | Mode: `dr` | Inventory-ID: `mongodb-0999b277ab0619e9` | Cohort: `mongodb-cohort-1dd22f892f54`
@@ -4526,12 +4521,12 @@ Every frontier concept, grouped by shared parent (at most 8 per cluster), cluste
 - [ ] Concept: `COUNT_SCAN and sharded count accuracy` | Parent: `Covered queries on sharded collections` | Mode: `dr` | Inventory-ID: `mongodb-d4200ab2ca7b6cb5` | Cohort: `mongodb-cohort-619678815e6a`
 - [ ] Concept: `Covered distinct and $group on sharded collections` | Parent: `Covered queries on sharded collections` | Mode: `dr` | Inventory-ID: `mongodb-21d5889a8e37c9a6` | Cohort: `mongodb-cohort-619678815e6a`
 - [ ] Concept: `Dedicated Search Nodes two-node cost floor versus coupled mongot` | Parent: `Cluster Tier Limits and Feature Gates as Cost Drivers (Connections, IOPS Caps, Minimum Tiers)` | Mode: `dr` | Inventory-ID: `mongodb-cb1abdaf537229f9` | Cohort: `mongodb-cohort-1dd22f892f54`
-- [ ] Concept: `Delete and re-insert safety on time series` | Parent: `Bucket fragmentation remediation (re-insert/merge)` | Mode: `dr` | Inventory-ID: `mongodb-923ceb9b3e18edd6` | Cohort: `mongodb-cohort-3022ccaa53d4`
+- [ ] Concept: `Delete and re-insert safety on time series` | Parent: `Bucket fragmentation remediation (re-insert/merge)` | Mode: `dr` | Inventory-ID: `mongodb-923ceb9b3e18edd6` | Cohort: `mongodb-cohort-3022ccaa53d4` | Queue-state: `coverage-review`
 - [ ] Concept: `Detecting inconsistent indexes across shards` | Parent: `Rolling index builds` | Mode: `dr` | Inventory-ID: `mongodb-b8db54bb2db88fcc` | Cohort: `mongodb-cohort-c5470a8d6ad1`
 - [ ] Concept: `DiskSpaceMonitor and low-disk index build abort (7.1+)` | Parent: `Index build resource limits (maxNumActiveUserIndexBuilds, disk space)` | Mode: `dr` | Inventory-ID: `mongodb-f2ba7b6cbaf4b07d` | Cohort: `mongodb-cohort-7122968eaeb6`
 - [ ] Concept: `DISTINCT_SCAN with shard filtering in 8.2` | Parent: `Covered queries on sharded collections` | Mode: `dr` | Inventory-ID: `mongodb-db4cbab4dbb77651` | Cohort: `mongodb-cohort-619678815e6a`
-- [ ] Concept: `dropIndexes locking and rollback by rebuild` | Parent: `Unused index detection with $indexStats` | Mode: `dr` | Inventory-ID: `mongodb-7e8b96bdf697cd86` | Cohort: `mongodb-cohort-a93aea331d45`
-- [ ] Concept: `Dynamic bucket size cap under cache pressure` | Parent: `Bucket catalog memory and closure reasons` | Mode: `dr` | Inventory-ID: `mongodb-4508beee32348bbe` | Cohort: `mongodb-cohort-c34b35a5f187`
+- [ ] Concept: `dropIndexes locking and rollback by rebuild` | Parent: `Unused index detection with $indexStats` | Mode: `dr` | Inventory-ID: `mongodb-7e8b96bdf697cd86` | Cohort: `mongodb-cohort-a93aea331d45` | Queue-state: `coverage-review`
+- [ ] Concept: `Dynamic bucket size cap under cache pressure` | Parent: `Bucket catalog memory and closure reasons` | Mode: `dr` | Inventory-ID: `mongodb-4508beee32348bbe` | Cohort: `mongodb-cohort-c34b35a5f187` | Queue-state: `coverage-review`
 - [ ] Concept: `Dynamic bucket sizing and cache-pressure closures` | Parent: `Bucket fragmentation remediation (re-insert/merge)` | Mode: `dr` | Inventory-ID: `mongodb-daf240a9ba3ba62e` | Cohort: `mongodb-cohort-77cb4e296273`
 - [ ] Concept: `EBS volume modification limits and Atlas disk resize mechanics` | Parent: `Oplog sizing under storage auto-scaling` | Mode: `dr` | Inventory-ID: `mongodb-bf2466898d41baab` | Cohort: `mongodb-cohort-c7d0683f9a0f`
 - [ ] Concept: `Elasticsearch-to-Atlas Search migration and dual-run cost` | Parent: `Platform Consolidation TCO (Atlas Search/Vector Search vs Separate Search or Vector DB)` | Mode: `dr` | Inventory-ID: `mongodb-6e39951e23eed351` | Cohort: `mongodb-cohort-1dd22f892f54`
@@ -4540,24 +4535,24 @@ Every frontier concept, grouped by shared parent (at most 8 per cluster), cluste
 - [ ] Concept: `Express path for _id lookups on sharded collections` | Parent: `Covered queries on sharded collections` | Mode: `dr` | Inventory-ID: `mongodb-f9c388b7c70355e6` | Cohort: `mongodb-cohort-619678815e6a`
 - [ ] Concept: `Frozen buckets and compression failures` | Parent: `Bucket catalog memory and closure reasons` | Mode: `dr` | Inventory-ID: `mongodb-4730c00dc9ee7135` | Cohort: `mongodb-cohort-8bb8e1ebd468`
 - [ ] Concept: `Gen1 versus Gen2 IOPS provisioning and instance-level EBS/VM IOPS caps` | Parent: `Cluster Tier Limits and Feature Gates as Cost Drivers (Connections, IOPS Caps, Minimum Tiers)` | Mode: `dr` | Inventory-ID: `mongodb-62d8459507a70ec8` | Cohort: `mongodb-cohort-7b84bed0b7eb`
-- [ ] Concept: `Hashed and compound hashed shard keys and index coverage` | Parent: `Covered queries on sharded collections` | Mode: `dr` | Inventory-ID: `mongodb-7fbf6e87171ca9e8` | Cohort: `mongodb-cohort-53d503a1ac24`
+- [ ] Concept: `Hashed and compound hashed shard keys and index coverage` | Parent: `Covered queries on sharded collections` | Mode: `dr` | Inventory-ID: `mongodb-7fbf6e87171ca9e8` | Cohort: `mongodb-cohort-53d503a1ac24` | Queue-state: `coverage-review`
 - [ ] Concept: `Hashed shard keys and index support` | Parent: `Covered queries on sharded collections` | Mode: `dr` | Inventory-ID: `mongodb-b3f8a3c9021603e8` | Cohort: `mongodb-cohort-53d503a1ac24`
 - [ ] Concept: `Hashed shard-key write distribution and local index locality` | Parent: `Random-key (hashed/UUID) index insert behavior` | Mode: `dr` | Inventory-ID: `mongodb-fa3aaf6e5b264c5d` | Cohort: `mongodb-cohort-27b1229cf1bf`
 - [ ] Concept: `Hashed versus ranged shard-key tradeoffs` | Parent: `Shard key selection for query isolation` | Mode: `dr` | Inventory-ID: `mongodb-991d5f922cc78788` | Cohort: `mongodb-cohort-0243ade22f9d`
 - [ ] Concept: `Hashed, ranged and compound hashed shard keys` | Parent: `Shard Key Design and Resharding as Cost Levers` | Mode: `dr` | Inventory-ID: `mongodb-6fb4e66a9e4066ec` | Cohort: `mongodb-cohort-66a141be9c53`
-- [ ] Concept: `Hot shard diagnosis and shard key remediation` | Parent: `Independent shard scaling and per-shard tiering` | Mode: `dr` | Inventory-ID: `mongodb-e18f2f1019762eea` | Cohort: `mongodb-cohort-8b82362773b9`
+- [ ] Concept: `Hot shard diagnosis and shard key remediation` | Parent: `Independent shard scaling and per-shard tiering` | Mode: `dr` | Inventory-ID: `mongodb-e18f2f1019762eea` | Cohort: `mongodb-cohort-8b82362773b9` | Queue-state: `coverage-review`
 - [ ] Concept: `Hybrid search ($rankFusion) vs separate search plus vector stack` | Parent: `Platform Consolidation TCO (Atlas Search/Vector Search vs Separate Search or Vector DB)` | Mode: `dr` | Inventory-ID: `mongodb-cb8fa38113d4a3bf` | Cohort: `mongodb-cohort-c039157cf456`
 - [ ] Concept: `Idle bucket expiry and archived bucket reopening` | Parent: `Bucket catalog memory and closure reasons` | Mode: `dr` | Inventory-ID: `mongodb-f233d10934a5e0d7` | Cohort: `mongodb-cohort-8bb8e1ebd468`
-- [ ] Concept: `Idle-spend and minimum-commit economics of serverless vector stores` | Parent: `Platform Consolidation TCO (Atlas Search/Vector Search vs Separate Search or Vector DB)` | Mode: `dr` | Inventory-ID: `mongodb-57fe4d836a248d22` | Cohort: `mongodb-cohort-c039157cf456`
+- [ ] Concept: `Idle-spend and minimum-commit economics of serverless vector stores` | Parent: `Platform Consolidation TCO (Atlas Search/Vector Search vs Separate Search or Vector DB)` | Mode: `dr` | Inventory-ID: `mongodb-57fe4d836a248d22` | Cohort: `mongodb-cohort-c039157cf456` | Queue-state: `coverage-review`
 - [ ] Concept: `Loose versus tight bucket predicates` | Parent: `Bucket-level predicate rewriting for measurement operators` | Mode: `dr` | Inventory-ID: `mongodb-3072d2a4e371f608` | Cohort: `mongodb-cohort-ded7cec0af2e`
 - [ ] Concept: `Lucene BBQ binary quantization compared with Atlas binary quantization` | Parent: `Atlas Vector Search automatic quantization and rescoring` | Mode: `dr` | Inventory-ID: `mongodb-746e0de29ea30509` | Cohort: `mongodb-cohort-c039157cf456`
 - [ ] Concept: `Matryoshka and quantization-aware embedding models` | Parent: `Atlas Vector Search automatic quantization and rescoring` | Mode: `dr` | Inventory-ID: `mongodb-3df89994c3c60fd5` | Cohort: `mongodb-cohort-58b5faf526d2`
 - [ ] Concept: `maxEstimatedScanBytes collection-scan rejection (9.0)` | Parent: `Operation rejection filters` | Mode: `dr` | Inventory-ID: `mongodb-55851d1ec7332aa1` | Cohort: `mongodb-cohort-4b089bde7a44`
 - [ ] Concept: `Measuring ANN recall against ENN baselines` | Parent: `Atlas Vector Search automatic quantization and rescoring` | Mode: `dr` | Inventory-ID: `mongodb-58d3075bb6bcb3ac` | Cohort: `mongodb-cohort-58b5faf526d2`
-- [ ] Concept: `metaField cardinality and active-bucket count` | Parent: `Bucket catalog memory and closure reasons` | Mode: `dr` | Inventory-ID: `mongodb-3d2f9fb21415d4cc` | Cohort: `mongodb-cohort-8bb8e1ebd468`
-- [ ] Concept: `MongoDB 8.0 autoCompact background compaction on Atlas` | Parent: `Atlas storage auto-scaling and disk reclaim via compact` | Mode: `dr` | Inventory-ID: `mongodb-55db4d991e83d87c` | Cohort: `mongodb-cohort-6ab138bc6f1d`
+- [ ] Concept: `metaField cardinality and active-bucket count` | Parent: `Bucket catalog memory and closure reasons` | Mode: `dr` | Inventory-ID: `mongodb-3d2f9fb21415d4cc` | Cohort: `mongodb-cohort-8bb8e1ebd468` | Queue-state: `coverage-review`
+- [ ] Concept: `MongoDB 8.0 autoCompact background compaction on Atlas` | Parent: `Atlas storage auto-scaling and disk reclaim via compact` | Mode: `dr` | Inventory-ID: `mongodb-55db4d991e83d87c` | Cohort: `mongodb-cohort-6ab138bc6f1d` | Queue-state: `coverage-review`
 - [ ] Concept: `MongoDB cache-pressure monitor and oldest-transaction aborts (8.2 and later)` | Parent: `WiredTiger cache eviction and dirty ratio` | Mode: `dr` | Inventory-ID: `mongodb-5e77d4557f37e1b1` | Cohort: `mongodb-cohort-98779ed7f05a`
-- [ ] Concept: `MongoDB Replication` | Parent: `MongoDB Expert Knowledge` | Mode: `revisit` | Inventory-ID: `mongodb-9dfbda4aab833ec7` | Cohort: `mongodb-cohort-78c1f2f05b01`
+- [ ] Concept: `MongoDB Replication` | Parent: `MongoDB Expert Knowledge` | Mode: `revisit` | Inventory-ID: `mongodb-9dfbda4aab833ec7` | Cohort: `mongodb-cohort-78c1f2f05b01` | Queue-state: `held-review`
 - [ ] Concept: `mongosync and live-migration oplog capacity planning` | Parent: `Oplog sizing under storage auto-scaling` | Mode: `dr` | Inventory-ID: `mongodb-a795f66b3ce719c6` | Cohort: `mongodb-cohort-78c1f2f05b01`
 - [ ] Concept: `mongot replication lag, oplog window and index rebuild cost` | Parent: `Platform Consolidation TCO (Atlas Search/Vector Search vs Separate Search or Vector DB)` | Mode: `dr` | Inventory-ID: `mongodb-9f2f133f2977052b` | Cohort: `mongodb-cohort-ab79b60afbcc`
 - [ ] Concept: `moveCollection and collection isolation on dedicated shards` | Parent: `Independent shard scaling and per-shard tiering` | Mode: `dr` | Inventory-ID: `mongodb-1313ca23009179da` | Cohort: `mongodb-cohort-8b82362773b9`
@@ -4566,18 +4561,18 @@ Every frontier concept, grouped by shared parent (at most 8 per cluster), cluste
 - [ ] Concept: `Oplog capacity for initial sync, live migration and bulk loads` | Parent: `Oplog sizing under storage auto-scaling` | Mode: `dr` | Inventory-ID: `mongodb-09bbc3b6858039a7` | Cohort: `mongodb-cohort-78c1f2f05b01`
 - [ ] Concept: `Oplog minimum retention window and storage auto-scaling` | Parent: `Atlas storage auto-scaling and disk reclaim via compact` | Mode: `dr` | Inventory-ID: `mongodb-491fab6d89343906` | Cohort: `mongodb-cohort-6ab138bc6f1d`
 - [ ] Concept: `orphanCleanupDelaySecs and range deletion timing` | Parent: `Long-running secondary reads in sharded clusters` | Mode: `dr` | Inventory-ID: `mongodb-8886daa104930363` | Cohort: `mongodb-cohort-377aca18d9d6`
-- [ ] Concept: `Orphaned documents and range deletion` | Parent: `Covered queries on sharded collections` | Mode: `dr` | Inventory-ID: `mongodb-cf4c82ea24e1e659` | Cohort: `mongodb-cohort-53d503a1ac24`
+- [ ] Concept: `Orphaned documents and range deletion` | Parent: `Covered queries on sharded collections` | Mode: `dr` | Inventory-ID: `mongodb-cf4c82ea24e1e659` | Cohort: `mongodb-cohort-53d503a1ac24` | Queue-state: `coverage-review`
 - [ ] Concept: `Per-node and per-shard $indexStats aggregation across replica sets and shards` | Parent: `Unused index detection with $indexStats` | Mode: `dr` | Inventory-ID: `mongodb-ddae0af93a2ef966` | Cohort: `mongodb-cohort-1ad06b98c95d`
-- [ ] Concept: `Per-shard compute auto-scaling rules and limits on Atlas` | Parent: `Independent shard scaling and per-shard tiering` | Mode: `dr` | Inventory-ID: `mongodb-69f911f95ca28217` | Cohort: `mongodb-cohort-fa5d1741f422`
+- [ ] Concept: `Per-shard compute auto-scaling rules and limits on Atlas` | Parent: `Independent shard scaling and per-shard tiering` | Mode: `dr` | Inventory-ID: `mongodb-69f911f95ca28217` | Cohort: `mongodb-cohort-fa5d1741f422` | Queue-state: `coverage-review`
 - [ ] Concept: `Per-shard disk IOPS and storage constraints` | Parent: `Independent shard scaling and per-shard tiering` | Mode: `dr` | Inventory-ID: `mongodb-f5ea1a5b9eabc238` | Cohort: `mongodb-cohort-9506d4f6a2ef`
 - [ ] Concept: `Per-shard IOPS and Gen2 storage on Atlas` | Parent: `Independent shard scaling and per-shard tiering` | Mode: `dr` | Inventory-ID: `mongodb-ed34f8099debb39e` | Cohort: `mongodb-cohort-9506d4f6a2ef`
 - [ ] Concept: `Post-cutover rebuilds: Atlas Search indexes, users and roles, time-series collections` | Parent: `Migration and Cutover Cost (Live Migration, mongosync, Dual-Running, Egress)` | Mode: `dr` | Inventory-ID: `mongodb-2f0d3d755535f053` | Cohort: `mongodb-cohort-ab79b60afbcc`
 - [ ] Concept: `Pre-quantized BinData (int8 and int1) ingestion` | Parent: `Atlas Vector Search automatic quantization and rescoring` | Mode: `dr` | Inventory-ID: `mongodb-dbcbc1d7561ca48d` | Cohort: `mongodb-cohort-44f9da81286b`
 - [ ] Concept: `Pre-quantized BinData vector ingestion (int8 and int1) in MongoDB` | Parent: `Atlas Vector Search automatic quantization and rescoring` | Mode: `dr` | Inventory-ID: `mongodb-807c3ccd211eeab7` | Cohort: `mongodb-cohort-44f9da81286b`
-- [ ] Concept: `Quantization-aware and Matryoshka embeddings (voyage-3-large) with Atlas dimension slicing` | Parent: `Atlas Vector Search automatic quantization and rescoring` | Mode: `dr` | Inventory-ID: `mongodb-8d61b695eec98ece` | Cohort: `mongodb-cohort-44f9da81286b`
+- [ ] Concept: `Quantization-aware and Matryoshka embeddings (voyage-3-large) with Atlas dimension slicing` | Parent: `Atlas Vector Search automatic quantization and rescoring` | Mode: `dr` | Inventory-ID: `mongodb-8d61b695eec98ece` | Cohort: `mongodb-cohort-44f9da81286b` | Queue-state: `coverage-review`
 - [ ] Concept: `rawData bucket-level CRUD (8.2 and later)` | Parent: `Bucket fragmentation remediation (re-insert/merge)` | Mode: `dr` | Inventory-ID: `mongodb-b14dc0828d8b50be` | Cohort: `mongodb-cohort-77cb4e296273`
 - [ ] Concept: `readConcern available on sharded clusters` | Parent: `Covered queries on sharded collections` | Mode: `dr` | Inventory-ID: `mongodb-4baf9880f7b8ff7e` | Cohort: `mongodb-cohort-53d503a1ac24`
-- [ ] Concept: `Reading sharded explain output (shards, SINGLE_SHARD, SHARD_MERGE)` | Parent: `Covered queries on sharded collections` | Mode: `dr` | Inventory-ID: `mongodb-9cfbe719bb847f18` | Cohort: `mongodb-cohort-76f76c09a068`
+- [ ] Concept: `Reading sharded explain output (shards, SINGLE_SHARD, SHARD_MERGE)` | Parent: `Covered queries on sharded collections` | Mode: `dr` | Inventory-ID: `mongodb-9cfbe719bb847f18` | Cohort: `mongodb-cohort-76f76c09a068` | Queue-state: `coverage-review`
 - [ ] Concept: `Rebuilding a time series collection with $out or mongorestore` | Parent: `Bucket fragmentation remediation (re-insert/merge)` | Mode: `dr` | Inventory-ID: `mongodb-d50feb629e688162` | Cohort: `mongodb-cohort-77cb4e296273`
 - [ ] Concept: `Reducing Atlas storage capacity (new-volume sync, per-node downtime)` | Parent: `Atlas storage auto-scaling and disk reclaim via compact` | Mode: `dr` | Inventory-ID: `mongodb-56adaf63af16ccb6` | Cohort: `mongodb-cohort-6d3ca95d2e4e`
 - [ ] Concept: `Reducing shard count and unsharding collections on Atlas` | Parent: `Shard Key Design and Resharding as Cost Levers` | Mode: `dr` | Inventory-ID: `mongodb-e55deac1bde07add` | Cohort: `mongodb-cohort-10c4dfe24a29`
@@ -4585,7 +4580,7 @@ Every frontier concept, grouped by shared parent (at most 8 per cluster), cluste
 - [ ] Concept: `Replication Oplog Window alerts and Oplog GB/Hour monitoring` | Parent: `Oplog sizing under storage auto-scaling` | Mode: `dr` | Inventory-ID: `mongodb-bd2ec94cfc3e0c7d` | Cohort: `mongodb-cohort-9bb0b47f897f`
 - [ ] Concept: `Replication oplog window monitoring (Oplog GB/Hour, Replication Headroom)` | Parent: `Oplog sizing under storage auto-scaling` | Mode: `dr` | Inventory-ID: `mongodb-b22b7ad3bfec0d0e` | Cohort: `mongodb-cohort-9bb0b47f897f`
 - [ ] Concept: `replSetResizeOplog and oplog compaction on self-managed replica sets` | Parent: `Oplog sizing under storage auto-scaling` | Mode: `dr` | Inventory-ID: `mongodb-01e5968b3c6a6095` | Cohort: `mongodb-cohort-c7d0683f9a0f`
-- [ ] Concept: `replSetResizeOplog and oplog compaction runbook` | Parent: `Oplog sizing under storage auto-scaling` | Mode: `dr` | Inventory-ID: `mongodb-b68de527be6e2e1b` | Cohort: `mongodb-cohort-37fc02336c5b`
+- [ ] Concept: `replSetResizeOplog and oplog compaction runbook` | Parent: `Oplog sizing under storage auto-scaling` | Mode: `dr` | Inventory-ID: `mongodb-b68de527be6e2e1b` | Cohort: `mongodb-cohort-37fc02336c5b` | Queue-state: `coverage-review`
 - [ ] Concept: `Reshard to the same key for adding and removing shards` | Parent: `Shard Key Design and Resharding as Cost Levers` | Mode: `dr` | Inventory-ID: `mongodb-33676740c89bacf0` | Cohort: `mongodb-cohort-10c4dfe24a29`
 - [ ] Concept: `Resume-from-last-key pattern for killed cursors` | Parent: `Long-running secondary reads in sharded clusters` | Mode: `dr` | Inventory-ID: `mongodb-87979fda64c57aa4` | Cohort: `mongodb-cohort-377aca18d9d6`
 - [ ] Concept: `Rolling index build key inconsistency incident` | Parent: `Rolling index builds` | Mode: `dr` | Inventory-ID: `mongodb-b41c8cb4dfa445cf` | Cohort: `mongodb-cohort-9bb0b47f897f`
@@ -4595,22 +4590,22 @@ Every frontier concept, grouped by shared parent (at most 8 per cluster), cluste
 - [ ] Concept: `Search Node sizing for quantized vector indexes (RAM, disk, vCPU)` | Parent: `Atlas Vector Search automatic quantization and rescoring` | Mode: `dr` | Inventory-ID: `mongodb-7af7e4d6845945d6` | Cohort: `mongodb-cohort-3dba10479e0c`
 - [ ] Concept: `Self-managed mongot on Community Edition: hardware and labour TCO` | Parent: `Platform Consolidation TCO (Atlas Search/Vector Search vs Separate Search or Vector DB)` | Mode: `dr` | Inventory-ID: `mongodb-499ad5dfcc676208` | Cohort: `mongodb-cohort-3ec5e87ecee4`
 - [ ] Concept: `Separate-stack cost floors: Pinecone, OpenSearch Serverless NextGen, Elastic Serverless, S3 Vectors` | Parent: `Platform Consolidation TCO (Atlas Search/Vector Search vs Separate Search or Vector DB)` | Mode: `dr` | Inventory-ID: `mongodb-9e8aa89ebeeddb75` | Cohort: `mongodb-cohort-3dba10479e0c`
-- [ ] Concept: `serverStatus bucketCatalog and collStats timeseries counters` | Parent: `Bucket catalog memory and closure reasons` | Mode: `dr` | Inventory-ID: `mongodb-0aeaaf1da0623b3c` | Cohort: `mongodb-cohort-8bb8e1ebd468`
-- [ ] Concept: `Shard key index constraints when dropping or hiding indexes` | Parent: `Hidden indexes and safe index removal` | Mode: `dr` | Inventory-ID: `mongodb-efd576940abfe93a` | Cohort: `mongodb-cohort-ab6ca72e8dcd`
+- [ ] Concept: `serverStatus bucketCatalog and collStats timeseries counters` | Parent: `Bucket catalog memory and closure reasons` | Mode: `dr` | Inventory-ID: `mongodb-0aeaaf1da0623b3c` | Cohort: `mongodb-cohort-8bb8e1ebd468` | Queue-state: `coverage-review`
+- [ ] Concept: `Shard key index constraints when dropping or hiding indexes` | Parent: `Hidden indexes and safe index removal` | Mode: `dr` | Inventory-ID: `mongodb-efd576940abfe93a` | Cohort: `mongodb-cohort-ab6ca72e8dcd` | Queue-state: `coverage-review`
 - [ ] Concept: `Shard key index design` | Parent: `Covered queries on sharded collections` | Mode: `dr` | Inventory-ID: `mongodb-6495b656928cd28c` | Cohort: `mongodb-cohort-76f76c09a068`
-- [ ] Concept: `Sharded time series rebuild and resharding` | Parent: `Bucket fragmentation remediation (re-insert/merge)` | Mode: `dr` | Inventory-ID: `mongodb-12f204d0f73d5c70` | Cohort: `mongodb-cohort-77cb4e296273`
-- [ ] Concept: `SHARDING_FILTER stage and chunkSkips` | Parent: `Covered queries on sharded collections` | Mode: `dr` | Inventory-ID: `mongodb-4f273eb41d058596` | Cohort: `mongodb-cohort-76f76c09a068`
+- [ ] Concept: `Sharded time series rebuild and resharding` | Parent: `Bucket fragmentation remediation (re-insert/merge)` | Mode: `dr` | Inventory-ID: `mongodb-12f204d0f73d5c70` | Cohort: `mongodb-cohort-77cb4e296273` | Queue-state: `coverage-review`
+- [ ] Concept: `SHARDING_FILTER stage and chunkSkips` | Parent: `Covered queries on sharded collections` | Mode: `dr` | Inventory-ID: `mongodb-4f273eb41d058596` | Cohort: `mongodb-cohort-76f76c09a068` | Queue-state: `coverage-review`
 - [ ] Concept: `SHARDING_FILTER stage internals and orphaned-document filtering` | Parent: `Covered queries on sharded collections` | Mode: `dr` | Inventory-ID: `mongodb-72047567328b3784` | Cohort: `mongodb-cohort-76f76c09a068`
-- [ ] Concept: `Side bucket catalog` | Parent: `Bucket catalog memory and closure reasons` | Mode: `dr` | Inventory-ID: `mongodb-c6459d640bbea983` | Cohort: `mongodb-cohort-862104dc8a3f`
-- [ ] Concept: `Side bucket catalog for time series updates and deletes` | Parent: `Bucket catalog memory and closure reasons` | Mode: `dr` | Inventory-ID: `mongodb-844cb4caa9361223` | Cohort: `mongodb-cohort-862104dc8a3f`
+- [ ] Concept: `Side bucket catalog` | Parent: `Bucket catalog memory and closure reasons` | Mode: `dr` | Inventory-ID: `mongodb-c6459d640bbea983` | Cohort: `mongodb-cohort-862104dc8a3f` | Queue-state: `coverage-review`
+- [ ] Concept: `Side bucket catalog for time series updates and deletes` | Parent: `Bucket catalog memory and closure reasons` | Mode: `dr` | Inventory-ID: `mongodb-844cb4caa9361223` | Cohort: `mongodb-cohort-862104dc8a3f` | Queue-state: `coverage-review`
 - [ ] Concept: `Snapshot reads on secondaries and minSnapshotHistoryWindowInSeconds` | Parent: `Long-running secondary reads in sharded clusters` | Mode: `dr` | Inventory-ID: `mongodb-8adf3e10aee700b8` | Cohort: `mongodb-cohort-377aca18d9d6`
 - [ ] Concept: `Spill WiredTiger instance cache` | Parent: `WiredTiger cache eviction and dirty ratio` | Mode: `dr` | Inventory-ID: `mongodb-b0ea562a020af0f2` | Cohort: `mongodb-cohort-d5d3b20feb44`
 - [ ] Concept: `TemporarilyUnavailable and TransactionTooLargeForCache errors` | Parent: `WiredTiger cache eviction and dirty ratio` | Mode: `dr` | Inventory-ID: `mongodb-ddee6fb85d60a7b6` | Cohort: `mongodb-cohort-98779ed7f05a`
 - [ ] Concept: `terminateSecondaryReadsOnOrphanCleanup and QueryPlanKilled 175` | Parent: `Long-running secondary reads in sharded clusters` | Mode: `dr` | Inventory-ID: `mongodb-a980b7fae06cc7a2` | Cohort: `mongodb-cohort-377aca18d9d6`
 - [ ] Concept: `Time series backfill ordering and batching` | Parent: `Bucket fragmentation remediation (re-insert/merge)` | Mode: `dr` | Inventory-ID: `mongodb-c9027de218a3e1bb` | Cohort: `mongodb-cohort-8df2229c942d`
 - [ ] Concept: `Time series bucket reopening (archived and query-based)` | Parent: `Bucket fragmentation remediation (re-insert/merge)` | Mode: `dr` | Inventory-ID: `mongodb-d7584bdb38451a97` | Cohort: `mongodb-cohort-8df2229c942d`
-- [ ] Concept: `Time series bucketing parameters: granularity, bucketMaxSpanSeconds, bucketRoundingSeconds` | Parent: `Bucket catalog memory and closure reasons` | Mode: `dr` | Inventory-ID: `mongodb-e6ac0ae929aaad78` | Cohort: `mongodb-cohort-862104dc8a3f`
-- [ ] Concept: `Time series cardinality and metaField design` | Parent: `Bucket catalog memory and closure reasons` | Mode: `dr` | Inventory-ID: `mongodb-37c367b29bc32cb1` | Cohort: `mongodb-cohort-862104dc8a3f`
+- [ ] Concept: `Time series bucketing parameters: granularity, bucketMaxSpanSeconds, bucketRoundingSeconds` | Parent: `Bucket catalog memory and closure reasons` | Mode: `dr` | Inventory-ID: `mongodb-e6ac0ae929aaad78` | Cohort: `mongodb-cohort-862104dc8a3f` | Queue-state: `coverage-review`
+- [ ] Concept: `Time series cardinality and metaField design` | Parent: `Bucket catalog memory and closure reasons` | Mode: `dr` | Inventory-ID: `mongodb-37c367b29bc32cb1` | Cohort: `mongodb-cohort-862104dc8a3f` | Queue-state: `coverage-review`
 - [ ] Concept: `Time series compact and disk space reclaim` | Parent: `Bucket fragmentation remediation (re-insert/merge)` | Mode: `dr` | Inventory-ID: `mongodb-3fc0d5495e547f9d` | Cohort: `mongodb-cohort-8df2229c942d`
 - [ ] Concept: `Time-field bucket predicates` | Parent: `Bucket-level predicate rewriting for measurement operators` | Mode: `dr` | Inventory-ID: `mongodb-ce9f22f88277e81e` | Cohort: `mongodb-cohort-ded7cec0af2e`
 - [ ] Concept: `Time-series bucket closure under cache pressure` | Parent: `WiredTiger cache eviction and dirty ratio` | Mode: `dr` | Inventory-ID: `mongodb-2913bf52cf381766` | Cohort: `mongodb-cohort-28706a00e932`
@@ -4631,57 +4626,57 @@ Every frontier concept, grouped by shared parent (at most 8 per cluster), cluste
 - [ ] Concept: `Safari Apple Intelligence browsing and generated extension workflows` | Parent: `Apple Intelligence` | Mode: `dr` | CVS: `4.40`
 - [ ] Concept: `Describe a Shortcut natural-language automation authoring` | Parent: `Shortcuts Use Model and intelligent automation` | Mode: `dr` | CVS: `4.30`
 - [ ] Concept: `Siri content loading through UIKit drag interactions` | Parent: `Siri app actions confirmation and contextual cues` | Mode: `dr` | CVS: `3.70`
-- [ ] Concept: `Queryable Encryption prefix, suffix and substring query configuration` | Parent: `MongoDB Security Architecture` | Mode: `dr` | CVS: `4.65`
-- [ ] Concept: `Change-stream point-in-time images and retention lifecycle` | Parent: `MongoDB Replication` | Mode: `dr` | CVS: `4.50`
-- [ ] Concept: `Client-side encryption DEK rewrapping with rewrapManyDataKey` | Parent: `MongoDB Security Architecture` | Mode: `dr` | CVS: `4.50`
-- [ ] Concept: `Load-balanced cursor and transaction connection pinning` | Parent: `CMAP Connection Pooling` | Mode: `dr` | CVS: `4.50`
-- [ ] Concept: `MongoClient bulkWrite multi-namespace batching and result cursors` | Parent: `MongoDB Driver Internals` | Mode: `dr` | CVS: `4.50`
-- [ ] Concept: `Queryable Encryption ESC/ECOC metadata compaction and leakage tradeoffs` | Parent: `MongoDB Security Architecture` | Mode: `dr` | CVS: `4.50`
-- [ ] Concept: `Replication flow-control tickets and majority-commit lag diagnosis` | Parent: `MongoDB Replication` | Mode: `dr` | CVS: `4.50`
-- [ ] Concept: `Resharding catch-up critical section and commit boundary` | Parent: `Shard Key Design and Resharding as Cost Levers` | Mode: `dr` | CVS: `4.50`
-- [ ] Concept: `Sharding catalog consistency checks beyond index parity` | Parent: `Shard Key Design and Resharding as Cost Levers` | Mode: `dr` | CVS: `4.50`
-- [ ] Concept: `Tracked query memory across explain, currentOp and profiler` | Parent: `MongoDB Monitoring and Observability` | Mode: `dr` | CVS: `4.45`
-- [ ] Concept: `Atlas Online Archive pause, expiration and deletion lifecycle boundaries` | Parent: `MongoDB Atlas Online Archive` | Mode: `dr` | CVS: `4.40`
-- [ ] Concept: `Atlas Stream Processing per-event vector search enrichment` | Parent: `MongoDB Atlas Stream Processing` | Mode: `dr` | CVS: `4.40`
-- [ ] Concept: `Atlas Data Federation single-collection proxy optimization` | Parent: `MongoDB Atlas Data Federation` | Mode: `dr` | CVS: `4.25`
-- [ ] Concept: `Atlas Online Archive sharding identity safety and orphan recovery` | Parent: `MongoDB Atlas Online Archive` | Mode: `dr` | CVS: `4.25`
-- [ ] Concept: `Atlas Stream Processing cached lookup TTL and eviction` | Parent: `MongoDB Atlas Stream Processing` | Mode: `dr` | CVS: `4.25`
-- [ ] Concept: `Atlas Stream Processing partition idleness versus window idleness` | Parent: `MongoDB Atlas Stream Processing` | Mode: `dr` | CVS: `4.25`
-- [ ] Concept: `Atlas Stream Processing resumable initial sync and source retention` | Parent: `MongoDB Atlas Stream Processing` | Mode: `dr` | CVS: `4.25`
-- [ ] Concept: `Atlas Stream Processing throttle rate limits and backpressure` | Parent: `MongoDB Atlas Stream Processing` | Mode: `dr` | CVS: `4.25`
-- [ ] Concept: `MongoDB Search concurrent segment execution` | Parent: `MongoDB Atlas Search` | Mode: `dr` | CVS: `4.25`
-- [ ] Concept: `MongoDB Search searchNodePreference routing and result consistency` | Parent: `MongoDB Atlas Search` | Mode: `dr` | CVS: `4.25`
-- [ ] Concept: `Queryable Encryption contention and range-index tuning` | Parent: `MongoDB Security Architecture` | Mode: `dr` | CVS: `4.25`
-- [ ] Concept: `Sharded routing-cache invalidation and stale-metadata diagnosis` | Parent: `MongoDB Query Shape Optimization: Sort, Pagination, Operators and Sharded Targeting` | Mode: `dr` | CVS: `4.25`
-- [ ] Concept: `Split change-stream event fragments and fragment-token recovery` | Parent: `MongoDB Replication` | Mode: `dr` | CVS: `4.25`
-- [ ] Concept: `Targeted mirrored reads for replica cache warming` | Parent: `MongoDB Replication` | Mode: `dr` | CVS: `4.25`
-- [ ] Concept: `NoWritesPerformed and retryable batch outcome ambiguity` | Parent: `Retryable Writes` | Mode: `dr` | CVS: `4.15`
-- [ ] Concept: `validate full versus BSON conformance checks across upgrades` | Parent: `Corruption (validate, --repair, wt CLI)` | Mode: `dr` | CVS: `4.05`
-- [ ] Concept: `Awaitable hello streaming monitoring and FaaS polling` | Parent: `SDAM Topology State Machine` | Mode: `dr` | CVS: `4.05`
-- [ ] Concept: `Atlas Stream Processing Lambda external functions and error semantics` | Parent: `MongoDB Atlas Stream Processing` | Mode: `dr` | CVS: `4.00`
-- [ ] Concept: `Atlas Stream Processing regional failover processor semantics` | Parent: `MongoDB Atlas Stream Processing` | Mode: `dr` | CVS: `4.00`
-- [ ] Concept: `MongoDB Search synonym map update propagation and validation` | Parent: `MongoDB Atlas Search` | Mode: `dr` | CVS: `4.00`
-- [ ] Concept: `Aggregation EJSON round-tripping and BSON type preservation` | Parent: `MongoDB Aggregation Pipeline` | Mode: `dr` | CVS: `4.00`
-- [ ] Concept: `Query-settings representative-query backfill and FCV boundaries` | Parent: `MongoDB query planner, plan cache, query settings and hints` | Mode: `dr` | CVS: `3.90`
-- [ ] Concept: `BinData subtype-aware aggregation dispatch and invalid inputs` | Parent: `BSON BinData vector ingestion` | Mode: `dr` | CVS: `3.40`
-- [ ] Concept: `Concurrent multi-document transaction admission limits` | Parent: `MongoDB Transactions` | Mode: `dr` | CVS: `4.65`
-- [ ] Concept: `Constraint validation adoption and existing-document guarantees` | Parent: `mongodb-schema-design` | Mode: `dr` | CVS: `4.65`
-- [ ] Concept: `Overload-aware remote targeting and read-preference fallback` | Parent: `Read Preference` | Mode: `dr` | CVS: `4.65`
-- [ ] Concept: `Pre-authentication message and buffer resource limits` | Parent: `MongoDB Security Architecture` | Mode: `dr` | CVS: `4.65`
-- [ ] Concept: `Shard draining cancellation, status and commit protocol` | Parent: `Sharded Cluster Cost Economics` | Mode: `dr` | CVS: `4.65`
-- [ ] Concept: `Atlas load-shedding backpressure and retry-budget handling` | Parent: `MongoDB Driver Internals` | Mode: `dr` | CVS: `4.45`
-- [ ] Concept: `Atlas snapshot-copy regions synchronized with cluster topology` | Parent: `MongoDB Backup and Restore` | Mode: `dr` | CVS: `4.45`
-- [ ] Concept: `Change-stream oplog-position and retry-error diagnostics` | Parent: `MongoDB Monitoring and Observability` | Mode: `dr` | CVS: `4.45`
-- [ ] Concept: `Audit-log TCP peer attribution behind PROXY protocol` | Parent: `MongoDB Security Architecture` | Mode: `dr` | CVS: `4.40`
-- [ ] Concept: `Config-server task-executor pool fan-out during 9.0 upgrades` | Parent: `MongoDB Upgrade Paths` | Mode: `dr` | CVS: `4.35`
-- [ ] Concept: `BSON ingest validation and wireObjectCheck deprecation boundaries` | Parent: `MongoDB Security Architecture` | Mode: `dr` | CVS: `4.25`
-- [ ] Concept: `Geospatial key-extraction error paths and redaction-aware diagnostics` | Parent: `MongoDB Geospatial` | Mode: `dr` | CVS: `4.25`
-- [ ] Concept: `X.509 internal authorization alongside LDAP authorization` | Parent: `MongoDB Security Architecture` | Mode: `dr` | CVS: `4.25`
-- [ ] Concept: `Session catalog partitioning and contention diagnostics` | Parent: `MongoDB Performance Troubleshooting` | Mode: `dr` | CVS: `4.25`
-- [ ] Concept: `Aggregation binary hashing and hashed-index key separation` | Parent: `MongoDB Aggregation Pipeline` | Mode: `dr` | CVS: `4.20`
-- [ ] Concept: `Atlas database and Search load-shedding eligibility boundaries` | Parent: `MongoDB Atlas` | Mode: `dr` | CVS: `4.20`
-- [ ] Concept: `Embedded-to-dedicated config server transition protocol` | Parent: `Sharded Cluster Cost Economics` | Mode: `dr` | CVS: `4.20`
-- [ ] Concept: `Native JSON container shorthand parsing and type boundaries` | Parent: `MongoDB Aggregation Pipeline` | Mode: `dr` | CVS: `4.05`
-- [ ] Concept: `Numeric-base conversion in aggregation expressions` | Parent: `MongoDB Aggregation Pipeline` | Mode: `dr` | CVS: `3.90`
-- [ ] Concept: `Pre-epoch date arithmetic upgrade compatibility` | Parent: `MongoDB Aggregation Pipeline` | Mode: `dr` | CVS: `3.80`
-- [ ] Concept: `ObjectId generation inside aggregation and update expressions` | Parent: `MongoDB Aggregation Pipeline` | Mode: `dr` | CVS: `3.60`
+- [x] Concept: `Queryable Encryption prefix, suffix and substring query configuration` | Parent: `MongoDB Security Architecture` | Mode: `dr` | CVS: `4.65`
+- [x] Concept: `Change-stream point-in-time images and retention lifecycle` | Parent: `MongoDB Replication` | Mode: `dr` | CVS: `4.50`
+- [x] Concept: `Client-side encryption DEK rewrapping with rewrapManyDataKey` | Parent: `MongoDB Security Architecture` | Mode: `dr` | CVS: `4.50`
+- [x] Concept: `Load-balanced cursor and transaction connection pinning` | Parent: `CMAP Connection Pooling` | Mode: `dr` | CVS: `4.50`
+- [x] Concept: `MongoClient bulkWrite multi-namespace batching and result cursors` | Parent: `MongoDB Driver Internals` | Mode: `dr` | CVS: `4.50`
+- [x] Concept: `Queryable Encryption ESC/ECOC metadata compaction and leakage tradeoffs` | Parent: `MongoDB Security Architecture` | Mode: `dr` | CVS: `4.50`
+- [x] Concept: `Replication flow-control tickets and majority-commit lag diagnosis` | Parent: `MongoDB Replication` | Mode: `dr` | CVS: `4.50`
+- [x] Concept: `Resharding catch-up critical section and commit boundary` | Parent: `Shard Key Design and Resharding as Cost Levers` | Mode: `dr` | CVS: `4.50`
+- [x] Concept: `Sharding catalog consistency checks beyond index parity` | Parent: `Shard Key Design and Resharding as Cost Levers` | Mode: `dr` | CVS: `4.50`
+- [x] Concept: `Tracked query memory across explain, currentOp and profiler` | Parent: `MongoDB Monitoring and Observability` | Mode: `dr` | CVS: `4.45`
+- [x] Concept: `Atlas Online Archive pause, expiration and deletion lifecycle boundaries` | Parent: `MongoDB Atlas Online Archive` | Mode: `dr` | CVS: `4.40`
+- [x] Concept: `Atlas Stream Processing per-event vector search enrichment` | Parent: `MongoDB Atlas Stream Processing` | Mode: `dr` | CVS: `4.40`
+- [x] Concept: `Atlas Data Federation single-collection proxy optimization` | Parent: `MongoDB Atlas Data Federation` | Mode: `dr` | CVS: `4.25`
+- [x] Concept: `Atlas Online Archive sharding identity safety and orphan recovery` | Parent: `MongoDB Atlas Online Archive` | Mode: `dr` | CVS: `4.25`
+- [x] Concept: `Atlas Stream Processing cached lookup TTL and eviction` | Parent: `MongoDB Atlas Stream Processing` | Mode: `dr` | CVS: `4.25`
+- [x] Concept: `Atlas Stream Processing partition idleness versus window idleness` | Parent: `MongoDB Atlas Stream Processing` | Mode: `dr` | CVS: `4.25`
+- [x] Concept: `Atlas Stream Processing resumable initial sync and source retention` | Parent: `MongoDB Atlas Stream Processing` | Mode: `dr` | CVS: `4.25`
+- [x] Concept: `Atlas Stream Processing throttle rate limits and backpressure` | Parent: `MongoDB Atlas Stream Processing` | Mode: `dr` | CVS: `4.25`
+- [x] Concept: `MongoDB Search concurrent segment execution` | Parent: `MongoDB Atlas Search` | Mode: `dr` | CVS: `4.25`
+- [x] Concept: `MongoDB Search searchNodePreference routing and result consistency` | Parent: `MongoDB Atlas Search` | Mode: `dr` | CVS: `4.25`
+- [x] Concept: `Queryable Encryption contention and range-index tuning` | Parent: `MongoDB Security Architecture` | Mode: `dr` | CVS: `4.25`
+- [x] Concept: `Sharded routing-cache invalidation and stale-metadata diagnosis` | Parent: `MongoDB Query Shape Optimization: Sort, Pagination, Operators and Sharded Targeting` | Mode: `dr` | CVS: `4.25`
+- [x] Concept: `Split change-stream event fragments and fragment-token recovery` | Parent: `MongoDB Replication` | Mode: `dr` | CVS: `4.25`
+- [x] Concept: `Targeted mirrored reads for replica cache warming` | Parent: `MongoDB Replication` | Mode: `dr` | CVS: `4.25`
+- [x] Concept: `NoWritesPerformed and retryable batch outcome ambiguity` | Parent: `Retryable Writes` | Mode: `dr` | CVS: `4.15`
+- [x] Concept: `validate full versus BSON conformance checks across upgrades` | Parent: `Corruption (validate, --repair, wt CLI)` | Mode: `dr` | CVS: `4.05`
+- [x] Concept: `Awaitable hello streaming monitoring and FaaS polling` | Parent: `SDAM Topology State Machine` | Mode: `dr` | CVS: `4.05`
+- [x] Concept: `Atlas Stream Processing Lambda external functions and error semantics` | Parent: `MongoDB Atlas Stream Processing` | Mode: `dr` | CVS: `4.00`
+- [x] Concept: `Atlas Stream Processing regional failover processor semantics` | Parent: `MongoDB Atlas Stream Processing` | Mode: `dr` | CVS: `4.00`
+- [x] Concept: `MongoDB Search synonym map update propagation and validation` | Parent: `MongoDB Atlas Search` | Mode: `dr` | CVS: `4.00`
+- [x] Concept: `Aggregation EJSON round-tripping and BSON type preservation` | Parent: `MongoDB Aggregation Pipeline` | Mode: `dr` | CVS: `4.00`
+- [x] Concept: `Query-settings representative-query backfill and FCV boundaries` | Parent: `MongoDB query planner, plan cache, query settings and hints` | Mode: `dr` | CVS: `3.90`
+- [x] Concept: `BinData subtype-aware aggregation dispatch and invalid inputs` | Parent: `BSON BinData vector ingestion` | Mode: `dr` | CVS: `3.40`
+- [x] Concept: `Concurrent multi-document transaction admission limits` | Parent: `MongoDB Transactions` | Mode: `dr` | CVS: `4.65`
+- [x] Concept: `Constraint validation adoption and existing-document guarantees` | Parent: `mongodb-schema-design` | Mode: `dr` | CVS: `4.65`
+- [x] Concept: `Overload-aware remote targeting and read-preference fallback` | Parent: `Read Preference` | Mode: `dr` | CVS: `4.65`
+- [x] Concept: `Pre-authentication message and buffer resource limits` | Parent: `MongoDB Security Architecture` | Mode: `dr` | CVS: `4.65`
+- [x] Concept: `Shard draining cancellation, status and commit protocol` | Parent: `Sharded Cluster Cost Economics` | Mode: `dr` | CVS: `4.65`
+- [x] Concept: `Atlas load-shedding backpressure and retry-budget handling` | Parent: `MongoDB Driver Internals` | Mode: `dr` | CVS: `4.45`
+- [x] Concept: `Atlas snapshot-copy regions synchronized with cluster topology` | Parent: `MongoDB Backup and Restore` | Mode: `dr` | CVS: `4.45`
+- [x] Concept: `Change-stream oplog-position and retry-error diagnostics` | Parent: `MongoDB Monitoring and Observability` | Mode: `dr` | CVS: `4.45`
+- [x] Concept: `Audit-log TCP peer attribution behind PROXY protocol` | Parent: `MongoDB Security Architecture` | Mode: `dr` | CVS: `4.40`
+- [x] Concept: `Config-server task-executor pool fan-out during 9.0 upgrades` | Parent: `MongoDB Upgrade Paths` | Mode: `dr` | CVS: `4.35`
+- [x] Concept: `BSON ingest validation and wireObjectCheck deprecation boundaries` | Parent: `MongoDB Security Architecture` | Mode: `dr` | CVS: `4.25`
+- [x] Concept: `Geospatial key-extraction error paths and redaction-aware diagnostics` | Parent: `MongoDB Geospatial` | Mode: `dr` | CVS: `4.25`
+- [x] Concept: `X.509 internal authorization alongside LDAP authorization` | Parent: `MongoDB Security Architecture` | Mode: `dr` | CVS: `4.25`
+- [x] Concept: `Session catalog partitioning and contention diagnostics` | Parent: `MongoDB Performance Troubleshooting` | Mode: `dr` | CVS: `4.25`
+- [x] Concept: `Aggregation binary hashing and hashed-index key separation` | Parent: `MongoDB Aggregation Pipeline` | Mode: `dr` | CVS: `4.20`
+- [x] Concept: `Atlas database and Search load-shedding eligibility boundaries` | Parent: `MongoDB Atlas` | Mode: `dr` | CVS: `4.20`
+- [x] Concept: `Embedded-to-dedicated config server transition protocol` | Parent: `Sharded Cluster Cost Economics` | Mode: `dr` | CVS: `4.20`
+- [x] Concept: `Native JSON container shorthand parsing and type boundaries` | Parent: `MongoDB Aggregation Pipeline` | Mode: `dr` | CVS: `4.05`
+- [x] Concept: `Numeric-base conversion in aggregation expressions` | Parent: `MongoDB Aggregation Pipeline` | Mode: `dr` | CVS: `3.90`
+- [x] Concept: `Pre-epoch date arithmetic upgrade compatibility` | Parent: `MongoDB Aggregation Pipeline` | Mode: `dr` | CVS: `3.80`
+- [x] Concept: `ObjectId generation inside aggregation and update expressions` | Parent: `MongoDB Aggregation Pipeline` | Mode: `dr` | CVS: `3.60`

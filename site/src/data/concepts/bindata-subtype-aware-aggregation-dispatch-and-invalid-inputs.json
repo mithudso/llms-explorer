@@ -1,0 +1,253 @@
+{
+  "slug": "bindata-subtype-aware-aggregation-dispatch-and-invalid-inputs",
+  "concept": "BinData subtype-aware aggregation dispatch and invalid inputs",
+  "generated": "2026-10-29",
+  "summary": "Source-anchored research for BinData subtype-aware aggregation dispatch and invalid inputs. Run status: COMPLETED.",
+  "facets": [
+    {
+      "title": "How it works",
+      "facts": [
+        {
+          "text": "The 8.3 cosine and Euclidean similarity operator contracts accept arrays or BinData and return null when either input is null or missing. Both reject unsupported input types, unequal vector lengths, and non-numeric array elements. SERVER-113013 separately records the addition of BinData vector inputs. (high confidence) (verified as of 2026-10-14)",
+          "source": "https://www.mongodb.com/docs/manual/reference/operator/aggregation/similarityCosine.md",
+          "note": null,
+          "claimId": "clm:b5ff276342a761031bbbd572c72b0e484659519d0a9657eb6712c22896ce022a",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:449bc7cfbaa103a07813b2f36bef9563d816044d9880f7b91407639fa143f947",
+            "ev:56980d10f66a3c33e81f78ffe2ceeee710e39a7f90beb887830b7feda3df26db",
+            "ev:8191a064c59e46e49eb4789c80eb1f597fea45b874c12b1d28a3c3dc0f5b8afe"
+          ]
+        }
+      ]
+    },
+    {
+      "title": "Problems, failure modes and limitations",
+      "facts": [
+        {
+          "text": "$subtype returns null for null or missing input; other expressions without a subtype error. MongoDB 8.3 documents BinData as the only supported subtype-bearing value. (low confidence)",
+          "source": "https://www.mongodb.com/docs/manual/reference/operator/aggregation/subtype.md",
+          "note": null,
+          "claimId": "clm:73c28131782185fd109ad7fe180c35a94b593baa814197809b2f9b49d2e1ab73",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:2b6f4c0459908ea48bddc9ab4f924773117e316597d098bb523499adabc99c1d"
+          ]
+        },
+        {
+          "text": "Starting in 8.1, $convert rejects conversion between different BinData subtypes; 8.0 instead returned the original value and subtype. The r8.3.0 implementation checks subtype equality, so requesting subtype 9 cannot relabel arbitrary subtype-0 bytes into a vector. (high confidence) (verified as of 2026-10-27)",
+          "source": "https://www.mongodb.com/docs/manual/reference/operator/aggregation/convert.md",
+          "note": null,
+          "claimId": "clm:2b929738194518f708de19eaa0557044625fdabf083cde9fa82216f95d459275",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:2edfaa848b18f4c06b2477d3582d9b2f2566e8a787522c7ee8c8acc505cc4bb2",
+            "ev:c14df65dbf36760e135a19b19ab8b110b4633f46b0efdc59221524c51d8ae815"
+          ]
+        },
+        {
+          "text": "The r8.3.0 parser test rejects two $subtype arguments with error 16020. An ingestion expression must supply exactly one operand; a list of candidate values is not a batch subtype-inspection request. (low confidence)",
+          "source": "https://raw.githubusercontent.com/mongodb/mongo/r8.3.0/src/mongo/db/pipeline/expression_subtype_test.cpp",
+          "note": null,
+          "claimId": "clm:95ffb5b40e943878312955affa4dff3576981cc63024d918bcfb1bb3ca382ae7",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:5e0036db793997ac421f586c4f46375b63b86955f46ff86aa78abfc2500f3461"
+          ]
+        },
+        {
+          "text": "Use $convert with onError for recoverable conversion failures and onNull for null or missing input. $toArray uses the default conversion behavior: a conversion error stops the aggregation, while null or missing input yields null. (medium confidence)",
+          "source": "https://www.mongodb.com/docs/manual/reference/operator/aggregation/convert.md",
+          "note": null,
+          "claimId": "clm:f06223974e440b2a031cb0d4b8d256859d30d2f51b7910b9050e6a2d0dd1a386",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:02b827dc281e609e6f845889be9f9e70e3b7a55bf4702b7d21630c46adf751a4",
+            "ev:41be78f62ea9bc8ea8c23d9c9958da56d6f03b44693407974ecd27153232d8b3",
+            "ev:ffb70c25da229c90d10ae94d81a5f7c040d484c08f54ceb6b45ecb42b5adebbe"
+          ]
+        }
+      ]
+    },
+    {
+      "title": "Comparisons and alternatives",
+      "facts": [
+        {
+          "text": "In r8.3.0, converting [NumberInt(200)] to BinData fails because array dtype selection rejects BSON int values outside [-128,127], rather than automatically widening them to FLOAT32. SERVER-106059 records the same example and proposed alternatives; its description is historical evidence, not proof of all later releases. (high confidence)",
+          "source": "https://raw.githubusercontent.com/mongodb/mongo/r8.3.0/src/mongo/db/exec/expression/evaluate_math.cpp",
+          "note": null,
+          "claimId": "clm:3d7d9a3989cf2907473d5a22a9ea8b92c275ca1e4f214ba0b0748c8b6cdb8544",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:358e72ac94fed1d81f823e3d08575600f1ab455ef030ac98663852254818dbb2",
+            "ev:eb3cbcf84d3090f41e9c4e3cf76340bfa2d9dc00730f667b7f2f991f3843d076",
+            "ev:f5713a9902cefbfb58a60191bca3e780758cc4f79e2581e568b29017fb939056"
+          ]
+        },
+        {
+          "text": "The vector specification requires FLOAT32 payload length after the two metadata bytes to be divisible by four. Non-PACKED_BIT padding must be zero; PACKED_BIT padding must be 0–7, and nonzero padding requires nonempty data. These requirements apply to vector APIs and decoding into vector structures, rather than establishing that every generic BSON operation validates vectors. (low confidence)",
+          "source": "https://github.com/mongodb/specifications/blob/master/source/bson-binary-vector/bson-binary-vector.md",
+          "note": null,
+          "claimId": "clm:5efd647435387c6fcefb93838509bc6a75774862630c89fb90af175b3f4de317",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:50b31fd7b503e69c2939631b8f163f8624d1bf73bcc8d1ae7ceadf6ed862187d"
+          ]
+        }
+      ]
+    },
+    {
+      "title": "Facts and statements",
+      "facts": [
+        {
+          "text": "MongoDB documents $subtype as new in 8.3: {$subtype: <expression>} returns the integer BinData subtype. COMPASS-9668 describes a prior $function-based inspection workaround and the need for native aggregation inspection. (high confidence) (verified as of 2026-10-14)",
+          "source": "https://www.mongodb.com/docs/manual/reference/operator/aggregation/subtype.md",
+          "note": null,
+          "claimId": "clm:f5ee477245d011974b0e72831634f5c55c8e8726c1c70bed5a321c08ac2e5ed2",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:2b6f4c0459908ea48bddc9ab4f924773117e316597d098bb523499adabc99c1d",
+            "ev:c8414f046a02bea4886737a1ff7adae6e40cd82a8f4bce147e9ae0e3c9f3c88b"
+          ]
+        },
+        {
+          "text": "A heterogeneous ingestion pipeline can first test {$type: '$v'} for 'binData', then evaluate $subtype inside the matching conditional branch and route subtype 9 to vector handling. This is a derived dispatch pattern: $type identifies the outer BSON type, while $subtype identifies the binary subtype. (medium confidence)",
+          "source": "https://www.mongodb.com/docs/manual/reference/operator/aggregation/type.md",
+          "note": null,
+          "claimId": "clm:186c2407244e7aa98b4fbbadc82f83ad219570195fd1b702b069b1e46e827c98",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:0382cf0752eebb5d7ee48ad61eda046a9aeedb48a0b6e52e3e87b12675ba06e9",
+            "ev:2b6f4c0459908ea48bddc9ab4f924773117e316597d098bb523499adabc99c1d",
+            "ev:639f4c097fd09a2f0b861bbbbcb50d17db5d96e745310f7f8b616cb93c703977",
+            "ev:d9378f0ad125bb050aebf16a32fb286451c8d3c5c4e77d109bfce915ae1feaba",
+            "ev:f05beea44a8dc5cfcc1eccb149c37187b52ff61abae058ae91cbd12b5b2ad990"
+          ]
+        },
+        {
+          "text": "The r8.3.0 subtype tests return the integer tag for named BinData types including Vector and for custom subtype 200. These tests inspect a tag on fixed test bytes; a subtype value alone is not proof that a payload represents a valid vector. (low confidence)",
+          "source": "https://raw.githubusercontent.com/mongodb/mongo/r8.3.0/src/mongo/db/pipeline/expression_subtype_test.cpp",
+          "note": null,
+          "claimId": "clm:caf8fc25ae4ef7e9af722cc19acd56b4162ddfb3074c41cfa9741eb56b1524ed",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:49be67cd8260ded0a279d90f9c0fa99e9fe76201262c5e596959a6f558f1e080"
+          ]
+        },
+        {
+          "text": "After its feature/FCV check enables vector conversion, the r8.3.0 implementation rejects BinData-to-array conversion unless the input subtype is Vector (9), with ConversionFailure: Conversion from binData to array is only supported for bindata with the vector subtype. Conversion delegates vector decoding to convertBinDataVectorToArray after this check. (low confidence)",
+          "source": "https://raw.githubusercontent.com/mongodb/mongo/r8.3.0/src/mongo/db/exec/expression/evaluate_math.cpp",
+          "note": null,
+          "claimId": "clm:1cad2e10adff83c6252d8ebe145cd573fce8f5973febbb95ee4f64ec252a5478",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:e2f44c955a2172a24a1ce2dcb85e2871505e91d7ea33654cf48998775eac1b07",
+            "ev:f05beea44a8dc5cfcc1eccb149c37187b52ff61abae058ae91cbd12b5b2ad990"
+          ]
+        },
+        {
+          "text": "In r8.3.0, $convert.onError handles ConversionFailure exceptions from performConversion. Target-type parsing and format/byteOrder validation occur outside that catch, and invalid subtype checks use separate assertion codes 4341106, 4341107 and 4341108. Do not treat onError as a universal catch for malformed conversion configuration. (low confidence)",
+          "source": "https://raw.githubusercontent.com/mongodb/mongo/r8.3.0/src/mongo/db/exec/expression/evaluate_math.cpp",
+          "note": null,
+          "claimId": "clm:8bb3c4f1325e6e32e8fb71ada545746a1cbb16e62129f420b732b1df47c4264e",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:0a79ef9a2d53eceb63e6e4655fd898c19c4e264f91898fecd09cd23ce41bb31b",
+            "ev:15229633e7c882e3c1d1b68b763fb1a9ba412f88bf7d031894341f8a9d44ba58",
+            "ev:99127066f651feb6223762b9fb6471489962c59496181a37f8ab541bca70c8d4"
+          ]
+        },
+        {
+          "text": "The r8.3.0 array-to-BinData implementation always constructs subtype Vector after selecting an internal dtype; it does not use the supplied subtypeValue parameter for the resulting BinData tag. This behavior is specific to that tagged implementation and should not be inferred from the generic to.subtype documentation. (low confidence)",
+          "source": "https://raw.githubusercontent.com/mongodb/mongo/r8.3.0/src/mongo/db/exec/expression/evaluate_math.cpp",
+          "note": null,
+          "claimId": "clm:ec3316f85706637197bf9130841164cd13a63c3fbf9815e14a10f90bb1f68a99",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:f5713a9902cefbfb58a60191bca3e780758cc4f79e2581e568b29017fb939056"
+          ]
+        },
+        {
+          "text": "A historical issue titled Conversions to bindata do not preserve, set, or check correct subtypes (SERVER-105121) was resolved Works as Designed. Its example and proposed audit do not establish a currently unfixed defect or a guarantee that every conversion validates a subtype-specific payload. (low confidence) (verified as of 2025-10-02)",
+          "source": "https://jira.mongodb.org/browse/SERVER-105121",
+          "note": null,
+          "claimId": "clm:f066ba97a208064b9784c3750a3694cd76800e6c9eb0ad0f4bf03f09b28847ff",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:6d0c43f10434c7427e7826478378646843abda71471a3acec71acf6bbc7786ea",
+            "ev:9df691f70e590c2c72c2c05dcf57bf8d75cee9954d07cb213686a82c973cf455"
+          ]
+        },
+        {
+          "text": "MongoDB documents $subtype as new in 8.3: {$subtype: <expression>} returns a BinData value's subtype as an integer. The r8.3.0 tests cover predefined subtypes including Vector and also return 200 for an unnamed subtype. (medium confidence) (verified as of 2026-10-14)",
+          "source": "https://www.mongodb.com/docs/manual/reference/operator/aggregation/subtype.md",
+          "note": null,
+          "claimId": "clm:dc6b628338a13f171930c8353a3dd21a5bd7a5122536807f5651b1fa9bbb1a3c",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:2b6f4c0459908ea48bddc9ab4f924773117e316597d098bb523499adabc99c1d",
+            "ev:49be67cd8260ded0a279d90f9c0fa99e9fe76201262c5e596959a6f558f1e080"
+          ]
+        },
+        {
+          "text": "A subtype match is insufficient to establish vector-payload validity. The r8.3.0 subtype tests attach arbitrary bytes to the Vector subtype and still obtain its integer tag; the vector specification separately requires metadata and payload validation. (medium confidence)",
+          "source": "https://raw.githubusercontent.com/mongodb/mongo/r8.3.0/src/mongo/db/pipeline/expression_subtype_test.cpp",
+          "note": null,
+          "claimId": "clm:85f0923c8f33f96ac158e237b1c9a5bd04f78140faf1a2be6eb8a06c3e13a679",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:49be67cd8260ded0a279d90f9c0fa99e9fe76201262c5e596959a6f558f1e080",
+            "ev:50b31fd7b503e69c2939631b8f163f8624d1bf73bcc8d1ae7ceadf6ed862187d"
+          ]
+        },
+        {
+          "text": "BinData-to-array conversion is subtype-sensitive: r8.3.0 $convert rejects binary input whose subtype is not Vector (9), then invokes vector decoding. $toArray documents subtype-9 input and maps PACKED_BIT to booleans, INT8 to integers, and FLOAT32 to doubles. (medium confidence)",
+          "source": "https://raw.githubusercontent.com/mongodb/mongo/r8.3.0/src/mongo/db/exec/expression/evaluate_math.cpp",
+          "note": null,
+          "claimId": "clm:c46e74520e91859d646988aeb5328c64d177bf9d6abe8aead73699f1b12e72a1",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:98fdff105cd89b31cfc503060b2ceb69ed0b17ca580ec5813429a7c5a90d0d8b",
+            "ev:e2f44c955a2172a24a1ce2dcb85e2871505e91d7ea33654cf48998775eac1b07"
+          ]
+        },
+        {
+          "text": "In r8.3.0, $convert subtype validation uses errors 4341106 for a non-integral numeric subtype, 4341107 for an invalid subtype code, and 4341108 for a nonnumeric subtype. Its onError handler catches ConversionFailure specifically, so these argument-validation assertions are not covered by that handler. (low confidence)",
+          "source": "https://raw.githubusercontent.com/mongodb/mongo/r8.3.0/src/mongo/db/exec/expression/evaluate_math.cpp",
+          "note": null,
+          "claimId": "clm:b0b5d6f43cb93541826c1be49dc003d66e41451bb706add57ccf24f999ce8123",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:0a79ef9a2d53eceb63e6e4655fd898c19c4e264f91898fecd09cd23ce41bb31b",
+            "ev:15229633e7c882e3c1d1b68b763fb1a9ba412f88bf7d031894341f8a9d44ba58"
+          ]
+        },
+        {
+          "text": "An independent Apache Phoenix branch commit, 509ce3014 dated 2026-10-06, implements BSON_VECTOR_VALUE checks for subtype 9, a two-byte header, FLOAT32 dtype, zero padding, finite elements, and expected dimension. This is evidence for that branch's extraction boundary, not MongoDB aggregation semantics or a released Phoenix feature. (low confidence)",
+          "source": "https://www.mail-archive.com/commits%40phoenix.apache.org/msg39210.html",
+          "note": null,
+          "claimId": "clm:07850a68353e2e058c65750a024e1bd96eccf23a0600893358f3f26915072eee",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:1d5044a54e2c157fd4a32a31bd71de443a3710d75e4a2a92dcccdf04ffcbff65",
+            "ev:65cb402bdd838b1a35e23b5442485832b4293deaf84510396ebe4221d269e562"
+          ]
+        },
+        {
+          "text": "Variety's own schema-analyzer documentation distinguishes subtype-9 INT8, PACKED_BIT, and FLOAT32 labels and provides fallback labels for unknown dtype bytes and malformed payloads. This independently illustrates subtype-aware inspection tooling; it does not verify MongoDB server acceptance. (low confidence) (verified as of 2026-10-27)",
+          "source": "https://github.com/variety/variety",
+          "note": null,
+          "claimId": "clm:e5afe01494d68737d87724944cd1f428b9a6354e9da078c104709cdbf5f4b311",
+          "validationStatus": "SUPPORTED",
+          "evidenceIds": [
+            "ev:2f2814cb029b0c5ea84e7029cd2730a8a5bcb72007a7ee3aae3041cd2c5b218e",
+            "ev:aa6ba2ceed4caacc5205dabbffbc0793b77d948b31a04dbf591f0da67929e4ec"
+          ]
+        }
+      ]
+    }
+  ],
+  "related": [],
+  "canonicalArtifactSha256": "422bba52fe36f3efdf1a01f887a1aac7b9b93a324e84ec9176194995f527e7a5",
+  "canonicalConceptId": "concept:6168a240d32e61c06381744b8f3144ff073b862a2e3154d92590880595ead2a7"
+}

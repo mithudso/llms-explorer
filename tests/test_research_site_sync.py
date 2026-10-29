@@ -54,6 +54,19 @@ class SiteSyncTests(unittest.TestCase):
         (directory / "llms.txt").write_text(f"# {name}\n\n> Reference.\n")
         (directory / "llms-full.txt").write_text(f"# {name}\n\n## Facts\n\n- [statement] New finding. — https://example.test/primary\n")
 
+    def test_separate_unfinished_publication_stays_in_hub_without_entering_site(self):
+        self.save_pack("Separate draft", "separate-draft")
+        original = [node("Root", "root", children=["Separate draft"]),
+                    node("Separate draft", "separate-draft", parent="Root")]
+        (self.hub / "concept-tree/tree.json").write_text(json.dumps(original))
+        with patch.dict("os.environ", {"RESEARCH_SITE_DEFER_CONCEPTS": "Separate draft"}):
+            report = website.sync(self.repo, self.hub, apply=True)
+        self.assertEqual(report["deferred_publication_concepts"], ["Separate draft"])
+        self.assertEqual(report["excluded_private_nodes"], 0)
+        self.assertEqual(json.loads((self.hub / "concept-tree/tree.json").read_text()), original)
+        self.assertFalse((self.repo / "site/src/data/concepts/separate-draft.json").exists())
+        self.assertNotIn("Separate draft", (self.repo / "concept-tree/tree.json").read_text())
+
     def test_other_run_is_recovered_before_standalone_sync_publishes(self):
         transactions = website.module("test_pending_native", REPO / "scripts/research_transaction.py")
         tx = transactions.Transaction(self.hub / "research/run-a/artifacts/transactions/old")
