@@ -25,5 +25,6 @@ Use `.claude/skills/research-scout/scripts/scout.py find` with the exact concept
 and parent when known. Read `.claude/skills/research-scout/references/handoff.md`
 before consuming a bundle. Scout output is unverified: recheck the live
 inventory, acquire readable source text, and keep the research workflow's
-origin, claim, CVS and completion gates. Headless runners need their
-orchestrator to pass relevant seeds; they do not load scout bundles themselves.
+origin, claim, CVS and completion gates. Read the scout's consumer reference:
+the Codex research adapter loads bounded seeds automatically; Claude uses the
+scout research bridge. Other headless runners still need an explicit seed handoff.

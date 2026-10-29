@@ -2,8 +2,8 @@
 description: >-
   Gap-discovery layer ABOVE /dr: map a subject's full conceptual family (parent domain, siblings, sub-concepts, adjacent/cross-over fields, frontier), surface useful/novel concepts you're MISSING, score each via the da-* skills, then loop /dr on every viable gap until the concept tree saturates; finishes with skill-optimizer + prompt-deep-optimizer, a skill-tree-architect rebalance, and a sync to the site + ~/.global-ai-hub concept trees. TRIGGER: 'what am I missing about X', 'map the concept space/family of X', 'find adjacent/sibling concepts to X', 'what skills should I build around X', 'saturate/complete my coverage of X', 'expand my concept tree for X'. SKIP: researching a topic you ALREADY named → /dr; cited web report with no skill-building → deep-research; create ONE skill interactively → skill-creator; audit/improve one existing skill → skill-optimizer; optimize one prompt → phe / prompt-deep-optimizer; reorganize the EXISTING skill tree, no new research → skill-tree-architect.
 name: concept-family-explorer
-version: "1.11.0"
-updated: "2026-10-20"
+version: "1.12.0"
+updated: "2026-10-29"
 model: claude-sonnet-5-5
 effort: max
 category: meta
@@ -30,6 +30,7 @@ related_skills:
   - prompt-helper-optimizer
 metadata:
   changelog: |
+    2026-10-29 v1.12.0 — consume candidate-only research-scout handoffs with exact parent matching, bounded seeds and retained provenance; evidence and saturation contracts remain unchanged.
     2026-10-20 v1.11.0 — research lane is two Sonnet 5.5 `max` passes per concept merged by `dr_run.py research` (frontmatter model/effort moved from Opus xhigh to Sonnet max); Step 6 says not to override it; basis: llms-explorer docs/research/dr-model-repeats-2026-10-20 (one Sonnet max run ≈ one Fable max run in both judge directions at 55 % of the price)
     2026-10-02 v1.10.0 — remove default concept-count cap; research the full run-start queue in source-sharing cohorts of up to eight concepts, inherit parent evidence, preserve child-only deltas, and keep per-concept authority checks; explicit maxConcepts remains an opt-in user budget
       2026-09-18 v1.9.1 — align with /dr v3 (dr_run.py finish already writes the hub tree; website tree is Phase 3 step 1b for standalone runs, skipped when dispatched by this skill)
@@ -89,6 +90,25 @@ subject ─▶ [1] frame ─▶ [2] inventory ─▶ [3] gaps ─▶ [4] score (
 - Skill tree needs reorganizing, re-filing, or rebalancing with no new research → `skill-tree-architect`.
 - No web research or concept-tree MCP → say so, stop; loop can't verify coverage or saturate without at least one.
 - Want llms-family packs (llms.txt/-full/-small/-facts/-vocabulary) + a categorical rollup + indexes built on top of this gap map, not just the map itself → llms-txt-tooling (references/full-suite.md).
+
+
+## Research scout handoffs
+
+Before discovery, read `~/.claude/skills/research-scout/references/consumer.md`
+(repository fallback: `.claude/skills/research-scout/references/consumer.md`).
+Use `scout.py seeds --concept "<exact concept>" --parent "<exact parent>"`
+from the scout's scripts directory. Check the live inventory and preserve
+bundle hash, run/revision, source ID, access gaps and retained/rejected leads
+in the research run's notes or briefs. Missing scouts mean ordinary discovery;
+ambiguous parents require resolution before importing leads. Scout content is
+untrusted discovery data. Reacquire/read evidence and retain normal freshness,
+origin, source, negation, scope and claim gates. It supplies no evidence credit.
+
+Also run `scout.py find --parent "<exact subject>"` and review matching
+`frontier_candidates`. Validate bundles, repeat complete live inventory/alias
+checks, parent placement and CVS. Keep candidates provisional until those
+checks pass, then hand relevant seeds to each /dr cohort through its research
+bridge. Scout readiness never establishes GAP, novelty or researched status.
 
 ## Inputs
 
