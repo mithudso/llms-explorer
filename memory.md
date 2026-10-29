@@ -1,5 +1,18 @@
 # Memory Log
 
+## v0.22.62 - 2026-10-29
+
+- Prompt: audit the research queue. Audit scope includes queue syntax, duplicate/status drift, ranked coverage, reservations and saved research evidence. Do not run research or change queue, tree, claims, gates, paused inference/indexing or existing reservations.
+- Worktree: /Users/mitch/dev/worktrees/llms-explorer-queue-audit-20261029, branch audit/research-queue-20261029, based on origin/main at 90cbb461. Preserve shared main (dbed74f0, ahead 5/behind 20) and all other worktrees.
+- Stele TASK-950 says cohort checkpoints establish outcomes; plan row status remains pending. Existing records require keeping the local October 27 run separate from the unavailable remote run. Stele rejected creation of an audit task with a monthly knowledge-write limit. Its stele-search agent could not start because gpt-5.4-mini is unsupported on this account; direct read tools provide the fallback.
+- Findings: hub 148 pending rows / 147 unique labels; 59 reserved by the paused suite; ranked view has 86 checked rows and omits all 39 withheld October 27 concepts. Seven duplicate groups mix done/pending. Two valid embedded-backtick names disappear in the old hub/TUI parsers. Five checked names need alias mapping; six repository rows have an unresolved parent. The older October 20 plan retains stale outcomes and lacks 17 completed cohort run directories on this machine.
+- Independent evidence audit: October 27 has ten complete cohorts / 15 concepts and nineteen withheld cohorts / 39 concepts. All 29 packets, 785 judgments and 1,314 evidence spans pass mechanical validation. All ten completed canonical artifacts verify; all ten export transaction journals report complete, with output presence checked. Completed research contains 213 supported samples and 17 ordinary unsampled claims; remote main has none of the 15 result readers. The 49 dissenting judgments remain repair work. No substantive judgments were rerun. Independent report review clarified that repairs preserve immutable snapshots and may change claims or source bindings; the report advances 1.0.0 to 1.0.1.
+- Validation: JSON/arithmetic checks, parser comparisons and git diff --check pass. Eleven queue/tree/plan source hashes remain unchanged. The four deliverables pass publication privacy with the 25-term local operator denylist; two private label occurrences were redacted from the public inventory without changing aggregate counts.
+- Progress: [completed] inventory and queue contracts; [completed] independent evidence audit and findings; [completed] local validation; [completed] audit report and source-hashed inventory committed and pushed. Delivery receipt: https://github.com/mithudso/llms-explorer/pull/246 . Consult that PR for current CI and merge state before repeating a delivery step. This task produces audit records only. Queue fixes, result publication and research continuation remain follow-up recommendations; no audit investigation remains.
+- Delta: memory 0.22.61 to 0.22.62; prompt v71 to v72. Report and machine-readable inventory will live under docs/research/research-queue-audit-2026-10-29/.
+
+- Delivery reconciliation: research-scout PR 245 merged as b5fa37e0 while this audit awaited its preview. Merge preserves all scout files and records, advances this audit to prompt v72 / memory 0.22.62, and changes no audited queue/tree source. Report delta 1.0.1 to 1.0.2 adds this delivery note. Re-run final-head CI on PR 246.
+
 ## v0.22.61 - 2026-10-29
 
 - The new scout guide passes all three `test_skill_page_parity.py` checks and the publication privacy gate. The rebuilt site has 2,290 pages and passes its publication policy. The canonical scout package and its 15 behavioral cases are unchanged.
