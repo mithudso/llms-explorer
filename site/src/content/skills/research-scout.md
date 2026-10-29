@@ -36,9 +36,10 @@ finished its selected batch; it does not establish researched status or full
 frontier coverage. Scout output never marks queue rows complete or changes a
 concept tree.
 
-The research orchestrator reads relevant bundles and passes useful URLs through
-its existing seeding path. Native research runners do not import them
-automatically. `/dr` still acquires readable text, checks relevance and source
+The research orchestrator reads relevant bundles. The Codex adapter adds bounded
+source seeds automatically, while Claude uses the scout's research bridge to
+pass them to slim workers. Other runners need an explicit handoff. `/dr` still
+acquires readable text, checks relevance and source
 origins, and validates its claims. [Concept-family-explorer](/skills/concept-family-explorer/)
 still checks inventory, aliases, placement, novelty and viability before
 accepting a frontier proposal. No speed or research-quality benchmark is claimed.
