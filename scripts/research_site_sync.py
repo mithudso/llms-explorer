@@ -14,6 +14,7 @@ import fcntl
 import hashlib
 import importlib.util
 import json
+import os
 import shutil
 import sys
 import tempfile
@@ -217,7 +218,13 @@ def plan(repo: Path, hub: Path, merge_tree: bool = True, current_run: str | None
     hub_nodes = nodes_at(hub / "concept-tree/tree.json")
     tree_hashes = {str(path): hashlib.sha256(path.read_bytes()).hexdigest()
                    for path in (repo / "concept-tree/tree.json", hub / "concept-tree/tree.json")}
-    excluded_names = set()
+    # A separate unfinished publication can own otherwise qualified local data.
+    # Deferring its public projection must never remove the private hub node.
+    deferred = {name.strip() for name in os.environ.get("RESEARCH_SITE_DEFER_CONCEPTS", "").splitlines()
+                if name.strip()}
+    deferred_nodes = set(scrub.filter_tree(hub_nodes, [], deferred)[1]) if deferred else set()
+    private_nodes = set(scrub.filter_tree(hub_nodes, scrub.gate.denylist())[1]) if deferred else set()
+    excluded_names = set(deferred)
     identities = [({node["concept"], *(node.get("aliases") or [])},
                    {slug for slug in [node.get("slug"), *(node.get("slugAliases") or [])] if slug})
                   for node in [*hub_nodes, *current_nodes]]
@@ -435,7 +442,9 @@ def plan(repo: Path, hub: Path, merge_tree: bool = True, current_run: str | None
                (text is not None and (not path.is_file() or
                 path.read_bytes() != (text if isinstance(text, bytes) else text.encode())))}
     report = {"hub_nodes": len(hub_nodes), "repository_nodes_before": len(current_nodes),
-              "repository_nodes_after": len(merged), "excluded_private_nodes": len(excluded),
+              "repository_nodes_after": len(merged),
+              "excluded_private_nodes": len(excluded) - len(deferred_nodes - private_nodes),
+              "deferred_publication_concepts": sorted(deferred),
               "excluded_child_references": removed_refs,
               "hub_only_publishable_nodes": sorted(safe_names - {node["concept"] for node in current_nodes}),
               "website_packs_before": len(site_packs), "website_packs_after": len(selected),
@@ -542,7 +551,11 @@ def main(argv=None) -> int:
     parser.add_argument("--no-merge-tree", action="store_true")
     parser.add_argument("--report", type=Path)
     parser.add_argument("--run", help="just-finished DR run whose claims may update its existing packs")
+    parser.add_argument("--defer-concept", action="append", default=[],
+                        help="Keep an unfinished separate publication private during this refresh")
     args = parser.parse_args(argv)
+    if args.defer_concept:
+        os.environ["RESEARCH_SITE_DEFER_CONCEPTS"] = "\n".join(args.defer_concept)
     if args.apply and args.check:
         parser.error("--apply and --check are mutually exclusive")
     try:

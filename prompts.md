@@ -1,5 +1,16 @@
 # Prompts Log
 
+## Prompt v75 - 2026-10-29
+
+> Disable all Delta hooks
+
+Scope: disable the installed Delta plugin at its user configuration source and verify project overrides and Codex registrations. Preserve other plugins/hooks and the ongoing queue repair work. Delta: prompt v73 to v74; memory 0.22.63 to 0.22.64.
+
+## Prompt v74 - 2026-10-29
+
+> Resolve the issues, sync the site here and also the tree in .global-ai-hub then commit push pr
+
+Scope: resolve the research queue audit findings, repair existing withheld research with fresh bound gates, synchronize qualified results and queue/tree metadata into the hub and repository, regenerate the website, and deliver through a verified PR. Preserve paused services, suite reservations, immutable evidence, prior completed research and unrelated divergent-main commits. Delta: prompt v72 to v73; memory 0.22.62 to 0.22.63.
 ## Prompt v73 - 2026-10-29
 
 > Look at how the facts and other /dr output is being saved in files, is it effective? Can it be made better? Carefully examine how data is searched for, retrieved, stored, recorded, and determine which aspects of those steps could be meaningfully improved. Should there be better or different indexing? Is the storage pattern complete enough that useful facts are retrievable? Is there too much data included in each line? Should there be a cleanup or distillation step? Also make sure that the /dr /cfe and rabbithole skills are updated to look for, understand, and utilie the scout's research.
