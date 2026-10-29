@@ -1,5 +1,11 @@
 # Prompts Log
 
+## Prompt v73 - 2026-10-29
+
+> Look at how the facts and other /dr output is being saved in files, is it effective? Can it be made better? Carefully examine how data is searched for, retrieved, stored, recorded, and determine which aspects of those steps could be meaningfully improved. Should there be better or different indexing? Is the storage pattern complete enough that useful facts are retrievable? Is there too much data included in each line? Should there be a cleanup or distillation step? Also make sure that the /dr /cfe and rabbithole skills are updated to look for, understand, and utilie the scout's research.
+
+Scope: TASK-954. Audit the current pipeline and real saved artifacts, measure granularity and retrieval coverage, compare prior draft contracts with shipped behavior, and deliver prioritized recommendations. Implement explicit scout consumption in all three research workflows and their active mirrors. Preserve evidence, active research, draft PR219 and paused indexing/embeddings. Delta: prompt v72 to v73.
+
 ## Prompt v72 - 2026-10-29
 
 > audit the research queue

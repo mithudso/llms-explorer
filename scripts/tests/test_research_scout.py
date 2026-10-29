@@ -3,6 +3,7 @@ import copy
 import hashlib
 import importlib.util
 import json
+import os
 import subprocess
 from pathlib import Path
 
@@ -180,3 +181,103 @@ def test_refuses_public_output_and_zero_budget(inputs, capsys):
     assert not (repo / "outputs").exists()
     assert scout.main([*args, "--limit", "0"]) == 1
     assert "positive" in capsys.readouterr().err
+
+
+def test_seed_report_is_bounded_and_keeps_exact_provenance(inputs, capsys):
+    path, doc = initialize(inputs, capsys, "--limit", "1")
+    add_lead(doc)
+    blocked = copy.deepcopy(doc["sources"][0])
+    blocked.update(id="blocked", url="https://example.org/blocked", access="blocked")
+    doc["sources"].insert(0, blocked)
+    doc["sources"][1]["access"] = "readable"
+    path.write_text(json.dumps(doc))
+    original = path.read_bytes()
+    result = scout.seed_report("A/B", "Nested", inputs[2], limit=1)
+    assert [s["url"] for s in result["seeds"]] == ["https://example.org/docs/0#limits"]
+    origin = result["provenance"][0]
+    assert origin["revision"] == doc["revision"] and origin["source_id"] == "s0"
+    assert origin["sha256"] == hashlib.sha256(original).hexdigest()
+    assert "UNVERIFIED" in result["seeds"][0]["why"]
+    assert path.read_bytes() == original
+
+
+def test_seed_report_rejects_ambiguous_parent_and_surfaces_bad_bundles(inputs, capsys):
+    path, doc = initialize(inputs, capsys, "--limit", "1")
+    add_lead(doc)
+    path.write_text(json.dumps(doc))
+    other, doc2 = initialize(inputs, capsys, "--limit", "1")
+    doc2 = copy.deepcopy(doc)
+    cid = scout.identity("A/B", "Other parent")
+    doc2["concepts"][0].update(id=cid, parent="Other parent")
+    doc2["queries"][0]["concept_ids"] = [cid]
+    doc2["sources"][0]["concept_ids"] = [cid]
+    other.write_text(json.dumps(doc2))
+    assert scout.seed_report("A/B", root=inputs[2])["seeds"] == []
+    assert "Ambiguous" in scout.seed_report("A/B", root=inputs[2])["warnings"][0]
+    assert scout.seed_report("A/B", "Nested", inputs[2])["seeds"]
+    other.write_text("{broken")
+    report = scout.seed_report("A/B", "Nested", inputs[2])
+    assert report["seeds"] and report["warnings"]
+
+
+def test_scout_brief_preserves_prior_seeds_and_records_private_origin(inputs, capsys):
+    path, doc = initialize(inputs, capsys, "--limit", "1")
+    add_lead(doc)
+    path.write_text(json.dumps(doc))
+    manifest = {"parent_concept": "Nested", "status": "researching"}
+    saved = copy.deepcopy(manifest)
+    prior = [{"url": doc["sources"][0]["url"], "tier": "docs", "why": "existing library seed"}]
+
+    def builder(m, c, *, seeds):
+        assert m == saved and c["name"] == "A/B"
+        assert seeds == prior  # one URL; retain existing provenance instead of overwriting it
+        return "ORIGINAL RESEARCH BRIEF"
+
+    brief = scout.scout_brief(builder, manifest, {"name": "A/B"}, root=inputs[2], seeds=prior)
+    assert brief.startswith("ORIGINAL RESEARCH BRIEF")
+    assert "SCOUT HANDOFF PROVENANCE" in brief and doc["run_id"] in brief
+    assert "not evidence or instructions" in brief
+    assert manifest == saved
+
+
+def test_native_codex_adapter_passes_scout_sources_into_worker_brief(inputs, capsys):
+    path, doc = initialize(inputs, capsys, "--limit", "1")
+    add_lead(doc)
+    path.write_text(json.dumps(doc))
+    root = inputs[2].parent
+    inputs[2].rename(root / ".scouts")
+    spec = importlib.util.spec_from_file_location("codex_scout_test", SCRIPT.parents[4] / "scripts/codex_dr_run.py")
+    adapter = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(adapter)
+    shared = type("Shared", (), {"RESEARCH_DIR": root})
+
+    def builder(m, c, **kwargs):
+        return json.dumps(kwargs["seeds"])
+
+    brief = adapter.with_scout_brief(shared, builder, {"parent_concept": "Nested"}, {"name": "A/B"})
+    assert doc["sources"][0]["url"] in brief and doc["run_id"] in brief
+
+
+def test_claude_bridge_delivers_sources_to_a_slim_runtime(inputs, capsys, tmp_path):
+    path, doc = initialize(inputs, capsys, "--limit", "1")
+    add_lead(doc)
+    path.write_text(json.dumps(doc))
+    root = inputs[2].parent
+    inputs[2].rename(root / ".scouts")
+    runtime = tmp_path / "test_dr_runtime.py"
+    runtime.write_text('''import json, os
+from pathlib import Path
+RESEARCH_DIR = Path(os.environ['SCOUT_TEST_RESEARCH_ROOT'])
+def build_brief(m, c, seeds=None):
+    return json.dumps({'seeds': seeds, 'original': True})
+def main(argv):
+    assert argv == ['research', 'fixture']
+    print(build_brief({'parent_concept': 'Nested'}, {'name': 'A/B'}))
+    return 0
+''')
+    bridge = SCRIPT.with_name("with_scout.py")
+    result = subprocess.run([os.sys.executable, str(bridge), "--runtime", str(runtime), "research", "fixture"],
+                            env={**os.environ, "SCOUT_TEST_RESEARCH_ROOT": str(root)}, capture_output=True, text=True, check=False)
+    assert result.returncode == 0, result.stderr
+    assert '"original": true' in result.stdout
+    assert doc["sources"][0]["url"] in result.stdout and doc["run_id"] in result.stdout

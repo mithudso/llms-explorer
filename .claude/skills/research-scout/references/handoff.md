@@ -104,7 +104,8 @@ explicit gaps. A negative search does not prove nonexistence.
    run's provenance. Leave the scout bundle unchanged; do not flip queue rows
    or mutate another run's manifest while importing leads.
 
-This is an agent handoff. Native/headless research runners do not automatically
-load these bundles. Their orchestrator must read this procedure and pass useful
-URLs through its existing source-seeding or source-library path. Do not add an
-invented `--scout` flag to `/dr`.
+Read [consumer.md](consumer.md) for bounded `seeds` output and the headless
+bridges added in skill v1.1.0. The repository's Codex adapter imports relevant
+leads automatically. Claude uses the installed `with_scout.py` research bridge.
+Other runtimes need an explicit orchestrator handoff. Do not add an invented
+`--scout` flag to `/dr`. Bundle schema remains v1.0.0; skill versions may advance.

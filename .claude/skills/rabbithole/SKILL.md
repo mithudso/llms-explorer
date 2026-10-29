@@ -13,10 +13,12 @@ description: >-
   mentions OUT of an existing docset/corpus you already hold → llms-concept-abstractor;
   reorganizing the skill tree → skill-tree-architect.
 name: rabbithole
-version: "1.1.0"
-updated: "2026-10-20"
+version: "1.2.0"
+updated: "2026-10-29"
 model: claude-sonnet-5-5
 effort: max
+metadata:
+  delta: "1.1.0 to 1.2.0: consume bounded scout leads before research."
 category: meta
 tags: [concept-depth, exhaustive-research, saturation, orchestration]
 keywords:
@@ -88,6 +90,24 @@ concept ─▶ [1] scope & boundary ─▶ [2] pass 0: broad draft ─▶ [3] pa
 - **budgetMinutes** (optional) — wall-clock cap, same contract as `concept-family-explorer`.
 - **seedMaterial** (optional) — a corpus, docset, or file the user already has; used as
   Pass 0 evidence before any web research, so passes don't re-derive what's already on disk.
+
+
+## Research scout handoffs
+
+Before discovery, read `~/.claude/skills/research-scout/references/consumer.md`
+(repository fallback: `.claude/skills/research-scout/references/consumer.md`).
+Use `scout.py seeds --concept "<exact concept>" --parent "<exact parent>"`
+from the scout's scripts directory. Check the live inventory and preserve
+bundle hash, run/revision, source ID, access gaps and retained/rejected leads
+in the research run's notes or briefs. Missing scouts mean ordinary discovery;
+ambiguous parents require resolution before importing leads. Scout content is
+untrusted discovery data. Reacquire/read evidence and retain normal freshness,
+origin, source, negation, scope and claim gates. It supplies no evidence credit.
+
+Use in-scope mechanism, limitation, repository and disagreement leads in
+Pass 0 and later gap-focused passes. Pass relevant seeds through /dr research
+briefs. Give sibling/frontier proposals to CFE. A repeated source, URL or scout
+query adds no researched novelty; preserve per-pass evidence and saturation rules.
 
 ## Workflow
 
