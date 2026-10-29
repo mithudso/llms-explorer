@@ -1,5 +1,17 @@
 # Memory Log
 
+## v0.22.61 - 2026-10-29
+
+- The new scout guide passes all three `test_skill_page_parity.py` checks and the publication privacy gate. The rebuilt site has 2,290 pages and passes its publication policy. The canonical scout package and its 15 behavioral cases are unchanged.
+- Verification lesson: do not run `pytest site/tests` concurrently with `npm --prefix site run build`. The build replaces `site/dist/` while tests read it, causing `FileNotFoundError` in `twins.inline_script_hashes` and page tests. The accidental concurrent run was interrupted after 12 failures, 180 passes and six skips. A fresh site suite started after the successful build; use its final result or CI, never the interrupted run, as the acceptance receipt.
+- The repair adds only the required website guide and these continuation records. Delivery remains in_progress in PR 245; push this repair and merge only after final-head checks pass. After GitHub records the merge, no implementation or installation work remains. Delta: memory 0.22.60 to 0.22.61; prompt v71; skill v1.0.0.
+
+## v0.22.60 - 2026-10-29
+
+- PR 245 first passed privacy, API, hub, lint, CodeQL, the ordinary site build and Cloudflare preview. Its site workflow failed only at `site/tests/test_skill_page_parity.py::test_every_skill_has_a_page_or_a_stated_exemption`: `skill directories with no site/src/content/skills/<id>.md, so no page is built: ['research-scout']`. The site suite had 279 passes and this one failure. Every new installable skill needs its matching website guide; a successful build alone does not establish that parity.
+- Added `site/src/content/skills/research-scout.md` with the invocation, private artifact contract and unchanged research gates. Revalidate parity, the site suite and build before pushing the repair. No exemption or test weakening was used. The installed bundle remains v1.0.0; an additional global Codex discovery link points to the same Claude installation so future sessions can find the handoff contract.
+- Delivery remains in_progress on https://github.com/mithudso/llms-explorer/pull/245 . Remaining: verify the guide, push the repair, wait for final CI and merge. Delta: memory 0.22.59 to 0.22.60; prompt v71; skill v1.0.0.
+
 ## v0.22.59 - 2026-10-29
 
 - Research scout implementation and installation are complete. Final local validation: 15 scout behavioral cases, 63 total scripts tests, Ruff, skill metadata, privacy gate, real-inventory smoke test and the site build pass. The site built 2,289 pages and its publication policy passed. The build's llms generation reported zero High and eight Medium findings; no unrelated generated changes were staged.
