@@ -1,10 +1,22 @@
 # Prompts Log
 
-## Prompt v71 - 2026-10-29
+## Prompt v72 - 2026-10-29
 
 > audit the research queue
 
-Scope: audit queue grammar, status, ranking, reservations and research evidence across the hub, divergent shared checkout, remote main and retained runtime checkout. Preserve research and queue state. Save findings and a reproducible inventory under docs/research/research-queue-audit-2026-10-29/. Stele task creation failed because the monthly write allowance is exhausted; use the disk continuation record. Delta: prompt v70 to v71; memory 0.22.56 to 0.22.57.
+Scope: audit queue grammar, status, ranking, reservations and research evidence across the hub, divergent shared checkout, remote main and retained runtime checkout. Preserve research and queue state. Save findings and a reproducible inventory under docs/research/research-queue-audit-2026-10-29/. Stele task creation failed because the monthly write allowance is exhausted; use the disk continuation record. Delta: prompt v71 to v72; memory 0.22.61 to 0.22.62.
+
+## Prompt v71 - 2026-10-29
+
+> I have access to antigravity, which isn't as good at the analysis of doing /dr research or concept family explorer work, but it is very fast and has good web lookup skills, would it be helpful to use antigravity as the scout stage when researching the queue in this repo and expanding the frontier concepts? If so, then create a scout skill specifically to do this and to store the links and resources in a location and in a format that you will know and understand, and then add this skill to the ~/.claude/skills since antigravity picks that up.
+
+Scope: create and install research-scout for bounded source discovery and candidate frontier proposals. Preserve research validation, queue completion, active runs, and the divergent checkout. Delta: prompt v70 to v71.
+
+Suggested Antigravity invocation:
+
+```text
+Use research-scout to scout the next four MongoDB queue concepts and propose related frontier concepts. Save source leads and continuation notes using the skill's private handoff format. Spend at most 20 minutes. Leave claim validation and frontier acceptance to /dr and concept-family-explorer.
+```
 
 ## Prompt v70 - 2026-10-27
 

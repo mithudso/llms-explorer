@@ -1,6 +1,6 @@
 # Memory Log
 
-## v0.22.57 - 2026-10-29
+## v0.22.62 - 2026-10-29
 
 - Prompt: audit the research queue. Audit scope includes queue syntax, duplicate/status drift, ranked coverage, reservations and saved research evidence. Do not run research or change queue, tree, claims, gates, paused inference/indexing or existing reservations.
 - Worktree: /Users/mitch/dev/worktrees/llms-explorer-queue-audit-20261029, branch audit/research-queue-20261029, based on origin/main at 90cbb461. Preserve shared main (dbed74f0, ahead 5/behind 20) and all other worktrees.
@@ -9,7 +9,42 @@
 - Independent evidence audit: October 27 has ten complete cohorts / 15 concepts and nineteen withheld cohorts / 39 concepts. All 29 packets, 785 judgments and 1,314 evidence spans pass mechanical validation. All ten completed canonical artifacts verify; all ten export transaction journals report complete, with output presence checked. Completed research contains 213 supported samples and 17 ordinary unsampled claims; remote main has none of the 15 result readers. The 49 dissenting judgments remain repair work. No substantive judgments were rerun. Independent report review clarified that repairs preserve immutable snapshots and may change claims or source bindings; the report advances 1.0.0 to 1.0.1.
 - Validation: JSON/arithmetic checks, parser comparisons and git diff --check pass. Eleven queue/tree/plan source hashes remain unchanged. The four deliverables pass publication privacy with the 25-term local operator denylist; two private label occurrences were redacted from the public inventory without changing aggregate counts.
 - Progress: [completed] inventory and queue contracts; [completed] independent evidence audit and findings; [completed] local validation; [completed] audit report and source-hashed inventory committed and pushed. Delivery receipt: https://github.com/mithudso/llms-explorer/pull/246 . Consult that PR for current CI and merge state before repeating a delivery step. This task produces audit records only. Queue fixes, result publication and research continuation remain follow-up recommendations; no audit investigation remains.
-- Delta: memory 0.22.56 to 0.22.57; prompt v70 to v71. Report and machine-readable inventory will live under docs/research/research-queue-audit-2026-10-29/.
+- Delta: memory 0.22.61 to 0.22.62; prompt v71 to v72. Report and machine-readable inventory will live under docs/research/research-queue-audit-2026-10-29/.
+
+- Delivery reconciliation: research-scout PR 245 merged as b5fa37e0 while this audit awaited its preview. Merge preserves all scout files and records, advances this audit to prompt v72 / memory 0.22.62, and changes no audited queue/tree source. Report delta 1.0.1 to 1.0.2 adds this delivery note. Re-run final-head CI on PR 246.
+
+## v0.22.61 - 2026-10-29
+
+- The new scout guide passes all three `test_skill_page_parity.py` checks and the publication privacy gate. The rebuilt site has 2,290 pages and passes its publication policy. The canonical scout package and its 15 behavioral cases are unchanged.
+- Verification lesson: do not run `pytest site/tests` concurrently with `npm --prefix site run build`. The build replaces `site/dist/` while tests read it, causing `FileNotFoundError` in `twins.inline_script_hashes` and page tests. The accidental concurrent run was interrupted after 12 failures, 180 passes and six skips. A fresh site suite started after the successful build; use its final result or CI, never the interrupted run, as the acceptance receipt.
+- The repair adds only the required website guide and these continuation records. Delivery remains in_progress in PR 245; push this repair and merge only after final-head checks pass. After GitHub records the merge, no implementation or installation work remains. Delta: memory 0.22.60 to 0.22.61; prompt v71; skill v1.0.0.
+
+## v0.22.60 - 2026-10-29
+
+- PR 245 first passed privacy, API, hub, lint, CodeQL, the ordinary site build and Cloudflare preview. Its site workflow failed only at `site/tests/test_skill_page_parity.py::test_every_skill_has_a_page_or_a_stated_exemption`: `skill directories with no site/src/content/skills/<id>.md, so no page is built: ['research-scout']`. The site suite had 279 passes and this one failure. Every new installable skill needs its matching website guide; a successful build alone does not establish that parity.
+- Added `site/src/content/skills/research-scout.md` with the invocation, private artifact contract and unchanged research gates. Revalidate parity, the site suite and build before pushing the repair. No exemption or test weakening was used. The installed bundle remains v1.0.0; an additional global Codex discovery link points to the same Claude installation so future sessions can find the handoff contract.
+- Delivery remains in_progress on https://github.com/mithudso/llms-explorer/pull/245 . Remaining: verify the guide, push the repair, wait for final CI and merge. Delta: memory 0.22.59 to 0.22.60; prompt v71; skill v1.0.0.
+
+## v0.22.59 - 2026-10-29
+
+- Research scout implementation and installation are complete. Final local validation: 15 scout behavioral cases, 63 total scripts tests, Ruff, skill metadata, privacy gate, real-inventory smoke test and the site build pass. The site built 2,289 pages and its publication policy passed. The build's llms generation reported zero High and eight Medium findings; no unrelated generated changes were staged.
+- Final installed bundle hashes and both Antigravity discovery links match the reviewed repository package. Private run storage exists. No production research, library ingestion, model calls, embedding/indexing resume, concept-tree changes, queue completion or performance benchmark occurred.
+- Task steps: inspect contracts completed; create package completed; validate and install completed; delivery in_progress. Remaining at this checkpoint: push branch `feat/antigravity-research-scout`, open a draft PR, wait for final CI, mark ready and squash-merge. Query the branch PR to distinguish an interrupted delivery from an already merged release. After a confirmed merge, no implementation or installation steps remain. Preserve the original diverged checkout and other sessions' PRs. Delta: memory 0.22.58 to 0.22.59; prompt v71; skill v1.0.0.
+
+## v0.22.58 - 2026-10-29
+
+- Research-scout v1.0.0 is implemented and installed in the user's global Claude skills directory. The bundle contains SKILL.md, a handoff contract and a standard-library helper. Antigravity App/IDE and CLI discovery paths link to that same installed bundle. All three installed files match the repository source hashes. Official skill-location documentation consulted: https://antigravity.google/docs/skills .
+- The helper snapshots both inventories, preserves exact concept/parent identities, groups siblings, bounds batches and writes private resumable runs. Its check/render/find commands preserve access gaps and reject invalid identities, query/source bindings and premature ready status. Fully populated families can use an explicitly labeled family anchor for frontier proposals. AGENTS.md tells research orchestrators how to consume the leads. Native/headless runners do not load scout bundles automatically; no provider model, gate or research runtime was changed.
+- Verification: 14 focused behavioral tests pass; the broader scripts suite previously passed 61 tests before the family-anchor case was added and is rerunning. Skill frontmatter and privacy checks pass. An isolated smoke test selected four actual MongoDB concepts from four live inventory snapshots, validated and rendered the private skeleton, then removed the test directory. No actual Antigravity research or speed/quality benchmark has run.
+- Task steps: inspect contracts completed; create scout package completed; validate/install in_progress; commit and deliver pending. Remaining: confirm the final scripts suite and site build, stage only owned paths, push a draft PR, wait for all final checks and merge. Keep draft PRs 219 and 242 and red Dependabot PRs untouched. Delta: memory 0.22.57 to 0.22.58; skill initial release 1.0.0; prompt remains v71.
+
+## v0.22.57 - 2026-10-29
+
+- Research scout task: Antigravity will find source leads for pending concepts and propose frontier candidates. Stronger research workflows retain relevance decisions, CVS, claim validation, and completion. KNOW-700 supplies the existing distinction between low-context URL scouting and domain discovery/validation. Scout links never count as verified evidence or independent sources by themselves.
+- Use private, unique run directories under the user's global hub research `.scouts/` directory. Store a versioned JSON handoff with exact concept/parent names, input hashes, source access status, queries, and unaccepted frontier proposals. Keep a Markdown summary, original prompt, and continuation record beside it. Do not copy web bodies into the public repository.
+- Preserve the divergent main checkout (five unpublished commits at startup) and existing worktrees. Work in the isolated `feat/antigravity-research-scout` branch based on origin/main. Do not resume paused indexing or model runtimes. Install only the new skill bundle and scoped discovery links.
+- Tracking gap: Stele task creation returned `tier limit reached: this account's plan allows 500 knowledge writes per month, and that number is reached.` No task or knowledge node was created. Keep continuation here; do not publish or recreate a Stele project. The stele-search agent could not start because its configured gpt-5.4-mini model is unsupported by the current ChatGPT account. Direct MCP reads supplied the prior decisions.
+- Task steps: inspect contracts completed; create scout package in_progress; validate and install pending; commit and deliver pending. Remaining: implement the package and consumer pointer, verify queue preservation and malformed-handoff handling, install, then ship with green checks. Delta: memory 0.22.56 to 0.22.57; prompt v70 to v71.
 
 ## v0.22.56 - 2026-10-27
 

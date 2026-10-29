@@ -16,3 +16,14 @@ branch without another routine permission request. Preserve other active work.
 | `site-builder` | `site/` | Astro UI, plain CSS styling, 3D visualization, twin page generators. | `npm`, `astro` |
 
 <!-- llms-routing:pointer --> See `## llms routing` in CLAUDE.md for the llms files and quick answers.
+
+## Research scout handoffs
+
+Before `/dr` queue discovery or `concept-family-explorer` frontier discovery,
+check private candidate leads under `$HOME/.global-ai-hub/research/.scouts/`.
+Use `.claude/skills/research-scout/scripts/scout.py find` with the exact concept
+and parent when known. Read `.claude/skills/research-scout/references/handoff.md`
+before consuming a bundle. Scout output is unverified: recheck the live
+inventory, acquire readable source text, and keep the research workflow's
+origin, claim, CVS and completion gates. Headless runners need their
+orchestrator to pass relevant seeds; they do not load scout bundles themselves.

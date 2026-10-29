@@ -1,7 +1,8 @@
 # Research queue audit — 2026-10-29
 
-Version: 1.0.1. Delta: clarify immutable evidence handling and transaction-check
-scope after independent review. Observation window: 2026-10-29 15:29–15:38 UTC.
+Version: 1.0.2. Delta: preserve the concurrent research-scout delivery and its logs.
+Version 1.0.1 clarified immutable evidence and transaction-check scope after
+independent review. Observation window: 2026-10-29 15:29–15:38 UTC.
 
 The queue needs reconciliation before another broad dispatch. The hub has **147
 unique pending concepts**, of which **59 remain reserved by the paused suite**.
@@ -30,6 +31,9 @@ public inventory. Source hashes and aggregate counts are unchanged.
 The publication baseline is remote main `90cbb461`. Shared main `dbed74f0` is clean
 but diverged by five local and twenty remote commits. It was preserved. The
 retained MongoDB runtime is `d19fd59f`; its existing research edits were preserved.
+During delivery, research-scout PR 245 merged as `b5fa37e0`. The audit branch
+merged that commit and preserved its files and log entries. It did not change
+the audited queue/tree data; this report retains its original observation scope.
 
 ## Inventory
 
