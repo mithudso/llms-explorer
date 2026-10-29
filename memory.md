@@ -1,3 +1,36 @@
+# Memory
+
+## v0.22.75 - 2026-10-29
+
+- All local verification passes:280 site tests, complete site build/publication policy, full12,733-file real25-term privacy scan and independent export/projection audit. Three concepts /32 facts are qualified and persisted in both roots; final site2206 nodes /1884 readers /95480 facts. Existing eight Medium llms build findings remain unchanged; no High findings. Keyword entries retain the existing2500-character limit; semantic indexing stays paused and no embedding calls ran.
+- Delivery source is branch research/mongodb-scout-20261029 in /Users/mitch/dev/worktrees/llms-explorer-mongodb-scout-research-20261029. The current PR/CI/merge/local-sync receipt and remaining steps are recorded at /Users/mitch/.global-ai-hub/research/.ranked/mongodb-scout-20261029/memory.md and delivery.json. Read those receipts before repeating publication or treating this pre-commit record as the final remote state. Preserve the retained local compiled skill/install_path.
+- The requested wider queue scope remains unresolved: only three unheld scout proposals are complete. Four scouted parent labels remain held and unchanged; billing is alias-covered. No whole-queue completion or family saturation is claimed. TASK-960 remains the task handle; later Stele writes are unconfirmed because Transport closed. Delta: memory0.22.74 to0.22.75; promptv76; report/selection1.0.4.
+
+## v0.22.74 - 2026-10-29
+
+- Current fresh gate supports all32 canonical statements, with57 exact bound evidence spans and22 readable snapshots. Independent verification reran shared.verify_current_gate and verified all claim IDs, hashes, origin grouping and disconfirming searches. Artifact SHA7ac6851d431ad02b6b56238e4edf765f74c4d20610754507d350d0c6e430cdec; packet7b7b8d88884122722f406bb98f3b0b1ff89b486d8980662e5e19c6430b4d03ef. Run finalized COMPLETED; the broader queue remains unselected.
+- Native export produced six complete packs (3 concepts x2 roots) and correct child placement. Hub2212 nodes; public repository/site2206 nodes and1884 readers. Automatic finish briefly imported unrelated Hermes into the local website; explicit --defer-concept Hermes Agent scoped synchronization removed it before staging. Preserve the original automatic receipt; final authoritative scoped publication receipt is /Users/mitch/.global-ai-hub/research/.ranked/mongodb-scout-20261029/publication.json.
+- Export uses the existing /Users/mitch/dev/llms-explorer/hub/.venv/bin/python because system Python lacks llms_txt. Reused existing hub .venv and site node_modules through ignored worktree symlinks for the declared build paths; no installs or paused service changes. Paused October14 batches.json still matches preservation SHA.
+- Progress: [completed] research, current gate and qualified export; [in progress] site build/tests/privacy and final independent projection audit; [open] commit/push/PR/CI/merge/local sync. Broader scope choice remains unanswered. Stele transport remains unavailable; disk is the confirmed continuation record. Delta: memory0.22.73 to0.22.74; promptv76; report1.0.2.
+
+## v0.22.73 - 2026-10-29
+
+- All three delta concepts researched. Distilled duplicate follow-up statements with private preserved originals: HMAC12 to8, PSC16 to13, GCS11 unchanged;32 current canonical claims. The first v2 gate withheld4 claims because its API source had no readable snapshot and its default troubleshooting snapshot contained AWS content. Retrieved69KB API readable text and42KB all-tabs Markdown, read the exact GCP/API passages, rebound PSC citations to ?allTabs=true, and corrected MongoDB employee/GitHub origins. One premature second gate was cancelled; its incomplete attempt is preserved. Third current gate running. Independent audit verifies all source-layer repairs and reports no further semantic blockers.
+- Stele MCP transport closed during later writes/reads. TASK-962 completion, TASK-963 claim and the new lesson write were not confirmed; do not infer them from attempted calls. This versioned disk record is the tracker fallback. Parent TASK-960 was confirmed claimed before the transport failure.
+- Remaining: await current bound gate, persist qualified results through both-tree/pack export, synchronize site while deferring Hermes, verify and ship. User has not answered the broader queue/held-parent scope question. Preserve old suite/indexing/embeddings and reservations. Delta: memory0.22.72 to0.22.73; promptv76.
+
+## v0.22.72 - 2026-10-29
+
+- Three unheld scout proposals started native standard /dr at /Users/mitch/.global-ai-hub/research/mongodb-atlas-gcp-scout-deltas-20261029. Actual probe briefs include the scout revision/hash/source IDs. Canonical checker passes four CVS decisions: HMAC 3.850, GCS 4.250, PSC ports 3.975 research; billing 3.050 with novelty zero skipped as covered. Independent scope audit confirms exact-identity dedup and held parent preservation. Existing X-MMS-Signature and PSC deprecation passages are inherited background, not new deltas.
+- The global hub queue has14 unheld MongoDB gaps; the repository union has329. User scope answer remains pending; do not claim the three proposals complete either queue. Domain-origin policy and legacy brief wording differ; verify and report actual origin groups in final evidence audit.
+- Progress: [completed] initial coverage reconciliation; [in progress] research and gates (TASK-963); [open] persistence/verification/delivery (TASK-964). Delta: memory0.22.71 to0.22.72; promptv76 unchanged.
+
+## v0.22.71 - 2026-10-29
+
+- TASK-960: user requests MongoDB queue research after Antigravity scouting. Worktree /Users/mitch/dev/worktrees/llms-explorer-mongodb-scout-research-20261029; branch research/mongodb-scout-20261029; base 978731e7. Scout bundle /Users/mitch/.global-ai-hub/research/.scouts/20261029T171705Z-5db39bf7cb/scout.json validates at revision 5 with four queue topics, eleven source leads, and four proposed descendants.
+- Current inventory confirms the old 29-cohort October 27 plan is complete. All four scouted queue topics are held by the paused October 14 suite. Asked the user to choose a separate scout-scoped run or the entire unheld queue; no dependent research has started. Indexing, embeddings, old reservations and immutable research remain preserved.
+- Progress: [in progress] coverage and scope reconciliation; [open] independent retrieval, synthesis and gates; [open] qualified persistence and publication; [open] verification and delivery. Delta: memory 0.22.70 to 0.22.71; prompt v75 to v76.
+
 # Memory Log
 
 ## v0.22.70 - 2026-10-29
