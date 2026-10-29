@@ -1,5 +1,11 @@
 # Prompts Log
 
+## Prompt v71 - 2026-10-29
+
+> audit the research queue
+
+Scope: audit queue grammar, status, ranking, reservations and research evidence across the hub, divergent shared checkout, remote main and retained runtime checkout. Preserve research and queue state. Save findings and a reproducible inventory under docs/research/research-queue-audit-2026-10-29/. Stele task creation failed because the monthly write allowance is exhausted; use the disk continuation record. Delta: prompt v70 to v71; memory 0.22.56 to 0.22.57.
+
 ## Prompt v70 - 2026-10-27
 
 > I refreshed the libs read token

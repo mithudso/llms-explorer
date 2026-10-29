@@ -1,5 +1,16 @@
 # Memory Log
 
+## v0.22.57 - 2026-10-29
+
+- Prompt: audit the research queue. Audit scope includes queue syntax, duplicate/status drift, ranked coverage, reservations and saved research evidence. Do not run research or change queue, tree, claims, gates, paused inference/indexing or existing reservations.
+- Worktree: /Users/mitch/dev/worktrees/llms-explorer-queue-audit-20261029, branch audit/research-queue-20261029, based on origin/main at 90cbb461. Preserve shared main (dbed74f0, ahead 5/behind 20) and all other worktrees.
+- Stele TASK-950 says cohort checkpoints establish outcomes; plan row status remains pending. Existing records require keeping the local October 27 run separate from the unavailable remote run. Stele rejected creation of an audit task with a monthly knowledge-write limit. Its stele-search agent could not start because gpt-5.4-mini is unsupported on this account; direct read tools provide the fallback.
+- Findings: hub 148 pending rows / 147 unique labels; 59 reserved by the paused suite; ranked view has 86 checked rows and omits all 39 withheld October 27 concepts. Seven duplicate groups mix done/pending. Two valid embedded-backtick names disappear in the old hub/TUI parsers. Five checked names need alias mapping; six repository rows have an unresolved parent. The older October 20 plan retains stale outcomes and lacks 17 completed cohort run directories on this machine.
+- Independent evidence audit: October 27 has ten complete cohorts / 15 concepts and nineteen withheld cohorts / 39 concepts. All 29 packets, 785 judgments and 1,314 evidence spans pass mechanical validation. All ten completed canonical artifacts and export transactions verify. Completed research contains 213 supported samples and 17 ordinary unsampled claims; remote main has none of the 15 result readers. The 49 dissenting judgments remain repair work. No substantive judgments were rerun.
+- Validation: JSON/arithmetic checks, parser comparisons and git diff --check pass. Eleven queue/tree/plan source hashes remain unchanged. The four deliverables pass publication privacy with the 25-term local operator denylist; two private label occurrences were redacted from the public inventory without changing aggregate counts.
+- Progress: [completed] inventory and queue contracts; [completed] independent evidence audit and findings; [completed] local validation; [in progress] commit and deliver audit records. This task produces audit records only. Queue fixes, result publication and research continuation remain follow-up recommendations.
+- Delta: memory 0.22.56 to 0.22.57; prompt v70 to v71. Report and machine-readable inventory will live under docs/research/research-queue-audit-2026-10-29/.
+
 ## v0.22.56 - 2026-10-27
 
 - User follow-ups: "how's it going?" and "I refreshed the libs read token". Prompt versions advance from v68 to v70. Fresh preview b1333c2c-1377-4c21-a4ed-ee38b389620c reached `llms-explorer-site@0.0.14 prebuild` at 2026-10-28T03:43:39.282Z. Private dependency fetch/authentication succeeded; the full preview and final checks remain pending.
