@@ -1,6 +1,7 @@
 # Research queue audit — 2026-10-29
 
-Version: 1.0.0. Delta: initial audit. Observation window: 2026-10-29 15:29–15:38 UTC.
+Version: 1.0.1. Delta: clarify immutable evidence handling and transaction-check
+scope after independent review. Observation window: 2026-10-29 15:29–15:38 UTC.
 
 The queue needs reconciliation before another broad dispatch. The hub has **147
 unique pending concepts**, of which **59 remain reserved by the paused suite**.
@@ -62,7 +63,8 @@ All 54 plan row fields still say `pending`. Cohort checkpoints and bound
 artifacts establish the actual outcomes. The existing MongoDB outcome task,
 TASK-950, explicitly records this guard. Do not restart the finished controller
 or rebuild discovery from those row fields. Correct each affected canonical
-claim or its pinned source, retain the failed packet, then request a fresh gate.
+claim or source binding; retrieve a new immutable snapshot when needed. Preserve
+existing pinned evidence and the failed packet, then request a fresh gate.
 
 ### 2. Medium: the ranked view no longer describes the current backlog
 
@@ -87,8 +89,8 @@ unchecked. Remote main has all 54 unchecked and none of the 15 result nodes or
 readers. The divergent shared main contains the 15 result nodes but none of the
 54 exact queue labels. No single local checkout describes publication state.
 
-The independent audit verified ten canonical artifacts and ten completed export
-transactions. It found 30 pack directories across both roots, containing 240
+The independent audit verified ten canonical artifacts; all ten export transaction
+journals report complete. It found 30 pack directories across both roots, containing 240
 members, plus 15 runtime readers, 15 Markdown downloads and 15 research-artifact
 JSON files. Result publication remains a separate deliverable from the merged
 frontier planning PR:
