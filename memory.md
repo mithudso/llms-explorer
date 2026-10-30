@@ -1,5 +1,12 @@
 # Memory
 
+## v0.22.76 - 2026-10-30
+
+- Added /research/ ("Find by task"), a research-by-task page for AI and LLM work: free-text search over the 763 facts files under the AI & LLM Engineering root (lazy /research/references.json, about 60 KB gzipped), ten curated tasks in site/src/data/research-tasks.json pairing reference files with articles, how-to recipes and skills, a "Copy reference" prompt snippet with the canonical facts-file URL, and a twin /research.md written by tools/twins.py from the same JSON. Nav and home link it. TASK-966; decisions KNOW-967 (design) and KNOW-968 (pack summaries are often boilerplate, so the page never prints them).
+- Verified in Chrome at 1440, 390 and 320 px through the real Pages middleware CSP: loading (3 s delayed index), error with Try again recovery, empty, filler-only, results, clipboard success and the selected-text fallback, keyboard order and focus rings. Fixed during verification: Astro scoped styles missed the child row component (page styles are now `is:global`, rs- prefixed), `.btn` display beat `[hidden]`, read-kind labels ran into titles, results rendered below the suggestions on phones, two-fact router stubs ranked high, compound queries split into noisy fragments.
+- A code-deep-optimizer pass (4 per-file reviewers, 2 blind gates) fixed 16 Medium review findings, 5 Medium gate-1 findings and a gate-2 High: the synonym table was an object literal, so the query "constructor" crashed search (now a Map, with a regression test). The run exits BLIND-AUDIT-DISSENT because the cap allows two gates; the post-gate fixes are verified by tests and in Chrome. Open Low items: no term-rarity weight, version-glued names such as "Qwen3.6" miss the bare word "qwen", three aliases carry a literal `&amp;` from the generator, and ?q= search text reaches GA4 site-search.
+- Gates: 294 site tests passed (the scaffold test's own npm build was run separately with SITE_URL set), astro check 0 errors, ruff clean, llms lint 0 High. Delta: memory 0.22.75 to 0.22.76; prompt v76 to v77.
+
 ## v0.22.75 - 2026-10-29
 
 - All local verification passes:280 site tests, complete site build/publication policy, full12,733-file real25-term privacy scan and independent export/projection audit. Three concepts /32 facts are qualified and persisted in both roots; final site2206 nodes /1884 readers /95480 facts. Existing eight Medium llms build findings remain unchanged; no High findings. Keyword entries retain the existing2500-character limit; semantic indexing stays paused and no embedding calls ran.

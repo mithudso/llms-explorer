@@ -65,6 +65,47 @@ def route_of(rel: Path) -> str:
     return "/" + "".join(f"{s}/" for s in segs)
 
 
+def _research_rows(data: dict, *, content_dir: Path, data_dir: Path) -> list[tuple[str, str]]:
+    """/research.md's inventory: each task's facts files, reads and skills.
+
+    Resolved the way src/pages/research/index.astro resolves them for the page —
+    a facts file by its slug in context.json, an article or skill by its content
+    file — and a pick the build no longer has is left out rather than listed
+    dead. A task with no facts file left is left out whole, as the page drops it.
+    Each dropped pick is printed, as the page build warns about it."""
+    context = json.loads((data_dir / "context.json").read_text(encoding="utf-8"))
+    concepts = {c["slug"]: c for r in context["roots"] for c in r["concepts"]}
+
+    def entry_title(collection: str, entry_id: str) -> str | None:
+        path = content_dir / collection / f"{entry_id}.md"
+        m = FM_RE.match(path.read_text(encoding="utf-8")) if path.is_file() else None
+        return _title(m.group(1)) if m else None
+
+    rows, dropped = [], []
+    for task in data["tasks"]:
+        picks = [s for s in task["references"] if s in concepts]
+        dropped += [f"{task['id']}: reference {s}" for s in task["references"] if s not in concepts]
+        if not picks:
+            dropped.append(f"{task['id']}: the whole task (no facts file left)")
+            continue
+        rows += [(f"{task['title']} · {concepts[s]['concept']} — facts", concepts[s]["download"])
+                 for s in picks]
+        for read in task["reads"]:
+            if title := entry_title(read["collection"], read["id"]):
+                rows.append((f"{task['title']} · {read['kind']}: {title}",
+                             f"/{read['collection']}/{read['id']}/"))
+            else:
+                dropped.append(f"{task['id']}: {read['collection']} {read['id']}")
+        for skill in task["skills"]:
+            if title := entry_title("skills", skill):
+                rows.append((f"{task['title']} · skill: {title}", f"/skills/{skill}/"))
+            else:
+                dropped.append(f"{task['id']}: skill {skill}")
+    if dropped:
+        print(f"twins: /research.md left out picks the build no longer has: {', '.join(dropped)}")
+    return rows
+
+
 # Routes that are Astro pages rather than content entries: the data sections
 # (tree, directory, demo) render from src/data/*.json, so there is no markdown
 # to walk — but the site's own llms.txt has to list them or its index hides its
@@ -83,7 +124,7 @@ PAGE_SECTIONS = [
      "description": "Every researched concept in the hub's tree, one page each, "
                     "with its parent, its children and the frontier names below it.",
      "explains": "reference/concept-tree.md", "data": "tree.json", "dated": "generated",
-     "index": lambda d: [(n["concept"], f"/tree/{n['slug']}/") for n in
+     "index": lambda d, **_: [(n["concept"], f"/tree/{n['slug']}/") for n in
                          sorted(d["nodes"].values(), key=lambda n: n["concept"])]},
     {"route": "/context/", "title": "Context files",
      "page": "src/pages/context/index.astro",
@@ -93,14 +134,21 @@ PAGE_SECTIONS = [
      "explains": "reference/context-files.md", "data": "context.json", "dated": "generated",
      # every download, absolute, grouped by root: the one file an agent reads to
      # pick the second and last hop
-     "index": lambda d: [(f"{r['concept']} · {c['concept']} — facts", c["download"])
+     "index": lambda d, **_: [(f"{r['concept']} · {c['concept']} — facts", c["download"])
                          for r in d["roots"] for c in r["concepts"]]},
     {"route": "/demo/", "title": "Semantic indexing, recorded",
      "page": "src/pages/demo.astro",
      "description": "One question set run three ways against one indexed docset — keyword "
                     "(BM25), vector, and the fusion of both — hits and timings as recorded.",
      "explains": "blog/semantic-indexing.md", "data": "demo.json", "dated": "recorded",
-     "index": lambda d: [(q["q"], "/demo/") for q in d["questions"]]},
+     "index": lambda d, **_: [(q["q"], "/demo/") for q in d["questions"]]},
+    {"route": "/research/", "title": "Research by task",
+     "page": "src/pages/research/index.astro",
+     "description": "Common AI and LLM tasks, each paired with the source-linked facts files "
+                    "to reference in a prompt, the articles and how-to recipes that show the "
+                    "work, and the skills that do it.",
+     "explains": "reference/context-files.md", "data": "research-tasks.json", "dated": "curated",
+     "index": _research_rows},
 ]
 
 
@@ -408,7 +456,7 @@ def _section_twin(spec: dict, content_dir: Path, data_dir: Path, dist_dir: Path,
     explains_url = f"{site_url}{route_of(Path(spec['explains']))}"
     data = json.loads(data_file.read_text(encoding="utf-8"))
     recorded = str(data.get("generated") or "").strip()
-    rows = spec["index"](data)
+    rows = spec["index"](data, content_dir=content_dir, data_dir=data_dir)
     listing = "\n".join(f"- [{name}]({site_url}{href})" for name, href in rows)
     dated = (f"Data {spec['dated']} {recorded}; twin built {stamp}." if recorded
              else f"Data undated; twin built {stamp}.")
