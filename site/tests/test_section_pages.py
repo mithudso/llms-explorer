@@ -14,7 +14,7 @@ HOME_HREF_RE = re.compile(r'href="(/[^"#?]*)"')
 # the section, none per row. The rows must therefore advertise no twin at all. (/context/
 # has no row pages of its own — its rows are /downloads/ files — but its section twin is
 # promised the same way.)
-GENERATED_SECTIONS = ("tree", "demo", "context")
+GENERATED_SECTIONS = ("tree", "demo", "context", "research")
 
 
 def _home_links() -> set[str]:

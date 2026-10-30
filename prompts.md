@@ -1,5 +1,11 @@
 # Prompts Log
 
+## Prompt v77 - 2026-10-30
+
+> UI implementation task: a research summary/distillation page for llms to use as reference files, skills, blogs, and how-to articles for AI/LLM work, for people with moderate AI experience who want to find a concept file or family for their task, reference it in a prompt, read a blog post and download skills; inspect first, implement with loading/empty/error/success states, render and verify at mobile and desktop widths.
+
+Scope: TASK-966. Build /research/ on the existing Astro conventions, verify it in a real browser under the production CSP, and deliver through a PR. Delta: prompt v76 to v77; memory 0.22.75 to 0.22.76.
+
 ## Prompt v76 - 2026-10-29
 
 > Antigravity scouted new concepts and sources to research, research the mongodb queue list
