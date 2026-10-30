@@ -1,5 +1,12 @@
 # Memory
 
+## v0.22.78 - 2026-10-30
+
+- First four-subject sharding cohort finalized COMPLETED:68canonicalclaims,54SUPPORTED and14ordinaryNOT-SAMPLED. Currentgate54/54passes;28pinnedreadablesnapshots,81boundspans. Artifacte31e8fae6b3f743945a0ebc090cea850b0c3795d1a8df298958019b23d433c37. Eight completepacks acrossbothroots; both-tree/site projectionsverified bylive-acceptance agent.
+- At safe cohort boundary, applied locked coverage reconciliation. Planv1.0.1 still461identities:4complete,328pendingdirect,5owner-dependentneedsreview,124priorcheckpoints. Added11gap-focusedrevisit scopes and preservednullCVS ratherthaninventing scores. Sourceownership11URLsannotated for laterreuse; currentgatepinnedmetadataremainsimmutable.
+- Site build andpublication policy pass;8Mediumllmslintfindings unchanged,0High. Initialsite testattempt precededbuild andwasinterrupted aftermissingdistfiles; correctedsite test runpassesall280tests in225.44seconds.61focusedrunner/queue/plantestsand27-file skillmirrorcheckalsopass. DraftPR250continues; no wholequeuecompletion or remote researchpublication claimed. Full continuation /Users/mitch/.global-ai-hub/research/.ranked/mongodb-unheld-20261030/memory.md.
+- Delta:0.22.77to0.22.78; prompt77unchanged. Research/gatesinprogress; finaldeliveryopen.
+
 ## v0.22.77 - 2026-10-30
 
 - Independent scope audit found11initial coverage skips requiring further work:5generic-template false coverage,4minimal legacy claims to verify/repair and2source-specific compaction gaps. Corrected execution accounting is332direct targets,5owner-dependent labels and124prior checkpoints within the same461frozen identities.132initial metadata skips must not all be presented as current qualified research.

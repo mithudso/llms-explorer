@@ -3,7 +3,7 @@
 
 Scores are priority judgments with provenance; source URLs are discovery leads. Unscored concepts await real scoring. The legacy 3.2 cutoff does not filter this view.
 
-Canonical rows: **461**; gaps/reviews: **329**; unscored gaps: **0**; held: **0**.
+Canonical rows: **461**; gaps/reviews: **336**; unscored gaps: **11**; held: **0**.
 
 ## Source-sharing cohorts
 
@@ -11,7 +11,6 @@ Every gap and review candidate appears below, including held, low-scored and uns
 
 | cohort | source family / affinity | members · CVS | shared discovery sources |
 |---|---|---|---|
-| mongodb-cohort-2e478e8e7c3f | sharding / parent:shard key design and resharding as cost levers | analyzeShardKey and query sampling (CVS 4.375); analyzeShardKey query sampling and candidate-key scoring (CVS 4.375); Two-phase write protocol and writes without the shard key (CVS 4.250); Atlas independent shard scaling and auto-scaling (CVS 4.100) | [Server sharding, routing and balancing](https://www.mongodb.com/docs/manual/sharding/) |
 | mongodb-cohort-a17745affdcc | mongodb-general / parent:read offload via caching and precomputed views ($merge/$out, computed pattern) | Delete propagation and reconciliation for $merge-maintained views (CVS 4.375); Idempotent incremental refresh design for $merge (high-water marks, delete handling) (CVS 4.350); Atlas Stream Processing streaming materialized views (CVS 4.025); Cache stampede protection: leases, request coalescing, TTL jitter (CVS 3.900) | [MongoDB server and Atlas documentation](https://www.mongodb.com/docs/) |
 | mongodb-cohort-c53f316f2ab7 | query-index-planner / index-design | Index build commit quorum and hung builds (CVS 4.350); Unique and TTL index side effects on removal (CVS 4.275); Index filters (planCacheSetFilter) deprecation and migration to query settings (CVS 4.275); Query settings: index hints and queryFramework (persistent query settings) (CVS 4.250) | [Server query planner, indexes and explain](https://www.mongodb.com/docs/manual/indexes/); [Server query planner, indexes and explain](https://www.mongodb.com/docs/manual/reference/explain-results/) |
 | mongodb-cohort-494e1aa39f55 | query-index-planner / query-shape | $queryStats and $currentOp as alternatives to the profiler (CVS 4.350); Atlas Query Profiler and slow-ops logs for shape discovery (CVS 4.250); Query shape and queryShapeHash stability (CVS 4.150); Query shapes and queryShapeHash stability (CVS 4.150) | [Server query planner, indexes and explain](https://www.mongodb.com/docs/manual/indexes/); [Server query planner, indexes and explain](https://www.mongodb.com/docs/manual/reference/explain-results/) |
@@ -118,7 +117,7 @@ Every gap and review candidate appears below, including held, low-scored and uns
 | mongodb-cohort-18067a89fb07 | networking / parent:atlas cost planning: region pricing, estimation, scheduled scaling and competitor tco | Atlas PrivateLink regional endpoint rates (CVS 2.700); Egress and data transfer estimation (CVS 2.650) | [Atlas networking and cloud-provider connectivity](https://www.mongodb.com/docs/atlas/security-private-endpoint/); [Atlas networking and cloud-provider connectivity](https://www.mongodb.com/docs/atlas/security-vpc-peering/) |
 | mongodb-cohort-019ea6c7f819 | cost-billing / billing-pricing | Re-indexing cost when changing numDimensions (CVS 2.650); Atlas Admin API billing alert configuration (CVS 2.600); FOCUS column mapping for Atlas credits (CVS 2.600); Linking Atlas orgs to marketplace billing accounts (CVS 2.600) | [Atlas pricing, billing and cluster sizing](https://www.mongodb.com/docs/atlas/billing/); [Atlas pricing, billing and cluster sizing](https://www.mongodb.com/docs/atlas/manage-clusters/) |
 | mongodb-cohort-86157c3fe16f | cost-billing / parent:atlas cost commitments, cross-org billing and finops tooling | Untagged spend reporting (CVS 2.650); Proportional minimum-commit allocation (CVS 2.450); Unlinking an organization (CVS 2.250) | [Atlas pricing, billing and cluster sizing](https://www.mongodb.com/docs/atlas/billing/); [Atlas pricing, billing and cluster sizing](https://www.mongodb.com/docs/atlas/manage-clusters/) |
-| mongodb-cohort-d8c01f75fb44 | api-tooling / automation | Atlas Admin API rate limiting for scheduled polling (CVS 2.600); Conftest/OPA rules over terraform show -json plans (CVS 2.550); Atlas Admin API pending-invoice tags field (CVS 2.400) | [MongoDB drivers, tools and automation](https://www.mongodb.com/docs/drivers/); [MongoDB drivers, tools and automation](https://www.mongodb.com/docs/atlas/cli/); [MongoDB drivers, tools and automation](https://www.mongodb.com/docs/atlas/api/) |
+| mongodb-cohort-f2bea3de4b89 | api-tooling / automation | Atlas Admin API rate limiting for scheduled polling (CVS 2.600); Conftest/OPA rules over terraform show -json plans (CVS 2.550); Atlas Admin API pending-invoice tags field (CVS 2.400); Atlas CLI (unscored) | [MongoDB drivers, tools and automation](https://www.mongodb.com/docs/drivers/); [MongoDB drivers, tools and automation](https://www.mongodb.com/docs/atlas/cli/); [MongoDB drivers, tools and automation](https://www.mongodb.com/docs/atlas/api/) |
 | mongodb-cohort-4612d59db35d | aggregation / parent:atlas cost commitments, cross-org billing and finops tooling | Cross-vendor FOCUS pipelines (BigQuery/Snowflake) (CVS 2.600) | [Server aggregation operators and optimization](https://www.mongodb.com/docs/manual/aggregation/); [Server aggregation operators and optimization](https://www.mongodb.com/docs/manual/core/aggregation-pipeline-optimization/) |
 | mongodb-cohort-a9c2cc4bbf19 | storage-wiredtiger / parent:atlas cost planning: region pricing, estimation, scheduled scaling and competitor tco | Backup storage rates by region (CVS 2.450) | [Server storage and WiredTiger architecture](https://www.mongodb.com/docs/manual/core/wiredtiger/); [Server storage and WiredTiger architecture](https://source.wiredtiger.com/) |
 | mongodb-cohort-325a09333de2 | identity-governance / audit-compliance | Scheduled compliance polling and alerting (CVS 2.450) | [Atlas identity, access management and security](https://www.mongodb.com/docs/atlas/security/); [Atlas identity, access management and security](https://www.mongodb.com/docs/manual/security/) |
@@ -126,6 +125,13 @@ Every gap and review candidate appears below, including held, low-scored and uns
 | mongodb-cohort-dab118cd8660 | storage-wiredtiger / parent:storage and data-lifecycle cost levers | Journal compression (CVS 2.350) | [Server storage and WiredTiger architecture](https://www.mongodb.com/docs/manual/core/wiredtiger/); [Server storage and WiredTiger architecture](https://source.wiredtiger.com/) |
 | mongodb-cohort-3da97516cefc | cost-billing / billing-pricing | Billing incidents and refunds (CVS 2.300); Charts billing ingestion for linked orgs (CVS 2.000) | [Atlas pricing, billing and cluster sizing](https://www.mongodb.com/docs/atlas/billing/); [Atlas pricing, billing and cluster sizing](https://www.mongodb.com/docs/atlas/manage-clusters/) |
 | mongodb-cohort-86b55445bd3c | query-index-planner / parent:mongodb wildcard and hidden indexes, index builds and index overhead | Cosmos DB for MongoDB wildcard differences (CVS 2.150) | [Server query planner, indexes and explain](https://www.mongodb.com/docs/manual/indexes/); [Server query planner, indexes and explain](https://www.mongodb.com/docs/manual/reference/explain-results/) |
+| mongodb-cohort-2255fa8f9dbd | diagnostics-operations / parent:atlas diagnostics expert | Atlas Triage Workflows (unscored); Diagnostic Tool Design (unscored); FTDC and Log Tooling (unscored); KB-Backed Troubleshooting (unscored) | [Server diagnostics, Atlas monitoring and operations](https://www.mongodb.com/docs/manual/administration/analyzing-mongodb-performance/); [Server diagnostics, Atlas monitoring and operations](https://www.mongodb.com/docs/atlas/monitoring-alerts/) |
+| mongodb-cohort-acec48250f2d | storage-wiredtiger / parent:wiredtiger compaction algorithm | Background-Compaction Skip/EMA Heuristic (unscored) | [Server storage and WiredTiger architecture](https://www.mongodb.com/docs/manual/core/wiredtiger/); [Server storage and WiredTiger architecture](https://source.wiredtiger.com/) |
+| mongodb-cohort-aadbc815fdee | diagnostics-operations / parent:mongodb developer patterns | Error Codes and Troubleshooting (unscored) | [Server diagnostics, Atlas monitoring and operations](https://www.mongodb.com/docs/manual/administration/analyzing-mongodb-performance/); [Server diagnostics, Atlas monitoring and operations](https://www.mongodb.com/docs/atlas/monitoring-alerts/) |
+| mongodb-cohort-9ee49621e5ca | archive-federation / parent:mongodb atlas | MongoDB Atlas Data Federation (unscored) | [Atlas Data Federation and Online Archive](https://www.mongodb.com/docs/atlas/data-federation/); [Atlas Data Federation and Online Archive](https://www.mongodb.com/docs/atlas/online-archive/) |
+| mongodb-cohort-34d60aede5df | api-tooling / drivers | MongoDB Drivers (unscored) | [MongoDB drivers, tools and automation](https://www.mongodb.com/docs/drivers/); [MongoDB drivers, tools and automation](https://www.mongodb.com/docs/atlas/cli/); [MongoDB drivers, tools and automation](https://www.mongodb.com/docs/atlas/api/) |
+| mongodb-cohort-065b5964e6f4 | sharding / parent:mongodb developer patterns | mongosh Reference (unscored) | [Server sharding, routing and balancing](https://www.mongodb.com/docs/manual/sharding/) |
+| mongodb-cohort-5c4fb85a6f32 | storage-wiredtiger / parent:mongodb autocompact | WiredTiger Compaction Algorithm (unscored) | [Server storage and WiredTiger architecture](https://www.mongodb.com/docs/manual/core/wiredtiger/); [Server storage and WiredTiger architecture](https://source.wiredtiger.com/) |
 
 ## Full inventory
 
@@ -137,8 +143,8 @@ Every gap and review candidate appears below, including held, low-scored and uns
 | 4 | 4.450 | RESEARCH | Hot shard diagnosis and shard key remediation | Independent shard scaling and per-shard tiering | dr | covered | mongodb-cohort-1d6ef7b4932c | — |
 | 5 | 4.450 | RESEARCH | $queryStats aggregation stage | Database Profiler vs Query Profiler | dr | covered | mongodb-cohort-5bc61fcfe3ec | — |
 | 6 | 4.425 | RESEARCH | Reading sharded explain output (shards, SINGLE_SHARD, SHARD_MERGE) | Covered queries on sharded collections | dr | covered | mongodb-cohort-74cd39f19180 | — |
-| 7 | 4.375 | RESEARCH | analyzeShardKey and query sampling | Shard Key Design and Resharding as Cost Levers | dr | frontier | mongodb-cohort-2e478e8e7c3f | — |
-| 8 | 4.375 | RESEARCH | analyzeShardKey query sampling and candidate-key scoring | Shard Key Design and Resharding as Cost Levers | dr | frontier | mongodb-cohort-2e478e8e7c3f | — |
+| 7 | 4.375 | RESEARCH | analyzeShardKey and query sampling | Shard Key Design and Resharding as Cost Levers | dr | covered | mongodb-cohort-2e478e8e7c3f | — |
+| 8 | 4.375 | RESEARCH | analyzeShardKey query sampling and candidate-key scoring | Shard Key Design and Resharding as Cost Levers | dr | covered | mongodb-cohort-2e478e8e7c3f | — |
 | 9 | 4.375 | RESEARCH | Delete propagation and reconciliation for $merge-maintained views | Read Offload via Caching and Precomputed Views ($merge/$out, Computed Pattern) | dr | frontier | mongodb-cohort-a17745affdcc | — |
 | 10 | 4.350 | RESEARCH | Index build commit quorum and hung builds | Index build resource limits (maxNumActiveUserIndexBuilds, disk space) | dr | frontier | mongodb-cohort-c53f316f2ab7 | — |
 | 11 | 4.350 | RESEARCH | $queryStats and $currentOp as alternatives to the profiler | Database Profiler vs Query Profiler | dr | frontier | mongodb-cohort-494e1aa39f55 | — |
@@ -160,7 +166,7 @@ Every gap and review candidate appears below, including held, low-scored and uns
 | 27 | 4.250 | RESEARCH | Snapshot reads (atClusterTime) and history window sizing on secondaries | Long-running secondary reads in sharded clusters | dr | frontier | mongodb-cohort-ea1f4fe33d9f | — |
 | 28 | 4.250 | RESEARCH | Snapshot reads on secondaries and minSnapshotHistoryWindowInSeconds | Long-running secondary reads in sharded clusters | dr | frontier | mongodb-cohort-a4d0714f2d41 | — |
 | 29 | 4.250 | RESEARCH | Time series backfill ordering and batching | Bucket fragmentation remediation (re-insert/merge) | dr | frontier | mongodb-cohort-6d975ea7dbf2 | — |
-| 30 | 4.250 | RESEARCH | Two-phase write protocol and writes without the shard key | Shard Key Design and Resharding as Cost Levers | dr | frontier | mongodb-cohort-2e478e8e7c3f | — |
+| 30 | 4.250 | RESEARCH | Two-phase write protocol and writes without the shard key | Shard Key Design and Resharding as Cost Levers | dr | covered | mongodb-cohort-2e478e8e7c3f | — |
 | 31 | 4.250 | RESEARCH | Resume-from-last-key pattern for killed cursors | Long-running secondary reads in sharded clusters | dr | frontier | mongodb-cohort-a4d0714f2d41 | — |
 | 32 | 4.250 | RESEARCH | Distributed Sharded Transactions | MongoDB Transactions | dr | covered | mongodb-cohort-700382c55bcd | — |
 | 33 | 4.250 | RESEARCH | Transaction Anti-Patterns | MongoDB Transactions | dr | covered | mongodb-cohort-700382c55bcd | — |
@@ -202,7 +208,7 @@ Every gap and review candidate appears below, including held, low-scored and uns
 | 69 | 4.125 | RESEARCH | Elasticsearch-to-Atlas Search migration and dual-run cost | Platform Consolidation TCO (Atlas Search/Vector Search vs Separate Search or Vector DB) | dr | frontier | mongodb-cohort-7a717238450f | — |
 | 70 | 4.100 | RESEARCH | Detecting inconsistent indexes across shards | Rolling index builds | dr | frontier | mongodb-cohort-c5470a8d6ad1 | — |
 | 71 | 4.100 | RESEARCH | Embedding generation and reranking token spend in retrieval TCO | Platform Consolidation TCO (Atlas Search/Vector Search vs Separate Search or Vector DB) | dr | frontier | mongodb-cohort-9da1cfbc1747 | — |
-| 72 | 4.100 | RESEARCH | Atlas independent shard scaling and auto-scaling | Shard Key Design and Resharding as Cost Levers | dr | frontier | mongodb-cohort-2e478e8e7c3f | — |
+| 72 | 4.100 | RESEARCH | Atlas independent shard scaling and auto-scaling | Shard Key Design and Resharding as Cost Levers | dr | covered | mongodb-cohort-2e478e8e7c3f | — |
 | 73 | 4.100 | RESEARCH | Atlas independent shard scaling and per-shard auto-scaling | Shard Key Design and Resharding as Cost Levers | dr | frontier | mongodb-cohort-86c227f5e718 | — |
 | 74 | 4.100 | RESEARCH | Multiplanning storms after a plan cache flush | Replanning loops and replanReason | dr | frontier | mongodb-cohort-0346bef27420 | — |
 | 75 | 4.100 | RESEARCH | Gen1 versus Gen2 IOPS provisioning and instance-level EBS/VM IOPS caps | Cluster Tier Limits and Feature Gates as Cost Drivers (Connections, IOPS Caps, Minimum Tiers) | dr | frontier | mongodb-cohort-7b84bed0b7eb | — |
@@ -530,12 +536,12 @@ Every gap and review candidate appears below, including held, low-scored and uns
 | 397 | 2.650 | SKIP | Re-indexing cost when changing numDimensions | Atlas Cost Commitments, Cross-Org Billing and FinOps Tooling; Matryoshka Dimension Truncation for Vector Storage Cost | dr | frontier | mongodb-cohort-019ea6c7f819 | — |
 | 398 | 2.650 | SKIP | Untagged spend reporting | Atlas Cost Commitments, Cross-Org Billing and FinOps Tooling; Terraform Tag Enforcement and Policy-as-Code for Atlas Cost | dr | frontier | mongodb-cohort-86157c3fe16f | — |
 | 399 | 2.600 | SKIP | Atlas Admin API billing alert configuration | Atlas Cost Commitments, Cross-Org Billing and FinOps Tooling; FinOps Tooling for Atlas (FOCUS Ingestion Anomaly Detection Budgets) | dr | frontier | mongodb-cohort-019ea6c7f819 | — |
-| 400 | 2.600 | SKIP | Atlas Admin API rate limiting for scheduled polling | Atlas Slow-Query Log and Performance Advisor Automation | dr | frontier | mongodb-cohort-d8c01f75fb44 | — |
+| 400 | 2.600 | SKIP | Atlas Admin API rate limiting for scheduled polling | Atlas Slow-Query Log and Performance Advisor Automation | dr | frontier | mongodb-cohort-f2bea3de4b89 | — |
 | 401 | 2.600 | SKIP | Cross-vendor FOCUS pipelines (BigQuery/Snowflake) | Atlas Cost Commitments, Cross-Org Billing and FinOps Tooling; FinOps Tooling for Atlas (FOCUS Ingestion Anomaly Detection Budgets) | dr | frontier | mongodb-cohort-4612d59db35d | — |
 | 402 | 2.600 | SKIP | DynamoDB on-demand vs provisioned break-even | Atlas Cost Planning: Region Pricing, Estimation, Scheduled Scaling and Competitor TCO; Cross-Vendor Document Database Pricing Comparison (DocumentDB Cosmos DB DynamoDB) | dr | frontier | mongodb-cohort-97d0be9985d2 | — |
 | 403 | 2.600 | SKIP | FOCUS column mapping for Atlas credits | Atlas Cost Commitments, Cross-Org Billing and FinOps Tooling; FinOps Tooling for Atlas (FOCUS Ingestion Anomaly Detection Budgets) | dr | frontier | mongodb-cohort-019ea6c7f819 | — |
 | 404 | 2.600 | SKIP | Linking Atlas orgs to marketplace billing accounts | Atlas Cost Commitments, Cross-Org Billing and FinOps Tooling; Cloud Commit Drawdown via Atlas Marketplace (EDP MACC GCP commit) | dr | frontier | mongodb-cohort-019ea6c7f819 | — |
-| 405 | 2.550 | SKIP | Conftest/OPA rules over terraform show -json plans | Atlas Cost Commitments, Cross-Org Billing and FinOps Tooling; Terraform Tag Enforcement and Policy-as-Code for Atlas Cost | dr | frontier | mongodb-cohort-d8c01f75fb44 | — |
+| 405 | 2.550 | SKIP | Conftest/OPA rules over terraform show -json plans | Atlas Cost Commitments, Cross-Org Billing and FinOps Tooling; Terraform Tag Enforcement and Policy-as-Code for Atlas Cost | dr | frontier | mongodb-cohort-f2bea3de4b89 | — |
 | 406 | 2.550 | SKIP | Search node tier sizing for vector indexes | Atlas Cost Commitments, Cross-Org Billing and FinOps Tooling; Matryoshka Dimension Truncation for Vector Storage Cost | dr | frontier | mongodb-cohort-fb2e5c6c7cc5 | — |
 | 407 | 2.450 | SKIP | Backup storage rates by region | Atlas Cost Planning: Region Pricing, Estimation, Scheduled Scaling and Competitor TCO; Region and Cloud Provider Price Differentials for Atlas | dr | frontier | mongodb-cohort-a9c2cc4bbf19 | — |
 | 408 | 2.450 | SKIP | Cosmos DB RU estimation for MongoDB workloads | Atlas Cost Planning: Region Pricing, Estimation, Scheduled Scaling and Competitor TCO; Cross-Vendor Document Database Pricing Comparison (DocumentDB Cosmos DB DynamoDB) | dr | frontier | mongodb-cohort-97d0be9985d2 | — |
@@ -543,7 +549,7 @@ Every gap and review candidate appears below, including held, low-scored and uns
 | 410 | 2.450 | SKIP | Scheduled compliance polling and alerting | Atlas Cost Commitments, Cross-Org Billing and FinOps Tooling; Resource Policy Drift Monitoring (nonCompliantResources) | dr | frontier | mongodb-cohort-325a09333de2 | — |
 | 411 | 2.400 | RESEARCH | PostgreSQL invalid indexes from failed CONCURRENTLY builds | Resumable index builds | dr | frontier | mongodb-cohort-06b0f31e2303 | — |
 | 412 | 2.400 | RESEARCH | SQL Server resumable online index operations | Resumable index builds | dr | frontier | mongodb-cohort-e298d0919726 | — |
-| 413 | 2.400 | SKIP | Atlas Admin API pending-invoice tags field | Atlas Cost Commitments, Cross-Org Billing and FinOps Tooling; Terraform Tag Enforcement and Policy-as-Code for Atlas Cost | dr | frontier | mongodb-cohort-d8c01f75fb44 | — |
+| 413 | 2.400 | SKIP | Atlas Admin API pending-invoice tags field | Atlas Cost Commitments, Cross-Org Billing and FinOps Tooling; Terraform Tag Enforcement and Policy-as-Code for Atlas Cost | dr | frontier | mongodb-cohort-f2bea3de4b89 | — |
 | 414 | 2.350 | SKIP | Journal compression | Storage and Data-Lifecycle Cost Levers; WiredTiger Block and Prefix Compression as Storage Cost Lever | dr | frontier | mongodb-cohort-dab118cd8660 | — |
 | 415 | 2.300 | RESEARCH | PostgreSQL invalid-index cleanup and REINDEX CONCURRENTLY | Resumable index builds | dr | frontier | mongodb-cohort-e298d0919726 | — |
 | 416 | 2.300 | SKIP | Billing incidents and refunds | Atlas Billing and Invoice Anatomy; Atlas Billing Mechanics and Cost Visibility | dr | frontier | mongodb-cohort-3da97516cefc | — |
@@ -551,47 +557,47 @@ Every gap and review candidate appears below, including held, low-scored and uns
 | 418 | 2.200 | RESEARCH | SQL Server resumable index operations: ELEVATE_RESUMABLE and resumable constraints | Resumable index builds | dr | frontier | mongodb-cohort-e298d0919726 | — |
 | 419 | 2.150 | SKIP | Cosmos DB for MongoDB wildcard differences | MongoDB Wildcard and Hidden Indexes, Index Builds and Index Overhead | dr | frontier | mongodb-cohort-86b55445bd3c | — |
 | 420 | 2.000 | SKIP | Charts billing ingestion for linked orgs | Atlas Cost Commitments, Cross-Org Billing and FinOps Tooling; Cross-Organization Billing and Linked Invoices | dr | frontier | mongodb-cohort-3da97516cefc | — |
-| 421 | — | — | Atlas CLI | MongoDB Developer Patterns | dr | covered | mongodb-cohort-2ddeaf6aadac | — |
+| 421 | — | — | Atlas CLI | MongoDB Developer Patterns | revisit | refresh-review | mongodb-cohort-f2bea3de4b89 | — |
 | 422 | — | — | Atlas cluster tiers (M30) & major-version upgrade mechanics | MongoDB Expert Knowledge | dr | covered | mongodb-cohort-9edc5d1a1f81 | — |
 | 423 | — | — | Atlas Service Accounts | MongoDB Atlas | dr | covered | mongodb-cohort-bef2224dcee8 | — |
-| 424 | — | — | Atlas Triage Workflows | Atlas Diagnostics Expert | dr | covered | mongodb-cohort-2255fa8f9dbd | — |
+| 424 | — | — | Atlas Triage Workflows | Atlas Diagnostics Expert | revisit | refresh-review | mongodb-cohort-2255fa8f9dbd | — |
 | 425 | — | — | autoCompact and Replica-Set Write Blocking | MongoDB autoCompact | dr | covered | mongodb-cohort-924cda5ff47d | — |
 | 426 | — | — | autoCompact Atlas-Specific Behavior | MongoDB autoCompact | dr | covered | mongodb-cohort-4476e89804ea | — |
-| 427 | — | — | autoCompact Checkpoint Interaction | MongoDB autoCompact | dr | covered | mongodb-cohort-afc52fa5e292 | — |
+| 427 | — | — | autoCompact Checkpoint Interaction | MongoDB autoCompact | dr | covered | mongodb-cohort-25c35d51d44b | — |
 | 428 | — | — | autoCompact Cluster Topology Behavior | MongoDB autoCompact | dr | covered | mongodb-cohort-4476e89804ea | — |
 | 429 | — | — | autoCompact freeSpaceTargetMB Gating | MongoDB autoCompact | dr | covered | mongodb-cohort-4476e89804ea | — |
 | 430 | — | — | autoCompact Lifecycle and Persistence | MongoDB autoCompact | dr | covered | mongodb-cohort-4476e89804ea | — |
 | 431 | — | — | autoCompact runOnce vs Continuous Mode | MongoDB autoCompact | dr | covered | mongodb-cohort-1ff7eed674cb | — |
-| 432 | — | — | Background-Compaction Skip/EMA Heuristic | WiredTiger Compaction Algorithm | dr | covered | mongodb-cohort-acec48250f2d | — |
-| 433 | — | — | Delbridge Data API | Atlas Data API Removal | dr | covered | mongodb-cohort-2ddeaf6aadac | — |
-| 434 | — | — | Diagnostic Tool Design | Atlas Diagnostics Expert | dr | covered | mongodb-cohort-2255fa8f9dbd | — |
-| 435 | — | — | Driver Examples | MongoDB Transactions | dr | covered | mongodb-cohort-04412b477919 | — |
-| 436 | — | — | Error Codes and Troubleshooting | MongoDB Developer Patterns | dr | covered | mongodb-cohort-aadbc815fdee | — |
-| 437 | — | — | Express MongoDB Driver Pattern | Atlas Data API Removal | dr | covered | mongodb-cohort-04412b477919 | — |
-| 438 | — | — | FastAPI Motor Pattern | Atlas Data API Removal | dr | covered | mongodb-cohort-2ddeaf6aadac | — |
-| 439 | — | — | FTDC and Log Tooling | Atlas Diagnostics Expert | dr | covered | mongodb-cohort-2255fa8f9dbd | — |
-| 440 | — | — | KB-Backed Troubleshooting | Atlas Diagnostics Expert | dr | covered | mongodb-cohort-2255fa8f9dbd | — |
+| 432 | — | — | Background-Compaction Skip/EMA Heuristic | WiredTiger Compaction Algorithm | revisit | refresh-review | mongodb-cohort-acec48250f2d | — |
+| 433 | — | — | Delbridge Data API | Atlas Data API Removal | dr | covered | mongodb-cohort-816c84e8e2ba | — |
+| 434 | — | — | Diagnostic Tool Design | Atlas Diagnostics Expert | revisit | refresh-review | mongodb-cohort-2255fa8f9dbd | — |
+| 435 | — | — | Driver Examples | MongoDB Transactions | dr | covered | mongodb-cohort-ce699f367ef9 | — |
+| 436 | — | — | Error Codes and Troubleshooting | MongoDB Developer Patterns | revisit | refresh-review | mongodb-cohort-aadbc815fdee | — |
+| 437 | — | — | Express MongoDB Driver Pattern | Atlas Data API Removal | dr | covered | mongodb-cohort-ce699f367ef9 | — |
+| 438 | — | — | FastAPI Motor Pattern | Atlas Data API Removal | dr | covered | mongodb-cohort-816c84e8e2ba | — |
+| 439 | — | — | FTDC and Log Tooling | Atlas Diagnostics Expert | revisit | refresh-review | mongodb-cohort-2255fa8f9dbd | — |
+| 440 | — | — | KB-Backed Troubleshooting | Atlas Diagnostics Expert | revisit | refresh-review | mongodb-cohort-2255fa8f9dbd | — |
 | 441 | — | — | MongoDB 8.0 performance changes & read-path regressions vs 7.0 | MongoDB Expert Knowledge | dr | covered | mongodb-cohort-9926293a8ae6 | — |
 | 442 | — | — | MongoDB Atlas Analytics Node | MongoDB Atlas | dr | covered | mongodb-cohort-5432c1b568fa | — |
-| 443 | — | — | MongoDB Atlas Data Federation | MongoDB Atlas | dr | covered | mongodb-cohort-9ee49621e5ca | — |
+| 443 | — | — | MongoDB Atlas Data Federation | MongoDB Atlas | revisit | refresh-review | mongodb-cohort-9ee49621e5ca | — |
 | 444 | — | — | MongoDB Atlas Triggers and Functions | MongoDB Atlas | dr | covered | mongodb-cohort-5432c1b568fa | — |
 | 445 | — | — | MongoDB autoCompact | MongoDB Expert Knowledge | dr | covered | mongodb-cohort-9926293a8ae6 | — |
 | 446 | — | — | MongoDB Backup and Restore | MongoDB Atlas | dr | covered | mongodb-cohort-b40001359bc9 | — |
 | 447 | — | — | MongoDB Connection String URI | MongoDB Expert Knowledge | dr | covered | mongodb-cohort-9926293a8ae6 | — |
-| 448 | — | — | MongoDB Driver Internals | MongoDB Developer Patterns | dr | covered | mongodb-cohort-04412b477919 | — |
-| 449 | — | — | MongoDB Drivers | MongoDB Developer Patterns | dr | covered | mongodb-cohort-04412b477919 | — |
-| 450 | — | — | MongoDB Java driver 5.x version timeline & 8.0 compatibility | MongoDB Expert Knowledge | dr | covered | mongodb-cohort-ce6ef807793d | — |
+| 448 | — | — | MongoDB Driver Internals | MongoDB Developer Patterns | dr | covered | mongodb-cohort-ce699f367ef9 | — |
+| 449 | — | — | MongoDB Drivers | MongoDB Developer Patterns | revisit | refresh-review | mongodb-cohort-34d60aede5df | — |
+| 450 | — | — | MongoDB Java driver 5.x version timeline & 8.0 compatibility | MongoDB Expert Knowledge | dr | covered | mongodb-cohort-ce699f367ef9 | — |
 | 451 | — | — | MongoDB Performance Benchmarking | MongoDB Expert Knowledge | dr | covered | mongodb-cohort-9926293a8ae6 | — |
 | 452 | — | — | MongoDB Performance Regression Detection and Testing Methodology | MongoDB Performance Benchmarking | dr | covered | mongodb-cohort-123beacc8566 | — |
 | 453 | — | — | MongoDB Performance Troubleshooting | MongoDB Expert Knowledge | dr | covered | mongodb-cohort-993d4fac083c | — |
 | 454 | — | — | MongoDB Spark Connector and Databricks Integration | MongoDB Developer Patterns | dr | covered | mongodb-cohort-9145188a1779 | — |
 | 455 | — | — | MongoDB Stress, Soak, and Chaos-Resilience Testing | MongoDB Expert Knowledge | dr | covered | mongodb-cohort-01ed1ee15811 | — |
-| 456 | — | — | mongosh Reference | MongoDB Developer Patterns | dr | covered | mongodb-cohort-065b5964e6f4 | — |
+| 456 | — | — | mongosh Reference | MongoDB Developer Patterns | revisit | refresh-review | mongodb-cohort-065b5964e6f4 | — |
 | 457 | — | — | Performance Impact | MongoDB Transactions | dr | covered | mongodb-cohort-f0e4301e68e0 | — |
 | 458 | — | — | RESTHeart | Atlas Data API Removal | dr | covered | mongodb-cohort-9d1235b3ac64 | — |
 | 459 | — | — | Retryable Transactions | MongoDB Transactions | dr | covered | mongodb-cohort-cf716ce2ed75 | — |
 | 460 | — | — | Transaction Limits | MongoDB Transactions | dr | covered | mongodb-cohort-cf716ce2ed75 | — |
-| 461 | — | — | WiredTiger Compaction Algorithm | MongoDB autoCompact | dr | covered | mongodb-cohort-afc52fa5e292 | — |
+| 461 | — | — | WiredTiger Compaction Algorithm | MongoDB autoCompact | revisit | refresh-review | mongodb-cohort-5c4fb85a6f32 | — |
 
 ## Original labels and parent provenance
 
