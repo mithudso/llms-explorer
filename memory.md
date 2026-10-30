@@ -1,5 +1,18 @@
 # Memory
 
+## v0.22.77 - 2026-10-30
+
+- Independent scope audit found11initial coverage skips requiring further work:5generic-template false coverage,4minimal legacy claims to verify/repair and2source-specific compaction gaps. Corrected execution accounting is332direct targets,5owner-dependent labels and124prior checkpoints within the same461frozen identities.132initial metadata skips must not all be presented as current qualified research.
+- Scope audit and precise owner/claim mappings: /Users/mitch/.global-ai-hub/research/.ranked/mongodb-unheld-20261030/scope-audit.json. KNOW-965 records the concrete false-coverage trigger. Internal STOP waits for the first current cohort boundary so plan reconciliation occurs under the runner lock. Resume the entire plan immediately after correction; preserve all paid work and immutable original inventory.
+- Steps: [completed] exact queue freeze and source audit; [in progress] research, coverage repair and current gates; [open] qualified persistence and final delivery. TASK-962done, TASK-963claimed, TASK-960stillinprogress. Delta:0.22.76to0.22.77; prompt77unchanged.
+
+## v0.22.76 - 2026-10-30
+
+- User selected all unheld repository MongoDB queue entries. Frozen461 identities:321 executable gaps,8 novelty-zero reviews,132 coverage checkpoints;619held excluded. All329gaps have CVS; no minimum cutoff. Source-sharing plan has115runnable cohorts plus review and covered groups.
+- Execution worktree /Users/mitch/dev/worktrees/llms-explorer-mongodb-unheld-20261030 from5f9f85c6 preserves separate root snapshot178d8fa. Native runner has source/gate/export/local-publication checkpoints; preserve Hermes deferral through RESEARCH_SITE_DEFER_CONCEPTS. Old Oct14 suite and indexing/embeddings stay paused.
+- Continuation: /Users/mitch/.global-ai-hub/research/.ranked/mongodb-unheld-20261030/memory.md and plan.json. Reconcile frozen input hashes and per-cohort evidence before resuming; never recreate the plan or repeat accepted research.
+- Steps: [in progress] reconcile scope and duplicate reviews; [open] research and gates; [open] qualified export, verification and delivery. TASK-960 parent, TASK-962 scope. Delta:0.22.75 to0.22.76; prompt76to77.
+
 ## v0.22.75 - 2026-10-29
 
 - All local verification passes:280 site tests, complete site build/publication policy, full12,733-file real25-term privacy scan and independent export/projection audit. Three concepts /32 facts are qualified and persisted in both roots; final site2206 nodes /1884 readers /95480 facts. Existing eight Medium llms build findings remain unchanged; no High findings. Keyword entries retain the existing2500-character limit; semantic indexing stays paused and no embedding calls ran.
