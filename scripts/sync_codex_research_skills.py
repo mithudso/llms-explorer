@@ -95,6 +95,13 @@ the adaptive lane, so its standard default is 1 (two research passes in total).
 
 ## Research and shared resources
 
+Generated briefs use the same domain policy as mechanical source qualification.
+Software requires one independent organization with primary docs/repository evidence;
+security and scientific research require two. The depth contract separately sets
+the distinct meaningful source-URL floor. Mirrors, repositories and tracker hosts
+do not create additional organizations. These rules do not waive negation,
+exact claim evidence or the full commissioned question.
+
 Finish freezes research-artifact/v1 from current canonical statements and the
 current bound gate. Immutable claim IDs identify exact statement versions; concept
 IDs follow the hub tree's stable owner. SUPPORTED and NOT-SAMPLED stay distinct.

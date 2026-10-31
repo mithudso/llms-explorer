@@ -1,5 +1,11 @@
 # Memory
 
+## v0.22.91 - 2026-10-31
+
+- TASK990 fixes contradictory generated source briefs. The inherited template required all sources to come from different organizations, while the adapter enforces one primary organization for software and two for security/scientific research. Generated research briefs now use information_policy, retain the distinct meaningful URL depth floor and negation rounds, and preserve exact claim/full-scope gates. Actual generated briefs and mechanical decisions agree for all three domains; explicit stronger document-domain declarations remain enforced.
+- All62isolated transport/research-flow regressions and6subtests pass, including the actual shared-runtime brief checks. Ruff and the27-file research skill mirror check pass. No paid source/research/gate call or global template/configuration write was needed. Historical briefs and attempts remain unchanged. Current workers correct only affected metadata and bind their new final documents through fresh gates.
+- The independent R3 review identifies a source-feasible pinned diagnostic-build WT page-dump competency and a fresh Atlas LDAP coexistence primary-documentation conflict. The latter is not resolved by existing self-managed9.0/X.509 research. Keep both Atlas universal coexistence and incompatibility unsettled until exact applicability is established. Further source/coverage review continues; no saturation or completion claim. Delta:0.22.90 to0.22.91.
+
 ## v0.22.90 - 2026-10-31
 
 - Qualified checkpoint94cohorts/237concepts/3596claims passes the complete site build, publication policy and all296post-build tests. All canonical judgments retain3199SUPPORTED and397ordinaryNOT-SAMPLED distinctions. Exact changed paths are qualified before explicit staging; no raw source or private operational packet is published. Resume serial exports after push; periodic scouting and private research remain active throughout.

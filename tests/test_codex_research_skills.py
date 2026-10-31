@@ -439,6 +439,33 @@ class ResearchFlowTests(unittest.TestCase):
             self.assertIn("Do not infer unsupported attributions", brief)
             self.assertNotIn("OUT_OF_SCOPE_TEST_SENTINEL", brief)
 
+    def test_generated_source_authority_matches_enforced_domain_policy(self):
+        manifest = self.shared.load_manifest("publication")
+        for name, domain, origins in (("Query planner", "software", 1),
+                                      ("Authentication methods", "security", 2),
+                                      ("Clinical evidence", "scientific", 2)):
+            with self.subTest(domain=domain):
+                concept = {"name": name, "slug": "policy-example", "status": "pending"}
+                brief = self.shared.build_brief(manifest, concept)
+                self.assertIn("at least 3 distinct meaningful source URLs", brief)
+                self.assertIn(f"SOURCE AUTHORITY CONTRACT ({domain})", brief)
+                self.assertIn(f"at least {origins} independent organization(s)", brief)
+                self.assertNotIn("different organisations", brief)
+                self.assertIn("negation round", brief)
+                doc = {"concept": name, "sources": [
+                    {"url": f"https://example.test/source-{i}", "tier": "docs",
+                     "origin_id": "one-organization"} for i in range(3)],
+                     "claims": [{"text": f"Distinct statement {i}."} for i in range(8)]}
+                reasons = adapter.marginal_reasons(doc, manifest["depth_contract"])
+                self.assertEqual(any("independent origins" in reason for reason in reasons), origins == 2)
+
+    def test_explicit_research_domain_uses_the_stronger_brief_policy(self):
+        brief = adapter.source_authority_brief("Depth source floor stays unchanged.",
+                                               {"name": "Access controls", "research_domain": "security"})
+        self.assertIn("SOURCE AUTHORITY CONTRACT (security)", brief)
+        self.assertIn("at least 2 independent organization(s)", brief)
+        self.assertIn("Depth source floor stays unchanged.", brief)
+
     def test_scout_hit_runs_exactly_one_seeded_second_pass_and_merges(self):
         url = "https://engineering.example/deep-rename"
         self.scout["candidates"].append({"url": url, "tier": "blog", "why": "Durability edge case"})
