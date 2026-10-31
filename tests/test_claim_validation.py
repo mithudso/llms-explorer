@@ -147,3 +147,23 @@ def test_pack_change_makes_marker_stale(hub):
     cv.mirror(hub)
     node = next(n for n in json.loads(hub["tree"].read_text()) if n["slug"] == "aggregation")
     assert node["claimValidation"]["status"] == "stale"
+
+
+def test_inline_cited_unit_strips_url_and_report_anchors():
+    claim = cv.parse_unit({"id": "b", "text": "An app needs one provider. https://docs.example/users/ [M:18, H:2]",
+                           "source_url": "file:///synthesis.md"})
+    assert claim == {"unit_id": "b", "text": "An app needs one provider.", "sources": ["https://docs.example/users/"]}
+    assert cv.parse_unit({"id": "c", "text": "Concept: `x` Parent context: y"})["sources"] == []
+
+
+def test_older_parser_record_is_revalidated(hub):
+    def raw_for(claim):
+        return {"claim_id": claim["claim_id"], "verdict": "SUPPORTED", "rationale": "The source states it verbatim.",
+                "evidence": [{"url": claim["sources"][0], "quote": claim["text"]}]}
+
+    record, _ = _validated(hub, raw_for)
+    assert record["parser"] == cv.PARSER_VERSION and record["uncited"] == 0
+    sidecar = json.loads(hub["sidecar"].read_text())
+    sidecar["aggregation"]["parser"] = cv.PARSER_VERSION - 1
+    hub["sidecar"].write_text(json.dumps(sidecar))
+    assert cv.inventory(hub, cv.DEFAULT_ROOT)[1]["state"] == "stale"

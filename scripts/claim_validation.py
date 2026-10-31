@@ -54,12 +54,16 @@ def _load(name: str, path: Path):
 gate = _load("research_gate", HERE / "research_gate.py")
 
 SCHEMA = "claim-validation/v1"
+# Bump when claim extraction changes: older records are then revalidated.
+PARSER_VERSION = 2
+UNCITED = "The pack unit cites no http source."
 DEFAULT_ROOT = "MongoDB Expert Knowledge"
 PART_SIZE = 25
 LEASE_MINUTES = 90
 FRESH_PACK_SECONDS = 1800  # a pack rewritten in the last 30 min may still be changing
 FETCH_LOCK = threading.Lock()  # one live fetch at a time across concept threads
-URL_RE = re.compile(r"https?://[^\s<>\"'`]+")
+URL_RE = re.compile(r"https?://[^\s<>\"'`)\]]+")
+ANCHOR_RE = re.compile(r"\s*\[(?:[A-Z]{1,2}:\s*[\d\-–, ]+(?:,\s*)?)+\]")
 TAG_RE = re.compile(r"^\s*\[(?:low|medium|high)\]\s*", re.IGNORECASE)
 
 
@@ -142,7 +146,13 @@ def parse_unit(unit: dict) -> dict:
     """Canonical claim text and cited http sources of one pack unit."""
     raw = unit.get("text", "")
     body, _, tail = raw.partition(" Sources: ")
-    sources = [u.rstrip(".,;)") for u in URL_RE.findall(tail)]
+    if URL_RE.search(tail):
+        sources = [u.rstrip(".,;)") for u in URL_RE.findall(tail)]
+    else:
+        # Older synthesis units cite inline: "claim text https://... [M:17]".
+        body = raw
+        sources = [u.rstrip(".,;)") for u in URL_RE.findall(raw)]
+        body = ANCHOR_RE.sub("", URL_RE.sub("", body)).strip()
     source_url = str(unit.get("source_url") or "")
     if source_url.startswith(("http://", "https://")):
         sources.append(source_url)
@@ -167,7 +177,8 @@ def pack_claims(path: Path) -> list[dict]:
 
 
 def is_current(record: dict | None, sha: str) -> bool:
-    return bool(record) and record.get("status") == "validated" and record.get("packSha256") == sha
+    return (bool(record) and record.get("status") == "validated" and record.get("packSha256") == sha
+            and record.get("parser") == PARSER_VERSION)
 
 
 def lease_live(record: dict | None, at: datetime | None = None) -> bool:
@@ -376,7 +387,9 @@ def bind(packet: dict, root: Path, raw: dict[str, dict]) -> tuple[dict, int]:
     for claim in packet["claims"]:
         judged = raw.get(claim["claim_id"])
         available = [u for u in claim["sources"] if sources[u]["available"]]
-        if not available:
+        if not claim["sources"]:
+            verdict, rationale, spans = "UNVERIFIED", UNCITED, []
+        elif not available:
             verdict, rationale, spans = "UNVERIFIED", "No cited http source has a usable pinned snapshot.", []
         elif not judged or judged.get("verdict") not in gate.VERDICTS:
             verdict, rationale, spans = "UNVERIFIED", "The validator returned no usable verdict for this claim.", []
@@ -416,7 +429,8 @@ def record_result(p: dict, row: dict, root: Path, packet: dict, response: dict, 
               "clean": report["all_supported"], "packSha256": packet["pack_sha256"],
               "claims": len(packet["claims"]), "counts": counts, "failing": failing,
               "pack": str(units_path(p, row["slug"])),
-              "downgraded": downgraded, "validatedAt": now(),
+              "downgraded": downgraded, "validatedAt": now(), "parser": PARSER_VERSION,
+              "uncited": sum(not c["sources"] for c in packet["claims"]),
               "attempt": str(root.relative_to(p["hub"])),
               "cost_usd": round(sum(a.get("cost_usd") or 0 for a in agents), 4),
               "models": sorted({str(a["model"]) for a in agents if a.get("model")})}
@@ -504,7 +518,8 @@ def tree_marker(record: dict) -> dict:
     counts = record.get("counts") or {}
     return {"status": record.get("status"), "schema": SCHEMA, "clean": record.get("clean"),
             "claims": record.get("claims"), "supported": counts.get("SUPPORTED", 0),
-            "failing": len(record.get("failing") or []), "packSha256": record.get("packSha256"),
+            "failing": len(record.get("failing") or []), "uncited": record.get("uncited", 0),
+            "packSha256": record.get("packSha256"),
             "validatedAt": record.get("validatedAt")}
 
 
@@ -555,6 +570,7 @@ def summary(rows: list[dict], sidecar: dict) -> dict:
             "clean": sum(bool(r.get("clean")) for r in done),
             "claims_validated": sum(r.get("claims", 0) for r in done),
             "claims_failing": sum(len(r.get("failing") or []) for r in done),
+            "claims_uncited": sum(r.get("uncited", 0) for r in done),
             "cost_usd": round(sum(r.get("cost_usd") or 0 for r in done), 2)}
 
 
